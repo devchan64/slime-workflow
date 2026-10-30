@@ -91,6 +91,11 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     current_metrics_recorder.update_generation_stage('saving')
     save_kimodo_npz(str(current_attempt_root/'motion.npz'),current_motion_output)
     write_record_atomically(current_attempt_root/'skeleton.json',{'skeleton':'somaskel77','fps':30,'parents':current_joint_parents,'joint_names':current_joint_names})
+    if current_request_record.get('remove_horizontal_motion',False):
+        from generators.kimodo.motion_processing import remove_horizontal_translation
+        current_corrected_output = remove_horizontal_translation(current_motion_output,current_joint_names)
+        save_kimodo_npz(str(current_attempt_root/'motion-in-place.npz'),current_corrected_output)
+        current_joint_positions = current_corrected_output['posed_joints']
     current_frame_arrays = render_kimodo_frames(current_joint_positions,current_joint_parents)
     current_frame_hashes = save_video_outputs(current_attempt_root,current_frame_arrays,30)
     shutil.copy2(current_attempt_root/'preview.mp4',current_attempt_root/'joint-preview.mp4')
@@ -101,10 +106,12 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     from generators.kimodo.comparison import export_pose_comparison
     export_pose_comparison(current_attempt_root,current_request_record.get('directions',['front_left']))
     with zipfile.ZipFile(current_attempt_root/'frames.zip','a') as current_output_archive:
+        if current_request_record.get('remove_horizontal_motion',False):
+            current_output_archive.write(current_attempt_root/'motion-in-place.npz','motion-in-place.npz')
         for current_artifact_name in ('motion.npz','skeleton.json','prompt.json','text-embedding.npy'):
             current_output_archive.write(current_attempt_root/current_artifact_name,current_artifact_name)
         for current_artifact_name in ('soma-pose.json','comparison.mp4','joint-preview.mp4'):
             current_output_archive.write(current_attempt_root/current_artifact_name,current_artifact_name)
     current_result_record = {'attempt':current_attempt_root.name,'frames':current_request_record['frames'],'fps':30,'width':640,'height':480,'frame_sha256':current_frame_hashes,'model':'nvidia/Kimodo-SOMA-RP-v1.2','encoder':'matbee/kimodo-llm2vec-nf4','encoder_quantization':'NF4','motion_precision':'FP32','source_revision':KIMODO_ASSET_CONFIG['source_revision'],'model_revisions':{current_asset_record['role']:current_asset_record['revision'] for current_asset_record in KIMODO_ASSET_CONFIG['models']},'skeleton':'somaskel77','compute_device':'cuda','post_processing':current_request_record['post_processing'],'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20}
-    current_result_record.update(directions=current_request_record.get('directions',['front_left']),pose_source='soma',anny_enabled=False)
+    current_result_record.update(remove_horizontal_motion=current_request_record.get('remove_horizontal_motion',False),directions=current_request_record.get('directions',['front_left']),pose_source='soma',anny_enabled=False)
     return current_result_record

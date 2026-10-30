@@ -1,14 +1,14 @@
-"""SOMA77 원본 위치를 BODY_18 몸 포즈로 직접 투영한다. 얼굴 점은 합성하지 않는다."""
+"""SOMA77 원본 위치를 BODY_18 몸 포즈로 직접 투영한다. 머리 기준점과 실제 눈 관절을 포함한다."""
 import json
 from pathlib import Path
 import numpy as np
 from generators.kimodo.contracts import KIMODO_DIRECTION_RECORDS
 
 # OpenPose 순서: 코·목·오른팔·왼팔·오른다리·왼다리·눈·귀.
-SOMA_BODY_JOINT_NAMES = (None,None,'RightArm','RightForeArm','RightHand','LeftArm','LeftForeArm','LeftHand','RightLeg','RightShin','RightFoot','LeftLeg','LeftShin','LeftFoot',None,None,None,None)
+SOMA_BODY_JOINT_NAMES = ('Head',None,'RightArm','RightForeArm','RightHand','LeftArm','LeftForeArm','LeftHand','RightLeg','RightShin','RightFoot','LeftLeg','LeftShin','LeftFoot','RightEye','LeftEye',None,None)
 SOMA_POSE_IMAGE_SIZE = 512
 SOMA_POSE_FRAME_MARGIN = 32
-SOMA_POSE_SCHEMA_VERSION = 'soma-body18-v1'
+SOMA_POSE_SCHEMA_VERSION = 'soma-body18-v2'
 
 
 def project_soma_body_points(current_joint_positions,current_joint_names,current_direction_name):
@@ -31,8 +31,8 @@ def project_soma_body_points(current_joint_positions,current_joint_names,current
     current_maximum_bounds=current_frame_bounds.max(axis=(0,1))
     current_render_scale=(SOMA_POSE_IMAGE_SIZE-2*SOMA_POSE_FRAME_MARGIN)/max(float((current_maximum_bounds-current_minimum_bounds).max()),0.1)
     current_output_points=np.zeros((len(current_joint_positions),18,3),dtype=float)
-    current_output_points[:,1:14,:2]=(current_screen_positions[:,1:14]-(current_minimum_bounds+current_maximum_bounds)/2)*current_render_scale+SOMA_POSE_IMAGE_SIZE/2
-    current_output_points[:,1:14,2]=1
+    current_output_points[:,:16,:2]=(current_screen_positions[:,:16]-(current_minimum_bounds+current_maximum_bounds)/2)*current_render_scale+SOMA_POSE_IMAGE_SIZE/2
+    current_output_points[:,:16,2]=1
     return current_output_points
 
 
@@ -41,6 +41,7 @@ def load_soma_pose_points(current_attempt_root,current_direction_names):
     current_skeleton_record=json.loads((current_attempt_root/'skeleton.json').read_text())
     if current_skeleton_record['skeleton']!='somaskel77' or current_skeleton_record['fps']!=30:
         raise ValueError('SOMA 골격 종류·FPS 오류')
-    with np.load(current_attempt_root/'motion.npz',allow_pickle=False) as current_motion_archive:
+    current_motion_path = current_attempt_root/('motion-in-place.npz' if (current_attempt_root/'motion-in-place.npz').is_file() else 'motion.npz')
+    with np.load(current_motion_path,allow_pickle=False) as current_motion_archive:
         current_joint_positions=current_motion_archive['posed_joints']
     return {current_direction_name:project_soma_body_points(current_joint_positions,current_skeleton_record['joint_names'],current_direction_name) for current_direction_name in current_direction_names}

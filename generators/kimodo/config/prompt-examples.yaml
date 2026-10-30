@@ -4,18 +4,20 @@ examples:
     label: 제자리 서 있기 · 6초
     prompt: A person stands still in a relaxed upright posture.
     frames: 180
-  - id: walking
-    label: 앞으로 걷기 · 3초
-    prompt: A person walks forward.
-    frames: 90
   - id: breathing
     label: 심호흡 · 6초
     prompt: A person stands upright and breathes deeply, keeping their head upright.
     frames: 180
-  # 기준 생성: 2026-10-30_00-05-30-ed8f4f66
-  # 실행값: steps=100, seed=42, guidance_scale=2.0, heading_degrees=0.0,
-  # post_processing=false, directions=[front_left]. 예시 불러오기는 프롬프트·프레임만 변경한다.
-  - id: overhead_stretch
-    label: 손깍지 기지개 · 10초
-    prompt: A person stands still, then interlaces their fingers and stretches their arms above their head, palms facing upward, holds briefly, and relaxes.
-    frames: 300
+  # 기준 생성: 2026-10-30_15-20-41-797e8f93
+  - id: male_runway_in_place
+    label: 남성 모델 제자리 걷기 · 왼쪽 45도 · 6초
+    prompt: A man walks steadily on a treadmill with a confident male runway model gait, upright posture, natural alternating strides and relaxed arm swings.
+    frames: 180
+    settings:
+      steps: 100
+      seed: 42
+      guidance_scale: 2.0
+      heading_degrees: 0.0
+      post_processing: false
+      directions: [front_left]
+      remove_horizontal_motion: true

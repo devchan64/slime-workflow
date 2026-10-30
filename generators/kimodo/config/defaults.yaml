@@ -7,3 +7,4 @@ guidance_scale: 2.0
 heading_degrees: 0.0
 post_processing: false
 directions: [front_left]
+remove_horizontal_motion: false

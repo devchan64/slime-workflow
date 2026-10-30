@@ -6,8 +6,8 @@ from PIL import Image, ImageDraw, ImageOps
 
 COMPARISON_PANEL_SIZE = 384
 COMPARISON_LABEL_HEIGHT = 24
-COMPARISON_LIMB_PAIRS = ((1,2),(1,5),(2,3),(3,4),(5,6),(6,7),(1,8),(8,9),(9,10),(1,11),(11,12),(12,13))
-COMPARISON_LIMB_COLORS = ('#ff0000','#ff5500','#ffaa00','#ffff00','#aaff00','#55ff00','#00ff00','#00ff55','#00ffaa','#00ffff','#00aaff','#0055ff')
+COMPARISON_LIMB_PAIRS = ((1,2),(1,5),(2,3),(3,4),(5,6),(6,7),(1,8),(8,9),(9,10),(1,11),(11,12),(12,13),(1,0),(0,14),(0,15))
+COMPARISON_LIMB_COLORS = ('#ff0000','#ff5500','#ffaa00','#ffff00','#aaff00','#55ff00','#00ff00','#00ff55','#00ffaa','#00ffff','#00aaff','#0055ff','#0000ff','#ff00ff','#aa00ff')
 
 
 def render_pose_comparison(current_attempt_root, current_image_records):
@@ -41,7 +41,7 @@ def export_pose_comparison(current_attempt_root,current_direction_names):
     from generators.kimodo.soma_pose import load_soma_pose_points, SOMA_POSE_SCHEMA_VERSION
     current_soma_points = load_soma_pose_points(current_attempt_root,current_direction_names)
     current_frame_count = len(next(iter(current_soma_points.values())))
-    current_pose_record = {'schema_version':SOMA_POSE_SCHEMA_VERSION,'fps':30,'width':512,'height':512,'projection':'orthographic-horizontal','source':'motion.npz:posed_joints','missing_points':[0,14,15,16,17],'directions':{current_direction_name:current_pose_values.tolist() for current_direction_name,current_pose_values in current_soma_points.items()}}
+    current_pose_record = {'schema_version':SOMA_POSE_SCHEMA_VERSION,'fps':30,'width':512,'height':512,'projection':'orthographic-horizontal','source':('motion-in-place.npz' if (current_attempt_root/'motion-in-place.npz').is_file() else 'motion.npz')+':posed_joints','missing_points':[16,17],'head_mapping':{'0':'Head (head-center proxy, not anatomical nose)','14':'RightEye','15':'LeftEye'},'directions':{current_direction_name:current_pose_values.tolist() for current_direction_name,current_pose_values in current_soma_points.items()}}
     current_temporary_path = current_attempt_root/'comparison.tmp.mp4'
     try:
         with imageio.get_reader(str(current_attempt_root/'joint-preview.mp4')) as current_soma_reader, imageio.get_writer(str(current_temporary_path),fps=30,codec='libx264',quality=8,macro_block_size=1) as current_video_writer:
@@ -54,7 +54,7 @@ def export_pose_comparison(current_attempt_root,current_direction_names):
                 current_output_image.paste(current_comparison_image,(COMPARISON_PANEL_SIZE*2,0))
                 current_soma_panel = ImageOps.contain(current_soma_image,(COMPARISON_PANEL_SIZE*2,COMPARISON_PANEL_SIZE))
                 current_output_image.paste(current_soma_panel,((COMPARISON_PANEL_SIZE*2-current_soma_panel.width)//2,COMPARISON_LABEL_HEIGHT))
-                ImageDraw.Draw(current_output_image).text((4,6),'SOMA ORIGINAL | FRONT + SIDE | synchronized frame',fill='black')
+                ImageDraw.Draw(current_output_image).text((4,6),'SOMA | FRONT + SIDE | synchronized frame',fill='black')
                 current_video_writer.append_data(np.asarray(current_output_image))
         current_temporary_path.replace(current_attempt_root/'comparison.mp4')
         (current_attempt_root/'soma-pose.json').write_text(json.dumps(current_pose_record))

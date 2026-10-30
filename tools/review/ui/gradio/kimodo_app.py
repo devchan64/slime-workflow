@@ -19,11 +19,11 @@ def execute_kimodo_command(current_command_name,current_payload_record):
     return execute_remote_management_command('kimodo',current_command_name,current_payload_record)
 
 
-def build_kimodo_payload(current_prompt_text,current_frame_count,current_step_count,current_seed_value,current_guidance_value,current_heading_value,current_postprocessing_value,current_direction_names=None):
+def build_kimodo_payload(current_prompt_text,current_frame_count,current_step_count,current_seed_value,current_guidance_value,current_heading_value,current_postprocessing_value,current_direction_names=None,current_horizontal_removal=False):
     for current_integer_value in (current_frame_count,current_step_count,current_seed_value):
         if type(current_integer_value) not in (int,float) or not float(current_integer_value).is_integer():
             raise ValueError('프레임·스텝·시드는 정수로 입력하세요.')
-    current_request_record = {'action':'generate','prompt':current_prompt_text,'frames':int(current_frame_count),'steps':int(current_step_count),'seed':int(current_seed_value),'guidance_scale':current_guidance_value,'heading_degrees':current_heading_value,'post_processing':current_postprocessing_value,'directions':list(KIMODO_DEFAULT_SETTINGS['directions']) if current_direction_names is None else current_direction_names}
+    current_request_record = {'remove_horizontal_motion':current_horizontal_removal,'action':'generate','prompt':current_prompt_text,'frames':int(current_frame_count),'steps':int(current_step_count),'seed':int(current_seed_value),'guidance_scale':current_guidance_value,'heading_degrees':current_heading_value,'post_processing':current_postprocessing_value,'directions':list(KIMODO_DEFAULT_SETTINGS['directions']) if current_direction_names is None else current_direction_names}
     validate_kimodo_request(current_request_record)
     return current_request_record
 
@@ -40,7 +40,7 @@ def describe_kimodo_prompt(current_prompt_text):
 
 def restore_kimodo_inputs(current_history_record):
     current_request_record = current_history_record['request']
-    return tuple(current_request_record[current_field_name] for current_field_name in ('prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'))+(current_request_record.get('directions',['front_left']),current_history_record['id'])
+    return tuple(current_request_record[current_field_name] for current_field_name in ('prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'))+(current_request_record.get('directions',['front_left']),current_request_record.get('remove_horizontal_motion',False),current_history_record['id'])
 
 
 def check_kimodo_readiness(current_model_ready,current_prompt_text,current_direction_names):
@@ -53,11 +53,16 @@ def load_kimodo_examples():
         raise ValueError('Kimodo 프롬프트 예시 계약 오류')
     current_example_mapping = {}
     for current_example_value in current_example_record['examples']:
-        if not isinstance(current_example_value,dict) or set(current_example_value)!={'id','label','prompt','frames'} or any(not isinstance(current_example_value[current_field_name],str) or not current_example_value[current_field_name].strip() for current_field_name in ('id','label','prompt')):
+        if not isinstance(current_example_value,dict) or set(current_example_value) not in ({'id','label','prompt','frames'},{'id','label','prompt','frames','settings'}) or any(not isinstance(current_example_value[current_field_name],str) or not current_example_value[current_field_name].strip() for current_field_name in ('id','label','prompt')):
             raise ValueError('Kimodo 예시 필드 오류')
         if current_example_value['id'] in current_example_mapping:
             raise ValueError('Kimodo 예시 ID 중복')
         build_kimodo_payload(current_example_value['prompt'],current_example_value['frames'],KIMODO_DEFAULT_SETTINGS['steps'],KIMODO_DEFAULT_SETTINGS['seed'],KIMODO_DEFAULT_SETTINGS['guidance_scale'],KIMODO_DEFAULT_SETTINGS['heading_degrees'],KIMODO_DEFAULT_SETTINGS['post_processing'])
+        if 'settings' in current_example_value:
+            current_settings_record = current_example_value['settings']
+            if not isinstance(current_settings_record,dict) or set(current_settings_record)!={'steps','seed','guidance_scale','heading_degrees','post_processing','directions','remove_horizontal_motion'}:
+                raise ValueError('Kimodo 예시 설정 필드 오류')
+            validate_kimodo_request({'action':'generate','prompt':current_example_value['prompt'],'frames':current_example_value['frames'],**current_settings_record})
         current_example_mapping[current_example_value['id']] = current_example_value
     return current_example_mapping
 
@@ -67,7 +72,8 @@ def apply_kimodo_example(current_example_identifier):
     if current_example_identifier not in current_example_mapping:
         raise ValueError('불러올 동작 예시를 선택하세요.')
     current_example_record = current_example_mapping[current_example_identifier]
-    return current_example_record['prompt'],current_example_record['frames']
+    current_settings_record = current_example_record.get('settings',{})
+    return (current_example_record['prompt'],current_example_record['frames'])+tuple(current_settings_record[current_field_name] if current_field_name in current_settings_record else gr.skip() for current_field_name in ('steps','seed','guidance_scale','heading_degrees','post_processing','directions','remove_horizontal_motion'))
 
 
 def describe_kimodo_duration(current_frame_count):
@@ -82,8 +88,10 @@ def render_kimodo_result(current_job_identifier,current_status_record,current_se
     if not current_comparison_url:
         return render_video_generation_result(current_job_identifier,current_status_record,current_server_address)+'<p>이 결과에는 오픈포즈 비교 영상이 없습니다.</p>'
     current_comparison_html = render_video_generation_result(current_job_identifier,{**current_status_record,'video':current_comparison_url},current_server_address)
-    current_pose_description = 'SOMA 원본(정면·측면) → SOMA 직접 투영 오픈포즈. 같은 프레임을 재생하며 카메라 높이·배율은 서로 다릅니다. 오픈포즈는 리타게팅 전 몸 관절이며 얼굴·손 상세 점은 포함하지 않습니다.' if current_status_record.get('pose_source')=='soma' else '이전 비교 결과: 오픈포즈는 리타게팅 후 ANNY 관절 투영입니다. SOMA 원본 패널은 결과에 따라 없을 수 있습니다.'
-    return '<p>'+current_pose_description+'</p>'+current_comparison_html+f'<p><a href="{html.escape(current_status_record["video"],quote=True)}" target="_blank">원본 MP4</a></p>'
+    current_pose_description = 'SOMA 원본(정면·측면) → SOMA 직접 투영 오픈포즈. 같은 프레임을 재생하며 카메라 높이·배율은 서로 다릅니다. 오픈포즈는 리타게팅 전 몸 관절이며 머리 기준점·눈 관절을 포함합니다. 코 위치는 Head 대리점이며 귀·손 상세 점은 없습니다.' if current_status_record.get('pose_source')=='soma' else '이전 비교 결과: 오픈포즈는 리타게팅 후 ANNY 관절 투영입니다. SOMA 원본 패널은 결과에 따라 없을 수 있습니다.'
+    if current_status_record.get('remove_horizontal_motion'):
+        current_pose_description = '수평 이동 제거 적용: SOMA·오픈포즈는 보정본입니다. 원본 motion.npz와 보정 motion-in-place.npz는 ZIP에 포함됩니다.'
+    return '<p>'+current_pose_description+'</p>'+current_comparison_html+f'<p><a href="{html.escape(current_status_record["video"],quote=True)}" target="_blank">SOMA MP4</a></p>'
 
 
 def build_kimodo_interface(current_server_address,current_command_callback=None):
@@ -105,7 +113,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         current_load_event = current_interface_blocks.load(refresh_kimodo_assets,outputs=[current_model_output,current_model_ready])
         current_example_mapping = load_kimodo_examples()
         with gr.Row():
-            current_example_selector = gr.Dropdown(choices=[(current_example_record['label'],current_example_name) for current_example_name,current_example_record in current_example_mapping.items()],value='standing',label='동작 예시',info='불러오면 프롬프트와 프레임만 변경합니다. 자동 생성하지 않습니다.')
+            current_example_selector = gr.Dropdown(choices=[(current_example_record['label'],current_example_name) for current_example_name,current_example_record in current_example_mapping.items()],value='standing',label='동작 예시',info='일반 예시는 프롬프트·프레임만, 남성 모델 걷기는 시드·방향·제자리 보정을 포함한 저장 설정 전체를 불러옵니다. 자동 생성하지 않습니다.')
             current_example_button = gr.Button('예시 불러오기')
         with gr.Row():
             with gr.Column(min_width=KIMODO_INPUT_MINIMUM_WIDTH):
@@ -117,15 +125,16 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         current_frame_control = gr.Number(label='프레임 수',value=KIMODO_DEFAULT_SETTINGS['frames'],minimum=30,maximum=300,precision=0,info='30fps: 90프레임=3초, 150프레임=5초, 300프레임=10초. 8GB의 모든 길이를 보장하지 않습니다.')
         current_duration_output = gr.Markdown(describe_kimodo_duration(KIMODO_DEFAULT_SETTINGS['frames']))
         current_frame_control.change(describe_kimodo_duration,current_frame_control,current_duration_output,queue=False)
-        current_example_button.click(apply_kimodo_example,current_example_selector,[current_prompt_control,current_frame_control],queue=False)
         current_seed_control = build_generation_seed(default_seed_value=KIMODO_DEFAULT_SETTINGS['seed'])
         with gr.Accordion('고급 설정',open=False):
             current_steps_control = gr.Number(label='샘플링 스텝',value=KIMODO_DEFAULT_SETTINGS['steps'],minimum=2,maximum=100,precision=0,info='공식 기본 100. 2스텝은 실행 연결 확인용이며 품질 평가에 사용하지 마세요.')
             current_guidance_control = gr.Number(label='텍스트 CFG',value=KIMODO_DEFAULT_SETTINGS['guidance_scale'],minimum=0,maximum=10,info='공식 기본 2. 텍스트 조건의 영향이며 원하는 동작의 성공을 보장하지 않습니다.')
             current_heading_control = gr.Number(label='초기 방향 (도)',value=KIMODO_DEFAULT_SETTINGS['heading_degrees'],minimum=-180,maximum=180,info='0은 +Z 방향. 시작 방향 조건이며 이후 방향을 계속 고정하는 기능이 아닙니다.')
             current_postprocessing_control = gr.Checkbox(label='공식 발 미끄러짐 후처리',value=KIMODO_DEFAULT_SETTINGS['post_processing'],info='기본 해제: 원본 동작 비교. 활성화하면 공식 후처리를 적용하고 실행 기록에 남깁니다.')
-            gr.Markdown('[공식 모델카드](https://huggingface.co/nvidia/Kimodo-SOMA-RP-v1.2) · [NF4 인코더](https://huggingface.co/matbee/kimodo-llm2vec-nf4)\n\nANNY 리그 기능은 폐기되었습니다. SOMA 몸 포즈에는 얼굴·손 상세 점이 포함되지 않습니다.\n\nNF4는 커뮤니티 양자화본입니다. BF16과 동작이 달라질 수 있으며 실제 품질은 결과를 검수하세요. 내부 30관절 추론을 공식 API가 77관절로 확장해 저장합니다.')
-        current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control]
+            gr.Markdown('[공식 모델카드](https://huggingface.co/nvidia/Kimodo-SOMA-RP-v1.2) · [NF4 인코더](https://huggingface.co/matbee/kimodo-llm2vec-nf4)\n\nANNY 리그 기능은 폐기되었습니다. SOMA 몸 포즈에는 머리 기준점·눈 관절이 포함됩니다. 코는 Head 대리점이며 귀·손 상세 점은 없습니다.\n\nNF4는 커뮤니티 양자화본입니다. BF16과 동작이 달라질 수 있으며 실제 품질은 결과를 검수하세요. 내부 30관절 추론을 공식 API가 77관절로 확장해 저장합니다.')
+        current_horizontal_control = gr.Checkbox(label='제자리 보행 보정 · 수평 이동 제거',value=KIMODO_DEFAULT_SETTINGS['remove_horizontal_motion'],info='골반의 X·Z 이동을 제거하고 상하 움직임·관절 회전을 유지합니다. 걷기 자체를 만들지는 않으며 발 미끄러짐을 검수하세요. 원본 모션은 ZIP에 보존합니다.')
+        current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control,current_horizontal_control]
+        current_example_button.click(apply_kimodo_example,current_example_selector,current_input_controls,queue=False)
         gr.Markdown('예시는 시작점입니다. 심호흡·서 있기에서도 머리나 몸이 움직일 수 있으므로 결과를 검수하세요.')
         current_generate_button = gr.Button('대기열에 추가',variant='primary',interactive=False)
         build_button_guidance(current_generate_button,'모델 자료와 전용 환경을 준비한 뒤 상태를 새로 확인하고 동작 프롬프트와 출력 방향을 한 개 이상 선택하세요.')

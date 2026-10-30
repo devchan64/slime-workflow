@@ -19,6 +19,32 @@ class KimodoGenerationContractTests(unittest.TestCase):
                 validate_kimodo_request({**self.current_request_record,current_field_name:current_field_value})
         self.assertEqual(validate_kimodo_request(self.current_request_record)['images'],[])
 
+    def test_horizontal_translation_preserves_motion(self):
+        import numpy as np
+        from generators.kimodo.motion_processing import remove_horizontal_translation
+        from tools.review.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs
+        current_joint_names = ['Hips']+[f'joint_{current_joint_index}' for current_joint_index in range(76)]
+        current_joint_positions = np.arange(3*77*3,dtype=float).reshape(3,77,3)
+        current_root_positions = current_joint_positions[:,0].copy()
+        current_rotation_values = np.ones((3,77,3,3))
+        current_motion_output = dict(posed_joints=current_joint_positions,root_positions=current_root_positions,smooth_root_pos=current_root_positions.copy(),local_rot_mats=current_rotation_values)
+        current_corrected_output = remove_horizontal_translation(current_motion_output,current_joint_names)
+        np.testing.assert_allclose(current_corrected_output['posed_joints'][:,0,0],current_root_positions[0,0])
+        np.testing.assert_allclose(current_corrected_output['posed_joints'][:,0,2],current_root_positions[0,2])
+        np.testing.assert_array_equal(current_corrected_output['posed_joints'][:,:,1],current_joint_positions[:,:,1])
+        np.testing.assert_allclose(current_corrected_output['posed_joints']-current_corrected_output['root_positions'][:,None,:],current_joint_positions-current_root_positions[:,None,:])
+        np.testing.assert_array_equal(current_corrected_output['local_rot_mats'],current_rotation_values)
+        np.testing.assert_array_equal(current_motion_output['posed_joints'],np.arange(3*77*3).reshape(3,77,3))
+        current_legacy_request = dict(self.current_request_record)
+        current_legacy_request.pop('remove_horizontal_motion')
+        self.assertFalse(validate_kimodo_request(current_legacy_request)['remove_horizontal_motion'])
+        self.assertFalse(restore_kimodo_inputs({'id':'old','request':current_legacy_request})[-2])
+        current_enabled_request = {**self.current_request_record,'remove_horizontal_motion':True}
+        current_restored_inputs = restore_kimodo_inputs({'id':'new','request':current_enabled_request})[:-1]
+        self.assertEqual(build_kimodo_payload(*current_restored_inputs),current_enabled_request)
+        with self.assertRaises(ValueError):
+            validate_kimodo_request({**self.current_request_record,'remove_horizontal_motion':1})
+
     def test_gateway_and_service_contract(self):
         self.assertEqual(resolve_management_command('kimodo','generate',self.current_request_record),('POST','/kimodo/jobs'))
         self.assertTrue({'history-delete','history-reset','prioritize','resume','cancel'} <= set(MANAGEMENT_SERVICE_COMMANDS['kimodo']))
@@ -62,8 +88,14 @@ class KimodoGenerationContractTests(unittest.TestCase):
     def test_examples_update_only_prompt_and_frames(self):
         from tools.review.ui.gradio.kimodo_app import apply_kimodo_example,describe_kimodo_duration,load_kimodo_examples
         current_example_records=load_kimodo_examples()
-        self.assertEqual(set(current_example_records),{'standing','walking','breathing','overhead_stretch'})
-        self.assertEqual(apply_kimodo_example('standing'),('A person stands still in a relaxed upright posture.',180))
+        self.assertEqual(set(current_example_records),{'standing','male_runway_in_place','breathing'})
+        self.assertEqual(apply_kimodo_example('standing')[:2],('A person stands still in a relaxed upright posture.',180))
+        from tools.review.ui.gradio.kimodo_app import build_kimodo_payload
+        current_example_payload = build_kimodo_payload(*apply_kimodo_example('male_runway_in_place'))
+        self.assertEqual(current_example_payload['directions'],['front_left'])
+        self.assertTrue(current_example_payload['remove_horizontal_motion'])
+        self.assertEqual(current_example_payload['steps'],100)
+        self.assertEqual(current_example_payload['heading_degrees'],0.0)
         self.assertIn('6초',describe_kimodo_duration(180))
         self.assertIn('정수',describe_kimodo_duration(30.5))
         self.assertIn('정수',describe_kimodo_duration(None))
@@ -77,7 +109,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
         current_legacy_request=dict(self.current_request_record)
         current_legacy_request.pop('directions')
         self.assertEqual(validate_kimodo_request(current_legacy_request)['directions'],['front_left'])
-        self.assertEqual(restore_kimodo_inputs({'id':'old','request':current_legacy_request})[-2],['front_left'])
+        self.assertEqual(restore_kimodo_inputs({'id':'old','request':current_legacy_request})[-3],['front_left'])
         self.assertEqual(validate_kimodo_request({**self.current_request_record,'directions':['front','right']})['directions'],['front','right'])
 
     def test_comparison_projection_and_missing_points(self):
@@ -113,7 +145,8 @@ class KimodoGenerationContractTests(unittest.TestCase):
         current_joint_positions=np.zeros((2,77,3))
         current_joint_positions[1,:,0]=1
         current_pose_points=project_soma_body_points(current_joint_positions,current_joint_names,'front')
-        self.assertTrue(np.all(current_pose_points[:,[0,14,15,16,17]]==0))
+        self.assertTrue(np.all(current_pose_points[:,[16,17]]==0))
+        self.assertTrue(np.all(current_pose_points[:,[0,14,15],2]==1))
         self.assertGreater(current_pose_points[1,4,0],current_pose_points[0,4,0])
         np.testing.assert_allclose(current_pose_points[:,1,:2],(current_pose_points[:,2,:2]+current_pose_points[:,5,:2])/2)
         current_joint_positions[0,0,0]=float('nan')
