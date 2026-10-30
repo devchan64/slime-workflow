@@ -16,6 +16,7 @@ FUN_MODEL_FILES = {
     'vae': ('.model/wan22-animate-components/split_files/vae/wan_2.1_vae.safetensors', 253815318),
 }
 FUN_DEFAULT_SETTINGS = {'frames': 21, 'steps': 20, 'seed': 42, 'flow_shift': 5.0, 'guidance_scale': 6.0, 'switch_ratio': 0.5}
+FUN_MAX_FRAME_COUNT = 129
 FUN_CONTROL_TYPES = ('pose', 'depth', 'canny', 'mlsd')
 
 
@@ -49,7 +50,7 @@ def validate_fun_request(current_request_record):
             raise ValueError('프롬프트는 8000자 이하 문자열이어야 합니다.')
     if not current_request_record['prompt'].strip():
         raise ValueError('장면 프롬프트를 입력하세요.')
-    for current_field_name, minimum_field_value, maximum_field_value in [('frames', 5, 81), ('steps', 2, 100), ('seed', 0, 2147483647), ('width', 832, 832), ('height', 480, 480)]:
+    for current_field_name, minimum_field_value, maximum_field_value in [('frames', 5, FUN_MAX_FRAME_COUNT), ('steps', 2, 100), ('seed', 0, 2147483647), ('width', 832, 832), ('height', 480, 480)]:
         current_field_value = current_request_record[current_field_name]
         if type(current_field_value) is not int or not minimum_field_value <= current_field_value <= maximum_field_value:
             raise ValueError(f'{current_field_name}: {minimum_field_value}~{maximum_field_value} 정수가 필요합니다.')

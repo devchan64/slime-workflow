@@ -6,11 +6,12 @@ import cv2
 import numpy as np
 from PIL import Image, ImageOps
 import gradio as gr
-from generators.wan_fun.contracts import FUN_JOB_STORAGE, FUN_DEFAULT_SETTINGS, FUN_CONTROL_TYPES, validate_fun_request
+from generators.wan_fun.contracts import FUN_JOB_STORAGE, FUN_DEFAULT_SETTINGS, FUN_CONTROL_TYPES, FUN_MAX_FRAME_COUNT, validate_fun_request
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_button_guidance import build_button_guidance
 from tools.review.common.gradio_seed import build_generation_seed
+from tools.review.common.gradio_input_preview import build_input_preview
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_logs import build_execution_logs
 from tools.review.common.gradio_video_results import describe_video_generation_status, render_video_generation_result
@@ -39,8 +40,8 @@ def build_fun_payload(current_reference_path, current_video_path, current_frame_
         if isinstance(current_integer_value, bool) or not isinstance(current_integer_value, (int, float)) or not float(current_integer_value).is_integer():
             raise ValueError('프레임·시드·스텝은 정수여야 합니다.')
     current_frame_count = int(current_frame_count)
-    if not 5 <= current_frame_count <= 81 or (current_frame_count-1) % 4:
-        raise ValueError('프레임 수는 5~81 범위의 4n+1입니다.')
+    if not 5 <= current_frame_count <= FUN_MAX_FRAME_COUNT or (current_frame_count-1) % 4:
+        raise ValueError('프레임 수는 5~129 범위의 4n+1입니다.')
     with Image.open(current_reference_path) as current_reference_image:
         if current_reference_image.size != (832, 480):
             gr.Warning('참조 이미지를 비율 유지해 832×480 흰 여백으로 맞춥니다. 원본은 보존합니다.')
@@ -99,9 +100,15 @@ def build_fun_interface(current_server_address, current_command_callback=None):
                 return f'모델 상태 확인 실패: {current_status_error}'
         current_model_refresh.click(read_fun_model_status, outputs=current_model_status, queue=False)
         current_interface_blocks.load(read_fun_model_status, outputs=current_model_status)
-        current_reference_control = gr.Image(type='filepath', sources=['upload'], label='캐릭터 외형 참조 · 1장')
-        current_video_control = gr.File(file_types=['.mp4', '.webm', '.mov'], label='전처리된 제어 영상 · 앞에서부터 지정 프레임 사용')
-        current_frames_control = gr.File(file_count='multiple', file_types=['.png'], label='또는 제어 PNG 목록 · 업로드 순서 · 영상과 중복 입력 불가')
+        with gr.Row():
+            with gr.Column():
+                current_reference_control = gr.Image(type='filepath', sources=['upload'], label='캐릭터 외형 참조 · 1장')
+                with gr.Accordion('제어 영상 업로드 · PNG와 중복 입력 불가',open=False):
+                    current_video_control = gr.File(file_types=['.mp4', '.webm', '.mov'], label='전처리된 제어 영상 · 앞에서부터 지정 프레임 사용')
+            with gr.Column():
+                with gr.Accordion('제어 PNG 업로드 · 파일 목록',open=False):
+                    current_frames_control = gr.File(file_count='multiple', file_types=['.png'], label='제어 PNG · 업로드 순서 · 영상과 중복 입력 불가')
+                build_input_preview(current_frames_control,'제어 PNG 미리보기 · 번호 순서로 입력 · 클릭하여 확대')
         current_type_control = gr.Dropdown(choices=list(FUN_CONTROL_TYPES), value='pose', label='제어 종류 · 영상의 실제 표현과 일치시켜 주세요')
         gr.Markdown('ANNY 렌더 원본은 pose 영상이 아닙니다. pose는 추출·투영한 관절 영상, depth는 깊이 영상, canny/mlsd는 선 영상입니다. 이 페이지는 자동 전처리하지 않습니다. 참조는 흰색, 제어는 검은색 여백으로 비율 유지하여 832×480에 맞춥니다.')
         current_prompt_control = gr.Textbox(label='장면·동작 프롬프트', lines=3)
@@ -112,12 +119,13 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             current_negative_summary = gr.Markdown('원문 0단어 · 최종 0단어')
             current_negative_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어', current_negative_control, current_negative_summary, queue=False)
         gr.Markdown('고정: 고·저노이즈 Q4_K_M · 832×480 · 16fps · Euler/simple · CUDA 연산/CPU 가중치 오프로드 · 가속 LoRA 없음. 8GB 추론은 아직 검증하지 않았습니다.')
-        current_count_control = gr.Number(value=FUN_DEFAULT_SETTINGS['frames'], precision=0, minimum=5, maximum=81, step=4, label='출력 프레임 · 4n+1 · 5~81', info='21프레임으로 먼저 검토하세요. 부족한 제어 프레임은 자동 반복하지 않습니다.')
+        current_count_control = gr.Number(value=FUN_DEFAULT_SETTINGS['frames'], precision=0, minimum=5, maximum=FUN_MAX_FRAME_COUNT, step=4, label='출력 프레임 · 4n+1 · 5~129', info='129프레임은 8GB 실행 검증 대상입니다. 21프레임으로 먼저 검토하세요. 부족한 제어 프레임은 자동 반복하지 않습니다.')
         current_seed_control = build_generation_seed(default_seed_value=FUN_DEFAULT_SETTINGS['seed'])
+        with gr.Row():
+            current_shift_control = gr.Number(value=FUN_DEFAULT_SETTINGS['flow_shift'], minimum=0.1, maximum=20, label='Flow shift · 노이즈 시간 배분', info='기본 5. 높이면 같은 스텝 위치의 노이즈 수준이 높아집니다. CFG와 독립적으로 입력합니다. 동작 속도나 참조 강도가 아닙니다.')
+            current_guidance_control = gr.Number(value=FUN_DEFAULT_SETTINGS['guidance_scale'], minimum=1, maximum=10, label='CFG 강도 · 조건 유도', info='기본 6. 조건부·무조건부 예측 차이에 적용하는 배율입니다. Flow shift나 참조 이미지 전용 강도가 아닙니다.')
         with gr.Accordion('고급 설정', open=False):
             current_steps_control = gr.Number(value=FUN_DEFAULT_SETTINGS['steps'], precision=0, minimum=2, maximum=100, label='스텝 · 2~100', info='실험 기본 20. 증가하면 계산량이 늘며 동작 개선을 보장하지 않습니다.')
-            current_shift_control = gr.Number(value=FUN_DEFAULT_SETTINGS['flow_shift'], minimum=0.1, maximum=20, label='Flow shift · 0.1~20', info='실험 기본 5. 노이즈 시간 배분을 변경합니다.')
-            current_guidance_control = gr.Number(value=FUN_DEFAULT_SETTINGS['guidance_scale'], minimum=1, maximum=10, label='CFG · 1~10', info='실험 기본 6. 텍스트 유도 강도이며 외형만의 참조 강도가 아닙니다.')
             current_switch_control = gr.Number(value=FUN_DEFAULT_SETTINGS['switch_ratio'], minimum=0.1, maximum=0.9, label='고노이즈 스텝 비율 · 0.1~0.9', info='기본 0.5. 전체 스텝의 앞부분은 고노이즈 모델, 나머지는 저노이즈 모델을 사용합니다.')
             gr.Markdown('범위는 이 페이지의 실험 허용 범위입니다. [모델카드](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control) · [공식 ComfyUI 안내](https://docs.comfy.org/tutorials/video/wan/wan2-2-fun-control). 가속 4스텝 LoRA 예제와 현재 Q4 비가속 설정은 다릅니다.')
         current_input_controls = [current_reference_control,current_video_control,current_frames_control,current_type_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_switch_control]

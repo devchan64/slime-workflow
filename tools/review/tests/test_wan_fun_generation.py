@@ -38,8 +38,14 @@ class FunGenerationContractTests(unittest.TestCase):
         self.assertEqual(validate_fun_request(self.current_request_record)['tag'], 'wan22-fun-control')
         self.assertEqual(resolve_management_command('wan22-fun-control', 'generate', self.current_request_record), ('POST', '/wan22-fun-control/jobs'))
 
+    def test_extended_frame_count_accepts_exact_controls(self):
+        current_extended_record={**self.current_request_record,'frames':129,'images':self.current_request_record['images'][:1]*130}
+        self.assertEqual(validate_fun_request(current_extended_record)['frames'],129)
+        with self.assertRaises(ValueError):
+            validate_fun_request({**current_extended_record,'images':current_extended_record['images'][:-1]})
+
     def test_rejects_invalid_and_ambiguous_inputs(self):
-        for current_field_name, current_field_value in [('frames', 6), ('steps', True), ('images', []), ('flow_shift', float('nan')), ('guidance_scale', 0), ('control_type', 'rgb'), ('switch_ratio', 1), ('model', 'other')]:
+        for current_field_name, current_field_value in [('frames', 133), ('frames', 6), ('steps', True), ('images', []), ('flow_shift', float('nan')), ('guidance_scale', 0), ('control_type', 'rgb'), ('switch_ratio', 1), ('model', 'other')]:
             with self.subTest(field=current_field_name), self.assertRaises(ValueError):
                 validate_fun_request({**self.current_request_record, current_field_name: current_field_value})
 
