@@ -10,14 +10,12 @@
 - `generators/momask/`: HY-Motion 등이 재사용하는 리타기팅·스키닝·Blender 공용 코드. MoMask 생성·재렌더 경로는 폐기.
 - `generators/terrain/`: 고정 Qwen-Image-Edit-2511 기반 바닥·벽 타일 후보와 높이 변화 미리보기 생성.
 - `workflows/`: 현재 작업의 실행 순서·입출력·검증 절차.
-- `old/`: 이전 노드·음악 파이프라인·실험 생성기와 해당 문서·테스트. 현재 실행 경로에서 사용하지 않는다.
 
 [캐릭터 애니메이션 제작 절차](workflows/character-animation.md)를 따른다.
 [Qwen 맵 타일 생성 워크플로우](workflows/map-tile-generation.md)는 환경 타일 후보를 생성·검수한다.
 
 ## 보관 경로
 
-- `report/`: 외부 공유용 특정 실험의 이력과 결과 사본. 실행 과정, 입력·파라미터·출처, 검증 결과, 재현 코드 및 확인에 필요한 산출물 사본을 실험별로 묶는다. 원본 제작 자산이나 게임 런타임 채택을 대체하지 않는다. [리포트 목록과 보관 기준](report/README.md)을 참고한다.
 - `.model/`: 모델 다운로드·캐시.
 - `assets/`: 승인 모션·리그·외형 참조와 출처 기록. 임시 정리 대상 아님.
 - `.tmp/test/<실험명>/<YYYY-MM-DD_HH-mm-ss>/`: 한국 시간 기준 실행별 후보 이미지·포즈·프롬프트·로그·출처. Git 제외.
