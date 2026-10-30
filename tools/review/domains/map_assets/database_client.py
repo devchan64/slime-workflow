@@ -27,14 +27,17 @@ def execute_content_api_request(current_http_method,current_relative_route,curre
     if not current_relative_route.startswith('/internal/v1/content/'):
         raise ValueError('허용되지 않은 콘텐츠 API 경로입니다.')
     current_secret_path=os.environ.get('SLIME_CONTENT_SERVICE_SECRET_FILE')
-    if not current_secret_path:
-        raise ValueError('SLIME_CONTENT_SERVICE_SECRET_FILE 설정이 필요합니다.')
-    current_service_secret=Path(current_secret_path).read_text().strip()
-    if not current_service_secret or '\n' in current_service_secret or '\r' in current_service_secret:
-        raise ValueError('콘텐츠 서비스 인증 파일이 올바르지 않습니다.')
+    current_request_headers={'Content-Type':'application/json'}
+    if current_secret_path:
+        current_service_secret=Path(current_secret_path).read_text().strip()
+        if not current_service_secret or '\n' in current_service_secret or '\r' in current_service_secret:
+            raise ValueError('콘텐츠 서비스 인증 파일이 올바르지 않습니다.')
+        current_request_headers['Authorization']='Bearer '+current_service_secret
+    elif current_origin_parts.hostname not in ('127.0.0.1','localhost','::1'):
+        raise ValueError('원격 콘텐츠 API에는 SLIME_CONTENT_SERVICE_SECRET_FILE이 필요합니다.')
     current_request_bytes=None if current_request_payload is None else json.dumps(current_request_payload,allow_nan=False).encode()
     current_http_request=Request(current_service_origin.rstrip('/')+current_relative_route,data=current_request_bytes,
-        method=current_http_method,headers={'Authorization':'Bearer '+current_service_secret,'Content-Type':'application/json'})
+        method=current_http_method,headers=current_request_headers)
     try:
         with build_opener(RejectContentServiceRedirect()).open(current_http_request,timeout=CONTENT_REQUEST_TIMEOUT_SECONDS) as current_http_response:
             current_response_bytes=current_http_response.read(CONTENT_RESPONSE_MAXIMUM_BYTES+1)

@@ -35,7 +35,7 @@ UniqueContentConfigLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAP
 
 def read_content_launch_environment(current_config_path):
     current_config_record = yaml.load(Path(current_config_path).read_text(), Loader=UniqueContentConfigLoader)
-    if not isinstance(current_config_record, dict) or set(current_config_record) != set(CONTENT_CONFIG_ENVIRONMENT_FIELDS):
+    if not isinstance(current_config_record, dict) or set(current_config_record) not in (set(CONTENT_CONFIG_ENVIRONMENT_FIELDS), set(CONTENT_CONFIG_ENVIRONMENT_FIELDS)-{'secretFile'}):
         raise ValueError('콘텐츠 연결 설정 필드: ' + ', '.join(CONTENT_CONFIG_ENVIRONMENT_FIELDS))
     if any(not isinstance(current_field_value, str) or not current_field_value.strip() for current_field_value in current_config_record.values()):
         raise ValueError('콘텐츠 연결 설정 값은 비어 있지 않은 문자열이어야 합니다.')
@@ -46,15 +46,17 @@ def read_content_launch_environment(current_config_path):
             or (current_origin_parts.scheme == 'http' and current_origin_parts.hostname not in ('localhost', '127.0.0.1', '::1'))):
         raise ValueError('콘텐츠 API 주소는 외부 HTTPS 또는 로컬 HTTP origin이어야 합니다.')
     validate_gateway_address(current_config_record['gatewayOrigin'])
-    for current_path_field in ('secretFile', 'assetRoot', 'snapshotRoot'):
+    if 'secretFile' not in current_config_record and current_origin_parts.hostname not in ('localhost','127.0.0.1','::1'):
+        raise ValueError('원격 콘텐츠 API에는 secretFile이 필요합니다.')
+    for current_path_field in ('assetRoot', 'snapshotRoot', *(('secretFile',) if 'secretFile' in current_config_record else ())):
         if not Path(current_config_record[current_path_field]).is_absolute():
             raise ValueError('콘텐츠 연결 경로는 절대 경로여야 합니다: ' + current_path_field)
-    if not Path(current_config_record['secretFile']).is_file():
+    if 'secretFile' in current_config_record and not Path(current_config_record['secretFile']).is_file():
         raise ValueError('콘텐츠 인증 파일이 없습니다.')
     if not Path(current_config_record['assetRoot']).is_dir():
         raise ValueError('에셋 원본 디렉터리가 없습니다.')
     return {'SLIME_CONTENT_STORAGE': 'database', **{
-        current_environment_name: current_config_record[current_field_name]
+        current_environment_name: current_config_record.get(current_field_name, '')
         for current_field_name, current_environment_name in CONTENT_CONFIG_ENVIRONMENT_FIELDS.items()}}
 
 
