@@ -31,3 +31,23 @@ class ContentLedgerSyncTests(unittest.TestCase):
             current_bundle_mock.assert_not_called()
             current_ledger_mock.assert_called_once()
             self.assertTrue(current_api_mock.call_args_list[1].args[1].endswith('/complete'))
+
+    def test_missing_receipt_replays_current_database_without_backup(current_test_case):
+        current_payload_record={'generation':4}
+        current_export_record={'needed':True,'runId':'replay-run','payload':current_payload_record,
+            'payloadHash':hashlib.sha256(encode_content_snapshot_payload(current_payload_record)).hexdigest()}
+        with tempfile.TemporaryDirectory() as current_directory_name, patch.dict('os.environ',{'SLIME_ASSETS_ROOT':current_directory_name}), \
+                patch('tools.review.domains.map_assets.database_snapshot.execute_content_api_request',side_effect=[{'needed':False,'generation':4},current_export_record,{}]) as current_api_mock, \
+                patch('tools.review.domains.map_assets.database_ledger.publish_content_asset_ledger',return_value={'generation':4,'updatedFiles':0}), \
+                patch('tools.review.domains.map_assets.database_restore.read_verified_snapshot_payload') as current_restore_mock:
+            current_test_case.assertTrue(execute_content_snapshot_cycle('/nonexistent-backup')['ledgerSynced'])
+            current_test_case.assertTrue(current_api_mock.call_args_list[1].args[1].endswith('?replay=true'))
+            current_restore_mock.assert_not_called()
+
+    def test_replay_unsupported_fails_without_restore(current_test_case):
+        with tempfile.TemporaryDirectory() as current_directory_name, patch.dict('os.environ',{'SLIME_ASSETS_ROOT':current_directory_name}), \
+                patch('tools.review.domains.map_assets.database_snapshot.execute_content_api_request',return_value={'needed':False,'generation':4}), \
+                patch('tools.review.domains.map_assets.database_ledger.publish_content_asset_ledger') as current_publish_mock:
+            with current_test_case.assertRaisesRegex(ValueError,'재출력을 지원하지 않습니다'):
+                execute_content_snapshot_cycle('/nonexistent-backup')
+            current_publish_mock.assert_not_called()

@@ -1,4 +1,4 @@
-"""크롭 확인·단일 원본 게시·DB 응답 유실 재시도 검증."""
+"""크롭 확인·불변 버전 게시·DB 응답 유실 재시도 검증."""
 import hashlib
 import json
 import os
@@ -56,15 +56,16 @@ class DatabaseImageTests(unittest.TestCase):
                 with self.assertRaises(OSError):database_images.save_database_image_change(current_confirm_record)
                 current_first_request=current_api_mock.call_args
                 self.assertEqual(current_source_path.read_bytes(),current_original_bytes)
-                self.assertFalse((current_asset_root/'assets/billboards/versions').exists())
+                self.assertTrue((current_asset_root/'assets/billboards/versions').exists())
                 current_api_mock.side_effect=None
                 current_prepared_record=json.loads((current_asset_root/'pending'/(current_preview_record['token']+'-image.json')).read_text())
                 current_api_mock.side_effect=[{'saved':True},{'image':current_prepared_record['request']['image']}]
                 database_images.save_database_image_change(current_confirm_record)
                 self.assertEqual(current_api_mock.call_args_list[-2],current_first_request)
-                with Image.open(current_source_path) as current_saved_image:
+                self.assertEqual(current_source_path.read_bytes(),current_original_bytes)
+                with Image.open(current_asset_root/current_prepared_record['request']['image']['path']) as current_saved_image:
                     self.assertEqual(current_saved_image.size,(40,50))
-                self.assertFalse((current_asset_root/'assets/billboards/versions').exists())
+                self.assertTrue((current_asset_root/'assets/billboards/versions').exists())
                 with self.assertRaisesRegex(ValueError,'대상이 변경'):
                     database_images.save_database_image_change({**current_confirm_record,'texture':'other'})
 
@@ -74,3 +75,12 @@ class DatabaseImageTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'최근 이미지'):
                     database_images.save_database_image_change(current_confirm_record)
                 self.assertEqual(current_source_path.read_bytes(),current_saved_bytes)
+
+                current_version_path=current_asset_root/current_prepared_record['request']['image']['path']
+                current_version_path.write_bytes(b'conflicting-version')
+                current_api_mock.reset_mock()
+                with self.assertRaisesRegex(ValueError,'불변 이미지'):
+                    database_images.save_database_image_change(current_confirm_record)
+                current_api_mock.assert_not_called()
+                self.assertEqual(current_version_path.read_bytes(),b'conflicting-version')
+                self.assertEqual(current_source_path.read_bytes(),current_original_bytes)

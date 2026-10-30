@@ -102,7 +102,6 @@ def publish_content_snapshot_bundle(current_snapshot_root,current_export_record)
 def execute_content_snapshot_cycle(current_snapshot_root):
     """구 명령 이름은 호환 유지하되 새 세대 보관 없이 원장을 지연 동기화한다."""
     from tools.review.domains.map_assets.database_ledger import publish_content_asset_ledger
-    from tools.review.domains.map_assets.database_restore import read_verified_snapshot_payload
     current_asset_root=Path(os.environ['SLIME_ASSETS_ROOT'])
     current_state_directory=current_asset_root/'.local/content-ledger'
     current_state_directory.mkdir(parents=True,exist_ok=True)
@@ -113,13 +112,10 @@ def execute_content_snapshot_cycle(current_snapshot_root):
         if not current_export_record['needed']:
             if current_receipt_path.exists() and yaml.safe_load(current_receipt_path.read_text())['generation']==current_export_record['generation']:
                 return {**current_export_record,'ledgerSynced':True}
-            # 이전 구현이 파일 원장을 쓰지 않고 완료 처리한 세대의 일회성 전환.
-            current_payload_record=read_verified_snapshot_payload(current_snapshot_root)
-            if current_payload_record['generation']!=current_export_record['generation']:
-                raise ValueError('기존 완료 세대와 원장 전환 자료가 다릅니다.')
-            current_sync_result=publish_content_asset_ledger(current_asset_root,current_payload_record)
-            current_receipt_path.write_text(yaml.safe_dump(current_sync_result))
-            return {**current_export_record,'ledgerSynced':True,**current_sync_result}
+            # 로컬 영수증 유실 시 현재 DB 세대를 명시적으로 재출력한다.
+            current_export_record=execute_content_api_request('POST','/internal/v1/content/snapshots/export?replay=true',{})
+            if not current_export_record.get('needed'):
+                raise ValueError('연결된 콘텐츠 API가 원장 재출력을 지원하지 않습니다.')
         current_run_identifier=current_export_record['runId']
         try:
             if hashlib.sha256(encode_content_snapshot_payload(current_export_record['payload'])).hexdigest()!=current_export_record['payloadHash']:
@@ -130,5 +126,9 @@ def execute_content_snapshot_cycle(current_snapshot_root):
             raise
         current_completion_record=execute_content_api_request('POST',f'/internal/v1/content/snapshots/{current_run_identifier}/complete',
             {'payloadHash':current_export_record['payloadHash'],'manifestHash':current_export_record['payloadHash']})
-        current_receipt_path.write_text(yaml.safe_dump(current_sync_result))
+        with tempfile.TemporaryDirectory(prefix='.receipt-',dir=current_state_directory) as current_temporary_name:
+            current_pending_path=Path(current_temporary_name)/'synced.yaml'
+            write_content_snapshot_file(current_pending_path,yaml.safe_dump(current_sync_result).encode())
+            os.replace(current_pending_path,current_receipt_path)
+            sync_content_snapshot_directory(current_state_directory)
         return {**current_completion_record,'ledgerSynced':True,**current_sync_result}

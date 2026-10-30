@@ -795,13 +795,20 @@ GUI 결과 조회와 CLI `status`의 `audio_stems`로 MR·보컬을 조회합니
 
 ### 콘텐츠 DB 이전과 파일 스냅샷 명령
 
+현재 개발 편집의 배포 경로는 `database-seed → 편집 → database-sync → 에셋 원장 검토 → 소비자 잠금 갱신·배포 검증`이다. 아래 database-snapshot/database-restore 및 backend 스키마 준비 설명은 기존 구현의 기록이며 독립 에셋 서비스 전환 절차에 사용하지 않는다. 백업·복구 구현은 보류했고 테스트에서도 별도 백업을 실행하지 않는다.
+
+연결 파일 `.local/content/connection.yaml`의 기존 다섯 필드 계약을 유지한다. `serviceOrigin`은 독립 에셋 API의 사설 HTTPS origin(로컬 격리 검사에서는 `http://127.0.0.1:8791`), `secretFile`은 해당 API와 일치하는 토큰 파일의 절대 경로, `assetRoot`는 원장 출력 대상 slime-assets 절대 경로다. `snapshotRoot`는 기존 클라이언트 계약에 필요한 로컬 기록 경로이고 `gatewayOrigin`은 기존 관리 게이트웨이 origin이다. 주소·비밀값을 추정하여 실행 중 연결 파일을 덮어쓰지 않는다. GUI·CLI는 공용 게이트웨이를 계속 사용한다.
+
+초기 적재는 빌보드·맵·선택 이펙트를 `/internal/v1/content/seed/bundle`로 함께 보낸다. 독립 API의 초기 적재 경로 제한은 16MiB, 일반 편집 요청은 1MiB다. 현재 원장의 월드맵 표시 `world-map.yaml`과 전장 지형 매핑 `battlefield_encounters.yaml`은 허용된 루트 문서다. 몹 스폰 정의는 포함하지 않는다. 실제 실행 서버의 프록시 본문 제한도 이 계약을 수용해야 한다.
+
+
 `SLIME_CONTENT_STORAGE=database`일 때 빌보드 공용 속성·맵 편집·빌보드 크롭·축소는 콘텐츠 API에 저장한다. 이미지 파일은 에셋 저장소에 유지한다. 아래 로컬 전환 검증과 배포 환경의 CDN 게시 절차를 구분한다.
 
 - `map-assets database-seed --payload-file <파일>`: `assetRoot` 절대 경로와 `publicAssetPrefix` 정적 게시 경로를 받는다. 등록 이미지 해시를 검사하고 최초 빌보드 시드와 맵 시드를 전달한다. 이미지 파일을 DB로 복사하지 않는다.
 - `map-assets database-status --payload-file <빈 객체 파일>`: DB 세대와 파일 스냅샷 완료 세대를 조회한다.
 - `map-assets database-snapshot --payload-file <빈 객체 파일>`: 변경이 있으면 새 파일 세대를 완성하고 manifest를 공개한다. 외부에서 수정한 이전 스냅샷은 덮어쓰지 않는다.
 
-게이트웨이는 `SLIME_CONTENT_SERVICE_ORIGIN`, `SLIME_CONTENT_SERVICE_SECRET_FILE`, `SLIME_CONTENT_SNAPSHOT_ROOT`를 사용한다. 비밀값은 환경변수에 넣지 않고 비밀 파일 경로만 지정한다. 콘텐츠 API는 백엔드의 `app.content_internal_api:CONTENT_INTERNAL_API_APP`이며 공개 ingress에 노출하지 않는다. 초기 스키마는 별도 명시적 초기화가 필요하다.
+게이트웨이는 `SLIME_CONTENT_SERVICE_ORIGIN`, `SLIME_CONTENT_SERVICE_SECRET_FILE`, `SLIME_CONTENT_SNAPSHOT_ROOT`를 사용한다. 비밀값은 환경변수에 넣지 않고 비밀 파일 경로만 지정한다. 신규 개발 편집 연결은 slime-assets의 `asset_service.api:ASSET_INTERNAL_API_APP`을 사용하며 공개 ingress에 노출하지 않는다. 에셋 DB의 별도 마이그레이션과 런타임 역할 준비는 해당 저장소의 database/README.md 및 asset_service/README.md를 따른다. 기존 backend API는 이전 연결의 호환 구현이며 신규 독립 에셋 서비스 실행 대상이 아니다.
 
 주기 실행은 `python tools/review/maintenance/content_snapshot_worker.py --server <관리 게이트웨이 주소> --interval 60`이다. GUI와 독립된 프로세스이며 공용 게이트웨이 명령을 호출한다. `--once`는 같은 경로로 한 번 실행한다. 실행 로그는 `.tmp/content-snapshot-worker/worker.log`에 일별 회전·7일 보관하고 5초 heartbeat를 기록한다. 자동 시작 기능은 없으므로 독립 실행기를 명시적으로 시작한다.
 
@@ -871,7 +878,7 @@ SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml python3 tools/review/common/
 
 ### 에셋 원장 지연 동기화 (2026-10-25 정정)
 
-관리도구는 DB를 즉시 수정하고 독립 주기 작업자가 `map-assets database-sync`로 에셋 원장을 지연 동기화합니다. `assets/maps/` 공용 속성·맵 문서, 타입별 빌보드 카탈로그, `asset-registry.yaml`과 소비자의 `map-data.lock.yaml`을 갱신한 뒤에만 완료 처리합니다. 변경 없는 파일은 다시 쓰지 않습니다. 파일 원장을 재시드했을 때 DB와 동일한 속성·맵을 복원할 수 있어야 합니다.
+관리도구는 DB를 즉시 수정하고 독립 주기 작업자가 `map-assets database-sync`로 에셋 원장을 지연 동기화합니다. `assets/maps/` 공용 속성·맵 문서, 타입별 빌보드 카탈로그, `asset-registry.yaml`을 갱신한 뒤에만 완료 처리합니다. 2026-10-30부터 원장 출력은 에셋 저장소 내부로 제한하며 소비자의 `map-data.lock.yaml`·`map-assets.lock.yaml`·`sprite-assets.lock.yaml`은 직접 읽거나 수정하지 않습니다. 변경 없는 파일은 다시 쓰지 않습니다. 파일 원장을 재시드했을 때 DB와 동일한 속성·맵을 복원할 수 있어야 합니다.
 
 세대별 스냅샷 생성은 중단했습니다. `snapshots/`는 이전 구현의 전환 자료로 Git에서 제외하며 원장으로 사용하지 않습니다. 이전 완료 세대는 검증된 보관 자료에서 한 번 원장에 반영합니다. 실행 잠금·완료 영수증은 에셋 레포의 Git 제외 경로 `.local/content-ledger/`에서 관리합니다. 기존 `database-snapshot` 명령과 `snapshot` 실행기 이름은 실행 중인 설정 호환을 위한 별칭이며, 현재 동작은 원장 동기화입니다. 위 스냅샷을 정식 파일 원장으로 설명한 내용보다 이 절을 우선합니다.
 
@@ -881,7 +888,7 @@ SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml python3 tools/review/common/
 
 ### 빌보드 단일 이미지 원본
 
-DB 모드의 크롭·축소는 `assets/billboards/<에셋 ID>.png` 한 개를 원자적으로 교체합니다. `versions/<해시>.png`를 누적 생성하지 않습니다. DB의 SHA-256·크기·게시 참조와 공용 속성을 먼저 갱신하고, 같은 확인 토큰으로 파일 게시를 재시도할 수 있습니다. 더 최근 이미지가 있으면 과거 요청으로 덮어쓰지 않습니다. 원장 동기화와 이미지 저장은 같은 잠금을 사용합니다. 등록부·카탈로그·소비자 잠금의 이미지 정보는 원장 지연 동기화에서 실제 파일 검증 후 갱신합니다. 이전 이미지의 복구는 Git 이력으로 관리하며 DB의 과거 해시가 과거 PNG 보관을 의미하지 않습니다.
+DB 모드의 크롭·축소는 `assets/billboards/<에셋 ID>.png` 한 개를 원자적으로 교체합니다. `versions/<해시>.png`를 누적 생성하지 않습니다. DB의 SHA-256·크기·게시 참조와 공용 속성을 먼저 갱신하고, 같은 확인 토큰으로 파일 게시를 재시도할 수 있습니다. 더 최근 이미지가 있으면 과거 요청으로 덮어쓰지 않습니다. 원장 동기화와 이미지 저장은 같은 잠금을 사용합니다. 등록부·카탈로그의 이미지 정보는 원장 지연 동기화에서 실제 파일 검증 후 갱신합니다. 소비자 잠금은 별도 배포 준비에서 채택한 원장 버전에 맞춰 갱신합니다. 이전 이미지의 복구는 Git 이력으로 관리하며 DB의 과거 해시가 과거 PNG 보관을 의미하지 않습니다.
 
 ### F2V 폐기 · 2026-10-26
 
@@ -986,3 +993,16 @@ GUI와 CLI는 `map-assets effect-list`, `effect-load`, `effect-save`를 공유�
 `kimodo` 서비스와 `/management/frame/kimodo-generator/` 페이지를 추가했다. GUI·통합 CLI는 공용 게이트웨이, GPU 대기열, `.tmp/test/kimodo/` 기록을 공유한다. 텍스트 인코더만 NF4이며 모션 모델은 FP32 CUDA로 실행한다. 모델 준비·JSON 요청·출력 범위는 [Kimodo 사용 설명](../generators/kimodo/README.md)을 따른다. 기본 스텝은 100이며 2스텝은 실행 연결 검사에만 사용한다. 선택 삭제·초기화·우선 실행·취소·재개는 공용 계약을 사용한다.
 
 Kimodo 출력 방향: GUI의 `출력 방향 · 복수 선택`과 CLI JSON의 `directions` 배열을 공유한다. 허용 방향은 생성기 README를 따른다. 생략한 과거 요청은 `front_left`, 빈 배열·중복·미지원 값은 거절한다. 여러 방향은 비교 MP4와 ZIP의 방향별 원본 PNG·MP4로 저장하며 모션 추론은 한 번만 실행한다.
+
+
+### 개발 DB의 배포 원장 출력 — 2026-10-30
+
+`map-assets database-sync`의 URL·CLI 계약은 유지합니다. 원장 출력은 개발 DB 편집 결과를 기존 에셋 저장소 경로에 반영하며 커밋·푸시·배포를 자동 실행하지 않습니다. 결과의 `changedFiles`는 저장소 상대 경로와 `beforeSha256`·`afterSha256`을 제공하고 `consumerLocksUpdated`는 false입니다. 수신 payload의 최상위 필드·세대·맵 revision 목록과 허용 맵 경로를 검사하며 `monster_spawns/`는 공개 맵 출력 대상이 아닙니다. `map_spawns/`는 플레이어 시작점 정보로 유지합니다. 이는 모든 중첩 도메인 필드의 공개 검증 완료를 의미하지 않습니다.
+
+출력 이후 소비자 잠금이 기존 해시를 가리키면 소비 검증이 실패할 수 있습니다. 배포 준비에서 원장 버전을 검토·고정한 뒤 각 소비자의 잠금 갱신·검증을 완료해야 합니다. 자동으로 인접 저장소를 고치는 동작은 제공하지 않습니다. 독립 에셋 DB API 연결과 소비자 배포 준비의 자동화는 후속 구현 범위입니다. 이번 변경은 출력 대상 경계와 전달 검증을 다루며 운영 DB·원장 파일에 자동 적용하지 않았습니다.
+
+원장 동기화의 로컬 영수증이 없거나 DB 완료 세대와 다르면 독립 에셋 API에 `snapshots/export?replay=true`로 현재 세대를 다시 요청한다. 과거 백업·파일 스냅샷을 읽지 않는다. 원장 출력과 DB 완료 응답 뒤 로컬 영수증을 원자적으로 교체한다. 연결 API가 재출력을 지원하지 않으면 명시적으로 실패하며 구 스냅샷 복구로 우회하지 않는다.
+
+DB 폐기 원장을 출력할 때 등록부의 `source.lifecycle_status`를 `retired`로 기록하고 활성 빌보드 카탈로그·공용 표시 속성에서 제외한다. 원본 이미지 경로와 파일은 보존한다. DB가 전달한 맵 배치 제거를 함께 출력하며 소비자 잠금 파일은 별도 배포 준비에서 갱신한다. 같은 폐기 세대를 반복 출력해도 폐기 에셋을 활성 목록에 복원하지 않는다.
+
+DB 이미지 편집은 해시별 `assets/billboards/versions/<SHA-256>.png`를 불변 파일로 먼저 게시한 뒤 DB 참조를 변경한다. 파일 게시 실패 시 DB 요청을 보내지 않는다. DB 응답 유실 시 같은 확인 토큰으로 재시도하며 게시 파일은 남긴다. 같은 경로에 다른 내용이 있으면 거절한다. 원장 출력은 이전 등록 버전을 보존하고 새 버전을 추가해 카탈로그 참조를 전환한다. 단일 원본 경로 덮어쓰기를 전제로 저장된 이전 확인 토큰은 재검수가 필요하다. 생성 이력·백업과 별개인 등록 이미지 버전이며 자동 정리는 아직 구현하지 않았다.
