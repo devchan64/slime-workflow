@@ -1,7 +1,7 @@
 """단일 지면 타일 데칼의 명시적인 배치 계약을 검증한다."""
 import math
 
-GROUND_DECAL_TEXTURE_KEYS = {'boar-hoof-pair-v1', 'boar-hoof-trail-v1', 'boar-hoof-worn-v1'}
+GROUND_DECAL_TEXTURE_KEYS = {'pebble-submerged-stones-v1', 'boar-hoof-pair-v1', 'boar-hoof-trail-v1', 'boar-hoof-worn-v1'}
 GROUND_DECAL_RECORD_FIELDS = {'id', 'textureKey', 'position', 'offsetX', 'offsetY', 'scale', 'rotation', 'opacity', 'order'}
 
 

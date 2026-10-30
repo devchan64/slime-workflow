@@ -6,6 +6,19 @@ source_tile_size: 256
 ground_source_tile_size: 128
 # 검수 화면 논리 타일 ID와 에셋 저장소 원본의 표시용 매핑이다.
 tiles:
+  - {id: pebble-submerged-rounded-v1, category: ground, asset: assets/tiles/terrain/blocked/pebble-submerged-rounded-v1.png}
+  - {id: pebble-natural-rounded-v1, category: ground, asset: assets/tiles/terrain/non-road/pebble-natural-rounded-v1.png}
+  - {id: pebble-coarse-0-v1, category: ground, asset: assets/tiles/terrain/non-road/pebble-coarse-0-v1.png}
+  - {id: pebble-coarse-1-v1, category: ground, asset: assets/tiles/terrain/non-road/pebble-coarse-1-v1.png}
+  - {id: pebble-coarse-2-v1, category: ground, asset: assets/tiles/terrain/non-road/pebble-coarse-2-v1.png}
+  - {id: pebble-lake-calm-v1, category: ground, asset: assets/tiles/terrain/blocked/pebble-lake-calm-v1.png}
+  - {id: pebble-lake-blue-v1, category: ground, asset: assets/tiles/terrain/blocked/pebble-lake-blue-v1.png}
+  - {id: pebble-lake-clear-v1, category: ground, asset: assets/tiles/terrain/blocked/pebble-lake-clear-v1.png}
+  - {id: pebble-lake-shallow-v1, category: ground, asset: assets/tiles/terrain/blocked/pebble-lake-shallow-v1.png}
+  - {id: pebble-sand-base-v1, category: ground, asset: assets/tiles/terrain/non-road/pebble-sand-base-v1.png}
+  - {id: pebble-sand-sparse-v1, category: ground, asset: assets/tiles/terrain/non-road/pebble-sand-sparse-v1.png}
+  - {id: pebble-sand-medium-v1, category: ground, asset: assets/tiles/terrain/non-road/pebble-sand-medium-v1.png}
+  - {id: pebble-sand-scattered-v1, category: ground, asset: assets/tiles/terrain/non-road/pebble-sand-scattered-v1.png}
   - {id: dirt-road, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v1.png}
   - {id: stone-road, category: ground, asset: assets/tiles/terrain/road/granite-slab-road-v1.png}
   - {id: dark-basalt-paver-road, category: ground, asset: assets/tiles/terrain/road/dark-basalt-paver-road-v1.png}
@@ -93,6 +106,7 @@ tiles:
   - {id: cinder-ash-trail-v1, category: ground, asset: assets/tiles/terrain/road/cinder-ash-trail-v1.png}
   - {id: cinder-ash-ground-v1, category: ground, asset: assets/tiles/terrain/non-road/cinder-ash-ground-v1.png}
 
+  - {id: pebble-submerged-stones-v1, category: decal, asset: assets/tiles/decals/pebble-submerged-stones-v1.png}
   - {id: boar-hoof-pair-v1, category: decal, asset: assets/tiles/decals/boar-hoof-pair-v1.png}
 
   - {id: boar-hoof-trail-v1, category: decal, asset: assets/tiles/decals/boar-hoof-trail-v1.png}
