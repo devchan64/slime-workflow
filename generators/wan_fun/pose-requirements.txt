@@ -1,0 +1,2 @@
+# .venv에 설치. CUDA ONNX Runtime은 기존 Animate preprocess-deps의 GPU 배포본을 사용한다.
+onnxsim==0.8.1

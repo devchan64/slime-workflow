@@ -13,6 +13,14 @@ from tools.review.common.generation_records import write_record_atomically
 
 
 def execute_fun_inference(current_job_root, current_attempt_root, current_request_record, current_metrics_recorder):
+    current_control_paths = [current_job_root/current_reference_name for current_reference_name in current_request_record['references']]
+    if current_request_record.get('driving_video_file'):
+        import subprocess
+        import json
+        current_metrics_recorder.update_generation_stage('pose-preprocess')
+        subprocess.run([str(FUN_WORKSPACE_ROOT/'.venv/bin/python'), str(Path(__file__).with_name('pose_preprocess.py')), str(current_job_root), str(current_attempt_root)], env={**os.environ, 'PYTHONPATH': str(FUN_RUNTIME_DIRECTORY/'preprocess-deps')}, check=True)
+        current_preprocess_record = json.loads((current_attempt_root/'pose-preprocess.json').read_text())
+        current_control_paths.extend(Path(current_frame_path) for current_frame_path in current_preprocess_record['frames'])
     os.environ['PYTORCH_ALLOC_CONF'] = 'expandable_segments:True'
     sys.path.insert(0, str(FUN_RUNTIME_DIRECTORY / 'ComfyUI'))
     import torch
@@ -46,8 +54,8 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     current_metrics_recorder.update_generation_stage('encoding')
     current_vae_model = TiledWanVideoVae(nodes.VAELoader().load_vae('wan_2.1_vae.safetensors')[0])
     current_image_tensors = []
-    for current_reference_name in current_request_record['references']:
-        with Image.open(current_job_root / current_reference_name) as current_image_file:
+    for current_reference_name in current_control_paths:
+        with Image.open(current_reference_name) as current_image_file:
             current_image_tensors.append(torch.from_numpy(np.asarray(current_image_file.convert('RGB'), dtype=np.float32) / 255.0))
     current_condition_output = Wan22FunControlToVideo.execute(positive_condition_data, negative_condition_data, current_vae_model, 832, 480, current_request_record['frames'], 1, ref_image=current_image_tensors[0].unsqueeze(0), control_video=torch.stack(current_image_tensors[1:]))
     positive_condition_data, negative_condition_data, current_latent_record = current_condition_output[:3]
@@ -91,6 +99,11 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
         raise ValueError('출력 프레임 수 불일치')
     current_frame_arrays = (current_decoded_frames.clamp(0, 1).cpu().numpy() * 255).round().astype(np.uint8)
     current_output_hashes = save_video_outputs(current_attempt_root, current_frame_arrays, 16)
+    if current_request_record.get('driving_video_file'):
+        import zipfile
+        with zipfile.ZipFile(current_attempt_root/'frames.zip', 'a') as current_output_archive:
+            for current_artifact_name in ('pose.mp4', 'pose-preprocess.json'):
+                current_output_archive.write(current_attempt_root/current_artifact_name, current_artifact_name)
     comfy.model_management.unload_all_models()
     del current_vae_model
     gc.collect()

@@ -24,6 +24,8 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
         if current_status_record.get('video'):
             import json
             current_result_record = json.loads((current_job_root/'result.json').read_text())
+            if current_result_record.get('soma_render_videos'):
+                current_status_record['preprocess_videos'] = {f'SOMA 렌더 · {current_direction_name}': current_status_record['video'].rsplit('/', 1)[0]+'/'+current_video_name for current_direction_name, current_video_name in current_result_record['soma_render_videos'].items()}
             current_status_record['reference_analysis_only']=current_result_record.get('reference_analysis_only',False)
             current_status_record['openpose_scale_percent'] = current_result_record.get('openpose_scale_percent',100.0)
             current_status_record['reference_proportions'] = current_result_record.get('reference_proportions',False)

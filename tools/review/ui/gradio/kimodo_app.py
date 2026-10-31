@@ -140,6 +140,9 @@ def render_kimodo_result(current_job_identifier,current_status_record,current_se
     import html
     if current_status_record.get('reference_analysis_only'):
         return '<p>참조 신체 비율 추출 검증 · 모션 생성 아님. 추출 포즈 '+str(int(current_status_record.get('reference_observation_count',0)))+'개. 영상은 검출 인물별 포즈를 순서대로 보여줍니다. ZIP에 원시 점수·채택 근거·최종 비율을 포함합니다.</p>'+render_video_generation_result(current_job_identifier,current_status_record,current_server_address)
+    if current_status_record.get('preprocess_videos'):
+        from tools.review.common.gradio_video_results import render_condition_video_previews
+        return '<p>공식 SOMASkin 렌더 · 방향별 단일 인체 영상. Fun Control의 SOMA 입력으로 사용하세요. 기존 직접 투영 OpenPose는 ZIP에 보존됩니다.</p>'+render_condition_video_previews(current_status_record)+render_video_generation_result(current_job_identifier,current_status_record,current_server_address)
     current_comparison_url = current_status_record.get('comparison_video')
     if not current_comparison_url:
         return render_video_generation_result(current_job_identifier,current_status_record,current_server_address)+'<p>이 결과에는 오픈포즈 비교 영상이 없습니다.</p>'
@@ -159,7 +162,7 @@ def render_kimodo_result(current_job_identifier,current_status_record,current_se
 def build_kimodo_interface(current_server_address,current_command_callback=None):
     current_execute_command = current_command_callback or execute_kimodo_command
     with gr.Blocks(title='Kimodo 모션 생성기') as current_interface_blocks:
-        gr.Markdown('## Kimodo 모션 생성기 · NF4 실험\n텍스트로 SOMA 모션을 생성하고 선택 방향의 오픈포즈를 직접 투영합니다. SOMA 원본·포즈 비교 영상과 모션·프레임을 ZIP으로 받습니다.')
+        gr.Markdown('## Kimodo 모션 생성기 · NF4 실험\n텍스트로 SOMA 모션을 생성하고 공식 SOMASkin으로 방향별 단일 인체 MP4를 렌더링합니다. Fun Control의 SOMA 입력에서 VideoX-Fun 포즈 검출을 수행합니다. 직접 투영 OpenPose는 기존 비교용 출력입니다.')
         with gr.Accordion('고정 설정 · 모델 준비',open=False):
             gr.Markdown('고정: Kimodo-SOMA-RP-v1.2 · 모션 FP32 · LLM2Vec Llama 3 8B NF4 / BF16 연산 · CUDA · 30fps · 1개 샘플 · DDIM. 인코딩 후 인코더를 해제하고 모션을 생성합니다. 이후 모션 모델을 해제하고 SOMA 몸 관절을 512×512·30fps 정사영 포즈로 변환합니다. 모델 선택·부정 프롬프트는 제공하지 않습니다. 선택 이미지 참조는 모션 모델 입력이 아니라 OpenPose 출력 비율 보정에 사용합니다.')
         current_model_ready = gr.State(False)

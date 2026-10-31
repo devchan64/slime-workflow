@@ -38,6 +38,38 @@ class FunGenerationContractTests(unittest.TestCase):
         self.assertEqual(validate_fun_request(self.current_request_record)['tag'], 'wan22-fun-control')
         self.assertEqual(resolve_management_command('wan22-fun-control', 'generate', self.current_request_record), ('POST', '/wan22-fun-control/jobs'))
 
+    def test_soma_video_contract_and_saved_attachment(self):
+        import cv2
+        import numpy as np
+        from tools.review.domains.wan_fun.generation import FunControlGenerationManager
+        from tools.review.ui.gradio.wan_fun_app import restore_fun_inputs
+        with tempfile.TemporaryDirectory() as current_temporary_root:
+            current_job_identifier = '2026-10-31_00-00-00-abcdef12'
+            current_job_directory = Path(current_temporary_root)/current_job_identifier
+            current_job_directory.mkdir()
+            current_video_path = current_job_directory/'input.mp4'
+            current_video_writer = cv2.VideoWriter(str(current_video_path), cv2.VideoWriter_fourcc(*'mp4v'), 30, (64, 64))
+            for current_frame_index in range(9):
+                current_video_writer.write(np.full((64, 64, 3), current_frame_index*20, dtype=np.uint8))
+            current_video_writer.release()
+            current_video_request = {**self.current_request_record, 'images': self.current_request_record['images'][:1], 'driving_video': base64.b64encode(current_video_path.read_bytes()).decode()}
+            self.assertEqual(validate_fun_request(current_video_request)['frames'], 5)
+            with self.assertRaises(ValueError):
+                validate_fun_request({**current_video_request, 'frames': 9})
+            with self.assertRaises(ValueError):
+                validate_fun_request({**current_video_request, 'control_type': 'depth'})
+            with self.assertRaises(ValueError):
+                validate_fun_request({**current_video_request, 'images': self.current_request_record['images']})
+            current_saved_request = FunControlGenerationManager.save_generation_attachments(None, current_job_directory, current_video_request)
+            self.assertNotIn('driving_video', current_saved_request)
+            self.assertEqual((current_job_directory/'driving.mp4').read_bytes(), current_video_path.read_bytes())
+            (current_job_directory/'reference-1.png').write_bytes(base64.b64decode(current_video_request['images'][0]))
+            current_saved_request['references'] = ['reference-1.png']
+            with patch('tools.review.ui.gradio.wan_fun_app.FUN_JOB_STORAGE', Path(current_temporary_root)):
+                current_restored_values = restore_fun_inputs({'id': current_job_identifier, 'request': current_saved_request})
+            self.assertEqual(current_restored_values[1], str(current_job_directory/'driving.mp4'))
+            self.assertEqual(current_restored_values[-2], 'soma-video')
+
     def test_extended_frame_count_accepts_exact_controls(self):
         current_extended_record={**self.current_request_record,'frames':129,'images':self.current_request_record['images'][:1]*130}
         self.assertEqual(validate_fun_request(current_extended_record)['frames'],129)

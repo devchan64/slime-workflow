@@ -1,0 +1,11 @@
+repository: https://github.com/aigc-apps/VideoX-Fun
+revision: 13bb3c625e8b1e457d7124d92207b49e00e4a6fe
+upstream_directory: comfyui/annotator/dwpose_utils
+license: Apache-2.0
+local_modifications: false
+files:
+  dwpose_utils/__init__.py: 76aa347e0c138c18add4c2d40ead21b5ae54edbc040168ce967c6dbc9af89109
+  dwpose_utils/onnxdet.py: a0f0bf89f546851c1dc7a0a15d2b94701f9a7ada92e87eb9488a177f6c3c9302
+  dwpose_utils/onnxpose.py: 2a80d1f7f9056fc78db93f1c7310efb6657a43c6486d1e78f5b1241812beaa49
+  dwpose_utils/util.py: 805657f6eecefc221349a46b7526dcc8f9859548a83b66023d3fcee59406c7ab
+  dwpose_utils/wholebody.py: 9d9b0aa45d68acbcab1373b81e519259c25180e293ba7632ccfb8499f7ea4e4f

@@ -19,6 +19,11 @@ from tools.review.common.generation_status_lookup import read_existing_generatio
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 
 
+def render_fun_video_result(current_job_identifier, current_status_record, current_server_address):
+    from tools.review.common.gradio_video_results import render_condition_video_previews
+    return render_video_generation_result(current_job_identifier, current_status_record, current_server_address)+render_condition_video_previews(current_status_record)
+
+
 def execute_fun_command(current_command_name, current_payload_record):
     return execute_remote_management_command('wan22-fun-control', current_command_name, current_payload_record)
 
@@ -33,7 +38,7 @@ def encode_fun_image(current_image_object, current_padding_color):
     return base64.b64encode(current_image_buffer.getvalue()).decode()
 
 
-def build_fun_payload(current_reference_path, current_video_path, current_frame_paths, current_control_type, current_prompt_text, current_negative_text, current_frame_count, current_seed_value, current_steps_value, current_shift_value, current_guidance_value, current_switch_ratio):
+def build_fun_payload(current_reference_path, current_video_path, current_frame_paths, current_control_type, current_prompt_text, current_negative_text, current_frame_count, current_seed_value, current_steps_value, current_shift_value, current_guidance_value, current_switch_ratio, current_input_mode="preprocessed"):
     if not current_reference_path or bool(current_video_path) == bool(current_frame_paths):
         raise ValueError('외형 참조 1장과 제어 영상 또는 PNG 목록 중 하나를 첨부하세요.')
     for current_integer_value in (current_frame_count, current_seed_value, current_steps_value):
@@ -46,7 +51,12 @@ def build_fun_payload(current_reference_path, current_video_path, current_frame_
         if current_reference_image.size != (832, 480):
             gr.Warning('참조 이미지를 비율 유지해 832×480 흰 여백으로 맞춥니다. 원본은 보존합니다.')
         current_encoded_images = [encode_fun_image(current_reference_image, 'white')]
-    if current_video_path:
+    if current_input_mode == 'soma-video':
+        if not current_video_path or current_frame_paths or current_control_type != 'pose':
+            raise ValueError('SOMA 입력은 렌더 MP4 영상과 pose 제어를 선택하세요.')
+    elif current_input_mode != 'preprocessed':
+        raise ValueError('지원하지 않는 입력 방식')
+    if current_video_path and current_input_mode == 'preprocessed':
         current_video_capture = cv2.VideoCapture(str(current_video_path))
         try:
             if not current_video_capture.isOpened():
@@ -61,13 +71,15 @@ def build_fun_payload(current_reference_path, current_video_path, current_frame_
                 current_encoded_images.append(encode_fun_image(Image.fromarray(cv2.cvtColor(current_frame_array, cv2.COLOR_BGR2RGB)), 'black'))
         finally:
             current_video_capture.release()
-    else:
+    elif current_input_mode == 'preprocessed':
         if len(current_frame_paths) != current_frame_count:
             raise ValueError('PNG 목록은 출력 프레임 수와 같아야 합니다. 업로드 순서로 배치합니다.')
         for current_frame_path in current_frame_paths:
             with Image.open(current_frame_path) as current_frame_image:
                 current_encoded_images.append(encode_fun_image(current_frame_image, 'black'))
     current_payload_record = {'action': 'generate', 'prompt': current_prompt_text, 'negative_prompt': current_negative_text, 'images': current_encoded_images, 'control_type': current_control_type, 'width': 832, 'height': 480, 'frames': current_frame_count, 'seed': int(current_seed_value), 'steps': int(current_steps_value), 'flow_shift': current_shift_value, 'guidance_scale': current_guidance_value, 'switch_ratio': current_switch_ratio}
+    if current_input_mode == 'soma-video':
+        current_payload_record['driving_video'] = base64.b64encode(Path(current_video_path).read_bytes()).decode()
     validate_fun_request(current_payload_record)
     return current_payload_record
 
@@ -78,19 +90,21 @@ def restore_fun_inputs(current_history_record):
     if current_job_directory.parent != FUN_JOB_STORAGE.resolve():
         raise ValueError('이력 경로 오류')
     current_request_record = current_history_record['request']
+    if current_request_record.get('driving_video_file') and (current_request_record['driving_video_file'] != 'driving.mp4' or not (current_job_directory/'driving.mp4').is_file()):
+        raise ValueError('이력의 SOMA 입력 영상 사본이 없거나 경로가 잘못되었습니다.')
     current_reference_paths = []
     for current_reference_name in current_request_record['references']:
         current_reference_path = (current_job_directory/current_reference_name).resolve()
         if current_reference_path.parent != current_job_directory or not current_reference_path.is_file():
             raise ValueError('이력 입력 사본 누락 또는 경로 오류')
         current_reference_paths.append(str(current_reference_path))
-    return (current_reference_paths[0], None, current_reference_paths[1:], current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], current_job_identifier)
+    return (current_reference_paths[0], str(current_job_directory/'driving.mp4') if current_request_record.get('driving_video_file') else None, current_reference_paths[1:] or None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'soma-video' if current_request_record.get('driving_video_file') else 'preprocessed', current_job_identifier)
 
 
 def build_fun_interface(current_server_address, current_command_callback=None):
     current_execute_command = current_command_callback or execute_fun_command
     with gr.Blocks(title='Wan2.2 Fun Control 생성기') as current_interface_blocks:
-        gr.Markdown('## Wan2.2 Fun Control A14B 실험 생성기\n외형 참조와 전처리된 제어 영상으로 애니메이션을 생성합니다. 애니리그 얼굴은 입력하지 않습니다.')
+        gr.Markdown('## Wan2.2 Fun Control A14B 실험 생성기\n외형 참조와 SOMA 렌더 영상으로 애니메이션을 생성합니다. 포즈 전처리에 VideoX-Fun DWPose 공식 구현을 사용합니다.')
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
         current_model_refresh = gr.Button('모델 준비 상태 확인')
         def read_fun_model_status():
@@ -100,17 +114,19 @@ def build_fun_interface(current_server_address, current_command_callback=None):
                 return f'모델 상태 확인 실패: {current_status_error}'
         current_model_refresh.click(read_fun_model_status, outputs=current_model_status, queue=False)
         current_interface_blocks.load(read_fun_model_status, outputs=current_model_status)
+        current_mode_control = gr.Radio(choices=[('SOMA 렌더 영상 → VideoX-Fun 포즈 추출', 'soma-video'), ('이미 전처리된 제어 영상·PNG', 'preprocessed')], value='soma-video', label='입력 방식')
         with gr.Row():
             with gr.Column():
                 current_reference_control = gr.Image(type='filepath', sources=['upload'], label='캐릭터 외형 참조 · 1장')
-                with gr.Accordion('제어 영상 업로드 · PNG와 중복 입력 불가',open=False):
-                    current_video_control = gr.File(file_types=['.mp4', '.webm', '.mov'], label='전처리된 제어 영상 · 앞에서부터 지정 프레임 사용')
             with gr.Column():
-                with gr.Accordion('제어 PNG 업로드 · 파일 목록',open=False):
-                    current_frames_control = gr.File(file_count='multiple', file_types=['.png'], label='제어 PNG · 업로드 순서 · 영상과 중복 입력 불가')
-                build_input_preview(current_frames_control,'제어 PNG 미리보기 · 번호 순서로 입력 · 클릭하여 확대')
+                current_video_control = gr.File(file_types=['.mp4', '.webm', '.mov'], label='SOMA 렌더 영상 또는 전처리 영상 · 입력 방식 확인')
+        with gr.Group(visible=False) as current_legacy_inputs:
+            with gr.Accordion('제어 PNG 업로드 · 파일 목록',open=False):
+                current_frames_control = gr.File(file_count='multiple', file_types=['.png'], label='제어 PNG · 업로드 순서 · 영상과 중복 입력 불가')
+            build_input_preview(current_frames_control,'제어 PNG 미리보기 · 번호 순서로 입력 · 클릭하여 확대')
+        current_mode_control.change(lambda current_mode_value: gr.update(visible=current_mode_value=='preprocessed'), current_mode_control, current_legacy_inputs, queue=False)
         current_type_control = gr.Dropdown(choices=list(FUN_CONTROL_TYPES), value='pose', label='제어 종류 · 영상의 실제 표현과 일치시켜 주세요')
-        gr.Markdown('ANNY 렌더 원본은 pose 영상이 아닙니다. pose는 추출·투영한 관절 영상, depth는 깊이 영상, canny/mlsd는 선 영상입니다. 이 페이지는 자동 전처리하지 않습니다. 참조는 흰색, 제어는 검은색 여백으로 비율 유지하여 832×480에 맞춥니다.')
+        gr.Markdown('SOMA 입력은 Kimodo의 단일 인체 렌더 MP4를 사용합니다. 작업 프로세스가 VideoX-Fun DWPose로 몸·손·얼굴을 검출합니다. 공식 검출·그리기를 유지하고 실행 백엔드는 ONNX Runtime CUDA로 연결했습니다. 원본 시간 기준 16fps로 추출하며 부족한 영상은 거절합니다. 전처리 입력 모드는 기존 제어 영상을 그대로 사용합니다. 최종 제어 영상은 832×480입니다.')
         current_prompt_control = gr.Textbox(label='장면·동작 프롬프트', lines=3)
         current_prompt_summary = gr.Markdown('원문 0단어 · 최종 0단어 · 추가 문구 없음')
         current_prompt_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어 · 추가 문구 없음', current_prompt_control, current_prompt_summary, queue=False)
@@ -128,7 +144,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             current_steps_control = gr.Number(value=FUN_DEFAULT_SETTINGS['steps'], precision=0, minimum=2, maximum=100, label='스텝 · 2~100', info='실험 기본 20. 증가하면 계산량이 늘며 동작 개선을 보장하지 않습니다.')
             current_switch_control = gr.Number(value=FUN_DEFAULT_SETTINGS['switch_ratio'], minimum=0.1, maximum=0.9, label='고노이즈 스텝 비율 · 0.1~0.9', info='기본 0.5. 전체 스텝의 앞부분은 고노이즈 모델, 나머지는 저노이즈 모델을 사용합니다.')
             gr.Markdown('범위는 이 페이지의 실험 허용 범위입니다. [모델카드](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control) · [공식 ComfyUI 안내](https://docs.comfy.org/tutorials/video/wan/wan2-2-fun-control). 가속 4스텝 LoRA 예제와 현재 Q4 비가속 설정은 다릅니다.')
-        current_input_controls = [current_reference_control,current_video_control,current_frames_control,current_type_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_switch_control]
+        current_input_controls = [current_reference_control,current_video_control,current_frames_control,current_type_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_switch_control,current_mode_control]
         current_generate_button = gr.Button('대기열에 추가', variant='primary', interactive=False)
         build_button_guidance(current_generate_button, '참조·프롬프트와 제어 영상 또는 PNG 목록 중 하나를 입력하세요. 모델 파일이 준비되어야 등록할 수 있습니다.')
         with gr.Column() as current_confirmation_container:
@@ -150,9 +166,9 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             if current_status_record is None:
                 return '삭제된 이력입니다.','','','',gr.Timer(active=False)
             current_result_url = current_status_record.get('video','')
-            return describe_video_generation_status(current_status_record),render_video_generation_result(current_job_identifier,current_status_record,current_server_address) if current_result_url and current_result_url!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_result_url,gr.Timer(active=current_status_record.get('status') not in ('completed','failed','cancelled','paused'))
+            return describe_video_generation_status(current_status_record),render_fun_video_result(current_job_identifier,current_status_record,current_server_address) if current_result_url and current_result_url!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_result_url,gr.Timer(active=current_status_record.get('status') not in ('completed','failed','cancelled','paused'))
         current_generation_timer.tick(refresh_fun_status,[current_job_control,current_log_enabled,current_result_identity],[current_status_output,current_result_output,current_log_output,current_result_identity,current_generation_timer],queue=False,show_progress='hidden')
         current_job_control.change(lambda current_job_identifier:gr.Timer(active=bool(current_job_identifier)),current_job_control,current_generation_timer,queue=False)
-        current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_fun_inputs,restore_output_components=[*current_input_controls,current_job_control],result_renderer_callback=render_video_generation_result,record_folder_route='/wan22-fun-control',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
+        current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_fun_inputs,restore_output_components=[*current_input_controls,current_job_control],result_renderer_callback=render_fun_video_result,record_folder_route='/wan22-fun-control',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
     return current_interface_blocks

@@ -8,6 +8,15 @@ VIDEO_PREVIEW_FRAME_RATE = 16
 VIDEO_ALLOWED_FRAME_COUNTS = tuple(range(1, 162, 4))
 
 
+def render_condition_video_previews(current_status_record):
+    """서비스가 제공하는 전처리·렌더 영상을 같은 출처에서 표시한다."""
+    current_preview_parts = []
+    for current_preview_label, current_preview_url in current_status_record.get('preprocess_videos', {}).items():
+        current_escaped_url = html.escape(current_preview_url, quote=True)
+        current_preview_parts.append(f'<p>{html.escape(current_preview_label)}</p><video controls loop playsinline width="512" src="{current_escaped_url}"></video><p><a href="{current_escaped_url}" target="_blank">MP4 열기</a></p>')
+    return ''.join(current_preview_parts)
+
+
 def describe_video_frame_duration(current_frame_count):
     """편집 중 빈 값은 길이로 계산하지 않고 입력 방법을 안내한다."""
     if type(current_frame_count) not in (int, float) or current_frame_count not in VIDEO_ALLOWED_FRAME_COUNTS:

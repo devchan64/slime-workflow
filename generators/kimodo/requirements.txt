@@ -10,3 +10,4 @@ cmake
 ninja
 setuptools
 wheel
+pyrender==0.1.45

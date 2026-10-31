@@ -109,9 +109,15 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     del current_motion_model,current_embedding_tensor
     gc.collect()
     torch.cuda.empty_cache()
+    from generators.kimodo.soma_render import render_soma_motion
+    from generators.kimodo.contracts import KIMODO_DIRECTION_RECORDS
+    current_metrics_recorder.update_generation_stage('soma-render')
+    current_soma_videos = render_soma_motion(current_attempt_root, {current_direction_name: KIMODO_DIRECTION_RECORDS[current_direction_name]['angle'] for current_direction_name in current_request_record.get('directions', ['front_left'])})
     from generators.kimodo.comparison import export_pose_comparison
     export_pose_comparison(current_attempt_root,current_request_record.get('directions',['front_left']),current_request_record.get('openpose_scale_percent',100.0))
     with zipfile.ZipFile(current_attempt_root/'frames.zip','a') as current_output_archive:
+        for current_soma_filename in [*current_soma_videos.values(), 'soma-render.json']:
+            current_output_archive.write(current_attempt_root/current_soma_filename, current_soma_filename)
         if current_request_record.get('remove_horizontal_motion',False):
             current_output_archive.write(current_attempt_root/'motion-in-place.npz','motion-in-place.npz')
         if (current_attempt_root/'reference-proportions.json').is_file():
@@ -123,4 +129,5 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
             current_output_archive.write(current_attempt_root/current_artifact_name,current_artifact_name)
     current_result_record = {'attempt':current_attempt_root.name,'frames':current_request_record['frames'],'fps':30,'width':640,'height':480,'frame_sha256':current_frame_hashes,'model':'nvidia/Kimodo-SOMA-RP-v1.2','encoder':'matbee/kimodo-llm2vec-nf4','encoder_quantization':'NF4','motion_precision':'FP32','source_revision':KIMODO_ASSET_CONFIG['source_revision'],'model_revisions':{current_asset_record['role']:current_asset_record['revision'] for current_asset_record in KIMODO_ASSET_CONFIG['models']},'skeleton':'somaskel77','compute_device':'cuda','post_processing':current_request_record['post_processing'],'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20}
     current_result_record.update(openpose_scale_basis='legacy-fit',openpose_scale_percent=current_request_record.get('openpose_scale_percent',100.0),remove_horizontal_motion=current_request_record.get('remove_horizontal_motion',False),directions=current_request_record.get('directions',['front_left']),pose_source='soma',anny_enabled=False,reference_proportions=bool(current_request_record.get('references')))
+    current_result_record['soma_render_videos'] = current_soma_videos
     return current_result_record

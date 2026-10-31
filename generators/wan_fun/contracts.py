@@ -40,7 +40,10 @@ def validate_fun_assets():
 
 
 def validate_fun_request(current_request_record):
+    current_video_input = isinstance(current_request_record, dict) and 'driving_video' in current_request_record
     required_field_names = {'action', 'prompt', 'negative_prompt', 'images', 'width', 'height', 'frames', 'steps', 'seed', 'flow_shift', 'guidance_scale', 'switch_ratio', 'control_type'}
+    if current_video_input:
+        required_field_names.add('driving_video')
     if not isinstance(current_request_record, dict) or set(current_request_record) != required_field_names:
         raise ValueError('Fun Control 요청 필드가 맞지 않습니다.')
     if current_request_record['action'] != 'generate':
@@ -62,10 +65,15 @@ def validate_fun_request(current_request_record):
             raise ValueError(f'{current_field_name}: {minimum_field_value}~{maximum_field_value} 범위가 필요합니다.')
     if current_request_record['control_type'] not in FUN_CONTROL_TYPES:
         raise ValueError('제어 영상 종류를 확인하세요.')
-    if not isinstance(current_request_record['images'], list) or len(current_request_record['images']) != current_request_record['frames'] + 1:
+    if not isinstance(current_request_record['images'], list) or len(current_request_record['images']) != (1 if current_video_input else current_request_record['frames'] + 1):
         raise ValueError('외형 참조 1장과 출력 프레임 수만큼의 제어 프레임이 필요합니다.')
     for current_image_text in current_request_record['images']:
         with Image.open(io.BytesIO(decode_reference_image(current_image_text))) as current_image_object:
             if current_image_object.format != 'PNG' or current_image_object.size != (832, 480):
                 raise ValueError('모든 입력은 832×480 PNG여야 합니다.')
+    if current_video_input:
+        if current_request_record['control_type'] != 'pose':
+            raise ValueError('SOMA 렌더 영상 입력은 pose 제어만 지원합니다.')
+        from generators.wan_fun.video_input import validate_fun_driving_video
+        validate_fun_driving_video(current_request_record['driving_video'], current_request_record['frames'])
     return {**current_request_record, 'prompt': current_request_record['prompt'].strip(), 'tag': 'wan22-fun-control'}

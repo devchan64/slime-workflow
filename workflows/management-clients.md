@@ -946,11 +946,11 @@ Animate의 전체 실행은 추론 모드로 처리합니다. VAE는 CUDA에서 
 
 ### Wan2.2 Fun Control Q4 실험 생성기
 
-애니메이션 도구의 `/management/frame/wan22-fun-control-generator/`는 외형 참조 1장과 전처리된 pose/depth/canny/mlsd 제어 영상을 입력받습니다. ANNY RGB 렌더는 포즈 영상으로 간주하지 않습니다. 얼굴 영상은 사용하지 않으며 자동 전처리는 제공하지 않습니다. 영상의 앞 N프레임 또는 업로드 순서대로 N장의 PNG를 사용하고 부족한 프레임은 반복하지 않습니다. 참조는 흰색, 제어는 검은색 여백으로 비율을 유지해 832×480에 맞춥니다. 출력은 16fps입니다.
+애니메이션 도구의 `/management/frame/wan22-fun-control-generator/`는 외형 참조 1장과 전처리된 pose/depth/canny/mlsd 제어 영상을 입력받습니다. 기본 입력은 Kimodo의 SOMA 단일 인체 렌더 MP4입니다. VideoX-Fun DWPose 공식 검출·그리기를 작업 프로세스에서 실행하고 결과 조회에 추출 영상을 표시합니다. 원본 시간 기준 16fps로 추출하며 영상 길이가 부족하면 거절합니다. 기존 전처리 입력 모드도 유지합니다. 영상의 앞 N프레임 또는 업로드 순서대로 N장의 PNG를 사용하고 부족한 프레임은 반복하지 않습니다. 참조는 흰색, 제어는 검은색 여백으로 비율을 유지해 832×480에 맞춥니다. 출력은 16fps입니다.
 
 실험 기본값은 21프레임·20스텝·Shift 5·CFG 6·seed 42·고노이즈 스텝 비율 0.5입니다. 프레임은 5~81의 4n+1, 스텝은 2~100, Shift 0.1~20, CFG 1~10, 전환 비율 0.1~0.9를 허용합니다. 이 값은 로컬 실험 범위이며 공식 권장 범위를 뜻하지 않습니다. Euler/simple로 고·저노이즈 전문가를 순차 실행하며 4스텝 가속 LoRA는 사용하지 않습니다. Q4 모델 준비와 실제 8GB 추론 성공은 별도로 검증합니다.
 
-공용 서비스는 `wan22-fun-control`입니다. CLI `tools/manager.py command wan22-fun-control generate --payload-file <요청.json> --detach`의 필드는 `action`, `prompt`, `negative_prompt`, `images`, `width`, `height`, `frames`, `steps`, `seed`, `flow_shift`, `guidance_scale`, `switch_ratio`, `control_type`입니다. `images`는 참조 1장 다음 제어 N장을 PNG base64로 전달합니다. 모델 선택은 입력받지 않습니다. 모델 상태·생성·조회·취소·재개·우선 실행·선택 삭제·전체 초기화는 공용 게이트웨이 계약을 따릅니다. 작업별 입력·결과·로그·VRAM 관측치·예상 시간은 `.tmp/test/wan22-fun-control/`에 보존합니다. 기존 Animate/VACE 이력과 분리합니다.
+공용 서비스는 `wan22-fun-control`입니다. CLI `tools/manager.py command wan22-fun-control generate --payload-file <요청.json> --detach`의 필드는 `action`, `prompt`, `negative_prompt`, `images`, `width`, `height`, `frames`, `steps`, `seed`, `flow_shift`, `guidance_scale`, `switch_ratio`, `control_type`입니다. `images`는 기존 전처리 모드에서 참조 1장 다음 제어 N장을 PNG base64로 전달합니다. SOMA 모드에서는 `images`에 참조 1장만 넣고 `driving_video`에 MP4 base64(32MiB 이하)를 추가하며 `control_type`은 `pose`입니다. 원본은 작업 폴더의 `driving.mp4`와 SHA-256으로 보존합니다. Kimodo 결과 ZIP의 `soma-render-<direction>.mp4`를 입력합니다. 모델 선택은 입력받지 않습니다. 모델 상태·생성·조회·취소·재개·우선 실행·선택 삭제·전체 초기화는 공용 게이트웨이 계약을 따릅니다. 작업별 입력·결과·로그·VRAM 관측치·예상 시간은 `.tmp/test/wan22-fun-control/`에 보존합니다. 기존 Animate/VACE 이력과 분리합니다.
 
 고·저노이즈 가중치는 `QuantStack/Wan2.2-Fun-A14B-Control-GGUF`의 revision `26d412a4bec09e1324fc80654dcee0d58218db52`, Q4_K_M을 `.model/wan22-fun-control/`에 보관합니다. UMT5 Q4·Wan2.1 VAE와 고정 ComfyUI 런타임은 Animate와 공유합니다. CUDA 추론과 CPU 가중치 오프로드, 타일 VAE를 사용하며 CPU 추론 대체는 없습니다.
 
@@ -1017,3 +1017,9 @@ Kimodo 제자리 보행 보정: GUI 체크박스와 CLI 생성 JSON의 `remove_h
 Kimodo 선택 참조 비율: `proportion_images`는 최대 8장의 base64 이미지 배열이다. 생략하면 기존 SOMA 투영을 유지한다. GUI 체크박스를 켰을 때만 이 배열을 전송한다. 공용 입력 사본·해시·이력 복원을 사용하며 GPU 작업자가 신뢰도 가중 비율을 추정해 OpenPose 출력에만 적용한다. 결과 ZIP에는 추출 포즈와 채택 근거가 포함된다. 상세 제한은 `generators/kimodo/README.md`를 따른다.
 
 Kimodo `generate`의 `openpose_scale_percent`는 OpenPose 출력 크기(10~100%, 기본 85%)입니다. `--payload-file` 요청에도 동일하게 적용합니다. 기존 여백 32px을 포함한 자동 맞춤 크기를 100%로 하여 지정 비율로 축소하며 SOMA와 신체 비율은 유지합니다. 요청·결과·포즈 JSON에 저장하고 이력에서 불러옵니다. 이 필드가 없는 과거 작업의 재개·입력 복원은 기존 크기인 100%를 유지합니다.
+
+### SOMA 영상 포즈 전처리 출처와 준비
+
+Fun Control의 포즈 검출·몸/손/얼굴 그리기는 [VideoX-Fun VideoToPose](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/comfyui/annotator/nodes.py)의 `DWposeDetector`를 사용합니다. 원본 5개 파일·라이선스·해시는 `generators/wan_fun/vendor/videox_fun/`에 보존합니다. GPU 규칙을 위해 공식 OpenCV CPU 세션 초기화 대신 ONNX Runtime CUDA 세션을 연결합니다. 가중치는 같은 DWPose이며 입력 배치 1의 형상 계산을 onnxsim 0.8.1로 사전 상수화하고 CPU EP fallback을 금지합니다. 색상·관절·신뢰도·손·얼굴 렌더링은 원본 구현입니다. 이 표기는 전처리 사용을 뜻하며 전체 영상 샘플러를 VideoX-Fun으로 교체했다는 뜻이 아닙니다.
+
+준비는 `.venv/bin/python -m generators.wan_fun.prepare_pose`입니다. `pose-requirements.txt`와 기존 Animate CUDA preprocess-deps 환경을 사용합니다. 원본 및 상수화 모델은 `.model/wan22-fun-pose/`에 보관하며 고정 모델 revision과 해시를 `prepared.json`에 기록합니다. CPU 모델 추론으로 대체하지 않습니다. 검출 실패·짧은 입력·해시 불일치는 실패로 기록합니다.
