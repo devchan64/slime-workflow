@@ -109,7 +109,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
         current_legacy_request=dict(self.current_request_record)
         current_legacy_request.pop('directions')
         self.assertEqual(validate_kimodo_request(current_legacy_request)['directions'],['front_left'])
-        self.assertEqual(restore_kimodo_inputs({'id':'old','request':current_legacy_request})[-3],['front_left'])
+        self.assertEqual(restore_kimodo_inputs({'id':'old','request':current_legacy_request})[7],['front_left'])
         self.assertEqual(validate_kimodo_request({**self.current_request_record,'directions':['front','right']})['directions'],['front','right'])
 
     def test_comparison_projection_and_missing_points(self):
@@ -137,6 +137,28 @@ class KimodoGenerationContractTests(unittest.TestCase):
         self.assertIn('/kimodo/frames.zip',current_result_markup)
         self.assertIn('리타게팅 후',current_result_markup)
 
+    def test_pose_render_colors_and_missing_joints(self):
+        import numpy as np
+        from generators.kimodo.pose_rendering import render_body_pose_image
+        current_pose_points = np.zeros((18,3))
+        current_pose_points[1] = (50,50,1)
+        current_pose_points[0] = (50,150,1)
+        current_pose_image = render_body_pose_image(current_pose_points)
+        self.assertEqual(current_pose_image.getpixel((50,100)),(0,0,153))
+        self.assertEqual(current_pose_image.getpixel((50,50)),(255,85,0))
+        self.assertEqual(current_pose_image.getpixel((50,150)),(255,0,0))
+        current_pose_points[:] = 0
+        current_pose_points[0] = (50,50,1)
+        current_pose_points[14] = (150,50,1)
+        current_pose_points[15] = (50,150,1)
+        current_pose_image = render_body_pose_image(current_pose_points)
+        self.assertEqual(current_pose_image.getpixel((100,50)),(51,0,153))
+        self.assertEqual(current_pose_image.getpixel((50,100)),(153,0,153))
+        current_pose_points[14:,2] = 0
+        current_pose_image = render_body_pose_image(current_pose_points)
+        self.assertEqual(current_pose_image.getpixel((100,50)),(0,0,0))
+        self.assertEqual(current_pose_image.getpixel((50,100)),(0,0,0))
+
     def test_soma_pose_preserves_motion_and_missing_face(self):
         import numpy as np
         from generators.kimodo.soma_pose import project_soma_body_points, SOMA_BODY_JOINT_NAMES
@@ -145,8 +167,8 @@ class KimodoGenerationContractTests(unittest.TestCase):
         current_joint_positions=np.zeros((2,77,3))
         current_joint_positions[1,:,0]=1
         current_pose_points=project_soma_body_points(current_joint_positions,current_joint_names,'front')
-        self.assertTrue(np.all(current_pose_points[:,[16,17]]==0))
-        self.assertTrue(np.all(current_pose_points[:,[0,14,15],2]==1))
+        self.assertTrue(np.all(current_pose_points[:,[0,16,17]]==0))
+        self.assertTrue(np.all(current_pose_points[:,[14,15],2]==1))
         self.assertGreater(current_pose_points[1,4,0],current_pose_points[0,4,0])
         np.testing.assert_allclose(current_pose_points[:,1,:2],(current_pose_points[:,2,:2]+current_pose_points[:,5,:2])/2)
         current_joint_positions[0,0,0]=float('nan')

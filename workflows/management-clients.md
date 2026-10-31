@@ -916,11 +916,15 @@ F2V 생성기는 폐기되었습니다. 메뉴에서 제거했으며 기존 페�
 
 ### Wan2.2 Animate Q4 실험 서비스
 
-공용 게이트웨이 서비스 `wan22-animate`는 외형 참조 1장과 ANNY에서 전처리한 포즈 21장을 입력받습니다. Gradio 페이지 `/management/frame/wan22-animate-generator/`에서 외형 참조+몸 포즈 21장 또는 외형 참조만 실험을 선택합니다. 입력 PNG는 832×480이며 자동 크기 보정·포즈 전처리는 하지 않습니다. 공용 확인·이력·삭제·상태·결과 표시를 사용하며 설정과 시드는 서비스의 고정값을 표시합니다. 통합 CLI `command wan22-animate generate --payload-file <요청.json> --detach`로 등록합니다. 생성·조회·취소·재개·우선 실행·이력 삭제는 공용 게이트웨이 계약을 사용합니다.
+공용 서비스 `wan22-animate`의 기본 입력은 캐릭터 이미지 1장과 동작 MP4입니다. GUI와 CLI 모두 `action: generate`, `mode: animation`, `images`(PNG base64 1장), `driving_video`(MP4 base64), `width`, `height`, `steps`, `seed`, `flow_shift`, `guidance_scale`을 전달합니다. 영상은 최대 32MiB·121프레임·1~60fps입니다. 이는 로컬 단일 구간 구현 제한이며 공식 모델의 길이 제한이 아닙니다. 인물 교체 모드는 거절합니다.
 
-최초 실험은 832×480·21프레임·16fps·20스텝·shift 5·CFG 1·seed 42로 고정합니다. `images`는 외형 참조 뒤에 포즈를 순서대로 PNG base64로 전달하며 얼굴 크롭·배경 교체·증류 LoRA는 사용하지 않습니다. 입력 사본과 결과는 `.tmp/test/wan22-animate/`에 저장합니다. 모델은 Animate Q4_K_M, UMT5 Q4_K_M, Wan2.1 VAE로 코드에서 고정하며 CUDA 연산과 CPU 가중치 오프로드를 사용합니다. 실행 의존성은 `.local/wan22-animate/`의 고정 ComfyUI·GGUF 코드입니다. 모델 로딩 성공만으로 8GB 샘플링 성공을 보장하지 않습니다.
+작업 서비스는 영상을 검사한 뒤 `driving.mp4` 사본과 SHA-256을 저장합니다. 작업자가 CUDA에서 공식 Wan 포즈 검출·얼굴 크롭을 자동 추출합니다. 원본 FPS·길이를 유지하고, 4n+1 정렬 패딩은 최종 영상에서 제거합니다. 이미지·영상은 출력 크기로 비율 유지·흰 여백 처리합니다. 텍스트는 공식 기본 문구를 자동 적용하며 UI에 입력란을 제공하지 않습니다. 리타게팅은 미사용으로 고정합니다. 결과 조회에서 생성 영상과 자동 추출 포즈·얼굴 영상을 확인합니다.
 
-Animate의 전체 실행은 추론 모드로 처리합니다. VAE는 CUDA에서 공간 256×256·시간 9프레임(시간 겹침 5프레임)으로 명시적 타일 인코딩하고, 디코딩은 잠재 공간 32×32·시간 3칸으로 처리합니다. 입력·출력 해상도를 줄이지 않으며 경계 품질은 별도 검수합니다. 실행 시도별 memory-policy.json에 정책을 보존합니다.
+CLI: `python tools/manager.py command wan22-animate generate --payload-file <요청.json> --detach`. 모델은 Q4_K_M Animate·UMT5 Q4·CLIP Vision·Wan2.1 VAE로 고정합니다. CUDA 연산/CPU 가중치 오프로드를 사용하며 `.local/wan22-animate/` 고정 ComfyUI·GGUF 실행기와 `.tmp/test/wan22-animate/` 기록 경로를 유지합니다. 전처리 공식 Python 소스는 `.local/wan22-animate/preprocess/`, CUDA 12 호환 ONNX Runtime은 `preprocess-deps/`, 검출 모델은 `.model/wan22-animate-preprocess/process_checkpoint/`에 준비합니다. 준비가 없으면 접수를 거절합니다. 입력 영상 해독에는 기존 `.venv`의 imageio-ffmpeg를 사용합니다.
+
+기존 PNG 직접 입력 CLI 계약과 결과 조회는 호환 유지합니다. 원본 영상이 없는 과거 PNG 이력은 새 기본 폼으로 복원하지 않으며 원본 영상 첨부를 안내합니다. 새 영상 이력은 이미지·영상·설정을 복원합니다. 실행 중 사용자 작업을 UI 검증 목적으로 추가·중단하지 않습니다.
+
+Animate의 전체 실행은 추론 모드로 처리합니다. VAE는 CUDA에서 공간 256×256·시간 9프레임(시간 겹침 5프레임)으로 명시적 타일 인코딩하고, Animate 디코딩은 잠재 공간 32×32 공간 타일을 유지하되 시간축 전체를 한 구간으로 처리합니다. 이전 시간 3칸 타일의 8프레임 경계 밝기 변화를 줄이기 위한 설정입니다. 실제 적용 시간 길이와 정책을 기록하고 디코딩 직전 잠재값을 `decode-latents.pt`로 보관합니다. 입력·출력 해상도를 줄이지 않으며 경계 품질은 별도 검수합니다. 실행 시도별 memory-policy.json에 정책을 보존합니다.
 
 외형 참조와 프롬프트만 비교하려면 `images`에 외형 참조 1장만 전달합니다. 이 경우 포즈·얼굴 동작 조건은 연결하지 않습니다. 포즈 입력 없는 실험 지원이며 걷기나 외형 보존 품질을 보장하지 않습니다. 실행 시도별 `conditioning.json`에 참조 수·포즈 프레임 수를 기록합니다.
 
@@ -928,7 +932,7 @@ Animate의 전체 실행은 추론 모드로 처리합니다. VAE는 CUDA에서 
 
 공식 모델카드의 Animate는 동작 영상과 캐릭터 참조 이미지로 애니메이션 또는 인물 교체를 수행한다. 참조 1장만 받는 로컬 실험은 ComfyUI 선택 입력을 생략한 비표준 조건 제거 실험이며, 공식 이미지·텍스트 전용 생성 지원을 의미하지 않는다.
 
-공식 실행기는 `src_pose.mp4`, `src_face.mp4`, `src_ref.png`를 읽고 참조의 CLIP visual 특징도 사용한다. 현재 로컬 작업자는 얼굴과 CLIP visual 조건을 생략했으므로 공식 조건과 동등하지 않다. 공식 기본값은 20스텝·Shift 5·CFG 1이며 사용자 정의 프롬프트를 권장하지 않는다. 기본 프롬프트는 `视频中的人在做动作`이다. 현재 Euler/simple 샘플러도 공식 실행기의 dpm++/unipc와 구분한다.
+공식 실행기는 `src_pose.mp4`, `src_face.mp4`, `src_ref.png`를 읽고 참조의 CLIP visual 특징도 사용한다. 2026-10-31 확장 후 로컬 작업자는 CLIP visual 조건과 선택적인 얼굴 크롭을 연결한다. 얼굴을 생략한 입력은 공식 전체 조건과 다르다. 공식 기본값은 20스텝·Shift 5·CFG 1이며 사용자 정의 프롬프트를 권장하지 않는다. 기본 프롬프트는 `视频中的人在做动作`이다. 현재 로컬 샘플러는 UniPC/sgm_uniform이며 양자화·타일 VAE를 포함한 ComfyUI 경로를 공식 원본 실행과 구분한다.
 
 기본 pose retargeting은 참조와 동작 첫 프레임 모두 정면으로 몸을 편 자세라는 전제가 있다. 쿼터뷰 참조와 보행 첫 프레임에 기본 리타게팅을 적용한 기존 실험은 이 전제를 충족하지 않는다. 해당 경우 보강 리타게팅 또는 다른 검증된 전처리를 검토하고, 중간 포즈를 먼저 검수한다. 이런 차이가 각 오류의 원인인지는 대조 실험 전에는 확정하지 않는다.
 
@@ -1008,3 +1012,6 @@ DB 폐기 원장을 출력할 때 등록부의 `source.lifecycle_status`를 `ret
 DB 이미지 편집은 해시별 `assets/billboards/versions/<SHA-256>.png`를 불변 파일로 먼저 게시한 뒤 DB 참조를 변경한다. 파일 게시 실패 시 DB 요청을 보내지 않는다. DB 응답 유실 시 같은 확인 토큰으로 재시도하며 게시 파일은 남긴다. 같은 경로에 다른 내용이 있으면 거절한다. 원장 출력은 이전 등록 버전을 보존하고 새 버전을 추가해 카탈로그 참조를 전환한다. 단일 원본 경로 덮어쓰기를 전제로 저장된 이전 확인 토큰은 재검수가 필요하다. 생성 이력·백업과 별개인 등록 이미지 버전이며 자동 정리는 아직 구현하지 않았다.
 
 Kimodo 제자리 보행 보정: GUI 체크박스와 CLI 생성 JSON의 `remove_horizontal_motion` 불리언을 공유한다. 생략 시 false이며, true는 추론 후 골반의 X·Z 이동만 제거한다. 원본 `motion.npz`와 보정본 `motion-in-place.npz`를 함께 보존하고 SOMA·오픈포즈 출력에 같은 보정본을 사용한다.
+
+
+Kimodo 선택 참조 비율: `proportion_images`는 최대 8장의 base64 이미지 배열이다. 생략하면 기존 SOMA 투영을 유지한다. GUI 체크박스를 켰을 때만 이 배열을 전송한다. 공용 입력 사본·해시·이력 복원을 사용하며 GPU 작업자가 신뢰도 가중 비율을 추정해 OpenPose 출력에만 적용한다. 결과 ZIP에는 추출 포즈와 채택 근거가 포함된다. 상세 제한은 `generators/kimodo/README.md`를 따른다.

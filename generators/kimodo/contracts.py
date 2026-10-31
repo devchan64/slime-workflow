@@ -1,4 +1,5 @@
 """Kimodo의 고정 모델·입력·준비 상태 계약."""
+import base64
 import hashlib
 import json
 import math
@@ -74,7 +75,7 @@ validate_kimodo_directions(KIMODO_DEFAULT_SETTINGS['directions'])
 
 def validate_kimodo_request(current_request_record):
     current_required_fields = {'action','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'}
-    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'directions','remove_horizontal_motion'}:
+    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'directions','remove_horizontal_motion','proportion_images'}:
         raise ValueError('Kimodo 요청 필드 오류')
     if current_request_record['action'] != 'generate':
         raise ValueError('generate 명령만 지원합니다.')
@@ -95,7 +96,27 @@ def validate_kimodo_request(current_request_record):
         raise ValueError('후처리 여부는 참/거짓이어야 합니다.')
     if type(current_request_record.get('remove_horizontal_motion',False)) is not bool:
         raise ValueError('수평 이동 제거 여부는 참/거짓이어야 합니다.')
-    return {**current_request_record, 'remove_horizontal_motion':current_request_record.get('remove_horizontal_motion',False), 'directions':validate_kimodo_directions(current_request_record.get('directions',['front_left'])), 'prompt':current_prompt_text.strip(), 'images':[], 'width':512, 'height':512, 'tag':'kimodo'}
+    current_reference_images=current_request_record.get('proportion_images',[])
+    if not isinstance(current_reference_images,list) or len(current_reference_images)>8:
+        raise ValueError('신체 비율 참조 이미지는 선택 입력이며 최대 8장입니다.')
+    from tools.review.domains.image.three_reference_generation import decode_reference_image
+    from PIL import Image
+    import io
+    current_normalized_images=[]
+    current_reference_hashes=set()
+    for current_reference_value in current_reference_images:
+        current_image_bytes=decode_reference_image(current_reference_value,composite_transparent_background=True)
+        current_normalized_images.append(base64.b64encode(current_image_bytes).decode())
+        current_reference_hash=hashlib.sha256(current_image_bytes).hexdigest()
+        if current_reference_hash in current_reference_hashes:
+            raise ValueError('같은 참조 이미지는 중복 입력할 수 없습니다.')
+        current_reference_hashes.add(current_reference_hash)
+        if len(current_image_bytes)>8*1024*1024:
+            raise ValueError('참조 이미지는 각 8MiB 이하여야 합니다.')
+        with Image.open(io.BytesIO(current_image_bytes)) as current_image_value:
+            if max(current_image_value.size)>4096 or min(current_image_value.size)<64:
+                raise ValueError('참조 이미지 크기는 각 변 64~4096이어야 합니다.')
+    return {**{current_field_name:current_field_value for current_field_name,current_field_value in current_request_record.items() if current_field_name!='proportion_images'}, 'remove_horizontal_motion':current_request_record.get('remove_horizontal_motion',False), 'directions':validate_kimodo_directions(current_request_record.get('directions',['front_left'])), 'prompt':current_prompt_text.strip(), 'images':current_normalized_images, 'width':512, 'height':512, 'tag':'kimodo'}
 
 
 def inspect_kimodo_assets():

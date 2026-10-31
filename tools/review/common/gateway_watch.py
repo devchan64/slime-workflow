@@ -22,7 +22,7 @@ def collect_gateway_watch_paths(writer_workspace_config=None):
         WORKFLOW_ROOT_DIRECTORY/'tools/review/build_block_map_review.py',
         WORKFLOW_ROOT_DIRECTORY/'tools/review/common',
         WORKFLOW_ROOT_DIRECTORY/'tools/review/domains',
-        WORKFLOW_ROOT_DIRECTORY/'generators/writer_agent',
+        WORKFLOW_ROOT_DIRECTORY/'generators',
         Path(writer_workspace_config) if writer_workspace_config is not None else WORKFLOW_ROOT_DIRECTORY/'.local/writer-agent/workspace.yaml',
     )
 

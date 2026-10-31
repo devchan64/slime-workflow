@@ -1,0 +1,6 @@
+schema_version: 1
+examples:
+  - id: character_eight_directions
+    label: 기본 캐릭터 · 8방향 신체 기준
+    images:
+      - assets/character-baselines/character-default/body-baseline-8-directions.png
