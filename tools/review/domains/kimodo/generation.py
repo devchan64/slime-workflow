@@ -14,14 +14,23 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
 
     def validate_generation_resume(self,selected_job_directory):
         import json
-        self.validate_generation_runtime(json.loads((selected_job_directory/'request.json').read_text()))
+        current_saved_request=json.loads((selected_job_directory/'request.json').read_text())
+        if current_saved_request.get('action')=='reference-analysis':
+            raise ValueError('참조 추출 검증은 모션 생성 재개 대상이 아닙니다. 참조 입력을 불러와 새 작업을 생성하세요.')
+        self.validate_generation_runtime(current_saved_request)
 
     def read_generation_status_record(self,current_job_root,fallback_status_record=None,include_log_value=False):
         current_status_record = super().read_generation_status_record(current_job_root,fallback_status_record,include_log_value)
         if current_status_record.get('video'):
             import json
             current_result_record = json.loads((current_job_root/'result.json').read_text())
+            current_status_record['reference_analysis_only']=current_result_record.get('reference_analysis_only',False)
+            current_status_record['openpose_scale_percent'] = current_result_record.get('openpose_scale_percent',100.0)
             current_status_record['reference_proportions'] = current_result_record.get('reference_proportions',False)
+            current_reference_record_path=current_job_root/'attempts'/current_result_record['attempt']/'reference-proportions.json'
+            if current_reference_record_path.is_file():
+                current_reference_record=json.loads(current_reference_record_path.read_text())
+                current_status_record['reference_observation_count']=current_reference_record.get('observation_count',current_reference_record.get('image_count',0))
             current_status_record['remove_horizontal_motion'] = current_result_record.get('remove_horizontal_motion',False)
             current_comparison_path = current_job_root/'attempts'/current_result_record['attempt']/'comparison.mp4'
             if current_comparison_path.is_file() and current_comparison_path.resolve().is_relative_to(current_job_root.resolve()):

@@ -26,14 +26,14 @@ def render_pose_comparison(current_attempt_root, current_image_records):
     return current_comparison_image
 
 
-def export_pose_comparison(current_attempt_root,current_direction_names):
+def export_pose_comparison(current_attempt_root,current_direction_names,current_scale_percent=100.0):
     import imageio.v2 as imageio
     import numpy as np
     current_attempt_root = Path(current_attempt_root)
     from generators.kimodo.soma_pose import load_soma_pose_points, SOMA_POSE_SCHEMA_VERSION
-    current_soma_points = load_soma_pose_points(current_attempt_root,current_direction_names)
+    current_soma_points = load_soma_pose_points(current_attempt_root,current_direction_names,current_scale_percent)
     current_frame_count = len(next(iter(current_soma_points.values())))
-    current_pose_record = {'schema_version':SOMA_POSE_SCHEMA_VERSION,'rendering':POSE_RENDER_SCHEMA_VERSION,'rendering_source':POSE_RENDER_SOURCE_URL,'fps':30,'width':512,'height':512,'projection':'orthographic-horizontal','source':('motion-in-place.npz' if (current_attempt_root/'motion-in-place.npz').is_file() else 'motion.npz')+':posed_joints','missing_points':[0,16,17],'head_mapping':{'0':None,'14':'RightEye','15':'LeftEye'},'directions':{current_direction_name:current_pose_values.tolist() for current_direction_name,current_pose_values in current_soma_points.items()}}
+    current_pose_record = {'openpose_scale_basis':'legacy-fit','openpose_scale_percent':current_scale_percent,'schema_version':SOMA_POSE_SCHEMA_VERSION,'rendering':POSE_RENDER_SCHEMA_VERSION,'rendering_source':POSE_RENDER_SOURCE_URL,'fps':30,'width':512,'height':512,'projection':'orthographic-horizontal','source':('motion-in-place.npz' if (current_attempt_root/'motion-in-place.npz').is_file() else 'motion.npz')+':posed_joints','missing_points':[0,16,17],'head_mapping':{'0':None,'14':'RightEye','15':'LeftEye'},'directions':{current_direction_name:current_pose_values.tolist() for current_direction_name,current_pose_values in current_soma_points.items()}}
     current_ratio_path=current_attempt_root/'reference-proportions.json'
     if current_ratio_path.is_file():
         current_pose_record['reference_proportions']=json.loads(current_ratio_path.read_text())

@@ -50,7 +50,7 @@ for current_asset_record in KIMODO_ASSET_CONFIG['models']:
             raise ValueError('Kimodo 자료 크기·해시 설정 오류')
 if {current_asset_record['role'] for current_asset_record in KIMODO_ASSET_CONFIG['models']} != {'motion','encoder'}:
     raise ValueError('Kimodo 모델 역할 설정 오류')
-if set(KIMODO_DEFAULT_SETTINGS) != {'schema_version','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing','directions','remove_horizontal_motion'} or KIMODO_DEFAULT_SETTINGS['schema_version'] != 1:
+if set(KIMODO_DEFAULT_SETTINGS) != {'schema_version','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing','directions','remove_horizontal_motion','openpose_scale_percent'} or KIMODO_DEFAULT_SETTINGS['schema_version'] != 1:
     raise ValueError('Kimodo 기본 설정 계약 오류')
 
 
@@ -75,7 +75,7 @@ validate_kimodo_directions(KIMODO_DEFAULT_SETTINGS['directions'])
 
 def validate_kimodo_request(current_request_record):
     current_required_fields = {'action','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'}
-    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'directions','remove_horizontal_motion','proportion_images'}:
+    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'directions','remove_horizontal_motion','proportion_images','openpose_scale_percent'}:
         raise ValueError('Kimodo 요청 필드 오류')
     if current_request_record['action'] != 'generate':
         raise ValueError('generate 명령만 지원합니다.')
@@ -96,6 +96,9 @@ def validate_kimodo_request(current_request_record):
         raise ValueError('후처리 여부는 참/거짓이어야 합니다.')
     if type(current_request_record.get('remove_horizontal_motion',False)) is not bool:
         raise ValueError('수평 이동 제거 여부는 참/거짓이어야 합니다.')
+    current_scale_percent=current_request_record.get('openpose_scale_percent',KIMODO_DEFAULT_SETTINGS['openpose_scale_percent'])
+    if type(current_scale_percent) not in (int,float) or not math.isfinite(current_scale_percent) or not 10<=current_scale_percent<=100:
+        raise ValueError('OpenPose 크기 비율은 10~100% 숫자여야 합니다.')
     current_reference_images=current_request_record.get('proportion_images',[])
     if not isinstance(current_reference_images,list) or len(current_reference_images)>8:
         raise ValueError('신체 비율 참조 이미지는 선택 입력이며 최대 8장입니다.')
@@ -116,7 +119,7 @@ def validate_kimodo_request(current_request_record):
         with Image.open(io.BytesIO(current_image_bytes)) as current_image_value:
             if max(current_image_value.size)>4096 or min(current_image_value.size)<64:
                 raise ValueError('참조 이미지 크기는 각 변 64~4096이어야 합니다.')
-    return {**{current_field_name:current_field_value for current_field_name,current_field_value in current_request_record.items() if current_field_name!='proportion_images'}, 'remove_horizontal_motion':current_request_record.get('remove_horizontal_motion',False), 'directions':validate_kimodo_directions(current_request_record.get('directions',['front_left'])), 'prompt':current_prompt_text.strip(), 'images':current_normalized_images, 'width':512, 'height':512, 'tag':'kimodo'}
+    return {**{current_field_name:current_field_value for current_field_name,current_field_value in current_request_record.items() if current_field_name!='proportion_images'}, 'openpose_scale_percent':current_scale_percent, 'remove_horizontal_motion':current_request_record.get('remove_horizontal_motion',False), 'directions':validate_kimodo_directions(current_request_record.get('directions',['front_left'])), 'prompt':current_prompt_text.strip(), 'images':current_normalized_images, 'width':512, 'height':512, 'tag':'kimodo'}
 
 
 def inspect_kimodo_assets():

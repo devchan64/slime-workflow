@@ -4,6 +4,18 @@ import sys,json,threading,time
 
 REFERENCE_WORKSPACE_ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(REFERENCE_WORKSPACE_ROOT))
+REFERENCE_PERSON_DETECTION_THRESHOLD=0.2
+
+
+def normalize_reference_keypoints(current_body_points):
+    """ViTPose의 비확률 heatmap 최대값을 렌더링용 0~1 점수로 제한한다."""
+    import numpy as np
+    current_point_values=np.asarray(current_body_points,dtype=float)
+    if current_point_values.shape!=(18,3) or not np.isfinite(current_point_values).all():
+        raise ValueError('참조 BODY18 좌표 또는 원시 heatmap 점수가 유효하지 않습니다.')
+    current_normalized_points=current_point_values.copy()
+    current_normalized_points[:,2]=np.clip(current_normalized_points[:,2],0,1)
+    return current_normalized_points
 
 
 def validate_reference_pose_runtime():
@@ -56,23 +68,26 @@ def extract_reference_body_proportions(current_job_root,current_attempt_root):
         current_detector_image,current_detector_shape=current_pose_detector.detector.preprocess(current_image_array)
         current_detector_outputs=current_pose_detector.detector.session.run(None,{current_pose_detector.detector.session.get_inputs()[0].name:current_detector_image[None]})[0]
         current_detection_boxes=current_pose_detector.detector.postprocess(current_detector_outputs[0],current_detector_shape,cat_id=current_pose_detector.detector.cat_id)
-        current_person_boxes=[current_box_values for current_box_values in current_detection_boxes if int(current_box_values[-1])+1 in current_pose_detector.detector.cat_id and current_box_values[-2]>=0.5]
+        current_person_boxes=[current_box_values for current_box_values in current_detection_boxes if int(current_box_values[-1])+1 in current_pose_detector.detector.cat_id and current_box_values[-2]>=REFERENCE_PERSON_DETECTION_THRESHOLD]
         current_person_boxes.sort(key=lambda current_box_values:(float(current_box_values[1]),float(current_box_values[0])))
         if not current_person_boxes:
-            raise ValueError(f'참조 {current_reference_index}: 신뢰도 0.5 이상의 인물 검출 없음')
+            raise ValueError(f'참조 {current_reference_index}: 유효한 인물 검출 없음')
         for current_person_index,current_person_box in enumerate(current_person_boxes,1):
             current_pose_input,current_pose_center,current_pose_scale=current_pose_detector.model.preprocess(current_image_array,current_person_box[:5])
             current_pose_keypoints=current_pose_detector.model(current_pose_input[None],current_pose_center[None],current_pose_scale[None])
             current_pose_record=load_pose_metas_from_kp2ds_seq(current_pose_keypoints,width=current_image_array.shape[1],height=current_image_array.shape[0])[0]
             current_body_points=np.asarray(current_pose_record['keypoints_body'][:18],dtype=float).copy()
             current_body_points[:,:2]*=np.array([current_image_array.shape[1],current_image_array.shape[0]])
+            current_raw_scores=current_body_points[:,2].tolist()
+            current_body_points=normalize_reference_keypoints(current_body_points)
             current_reference_records.append(current_body_points)
-            current_observation_sources.append({'observation':len(current_reference_records),'image':current_reference_index,'person':current_person_index,'bbox':current_person_box[:4].tolist(),'confidence':float(current_person_box[-2])})
+            current_observation_sources.append({'observation':len(current_reference_records),'image':current_reference_index,'person':current_person_index,'bbox':current_person_box[:4].tolist(),'confidence':float(current_person_box[-2]),'raw_heatmap_scores':current_raw_scores})
             current_preview_points=current_body_points.copy()
             current_preview_points[:,:2]*=512/max(current_image_array.shape[:2])
             render_body_pose_image(current_preview_points).save(current_attempt_root/f'reference-pose-{current_reference_index}-{current_person_index}.png')
         print(time.strftime('%Y-%m-%dT%H:%M:%S')+f'/kimodo/reference {current_reference_index}/{len(current_request_record["references"])}',flush=True)
     current_ratio_record=estimate_reference_proportions(current_reference_records)
+    current_ratio_record['confidence_policy']='ViTPose heatmap 최대값은 확률이 아님. 원시값 보존, 추정·렌더 점수는 [0,1] 제한.'
     current_ratio_record['observation_sources']=current_observation_sources
     current_ratio_record['image_count']=len(current_request_record['references'])
     current_ratio_record['keypoints']=[current_point_values.tolist() for current_point_values in current_reference_records]

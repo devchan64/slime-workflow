@@ -1015,3 +1015,5 @@ Kimodo 제자리 보행 보정: GUI 체크박스와 CLI 생성 JSON의 `remove_h
 
 
 Kimodo 선택 참조 비율: `proportion_images`는 최대 8장의 base64 이미지 배열이다. 생략하면 기존 SOMA 투영을 유지한다. GUI 체크박스를 켰을 때만 이 배열을 전송한다. 공용 입력 사본·해시·이력 복원을 사용하며 GPU 작업자가 신뢰도 가중 비율을 추정해 OpenPose 출력에만 적용한다. 결과 ZIP에는 추출 포즈와 채택 근거가 포함된다. 상세 제한은 `generators/kimodo/README.md`를 따른다.
+
+Kimodo `generate`의 `openpose_scale_percent`는 OpenPose 출력 크기(10~100%, 기본 85%)입니다. `--payload-file` 요청에도 동일하게 적용합니다. 기존 여백 32px을 포함한 자동 맞춤 크기를 100%로 하여 지정 비율로 축소하며 SOMA와 신체 비율은 유지합니다. 요청·결과·포즈 JSON에 저장하고 이력에서 불러옵니다. 이 필드가 없는 과거 작업의 재개·입력 복원은 기존 크기인 100%를 유지합니다.

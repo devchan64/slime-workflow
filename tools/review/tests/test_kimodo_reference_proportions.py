@@ -13,6 +13,20 @@ def create_test_reference_points():
 
 
 class KimodoReferenceProportionTests(unittest.TestCase):
+    def test_heatmap_scores_are_bounded_without_changing_coordinates(self):
+        from generators.kimodo.reference_extraction import normalize_reference_keypoints
+        current_raw_points=create_test_reference_points()
+        current_raw_points[2,2]=1.2
+        current_raw_points[3,2]=-.1
+        current_normalized_points=normalize_reference_keypoints(current_raw_points)
+        np.testing.assert_array_equal(current_normalized_points[:,:2],current_raw_points[:,:2])
+        self.assertEqual(current_normalized_points[2,2],1)
+        self.assertEqual(current_normalized_points[3,2],0)
+        self.assertEqual(current_raw_points[2,2],1.2)
+        current_raw_points[4,2]=np.nan
+        with self.assertRaises(ValueError):
+            normalize_reference_keypoints(current_raw_points)
+
     def test_scale_invariance_and_outlier_rejection(self):
         current_pose_points=create_test_reference_points()
         current_scaled_points=current_pose_points.copy()

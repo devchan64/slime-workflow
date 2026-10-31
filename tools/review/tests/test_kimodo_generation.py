@@ -14,7 +14,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
         self.current_request_record['action']='generate'
 
     def test_invalid_inputs_rejected_before_queue(self):
-        for current_field_name,current_field_value in [('frames',29),('frames',301),('steps',True),('seed',-1),('guidance_scale',float('nan')),('heading_degrees',181),('post_processing',1),('model','other'),('prompt','...'),('prompt','word '*101)]:
+        for current_field_name,current_field_value in [('openpose_scale_percent',True),('openpose_scale_percent',float('nan')),('openpose_scale_percent',0),('openpose_scale_percent',101),('frames',29),('frames',301),('steps',True),('seed',-1),('guidance_scale',float('nan')),('heading_degrees',181),('post_processing',1),('model','other'),('prompt','...'),('prompt','word '*101)]:
             with self.subTest(field=current_field_name,value=current_field_value),self.assertRaises(ValueError):
                 validate_kimodo_request({**self.current_request_record,current_field_name:current_field_value})
         self.assertEqual(validate_kimodo_request(self.current_request_record)['images'],[])
@@ -38,7 +38,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
         current_legacy_request = dict(self.current_request_record)
         current_legacy_request.pop('remove_horizontal_motion')
         self.assertFalse(validate_kimodo_request(current_legacy_request)['remove_horizontal_motion'])
-        self.assertFalse(restore_kimodo_inputs({'id':'old','request':current_legacy_request})[-2])
+        self.assertFalse(restore_kimodo_inputs({'id':'old','request':current_legacy_request})[8])
         current_enabled_request = {**self.current_request_record,'remove_horizontal_motion':True}
         current_restored_inputs = restore_kimodo_inputs({'id':'new','request':current_enabled_request})[:-1]
         self.assertEqual(build_kimodo_payload(*current_restored_inputs),current_enabled_request)
@@ -171,6 +171,9 @@ class KimodoGenerationContractTests(unittest.TestCase):
         self.assertTrue(np.all(current_pose_points[:,[14,15],2]==1))
         self.assertGreater(current_pose_points[1,4,0],current_pose_points[0,4,0])
         np.testing.assert_allclose(current_pose_points[:,1,:2],(current_pose_points[:,2,:2]+current_pose_points[:,5,:2])/2)
+        current_scaled_points=project_soma_body_points(current_joint_positions,current_joint_names,'front',current_scale_percent=85)
+        np.testing.assert_allclose(current_scaled_points[:,1:16,:2]-256,(current_pose_points[:,1:16,:2]-256)*0.85)
+        np.testing.assert_array_equal(current_scaled_points[:,:,2],current_pose_points[:,:,2])
         current_joint_positions[0,0,0]=float('nan')
         with self.assertRaisesRegex(ValueError,'위치 계약'):
             project_soma_body_points(current_joint_positions,current_joint_names,'front')
