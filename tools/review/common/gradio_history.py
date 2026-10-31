@@ -430,7 +430,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     history_previous_button.click(lambda current_page_number,current_selected_identifier:read_history_page((current_page_number or 1)-1,current_selected_identifier),[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel],preprocess=False,queue=False)
     history_next_button.click(lambda current_page_number,current_selected_identifier:read_history_page((current_page_number or 1)+1,current_selected_identifier),[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel],preprocess=False,queue=False)
     history_page_value.input(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel],preprocess=False,queue=False)
-    result_lookup_button.click(read_selected_result,history_selection_value,[result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value],queue=False).success(fn=None,js="()=>{requestAnimationFrame(()=>{document.getElementById('generation-history-result-anchor')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});});}")
+    current_result_lookup_event = result_lookup_button.click(read_selected_result,history_selection_value,[result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value],queue=False).success(fn=None,js="()=>{requestAnimationFrame(()=>{document.getElementById('generation-history-result-anchor')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});});}")
     def refresh_result_observation(current_result_identifier, current_status_snapshots=None):
         from tools.review.common.generation_status_display import describe_generation_status
         from tools.review.common.generation_status_lookup import read_existing_generation_status
@@ -518,7 +518,8 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     current_poll_inputs = [history_selection_value, result_identifier_value, log_refresh_value]
     current_history_timer.tick(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False, show_progress='hidden')
     history_selection_value.change(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)
-    result_identifier_value.change(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)
+    # 같은 ID 출력이 change를 다시 호출하는 순환을 피한다. 조회 성공 뒤 한 번 갱신한다.
+    current_result_lookup_event.success(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)
     log_refresh_value.change(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)
     log_panel_value.expand(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)
     history_priority_button.click(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)

@@ -8,6 +8,14 @@ from tools.review.common.gradio_history import build_generation_history_view, co
 
 
 class GradioHistoryTest(unittest.TestCase):
+    def test_result_identifier_does_not_trigger_its_own_refresh(self):
+        with gr.Blocks() as current_history_blocks:
+            build_generation_history_view(lambda current_command_name,current_payload_record:{'records':[]},'http://localhost','검증')
+        current_identifier_component = next(current_component for current_component in current_history_blocks.blocks.values() if getattr(current_component,'label',None)=='조회한 생성 ID')
+        for current_dependency_record in current_history_blocks.config['dependencies']:
+            self.assertNotIn((current_identifier_component._id,'change'),[tuple(current_target_record) for current_target_record in current_dependency_record['targets']])
+        current_history_blocks.close()
+
     def test_delete_readiness_tracks_completion_missing_and_recovery(self):
         current_fixture_state={'status':'running','failure':False,'exists':True}
         current_command_calls=[]
