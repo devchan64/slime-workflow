@@ -65,6 +65,13 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
     try:
         print(f'{datetime.now().isoformat()}/qwen21/load {current_model_root}', flush=True)
         current_pipeline_model = QwenImage21Pipeline.from_pretrained(current_model_root, torch_dtype=torch.bfloat16, local_files_only=True)
+        if current_job_root.parent.name == 'expression-generator':
+            from tools.review.domains.image.expression_generation import validate_expression_adapter, expression_adapter_metadata
+            if current_request_record.get('expression_adapter') != expression_adapter_metadata():
+                raise ValueError('표정 LoRA 실행 설정이 일치하지 않습니다.')
+            current_adapter_path = validate_expression_adapter()
+            current_pipeline_model.load_lora_weights(str(current_adapter_path.parent), weight_name=current_adapter_path.name, adapter_name='anime_consistency', local_files_only=True)
+            current_pipeline_model.set_adapters(['anime_consistency'], adapter_weights=[current_request_record['expression_adapter']['scale']])
         if 'circular_vae' in current_request_record:
             from generators.image.qwen_21_circular import apply_circular_decoder, install_circular_halo_decode, CIRCULAR_SELECTABLE_CONFIGURATIONS, CIRCULAR_SQUARE_WINDOW_SELECTABLE_CONFIGURATIONS, CIRCULAR_TANGENT_ONE_SELECTABLE_CONFIGURATIONS, CIRCULAR_PREVIOUS_SELECTABLE_CONFIGURATIONS, CIRCULAR_VAE_CONFIGURATION, CIRCULAR_SQUARE_WINDOW_CONFIGURATION, CIRCULAR_TANGENT_ONE_CONFIGURATION, CIRCULAR_PREVIOUS_VAE_CONFIGURATION, CIRCULAR_CORNER_CONFIGURATION, CIRCULAR_DOUBLE_STRIP_CONFIGURATION, CIRCULAR_SINGLE_STRIP_CONFIGURATION, CIRCULAR_VERTICAL_CONFIGURATION, CIRCULAR_COMPARISON_CONFIGURATION, CIRCULAR_LEGACY_CONFIGURATION, CIRCULAR_HALO_CONFIGURATION
             from generators.image.qwen_21_toroidal import TOROIDAL_LEGACY_CONFIGURATION, TOROIDAL_ATTENTION_CONFIGURATION
@@ -130,6 +137,7 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
             'seed': current_request_record['seed'], 'prompt': current_request_record['prompt'],
             'prompt_word_count': len(current_request_record['prompt'].split()),
             'prompt_sha256': hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),
+            'expression_adapter': current_request_record.get('expression_adapter'),
             'circular_vae': current_request_record.get('circular_vae'),
             'peak_gpu_bytes': torch.cuda.max_memory_allocated(), 'quality_warnings': [],
         }

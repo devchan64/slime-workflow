@@ -131,7 +131,7 @@ class SeamlessGenerationManager(ImageGenerationManager):
 
     def select_generation_runner(self, saved_request_record=None):
         if saved_request_record and saved_request_record.get('seamless_tile', {}).get('schema_version') == 1:
-            return 'generators/image/run_qwen_2511_three_reference.py'
+            raise ValueError('Qwen 2511 심리스 이력은 재개할 수 없습니다. 기존 결과를 조회하거나 Qwen 2.1로 새 작업을 생성하세요.')
         return 'generators/image/run_qwen_21_reference.py'
 
     def validate_generation_runtime(self, saved_request_record=None):
@@ -151,8 +151,15 @@ class SeamlessGenerationManager(ImageGenerationManager):
 
     def validate_generation_resume(self, selected_job_directory):
         current_request_record = json.loads((selected_job_directory / 'request.json').read_text())
+        self.select_generation_runner(current_request_record)
+        current_command_path = selected_job_directory / 'gpu-command.json'
+        if current_command_path.exists():
+            current_command_record = json.loads(current_command_path.read_text())
+            current_command_values = current_command_record.get('command')
+            if not isinstance(current_command_values, list) or len(current_command_values) < 2 or Path(current_command_values[1]).name != 'run_qwen_21_reference.py':
+                raise ValueError('저장된 심리스 실행 명령이 Qwen 2.1 실행기와 일치하지 않아 재개할 수 없습니다.')
         verify_reference_snapshots(selected_job_directory, current_request_record)
-        if current_request_record.get('seamless_tile', {}).get('schema_version') not in (1, 2, 3, 4, 6, 7):
+        if current_request_record.get('seamless_tile', {}).get('schema_version') not in (2, 3, 4, 6, 7):
             raise ValueError('폐기되었거나 지원하지 않는 심리스 실행 버전입니다. 기존 결과를 조회하거나 새 작업을 생성하세요.')
         if hashlib.sha256(current_request_record['prompt'].encode()).hexdigest() != current_request_record['seamless_tile']['prompt_sha256']:
             raise ValueError('저장된 프롬프트 해시가 일치하지 않습니다.')
@@ -171,6 +178,12 @@ class SeamlessGenerationManager(ImageGenerationManager):
         return {'id':selected_job_directory.name,'status':current_status_record['status'],'message':'현재 단계 저장 후 일시정지합니다. 완료한 단계는 유지합니다.'}
 
     def enrich_generation_status(self, current_job_root, current_status_record):
+        current_request_path = current_job_root / 'request.json'
+        if current_request_path.exists():
+            current_request_record = json.loads(current_request_path.read_text())
+            if current_request_record.get('seamless_tile', {}).get('schema_version') == 1:
+                current_status_record['resume_allowed'] = False
+                current_status_record['resume_block_reason'] = 'Qwen 2511 심리스 이력은 재개할 수 없습니다. Qwen 2.1로 새 작업을 생성하세요.'
         progress_record_path = current_job_root/'pipeline-progress.json'
         if progress_record_path.exists():
             current_status_record['pipeline'] = json.loads(progress_record_path.read_text())

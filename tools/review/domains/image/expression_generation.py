@@ -1,10 +1,38 @@
 """AU 참고 프리셋을 사용하는 Qwen 2511 표정 작업 서비스."""
 import hashlib
+import json
 import yaml
-from tools.review.domains.image.image_generation import ImageGenerationManager, MANAGER_HISTORY_ROOT, WORKFLOW_ROOT_PATH
+from tools.review.domains.image.image_generation import MANAGER_HISTORY_ROOT, WORKFLOW_ROOT_PATH
+from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager, validate_qwen_plain_request, verify_qwen_saved_request
 from tools.review.domains.image.three_reference_generation import validate_three_reference_request
 
 EXPRESSION_CONFIGURATION_PATH = WORKFLOW_ROOT_PATH / 'generators/image/config/expression_presets.yaml'
+EXPRESSION_ADAPTER_PATH = WORKFLOW_ROOT_PATH / '.model/qwen-21-anime-consistency/Qwen2.1_Anime_consistency.safetensors'
+EXPRESSION_ADAPTER_SHA256 = '0c171eb802ea8051b511f2d93c1743eeadd030316255aa98fa65d40809366752'
+EXPRESSION_ADAPTER_SCALE = 0.7
+EXPRESSION_ADAPTER_REPOSITORY = 'A20labs/Qwen-Image-2.1-LoRAs'
+EXPRESSION_ADAPTER_REVISION = '3b37b28'
+
+
+def validate_expression_adapter():
+    if not EXPRESSION_ADAPTER_PATH.is_file():
+        raise FileNotFoundError(f'표정 LoRA 가중치가 없습니다: {EXPRESSION_ADAPTER_PATH} ({EXPRESSION_ADAPTER_REPOSITORY}@{EXPRESSION_ADAPTER_REVISION})')
+    if hashlib.sha256(EXPRESSION_ADAPTER_PATH.read_bytes()).hexdigest() != EXPRESSION_ADAPTER_SHA256:
+        raise ValueError(f'표정 LoRA 가중치 해시가 일치하지 않습니다: {EXPRESSION_ADAPTER_PATH}')
+    return EXPRESSION_ADAPTER_PATH
+
+
+def expression_adapter_metadata():
+    return {'repository': EXPRESSION_ADAPTER_REPOSITORY, 'revision': EXPRESSION_ADAPTER_REVISION, 'filename': EXPRESSION_ADAPTER_PATH.name, 'sha256': EXPRESSION_ADAPTER_SHA256, 'scale': EXPRESSION_ADAPTER_SCALE}
+
+
+def verify_expression_saved_request(current_job_root, current_request_record):
+    if current_request_record.get('expression_adapter') != expression_adapter_metadata():
+        raise ValueError('이전 표정 이력 또는 LoRA 설정이 일치하지 않아 재개할 수 없습니다.')
+    current_expression_record = current_request_record.get('expression')
+    if not isinstance(current_expression_record, dict) or hashlib.sha256(current_request_record['prompt'].encode()).hexdigest() != current_expression_record.get('prompt_sha256'):
+        raise ValueError('저장된 표정 프롬프트 해시가 일치하지 않습니다.')
+    verify_qwen_saved_request(current_job_root, current_request_record)
 
 
 class ExpressionConfigurationLoader(yaml.SafeLoader):
@@ -58,9 +86,9 @@ def build_expression_prompt(expression_identifier_value):
     raise ValueError('알 수 없는 표정 ID입니다. 표정 프리셋을 선택하세요.')
 
 
-class ExpressionGenerationManager(ImageGenerationManager):
+class ExpressionGenerationManager(QwenPlainGenerationManager):
     def __init__(self):
-        super().__init__(three_reference_mode=True)
+        super().__init__()
         self.route_prefix_value = '/expression-generator'
         self.job_storage_root = WORKFLOW_ROOT_PATH / '.tmp/test/expression-generator'
 
@@ -68,8 +96,32 @@ class ExpressionGenerationManager(ImageGenerationManager):
         return MANAGER_HISTORY_ROOT / 'expression'
 
     def validate_generation_request(self, request_record_value):
-        current_request_record = validate_three_reference_request(request_record_value)
+        current_request_record = validate_three_reference_request(request_record_value, allowed_inference_steps=(20, 30, 40, 50))
         if not 1 <= len(current_request_record['images']) <= 3:
             raise ValueError('표정 생성에는 참조 이미지 1~3장이 필요합니다.')
         final_prompt_value, expression_source_record = build_expression_prompt(current_request_record['prompt'])
-        return {**current_request_record, 'prompt':final_prompt_value, 'expression':expression_source_record}
+        current_request_record = validate_qwen_plain_request({**current_request_record, 'prompt': final_prompt_value})
+        return {**current_request_record, 'expression':expression_source_record, 'expression_adapter':expression_adapter_metadata()}
+
+    def validate_generation_runtime(self, saved_request_record=None):
+        super().validate_generation_runtime(saved_request_record)
+        validate_expression_adapter()
+
+    def validate_generation_resume(self, selected_job_directory):
+        current_request_record = json.loads((selected_job_directory / 'request.json').read_text())
+        current_command_path = selected_job_directory / 'gpu-command.json'
+        if current_command_path.exists():
+            current_command_values = json.loads(current_command_path.read_text()).get('command')
+            if not isinstance(current_command_values, list) or len(current_command_values) < 2 or not isinstance(current_command_values[1], str) or not current_command_values[1].endswith('/run_qwen_21_reference.py'):
+                raise ValueError('이전 표정 실행기는 폐기되어 재개할 수 없습니다.')
+        verify_expression_saved_request(selected_job_directory, current_request_record)
+
+    def enrich_generation_status(self, current_job_root, current_status_record):
+        current_status_record = super().enrich_generation_status(current_job_root, current_status_record)
+        current_request_path = current_job_root / 'request.json'
+        if current_request_path.exists():
+            current_request_record = json.loads(current_request_path.read_text())
+            if current_request_record.get('expression_adapter') != expression_adapter_metadata():
+                current_status_record['resume_allowed'] = False
+                current_status_record['resume_block_reason'] = '이전 표정 생성 이력은 재개할 수 없습니다. Qwen 2.1로 새 작업을 생성하세요.'
+        return current_status_record

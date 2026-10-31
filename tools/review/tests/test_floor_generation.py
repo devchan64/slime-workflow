@@ -50,7 +50,8 @@ class FloorGenerationTests(unittest.TestCase):
             selected_job_directory = temporary_root_path/'2026-10-02_00-00-00-1234abcd'
             selected_job_directory.mkdir()
             (selected_job_directory/'request.json').write_text(json.dumps(prepared_request_value))
-            floor_service_value.validate_generation_resume(selected_job_directory)
+            with self.assertRaisesRegex(ValueError, '폐기'):
+                floor_service_value.validate_generation_resume(selected_job_directory)
             for legacy_request_record in ({'action':'generate'}, {'action':'generate','floor_separation':{'version':10}}):
                 for saved_command_present in (False,True):
                     with self.subTest(legacy=legacy_request_record,command=saved_command_present):

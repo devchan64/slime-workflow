@@ -37,6 +37,9 @@ def execute_qwen_reference_worker():
         if seamless_generation_enabled:
             if current_request_record['seamless_tile'].get('schema_version') not in (2, 3, 4, 6, 7):
                 raise ValueError('Qwen 2.1 심리스 실행 기록 버전 오류')
+        elif current_job_root.parent.name == 'expression-generator':
+            from tools.review.domains.image.expression_generation import verify_expression_saved_request
+            verify_expression_saved_request(current_job_root, current_request_record)
         else:
             from tools.review.domains.image.qwen_21_generation import verify_qwen_saved_request
             verify_qwen_saved_request(current_job_root, current_request_record)

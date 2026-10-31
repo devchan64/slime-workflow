@@ -18,7 +18,7 @@ class ExpressionGenerationTests(unittest.TestCase):
     def create_reference_request(self, reference_image_count=1):
         reference_image_buffer = io.BytesIO()
         Image.new('RGB',(16,16),'white').save(reference_image_buffer,format='PNG')
-        return {'action':'generate','prompt':'joy','images':[base64.b64encode(reference_image_buffer.getvalue()).decode()]*reference_image_count,'width':512,'height':512,'steps':4,'seed':10107}
+        return {'action':'generate','prompt':'joy','images':[base64.b64encode(reference_image_buffer.getvalue()).decode()]*reference_image_count,'width':512,'height':512,'steps':40,'seed':10107}
 
     def test_all_presets_have_bounded_prompts(self):
         expression_preset_records = load_expression_configuration()['expressions']
@@ -33,7 +33,7 @@ class ExpressionGenerationTests(unittest.TestCase):
         for reference_image_count in (0,4):
             with self.assertRaises(ValueError):
                 expression_job_service.validate_generation_request(self.create_reference_request(reference_image_count))
-        for invalid_field_name, invalid_field_value in [('prompt','unknown'),('model','other'),('steps',20)]:
+        for invalid_field_name, invalid_field_value in [('prompt','unknown'),('model','other'),('steps',4)]:
             current_request_record = self.create_reference_request()
             current_request_record[invalid_field_name] = invalid_field_value
             with self.assertRaises(ValueError):
@@ -48,6 +48,21 @@ class ExpressionGenerationTests(unittest.TestCase):
                 self.assertEqual(saved_request_record['expression']['id'],'joy')
                 self.assertEqual(len(saved_request_record['reference_snapshots']),reference_image_count)
                 verify_reference_snapshots(current_job_directory,saved_request_record)
+
+    def test_qwen21_resume_requires_fixed_adapter_and_saved_runner(self):
+        from tools.review.domains.image.expression_generation import verify_expression_saved_request
+        current_request_record = ExpressionGenerationManager().validate_generation_request(self.create_reference_request())
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_directory = Path(current_directory_name)
+            saved_request_record = save_three_reference_inputs(current_job_directory, current_request_record)
+            verify_expression_saved_request(current_job_directory, saved_request_record)
+            (current_job_directory / 'request.json').write_text(json.dumps(saved_request_record))
+            (current_job_directory / 'gpu-command.json').write_text(json.dumps({'command': ['python', '/tmp/run_qwen_2511_three_reference.py']}))
+            with self.assertRaisesRegex(ValueError, '폐기'):
+                ExpressionGenerationManager().validate_generation_resume(current_job_directory)
+            saved_request_record['expression_adapter']['scale'] = 0.1
+            with self.assertRaisesRegex(ValueError, 'LoRA'):
+                verify_expression_saved_request(current_job_directory, saved_request_record)
 
     def test_cli_uses_same_service_payload(self):
         current_request_record = self.create_reference_request()
@@ -77,7 +92,7 @@ class ExpressionGenerationTests(unittest.TestCase):
             expression_history_path = Path(temporary_directory_name)/'history'
             current_gateway_service = management_gateway.ManagementCommandGateway({'expression':expression_job_service.handle_image_request})
             current_http_handler = GatewayContractTest().create_request_handler('/management/command',{'service':'expression','command':'generate','payload':current_request_record})
-            with patch.object(expression_job_service,'history_storage_path',return_value=expression_history_path), patch.object(image_generation,'validate_image_runtime'), patch.object(image_generation,'launch_gpu_process',return_value=SimpleNamespace()), patch.object(image_generation.threading,'Thread'):
+            with patch.object(expression_job_service,'history_storage_path',return_value=expression_history_path), patch.object(expression_job_service,'validate_generation_runtime'), patch.object(image_generation,'launch_gpu_process',return_value=SimpleNamespace()), patch.object(image_generation.threading,'Thread'):
                 current_gateway_service.handle(current_http_handler)
             self.assertEqual(current_http_handler.responses,[202])
             generation_job_identifier = json.loads(current_http_handler.wfile.getvalue())['id']

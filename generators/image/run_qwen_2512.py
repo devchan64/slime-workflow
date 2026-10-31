@@ -23,9 +23,7 @@ def execute_image_worker():
     current_request_record = json.loads((current_job_root / 'request.json').read_text())
     logging.basicConfig(level=logging.INFO, format='%(asctime)s/qwen-2512/%(message)s', handlers=[logging.FileHandler(current_job_root / 'execution.log'), logging.StreamHandler()])
     if 'floor_separation' in current_request_record:
-        from tools.review.domains.tile.floor_pipeline import execute_floor_pipeline
-        execute_floor_pipeline(current_job_root,current_request_record)
-        return
+        raise ValueError('이전 바닥 타일 생성 파이프라인은 폐기되어 재개할 수 없습니다.')
     current_stop_event = threading.Event()
     current_stage_state = {'stage': 'cuda-check', 'step': 0, 'total': current_request_record.get('steps', FIXED_INFERENCE_STEPS)}
     current_progress_writer = WorkerGenerationProgress(current_job_root)

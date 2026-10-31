@@ -60,10 +60,20 @@ class SeamlessGenerationTests(unittest.TestCase):
         from tools.review.domains.image.seamless_generation import SeamlessGenerationManager
         current_manager_value = SeamlessGenerationManager()
         self.assertTrue(current_manager_value.select_generation_runner().endswith('run_qwen_21_reference.py'))
-        self.assertTrue(current_manager_value.select_generation_runner({'seamless_tile': {'schema_version': 1}}).endswith('run_qwen_2511_three_reference.py'))
+        with self.assertRaisesRegex(ValueError, '2511.*재개할 수 없습니다'):
+            current_manager_value.select_generation_runner({'seamless_tile': {'schema_version': 1}})
         for rejected_step_count in (4, 30, True):
             with self.assertRaises(ValueError):
                 validate_seamless_request({**self.create_tile_request(), 'steps': rejected_step_count})
+
+    def test_saved_legacy_execution_command_is_rejected(self):
+        from tools.review.domains.image.seamless_generation import SeamlessGenerationManager
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_path = Path(current_directory_name)
+            (current_job_path / 'request.json').write_text(json.dumps({'seamless_tile': {'schema_version': 2}}))
+            (current_job_path / 'gpu-command.json').write_text(json.dumps({'command': ['python', '/old/run_qwen_2511_three_reference.py'], 'service': 'image'}))
+            with self.assertRaisesRegex(ValueError, '실행 명령.*Qwen 2.1'):
+                SeamlessGenerationManager().validate_generation_resume(current_job_path)
 
     def create_tile_request(self, source_image_size=(256,256)):
         source_image_buffer = io.BytesIO()

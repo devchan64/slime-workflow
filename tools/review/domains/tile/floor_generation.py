@@ -8,6 +8,7 @@ from tools.review.domains.image.image_generation import IMAGE_JOB_ROOT, MANAGER_
 from tools.review.domains.character_animation.character_animation_assets import UniqueMappingLoader
 
 FLOOR_CONFIGURATION_PATH = WORKFLOW_ROOT_PATH/'generators/terrain/config/floor_tile.yaml'
+FLOOR_RETIREMENT_MESSAGE = '바닥 타일 생성기는 폐기되었습니다. 생성과 재개는 지원하지 않습니다.'
 
 def load_floor_configuration():
     configuration_record_value = yaml.load(FLOOR_CONFIGURATION_PATH.read_text(), Loader=UniqueMappingLoader)
@@ -58,15 +59,16 @@ class FloorGenerationManager(TileGenerationManager):
             return 'generators/image/run_qwen_2511_three_reference.py'
         raise ValueError('이전 맵 타일 생성 이력은 재개할 수 없습니다. 현재 설정으로 새로 생성하세요.')
     def validate_generation_resume(self, selected_job_directory):
-        saved_request_record = json.loads((selected_job_directory/'request.json').read_text())
-        self.select_generation_runner(saved_request_record)
+        raise ValueError(FLOOR_RETIREMENT_MESSAGE)
+    def validate_generation_runtime(self, saved_request_record=None):
+        raise ValueError(FLOOR_RETIREMENT_MESSAGE)
     def history_storage_path(self): return MANAGER_HISTORY_ROOT/'floor-tile'
-    def validate_generation_request(self, request_record_value): return prepare_floor_request(request_record_value)
+    def validate_generation_request(self, request_record_value):
+        raise ValueError(FLOOR_RETIREMENT_MESSAGE)
     def enrich_generation_status(self, current_job_root, current_status_record):
         current_status_record = super().enrich_generation_status(current_job_root,current_status_record)
-        saved_request_record = json.loads((current_job_root/'request.json').read_text())
-        current_status_record['resume_allowed'] = saved_request_record.get('generation_model') == 'Qwen/Qwen-Image-Edit-2511'
-        current_status_record['resume_block_reason'] = '' if current_status_record['resume_allowed'] else '이전 이력 재개 불가 · 새로 생성하세요'
+        current_status_record['resume_allowed'] = False
+        current_status_record['resume_block_reason'] = FLOOR_RETIREMENT_MESSAGE
         for current_field_name,current_file_name in (('separated_image','single-tile.png'),('extracted_image','center-tile.png'),('rectified_image','square-crop.png'),('detected_image','quadrilateral.png')):
             current_status_record[current_field_name] = f'{self.route_prefix_value}/jobs/{current_job_root.name}/{current_file_name}' if (current_job_root/current_file_name).is_file() else None
         return current_status_record

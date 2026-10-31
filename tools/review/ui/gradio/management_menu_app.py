@@ -43,7 +43,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'building-generator','label':'Qwen 2.1 건물 생성기','path':'/building-generator/','category':'image-generation','uiMode':'gradio','description':'직교투영 기본 문구 · 레이아웃 이미지 선택 · 전용 대기열·이력'},
     {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'공용 화풍·투명 배경 문구 선택 · 참조 이미지 선택'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
-    {'id':'expression-generator','label':'표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2511 · AU 표정 39종 · 참조 1~3장'},
+    {'id':'expression-generator','label':'표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · AU 표정 39종 · 참조 1~3장'},
 )
 
 def format_gpu_status(gpu_status_record):

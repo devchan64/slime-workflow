@@ -45,6 +45,7 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
                             enable_standalone_lightning_adapter=False,
                             additional_reference_paths=(), selected_output_width=512, selected_output_height=512, enable_text_only_generation=False, selected_generator_seed=FIXED_GENERATOR_SEED):
     """참조 원본으로 이미지를 편집한다. GPU 실행은 샌드박스 밖에서 호출한다."""
+    raise RuntimeError('Qwen Image Edit 2511 생성기는 폐기되었습니다. Qwen 2.1을 사용하세요.')
     if enable_anypose_adapter is True:
         raise ValueError('AnyPose 애니메이션 생성은 폐기되었습니다. VNCCS 포즈 변환 생성기를 사용하세요.')
     for selected_output_size in (selected_output_width,selected_output_height):

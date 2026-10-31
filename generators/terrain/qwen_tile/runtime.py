@@ -219,6 +219,7 @@ def write_tile_review_record(trial_output_root: Path, result_values: dict, ticke
 
 def execute_tile_set_generation(*, ticket_file_path, style_reference_path, trial_output_root, shape_reference_path=None, material_reference_path=None, map_preview_path=None):
     """고정 Qwen 모델로 타일 역할별 후보와 이음새·높이 미리보기를 생성한다."""
+    raise RuntimeError('Qwen Image Edit 2511 타일 생성기는 폐기되었습니다. Qwen 2.1을 사용하세요.')
     from PIL import Image
     ticket_file_path = Path(ticket_file_path).resolve()
     trial_output_root = Path(trial_output_root).resolve()

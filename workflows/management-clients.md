@@ -124,33 +124,18 @@ GUI와 CLI는 서비스별 동일한 작업·이력을 조회하며 서로 다�
 
 입력·상태·로그·결과와 시도별 산출물은 서비스의 기존 구조를 유지한다. HY-Motion 재개는 새 시도로 기록하며 기존 시도 산출물을 보존한다. 생성기의 전체 `history-reset`은 작업 폴더의 입력 사본·중간 산출물·결과·모든 시도의 로그와 기록 및 이력 인덱스를 함께 삭제하는 디스크 정리 계약이다. 외부 원본·등록 에셋·모델은 보호한다. 생성기의 선택 `history-delete`도 선택한 작업 ID의 동일 범위 파일과 이력 인덱스를 함께 삭제하고 삭제 용량을 보고한다. 앵커·좌표 편집 이력은 별도 계약을 확인한다. 기존 목록 전용 구현의 전환 여부를 구분하며 상세 기준은 AGENTS.md의 Generator History Reset Disk Cleanup Standard를 따른다. 이미 폐기된 MoMask·AnyPose 작업 경로는 현행 기록 저장소로 다시 사용하지 않는다.
 
-## Qwen 이미지 생성 두 종류
+## Qwen 이미지 생성
 
-`qwen-2512`(텍스트 이미지)와 `qwen-2511`(텍스트 또는 참조 1~3장)를 지원한다. 모든 통합 CLI 명령은 GUI와 같은 독립 게이트웨이 HTTP API를 호출하므로 **게이트웨이가 실행 중이어야 한다**. GUI 서버는 필요하지 않다. 입력 검증·모델 선택·취소·이력 저장은 기존 서버 구현을 그대로 사용한다.
+Qwen Image Edit 2511 생성기는 폐기되었으며 생성·재개와 과거 독립 생성 기록 접근을 지원하지 않는다. 표정 생성은 Qwen Image 2.1과 고정 LoRA를 사용한다. Qwen 2512 텍스트 생성과 Qwen 2.1 생성은 각각 공용 게이트웨이를 통해 사용한다.
 
 ```bash
 python3 tools/manager.py help qwen-2512 generate
-python3 tools/manager.py help qwen-2511 generate
 python3 tools/manager.py command qwen-2512 generate --prompt-file /tmp/prompt.txt --width 1024 --height 1024 --steps 4 --detach
-python3 tools/manager.py command qwen-2511 generate --prompt-file /tmp/prompt.txt --reference /tmp/reference-1.png --reference /tmp/reference-2.png --steps 30 --detach
-python3 tools/manager.py command qwen-2511 history
 python3 tools/manager.py command qwen-2512 status GENERATION_ID
-python3 tools/manager.py command qwen-2512 logs GENERATION_ID
-python3 tools/manager.py command qwen-2511 cancel GENERATION_ID
 python3 tools/manager.py command qwen-2512 history-reset
 ```
 
-두 서비스 모두 `generate`, `status`, `logs`, `history`, `active`, `model-status`, `cancel`, `history-reset`을 제공한다. 2512에는 `prepare`도 제공한다. `--detach`를 생략하면 진행 상태를 표시하며 완료까지 대기하고 결과·로그 URL을 출력한다. Ctrl+C는 서버에 취소를 요청한다. `--seed`를 지정할 수 있고 기본값은 GUI와 동일하다. 다른 포트는 서비스 뒤에 `--server-url http://127.0.0.1:포트`를 지정한다.
-
-2511의 최소·기본 출력은 512×512이며 `--width`·`--height`로 변경할 수 있다. 최종 맵 타일 규격 256×256과 생성 해상도는 구분한다. 2511의 `--reference`는 크기·비율 제한 없이 RGB 또는 불투명 RGBA PNG를 최대 3장까지 순서대로 지정한다. 생략하면 텍스트 생성이다. 해상도·스텝·참조 검증은 서버가 GUI와 동일하게 수행한다.
-
-기록 경로도 기존 GUI와 같다.
-
-- 2512 결과·로그: `.tmp/test/qwen-image-2512/<생성 ID>/`
-- 2511 결과·로그: `.tmp/test/qwen-image-2511-three-reference/<생성 ID>/`
-- 이력: `.tmp/manager-current/qwen-2512/`, `.tmp/manager-current/qwen-2511/`
-
-실행 결과는 해당 웹 생성기의 이력에서 조회할 수 있다. `history-reset`은 명시적으로 실행할 때만 누적 이력을 초기화한다. Qwen 2512의 전체 초기화는 이전에 목록에서 제거된 작업도 포함하여 `.tmp/test/qwen-image-2512/` 바로 아래의 생성·준비 작업 폴더(입력·결과·로그)를 삭제한다. 실행·대기 중이거나 상태가 불명확한 작업이 있으면 삭제 전에 거절한다. 하위 `tile-map/`, 정식 등록 에셋, 모델 캐시는 제외한다. Qwen 2511·표정·건물 타일·바닥 타일에도 동일하게 적용한다. 개별 이력 삭제는 선택한 작업 폴더의 입력·결과·로그와 이력 인덱스를 함께 삭제한다. 등록 에셋 원본과 모델 캐시는 삭제하지 않는다.
+2512 결과·로그는 `.tmp/test/qwen-image-2512/<생성 ID>/`, 이력은 `.tmp/manager-current/qwen-2512/`에 저장한다. `history-reset`은 명시적 수동 디스크 정리이며 실행·대기 중이거나 상태가 불명확한 작업이 있으면 거절한다. 하위 타일 작업, 등록 에셋과 모델 캐시는 삭제하지 않는다.
 
 ## 통합 명령 게이트웨이
 
@@ -265,28 +250,17 @@ GUI와 CLI는 `character-animation sprite-history <원본 ID>` 명령을 공유�
 
 새 편집 문서는 v3이며 출력 앵커 Y를 셀 높이의 90%로 둔다. 384px 셀에서는 `(192, 346)`으로 하단 38px를 확보한다. 미리보기와 저장 PNG는 같은 위치를 사용한다. v1/v2 저장본은 불러올 때 배치 Y를 보정하여 기존 출력 위치를 유지하고 다음 저장부터 v3로 보존한다. 기존 저장 PNG는 변경하지 않는다. 수동 이동·확대로 셀을 벗어난 프레임은 기존 잘림 경고를 확인한다.
 
-## 맵 타일 생성기
+## 바닥 타일 생성기 (폐기)
 
-`floor-tile` GUI와 CLI는 공용 게이트웨이를 통해 Qwen-Image-Edit-2511의 참조 없는 텍스트 생성으로 **512×512·4스텝 단일 이미지**를 생성한다. 사용자 프롬프트를 맨 앞에 두고 `Top down view. Close up. Square. Blank margins. Webtoon style.`를 붙인다. 예: `잔디밭. Top down view. Close up. Square. Blank margins. Webtoon style.` 기본 Seed는 251204이며 무작위 선택과 직접 입력을 지원한다.
-
-사용자 프롬프트(한글) → 시점·클로즈업·정사각형(영문) → 선택적 `Blank margins.` → `Webtoon style.` 순서다. GUI의 **여백 추가**는 기본 ON이며 OFF일 때 여백 문구만 제외한다. CLI는 `--add-margins` / `--no-add-margins`로 지정하며 생략하면 서버 기본값을 따른다. 요청·이력에 `add_margins`를 저장하고 입력 재사용 시 복원한다. 옵션이 없는 과거 이력의 입력 재사용은 OFF로 표시한다.
-
-기본 프롬프트는 `generators/terrain/config/floor_tile.yaml`에서 관리한다. 크기·스텝·고정 문구 변경 요청은 서버에서 거절한다. GUI에는 사용자·기본·최종 단어 수와 실제 전달 문구를 표시한다.
-
-```bash
-python3 tools/manager.py command floor-tile generate --prompt '잔디와 들꽃' --detach
-python3 tools/manager.py command floor-tile status GENERATION_ID
-```
-
-신규 생성은 Qwen 2511을 한 번 실행하며 격자 생성·중앙 크롭·재생성 단계를 실행하지 않는다. 모델은 서버에서 고정하며 요청으로 선택할 수 없다. 모델 준비는 생성 시 검증하므로 별도 `prepare` 명령은 제공하지 않는다. 최종 원본은 `result.png`다. 요청·프롬프트 해시·결과·로그와 생성 이력 경로는 `.tmp/test/qwen-image-2512/floor-tile/<생성 ID>/`, `.tmp/manager-current/floor-tile/`를 유지한다. 새 요청에 모델 ID와 빈 참조 목록을 보존한다. 예상 시간은 같은 모델의 이력만 사용한다. 기존 2512 단일 생성과 다단계 이력은 조회만 가능하다. 이전 기록은 저장된 GPU 명령 유무와 관계없이 서버에서 재개를 거절하며, 현재 설정으로 새로 생성해야 한다.
+`floor-tile` 생성기는 폐기되었다. 관리 화면은 제공하지 않으며 GUI·CLI·기존 HTTP 경로에서 신규 생성과 재개를 거절한다. 기존 이력·결과 조회와 수동 삭제는 공용 게이트웨이로 계속 지원한다. 기존 결과 경로 `.tmp/test/qwen-image-2512/floor-tile/` 및 이력 경로 `.tmp/manager-current/floor-tile/`는 유지한다. 실행 중이던 작업을 자동 중단하거나 기록을 자동 삭제하지 않는다. 다른 타일 도구와 등록 에셋은 별도로 관리한다.
 
 ## 표정 생성기
 
-표정 생성과 Qwen 2511 참조 생성은 이력을 분리 운영한다. 표정 이력은 `.tmp/manager-current/expression/`, 실행 결과는 `.tmp/test/expression-generator/`에 저장한다. Qwen 2511 참조 이력은 `.tmp/manager-current/qwen-2511/`, 실행 결과는 `.tmp/test/qwen-image-2511-three-reference/`에 저장한다. 조회·삭제·초기화는 요청한 서비스의 이력에만 적용하며 다른 생성기의 기록은 변경하지 않는다.
+표정 이력은 `.tmp/manager-current/expression/`, 실행 결과는 `.tmp/test/expression-generator/`에 저장한다. 조회·삭제·초기화는 표정 생성기의 기록에만 적용한다. Qwen 2511 독립 생성기는 폐기되었다.
 
-관리 메뉴의 **표정 생성기**(`/?tool=expression-generator`)는 Qwen-Image-Edit-2511 고정 모델로 참조 PNG 1~3장을 받아 한 표정을 생성한다. 첫 이미지를 편집 대상으로, 추가 이미지를 동일 캐릭터의 외형 참고로 사용한다. 불투명 RGB/RGBA PNG·장당 3MB 이하이며 크기·비율은 기존 Qwen 참조 입력 검증을 따른다.
+관리 메뉴의 **표정 생성기**(`/?tool=expression-generator`)는 Qwen Image 2.1과 Anime consistency LoRA(강도 0.7)를 고정하여 참조 PNG 1~3장으로 한 표정을 생성한다. 첫 이미지를 편집 대상으로, 추가 이미지를 동일 캐릭터의 외형 참고로 사용한다. 불투명 RGB/RGBA PNG·장당 3MB 이하이며 크기·비율은 기존 Qwen 참조 입력 검증을 따른다.
 
-AiBook P7-5.9 `v2026.09.16`의 현행 39개 표정을 프리셋으로 채택했다. AU 목록은 얼굴 움직임을 기술하는 설계 참고이며 AU 검출값·감정 판정·FACS 강도 측정이 아니다. 얼굴 동일성, 좌우 눈 감김, 입술·볼 변화는 결과에서 직접 검수한다. 자료의 20스텝 실험을 재현하는 모드는 아니며 기존 실행기의 4스텝 Lightning 또는 30스텝 표준 설정을 사용한다.
+AiBook P7-5.9 `v2026.09.16`의 현행 39개 표정을 프리셋으로 채택했다. AU 목록은 얼굴 움직임을 기술하는 설계 참고이며 AU 검출값·감정 판정·FACS 강도 측정이 아니다. 얼굴 동일성, 좌우 눈 감김, 입술·볼 변화는 결과에서 직접 검수한다. 20·30·40·50스텝을 지원하며 기본은 40스텝이다.
 
 실행용 원본은 `generators/image/config/expression_presets.yaml`이다. AiBook 원본 spec 해시·자료 버전과 움직임 지시·AU를 보존하며 다른 저장소를 런타임에 읽지 않는다. 모델 입력은 움직임 지시와 외형 유지 지시를 결합한 100단어 미만의 양성 프롬프트다. GUI는 개별·최종 단어 수를 표시하고 요청에는 선택 ID·AU·출처·설정 해시·최종 프롬프트·단어 수·SHA-256을 기록한다. 참조 사본도 순서·해시를 보존하며 재개 시 검증한다.
 
@@ -299,16 +273,13 @@ python3 tools/manager.py command expression cancel GENERATION_ID
 python3 tools/manager.py command expression resume GENERATION_ID
 ```
 
-`--expression`의 선택 목록은 help에서 확인한다. HTTP 계약은 기존 이미지 요청과 같은 `prompt` 필드에 표정 ID를 전달한다. 모델명·임의 추가 필드는 거절한다. 기본값은 512×512·4스텝·Seed 10107이다. GUI·CLI는 `expression` 서비스와 공용 게이트웨이·GPU 작업 실행기를 공유한다. 결과는 `.tmp/test/expression-generator/<한국시간-생성ID>/`, 이력 인덱스는 `.tmp/manager-current/expression/`에 누적한다. 이력 삭제·수동 초기화는 해당 작업의 결과·참조·로그 파일도 함께 삭제한다. 브라우저 종료는 작업 종료가 아니다.
+`--expression`의 선택 목록은 help에서 확인한다. HTTP 계약은 기존 이미지 요청과 같은 `prompt` 필드에 표정 ID를 전달한다. 모델명·임의 추가 필드는 거절한다. 기본값은 512×512·40스텝·Seed 10107이다. Qwen 2511로 생성된 이전 표정 이력은 조회할 수 있지만 재개할 수 없다. GUI·CLI는 `expression` 서비스와 공용 게이트웨이·GPU 작업 실행기를 공유한다. 결과는 `.tmp/test/expression-generator/<한국시간-생성ID>/`, 이력 인덱스는 `.tmp/manager-current/expression/`에 누적한다. 이력 삭제·수동 초기화는 해당 작업의 결과·참조·로그 파일도 함께 삭제한다. 브라우저 종료는 작업 종료가 아니다.
 
 새 메뉴와 서비스 반영에는 GUI·게이트웨이 코드 갱신이 필요하다. 생성 품질 확인은 참조를 입력한 단일 이미지부터 진행한다. 정식 에셋 등록은 별도 채택 후 수행한다. 이번 추가는 로컬 서비스·UI 확장이며 AWS 배포 구조나 고정 비용 리소스에는 변경이 없다.
 
 ## 이전 심리스 타일 연결 보정 (schema 1·2)
 
-이미지 생성 분류의 **심리스 타일 생성기** (`?tool=seamless-tile-generator`)는
-정사각형 불투명 PNG 한 장을 받아 256×256으로 정규화하고 3×3 반복 이미지를 만듭니다.
-고정 Qwen-Image-Edit-2511 모델이 768×768 연결 보정을 수행한 뒤 중앙 좌표
-`(256, 256, 512, 512)`를 기계식으로 추출합니다. 4/30스텝을 지원합니다.
+이전 schema 1은 Qwen 2511·4/30스텝으로, schema 2는 Qwen 2.1·40스텝으로 3×3 반복 이미지의 연결을 보정하고 중앙 타일을 추출했다. 현재 관리 메뉴에서 해당 독립 화면은 폐기되었다.
 최종 프롬프트는 사용자 표면 설명과 추적 설정 `generators/image/config/seamless_tile.yaml`을
 합치며 100단어 미만으로 제한합니다.
 
@@ -322,7 +293,7 @@ GUI와 CLI는 `/seamless-tile-generator` 공용 서비스와
 `.tmp/test/seamless-tile-generator/<생성_ID>/` 기록을 공유합니다.
 원본 `reference-1.png`, 반복 입력 `grid-input.png`, 보정본 `grid-edited.png`,
 중앙 타일 `result.png`, 반복 검수본 `tiled-preview.png`와 프롬프트·해시 기록을 보관합니다.
-재개는 저장된 입력·프롬프트로 보정부터 재실행합니다. 이력 삭제·초기화는 이 생성기의 기록에만 적용됩니다.
+Qwen 2.1 작업은 저장된 입력·프롬프트로 재개합니다. Qwen 2511 schema 1은 이력 조회만 가능하며 재개할 수 없습니다. 이력 삭제·초기화는 이 생성기의 기록에만 적용됩니다.
 
 AI 편집은 반대편 경계의 주기적 일치를 보장하지 않습니다. 반복 검수본을 확인한 뒤
 채택해야 하며 결과는 자동으로 정식 에셋에 등록하지 않습니다.
@@ -334,7 +305,7 @@ AI 편집은 반대편 경계의 주기적 일치를 보장하지 않습니다. 
 GUI와 `tools/manager.py command seamless-tile generate`는 같은 공용 게이트웨이와 이력을 사용한다.
 원본은 256×256으로 정규화한 뒤 768×768 반복 참조를 전달하고, 중앙 256 타일 및 반복 미리보기를 저장한다.
 기본 프롬프트는 `generators/image/config/seamless_tile.yaml`에서 추적한다.
-이전 schema 1 기록의 재개는 2511 실행기를 유지하며 새 schema 2 기록은 2.1 실행기로 고정된다.
+이전 Qwen 2511 schema 1 기록은 조회할 수 있으나 재개를 거절한다. schema 2·3·4·6·7 기록은 Qwen 2.1 실행기로 재개하며 저장된 GPU 명령도 2.1 실행기인지 검증한다.
 기존 URL·서비스 이름·기록 저장 경로는 변경하지 않는다.
 
 2.1 작업자는 `.venv-qwen21` 분리 환경에서 실행한다. 검증 환경은 Python 3.12,

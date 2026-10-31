@@ -130,6 +130,8 @@ class ImageGenerationManager:
         return current_request_record
 
     def validate_generation_request(self, request_record_value):
+        if type(self) is ImageGenerationManager and self.three_reference_mode:
+            raise ValueError('Qwen Image Edit 2511 생성기는 폐기되었습니다. Qwen 2.1을 사용하세요.')
         if self.three_reference_mode:
             from tools.review.domains.image.three_reference_generation import validate_three_reference_request
             return validate_three_reference_request(request_record_value)
@@ -139,6 +141,8 @@ class ImageGenerationManager:
         """도메인별 재개 가능 기록을 GPU 명령 실행 전에 검증한다."""
 
     def validate_generation_runtime(self, saved_request_record=None):
+        if type(self) is ImageGenerationManager and self.three_reference_mode:
+            raise ValueError('Qwen Image Edit 2511 생성기는 폐기되었습니다. Qwen 2.1을 사용하세요.')
         validate_image_runtime()
 
     def select_generation_runner(self, saved_request_record=None):
