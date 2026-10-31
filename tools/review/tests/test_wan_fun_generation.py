@@ -54,6 +54,14 @@ class FunGenerationContractTests(unittest.TestCase):
             current_video_writer.release()
             current_video_request = {**self.current_request_record, 'images': self.current_request_record['images'][:1], 'driving_video': base64.b64encode(current_video_path.read_bytes()).decode()}
             self.assertEqual(validate_fun_request(current_video_request)['frames'], 5)
+            self.assertFalse(validate_fun_request(current_video_request)['pose_include_hands'])
+            self.assertFalse(validate_fun_request(current_video_request)['pose_include_face'])
+            for current_option_name in ('pose_include_hands', 'pose_include_face'):
+                self.assertTrue(validate_fun_request({**current_video_request, current_option_name: True})[current_option_name])
+                with self.assertRaises(ValueError):
+                    validate_fun_request({**current_video_request, current_option_name: 'False'})
+                with self.assertRaises(ValueError):
+                    validate_fun_request({**self.current_request_record, current_option_name: False})
             with self.assertRaises(ValueError):
                 validate_fun_request({**current_video_request, 'frames': 9})
             with self.assertRaises(ValueError):
@@ -68,7 +76,27 @@ class FunGenerationContractTests(unittest.TestCase):
             with patch('tools.review.ui.gradio.wan_fun_app.FUN_JOB_STORAGE', Path(current_temporary_root)):
                 current_restored_values = restore_fun_inputs({'id': current_job_identifier, 'request': current_saved_request})
             self.assertEqual(current_restored_values[1], str(current_job_directory/'driving.mp4'))
-            self.assertEqual(current_restored_values[-2], 'soma-video')
+            self.assertEqual(current_restored_values[-4], 'soma-video')
+            self.assertEqual(current_restored_values[-3:-1], (True, True))
+            current_saved_request.update(pose_include_hands=False, pose_include_face=True)
+            with patch('tools.review.ui.gradio.wan_fun_app.FUN_JOB_STORAGE', Path(current_temporary_root)):
+                current_restored_values = restore_fun_inputs({'id': current_job_identifier, 'request': current_saved_request})
+            self.assertEqual(current_restored_values[-3:-1], (False, True))
+
+    def test_pose_parts_preserve_body_and_select_details(self):
+        from collections import namedtuple
+        from generators.wan_fun.pose_preprocess import render_selected_pose_parts
+        current_pose_type = namedtuple('Pose', 'body left_hand right_hand face')
+        current_pose_record = current_pose_type(object(), object(), object(), object())
+        current_draw_function = Mock(return_value='rendered')
+        with patch.dict('sys.modules', {'generators.wan_fun.vendor.videox_fun.dwpose_utils': SimpleNamespace(draw_pose=current_draw_function)}):
+            for current_hand_option, current_face_option in ((False, False), (True, False), (False, True), (True, True)):
+                self.assertEqual(render_selected_pose_parts([current_pose_record], (512, 832), current_hand_option, current_face_option), 'rendered')
+                current_selected_record = current_draw_function.call_args.args[0][0]
+                self.assertIs(current_selected_record.body, current_pose_record.body)
+                self.assertIs(current_selected_record.left_hand, current_pose_record.left_hand if current_hand_option else None)
+                self.assertIs(current_selected_record.right_hand, current_pose_record.right_hand if current_hand_option else None)
+                self.assertIs(current_selected_record.face, current_pose_record.face if current_face_option else None)
 
     def test_extended_frame_count_accepts_exact_controls(self):
         current_extended_record={**self.current_request_record,'frames':129,'images':self.current_request_record['images'][:1]*130}

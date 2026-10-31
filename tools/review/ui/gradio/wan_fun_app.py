@@ -38,7 +38,7 @@ def encode_fun_image(current_image_object, current_padding_color):
     return base64.b64encode(current_image_buffer.getvalue()).decode()
 
 
-def build_fun_payload(current_reference_path, current_video_path, current_frame_paths, current_control_type, current_prompt_text, current_negative_text, current_frame_count, current_seed_value, current_steps_value, current_shift_value, current_guidance_value, current_switch_ratio, current_input_mode="preprocessed"):
+def build_fun_payload(current_reference_path, current_video_path, current_frame_paths, current_control_type, current_prompt_text, current_negative_text, current_frame_count, current_seed_value, current_steps_value, current_shift_value, current_guidance_value, current_switch_ratio, current_input_mode="preprocessed", current_include_hands=False, current_include_face=False):
     if not current_reference_path or bool(current_video_path) == bool(current_frame_paths):
         raise ValueError('외형 참조 1장과 제어 영상 또는 PNG 목록 중 하나를 첨부하세요.')
     for current_integer_value in (current_frame_count, current_seed_value, current_steps_value):
@@ -79,6 +79,7 @@ def build_fun_payload(current_reference_path, current_video_path, current_frame_
                 current_encoded_images.append(encode_fun_image(current_frame_image, 'black'))
     current_payload_record = {'action': 'generate', 'prompt': current_prompt_text, 'negative_prompt': current_negative_text, 'images': current_encoded_images, 'control_type': current_control_type, 'width': 832, 'height': 480, 'frames': current_frame_count, 'seed': int(current_seed_value), 'steps': int(current_steps_value), 'flow_shift': current_shift_value, 'guidance_scale': current_guidance_value, 'switch_ratio': current_switch_ratio}
     if current_input_mode == 'soma-video':
+        current_payload_record.update(pose_include_hands=current_include_hands, pose_include_face=current_include_face)
         current_payload_record['driving_video'] = base64.b64encode(Path(current_video_path).read_bytes()).decode()
     validate_fun_request(current_payload_record)
     return current_payload_record
@@ -98,7 +99,7 @@ def restore_fun_inputs(current_history_record):
         if current_reference_path.parent != current_job_directory or not current_reference_path.is_file():
             raise ValueError('이력 입력 사본 누락 또는 경로 오류')
         current_reference_paths.append(str(current_reference_path))
-    return (current_reference_paths[0], str(current_job_directory/'driving.mp4') if current_request_record.get('driving_video_file') else None, current_reference_paths[1:] or None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'soma-video' if current_request_record.get('driving_video_file') else 'preprocessed', current_job_identifier)
+    return (current_reference_paths[0], str(current_job_directory/'driving.mp4') if current_request_record.get('driving_video_file') else None, current_reference_paths[1:] or None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'soma-video' if current_request_record.get('driving_video_file') else 'preprocessed', current_request_record.get('pose_include_hands', bool(current_request_record.get('driving_video_file'))), current_request_record.get('pose_include_face', bool(current_request_record.get('driving_video_file'))), current_job_identifier)
 
 
 def build_fun_interface(current_server_address, current_command_callback=None):
@@ -124,6 +125,12 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             with gr.Accordion('제어 PNG 업로드 · 파일 목록',open=False):
                 current_frames_control = gr.File(file_count='multiple', file_types=['.png'], label='제어 PNG · 업로드 순서 · 영상과 중복 입력 불가')
             build_input_preview(current_frames_control,'제어 PNG 미리보기 · 번호 순서로 입력 · 클릭하여 확대')
+        with gr.Group() as current_pose_options:
+            with gr.Row():
+                current_hands_control = gr.Checkbox(value=False, label='손 상세 포함')
+                current_face_control = gr.Checkbox(value=False, label='얼굴 상세 포함')
+            gr.Markdown('SOMA 영상 포즈 추출에만 적용합니다. 기본은 둘 다 끔입니다. 몸 18점의 손목·코·눈·귀는 유지합니다. 이미 전처리된 영상·PNG의 점은 변경하지 않습니다.')
+        current_mode_control.change(lambda current_mode_value: gr.update(visible=current_mode_value=='soma-video'), current_mode_control, current_pose_options, queue=False)
         current_mode_control.change(lambda current_mode_value: gr.update(visible=current_mode_value=='preprocessed'), current_mode_control, current_legacy_inputs, queue=False)
         current_type_control = gr.Dropdown(choices=list(FUN_CONTROL_TYPES), value='pose', label='제어 종류 · 영상의 실제 표현과 일치시켜 주세요')
         gr.Markdown('SOMA 입력은 Kimodo의 단일 인체 렌더 MP4를 사용합니다. 작업 프로세스가 VideoX-Fun DWPose로 몸·손·얼굴을 검출합니다. 공식 검출·그리기를 유지하고 실행 백엔드는 ONNX Runtime CUDA로 연결했습니다. 원본 시간 기준 16fps로 추출하며 부족한 영상은 거절합니다. 전처리 입력 모드는 기존 제어 영상을 그대로 사용합니다. 최종 제어 영상은 832×480입니다.')
@@ -144,7 +151,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             current_steps_control = gr.Number(value=FUN_DEFAULT_SETTINGS['steps'], precision=0, minimum=2, maximum=100, label='스텝 · 2~100', info='실험 기본 20. 증가하면 계산량이 늘며 동작 개선을 보장하지 않습니다.')
             current_switch_control = gr.Number(value=FUN_DEFAULT_SETTINGS['switch_ratio'], minimum=0.1, maximum=0.9, label='고노이즈 스텝 비율 · 0.1~0.9', info='기본 0.5. 전체 스텝의 앞부분은 고노이즈 모델, 나머지는 저노이즈 모델을 사용합니다.')
             gr.Markdown('범위는 이 페이지의 실험 허용 범위입니다. [모델카드](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control) · [공식 ComfyUI 안내](https://docs.comfy.org/tutorials/video/wan/wan2-2-fun-control). 가속 4스텝 LoRA 예제와 현재 Q4 비가속 설정은 다릅니다.')
-        current_input_controls = [current_reference_control,current_video_control,current_frames_control,current_type_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_switch_control,current_mode_control]
+        current_input_controls = [current_reference_control,current_video_control,current_frames_control,current_type_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_switch_control,current_mode_control,current_hands_control,current_face_control]
         current_generate_button = gr.Button('대기열에 추가', variant='primary', interactive=False)
         build_button_guidance(current_generate_button, '참조·프롬프트와 제어 영상 또는 PNG 목록 중 하나를 입력하세요. 모델 파일이 준비되어야 등록할 수 있습니다.')
         with gr.Column() as current_confirmation_container:

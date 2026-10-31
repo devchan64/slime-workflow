@@ -44,8 +44,12 @@ def validate_fun_request(current_request_record):
     required_field_names = {'action', 'prompt', 'negative_prompt', 'images', 'width', 'height', 'frames', 'steps', 'seed', 'flow_shift', 'guidance_scale', 'switch_ratio', 'control_type'}
     if current_video_input:
         required_field_names.add('driving_video')
-    if not isinstance(current_request_record, dict) or set(current_request_record) != required_field_names:
+    optional_field_names = {'pose_include_hands', 'pose_include_face'} if current_video_input else set()
+    if not isinstance(current_request_record, dict) or not required_field_names <= set(current_request_record) or set(current_request_record) - required_field_names - optional_field_names:
         raise ValueError('Fun Control 요청 필드가 맞지 않습니다.')
+    for current_option_name in optional_field_names:
+        if type(current_request_record.get(current_option_name, False)) is not bool:
+            raise ValueError(f'{current_option_name}: bool 값이 필요합니다.')
     if current_request_record['action'] != 'generate':
         raise ValueError('generate 요청이 필요합니다.')
     for current_field_name in ('prompt', 'negative_prompt'):
@@ -76,4 +80,5 @@ def validate_fun_request(current_request_record):
             raise ValueError('SOMA 렌더 영상 입력은 pose 제어만 지원합니다.')
         from generators.wan_fun.video_input import validate_fun_driving_video
         validate_fun_driving_video(current_request_record['driving_video'], current_request_record['frames'])
-    return {**current_request_record, 'prompt': current_request_record['prompt'].strip(), 'tag': 'wan22-fun-control'}
+    current_pose_options = {current_option_name: current_request_record.get(current_option_name, False) for current_option_name in optional_field_names}
+    return {**current_request_record, **current_pose_options, 'prompt': current_request_record['prompt'].strip(), 'tag': 'wan22-fun-control'}

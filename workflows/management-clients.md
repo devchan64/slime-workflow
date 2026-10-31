@@ -1023,3 +1023,9 @@ Kimodo `generate`의 `openpose_scale_percent`는 OpenPose 출력 크기(10~100%,
 Fun Control의 포즈 검출·몸/손/얼굴 그리기는 [VideoX-Fun VideoToPose](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/comfyui/annotator/nodes.py)의 `DWposeDetector`를 사용합니다. 원본 5개 파일·라이선스·해시는 `generators/wan_fun/vendor/videox_fun/`에 보존합니다. GPU 규칙을 위해 공식 OpenCV CPU 세션 초기화 대신 ONNX Runtime CUDA 세션을 연결합니다. 가중치는 같은 DWPose이며 입력 배치 1의 형상 계산을 onnxsim 0.8.1로 사전 상수화하고 CPU EP fallback을 금지합니다. 색상·관절·신뢰도·손·얼굴 렌더링은 원본 구현입니다. 이 표기는 전처리 사용을 뜻하며 전체 영상 샘플러를 VideoX-Fun으로 교체했다는 뜻이 아닙니다.
 
 준비는 `.venv/bin/python -m generators.wan_fun.prepare_pose`입니다. `pose-requirements.txt`와 기존 Animate CUDA preprocess-deps 환경을 사용합니다. 원본 및 상수화 모델은 `.model/wan22-fun-pose/`에 보관하며 고정 모델 revision과 해시를 `prepared.json`에 기록합니다. CPU 모델 추론으로 대체하지 않습니다. 검출 실패·짧은 입력·해시 불일치는 실패로 기록합니다.
+
+### Fun Control 포즈 상세 선택
+
+SOMA 원본 영상 요청은 `pose_include_hands`, `pose_include_face` bool 옵션을 받습니다. 신규 요청에서 생략하면 모두 `false`로 저장합니다. GUI의 `손 상세 포함`·`얼굴 상세 포함` 체크박스도 기본 해제입니다. DWPose 검출은 그대로 수행하고 공식 렌더링에 전달하는 손·얼굴 상세만 제외합니다. 몸 18점의 손목·코·눈·귀는 항상 유지합니다. 전처리된 제어 영상·PNG 입력에는 적용하지 않으며 해당 모드의 API 요청에 옵션이 있으면 거절합니다.
+
+선택값은 요청과 `pose-preprocess.json`에 보존됩니다. 옵션이 없는 과거 SOMA 작업은 재개·입력 불러오기 시 기존의 손·얼굴 포함을 유지합니다. 과거 입력으로 새 실험을 할 때는 체크 상태를 확인하세요.

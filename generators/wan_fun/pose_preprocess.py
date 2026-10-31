@@ -23,6 +23,17 @@ def validate_fun_pose_assets():
             raise ValueError(f'VideoX-Fun CUDA 모델 해시 불일치: {current_model_path}')
 
 
+def render_selected_pose_parts(current_pose_records, current_image_shape, current_include_hands, current_include_face):
+    """몸 18점은 유지하고 공식 렌더러에 전달할 손·얼굴 상세만 선택한다."""
+    from generators.wan_fun.vendor.videox_fun.dwpose_utils import draw_pose
+    current_selected_records = [current_pose_record._replace(
+        left_hand=current_pose_record.left_hand if current_include_hands else None,
+        right_hand=current_pose_record.right_hand if current_include_hands else None,
+        face=current_pose_record.face if current_include_face else None,
+    ) for current_pose_record in current_pose_records]
+    return draw_pose(current_selected_records, *current_image_shape)
+
+
 def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_request_record):
     import cv2
     import numpy as np
@@ -30,7 +41,6 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
     import onnxruntime as ort
     import imageio.v2 as imageio
     from PIL import Image, ImageOps
-    from generators.wan_fun.vendor.videox_fun.dwpose_utils import DWposeDetector
     from generators.wan_fun.vendor.videox_fun.dwpose_utils.wholebody import Wholebody
     validate_fun_pose_assets()
     if not torch.cuda.is_available():
@@ -50,8 +60,9 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
             raise RuntimeError('VideoX-Fun ONNX CUDA 초기화 실패')
         current_cuda_session.disable_fallback()
         setattr(current_body_detector, current_session_field, current_cuda_session)
-    current_pose_detector = DWposeDetector.__new__(DWposeDetector)
-    current_pose_detector.pose_estimation = current_body_detector
+    # 과거 기록은 손·얼굴 포함으로 재개한다. 신규 요청은 검증 시 False를 저장한다.
+    current_include_hands = current_request_record.get('pose_include_hands', True)
+    current_include_face = current_request_record.get('pose_include_face', True)
     current_frame_paths = []
     current_video_capture = cv2.VideoCapture(str(current_source_path))
     current_source_fps = current_video_capture.get(cv2.CAP_PROP_FPS)
@@ -71,7 +82,9 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
                 current_scaled_height, current_scaled_width = [round(current_dimension_value*current_resize_ratio) for current_dimension_value in current_frame_array.shape[:2]]
                 current_scaled_image = cv2.resize(current_frame_array, (current_scaled_width, current_scaled_height), interpolation=cv2.INTER_CUBIC if current_resize_ratio>1 else cv2.INTER_AREA)
                 current_padded_image = np.pad(current_scaled_image, ((0, (-current_scaled_height)%64), (0, (-current_scaled_width)%64), (0, 0)), mode='edge')
-                current_pose_image = current_pose_detector(np.ascontiguousarray(current_padded_image))[:current_scaled_height, :current_scaled_width]
+                with torch.no_grad():
+                    current_pose_records = Wholebody.format_result(current_body_detector(np.ascontiguousarray(current_padded_image)))
+                current_pose_image = render_selected_pose_parts(current_pose_records, current_padded_image.shape[:2], current_include_hands, current_include_face)[:current_scaled_height, :current_scaled_width]
                 if not np.any(current_pose_image):
                     raise ValueError(f'VideoX-Fun 인체 검출 실패: {current_frame_index+1}프레임. 단일 SOMA 인체가 보이는 영상을 입력하세요.')
                 current_output_image = ImageOps.pad(Image.fromarray(current_pose_image), (832, 480), color='black')
@@ -82,7 +95,7 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
                 print(time.strftime('%Y-%m-%dT%H:%M:%S')+f'/fun/pose {current_frame_index+1}/{current_request_record["frames"]}', flush=True)
     finally:
         current_video_capture.release()
-    (current_attempt_root/'pose-preprocess.json').write_text(json.dumps({'source': 'VideoX-Fun VideoToPose / DWposeDetector', 'revision': FUN_POSE_SOURCE_REVISION, 'model_revision': FUN_POSE_MODEL_REVISION, 'backend': 'ONNX Runtime CUDA; CPU fallback disabled', 'source_fps': current_source_fps, 'output_fps': 16, 'frames': current_frame_paths}, ensure_ascii=False))
+    (current_attempt_root/'pose-preprocess.json').write_text(json.dumps({'source': 'VideoX-Fun VideoToPose / DWposeDetector', 'revision': FUN_POSE_SOURCE_REVISION, 'model_revision': FUN_POSE_MODEL_REVISION, 'backend': 'ONNX Runtime CUDA; CPU fallback disabled', 'source_fps': current_source_fps, 'output_fps': 16, 'pose_include_hands': current_include_hands, 'pose_include_face': current_include_face, 'body_head_points': True, 'frames': current_frame_paths}, ensure_ascii=False))
     return current_frame_paths
 
 
