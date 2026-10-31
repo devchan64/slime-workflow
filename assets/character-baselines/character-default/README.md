@@ -11,7 +11,6 @@
 | 파일 | 용도 |
 | --- | --- |
 | [face-baseline.png](face-baseline.png) | 얼굴·머리카락 아이덴티티 참조 |
-| [body-baseline.png](body-baseline.png) | 신체 비율 참조 |
 | [light-armor-baseline.png](light-armor-baseline.png) | 가벼운 보호구 착용 참조 |
 | [medium-armor-baseline.png](medium-armor-baseline.png) | 중간 보호구 착용 참조 |
 | [heavy-armor-baseline.png](heavy-armor-baseline.png) | 무거운 보호구 착용 참조 |
