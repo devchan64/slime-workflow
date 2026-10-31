@@ -125,6 +125,10 @@ class ImageGenerationManager:
             current_status_record.update(metrics=current_queue_metrics,estimate=current_queue_metrics['estimate'])
         return current_status_record
 
+    def save_generation_attachments(self, current_job_root, current_request_record):
+        """서비스별 추가 입력 사본 저장. 기본 이미지 계약은 유지한다."""
+        return current_request_record
+
     def validate_generation_request(self, request_record_value):
         if self.three_reference_mode:
             from tools.review.domains.image.three_reference_generation import validate_three_reference_request
@@ -261,6 +265,7 @@ class ImageGenerationManager:
                         current_request_record={**{key:value for key,value in current_request_record.items() if key!='images'},**reference_request_record}
                     else:
                         current_request_record.pop('images',None)
+                    current_request_record=self.save_generation_attachments(current_job_root,current_request_record)
                     (current_job_root/'request.json').write_text(json.dumps(current_request_record,ensure_ascii=False))
                     (current_job_root/'status.json').write_text('{"status":"running"}')
                     with MANAGER_HISTORY_LOCK:

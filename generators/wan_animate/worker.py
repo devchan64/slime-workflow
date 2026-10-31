@@ -45,13 +45,15 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
  vae_model_object=nodes.VAELoader().load_vae('wan_2.1_vae.safetensors')[0]
  from generators.wan_animate.memory import TiledAnimateVae
  vae_model_object=TiledAnimateVae(vae_model_object)
- write_record_atomically(current_attempt_root/'memory-policy.json',{'inference_mode':True,'encode_tile_pixels':256,'encode_tile_frames':9,'encode_overlap_frames':5,'decode_tile_latents':32,'decode_temporal_latents':3,'compute_device':'cuda','allocator':os.environ['PYTORCH_ALLOC_CONF']})
- (current_attempt_root/'memory-source.py').write_bytes((Path(__file__).parent/'memory.py').read_bytes())
+ write_record_atomically(current_attempt_root/'memory-policy.json',{'inference_mode':True,'encode_tile_pixels':256,'encode_tile_frames':9,'encode_overlap_frames':5,'decode_tile_latents':32,'decode_temporal_latents':max(2,(current_request_record['frames']-1)//4+1),'decode_temporal_policy':'full-sequence-spatial-tiles','compute_device':'cuda','allocator':os.environ['PYTORCH_ALLOC_CONF']})
+ (current_attempt_root/'memory-source.py').write_bytes((ANIMATE_WORKSPACE_ROOT/'generators/common/wan_video_memory.py').read_bytes())
  current_metrics_recorder.update_generation_stage('encoding')
  input_image_tensors=[torch.from_numpy(np.array(Image.open(current_job_root/current_image_name).convert('RGB')).astype(np.float32)/255.0) for current_image_name in current_request_record['references']]
  reference_image_tensor=input_image_tensors[0].unsqueeze(0)
- pose_video_tensor=torch.stack(input_image_tensors[1:22]) if len(input_image_tensors)>1 else None
- # 얼굴은 외형 참조에서만 제공하며 애니리그 얼굴 영상은 연결하지 않는다.
+ current_frame_count=current_request_record['frames']
+ current_output_fps=current_request_record.get('fps',16)
+ pose_video_tensor=torch.stack(input_image_tensors[1:1+current_frame_count]) if len(input_image_tensors)>1 else None
+ face_video_tensor=torch.stack(input_image_tensors[1+current_frame_count:]) if len(input_image_tensors)>1+current_frame_count else None
  import comfy.clip_vision
  clip_vision_model=comfy.clip_vision.load(str(ANIMATE_WORKSPACE_ROOT/'.model/wan22-animate-components/split_files/clip_vision/clip_vision_h.safetensors'))
  if clip_vision_model.load_device.type!='cuda': raise RuntimeError('CLIP Vision CUDA 설정 오류')
@@ -62,8 +64,8 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
  comfy.model_management.soft_empty_cache()
  current_sampler_name='uni_pc'
  current_scheduler_name='sgm_uniform'
- write_record_atomically(current_attempt_root/'conditioning.json',{'reference_images':1,'pose_frames':0 if pose_video_tensor is None else len(pose_video_tensor),'face_video':False,'clip_vision':clip_condition_output is not None,'sampler':current_sampler_name,'scheduler':current_scheduler_name})
- condition_output_data=WanAnimateToVideo.execute(positive_condition_data,negative_condition_data,vae_model_object,832,480,21,1,5,0,reference_image=reference_image_tensor,pose_video=pose_video_tensor,face_video=None,clip_vision_output=clip_condition_output)
+ write_record_atomically(current_attempt_root/'conditioning.json',{'reference_images':1,'pose_frames':0 if pose_video_tensor is None else len(pose_video_tensor),'face_video':face_video_tensor is not None,'face_frames':0 if face_video_tensor is None else len(face_video_tensor),'clip_vision':clip_condition_output is not None,'sampler':current_sampler_name,'scheduler':current_scheduler_name})
+ condition_output_data=WanAnimateToVideo.execute(positive_condition_data,negative_condition_data,vae_model_object,current_request_record['width'],current_request_record['height'],current_frame_count,1,5,0,reference_image=reference_image_tensor,pose_video=pose_video_tensor,face_video=face_video_tensor,clip_vision_output=clip_condition_output)
  positive_condition_data,negative_condition_data,latent_input_record,trim_latent_count,trim_image_count=condition_output_data[:5]
  comfy.model_management.unload_all_models()
  comfy.model_management.soft_empty_cache()
@@ -82,9 +84,14 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
  comfy.model_management.soft_empty_cache()
  current_metrics_recorder.update_generation_stage('saving')
  with torch.inference_mode():
-  decoded_frame_tensor=vae_model_object.decode(latent_output_tensor[:,:,trim_latent_count:])
+  current_decode_latents=latent_output_tensor[:,:,trim_latent_count:]
+  torch.save({'samples':current_decode_latents.detach().cpu(),'trim_image_count':trim_image_count,'source_frames':current_request_record.get('source_frames',current_frame_count),'fps':current_output_fps},current_attempt_root/'decode-latents.pt')
+  # 시간 전체를 한 타일로 처리해 8프레임 간격의 디코딩 경계를 없앤다. 공간 타일은 유지한다.
+  decoded_frame_tensor=vae_model_object.decode(current_decode_latents,current_temporal_tile_count=max(2,current_decode_latents.shape[2]))
  decoded_frame_tensor=decoded_frame_tensor[trim_image_count:]
- if decoded_frame_tensor.shape[0]!=21: raise ValueError(f'출력 프레임 수 오류: {decoded_frame_tensor.shape}')
+ if decoded_frame_tensor.shape[0]!=current_frame_count: raise ValueError(f'출력 프레임 수 오류: {decoded_frame_tensor.shape}')
+ decoded_frame_tensor=decoded_frame_tensor[:current_request_record.get('source_frames',current_frame_count)]
+ current_frame_count=len(decoded_frame_tensor)
  output_frame_arrays=(decoded_frame_tensor.clamp(0,1).cpu().numpy()*255).round().astype(np.uint8)
  output_frame_hashes=[]
  with zipfile.ZipFile(current_attempt_root/'frames.zip','w',compression=zipfile.ZIP_DEFLATED) as frame_archive_file:
@@ -93,11 +100,11 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
    Image.fromarray(current_frame_array).save(current_frame_path)
    output_frame_hashes.append(hashlib.sha256(current_frame_path.read_bytes()).hexdigest())
    frame_archive_file.write(current_frame_path,current_frame_path.name)
- imageio.mimwrite(str(current_attempt_root/'preview.mp4'),output_frame_arrays,fps=16,codec='libx264',quality=8,macro_block_size=1)
+ imageio.mimwrite(str(current_attempt_root/'preview.mp4'),output_frame_arrays,fps=current_output_fps,codec='libx264',quality=8,macro_block_size=1)
  comfy.model_management.unload_all_models()
  del vae_model_object
  gc.collect()
- return {'attempt':current_attempt_root.name,'frames':21,'fps':16,'duration_seconds':21/16,'output_sha256':output_frame_hashes,'model_id':'QuantStack/Wan2.2-Animate-14B-GGUF','model_compute_device':'cuda','prompt_words':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'quality_status':'사용자 검수 대기'}
+ return {'attempt':current_attempt_root.name,'frames':current_frame_count,'fps':current_output_fps,'duration_seconds':current_frame_count/current_output_fps,'output_sha256':output_frame_hashes,'model_id':'QuantStack/Wan2.2-Animate-14B-GGUF','model_compute_device':'cuda','prompt_words':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'quality_status':'사용자 검수 대기'}
 
 def execute_animate_worker():
  current_argument_parser=argparse.ArgumentParser(description=__doc__)
@@ -119,6 +126,14 @@ def execute_animate_worker():
  signal.signal(signal.SIGINT,handle_animate_signal)
  try:
   validate_animate_assets()
+  if current_request_record.get('driving_video_file'):
+   import subprocess
+   current_metrics_recorder.update_generation_stage('preprocessing')
+   current_preprocess_environment={**os.environ,'PYTHONPATH':str(ANIMATE_RUNTIME_DIRECTORY/'preprocess-deps')}
+   subprocess.run([sys.executable,str(Path(__file__).parent/'preprocess.py'),str(current_job_root),str(current_attempt_root)],env=current_preprocess_environment,check=True)
+   current_pose_names=[str((current_attempt_root/'preprocess'/f'pose-{current_frame_index:03d}.png').relative_to(current_job_root)) for current_frame_index in range(current_request_record['frames'])]
+   current_face_names=[str((current_attempt_root/'preprocess'/f'face-{current_frame_index:03d}.png').relative_to(current_job_root)) for current_frame_index in range(current_request_record['frames'])]
+   current_request_record={**current_request_record,'references':[current_request_record['references'][0],*current_pose_names,*current_face_names]}
   import torch
   with torch.inference_mode():
    current_result_record=execute_animate_inference(current_job_root,current_attempt_root,current_request_record,current_metrics_recorder)

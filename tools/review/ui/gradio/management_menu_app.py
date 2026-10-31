@@ -31,7 +31,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id': 'music-heartmula', 'label': 'HeartMuLa 3B', 'path': '/management/frame/music-heartmula/', 'category': 'sound-management', 'uiMode': 'gradio', 'description': 'tags·lyrics 입력 · 무보컬 보장 없음'},
     {'id':'kimodo-generator','label':'Kimodo 모션 생성기 · NF4','path':'/management/frame/kimodo-generator/','category':'animation-tool','uiMode':'gradio','description':'SOMA v1.2 · 텍스트→3D 모션 · NF4 인코더'},
     {'id':'wan22-vace-generator','label':'Wan2.2 VACE-Fun 영상 생성기','path':'/management/frame/wan22-vace-generator/','category':'animation-tool','uiMode':'gradio','description':'A14B Q4 · 텍스트·외형 참조·첫 프레임'},
-    {'id':'wan22-animate-generator','label':'Wan2.2 Animate 영상 생성기','path':'/management/frame/wan22-animate-generator/','category':'animation-tool','uiMode':'gradio','description':'14B Q4 · 외형 참조·몸 포즈 21장 · 고정 실험 설정'},
+    {'id':'wan22-animate-generator','label':'Wan2.2 Animate 영상 생성기','path':'/management/frame/wan22-animate-generator/','category':'animation-tool','uiMode':'gradio','description':'14B Q4 · 캐릭터 이미지 + 동작 영상 · 자동 전처리'},
     {'id':'wan22-fun-control-generator','label':'Wan2.2 Fun Control 영상 생성기','path':'/management/frame/wan22-fun-control-generator/','category':'animation-tool','uiMode':'gradio','description':'A14B Q4 · 외형 참조+제어 영상 · 고·저노이즈 순차 실행'},
     {'id':'character-review','label':'캐릭터 표현 검수','path':'/management/frame/character-review/','category':'character-render-review','uiMode':'gradio','description':'3×3 검수 맵 · 바닥 선택 · 형태선·분리선·접지 그림자 비교'},
     {'id':'animation-separation','label':'캐릭터 레퍼런스 복장 분리 생성','path':'/animation-separation/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · 참조 이미지 1장 · 신체 베이스·복장 별도 이미지'},

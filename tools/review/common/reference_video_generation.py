@@ -34,7 +34,7 @@ class ReferenceVideoGenerationManager(ImageGenerationManager):
   import re
   from urllib.parse import urlsplit
   current_url_path=urlsplit(current_http_handler.path).path
-  current_file_match=re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8})/attempts/([a-f0-9]{32})/(preview\.mp4|comparison\.mp4|frames\.zip|output-\d{3}\.png)',current_url_path)
+  current_file_match=re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8})/attempts/([a-f0-9]{32})/(preview\.mp4|comparison\.mp4|pose\.mp4|face\.mp4|frames\.zip|output-\d{3}\.png)',current_url_path)
   if current_http_handler.command=='GET' and (current_file_match or current_url_path==self.route_prefix_value+'/model-status'):
    current_content_type='application/json'
    try:
