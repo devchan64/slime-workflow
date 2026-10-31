@@ -1,0 +1,31 @@
+schema_version: 1
+version: 11.0.0
+title: 중성형 기본 신체 · 피부·기본복·호박색 눈
+status: 사용자 지정 · 현재 기준
+image: neutral-body-skin-clothes-four-directions.png
+generator: image_gen_builtin
+reference_images:
+- prompts/references/mannequin/latest/neutral-body-skin-clothes-four-directions.png
+- prompts/references/mannequin/latest/neutral-head-basic-four-directions.png
+reference_roles:
+- 교체 전 피부·기본복 전신 수정 대상 (동일 경로의 이전 이미지)
+- 이목구비 비율 기준
+eye_color: amber
+prompt: 'Edit IMAGE 1, the full-body skin and fitted clothing sheet. Add the facial
+  features from IMAGE 2 head standard onto the front, quarter and profile heads, matching
+  its eye size/spacing, eyebrows, higher nose, wide mouth and neutral expression relative
+  to each head. Irises are AMBER: natural warm golden honey amber with dark pupils,
+  not glowing. Translate gray reference facial material to the existing warm skin.
+  Preserve IMAGE 1 exact head size and outer silhouette, neck, body proportions, narrow
+  shoulders, waist and hips, limbs, pose, gray cropped sleeveless top and charcoal
+  shorts. Keep bald, no hair. Same 2x2 full-body front/quarter/profile/back layout,
+  scale and white background. Back view unchanged. Image 2 supplies facial proportions
+  only, no head enlargement or neck connector. Change only facial areas, keep all
+  body and clothing unchanged.'
+word_count: 129
+prompt_sha256: 288de3973e89a08c8af6c2f22886d85b7b8148033407851670ceaf1a42a30b7a
+image_sha256: 0f1da10c391c432b400f51da2759914aaa8bb27949ce296b16056e155ed2e368
+review_note: 정확한 비율 및 얼굴 외 픽셀 동일성은 미측정.
+source_image: prompts/references/mannequin/research/v11/neutral-body-amber-eyes-four-directions-v11.png
+updated_on: '2026-10-31'
+registration_note: 사용자 지시에 따라 연구 v11 결과로 교체. 기본형 얼굴의 이목구비와 호박색 눈을 적용한 전신 4방향 시트.

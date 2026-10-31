@@ -1,0 +1,22 @@
+schema_version: 1
+image: body-front-adjustment-draft.png
+status: 비율 조정 후보 · 사용자 검수 전
+generator: image_gen_builtin
+reference_images:
+- assets/character-baselines/character-default/baseline-v2/body-front-v2.png
+- prompts/references/mannequin/research/v1/male-body-four-directions-v1.png
+prompt: 'Correct IMAGE 1 full-body character proportions using the FRONT mannequin
+  in IMAGE 2 as the authoritative template. Match mannequin skull-crown-to-chin height
+  relative to total skull-crown-to-sole height, about five heads, EXCLUDING hairstyle
+  volume. Enlarge head, narrow shoulders, shorten torso, and match limb lengths to
+  the mannequin. Smooth out pronounced arm/leg muscles for a neutral androgynous adult
+  physique. Preserve image 1 facial identity, short brown hairstyle, brown eyes, skin
+  color, gray fitted short tee, charcoal short shorts, barefoot, painted style, white
+  background, front pose. ONE full body only. Do not simply shorten legs: rebalance
+  head, shoulder width and torso together. The mannequin''s body silhouette and joint
+  proportions take priority over the original athletic build. Living skin and clothing,
+  no mannequin seams. Show full hair and feet with margins.'
+word_count: 126
+prompt_sha256: 90bb6dd70847d717b5f3ba761884cba8d68689c0c6b8da6a7dad3b7fa4da3c40
+image_sha256: acfefcfffa79e918eaf37f323831a31202f52a763eb284a12f122d3a72434b84
+review_note: 마네킨 비율을 목표로 머리 대비 전신 길이와 어깨·몸통을 조정했다. 프롬프트의 백분율은 요청값이며 실측 보장값이 아니다.

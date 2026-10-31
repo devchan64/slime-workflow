@@ -1,0 +1,29 @@
+schema_version: 1
+version: 3.0.0
+title: 중성형 기본 신체 · 어깨 축소
+status: 어깨 폭 조정 후보 · 사용자 검수 전
+image: neutral-body-four-directions-v3.png
+generator: image_gen_builtin
+reference_images:
+- prompts/references/mannequin/research/v2/neutral-body-four-directions-v2.png
+layout: 2x2
+order:
+- front
+- front-quarter
+- profile
+- back
+prompt: 'Edit this exact neutral articulated mannequin four-view sheet. Narrow shoulder
+  span moderately, about 12 percent: move both shoulder joint centers inward and gently
+  narrow the upper ribcage to connect naturally. Keep the widened pelvis and hips
+  EXACTLY as in the reference. Preserve skull size, total height, torso length, arm
+  and leg lengths, waist, lower ribcage and neutral standing pose. Let arms hang naturally
+  from the narrower shoulders. Maintain flat simple chest, neutral adult physique
+  without breasts or exaggerated hourglass shaping. Matte gray, bald featureless head,
+  clearly separated rigid segments and spherical joints. Same 2x2 front/three-quarter/profile/back
+  views, consistent anatomy across views, white background, lighting, camera and framing.
+  Only shoulder width and necessary upper torso connections change. No clothing or
+  labels.'
+word_count: 119
+prompt_sha256: 401deb5a669842fe9f7fb55f88b312cedaac7bfba0bfe7e3f296082208a58db2
+image_sha256: f756b80049b201b492b4346c9cf9400136404f7cc63370aa50df2f4542ce58e6
+review_note: 확장한 골반을 유지하며 어깨 폭 약 12% 축소 요청. 비율은 지시 목표이며 실측값이 아니다. v2 보존.

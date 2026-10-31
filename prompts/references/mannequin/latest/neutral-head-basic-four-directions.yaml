@@ -1,0 +1,26 @@
+schema_version: 1
+version: 10.0.0
+title: 중성형 기본 얼굴
+status: 사용자 채택 · 현재 기준
+image: neutral-head-basic-four-directions.png
+generator: image_gen_builtin
+reference_images: []
+prompt: Refine this exact gray neutral head mannequin four-view sheet WITHOUT changing
+  facial feature proportions. Lock eye size and spacing, eyebrow thickness/length/location,
+  nose height and projection, mouth width and thickness, and all feature positions
+  exactly as reference. Clean up facial surface transitions and shading around eyelids,
+  nose, cheeks, mouth and jaw for a coherent polished sculpt; remove uneven shading
+  and minor contour artifacts. Preserve the existing head silhouette and neutral expression,
+  not a redesign or beautification. Same bald gray matte head, neck, ears, white background,
+  2x2 front/quarter/profile/back views, scale and lighting. No hair, makeup, labels
+  or extra views. Keep all identity-defining proportions and the thin brows.
+word_count: 105
+prompt_sha256: 3eb614cc84d27af0ede6ad4c4d7766cbc8573f068442d108a4d9b8f0fcc719a0
+image_sha256: 59ea822a925da65f44cf3f41bf1e44fd12a53dd113c73bec89358c154bd349d3
+review_note: 사용자가 얼굴 v10을 기본형 얼굴로 지정하여 복사 등록했다. 정확한 비율 수치는 미측정.
+updated_on: '2026-10-31'
+historical_reference_images:
+- prompts/references/mannequin/research/v9/neutral-head-thin-brows-four-directions-v9.png
+historical_reference_status: 생성 당시 사용한 얼굴 연구 자료는 사용자 요청으로 폐기됨. 현재 입력 경로가 아니다.
+historical_source_image: prompts/references/mannequin/research/v10/neutral-head-refined-four-directions-v10.png
+historical_source_status: 원본 연구 얼굴은 폐기됨. latest 채택 복사본과 생성 프롬프트는 보존한다.

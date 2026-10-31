@@ -1,0 +1,19 @@
+schema_version: 1
+status: 피부·기본복 기준에 얼굴 추가 · 검수 후보
+image: body-face-front-v6.png
+generator: image_gen_builtin
+reference_images:
+- prompts/references/mannequin/research/v1/body-skin-clothes-front-v1.png
+prompt: 'Edit ONLY the blank facial surface of this exact full-body skin mannequin.
+  Add understated gender-neutral adult fantasy facial features: moderately small brown
+  eyes, natural soft brown eyebrows, small simple nose, small neutral closed mouth.
+  Balanced natural eye/nose/mouth spacing, softly calm expression. Keep the EXISTING
+  head outline, skull dimensions, jaw contour, ears, neck and ALL body proportions
+  exactly as supplied. Preserve clothing, skin tone, pose, camera, framing, lighting
+  and white background. Keep bald: no hair or beard, no makeup. Do not enlarge head
+  or eyes. Everything below the chin must remain unchanged. Deliver the same single
+  full-body front image, not a face crop.'
+word_count: 102
+prompt_sha256: 3828b35575ab734ca543b492956f8e2d1d5629cfe0de55fc7d7799bb276d641c
+image_sha256: 89f75019ee871b2fb3d9b9d5b4e2f18863caa276dc90d103e103bf6abadb4d48
+review_note: 피부 마네킨 한 장만 참조해 이목구비를 추가했다. 머리카락 없음. 신체·의상 유지 요청이나 픽셀 동일성을 보장하지 않는다.

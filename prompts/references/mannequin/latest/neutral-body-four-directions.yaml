@@ -1,0 +1,16 @@
+schema_version: 1
+title: 중성형 기본 신체 마네킨
+status: 사용자 지정 · 현재 기준
+image: neutral-body-four-directions.png
+image_sha256: bb2b24b24dac8d0a81965fd8641ff1df726a28d8059c6ff8832e1dad89380f35
+source_type: 사용자 첨부 이미지
+source_filename: codex-clipboard-208cc9a9-3366-4d9a-9f34-ab666cd6560d.png
+related_version: ../research/v4/neutral-body-four-directions-v4.png
+identical_to_related_version: false
+layout: 2x2
+order:
+- front
+- front-quarter
+- profile
+- back
+updated_on: '2026-10-31'

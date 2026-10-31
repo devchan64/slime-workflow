@@ -6,7 +6,7 @@ status: 체형 참고 후보
 image: male-full-four-directions-v1.png
 generator: image_gen_builtin
 reference_images:
-- prompts/references/mannequin/v1/male-body-four-directions-v1.png
+- prompts/references/mannequin/research/v1/male-body-four-directions-v1.png
 layout: 2x2
 order:
 - front

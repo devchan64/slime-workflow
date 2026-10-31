@@ -2,13 +2,13 @@ schema_version: 1
 generator: image_gen_builtin
 status: 얼굴·전신 정면 후보 · 사용자 검수 전
 selected_image: face-body-front-v1.png
-reference_image: prompts/references/mannequin/v1/male-body-four-directions-v1.png
+reference_image: prompts/references/mannequin/research/v1/male-body-four-directions-v1.png
 reference_role: 성별이 아닌 머리 대비 몸통·팔다리 길이의 기준
 target: 성인 평균 5등신, 성별 구분이 어려운 중성 기본형, 짧은 머리와 짧고 밀착된 기본복
 review: 초안의 긴 전신 비율을 보정했다. 정확한 등신은 미측정이며 중성적 인상과 비율은 사용자 검수 대상이다.
 correction_references:
 - face-body-front-draft-v1.png
-- prompts/references/mannequin/v1/male-body-four-directions-v1.png
+- prompts/references/mannequin/research/v1/male-body-four-directions-v1.png
 attempts:
 - image: face-body-front-draft-v1.png
   prompt: 'Create a new androgynous ADULT default fantasy game character, gender visually

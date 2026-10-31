@@ -1,0 +1,28 @@
+schema_version: 1
+version: 4.0.0
+title: 중성형 기본 신체 · 허리 축소
+status: 허리 폭 조정 후보 · 사용자 검수 전
+image: neutral-body-four-directions-v4.png
+generator: image_gen_builtin
+reference_images:
+- prompts/references/mannequin/research/v3/neutral-body-four-directions-v3.png
+layout: 2x2
+order:
+- front
+- front-quarter
+- profile
+- back
+prompt: Edit this exact neutral articulated mannequin four-view sheet. Make the WAIST
+  visibly slimmer, approximately 15 percent narrower at the narrowest abdomen segment,
+  tapering smoothly from the lower ribcage toward the pelvis. Preserve the current
+  narrow shoulder span and widened pelvis exactly. Preserve skull size, head/body
+  ratio, height, torso length, limbs, pose, mechanical joint separations and flat
+  chest. In profile keep a natural shallow abdomen without exaggerated back arch.
+  Apply the same waist shape coherently in front, three-quarter, profile and back.
+  Matte gray bald featureless mannequin, same 2x2 four-view layout, white background,
+  camera and lighting, all heads and feet visible. Only waist contour changes; no
+  clothes, face details, labels or added views.
+word_count: 111
+prompt_sha256: 7e58b096bbbd87a294ccc5bb4375809fa2776e0951f3827d57e0d19280589230
+image_sha256: d4432d4c7f488f86e193fdcf1e6956f8d37ccaeecd4ce0e14fa424a9ec751e49
+review_note: 좁힌 어깨와 넓힌 골반을 유지하며 허리 약 15% 축소 요청. 수치는 생성 목표이며 실측값이 아니다. v3 보존.

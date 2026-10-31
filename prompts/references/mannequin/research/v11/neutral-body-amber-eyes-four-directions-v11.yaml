@@ -1,0 +1,28 @@
+schema_version: 1
+version: 11.0.0
+title: 중성형 신체 · 기본 얼굴과 호박색 눈
+status: 사용자 검수 후보
+image: neutral-body-amber-eyes-four-directions-v11.png
+generator: image_gen_builtin
+reference_images:
+- prompts/references/mannequin/latest/neutral-body-skin-clothes-four-directions.png
+- prompts/references/mannequin/latest/neutral-head-basic-four-directions.png
+reference_roles:
+- 전신 수정 대상
+- 이목구비 비율 기준
+eye_color: amber
+prompt: 'Edit IMAGE 1, the full-body skin and fitted clothing sheet. Add the facial
+  features from IMAGE 2 head standard onto the front, quarter and profile heads, matching
+  its eye size/spacing, eyebrows, higher nose, wide mouth and neutral expression relative
+  to each head. Irises are AMBER: natural warm golden honey amber with dark pupils,
+  not glowing. Translate gray reference facial material to the existing warm skin.
+  Preserve IMAGE 1 exact head size and outer silhouette, neck, body proportions, narrow
+  shoulders, waist and hips, limbs, pose, gray cropped sleeveless top and charcoal
+  shorts. Keep bald, no hair. Same 2x2 full-body front/quarter/profile/back layout,
+  scale and white background. Back view unchanged. Image 2 supplies facial proportions
+  only, no head enlargement or neck connector. Change only facial areas, keep all
+  body and clothing unchanged.'
+word_count: 129
+prompt_sha256: 288de3973e89a08c8af6c2f22886d85b7b8148033407851670ceaf1a42a30b7a
+image_sha256: 0f1da10c391c432b400f51da2759914aaa8bb27949ce296b16056e155ed2e368
+review_note: 기본형 이목구비와 호박색 홍채 적용. 정확한 비율 및 얼굴 외 픽셀 동일성 미측정. latest 미반영.

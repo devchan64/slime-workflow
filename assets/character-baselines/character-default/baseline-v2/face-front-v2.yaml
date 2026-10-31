@@ -1,0 +1,26 @@
+schema_version: 1
+status: 현재 기본 캐릭터 얼굴 · 남성 헤드 v3 적용
+image: face-front-v2.png
+generator: image_gen_builtin
+reference_images:
+- assets/character-baselines/character-default/baseline-v1/face-front-mannequin-v1.png
+reference_roles:
+- 얼굴형·이목구비 비율 기준
+- 머리 모양·색상·화풍 유지
+prompt: Replace the facial proportions of the character in IMAGE 2 with the authoritative
+  FRONT face from IMAGE 1 (male head mannequin v3). Match the mannequin's smaller
+  eye openings relative to head width, eye spacing, brow-eye distance, nose shape,
+  mouth placement, cheek and jaw proportions. Image 2 supplies ONLY short dark-brown
+  hairstyle, warm light skin, brown iris color and painted illustration style. Do
+  not preserve its oversized eyes. A gender-indeterminate adult default fantasy character,
+  subtle natural features. ONE centered exact-front head and short neck on white,
+  complete hair visible, no body or additional views. Preserve short grouped hair
+  and matte broad painted shapes, soft upper-left diffuse lighting, restrained highlights.
+  Living skin, no gray mannequin material or connector. Face replacement with notably
+  smaller balanced eyes.
+word_count: 123
+prompt_sha256: abefe4f1062736f81eeef547019312b1e1ff2010f94774dc1d88a20e6de169e4
+image_sha256: 285428696cd4475db0eddcf99bda3df9e4efe0c8d72b3b9115d5712e0c218a8d
+historical_reference_images:
+- prompts/references/mannequin/research/v3/male-head-natural-four-directions-v3.png
+historical_reference_status: 생성 당시 사용한 얼굴 연구 자료는 사용자 요청으로 폐기됨. 현재 입력 경로가 아니다.

@@ -20,5 +20,5 @@ word_count: 151
 prompt_sha256: 5f5b04e2172f1941736f91804b6a8699eb268a91012bd1a8b6986077abfdda9a
 image_sha256: c0349f73c9e89208d0a40eea801dd8bf7566bfdba30ce0568244b277d73589a3
 historical_reference_images:
-- prompts/references/mannequin/v1/male-head-four-directions-v1.png
+- prompts/references/mannequin/research/v1/male-head-four-directions-v1.png
 historical_reference_status: 생성 당시 사용한 v1 헤드는 폐기됨. 이 캐릭터 결과는 v3로 재생성한 결과가 아니다.

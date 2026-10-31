@@ -1,0 +1,22 @@
+schema_version: 1
+status: 남성형 가슴 수정 · 사용자 검수 후보
+image: neutral-body-skin-male-chest-four-directions-v5.png
+generator: image_gen_builtin
+reference_images:
+- prompts/references/mannequin/research/v5/skin-clothes-input.png
+source_type: 사용자 첨부 원본 사본
+prompt: 'Edit ONLY the chest contour underneath the opaque gray crop top in this four-view
+  adult fantasy mannequin sheet. Give the chest a male anatomical character: flat
+  anterior ribcage with subtle broad shallow pectoral planes, remove rounded breast
+  projection and the paired breast-shaped shading. In profile the upper chest should
+  be nearly straight, with only a mild pectoral slope. Fabric remains fully opaque
+  and fitted, same sleeveless neckline and cropped hem. Keep existing narrow shoulders,
+  slim waist, wide hips, head size, limb proportions and all other body contours unchanged.
+  Preserve bald featureless head, skin tone, shorts, pose, 2x2 front/quarter/profile/back
+  layout, scale, camera, lighting and white background. No enlarged muscles, no nipples,
+  no new facial features or hair. Local chest correction only.'
+word_count: 120
+prompt_sha256: 333b27f286dee660a0e530374e8dfa37e91b9c59ff7f4e2bf787060ef6dbf625
+image_sha256: a8fb189f8bbf92d6d86e0cf09de369203d02b374b3628a9db5b1ec41bc9839fe
+review_note: 가슴 돌출과 둥근 음영을 완화하도록 생성했다. 수정 폭이 작아 남성형 표현의 충분성은 검수 필요. latest 이미지에는 반영하지
+  않았다.

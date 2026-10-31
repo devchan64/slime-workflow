@@ -1,0 +1,27 @@
+schema_version: 1
+version: 2.0.0
+title: 중성형 기본 신체 · 골반 확장
+status: 골반 폭 조정 후보 · 사용자 검수 전
+image: neutral-body-four-directions-v2.png
+generator: image_gen_builtin
+reference_images:
+- prompts/references/mannequin/research/v1/neutral-body-four-directions-v1.png
+layout: 2x2
+order:
+- front
+- front-quarter
+- profile
+- back
+prompt: 'Edit this exact neutral articulated mannequin: widen the pelvis and hip span
+  moderately, approximately 15 percent, consistently across front, quarter and back
+  views. Gently connect the wider pelvis to the upper thighs, move hip sockets outward
+  accordingly while maintaining balanced neutral stance. Preserve head size, total
+  height, shoulder width, ribcage, torso length, limb lengths and joint construction.
+  Keep neutral adult body, no breast changes or exaggerated hourglass waist. Maintain
+  matte gray material, bald featureless head, separated rigid segments, 2x2 front/quarter/profile/back
+  layout, same camera, white background, lighting, full figures. Change pelvis width
+  and necessary local thigh connections only; no labels or clothes.'
+word_count: 101
+prompt_sha256: 121734c2ddd347f3c7c19e89a6f4c116e1c6cf47c4b2de908615f17baa5e10bc
+image_sha256: d8d083ce765581291ce65f9c4ad6c1c6b907eb2236b5758e815c1dbc11720ea4
+review_note: 골반 폭 약 15% 확장을 요청한 후보. 수치는 생성 지시이며 실측 확장률이 아니다. 기존 v1 보존.

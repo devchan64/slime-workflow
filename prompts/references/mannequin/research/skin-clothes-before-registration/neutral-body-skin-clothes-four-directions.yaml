@@ -1,0 +1,30 @@
+schema_version: 1
+status: 피부·밀착 기본복 적용 · 사용자 검수 후보
+image: neutral-body-skin-clothes-four-directions.png
+generator: image_gen_builtin
+reference_images:
+- prompts/references/mannequin/latest/neutral-body-four-directions.png
+layout: 2x2
+order:
+- front
+- front-quarter
+- profile
+- back
+purpose: 다른 복장을 덧입히기 위한 짧고 밀착된 기본복 참조
+prompt: 'Edit this exact four-view neutral adult fantasy body mannequin into a skin-and-basic-clothing
+  reference for later costume replacement. Preserve precisely the current compact
+  head/body ratio, narrow shoulders, slim waist, wider pelvis, all limb lengths and
+  thicknesses, silhouettes, joint locations and neutral poses. Replace gray rigid
+  surfaces with smooth warm light skin and continuous natural joints. Add minimal
+  opaque matte light-gray fitted sleeveless crewneck crop top ending above navel and
+  charcoal very short close-fitting upper-thigh shorts with full seat coverage. Thin
+  fabric, nearly no added volume, no loose hems, no accessories, barefoot. Keep head
+  bald and featureless: no eyes, mouth, nose or hair. Keep chest neutral and flat
+  without added anatomical detail. Same 2x2 views: front, front-quarter, profile,
+  back; all figures at identical scale and full head-to-feet visibility. White background,
+  soft upper-left diffuse lighting, simplified rounded forms. Clothing is a practical
+  neutral costume underlayer. No labels, no extra views, do not redesign anatomy.'
+word_count: 151
+prompt_sha256: 7dd1559a201061972195ffd6439ea56fa2047777dc7fa8df5dd250e2289d442a
+image_sha256: 99870268d25191dc0702c999ffc776c9bed0e53fea9b1453becb5dec371f3666
+review_note: 정면·쿼터·측면·후면, 민소매 크롭 상의와 짧은 밀착 숏팬츠 적용. 원본 마네킨 보존. 정확한 비율 일치는 미측정.

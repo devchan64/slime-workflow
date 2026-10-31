@@ -1,0 +1,34 @@
+schema_version: 1
+version: 1.0.0
+type_id: neutral_basic_body
+title: 중성형 기본 신체 마네킨
+status: 기본형 후보 · 사용자 검수 전
+image: neutral-body-four-directions-v1.png
+generator: image_gen_builtin
+reference_images:
+- prompts/references/mannequin/research/v1/male-body-four-directions-v1.png
+layout: 2x2
+order:
+- front
+- front-quarter
+- profile
+- back
+proportion_policy: 성인 평균 5등신 기준. 참조 마네킨의 머리 대비 키와 팔다리 길이를 유지하고 어깨·흉곽·골반과 근육 강조를 중립화한다.
+prompt: 'Create a gender-neutral basic articulated body mannequin by editing this
+  exact male mannequin reference. Preserve its head-to-height ratio, skull dimensions,
+  torso and limb lengths, joint positions and overall compact adult five-head convention.
+  Change ONLY body shape toward a genuinely androgynous neutral base: moderate balanced
+  shoulder width, gently straight ribcage and waist, pelvis balanced with shoulders,
+  smooth flat chest shell, understated arms and thighs without muscular bulges or
+  hourglass shaping. Neither masculine athletic nor feminine curvy. Keep bald featureless
+  head, neutral non-anatomical pelvis, matte gray material, clearly separated rigid
+  segments and spherical joints at neck shoulders elbows wrists waist hips knees ankles.
+  Same 2x2 four views: top-left FRONT, top-right FRONT THREE-QUARTER, bottom-left
+  PROFILE, bottom-right BACK. Same neutral stance, arms slightly apart, orthographic
+  eye-level, consistent body and scale in all views, full head and feet visible. White
+  background, soft upper-left lighting. No skin, clothes, facial features, hair, labels
+  or additional views.'
+word_count: 149
+prompt_sha256: 47096f1a7dd182bb3e1d51e2dba03fe8e9d762a94ed4433cb516d793ea9fbfa1
+image_sha256: 3767fa0898aa680ae665e5cc12263733db6e1c954344c9adc3b2d665307795b3
+review_note: 관절 분리와 4방향 구성 확인. 정확한 치수 일치는 미측정이며 중성적 체형은 사용자 검수 대상이다.

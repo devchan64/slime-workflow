@@ -1,0 +1,20 @@
+schema_version: 1
+image: body-front-v3.png
+status: 비율 조정 후보 · 사용자 검수 전
+generator: image_gen_builtin
+reference_images:
+- assets/character-baselines/character-default/baseline-v3/body-front-adjustment-draft.png
+- prompts/references/mannequin/research/v1/male-body-four-directions-v1.png
+prompt: 'Edit this character to match the compact proportion of the second image''s
+  FRONT mannequin. Strong structural change required: increase head INCLUDING face
+  and skull by 20 percent relative to the body, shorten torso by 12 percent and legs
+  by 10 percent. Keep entire figure centered, do not restore original height by stretching
+  limbs. Preserve face identity and short brown hair, gray fitted tee and charcoal
+  shorts, barefoot neutral front stance, smooth androgynous physique, white background,
+  painted style. Reference target is approximately five skull-head units tall excluding
+  hairstyle, not realistic adult anatomy. One character only, full body. Bigger head
+  and visibly compact body; no labels or mannequin joints.'
+word_count: 107
+prompt_sha256: 62a14ffc23d4d06c0730df1ecc1308d64aa5983c2c19ce8ce1e976c83f6720fb
+image_sha256: ce9b2c550706accbf14e92d1b417a65a42678ce2d3496e9ef1ef1cb8d0807f3d
+review_note: 마네킨 비율을 목표로 머리 대비 전신 길이와 어깨·몸통을 조정했다. 프롬프트의 백분율은 요청값이며 실측 보장값이 아니다.
