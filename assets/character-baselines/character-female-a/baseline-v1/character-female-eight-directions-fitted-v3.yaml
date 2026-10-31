@@ -1,0 +1,9 @@
+schema_version: 1
+status: 검수 후보
+image: character-female-eight-directions-fitted-v3.png
+reference: character-female-eight-directions-fitted-v2.png
+generator: image_gen_builtin
+style_reference: prompts/art-style.yaml
+review_note: 기존 캐릭터와 복장을 유지한 재작화. 5등신은 요청 조건이며 실제 측정 검증 전이다.
+prompt: >-
+  Redraw the supplied female character reference as a clean eight-direction production turnaround sheet, 4 columns x 2 rows on pure white. Preserve her recognizable short chestnut-brown bob, teal eyes, face identity, fitted plain gray short-sleeve T-shirt, fitted short gray shorts, simple off-white sneakers. Youthful ADULT woman, natural modest neutral standing pose, arms slightly separated. Correct proportions to five heads tall consistently: head 1 unit, torso 2 units, legs 2 units. Same anatomy and scale in every view. Top row: front, front three-quarter facing screen right, right profile, rear three-quarter facing screen right. Bottom row: back, rear three-quarter facing screen left, left profile, front three-quarter facing screen left. Every view a genuine 45-degree rotation, matching silhouette and eye-level orthographic camera, complete feet/hair, aligned ground per row. Style: SLIME painterly miniature fantasy game illustration, broad smooth color planes, three large softly joined light/midtone/shadow masses, grouped painted hair locks rather than individual strands, simplified small nose and mouth, clear readable silhouette at 64-128 pixels. Soft upper-left diffuse lighting, muted teal-gray shadows, matte cloth and skin. Reduce fine fabric noise and glossy plastic appearance. Not photoreal, not cel shading, no heavy black outlines. No labels, grid, props, extra clothing, cast shadows or decorative background. Preserve clothing coverage and identity while improving stylistic consistency. Output high resolution.

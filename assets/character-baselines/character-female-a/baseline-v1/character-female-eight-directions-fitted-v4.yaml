@@ -1,0 +1,9 @@
+schema_version: 1
+status: 검수 후보
+image: character-female-eight-directions-fitted-v4.png
+generator: image_gen_builtin
+reference_images: []
+style_reference: prompts/art-style.yaml
+review_note: 이미지 참조 없이 텍스트만으로 새로 생성. 5등신은 요청 조건이며 정확한 비율 측정 전이다.
+prompt: >-
+  Create a NEW original character turnaround from TEXT ONLY, with no reference image. A youthful adult female fantasy game character with short chestnut brown bob hair, teal eyes, a small simple nose and mouth and a friendly neutral expression. Modest fitted gray short-sleeve T-shirt, short fitted gray shorts, simple off-white low-top sneakers. Full body five heads tall: head 1 unit, torso 2 units, legs 2 units, consistently across all views. Eight distinct directions in a clean 4-column by 2-row sheet. Top row: exact front, front-right three-quarter facing screen right, exact right profile, rear-right three-quarter. Bottom row: exact back, rear-left three-quarter, exact left profile, front-left three-quarter facing screen left. Each successive view rotates 45 degrees around the same adult character; clearly show both rear three-quarter views rather than duplicate profiles. Same neutral standing pose with arms slightly away from body and feet relaxed, same body shape, head size, outfit, scale and row ground level in all eight cells. White background, complete hair and feet with generous separation. Style: SLIME painterly miniature fantasy game illustration; broad smooth color planes, softly blended three major value groups, simplified rounded forms, grouped painted hair locks, clean silhouette readable at 64-128 pixels. Soft upper-left diffuse light and muted teal-gray shadows. Matte skin and cloth; restrained detail. Not photorealistic, not glossy plastic, not anime cel shading, no heavy black outlines, no detailed fabric textures. No text, labels, borders, grids, props or cast shadows. Make a high resolution production reference sheet.

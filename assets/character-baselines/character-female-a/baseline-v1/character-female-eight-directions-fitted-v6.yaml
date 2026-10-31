@@ -1,0 +1,15 @@
+schema_version: 1
+status: 검수 후보
+image: character-female-eight-directions-fitted-v6.png
+generator: image_gen_builtin
+reference_images: []
+style_reference: prompts/art-style.yaml
+proportion_target:
+  head_units: 5
+  head_definition: 두개골 정수리부터 턱까지. 머리카락 부피 제외.
+  chin_height_fraction: 0.2
+  crotch_height_fraction: 0.6
+  sole_height_fraction: 1.0
+review_note: 이전 버전보다 머리를 키우고 팔다리를 짧게 생성. 머리카락이 정수리를 가리므로 정확한 5등신 충족은 단정하지 않는다.
+prompt: >-
+  TEXT ONLY generation, no reference images. Production character turnaround sheet, exactly eight full-body views, 4 columns by 2 rows, white background. Highest priority: a stylized ADULT female game character EXACTLY FIVE HEADS TALL, NOT realistic fashion proportions. Measure head from skull crown to chin; total crown-to-sole height equals exactly FIVE of those head heights. Head occupies 20% of total height. Chin at 20%, crotch at 60%, soles at 100%. Thus below-chin torso/pelvis length is TWO head units, crotch-to-soles legs TWO head units. Visibly enlarged head, compact torso, short legs and short arms appropriate to this five-head proportion. Do NOT elongate legs, shrink head or make a six/seven/eight-head fashion figure. All eight views share these same anatomical landmarks and dimensions. Mature adult facial features and adult body, not a child. Short chestnut bob, teal eyes, simple friendly face. Opaque matte gray fitted very short crop T-shirt with cap sleeves, hem below ribcage, bare midriff; short fitted gray athletic shorts ending at upper thigh and fully covering buttocks; simple off-white low sneakers. Neutral standing pose, arms slightly away from body. Top row: front, front three-quarter facing right, right profile, rear three-quarter facing right. Bottom row: back, rear three-quarter facing left, left profile, front three-quarter facing left. 45 degree rotations, eye-level orthographic camera, identical pose, same scale, complete hair and shoes, aligned feet for each row. SLIME miniature fantasy painterly illustration: broad clean color planes, simplified rounded anatomy, three softly joined value groups, grouped painted hair locks, soft upper-left diffuse lighting, matte surfaces, muted teal-gray shadows, readable at small sizes. No photographic anatomy, fashion-model proportions, long legs, glossy plastic, detailed fabric noise, text, measurements, guides, grid, props, cast shadows. Preserve the FIVE HEAD measurement above over any generic attractiveness convention.

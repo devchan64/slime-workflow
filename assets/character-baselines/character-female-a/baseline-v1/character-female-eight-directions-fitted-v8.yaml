@@ -1,0 +1,8 @@
+schema_version: 1
+status: 비율 검수 미달 · 실험 기록
+image: character-female-eight-directions-fitted-v8.png
+generator: image_gen_builtin
+reference_images: []
+review_note: 큰 머리·짧은 팔다리 강조 후 과도하게 짧은 체형으로 생성됨.
+prompt: >-
+  PRIORITY: compact FIVE-HEAD-TALL stylized game figure, visibly large head and short limbs. Crown-to-chin head height is exactly one fifth of crown-to-soles height. Chin at 20%, crotch at 60%, soles at 100%; retain these proportions in every view. Adult age describes identity, not realistic long-legged anatomy. Mature adult facial features and adult body, not a child. Short chestnut bob, teal eyes, simple friendly face. Opaque matte gray fitted very short crop T-shirt with cap sleeves, hem below ribcage, bare midriff; short fitted gray athletic shorts ending at upper thigh and fully covering buttocks; simple off-white low sneakers. SLIME miniature fantasy painterly illustration: broad clean color planes, simplified rounded anatomy, three softly joined value groups, grouped painted hair locks, soft upper-left diffuse lighting, matte surfaces, muted teal-gray shadows, readable at small sizes. Text only, no image references. Eight full-body views, 4×2, white background: front, front-right, right, rear-right / back, rear-left, left, front-left. Neutral standing, arms slightly separated, orthographic eye-level camera, equal scale and aligned feet. No text or props.

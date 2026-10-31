@@ -1,0 +1,31 @@
+schema_version: 1
+prompt_id: slime_common_art_style
+version: 1.0.0
+title: 화풍 공통 프롬프트
+status: 문서 기준 · 생성 검증 전
+created_on: '2026-10-31'
+source: prompts/art-style.yaml
+scope: 화풍·재질·명암·광원만 정의한다. 대상의 외형·등신·복장·카메라·출력 배치는 별도 입력이다.
+language: en
+translation_language: ko
+translation_policy:
+  required: true
+  source_field: prompt
+  translation_field: prompt_ko
+  maintenance_rule: 영문 실행 원문과 의미가 일치하는 한국어 번역을 같은 YAML에서 항상 함께 유지한다.
+  update_rule: 영문 원문 변경 시 새 버전의 한국어 번역도 함께 갱신하고 누락·의미 변경 여부를 검수한다.
+  execution_rule: 한국어 번역은 관리·검수용이다. 실행 원문을 자동 대체하거나 두 언어를 합쳐 모델에 전달하지 않는다.
+  integrity_rule: word_count와 sha256은 영문 prompt 기준이다. 한국어 번역 교정은 변경 이력에 별도로 기록한다.
+prompt_ko: >-
+  넓고 깔끔한 색면, 단순화된 둥근 형태, 부드럽게 어우러지는 세 단계 명암을 사용하는
+  SLIME 미니어처 판타지 게임 일러스트레이션.
+  묶음으로 정리된 회화적 형태, 좌상단의 부드러운 확산광,
+  차분한 청록 회색 그림자와 절제된 하이라이트를 사용한다.
+  적절한 재질에는 무광 표현을 유지하고 작은 크기에서도 실루엣이 명확하게 읽히도록 한다.
+prompt: SLIME miniature fantasy game illustration with broad clean color planes, simplified rounded forms
+  and three softly blended value groups. Use grouped painted shapes, soft upper-left diffuse lighting,
+  muted teal-gray shadows and restrained highlights. Keep materials matte where appropriate and silhouettes
+  readable at small sizes.
+word_count: 44
+sha256: dcacb30346d39193c7d9622c2b478a963e60795cecd538775e852d28ffd263d0
+change_note: 기존 기준에서 재사용 역할을 분리한 최초 버전. 기존 실행 원문과 자동 연결은 변경하지 않음.

@@ -1,0 +1,15 @@
+schema_version: 1
+status: 생성 완료 · 검수 후보
+generator: image_gen_builtin
+reference_images: []
+source_prompt: character-female-eight-directions-fitted-v6.yaml
+style_reference: prompts/art-style.yaml
+preserved_sections:
+- 캐릭터 묘사 원문
+- 화풍 묘사 원문
+previous_word_count: 287
+word_count: 131
+prompt_sha256: 55df165859740349e81db96f8548914aecb8ffde8c1752400e000817cc0721bf
+prompt: 'Mature adult facial features and adult body, not a child. Short chestnut bob, teal eyes, simple friendly face. Opaque matte gray fitted very short crop T-shirt with cap sleeves, hem below ribcage, bare midriff; short fitted gray athletic shorts ending at upper thigh and fully covering buttocks; simple off-white low sneakers. SLIME miniature fantasy painterly illustration: broad clean color planes, simplified rounded anatomy, three softly joined value groups, grouped painted hair locks, soft upper-left diffuse lighting, matte surfaces, muted teal-gray shadows, readable at small sizes. Text only. Eight full-body views, 4×2, white background. Five heads tall: skull-crown-to-chin head 20%, torso/pelvis 40%, legs 40%. Top: front, front-right, right, rear-right. Bottom: back, rear-left, left, front-left. Neutral standing, arms slightly separated; eye-level orthographic view, equal scale, aligned feet, complete silhouettes. No text or props.'
+image: character-female-eight-directions-fitted-v7.png
+review_note: 압축 원문 그대로 사용. 육안상 다리가 길고 머리가 작아 5등신 목표 미달로 보이며 정확한 측정 전이다.
