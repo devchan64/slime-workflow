@@ -3,7 +3,7 @@
 이 경로는 승인된 제작 자산을 식별자·버전·출처·해시와 함께 보관한다. 생성 후보와 게임 런타임 채택은 구분한다.
 
 - 등록된 기본 제작 모션: [HY-Motion 걷기 v2](motion-sheet/hy-motion-walking-v2/README.md). 원본 9~43번을 채택한 35프레임·30FPS, 4방향 원근투영 ANNY RGB·OpenPose를 보관한다.
-- ANNY 기준 모델: [anny-neutral-v4](animation-models/anny-neutral-v4/README.md). 선택 설정은 `generators/animation/config/anny_model_baseline.yaml`이다.
+- `animation-models/`: 2026-10-31 사용자 요청으로 ANNY·MakeHuman 기준 모델과 관련 파일을 폐기했다. 캐릭터 manifest의 과거 `rig_origin` 경로는 제작 출처 기록이며 현재 사용 가능한 참조가 아니다.
 - `character-baselines/`: 캐릭터 외형 참조와 출처 기록.
 - `generation-records/`: 사용자 지시로 보존한 리포트·생성기 직접 연결 기록. 일반 실행 기록은 `.tmp/test/`에 보관한다.
 - [게임용 4fps 포즈 시트](pose-sheets/game-motion-4fps-v1/README.md): 과거 제작 규격의 보존 자산이며 신규 생성의 기본 모션이 아니다.

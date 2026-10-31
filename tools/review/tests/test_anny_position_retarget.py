@@ -4,6 +4,10 @@ import math
 import sys
 import tempfile
 import unittest
+
+raise unittest.SkipTest(
+    "2026-10-31 사용자 요청으로 animation-models 기준 리그를 폐기하여 과거 ANNY 위치 리타깃 검증을 종료했습니다."
+)
 from pathlib import Path
 
 import numpy as np
