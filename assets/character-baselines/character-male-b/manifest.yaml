@@ -1,6 +1,6 @@
 schema_version: 1
 character_id: male-b
-status: user_approved
+status: retired
 baseline_source:
   path: baseline-v1/character-male-b-four-directions-v1.png
   metadata: baseline-v1/manifest.yaml

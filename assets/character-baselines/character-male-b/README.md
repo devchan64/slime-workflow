@@ -1,5 +1,5 @@
-# 남자 B 베이스라인
+# 남성 B 기준 이미지
 
-사용자가 선택한 재킷·바지·스니커즈 4방향 시트를 `baseline-v1/`에 등록했다. 원본 PNG와 실제 생성 프롬프트, 출처·해시를 함께 관리한다. 방향별 셀 좌표는 하위 manifest에 기록한다.
+기존 재킷·바지 4방향 원본은 사용자 요청으로 폐기했다. manifest와 prompt.txt는 폐기된 이미지의 출처 기록이며 활성 기준이 아니다.
 
-위 행은 후면 좌·우, 아래 행은 전면 좌·우다. 요청 비율은 5.5등신이며 실측 확정값은 아니다. 공용 화풍 기준은 `../baseline-style/base-prompt.txt`다. 신체 분리·애니메이션 입력 및 게임 런타임 채택은 별도다.
+현재 남아 있는 8방향 기본 착장 후보는 `baseline-v1/character-male-b-eight-directions-fitted-v1.png`와 `baseline-v1/character-male-b-eight-directions-fitted-v2.png`다. v2는 `prompts/art-style.yaml` 기준으로 재생성했다.
