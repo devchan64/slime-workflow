@@ -1,0 +1,13 @@
+schema_version: 1
+description: 화면 왼쪽 앞 전신 · 흰 여백 크롭 · 머리와 발끝 보존
+source: character-default-eight-directions-v1.png
+source_sha256: d947e4c01d1076860d9ec1ce5660fac8c8eda291bfd13d82ed1c6d55fa473508
+operation: crop
+crop_box:
+- 1190
+- 500
+- 1392
+- 1015
+image: character-default-body-front-left-v1.png
+sha256: fc420a339bb71f83d5b87cfd065ceed06d613882d29d10e3e543ff3d4394e85c
+prompt: null
