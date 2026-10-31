@@ -939,7 +939,7 @@ Fun Control은 시간 타일 경계의 밝기 흔들림·잔상을 줄이기 위
 
 맵 검수의 `발광 이펙트 좌표 검수`는 빌보드에 연결된 공용 발광 영역과 프레임별 정렬 영역을 편집한다. 이미지는 등록 원본을 유지하며, 저장은 콘텐츠 DB의 `effect_assets`에 반영한다. 독립 원장 동기화 작업자가 `assets/sprites/effects/catalog.yaml`과 등록부를 갱신한다. 맵별 연결 객체·배치 좌표는 기존 맵 편집에서 관리한다.
 
-GUI와 CLI는 `map-assets effect-list`, `effect-load`, `effect-save`를 공유한다. 목록은 `{}`, 조회는 `{"id":"glow-mushroom-single-v1"}`을 사용한다. 저장은 `id`, 조회 응답의 `revision`을 넣은 `expectedRevision`, UUID `requestId`, `alignment`를 전달한다. `alignment`는 고정 연결 식별자 `texture`·`key`, 밝기 `alpha`, 정규화된 좌·상·우·하 `target`, 프레임별 사각형 `frames`다. 동시 편집 충돌은 최신 원본을 조회하여 해결한다. 프레임 재생은 브라우저에서 처리하며 미리보기만으로 저장하지 않는다.
+GUI와 CLI는 `map-assets effect-list`, `effect-load`, `effect-save`를 공유한다. 목록은 `{}`, 조회는 `{"id":"glow-mushroom-single-v1"}`을 사용한다. 저장은 `id`, 조회 응답의 `revision`을 넣은 `expectedRevision`, UUID `requestId`, `alignment`를 전달한다. `alignment`는 고정 연결 식별자 `texture`·`key`, 밝기 `alpha`, 정규화된 좌·상·우·하 `target`, 프레임별 사각형 `frames`다. 등록된 다른 이펙트 시트로 교체할 때는 동일한 저장 요청에 선택적 `image` 경로를 넣는다. 경로는 에셋 등록부의 이펙트 PNG여야 하며 기존 `expectedRevision`·`requestId` 검증을 동일하게 적용한다. 동시 편집 충돌은 최신 원본을 조회하여 해결한다. 프레임 재생은 브라우저에서 처리하며 미리보기만으로 저장하지 않는다.
 
 나방·반딧불(`renderer: swarm`)도 같은 좌표 검수를 사용한다. 연결 빌보드 없이 4×2 시트를 재생하며 대상 영역은 맵 반경으로 정해지는 정사각형의 정규화 좌표다. 기본 `[0,0,1,1]`은 기존 위치·크기를 유지한다. 나방은 가산 합성, 반딧불은 일반 알파 합성으로 게임과 동일하게 검수한다. 맵별 높이·반경·주기는 기존 맵 편집에서 조정한다.
 
@@ -994,6 +994,10 @@ Kimodo `generate`의 `openpose_scale_percent`는 OpenPose 출력 크기(10~100%,
 Fun Control의 포즈 검출·몸/손/얼굴 그리기는 [VideoX-Fun VideoToPose](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/comfyui/annotator/nodes.py)의 `DWposeDetector`를 사용합니다. 원본 5개 파일·라이선스·해시는 `generators/wan_fun/vendor/videox_fun/`에 보존합니다. GPU 규칙을 위해 공식 OpenCV CPU 세션 초기화 대신 ONNX Runtime CUDA 세션을 연결합니다. 가중치는 같은 DWPose이며 입력 배치 1의 형상 계산을 onnxsim 0.8.1로 사전 상수화하고 CPU EP fallback을 금지합니다. 색상·관절·신뢰도·손·얼굴 렌더링은 원본 구현입니다. 이 표기는 전처리 사용을 뜻하며 전체 영상 샘플러를 VideoX-Fun으로 교체했다는 뜻이 아닙니다.
 
 준비는 `.venv/bin/python -m generators.wan_fun.prepare_pose`입니다. `pose-requirements.txt`와 기존 Animate CUDA preprocess-deps 환경을 사용합니다. 원본 및 상수화 모델은 `.model/wan22-fun-pose/`에 보관하며 고정 모델 revision과 해시를 `prepared.json`에 기록합니다. CPU 모델 추론으로 대체하지 않습니다. 검출 실패·짧은 입력·해시 불일치는 실패로 기록합니다.
+
+### 맵 안개 이펙트
+
+`map-assets effect-register --payload-file <파일>`은 등록된 이미지 경로를 포함한 이펙트 원장 한 건만 신규 등록합니다. 기존 ID는 덮어쓰지 않고 거절합니다. `effect-list`·`effect-load`·`effect-save`는 좌표 검수 GUI와 동일한 DB 원장을 사용합니다. 안개는 `renderer: fog`, 맵 배치는 `kind: fog`·`version: 2`와 독립 `position`을 사용합니다. `radius`는 타일 영역의 한 변 길이이며 최소 2입니다. 8칸 시트는 초당 6프레임으로 재생하고 일반 알파 합성으로 표시합니다. 저장 후 `database-sync`로 에셋 원장에 반영합니다.
 
 ### Fun Control 포즈 상세 선택
 

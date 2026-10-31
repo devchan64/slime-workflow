@@ -33,12 +33,12 @@ async (currentDetailRecord,currentLeftValue,currentTopValue,currentRightValue,cu
   const currentFrameError=validateCurrentBounds(currentFrameRows[currentRowIndex],`프레임 ${currentRowIndex+1}`);
   if(currentFrameError)return rejectCurrentPreviewInput(currentFrameError);
  }
- const {calculateEffectFramePlacement,sampleMothAnimationFrame,sampleEffectAnimationFrame}=await import('__RENDERER_URL__');
+ const {calculateEffectFramePlacement,sampleMothAnimationFrame,sampleEffectAnimationFrame,sampleFogAnimationFrame}=await import('__RENDERER_URL__');
  const currentImageValues=await Promise.all([currentDetailRecord.hostImage,currentDetailRecord.sheetImage].map(currentSourceUrl=>new Promise((resolveCurrentImage,rejectCurrentImage)=>{if(!currentSourceUrl){resolveCurrentImage(null);return;}const currentLoadedImage=new Image();currentLoadedImage.onload=()=>resolveCurrentImage(currentLoadedImage);currentLoadedImage.onerror=()=>rejectCurrentImage(Error('원본 이미지 로드 실패'));currentLoadedImage.src=currentSourceUrl;})));
  const [currentHostImage,currentSheetImage]=currentImageValues;
  if(currentCanvasElement.effectPreviewRevision!==currentPreviewRevision)return '최신 입력을 적용 중입니다.';
  const previewCanvasSize=640,previewHostMaximumHeight=420,previewHostMaximumWidth=520;
- const currentHostAspectRatio=currentHostImage?currentHostImage.width/currentHostImage.height:1;
+ const currentHostAspectRatio=currentHostImage?currentHostImage.width/currentHostImage.height:(currentDetailRecord.document.renderer==='fog'?2:1);
  const currentHostHeight=Math.min(previewHostMaximumHeight,previewHostMaximumWidth/currentHostAspectRatio),currentHostWidth=currentHostHeight*currentHostAspectRatio;
  const currentHostLeft=(previewCanvasSize-currentHostWidth)/2,currentHostTop=(previewCanvasSize-currentHostHeight)/2;
  const currentStartTime=performance.now();
@@ -46,17 +46,23 @@ async (currentDetailRecord,currentLeftValue,currentTopValue,currentRightValue,cu
   if(!currentCanvasElement.isConnected||currentCanvasElement.effectPreviewRevision!==currentPreviewRevision)return;
   const currentMothPreviewEnabled=currentDetailRecord.document.alignment.texture==='moths';
   const currentMothMotion=currentPlayEnabled&&currentMothPreviewEnabled?sampleMothAnimationFrame(Math.max(0,currentElapsedTime-currentStartTime)):null;
-  const currentActiveFrame=currentPlayEnabled?(currentMothMotion?.frame??sampleEffectAnimationFrame(Math.max(0,currentElapsedTime-currentStartTime))):currentFrameIndex;
+  const currentFogMotion=currentPlayEnabled&&currentDetailRecord.document.renderer==='fog'?sampleFogAnimationFrame(Math.max(0,currentElapsedTime-currentStartTime)):null;
+  const currentActiveFrame=currentPlayEnabled?(currentFogMotion?.frame??currentMothMotion?.frame??sampleEffectAnimationFrame(Math.max(0,currentElapsedTime-currentStartTime))):currentFrameIndex;
   const currentFlightOffsetX=(currentMothMotion?.offsetX??0)*currentHostWidth;
   const currentFlightOffsetY=(currentMothMotion?.offsetY??0)*currentHostHeight;
-  const currentPlacementValues=calculateEffectFramePlacement(currentTargetBounds,currentFrameRows[currentActiveFrame]);
-  const currentColumnIndex=currentActiveFrame%4,currentRowIndex=Math.floor(currentActiveFrame/4);
-  const currentSourceLeft=Math.round(currentSheetImage.width*currentColumnIndex/4),currentSourceTop=Math.round(currentSheetImage.height*currentRowIndex/2);
-  const currentSourceWidth=Math.round(currentSheetImage.width*(currentColumnIndex+1)/4)-currentSourceLeft,currentSourceHeight=Math.round(currentSheetImage.height*(currentRowIndex+1)/2)-currentSourceTop;
   currentCanvasContext.globalAlpha=1;currentCanvasContext.globalCompositeOperation='source-over';currentCanvasContext.fillStyle='#182329';currentCanvasContext.fillRect(0,0,640,640);
   if(currentHostEnabled&&currentHostImage)currentCanvasContext.drawImage(currentHostImage,currentHostLeft,currentHostTop,currentHostWidth,currentHostHeight);
-  currentCanvasContext.globalCompositeOperation=currentDetailRecord.document.alignment.texture==='fireflies'?'source-over':'lighter';currentCanvasContext.globalAlpha=currentAlphaValue;
-  currentCanvasContext.drawImage(currentSheetImage,currentSourceLeft,currentSourceTop,currentSourceWidth,currentSourceHeight,currentHostLeft+currentPlacementValues.left*currentHostWidth+currentFlightOffsetX,currentHostTop+currentPlacementValues.top*currentHostHeight+currentFlightOffsetY,currentPlacementValues.width*currentHostWidth,currentPlacementValues.height*currentHostHeight);
+  currentCanvasContext.globalCompositeOperation=['fireflies','fog'].includes(currentDetailRecord.document.alignment.texture)?'source-over':'lighter';
+  const drawSelectedSheetFrame=(currentSelectedFrame,currentBlendWeight)=>{
+   const currentPlacementValues=calculateEffectFramePlacement(currentTargetBounds,currentFrameRows[currentSelectedFrame]);
+   const currentColumnIndex=currentSelectedFrame%4,currentRowIndex=Math.floor(currentSelectedFrame/4);
+   const currentSourceLeft=Math.round(currentSheetImage.width*currentColumnIndex/4),currentSourceTop=Math.round(currentSheetImage.height*currentRowIndex/2);
+   const currentSourceWidth=Math.round(currentSheetImage.width*(currentColumnIndex+1)/4)-currentSourceLeft,currentSourceHeight=Math.round(currentSheetImage.height*(currentRowIndex+1)/2)-currentSourceTop;
+   currentCanvasContext.globalAlpha=currentAlphaValue*currentBlendWeight;
+   currentCanvasContext.drawImage(currentSheetImage,currentSourceLeft,currentSourceTop,currentSourceWidth,currentSourceHeight,currentHostLeft+currentPlacementValues.left*currentHostWidth+currentFlightOffsetX,currentHostTop+currentPlacementValues.top*currentHostHeight+currentFlightOffsetY,currentPlacementValues.width*currentHostWidth,currentPlacementValues.height*currentHostHeight);
+  };
+  drawSelectedSheetFrame(currentActiveFrame,1-(currentFogMotion?.mix??0));
+  if(currentFogMotion)drawSelectedSheetFrame(currentFogMotion.nextFrame,currentFogMotion.mix);
   currentCanvasContext.globalCompositeOperation='source-over';currentCanvasContext.globalAlpha=1;
   if(currentBoundsEnabled){currentCanvasContext.strokeStyle='#ff70be';currentCanvasContext.strokeRect(currentHostLeft+currentTargetBounds[0]*currentHostWidth,currentHostTop+currentTargetBounds[1]*currentHostHeight,(currentTargetBounds[2]-currentTargetBounds[0])*currentHostWidth,(currentTargetBounds[3]-currentTargetBounds[1])*currentHostHeight);}
   currentCanvasContext.fillStyle='white';currentCanvasContext.fillText(`프레임 ${currentActiveFrame+1}/8 · 좌표 검수 (맵 조명·색상 별도)`,16,24);

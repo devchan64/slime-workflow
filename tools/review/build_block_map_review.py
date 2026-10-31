@@ -164,8 +164,8 @@ def build_field_safe_visual_records(texture_output_directory):
         with Image.open(current_source_path) as current_source_image:
             current_source_size=list(current_source_image.size)
         current_visual_records['terrain-glow-'+current_glow_name]={'name':'발광 시트 '+current_glow_name,'image':'textures/'+current_output_path.name+'?v='+current_source_provenance['sha256'],'sourceSize':current_source_size,'provenance':current_source_provenance}
-    for current_swarm_name in ['firefly-swarm','moth-swarm']:
-        current_source_path,current_source_provenance=resolve_registered_sprite('assets/sprites/effects/terrain/'+current_swarm_name+'-sheet-v1.png')
+    for current_swarm_name in ['firefly-swarm','moth-swarm','lake-fog']:
+        current_source_path,current_source_provenance=resolve_registered_sprite('assets/sprites/effects/terrain/'+current_swarm_name+('-sheet-v2.png' if current_swarm_name=='lake-fog' else '-sheet-v1.png'))
         current_output_path=texture_output_directory/current_source_path.name
         shutil.copy2(current_source_path,current_output_path)
         current_visual_records['terrain-'+current_swarm_name]={'name':current_swarm_name,'image':'textures/'+current_output_path.name+'?v='+current_source_provenance['sha256'],'sourceSize':[1774,887],'provenance':current_source_provenance}

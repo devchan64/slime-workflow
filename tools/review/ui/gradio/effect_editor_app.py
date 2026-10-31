@@ -37,10 +37,10 @@ def save_effect_editor_detail(current_detail_record,current_left_value,current_t
 def build_effect_editor_interface(current_review_port):
     current_vendor_manifest=yaml.safe_load((Path(__file__).parents[1]/'map/vendor/field-renderer/manifest.yaml').read_text())
     current_preview_script=Path(__file__).with_name('effect_editor_preview.js').read_text().replace('__RENDERER_URL__',f'http://127.0.0.1:{current_review_port}/isloon-map-review/vendor/field-renderer/{current_vendor_manifest["version"]}/field-renderer.mjs')
-    with gr.Blocks(title='발광 이펙트 좌표 검수') as current_interface_blocks:
-        gr.Markdown('## 발광 이펙트 좌표 검수\n버섯 발광은 빌보드와 겹쳐 보고, 나방·반딧불은 독립 시트로 검수합니다. 이미지는 파일로 유지하고 좌표는 DB 저장 후 에셋 원장에 지연 반영합니다.')
+    with gr.Blocks(title='맵 이펙트 좌표 검수') as current_interface_blocks:
+        gr.Markdown('## 맵 이펙트 좌표 검수\n버섯 발광은 빌보드와 겹쳐 보고, 나방·반딧불·안개는 독립 시트로 검수합니다. 이미지는 파일로 유지하고 좌표는 DB 저장 후 에셋 원장에 지연 반영합니다.')
         with gr.Row():
-            current_effect_choice=gr.Dropdown(label='발광 이펙트',choices=[])
+            current_effect_choice=gr.Dropdown(label='맵 이펙트',choices=[])
             current_reload_button=gr.Button('목록 새로고침')
             current_load_button=gr.Button('선택 이펙트 불러오기')
         current_detail_record=gr.JSON(value={},visible=False)
@@ -53,10 +53,10 @@ def build_effect_editor_interface(current_review_port):
                 with gr.Row():
                     current_right_value=gr.Number(label='오른쪽',value=1,step=.01)
                     current_bottom_value=gr.Number(label='아래쪽',value=1,step=.01)
-                current_alpha_value=gr.Slider(label='공용 밝기',minimum=0,maximum=1,value=.5,step=.01)
-                current_frame_values=gr.Dataframe(label='시트 프레임별 발광 영역 · 1~8',headers=['왼쪽','위쪽','오른쪽','아래쪽'],datatype=['number']*4,type='array',row_count=(8,'fixed'),column_count=(4,'fixed'),interactive=True)
+                current_alpha_value=gr.Slider(label='공용 불투명도',minimum=0,maximum=1,value=.5,step=.01)
+                current_frame_values=gr.Dataframe(label='시트 프레임별 이펙트 영역 · 1~8',headers=['왼쪽','위쪽','오른쪽','아래쪽'],datatype=['number']*4,type='array',row_count=(8,'fixed'),column_count=(4,'fixed'),interactive=True)
                 with gr.Accordion('좌표·저장 안내',open=False):
-                    gr.Markdown('좌표는 각 이미지의 왼쪽 위 0,0부터 오른쪽 아래 1,1까지입니다. 버섯의 대상 영역은 빌보드 원본 기준입니다. 나방·반딧불은 맵에 지정된 반경의 정사각형 영역 기준이며 중심은 0.5,0.5입니다. 프레임 영역은 시트 각 칸의 좌표입니다. 모든 프레임을 확인하세요. 맵 배치·빌보드 앵커는 변경하지 않습니다. 다른 편집에서 저장하면 다시 불러온 뒤 적용해야 합니다.')
+                    gr.Markdown('좌표는 각 이미지의 왼쪽 위 0,0부터 오른쪽 아래 1,1까지입니다. 버섯의 대상 영역은 빌보드 원본 기준입니다. 나방·반딧불은 맵에 지정된 반경의 정사각형 영역 기준이며 중심은 0.5,0.5입니다. 안개는 지정한 타일 크기의 가로 80px·세로 40px 투영 영역을 사용하며 최소 2×2타일입니다. 프레임 영역은 시트 각 칸의 좌표입니다. 모든 프레임을 확인하세요. 맵 배치·빌보드 앵커는 변경하지 않습니다. 다른 편집에서 저장하면 다시 불러온 뒤 적용해야 합니다.')
                 current_save_button=gr.Button('선택 이펙트 변경 반영')
                 current_save_status=gr.Markdown('선택 이펙트를 불러오세요.')
             with gr.Column():

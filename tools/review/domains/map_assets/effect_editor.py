@@ -8,9 +8,14 @@ from tools.review.common.map_tile_assets import load_registered_tiles, resolve_r
 
 
 def execute_effect_editor_command(current_command_name,current_request_payload):
+    if current_command_name=='effect-register':
+        return execute_content_api_request('POST','/internal/v1/content/effects',current_request_payload)
     if current_command_name=='effect-save':
-        if set(current_request_payload)!={'id','expectedRevision','requestId','alignment'}:
+        if set(current_request_payload) not in ({'id','expectedRevision','requestId','alignment'},{'id','expectedRevision','requestId','alignment','image'}):
             raise ValueError('이펙트 저장 필드 오류')
+        if 'image' in current_request_payload:
+            current_asset_root,current_asset_records=load_registered_tiles()
+            resolve_registered_asset(current_request_payload['image'],current_asset_root,current_asset_records,'assets/sprites/effects')
         return execute_content_api_request('PATCH','/internal/v1/content/effects/'+quote(current_request_payload['id'],safe=''),{current_field_name:current_field_value for current_field_name,current_field_value in current_request_payload.items() if current_field_name!='id'})
     current_effect_records=execute_content_api_request('GET','/internal/v1/content/effects')['effects']
     if current_command_name=='effect-list':
@@ -22,7 +27,7 @@ def execute_effect_editor_command(current_command_name,current_request_payload):
     current_asset_root,current_asset_records=load_registered_tiles()
     current_image_path,_=resolve_registered_asset(current_effect_record['image'],current_asset_root,current_asset_records,'assets/sprites/effects')
     current_billboard_bytes=None
-    if current_effect_record['renderer']!='swarm':
+    if current_effect_record['renderer'] not in ('swarm','fog'):
         current_billboard_record=execute_content_api_request('GET','/internal/v1/content/billboards/'+quote(current_effect_record['alignment']['texture'],safe=''))
         current_billboard_path=(current_asset_root/current_billboard_record['image']['path']).resolve()
         if not current_billboard_path.is_relative_to(current_asset_root/'assets/billboards'):raise ValueError('빌보드 경로 이탈')

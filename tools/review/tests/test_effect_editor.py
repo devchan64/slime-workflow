@@ -28,3 +28,19 @@ class EffectEditorTests(unittest.TestCase):
         current_result_record=execute_effect_editor_command('effect-load',{'id':'moth-swarm-v1'})
         self.assertIsNone(current_result_record['hostImage'])
         self.assertEqual(current_api_mock.call_count,1)
+
+    @patch('tools.review.domains.map_assets.effect_editor.execute_content_api_request')
+    def test_registration_uses_single_effect_endpoint(self,current_api_mock):
+        current_effect_payload={'id':'lake-fog-v1','renderer':'fog'}
+        execute_effect_editor_command('effect-register',current_effect_payload)
+        current_api_mock.assert_called_once_with('POST','/internal/v1/content/effects',current_effect_payload)
+
+    @patch('tools.review.domains.map_assets.effect_editor.resolve_registered_asset')
+    @patch('tools.review.domains.map_assets.effect_editor.load_registered_tiles')
+    @patch('tools.review.domains.map_assets.effect_editor.execute_content_api_request')
+    def test_image_replacement_checks_registry_before_save(self,current_api_mock,current_tiles_mock,current_resolver_mock):
+        current_tiles_mock.return_value=('root',{})
+        current_payload={'id':'fog','requestId':'request','expectedRevision':'revision','alignment':{},'image':'assets/sprites/effects/terrain/fog-v2.png'}
+        execute_effect_editor_command('effect-save',current_payload)
+        current_resolver_mock.assert_called_once_with(current_payload['image'],'root',{},'assets/sprites/effects')
+        current_api_mock.assert_called_once_with('PATCH','/internal/v1/content/effects/fog',{k:v for k,v in current_payload.items() if k!='id'})
