@@ -11,7 +11,7 @@ AI는 라인 복원 후보 생성의 보조 수단이다. 최종 승인 기준�
 
 ## 기준 이미지와 입력
 
-- 외형 기준: `assets/character-baselines/character-default/light-armor-baseline.png`.
+- 외형 기준: `assets/character-baselines/old/light-armor-baseline.png`.
 - 세션 예시 시트: 사용자 제공 `sprite-v2-20261010T102021-ec59a321/sheet.png`.
 - 사용자가 제시한 시트는 7열 1행이다. 실제 분할은 원본 크기와 메타데이터를 확인한 후 수행한다.
 - 베이스라인은 색·선 표현의 기준이며 자세를 복사하는 대상이 아니다. 팔레트 색 수와 음영 단계는 아직 확정하지 않았다.

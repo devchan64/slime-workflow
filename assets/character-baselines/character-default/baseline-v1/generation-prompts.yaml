@@ -1,0 +1,48 @@
+schema_version: 1
+generator: image_gen_builtin
+status: 얼굴·전신 정면 후보 · 사용자 검수 전
+selected_image: face-body-front-v1.png
+reference_image: prompts/references/mannequin/v1/male-body-four-directions-v1.png
+reference_role: 성별이 아닌 머리 대비 몸통·팔다리 길이의 기준
+target: 성인 평균 5등신, 성별 구분이 어려운 중성 기본형, 짧은 머리와 짧고 밀착된 기본복
+review: 초안의 긴 전신 비율을 보정했다. 정확한 등신은 미측정이며 중성적 인상과 비율은 사용자 검수 대상이다.
+correction_references:
+- face-body-front-draft-v1.png
+- prompts/references/mannequin/v1/male-body-four-directions-v1.png
+attempts:
+- image: face-body-front-draft-v1.png
+  prompt: 'Create a new androgynous ADULT default fantasy game character, gender visually
+    indeterminate. Reference image is ONLY for compact five-head body proportions
+    and limb lengths; replace mannequin with a living character. Two-panel white-background
+    identity sheet: left a large exact-front head portrait including hair and neck,
+    right ONE exact-front full body, feet visible. Same face in both. Short softly
+    grouped dark-brown hair, simple natural brows, warm brown expressive eyes, small
+    simple nose and mouth, softly tapered rounded jaw, neutral calm expression, warm
+    light skin. Balanced modest shoulders, straight waist, smooth flat chest, understated
+    hips, no emphasized musculature. Opaque fitted light gray short-sleeved cropped
+    crewneck tee ending at waist, fitted charcoal upper-thigh shorts, barefoot. Relaxed
+    symmetrical stance, arms slightly apart. Adult average FIVE HEADS tall, compact
+    silhouette, do not lengthen legs. SLIME miniature fantasy game illustration with
+    broad clean color planes, simplified rounded forms and three softly blended value
+    groups. Use grouped painted shapes, soft upper-left diffuse lighting, muted teal-gray
+    shadows and restrained highlights. Keep materials matte where appropriate and
+    silhouettes readable at small sizes. Orthographic eye-level, no labels, no accessories,
+    no mechanical joints. Face and full-body FRONT only; eight directions will be
+    a later sheet.'
+  word_count: 193
+  prompt_sha256: 7ffdf1752715f1bf81beff1ec2806e8b588e670255bf9044da018c5483b484a4
+  image_sha256: 39ac6c66582274faa7e52bf0f2c0791c053a6beabc039d86c65a65aacd372098
+- image: face-body-front-v1.png
+  prompt: 'Correct the FIRST image, preserving its short brown hair, brown eyes, neutral
+    facial identity, gray fitted cropped tee and charcoal short shorts, painted style
+    and white two-panel layout. The SECOND image is the authoritative body proportion
+    template: match its compact FRONT silhouette head-to-feet ratio and short limb
+    lengths. Enlarge the full-body head and shorten torso and legs to FIVE head lengths
+    from skull crown to sole, excluding hair. This is an ADULT in a compact fantasy
+    world. Straight neutral torso, modest shoulders and hips, flat chest, no hourglass.
+    Left panel remains a front facial closeup; right a single front full body. Keep
+    both the same identity. Main correction is compact mannequin proportions, not
+    realistic long-legged fashion anatomy. No mannequin seams.'
+  word_count: 120
+  prompt_sha256: b91c309185dcd6a6c5c036babc69bc4dc9b250bf38ec39fa6e0a09c34d9b6a8a
+  image_sha256: 7365de5730dcf90fb1b47cf53da3abbbd7db2cf7f9957e29b1df4d4f979a9d02

@@ -10,7 +10,7 @@ order:
 - profile
 - back
 body_head_units_target: 5
-body_proportion_source: assets/character-baselines/character-default/light-armor-idle-1-4.png
+body_proportion_source: assets/character-baselines/old/light-armor-idle-1-4.png
 prompt: Recompose this exact articulated male mannequin into ONLY FOUR VIEWS, 2 columns x 2 rows. Top-left
   exact FRONT, top-right FRONT THREE-QUARTER rotated 45 degrees facing screen right, bottom-left exact
   PROFILE facing screen right, bottom-right exact BACK. Preserve gray material, head/body ratio, limb

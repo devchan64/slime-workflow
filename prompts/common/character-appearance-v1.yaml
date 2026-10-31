@@ -4,7 +4,7 @@ version: 1.0.0
 title: 캐릭터 외관 공통 프롬프트
 status: 문서 기준 · 생성 검증 전
 created_on: '2026-10-31'
-source: assets/character-baselines/character-default/generation-prompts.yaml#prompts.base-prompt
+source: assets/character-baselines/old/generation-prompts.yaml#prompts.base-prompt
 scope: 성별·나이 세부값·머리색·눈색·복장·등신 수치를 고정하지 않는다. 캐릭터별 설정과 비율 블록에서 명시한다.
 language: en
 prompt: A stylized adult fantasy game character with expressive eyes, a small simple nose and mouth, a

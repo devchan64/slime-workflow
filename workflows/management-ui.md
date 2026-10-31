@@ -670,7 +670,7 @@ MoMask와 AnyPose 기반 캐릭터 애니메이션 화면도 폐기했다. 구�
 ### 공용 이력 소비자 계약 재검수
 
 - 라디오 선택 변경 후 공용 표준 컴포넌트 검사를 새 계약으로 수정했다. 내부 Dropdown은 선택 상태 전달만 담당하고, 표는 Gradio HTML의 공식 click 이벤트와 value 갱신으로 연결하며 별도 CSS 템플릿을 주입하지 않는지 확인한다. 공용 표준·Qwen 2511/2512·MoMask 검사 25건 통과(`/tmp/shared-history-consumers-final.log`).
-- 캐릭터 애니메이션을 포함한 최초 37건 실행은 기존 드롭다운 계약 실패 1건과 기준 이미지 누락 오류 2건이 있었다(`/tmp/shared-history-consumers.log`). 드롭다운 계약 실패는 위 수정으로 해결했다. 캐릭터의 `assets/character-baselines/character-default/separated-baseline-v3/body-base/down_left.png`가 현재 없어서 갤러리·모션 요청 검사가 실패한다. 에셋은 본 UI 작업에서 삭제하거나 복원하지 않았다. 이 환경의 캐릭터 참조 계약을 완료로 판단하지 않는다.
+- 캐릭터 애니메이션을 포함한 최초 37건 실행은 기존 드롭다운 계약 실패 1건과 기준 이미지 누락 오류 2건이 있었다(`/tmp/shared-history-consumers.log`). 드롭다운 계약 실패는 위 수정으로 해결했다. 캐릭터의 `assets/character-baselines/old/separated-baseline-v3/body-base/down_left.png`가 현재 없어서 갤러리·모션 요청 검사가 실패한다. 에셋은 본 UI 작업에서 삭제하거나 복원하지 않았다. 이 환경의 캐릭터 참조 계약을 완료로 판단하지 않는다.
 
 ### 라디오 이력 좁은 화면 검수
 
@@ -817,7 +817,7 @@ MoMask와 AnyPose 기반 캐릭터 애니메이션 화면도 폐기했다. 구�
 
 직접 열린 Gradio 화면의 480×900 검수에서 재생기 폭과 scrollWidth는 모두 401px, 비교 패널은 각각 188.5px였다. 이 결과를 외곽 메뉴의 모바일 검증 완료로 확대하지 않는다. 검수 결과·이미지·실행기는 `.tmp/test/gradio-iframe-removal/2026-10-11_23-50-00/`에 보관한다(`separation-history.png`, `separation-480.png`). 운영 작업 생성·취소·삭제·파일 저장은 수행하지 않았다. AWS 배포·인프라·비용 변경은 없다.
 
-회귀 결과: 브라우저 재생기 Node 검사 5건, Python 검사 30건 중 29건 통과·1건 오류. 오류는 기존 `test_workflow_reference_integrity`가 요구하는 `assets/character-baselines/character-default/body-baseline-v3.yaml` 누락이며 해당 자산과 검사는 수정하지 않았다. 새 Gradio 구성·URL 계약, 기존 GUI/CLI 요청·분리 서비스·공용 이력 검사는 통과했다. 전체 로그는 `.tmp/test/gradio-iframe-removal/2026-10-11_23-59-08/checks.log`에 있다. 최초 샌드박스 실행은 공용 이력 비동기 검사에서 종료하지 않아 검사 프로세스만 종료하고 종료 코드 -15를 보존했으며, 호스트 런타임 실행에서는 3.69초에 위 결과로 종료했다.
+회귀 결과: 브라우저 재생기 Node 검사 5건, Python 검사 30건 중 29건 통과·1건 오류. 오류는 기존 `test_workflow_reference_integrity`가 요구하는 `assets/character-baselines/old/body-baseline-v3.yaml` 누락이며 해당 자산과 검사는 수정하지 않았다. 새 Gradio 구성·URL 계약, 기존 GUI/CLI 요청·분리 서비스·공용 이력 검사는 통과했다. 전체 로그는 `.tmp/test/gradio-iframe-removal/2026-10-11_23-59-08/checks.log`에 있다. 최초 샌드박스 실행은 공용 이력 비동기 검사에서 종료하지 않아 검사 프로세스만 종료하고 종료 코드 -15를 보존했으며, 호스트 런타임 실행에서는 3.69초에 위 결과로 종료했다.
 
 ### 앵커 검수 데이터 분리 · iframe 제거 준비
 

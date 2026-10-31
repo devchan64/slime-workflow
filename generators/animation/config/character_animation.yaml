@@ -19,10 +19,10 @@ motions:
     anny: anny/{direction}/anny-{frame:04d}.png
 characters:
   character-default:
-    label: 기본 캐릭터 · 신체 베이스 v3
-    root: assets/character-baselines/character-default
+    label: 이전 기본 캐릭터 · 신체 베이스 v3
+    root: assets/character-baselines/old
     manifest: body-baseline-v3.yaml
   character-default-light-armor-v1:
-    label: 기본 캐릭터 · 가벼운 보호구 v1 · 정면 좌측
-    root: assets/character-baselines/character-default/light-armor-animation-v1
+    label: 이전 기본 캐릭터 · 가벼운 보호구 v1 · 정면 좌측
+    root: assets/character-baselines/old/light-armor-animation-v1
     manifest: manifest.yaml

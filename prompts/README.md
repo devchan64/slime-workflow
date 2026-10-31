@@ -42,7 +42,7 @@
 
 | 원본 | 용도·내용 | 상태 |
 | --- | --- | --- |
-| [기본 캐릭터 프롬프트](../assets/character-baselines/character-default/generation-prompts.yaml) | `base-prompt`, 대기·휴식 전환, `walking-identity-generation-prompt`, 프레임별 걷기 보조문 | 용도별 선택; base-prompt 자동 추가 금지 |
+| [기본 캐릭터 프롬프트](../assets/character-baselines/old/generation-prompts.yaml) | `base-prompt`, 대기·휴식 전환, `walking-identity-generation-prompt`, 프레임별 걷기 보조문 | 용도별 선택; base-prompt 자동 추가 금지 |
 | [남성 B 참고 프롬프트](../assets/character-baselines/character-male-b/baseline-v1/prompt.txt) | 남성 B 제작 참고 원문 | 과거 원문; 최신 이미지의 실제 입력이라고 추정하지 않음 |
 | [Kimodo 동작 예제](../generators/kimodo/config/prompt-examples.yaml) | 모션 생성 예제와 설정 | 생성기 소유 원본 |
 

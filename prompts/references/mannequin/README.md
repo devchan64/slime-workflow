@@ -1,6 +1,6 @@
 # 프롬프트 참고용 마네킨
 
-캐릭터 생성에 사용하는 신체·얼굴 비율 참고 이미지다. 현재 **v1 · 신체 8종 · 얼굴 2종**을 관리한다. 각 YAML에는 실제 생성 프롬프트와 생성 기록을 보존한다.
+캐릭터 생성에 사용하는 신체·얼굴 비율 참고 이미지다. 현재 **신체 v1 8종 · 기준 얼굴 v3 2종**을 관리한다. 각 YAML에는 실제 생성 프롬프트와 생성 기록을 보존한다.
 
 ## 비율 기준
 
@@ -25,12 +25,12 @@
 
 ## 얼굴 목록
 
-눈 간격·크기, 코·입 위치와 턱선을 참고한다. 머리카락·피부색·고유 인상은 캐릭터별 입력으로 지정한다.
+사용자가 채택한 v3를 기준 얼굴로 사용한다. 눈 간격·크기, 코·입 위치와 턱선을 참고한다. 머리카락·피부색·고유 인상은 캐릭터별 입력으로 지정한다.
 
 | 유형 | 이미지 | 생성 기록 |
 | --- | --- | --- |
-| 남성 헤드 | [PNG](v1/male-head-four-directions-v1.png) | [YAML](v1/male-head-four-directions-v1.yaml) |
-| 여성 헤드 | [PNG](v1/female-head-four-directions-v1.png) | [YAML](v1/female-head-four-directions-v1.yaml) |
+| 남성 헤드 | [PNG](v3/male-head-natural-four-directions-v3.png) | [YAML](v3/male-head-natural-four-directions-v3.yaml) |
+| 여성 헤드 | [PNG](v3/female-head-natural-four-directions-v3.png) | [YAML](v3/female-head-natural-four-directions-v3.yaml) |
 
 ## 사용 방법
 

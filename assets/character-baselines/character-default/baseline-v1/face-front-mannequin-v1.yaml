@@ -1,0 +1,24 @@
+schema_version: 1
+status: 얼굴 정면 후보 · 사용자 검수 전
+image: face-front-mannequin-v1.png
+generator: image_gen_builtin
+reference_role: 눈 크기·간격, 코·입 위치, 턱선과 얼굴 비율. 성별 및 회색 재질은 복제하지 않음.
+prompt: 'Create ONE exact-front face reference of a gender-indeterminate adult fantasy
+  character. Use the attached HEAD MANNEQUIN as the facial proportion authority: closely
+  match its large eye size and spacing, compact small nose and mouth, rounded cheeks,
+  soft tapered jaw, forehead and ear placement. Translate gray mannequin into a living
+  painted character, keeping these proportions. Short dark-brown hair in simple grouped
+  locks, warm brown eyes, light warm skin, natural brows, calm neutral mouth. Androgynous
+  face without beard, cosmetics or gender-emphasized features. Only head and a little
+  neck, entire hairstyle visible, centered on white, no shoulders, body, secondary
+  view or labels. SLIME miniature fantasy game illustration with broad clean color
+  planes, simplified rounded forms and three softly blended value groups. Use grouped
+  painted shapes, soft upper-left diffuse lighting, muted teal-gray shadows and restrained
+  highlights. Keep materials matte where appropriate and silhouettes readable at small
+  sizes. Do not copy gray material or neck connector.'
+word_count: 151
+prompt_sha256: 5f5b04e2172f1941736f91804b6a8699eb268a91012bd1a8b6986077abfdda9a
+image_sha256: c0349f73c9e89208d0a40eea801dd8bf7566bfdba30ce0568244b277d73589a3
+historical_reference_images:
+- prompts/references/mannequin/v1/male-head-four-directions-v1.png
+historical_reference_status: 생성 당시 사용한 v1 헤드는 폐기됨. 이 캐릭터 결과는 v3로 재생성한 결과가 아니다.
