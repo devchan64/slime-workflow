@@ -6,12 +6,11 @@ import cv2
 import numpy as np
 from PIL import Image, ImageOps
 import gradio as gr
-from generators.wan_fun.contracts import FUN_JOB_STORAGE, FUN_DEFAULT_SETTINGS, FUN_CONTROL_TYPES, FUN_MAX_FRAME_COUNT, validate_fun_request
+from generators.wan_fun.contracts import FUN_JOB_STORAGE, FUN_DEFAULT_SETTINGS, FUN_MAX_FRAME_COUNT, validate_fun_request
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_button_guidance import build_button_guidance
 from tools.review.common.gradio_seed import build_generation_seed
-from tools.review.common.gradio_input_preview import build_input_preview
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_logs import build_execution_logs
 from tools.review.common.gradio_video_results import describe_video_generation_status, render_video_generation_result
@@ -91,6 +90,8 @@ def restore_fun_inputs(current_history_record):
     if current_job_directory.parent != FUN_JOB_STORAGE.resolve():
         raise ValueError('이력 경로 오류')
     current_request_record = current_history_record['request']
+    if not current_request_record.get('driving_video_file'):
+        raise ValueError('이전 전처리 영상·PNG 작업은 이 화면에 불러올 수 없습니다. 새 생성에는 캐릭터 참조와 SOMA 렌더 MP4를 입력하세요. 기존 결과 조회는 가능합니다.')
     if current_request_record.get('driving_video_file') and (current_request_record['driving_video_file'] != 'driving.mp4' or not (current_job_directory/'driving.mp4').is_file()):
         raise ValueError('이력의 SOMA 입력 영상 사본이 없거나 경로가 잘못되었습니다.')
     current_reference_paths = []
@@ -115,25 +116,21 @@ def build_fun_interface(current_server_address, current_command_callback=None):
                 return f'모델 상태 확인 실패: {current_status_error}'
         current_model_refresh.click(read_fun_model_status, outputs=current_model_status, queue=False)
         current_interface_blocks.load(read_fun_model_status, outputs=current_model_status)
-        current_mode_control = gr.Radio(choices=[('SOMA 렌더 영상 → VideoX-Fun 포즈 추출', 'soma-video'), ('이미 전처리된 제어 영상·PNG', 'preprocessed')], value='soma-video', label='입력 방식')
+        current_mode_control = gr.State('soma-video')
+        current_frames_control = gr.State(None)
+        current_type_control = gr.State('pose')
+        gr.Markdown('입력 고정: SOMA 렌더 MP4 → VideoX-Fun 포즈 추출')
         with gr.Row():
             with gr.Column():
                 current_reference_control = gr.Image(type='filepath', sources=['upload'], label='캐릭터 외형 참조 · 1장')
             with gr.Column():
-                current_video_control = gr.File(file_types=['.mp4', '.webm', '.mov'], label='SOMA 렌더 영상 또는 전처리 영상 · 입력 방식 확인')
-        with gr.Group(visible=False) as current_legacy_inputs:
-            with gr.Accordion('제어 PNG 업로드 · 파일 목록',open=False):
-                current_frames_control = gr.File(file_count='multiple', file_types=['.png'], label='제어 PNG · 업로드 순서 · 영상과 중복 입력 불가')
-            build_input_preview(current_frames_control,'제어 PNG 미리보기 · 번호 순서로 입력 · 클릭하여 확대')
-        with gr.Group() as current_pose_options:
+                current_video_control = gr.Video(sources=['upload'], label='SOMA 렌더 영상 · MP4', include_audio=True, buttons=['download'])
+        with gr.Group():
             with gr.Row():
                 current_hands_control = gr.Checkbox(value=False, label='손 상세 포함')
                 current_face_control = gr.Checkbox(value=False, label='얼굴 상세 포함')
-            gr.Markdown('SOMA 영상 포즈 추출에만 적용합니다. 기본은 둘 다 끔입니다. 몸 18점의 손목·코·눈·귀는 유지합니다. 이미 전처리된 영상·PNG의 점은 변경하지 않습니다.')
-        current_mode_control.change(lambda current_mode_value: gr.update(visible=current_mode_value=='soma-video'), current_mode_control, current_pose_options, queue=False)
-        current_mode_control.change(lambda current_mode_value: gr.update(visible=current_mode_value=='preprocessed'), current_mode_control, current_legacy_inputs, queue=False)
-        current_type_control = gr.Dropdown(choices=list(FUN_CONTROL_TYPES), value='pose', label='제어 종류 · 영상의 실제 표현과 일치시켜 주세요')
-        gr.Markdown('SOMA 입력은 Kimodo의 단일 인체 렌더 MP4를 사용합니다. 작업 프로세스가 VideoX-Fun DWPose로 몸·손·얼굴을 검출합니다. 공식 검출·그리기를 유지하고 실행 백엔드는 ONNX Runtime CUDA로 연결했습니다. 원본 시간 기준 16fps로 추출하며 부족한 영상은 거절합니다. 전처리 입력 모드는 기존 제어 영상을 그대로 사용합니다. 최종 제어 영상은 832×480입니다.')
+            gr.Markdown('SOMA 영상 포즈 추출에만 적용합니다. 기본은 둘 다 끔입니다. 몸 18점의 손목·코·눈·귀는 유지합니다.')
+        gr.Markdown('SOMA 입력은 Kimodo의 단일 인체 렌더 MP4를 사용합니다. 작업 프로세스가 VideoX-Fun DWPose로 몸·손·얼굴을 검출합니다. 공식 검출·그리기를 유지하고 실행 백엔드는 ONNX Runtime CUDA로 연결했습니다. 원본 시간 기준 16fps로 추출하며 부족한 영상은 거절합니다. 최종 제어 영상은 832×480입니다.')
         current_prompt_control = gr.Textbox(label='장면·동작 프롬프트', lines=3)
         current_prompt_summary = gr.Markdown('원문 0단어 · 최종 0단어 · 추가 문구 없음')
         current_prompt_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어 · 추가 문구 없음', current_prompt_control, current_prompt_summary, queue=False)
@@ -153,7 +150,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             gr.Markdown('범위는 이 페이지의 실험 허용 범위입니다. [모델카드](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control) · [공식 ComfyUI 안내](https://docs.comfy.org/tutorials/video/wan/wan2-2-fun-control). 가속 4스텝 LoRA 예제와 현재 Q4 비가속 설정은 다릅니다.')
         current_input_controls = [current_reference_control,current_video_control,current_frames_control,current_type_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_switch_control,current_mode_control,current_hands_control,current_face_control]
         current_generate_button = gr.Button('대기열에 추가', variant='primary', interactive=False)
-        build_button_guidance(current_generate_button, '참조·프롬프트와 제어 영상 또는 PNG 목록 중 하나를 입력하세요. 모델 파일이 준비되어야 등록할 수 있습니다.')
+        build_button_guidance(current_generate_button, '캐릭터 참조·SOMA 렌더 MP4·프롬프트를 입력하세요. 모델 파일이 준비되어야 등록할 수 있습니다.')
         with gr.Column() as current_confirmation_container:
             pass
         current_job_control = gr.Textbox(label='생성 ID')
