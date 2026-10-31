@@ -6,6 +6,7 @@ source_tile_size: 256
 ground_source_tile_size: 128
 # 검수 화면 논리 타일 ID와 에셋 저장소 원본의 표시용 매핑이다.
 tiles:
+  - {id: reed-crossing-calm-water-v1, category: ground, asset: assets/tiles/terrain/blocked/reed-crossing-calm-water-v1.png}
   - {id: silver-marsh-muddy-grass-v1, category: ground, asset: assets/tiles/terrain/non-road/silver-marsh-muddy-grass-v1.png}
   - {id: pebble-submerged-rounded-v1, category: ground, asset: assets/tiles/terrain/blocked/pebble-submerged-rounded-v1.png}
   - {id: pebble-natural-rounded-v1, category: ground, asset: assets/tiles/terrain/non-road/pebble-natural-rounded-v1.png}
