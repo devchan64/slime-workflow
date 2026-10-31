@@ -1,0 +1,35 @@
+schema_version: 1
+version: 1.0.0
+type_id: male_broad_shoulders
+status: 체형 참고 후보
+image: male-broad-shoulders-four-directions-v1.png
+generator: image_gen_builtin
+reference_images:
+- prompts/references/mannequin/v1/male-body-four-directions-v1.png
+layout: 2x2
+order:
+- front
+- front-quarter
+- profile
+- back
+proportion_policy: 5등신은 기준점이며 체형 균형에 따라 조절한다. 등신 차이 자체를 기준 위반으로 판정하지 않는다.
+traits:
+- 넓은 어깨와 상부 흉곽
+- 상체에서 허리로 좁아지는 윤곽
+- 균형 잡힌 팔·다리
+- 관절 분리
+prompt: 'Create a new BROAD-SHOULDERED MALE BODY TYPE variant of the supplied articulated gray artist
+  mannequin. Preserve its neutral featureless head, matte gray material, clearly separated mechanical
+  joint construction, white background and four-view 2x2 layout. Substantially broaden the clavicles and
+  shoulder span, wider upper ribcage and back tapering naturally to a narrower waist and moderate pelvis.
+  Solid balanced athletic upper arms and legs, not giant bodybuilder muscles or armor. Five-head proportions
+  are only the starting design reference, NOT a strict numerical constraint: adjust head-to-body and limb
+  proportions modestly to make this broad-shouldered male silhouette balanced. Do not uniformly widen
+  the whole body. Visible spherical shoulder, elbow, hip, knee joints and narrow neck, waist, wrist, ankle
+  separations. Smooth non-detailed mannequin pelvis, no anatomical intimate details. Top-left exact front,
+  top-right front three-quarter toward screen right, bottom-left exact right-facing side profile, bottom-right
+  exact back. Same body and neutral relaxed stance in all views, arms slightly apart, full head and bare
+  feet visible, consistent scale, eye-level orthographic projection, soft upper-left lighting. No text,
+  measurements, grid, clothes or accessories.'
+word_count: 173
+image_sha256: 60dc2bc14d7b55aa10c2fcff3f2b382f36f838ea052d4933ec72a538783c6702

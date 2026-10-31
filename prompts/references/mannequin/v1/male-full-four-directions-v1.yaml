@@ -1,0 +1,29 @@
+schema_version: 1
+version: 1.0.0
+type_id: male_full
+title: 남성 통통형
+status: 체형 참고 후보
+image: male-full-four-directions-v1.png
+generator: image_gen_builtin
+reference_images:
+- prompts/references/mannequin/v1/male-body-four-directions-v1.png
+layout: 2x2
+order:
+- front
+- front-quarter
+- profile
+- back
+proportion_policy: 5등신을 출발점으로 체형별 균형에 맞게 조절한다. 등신 차이 자체는 기준 위반이 아니다.
+prompt: 'Edit supplied articulated artist mannequin into a new male soft full-bodied body variant. Rounded
+  fuller abdomen projecting clearly in profile, wider soft waist, fuller chest and upper arms, substantial
+  thighs; smooth soft volumes without muscular definition. Respectful natural body diversity, not a caricature.
+  Preserve matte neutral gray material, bald featureless head, smooth non-detailed pelvis, spherical joints
+  and clear segment gaps at neck shoulders elbows wrists waist hips knees ankles. No intimate anatomical
+  detail. Five heads tall is a starting reference, not a strict rule; balance proportions for this physique.
+  Four views, 2x2: front, front quarter facing right / right profile, back. Identical neutral stance and
+  body across views, arms slightly apart, full body, orthographic eye-level camera, same scale per panel,
+  white background, soft diffuse light, no labels or clothing.'
+word_count: 129
+prompt_sha256: 28819ae7683bdcfc3b43429ba8e434db33930d431b5dc8dd64c0b40d50da0a36
+image_sha256: 4064182ff213279578b12e7730e7fd7bbac01d1fa88ca4dfdf14782413a485a7
+review_note: 정면·쿼터·측면·후면과 관절 분리 확인. 실제 치수는 미측정. 여성 쿼터와 측면의 좌우가 다르므로 회전 시퀀스로 사용하지 않는다.

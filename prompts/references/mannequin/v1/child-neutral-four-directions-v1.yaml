@@ -1,0 +1,33 @@
+schema_version: 1
+version: 1.0.0
+type_id: child_neutral
+title: 아동 중성형
+status: 연령별 체형 참고 후보
+image: child-neutral-four-directions-v1.png
+generator: image_gen_builtin
+reference_images: []
+layout: 2x2
+order:
+- front
+- front-quarter
+- profile
+- back
+proportion_policy: 성인 평균 5등신을 기준으로 연령별 상대 비율을 표현한다. 체형별 조절을 허용하며 실제 연령의 표준 신체치수로 취급하지
+  않는다.
+prompt: 'Create an age-proportion variant of an articulated artist mannequin. School-age
+  CHILD neutral body type: relatively large head, short limbs, narrow shoulders, straight
+  simple trunk, smaller hands and feet, gender-neutral smooth chest. Clearly child-proportioned
+  mannequin, not a miniature muscular adult. Smooth matte neutral gray toy-like rigid
+  segments, bald featureless oval head, neutral completely non-anatomical pelvis and
+  torso, no nipples or genital details, no clothing. Clearly visible mechanical joint
+  separations at neck shoulders elbows wrists waist hips knees ankles. Four orthographic
+  views in 2x2: front, front three-quarter facing screen right / right-facing profile,
+  back. Same neutral standing pose and proportions in every view, arms slightly apart,
+  full figure and feet visible, consistent scale, white background, soft upper-left
+  lighting, no text or grid. Educational character-design reference, not a realistic
+  person. Adapt head/body ratio naturally to the age category; five heads is only
+  the adult starting convention, not a constraint.'
+word_count: 146
+prompt_sha256: 89aa05f9964569921384816701346010862f0869189d83847587ccc9b88abbed
+image_sha256: e136b104f46fc7b8f1eab39bf448c1ccefa435ddf3d0c68dc9af8a7327126531
+review_note: 관절 분리형 4방향 참고 후보. 정확한 등신은 미측정이며 쿼터·측면의 좌우는 연속 회전 순서를 보장하지 않는다.

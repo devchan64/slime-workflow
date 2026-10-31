@@ -1,0 +1,29 @@
+schema_version: 1
+version: 1.0.0
+type_id: female_slim
+title: 여성 슬림형
+status: 체형 참고 후보
+image: female-slim-four-directions-v1.png
+generator: image_gen_builtin
+reference_images:
+- prompts/references/mannequin/v1/female-body-four-directions-v1.png
+layout: 2x2
+order:
+- front
+- front-quarter
+- profile
+- back
+proportion_policy: 5등신을 출발점으로 체형별 균형에 맞게 조절한다. 등신 차이 자체는 기준 위반이 아니다.
+prompt: 'Edit supplied articulated artist mannequin into a new female slim body variant. Slender shoulders
+  and ribcage, modest chest volumes, lean waist and pelvis, slim arms and legs with low muscle bulk. Natural
+  adult female-shaped sculptural proportions, balanced rather than exaggerated hourglass. Preserve matte
+  neutral gray material, bald featureless head, smooth non-detailed pelvis, spherical joints and clear
+  segment gaps at neck shoulders elbows wrists waist hips knees ankles. No intimate anatomical detail.
+  Five heads tall is a starting reference, not a strict rule; balance proportions for this physique. Four
+  views, 2x2: front, front quarter facing right / right profile, back. Identical neutral stance and body
+  across views, arms slightly apart, full body, orthographic eye-level camera, same scale per panel, white
+  background, soft diffuse light, no labels or clothing.'
+word_count: 127
+prompt_sha256: ac3c71c5565fadcc25ad57c523bb691bd09483a59dd882c72d6783f02fda1009
+image_sha256: 12dbfaf9f35af42fcc9eeb36a82dd4370d176ede7b37eb155a8ea090ac5621ca
+review_note: 정면·쿼터·측면·후면과 관절 분리 확인. 실제 치수는 미측정. 여성 쿼터와 측면의 좌우가 다르므로 회전 시퀀스로 사용하지 않는다.
