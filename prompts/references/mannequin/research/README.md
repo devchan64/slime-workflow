@@ -23,3 +23,17 @@
 
 - [기본 얼굴·호박색 눈 4방향](v11/neutral-body-amber-eyes-four-directions-v11.png)
 - [생성 기록](v11/neutral-body-amber-eyes-four-directions-v11.yaml)
+
+## v12 헤어스타일 적용
+
+- [4방향 전신](v12/neutral-body-hair-four-directions-v12.png)
+- [생성 기록](v12/neutral-body-hair-four-directions-v12.yaml)
+
+귀 길이 갈색 헤어를 전신 기준에 적용한 검수 후보.
+
+## v13 눈썹 두께 조정
+
+- [4방향 전신](v13/neutral-body-thick-brows-four-directions-v13.png)
+- [생성 기록](v13/neutral-body-thick-brows-four-directions-v13.yaml)
+
+v12의 눈썹을 두껍게 조정한 검수 후보.

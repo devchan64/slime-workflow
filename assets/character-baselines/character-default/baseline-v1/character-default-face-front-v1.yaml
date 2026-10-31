@@ -1,0 +1,31 @@
+schema_version: 1
+title: 기본 캐릭터 얼굴 정면 · 화풍 수정본
+status: 사용자 지정 · 기존 얼굴 대체
+image: character-default-face-front-v1.png
+generator: image_gen_builtin
+reference_images:
+- /tmp/codex-clipboard-1a199611-4ae2-4130-b106-9f6ae082cf03.png
+- assets/character-baselines/character-default/baseline-v1/character-default-eight-directions-v1.png
+reference_roles:
+- 사용자 첨부 얼굴 수정 대상
+- 화풍 참조 전용
+reference_sha256:
+- 5f6e908492bbbe4bed6f11a27f155b6be19e5eae57c0d8de11877c0b4bb8ffdb
+- 11b951585d03394aeb1ef8855fe5f1bd7c87081e08b302ec5429e8036b97c323
+prompt: Restyle IMAGE 1 (single face portrait) to match the illustration style of
+  IMAGE 2 (eight-direction character sheet). IMAGE 1 is the edit target; IMAGE 2 supplies
+  only painting style, materials, lighting and color treatment. Preserve IMAGE 1 facial
+  geometry, wide closed smiling mouth, thin light eyebrows, gently lowered outer eye
+  corners, amber eyes, hopeful expression, hairstyle silhouette, front-facing head-and-neck
+  framing and white background. Match IMAGE 2 clean simplified sculpted hair locks,
+  broad smooth color areas, restrained skin highlights, softly blended dimensional
+  shading and crisp readable edges. Reduce IMAGE 1 streaky hair texture, skin mottling
+  and excessive orange glow. Do not revert facial features to IMAGE 2 or generate
+  a sheet. Output one finished front-facing face portrait.
+word_count: 116
+prompt_sha256: b11debc2b8697390a98aa35116b786784b13c5bfd64ec8313bfb6a73bb683daf
+image_sha256: 26d45b02836f8fba3e865ad608a5dc5cba12c36a00946f78aa9a31582e2fc0a9
+registered_on: '2026-10-31'
+registration_note: 사용자 지시에 따라 기존 face-front-v1 이미지를 폐기하고 화풍 수정 v5로 교체.
+historical_source_image: assets/character-baselines/character-default/baseline-v5/character-default-face-style-matched-v5.png
+historical_source_status: 등록 당시 복사 원본 경로이며 현재 실험 파일은 보관하지 않음.

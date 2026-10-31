@@ -1,0 +1,15 @@
+schema_version: 1
+title: 중성형 전신 4방향 · 귀 길이 갈색 헤어
+status: 사용자 검수 후보
+image: neutral-body-hair-four-directions-v12.png
+generator: image_gen_builtin
+reference_images:
+- prompts/references/mannequin/latest/neutral-body-skin-clothes-four-directions.png
+- /home/cbsim/.codex/generated_images/01a177a7-30c6-7f60-bd22-40f405de4c03/exec-18097a7d-9fbf-4259-9d72-8c8498f31a66.png
+reference_roles:
+- 전신 및 얼굴 기준
+- 헤어스타일 기준 · 이전 생성 원본
+prompt: undefined
+word_count: 1
+prompt_sha256: eb045d78d273107348b0300c01d29b7552d622abbc6faf81b3ec55359aa9950c
+image_sha256: 9b5fcc739c45b7213c29d959e82fd11e4037392317cacf84f4e0d7a7717f8a00

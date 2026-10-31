@@ -1,0 +1,17 @@
+schema_version: 1
+title: 중성형 전신 4방향 · 두꺼운 눈썹
+status: 사용자 검수 후보
+image: neutral-body-thick-brows-four-directions-v13.png
+generator: image_gen_builtin
+reference_images:
+- prompts/references/mannequin/research/v12/neutral-body-hair-four-directions-v12.png
+prompt: Edit only the eyebrows in this four-view character sheet. Make the visible
+  eyebrows noticeably thicker and fuller, approximately 50 percent thicker vertically,
+  with natural tapered ends and the same brown color, length, position and gentle
+  shape. Apply consistently to front, quarter and profile views. Preserve the hairstyle,
+  amber eyes, facial proportions, expression, head and body size, clothes, poses,
+  white background and exact 2x2 composition. Rear view unchanged. No other changes.
+word_count: 70
+prompt_sha256: ac0adb54ffaf42e464d268ceaf9a39d35b82fceeca9b472552283c849149601f
+image_sha256: 1d4ac45b19cda4b311e4d546b74d72e18c9af51f073983699d8c896bcdedbec1
+review_note: 눈썹 두께 50% 증가는 생성 지시 목표이며 실측 수치가 아님.

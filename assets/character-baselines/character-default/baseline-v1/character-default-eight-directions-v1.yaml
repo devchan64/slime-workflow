@@ -1,0 +1,32 @@
+schema_version: 1
+title: 기본 캐릭터 8방향 · 최신 얼굴 적용
+status: 사용자 지정 · 현재 8방향 기준
+image: character-default-eight-directions-v1.png
+generator: image_gen_builtin
+reference_images:
+- assets/character-baselines/character-default/baseline-v1/character-default-eight-directions-v1.png
+- assets/character-baselines/character-default/baseline-v1/character-default-face-front-v1.png
+reference_roles:
+- 수정 대상 전신 시트
+- 얼굴 이목구비·표정 기준
+reference_sha256:
+- 11b951585d03394aeb1ef8855fe5f1bd7c87081e08b302ec5429e8036b97c323
+- 26d45b02836f8fba3e865ad608a5dc5cba12c36a00946f78aa9a31582e2fc0a9
+prompt: Edit IMAGE 1 eight-direction full-body sheet, replacing the facial features
+  consistently with the identity in IMAGE 2. Match IMAGE 2 softer lowered outer eye
+  corners, thin lighter brown eyebrows, amber eyes, nose, wider closed-mouth gentle
+  hopeful smile and facial contours. Adapt the same face naturally to every visible
+  front, quarter and profile angle. For rear angles preserve correct occlusion; do
+  not add eyes or mouths on the back of the head. Preserve IMAGE 1 head size, hair,
+  body proportions, poses, clothes, skin tone, painting style, lighting, white background
+  and exact four-column two-row layout. All eight figures remain complete at the same
+  scale and directions. IMAGE 2 supplies facial identity only, never enlarge heads
+  or replace bodies. Change only facial areas.
+word_count: 120
+prompt_sha256: 930bc6544c29aa02870ca858ed30869c6c68d86ee78a1f386c2b0cdacaa4d6a0
+image_sha256: d947e4c01d1076860d9ec1ce5660fac8c8eda291bfd13d82ed1c6d55fa473508
+registered_on: '2026-10-31'
+registration_note: 사용자 지시에 따라 기존 v1 시트를 최신 얼굴 적용 v6로 교체. reference_images의 첫 항목은 교체
+  전 파일이며 reference_sha256으로 식별한다.
+historical_source_image: assets/character-baselines/character-default/baseline-v6/character-default-eight-directions-face-updated-v6.png
+historical_source_status: 등록 당시 복사 원본 경로이며 현재 실험 파일은 보관하지 않음.

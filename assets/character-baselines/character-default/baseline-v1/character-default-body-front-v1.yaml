@@ -1,0 +1,24 @@
+schema_version: 1
+title: 기본 캐릭터 정면 전신
+status: 사용자 지정 · 현재 전신 기준
+image: character-default-body-front-v1.png
+generator: image_gen_builtin
+reference_images:
+- assets/character-baselines/character-default/baseline-v1/character-default-eight-directions-v1.png
+reference_sha256: d947e4c01d1076860d9ec1ce5660fac8c8eda291bfd13d82ed1c6d55fa473508
+prompt: Create a single straight-on full-body front view of the exact upper-left character
+  in this reference sheet. Faithfully preserve its compact head-to-body proportions,
+  shoulder/waist/hip widths, limb lengths, softly smiling face, thin light eyebrows,
+  gentle eye shape, amber eyes and layered ear-length brown hair. Same gray fitted
+  cropped sleeveless top, charcoal short fitted shorts and bare feet. Match the sheet's
+  smooth clean painted rendering, color palette and soft shading. Neutral standing
+  pose, arms relaxed, gaze straight ahead. Complete hair and feet visible with white
+  margins on a white background. One figure only, no text. Do not elongate the body
+  or enlarge the head.
+word_count: 101
+prompt_sha256: 4aca2dd2c137390bf94de2a41fed48a8952a371ffeb1a858b60b86d0e2b4aa69
+image_sha256: 1d42c96a58490e8d0ceb631f703c0d2d58b868c06d48b23436b9f7937bda7a1b
+registered_on: '2026-10-31'
+registration_note: 최신 8방향 기반 정면 전신 v7을 사용자 지시에 따라 baseline-v1에 등록.
+historical_source_image: assets/character-baselines/character-default/baseline-v7/character-default-body-front-v7.png
+historical_source_status: 등록 당시 복사 원본 경로이며 현재 실험 파일은 보관하지 않음.
