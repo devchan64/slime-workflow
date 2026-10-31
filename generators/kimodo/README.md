@@ -82,8 +82,12 @@ ViTPose heatmap 최대값은 확률이 아니며 1을 넘을 수 있다. 원시 
 
 Kimodo `generate`의 `openpose_scale_percent`는 OpenPose 출력 크기(10~100%, 기본 85%)입니다. `--payload-file` 요청에도 동일하게 적용합니다. 기존 여백 32px을 포함한 자동 맞춤 크기를 100%로 하여 지정 비율로 축소하며 SOMA와 신체 비율은 유지합니다. 요청·결과·포즈 JSON에 저장하고 이력에서 불러옵니다. 이 필드가 없는 과거 작업의 재개·입력 복원은 기존 크기인 100%를 유지합니다.
 
-## SOMA 렌더 → Fun Control
+## SOMA 렌더 → DWPose → Fun Control
 
-신규 생성은 공식 Kimodo `SOMASkin`으로 선택 방향별 `soma-render-<direction>.mp4`를 추가합니다. 832×480, 30fps, 클립 전체에 고정된 카메라·배율을 사용하며 화면 높이/너비의 85% 안에 메시를 맞춥니다. CUDA 스키닝과 EGL GPU 렌더를 사용합니다. `pyrender==0.1.45`가 필요합니다. 수평 이동 제거를 선택하면 렌더도 보정된 모션을 사용합니다. 신체 비율 참조와 OpenPose 크기 슬라이더는 기존 직접 투영 출력에만 적용됩니다.
+Kimodo는 공식 SOMASkin으로 방향별 SOMA 영상을 렌더한 뒤 VideoX-Fun DWPose 공식 검출·그리기를 CUDA에서 실행합니다. `dwpose-<direction>.mp4`는 832×480, 16fps이며 Fun Control에 입력할 영상입니다. SOMA 메시 영상은 검수용으로 함께 보존합니다.
 
-Fun Control에는 이 단일 인체 MP4와 캐릭터 참조를 입력합니다. 비교 영상이나 `soma-pose.json`을 재투영한 영상은 신규 경로의 입력이 아닙니다. Fun Control 작업자가 VideoX-Fun DWPose로 검출합니다. 30fps 입력을 시간 기준 16fps로 샘플링하므로 61프레임 출력에는 114프레임 이상의 SOMA 영상을 권장합니다.
+신체 비율 참조를 선택하면 참조에서 추정한 비율과 SOMA **3D** 원본 관절 길이를 비교해 고정 보정 배율을 계산합니다. DWPose 2D 관절 벡터에 동일한 배율을 적용하여 회전에 의한 투영 단축을 보존합니다. 손 상세는 보정된 손목으로 함께 이동하며 머리 이목구비는 이동·확대 외에 변형하지 않습니다. 필수 몸 관절 누락은 임의 복원하지 않고 실패합니다. 참조 비율은 2D 추정치이므로 실제 3D 체형의 정확한 복원은 아닙니다.
+
+`openpose_scale_percent`는 검출 포즈의 영상 중심 기준 배율(기본 85%)에도 적용합니다. SOMA 렌더 자체의 여백과 별개입니다. `pose_include_hands`, `pose_include_face`는 기본 false입니다. CLI payload에도 같은 bool 필드를 사용합니다. 기존 직접 투영 비교물은 구형 비교 자료로 유지합니다.
+
+ZIP에는 방향별 포즈 MP4, 원시·보정 검출 좌표, `dwpose-export.json`의 관절 배율·크기·FPS·상세 옵션이 포함됩니다. Fun Control은 처리된 MP4를 프레임으로 읽기만 하며 DWPose를 다시 실행하지 않습니다. 원본 NPZ와 SOMA 렌더에는 관절 길이 보정을 적용하지 않습니다.

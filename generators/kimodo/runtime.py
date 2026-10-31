@@ -48,6 +48,8 @@ def encode_kimodo_prompt(current_prompt_text, current_attempt_root):
 
 def execute_kimodo_inference(current_job_root,current_attempt_root,current_request_record,current_metrics_recorder):
     import torch
+    import subprocess
+    from pathlib import Path
     import numpy as np
     from omegaconf import OmegaConf
     from kimodo.model.loading import instantiate_from_dict
@@ -113,9 +115,15 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     from generators.kimodo.contracts import KIMODO_DIRECTION_RECORDS
     current_metrics_recorder.update_generation_stage('soma-render')
     current_soma_videos = render_soma_motion(current_attempt_root, {current_direction_name: KIMODO_DIRECTION_RECORDS[current_direction_name]['angle'] for current_direction_name in current_request_record.get('directions', ['front_left'])})
+    current_metrics_recorder.update_generation_stage('dwpose-export')
+    current_workspace_root = Path(__file__).resolve().parents[2]
+    subprocess.run([str(current_workspace_root/'.venv/bin/python'),str(Path(__file__).with_name('dwpose_export.py')),str(current_job_root),str(current_attempt_root)],env={**os.environ,'PYTHONPATH':str(current_workspace_root/'.local/wan22-animate/preprocess-deps')},check=True)
+    current_dwpose_record = json.loads((current_attempt_root/'dwpose-export.json').read_text())
     from generators.kimodo.comparison import export_pose_comparison
     export_pose_comparison(current_attempt_root,current_request_record.get('directions',['front_left']),current_request_record.get('openpose_scale_percent',100.0))
     with zipfile.ZipFile(current_attempt_root/'frames.zip','a') as current_output_archive:
+        for current_pose_path in [current_attempt_root/'dwpose-export.json',*current_attempt_root.glob('dwpose-*.mp4'),*current_attempt_root.glob('dwpose-*/*.json')]:
+            current_output_archive.write(current_pose_path,str(current_pose_path.relative_to(current_attempt_root)))
         for current_soma_filename in [*current_soma_videos.values(), 'soma-render.json']:
             current_output_archive.write(current_attempt_root/current_soma_filename, current_soma_filename)
         if current_request_record.get('remove_horizontal_motion',False):
@@ -129,5 +137,6 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
             current_output_archive.write(current_attempt_root/current_artifact_name,current_artifact_name)
     current_result_record = {'attempt':current_attempt_root.name,'frames':current_request_record['frames'],'fps':30,'width':640,'height':480,'frame_sha256':current_frame_hashes,'model':'nvidia/Kimodo-SOMA-RP-v1.2','encoder':'matbee/kimodo-llm2vec-nf4','encoder_quantization':'NF4','motion_precision':'FP32','source_revision':KIMODO_ASSET_CONFIG['source_revision'],'model_revisions':{current_asset_record['role']:current_asset_record['revision'] for current_asset_record in KIMODO_ASSET_CONFIG['models']},'skeleton':'somaskel77','compute_device':'cuda','post_processing':current_request_record['post_processing'],'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20}
     current_result_record.update(openpose_scale_basis='legacy-fit',openpose_scale_percent=current_request_record.get('openpose_scale_percent',100.0),remove_horizontal_motion=current_request_record.get('remove_horizontal_motion',False),directions=current_request_record.get('directions',['front_left']),pose_source='soma',anny_enabled=False,reference_proportions=bool(current_request_record.get('references')))
+    current_result_record['dwpose_videos'] = current_dwpose_record['videos']
     current_result_record['soma_render_videos'] = current_soma_videos
     return current_result_record

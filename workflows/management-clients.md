@@ -1006,3 +1006,9 @@ SOMA 원본 영상 요청은 `pose_include_hands`, `pose_include_face` bool 옵�
 선택값은 요청과 `pose-preprocess.json`에 보존됩니다. 옵션이 없는 과거 SOMA 작업은 재개·입력 불러오기 시 기존의 손·얼굴 포함을 유지합니다. 과거 입력으로 새 실험을 할 때는 체크 상태를 확인하세요.
 
 Fun Control GUI는 SOMA 렌더 MP4와 pose 제어로 고정합니다. 전처리 영상·PNG 입력과 제어 종류 선택은 화면에서 제거했습니다. 과거 전처리 작업의 결과 조회·재개를 위한 서비스 계약은 유지하지만, 해당 입력을 신규 GUI에 불러오면 SOMA 원본 영상이 필요하다는 안내와 함께 거절합니다.
+
+### Kimodo 포즈 처리 이관 · 2026-11-01
+
+신규 GUI 경로는 Kimodo SOMA 렌더 → VideoX-Fun DWPose → 선택 참조 관절 길이 보정 → `dwpose-<direction>.mp4`입니다. Kimodo의 `pose_include_hands`, `pose_include_face` bool은 기본 false이며 출력·요청에 저장합니다. `openpose_scale_percent`는 포즈 영상 중심 기준 고정 배율입니다. 관절 보정은 SOMA 3D 길이 기준 고정 배율을 사용하여 2D 회전 단축을 유지합니다. 상세 계약은 [Kimodo 사용법](../generators/kimodo/README.md)을 따릅니다.
+
+Fun Control 신규 GUI는 처리된 832×480 · 16fps MP4만 입력합니다. GUI·통합 CLI `generate`의 `pose_video`는 MP4 base64이며 `images`는 참조 PNG 1장입니다. 서비스는 `pose-input.mp4`와 SHA-256을 저장하고 작업자는 앞에서부터 요청 프레임만 디코딩합니다. DWPose 재검출·프레임 반복·리사이즈는 하지 않습니다. 과거 `driving_video` 계약과 호환 실행 경로는 기존 작업 재개용으로 유지합니다. 과거 작업은 신규 입력 폼에 자동 변환하지 않습니다. 이 절이 이전 SOMA 입력 UI 안내를 대체합니다.

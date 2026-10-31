@@ -13,6 +13,11 @@ class FunControlGenerationManager(ReferenceVideoGenerationManager):
             validate_fun_pose_assets()
 
     def save_generation_attachments(self, current_job_root, current_request_record):
+        if 'pose_video' in current_request_record:
+            import base64,hashlib
+            current_video_bytes = base64.b64decode(current_request_record['pose_video'],validate=True)
+            (current_job_root/'pose-input.mp4').write_bytes(current_video_bytes)
+            return {**{current_field_name:current_field_value for current_field_name,current_field_value in current_request_record.items() if current_field_name!='pose_video'},'pose_video_file':'pose-input.mp4','pose_video_sha256':hashlib.sha256(current_video_bytes).hexdigest(),'control_preprocessor':'none'}
         if 'driving_video' not in current_request_record:
             return current_request_record
         import base64

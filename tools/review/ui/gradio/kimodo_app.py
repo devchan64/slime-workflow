@@ -56,11 +56,13 @@ def execute_kimodo_command(current_command_name,current_payload_record):
     return execute_remote_management_command('kimodo',current_command_name,current_payload_record)
 
 
-def build_kimodo_payload(current_prompt_text,current_frame_count,current_step_count,current_seed_value,current_guidance_value,current_heading_value,current_postprocessing_value,current_direction_names=None,current_horizontal_removal=False,current_proportions_enabled=False,current_reference_paths=None,current_scale_percent=KIMODO_DEFAULT_SETTINGS['openpose_scale_percent']):
+def build_kimodo_payload(current_prompt_text,current_frame_count,current_step_count,current_seed_value,current_guidance_value,current_heading_value,current_postprocessing_value,current_direction_names=None,current_horizontal_removal=False,current_proportions_enabled=False,current_reference_paths=None,current_scale_percent=KIMODO_DEFAULT_SETTINGS['openpose_scale_percent'],current_include_hands=False,current_include_face=False):
     for current_integer_value in (current_frame_count,current_step_count,current_seed_value):
         if type(current_integer_value) not in (int,float) or not float(current_integer_value).is_integer():
             raise ValueError('프레임·스텝·시드는 정수로 입력하세요.')
-    current_request_record = {'openpose_scale_percent':current_scale_percent,'remove_horizontal_motion':current_horizontal_removal,'action':'generate','prompt':current_prompt_text,'frames':int(current_frame_count),'steps':int(current_step_count),'seed':int(current_seed_value),'guidance_scale':current_guidance_value,'heading_degrees':current_heading_value,'post_processing':current_postprocessing_value,'directions':list(KIMODO_DEFAULT_SETTINGS['directions']) if current_direction_names is None else current_direction_names}
+    current_request_record = {'pose_include_hands':current_include_hands,'pose_include_face':current_include_face,'openpose_scale_percent':current_scale_percent,'remove_horizontal_motion':current_horizontal_removal,'action':'generate','prompt':current_prompt_text,'frames':int(current_frame_count),'steps':int(current_step_count),'seed':int(current_seed_value),'guidance_scale':current_guidance_value,'heading_degrees':current_heading_value,'post_processing':current_postprocessing_value,'directions':list(KIMODO_DEFAULT_SETTINGS['directions']) if current_direction_names is None else current_direction_names}
+    if current_reference_paths and not current_proportions_enabled:
+        raise ValueError('신체 비율 참조 이미지가 있지만 비율 적용이 꺼져 있습니다. 적용을 켜거나 참조 이미지를 제거하세요. 참조를 무시한 채 생성하지 않습니다.')
     if current_proportions_enabled:
         if not current_reference_paths:
             raise ValueError('신체 비율 맞춤을 켰다면 참조 이미지를 첨부하세요.')
@@ -94,11 +96,11 @@ def restore_kimodo_inputs(current_history_record):
         if current_reference_path.parent!=current_job_root or not current_reference_path.is_file():
             raise ValueError('신체 비율 참조 사본 누락 또는 경로 오류')
         current_reference_paths.append(str(current_reference_path))
-    return tuple(current_request_record[current_field_name] for current_field_name in ('prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'))+(current_request_record.get('directions',['front_left']),current_request_record.get('remove_horizontal_motion',False),bool(current_reference_paths),current_reference_paths,current_request_record.get('openpose_scale_percent',100.0),current_history_record['id'])
+    return tuple(current_request_record[current_field_name] for current_field_name in ('prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'))+(current_request_record.get('directions',['front_left']),current_request_record.get('remove_horizontal_motion',False),bool(current_reference_paths),current_reference_paths,current_request_record.get('openpose_scale_percent',100.0),current_request_record.get('pose_include_hands',False),current_request_record.get('pose_include_face',False),current_history_record['id'])
 
 
 def check_kimodo_readiness(current_model_ready,current_prompt_text,current_direction_names,current_proportions_enabled=False,current_reference_paths=None):
-    return bool(current_model_ready and current_prompt_text and current_prompt_text.strip() and current_direction_names and (not current_proportions_enabled or current_reference_paths))
+    return bool(current_model_ready and current_prompt_text and current_prompt_text.strip() and current_direction_names and (bool(current_proportions_enabled)==bool(current_reference_paths)))
 
 
 def load_kimodo_examples():
@@ -142,7 +144,7 @@ def render_kimodo_result(current_job_identifier,current_status_record,current_se
         return '<p>참조 신체 비율 추출 검증 · 모션 생성 아님. 추출 포즈 '+str(int(current_status_record.get('reference_observation_count',0)))+'개. 영상은 검출 인물별 포즈를 순서대로 보여줍니다. ZIP에 원시 점수·채택 근거·최종 비율을 포함합니다.</p>'+render_video_generation_result(current_job_identifier,current_status_record,current_server_address)
     if current_status_record.get('preprocess_videos'):
         from tools.review.common.gradio_video_results import render_condition_video_previews
-        return '<p>공식 SOMASkin 렌더 · 방향별 단일 인체 영상. Fun Control의 SOMA 입력으로 사용하세요. 기존 직접 투영 OpenPose는 ZIP에 보존됩니다.</p>'+render_condition_video_previews(current_status_record)+render_video_generation_result(current_job_identifier,current_status_record,current_server_address)
+        return '<p>SOMA 렌더와 방향별 DWPose 포즈 영상입니다. Fun Control에는 DWPose MP4를 입력하세요. 참조 신체 비율을 선택하면 SOMA 3D 관절 길이 기준 고정 배율로 검출 포즈를 보정합니다. SOMA 렌더 원본은 유지합니다.</p>'+render_condition_video_previews(current_status_record)+render_video_generation_result(current_job_identifier,current_status_record,current_server_address)
     current_comparison_url = current_status_record.get('comparison_video')
     if not current_comparison_url:
         return render_video_generation_result(current_job_identifier,current_status_record,current_server_address)+'<p>이 결과에는 오픈포즈 비교 영상이 없습니다.</p>'
@@ -162,7 +164,7 @@ def render_kimodo_result(current_job_identifier,current_status_record,current_se
 def build_kimodo_interface(current_server_address,current_command_callback=None):
     current_execute_command = current_command_callback or execute_kimodo_command
     with gr.Blocks(title='Kimodo 모션 생성기') as current_interface_blocks:
-        gr.Markdown('## Kimodo 모션 생성기 · NF4 실험\n텍스트로 SOMA 모션을 생성하고 공식 SOMASkin으로 방향별 단일 인체 MP4를 렌더링합니다. Fun Control의 SOMA 입력에서 VideoX-Fun 포즈 검출을 수행합니다. 직접 투영 OpenPose는 기존 비교용 출력입니다.')
+        gr.Markdown('## Kimodo 모션 생성기 · NF4 실험\n텍스트로 SOMA 모션을 생성한 뒤 이 생성기에서 VideoX-Fun DWPose 검출과 선택 참조 관절 길이 보정을 수행합니다. Fun Control에는 결과의 DWPose MP4를 입력하세요. SOMA 렌더는 검수용입니다.')
         with gr.Accordion('고정 설정 · 모델 준비',open=False):
             gr.Markdown('고정: Kimodo-SOMA-RP-v1.2 · 모션 FP32 · LLM2Vec Llama 3 8B NF4 / BF16 연산 · CUDA · 30fps · 1개 샘플 · DDIM. 인코딩 후 인코더를 해제하고 모션을 생성합니다. 이후 모션 모델을 해제하고 SOMA 몸 관절을 512×512·30fps 정사영 포즈로 변환합니다. 모델 선택·부정 프롬프트는 제공하지 않습니다. 선택 이미지 참조는 모션 모델 입력이 아니라 OpenPose 출력 비율 보정에 사용합니다.')
         current_model_ready = gr.State(False)
@@ -198,18 +200,32 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
             current_postprocessing_control = gr.Checkbox(label='공식 발 미끄러짐 후처리',value=KIMODO_DEFAULT_SETTINGS['post_processing'],info='기본 해제: 원본 동작 비교. 활성화하면 공식 후처리를 적용하고 실행 기록에 남깁니다.')
             gr.Markdown('[공식 모델카드](https://huggingface.co/nvidia/Kimodo-SOMA-RP-v1.2) · [NF4 인코더](https://huggingface.co/matbee/kimodo-llm2vec-nf4)\n\nANNY 리그 기능은 폐기되었습니다. SOMA 몸 포즈에는 실제 눈 관절이 포함됩니다. 코·귀는 대응 관절이 없어 생략하며 손 상세 점은 없습니다.\n\nNF4는 커뮤니티 양자화본입니다. BF16과 동작이 달라질 수 있으며 실제 품질은 결과를 검수하세요. 내부 30관절 추론을 공식 API가 77관절로 확장해 저장합니다.')
         current_horizontal_control = gr.Checkbox(label='제자리 보행 보정 · 수평 이동 제거',value=KIMODO_DEFAULT_SETTINGS['remove_horizontal_motion'],info='골반의 X·Z 이동을 제거하고 상하 움직임·관절 회전을 유지합니다. 걷기 자체를 만들지는 않으며 발 미끄러짐을 검수하세요. 원본 모션은 ZIP에 보존합니다.')
-        current_scale_control=gr.Slider(minimum=10,maximum=100,step=0.5,value=KIMODO_DEFAULT_SETTINGS['openpose_scale_percent'],label='OpenPose 출력 크기 (%)',info='기본 85%. 기존 여백 포함 출력 크기를 100%로 하여 확대·축소합니다. 85%는 기존 크기의 0.85배입니다. 중심·프레임 간 배율과 신체 비율을 유지하며 SOMA 원본은 변경하지 않습니다.')
+        current_scale_control=gr.Slider(minimum=10,maximum=100,step=0.5,value=KIMODO_DEFAULT_SETTINGS['openpose_scale_percent'],label='OpenPose 출력 크기 (%)',info='기본 85%. DWPose 검출 좌표를 영상 중심 기준 0.85배로 축소합니다. SOMA 렌더의 여백과 별개이며 프레임마다 같은 배율을 사용합니다. SOMA 원본은 변경하지 않습니다.')
         with gr.Accordion('OpenPose 신체 비율 참조 · 선택',open=False):
             current_proportions_control=gr.Checkbox(value=False,label='참조 이미지의 신체 비율을 OpenPose 출력에 적용')
             current_reference_control=gr.File(file_count='multiple',file_types=['.png'],label='같은 캐릭터 PNG 참조 · 최대 8장 · 장당 8MiB')
+            current_reference_control.upload(lambda current_reference_paths: bool(current_reference_paths),current_reference_control,current_proportions_control,queue=False)
+            current_proportion_status=gr.Markdown('신체 비율 보정: 미적용 · 참조 이미지를 첨부하면 적용을 켭니다.')
+            def describe_proportion_selection(current_enabled_value,current_reference_paths):
+                if current_reference_paths and not current_enabled_value:
+                    return '⚠ 참조가 있지만 적용이 꺼져 있습니다. 적용을 켜거나 참조를 제거해야 생성할 수 있습니다.'
+                if current_enabled_value and current_reference_paths:
+                    return f'신체 비율 보정: 적용 · 참조 {len(current_reference_paths)}장 · DWPose 출력 관절 길이에 반영'
+                return '신체 비율 보정: 참조 이미지가 필요합니다.' if current_enabled_value else '신체 비율 보정: 미적용'
+            for current_selection_control in (current_reference_control,current_proportions_control):
+                current_selection_control.change(describe_proportion_selection,[current_proportions_control,current_reference_control],current_proportion_status,queue=False)
             current_proportion_examples=load_proportion_examples()
             with gr.Row():
                 current_proportion_selector=gr.Dropdown(choices=[(current_example_record['label'],current_example_identifier) for current_example_identifier,current_example_record in current_proportion_examples.items()],label='신체 비율 참조 예제',value=None,info='불러오면 참조 목록을 교체하고 비율 적용을 켭니다. 생성은 실행하지 않습니다.')
                 current_proportion_button=gr.Button('참조 예제 불러오기')
             current_proportion_button.click(apply_proportion_example,current_proportion_selector,[current_proportions_control,current_reference_control],queue=False)
             build_input_preview(current_reference_control,'신체 비율 참조 미리보기 · 입력 순서')
-            gr.Markdown('투명 PNG는 흰 배경으로 합성해 추출합니다. 정면 전신이며 어깨·골반·팔꿈치·손목·무릎·발목이 보이는 이미지를 권장합니다. 시트의 모든 인물을 검출합니다. 관절 점수는 확률이 아닌 검출 점수이며, 0~1 범위로 제한하고 원시값은 결과에 보존합니다. 부위별 신뢰도와 과대 이상치를 검사한 뒤, 회전으로 짧아진 관측의 영향을 줄이도록 긴 쪽 관측군에서 몸통 대비 너비·팔다리 비율을 선택합니다. 측면·가림·원근은 추정 오차를 만들 수 있습니다. 유효한 부위 관측이 없으면 중단하고 안내합니다. 보정은 OpenPose에만 적용하며 SOMA 원본·동작 방향은 유지합니다. 옵션을 끄면 첨부 이미지를 사용하지 않습니다.')
-        current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control,current_horizontal_control,current_proportions_control,current_reference_control,current_scale_control]
+            gr.Markdown('투명 PNG는 흰 배경으로 합성해 추출합니다. 정면 전신이며 어깨·골반·팔꿈치·손목·무릎·발목이 보이는 이미지를 권장합니다. 시트의 모든 인물을 검출합니다. 관절 점수는 확률이 아닌 검출 점수이며, 0~1 범위로 제한하고 원시값은 결과에 보존합니다. 부위별 신뢰도와 과대 이상치를 검사한 뒤, 회전으로 짧아진 관측의 영향을 줄이도록 긴 쪽 관측군에서 몸통 대비 너비·팔다리 비율을 선택합니다. 측면·가림·원근은 추정 오차를 만들 수 있습니다. 유효한 부위 관측이 없으면 중단하고 안내합니다. 보정은 OpenPose에만 적용하며 SOMA 원본·동작 방향은 유지합니다. 참조 업로드 시 적용을 켭니다. 참조가 있는데 적용을 끄면 생성을 차단하므로, 보정 없이 생성하려면 참조도 제거하세요.')
+        with gr.Row():
+            current_hands_control = gr.Checkbox(value=False,label='DWPose 손 상세 포함')
+            current_face_control = gr.Checkbox(value=False,label='DWPose 얼굴 상세 포함')
+        gr.Markdown('SOMA 렌더 → VideoX-Fun DWPose → 선택 참조 관절 길이 보정 → 832×480 · 16fps 포즈 MP4. 몸 18점의 코·눈·귀는 유지합니다. 보정은 3D SOMA 길이 기준 고정 배율이며 2D 투영 단축을 유지합니다.')
+        current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control,current_horizontal_control,current_proportions_control,current_reference_control,current_scale_control,current_hands_control,current_face_control]
         current_example_button.click(apply_kimodo_example,current_example_selector,current_input_controls[:9],queue=False)
         gr.Markdown('예시는 시작점입니다. 심호흡·서 있기에서도 머리나 몸이 움직일 수 있으므로 결과를 검수하세요.')
         current_generate_button = gr.Button('대기열에 추가',variant='primary',interactive=False)

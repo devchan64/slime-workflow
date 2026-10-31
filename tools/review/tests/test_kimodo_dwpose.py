@@ -1,0 +1,62 @@
+"""관절 길이 보정의 투영·시간 일관성과 처리된 영상 입력 계약."""
+import unittest
+import tempfile
+from pathlib import Path
+from collections import namedtuple
+import numpy as np
+from generators.kimodo.dwpose_export import adjust_detected_pose_frames
+from generators.wan_fun.video_input import validate_processed_pose_video
+
+class KimodoDwposeTests(unittest.TestCase):
+    def test_constant_gain_preserves_projected_shortening_and_wrist_attachment(self):
+        current_point_type = namedtuple('Point','x y score id',defaults=[1.0,0])
+        current_body_type = namedtuple('Body','keypoints')
+        current_pose_type = namedtuple('Pose','body left_hand right_hand face')
+        current_frame_records = []
+        for current_arm_length in (40,20):
+            current_points = [current_point_type(100,100) for current_joint_index in range(18)]
+            current_points[2]=current_point_type(120,100)
+            current_points[3]=current_point_type(120+current_arm_length,100)
+            current_points[4]=current_point_type(140+current_arm_length,100)
+            current_frame_records.append([current_pose_type(current_body_type(current_points),None,[current_points[4]],None)])
+        current_gains = dict(shoulder_width=1,hip_width=1,upper_arm=2,forearm=1,thigh=1,shin=1)
+        current_results = adjust_detected_pose_frames(current_frame_records,(480,832),current_gains,100)
+        current_lengths = [current_frame[0].body.keypoints[3].x-current_frame[0].body.keypoints[2].x for current_frame in current_results]
+        self.assertEqual(current_lengths,[80,40])
+        for current_frame in current_results:
+            self.assertEqual(current_frame[0].right_hand[0].x,current_frame[0].body.keypoints[4].x)
+
+    def test_pose_video_rejects_invalid_container(self):
+        with self.assertRaises(ValueError):
+            validate_processed_pose_video('',21)
+
+    def test_processed_video_attachment_decode_and_restore(self):
+        import cv2
+        import base64
+        from unittest.mock import patch
+        from PIL import Image
+        from tools.review.domains.wan_fun.generation import FunControlGenerationManager
+        from tools.review.ui.gradio.wan_fun_app import build_fun_payload,restore_fun_inputs
+        from generators.wan_fun.video_input import decode_processed_pose_video
+        with tempfile.TemporaryDirectory() as current_temporary_root:
+            current_job_root = Path(current_temporary_root)/'test'
+            current_job_root.mkdir()
+            current_video_path = current_job_root/'source.mp4'
+            current_video_writer = cv2.VideoWriter(str(current_video_path),cv2.VideoWriter_fourcc(*'mp4v'),16,(832,480))
+            for current_frame_index in range(5):
+                current_video_writer.write(np.zeros((480,832,3),dtype=np.uint8))
+            current_video_writer.release()
+            current_reference_path = current_job_root/'reference-1.png'
+            Image.new('RGB',(832,480),'white').save(current_reference_path)
+            current_payload_record = build_fun_payload(str(current_reference_path),str(current_video_path),None,'pose','walking','',5,42,20,5,6,.5,'pose-video')
+            self.assertIn('pose_video',current_payload_record)
+            self.assertNotIn('driving_video',current_payload_record)
+            current_saved_record = FunControlGenerationManager.save_generation_attachments(None,current_job_root,current_payload_record)
+            current_saved_record['references']=['reference-1.png']
+            current_attempt_root = current_job_root/'attempt'
+            current_attempt_root.mkdir()
+            self.assertEqual(len(decode_processed_pose_video(current_job_root,current_attempt_root,current_saved_record)),5)
+            with patch('tools.review.ui.gradio.wan_fun_app.FUN_JOB_STORAGE',Path(current_temporary_root)):
+                current_restored_values = restore_fun_inputs({'id':'test','request':current_saved_record})
+            self.assertEqual(current_restored_values[12],'pose-video')
+            self.assertEqual(current_restored_values[1],str(current_job_root/'pose-input.mp4'))

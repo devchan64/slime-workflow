@@ -73,15 +73,8 @@ class FunGenerationContractTests(unittest.TestCase):
             self.assertEqual((current_job_directory/'driving.mp4').read_bytes(), current_video_path.read_bytes())
             (current_job_directory/'reference-1.png').write_bytes(base64.b64decode(current_video_request['images'][0]))
             current_saved_request['references'] = ['reference-1.png']
-            with patch('tools.review.ui.gradio.wan_fun_app.FUN_JOB_STORAGE', Path(current_temporary_root)):
-                current_restored_values = restore_fun_inputs({'id': current_job_identifier, 'request': current_saved_request})
-            self.assertEqual(current_restored_values[1], str(current_job_directory/'driving.mp4'))
-            self.assertEqual(current_restored_values[-4], 'soma-video')
-            self.assertEqual(current_restored_values[-3:-1], (True, True))
-            current_saved_request.update(pose_include_hands=False, pose_include_face=True)
-            with patch('tools.review.ui.gradio.wan_fun_app.FUN_JOB_STORAGE', Path(current_temporary_root)):
-                current_restored_values = restore_fun_inputs({'id': current_job_identifier, 'request': current_saved_request})
-            self.assertEqual(current_restored_values[-3:-1], (False, True))
+            with patch('tools.review.ui.gradio.wan_fun_app.FUN_JOB_STORAGE', Path(current_temporary_root)), self.assertRaisesRegex(ValueError,'처리된 포즈 MP4'):
+                restore_fun_inputs({'id':current_job_identifier,'request':current_saved_request})
 
     def test_pose_parts_preserve_body_and_select_details(self):
         from collections import namedtuple

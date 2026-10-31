@@ -45,6 +45,13 @@ class KimodoGenerationContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_kimodo_request({**self.current_request_record,'remove_horizontal_motion':1})
 
+    def test_attached_reference_cannot_be_silently_ignored(self):
+        from tools.review.ui.gradio.kimodo_app import build_kimodo_payload,check_kimodo_readiness
+        with self.assertRaisesRegex(ValueError,'비율 적용이 꺼져'):
+            build_kimodo_payload('A person walks.',90,20,42,2,0,False,['front_left'],False,False,['unused.png'])
+        self.assertFalse(check_kimodo_readiness(True,'walk',['front_left'],False,['unused.png']))
+        self.assertTrue(check_kimodo_readiness(True,'walk',['front_left'],True,['unused.png']))
+
     def test_gateway_and_service_contract(self):
         self.assertEqual(resolve_management_command('kimodo','generate',self.current_request_record),('POST','/kimodo/jobs'))
         self.assertTrue({'history-delete','history-reset','prioritize','resume','cancel'} <= set(MANAGEMENT_SERVICE_COMMANDS['kimodo']))

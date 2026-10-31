@@ -8,6 +8,8 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
 
     def validate_generation_runtime(self,saved_request_record=None):
         super().validate_generation_runtime(saved_request_record)
+        from generators.kimodo.dwpose_runtime import validate_fun_pose_assets
+        validate_fun_pose_assets()
         if saved_request_record and (saved_request_record.get('images') or saved_request_record.get('references')):
             from generators.kimodo.reference_extraction import validate_reference_pose_runtime
             validate_reference_pose_runtime()
@@ -26,6 +28,8 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
             current_result_record = json.loads((current_job_root/'result.json').read_text())
             if current_result_record.get('soma_render_videos'):
                 current_status_record['preprocess_videos'] = {f'SOMA 렌더 · {current_direction_name}': current_status_record['video'].rsplit('/', 1)[0]+'/'+current_video_name for current_direction_name, current_video_name in current_result_record['soma_render_videos'].items()}
+            if current_result_record.get('dwpose_videos'):
+                current_status_record.setdefault('preprocess_videos',{}).update({f'DWPose 포즈 · {current_direction_name}':current_status_record['video'].rsplit('/',1)[0]+'/'+current_video_name for current_direction_name,current_video_name in current_result_record['dwpose_videos'].items()})
             current_status_record['reference_analysis_only']=current_result_record.get('reference_analysis_only',False)
             current_status_record['openpose_scale_percent'] = current_result_record.get('openpose_scale_percent',100.0)
             current_status_record['reference_proportions'] = current_result_record.get('reference_proportions',False)
