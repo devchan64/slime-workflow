@@ -53,6 +53,34 @@ class BillboardGuidePromptTests(unittest.TestCase):
         from tools.review.ui.gradio.qwen_2511_app import build_qwen_2511_interface
         selected_interface_blocks = build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, prop_mode_enabled=True, billboard_guide_enabled=True)
         selected_component_records = selected_interface_blocks.config['components']
-        self.assertTrue(any(selected_component_record['props'].get('label') == '점유 열×행 · 형태' for selected_component_record in selected_component_records))
+        self.assertTrue(any(selected_component_record['props'].get('label') == '가이드 프리셋' for selected_component_record in selected_component_records))
         selected_generate_record = next(selected_component_record for selected_component_record in selected_component_records if selected_component_record['props'].get('value') == '대기열에 추가')
         self.assertFalse(selected_generate_record['props']['interactive'])
+
+    def test_empty_and_long_subjects_disable_apply_for_both_guide_types(self):
+        from tools.review.ui.gradio.billboard_guide_controls import preview_billboard_guide_inputs, validate_guide_subject_input
+        for current_profile_name in ('3x1-tall', 'building:2x2-south:140'):
+            for current_subject_text in ('', '  ', 'stone ' * 100):
+                with self.subTest(profile=current_profile_name, subject=current_subject_text):
+                    current_image_value, current_prompt_text, current_notice_text, current_button_update = preview_billboard_guide_inputs(current_profile_name, current_subject_text)
+                    self.assertTrue(current_image_value.size)
+                    self.assertEqual(current_prompt_text, '')
+                    self.assertTrue(current_notice_text)
+                    self.assertFalse(current_button_update['interactive'])
+                    with self.assertRaises(ValueError):
+                        validate_guide_subject_input(current_profile_name, current_subject_text)
+            self.assertTrue(preview_billboard_guide_inputs(current_profile_name, 'stone house')[3]['interactive'])
+
+    def test_search_and_pagination(self):
+        from tools.review.ui.gradio.billboard_guide_controls import search_guide_profile_page, render_guide_search_page
+        self.assertEqual(search_guide_profile_page('전체', '', 1)[1:], (1, 4, 40))
+        self.assertEqual(len(search_guide_profile_page('전체', '', 1)[0]), 10)
+        self.assertEqual(len(search_guide_profile_page('빌보드', '', 3)[0]), 2)
+        self.assertEqual(len(search_guide_profile_page('건물', '', 2)[0]), 8)
+        current_result_values = search_guide_profile_page('건물', '2x2 남쪽', 1)
+        self.assertEqual(current_result_values[3], 3)
+        self.assertTrue(all('2x2-south' in current_record[1] for current_record in current_result_values[0]))
+        self.assertEqual(search_guide_profile_page('전체', '없는검색어', 1)[3], 0)
+        self.assertIn('검색 결과가 없습니다', render_guide_search_page('전체', '없는검색어', 1)[2])
+        with self.assertRaises(ValueError):
+            search_guide_profile_page('없는 분류', '', 1)

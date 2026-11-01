@@ -34,10 +34,28 @@ class BillboardBuildingUnificationTests(unittest.TestCase):
         current_interface_blocks = build_qwen_2511_interface('http://127.0.0.1:8770', **QWEN_INTERFACE_OPTIONS['billboard-generator'])
         current_component_records = current_interface_blocks.config['components']
         current_component_labels = [current_record.get('props', {}).get('label') for current_record in current_component_records]
-        self.assertIn('건물 구도 프리셋', current_component_labels)
-        self.assertIn('점유 열×행 · 형태', current_component_labels)
+        self.assertNotIn('건물 구도 프리셋', current_component_labels)
+        self.assertIn('가이드 프리셋', current_component_labels)
+        self.assertNotIn('건물 높이 · 건물 프리셋에만 적용', current_component_labels)
         self.assertIn('건물 기본 프롬프트 추가', current_component_labels)
         self.assertEqual(sum(current_record.get('props', {}).get('value') == '대기열에 추가' for current_record in current_component_records), 1)
+
+    def test_unified_guide_applies_matching_prompt_and_reference(self):
+        from tools.review.domains.image.billboard_guide_prompt import BILLBOARD_LAYOUT_PROFILES
+        from tools.review.domains.image.building_prompt import BUILDING_LAYOUT_PRESET_NAMES
+        current_interface_blocks = build_qwen_2511_interface('http://127.0.0.1:8770', **QWEN_INTERFACE_OPTIONS['billboard-generator'])
+        current_callback_value = next(current_function.fn for current_function in current_interface_blocks.fns.values() if current_function.fn and current_function.fn.__name__ == 'apply_billboard_guide_inputs')
+        for current_profile_name in BILLBOARD_LAYOUT_PROFILES:
+            current_image_value, current_prompt_text, current_building_enabled = current_callback_value(current_profile_name, 'stone house')
+            self.assertTrue(current_image_value.size)
+            self.assertFalse(current_building_enabled)
+            self.assertIn('stone house', current_prompt_text)
+        for current_profile_name in BUILDING_LAYOUT_PRESET_NAMES:
+            for current_height_value in (80, 140, 200):
+                current_image_value, current_prompt_text, current_building_enabled = current_callback_value('building:' + current_profile_name + ':' + str(current_height_value), 'stone house')
+                self.assertTrue(current_image_value.size)
+                self.assertTrue(current_building_enabled)
+                self.assertEqual(current_prompt_text, 'stone house')
 
     def test_unified_service_requires_a_reference(self):
         from tools.review.domains.image.billboard_generation import BillboardGuideGenerationManager

@@ -234,7 +234,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 return 'AU 참고: ' + ', '.join(('AU' + str(value) for value in expression_source_record['au_hints'])) + '\n\n움직임 (' + str(len(expression_source_record['movement_prompt'].split())) + '단어): ' + expression_source_record['movement_prompt'] + '\n\n외형 유지 (' + str(len(base_prompt_value.split())) + '단어): ' + base_prompt_value + '\n\n최종 입력 (' + str(expression_source_record['prompt_word_count']) + '단어): ' + final_prompt_value
             expression_prompt_preview = gr.Markdown(describe_expression_prompt(expression_preset_records[0]['id']))
             prompt_text_value.change(describe_expression_prompt, prompt_text_value, expression_prompt_preview, queue=False)
-        if building_mode_enabled or billboard_guide_enabled:
+        if building_mode_enabled:
             from tools.review.domains.image.building_prompt import BUILDING_LAYOUT_PRESET_NAMES, load_building_layout_preset
             with gr.Group():
                 gr.Markdown('### 구도 참조 프리셋\n도시맵 타일 비율 160:80을 따른 직교투영 가이드입니다. 초록 밑면은 점유 영역, 주황 점은 입구, 파랑 선은 건물 부피 참고입니다. 선택 후 적용하면 첫 참조를 교체합니다. 실제 맵 구도 그림을 직접 업로드할 수도 있습니다.')
@@ -252,10 +252,15 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if billboard_guide_enabled:
 
             def apply_billboard_guide_inputs(selected_profile_name, selected_subject_text):
-                selected_prompt_text = compose_billboard_guide_prompt(selected_profile_name, selected_subject_text)
-                return (load_billboard_guide_image(selected_profile_name), selected_prompt_text)
-            billboard_apply_button.click(apply_billboard_guide_inputs, [billboard_profile_control, billboard_subject_control], [reference_image_controls[0], prompt_text_value], queue=False)
-        if building_mode_enabled or billboard_guide_enabled:
+                from tools.review.ui.gradio.billboard_guide_controls import BUILDING_PROFILE_PREFIX, parse_building_guide_profile, validate_guide_subject_input
+                validate_guide_subject_input(selected_profile_name, selected_subject_text)
+                if selected_profile_name.startswith(BUILDING_PROFILE_PREFIX):
+                    from tools.review.domains.image.building_prompt import load_building_layout_preset
+                    current_building_name, current_height_value = parse_building_guide_profile(selected_profile_name)
+                    return (load_building_layout_preset(current_building_name, current_height_value), selected_subject_text.strip(), True)
+                return (load_billboard_guide_image(selected_profile_name), compose_billboard_guide_prompt(selected_profile_name, selected_subject_text), False)
+            billboard_apply_button.click(apply_billboard_guide_inputs, [billboard_profile_control, billboard_subject_control], [reference_image_controls[0], prompt_text_value, building_prompt_control], queue=False)
+        if building_mode_enabled:
             building_layout_apply_button.click(load_building_layout_preset, [building_layout_selector, building_height_selector], reference_image_controls[0], queue=False)
         gr.Markdown(('생성 출력: 512×512 또는 768×768.' if outfit_transfer_enabled else '생성 출력 최소 크기: 256×256.' if qwen21_mode_enabled else '생성 출력 최소 크기: 512×512.') + ' 참조 이미지의 크기·비율은 자유입니다. RGB/RGBA PNG, 장당 3MB 이하. ' + ('투명 영역은 흰색 배경에 합성해 전달합니다.' if qwen21_mode_enabled else '투명 배경은 사용할 수 없습니다.'))
         with gr.Row():
