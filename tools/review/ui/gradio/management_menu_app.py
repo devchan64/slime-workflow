@@ -20,7 +20,7 @@ CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-managemen
 LEGACY_SOUND_CATEGORY_NAMES=('music-generation','sound-effects')
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={}
-NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('kimodo-generator','wan22-vace-generator','wan22-animate-generator','wan22-fun-control-generator','billboard-generator','effect-editor','asset-editor','world-map','vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-heartmula','animation-separation','qwen-21-circular-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','writer-agent'))
+NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('kimodo-generator','wan22-vace-generator','wan22-fun-control-generator','billboard-generator','effect-editor','asset-editor','world-map','vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-heartmula','animation-separation','qwen-21-circular-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','writer-agent'))
 DEFAULT_MANAGER_SOURCE_PATH=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json'
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
@@ -31,7 +31,6 @@ DEFAULT_PAGE_RECORDS=(
     {'id': 'music-heartmula', 'label': 'HeartMuLa 3B', 'path': '/management/frame/music-heartmula/', 'category': 'sound-management', 'uiMode': 'gradio', 'description': 'tags·lyrics 입력 · 무보컬 보장 없음'},
     {'id':'kimodo-generator','label':'Kimodo 모션 생성기 · NF4','path':'/management/frame/kimodo-generator/','category':'animation-tool','uiMode':'gradio','description':'SOMA v1.2 · 텍스트→3D 모션 · NF4 인코더'},
     {'id':'wan22-vace-generator','label':'Wan2.2 VACE-Fun 영상 생성기','path':'/management/frame/wan22-vace-generator/','category':'animation-tool','uiMode':'gradio','description':'A14B Q4 · 텍스트·외형 참조·첫 프레임'},
-    {'id':'wan22-animate-generator','label':'Wan2.2 Animate 영상 생성기','path':'/management/frame/wan22-animate-generator/','category':'animation-tool','uiMode':'gradio','description':'14B Q4 · 캐릭터 이미지 + 동작 영상 · 자동 전처리'},
     {'id':'wan22-fun-control-generator','label':'Wan2.2 Fun Control 영상 생성기','path':'/management/frame/wan22-fun-control-generator/','category':'animation-tool','uiMode':'gradio','description':'A14B Q4 · 외형 참조+제어 영상 · 고·저노이즈 순차 실행'},
     {'id':'character-review','label':'캐릭터 표현 검수','path':'/management/frame/character-review/','category':'character-render-review','uiMode':'gradio','description':'3×3 검수 맵 · 바닥 선택 · 형태선·분리선·접지 그림자 비교'},
     {'id':'animation-separation','label':'캐릭터 레퍼런스 복장 분리 생성','path':'/animation-separation/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · 참조 이미지 1장 · 신체 베이스·복장 별도 이미지'},
@@ -85,7 +84,7 @@ def load_manager_page_records(source_file_path, current_animation_catalog=False)
         if current_page_record['category'] in LEGACY_SOUND_CATEGORY_NAMES:
             current_page_record={**current_page_record,'category':'sound-management'}
         if current_page_record['id']=='tile-map-generator':continue
-        if current_page_record['id'] in ('anny-attribute-renderer', 'anny-attributes', 'anny-landmarks', 'pose-transfer-generator', 'hy-motion-generator', 'character-animation', 'momask-generator', 'wan21-vace-generator', 'music-stable-audio', 'music-ace-step', 'sfx-stable-audio'):continue
+        if current_page_record['id'] in ('wan22-animate-generator', 'anny-attribute-renderer', 'anny-attributes', 'anny-landmarks', 'pose-transfer-generator', 'hy-motion-generator', 'character-animation', 'momask-generator', 'wan21-vace-generator', 'music-stable-audio', 'music-ace-step', 'sfx-stable-audio'):continue
         if current_page_record['id'] in ('qwen-21-generator','expression-generator','vegetation-generator','prop-generator','billboard-generator'):
             current_release_record = next(current_default_record for current_default_record in DEFAULT_PAGE_RECORDS if current_default_record['id'] == current_page_record['id'])
             current_page_record = {**current_page_record, 'label': current_release_record['label'], 'description': current_release_record['description']}

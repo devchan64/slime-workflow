@@ -27,8 +27,6 @@ MANAGEMENT_SERVICE_ROUTES['kimodo']='/kimodo'
 MANAGEMENT_SERVICE_COMMANDS['kimodo']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_ROUTES['wan22-vace']='/wan22-vace'
 MANAGEMENT_SERVICE_COMMANDS['wan22-vace']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
-MANAGEMENT_SERVICE_ROUTES['wan22-animate']='/wan22-animate'
-MANAGEMENT_SERVICE_COMMANDS['wan22-animate']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 
 WRITER_PAYLOAD_COMMAND_NAMES = ('writer-detail', 'writer-submit', 'writer-apply')
 MANAGEMENT_SERVICE_ROUTES['writer-agent'] = '/writer-agent'
@@ -84,6 +82,8 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('ANNY 해부학 기준점 페이지와 기능은 폐기되었습니다.')
     if service_command_name == 'pose-transfer':
         raise ValueError('포즈 변환 생성기·모델·결과는 폐기되었습니다.')
+    if service_command_name == 'wan22-animate':
+        raise ValueError('Wan2.2 Animate 모델·생성기·결과는 폐기되었습니다.')
     if service_command_name == 'hy-motion':
         raise ValueError('HY-Motion 모델·생성기·결과는 폐기되었습니다. Kimodo를 사용하세요.')
     if service_command_name == 'momask':
@@ -231,7 +231,6 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['sfx-dasheng-audiogen']='효과음 생성 · Das
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fun-control']='Wan2.2 Fun Control Q4 · 참조+SOMA 영상(VideoX-Fun) 또는 제어 프레임 · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['kimodo']='Kimodo SOMA v1.2 · NF4 텍스트 인코더 · 원본 관절 모션·미리보기 · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace']='Wan2.2 VACE-Fun A14B Q4 · 텍스트·외형 참조·첫 프레임·DWPose 영상·부분 편집 · --payload-file'
-MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-animate']='Wan2.2 Animate Q4 실험 · 외형 1장+ANNY 포즈 21장 · --payload-file'
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
@@ -295,7 +294,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                     current_duration_group.add_argument('--max-new-tokens',type=int,help='MiniMax 오디오 프레임 상한 125~3000; 25개≈1초, 조기 종료 가능')
                 operation_argument_parser.add_argument('--seed',type=int,default=current_music_defaults['seed'])
                 operation_argument_parser.add_argument('--loop-request',action=argparse.BooleanOptionalAction,default=current_music_defaults['loop_request'],help='반복 구조 요청; 심리스 연결 보장 없음')
-            elif service_command_name in ('wan22-fun-control','wan22-animate','wan22-vace','kimodo'):
+            elif service_command_name in ('wan22-fun-control','wan22-vace','kimodo'):
                 operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='Kimodo 텍스트·프레임·샘플링 JSON 요청' if service_command_name=='kimodo' else 'images PNG base64와 frame_entries를 포함한 JSON 요청')
             elif service_command_name=='animation-separation':
                 operation_argument_parser.add_argument('--reference',type=Path,required=True,help='분리할 참조 PNG 이미지 1장')
@@ -381,7 +380,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if getattr(command_argument_values,'max_new_tokens',None) is not None:
                 command_payload_value.pop('duration_seconds')
                 command_payload_value['max_new_tokens'] = command_argument_values.max_new_tokens
-        elif service_command_name in ('wan22-fun-control','wan22-animate','wan22-vace','kimodo'):
+        elif service_command_name in ('wan22-fun-control','wan22-vace','kimodo'):
             command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
         elif service_command_name=='animation-separation':
             from tools.review.domains.image.animation_separation import load_separation_defaults

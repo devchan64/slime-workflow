@@ -100,7 +100,6 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.wan_fun.generation import FunControlGenerationManager
     from tools.review.domains.kimodo.generation import KimodoGenerationManager
     from tools.review.domains.wan_vace.generation import VaceVideoGenerationManager
-    from tools.review.domains.wan_animate.generation import AnimateGenerationManager
     from generators.music.contracts import AUDIO_SERVICE_NAMES
     from tools.review.domains.music.generation import MusicGenerationManager
     writer_agent_service = WriterAgentManager(writer_workspace_config or DEFAULT_WORKSPACE_CONFIG)
@@ -108,7 +107,6 @@ def create_management_runtime(writer_workspace_config=None):
         fun_generation_service = FunControlGenerationManager()
         kimodo_generation_service = KimodoGenerationManager()
         vace_generation_service = VaceVideoGenerationManager()
-        animate_generation_service = AnimateGenerationManager()
         image_generation_service = ImageGenerationManager()
         seamless_generation_service = SeamlessGenerationManager()
         qwen_circular_service = QwenCircularGenerationManager()
@@ -131,7 +129,6 @@ def create_management_runtime(writer_workspace_config=None):
             'wan22-fun-control': bind_stored_management_service(fun_generation_service.handle_image_request,fun_generation_service.job_storage_root),
             'kimodo': bind_stored_management_service(kimodo_generation_service.handle_image_request,kimodo_generation_service.job_storage_root),
             'wan22-vace': bind_stored_management_service(vace_generation_service.handle_image_request,vace_generation_service.job_storage_root),
-            'wan22-animate': bind_stored_management_service(animate_generation_service.handle_image_request,animate_generation_service.job_storage_root),
             'map-assets': bind_stored_management_service(handle_map_resize_request,RESIZE_STORAGE_DIRECTORY),
             'map-review': bind_stored_management_service(handle_map_capture_request,CAPTURE_STORAGE_DIRECTORY),
             'character-review': bind_stored_management_service(handle_character_capture_request,CAPTURE_STORAGE_DIRECTORY),

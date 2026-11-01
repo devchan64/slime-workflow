@@ -25,7 +25,6 @@ QWEN_INTERFACE_OPTIONS = {
 MANAGEMENT_INTERFACE_BUILDERS = {
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
     'wan22-vace-generator': ('wan_vace_app', 'build_vace_interface', 'url'),
-    'wan22-animate-generator': ('wan_animate_app', 'build_animate_interface', 'url'),
     'animation-separation': ('animation_separation_app', 'build_separation_interface', 'url'),
     'wan22-fun-control-generator': ('wan_fun_app', 'build_fun_interface', 'url'),
     'map-review': ('map_review_app', 'build_map_review_interface', 'port'),
@@ -123,6 +122,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     async def dispatch_management_request(current_request_scope, current_receive_call, current_send_call):
         current_request_path = current_request_scope['path']
         current_query_values = parse_qs(current_request_scope.get('query_string', b'').decode())
+        if current_request_path.rstrip('/') in ('/wan22-animate', '/wan22-animate-generator') or current_request_path.startswith(('/wan22-animate/', '/wan22-animate-generator/', '/management/frame/wan22-animate-generator')) or 'wan22-animate-generator' in current_query_values.get('tool', []):
+            return await Response('Wan2.2 Animate 생성기·모델·결과는 폐기되었습니다.', status_code=410, media_type='text/plain')(current_request_scope, current_receive_call, current_send_call)
         if current_request_path.rstrip('/') == '/hy-motion-generator' or current_request_path.startswith(('/hy-motion-generator/', '/management/frame/hy-motion-generator')) or 'hy-motion-generator' in current_query_values.get('tool', []):
             current_retired_response = Response('HY-Motion 생성기와 결과는 폐기되었습니다. Kimodo를 사용하세요.', status_code=410)
             return await current_retired_response(current_request_scope, current_receive_call, current_send_call)

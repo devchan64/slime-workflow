@@ -885,35 +885,11 @@ F2V 생성기는 폐기되었습니다. 메뉴에서 제거했으며 기존 페�
 
 공용 렌더러는 지형 메시 정점과 정적 빌보드의 곱셈 틴트를 생성 시 적용합니다. 캐릭터·UI·결계탑·웨이포인트·지형 이펙트는 원색을 유지합니다. 수관 그림자나 주변 광원 계산은 추가하지 않으며, 기존 렌더 패스와 프레임 처리 구조를 유지합니다. 원본 이미지·공용 빌보드 속성·충돌·통행 데이터는 바꾸지 않습니다. 설정 없는 맵은 이전 표시를 유지합니다.
 
-### Wan2.2 Animate Q4 실험 서비스
+### Wan2.2 Animate 폐기 · 2026-11-01
 
-공용 서비스 `wan22-animate`의 기본 입력은 캐릭터 이미지 1장과 동작 MP4입니다. GUI와 CLI 모두 `action: generate`, `mode: animation`, `images`(PNG base64 1장), `driving_video`(MP4 base64), `width`, `height`, `steps`, `seed`, `flow_shift`, `guidance_scale`을 전달합니다. 영상은 최대 32MiB·121프레임·1~60fps입니다. 이는 로컬 단일 구간 구현 제한이며 공식 모델의 길이 제한이 아닙니다. 인물 교체 모드는 거절합니다.
-
-작업 서비스는 영상을 검사한 뒤 `driving.mp4` 사본과 SHA-256을 저장합니다. 작업자가 CUDA에서 공식 Wan 포즈 검출·얼굴 크롭을 자동 추출합니다. 원본 FPS·길이를 유지하고, 4n+1 정렬 패딩은 최종 영상에서 제거합니다. 이미지·영상은 출력 크기로 비율 유지·흰 여백 처리합니다. 텍스트는 공식 기본 문구를 자동 적용하며 UI에 입력란을 제공하지 않습니다. 리타게팅은 미사용으로 고정합니다. 결과 조회에서 생성 영상과 자동 추출 포즈·얼굴 영상을 확인합니다.
-
-CLI: `python tools/manager.py command wan22-animate generate --payload-file <요청.json> --detach`. 모델은 Q4_K_M Animate·UMT5 Q4·CLIP Vision·Wan2.1 VAE로 고정합니다. CUDA 연산/CPU 가중치 오프로드를 사용하며 `.local/wan22-animate/` 고정 ComfyUI·GGUF 실행기와 `.tmp/test/wan22-animate/` 기록 경로를 유지합니다. 전처리 공식 Python 소스는 `.local/wan22-animate/preprocess/`, CUDA 12 호환 ONNX Runtime은 `preprocess-deps/`, 검출 모델은 `.model/wan22-animate-preprocess/process_checkpoint/`에 준비합니다. 준비가 없으면 접수를 거절합니다. 입력 영상 해독에는 기존 `.venv`의 imageio-ffmpeg를 사용합니다.
-
-기존 PNG 직접 입력 CLI 계약과 결과 조회는 호환 유지합니다. 원본 영상이 없는 과거 PNG 이력은 새 기본 폼으로 복원하지 않으며 원본 영상 첨부를 안내합니다. 새 영상 이력은 이미지·영상·설정을 복원합니다. 실행 중 사용자 작업을 UI 검증 목적으로 추가·중단하지 않습니다.
-
-Animate의 전체 실행은 추론 모드로 처리합니다. VAE는 CUDA에서 공간 256×256·시간 9프레임(시간 겹침 5프레임)으로 명시적 타일 인코딩하고, Animate 디코딩은 잠재 공간 32×32 공간 타일을 유지하되 시간축 전체를 한 구간으로 처리합니다. 이전 시간 3칸 타일의 8프레임 경계 밝기 변화를 줄이기 위한 설정입니다. 실제 적용 시간 길이와 정책을 기록하고 디코딩 직전 잠재값을 `decode-latents.pt`로 보관합니다. 입력·출력 해상도를 줄이지 않으며 경계 품질은 별도 검수합니다. 실행 시도별 memory-policy.json에 정책을 보존합니다.
-
-외형 참조와 프롬프트만 비교하려면 `images`에 외형 참조 1장만 전달합니다. 이 경우 포즈·얼굴 동작 조건은 연결하지 않습니다. 포즈 입력 없는 실험 지원이며 걷기나 외형 보존 품질을 보장하지 않습니다. 실행 시도별 `conditioning.json`에 참조 수·포즈 프레임 수를 기록합니다.
-
-#### Animate 공식 입력과 실험의 차이 · 2026-10-26 점검
-
-공식 모델카드의 Animate는 동작 영상과 캐릭터 참조 이미지로 애니메이션 또는 인물 교체를 수행한다. 참조 1장만 받는 로컬 실험은 ComfyUI 선택 입력을 생략한 비표준 조건 제거 실험이며, 공식 이미지·텍스트 전용 생성 지원을 의미하지 않는다.
-
-공식 실행기는 `src_pose.mp4`, `src_face.mp4`, `src_ref.png`를 읽고 참조의 CLIP visual 특징도 사용한다. 2026-10-31 확장 후 로컬 작업자는 CLIP visual 조건과 선택적인 얼굴 크롭을 연결한다. 얼굴을 생략한 입력은 공식 전체 조건과 다르다. 공식 기본값은 20스텝·Shift 5·CFG 1이며 사용자 정의 프롬프트를 권장하지 않는다. 기본 프롬프트는 `视频中的人在做动作`이다. 현재 로컬 샘플러는 UniPC/sgm_uniform이며 양자화·타일 VAE를 포함한 ComfyUI 경로를 공식 원본 실행과 구분한다.
-
-기본 pose retargeting은 참조와 동작 첫 프레임 모두 정면으로 몸을 편 자세라는 전제가 있다. 쿼터뷰 참조와 보행 첫 프레임에 기본 리타게팅을 적용한 기존 실험은 이 전제를 충족하지 않는다. 해당 경우 보강 리타게팅 또는 다른 검증된 전처리를 검토하고, 중간 포즈를 먼저 검수한다. 이런 차이가 각 오류의 원인인지는 대조 실험 전에는 확정하지 않는다.
-
-출처: https://huggingface.co/Wan-AI/Wan2.2-Animate-14B · https://github.com/Wan-Video/Wan2.2/blob/main/wan/animate.py · https://github.com/Wan-Video/Wan2.2/blob/main/wan/modules/animate/preprocess/UserGuider.md
-
-#### 베이스라인 외형·애니리그 몸 동작 구성
-
-사용자 지시에 따라 애니리그 얼굴 영상은 연결하지 않는다. 얼굴·헤어·복장은 베이스라인 기반 참조에서 공급하며, 참조 이미지를 VAE와 CLIP Vision 양쪽에 연결한다. CLIP Vision은 CUDA에서 실행 후 해제한다. 현 작업자는 UniPC/sgm_uniform을 사용하고 시도별 conditioning.json에 실제 조건을 기록한다. 이전 Euler/simple·CLIP 미사용 기록은 과거 실행 정책이다. 얼굴 영상 생략·Q4 양자화·타일 VAE 때문에 공식 실행과 동일하다고 표현하지 않는다.
-
-쿼터뷰 보행 첫 자세에 기본 리타게팅을 적용하지 않는다. 정면 기준 자세가 준비되기 전에는 추출 원본 포즈를 사용한다. 공식 기본 프롬프트 `视频中的人在做动作`로 입력을 준비하며, 외형 정면 이미지는 사용자가 요청한 실행별 입력으로 보관한다.
+Animate 전용 모델·생성 기록·생성기·UI를 폐기했다. 이전 URL은 410으로 응답하며 CLI 명령은 거절한다.
+Fun Control·VACE·키모도가 공유하는 UMT5·Wan2.1 VAE·전처리 모델·실행 환경은 기존 경로에 보존한다.
+키모도의 ONNX 파일 검증은 `generators/common/onnx_model_validation.py`를 사용한다.
 
 ### Wan2.2 Fun Control Q4 실험 생성기
 

@@ -25,7 +25,7 @@ def validate_reference_pose_runtime():
     for current_required_path in (REFERENCE_WORKSPACE_ROOT/'.venv/bin/python',current_runtime_root/'preprocess/pose2d.py',current_runtime_root/'preprocess-deps/onnxruntime/__init__.py',current_model_root/'det/yolov10m.onnx'):
         if not current_required_path.is_file():
             raise ValueError(f'참조 포즈 추출 준비 누락: {current_required_path}')
-    current_check_result=subprocess.run([str(REFERENCE_WORKSPACE_ROOT/'.venv/bin/python'),str(REFERENCE_WORKSPACE_ROOT/'generators/wan_animate/model_validation.py'),str(current_model_root/'pose2d/vitpose_h_wholebody.onnx')],capture_output=True,text=True,timeout=30)
+    current_check_result=subprocess.run([str(REFERENCE_WORKSPACE_ROOT/'.venv/bin/python'),str(REFERENCE_WORKSPACE_ROOT/'generators/common/onnx_model_validation.py'),str(current_model_root/'pose2d/vitpose_h_wholebody.onnx')],capture_output=True,text=True,timeout=30)
     if current_check_result.returncode:
         raise ValueError('참조 포즈 모델 검사 실패: '+current_check_result.stderr)
 
