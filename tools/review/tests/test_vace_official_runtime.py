@@ -36,50 +36,31 @@ class VaceOfficialRuntimeTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'공식 소스'):
                     official_prepare.verify_official_runtime()
 
-    def test_rotary_chunks_match_official_equation(self):
+    def test_request_shift_matches_official_euler_schedule(self):
         import importlib.util
-        if importlib.util.find_spec('torch') is None:
-            self.skipTest('추론 환경 torch 필요')
+        if importlib.util.find_spec('diffusers') is None:
+            self.skipTest('추론 환경 diffusers 필요')
         import torch
-        from generators.wan_vace.rotary_memory import apply_chunked_rotary
-        for current_input_dtype in (torch.float32,torch.bfloat16,torch.float16):
-            current_input_tensor = torch.randn(2,1237,4,128,dtype=current_input_dtype)
-            current_grid_sizes = torch.tensor([[3,20,20],[2,20,20]])
-            current_frequency_tensor = torch.polar(torch.ones(1024,64,dtype=torch.float64),torch.randn(1024,64,dtype=torch.float64))
-            current_frequency_parts = current_frequency_tensor.split([22,21,21],dim=1)
-            current_expected_rows = []
-            for current_batch_index,(current_time_count,current_height_count,current_width_count) in enumerate(current_grid_sizes.tolist()):
-                current_token_count = current_time_count*current_height_count*current_width_count
-                current_full_frequencies = torch.cat([
-                    current_frequency_parts[0][:current_time_count].view(current_time_count,1,1,-1).expand(current_time_count,current_height_count,current_width_count,-1),
-                    current_frequency_parts[1][:current_height_count].view(1,current_height_count,1,-1).expand(current_time_count,current_height_count,current_width_count,-1),
-                    current_frequency_parts[2][:current_width_count].view(1,1,current_width_count,-1).expand(current_time_count,current_height_count,current_width_count,-1)],dim=-1).reshape(current_token_count,1,-1)
-                current_complex_tensor = torch.view_as_complex(current_input_tensor[current_batch_index,:current_token_count].float().reshape(current_token_count,4,-1,2))
-                current_rotated_tensor = torch.view_as_real(current_complex_tensor*current_full_frequencies).flatten(2)
-                current_expected_rows.append(torch.cat([current_rotated_tensor,current_input_tensor[current_batch_index,current_token_count:]]))
-            self.assertTrue(torch.equal(torch.stack(current_expected_rows).to(current_input_dtype),apply_chunked_rotary(current_input_tensor,current_grid_sizes,current_frequency_tensor)))
+        from diffusers import FlowMatchEulerDiscreteScheduler
+        from generators.wan_vace.sampling import build_vace_scheduler
+        current_source_config = yaml.safe_load(Path('.local/videox-fun-vace-pinned/config/wan2.2/wan_civitai_t2v.yaml').read_text())
+        current_scheduler_config = dict(current_source_config['scheduler_kwargs'])
+        current_scheduler_config.pop('scheduler_subpath')
+        current_official_scheduler = FlowMatchEulerDiscreteScheduler(**current_scheduler_config)
+        current_default_scheduler = build_vace_scheduler(12)
+        current_changed_scheduler = build_vace_scheduler(8)
+        for current_scheduler_object in (current_official_scheduler,current_default_scheduler,current_changed_scheduler):
+            current_scheduler_object.set_timesteps(20, device='cpu', mu=1)
+        self.assertTrue(torch.equal(current_official_scheduler.sigmas,current_default_scheduler.sigmas))
+        self.assertFalse(torch.equal(current_changed_scheduler.sigmas,current_default_scheduler.sigmas))
+        self.assertEqual(int((current_default_scheduler.timesteps >= 875).sum()),13)
 
-    def test_feedforward_chunks_preserve_tokens(self):
-        import importlib.util
-        if importlib.util.find_spec('torch') is None:
-            self.skipTest('추론 환경 torch 필요')
-        import torch
-        from generators.wan_vace.rotary_memory import ChunkedFeedForward
-        current_original_module = torch.nn.Sequential(torch.nn.Linear(16,32),torch.nn.GELU(),torch.nn.Linear(32,16)).eval()
-        current_input_tensor = torch.randn(2,2051,16)
-        with torch.no_grad():
-            torch.testing.assert_close(ChunkedFeedForward(current_original_module)(current_input_tensor),current_original_module(current_input_tensor),rtol=1e-5,atol=1e-6)
-
-    def test_residual_chunks_preserve_precision_and_broadcast(self):
-        import importlib.util
-        if importlib.util.find_spec('torch') is None:
-            self.skipTest('추론 환경 torch 필요')
-        import torch
-        from generators.wan_vace.residual_memory import add_chunked_residual
-        for current_input_dtype in (torch.float32,torch.bfloat16,torch.float16):
-            current_base_tensor = torch.randn(2,2051,16,dtype=current_input_dtype)
-            current_delta_tensor = torch.randn_like(current_base_tensor)
-            for current_scale_shape in ((2,1,16),(2,2051,16)):
-                current_scale_tensor = torch.randn(current_scale_shape,dtype=torch.float32)
-                self.assertTrue(torch.equal(current_base_tensor+current_delta_tensor*current_scale_tensor,add_chunked_residual(current_base_tensor,current_delta_tensor,current_scale_tensor)))
-            self.assertTrue(torch.equal(current_base_tensor+current_delta_tensor,add_chunked_residual(current_base_tensor,current_delta_tensor)))
+    def test_runtime_preserves_official_forward(self):
+        current_runtime_source = Path('generators/wan_vace/official_runtime.py').read_text()
+        for current_forbidden_text in ('rope_apply =', 'install_chunked_feedforward', 'install_residual_memory', 'install_prediction_capture', 'decode_step_previews'):
+            self.assertNotIn(current_forbidden_text,current_runtime_source)
+        current_offload_source = Path('generators/wan_vace/cpu_offload.py').read_text()
+        self.assertNotIn('forward =',current_offload_source)
+        self.assertNotIn('exec(',current_offload_source)
+        self.assertIn("register_forward_pre_hook",current_offload_source)
+        self.assertIn("register_forward_hook",current_offload_source)
