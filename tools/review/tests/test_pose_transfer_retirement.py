@@ -47,4 +47,4 @@ class PoseTransferRetirementTests(unittest.TestCase):
         current_repository_root=Path(__file__).resolve().parents[3]
         for current_relative_path in ('generators/image/vnccs_runtime.py','generators/image/vnccs_profile.py','tools/review/domains/image/pose_transfer_generation.py','tools/review/ui/gradio/pose_transfer_app.py'):
             self.assertFalse((current_repository_root/current_relative_path).exists())
-        self.assertTrue((current_repository_root/'assets/motion-sheet/hy-motion-walking-v2/manifest.yaml').is_file())
+        self.assertFalse((current_repository_root/'assets/motion-sheet').exists())

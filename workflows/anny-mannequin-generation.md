@@ -2,7 +2,7 @@
 
 ## 현재 상태
 
-MoMask + AnyPose 생성 구조와 MoMask 전용 재렌더는 폐기했다. 과거 mannequin-walk/v1 복원 안내와 4방향×8프레임 제작 절차는 현재 기본값이 아니다. 현행 모션·ANNY 렌더는 [HY-Motion](hy-motion.md), 등록 기본 모션은 [HY-Motion 걷기 v2](../assets/motion-sheet/hy-motion-walking-v2/README.md)를 따른다.
+모션·포즈 시트 기준 에셋(`assets/motion-sheet`, `assets/pose-sheets`)은 2026-11-01 폐기했다. 현재 등록된 기본 모션은 없다.
 
 2026-09-23 리그 에셋 v2·v3·v4 폐기와 당시 기준 모델 재현은 과거 제작 이력이다. 당시 출처는 Git 기록으로 확인하며, 제거된 리포트 실행기를 현재 명령으로 안내하지 않는다. 보존된 리그·모션·라이선스와 공용 리타기팅 코드는 생성기 폐기와 구분한다.
 

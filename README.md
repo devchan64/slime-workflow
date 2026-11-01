@@ -29,7 +29,7 @@
 
 [HY-Motion](workflows/hy-motion.md)에서 모션·ANNY 렌더·OpenPose를 준비하고 [VNCCS 포즈 변환](workflows/pose-transfer.md)에서 외형·포즈 두 참조로 단일 이미지를 생성한다. 별도의 도구·생성 ID를 사용하며 통합 프레임 배치 생성은 제공하지 않는다.
 
-등록된 기본 제작 모션은 [HY-Motion 걷기 v2](assets/motion-sheet/hy-motion-walking-v2/README.md)다. 원본 9~43번의 35프레임·30FPS 및 4방향 원근투영을 사용한다. 과거 8프레임·150ms 규격을 신규 모션에 일괄 적용하지 않는다. 선택·해시·검수·패킹은 [캐릭터 애니메이션 제작 절차](workflows/character-animation.md)를 따른다.
+모션·포즈 시트 기준 에셋(`assets/motion-sheet`, `assets/pose-sheets`)은 2026-11-01 폐기했다. 현재 등록된 기본 모션은 없다.
 
 [스탠딩 시트 제작 절차](workflows/character-standing-sheet.md)는 승인 베이스라인을 사용하는 별도 이미지젠 제작 경로다. 로컬 VNCCS 포즈 변환과 구분하며 [이미지젠 최소 사용 정책](workflows/imagegen-usage-policy.md)을 적용한다.
 

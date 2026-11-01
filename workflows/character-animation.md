@@ -10,7 +10,7 @@ MoMask 모션 생성과 AnyPose 기반 캐릭터 애니메이션 생성은 2026-
 
 HY-Motion은 원본 모션을 생성한 뒤 ANNY 변환·정사영·원근투영 렌더와 투영 OpenPose를 저장한다. 모션의 원본 프레임 번호·방향·투영·리그 및 카메라 설정·출처·해시를 확인한다. 생성 이미지에서 추측한 관절을 모션 원본으로 사용하지 않는다.
 
-등록된 기본 제작 모션은 [HY-Motion 걷기 v2](../assets/motion-sheet/hy-motion-walking-v2/README.md)다. 선택 실행의 원본 9~43번을 채택한 35프레임·30FPS 자산이며, 4방향 원근투영 ANNY RGB와 OpenPose를 포함한다. 에셋 번호 1~35와 원본 번호 9~43의 대응은 매니페스트를 따른다. `generators/animation/config/character_animation.yaml`의 `walking-v2` 등록은 자산 선택 정보이며 폐기된 생성 명령을 다시 활성화하지 않는다. 설정의 표시 FPS와 원본 30FPS도 구분한다.
+모션·포즈 시트 기준 에셋(`assets/motion-sheet`, `assets/pose-sheets`)은 2026-11-01 폐기했다. 현재 등록된 기본 모션은 없다.
 
 방향별 외형 참조는 사용할 포즈와 동일한 방향으로 선택한다. ANNY 렌더와 OpenPose는 서로 다른 참조 표현이며, VNCCS의 포즈 추종 품질이 같다고 가정하지 않는다. 우선 해당 방향의 ANNY RGB 포즈와 캐릭터 참조로 단일 프레임을 검수한다.
 
