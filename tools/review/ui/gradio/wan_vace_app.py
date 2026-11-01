@@ -18,6 +18,43 @@ from tools.review.common.gradio_reference_images import build_reference_image_in
 VACE_INPUT_CHOICES = [('키모도 DWPose 영상 + 캐릭터 참조', 'pose'), ('영상 부분 편집 + 외형 참조', 'video_edit'), ('외형 참조 + 텍스트 (R2V)', 'reference'), ('첫 프레임 + 텍스트 (I2V)', 'first_frame'), ('텍스트만 (T2V)', 'text')]
 
 
+VACE_MODE_HELP_TEXT = {
+    'pose': '**포즈 동작 따라 생성**\n\n1. 캐릭터 외형 참조 이미지 1장을 첨부합니다.\n2. 키모도 결과의 DWPose MP4를 첨부합니다. SOMA 렌더나 완성 캐릭터 영상이 아닙니다.\n3. 원하는 동작을 짧게 적고 출력 프레임을 영상 길이 이내의 4n+1로 설정합니다.\n\n포즈 재추출 없이 동작 조건으로 사용합니다. 편집 마스크는 필요 없습니다. 영상은 832×480·16fps·32MiB 이하이며 부족한 프레임을 반복하지 않습니다.',
+    'video_edit': '**기존 영상의 일부 다시 그리기**\n\n1. 바꾸려는 캐릭터의 외형 참조 이미지 1장을 첨부합니다.\n2. 완성된 원본 MP4와 같은 좌표·길이의 마스크 MP4를 첨부합니다.\n3. 바꾸려는 내용을 프롬프트로 적습니다.\n\n흰색은 재생성, 검정은 원본 보존 조건입니다. 두 영상 모두 832×480·16fps·32MiB 이하이며 출력 길이 이상이어야 합니다. 마스크 밖도 달라질 수 있으며 원본과 자동 합성하지 않습니다.',
+    'reference': '**캐릭터 외형을 참고해 새 영상 생성**\n\n1. 외형 참조 이미지 1장을 첨부합니다.\n2. 주체·동작·카메라를 짧게 적습니다.\n3. 출력 프레임과 스텝을 선택합니다.\n\n이미지는 외형 조건이며 첫 화면이나 동작을 고정하지 않습니다. 동작을 지정한 영상대로 따라가려면 포즈 모드를 사용하세요.',
+    'first_frame': '**이미지에서 시작하는 영상 생성**\n\n1. 시작 장면 이미지 1장을 첨부합니다.\n2. 그 장면에서 이어질 동작을 적습니다.\n3. 출력 프레임과 스텝을 선택합니다.\n\n이미지를 첫 프레임 조건으로 전달합니다. 출력 첫 프레임의 픽셀 완전 일치는 보장하지 않습니다.',
+    'text': '**텍스트만으로 영상 생성**\n\n1. 주체·동작·배경·카메라를 짧게 적습니다.\n2. 출력 프레임과 스텝을 선택합니다.\n\n이미지나 영상은 사용하지 않습니다. 특정 캐릭터의 외형을 유지하려면 외형 참조 또는 포즈 모드를 사용하세요.',
+}
+
+
+def describe_vace_mode(current_input_mode):
+    if current_input_mode not in VACE_MODE_HELP_TEXT:
+        raise ValueError('지원하지 않는 생성 모드')
+    current_mode_description = VACE_MODE_HELP_TEXT[current_input_mode]
+    if current_input_mode != 'text':
+        current_mode_description += '\n\n참조 이미지는 비율을 유지해 832×480 흰 여백으로 맞춥니다. 원본은 보존하며, 여백도 영상 내용에 영향을 줄 수 있습니다.'
+    return (current_mode_description,gr.update(visible=current_input_mode!='text'),
+            gr.update(visible=current_input_mode=='pose'),gr.update(visible=current_input_mode=='video_edit'),
+            gr.update(label='시작 장면 이미지 · 1장' if current_input_mode=='first_frame' else '캐릭터 외형 참조 · 1장'))
+
+
+def select_vace_mode_inputs(current_input_values):
+    current_selected_values = list(current_input_values)
+    current_input_mode = current_selected_values[0]
+    if current_input_mode == 'text': current_selected_values[1] = None
+    if current_input_mode != 'video_edit': current_selected_values[10:12] = [None,None]
+    if current_input_mode != 'pose': current_selected_values[12] = None
+    return current_selected_values
+
+
+def check_visible_vace_readiness(current_model_ready,current_input_mode,current_reference_path,current_prompt_text,current_edit_video,current_edit_mask,current_pose_video):
+    return check_vace_readiness(current_model_ready,current_input_mode,
+        current_reference_path if current_input_mode!='text' else None,current_prompt_text,
+        current_edit_video if current_input_mode=='video_edit' else None,
+        current_edit_mask if current_input_mode=='video_edit' else None,
+        current_pose_video if current_input_mode=='pose' else None)
+
+
 def execute_vace_command(current_command_name, current_payload_record):
     return execute_remote_management_command('wan22-vace', current_command_name, current_payload_record)
 
@@ -96,15 +133,16 @@ def build_vace_interface(current_server_address, current_command_callback=None):
         current_refresh_event = current_model_refresh.click(read_vace_model_status, outputs=[current_model_status, current_model_ready], queue=False)
         current_model_load = current_interface_blocks.load(read_vace_model_status, outputs=[current_model_status, current_model_ready])
         current_mode_control = gr.Radio(choices=VACE_INPUT_CHOICES, value=VACE_DEFAULT_SETTINGS['mode'], label='생성 모드')
+        current_mode_help = gr.Markdown(describe_vace_mode(VACE_DEFAULT_SETTINGS['mode'])[0])
+        gr.Markdown('모드 전환 시 첨부값은 보관되며, 현재 모드에 표시되는 입력만 전송합니다. 입력을 준비한 뒤 **대기열에 추가 → 확인 후 대기열에 추가**를 누르세요.')
         current_reference_panel, current_reference_controls = build_reference_image_inputs(reference_image_mode='RGBA', reference_slot_count=1, reference_slot_labels=['외형 참조 또는 첫 프레임 · 1장'])
         current_reference_control = current_reference_controls[0]
-        gr.Markdown('**외형 참조:** 캐릭터의 외형을 전달하며 첫 화면을 고정하지 않습니다. **첫 프레임:** 첨부 이미지를 시작 장면 조건으로 전달합니다. **텍스트만:** 이미지를 비우세요.\n\n입력은 비율을 유지해 832×480 흰 여백으로 맞추며 원본은 보존합니다. 여백도 이미지 내용으로 인식될 수 있으므로 가능하면 출력과 같은 비율의 이미지를 사용하세요.')
-        current_pose_video = gr.Video(sources=['upload'], label='키모도 DWPose MP4 · 832×480 · 16fps · 포즈 모드 전용')
-        gr.Markdown('포즈 모드는 키모도의 처리된 DWPose MP4와 캐릭터 참조 이미지 1장을 사용합니다. 포즈를 재추출하지 않으며 앞에서부터 지정 프레임을 사용합니다. 부족한 프레임은 반복하지 않습니다. 편집 마스크는 첨부하지 마세요.')
-        with gr.Row():
-            current_edit_video = gr.Video(sources=['upload'], label='부분 편집 원본 · 832×480 · 16fps MP4')
-            current_edit_mask = gr.Video(sources=['upload'], label='편집 마스크 · 흰색 재생성 / 검정 보존 조건')
-        gr.Markdown('부분 편집은 원본 영상의 얼굴 등 지정 영역을 다시 생성합니다. 마스크 밖도 모델 출력에서 달라질 수 있으며 원본과 자동 합성하지 않습니다.')
+        with gr.Group(visible=False) as current_pose_group:
+            current_pose_video = gr.Video(sources=['upload'], label='키모도 DWPose MP4 · 832×480 · 16fps')
+        with gr.Row(visible=False) as current_edit_group:
+            current_edit_video = gr.Video(sources=['upload'], label='편집할 원본 MP4 · 832×480 · 16fps')
+            current_edit_mask = gr.Video(sources=['upload'], label='마스크 MP4 · 흰색 재생성 / 검정 보존 조건')
+        current_mode_control.change(describe_vace_mode,current_mode_control,[current_mode_help,current_reference_panel,current_pose_group,current_edit_group,current_reference_control],queue=False)
         current_prompt_control = gr.Textbox(label='장면·동작 프롬프트', lines=3, placeholder='The character walks four steps. Full body, fixed camera.', info='주체 → 동작 → 카메라 순서로 짧게 작성하세요. 입력한 문구를 그대로 전달합니다. 걸음 수는 보장되지 않습니다.')
         current_prompt_summary = gr.Markdown('원문 0단어 · 최종 0단어 · 추가 문구 없음')
         current_prompt_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어 · 추가 문구 없음', current_prompt_control, current_prompt_summary, queue=False)
@@ -134,15 +172,15 @@ def build_vace_interface(current_server_address, current_command_callback=None):
             gr.Markdown('**검증 범위:** 공식 VideoX-Fun 파이프라인에 기존 Q4_K_M 가중치를 독립 GGUF 어댑터로 연결합니다. 텍스트 인코더는 비양자화 BF16이며 ComfyUI를 사용하지 않습니다. 원본 구현과 동일한 결과나 8GB의 모든 길이 실행을 보장하지 않습니다.\n\n[모델카드](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B) · [제작자 외형 참조 예제](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/examples/wan2.2_vace_fun/predict_s2v.py) · [제작자 첫 프레임 예제](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/examples/wan2.2_vace_fun/predict_i2v.py)')
         current_input_controls = [current_mode_control,current_reference_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_strength_control,current_edit_video,current_edit_mask,current_pose_video]
         current_generate_button = gr.Button('대기열에 추가', variant='primary', interactive=False)
-        build_button_guidance(current_generate_button, '모델 준비 상태를 확인하고 프롬프트와 선택 모드에 맞는 이미지 수를 준비하세요. 텍스트 모드는 첨부를 지우세요.')
+        build_button_guidance(current_generate_button, '모델 준비 상태를 확인하고 모드별 안내에 표시된 필수 첨부와 프롬프트를 입력하세요.')
         with gr.Column() as current_confirmation_container:
             pass
         current_job_control = gr.Textbox(label='생성 ID')
         current_status_output = gr.Markdown('입력을 준비하세요.')
         def enqueue_vace_generation(*current_input_values):
-            current_job_record = current_execute_command('generate', build_vace_payload(*current_input_values))
+            current_job_record = current_execute_command('generate', build_vace_payload(*select_vace_mode_inputs(current_input_values)))
             return current_job_record['id'], '공용 GPU 대기열에 등록했습니다.'
-        bind_gpu_generation_confirmation(current_generate_button, enqueue_vace_generation, current_input_controls, [current_job_control,current_status_output], generation_confirmation_container=current_confirmation_container, generation_readiness_callback=check_vace_readiness, generation_readiness_inputs=[current_model_ready,current_mode_control,current_reference_control,current_prompt_control,current_edit_video,current_edit_mask,current_pose_video], generation_readiness_events=[current_refresh_event,current_model_load])
+        bind_gpu_generation_confirmation(current_generate_button, enqueue_vace_generation, current_input_controls, [current_job_control,current_status_output], generation_confirmation_container=current_confirmation_container, generation_readiness_callback=check_visible_vace_readiness, generation_readiness_inputs=[current_model_ready,current_mode_control,current_reference_control,current_prompt_control,current_edit_video,current_edit_mask,current_pose_video], generation_readiness_events=[current_refresh_event,current_model_load])
         build_video_job_monitor(current_execute_command,current_server_address,current_job_control,current_status_output)
         current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_vace_inputs,restore_output_components=[*current_input_controls,current_job_control],result_renderer_callback=render_video_generation_result,record_folder_route='/wan22-vace',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
