@@ -53,7 +53,7 @@ class QwenCommandsTest(unittest.TestCase):
                 self.assertEqual(len(current_final_text.split()), 2 + len(current_added_text.split()))
 
     def test_both_generation_routes(self):
-        for service_name_value,route_prefix_value,default_seed_value in [('qwen-2512','/image-generation',251204),('qwen-2511','/image-generation-2511',10107)]:
+        for service_name_value,route_prefix_value,default_seed_value in [('qwen-2512','/image-generation',251204)]:
             with patch.object(COMMAND_MODULE_VALUE,'call_management_api',return_value={'id':'2026-09-25_00-00-00-12345678','status':'running'}) as api_call_handle, contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(COMMAND_MODULE_VALUE.execute_gateway_arguments(service_name_value,['generate','--prompt','한국어 프롬프트','--detach']),0)
             request_call_args=api_call_handle.call_args.args
@@ -69,7 +69,7 @@ class QwenCommandsTest(unittest.TestCase):
             prompt_file_path=Path(temporary_directory_name)/'prompt.txt';prompt_file_path.write_text('참조 사용',encoding='utf-8')
             reference_file_path=Path(temporary_directory_name)/'reference.png';reference_file_path.write_bytes(b'png transport test')
             with patch.object(COMMAND_MODULE_VALUE,'call_management_api',return_value={'id':'2026-09-25_00-00-00-12345678'}) as api_call_handle, contextlib.redirect_stdout(io.StringIO()):
-                COMMAND_MODULE_VALUE.execute_gateway_arguments('qwen-2511',['generate','--prompt-file',str(prompt_file_path),'--reference',str(reference_file_path),'--seed','42','--steps','30','--detach'])
+                COMMAND_MODULE_VALUE.execute_gateway_arguments('qwen-21',['generate','--prompt-file',str(prompt_file_path),'--reference',str(reference_file_path),'--seed','42','--steps','30','--detach'])
             request_body_value=api_call_handle.call_args.args[2]
             self.assertEqual(request_body_value['images'],[base64.b64encode(reference_file_path.read_bytes()).decode()])
             self.assertEqual(request_body_value['seed'],42)

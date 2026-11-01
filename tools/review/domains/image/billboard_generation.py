@@ -11,3 +11,9 @@ class BillboardGuideGenerationManager(QwenPlainGenerationManager):
 
     def history_storage_path(self):
         return MANAGER_HISTORY_ROOT / 'billboard-generator'
+
+    def validate_generation_request(self, current_request_record):
+        current_validated_record = super().validate_generation_request(current_request_record)
+        if not current_request_record.get('images'):
+            raise ValueError('빌보드·건물 생성에는 첫 가이드 참조 이미지가 필요합니다.')
+        return current_validated_record

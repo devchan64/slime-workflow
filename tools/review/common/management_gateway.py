@@ -217,7 +217,7 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['character-review']='캐릭터 검수 렌더링 
 MANAGEMENT_COMMAND_DESCRIPTIONS['billboard-generator'] = 'Qwen 가이드 빌보드 생성 · 독립 대기열·이력'
 MANAGEMENT_COMMAND_DESCRIPTIONS['prop-generator'] = 'Qwen 소품 생성 · 독립 대기열·이력 · 참조 선택'
 MANAGEMENT_COMMAND_DESCRIPTIONS['vegetation-generator'] = 'Qwen 자연물 생성 · 독립 대기열·이력 · 참조 선택'
-MANAGEMENT_COMMAND_DESCRIPTIONS['building-generator'] = 'Qwen 건물 생성 · 전용 대기열·이력 · 레이아웃 참조 필수'
+MANAGEMENT_COMMAND_DESCRIPTIONS['building-generator'] = '빌보드·건물 통합 생성기의 호환 명령 · 공용 대기열·이력'
 
 for current_service_name in AUDIO_SERVICE_NAMES:
     MANAGEMENT_COMMAND_DESCRIPTIONS[current_service_name] = '음악생성 · 고정 로컬 모델 · CUDA · WAV · 8GB용 설정(실측 검증 필요)'

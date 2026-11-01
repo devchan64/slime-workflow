@@ -17,7 +17,7 @@ QWEN_INTERFACE_OPTIONS = {
     'outfit-transfer-generator': {'qwen21_mode_enabled': True, 'outfit_transfer_enabled': True},
     'vegetation-generator': {'qwen21_mode_enabled': True, 'vegetation_mode_enabled': True},
     'prop-generator': {'qwen21_mode_enabled': True, 'prop_mode_enabled': True},
-    'building-generator': {'qwen21_mode_enabled': True, 'building_mode_enabled': True},
+    'building-generator': {'qwen21_mode_enabled': True, 'prop_mode_enabled': True, 'billboard_guide_enabled': True},
     'qwen-21-generator': {'qwen21_mode_enabled': True},
     'qwen-21-circular-generator': {'qwen21_mode_enabled': True, 'circular_mode_enabled': True},
     'expression-generator': {'expression_mode_enabled': True},

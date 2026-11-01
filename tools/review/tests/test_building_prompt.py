@@ -44,7 +44,7 @@ class BuildingPromptContractTests(unittest.TestCase):
         self.assertTrue(check_building_input_readiness('', False, False, object(), True))
         self.assertFalse(check_building_input_readiness('', False, False, object(), False))
         self.assertTrue(check_building_input_readiness('wooden guild hall', False, False, object(), True))
-        self.assertFalse(check_building_input_readiness('wooden guild hall', True, False, object(), True))
+        self.assertFalse(check_building_input_readiness('wooden guild hall ' * 40, True, False, object(), True))
 
     def test_building_interface_contract(self):
         from tools.review.ui.gradio.qwen_2511_app import build_qwen_2511_interface

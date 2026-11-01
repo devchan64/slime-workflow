@@ -37,13 +37,13 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'animation-separation','label':'캐릭터 레퍼런스 복장 분리 생성','path':'/animation-separation/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · 참조 이미지 1장 · 신체 베이스·복장 별도 이미지'},
     {'id':'qwen-21-circular-generator','label':'Qwen 2.1 순환 VAE 생성기','path':'/image-generation-21-circular/','category':'image-generation','uiMode':'gradio','description':'XY 순환 디코더 · 3×3 반복 검수'},
     {'id':'outfit-transfer-generator','label':'복장 착용 생성기','path':'/outfit-transfer/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · 바디 1장 + 아웃핏 1장 · 신체 비율 유지'},
-    {'id':'vegetation-generator','label':'Qwen 2.1 자연물 생성기','path':'/vegetation-generator/','category':'image-generation','uiMode':'gradio','description':'자연물 빌보드 기본 문구 · 레이아웃·외형 참조 · 전용 대기열·이력'},
-    {'id':'billboard-generator','label':'가이드 기반 빌보드 생성기','path':'/billboard-generator/','category':'image-generation','uiMode':'gradio','description':'높은형·중간형·바닥형 점유 가이드 · 80% 채움 · 벽면 밀착·낮은 판형 · 빌보드 독립 대기열·이력'},
-    {'id':'prop-generator','label':'Qwen 2.1 소품 생성기','path':'/prop-generator/','category':'image-generation','uiMode':'gradio','description':'소품 직교투영 기본 문구 · 레이아웃·자재 참조 · 전용 대기열·이력'},
+    {'id':'vegetation-generator','label':'Qwen 2.1 빌보드 자연물타입 생성기','path':'/vegetation-generator/','category':'image-generation','uiMode':'gradio','description':'자연물 빌보드 기본 문구 · 레이아웃·외형 참조 · 전용 대기열·이력'},
+    {'id':'billboard-generator','label':'Qwen2.1 빌보드 가이드참조 생성기','path':'/billboard-generator/','category':'image-generation','uiMode':'gradio','description':'높은형·중간형·바닥형 점유 가이드 · 80% 채움 · 벽면 밀착·낮은 판형 · 빌보드 독립 대기열·이력'},
+    {'id':'prop-generator','label':'Qwen 2.1 빌보드 소품타입 생성기','path':'/prop-generator/','category':'image-generation','uiMode':'gradio','description':'소품 직교투영 기본 문구 · 레이아웃·자재 참조 · 전용 대기열·이력'},
     {'id':'building-generator','label':'Qwen 2.1 건물 생성기','path':'/building-generator/','category':'image-generation','uiMode':'gradio','description':'직교투영 기본 문구 · 레이아웃 이미지 선택 · 전용 대기열·이력'},
     {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'공용 화풍·투명 배경 문구 선택 · 참조 이미지 선택'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
-    {'id':'expression-generator','label':'표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · AU 표정 39종 · 참조 1~3장'},
+    {'id':'expression-generator','label':'Qwen 2.1 표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · AU 표정 39종 · 참조 1~3장'},
 )
 
 def format_gpu_status(gpu_status_record):
@@ -77,7 +77,7 @@ def load_manager_page_records(source_file_path, current_animation_catalog=False)
     for current_page_record in [*page_record_values,*DEFAULT_PAGE_RECORDS]:
         if not isinstance(current_page_record,dict):
             raise ValueError('관리 메뉴 페이지 항목은 객체여야 합니다.')
-        if current_page_record.get('id') in ('three-reference-generator','image-generator','floor-tile-generator','seamless-tile-generator'):continue
+        if current_page_record.get('id') in ('three-reference-generator','image-generator','floor-tile-generator','seamless-tile-generator','building-generator'):continue
         current_invalid_fields = [current_field_name for current_field_name in ('id','label','path','category','description') if not isinstance(current_page_record.get(current_field_name),str)]
         if current_invalid_fields:
             raise ValueError('관리 메뉴 페이지 필드는 문자열이어야 합니다: '+', '.join(current_invalid_fields))
@@ -86,7 +86,7 @@ def load_manager_page_records(source_file_path, current_animation_catalog=False)
             current_page_record={**current_page_record,'category':'sound-management'}
         if current_page_record['id']=='tile-map-generator':continue
         if current_page_record['id'] in ('anny-attribute-renderer', 'anny-attributes', 'anny-landmarks', 'pose-transfer-generator', 'hy-motion-generator', 'character-animation', 'momask-generator', 'wan21-vace-generator', 'music-stable-audio', 'music-ace-step', 'sfx-stable-audio'):continue
-        if current_page_record['id'] in ('qwen-21-generator',):
+        if current_page_record['id'] in ('qwen-21-generator','expression-generator','vegetation-generator','prop-generator','billboard-generator'):
             current_release_record = next(current_default_record for current_default_record in DEFAULT_PAGE_RECORDS if current_default_record['id'] == current_page_record['id'])
             current_page_record = {**current_page_record, 'label': current_release_record['label'], 'description': current_release_record['description']}
         if current_page_record['id'].startswith('map-review-'):
@@ -303,6 +303,8 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
         current_navigation_inputs=[search_text_value,category_select_value,page_select_value]
         @trace_management_callback('메뉴 초기화')
         def initialize_menu_selection(current_search_text,current_category_name,current_page_identifier):
+            if current_page_identifier == 'building-generator':
+                current_page_identifier = 'billboard-generator'
             if current_category_name not in CATEGORY_LABEL_VALUES:current_category_name='all'
             current_selected_record=next((current_page_record for current_page_record in page_record_values if current_page_record['id']==current_page_identifier),None)
             if current_selected_record and current_selected_record not in filter_manager_page_records(page_record_values,current_search_text,current_category_name):

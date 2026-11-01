@@ -550,7 +550,7 @@ GUI와 CLI는 `tools/manager.py command map-assets resize --payload-file <파일
 
 ## 건물 생성 페이지 · Qwen 2.1
 
-`/management/frame/building-generator/`는 기존 `qwen-21` 서비스의 건물 제작용 GUI다. 모델·GPU 대기열·취소·재개·ETA·VRAM 기록·선택 삭제를 공용 구현으로 사용한다. 별도 서비스나 이력 저장소는 만들지 않으며 **일반 Qwen 2.1과 이력 및 이력 초기화 범위를 공유한다.** 건물 이름을 생성 태그로 남긴다.
+`/management/frame/building-generator/`는 빌보드·건물 통합 화면의 호환 주소다. 모델·GPU 대기열·취소·재개·ETA·VRAM 기록·선택 삭제를 공용 구현으로 사용한다. 빌보드·건물 통합 서비스의 이력 및 이력 초기화 범위를 공유한다. 건물 이름을 생성 태그로 남긴다.
 
 기본 문구는 Git 관리 대상 `generators/image/config/building-qwen-prompt.txt`다. 기존 ImageGen 직교투영 베이스라인을 변경하지 않는 Qwen 전용 문구이며, 평행선·일정한 축척·바닥 축·출입구 정렬을 지시한다. 실제 맵에서 타일 경계와 건물 바닥 영역·입구를 표시한 레이아웃 이미지를 첫 참조에 업로드하거나 붙여 넣는다. 추가 참조는 외형·자재 기준이며 총 10장까지 지원한다. 임의의 등각 각도를 강제하는 가상 프리셋은 사용하지 않는다.
 
@@ -578,10 +578,10 @@ CLI에서는 같은 `qwen-21 generate`에 `--prompt-file generators/image/config
 
 건물 구도 프리셋의 높이는 지면부터 지붕 최고점까지이며 낮음 0.95배(80/84), 보통 1.67배(140/84), 높음 2.38배(200/84) 중 선택한다. 바닥·입구 6종과 조합하여 18종을 제공한다. 파랑 윗면과 오른쪽 눈금으로 표시한다. 층수·실제 미터·맵 배치 높이를 의미하지 않는다. 선택은 미리보기만 바꾸고 적용 버튼으로 첫 참조에 반영한다.
 
-건물 기본 문구는 `건물 기본 프롬프트 추가` 체크박스(기본 켜짐)로 선택한다. 사용자 입력 뒤에 기본 문구와 공용 옵션을 합쳐 최종 단어 수를 계산하고 동일 문구를 게이트웨이로 전달한다. 이력은 합성된 문구를 보존하며 입력값 복원 시 기본 문구 옵션을 끄고 저장 문구를 불러와 중복 추가를 방지한다.
+건물 기본 문구는 `건물 기본 프롬프트 추가` 체크박스(기본 꺼짐)로 선택한다. 사용자 입력 뒤에 기본 문구와 공용 옵션을 합쳐 최종 단어 수를 계산하고 동일 문구를 게이트웨이로 전달한다. 이력은 합성된 문구를 보존하며 입력값 복원 시 기본 문구 옵션을 끄고 저장 문구를 불러와 중복 추가를 방지한다.
 
-### 건물 생성 대기열 분리
-건물 생성 GUI·CLI는 `building-generator` 서비스를 사용한다. 작업은 `.tmp/test/building-generator`, 이력은 공용 이력 루트의 `building-generator`에 보존한다. `python tools/manager.py help building-generator`로 명령을 확인한다. generate/status/history/active/logs/cancel/resume/prioritize/history-delete/history-reset은 이 서비스 범위에서 처리한다. GPU 메모리·동시 실행 잠금은 공용 실행기를 유지한다. 기존 공유 Qwen 작업은 자동 이동하지 않으며 일반 Qwen 화면에서 계속 조회한다. 새 건물 작업부터 독립 저장·관리한다.
+### 건물·빌보드 생성 통합
+건물 기능은 빌보드 가이드 생성기 화면에 통합됐다. 건물 구도 가이드와 건물 기본 문구 옵션을 같은 생성 설정에서 사용한다. `building-generator` CLI와 기존 HTTP 주소는 `billboard-generator` 작업 서비스의 호환 경로이며 작업·이력·삭제 범위와 실행 잠금을 공유한다. 작업은 `.tmp/test/billboard-generator`, 이력은 공용 이력 루트의 `billboard-generator`에 보관한다.
 
 ### 소품·자연물 대기열 분리
 새 소품 작업은 `prop-generator`, 자연물 작업은 `vegetation-generator` 서비스로 등록한다. 작업 저장 경로는 각각 `.tmp/test/prop-generator`, `.tmp/test/vegetation-generator`이며 공용 이력 루트에서도 동일 서비스명으로 분리한다. GUI와 `python tools/manager.py command prop-generator history`, `python tools/manager.py command vegetation-generator history`가 같은 저장소를 조회한다. generate/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset은 해당 서비스 범위로 처리한다. 기존 Qwen 공유 작업은 이동·삭제하지 않으며 일반 Qwen에서 조회한다. GPU 실행 순서·메모리 보호는 기존 공용 실행기로 유지한다.
@@ -684,7 +684,7 @@ CLI는 `--lyrics` 또는 `--lyrics-file`을 지원합니다. 예제 조건은 `-
 
 ### 가이드 기반 빌보드 생성
 
-`/management/frame/billboard-generator/?tool=billboard-generator&category=image-generation`은 로컬 Qwen 2.1의 `billboard-generator` 전용 가이드 화면이다. Codex 내장 이미지 생성 도구와는 다른 엔진이며 같은 결과를 보장하지 않는다. 빌보드 대기열·이력·삭제 범위는 소품 생성기와 분리한다. 작업은 `.tmp/test/billboard-generator`, 공용 이력은 `billboard-generator` 서비스명으로 저장한다. 통합 CLI `python tools/manager.py command billboard-generator help`에서 생성·조회·중지·재개·우선 실행·선택 삭제·초기화 명령을 확인한다. GUI와 CLI는 같은 게이트웨이를 사용한다. 기존 소품 작업은 이동하거나 삭제하지 않는다. GPU 실행 자원과 메모리 보호는 공용 실행기를 유지한다.
+`/management/frame/billboard-generator/?tool=billboard-generator&category=image-generation`은 로컬 Qwen 2.1의 `billboard-generator` 전용 가이드 화면이다. Codex 내장 이미지 생성 도구와는 다른 엔진이며 같은 결과를 보장하지 않는다. 빌보드와 건물은 대기열·이력·삭제 범위를 공유하며 소품 생성기와는 분리한다. 작업은 `.tmp/test/billboard-generator`, 공용 이력은 `billboard-generator` 서비스명으로 저장한다. 통합 CLI `python tools/manager.py command billboard-generator help`에서 생성·조회·중지·재개·우선 실행·선택 삭제·초기화 명령을 확인한다. GUI와 CLI는 같은 게이트웨이를 사용한다. 기존 소품 작업은 이동하거나 삭제하지 않는다. GPU 실행 자원과 메모리 보호는 공용 실행기를 유지한다.
 
 1. 높은 3×1·2×1·1×2·1×3 또는 낮은 1×1·2×2·2×3·3×2 및 1×1 높이 2배·4배 가이드를 선택하고 대상·재질을 입력한다.
 2. 미리보기와 최종 단어 수를 확인하고 `가이드와 문구를 생성 입력에 적용`을 누른다. 첫 참조와 프롬프트만 교체하며 추가 참조는 유지한다.

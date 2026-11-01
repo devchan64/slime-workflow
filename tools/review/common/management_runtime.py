@@ -63,6 +63,18 @@ def bind_stored_management_service(request_handler_callback, record_storage_root
     return ManagementServiceBinding(request_handler_callback, record_storage_root, resolve_stored_record)
 
 
+def build_building_compatibility_handler(billboard_generation_service):
+    """기존 건물 URL을 동일한 빌보드 작업 서비스로 연결한다."""
+    def handle_building_compatibility_request(current_http_handler):
+        original_request_path = current_http_handler.path
+        current_http_handler.path = '/billboard-generator' + original_request_path[len('/building-generator'):]
+        try:
+            return billboard_generation_service.handle_image_request(current_http_handler)
+        finally:
+            current_http_handler.path = original_request_path
+    return handle_building_compatibility_request
+
+
 def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.image.image_generation import ImageGenerationManager
     from tools.review.domains.image.seamless_generation import SeamlessGenerationManager
@@ -72,7 +84,6 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.image.billboard_generation import BillboardGuideGenerationManager
     from tools.review.domains.image.prop_generation import PropGenerationManager
     from tools.review.domains.image.vegetation_generation import VegetationGenerationManager
-    from tools.review.domains.image.building_generation import BuildingGenerationManager
     from tools.review.domains.image.animation_separation import AnimationSeparationManager
     from tools.review.domains.image.expression_generation import ExpressionGenerationManager
     from generators.writer_agent.management import WriterAgentManager
@@ -105,7 +116,6 @@ def create_management_runtime(writer_workspace_config=None):
         billboard_generation_service = BillboardGuideGenerationManager()
         prop_generation_service = PropGenerationManager()
         vegetation_generation_service = VegetationGenerationManager()
-        building_generation_service = BuildingGenerationManager()
         outfit_transfer_service = OutfitTransferGenerationManager()
         animation_separation_service = AnimationSeparationManager()
         expression_generation_service = ExpressionGenerationManager()
@@ -113,6 +123,7 @@ def create_management_runtime(writer_workspace_config=None):
         floor_generation_service = FloorGenerationManager()
         momask_generation_service = RetiredMoMaskHandler()
         character_animation_service = CharacterAnimationManager()
+        handle_building_compatibility_request = build_building_compatibility_handler(billboard_generation_service)
         def reject_writer_folder_access(current_record_identifier):
             raise ValueError('작가 기록은 writer-detail 명령으로 조회하세요.')
         service_binding_records = {
@@ -130,7 +141,7 @@ def create_management_runtime(writer_workspace_config=None):
             'billboard-generator': bind_stored_management_service(billboard_generation_service.handle_image_request, billboard_generation_service.job_storage_root),
             'prop-generator': bind_stored_management_service(prop_generation_service.handle_image_request, prop_generation_service.job_storage_root),
             'vegetation-generator': bind_stored_management_service(vegetation_generation_service.handle_image_request, vegetation_generation_service.job_storage_root),
-            'building-generator': bind_stored_management_service(building_generation_service.handle_image_request, building_generation_service.job_storage_root),
+            'building-generator': bind_stored_management_service(handle_building_compatibility_request, billboard_generation_service.job_storage_root),
             'qwen-21': bind_stored_management_service(qwen_plain_service.handle_image_request, qwen_plain_service.job_storage_root),
             'seamless-tile': bind_stored_management_service(seamless_generation_service.handle_image_request, seamless_generation_service.job_storage_root),
             'expression': bind_stored_management_service(expression_generation_service.handle_image_request, expression_generation_service.job_storage_root),
