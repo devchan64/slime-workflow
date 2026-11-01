@@ -25,7 +25,7 @@ VACE_MODEL_FILES = {
 VACE_RUNTIME_REVISIONS = {'ComfyUI': 'b8730510db30c8858e1e5d8e126ef19eac395560', 'ComfyUI-GGUF': '6ea2651e7df66d7585f6ffee804b20e92fb38b8a'}
 VACE_DEFAULT_SETTINGS = {'mode': 'reference', 'frames': 21, 'steps': 50, 'seed': 42, 'flow_shift': 12.0, 'guidance_scale': 5.0, 'reference_strength': 1.0}
 VACE_EXPERT_BOUNDARY = 0.875
-VACE_INPUT_MODES = ('text', 'reference', 'first_frame')
+VACE_INPUT_MODES = ('text', 'reference', 'first_frame', 'video_edit', 'pose')
 
 
 def inspect_vace_assets():
@@ -34,10 +34,11 @@ def inspect_vace_assets():
         current_model_path = VACE_WORKSPACE_ROOT / current_model_name
         if not current_model_path.is_file() or current_model_path.stat().st_size != expected_model_size:
             missing_model_paths.append(current_model_name)
-    for current_runtime_name, expected_revision_text in VACE_RUNTIME_REVISIONS.items():
-        current_revision_path = VACE_RUNTIME_DIRECTORY / current_runtime_name / 'PINNED_REVISION'
-        if not current_revision_path.is_file() or current_revision_path.read_text().strip() != expected_revision_text:
-            missing_model_paths.append(str(current_revision_path))
+    from generators.wan_vace.official_prepare import verify_official_runtime
+    try:
+        verify_official_runtime()
+    except ValueError as current_runtime_error:
+        missing_model_paths.append(str(current_runtime_error))
     return {'ready': not missing_model_paths, 'missing': missing_model_paths, 'message': '모델 파일 준비 완료 · 8GB 실행·품질은 별도 검수' if not missing_model_paths else '모델 준비 필요: ' + ', '.join(missing_model_paths)}
 
 
@@ -61,16 +62,20 @@ def verify_vace_weights():
 
 def validate_vace_request(current_request_record):
     required_field_names = {'action', 'mode', 'prompt', 'negative_prompt', 'images', 'width', 'height', 'frames', 'steps', 'seed', 'flow_shift', 'guidance_scale', 'reference_strength'}
+    if isinstance(current_request_record, dict) and current_request_record.get('mode') == 'video_edit':
+        required_field_names |= {'edit_video', 'edit_mask'}
+    if isinstance(current_request_record, dict) and current_request_record.get('mode') == 'pose':
+        required_field_names.add('pose_video')
     if not isinstance(current_request_record, dict) or set(current_request_record) != required_field_names:
         raise ValueError('VACE 요청 필드가 맞지 않습니다.')
     if current_request_record['action'] != 'generate' or current_request_record['mode'] not in VACE_INPUT_MODES:
-        raise ValueError('generate와 text/reference/first_frame 모드가 필요합니다.')
+        raise ValueError('generate와 text/reference/first_frame/video_edit/pose 모드가 필요합니다.')
     for current_field_name in ('prompt', 'negative_prompt'):
         if not isinstance(current_request_record[current_field_name], str) or len(current_request_record[current_field_name]) > 8000:
             raise ValueError('프롬프트는 8000자 이하 문자열이어야 합니다.')
     if not current_request_record['prompt'].strip():
         raise ValueError('장면·동작 프롬프트를 입력하세요.')
-    for current_field_name, minimum_field_value, maximum_field_value in [('frames', 5, 81), ('steps', 2, 100), ('seed', 0, 2147483647), ('width', 832, 832), ('height', 480, 480)]:
+    for current_field_name, minimum_field_value, maximum_field_value in [('frames', 5, 129), ('steps', 2, 100), ('seed', 0, 2147483647), ('width', 832, 832), ('height', 480, 480)]:
         current_field_value = current_request_record[current_field_name]
         if type(current_field_value) is not int or not minimum_field_value <= current_field_value <= maximum_field_value:
             raise ValueError(f'{current_field_name}: {minimum_field_value}~{maximum_field_value} 정수가 필요합니다.')
@@ -87,6 +92,12 @@ def validate_vace_request(current_request_record):
         with Image.open(io.BytesIO(decode_reference_image(current_image_text))) as current_image_object:
             if current_image_object.size != (832, 480):
                 raise ValueError('입력은 832×480 PNG여야 합니다.')
+    if current_request_record['mode'] == 'video_edit':
+        from generators.wan_vace.video_edit import validate_edit_inputs
+        validate_edit_inputs(current_request_record)
+    if current_request_record['mode'] == 'pose':
+        from generators.wan_vace.video_edit import validate_edit_inputs
+        validate_edit_inputs(current_request_record, ('pose_video',))
     return {**current_request_record, 'prompt': current_request_record['prompt'].strip(), 'tag': 'wan22-vace'}
 
 

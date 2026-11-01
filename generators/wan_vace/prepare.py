@@ -60,6 +60,9 @@ def prepare_vace_models():
             if current_check_path == current_partial_path:
                 os.replace(current_partial_path, current_model_path)
             write_prepare_trace('verified', str(current_model_path))
+        from generators.wan_vace.official_prepare import prepare_official_runtime
+        current_progress_record["stage"] = "official-runtime"
+        prepare_official_runtime()
         validate_vace_assets()
         (current_record_root / 'result.json').write_text(json.dumps({'status': 'completed', 'model_id': VACE_MODEL_IDENTIFIER, 'revision': VACE_MODEL_REVISION, 'files': VACE_MODEL_FILES}, ensure_ascii=False))
         write_prepare_trace('completed', str(current_record_root))

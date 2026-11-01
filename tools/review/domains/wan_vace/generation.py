@@ -6,3 +6,12 @@ from tools.review.common.reference_video_generation import ReferenceVideoGenerat
 class VaceVideoGenerationManager(ReferenceVideoGenerationManager):
     def __init__(self):
         super().__init__('/wan22-vace', VACE_JOB_STORAGE, 'generators/wan_vace/worker.py', validate_vace_request, validate_vace_assets, inspect_vace_assets)
+
+    def save_generation_attachments(self, current_job_root, current_request_record):
+        if current_request_record['mode'] == 'video_edit':
+            from generators.wan_vace.video_edit import save_edit_inputs
+            return save_edit_inputs(current_job_root, current_request_record)
+        if current_request_record['mode'] == 'pose':
+            from generators.wan_vace.video_edit import save_edit_inputs
+            return save_edit_inputs(current_job_root, current_request_record, ('pose_video',))
+        return current_request_record
