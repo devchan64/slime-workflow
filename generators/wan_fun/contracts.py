@@ -30,7 +30,7 @@ def inspect_fun_assets():
         current_revision_path = FUN_RUNTIME_DIRECTORY / current_runtime_name / 'PINNED_REVISION'
         if not current_revision_path.is_file() or current_revision_path.read_text().strip() != expected_revision_text:
             missing_model_paths.append(str(current_revision_path))
-    return {'ready': not missing_model_paths, 'missing': missing_model_paths, 'message': '모델 준비 완료 · 8GB 추론 미검증' if not missing_model_paths else '모델 준비 필요: ' + ', '.join(missing_model_paths)}
+    return {'ready': not missing_model_paths, 'missing': missing_model_paths, 'message': '모델 파일 준비 완료 · 실행 가능 여부는 입력 조건과 GPU 여유 메모리에 따라 달라집니다.' if not missing_model_paths else '모델 준비 필요: ' + ', '.join(missing_model_paths)}
 
 
 def validate_fun_assets():
@@ -55,6 +55,8 @@ def validate_fun_request(current_request_record):
     for current_option_name in optional_field_names:
         if type(current_request_record.get(current_option_name, False)) is not bool:
             raise ValueError(f'{current_option_name}: bool 값이 필요합니다.')
+    if current_request_record.get('use_regular_vae', True) is not True or current_request_record.get('pose_encode_full_temporal', False):
+        raise ValueError('타일 VAE 기능은 폐기했습니다. 일반 VAE만 사용할 수 있습니다.')
     if current_request_record['action'] != 'generate':
         raise ValueError('generate 요청이 필요합니다.')
     for current_field_name in ('prompt', 'negative_prompt'):

@@ -105,6 +105,14 @@ def restore_fun_inputs(current_history_record):
     return (current_reference_paths[0], str(current_job_directory/'pose-input.mp4'), current_reference_paths[1:] or None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'pose-video', current_request_record.get('pose_include_hands', bool(current_request_record.get('driving_video_file'))), current_request_record.get('pose_include_face', bool(current_request_record.get('driving_video_file'))), current_job_identifier)
 
 
+def describe_fun_step_split(current_steps_value, current_switch_ratio):
+    if current_steps_value is None or current_switch_ratio is None:
+        return '스텝과 전환 비율을 입력하세요.'
+    current_total_steps = int(current_steps_value)
+    current_high_steps = max(1, min(current_total_steps - 1, round(current_total_steps * current_switch_ratio)))
+    return f'실제 배분: 고노이즈 {current_high_steps}스텝 + 저노이즈 {current_total_steps-current_high_steps}스텝 · 시간값 기준 전환이 아닌 스텝 비율입니다.'
+
+
 def build_fun_interface(current_server_address, current_command_callback=None):
     current_execute_command = current_command_callback or execute_fun_command
     with gr.Blocks(title='Wan2.2 Fun Control 생성기') as current_interface_blocks:
@@ -137,7 +145,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             current_negative_control = gr.Textbox(label='부정 프롬프트', value='')
             current_negative_summary = gr.Markdown('원문 0단어 · 최종 0단어')
             current_negative_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어', current_negative_control, current_negative_summary, queue=False)
-        gr.Markdown('고정: 고·저노이즈 Q4_K_M · 832×480 · 16fps · Euler/simple · CUDA 연산/CPU 가중치 오프로드 · 가속 LoRA 없음. 8GB 추론은 아직 검증하지 않았습니다.')
+        gr.Markdown('고정: 고·저노이즈 Q4_K_M · 832×480 · 16fps · Euler/simple · CUDA 연산/CPU 가중치 오프로드 · 가속 LoRA 없음. 8GB 환경에서 41프레임 실행 기록이 있으며 모든 길이의 실행을 보장하지 않습니다.')
         current_count_control = gr.Number(value=FUN_DEFAULT_SETTINGS['frames'], precision=0, minimum=5, maximum=FUN_MAX_FRAME_COUNT, step=4, label='출력 프레임 · 4n+1 · 5~129', info='129프레임은 8GB 실행 검증 대상입니다. 21프레임으로 먼저 검토하세요. 부족한 제어 프레임은 자동 반복하지 않습니다.')
         current_seed_control = build_generation_seed(default_seed_value=FUN_DEFAULT_SETTINGS['seed'])
         with gr.Row():
@@ -146,6 +154,10 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         with gr.Accordion('고급 설정', open=False):
             current_steps_control = gr.Number(value=FUN_DEFAULT_SETTINGS['steps'], precision=0, minimum=2, maximum=100, label='스텝 · 2~100', info='실험 기본 20. 증가하면 계산량이 늘며 동작 개선을 보장하지 않습니다.')
             current_switch_control = gr.Number(value=FUN_DEFAULT_SETTINGS['switch_ratio'], minimum=0.1, maximum=0.9, label='고노이즈 스텝 비율 · 0.1~0.9', info='기본 0.5. 전체 스텝의 앞부분은 고노이즈 모델, 나머지는 저노이즈 모델을 사용합니다.')
+            gr.Markdown('VAE 고정: 일반 인코딩·디코딩. 타일 처리와 OOM 자동 대체는 사용하지 않습니다. 이전 타일 이력을 불러와 새로 생성해도 일반 VAE를 사용합니다.')
+            current_split_summary = gr.Markdown(describe_fun_step_split(FUN_DEFAULT_SETTINGS['steps'], FUN_DEFAULT_SETTINGS['switch_ratio']))
+            current_steps_control.change(describe_fun_step_split, [current_steps_control,current_switch_control], current_split_summary, queue=False)
+            current_switch_control.change(describe_fun_step_split, [current_steps_control,current_switch_control], current_split_summary, queue=False)
             gr.Markdown('범위는 이 페이지의 실험 허용 범위입니다. [모델카드](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control) · [공식 ComfyUI 안내](https://docs.comfy.org/tutorials/video/wan/wan2-2-fun-control). 가속 4스텝 LoRA 예제와 현재 Q4 비가속 설정은 다릅니다.')
         current_input_controls = [current_reference_control,current_video_control,current_frames_control,current_type_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_switch_control,current_mode_control,current_hands_control,current_face_control]
         current_generate_button = gr.Button('대기열에 추가', variant='primary', interactive=False)
