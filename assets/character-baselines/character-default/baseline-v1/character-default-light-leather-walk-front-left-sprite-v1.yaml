@@ -1,0 +1,34 @@
+schema_version: 1
+description: 기본 캐릭터 경량 가죽 복장 걷기 · 투명 배경
+image: character-default-light-leather-walk-front-left-sprite-v1.png
+sha256: a8ea5a2e817097c06bbcd5375bf2fc3f5b57d536e7bad4a1899602412218bb6c
+width: 1302
+height: 1208
+background: transparent
+layout:
+  columns: 4
+  rows: 2
+  frame_count: 8
+  order: 왼쪽에서 오른쪽, 위에서 아래
+  playback_fps: 6
+  loop: true
+reference: character-default-light-leather-four-directions-v1.png
+pose_reference: character-default-walk-front-left-sprite-v1.png
+generator: image_gen
+clothing_prompt: 'Use case: identity-preserve clothing inpainting. Edit image 1, the
+  eight-frame walking sprite sheet. Image 2 is ONLY the outfit reference. Replace
+  clothing and footwear in ALL EIGHT cells with exactly image 2''s outfit: muted teal
+  short-sleeved tunic with fine ochre trim, warm brown leather chest armor with shoulder
+  straps and gold rectangular buckles, brown leather full-finger gloves and forearm
+  bracers with buckles, taupe full-length trousers, brown lace-up ankle boots. Match
+  consistent outfit construction, materials, colors and details across all frames,
+  with natural folds for each pose. Preserve image 1''s exact eight walking poses,
+  order, four-column two-row equal-cell layout, camera angles, character face, brown
+  hair, amber eyes, body proportions, relative scale and registration. Keep all limb
+  and foot positions, hand gestures and overlaps as in image 1; fit boots to existing
+  foot orientation. Preserve image 1''s polished softly shaded stylized game illustration
+  rendering and white background. Change only outfit-covered regions; do not turn
+  the sheet into the four-view reference turnaround. Exactly eight complete characters,
+  no missing or cropped feet, no text, no borders, no props. Crisp coherent hands
+  and boots without motion blur or ghosting. Preserve original sheet aspect ratio.'
+notes: 이미지젠으로 복장 적용 및 배경 제거. 프레임별 정렬과 재생 품질은 별도 검수한다.
