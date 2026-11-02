@@ -180,7 +180,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         current_load_event = current_interface_blocks.load(refresh_kimodo_assets,outputs=[current_model_output,current_model_ready])
         current_example_mapping = load_kimodo_examples()
         with gr.Row():
-            current_example_selector = gr.Dropdown(choices=[(current_example_record['label'],current_example_name) for current_example_name,current_example_record in current_example_mapping.items()],value='standing',label='동작 예시',info='일반 예시는 프롬프트·프레임만, 남성 모델 걷기는 시드·방향·제자리 보정을 포함한 저장 설정 전체를 불러옵니다. 자동 생성하지 않습니다.')
+            current_example_selector = gr.Dropdown(choices=[(current_example_record['label'],current_example_name) for current_example_name,current_example_record in current_example_mapping.items()],value='relaxed_feet_planted',label='동작 예시',info='예시는 프롬프트·프레임과 시드·방향·제자리 보정을 포함한 저장 설정을 불러옵니다. 자동 생성하지 않습니다.')
             current_example_button = gr.Button('예시 불러오기')
         with gr.Row():
             with gr.Column(min_width=KIMODO_INPUT_MINIMUM_WIDTH):
@@ -227,7 +227,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         gr.Markdown('SOMA 렌더 → VideoX-Fun DWPose → 선택 참조 관절 길이 보정 → 832×480 · 16fps 포즈 MP4. 몸 18점의 코·눈·귀는 유지합니다. 보정은 3D SOMA 길이 기준 고정 배율이며 2D 투영 단축을 유지합니다.')
         current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control,current_horizontal_control,current_proportions_control,current_reference_control,current_scale_control,current_hands_control,current_face_control]
         current_example_button.click(apply_kimodo_example,current_example_selector,current_input_controls[:9],queue=False)
-        gr.Markdown('예시는 시작점입니다. 심호흡·서 있기에서도 머리나 몸이 움직일 수 있으므로 결과를 검수하세요.')
+        gr.Markdown('예시는 시작점입니다. 생성된 동작의 자세와 움직임을 검수하세요.')
         current_generate_button = gr.Button('대기열에 추가',variant='primary',interactive=False)
         build_button_guidance(current_generate_button,'모델 자료와 전용 환경을 준비한 뒤 상태를 새로 확인하고 동작 프롬프트와 출력 방향을 한 개 이상 선택하세요. 신체 비율 참조 옵션을 켰다면 RGB PNG 이미지를 첨부하세요.')
         with gr.Column() as current_confirmation_container:

@@ -95,9 +95,17 @@ class KimodoGenerationContractTests(unittest.TestCase):
     def test_examples_update_only_prompt_and_frames(self):
         from tools.review.ui.gradio.kimodo_app import apply_kimodo_example,describe_kimodo_duration,load_kimodo_examples
         current_example_records=load_kimodo_examples()
-        self.assertEqual(set(current_example_records),{'standing','male_runway_in_place','breathing'})
-        self.assertEqual(apply_kimodo_example('standing')[:2],('A person stands still in a relaxed upright posture.',180))
+        self.assertEqual(set(current_example_records),{'male_runway_in_place','relaxed_feet_planted','standing_overhead_stretch'})
         from tools.review.ui.gradio.kimodo_app import build_kimodo_payload
+        current_stretch_payload = build_kimodo_payload(*apply_kimodo_example('standing_overhead_stretch'))
+        self.assertEqual(current_stretch_payload['frames'],300)
+        self.assertEqual(current_stretch_payload['seed'],42)
+        self.assertEqual(current_stretch_payload['directions'],['front_left'])
+        current_standing_payload = build_kimodo_payload(*apply_kimodo_example('relaxed_feet_planted'))
+        self.assertEqual(current_standing_payload['frames'],180)
+        self.assertEqual(current_standing_payload['seed'],42)
+        self.assertEqual(current_standing_payload['directions'],['front_left'])
+        self.assertFalse(current_standing_payload['remove_horizontal_motion'])
         current_example_payload = build_kimodo_payload(*apply_kimodo_example('male_runway_in_place'))
         self.assertEqual(current_example_payload['directions'],['front_left'])
         self.assertTrue(current_example_payload['remove_horizontal_motion'])
