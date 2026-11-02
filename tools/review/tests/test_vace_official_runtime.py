@@ -5,6 +5,66 @@ import yaml
 
 
 class VaceOfficialRuntimeTest(unittest.TestCase):
+    def test_branch_offload_preserves_non_transfer_syntax(self):
+        import ast
+        from generators.wan_vace.activation_offload import VACE_BRANCH_OFFLOAD_REPLACEMENTS
+        current_original_text = Path('.local/videox-fun-vace-pinned/videox_fun/models/wan_transformer3d_vace.py').read_text()
+        current_execution_text = current_original_text
+        for current_source_text, current_target_text in VACE_BRANCH_OFFLOAD_REPLACEMENTS:
+            self.assertEqual(current_execution_text.count(current_source_text), 1)
+            current_execution_text = current_execution_text.replace(current_source_text, current_target_text)
+        class RemoveDeviceTransfers(ast.NodeTransformer):
+            def visit_Call(self, current_ast_node):
+                self.generic_visit(current_ast_node)
+                if isinstance(current_ast_node.func, ast.Attribute) and current_ast_node.func.attr == 'to':
+                    return current_ast_node.func.value
+                return current_ast_node
+            def visit_Assign(self, current_ast_node):
+                self.generic_visit(current_ast_node)
+                if len(current_ast_node.targets) == 1 and isinstance(current_ast_node.targets[0], ast.Name) and isinstance(current_ast_node.value, ast.Name) and current_ast_node.targets[0].id == current_ast_node.value.id:
+                    return None
+                return current_ast_node
+        self.assertEqual(ast.dump(RemoveDeviceTransfers().visit(ast.parse(current_original_text))), ast.dump(RemoveDeviceTransfers().visit(ast.parse(current_execution_text))))
+
+    def test_input_offload_only_inserts_cpu_transfers(self):
+        import ast
+        from generators.wan_vace.activation_offload import VACE_PIPELINE_OFFLOAD_INSERT, VACE_PIPELINE_OFFLOAD_ANCHOR, VACE_PIPELINE_RELATIVE_PATH
+        current_source_text = (Path('.local/videox-fun-vace-pinned') / VACE_PIPELINE_RELATIVE_PATH).read_text()
+        self.assertEqual(current_source_text.count(VACE_PIPELINE_OFFLOAD_ANCHOR), 1)
+        current_execution_text = current_source_text.replace(VACE_PIPELINE_OFFLOAD_ANCHOR, VACE_PIPELINE_OFFLOAD_ANCHOR + VACE_PIPELINE_OFFLOAD_INSERT)
+        ast.parse(current_execution_text)
+        self.assertEqual(current_execution_text.replace(VACE_PIPELINE_OFFLOAD_INSERT, ''), current_source_text)
+        import textwrap
+        for current_ast_node in ast.walk(ast.parse(textwrap.dedent(VACE_PIPELINE_OFFLOAD_INSERT))):
+            if isinstance(current_ast_node, ast.Call):
+                self.assertIsInstance(current_ast_node.func, ast.Attribute)
+                self.assertEqual(current_ast_node.func.attr, 'to')
+                self.assertEqual([current_argument_node.value for current_argument_node in current_ast_node.args], ['cpu'])
+
+    def test_non_block_hooks_preserve_output_and_device_owner(self):
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        from generators.wan_vace.cpu_offload import install_expert_block_offload, VACE_TRANSIENT_MODULE_NAMES
+        current_module_names = VACE_TRANSIENT_MODULE_NAMES | {'patch_embedding'}
+        current_model_object = SimpleNamespace(**{
+            current_module_name: Mock() for current_module_name in current_module_names
+        })
+        current_model_object.blocks = [Mock()]
+        current_model_object.vace_blocks = [Mock()]
+        install_expert_block_offload(current_model_object)
+        current_model_object.patch_embedding.register_forward_pre_hook.assert_not_called()
+        current_model_object.patch_embedding.register_forward_hook.assert_not_called()
+        current_output_value = object()
+        for current_module_object in [
+            *current_model_object.blocks, *current_model_object.vace_blocks,
+            *(getattr(current_model_object, current_module_name) for current_module_name in VACE_TRANSIENT_MODULE_NAMES),
+        ]:
+            current_before_hook = current_module_object.register_forward_pre_hook.call_args.args[0]
+            current_after_hook = current_module_object.register_forward_hook.call_args.args[0]
+            self.assertIsNone(current_before_hook(current_module_object, ()))
+            self.assertIsNone(current_after_hook(current_module_object, (), current_output_value))
+            self.assertEqual([current_call.args[0] for current_call in current_module_object.to.call_args_list], ['cuda', 'cpu'])
+
     def test_existing_quantization_revision_is_preserved(self):
         from generators.wan_vace.contracts import VACE_MODEL_REVISION,VACE_SOURCE_REVISION,VACE_MODEL_FILES
         current_manifest_record=yaml.safe_load(Path('generators/wan_vace/config/official-runtime.yaml').read_text())

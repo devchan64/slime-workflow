@@ -8,7 +8,7 @@ from generators.wan_vace.contracts import VACE_WORKSPACE_ROOT, VACE_MODEL_FILES,
 from generators.wan_vace.official_gguf import VACE_OFFICIAL_SOURCE_ROOT, load_official_gguf
 
 
-def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.0):
+def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.0, current_attempt_root=None):
     os.environ['VIDEOX_OFFLOAD_VACE_LATENTS'] = '1'
     from generators.wan_vace.official_prepare import verify_official_runtime
     verify_official_runtime()
@@ -22,8 +22,16 @@ def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.
         raise RuntimeError('공식 VACE 실행은 CUDA가 필요합니다.')
     sys.path.insert(0,str(VACE_OFFICIAL_SOURCE_ROOT))
     from videox_fun.models import AutoencoderKLWan, WanT5EncoderModel
-    from generators.wan_vace.cpu_offload import install_expert_block_offload
+    from videox_fun.models import wan_transformer3d
+    from generators.wan_vace.query_offload import install_query_result_offload
+    install_query_result_offload(wan_transformer3d)
+    from generators.wan_vace.cpu_offload import install_expert_block_offload, VACE_TRANSIENT_MODULE_NAMES
     from videox_fun.pipeline import Wan2_2VaceFunPipeline
+    current_model_class = None
+    if current_attempt_root is not None:
+        from generators.wan_vace.activation_offload import load_input_offload_pipeline, load_branch_offload_model
+        Wan2_2VaceFunPipeline = load_input_offload_pipeline(VACE_OFFICIAL_SOURCE_ROOT, current_attempt_root)
+        current_model_class = load_branch_offload_model(VACE_OFFICIAL_SOURCE_ROOT, current_attempt_root)
     current_config_record = yaml.safe_load((VACE_OFFICIAL_SOURCE_ROOT/'config/wan2.2/wan_civitai_t2v.yaml').read_text())
     current_encoder_config = {current_field_name:current_field_value for current_field_name,current_field_value in current_config_record['text_encoder_kwargs'].items() if current_field_name not in ('text_encoder_subpath','tokenizer_subpath','text_length')}
     with torch.device('meta'):
@@ -36,8 +44,8 @@ def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.
     current_vae_state = load_file(str(VACE_WORKSPACE_ROOT/VACE_MODEL_FILES['vae'][0]))
     current_vae_model.load_state_dict({'model.'+current_tensor_name:current_tensor_value for current_tensor_name,current_tensor_value in current_vae_state.items()},strict=True)
     current_vae_model.to(device='cuda',dtype=torch.bfloat16).eval().requires_grad_(False)
-    current_low_model = load_official_gguf('low')
-    current_high_model = load_official_gguf('high')
+    current_low_model = load_official_gguf('low', current_model_class)
+    current_high_model = load_official_gguf('high', current_model_class)
     install_expert_block_offload(current_low_model)
     install_expert_block_offload(current_high_model)
     current_tokenizer_model = AutoTokenizer.from_pretrained(str(VACE_WORKSPACE_ROOT/'.model/wan22-vace/official-tokenizer'),local_files_only=True)
@@ -52,7 +60,7 @@ def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.
         current_inactive_model.to('cpu')
         current_vae_model.to('cpu')
         for current_child_name,current_child_module in current_active_model.named_children():
-            if current_child_name not in ('blocks','vace_blocks'):
+            if current_child_name not in {'blocks', 'vace_blocks'} | VACE_TRANSIENT_MODULE_NAMES:
                 current_child_module.to('cuda')
         torch.cuda.empty_cache()
     current_low_model.register_forward_pre_hook(prepare_active_expert)
@@ -74,11 +82,18 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
         'text_encoder_revision': VACE_ENCODER_REVISION,
         'source_revision': VACE_SOURCE_REVISION,
         'runtime': 'VideoX-Fun official + GGUF adapter',
+        'adapter_source_sha256': {
+            current_source_name: hashlib.sha256((Path(__file__).parent / current_source_name).read_bytes()).hexdigest()
+            for current_source_name in ('official_runtime.py', 'official_gguf.py', 'cpu_offload.py', 'activation_offload.py', 'query_offload.py', 'memory_diagnostics.py', 'sampling.py')
+        },
         'compute_device': 'cuda', 'offload_device': 'cpu',
-        'active_expert_block_offload': True, 'official_forward_unmodified': True, 'custom_math_patches': False, 'vace_latent_offload': True, 'inactive_expert_offload': True, 'vae_inference_offload': True, 'temporal_vae_tiling': False,
+        'non_block_module_offload': True,
+        'encoded_input_cpu_offload': True,
+        'rope_query_result_cpu_offload': True,
+        'active_expert_block_offload': True, 'official_forward_unmodified': False, 'official_math_unmodified': True, 'branch_activation_cpu_offload': True, 'custom_math_patches': False, 'vace_latent_offload': True, 'inactive_expert_offload': True, 'vae_inference_offload': True, 'temporal_vae_tiling': False,
     })
     current_metrics_recorder.update_generation_stage('load')
-    current_pipeline_object = load_official_pipeline(current_metrics_recorder, current_request_record['flow_shift'])
+    current_pipeline_object = load_official_pipeline(current_metrics_recorder, current_request_record['flow_shift'], current_attempt_root)
     current_frame_count = current_request_record['frames']
     current_condition_inputs = {}
     if current_request_record['references']:

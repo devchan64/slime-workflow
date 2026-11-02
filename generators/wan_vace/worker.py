@@ -27,7 +27,9 @@ def execute_vace_inference(current_job_root, current_attempt_root, current_reque
     """공식 파이프라인과 고정 GGUF 어댑터로 실행한다."""
     os.environ['PYTORCH_ALLOC_CONF'] = 'expandable_segments:True'
     from generators.wan_vace.official_runtime import execute_official_inference
-    return execute_official_inference(current_job_root, current_attempt_root, current_request_record, current_metrics_recorder)
+    from generators.wan_vace.memory_diagnostics import record_cuda_memory_failure
+    with record_cuda_memory_failure(current_attempt_root):
+        return execute_official_inference(current_job_root, current_attempt_root, current_request_record, current_metrics_recorder)
 
 
 if __name__ == '__main__':

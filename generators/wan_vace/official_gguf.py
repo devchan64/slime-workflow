@@ -30,14 +30,16 @@ class OfficialGgufLinear(torch.nn.Module):
         return torch.nn.functional.linear(current_input_tensor, current_weight_tensor, current_bias_tensor)
 
 
-def inspect_official_gguf(current_model_stage):
+def inspect_official_gguf(current_model_stage, current_model_class=None):
     if current_model_stage not in ('high','low'):
         raise ValueError('고정 전문가 high/low만 허용합니다.')
     sys.path.insert(0,str(VACE_OFFICIAL_SOURCE_ROOT))
     from videox_fun.models import VaceWanTransformer3DModel
+    if current_model_class is None:
+        current_model_class = VaceWanTransformer3DModel
     current_model_config = yaml.safe_load(VACE_OFFICIAL_CONFIG_PATH.read_text())
     with torch.device('meta'):
-        current_official_model = VaceWanTransformer3DModel(**current_model_config)
+        current_official_model = current_model_class(**current_model_config)
     current_gguf_reader = gguf.GGUFReader(str(VACE_WORKSPACE_ROOT/VACE_MODEL_FILES[current_model_stage][0]))
     current_tensor_mapping = {current_tensor_record.name: current_tensor_record for current_tensor_record in current_gguf_reader.tensors}
     current_model_state = current_official_model.state_dict()
@@ -49,9 +51,9 @@ def inspect_official_gguf(current_model_stage):
     return current_official_model,current_gguf_reader,current_tensor_mapping
 
 
-def load_official_gguf(current_model_stage):
+def load_official_gguf(current_model_stage, current_model_class=None):
     from accelerate.utils import set_module_tensor_to_device
-    current_official_model,current_gguf_reader,current_tensor_mapping = inspect_official_gguf(current_model_stage)
+    current_official_model,current_gguf_reader,current_tensor_mapping = inspect_official_gguf(current_model_stage, current_model_class)
     current_replaced_names = set()
     for current_module_name,current_module_object in list(current_official_model.named_modules()):
         current_weight_name = current_module_name+'.weight'
