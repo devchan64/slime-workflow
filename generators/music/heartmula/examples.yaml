@@ -1033,36 +1033,6 @@ examples:
     seed: 904263777
     loop_request: false
     min_duration_seconds: 0
-- id: salt-causeway-vocal-mr-minute
-  label: 소금둑길 · 기승전결 가사곡과 MR
-  description: 양옆 물 사이 돌둑을 건너는 실내악 포크 행진곡. 6행에서도 160.08초 EOS 종료해 행 수와 길이가 비례하지 않음을 확인했다. 6행은 유지하면서 출발, 마지막 디딤돌, 도착의 단일 여정으로
-    가사를 재작성. 편곡은 유지하고 새 무작위 시드를 저장했다. 약 1분 전후를 목표로 하되 길이 개선은 미검증이다. 최대 출력 300초는 목표 길이가 아니다. 원곡·MR 청취 검수 필요. 출처는 삭제될 비교 기록이다.
-  source_generation_id: 2026-10-25_23-35-37-80b9ad63
-  request:
-    prompt: chamber folk march,clarinet,mandolin,cello,muted frame drum,steady,focused,low male vocals
-    lyrics: '[Verse]
-
-      We leave the shore on salt white stone
-
-      Across the tide a lamp is shown
-
-      [Chorus]
-
-      The final stepping stone is near
-
-      One careful stride and land is here
-
-      [Outro]
-
-      Our packs lie dry beside the door
-
-      The crossing ends upon this shore
-
-      '
-    duration_seconds: 300
-    seed: 541726415
-    loop_request: false
-    min_duration_seconds: 0
 - id: salt-flat-vocal-mr-minute
   label: 흰소금벌 · 기승전결 가사곡과 MR
   description: '흰 소금 땅과 청록색 얕은 염수의 경계를 피아노·첼레스타·알토 플루트·비올라로 표현. 이전 61.28초 결과에서 길이 조정 대신 가사의 장면을 재작성: 눈부신 염수 경계 → 표식과 마른 발자국

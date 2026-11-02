@@ -163,11 +163,11 @@ class MapAssetSourceTests(unittest.TestCase):
     def test_all_runtime_maps_and_new_city_materials_share_original_hashes(self):
         current_city_identifiers,current_map_identifiers = load_review_map_identifiers()
         self.assertEqual(len(current_city_identifiers),5)
-        self.assertEqual(len(current_map_identifiers),31)
+        self.assertEqual(len(current_map_identifiers),30)
         current_asset_root = WORKFLOW_REPOSITORY_ROOT.parent/'slime-assets'
         current_map_lock = yaml.safe_load((WORKFLOW_REPOSITORY_ROOT.parent/'slime-backend/map-data.lock.yaml').read_text())
         current_locked_hashes = {current_file_record['path']:current_file_record['sha256'] for current_file_record in current_map_lock['files']}
-        for current_map_identifier in ('grainstead','saltford','windrow-road','granary-flats','mill-ridge','brine-bank','salt-causeway','salt-flat'):
+        for current_map_identifier in ('grainstead','saltford','windrow-road','granary-flats','mill-ridge','brine-bank','salt-flat'):
             current_map_bytes,_ = read_map_asset_response('/management/map-assets/maps/'+current_map_identifier)
             current_map_record = json.loads(current_map_bytes)
             self.assertEqual(current_map_record['id'],current_map_identifier)
