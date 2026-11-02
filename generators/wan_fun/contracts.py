@@ -48,6 +48,8 @@ def validate_fun_request(current_request_record):
     if current_video_input:
         required_field_names.add('driving_video')
     optional_field_names = {'pose_include_hands', 'pose_include_face'} if current_video_input else set()
+    if current_pose_input:
+        optional_field_names.update(('pose_encode_full_temporal', 'use_regular_vae'))
     if not isinstance(current_request_record, dict) or not required_field_names <= set(current_request_record) or set(current_request_record) - required_field_names - optional_field_names:
         raise ValueError('Fun Control 요청 필드가 맞지 않습니다.')
     for current_option_name in optional_field_names:

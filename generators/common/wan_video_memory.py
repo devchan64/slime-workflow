@@ -12,10 +12,11 @@ WAN_VIDEO_DECODE_TEMPORAL_OVERLAP = 1
 class TiledWanVideoVae:
     """공식 VAE 타일 API를 사용하고 CUDA 추론 모드를 보장한다."""
 
-    def __init__(self, current_vae_model):
+    def __init__(self, current_vae_model, use_full_temporal_encode=False):
         if current_vae_model.device.type != 'cuda':
             raise ValueError('Wan VAE 연산은 CUDA에서만 실행합니다.')
         self.current_vae_model = current_vae_model
+        self.use_full_temporal_encode = use_full_temporal_encode
 
     def __getattr__(self, current_attribute_name):
         return getattr(self.current_vae_model, current_attribute_name)
@@ -28,7 +29,7 @@ class TiledWanVideoVae:
                 tile_x=WAN_VIDEO_ENCODE_TILE_PIXELS,
                 tile_y=WAN_VIDEO_ENCODE_TILE_PIXELS,
                 overlap=WAN_VIDEO_ENCODE_OVERLAP_PIXELS,
-                tile_t=WAN_VIDEO_ENCODE_TILE_FRAMES,
+                tile_t=max(9, current_pixel_tensor.shape[0]) if self.use_full_temporal_encode else WAN_VIDEO_ENCODE_TILE_FRAMES,
                 overlap_t=WAN_VIDEO_ENCODE_OVERLAP_FRAMES,
             )
         expected_temporal_count = (current_pixel_tensor.shape[0] - 1) // 4 + 1

@@ -55,18 +55,32 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     gc.collect()
     comfy.model_management.soft_empty_cache()
     current_metrics_recorder.update_generation_stage('encoding')
-    current_vae_model = TiledWanVideoVae(nodes.VAELoader().load_vae('wan_2.1_vae.safetensors')[0])
+    current_regular_vae = current_request_record.get('use_regular_vae', False)
+    current_vae_model = nodes.VAELoader().load_vae('wan_2.1_vae.safetensors')[0]
+    if current_regular_vae:
+        from generators.wan_fun.vae_diagnostic import disable_vae_tiled_fallback
+        disable_vae_tiled_fallback(current_vae_model)
+    else:
+        current_vae_model = TiledWanVideoVae(current_vae_model, use_full_temporal_encode=current_request_record.get('pose_encode_full_temporal', False))
+    write_record_atomically(current_attempt_root / 'encode-policy.json', {
+        'use_regular_vae': current_regular_vae,
+        'pose_encode_full_temporal': current_request_record.get('pose_encode_full_temporal', False),
+        'temporal_tile_frames': None if current_regular_vae else (max(9, current_request_record['frames']) if current_request_record.get('pose_encode_full_temporal', False) else 9),
+        'spatial_tile_pixels': None if current_regular_vae else 256, 'spatial_overlap_pixels': None if current_regular_vae else 64,
+        'policy': '일반 VAE · OOM 타일 대체 차단' if current_regular_vae else '타일 VAE 인코딩',
+    })
     current_image_tensors = []
     for current_reference_name in current_control_paths:
         with Image.open(current_reference_name) as current_image_file:
             current_image_tensors.append(torch.from_numpy(np.asarray(current_image_file.convert('RGB'), dtype=np.float32) / 255.0))
-    current_condition_output = Wan22FunControlToVideo.execute(positive_condition_data, negative_condition_data, current_vae_model, 832, 480, current_request_record['frames'], 1, ref_image=current_image_tensors[0].unsqueeze(0), control_video=torch.stack(current_image_tensors[1:]))
+    with torch.inference_mode():
+        current_condition_output = Wan22FunControlToVideo.execute(positive_condition_data, negative_condition_data, current_vae_model, 832, 480, current_request_record['frames'], 1, ref_image=current_image_tensors[0].unsqueeze(0), control_video=torch.stack(current_image_tensors[1:]))
     positive_condition_data, negative_condition_data, current_latent_record = current_condition_output[:3]
     comfy.model_management.unload_all_models()
     comfy.model_management.soft_empty_cache()
     current_step_total = current_request_record['steps']
     current_switch_step = max(1, min(current_step_total - 1, round(current_step_total * current_request_record['switch_ratio'])))
-    write_record_atomically(current_attempt_root / 'conditioning.json', {'control_type': current_request_record['control_type'], 'reference_mode': 'reference_latents', 'face_video': False, 'switch_step': current_switch_step, 'sampler': 'euler', 'scheduler': 'simple', 'model_revision': FUN_MODEL_REVISION, 'tiled_vae': True})
+    write_record_atomically(current_attempt_root / 'conditioning.json', {'control_type': current_request_record['control_type'], 'reference_mode': 'reference_latents', 'face_video': False, 'switch_step': current_switch_step, 'sampler': 'euler', 'scheduler': 'simple', 'model_revision': FUN_MODEL_REVISION, 'tiled_vae': not current_regular_vae})
     current_latent_tensor = current_latent_record['samples']
     current_noise_tensor = comfy.sample.prepare_noise(current_latent_tensor, current_request_record['seed'])
     for current_model_stage, current_start_step, current_end_step in [('high', 0, current_switch_step), ('low', current_switch_step, current_step_total)]:
@@ -90,14 +104,21 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     current_temporal_tile_count = max(2, current_latent_tensor.shape[2])
     from generators.common.wan_video_memory import WAN_VIDEO_DECODE_TEMPORAL_OVERLAP, WAN_VIDEO_DECODE_TILE_LATENTS, WAN_VIDEO_DECODE_OVERLAP_LATENTS
     write_record_atomically(current_attempt_root / 'decode-policy.json', {
-        'temporal_tile': current_temporal_tile_count,
+        'use_regular_vae': current_regular_vae,
+        'temporal_tile': None if current_regular_vae else current_temporal_tile_count,
         'temporal_overlap': WAN_VIDEO_DECODE_TEMPORAL_OVERLAP,
-        'spatial_tile': WAN_VIDEO_DECODE_TILE_LATENTS,
+        'spatial_tile': None if current_regular_vae else WAN_VIDEO_DECODE_TILE_LATENTS,
         'spatial_overlap': WAN_VIDEO_DECODE_OVERLAP_LATENTS,
         'latent_sha256': hashlib.sha256(current_latent_path.read_bytes()).hexdigest(),
-        'policy': '시간축 전체 단일 타일 · 공간 타일 유지',
+        'policy': '일반 VAE · OOM 타일 대체 차단' if current_regular_vae else '시간축 전체 단일 타일 · 공간 타일 유지',
     })
-    current_decoded_frames = current_vae_model.decode(current_latent_tensor, current_temporal_tile_count=current_temporal_tile_count)
+    if current_regular_vae:
+        with torch.inference_mode():
+            current_decoded_frames = current_vae_model.decode(current_latent_tensor)
+        if current_decoded_frames.ndim == 5:
+            current_decoded_frames = current_decoded_frames.flatten(0, 1)
+    else:
+        current_decoded_frames = current_vae_model.decode(current_latent_tensor, current_temporal_tile_count=current_temporal_tile_count)
     if current_decoded_frames.shape[0] != current_request_record['frames']:
         raise ValueError('출력 프레임 수 불일치')
     current_frame_arrays = (current_decoded_frames.clamp(0, 1).cpu().numpy() * 255).round().astype(np.uint8)
