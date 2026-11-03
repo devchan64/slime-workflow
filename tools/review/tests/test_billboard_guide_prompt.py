@@ -59,7 +59,7 @@ class BillboardGuidePromptTests(unittest.TestCase):
 
     def test_empty_and_long_subjects_disable_apply_for_both_guide_types(self):
         from tools.review.ui.gradio.billboard_guide_controls import preview_billboard_guide_inputs, validate_guide_subject_input
-        for current_profile_name in ('3x1-tall', 'building:2x2-south:140'):
+        for current_profile_name in ('3x1-tall', 'building:4x4-south:160'):
             for current_subject_text in ('', '  ', 'stone ' * 100):
                 with self.subTest(profile=current_profile_name, subject=current_subject_text):
                     current_image_value, current_prompt_text, current_notice_text, current_button_update = preview_billboard_guide_inputs(current_profile_name, current_subject_text)
@@ -73,13 +73,14 @@ class BillboardGuidePromptTests(unittest.TestCase):
 
     def test_search_and_pagination(self):
         from tools.review.ui.gradio.billboard_guide_controls import search_guide_profile_page, render_guide_search_page
-        self.assertEqual(search_guide_profile_page('전체', '', 1)[1:], (1, 6, 58))
+        self.assertEqual(search_guide_profile_page('전체', '', 1)[1:], (1, 4, 40))
         self.assertEqual(len(search_guide_profile_page('전체', '', 1)[0]), 10)
         self.assertEqual(len(search_guide_profile_page('빌보드', '', 3)[0]), 2)
-        self.assertEqual(len(search_guide_profile_page('건물', '', 2)[0]), 10)
-        current_result_values = search_guide_profile_page('건물', '2x2 남쪽', 1)
+        self.assertEqual(len(search_guide_profile_page('건물', '', 2)[0]), 8)
+        current_result_values = search_guide_profile_page('건물', '4x4 남쪽', 1)
         self.assertEqual(current_result_values[3], 3)
-        self.assertTrue(all('2x2-south' in current_record[1] for current_record in current_result_values[0]))
+        self.assertTrue(all('4x4-south' in current_record[1] for current_record in current_result_values[0]))
+        self.assertEqual(search_guide_profile_page('건물', '2x2', 1)[3], 0)
         self.assertEqual(search_guide_profile_page('전체', '없는검색어', 1)[3], 0)
         self.assertIn('검색 결과가 없습니다', render_guide_search_page('전체', '없는검색어', 1)[2])
         with self.assertRaises(ValueError):
@@ -90,7 +91,7 @@ class BillboardGuidePromptTests(unittest.TestCase):
         current_building_choices = dict((current_value, current_label) for current_label, current_value in list_guide_profile_choices('건물'))
         for current_footprint_size in ('4x4', '4x5', '4x6'):
             for current_entrance_side in ('south', 'east'):
-                for current_height_value, current_expected_label in ((80, '1.90배'), (140, '3.33배'), (200, '4.76배')):
+                for current_height_value, current_expected_label in ((80, '1층 · 80px'), (160, '2층 · 160px'), (240, '3층 · 240px')):
                     current_profile_name = f'building:{current_footprint_size}-{current_entrance_side}:{current_height_value}'
                     self.assertIn(current_expected_label, current_building_choices[current_profile_name])
                     current_image_value, current_prompt_text, _, current_button_update = preview_billboard_guide_inputs(current_profile_name, 'wooden house')

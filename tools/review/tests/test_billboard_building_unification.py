@@ -51,12 +51,12 @@ class BillboardBuildingUnificationTests(unittest.TestCase):
             self.assertFalse(current_building_enabled)
             self.assertIn('stone house', current_prompt_text)
         for current_profile_name in BUILDING_LAYOUT_PRESET_NAMES:
-            for current_height_value in (80, 140, 200):
+            for current_height_value in (80, 160, 240):
                 current_image_value, current_prompt_text, current_building_enabled = current_callback_value('building:' + current_profile_name + ':' + str(current_height_value), 'stone house')
                 self.assertTrue(current_image_value.size)
                 self.assertTrue(current_building_enabled)
                 if current_profile_name.split('-')[0] in ('4x4', '4x5', '4x6'):
-                    self.assertIn('entrance spans two adjacent guide tiles', current_prompt_text)
+                    self.assertIn('Door: two tiles wide, 80% of floor height.', current_prompt_text)
                 else:
                     self.assertEqual(current_prompt_text, 'stone house')
 

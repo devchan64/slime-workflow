@@ -35,18 +35,18 @@ def load_vegetation_base_prompt():
     return current_prompt_text
 
 
-BUILDING_LAYOUT_FOOTPRINT_SIZES = ((2, 2), (3, 3), (4, 3), (4, 4), (4, 5), (4, 6))
+BUILDING_LAYOUT_FOOTPRINT_SIZES = ((4, 4), (4, 5), (4, 6))
 BUILDING_EXPANDED_FOOTPRINT_SIZES = ('4x4', '4x5', '4x6')
 BUILDING_LAYOUT_PRESET_NAMES = tuple(f'{current_width_count}x{current_depth_count}-{current_entrance_side}' for current_width_count, current_depth_count in BUILDING_LAYOUT_FOOTPRINT_SIZES for current_entrance_side in ('south', 'east'))
 
 
-def load_building_layout_preset(current_preset_name, current_height_pixels=140):
+def load_building_layout_preset(current_preset_name, current_height_pixels=160):
     from PIL import Image
     if current_preset_name not in BUILDING_LAYOUT_PRESET_NAMES:
         raise ValueError('등록되지 않은 건물 구도 프리셋입니다.')
-    if current_height_pixels not in (80, 140, 200):
+    if current_height_pixels not in (80, 160, 240):
         raise ValueError('등록되지 않은 건물 높이 가이드입니다.')
-    current_height_suffix = '' if current_height_pixels == 140 else '-' + str(current_height_pixels)
+    current_height_suffix = '-' + str(current_height_pixels)
     current_image_path = BUILDING_PROMPT_SOURCE_PATH.parent / 'building-layouts' / (current_preset_name + current_height_suffix + '.png')
     with Image.open(current_image_path) as current_image_value:
         return current_image_value.copy()
