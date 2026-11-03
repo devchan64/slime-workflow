@@ -49,6 +49,8 @@ class MapAssetAnchorTests(unittest.TestCase):
 
     def test_shared_properties_validate_and_preserve_coordinates(self):
         from tools.review.common.sprite_display_properties import apply_sprite_display_properties, validate_sprite_display_properties
+        self.assertEqual(validate_sprite_display_properties({'town-iseulon-inn-v2':{'anchorX':0.38,'anchorY':1.02}})['town-iseulon-inn-v2']['anchorY'],1.02)
+        with self.assertRaises(ValueError):validate_sprite_display_properties({'town-iseulon-inn-v2':{'anchorX':0.38,'anchorY':16.01}})
         for current_invalid_values in ({'anchorX':float('nan'),'anchorY':1}, {'anchorX':0.5,'anchorY':1,'unexpected':3}, {'anchorX':0.5,'anchorY':1,'groundFootprintColumns':False,'groundFootprintRows':1,'displayHeight':50}):
             with self.assertRaises(ValueError):validate_sprite_display_properties({'sample':current_invalid_values})
         current_property_catalog=validate_sprite_display_properties({'sample':{'anchorX':0.4,'anchorY':0.9,'groundFootprintColumns':2,'groundFootprintRows':1,'displayHeight':80}})

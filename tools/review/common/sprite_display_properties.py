@@ -59,7 +59,7 @@ def validate_sprite_display_properties(current_property_catalog):
                 continue
             if type(current_property_value) not in (int, float) or not math.isfinite(current_property_value):
                 raise ValueError('공통 속성은 유한한 숫자여야 합니다.')
-            if current_property_name in SPRITE_ANCHOR_FIELD_NAMES and not ((-16 <= current_property_value <= 16) if current_property_values.get('billboardAnchorMode') in ('tile-bottom-center','tile-intersection') else (0 <= current_property_value <= 1)):
+            if current_property_name in SPRITE_ANCHOR_FIELD_NAMES and not ((-16 <= current_property_value <= 16) if current_property_values.get('billboardAnchorMode') in ('tile-bottom-center','tile-intersection') else (0 <= current_property_value <= 16 if set(current_property_values)==SPRITE_ANCHOR_FIELD_NAMES else 0 <= current_property_value <= 1)):
                 raise ValueError('앵커 범위 오류')
             if current_property_name.startswith('groundFootprint') and (type(current_property_value) is not int or not 1 <= current_property_value <= 8):
                 raise ValueError('바닥 크기 범위 오류')
