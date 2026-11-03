@@ -241,8 +241,8 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 with gr.Row():
                     with gr.Column():
                         building_layout_selector = gr.Dropdown([(current_preset_name.replace('-south', ' · 남쪽 입구').replace('-east', ' · 동쪽 입구'), current_preset_name) for current_preset_name in BUILDING_LAYOUT_PRESET_NAMES], value=BUILDING_LAYOUT_PRESET_NAMES[0], label='건물 구도 프리셋')
-                        building_height_selector = gr.Dropdown([('낮음 · 0.95배', 80), ('보통 · 1.67배', 140), ('높음 · 2.38배', 200)], value=140, label='건물 높이 · 타일 가로폭 대비')
-                        gr.Markdown('초록 지면부터 파랑 지붕 최고점까지의 높이입니다. 층수·미터 단위가 아닌 구도 기준입니다. 높이를 선택하고 적용하면 첫 레이아웃 참조가 바뀝니다. 맵 배치 크기는 바뀌지 않습니다.')
+                        building_height_selector = gr.Dropdown([('낮음', 80), ('보통', 140), ('높음', 200)], value=140, label='건물 높이 단계')
+                        gr.Markdown('초록 지면부터 파랑 지붕 최고점까지의 구도 기준입니다. 4×4·4×5·4×6 가이드는 기존 건물의 높이도 2배로 표시합니다. 그림의 수치를 확인하고 적용하세요. 맵 배치 크기는 바뀌지 않습니다.')
                         building_layout_apply_button = gr.Button('선택한 구도를 레이아웃 참조에 적용')
                     building_layout_preview = gr.Image(value=load_building_layout_preset(BUILDING_LAYOUT_PRESET_NAMES[0]), type='pil', interactive=False, label='구도 그림 미리보기', height=REFERENCE_IMAGE_CARD_HEIGHT)
                 building_height_selector.change(load_building_layout_preset, [building_layout_selector, building_height_selector], building_layout_preview, queue=False)
@@ -252,12 +252,12 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if billboard_guide_enabled:
 
             def apply_billboard_guide_inputs(selected_profile_name, selected_subject_text):
-                from tools.review.ui.gradio.billboard_guide_controls import BUILDING_PROFILE_PREFIX, parse_building_guide_profile, validate_guide_subject_input
+                from tools.review.ui.gradio.billboard_guide_controls import BUILDING_PROFILE_PREFIX, compose_building_guide_subject, parse_building_guide_profile, validate_guide_subject_input
                 validate_guide_subject_input(selected_profile_name, selected_subject_text)
                 if selected_profile_name.startswith(BUILDING_PROFILE_PREFIX):
                     from tools.review.domains.image.building_prompt import load_building_layout_preset
                     current_building_name, current_height_value = parse_building_guide_profile(selected_profile_name)
-                    return (load_building_layout_preset(current_building_name, current_height_value), selected_subject_text.strip(), True)
+                    return (load_building_layout_preset(current_building_name, current_height_value), compose_building_guide_subject(selected_profile_name, selected_subject_text), True)
                 return (load_billboard_guide_image(selected_profile_name), compose_billboard_guide_prompt(selected_profile_name, selected_subject_text), False)
             billboard_apply_button.click(apply_billboard_guide_inputs, [billboard_profile_control, billboard_subject_control], [reference_image_controls[0], prompt_text_value, building_prompt_control], queue=False)
         if building_mode_enabled:

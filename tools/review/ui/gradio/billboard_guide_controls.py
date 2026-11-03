@@ -1,10 +1,12 @@
 """빌보드 가이드 선택·문구 합성 공용 Gradio 영역."""
 import gradio as gr
 from tools.review.common.gradio_reference_images import REFERENCE_IMAGE_CARD_HEIGHT
-from tools.review.domains.image.building_prompt import BUILDING_LAYOUT_PRESET_NAMES, load_building_layout_preset, load_building_base_prompt
+from tools.review.domains.image.building_prompt import BUILDING_EXPANDED_FOOTPRINT_SIZES, BUILDING_LAYOUT_PRESET_NAMES, load_building_layout_preset, load_building_base_prompt
 
 BUILDING_PROFILE_PREFIX = 'building:'
 BUILDING_HEIGHT_OPTIONS = (('낮음 · 0.95배', 80), ('보통 · 1.67배', 140), ('높음 · 2.38배', 200))
+BUILDING_EXPANDED_HEIGHT_LABELS = {80: '낮음 · 1.90배', 140: '보통 · 3.33배', 200: '높음 · 4.76배'}
+BUILDING_EXPANDED_ENTRANCE_PROMPT = 'The entrance spans two adjacent guide tiles.'
 from tools.review.domains.image.billboard_guide_prompt import (
     BILLBOARD_LAYOUT_PROFILES, BILLBOARD_DEFAULT_SUBJECT,
     load_billboard_guide_image, compose_billboard_guide_prompt,
@@ -18,12 +20,19 @@ def parse_building_guide_profile(selected_profile_name):
     return current_profile_parts[0], int(current_profile_parts[1])
 
 
+def compose_building_guide_subject(selected_profile_name, selected_subject_text):
+    current_building_name, _ = parse_building_guide_profile(selected_profile_name)
+    current_subject_text = selected_subject_text.strip()
+    if current_building_name.split('-')[0] in BUILDING_EXPANDED_FOOTPRINT_SIZES:
+        current_subject_text += (' ' if current_subject_text.endswith(('.', '!', '?')) else '. ') + BUILDING_EXPANDED_ENTRANCE_PROMPT
+    return current_subject_text
+
+
 def validate_guide_subject_input(selected_profile_name, selected_subject_text):
     if not isinstance(selected_subject_text, str) or not selected_subject_text.strip():
         raise ValueError('대상과 재질을 입력한 뒤 적용하세요.')
     if selected_profile_name.startswith(BUILDING_PROFILE_PREFIX):
-        parse_building_guide_profile(selected_profile_name)
-        selected_prompt_text = (selected_subject_text.strip() + ' ' + load_building_base_prompt()).strip()
+        selected_prompt_text = (compose_building_guide_subject(selected_profile_name, selected_subject_text) + ' ' + load_building_base_prompt()).strip()
         if len(selected_prompt_text.split()) >= 100:
             raise ValueError('최종 문구가 100단어 이상입니다. 대상 설명을 줄이세요.')
         return selected_prompt_text
@@ -54,7 +63,7 @@ def list_guide_profile_choices(selected_category_name):
     if selected_category_name not in GUIDE_CATEGORY_NAMES:
         raise ValueError('지원하지 않는 가이드 분류입니다.')
     current_all_choices = ([(current_profile_name.replace('2x2-lake-boulders', '2×2 · 둥근 호숫돌 군집').replace('4x4-rooted-stump', '4×4 · 중앙 그루터기와 방사형 뿌리').replace('1x1-grass-cover', '1×1 · 낮은 초지 피복').replace('1x1-rooted-grass', '1×1 · 뿌리 분포 풀 군락').replace('2x1-weathered-rock', '2×1 · 자연 풍화 암반').replace('1x3-fallen-log', '1×3 · 낮은 도복목').replace('-tall', ' · 높은형').replace('-medium', ' · 중간 벽면형').replace('-low-2x', ' · 바닥형 높이 2배').replace('-low-4x', ' · 바닥형 높이 4배').replace('-low', ' · 낮은 판형'), current_profile_name) for current_profile_name in BILLBOARD_LAYOUT_PROFILES]
-                    + [('건물 · ' + current_name.replace('-south', ' · 남쪽 입구').replace('-east', ' · 동쪽 입구') + ' · ' + current_height_label, BUILDING_PROFILE_PREFIX + current_name + ':' + str(current_height_value)) for current_name in BUILDING_LAYOUT_PRESET_NAMES for current_height_label, current_height_value in BUILDING_HEIGHT_OPTIONS])
+                    + [('건물 · ' + current_name.replace('-south', ' · 남쪽 입구').replace('-east', ' · 동쪽 입구') + ' · ' + (BUILDING_EXPANDED_HEIGHT_LABELS[current_height_value] if current_name.split('-')[0] in BUILDING_EXPANDED_FOOTPRINT_SIZES else current_height_label), BUILDING_PROFILE_PREFIX + current_name + ':' + str(current_height_value)) for current_name in BUILDING_LAYOUT_PRESET_NAMES for current_height_label, current_height_value in BUILDING_HEIGHT_OPTIONS])
     if selected_category_name == '전체':
         return current_all_choices
     current_building_selected = selected_category_name == '건물'
@@ -120,7 +129,7 @@ def build_billboard_guide_controls():
             with gr.Column():
                 selected_subject_control = gr.Textbox(value=BILLBOARD_DEFAULT_SUBJECT, label='대상·재질 설명', placeholder='예: stone house with wooden door', info='만들 대상과 재질을 짧게 입력하세요. 입력 내용은 프리셋을 바꿔도 유지됩니다.', lines=2)
                 with gr.Accordion('프리셋 크기와 색상 안내', open=False):
-                    gr.Markdown('타일 260×130 기준 · 높은형 520 · 중간 벽면형 260 · 낮은형 90 · 1×1 바닥형 높이 2배 180 / 4배 360. 도복목은 타일 300×150 기준 높이 80–105의 반원통이며 우상단에서 좌하단으로 놓입니다. 뿌리 분포 풀은 1×1·3군집·높이 65–100(상한 110), 자연 풍화 암반은 2×1·높이 90 이하입니다. 초지 피복은 1×1·높이 35–50·뿌리 80% 분포입니다. 4×4 뿌리는 중앙의 낮은 그루터기와 사방으로 뻗는 뿌리 구도이며, 뿌리 끝을 16칸 점유 경계 안에 둡니다. 2×2 호숫돌은 낮고 둥근 바위 세 개와 작은 자갈을 점유 안에 비대칭으로 배치합니다. 파랑은 타일, 황토는 접지, 초록은 형태, 점선은 높이 상한입니다. 그림은 생성 구도 기준이며 게임의 표시 크기를 저장하지 않습니다.')
+                    gr.Markdown('타일 260×130 기준 · 높은형 520 · 중간 벽면형 260 · 낮은형 90 · 1×1 바닥형 높이 2배 180 / 4배 360. 도복목은 타일 300×150 기준 높이 80–105의 반원통이며 우상단에서 좌하단으로 놓입니다. 뿌리 분포 풀은 1×1·3군집·높이 65–100(상한 110), 자연 풍화 암반은 2×1·높이 90 이하입니다. 초지 피복은 1×1·높이 35–50·뿌리 80% 분포입니다. 4×4 뿌리는 중앙의 낮은 그루터기와 사방으로 뻗는 뿌리 구도이며, 뿌리 끝을 16칸 점유 경계 안에 둡니다. 2×2 호숫돌은 낮고 둥근 바위 세 개와 작은 자갈을 점유 안에 비대칭으로 배치합니다. 건물 4×4·4×5·4×6은 확대 건물의 점유 크기이며 높이는 기존 단계의 2배입니다. 건물의 초록은 점유, 주황 선은 입구, 파랑은 높이 상한입니다. 확대 건물의 주황 선은 두 칸 너비 출입문입니다. 그림은 생성 구도 기준이며 게임의 표시 크기를 저장하지 않습니다.')
         selected_prompt_preview = gr.Textbox(value=selected_default_values[1], label='합성된 생성 문구', interactive=False, lines=5)
         selected_prompt_count = gr.Markdown(selected_default_values[2])
         selected_apply_button = gr.Button('가이드와 문구를 생성 입력에 적용', variant='primary', interactive=True)
