@@ -96,6 +96,6 @@ ZIP에는 방향별 포즈 MP4, 원시·보정 검출 좌표, `dwpose-export.jso
 
 `generate --payload-file` 요청의 선택 필드 `pose_constraints`는 비어 있거나 전신 제약 객체 하나를 담은 배열입니다. 객체 필드는 `type: "fullbody"`, `frame_indices`(0부터 시작하는 오름차순·중복 없는 프레임), `local_joints_rot`(키프레임×77×3 축각 회전), `root_positions`(키프레임×3)입니다. 300프레임 상한을 유지하며 한 번의 생성에 전달합니다. 실행별 `pose-constraints.json`에 저장합니다. GUI 제약 입력·이력 복원 UI는 아직 연결하지 않았습니다.
 
-`direct_pose_export.export_direct_pose_video`는 기존 시도의 SOMA 카메라 기록과 모션에서 BODY18 포즈를 생성하는 검수용 Python 함수입니다. OpenCV가 있는 `.venv` 포즈 처리 환경에서 실행합니다. 출력은 832×480·16fps이며 기존 파일을 덮어쓰지 않습니다. `soma-render.json`의 `cameras`가 없는 과거 결과는 카메라 기록을 포함한 재렌더가 필요합니다. 생성 게이트웨이의 자동 출력이나 GUI 선택 옵션으로 연결된 상태는 아닙니다.
+`direct_pose_export.export_direct_pose_video`는 기존 시도의 SOMA 카메라 기록과 모션에서 BODY18 포즈를 생성하는 검수용 Python 함수입니다. OpenCV가 있는 `.venv` 포즈 처리 환경에서 실행합니다. 출력은 832×480·16fps이며 기존 파일을 덮어쓰지 않습니다. 기록된 SOMA 카메라에 렌더 배율이 이미 포함되어 있으므로 직접 투영 단계에는 추가 배율을 적용하지 않습니다. 별도 배율 인자를 받지 않으며 출력 메타데이터에 추가 배율 100%를 기록합니다. `soma-render.json`의 `cameras`가 없는 과거 결과는 카메라 기록을 포함한 재렌더가 필요합니다. 생성 게이트웨이의 자동 출력이나 GUI 선택 옵션으로 연결된 상태는 아닙니다.
 
 시도 폴더에 `reference-proportions.json`이 있으면 기존 신체비율 보정을 3D 관절에 먼저 적용하고 같은 카메라로 투영합니다. 적용 비율·근거를 출력 메타데이터에 보존합니다. 원본 모션과 SOMA 메시를 수정하지 않습니다. 코·귀 대응점, 손·얼굴 상세와 가림 판정은 지원하지 않습니다. 목은 어깨 중점이며 존재 표시 1은 검출 신뢰도를 의미하지 않습니다. DWPose와의 좌표 차이는 골격 정의와 검출 오차를 함께 포함하므로 직접 투영의 절대 오차로 해석하지 않습니다.
