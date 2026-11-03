@@ -39,7 +39,7 @@
 | --- | --- |
 | `prompts/references/mannequin/research/<버전>/` | 마네킨·피부·얼굴 조정 실험과 생성 기록 |
 | `prompts/references/mannequin/latest/` | 사용자가 채택·반영하도록 지정한 현재 참조의 복사본 |
-| `assets/character-baselines/<캐릭터>/baseline-v<번호>/` | 캐릭터별 시트, 얼굴·전신 파생 이미지와 등록 기록 |
+| `baseline/character-baselines/<캐릭터>/baseline-v<번호>/` | 캐릭터별 시트, 얼굴·전신 파생 이미지와 등록 기록 |
 
 새 마네킨 생성 결과는 `latest`에 직접 저장하지 않는다. 사용자 반영 지시 후 선택한 이미지를 복사하고 파일명·YAML·README를 함께 갱신한다. 기존 이미지 교체와 새 후보 추가를 구분하며 삭제한 파일을 임의로 복원하지 않는다. 캐릭터 결과도 기존 파일 교체 지시가 없으면 별도 이름이나 버전으로 저장한다.
 
@@ -51,6 +51,6 @@
 
 - [현재 신체·피부·얼굴 참조](../prompts/references/mannequin/latest/README.md)
 - [마네킨 연구 기록](../prompts/references/mannequin/research/README.md)
-- [기본 캐릭터 베이스라인](../assets/character-baselines/character-default/README.md)
+- [기본 캐릭터 베이스라인](../baseline/character-baselines/character-default/README.md)
 - [공통 화풍](../prompts/common/art-style.md), [캐릭터 외관 기준](../prompts/common/character-appearance.md)
 - [이전 전신 우선 제작 사례](character-baseline-body-first.md): 과거 리그 기반 사례이며 현재 마네킨 저장 위치·방향 배치는 이 문서를 따른다.

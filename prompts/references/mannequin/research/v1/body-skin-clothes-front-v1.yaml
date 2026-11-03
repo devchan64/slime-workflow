@@ -20,6 +20,6 @@ prompt_sha256: 8fd31820db2af66936cd5d1c11a823cb6767a90f605a7a033846696855437f8f
 image_sha256: 8dd74ae1dbb2ba1e950b89d1dd269153f1ca4273219cdc5f852b3fd11b06d4c5
 review_note: 2026-10-31 사용자가 마네킨과 비율이 맞는 결과로 확인하여 참고 자료로 채택했다. 수치 실측 인증과는 구분한다.
 version: 1.0.0
-source_image: assets/character-baselines/character-default/baseline-v5/body-skin-clothes-front-v5.png
+source_image: baseline/character-baselines/character-default/baseline-v5/body-skin-clothes-front-v5.png
 layout: single-front
 reference_role: 마네킨 비율에 피부·밀착 기본복을 적용한 정면 기준. 얼굴·머리카락 추가 작업의 신체 참조로 사용한다.

@@ -4,7 +4,7 @@ status: 사용자 지정 · 무표정으로 교체
 image: character-default-face-front-v1.png
 generator: image_gen_builtin
 reference_images:
-- assets/character-baselines/character-default/baseline-v1/character-default-face-front-v1.png
+- baseline/character-baselines/character-default/baseline-v1/character-default-face-front-v1.png
 reference_roles:
 - 교체 직전 기존 얼굴 이미지 · 이전 Git 기록 기준
 reference_sha256:

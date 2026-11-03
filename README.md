@@ -17,7 +17,7 @@
 ## 보관 경로
 
 - `.model/`: 모델 다운로드·캐시.
-- `assets/`: 승인 모션·리그·외형 참조와 출처 기록. 임시 정리 대상 아님.
+- `baseline/`: 승인 모션·리그·외형 참조와 출처 기록. 임시 정리 대상 아님.
 - `.tmp/test/<실험명>/<YYYY-MM-DD_HH-mm-ss>/`: 한국 시간 기준 실행별 후보 이미지·포즈·프롬프트·로그·출처. Git 제외.
 - 정식 채택된 캐릭터·몬스터 스프라이트의 관리 원본: `slime-assets/assets/sprites/`. 맵 타일은 `slime-assets/assets/tiles/`. 명시적 채택 후 등록·전달하며 프론트엔드 사본을 직접 편집하지 않는다.
 - 기획·설계: 비공개 `slime-backend/docs/design/`.

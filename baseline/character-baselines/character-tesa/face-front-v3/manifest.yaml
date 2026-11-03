@@ -14,6 +14,6 @@ source_path: .tmp/test/tesa-body-derived-face/2026-10-04_18-07-16/character-tesa
 source_reference:
   path: ../body-front-v2/character-tesa-body-front-v2.png
   sha256: cb1bc7b70faa007af2b4b659b142e78113d6356fd535ad6a8d9a24546963721c
-generation_record: assets/generation-records/tesa-baseline-20261004/manifest.yaml
+generation_record: baseline/generation-records/tesa-baseline-20261004/manifest.yaml
 runtime_adopted: false
 framing: 정면 머리와 목만. 어깨·가슴·의상 제외.

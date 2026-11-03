@@ -159,7 +159,7 @@ def collect_review_watch_paths(parsed_argument_values):
     watch_paths.append(workflow_repo_root/'tools/review/domains/map_assets')
     watch_paths.extend((workflow_repo_root/'tools/review/common').glob('map_*.py'))
     watch_paths.extend(workflow_repo_root/'tools/review/common'/current_file_name for current_file_name in ('sprite_display_properties.py', 'game_render_metrics.py'))
-    watch_paths.extend(workflow_repo_root/'tools/review/common'/current_file_name for current_file_name in ('management_client.py','management_transport.py','management_environment.py'))
+    watch_paths.extend(workflow_repo_root/'tools/review/common'/current_file_name for current_file_name in ('management_asgi.py','management_client.py','management_transport.py','management_environment.py'))
     if parsed_argument_values.frontend_repo:
         current_frontend_root=Path(parsed_argument_values.frontend_repo).resolve()
         watch_paths.extend(current_frontend_root/current_relative_path for current_relative_path in ('src','review','package.json','package-lock.json','scripts'))
@@ -363,9 +363,9 @@ def run_review_server(parsed_argument_values):
     review_root_directory,current_prepare_mode,current_prepared_record=prepare_watched_review_directory(parsed_argument_values)
     print(f'{datetime.now().isoformat()}/asset-review-server/prepare mode={current_prepare_mode} elapsed={time.monotonic()-current_startup_time:.3f}s',flush=True)
     workflow_repo_root = Path(__file__).resolve().parents[2]
-    allowed_review_roots = [workflow_repo_root/current_root_name for current_root_name in ('.tmp','.result','assets')]
+    allowed_review_roots = [workflow_repo_root/current_root_name for current_root_name in ('.tmp','.result','baseline')]
     if not any(review_root_directory.is_relative_to(allowed_root_path) and review_root_directory != allowed_root_path for allowed_root_path in allowed_review_roots):
-        raise ValueError('워크플로우 .tmp, .result 또는 assets 아래 개별 검수 폴더를 지정하세요.')
+        raise ValueError('워크플로우 .tmp, .result 또는 baseline 아래 개별 검수 폴더를 지정하세요.')
     if Path(parsed_argument_values.entry).is_absolute() or Path(parsed_argument_values.entry).suffix.lower() != '.html':
         raise ValueError('진입 페이지는 검수 폴더 기준 상대 HTML 경로여야 합니다.')
     resolve_review_request(review_root_directory,'/'+parsed_argument_values.entry)

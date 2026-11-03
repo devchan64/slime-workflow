@@ -42,23 +42,23 @@
 
 | 원본 | 용도·내용 | 상태 |
 | --- | --- | --- |
-| [기본 캐릭터 프롬프트](../assets/character-baselines/old/generation-prompts.yaml) | `base-prompt`, 대기·휴식 전환, `walking-identity-generation-prompt`, 프레임별 걷기 보조문 | 용도별 선택; base-prompt 자동 추가 금지 |
-| [남성 B 참고 프롬프트](../assets/character-baselines/character-male-b/baseline-v1/prompt.txt) | 남성 B 제작 참고 원문 | 과거 원문; 최신 이미지의 실제 입력이라고 추정하지 않음 |
+| [기본 캐릭터 프롬프트](../baseline/character-baselines/old/generation-prompts.yaml) | `base-prompt`, 대기·휴식 전환, `walking-identity-generation-prompt`, 프레임별 걷기 보조문 | 용도별 선택; base-prompt 자동 추가 금지 |
+| [남성 B 참고 프롬프트](../baseline/character-baselines/character-male-b/baseline-v1/prompt.txt) | 남성 B 제작 참고 원문 | 과거 원문; 최신 이미지의 실제 입력이라고 추정하지 않음 |
 | [Kimodo 동작 예제](../generators/kimodo/config/prompt-examples.yaml) | 모션 생성 예제와 설정 | 생성기 소유 원본 |
 
 ### 여성 A · 8방향 실험 색인
 
-이미지와 YAML은 [baseline-v1 폴더](../assets/character-baselines/character-female-a/baseline-v1/)에 함께 둔다. 아래 실험은 승인된 5등신 기준이 아니다.
+이미지와 YAML은 [baseline-v1 폴더](../baseline/character-baselines/character-female-a/baseline-v1/)에 함께 둔다. 아래 실험은 승인된 5등신 기준이 아니다.
 
 | 프롬프트·이미지 기록 | 변경 사항 | 검수 상태 |
 | --- | --- | --- |
-| [v3](../assets/character-baselines/character-female-a/baseline-v1/character-female-eight-directions-fitted-v3.yaml) | v2 이미지 참조 재작화 | 비율 미검증 |
-| [v4](../assets/character-baselines/character-female-a/baseline-v1/character-female-eight-directions-fitted-v4.yaml) | 이미지 참조 없이 생성 | 비율 미검증 |
-| [v5](../assets/character-baselines/character-female-a/baseline-v1/character-female-eight-directions-fitted-v5.yaml) | 짧은 크롭 티셔츠·숏팬츠 | 5등신 이탈 지적 |
-| [v6](../assets/character-baselines/character-female-a/baseline-v1/character-female-eight-directions-fitted-v6.yaml) | 머리·몸통·다리 비율 명시 | 정확한 5등신 미검증 |
-| [v7](../assets/character-baselines/character-female-a/baseline-v1/character-female-eight-directions-fitted-v7-prompt.yaml) | 캐릭터·화풍 유지, 287→131단어 압축 | 긴 체형으로 생성 |
-| [v8](../assets/character-baselines/character-female-a/baseline-v1/character-female-eight-directions-fitted-v8.yaml) | 비율 우선 배치·큰 머리·짧은 팔다리 강조 | 과보정 |
-| [v9](../assets/character-baselines/character-female-a/baseline-v1/character-female-eight-directions-fitted-v9.yaml) | 과장 표현 제거 | 긴 체형 재발; 비율 검수 미달 |
+| [v3](../baseline/character-baselines/character-female-a/baseline-v1/character-female-eight-directions-fitted-v3.yaml) | v2 이미지 참조 재작화 | 비율 미검증 |
+| [v4](../baseline/character-baselines/character-female-a/baseline-v1/character-female-eight-directions-fitted-v4.yaml) | 이미지 참조 없이 생성 | 비율 미검증 |
+| [v5](../baseline/character-baselines/character-female-a/baseline-v1/character-female-eight-directions-fitted-v5.yaml) | 짧은 크롭 티셔츠·숏팬츠 | 5등신 이탈 지적 |
+| [v6](../baseline/character-baselines/character-female-a/baseline-v1/character-female-eight-directions-fitted-v6.yaml) | 머리·몸통·다리 비율 명시 | 정확한 5등신 미검증 |
+| [v7](../baseline/character-baselines/character-female-a/baseline-v1/character-female-eight-directions-fitted-v7-prompt.yaml) | 캐릭터·화풍 유지, 287→131단어 압축 | 긴 체형으로 생성 |
+| [v8](../baseline/character-baselines/character-female-a/baseline-v1/character-female-eight-directions-fitted-v8.yaml) | 비율 우선 배치·큰 머리·짧은 팔다리 강조 | 과보정 |
+| [v9](../baseline/character-baselines/character-female-a/baseline-v1/character-female-eight-directions-fitted-v9.yaml) | 과장 표현 제거 | 긴 체형 재발; 비율 검수 미달 |
 
 ## 등록·수정 규칙
 

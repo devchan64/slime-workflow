@@ -4,8 +4,8 @@ status: 사용자 지정 · 현재 8방향 기준
 image: character-default-eight-directions-v1.png
 generator: image_gen_builtin
 reference_images:
-- assets/character-baselines/character-default/baseline-v1/character-default-eight-directions-v1.png
-- assets/character-baselines/character-default/baseline-v1/character-default-face-front-v1.png
+- baseline/character-baselines/character-default/baseline-v1/character-default-eight-directions-v1.png
+- baseline/character-baselines/character-default/baseline-v1/character-default-face-front-v1.png
 reference_roles:
 - 수정 대상 전신 시트
 - 얼굴 이목구비·표정 기준
