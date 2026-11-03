@@ -16,7 +16,7 @@ FUN_MODEL_FILES = {
     'vae': ('.model/wan22-animate-components/split_files/vae/wan_2.1_vae.safetensors', 253815318),
 }
 FUN_DEFAULT_SETTINGS = {'frames': 21, 'steps': 20, 'seed': 42, 'flow_shift': 5.0, 'guidance_scale': 6.0, 'switch_ratio': 0.5}
-FUN_MAX_FRAME_COUNT = 129
+FUN_MAX_FRAME_COUNT = 161
 FUN_CONTROL_TYPES = ('pose', 'depth', 'canny', 'mlsd')
 
 
@@ -50,9 +50,16 @@ def validate_fun_request(current_request_record):
     optional_field_names = {'pose_include_hands', 'pose_include_face'} if current_video_input else set()
     if current_pose_input:
         optional_field_names.update(('pose_encode_full_temporal', 'use_regular_vae'))
+    optional_field_names.add('input_mode')
     if not isinstance(current_request_record, dict) or not required_field_names <= set(current_request_record) or set(current_request_record) - required_field_names - optional_field_names:
         raise ValueError('Fun Control 요청 필드가 맞지 않습니다.')
-    for current_option_name in optional_field_names:
+    current_input_mode = current_request_record.get('input_mode', 'controlled')
+    if current_input_mode not in ('controlled', 'reference-only'):
+        raise ValueError('지원하지 않는 입력 모드입니다.')
+    current_reference_only = current_input_mode == 'reference-only'
+    if current_reference_only and (current_pose_input or current_video_input):
+        raise ValueError('참조 전용 모드에는 제어 영상을 함께 입력할 수 없습니다.')
+    for current_option_name in optional_field_names - {'input_mode'}:
         if type(current_request_record.get(current_option_name, False)) is not bool:
             raise ValueError(f'{current_option_name}: bool 값이 필요합니다.')
     if current_request_record.get('use_regular_vae', True) is not True or current_request_record.get('pose_encode_full_temporal', False):
@@ -76,7 +83,7 @@ def validate_fun_request(current_request_record):
             raise ValueError(f'{current_field_name}: {minimum_field_value}~{maximum_field_value} 범위가 필요합니다.')
     if current_request_record['control_type'] not in FUN_CONTROL_TYPES:
         raise ValueError('제어 영상 종류를 확인하세요.')
-    if not isinstance(current_request_record['images'], list) or len(current_request_record['images']) != (1 if current_video_input or current_pose_input else current_request_record['frames'] + 1):
+    if not isinstance(current_request_record['images'], list) or len(current_request_record['images']) != (1 if current_reference_only or current_video_input or current_pose_input else current_request_record['frames'] + 1):
         raise ValueError('외형 참조 1장과 출력 프레임 수만큼의 제어 프레임이 필요합니다.')
     for current_image_text in current_request_record['images']:
         with Image.open(io.BytesIO(decode_reference_image(current_image_text))) as current_image_object:
@@ -92,5 +99,5 @@ def validate_fun_request(current_request_record):
             raise ValueError('처리된 포즈 MP4만 단독 입력하세요.')
         from generators.wan_fun.video_input import validate_processed_pose_video
         validate_processed_pose_video(current_request_record['pose_video'],current_request_record['frames'])
-    current_pose_options = {current_option_name: current_request_record.get(current_option_name, False) for current_option_name in optional_field_names}
+    current_pose_options = {current_option_name: current_request_record.get(current_option_name, current_option_name == 'use_regular_vae') for current_option_name in optional_field_names - {'input_mode'}}
     return {**current_request_record, **current_pose_options, 'prompt': current_request_record['prompt'].strip(), 'tag': 'wan22-fun-control'}

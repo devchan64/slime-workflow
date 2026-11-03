@@ -66,13 +66,13 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
         with Image.open(current_reference_name) as current_image_file:
             current_image_tensors.append(torch.from_numpy(np.asarray(current_image_file.convert('RGB'), dtype=np.float32) / 255.0))
     with torch.inference_mode():
-        current_condition_output = Wan22FunControlToVideo.execute(positive_condition_data, negative_condition_data, current_vae_model, 832, 480, current_request_record['frames'], 1, ref_image=current_image_tensors[0].unsqueeze(0), control_video=torch.stack(current_image_tensors[1:]))
+        current_condition_output = Wan22FunControlToVideo.execute(positive_condition_data, negative_condition_data, current_vae_model, 832, 480, current_request_record['frames'], 1, ref_image=current_image_tensors[0].unsqueeze(0), control_video=None if current_request_record.get('input_mode') == 'reference-only' else torch.stack(current_image_tensors[1:]))
     positive_condition_data, negative_condition_data, current_latent_record = current_condition_output[:3]
     comfy.model_management.unload_all_models()
     comfy.model_management.soft_empty_cache()
     current_step_total = current_request_record['steps']
     current_switch_step = max(1, min(current_step_total - 1, round(current_step_total * current_request_record['switch_ratio'])))
-    write_record_atomically(current_attempt_root / 'conditioning.json', {'control_type': current_request_record['control_type'], 'reference_mode': 'reference_latents', 'face_video': False, 'switch_step': current_switch_step, 'sampler': 'euler', 'scheduler': 'simple', 'model_revision': FUN_MODEL_REVISION, 'tiled_vae': False})
+    write_record_atomically(current_attempt_root / 'conditioning.json', {'input_mode': current_request_record.get('input_mode', 'controlled'), 'control_video_present': current_request_record.get('input_mode') != 'reference-only', 'control_type': current_request_record['control_type'], 'reference_mode': 'reference_latents', 'face_video': False, 'switch_step': current_switch_step, 'sampler': 'euler', 'scheduler': 'simple', 'model_revision': FUN_MODEL_REVISION, 'tiled_vae': False})
     current_latent_tensor = current_latent_record['samples']
     current_noise_tensor = comfy.sample.prepare_noise(current_latent_tensor, current_request_record['seed'])
     for current_model_stage, current_start_step, current_end_step in [('high', 0, current_switch_step), ('low', current_switch_step, current_step_total)]:

@@ -6,6 +6,8 @@ import cv2
 import numpy as np
 from PIL import Image, ImageOps
 import gradio as gr
+import yaml
+from tools.review.common.strict_yaml import UniqueConfigLoader
 from generators.wan_fun.contracts import FUN_JOB_STORAGE, FUN_DEFAULT_SETTINGS, FUN_MAX_FRAME_COUNT, validate_fun_request
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
@@ -16,6 +18,23 @@ from tools.review.common.gradio_logs import build_execution_logs
 from tools.review.common.gradio_video_results import describe_video_generation_status, render_video_generation_result
 from tools.review.common.generation_status_lookup import read_existing_generation_status
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
+
+FUN_WALK_EXAMPLE_DIRECTORY = Path(__file__).resolve().parents[4] / 'generators/wan_fun/examples/walk-21frames-50steps'
+
+
+def load_fun_walk_example():
+    """이력 삭제와 독립된 제작 기준 예제를 입력에만 적용한다."""
+    current_example_record = yaml.load((FUN_WALK_EXAMPLE_DIRECTORY / 'input.yaml').read_text(), Loader=UniqueConfigLoader)
+    if not isinstance(current_example_record, dict) or set(current_example_record) != {'source_job', 'request'} or not isinstance(current_example_record['source_job'], str) or not isinstance(current_example_record['request'], dict):
+        raise ValueError('Fun Control 예제 필드 오류')
+    current_request_record = current_example_record['request']
+    current_reference_path = FUN_WALK_EXAMPLE_DIRECTORY / 'reference-1.png'
+    current_video_path = FUN_WALK_EXAMPLE_DIRECTORY / 'pose-input.mp4'
+    current_validation_record = dict(current_request_record)
+    current_validation_record['images'] = [base64.b64encode(current_reference_path.read_bytes()).decode()]
+    current_validation_record['pose_video'] = base64.b64encode(current_video_path.read_bytes()).decode()
+    validate_fun_request(current_validation_record)
+    return (str(current_reference_path), str(current_video_path), None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'pose-video', False, False)
 
 
 def render_fun_video_result(current_job_identifier, current_status_record, current_server_address):
@@ -38,18 +57,22 @@ def encode_fun_image(current_image_object, current_padding_color):
 
 
 def build_fun_payload(current_reference_path, current_video_path, current_frame_paths, current_control_type, current_prompt_text, current_negative_text, current_frame_count, current_seed_value, current_steps_value, current_shift_value, current_guidance_value, current_switch_ratio, current_input_mode="preprocessed", current_include_hands=False, current_include_face=False):
-    if not current_reference_path or bool(current_video_path) == bool(current_frame_paths):
+    if not current_reference_path or (current_input_mode != 'reference-only' and bool(current_video_path) == bool(current_frame_paths)):
         raise ValueError('외형 참조 1장과 제어 영상 또는 PNG 목록 중 하나를 첨부하세요.')
     for current_integer_value in (current_frame_count, current_seed_value, current_steps_value):
         if isinstance(current_integer_value, bool) or not isinstance(current_integer_value, (int, float)) or not float(current_integer_value).is_integer():
             raise ValueError('프레임·시드·스텝은 정수여야 합니다.')
     current_frame_count = int(current_frame_count)
     if not 5 <= current_frame_count <= FUN_MAX_FRAME_COUNT or (current_frame_count-1) % 4:
-        raise ValueError('프레임 수는 5~129 범위의 4n+1입니다.')
+        raise ValueError(f'프레임 수는 5~{FUN_MAX_FRAME_COUNT} 범위의 4n+1입니다.')
     with Image.open(current_reference_path) as current_reference_image:
         if current_reference_image.size != (832, 480):
             gr.Warning('참조 이미지를 비율 유지해 832×480 흰 여백으로 맞춥니다. 원본은 보존합니다.')
         current_encoded_images = [encode_fun_image(current_reference_image, 'white')]
+    if current_input_mode == 'reference-only':
+        current_payload_record = {'action':'generate','prompt':current_prompt_text,'negative_prompt':current_negative_text,'images':current_encoded_images,'control_type':'pose','width':832,'height':480,'frames':current_frame_count,'seed':int(current_seed_value),'steps':int(current_steps_value),'flow_shift':current_shift_value,'guidance_scale':current_guidance_value,'switch_ratio':current_switch_ratio,'input_mode':'reference-only'}
+        validate_fun_request(current_payload_record)
+        return current_payload_record
     if current_input_mode == 'pose-video':
         current_payload_record = {'action':'generate','prompt':current_prompt_text,'negative_prompt':current_negative_text,'images':current_encoded_images,'control_type':'pose','width':832,'height':480,'frames':current_frame_count,'seed':int(current_seed_value),'steps':int(current_steps_value),'flow_shift':current_shift_value,'guidance_scale':current_guidance_value,'switch_ratio':current_switch_ratio,'pose_video':base64.b64encode(Path(current_video_path).read_bytes()).decode()}
         validate_fun_request(current_payload_record)
@@ -94,7 +117,8 @@ def restore_fun_inputs(current_history_record):
     if current_job_directory.parent != FUN_JOB_STORAGE.resolve():
         raise ValueError('이력 경로 오류')
     current_request_record = current_history_record['request']
-    if current_request_record.get('pose_video_file') != 'pose-input.mp4' or not (current_job_directory/'pose-input.mp4').is_file():
+    current_reference_only = current_request_record.get('input_mode') == 'reference-only'
+    if not current_reference_only and (current_request_record.get('pose_video_file') != 'pose-input.mp4' or not (current_job_directory/'pose-input.mp4').is_file()):
         raise ValueError('이전 작업은 처리된 포즈 MP4 입력이 없습니다. Kimodo의 DWPose MP4를 첨부해 새 작업을 생성하세요. 기존 결과는 조회할 수 있습니다.')
     current_reference_paths = []
     for current_reference_name in current_request_record['references']:
@@ -102,7 +126,7 @@ def restore_fun_inputs(current_history_record):
         if current_reference_path.parent != current_job_directory or not current_reference_path.is_file():
             raise ValueError('이력 입력 사본 누락 또는 경로 오류')
         current_reference_paths.append(str(current_reference_path))
-    return (current_reference_paths[0], str(current_job_directory/'pose-input.mp4'), current_reference_paths[1:] or None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'pose-video', current_request_record.get('pose_include_hands', bool(current_request_record.get('driving_video_file'))), current_request_record.get('pose_include_face', bool(current_request_record.get('driving_video_file'))), current_job_identifier)
+    return (current_reference_paths[0], None if current_reference_only else str(current_job_directory/'pose-input.mp4'), current_reference_paths[1:] or None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'reference-only' if current_reference_only else 'pose-video', current_request_record.get('pose_include_hands', bool(current_request_record.get('driving_video_file'))), current_request_record.get('pose_include_face', bool(current_request_record.get('driving_video_file'))), current_job_identifier)
 
 
 def describe_fun_step_split(current_steps_value, current_switch_ratio):
@@ -116,7 +140,7 @@ def describe_fun_step_split(current_steps_value, current_switch_ratio):
 def build_fun_interface(current_server_address, current_command_callback=None):
     current_execute_command = current_command_callback or execute_fun_command
     with gr.Blocks(title='Wan2.2 Fun Control 생성기') as current_interface_blocks:
-        gr.Markdown('## Wan2.2 Fun Control A14B 실험 생성기\n외형 참조와 처리된 포즈 MP4로 애니메이션을 생성합니다. VideoX-Fun DWPose 추출과 관절 길이 보정은 Kimodo 생성기에서 수행합니다.')
+        gr.Markdown('## Wan2.2 Fun Control A14B 실험 생성기\n포즈 영상 기반 또는 참조 이미지와 프롬프트만으로 애니메이션을 생성합니다. VideoX-Fun DWPose 추출과 관절 길이 보정은 Kimodo 생성기에서 수행합니다.')
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
         current_model_refresh = gr.Button('모델 준비 상태 확인')
         def read_fun_model_status():
@@ -126,18 +150,20 @@ def build_fun_interface(current_server_address, current_command_callback=None):
                 return f'모델 상태 확인 실패: {current_status_error}'
         current_model_refresh.click(read_fun_model_status, outputs=current_model_status, queue=False)
         current_interface_blocks.load(read_fun_model_status, outputs=current_model_status)
-        current_mode_control = gr.State('pose-video')
+        current_mode_control = gr.Radio(choices=[('포즈 영상 + 참조 이미지', 'pose-video'), ('참조 이미지 + 프롬프트 · 실험', 'reference-only')], value='pose-video', label='생성 모드')
         current_frames_control = gr.State(None)
         current_type_control = gr.State('pose')
-        gr.Markdown('입력 고정: 처리된 포즈 MP4 · 재검출 없음')
+        gr.Markdown('포즈 모드는 영상의 동작을 따릅니다. 참조 전용 모드는 프롬프트로 동작을 생성하며 포즈 영상은 사용하지 않습니다. 참조 이미지는 외형 조건이며 첫 프레임 고정이 아닙니다.')
         with gr.Row():
             with gr.Column():
                 current_reference_control = gr.Image(type='filepath', sources=['upload'], label='캐릭터 외형 참조 · 1장')
             with gr.Column():
                 current_video_control = gr.Video(sources=['upload'], label='처리된 포즈 영상 · MP4 · 832×480 · 16fps', include_audio=True, buttons=['download'])
+        current_mode_control.change(lambda current_mode_value: gr.Video(visible=current_mode_value == 'pose-video'), current_mode_control, current_video_control, queue=False)
         current_hands_control = gr.State(False)
         current_face_control = gr.State(False)
-        gr.Markdown('Kimodo 결과의 DWPose 포즈 MP4를 입력하세요. SOMA 인체 렌더 영상은 입력 대상이 아닙니다. 832×480 · 16fps 영상을 앞에서부터 지정 프레임 수만큼 사용하며 포즈 재검출·관절 길이 보정은 수행하지 않습니다.')
+        gr.Markdown('**포즈 모드:** Kimodo 결과의 DWPose 포즈 MP4를 입력하세요. SOMA 인체 렌더 영상은 입력 대상이 아닙니다. 832×480 · 16fps 영상을 앞에서부터 지정 프레임 수만큼 사용하며 포즈 재검출·관절 길이 보정은 수행하지 않습니다.')
+        gr.Markdown('**참조 전용 모드:** 외형 참조와 동작 프롬프트만 입력합니다. 예: The character walks in place. 제어 영상 없이 ComfyUI 기본 조건 처리를 사용하며 검은 영상을 대신 넣지 않습니다. 동작·외형 유지 품질은 미검증입니다. 기존에 첨부한 영상은 이 모드의 요청에서 제외됩니다.')
         current_prompt_control = gr.Textbox(label='장면·동작 프롬프트', lines=3)
         current_prompt_summary = gr.Markdown('원문 0단어 · 최종 0단어 · 추가 문구 없음')
         current_prompt_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어 · 추가 문구 없음', current_prompt_control, current_prompt_summary, queue=False)
@@ -146,7 +172,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             current_negative_summary = gr.Markdown('원문 0단어 · 최종 0단어')
             current_negative_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어', current_negative_control, current_negative_summary, queue=False)
         gr.Markdown('고정: 고·저노이즈 Q4_K_M · 832×480 · 16fps · Euler/simple · CUDA 연산/CPU 가중치 오프로드 · 가속 LoRA 없음. 8GB 환경에서 41프레임 실행 기록이 있으며 모든 길이의 실행을 보장하지 않습니다.')
-        current_count_control = gr.Number(value=FUN_DEFAULT_SETTINGS['frames'], precision=0, minimum=5, maximum=FUN_MAX_FRAME_COUNT, step=4, label='출력 프레임 · 4n+1 · 5~129', info='129프레임은 8GB 실행 검증 대상입니다. 21프레임으로 먼저 검토하세요. 부족한 제어 프레임은 자동 반복하지 않습니다.')
+        current_count_control = gr.Number(value=FUN_DEFAULT_SETTINGS['frames'], precision=0, minimum=5, maximum=FUN_MAX_FRAME_COUNT, step=4, label=f'출력 프레임 · 4n+1 · 5~{FUN_MAX_FRAME_COUNT}', info='161프레임은 8GB 실행 검증 대상입니다. 21프레임으로 먼저 검토하세요. 부족한 제어 프레임은 자동 반복하지 않습니다.')
         current_seed_control = build_generation_seed(default_seed_value=FUN_DEFAULT_SETTINGS['seed'])
         with gr.Row():
             current_shift_control = gr.Number(value=FUN_DEFAULT_SETTINGS['flow_shift'], minimum=0.1, maximum=20, label='Flow shift · 노이즈 시간 배분', info='기본 5. 높이면 같은 스텝 위치의 노이즈 수준이 높아집니다. CFG와 독립적으로 입력합니다. 동작 속도나 참조 강도가 아닙니다.')
@@ -160,6 +186,9 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             current_switch_control.change(describe_fun_step_split, [current_steps_control,current_switch_control], current_split_summary, queue=False)
             gr.Markdown('범위는 이 페이지의 실험 허용 범위입니다. [모델카드](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control) · [공식 ComfyUI 안내](https://docs.comfy.org/tutorials/video/wan/wan2-2-fun-control). 가속 4스텝 LoRA 예제와 현재 Q4 비가속 설정은 다릅니다.')
         current_input_controls = [current_reference_control,current_video_control,current_frames_control,current_type_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_switch_control,current_mode_control,current_hands_control,current_face_control]
+        current_example_button = gr.Button('걷기 예제 불러오기 · 21프레임 · 50스텝')
+        gr.Markdown('2026-11-02_23-24-48-85eb00f7의 참조 이미지·포즈 MP4·양성/부정 프롬프트·전체 설정으로 입력을 교체합니다. 생성은 실행하지 않습니다.')
+        current_example_button.click(load_fun_walk_example, outputs=current_input_controls, queue=False)
         current_generate_button = gr.Button('대기열에 추가', variant='primary', interactive=False)
         build_button_guidance(current_generate_button, '캐릭터 참조·처리된 포즈 MP4·프롬프트를 입력하세요. 모델 파일이 준비되어야 등록할 수 있습니다.')
         with gr.Column() as current_confirmation_container:
@@ -172,7 +201,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         def enqueue_fun_generation(*current_input_values):
             current_job_record = current_execute_command('generate',build_fun_payload(*current_input_values))
             return current_job_record['id'], '공용 GPU 대기열에 등록했습니다.'
-        bind_gpu_generation_confirmation(current_generate_button,enqueue_fun_generation,current_input_controls,[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=lambda current_reference_path,current_video_path,current_frame_paths,current_prompt_text: bool(current_reference_path and (bool(current_video_path)!=bool(current_frame_paths)) and current_prompt_text.strip()),generation_readiness_inputs=[current_reference_control,current_video_control,current_frames_control,current_prompt_control])
+        bind_gpu_generation_confirmation(current_generate_button,enqueue_fun_generation,current_input_controls,[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=lambda current_reference_path,current_video_path,current_frame_paths,current_prompt_text,current_mode_value: bool(current_reference_path and (current_mode_value == 'reference-only' or (bool(current_video_path)!=bool(current_frame_paths))) and current_prompt_text.strip()),generation_readiness_inputs=[current_reference_control,current_video_control,current_frames_control,current_prompt_control,current_mode_control])
         current_generation_timer = gr.Timer(5,active=False)
         def refresh_fun_status(current_job_identifier,current_logs_enabled,current_previous_result):
             if not current_job_identifier:

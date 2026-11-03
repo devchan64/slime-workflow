@@ -92,13 +92,13 @@ class FunGenerationContractTests(unittest.TestCase):
                 self.assertIs(current_selected_record.face, current_pose_record.face if current_face_option else None)
 
     def test_extended_frame_count_accepts_exact_controls(self):
-        current_extended_record={**self.current_request_record,'frames':129,'images':self.current_request_record['images'][:1]*130}
-        self.assertEqual(validate_fun_request(current_extended_record)['frames'],129)
+        current_extended_record={**self.current_request_record,'frames':161,'images':self.current_request_record['images'][:1]*162}
+        self.assertEqual(validate_fun_request(current_extended_record)['frames'],161)
         with self.assertRaises(ValueError):
             validate_fun_request({**current_extended_record,'images':current_extended_record['images'][:-1]})
 
     def test_rejects_invalid_and_ambiguous_inputs(self):
-        for current_field_name, current_field_value in [('frames', 133), ('frames', 6), ('steps', True), ('images', []), ('flow_shift', float('nan')), ('guidance_scale', 0), ('control_type', 'rgb'), ('switch_ratio', 1), ('model', 'other')]:
+        for current_field_name, current_field_value in [('frames', 165), ('frames', 6), ('steps', True), ('images', []), ('flow_shift', float('nan')), ('guidance_scale', 0), ('control_type', 'rgb'), ('switch_ratio', 1), ('model', 'other')]:
             with self.subTest(field=current_field_name), self.assertRaises(ValueError):
                 validate_fun_request({**self.current_request_record, current_field_name: current_field_value})
 
@@ -118,3 +118,25 @@ class FunGenerationContractTests(unittest.TestCase):
         from tools.review.ui.gradio.wan_fun_app import restore_fun_inputs
         with self.assertRaises(ValueError):
             restore_fun_inputs({'id':'../outside','request':{}})
+
+class FunReferenceOnlyTests(unittest.TestCase):
+    def test_reference_only_payload_restore_and_reject_video(self):
+        from tools.review.ui.gradio.wan_fun_app import build_fun_payload, restore_fun_inputs
+        with tempfile.TemporaryDirectory() as current_temporary_root:
+            current_job_identifier = 'reference-only-test'
+            current_job_directory = Path(current_temporary_root)/current_job_identifier
+            current_job_directory.mkdir()
+            current_reference_path = current_job_directory/'reference-1.png'
+            Image.new('RGB',(832,480),'white').save(current_reference_path)
+            current_payload_record = build_fun_payload(str(current_reference_path),'unused.mp4',None,'pose','A person walks.','',21,42,20,5,6,0.3,'reference-only')
+            self.assertEqual(len(current_payload_record['images']),1)
+            self.assertNotIn('pose_video',current_payload_record)
+            self.assertEqual(validate_fun_request(current_payload_record)['input_mode'],'reference-only')
+            for current_invalid_fields in ({'pose_video':'invalid'},{'driving_video':'invalid'},{'input_mode':'unknown'},{'images':current_payload_record['images']*2}):
+                with self.assertRaises(ValueError):
+                    validate_fun_request({**current_payload_record,**current_invalid_fields})
+            current_saved_request = {**current_payload_record,'references':['reference-1.png']}
+            with patch('tools.review.ui.gradio.wan_fun_app.FUN_JOB_STORAGE',Path(current_temporary_root)):
+                current_restored_inputs = restore_fun_inputs({'id':current_job_identifier,'request':current_saved_request})
+            self.assertIsNone(current_restored_inputs[1])
+            self.assertEqual(current_restored_inputs[12],'reference-only')
