@@ -29,17 +29,23 @@ def encode_kimodo_prompt(current_prompt_text, current_attempt_root):
     current_tokenizer_value.pad_token = current_tokenizer_value.eos_token
     current_tokenizer_value.padding_side = 'left'
     current_llm_encoder = LLM2Vec(current_adapted_encoder,current_tokenizer_value,pooling_mode='mean',max_length=512,doc_max_length=400,skip_instruction=True)
-    current_prepared_text = current_llm_encoder.prepare_for_tokenization(current_llm_encoder._convert_to_str('',current_prompt_text))
-    if len(current_tokenizer_value(current_prompt_text,add_special_tokens=False)['input_ids']) > 400:
-        raise ValueError('인코더 400토큰 한도 초과: 자동 잘림 없이 중단합니다.')
-    write_record_atomically(current_attempt_root/'prompt.json',{'prompt':current_prompt_text,'word_count':len(current_prompt_text.split()),'sha256':hashlib.sha256(current_prompt_text.encode()).hexdigest(),'encoder_text':current_prepared_text,'encoder_word_count':len(current_prepared_text.split()),'encoder_sha256':hashlib.sha256(current_prepared_text.encode()).hexdigest()})
-    # 공개 LLM2Vec의 토큰화·평균 풀링을 유지하고 전체 .to() 재배치를 피한다.
-    current_token_features = current_llm_encoder.tokenize([current_prepared_text])
-    current_token_features = {current_field_name:current_tensor_value.to('cuda:0') for current_field_name,current_tensor_value in current_token_features.items()}
-    with torch.inference_mode():
-        current_embedding_tensor = current_llm_encoder(current_token_features).float().detach().cpu()
-    if current_embedding_tensor.shape != (1,4096) or not torch.isfinite(current_embedding_tensor).all():
-        raise ValueError('텍스트 임베딩 형식·유한값 오류')
+    current_prompt_values = [current_prompt_text] if isinstance(current_prompt_text,str) else current_prompt_text
+    current_embedding_values = []
+    current_prompt_records = []
+    for current_segment_prompt in current_prompt_values:
+        current_prepared_text = current_llm_encoder.prepare_for_tokenization(current_llm_encoder._convert_to_str('',current_segment_prompt))
+        if len(current_tokenizer_value(current_segment_prompt,add_special_tokens=False)['input_ids']) > 400:
+            raise ValueError('인코더 400토큰 한도 초과: 자동 잘림 없이 중단합니다.')
+        current_prompt_records.append({'prompt':current_segment_prompt,'word_count':len(current_segment_prompt.split()),'sha256':hashlib.sha256(current_segment_prompt.encode()).hexdigest(),'encoder_text':current_prepared_text,'encoder_word_count':len(current_prepared_text.split()),'encoder_sha256':hashlib.sha256(current_prepared_text.encode()).hexdigest()})
+        current_token_features = current_llm_encoder.tokenize([current_prepared_text])
+        current_token_features = {current_field_name:current_tensor_value.to('cuda:0') for current_field_name,current_tensor_value in current_token_features.items()}
+        with torch.inference_mode():
+            current_segment_embedding = current_llm_encoder(current_token_features).float().detach().cpu()
+        if current_segment_embedding.shape != (1,4096) or not torch.isfinite(current_segment_embedding).all():
+            raise ValueError('텍스트 임베딩 형식·유한값 오류')
+        current_embedding_values.append(current_segment_embedding)
+    current_embedding_tensor = torch.cat(current_embedding_values,dim=0)
+    write_record_atomically(current_attempt_root/'prompt.json',current_prompt_records[0] if len(current_prompt_records)==1 else {'segments':current_prompt_records,'word_count':sum(current_prompt_record['word_count'] for current_prompt_record in current_prompt_records)})
     del current_token_features,current_llm_encoder,current_adapted_encoder,current_base_encoder,current_tokenizer_value
     gc.collect()
     torch.cuda.empty_cache()
@@ -47,6 +53,8 @@ def encode_kimodo_prompt(current_prompt_text, current_attempt_root):
 
 
 def execute_kimodo_inference(current_job_root,current_attempt_root,current_request_record,current_metrics_recorder):
+    if current_request_record.get('pose_constraints'):
+        raise ValueError('전신 키프레임 제약 기능은 폐기되었습니다. 입력값을 불러와 제약 없이 새로 생성하세요.')
     import torch
     import subprocess
     from pathlib import Path
@@ -62,9 +70,13 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
         current_workspace_root=Path(__file__).resolve().parents[2]
         current_metrics_recorder.update_generation_stage('reference-proportions')
         subprocess.run([str(current_workspace_root/'.venv/bin/python'),str(Path(__file__).with_name('reference_extraction.py')),str(current_job_root),str(current_attempt_root)],env={**os.environ,'PYTHONPATH':str(current_workspace_root/'.local/wan22-animate/preprocess-deps')},check=True)
-    current_final_prompt = normalize_kimodo_prompt(current_request_record['prompt'])
+    from generators.kimodo.motion_sequence import resolve_motion_segments
+    current_segment_prompts,current_segment_frames = resolve_motion_segments(current_request_record['prompt'],current_request_record['frames'],current_request_record.get('segment_frames'))
+    current_final_prompts = [normalize_kimodo_prompt(current_segment_prompt) for current_segment_prompt in current_segment_prompts]
+    current_sequence_enabled = len(current_final_prompts)>1
+    current_final_prompt = current_final_prompts[0]
     current_metrics_recorder.update_generation_stage('encoding')
-    current_embedding_tensor = encode_kimodo_prompt(current_final_prompt,current_attempt_root)
+    current_embedding_tensor = encode_kimodo_prompt(current_final_prompts,current_attempt_root)
     np.save(current_attempt_root/'text-embedding.npy',current_embedding_tensor.numpy())
     current_metrics_recorder.update_generation_stage('load')
     current_model_config = OmegaConf.load(KIMODO_MODEL_ROOT/'motion/config.yaml')
@@ -76,9 +88,9 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     if any(current_parameter_value.device.type != 'cuda' for current_parameter_value in current_motion_model.parameters()):
         raise RuntimeError('모션 모델 CUDA 배치 오류')
     def provide_cached_embedding(current_prompt_values):
-        if current_prompt_values != [current_final_prompt]:
+        if any(current_prompt_value not in current_final_prompts for current_prompt_value in current_prompt_values):
             raise ValueError('인코딩 프롬프트와 모션 요청 불일치')
-        return current_embedding_tensor.to('cuda:0'),[1]
+        return current_embedding_tensor[[current_final_prompts.index(current_prompt_value) for current_prompt_value in current_prompt_values]].to('cuda:0'),[1]*len(current_prompt_values)
     current_motion_model.text_encoder = provide_cached_embedding
     torch.manual_seed(current_request_record['seed'])
     torch.cuda.manual_seed_all(current_request_record['seed'])
@@ -87,12 +99,22 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
         for current_step_index,current_sampling_index in enumerate(current_sampling_indices,1):
             yield current_sampling_index
             current_metrics_recorder.record_generation_step(current_step_index)
-    from generators.kimodo.pose_constraints import validate_pose_constraints
-    from kimodo.constraints import load_constraints_lst
-    current_constraint_records = validate_pose_constraints(current_request_record.get('pose_constraints', []), current_request_record['frames'])
-    current_constraint_objects = load_constraints_lst(current_constraint_records, current_motion_model.skeleton, device='cuda:0', dtype=torch.float32)
-    write_record_atomically(current_attempt_root/'pose-constraints.json', current_constraint_records)
-    current_motion_output = current_motion_model(constraint_lst=current_constraint_objects,prompts=current_final_prompt,num_frames=current_request_record['frames'],num_denoising_steps=current_request_record['steps'],cfg_weight=[current_request_record['guidance_scale'],2.0],cfg_type='separated',first_heading_angle=math.radians(current_request_record['heading_degrees']),post_processing=current_request_record['post_processing'],return_numpy=True,progress_bar=record_sampling_progress)
+    if current_sequence_enabled:
+        # 공식 순차 경로는 progress_bar를 내부 _generate에 전달하지 않아 관측만 연결한다.
+        current_original_generate = current_motion_model._generate
+        current_completed_steps = [0]
+        def record_sequence_progress(current_sampling_indices):
+            for current_sampling_index in current_sampling_indices:
+                yield current_sampling_index
+                current_completed_steps[0] += 1
+                current_metrics_recorder.record_generation_step(current_completed_steps[0])
+        def generate_with_progress(*current_call_arguments,**current_call_keywords):
+            current_call_keywords['progress_bar'] = record_sequence_progress
+            return current_original_generate(*current_call_arguments,**current_call_keywords)
+        current_motion_model._generate = generate_with_progress
+    current_motion_output = current_motion_model(constraint_lst=[],prompts=current_final_prompts if current_sequence_enabled else current_final_prompt,num_frames=current_segment_frames if current_sequence_enabled else current_request_record['frames'],multi_prompt=current_sequence_enabled,num_samples=1 if current_sequence_enabled else None,num_denoising_steps=current_request_record['steps'],cfg_weight=[current_request_record['guidance_scale'],2.0],cfg_type='separated',first_heading_angle=math.radians(current_request_record['heading_degrees']),post_processing=current_request_record['post_processing'],return_numpy=True,progress_bar=record_sampling_progress)
+    if current_sequence_enabled:
+        current_motion_output = {current_field_name:current_field_value[0] for current_field_name,current_field_value in current_motion_output.items()}
     current_joint_positions = current_motion_output['posed_joints']
     if current_joint_positions.shape != (current_request_record['frames'],77,3) or not np.isfinite(current_joint_positions).all():
         raise ValueError(f'SOMA 출력 크기·유한값 오류: {current_joint_positions.shape}')
@@ -120,14 +142,12 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     from generators.kimodo.contracts import KIMODO_DIRECTION_RECORDS
     current_metrics_recorder.update_generation_stage('soma-render')
     current_soma_videos = render_soma_motion(current_attempt_root, {current_direction_name: KIMODO_DIRECTION_RECORDS[current_direction_name]['angle'] for current_direction_name in current_request_record.get('directions', ['front_left'])})
-    current_metrics_recorder.update_generation_stage('dwpose-export')
-    current_workspace_root = Path(__file__).resolve().parents[2]
-    subprocess.run([str(current_workspace_root/'.venv/bin/python'),str(Path(__file__).with_name('dwpose_export.py')),str(current_job_root),str(current_attempt_root)],env={**os.environ,'PYTHONPATH':str(current_workspace_root/'.local/wan22-animate/preprocess-deps')},check=True)
-    current_dwpose_record = json.loads((current_attempt_root/'dwpose-export.json').read_text())
+    from generators.kimodo.pose_outputs import export_kimodo_pose_outputs
+    current_direct_record,current_dwpose_record,current_quality_warnings = export_kimodo_pose_outputs(current_job_root,current_attempt_root,current_request_record,current_metrics_recorder)
     from generators.kimodo.comparison import export_pose_comparison
     export_pose_comparison(current_attempt_root,current_request_record.get('directions',['front_left']),current_request_record.get('openpose_scale_percent',100.0))
     with zipfile.ZipFile(current_attempt_root/'frames.zip','a') as current_output_archive:
-        for current_pose_path in [current_attempt_root/'dwpose-export.json',*current_attempt_root.glob('dwpose-*.mp4'),*current_attempt_root.glob('dwpose-*/*.json')]:
+        for current_pose_path in [current_attempt_root/'dwpose-export.json',current_attempt_root/'soma-direct-pose.json',*current_attempt_root.glob('soma-direct-*.mp4'),*current_attempt_root.glob('dwpose-*.mp4'),*current_attempt_root.glob('dwpose-*/*.json')]:
             current_output_archive.write(current_pose_path,str(current_pose_path.relative_to(current_attempt_root)))
         for current_soma_filename in [*current_soma_videos.values(), 'soma-render.json']:
             current_output_archive.write(current_attempt_root/current_soma_filename, current_soma_filename)
@@ -142,6 +162,9 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
             current_output_archive.write(current_attempt_root/current_artifact_name,current_artifact_name)
     current_result_record = {'attempt':current_attempt_root.name,'frames':current_request_record['frames'],'fps':30,'width':640,'height':480,'frame_sha256':current_frame_hashes,'model':'nvidia/Kimodo-SOMA-RP-v1.2','encoder':'matbee/kimodo-llm2vec-nf4','encoder_quantization':'NF4','motion_precision':'FP32','source_revision':KIMODO_ASSET_CONFIG['source_revision'],'model_revisions':{current_asset_record['role']:current_asset_record['revision'] for current_asset_record in KIMODO_ASSET_CONFIG['models']},'skeleton':'somaskel77','compute_device':'cuda','post_processing':current_request_record['post_processing'],'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20}
     current_result_record.update(openpose_scale_basis='legacy-fit',openpose_scale_percent=current_request_record.get('openpose_scale_percent',100.0),remove_horizontal_motion=current_request_record.get('remove_horizontal_motion',False),directions=current_request_record.get('directions',['front_left']),pose_source='soma',anny_enabled=False,reference_proportions=bool(current_request_record.get('references')))
+    current_result_record['direct_pose_videos'] = {current_direction_name:current_direction_record['video'] for current_direction_name,current_direction_record in current_direct_record['directions'].items()}
+    current_result_record['quality_warnings'] = current_quality_warnings
+    current_result_record['dwpose_status'] = current_dwpose_record.get('status','completed')
     current_result_record['dwpose_videos'] = current_dwpose_record['videos']
     current_result_record['soma_render_videos'] = current_soma_videos
     return current_result_record

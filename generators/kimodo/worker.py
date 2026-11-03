@@ -9,7 +9,7 @@ from generators.kimodo.contracts import KIMODO_JOB_STORAGE,KIMODO_ENVIRONMENT_PY
 if __name__ == '__main__':
     if Path(sys.prefix) != KIMODO_ENVIRONMENT_PYTHON.parent.parent:
         if not KIMODO_ENVIRONMENT_PYTHON.is_file():
-            raise FileNotFoundError(f'전용 실행 환경 누락: {KIMODO_ENVIRONMENT_PYTHON}')
+            raise FileNotFoundError(f'공용 .venv 실행 환경 누락: {KIMODO_ENVIRONMENT_PYTHON}')
         os.execv(str(KIMODO_ENVIRONMENT_PYTHON),[str(KIMODO_ENVIRONMENT_PYTHON),str(Path(__file__).resolve()),*sys.argv[1:]])
     os.environ['HF_HUB_OFFLINE']='1'
     os.environ['TRANSFORMERS_OFFLINE']='1'

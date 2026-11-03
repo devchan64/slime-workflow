@@ -11,7 +11,7 @@ KIMODO_WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 KIMODO_MODEL_ROOT = KIMODO_WORKSPACE_ROOT / '.model/kimodo'
 KIMODO_SOURCE_ROOT = KIMODO_WORKSPACE_ROOT / '.local/kimodo/upstream'
 KIMODO_JOB_STORAGE = KIMODO_WORKSPACE_ROOT / '.tmp/test/kimodo'
-KIMODO_ENVIRONMENT_PYTHON = KIMODO_WORKSPACE_ROOT / '.venv-kimodo/bin/python'
+KIMODO_ENVIRONMENT_PYTHON = KIMODO_WORKSPACE_ROOT / '.venv/bin/python'
 KIMODO_CONFIG_ROOT = Path(__file__).parent / 'config'
 
 class UniqueConfigLoader(yaml.SafeLoader):
@@ -75,12 +75,10 @@ validate_kimodo_directions(KIMODO_DEFAULT_SETTINGS['directions'])
 
 def validate_kimodo_request(current_request_record):
     current_required_fields = {'action','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'}
-    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'directions','remove_horizontal_motion','proportion_images','openpose_scale_percent','pose_include_hands','pose_include_face','pose_constraints'}:
+    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'segment_frames','directions','remove_horizontal_motion','proportion_images','openpose_scale_percent','pose_include_hands','pose_include_face'}:
         raise ValueError('Kimodo 요청 필드 오류')
     if current_request_record['action'] != 'generate':
         raise ValueError('generate 명령만 지원합니다.')
-    from generators.kimodo.pose_constraints import validate_pose_constraints
-    validate_pose_constraints(current_request_record.get('pose_constraints', []), current_request_record.get('frames'))
     current_prompt_text = current_request_record['prompt']
     if not isinstance(current_prompt_text, str) or not current_prompt_text.strip() or len(current_prompt_text) > 2000 or len(current_prompt_text.split()) > 100:
         raise ValueError('프롬프트는 1~100단어, 2000자 이내로 입력하세요.')
@@ -90,6 +88,8 @@ def validate_kimodo_request(current_request_record):
         current_field_value = current_request_record[current_field_name]
         if type(current_field_value) is not int or not current_minimum_value <= current_field_value <= current_maximum_value:
             raise ValueError(f'{current_field_name}: {current_minimum_value}~{current_maximum_value} 정수 필요')
+    from generators.kimodo.motion_sequence import resolve_motion_segments
+    resolve_motion_segments(current_prompt_text,current_request_record['frames'],current_request_record.get('segment_frames'))
     for current_field_name, current_minimum_value, current_maximum_value in [('guidance_scale',0,10),('heading_degrees',-180,180)]:
         current_field_value = current_request_record[current_field_name]
         if type(current_field_value) not in (float,int) or not math.isfinite(current_field_value) or not current_minimum_value <= current_field_value <= current_maximum_value:

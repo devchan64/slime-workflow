@@ -89,5 +89,8 @@ if __name__ == '__main__':
     threading.Thread(target=report_export_heartbeat,daemon=True).start()
     try:
         export_kimodo_dwpose(Path(sys.argv[1]),Path(sys.argv[2]))
+    except Exception as current_export_error:
+        (Path(sys.argv[2])/'dwpose-error.json').write_text(json.dumps({'error':str(current_export_error)},ensure_ascii=False))
+        raise
     finally:
         current_stop_event.set()

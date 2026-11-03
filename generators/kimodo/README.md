@@ -11,13 +11,12 @@ GUI·`tools/manager.py command kimodo`는 공용 게이트웨이와 GPU 대기�
 
 ## 자료와 실행 환경 준비
 
-모델 파일은 `.model/kimodo/`, 고정 공식 소스는 `.local/kimodo/upstream/`, 전용 환경은 `.venv-kimodo/`에 둔다. `config/assets.yaml`의 리비전과 LFS SHA-256을 확인한다. 기본 입력 원본은 추적 파일 `config/defaults.yaml`이다. 준비·설치는 GPU 접근이 가능한 샌드박스 밖에서 실행한다.
+모델 파일은 `.model/kimodo/`, 고정 공식 소스는 `.local/kimodo/upstream/`, 공용 환경은 `.venv`에 둔다. `config/assets.yaml`의 리비전과 LFS SHA-256을 확인한다. 기본 입력 원본은 추적 파일 `config/defaults.yaml`이다. 준비·설치는 GPU 접근이 가능한 샌드박스 밖에서 실행한다.
 
 ```bash
 .venv/bin/python -m generators.kimodo.prepare
-uv venv --python .venv/bin/python .venv-kimodo
-uv pip install --python .venv-kimodo/bin/python --index-strategy unsafe-best-match --extra-index-url https://download.pytorch.org/whl/cu128 -r generators/kimodo/requirements.txt
-PATH="$PWD/.venv-kimodo/bin:$PATH" uv pip install --python .venv-kimodo/bin/python --no-build-isolation .local/kimodo/upstream
+uv pip install --python .venv/bin/python --index-strategy unsafe-best-match --extra-index-url https://download.pytorch.org/whl/cu128 -r generators/kimodo/requirements.txt
+PATH="$PWD/.venv/bin:$PATH" uv pip install --python .venv/bin/python --no-build-isolation .local/kimodo/upstream
 ```
 
 
@@ -92,10 +91,24 @@ Kimodo는 공식 SOMASkin으로 방향별 SOMA 영상을 렌더한 뒤 VideoX-Fu
 
 ZIP에는 방향별 포즈 MP4, 원시·보정 검출 좌표, `dwpose-export.json`의 관절 배율·크기·FPS·상세 옵션이 포함됩니다. Fun Control은 처리된 MP4를 프레임으로 읽기만 하며 DWPose를 다시 실행하지 않습니다. 원본 NPZ와 SOMA 렌더에는 관절 길이 보정을 적용하지 않습니다.
 
-### 전신 키프레임 제약 및 직접 투영 검수
+### 직접 투영 검수
 
-`generate --payload-file` 요청의 선택 필드 `pose_constraints`는 비어 있거나 전신 제약 객체 하나를 담은 배열입니다. 객체 필드는 `type: "fullbody"`, `frame_indices`(0부터 시작하는 오름차순·중복 없는 프레임), `local_joints_rot`(키프레임×77×3 축각 회전), `root_positions`(키프레임×3)입니다. 300프레임 상한을 유지하며 한 번의 생성에 전달합니다. 실행별 `pose-constraints.json`에 저장합니다. GUI 제약 입력·이력 복원 UI는 아직 연결하지 않았습니다.
+전신 키프레임 제약 입력은 폐기되었습니다. 신규 요청은 해당 필드를 받지 않으며 기존 제약 작업의 재개는 거절합니다. 기존 이력은 보존하고, 입력값 불러오기 후 새 생성은 제약 없이 수행합니다.
 
-`direct_pose_export.export_direct_pose_video`는 기존 시도의 SOMA 카메라 기록과 모션에서 BODY18 포즈를 생성하는 검수용 Python 함수입니다. OpenCV가 있는 `.venv` 포즈 처리 환경에서 실행합니다. 출력은 832×480·16fps이며 기존 파일을 덮어쓰지 않습니다. 기록된 SOMA 카메라에 렌더 배율이 이미 포함되어 있으므로 직접 투영 단계에는 추가 배율을 적용하지 않습니다. 별도 배율 인자를 받지 않으며 출력 메타데이터에 추가 배율 100%를 기록합니다. `soma-render.json`의 `cameras`가 없는 과거 결과는 카메라 기록을 포함한 재렌더가 필요합니다. 생성 게이트웨이의 자동 출력이나 GUI 선택 옵션으로 연결된 상태는 아닙니다.
+`direct_pose_export.export_direct_pose_video`는 기존 시도의 SOMA 카메라 기록과 모션에서 BODY18 포즈를 생성하는 검수용 Python 함수입니다. OpenCV가 있는 `.venv` 포즈 처리 환경에서 실행합니다. 출력은 832×480·16fps이며 기존 파일을 덮어쓰지 않습니다. 기록된 SOMA 카메라에 렌더 배율이 이미 포함되어 있으므로 직접 투영 단계에는 추가 배율을 적용하지 않습니다. 별도 배율 인자를 받지 않으며 출력 메타데이터에 추가 배율 100%를 기록합니다. `soma-render.json`의 `cameras`가 없는 과거 결과는 카메라 기록을 포함한 재렌더가 필요합니다. 생성 시 직접 포즈와 DWPose를 함께 출력하며 결과 조회에서 각각 확인합니다.
 
-시도 폴더에 `reference-proportions.json`이 있으면 기존 신체비율 보정을 3D 관절에 먼저 적용하고 같은 카메라로 투영합니다. 적용 비율·근거를 출력 메타데이터에 보존합니다. 원본 모션과 SOMA 메시를 수정하지 않습니다. 코·귀 대응점, 손·얼굴 상세와 가림 판정은 지원하지 않습니다. 목은 어깨 중점이며 존재 표시 1은 검출 신뢰도를 의미하지 않습니다. DWPose와의 좌표 차이는 골격 정의와 검출 오차를 함께 포함하므로 직접 투영의 절대 오차로 해석하지 않습니다.
+참조 이미지 처리기 `reference_extraction.py`가 만든 비율 파일을 `current_reference_ratio_path` 인자로 지정할 수 있습니다. 지정한 파일이 없으면 즉시 실패합니다. 인자를 생략하면 시도 폴더의 `reference-proportions.json`을 사용하며, 파일이 없으면 SOMA 원본 체형입니다. 참조 비율 파일이 있으면 기존 신체비율 보정을 3D 관절에 먼저 적용하고 같은 카메라로 투영합니다. 적용 비율·근거를 출력 메타데이터에 보존합니다. 원본 모션과 SOMA 메시를 수정하지 않습니다. 코·귀 대응점, 손·얼굴 상세와 가림 판정은 지원하지 않습니다. 목은 어깨 중점이며 존재 표시 1은 검출 신뢰도를 의미하지 않습니다. DWPose와의 좌표 차이는 골격 정의와 검출 오차를 함께 포함하므로 직접 투영의 절대 오차로 해석하지 않습니다.
+
+### 포즈 결과 생성과 부분 오류
+
+SOMA 렌더 뒤 참조 신체 비율을 적용한 직접 포즈 MP4를 먼저 생성하고 DWPose도 실행합니다. 직접 포즈 생성 오류는 작업 실패이며, DWPose 오류는 실행 로그와 `quality_warnings`, `dwpose-export.json`에 경고로 보존합니다. 이 경우 직접 포즈는 결과와 ZIP에 유지합니다. 직접 포즈의 코·귀는 `config/head-anchors.yaml`에 보존한 Head 로컬 오프셋과 전역 회전으로 계산합니다. 전방 좌측 81프레임에서 검증한 추정이며 다른 동작·방향 일반화는 미검증입니다.
+
+### 공용 Python 환경
+
+Kimodo 작업 실행기·참조 분석·직접 포즈·DWPose는 모두 `.venv/bin/python`을 사용합니다. GPU 메모리 해제를 위한 별도 프로세스는 유지합니다. 공식 소스의 Transformers 5.1.0 고정을 따르므로 공용 환경을 갱신할 때 이 요구를 함께 검증하세요. `.venv-management` 등 다른 도구의 환경은 이번 통합 대상이 아닙니다.
+
+### Kimodo 순차 동작 생성
+
+공식 가이드에 따라 한 구간은 1~2개 행동에 집중합니다. `prompt`에 줄마다 독립된 설명을 넣고 선택 필드 `segment_frames`에 각 구간 프레임 배열을 전달합니다. 예: 3줄과 `[90,120,90]`, 전체 `frames: 300`. GUI의 순차 생성 구간 프레임은 `90 120 90`으로 입력합니다. 비우면 기존 단일 프롬프트입니다. 공식 `multi_prompt=True`, 기본 전환 5프레임을 사용하며 사용자 키프레임 JSON 기능은 복원하지 않습니다. 공식 내부 연결용 제약은 사용됩니다. 설정 스텝은 구간마다 적용됩니다. 현재 전체 300프레임 제한은 유지합니다.
+
+근거: https://research.nvidia.com/labs/sil/projects/kimodo/docs/key_concepts/limitations.html 및 공식 user_guide/cli.md.

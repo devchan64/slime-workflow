@@ -44,7 +44,7 @@ def run_reference_video_worker(current_storage_root, current_worker_path, curren
     write_record_atomically(current_job_root / 'current-attempt.json', {'id': current_attempt_root.name})
     write_record_atomically(current_attempt_root / 'request.json', current_request_record)
     (current_attempt_root / 'executor-source.py').write_bytes(current_worker_path.read_bytes())
-    current_metrics_recorder = GenerationTelemetryRecorder(current_attempt_root, current_request_record['steps'], [])
+    current_metrics_recorder = GenerationTelemetryRecorder(current_attempt_root, current_request_record['steps']*len(current_request_record.get('segment_frames',[current_request_record['frames']])), [])
     current_metrics_recorder.start_generation_telemetry()
     current_final_status = 'failed'
     signal.signal(signal.SIGTERM, handle_video_signal)

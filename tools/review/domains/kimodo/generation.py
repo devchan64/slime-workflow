@@ -26,8 +26,27 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
         if current_status_record.get('video'):
             import json
             current_result_record = json.loads((current_job_root/'result.json').read_text())
+            current_status_record['dwpose_status']=current_result_record.get('dwpose_status','completed' if current_result_record.get('dwpose_videos') else 'unrecorded')
+            current_status_record['direct_pose_status']='completed' if current_result_record.get('direct_pose_videos') else 'unrecorded'
+            current_status_record['quality_warnings']=current_result_record.get('quality_warnings',[])
+            current_error_path=current_job_root/'attempts'/current_result_record['attempt']/'dwpose-error.json'
+            if current_error_path.is_file():
+                current_status_record['dwpose_error']=json.loads(current_error_path.read_text())['error']
+            elif current_status_record['dwpose_status']=='warning':
+                # 구조화 오류가 없던 과거 기록에서 명시된 검출 오류만 읽는다.
+                import re
+                current_log_path=current_job_root/'worker.log'
+                if current_log_path.is_file():
+                    with current_log_path.open('rb') as current_log_stream:
+                        current_log_stream.seek(max(0,current_log_path.stat().st_size-32768))
+                        current_log_tail=current_log_stream.read().decode(errors='replace')
+                    current_error_matches=re.findall(r'^ValueError: (단일 인체 검출 필요: \d+프레임)$',current_log_tail,re.MULTILINE)
+                    if current_error_matches:
+                        current_status_record['dwpose_error']=current_error_matches[-1]
             if current_result_record.get('soma_render_videos'):
                 current_status_record['preprocess_videos'] = {f'SOMA 렌더 · {current_direction_name}': current_status_record['video'].rsplit('/', 1)[0]+'/'+current_video_name for current_direction_name, current_video_name in current_result_record['soma_render_videos'].items()}
+            if current_result_record.get('direct_pose_videos'):
+                current_status_record.setdefault('preprocess_videos',{}).update({f'직접 포즈 · {current_direction_name}':current_status_record['video'].rsplit('/',1)[0]+'/'+current_video_name for current_direction_name,current_video_name in current_result_record['direct_pose_videos'].items()})
             if current_result_record.get('dwpose_videos'):
                 current_status_record.setdefault('preprocess_videos',{}).update({f'DWPose 포즈 · {current_direction_name}':current_status_record['video'].rsplit('/',1)[0]+'/'+current_video_name for current_direction_name,current_video_name in current_result_record['dwpose_videos'].items()})
             current_status_record['reference_analysis_only']=current_result_record.get('reference_analysis_only',False)

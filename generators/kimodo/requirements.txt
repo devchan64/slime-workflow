@@ -1,4 +1,4 @@
-# 전용 .venv-kimodo에서 설치. CUDA torch는 설치 가이드의 cu128 인덱스를 사용한다.
+# 공용 .venv에서 설치. CUDA torch는 설치 가이드의 cu128 인덱스를 사용한다.
 torch==2.11.0+cu128
 transformers==5.1.0
 bitsandbytes==0.50.2
@@ -11,3 +11,5 @@ ninja
 setuptools
 wheel
 pyrender==0.1.45
+
+opencv-python-headless

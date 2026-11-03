@@ -19,6 +19,26 @@ class KimodoGenerationContractTests(unittest.TestCase):
                 validate_kimodo_request({**self.current_request_record,current_field_name:current_field_value})
         self.assertEqual(validate_kimodo_request(self.current_request_record)['images'],[])
 
+    def test_motion_sequence_contract(self):
+        from generators.kimodo.motion_sequence import resolve_motion_segments
+        current_prompt_text='A person stands.\nA person sits down.\nA person stands up.'
+        self.assertEqual(resolve_motion_segments(current_prompt_text,300,[90,120,90])[1],[90,120,90])
+        for current_segment_frames in ([100,100], [90,90,90], [True,149,150]):
+            with self.assertRaises(ValueError):
+                resolve_motion_segments(current_prompt_text,300,current_segment_frames)
+        current_sequence_request={**self.current_request_record,'prompt':current_prompt_text,'frames':300,'segment_frames':[90,120,90]}
+        self.assertEqual(validate_kimodo_request(current_sequence_request)['segment_frames'],[90,120,90])
+        from tools.review.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs
+        self.assertEqual(build_kimodo_payload(*restore_kimodo_inputs({'id':'sequence','request':current_sequence_request})[:-1]),current_sequence_request)
+
+    def test_retired_constraints_are_rejected(self):
+        from tools.review.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs
+        current_legacy_request = {**self.current_request_record,'pose_constraints':[{'frame':0}]}
+        with self.assertRaises(ValueError):
+            validate_kimodo_request(current_legacy_request)
+        current_restored_inputs = restore_kimodo_inputs({'id':'legacy','request':current_legacy_request})[:-1]
+        self.assertNotIn('pose_constraints',build_kimodo_payload(*current_restored_inputs))
+
     def test_horizontal_translation_preserves_motion(self):
         import numpy as np
         from generators.kimodo.motion_processing import remove_horizontal_translation
@@ -95,7 +115,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
     def test_examples_update_only_prompt_and_frames(self):
         from tools.review.ui.gradio.kimodo_app import apply_kimodo_example,describe_kimodo_duration,load_kimodo_examples
         current_example_records=load_kimodo_examples()
-        self.assertEqual(set(current_example_records),{'male_runway_in_place','relaxed_feet_planted','standing_overhead_stretch'})
+        self.assertEqual(set(current_example_records),{'male_runway_in_place','relaxed_feet_planted','standing_overhead_stretch','male_floor_rest_cycle'})
         from tools.review.ui.gradio.kimodo_app import build_kimodo_payload
         current_stretch_payload = build_kimodo_payload(*apply_kimodo_example('standing_overhead_stretch'))
         self.assertEqual(current_stretch_payload['frames'],300)
