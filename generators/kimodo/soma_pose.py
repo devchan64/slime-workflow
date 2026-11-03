@@ -55,3 +55,24 @@ def load_soma_pose_points(current_attempt_root,current_direction_names,current_s
     current_ratio_path=current_attempt_root/'reference-proportions.json'
     current_ratio_record=json.loads(current_ratio_path.read_text()) if current_ratio_path.is_file() else None
     return {current_direction_name:project_soma_body_points(current_joint_positions,current_skeleton_record['joint_names'],current_direction_name,current_ratio_record,current_scale_percent) for current_direction_name in current_direction_names}
+
+
+def project_recorded_camera_points(current_joint_positions, current_camera_record):
+    """SOMA 메시 렌더의 정사영 카메라를 동일하게 적용한다. 결과는 원본 영상 픽셀이다."""
+    current_rotation_matrix = np.asarray(current_camera_record['rotation_matrix'], dtype=float)
+    current_center_position = np.asarray(current_camera_record['center_position'], dtype=float)
+    current_half_height = current_camera_record['half_height']
+    current_image_width = current_camera_record['width']
+    current_image_height = current_camera_record['height']
+    if current_rotation_matrix.shape != (3,3) or current_center_position.shape != (3,) or not np.isfinite(current_rotation_matrix).all() or not np.isfinite(current_center_position).all():
+        raise ValueError('기록된 SOMA 카메라 행렬 형식 오류')
+    if not np.allclose(current_rotation_matrix @ current_rotation_matrix.T, np.eye(3), atol=1e-6) or not np.isclose(np.linalg.det(current_rotation_matrix),1):
+        raise ValueError('SOMA 카메라 회전행렬 오류')
+    if type(current_half_height) not in (int,float) or not np.isfinite(current_half_height) or current_half_height <= 0 or any(type(current_dimension_value) is not int or current_dimension_value <= 0 for current_dimension_value in (current_image_width,current_image_height)):
+        raise ValueError('SOMA 카메라 배율·해상도 오류')
+    current_joint_positions = np.asarray(current_joint_positions, dtype=float)
+    if current_joint_positions.ndim < 2 or current_joint_positions.shape[-1] != 3 or not np.isfinite(current_joint_positions).all():
+        raise ValueError('투영 관절 좌표 형식 오류')
+    current_camera_positions = current_joint_positions @ current_rotation_matrix.T-current_center_position
+    current_pixel_scale = current_image_height/(2*current_half_height)
+    return np.stack((current_camera_positions[...,0]*current_pixel_scale+current_image_width/2, -current_camera_positions[...,1]*current_pixel_scale+current_image_height/2),axis=-1)

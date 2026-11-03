@@ -75,10 +75,12 @@ validate_kimodo_directions(KIMODO_DEFAULT_SETTINGS['directions'])
 
 def validate_kimodo_request(current_request_record):
     current_required_fields = {'action','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'}
-    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'directions','remove_horizontal_motion','proportion_images','openpose_scale_percent','pose_include_hands','pose_include_face'}:
+    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'directions','remove_horizontal_motion','proportion_images','openpose_scale_percent','pose_include_hands','pose_include_face','pose_constraints'}:
         raise ValueError('Kimodo 요청 필드 오류')
     if current_request_record['action'] != 'generate':
         raise ValueError('generate 명령만 지원합니다.')
+    from generators.kimodo.pose_constraints import validate_pose_constraints
+    validate_pose_constraints(current_request_record.get('pose_constraints', []), current_request_record.get('frames'))
     current_prompt_text = current_request_record['prompt']
     if not isinstance(current_prompt_text, str) or not current_prompt_text.strip() or len(current_prompt_text) > 2000 or len(current_prompt_text.split()) > 100:
         raise ValueError('프롬프트는 1~100단어, 2000자 이내로 입력하세요.')

@@ -43,3 +43,38 @@ def render_body_pose_image(current_pose_points,current_image_size=(512,512)):
             current_joint_horizontal,current_joint_vertical = current_joint_point[:2].astype(int)
             current_drawing_context.ellipse((current_joint_horizontal-POSE_JOINT_PIXEL_RADIUS,current_joint_vertical-POSE_JOINT_PIXEL_RADIUS,current_joint_horizontal+POSE_JOINT_PIXEL_RADIUS,current_joint_vertical+POSE_JOINT_PIXEL_RADIUS),fill=current_joint_color)
     return current_canvas_image
+
+
+def render_exact_body_pose(current_pose_points, current_image_size=(832,480)):
+    """포즈 처리 환경의 OpenCV로 VideoX-Fun BODY18 래스터 규칙을 재현한다."""
+    import cv2
+    current_point_array = np.asarray(current_pose_points,dtype=float)
+    if current_point_array.shape != (18,3) or not np.isfinite(current_point_array).all() or np.any((current_point_array[:,2]<0)|(current_point_array[:,2]>1)):
+        raise ValueError('BODY18 좌표·존재 표시 계약 오류')
+    current_canvas_array = np.zeros((current_image_size[1],current_image_size[0],3),dtype=np.uint8)
+    for current_limb_pair,current_limb_color in zip(POSE_BODY_LIMB_PAIRS,POSE_BODY_PALETTE_RGB):
+        current_start_point,current_end_point = current_point_array[list(current_limb_pair)]
+        if min(current_start_point[2],current_end_point[2])<=0:
+            continue
+        current_middle_point = (current_start_point[:2]+current_end_point[:2])/2
+        current_delta_vector = current_start_point[:2]-current_end_point[:2]
+        current_limb_length = float(np.linalg.norm(current_delta_vector))
+        current_limb_angle = math.degrees(math.atan2(current_delta_vector[1],current_delta_vector[0]))
+        current_limb_polygon = cv2.ellipse2Poly(tuple(current_middle_point.astype(int)),(int(current_limb_length/2),POSE_LIMB_HALF_WIDTH),int(current_limb_angle),0,360,1)
+        cv2.fillConvexPoly(current_canvas_array,current_limb_polygon,[int(current_color_value*POSE_LIMB_COLOR_SCALE) for current_color_value in current_limb_color])
+    for current_joint_point,current_joint_color in zip(current_point_array,POSE_BODY_PALETTE_RGB):
+        if current_joint_point[2]>0:
+            cv2.circle(current_canvas_array,tuple(current_joint_point[:2].astype(int)),POSE_JOINT_PIXEL_RADIUS,current_joint_color,thickness=-1)
+    return Image.fromarray(current_canvas_array)
+
+
+def render_fun_control_body(current_pose_points):
+    """832×480 원본 좌표를 DWPose의 512 높이 렌더·패딩·크롭 규칙으로 출력한다."""
+    from PIL import ImageOps
+    current_scaled_points = np.asarray(current_pose_points,dtype=float).copy()
+    current_scaled_points[:,:2] *= 512/480
+    current_scaled_width = round(832*512/480)
+    current_padded_width = current_scaled_width+(-current_scaled_width)%64
+    current_pose_image = render_exact_body_pose(current_scaled_points,(current_padded_width,512))
+    current_pose_image = current_pose_image.crop((0,0,current_scaled_width,512))
+    return ImageOps.pad(current_pose_image,(832,480),color='black')

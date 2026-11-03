@@ -55,6 +55,7 @@ def render_soma_motion(current_attempt_root, current_direction_angles, current_s
         current_video_renderer.delete()
         raise RuntimeError(f'GPU 렌더러 필요: {current_renderer_name}')
     current_output_records = {}
+    current_camera_records = {}
     try:
         for current_direction_name, current_direction_angle in current_direction_angles.items():
             current_rotation_angle = math.radians(current_direction_angle)
@@ -64,6 +65,7 @@ def render_soma_motion(current_attempt_root, current_direction_angles, current_s
             current_maximum_bounds = current_rotated_vertices.max(axis=(0, 1))
             current_center_position = (current_minimum_bounds+current_maximum_bounds)/2
             current_half_height = max((current_maximum_bounds-current_minimum_bounds)[1]/2, (current_maximum_bounds-current_minimum_bounds)[0]/2*SOMA_RENDER_HEIGHT/SOMA_RENDER_WIDTH)/(current_scale_percent/100)
+            current_camera_records[current_direction_name] = {'rotation_matrix': current_rotation_matrix.tolist(), 'center_position': current_center_position.tolist(), 'half_height': float(current_half_height), 'width': SOMA_RENDER_WIDTH, 'height': SOMA_RENDER_HEIGHT}
             current_render_scene = pyrender.Scene(bg_color=[255, 255, 255, 255], ambient_light=[0.45, 0.45, 0.45])
             current_camera_pose = np.eye(4)
             current_camera_pose[:3, 3] = current_center_position+[0, 0, 6]
@@ -81,5 +83,5 @@ def render_soma_motion(current_attempt_root, current_direction_angles, current_s
             current_output_records[current_direction_name] = current_output_path.name
     finally:
         current_video_renderer.delete()
-    write_record_atomically(current_attempt_root/'soma-render.json', {'source': current_motion_path.name, 'skinning': 'Kimodo SOMASkin', 'source_revision': KIMODO_ASSET_CONFIG['source_revision'], 'renderer': current_renderer_name, 'fps': SOMA_RENDER_FPS, 'width': SOMA_RENDER_WIDTH, 'height': SOMA_RENDER_HEIGHT, 'scale_percent': current_scale_percent, 'videos': current_output_records})
+    write_record_atomically(current_attempt_root/'soma-render.json', {'source': current_motion_path.name, 'skinning': 'Kimodo SOMASkin', 'source_revision': KIMODO_ASSET_CONFIG['source_revision'], 'renderer': current_renderer_name, 'fps': SOMA_RENDER_FPS, 'width': SOMA_RENDER_WIDTH, 'height': SOMA_RENDER_HEIGHT, 'scale_percent': current_scale_percent, 'videos': current_output_records, 'cameras': current_camera_records})
     return current_output_records

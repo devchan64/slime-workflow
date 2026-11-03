@@ -87,7 +87,12 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
         for current_step_index,current_sampling_index in enumerate(current_sampling_indices,1):
             yield current_sampling_index
             current_metrics_recorder.record_generation_step(current_step_index)
-    current_motion_output = current_motion_model(prompts=current_final_prompt,num_frames=current_request_record['frames'],num_denoising_steps=current_request_record['steps'],cfg_weight=[current_request_record['guidance_scale'],2.0],cfg_type='separated',first_heading_angle=math.radians(current_request_record['heading_degrees']),post_processing=current_request_record['post_processing'],return_numpy=True,progress_bar=record_sampling_progress)
+    from generators.kimodo.pose_constraints import validate_pose_constraints
+    from kimodo.constraints import load_constraints_lst
+    current_constraint_records = validate_pose_constraints(current_request_record.get('pose_constraints', []), current_request_record['frames'])
+    current_constraint_objects = load_constraints_lst(current_constraint_records, current_motion_model.skeleton, device='cuda:0', dtype=torch.float32)
+    write_record_atomically(current_attempt_root/'pose-constraints.json', current_constraint_records)
+    current_motion_output = current_motion_model(constraint_lst=current_constraint_objects,prompts=current_final_prompt,num_frames=current_request_record['frames'],num_denoising_steps=current_request_record['steps'],cfg_weight=[current_request_record['guidance_scale'],2.0],cfg_type='separated',first_heading_angle=math.radians(current_request_record['heading_degrees']),post_processing=current_request_record['post_processing'],return_numpy=True,progress_bar=record_sampling_progress)
     current_joint_positions = current_motion_output['posed_joints']
     if current_joint_positions.shape != (current_request_record['frames'],77,3) or not np.isfinite(current_joint_positions).all():
         raise ValueError(f'SOMA 출력 크기·유한값 오류: {current_joint_positions.shape}')
