@@ -64,6 +64,20 @@ class SpriteAssetSourceTests(unittest.TestCase):
 
 
 class RegisteredCharacterSourceTests(unittest.TestCase):
+    def test_locked_animation_version_wins_over_registered_history(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            temporary_root_path = Path(temporary_directory_name)
+            current_new_path = temporary_root_path/'new.animation.json'
+            current_new_path.write_text('{"animationId":"character.default.idle"}')
+            current_old_name = 'assets/characters/default/animations/idle/v1.animation.json'
+            current_old_path = temporary_root_path/current_old_name
+            current_old_path.parent.mkdir(parents=True)
+            current_old_path.write_text('{"animationId":"character.default.idle"}')
+            current_locked_records = {'assets/characters/default/idle.animation.json': (current_new_path, {})}
+            with patch('tools.review.common.sprite_asset_sources.load_locked_sprite_sources', return_value=(temporary_root_path/'assets', current_locked_records)), patch('tools.review.common.sprite_asset_sources.load_registered_tiles', return_value=(temporary_root_path, {current_old_name: {}})):
+                _, current_review_records = load_review_sprite_sources(temporary_root_path)
+            self.assertEqual(current_review_records, current_locked_records)
+
     def test_unlocked_character_included_and_cutins_excluded(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             temporary_root_path = Path(temporary_directory_name)

@@ -1,5 +1,6 @@
 """게임의 잠금 버전을 에셋 저장소에서 직접 검증한다."""
 import re
+import json
 from pathlib import Path
 from tools.review.common.map_tile_assets import UniqueAssetYamlLoader, load_registered_tiles, resolve_registered_asset, select_sprite_source_prefix
 import yaml
@@ -31,12 +32,15 @@ def load_review_sprite_sources(frontend_repository_path):
     review_source_records = dict(locked_source_records)
     asset_repository_path, registered_asset_records = load_registered_tiles()
     existing_source_paths = {current_source_path for current_source_path, _ in review_source_records.values()}
+    locked_animation_identifiers = {json.loads(current_source_path.read_text())['animationId'] for current_source_path, _ in locked_source_records.values() if current_source_path.name.endswith('.animation.json')}
     for current_relative_path in sorted(registered_asset_records):
         current_path_parts = Path(current_relative_path).parts
         if len(current_path_parts) < 5 or current_path_parts[:2] != ('assets', 'characters') or current_path_parts[3] != 'animations':
             continue
         current_source_path = (asset_repository_path/current_relative_path).resolve()
         if current_source_path in existing_source_paths:
+            continue
+        if locked_animation_identifiers and current_source_path.name.endswith('.animation.json') and json.loads(current_source_path.read_text())['animationId'] in locked_animation_identifiers:
             continue
         if current_relative_path in review_source_records:
             raise ValueError(f'검수 스프라이트 논리 경로 충돌: {current_relative_path}')
