@@ -63,6 +63,16 @@ def write_proxy_response_body(response_output_stream, response_body_bytes):
     return True
 
 
+def write_review_trace_line(current_log_path, current_trace_text):
+    """표준 출력 연결이 끊겨도 요청 처리와 파일 로그를 유지한다."""
+    with current_log_path.open('a') as current_log_stream:
+        current_log_stream.write(current_trace_text + '\n')
+    try:
+        print(current_trace_text, flush=True)
+    except (BrokenPipeError, ConnectionResetError):
+        pass
+
+
 def load_static_review_route_identifiers(manager_source_path):
     """직접 접속을 Gradio로 보낼 정적 검수 HTML 경로와 식별자를 읽는다."""
     if not manager_source_path.is_file():return {}
@@ -373,8 +383,7 @@ def run_review_server(parsed_argument_values):
     def emit_server_trace(trace_stage_name, trace_message_text):
         trace_line_text = f'{datetime.now().isoformat()}/asset-review-server/{trace_stage_name} {trace_message_text}'
         with trace_write_lock:
-            print(trace_line_text,flush=True)
-            with server_log_path.open('a') as trace_file_stream: trace_file_stream.write(trace_line_text+'\n')
+            write_review_trace_line(server_log_path, trace_line_text)
     class ReviewRequestHandler(SimpleHTTPRequestHandler):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
