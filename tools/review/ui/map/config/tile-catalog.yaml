@@ -6,6 +6,7 @@ source_tile_size: 256
 ground_source_tile_size: 128
 # 검수 화면 논리 타일 ID와 에셋 저장소 원본의 표시용 매핑이다.
 tiles:
+  - {id: brine-bank-shallow-water-v1, category: ground, asset: assets/tiles/terrain/blocked/brine-bank-shallow-water-v1.png}
   - {id: salt-flat-calm-brine-v1, category: ground, asset: assets/tiles/terrain/blocked/salt-flat-calm-brine-v1.png}
   - {id: salt-flat-mixed-soil-v1, category: ground, asset: assets/tiles/terrain/non-road/salt-flat-mixed-soil-v1.png}
   - {id: salt-flat-crust-v2, category: ground, asset: assets/tiles/terrain/non-road/salt-flat-crust-v2.png}
@@ -18,6 +19,13 @@ tiles:
   - {id: pebble-submerged-rounded-v1, category: ground, asset: assets/tiles/terrain/blocked/pebble-submerged-rounded-v1.png}
   - {id: pebble-natural-rounded-v1, category: ground, asset: assets/tiles/terrain/non-road/pebble-natural-rounded-v1.png}
   - {id: pebble-coarse-0-v1, category: ground, asset: assets/tiles/terrain/non-road/pebble-coarse-0-v1.png}
+  - {id: brine-bank-gravel-sparse-sheet-v1, category: ground, asset: assets/tiles/terrain/non-road/brine-bank-gravel-sparse-sheet-v1.png}
+  - {id: brine-bank-gravel-wide-sheet-v1, category: ground, asset: assets/tiles/terrain/non-road/brine-bank-gravel-wide-sheet-v1.png}
+  - {id: brine-bank-gravel-sheet-a-v1, category: ground, asset: assets/tiles/terrain/non-road/brine-bank-gravel-sheet-a-v1.png}
+  - {id: brine-bank-road-sheet-v1, category: ground, asset: assets/tiles/terrain/road/brine-bank-road-sheet-v1.png}
+  - {id: brine-bank-gravel-sheet-b-v1, category: ground, asset: assets/tiles/terrain/non-road/brine-bank-gravel-sheet-b-v1.png}
+  - {id: brine-bank-saline-gravel-v1, category: ground, asset: assets/tiles/terrain/non-road/brine-bank-saline-gravel-v1.png}
+  - {id: brine-bank-saline-gravel-variant-v1, category: ground, asset: assets/tiles/terrain/non-road/brine-bank-saline-gravel-variant-v1.png}
   - {id: pebble-coarse-1-v1, category: ground, asset: assets/tiles/terrain/non-road/pebble-coarse-1-v1.png}
   - {id: pebble-coarse-2-v1, category: ground, asset: assets/tiles/terrain/non-road/pebble-coarse-2-v1.png}
   - {id: pebble-lake-calm-v1, category: ground, asset: assets/tiles/terrain/blocked/pebble-lake-calm-v1.png}
