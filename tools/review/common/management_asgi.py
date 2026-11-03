@@ -31,6 +31,7 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'character-review': ('map_review_app', 'build_map_review_interface', 'character'),
     'effect-editor': ('effect_editor_app', 'build_effect_editor_interface', 'port'),
     'asset-editor': ('asset_editor_app', 'build_asset_editor_interface', 'port'),
+    'building-editor': ('building_editor_panel', 'build_building_editor_interface', 'port'),
     'world-map': ('world_map_app', 'build_world_review_interface', 'port'),
     'writer-agent': ('writer_agent_app', 'build_writer_agent_interface', 'port'),
     'sprite-editor-v2': ('sprite_editor_v2_app', 'build_sprite_v2_interface', 'none'),
@@ -74,9 +75,10 @@ def build_management_blocks(current_tool_name, current_review_port, current_sour
             current_markup_text = current_module_value.resolve_review_ui_asset('sprite-editor-v2.html').read_text()
             current_mount_options['css'] = re.search(r'<style>(.*?)</style>', current_markup_text, re.S).group(1)
             current_mount_options['js'] = current_module_value.create_sprite_v2_loader(current_review_port)
-        elif current_tool_name == 'asset-editor':
+        elif current_tool_name in ('asset-editor', 'building-editor'):
             from tools.review.common.map_tile_assets import load_registered_tiles
-            current_mount_options['allowed_paths'] = [str(load_registered_tiles()[0] / 'assets/billboards')]
+            current_asset_directory = 'buildings' if current_tool_name == 'building-editor' else 'billboards'
+            current_mount_options['allowed_paths'] = [str(load_registered_tiles()[0] / 'assets' / current_asset_directory)]
     return compose_management_interface(current_interface_blocks, current_review_port), current_mount_options
 
 
