@@ -115,16 +115,18 @@ def load_kimodo_examples():
         raise ValueError('Kimodo 프롬프트 예시 계약 오류')
     current_example_mapping = {}
     for current_example_value in current_example_record['examples']:
-        if not isinstance(current_example_value,dict) or set(current_example_value) not in ({'id','label','prompt','frames'},{'id','label','prompt','frames','settings'}) or any(not isinstance(current_example_value[current_field_name],str) or not current_example_value[current_field_name].strip() for current_field_name in ('id','label','prompt')):
+        if not isinstance(current_example_value,dict) or set(current_example_value)-{'reference_example'} not in ({'id','label','prompt','frames'},{'id','label','prompt','frames','settings'}) or any(not isinstance(current_example_value[current_field_name],str) or not current_example_value[current_field_name].strip() for current_field_name in ('id','label','prompt')):
             raise ValueError('Kimodo 예시 필드 오류')
         if current_example_value['id'] in current_example_mapping:
             raise ValueError('Kimodo 예시 ID 중복')
         build_kimodo_payload(current_example_value['prompt'],current_example_value['frames'],KIMODO_DEFAULT_SETTINGS['steps'],KIMODO_DEFAULT_SETTINGS['seed'],KIMODO_DEFAULT_SETTINGS['guidance_scale'],KIMODO_DEFAULT_SETTINGS['heading_degrees'],KIMODO_DEFAULT_SETTINGS['post_processing'])
         if 'settings' in current_example_value:
             current_settings_record = current_example_value['settings']
-            if not isinstance(current_settings_record,dict) or set(current_settings_record)!={'steps','seed','guidance_scale','heading_degrees','post_processing','directions','remove_horizontal_motion'}:
+            if not isinstance(current_settings_record,dict) or set(current_settings_record)-{'segment_frames','openpose_scale_percent','pose_include_hands','pose_include_face'}!={'steps','seed','guidance_scale','heading_degrees','post_processing','directions','remove_horizontal_motion'}:
                 raise ValueError('Kimodo 예시 설정 필드 오류')
             validate_kimodo_request({'action':'generate','prompt':current_example_value['prompt'],'frames':current_example_value['frames'],**current_settings_record})
+        if 'reference_example' in current_example_value and current_example_value['reference_example'] not in load_proportion_examples():
+            raise ValueError('등록되지 않은 신체 비율 참조 예제')
         current_example_mapping[current_example_value['id']] = current_example_value
     return current_example_mapping
 
@@ -136,6 +138,14 @@ def apply_kimodo_example(current_example_identifier):
     current_example_record = current_example_mapping[current_example_identifier]
     current_settings_record = current_example_record.get('settings',{})
     return (current_example_record['prompt'],current_example_record['frames'])+tuple(current_settings_record[current_field_name] if current_field_name in current_settings_record else gr.skip() for current_field_name in ('steps','seed','guidance_scale','heading_degrees','post_processing','directions','remove_horizontal_motion'))
+
+
+def apply_complete_kimodo_example(current_example_identifier):
+    current_example_record=load_kimodo_examples()[current_example_identifier]
+    current_settings_record=current_example_record.get('settings',{})
+    current_reference_identifier=current_example_record.get('reference_example')
+    current_reference_values=apply_proportion_example(current_reference_identifier) if current_reference_identifier else (gr.skip(),gr.skip())
+    return (*apply_kimodo_example(current_example_identifier),*current_reference_values,*(current_settings_record.get(current_field_name,gr.skip()) for current_field_name in ('openpose_scale_percent','pose_include_hands','pose_include_face')),' '.join(map(str,current_settings_record.get('segment_frames',[]))))
 
 
 def describe_kimodo_duration(current_frame_count):
@@ -239,7 +249,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         current_prompt_control.change(describe_kimodo_prompt,[current_prompt_control,current_segment_control],current_prompt_summary,queue=False)
         current_segment_control.change(describe_kimodo_prompt,[current_prompt_control,current_segment_control],current_prompt_summary,queue=False)
         current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control,current_horizontal_control,current_proportions_control,current_reference_control,current_scale_control,current_hands_control,current_face_control,current_segment_control]
-        current_example_button.click(apply_kimodo_example,current_example_selector,current_input_controls[:9],queue=False).then(lambda:'',outputs=current_segment_control,queue=False)
+        current_example_button.click(apply_complete_kimodo_example,current_example_selector,current_input_controls,queue=False)
         gr.Markdown('예시는 시작점입니다. 생성된 동작의 자세와 움직임을 검수하세요.')
         current_generate_button = gr.Button('대기열에 추가',variant='primary',interactive=False)
         build_button_guidance(current_generate_button,'모델 자료와 전용 환경을 준비한 뒤 상태를 새로 확인하고 동작 프롬프트와 출력 방향을 한 개 이상 선택하세요. 신체 비율 참조 옵션을 켰다면 RGB PNG 이미지를 첨부하세요.')

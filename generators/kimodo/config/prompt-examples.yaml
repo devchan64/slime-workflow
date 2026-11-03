@@ -46,14 +46,26 @@ examples:
     remove_horizontal_motion: true
 - id: male_floor_rest_cycle
   label: 남성 바닥 휴식 · 서기–앉기–일어서기 · 왼쪽 45도 · 10초
-  prompt: A man stands, sits down on the floor and rests, then rises and stands upright.
+  prompt: 'A person stands upright and lowers themselves to sit on the floor.
+
+    A person sits on the floor and rests.
+
+    A person rises from sitting on the floor and stands upright.'
   frames: 300
   settings:
     steps: 100
     seed: 46
-    guidance_scale: 2.0
-    heading_degrees: 0.0
+    guidance_scale: 2
+    heading_degrees: 0
     post_processing: false
     directions:
     - front_left
     remove_horizontal_motion: false
+    segment_frames:
+    - 90
+    - 90
+    - 120
+    openpose_scale_percent: 85
+    pose_include_hands: false
+    pose_include_face: false
+  reference_example: character_eight_directions
