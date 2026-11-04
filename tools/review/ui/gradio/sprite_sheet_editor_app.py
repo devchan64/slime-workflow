@@ -48,10 +48,17 @@ def load_sprite_sheet_input(current_file_path,current_columns_value,current_rows
         return 'data:image/png;base64,'+base64.b64encode(current_image_bytes).decode(),current_frame_rows,SPRITE_EDITOR_DEFAULT_COLUMNS,gr.update(maximum=max(2,len(current_frame_rows)),value=1),'등록된 좌표맵의 프레임과 앵커를 불러왔습니다.'
     if any(type(current_value) not in (int,float) or int(current_value)!=current_value or current_value<1 for current_value in (current_columns_value,current_rows_value)):raise gr.Error('원본 열·행 수는 양의 정수여야 합니다.')
     current_column_count,current_row_count=int(current_columns_value),int(current_rows_value)
-    if current_column_count*current_row_count>128 or current_width_value%current_column_count or current_height_value%current_row_count:raise gr.Error('최대 128프레임이며 이미지 크기가 열·행 수로 나누어져야 합니다.')
-    current_cell_width,current_cell_height=current_width_value//current_column_count,current_height_value//current_row_count
-    current_frame_rows=[[current_column_index*current_cell_width,current_row_index*current_cell_height,current_cell_width,current_cell_height,current_cell_width//2,current_cell_height-1] for current_row_index in range(current_row_count) for current_column_index in range(current_column_count)]
-    return 'data:image/png;base64,'+base64.b64encode(current_image_bytes).decode(),current_frame_rows,SPRITE_EDITOR_DEFAULT_COLUMNS,gr.update(maximum=max(2,len(current_frame_rows)),value=1),f'{len(current_frame_rows)}개 프레임을 불러왔습니다. 크롭과 앵커를 편집하세요.'
+    if current_column_count*current_row_count>128 or current_column_count>current_width_value or current_row_count>current_height_value:raise gr.Error('최대 128프레임이며 각 셀은 최소 1픽셀이어야 합니다.')
+    current_column_edges=[round(current_column_index*current_width_value/current_column_count) for current_column_index in range(current_column_count+1)]
+    current_row_edges=[round(current_row_index*current_height_value/current_row_count) for current_row_index in range(current_row_count+1)]
+    current_frame_rows=[]
+    for current_row_index in range(current_row_count):
+        for current_column_index in range(current_column_count):
+            current_cell_width=current_column_edges[current_column_index+1]-current_column_edges[current_column_index]
+            current_cell_height=current_row_edges[current_row_index+1]-current_row_edges[current_row_index]
+            current_frame_rows.append([current_column_edges[current_column_index],current_row_edges[current_row_index],current_cell_width,current_cell_height,current_cell_width//2,current_cell_height-1])
+    return 'data:image/png;base64,'+base64.b64encode(current_image_bytes).decode(),current_frame_rows,SPRITE_EDITOR_DEFAULT_COLUMNS,gr.update(maximum=max(2,len(current_frame_rows)),value=1),f'{current_column_count}열 × {current_row_count}행 · {len(current_frame_rows)}프레임으로 균등 분할했습니다. 나머지 픽셀은 경계에 분산하며 셀 크기는 최대 1px 차이입니다.'
+
 
 
 def prepare_sprite_sheet_load(current_file_path,current_columns_value,current_rows_value,current_image_data,current_asset_record):
@@ -123,6 +130,7 @@ def build_sprite_sheet_editor_interface(current_review_port):
                     current_input_columns=gr.Number(label='원본 열',value=4,precision=0)
                     current_input_rows=gr.Number(label='원본 행',value=2,precision=0)
                     current_load_button=gr.Button('시트 불러오기')
+                gr.Markdown('미등록 PNG는 원본 열·행으로 전체 영역을 균등 분할합니다. 나누어떨어지지 않는 픽셀은 분산하며 자동 크롭하지 않습니다.')
                 current_image_data=gr.Textbox(value='',visible=False)
                 current_pending_load=gr.State({})
                 with gr.Group(visible=False) as current_confirm_group:

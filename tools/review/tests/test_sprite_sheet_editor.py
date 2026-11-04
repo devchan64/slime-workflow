@@ -11,6 +11,24 @@ from tools.review.domains.character_animation import sprite_sheet_editor
 
 
 class SpriteSheetEditorTests(unittest.TestCase):
+    def test_unregistered_import_distributes_remainder_pixels(self):
+        from tools.review.ui.gradio.sprite_sheet_editor_app import load_sprite_sheet_input
+        with TemporaryDirectory() as current_temp_directory:
+            current_image_path=Path(current_temp_directory)/'sheet.png'
+            Image.new('RGB',(17,13),'white').save(current_image_path)
+            current_loaded_values=load_sprite_sheet_input(str(current_image_path),4,3,{})
+            current_frame_rows=current_loaded_values[1]
+            self.assertEqual(len(current_frame_rows),12)
+            current_covered_pixels=set()
+            for current_left_value,current_top_value,current_width_value,current_height_value,*_ in current_frame_rows:
+                for current_vertical_value in range(current_top_value,current_top_value+current_height_value):
+                    for current_horizontal_value in range(current_left_value,current_left_value+current_width_value):
+                        self.assertNotIn((current_horizontal_value,current_vertical_value),current_covered_pixels)
+                        current_covered_pixels.add((current_horizontal_value,current_vertical_value))
+            self.assertEqual(len(current_covered_pixels),17*13)
+            self.assertLessEqual(max(row[2] for row in current_frame_rows)-min(row[2] for row in current_frame_rows),1)
+            self.assertLessEqual(max(row[3] for row in current_frame_rows)-min(row[3] for row in current_frame_rows),1)
+
     def test_export_aligns_crops_and_preserves_source(self):
         current_source_image=Image.new('RGBA',(8,4))
         current_source_image.putpixel((1,1),(255,0,0,255))
