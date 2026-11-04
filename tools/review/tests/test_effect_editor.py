@@ -8,6 +8,37 @@ class EffectEditorTests(unittest.TestCase):
     def test_list_filters_non_alignment_effects(self,current_api_mock):
         current_api_mock.return_value={'effects':[{'id':'a','name':'A'},{'id':'b','name':'B','alignment':{}}]}
         self.assertEqual(execute_effect_editor_command('effect-list',{}),{'effects':[{'id':'b','name':'B'}]})
+    @patch('tools.review.domains.map_assets.effect_editor.resolve_registered_asset')
+    @patch('tools.review.domains.map_assets.effect_editor.load_registered_tiles')
+    @patch('tools.review.domains.map_assets.effect_editor.execute_content_api_request')
+    def test_waypoint_effect_is_listed_and_loads_six_frames_without_billboard(self,current_api_mock,current_tiles_mock,current_resolver_mock):
+        from unittest.mock import Mock
+        current_effect_record={'id':'waypoint-guide-v3','name':'웨이포인트 안내','renderer':'waypoint-animation','image':'assets/sprites/effects/waypoint/guide.png','animation':'assets/sprites/effects/waypoint/guide.animation.json','frames':6}
+        current_api_mock.return_value={'effects':[current_effect_record]}
+        self.assertEqual(execute_effect_editor_command('effect-list',{})['effects'],[{'id':'waypoint-guide-v3','name':'웨이포인트 안내'}])
+        current_tiles_mock.return_value=(None,{})
+        current_image_path=Mock();current_image_path.read_bytes.return_value=b'png'
+        current_animation_path=Mock();current_animation_path.read_text.return_value='{"frames":[{},{},{},{},{},{}]}'
+        current_resolver_mock.side_effect=[(current_image_path,{}),(current_animation_path,{})]
+        current_detail_record=execute_effect_editor_command('effect-load',{'id':'waypoint-guide-v3'})
+        self.assertIsNone(current_detail_record['hostImage'])
+        self.assertEqual(len(current_detail_record['animationMetadata']['frames']),6)
+        self.assertEqual(current_api_mock.call_count,2)
+
+    def test_waypoint_replacement_requires_same_selection_and_confirmed_input(self):
+        import json
+        import gradio as gr
+        from tools.review.ui.gradio.effect_editor_app import prepare_waypoint_effect_replacement,confirm_waypoint_effect_replacement
+        current_detail_record={'document':{'id':'waypoint-guide-v3','renderer':'waypoint-animation'},'revision':'original'}
+        current_effect_record={'id':'waypoint-guide-v4','renderer':'waypoint-animation','columns':4,'rows':2,'frames':8,'image':'assets/sprites/effects/waypoint/guide.png','animation':'assets/sprites/effects/waypoint/guide.animation.json'}
+        current_effect_json=json.dumps(current_effect_record)
+        current_pending_record,_,_=prepare_waypoint_effect_replacement(current_detail_record,current_effect_json)
+        with patch('tools.review.ui.gradio.effect_editor_app.execute_remote_management_command',return_value={'id':'waypoint-guide-v4'}) as current_gateway_mock:
+            with self.assertRaises(gr.Error):confirm_waypoint_effect_replacement(current_detail_record,current_pending_record,json.dumps({**current_effect_record,'id':'changed'}))
+            current_gateway_mock.assert_not_called()
+            confirm_waypoint_effect_replacement(current_detail_record,current_pending_record,current_effect_json)
+            current_gateway_mock.assert_called_once_with('map-assets','effect-replace',current_pending_record)
+
     @patch('tools.review.domains.map_assets.effect_editor.execute_content_api_request')
     def test_save_preserves_revision_and_request(self,current_api_mock):
         current_payload={'id':'sample','requestId':'request','expectedRevision':'revision','alignment':{}}

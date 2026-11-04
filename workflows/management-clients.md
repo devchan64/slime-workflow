@@ -1000,3 +1000,8 @@ Fun Control 신규 GUI는 처리된 832×480 · 16fps MP4만 입력합니다. GU
 공식 가이드에 따라 한 구간은 1~2개 행동에 집중합니다. `prompt`에 줄마다 독립된 설명을 넣고 선택 필드 `segment_frames`에 각 구간 프레임 배열을 전달합니다. 예: 3줄과 `[90,120,90]`, 전체 `frames: 300`. GUI의 순차 생성 구간 프레임은 `90 120 90`으로 입력합니다. 비우면 기존 단일 프롬프트입니다. 공식 `multi_prompt=True`, 기본 전환 5프레임을 사용하며 사용자 키프레임 JSON 기능은 복원하지 않습니다. 공식 내부 연결용 제약은 사용됩니다. 설정 스텝은 구간마다 적용됩니다. 현재 전체 300프레임 제한은 유지합니다.
 
 근거: https://research.nvidia.com/labs/sil/projects/kimodo/docs/key_concepts/limitations.html 및 공식 user_guide/cli.md.
+
+
+### 웨이포인트 이펙트 교체
+
+맵 이펙트 좌표 검수의 ‘웨이포인트 이펙트 교체’에서 등록된 이미지·애니메이션 경로와 4×2 8프레임 이펙트 JSON을 입력하고 대상·경로를 확인한 뒤 교체한다. 선택 또는 입력 변경 시 재확인하며 취소는 저장하지 않는다. CLI는 동일 게이트웨이의 `map-assets effect-replace --payload-file`을 사용하며 입력은 기존 `id`, `expectedRevision`, UUID `requestId`, 새 이펙트 문서 `effect`다. 등록 경로·DB 리비전을 검증하고 이전 이펙트 DB 항목을 새 항목으로 교체하며 원본 파일 삭제는 별도 작업이다.

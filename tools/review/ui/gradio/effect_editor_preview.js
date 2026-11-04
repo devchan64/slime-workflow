@@ -13,6 +13,27 @@ async (currentDetailRecord,currentLeftValue,currentTopValue,currentRightValue,cu
   return currentErrorMessage;
  };
  if(!currentDetailRecord?.document)return rejectCurrentPreviewInput('이펙트를 먼저 불러오세요.');
+ if(currentDetailRecord.document.renderer==='waypoint-animation'){
+  const currentFrames=currentDetailRecord.animationMetadata?.frames;
+  if(!Array.isArray(currentFrames)||currentFrames.length!==currentDetailRecord.document.frames)return rejectCurrentPreviewInput('웨이포인트 프레임 정보를 읽지 못했습니다.');
+  const currentSheetImage=new Image();
+  currentSheetImage.onload=()=>{
+   const currentStartTime=performance.now();
+   const drawWaypointPreview=currentTime=>{
+    if(!currentCanvasElement.isConnected||currentCanvasElement.effectPreviewRevision!==currentPreviewRevision)return;
+    const currentIndex=currentPlayEnabled?Math.floor((currentTime-currentStartTime)*6/1000)%currentFrames.length:Math.max(0,Math.min(currentFrames.length-1,Number(currentFrameIndex)||0));
+    const currentFrame=currentFrames[currentIndex],currentRectangle=currentFrame.rect,currentAnchor=currentFrame.anchor,currentSize=420;
+    const currentLeft=320-currentAnchor.x/currentRectangle.width*currentSize,currentTop=440-currentAnchor.y/currentRectangle.height*currentSize;
+    currentCanvasContext.globalCompositeOperation='source-over';currentCanvasContext.globalAlpha=1;currentCanvasContext.fillStyle='#182329';currentCanvasContext.fillRect(0,0,640,640);
+    currentCanvasContext.drawImage(currentSheetImage,currentRectangle.x,currentRectangle.y,currentRectangle.width,currentRectangle.height,currentLeft,currentTop,currentSize,currentSize);
+    if(currentBoundsEnabled){currentCanvasContext.strokeStyle='#ff70be';currentCanvasContext.strokeRect(currentLeft,currentTop,currentSize,currentSize);currentCanvasContext.strokeStyle='#ff4545';currentCanvasContext.beginPath();currentCanvasContext.moveTo(310,440);currentCanvasContext.lineTo(330,440);currentCanvasContext.moveTo(320,430);currentCanvasContext.lineTo(320,450);currentCanvasContext.stroke();}
+    currentCanvasContext.fillStyle='white';currentCanvasContext.fillText(`프레임 ${currentIndex+1}/${currentFrames.length} · 빨강: 앵커`,16,24);
+    if(currentPlayEnabled)requestAnimationFrame(drawWaypointPreview);
+   };drawWaypointPreview(currentStartTime);
+  };
+  currentSheetImage.onerror=()=>rejectCurrentPreviewInput('웨이포인트 시트를 읽지 못했습니다.');currentSheetImage.src=currentDetailRecord.sheetImage;
+  return `웨이포인트 독립 이펙트 · ${currentFrames.length}프레임 · 초당 6프레임 · 프레임 앵커는 애니메이션 원본 기준`;
+ }
  const currentTargetBounds=[currentLeftValue,currentTopValue,currentRightValue,currentBottomValue];
  const currentRawFrameRows=Array.isArray(currentFrameValues)?currentFrameValues:currentFrameValues?.data;
  const currentFrameRows=currentRawFrameRows?.map(currentFrameRow=>currentFrameRow.map(currentCellValue=>typeof currentCellValue==='string'&&currentCellValue.trim()!==''?Number(currentCellValue):currentCellValue));

@@ -1,5 +1,6 @@
 """빌보드 연결 발광의 공용 좌표를 검수하는 Gradio 클라이언트."""
 import copy
+import json
 from pathlib import Path
 from uuid import uuid4
 import gradio as gr
@@ -15,8 +16,10 @@ def load_effect_editor_choices():
 
 def load_effect_editor_detail(current_effect_identifier):
     current_detail_record=execute_remote_management_command('map-assets','effect-load',{'id':current_effect_identifier})
-    current_alignment_record=current_detail_record['document']['alignment']
-    return current_detail_record,*current_alignment_record['target'],current_alignment_record['alpha'],[[round(float(current_cell_value),2) for current_cell_value in current_frame_row] for current_frame_row in current_alignment_record['frames']],0,'DB 원본을 불러왔습니다. 이 설정은 같은 종류를 사용하는 모든 이펙트에 적용됩니다.',gr.update(visible=current_detail_record['hostImage'] is not None)
+    current_waypoint_selected=current_detail_record['document']['renderer']=='waypoint-animation'
+    current_alignment_record=current_detail_record['document'].get('alignment',{'target':[0,0,1,1],'alpha':1,'frames':[[0,0,1,1]]*8})
+    current_message=f"웨이포인트 {current_detail_record['document']['frames']}프레임을 검수합니다. 프레임 앵커는 애니메이션 원본에서 관리합니다." if current_waypoint_selected else 'DB 원본을 불러왔습니다. 이 설정은 같은 종류를 사용하는 모든 이펙트에 적용됩니다.'
+    return current_detail_record,*[gr.update(value=current_value,interactive=not current_waypoint_selected) for current_value in current_alignment_record['target']],gr.update(value=current_alignment_record['alpha'],interactive=not current_waypoint_selected),gr.update(value=[[round(float(current_cell_value),2) for current_cell_value in current_frame_row] for current_frame_row in current_alignment_record['frames']],visible=not current_waypoint_selected),gr.update(value=0,maximum=current_detail_record['document']['frames']-1),current_message,gr.update(visible=current_detail_record['hostImage'] is not None),gr.update(interactive=not current_waypoint_selected)
 
 
 def save_effect_editor_detail(current_detail_record,current_left_value,current_top_value,current_right_value,current_bottom_value,current_alpha_value,current_frame_values):
@@ -34,11 +37,30 @@ def save_effect_editor_detail(current_detail_record,current_left_value,current_t
         yield gr.update(interactive=True,value='선택 이펙트 변경 반영'),current_detail_record,'저장 실패 · 입력값 유지 · '+str(current_save_error)
 
 
+def prepare_waypoint_effect_replacement(current_detail_record,current_effect_json):
+    if not current_detail_record or current_detail_record['document'].get('renderer')!='waypoint-animation':raise gr.Error('웨이포인트 이펙트를 먼저 불러오세요.')
+    try: current_next_effect=json.loads(current_effect_json)
+    except (TypeError,ValueError) as current_error: raise gr.Error('새 이펙트 JSON 형식을 확인하세요.') from current_error
+    if not isinstance(current_next_effect,dict) or current_next_effect.get('renderer')!='waypoint-animation' or (current_next_effect.get('columns'),current_next_effect.get('rows'),current_next_effect.get('frames'))!=(4,2,8):raise gr.Error('새 이펙트는 4×2 8프레임 웨이포인트여야 합니다.')
+    if any(not isinstance(current_next_effect.get(current_key_name),str) or not current_next_effect[current_key_name] for current_key_name in ('id','image','animation')):raise gr.Error('새 ID·이미지·애니메이션 경로가 필요합니다.')
+    current_pending_record={'id':current_detail_record['document']['id'],'expectedRevision':current_detail_record['revision'],'requestId':str(uuid4()),'effect':current_next_effect}
+    return current_pending_record,gr.update(visible=True),f"**교체 대상:** {current_pending_record['id']} → {current_next_effect['id']}\n\n이미지: `{current_next_effect['image']}` · 메타데이터: `{current_next_effect['animation']}`\n\n기존 이펙트 등록이 교체됩니다. 원본 파일 정리는 별도로 확인하세요."
+
+
+def confirm_waypoint_effect_replacement(current_detail_record,current_pending_record,current_effect_json):
+    if not current_pending_record or not current_detail_record or current_detail_record['document']['id']!=current_pending_record['id'] or current_detail_record['revision']!=current_pending_record['expectedRevision']:raise gr.Error('선택된 이펙트가 바뀌었습니다. 다시 확인하세요.')
+    try: current_next_effect=json.loads(current_effect_json)
+    except (TypeError,ValueError) as current_error:raise gr.Error('새 이펙트 JSON 형식을 확인하세요.') from current_error
+    if current_next_effect!=current_pending_record['effect']:raise gr.Error('확인 후 입력이 바뀌었습니다. 다시 확인하세요.')
+    current_result_record=execute_remote_management_command('map-assets','effect-replace',current_pending_record)
+    return {},{},gr.update(visible=False),f"교체 완료: {current_result_record['id']} · 목록에서 다시 불러오세요."
+
+
 def build_effect_editor_interface(current_review_port):
     current_vendor_manifest=yaml.safe_load((Path(__file__).parents[1]/'map/vendor/field-renderer/manifest.yaml').read_text())
     current_preview_script=Path(__file__).with_name('effect_editor_preview.js').read_text().replace('__RENDERER_URL__',f'http://127.0.0.1:{current_review_port}/isloon-map-review/vendor/field-renderer/{current_vendor_manifest["version"]}/field-renderer.mjs')
     with gr.Blocks(title='맵 이펙트 좌표 검수') as current_interface_blocks:
-        gr.Markdown('## 맵 이펙트 좌표 검수\n버섯 발광은 빌보드와 겹쳐 보고, 나방·반딧불·안개는 독립 시트로 검수합니다. 이미지는 파일로 유지하고 좌표는 DB 저장 후 에셋 원장에 지연 반영합니다.')
+        gr.Markdown('## 맵 이펙트 좌표 검수\n버섯 발광은 빌보드와 겹쳐 보고, 나방·반딧불·안개·웨이포인트는 독립 시트로 검수합니다. 이미지는 파일로 유지하고 좌표는 DB 저장 후 에셋 원장에 지연 반영합니다.')
         with gr.Row():
             current_effect_choice=gr.Dropdown(label='맵 이펙트',choices=[])
             current_reload_button=gr.Button('목록 새로고침')
@@ -67,13 +89,26 @@ def build_effect_editor_interface(current_review_port):
                 current_bounds_enabled=gr.Checkbox(label='영역 가이드 보기',value=True)
                 gr.HTML('<canvas id="effect-alignment-preview" width="640" height="640" aria-label="빌보드 발광 정렬 미리보기" style="width:100%;aspect-ratio:1"></canvas>')
                 current_preview_status=gr.Textbox(label='미리보기 상태',interactive=False)
+        with gr.Accordion('웨이포인트 이펙트 교체',open=False):
+            gr.Markdown('등록된 이미지·애니메이션 경로를 포함한 새 이펙트 JSON을 입력하고 변경 내용을 확인합니다.')
+            current_replacement_json=gr.Textbox(label='새 웨이포인트 이펙트 JSON',lines=4)
+            current_replacement_pending=gr.State({})
+            current_replacement_preview=gr.Button('교체 내용 확인')
+            with gr.Group(visible=False) as current_replacement_group:
+                current_replacement_summary=gr.Markdown()
+                with gr.Row():
+                    current_replacement_confirm=gr.Button('확인 후 교체',variant='primary')
+                    current_replacement_cancel=gr.Button('취소')
         current_sync_status=gr.Markdown()
         current_preview_inputs=[current_detail_record,current_left_value,current_top_value,current_right_value,current_bottom_value,current_alpha_value,current_frame_values,current_play_enabled,current_frame_index,current_host_enabled,current_bounds_enabled]
-        current_load_outputs=[current_detail_record,current_left_value,current_top_value,current_right_value,current_bottom_value,current_alpha_value,current_frame_values,current_frame_index,current_save_status,current_host_enabled]
+        current_load_outputs=[current_detail_record,current_left_value,current_top_value,current_right_value,current_bottom_value,current_alpha_value,current_frame_values,current_frame_index,current_save_status,current_host_enabled,current_save_button]
         current_load_button.click(load_effect_editor_detail,current_effect_choice,current_load_outputs).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         for current_input_component in current_preview_inputs[1:]:
             current_input_component.input(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_save_button.click(save_effect_editor_detail,current_preview_inputs[:7],[current_save_button,current_detail_record,current_save_status],concurrency_limit=1,trigger_mode='once')
+        current_replacement_preview.click(prepare_waypoint_effect_replacement,[current_detail_record,current_replacement_json],[current_replacement_pending,current_replacement_group,current_replacement_summary])
+        current_replacement_cancel.click(lambda:({},gr.update(visible=False)),outputs=[current_replacement_pending,current_replacement_group])
+        current_replacement_confirm.click(confirm_waypoint_effect_replacement,[current_detail_record,current_replacement_pending,current_replacement_json],[current_detail_record,current_replacement_pending,current_replacement_group,current_save_status],concurrency_limit=1,trigger_mode='once').then(load_effect_editor_choices,outputs=current_effect_choice)
         current_reload_button.click(load_effect_editor_choices,outputs=current_effect_choice)
         current_interface_blocks.load(load_effect_editor_choices,outputs=current_effect_choice)
         gr.Timer(5).tick(lambda:refresh_content_snapshot_status({'storage':'database'}),outputs=current_sync_status,show_progress='hidden')
