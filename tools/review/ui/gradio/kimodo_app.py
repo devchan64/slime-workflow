@@ -39,7 +39,7 @@ def load_proportion_examples():
             if not isinstance(current_image_path,str):
                 raise ValueError('신체 비율 예제 경로는 문자열이어야 합니다.')
             current_resolved_path=(current_workspace_root/current_image_path).resolve()
-            if not current_resolved_path.is_relative_to(current_workspace_root/'assets') or not current_resolved_path.is_file():
+            if not any(current_resolved_path.is_relative_to(current_workspace_root/current_allowed_directory) for current_allowed_directory in ('assets','baseline')) or not current_resolved_path.is_file():
                 raise ValueError(f'신체 비율 예제 이미지 경로 오류: {current_image_path}')
             current_resolved_paths.append(str(current_resolved_path))
         current_example_mapping[current_example_record['id']]={'label':current_example_record['label'],'images':current_resolved_paths}

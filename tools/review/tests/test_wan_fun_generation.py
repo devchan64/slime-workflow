@@ -92,13 +92,13 @@ class FunGenerationContractTests(unittest.TestCase):
                 self.assertIs(current_selected_record.face, current_pose_record.face if current_face_option else None)
 
     def test_extended_frame_count_accepts_exact_controls(self):
-        current_extended_record={**self.current_request_record,'frames':161,'images':self.current_request_record['images'][:1]*162}
-        self.assertEqual(validate_fun_request(current_extended_record)['frames'],161)
+        current_extended_record={**self.current_request_record,'frames':129,'images':self.current_request_record['images'][:1]*130}
+        self.assertEqual(validate_fun_request(current_extended_record)['frames'],129)
         with self.assertRaises(ValueError):
             validate_fun_request({**current_extended_record,'images':current_extended_record['images'][:-1]})
 
     def test_rejects_invalid_and_ambiguous_inputs(self):
-        for current_field_name, current_field_value in [('frames', 165), ('frames', 6), ('steps', True), ('images', []), ('flow_shift', float('nan')), ('guidance_scale', 0), ('control_type', 'rgb'), ('switch_ratio', 1), ('model', 'other')]:
+        for current_field_name, current_field_value in [('frames', 133), ('frames', 161), ('frames', 6), ('steps', True), ('images', []), ('flow_shift', float('nan')), ('guidance_scale', 0), ('control_type', 'rgb'), ('switch_ratio', 1), ('model', 'other')]:
             with self.subTest(field=current_field_name), self.assertRaises(ValueError):
                 validate_fun_request({**self.current_request_record, current_field_name: current_field_value})
 

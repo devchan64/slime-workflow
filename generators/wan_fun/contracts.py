@@ -16,7 +16,7 @@ FUN_MODEL_FILES = {
     'vae': ('.model/wan22-animate-components/split_files/vae/wan_2.1_vae.safetensors', 253815318),
 }
 FUN_DEFAULT_SETTINGS = {'frames': 21, 'steps': 20, 'seed': 42, 'flow_shift': 5.0, 'guidance_scale': 6.0, 'switch_ratio': 0.5}
-FUN_MAX_FRAME_COUNT = 161
+FUN_MAX_FRAME_COUNT = 129
 FUN_CONTROL_TYPES = ('pose', 'depth', 'canny', 'mlsd')
 
 

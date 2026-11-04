@@ -45,13 +45,13 @@ examples:
     - front_left
     remove_horizontal_motion: true
 - id: male_floor_rest_cycle
-  label: 남성 바닥 휴식 · 서기–앉기–일어서기 · 왼쪽 45도 · 10초
-  prompt: 'A person stands upright and lowers themselves to sit on the floor.
+  label: 남성 바닥 휴식 · 서기–앉기–일어서기 · 왼쪽 45도 · 7초
+  prompt: 'A person starts standing upright, then sits down on the floor with their knees raised and both feet planted in front of their body.
 
-    A person sits on the floor and rests.
+    A person sits on the floor with feet forward and knees raised, resting their forearms on their knees.
 
     A person rises from sitting on the floor and stands upright.'
-  frames: 300
+  frames: 210
   settings:
     steps: 100
     seed: 46
@@ -62,9 +62,9 @@ examples:
     - front_left
     remove_horizontal_motion: false
     segment_frames:
-    - 90
-    - 90
-    - 120
+    - 63
+    - 63
+    - 84
     openpose_scale_percent: 85
     pose_include_hands: false
     pose_include_face: false
