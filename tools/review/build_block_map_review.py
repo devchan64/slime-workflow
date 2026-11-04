@@ -130,6 +130,7 @@ def load_current_texture_records(validate_complete_inventory=True):
         current_asset_path
         for current_asset_path in registered_tile_records
         if current_asset_path.startswith('assets/tiles/terrain/road/') and Path(current_asset_path).suffix.lower() in {'.png','.webp','.jpg','.jpeg'}
+        and registered_tile_records[current_asset_path].get('source', {}).get('lifecycle_status') != 'retired'
     }
     catalog_road_tile_paths={
         current_texture_record['source']
