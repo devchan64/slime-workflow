@@ -51,7 +51,6 @@ def collect_anchor_review_paths(static_review_paths, current_anchor_paths=None):
 
 def create_static_review_loader(review_server_port, static_review_paths, current_anchor_paths=None):
     serialized_paths=json.dumps(static_review_paths,ensure_ascii=False).replace('<','\\u003c')
-    review_server_base=json.dumps(f'http://127.0.0.1:{review_server_port}')
     current_anchor_paths_json=json.dumps(collect_anchor_review_paths(static_review_paths,current_anchor_paths),ensure_ascii=False).replace('<','\\u003c')
     return f"""async()=>{{
 {read_native_anchor_loader()}
@@ -60,7 +59,7 @@ const staticReviewRoot=document.querySelector('#static-review-root');
 if(!staticReviewRoot||staticReviewRoot.dataset.staticReviewLoaded)return;
 staticReviewRoot.dataset.staticReviewLoaded='true';
 const staticReviewPaths={serialized_paths};
-const reviewServerBase={review_server_base};
+const reviewServerBase=window.location.origin;
 const reviewIdentifier=new URLSearchParams(window.location.search).get('review');
 const selectedReviewPath=Object.hasOwn(staticReviewPaths,reviewIdentifier)?staticReviewPaths[reviewIdentifier]:null;
 if(!selectedReviewPath){{staticReviewRoot.innerHTML='<p class="static-review-error" role="alert">표시할 정적 검수 페이지를 찾을 수 없습니다.</p>';staticReviewRoot.setAttribute('aria-busy','false');return;}}

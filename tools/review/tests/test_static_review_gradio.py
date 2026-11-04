@@ -249,6 +249,8 @@ assert.deepEqual(failedValues[0],{__type__:'update'});
 
     def test_unknown_static_identifier_finishes_loading(self):
         current_loader_text=create_static_review_loader(8770,{'walk-review':'animation/anchors.html'})
+        self.assertIn('const reviewServerBase=window.location.origin;',current_loader_text)
+        self.assertNotIn('http://127.0.0.1:8770',current_loader_text)
         current_interface_blocks=build_static_review_interface({'walk-review':'animation/anchors.html'})
         current_visibility_scripts=[current_event_record['js'] for current_event_record in current_interface_blocks.get_config_file()['dependencies'] if 'const currentReviewPaths=' in (current_event_record.get('js') or '')]
         for current_visibility_script in current_visibility_scripts:
