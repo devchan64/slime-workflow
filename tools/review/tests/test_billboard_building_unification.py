@@ -55,8 +55,9 @@ class BillboardBuildingUnificationTests(unittest.TestCase):
                 current_image_value, current_prompt_text, current_building_enabled = current_callback_value('building:' + current_profile_name + ':' + str(current_height_value), 'stone house')
                 self.assertTrue(current_image_value.size)
                 self.assertTrue(current_building_enabled)
-                if current_profile_name.split('-')[0] in ('4x4', '4x5', '4x6'):
-                    self.assertIn('Door: two tiles wide, 80% of floor height.', current_prompt_text)
+                if current_profile_name.split('-')[0] in ('3x3', '4x4', '4x5', '4x6'):
+                    current_door_width = 'one tile' if current_profile_name.startswith('3x3') else 'two tiles'
+                    self.assertIn('Door: ' + current_door_width + ' wide, 80% of floor height.', current_prompt_text)
                 else:
                     self.assertEqual(current_prompt_text, 'stone house')
 
