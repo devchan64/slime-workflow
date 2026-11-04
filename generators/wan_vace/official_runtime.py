@@ -84,16 +84,27 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
         'runtime': 'VideoX-Fun official + GGUF adapter',
         'adapter_source_sha256': {
             current_source_name: hashlib.sha256((Path(__file__).parent / current_source_name).read_bytes()).hexdigest()
-            for current_source_name in ('official_runtime.py', 'official_gguf.py', 'cpu_offload.py', 'activation_offload.py', 'query_offload.py', 'memory_diagnostics.py', 'sampling.py')
+            for current_source_name in ('official_runtime.py', 'official_gguf.py', 'cpu_offload.py', 'activation_offload.py', 'query_offload.py', 'memory_diagnostics.py', 'sampling.py', 'noise_experiment.py', 'attention_experiment.py')
         },
         'compute_device': 'cuda', 'offload_device': 'cpu',
         'non_block_module_offload': True,
         'encoded_input_cpu_offload': True,
         'rope_query_result_cpu_offload': True,
-        'active_expert_block_offload': True, 'official_forward_unmodified': False, 'official_math_unmodified': True, 'branch_activation_cpu_offload': True, 'custom_math_patches': False, 'vace_latent_offload': True, 'inactive_expert_offload': True, 'vae_inference_offload': True, 'temporal_vae_tiling': False,
+        'active_expert_block_offload': True, 'official_forward_unmodified': False, 'official_math_unmodified': 'attention_prefix_frames' not in current_request_record, 'branch_activation_cpu_offload': True, 'custom_math_patches': 'attention_prefix_frames' in current_request_record, 'vace_latent_offload': True, 'inactive_expert_offload': True, 'vae_inference_offload': True, 'temporal_vae_tiling': False,
     })
     current_metrics_recorder.update_generation_stage('load')
     current_pipeline_object = load_official_pipeline(current_metrics_recorder, current_request_record['flow_shift'], current_attempt_root)
+    if 'attention_prefix_frames' in current_request_record:
+        from videox_fun.models import wan_transformer3d
+        from generators.wan_vace.attention_experiment import install_prefix_attention_isolation
+        current_branch_scope = current_request_record.get("attention_branch_scope", "all")
+        install_prefix_attention_isolation(wan_transformer3d, current_pipeline_object, current_branch_scope)
+        write_record_atomically(current_attempt_root / 'attention-experiment.json', {
+            'experimental_only': True, 'official_math_unmodified': False,
+            'prefix_frames': 21, 'prefix_tokens': 10920, 'total_tokens': 18720,
+            'branch_scope': current_branch_scope,
+            'scope': '선택 분기 self-attention의 앞 7잠재 슬롯은 앞 7슬롯만 참조; 뒤쪽은 전체 참조; cross-attention 유지',
+        })
     current_frame_count = current_request_record['frames']
     current_condition_inputs = {}
     if current_request_record['references']:
@@ -119,9 +130,15 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
             if current_field_name=='edit_mask':current_condition_inputs[current_argument_name]=current_condition_inputs[current_argument_name][:,:1]
     if current_request_record['mode'] == 'pose':
         current_condition_inputs.update(build_pose_conditions(current_job_root, current_request_record))
+    if 'noise_prefix_frames' in current_request_record:
+        from generators.wan_vace.noise_experiment import build_prefix_noise_latents
+        current_condition_inputs['latents'] = build_prefix_noise_latents(current_pipeline_object, current_request_record, current_attempt_root)
     def record_official_step(current_pipeline_value,current_step_index,current_time_value,current_callback_values):
         current_metrics_recorder.record_generation_step(current_step_index+1)
         if current_step_index + 1 == current_request_record['steps']:
+            if 'attention_prefix_frames' in current_request_record:
+                from safetensors.torch import save_file
+                save_file({'latents': current_callback_values['latents'].detach().cpu().contiguous()}, str(current_attempt_root / 'final-latents.safetensors'))
             current_pipeline_value.transformer.to('cpu')
             current_pipeline_value.transformer_2.to('cpu')
             torch.cuda.empty_cache()
@@ -144,6 +161,15 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
     if len(current_frame_arrays)!=current_frame_count:raise ValueError('공식 출력 프레임 수 불일치')
     current_metrics_recorder.update_generation_stage('saving')
     current_output_hashes=save_video_outputs(current_attempt_root,current_frame_arrays,16)
+    if 'attention_prefix_frames' in current_request_record:
+        from safetensors.torch import load_file
+        current_comparison_latents = load_file(str(current_attempt_root / 'final-latents.safetensors'))['latents'][:, :, 1:7].to('cuda')
+        current_metrics_recorder.update_generation_stage('decoding')
+        current_comparison_video = current_pipeline_object.decode_latents(current_comparison_latents)
+        current_comparison_frames = (current_comparison_video[0].transpose(1,2,3,0).clip(0,1)*255).round().astype(np.uint8)
+        current_comparison_root = current_attempt_root / 'comparison-prefix'
+        current_comparison_root.mkdir()
+        save_video_outputs(current_comparison_root, current_comparison_frames, 16)
     return {'attempt':current_attempt_root.name,'mode':current_request_record['mode'],'prompt':current_request_record['prompt'],'frames':current_frame_count,'fps':16,'output_sha256':current_output_hashes,'runtime':'VideoX-Fun official + GGUF adapter','source_revision':VACE_SOURCE_REVISION,'model_revision':VACE_MODEL_REVISION,'prompt_words':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'quality_status':'사용자 검수 대기'}
 
 

@@ -124,3 +124,28 @@ K RoPE 출력 할당 761.72MiB가 부족했다. 할당 이력에는 RoPE의 FP64
 따라서 이 변경의 검증 범위는 OOM 개선이며 영상 품질 문제 해결을 의미하지 않는다.
 동일 입력·20스텝에서 프레임 수만 41로 변경한 후속 작업
 `2026-11-02_09-06-08-36627bde`를 등록했다. 후속 결과는 별도 검수한다.
+
+### 초기 노이즈 통제 실험
+
+공용 `wan22-vace generate --payload-file` 요청에 `noise_prefix_frames: 21`을
+명시하면 `pose` 모드의 41프레임 작업에만 적용한다. 일반 GUI 생성에는 이 필드를
+추가하지 않는다. 기본 경로는 그대로이며 실험 이력의 요청에 해당 값이 남는다.
+동일 시드·CUDA·텍스트 인코더 dtype으로 21/41프레임 노이즈를 각각 생성한 뒤,
+41프레임 노이즈의 첫 7개 잠재 슬롯(참조 1개 포함)을 21프레임 노이즈로 교체한다.
+나머지 슬롯은 원래 41프레임 노이즈를 유지한다. 공식 파이프라인의 `latents`
+인자를 사용하며 모델 연산은 바꾸지 않는다. 실행 시도에 `initial-noise.safetensors`와
+형상·dtype·해시·공통 구간 일치를 담은 `noise-experiment.json`을 기록한다.
+입력값 재사용 시 이 실험 필드를 누락하면 일반 실행이므로 기록을 구분해야 한다.
+
+동일 요청에 `attention_prefix_frames: 21`을 추가하면 진단 전용으로 모든
+self-attention에서 앞 7잠재 슬롯의 질의가 뒤쪽 슬롯을 참조하지 않게 한다.
+뒤쪽 질의와 텍스트 cross-attention은 유지한다. 이는 공식 연산을 변경하는
+원인 분리 실험이며 일반 생성의 품질 개선 옵션이 아니다. 실행 기록에
+`official_math_unmodified: false`, `custom_math_patches: true`와
+`attention-experiment.json`을 남긴다. `final-latents.safetensors`를 저장하고,
+참조 슬롯을 제외한 앞 6잠재 슬롯을 별도로 디코딩한 21프레임 결과를
+`comparison-prefix/`에 보관한다. 기본 GUI는 진단 필드를 추가하지 않는다.
+
+분기 비교는 `attention_branch_scope: base`(본체) 또는 `vace`(제어 분기)를
+추가한다. 생략하거나 `all`이면 두 분기를 제한한다. 고·저노이즈 전문가에
+동일하게 적용하며 선택하지 않은 분기의 attention은 그대로 유지한다.

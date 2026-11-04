@@ -66,6 +66,18 @@ def validate_vace_request(current_request_record):
         required_field_names |= {'edit_video', 'edit_mask'}
     if isinstance(current_request_record, dict) and current_request_record.get('mode') == 'pose':
         required_field_names.add('pose_video')
+    if isinstance(current_request_record, dict) and 'noise_prefix_frames' in current_request_record:
+        required_field_names.add('noise_prefix_frames')
+        if type(current_request_record['noise_prefix_frames']) is not int or current_request_record['noise_prefix_frames'] != 21 or current_request_record.get('mode') != 'pose' or current_request_record.get('frames') != 41:
+            raise ValueError('노이즈 비교 실험은 pose 41프레임에 noise_prefix_frames=21만 지원합니다.')
+    if isinstance(current_request_record, dict) and 'attention_prefix_frames' in current_request_record:
+        required_field_names.add('attention_prefix_frames')
+        if type(current_request_record['attention_prefix_frames']) is not int or current_request_record['attention_prefix_frames'] != 21 or current_request_record.get('noise_prefix_frames') != 21 or current_request_record.get('frames') != 41 or current_request_record.get('mode') != 'pose':
+            raise ValueError('attention 진단은 pose 41프레임·noise_prefix_frames=21·attention_prefix_frames=21이 필요합니다.')
+    if isinstance(current_request_record, dict) and 'attention_branch_scope' in current_request_record:
+        required_field_names.add('attention_branch_scope')
+        if current_request_record.get('attention_prefix_frames') != 21 or current_request_record['attention_branch_scope'] not in ('all', 'base', 'vace'):
+            raise ValueError('분기 진단은 attention_prefix_frames=21과 all/base/vace가 필요합니다.')
     if not isinstance(current_request_record, dict) or set(current_request_record) != required_field_names:
         raise ValueError('VACE 요청 필드가 맞지 않습니다.')
     if current_request_record['action'] != 'generate' or current_request_record['mode'] not in VACE_INPUT_MODES:
