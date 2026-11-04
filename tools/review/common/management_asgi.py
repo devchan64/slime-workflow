@@ -150,7 +150,7 @@ def build_management_application(current_handler_class, current_root_path, curre
             current_query_text = current_request_scope.get('query_string', b'').decode()
             current_redirect_value = RedirectResponse('/management/' + ('?' + current_query_text if current_query_text else ''))
             return await current_redirect_value(current_request_scope, current_receive_call, current_send_call)
-        elif current_request_path in current_static_routes or current_request_path == '/isloon-map-review/map-review.html':
+        elif (current_request_path in current_static_routes and current_query_values.get('embedded') != ['gradio-static']) or current_request_path == '/isloon-map-review/map-review.html':
             current_redirect_value = RedirectResponse('/management/?' + current_request_scope.get('query_string', b'').decode())
             return await current_redirect_value(current_request_scope, current_receive_call, current_send_call)
         if current_tool_name in current_supported_tools:

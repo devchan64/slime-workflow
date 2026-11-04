@@ -91,9 +91,8 @@ def load_manager_page_records(source_file_path, current_animation_catalog=False)
             current_release_record = next(current_default_record for current_default_record in DEFAULT_PAGE_RECORDS if current_default_record['id'] == current_page_record['id'])
             current_page_record = {**current_page_record, 'label': current_release_record['label'], 'description': current_release_record['description']}
         if current_page_record['id'].startswith('map-review-'):
-            from tools.review.common.map_asset_sources import MAP_CITY_REVIEW_IDENTIFIERS
-            current_map_identifier=current_page_record['id'].removeprefix('map-review-')
-            current_review_category='town-map-review' if current_map_identifier in MAP_CITY_REVIEW_IDENTIFIERS else 'field-map-review'
+            # 빌드된 메뉴의 분류를 사용한다. 공용 메뉴 표시에는 콘텐츠 API가 필요하지 않다.
+            current_review_category=current_page_record['category']
             current_map_name=current_page_record['label'].split(' · ')[0]
             current_page_record={**current_page_record,'category':current_review_category,'label':current_map_name+' · '+('도시맵 검수' if current_review_category=='town-map-review' else '맵 검수')}
         if current_page_record['id'] in page_identifier_values:continue

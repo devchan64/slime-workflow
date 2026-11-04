@@ -25,6 +25,21 @@ class ManagementSinglePortTests(unittest.TestCase):
                 for current_route_path in ('/management/frame/sprite-editor-v2/', '/character-animation/sprite-editor-v2'):
                     self.assertEqual(current_test_client.get(current_route_path).status_code, 410)
 
+    def test_embedded_registered_review_returns_source_document(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path = Path(current_directory_name)
+            current_source_path = current_root_path/'source.json'
+            current_source_path.write_text('{}')
+            current_review_path = current_root_path/'animation-1'/'anchors.html'
+            current_review_path.parent.mkdir()
+            current_review_path.write_text('<script id="anchor-review-data" type="application/json">{}</script>')
+            current_app_value = build_management_application(SimpleHTTPRequestHandler, current_root_path, current_source_path, 8770, {'/animation-1/anchors.html': 'animation-1'})
+            with TestClient(current_app_value) as current_test_client:
+                current_embedded_response = current_test_client.get('/animation-1/anchors.html?embedded=gradio-static')
+                self.assertEqual(current_embedded_response.status_code, 200)
+                self.assertIn('anchor-review-data', current_embedded_response.text)
+                self.assertEqual(current_test_client.get('/animation-1/anchors.html', follow_redirects=False).headers['location'], '/management/?')
+
     def test_mounted_queue_and_legacy_file(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_root_path = Path(current_directory_name)
