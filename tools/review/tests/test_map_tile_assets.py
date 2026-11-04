@@ -55,6 +55,20 @@ class MapTileAssetTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, '해시 불일치'):
                 resolve_registered_tile(current_relative_path, current_asset_root, current_stale_records)
 
+    def test_retired_tile_is_preserved_but_cannot_be_used(self):
+        with TemporaryDirectory() as current_temporary_root:
+            current_asset_root = Path(current_temporary_root)
+            current_relative_path = 'assets/tiles/terrain/retired.png'
+            current_image_path = current_asset_root / current_relative_path
+            current_image_path.parent.mkdir(parents=True)
+            current_image_path.write_bytes(b'retired tile')
+            current_asset_record = {'managementId': 'tile.retired', 'version': '1', 'path': current_relative_path, 'sha256': hashlib.sha256(b'retired tile').hexdigest(), 'source': {'lifecycle_status': 'retired'}}
+            (current_asset_root / 'asset-registry.yaml').write_text(yaml.safe_dump({'schema_version': 1, 'assets': [current_asset_record]}))
+            _, current_registry_records = load_registered_tiles(current_asset_root)
+            validate_registered_tile_inventory(current_asset_root, current_registry_records)
+            with self.assertRaisesRegex(ValueError, '폐기된 맵 타일'):
+                resolve_registered_tile(current_relative_path, current_asset_root, current_registry_records)
+
     def test_duplicate_yaml_key_rejected(self):
         with TemporaryDirectory() as temporary_asset_directory:
             Path(temporary_asset_directory, 'asset-registry.yaml').write_text('schema_version: 1\nschema_version: 1\nassets: []\n')

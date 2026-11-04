@@ -72,7 +72,7 @@ def validate_registered_tile_inventory(asset_repository_path=None, registered_ti
     if missing_tile_paths:
         raise ValueError('등록된 맵 타일 원본 누락: '+', '.join(missing_tile_paths))
     for current_asset_path in sorted(registered_tile_paths):
-        resolve_registered_tile(current_asset_path, asset_repository_path, registered_tile_records)
+        resolve_registered_asset(current_asset_path, asset_repository_path, registered_tile_records, 'assets/tiles')
 
 
 def resolve_registered_asset(asset_relative_path, asset_repository_path, registered_tile_records, asset_directory_prefix):
@@ -100,6 +100,9 @@ def resolve_registered_asset(asset_relative_path, asset_repository_path, registe
 
 
 def resolve_registered_tile(asset_relative_path, asset_repository_path, registered_tile_records):
+    current_asset_record = registered_tile_records.get(asset_relative_path)
+    if current_asset_record is not None and current_asset_record.get('source', {}).get('lifecycle_status') == 'retired':
+        raise ValueError(f'폐기된 맵 타일: {asset_relative_path}')
     return resolve_registered_asset(asset_relative_path, asset_repository_path, registered_tile_records, 'assets/tiles')
 
 
