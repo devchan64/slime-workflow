@@ -1,5 +1,5 @@
 import {applyTerrainAmbientTint,mountTerrainEffectLayer} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
-import {resolveCityTileTextures,resolveTownGroundFrame,resolveReedFrameForMap,drawWaypoint,setWaypointMarkerZoom,resolveFieldTileTextures,collectTerrainTextureSources,createTerrainAtlas,TERRAIN_ATLAS,drawCityBuildingSprite,resolveCityGroundDepth,TERRAIN_DEPTH,mapAnnotationDepth,resolveMapTileSize,resolveGrassFrameForMap,resolvePavingFrameForMap,selectFieldRoadFrame} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
+import {resolveCityTileTextures,resolveTownGroundFrame,resolveReedFrameForMap,drawWaypoint,resolveFieldTileTextures,collectTerrainTextureSources,createTerrainAtlas,TERRAIN_ATLAS,drawCityBuildingSprite,resolveCityGroundDepth,TERRAIN_DEPTH,mapAnnotationDepth,resolveMapTileSize,resolveGrassFrameForMap,resolvePavingFrameForMap,selectFieldRoadFrame} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
 import {GAME_INTERNAL_RESOLUTION_SCALE,drawCharacterContactShadow,attachCharacterOutlineLayers,roadConnections,waterConnections} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/game-render-profile.mjs';
 import * as Phaser from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/phaser.mjs';
 import {FIELD_TILE_BOUNDARY_ALPHA,FIELD_RENDER_METRICS,updateFieldActorOcclusion,resolveGuardDisplayPlacement,projectGuardDisplayCenter,GUARD_CENTER_FOOTPRINT_SIZE,drawTownMaterialEdges,drawFieldCellObjects,drawFieldSceneryObject,resolveFieldSceneryPlacement,resolveFieldSceneryDepth,resolveFieldSurfaceDepth,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
@@ -319,7 +319,6 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
     currentFieldActorObjects=currentFieldScene.children.list.filter(currentSceneObject=>!previousSceneObjects.has(currentSceneObject));
     currentFieldActorSignature=currentActorSignature;
    }
-   for(const currentWaypointObject of currentFieldWaypointObjects)setWaypointMarkerZoom(currentWaypointObject,currentViewSettings.scale);
    updateFieldActorOcclusion(currentFieldScene);
   },
   readAppliedBuildingTextures(){return [...currentAppliedBuildingTextures].sort();},
@@ -380,7 +379,6 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
    for(const currentMeshGraphic of currentTownMeshObjects)currentMeshGraphic.setVisible(currentViewSettings.edges);
    updateSharedReviewCamera(currentViewSettings);
    updateFieldActorOcclusion(currentFieldScene);
-   for(const currentWaypointObject of currentTownWaypointObjects)setWaypointMarkerZoom(currentWaypointObject,currentViewSettings.scale);
   },
   destroy:disposeSharedFieldReview
  };
