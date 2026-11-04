@@ -36,6 +36,27 @@ class BuildingEditorTest(unittest.TestCase):
         self.assertEqual(current_payload['expected'],current_request['expected'])
         self.assertEqual(current_payload['properties'],current_request['properties'])
 
+    def test_size_adjustment_is_sent_with_anchor(self):
+        current_request={'texture':'town-iseulon-guild-v2','generation':12,'expected':{'anchorX':0.5,'anchorY':1.0,'displayWidthAdjustment':0,'displayHeightAdjustment':0},'properties':{'anchorX':0.5,'anchorY':1.0,'displayWidthAdjustment':15,'displayHeightAdjustment':-7}}
+        with patch('tools.review.domains.map_assets.building_editor.execute_content_api_request',return_value={'saved':True}) as current_remote:
+            self.assertTrue(save_building_editor_anchor(current_request)['saved'])
+        self.assertEqual(current_remote.call_args.args[2]['properties'],current_request['properties'])
+
+    def test_rejects_partial_and_fractional_size(self):
+        for current_size in ({'displayWidthAdjustment':1}, {'displayWidthAdjustment':0.5,'displayHeightAdjustment':0}):
+            with self.subTest(current_size=current_size):
+                with self.assertRaises(ValueError):
+                    save_building_editor_anchor({'texture':'town-iseulon-guild-v2','generation':1,'expected':{'anchorX':0.5,'anchorY':1.0},'properties':{'anchorX':0.5,'anchorY':1.0,**current_size}})
+
+    def test_shared_size_flows_to_map(self):
+        from tools.review.common.sprite_display_properties import validate_sprite_display_properties, apply_sprite_display_properties
+        current_properties={'town-iseulon-guild-v2':{'anchorX':0.5,'anchorY':1.1,'displayWidthAdjustment':15,'displayHeightAdjustment':-7}}
+        current_map={'buildings':[{'sprite':{'textureKey':'town-iseulon-guild-v2'}}]}
+        validate_sprite_display_properties(current_properties)
+        apply_sprite_display_properties(current_map,current_properties)
+        self.assertEqual(current_map['buildings'][0]['sprite']['displayWidthAdjustment'],15)
+        self.assertEqual(current_map['buildings'][0]['sprite']['displayHeightAdjustment'],-7)
+
     def test_catalog_rejects_changed_generation(self):
         current_bundle={'generation':1,'documents':{'sprite-display-properties.yaml':{'data':{}},'city_layouts/index.yaml':{'data':{'includes':{'layouts':{'iseulon':'iseulon.yaml'}}}}}}
         with patch('tools.review.domains.map_assets.building_editor.execute_content_api_request',side_effect=[current_bundle,{'generation':2}]):

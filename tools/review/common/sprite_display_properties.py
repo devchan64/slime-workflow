@@ -4,6 +4,7 @@ import math
 import re
 
 SPRITE_ANCHOR_FIELD_NAMES = {'anchorX', 'anchorY'}
+BUILDING_SIZE_FIELD_NAMES = {'displayWidthAdjustment', 'displayHeightAdjustment'}
 SPRITE_LAYOUT_FIELD_NAMES = {'groundFootprintColumns', 'groundFootprintRows', 'displayHeight'}
 BILLBOARD_PLACEMENT_FIELD_NAMES = {'billboardPlacementAnchor', 'billboardBlocksMovement'}
 BILLBOARD_SHADOW_DEFAULTS = {'shadowOffsetColumn':0, 'shadowOffsetRow':0, 'shadowScaleX':1, 'shadowScaleY':1}
@@ -41,7 +42,7 @@ def validate_sprite_display_properties(current_property_catalog):
     for current_texture_key, current_property_values in current_property_catalog.items():
         if not isinstance(current_texture_key, str) or not re.fullmatch('[a-z][a-z0-9-]*', current_texture_key):
             raise ValueError('공통 속성의 텍스처 ID 오류')
-        if not isinstance(current_property_values, dict) or (set(current_property_values)-BILLBOARD_SHADOW_FIELD_NAMES-{'billboardAnchorMode','shadowCoordinateVersion','shadowSizeVersion'}) not in (SPRITE_ANCHOR_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | {'billboardBlocksMovement'}, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | BILLBOARD_PLACEMENT_FIELD_NAMES):
+        if not isinstance(current_property_values, dict) or (set(current_property_values)-BILLBOARD_SHADOW_FIELD_NAMES-{'billboardAnchorMode','shadowCoordinateVersion','shadowSizeVersion'}) not in (SPRITE_ANCHOR_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | BUILDING_SIZE_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | {'billboardBlocksMovement'}, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | BILLBOARD_PLACEMENT_FIELD_NAMES):
             raise ValueError('공통 속성 필드 오류')
         if 'billboardBlocksMovement' in current_property_values:
             if type(current_property_values['billboardBlocksMovement']) is not bool:
@@ -59,8 +60,10 @@ def validate_sprite_display_properties(current_property_catalog):
                 continue
             if type(current_property_value) not in (int, float) or not math.isfinite(current_property_value):
                 raise ValueError('공통 속성은 유한한 숫자여야 합니다.')
-            if current_property_name in SPRITE_ANCHOR_FIELD_NAMES and not ((-16 <= current_property_value <= 16) if current_property_values.get('billboardAnchorMode') in ('tile-bottom-center','tile-intersection') else (0 <= current_property_value <= 16 if set(current_property_values)==SPRITE_ANCHOR_FIELD_NAMES else 0 <= current_property_value <= 1)):
+            if current_property_name in SPRITE_ANCHOR_FIELD_NAMES and not ((-16 <= current_property_value <= 16) if current_property_values.get('billboardAnchorMode') in ('tile-bottom-center','tile-intersection') else (0 <= current_property_value <= 16 if set(current_property_values) in (SPRITE_ANCHOR_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | BUILDING_SIZE_FIELD_NAMES) else 0 <= current_property_value <= 1)):
                 raise ValueError('앵커 범위 오류')
+            if current_property_name in BUILDING_SIZE_FIELD_NAMES and (type(current_property_value) is not int or not -2048 <= current_property_value <= 2048):
+                raise ValueError('건물 크기 보정은 -2048~2048 정수여야 합니다.')
             if current_property_name.startswith('groundFootprint') and (type(current_property_value) is not int or not 1 <= current_property_value <= 8):
                 raise ValueError('바닥 크기 범위 오류')
             if current_property_name.startswith('shadowOffset') and not -4 <= current_property_value <= 4:
@@ -98,9 +101,9 @@ def apply_sprite_display_properties(current_map_data, current_property_catalog):
         current_shared_properties = current_property_catalog.get(current_texture_key)
         if current_shared_properties is None or not SPRITE_ANCHOR_FIELD_NAMES <= set(current_shared_properties):
             raise ValueError(f'건물 공용 속성 누락: {current_texture_key}')
-        if set(current_sprite_record) & SPRITE_ANCHOR_FIELD_NAMES:
+        if set(current_sprite_record) & (SPRITE_ANCHOR_FIELD_NAMES | BUILDING_SIZE_FIELD_NAMES):
             raise ValueError(f'맵별 건물 앵커 재정의 금지: {current_texture_key}')
-        current_sprite_record.update({current_property_name: current_property_value for current_property_name, current_property_value in current_shared_properties.items() if current_property_name in SPRITE_ANCHOR_FIELD_NAMES})
+        current_sprite_record.update({current_property_name: current_property_value for current_property_name, current_property_value in current_shared_properties.items() if current_property_name in SPRITE_ANCHOR_FIELD_NAMES | BUILDING_SIZE_FIELD_NAMES})
 
 
 def collect_billboard_blocked_cells(current_object_records):

@@ -29,7 +29,7 @@ def load_building_editor_catalog(current_request_payload):
         current_identifier=Path(current_path).stem
         if current_identifier not in current_properties:continue
         current_property_values=current_properties[current_identifier]
-        if set(current_property_values)!={'anchorX','anchorY'}:continue
+        if set(current_property_values) not in ({'anchorX','anchorY'}, {'anchorX','anchorY','displayWidthAdjustment','displayHeightAdjustment'}):continue
         current_image_path,_=resolve_registered_asset(current_path,current_asset_root,current_registry_records,'assets/buildings')
         current_catalog_rows.append({'texture':current_identifier,'image':str(current_image_path),'properties':current_property_values,'maps':current_usage_records.get(current_identifier,[]),'width':current_registry_record['width'],'height':current_registry_record['height']})
     return {'generation':current_generation_number,'assets':current_catalog_rows}
@@ -41,6 +41,8 @@ def save_building_editor_anchor(current_request_payload):
     if not isinstance(current_identifier,str) or not re.fullmatch(r'town-[a-z0-9-]+-v[1-9][0-9]*',current_identifier):raise ValueError('건물 ID 오류')
     for current_name in ('expected','properties'):
         current_value=current_request_payload[current_name]
-        if not isinstance(current_value,dict) or set(current_value)!={'anchorX','anchorY'} or any(type(v) not in (int,float) or not math.isfinite(v) or not 0<=v<=16 for v in current_value.values()):raise ValueError('앵커는 0~16 범위여야 합니다.')
+        if not isinstance(current_value,dict) or set(current_value) not in ({'anchorX','anchorY'}, {'anchorX','anchorY','displayWidthAdjustment','displayHeightAdjustment'}):raise ValueError('건물 공용 속성 형식 오류')
+        if any(type(current_value[k]) not in (int,float) or not math.isfinite(current_value[k]) or not 0<=current_value[k]<=16 for k in ('anchorX','anchorY')):raise ValueError('앵커는 0~16 범위여야 합니다.')
+        if any(type(current_value[k]) is not int or not -2048<=current_value[k]<=2048 for k in ('displayWidthAdjustment','displayHeightAdjustment') if k in current_value):raise ValueError('크기 보정은 -2048~2048 정수여야 합니다.')
     if type(current_request_payload['generation']) is not int:raise ValueError('세대 오류')
     return execute_content_api_request('POST','/internal/v1/content/buildings/'+quote(current_identifier,safe='')+'/anchor',{'requestId':'building-anchor-'+uuid4().hex,'expectedGeneration':current_request_payload['generation'],'expected':current_request_payload['expected'],'properties':current_request_payload['properties']})
