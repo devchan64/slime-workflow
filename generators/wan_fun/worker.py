@@ -65,8 +65,23 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     for current_reference_name in current_control_paths:
         with Image.open(current_reference_name) as current_image_file:
             current_image_tensors.append(torch.from_numpy(np.asarray(current_image_file.convert('RGB'), dtype=np.float32) / 255.0))
+    from generators.wan_fun.endpoints import load_fun_endpoint, apply_fun_endpoint_conditions
+    current_start_tensor = load_fun_endpoint(current_job_root, current_request_record, 'start_image')
+    current_end_tensor = load_fun_endpoint(current_job_root, current_request_record, 'end_image')
+    if current_request_record.get('end_image_same_as_start'):
+        if current_start_tensor is None or current_end_tensor is not None:
+            raise ValueError('양끝 동일 이미지 입력 기록 오류')
+        current_end_tensor = current_start_tensor
     with torch.inference_mode():
         current_condition_output = Wan22FunControlToVideo.execute(positive_condition_data, negative_condition_data, current_vae_model, 832, 480, current_request_record['frames'], 1, ref_image=current_image_tensors[0].unsqueeze(0), control_video=None if current_request_record.get('input_mode') == 'reference-only' else torch.stack(current_image_tensors[1:]))
+        if current_start_tensor is not None or current_end_tensor is not None:
+            current_condition_output = apply_fun_endpoint_conditions(current_condition_output, current_vae_model, current_request_record['frames'], current_start_tensor, current_end_tensor)
+    write_record_atomically(current_attempt_root / 'endpoint-conditioning.json', {
+        'start_image': current_request_record.get('start_image_file'),
+        'end_image': current_request_record.get('start_image_file') if current_request_record.get('end_image_same_as_start') else current_request_record.get('end_image_file'),
+        'policy': 'VideoX-Fun masked video / ComfyUI concat mask · 포즈·외형·샘플러 보존',
+        'pose_modified': False, 'output_frame_replaced': False,
+    })
     positive_condition_data, negative_condition_data, current_latent_record = current_condition_output[:3]
     comfy.model_management.unload_all_models()
     comfy.model_management.soft_empty_cache()

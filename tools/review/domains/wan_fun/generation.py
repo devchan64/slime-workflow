@@ -13,6 +13,16 @@ class FunControlGenerationManager(ReferenceVideoGenerationManager):
             validate_fun_pose_assets()
 
     def save_generation_attachments(self, current_job_root, current_request_record):
+        import hashlib
+        from tools.review.domains.image.three_reference_generation import decode_reference_image
+        current_request_record = dict(current_request_record)
+        for current_endpoint_name in ('start_image', 'end_image'):
+            if current_endpoint_name in current_request_record:
+                current_endpoint_bytes = decode_reference_image(current_request_record.pop(current_endpoint_name))
+                current_endpoint_file = current_endpoint_name.replace('_', '-') + '.png'
+                (current_job_root/current_endpoint_file).write_bytes(current_endpoint_bytes)
+                current_request_record[current_endpoint_name+'_file'] = current_endpoint_file
+                current_request_record[current_endpoint_name+'_sha256'] = hashlib.sha256(current_endpoint_bytes).hexdigest()
         if 'pose_video' in current_request_record:
             import base64,hashlib
             current_video_bytes = base64.b64decode(current_request_record['pose_video'],validate=True)

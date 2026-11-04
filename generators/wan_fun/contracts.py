@@ -50,7 +50,7 @@ def validate_fun_request(current_request_record):
     optional_field_names = {'pose_include_hands', 'pose_include_face'} if current_video_input else set()
     if current_pose_input:
         optional_field_names.update(('pose_encode_full_temporal', 'use_regular_vae'))
-    optional_field_names.add('input_mode')
+    optional_field_names.update(('input_mode', 'start_image', 'end_image', 'end_image_same_as_start'))
     if not isinstance(current_request_record, dict) or not required_field_names <= set(current_request_record) or set(current_request_record) - required_field_names - optional_field_names:
         raise ValueError('Fun Control 요청 필드가 맞지 않습니다.')
     current_input_mode = current_request_record.get('input_mode', 'controlled')
@@ -59,7 +59,7 @@ def validate_fun_request(current_request_record):
     current_reference_only = current_input_mode == 'reference-only'
     if current_reference_only and (current_pose_input or current_video_input):
         raise ValueError('참조 전용 모드에는 제어 영상을 함께 입력할 수 없습니다.')
-    for current_option_name in optional_field_names - {'input_mode'}:
+    for current_option_name in optional_field_names - {'input_mode', 'start_image', 'end_image'}:
         if type(current_request_record.get(current_option_name, False)) is not bool:
             raise ValueError(f'{current_option_name}: bool 값이 필요합니다.')
     if current_request_record.get('use_regular_vae', True) is not True or current_request_record.get('pose_encode_full_temporal', False):
@@ -99,5 +99,12 @@ def validate_fun_request(current_request_record):
             raise ValueError('처리된 포즈 MP4만 단독 입력하세요.')
         from generators.wan_fun.video_input import validate_processed_pose_video
         validate_processed_pose_video(current_request_record['pose_video'],current_request_record['frames'])
-    current_pose_options = {current_option_name: current_request_record.get(current_option_name, current_option_name == 'use_regular_vae') for current_option_name in optional_field_names - {'input_mode'}}
+    if current_request_record.get('end_image_same_as_start') and (not current_request_record.get('start_image') or current_request_record.get('end_image')):
+        raise ValueError('종료에 시작 이미지를 사용하려면 시작 이미지만 첨부하세요.')
+    for current_endpoint_name in ('start_image', 'end_image'):
+        if current_endpoint_name in current_request_record:
+            with Image.open(io.BytesIO(decode_reference_image(current_request_record[current_endpoint_name]))) as current_endpoint_image:
+                if current_endpoint_image.format != 'PNG' or current_endpoint_image.size != (832, 480):
+                    raise ValueError('시작·종료 이미지는 832×480 PNG여야 합니다.')
+    current_pose_options = {current_option_name: current_request_record.get(current_option_name, current_option_name == 'use_regular_vae') for current_option_name in optional_field_names - {'input_mode', 'start_image', 'end_image'}}
     return {**current_request_record, **current_pose_options, 'prompt': current_request_record['prompt'].strip(), 'tag': 'wan22-fun-control'}
