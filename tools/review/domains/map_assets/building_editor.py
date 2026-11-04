@@ -93,7 +93,7 @@ def execute_building_lifecycle(current_request_payload, current_action_name):
                 if current_image_value.getchannel('A').getextrema()!=(0,255):raise ValueError('투명 배경과 불투명 건물이 필요합니다.')
                 current_image_size=current_image_value.size
             current_image_hash=hashlib.sha256(current_image_bytes).hexdigest()
-            current_new_entry={'managementId':'image.building.'+current_identifier,'version':current_identifier.rsplit('-',1)[-1],'path':current_image_relative,'width':current_image_size[0],'height':current_image_size[1],'sha256':current_image_hash,'source':{'repository':'user-provided','operation':'건물 관리 등록'}}
+            current_new_entry={'managementId':'image.scenery.'+current_identifier,'version':current_identifier.rsplit('-',1)[-1],'path':current_image_relative,'width':current_image_size[0],'height':current_image_size[1],'sha256':current_image_hash,'source':{'repository':'user-provided','operation':'건물 관리 등록'}}
             if current_registry_matches:
                 if len(current_registry_matches)!=1 or current_registry_matches[0]!=current_new_entry or not current_image_path.is_file() or hashlib.sha256(current_image_path.read_bytes()).hexdigest()!=current_image_hash:raise ValueError('이미 존재하는 건물 ID입니다.')
             else:

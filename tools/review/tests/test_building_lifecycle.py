@@ -33,6 +33,7 @@ class BuildingLifecycleTests(unittest.TestCase):
             self.assertTrue(current_image.exists())
             current_registry=yaml.safe_load((self.current_root/'asset-registry.yaml').read_text())
             self.assertEqual(current_registry['assets'][0]['path'],'assets/buildings/town-test-house-v1.png')
+            self.assertEqual(current_registry['assets'][0]['managementId'],'image.scenery.town-test-house-v1')
             execute_building_lifecycle({'texture':'town-test-house-v1','generation':2,'requestId':'test-retire'},'retire')
             self.assertTrue(current_image.exists())
             current_registry=yaml.safe_load((self.current_root/'asset-registry.yaml').read_text())
