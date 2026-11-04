@@ -235,18 +235,16 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             expression_prompt_preview = gr.Markdown(describe_expression_prompt(expression_preset_records[0]['id']))
             prompt_text_value.change(describe_expression_prompt, prompt_text_value, expression_prompt_preview, queue=False)
         if building_mode_enabled:
-            from tools.review.domains.image.building_prompt import BUILDING_LAYOUT_PRESET_NAMES, load_building_layout_preset
+            from tools.review.domains.image.building_prompt import BUILDING_LAYOUT_PRESET_NAMES, describe_building_structure_label, load_building_layout_preset
             with gr.Group():
-                gr.Markdown('### 구도 참조 프리셋\n도시맵 80×40 타일의 직교투영 가이드입니다. 초록 밑면은 점유 영역, 주황 테두리는 3×3·3×4는 1칸, 4×4 이상은 2칸 폭, 높이 64px 출입문, 파랑 선은 층 높이 기준입니다. 선택 후 적용하면 첫 참조를 교체합니다. 실제 맵 구도 그림을 직접 업로드할 수도 있습니다.')
+                gr.Markdown('### 구도 참조 프리셋\n도시맵 80×40 타일의 직교투영 가이드입니다. 지붕·층수·문 방향이 고정된 50종입니다. 층당 80px, 문 높이 64px이며 가이드는 2배 배율로 표시합니다. 선택 후 적용하면 첫 참조를 교체합니다. 실제 맵 구도 그림을 직접 업로드할 수도 있습니다.')
                 with gr.Row():
                     with gr.Column():
-                        building_layout_selector = gr.Dropdown([(current_preset_name.replace('-zone', ' · 내부 배치 영역').replace('-south', ' · 왼쪽(남쪽) 입구').replace('-east', ' · 오른쪽(동쪽) 입구'), current_preset_name) for current_preset_name in BUILDING_LAYOUT_PRESET_NAMES], value=BUILDING_LAYOUT_PRESET_NAMES[0], label='건물 구도 프리셋')
-                        building_height_selector = gr.Dropdown([('1층 · 80px', 80), ('2층 · 160px', 160), ('3층 · 240px', 240)], value=160, label='건물 층 높이')
-                        gr.Markdown('한 층은 80px이며 파랑 선은 각 층의 높이 기준입니다. 지붕은 최상층 위로 표현할 수 있습니다. 맵 배치 크기는 바뀌지 않습니다.')
+                        building_layout_selector = gr.Dropdown([(describe_building_structure_label(current_preset_name), current_preset_name) for current_preset_name in BUILDING_LAYOUT_PRESET_NAMES], value=BUILDING_LAYOUT_PRESET_NAMES[0], label='건물 구도 프리셋')
+                        gr.Markdown('한 층은 80px이며 지붕은 벽 상단 위에 고정됩니다. 층수는 선택한 구조에 따릅니다. 맵 배치 크기는 바뀌지 않습니다.')
                         building_layout_apply_button = gr.Button('선택한 구도를 레이아웃 참조에 적용')
                     building_layout_preview = gr.Image(value=load_building_layout_preset(BUILDING_LAYOUT_PRESET_NAMES[0]), type='pil', interactive=False, label='구도 그림 미리보기', height=REFERENCE_IMAGE_CARD_HEIGHT)
-                building_height_selector.change(load_building_layout_preset, [building_layout_selector, building_height_selector], building_layout_preview, queue=False)
-                building_layout_selector.change(load_building_layout_preset, [building_layout_selector, building_height_selector], building_layout_preview, queue=False)
+                building_layout_selector.change(load_building_layout_preset, [building_layout_selector], building_layout_preview, queue=False)
         with gr.Accordion('자연물 레이아웃·외형 참조 · 선택' if vegetation_mode_enabled else '소품 레이아웃·외형 참조 · 선택' if prop_mode_enabled else '레이아웃 이미지 · 필수 / 추가 외형 참조 · 선택' if building_mode_enabled else '참조 이미지 · 선택 · 최대 10장', open=building_mode_enabled or prop_mode_enabled or vegetation_mode_enabled) if qwen21_mode_enabled and (not outfit_transfer_enabled) else contextlib.nullcontext():
             reference_upload_group, reference_image_controls = build_reference_image_inputs(reference_image_mode=None, reference_slot_count=reference_slot_count, reference_slot_labels=[f'자연물 레이아웃·외형 참조 {current_slot_number} · 선택' for current_slot_number in range(1, 11)] if vegetation_mode_enabled else [f'소품 레이아웃·외형 참조 {current_slot_number} · 선택' for current_slot_number in range(1, 11)] if prop_mode_enabled else ['레이아웃 이미지 · 필수 (투영·바닥·출입구)'] + [f'외형·자재 참조 {current_slot_number} · 선택' for current_slot_number in range(2, 11)] if building_mode_enabled else ['바디 레퍼런스 · 필수', '아웃핏 레퍼런스 · 필수'] if outfit_transfer_enabled else None)
         if billboard_guide_enabled:
@@ -261,7 +259,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 return (load_billboard_guide_image(selected_profile_name), compose_billboard_guide_prompt(selected_profile_name, selected_subject_text), False)
             billboard_apply_button.click(apply_billboard_guide_inputs, [billboard_profile_control, billboard_subject_control], [reference_image_controls[0], prompt_text_value, building_prompt_control], queue=False)
         if building_mode_enabled:
-            building_layout_apply_button.click(load_building_layout_preset, [building_layout_selector, building_height_selector], reference_image_controls[0], queue=False)
+            building_layout_apply_button.click(load_building_layout_preset, [building_layout_selector], reference_image_controls[0], queue=False)
         gr.Markdown(('생성 출력: 512×512 또는 768×768.' if outfit_transfer_enabled else '생성 출력 최소 크기: 256×256.' if qwen21_mode_enabled else '생성 출력 최소 크기: 512×512.') + ' 참조 이미지의 크기·비율은 자유입니다. RGB/RGBA PNG, 장당 3MB 이하. ' + ('투명 영역은 흰색 배경에 합성해 전달합니다.' if qwen21_mode_enabled else '투명 배경은 사용할 수 없습니다.'))
         with gr.Row():
             width_value = gr.Dropdown([512, 768] if outfit_transfer_enabled else [256, 384, 512, 768, 1024, 1280] if qwen21_mode_enabled else [512, 768, 1024, 1280], value=512 if vegetation_mode_enabled or prop_mode_enabled or building_mode_enabled or circular_mode_enabled else 768 if qwen21_mode_enabled else 512, label='해상도' if outfit_transfer_enabled else '너비', interactive=True, scale=1, min_width=120)

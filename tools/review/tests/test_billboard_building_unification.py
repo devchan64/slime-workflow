@@ -51,15 +51,10 @@ class BillboardBuildingUnificationTests(unittest.TestCase):
             self.assertFalse(current_building_enabled)
             self.assertIn('stone house', current_prompt_text)
         for current_profile_name in BUILDING_LAYOUT_PRESET_NAMES:
-            for current_height_value in (80, 160, 240):
-                current_image_value, current_prompt_text, current_building_enabled = current_callback_value('building:' + current_profile_name + ':' + str(current_height_value), 'stone house')
-                self.assertTrue(current_image_value.size)
-                self.assertTrue(current_building_enabled)
-                if current_profile_name.split('-')[0] in ('3x3', '3x4', '4x4', '4x5', '4x6', '5x5', '5x6'):
-                    current_door_width = 'one tile' if current_profile_name.startswith(('3x3', '3x4')) else 'two tiles'
-                    self.assertIn('Door: ' + current_door_width + ' wide, 80% of floor height.', current_prompt_text)
-                else:
-                    self.assertEqual(current_prompt_text, 'stone house')
+            current_image_value, current_prompt_text, current_building_enabled = current_callback_value('building:' + current_profile_name, 'stone house')
+            self.assertEqual(current_image_value.size,(1024,1024))
+            self.assertTrue(current_building_enabled)
+            self.assertIn('Door:',current_prompt_text)
 
     def test_unified_service_requires_a_reference(self):
         from tools.review.domains.image.billboard_generation import BillboardGuideGenerationManager
