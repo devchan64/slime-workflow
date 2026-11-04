@@ -20,10 +20,11 @@ CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-managemen
 LEGACY_SOUND_CATEGORY_NAMES=('music-generation','sound-effects')
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={}
-NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('kimodo-generator','wan22-vace-generator','wan22-fun-control-generator','billboard-generator','effect-editor','asset-editor','building-editor','world-map','vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-heartmula','animation-separation','qwen-21-circular-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','writer-agent'))
+NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('kimodo-generator','wan22-vace-generator','wan22-fun-control-generator','billboard-generator','effect-editor','asset-editor','building-editor','world-map','vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-heartmula','animation-separation','qwen-21-circular-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','character-review','map-review','writer-agent','sprite-sheet-editor'))
 DEFAULT_MANAGER_SOURCE_PATH=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json'
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
+    {'id':'sprite-sheet-editor','label':'스프라이트 시트 편집기','path':'/management/frame/sprite-sheet-editor/','category':'animation-tool','uiMode':'gradio','description':'프레임 크롭 · 앵커 정렬 · 시트와 좌표맵 출력'},
     {'id':'effect-editor','label':'발광 이펙트 좌표 검수','path':'/management/frame/effect-editor/','category':'map-review','uiMode':'gradio','description':'빌보드 연결 발광·프레임 정렬·DB 저장'},
     {'id':'building-editor','label':'건물 에셋 관리','path':'/management/frame/building-editor/','category':'map-review','uiMode':'gradio','description':'건물 원본·사용 맵·공용 앵커 관리'},
     {'id':'asset-editor','label':'공용 빌보드 에셋 관리','path':'/management/frame/asset-editor/','category':'map-review','uiMode':'gradio','description':'전체 에셋 속성·점유 타일·미리보기·일괄 편집'},
@@ -84,7 +85,7 @@ def load_manager_page_records(source_file_path, current_animation_catalog=False)
         if any(current_page_record.get(current_field_name) is not None and not isinstance(current_page_record[current_field_name],str) for current_field_name in ('frameIdentifier','frameQuery')):raise ValueError('관리 메뉴 프레임 항목 형식 오류')
         if current_page_record['category'] in LEGACY_SOUND_CATEGORY_NAMES:
             current_page_record={**current_page_record,'category':'sound-management'}
-        if current_page_record['id']=='tile-map-generator':continue
+        if current_page_record['id'] in ('tile-map-generator','sprite-editor-v2'):continue
         if current_page_record['id'] in ('wan22-animate-generator', 'anny-attribute-renderer', 'anny-attributes', 'anny-landmarks', 'pose-transfer-generator', 'hy-motion-generator', 'character-animation', 'momask-generator', 'wan21-vace-generator', 'music-stable-audio', 'music-ace-step', 'sfx-stable-audio'):continue
         if current_page_record['id'] in ('qwen-21-generator','expression-generator','vegetation-generator','prop-generator','billboard-generator'):
             current_release_record = next(current_default_record for current_default_record in DEFAULT_PAGE_RECORDS if current_default_record['id'] == current_page_record['id'])

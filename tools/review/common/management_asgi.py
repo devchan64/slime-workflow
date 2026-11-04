@@ -34,9 +34,9 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'building-editor': ('building_editor_panel', 'build_building_editor_interface', 'port'),
     'world-map': ('world_map_app', 'build_world_review_interface', 'port'),
     'writer-agent': ('writer_agent_app', 'build_writer_agent_interface', 'port'),
-    'sprite-editor-v2': ('sprite_editor_v2_app', 'build_sprite_v2_interface', 'none'),
+    'sprite-sheet-editor': ('sprite_sheet_editor_app', 'build_sprite_sheet_editor_interface', 'port'),
 }
-LEGACY_MANAGEMENT_PATHS = {'/animation-separation/': 'animation-separation', '/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/outfit-transfer/': 'outfit-transfer-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent', '/character-animation/sprite-editor-v2': 'sprite-editor-v2'}
+LEGACY_MANAGEMENT_PATHS = {'/animation-separation/': 'animation-separation', '/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/outfit-transfer/': 'outfit-transfer-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
 MUSIC_INTERFACE_SERVICES = ('music-heartmula', 'sfx-dasheng-audiogen')
 
 
@@ -70,12 +70,7 @@ def build_management_blocks(current_tool_name, current_review_port, current_sour
             current_interface_blocks = current_builder_value(current_review_port, character_review_enabled=True)
         else:
             current_interface_blocks = current_builder_value(current_server_address if current_argument_kind == 'url' else current_review_port)
-        if current_tool_name == 'sprite-editor-v2':
-            import re
-            current_markup_text = current_module_value.resolve_review_ui_asset('sprite-editor-v2.html').read_text()
-            current_mount_options['css'] = re.search(r'<style>(.*?)</style>', current_markup_text, re.S).group(1)
-            current_mount_options['js'] = current_module_value.create_sprite_v2_loader(current_review_port)
-        elif current_tool_name in ('asset-editor', 'building-editor'):
+        if current_tool_name in ('asset-editor', 'building-editor'):
             from tools.review.common.map_tile_assets import load_registered_tiles
             current_asset_directory = 'buildings' if current_tool_name == 'building-editor' else 'billboards'
             current_mount_options['allowed_paths'] = [str(load_registered_tiles()[0] / 'assets' / current_asset_directory)]
@@ -124,6 +119,9 @@ def build_management_application(current_handler_class, current_root_path, curre
     async def dispatch_management_request(current_request_scope, current_receive_call, current_send_call):
         current_request_path = current_request_scope['path']
         current_query_values = parse_qs(current_request_scope.get('query_string', b'').decode())
+        if current_request_path.rstrip('/') in ('/character-animation/sprite-editor-v2', '/management/frame/sprite-editor-v2') or current_request_path.startswith('/management/frame/sprite-editor-v2/'):
+            current_retired_response = Response('스프라이트 정규화 편집기 v2는 폐기되었습니다.', status_code=410)
+            return await current_retired_response(current_request_scope, current_receive_call, current_send_call)
         if current_request_path.rstrip('/') in ('/wan22-animate', '/wan22-animate-generator') or current_request_path.startswith(('/wan22-animate/', '/wan22-animate-generator/', '/management/frame/wan22-animate-generator')) or 'wan22-animate-generator' in current_query_values.get('tool', []):
             return await Response('Wan2.2 Animate 생성기·모델·결과는 폐기되었습니다.', status_code=410, media_type='text/plain')(current_request_scope, current_receive_call, current_send_call)
         if current_request_path.rstrip('/') == '/hy-motion-generator' or current_request_path.startswith(('/hy-motion-generator/', '/management/frame/hy-motion-generator')) or 'hy-motion-generator' in current_query_values.get('tool', []):

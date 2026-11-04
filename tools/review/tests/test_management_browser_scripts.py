@@ -6,7 +6,6 @@ import unittest
 MANAGEMENT_BROWSER_TEST_SCRIPTS = (
     'frame_player_loop.test.mjs',
     'animation_anchor_native.test.mjs',
-    'sprite_sheet_slicer.test.mjs',
     'frame_manager_ui.test.mjs',
     'animation_action_review.test.mjs',
 )

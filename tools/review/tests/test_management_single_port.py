@@ -11,6 +11,20 @@ from tools.review.common.management_asgi import build_management_application
 
 
 class ManagementSinglePortTests(unittest.TestCase):
+    def test_retired_sprite_editor_is_unavailable(self):
+        from tools.review.ui.gradio.management_menu_app import load_manager_page_records
+        from tools.review.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path = Path(current_directory_name)
+            current_source_path = current_root_path / 'source.json'
+            current_source_path.write_text(json.dumps({'pages': [{'id':'sprite-editor-v2','label':'기존 편집기','path':'/character-animation/sprite-editor-v2','category':'animation-tool','description':'과거 메뉴'}]}))
+            self.assertNotIn('sprite-editor-v2', [current_page_record['id'] for current_page_record in load_manager_page_records(current_source_path)])
+            self.assertFalse(any(current_command_name.startswith('sprite-v2-') for current_command_name in MANAGEMENT_SERVICE_COMMANDS['character-animation']))
+            current_app_value = build_management_application(SimpleHTTPRequestHandler, current_root_path, current_source_path, 8770, [])
+            with TestClient(current_app_value) as current_test_client:
+                for current_route_path in ('/management/frame/sprite-editor-v2/', '/character-animation/sprite-editor-v2'):
+                    self.assertEqual(current_test_client.get(current_route_path).status_code, 410)
+
     def test_mounted_queue_and_legacy_file(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_root_path = Path(current_directory_name)

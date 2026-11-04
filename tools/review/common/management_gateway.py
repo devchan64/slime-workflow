@@ -28,6 +28,10 @@ MANAGEMENT_SERVICE_COMMANDS['kimodo']=('history-delete','resume','generate','sta
 MANAGEMENT_SERVICE_ROUTES['wan22-vace']='/wan22-vace'
 MANAGEMENT_SERVICE_COMMANDS['wan22-vace']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 
+MANAGEMENT_COMMAND_ROUTES['sheet-export'] = ('POST', '/sheet/export')
+MANAGEMENT_SERVICE_COMMANDS['character-animation'] += ('sheet-export','sheet-search','sheet-image','sheet-update')
+MANAGEMENT_COMMAND_ROUTES.update({'sheet-update':('POST','/sheet/update'),'sheet-search':('POST','/sheet/search'),'sheet-image':('POST','/sheet/image')})
+
 WRITER_PAYLOAD_COMMAND_NAMES = ('writer-detail', 'writer-submit', 'writer-apply')
 MANAGEMENT_SERVICE_ROUTES['writer-agent'] = '/writer-agent'
 MANAGEMENT_SERVICE_COMMANDS['writer-agent'] = ('writer-state', *WRITER_PAYLOAD_COMMAND_NAMES)
@@ -38,9 +42,8 @@ MANAGEMENT_SERVICE_ROUTES['map-assets']='/map-assets'
 MANAGEMENT_SERVICE_COMMANDS['map-assets']=('resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-replace','asset-list','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore')
 MANAGEMENT_COMMAND_ROUTES.update({'building-list':('POST','/editor-building-list'),'building-save':('POST','/editor-building-save'),'building-register':('POST','/editor-building-register'),'building-retire':('POST','/editor-building-retire')})
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/'+current_command_name) for current_command_name in ('database-seed','database-status','database-sync','database-snapshot','database-restore')})
-MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/editor-'+current_command_name) for current_command_name in ('effect-list','effect-load','effect-save','effect-register','effect-replace')})
+MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/editor-'+current_command_name) for current_command_name in ('effect-list','effect-load','effect-save','effect-register','effect-replace','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save')})
 MANAGEMENT_COMMAND_ROUTES.update({'asset-list':('POST','/editor-list'),'asset-preview':('POST','/editor-preview'),'asset-save':('POST','/editor-save'),'asset-retire-preview':('POST','/editor-retire-preview'),'asset-retire':('POST','/editor-retire')})
-MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/editor-'+current_command_name) for current_command_name in ('map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save')})
 MANAGEMENT_COMMAND_ROUTES['map-anchor-save']=('POST','/anchor-save')
 MANAGEMENT_COMMAND_ROUTES.update({'asset-crop-preview':('POST','/editor-crop-preview'),'asset-crop':('POST','/editor-crop')})
 MANAGEMENT_COMMAND_ROUTES['resize']=('POST','/resize')
@@ -50,9 +53,6 @@ MANAGEMENT_SERVICE_ROUTES['character-review']='/character-review'
 MANAGEMENT_SERVICE_COMMANDS['character-review']=('capture',)
 MANAGEMENT_COMMAND_ROUTES['capture']=('POST','/capture')
 
-SPRITE_V2_COMMAND_NAMES = tuple('sprite-v2-'+current_command_name for current_command_name in ('create','list','upload','save','load','history','export','delete','revision-delete'))
-MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/sprite-v2/'+current_command_name.removeprefix('sprite-v2-')) for current_command_name in SPRITE_V2_COMMAND_NAMES})
-MANAGEMENT_SERVICE_COMMANDS['character-animation'] += SPRITE_V2_COMMAND_NAMES
 
 from generators.music.contracts import AUDIO_SERVICE_NAMES, load_music_defaults
 for current_service_name in ('billboard-generator','prop-generator', 'vegetation-generator'):
@@ -256,7 +256,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
         if service_command_name=='momask' and operation_command_name=='generate':
             operation_argument_parser.add_argument('--face',action=argparse.BooleanOptionalAction,default=False,help='ANNY 얼굴 5점 포함')
-        if operation_command_name in SPRITE_V2_COMMAND_NAMES + WRITER_PAYLOAD_COMMAND_NAMES or operation_command_name in ('capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-replace','asset-list','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):
+        if operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES or operation_command_name in ('sheet-export','sheet-search','sheet-image','sheet-update','capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-replace','asset-list','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='GUI와 동일한 명령 JSON 입력 파일')
         if operation_command_name=='anchor-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
         if operation_command_name=='anchor-load':operation_argument_parser.add_argument('id')
@@ -363,7 +363,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         command_payload_value={'id':command_argument_values.id}
         if operation_command_name=='sprite-history-delete':command_payload_value['revision']=command_argument_values.revision
         if operation_command_name=='sprite-save':command_payload_value['document']=parse_management_request_json(command_argument_values.document_file.read_text())
-    if operation_command_name in SPRITE_V2_COMMAND_NAMES + WRITER_PAYLOAD_COMMAND_NAMES or operation_command_name in ('capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-replace','asset-list','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
+    if operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES or operation_command_name in ('sheet-export','sheet-search','sheet-image','sheet-update','capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-replace','asset-list','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
     if operation_command_name=='anchor-save':command_payload_value={'document':parse_management_request_json(command_argument_values.document_file.read_text())}
     if operation_command_name in ('anchor-history','anchor-history-reset'):command_payload_value={'animation_id':command_argument_values.animation_id,'animation_version':command_argument_values.animation_version}
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}

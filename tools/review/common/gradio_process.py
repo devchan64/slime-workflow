@@ -76,8 +76,6 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
         tracked_source_paths.update(image_domain_directory/current_file_name for current_file_name in ('seamless_pattern.py','seamless_generation.py','seamless_directional.py'))
     if application_file_path.name=='animation_separation_app.py':
         tracked_source_paths.add(WORKFLOW_ROOT_DIRECTORY/'generators/image/config/animation_separation.yaml')
-    if application_file_path.name=='sprite_editor_v2_app.py':
-        tracked_source_paths.update(WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/character_animation'/current_file_name for current_file_name in ('sprite-editor-v2.html','sprite-editor-v2.js'))
     if application_file_path.name=='sprite_editor_app.py':
         sprite_editor_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/character_animation'
         tracked_source_paths.update(sprite_editor_directory/current_file_name for current_file_name in ('sprite-editor.html','sprite-editor.js'))
@@ -111,7 +109,6 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'qwen-2511':('qwen_2511_app.py',104,'/management/frame/three-reference-generator/'),
             'floor-tile':('floor_tile_app.py',113,'/management/frame/floor-tile-generator/'),
             'animation-separation':('animation_separation_app.py',117,'/management/frame/animation-separation/'),
-            'sprite-editor-v2':('sprite_editor_v2_app.py',121,'/management/frame/sprite-editor-v2/'),
             'sprite-editor':('sprite_editor_app.py',106,'/management/frame/sprite-editor/'),
             'character-review':('character_review_app.py',122,'/management/frame/character-review/'),
             'asset-editor':('asset_editor_app.py',136,'/management/frame/asset-editor/'),

@@ -8,7 +8,7 @@ from tools.review.common.gradio_reference_images import build_reference_image_in
 from tools.review.common.gradio_seed import build_generation_seed
 
 # 브라우저 캔버스·프레임 표시용 CSS만 허용하는 기존 사용자 정의 컴포넌트.
-CANVAS_STYLE_APPLICATIONS = frozenset(('sprite_editor_app.py', 'sprite_editor_v2_app.py'))
+CANVAS_STYLE_APPLICATIONS = frozenset(('sprite_editor_app.py',))
 
 
 class GradioStandardComponentTests(unittest.TestCase):

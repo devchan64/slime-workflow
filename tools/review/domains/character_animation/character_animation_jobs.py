@@ -147,9 +147,15 @@ def record_vnccs_alpha_pilot(command_payload_value):
     raise ValueError('폐기된 애니메이션 생성기의 과거 기록은 다시 가져올 수 없습니다.')
 
 def execute_animation_command(operation_command_name,command_payload_value):
-    if operation_command_name.startswith('sprite-v2-'):
-        from .sprite_editor_v2 import execute_v2_command
-        return execute_v2_command(operation_command_name,command_payload_value)
+    if operation_command_name == 'sheet-update':
+        from .sprite_sheet_editor import update_registered_sprite_sheet
+        return update_registered_sprite_sheet(command_payload_value)
+    if operation_command_name in ('sheet-search','sheet-image'):
+        from .sprite_sheet_editor import execute_sprite_asset_command
+        return execute_sprite_asset_command(operation_command_name,command_payload_value)
+    if operation_command_name == 'sheet-export':
+        from .sprite_sheet_editor import execute_sprite_sheet_export
+        return execute_sprite_sheet_export(command_payload_value)
     if operation_command_name in ('anchor-save','anchor-history','anchor-load','anchor-history-reset'):
         from .anchor_history import execute_anchor_history_command
         return execute_anchor_history_command(operation_command_name,command_payload_value)

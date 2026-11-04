@@ -144,10 +144,8 @@ let pendingAnchorRestoreConfirmation=null;
         self.assertEqual(current_node_result.returncode, 0, current_node_result.stderr)
 
     def test_browser_choices_skip_stale_server_choice_validation(self):
-        from tools.review.ui.gradio.sprite_editor_v2_app import build_sprite_v2_interface
         current_interface_records = (
             ('static', build_static_review_interface({'test': '/test/anchors.html'})),
-            ('sprite', build_sprite_v2_interface()),
         )
         for current_page_name, current_interface_blocks in current_interface_records:
             current_browser_identifiers = {
