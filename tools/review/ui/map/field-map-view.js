@@ -358,6 +358,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
     }
     for(const currentBuildingRecord of currentMapRecord.buildings){
      const currentBuildingRegion=drawCityBuildingSprite(currentFieldScene,currentBuildingRecord,currentProjectPosition,currentDepthPosition,mapAnnotationDepth(currentMapRecord),false,currentMapRecord);
+     if(currentBuildingRegion.entranceMarker)currentTownWaypointObjects.push(currentBuildingRegion.entranceMarker);
      if(!Array.isArray(currentBuildingRegion.appliedTextureIdentifiers))throw Error('공용 렌더러의 건물 원본 정보가 없습니다. 배포 버전을 확인하세요.');
      for(const currentTextureIdentifier of currentBuildingRegion.appliedTextureIdentifiers)currentAppliedBuildingTextures.add(currentTextureIdentifier);
      for(const currentBuildingPolygon of currentBuildingRegion.polygons)currentTownMeshObjects.push(drawFieldMeshBoundary(currentFieldScene,currentBuildingPolygon.points,currentBuildingRegion.depth+.02));
