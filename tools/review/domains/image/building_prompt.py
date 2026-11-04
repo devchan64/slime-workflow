@@ -35,10 +35,10 @@ def load_vegetation_base_prompt():
     return current_prompt_text
 
 
-BUILDING_LAYOUT_FOOTPRINT_SIZES = ((4, 4), (4, 5), (4, 6), (3, 3))
-BUILDING_EXPANDED_FOOTPRINT_SIZES = ('4x4', '4x5', '4x6')
-BUILDING_RESIDENCE_FOOTPRINT_SIZES = ('3x3',)
-BUILDING_LAYOUT_PRESET_NAMES = tuple(f'{current_width_count}x{current_depth_count}-{current_entrance_side}' for current_width_count, current_depth_count in BUILDING_LAYOUT_FOOTPRINT_SIZES for current_entrance_side in ('south', 'east'))
+BUILDING_LAYOUT_FOOTPRINT_SIZES = ((4, 4), (4, 5), (4, 6), (3, 3), (3, 4), (5, 5), (5, 6))
+BUILDING_EXPANDED_FOOTPRINT_SIZES = ('4x4', '4x5', '4x6', '5x5', '5x6')
+BUILDING_NARROW_DOOR_FOOTPRINT_SIZES = ('3x3', '3x4')
+BUILDING_LAYOUT_PRESET_NAMES = tuple(f'{current_width_count}x{current_depth_count}-{current_entrance_side}' for current_width_count, current_depth_count in BUILDING_LAYOUT_FOOTPRINT_SIZES for current_entrance_side in ('south', 'east')) + ('4x4-zone-south', '4x4-zone-east')
 
 
 def load_building_layout_preset(current_preset_name, current_height_pixels=160):

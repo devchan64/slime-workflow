@@ -237,10 +237,10 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if building_mode_enabled:
             from tools.review.domains.image.building_prompt import BUILDING_LAYOUT_PRESET_NAMES, load_building_layout_preset
             with gr.Group():
-                gr.Markdown('### 구도 참조 프리셋\n도시맵 80×40 타일의 직교투영 가이드입니다. 초록 밑면은 점유 영역, 주황 테두리는 주택 1칸·큰 건물 2칸 폭, 높이 64px 출입문, 파랑 선은 층 높이 기준입니다. 선택 후 적용하면 첫 참조를 교체합니다. 실제 맵 구도 그림을 직접 업로드할 수도 있습니다.')
+                gr.Markdown('### 구도 참조 프리셋\n도시맵 80×40 타일의 직교투영 가이드입니다. 초록 밑면은 점유 영역, 주황 테두리는 3×3·3×4는 1칸, 4×4 이상은 2칸 폭, 높이 64px 출입문, 파랑 선은 층 높이 기준입니다. 선택 후 적용하면 첫 참조를 교체합니다. 실제 맵 구도 그림을 직접 업로드할 수도 있습니다.')
                 with gr.Row():
                     with gr.Column():
-                        building_layout_selector = gr.Dropdown([(current_preset_name.replace('-south', ' · 왼쪽(남쪽) 입구').replace('-east', ' · 오른쪽(동쪽) 입구'), current_preset_name) for current_preset_name in BUILDING_LAYOUT_PRESET_NAMES], value=BUILDING_LAYOUT_PRESET_NAMES[0], label='건물 구도 프리셋')
+                        building_layout_selector = gr.Dropdown([(current_preset_name.replace('-zone', ' · 내부 배치 영역').replace('-south', ' · 왼쪽(남쪽) 입구').replace('-east', ' · 오른쪽(동쪽) 입구'), current_preset_name) for current_preset_name in BUILDING_LAYOUT_PRESET_NAMES], value=BUILDING_LAYOUT_PRESET_NAMES[0], label='건물 구도 프리셋')
                         building_height_selector = gr.Dropdown([('1층 · 80px', 80), ('2층 · 160px', 160), ('3층 · 240px', 240)], value=160, label='건물 층 높이')
                         gr.Markdown('한 층은 80px이며 파랑 선은 각 층의 높이 기준입니다. 지붕은 최상층 위로 표현할 수 있습니다. 맵 배치 크기는 바뀌지 않습니다.')
                         building_layout_apply_button = gr.Button('선택한 구도를 레이아웃 참조에 적용')

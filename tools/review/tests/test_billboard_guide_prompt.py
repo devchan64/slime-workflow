@@ -73,13 +73,13 @@ class BillboardGuidePromptTests(unittest.TestCase):
 
     def test_search_and_pagination(self):
         from tools.review.ui.gradio.billboard_guide_controls import search_guide_profile_page, render_guide_search_page
-        self.assertEqual(search_guide_profile_page('전체', '', 1)[1:], (1, 5, 46))
+        self.assertEqual(search_guide_profile_page('전체', '', 1)[1:], (1, 7, 70))
         self.assertEqual(len(search_guide_profile_page('전체', '', 1)[0]), 10)
         self.assertEqual(len(search_guide_profile_page('빌보드', '', 3)[0]), 2)
         self.assertEqual(len(search_guide_profile_page('건물', '', 2)[0]), 10)
         current_result_values = search_guide_profile_page('건물', '4x4 남쪽', 1)
-        self.assertEqual(current_result_values[3], 3)
-        self.assertTrue(all('4x4-south' in current_record[1] for current_record in current_result_values[0]))
+        self.assertEqual(current_result_values[3], 6)
+        self.assertTrue(all(current_record[1].startswith('building:4x4') and '-south:' in current_record[1] for current_record in current_result_values[0]))
         self.assertEqual(search_guide_profile_page('건물', '2x2', 1)[3], 0)
         self.assertEqual(search_guide_profile_page('전체', '없는검색어', 1)[3], 0)
         self.assertIn('검색 결과가 없습니다', render_guide_search_page('전체', '없는검색어', 1)[2])
@@ -89,7 +89,7 @@ class BillboardGuidePromptTests(unittest.TestCase):
     def test_expanded_building_guides_are_selectable_and_have_doubled_height_labels(self):
         from tools.review.ui.gradio.billboard_guide_controls import list_guide_profile_choices, preview_billboard_guide_inputs
         current_building_choices = dict((current_value, current_label) for current_label, current_value in list_guide_profile_choices('건물'))
-        for current_footprint_size in ('4x4', '4x5', '4x6', '3x3'):
+        for current_footprint_size in ('4x4', '4x5', '4x6', '3x3', '3x4', '4x4-zone', '5x5', '5x6'):
             for current_entrance_side in ('south', 'east'):
                 for current_height_value, current_expected_label in ((80, '1층 · 80px'), (160, '2층 · 160px'), (240, '3층 · 240px')):
                     current_profile_name = f'building:{current_footprint_size}-{current_entrance_side}:{current_height_value}'
@@ -97,5 +97,5 @@ class BillboardGuidePromptTests(unittest.TestCase):
                     current_image_value, current_prompt_text, _, current_button_update = preview_billboard_guide_inputs(current_profile_name, 'wooden house')
                     self.assertEqual(current_image_value.size, (512, 512))
                     self.assertIn('wooden house', current_prompt_text)
-                    self.assertIn('Door: ' + ('one tile' if current_footprint_size == '3x3' else 'two tiles') + ' wide, 80% of floor height.', current_prompt_text)
+                    self.assertIn('Door: ' + ('one tile' if current_footprint_size in ('3x3', '3x4') else 'two tiles') + ' wide, 80% of floor height.', current_prompt_text)
                     self.assertTrue(current_button_update['interactive'])
