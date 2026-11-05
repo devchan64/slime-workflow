@@ -1,9 +1,9 @@
 schema_version: 1
 description: 기본 캐릭터 · 화면 왼쪽 앞 걷기 스프라이트 · 베이스라인 외관 및 화풍 보정
 image: character-default-walk-front-left-sprite-v1.png
-sha256: 662d7bb76f348f962d6ce1fbdcdaa01b5227e898b18d532e92122d1dfe56e9ea
-width: 1302
-height: 1208
+sha256: 01ad039ca642325d256d636a5ec5e98d9faecbcda28aadf88578637d00843145
+width: 1997
+height: 788
 layout:
   columns: 4
   rows: 2
@@ -14,20 +14,17 @@ layout:
 background: white
 generator: image_gen
 reference: character-default-eight-directions-v1.png
-operation: 캐릭터·화풍 일관성 보정 및 흐린 손·발 윤곽 복원
-notes: 이미지젠 재생성 결과로 프레임별 위치·윤곽에 미세한 차이가 있다. 셀 분할과 재생 정렬은 별도 검수한다.
-prompt: 'Edit image 1, an eight-frame walking sprite sheet (4 columns by 2 rows),
-  using image 2 ONLY as the character identity and rendering style reference. Preserve
-  exactly the eight walking poses, their order, camera direction, limb positions,
-  equal grid layout, per-frame scale and registration of image 1. Do not replace walking
-  poses with turnaround poses. Match the same androgynous stylized adult character
-  from image 2: brown short layered hair, amber eyes, facial proportions, athletic
-  five-head-tall body, gray fitted sleeveless crop top, charcoal fitted shorts, bare
-  feet. Consistently render all eight frames in image 2''s clean polished softly shaded
-  game-character illustration style with identical face, hair, body proportions, garment
-  shape, palette and lighting across frames. Locally inpaint and reconstruct blurry
-  hands, fingers, feet, toes, ankles and smeared contours, removing motion blur and
-  ghost limbs while retaining each exact walking pose and occlusion. Crisp natural
-  contours, anatomically coherent hands and feet. Preserve pure white background.
-  Exactly eight whole bodies in 4x2 equal cells, no extra figures, no text or grid
-  lines. Keep original sheet aspect ratio and tight margins.'
+operation: 8방향 기본복장 베이스라인을 참조하여 얼굴·신체 비율·헤어스타일·시선 방향 및 손발 윤곽 보강
+notes: 원본 프레임 좌우 각 80px 크롭·상하 각 25px 여백 추가 후 이미지젠으로 보강. 이미지젠 출력 크기 변경으로 최종 픽셀 여백은
+  원본과 다를 수 있다. 셀 분할·앵커·루프 연결은 별도 검수한다.
+source_generation_id: 2026-11-05_18-13-47-e7b88043
+source_frames_one_based:
+- 49
+- 51
+- 53
+- 55
+- 57
+- 59
+- 61
+- 63
+source_sheet: .tmp/test/wan22-fun-control/2026-11-05_18-13-47-e7b88043/attempts/13bf67e27a9e465ba2f084d744d93605/walk-loop-8frames-padded-consistent-v1.png
