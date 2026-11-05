@@ -112,15 +112,22 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
             current_call_keywords['progress_bar'] = record_sequence_progress
             return current_original_generate(*current_call_arguments,**current_call_keywords)
         current_motion_model._generate = generate_with_progress
-    current_motion_output = current_motion_model(constraint_lst=[],prompts=current_final_prompts if current_sequence_enabled else current_final_prompt,num_frames=current_segment_frames if current_sequence_enabled else current_request_record['frames'],multi_prompt=current_sequence_enabled,num_samples=1 if current_sequence_enabled else None,num_denoising_steps=current_request_record['steps'],cfg_weight=[current_request_record['guidance_scale'],2.0],cfg_type='separated',first_heading_angle=math.radians(current_request_record['heading_degrees']),post_processing=current_request_record['post_processing'],return_numpy=True,progress_bar=record_sampling_progress)
-    if current_sequence_enabled:
-        current_motion_output = {current_field_name:current_field_value[0] for current_field_name,current_field_value in current_motion_output.items()}
+    from generators.kimodo.pose_library import prepare_soma_endpoint_constraints
+    current_endpoint_constraints = prepare_soma_endpoint_constraints(current_request_record,current_attempt_root,current_motion_model.skeleton)
+    current_motion_output = current_motion_model(constraint_lst=current_endpoint_constraints,prompts=current_final_prompts if current_sequence_enabled else current_final_prompt,num_frames=current_segment_frames if current_sequence_enabled else current_request_record['frames'],multi_prompt=current_sequence_enabled,num_samples=1,num_denoising_steps=current_request_record['steps'],cfg_weight=[current_request_record['guidance_scale'],2.0],cfg_type='separated',first_heading_angle=math.radians(current_request_record['heading_degrees']),post_processing=current_request_record['post_processing'],return_numpy=True,progress_bar=record_sampling_progress)
+    # 공식 후처리까지 배치 차원을 유지하고, 저장 직전에 단일 샘플을 꺼낸다.
+    if any(not isinstance(current_field_value,np.ndarray) or current_field_value.ndim < 1 or current_field_value.shape[0] != 1 for current_field_value in current_motion_output.values()):
+        raise ValueError('Kimodo 단일 샘플 배치 출력 계약 오류')
+    current_motion_output = {current_field_name:current_field_value[0] for current_field_name,current_field_value in current_motion_output.items()}
     current_joint_positions = current_motion_output['posed_joints']
     if current_joint_positions.shape != (current_request_record['frames'],77,3) or not np.isfinite(current_joint_positions).all():
         raise ValueError(f'SOMA 출력 크기·유한값 오류: {current_joint_positions.shape}')
     for current_field_name,current_field_value in current_motion_output.items():
         if isinstance(current_field_value,np.ndarray) and np.issubdtype(current_field_value.dtype,np.number) and not np.isfinite(current_field_value).all():
             raise ValueError(f'출력 비유한 값: {current_field_name}')
+    if current_endpoint_constraints:
+        current_endpoint_distances = np.linalg.norm(current_joint_positions[-1]-current_joint_positions[0],axis=-1)
+        write_record_atomically(current_attempt_root/'endpoint-measurement.json',{'pose_id':current_request_record['endpoint_pose_id'],'unit':'meters','mean_joint_distance':float(current_endpoint_distances.mean()),'maximum_joint_distance':float(current_endpoint_distances.max()),'scope':'생성 SOMA 원본 첫·마지막 프레임 · 렌더/16fps 변환 전'})
     current_joint_parents = current_motion_model.output_skeleton.joint_parents.cpu().tolist()
     current_joint_names = current_motion_model.output_skeleton.bone_order_names
     current_metrics_recorder.update_generation_stage('saving')

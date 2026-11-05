@@ -212,3 +212,30 @@ class KimodoGenerationContractTests(unittest.TestCase):
         current_joint_positions[0,0,0]=float('nan')
         with self.assertRaisesRegex(ValueError,'위치 계약'):
             project_soma_body_points(current_joint_positions,current_joint_names,'front')
+
+class KimodoPoseLibraryTests(unittest.TestCase):
+    def test_registered_pose_endpoints_and_request_roundtrip(self):
+        from generators.kimodo.pose_library import load_soma_pose_arrays,build_soma_endpoint_records
+        from tools.review.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs,apply_complete_kimodo_example,load_kimodo_examples
+        current_pose_record,current_motion_arrays=load_soma_pose_arrays('floor-rest-standing-v1')
+        self.assertEqual(current_motion_arrays['posed_joints'].shape,(1,77,3))
+        current_constraint_record=build_soma_endpoint_records(current_pose_record['id'],210)[0]
+        self.assertEqual(current_constraint_record['frame_indices'],[0,209])
+        self.assertEqual(current_constraint_record['local_joints_rot'][0],current_constraint_record['local_joints_rot'][1])
+        self.assertEqual(current_constraint_record['root_positions'][0],current_constraint_record['root_positions'][1])
+        current_request_record={current_field_name:current_field_value for current_field_name,current_field_value in KIMODO_DEFAULT_SETTINGS.items() if current_field_name!='schema_version'}
+        current_request_record.update(action='generate',endpoint_pose_id=current_pose_record['id'],post_processing=True,heading_degrees=0)
+        self.assertEqual(build_kimodo_payload(*restore_kimodo_inputs({'id':'test','request':current_request_record})[:-1]),current_request_record)
+        for current_patch_record in ({'endpoint_pose_id':'../bad'},{'endpoint_pose_id':42},{'post_processing':False},{'heading_degrees':45}):
+            with self.assertRaises(ValueError):validate_kimodo_request({**current_request_record,**current_patch_record})
+        self.assertIsNone(apply_complete_kimodo_example(next(iter(load_kimodo_examples())))[-1])
+
+    def test_pose_library_rejects_modified_files(self):
+        from generators.kimodo.pose_library import KIMODO_POSE_LIBRARY_ROOT,load_soma_pose_catalog
+        import shutil
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_catalog_directory=Path(current_temporary_directory)/'poses'
+            shutil.copytree(KIMODO_POSE_LIBRARY_ROOT,current_catalog_directory)
+            (current_catalog_directory/'floor-rest-standing-v1/skeleton.yaml').write_text('invalid')
+            with patch('generators.kimodo.pose_library.KIMODO_POSE_LIBRARY_ROOT',current_catalog_directory),self.assertRaisesRegex(ValueError,'해시'):
+                load_soma_pose_catalog()

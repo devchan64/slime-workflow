@@ -1030,3 +1030,7 @@ GUI와 CLI는 `character-animation sheet-export`를 공유한다. CLI는 `--payl
 이미지를 요구하며 별도 종료 이미지와 중복 지정하면 거절합니다. 외형 참조·포즈
 입력과 별개이며 기본값은 사용 안 함입니다. 작업별 입력 사본·해시를 보존하고
 이력 불러오기에서 복원합니다. 상세 조건과 미검증 범위는 `generators/wan_fun/README.md`를 따릅니다.
+
+### Kimodo SOMA 기준 자세 선택
+
+`kimodo generate --payload-file`의 선택 필드 `endpoint_pose_id`는 `generators/kimodo/pose-library/index.yaml`에 등록된 세트 ID다. 현재 `floor-rest-standing-v1`을 제공한다. `post_processing: true`, `heading_degrees: 0`과 함께 사용한다. GUI의 `시작·종료에 같은 자세 적용`과 같은 검증·제약 경로를 사용하며 ID 생략 시 기존 생성 동작을 유지한다. 기준 자세 목록은 좌표 NPZ·스켈레톤 YAML·SOMA 렌더 PNG·카메라 YAML을 Git으로 함께 추적한다. 임의 제약 JSON 입력 기능은 복원하지 않는다.

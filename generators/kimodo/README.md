@@ -112,3 +112,13 @@ Kimodo 작업 실행기·참조 분석·직접 포즈·DWPose는 모두 `.venv/b
 공식 가이드에 따라 한 구간은 1~2개 행동에 집중합니다. `prompt`에 줄마다 독립된 설명을 넣고 선택 필드 `segment_frames`에 각 구간 프레임 배열을 전달합니다. 예: 3줄과 `[90,120,90]`, 전체 `frames: 300`. GUI의 순차 생성 구간 프레임은 `90 120 90`으로 입력합니다. 비우면 기존 단일 프롬프트입니다. 공식 `multi_prompt=True`, 기본 전환 5프레임을 사용하며 사용자 키프레임 JSON 기능은 복원하지 않습니다. 공식 내부 연결용 제약은 사용됩니다. 설정 스텝은 구간마다 적용됩니다. 현재 전체 300프레임 제한은 유지합니다.
 
 근거: https://research.nvidia.com/labs/sil/projects/kimodo/docs/key_concepts/limitations.html 및 공식 user_guide/cli.md.
+
+## SOMA 기준 자세 목록 · 시작과 종료
+
+`pose-library/index.yaml`은 재사용할 SOMA 자세 목록이다. 첫 등록 `floor-rest-standing-v1`은 완료 작업 `2026-11-04_10-55-24-5fbe4e31`의 원본 `motion.npz` 0번 프레임(사용자 표시 1프레임)이다. 세트마다 77관절 좌표·로컬/글로벌 회전과 루트 정보를 담은 `motion.npz`, 관절 이름·부모 관계 `skeleton.yaml`, 원본 렌더 설정·카메라 `render.yaml`, 같은 프레임의 `render-front-left.png`를 함께 추적한다. PNG는 원본 SOMA MP4 첫 프레임을 추출했으며 새로 추론하지 않았다. 인덱스는 출처 작업·시도·프레임 및 파일별 SHA-256을 기록한다. 생성 이력 삭제 대상이 아니다. 기존 세트는 불변 버전으로 보존하며 새 자세는 새 ID와 파일 세트로 추가한다.
+
+생성기 `SOMA 기준 자세 목록 · 시작과 종료`에서 선택하면 공식 후처리를 켜고 초기 방향을 세트의 값으로 설정한다. 미선택은 기존 자유 생성이다. 선택 시 시작·종료 두 프레임에 동일한 공식 `fullbody` 제약을 전달한다. 루트 XZ는 첫 프레임의 smoothed root를 원점으로 정규화하며 높이·회전은 보존한다. 내부 30관절 변환과 순차 생성의 제약 분배는 공식 `load_constraints_lst`와 모델 API를 사용한다. 중간 구간의 루트는 고정하지 않는다. 과거의 임의 JSON `pose_constraints` 업로드는 계속 거절한다.
+
+통합 CLI의 기존 `kimodo generate --payload-file` JSON에 `"endpoint_pose_id":"floor-rest-standing-v1"`, `"post_processing":true`, `"heading_degrees":0`을 지정한다. GUI와 동일하게 미등록 ID·파일 해시 변경·후처리 해제·다른 초기 방향은 거절한다. 실행 시 세트 사본과 출처를 시도 폴더 `endpoint-pose/`, 실제 제약을 `endpoint-constraints.json`으로 보존한다. 선택만으로 생성하지 않는다.
+
+기준 자세 선택·공식 제약 변환의 연결 검증과 GPU 생성 품질 검수는 구분한다. 동일 3D 자세가 이미지 참조와 같은 픽셀 배치라는 뜻은 아니다. 생성 후 양 끝 3D 관절 오차, 30→16fps 표본 선택과 Fun Control 사용 구간, 포즈 출력 카메라·배율까지 확인해야 한다.

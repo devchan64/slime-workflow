@@ -297,7 +297,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--seed',type=int,default=current_music_defaults['seed'])
                 operation_argument_parser.add_argument('--loop-request',action=argparse.BooleanOptionalAction,default=current_music_defaults['loop_request'],help='반복 구조 요청; 심리스 연결 보장 없음')
             elif service_command_name in ('wan22-fun-control','wan22-vace','kimodo'):
-                operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='Kimodo 텍스트·프레임·샘플링 JSON 요청' if service_command_name=='kimodo' else 'images PNG base64와 frame_entries를 포함한 JSON 요청')
+                operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='Kimodo 텍스트·프레임·샘플링 JSON 요청; endpoint_pose_id 선택 시 등록 SOMA 양 끝 자세 적용' if service_command_name=='kimodo' else 'images PNG base64와 frame_entries를 포함한 JSON 요청')
             elif service_command_name=='animation-separation':
                 operation_argument_parser.add_argument('--reference',type=Path,required=True,help='분리할 참조 PNG 이미지 1장')
                 operation_argument_parser.add_argument('--size',type=int,choices=(512,768),default=768)

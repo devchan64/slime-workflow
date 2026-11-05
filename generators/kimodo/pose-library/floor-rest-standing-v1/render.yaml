@@ -1,0 +1,29 @@
+source: motion.npz
+skinning: Kimodo SOMASkin
+source_revision: e1c219c99b4b94ba48be1fb6a1cbc64ecee4c954
+renderer: NVIDIA GeForce RTX 5070 Laptop GPU/PCIe/SSE2
+fps: 30
+width: 832
+height: 480
+scale_percent: 85.0
+videos:
+  front_left: soma-render-front_left.mp4
+cameras:
+  front_left:
+    rotation_matrix:
+    - - 0.7071067811865476
+      - 0.0
+      - -0.7071067811865475
+    - - 0.0
+      - 1.0
+      - 0.0
+    - - 0.7071067811865475
+      - 0.0
+      - 0.7071067811865476
+    center_position:
+    - 0.14628876090191742
+    - 0.8085706233978271
+    - -0.02855169763741683
+    half_height: 1.1200643988216625
+    width: 832
+    height: 480

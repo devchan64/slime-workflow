@@ -75,8 +75,16 @@ validate_kimodo_directions(KIMODO_DEFAULT_SETTINGS['directions'])
 
 def validate_kimodo_request(current_request_record):
     current_required_fields = {'action','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'}
-    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'segment_frames','directions','remove_horizontal_motion','proportion_images','openpose_scale_percent','pose_include_hands','pose_include_face'}:
+    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'endpoint_pose_id','segment_frames','directions','remove_horizontal_motion','proportion_images','openpose_scale_percent','pose_include_hands','pose_include_face'}:
         raise ValueError('Kimodo 요청 필드 오류')
+    if current_request_record.get('endpoint_pose_id') is not None:
+        from generators.kimodo.pose_library import load_soma_pose_arrays
+        current_pose_identifier = current_request_record['endpoint_pose_id']
+        if not isinstance(current_pose_identifier,str):
+            raise ValueError('SOMA 기준 자세 ID는 문자열이어야 합니다.')
+        current_pose_record,_ = load_soma_pose_arrays(current_pose_identifier)
+        if not current_request_record['post_processing'] or current_request_record['heading_degrees'] != current_pose_record['heading_degrees']:
+            raise ValueError('SOMA 양 끝 자세 적용은 공식 후처리와 기준 자세의 초기 방향이 필요합니다.')
     if current_request_record['action'] != 'generate':
         raise ValueError('generate 명령만 지원합니다.')
     current_prompt_text = current_request_record['prompt']
