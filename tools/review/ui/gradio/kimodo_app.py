@@ -220,7 +220,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         with gr.Accordion('고급 설정',open=False):
             current_steps_control = gr.Number(label='샘플링 스텝',value=KIMODO_DEFAULT_SETTINGS['steps'],minimum=2,maximum=100,precision=0,info='공식 기본 100. 2스텝은 실행 연결 확인용이며 품질 평가에 사용하지 마세요.')
             current_guidance_control = gr.Number(label='텍스트 CFG',value=KIMODO_DEFAULT_SETTINGS['guidance_scale'],minimum=0,maximum=10,info='공식 기본 2. 텍스트 조건의 영향이며 원하는 동작의 성공을 보장하지 않습니다.')
-            current_heading_control = gr.Number(label='초기 방향 (도)',value=KIMODO_DEFAULT_SETTINGS['heading_degrees'],minimum=-180,maximum=180,info='0은 +Z 방향. 시작 방향 조건이며 이후 방향을 계속 고정하는 기능이 아닙니다.')
+            current_heading_control = gr.State(value=KIMODO_DEFAULT_SETTINGS['heading_degrees'])
             current_postprocessing_control = gr.Checkbox(label='공식 발 미끄러짐 후처리',value=KIMODO_DEFAULT_SETTINGS['post_processing'],info='기본 해제: 원본 동작 비교. 활성화하면 공식 후처리를 적용하고 실행 기록에 남깁니다.')
             gr.Markdown('[공식 모델카드](https://huggingface.co/nvidia/Kimodo-SOMA-RP-v1.2) · [NF4 인코더](https://huggingface.co/matbee/kimodo-llm2vec-nf4)\n\nANNY 리그 기능은 폐기되었습니다. SOMA 몸 포즈에는 실제 눈 관절이 포함됩니다. 코·귀는 대응 관절이 없어 생략하며 손 상세 점은 없습니다.\n\nNF4는 커뮤니티 양자화본입니다. BF16과 동작이 달라질 수 있으며 실제 품질은 결과를 검수하세요. 내부 30관절 추론을 공식 API가 77관절로 확장해 저장합니다.')
         from generators.kimodo.pose_library import load_soma_pose_catalog, KIMODO_POSE_LIBRARY_ROOT

@@ -142,6 +142,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
         self.assertEqual(validate_kimodo_request(current_legacy_request)['directions'],['front_left'])
         self.assertEqual(restore_kimodo_inputs({'id':'old','request':current_legacy_request})[7],['front_left'])
         self.assertEqual(validate_kimodo_request({**self.current_request_record,'directions':['front','right']})['directions'],['front','right'])
+        self.assertEqual(validate_kimodo_request({**self.current_request_record,'directions':['front_left_30','front_right_30']})['directions'],['front_left_30','front_right_30'])
 
     def test_comparison_projection_and_missing_points(self):
         from PIL import Image
