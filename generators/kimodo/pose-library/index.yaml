@@ -1,13 +1,13 @@
 schema_version: 1
 poses:
-- id: floor-rest-standing-v1
-  label: 바닥 휴식 · 시작 서기 · v1
-  source_job: 2026-11-04_10-55-24-5fbe4e31
-  source_attempt: e8628816d84f42f5ad6886da14683218
+- id: relaxed-standing-v1
+  label: 편안한 서기 · 어깨너비 · v1
+  source_job: 2026-11-05_09-55-32-426ebb2f
+  source_attempt: 155d040aecba49c3929480cd2809c3fd
   frame_index: 0
   heading_degrees: 0
   files:
-    motion.npz: 3e875c8bc44fbf0bf3dcbbb70f85b5aa96bd68880658227b83065412a1dbc30c
-    render-front-left.png: 8cd1f69e3ae13e0da0b52b19369054cdfff3044202bf061c30526b5eebec5f77
-    render.yaml: 64bf330a51cd9fbb963ff3d05caaffaa109aabe7c1647c632c0c89d0c51fd5c8
+    motion.npz: 8e4e12dfd88df2eec753647d6e3be050219dc4122854046929eab3f88577fd57
+    render-front-left.png: c772da780f32cb5342c0b6b750145e3951171185c576cc8407500b25bb81d2de
+    render.yaml: 29616fd4dea6722c457b084c352c8addcdb7dd6c20c8a6699c926c44aede0218
     skeleton.yaml: eac622f4c88f18b138eb67f8f55638ffd53fdb573707175d07f1c306844e099c

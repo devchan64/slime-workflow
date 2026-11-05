@@ -148,7 +148,7 @@ def apply_complete_kimodo_example(current_example_identifier):
     current_example_record=load_kimodo_examples()[current_example_identifier]
     current_settings_record=current_example_record.get('settings',{})
     current_reference_identifier=current_example_record.get('reference_example')
-    current_reference_values=apply_proportion_example(current_reference_identifier) if current_reference_identifier else (gr.skip(),gr.skip())
+    current_reference_values=apply_proportion_example(current_reference_identifier) if current_reference_identifier else (False,[])
     return (*apply_kimodo_example(current_example_identifier),*current_reference_values,*(current_settings_record.get(current_field_name,gr.skip()) for current_field_name in ('openpose_scale_percent','pose_include_hands','pose_include_face')),' '.join(map(str,current_settings_record.get('segment_frames',[]))),None)
 
 
@@ -205,7 +205,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         current_load_event = current_interface_blocks.load(refresh_kimodo_assets,outputs=[current_model_output,current_model_ready])
         current_example_mapping = load_kimodo_examples()
         with gr.Row():
-            current_example_selector = gr.Dropdown(choices=[(current_example_record['label'],current_example_name) for current_example_name,current_example_record in current_example_mapping.items()],value='relaxed_feet_planted',label='동작 예시',info='예시는 프롬프트·프레임과 시드·방향·제자리 보정을 포함한 저장 설정을 불러옵니다. 자동 생성하지 않습니다.')
+            current_example_selector = gr.Dropdown(choices=[(f"{current_example_record['label']} · 신체 비율 보정 {'켜짐' if current_example_record.get('reference_example') else '꺼짐'}",current_example_name) for current_example_name,current_example_record in current_example_mapping.items()],value='relaxed_shoulder_width_standing',label='동작 예시',info='예제를 불러오면 표시된 신체 비율 보정 상태와 저장된 설정을 적용합니다. 자동 생성하지 않습니다.')
             current_example_button = gr.Button('예시 불러오기')
         with gr.Row():
             with gr.Column(min_width=KIMODO_INPUT_MINIMUM_WIDTH):

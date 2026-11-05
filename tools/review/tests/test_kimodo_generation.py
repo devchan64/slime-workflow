@@ -115,13 +115,9 @@ class KimodoGenerationContractTests(unittest.TestCase):
     def test_examples_update_only_prompt_and_frames(self):
         from tools.review.ui.gradio.kimodo_app import apply_kimodo_example,describe_kimodo_duration,load_kimodo_examples
         current_example_records=load_kimodo_examples()
-        self.assertEqual(set(current_example_records),{'male_runway_in_place','relaxed_feet_planted','standing_overhead_stretch','male_floor_rest_cycle'})
+        self.assertEqual(set(current_example_records),{'male_runway_in_place','relaxed_shoulder_width_standing','male_floor_rest_cycle'})
         from tools.review.ui.gradio.kimodo_app import build_kimodo_payload
-        current_stretch_payload = build_kimodo_payload(*apply_kimodo_example('standing_overhead_stretch'))
-        self.assertEqual(current_stretch_payload['frames'],300)
-        self.assertEqual(current_stretch_payload['seed'],42)
-        self.assertEqual(current_stretch_payload['directions'],['front_left'])
-        current_standing_payload = build_kimodo_payload(*apply_kimodo_example('relaxed_feet_planted'))
+        current_standing_payload = build_kimodo_payload(*apply_kimodo_example('relaxed_shoulder_width_standing'))
         self.assertEqual(current_standing_payload['frames'],180)
         self.assertEqual(current_standing_payload['seed'],42)
         self.assertEqual(current_standing_payload['directions'],['front_left'])
@@ -217,7 +213,7 @@ class KimodoPoseLibraryTests(unittest.TestCase):
     def test_registered_pose_endpoints_and_request_roundtrip(self):
         from generators.kimodo.pose_library import load_soma_pose_arrays,build_soma_endpoint_records
         from tools.review.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs,apply_complete_kimodo_example,load_kimodo_examples
-        current_pose_record,current_motion_arrays=load_soma_pose_arrays('floor-rest-standing-v1')
+        current_pose_record,current_motion_arrays=load_soma_pose_arrays('relaxed-standing-v1')
         self.assertEqual(current_motion_arrays['posed_joints'].shape,(1,77,3))
         current_constraint_record=build_soma_endpoint_records(current_pose_record['id'],210)[0]
         self.assertEqual(current_constraint_record['frame_indices'],[0,209])
@@ -236,6 +232,6 @@ class KimodoPoseLibraryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as current_temporary_directory:
             current_catalog_directory=Path(current_temporary_directory)/'poses'
             shutil.copytree(KIMODO_POSE_LIBRARY_ROOT,current_catalog_directory)
-            (current_catalog_directory/'floor-rest-standing-v1/skeleton.yaml').write_text('invalid')
+            (current_catalog_directory/'relaxed-standing-v1/skeleton.yaml').write_text('invalid')
             with patch('generators.kimodo.pose_library.KIMODO_POSE_LIBRARY_ROOT',current_catalog_directory),self.assertRaisesRegex(ValueError,'해시'):
                 load_soma_pose_catalog()
