@@ -337,11 +337,11 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      const currentScreenPoint=currentProjectPosition(currentCellPosition),currentCellDepth=currentDepthPosition(currentCellPosition);
      const currentConnectionMask=(currentTerrainName==='road'||currentTerrainName==='water')?readReviewConnectionMask(currentCellPosition,currentMapRecord,currentTerrainName,currentViewSettings.rotation):0;
      const currentFrameName=resolveReviewTownFrame(currentMapRecord,currentTerrainName,currentCellPosition,currentConnectionMask);
-     if(!currentFieldScene.textures.get(TERRAIN_ATLAS).has(currentFrameName))throw Error('게임 타일 프레임 누락: '+currentFrameName);
      if(currentMapRecord.elevations?.some(currentHeightRow=>currentHeightRow.some(currentHeightValue=>currentHeightValue>0))){
       const currentTileTextures=resolveCityTileTextures(currentFieldScene,currentTerrainName,currentMapRecord.id,currentConnectionMask);
       drawFieldCellObjects(currentFieldScene,currentCellPosition,currentMapRecord,{...FIELD_RENDER_METRICS,tileWidth:currentTileDimensions.width,tileHeight:currentTileDimensions.height,originX:0,originY:0,rotation:0},currentTileTextures,currentCellDepth,currentViewSettings.edges);
      }else{
+     if(!currentFieldScene.textures.get(TERRAIN_ATLAS).has(currentFrameName))throw Error('게임 타일 프레임 누락: '+currentFrameName);
      currentFieldScene.add.image(currentScreenPoint.x,currentScreenPoint.y,TERRAIN_ATLAS,currentFrameName).setDisplaySize(currentTileDimensions.width,currentTileDimensions.height).setDepth(resolveCityGroundDepth(currentCellDepth,currentMapRecord)+TERRAIN_DEPTH.surface);
      drawTownMaterialEdges(currentFieldScene,currentCellPosition,currentNeighborCell=>currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentNeighborCell.row][currentNeighborCell.column]],currentProjectPosition,currentNeighborPosition=>resolveCityGroundDepth(currentDepthPosition(currentNeighborPosition),currentMapRecord),TERRAIN_DEPTH.surface);
      }

@@ -125,6 +125,9 @@ tiles:
 
   - {id: boar-hoof-worn-v1, category: decal, asset: assets/tiles/decals/boar-hoof-worn-v1.png}
 
+  - {id: saltford-cream-paving-v1, category: ground, asset: assets/tiles/terrain/road/saltford-cream-paving-v1.png}
+  - {id: saltford-calcareous-earth-v1, category: ground, asset: assets/tiles/terrain/non-road/saltford-calcareous-earth-v1.png}
+  - {id: saltford-ashlar-wall-v1, category: wall, asset: assets/tiles/terrain/blocked/saltford-ashlar-wall-v1.png}
   - {id: quarry-limestone-wall-v1, category: wall, asset: assets/tiles/terrain/blocked/quarry-limestone-wall-v1.png}
   - {id: cinder-basalt-wall-v1, category: wall, asset: assets/tiles/terrain/blocked/cinder-basalt-wall-v1.png}
   - {id: quartz-dust-road-v1, category: ground, asset: assets/tiles/terrain/road/quartz-dust-road-v1.png}
