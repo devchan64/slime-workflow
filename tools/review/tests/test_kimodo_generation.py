@@ -120,7 +120,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
         current_standing_payload = build_kimodo_payload(*apply_kimodo_example('relaxed_shoulder_width_standing'))
         self.assertEqual(current_standing_payload['frames'],180)
         self.assertEqual(current_standing_payload['seed'],42)
-        self.assertEqual(current_standing_payload['directions'],['front_left'])
+        self.assertEqual(current_standing_payload['directions'],['front_left_30'])
         self.assertFalse(current_standing_payload['remove_horizontal_motion'])
         current_example_payload = build_kimodo_payload(*apply_kimodo_example('male_runway_in_place'))
         self.assertEqual(current_example_payload['directions'],['front_left_30'])
