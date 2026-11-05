@@ -1,9 +1,9 @@
 schema_version: 1
 description: 기본 캐릭터 · 휴식 시작 및 휴식 해제 24프레임 · 8방향 베이스라인 일관성 보정
 image: character-default-rest-start-end-front-left-sprite-v1.png
-sha256: 30097c85f0312ef0863f678c442bb8c4f04cc2c456ba4ee210d2c2ce504fac58
-width: 931
-height: 1689
+sha256: a0c570656ee1ad607cd992b108df8f70cafd5b5116802c64b1e6b844019d1212
+width: 1348
+height: 1167
 layout:
   columns: 4
   rows: 6
@@ -21,8 +21,8 @@ motions:
 background: white
 generator: image_gen
 reference: character-default-eight-directions-v1.png
-source_generation_id: 2026-11-04_21-28-46-1aeb7e02
-source_sheet: /home/cbsim/다운로드/sprite-sheet.png
-operation: 얼굴·신체 비율·화풍 일관성 보강 및 흐린 윤곽·배경 얼룩 정리
+source_generation_id: 2026-11-05_16-42-04-f8e48a02
+source_sheet: .tmp/test/wan22-fun-control/2026-11-05_16-42-04-f8e48a02/attempts/ca3ee7aabd174e5eacbf9102a0ff78cb/rest-24frames-sheet-4x6.png
+operation: 8방향 기본복장 베이스라인을 참조하여 얼굴·신체 비율·복장·화풍 일관성 보강 및 잔상·흐림 보정
 notes: 보정된 통합 시트를 원본 크기로 등록. 크롭·앵커 정렬은 미적용. 이미지젠 결과이므로 자세와 위치의 미세한 변화는 검수 필요. 열·행
   분할 시 나머지 픽셀 분산 필요.
