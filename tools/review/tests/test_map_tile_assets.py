@@ -12,6 +12,31 @@ from tools.review.common.map_tile_assets import load_registered_tiles, resolve_r
 
 
 class MapTileAssetTests(unittest.TestCase):
+    def test_versioned_billboard_source_validation(self):
+        """리사이즈 버전도 등록·해시 검증을 거치고 임의 하위 경로는 거절한다."""
+        with TemporaryDirectory() as current_temporary_directory:
+            current_repository_path = Path(current_temporary_directory)
+            current_source_bytes = b'resized billboard'
+            current_source_digest = hashlib.sha256(current_source_bytes).hexdigest()
+            current_relative_path = f'assets/billboards/versions/{current_source_digest}.png'
+            current_source_path = current_repository_path / current_relative_path
+            current_source_path.parent.mkdir(parents=True)
+            current_source_path.write_bytes(current_source_bytes)
+            current_registry_record = {'managementId': 'image.test.billboard', 'version': '2',
+                'path': current_relative_path, 'sha256': current_source_digest,
+                'source': {'repository': 'slime-workflow'}}
+            (current_repository_path / 'asset-registry.yaml').write_text(
+                yaml.safe_dump({'schema_version': 1, 'assets': [current_registry_record]}))
+            current_source_catalog = (current_repository_path, {current_relative_path: current_registry_record})
+            self.assertEqual(resolve_registered_sprite(current_relative_path, current_source_catalog)[0], current_source_path)
+            for current_invalid_path in ('assets/billboards/versions/name.png',
+                                         'assets/billboards/versions/../outside.png'):
+                with self.assertRaisesRegex(ValueError, '경로 오류'):
+                    resolve_registered_sprite(current_invalid_path, current_source_catalog)
+            current_source_path.write_bytes(b'unregistered change')
+            with self.assertRaisesRegex(ValueError, '해시 불일치'):
+                resolve_registered_sprite(current_relative_path, current_source_catalog)
+
     def test_source_hash_and_escape_rejection(self):
         with TemporaryDirectory() as temporary_asset_directory:
             asset_repository_path = Path(temporary_asset_directory)
