@@ -746,6 +746,8 @@ GUI 결과 조회와 CLI `status`의 `audio_stems`로 MR·보컬을 조회합니
 
 ### 빌보드 타입별 카탈로그 조회
 
+`map-assets asset-register --payload-file <파일>`은 신규 빌보드 한 건만 등록합니다. 입력은 `requestId`, `expectedGeneration`, `asset`이며 `asset`은 기존 시드 에셋 계약(`assetId`, `assetType`, `name`, `image`, `properties`, `metadata`)을 따릅니다. PNG·등록부·타입별 카탈로그·공용 속성을 먼저 준비합니다. 게이트웨이는 이미지 경로·크기·해시·등록부를 검증하고 서비스는 세대·기존 ID·분류를 검사합니다. 같은 요청 ID의 재시도는 동일 결과를 반환하며 기존 에셋을 덮어쓰지 않습니다. GUI의 **신규 빌보드 등록**에서 같은 JSON 파일을 입력하고 등록 후 목록을 새로고침합니다. 배치 후 `database-sync`로 파일 원장을 동기화합니다.
+
 `map-assets asset-list`는 `{"category":"herbaceous"}`와 같이 에셋 타입을 지정할 수 있습니다. `vegetation`(자연물), `herbaceous`(화초), `large-trees`(큰 나무), `rocks-minerals`(암석광물), `props`(소품)를 사용합니다. GUI는 자연물을 기본 선택하며 전체 선택을 제공하지 않습니다. 타입 변경 시 해당 파일만 파싱하며 목록 조회에서 전체 카탈로그 재생성을 수행하지 않습니다. 기존 내부 전체 검증용 빈 payload 계약은 유지합니다.
 
 빌보드 색인은 `slime-assets/assets/billboards/catalog.yaml`(schema 2), 타입별 계열·에셋 기록은 `catalogs/<type>.yaml`에서 관리합니다. `sync_billboard_catalog.py --write/--check`는 전체 분할 파일을 동기화·검증합니다. 저장·크롭·폐기·맵 편집의 백업과 복원에는 분할 파일도 포함됩니다.

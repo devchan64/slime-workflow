@@ -333,9 +333,24 @@ def refresh_content_snapshot_status(current_catalog_record):
     return gr.update(visible=True,value=current_status_text)
 
 
+def register_asset_catalog_file(current_request_file):
+    from tools.review.common.management_gateway import parse_management_request_json
+    if not current_request_file:
+        raise gr.Error('등록 요청 JSON 파일을 선택하세요.')
+    current_request_payload=parse_management_request_json(Path(current_request_file).read_text())
+    current_saved_result=execute_remote_management_command('map-assets','asset-register',current_request_payload)
+    return '등록 완료 · '+str(current_saved_result['asset'])+' · 목록 새로고침으로 확인하세요.'
+
+
 def build_asset_editor_interface(current_review_port):
     with gr.Blocks(title='공용 빌보드 에셋 관리') as current_interface_blocks:
         gr.Markdown('## 공용 빌보드 에셋 관리\n썸네일을 선택해 속성을 편집하세요. **선택 에셋 변경 반영**을 누르면 해당 ID 하나만 검증하고 즉시 저장합니다. 앵커 X·Y는 하단 교차점 기준 수동 이동값입니다. 통행 차단을 선택한 빌보드는 점유 타일 전체를 차단합니다.')
+        with gr.Accordion('신규 빌보드 등록',open=False):
+            gr.Markdown('에셋 저장소의 PNG·등록부를 먼저 준비한 뒤 등록 요청 JSON을 선택하세요. 기존 ID는 덮어쓰지 않습니다.')
+            current_registration_file=gr.File(label='등록 요청 JSON',file_types=['.json'],type='filepath')
+            current_registration_button=gr.Button('신규 빌보드 등록')
+            current_registration_result=gr.Markdown()
+            current_registration_button.click(register_asset_catalog_file,inputs=[current_registration_file],outputs=[current_registration_result])
         current_catalog_state=gr.State({});current_visible_state=gr.State([])
         current_feedback_text=gr.Markdown()
         current_snapshot_feedback=gr.Markdown(visible=False)
