@@ -65,6 +65,16 @@ class KimodoKeyframeHttpTests(unittest.TestCase):
                 self.assertEqual(base64.b64decode(current_preview_record['image_base64']), (current_attempt_root/'output-001.png').read_bytes())
                 with self.assertRaisesRegex(ValueError, '관리 API 오류 \\(400\\)'):
                     execute_management_command('kimodo','keyframe-preview',{'id':'invalid'},current_server_address)
+                current_replacement_record = execute_management_command('kimodo','keyframe-save',{'job_id':current_job_identifier,'attempt_id':current_attempt_identifier,'frame':1,'tag':'새 자세'},current_server_address)
+                current_replace_path = current_temp_root/'replace.json'
+                current_replace_path.write_text(json.dumps({'old_id':current_saved_record['id'],'new_id':current_replacement_record['id']}))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(execute_gateway_arguments('kimodo',['--server-url',current_server_address,'keyframe-replace','--payload-file',str(current_replace_path)]),0)
+                self.assertTrue((current_service_manager.keyframe_storage_root/'.replaced'/current_saved_record['id']/'motion.npz').is_file())
+                self.assertEqual([current_record['id'] for current_record in execute_management_command('kimodo','keyframe-list',{},current_server_address)['records']],[current_replacement_record['id']])
+                with self.assertRaisesRegex(ValueError, '관리 API 오류 \\(400\\)'):
+                    execute_management_command('kimodo','keyframe-replace',{'old_id':current_replacement_record['id'],'new_id':current_replacement_record['id']},current_server_address)
+                current_saved_record = current_replacement_record
                 current_generation_record = {current_field_name:current_field_value for current_field_name,current_field_value in KIMODO_DEFAULT_SETTINGS.items() if current_field_name != 'schema_version'}
                 current_generation_record.update({'action':'generate','post_processing':True,'keyframes':[{'id':current_saved_record['id'],'frame':1},{'id':current_saved_record['id'],'frame':30}]})
                 current_generation_path = current_temp_root / 'generate.json'

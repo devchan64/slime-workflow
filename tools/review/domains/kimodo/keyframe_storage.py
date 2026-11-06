@@ -19,6 +19,23 @@ KIMODO_KEYFRAME_IDENTIFIER_PATTERN = re.compile(r'[a-f0-9]{32}')
 KIMODO_KEYFRAME_LIMIT = 20
 
 
+def replace_kimodo_keyframe_record(current_keyframe_storage, current_old_identifier, current_new_identifier):
+    """새 항목을 검증한 뒤 이전 항목을 목록에서 제외하고 보존한다."""
+    if current_old_identifier == current_new_identifier:
+        raise ValueError('교체 전후 키프레임은 서로 달라야 합니다.')
+    current_old_record, _, _ = load_kimodo_keyframe_snapshot(current_keyframe_storage, current_old_identifier)
+    current_new_record, _, _ = load_kimodo_keyframe_snapshot(current_keyframe_storage, current_new_identifier)
+    current_archive_root = current_keyframe_storage / '.replaced'
+    if current_archive_root.is_symlink():
+        raise ValueError('교체 이력 경로가 심볼릭 링크입니다.')
+    current_archive_root.mkdir(exist_ok=True)
+    current_archive_path = current_archive_root / current_old_identifier
+    if current_archive_path.exists() or current_archive_path.is_symlink():
+        raise ValueError('이미 보관된 키프레임 ID입니다.')
+    (current_keyframe_storage / current_old_identifier).rename(current_archive_path)
+    return {'replaced':current_old_record,'replacement':current_new_record}
+
+
 def validate_kimodo_keyframe_placements(current_keyframe_placements, current_frame_count):
     """사용자 화면 기준 1부터 시작하는 출력 프레임 배치를 검증한다."""
     if not isinstance(current_keyframe_placements, list) or not 1 <= len(current_keyframe_placements) <= KIMODO_KEYFRAME_LIMIT:

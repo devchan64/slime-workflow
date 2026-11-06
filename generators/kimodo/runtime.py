@@ -120,7 +120,15 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
         current_constraint_records = build_kimodo_keyframe_constraints(current_job_root,current_request_record)
         write_record_atomically(current_attempt_root/'keyframe-constraints.json',current_constraint_records)
         current_endpoint_constraints = load_constraints_lst(current_constraint_records,current_motion_model.skeleton,device='cuda')
-    current_motion_output = current_motion_model(constraint_lst=current_endpoint_constraints,prompts=current_final_prompts if current_sequence_enabled else current_final_prompt,num_frames=current_segment_frames if current_sequence_enabled else current_request_record['frames'],multi_prompt=current_sequence_enabled,num_samples=1,num_denoising_steps=current_request_record['steps'],cfg_weight=[current_request_record['guidance_scale'],2.0],cfg_type='separated',first_heading_angle=math.radians(current_request_record['heading_degrees']),post_processing=current_request_record['post_processing'],return_numpy=True,progress_bar=record_sampling_progress)
+    from contextlib import nullcontext
+    from generators.kimodo.sequence_constraints import support_empty_sequence_constraints
+    if current_sequence_enabled and current_request_record.get('keyframes'):
+        from kimodo.constraints import FullBodyConstraintSet
+        current_constraint_context = support_empty_sequence_constraints(FullBodyConstraintSet)
+    else:
+        current_constraint_context = nullcontext()
+    with current_constraint_context:
+        current_motion_output = current_motion_model(constraint_lst=current_endpoint_constraints,prompts=current_final_prompts if current_sequence_enabled else current_final_prompt,num_frames=current_segment_frames if current_sequence_enabled else current_request_record['frames'],multi_prompt=current_sequence_enabled,num_samples=1,num_denoising_steps=current_request_record['steps'],cfg_weight=[current_request_record['guidance_scale'],2.0],cfg_type='separated',first_heading_angle=math.radians(current_request_record['heading_degrees']),post_processing=current_request_record['post_processing'],return_numpy=True,progress_bar=record_sampling_progress)
     # 공식 후처리까지 배치 차원을 유지하고, 저장 직전에 단일 샘플을 꺼낸다.
     if any(not isinstance(current_field_value,np.ndarray) or current_field_value.ndim < 1 or current_field_value.shape[0] != 1 for current_field_value in current_motion_output.values()):
         raise ValueError('Kimodo 단일 샘플 배치 출력 계약 오류')

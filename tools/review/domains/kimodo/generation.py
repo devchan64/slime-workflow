@@ -13,7 +13,7 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
         import json
         from urllib.parse import urlsplit
         current_request_path = urlsplit(current_http_handler.path).path
-        if current_request_path not in ('/kimodo/keyframes/save', '/kimodo/keyframes/list', '/kimodo/keyframes/preview'):
+        if current_request_path not in ('/kimodo/keyframes/save', '/kimodo/keyframes/list', '/kimodo/keyframes/preview', '/kimodo/keyframes/replace'):
             return super().handle_image_request(current_http_handler)
         try:
             if current_http_handler.command != 'POST' or not hasattr(current_http_handler, 'management_command_payload'):
@@ -23,7 +23,13 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
                 raise ValueError('키프레임 요청은 객체여야 합니다.')
             from tools.review.domains.kimodo.keyframe_storage import list_kimodo_keyframe_records, save_kimodo_keyframe_record, load_kimodo_keyframe_snapshot
             from tools.review.domains.image.image_generation import MANAGER_HISTORY_LOCK
-            if current_request_path.endswith('/list'):
+            if current_request_path.endswith('/replace'):
+                if set(current_request_record) != {'old_id','new_id'}:
+                    raise ValueError('키프레임 교체에는 old_id와 new_id가 필요합니다.')
+                from tools.review.domains.kimodo.keyframe_storage import replace_kimodo_keyframe_record
+                with self.current_request_lock, MANAGER_HISTORY_LOCK:
+                    current_response_record = replace_kimodo_keyframe_record(self.keyframe_storage_root,current_request_record['old_id'],current_request_record['new_id'])
+            elif current_request_path.endswith('/list'):
                 if current_request_record:
                     raise ValueError('키프레임 목록은 입력을 받지 않습니다.')
                 current_response_record = {'records': list_kimodo_keyframe_records(self.keyframe_storage_root)}

@@ -103,8 +103,6 @@ def validate_kimodo_request(current_request_record):
             raise ValueError('키프레임 자세 적용에는 공식 후처리를 켜야 합니다.')
         if current_request_record.get('remove_horizontal_motion',False):
             raise ValueError('키프레임 좌표를 유지하려면 수평 이동 제거를 꺼야 합니다.')
-        if current_request_record.get('segment_frames') is not None:
-            raise ValueError('키프레임과 순차 구간 동시 사용은 아직 지원하지 않습니다. 단일 프롬프트를 사용하세요.')
         from tools.review.domains.kimodo.keyframe_storage import validate_kimodo_keyframe_placements
         current_keyframe_placements = validate_kimodo_keyframe_placements(current_request_record['keyframes'], current_request_record['frames'])
         current_request_record = {**current_request_record, 'keyframes': current_keyframe_placements}

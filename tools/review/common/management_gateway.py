@@ -25,10 +25,11 @@ MANAGEMENT_SERVICE_ROUTES['wan22-fun-control']='/wan22-fun-control'
 MANAGEMENT_SERVICE_COMMANDS['wan22-fun-control']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_ROUTES['kimodo']='/kimodo'
 MANAGEMENT_SERVICE_COMMANDS['kimodo']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
-MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('keyframe-save','keyframe-list','keyframe-preview')
+MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('keyframe-save','keyframe-list','keyframe-preview','keyframe-replace')
 MANAGEMENT_COMMAND_ROUTES['keyframe-save'] = ('POST','/keyframes/save')
 MANAGEMENT_COMMAND_ROUTES['keyframe-list'] = ('POST','/keyframes/list')
 MANAGEMENT_COMMAND_ROUTES['keyframe-preview'] = ('POST','/keyframes/preview')
+MANAGEMENT_COMMAND_ROUTES['keyframe-replace'] = ('POST','/keyframes/replace')
 MANAGEMENT_SERVICE_ROUTES['wan22-vace']='/wan22-vace'
 MANAGEMENT_SERVICE_COMMANDS['wan22-vace']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 
@@ -263,6 +264,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='생성 ID·시도 ID·원본 프레임 번호·태그 JSON')
         if operation_command_name == 'keyframe-preview':
             operation_argument_parser.add_argument('id',help='저장된 키프레임 ID')
+        if operation_command_name == 'keyframe-replace':
+            operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='교체할 old_id와 사용할 new_id JSON')
         if service_command_name=='momask' and operation_command_name=='generate':
             operation_argument_parser.add_argument('--face',action=argparse.BooleanOptionalAction,default=False,help='ANNY 얼굴 5점 포함')
         if operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES or operation_command_name in ('sheet-export','sheet-search','sheet-image','sheet-update','capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-replace','asset-list','asset-register','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):
@@ -366,6 +369,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     operation_command_name=command_argument_values.command
     command_payload_value={}
     if operation_command_name == 'keyframe-save':
+        command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
+    if operation_command_name == 'keyframe-replace':
         command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
     if hasattr(command_argument_values,'face'):command_payload_value['face']=command_argument_values.face
     if hasattr(command_argument_values,'id'):

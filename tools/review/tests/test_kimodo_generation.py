@@ -218,8 +218,26 @@ class KimodoGenerationContractTests(unittest.TestCase):
             self.assertTrue((current_new_job_root/'keyframes'/current_saved_record['id']/'motion.npz').is_file())
             with self.assertRaisesRegex(ValueError,'후처리'):
                 current_service_instance.validate_generation_request({**current_generation_request,'post_processing':False})
-            with self.assertRaisesRegex(ValueError,'순차'):
-                current_service_instance.validate_generation_request({**current_generation_request,'segment_frames':[30,60]})
+            current_sequence_request = {**current_generation_request,'prompt':'A person stands.\nA person raises an arm.','segment_frames':[30,60]}
+            self.assertEqual(current_service_instance.validate_generation_request(current_sequence_request)['segment_frames'],[30,60])
+
+    def test_empty_sequence_constraint_crop_is_safe_and_restored(self):
+        import torch
+        from generators.kimodo.sequence_constraints import support_empty_sequence_constraints
+        class TestConstraint:
+            def __init__(self):
+                self.frame_indices = torch.tensor([0,35])
+            def crop_move(self, current_start_frame, current_end_frame):
+                return (current_start_frame,current_end_frame)
+        current_original_method = TestConstraint.crop_move
+        current_constraint_value = TestConstraint()
+        with support_empty_sequence_constraints(TestConstraint):
+            self.assertEqual(current_constraint_value.crop_move(0,30),(0,30))
+            current_empty_constraint = current_constraint_value.crop_move(40,60)
+            self.assertIsInstance(current_empty_constraint,TestConstraint)
+            self.assertEqual(current_empty_constraint.frame_indices.numel(),0)
+            self.assertIsNone(current_empty_constraint.update_constraints({},{}))
+        self.assertIs(TestConstraint.crop_move,current_original_method)
 
     def test_keyframe_gui_cli_request_contract(self):
         import contextlib
