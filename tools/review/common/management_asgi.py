@@ -58,7 +58,7 @@ def build_management_blocks(current_tool_name, current_review_port, current_sour
         current_static_paths = load_static_review_paths(current_source_path)
         current_catalog_records = load_manager_page_records(current_source_path, current_animation_catalog=True)
         current_anchor_paths = [current_record['path'].split('?')[0] for current_record in current_catalog_records if current_record.get('anchorEditor') and current_record.get('uiMode') == 'gradio-static']
-        current_interface_blocks = build_static_review_interface(current_static_paths, current_anchor_paths, [current_record for current_record in current_catalog_records if current_record['category'] == 'animation'])
+        current_interface_blocks = build_static_review_interface(current_static_paths, current_anchor_paths, [current_record for current_record in current_catalog_records if current_record.get('registeredAnimation')])
         current_mount_options['js'] = create_static_review_loader(current_review_port, current_static_paths, current_anchor_paths)
     else:
         current_module_name, current_builder_name, current_argument_kind = MANAGEMENT_INTERFACE_BUILDERS[current_tool_name]

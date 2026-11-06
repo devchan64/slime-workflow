@@ -15,7 +15,6 @@ from tools.review.ui.gradio.anchor_native_preview import read_native_anchor_load
 from tools.review.common.gradio_frame_navigator import build_frame_navigator, build_browser_playback_speed
 from tools.review.common.gradio_joypad import build_transform_joypad
 from tools.review.common.gradio_browser_controls import build_browser_action_button
-from tools.review.common.gradio_browser_history import build_browser_history_controls
 from tools.review.common.gradio_browser_confirmation import build_browser_confirmation
 
 
@@ -88,13 +87,13 @@ def build_static_review_interface(static_review_paths, current_anchor_paths=None
         current_sprite_identifiers=[current_sprite_record['id'] for current_sprite_record in current_sprite_records]
         current_anchor_status=gr.Textbox(label='프레임 탐색 상태',value='애니메이션을 준비 중입니다.',interactive=False,render=False)
         current_anchor_feedback=gr.Textbox(label='조작 안내',value='프레임을 이동하거나 편집할 좌표를 선택하세요.',interactive=False,render=False)
-        with gr.Accordion('스프라이트 검색·선택',open=False,visible=False) as current_sprite_group:
+        with gr.Accordion('1. 스프라이트·동작 선택',open=True,visible=False) as current_sprite_group:
             gr.Markdown('### 등록 스프라이트 목록')
             current_sprite_search=gr.Textbox(label='스프라이트 검색',placeholder='이름, 등록 ID, 원본 경로')
             current_sprite_choice=gr.Dropdown(label='검수할 스프라이트',choices=[(current_sprite_record['label'],current_sprite_record['id']) for current_sprite_record in current_sprite_records],value=None,interactive=True,filterable=True)
             current_sprite_count=gr.Markdown(f'등록 스프라이트 {len(current_sprite_records)}개')
             current_sprite_open=gr.Button('선택 스프라이트 열기',interactive=False)
-            gr.Markdown('목록 선택 후 열기를 누르면 해당 스프라이트의 동작·방향·프레임을 검수합니다. 편집한 좌표는 전환 전에 저장하세요.')
+            gr.Markdown('목록 선택 후 열기를 누르면 해당 스프라이트의 동작·방향·프레임을 검수합니다. 편집한 좌표는 전환 전에 에셋에 적용하세요.')
             gr.Markdown('### 현재 열린 스프라이트의 동작')
             with gr.Row():
                 current_animation_action=gr.Dropdown(label='애니메이션 동작',choices=[],interactive=True)
@@ -123,7 +122,7 @@ def build_static_review_interface(static_review_paths, current_anchor_paths=None
             return gr.update(choices=[(current_sprite_record['label'],current_sprite_record['id']) for current_sprite_record in current_filtered_records],value=current_retained_identifier),f'{len(current_filtered_records)}개 / 전체 {len(current_sprite_records)}개',gr.update(interactive=current_retained_identifier is not None)
         current_sprite_search.input(filter_sprite_catalog,[current_sprite_search,current_sprite_choice],[current_sprite_choice,current_sprite_count,current_sprite_open],queue=False,preprocess=False)
         current_sprite_choice.change(lambda current_selected_identifier:gr.update(interactive=current_selected_identifier in current_sprite_identifiers),current_sprite_choice,current_sprite_open,queue=False,preprocess=False)
-        current_sprite_open.click(fn=None,inputs=current_sprite_choice,queue=False,js="currentSelectedIdentifier=>{const currentAllowedIdentifiers="+json.dumps(current_sprite_identifiers)+";if(!currentAllowedIdentifiers.includes(currentSelectedIdentifier))throw Error('등록 스프라이트를 선택하세요.');const currentTargetUrl=new URL(location.href);currentTargetUrl.searchParams.set('review',currentSelectedIdentifier);currentTargetUrl.searchParams.set('tool',currentSelectedIdentifier);currentTargetUrl.searchParams.set('category','animation');currentTargetUrl.searchParams.delete('action');location.assign(currentTargetUrl.href);}")
+        current_sprite_open.click(fn=None,inputs=current_sprite_choice,queue=False,js="currentSelectedIdentifier=>{const currentAllowedIdentifiers="+json.dumps(current_sprite_identifiers)+";if(!currentAllowedIdentifiers.includes(currentSelectedIdentifier))throw Error('등록 스프라이트를 선택하세요.');const currentTargetUrl=new URL(location.href);currentTargetUrl.searchParams.set('review',currentSelectedIdentifier);currentTargetUrl.searchParams.set('tool',currentSelectedIdentifier);currentTargetUrl.searchParams.set('category','animation-tool');currentTargetUrl.searchParams.delete('action');location.assign(currentTargetUrl.href);}")
         interface_blocks_value.load(fn=None,outputs=[current_sprite_group,current_sprite_choice,current_sprite_open],queue=False,js="()=>{const currentAllowedIdentifiers="+json.dumps(current_sprite_identifiers)+";const currentSelectedIdentifier=new URLSearchParams(location.search).get('review');const currentIsRegistered=currentAllowedIdentifiers.includes(currentSelectedIdentifier);return [{__type__:'update',visible:currentIsRegistered},{__type__:'update',value:currentIsRegistered?currentSelectedIdentifier:null},{__type__:'update',interactive:currentIsRegistered}];}")
         current_reload_button=gr.Button('검수 화면 새로고침')
         current_reload_button.click(fn=None,js="()=>{window.location.reload();}",queue=False)
@@ -138,19 +137,6 @@ def build_static_review_interface(static_review_paths, current_anchor_paths=None
         current_anchor_timer=gr.Timer(1)
         current_navigation_controls=[]
         with gr.Row():
-            with gr.Column(visible=False,scale=1,min_width=360) as current_anchor_controls:
-                current_anchor_feedback.render()
-                gr.Markdown('최종 앵커 편집 · 이동 시 발 기준점도 함께 이동합니다.')
-                current_coordinate_scope=gr.Radio(label='이동 적용 범위',choices=[('현재 프레임','frame'),('전체 프레임 · 현재 동작의 모든 방향','all')],value='frame')
-                build_transform_joypad('anchorReviewCoordinates',current_anchor_feedback,current_scale_enabled=False,current_readiness_controls=current_navigation_controls,current_scope_control=current_coordinate_scope)
-                with gr.Row():
-                    for current_command_name,current_command_label in [('undo','실행 취소'),('redo','다시 실행')]:
-                        current_navigation_controls.append(build_browser_action_button(current_command_label,'anchorReviewCoordinateCommands',current_command_name,current_anchor_feedback,current_button_enabled=False))
-                with gr.Accordion('좌표 복원·상태',open=False):
-                    for current_command_name,current_command_label in [('previous','이전 프레임 앵커 가져오기'),('reset','현재 프레임 원본 복원'),('status','좌표 변경 상태 읽기')]:
-                        current_navigation_controls.append(build_browser_action_button(current_command_label,'anchorReviewCoordinateCommands',current_command_name,current_anchor_feedback,current_button_enabled=False))
-                current_navigation_controls.append(build_browser_action_button('좌표 저장','anchorReviewSaveCoordinates','save',current_anchor_feedback,current_button_enabled=False))
-
             with gr.Column(scale=2):
                 with gr.Column(visible=False) as current_anchor_legend:
                     with gr.Accordion('미리보기 표시',open=False):
@@ -165,12 +151,25 @@ def build_static_review_interface(static_review_paths, current_anchor_paths=None
                         current_display_apply.click(fn=None,inputs=current_display_fields,outputs=current_display_outputs,queue=False,js="(...currentDisplayValues)=>{try{return window.anchorReviewDisplay(currentDisplayValues);}catch(currentErrorValue){return [...Array.from({length:4},()=>({__type__:'update'})),currentErrorValue.message];}}")
 
 
-                    gr.Markdown('### 프레임 미리보기\n노랑: 기준선 · 청록: 발 중심 · 빨강: 최종 앵커 · 자주: 권장 신체 높이')
+                    gr.Markdown('### 2. 재생·프레임 확인\n노랑: 기준선 · 청록: 발 중심 · 빨강: 최종 앵커 · 자주: 권장 신체 높이')
                 gr.HTML('<section id="static-review-root" aria-label="정적 검수" aria-live="polite" aria-busy="true"><p>검수 화면을 준비하고 있습니다…</p></section>')
                 with gr.Column(visible=False) as current_playback_controls:
                     current_anchor_status.render()
-                    build_frame_navigator('anchorReviewPlayback','anchorReviewSeekFrame',current_anchor_status,current_navigation_controls,current_compact_layout=True)
+                    build_frame_navigator('anchorReviewPlayback','anchorReviewSeekFrame',current_anchor_status,current_navigation_controls,current_compact_layout=False)
                     current_navigation_controls.append(build_browser_playback_speed('anchorReviewFrameRate',current_anchor_feedback,current_controls_enabled=False))
+            with gr.Column(visible=False,scale=1,min_width=360) as current_anchor_controls:
+                current_anchor_feedback.render()
+                gr.Markdown('### 3. 좌표 편집·적용\n프레임과 적용 범위를 확인한 뒤 좌표를 조정하세요. **에셋에 바로 적용**하면 게임 원본이 갱신됩니다.')
+                current_coordinate_scope=gr.Radio(label='이동 적용 범위',choices=[('현재 프레임','frame'),('전체 프레임 · 현재 동작의 모든 방향','all')],value='frame')
+                build_transform_joypad('anchorReviewCoordinates',current_anchor_feedback,current_scale_enabled=False,current_readiness_controls=current_navigation_controls,current_scope_control=current_coordinate_scope)
+                with gr.Row():
+                    for current_command_name,current_command_label in [('undo','실행 취소'),('redo','다시 실행')]:
+                        current_navigation_controls.append(build_browser_action_button(current_command_label,'anchorReviewCoordinateCommands',current_command_name,current_anchor_feedback,current_button_enabled=False))
+                with gr.Accordion('좌표 복원·상태',open=False):
+                    for current_command_name,current_command_label in [('previous','이전 프레임 앵커 가져오기'),('reset','현재 프레임 원본 복원'),('status','좌표 변경 상태 읽기')]:
+                        current_navigation_controls.append(build_browser_action_button(current_command_label,'anchorReviewCoordinateCommands',current_command_name,current_anchor_feedback,current_button_enabled=False))
+                current_navigation_controls.append(build_browser_action_button('에셋에 바로 적용','anchorReviewSaveCoordinates','save',current_anchor_feedback,current_button_enabled=False))
+
         with gr.Column(visible=False) as current_output_controls:
             with gr.Accordion('게임 출력 크기',open=False):
                 current_output_scale=gr.Checkbox(label='게임 출력 비율',value=True)
@@ -201,10 +200,7 @@ def build_static_review_interface(static_review_paths, current_anchor_paths=None
             current_draft_feedback=gr.Textbox(label='초안 복구 안내',interactive=False)
             current_draft_recovery.click(fn=None,inputs=current_draft_confirmation,outputs=[current_draft_feedback,current_draft_confirmation],queue=False,js="currentConfirmedValue=>{try{if(typeof window.anchorRecoverStoredDraft!=='function')throw Error('복원에 실패한 앵커 초안이 없습니다.');return [window.anchorRecoverStoredDraft(currentConfirmedValue),false];}catch(currentRecoveryError){return [currentRecoveryError.message,false];}}")
 
-        with gr.Column(visible=False) as current_anchor_history:
-            build_browser_history_controls('anchorReviewHistory','anchor-standard-history',current_supported_actions=('list','result','restore','reset'), current_reset_target_handler='anchorReviewResetTarget')
-
-        interface_blocks_value.load(fn=None,outputs=[current_anchor_controls,current_anchor_history,current_anchor_legend,current_draft_recovery_group,current_playback_controls,current_output_controls],queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');const currentAnchorVisible="+current_anchor_paths_json+".includes((Object.hasOwn(currentReviewPaths,currentReviewId)?currentReviewPaths[currentReviewId]:'').split('?')[0]);return Array.from({length:6},()=>({__type__:'update',visible:currentAnchorVisible}));}")
+        interface_blocks_value.load(fn=None,outputs=[current_anchor_controls,current_anchor_legend,current_draft_recovery_group,current_playback_controls,current_output_controls],queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');const currentAnchorVisible="+current_anchor_paths_json+".includes((Object.hasOwn(currentReviewPaths,currentReviewId)?currentReviewPaths[currentReviewId]:'').split('?')[0]);return Array.from({length:5},()=>({__type__:'update',visible:currentAnchorVisible}));}")
     return interface_blocks_value
 
 
@@ -226,6 +222,6 @@ if __name__=='__main__':
     current_page_records=load_manager_page_records(arguments_value.source_file)
     current_catalog_records=load_manager_page_records(arguments_value.source_file,current_animation_catalog=True)
     current_anchor_paths=[current_page_record['path'].split('?')[0] for current_page_record in current_catalog_records if current_page_record.get('anchorEditor') and current_page_record.get('uiMode')=='gradio-static']
-    current_inline_interface=build_static_review_interface(static_review_paths,current_anchor_paths,[current_page_record for current_page_record in current_catalog_records if current_page_record['category']=='animation'])
+    current_inline_interface=build_static_review_interface(static_review_paths,current_anchor_paths,[current_page_record for current_page_record in current_catalog_records if current_page_record.get('registeredAnimation')])
     current_management_interface,_=build_management_menu_interface(current_page_records,arguments_value.review_port,current_inline_interface)
     current_management_interface.queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,js=create_static_review_loader(arguments_value.review_port,static_review_paths,current_anchor_paths),allowed_paths=[])

@@ -16,7 +16,7 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_R
 from tools.review.common.gpu_status import read_gpu_status
 from tools.review.common.gradio_error_trace import trace_management_callback
 
-CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-management':'소리 관리','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','character-render-review':'캐릭터 렌더링 검수','game-ui':'게임 UI · 디자인 시스템'}
+CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-management':'소리 관리','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation-tool':'애니메이션 도구','character-render-review':'캐릭터 렌더링 검수','game-ui':'게임 UI · 디자인 시스템'}
 LEGACY_SOUND_CATEGORY_NAMES=('music-generation','sound-effects')
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={}
@@ -100,16 +100,17 @@ def load_manager_page_records(source_file_path, current_animation_catalog=False)
         page_identifier_values.add(current_page_record['id'])
         validated_page_records.append(current_page_record)
     if not current_animation_catalog:
-        current_animation_records=[current_page_record for current_page_record in validated_page_records if current_page_record['category']=='animation']
+        current_animation_records=[current_page_record for current_page_record in validated_page_records if current_page_record['category']=='animation' or current_page_record.get('anchorEditor')]
         if current_animation_records:
-            current_unified_record={**current_animation_records[0],'label':'등록 스프라이트 통합 검수','description':'스프라이트 검색·선택 · 동작·방향·프레임 검수 · 좌표 저장·이력','reviewAliases':[current_page_record['id'] for current_page_record in current_animation_records]}
-            validated_page_records=[current_page_record for current_page_record in validated_page_records if current_page_record['category']!='animation']+[current_unified_record]
+            current_unified_record={**current_animation_records[0],'label':'등록 스프라이트 통합 검수','description':'스프라이트 검색·선택 · 동작·방향·프레임 검수 · 좌표 편집·에셋 직접 적용','reviewAliases':[current_page_record['id'] for current_page_record in current_animation_records]}
+            validated_page_records=[current_page_record for current_page_record in validated_page_records if current_page_record not in current_animation_records]+[current_unified_record]
     if not current_animation_catalog:
         current_map_records=[current_page_record for current_page_record in validated_page_records if current_page_record['category'] in ('field-map-review','town-map-review')]
         if current_map_records:
             current_map_entry={**current_map_records[0],'label':'맵 통합 검수','category':'map-review','description':'야외필드·도시맵·전투필드 · 선택 맵 리소스 로딩','reviewAliases':[current_page_record['id'] for current_page_record in current_map_records]}
             validated_page_records=[current_page_record for current_page_record in validated_page_records if current_page_record['category'] not in ('field-map-review','town-map-review')]+[current_map_entry]
     validated_page_records=[{**current_page_record,'category':'map-review','label':current_page_record['label'].replace(' · 도시맵 검수',' · 맵 검수')} if current_page_record['category'] in ('field-map-review','town-map-review') else current_page_record for current_page_record in validated_page_records]
+    validated_page_records=[{**current_page_record,'category':'animation-tool','registeredAnimation':True} if current_page_record['category']=='animation' or current_page_record.get('anchorEditor') else current_page_record for current_page_record in validated_page_records]
     # 분류 접두어와 등록 순서 대신 도구 이름 오름차순을 모든 탐색에 공유한다.
     return sorted(validated_page_records,key=lambda current_page_record:(current_page_record['label'].casefold(),current_page_record['id']))
 
@@ -204,6 +205,7 @@ def create_initial_selection_script(page_record_values):
         if(['field-map-review','town-map-review'].includes(currentUrlValue.searchParams.get('category'))){{currentUrlValue.searchParams.set('category','map-review');window.history.replaceState(window.history.state,'',currentUrlValue.href);}}
         if({json.dumps(LEGACY_SOUND_CATEGORY_NAMES)}.includes(currentUrlValue.searchParams.get('category'))){{currentUrlValue.searchParams.set('category','sound-management');window.history.replaceState(window.history.state,'',currentUrlValue.href);}}
         const requestedPageIdentifier=currentUrlValue.searchParams.get('review')||currentUrlValue.searchParams.get('tool');
+        if(currentUrlValue.searchParams.get('category')==='animation'){{currentUrlValue.searchParams.set('category','animation-tool');window.history.replaceState(window.history.state,'',currentUrlValue.href);}}
         const currentCatalogRecord=pageRecords.find(record=>record.reviewAliases?.includes(requestedPageIdentifier));
         const resolvedPageIdentifier=currentCatalogRecord?.id||{json.dumps(LEGACY_PAGE_IDENTIFIER_VALUES)}[requestedPageIdentifier]||requestedPageIdentifier;
         if(resolvedPageIdentifier&&!pageRecords.some(record=>record.id===resolvedPageIdentifier)){{

@@ -61,11 +61,22 @@ def validate_anchor_document(document_record_value):
 
 def execute_anchor_history_command(operation_command_name,command_payload_value):
     if operation_command_name=='anchor-save':
-        if set(command_payload_value)!={'document'}:raise ValueError('저장 필드 오류')
+        if set(command_payload_value) not in ({'document'},{'document','apply_registered'}) or ('apply_registered' in command_payload_value and type(command_payload_value['apply_registered']) is not bool):raise ValueError('저장 필드 오류')
         document_record_value=validate_anchor_document(command_payload_value['document'])
         created_time_value=datetime.now(ZoneInfo('Asia/Seoul'))
         time_directory_name=created_time_value.strftime('%Y-%m-%d_%H-%M-%S')
         history_identifier_value=time_directory_name+'-'+uuid.uuid4().hex[:8]
+        if command_payload_value.get('apply_registered'):
+            from .anchor_assets import apply_registered_anchor_document, publish_registered_anchor_review
+            current_transaction_root=ANCHOR_HISTORY_ROOT.parent/'animation-anchor-transactions'/time_directory_name/history_identifier_value
+            current_transaction_root.mkdir(parents=True,exist_ok=False)
+            current_asset_result=apply_registered_anchor_document(document_record_value,current_transaction_root)
+            current_apply_result={'assetUpdate':current_asset_result,'status':'completed'}
+            try:
+                publish_registered_anchor_review()
+            except Exception as current_publish_error:
+                current_apply_result['publicationError']=str(current_publish_error)
+            return current_apply_result
         history_directory_path=resolve_anchor_history_directory(history_identifier_value)
         history_directory_path.mkdir(parents=True,exist_ok=False)
         write_record_atomically(history_directory_path/'request.json',command_payload_value)

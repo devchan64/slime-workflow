@@ -14,7 +14,7 @@ const actionChoiceElement=document.querySelector('#actionChoice');
 document.querySelector('#actionChoiceField').hidden=!availableActionReviews.length;
 for(const currentActionRecord of availableActionReviews)actionChoiceElement.add(new Option(`${currentActionRecord.source.displayNameKo} · ${currentActionRecord.source.animationVersion}`,currentActionRecord.id));
 if(selectedActionReview)actionChoiceElement.value=selectedActionReview.id;
-const actionDraftStorageKey='animation-anchor-draft:'+reviewSourceMetadata.animationId+':'+reviewSourceMetadata.animationVersion;
+let actionDraftStorageKey='animation-anchor-draft:'+reviewSourceMetadata.animationId+':'+reviewSourceMetadata.animationVersion;
 function selectReviewAnimationAction(){
  pauseFramePlayback();
  sessionStorage.setItem(actionDraftStorageKey,JSON.stringify({frames:reviewFrameRecords.map(copyFrameCoordinates),saved:savedCoordinateSnapshotValue,source:reviewSourceMetadata.sheets}));
@@ -27,7 +27,7 @@ actionChoiceElement.onchange=selectReviewAnimationAction;
 const usesAnchorOnlyMode=reviewSourceMetadata.coordinateMode==='anchor';
 const usesFootCentersOnly=usesAnchorOnlyMode||reviewSourceMetadata.coordinateMode==='foot-centers';
 const reviewAnimationIdentity=reviewSourceMetadata.animationId||'character.default.white-shirt.idle';
-const reviewAnimationVersion=reviewSourceMetadata.animationVersion||'4';
+let reviewAnimationVersion=reviewSourceMetadata.animationVersion||'4';
 const reviewCanvasElement=document.querySelector('#reviewCanvas'),reviewCanvasContext=reviewCanvasElement.getContext('2d'),rigMiniMapElement=document.querySelector('#rigMiniMap'),rigMiniMapContext=rigMiniMapElement?.getContext('2d');
 const directionChoiceElement=document.querySelector('#directionChoice'),frameChoiceElement=document.querySelector('#frameChoice'),pointChoiceElement=document.querySelector('#pointChoice');
 const anchorToggleElement=document.querySelector('#anchorToggle'),guideToggleElement=document.querySelector('#guideToggle'),rigMiniMapToggleElement=document.querySelector('#rigMiniMapToggle');
@@ -489,7 +489,7 @@ const saveAnchorHistoryButton=document.querySelector('#saveAnchorHistory');
 async function saveCurrentAnchorCoordinates(){
  if(saveAnchorHistoryButton.disabled)throw Error('좌표 저장 중입니다. 완료 후 다시 시도하세요.');
  saveAnchorHistoryButton.disabled=true;
- try{const savedCoordinateSnapshot=JSON.stringify(reviewFrameRecords.map(copyFrameCoordinates));const savedHistoryRecord=await requestAnchorHistoryCommand('anchor-save',{document:buildCoordinateArtifact()});savedCoordinateSnapshotValue=savedCoordinateSnapshot;sessionStorage.removeItem(actionDraftStorageKey);refreshCoordinateStatus();await refreshAnchorHistoryList();document.querySelector('#anchorHistoryStatus').textContent=`저장 완료 · ${savedHistoryRecord.id}`;}
+ try{const savedCoordinateSnapshot=JSON.stringify(reviewFrameRecords.map(copyFrameCoordinates));const savedHistoryRecord=await requestAnchorHistoryCommand('anchor-save',{document:buildCoordinateArtifact(),...(reviewSourceMetadata.registeredSource?{apply_registered:true}:{})});if(savedHistoryRecord.assetUpdate){sessionStorage.removeItem(actionDraftStorageKey);reviewAnimationVersion=savedHistoryRecord.assetUpdate.version;reviewSourceMetadata.animationVersion=reviewAnimationVersion;actionDraftStorageKey='animation-anchor-draft:'+reviewAnimationIdentity+':'+reviewAnimationVersion;}savedCoordinateSnapshotValue=savedCoordinateSnapshot;sessionStorage.removeItem(actionDraftStorageKey);refreshCoordinateStatus();if(!reviewSourceMetadata.registeredSource)await refreshAnchorHistoryList();document.querySelector('#anchorHistoryStatus').textContent=`${savedHistoryRecord.assetUpdate?'에셋 반영 완료':'저장 완료'} · ${savedHistoryRecord.assetUpdate?'게임 원본에 적용되었습니다':savedHistoryRecord.id}${savedHistoryRecord.publicationError?' · 검수 재게시 실패: '+savedHistoryRecord.publicationError:''}`;}
  catch(currentSaveError){document.querySelector('#anchorHistoryStatus').textContent=currentSaveError.name==='AbortError'?'동작 전환으로 저장 응답 확인을 중단했습니다. 이전 동작의 이력에서 저장 결과를 확인하세요.':currentSaveError.message;}
  finally{saveAnchorHistoryButton.disabled=false;}
  return document.querySelector('#anchorHistoryStatus').textContent;
@@ -497,7 +497,7 @@ async function saveCurrentAnchorCoordinates(){
 saveAnchorHistoryButton.onclick=saveCurrentAnchorCoordinates;
 window.anchorReviewSaveCoordinates=saveCurrentAnchorCoordinates;
 
-if(typeof window.location!=='undefined'&&/^https?:$/.test(window.location.protocol))refreshAnchorHistoryList();
+if(!reviewSourceMetadata.registeredSource&&typeof window.location!=='undefined'&&/^https?:$/.test(window.location.protocol))refreshAnchorHistoryList();
 
 document.querySelector('#resetAnchorHistory').onclick=async()=>{
  if(!window.confirm('현재 애니메이션 버전의 좌표 생성 이력을 전체 초기화할까요? 목록만 초기화하며 원본 좌표 파일과 현재 편집값은 유지합니다.'))return;

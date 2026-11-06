@@ -267,7 +267,7 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
         if type(source_reference_body_height) not in (int, float) or not math.isfinite(source_reference_body_height) or source_reference_body_height <= 0:
             raise ValueError(f'{animation_metadata_path}: 게임 출력 비율에 필요한 referenceBodyHeight가 없습니다.')
         runtime_scale_metadata = {'actorKind': 'human', 'baseHeight': source_game_body_height or 60, 'sourceHeight': source_reference_body_height, 'defaultSizeClass': 'medium'}
-    review_source_metadata = {'coordinateMode': 'anchor', 'registeredSource': True, 'animationId': animation_identifier_text, 'animationVersion': animation_source_data['version'], 'artifactType': 'character-animation-anchor-review', 'exportFilename': animation_metadata_path.name.removesuffix('.animation.json')+'-anchor-review.json', 'clips': animation_clip_records, 'frameDurationMs': sum(current_frame_durations)/len(current_frame_durations), 'sheets': source_sheet_records, 'runtimeScale': runtime_scale_metadata, 'description': '프론트엔드 등록 메타데이터의 앵커 검수. 원본 소수 좌표를 유지하며 클릭 지정은 정수 픽셀을 사용합니다. 저장 파일은 별도 검수 산출물입니다.'}
+    review_source_metadata = {'coordinateMode': 'anchor', 'registeredSource': True, 'animationId': animation_identifier_text, 'animationVersion': animation_source_data['version'], 'artifactType': 'character-animation-anchor-review', 'exportFilename': animation_metadata_path.name.removesuffix('.animation.json')+'-anchor-review.json', 'clips': animation_clip_records, 'frameDurationMs': sum(current_frame_durations)/len(current_frame_durations), 'sheets': source_sheet_records, 'runtimeScale': runtime_scale_metadata, 'description': '프론트엔드 등록 메타데이터의 앵커 검수. 원본 소수 좌표를 유지하며 클릭 지정은 정수 픽셀을 사용합니다. 좌표 저장 시 등록 에셋 앵커·버전·게임 잠금 해시와 검수 화면을 함께 갱신합니다.'}
     return review_frame_records, review_source_metadata, set(direction_sheet_paths.values())
 
 
@@ -349,7 +349,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             (destination_asset_directory/'anchors.html').write_text(rendered_page_text)
             sprite_asset_records.append({'id':'asset:'+animation_identifier_text,'label':review_source_metadata['displayNameKo']+' v'+review_source_metadata['animationVersion'],'fps':1000/review_source_metadata['frameDurationMs'],'frames':[{**frame_record_value,'url':'/'+page_identifier_text+'/'+frame_record_value['image']} for frame_record_value in review_frame_records],'source':review_source_metadata})
             relative_metadata_path = animation_metadata_path.relative_to(frontend_repository_path).as_posix()
-            manager_page_records.append({'id': page_identifier_text, 'label': review_source_metadata['displayNameKo']+' · v'+review_source_metadata['animationVersion'], 'path': page_identifier_text+'/anchors.html', 'anchorEditor': True, 'category': 'animation', 'uiMode':'gradio-static', 'description':'Gradio · '+animation_identifier_text+' · '+relative_metadata_path})
+            manager_page_records.append({'id': page_identifier_text, 'label': review_source_metadata['displayNameKo']+' · v'+review_source_metadata['animationVersion'], 'path': page_identifier_text+'/anchors.html', 'anchorEditor': True, 'category': 'animation-tool', 'uiMode':'gradio-static', 'description':'Gradio · '+animation_identifier_text+' · '+relative_metadata_path})
             discovered_source_records.append({'metadata': relative_metadata_path, 'displayNameKo': review_source_metadata['displayNameKo'], 'sha256': metadata_provenance_record['sha256'], 'sheets': review_source_metadata['sheets'], 'provenance': review_source_metadata['provenance']})
             completed_asset_count[0] += 1
             emit_review_trace('asset', relative_metadata_path)
@@ -364,7 +364,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
                     current_rendered_page = anchor_template_text.replace('__FRAME_RECORDS__', json.dumps(current_action_record['frames'], ensure_ascii=False).replace('<', '\\u003c')).replace('__SOURCE_METADATA__', json.dumps(current_source_metadata, ensure_ascii=False).replace('<', '\\u003c'))
                     (output_review_directory/current_page_identifier/'anchors.html').write_text(current_rendered_page)
                 manager_page_records = [current_page_record for current_page_record in manager_page_records if current_page_record['id'] not in character_page_identifiers[1:]]
-                next(current_page_record for current_page_record in manager_page_records if current_page_record['id']==character_page_identifiers[0]).update(label=character_display_name+' · 애니메이션 통합 검수', description='Gradio · 대기·휴식·걷기 · 방향 선택 · 동작별 좌표 저장·이력')
+                next(current_page_record for current_page_record in manager_page_records if current_page_record['id']==character_page_identifiers[0]).update(label=character_display_name+' · 애니메이션 통합 검수', description='Gradio · 대기·휴식·걷기 · 방향 선택 · 동작별 좌표 편집·에셋 직접 적용')
         (output_review_directory/'sprite-assets.json').write_text(json.dumps({'assets':sprite_asset_records},ensure_ascii=False))
         if __package__:
             from .build_map_review import build_map_review
