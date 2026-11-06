@@ -1,8 +1,8 @@
 schema_version: 1
 description: 기본 캐릭터 · 화면 왼쪽 앞 걷기 스프라이트 · 베이스라인 외관 및 화풍 보정
 image: character-default-walk-front-left-sprite-v1.png
-sha256: 01ad039ca642325d256d636a5ec5e98d9faecbcda28aadf88578637d00843145
-width: 1997
+sha256: 4bffd4ba9b3c385d7b57549ad647f29f2879a538419c57686186cb3f32c8df5f
+width: 1089
 height: 788
 layout:
   columns: 4
@@ -14,9 +14,8 @@ layout:
 background: white
 generator: image_gen
 reference: character-default-eight-directions-v1.png
-operation: 8방향 기본복장 베이스라인을 참조하여 얼굴·신체 비율·헤어스타일·시선 방향 및 손발 윤곽 보강
-notes: 원본 프레임 좌우 각 80px 크롭·상하 각 25px 여백 추가 후 이미지젠으로 보강. 이미지젠 출력 크기 변경으로 최종 픽셀 여백은
-  원본과 다를 수 있다. 셀 분할·앵커·루프 연결은 별도 검수한다.
+operation: 사용자가 제공한 8프레임 걷기 시트로 교체
+notes: 4열 2행·8프레임·6fps 반복 설정 유지. 셀 분할·앵커·루프 연결은 별도 검수한다.
 source_generation_id: 2026-11-05_18-13-47-e7b88043
 source_frames_one_based:
 - 49
@@ -27,4 +26,4 @@ source_frames_one_based:
 - 59
 - 61
 - 63
-source_sheet: .tmp/test/wan22-fun-control/2026-11-05_18-13-47-e7b88043/attempts/13bf67e27a9e465ba2f084d744d93605/walk-loop-8frames-padded-consistent-v1.png
+source_sheet: /tmp/codex-clipboard-2b9d7920-919e-4588-afd7-7556a2f4c9b6.png
