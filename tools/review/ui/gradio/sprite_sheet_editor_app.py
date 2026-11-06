@@ -65,16 +65,18 @@ def prepare_sprite_sheet_load(current_file_path,current_columns_value,current_ro
     if not current_file_path:raise gr.Error('PNG 시트를 먼저 선택하세요.')
     current_pending_load={'path':current_file_path,'columns':current_columns_value,'rows':current_rows_value,'asset':current_asset_record}
     if current_image_data:
-        return (*([gr.update()]*4),'현재 편집 내용이 바뀝니다. 아래에서 확인하거나 취소하세요.',gr.update(visible=True),current_pending_load,gr.update())
-    return (*load_sprite_sheet_input(current_file_path,current_columns_value,current_rows_value,current_asset_record),gr.update(visible=False),{},gr.update(interactive=True))
+        return (*([gr.update()]*4),'현재 편집 내용이 바뀝니다. 아래에서 확인하거나 취소하세요.',gr.update(visible=True),current_pending_load,gr.update(),gr.update())
+    current_loaded_values=load_sprite_sheet_input(current_file_path,current_columns_value,current_rows_value,current_asset_record)
+    return (*current_loaded_values,gr.update(visible=False),{},gr.update(interactive=True),[current_frame_row[:4] for current_frame_row in current_loaded_values[1]])
 
 
 def confirm_sprite_sheet_load(current_pending_load,current_file_path,current_columns_value,current_rows_value,current_asset_record):
     if current_pending_load!={'path':current_file_path,'columns':current_columns_value,'rows':current_rows_value,'asset':current_asset_record}:raise gr.Error('확인 후 입력이 변경되었습니다. 다시 불러오세요.')
-    return (*load_sprite_sheet_input(current_file_path,current_columns_value,current_rows_value,current_asset_record),gr.update(visible=False),{},gr.update(interactive=True))
+    current_loaded_values=load_sprite_sheet_input(current_file_path,current_columns_value,current_rows_value,current_asset_record)
+    return (*current_loaded_values,gr.update(visible=False),{},gr.update(interactive=True),[current_frame_row[:4] for current_frame_row in current_loaded_values[1]])
 
 
-def build_sprite_sheet_payload(current_image_data,current_frame_rows,current_columns_value):
+def build_sprite_sheet_payload(current_image_data,current_frame_rows,current_columns_value,current_source_bounds=None):
     if not current_image_data:raise gr.Error('시트를 먼저 불러오세요.')
     current_values=[current_columns_value]
     if any(type(current_value) not in (int,float) or not float(current_value).is_integer() for current_value in current_values):raise gr.Error('출력 설정은 정수여야 합니다.')
@@ -84,11 +86,12 @@ def build_sprite_sheet_payload(current_image_data,current_frame_rows,current_col
         if len(current_frame_row)!=6 or any(type(current_value) not in (int,float) or not float(current_value).is_integer() for current_value in current_frame_row):raise gr.Error('프레임 좌표는 모두 정수여야 합니다.')
         current_frames.append(dict(zip(SPRITE_EDITOR_FRAME_FIELDS,map(int,current_frame_row))))
     current_request_record={'image':current_image_data.split(',',1)[1],'frames':current_frames,'columns':int(current_columns_value)}
+    if current_source_bounds is not None:current_request_record['sourceFrames']=current_source_bounds
     return current_request_record
 
 
-def export_sprite_sheet_result(current_image_data,current_frame_rows,current_columns_value):
-    current_request_record=build_sprite_sheet_payload(current_image_data,current_frame_rows,current_columns_value)
+def export_sprite_sheet_result(current_image_data,current_frame_rows,current_columns_value,current_source_bounds=None):
+    current_request_record=build_sprite_sheet_payload(current_image_data,current_frame_rows,current_columns_value,current_source_bounds)
     current_result_record=execute_remote_management_command('character-animation','sheet-export',current_request_record)
     current_download_directory=Path(tempfile.mkdtemp(prefix='sprite-sheet-download-'))
     current_image_path=current_download_directory/'sprite-sheet.png';current_map_path=current_download_directory/'coordinates.json'
@@ -133,6 +136,7 @@ def build_sprite_sheet_editor_interface(current_review_port):
                 gr.Markdown('미등록 PNG는 원본 열·행으로 전체 영역을 균등 분할합니다. 나누어떨어지지 않는 픽셀은 분산하며 자동 크롭하지 않습니다.')
                 current_image_data=gr.Textbox(value='',visible=False)
                 current_pending_load=gr.State({})
+                current_source_bounds=gr.JSON(value=[],visible=False)
                 with gr.Group(visible=False) as current_confirm_group:
                     gr.Markdown('기존 편집 내용을 새 시트로 바꿉니다. 저장하지 않은 변경은 사라집니다.')
                     with gr.Row():
@@ -144,7 +148,7 @@ def build_sprite_sheet_editor_interface(current_review_port):
                         current_bulk_target=gr.Radio(['전체','지정 프레임'],value='전체',label='적용 대상')
                         current_bulk_selection=gr.Textbox(label='프레임 번호 (1부터)',placeholder='예: 1,3-5')
                         current_bulk_mode=gr.Radio(['크롭','앵커'],value='크롭',label='편집 종류')
-                        gr.Markdown('크롭은 현재 영역에서 여백을 제거하고 앵커 위치를 보존합니다. 앵커는 크롭 내부 좌표로 지정합니다. 범위 오류가 있으면 전체 적용을 취소합니다.')
+                        gr.Markdown('양수 여백은 크롭, 음수 여백은 투명 영역 확장입니다. 원본 셀 밖의 인접 이미지는 포함하지 않고 앵커 위치를 보존합니다. 앵커는 크롭 내부 좌표로 지정합니다. 범위 오류가 있으면 전체 적용을 취소합니다.')
                         with gr.Row():
                             current_bulk_left=gr.Number(label='왼쪽 여백',value=0,precision=0)
                             current_bulk_top=gr.Number(label='위쪽 여백',value=0,precision=0)
@@ -168,7 +172,7 @@ def build_sprite_sheet_editor_interface(current_review_port):
                 current_status_text=gr.Textbox(label='상태',interactive=False)
             with gr.Column():
                 current_canvas_mode=gr.Radio(['크롭','앵커'],value='크롭',label='캔버스 편집 도구')
-                gr.Markdown('크롭은 남길 영역을 드래그하고, 앵커는 클릭하거나 드래그하세요. 선택 프레임에는 같은 크롭 여백과 크롭 내부 앵커를 적용합니다.')
+                gr.Markdown('회색 영역은 이미지 바깥입니다. 크롭을 바깥으로 드래그하면 투명 여백을 확장합니다. 큰 확장은 고급 좌표 설정의 음수 여백을 사용하세요. 앵커는 클릭하거나 드래그하세요. 선택 프레임에는 같은 크롭 여백과 크롭 내부 앵커를 적용합니다.')
                 gr.HTML('<canvas id="sprite-sheet-alignment-preview" width="640" height="640" style="width:100%;max-width:640px;aspect-ratio:1;background:#fff;touch-action:none" aria-label="프레임 크롭과 앵커 정렬 미리보기"></canvas>')
                 with gr.Row():
                     current_frame_index=gr.Slider(label='프레임',minimum=1,maximum=2,value=1,step=1)
@@ -182,18 +186,18 @@ def build_sprite_sheet_editor_interface(current_review_port):
                 current_preview_status=gr.Textbox(label='미리보기',interactive=False)
         current_search_button.click(search_sprite_asset_choices,current_search_text,[current_asset_choice,current_status_text])
         current_select_button.click(select_sprite_asset_image,current_asset_choice,[current_input_file,current_asset_record,current_status_text])
-        current_update_inputs=[current_asset_record,current_asset_choice,current_image_data,current_frame_rows,current_output_columns]
+        current_update_inputs=[current_asset_record,current_asset_choice,current_image_data,current_frame_rows,current_output_columns,current_source_bounds]
         current_update_button.click(prepare_sprite_sheet_update,current_update_inputs,[current_pending_update,current_update_group,current_update_summary])
         current_update_confirm.click(confirm_sprite_sheet_update,[current_pending_update,*current_update_inputs],[current_pending_update,current_update_group,current_status_text],trigger_mode='once')
         current_update_cancel.click(lambda:({},gr.update(visible=False)),outputs=[current_pending_update,current_update_group],queue=False)
-        current_preview_inputs=[current_image_data,current_frame_rows,current_frame_index,current_play_enabled,current_shadow_enabled,current_canvas_mode]
+        current_preview_inputs=[current_image_data,current_frame_rows,current_frame_index,current_play_enabled,current_shadow_enabled,current_canvas_mode,current_source_bounds]
         for current_action_button,current_action_name in ((current_canvas_apply,'apply'),(current_canvas_undo,'undo')):
             current_action_button.click(fn=None,inputs=[current_frame_rows,current_canvas_target,current_canvas_selection],outputs=[current_frame_rows,current_status_text],js='(...currentArguments)=>('+current_canvas_apply_script+')( ...currentArguments, '+json.dumps(current_action_name)+')',queue=False).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_bulk_apply.click(fn=None,inputs=[current_frame_rows,current_bulk_target,current_bulk_selection,current_bulk_mode,current_bulk_left,current_bulk_top,current_bulk_right,current_bulk_bottom,current_bulk_anchor_x,current_bulk_anchor_y],outputs=[current_frame_rows,current_status_text],js=current_bulk_script,queue=False).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_load_outputs=[current_image_data,current_frame_rows,current_output_columns,current_frame_index,current_status_text]
-        current_load_button.click(prepare_sprite_sheet_load,[current_input_file,current_input_columns,current_input_rows,current_image_data,current_asset_record],[*current_load_outputs,current_confirm_group,current_pending_load,current_export_button]).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
-        current_confirm_button.click(confirm_sprite_sheet_load,[current_pending_load,current_input_file,current_input_columns,current_input_rows,current_asset_record],[*current_load_outputs,current_confirm_group,current_pending_load,current_export_button]).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
+        current_load_button.click(prepare_sprite_sheet_load,[current_input_file,current_input_columns,current_input_rows,current_image_data,current_asset_record],[*current_load_outputs,current_confirm_group,current_pending_load,current_export_button,current_source_bounds]).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
+        current_confirm_button.click(confirm_sprite_sheet_load,[current_pending_load,current_input_file,current_input_columns,current_input_rows,current_asset_record],[*current_load_outputs,current_confirm_group,current_pending_load,current_export_button,current_source_bounds]).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_cancel_button.click(lambda:(gr.update(visible=False),{},'불러오기를 취소했습니다. 기존 편집 내용이 유지됩니다.'),outputs=[current_confirm_group,current_pending_load,current_status_text],queue=False)
-        for current_input_component in current_preview_inputs[1:]:current_input_component.input(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
-        current_export_button.click(export_sprite_sheet_result,[current_image_data,current_frame_rows,current_output_columns],[current_output_files,current_status_text],trigger_mode='once')
+        for current_input_component in current_preview_inputs[1:6]:current_input_component.input(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
+        current_export_button.click(export_sprite_sheet_result,[current_image_data,current_frame_rows,current_output_columns,current_source_bounds],[current_output_files,current_status_text],trigger_mode='once')
     return current_interface_blocks

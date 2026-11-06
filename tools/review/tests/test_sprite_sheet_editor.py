@@ -52,6 +52,23 @@ class SpriteSheetEditorTests(unittest.TestCase):
             with self.assertRaises(ValueError):execute_management_command('character-animation','sheet-export',current_payload)
             self.assertEqual(len(list(Path(current_directory_name).glob('*/*'))),1)
 
+    def test_expanded_frames_pad_transparently_without_neighbor_pixels(self):
+        current_source_image=Image.new('RGBA',(8,4),(0,255,0,255))
+        current_source_image.paste((255,0,0,255),(0,0,4,4))
+        current_image_stream=BytesIO()
+        current_source_image.save(current_image_stream,format='PNG')
+        current_request_record={'image':base64.b64encode(current_image_stream.getvalue()).decode(),'frames':[{'x':-2,'y':-1,'width':8,'height':6,'anchorX':4,'anchorY':4}],'columns':1,'sourceFrames':[[0,0,4,4]]}
+        with TemporaryDirectory() as current_directory_name, patch.object(sprite_sheet_editor,'SPRITE_SHEET_JOB_ROOT',Path(current_directory_name)):
+            current_result_record=execute_management_command('character-animation','sheet-export',current_request_record)
+            with Image.open(BytesIO(base64.b64decode(current_result_record['image']))) as current_output_image:
+                self.assertEqual(current_output_image.size,(8,6))
+                self.assertEqual(current_output_image.getpixel((0,0)),(0,0,0,0))
+                self.assertEqual(current_output_image.getpixel((2,1)),(255,0,0,255))
+                self.assertEqual(current_output_image.getpixel((6,1)),(0,0,0,0))
+            current_request_record['sourceFrames']=[[0,0,9,4]]
+            with self.assertRaises(ValueError):
+                execute_management_command('character-animation','sheet-export',current_request_record)
+
     def test_registered_update_preserves_clips_and_rejects_stale_input(self):
         import json
         import hashlib

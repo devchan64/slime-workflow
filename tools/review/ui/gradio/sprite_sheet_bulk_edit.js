@@ -17,7 +17,7 @@
    }
   }
   const currentEditValues=currentEditMode==='크롭'?[currentLeftMargin,currentTopMargin,currentRightMargin,currentBottomMargin]:[currentAnchorX,currentAnchorY];
-  if(currentEditValues.some(currentCellValue=>!Number.isSafeInteger(currentCellValue)||currentCellValue<0))throw Error('여백·앵커는 0 이상의 정수여야 합니다.');
+  if(currentEditValues.some(currentCellValue=>!Number.isSafeInteger(currentCellValue)||(currentEditMode!=='크롭'&&currentCellValue<0)))throw Error('여백은 정수, 앵커는 0 이상의 정수여야 합니다.');
   for(const currentFrameIndex of currentTargetIndices){
    const currentFrameRow=currentEditedRows[currentFrameIndex];
    if(currentEditMode==='크롭'){

@@ -1,4 +1,4 @@
-(currentImageData,currentFrameRows,currentFrameIndex,currentPlayEnabled,currentShadowEnabled,currentEditMode)=>{
+(currentImageData,currentFrameRows,currentFrameIndex,currentPlayEnabled,currentShadowEnabled,currentEditMode,currentSourceBounds)=>{
  const currentCanvasElement=document.getElementById('sprite-sheet-alignment-preview');
  if(!currentCanvasElement)return '미리보기 캔버스가 없습니다.';
  const currentRows=(Array.isArray(currentFrameRows)?currentFrameRows:currentFrameRows?.data)?.map(currentFrameRow=>currentFrameRow.map(Number));
@@ -7,7 +7,7 @@
  currentCanvasElement.spritePreviewRevision=(currentCanvasElement.spritePreviewRevision||0)+1;
  const currentPreviewRevision=currentCanvasElement.spritePreviewRevision;
  currentCanvasElement.onpointerdown=currentCanvasElement.onpointermove=currentCanvasElement.onpointerup=currentCanvasElement.onpointercancel=null;
- currentCanvasContext.fillStyle='#fff';currentCanvasContext.fillRect(0,0,currentCanvasSize,currentCanvasSize);
+ currentCanvasContext.fillStyle='#888';currentCanvasContext.fillRect(0,0,currentCanvasSize,currentCanvasSize);
  if(!currentImageData||!currentRows?.length)return '원본 시트를 불러오세요.';
  if(currentRows.some(currentFrameRow=>currentFrameRow.length!==6||currentFrameRow.some(currentValue=>!Number.isFinite(currentValue))||currentFrameRow[2]<=0||currentFrameRow[3]<=0))return '유효한 프레임 좌표가 필요합니다.';
  const currentSignature=JSON.stringify(currentRows);
@@ -27,7 +27,7 @@
   const currentStartTime=performance.now();
   const drawCurrentEditorFrame=currentTime=>{
    if(!currentCanvasElement.isConnected||currentCanvasElement.spritePreviewRevision!==currentPreviewRevision)return;
-   currentCanvasContext.fillStyle='#fff';currentCanvasContext.fillRect(0,0,currentCanvasSize,currentCanvasSize);
+   currentCanvasContext.fillStyle='#888';currentCanvasContext.fillRect(0,0,currentCanvasSize,currentCanvasSize);
    const currentActiveIndex=currentPlayEnabled?Math.floor((currentTime-currentStartTime)*6/1000)%currentRows.length:currentSelectedIndex;
    const currentActiveRow=currentPlayEnabled?currentRows[currentActiveIndex]:currentDraftRow;
    let currentDrawScale=currentScaleValue,currentDrawLeft=currentOriginLeft,currentDrawTop=currentOriginTop;
@@ -40,15 +40,18 @@
    }
    const currentAnchorLeft=currentDrawLeft+(currentPlayEnabled?currentActiveRow[4]:currentActiveRow[0]-currentOriginalRow[0]+currentActiveRow[4])*currentDrawScale;
    const currentAnchorTop=currentDrawTop+(currentPlayEnabled?currentActiveRow[5]:currentActiveRow[1]-currentOriginalRow[1]+currentActiveRow[5])*currentDrawScale;
-   if(currentShadowEnabled){currentCanvasContext.fillStyle='rgba(0,0,0,.22)';currentCanvasContext.beginPath();currentCanvasContext.ellipse(currentAnchorLeft,currentAnchorTop,currentOriginalRow[2]*currentDrawScale*.24,currentOriginalRow[3]*currentDrawScale*.06,0,0,Math.PI*2);currentCanvasContext.fill();}
    const currentDrawRow=currentPlayEnabled?currentActiveRow:currentOriginalRow;
-   currentCanvasContext.drawImage(currentImageElement,...currentDrawRow.slice(0,4),currentDrawLeft,currentDrawTop,currentDrawRow[2]*currentDrawScale,currentDrawRow[3]*currentDrawScale);
+   const currentSourceRect=currentSourceBounds?.[currentActiveIndex]??[0,0,currentImageElement.width,currentImageElement.height];
+   const currentClipLeft=Math.max(currentDrawRow[0],currentSourceRect[0]),currentClipTop=Math.max(currentDrawRow[1],currentSourceRect[1]);
+   const currentClipRight=Math.min(currentDrawRow[0]+currentDrawRow[2],currentSourceRect[0]+currentSourceRect[2]),currentClipBottom=Math.min(currentDrawRow[1]+currentDrawRow[3],currentSourceRect[1]+currentSourceRect[3]);
+   if(currentClipRight>currentClipLeft&&currentClipBottom>currentClipTop)currentCanvasContext.drawImage(currentImageElement,currentClipLeft,currentClipTop,currentClipRight-currentClipLeft,currentClipBottom-currentClipTop,currentDrawLeft+(currentClipLeft-currentDrawRow[0])*currentDrawScale,currentDrawTop+(currentClipTop-currentDrawRow[1])*currentDrawScale,(currentClipRight-currentClipLeft)*currentDrawScale,(currentClipBottom-currentClipTop)*currentDrawScale);
+   if(currentShadowEnabled){currentCanvasContext.fillStyle='rgba(0,0,0,.22)';currentCanvasContext.beginPath();currentCanvasContext.ellipse(currentAnchorLeft,currentAnchorTop,currentOriginalRow[2]*currentDrawScale*.24,currentOriginalRow[3]*currentDrawScale*.06,0,0,Math.PI*2);currentCanvasContext.fill();}
    if(!currentPlayEnabled){currentCanvasContext.strokeStyle='#987000';currentCanvasContext.lineWidth=2;currentCanvasContext.strokeRect(currentOriginLeft+(currentDraftRow[0]-currentOriginalRow[0])*currentScaleValue,currentOriginTop+(currentDraftRow[1]-currentOriginalRow[1])*currentScaleValue,currentDraftRow[2]*currentScaleValue,currentDraftRow[3]*currentScaleValue);}
    currentCanvasContext.strokeStyle='#e22';currentCanvasContext.beginPath();currentCanvasContext.arc(currentAnchorLeft,currentAnchorTop,currentAnchorRadius,0,Math.PI*2);currentCanvasContext.moveTo(currentAnchorLeft-14,currentAnchorTop);currentCanvasContext.lineTo(currentAnchorLeft+14,currentAnchorTop);currentCanvasContext.moveTo(currentAnchorLeft,currentAnchorTop-14);currentCanvasContext.lineTo(currentAnchorLeft,currentAnchorTop+14);currentCanvasContext.stroke();
    currentCanvasContext.fillStyle='#222';currentCanvasContext.fillText(`프레임 ${currentActiveIndex+1}/${currentRows.length} · ${currentPlayEnabled?'재생 중에는 편집할 수 없습니다.':currentEditMode+' 드래그 후 적용 버튼을 누르세요.'}`,16,24);
    if(currentPlayEnabled)requestAnimationFrame(drawCurrentEditorFrame);
   };
-  const readCurrentPointer=currentEvent=>{const currentBounds=currentCanvasElement.getBoundingClientRect();return [Math.max(0,Math.min(currentOriginalRow[2],Math.round(( (currentEvent.clientX-currentBounds.left)*640/currentBounds.width-currentOriginLeft)/currentScaleValue))),Math.max(0,Math.min(currentOriginalRow[3],Math.round(((currentEvent.clientY-currentBounds.top)*640/currentBounds.height-currentOriginTop)/currentScaleValue)))];};
+  const readCurrentPointer=currentEvent=>{const currentBounds=currentCanvasElement.getBoundingClientRect();return [Math.round(((currentEvent.clientX-currentBounds.left)*currentCanvasSize/currentBounds.width-currentOriginLeft)/currentScaleValue),Math.round(((currentEvent.clientY-currentBounds.top)*currentCanvasSize/currentBounds.height-currentOriginTop)/currentScaleValue)];};
   let currentDragStart=null,currentDragBackup=null;
   currentCanvasElement.onpointerdown=currentEvent=>{if(currentPlayEnabled)return;currentEvent.preventDefault();currentCanvasElement.setPointerCapture(currentEvent.pointerId);currentDragStart=readCurrentPointer(currentEvent);currentDragBackup=[...currentDraftRow];currentCanvasElement.onpointermove(currentEvent);};
   currentCanvasElement.onpointermove=currentEvent=>{

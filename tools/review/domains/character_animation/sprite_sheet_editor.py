@@ -17,7 +17,7 @@ SPRITE_SHEET_FRAME_LIMIT = 128
 
 
 def execute_sprite_sheet_export(command_payload_value):
-    if not isinstance(command_payload_value, dict) or set(command_payload_value) != {'image','frames','columns'}:
+    if not isinstance(command_payload_value, dict) or set(command_payload_value) not in ({'image','frames','columns'}, {'image','frames','columns','sourceFrames'}):
         raise ValueError('시트 내보내기 입력 필드가 올바르지 않습니다.')
     try:
         current_image_bytes = base64.b64decode(command_payload_value['image'], validate=True)
@@ -35,6 +35,16 @@ def execute_sprite_sheet_export(command_payload_value):
         raise ValueError('프레임은 1~128개여야 합니다.')
     current_column_count=command_payload_value['columns']
     if type(current_column_count) is not int or not 1<=current_column_count<=SPRITE_SHEET_FRAME_LIMIT:raise ValueError('출력 열 수 범위 오류')
+    current_source_bounds = command_payload_value.get('sourceFrames')
+    if current_source_bounds is not None:
+        if not isinstance(current_source_bounds,list) or len(current_source_bounds)!=len(current_frame_records):
+            raise ValueError('원본 셀 경계 수가 프레임 수와 다릅니다.')
+        for current_source_bound in current_source_bounds:
+            if not isinstance(current_source_bound,list) or len(current_source_bound)!=4 or any(type(current_bound_value) is not int for current_bound_value in current_source_bound):
+                raise ValueError('원본 셀 경계는 정수 4개여야 합니다.')
+            current_bound_left,current_bound_top,current_bound_width,current_bound_height=current_source_bound
+            if not (current_bound_left>=0 and current_bound_top>=0 and current_bound_width>0 and current_bound_height>0 and current_bound_left+current_bound_width<=current_source_image.width and current_bound_top+current_bound_height<=current_source_image.height):
+                raise ValueError('원본 셀 경계가 이미지 범위를 벗어났습니다.')
     current_output_frames = []
     for current_frame_index, current_frame_record in enumerate(current_frame_records):
         if not isinstance(current_frame_record,dict) or set(current_frame_record) != {'x','y','width','height','anchorX','anchorY'} or any(type(current_frame_record[current_field_name]) is not int for current_field_name in current_frame_record):
@@ -42,7 +52,7 @@ def execute_sprite_sheet_export(command_payload_value):
         current_left, current_top = current_frame_record['x'], current_frame_record['y']
         current_width, current_height = current_frame_record['width'], current_frame_record['height']
         current_frame_anchor_x, current_frame_anchor_y = current_frame_record['anchorX'], current_frame_record['anchorY']
-        if not (0 <= current_left and 0 <= current_top and current_width > 0 and current_height > 0 and current_left+current_width <= current_source_image.width and current_top+current_height <= current_source_image.height and 0 <= current_frame_anchor_x < current_width and 0 <= current_frame_anchor_y < current_height):
+        if not (current_width > 0 and current_height > 0 and abs(current_left)<=SPRITE_SHEET_PIXEL_LIMIT and abs(current_top)<=SPRITE_SHEET_PIXEL_LIMIT and 0 <= current_frame_anchor_x < current_width and 0 <= current_frame_anchor_y < current_height):
             raise ValueError(f'{current_frame_index+1}번 프레임 크롭 또는 앵커가 원본 범위를 벗어났습니다.')
         current_output_frames.append({'frameId':f'frame.{current_frame_index}','rect':{'x':0,'y':0,'width':current_width,'height':current_height},'anchor':{'x':current_frame_anchor_x,'y':current_frame_anchor_y},'source':current_frame_record})
     current_sheet_width=0
@@ -58,9 +68,15 @@ def execute_sprite_sheet_export(command_payload_value):
         current_sheet_height+=max(current_frame_record['rect']['height'] for current_frame_record in current_row_frames)
     if current_sheet_width*current_sheet_height>SPRITE_SHEET_PIXEL_LIMIT:raise ValueError('출력 시트는 1600만 픽셀 이하여야 합니다.')
     current_output_image=Image.new('RGBA',(current_sheet_width,current_sheet_height))
-    for current_frame_record in current_output_frames:
+    for current_frame_index,current_frame_record in enumerate(current_output_frames):
         current_source_rect=current_frame_record['source']
-        current_output_image.paste(current_source_image.crop((current_source_rect['x'],current_source_rect['y'],current_source_rect['x']+current_source_rect['width'],current_source_rect['y']+current_source_rect['height'])),(current_frame_record['rect']['x'],current_frame_record['rect']['y']))
+        current_bound_left,current_bound_top,current_bound_width,current_bound_height=current_source_bounds[current_frame_index] if current_source_bounds is not None else (0,0,current_source_image.width,current_source_image.height)
+        current_clip_left=max(current_source_rect['x'],current_bound_left)
+        current_clip_top=max(current_source_rect['y'],current_bound_top)
+        current_clip_right=min(current_source_rect['x']+current_source_rect['width'],current_bound_left+current_bound_width)
+        current_clip_bottom=min(current_source_rect['y']+current_source_rect['height'],current_bound_top+current_bound_height)
+        if current_clip_right>current_clip_left and current_clip_bottom>current_clip_top:
+            current_output_image.paste(current_source_image.crop((current_clip_left,current_clip_top,current_clip_right,current_clip_bottom)),(current_frame_record['rect']['x']+current_clip_left-current_source_rect['x'],current_frame_record['rect']['y']+current_clip_top-current_source_rect['y']))
     current_output_stream = BytesIO()
     current_output_image.save(current_output_stream,format='PNG')
     current_output_bytes = current_output_stream.getvalue()
