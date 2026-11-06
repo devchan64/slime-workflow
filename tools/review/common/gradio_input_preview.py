@@ -2,7 +2,8 @@
 import gradio as gr
 
 INPUT_PREVIEW_COLUMN_COUNT = 3
-INPUT_PREVIEW_ROW_COUNT = 2
+INPUT_PREVIEW_ROW_COUNT = 1
+INPUT_PREVIEW_HEIGHT_PIXELS = 320
 
 
 def describe_input_preview(current_file_paths):
@@ -10,6 +11,6 @@ def describe_input_preview(current_file_paths):
 
 
 def build_input_preview(current_file_control,current_label_text):
-    current_preview_gallery = gr.Gallery(value=[],label=current_label_text,columns=INPUT_PREVIEW_COLUMN_COUNT,rows=INPUT_PREVIEW_ROW_COUNT,object_fit='contain',interactive=False,allow_preview=True)
+    current_preview_gallery = gr.Gallery(value=[],label=current_label_text,columns=INPUT_PREVIEW_COLUMN_COUNT,rows=INPUT_PREVIEW_ROW_COUNT,height=INPUT_PREVIEW_HEIGHT_PIXELS,fit_columns=False,object_fit='contain',interactive=False,allow_preview=True)
     current_file_control.change(describe_input_preview,inputs=current_file_control,outputs=current_preview_gallery,queue=False,show_progress='hidden')
     return current_preview_gallery

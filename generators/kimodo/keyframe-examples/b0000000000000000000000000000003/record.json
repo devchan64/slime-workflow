@@ -1,0 +1,14 @@
+{
+  "id": "b0000000000000000000000000000003",
+  "tag": "복싱 오른손 스트레이트 시드303",
+  "source_job": "2026-11-06_18-27-36-3b6f2c60",
+  "source_attempt": "d142024d9f8e4f3689f0fe9012531e45",
+  "source_frame": 31,
+  "source_fps": 30,
+  "source_motion": "motion.npz",
+  "files": {
+    "motion.npz": "580fcb8505d79512fba60f8e83124ce1b4aa36a1d404026463bea9afcfdb4ea1",
+    "skeleton.json": "d6bfde21c98d7bba875c38655946090a6c66083ec4e1b8d8d7cd6957285dd788",
+    "preview.png": "053a78562ab96a7909e942320fb6f5878731c7c189edbdf35e08fb77d6e34af4"
+  }
+}

@@ -42,8 +42,10 @@ def export_direct_pose_video(current_attempt_root, current_output_root, current_
             raise ValueError('코·귀 앵커 좌표 오류')
         current_body_positions[:,current_landmark_index]=current_joint_positions[:,current_head_index]+np.einsum('nij,j->ni',current_joint_rotations[:,current_head_index],current_anchor_offset)
     current_body_positions[:,1] = current_body_positions[:,[2,5]].mean(axis=1)
+    current_axis_gain=None
     if current_reference_record is not None:
-        from generators.kimodo.reference_proportions import apply_reference_proportions
+        from generators.kimodo.reference_proportions import apply_reference_proportions, calculate_reference_torso_gain
+        current_axis_gain=calculate_reference_torso_gain(current_body_positions,current_reference_record)
         current_body_positions = apply_reference_proportions(current_body_positions,current_reference_record)
     current_direction_points = {}
     for current_direction_name in current_direction_names:
@@ -64,7 +66,7 @@ def export_direct_pose_video(current_attempt_root, current_output_root, current_
                 current_pose_image = render_fun_control_body(current_pose_points[current_source_index].tolist())
                 current_video_writer.append_data(np.asarray(ImageOps.pad(current_pose_image, DIRECT_POSE_OUTPUT_SIZE, color='black')))
         current_output_records[current_direction_name] = {'video': current_video_path.name, 'source_frames': current_source_indices, 'body_points_832x480': current_pose_points[current_source_indices].tolist()}
-    current_metadata_record = {'reference_proportions': current_reference_record, 'proportion_basis': '3D 몸통 기준 보정 후 원본 카메라 투영', 'source': 'SOMA 3D joints', 'projection_scale_basis': '기록된 SOMA 카메라 배율 그대로 사용 · 추가 배율 없음', 'additional_scale_percent': 100.0, 'fps': DIRECT_POSE_OUTPUT_FPS, 'size': DIRECT_POSE_OUTPUT_SIZE, 'missing_points': [], 'head_anchors': current_anchor_record, 'limitations': '코·귀는 검증 기록이 있는 Head 로컬 앵커 추정. 손 상세·얼굴 상세는 합성하지 않음. 목은 어깨 중점. 가림 판정 없음. confidence=1은 검출 확률이 아닌 대응 관절 존재 표시.', 'directions': current_output_records}
+    current_metadata_record = {'reference_proportions': current_reference_record, 'body_axis_torso_gain':current_axis_gain, 'proportion_basis': '3D 몸통 기준 보정 후 원본 카메라 투영', 'source': 'SOMA 3D joints', 'projection_scale_basis': '기록된 SOMA 카메라 배율 그대로 사용 · 추가 배율 없음', 'additional_scale_percent': 100.0, 'fps': DIRECT_POSE_OUTPUT_FPS, 'size': DIRECT_POSE_OUTPUT_SIZE, 'missing_points': [], 'head_anchors': current_anchor_record, 'limitations': '코·귀는 검증 기록이 있는 Head 로컬 앵커 추정. 손 상세·얼굴 상세는 합성하지 않음. 목은 어깨 중점. 가림 판정 없음. confidence=1은 검출 확률이 아닌 대응 관절 존재 표시.', 'directions': current_output_records}
     (current_output_root/'soma-direct-pose.json').write_text(json.dumps(current_metadata_record, ensure_ascii=False))
     return current_metadata_record
 

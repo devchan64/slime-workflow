@@ -13,7 +13,7 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
         import json
         from urllib.parse import urlsplit
         current_request_path = urlsplit(current_http_handler.path).path
-        if current_request_path not in ('/kimodo/keyframes/save', '/kimodo/keyframes/list', '/kimodo/keyframes/preview', '/kimodo/keyframes/replace'):
+        if current_request_path not in ('/kimodo/keyframes/save', '/kimodo/keyframes/list', '/kimodo/keyframes/preview', '/kimodo/keyframes/replace', '/kimodo/keyframes/retire'):
             return super().handle_image_request(current_http_handler)
         try:
             if current_http_handler.command != 'POST' or not hasattr(current_http_handler, 'management_command_payload'):
@@ -21,9 +21,15 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
             current_request_record = current_http_handler.management_command_payload
             if not isinstance(current_request_record, dict):
                 raise ValueError('키프레임 요청은 객체여야 합니다.')
-            from tools.review.domains.kimodo.keyframe_storage import list_kimodo_keyframe_records, save_kimodo_keyframe_record, load_kimodo_keyframe_snapshot
+            from tools.review.domains.kimodo.keyframe_storage import list_kimodo_keyframe_records, save_kimodo_keyframe_record, load_kimodo_keyframe_snapshot, resolve_kimodo_keyframe_storage, KIMODO_EXAMPLE_KEYFRAME_STORAGE, KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS, KIMODO_KEYFRAME_STORAGE
             from tools.review.domains.image.image_generation import MANAGER_HISTORY_LOCK
-            if current_request_path.endswith('/replace'):
+            if current_request_path.endswith('/retire'):
+                if set(current_request_record) != {'ids'}:
+                    raise ValueError('키프레임 폐기에는 ids 배열이 필요합니다.')
+                from tools.review.domains.kimodo.keyframe_storage import retire_kimodo_keyframe_records
+                with self.current_request_lock, MANAGER_HISTORY_LOCK:
+                    current_response_record = retire_kimodo_keyframe_records(self.keyframe_storage_root,current_request_record['ids'])
+            elif current_request_path.endswith('/replace'):
                 if set(current_request_record) != {'old_id','new_id'}:
                     raise ValueError('키프레임 교체에는 old_id와 new_id가 필요합니다.')
                 from tools.review.domains.kimodo.keyframe_storage import replace_kimodo_keyframe_record
@@ -32,13 +38,17 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
             elif current_request_path.endswith('/list'):
                 if current_request_record:
                     raise ValueError('키프레임 목록은 입력을 받지 않습니다.')
-                current_response_record = {'records': list_kimodo_keyframe_records(self.keyframe_storage_root)}
+                current_records = list_kimodo_keyframe_records(self.keyframe_storage_root)
+                if self.keyframe_storage_root == KIMODO_KEYFRAME_STORAGE:
+                    current_records += [load_kimodo_keyframe_snapshot(KIMODO_EXAMPLE_KEYFRAME_STORAGE,current_identifier)[0] for current_identifier in sorted(KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS)]
+                current_response_record = {'records': current_records}
             elif current_request_path.endswith('/preview'):
                 if set(current_request_record) != {'id'}:
                     raise ValueError('키프레임 미리보기에는 ID가 필요합니다.')
                 import base64
-                current_keyframe_record,_,_ = load_kimodo_keyframe_snapshot(self.keyframe_storage_root,current_request_record['id'])
-                current_preview_bytes=(self.keyframe_storage_root/current_keyframe_record['id']/'preview.png').read_bytes()
+                current_source_storage = resolve_kimodo_keyframe_storage(self.keyframe_storage_root,current_request_record['id'])
+                current_keyframe_record,_,_ = load_kimodo_keyframe_snapshot(current_source_storage,current_request_record['id'])
+                current_preview_bytes=(current_source_storage/current_keyframe_record['id']/'preview.png').read_bytes()
                 current_response_record={'record':current_keyframe_record,'image_base64':base64.b64encode(current_preview_bytes).decode('ascii')}
             else:
                 if set(current_request_record) != {'job_id', 'attempt_id', 'frame', 'tag'}:
@@ -68,9 +78,9 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
     def validate_generation_request(self, current_request_record):
         current_validated_request = super().validate_generation_request(current_request_record)
         if current_validated_request.get('keyframes'):
-            from tools.review.domains.kimodo.keyframe_storage import load_kimodo_keyframe_snapshot
+            from tools.review.domains.kimodo.keyframe_storage import load_kimodo_keyframe_snapshot, resolve_kimodo_keyframe_storage
             for current_placement_record in current_validated_request['keyframes']:
-                load_kimodo_keyframe_snapshot(self.keyframe_storage_root,current_placement_record['id'])
+                load_kimodo_keyframe_snapshot(resolve_kimodo_keyframe_storage(self.keyframe_storage_root,current_placement_record['id']),current_placement_record['id'])
         return current_validated_request
 
     def validate_generation_resume(self,selected_job_directory):

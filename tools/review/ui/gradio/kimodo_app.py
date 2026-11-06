@@ -108,7 +108,12 @@ def restore_kimodo_inputs(current_history_record):
         if current_reference_path.parent!=current_job_root or not current_reference_path.is_file():
             raise ValueError('신체 비율 참조 사본 누락 또는 경로 오류')
         current_reference_paths.append(str(current_reference_path))
-    return tuple(current_request_record[current_field_name] for current_field_name in ('prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'))+(current_request_record.get('directions',['front_left']),current_request_record.get('remove_horizontal_motion',False),bool(current_reference_paths),current_reference_paths,current_request_record.get('openpose_scale_percent',100.0),current_request_record.get('pose_include_hands',False),current_request_record.get('pose_include_face',False),' '.join(map(str,current_request_record.get('segment_frames',[]))),current_request_record.get('endpoint_pose_id'),[[current_placement['id'],current_placement['frame']] for current_placement in current_request_record.get('keyframes',[])],current_history_record['id'])
+    current_keyframe_placements=current_request_record.get('keyframes',[])
+    if current_request_record.get('endpoint_pose_id'):
+        if current_request_record['endpoint_pose_id']!='relaxed-standing-v1' or current_keyframe_placements:
+            raise ValueError('이전 양 끝 자세를 키프레임으로 변환할 수 없습니다.')
+        current_keyframe_placements=[{'id':'b0000000000000000000000000000004','frame':1},{'id':'b0000000000000000000000000000004','frame':current_request_record['frames']}]
+    return tuple(current_request_record[current_field_name] for current_field_name in ('prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'))+(current_request_record.get('directions',['front_left']),current_request_record.get('remove_horizontal_motion',False),bool(current_reference_paths),current_reference_paths,current_request_record.get('openpose_scale_percent',100.0),current_request_record.get('pose_include_hands',False),current_request_record.get('pose_include_face',False),' '.join(map(str,current_request_record.get('segment_frames',[]))),None,[[current_placement['id'],current_placement['frame']] for current_placement in current_keyframe_placements],current_history_record['id'])
 
 
 def check_kimodo_readiness(current_model_ready,current_prompt_text,current_direction_names,current_proportions_enabled=False,current_reference_paths=None,current_keyframe_rows=None,current_postprocessing_enabled=False,current_segment_text='',current_endpoint_identifier=None,current_horizontal_removal=False):
@@ -129,7 +134,7 @@ def load_kimodo_examples():
         build_kimodo_payload(current_example_value['prompt'],current_example_value['frames'],KIMODO_DEFAULT_SETTINGS['steps'],KIMODO_DEFAULT_SETTINGS['seed'],KIMODO_DEFAULT_SETTINGS['guidance_scale'],KIMODO_DEFAULT_SETTINGS['heading_degrees'],KIMODO_DEFAULT_SETTINGS['post_processing'])
         if 'settings' in current_example_value:
             current_settings_record = current_example_value['settings']
-            if not isinstance(current_settings_record,dict) or set(current_settings_record)-{'segment_frames','openpose_scale_percent','pose_include_hands','pose_include_face'}!={'steps','seed','guidance_scale','heading_degrees','post_processing','directions','remove_horizontal_motion'}:
+            if not isinstance(current_settings_record,dict) or set(current_settings_record)-{'segment_frames','openpose_scale_percent','pose_include_hands','pose_include_face','keyframes'}!={'steps','seed','guidance_scale','heading_degrees','post_processing','directions','remove_horizontal_motion'}:
                 raise ValueError('Kimodo 예시 설정 필드 오류')
             validate_kimodo_request({'action':'generate','prompt':current_example_value['prompt'],'frames':current_example_value['frames'],**current_settings_record})
         if 'reference_example' in current_example_value and current_example_value['reference_example'] not in load_proportion_examples():
@@ -152,7 +157,8 @@ def apply_complete_kimodo_example(current_example_identifier):
     current_settings_record=current_example_record.get('settings',{})
     current_reference_identifier=current_example_record.get('reference_example')
     current_reference_values=apply_proportion_example(current_reference_identifier) if current_reference_identifier else (False,[])
-    return (*apply_kimodo_example(current_example_identifier),*current_reference_values,*(current_settings_record.get(current_field_name,gr.skip()) for current_field_name in ('openpose_scale_percent','pose_include_hands','pose_include_face')),' '.join(map(str,current_settings_record.get('segment_frames',[]))),None,[])
+    current_keyframe_rows = [[current_item['id'],current_item['frame']] for current_item in current_settings_record.get('keyframes',[])]
+    return (*apply_kimodo_example(current_example_identifier),*current_reference_values,*(current_settings_record.get(current_field_name,gr.skip()) for current_field_name in ('openpose_scale_percent','pose_include_hands','pose_include_face')),' '.join(map(str,current_settings_record.get('segment_frames',[]))),None,current_keyframe_rows)
 
 
 def describe_kimodo_duration(current_frame_count):
@@ -206,6 +212,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
                 return f'모델 상태 확인 실패: {current_asset_error}',False
         current_refresh_event = current_refresh_button.click(refresh_kimodo_assets,outputs=[current_model_output,current_model_ready],queue=False)
         current_load_event = current_interface_blocks.load(refresh_kimodo_assets,outputs=[current_model_output,current_model_ready])
+        gr.Markdown('### 모션 설정')
         current_example_mapping = load_kimodo_examples()
         with gr.Row():
             current_example_selector = gr.Dropdown(choices=[(f"{current_example_record['label']} · 신체 비율 보정 {'켜짐' if current_example_record.get('reference_example') else '꺼짐'}",current_example_name) for current_example_name,current_example_record in current_example_mapping.items()],value='relaxed_shoulder_width_standing',label='동작 예시',info='예제를 불러오면 표시된 신체 비율 보정 상태와 저장된 설정을 적용합니다. 자동 생성하지 않습니다.')
@@ -219,6 +226,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         current_frame_control = gr.Number(label='프레임 수',value=KIMODO_DEFAULT_SETTINGS['frames'],minimum=30,maximum=300,precision=0,info='30fps: 90프레임=3초, 150프레임=5초, 300프레임=10초. 8GB의 모든 길이를 보장하지 않습니다.')
         current_duration_output = gr.Markdown(describe_kimodo_duration(KIMODO_DEFAULT_SETTINGS['frames']))
         current_frame_control.change(describe_kimodo_duration,current_frame_control,current_duration_output,queue=False)
+        current_segment_control = gr.Textbox(label='순차 생성 구간 프레임 · 선택',value='',info='예: 90 120 90. 프롬프트 3줄에 각각 적용하며 합계는 전체 프레임 수와 같아야 합니다. 비우면 단일 설명입니다. 공식 multi_prompt 순차 생성과 기본 5프레임 전환을 사용합니다. 구간마다 설정한 스텝을 실행합니다.')
         current_seed_control = build_generation_seed(default_seed_value=KIMODO_DEFAULT_SETTINGS['seed'])
         with gr.Accordion('고급 설정',open=False):
             current_steps_control = gr.Number(label='샘플링 스텝',value=KIMODO_DEFAULT_SETTINGS['steps'],minimum=2,maximum=100,precision=0,info='공식 기본 100. 2스텝은 실행 연결 확인용이며 품질 평가에 사용하지 마세요.')
@@ -226,56 +234,16 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
             current_heading_control = gr.State(value=KIMODO_DEFAULT_SETTINGS['heading_degrees'])
             current_postprocessing_control = gr.Checkbox(label='공식 발 미끄러짐 후처리',value=KIMODO_DEFAULT_SETTINGS['post_processing'],info='기본 해제: 원본 동작 비교. 활성화하면 공식 후처리를 적용하고 실행 기록에 남깁니다.')
             gr.Markdown('[공식 모델카드](https://huggingface.co/nvidia/Kimodo-SOMA-RP-v1.2) · [NF4 인코더](https://huggingface.co/matbee/kimodo-llm2vec-nf4)\n\nANNY 리그 기능은 폐기되었습니다. SOMA 몸 포즈에는 실제 눈 관절이 포함됩니다. 코·귀는 대응 관절이 없어 생략하며 손 상세 점은 없습니다.\n\nNF4는 커뮤니티 양자화본입니다. BF16과 동작이 달라질 수 있으며 실제 품질은 결과를 검수하세요. 내부 30관절 추론을 공식 API가 77관절로 확장해 저장합니다.')
-        from generators.kimodo.pose_library import load_soma_pose_catalog, KIMODO_POSE_LIBRARY_ROOT
-        current_pose_catalog = load_soma_pose_catalog()
-        with gr.Accordion('SOMA 기준 자세 목록 · 시작과 종료',open=True):
-            current_endpoint_selector = gr.Dropdown(choices=[(current_pose_record['label'],current_pose_identifier) for current_pose_identifier,current_pose_record in current_pose_catalog.items()],value=None,label='시작·종료에 같은 자세 적용',info='선택하면 공식 전신 키프레임 제약을 양 끝에 적용합니다. 미선택은 기존 자유 생성입니다.')
-            current_endpoint_preview = gr.Image(label='등록 SOMA 첫 프레임 · 전방 좌측',interactive=False,width=KIMODO_POSE_PREVIEW_WIDTH,height=KIMODO_POSE_PREVIEW_HEIGHT,buttons=[])
-            current_endpoint_description = gr.Markdown('미선택 · 좌표·회전 NPZ, 스켈레톤 YAML, 렌더 PNG·카메라 YAML을 한 세트로 관리합니다. 생성 이력 삭제와 별도로 보존합니다.')
-            def select_soma_endpoint_pose(current_pose_identifier):
-                if current_pose_identifier is None:
-                    return None,'미선택 · 기존 자유 생성입니다.',gr.skip(),gr.skip()
-                from PIL import Image
-                current_pose_record = load_soma_pose_catalog()[current_pose_identifier]
-                with Image.open(KIMODO_POSE_LIBRARY_ROOT/current_pose_identifier/'render-front-left.png') as current_preview_image:
-                    current_preview_copy = current_preview_image.copy()
-                return current_preview_copy,f"출처: {current_pose_record['source_job']} · {current_pose_record['frame_index']+1}프레임 · SOMA 77관절. 시작·종료에 동일한 3D 자세를 적용합니다. 공식 후처리를 켜고 초기 방향을 기준값으로 설정합니다. 참조 PNG와의 픽셀 일치를 보장하지 않습니다.",True,current_pose_record['heading_degrees']
-            current_endpoint_selector.change(select_soma_endpoint_pose,current_endpoint_selector,[current_endpoint_preview,current_endpoint_description,current_postprocessing_control,current_heading_control],queue=False)
-        current_horizontal_control = gr.Checkbox(label='제자리 보행 보정 · 수평 이동 제거',value=KIMODO_DEFAULT_SETTINGS['remove_horizontal_motion'],info='골반의 X·Z 이동을 제거하고 상하 움직임·관절 회전을 유지합니다. 걷기 자체를 만들지는 않으며 발 미끄러짐을 검수하세요. 원본 모션은 ZIP에 보존합니다.')
-        current_scale_control=gr.Slider(minimum=10,maximum=100,step=0.5,value=KIMODO_DEFAULT_SETTINGS['openpose_scale_percent'],label='OpenPose 출력 크기 (%)',info='기본 85%. DWPose 검출 좌표를 영상 중심 기준 0.85배로 축소합니다. SOMA 렌더의 여백과 별개이며 프레임마다 같은 배율을 사용합니다. SOMA 원본은 변경하지 않습니다.')
-        with gr.Accordion('OpenPose 신체 비율 참조 · 선택',open=False):
-            current_proportions_control=gr.Checkbox(value=False,label='참조 이미지의 신체 비율을 OpenPose 출력에 적용')
-            current_reference_control=gr.File(file_count='multiple',file_types=['.png'],label='같은 캐릭터 PNG 참조 · 최대 8장 · 장당 8MiB')
-            current_reference_control.upload(lambda current_reference_paths: bool(current_reference_paths),current_reference_control,current_proportions_control,queue=False)
-            current_proportion_status=gr.Markdown('신체 비율 보정: 미적용 · 참조 이미지를 첨부하면 적용을 켭니다.')
-            def describe_proportion_selection(current_enabled_value,current_reference_paths):
-                if current_reference_paths and not current_enabled_value:
-                    return '⚠ 참조가 있지만 적용이 꺼져 있습니다. 적용을 켜거나 참조를 제거해야 생성할 수 있습니다.'
-                if current_enabled_value and current_reference_paths:
-                    return f'신체 비율 보정: 적용 · 참조 {len(current_reference_paths)}장 · DWPose 출력 관절 길이에 반영'
-                return '신체 비율 보정: 참조 이미지가 필요합니다.' if current_enabled_value else '신체 비율 보정: 미적용'
-            for current_selection_control in (current_reference_control,current_proportions_control):
-                current_selection_control.change(describe_proportion_selection,[current_proportions_control,current_reference_control],current_proportion_status,queue=False)
-            current_proportion_examples=load_proportion_examples()
-            with gr.Row():
-                current_proportion_selector=gr.Dropdown(choices=[(current_example_record['label'],current_example_identifier) for current_example_identifier,current_example_record in current_proportion_examples.items()],label='신체 비율 참조 예제',value=None,info='불러오면 참조 목록을 교체하고 비율 적용을 켭니다. 생성은 실행하지 않습니다.')
-                current_proportion_button=gr.Button('참조 예제 불러오기')
-            current_proportion_button.click(apply_proportion_example,current_proportion_selector,[current_proportions_control,current_reference_control],queue=False)
-            build_input_preview(current_reference_control,'신체 비율 참조 미리보기 · 입력 순서')
-            gr.Markdown('투명 PNG는 흰 배경으로 합성해 추출합니다. 정면 전신이며 어깨·골반·팔꿈치·손목·무릎·발목이 보이는 이미지를 권장합니다. 시트의 모든 인물을 검출합니다. 관절 점수는 확률이 아닌 검출 점수이며, 0~1 범위로 제한하고 원시값은 결과에 보존합니다. 부위별 신뢰도와 과대 이상치를 검사한 뒤, 회전으로 짧아진 관측의 영향을 줄이도록 긴 쪽 관측군에서 몸통 대비 너비·팔다리 비율을 선택합니다. 측면·가림·원근은 추정 오차를 만들 수 있습니다. 유효한 부위 관측이 없으면 중단하고 안내합니다. 보정은 OpenPose에만 적용하며 SOMA 원본·동작 방향은 유지합니다. 참조 업로드 시 적용을 켭니다. 참조가 있는데 적용을 끄면 생성을 차단하므로, 보정 없이 생성하려면 참조도 제거하세요.')
-        with gr.Row():
-            current_hands_control = gr.Checkbox(value=False,label='DWPose 손 상세 포함',info='현재 시험에서는 주먹을 쥔 손가락 자세가 표현되지 않았습니다. 손 상세 포함은 DWPose 검출 결과를 표시하는 옵션이며 주먹 자세를 보장하지 않습니다.')
-            current_face_control = gr.Checkbox(value=False,label='DWPose 얼굴 상세 포함')
-        gr.Markdown('SOMA 렌더 → VideoX-Fun DWPose → 선택 참조 관절 길이 보정 → 832×480 · 16fps 포즈 MP4. 몸 18점의 코·눈·귀는 유지합니다. 보정은 3D SOMA 길이 기준 고정 배율이며 2D 투영 단축을 유지합니다.')
-        current_segment_control = gr.Textbox(label='순차 생성 구간 프레임 · 선택',value='',info='예: 90 120 90. 프롬프트 3줄에 각각 적용하며 합계는 전체 프레임 수와 같아야 합니다. 비우면 단일 설명입니다. 공식 multi_prompt 순차 생성과 기본 5프레임 전환을 사용합니다. 구간마다 설정한 스텝을 실행합니다.')
+        current_endpoint_selector = gr.State(None)
         with gr.Accordion('저장한 키프레임 배치 · 선택',open=False):
-            gr.Markdown('저장 목록을 새로고침하고 키프레임과 출력 프레임 번호를 골라 추가하세요. 1은 시작, 전체 프레임 수는 종료입니다. 공식 발 미끄러짐 후처리를 켜고 수평 이동 제거를 꺼야 하며 같은 출력 번호는 한 번만 지정합니다. 양 끝 기준 자세와 함께 사용할 수 없습니다.')
+            gr.Markdown('저장 목록을 새로고침하고 키프레임과 출력 프레임 번호를 골라 추가하세요. 1은 시작, 전체 프레임 수는 종료입니다. 공식 발 미끄러짐 후처리를 켜고 수평 이동 제거를 꺼야 하며 같은 출력 번호는 한 번만 지정합니다.')
             current_keyframe_selector = gr.Dropdown(choices=[],label='저장한 키프레임')
-            current_keyframe_saved_preview = gr.Image(label='저장한 원본 관절 프레임',interactive=False,buttons=[])
+            current_keyframe_saved_preview = gr.Image(label='저장한 자세 미리보기',interactive=False,buttons=[])
             current_keyframe_refresh = gr.Button('저장 목록 새로고침')
             current_keyframe_target = gr.Number(label='배치할 출력 프레임 번호 · 1부터 시작',value=1,minimum=1,precision=0)
             with gr.Row():
                 current_keyframe_add = gr.Button('배치 추가')
+                current_keyframe_add_endpoints = gr.Button('선택 자세를 시작·종료에 배치')
                 current_keyframe_remove = gr.Button('입력한 프레임 배치 삭제')
                 current_keyframe_clear = gr.Button('배치 모두 지우기')
             current_keyframe_rows = gr.State([])
@@ -291,9 +259,37 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
                 with gr.Row():
                     current_replace_confirm = gr.Button('교체 확인',interactive=False)
                     current_replace_cancel = gr.Button('취소',interactive=False)
+            with gr.Accordion('사용자 키프레임 폐기',open=False):
+                gr.Markdown('선택한 사용자 키프레임을 목록에서 제외하고 별도 보관합니다. 생성 작업의 입력 사본과 제작 기준 예제는 유지됩니다. 아래는 인라인 확인 영역입니다.')
+                current_retire_selector=gr.Dropdown(choices=[],multiselect=True,label='폐기할 사용자 키프레임')
+                current_retire_prepare=gr.Button('폐기 내용 확인',interactive=False)
+                current_retire_state=gr.State(None)
+                current_retire_message=gr.Markdown('저장 목록을 새로고침하고 폐기할 항목을 선택하세요.')
+                with gr.Row():
+                    current_retire_confirm=gr.Button('폐기 확인',interactive=False)
+                    current_retire_cancel=gr.Button('폐기 취소',interactive=False)
+            def refresh_retire_choices():
+                from tools.review.domains.kimodo.keyframe_storage import KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS
+                current_records=current_execute_command('keyframe-list',{})['records']
+                current_choices=[(f"{current_record['tag']} · {current_record['source_job']} · {current_record['source_frame']}프레임 · {current_record['id'][:8]}",current_record['id']) for current_record in current_records if current_record['id'] not in KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS]
+                return gr.update(choices=current_choices,value=[])
+            def prepare_keyframe_retirement(current_identifiers):
+                if not current_identifiers:
+                    raise gr.Error('폐기할 사용자 키프레임을 선택하세요.')
+                return list(current_identifiers),'다음 항목을 목록에서 제외하고 보관합니다: '+', '.join(current_identifiers),gr.update(interactive=True),gr.update(interactive=True)
+            def confirm_keyframe_retirement(current_pending_identifiers,current_selected_identifiers):
+                if not current_pending_identifiers or current_pending_identifiers!=current_selected_identifiers:
+                    raise gr.Error('선택이 변경되었습니다. 폐기 내용을 다시 확인하세요.')
+                current_response=current_execute_command('keyframe-retire',{'ids':current_pending_identifiers})
+                return None,f"{current_response['retired_count']}개 폐기 완료. 저장 목록을 새로고침하세요.",gr.update(interactive=False),gr.update(interactive=False)
+            current_keyframe_refresh.click(refresh_retire_choices,None,current_retire_selector,queue=False)
+            current_retire_selector.change(lambda current_identifiers:(gr.update(interactive=bool(current_identifiers)),None,'항목을 선택한 뒤 폐기 내용을 확인하세요.',gr.update(interactive=False),gr.update(interactive=False)),current_retire_selector,[current_retire_prepare,current_retire_state,current_retire_message,current_retire_confirm,current_retire_cancel],queue=False)
+            current_retire_prepare.click(prepare_keyframe_retirement,current_retire_selector,[current_retire_state,current_retire_message,current_retire_confirm,current_retire_cancel])
+            current_retire_confirm.click(confirm_keyframe_retirement,[current_retire_state,current_retire_selector],[current_retire_state,current_retire_message,current_retire_confirm,current_retire_cancel])
+            current_retire_cancel.click(lambda:(None,'폐기를 취소했습니다.',gr.update(interactive=False),gr.update(interactive=False)),None,[current_retire_state,current_retire_message,current_retire_confirm,current_retire_cancel])
             def refresh_replace_choices():
                 current_records = current_execute_command('keyframe-list',{})['records']
-                current_choices = [(f"{current_record['tag']} · {current_record['source_job']} · {current_record['source_frame']}프레임",current_record['id']) for current_record in current_records]
+                current_choices = [(f"{current_record['tag']} · {current_record['source_job']} · {current_record['source_frame']}프레임 · {current_record['id'][:8]}",current_record['id']) for current_record in current_records]
                 return gr.update(choices=current_choices,value=None),gr.update(choices=current_choices,value=None)
             def prepare_keyframe_replacement(current_old_identifier,current_new_identifier):
                 if not current_old_identifier or not current_new_identifier or current_old_identifier == current_new_identifier:
@@ -310,7 +306,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
             current_replace_cancel.click(lambda:(None,'교체를 취소했습니다.',gr.update(interactive=False),gr.update(interactive=False)),None,[current_replace_state,current_replace_message,current_replace_confirm,current_replace_cancel])
             def refresh_keyframe_choices():
                 current_records = current_execute_command('keyframe-list',{})['records']
-                return gr.update(choices=[(f"{current_record['tag']} · {current_record['source_job']} · {current_record['source_frame']}프레임",current_record['id']) for current_record in current_records],value=None)
+                return gr.update(choices=[(f"{current_record['tag']} · {current_record['source_job']} · {current_record['source_frame']}프레임 · {current_record['id'][:8]}",current_record['id']) for current_record in current_records],value=None)
             def preview_saved_keyframe(current_identifier):
                 if not current_identifier:
                     return None
@@ -334,6 +330,18 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
             current_keyframe_refresh.click(refresh_keyframe_choices,None,current_keyframe_selector,queue=False)
             current_keyframe_selector.change(preview_saved_keyframe,current_keyframe_selector,current_keyframe_saved_preview,queue=False)
             current_keyframe_add.click(append_keyframe_placement,[current_keyframe_rows,current_keyframe_selector,current_keyframe_target,current_frame_control,current_segment_control,current_endpoint_selector],[current_keyframe_rows,current_keyframe_display,current_keyframe_notice,current_postprocessing_control])
+            def append_keyframe_endpoints(current_rows,current_identifier,current_total_frames):
+                if not current_identifier or type(current_total_frames) not in (int,float) or not float(current_total_frames).is_integer() or current_total_frames < 30:
+                    raise gr.Error('키프레임을 선택하고 전체 프레임 수를 30 이상의 정수로 입력하세요.')
+                from tools.review.domains.kimodo.keyframe_storage import validate_kimodo_keyframe_placements
+                current_proposed_rows=[*current_rows,[current_identifier,1],[current_identifier,int(current_total_frames)]]
+                try:
+                    current_placements=validate_kimodo_keyframe_placements([{'id':current_row[0],'frame':current_row[1]} for current_row in current_proposed_rows],int(current_total_frames))
+                except ValueError as current_placement_error:
+                    raise gr.Error(f'시작·종료 배치 실패: {current_placement_error}') from current_placement_error
+                current_result_rows=[[current_item['id'],current_item['frame']] for current_item in current_placements]
+                return current_result_rows,current_result_rows,f'{len(current_result_rows)}개 키프레임 배치됨 · 공식 후처리 켜짐',True
+            current_keyframe_add_endpoints.click(append_keyframe_endpoints,[current_keyframe_rows,current_keyframe_selector,current_frame_control],[current_keyframe_rows,current_keyframe_display,current_keyframe_notice,current_postprocessing_control])
             def remove_keyframe_placement(current_rows,current_target_number):
                 if type(current_target_number) not in (int,float) or not float(current_target_number).is_integer():
                     raise gr.Error('삭제할 출력 프레임 번호를 입력하세요.')
@@ -344,13 +352,40 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
             current_keyframe_remove.click(remove_keyframe_placement,[current_keyframe_rows,current_keyframe_target],[current_keyframe_rows,current_keyframe_display,current_keyframe_notice])
             current_keyframe_clear.click(lambda:([],[],'배치 없음'),None,[current_keyframe_rows,current_keyframe_display,current_keyframe_notice])
             current_keyframe_rows.change(lambda current_rows:current_rows,current_keyframe_rows,current_keyframe_display,queue=False)
+        gr.Markdown('### 출력 설정')
+        current_horizontal_control = gr.Checkbox(label='제자리 보행 보정 · 수평 이동 제거',value=KIMODO_DEFAULT_SETTINGS['remove_horizontal_motion'],info='골반의 X·Z 이동을 제거하고 상하 움직임·관절 회전을 유지합니다. 걷기 자체를 만들지는 않으며 발 미끄러짐을 검수하세요. 원본 모션은 ZIP에 보존합니다.')
+        current_scale_control=gr.Slider(minimum=10,maximum=100,step=0.5,value=KIMODO_DEFAULT_SETTINGS['openpose_scale_percent'],label='OpenPose 출력 크기 (%)',info='기본 85%. DWPose 검출 좌표를 영상 중심 기준 0.85배로 축소합니다. SOMA 렌더의 여백과 별개이며 프레임마다 같은 배율을 사용합니다. SOMA 원본은 변경하지 않습니다.')
+        with gr.Accordion('OpenPose 신체 비율 참조 · 선택',open=False):
+            current_proportions_control=gr.Checkbox(value=False,label='참조 이미지의 신체 비율을 OpenPose 출력에 적용')
+            current_reference_control=gr.File(file_count='multiple',file_types=['.png'],label='같은 캐릭터 PNG 참조 · 최대 8장 · 장당 8MiB')
+            current_reference_control.upload(lambda current_reference_paths: bool(current_reference_paths),current_reference_control,current_proportions_control,queue=False)
+            current_proportion_status=gr.Markdown('신체 비율 보정: 미적용 · 참조 이미지를 첨부하면 적용을 켭니다.')
+            def describe_proportion_selection(current_enabled_value,current_reference_paths):
+                if current_reference_paths and not current_enabled_value:
+                    return '⚠ 참조가 있지만 적용이 꺼져 있습니다. 적용을 켜거나 참조를 제거해야 생성할 수 있습니다.'
+                if current_enabled_value and current_reference_paths:
+                    return f'신체 비율 보정: 적용 · 참조 {len(current_reference_paths)}장 · DWPose 출력 관절 길이에 반영'
+                return '신체 비율 보정: 참조 이미지가 필요합니다.' if current_enabled_value else '신체 비율 보정: 미적용'
+            for current_selection_control in (current_reference_control,current_proportions_control):
+                current_selection_control.change(describe_proportion_selection,[current_proportions_control,current_reference_control],current_proportion_status,queue=False)
+            current_proportion_examples=load_proportion_examples()
+            with gr.Row():
+                current_proportion_selector=gr.Dropdown(choices=[(current_example_record['label'],current_example_identifier) for current_example_identifier,current_example_record in current_proportion_examples.items()],label='신체 비율 참조 예제',value=None,info='불러오면 참조 목록을 교체하고 비율 적용을 켭니다. 생성은 실행하지 않습니다.')
+                current_proportion_button=gr.Button('참조 예제 불러오기')
+            current_proportion_button.click(apply_proportion_example,current_proportion_selector,[current_proportions_control,current_reference_control],queue=False)
+            build_input_preview(current_reference_control,'신체 비율 참조 미리보기 · 입력 순서')
+            gr.Markdown('투명 PNG는 흰 배경으로 합성해 추출합니다. 얼굴·어깨·골반·팔꿈치·손목·무릎·발목이 보이는 정면 전신 이미지를 권장합니다. 시트의 모든 인물을 검출합니다. 관절 점수는 확률이 아닌 검출 점수이며 원시값을 보존합니다. 몸통 대비 너비·팔다리 비율과 코·어깨·골반의 거리 관계로 어깨선을 보정합니다. 코는 목뼈 위치가 아닌 대리 지표이며 측면·고개 방향·가림·원근에 따라 차이가 생길 수 있습니다. 유효한 부위·얼굴 관측이 없으면 중단하고 안내합니다. 보정은 OpenPose에만 적용하며 SOMA 원본·동작 방향은 유지합니다. 참조가 있는데 적용을 끄면 생성을 차단하므로, 보정 없이 생성하려면 참조도 제거하세요.')
+        with gr.Row():
+            current_hands_control = gr.Checkbox(value=False,label='DWPose 손 상세 포함',info='현재 시험에서는 주먹을 쥔 손가락 자세가 표현되지 않았습니다. 손 상세 포함은 DWPose 검출 결과를 표시하는 옵션이며 주먹 자세를 보장하지 않습니다.')
+            current_face_control = gr.Checkbox(value=False,label='DWPose 얼굴 상세 포함')
+        gr.Markdown('SOMA 렌더 → VideoX-Fun DWPose → 선택 참조 관절 길이 보정 → 832×480 · 16fps 포즈 MP4. 몸 18점의 코·눈·귀는 유지합니다. 보정은 3D SOMA 길이 기준 고정 배율이며 2D 투영 단축을 유지합니다.')
         current_prompt_control.change(describe_kimodo_prompt,[current_prompt_control,current_segment_control],current_prompt_summary,queue=False)
         current_segment_control.change(describe_kimodo_prompt,[current_prompt_control,current_segment_control],current_prompt_summary,queue=False)
         current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control,current_horizontal_control,current_proportions_control,current_reference_control,current_scale_control,current_hands_control,current_face_control,current_segment_control,current_endpoint_selector,current_keyframe_rows]
         current_example_button.click(apply_complete_kimodo_example,current_example_selector,current_input_controls,queue=False)
         gr.Markdown('예시는 시작점입니다. 생성된 동작의 자세와 움직임을 검수하세요.')
         current_generate_button = gr.Button('대기열에 추가',variant='primary',interactive=False)
-        build_button_guidance(current_generate_button,'모델 자료와 전용 환경을 준비한 뒤 상태를 새로 확인하고 동작 프롬프트와 출력 방향을 한 개 이상 선택하세요. 신체 비율 참조 옵션을 켰다면 RGB PNG 이미지를 첨부하세요. 키프레임을 배치했다면 공식 후처리를 켜고 수평 이동 제거·양 끝 기준 자세를 해제하세요.')
+        build_button_guidance(current_generate_button,'모델 자료와 전용 환경을 준비한 뒤 상태를 새로 확인하고 동작 프롬프트와 출력 방향을 한 개 이상 선택하세요. 신체 비율 참조 옵션을 켰다면 RGB PNG 이미지를 첨부하세요. 키프레임을 배치했다면 공식 후처리를 켜고 수평 이동 제거를 해제하세요.')
         with gr.Column() as current_confirmation_container:
             pass
         gr.Markdown('### 진행 상태 · 최신 결과\n접수한 작업의 진행률·예상 시간·VRAM과 완료 영상을 표시합니다. 이전 작업은 아래 생성 이력에서 조회하세요.')

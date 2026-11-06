@@ -1,0 +1,14 @@
+{
+  "id": "b0000000000000000000000000000002",
+  "tag": "복싱 왼손 잽 뻗기 시드1007",
+  "source_job": "2026-11-06_17-44-51-6f05bd2a",
+  "source_attempt": "c63b8ac442654da9a53fec1ee1e4eda0",
+  "source_frame": 13,
+  "source_fps": 30,
+  "source_motion": "motion.npz",
+  "files": {
+    "motion.npz": "d2accccb80ff86905c5410dee1fe58e470b1f1de08efe37b8887c71a24d5615f",
+    "skeleton.json": "d6bfde21c98d7bba875c38655946090a6c66083ec4e1b8d8d7cd6957285dd788",
+    "preview.png": "609334742f32205b69e988aefcc987b9d7ba5b7b3475f27a46f729b6bbf2bb5d"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id": "b0000000000000000000000000000004",
+  "tag": "편안한 서기 · 어깨너비 · v1",
+  "source_job": "2026-11-05_09-55-32-426ebb2f",
+  "source_attempt": "155d040aecba49c3929480cd2809c3fd",
+  "source_frame": 1,
+  "source_fps": 30,
+  "source_motion": "motion.npz",
+  "files": {
+    "motion.npz": "8e4e12dfd88df2eec753647d6e3be050219dc4122854046929eab3f88577fd57",
+    "skeleton.json": "d29e1ab8662d2d0ac93a5500d682fd609ddf126246029fe500f21cccab1e8bc2",
+    "preview.png": "c772da780f32cb5342c0b6b750145e3951171185c576cc8407500b25bb81d2de"
+  }
+}

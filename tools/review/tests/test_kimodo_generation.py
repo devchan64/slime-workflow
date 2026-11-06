@@ -299,7 +299,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
     def test_examples_update_only_prompt_and_frames(self):
         from tools.review.ui.gradio.kimodo_app import apply_kimodo_example,describe_kimodo_duration,load_kimodo_examples
         current_example_records=load_kimodo_examples()
-        self.assertEqual(set(current_example_records),{'male_runway_in_place','relaxed_shoulder_width_standing','male_floor_rest_cycle'})
+        self.assertEqual(set(current_example_records),{'male_runway_in_place','relaxed_shoulder_width_standing','male_floor_rest_cycle','boxing_jab_straight_combination'})
         from tools.review.ui.gradio.kimodo_app import build_kimodo_payload
         current_standing_payload = build_kimodo_payload(*apply_kimodo_example('relaxed_shoulder_width_standing'))
         self.assertEqual(current_standing_payload['frames'],180)
@@ -311,6 +311,18 @@ class KimodoGenerationContractTests(unittest.TestCase):
         self.assertTrue(current_example_payload['remove_horizontal_motion'])
         self.assertEqual(current_example_payload['steps'],100)
         self.assertEqual(current_example_payload['heading_degrees'],0.0)
+        from tools.review.ui.gradio.kimodo_app import apply_complete_kimodo_example
+        from tools.review.domains.kimodo.keyframe_storage import snapshot_kimodo_keyframes, KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS
+        current_combination_values = apply_complete_kimodo_example('boxing_jab_straight_combination')
+        current_combination_request = build_kimodo_payload(*current_combination_values)
+        self.assertFalse(current_combination_request['pose_include_hands'])
+        self.assertEqual(current_combination_request['seed'],404)
+        self.assertEqual(current_combination_request['directions'],['front','front_left','left'])
+        self.assertEqual([current_item['frame'] for current_item in current_combination_request['keyframes']],[1,15,22,50])
+        self.assertEqual({current_item['id'] for current_item in current_combination_request['keyframes']},KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS-{'b0000000000000000000000000000004'})
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            current_snapshot_records = snapshot_kimodo_keyframes(Path(current_temp_directory),current_combination_request['keyframes'],current_keyframe_storage=Path(current_temp_directory)/'empty-user-store')
+            self.assertEqual(len(current_snapshot_records),4)
         self.assertIn('6초',describe_kimodo_duration(180))
         self.assertIn('정수',describe_kimodo_duration(30.5))
         self.assertIn('정수',describe_kimodo_duration(None))
@@ -406,7 +418,16 @@ class KimodoPoseLibraryTests(unittest.TestCase):
         self.assertEqual(current_constraint_record['root_positions'][0],current_constraint_record['root_positions'][1])
         current_request_record={current_field_name:current_field_value for current_field_name,current_field_value in KIMODO_DEFAULT_SETTINGS.items() if current_field_name!='schema_version'}
         current_request_record.update(action='generate',endpoint_pose_id=current_pose_record['id'],post_processing=True,heading_degrees=0)
-        self.assertEqual(build_kimodo_payload(*restore_kimodo_inputs({'id':'test','request':current_request_record})[:-1]),current_request_record)
+        current_migrated_request=build_kimodo_payload(*restore_kimodo_inputs({'id':'test','request':current_request_record})[:-1])
+        self.assertNotIn('endpoint_pose_id',current_migrated_request)
+        self.assertEqual(current_migrated_request['keyframes'],[{'id':'b0000000000000000000000000000004','frame':1},{'id':'b0000000000000000000000000000004','frame':current_request_record['frames']}])
+        self.assertEqual(validate_kimodo_request(current_request_record)['keyframes'],current_migrated_request['keyframes'])
+        from tools.review.domains.kimodo.keyframe_storage import snapshot_kimodo_keyframes,build_kimodo_keyframe_constraints
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            current_job_root=Path(current_temp_directory)
+            current_snapshots=snapshot_kimodo_keyframes(current_job_root,current_migrated_request['keyframes'])
+            current_new_constraints=build_kimodo_keyframe_constraints(current_job_root,{**current_migrated_request,'keyframe_snapshots':current_snapshots})[0]
+            self.assertEqual(current_new_constraints,build_soma_endpoint_records(current_pose_record['id'],current_request_record['frames'])[0])
         for current_patch_record in ({'endpoint_pose_id':'../bad'},{'endpoint_pose_id':42},{'post_processing':False},{'heading_degrees':45}):
             with self.assertRaises(ValueError):validate_kimodo_request({**current_request_record,**current_patch_record})
         self.assertEqual(apply_complete_kimodo_example(next(iter(load_kimodo_examples())))[-2:],(None,[]))

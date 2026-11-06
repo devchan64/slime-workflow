@@ -85,6 +85,10 @@ def validate_kimodo_request(current_request_record):
         current_pose_record,_ = load_soma_pose_arrays(current_pose_identifier)
         if not current_request_record['post_processing'] or current_request_record['heading_degrees'] != current_pose_record['heading_degrees']:
             raise ValueError('SOMA 양 끝 자세 적용은 공식 후처리와 기준 자세의 초기 방향이 필요합니다.')
+        if current_request_record.get('keyframes') is not None:
+            raise ValueError('이전 양 끝 자세와 키프레임을 함께 지정할 수 없습니다.')
+        current_request_record={**current_request_record,'keyframes':[{'id':'b0000000000000000000000000000004','frame':1},{'id':'b0000000000000000000000000000004','frame':current_request_record['frames']}]}
+        current_request_record.pop('endpoint_pose_id')
     if current_request_record['action'] != 'generate':
         raise ValueError('generate 명령만 지원합니다.')
     current_prompt_text = current_request_record['prompt']

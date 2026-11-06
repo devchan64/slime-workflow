@@ -6,8 +6,8 @@ from generators.kimodo.reference_proportions import estimate_reference_proportio
 
 def create_test_reference_points():
     current_pose_points=np.zeros((18,3),dtype=float)
-    current_pose_points[1:16,2]=.95
-    for current_joint_index,current_joint_xy in {1:(200,100),2:(170,100),5:(230,100),3:(155,150),6:(245,150),4:(140,195),7:(260,195),8:(180,200),11:(220,200),9:(180,270),12:(220,270),10:(180,340),13:(220,340),14:(195,70),15:(205,70)}.items():
+    current_pose_points[:16,2]=.95
+    for current_joint_index,current_joint_xy in {0:(200,70),1:(200,100),2:(170,100),5:(230,100),3:(155,150),6:(245,150),4:(140,195),7:(260,195),8:(180,200),11:(220,200),9:(180,270),12:(220,270),10:(180,340),13:(220,340),14:(195,70),15:(205,70)}.items():
         current_pose_points[current_joint_index,:2]=current_joint_xy
     return current_pose_points
 
@@ -75,3 +75,35 @@ class KimodoReferenceProportionTests(unittest.TestCase):
         np.testing.assert_allclose(current_adjusted_positions[:,[8,11]].mean(1),current_body_positions[:,[8,11]].mean(1))
         np.testing.assert_allclose(current_adjusted_positions[:,4]-current_adjusted_positions[:,3],1.3*(current_body_positions[:,4]-current_body_positions[:,3]))
         np.testing.assert_allclose(current_adjusted_positions[1,1:16]-current_adjusted_positions[0,1:16],np.tile([100,0,0],(15,1)))
+
+    def test_head_torso_alignment_changes_shoulders_not_head_or_hip(self):
+        current_reference_points=create_test_reference_points()
+        current_reference_points[0,1]=40
+        current_ratio_record=estimate_reference_proportions([current_reference_points])
+        current_source_points=create_test_reference_points()
+        current_source_positions=np.zeros((1,18,3))
+        current_source_positions[0,:,:2]=current_source_points[:,:2]
+        current_adjusted_positions=apply_reference_proportions(current_source_positions,current_ratio_record)
+        current_shoulder_center=current_adjusted_positions[0,[2,5],:2].mean(0)
+        current_hip_center=current_adjusted_positions[0,[8,11],:2].mean(0)
+        self.assertAlmostEqual(current_shoulder_center[1],118.75)
+        self.assertAlmostEqual(np.linalg.norm(current_adjusted_positions[0,0,:2]-current_shoulder_center)/np.linalg.norm(current_shoulder_center-current_hip_center),.6)
+        np.testing.assert_allclose(current_adjusted_positions[0,0],current_source_positions[0,0])
+        np.testing.assert_allclose(current_hip_center,current_source_positions[0,[8,11],:2].mean(0))
+
+    def test_missing_face_reference_rejected(self):
+        current_pose_points=create_test_reference_points()
+        current_pose_points[0,2]=0
+        with self.assertRaisesRegex(ValueError,'얼굴'):
+            estimate_reference_proportions([current_pose_points])
+
+    def test_legacy_reference_keeps_torso_axis_unchanged(self):
+        current_pose_points=create_test_reference_points()
+        current_ratio_record=estimate_reference_proportions([current_pose_points])
+        current_ratio_record['schema']='body18-reference-ratios-v2'
+        del current_ratio_record['body_axis']
+        current_positions=np.zeros((1,18,3))
+        current_positions[0,:,:2]=current_pose_points[:,:2]
+        current_adjusted=apply_reference_proportions(current_positions,current_ratio_record)
+        np.testing.assert_allclose(current_adjusted[:,1],current_positions[:,1])
+        np.testing.assert_allclose(current_adjusted[:,[2,5]].mean(1),current_positions[:,[2,5]].mean(1))

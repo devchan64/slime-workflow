@@ -1,0 +1,14 @@
+{
+  "id": "b0000000000000000000000000000001",
+  "tag": "복싱 기본자세",
+  "source_job": "2026-11-06_16-33-15-c5812eb1",
+  "source_attempt": "9b02a4b556fb4ddd84872152b213c4c1",
+  "source_frame": 121,
+  "source_fps": 30,
+  "source_motion": "motion.npz",
+  "files": {
+    "motion.npz": "777f589a71d03f84d7b207542fa51aab0f7dae86a6f399f17949c6252f8f42b0",
+    "skeleton.json": "d6bfde21c98d7bba875c38655946090a6c66083ec4e1b8d8d7cd6957285dd788",
+    "preview.png": "1fb44ddc6e685c073d2c2bcf12f285ca1b7d731264349eb0a23f8cc6d0335cb0"
+  }
+}

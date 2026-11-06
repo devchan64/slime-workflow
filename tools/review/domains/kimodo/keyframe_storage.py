@@ -17,14 +17,54 @@ KIMODO_ATTEMPT_IDENTIFIER_PATTERN = re.compile(r'[a-f0-9]{32}')
 KIMODO_FRAME_ARRAY_SHAPES = {'local_rot_mats': (77, 3, 3), 'global_rot_mats': (77, 3, 3), 'posed_joints': (77, 3), 'root_positions': (3,), 'smooth_root_pos': (3,), 'global_root_heading': (2,), 'foot_contacts': (6,), 'posed_joints_norootpos': (30, 3)}
 KIMODO_KEYFRAME_IDENTIFIER_PATTERN = re.compile(r'[a-f0-9]{32}')
 KIMODO_KEYFRAME_LIMIT = 20
+KIMODO_EXAMPLE_KEYFRAME_STORAGE = KIMODO_WORKSPACE_ROOT / 'generators/kimodo/keyframe-examples'
+KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS = frozenset({'b0000000000000000000000000000001','b0000000000000000000000000000002','b0000000000000000000000000000003','b0000000000000000000000000000004'})
+
+
+def resolve_kimodo_keyframe_storage(current_keyframe_storage, current_keyframe_identifier):
+    """추적 중인 예제 키프레임과 사용자 키프레임의 소유 저장소를 구분한다."""
+    return KIMODO_EXAMPLE_KEYFRAME_STORAGE if current_keyframe_identifier in KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS else current_keyframe_storage
+
+
+def retire_kimodo_keyframe_records(current_keyframe_storage, current_keyframe_identifiers):
+    """사용자 키프레임을 검증 후 목록에서 제외하고 독립 보관한다."""
+    if not isinstance(current_keyframe_identifiers,list) or not 1<=len(current_keyframe_identifiers)<=KIMODO_KEYFRAME_LIMIT or any(not isinstance(current_identifier,str) or not KIMODO_KEYFRAME_IDENTIFIER_PATTERN.fullmatch(current_identifier) for current_identifier in current_keyframe_identifiers) or len(set(current_keyframe_identifiers))!=len(current_keyframe_identifiers):
+        raise ValueError('폐기할 키프레임 ID는 중복 없이 1~20개가 필요합니다.')
+    if any(current_identifier in KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS for current_identifier in current_keyframe_identifiers):
+        raise ValueError('제작 기준 예제 키프레임은 폐기할 수 없습니다.')
+    current_records=[load_kimodo_keyframe_snapshot(current_keyframe_storage,current_identifier)[0] for current_identifier in current_keyframe_identifiers]
+    current_archive_root=current_keyframe_storage/'.retired'
+    if current_archive_root.is_symlink():
+        raise ValueError('폐기 보관 경로가 심볼릭 링크입니다.')
+    current_archive_root.mkdir(exist_ok=True)
+    for current_identifier in current_keyframe_identifiers:
+        current_archive_path=current_archive_root/current_identifier
+        if current_archive_path.exists() or current_archive_path.is_symlink():
+            raise ValueError(f'이미 폐기 보관된 키프레임 ID: {current_identifier}')
+    current_moved_identifiers=[]
+    try:
+        for current_identifier in current_keyframe_identifiers:
+            (current_keyframe_storage/current_identifier).rename(current_archive_root/current_identifier)
+            current_moved_identifiers.append(current_identifier)
+    except OSError as current_move_error:
+        current_rollback_errors=[]
+        for current_identifier in reversed(current_moved_identifiers):
+            try:
+                (current_archive_root/current_identifier).rename(current_keyframe_storage/current_identifier)
+            except OSError as current_rollback_error:
+                current_rollback_errors.append(f'{current_identifier}: {current_rollback_error}')
+        raise OSError(f'키프레임 폐기 실패: {current_move_error}; 복구 실패: {current_rollback_errors or "없음"}') from current_move_error
+    return {'retired_count':len(current_records),'records':current_records}
 
 
 def replace_kimodo_keyframe_record(current_keyframe_storage, current_old_identifier, current_new_identifier):
     """새 항목을 검증한 뒤 이전 항목을 목록에서 제외하고 보존한다."""
     if current_old_identifier == current_new_identifier:
         raise ValueError('교체 전후 키프레임은 서로 달라야 합니다.')
+    if current_old_identifier in KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS:
+        raise ValueError('제작 기준 예제 키프레임은 교체할 수 없습니다.')
     current_old_record, _, _ = load_kimodo_keyframe_snapshot(current_keyframe_storage, current_old_identifier)
-    current_new_record, _, _ = load_kimodo_keyframe_snapshot(current_keyframe_storage, current_new_identifier)
+    current_new_record, _, _ = load_kimodo_keyframe_snapshot(resolve_kimodo_keyframe_storage(current_keyframe_storage,current_new_identifier), current_new_identifier)
     current_archive_root = current_keyframe_storage / '.replaced'
     if current_archive_root.is_symlink():
         raise ValueError('교체 이력 경로가 심볼릭 링크입니다.')
@@ -96,12 +136,13 @@ def snapshot_kimodo_keyframes(current_job_root, current_keyframe_placements, *, 
     current_snapshot_records = []
     for current_placement_record in current_keyframe_placements:
         current_keyframe_identifier = current_placement_record['id']
-        current_record_value, _, _ = load_kimodo_keyframe_snapshot(current_keyframe_storage, current_keyframe_identifier)
+        current_source_storage = resolve_kimodo_keyframe_storage(current_keyframe_storage,current_keyframe_identifier)
+        current_record_value, _, _ = load_kimodo_keyframe_snapshot(current_source_storage, current_keyframe_identifier)
         current_target_root = current_snapshot_root / current_keyframe_identifier
         if not current_target_root.exists():
             current_target_root.mkdir()
             for current_file_name in ('record.json','motion.npz','skeleton.json','preview.png'):
-                shutil.copyfile(current_keyframe_storage/current_keyframe_identifier/current_file_name, current_target_root/current_file_name)
+                shutil.copyfile(current_source_storage/current_keyframe_identifier/current_file_name, current_target_root/current_file_name)
             load_kimodo_keyframe_snapshot(current_snapshot_root, current_keyframe_identifier)
         current_snapshot_records.append({'id':current_keyframe_identifier,'frame':current_placement_record['frame'],'source':current_record_value})
     return current_snapshot_records

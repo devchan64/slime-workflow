@@ -97,6 +97,20 @@ class KimodoKeyframeHttpTests(unittest.TestCase):
                     self.assertEqual(current_saved_request['keyframes'],current_generation_record['keyframes'])
                     self.assertEqual(len(current_saved_request['keyframe_snapshots']),2)
                     self.assertTrue((current_new_job_root/'keyframes'/current_saved_record['id']/'motion.npz').is_file())
+                    current_second_record=execute_management_command('kimodo','keyframe-save',{'job_id':current_job_identifier,'attempt_id':current_attempt_identifier,'frame':3,'tag':'추가'},current_server_address)
+                    with self.assertRaisesRegex(ValueError,'관리 API 오류 \\(400\\)'):
+                        execute_management_command('kimodo','keyframe-retire',{'ids':[current_saved_record['id'],'invalid']},current_server_address)
+                    self.assertTrue((current_service_manager.keyframe_storage_root/current_saved_record['id']).is_dir())
+                    current_retire_path=current_temp_root/'retire.json'
+                    current_retire_path.write_text(json.dumps({'ids':[current_saved_record['id'],current_second_record['id']]}))
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        self.assertEqual(execute_gateway_arguments('kimodo',['--server-url',current_server_address,'keyframe-retire','--payload-file',str(current_retire_path)]),0)
+                    self.assertEqual(execute_management_command('kimodo','keyframe-list',{},current_server_address)['records'],[])
+                    self.assertTrue((current_service_manager.keyframe_storage_root/'.retired'/current_saved_record['id']/'motion.npz').is_file())
+                    self.assertTrue((current_service_manager.keyframe_storage_root/'.retired'/current_second_record['id']/'motion.npz').is_file())
+                    self.assertTrue((current_new_job_root/'keyframes'/current_saved_record['id']/'motion.npz').is_file())
+                    with self.assertRaisesRegex(ValueError,'관리 API 오류 \\(400\\)'):
+                        execute_management_command('kimodo','keyframe-retire',{'ids':['b0000000000000000000000000000001']},current_server_address)
             finally:
                 current_http_server.shutdown()
                 current_server_thread.join(timeout=5)

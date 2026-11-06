@@ -8,6 +8,41 @@ from generators.kimodo.dwpose_export import adjust_detected_pose_frames
 from generators.wan_fun.video_input import validate_processed_pose_video
 
 class KimodoDwposeTests(unittest.TestCase):
+    def test_body_axis_moves_shoulder_line_and_preserves_face_and_hip(self):
+        current_point_type = namedtuple('Point','x y score id',defaults=[1.0,0])
+        current_body_type = namedtuple('Body','keypoints')
+        current_pose_type = namedtuple('Pose','body left_hand right_hand face')
+        current_points=[current_point_type(200,100) for current_index in range(18)]
+        for current_index,current_position in {0:(200,70),1:(200,100),2:(170,100),5:(230,100),8:(180,200),11:(220,200)}.items():
+            current_points[current_index]=current_point_type(*current_position)
+        current_frames=[[current_pose_type(current_body_type(current_points),None,None,[current_points[0]])]]
+        current_gains=dict(shoulder_width=1,hip_width=1,upper_arm=1,forearm=1,thigh=1,shin=1)
+        current_measurements={}
+        current_result=adjust_detected_pose_frames(current_frames,(480,832),current_gains,100,{'body_axis':{'nose_shoulder_to_torso':.6}},current_measurements)[0][0]
+        self.assertAlmostEqual(current_measurements['torso_gain'],.8125)
+        self.assertAlmostEqual(current_result.body.keypoints[1].y,118.75)
+        self.assertEqual(current_result.body.keypoints[0].y,70)
+        self.assertEqual(current_result.face[0].y,70)
+        self.assertAlmostEqual((current_result.body.keypoints[8].y+current_result.body.keypoints[11].y)/2,200)
+
+    def test_body_axis_uses_visible_frames_when_nose_is_occluded(self):
+        current_point_type=namedtuple('Point','x y score id',defaults=[1.0,0])
+        current_body_type=namedtuple('Body','keypoints')
+        current_pose_type=namedtuple('Pose','body left_hand right_hand face')
+        current_points=[current_point_type(200,100) for current_index in range(18)]
+        for current_index,current_position in {0:(200,70),1:(200,100),2:(170,100),5:(230,100),8:(180,200),11:(220,200)}.items():
+            current_points[current_index]=current_point_type(*current_position)
+        current_occluded_points=list(current_points)
+        current_occluded_points[0]=None
+        current_frames=[[current_pose_type(current_body_type(current_points),None,None,None)],[current_pose_type(current_body_type(current_occluded_points),None,None,None)]]
+        current_gains=dict(shoulder_width=1,hip_width=1,upper_arm=1,forearm=1,thigh=1,shin=1)
+        current_measurements={}
+        current_result=adjust_detected_pose_frames(current_frames,(480,832),current_gains,100,{'body_axis':{'nose_shoulder_to_torso':.6}},current_measurements)
+        self.assertEqual(current_measurements['valid_frames'],1)
+        self.assertEqual(current_measurements['total_frames'],2)
+        self.assertIsNone(current_result[1][0].body.keypoints[0])
+        self.assertAlmostEqual(current_result[1][0].body.keypoints[1].y,118.75)
+
     def test_constant_gain_preserves_projected_shortening_and_wrist_attachment(self):
         current_point_type = namedtuple('Point','x y score id',defaults=[1.0,0])
         current_body_type = namedtuple('Body','keypoints')

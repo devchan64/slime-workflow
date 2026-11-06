@@ -28,6 +28,8 @@ def project_soma_body_points(current_joint_positions,current_joint_names,current
             current_body_positions[:,current_point_index]=current_joint_positions[:,current_joint_names.index(current_joint_name)]
     current_body_positions[:,1]=(current_body_positions[:,2]+current_body_positions[:,5])/2
     if current_ratio_record is not None:
+        if current_ratio_record.get('body_axis') is not None:
+            current_body_positions[:,0]=current_joint_positions[:,current_joint_names.index('Head')]
         from generators.kimodo.reference_proportions import apply_reference_proportions
         current_body_positions=apply_reference_proportions(current_body_positions,current_ratio_record)
     current_camera_angle=np.deg2rad(KIMODO_DIRECTION_RECORDS[current_direction_name]['angle'])

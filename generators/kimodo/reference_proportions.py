@@ -8,9 +8,11 @@ REFERENCE_SEGMENT_GROUPS = {
     'upper_arm':((2,3),(5,6)), 'forearm':((3,4),(6,7)),
     'thigh':((8,9),(11,12)), 'shin':((9,10),(12,13)),
 }
-REFERENCE_RATIO_SCHEMA = 'body18-reference-ratios-v2'
+REFERENCE_RATIO_SCHEMA = 'body18-reference-ratios-v3'
 REFERENCE_UPPER_QUANTILE = 0.8
 REFERENCE_LONG_CLUSTER_RATIO = 0.9
+REFERENCE_AXIS_GAIN_MINIMUM = 0.5
+REFERENCE_AXIS_GAIN_MAXIMUM = 1.5
 
 
 def calculate_weighted_median(current_sample_values,current_sample_weights):
@@ -23,6 +25,7 @@ def calculate_weighted_median(current_sample_values,current_sample_weights):
 def estimate_reference_proportions(current_reference_records):
     current_group_samples={current_group_name:[] for current_group_name in REFERENCE_SEGMENT_GROUPS}
     current_rejection_records=[]
+    current_head_observations=[]
     for current_reference_index,current_reference_points in enumerate(current_reference_records,1):
         current_reference_points=np.asarray(current_reference_points,dtype=float)
         if current_reference_points.shape!=(18,3) or not np.isfinite(current_reference_points).all():
@@ -38,6 +41,10 @@ def estimate_reference_proportions(current_reference_records):
             current_rejection_records.append({'image':current_reference_index,'reason':'몸통 관측 길이 부족'})
             continue
         current_anchor_weight=float(current_reference_points[current_anchor_indices,2].min())
+        if current_reference_points[0,2]>=REFERENCE_CONFIDENCE_THRESHOLD:
+            current_head_length=float(np.linalg.norm(current_reference_points[0,:2]-current_neck_center))
+            if current_head_length>=5:
+                current_head_observations.append((current_head_length/current_torso_length,min(current_anchor_weight,float(current_reference_points[0,2])),current_reference_index))
         for current_group_name,current_segment_pairs in REFERENCE_SEGMENT_GROUPS.items():
             current_group_lengths=[]
             current_group_weights=[]
@@ -77,7 +84,38 @@ def estimate_reference_proportions(current_reference_records):
         current_inlier_mask &= current_sample_values>=current_upper_reference*REFERENCE_LONG_CLUSTER_RATIO
         current_estimated_ratios[current_group_name]=calculate_weighted_median(current_sample_values[current_inlier_mask],current_sample_weights[current_inlier_mask])
         current_evidence_records[current_group_name]={'accepted_images':[current_sample_rows[current_sample_index][2] for current_sample_index in np.flatnonzero(current_inlier_mask)],'observations':[{'image':current_sample_row[2],'ratio':current_sample_row[0],'confidence':current_sample_row[1],'accepted':bool(current_inlier_mask[current_sample_index])} for current_sample_index,current_sample_row in enumerate(current_sample_rows)]}
-    return {'schema':REFERENCE_RATIO_SCHEMA,'ratios':current_estimated_ratios,'evidence':current_evidence_records,'rejected':current_rejection_records,'image_count':len(current_reference_records),'observation_count':len(current_reference_records),'method':'몸통 정규화·과대 이상치 제외·신뢰도 가중 상위 80% 지점의 90% 이상 길이 관측군 중앙값','limitations':'2D 투영 비율 추정이며 실제 3D 체형 복원이 아님. 정면 전신 권장.'}
+    current_front_observations=[current_row for current_row in current_head_observations if current_row[2] in current_evidence_records['shoulder_width']['accepted_images']]
+    if not current_front_observations:
+        raise ValueError('참조에서 얼굴과 양쪽 어깨가 보이는 정면 관측을 찾을 수 없습니다.')
+    current_head_ratio=calculate_weighted_median([current_row[0] for current_row in current_front_observations],[current_row[1] for current_row in current_front_observations])
+    current_axis_record={'nose_shoulder_to_torso':current_head_ratio,'accepted_observations':[current_row[2] for current_row in current_front_observations],'observations':[{'observation':current_row[2],'ratio':current_row[0],'confidence':current_row[1],'accepted':current_row in current_front_observations} for current_row in current_head_observations],'anchor':'코·어깨 중심·골반 중심의 2D 거리 비율; 목뼈 길이 아님'}
+    return {'schema':REFERENCE_RATIO_SCHEMA,'ratios':current_estimated_ratios,'body_axis':current_axis_record,'evidence':current_evidence_records,'rejected':current_rejection_records,'image_count':len(current_reference_records),'observation_count':len(current_reference_records),'method':'몸통 정규화·과대 이상치 제외·신뢰도 가중 상위 80% 지점의 90% 이상 길이 관측군 중앙값','limitations':'2D 투영 비율 추정이며 실제 3D 체형 복원이 아님. 정면 전신 권장.'}
+
+
+def calculate_reference_torso_gain(current_body_positions,current_ratio_record):
+    """얼굴과 골반을 고정하고 참조의 코·어깨·골반 관계로 몸통 배율을 추정한다."""
+    current_axis_record=current_ratio_record.get('body_axis')
+    if current_axis_record is None:
+        if current_ratio_record.get('schema') != 'body18-reference-ratios-v2':
+            raise ValueError('참조 몸통 축 비율이 없습니다.')
+        return 1.0
+    current_target_ratio=current_axis_record.get('nose_shoulder_to_torso')
+    if type(current_target_ratio) not in (int,float) or not np.isfinite(current_target_ratio) or current_target_ratio<=0:
+        raise ValueError('참조 얼굴·몸통 비율 오류')
+    current_positions=np.asarray(current_body_positions,dtype=float)
+    if current_positions.ndim!=3 or current_positions.shape[1]!=18 or current_positions.shape[2] not in (2,3) or not np.isfinite(current_positions).all():
+        raise ValueError('몸통 축 보정 관절 형식 오류')
+    current_shoulder_centers=current_positions[:,[2,5]].mean(1)
+    current_hip_centers=current_positions[:,[8,11]].mean(1)
+    current_torso_lengths=np.linalg.norm(current_shoulder_centers-current_hip_centers,axis=-1)
+    current_head_lengths=np.linalg.norm(current_positions[:,0]-current_shoulder_centers,axis=-1)
+    if np.any(current_torso_lengths<=0) or np.any(current_head_lengths<=0):
+        raise ValueError('얼굴·몸통 기준 길이가 0입니다.')
+    current_source_ratio=float(np.median(current_head_lengths/current_torso_lengths))
+    current_torso_gain=(1+current_source_ratio)/(1+current_target_ratio)
+    if not REFERENCE_AXIS_GAIN_MINIMUM<=current_torso_gain<=REFERENCE_AXIS_GAIN_MAXIMUM:
+        raise ValueError('참조 몸통 축 보정 배율이 허용 범위를 벗어났습니다.')
+    return current_torso_gain
 
 
 def apply_reference_proportions(current_body_positions,current_ratio_record):
@@ -86,11 +124,15 @@ def apply_reference_proportions(current_body_positions,current_ratio_record):
         raise ValueError('참조 신체 비율 계약 오류')
     current_adjusted_positions=current_body_positions.copy()
     current_hip_centers=current_body_positions[:,[8,11]].mean(1)
-    current_torso_lengths=np.linalg.norm(current_body_positions[:,1]-current_hip_centers,axis=-1)
+    current_torso_gain=calculate_reference_torso_gain(current_body_positions,current_ratio_record)
+    current_original_shoulder_center=current_body_positions[:,[2,5]].mean(1)
+    current_shoulder_center=current_hip_centers+(current_original_shoulder_center-current_hip_centers)*current_torso_gain
+    current_adjusted_positions[:,1]+=current_shoulder_center-current_original_shoulder_center
+    current_torso_lengths=np.linalg.norm(current_shoulder_center-current_hip_centers,axis=-1)
     current_base_torso=float(np.median(current_torso_lengths))
     if current_base_torso<=0:
         raise ValueError('SOMA 몸통 길이 오류')
-    for current_group_name,current_center_positions,current_joint_pair in [('shoulder_width',current_body_positions[:,1],(2,5)),('hip_width',current_hip_centers,(8,11))]:
+    for current_group_name,current_center_positions,current_joint_pair in [('shoulder_width',current_shoulder_center,(2,5)),('hip_width',current_hip_centers,(8,11))]:
         current_direction_vectors=current_body_positions[:,current_joint_pair[1]]-current_body_positions[:,current_joint_pair[0]]
         current_vector_lengths=np.linalg.norm(current_direction_vectors,axis=-1,keepdims=True)
         if np.any(current_vector_lengths<=0): raise ValueError('SOMA 너비 관절 길이 오류')
