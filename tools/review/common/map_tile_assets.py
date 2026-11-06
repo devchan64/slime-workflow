@@ -122,7 +122,7 @@ def select_sprite_source_prefix(asset_relative_path):
         return 'assets/billboards'
     if re.fullmatch(r'assets/billboards/[\w-]+\.(png|animation\.json)', asset_relative_path):
         return 'assets/billboards'
-    if re.fullmatch(r'assets/characters/[\w-]+/(animations|battle-cutins|emotion-cutins)/[\w./-]+', asset_relative_path):
+    if re.fullmatch(r'assets/characters/[\w-]+/(animations|emotion-cutins)/[\w./-]+', asset_relative_path):
         return 'assets/characters'
     if re.fullmatch(r'assets/sprites/(effects|monsters|structures)/[\w./-]+', asset_relative_path):
         return 'assets/sprites'

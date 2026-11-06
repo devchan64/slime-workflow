@@ -273,7 +273,7 @@
 
 ## Character Asset Organization
 - 캐릭터 원본은 `assets/characters/<character>/animations/`, `battle-cutins/`, `emotion-cutins/`로 구분한다. 기본 캐릭터는 `default`다. 이 규칙은 기존 `assets/sprites/characters/` 경로보다 우선한다.
-- 애니메이션 시트·재생·앵커·출처 메타데이터와 불변 버전은 `animations/`에서 함께 관리한다. 전투 컷인과 감정 컷인은 각각의 폴더에 두며, 아직 에셋이 없는 폴더는 `.gitkeep`으로 유지한다.
+- 애니메이션 시트·재생·앵커·출처 메타데이터와 불변 버전은 `animations/`에서 함께 관리한다. 감정 컷인은 전용 폴더에서 관리한다. 전투 컷인은 폐기했으며 전용 원본·표시 매핑은 에셋 등록부의 retired 이력으로만 보존한다. 신규 전투 컷인 프롬프트·프리셋·빈 작업 폴더를 만들지 않는다.
 - 경로 이전 시 관리 ID·버전·이미지 해시·과거 출처를 유지하고 등록부·프론트엔드 잠금 목록·직접 참조·관리도구를 함께 갱신한다. 몬스터·구조물 경로는 유지한다.
 
 ## Regression Test Automation
