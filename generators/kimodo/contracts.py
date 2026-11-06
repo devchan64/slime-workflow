@@ -75,7 +75,7 @@ validate_kimodo_directions(KIMODO_DEFAULT_SETTINGS['directions'])
 
 def validate_kimodo_request(current_request_record):
     current_required_fields = {'action','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'}
-    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'endpoint_pose_id','segment_frames','directions','remove_horizontal_motion','proportion_images','openpose_scale_percent','pose_include_hands','pose_include_face'}:
+    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'endpoint_pose_id','keyframes','segment_frames','directions','remove_horizontal_motion','proportion_images','openpose_scale_percent','pose_include_hands','pose_include_face'}:
         raise ValueError('Kimodo 요청 필드 오류')
     if current_request_record.get('endpoint_pose_id') is not None:
         from generators.kimodo.pose_library import load_soma_pose_arrays
@@ -96,6 +96,18 @@ def validate_kimodo_request(current_request_record):
         current_field_value = current_request_record[current_field_name]
         if type(current_field_value) is not int or not current_minimum_value <= current_field_value <= current_maximum_value:
             raise ValueError(f'{current_field_name}: {current_minimum_value}~{current_maximum_value} 정수 필요')
+    if 'keyframes' in current_request_record:
+        if current_request_record.get('endpoint_pose_id'):
+            raise ValueError('키프레임 배치와 양 끝 기준 자세는 동시에 사용할 수 없습니다.')
+        if current_request_record.get('post_processing') is not True:
+            raise ValueError('키프레임 자세 적용에는 공식 후처리를 켜야 합니다.')
+        if current_request_record.get('remove_horizontal_motion',False):
+            raise ValueError('키프레임 좌표를 유지하려면 수평 이동 제거를 꺼야 합니다.')
+        if current_request_record.get('segment_frames') is not None:
+            raise ValueError('키프레임과 순차 구간 동시 사용은 아직 지원하지 않습니다. 단일 프롬프트를 사용하세요.')
+        from tools.review.domains.kimodo.keyframe_storage import validate_kimodo_keyframe_placements
+        current_keyframe_placements = validate_kimodo_keyframe_placements(current_request_record['keyframes'], current_request_record['frames'])
+        current_request_record = {**current_request_record, 'keyframes': current_keyframe_placements}
     from generators.kimodo.motion_sequence import resolve_motion_segments
     resolve_motion_segments(current_prompt_text,current_request_record['frames'],current_request_record.get('segment_frames'))
     for current_field_name, current_minimum_value, current_maximum_value in [('guidance_scale',0,10),('heading_degrees',-180,180)]:

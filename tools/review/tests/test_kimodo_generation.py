@@ -8,6 +8,18 @@ from generators.kimodo.contracts import KIMODO_DEFAULT_SETTINGS, validate_kimodo
 from tools.review.common.management_gateway import resolve_management_command, MANAGEMENT_SERVICE_COMMANDS
 from tools.review.domains.kimodo.generation import KimodoGenerationManager
 
+
+def write_keyframe_test_previews(current_attempt_root,current_frame_count):
+    import hashlib
+    from PIL import Image
+    current_frame_hashes=[]
+    for current_frame_index in range(current_frame_count):
+        current_frame_path=current_attempt_root/f'output-{current_frame_index:03d}.png'
+        Image.new('RGB',(8,8),(current_frame_index,0,0)).save(current_frame_path)
+        current_frame_hashes.append(hashlib.sha256(current_frame_path.read_bytes()).hexdigest())
+    return current_frame_hashes
+
+
 class KimodoGenerationContractTests(unittest.TestCase):
     def setUp(self):
         self.current_request_record = {current_field_name:current_field_value for current_field_name,current_field_value in KIMODO_DEFAULT_SETTINGS.items() if current_field_name!='schema_version'}
@@ -30,6 +42,79 @@ class KimodoGenerationContractTests(unittest.TestCase):
         self.assertEqual(validate_kimodo_request(current_sequence_request)['segment_frames'],[90,120,90])
         from tools.review.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs
         self.assertEqual(build_kimodo_payload(*restore_kimodo_inputs({'id':'sequence','request':current_sequence_request})[:-1]),current_sequence_request)
+
+    def test_keyframe_snapshot_preserves_selected_frame(self):
+        import numpy as np
+        from tools.review.domains.kimodo.keyframe_storage import KIMODO_FRAME_ARRAY_SHAPES, save_kimodo_keyframe_record
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            current_temp_root = Path(current_temp_directory)
+            current_job_identifier = '2026-11-06_12-00-00-12345678'
+            current_attempt_identifier = 'a' * 32
+            current_attempt_root = current_temp_root/'jobs'/current_job_identifier/'attempts'/current_attempt_identifier
+            current_attempt_root.mkdir(parents=True)
+            (current_attempt_root.parent.parent/'status.json').write_text(json.dumps({'status': 'completed'}))
+            current_frame_hashes=write_keyframe_test_previews(current_attempt_root,3)
+            (current_attempt_root/'result.json').write_text(json.dumps({'attempt': current_attempt_identifier, 'frames': 3, 'fps': 30, 'frame_sha256':current_frame_hashes}))
+            (current_attempt_root/'skeleton.json').write_text(json.dumps({'skeleton': 'somaskel77', 'fps': 30, 'joint_names': list(range(77)), 'parents': list(range(77))}))
+            np.savez_compressed(current_attempt_root/'motion.npz', **{current_name: np.arange(3*np.prod(current_shape)).reshape((3,*current_shape)) for current_name,current_shape in KIMODO_FRAME_ARRAY_SHAPES.items()})
+            current_store_root = current_temp_root/'keyframes'
+            current_record = save_kimodo_keyframe_record(current_job_identifier,current_attempt_identifier,2,'복싱',current_job_storage=current_temp_root/'jobs',current_keyframe_storage=current_store_root)
+            with np.load(current_store_root/current_record['id']/'motion.npz') as current_saved_arrays:
+                self.assertEqual(current_saved_arrays['root_positions'].tolist(), [[3,4,5]])
+            self.assertEqual(current_record['source_frame'], 2)
+            self.assertEqual(current_record['tag'], '복싱')
+            (current_attempt_root/'result.json').write_text(json.dumps({'attempt': current_attempt_identifier, 'frames': 3, 'fps': 30, 'remove_horizontal_motion': True, 'frame_sha256':current_frame_hashes}))
+            with self.assertRaisesRegex(ValueError,'motion-in-place'):
+                save_kimodo_keyframe_record(current_job_identifier,current_attempt_identifier,2,'보정',current_job_storage=current_temp_root/'jobs',current_keyframe_storage=current_store_root)
+            np.savez_compressed(current_attempt_root/'motion-in-place.npz', **{current_name: np.full((3,*current_shape),7) for current_name,current_shape in KIMODO_FRAME_ARRAY_SHAPES.items()})
+            current_corrected_record = save_kimodo_keyframe_record(current_job_identifier,current_attempt_identifier,2,'보정',current_job_storage=current_temp_root/'jobs',current_keyframe_storage=current_store_root)
+            self.assertEqual(current_corrected_record['source_motion'],'motion-in-place.npz')
+            with np.load(current_store_root/current_corrected_record['id']/'motion.npz') as current_saved_arrays:
+                self.assertEqual(current_saved_arrays['root_positions'].tolist(), [[7,7,7]])
+            with self.assertRaises(ValueError):
+                save_kimodo_keyframe_record(current_job_identifier,current_attempt_identifier,4,'복싱',current_job_storage=current_temp_root/'jobs',current_keyframe_storage=current_store_root)
+            import shutil
+            from tools.review.domains.kimodo.keyframe_storage import load_kimodo_keyframe_snapshot
+            shutil.rmtree(current_attempt_root.parent.parent)
+            self.assertTrue((current_store_root/current_record['id']/'preview.png').is_file())
+            self.assertEqual(load_kimodo_keyframe_snapshot(current_store_root,current_record['id'])[0]['tag'], '복싱')
+
+    def test_keyframe_placements_snapshot_and_constraints(self):
+        import numpy as np
+        import shutil
+        from tools.review.domains.kimodo.keyframe_storage import KIMODO_FRAME_ARRAY_SHAPES, save_kimodo_keyframe_record, snapshot_kimodo_keyframes, build_kimodo_keyframe_constraints, validate_kimodo_keyframe_placements
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            current_temp_root = Path(current_temp_directory)
+            current_job_identifier = '2026-11-06_12-00-00-12345678'
+            current_attempt_identifier = 'a'*32
+            current_attempt_root = current_temp_root/'jobs'/current_job_identifier/'attempts'/current_attempt_identifier
+            current_attempt_root.mkdir(parents=True)
+            (current_attempt_root.parent.parent/'status.json').write_text(json.dumps({'status':'completed'}))
+            current_frame_hashes=write_keyframe_test_previews(current_attempt_root,2)
+            (current_attempt_root/'result.json').write_text(json.dumps({'attempt':current_attempt_identifier,'frames':2,'fps':30,'frame_sha256':current_frame_hashes}))
+            (current_attempt_root/'skeleton.json').write_text(json.dumps({'skeleton':'somaskel77','fps':30,'joint_names':[str(current_index) for current_index in range(77)],'parents':list(range(77))}))
+            current_source_arrays = {current_name:np.zeros((2,*current_shape)) for current_name,current_shape in KIMODO_FRAME_ARRAY_SHAPES.items()}
+            current_source_arrays['local_rot_mats'][:] = np.eye(3)
+            current_source_arrays['global_rot_mats'][:] = np.eye(3)
+            current_source_arrays['root_positions'][:] = [[2,1,3],[3,1,5]]
+            current_source_arrays['smooth_root_pos'][:] = [[2,1,3],[3,1,5]]
+            np.savez_compressed(current_attempt_root/'motion.npz',**current_source_arrays)
+            current_store_root = current_temp_root/'keyframes'
+            current_first_record = save_kimodo_keyframe_record(current_job_identifier,current_attempt_identifier,1,'시작',current_job_storage=current_temp_root/'jobs',current_keyframe_storage=current_store_root)
+            current_last_record = save_kimodo_keyframe_record(current_job_identifier,current_attempt_identifier,2,'종료',current_job_storage=current_temp_root/'jobs',current_keyframe_storage=current_store_root)
+            current_placements = validate_kimodo_keyframe_placements([{'id':current_last_record['id'],'frame':30},{'id':current_first_record['id'],'frame':1}],30)
+            current_new_job_root = current_temp_root/'new-job'
+            current_new_job_root.mkdir()
+            current_snapshots = snapshot_kimodo_keyframes(current_new_job_root,current_placements,current_keyframe_storage=current_store_root)
+            shutil.rmtree(current_store_root)
+            current_records = build_kimodo_keyframe_constraints(current_new_job_root,{'frames':30,'keyframes':current_placements,'keyframe_snapshots':current_snapshots})
+            self.assertEqual(current_records[0]['frame_indices'],[0,29])
+            self.assertEqual(current_records[0]['root_positions'],[[0.0,1.0,0.0],[1.0,1.0,2.0]])
+            with self.assertRaises(ValueError):
+                validate_kimodo_keyframe_placements([{'id':current_first_record['id'],'frame':1},{'id':current_last_record['id'],'frame':1}],30)
+            (current_new_job_root/'keyframes'/current_first_record['id']/'motion.npz').write_bytes(b'tampered')
+            with self.assertRaisesRegex(ValueError,'해시'):
+                build_kimodo_keyframe_constraints(current_new_job_root,{'frames':30,'keyframes':current_placements,'keyframe_snapshots':current_snapshots})
 
     def test_retired_constraints_are_rejected(self):
         from tools.review.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs
@@ -74,10 +159,91 @@ class KimodoGenerationContractTests(unittest.TestCase):
 
     def test_gateway_and_service_contract(self):
         self.assertEqual(resolve_management_command('kimodo','generate',self.current_request_record),('POST','/kimodo/jobs'))
+        self.assertEqual(resolve_management_command('kimodo','keyframe-save',{}),('POST','/kimodo/keyframes/save'))
+        self.assertEqual(resolve_management_command('kimodo','keyframe-list',{}),('POST','/kimodo/keyframes/list'))
         self.assertTrue({'history-delete','history-reset','prioritize','resume','cancel'} <= set(MANAGEMENT_SERVICE_COMMANDS['kimodo']))
         current_service_instance=KimodoGenerationManager()
         self.assertEqual(current_service_instance.route_prefix_value,'/kimodo')
         self.assertEqual(current_service_instance.select_generation_runner(),'generators/kimodo/worker.py')
+
+    def test_keyframe_gateway_save_list_and_generation_snapshot(self):
+        import io
+        import numpy as np
+        from email.message import Message
+        from tools.review.common.management_gateway import execute_management_command
+        from tools.review.domains.kimodo.keyframe_storage import KIMODO_FRAME_ARRAY_SHAPES
+        class CaptureGatewayResponse:
+            def __init__(self):
+                self.headers = Message()
+                self.wfile = io.BytesIO()
+                self.status = None
+            def send_response(self,current_status_value): self.status = current_status_value
+            def send_header(self,current_name_value,current_header_value): pass
+            def end_headers(self): pass
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            current_temp_root=Path(current_temp_directory)
+            current_service_instance=KimodoGenerationManager()
+            current_service_instance.job_storage_root=current_temp_root/'jobs'
+            current_service_instance.keyframe_storage_root=current_temp_root/'keyframes'
+            current_job_identifier='2026-11-06_12-00-00-12345678'
+            current_attempt_identifier='a'*32
+            current_attempt_root=current_service_instance.job_storage_root/current_job_identifier/'attempts'/current_attempt_identifier
+            current_attempt_root.mkdir(parents=True)
+            (current_attempt_root.parent.parent/'status.json').write_text(json.dumps({'status':'completed'}))
+            current_frame_hashes=write_keyframe_test_previews(current_attempt_root,3)
+            (current_attempt_root/'result.json').write_text(json.dumps({'attempt':current_attempt_identifier,'frames':3,'fps':30,'frame_sha256':current_frame_hashes}))
+            (current_attempt_root/'skeleton.json').write_text(json.dumps({'skeleton':'somaskel77','fps':30,'joint_names':[str(current_index) for current_index in range(77)],'parents':list(range(77))}))
+            current_motion_arrays={current_name:np.zeros((3,*current_shape)) for current_name,current_shape in KIMODO_FRAME_ARRAY_SHAPES.items()}
+            current_motion_arrays['local_rot_mats'][:]=np.eye(3)
+            np.savez_compressed(current_attempt_root/'motion.npz',**current_motion_arrays)
+            current_handler_values={'kimodo':current_service_instance.handle_image_request}
+            current_gateway_response=CaptureGatewayResponse()
+            execute_management_command('kimodo','keyframe-save',{'job_id':current_job_identifier,'attempt_id':current_attempt_identifier,'frame':2,'tag':'가드'},gateway_request_handler=current_gateway_response,service_handler_values=current_handler_values)
+            self.assertEqual(current_gateway_response.status,200)
+            current_saved_record=json.loads(current_gateway_response.wfile.getvalue())
+            current_gateway_response=CaptureGatewayResponse()
+            execute_management_command('kimodo','keyframe-list',{},gateway_request_handler=current_gateway_response,service_handler_values=current_handler_values)
+            self.assertEqual(json.loads(current_gateway_response.wfile.getvalue())['records'][0]['id'],current_saved_record['id'])
+            current_gateway_response=CaptureGatewayResponse()
+            execute_management_command('kimodo','keyframe-preview',{'id':current_saved_record['id']},gateway_request_handler=current_gateway_response,service_handler_values=current_handler_values)
+            self.assertEqual(current_gateway_response.status,200)
+            import base64
+            self.assertEqual(base64.b64decode(json.loads(current_gateway_response.wfile.getvalue())['image_base64']),(current_attempt_root/'output-001.png').read_bytes())
+            current_generation_request={**self.current_request_record,'post_processing':True,'keyframes':[{'id':current_saved_record['id'],'frame':1},{'id':current_saved_record['id'],'frame':30}]}
+            current_validated_request=current_service_instance.validate_generation_request(current_generation_request)
+            current_new_job_root=current_temp_root/'new-job'
+            current_new_job_root.mkdir()
+            current_saved_request=current_service_instance.save_generation_attachments(current_new_job_root,current_validated_request)
+            self.assertEqual(len(current_saved_request['keyframe_snapshots']),2)
+            self.assertTrue((current_new_job_root/'keyframes'/current_saved_record['id']/'motion.npz').is_file())
+            with self.assertRaisesRegex(ValueError,'후처리'):
+                current_service_instance.validate_generation_request({**current_generation_request,'post_processing':False})
+            with self.assertRaisesRegex(ValueError,'순차'):
+                current_service_instance.validate_generation_request({**current_generation_request,'segment_frames':[30,60]})
+
+    def test_keyframe_gui_cli_request_contract(self):
+        import contextlib
+        import io
+        from tools.review.common.management_gateway import execute_gateway_arguments
+        from tools.review.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs,check_kimodo_readiness
+        current_keyframe_identifier='b'*32
+        current_request_record={**self.current_request_record,'post_processing':True,'keyframes':[{'id':current_keyframe_identifier,'frame':1},{'id':current_keyframe_identifier,'frame':30}]}
+        current_restored_values=restore_kimodo_inputs({'id':'existing','request':current_request_record})
+        self.assertEqual(build_kimodo_payload(*current_restored_values[:-1]),current_request_record)
+        self.assertTrue(check_kimodo_readiness(True,'walk',['front'],False,None,[[current_keyframe_identifier,1]],True,'',None,False))
+        self.assertFalse(check_kimodo_readiness(True,'walk',['front'],False,None,[[current_keyframe_identifier,1]],False,'',None,False))
+        self.assertFalse(check_kimodo_readiness(True,'walk',['front'],False,None,[[current_keyframe_identifier,1]],True,'',None,True))
+        with self.assertRaisesRegex(ValueError,'수평 이동'):
+            validate_kimodo_request({**current_request_record,'remove_horizontal_motion':True})
+        with self.assertRaisesRegex(ValueError,'양 끝'):
+            validate_kimodo_request({**current_request_record,'endpoint_pose_id':'relaxed-standing-v1'})
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            current_payload_path=Path(current_temp_directory)/'request.json'
+            current_payload_record={'job_id':'2026-11-06_12-00-00-12345678','attempt_id':'a'*32,'frame':2,'tag':'가드'}
+            current_payload_path.write_text(json.dumps(current_payload_record),encoding='utf-8')
+            with patch('tools.review.common.management_gateway.call_management_api',return_value={'id':'saved'}) as current_api_mock,contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(execute_gateway_arguments('kimodo',['keyframe-save','--payload-file',str(current_payload_path)]),0)
+            self.assertEqual(current_api_mock.call_args.args[1:3],('/kimodo/keyframes/save',current_payload_record))
 
     def test_gui_payload_restore_and_no_generation_during_build(self):
         from tools.review.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs,build_kimodo_interface
@@ -225,7 +391,7 @@ class KimodoPoseLibraryTests(unittest.TestCase):
         self.assertEqual(build_kimodo_payload(*restore_kimodo_inputs({'id':'test','request':current_request_record})[:-1]),current_request_record)
         for current_patch_record in ({'endpoint_pose_id':'../bad'},{'endpoint_pose_id':42},{'post_processing':False},{'heading_degrees':45}):
             with self.assertRaises(ValueError):validate_kimodo_request({**current_request_record,**current_patch_record})
-        self.assertIsNone(apply_complete_kimodo_example(next(iter(load_kimodo_examples())))[-1])
+        self.assertEqual(apply_complete_kimodo_example(next(iter(load_kimodo_examples())))[-2:],(None,[]))
 
     def test_pose_library_rejects_modified_files(self):
         from generators.kimodo.pose_library import KIMODO_POSE_LIBRARY_ROOT,load_soma_pose_catalog

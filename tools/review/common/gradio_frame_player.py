@@ -10,7 +10,7 @@ FRAME_PLAYER_SCRIPT_PATH=Path(__file__).resolve().parents[1]/'ui/shared/frame-pl
 FRAME_PLAYER_DIRECTION_CHOICES=[('등록 첫 방향','first'),('전방 좌측','down_left'),('전방 우측','down_right'),('후방 좌측','up_left'),('후방 우측','up_right')]
 
 
-def build_browser_frame_player(current_player_identifier='generation-result-player',initial_player_payload='',current_player_visible=False,defer_image_loading=False):
+def build_browser_frame_player(current_player_identifier='generation-result-player',initial_player_payload='',current_player_visible=False,defer_image_loading=False,current_selected_number_output=None):
     """결과 JSON만 서버에서 받고 이동·재생은 브라우저 안에서 수행한다."""
     if not re.fullmatch(r'[a-z][a-z0-9-]+',current_player_identifier):
         raise ValueError('재생기 식별자 형식 오류')
@@ -23,6 +23,9 @@ def build_browser_frame_player(current_player_identifier='generation-result-play
         current_feedback_component=gr.Textbox(label='재생 조작 안내',interactive=False,value='결과를 조회한 뒤 재생하거나 프레임을 이동하세요.')
         current_load_button=gr.Button('미리보기 불러오기') if defer_image_loading else None
         current_frame_component,current_navigation_buttons,current_seek_button,current_loop_start,current_loop_end,current_loop_button=build_frame_playback_controls()
+        if current_selected_number_output is not None:
+            current_select_frame_button=gr.Button('표시한 프레임 선택')
+            current_select_frame_button.click(fn=None,outputs=current_selected_number_output,queue=False,js="()=>{const currentPlayer=window.generationFramePlayerCommands?.["+json.dumps(current_player_identifier)+"]; if(!currentPlayer) throw Error('프레임을 먼저 불러오세요.'); return currentPlayer('selected-frame');}")
         current_loop_button.click(fn=None,inputs=[current_direction_component,current_framerate_component,current_frame_component,current_loop_start,current_loop_end],outputs=current_feedback_component,queue=False,js="(direction,fps,frame,start,end)=>{try{return window.generationFramePlayerCommands["+json.dumps(current_player_identifier)+"]('loop',"+current_direction_argument+",fps,frame,start,end);}catch(error){return error.message;}}")
         current_action_buttons=[('previous' if current_action_name=='prev' else current_action_name,current_action_button) for current_action_name,current_action_button in current_navigation_buttons]
         current_action_buttons.append(('seek',current_seek_button))

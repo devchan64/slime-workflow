@@ -84,6 +84,10 @@ const loadPlayerPayload=()=>{
 };
 window.generationFramePlayerCommands??={};
 window.generationFramePlayerCommands[currentPlayerIdentifier]=(currentActionName,selectedDirectionName,selectedPlaybackRate,selectedFrameNumber,selectedLoopStart,selectedLoopEnd)=>{
+ if(currentActionName==='selected-frame'){
+  if(!readSelectedFrames().length)throw Error('프레임을 먼저 불러오세요.');
+  stopFramePlayback();return currentFrameIndex+1;
+ }
  const wasFramePlaybackActive=currentPlaybackTimer!==null;
  stopFramePlayback();
  const nextDirectionName=selectedDirectionName==='first'?Object.keys(currentFramePayload.frames||{})[0]:selectedDirectionName;

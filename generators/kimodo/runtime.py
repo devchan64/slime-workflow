@@ -114,6 +114,12 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
         current_motion_model._generate = generate_with_progress
     from generators.kimodo.pose_library import prepare_soma_endpoint_constraints
     current_endpoint_constraints = prepare_soma_endpoint_constraints(current_request_record,current_attempt_root,current_motion_model.skeleton)
+    if current_request_record.get('keyframes'):
+        from kimodo.constraints import load_constraints_lst
+        from tools.review.domains.kimodo.keyframe_storage import build_kimodo_keyframe_constraints
+        current_constraint_records = build_kimodo_keyframe_constraints(current_job_root,current_request_record)
+        write_record_atomically(current_attempt_root/'keyframe-constraints.json',current_constraint_records)
+        current_endpoint_constraints = load_constraints_lst(current_constraint_records,current_motion_model.skeleton,device='cuda')
     current_motion_output = current_motion_model(constraint_lst=current_endpoint_constraints,prompts=current_final_prompts if current_sequence_enabled else current_final_prompt,num_frames=current_segment_frames if current_sequence_enabled else current_request_record['frames'],multi_prompt=current_sequence_enabled,num_samples=1,num_denoising_steps=current_request_record['steps'],cfg_weight=[current_request_record['guidance_scale'],2.0],cfg_type='separated',first_heading_angle=math.radians(current_request_record['heading_degrees']),post_processing=current_request_record['post_processing'],return_numpy=True,progress_bar=record_sampling_progress)
     # 공식 후처리까지 배치 차원을 유지하고, 저장 직전에 단일 샘플을 꺼낸다.
     if any(not isinstance(current_field_value,np.ndarray) or current_field_value.ndim < 1 or current_field_value.shape[0] != 1 for current_field_value in current_motion_output.values()):
@@ -125,9 +131,22 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     for current_field_name,current_field_value in current_motion_output.items():
         if isinstance(current_field_value,np.ndarray) and np.issubdtype(current_field_value.dtype,np.number) and not np.isfinite(current_field_value).all():
             raise ValueError(f'출력 비유한 값: {current_field_name}')
-    if current_endpoint_constraints:
+    if current_request_record.get('endpoint_pose_id'):
         current_endpoint_distances = np.linalg.norm(current_joint_positions[-1]-current_joint_positions[0],axis=-1)
         write_record_atomically(current_attempt_root/'endpoint-measurement.json',{'pose_id':current_request_record['endpoint_pose_id'],'unit':'meters','mean_joint_distance':float(current_endpoint_distances.mean()),'maximum_joint_distance':float(current_endpoint_distances.max()),'scope':'생성 SOMA 원본 첫·마지막 프레임 · 렌더/16fps 변환 전'})
+    if current_request_record.get('keyframes'):
+        from tools.review.domains.kimodo.keyframe_storage import load_kimodo_keyframe_snapshot
+        current_keyframe_placements = current_request_record['keyframes']
+        _,current_first_arrays,_ = load_kimodo_keyframe_snapshot(current_job_root/'keyframes',current_keyframe_placements[0]['id'])
+        current_origin_position = current_first_arrays['smooth_root_pos'][0,[0,2]]
+        current_measurement_records = []
+        for current_placement_record in current_keyframe_placements:
+            _,current_target_arrays,_ = load_kimodo_keyframe_snapshot(current_job_root/'keyframes',current_placement_record['id'])
+            current_target_positions = current_target_arrays['posed_joints'][0].copy()
+            current_target_positions[:,[0,2]] -= current_origin_position
+            current_joint_distances = np.linalg.norm(current_joint_positions[current_placement_record['frame']-1]-current_target_positions,axis=-1)
+            current_measurement_records.append({'id':current_placement_record['id'],'frame':current_placement_record['frame'],'mean_joint_distance':float(current_joint_distances.mean()),'maximum_joint_distance':float(current_joint_distances.max())})
+        write_record_atomically(current_attempt_root/'keyframe-measurement.json',{'unit':'meters','scope':'SOMA 77관절 · 원본 30fps · 첫 키프레임의 평활 루트 원점 기준 · 렌더·수평 이동 보정 전','placements':current_measurement_records})
     current_joint_parents = current_motion_model.output_skeleton.joint_parents.cpu().tolist()
     current_joint_names = current_motion_model.output_skeleton.bone_order_names
     current_metrics_recorder.update_generation_stage('saving')
@@ -165,6 +184,9 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
                 current_output_archive.write(current_reference_artifact,current_reference_artifact.name)
         for current_artifact_name in ('motion.npz','skeleton.json','prompt.json','text-embedding.npy'):
             current_output_archive.write(current_attempt_root/current_artifact_name,current_artifact_name)
+        if current_request_record.get('keyframes'):
+            for current_artifact_name in ('keyframe-constraints.json','keyframe-measurement.json'):
+                current_output_archive.write(current_attempt_root/current_artifact_name,current_artifact_name)
         for current_artifact_name in ('soma-pose.json','comparison.mp4','joint-preview.mp4'):
             current_output_archive.write(current_attempt_root/current_artifact_name,current_artifact_name)
     current_result_record = {'attempt':current_attempt_root.name,'frames':current_request_record['frames'],'fps':30,'width':640,'height':480,'frame_sha256':current_frame_hashes,'model':'nvidia/Kimodo-SOMA-RP-v1.2','encoder':'matbee/kimodo-llm2vec-nf4','encoder_quantization':'NF4','motion_precision':'FP32','source_revision':KIMODO_ASSET_CONFIG['source_revision'],'model_revisions':{current_asset_record['role']:current_asset_record['revision'] for current_asset_record in KIMODO_ASSET_CONFIG['models']},'skeleton':'somaskel77','compute_device':'cuda','post_processing':current_request_record['post_processing'],'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20}

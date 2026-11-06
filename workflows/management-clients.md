@@ -1034,3 +1034,7 @@ GUI와 CLI는 `character-animation sheet-export`를 공유한다. CLI는 `--payl
 ### Kimodo SOMA 기준 자세 선택
 
 `kimodo generate --payload-file`의 선택 필드 `endpoint_pose_id`는 `generators/kimodo/pose-library/index.yaml`에 등록된 세트 ID다. 현재 `relaxed-standing-v1`을 제공한다. `post_processing: true`, `heading_degrees: 0`과 함께 사용한다. GUI의 `시작·종료에 같은 자세 적용`과 같은 검증·제약 경로를 사용하며 ID 생략 시 기존 생성 동작을 유지한다. 기준 자세 목록은 좌표 NPZ·스켈레톤 YAML·SOMA 렌더 PNG·카메라 YAML을 Git으로 함께 추적한다. 임의 제약 JSON 입력 기능은 복원하지 않는다.
+
+Kimodo `keyframe-save --payload-file`은 `job_id`, `attempt_id`, `frame`, `tag` 필드를 받는다. `frame`은 원본 SOMA 30fps 기준 1부터 시작한다. 선택한 프레임·관절 미리보기·골격을 `.tmp/manager-current/kimodo-keyframes/<ID>/`에 원본 이력과 별도로 저장하며 `keyframe-list`, `keyframe-preview <ID>`로 조회한다. 이력의 수평 이동 제거가 켜진 경우 화면과 같은 보정 모션 프레임을 저장하고 출처 파일을 기록한다. GUI는 이력의 관절 프레임을 공용 브라우저 재생기로 조회·선택하고 같은 게이트웨이 명령으로 저장한다.
+
+`kimodo generate --payload-file`에 `keyframes: [{"id":"<저장 ID>","frame":1},{"id":"<저장 ID>","frame":90}]`를 넣으면 원본 자세 사본을 작업 폴더에 보존하고 지정한 1부터 시작하는 출력 프레임에 전신 제약을 적용한다. 첫 키프레임의 평활 루트 XZ를 원점으로 하며 나머지 키프레임의 원본 좌표 차이를 유지하므로, 서로 다른 원본의 좌표계가 일치하는지 확인해야 한다. 공식 후처리가 필요하고 수평 이동 제거·`endpoint_pose_id`·순차 프롬프트 구간과 동시 사용은 거절한다. `keyframe-constraints.json`과 `keyframe-measurement.json`에 제약 및 각 77관절 오차를 기록한다. GUI와 CLI는 같은 입력·출처·결과를 사용한다. 재생기는 원본 관절 미리보기이며 16fps DWPose 출력과 프레임 번호를 혼동하지 않는다.

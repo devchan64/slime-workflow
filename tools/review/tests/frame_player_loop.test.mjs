@@ -26,4 +26,7 @@ assert.match(currentPlayerCommand('loop','first',8,1,13,7),/시작 ≤ 끝/);
 assert.equal(currentTimerCallback,null);
 currentPlayerCommand('loop','first',8,1,24,24);currentTimerCallback();assert.match(currentStatusElement.textContent,/24 \/ 24/);
 currentPlayerCommand('play','first',8,1);currentTimerCallback();assert.match(currentStatusElement.textContent,/1 \/ 24/);
-console.log('구간 반복·경계·FPS 변경·정지·전체 재생 검사 통과');
+assert.equal(currentPlayerCommand('selected-frame'),1);assert.equal(currentTimerCallback,null);
+currentPlayerCommand('seek','first',8,9);assert.equal(currentPlayerCommand('selected-frame'),9);
+currentPlayerCommand('next','first',8,1);assert.equal(currentPlayerCommand('selected-frame'),10);
+console.log('구간 반복·경계·FPS 변경·정지·전체 재생·표시 프레임 선택 검사 통과');

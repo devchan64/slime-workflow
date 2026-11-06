@@ -59,13 +59,15 @@ def execute_kimodo_command(current_command_name,current_payload_record):
     return execute_remote_management_command('kimodo',current_command_name,current_payload_record)
 
 
-def build_kimodo_payload(current_prompt_text,current_frame_count,current_step_count,current_seed_value,current_guidance_value,current_heading_value,current_postprocessing_value,current_direction_names=None,current_horizontal_removal=False,current_proportions_enabled=False,current_reference_paths=None,current_scale_percent=KIMODO_DEFAULT_SETTINGS['openpose_scale_percent'],current_include_hands=False,current_include_face=False,current_segment_text="",current_endpoint_identifier=None):
+def build_kimodo_payload(current_prompt_text,current_frame_count,current_step_count,current_seed_value,current_guidance_value,current_heading_value,current_postprocessing_value,current_direction_names=None,current_horizontal_removal=False,current_proportions_enabled=False,current_reference_paths=None,current_scale_percent=KIMODO_DEFAULT_SETTINGS['openpose_scale_percent'],current_include_hands=False,current_include_face=False,current_segment_text="",current_endpoint_identifier=None,current_keyframe_rows=None):
     for current_integer_value in (current_frame_count,current_step_count,current_seed_value):
         if type(current_integer_value) not in (int,float) or not float(current_integer_value).is_integer():
             raise ValueError('프레임·스텝·시드는 정수로 입력하세요.')
     current_request_record = {'pose_include_hands':current_include_hands,'pose_include_face':current_include_face,'openpose_scale_percent':current_scale_percent,'remove_horizontal_motion':current_horizontal_removal,'action':'generate','prompt':current_prompt_text,'frames':int(current_frame_count),'steps':int(current_step_count),'seed':int(current_seed_value),'guidance_scale':current_guidance_value,'heading_degrees':current_heading_value,'post_processing':current_postprocessing_value,'directions':list(KIMODO_DEFAULT_SETTINGS['directions']) if current_direction_names is None else current_direction_names}
     if current_endpoint_identifier:
         current_request_record['endpoint_pose_id']=current_endpoint_identifier
+    if current_keyframe_rows:
+        current_request_record['keyframes'] = [{'id':current_row_value[0],'frame':current_row_value[1]} for current_row_value in current_keyframe_rows]
     if current_segment_text.strip():
         current_frame_tokens=current_segment_text.split()
         if any(not current_frame_token.isdigit() for current_frame_token in current_frame_tokens):
@@ -106,11 +108,12 @@ def restore_kimodo_inputs(current_history_record):
         if current_reference_path.parent!=current_job_root or not current_reference_path.is_file():
             raise ValueError('신체 비율 참조 사본 누락 또는 경로 오류')
         current_reference_paths.append(str(current_reference_path))
-    return tuple(current_request_record[current_field_name] for current_field_name in ('prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'))+(current_request_record.get('directions',['front_left']),current_request_record.get('remove_horizontal_motion',False),bool(current_reference_paths),current_reference_paths,current_request_record.get('openpose_scale_percent',100.0),current_request_record.get('pose_include_hands',False),current_request_record.get('pose_include_face',False),' '.join(map(str,current_request_record.get('segment_frames',[]))),current_request_record.get('endpoint_pose_id'),current_history_record['id'])
+    return tuple(current_request_record[current_field_name] for current_field_name in ('prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'))+(current_request_record.get('directions',['front_left']),current_request_record.get('remove_horizontal_motion',False),bool(current_reference_paths),current_reference_paths,current_request_record.get('openpose_scale_percent',100.0),current_request_record.get('pose_include_hands',False),current_request_record.get('pose_include_face',False),' '.join(map(str,current_request_record.get('segment_frames',[]))),current_request_record.get('endpoint_pose_id'),[[current_placement['id'],current_placement['frame']] for current_placement in current_request_record.get('keyframes',[])],current_history_record['id'])
 
 
-def check_kimodo_readiness(current_model_ready,current_prompt_text,current_direction_names,current_proportions_enabled=False,current_reference_paths=None):
-    return bool(current_model_ready and current_prompt_text and current_prompt_text.strip() and current_direction_names and (bool(current_proportions_enabled)==bool(current_reference_paths)))
+def check_kimodo_readiness(current_model_ready,current_prompt_text,current_direction_names,current_proportions_enabled=False,current_reference_paths=None,current_keyframe_rows=None,current_postprocessing_enabled=False,current_segment_text='',current_endpoint_identifier=None,current_horizontal_removal=False):
+    current_keyframe_compatible = not current_keyframe_rows or (current_postprocessing_enabled and not current_segment_text.strip() and not current_endpoint_identifier and not current_horizontal_removal)
+    return bool(current_model_ready and current_prompt_text and current_prompt_text.strip() and current_direction_names and (bool(current_proportions_enabled)==bool(current_reference_paths)) and current_keyframe_compatible)
 
 
 def load_kimodo_examples():
@@ -149,7 +152,7 @@ def apply_complete_kimodo_example(current_example_identifier):
     current_settings_record=current_example_record.get('settings',{})
     current_reference_identifier=current_example_record.get('reference_example')
     current_reference_values=apply_proportion_example(current_reference_identifier) if current_reference_identifier else (False,[])
-    return (*apply_kimodo_example(current_example_identifier),*current_reference_values,*(current_settings_record.get(current_field_name,gr.skip()) for current_field_name in ('openpose_scale_percent','pose_include_hands','pose_include_face')),' '.join(map(str,current_settings_record.get('segment_frames',[]))),None)
+    return (*apply_kimodo_example(current_example_identifier),*current_reference_values,*(current_settings_record.get(current_field_name,gr.skip()) for current_field_name in ('openpose_scale_percent','pose_include_hands','pose_include_face')),' '.join(map(str,current_settings_record.get('segment_frames',[]))),None,[])
 
 
 def describe_kimodo_duration(current_frame_count):
@@ -265,13 +268,62 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
             current_face_control = gr.Checkbox(value=False,label='DWPose 얼굴 상세 포함')
         gr.Markdown('SOMA 렌더 → VideoX-Fun DWPose → 선택 참조 관절 길이 보정 → 832×480 · 16fps 포즈 MP4. 몸 18점의 코·눈·귀는 유지합니다. 보정은 3D SOMA 길이 기준 고정 배율이며 2D 투영 단축을 유지합니다.')
         current_segment_control = gr.Textbox(label='순차 생성 구간 프레임 · 선택',value='',info='예: 90 120 90. 프롬프트 3줄에 각각 적용하며 합계는 전체 프레임 수와 같아야 합니다. 비우면 단일 설명입니다. 공식 multi_prompt 순차 생성과 기본 5프레임 전환을 사용합니다. 구간마다 설정한 스텝을 실행합니다.')
+        with gr.Accordion('저장한 키프레임 배치 · 선택',open=False):
+            gr.Markdown('저장 목록을 새로고침하고 키프레임과 출력 프레임 번호를 골라 추가하세요. 1은 시작, 전체 프레임 수는 종료입니다. 공식 발 미끄러짐 후처리를 켜고 수평 이동 제거를 꺼야 하며 같은 출력 번호는 한 번만 지정합니다. 순차 구간 및 양 끝 기준 자세와 함께 사용할 수 없습니다.')
+            current_keyframe_selector = gr.Dropdown(choices=[],label='저장한 키프레임')
+            current_keyframe_saved_preview = gr.Image(label='저장한 원본 관절 프레임',interactive=False,buttons=[])
+            current_keyframe_refresh = gr.Button('저장 목록 새로고침')
+            current_keyframe_target = gr.Number(label='배치할 출력 프레임 번호 · 1부터 시작',value=1,minimum=1,precision=0)
+            with gr.Row():
+                current_keyframe_add = gr.Button('배치 추가')
+                current_keyframe_remove = gr.Button('입력한 프레임 배치 삭제')
+                current_keyframe_clear = gr.Button('배치 모두 지우기')
+            current_keyframe_rows = gr.State([])
+            current_keyframe_display = gr.Dataframe(headers=['키프레임 ID','출력 프레임'],datatype=['str','number'],interactive=False,label='현재 배치',value=[])
+            current_keyframe_notice = gr.Markdown('배치 없음 · 목록을 새로고침해 키프레임을 선택하세요.')
+            def refresh_keyframe_choices():
+                current_records = current_execute_command('keyframe-list',{})['records']
+                return gr.update(choices=[(f"{current_record['tag']} · {current_record['source_job']} · {current_record['source_frame']}프레임",current_record['id']) for current_record in current_records],value=None)
+            def preview_saved_keyframe(current_identifier):
+                if not current_identifier:
+                    return None
+                from PIL import Image
+                import io
+                current_preview_record=current_execute_command('keyframe-preview',{'id':current_identifier})
+                with Image.open(io.BytesIO(base64.b64decode(current_preview_record['image_base64'],validate=True))) as current_preview_image:
+                    return current_preview_image.copy()
+            def append_keyframe_placement(current_rows,current_identifier,current_target_number,current_total_frames,current_segment_text,current_endpoint_identifier):
+                if not current_identifier or type(current_target_number) not in (int,float) or not float(current_target_number).is_integer():
+                    raise gr.Error('키프레임과 정수 프레임 번호를 선택하세요.')
+                if type(current_total_frames) not in (int,float) or not float(current_total_frames).is_integer() or current_total_frames < 1:
+                    raise gr.Error('전체 프레임 수를 양의 정수로 입력하세요.')
+                if current_segment_text.strip() or current_endpoint_identifier:
+                    raise gr.Error('키프레임을 추가하려면 순차 구간을 비우고 양 끝 기준 자세 선택을 해제하세요.')
+                current_new_rows = [*current_rows,[current_identifier,int(current_target_number)]]
+                from tools.review.domains.kimodo.keyframe_storage import validate_kimodo_keyframe_placements
+                current_validated_rows = validate_kimodo_keyframe_placements([{'id':current_row[0],'frame':current_row[1]} for current_row in current_new_rows],int(current_total_frames))
+                current_new_rows = [[current_item['id'],current_item['frame']] for current_item in current_validated_rows]
+                return current_new_rows,current_new_rows,f'{len(current_new_rows)}개 키프레임 배치됨 · 공식 후처리 켜짐',True
+            current_keyframe_refresh.click(refresh_keyframe_choices,None,current_keyframe_selector,queue=False)
+            current_keyframe_selector.change(preview_saved_keyframe,current_keyframe_selector,current_keyframe_saved_preview,queue=False)
+            current_keyframe_add.click(append_keyframe_placement,[current_keyframe_rows,current_keyframe_selector,current_keyframe_target,current_frame_control,current_segment_control,current_endpoint_selector],[current_keyframe_rows,current_keyframe_display,current_keyframe_notice,current_postprocessing_control])
+            def remove_keyframe_placement(current_rows,current_target_number):
+                if type(current_target_number) not in (int,float) or not float(current_target_number).is_integer():
+                    raise gr.Error('삭제할 출력 프레임 번호를 입력하세요.')
+                current_remaining_rows = [current_row for current_row in current_rows if current_row[1] != int(current_target_number)]
+                if len(current_remaining_rows) == len(current_rows):
+                    raise gr.Error('입력한 프레임에 배치된 키프레임이 없습니다.')
+                return current_remaining_rows,current_remaining_rows,f'{len(current_remaining_rows)}개 키프레임 배치됨'
+            current_keyframe_remove.click(remove_keyframe_placement,[current_keyframe_rows,current_keyframe_target],[current_keyframe_rows,current_keyframe_display,current_keyframe_notice])
+            current_keyframe_clear.click(lambda:([],[],'배치 없음'),None,[current_keyframe_rows,current_keyframe_display,current_keyframe_notice])
+            current_keyframe_rows.change(lambda current_rows:current_rows,current_keyframe_rows,current_keyframe_display,queue=False)
         current_prompt_control.change(describe_kimodo_prompt,[current_prompt_control,current_segment_control],current_prompt_summary,queue=False)
         current_segment_control.change(describe_kimodo_prompt,[current_prompt_control,current_segment_control],current_prompt_summary,queue=False)
-        current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control,current_horizontal_control,current_proportions_control,current_reference_control,current_scale_control,current_hands_control,current_face_control,current_segment_control,current_endpoint_selector]
+        current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control,current_horizontal_control,current_proportions_control,current_reference_control,current_scale_control,current_hands_control,current_face_control,current_segment_control,current_endpoint_selector,current_keyframe_rows]
         current_example_button.click(apply_complete_kimodo_example,current_example_selector,current_input_controls,queue=False)
         gr.Markdown('예시는 시작점입니다. 생성된 동작의 자세와 움직임을 검수하세요.')
         current_generate_button = gr.Button('대기열에 추가',variant='primary',interactive=False)
-        build_button_guidance(current_generate_button,'모델 자료와 전용 환경을 준비한 뒤 상태를 새로 확인하고 동작 프롬프트와 출력 방향을 한 개 이상 선택하세요. 신체 비율 참조 옵션을 켰다면 RGB PNG 이미지를 첨부하세요.')
+        build_button_guidance(current_generate_button,'모델 자료와 전용 환경을 준비한 뒤 상태를 새로 확인하고 동작 프롬프트와 출력 방향을 한 개 이상 선택하세요. 신체 비율 참조 옵션을 켰다면 RGB PNG 이미지를 첨부하세요. 키프레임을 배치했다면 공식 후처리를 켜고 수평 이동 제거·순차 구간·양 끝 기준 자세를 해제하세요.')
         with gr.Column() as current_confirmation_container:
             pass
         gr.Markdown('### 진행 상태 · 최신 결과\n접수한 작업의 진행률·예상 시간·VRAM과 완료 영상을 표시합니다. 이전 작업은 아래 생성 이력에서 조회하세요.')
@@ -280,8 +332,47 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         def enqueue_kimodo_generation(*current_input_values):
             current_job_record = current_execute_command('generate',build_kimodo_payload(*current_input_values))
             return current_job_record['id'],'공용 GPU 대기열에 등록했습니다.'
-        bind_gpu_generation_confirmation(current_generate_button,enqueue_kimodo_generation,current_input_controls,[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=check_kimodo_readiness,generation_readiness_inputs=[current_model_ready,current_prompt_control,current_direction_control,current_proportions_control,current_reference_control],generation_readiness_events=[current_refresh_event,current_load_event])
+        bind_gpu_generation_confirmation(current_generate_button,enqueue_kimodo_generation,current_input_controls,[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=check_kimodo_readiness,generation_readiness_inputs=[current_model_ready,current_prompt_control,current_direction_control,current_proportions_control,current_reference_control,current_keyframe_rows,current_postprocessing_control,current_segment_control,current_endpoint_selector,current_horizontal_control],generation_readiness_events=[current_refresh_event,current_load_event])
         build_video_job_monitor(current_execute_command,current_server_address,current_job_control,current_status_output,result_renderer_callback=render_kimodo_result)
         current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_kimodo_inputs,restore_output_components=[*current_input_controls,current_job_control],result_renderer_callback=render_kimodo_result,record_folder_route='/kimodo',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
+        with gr.Accordion('선택한 이력에서 키프레임 저장',open=False):
+            gr.Markdown('위 생성 이력에서 완료된 작업을 선택하고 프레임을 불러오세요. 원본 SOMA 관절 미리보기는 30fps이며 첫 프레임은 1번입니다. 확인할 프레임으로 이동한 뒤 표시한 프레임 선택을 누르세요.')
+            current_keyframe_number = gr.Number(label='원본 프레임 번호 · 1부터 시작',value=1,minimum=1,precision=0)
+            current_keyframe_source = gr.State(None)
+            current_keyframe_load_button = gr.Button('선택 이력 프레임 불러오기')
+            from tools.review.common.gradio_frame_player import build_browser_frame_player
+            current_keyframe_player = build_browser_frame_player('kimodo-keyframe-player',current_player_visible=True,defer_image_loading=False,current_selected_number_output=current_keyframe_number)
+            current_keyframe_tag = gr.Textbox(label='키프레임 태그',max_lines=1,placeholder='예: 복싱 가드')
+            current_keyframe_save = gr.Button('키프레임 저장',interactive=False)
+            current_keyframe_status = gr.Markdown('이력 선택, 프레임 번호, 태그가 필요합니다.')
+            current_keyframe_list_button = gr.Button('키프레임 목록 새로고침')
+            current_keyframe_list_output = gr.JSON(label='저장된 키프레임 목록')
+            def load_selected_keyframe_frames(current_job_identifier):
+                if not current_job_identifier:
+                    raise gr.Error('완료된 이력을 먼저 선택하세요.')
+                current_job_status = current_execute_command('status',{'id':current_job_identifier})
+                if current_job_status.get('status') != 'completed' or not current_job_status.get('attempt') or not current_job_status.get('image') or type(current_job_status.get('source_frame_count')) is not int:
+                    raise gr.Error('완료된 모션 이력을 선택하세요.')
+                current_frame_base = current_job_status['image'].rsplit('/',1)[0]
+                current_frame_paths = [f'{current_frame_base}/output-{current_index:03d}.png' for current_index in range(current_job_status['source_frame_count'])]
+                current_player_payload = {'frames':{'source':current_frame_paths},'directUrls':True,'panels':['원본 SOMA 관절 미리보기']}
+                return json.dumps(current_player_payload,ensure_ascii=False),{'job_id':current_job_identifier,'attempt_id':current_job_status['attempt'],'frames':current_job_status['source_frame_count']},1,f"원본 {current_job_identifier} · {current_job_status['attempt']} · {len(current_frame_paths)}프레임을 불러왔습니다."
+            current_keyframe_load_button.click(load_selected_keyframe_frames,current_history_outputs[0],[current_keyframe_player,current_keyframe_source,current_keyframe_number,current_keyframe_status])
+            def update_keyframe_readiness(current_job_identifier,current_frame_value,current_tag_value,current_source_record):
+                return gr.update(interactive=bool(current_source_record and current_source_record.get('job_id')==current_job_identifier and current_tag_value and current_tag_value.strip() and type(current_frame_value) in (int,float) and 1 <= current_frame_value <= current_source_record['frames'] and float(current_frame_value).is_integer()))
+            for current_input_control in (current_history_outputs[0],current_keyframe_number,current_keyframe_tag,current_keyframe_source):
+                current_input_control.change(update_keyframe_readiness,[current_history_outputs[0],current_keyframe_number,current_keyframe_tag,current_keyframe_source],current_keyframe_save,queue=False)
+            def save_selected_keyframe(current_job_identifier,current_frame_value,current_tag_value,current_source_record):
+                if not current_source_record or current_source_record.get('job_id') != current_job_identifier:
+                    raise gr.Error('선택한 이력의 프레임을 다시 불러오세요.')
+                current_job_status = current_execute_command('status',{'id':current_job_identifier})
+                if current_job_status.get('status') != 'completed' or current_job_status.get('attempt') != current_source_record['attempt_id']:
+                    raise gr.Error('작업 상태 또는 시도가 변경됐습니다. 프레임을 다시 불러오세요.')
+                if type(current_frame_value) not in (int,float) or not float(current_frame_value).is_integer():
+                    raise gr.Error('원본 프레임 번호는 정수여야 합니다.')
+                current_saved_record = current_execute_command('keyframe-save',{'job_id':current_job_identifier,'attempt_id':current_source_record['attempt_id'],'frame':int(current_frame_value),'tag':current_tag_value})
+                return f"저장 완료: {current_saved_record['id']} · {current_saved_record['tag']} · 원본 {current_saved_record['source_frame']}프레임"
+            current_keyframe_save.click(save_selected_keyframe,[current_history_outputs[0],current_keyframe_number,current_keyframe_tag,current_keyframe_source],current_keyframe_status)
+            current_keyframe_list_button.click(lambda:current_execute_command('keyframe-list',{})['records'],None,current_keyframe_list_output,queue=False)
     return current_interface_blocks

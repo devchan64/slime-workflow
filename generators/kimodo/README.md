@@ -123,6 +123,14 @@ Kimodo 작업 실행기·참조 분석·직접 포즈·DWPose는 모두 `.venv/b
 
 생성기 `SOMA 기준 자세 목록 · 시작과 종료`에서 선택하면 공식 후처리를 켜고 초기 방향을 세트의 값으로 설정한다. 미선택은 기존 자유 생성이다. 선택 시 시작·종료 두 프레임에 동일한 공식 `fullbody` 제약을 전달한다. 루트 XZ는 첫 프레임의 smoothed root를 원점으로 정규화하며 높이·회전은 보존한다. 내부 30관절 변환과 순차 생성의 제약 분배는 공식 `load_constraints_lst`와 모델 API를 사용한다. 중간 구간의 루트는 고정하지 않는다. 과거의 임의 JSON `pose_constraints` 업로드는 계속 거절한다.
 
+### 생성 이력 키프레임 저장과 배치
+
+생성 이력에서 완료 작업을 선택하고 `선택 이력 프레임 불러오기`를 누른다. 원본 30fps 관절 재생기에서 프레임을 확인하고 `표시한 프레임 선택`을 누른 뒤 태그를 입력하여 저장한다. 원본 프레임 번호는 1부터 시작한다. 포즈·관절 미리보기·골격·출처·해시가 생성 이력과 별도로 보관되므로 이력 삭제로 자동 삭제되지 않는다. 저장 목록에서 태그를 선택해 같은 미리보기를 다시 볼 수 있다. 수평 이동 제거 결과는 화면에 표시된 보정 모션에서 저장한다.
+
+`저장한 키프레임 배치`에서 목록을 새로고침하고 각 키프레임의 출력 프레임 번호를 추가한다. 1은 시작이고 전체 프레임 수는 종료다. 같은 프레임 번호 중복은 거절한다. 공식 후처리를 켜며 수평 이동 제거·순차 생성 구간·기존 양 끝 자세와 함께 사용할 수 없다. 키프레임 하나 이상을 사용하면 생성 접수 시 원본 포즈 사본을 작업 폴더에 저장하고 재개 시에도 같은 사본을 사용한다. 77관절 자세는 공식 API로 30관절에 변환되며 결과 ZIP의 `keyframe-constraints.json`과 `keyframe-measurement.json`에 실제 제약·관절 위치 오차를 남긴다. 서로 다른 작업에서 가져온 포즈는 원본 좌표계가 다를 수 있다. 첫 키프레임의 평활 루트 XZ를 원점으로 하며 나머지의 상대 위치를 그대로 유지하므로 연결 결과를 검수해야 한다.
+
+통합 CLI 저장 요청 JSON 예: `{"job_id":"2026-11-06_14-22-05-11c6a312","attempt_id":"5d90b105ecac4ad3bffa15e2e465c06b","frame":1,"tag":"가드"}`. `python3 tools/manager.py command kimodo keyframe-save --payload-file request.json`으로 저장하고 `keyframe-list`로 ID를 조회한다. 생성 payload의 `keyframes`는 `[{"id":"<저장 ID>","frame":1},{"id":"<저장 ID>","frame":90}]`이며 `frames: 90`, `post_processing: true`가 필요하다. 지원하지 않는 임의 `pose_constraints`는 계속 거절한다.
+
 통합 CLI의 기존 `kimodo generate --payload-file` JSON에 `"endpoint_pose_id":"relaxed-standing-v1"`, `"post_processing":true`, `"heading_degrees":0`을 지정한다. GUI와 동일하게 미등록 ID·파일 해시 변경·후처리 해제·다른 초기 방향은 거절한다. 실행 시 세트 사본과 출처를 시도 폴더 `endpoint-pose/`, 실제 제약을 `endpoint-constraints.json`으로 보존한다. 선택만으로 생성하지 않는다.
 
 기준 자세 선택·공식 제약 변환의 연결 검증과 GPU 생성 품질 검수는 구분한다. 동일 3D 자세가 이미지 참조와 같은 픽셀 배치라는 뜻은 아니다. 생성 후 양 끝 3D 관절 오차, 30→16fps 표본 선택과 Fun Control 사용 구간, 포즈 출력 카메라·배율까지 확인해야 한다.
