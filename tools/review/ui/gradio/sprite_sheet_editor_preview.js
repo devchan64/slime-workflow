@@ -1,15 +1,22 @@
-(currentImageData,currentFrameRows,currentFrameIndex,currentPlayEnabled,currentShadowEnabled,currentEditMode,currentSourceBounds)=>{
+(currentImageData,currentFrameRows,currentFrameIndex,currentPlayEnabled,currentShadowEnabled,currentEditMode,currentSourceBounds,currentPlaybackRate=6,currentBaselineEnabled=false,currentOnionEnabled=false,currentPreviewClip='',currentSourceRecord={},currentGameSizeEnabled=false,currentReferenceHeight=480,currentGameBodyHeight=80,currentFeetEnabled=false,currentRestoredFeet={})=>{
  const currentCanvasElement=document.getElementById('sprite-sheet-alignment-preview');
  if(!currentCanvasElement)return '미리보기 캔버스가 없습니다.';
  const currentRows=(Array.isArray(currentFrameRows)?currentFrameRows:currentFrameRows?.data)?.map(currentFrameRow=>currentFrameRow.map(Number));
  const currentCanvasContext=currentCanvasElement.getContext('2d');
- const currentCanvasSize=640,currentCanvasPadding=48,currentAnchorRadius=9;
+ const currentPlaybackFps=Number(currentPlaybackRate);
+ if(![4,6,8,12,16,24,30].includes(currentPlaybackFps))return '지원하지 않는 검수 FPS입니다.';
+ if(currentGameSizeEnabled&&(!Number.isFinite(Number(currentReferenceHeight))||Number(currentReferenceHeight)<=0||!Number.isFinite(Number(currentGameBodyHeight))||Number(currentGameBodyHeight)<=0))return '원본 신체 높이와 게임 출력 높이는 양수여야 합니다.';
+ const currentCanvasSize=640,currentCanvasPadding=48,currentAnchorRadius=9,currentOnionOpacity=.28;
  currentCanvasElement.spritePreviewRevision=(currentCanvasElement.spritePreviewRevision||0)+1;
  const currentPreviewRevision=currentCanvasElement.spritePreviewRevision;
  currentCanvasElement.onpointerdown=currentCanvasElement.onpointermove=currentCanvasElement.onpointerup=currentCanvasElement.onpointercancel=null;
  currentCanvasContext.fillStyle='#888';currentCanvasContext.fillRect(0,0,currentCanvasSize,currentCanvasSize);
  if(!currentImageData||!currentRows?.length)return '원본 시트를 불러오세요.';
  if(currentRows.some(currentFrameRow=>currentFrameRow.length!==6||currentFrameRow.some(currentValue=>!Number.isFinite(currentValue))||currentFrameRow[2]<=0||currentFrameRow[3]<=0))return '유효한 프레임 좌표가 필요합니다.';
+ const currentClipRecord=currentPreviewClip?(currentSourceRecord.animation?.clips||[]).find(currentClipValue=>currentClipValue.clipId===currentPreviewClip):null;
+ if(currentPreviewClip&&!currentClipRecord)return '선택한 동작을 다시 확인하세요.';
+ const currentPlaybackIndices=currentClipRecord?currentClipRecord.frames.map(currentClipFrame=>(currentSourceRecord.animation.frames||[]).findIndex(currentSourceFrame=>currentSourceFrame.frameId===currentClipFrame.frameId)):currentRows.map((currentFrameRow,currentFrameNumber)=>currentFrameNumber);
+ if(!currentPlaybackIndices.length||currentPlaybackIndices.some(currentFrameNumber=>currentFrameNumber<0||currentFrameNumber>=currentRows.length))return '클립의 프레임 참조가 유효하지 않습니다.';
  const currentSignature=JSON.stringify(currentRows);
  const currentSelectedIndex=Math.max(0,Math.min(currentRows.length-1,Number(currentFrameIndex)-1));
  let currentEditorState=currentCanvasElement.spriteEditorState;
@@ -27,7 +34,7 @@
   const currentMaxTop=Math.max(...currentRows.map(currentFrameRow=>currentFrameRow[5]));
   const currentBoundsWidth=currentMaxLeft+Math.max(...currentRows.map(currentFrameRow=>currentFrameRow[2]-currentFrameRow[4]));
   const currentBoundsHeight=currentMaxTop+Math.max(...currentRows.map(currentFrameRow=>currentFrameRow[3]-currentFrameRow[5]));
-  const currentScaleValue=Math.min((currentCanvasSize-currentCanvasPadding*2)/currentBoundsWidth,(currentCanvasSize-currentCanvasPadding*2)/currentBoundsHeight);
+  const currentScaleValue=currentGameSizeEnabled?Number(currentGameBodyHeight)/Number(currentReferenceHeight):Math.min((currentCanvasSize-currentCanvasPadding*2)/currentBoundsWidth,(currentCanvasSize-currentCanvasPadding*2)/currentBoundsHeight);
   const currentFixedAnchorLeft=(currentCanvasSize-currentBoundsWidth*currentScaleValue)/2+currentMaxLeft*currentScaleValue;
   const currentFixedAnchorTop=(currentCanvasSize-currentBoundsHeight*currentScaleValue)/2+currentMaxTop*currentScaleValue;
   const currentOriginLeft=currentFixedAnchorLeft-currentOriginalRow[4]*currentScaleValue,currentOriginTop=currentFixedAnchorTop-currentOriginalRow[5]*currentScaleValue;
@@ -35,7 +42,10 @@
   const drawCurrentEditorFrame=currentTime=>{
    if(!currentCanvasElement.isConnected||currentCanvasElement.spritePreviewRevision!==currentPreviewRevision)return;
    currentCanvasContext.fillStyle='#888';currentCanvasContext.fillRect(0,0,currentCanvasSize,currentCanvasSize);
-   const currentActiveIndex=currentPlayEnabled?Math.floor(Math.max(0,currentTime-currentStartTime)*6/1000)%currentRows.length:currentSelectedIndex;
+   const currentPlaybackStep=Math.floor(Math.max(0,currentTime-currentStartTime)*currentPlaybackFps/1000);
+   const currentPlaybackPosition=currentClipRecord?.loop===false?Math.min(currentPlaybackStep,currentPlaybackIndices.length-1):currentPlaybackStep%currentPlaybackIndices.length;
+   const currentActiveIndex=currentPlayEnabled?currentPlaybackIndices[currentPlaybackPosition]:currentSelectedIndex;
+   currentEditorState.displayedIndex=currentActiveIndex;
    const currentActiveRow=currentPlayEnabled?currentRows[currentActiveIndex]:currentDraftRow;
    let currentDrawScale=currentScaleValue,currentDrawLeft=currentOriginLeft,currentDrawTop=currentOriginTop;
    if(currentPlayEnabled){
@@ -51,11 +61,40 @@
    const currentClipLeft=Math.max(currentDrawRow[0],currentSourceRect[0]),currentClipTop=Math.max(currentDrawRow[1],currentSourceRect[1]);
    const currentClipRight=Math.min(currentDrawRow[0]+currentDrawRow[2],currentSourceRect[0]+currentSourceRect[2]),currentClipBottom=Math.min(currentDrawRow[1]+currentDrawRow[3],currentSourceRect[1]+currentSourceRect[3]);
    if(currentClipRight>currentClipLeft&&currentClipBottom>currentClipTop)currentCanvasContext.drawImage(currentImageElement,currentClipLeft,currentClipTop,currentClipRight-currentClipLeft,currentClipBottom-currentClipTop,currentDrawLeft+currentCropOffsetLeft+(currentClipLeft-currentDrawRow[0])*currentDrawScale,currentDrawTop+currentCropOffsetTop+(currentClipTop-currentDrawRow[1])*currentDrawScale,(currentClipRight-currentClipLeft)*currentDrawScale,(currentClipBottom-currentClipTop)*currentDrawScale);
+   const currentClipPosition=currentPlaybackIndices.indexOf(currentActiveIndex);
+   const currentPreviousIndex=currentClipPosition>0?currentPlaybackIndices[currentClipPosition-1]:-1;
+   if(currentOnionEnabled&&currentPreviousIndex>=0){
+    const currentPreviousRow=currentRows[currentPreviousIndex];
+    const currentPreviousBounds=currentSourceBounds?.[currentPreviousIndex]??[0,0,currentImageElement.width,currentImageElement.height];
+    const currentPreviousLeft=Math.max(currentPreviousRow[0],currentPreviousBounds[0]);
+    const currentPreviousTop=Math.max(currentPreviousRow[1],currentPreviousBounds[1]);
+    const currentPreviousRight=Math.min(currentPreviousRow[0]+currentPreviousRow[2],currentPreviousBounds[0]+currentPreviousBounds[2]);
+    const currentPreviousBottom=Math.min(currentPreviousRow[1]+currentPreviousRow[3],currentPreviousBounds[1]+currentPreviousBounds[3]);
+    if(currentPreviousRight>currentPreviousLeft&&currentPreviousBottom>currentPreviousTop){
+     currentCanvasContext.save();currentCanvasContext.globalAlpha=currentOnionOpacity;
+     currentCanvasContext.drawImage(currentImageElement,currentPreviousLeft,currentPreviousTop,currentPreviousRight-currentPreviousLeft,currentPreviousBottom-currentPreviousTop,currentFixedAnchorLeft+(currentPreviousLeft-currentPreviousRow[0]-currentPreviousRow[4])*currentDrawScale,currentFixedAnchorTop+(currentPreviousTop-currentPreviousRow[1]-currentPreviousRow[5])*currentDrawScale,(currentPreviousRight-currentPreviousLeft)*currentDrawScale,(currentPreviousBottom-currentPreviousTop)*currentDrawScale);
+     currentCanvasContext.restore();
+    }
+   }
+   if(currentFeetEnabled){
+    const currentOriginalFrame=currentSourceRecord?.animation?.frames?.[currentActiveIndex];
+    const currentFootPoints=currentRestoredFeet?.[String(currentActiveIndex)]??currentOriginalFrame?.contacts;
+    if(Array.isArray(currentFootPoints)&&currentFootPoints.length===2&&currentFootPoints.every(currentFootPoint=>Number.isFinite(currentFootPoint.x)&&Number.isFinite(currentFootPoint.y))){
+     currentCanvasContext.strokeStyle='#00a4ad';
+     for(const currentFootPoint of currentFootPoints){
+      const currentFootLeft=currentDrawLeft+currentCropOffsetLeft+(currentOriginalFrame.rect.x+currentFootPoint.x-currentDrawRow[0])*currentDrawScale;
+      const currentFootTop=currentDrawTop+currentCropOffsetTop+(currentOriginalFrame.rect.y+currentFootPoint.y-currentDrawRow[1])*currentDrawScale;
+      currentCanvasContext.beginPath();currentCanvasContext.arc(currentFootLeft,currentFootTop,5,0,Math.PI*2);currentCanvasContext.stroke();
+     }
+    }else{currentCanvasContext.fillStyle='#222';currentCanvasContext.fillText('발 중심 좌표 미등록 · 앵커와 별도 데이터입니다.',16,44);}
+   }
+   if(currentBaselineEnabled){currentCanvasContext.strokeStyle='#e5bd24';currentCanvasContext.beginPath();currentCanvasContext.moveTo(0,currentFixedAnchorTop);currentCanvasContext.lineTo(currentCanvasSize,currentFixedAnchorTop);currentCanvasContext.stroke();}
    if(currentShadowEnabled){currentCanvasContext.fillStyle='rgba(0,0,0,.22)';currentCanvasContext.beginPath();currentCanvasContext.ellipse(currentAnchorLeft,currentAnchorTop,currentOriginalRow[2]*currentDrawScale*.24,currentOriginalRow[3]*currentDrawScale*.06,0,0,Math.PI*2);currentCanvasContext.fill();}
    if(!currentPlayEnabled){currentCanvasContext.strokeStyle='#987000';currentCanvasContext.lineWidth=2;currentCanvasContext.strokeRect(currentOriginLeft+(currentDraftRow[0]-currentOriginalRow[0])*currentScaleValue,currentOriginTop+(currentDraftRow[1]-currentOriginalRow[1])*currentScaleValue,currentDraftRow[2]*currentScaleValue,currentDraftRow[3]*currentScaleValue);}
    currentCanvasContext.strokeStyle='#e22';currentCanvasContext.beginPath();currentCanvasContext.arc(currentAnchorLeft,currentAnchorTop,currentAnchorRadius,0,Math.PI*2);currentCanvasContext.moveTo(currentAnchorLeft-14,currentAnchorTop);currentCanvasContext.lineTo(currentAnchorLeft+14,currentAnchorTop);currentCanvasContext.moveTo(currentAnchorLeft,currentAnchorTop-14);currentCanvasContext.lineTo(currentAnchorLeft,currentAnchorTop+14);currentCanvasContext.stroke();
-   currentCanvasContext.fillStyle='#222';currentCanvasContext.fillText(`프레임 ${currentActiveIndex+1}/${currentRows.length} · ${currentPlayEnabled?'재생 중에는 편집할 수 없습니다.':currentEditMode+' 드래그 후 적용 버튼을 누르세요.'}`,16,24);
-   if(currentPlayEnabled)requestAnimationFrame(drawCurrentEditorFrame);
+   currentCanvasContext.fillStyle='#222';currentCanvasContext.fillText(`프레임 ${currentActiveIndex+1}/${currentRows.length} · ${currentPlayEnabled?(currentClipRecord?.loop===false&&currentPlaybackStep>=currentPlaybackIndices.length-1?'재생 완료 · 정지를 눌러 마지막 프레임을 편집하세요.':'재생 중에는 편집할 수 없습니다.'):currentEditMode+' 드래그 후 적용 버튼을 누르세요.'}`,16,24);
+   currentCanvasContext.fillText(`크롭 X ${currentActiveRow[0]} · Y ${currentActiveRow[1]} · ${currentActiveRow[2]}×${currentActiveRow[3]} / 앵커 X ${currentActiveRow[4]} · Y ${currentActiveRow[5]}`,16,currentCanvasSize-16);
+   if(currentPlayEnabled&&!(currentClipRecord?.loop===false&&currentPlaybackStep>=currentPlaybackIndices.length-1))requestAnimationFrame(drawCurrentEditorFrame);
   };
   const readCurrentPointer=currentEvent=>{const currentBounds=currentCanvasElement.getBoundingClientRect();return [Math.round(((currentEvent.clientX-currentBounds.left)*currentCanvasSize/currentBounds.width-currentOriginLeft)/currentScaleValue),Math.round(((currentEvent.clientY-currentBounds.top)*currentCanvasSize/currentBounds.height-currentOriginTop)/currentScaleValue)];};
   let currentDragStart=null,currentDragBackup=null;

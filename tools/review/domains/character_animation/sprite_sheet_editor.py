@@ -1,6 +1,7 @@
 """스프라이트 프레임 크롭과 앵커 정렬 결과를 별도 작업으로 저장한다."""
 import base64
 import binascii
+import math
 from datetime import datetime
 from hashlib import sha256
 from io import BytesIO
@@ -48,8 +49,8 @@ def execute_sprite_sheet_export(command_payload_value):
                 raise ValueError('원본 셀 경계가 이미지 범위를 벗어났습니다.')
     current_output_frames = []
     for current_frame_index, current_frame_record in enumerate(current_frame_records):
-        if not isinstance(current_frame_record,dict) or set(current_frame_record) != {'x','y','width','height','anchorX','anchorY'} or any(type(current_frame_record[current_field_name]) is not int for current_field_name in current_frame_record):
-            raise ValueError(f'{current_frame_index+1}번 프레임 좌표는 정수여야 합니다.')
+        if not isinstance(current_frame_record,dict) or set(current_frame_record) != {'x','y','width','height','anchorX','anchorY'} or any(type(current_frame_record[current_field_name]) is not int for current_field_name in ('x','y','width','height')) or any(type(current_frame_record[current_field_name]) not in (int,float) or not math.isfinite(current_frame_record[current_field_name]) for current_field_name in ('anchorX','anchorY')):
+            raise ValueError(f'{current_frame_index+1}번 프레임 크롭은 정수, 앵커는 유한한 숫자여야 합니다.')
         current_left, current_top = current_frame_record['x'], current_frame_record['y']
         current_width, current_height = current_frame_record['width'], current_frame_record['height']
         current_frame_anchor_x, current_frame_anchor_y = current_frame_record['anchorX'], current_frame_record['anchorY']
@@ -134,7 +135,19 @@ def execute_baseline_sheet_command(current_command_name,current_payload_record):
     return {'path':current_payload_record['path'],'image':base64.b64encode(current_image_bytes).decode(),'animation':current_coordinate_record,'layout':current_layout_record,'metadataSha256':sha256(current_image_path.with_suffix('.yaml').read_bytes()+(current_coordinate_path.read_bytes() if current_coordinate_name else b'')).hexdigest()}
 
 
+def select_sprite_texture_frames(current_animation_record,current_image_name):
+    """패킹 시트는 선택 이미지에 속한 프레임만 편집한다."""
+    current_frame_records=current_animation_record['frames']
+    if 'sheets' not in current_animation_record:return current_frame_records
+    current_matching_sheets=[current_sheet_record for current_sheet_record in current_animation_record['sheets'] if current_sheet_record['image']==current_image_name]
+    if len(current_matching_sheets)!=1:raise ValueError('선택 이미지의 패킹 시트 등록이 정확히 하나여야 합니다.')
+    current_selected_frames=[current_frame_record for current_frame_record in current_frame_records if current_frame_record.get('texture')==current_image_name]
+    if not current_selected_frames:raise ValueError('선택 이미지에 등록된 프레임이 없습니다.')
+    return current_selected_frames
+
+
 def execute_sprite_asset_command(current_command_name,current_payload_record):
+    import json
     from tools.review.common.map_tile_assets import load_registered_tiles
     current_expected_fields={'query'} if current_command_name=='sheet-search' else {'path'}
     if not isinstance(current_payload_record,dict) or set(current_payload_record) not in (current_expected_fields,current_expected_fields|{'source'}) or any(not isinstance(current_field_value,str) for current_field_value in current_payload_record.values()):
@@ -146,7 +159,19 @@ def execute_sprite_asset_command(current_command_name,current_payload_record):
     current_sprite_records={current_asset_path:current_asset_record for current_asset_path,current_asset_record in current_registry_records.items() if current_asset_path.endswith('.png') and (current_asset_path.startswith('assets/sprites/') or (current_asset_path.startswith('assets/characters/') and '/animations/' in current_asset_path)) and not current_asset_record['source'].get('retirement_reason')}
     if current_command_name=='sheet-search':
         current_search_tokens=current_payload_record['query'].casefold().split()
-        return {'items':[{'path':current_asset_path,'label':current_asset_record.get('name') or ' · '.join(Path(current_asset_path).parts[2:-1])+' · '+Path(current_asset_path).stem,'sha256':current_asset_record['sha256']} for current_asset_path,current_asset_record in current_sprite_records.items() if all(current_search_token in (current_asset_path+' '+str(current_asset_record.get('name',''))+' '+current_asset_record['managementId']).casefold() for current_search_token in current_search_tokens)]}
+        current_animation_lookup={}
+        for current_metadata_path,current_metadata_record in current_registry_records.items():
+            if not current_metadata_path.endswith('.animation.json') or current_metadata_record['source'].get('retirement_reason'):continue
+            if not any(Path(current_sprite_path).parent==Path(current_metadata_path).parent for current_sprite_path in current_sprite_records):continue
+            current_metadata_file=(current_repository_path/current_metadata_path).resolve()
+            if not current_metadata_file.is_relative_to(current_repository_path):raise ValueError('애니메이션 메타데이터 경로 이탈')
+            current_metadata_bytes=current_metadata_file.read_bytes()
+            if sha256(current_metadata_bytes).hexdigest()!=current_metadata_record['sha256']:raise ValueError('애니메이션 메타데이터 해시 불일치')
+            current_metadata_value=json.loads(current_metadata_bytes)
+            current_animation_identifier=current_metadata_value.get('animationId')
+            if not isinstance(current_animation_identifier,str) or not current_animation_identifier:raise ValueError('애니메이션 식별자 누락')
+            current_animation_lookup.setdefault(Path(current_metadata_path).parent,[]).append(current_animation_identifier)
+        return {'items':[{'path':current_asset_path,'label':current_asset_record.get('name') or ' · '.join(Path(current_asset_path).parts[2:-1])+' · '+Path(current_asset_path).stem,'sha256':current_asset_record['sha256'],'animationIds':current_animation_lookup.get(Path(current_asset_path).parent,[])} for current_asset_path,current_asset_record in current_sprite_records.items() if all(current_search_token in (current_asset_path+' '+str(current_asset_record.get('name',''))+' '+current_asset_record['managementId']+' '+' '.join(current_animation_lookup.get(Path(current_asset_path).parent,[]))).casefold() for current_search_token in current_search_tokens)]}
     current_asset_path=current_payload_record['path']
     if current_asset_path not in current_sprite_records:raise ValueError('등록된 스프라이트 PNG를 선택하세요.')
     current_image_path=(current_repository_path/current_asset_path).resolve()
@@ -157,13 +182,33 @@ def execute_sprite_asset_command(current_command_name,current_payload_record):
     current_metadata_matches=[current_record for current_path,current_record in current_registry_records.items() if Path(current_path).parent==Path(current_asset_path).parent and current_path.endswith('.animation.json')]
     current_animation_record=None
     if len(current_metadata_matches)==1:
-        import json
         current_metadata_file=(current_repository_path/current_metadata_matches[0]['path']).resolve()
         if not current_metadata_file.is_relative_to(current_repository_path):raise ValueError('좌표맵 경로 이탈')
         current_metadata_bytes=current_metadata_file.read_bytes()
         if sha256(current_metadata_bytes).hexdigest()!=current_metadata_matches[0]['sha256']:raise ValueError('좌표맵 해시 불일치')
         current_animation_record=json.loads(current_metadata_bytes)
-    return {'image':base64.b64encode(current_image_bytes).decode(),'path':current_asset_path,'metadataSha256':current_metadata_matches[0]['sha256'] if len(current_metadata_matches)==1 else None,'animation':current_animation_record}
+        if 'sheets' in current_animation_record:
+            current_selected_frames=select_sprite_texture_frames(current_animation_record,current_image_path.name)
+            current_selected_identifiers={current_frame_record['frameId'] for current_frame_record in current_selected_frames}
+            current_selected_clips=[current_clip_record for current_clip_record in current_animation_record['clips'] if all(current_clip_frame['frameId'] in current_selected_identifiers for current_clip_frame in current_clip_record['frames'])]
+            current_animation_record={**current_animation_record,'frames':current_selected_frames,'clips':current_selected_clips}
+
+    current_runtime_dimensions={}
+    if current_animation_record:
+        current_runtime_dimensions={current_field_name:current_animation_record[current_field_name] for current_field_name in ('referenceBodyHeight','gameBodyHeight') if current_field_name in current_animation_record}
+        current_manifest_paths=[current_image_path.with_name(current_manifest_name) for current_manifest_name in ('source.yaml','source.json') if current_image_path.with_name(current_manifest_name).exists()]
+        if len(current_manifest_paths)>1:raise ValueError('source.yaml과 source.json이 중복되었습니다.')
+        if current_manifest_paths:
+            import yaml
+            from tools.review.common.map_tile_assets import UniqueAssetYamlLoader
+            current_manifest_path=current_manifest_paths[0].resolve()
+            if not current_manifest_path.is_relative_to(current_repository_path):raise ValueError('출처 메타데이터 경로 이탈')
+            current_manifest_record=yaml.load(current_manifest_path.read_text(),Loader=UniqueAssetYamlLoader) if current_manifest_path.suffix=='.yaml' else json.loads(current_manifest_path.read_text())
+            if not isinstance(current_manifest_record,dict):raise ValueError('출처 메타데이터는 객체여야 합니다.')
+            current_runtime_dimensions.update({current_field_name:current_manifest_record[current_field_name] for current_field_name in ('referenceBodyHeight','gameBodyHeight') if current_field_name in current_manifest_record})
+        for current_dimension_value in current_runtime_dimensions.values():
+            if type(current_dimension_value) not in (int,float) or not math.isfinite(current_dimension_value) or current_dimension_value<=0:raise ValueError('게임 신체 높이는 유한한 양수여야 합니다.')
+    return {'image':base64.b64encode(current_image_bytes).decode(),'path':current_asset_path,'metadataSha256':current_metadata_matches[0]['sha256'] if len(current_metadata_matches)==1 else None,'animation':current_animation_record,'runtimeDimensions':current_runtime_dimensions}
 
 
 def update_baseline_sprite_sheet(current_request_record):
@@ -242,23 +287,42 @@ def update_registered_sprite_sheet(current_request_record):
         current_metadata_bytes=current_metadata_path.read_bytes()
         if sha256(current_metadata_bytes).hexdigest()!=current_request_record['metadataSha256'] or current_request_record['metadataSha256']!=current_asset_records[current_metadata_paths[0]]['sha256']:raise ValueError('좌표맵이 변경되었습니다. 다시 확인하세요.')
         current_metadata_record=json.loads(current_metadata_bytes)
-        if len(current_metadata_record['frames'])!=len(current_request_record['payload']['frames']):raise ValueError('기존 프레임 수를 유지해야 합니다.')
+        current_target_frames=select_sprite_texture_frames(current_metadata_record,Path(current_asset_path).name)
+        if len(current_target_frames)!=len(current_request_record['payload']['frames']):raise ValueError('기존 프레임 수를 유지해야 합니다.')
         current_export_record=execute_sprite_sheet_export(current_request_record['payload'])
-        current_metadata_record['sheet']=current_export_record['coordinates']['sheet']
-        for current_original_frame,current_new_frame in zip(current_metadata_record['frames'],current_export_record['coordinates']['frames']):
+        if 'sheets' in current_metadata_record:
+            for current_sheet_record in current_metadata_record['sheets']:
+                if current_sheet_record['image']==Path(current_asset_path).name:
+                    current_sheet_record.update(current_export_record['coordinates']['sheet'])
+                    current_sheet_record['sha256']=current_export_record['coordinates']['sha256']
+        else:
+            current_metadata_record['sheet']=current_export_record['coordinates']['sheet']
+        for current_original_frame,current_new_frame in zip(current_target_frames,current_export_record['coordinates']['frames']):
             current_original_frame['rect']=current_new_frame['rect'];current_original_frame['anchor']=current_new_frame['anchor']
         current_metadata_record['version']=current_metadata_record['version']+'.edit-'+current_export_record['id']
         current_pending_files={current_asset_root/current_asset_path:base64.b64decode(current_export_record['image']),current_metadata_path:(json.dumps(current_metadata_record,ensure_ascii=False,indent=2)+'\n').encode()}
-        current_source_path=current_asset_root/Path(current_asset_path).parent/'source.json'
-        current_source_relative=current_source_path.relative_to(current_asset_root).as_posix()
-        if current_source_relative in current_asset_records:
+        current_source_candidates=[current_asset_root/Path(current_asset_path).parent/current_source_name for current_source_name in ('source.yaml','source.json')]
+        current_source_candidates=[current_source_path for current_source_path in current_source_candidates if current_source_path.exists()]
+        if len(current_source_candidates)>1:raise ValueError('source.yaml과 source.json이 중복되었습니다.')
+        for current_source_path in current_source_candidates:
+            current_source_relative=current_source_path.relative_to(current_asset_root).as_posix()
+            if current_source_relative not in current_asset_records:raise ValueError('출처 메타데이터가 등록부에 없습니다.')
             if not current_source_path.resolve().is_relative_to(current_asset_root):raise ValueError('출처 파일 경로 이탈')
             current_source_bytes=current_source_path.read_bytes()
             if sha256(current_source_bytes).hexdigest()!=current_asset_records[current_source_relative]['sha256']:raise ValueError('출처 메타데이터 해시 불일치')
-            current_source_document=json.loads(current_source_bytes)
-            if current_source_document.get('image')==Path(current_asset_path).name and 'sha256' in current_source_document:
-                current_source_document['sha256']=current_export_record['coordinates']['sha256']
-                current_pending_files[current_source_path]=(json.dumps(current_source_document,ensure_ascii=False,indent=2)+'\n').encode()
+            current_source_document=yaml.load(current_source_bytes,Loader=UniqueAssetYamlLoader) if current_source_path.suffix=='.yaml' else json.loads(current_source_bytes)
+            current_source_changed=False
+            if current_source_document.get('image')==Path(current_asset_path).name:
+                for current_dimension_name in ('width','height'):
+                    if current_dimension_name in current_source_document:current_source_document[current_dimension_name]=current_export_record['coordinates']['sheet'][current_dimension_name]
+                if 'sha256' in current_source_document:current_source_document['sha256']=current_export_record['coordinates']['sha256']
+                current_source_changed=True
+            for current_source_sheet in current_source_document.get('sheets',[]):
+                if current_source_sheet.get('image')==Path(current_asset_path).name:
+                    current_source_sheet['sha256']=current_export_record['coordinates']['sha256']
+                    current_source_changed=True
+            if current_source_changed:
+                current_pending_files[current_source_path]=(yaml.safe_dump(current_source_document,allow_unicode=True,sort_keys=False) if current_source_path.suffix=='.yaml' else json.dumps(current_source_document,ensure_ascii=False,indent=2)+'\n').encode()
         current_registry_path=current_asset_root/'asset-registry.yaml'
         current_registry_document=yaml.load(current_registry_path.read_text(),Loader=UniqueAssetYamlLoader)
         current_lock_path=current_asset_root.parent/'slime-frontend/sprite-assets.lock.yaml'
@@ -270,8 +334,8 @@ def update_registered_sprite_sheet(current_request_record):
                 if current_registry_entry['path']==current_relative_path:
                     current_registry_entry['sha256']=current_new_hash
                     current_registry_entry['version']+='-edit-'+current_export_record['id']
-                    if 'width' in current_registry_entry:current_registry_entry['width']=current_metadata_record['sheet']['width']
-                    if 'height' in current_registry_entry:current_registry_entry['height']=current_metadata_record['sheet']['height']
+                    if 'width' in current_registry_entry:current_registry_entry['width']=current_export_record['coordinates']['sheet']['width']
+                    if 'height' in current_registry_entry:current_registry_entry['height']=current_export_record['coordinates']['sheet']['height']
             for current_lock_entry in current_lock_document['files']:
                 if current_lock_entry['source_path']==current_relative_path:
                     if current_lock_entry['sha256']!=current_asset_records[current_relative_path]['sha256']:raise ValueError('소비자 잠금 해시가 등록부와 다릅니다.')

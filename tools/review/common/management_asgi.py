@@ -136,6 +136,12 @@ def build_management_application(current_handler_class, current_root_path, curre
         if current_request_path.rstrip('/') == '/pose-transfer' or current_request_path.startswith(('/pose-transfer/', '/management/frame/pose-transfer-generator')) or 'pose-transfer-generator' in current_query_values.get('tool', []):
             current_retired_response = Response('포즈 변환 생성기와 결과는 폐기되었습니다.', status_code=410)
             return await current_retired_response(current_request_scope, current_receive_call, current_send_call)
+        if current_request_scope.get('method')=='GET' and (current_request_path.rstrip('/') in ('/management','/management/frame/static-review') or current_request_path.endswith('/anchors.html')) and current_source_path.is_file():
+            from tools.review.common.sprite_review_redirect import resolve_sprite_review_redirect
+            import json
+            current_sprite_redirect=resolve_sprite_review_redirect(current_request_path,current_query_values,json.loads(current_source_path.read_text()).get('pages',[]))
+            if current_sprite_redirect:
+                return await RedirectResponse(current_sprite_redirect)(current_request_scope,current_receive_call,current_send_call)
         current_tool_name = None
         current_mount_path = '/management'
         if current_request_path in LEGACY_MANAGEMENT_PATHS:

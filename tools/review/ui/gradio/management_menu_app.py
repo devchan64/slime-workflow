@@ -100,10 +100,7 @@ def load_manager_page_records(source_file_path, current_animation_catalog=False)
         page_identifier_values.add(current_page_record['id'])
         validated_page_records.append(current_page_record)
     if not current_animation_catalog:
-        current_animation_records=[current_page_record for current_page_record in validated_page_records if current_page_record['category']=='animation' or current_page_record.get('anchorEditor')]
-        if current_animation_records:
-            current_unified_record={**current_animation_records[0],'label':'등록 스프라이트 통합 검수','description':'스프라이트 검색·선택 · 동작·방향·프레임 검수 · 좌표 편집·에셋 직접 적용','reviewAliases':[current_page_record['id'] for current_page_record in current_animation_records]}
-            validated_page_records=[current_page_record for current_page_record in validated_page_records if current_page_record not in current_animation_records]+[current_unified_record]
+        validated_page_records=[current_page_record for current_page_record in validated_page_records if current_page_record['category']!='animation' and not current_page_record.get('anchorEditor')]
     if not current_animation_catalog:
         current_map_records=[current_page_record for current_page_record in validated_page_records if current_page_record['category'] in ('field-map-review','town-map-review')]
         if current_map_records:

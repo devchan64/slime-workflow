@@ -35,7 +35,7 @@ class SpriteSheetEditorTests(unittest.TestCase):
         current_source_image.putpixel((6,2),(0,255,0,255))
         current_source_stream=BytesIO();current_source_image.save(current_source_stream,format='PNG')
         current_image_bytes=current_source_stream.getvalue()
-        current_payload={'image':base64.b64encode(current_image_bytes).decode(),'frames':[{'x':0,'y':0,'width':4,'height':4,'anchorX':1,'anchorY':1},{'x':4,'y':0,'width':3,'height':3,'anchorX':2,'anchorY':2}],'columns':2}
+        current_payload={'image':base64.b64encode(current_image_bytes).decode(),'frames':[{'x':0,'y':0,'width':4,'height':4,'anchorX':1,'anchorY':1},{'x':4,'y':0,'width':3,'height':3,'anchorX':2.25,'anchorY':2.75}],'columns':2}
         self.assertEqual(resolve_management_command('character-animation','sheet-export',current_payload),('POST','/character-animation/sheet/export'))
         with TemporaryDirectory() as current_directory_name, patch.object(sprite_sheet_editor,'SPRITE_SHEET_JOB_ROOT',Path(current_directory_name)):
             current_result=execute_management_command('character-animation','sheet-export',current_payload)
@@ -45,7 +45,7 @@ class SpriteSheetEditorTests(unittest.TestCase):
             self.assertEqual(current_output_image.size,(7,4))
             self.assertEqual(current_output_image.getpixel((1,1)),(255,0,0,255))
             self.assertEqual(current_output_image.getpixel((6,2)),(0,255,0,255))
-            self.assertEqual(current_result['coordinates']['frames'][1]['anchor'],{'x':2,'y':2})
+            self.assertEqual(current_result['coordinates']['frames'][1]['anchor'],{'x':2.25,'y':2.75})
             self.assertEqual(current_result['coordinates']['frames'][1]['rect'],{'x':4,'y':0,'width':3,'height':3})
             self.assertTrue((current_job_path/'coordinates.json').is_file())
             current_payload['frames'][0]['anchorX']=5
@@ -94,6 +94,95 @@ class SpriteSheetEditorTests(unittest.TestCase):
                 execute_management_command('character-animation','sheet-update',current_request)
                 current_updated_metadata=json.loads(current_metadata_path.read_text())
                 self.assertEqual(current_updated_metadata['clips'],current_metadata_record['clips'])
+                self.assertEqual(current_updated_metadata['frames'][0]['frameId'],'idle.0')
+                self.assertEqual(current_updated_metadata['sheet'],{'width':2,'height':2})
+                self.assertEqual(Image.open(current_image_path).size,(2,2))
+                _,current_updated_registry=load_registered_tiles()
+                current_lock_records=yaml.safe_load((current_frontend_root/'sprite-assets.lock.yaml').read_text())['files']
+                for current_lock_record in current_lock_records:
+                    self.assertEqual(current_lock_record['sha256'],current_updated_registry[current_lock_record['source_path']]['sha256'])
+                with self.assertRaises(ValueError):execute_management_command('character-animation','sheet-update',current_request)
+
+    def test_packed_update_preserves_other_texture_frames(self):
+        import json
+        import hashlib
+        import yaml
+        import os
+        from tools.review.common.map_tile_assets import load_registered_tiles
+        with TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_asset_root=current_root_path/'slime-assets';current_frontend_root=current_root_path/'slime-frontend'
+            current_sprite_directory=current_asset_root/'assets/characters/default/animations/test'
+            current_sprite_directory.mkdir(parents=True);current_frontend_root.mkdir()
+            current_image_path=current_sprite_directory/'sheet.png'
+            Image.new('RGBA',(4,4),(10,20,30,255)).save(current_image_path)
+            current_metadata_path=current_sprite_directory/'sheet.animation.json'
+            current_metadata_record={'version':'v1','sheet':{'width':4,'height':4},'frames':[{'frameId':'idle.0','rect':{'x':0,'y':0,'width':4,'height':4},'anchor':{'x':1,'y':1}}],'clips':[{'clipId':'idle','frames':['idle.0']}]}
+            current_other_image=current_sprite_directory/'other.png'
+            Image.new('RGBA',(4,4),(40,50,60,255)).save(current_other_image)
+            current_other_bytes=current_other_image.read_bytes()
+            current_metadata_record.pop('sheet')
+            current_metadata_record['sheets']=[{'image':'sheet.png','width':4,'height':4,'sha256':hashlib.sha256(current_image_path.read_bytes()).hexdigest()},{'image':'other.png','width':4,'height':4,'sha256':hashlib.sha256(current_other_bytes).hexdigest()}]
+            current_metadata_record['frames'][0]['texture']='sheet.png'
+            current_other_frame={'frameId':'other.0','texture':'other.png','rect':{'x':0,'y':0,'width':4,'height':4},'anchor':{'x':2,'y':3}}
+            current_metadata_record['frames'].append(current_other_frame)
+            current_metadata_record['clips']=[{'clipId':'idle','frames':[{'frameId':'idle.0'}]},{'clipId':'other','frames':[{'frameId':'other.0'}]}]
+            current_metadata_path.write_text(json.dumps(current_metadata_record))
+            current_records=[{'managementId':current_file_path.name,'version':'v1','path':current_file_path.relative_to(current_asset_root).as_posix(),'sha256':hashlib.sha256(current_file_path.read_bytes()).hexdigest(),'source':{}} for current_file_path in (current_image_path,current_metadata_path,current_other_image)]
+            (current_asset_root/'asset-registry.yaml').write_text(yaml.safe_dump({'schema_version':1,'assets':current_records}))
+            (current_frontend_root/'sprite-assets.lock.yaml').write_text(yaml.safe_dump({'files':[{'path':current_record['path'],'source_path':current_record['path'],'sha256':current_record['sha256']} for current_record in current_records]}))
+            current_payload={'image':base64.b64encode(current_image_path.read_bytes()).decode(),'frames':[{'x':1,'y':1,'width':2,'height':2,'anchorX':0,'anchorY':0}],'columns':1}
+            current_request={'path':current_records[0]['path'],'metadataSha256':current_records[1]['sha256'],'payload':current_payload,'confirm':True}
+            with patch.dict(os.environ,{'SLIME_ASSETS_ROOT':str(current_asset_root)}),patch.object(sprite_sheet_editor,'SPRITE_SHEET_JOB_ROOT',current_root_path/'jobs'):
+                execute_management_command('character-animation','sheet-update',current_request)
+                current_updated_metadata=json.loads(current_metadata_path.read_text())
+                self.assertEqual(current_updated_metadata['clips'],current_metadata_record['clips'])
+                self.assertEqual(current_updated_metadata['frames'][0]['frameId'],'idle.0')
+                self.assertNotIn('sheet',current_updated_metadata)
+                self.assertEqual(current_updated_metadata['sheets'][0]['width'],2)
+                self.assertEqual(current_updated_metadata['frames'][1],current_other_frame)
+                self.assertEqual(current_other_image.read_bytes(),current_other_bytes)
+                self.assertEqual(current_updated_metadata['sheets'][1],current_metadata_record['sheets'][1])
+                self.assertEqual(Image.open(current_image_path).size,(2,2))
+                _,current_updated_registry=load_registered_tiles()
+                current_lock_records=yaml.safe_load((current_frontend_root/'sprite-assets.lock.yaml').read_text())['files']
+                for current_lock_record in current_lock_records:
+                    self.assertEqual(current_lock_record['sha256'],current_updated_registry[current_lock_record['source_path']]['sha256'])
+                with self.assertRaises(ValueError):execute_management_command('character-animation','sheet-update',current_request)
+
+    def test_yaml_source_update_preserves_runtime_dimensions(self):
+        import json
+        import hashlib
+        import yaml
+        import os
+        from tools.review.common.map_tile_assets import load_registered_tiles
+        with TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_asset_root=current_root_path/'slime-assets';current_frontend_root=current_root_path/'slime-frontend'
+            current_sprite_directory=current_asset_root/'assets/characters/default/animations/test'
+            current_sprite_directory.mkdir(parents=True);current_frontend_root.mkdir()
+            current_image_path=current_sprite_directory/'sheet.png'
+            Image.new('RGBA',(4,4),(10,20,30,255)).save(current_image_path)
+            current_metadata_path=current_sprite_directory/'sheet.animation.json'
+            current_metadata_record={'version':'v1','sheet':{'width':4,'height':4},'frames':[{'frameId':'idle.0','rect':{'x':0,'y':0,'width':4,'height':4},'anchor':{'x':1,'y':1}}],'clips':[{'clipId':'idle','frames':['idle.0']}]}
+            current_metadata_path.write_text(json.dumps(current_metadata_record))
+            current_source_path=current_sprite_directory/'source.yaml'
+            current_source_path.write_text(yaml.safe_dump({'image':'sheet.png','width':4,'height':4,'sha256':hashlib.sha256(current_image_path.read_bytes()).hexdigest(),'referenceBodyHeight':3.5,'gameBodyHeight':80}))
+            current_records=[{'managementId':current_file_path.name,'version':'v1','path':current_file_path.relative_to(current_asset_root).as_posix(),'sha256':hashlib.sha256(current_file_path.read_bytes()).hexdigest(),'source':{}} for current_file_path in (current_image_path,current_metadata_path,current_source_path)]
+            (current_asset_root/'asset-registry.yaml').write_text(yaml.safe_dump({'schema_version':1,'assets':current_records}))
+            (current_frontend_root/'sprite-assets.lock.yaml').write_text(yaml.safe_dump({'files':[{'path':current_record['path'],'source_path':current_record['path'],'sha256':current_record['sha256']} for current_record in current_records]}))
+            current_payload={'image':base64.b64encode(current_image_path.read_bytes()).decode(),'frames':[{'x':1,'y':1,'width':2,'height':2,'anchorX':0,'anchorY':0}],'columns':1}
+            current_request={'path':current_records[0]['path'],'metadataSha256':current_records[1]['sha256'],'payload':current_payload,'confirm':True}
+            with patch.dict(os.environ,{'SLIME_ASSETS_ROOT':str(current_asset_root)}),patch.object(sprite_sheet_editor,'SPRITE_SHEET_JOB_ROOT',current_root_path/'jobs'):
+                execute_management_command('character-animation','sheet-update',current_request)
+                current_updated_metadata=json.loads(current_metadata_path.read_text())
+                self.assertEqual(current_updated_metadata['clips'],current_metadata_record['clips'])
+                current_source_document=yaml.safe_load(current_source_path.read_text())
+                self.assertEqual((current_source_document['width'],current_source_document['height']),(2,2))
+                self.assertEqual(current_source_document['sha256'],hashlib.sha256(current_image_path.read_bytes()).hexdigest())
+                current_loaded_image=execute_management_command('character-animation','sheet-image',{'path':current_records[0]['path']})
+                self.assertEqual(current_loaded_image['runtimeDimensions'],{'referenceBodyHeight':3.5,'gameBodyHeight':80})
+
                 self.assertEqual(current_updated_metadata['frames'][0]['frameId'],'idle.0')
                 self.assertEqual(current_updated_metadata['sheet'],{'width':2,'height':2})
                 self.assertEqual(Image.open(current_image_path).size,(2,2))

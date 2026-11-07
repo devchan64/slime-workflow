@@ -3,7 +3,7 @@
  try{
   if(!currentOriginalRows?.length)throw Error('시트를 먼저 불러오세요.');
   const currentEditedRows=currentOriginalRows.map(currentFrameRow=>currentFrameRow.map(Number));
-  if(currentEditedRows.some(currentFrameRow=>currentFrameRow.length!==6||currentFrameRow.some(currentCellValue=>!Number.isSafeInteger(currentCellValue))))throw Error('프레임 좌표는 정수여야 합니다.');
+  if(currentEditedRows.some(currentFrameRow=>currentFrameRow.length!==6||currentFrameRow.some(currentCellValue=>!Number.isFinite(currentCellValue))||currentFrameRow.slice(0,4).some(currentCellValue=>!Number.isSafeInteger(currentCellValue))))throw Error('크롭은 정수, 앵커는 유한한 숫자여야 합니다.');
   const currentTargetIndices=new Set();
   if(currentTargetMode==='전체')currentEditedRows.forEach((currentFrameRow,currentFrameIndex)=>currentTargetIndices.add(currentFrameIndex));
   else{
@@ -17,7 +17,7 @@
    }
   }
   const currentEditValues=currentEditMode==='크롭'?[currentLeftMargin,currentTopMargin,currentRightMargin,currentBottomMargin]:[currentAnchorX,currentAnchorY];
-  if(currentEditValues.some(currentCellValue=>!Number.isSafeInteger(currentCellValue)||(currentEditMode!=='크롭'&&currentCellValue<0)))throw Error('여백은 정수, 앵커는 0 이상의 정수여야 합니다.');
+  if(currentEditValues.some(currentCellValue=>!Number.isFinite(currentCellValue)||(currentEditMode==='크롭'?!Number.isSafeInteger(currentCellValue):currentCellValue<0)))throw Error('여백은 정수, 앵커는 0 이상의 유한한 숫자여야 합니다.');
   for(const currentFrameIndex of currentTargetIndices){
    const currentFrameRow=currentEditedRows[currentFrameIndex];
    if(currentEditMode==='크롭'){
