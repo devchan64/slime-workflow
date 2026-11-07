@@ -8,6 +8,14 @@ from tools.review.common.gradio_history import build_generation_history_view, co
 
 
 class GradioHistoryTest(unittest.TestCase):
+    def test_video_history_uses_status_thumbnail_and_prompt_summary(self):
+        from tools.review.common.gradio_history import render_history_selection_table
+        current_record={'id':'job-1','created_at':'2026-11-07','request':{'prompt':'A person walks forward.','seed':42},'status':{'status':'completed','image':'/kimodo/jobs/job-1/output-000.png'},'image':None}
+        current_markup=render_history_selection_table([current_record])
+        self.assertIn('/kimodo/jobs/job-1/output-000.png',current_markup)
+        self.assertIn('동작 A person walks forward.',current_markup)
+        self.assertNotIn('썸네일 없음',current_markup)
+
     def test_result_identifier_does_not_trigger_its_own_refresh(self):
         with gr.Blocks() as current_history_blocks:
             build_generation_history_view(lambda current_command_name,current_payload_record:{'records':[]},'http://localhost','검증')
@@ -356,7 +364,7 @@ class HistoryProgressDetailTests(unittest.TestCase):
         self.assertIn('7/40', current_refresh_values[0])
         self.assertEqual(current_refresh_values[1:], (gr.skip(),)*3)
         current_status_record.update(status='completed')
-        self.assertIn('최신 결과는 결과 조회', current_refresh_callback('sample-job')[0])
+        self.assertNotIn('최신 결과는 결과 조회', current_refresh_callback('sample-job')[0])
         current_history_records.clear()
         current_refresh_values = current_refresh_callback('sample-job')
         self.assertIn('삭제되었습니다', current_refresh_values[0])

@@ -84,6 +84,10 @@ def format_history_created_time(current_history_record):
 
 def format_history_request_summary(current_request_record):
     summary_text_values=[]
+    current_prompt_text=current_request_record.get('prompt')
+    if isinstance(current_prompt_text,str) and current_prompt_text.strip():
+        current_prompt_line=' '.join(current_prompt_text.split())
+        summary_text_values.append('동작 '+(current_prompt_line[:60]+'…' if len(current_prompt_line)>60 else current_prompt_line))
     for current_field_name in HISTORY_SUMMARY_FIELD_NAMES:
         if current_field_name not in current_request_record:
             continue
@@ -136,6 +140,8 @@ def collect_image_history_thumbnails(history_record_values, server_base_address)
     thumbnail_identifier_values=[]
     for current_history_record in history_record_values:
         current_image_path=current_history_record.get('image')
+        if not current_image_path and isinstance(current_history_record.get('status'),dict):
+            current_image_path=current_history_record['status'].get('image')
         if not isinstance(current_image_path,str) or not current_image_path:
             continue
         current_image_url=current_image_path if current_image_path.startswith(('http://','https://')) else server_base_address.rstrip('/')+current_image_path
@@ -222,6 +228,8 @@ def render_history_selection_table(current_history_records,current_selected_iden
         current_checked_markup=' checked' if current_job_identifier==current_selected_identifier else ''
         current_radio_markup='<input type="radio" name="generation-history-job" value="'+html.escape(current_job_identifier,quote=True)+'" aria-label="'+html.escape(current_job_identifier+' 선택',quote=True)+'"'+current_checked_markup+'>'
         current_image_path=current_history_record.get('image')
+        if not current_image_path and isinstance(current_history_record.get('status'),dict):
+            current_image_path=current_history_record['status'].get('image')
         if isinstance(current_image_path,str) and current_image_path:
             current_image_url=current_image_path if current_image_path.startswith(('http://','https://')) else server_base_address.rstrip('/')+current_image_path
             current_thumbnail_markup='<img class="generation-history-table-thumbnail" src="'+html.escape(current_image_url,quote=True)+'" alt="'+html.escape(current_job_identifier+' 결과 썸네일',quote=True)+'" loading="lazy" decoding="async">'
@@ -445,8 +453,6 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_status_text = describe_generation_status(current_status_record)
         if 'queue_position' in current_status_record:
             current_status_text += ' · 대기 순서 '+str(current_status_record['queue_position'])
-        if current_status_record['status'] == 'completed':
-            current_status_text += '\n\n최신 결과는 결과 조회를 눌러 확인하세요.'
         return current_status_text, gr.skip(), gr.skip(), gr.skip()
     if record_folder_route is not None:
         folder_open_script=f"""async(identifierValue)=>{{if(!identifierValue)throw new Error('먼저 생성 이력을 선택하세요.');const responseValue=await fetch('/management/record-folder/open',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{route:{record_folder_route!r},id:identifierValue}})}});const payloadValue=await responseValue.json();if(!responseValue.ok)throw new Error(payloadValue.error);return payloadValue.message;}}"""

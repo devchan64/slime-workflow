@@ -13,7 +13,8 @@ def render_condition_video_previews(current_status_record):
     current_preview_parts = []
     for current_preview_label, current_preview_url in current_status_record.get('preprocess_videos', {}).items():
         current_escaped_url = html.escape(current_preview_url, quote=True)
-        current_preview_parts.append(f'<p>{html.escape(current_preview_label)}</p><video controls loop playsinline width="512" src="{current_escaped_url}"></video><p><a href="{current_escaped_url}" target="_blank">MP4 열기</a></p>')
+        current_escaped_label = html.escape(current_preview_label)
+        current_preview_parts.append(f'<p>{current_escaped_label}</p><video controls loop playsinline width="512" src="{current_escaped_url}"></video><p><a href="{current_escaped_url}" target="_blank">{current_escaped_label} MP4 열기</a></p>')
     return ''.join(current_preview_parts)
 
 

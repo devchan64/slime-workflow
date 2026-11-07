@@ -338,6 +338,13 @@ class KimodoGenerationContractTests(unittest.TestCase):
         self.assertIn('정수',describe_kimodo_duration(None))
         with self.assertRaises(ValueError):apply_kimodo_example('missing')
 
+    def test_collapsed_input_summary_reports_conflicts_and_counts(self):
+        from tools.review.ui.gradio.kimodo_app import describe_kimodo_input_summary
+        current_summary=describe_kimodo_input_summary(True,['reference.png'],[['keyframe',1]],True,False)
+        for current_expected in ('신체 비율: 적용 · 1장','키프레임: 1개','공식 후처리: 켜짐','수평 이동 제거: 꺼짐'):
+            self.assertIn(current_expected,current_summary)
+        self.assertIn('설정 확인 필요',describe_kimodo_input_summary(False,['reference.png'],[],False,False))
+
     def test_output_directions_validate_and_restore_legacy_history(self):
         from tools.review.ui.gradio.kimodo_app import restore_kimodo_inputs
         for current_direction_values in ([],['unknown'],['front','front'],'front',[1]):
