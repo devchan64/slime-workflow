@@ -22,8 +22,15 @@
  const currentImageElement=new Image();
  currentImageElement.onload=()=>{
   if(currentCanvasElement.spritePreviewRevision!==currentPreviewRevision)return;
-  const currentScaleValue=Math.min((currentCanvasSize-currentCanvasPadding*2)/currentOriginalRow[2],(currentCanvasSize-currentCanvasPadding*2)/currentOriginalRow[3]);
-  const currentOriginLeft=(currentCanvasSize-currentOriginalRow[2]*currentScaleValue)/2,currentOriginTop=(currentCanvasSize-currentOriginalRow[3]*currentScaleValue)/2;
+  // 수동 이동과 재생은 전체 프레임의 공통 배율과 화면 앵커를 사용한다.
+  const currentMaxLeft=Math.max(...currentRows.map(currentFrameRow=>currentFrameRow[4]));
+  const currentMaxTop=Math.max(...currentRows.map(currentFrameRow=>currentFrameRow[5]));
+  const currentBoundsWidth=currentMaxLeft+Math.max(...currentRows.map(currentFrameRow=>currentFrameRow[2]-currentFrameRow[4]));
+  const currentBoundsHeight=currentMaxTop+Math.max(...currentRows.map(currentFrameRow=>currentFrameRow[3]-currentFrameRow[5]));
+  const currentScaleValue=Math.min((currentCanvasSize-currentCanvasPadding*2)/currentBoundsWidth,(currentCanvasSize-currentCanvasPadding*2)/currentBoundsHeight);
+  const currentFixedAnchorLeft=(currentCanvasSize-currentBoundsWidth*currentScaleValue)/2+currentMaxLeft*currentScaleValue;
+  const currentFixedAnchorTop=(currentCanvasSize-currentBoundsHeight*currentScaleValue)/2+currentMaxTop*currentScaleValue;
+  const currentOriginLeft=currentFixedAnchorLeft-currentOriginalRow[4]*currentScaleValue,currentOriginTop=currentFixedAnchorTop-currentOriginalRow[5]*currentScaleValue;
   const currentStartTime=performance.now();
   const drawCurrentEditorFrame=currentTime=>{
    if(!currentCanvasElement.isConnected||currentCanvasElement.spritePreviewRevision!==currentPreviewRevision)return;
@@ -32,11 +39,8 @@
    const currentActiveRow=currentPlayEnabled?currentRows[currentActiveIndex]:currentDraftRow;
    let currentDrawScale=currentScaleValue,currentDrawLeft=currentOriginLeft,currentDrawTop=currentOriginTop;
    if(currentPlayEnabled){
-    const currentMaxLeft=Math.max(...currentRows.map(currentRow=>currentRow[4])),currentMaxTop=Math.max(...currentRows.map(currentRow=>currentRow[5]));
-    const currentBoundsWidth=currentMaxLeft+Math.max(...currentRows.map(currentRow=>currentRow[2]-currentRow[4])),currentBoundsHeight=currentMaxTop+Math.max(...currentRows.map(currentRow=>currentRow[3]-currentRow[5]));
-    currentDrawScale=Math.min(544/currentBoundsWidth,544/currentBoundsHeight);
-    currentDrawLeft=(640-currentBoundsWidth*currentDrawScale)/2+(currentMaxLeft-currentActiveRow[4])*currentDrawScale;
-    currentDrawTop=(640-currentBoundsHeight*currentDrawScale)/2+(currentMaxTop-currentActiveRow[5])*currentDrawScale;
+    currentDrawLeft=currentFixedAnchorLeft-currentActiveRow[4]*currentDrawScale;
+    currentDrawTop=currentFixedAnchorTop-currentActiveRow[5]*currentDrawScale;
    }
    const currentAnchorLeft=currentDrawLeft+(currentPlayEnabled?currentActiveRow[4]:currentActiveRow[0]-currentOriginalRow[0]+currentActiveRow[4])*currentDrawScale;
    const currentAnchorTop=currentDrawTop+(currentPlayEnabled?currentActiveRow[5]:currentActiveRow[1]-currentOriginalRow[1]+currentActiveRow[5])*currentDrawScale;

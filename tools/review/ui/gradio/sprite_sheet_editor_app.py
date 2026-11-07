@@ -19,6 +19,23 @@ def search_sprite_asset_choices(current_search_text):
     return gr.update(choices=[(current_asset_record['label']+' · '+current_asset_record['path'],current_asset_record['path']) for current_asset_record in current_result_record['items']],value=None),f"{len(current_result_record['items'])}개 스프라이트를 찾았습니다. 선택 후 원본으로 가져오세요."
 
 
+def calculate_registered_sheet_layout(current_animation_record):
+    """높이가 다른 프레임도 세로 영역이 겹치면 같은 행으로 계산한다."""
+    current_row_groups=[]
+    for current_frame_record in sorted(current_animation_record['frames'],key=lambda current_frame_value:current_frame_value['rect']['y']):
+        current_frame_rect=current_frame_record['rect']
+        current_frame_top=current_frame_rect['y']
+        current_frame_bottom=current_frame_top+current_frame_rect['height']
+        if current_row_groups and current_frame_top<current_row_groups[-1][0]:
+            current_row_groups[-1][0]=max(current_row_groups[-1][0],current_frame_bottom)
+            current_row_groups[-1][1]+=1
+        else:
+            current_row_groups.append([current_frame_bottom,1])
+    if not current_row_groups:
+        raise gr.Error('등록된 좌표맵에 프레임이 없습니다.')
+    return max(current_row_group[1] for current_row_group in current_row_groups),len(current_row_groups)
+
+
 def select_sprite_asset_image(current_asset_path):
     if not current_asset_path:raise gr.Error('검색 결과에서 스프라이트를 선택하세요.')
     try:
@@ -30,7 +47,8 @@ def select_sprite_asset_image(current_asset_path):
     current_image_path.write_bytes(base64.b64decode(current_result_record['image'],validate=True))
     if current_result_record.get('animation'):
         current_image_path.with_suffix('.animation.json').write_text(json.dumps(current_result_record['animation']))
-    return str(current_image_path),{'path':current_asset_path,'metadataSha256':current_result_record['metadataSha256'],'animation':current_result_record.get('animation'),'imageSha256':hashlib.sha256(current_image_path.read_bytes()).hexdigest()},'원본으로 가져왔습니다. 원본 열·행을 지정하고 시트 불러오기를 누르세요. 기존 편집은 아직 변경하지 않았습니다.'
+    current_layout_values=calculate_registered_sheet_layout(current_result_record['animation']) if current_result_record.get('animation') else (gr.update(),gr.update())
+    return str(current_image_path),{'path':current_asset_path,'metadataSha256':current_result_record['metadataSha256'],'animation':current_result_record.get('animation'),'imageSha256':hashlib.sha256(current_image_path.read_bytes()).hexdigest()},'원본으로 가져왔습니다. 좌표맵이 있으면 원본 열·행을 자동 반영합니다. 시트 불러오기를 누르세요. 기존 편집은 아직 변경하지 않았습니다.',*current_layout_values
 
 
 def load_sprite_sheet_input(current_file_path,current_columns_value,current_rows_value,current_asset_record=None):
@@ -232,7 +250,7 @@ def build_sprite_sheet_editor_interface(current_review_port):
         current_auto_button.click(detect_automatic_sprite_crops,[current_image_data,current_auto_padding],[current_auto_pending,current_auto_preview,current_auto_confirm,current_status_text],trigger_mode='once')
         current_auto_cancel.click(lambda:({},gr.update(visible=False),'자동 검출을 취소했습니다. 기존 편집은 유지됩니다.'),outputs=[current_auto_pending,current_auto_confirm,current_status_text],queue=False)
         current_search_button.click(search_sprite_asset_choices,current_search_text,[current_asset_choice,current_status_text])
-        current_select_button.click(select_sprite_asset_image,current_asset_choice,[current_input_file,current_asset_record,current_status_text])
+        current_select_button.click(select_sprite_asset_image,current_asset_choice,[current_input_file,current_asset_record,current_status_text,current_input_columns,current_input_rows])
         current_update_inputs=[current_asset_record,current_asset_choice,current_image_data,current_frame_rows,current_output_columns,current_source_bounds]
         current_update_button.click(prepare_sprite_sheet_update,current_update_inputs,[current_pending_update,current_update_group,current_update_summary])
         current_update_confirm.click(confirm_sprite_sheet_update,[current_pending_update,*current_update_inputs],[current_pending_update,current_update_group,current_status_text],trigger_mode='once')
