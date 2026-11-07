@@ -14,6 +14,7 @@ SPRITE_SHEET_JOB_ROOT = Path(__file__).resolve().parents[4] / '.tmp/test/sprite-
 SPRITE_SHEET_IMAGE_LIMIT = 8_000_000
 SPRITE_SHEET_PIXEL_LIMIT = 16_777_216
 SPRITE_SHEET_FRAME_LIMIT = 128
+SPRITE_BASELINE_ROOT = Path(__file__).resolve().parents[4] / 'baseline/character-baselines'
 
 
 def execute_sprite_sheet_export(command_payload_value):
@@ -91,11 +92,56 @@ def execute_sprite_sheet_export(command_payload_value):
     return {'id':current_identifier,'image':base64.b64encode(current_output_bytes).decode(),'coordinates':current_coordinate_map}
 
 
+def execute_baseline_sheet_command(current_command_name,current_payload_record):
+    """제작 기준 시트를 에셋 등록부와 분리하여 읽는다."""
+    import json
+    import yaml
+    from tools.review.common.strict_yaml import UniqueConfigLoader
+    current_root_path=SPRITE_BASELINE_ROOT.resolve()
+    current_sheet_records={}
+    for current_image_path in sorted(current_root_path.rglob('*.png')):
+        if not current_image_path.resolve().is_relative_to(current_root_path):
+            continue
+        current_sidecar_path=current_image_path.with_suffix('.yaml')
+        if not current_sidecar_path.is_file() or not current_sidecar_path.resolve().is_relative_to(current_root_path):
+            continue
+        current_sidecar_record=yaml.load(current_sidecar_path.read_text(),Loader=UniqueConfigLoader)
+        if not isinstance(current_sidecar_record,dict) or not isinstance(current_sidecar_record.get('layout'),dict):
+            continue
+        current_relative_path=current_image_path.relative_to(current_root_path).as_posix()
+        current_sheet_records[current_relative_path]=(current_image_path,current_sidecar_record)
+    if current_command_name=='sheet-search':
+        current_search_tokens=current_payload_record['query'].casefold().split()
+        return {'items':[{'path':current_relative_path,'label':str(current_sidecar_record.get('description',current_image_path.stem)),'sha256':sha256(current_image_path.read_bytes()).hexdigest()} for current_relative_path,(current_image_path,current_sidecar_record) in current_sheet_records.items() if all(current_search_token in (current_relative_path+' '+str(current_sidecar_record.get('description',''))).casefold() for current_search_token in current_search_tokens)]}
+    if current_payload_record['path'] not in current_sheet_records:
+        raise ValueError('목록에 있는 베이스라인 시트를 선택하세요.')
+    current_image_path,current_sidecar_record=current_sheet_records[current_payload_record['path']]
+    if current_image_path.stat().st_size>SPRITE_SHEET_IMAGE_LIMIT:
+        raise ValueError('편집기는 8MB 이하 PNG만 지원합니다.')
+    current_image_bytes=current_image_path.read_bytes()
+    current_layout_record=current_sidecar_record['layout']
+    if any(type(current_layout_record.get(current_field_name)) is not int or current_layout_record[current_field_name]<1 for current_field_name in ('columns','rows')):
+        raise ValueError('베이스라인 행·열은 양의 정수여야 합니다.')
+    current_coordinate_record=None
+    current_coordinate_name=current_sidecar_record.get('coordinates')
+    if current_coordinate_name:
+        current_coordinate_path=(current_image_path.parent/current_coordinate_name).resolve()
+        if not current_coordinate_path.is_relative_to(current_root_path):
+            raise ValueError('베이스라인 좌표맵 경로 이탈')
+        current_coordinate_record=json.loads(current_coordinate_path.read_text())
+        if current_coordinate_record.get('sha256')!=sha256(current_image_bytes).hexdigest():
+            raise ValueError('베이스라인 이미지와 좌표맵 해시 불일치')
+    return {'path':current_payload_record['path'],'image':base64.b64encode(current_image_bytes).decode(),'animation':current_coordinate_record,'layout':current_layout_record,'metadataSha256':None}
+
+
 def execute_sprite_asset_command(current_command_name,current_payload_record):
     from tools.review.common.map_tile_assets import load_registered_tiles
     current_expected_fields={'query'} if current_command_name=='sheet-search' else {'path'}
-    if not isinstance(current_payload_record,dict) or set(current_payload_record)!=current_expected_fields or any(not isinstance(current_field_value,str) for current_field_value in current_payload_record.values()):
+    if not isinstance(current_payload_record,dict) or set(current_payload_record) not in (current_expected_fields,current_expected_fields|{'source'}) or any(not isinstance(current_field_value,str) for current_field_value in current_payload_record.values()):
         raise ValueError('스프라이트 검색 입력 형식 오류')
+    current_source_kind=current_payload_record.get('source','assets')
+    if current_source_kind not in ('assets','baseline'):raise ValueError('지원하지 않는 스프라이트 원본입니다.')
+    if current_source_kind=='baseline':return execute_baseline_sheet_command(current_command_name,current_payload_record)
     current_repository_path,current_registry_records=load_registered_tiles()
     current_sprite_records={current_asset_path:current_asset_record for current_asset_path,current_asset_record in current_registry_records.items() if current_asset_path.endswith('.png') and (current_asset_path.startswith('assets/sprites/') or (current_asset_path.startswith('assets/characters/') and '/animations/' in current_asset_path)) and not current_asset_record['source'].get('retirement_reason')}
     if current_command_name=='sheet-search':
@@ -125,6 +171,7 @@ def update_registered_sprite_sheet(current_request_record):
     import json
     import threading
     import yaml
+    from tools.review.common.strict_yaml import UniqueConfigLoader
     from tools.review.common.map_tile_assets import load_registered_tiles, UniqueAssetYamlLoader
     if not isinstance(current_request_record,dict) or set(current_request_record)!={'path','metadataSha256','payload','confirm'} or current_request_record['confirm'] is not True:
         raise ValueError('대상·좌표맵 해시·편집 입력·확인이 필요합니다.')

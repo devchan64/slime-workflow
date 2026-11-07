@@ -14,9 +14,9 @@ SPRITE_EDITOR_UPLOAD_LIMIT = 8_000_000
 SPRITE_EDITOR_DEFAULT_COLUMNS = 4
 
 
-def search_sprite_asset_choices(current_search_text):
-    current_result_record=execute_remote_management_command('character-animation','sheet-search',{'query':current_search_text or ''})
-    return gr.update(choices=[(current_asset_record['label']+' · '+current_asset_record['path'],current_asset_record['path']) for current_asset_record in current_result_record['items']],value=None),f"{len(current_result_record['items'])}개 스프라이트를 찾았습니다. 선택 후 원본으로 가져오세요."
+def search_sprite_asset_choices(current_search_text,current_source_kind="assets"):
+    current_result_record=execute_remote_management_command('character-animation','sheet-search',{'query':current_search_text or '', 'source':current_source_kind})
+    return gr.update(choices=[(current_asset_record['label']+' · '+Path(current_asset_record['path']).name,current_asset_record['path']) for current_asset_record in current_result_record['items']],value=None),f"{len(current_result_record['items'])}개 스프라이트를 찾았습니다. 선택 후 원본으로 가져오세요."
 
 
 def calculate_registered_sheet_layout(current_animation_record):
@@ -36,10 +36,10 @@ def calculate_registered_sheet_layout(current_animation_record):
     return max(current_row_group[1] for current_row_group in current_row_groups),len(current_row_groups)
 
 
-def select_sprite_asset_image(current_asset_path):
+def select_sprite_asset_image(current_asset_path,current_source_kind="assets"):
     if not current_asset_path:raise gr.Error('검색 결과에서 스프라이트를 선택하세요.')
     try:
-        current_result_record=execute_remote_management_command('character-animation','sheet-image',{'path':current_asset_path})
+        current_result_record=execute_remote_management_command('character-animation','sheet-image',{'path':current_asset_path,'source':current_source_kind})
     except ValueError as current_load_error:
         raise gr.Error(f'스프라이트를 가져오지 못했습니다: {current_load_error}') from current_load_error
     current_temporary_directory=Path(tempfile.mkdtemp(prefix='sprite-asset-input-'))
@@ -47,8 +47,8 @@ def select_sprite_asset_image(current_asset_path):
     current_image_path.write_bytes(base64.b64decode(current_result_record['image'],validate=True))
     if current_result_record.get('animation'):
         current_image_path.with_suffix('.animation.json').write_text(json.dumps(current_result_record['animation']))
-    current_layout_values=calculate_registered_sheet_layout(current_result_record['animation']) if current_result_record.get('animation') else (gr.update(),gr.update())
-    return str(current_image_path),{'path':current_asset_path,'metadataSha256':current_result_record['metadataSha256'],'animation':current_result_record.get('animation'),'imageSha256':hashlib.sha256(current_image_path.read_bytes()).hexdigest()},'원본으로 가져왔습니다. 좌표맵이 있으면 원본 열·행을 자동 반영합니다. 시트 불러오기를 누르세요. 기존 편집은 아직 변경하지 않았습니다.',*current_layout_values
+    current_layout_values=calculate_registered_sheet_layout(current_result_record['animation']) if current_result_record.get('animation') else (current_result_record['layout']['columns'],current_result_record['layout']['rows']) if current_result_record.get('layout') else (gr.update(),gr.update())
+    return str(current_image_path),{'source':current_source_kind,'path':current_asset_path,'metadataSha256':current_result_record['metadataSha256'],'animation':current_result_record.get('animation'),'imageSha256':hashlib.sha256(current_image_path.read_bytes()).hexdigest()},f"{'베이스라인' if current_source_kind=='baseline' else '에셋'} 원본: {current_asset_path}\n원본으로 가져왔습니다. 좌표맵이 있으면 원본 열·행을 자동 반영합니다. 시트 불러오기를 누르세요. 기존 편집은 아직 변경하지 않았습니다.",*current_layout_values
 
 
 def load_sprite_sheet_input(current_file_path,current_columns_value,current_rows_value,current_asset_record=None):
@@ -151,6 +151,7 @@ def apply_automatic_sprite_crops(current_pending_record,current_image_data,curre
 
 
 def prepare_sprite_sheet_update(current_asset_record,current_asset_choice,*current_editor_values):
+    if current_asset_record and current_asset_record.get('source')=='baseline':raise gr.Error('베이스라인은 이미지와 좌표맵 생성으로 내려받으세요. 에셋 업데이트 대상이 아닙니다.')
     if not current_asset_record or current_asset_record.get('path')!=current_asset_choice or not current_asset_record.get('metadataSha256'):raise gr.Error('좌표맵이 하나 등록된 에셋을 검색해서 다시 가져오세요.')
     current_pending_record={'path':current_asset_record['path'],'metadataSha256':current_asset_record['metadataSha256'],'payload':build_sprite_sheet_payload(*current_editor_values),'confirm':True}
     return current_pending_record,gr.update(visible=True),f"**갱신 대상:** {current_asset_record['path']}\n\n기존 이미지와 애니메이션 좌표맵·등록부·잠금 해시를 갱신합니다. 프레임 ID와 재생 클립은 유지하고 변경 전 사본을 보관합니다."
@@ -172,9 +173,11 @@ def build_sprite_sheet_editor_interface(current_review_port):
         with gr.Row():
             with gr.Column():
                 gr.Markdown('### 1. 원본 불러오기')
+                current_source_kind=gr.Radio(choices=[('에셋 스프라이트','assets'),('베이스라인 스프라이트','baseline')],value='assets',label='검색 원본')
+                gr.Markdown('에셋은 게임 등록 원본, 베이스라인은 제작 기준입니다. 베이스라인 편집 결과는 다운로드로 저장하며 에셋 업데이트 대상이 아닙니다. 검색어 없이 검색하면 전체 목록을 표시합니다. 여러 단어를 띄어쓰기로 조합하거나 Enter로 검색하세요.')
                 current_search_text=gr.Textbox(label='스프라이트 검색',placeholder='이름 · ID · 경로 (예: rest, slime)')
                 current_search_button=gr.Button('스프라이트 검색')
-                current_asset_choice=gr.Dropdown(label='등록 스프라이트',choices=[])
+                current_asset_choice=gr.Dropdown(label='검색 결과 · 원본 선택',choices=[])
                 current_select_button=gr.Button('선택 스프라이트를 원본으로 가져오기')
                 current_asset_record=gr.State({})
                 current_pending_update=gr.State({})
@@ -225,7 +228,7 @@ def build_sprite_sheet_editor_interface(current_review_port):
                     current_output_columns=gr.Number(label='출력 열',value=SPRITE_EDITOR_DEFAULT_COLUMNS,precision=0)
                 current_export_button=gr.Button('이미지와 좌표맵 생성',variant='primary',interactive=False)
                 gr.Markdown('생성 버튼은 원본 PNG를 불러온 뒤 사용할 수 있습니다.')
-                current_update_button=gr.Button('기존 에셋 업데이트')
+                current_update_button=gr.Button('기존 에셋 업데이트',interactive=False)
                 with gr.Group(visible=False) as current_update_group:
                     current_update_summary=gr.Markdown()
                     with gr.Row():
@@ -249,15 +252,18 @@ def build_sprite_sheet_editor_interface(current_review_port):
                     current_canvas_undo=gr.Button('직전 반영 되돌리기')
                     current_canvas_discard=gr.Button('드래그 취소')
                 current_canvas_status=gr.Textbox(label='캔버스 편집 상태',value='대상을 선택하고 드래그한 뒤 편집 반영을 누르세요. 에셋 저장은 별도입니다.',interactive=False)
-                gr.Markdown('반영한 결과를 저장하려면 왼쪽의 기존 에셋 업데이트를 사용하세요. 이미지와 좌표맵 생성은 다운로드용이며 원본을 바꾸지 않습니다.')
+                gr.Markdown('등록 에셋은 기존 에셋 업데이트로 저장하세요. 베이스라인·직접 첨부 이미지는 이미지와 좌표맵 생성으로 내려받으세요. 다운로드는 원본을 바꾸지 않습니다.')
                 current_shadow_enabled=gr.Checkbox(label='바닥 그림자 표시 (검수용 · 출력 제외)',value=False)
                 current_preview_status=gr.Textbox(label='미리보기',interactive=False)
         current_image_data.change(lambda current_loaded_image:gr.update(interactive=bool(current_loaded_image)),current_image_data,current_auto_button,queue=False)
         current_auto_button.click(detect_automatic_sprite_crops,[current_image_data,current_auto_padding],[current_auto_pending,current_auto_preview,current_auto_confirm,current_status_text],trigger_mode='once')
         current_auto_cancel.click(lambda:({},gr.update(visible=False),'자동 검출을 취소했습니다. 기존 편집은 유지됩니다.'),outputs=[current_auto_pending,current_auto_confirm,current_status_text],queue=False)
-        current_search_button.click(search_sprite_asset_choices,current_search_text,[current_asset_choice,current_status_text])
-        current_select_button.click(select_sprite_asset_image,current_asset_choice,[current_input_file,current_asset_record,current_status_text,current_input_columns,current_input_rows])
+        current_search_button.click(search_sprite_asset_choices,[current_search_text,current_source_kind],[current_asset_choice,current_status_text])
+        current_select_button.click(select_sprite_asset_image,[current_asset_choice,current_source_kind],[current_input_file,current_asset_record,current_status_text,current_input_columns,current_input_rows])
+        current_search_text.submit(search_sprite_asset_choices,[current_search_text,current_source_kind],[current_asset_choice,current_status_text])
+        current_source_kind.change(search_sprite_asset_choices,[current_search_text,current_source_kind],[current_asset_choice,current_status_text])
         current_update_inputs=[current_asset_record,current_asset_choice,current_image_data,current_frame_rows,current_output_columns,current_source_bounds]
+        current_asset_record.change(lambda current_loaded_record: gr.update(interactive=bool(current_loaded_record) and current_loaded_record.get('source','assets')=='assets'),current_asset_record,current_update_button)
         current_update_button.click(prepare_sprite_sheet_update,current_update_inputs,[current_pending_update,current_update_group,current_update_summary])
         current_update_confirm.click(confirm_sprite_sheet_update,[current_pending_update,*current_update_inputs],[current_pending_update,current_update_group,current_status_text],trigger_mode='once')
         current_update_cancel.click(lambda:({},gr.update(visible=False)),outputs=[current_pending_update,current_update_group],queue=False)
