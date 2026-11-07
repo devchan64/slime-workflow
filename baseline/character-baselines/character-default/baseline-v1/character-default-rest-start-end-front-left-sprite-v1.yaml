@@ -1,9 +1,9 @@
 schema_version: 1
 description: 기본 캐릭터 · 휴식 시작 및 휴식 해제 24프레임 · 8방향 베이스라인 일관성 보정
 image: character-default-rest-start-end-front-left-sprite-v1.png
-sha256: 660c3697f6a5ab32e9022117e4faa321dec4f1b20756996f29f1f8a929b0935c
-width: 817
-height: 1925
+sha256: 514078516a6d092f146f3cd2900ae38e8a56d41641efa6ef28dbb5b37cee5be5
+width: 1412
+height: 2784
 layout:
   columns: 4
   rows: 6
