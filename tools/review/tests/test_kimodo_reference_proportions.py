@@ -13,6 +13,22 @@ def create_test_reference_points():
 
 
 class KimodoReferenceProportionTests(unittest.TestCase):
+    def test_projected_axis_matches_reference_and_preserves_limb_vectors(self):
+        from generators.kimodo.direct_pose_export import adjust_projected_body_axis
+        current_points=create_test_reference_points()
+        current_positions=np.stack([current_points[:,:2],current_points[:,:2]+[50,20]])
+        current_reference_record=estimate_reference_proportions([current_points])
+        current_reference_record['body_axis']['nose_shoulder_to_torso']=.6
+        current_adjusted,current_gain=adjust_projected_body_axis(current_positions,current_reference_record)
+        self.assertAlmostEqual(current_gain,.8125)
+        current_shoulders=current_adjusted[:,[2,5]].mean(axis=1)
+        current_hips=current_adjusted[:,[8,11]].mean(axis=1)
+        np.testing.assert_allclose(np.linalg.norm(current_adjusted[:,0]-current_shoulders,axis=1)/np.linalg.norm(current_shoulders-current_hips,axis=1),.6)
+        np.testing.assert_allclose(current_adjusted[:,[0,8,9,10,11,12,13]],current_positions[:,[0,8,9,10,11,12,13]])
+        for current_parent_index,current_child_index in ((2,3),(3,4),(5,6),(6,7)):
+            np.testing.assert_allclose(current_adjusted[:,current_child_index]-current_adjusted[:,current_parent_index],current_positions[:,current_child_index]-current_positions[:,current_parent_index])
+        np.testing.assert_array_equal(current_positions[0],current_points[:,:2])
+
     def test_heatmap_scores_are_bounded_without_changing_coordinates(self):
         from generators.kimodo.reference_extraction import normalize_reference_keypoints
         current_raw_points=create_test_reference_points()

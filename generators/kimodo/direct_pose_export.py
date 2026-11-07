@@ -11,6 +11,19 @@ DIRECT_POSE_OUTPUT_FPS = 16
 DIRECT_POSE_OUTPUT_SIZE = (832, 480)
 
 
+def adjust_projected_body_axis(current_projected_points, current_reference_record):
+    """화면에 투영된 얼굴·몸통 비율로 어깨와 팔을 함께 평행 이동한다."""
+    from generators.kimodo.reference_proportions import calculate_reference_torso_gain
+    current_projected_points = np.asarray(current_projected_points, dtype=float)
+    current_torso_gain = calculate_reference_torso_gain(current_projected_points, current_reference_record)
+    current_shoulder_centers = current_projected_points[:,[2,5]].mean(axis=1)
+    current_hip_centers = current_projected_points[:,[8,11]].mean(axis=1)
+    current_shoulder_offsets = (current_shoulder_centers-current_hip_centers)*(current_torso_gain-1)
+    current_adjusted_points = current_projected_points.copy()
+    current_adjusted_points[:,[1,2,3,4,5,6,7]] += current_shoulder_offsets[:,None,:]
+    return current_adjusted_points,current_torso_gain
+
+
 def export_direct_pose_video(current_attempt_root, current_output_root, current_direction_names, current_reference_ratio_path=None):
     current_output_root = Path(current_output_root)
     current_output_root.mkdir(parents=True, exist_ok=True)
@@ -48,8 +61,12 @@ def export_direct_pose_video(current_attempt_root, current_output_root, current_
         current_axis_gain=calculate_reference_torso_gain(current_body_positions,current_reference_record)
         current_body_positions = apply_reference_proportions(current_body_positions,current_reference_record)
     current_direction_points = {}
+    current_direction_axis_gains = {}
     for current_direction_name in current_direction_names:
         current_projected_points = project_recorded_camera_points(current_body_positions, current_render_record['cameras'][current_direction_name])
+        if current_reference_record is not None:
+            current_projected_points,current_projected_gain = adjust_projected_body_axis(current_projected_points,current_reference_record)
+            current_direction_axis_gains[current_direction_name] = current_projected_gain
         current_body_points = np.zeros((len(current_projected_points),18,3))
         current_body_points[:,:,:2] = current_projected_points
         current_body_points[:,:,2] = 1
@@ -66,7 +83,7 @@ def export_direct_pose_video(current_attempt_root, current_output_root, current_
                 current_pose_image = render_fun_control_body(current_pose_points[current_source_index].tolist())
                 current_video_writer.append_data(np.asarray(ImageOps.pad(current_pose_image, DIRECT_POSE_OUTPUT_SIZE, color='black')))
         current_output_records[current_direction_name] = {'video': current_video_path.name, 'source_frames': current_source_indices, 'body_points_832x480': current_pose_points[current_source_indices].tolist()}
-    current_metadata_record = {'reference_proportions': current_reference_record, 'body_axis_torso_gain':current_axis_gain, 'proportion_basis': '3D 몸통 기준 보정 후 원본 카메라 투영', 'source': 'SOMA 3D joints', 'projection_scale_basis': '기록된 SOMA 카메라 배율 그대로 사용 · 추가 배율 없음', 'additional_scale_percent': 100.0, 'fps': DIRECT_POSE_OUTPUT_FPS, 'size': DIRECT_POSE_OUTPUT_SIZE, 'missing_points': [], 'head_anchors': current_anchor_record, 'limitations': '코·귀는 검증 기록이 있는 Head 로컬 앵커 추정. 손 상세·얼굴 상세는 합성하지 않음. 목은 어깨 중점. 가림 판정 없음. confidence=1은 검출 확률이 아닌 대응 관절 존재 표시.', 'directions': current_output_records}
+    current_metadata_record = {'reference_proportions': current_reference_record, 'body_axis_torso_gain':current_axis_gain, 'projected_body_axis_gains':current_direction_axis_gains, 'proportion_basis': '3D 몸통 보정 후 방향별 2D 얼굴·어깨·골반 비율 보정', 'source': 'SOMA 3D joints', 'projection_scale_basis': '기록된 SOMA 카메라 배율 그대로 사용 · 추가 배율 없음', 'additional_scale_percent': 100.0, 'fps': DIRECT_POSE_OUTPUT_FPS, 'size': DIRECT_POSE_OUTPUT_SIZE, 'missing_points': [], 'head_anchors': current_anchor_record, 'limitations': '코·귀는 검증 기록이 있는 Head 로컬 앵커 추정. 참조 얼굴 비율도 2D 추정이며 실제 목 길이 복원이 아님. 손 상세·얼굴 상세는 합성하지 않음. 목은 어깨 중점. 가림 판정 없음. confidence=1은 검출 확률이 아닌 대응 관절 존재 표시.', 'directions': current_output_records}
     (current_output_root/'soma-direct-pose.json').write_text(json.dumps(current_metadata_record, ensure_ascii=False))
     return current_metadata_record
 
