@@ -303,7 +303,8 @@ class KimodoGenerationContractTests(unittest.TestCase):
         from tools.review.ui.gradio.kimodo_app import build_kimodo_payload
         current_standing_payload = build_kimodo_payload(*apply_kimodo_example('relaxed_shoulder_width_standing'))
         self.assertEqual(current_standing_payload['frames'],180)
-        self.assertEqual(current_standing_payload['seed'],42)
+        self.assertEqual(current_standing_payload['seed'],874905572)
+        self.assertEqual(current_standing_payload['prompt'],'A person stands still like a fashion model and breathes gently.')
         self.assertEqual(current_standing_payload['directions'],['front_left_30'])
         self.assertFalse(current_standing_payload['remove_horizontal_motion'])
         current_example_payload = build_kimodo_payload(*apply_kimodo_example('male_runway_in_place'))
@@ -312,6 +313,15 @@ class KimodoGenerationContractTests(unittest.TestCase):
         self.assertEqual(current_example_payload['steps'],100)
         self.assertEqual(current_example_payload['heading_degrees'],0.0)
         from tools.review.ui.gradio.kimodo_app import apply_complete_kimodo_example
+        import hashlib
+        current_standing_values = apply_complete_kimodo_example('relaxed_shoulder_width_standing')
+        current_standing_request = build_kimodo_payload(*current_standing_values)
+        self.assertEqual(current_standing_request['openpose_scale_percent'],85)
+        self.assertTrue(current_standing_request['post_processing'])
+        self.assertFalse(current_standing_request['pose_include_hands'])
+        self.assertFalse(current_standing_request['pose_include_face'])
+        self.assertTrue(current_standing_values[9])
+        self.assertEqual(hashlib.sha256(Path(current_standing_values[10][0]).read_bytes()).hexdigest(),'d947e4c01d1076860d9ec1ce5660fac8c8eda291bfd13d82ed1c6d55fa473508')
         from tools.review.domains.kimodo.keyframe_storage import snapshot_kimodo_keyframes, KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS
         current_combination_values = apply_complete_kimodo_example('boxing_jab_straight_combination')
         current_combination_request = build_kimodo_payload(*current_combination_values)
