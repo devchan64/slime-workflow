@@ -40,11 +40,13 @@
    }
    const currentAnchorLeft=currentDrawLeft+(currentPlayEnabled?currentActiveRow[4]:currentActiveRow[0]-currentOriginalRow[0]+currentActiveRow[4])*currentDrawScale;
    const currentAnchorTop=currentDrawTop+(currentPlayEnabled?currentActiveRow[5]:currentActiveRow[1]-currentOriginalRow[1]+currentActiveRow[5])*currentDrawScale;
-   const currentDrawRow=currentPlayEnabled?currentActiveRow:currentOriginalRow;
+   const currentDrawRow=currentActiveRow;
+   const currentCropOffsetLeft=currentPlayEnabled?0:(currentActiveRow[0]-currentOriginalRow[0])*currentDrawScale;
+   const currentCropOffsetTop=currentPlayEnabled?0:(currentActiveRow[1]-currentOriginalRow[1])*currentDrawScale;
    const currentSourceRect=currentSourceBounds?.[currentActiveIndex]??[0,0,currentImageElement.width,currentImageElement.height];
    const currentClipLeft=Math.max(currentDrawRow[0],currentSourceRect[0]),currentClipTop=Math.max(currentDrawRow[1],currentSourceRect[1]);
    const currentClipRight=Math.min(currentDrawRow[0]+currentDrawRow[2],currentSourceRect[0]+currentSourceRect[2]),currentClipBottom=Math.min(currentDrawRow[1]+currentDrawRow[3],currentSourceRect[1]+currentSourceRect[3]);
-   if(currentClipRight>currentClipLeft&&currentClipBottom>currentClipTop)currentCanvasContext.drawImage(currentImageElement,currentClipLeft,currentClipTop,currentClipRight-currentClipLeft,currentClipBottom-currentClipTop,currentDrawLeft+(currentClipLeft-currentDrawRow[0])*currentDrawScale,currentDrawTop+(currentClipTop-currentDrawRow[1])*currentDrawScale,(currentClipRight-currentClipLeft)*currentDrawScale,(currentClipBottom-currentClipTop)*currentDrawScale);
+   if(currentClipRight>currentClipLeft&&currentClipBottom>currentClipTop)currentCanvasContext.drawImage(currentImageElement,currentClipLeft,currentClipTop,currentClipRight-currentClipLeft,currentClipBottom-currentClipTop,currentDrawLeft+currentCropOffsetLeft+(currentClipLeft-currentDrawRow[0])*currentDrawScale,currentDrawTop+currentCropOffsetTop+(currentClipTop-currentDrawRow[1])*currentDrawScale,(currentClipRight-currentClipLeft)*currentDrawScale,(currentClipBottom-currentClipTop)*currentDrawScale);
    if(currentShadowEnabled){currentCanvasContext.fillStyle='rgba(0,0,0,.22)';currentCanvasContext.beginPath();currentCanvasContext.ellipse(currentAnchorLeft,currentAnchorTop,currentOriginalRow[2]*currentDrawScale*.24,currentOriginalRow[3]*currentDrawScale*.06,0,0,Math.PI*2);currentCanvasContext.fill();}
    if(!currentPlayEnabled){currentCanvasContext.strokeStyle='#987000';currentCanvasContext.lineWidth=2;currentCanvasContext.strokeRect(currentOriginLeft+(currentDraftRow[0]-currentOriginalRow[0])*currentScaleValue,currentOriginTop+(currentDraftRow[1]-currentOriginalRow[1])*currentScaleValue,currentDraftRow[2]*currentScaleValue,currentDraftRow[3]*currentScaleValue);}
    currentCanvasContext.strokeStyle='#e22';currentCanvasContext.beginPath();currentCanvasContext.arc(currentAnchorLeft,currentAnchorTop,currentAnchorRadius,0,Math.PI*2);currentCanvasContext.moveTo(currentAnchorLeft-14,currentAnchorTop);currentCanvasContext.lineTo(currentAnchorLeft+14,currentAnchorTop);currentCanvasContext.moveTo(currentAnchorLeft,currentAnchorTop-14);currentCanvasContext.lineTo(currentAnchorLeft,currentAnchorTop+14);currentCanvasContext.stroke();
@@ -61,7 +63,7 @@
    }else{
     const currentLeft=Math.min(currentDragStart[0],currentPoint[0]),currentTop=Math.min(currentDragStart[1],currentPoint[1]);
     const currentWidth=Math.abs(currentPoint[0]-currentDragStart[0]),currentHeight=Math.abs(currentPoint[1]-currentDragStart[1]);
-    if(currentWidth&&currentHeight){const currentAnchorX=currentDragBackup[0]+currentDragBackup[4],currentAnchorY=currentDragBackup[1]+currentDragBackup[5];currentDraftRow.splice(0,6,currentOriginalRow[0]+currentLeft,currentOriginalRow[1]+currentTop,currentWidth,currentHeight,currentAnchorX-currentOriginalRow[0]-currentLeft,currentAnchorY-currentOriginalRow[1]-currentTop);}
+    if(currentWidth&&currentHeight){const currentAnchorX=currentDragBackup[0]+currentDragBackup[4],currentAnchorY=currentDragBackup[1]+currentDragBackup[5];currentDraftRow.splice(0,6,currentOriginalRow[0]+currentLeft,currentOriginalRow[1]+currentTop,currentWidth,currentHeight,Math.max(0,Math.min(currentWidth-1,currentAnchorX-currentOriginalRow[0]-currentLeft)),Math.max(0,Math.min(currentHeight-1,currentAnchorY-currentOriginalRow[1]-currentTop)));}
    }
    drawCurrentEditorFrame(performance.now());
   };

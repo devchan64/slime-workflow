@@ -172,7 +172,7 @@ def build_sprite_sheet_editor_interface(current_review_port):
                 current_status_text=gr.Textbox(label='상태',interactive=False)
             with gr.Column():
                 current_canvas_mode=gr.Radio(['크롭','앵커'],value='크롭',label='캔버스 편집 도구')
-                gr.Markdown('회색 영역은 이미지 바깥입니다. 크롭을 바깥으로 드래그하면 투명 여백을 확장합니다. 큰 확장은 고급 좌표 설정의 음수 여백을 사용하세요. 앵커는 클릭하거나 드래그하세요. 선택 프레임에는 같은 크롭 여백과 크롭 내부 앵커를 적용합니다.')
+                gr.Markdown('회색 영역은 이미지 바깥입니다. 크롭을 바깥으로 드래그하면 투명 여백을 확장합니다. 큰 확장은 고급 좌표 설정의 음수 여백을 사용하세요. 앵커는 클릭하거나 드래그하세요. 크롭으로 앵커가 영역 밖이 되면 가장 가까운 내부 경계로 이동합니다. 선택 프레임에는 같은 크롭 여백과 크롭 내부 앵커를 적용합니다.')
                 gr.HTML('<canvas id="sprite-sheet-alignment-preview" width="640" height="640" style="width:100%;max-width:640px;aspect-ratio:1;background:#fff;touch-action:none" aria-label="프레임 크롭과 앵커 정렬 미리보기"></canvas>')
                 with gr.Row():
                     current_frame_index=gr.Slider(label='프레임',minimum=1,maximum=2,value=1,step=1)
