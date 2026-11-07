@@ -100,6 +100,38 @@ def export_sprite_sheet_result(current_image_data,current_frame_rows,current_col
     return [str(current_image_path),str(current_map_path)],f"완료 · 작업 ID {current_result_record['id']} · 시트와 좌표맵이 저장되었습니다."
 
 
+def detect_automatic_sprite_crops(current_image_data,current_padding_value):
+    if not current_image_data:
+        raise gr.Error('시트 불러오기를 먼저 실행하세요.')
+    if current_padding_value is None or not float(current_padding_value).is_integer():
+        raise gr.Error('여백은 정수여야 합니다.')
+    current_image_bytes=base64.b64decode(current_image_data.split(',',1)[1],validate=True)
+    if len(current_image_bytes)>SPRITE_EDITOR_UPLOAD_LIMIT:
+        raise gr.Error('PNG 시트는 8MB 이하여야 합니다.')
+    current_result_record=execute_remote_management_command('character-animation','sheet-auto',{'image':base64.b64encode(current_image_bytes).decode(),'padding':int(current_padding_value)})
+    current_pending_record={'sha256':hashlib.sha256(current_image_bytes).hexdigest(),'padding':int(current_padding_value),'result':current_result_record}
+    from PIL import ImageDraw
+    with Image.open(BytesIO(current_image_bytes)) as current_source_image:
+        current_overlay_image=current_source_image.convert('RGB')
+    current_overlay_draw=ImageDraw.Draw(current_overlay_image)
+    for current_frame_number,current_frame_record in enumerate(current_result_record['frames'],1):
+        current_left_pixels,current_top_pixels=current_frame_record['x'],current_frame_record['y']
+        current_overlay_draw.rectangle((current_left_pixels,current_top_pixels,current_left_pixels+current_frame_record['width']-1,current_top_pixels+current_frame_record['height']-1),outline='red',width=3)
+        current_overlay_draw.text((max(0,current_left_pixels)+4,max(0,current_top_pixels)+4),str(current_frame_number),fill='red')
+    return current_pending_record,current_overlay_image,gr.update(visible=True),f"{len(current_result_record['frames'])}프레임 검출 · 빨간 선은 여백 포함 크롭 후보입니다. 검수 시작을 누르면 현재 편집을 교체합니다. 아직 결과 이미지는 생성하지 않았습니다."
+
+
+def apply_automatic_sprite_crops(current_pending_record,current_image_data,current_padding_value):
+    if not current_image_data:
+        raise gr.Error('시트 불러오기를 먼저 실행하세요.')
+    current_image_bytes=base64.b64decode(current_image_data.split(',',1)[1],validate=True)
+    if not current_pending_record or current_pending_record['padding']!=current_padding_value or hashlib.sha256(current_image_bytes).hexdigest()!=current_pending_record['sha256']:
+        raise gr.Error('검출 이후 불러온 시트 또는 여백이 변경되었습니다. 자동 검출을 다시 실행하세요.')
+    current_result_record=current_pending_record['result']
+    current_frame_rows=[[current_frame_record[current_field_name] for current_field_name in SPRITE_EDITOR_FRAME_FIELDS] for current_frame_record in current_result_record['frames']]
+    return current_image_data,current_frame_rows,current_result_record['columns'],gr.update(maximum=max(2,len(current_frame_rows)),value=1),'크롭라인을 불러왔습니다. 프레임별 검수·수정 후 이미지와 좌표맵 생성을 누르세요.',gr.update(interactive=True),current_result_record['sourceFrames'],{},gr.update(visible=False)
+
+
 def prepare_sprite_sheet_update(current_asset_record,current_asset_choice,*current_editor_values):
     if not current_asset_record or current_asset_record.get('path')!=current_asset_choice or not current_asset_record.get('metadataSha256'):raise gr.Error('좌표맵이 하나 등록된 에셋을 검색해서 다시 가져오세요.')
     current_pending_record={'path':current_asset_record['path'],'metadataSha256':current_asset_record['metadataSha256'],'payload':build_sprite_sheet_payload(*current_editor_values),'confirm':True}
@@ -134,6 +166,18 @@ def build_sprite_sheet_editor_interface(current_review_port):
                     current_input_rows=gr.Number(label='원본 행',value=2,precision=0)
                     current_load_button=gr.Button('시트 불러오기')
                 gr.Markdown('미등록 PNG는 원본 열·행으로 전체 영역을 균등 분할합니다. 나누어떨어지지 않는 픽셀은 분산하며 자동 크롭하지 않습니다.')
+                with gr.Group():
+                    gr.Markdown('### 2. 자동 크롭 → 검수 → 시트 생성\n흰색·투명 배경에서 행·열과 캐릭터 영역을 찾습니다. 여백을 포함한 크롭라인을 검수하고 수정한 뒤 이미지를 생성하세요. 캐릭터는 확대·축소하지 않습니다. 서로 붙거나 떨어진 신체 부위는 검출 오류가 생길 수 있습니다.')
+                    current_auto_padding=gr.Number(label='상하좌우 최소 여백 (px)',value=30,precision=0,minimum=0,maximum=500)
+                    current_auto_button=gr.Button('자동 크롭 범위 찾기',interactive=False)
+                    gr.Markdown('먼저 시트 불러오기를 실행하세요. 자동 크롭은 현재 불러온 이미지에 적용됩니다.')
+                    current_auto_pending=gr.State({})
+                    current_auto_preview=gr.Image(label='크롭 후보 검수 · 빨간 선 · 원본 밖 여백은 프레임 캔버스에서 확인',interactive=False)
+                    with gr.Group(visible=False) as current_auto_confirm:
+                        gr.Markdown('검수 시작은 현재 편집을 검출한 크롭라인으로 교체합니다. 저장하지 않은 편집을 확인하세요. 결과 파일은 생성하지 않습니다.')
+                        with gr.Row():
+                            current_auto_apply=gr.Button('크롭라인 검수 시작')
+                            current_auto_cancel=gr.Button('검출 취소')
                 current_image_data=gr.Textbox(value='',visible=False)
                 current_pending_load=gr.State({})
                 current_source_bounds=gr.JSON(value=[],visible=False)
@@ -184,6 +228,9 @@ def build_sprite_sheet_editor_interface(current_review_port):
                     current_canvas_undo=gr.Button('실행 취소')
                 current_shadow_enabled=gr.Checkbox(label='바닥 그림자 표시 (검수용 · 출력 제외)',value=False)
                 current_preview_status=gr.Textbox(label='미리보기',interactive=False)
+        current_image_data.change(lambda current_loaded_image:gr.update(interactive=bool(current_loaded_image)),current_image_data,current_auto_button,queue=False)
+        current_auto_button.click(detect_automatic_sprite_crops,[current_image_data,current_auto_padding],[current_auto_pending,current_auto_preview,current_auto_confirm,current_status_text],trigger_mode='once')
+        current_auto_cancel.click(lambda:({},gr.update(visible=False),'자동 검출을 취소했습니다. 기존 편집은 유지됩니다.'),outputs=[current_auto_pending,current_auto_confirm,current_status_text],queue=False)
         current_search_button.click(search_sprite_asset_choices,current_search_text,[current_asset_choice,current_status_text])
         current_select_button.click(select_sprite_asset_image,current_asset_choice,[current_input_file,current_asset_record,current_status_text])
         current_update_inputs=[current_asset_record,current_asset_choice,current_image_data,current_frame_rows,current_output_columns,current_source_bounds]
@@ -194,6 +241,7 @@ def build_sprite_sheet_editor_interface(current_review_port):
         for current_action_button,current_action_name in ((current_canvas_apply,'apply'),(current_canvas_undo,'undo')):
             current_action_button.click(fn=None,inputs=[current_frame_rows,current_canvas_target,current_canvas_selection],outputs=[current_frame_rows,current_status_text],js='(...currentArguments)=>('+current_canvas_apply_script+')( ...currentArguments, '+json.dumps(current_action_name)+')',queue=False).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_bulk_apply.click(fn=None,inputs=[current_frame_rows,current_bulk_target,current_bulk_selection,current_bulk_mode,current_bulk_left,current_bulk_top,current_bulk_right,current_bulk_bottom,current_bulk_anchor_x,current_bulk_anchor_y],outputs=[current_frame_rows,current_status_text],js=current_bulk_script,queue=False).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
+        current_auto_apply.click(apply_automatic_sprite_crops,[current_auto_pending,current_image_data,current_auto_padding],[current_image_data,current_frame_rows,current_output_columns,current_frame_index,current_status_text,current_export_button,current_source_bounds,current_auto_pending,current_auto_confirm],trigger_mode='once').then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_load_outputs=[current_image_data,current_frame_rows,current_output_columns,current_frame_index,current_status_text]
         current_load_button.click(prepare_sprite_sheet_load,[current_input_file,current_input_columns,current_input_rows,current_image_data,current_asset_record],[*current_load_outputs,current_confirm_group,current_pending_load,current_export_button,current_source_bounds]).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_confirm_button.click(confirm_sprite_sheet_load,[current_pending_load,current_input_file,current_input_columns,current_input_rows,current_asset_record],[*current_load_outputs,current_confirm_group,current_pending_load,current_export_button,current_source_bounds]).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)

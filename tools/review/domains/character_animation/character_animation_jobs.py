@@ -153,6 +153,9 @@ def execute_animation_command(operation_command_name,command_payload_value):
     if operation_command_name in ('sheet-search','sheet-image'):
         from .sprite_sheet_editor import execute_sprite_asset_command
         return execute_sprite_asset_command(operation_command_name,command_payload_value)
+    if operation_command_name == 'sheet-auto':
+        from .sprite_sheet_auto import execute_sprite_sheet_automatic
+        return execute_sprite_sheet_automatic(command_payload_value)
     if operation_command_name == 'sheet-export':
         from .sprite_sheet_editor import execute_sprite_sheet_export
         return execute_sprite_sheet_export(command_payload_value)
