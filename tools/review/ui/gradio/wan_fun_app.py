@@ -182,6 +182,10 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         current_hands_control = gr.State(False)
         current_face_control = gr.State(False)
         gr.Markdown('**포즈 모드:** Kimodo 결과의 DWPose 포즈 MP4를 입력하세요. SOMA 인체 렌더 영상은 입력 대상이 아닙니다. 832×480 · 16fps 영상을 앞에서부터 지정 프레임 수만큼 사용하며 포즈 재검출·관절 길이 보정은 수행하지 않습니다.')
+        with gr.Accordion('시작 프레임이 흐릴 때 · 포즈 준비 구간 가이드', open=False):
+            gr.Markdown('시작 구간이 흐리고 뒤로 갈수록 선명해질 때, 포즈 영상 앞에 첫 프레임을 반복한 준비 구간을 추가해 보세요. 이번 휴식 동작 실험에서는 첫 프레임 4장을 앞에 추가한 20스텝 결과가 개선됐습니다. 모든 동작에서 같은 효과를 보장하거나 원인이 확정된 것은 아닙니다.')
+            gr.Markdown('**적용 예:** 기존 109프레임 앞에 첫 포즈 4장을 추가하면 113프레임입니다. 원래 첫 프레임까지 같은 포즈가 5프레임 연속이며, 추가 시간은 16fps 기준 0.25초입니다. 준비 구간을 포함한 출력 프레임 수를 지정하세요. 출력은 4n+1, 최대 129프레임이며 입력 영상은 그 길이 이상이어야 합니다. 이 안내가 영상을 자동으로 수정하지는 않습니다.')
+            gr.Markdown('**검수:** 처음 1~5프레임과 동작 시작 이후의 선명도·잔상·캐릭터 크기를 비교하세요. 필요한 경우 생성 후 준비 구간을 잘라 사용할 수 있지만, 제거할 길이는 결과를 보고 결정하세요. 시작 이미지를 함께 사용한다면 첫 포즈의 자세·위치·크기와 맞춰 조건 충돌을 줄이세요.')
         gr.Markdown('**참조 전용 모드:** 외형 참조와 동작 프롬프트만 입력합니다. 예: The character walks in place. 제어 영상 없이 ComfyUI 기본 조건 처리를 사용하며 검은 영상을 대신 넣지 않습니다. 동작·외형 유지 품질은 미검증입니다. 기존에 첨부한 영상은 이 모드의 요청에서 제외됩니다.')
         current_prompt_control = gr.Textbox(label='장면·동작 프롬프트', lines=3)
         current_prompt_summary = gr.Markdown('원문 0단어 · 최종 0단어 · 추가 문구 없음')
