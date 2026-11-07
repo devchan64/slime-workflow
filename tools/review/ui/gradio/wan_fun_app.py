@@ -58,8 +58,10 @@ def encode_fun_image(current_image_object, current_padding_color):
 
 def build_fun_payload(current_reference_path, current_video_path, current_frame_paths, current_control_type, current_prompt_text, current_negative_text, current_frame_count, current_seed_value, current_steps_value, current_shift_value, current_guidance_value, current_switch_ratio, current_input_mode="preprocessed", current_include_hands=False, current_include_face=False, current_start_path=None, current_end_path=None, current_same_endpoint=False):
     current_endpoint_fields = {}
-    if current_same_endpoint and (not current_start_path or current_end_path):
-        raise ValueError('시작 이미지를 첨부하고 종료 이미지는 비워 주세요.')
+    if current_same_endpoint and not current_start_path:
+        raise ValueError('시작 이미지를 첨부하세요.')
+    if current_same_endpoint:
+        current_end_path = None
     for current_endpoint_name, current_endpoint_path in [('start_image', current_start_path), ('end_image', current_end_path)]:
         if current_endpoint_path:
             with Image.open(current_endpoint_path) as current_endpoint_image:
@@ -162,6 +164,13 @@ def build_fun_interface(current_server_address, current_command_callback=None):
                 return f'모델 상태 확인 실패: {current_status_error}'
         current_model_refresh.click(read_fun_model_status, outputs=current_model_status, queue=False)
         current_interface_blocks.load(read_fun_model_status, outputs=current_model_status)
+        gr.Markdown('### 1. 입력 준비')
+        current_example_button = gr.Button('걷기 예제 불러오기 · 21프레임 · 50스텝')
+        with gr.Group(visible=False) as current_example_confirmation:
+            gr.Markdown('현재 참조·포즈·프롬프트·생성 설정을 걷기 예제로 교체합니다. 생성은 실행하지 않습니다.')
+            with gr.Row():
+                current_example_confirm = gr.Button('입력 교체 확인')
+                current_example_cancel = gr.Button('취소')
         current_mode_control = gr.Radio(choices=[('포즈 영상 + 참조 이미지', 'pose-video'), ('참조 이미지 + 프롬프트 · 실험', 'reference-only')], value='pose-video', label='생성 모드')
         current_frames_control = gr.State(None)
         current_type_control = gr.State('pose')
@@ -177,16 +186,20 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             with gr.Row():
                 current_start_control = gr.Image(type='filepath', sources=['upload'], label='시작 프레임 이미지 · 선택')
                 current_end_control = gr.Image(type='filepath', sources=['upload'], label='종료 프레임 이미지 · 선택')
-            current_same_control = gr.Checkbox(value=False, label='시작 이미지를 종료에도 사용 · 종료 이미지 비우기')
+            current_same_control = gr.Checkbox(value=False, label='시작 이미지를 종료에도 사용')
+            current_same_control.change(lambda current_same_value: gr.update(interactive=not current_same_value),current_same_control,current_end_control,queue=False)
+            gr.Markdown('시작 이미지 재사용을 켜면 종료 이미지 입력은 비활성화되며 첨부된 종료 이미지는 사용하지 않습니다. 체크를 해제하면 다시 사용할 수 있습니다.')
             gr.Markdown('포즈 영상은 자동 변경하지 않습니다. 양끝 포즈가 이미지와 다르면 조건이 충돌할 수 있으므로 입력 포즈도 확인하세요. 생성 결과를 참조 이미지로 덮어쓰는 후처리는 하지 않습니다.')
         current_hands_control = gr.State(False)
         current_face_control = gr.State(False)
-        gr.Markdown('**포즈 모드:** Kimodo 결과의 DWPose 포즈 MP4를 입력하세요. SOMA 인체 렌더 영상은 입력 대상이 아닙니다. 832×480 · 16fps 영상을 앞에서부터 지정 프레임 수만큼 사용하며 포즈 재검출·관절 길이 보정은 수행하지 않습니다.')
-        with gr.Accordion('시작 프레임이 흐릴 때 · 포즈 준비 구간 가이드', open=False):
+        current_pose_help = gr.Markdown('**포즈 모드:** Kimodo 결과의 DWPose 포즈 MP4를 입력하세요. SOMA 인체 렌더 영상은 입력 대상이 아닙니다. 832×480 · 16fps 영상을 앞에서부터 지정 프레임 수만큼 사용하며 포즈 재검출·관절 길이 보정은 수행하지 않습니다.')
+        with gr.Accordion('시작 프레임이 흐릴 때 · 포즈 준비 구간 가이드', open=False) as current_pose_guide:
             gr.Markdown('시작 구간이 흐리고 뒤로 갈수록 선명해질 때, 포즈 영상 앞에 첫 프레임을 반복한 준비 구간을 추가해 보세요. 이번 휴식 동작 실험에서는 첫 프레임 4장을 앞에 추가한 20스텝 결과가 개선됐습니다. 모든 동작에서 같은 효과를 보장하거나 원인이 확정된 것은 아닙니다.')
             gr.Markdown('**적용 예:** 기존 109프레임 앞에 첫 포즈 4장을 추가하면 113프레임입니다. 원래 첫 프레임까지 같은 포즈가 5프레임 연속이며, 추가 시간은 16fps 기준 0.25초입니다. 준비 구간을 포함한 출력 프레임 수를 지정하세요. 출력은 4n+1, 최대 129프레임이며 입력 영상은 그 길이 이상이어야 합니다. 이 안내가 영상을 자동으로 수정하지는 않습니다.')
             gr.Markdown('**검수:** 처음 1~5프레임과 동작 시작 이후의 선명도·잔상·캐릭터 크기를 비교하세요. 필요한 경우 생성 후 준비 구간을 잘라 사용할 수 있지만, 제거할 길이는 결과를 보고 결정하세요. 시작 이미지를 함께 사용한다면 첫 포즈의 자세·위치·크기와 맞춰 조건 충돌을 줄이세요.')
-        gr.Markdown('**참조 전용 모드:** 외형 참조와 동작 프롬프트만 입력합니다. 예: The character walks in place. 제어 영상 없이 ComfyUI 기본 조건 처리를 사용하며 검은 영상을 대신 넣지 않습니다. 동작·외형 유지 품질은 미검증입니다. 기존에 첨부한 영상은 이 모드의 요청에서 제외됩니다.')
+        current_reference_help = gr.Markdown('**참조 전용 모드:** 외형 참조와 동작 프롬프트만 입력합니다. 예: The character walks in place. 제어 영상 없이 ComfyUI 기본 조건 처리를 사용하며 검은 영상을 대신 넣지 않습니다. 동작·외형 유지 품질은 미검증입니다. 기존에 첨부한 영상은 이 모드의 요청에서 제외됩니다.', visible=False)
+        current_mode_control.change(lambda current_mode_value: (gr.update(visible=current_mode_value=='pose-video'),gr.update(visible=current_mode_value=='pose-video'),gr.update(visible=current_mode_value=='reference-only')),current_mode_control,[current_pose_help,current_pose_guide,current_reference_help],queue=False)
+        gr.Markdown('### 2. 동작과 생성 설정')
         current_prompt_control = gr.Textbox(label='장면·동작 프롬프트', lines=3)
         current_prompt_summary = gr.Markdown('원문 0단어 · 최종 0단어 · 추가 문구 없음')
         current_prompt_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어 · 추가 문구 없음', current_prompt_control, current_prompt_summary, queue=False)
@@ -194,14 +207,19 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             current_negative_control = gr.Textbox(label='부정 프롬프트', value='')
             current_negative_summary = gr.Markdown('원문 0단어 · 최종 0단어')
             current_negative_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어', current_negative_control, current_negative_summary, queue=False)
-        gr.Markdown('고정: 고·저노이즈 Q4_K_M · 832×480 · 16fps · Euler/simple · CUDA 연산/CPU 가중치 오프로드 · 가속 LoRA 없음. 8GB 환경에서 41프레임 실행 기록이 있으며 모든 길이의 실행을 보장하지 않습니다.')
+        gr.Markdown('고정: 고·저노이즈 Q4_K_M · 832×480 · 16fps · Euler/simple · CUDA 연산/CPU 가중치 오프로드 · 가속 LoRA 없음. 8GB 환경에서 최대 129프레임 완료 기록이 있으며 품질과 모든 조건의 실행을 보장하지 않습니다.')
         current_count_control = gr.Number(value=FUN_DEFAULT_SETTINGS['frames'], precision=0, minimum=5, maximum=FUN_MAX_FRAME_COUNT, step=4, label=f'출력 프레임 · 4n+1 · 5~{FUN_MAX_FRAME_COUNT}', info='최대 129프레임입니다. 8GB 환경에서 129프레임 생성 완료를 확인했으며 품질은 별도 검수합니다. 부족한 제어 프레임은 자동 반복하지 않습니다.')
+        current_steps_control = gr.Number(value=FUN_DEFAULT_SETTINGS['steps'], precision=0, minimum=2, maximum=100, label='스텝 · 2~100', info='실험 기본 20. 증가하면 계산량이 늘며 동작 개선을 보장하지 않습니다.')
+        current_duration_output = gr.Markdown()
+        current_count_control.change(lambda current_frame_value: f'{current_frame_value}프레임 · {current_frame_value/16:.3f}초 · 16fps' if current_frame_value else '프레임 수를 입력하세요.',current_count_control,current_duration_output,queue=False)
+        current_interface_blocks.load(lambda: f"{FUN_DEFAULT_SETTINGS['frames']}프레임 · {FUN_DEFAULT_SETTINGS['frames']/16:.3f}초 · 16fps",outputs=current_duration_output)
+        current_frame_presets = gr.Radio(choices=[21,41,81,129],value=None,label='프레임 빠른 선택 · 직접 입력도 가능')
+        current_count_control.change(lambda current_frame_value: gr.update(value=current_frame_value if current_frame_value in (21,41,81,129) else None),current_count_control,current_frame_presets,queue=False)
+        current_frame_presets.input(lambda current_frame_value: current_frame_value,current_frame_presets,current_count_control,queue=False)
         current_seed_control = build_generation_seed(default_seed_value=FUN_DEFAULT_SETTINGS['seed'])
-        with gr.Row():
+        with gr.Accordion('고급 설정', open=False):
             current_shift_control = gr.Number(value=FUN_DEFAULT_SETTINGS['flow_shift'], minimum=0.1, maximum=20, label='Flow shift · 노이즈 시간 배분', info='기본 5. 높이면 같은 스텝 위치의 노이즈 수준이 높아집니다. CFG와 독립적으로 입력합니다. 동작 속도나 참조 강도가 아닙니다.')
             current_guidance_control = gr.Number(value=FUN_DEFAULT_SETTINGS['guidance_scale'], minimum=1, maximum=10, label='CFG 강도 · 조건 유도', info='기본 6. 조건부·무조건부 예측 차이에 적용하는 배율입니다. Flow shift나 참조 이미지 전용 강도가 아닙니다.')
-        with gr.Accordion('고급 설정', open=False):
-            current_steps_control = gr.Number(value=FUN_DEFAULT_SETTINGS['steps'], precision=0, minimum=2, maximum=100, label='스텝 · 2~100', info='실험 기본 20. 증가하면 계산량이 늘며 동작 개선을 보장하지 않습니다.')
             current_switch_control = gr.Number(value=FUN_DEFAULT_SETTINGS['switch_ratio'], minimum=0.1, maximum=0.9, label='고노이즈 스텝 비율 · 0.1~0.9', info='기본 0.5. 전체 스텝의 앞부분은 고노이즈 모델, 나머지는 저노이즈 모델을 사용합니다.')
             gr.Markdown('VAE 고정: 일반 인코딩·디코딩. 타일 처리와 OOM 자동 대체는 사용하지 않습니다. 이전 타일 이력을 불러와 새로 생성해도 일반 VAE를 사용합니다.')
             current_split_summary = gr.Markdown(describe_fun_step_split(FUN_DEFAULT_SETTINGS['steps'], FUN_DEFAULT_SETTINGS['switch_ratio']))
@@ -209,14 +227,25 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             current_switch_control.change(describe_fun_step_split, [current_steps_control,current_switch_control], current_split_summary, queue=False)
             gr.Markdown('범위는 이 페이지의 실험 허용 범위입니다. [모델카드](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control) · [공식 ComfyUI 안내](https://docs.comfy.org/tutorials/video/wan/wan2-2-fun-control). 가속 4스텝 LoRA 예제와 현재 Q4 비가속 설정은 다릅니다.')
         current_input_controls = [current_reference_control,current_video_control,current_frames_control,current_type_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_switch_control,current_mode_control,current_hands_control,current_face_control,current_start_control,current_end_control,current_same_control]
-        current_example_button = gr.Button('걷기 예제 불러오기 · 21프레임 · 50스텝')
-        gr.Markdown('2026-11-02_23-24-48-85eb00f7의 참조 이미지·포즈 MP4·양성/부정 프롬프트·전체 설정으로 입력을 교체합니다. 생성은 실행하지 않습니다.')
-        current_example_button.click(load_fun_walk_example, outputs=current_input_controls, queue=False)
+        current_example_button.click(lambda: gr.update(visible=True),outputs=current_example_confirmation,queue=False)
+        current_example_cancel.click(lambda: gr.update(visible=False),outputs=current_example_confirmation,queue=False)
+        current_example_confirm.click(lambda: (*load_fun_walk_example(),gr.update(visible=False)),outputs=[*current_input_controls,current_example_confirmation],queue=False)
+        gr.Markdown('### 3. 실행 조건 확인')
+        current_request_summary = gr.Markdown()
+        def describe_current_fun_settings(current_mode_value,current_frame_value,current_steps_value,current_seed_value,current_shift_value,current_cfg_value,current_ratio_value):
+            return f"모드: {current_mode_value} · 출력 {current_frame_value}프레임 · 스텝 {current_steps_value} · 시드 {current_seed_value} · Flow shift {current_shift_value} · CFG {current_cfg_value}\n\n{describe_fun_step_split(current_steps_value,current_ratio_value)}"
+        current_summary_inputs=[current_mode_control,current_count_control,current_steps_control,current_seed_control,current_shift_control,current_guidance_control,current_switch_control]
+        for current_summary_control in current_summary_inputs:
+            current_summary_control.change(describe_current_fun_settings,current_summary_inputs,current_request_summary,queue=False)
+        current_interface_blocks.load(describe_current_fun_settings,current_summary_inputs,current_request_summary)
+        current_required_help=gr.Markdown('필수: 외형 참조 · 처리된 포즈 MP4 · 동작 프롬프트. 입력 후 대기열 등록 확인을 진행하세요.')
+        current_mode_control.change(lambda current_mode_value: '필수: 외형 참조 · 동작 프롬프트. 포즈 영상은 사용하지 않습니다.' if current_mode_value=='reference-only' else '필수: 외형 참조 · 처리된 포즈 MP4 · 동작 프롬프트.',current_mode_control,current_required_help,queue=False)
         current_generate_button = gr.Button('대기열에 추가', variant='primary', interactive=False)
-        build_button_guidance(current_generate_button, '캐릭터 참조·처리된 포즈 MP4·프롬프트를 입력하세요. 모델 파일이 준비되어야 등록할 수 있습니다.')
+        build_button_guidance(current_generate_button, '현재 모드의 필수 입력을 준비하세요. 확인 후 대기열에 등록하며 취소하면 실행하지 않습니다.')
         with gr.Column() as current_confirmation_container:
             pass
-        current_job_control = gr.Textbox(label='생성 ID')
+        gr.Markdown('### 4. 현재 작업과 결과 검수')
+        current_job_control = gr.Textbox(label='조회 중인 생성 ID')
         current_status_output = gr.Markdown('입력을 준비하세요.')
         current_result_output = gr.HTML('')
         current_result_identity = gr.State('')

@@ -19,6 +19,9 @@ class FunEndpointContractTests(unittest.TestCase):
             current_image_path = current_job_directory/'reference-1.png'
             Image.new('RGB', (832, 480), 'white').save(current_image_path)
             current_payload_record = build_fun_payload(str(current_image_path), None, None, 'pose', 'A person rests.', '', 21, 42, 20, 5, 6, .3, 'reference-only', False, False, str(current_image_path), None, True)
+            current_reused_record = build_fun_payload(str(current_image_path), None, None, 'pose', 'A person rests.', '', 21, 42, 20, 5, 6, .3, 'reference-only', False, False, str(current_image_path), str(current_image_path), True)
+            self.assertNotIn('end_image', current_reused_record)
+            self.assertTrue(current_reused_record['end_image_same_as_start'])
             current_valid_record = validate_fun_request(current_payload_record)
             current_saved_record = FunControlGenerationManager.save_generation_attachments(None, current_job_directory, current_valid_record)
             self.assertNotIn('start_image', current_saved_record)
