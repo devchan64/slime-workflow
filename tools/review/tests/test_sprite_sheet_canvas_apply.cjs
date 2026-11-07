@@ -1,0 +1,15 @@
+const currentAssertModule=require('node:assert/strict');
+const currentFileSystem=require('node:fs');
+const applyCanvasChanges=eval(currentFileSystem.readFileSync('tools/review/ui/gradio/sprite_sheet_canvas_apply.js','utf8'));
+const currentFrameRows=[[0,0,232,359,115,327],[0,359,232,242,115,204]];
+const currentEditorState={signature:JSON.stringify(currentFrameRows),index:0,drafts:{0:[0,0,232,359,120,322]},undo:[]};
+global.document={getElementById:()=>({spriteEditorState:currentEditorState})};
+let currentApplyResult=applyCanvasChanges(currentFrameRows,'전체',[],'apply');
+currentAssertModule.deepEqual(currentApplyResult[0].data,[[0,0,232,359,120,322],[0,359,232,242,120,199]]);
+currentAssertModule.deepEqual(applyCanvasChanges(currentFrameRows,'선택 프레임',[2],'apply')[0].data,[currentFrameRows[0],[0,359,232,242,120,199]]);
+currentAssertModule.deepEqual(applyCanvasChanges(currentFrameRows,'현재 프레임',[],'apply')[0].data,[[0,0,232,359,120,322],currentFrameRows[1]]);
+currentEditorState.drafts[0]=[0,0,232,359,115,0];
+currentApplyResult=applyCanvasChanges(currentFrameRows,'전체',[],'apply');
+currentAssertModule.deepEqual(currentApplyResult[0],currentFrameRows);
+currentAssertModule.match(currentApplyResult[1],/아무 프레임도 변경하지 않았습니다/);
+console.log('전체·선택·현재 프레임 상대 이동 및 범위 초과 시 무변경 확인');

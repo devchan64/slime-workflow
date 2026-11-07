@@ -168,10 +168,10 @@ def build_sprite_sheet_editor_interface(current_review_port):
     current_canvas_apply_script=Path(__file__).with_name('sprite_sheet_canvas_apply.js').read_text()
     current_bulk_script=Path(__file__).with_name('sprite_sheet_bulk_edit.js').read_text()
     with gr.Blocks(title='스프라이트 시트 편집기') as current_interface_blocks:
-        gr.Markdown('## 스프라이트 시트 편집기\nPNG 시트를 균등 분할한 뒤 프레임별 크롭과 앵커를 픽셀 단위로 조정합니다. 앵커는 크롭 영역의 왼쪽 위를 기준으로 합니다. 다운로드는 별도 파일을 만들며, 기존 에셋 업데이트는 확인 후 원본 이미지와 좌표맵을 갱신합니다.')
+        gr.Markdown('## 스프라이트 시트 편집기\n원본 불러오기 → 크롭·앵커 편집 → 재생 검수 → 결과 저장')
         with gr.Row():
             with gr.Column():
-                gr.Markdown('### 에셋 저장소에서 찾기')
+                gr.Markdown('### 1. 원본 불러오기')
                 current_search_text=gr.Textbox(label='스프라이트 검색',placeholder='이름 · ID · 경로 (예: rest, slime)')
                 current_search_button=gr.Button('스프라이트 검색')
                 current_asset_choice=gr.Dropdown(label='등록 스프라이트',choices=[])
@@ -189,8 +189,8 @@ def build_sprite_sheet_editor_interface(current_review_port):
                         current_confirm_button=gr.Button('불러오기 확인')
                         current_cancel_button=gr.Button('취소')
                 gr.Markdown('미등록 PNG는 원본 열·행으로 전체 영역을 균등 분할합니다. 나누어떨어지지 않는 픽셀은 분산하며 자동 크롭하지 않습니다.')
-                with gr.Group():
-                    gr.Markdown('### 2. 자동 크롭 → 검수 → 시트 생성\n흰색·투명 배경에서 행·열과 캐릭터 영역을 찾습니다. 여백을 포함한 크롭라인을 검수하고 수정한 뒤 이미지를 생성하세요. 가로 크기는 전체 프레임의 최대 너비로 통일하고, 세로 크기는 각 행의 최대 높이로 맞춥니다. 같은 행의 프레임 높이와 모든 열의 너비가 같습니다. 캐릭터는 확대·축소하지 않고 가로 중앙·하단 기준으로 정렬합니다. 서로 붙거나 떨어진 신체 부위는 검출 오류가 생길 수 있습니다.')
+                with gr.Accordion('2. 자동 크롭 · 선택 사항',open=False):
+                    gr.Markdown('### 크롭 범위 찾기 → 검수\n흰색·투명 배경에서 행·열과 캐릭터 영역을 찾습니다. 여백을 포함한 크롭라인을 검수하고 수정한 뒤 이미지를 생성하세요. 가로 크기는 전체 프레임의 최대 너비로 통일하고, 세로 크기는 각 행의 최대 높이로 맞춥니다. 같은 행의 프레임 높이와 모든 열의 너비가 같습니다. 캐릭터는 확대·축소하지 않고 가로 중앙·하단 기준으로 정렬합니다. 서로 붙거나 떨어진 신체 부위는 검출 오류가 생길 수 있습니다.')
                     current_auto_padding=gr.Number(label='상하좌우 최소 여백 (px)',value=30,precision=0,minimum=0,maximum=500)
                     current_auto_button=gr.Button('자동 크롭 범위 찾기',interactive=False)
                     gr.Markdown('먼저 시트 불러오기를 실행하세요. 자동 크롭은 현재 불러온 이미지에 적용됩니다.')
@@ -220,6 +220,7 @@ def build_sprite_sheet_editor_interface(current_review_port):
                             current_bulk_anchor_x=gr.Number(label='앵커 X',value=0,precision=0)
                             current_bulk_anchor_y=gr.Number(label='앵커 Y',value=0,precision=0)
                         current_bulk_apply=gr.Button('일괄 적용')
+                gr.Markdown('### 4. 결과 저장\n다운로드용 파일 생성과 등록 에셋 업데이트 중 선택하세요.')
                 with gr.Row():
                     current_output_columns=gr.Number(label='출력 열',value=SPRITE_EDITOR_DEFAULT_COLUMNS,precision=0)
                 current_export_button=gr.Button('이미지와 좌표맵 생성',variant='primary',interactive=False)
@@ -233,17 +234,22 @@ def build_sprite_sheet_editor_interface(current_review_port):
                 current_output_files=gr.File(label='결과 다운로드',file_count='multiple',interactive=False)
                 current_status_text=gr.Textbox(label='상태',interactive=False)
             with gr.Column():
+                current_canvas_target=gr.Radio(['전체','현재 프레임','선택 프레임'],value='전체',label='캔버스 편집 적용 대상')
+                gr.Markdown('### 3. 편집·재생 검수\n대상 선택 → 드래그 → 편집 반영. 전체는 프레임별 앵커 차이를 유지합니다.')
+                current_canvas_selection=gr.Dropdown(choices=[str(current_frame_number) for current_frame_number in range(1,129)],multiselect=True,label='선택 프레임 번호',visible=False)
                 current_canvas_mode=gr.Radio(['크롭','앵커'],value='크롭',label='캔버스 편집 도구')
-                gr.Markdown('회색 영역은 이미지 바깥입니다. 크롭을 바깥으로 드래그하면 투명 여백을 확장합니다. 큰 확장은 고급 좌표 설정의 음수 여백을 사용하세요. 앵커는 클릭하거나 드래그하세요. 크롭으로 앵커가 영역 밖이 되면 가장 가까운 내부 경계로 이동합니다. 선택 프레임에는 같은 크롭 여백과 크롭 내부 앵커를 적용합니다.')
+                with gr.Accordion('크롭·앵커 조작 안내',open=False):
+                    gr.Markdown('회색 영역은 이미지 바깥입니다. 크롭을 바깥으로 드래그하면 투명 여백을 확장합니다. 큰 확장은 고급 좌표 설정의 음수 여백을 사용하세요. 앵커는 클릭하거나 드래그하세요. 크롭으로 앵커가 영역 밖이 되면 가장 가까운 내부 경계로 이동합니다. 선택·전체 프레임에는 같은 크롭 여백과 앵커 이동량을 적용하며 기존 프레임별 앵커 차이를 유지합니다. 드래그는 현재 프레임의 미리보기만 변경합니다. 선택한 대상에 편집 반영을 눌러 선택한 범위에 반영하세요.')
                 gr.HTML('<canvas id="sprite-sheet-alignment-preview" width="640" height="640" style="width:100%;max-width:640px;aspect-ratio:1;background:#fff;touch-action:none" aria-label="프레임 크롭과 앵커 정렬 미리보기"></canvas>')
                 with gr.Row():
                     current_frame_index=gr.Slider(label='프레임',minimum=1,maximum=2,value=1,step=1)
                     current_play_enabled=gr.Checkbox(label='재생 (6fps)',value=False)
-                current_canvas_target=gr.Radio(['현재 프레임','선택 프레임','전체'],value='현재 프레임',label='캔버스 편집 적용 대상')
-                current_canvas_selection=gr.Dropdown(choices=[str(current_frame_number) for current_frame_number in range(1,129)],multiselect=True,label='선택 프레임 번호')
                 with gr.Row():
-                    current_canvas_apply=gr.Button('캔버스 편집 적용',variant='primary')
-                    current_canvas_undo=gr.Button('실행 취소')
+                    current_canvas_apply=gr.Button('선택한 대상에 편집 반영',variant='primary')
+                    current_canvas_undo=gr.Button('직전 반영 되돌리기')
+                    current_canvas_discard=gr.Button('드래그 취소')
+                current_canvas_status=gr.Textbox(label='캔버스 편집 상태',value='대상을 선택하고 드래그한 뒤 편집 반영을 누르세요. 에셋 저장은 별도입니다.',interactive=False)
+                gr.Markdown('반영한 결과를 저장하려면 왼쪽의 기존 에셋 업데이트를 사용하세요. 이미지와 좌표맵 생성은 다운로드용이며 원본을 바꾸지 않습니다.')
                 current_shadow_enabled=gr.Checkbox(label='바닥 그림자 표시 (검수용 · 출력 제외)',value=False)
                 current_preview_status=gr.Textbox(label='미리보기',interactive=False)
         current_image_data.change(lambda current_loaded_image:gr.update(interactive=bool(current_loaded_image)),current_image_data,current_auto_button,queue=False)
@@ -255,9 +261,10 @@ def build_sprite_sheet_editor_interface(current_review_port):
         current_update_button.click(prepare_sprite_sheet_update,current_update_inputs,[current_pending_update,current_update_group,current_update_summary])
         current_update_confirm.click(confirm_sprite_sheet_update,[current_pending_update,*current_update_inputs],[current_pending_update,current_update_group,current_status_text],trigger_mode='once')
         current_update_cancel.click(lambda:({},gr.update(visible=False)),outputs=[current_pending_update,current_update_group],queue=False)
+        current_canvas_target.change(lambda current_target_mode:gr.update(visible=current_target_mode=='선택 프레임'),current_canvas_target,current_canvas_selection,queue=False)
         current_preview_inputs=[current_image_data,current_frame_rows,current_frame_index,current_play_enabled,current_shadow_enabled,current_canvas_mode,current_source_bounds]
-        for current_action_button,current_action_name in ((current_canvas_apply,'apply'),(current_canvas_undo,'undo')):
-            current_action_button.click(fn=None,inputs=[current_frame_rows,current_canvas_target,current_canvas_selection],outputs=[current_frame_rows,current_status_text],js='(...currentArguments)=>('+current_canvas_apply_script+')( ...currentArguments, '+json.dumps(current_action_name)+')',queue=False).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
+        for current_action_button,current_action_name in ((current_canvas_apply,'apply'),(current_canvas_undo,'undo'),(current_canvas_discard,'discard')):
+            current_action_button.click(fn=None,inputs=[current_frame_rows,current_canvas_target,current_canvas_selection],outputs=[current_frame_rows,current_canvas_status],js='(...currentArguments)=>('+current_canvas_apply_script+')( ...currentArguments, '+json.dumps(current_action_name)+')',queue=False).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_bulk_apply.click(fn=None,inputs=[current_frame_rows,current_bulk_target,current_bulk_selection,current_bulk_mode,current_bulk_left,current_bulk_top,current_bulk_right,current_bulk_bottom,current_bulk_anchor_x,current_bulk_anchor_y],outputs=[current_frame_rows,current_status_text],js=current_bulk_script,queue=False).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_auto_apply.click(apply_automatic_sprite_crops,[current_auto_pending,current_image_data,current_auto_padding],[current_image_data,current_frame_rows,current_output_columns,current_frame_index,current_status_text,current_export_button,current_source_bounds,current_auto_pending,current_auto_confirm],trigger_mode='once').then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_load_outputs=[current_image_data,current_frame_rows,current_output_columns,current_frame_index,current_status_text]
