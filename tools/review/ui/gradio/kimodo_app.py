@@ -178,7 +178,7 @@ def render_kimodo_result(current_job_identifier,current_status_record,current_se
             current_pose_status_html+='<p><strong>DWPose: 생성 오류 · 경고</strong> — '+html.escape(current_status_record.get('dwpose_error','상세 원인은 실행 로그를 확인하세요.'))+'<br>직접 포즈는 사용할 수 있으며 전체 모션 작업은 완료됐습니다.</p>'
         else:
             current_pose_status_html+='<p>DWPose: '+('생성 완료' if current_status_record.get('dwpose_status')=='completed' else '결과 기록 없음')+'</p>'
-        return current_pose_status_html+'<p>SOMA 렌더·직접 포즈·DWPose 결과입니다. Fun Control에는 직접 포즈 또는 DWPose MP4를 입력하세요. DWPose 검출에 실패해도 직접 포즈는 사용할 수 있습니다. 참조 신체 비율을 선택하면 SOMA 3D 관절 길이 기준 고정 배율로 검출 포즈를 보정합니다. SOMA 렌더 원본은 유지합니다.</p>'+render_condition_video_previews(current_status_record)+render_video_generation_result(current_job_identifier,current_status_record,current_server_address)
+        return current_pose_status_html+'<p>SOMA 렌더·직접 포즈·DWPose 결과입니다. Fun Control에는 직접 포즈 또는 DWPose MP4를 입력하세요. DWPose 검출에 실패해도 직접 포즈는 사용할 수 있습니다. 참조 신체 비율을 선택한 작업은 검출 포즈를 보정합니다. 보정 방식과 배율은 작업 기록을 확인하세요. SOMA 렌더 원본은 유지합니다.</p>'+render_condition_video_previews(current_status_record)+render_video_generation_result(current_job_identifier,current_status_record,current_server_address)
     current_comparison_url = current_status_record.get('comparison_video')
     if not current_comparison_url:
         return render_video_generation_result(current_job_identifier,current_status_record,current_server_address)+'<p>이 결과에는 오픈포즈 비교 영상이 없습니다.</p>'
@@ -378,7 +378,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         with gr.Row():
             current_hands_control = gr.Checkbox(value=False,label='DWPose 손 상세 포함',info='현재 시험에서는 주먹을 쥔 손가락 자세가 표현되지 않았습니다. 손 상세 포함은 DWPose 검출 결과를 표시하는 옵션이며 주먹 자세를 보장하지 않습니다.')
             current_face_control = gr.Checkbox(value=False,label='DWPose 얼굴 상세 포함')
-        gr.Markdown('SOMA 렌더 → VideoX-Fun DWPose → 선택 참조 관절 길이 보정 → 832×480 · 16fps 포즈 MP4. 몸 18점의 코·눈·귀는 유지합니다. 보정은 3D SOMA 길이 기준 고정 배율이며 2D 투영 단축을 유지합니다.')
+        gr.Markdown('SOMA 렌더 → VideoX-Fun DWPose → 선택 참조 관절 길이 보정 → 832×480 · 16fps 포즈 MP4. 몸 18점의 코·눈·귀는 유지합니다. 방향별 3D 투영과 2D 검출 비율을 비교하여 영상 전체에 고정 배율을 적용합니다.')
         current_prompt_control.change(describe_kimodo_prompt,[current_prompt_control,current_segment_control],current_prompt_summary,queue=False)
         current_segment_control.change(describe_kimodo_prompt,[current_prompt_control,current_segment_control],current_prompt_summary,queue=False)
         current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control,current_horizontal_control,current_proportions_control,current_reference_control,current_scale_control,current_hands_control,current_face_control,current_segment_control,current_endpoint_selector,current_keyframe_rows]

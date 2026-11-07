@@ -63,6 +63,38 @@ class GenerationStatusDisplayTests(unittest.TestCase):
         self.assertIn('href="/wan22-fun-control/jobs/job-a/frames.zip"', current_result_markup)
         self.assertNotIn('127.0.0.1', current_result_markup)
 
+    def test_kimodo_thirty_degree_videos_support_range_requests(self):
+        import io
+        import tempfile
+        from pathlib import Path
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        from tools.review.common.reference_video_generation import ReferenceVideoGenerationManager
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            current_service_instance = ReferenceVideoGenerationManager.__new__(ReferenceVideoGenerationManager)
+            current_service_instance.route_prefix_value = '/kimodo'
+            current_service_instance.job_storage_root = Path(current_temp_directory)
+            current_attempt_path = '2026-11-06_23-16-00-17e2e71e/attempts/' + 'a' * 32
+            for current_video_kind in ('soma-render', 'soma-direct', 'dwpose'):
+                for current_direction_name in ('front_left_30', 'front_right_30'):
+                    with self.subTest(kind=current_video_kind, direction=current_direction_name):
+                        current_relative_path = f'{current_attempt_path}/{current_video_kind}-{current_direction_name}.mp4'
+                        current_video_path = Path(current_temp_directory) / current_relative_path
+                        current_video_path.parent.mkdir(parents=True, exist_ok=True)
+                        current_video_path.write_bytes(b'video-data')
+                        current_response_headers = {}
+                        current_http_handler = SimpleNamespace(
+                            path='/kimodo/jobs/' + current_relative_path, command='GET',
+                            headers={'Host': '127.0.0.1:8771', 'Range': 'bytes=0-4'},
+                            server=SimpleNamespace(server_port=8771), send_response=Mock(),
+                            send_header=lambda current_header_name, current_header_value: current_response_headers.update({current_header_name: current_header_value}),
+                            end_headers=Mock(), wfile=io.BytesIO())
+                        self.assertTrue(current_service_instance.handle_image_request(current_http_handler))
+                        current_http_handler.send_response.assert_called_once_with(206)
+                        self.assertEqual(current_http_handler.wfile.getvalue(), b'video')
+                        self.assertEqual(current_response_headers['Content-Type'], 'video/mp4')
+                        self.assertEqual(current_response_headers['Content-Range'], 'bytes 0-4/10')
+
     def test_video_duration_rejects_empty_and_invalid_frame_counts(self):
         from tools.review.common.gradio_video_results import describe_video_frame_duration
         for current_frame_count in (None, '', True, 0, 2, 162, 5.5, float('nan'), float('inf')):

@@ -8,6 +8,32 @@ from generators.kimodo.dwpose_export import adjust_detected_pose_frames
 from generators.wan_fun.video_input import validate_processed_pose_video
 
 class KimodoDwposeTests(unittest.TestCase):
+    def test_projection_calibration_corrects_detector_bias_without_flattening_motion(self):
+        import json
+        from generators.kimodo.dwpose_export import calculate_projected_segment_gains
+        from generators.kimodo.soma_pose import SOMA_BODY_JOINT_NAMES
+        current_point_type = namedtuple('Point','x y score id',defaults=[1.0,0])
+        current_body_type = namedtuple('Body','keypoints')
+        current_pose_type = namedtuple('Pose','body left_hand right_hand face')
+        current_joints = [current_name for current_name in SOMA_BODY_JOINT_NAMES if current_name]
+        current_positions = np.zeros((3,len(current_joints),3))
+        current_coordinates = {2:(-30,100),5:(30,100),3:(-50,150),6:(50,150),4:(-70,200),7:(70,200),8:(-20,200),11:(20,200),9:(-20,270),12:(20,270),10:(-20,340),13:(20,340)}
+        for current_index,current_position in current_coordinates.items():
+            current_positions[:,current_joints.index(SOMA_BODY_JOINT_NAMES[current_index]),:2] = current_position
+        current_points = [current_point_type(200,100) for current_index in range(18)]
+        for current_index,(current_x,current_y) in current_coordinates.items():
+            current_points[current_index] = current_point_type(200+current_x*.8, current_y)
+        current_frames = [[current_pose_type(current_body_type(current_points),None,None,None)]]
+        current_ratios = {'ratios':{'shoulder_width':.6,'hip_width':.4,'upper_arm':np.hypot(20,50)/100,'forearm':np.hypot(20,50)/100,'thigh':.7,'shin':.7}}
+        with tempfile.TemporaryDirectory() as current_directory:
+            current_root = Path(current_directory)
+            (current_root/'skeleton.json').write_text(json.dumps({'joint_names':current_joints}))
+            np.savez(current_root/'motion.npz',posed_joints=current_positions)
+            current_gains = calculate_projected_segment_gains(current_root,current_ratios,current_frames,'front')
+        self.assertAlmostEqual(current_gains['shoulder_width'],1.25)
+        self.assertAlmostEqual(current_gains['hip_width'],1.25)
+        self.assertAlmostEqual(current_gains['thigh'],1.0)
+
     def test_body_axis_moves_shoulder_line_and_preserves_face_and_hip(self):
         current_point_type = namedtuple('Point','x y score id',defaults=[1.0,0])
         current_body_type = namedtuple('Body','keypoints')

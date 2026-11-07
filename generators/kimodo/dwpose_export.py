@@ -13,6 +13,59 @@ from generators.kimodo.reference_proportions import REFERENCE_SEGMENT_GROUPS, ca
 from generators.kimodo.soma_pose import SOMA_BODY_JOINT_NAMES
 from generators.kimodo.dwpose_runtime import prepare_fun_pose_frames
 
+PROJECTION_GAIN_MINIMUM = 0.4
+PROJECTION_GAIN_MAXIMUM = 2.5
+
+
+def calculate_projected_segment_gains(current_attempt_root, current_ratio_record, current_detected_frames, current_direction_name):
+    """3D 투영 단축과 실제 검출 비율을 비교해 영상 전체에 적용할 고정 배율을 구한다."""
+    from generators.kimodo.contracts import KIMODO_DIRECTION_RECORDS
+    current_skeleton_record = json.loads((current_attempt_root/'skeleton.json').read_text())
+    current_motion_path = current_attempt_root/('motion-in-place.npz' if (current_attempt_root/'motion-in-place.npz').exists() else 'motion.npz')
+    with np.load(current_motion_path, allow_pickle=False) as current_motion_archive:
+        current_motion_positions = current_motion_archive['posed_joints']
+    current_joint_indices = [current_skeleton_record['joint_names'].index(current_joint_name) if current_joint_name else None for current_joint_name in SOMA_BODY_JOINT_NAMES]
+    current_angle_radians = np.deg2rad(KIMODO_DIRECTION_RECORDS[current_direction_name]['angle'])
+    current_reference_samples = {current_group_name: [] for current_group_name in REFERENCE_SEGMENT_GROUPS}
+    current_detected_samples = {current_group_name: [] for current_group_name in REFERENCE_SEGMENT_GROUPS}
+    for current_frame_index, current_frame_records in enumerate(current_detected_frames):
+        current_motion_index = round(current_frame_index * 30 / 16)
+        if current_motion_index >= len(current_motion_positions):
+            raise ValueError('DWPose와 SOMA 프레임 수가 일치하지 않습니다.')
+        current_body_points = current_frame_records[0].body.keypoints
+        if any(current_body_points[current_index] is None for current_index in (2,5,8,11)):
+            continue
+        current_joints = current_motion_positions[current_motion_index]
+        current_projected = np.stack((current_joints[:,0]*np.cos(current_angle_radians)-current_joints[:,2]*np.sin(current_angle_radians),current_joints[:,1]),axis=-1)
+        current_torso_3d = np.linalg.norm(current_joints[[current_joint_indices[2],current_joint_indices[5]]].mean(0)-current_joints[[current_joint_indices[8],current_joint_indices[11]]].mean(0))
+        current_torso_2d = np.linalg.norm(current_projected[[current_joint_indices[2],current_joint_indices[5]]].mean(0)-current_projected[[current_joint_indices[8],current_joint_indices[11]]].mean(0))
+        current_detected_torso = np.linalg.norm(np.array([current_body_points[2].x+current_body_points[5].x-current_body_points[8].x-current_body_points[11].x,current_body_points[2].y+current_body_points[5].y-current_body_points[8].y-current_body_points[11].y])/2)
+        if min(current_torso_3d,current_torso_2d,current_detected_torso) <= 1e-8:
+            continue
+        for current_group_name,current_joint_pairs in REFERENCE_SEGMENT_GROUPS.items():
+            for current_parent_index,current_child_index in current_joint_pairs:
+                current_parent_point,current_child_point = current_body_points[current_parent_index],current_body_points[current_child_index]
+                if current_parent_point is None or current_child_point is None:
+                    continue
+                current_parent_joint,current_child_joint = current_joint_indices[current_parent_index],current_joint_indices[current_child_index]
+                current_length_3d = np.linalg.norm(current_joints[current_child_joint]-current_joints[current_parent_joint])
+                current_length_2d = np.linalg.norm(current_projected[current_child_joint]-current_projected[current_parent_joint])
+                current_detected_length = np.linalg.norm([current_child_point.x-current_parent_point.x,current_child_point.y-current_parent_point.y])
+                if min(current_length_3d,current_length_2d,current_detected_length) <= 1e-8:
+                    continue
+                current_reference_samples[current_group_name].append((current_length_2d/current_length_3d)/(current_torso_2d/current_torso_3d))
+                current_detected_samples[current_group_name].append(current_detected_length/current_detected_torso)
+    current_gains = {}
+    for current_group_name in REFERENCE_SEGMENT_GROUPS:
+        if not current_reference_samples[current_group_name]:
+            raise ValueError(f'{current_group_name}의 투영·검출 비율을 계산할 수 없습니다.')
+        current_target_ratio = current_ratio_record['ratios'][current_group_name]
+        current_gain_value = float(current_target_ratio*np.median(current_reference_samples[current_group_name])/np.median(current_detected_samples[current_group_name]))
+        if not np.isfinite(current_gain_value) or not PROJECTION_GAIN_MINIMUM <= current_gain_value <= PROJECTION_GAIN_MAXIMUM:
+            raise ValueError(f'{current_group_name} 투영 보정 배율이 허용 범위를 벗어났습니다: {current_gain_value}')
+        current_gains[current_group_name] = current_gain_value
+    return current_gains
+
 
 def calculate_soma_segment_gains(current_attempt_root, current_ratio_record):
     """2D 단축을 실제 뼈 길이로 오인하지 않도록 SOMA 3D 길이로 보정 배율을 정한다."""
@@ -87,7 +140,7 @@ def export_kimodo_dwpose(current_job_root,current_attempt_root):
     current_request_record = json.loads((current_job_root/'request.json').read_text())
     current_ratio_path = current_attempt_root/'reference-proportions.json'
     current_ratio_record = json.loads(current_ratio_path.read_text()) if current_ratio_path.exists() else None
-    current_segment_gains = calculate_soma_segment_gains(current_attempt_root,current_ratio_record) if current_ratio_record else {}
+    current_direction_gains = {}
     current_output_videos = {}
     current_axis_measurements = {}
     for current_direction_name in current_request_record.get('directions',['front_left']):
@@ -97,12 +150,16 @@ def export_kimodo_dwpose(current_job_root,current_attempt_root):
         shutil.copy2(current_source_path,current_work_directory/'driving.mp4')
         current_pose_request = {'driving_video_file':'driving.mp4','driving_video_sha256':hashlib.sha256(current_source_path.read_bytes()).hexdigest(),'frames':int((current_request_record['frames']-1)*16/30)+1,'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False)}
         current_direction_measurement={}
-        prepare_fun_pose_frames(current_work_directory,current_work_directory,current_pose_request,lambda current_frames,current_shape:adjust_detected_pose_frames(current_frames,current_shape,current_segment_gains,current_request_record.get('openpose_scale_percent',85),current_ratio_record,current_direction_measurement))
+        def transform_detected_frames(current_frames,current_shape):
+            current_gains = calculate_projected_segment_gains(current_attempt_root,current_ratio_record,current_frames,current_direction_name) if current_ratio_record else {}
+            current_direction_gains[current_direction_name] = current_gains
+            return adjust_detected_pose_frames(current_frames,current_shape,current_gains,current_request_record.get('openpose_scale_percent',85),current_ratio_record,current_direction_measurement)
+        prepare_fun_pose_frames(current_work_directory,current_work_directory,current_pose_request,transform_detected_frames)
         current_axis_measurements[current_direction_name]=current_direction_measurement
         current_output_name = f'dwpose-{current_direction_name}.mp4'
         shutil.copy2(current_work_directory/'pose.mp4',current_attempt_root/current_output_name)
         current_output_videos[current_direction_name] = current_output_name
-    (current_attempt_root/'dwpose-export.json').write_text(json.dumps({'videos':current_output_videos,'fps':16,'width':832,'height':480,'segment_gains':current_segment_gains,'body_axis':current_axis_measurements,'length_basis':'SOMA 3D 기준 고정 배율 · 2D 투영 단축 유지; 몸통 축은 방향별 2D 중앙값','scale_percent':current_request_record.get('openpose_scale_percent',85),'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False)},ensure_ascii=False))
+    (current_attempt_root/'dwpose-export.json').write_text(json.dumps({'videos':current_output_videos,'fps':16,'width':832,'height':480,'segment_gains_by_direction':current_direction_gains,'body_axis':current_axis_measurements,'length_basis':'SOMA 3D 투영 단축과 DWPose 검출 비율을 방향별로 비교한 영상 전체 고정 배율','scale_percent':current_request_record.get('openpose_scale_percent',85),'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False)},ensure_ascii=False))
 
 
 if __name__ == '__main__':
