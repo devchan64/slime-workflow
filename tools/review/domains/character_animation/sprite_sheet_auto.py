@@ -49,11 +49,19 @@ def execute_sprite_sheet_automatic(current_payload_record):
             current_detected_bounds.append((current_left_pixels,current_top_pixels+int(current_local_rows[0]),current_right_pixels,current_top_pixels+int(current_local_rows[-1])+1))
     if not current_detected_bounds or len(current_detected_bounds)>128 or len(set(current_column_counts))!=1:
         raise ValueError('행별 캐릭터 수가 다르거나 영역을 검출하지 못했습니다. 흰색·투명 배경과 분리된 배치를 확인하세요.')
+    current_uniform_width = max(current_bounds[2]-current_bounds[0] for current_bounds in current_detected_bounds)+2*current_padding_pixels
+    current_column_count = current_column_counts[0]
+    current_row_heights = [max(current_bounds[3]-current_bounds[1] for current_bounds in current_detected_bounds[current_row_start:current_row_start+current_column_count])+2*current_padding_pixels for current_row_start in range(0,len(current_detected_bounds),current_column_count)]
+    if current_uniform_width*sum(current_row_heights)*current_column_count>SPRITE_SHEET_PIXEL_LIMIT:
+        raise ValueError('균등 배치 출력 시트는 1600만 픽셀 이하여야 합니다. 여백을 줄이세요.')
     current_frame_records = []
     current_source_bounds = []
-    for current_left_pixels,current_top_pixels,current_right_pixels,current_bottom_pixels in current_detected_bounds:
+    for current_frame_index,(current_left_pixels,current_top_pixels,current_right_pixels,current_bottom_pixels) in enumerate(current_detected_bounds):
+        current_uniform_height = current_row_heights[current_frame_index//current_column_count]
         current_frame_width = current_right_pixels-current_left_pixels
         current_frame_height = current_bottom_pixels-current_top_pixels
         current_source_bounds.append([current_left_pixels,current_top_pixels,current_frame_width,current_frame_height])
-        current_frame_records.append(dict(x=current_left_pixels-current_padding_pixels,y=current_top_pixels-current_padding_pixels,width=current_frame_width+2*current_padding_pixels,height=current_frame_height+2*current_padding_pixels,anchorX=current_frame_width//2+current_padding_pixels,anchorY=current_frame_height+current_padding_pixels-1))
+        current_horizontal_padding = (current_uniform_width-current_frame_width)//2
+        current_vertical_padding = current_uniform_height-current_frame_height-current_padding_pixels
+        current_frame_records.append(dict(x=current_left_pixels-current_horizontal_padding,y=current_top_pixels-current_vertical_padding,width=current_uniform_width,height=current_uniform_height,anchorX=current_horizontal_padding+current_frame_width//2,anchorY=current_uniform_height-current_padding_pixels-1))
     return {'frames':current_frame_records,'sourceFrames':current_source_bounds,'columns':current_column_counts[0],'rows':len(current_row_intervals),'padding':current_padding_pixels}

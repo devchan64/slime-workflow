@@ -65,15 +65,15 @@ def prepare_sprite_sheet_load(current_file_path,current_columns_value,current_ro
     if not current_file_path:raise gr.Error('PNG 시트를 먼저 선택하세요.')
     current_pending_load={'path':current_file_path,'columns':current_columns_value,'rows':current_rows_value,'asset':current_asset_record}
     if current_image_data:
-        return (*([gr.update()]*4),'현재 편집 내용이 바뀝니다. 아래에서 확인하거나 취소하세요.',gr.update(visible=True),current_pending_load,gr.update(),gr.update())
+        return (*([gr.update()]*4),'재불러오기 대기 중입니다. 시트 불러오기 바로 아래의 불러오기 확인을 누르면 변경한 행·열이 반영됩니다.',gr.update(visible=True),current_pending_load,gr.update(),gr.update(),gr.update(),gr.update(),gr.update(),gr.update())
     current_loaded_values=load_sprite_sheet_input(current_file_path,current_columns_value,current_rows_value,current_asset_record)
-    return (*current_loaded_values,gr.update(visible=False),{},gr.update(interactive=True),[current_frame_row[:4] for current_frame_row in current_loaded_values[1]])
+    return (*current_loaded_values,gr.update(visible=False),{},gr.update(interactive=True),[current_frame_row[:4] for current_frame_row in current_loaded_values[1]],{},None,gr.update(visible=False),None)
 
 
 def confirm_sprite_sheet_load(current_pending_load,current_file_path,current_columns_value,current_rows_value,current_asset_record):
     if current_pending_load!={'path':current_file_path,'columns':current_columns_value,'rows':current_rows_value,'asset':current_asset_record}:raise gr.Error('확인 후 입력이 변경되었습니다. 다시 불러오세요.')
     current_loaded_values=load_sprite_sheet_input(current_file_path,current_columns_value,current_rows_value,current_asset_record)
-    return (*current_loaded_values,gr.update(visible=False),{},gr.update(interactive=True),[current_frame_row[:4] for current_frame_row in current_loaded_values[1]])
+    return (*current_loaded_values,gr.update(visible=False),{},gr.update(interactive=True),[current_frame_row[:4] for current_frame_row in current_loaded_values[1]],{},None,gr.update(visible=False),None)
 
 
 def build_sprite_sheet_payload(current_image_data,current_frame_rows,current_columns_value,current_source_bounds=None):
@@ -165,9 +165,14 @@ def build_sprite_sheet_editor_interface(current_review_port):
                     current_input_columns=gr.Number(label='원본 열',value=4,precision=0)
                     current_input_rows=gr.Number(label='원본 행',value=2,precision=0)
                     current_load_button=gr.Button('시트 불러오기')
+                with gr.Group(visible=False) as current_confirm_group:
+                    gr.Markdown('기존 편집 내용을 새 시트로 바꿉니다. 저장하지 않은 변경은 사라집니다.')
+                    with gr.Row():
+                        current_confirm_button=gr.Button('불러오기 확인')
+                        current_cancel_button=gr.Button('취소')
                 gr.Markdown('미등록 PNG는 원본 열·행으로 전체 영역을 균등 분할합니다. 나누어떨어지지 않는 픽셀은 분산하며 자동 크롭하지 않습니다.')
                 with gr.Group():
-                    gr.Markdown('### 2. 자동 크롭 → 검수 → 시트 생성\n흰색·투명 배경에서 행·열과 캐릭터 영역을 찾습니다. 여백을 포함한 크롭라인을 검수하고 수정한 뒤 이미지를 생성하세요. 캐릭터는 확대·축소하지 않습니다. 서로 붙거나 떨어진 신체 부위는 검출 오류가 생길 수 있습니다.')
+                    gr.Markdown('### 2. 자동 크롭 → 검수 → 시트 생성\n흰색·투명 배경에서 행·열과 캐릭터 영역을 찾습니다. 여백을 포함한 크롭라인을 검수하고 수정한 뒤 이미지를 생성하세요. 가로 크기는 전체 프레임의 최대 너비로 통일하고, 세로 크기는 각 행의 최대 높이로 맞춥니다. 같은 행의 프레임 높이와 모든 열의 너비가 같습니다. 캐릭터는 확대·축소하지 않고 가로 중앙·하단 기준으로 정렬합니다. 서로 붙거나 떨어진 신체 부위는 검출 오류가 생길 수 있습니다.')
                     current_auto_padding=gr.Number(label='상하좌우 최소 여백 (px)',value=30,precision=0,minimum=0,maximum=500)
                     current_auto_button=gr.Button('자동 크롭 범위 찾기',interactive=False)
                     gr.Markdown('먼저 시트 불러오기를 실행하세요. 자동 크롭은 현재 불러온 이미지에 적용됩니다.')
@@ -181,11 +186,6 @@ def build_sprite_sheet_editor_interface(current_review_port):
                 current_image_data=gr.Textbox(value='',visible=False)
                 current_pending_load=gr.State({})
                 current_source_bounds=gr.JSON(value=[],visible=False)
-                with gr.Group(visible=False) as current_confirm_group:
-                    gr.Markdown('기존 편집 내용을 새 시트로 바꿉니다. 저장하지 않은 변경은 사라집니다.')
-                    with gr.Row():
-                        current_confirm_button=gr.Button('불러오기 확인')
-                        current_cancel_button=gr.Button('취소')
                 with gr.Accordion('고급 좌표 설정',open=False):
                     current_frame_rows=gr.Dataframe(headers=['x','y','width','height','anchorX','anchorY'],datatype=['number']*6,row_count=(1,'dynamic'),col_count=(6,'fixed'),label='프레임별 원본 크롭과 앵커',type='array')
                     with gr.Accordion('숫자로 일괄 적용',open=False):
@@ -243,8 +243,8 @@ def build_sprite_sheet_editor_interface(current_review_port):
         current_bulk_apply.click(fn=None,inputs=[current_frame_rows,current_bulk_target,current_bulk_selection,current_bulk_mode,current_bulk_left,current_bulk_top,current_bulk_right,current_bulk_bottom,current_bulk_anchor_x,current_bulk_anchor_y],outputs=[current_frame_rows,current_status_text],js=current_bulk_script,queue=False).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_auto_apply.click(apply_automatic_sprite_crops,[current_auto_pending,current_image_data,current_auto_padding],[current_image_data,current_frame_rows,current_output_columns,current_frame_index,current_status_text,current_export_button,current_source_bounds,current_auto_pending,current_auto_confirm],trigger_mode='once').then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_load_outputs=[current_image_data,current_frame_rows,current_output_columns,current_frame_index,current_status_text]
-        current_load_button.click(prepare_sprite_sheet_load,[current_input_file,current_input_columns,current_input_rows,current_image_data,current_asset_record],[*current_load_outputs,current_confirm_group,current_pending_load,current_export_button,current_source_bounds]).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
-        current_confirm_button.click(confirm_sprite_sheet_load,[current_pending_load,current_input_file,current_input_columns,current_input_rows,current_asset_record],[*current_load_outputs,current_confirm_group,current_pending_load,current_export_button,current_source_bounds]).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
+        current_load_button.click(prepare_sprite_sheet_load,[current_input_file,current_input_columns,current_input_rows,current_image_data,current_asset_record],[*current_load_outputs,current_confirm_group,current_pending_load,current_export_button,current_source_bounds,current_auto_pending,current_auto_preview,current_auto_confirm,current_output_files]).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
+        current_confirm_button.click(confirm_sprite_sheet_load,[current_pending_load,current_input_file,current_input_columns,current_input_rows,current_asset_record],[*current_load_outputs,current_confirm_group,current_pending_load,current_export_button,current_source_bounds,current_auto_pending,current_auto_preview,current_auto_confirm,current_output_files]).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_cancel_button.click(lambda:(gr.update(visible=False),{},'불러오기를 취소했습니다. 기존 편집 내용이 유지됩니다.'),outputs=[current_confirm_group,current_pending_load,current_status_text],queue=False)
         for current_input_component in current_preview_inputs[1:6]:current_input_component.input(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_export_button.click(export_sprite_sheet_result,[current_image_data,current_frame_rows,current_output_columns,current_source_bounds],[current_output_files,current_status_text],trigger_mode='once')

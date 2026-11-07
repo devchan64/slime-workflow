@@ -61,3 +61,42 @@ class AutomaticSpriteCropTests(unittest.TestCase):
             Image.new('RGB',(100,100),'red').save(current_input_path)
             with self.assertRaises(Exception):
                 apply_automatic_sprite_crops(current_pending_record,'data:image/png;base64,'+base64.b64encode(current_input_path.read_bytes()).decode(),50)
+
+    def test_reload_updates_rows_and_clears_previous_results(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from tools.review.ui.gradio.sprite_sheet_editor_app import prepare_sprite_sheet_load, confirm_sprite_sheet_load
+        with TemporaryDirectory() as current_temp_directory:
+            current_input_path=Path(current_temp_directory)/'input.png'
+            Image.new('RGB',(400,600),'white').save(current_input_path)
+            current_first_result=prepare_sprite_sheet_load(str(current_input_path),4,2,'',{})
+            self.assertEqual(len(current_first_result[1]),8)
+            current_pending_result=prepare_sprite_sheet_load(str(current_input_path),4,3,current_first_result[0],{})
+            self.assertEqual(current_pending_result[5]['visible'],True)
+            current_loaded_result=confirm_sprite_sheet_load(current_pending_result[6],str(current_input_path),4,3,{})
+            self.assertEqual(len(current_loaded_result[1]),12)
+            self.assertEqual(current_loaded_result[1][0][3],200)
+            self.assertEqual(current_loaded_result[9],{})
+            self.assertIsNone(current_loaded_result[10])
+            self.assertIsNone(current_loaded_result[12])
+
+    def test_variable_figures_export_row_heights_without_scaling(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from tools.review.domains.character_animation.sprite_sheet_editor import execute_sprite_sheet_export
+        current_source_image=Image.new('RGB',(300,300),'white')
+        current_draw_context=ImageDraw.Draw(current_source_image)
+        for current_rectangle_bounds in [(40,40,79,99),(180,40,239,79),(40,180,69,229),(180,180,229,249)]:
+            current_draw_context.rectangle(current_rectangle_bounds,fill='brown')
+        current_encoded_image=encode_test_sprite_image(current_source_image)
+        current_detected_record=execute_sprite_sheet_automatic({'image':current_encoded_image,'padding':30})
+        self.assertEqual({(current_frame_record['width'],current_frame_record['height']) for current_frame_record in current_detected_record['frames']},{(120,120),(120,130)})
+        self.assertEqual([current_frame_record['height'] for current_frame_record in current_detected_record['frames']],[120,120,130,130])
+        with TemporaryDirectory() as current_temp_directory:
+            with patch('tools.review.domains.character_animation.sprite_sheet_editor.SPRITE_SHEET_JOB_ROOT',Path(current_temp_directory)):
+                current_export_record=execute_sprite_sheet_export({'image':current_encoded_image,'frames':current_detected_record['frames'],'sourceFrames':current_detected_record['sourceFrames'],'columns':2})
+        self.assertEqual(current_export_record['coordinates']['sheet'],{'width':240,'height':250})
+        self.assertEqual([(current_frame_record['rect']['x'],current_frame_record['rect']['y']) for current_frame_record in current_export_record['coordinates']['frames']],[(0,0),(120,0),(0,120),(120,120)])
+        current_export_image=Image.open(BytesIO(base64.b64decode(current_export_record['image']))).convert('RGB')
+        self.assertEqual(sum(current_pixel_value==(165,42,42) for current_pixel_value in current_export_image.getdata()),9800)
