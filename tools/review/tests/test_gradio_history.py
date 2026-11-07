@@ -11,7 +11,9 @@ class GradioHistoryTest(unittest.TestCase):
     def test_video_history_uses_status_thumbnail_and_prompt_summary(self):
         from tools.review.common.gradio_history import render_history_selection_table
         current_record={'id':'job-1','created_at':'2026-11-07','request':{'prompt':'A person walks forward.','seed':42},'status':{'status':'completed','image':'/kimodo/jobs/job-1/output-000.png'},'image':None}
-        current_markup=render_history_selection_table([current_record])
+        current_markup=render_history_selection_table([current_record],server_base_address='http://127.0.0.1:8770')
+        self.assertIn('src="/kimodo/jobs/job-1/output-000.png"',current_markup)
+        self.assertNotIn('127.0.0.1',current_markup)
         self.assertIn('/kimodo/jobs/job-1/output-000.png',current_markup)
         self.assertIn('동작 A person walks forward.',current_markup)
         self.assertNotIn('썸네일 없음',current_markup)

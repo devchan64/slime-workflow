@@ -231,7 +231,8 @@ def render_history_selection_table(current_history_records,current_selected_iden
         if not current_image_path and isinstance(current_history_record.get('status'),dict):
             current_image_path=current_history_record['status'].get('image')
         if isinstance(current_image_path,str) and current_image_path:
-            current_image_url=current_image_path if current_image_path.startswith(('http://','https://')) else server_base_address.rstrip('/')+current_image_path
+            # HTML 썸네일은 현재 관리도구 출처로 요청한다. 서버용 루프백 주소를 브라우저에 노출하지 않는다.
+            current_image_url=current_image_path
             current_thumbnail_markup='<img class="generation-history-table-thumbnail" src="'+html.escape(current_image_url,quote=True)+'" alt="'+html.escape(current_job_identifier+' 결과 썸네일',quote=True)+'" loading="lazy" decoding="async">'
         elif isinstance(current_history_record.get('status'),dict) and current_history_record['status'].get('audio'):
             current_thumbnail_markup='<span class="generation-history-table-thumbnail" aria-label="WAV 오디오 결과">WAV</span>'
