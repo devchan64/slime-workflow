@@ -131,7 +131,7 @@ def execute_baseline_sheet_command(current_command_name,current_payload_record):
         current_coordinate_record=json.loads(current_coordinate_path.read_text())
         if current_coordinate_record.get('sha256')!=sha256(current_image_bytes).hexdigest():
             raise ValueError('베이스라인 이미지와 좌표맵 해시 불일치')
-    return {'path':current_payload_record['path'],'image':base64.b64encode(current_image_bytes).decode(),'animation':current_coordinate_record,'layout':current_layout_record,'metadataSha256':None}
+    return {'path':current_payload_record['path'],'image':base64.b64encode(current_image_bytes).decode(),'animation':current_coordinate_record,'layout':current_layout_record,'metadataSha256':sha256(current_image_path.with_suffix('.yaml').read_bytes()+(current_coordinate_path.read_bytes() if current_coordinate_name else b'')).hexdigest()}
 
 
 def execute_sprite_asset_command(current_command_name,current_payload_record):
@@ -146,7 +146,7 @@ def execute_sprite_asset_command(current_command_name,current_payload_record):
     current_sprite_records={current_asset_path:current_asset_record for current_asset_path,current_asset_record in current_registry_records.items() if current_asset_path.endswith('.png') and (current_asset_path.startswith('assets/sprites/') or (current_asset_path.startswith('assets/characters/') and '/animations/' in current_asset_path)) and not current_asset_record['source'].get('retirement_reason')}
     if current_command_name=='sheet-search':
         current_search_tokens=current_payload_record['query'].casefold().split()
-        return {'items':[{'path':current_asset_path,'label':current_asset_record.get('name',current_asset_record['managementId'])+' · '+current_asset_record['version'],'sha256':current_asset_record['sha256']} for current_asset_path,current_asset_record in current_sprite_records.items() if all(current_search_token in (current_asset_path+' '+str(current_asset_record.get('name',''))+' '+current_asset_record['managementId']).casefold() for current_search_token in current_search_tokens)]}
+        return {'items':[{'path':current_asset_path,'label':current_asset_record.get('name') or ' · '.join(Path(current_asset_path).parts[2:-1])+' · '+Path(current_asset_path).stem,'sha256':current_asset_record['sha256']} for current_asset_path,current_asset_record in current_sprite_records.items() if all(current_search_token in (current_asset_path+' '+str(current_asset_record.get('name',''))+' '+current_asset_record['managementId']).casefold() for current_search_token in current_search_tokens)]}
     current_asset_path=current_payload_record['path']
     if current_asset_path not in current_sprite_records:raise ValueError('등록된 스프라이트 PNG를 선택하세요.')
     current_image_path=(current_repository_path/current_asset_path).resolve()
@@ -166,8 +166,63 @@ def execute_sprite_asset_command(current_command_name,current_payload_record):
     return {'image':base64.b64encode(current_image_bytes).decode(),'path':current_asset_path,'metadataSha256':current_metadata_matches[0]['sha256'] if len(current_metadata_matches)==1 else None,'animation':current_animation_record}
 
 
+def update_baseline_sprite_sheet(current_request_record):
+    """베이스라인 이미지·좌표·YAML을 확인한 원본에 함께 저장한다."""
+    import json
+    import yaml
+    from tools.review.common.strict_yaml import UniqueConfigLoader
+    if set(current_request_record)!={'path','source','metadataSha256','payload','confirm'} or current_request_record['confirm'] is not True:
+        raise ValueError('베이스라인 대상·해시·편집 입력·확인이 필요합니다.')
+    with SPRITE_SHEET_UPDATE_LOCK:
+        current_loaded_record=execute_sprite_asset_command('sheet-image',{'path':current_request_record['path'],'source':'baseline'})
+        if current_loaded_record['metadataSha256']!=current_request_record['metadataSha256'] or current_loaded_record['image']!=current_request_record['payload']['image']:
+            raise ValueError('베이스라인 원본이 변경되었습니다. 다시 불러오세요.')
+        current_image_path=SPRITE_BASELINE_ROOT/current_request_record['path']
+        current_metadata_path=current_image_path.with_suffix('.yaml')
+        current_metadata_record=yaml.load(current_metadata_path.read_text(),Loader=UniqueConfigLoader)
+        current_previous_frames=(current_loaded_record['animation'] or {}).get('frames')
+        current_frame_count=len(current_previous_frames) if current_previous_frames else current_metadata_record['layout'].get('frame_count',current_metadata_record['layout']['columns']*current_metadata_record['layout']['rows'])
+        if len(current_request_record['payload']['frames'])!=current_frame_count:
+            raise ValueError('기존 베이스라인 프레임 수를 유지해야 합니다.')
+        current_coordinate_path=current_image_path.parent/current_metadata_record.get('coordinates',current_image_path.stem+'.coordinates.json')
+        if not current_coordinate_path.resolve().is_relative_to(SPRITE_BASELINE_ROOT.resolve()) or current_coordinate_path.resolve() in (current_image_path.resolve(),current_metadata_path.resolve()):
+            raise ValueError('베이스라인 좌표맵 경로 오류')
+        current_export_record=execute_sprite_sheet_export(current_request_record['payload'])
+        current_coordinate_record=current_export_record['coordinates']
+        current_coordinate_record['image']=current_image_path.name
+        if current_previous_frames:
+            for current_old_frame,current_new_frame in zip(current_previous_frames,current_coordinate_record['frames']):
+                current_new_frame['frameId']=current_old_frame['frameId']
+        current_column_count=current_request_record['payload']['columns']
+        current_frame_records=current_coordinate_record['frames']
+        current_metadata_record.update(image=current_image_path.name,coordinates=current_coordinate_path.name,sha256=current_coordinate_record['sha256'],**current_coordinate_record['sheet'])
+        current_layout_record=current_metadata_record['layout']
+        for current_field_name in ('frame_width','frame_height','row_heights'):
+            current_layout_record.pop(current_field_name,None)
+        current_layout_record.update(columns=current_column_count,rows=(current_frame_count+current_column_count-1)//current_column_count,frame_count=current_frame_count,row_heights=[max(current_frame['rect']['height'] for current_frame in current_frame_records[current_row_start:current_row_start+current_column_count]) for current_row_start in range(0,current_frame_count,current_column_count)])
+        if len({current_frame['rect']['width'] for current_frame in current_frame_records})==1:
+            current_layout_record['frame_width']=current_frame_records[0]['rect']['width']
+        current_pending_files={current_image_path:base64.b64decode(current_export_record['image']),current_coordinate_path:(json.dumps(current_coordinate_record,ensure_ascii=False,indent=2)+'\n').encode(),current_metadata_path:yaml.safe_dump(current_metadata_record,allow_unicode=True,sort_keys=False).encode()}
+        current_previous_files={current_file_path:current_file_path.read_bytes() if current_file_path.exists() else None for current_file_path in current_pending_files}
+        current_backup_root=SPRITE_SHEET_JOB_ROOT/current_export_record['id'][:19]/current_export_record['id']/'before'
+        current_backup_root.mkdir()
+        for current_file_index,(current_file_path,current_file_bytes) in enumerate(current_previous_files.items()):
+            if current_file_bytes is not None:(current_backup_root/str(current_file_index)).write_bytes(current_file_bytes)
+        write_record_atomically(current_backup_root/'paths.json',[str(current_file_path) for current_file_path in current_previous_files])
+        try:
+            for current_file_path,current_file_bytes in current_pending_files.items():current_file_path.write_bytes(current_file_bytes)
+        except Exception:
+            for current_file_path,current_file_bytes in current_previous_files.items():
+                if current_file_bytes is None:current_file_path.unlink(missing_ok=True)
+                else:current_file_path.write_bytes(current_file_bytes)
+            raise
+        return {'id':current_export_record['id'],'path':current_request_record['path'],'metadata':current_coordinate_path.name}
+
+
 def update_registered_sprite_sheet(current_request_record):
     """등록 시트와 기존 애니메이션 좌표를 보존 계약에 따라 함께 갱신한다."""
+    if isinstance(current_request_record,dict) and current_request_record.get('source')=='baseline':
+        return update_baseline_sprite_sheet(current_request_record)
     import json
     import threading
     import yaml

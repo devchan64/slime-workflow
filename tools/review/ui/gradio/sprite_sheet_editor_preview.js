@@ -35,7 +35,7 @@
   const drawCurrentEditorFrame=currentTime=>{
    if(!currentCanvasElement.isConnected||currentCanvasElement.spritePreviewRevision!==currentPreviewRevision)return;
    currentCanvasContext.fillStyle='#888';currentCanvasContext.fillRect(0,0,currentCanvasSize,currentCanvasSize);
-   const currentActiveIndex=currentPlayEnabled?Math.floor((currentTime-currentStartTime)*6/1000)%currentRows.length:currentSelectedIndex;
+   const currentActiveIndex=currentPlayEnabled?Math.floor(Math.max(0,currentTime-currentStartTime)*6/1000)%currentRows.length:currentSelectedIndex;
    const currentActiveRow=currentPlayEnabled?currentRows[currentActiveIndex]:currentDraftRow;
    let currentDrawScale=currentScaleValue,currentDrawLeft=currentOriginLeft,currentDrawTop=currentOriginTop;
    if(currentPlayEnabled){

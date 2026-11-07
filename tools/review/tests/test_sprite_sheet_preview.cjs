@@ -10,3 +10,10 @@ renderCurrentPreview('image',currentFrameRows,1,true,false,'크롭',null);
 currentAssertModule.deepStrictEqual(currentAnchorCalls[0],currentAnchorCalls[1]);currentAssertModule.deepStrictEqual(currentAnchorCalls[0],currentAnchorCalls[2]);
 currentAssertModule.strictEqual(currentImageCalls[0][7]/232,currentImageCalls[1][7]/232);
 console.log('수동 이동·재생 앵커와 배율 일치 확인');
+
+// 같은 화면 갱신 주기의 RAF 시간이 초기 performance.now보다 앞서도 첫 프레임을 유지한다.
+let currentAnimationCallback;
+global.requestAnimationFrame=currentFrameCallback=>{currentAnimationCallback=currentFrameCallback};
+renderCurrentPreview('image',currentFrameRows,1,true,false,'크롭',null);
+currentAssertModule.doesNotThrow(()=>currentAnimationCallback(0));
+console.log('첫 RAF 시간차 음수 경계 검증');
