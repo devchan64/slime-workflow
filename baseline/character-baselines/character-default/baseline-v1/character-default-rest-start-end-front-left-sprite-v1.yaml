@@ -1,14 +1,22 @@
 schema_version: 1
 description: 기본 캐릭터 · 휴식 시작 및 휴식 해제 · 일관성 보강 24프레임 시트
 image: character-default-rest-start-end-front-left-sprite-v1.png
-sha256: d02712e6ba1660ef987d918a77a6078a94873ce800beb63d263747a41b90831a
-width: 911
-height: 1727
+sha256: 68523a39fa750e2155d3150bfee161b6634de59760a18f926763511c4cb91dec
+width: 1064
+height: 1908
 layout:
   columns: 4
   rows: 6
   frame_count: 24
   order: 왼쪽에서 오른쪽, 위에서 아래
+  frame_width: 266
+  row_heights:
+  - 395
+  - 288
+  - 276
+  - 276
+  - 277
+  - 396
 motions:
 - name: rest-start
   label: 휴식 시작
@@ -20,7 +28,9 @@ motions:
   frame_count: 12
 background: white
 generator: imagegen
-source_sheet: .tmp/test/imagegen/rest-consistency-20261107/rest-24frames-identity-candidate-v2.png
-operation: 8방향 베이스라인을 참조하여 헤어·피부색·신체비율·화풍 보강
-notes: 24프레임 4열 6행. 생성 과정에서 크기와 배치가 변경되어 기존 좌표맵은 사용하지 않음. 프레임별 크롭과 앵커 재검수 필요. 50px
-  여백 보존은 미확인.
+source_sheet: .tmp/test/rest-layout-comparison/before-uniform-cv/character-default-rest-start-end-front-left-sprite-v1.png
+operation: CV로 24프레임 영역 검출 후 전체 너비 통일·행별 높이 통일·가로 중앙 및 하단 정렬
+notes: 원본 캐릭터 픽셀 확대·축소·재생성 없음. 흰 배경, 최소 여백 50px. 앵커는 검출 외곽 하단 중앙이며 해부학적 발 위치 수동 검수
+  전 자동 기준점.
+coordinates: character-default-rest-start-end-front-left-sprite-v1.coordinates.json
+padding_px: 50
