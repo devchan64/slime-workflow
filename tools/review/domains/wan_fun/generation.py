@@ -23,6 +23,11 @@ class FunControlGenerationManager(ReferenceVideoGenerationManager):
                 (current_job_root/current_endpoint_file).write_bytes(current_endpoint_bytes)
                 current_request_record[current_endpoint_name+'_file'] = current_endpoint_file
                 current_request_record[current_endpoint_name+'_sha256'] = hashlib.sha256(current_endpoint_bytes).hexdigest()
+        if 'rgb_video' in current_request_record:
+            import base64
+            current_video_bytes = base64.b64decode(current_request_record.pop('rgb_video'), validate=True)
+            (current_job_root/'rgb-input.mp4').write_bytes(current_video_bytes)
+            return {**current_request_record, 'rgb_video_file':'rgb-input.mp4', 'rgb_video_sha256':hashlib.sha256(current_video_bytes).hexdigest(), 'control_preprocessor':'none'}
         if 'pose_video' in current_request_record:
             import base64,hashlib
             current_video_bytes = base64.b64decode(current_request_record['pose_video'],validate=True)

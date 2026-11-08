@@ -237,7 +237,7 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['music-magenta']='Magenta RT2 Small 실험 · ON
 MANAGEMENT_COMMAND_DESCRIPTIONS['sfx-dasheng-audiogen']='효과음 생성 · Dasheng-AudioGen · CUDA · 길이 자동 예측 · 16kHz mono WAV'
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fun-control']='Wan2.2 Fun Control Q4 · 참조/포즈 영상 · 선택 시작·종료 PNG 조건 · --payload-file'
+MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fun-control']='Wan2.2 Fun Control Q4 · 참조/포즈/RGB 직접 영상 실험 · 선택 시작·종료 PNG 조건 · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['kimodo']='Kimodo SOMA v1.2 · NF4 텍스트 인코더 · 원본 관절 모션·미리보기 · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace']='Wan2.2 VACE-Fun A14B Q4 · 텍스트·외형 참조·첫 프레임·DWPose 영상·부분 편집 · --payload-file'
 

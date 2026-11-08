@@ -14,7 +14,7 @@ from tools.review.common.generation_records import write_record_atomically
 
 def execute_fun_inference(current_job_root, current_attempt_root, current_request_record, current_metrics_recorder):
     current_control_paths = [current_job_root/current_reference_name for current_reference_name in current_request_record['references']]
-    if current_request_record.get('pose_video_file'):
+    if current_request_record.get('pose_video_file') or current_request_record.get('rgb_video_file'):
         from generators.wan_fun.video_input import decode_processed_pose_video
         current_control_paths.extend(decode_processed_pose_video(current_job_root,current_attempt_root,current_request_record))
     if current_request_record.get('driving_video_file'):
