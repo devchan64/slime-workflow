@@ -14,7 +14,6 @@ import gradio as gr
 
 QWEN_INTERFACE_OPTIONS = {
     'billboard-generator': {'qwen21_mode_enabled': True, 'prop_mode_enabled': True, 'billboard_guide_enabled': True},
-    'outfit-transfer-generator': {'qwen21_mode_enabled': True, 'outfit_transfer_enabled': True},
     'vegetation-generator': {'qwen21_mode_enabled': True, 'vegetation_mode_enabled': True},
     'prop-generator': {'qwen21_mode_enabled': True, 'prop_mode_enabled': True},
     'building-generator': {'qwen21_mode_enabled': True, 'prop_mode_enabled': True, 'billboard_guide_enabled': True},
@@ -25,7 +24,6 @@ QWEN_INTERFACE_OPTIONS = {
 MANAGEMENT_INTERFACE_BUILDERS = {
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
     'wan22-vace-generator': ('wan_vace_app', 'build_vace_interface', 'url'),
-    'animation-separation': ('animation_separation_app', 'build_separation_interface', 'url'),
     'wan22-animate2-generator': ('wan_animate2_app', 'build_animate_interface', 'url'),
     'wan22-fun-control-generator': ('wan_fun_app', 'build_fun_interface', 'url'),
     'map-review': ('map_review_app', 'build_map_review_interface', 'port'),
@@ -37,7 +35,7 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'writer-agent': ('writer_agent_app', 'build_writer_agent_interface', 'port'),
     'sprite-sheet-editor': ('sprite_sheet_editor_app', 'build_sprite_sheet_editor_interface', 'port'),
 }
-LEGACY_MANAGEMENT_PATHS = {'/animation-separation/': 'animation-separation', '/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/outfit-transfer/': 'outfit-transfer-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
+LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
 MUSIC_INTERFACE_SERVICES = ('music-heartmula', 'sfx-dasheng-audiogen')
 
 
@@ -133,6 +131,12 @@ def build_management_application(current_handler_class, current_root_path, curre
             return await current_retired_response(current_request_scope, current_receive_call, current_send_call)
         if current_request_path.rstrip('/') == '/anny-landmarks' or current_request_path.startswith(('/anny-landmarks/', '/management/frame/anny-landmarks')) or 'anny-landmarks' in current_query_values.get('tool', []):
             current_retired_response = Response('ANNY 해부학 기준점 페이지와 기능은 폐기되었습니다.', status_code=410)
+            return await current_retired_response(current_request_scope, current_receive_call, current_send_call)
+        if current_request_path.rstrip('/') == '/animation-separation' or current_request_path.startswith(('/animation-separation/', '/management/frame/animation-separation')) or 'animation-separation' in current_query_values.get('tool', []):
+            current_retired_response = Response('캐릭터 레퍼런스 복장 분리 생성기와 이력은 폐기되었습니다.', status_code=410)
+            return await current_retired_response(current_request_scope, current_receive_call, current_send_call)
+        if current_request_path.rstrip('/') == '/outfit-transfer' or current_request_path.startswith(('/outfit-transfer/', '/management/frame/outfit-transfer-generator')) or 'outfit-transfer-generator' in current_query_values.get('tool', []):
+            current_retired_response = Response('복장 착용 생성기와 이력은 폐기되었습니다.', status_code=410)
             return await current_retired_response(current_request_scope, current_receive_call, current_send_call)
         if current_request_path.rstrip('/') == '/pose-transfer' or current_request_path.startswith(('/pose-transfer/', '/management/frame/pose-transfer-generator')) or 'pose-transfer-generator' in current_query_values.get('tool', []):
             current_retired_response = Response('포즈 변환 생성기와 결과는 폐기되었습니다.', status_code=410)

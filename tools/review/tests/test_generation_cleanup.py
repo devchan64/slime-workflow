@@ -128,8 +128,8 @@ class CleanupPreviewTests(unittest.TestCase):
             (current_job_root/'status.json').write_text('{"status":"completed"}')
             self.assertEqual(current_service_instance.preview_generation_cleanup()['job_count'],1)
             self.assertTrue(current_job_root.exists())
-        self.assertEqual(resolve_management_command('outfit-transfer','history-reset-preview',{}),('GET','/outfit-transfer/history/reset-preview'))
-        with self.assertRaises(ValueError):resolve_management_command('outfit-transfer','history-reset-preview',{'action':'reset'})
+        self.assertEqual(resolve_management_command('qwen-21','history-reset-preview',{}),('GET','/image-generation-21/history/reset-preview'))
+        with self.assertRaises(ValueError):resolve_management_command('qwen-21','history-reset-preview',{'action':'reset'})
 
 
 class CleanupConfirmationTests(unittest.TestCase):
@@ -192,9 +192,7 @@ class ImageFamilyCleanupContractTests(unittest.TestCase):
             ('image.image_generation', 'ImageGenerationManager'),
             ('image.qwen_21_generation', 'QwenPlainGenerationManager'),
             ('image.expression_generation', 'ExpressionGenerationManager'),
-            ('image.outfit_transfer_generation', 'OutfitTransferGenerationManager'),
             ('image.qwen_circular_generation', 'QwenCircularGenerationManager'),
-            ('image.animation_separation', 'AnimationSeparationManager'),
             ('image.seamless_generation', 'SeamlessGenerationManager'),
         )
         for current_module_name, current_class_name in current_manager_definitions:

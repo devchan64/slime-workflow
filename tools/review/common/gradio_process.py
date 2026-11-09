@@ -74,8 +74,6 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
     if application_file_path.name=='seamless_tile_app.py':
         image_domain_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/domains/image'
         tracked_source_paths.update(image_domain_directory/current_file_name for current_file_name in ('seamless_pattern.py','seamless_generation.py','seamless_directional.py'))
-    if application_file_path.name=='animation_separation_app.py':
-        tracked_source_paths.add(WORKFLOW_ROOT_DIRECTORY/'generators/image/config/animation_separation.yaml')
     if application_file_path.name=='sprite_editor_app.py':
         sprite_editor_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/character_animation'
         tracked_source_paths.update(sprite_editor_directory/current_file_name for current_file_name in ('sprite-editor.html','sprite-editor.js'))
@@ -98,7 +96,6 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'management-menu':('management_menu_app.py',100,'/management/'),
             'qwen-2512':('qwen_2512_app.py',103,'/management/frame/image-generator/'),
             'qwen-21-circular':('qwen_circular_app.py',118,'/management/frame/qwen-21-circular-generator/'),
-            'outfit-transfer':('outfit_transfer_app.py',120,'/management/frame/outfit-transfer-generator/'),
             'vegetation':('vegetation_app.py',134,'/management/frame/vegetation-generator/'),
             'billboard':('billboard_app.py',137,'/management/frame/billboard-generator/'),
             'prop':('prop_app.py',133,'/management/frame/prop-generator/'),
@@ -108,7 +105,6 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'expression':('expression_app.py',114,'/management/frame/expression-generator/'),
             'qwen-2511':('qwen_2511_app.py',104,'/management/frame/three-reference-generator/'),
             'floor-tile':('floor_tile_app.py',113,'/management/frame/floor-tile-generator/'),
-            'animation-separation':('animation_separation_app.py',117,'/management/frame/animation-separation/'),
             'sprite-editor':('sprite_editor_app.py',106,'/management/frame/sprite-editor/'),
             'character-review':('character_review_app.py',122,'/management/frame/character-review/'),
             'asset-editor':('asset_editor_app.py',136,'/management/frame/asset-editor/'),

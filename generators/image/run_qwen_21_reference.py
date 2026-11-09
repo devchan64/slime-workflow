@@ -30,9 +30,6 @@ def execute_qwen_reference_worker():
         verify_reference_snapshots(current_job_root, current_request_record)
         if current_job_root.parent.name == 'pose-transfer' or 'vnccs' in current_request_record:
             raise ValueError('포즈 변환 생성기는 폐기되었습니다.')
-        if current_job_root.parent.name == 'outfit-transfer':
-            from tools.review.domains.image.outfit_transfer_generation import validate_outfit_transfer_contract
-            validate_outfit_transfer_contract(current_request_record, saved_request_enabled=True)
         seamless_generation_enabled = 'seamless_tile' in current_request_record
         if seamless_generation_enabled:
             if current_request_record['seamless_tile'].get('schema_version') not in (2, 3, 4, 6, 7):

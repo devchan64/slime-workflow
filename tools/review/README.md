@@ -174,7 +174,6 @@ MoMask 작업 서비스와 루트 호환 모듈은 제거했다. 이전 HTTP 주
 
 관리 화면의 내부 미리보기부터 외곽 탐색 순으로 iframe 의존성을 제거한다. 전환 단위는 해당 UI·회귀검사·문서를 함께 검증하고 각각 커밋한다. 기존 화면 URL과 GUI·CLI → 공용 게이트웨이 → 작업 서비스·기록 저장소 계약은 유지한다.
 
-- 복장 분리 결과 탭·공용 생성 이력: `ui/gradio/separation_preview.py`의 Gradio 조작부와 `ui/shared/separation-player.js`의 컴포넌트별 캔버스를 사용한다. `srcdoc` 문서·부모 창 함수 전달·내부 iframe은 제거했다. 결과 조회는 기존 manifest·시트 URL을 읽으며 프레임 조작은 서버를 왕복하지 않는다.
 - 공용 외곽 메뉴: `build_management_menu_interface(..., current_inline_interface=...)`로 도구 Blocks를 공용 Sidebar와 한 문서에 구성한다. 기존 `/?tool=...` 링크는 정적 검수 주소로 연결하며 검색·분류·도구 선택은 URL에 유지한다. 정적 검수와 현행 생성·맵·편집 도구 14개 진입점은 같은 합성 함수를 사용한다. 외곽 iframe을 제거했고, 게임 디자인·전장도 번들 v2의 직접 마운트로 전환했다.
 - 독립 검수 허브: `ui/asset_review/frame-manager.html`은 이전 `preview.html#항목ID`를 공용 Gradio 메뉴로 연결하는 호환 문서다. 검색·분류·동작 매개변수를 보존하며 iframe 보관·중복 메뉴 구현은 제거했다. `serve.py`는 과거 허브의 원본을 변경하지 않고 현재 연결문을 제공한다. 걷기 비교는 기존 독립 HTML 링크로, 걷기·스탠딩 앵커는 Gradio 편집기로 연다.
 - 현행 관리 UI의 iframe 의존성 제거와 모든 독립 HTML의 Gradio 재작성은 구분한다. 과거 산출물의 일괄 재작성·운영 GPU 작업 접수는 포함하지 않는다. 현황과 실제 브라우저 검증 범위는 [UI 가이드의 iframe 전환 기록](../../workflows/management-ui.md#gradio-iframe-전환-기록)을 따른다.

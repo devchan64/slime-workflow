@@ -91,18 +91,3 @@ class GpuConfirmationTests(unittest.TestCase):
         self.assertEqual(list(current_callback_functions['execute_confirmed_generation'](current_pending_inputs)), ['accepted'])
         self.assertEqual(current_generation_callback.call_count, 2)
         current_generation_callback.assert_called_with('corrected')
-
-    def test_required_reference_consumers_gate_missing_inputs(self):
-        from tools.review.ui.gradio.animation_separation_app import build_separation_interface
-        for current_interface_builder, current_button_label, current_missing_inputs, current_ready_inputs in (
-            (build_separation_interface, '대기열에 추가', [(None, 'base', 'outfit'), (object(), '', 'outfit'), (object(), 'base', ' '), (object(), 'word ' * 100, 'outfit'), (object(), 'base', 'word ' * 100)], (object(), 'word ' * 99, 'outfit')),
-        ):
-            with self.subTest(builder=current_interface_builder.__name__):
-                current_interface_blocks = current_interface_builder('http://127.0.0.1:8798')
-                current_start_button = next(current_component for current_component in current_interface_blocks.blocks.values() if isinstance(current_component, gr.Button) and current_component.value == current_button_label)
-                self.assertFalse(current_start_button.interactive)
-                current_readiness_callback = next(current_function_record.fn for current_function_record in current_interface_blocks.fns.values() if current_function_record.fn and current_function_record.fn.__name__ == 'refresh_generation_readiness')
-                for current_input_values in current_missing_inputs:
-                    self.assertFalse(current_readiness_callback(None, *current_input_values)['interactive'])
-                self.assertTrue(current_readiness_callback(None, *current_ready_inputs)['interactive'])
-                self.assertFalse(current_readiness_callback({'inputs': current_ready_inputs, 'consumed': False}, *current_ready_inputs)['interactive'])

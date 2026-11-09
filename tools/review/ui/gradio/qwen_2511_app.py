@@ -95,7 +95,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
     if expression_mode_enabled and qwen21_mode_enabled:
         raise ValueError('표정 생성과 Qwen 2.1 일반 생성은 별도 모드입니다.')
     if outfit_transfer_enabled:
-        from tools.review.domains.image.outfit_transfer_generation import load_outfit_transfer_prompt
+        raise ValueError('복장 착용 생성기와 이력은 폐기되었습니다.')
     default_prompt_text = load_vegetation_base_prompt() if vegetation_mode_enabled else load_prop_base_prompt() if prop_mode_enabled else '' if building_mode_enabled else load_outfit_transfer_prompt() if outfit_transfer_enabled else ''
     plain_options_enabled = qwen21_mode_enabled and (not circular_mode_enabled) and (not outfit_transfer_enabled) and (not outfit_transfer_enabled)
     reference_slot_count = 2 if outfit_transfer_enabled else 10 if qwen21_mode_enabled else 3

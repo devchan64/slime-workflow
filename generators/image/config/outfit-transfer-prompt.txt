@@ -1,1 +1,0 @@
-Replace the entire outfit worn by the character in <image1> with the outfit shown in <image2>. Fit the replacement outfit naturally to the character, following its intended coverage and openings. Preserve the character's identity, body proportions, pose and background.

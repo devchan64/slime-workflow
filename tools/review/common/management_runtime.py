@@ -79,12 +79,10 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.image.image_generation import ImageGenerationManager
     from tools.review.domains.image.seamless_generation import SeamlessGenerationManager
     from tools.review.domains.image.qwen_circular_generation import QwenCircularGenerationManager
-    from tools.review.domains.image.outfit_transfer_generation import OutfitTransferGenerationManager
     from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager
     from tools.review.domains.image.billboard_generation import BillboardGuideGenerationManager
     from tools.review.domains.image.prop_generation import PropGenerationManager
     from tools.review.domains.image.vegetation_generation import VegetationGenerationManager
-    from tools.review.domains.image.animation_separation import AnimationSeparationManager
     from tools.review.domains.image.expression_generation import ExpressionGenerationManager
     from generators.writer_agent.management import WriterAgentManager
     from generators.writer_agent.documents import DEFAULT_WORKSPACE_CONFIG
@@ -116,8 +114,6 @@ def create_management_runtime(writer_workspace_config=None):
         billboard_generation_service = BillboardGuideGenerationManager()
         prop_generation_service = PropGenerationManager()
         vegetation_generation_service = VegetationGenerationManager()
-        outfit_transfer_service = OutfitTransferGenerationManager()
-        animation_separation_service = AnimationSeparationManager()
         expression_generation_service = ExpressionGenerationManager()
         three_reference_service = ImageGenerationManager(three_reference_mode=True)
         floor_generation_service = FloorGenerationManager()
@@ -135,8 +131,6 @@ def create_management_runtime(writer_workspace_config=None):
             'map-assets': bind_stored_management_service(handle_map_resize_request,RESIZE_STORAGE_DIRECTORY),
             'map-review': bind_stored_management_service(handle_map_capture_request,CAPTURE_STORAGE_DIRECTORY),
             'character-review': bind_stored_management_service(handle_character_capture_request,CAPTURE_STORAGE_DIRECTORY),
-            'outfit-transfer': bind_stored_management_service(outfit_transfer_service.handle_image_request, outfit_transfer_service.job_storage_root),
-            'animation-separation': bind_stored_management_service(animation_separation_service.handle_image_request, animation_separation_service.job_storage_root),
             'qwen-21-circular': bind_stored_management_service(qwen_circular_service.handle_image_request, qwen_circular_service.job_storage_root),
             'billboard-generator': bind_stored_management_service(billboard_generation_service.handle_image_request, billboard_generation_service.job_storage_root),
             'prop-generator': bind_stored_management_service(prop_generation_service.handle_image_request, prop_generation_service.job_storage_root),

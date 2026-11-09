@@ -15,7 +15,7 @@ class PoseTransferRetirementTests(unittest.TestCase):
         for current_command_name in ('generate','resume','history','status','history-reset'):
             with self.subTest(command=current_command_name), self.assertRaisesRegex(ValueError,'폐기'):
                 resolve_management_command('pose-transfer',current_command_name,{})
-        for current_service_name in ('qwen-21','outfit-transfer','kimodo'):
+        for current_service_name in ('qwen-21','kimodo'):
             self.assertIn(current_service_name,MANAGEMENT_SERVICE_COMMANDS)
 
     def test_previous_routes_return_gone(self):
@@ -39,7 +39,7 @@ class PoseTransferRetirementTests(unittest.TestCase):
             self.assertNotIn('pose-transfer-generator',[current_page_record['id'] for current_page_record in current_page_records])
         with self.assertRaisesRegex(ValueError,'폐기'):
             build_qwen_2511_interface('http://127.0.0.1:8770',qwen21_mode_enabled=True,pose_transfer_enabled=True)
-        for current_mode_options in ({'qwen21_mode_enabled':True},{'qwen21_mode_enabled':True,'outfit_transfer_enabled':True}):
+        for current_mode_options in ({'qwen21_mode_enabled':True},):
             current_interface_blocks=build_qwen_2511_interface('http://127.0.0.1:8770',**current_mode_options)
             self.assertGreater(len(current_interface_blocks.fns),0)
 
