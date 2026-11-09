@@ -1,0 +1,195 @@
+schema_version: 1
+date: '2026-11-09'
+generator: image_gen_builtin
+style: prompts/common/art-style-v1.1.0.yaml
+face_reference: character-default-face-front-v1.png
+face_reference_sha256: 1667ca63aaae336bd044037022bec30ac982ceed3eff6ea600f8cc01e5bf8d91
+note: 사용자 승인 이미지 대체. 4방향 자료의 폐기 상태는 변경하지 않음. 애니메이션 앵커 및 재생은 재검수 필요.
+images:
+- image: character-default-eight-directions-v1.png
+  previous_sha256: 497884235649ad263ac384495184dd4aed6b1ab0aecaaa52184c5e00499e51e6
+  image_sha256: c22fcdd091031f72def92e4ca53b416c03feaf232f848be8a75ddae3b5498abb
+  generation_sha256: c22fcdd091031f72def92e4ca53b416c03feaf232f848be8a75ddae3b5498abb
+  generation_size:
+  - 1536
+  - 1024
+  output_size:
+  - 1536
+  - 1024
+  prompt: 'Edit IMAGE 1. Match the facial identity and dark brown hairstyle in IMAGE 2 in every visible face, naturally
+    adapted to each original view and expression. Apply this style to the entire image: SLIME miniature fantasy
+    game illustration with clean color planes and softly painted forms. Use warm brown contours, grouped shapes,
+    gently blended shadows and restrained highlights. Apply soft diffuse lighting and matte materials where appropriate.
+    Keep silhouettes clear and readable at small sizes. Preserve each original pose, body proportions, outfit, flat
+    chest, all directions, frame count, layout, framing and background. Maintain correct rear-view occlusion.'
+  word_count: 96
+  prompt_sha256: b5eccbfc072bd862233386db91bec2356137884865df752140954c7387440815
+- image: character-default-body-front-v1.png
+  previous_sha256: 4a8cbcace37bbd48b4261caad42c53fdb12782e490815e07e634462c2943518c
+  image_sha256: 73d8fbca73d028a53839ab7f6f7da0a4f4c49b66460c91aad9ea25bdedecbd45
+  generation_sha256: 73d8fbca73d028a53839ab7f6f7da0a4f4c49b66460c91aad9ea25bdedecbd45
+  generation_size:
+  - 794
+  - 1981
+  output_size:
+  - 794
+  - 1981
+  prompt: 'Edit IMAGE 1. Match the facial identity and dark brown hairstyle in IMAGE 2 in every visible face, naturally
+    adapted to each original view and expression. Apply this style to the entire image: SLIME miniature fantasy
+    game illustration with clean color planes and softly painted forms. Use warm brown contours, grouped shapes,
+    gently blended shadows and restrained highlights. Apply soft diffuse lighting and matte materials where appropriate.
+    Keep silhouettes clear and readable at small sizes. Preserve each original pose, body proportions, outfit, flat
+    chest, all directions, frame count, layout, framing and background. Maintain correct rear-view occlusion.'
+  word_count: 96
+  prompt_sha256: b5eccbfc072bd862233386db91bec2356137884865df752140954c7387440815
+- image: character-default-body-front-left-480p-v1.png
+  previous_sha256: 449d218b939389deb039a536d00b6ef216f80c31b8536d4ba45ff74a5fd7b3b6
+  image_sha256: dc9a92d968b44af913d9ba05f2f6a5efd473a7ba9e35c3f61413c8208a0be41b
+  generation_sha256: e535048166da3f2b5267e1d38c2a57e6c99214f891eaf522ed596b4421301d30
+  generation_size:
+  - 1652
+  - 952
+  output_size:
+  - 832
+  - 480
+  prompt: 'Edit IMAGE 1. Match the facial identity and dark brown hairstyle in IMAGE 2 in every visible face, naturally
+    adapted to each original view and expression. Apply this style to the entire image: SLIME miniature fantasy
+    game illustration with clean color planes and softly painted forms. Use warm brown contours, grouped shapes,
+    gently blended shadows and restrained highlights. Apply soft diffuse lighting and matte materials where appropriate.
+    Keep silhouettes clear and readable at small sizes. Preserve each original pose, body proportions, outfit, flat
+    chest, all directions, frame count, layout, framing and background. Maintain correct rear-view occlusion.'
+  word_count: 96
+  prompt_sha256: b5eccbfc072bd862233386db91bec2356137884865df752140954c7387440815
+  postprocess: 생성 결과를 비율 유지 축소하여 832×480 흰 배경에 중앙 배치
+- image: character-default-walk-front-left-sprite-v1.png
+  previous_sha256: ad5362c2d7e7b10b781334ba927bf915e52dd58a9a88e887743f8e9d4082c35b
+  image_sha256: 1b1f166088c410988d7e7e79e14bb4711ba8a28c00d3bd4cc7373c7e5531050b
+  generation_sha256: 1b1f166088c410988d7e7e79e14bb4711ba8a28c00d3bd4cc7373c7e5531050b
+  generation_size:
+  - 1474
+  - 1067
+  output_size:
+  - 1474
+  - 1067
+  prompt: 'Edit IMAGE 1. Match the facial identity and dark brown hairstyle in IMAGE 2 in every visible face, naturally
+    adapted to each original view and expression. Apply this style to the entire image: SLIME miniature fantasy
+    game illustration with clean color planes and softly painted forms. Use warm brown contours, grouped shapes,
+    gently blended shadows and restrained highlights. Apply soft diffuse lighting and matte materials where appropriate.
+    Keep silhouettes clear and readable at small sizes. Preserve each original pose, body proportions, outfit, flat
+    chest, all directions, frame count, layout, framing and background. Maintain correct rear-view occlusion.'
+  word_count: 96
+  prompt_sha256: b5eccbfc072bd862233386db91bec2356137884865df752140954c7387440815
+- image: character-default-face-four-directions-v1.png
+  previous_sha256: ce712c3993bd99c2579a6bd366b1b5fe4cc6da53ac9c0c8a9f3514d18f6e983a
+  image_sha256: fc751a3b38c6f8d818e212002da5f58c212bd699f6b7e6b48206f296f54da231
+  generation_sha256: fc751a3b38c6f8d818e212002da5f58c212bd699f6b7e6b48206f296f54da231
+  generation_size:
+  - 2046
+  - 768
+  output_size:
+  - 2046
+  - 768
+  prompt: 'Edit IMAGE 1. Match the facial identity and dark brown hairstyle in IMAGE 2 in every visible face, naturally
+    adapted to each original view and expression. Apply this style to the entire image: SLIME miniature fantasy
+    game illustration with clean color planes and softly painted forms. Use warm brown contours, grouped shapes,
+    gently blended shadows and restrained highlights. Apply soft diffuse lighting and matte materials where appropriate.
+    Keep silhouettes clear and readable at small sizes. Preserve each original pose, body proportions, outfit, flat
+    chest, all directions, frame count, layout, framing and background. Maintain correct rear-view occlusion.'
+  word_count: 96
+  prompt_sha256: b5eccbfc072bd862233386db91bec2356137884865df752140954c7387440815
+- image: character-default-baseline-idle-blink-front-left-v1.png
+  previous_sha256: 97c77ce655ceede04cf37bda5c0c790309f1ec671a9faa684566c5649cfcb3ff
+  image_sha256: 932be14e3bdd7ab621cf6a280717d02aae1219dc9ba60681070beb873086400c
+  generation_sha256: 932be14e3bdd7ab621cf6a280717d02aae1219dc9ba60681070beb873086400c
+  generation_size:
+  - 1448
+  - 1086
+  output_size:
+  - 1448
+  - 1086
+  prompt: 'Edit IMAGE 1. Match the facial identity and dark brown hairstyle in IMAGE 2 in every visible face, naturally
+    adapted to each original view and expression. Apply this style to the entire image: SLIME miniature fantasy
+    game illustration with clean color planes and softly painted forms. Use warm brown contours, grouped shapes,
+    gently blended shadows and restrained highlights. Apply soft diffuse lighting and matte materials where appropriate.
+    Keep silhouettes clear and readable at small sizes. Preserve each original pose, body proportions, outfit, flat
+    chest, all directions, frame count, layout and framing. Preserve blinking eye states. Maintain correct rear-view
+    occlusion. Use a plain white background throughout.'
+  word_count: 105
+  prompt_sha256: da69102e5db10300e7c587b0c2f912bcaa20394dff7f4c2eb110bf7d6c589509
+- image: character-default-rest-start-end-front-left-sprite-v1.png
+  previous_sha256: cac3a4900e1f7b34a5b576f9108cdb8d3d2ab2db01ce5c1deb98cf6405c2d37e
+  image_sha256: aae515196808a66c364505f86a7bde19edbe37d4ee2a2ddec8ce3b9a0180d425
+  generation_sha256: aae515196808a66c364505f86a7bde19edbe37d4ee2a2ddec8ce3b9a0180d425
+  generation_size:
+  - 936
+  - 1680
+  output_size:
+  - 936
+  - 1680
+  prompt: 'Edit IMAGE 1. Match the facial identity and dark brown hairstyle in IMAGE 2 in every visible face, naturally
+    adapted to each original view and expression. Apply this style to the entire image: SLIME miniature fantasy
+    game illustration with clean color planes and softly painted forms. Use warm brown contours, grouped shapes,
+    gently blended shadows and restrained highlights. Apply soft diffuse lighting and matte materials where appropriate.
+    Keep silhouettes clear and readable at small sizes. Preserve each original pose, body proportions, outfit, flat
+    chest, all directions, frame count, layout and framing. Preserve blinking eye states. Maintain correct rear-view
+    occlusion. Use a plain white background throughout.'
+  word_count: 105
+  prompt_sha256: da69102e5db10300e7c587b0c2f912bcaa20394dff7f4c2eb110bf7d6c589509
+- image: character-default-four-directions-v1.png
+  previous_sha256: 4cf8077d2005632f6ee4c32e8c976f8604da0a8c35aa7719628f7c0ea2fb6a14
+  image_sha256: 39bb26185d6ac4c6930485f53bc90cd7257fa2abe9a32bf93313e4deb34678d5
+  generation_sha256: 39bb26185d6ac4c6930485f53bc90cd7257fa2abe9a32bf93313e4deb34678d5
+  generation_size:
+  - 1767
+  - 890
+  output_size:
+  - 1767
+  - 890
+  prompt: 'Edit IMAGE 1. Match the facial identity and dark brown hairstyle in IMAGE 2 in every visible face, naturally
+    adapted to each original view and expression. Apply this style to the entire image: SLIME miniature fantasy
+    game illustration with clean color planes and softly painted forms. Use warm brown contours, grouped shapes,
+    gently blended shadows and restrained highlights. Apply soft diffuse lighting and matte materials where appropriate.
+    Keep silhouettes clear and readable at small sizes. Preserve each original pose, body proportions, outfit, flat
+    chest, all directions, frame count, layout and framing. Preserve blinking eye states. Maintain correct rear-view
+    occlusion. Use a plain white background throughout.'
+  word_count: 105
+  prompt_sha256: da69102e5db10300e7c587b0c2f912bcaa20394dff7f4c2eb110bf7d6c589509
+- image: character-default-light-leather-four-directions-v1.png
+  previous_sha256: b5982196eb4911b2f9d8e896a243a1d62528b714e2bcf43f37546423294fa362
+  image_sha256: 4c064b9d9f1986fc66dcd3ba6a773bf52cb50e6d5b2ee9b2f7cb2d99d15a11b3
+  generation_sha256: 4c064b9d9f1986fc66dcd3ba6a773bf52cb50e6d5b2ee9b2f7cb2d99d15a11b3
+  generation_size:
+  - 1765
+  - 891
+  output_size:
+  - 1765
+  - 891
+  prompt: 'Edit IMAGE 1. Match the facial identity and dark brown hairstyle in IMAGE 2 in every visible face, naturally
+    adapted to each original view and expression. Apply this style to the entire image: SLIME miniature fantasy
+    game illustration with clean color planes and softly painted forms. Use warm brown contours, grouped shapes,
+    gently blended shadows and restrained highlights. Apply soft diffuse lighting and matte materials where appropriate.
+    Keep silhouettes clear and readable at small sizes. Preserve each original pose, body proportions, outfit, flat
+    chest, all directions, frame count, layout and framing. Preserve blinking eye states. Maintain correct rear-view
+    occlusion. Use a plain white background throughout.'
+  word_count: 105
+  prompt_sha256: da69102e5db10300e7c587b0c2f912bcaa20394dff7f4c2eb110bf7d6c589509
+- image: character-default-light-leather-front-left-480p-v1.png
+  previous_sha256: 8ec639ea5f53fa168ae5ef775d3f22c274685363000fecd8513ecdb4f1fd27d7
+  image_sha256: d6df80e07e5339eebca59edb2f661f35e73722af2dafc9d545834b57999f942f
+  generation_sha256: ed3779a8ebf1702e587e95bb5c3ae0cff5700b8564211f678c0368fc01553eb3
+  generation_size:
+  - 1652
+  - 952
+  output_size:
+  - 832
+  - 480
+  prompt: 'Edit IMAGE 1. Match the facial identity and dark brown hairstyle in IMAGE 2 in every visible face, naturally
+    adapted to each original view and expression. Apply this style to the entire image: SLIME miniature fantasy
+    game illustration with clean color planes and softly painted forms. Use warm brown contours, grouped shapes,
+    gently blended shadows and restrained highlights. Apply soft diffuse lighting and matte materials where appropriate.
+    Keep silhouettes clear and readable at small sizes. Preserve each original pose, body proportions, outfit, flat
+    chest, all directions, frame count, layout and framing. Preserve blinking eye states. Maintain correct rear-view
+    occlusion. Use a plain white background throughout.'
+  word_count: 105
+  prompt_sha256: da69102e5db10300e7c587b0c2f912bcaa20394dff7f4c2eb110bf7d6c589509
+  postprocess: 생성 결과를 비율 유지 축소하여 832×480 흰 배경에 중앙 배치

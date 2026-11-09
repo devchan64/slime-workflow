@@ -1,7 +1,7 @@
 schema_version: 1
 description: 기본 캐릭터 · 휴식 시작 및 휴식 해제 · 일관성 보강 24프레임 시트
 image: character-default-rest-start-end-front-left-sprite-v1.png
-sha256: cac3a4900e1f7b34a5b576f9108cdb8d3d2ab2db01ce5c1deb98cf6405c2d37e
+sha256: aae515196808a66c364505f86a7bde19edbe37d4ee2a2ddec8ce3b9a0180d425
 width: 936
 height: 1680
 layout:
@@ -37,3 +37,11 @@ anchor_source: 교체 전 휴식 시트 좌표맵
 anchor_scale:
   x: 0.8796992481203008
   y: 0.8805031446540881
+latest_edit:
+  date: '2026-11-09'
+  operation: 정면 얼굴 참조 및 공통 화풍 적용 후보로 교체
+  generator: image_gen_builtin
+  previous_image_sha256: cac3a4900e1f7b34a5b576f9108cdb8d3d2ab2db01ce5c1deb98cf6405c2d37e
+  image_sha256: aae515196808a66c364505f86a7bde19edbe37d4ee2a2ddec8ce3b9a0180d425
+  generation_record: character-default-face-style-update-20261109.yaml
+  note: 생성 결과의 세부 형태가 달라 프레임 정렬과 앵커 재검수가 필요하다.
