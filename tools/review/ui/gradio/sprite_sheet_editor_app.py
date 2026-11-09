@@ -61,7 +61,7 @@ def select_sprite_asset_image(current_asset_path,current_source_kind="assets"):
     if current_result_record.get('animation'):
         current_image_path.with_suffix('.animation.json').write_text(json.dumps(current_result_record['animation']))
     current_layout_values=calculate_registered_sheet_layout(current_result_record['animation']) if current_result_record.get('animation') else (current_result_record['layout']['columns'],current_result_record['layout']['rows']) if current_result_record.get('layout') else (gr.update(),gr.update())
-    return str(current_image_path),{'source':current_source_kind,'path':current_asset_path,'metadataSha256':current_result_record['metadataSha256'],'animation':current_result_record.get('animation'),'runtimeDimensions':current_result_record.get('runtimeDimensions',{}),'imageSha256':hashlib.sha256(current_image_path.read_bytes()).hexdigest()},f"{'베이스라인' if current_source_kind=='baseline' else '에셋'} 원본: {current_asset_path}\n원본으로 가져왔습니다. 좌표맵이 있으면 원본 열·행을 자동 반영합니다. 시트 불러오기를 누르세요. 기존 편집은 아직 변경하지 않았습니다.",*current_layout_values
+    return str(current_image_path),{'source':current_source_kind,'path':current_asset_path,'metadataSha256':current_result_record['metadataSha256'],'animation':current_result_record.get('animation'),'layout':current_result_record.get('layout'),'runtimeDimensions':current_result_record.get('runtimeDimensions',{}),'imageSha256':hashlib.sha256(current_image_path.read_bytes()).hexdigest()},f"{'베이스라인' if current_source_kind=='baseline' else '에셋'} 원본: {current_asset_path}\n원본으로 가져왔습니다. 좌표맵이 있으면 원본 열·행을 자동 반영합니다. 시트 불러오기를 누르세요. 기존 편집은 아직 변경하지 않았습니다.",*current_layout_values
 
 
 def load_sprite_sheet_input(current_file_path,current_columns_value,current_rows_value,current_asset_record=None):
@@ -239,10 +239,25 @@ def prepare_sprite_sheet_update(current_asset_record,current_asset_choice,*curre
     current_pending_record={'path':current_asset_record['path'],'metadataSha256':current_asset_record['metadataSha256'],'payload':build_sprite_sheet_payload(*current_editor_values),'confirm':True}
     current_original_frames=(current_asset_record.get('animation') or {}).get('frames',[])
     current_edited_frames=current_pending_record['payload']['frames']
-    if len(current_original_frames)!=len(current_edited_frames):
+    current_layout_record=current_asset_record.get('layout') or {}
+    if current_original_frames:
+        current_expected_count=len(current_original_frames)
+    elif current_asset_record.get('source')=='baseline':
+        current_expected_count=current_layout_record.get('frame_count')
+        if current_expected_count is None and all(type(current_layout_record.get(current_field_name)) is int for current_field_name in ('columns','rows')):
+            current_expected_count=current_layout_record['columns']*current_layout_record['rows']
+        if type(current_expected_count) is not int or current_expected_count<1:
+            raise gr.Error('베이스라인 프레임 수를 확인할 수 없습니다. 시트를 다시 불러오세요.')
+    else:
+        raise gr.Error('등록된 좌표맵을 확인할 수 없습니다. 에셋을 다시 불러오세요.')
+    if current_expected_count!=len(current_edited_frames):
         raise gr.Error('원본 업데이트는 기존 프레임 수를 유지해야 합니다. 다른 구성은 다운로드로 저장하세요.')
-    current_changed_count=sum(any(current_original_frame['rect'][current_field_name]!=current_edited_frame[current_field_name] for current_field_name in ('x','y','width','height')) or current_original_frame['anchor']['x']!=current_edited_frame['anchorX'] or current_original_frame['anchor']['y']!=current_edited_frame['anchorY'] for current_original_frame,current_edited_frame in zip(current_original_frames,current_edited_frames))
-    current_change_summary=f'\n\n좌표 변경: **{current_changed_count} / {len(current_edited_frames)}프레임** · 출력 {current_pending_record["payload"]["columns"]}열. 저장 시 시트 이미지를 재배치합니다.'
+    if current_original_frames:
+        current_changed_count=sum(any(current_original_frame['rect'][current_field_name]!=current_edited_frame[current_field_name] for current_field_name in ('x','y','width','height')) or current_original_frame['anchor']['x']!=current_edited_frame['anchorX'] or current_original_frame['anchor']['y']!=current_edited_frame['anchorY'] for current_original_frame,current_edited_frame in zip(current_original_frames,current_edited_frames))
+        current_change_label=f'좌표 변경: **{current_changed_count} / {len(current_edited_frames)}프레임**'
+    else:
+        current_change_label=f'기존 좌표맵 없음 · **{current_expected_count}프레임**의 좌표맵을 새로 생성합니다.'
+    current_change_summary=f'\n\n{current_change_label} · 출력 {current_pending_record["payload"]["columns"]}열. 저장 시 시트 이미지를 재배치합니다.'
     if current_asset_record.get('source')=='baseline':
         current_pending_record['source']='baseline'
         return current_pending_record,gr.update(visible=True),f"**베이스라인 갱신 대상:** {current_asset_record['path']}\n\n이미지·좌표맵·YAML 크기와 해시를 갱신합니다. 프레임 ID와 동작 구분을 유지하고 변경 전 사본을 보관합니다."+current_change_summary
