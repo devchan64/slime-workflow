@@ -1077,3 +1077,7 @@ Fun Control의 폐기된 RGB 편집 입력과 구분한다. GUI·CLI는 같은 �
 입력·고정 버전·준비·실험 한계는 [실행 가이드](../generators/wan_animate2/README.md)를 따른다.
 
 스프라이트 시트 편집기의 **GIF 애니메이션 검수**는 편집이 반영된 크롭·앵커, 연속 프레임 범위와 검수 FPS를 사용해 흰 배경의 반복 GIF를 생성한다. 시트 번호를 지정하며 선택한 등록 클립은 자동 적용하지 않는다. GIF는 프레임 시간을 10ms 단위로 기록하므로 실제 재생 속도는 설정 FPS와 다소 다를 수 있다. 원본 시트와 등록 에셋은 변경하지 않는다. CLI는 `python3 tools/manager.py command character-animation sheet-gif --payload-file 요청.json`을 사용하며 `sheet-export`와 같은 `image`, `frames`, `columns`, 선택적 `sourceFrames`에 `fps`(4·6·8·12·16·24·30)를 추가한다. 프레임 순서는 요청 목록 순서다. 응답의 `gif`는 base64이며 `id`, `frameCount`, `durationMs`를 함께 반환한다. 생성 기록은 기존 스프라이트 편집기 작업 경로에 보관한다.
+
+## Wan2.2 RGB V2V
+
+`wan22-v2v`는 RGB 영상을 초기 잠재값으로 재생성하는 별도 실험 서비스다. `input_video` MP4 base64, `prompt`, `negative_prompt`, `denoising_strength`, `frames`, `steps`, `seed`, `width`, `height`, `action`을 `generate --payload-file`로 전달한다. Fun Control RGB 제어나 Animate-2 참조 동작 전사와 구분한다. [모델 고정·입력·준비·검증 한계](../generators/wan_v2v/README.md)를 따른다. GUI와 CLI는 같은 작업·이력·취소·재개·우선 실행·실제 파일 삭제 계약을 공유한다.

@@ -24,6 +24,7 @@ QWEN_INTERFACE_OPTIONS = {
 MANAGEMENT_INTERFACE_BUILDERS = {
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
     'wan22-vace-generator': ('wan_vace_app', 'build_vace_interface', 'url'),
+    'wan22-v2v-generator': ('wan_v2v_app', 'build_v2v_interface', 'url'),
     'wan22-animate2-generator': ('wan_animate2_app', 'build_animate_interface', 'url'),
     'wan22-fun-control-generator': ('wan_fun_app', 'build_fun_interface', 'url'),
     'map-review': ('map_review_app', 'build_map_review_interface', 'port'),
