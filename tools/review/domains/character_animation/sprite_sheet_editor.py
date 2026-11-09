@@ -16,6 +16,41 @@ SPRITE_SHEET_IMAGE_LIMIT = 8_000_000
 SPRITE_SHEET_PIXEL_LIMIT = 16_777_216
 SPRITE_SHEET_FRAME_LIMIT = 128
 SPRITE_BASELINE_ROOT = Path(__file__).resolve().parents[4] / 'baseline/character-baselines'
+SPRITE_GIF_ALLOWED_FPS = (4, 6, 8, 12, 16, 24, 30)
+SPRITE_GIF_PIXEL_BUDGET = 64_000_000
+
+
+def execute_sprite_gif_export(command_payload_value):
+    """편집 좌표를 검증하고 공통 앵커에 정렬된 검수용 GIF를 만든다."""
+    if not isinstance(command_payload_value, dict) or set(command_payload_value) not in ({'image','frames','columns','fps'}, {'image','frames','columns','fps','sourceFrames'}):
+        raise ValueError('GIF 입력 필드가 올바르지 않습니다.')
+    current_fps_value = command_payload_value['fps']
+    if type(current_fps_value) is not int or current_fps_value not in SPRITE_GIF_ALLOWED_FPS:
+        raise ValueError('지원하지 않는 검수 FPS입니다.')
+    current_sheet_request = {current_field_name: current_field_value for current_field_name,current_field_value in command_payload_value.items() if current_field_name != 'fps'}
+    current_sheet_result = execute_sprite_sheet_export(current_sheet_request)
+    current_frame_records = current_sheet_result['coordinates']['frames']
+    current_anchor_left = math.ceil(max(current_frame_record['anchor']['x'] for current_frame_record in current_frame_records))
+    current_anchor_top = math.ceil(max(current_frame_record['anchor']['y'] for current_frame_record in current_frame_records))
+    current_canvas_width = current_anchor_left + math.ceil(max(current_frame_record['rect']['width'] - current_frame_record['anchor']['x'] for current_frame_record in current_frame_records))
+    current_canvas_height = current_anchor_top + math.ceil(max(current_frame_record['rect']['height'] - current_frame_record['anchor']['y'] for current_frame_record in current_frame_records))
+    if current_canvas_width * current_canvas_height * len(current_frame_records) > SPRITE_GIF_PIXEL_BUDGET:
+        raise ValueError('GIF 전체 프레임 크기가 허용 범위를 초과합니다.')
+    current_sheet_image = Image.open(BytesIO(base64.b64decode(current_sheet_result['image']))).convert('RGBA')
+    current_output_frames = []
+    for current_frame_record in current_frame_records:
+        current_frame_rect = current_frame_record['rect']
+        current_frame_image = current_sheet_image.crop((current_frame_rect['x'], current_frame_rect['y'], current_frame_rect['x'] + current_frame_rect['width'], current_frame_rect['y'] + current_frame_rect['height']))
+        current_canvas_image = Image.new('RGBA', (current_canvas_width, current_canvas_height), 'white')
+        current_canvas_image.alpha_composite(current_frame_image, (round(current_anchor_left-current_frame_record['anchor']['x']), round(current_anchor_top-current_frame_record['anchor']['y'])))
+        current_output_frames.append(current_canvas_image.convert('RGB'))
+    current_duration_ms = max(10, round(100 / current_fps_value) * 10)
+    current_output_stream = BytesIO()
+    current_output_frames[0].save(current_output_stream, format='GIF', save_all=True, append_images=current_output_frames[1:], duration=current_duration_ms, loop=0, disposal=2)
+    current_gif_bytes = current_output_stream.getvalue()
+    current_job_path = SPRITE_SHEET_JOB_ROOT / current_sheet_result['id'][:19] / current_sheet_result['id']
+    (current_job_path/'preview.gif').write_bytes(current_gif_bytes)
+    return {'id': current_sheet_result['id'], 'gif': base64.b64encode(current_gif_bytes).decode(), 'durationMs': current_duration_ms, 'frameCount': len(current_output_frames)}
 
 
 def execute_sprite_sheet_export(command_payload_value):

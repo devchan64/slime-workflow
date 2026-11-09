@@ -11,6 +11,23 @@ from tools.review.domains.character_animation import sprite_sheet_editor
 
 
 class SpriteSheetEditorTests(unittest.TestCase):
+    def test_gif_gateway_aligns_anchors_and_rejects_invalid_fps(self):
+        current_source_image=Image.new('RGB',(8,4),'white')
+        current_source_image.putpixel((1,1),(255,0,0))
+        current_source_image.putpixel((6,2),(0,0,255))
+        current_image_stream=BytesIO();current_source_image.save(current_image_stream,format='PNG')
+        current_request_record={'image':base64.b64encode(current_image_stream.getvalue()).decode(),'frames':[{'x':0,'y':0,'width':4,'height':4,'anchorX':1,'anchorY':1},{'x':4,'y':0,'width':4,'height':4,'anchorX':2,'anchorY':2}],'columns':2,'fps':4}
+        self.assertEqual(resolve_management_command('character-animation','sheet-gif',current_request_record),('POST','/character-animation/sheet/gif'))
+        with TemporaryDirectory() as current_directory_name, patch.object(sprite_sheet_editor,'SPRITE_SHEET_JOB_ROOT',Path(current_directory_name)):
+            current_result_record=execute_management_command('character-animation','sheet-gif',current_request_record)
+            with Image.open(BytesIO(base64.b64decode(current_result_record['gif']))) as current_gif_image:
+                self.assertEqual(current_gif_image.n_frames,2)
+                self.assertEqual(current_gif_image.info['duration'],250)
+                current_gif_image.seek(0);self.assertEqual(current_gif_image.convert('RGB').getpixel((2,2)),(255,0,0))
+                current_gif_image.seek(1);self.assertEqual(current_gif_image.convert('RGB').getpixel((2,2)),(0,0,255))
+            current_request_record['fps']=0
+            with self.assertRaises(ValueError):execute_management_command('character-animation','sheet-gif',current_request_record)
+
     def test_unregistered_import_distributes_remainder_pixels(self):
         from tools.review.ui.gradio.sprite_sheet_editor_app import load_sprite_sheet_input
         with TemporaryDirectory() as current_temp_directory:

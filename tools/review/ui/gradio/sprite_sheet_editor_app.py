@@ -182,6 +182,26 @@ def export_sprite_sheet_result(current_image_data,current_frame_rows,current_col
     return [str(current_image_path),str(current_map_path)],f"완료 · 작업 ID {current_result_record['id']} · 시트와 좌표맵이 저장되었습니다."
 
 
+def export_sprite_gif_result(current_image_data,current_frame_rows,current_source_bounds,current_playback_rate,current_first_frame,current_last_frame):
+    """선택한 연속 프레임의 편집 좌표를 공용 GIF 명령으로 전달한다."""
+    current_request_record=build_sprite_sheet_payload(current_image_data,current_frame_rows,SPRITE_EDITOR_DEFAULT_COLUMNS,current_source_bounds)
+    current_frame_count=len(current_request_record['frames'])
+    if any(type(current_value) not in (int,float) or not float(current_value).is_integer() for current_value in (current_first_frame,current_last_frame,current_playback_rate)):
+        raise gr.Error('GIF 프레임 범위와 FPS는 정수여야 합니다.')
+    current_first_index,current_last_index=int(current_first_frame)-1,int(current_last_frame)
+    if not 0<=current_first_index<current_last_index<=current_frame_count:
+        raise gr.Error(f'프레임 범위는 1~{current_frame_count} 안에서 시작이 끝보다 작거나 같아야 합니다.')
+    current_request_record['frames']=current_request_record['frames'][current_first_index:current_last_index]
+    if 'sourceFrames' in current_request_record:
+        current_request_record['sourceFrames']=current_request_record['sourceFrames'][current_first_index:current_last_index]
+    current_request_record['fps']=int(current_playback_rate)
+    current_result_record=execute_remote_management_command('character-animation','sheet-gif',current_request_record)
+    current_download_directory=Path(tempfile.mkdtemp(prefix='sprite-gif-download-'))
+    current_gif_path=current_download_directory/'preview.gif'
+    current_gif_path.write_bytes(base64.b64decode(current_result_record['gif'],validate=True))
+    return str(current_gif_path),f"GIF 완료 · {current_result_record['frameCount']}프레임 · 프레임당 {current_result_record['durationMs']}ms · 작업 ID {current_result_record['id']}"
+
+
 def detect_automatic_sprite_crops(current_image_data,current_padding_value):
     if not current_image_data:
         raise gr.Error('시트 불러오기를 먼저 실행하세요.')
@@ -443,6 +463,13 @@ def build_sprite_sheet_editor_interface(current_review_port):
             current_output_columns=gr.Number(label='출력 열',value=SPRITE_EDITOR_DEFAULT_COLUMNS,precision=0)
         current_export_button=gr.Button('이미지와 좌표맵 생성',variant='primary',interactive=False)
         gr.Markdown('생성 버튼은 원본 PNG를 불러온 뒤 사용할 수 있습니다.')
+        with gr.Accordion('GIF 애니메이션 검수',open=False):
+            gr.Markdown('편집 반영된 크롭과 앵커를 사용합니다. 프레임 범위는 시트 번호이며 흰 배경·반복 재생입니다. GIF 시간 해상도로 실제 속도는 선택 FPS와 약간 다를 수 있습니다. 먼저 시트를 불러오세요.')
+            with gr.Row():
+                current_gif_first=gr.Number(label='시작 프레임',value=1,precision=0,minimum=1)
+                current_gif_last=gr.Number(label='끝 프레임',value=1,precision=0,minimum=1)
+            current_gif_button=gr.Button('GIF 생성',interactive=False)
+            current_gif_output=gr.File(label='GIF 다운로드',interactive=False)
         current_update_button=gr.Button('원본 업데이트',interactive=False)
         with gr.Group(visible=False) as current_update_group:
             current_update_summary=gr.Markdown()
@@ -463,6 +490,9 @@ def build_sprite_sheet_editor_interface(current_review_port):
         current_output_files=gr.File(label='결과 다운로드',file_count='multiple',interactive=False)
         current_status_text=gr.Textbox(label='상태',interactive=False)
         current_image_data.change(lambda current_loaded_image:gr.update(interactive=bool(current_loaded_image)),current_image_data,current_auto_button,queue=False)
+        current_image_data.change(lambda current_loaded_image:gr.update(interactive=bool(current_loaded_image)),current_image_data,current_gif_button,queue=False)
+        current_frame_rows.change(lambda current_rows:len(current_rows) if current_rows is not None else 1,current_frame_rows,current_gif_last,queue=False)
+        current_gif_button.click(export_sprite_gif_result,[current_image_data,current_frame_rows,current_source_bounds,current_playback_rate,current_gif_first,current_gif_last],[current_gif_output,current_status_text],trigger_mode='once')
         current_image_data.change(lambda current_loaded_image: [gr.update(interactive=bool(current_loaded_image)) for current_control_index in range(5)],current_image_data,[current_play_button,current_stop_button,current_canvas_apply,current_canvas_undo,current_canvas_discard],queue=False)
         current_auto_button.click(detect_automatic_sprite_crops,[current_image_data,current_auto_padding],[current_auto_pending,current_auto_preview,current_auto_confirm,current_status_text],trigger_mode='once')
         current_auto_cancel.click(lambda:({},gr.update(visible=False),'자동 검출을 취소했습니다. 기존 편집은 유지됩니다.'),outputs=[current_auto_pending,current_auto_confirm,current_status_text],queue=False)

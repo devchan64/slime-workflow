@@ -159,6 +159,9 @@ def execute_animation_command(operation_command_name,command_payload_value):
     if operation_command_name == 'sheet-export':
         from .sprite_sheet_editor import execute_sprite_sheet_export
         return execute_sprite_sheet_export(command_payload_value)
+    if operation_command_name == 'sheet-gif':
+        from .sprite_sheet_editor import execute_sprite_gif_export
+        return execute_sprite_gif_export(command_payload_value)
     if operation_command_name in ('anchor-save','anchor-history','anchor-load','anchor-history-reset'):
         from .anchor_history import execute_anchor_history_command
         return execute_anchor_history_command(operation_command_name,command_payload_value)

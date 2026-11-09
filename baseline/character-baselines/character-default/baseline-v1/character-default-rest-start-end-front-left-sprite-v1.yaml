@@ -1,22 +1,22 @@
 schema_version: 1
 description: 기본 캐릭터 · 휴식 시작 및 휴식 해제 · 일관성 보강 24프레임 시트
 image: character-default-rest-start-end-front-left-sprite-v1.png
-sha256: 0ea6af0fd19a2c81cad4a0b8b19e7ac15dd4a30c98aa440a76ace0cdee594963
-width: 1064
-height: 1908
+sha256: cac3a4900e1f7b34a5b576f9108cdb8d3d2ab2db01ce5c1deb98cf6405c2d37e
+width: 936
+height: 1680
 layout:
   columns: 4
   rows: 6
   frame_count: 24
   order: 왼쪽에서 오른쪽, 위에서 아래
   row_heights:
-  - 395
-  - 288
-  - 276
-  - 276
-  - 277
-  - 396
-  frame_width: 266
+  - 348
+  - 253
+  - 243
+  - 243
+  - 244
+  - 349
+  frame_width: 234
 motions:
 - name: rest-start
   label: 휴식 시작
@@ -27,11 +27,13 @@ motions:
   first_frame: 13
   frame_count: 12
 background: white
-generator: imagegen
-source_sheet: .tmp/test/rest-layout-comparison/before-uniform-cv/character-default-rest-start-end-front-left-sprite-v1.png
-operation: CV로 24프레임 영역 검출 후 전체 너비 통일·행별 높이 통일·가로 중앙 및 하단 정렬
-notes: 원본 캐릭터 픽셀 확대·축소·재생성 없음. 흰 배경, 최소 여백 50px. 앵커는 라이트 아머 휴식 에셋 down-left-entry-exit-v4의
-  프레임별 양발 사이 위치와 접지선 대비 Y 보정을 참조하여 정리함. X는 두 시트의 양발 중심 사이 상대 위치를 대응하고, Y는 서 있는 프레임의
-  검출 신체 높이 중앙값 비율 289/294로 보정량을 환산함. 동일 화면 앵커 기준 24프레임 검수.
+generator: image_gen_builtin
+source_sheet: .tmp/default-chest-adjustment/rest-chest-adjusted-candidate-2.png
+operation: 사용자 승인 가슴 형태 보정 시트로 교체 및 기존 프레임별 앵커 비율 변환
+notes: 기존 시트의 프레임 좌표와 앵커를 이미지 가로·세로 크기 비율로 변환했다. 프레임별 인물 위치 변화와 재생 앵커의 미세 검수는 별도로 필요하다.
 coordinates: character-default-rest-start-end-front-left-sprite-v1.coordinates.json
-padding_px: 50
+previous_image_sha256: 0ea6af0fd19a2c81cad4a0b8b19e7ac15dd4a30c98aa440a76ace0cdee594963
+anchor_source: 교체 전 휴식 시트 좌표맵
+anchor_scale:
+  x: 0.8796992481203008
+  y: 0.8805031446540881

@@ -2,10 +2,16 @@ schema_version: 1
 description: 화면 왼쪽 앞 전신 · 480p 애니메이션 참조 · 비율 유지 및 흰 배경 중앙 배치
 source: character-default-eight-directions-v1.png
 source_sha256: 497884235649ad263ac384495184dd4aed6b1ab0aecaaa52184c5e00499e51e6
-operation: crop-resize-and-pad
+operation: crop-edit-resize-and-pad
 source_crop_box: [1152, 500, 1536, 1024]
 width: 832
 height: 480
 image: character-default-body-front-left-480p-v1.png
-sha256: 5708a271a3b95631c456337342a71a8e9419c5a590635717b2fff6916c3253e9
+sha256: 449d218b939389deb039a536d00b6ef216f80c31b8536d4ba45ff74a5fd7b3b6
 prompt: null
+latest_edit:
+  date: 2026-11-09
+  operation: 캐릭터 수평 중앙 정렬 및 흰 배경 보정
+  generator: image_gen_builtin
+  previous_image_sha256: 5708a271a3b95631c456337342a71a8e9419c5a590635717b2fff6916c3253e9
+  note: 생성된 이미지를 832×480으로 비율 유지 축소 및 흰 배경에 배치
