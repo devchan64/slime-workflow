@@ -24,9 +24,15 @@ prompt: Edit IMAGE 1 eight-direction full-body sheet, replacing the facial featu
   or replace bodies. Change only facial areas.
 word_count: 120
 prompt_sha256: 930bc6544c29aa02870ca858ed30869c6c68d86ee78a1f386c2b0cdacaa4d6a0
-image_sha256: d947e4c01d1076860d9ec1ce5660fac8c8eda291bfd13d82ed1c6d55fa473508
+image_sha256: 497884235649ad263ac384495184dd4aed6b1ab0aecaaa52184c5e00499e51e6
 registered_on: '2026-10-31'
 registration_note: 사용자 지시에 따라 기존 v1 시트를 최신 얼굴 적용 v6로 교체. reference_images의 첫 항목은 교체
   전 파일이며 reference_sha256으로 식별한다.
 historical_source_image: assets/character-baselines/character-default/baseline-v6/character-default-eight-directions-face-updated-v6.png
 historical_source_status: 등록 당시 복사 원본 경로이며 현재 실험 파일은 보관하지 않음.
+
+latest_edit:
+  date: 2026-11-09
+  operation: 가슴 윤곽과 상의 음영을 평평하게 보정한 이미지로 교체
+  generator: image_gen_builtin
+  previous_image_sha256: d947e4c01d1076860d9ec1ce5660fac8c8eda291bfd13d82ed1c6d55fa473508

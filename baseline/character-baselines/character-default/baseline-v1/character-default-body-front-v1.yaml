@@ -17,7 +17,7 @@ prompt: Create a single straight-on full-body front view of the exact upper-left
   or enlarge the head.
 word_count: 101
 prompt_sha256: 4aca2dd2c137390bf94de2a41fed48a8952a371ffeb1a858b60b86d0e2b4aa69
-image_sha256: 95c175b1e17d94494f8a5bbff446116afd402261c4cf5dd0a6f0a756b25108f4
+image_sha256: 4a8cbcace37bbd48b4261caad42c53fdb12782e490815e07e634462c2943518c
 registered_on: '2026-10-31'
 registration_note: 최신 8방향 기반 정면 전신 v7을 사용자 지시에 따라 baseline-v1에 등록.
 historical_source_image: assets/character-baselines/character-default/baseline-v7/character-default-body-front-v7.png
@@ -34,3 +34,9 @@ postprocess:
   - 782
   - 1423
   note: 흰 여백 축소 · 원본 픽셀과 머리·손·발끝 보존 · 크기 재조정 없음
+
+latest_edit:
+  date: 2026-11-09
+  operation: 가슴 윤곽과 상의 음영을 평평하게 보정한 이미지로 교체
+  generator: image_gen_builtin
+  previous_image_sha256: 95c175b1e17d94494f8a5bbff446116afd402261c4cf5dd0a6f0a756b25108f4
