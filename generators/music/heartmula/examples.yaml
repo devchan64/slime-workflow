@@ -46,7 +46,7 @@ examples:
     min_duration_seconds: 0
 - id: meadow-vocal-mr-minute
   label: 이슬초원 · 기승전결 가사곡과 MR
-  description: 목가적 실내악 · 플루트 주선율·하프·피치카토 현·클라리넷으로 가벼운 첫걸음과 열린 공간 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제
+  description: 목가적 실내악 · 플루트 주선율·하프·피치카토 현·클라리넷으로 가벼운 첫걸음과 열린 공간 표현. 도입 5행 → 변화 5행 → 후렴 6행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제
     길이·악기·전개·종결은 생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
   source_generation_id: 2026-10-25_16-11-03-8131b607
   request:
@@ -57,11 +57,23 @@ examples:
 
       Silver threads of water gleam
 
+      Wildflowers wake beneath the sun
+
+      Morning opens one by one
+
+      Petals shimmer in the air
+
       [Verse]
 
       Clouds draw shadows on the grass
 
       We slow down and let them pass
+
+      Larksong rises on the breeze
+
+      Little streams wind past our feet
+
+      Every turn reveals a dream
 
       [Chorus]
 
@@ -72,6 +84,10 @@ examples:
       Every hill beyond our view
 
       Shares the light we travel through
+
+      Hand in hand we find our way
+
+      Through the meadow into day
 
       [Outro]
 

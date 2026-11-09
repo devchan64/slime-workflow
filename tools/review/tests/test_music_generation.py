@@ -29,7 +29,7 @@ class MusicGenerationTests(unittest.TestCase):
             self.assertEqual(current_example_record['request']['duration_seconds'], 300)
             current_song_lines = current_example_record['request']['lyrics'].splitlines()
             current_section_positions = [current_song_lines.index('[Chorus]'),current_song_lines.index('[Outro]')]
-            self.assertIn((len(current_song_lines),tuple(current_section_positions)), ((9,(3,6)),(11,(3,8)),(14,(6,11)),(16,(8,13))))
+            self.assertIn((len(current_song_lines),tuple(current_section_positions)), ((9,(3,6)),(11,(3,8)),(14,(6,11)),(16,(8,13)),(22,(12,19))))
             self.assertEqual(current_song_lines[0], '[Verse]')
             self.assertEqual(len(current_song_lines)-current_song_lines.index('[Outro]')-1, 2)
 
