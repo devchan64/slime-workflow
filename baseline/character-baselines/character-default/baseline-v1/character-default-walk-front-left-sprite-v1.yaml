@@ -1,7 +1,7 @@
 schema_version: 1
 description: 기본 캐릭터 · 화면 왼쪽 앞 걷기 스프라이트 · 베이스라인 외관 및 화풍 보정
 image: character-default-walk-front-left-sprite-v1.png
-sha256: 1b1f166088c410988d7e7e79e14bb4711ba8a28c00d3bd4cc7373c7e5531050b
+sha256: 3e8e5968a1b33da1c0b65ae2d5641f4488e9159681a545667d2e7bb0bde994fe
 width: 1474
 height: 1067
 layout:
@@ -11,6 +11,9 @@ layout:
   order: 왼쪽에서 오른쪽, 위에서 아래
   playback_fps: 6
   loop: true
+  row_heights:
+  - 534
+  - 533
 background: white
 generator: image_gen
 reference: character-default-eight-directions-v1.png
@@ -41,3 +44,4 @@ latest_edit:
   image_sha256: 1b1f166088c410988d7e7e79e14bb4711ba8a28c00d3bd4cc7373c7e5531050b
   generation_record: character-default-face-style-update-20261109.yaml
   note: 생성 결과의 세부 형태가 달라 프레임 정렬과 앵커 재검수가 필요하다.
+coordinates: character-default-walk-front-left-sprite-v1.coordinates.json
