@@ -28,7 +28,6 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'wan22-animate2-generator': ('wan_animate2_app', 'build_animate_interface', 'url'),
     'wan22-fun-control-generator': ('wan_fun_app', 'build_fun_interface', 'url'),
     'map-review': ('map_review_app', 'build_map_review_interface', 'port'),
-    'character-review': ('map_review_app', 'build_map_review_interface', 'character'),
     'effect-editor': ('effect_editor_app', 'build_effect_editor_interface', 'port'),
     'asset-editor': ('asset_editor_app', 'build_asset_editor_interface', 'port'),
     'building-editor': ('building_editor_panel', 'build_building_editor_interface', 'port'),
@@ -66,8 +65,6 @@ def build_management_blocks(current_tool_name, current_review_port, current_sour
         current_builder_value = getattr(current_module_value, current_builder_name)
         if current_argument_kind == 'none':
             current_interface_blocks = current_builder_value()
-        elif current_argument_kind == 'character':
-            current_interface_blocks = current_builder_value(current_review_port, character_review_enabled=True)
         else:
             current_interface_blocks = current_builder_value(current_server_address if current_argument_kind == 'url' else current_review_port)
         if current_tool_name in ('asset-editor', 'building-editor'):
@@ -119,6 +116,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     async def dispatch_management_request(current_request_scope, current_receive_call, current_send_call):
         current_request_path = current_request_scope['path']
         current_query_values = parse_qs(current_request_scope.get('query_string', b'').decode())
+        if current_request_path.rstrip('/') == '/management/frame/character-review' or current_request_path.startswith('/management/frame/character-review/') or 'character-review' in current_query_values.get('tool', []):
+            return await Response('캐릭터 표현 검수 페이지는 폐기되었습니다.', status_code=410)(current_request_scope, current_receive_call, current_send_call)
         if current_request_path.rstrip('/') in ('/character-animation/sprite-editor-v2', '/management/frame/sprite-editor-v2') or current_request_path.startswith('/management/frame/sprite-editor-v2/'):
             current_retired_response = Response('스프라이트 정규화 편집기 v2는 폐기되었습니다.', status_code=410)
             return await current_retired_response(current_request_scope, current_receive_call, current_send_call)

@@ -406,6 +406,9 @@ def run_review_server(parsed_argument_values):
                 return True
             current_request_parts = urlsplit(self.path)
             current_tool_values = parse_qs(current_request_parts.query).get('tool', [])
+            if current_request_parts.path.rstrip('/') == '/management/frame/character-review' or current_request_parts.path.startswith('/management/frame/character-review/') or 'character-review' in current_tool_values:
+                self.send_error(410, 'Character review page has been retired.')
+                return True
             if 'sprite-editor' in current_tool_values or current_request_parts.path.rstrip('/') in ('/character-animation/sprite-editor', '/management/frame/sprite-editor'):
                 self.send_error(410, 'This editor has been retired.')
                 return True

@@ -418,7 +418,7 @@ v10은 기준 v7의 1줄 참조로 돌아가 대각선 참조를 끄고 좌우·
 
 ### 캐릭터 표현 검수 PNG 캡처
 
-GUI의 **렌더링 PNG 캡처**와 CLI는 `character-review capture` 명령을 공유합니다. 별도의 Chrome/Chromium 헤드리스 프로세스가 공용 맵 렌더러와 등록 에셋을 읽으며, 열려 있는 브라우저 탭이나 관리 UI 서버에 의존하지 않습니다. 명령 게이트웨이는 실행 중이어야 합니다.
+캐릭터 표현 검수 페이지는 폐기되었으며 CLI의 `character-review capture` 명령은 유지합니다. 별도의 Chrome/Chromium 헤드리스 프로세스가 공용 맵 렌더러와 등록 에셋을 읽으며, 열려 있는 브라우저 탭이나 관리 UI 서버에 의존하지 않습니다. 명령 게이트웨이는 실행 중이어야 합니다.
 
 ```bash
 python3 tools/manager.py help character-review capture
@@ -432,7 +432,7 @@ python3 tools/manager.py command character-review capture --payload-file /tmp/ch
 
 빈 객체 `{}`도 기본 설정으로 실행합니다. 바닥은 `paving`, `grass`, `meadow-road`, 배율은 0.05–4, 위치는 0–2, 회전 `rotation`은 0–3입니다. `shadow_profile`은 `baseline`·`contrast`·`broad`, 바닥 `contrast`는 `original`·`soft`입니다. 너비는 256–1600, 높이는 256–1200이며, 임의 URL·출력 경로는 허용하지 않습니다.
 
-`.tmp/test/character-review-capture/<한국시간>/`에 `baseline.png`, `adjusted.png`, `comparison.png`, `result.yaml`, 로그와 렌더 입력을 저장합니다. 비교 PNG의 왼쪽은 원본, 오른쪽은 조정본입니다. GUI 캡처는 현재 바닥·위치·표현 설정을 200% 배율로 768×576 캔버스 중앙에 재배치하여 저장합니다. CLI 기본 배율도 200%이며 `zoom`으로 변경할 수 있습니다. 화면의 스크롤·드래그 오프셋과 UI 컨트롤은 캡처에 포함하지 않습니다. 애니메이션 첫 프레임을 사용합니다.
+`.tmp/test/character-review-capture/<한국시간>/`에 `baseline.png`, `adjusted.png`, `comparison.png`, `result.yaml`, 로그와 렌더 입력을 저장합니다. 비교 PNG의 왼쪽은 원본, 오른쪽은 조정본입니다. CLI 기본 배율은 200%이며 `zoom`으로 변경할 수 있습니다. 화면의 스크롤·드래그 오프셋과 UI 컨트롤은 캡처에 포함하지 않습니다. 애니메이션 첫 프레임을 사용합니다.
 
 캡처의 `outline_width`는 어두운 형태선의 100% 기준 픽셀 폭(1–4, 소수 허용, 기본 1)입니다. 밝은 분리선은 형태선 바깥 100% 기준 1px 띠입니다. 두 선 모두 배율에 선형 비례하며 200%에서는 기본 형태선 2px·분리선 2px로 표시됩니다.
 

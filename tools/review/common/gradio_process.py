@@ -106,7 +106,6 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'qwen-2511':('qwen_2511_app.py',104,'/management/frame/three-reference-generator/'),
             'floor-tile':('floor_tile_app.py',113,'/management/frame/floor-tile-generator/'),
             'sprite-editor':('sprite_editor_app.py',106,'/management/frame/sprite-editor/'),
-            'character-review':('character_review_app.py',122,'/management/frame/character-review/'),
             'asset-editor':('asset_editor_app.py',136,'/management/frame/asset-editor/'),
             'world-map':('world_map_app.py',135,'/management/frame/world-map/'),
             'map-review':('map_review_app.py',107,'/management/frame/map-review/'),
