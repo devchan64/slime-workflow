@@ -17,7 +17,7 @@ FUN_MODEL_FILES = {
 }
 FUN_DEFAULT_SETTINGS = {'frames': 21, 'steps': 20, 'seed': 42, 'flow_shift': 5.0, 'guidance_scale': 6.0, 'switch_ratio': 0.5}
 FUN_MAX_FRAME_COUNT = 129
-FUN_CONTROL_TYPES = ('pose', 'depth', 'canny', 'mlsd', 'rgb')
+FUN_CONTROL_TYPES = ('pose', 'depth', 'canny', 'mlsd')
 
 
 def inspect_fun_assets():
@@ -39,13 +39,21 @@ def validate_fun_assets():
         raise ValueError(current_asset_status['message'])
 
 
+def reject_retired_rgb_input(current_request_record):
+    if isinstance(current_request_record, dict) and (
+        current_request_record.get('input_mode') == 'rgb-video'
+        or current_request_record.get('control_type') == 'rgb'
+        or 'rgb_video' in current_request_record
+        or 'rgb_video_file' in current_request_record
+    ):
+        raise ValueError('RGB 영상 직접 입력 기능은 폐기되었습니다. 기존 결과 조회만 가능합니다. 포즈 영상 또는 참조 전용 모드로 새 작업을 생성하세요.')
+
+
 def validate_fun_request(current_request_record):
-    current_rgb_input = isinstance(current_request_record, dict) and 'rgb_video' in current_request_record
+    reject_retired_rgb_input(current_request_record)
     current_pose_input = isinstance(current_request_record,dict) and 'pose_video' in current_request_record
     current_video_input = isinstance(current_request_record, dict) and 'driving_video' in current_request_record
     required_field_names = {'action', 'prompt', 'negative_prompt', 'images', 'width', 'height', 'frames', 'steps', 'seed', 'flow_shift', 'guidance_scale', 'switch_ratio', 'control_type'}
-    if current_rgb_input:
-        required_field_names.add('rgb_video')
     if current_pose_input:
         required_field_names.add('pose_video')
     if current_video_input:
@@ -57,15 +65,8 @@ def validate_fun_request(current_request_record):
     if not isinstance(current_request_record, dict) or not required_field_names <= set(current_request_record) or set(current_request_record) - required_field_names - optional_field_names:
         raise ValueError('Fun Control 요청 필드가 맞지 않습니다.')
     current_input_mode = current_request_record.get('input_mode', 'controlled')
-    if current_input_mode not in ('controlled', 'reference-only', 'rgb-video'):
+    if current_input_mode not in ('controlled', 'reference-only'):
         raise ValueError('지원하지 않는 입력 모드입니다.')
-    if current_rgb_input != (current_input_mode == 'rgb-video') or ((current_input_mode == 'rgb-video') != (current_request_record['control_type'] == 'rgb')):
-        raise ValueError('RGB 영상은 rgb-video 모드와 rgb 제어 종류를 함께 지정하세요.')
-    if current_rgb_input:
-        if current_pose_input or current_video_input:
-            raise ValueError('RGB 영상과 포즈·SOMA 영상은 함께 입력할 수 없습니다.')
-        from generators.wan_fun.video_input import validate_direct_control_video
-        validate_direct_control_video(current_request_record['rgb_video'], current_request_record['frames'])
     current_reference_only = current_input_mode == 'reference-only'
     if current_reference_only and (current_pose_input or current_video_input):
         raise ValueError('참조 전용 모드에는 제어 영상을 함께 입력할 수 없습니다.')
@@ -93,7 +94,7 @@ def validate_fun_request(current_request_record):
             raise ValueError(f'{current_field_name}: {minimum_field_value}~{maximum_field_value} 범위가 필요합니다.')
     if current_request_record['control_type'] not in FUN_CONTROL_TYPES:
         raise ValueError('제어 영상 종류를 확인하세요.')
-    if not isinstance(current_request_record['images'], list) or len(current_request_record['images']) != (1 if current_reference_only or current_video_input or current_pose_input or current_rgb_input else current_request_record['frames'] + 1):
+    if not isinstance(current_request_record['images'], list) or len(current_request_record['images']) != (1 if current_reference_only or current_video_input or current_pose_input else current_request_record['frames'] + 1):
         raise ValueError('외형 참조 1장과 출력 프레임 수만큼의 제어 프레임이 필요합니다.')
     for current_image_text in current_request_record['images']:
         with Image.open(io.BytesIO(decode_reference_image(current_image_text))) as current_image_object:

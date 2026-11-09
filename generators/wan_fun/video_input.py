@@ -29,7 +29,7 @@ def validate_fun_driving_video(current_encoded_video, current_frame_count):
             current_video_capture.release()
 
 
-def validate_direct_control_video(current_encoded_video,current_frame_count):
+def validate_processed_pose_video(current_encoded_video,current_frame_count):
     """처리된 포즈는 재검출·리사이즈·시간 변환 없이 사용할 수 있어야 한다."""
     validate_fun_driving_video(current_encoded_video,current_frame_count)
     with tempfile.NamedTemporaryFile(suffix='.mp4') as current_video_file:
@@ -38,30 +38,24 @@ def validate_direct_control_video(current_encoded_video,current_frame_count):
         current_video_capture = cv2.VideoCapture(current_video_file.name)
         try:
             if abs(current_video_capture.get(cv2.CAP_PROP_FPS)-16)>0.01 or (int(current_video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)),int(current_video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT)))!=(832,480):
-                raise ValueError('직접 입력 MP4는 832×480 · 16fps여야 합니다.')
+                raise ValueError('처리된 포즈 MP4는 832×480 · 16fps여야 합니다. Kimodo DWPose 출력을 사용하세요.')
         finally:
             current_video_capture.release()
-
-
-def validate_processed_pose_video(current_encoded_video,current_frame_count):
-    return validate_direct_control_video(current_encoded_video,current_frame_count)
 
 
 def decode_processed_pose_video(current_job_root,current_attempt_root,current_request_record):
     import hashlib
     from PIL import Image
-    current_video_kind = 'rgb' if current_request_record.get('input_mode') == 'rgb-video' else 'pose'
-    current_video_filename = current_video_kind+'-input.mp4'
-    current_video_path = current_job_root/current_video_filename
-    if current_request_record[current_video_kind+'_video_file']!=current_video_filename or hashlib.sha256(current_video_path.read_bytes()).hexdigest()!=current_request_record[current_video_kind+'_video_sha256']:
-        raise ValueError('제어 MP4 입력 사본 해시 불일치')
+    current_video_path = current_job_root/'pose-input.mp4'
+    if current_request_record['pose_video_file']!='pose-input.mp4' or hashlib.sha256(current_video_path.read_bytes()).hexdigest()!=current_request_record['pose_video_sha256']:
+        raise ValueError('포즈 MP4 입력 사본 해시 불일치')
     current_output_paths = []
     current_video_capture = cv2.VideoCapture(str(current_video_path))
     try:
         for current_frame_index in range(current_request_record['frames']):
             current_frame_ready,current_frame_image = current_video_capture.read()
             if not current_frame_ready:
-                raise ValueError('제어 MP4 프레임 부족')
+                raise ValueError('포즈 MP4 프레임 부족')
             current_output_path = current_attempt_root/f'control-{current_frame_index:03d}.png'
             Image.fromarray(cv2.cvtColor(current_frame_image,cv2.COLOR_BGR2RGB)).save(current_output_path)
             current_output_paths.append(current_output_path)
