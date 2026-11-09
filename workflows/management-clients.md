@@ -1072,4 +1072,11 @@ GUI·CLI는 `character-animation sheet-auto`의 `{image: PNG base64, padding: 30
 
 RGB 영상 직접 입력 실험은 폐기했습니다. 신규 생성·기존 RGB 작업 재개·입력값 복원은 거절하며, 기존 결과와 실행 기록 조회는 유지합니다. 포즈 영상 또는 참조 이미지 전용 모드를 사용하세요.
 
+### Animate-2 동작 전사
+
+`wan22-animate2`는 별도 공식 Base 모델로 RGB 동작 MP4와 캐릭터 참조를 받는다.
+Fun Control의 폐기된 RGB 편집 입력과 구분한다. GUI·CLI는 같은 게이트웨이와
+`.tmp/test/wan22-animate2/` 작업 저장소를 사용한다. `generate --payload-file`의
+입력·고정 버전·준비·실험 한계는 [실행 가이드](../generators/wan_animate2/README.md)를 따른다.
+
 스프라이트 시트 편집기의 **GIF 애니메이션 검수**는 편집이 반영된 크롭·앵커, 연속 프레임 범위와 검수 FPS를 사용해 흰 배경의 반복 GIF를 생성한다. 시트 번호를 지정하며 선택한 등록 클립은 자동 적용하지 않는다. GIF는 프레임 시간을 10ms 단위로 기록하므로 실제 재생 속도는 설정 FPS와 다소 다를 수 있다. 원본 시트와 등록 에셋은 변경하지 않는다. CLI는 `python3 tools/manager.py command character-animation sheet-gif --payload-file 요청.json`을 사용하며 `sheet-export`와 같은 `image`, `frames`, `columns`, 선택적 `sourceFrames`에 `fps`(4·6·8·12·16·24·30)를 추가한다. 프레임 순서는 요청 목록 순서다. 응답의 `gif`는 base64이며 `id`, `frameCount`, `durationMs`를 함께 반환한다. 생성 기록은 기존 스프라이트 편집기 작업 경로에 보관한다.

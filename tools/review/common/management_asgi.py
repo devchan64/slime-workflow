@@ -26,6 +26,7 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
     'wan22-vace-generator': ('wan_vace_app', 'build_vace_interface', 'url'),
     'animation-separation': ('animation_separation_app', 'build_separation_interface', 'url'),
+    'wan22-animate2-generator': ('wan_animate2_app', 'build_animate_interface', 'url'),
     'wan22-fun-control-generator': ('wan_fun_app', 'build_fun_interface', 'url'),
     'map-review': ('map_review_app', 'build_map_review_interface', 'port'),
     'character-review': ('map_review_app', 'build_map_review_interface', 'character'),
