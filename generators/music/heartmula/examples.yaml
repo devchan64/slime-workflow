@@ -2,9 +2,9 @@ version: 1
 examples:
 - id: iseulon-vocal-mr-minute
   label: 이슬온 · 기승전결 가사곡과 MR
-  description: 목가적 포크 · 피아노 선율과 하프 분산화음, 플루트 응답, 첼로 저음으로 포근한 귀환감을 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제
+  description: 목가적 포크 · 피아노 선율과 하프 분산화음, 플루트 응답, 첼로 저음으로 포근한 귀환감을 표현. 도입 3행 → 변화 3행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제
     길이·악기·전개·종결은 생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
-  source_generation_id: 신규 실험 · 74.72초 가사곡보다 가사를 8행에서 6행으로 축소
+  source_generation_id: 신규 실험 · 기존 이슬온 예제 가사를 10행에서 12행으로 확장
   request:
     prompt: pastoral folk,lyrical piano,harp,flute,cello,warm,intimate,gentle,female vocals
     lyrics: '[Verse]
@@ -13,11 +13,15 @@ examples:
 
       Dewdrops shine after the rain
 
+      Sunlight dances through the trees
+
       [Verse]
 
       Footsteps hurry past the square
 
       Then a greeting holds us there
+
+      Familiar voices fill the air
 
       [Chorus]
 
