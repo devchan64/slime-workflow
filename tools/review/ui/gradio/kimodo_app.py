@@ -197,7 +197,7 @@ def render_kimodo_result(current_job_identifier,current_status_record,current_se
             current_pose_status_html+='<p><strong>DWPose: 생성 오류 · 경고</strong> — '+html.escape(current_status_record.get('dwpose_error','상세 원인은 실행 로그를 확인하세요.'))+'<br>직접 포즈는 사용할 수 있으며 전체 모션 작업은 완료됐습니다.</p>'
         else:
             current_pose_status_html+='<p>DWPose: '+('생성 완료' if current_status_record.get('dwpose_status')=='completed' else '결과 기록 없음')+'</p>'
-        return current_pose_status_html+'<p>SOMA 렌더: 원본 동작 검수 · 직접 포즈: SOMA 관절 투영 · DWPose: 렌더에서 검출한 포즈. Fun Control에는 직접 포즈 또는 DWPose MP4를 입력하세요. 참조 비율은 포즈 출력에 적용하며 SOMA 원본은 유지합니다.</p><p><a href="#kimodo-history-keyframe-save">선택한 이력의 키프레임 저장 영역으로 이동</a></p>'+render_condition_video_previews(current_status_record)+'<p>전체 미리보기와 다운로드</p>'+render_video_generation_result(current_job_identifier,current_status_record,current_server_address)
+        return current_pose_status_html+'<p>SOMA 렌더: 원본 동작 검수 · 직접 포즈: SOMA 관절 투영 · DWPose: 렌더에서 검출한 포즈. Fun Control에 입력할 때 30fps 영상은 16fps로 변환하세요. 참조 비율은 포즈 출력에 적용하며 SOMA 원본은 유지합니다.</p><p><a href="#kimodo-history-keyframe-save">선택한 이력의 키프레임 저장 영역으로 이동</a></p>'+render_condition_video_previews(current_status_record)+'<p>전체 미리보기와 다운로드</p>'+render_video_generation_result(current_job_identifier,current_status_record,current_server_address)
     current_comparison_url = current_status_record.get('comparison_video')
     if not current_comparison_url:
         return render_video_generation_result(current_job_identifier,current_status_record,current_server_address)+'<p>이 결과에는 오픈포즈 비교 영상이 없습니다.</p>'
@@ -217,7 +217,7 @@ def render_kimodo_result(current_job_identifier,current_status_record,current_se
 def build_kimodo_interface(current_server_address,current_command_callback=None):
     current_execute_command = current_command_callback or execute_kimodo_command
     with gr.Blocks(title='Kimodo 모션 생성기') as current_interface_blocks:
-        gr.Markdown('## Kimodo 모션 생성기 · NF4 실험\n텍스트로 SOMA 모션을 생성한 뒤 이 생성기에서 VideoX-Fun DWPose 검출과 선택 참조 관절 길이 보정을 수행합니다. Fun Control에는 결과의 DWPose MP4를 입력하세요. SOMA 렌더는 검수용입니다.')
+        gr.Markdown('## Kimodo 모션 생성기 · NF4 실험\n텍스트로 SOMA 모션을 생성한 뒤 이 생성기에서 VideoX-Fun DWPose 검출과 선택 참조 관절 길이 보정을 수행합니다. Fun Control 입력에는 결과 포즈 영상을 16fps로 변환하세요. SOMA 렌더는 검수용입니다.')
         with gr.Accordion('고정 설정 · 모델 준비',open=False):
             gr.Markdown('고정: Kimodo-SOMA-RP-v1.2 · 모션 FP32 · LLM2Vec Llama 3 8B NF4 / BF16 연산 · CUDA · 30fps · 1개 샘플 · DDIM. 인코딩 후 인코더를 해제하고 모션을 생성합니다. 이후 모션 모델을 해제하고 SOMA 몸 관절을 512×512·30fps 정사영 포즈로 변환합니다. 모델 선택·부정 프롬프트는 제공하지 않습니다. 선택 이미지 참조는 모션 모델 입력이 아니라 OpenPose 출력 비율 보정에 사용합니다.')
         current_model_ready = gr.State(False)
@@ -401,7 +401,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         with gr.Row():
             current_hands_control = gr.Checkbox(value=False,label='DWPose 손 상세 포함',info='현재 시험에서는 주먹을 쥔 손가락 자세가 표현되지 않았습니다. 손 상세 포함은 DWPose 검출 결과를 표시하는 옵션이며 주먹 자세를 보장하지 않습니다.')
             current_face_control = gr.Checkbox(value=False,label='DWPose 얼굴 상세 포함')
-        gr.Markdown('SOMA 렌더 → VideoX-Fun DWPose → 선택 참조 관절 길이 보정 → 832×480 · 16fps 포즈 MP4. 몸 18점의 코·눈·귀는 유지합니다. 방향별 3D 투영과 2D 검출 비율을 비교하여 영상 전체에 고정 배율을 적용합니다.')
+        gr.Markdown('SOMA 렌더 → VideoX-Fun DWPose → 선택 참조 관절 길이 보정 → 832×480 · 30fps 포즈 MP4. Fun Control의 현행 입력은 16fps이므로 별도 변환이 필요합니다. 몸 18점의 코·눈·귀는 유지합니다.')
         current_prompt_control.change(describe_kimodo_prompt,[current_prompt_control,current_segment_control],current_prompt_summary,queue=False)
         current_segment_control.change(describe_kimodo_prompt,[current_prompt_control,current_segment_control],current_prompt_summary,queue=False)
         current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control,current_horizontal_control,current_proportions_control,current_reference_control,current_scale_control,current_hands_control,current_face_control,current_segment_control,current_endpoint_selector,current_keyframe_rows,current_elevation_control]

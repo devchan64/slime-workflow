@@ -7,7 +7,7 @@ from PIL import ImageOps
 from generators.kimodo.soma_pose import project_recorded_camera_points, SOMA_BODY_JOINT_NAMES
 from generators.kimodo.pose_rendering import render_fun_control_body
 
-DIRECT_POSE_OUTPUT_FPS = 16
+DIRECT_POSE_OUTPUT_FPS = 30
 DIRECT_POSE_OUTPUT_SIZE = (832, 480)
 
 

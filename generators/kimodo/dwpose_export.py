@@ -15,9 +15,10 @@ from generators.kimodo.dwpose_runtime import prepare_fun_pose_frames
 
 PROJECTION_GAIN_MINIMUM = 0.4
 PROJECTION_GAIN_MAXIMUM = 2.5
+KIMODO_DWPOSE_OUTPUT_FPS = 30
 
 
-def calculate_projected_segment_gains(current_attempt_root, current_ratio_record, current_detected_frames, current_direction_name):
+def calculate_projected_segment_gains(current_attempt_root, current_ratio_record, current_detected_frames, current_direction_name, current_output_fps=16):
     """3D 투영 단축과 실제 검출 비율을 비교해 영상 전체에 적용할 고정 배율을 구한다."""
     from generators.kimodo.contracts import KIMODO_DIRECTION_RECORDS
     current_skeleton_record = json.loads((current_attempt_root/'skeleton.json').read_text())
@@ -36,7 +37,7 @@ def calculate_projected_segment_gains(current_attempt_root, current_ratio_record
     current_reference_samples = {current_group_name: [] for current_group_name in REFERENCE_SEGMENT_GROUPS}
     current_detected_samples = {current_group_name: [] for current_group_name in REFERENCE_SEGMENT_GROUPS}
     for current_frame_index, current_frame_records in enumerate(current_detected_frames):
-        current_motion_index = round(current_frame_index * 30 / 16)
+        current_motion_index = round(current_frame_index * 30 / current_output_fps)
         if current_motion_index >= len(current_motion_positions):
             raise ValueError('DWPose와 SOMA 프레임 수가 일치하지 않습니다.')
         current_body_points = current_frame_records[0].body.keypoints
@@ -155,18 +156,18 @@ def export_kimodo_dwpose(current_job_root,current_attempt_root):
         current_work_directory = current_attempt_root/f'dwpose-{current_direction_name}'
         current_work_directory.mkdir()
         shutil.copy2(current_source_path,current_work_directory/'driving.mp4')
-        current_pose_request = {'driving_video_file':'driving.mp4','driving_video_sha256':hashlib.sha256(current_source_path.read_bytes()).hexdigest(),'frames':int((current_request_record['frames']-1)*16/30)+1,'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False)}
+        current_pose_request = {'driving_video_file':'driving.mp4','driving_video_sha256':hashlib.sha256(current_source_path.read_bytes()).hexdigest(),'frames':current_request_record['frames'],'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False)}
         current_direction_measurement={}
         def transform_detected_frames(current_frames,current_shape):
-            current_gains = calculate_projected_segment_gains(current_attempt_root,current_ratio_record,current_frames,current_direction_name) if current_ratio_record else {}
+            current_gains = calculate_projected_segment_gains(current_attempt_root,current_ratio_record,current_frames,current_direction_name,KIMODO_DWPOSE_OUTPUT_FPS) if current_ratio_record else {}
             current_direction_gains[current_direction_name] = current_gains
             return adjust_detected_pose_frames(current_frames,current_shape,current_gains,current_request_record.get('openpose_scale_percent',85),current_ratio_record,current_direction_measurement)
-        prepare_fun_pose_frames(current_work_directory,current_work_directory,current_pose_request,transform_detected_frames)
+        prepare_fun_pose_frames(current_work_directory,current_work_directory,current_pose_request,transform_detected_frames,current_output_fps=KIMODO_DWPOSE_OUTPUT_FPS)
         current_axis_measurements[current_direction_name]=current_direction_measurement
         current_output_name = f'dwpose-{current_direction_name}.mp4'
         shutil.copy2(current_work_directory/'pose.mp4',current_attempt_root/current_output_name)
         current_output_videos[current_direction_name] = current_output_name
-    (current_attempt_root/'dwpose-export.json').write_text(json.dumps({'videos':current_output_videos,'fps':16,'width':832,'height':480,'segment_gains_by_direction':current_direction_gains,'body_axis':current_axis_measurements,'length_basis':'SOMA 3D 투영 단축과 DWPose 검출 비율을 방향별로 비교한 영상 전체 고정 배율','scale_percent':current_request_record.get('openpose_scale_percent',85),'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False)},ensure_ascii=False))
+    (current_attempt_root/'dwpose-export.json').write_text(json.dumps({'videos':current_output_videos,'fps':KIMODO_DWPOSE_OUTPUT_FPS,'width':832,'height':480,'segment_gains_by_direction':current_direction_gains,'body_axis':current_axis_measurements,'length_basis':'SOMA 3D 투영 단축과 DWPose 검출 비율을 방향별로 비교한 영상 전체 고정 배율','scale_percent':current_request_record.get('openpose_scale_percent',85),'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False)},ensure_ascii=False))
 
 
 if __name__ == '__main__':

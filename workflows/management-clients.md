@@ -933,6 +933,8 @@ GUI와 CLI는 `map-assets effect-list`, `effect-load`, `effect-save`를 공유�
 
 Kimodo 출력 방향: GUI의 `출력 방향 · 복수 선택`과 CLI JSON의 `directions` 배열을 공유한다. 허용 방향은 생성기 README를 따른다. 생략한 과거 요청은 `front_left`, 빈 배열·중복·미지원 값은 거절한다. 여러 방향은 비교 MP4와 ZIP의 방향별 원본 PNG·MP4로 저장하며 모션 추론은 한 번만 실행한다.
 
+Kimodo 신규 직접 포즈·DWPose 영상은 SOMA 원본과 동일한 30fps·동일 프레임 수다. 기존 16fps 이력은 유지한다. Fun Control과 VACE의 현행 처리 포즈 입력은 16fps이므로 전달 전에 별도 변환해야 한다.
+
 Kimodo 카메라 고도: GUI의 `카메라 고도`와 CLI JSON의 `camera_elevation_degrees`는 정수 0·15·30을 사용한다. 양수는 대상 위에서 내려다보는 각도이며, 생략한 과거 요청은 0도다. 좌우 출력 방향과 함께 적용하고 SOMA 렌더·직접 포즈·DWPose 비율 계산에 같은 카메라 회전을 사용한다. 이력 복원 시 저장된 고도를 불러오며 모션 원본은 회전하지 않는다.
 
 
@@ -1052,7 +1054,7 @@ Kimodo `keyframe-save --payload-file`은 `job_id`, `attempt_id`, `frame`, `tag` 
 
 `keyframe-retire --payload-file`은 `{"ids":["<키프레임 ID>"]}`를 받아 사용자 항목을 최대 20개까지 검사한 뒤 `.retired/`에 보존하고 선택 목록에서 제외한다. 제작 기준 예제와 기존 생성 작업의 입력 사본은 유지한다. GUI는 목록 새로고침과 항목 선택 후 인라인 확인·취소를 제공한다.
 
-`kimodo generate --payload-file`에 `keyframes: [{"id":"<저장 ID>","frame":1},{"id":"<저장 ID>","frame":90}]`를 넣으면 원본 자세 사본을 작업 폴더에 보존하고 지정한 1부터 시작하는 출력 프레임에 전신 제약을 적용한다. 첫 키프레임의 평활 루트 XZ를 원점으로 하며 나머지 키프레임의 원본 좌표 차이를 유지하므로, 서로 다른 원본의 좌표계가 일치하는지 확인해야 한다. 공식 후처리가 필요하고 수평 이동 제거와 동시 사용은 거절하며 순차 프롬프트 구간과 함께 사용할 수 있다. `keyframe-constraints.json`과 `keyframe-measurement.json`에 제약 및 각 77관절 오차를 기록한다. GUI와 CLI는 같은 입력·출처·결과를 사용한다. 재생기는 원본 관절 미리보기이며 16fps DWPose 출력과 프레임 번호를 혼동하지 않는다.
+`kimodo generate --payload-file`에 `keyframes: [{"id":"<저장 ID>","frame":1},{"id":"<저장 ID>","frame":90}]`를 넣으면 원본 자세 사본을 작업 폴더에 보존하고 지정한 1부터 시작하는 출력 프레임에 전신 제약을 적용한다. 첫 키프레임의 평활 루트 XZ를 원점으로 하며 나머지 키프레임의 원본 좌표 차이를 유지하므로, 서로 다른 원본의 좌표계가 일치하는지 확인해야 한다. 공식 후처리가 필요하고 수평 이동 제거와 동시 사용은 거절하며 순차 프롬프트 구간과 함께 사용할 수 있다. `keyframe-constraints.json`과 `keyframe-measurement.json`에 제약 및 각 77관절 오차를 기록한다. GUI와 CLI는 같은 입력·출처·결과를 사용한다. 신규 포즈 출력과 원본 관절 미리보기는 30fps이며 이전 16fps 이력의 프레임 번호는 다르다.
 
 ### 등록 애니메이션 좌표 저장
 

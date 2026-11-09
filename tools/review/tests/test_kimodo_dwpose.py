@@ -8,6 +8,27 @@ from generators.kimodo.dwpose_export import adjust_detected_pose_frames
 from generators.wan_fun.video_input import validate_processed_pose_video
 
 class KimodoDwposeTests(unittest.TestCase):
+    def test_kimodo_dwpose_exports_every_source_frame_at_30fps(self):
+        import json
+        from unittest.mock import patch
+        from generators.kimodo.dwpose_export import export_kimodo_dwpose
+        with tempfile.TemporaryDirectory() as current_temporary_root:
+            current_job_root=Path(current_temporary_root)/'job'
+            current_attempt_root=current_job_root/'attempt'
+            current_attempt_root.mkdir(parents=True)
+            (current_job_root/'request.json').write_text(json.dumps({'frames':40,'directions':['front']}))
+            (current_attempt_root/'soma-render-front.mp4').write_bytes(b'fixture')
+            current_calls=[]
+            def prepare_fixture_pose(current_job_directory,current_output_directory,current_pose_request,current_pose_transform=None,current_output_fps=16):
+                current_calls.append((current_pose_request['frames'],current_output_fps))
+                (current_output_directory/'pose.mp4').write_bytes(b'fixture')
+            with patch('generators.kimodo.dwpose_export.prepare_fun_pose_frames',side_effect=prepare_fixture_pose):
+                export_kimodo_dwpose(current_job_root,current_attempt_root)
+            current_export_record=json.loads((current_attempt_root/'dwpose-export.json').read_text())
+            self.assertEqual(current_calls,[(40,30)])
+            self.assertEqual(current_export_record['fps'],30)
+            self.assertEqual((current_attempt_root/'dwpose-front.mp4').read_bytes(),b'fixture')
+
     def test_projection_calibration_corrects_detector_bias_without_flattening_motion(self):
         import json
         from generators.kimodo.dwpose_export import calculate_projected_segment_gains

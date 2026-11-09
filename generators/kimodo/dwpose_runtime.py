@@ -34,7 +34,7 @@ def render_selected_pose_parts(current_pose_records, current_image_shape, curren
     return draw_pose(current_selected_records, *current_image_shape)
 
 
-def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_request_record, current_pose_transform=None):
+def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_request_record, current_pose_transform=None, current_output_fps=16):
     import cv2
     import numpy as np
     import torch
@@ -71,7 +71,7 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
     current_detected_frames = []
     try:
         for current_frame_index in range(current_request_record['frames']):
-            current_video_capture.set(cv2.CAP_PROP_POS_FRAMES, round(current_frame_index*current_source_fps/16))
+            current_video_capture.set(cv2.CAP_PROP_POS_FRAMES, round(current_frame_index*current_source_fps/current_output_fps))
             current_frame_ready, current_frame_array = current_video_capture.read()
             if not current_frame_ready:
                 raise ValueError('SOMA 영상 길이 부족')
@@ -90,7 +90,7 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
         if current_pose_transform is not None:
             current_detected_frames = current_pose_transform(current_detected_frames, current_padded_image.shape[:2])
         (current_attempt_root/'pose-keypoints-adjusted.json').write_text(json.dumps(current_detected_frames,default=lambda current_scalar_value:current_scalar_value.item()))
-        with imageio.get_writer(str(current_attempt_root/'pose.mp4'), fps=16, codec='libx264', quality=8, macro_block_size=1) as current_video_writer:
+        with imageio.get_writer(str(current_attempt_root/'pose.mp4'), fps=current_output_fps, codec='libx264', quality=8, macro_block_size=1) as current_video_writer:
             for current_frame_index in range(current_request_record['frames']):
                 current_pose_records = current_detected_frames[current_frame_index]
                 current_pose_image = render_selected_pose_parts(current_pose_records, current_padded_image.shape[:2], current_include_hands, current_include_face)[:current_scaled_height, :current_scaled_width]
@@ -104,7 +104,7 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
                 print(time.strftime('%Y-%m-%dT%H:%M:%S')+f'/fun/pose {current_frame_index+1}/{current_request_record["frames"]}', flush=True)
     finally:
         current_video_capture.release()
-    (current_attempt_root/'pose-preprocess.json').write_text(json.dumps({'source': 'VideoX-Fun VideoToPose / DWposeDetector', 'revision': FUN_POSE_SOURCE_REVISION, 'model_revision': FUN_POSE_MODEL_REVISION, 'backend': 'ONNX Runtime CUDA; CPU fallback disabled', 'source_fps': current_source_fps, 'output_fps': 16, 'pose_include_hands': current_include_hands, 'pose_include_face': current_include_face, 'body_head_points': True, 'frames': current_frame_paths}, ensure_ascii=False))
+    (current_attempt_root/'pose-preprocess.json').write_text(json.dumps({'source': 'VideoX-Fun VideoToPose / DWposeDetector', 'revision': FUN_POSE_SOURCE_REVISION, 'model_revision': FUN_POSE_MODEL_REVISION, 'backend': 'ONNX Runtime CUDA; CPU fallback disabled', 'source_fps': current_source_fps, 'output_fps': current_output_fps, 'pose_include_hands': current_include_hands, 'pose_include_face': current_include_face, 'body_head_points': True, 'frames': current_frame_paths}, ensure_ascii=False))
     return current_frame_paths
 
 

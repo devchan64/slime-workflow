@@ -141,7 +141,7 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
             raise ValueError(f'출력 비유한 값: {current_field_name}')
     if current_request_record.get('endpoint_pose_id'):
         current_endpoint_distances = np.linalg.norm(current_joint_positions[-1]-current_joint_positions[0],axis=-1)
-        write_record_atomically(current_attempt_root/'endpoint-measurement.json',{'pose_id':current_request_record['endpoint_pose_id'],'unit':'meters','mean_joint_distance':float(current_endpoint_distances.mean()),'maximum_joint_distance':float(current_endpoint_distances.max()),'scope':'생성 SOMA 원본 첫·마지막 프레임 · 렌더/16fps 변환 전'})
+        write_record_atomically(current_attempt_root/'endpoint-measurement.json',{'pose_id':current_request_record['endpoint_pose_id'],'unit':'meters','mean_joint_distance':float(current_endpoint_distances.mean()),'maximum_joint_distance':float(current_endpoint_distances.max()),'scope':'생성 SOMA 원본 첫·마지막 프레임 · 렌더 및 포즈 출력 전'})
     if current_request_record.get('keyframes'):
         from tools.review.domains.kimodo.keyframe_storage import load_kimodo_keyframe_snapshot
         current_keyframe_placements = current_request_record['keyframes']
