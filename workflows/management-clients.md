@@ -933,6 +933,8 @@ GUI와 CLI는 `map-assets effect-list`, `effect-load`, `effect-save`를 공유�
 
 Kimodo 출력 방향: GUI의 `출력 방향 · 복수 선택`과 CLI JSON의 `directions` 배열을 공유한다. 허용 방향은 생성기 README를 따른다. 생략한 과거 요청은 `front_left`, 빈 배열·중복·미지원 값은 거절한다. 여러 방향은 비교 MP4와 ZIP의 방향별 원본 PNG·MP4로 저장하며 모션 추론은 한 번만 실행한다.
 
+Kimodo 카메라 고도: GUI의 `카메라 고도`와 CLI JSON의 `camera_elevation_degrees`는 정수 0·15·30을 사용한다. 양수는 대상 위에서 내려다보는 각도이며, 생략한 과거 요청은 0도다. 좌우 출력 방향과 함께 적용하고 SOMA 렌더·직접 포즈·DWPose 비율 계산에 같은 카메라 회전을 사용한다. 이력 복원 시 저장된 고도를 불러오며 모션 원본은 회전하지 않는다.
+
 
 ### 개발 DB의 배포 원장 출력 — 2026-10-30
 

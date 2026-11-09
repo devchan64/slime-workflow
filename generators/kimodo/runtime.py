@@ -175,7 +175,7 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     from generators.kimodo.soma_render import render_soma_motion
     from generators.kimodo.contracts import KIMODO_DIRECTION_RECORDS
     current_metrics_recorder.update_generation_stage('soma-render')
-    current_soma_videos = render_soma_motion(current_attempt_root, {current_direction_name: KIMODO_DIRECTION_RECORDS[current_direction_name]['angle'] for current_direction_name in current_request_record.get('directions', ['front_left'])})
+    current_soma_videos = render_soma_motion(current_attempt_root, {current_direction_name: KIMODO_DIRECTION_RECORDS[current_direction_name]['angle'] for current_direction_name in current_request_record.get('directions', ['front_left'])},current_elevation_angle=current_request_record.get('camera_elevation_degrees',0))
     from generators.kimodo.pose_outputs import export_kimodo_pose_outputs
     current_direct_record,current_dwpose_record,current_quality_warnings = export_kimodo_pose_outputs(current_job_root,current_attempt_root,current_request_record,current_metrics_recorder)
     from generators.kimodo.comparison import export_pose_comparison
@@ -199,6 +199,7 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
             current_output_archive.write(current_attempt_root/current_artifact_name,current_artifact_name)
     current_result_record = {'attempt':current_attempt_root.name,'frames':current_request_record['frames'],'fps':30,'width':640,'height':480,'frame_sha256':current_frame_hashes,'model':'nvidia/Kimodo-SOMA-RP-v1.2','encoder':'matbee/kimodo-llm2vec-nf4','encoder_quantization':'NF4','motion_precision':'FP32','source_revision':KIMODO_ASSET_CONFIG['source_revision'],'model_revisions':{current_asset_record['role']:current_asset_record['revision'] for current_asset_record in KIMODO_ASSET_CONFIG['models']},'skeleton':'somaskel77','compute_device':'cuda','post_processing':current_request_record['post_processing'],'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20}
     current_result_record.update(openpose_scale_basis='legacy-fit',openpose_scale_percent=current_request_record.get('openpose_scale_percent',100.0),remove_horizontal_motion=current_request_record.get('remove_horizontal_motion',False),directions=current_request_record.get('directions',['front_left']),pose_source='soma',anny_enabled=False,reference_proportions=bool(current_request_record.get('references')))
+    current_result_record['camera_elevation_degrees'] = current_request_record.get('camera_elevation_degrees',0)
     current_result_record['direct_pose_videos'] = {current_direction_name:current_direction_record['video'] for current_direction_name,current_direction_record in current_direct_record['directions'].items()}
     current_result_record['quality_warnings'] = current_quality_warnings
     current_result_record['dwpose_status'] = current_dwpose_record.get('status','completed')

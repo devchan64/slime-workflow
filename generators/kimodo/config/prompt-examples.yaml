@@ -58,23 +58,20 @@ examples:
     pose_include_hands: false
     pose_include_face: false
   reference_example: character_eight_directions
+# 출처: 2026-11-09_15-00-04-73ccd4a0
 - id: boxing_jab_straight_combination
-  label: 복싱 기본 콤비네이션 · 잽–스트레이트 · 50프레임
-  prompt: A boxer throws a left jab, follows with a straight right punch, then returns both hands to guard.
-  frames: 50
+  label: 복싱 원투 · 정면·우측 15도 · 고도 30도 · 40프레임
+  prompt: A boxer throws a quick left jab, then pivots on the right foot and throws a right straight punch. Both hands return to guard.
+  frames: 40
   settings:
     steps: 100
     seed: 404
     guidance_scale: 2.0
     heading_degrees: 0.0
     post_processing: true
-    directions: [front, front_left, left]
+    directions: [front, front_right_15]
+    camera_elevation_degrees: 30
     remove_horizontal_motion: false
     openpose_scale_percent: 85.0
     pose_include_hands: false
     pose_include_face: false
-    keyframes:
-    - {id: b0000000000000000000000000000001, frame: 1}
-    - {id: b0000000000000000000000000000002, frame: 15}
-    - {id: b0000000000000000000000000000003, frame: 22}
-    - {id: b0000000000000000000000000000001, frame: 50}

@@ -9,7 +9,17 @@ SOMA_RENDER_HEIGHT = 480
 SOMA_RENDER_FPS = 30
 
 
-def render_soma_motion(current_attempt_root, current_direction_angles, current_scale_percent=85.0):
+def build_soma_camera_rotation(current_direction_angle, current_elevation_angle):
+    """양의 고도는 대상 위쪽에서 내려다보는 카메라다."""
+    import numpy as np
+    current_yaw_angle = math.radians(current_direction_angle)
+    current_pitch_angle = math.radians(current_elevation_angle)
+    current_yaw_matrix = np.array([[math.cos(current_yaw_angle),0,-math.sin(current_yaw_angle)],[0,1,0],[math.sin(current_yaw_angle),0,math.cos(current_yaw_angle)]])
+    current_pitch_matrix = np.array([[1,0,0],[0,math.cos(current_pitch_angle),-math.sin(current_pitch_angle)],[0,math.sin(current_pitch_angle),math.cos(current_pitch_angle)]])
+    return current_pitch_matrix @ current_yaw_matrix
+
+
+def render_soma_motion(current_attempt_root, current_direction_angles, current_scale_percent=85.0, current_elevation_angle=0):
     # EGL은 별도 작업 프로세스에서만 초기화한다.
     os.environ['PYOPENGL_PLATFORM'] = 'egl'
     import imageio.v2 as imageio
@@ -58,14 +68,13 @@ def render_soma_motion(current_attempt_root, current_direction_angles, current_s
     current_camera_records = {}
     try:
         for current_direction_name, current_direction_angle in current_direction_angles.items():
-            current_rotation_angle = math.radians(current_direction_angle)
-            current_rotation_matrix = np.array([[math.cos(current_rotation_angle), 0, -math.sin(current_rotation_angle)], [0, 1, 0], [math.sin(current_rotation_angle), 0, math.cos(current_rotation_angle)]])
+            current_rotation_matrix = build_soma_camera_rotation(current_direction_angle,current_elevation_angle)
             current_rotated_vertices = current_mesh_frames @ current_rotation_matrix.T
             current_minimum_bounds = current_rotated_vertices.min(axis=(0, 1))
             current_maximum_bounds = current_rotated_vertices.max(axis=(0, 1))
             current_center_position = (current_minimum_bounds+current_maximum_bounds)/2
             current_half_height = max((current_maximum_bounds-current_minimum_bounds)[1]/2, (current_maximum_bounds-current_minimum_bounds)[0]/2*SOMA_RENDER_HEIGHT/SOMA_RENDER_WIDTH)/(current_scale_percent/100)
-            current_camera_records[current_direction_name] = {'rotation_matrix': current_rotation_matrix.tolist(), 'center_position': current_center_position.tolist(), 'half_height': float(current_half_height), 'width': SOMA_RENDER_WIDTH, 'height': SOMA_RENDER_HEIGHT}
+            current_camera_records[current_direction_name] = {'rotation_matrix': current_rotation_matrix.tolist(), 'center_position': current_center_position.tolist(), 'half_height': float(current_half_height), 'width': SOMA_RENDER_WIDTH, 'height': SOMA_RENDER_HEIGHT, 'elevation_degrees':current_elevation_angle}
             current_render_scene = pyrender.Scene(bg_color=[255, 255, 255, 255], ambient_light=[0.45, 0.45, 0.45])
             current_camera_pose = np.eye(4)
             current_camera_pose[:3, 3] = current_center_position+[0, 0, 6]

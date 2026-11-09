@@ -58,7 +58,7 @@ KIMODO_DIRECTION_CONFIG = yaml.load((KIMODO_CONFIG_ROOT/'output-directions.yaml'
 if not isinstance(KIMODO_DIRECTION_CONFIG,dict) or set(KIMODO_DIRECTION_CONFIG)!={'schema_version','directions'} or KIMODO_DIRECTION_CONFIG['schema_version']!=1:
     raise ValueError('출력 방향 설정 계약 오류')
 KIMODO_DIRECTION_RECORDS = KIMODO_DIRECTION_CONFIG['directions']
-if not isinstance(KIMODO_DIRECTION_RECORDS,dict) or set(KIMODO_DIRECTION_RECORDS)!={'front','front_left_30','front_left','left','back_left','back','back_right','right','front_right','front_right_30'}:
+if not isinstance(KIMODO_DIRECTION_RECORDS,dict) or set(KIMODO_DIRECTION_RECORDS)!={'front','front_left_30','front_left','left','back_left','back','back_right','right','front_right','front_right_30','front_right_15'}:
     raise ValueError('출력 방향 목록 오류')
 for current_direction_record in KIMODO_DIRECTION_RECORDS.values():
     if not isinstance(current_direction_record,dict) or set(current_direction_record)!={'label','angle'} or not isinstance(current_direction_record['label'],str) or not current_direction_record['label'] or type(current_direction_record['angle']) is not int or not -180<=current_direction_record['angle']<=180:
@@ -75,8 +75,11 @@ validate_kimodo_directions(KIMODO_DEFAULT_SETTINGS['directions'])
 
 def validate_kimodo_request(current_request_record):
     current_required_fields = {'action','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'}
-    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'endpoint_pose_id','keyframes','segment_frames','directions','remove_horizontal_motion','proportion_images','openpose_scale_percent','pose_include_hands','pose_include_face'}:
+    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'endpoint_pose_id','keyframes','segment_frames','directions','remove_horizontal_motion','proportion_images','openpose_scale_percent','pose_include_hands','pose_include_face','camera_elevation_degrees'}:
         raise ValueError('Kimodo 요청 필드 오류')
+    current_elevation_angle = current_request_record.get('camera_elevation_degrees',0)
+    if type(current_elevation_angle) is not int or current_elevation_angle not in (0,15,30):
+        raise ValueError('카메라 고도는 0·15·30도 중 하나여야 합니다.')
     if current_request_record.get('endpoint_pose_id') is not None:
         from generators.kimodo.pose_library import load_soma_pose_arrays
         current_pose_identifier = current_request_record['endpoint_pose_id']
@@ -146,7 +149,7 @@ def validate_kimodo_request(current_request_record):
         with Image.open(io.BytesIO(current_image_bytes)) as current_image_value:
             if max(current_image_value.size)>4096 or min(current_image_value.size)<64:
                 raise ValueError('참조 이미지 크기는 각 변 64~4096이어야 합니다.')
-    return {**{current_field_name:current_field_value for current_field_name,current_field_value in current_request_record.items() if current_field_name!='proportion_images'}, 'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False),'openpose_scale_percent':current_scale_percent, 'remove_horizontal_motion':current_request_record.get('remove_horizontal_motion',False), 'directions':validate_kimodo_directions(current_request_record.get('directions',['front_left'])), 'prompt':current_prompt_text.strip(), 'images':current_normalized_images, 'width':512, 'height':512, 'tag':'kimodo'}
+    return {**{current_field_name:current_field_value for current_field_name,current_field_value in current_request_record.items() if current_field_name!='proportion_images'}, 'camera_elevation_degrees':current_elevation_angle, 'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False),'openpose_scale_percent':current_scale_percent, 'remove_horizontal_motion':current_request_record.get('remove_horizontal_motion',False), 'directions':validate_kimodo_directions(current_request_record.get('directions',['front_left'])), 'prompt':current_prompt_text.strip(), 'images':current_normalized_images, 'width':512, 'height':512, 'tag':'kimodo'}
 
 
 def inspect_kimodo_assets():

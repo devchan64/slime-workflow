@@ -76,7 +76,7 @@ class GenerationStatusDisplayTests(unittest.TestCase):
             current_service_instance.job_storage_root = Path(current_temp_directory)
             current_attempt_path = '2026-11-06_23-16-00-17e2e71e/attempts/' + 'a' * 32
             for current_video_kind in ('soma-render', 'soma-direct', 'dwpose'):
-                for current_direction_name in ('front_left_30', 'front_right_30'):
+                for current_direction_name in ('front_left_30', 'front_right_30', 'front_right_15'):
                     with self.subTest(kind=current_video_kind, direction=current_direction_name):
                         current_relative_path = f'{current_attempt_path}/{current_video_kind}-{current_direction_name}.mp4'
                         current_video_path = Path(current_temp_directory) / current_relative_path

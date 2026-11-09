@@ -12,7 +12,7 @@ SOMA_POSE_FRAME_MARGIN = 32
 SOMA_POSE_SCHEMA_VERSION = 'soma-body18-v3'
 
 
-def project_soma_body_points(current_joint_positions,current_joint_names,current_direction_name,current_ratio_record=None,current_scale_percent=SOMA_POSE_LEGACY_PERCENT):
+def project_soma_body_points(current_joint_positions,current_joint_names,current_direction_name,current_ratio_record=None,current_scale_percent=SOMA_POSE_LEGACY_PERCENT,current_elevation_angle=0):
     """전체 클립의 고정 배율·중심으로 이동을 보존하는 수평 정사영을 만든다."""
     if type(current_scale_percent) not in (int,float) or not np.isfinite(current_scale_percent) or not 10<=current_scale_percent<=100:
         raise ValueError('OpenPose 크기 비율은 10~100% 숫자여야 합니다.')
@@ -32,9 +32,12 @@ def project_soma_body_points(current_joint_positions,current_joint_names,current
             current_body_positions[:,0]=current_joint_positions[:,current_joint_names.index('Head')]
         from generators.kimodo.reference_proportions import apply_reference_proportions
         current_body_positions=apply_reference_proportions(current_body_positions,current_ratio_record)
-    current_camera_angle=np.deg2rad(KIMODO_DIRECTION_RECORDS[current_direction_name]['angle'])
-    current_screen_positions=np.stack((current_body_positions[:,:,0]*np.cos(current_camera_angle)-current_body_positions[:,:,2]*np.sin(current_camera_angle),-current_body_positions[:,:,1]),axis=-1)
-    current_frame_bounds=np.stack((current_joint_positions[:,:,0]*np.cos(current_camera_angle)-current_joint_positions[:,:,2]*np.sin(current_camera_angle),-current_joint_positions[:,:,1]),axis=-1)
+    from generators.kimodo.soma_render import build_soma_camera_rotation
+    current_rotation_matrix=build_soma_camera_rotation(KIMODO_DIRECTION_RECORDS[current_direction_name]['angle'],current_elevation_angle)
+    current_rotated_body=current_body_positions @ current_rotation_matrix.T
+    current_rotated_joints=current_joint_positions @ current_rotation_matrix.T
+    current_screen_positions=np.stack((current_rotated_body[:,:,0],-current_rotated_body[:,:,1]),axis=-1)
+    current_frame_bounds=np.stack((current_rotated_joints[:,:,0],-current_rotated_joints[:,:,1]),axis=-1)
     if current_ratio_record is not None:
         current_frame_bounds=current_screen_positions[:,1:16]
     current_minimum_bounds=current_frame_bounds.min(axis=(0,1))
@@ -56,7 +59,9 @@ def load_soma_pose_points(current_attempt_root,current_direction_names,current_s
         current_joint_positions=current_motion_archive['posed_joints']
     current_ratio_path=current_attempt_root/'reference-proportions.json'
     current_ratio_record=json.loads(current_ratio_path.read_text()) if current_ratio_path.is_file() else None
-    return {current_direction_name:project_soma_body_points(current_joint_positions,current_skeleton_record['joint_names'],current_direction_name,current_ratio_record,current_scale_percent) for current_direction_name in current_direction_names}
+    current_render_path=current_attempt_root/'soma-render.json'
+    current_camera_records=json.loads(current_render_path.read_text()).get('cameras',{}) if current_render_path.is_file() else {}
+    return {current_direction_name:project_soma_body_points(current_joint_positions,current_skeleton_record['joint_names'],current_direction_name,current_ratio_record,current_scale_percent,current_camera_records.get(current_direction_name,{}).get('elevation_degrees',0)) for current_direction_name in current_direction_names}
 
 
 def project_recorded_camera_points(current_joint_positions, current_camera_record):

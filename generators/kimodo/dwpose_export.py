@@ -25,7 +25,14 @@ def calculate_projected_segment_gains(current_attempt_root, current_ratio_record
     with np.load(current_motion_path, allow_pickle=False) as current_motion_archive:
         current_motion_positions = current_motion_archive['posed_joints']
     current_joint_indices = [current_skeleton_record['joint_names'].index(current_joint_name) if current_joint_name else None for current_joint_name in SOMA_BODY_JOINT_NAMES]
-    current_angle_radians = np.deg2rad(KIMODO_DIRECTION_RECORDS[current_direction_name]['angle'])
+    current_camera_path = current_attempt_root/'soma-render.json'
+    if current_camera_path.is_file():
+        current_rotation_matrix = np.asarray(json.loads(current_camera_path.read_text())['cameras'][current_direction_name]['rotation_matrix'],dtype=float)
+    else:
+        from generators.kimodo.soma_render import build_soma_camera_rotation
+        current_rotation_matrix = build_soma_camera_rotation(KIMODO_DIRECTION_RECORDS[current_direction_name]['angle'],0)
+    if current_rotation_matrix.shape != (3,3) or not np.isfinite(current_rotation_matrix).all():
+        raise ValueError('SOMA 카메라 회전행렬 오류')
     current_reference_samples = {current_group_name: [] for current_group_name in REFERENCE_SEGMENT_GROUPS}
     current_detected_samples = {current_group_name: [] for current_group_name in REFERENCE_SEGMENT_GROUPS}
     for current_frame_index, current_frame_records in enumerate(current_detected_frames):
@@ -36,7 +43,7 @@ def calculate_projected_segment_gains(current_attempt_root, current_ratio_record
         if any(current_body_points[current_index] is None for current_index in (2,5,8,11)):
             continue
         current_joints = current_motion_positions[current_motion_index]
-        current_projected = np.stack((current_joints[:,0]*np.cos(current_angle_radians)-current_joints[:,2]*np.sin(current_angle_radians),current_joints[:,1]),axis=-1)
+        current_projected = (current_joints @ current_rotation_matrix.T)[:,:2]
         current_torso_3d = np.linalg.norm(current_joints[[current_joint_indices[2],current_joint_indices[5]]].mean(0)-current_joints[[current_joint_indices[8],current_joint_indices[11]]].mean(0))
         current_torso_2d = np.linalg.norm(current_projected[[current_joint_indices[2],current_joint_indices[5]]].mean(0)-current_projected[[current_joint_indices[8],current_joint_indices[11]]].mean(0))
         current_detected_torso = np.linalg.norm(np.array([current_body_points[2].x+current_body_points[5].x-current_body_points[8].x-current_body_points[11].x,current_body_points[2].y+current_body_points[5].y-current_body_points[8].y-current_body_points[11].y])/2)

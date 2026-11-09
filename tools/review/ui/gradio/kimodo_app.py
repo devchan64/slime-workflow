@@ -59,11 +59,13 @@ def execute_kimodo_command(current_command_name,current_payload_record):
     return execute_remote_management_command('kimodo',current_command_name,current_payload_record)
 
 
-def build_kimodo_payload(current_prompt_text,current_frame_count,current_step_count,current_seed_value,current_guidance_value,current_heading_value,current_postprocessing_value,current_direction_names=None,current_horizontal_removal=False,current_proportions_enabled=False,current_reference_paths=None,current_scale_percent=KIMODO_DEFAULT_SETTINGS['openpose_scale_percent'],current_include_hands=False,current_include_face=False,current_segment_text="",current_endpoint_identifier=None,current_keyframe_rows=None):
+def build_kimodo_payload(current_prompt_text,current_frame_count,current_step_count,current_seed_value,current_guidance_value,current_heading_value,current_postprocessing_value,current_direction_names=None,current_horizontal_removal=False,current_proportions_enabled=False,current_reference_paths=None,current_scale_percent=KIMODO_DEFAULT_SETTINGS['openpose_scale_percent'],current_include_hands=False,current_include_face=False,current_segment_text="",current_endpoint_identifier=None,current_keyframe_rows=None,current_elevation_angle=0):
     for current_integer_value in (current_frame_count,current_step_count,current_seed_value):
         if type(current_integer_value) not in (int,float) or not float(current_integer_value).is_integer():
             raise ValueError('프레임·스텝·시드는 정수로 입력하세요.')
     current_request_record = {'pose_include_hands':current_include_hands,'pose_include_face':current_include_face,'openpose_scale_percent':current_scale_percent,'remove_horizontal_motion':current_horizontal_removal,'action':'generate','prompt':current_prompt_text,'frames':int(current_frame_count),'steps':int(current_step_count),'seed':int(current_seed_value),'guidance_scale':current_guidance_value,'heading_degrees':current_heading_value,'post_processing':current_postprocessing_value,'directions':list(KIMODO_DEFAULT_SETTINGS['directions']) if current_direction_names is None else current_direction_names}
+    if current_elevation_angle != 0:
+        current_request_record['camera_elevation_degrees']=current_elevation_angle
     if current_endpoint_identifier:
         current_request_record['endpoint_pose_id']=current_endpoint_identifier
     if current_keyframe_rows:
@@ -113,7 +115,7 @@ def restore_kimodo_inputs(current_history_record):
         if current_request_record['endpoint_pose_id']!='relaxed-standing-v1' or current_keyframe_placements:
             raise ValueError('이전 양 끝 자세를 키프레임으로 변환할 수 없습니다.')
         current_keyframe_placements=[{'id':'b0000000000000000000000000000004','frame':1},{'id':'b0000000000000000000000000000004','frame':current_request_record['frames']}]
-    return tuple(current_request_record[current_field_name] for current_field_name in ('prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'))+(current_request_record.get('directions',['front_left']),current_request_record.get('remove_horizontal_motion',False),bool(current_reference_paths),current_reference_paths,current_request_record.get('openpose_scale_percent',100.0),current_request_record.get('pose_include_hands',False),current_request_record.get('pose_include_face',False),' '.join(map(str,current_request_record.get('segment_frames',[]))),None,[[current_placement['id'],current_placement['frame']] for current_placement in current_keyframe_placements],current_history_record['id'])
+    return tuple(current_request_record[current_field_name] for current_field_name in ('prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'))+(current_request_record.get('directions',['front_left']),current_request_record.get('remove_horizontal_motion',False),bool(current_reference_paths),current_reference_paths,current_request_record.get('openpose_scale_percent',100.0),current_request_record.get('pose_include_hands',False),current_request_record.get('pose_include_face',False),' '.join(map(str,current_request_record.get('segment_frames',[]))),None,[[current_placement['id'],current_placement['frame']] for current_placement in current_keyframe_placements],current_request_record.get('camera_elevation_degrees',0),current_history_record['id'])
 
 
 def check_kimodo_readiness(current_model_ready,current_prompt_text,current_direction_names,current_proportions_enabled=False,current_reference_paths=None,current_keyframe_rows=None,current_postprocessing_enabled=False,current_segment_text='',current_endpoint_identifier=None,current_horizontal_removal=False):
@@ -134,7 +136,7 @@ def load_kimodo_examples():
         build_kimodo_payload(current_example_value['prompt'],current_example_value['frames'],KIMODO_DEFAULT_SETTINGS['steps'],KIMODO_DEFAULT_SETTINGS['seed'],KIMODO_DEFAULT_SETTINGS['guidance_scale'],KIMODO_DEFAULT_SETTINGS['heading_degrees'],KIMODO_DEFAULT_SETTINGS['post_processing'])
         if 'settings' in current_example_value:
             current_settings_record = current_example_value['settings']
-            if not isinstance(current_settings_record,dict) or set(current_settings_record)-{'segment_frames','openpose_scale_percent','pose_include_hands','pose_include_face','keyframes'}!={'steps','seed','guidance_scale','heading_degrees','post_processing','directions','remove_horizontal_motion'}:
+            if not isinstance(current_settings_record,dict) or set(current_settings_record)-{'segment_frames','openpose_scale_percent','pose_include_hands','pose_include_face','keyframes','camera_elevation_degrees'}!={'steps','seed','guidance_scale','heading_degrees','post_processing','directions','remove_horizontal_motion'}:
                 raise ValueError('Kimodo 예시 설정 필드 오류')
             validate_kimodo_request({'action':'generate','prompt':current_example_value['prompt'],'frames':current_example_value['frames'],**current_settings_record})
         if 'reference_example' in current_example_value and current_example_value['reference_example'] not in load_proportion_examples():
@@ -161,7 +163,7 @@ def apply_complete_kimodo_example(current_example_identifier):
     current_reference_identifier=current_example_record.get('reference_example')
     current_reference_values=apply_proportion_example(current_reference_identifier) if current_reference_identifier else (False,[])
     current_keyframe_rows = [[current_item['id'],current_item['frame']] for current_item in current_settings_record.get('keyframes',[])]
-    return (*apply_kimodo_example(current_example_identifier),*current_reference_values,*(current_settings_record.get(current_field_name,gr.skip()) for current_field_name in ('openpose_scale_percent','pose_include_hands','pose_include_face')),' '.join(map(str,current_settings_record.get('segment_frames',[]))),None,current_keyframe_rows)
+    return (*apply_kimodo_example(current_example_identifier),*current_reference_values,*(current_settings_record.get(current_field_name,gr.skip()) for current_field_name in ('openpose_scale_percent','pose_include_hands','pose_include_face')),' '.join(map(str,current_settings_record.get('segment_frames',[]))),None,current_keyframe_rows,current_settings_record.get('camera_elevation_degrees',0))
 
 
 def describe_kimodo_duration(current_frame_count):
@@ -239,6 +241,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
                 current_prompt_control = gr.Textbox(label='동작 프롬프트',value=KIMODO_DEFAULT_SETTINGS['prompt'],lines=3,info='영문으로 주체와 신체 동작을 간결하게 작성하세요. 카메라·외형 묘사보다 실제 행동을 지정하세요. 100단어·400토큰 이내. 순차 생성은 줄마다 독립된 동작 설명을 쓰고 아래 구간 프레임을 지정하세요. 각 설명은 A person으로 시작하고 1~2개 동작에 집중하세요.')
             with gr.Column(min_width=KIMODO_INPUT_MINIMUM_WIDTH):
                 current_direction_control = gr.CheckboxGroup(choices=[(f"{current_direction_record['label']} ({current_direction_record['angle']}°)",current_direction_name) for current_direction_name,current_direction_record in KIMODO_DIRECTION_RECORDS.items()],value=KIMODO_DEFAULT_SETTINGS['directions'],label='출력 방향 · 복수 선택',info='카메라 방향입니다. 동작 프롬프트·초기 방향은 변경하지 않습니다. 여러 방향은 같은 프레임으로 비교하며 렌더 시간·저장 용량이 늘어납니다.')
+        current_elevation_control = gr.Radio(choices=[('수평 0°',0),('위에서 15°',15),('위에서 30°',30)],value=0,label='카메라 고도',info='양의 고도는 위에서 내려다보는 각도입니다. 모션 자체는 회전하지 않습니다.')
         current_prompt_summary = gr.Markdown(describe_kimodo_prompt(KIMODO_DEFAULT_SETTINGS['prompt']))
         current_frame_control = gr.Number(label='프레임 수',value=KIMODO_DEFAULT_SETTINGS['frames'],minimum=30,maximum=300,precision=0,info='30fps: 90프레임=3초, 150프레임=5초, 300프레임=10초. 8GB의 모든 길이를 보장하지 않습니다.')
         current_duration_output = gr.Markdown(describe_kimodo_duration(KIMODO_DEFAULT_SETTINGS['frames']))
@@ -401,7 +404,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         gr.Markdown('SOMA 렌더 → VideoX-Fun DWPose → 선택 참조 관절 길이 보정 → 832×480 · 16fps 포즈 MP4. 몸 18점의 코·눈·귀는 유지합니다. 방향별 3D 투영과 2D 검출 비율을 비교하여 영상 전체에 고정 배율을 적용합니다.')
         current_prompt_control.change(describe_kimodo_prompt,[current_prompt_control,current_segment_control],current_prompt_summary,queue=False)
         current_segment_control.change(describe_kimodo_prompt,[current_prompt_control,current_segment_control],current_prompt_summary,queue=False)
-        current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control,current_horizontal_control,current_proportions_control,current_reference_control,current_scale_control,current_hands_control,current_face_control,current_segment_control,current_endpoint_selector,current_keyframe_rows]
+        current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control,current_horizontal_control,current_proportions_control,current_reference_control,current_scale_control,current_hands_control,current_face_control,current_segment_control,current_endpoint_selector,current_keyframe_rows,current_elevation_control]
         current_example_button.click(apply_complete_kimodo_example,current_example_selector,current_input_controls,queue=False)
         current_input_summary = gr.Markdown(describe_kimodo_input_summary(False,[],[],KIMODO_DEFAULT_SETTINGS['post_processing'],KIMODO_DEFAULT_SETTINGS['remove_horizontal_motion']))
         current_summary_inputs = [current_proportions_control,current_reference_control,current_keyframe_rows,current_postprocessing_control,current_horizontal_control]

@@ -21,6 +21,23 @@ def write_keyframe_test_previews(current_attempt_root,current_frame_count):
 
 
 class KimodoGenerationContractTests(unittest.TestCase):
+    def test_camera_elevation_rotation_and_input_validation(self):
+        import numpy as np
+        from generators.kimodo.soma_render import build_soma_camera_rotation
+        from generators.kimodo.soma_pose import project_recorded_camera_points
+        np.testing.assert_allclose(build_soma_camera_rotation(0,0),np.eye(3))
+        for current_elevation_angle in (15,30):
+            current_rotation_matrix=build_soma_camera_rotation(0,current_elevation_angle)
+            current_camera_record={'rotation_matrix':current_rotation_matrix.tolist(),'center_position':[0,0,0],'half_height':1,'width':832,'height':480}
+            current_points=project_recorded_camera_points(np.array([[0,0,0],[0,0,1]]),current_camera_record)
+            self.assertGreater(current_points[1,1],current_points[0,1])
+            self.assertEqual(validate_kimodo_request({**self.current_request_record,'camera_elevation_degrees':current_elevation_angle})['camera_elevation_degrees'],current_elevation_angle)
+            from tools.review.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs
+            current_saved_request={**self.current_request_record,'camera_elevation_degrees':current_elevation_angle}
+            self.assertEqual(build_kimodo_payload(*restore_kimodo_inputs({'id':'elevation-test','request':current_saved_request})[:-1])['camera_elevation_degrees'],current_elevation_angle)
+        for current_bad_angle in (-15,1,45,15.0,True):
+            with self.assertRaises(ValueError):
+                validate_kimodo_request({**self.current_request_record,'camera_elevation_degrees':current_bad_angle})
     def setUp(self):
         self.current_request_record = {current_field_name:current_field_value for current_field_name,current_field_value in KIMODO_DEFAULT_SETTINGS.items() if current_field_name!='schema_version'}
         self.current_request_record['action']='generate'
@@ -321,18 +338,17 @@ class KimodoGenerationContractTests(unittest.TestCase):
         self.assertFalse(current_standing_request['pose_include_hands'])
         self.assertFalse(current_standing_request['pose_include_face'])
         self.assertTrue(current_standing_values[9])
-        self.assertEqual(hashlib.sha256(Path(current_standing_values[10][0]).read_bytes()).hexdigest(),'d947e4c01d1076860d9ec1ce5660fac8c8eda291bfd13d82ed1c6d55fa473508')
-        from tools.review.domains.kimodo.keyframe_storage import snapshot_kimodo_keyframes, KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS
+        from tools.review.ui.gradio.kimodo_app import load_proportion_examples
+        self.assertEqual(hashlib.sha256(Path(current_standing_values[10][0]).read_bytes()).digest(),hashlib.sha256(Path(load_proportion_examples()['character_eight_directions']['images'][0]).read_bytes()).digest())
         current_combination_values = apply_complete_kimodo_example('boxing_jab_straight_combination')
         current_combination_request = build_kimodo_payload(*current_combination_values)
         self.assertFalse(current_combination_request['pose_include_hands'])
         self.assertEqual(current_combination_request['seed'],404)
-        self.assertEqual(current_combination_request['directions'],['front','front_left','left'])
-        self.assertEqual([current_item['frame'] for current_item in current_combination_request['keyframes']],[1,15,22,50])
-        self.assertEqual({current_item['id'] for current_item in current_combination_request['keyframes']},KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS-{'b0000000000000000000000000000004'})
-        with tempfile.TemporaryDirectory() as current_temp_directory:
-            current_snapshot_records = snapshot_kimodo_keyframes(Path(current_temp_directory),current_combination_request['keyframes'],current_keyframe_storage=Path(current_temp_directory)/'empty-user-store')
-            self.assertEqual(len(current_snapshot_records),4)
+        self.assertEqual(current_combination_request['directions'],['front','front_right_15'])
+        self.assertEqual(current_combination_request['camera_elevation_degrees'],30)
+        self.assertEqual(current_combination_request['frames'],40)
+        self.assertNotIn('keyframes',current_combination_request)
+        self.assertEqual(current_combination_request['prompt'],'A boxer throws a quick left jab, then pivots on the right foot and throws a right straight punch. Both hands return to guard.')
         self.assertIn('6초',describe_kimodo_duration(180))
         self.assertIn('정수',describe_kimodo_duration(30.5))
         self.assertIn('정수',describe_kimodo_duration(None))
@@ -356,6 +372,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
         self.assertEqual(restore_kimodo_inputs({'id':'old','request':current_legacy_request})[7],['front_left'])
         self.assertEqual(validate_kimodo_request({**self.current_request_record,'directions':['front','right']})['directions'],['front','right'])
         self.assertEqual(validate_kimodo_request({**self.current_request_record,'directions':['front_left_30','front_right_30']})['directions'],['front_left_30','front_right_30'])
+        self.assertEqual(validate_kimodo_request({**self.current_request_record,'directions':['front','front_right_15']})['directions'],['front','front_right_15'])
 
     def test_comparison_projection_and_missing_points(self):
         from PIL import Image
@@ -447,7 +464,7 @@ class KimodoPoseLibraryTests(unittest.TestCase):
             self.assertEqual(current_new_constraints,build_soma_endpoint_records(current_pose_record['id'],current_request_record['frames'])[0])
         for current_patch_record in ({'endpoint_pose_id':'../bad'},{'endpoint_pose_id':42},{'post_processing':False},{'heading_degrees':45}):
             with self.assertRaises(ValueError):validate_kimodo_request({**current_request_record,**current_patch_record})
-        self.assertEqual(apply_complete_kimodo_example(next(iter(load_kimodo_examples())))[-2:],(None,[]))
+        self.assertEqual(apply_complete_kimodo_example(next(iter(load_kimodo_examples())))[-3:],(None,[],0))
 
     def test_pose_library_rejects_modified_files(self):
         from generators.kimodo.pose_library import KIMODO_POSE_LIBRARY_ROOT,load_soma_pose_catalog
