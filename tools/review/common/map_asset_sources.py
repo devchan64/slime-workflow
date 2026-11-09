@@ -216,8 +216,6 @@ def build_registered_map_review(map_identifier_value):
     current_map_record['spriteProperties'] = {current_texture_key: current_shared_catalog[current_texture_key] for current_texture_key in current_used_textures if current_texture_key in current_shared_catalog}
     return current_map_record
 
-# 기존 메뉴·검수 빌드 호출부의 import 계약도 등록 인덱스를 따른다.
-MAP_CITY_REVIEW_IDENTIFIERS, MAP_REVIEW_IDENTIFIERS = load_review_map_identifiers()
 
 
 def validate_map_cliff_texture(current_texture_key):

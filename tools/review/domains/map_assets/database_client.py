@@ -51,4 +51,4 @@ def execute_content_api_request(current_http_method,current_relative_route,curre
         current_error_body=current_http_error.read(4096).decode('utf-8',errors='replace')
         raise ValueError(f'콘텐츠 API 오류 ({current_http_error.code}): {current_error_body}') from current_http_error
     except URLError as current_transport_error:
-        raise RuntimeError('콘텐츠 API 연결 실패: '+str(current_transport_error.reason)) from current_transport_error
+        raise RuntimeError(f'콘텐츠 API 연결 실패: {current_service_origin} · {current_transport_error.reason}. 콘텐츠 API를 먼저 실행하고 연결 설정(serviceOrigin)을 확인한 뒤 관리도구를 다시 시작하세요.') from current_transport_error
