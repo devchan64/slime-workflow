@@ -1,7 +1,7 @@
 schema_version: 1
 examples:
 - id: male_runway_in_place
-  label: 남성 모델 제자리 걷기 · 왼쪽 30도 · 6초
+  label: 남성 모델 제자리 걷기 · 오른쪽 30도 · 6초
   prompt: A man walks steadily on a treadmill with a confident male runway model gait,
     upright posture, natural alternating strides and relaxed arm swings.
   frames: 180
@@ -12,11 +12,11 @@ examples:
     heading_degrees: 0.0
     post_processing: false
     directions:
-    - front_left_30
+    - front_right_30
     remove_horizontal_motion: true
   reference_example: character_eight_directions
 - id: male_floor_rest_cycle
-  label: 남성 바닥 휴식 · 서기–앉기–일어서기 · 왼쪽 30도 · 7초
+  label: 남성 바닥 휴식 · 서기–앉기–일어서기 · 오른쪽 30도 · 7초
   prompt: 'A person stands upright, then sits down on the floor with knees raised and feet planted in front.
 
     A person sits on the floor with knees raised, resting each forearm on its corresponding knee and hands relaxed.
@@ -30,7 +30,7 @@ examples:
     heading_degrees: 0
     post_processing: true
     directions:
-    - front_left_30
+    - front_right_30
     remove_horizontal_motion: false
     segment_frames:
     - 75
@@ -40,10 +40,10 @@ examples:
     pose_include_hands: false
     pose_include_face: false
   reference_example: character_eight_directions
-# 출처: 2026-11-07_15-20-42-268a9752
+# 출처: 2026-11-09_23-16-47-e9f39a59
 - id: relaxed_shoulder_width_standing
-  label: 모델처럼 가만히 서서 호흡하기 · 왼쪽 30도 · 6초
-  prompt: A person stands still like a fashion model and breathes gently.
+  label: 모델처럼 가만히 서기 · 오른쪽 30도 · 6초
+  prompt: A person stands still like a fashion model.
   frames: 180
   settings:
     steps: 100
@@ -52,7 +52,7 @@ examples:
     heading_degrees: 0.0
     post_processing: true
     directions:
-    - front_left_30
+    - front_right_30
     remove_horizontal_motion: false
     openpose_scale_percent: 85.0
     pose_include_hands: false

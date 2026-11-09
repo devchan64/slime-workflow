@@ -1,2 +1,6 @@
 schema_version: 1
-examples: []
+examples:
+  - id: character_eight_directions
+    label: 기본 캐릭터 v1 · 8방향 신체 기준
+    images:
+      - baseline/player/default/default-eight-directions-v1.png
