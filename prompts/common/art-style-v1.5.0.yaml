@@ -1,0 +1,28 @@
+schema_version: 1
+prompt_id: slime_common_art_style
+version: 1.5.0
+title: 화풍 공통 프롬프트
+status: 현재 문서 기준 · 원문 생성 검증 전
+created_on: '2026-11-09'
+source: prompts/common/art-style-v1.4.0.yaml
+source_status: 폐기된 이전 버전의 기록상 출처
+scope: 화풍·재질·명암·광원만 정의한다. 대상의 외형·등신·복장·카메라·출력 배치는 별도 입력이다.
+language: en
+translation_language: ko
+translation_policy:
+  required: true
+  source_field: prompt
+  translation_field: prompt_ko
+  maintenance_rule: 영문 실행 원문과 의미가 일치하는 한국어 번역을 같은 YAML에서 항상 함께 유지한다.
+  update_rule: 영문 원문 변경 시 새 버전의 한국어 번역도 함께 갱신하고 누락·의미 변경 여부를 검수한다.
+  execution_rule: 한국어 번역은 관리·검수용이다. 실행 원문을 자동 대체하거나 두 언어를 합쳐 모델에 전달하지 않는다.
+  integrity_rule: word_count와 sha256은 영문 prompt 기준이다. 한국어 번역 교정은 변경 이력에 별도로 기록한다.
+prompt_ko: 가는 따뜻한 갈색 윤곽선과 부드러운 셀 음영을 사용하는 정돈된 2D 판타지 게임 일러스트레이션. 작은 디테일은 선명하게 묶인 형태로 단순화하면서 은은하게 그린 질감을
+  유지한다. 그림자 경계는 부드럽게 이어가고 하이라이트를 절제하며 재질에 맞는 질감을 사용한다. 실루엣은 선명하고 읽기 쉽게 유지한다.
+prompt: Refined 2D fantasy game illustration with fine warm brown outlines and soft cel shading. Simplify
+  small details into clear grouped shapes while preserving subtle painted texture. Use gently softened
+  shadow transitions, restrained highlights and material-appropriate texture. Keep silhouettes clear and
+  readable.
+word_count: 41
+sha256: ca366d541fda72a98d6746a0cbf8d01c008398b15f8dcc0226a49cc3231000c7
+change_note: 선택한 부드러운 셀 음영을 바탕으로 작은 디테일을 줄이되 은은한 회화 질감은 유지하도록 정리했다. 조합 실험은 수행했으나 새 원문 자체의 별도 생성 검증은 전이다.

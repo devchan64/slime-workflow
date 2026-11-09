@@ -1,0 +1,18 @@
+schema_version: 1
+description: 가슴 상의 음영 평탄화 후보
+status: 사용자 지시로 현재 기준에 적용
+date: '2026-11-09'
+generator: image_gen_builtin
+image: neutral-body-flat-chest-four-directions-v13.png
+image_sha256: 146f242fcab0a0105b6d45675132e19b6d40c84e96fb354a2077ffa7010fc118
+reference: prompts/references/mannequin/latest/neutral-body-skin-clothes-four-directions.png
+reference_sha256: 5149ab9af7926ae14fa6a5a21fd0e524b530bbf2fd99edc8bec99e761b4d2132
+prompt: Edit the existing 2x2 four-direction character sheet. In the front and three-quarter views, redraw
+  the gray top across the chest as one continuous flat cloth surface over a flat masculine chest, with
+  even mid-gray color and only gentle shadows at the outer edges of the shirt. In the side view make the
+  front of the shirt a nearly straight vertical line from upper chest to hem. Preserve the back view and
+  the character's body shape, face, amber eyes, bald head, poses, limbs, proportions, clothing colors,
+  layout and background. Change only the chest area of the shirt.
+word_count: 96
+prompt_sha256: 672b3da414cd3dee8334bd2bd8aebafa89bd26c907bc09dd489126711d0a80b5
+review_note: 정면과 앞 쿼터의 분리된 가슴 음영을 줄였다. 픽셀 단위 불변성은 확인하지 않았다.

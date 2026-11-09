@@ -1,0 +1,44 @@
+schema_version: 1
+description: 기본 캐릭터 전신 8방향 시트
+status: 사용자 지정 · 기본 캐릭터 8방향 기준 · 방향 및 비율 검수 필요
+date: '2026-11-09'
+generator: image_gen_builtin
+image: default-eight-directions-v1.png
+image_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+image_size:
+- 1536
+- 1024
+references:
+- image: prompts/references/mannequin/latest/neutral-body-skin-clothes-four-directions.png
+  role: 전신 비율·체형·기본복
+  sha256: 146f242fcab0a0105b6d45675132e19b6d40c84e96fb354a2077ffa7010fc118
+- image: baseline/player/default/default-face-front-v1.png
+  role: 얼굴·머리·호박색 눈
+  sha256: 7b66d751fc18d69c0fd5094dd7f5539d8bc7d4e469481e46001c6f1e6998a5ca
+  note: 생성 당시 참조의 해시이며 현재 같은 경로의 얼굴은 이후 교체되었다.
+style: prompts/common/art-style-v1.5.0.yaml
+prompt: 'Create an eight-direction full-body character turnaround sheet in a clean 4-column by 2-row grid,
+  one complete standing figure centered in each cell with generous white margins. Use image 1 as the authoritative
+  body proportion, flat masculine chest, pose, gray cropped top and charcoal shorts reference. Use image
+  2 as the authoritative face, short brown hairstyle and amber eyes reference. Keep body proportions,
+  character identity, clothing and figure height consistent. Eight distinct views in order left to right:
+  top row front, front three-quarter right, right side, back three-quarter right; bottom row back, back
+  three-quarter left, left side, front three-quarter left. Full heads and feet visible; white background.
+  Refined 2D fantasy game illustration with fine warm brown outlines and soft cel shading. Simplify small
+  details into clear grouped shapes while preserving subtle painted texture. Use gently softened shadow
+  transitions, restrained highlights and material-appropriate texture. Keep silhouettes clear and readable.'
+word_count: 147
+prompt_sha256: 9297e88be7488d3390649d5f1cfc8397470d6674f1ffad2186d39c47e58e4e60
+postprocess:
+  method: OpenCV
+  description: 4열 2행의 내부 구분선 1px 회색
+  vertical_x:
+  - 384
+  - 768
+  - 1152
+  horizontal_y: 512
+  rgb:
+  - 160
+  - 160
+  - 160
+review_note: 아래 행 두 번째가 반대 방향 뒤 쿼터인지 모호하므로 방향 검수가 필요하다. 얼굴 및 신체 비율 일치는 실측하지 않았다.

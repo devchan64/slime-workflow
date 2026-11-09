@@ -1,0 +1,142 @@
+schema_version: 1
+description: 기본 캐릭터 정면 얼굴
+status: 사용자 지정 · 현재 기본 정면 얼굴
+image: default-face-front-v1.png
+image_sha256: c3af457ecb6e72b90e5efc9d4732b1ced44b9c7f23ec0c2c671bf20df951d32a
+applied_on: '2026-11-09'
+application_note: v6 보정 후보를 사용자 지시로 적용했다. 후보 이미지와 개별 기록은 폐기하고 생성 이력은 아래에 보존한다.
+history_note: 후보 이력의 이미지 경로는 폐기 당시 이름이며 현재 파일이 아닐 수 있다.
+generation_history:
+- schema_version: 1
+  description: 8방향 시트의 정면 머리 재작화
+  status: 생성 후보 · 사용자 검수 전
+  date: '2026-11-09'
+  generator: image_gen_builtin
+  image: default-face-front-from-eight-v1.png
+  image_sha256: 6aacc0ecaab14cb2c18ec2f486e03deb71637061ab6dcda375cf22775f5bd009
+  reference: baseline/player/default/default-eight-directions-v1.png
+  reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+  reference_role: 좌상단 정면 캐릭터의 얼굴·머리·화풍
+  prompt: Draw a single isolated head from the TOP LEFT front-facing figure of the reference sheet, enlarged.
+    Match that figure's facial identity, eye shape, warm amber eyes, skin tone, expression, proportions
+    and short brown hairstyle. Keep the same softly shaded 2D game illustration style. Straight front
+    view, full hair and both ears visible, ending beneath the chin, centered on plain white. Head only,
+    no neck, body, clothing, grid or text.
+  word_count: 69
+  prompt_sha256: 0e94d4adfc9f6a024e993ae8a5367110762ff6fc5c96fe0184b48ebe8aa0fc42
+  review_note: 원본 크롭이 아닌 재작화이며 얼굴과 머리의 세부 일치는 보장하지 않는다.
+- schema_version: 1
+  description: 8방향 정면 색상 기준의 머리 보정 후보
+  status: 생성 후보 · 색상 및 화풍 일치 검수 필요
+  date: '2026-11-09'
+  generator: image_gen_builtin
+  image: default-face-front-from-eight-v2.png
+  image_sha256: d08aa6ad33e0161b365ef8d4a76d3fdd9c159eb7e1e23aca988e384ca7481abb
+  references:
+  - image: baseline/player/default/default-face-front-from-eight-v1.png
+    role: 수정 대상 머리
+    sha256: 6aacc0ecaab14cb2c18ec2f486e03deb71637061ab6dcda375cf22775f5bd009
+  - image: baseline/player/default/default-eight-directions-v1.png
+    role: 좌상단 정면의 색상·명암 기준
+    sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+  style: prompts/common/art-style-v1.5.0.yaml
+  prompt: Edit image 1, the isolated front-facing head. Match the hair, skin, amber irises, shadows and
+    highlights to the top-left front-facing character in image 2 as closely as possible. Image 2 is the
+    color and rendering reference. Reduce the extra orange saturation and glossy highlights in image 1
+    where needed to match image 2. Preserve image 1's exact face, features, hair shape, expression, framing
+    and white background. Refined 2D fantasy game illustration with fine warm brown outlines and soft
+    cel shading. Simplify small details into clear grouped shapes while preserving subtle painted texture.
+    Use gently softened shadow transitions, restrained highlights and material-appropriate texture. Keep
+    silhouettes clear and readable.
+  word_count: 107
+  prompt_sha256: 0d61ca281bb4061f72d6af9a2c0a12b62f629d9563c813665eae421bdff0d124
+  review_note: 생성형 색상 보정으로 원본과 픽셀 또는 색상 일치를 보장하지 않는다.
+- schema_version: 1
+  description: 8방향 정면 색상 기준의 머리 보정 후보
+  status: 생성 후보 · 색상 및 화풍 검수 필요
+  date: '2026-11-09'
+  generator: image_gen_builtin
+  image: default-face-front-from-eight-v3.png
+  image_sha256: 78469a09a16198b7a4bea9543fc791b31db1bb64aa281378da6ef5f7c52f98d3
+  references:
+  - image: baseline/player/default/default-face-front-from-eight-v2.png
+    role: 수정 대상 머리
+    sha256: d08aa6ad33e0161b365ef8d4a76d3fdd9c159eb7e1e23aca988e384ca7481abb
+  - image: baseline/player/default/default-eight-directions-v1.png
+    role: 좌상단 정면 색상·명암 기준
+    sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+  prompt: 'Edit image 1 only. Match its colors to the top-left front figure of image 2: use the same darker
+    muted neutral brown hair, less orange and less bright highlights; use the same softer muted warm beige
+    skin, reducing peach, pink and orange saturation; keep the eyes amber but match the reference''s subdued
+    tone. Match image 2''s restrained contrast and matte highlights. Preserve the face, expression, eyes,
+    hair shape, framing, white background and illustration details of image 1. Image 2 is the color reference.'
+  word_count: 83
+  prompt_sha256: 1de85fd764c6de54776730b6593074cb87a7650409f9ca0cb9f567af57ab57f0
+  review_note: 생성형 색상 보정이며 참조 색상과 정확한 일치는 미검증.
+- schema_version: 1
+  description: 8방향 정면 색상 기준 머리·볼 보정 후보
+  status: 생성 후보 · 색상 일치 검수 필요
+  date: '2026-11-09'
+  generator: image_gen_builtin
+  image: default-face-front-from-eight-v4.png
+  image_sha256: 31376682f76ef834eb8bd9558de847bba3617b48083953060a006f61ecdf472f
+  references:
+  - image: baseline/player/default/default-face-front-from-eight-v3.png
+    role: 수정 대상 v3
+    sha256: 78469a09a16198b7a4bea9543fc791b31db1bb64aa281378da6ef5f7c52f98d3
+  - image: baseline/player/default/default-eight-directions-v1.png
+    role: 좌상단 정면 색상 기준
+    sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+  prompt: 'Edit image 1, preserving the head''s exact shape, hairstyle, facial features, amber eyes, expression,
+    framing and white background. Only adjust colors: make the brown hair slightly brighter and warmer
+    to match the top-left front-facing character in image 2, and gently warm the cheek skin with a subtle
+    soft rosy-peach tone matching that same character. Keep changes modest, preserve the existing shading
+    and texture. Image 2 is the color reference.'
+  word_count: 69
+  prompt_sha256: f0c4e7f492085f42b0777073525adc8727e65aadf00d45c9b4c5e781b1907715
+  review_note: 생성형 보정으로 색상 일치와 수정 외 영역 불변은 미검증.
+- schema_version: 1
+  description: 사용자 첨부 정면 색상 기준 머리 보정 후보
+  status: 생성 후보 · 색상 일치 검수 필요
+  date: '2026-11-09'
+  generator: image_gen_builtin
+  image: default-face-front-from-eight-v5.png
+  image_sha256: cc8d466170296351fb7072ccece807bd2ddad8e05f3badc96bc4bb8828127385
+  references:
+  - image: baseline/player/default/default-face-front-from-eight-v4.png
+    role: 수정 대상 v4
+    sha256: 31376682f76ef834eb8bd9558de847bba3617b48083953060a006f61ecdf472f
+  - image: codex-clipboard-3e28e7c4-8042-4dd5-a0a5-24a58640a73b.png
+    role: 사용자 첨부 색상 참고 스크린샷
+    sha256: 384cdbb7b7b10089cf5018463e3a2a20dc696010a7dc23eafcdd13cdcaac44b1
+    storage_note: 대화 첨부 원본
+  prompt: 'Edit image 1, the isolated head. Use the character in image 2 strictly as the color reference:
+    match its medium warm brown hair, its natural peach skin and localized cheek color, and its bright
+    golden amber irises. Match the reference''s shadow and highlight colors without copying the screenshot
+    background or body. Preserve image 1''s exact facial features, hair shape, expression, framing, white
+    background and drawn style. Adjust colors gently and accurately.'
+  word_count: 71
+  prompt_sha256: 11a8816be492400bab5e82b0c16d77b3f0342e8be08207efb1f89634408b6ddc
+  review_note: 생성형 보정이므로 색상 일치와 비색상 영역 불변은 검수 필요.
+- schema_version: 1
+  description: 붉은 기를 줄인 정면 얼굴 색상 보정 후보
+  status: 생성 후보 · 색상 일치 검수 필요
+  date: '2026-11-09'
+  generator: image_gen_builtin
+  image: default-face-front-from-eight-v6.png
+  image_sha256: c3af457ecb6e72b90e5efc9d4732b1ced44b9c7f23ec0c2c671bf20df951d32a
+  references:
+  - image: baseline/player/default/default-face-front-from-eight-v3.png
+    role: 수정 대상 v3
+    sha256: 78469a09a16198b7a4bea9543fc791b31db1bb64aa281378da6ef5f7c52f98d3
+  - image: baseline/player/default/default-eight-directions-v1.png
+    role: 좌상단 정면 색상 기준
+    sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+  prompt: 'Edit image 1. Gently adjust only color to match the top-left character in image 2: medium natural
+    warm brown hair with neutral brown shadows and subtle golden-brown highlights, and natural warm beige
+    skin with restrained soft cheek color. Keep red and orange saturation subdued, avoid a reddish cast.
+    Preserve image 1''s exact hairstyle, facial features, amber eyes, expression, proportions, white background
+    and shading detail. Use image 2 as the palette reference.'
+  word_count: 71
+  prompt_sha256: 503e721b20db39188234b9d7f62368d25339547c165f8380e438667d4f8de765
+  review_note: 색상 및 형태 일치는 별도 검수가 필요하다.

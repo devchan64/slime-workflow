@@ -1,0 +1,22 @@
+schema_version: 1
+prompt_id: slime_common_character_appearance
+version: 1.2.0
+title: 캐릭터 외관 공통 프롬프트
+status: 현재 문서 기준 · 원문 생성 검증 전
+created_on: '2026-11-09'
+source: prompts/common/character-appearance-v1.1.0.yaml
+source_status: 폐기된 이전 버전의 기록상 출처
+scope: 성별·나이 세부값·머리색·눈색·복장·등신 수치를 고정하지 않는다. 캐릭터별 설정과 비율 블록에서 명시한다.
+language: en
+prompt: A stylized adult fantasy game character with expressive eyes, a small simple nose and mouth, a
+  softly tapered jaw and grouped hair locks. When a facial proportion reference is provided, preserve
+  its eye size and spacing, nose and mouth position, face and jaw proportions without exaggeration. Keep
+  specified facial features, eye color, hairstyle, physique and clothing consistent across views. Preserve
+  the requested head-to-body ratio and limb proportions.
+word_count: 67
+sha256: eef2426e5020238961c301f51ac839170c97875837c5a6ec085aa6354ef5bd49
+change_note: 캐릭터별로 지정한 눈 색을 모든 방향에서 유지하도록 명시했다. 호박색은 해당 캐릭터의 지정값이며 공통 고정값이 아니다.
+translation_language: ko
+prompt_ko: 표현력 있는 눈, 작고 간결한 코와 입, 부드럽게 좁아지는 턱선과 묶음 형태의 머리카락을 가진 양식화된 성인 판타지 게임 캐릭터. 얼굴 비율 참조가 제공되면 눈의
+  크기와 간격, 코와 입의 위치, 얼굴과 턱의 비율을 과장 없이 유지한다. 지정된 이목구비, 눈 색, 헤어스타일, 체형과 복장을 모든 방향에서 일관되게 유지한다. 요청한 머리 대 몸
+  비율과 팔다리 비율을 유지한다.

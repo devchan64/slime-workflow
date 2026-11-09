@@ -1,6 +1,2 @@
 schema_version: 1
-examples:
-  - id: character_eight_directions
-    label: 기본 캐릭터 v1 · 8방향 신체 기준
-    images:
-      - baseline/character-baselines/character-default/baseline-v1/character-default-eight-directions-v1.png
+examples: []

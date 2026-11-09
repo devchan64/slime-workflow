@@ -8,8 +8,8 @@
 
 | 기준 문서 | 버전 원문 | 상태 |
 | --- | --- | --- |
-| [화풍 관리](common/art-style.md) | [1.0.0](common/art-style-v1.yaml) | 생성 검증 전 |
-| [캐릭터 외관 기준](common/character-appearance.md) | [1.0.0](common/character-appearance-v1.yaml) | 생성 검증 전 |
+| [화풍 관리](common/art-style.md) | [1.5.0](common/art-style-v1.5.0.yaml) | 현재 문서 기준 · 원문 생성 검증 전; 1.0.0 폐기 |
+| [캐릭터 외관 기준](common/character-appearance.md) | [1.2.0](common/character-appearance-v1.2.0.yaml) | 현재 문서 기준 · 원문 생성 검증 전 |
 
 [변경 이력](common/CHANGELOG.md)을 누적하며 기존 생성기에 자동 연결하지 않는다.
 
@@ -42,7 +42,7 @@
 
 | 원본 | 용도·내용 | 상태 |
 | --- | --- | --- |
-| [기본 캐릭터 프롬프트](../baseline/character-baselines/old/generation-prompts.yaml) | `base-prompt`, 대기·휴식 전환, `walking-identity-generation-prompt`, 프레임별 걷기 보조문 | 용도별 선택; base-prompt 자동 추가 금지 |
+| 기본 캐릭터 과거 프롬프트 | `base-prompt`, 대기·휴식 전환, 걷기 보조문 | 사용자 요청으로 원본 폐기 |
 | [남성 B 참고 프롬프트](../baseline/character-baselines/character-male-b/baseline-v1/prompt.txt) | 남성 B 제작 참고 원문 | 과거 원문; 최신 이미지의 실제 입력이라고 추정하지 않음 |
 | [Kimodo 동작 예제](../generators/kimodo/config/prompt-examples.yaml) | 모션 생성 예제와 설정 | 생성기 소유 원본 |
 

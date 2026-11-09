@@ -51,6 +51,6 @@
 
 - [현재 신체·피부·얼굴 참조](../prompts/references/mannequin/latest/README.md)
 - [마네킨 연구 기록](../prompts/references/mannequin/research/README.md)
-- [기본 캐릭터 베이스라인](../baseline/character-baselines/character-default/README.md)
+- 기본 캐릭터 베이스라인은 사용자 요청으로 폐기했다.
 - [공통 화풍](../prompts/common/art-style.md), [캐릭터 외관 기준](../prompts/common/character-appearance.md)
 - [이전 전신 우선 제작 사례](character-baseline-body-first.md): 과거 리그 기반 사례이며 현재 마네킨 저장 위치·방향 배치는 이 문서를 따른다.

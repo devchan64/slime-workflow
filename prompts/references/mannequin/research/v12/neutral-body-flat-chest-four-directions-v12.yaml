@@ -1,0 +1,20 @@
+schema_version: 1
+description: 남성형 평평한 가슴 윤곽 보정 후보
+status: 후보 · 정면과 앞 쿼터 음영 추가 검수 필요
+date: '2026-11-09'
+generator: image_gen_builtin
+image: neutral-body-flat-chest-four-directions-v12.png
+image_sha256: 5149ab9af7926ae14fa6a5a21fd0e524b530bbf2fd99edc8bec99e761b4d2132
+reference: prompts/references/mannequin/latest/neutral-body-skin-clothes-four-directions.png
+reference_sha256: 0f1da10c391c432b400f51da2759914aaa8bb27949ce296b16056e155ed2e368
+prompt: 'Edit this exact four-view character sheet. Adjust only the chest and gray
+  top in the front, three-quarter and side views to show a flat masculine chest: a
+  smooth, straight, fitted top over the pectoral area, with subtle natural fabric
+  shading and a flat side silhouette. Preserve the existing character''s face, amber
+  eyes, bald head, head and body proportions, narrow shoulders, waist, hips, limbs,
+  skin tone, gray cropped top, charcoal shorts, poses, figure sizes, placement, 2x2
+  layout, background and art style. Keep the back view unchanged. Make no other changes.'
+word_count: 89
+prompt_sha256: 8449b46741b947a7dae4c923919d02a1c3121bcaa8bbd9603cb769b540d31415
+review_note: 측면 가슴 돌출은 줄었으나 정면과 앞 쿼터 상의 음영이 남아 있어 목표 충족 여부는 사용자 검수 필요. 픽셀 단위 불변성은
+  보장하지 않음.
