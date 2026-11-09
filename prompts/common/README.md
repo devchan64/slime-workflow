@@ -6,7 +6,8 @@
 
 | 문서 | 원문 | 역할 | 버전·상태 |
 | --- | --- | --- | --- |
-| [화풍 관리 기준](art-style.md) | [art-style-v1.yaml](art-style-v1.yaml) | 형태·색면·명암·광원·재질 | 1.0.0 · 생성 검증 전 |
+| [화풍 관리 기준](art-style.md) | [art-style-v1.1.0.yaml](art-style-v1.1.0.yaml) | 따뜻한 윤곽·회화적 명암 | 1.1.0 · 현재 문서 기준 · 생성 검증 전 |
+| 이전 화풍 기준 | [art-style-v1.yaml](art-style-v1.yaml) | 형태·색면·명암·광원·재질 | 1.0.0 · 이전 버전 |
 | [캐릭터 외관 기준](character-appearance.md) | [character-appearance-v1.yaml](character-appearance-v1.yaml) | 얼굴 표현·외형 일관성 | 1.0.0 · 생성 검증 전 |
 | [변경 이력](CHANGELOG.md) | — | 버전별 변경 이유·검증 상태 | 누적 기록 |
 

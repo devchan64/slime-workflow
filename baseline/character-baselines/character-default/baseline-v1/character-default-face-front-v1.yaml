@@ -1,6 +1,6 @@
 schema_version: 1
 title: 기본 캐릭터 얼굴 정면 · 무표정
-status: 사용자 지정 · 무표정으로 교체
+status: 사용자 지정 · 무표정 화풍 개선본
 image: character-default-face-front-v1.png
 generator: image_gen_builtin
 reference_images:
@@ -9,15 +9,35 @@ reference_roles:
 - 교체 직전 기존 얼굴 이미지 · 이전 Git 기록 기준
 reference_sha256:
 - 26d45b02836f8fba3e865ad608a5dc5cba12c36a00946f78aa9a31582e2fc0a9
-prompt: 'Edit this exact image: change only the smile into a natural neutral expression,
-  relaxed closed lips with level corners, no smile or frown. Keep the eyes naturally
-  open and the eyebrows relaxed. Preserve the exact same character identity, face
-  shape, hairstyle, hair color, iris color, skin color, lighting, rendering style,
-  head position, framing and white background. Do not change any other element.'
+prompt: 'Edit this exact image: change only the smile into a natural neutral expression, relaxed closed
+  lips with level corners, no smile or frown. Keep the eyes naturally open and the eyebrows relaxed. Preserve
+  the exact same character identity, face shape, hairstyle, hair color, iris color, skin color, lighting,
+  rendering style, head position, framing and white background. Do not change any other element.'
 word_count: 62
 prompt_sha256: 1ef5aaf1b28d4535ed1cb7da8dfcd6e6fab2120ed2d14c80b117bc46e245c851
-image_sha256: e68235bc18799cbbe5bb678ff6ec682f4730720477b0eb448a7ef70cad873a08
+image_sha256: 1667ca63aaae336bd044037022bec30ac982ceed3eff6ea600f8cc01e5bf8d91
 registered_on: '2026-11-01'
 registration_note: 사용자 지시에 따라 동일 이미지의 미소를 무표정으로 편집하여 교체.
 historical_source_image: assets/character-baselines/character-default/baseline-v5/character-default-face-style-matched-v5.png
 historical_source_status: 등록 당시 복사 원본 경로이며 현재 실험 파일은 보관하지 않음.
+latest_edit:
+  date: '2026-11-09'
+  operation: 컷인 참조 헤어스타일 및 화풍 개선 후보로 교체
+  previous_image_sha256: e68235bc18799cbbe5bb678ff6ec682f4730720477b0eb448a7ef70cad873a08
+  generator: image_gen_builtin
+  references:
+  - path: .tmp/test/character-default-face-art-style-v1.1.0/character-default-face-front-hairstyle-v1.png
+    role: 편집 대상 얼굴
+    sha256: 267025827dad9a26ce774c79351ba3fec5e3c048c68d0dd97539c3ed982306a0
+  - path: /home/cbsim/ws/slime-assets/assets/characters/default/emotion-cutins/default-mischievous-v1.png
+    role: 화풍 참조
+    sha256: 1574ce18ff2154e41b4e07484f44eff792ba102991ec5c4b555bcca81a1d97b9
+  prompt: 'Edit IMAGE 1 to match the illustration style of IMAGE 2: delicate warm brown outlines, softly
+    blended natural skin shading, muted warm colors, subtle painterly texture and layered hair rendering.
+    Use IMAGE 2 for style only. Preserve IMAGE 1''s exact face and facial proportions, amber eyes, neutral
+    expression, hairstyle, frontal head-and-neck framing, and white background. Do not add clothing or
+    change the character design.'
+  word_count: 64
+  prompt_sha256: 2f765e1c6862fdace20854550233b1ac79454618b10270659e1f4b39fe9745e5
+  result_sha256: 1667ca63aaae336bd044037022bec30ac982ceed3eff6ea600f8cc01e5bf8d91
+  provenance_note: 참조 경로는 생성 당시 출처이며 실행 의존성이 아니다. 중간 후보는 실험 경로에 보관한다.

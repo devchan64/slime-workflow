@@ -17,7 +17,7 @@
 
 ## 정면 개별 이미지
 
-얼굴 정면은 사용자가 채택한 화풍 수정본이다. 전신 정면은 최신 8방향에서 생성한 v7을 채택했으며, 각 이미지와 같은 이름의 YAML에서 기록을 관리한다.
+얼굴 정면은 사용자가 채택한 컷인 참조 헤어스타일·화풍 개선본이다. 전신 정면은 최신 8방향에서 생성한 v7을 채택했으며, 각 이미지와 같은 이름의 YAML에서 기록을 관리한다.
 
 - [얼굴 정면](baseline-v1/character-default-face-front-v1.png)
 - [전신 정면](baseline-v1/character-default-body-front-v1.png)
