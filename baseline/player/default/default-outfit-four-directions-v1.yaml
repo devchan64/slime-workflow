@@ -1,0 +1,62 @@
+schema_version: 1
+description: 복장 제작용 기본 캐릭터 전신 4방향 시트
+status: 원본 시트에서 분리 · 복장 제작용
+operation: crop-and-compose
+source: baseline/player/default/default-eight-directions-v1.png
+source_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+image: default-outfit-four-directions-v1.png
+image_size:
+- 769
+- 1025
+image_sha256: d4083d01ca5f9c6ee01e17c58d3329aeace431ea3f8febcd757e66b309f4f473
+layout:
+- position: 좌상
+  direction: 정면
+  source_crop_box:
+  - 0
+  - 0
+  - 384
+  - 512
+  destination_top_left:
+  - 0
+  - 0
+- position: 우상
+  direction: 화면 오른쪽 앞 45도
+  source_crop_box:
+  - 385
+  - 0
+  - 768
+  - 512
+  destination_top_left:
+  - 385
+  - 0
+- position: 좌하
+  direction: 화면 오른쪽 측면
+  source_crop_box:
+  - 769
+  - 0
+  - 1152
+  - 512
+  destination_top_left:
+  - 0
+  - 513
+- position: 우하
+  direction: 후면
+  source_crop_box:
+  - 0
+  - 513
+  - 384
+  - 1024
+  destination_top_left:
+  - 385
+  - 513
+crop_box_convention: 왼쪽·위 포함, 오른쪽·아래 제외
+separator:
+  width_px: 1
+  rgb:
+  - 160
+  - 160
+  - 160
+  vertical_x: 384
+  horizontal_y: 512
+note: 원본 구분선을 제외하고 픽셀을 크기 변경 없이 배치했으며 셀 크기 차이는 흰 배경으로 채웠다.
