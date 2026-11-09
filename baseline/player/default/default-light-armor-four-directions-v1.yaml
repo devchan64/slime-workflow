@@ -1,0 +1,27 @@
+schema_version: 1
+description: 기본 캐릭터 라이트아머 복장 4방향
+status: 사용자 지정 · 라이트아머 복장 기준
+image: default-light-armor-four-directions-v1.png
+image_sha256: 0447b25ee9c0dace40998f4088e0f01751df62535579eca6b2602973135c76d2
+registered_on: '2026-11-09'
+registration_note: 사용자 지시에 따라 가죽 갑옷 v3 후보를 라이트아머 복장으로 등록했다.
+source_image: default-leather-armor-four-directions-v3.png
+source_record: default-leather-armor-four-directions-v3.yaml
+source_image_sha256: 0447b25ee9c0dace40998f4088e0f01751df62535579eca6b2602973135c76d2
+review_note: 허벅지와 전체 체형의 기준 대비 정밀 비율은 측정하지 않았다.
+source_status: 원본 후보 이미지와 개별 생성 기록은 현재 보관하지 않음
+generator: image_gen_builtin
+generation_references:
+- image: default-leather-armor-four-directions-v2.png
+  role: 수정 대상 복장 · 현재 미보관
+- image: default-outfit-four-directions-v1.png
+  role: 허벅지·다리 비율 기준
+  sha256: d4083d01ca5f9c6ee01e17c58d3329aeace431ea3f8febcd757e66b309f4f473
+prompt: Edit image 1, the four-view leather armor outfit sheet. Use image 2 as the authoritative body
+  proportion reference. Restore the thick, muscular upper thighs and leg proportions of the matching figure
+  in image 2 in all four views; the trousers should fit over the full thigh volume without concealing
+  it. Keep leg length and body scale consistent with image 2. Preserve image 1's long trousers, shirt,
+  leather chest armor, leather gauntlets, buckles, boots, face, hairstyle, poses, 2x2 layout and white
+  background. Change only the leg and trouser silhouette needed to match the reference physique.
+word_count: 94
+prompt_sha256: 65a1d0e3c2d8375faeb4fec975584756689a6faa8a43989101af181710f852a4
