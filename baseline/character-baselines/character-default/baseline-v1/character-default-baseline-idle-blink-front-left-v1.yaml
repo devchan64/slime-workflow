@@ -1,7 +1,7 @@
 schema_version: 1
 description: 기본 캐릭터 쿼터뷰 눈 깜박임 대기 애니메이션 기준 시트
 image: character-default-baseline-idle-blink-front-left-v1.png
-sha256: 5cb14ddfc3f9aa1d38452fa49d04b6b9f30d87b28acd3272433370065e85823d
+sha256: 97c77ce655ceede04cf37bda5c0c790309f1ec671a9faa684566c5649cfcb3ff
 width: 1448
 height: 1086
 layout:
@@ -11,3 +11,10 @@ layout:
   order: 왼쪽에서 오른쪽, 위에서 아래
 source: 사용자가 첨부하여 기준 대기 프레임으로 지정한 이미지
 notes: 배경 제거 후 주변 잔여물과 프레임 간 신체·위치 차이가 있다. 재생 속도와 앵커는 미설정이며 게임 적용 전 별도 검수가 필요하다.
+
+latest_edit:
+  date: 2026-11-09
+  operation: 가슴 윤곽과 상의 음영을 평평하게 보정한 이미지로 교체
+  generator: image_gen_builtin
+  previous_image_sha256: 5cb14ddfc3f9aa1d38452fa49d04b6b9f30d87b28acd3272433370065e85823d
+  note: 배경 잔여물 및 프레임 간 위치 차이가 남아 재생·앵커 검수가 필요하다.
