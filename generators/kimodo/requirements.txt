@@ -13,3 +13,4 @@ wheel
 pyrender==0.1.45
 
 opencv-python-headless
+scipy==1.18.0

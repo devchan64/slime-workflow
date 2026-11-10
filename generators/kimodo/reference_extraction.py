@@ -1,5 +1,6 @@
 """선택 참조 이미지의 BODY18 검출을 별도 CUDA 프로세스에서 수행한다."""
 from pathlib import Path
+import hashlib
 import sys,json,threading,time
 
 REFERENCE_WORKSPACE_ROOT=Path(__file__).resolve().parents[2]
@@ -55,7 +56,10 @@ def extract_reference_body_proportions(current_job_root,current_attempt_root):
     current_pose_detector=Pose2d(str(current_model_root/'pose2d/vitpose_h_wholebody.onnx'),str(current_model_root/'det/yolov10m.onnx'),device='cuda:0')
     current_request_record=json.loads((current_job_root/'request.json').read_text())
     current_reference_records=[]
+    current_original_records=[]
     current_observation_sources=[]
+    current_pending_edits=list(current_request_record.get('proportion_joint_edits',[]))
+    current_applied_edits=[]
     for current_reference_index,current_reference_name in enumerate(current_request_record['references'],1):
         with Image.open(current_job_root/current_reference_name) as current_image_value:
             current_image_value=ImageOps.exif_transpose(current_image_value).convert('RGB')
@@ -64,6 +68,7 @@ def extract_reference_body_proportions(current_job_root,current_attempt_root):
         # 문자열 경로는 파일 BGR→RGB 처리를 사용하고 배열 API의 색상 재반전을 피한다.
         current_rgb_path=current_attempt_root/f'reference-normalized-{current_reference_index}.png'
         Image.fromarray(current_image_array).save(current_rgb_path)
+        current_image_digest=hashlib.sha256((current_job_root/current_reference_name).read_bytes()).hexdigest()
         # 최대 인물 하나를 고르는 상위 API 대신 모든 검출 상자를 개별 추정한다.
         current_detector_image,current_detector_shape=current_pose_detector.detector.preprocess(current_image_array)
         current_detector_outputs=current_pose_detector.detector.session.run(None,{current_pose_detector.detector.session.get_inputs()[0].name:current_detector_image[None]})[0]
@@ -80,17 +85,39 @@ def extract_reference_body_proportions(current_job_root,current_attempt_root):
             current_body_points[:,:2]*=np.array([current_image_array.shape[1],current_image_array.shape[0]])
             current_raw_scores=current_body_points[:,2].tolist()
             current_body_points=normalize_reference_keypoints(current_body_points)
+            current_original_records.append(current_body_points.copy())
+            current_person_edits=[current_edit for current_edit in current_pending_edits if current_edit['image']==current_reference_index and current_edit['person']==current_person_index]
+            if current_person_edits:
+                if any(current_edit['image_sha256']!=current_image_digest for current_edit in current_person_edits):
+                    raise ValueError('관절 수정 대상 참조 이미지가 변경되었습니다.')
+                from generators.kimodo.reference_joint_edits import apply_reference_joint_edits
+                current_body_points,current_evidence=apply_reference_joint_edits(current_body_points,[{current_key:current_edit[current_key] for current_key in ('joint','original','edited')} for current_edit in current_person_edits],(current_image_array.shape[1],current_image_array.shape[0]))
+                current_applied_edits.extend([{'image':current_reference_index,'person':current_person_index,'image_sha256':current_image_digest,**current_item} for current_item in current_evidence])
+                for current_edit in current_person_edits: current_pending_edits.remove(current_edit)
             current_reference_records.append(current_body_points)
             current_observation_sources.append({'observation':len(current_reference_records),'image':current_reference_index,'person':current_person_index,'bbox':current_person_box[:4].tolist(),'confidence':float(current_person_box[-2]),'raw_heatmap_scores':current_raw_scores})
             current_preview_points=current_body_points.copy()
             current_preview_points[:,:2]*=512/max(current_image_array.shape[:2])
             render_body_pose_image(current_preview_points).save(current_attempt_root/f'reference-pose-{current_reference_index}-{current_person_index}.png')
         print(time.strftime('%Y-%m-%dT%H:%M:%S')+f'/kimodo/reference {current_reference_index}/{len(current_request_record["references"])}',flush=True)
-    current_ratio_record=estimate_reference_proportions(current_reference_records)
+    if current_pending_edits:
+        raise ValueError('수정할 참조 인물을 찾을 수 없습니다.')
+    current_observation_heights=[float(current_source_record['bbox'][3]-current_source_record['bbox'][1]) for current_source_record in current_observation_sources]
+    current_ratio_record=estimate_reference_proportions(current_reference_records,current_observation_heights)
     current_ratio_record['confidence_policy']='ViTPose heatmap 최대값은 확률이 아님. 원시값 보존, 추정·렌더 점수는 [0,1] 제한.'
     current_ratio_record['observation_sources']=current_observation_sources
     current_ratio_record['image_count']=len(current_request_record['references'])
     current_ratio_record['keypoints']=[current_point_values.tolist() for current_point_values in current_reference_records]
+    current_ratio_record['original_keypoints']=[current_point_values.tolist() for current_point_values in current_original_records]
+    current_ratio_record['manual_joint_edits']=current_applied_edits
+    current_ratio_record['reference_image_sha256']=[hashlib.sha256((current_job_root/current_reference_name).read_bytes()).hexdigest() for current_reference_name in current_request_record['references']]
+    if 'proportion_multiview_angles' in current_request_record:
+        from generators.kimodo.multiview_reference_experiment import fit_multiview_reference
+        current_multiview_record=fit_multiview_reference(current_ratio_record,current_request_record['proportion_multiview_angles'])
+        current_ratio_record['baseline_2d_ratios']=current_ratio_record['ratios']
+        current_ratio_record['ratios']=current_multiview_record['ratios']
+        current_ratio_record['multiview_experiment']=current_multiview_record
+        current_ratio_record['method']='시험: 8방향 공통 3D 관절 정사영 맞춤; 코·어깨 축은 기존 2D 방식 유지'
     (current_attempt_root/'reference-proportions.json').write_text(json.dumps(current_ratio_record,ensure_ascii=False,indent=2))
 
 

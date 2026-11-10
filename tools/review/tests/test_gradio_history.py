@@ -38,9 +38,9 @@ class GradioHistoryTest(unittest.TestCase):
             return {'status':current_fixture_state['status']}
         with gr.Blocks() as current_interface_blocks:
             build_generation_history_view(execute_fixture_command,'http://localhost','격리 검증',allow_individual_delete=True)
-        current_delete_functions=[current_function for current_function in current_interface_blocks.fns.values() if current_function.name=='update_history_delete_button']
-        self.assertEqual(len(current_delete_functions),1)
-        current_delete_callback=current_delete_functions[0].fn
+        current_combined_callback=next(current_function.fn for current_function in current_interface_blocks.fns.values() if current_function.name=='refresh_combined_history')
+        def current_delete_callback(current_job_identifier):
+            return current_combined_callback(current_job_identifier,'',False)[3]
         self.assertFalse(current_delete_callback('')['interactive'])
         self.assertEqual(current_command_calls,[])
         self.assertFalse(current_delete_callback('existing-job')['interactive'])
@@ -165,7 +165,7 @@ class GradioHistoryTest(unittest.TestCase):
     def test_history_choice_includes_status_time_identifier_and_request_summary(self):
         history_choice_label = format_history_choice_label({'id':'tile-123','created_at':'2026-09-27T09:15:00+09:00','status':{'status':'completed'},'request':{'tile_type':'wall','width':512,'height':512,'steps':30,'seed':10107}})
 
-        self.assertEqual(history_choice_label,'완료 · 2026-09-27 09:15:00\n타일 wall · 너비 512 · 높이 512 · 스텝 30 · 시드 10107\nID · tile-123')
+        self.assertEqual(history_choice_label,'완료 · 2026-09-27 09:15:00\n시드 10107 · 타일 wall · 너비 512 · 높이 512 · 스텝 30\nID · tile-123')
 
     def test_history_choice_handles_legacy_minimal_record(self):
         self.assertEqual(format_history_choice_label({'id':'legacy-1','status':'failed','request':{}}),'실패 · 시각 없음\n설정 요약 없음\nID · legacy-1')
@@ -290,7 +290,7 @@ class HistoryRadioTableTest(unittest.TestCase):
         self.assertNotIn('썸네일',current_table_markup)
         self.assertNotIn('<img',current_table_markup)
         self.assertEqual(current_table_markup.count('<th scope='),6)
-        self.assertEqual(current_table_markup.count('<td>'),6)
+        self.assertEqual(current_table_markup.count('<td>')+current_table_markup.count('<td nowrap>'),6)
         self.assertIn(' checked',current_table_markup)
         self.assertIn('data-history-copy-id="sound-job"',current_table_markup)
         with gr.Blocks():
@@ -305,7 +305,7 @@ class HistoryRadioTableTest(unittest.TestCase):
             {'id':'completed-image','status':{'status':'completed'},'request':{},'image':'/image-generation/jobs/completed-image/result.png'}],
             server_base_address='http://127.0.0.1:8770')
         self.assertIn('generation-history-table-thumbnail',current_table_markup)
-        self.assertIn('http://127.0.0.1:8770/image-generation/jobs/completed-image/result.png',current_table_markup)
+        self.assertIn('src="/image-generation/jobs/completed-image/result.png"',current_table_markup)
 
 
 class HistoryRestoreFailureTests(unittest.TestCase):
@@ -384,8 +384,8 @@ class HistoryProgressDetailTests(unittest.TestCase):
         current_callbacks = {current_function.name:current_function.fn for current_function in current_interface_blocks.fns.values()}
         self.assertIn('삭제되었습니다',current_callbacks['refresh_combined_history']('deleted-job','deleted-job',True)[3])
         self.assertEqual(current_callbacks['refresh_combined_history']('deleted-job','deleted-job',False)[-2],gr.skip())
-        self.assertFalse(current_callbacks['refresh_priority_control']('deleted-job')['interactive'])
-        current_button_updates = current_callbacks['refresh_history_controls']('deleted-job')
+        current_button_updates = current_callbacks['refresh_combined_history']('deleted-job','',False)[:3]
+        self.assertFalse(current_button_updates[0]['interactive'])
         self.assertTrue(all(not current_update['interactive'] for current_update in current_button_updates))
 
     def test_transient_lookup_failure_preserves_result_and_recovers_controls(self):
@@ -405,14 +405,13 @@ class HistoryProgressDetailTests(unittest.TestCase):
         self.assertIn('연결 재시도 필요',current_result_values[0])
         self.assertEqual(current_result_values[1:],(gr.skip(),)*3)
         self.assertTrue(current_callbacks['refresh_combined_history']('existing-job','existing-job',True)[-1].active)
-        self.assertFalse(current_callbacks['refresh_priority_control']('existing-job')['interactive'])
-        self.assertTrue(all(not current_update['interactive'] for current_update in current_callbacks['refresh_history_controls']('existing-job')))
+        self.assertTrue(all(not current_update['interactive'] for current_update in current_callbacks['refresh_combined_history']('existing-job','',False)[:3]))
         current_command_calls.clear()
         self.assertEqual(current_callbacks['refresh_combined_history']('', '', False)[-2],gr.skip())
         self.assertEqual(current_command_calls,[])
         current_fixture_state['failure']=False
-        self.assertTrue(current_callbacks['refresh_priority_control']('existing-job')['interactive'])
-        current_cancel_update,current_resume_update=current_callbacks['refresh_history_controls']('existing-job')
+        current_priority_update,current_cancel_update,current_resume_update=current_callbacks['refresh_combined_history']('existing-job','',False)[:3]
+        self.assertTrue(current_priority_update['interactive'])
         self.assertTrue(current_cancel_update['interactive'])
         self.assertEqual(current_cancel_update['value'],'작업 중지')
         self.assertEqual(current_callbacks['refresh_combined_history']('existing-job','existing-job',True)[-2],'복구된 로그')

@@ -76,7 +76,7 @@ validate_kimodo_directions(KIMODO_DEFAULT_SETTINGS['directions'])
 
 def validate_kimodo_request(current_request_record):
     current_required_fields = {'action','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'}
-    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'endpoint_pose_id','keyframes','segment_frames','directions','remove_horizontal_motion','proportion_images','openpose_scale_percent','pose_include_hands','pose_include_face','camera_elevation_degrees'}:
+    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'endpoint_pose_id','keyframes','segment_frames','directions','remove_horizontal_motion','proportion_images','proportion_joint_edits','proportion_multiview_angles','openpose_scale_percent','pose_include_hands','pose_include_face','camera_elevation_degrees'}:
         raise ValueError('Kimodo 요청 필드 오류')
     current_elevation_angle = current_request_record.get('camera_elevation_degrees',0)
     if type(current_elevation_angle) is not int or current_elevation_angle not in (0,15,30):
@@ -133,6 +133,12 @@ def validate_kimodo_request(current_request_record):
     current_reference_images=current_request_record.get('proportion_images',[])
     if not isinstance(current_reference_images,list) or len(current_reference_images)>8:
         raise ValueError('신체 비율 참조 이미지는 선택 입력이며 최대 8장입니다.')
+    if 'proportion_multiview_angles' in current_request_record:
+        current_multiview_angles=current_request_record['proportion_multiview_angles']
+        if not current_reference_images or not isinstance(current_multiview_angles,list) or len(current_multiview_angles)!=8 or any(type(current_angle_value) not in (int,float) or not math.isfinite(current_angle_value) or not -360<=current_angle_value<=360 for current_angle_value in current_multiview_angles):
+            raise ValueError('다중 시점 시험에는 참조와 유한한 카메라 각도 8개가 필요합니다.')
+        if len({round(current_angle_value%360,6) for current_angle_value in current_multiview_angles})!=8:
+            raise ValueError('다중 시점 카메라 각도 8개가 서로 달라야 합니다.')
     from tools.review.domains.image.three_reference_generation import decode_reference_image
     from PIL import Image
     import io
@@ -150,6 +156,28 @@ def validate_kimodo_request(current_request_record):
         with Image.open(io.BytesIO(current_image_bytes)) as current_image_value:
             if max(current_image_value.size)>4096 or min(current_image_value.size)<64:
                 raise ValueError('참조 이미지 크기는 각 변 64~4096이어야 합니다.')
+    current_edit_records=current_request_record.get('proportion_joint_edits',[])
+    if not isinstance(current_edit_records,list) or len(current_edit_records)>144:
+        raise ValueError('참조 관절 수정 목록 형식 오류')
+    current_seen_edits=set()
+    for current_edit_record in current_edit_records:
+        if not isinstance(current_edit_record,dict) or set(current_edit_record)!={'image','person','image_sha256','joint','original','edited'}:
+            raise ValueError('참조 관절 수정 필드 오류')
+        current_image_index=current_edit_record['image']
+        current_person_index=current_edit_record['person']
+        current_joint_index=current_edit_record['joint']
+        if type(current_image_index) is not int or not 1<=current_image_index<=len(current_normalized_images) or type(current_person_index) is not int or current_person_index<1 or type(current_joint_index) is not int or not 0<=current_joint_index<18:
+            raise ValueError('참조 관절 수정 대상 오류')
+        if current_edit_record['image_sha256']!=hashlib.sha256(base64.b64decode(current_normalized_images[current_image_index-1])).hexdigest():
+            raise ValueError('관절 수정 대상 참조 이미지가 다릅니다.')
+        current_edit_key=(current_image_index,current_person_index,current_joint_index)
+        if current_edit_key in current_seen_edits:
+            raise ValueError('참조 관절 수정 대상이 중복되었습니다.')
+        current_seen_edits.add(current_edit_key)
+        for current_coordinate_name in ('original','edited'):
+            current_coordinates=current_edit_record[current_coordinate_name]
+            if not isinstance(current_coordinates,list) or len(current_coordinates)!=2 or any(type(current_coordinate_value) not in (int,float) or not math.isfinite(current_coordinate_value) for current_coordinate_value in current_coordinates):
+                raise ValueError('참조 관절 수정 좌표 형식 오류')
     return {**{current_field_name:current_field_value for current_field_name,current_field_value in current_request_record.items() if current_field_name!='proportion_images'}, 'camera_elevation_degrees':current_elevation_angle, 'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False),'openpose_scale_percent':current_scale_percent, 'remove_horizontal_motion':current_request_record.get('remove_horizontal_motion',False), 'directions':validate_kimodo_directions(current_request_record.get('directions',['front_left'])), 'prompt':current_prompt_text.strip(), 'images':current_normalized_images, 'width':512, 'height':512, 'tag':'kimodo'}
 
 

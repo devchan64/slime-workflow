@@ -84,11 +84,16 @@ def format_history_created_time(current_history_record):
 
 def format_history_request_summary(current_request_record):
     summary_text_values=[]
+    current_seed_value=current_request_record.get('seed')
+    if current_seed_value is not None:
+        summary_text_values.append(f'시드 {current_seed_value}')
     current_prompt_text=current_request_record.get('prompt')
     if isinstance(current_prompt_text,str) and current_prompt_text.strip():
         current_prompt_line=' '.join(current_prompt_text.split())
         summary_text_values.append('동작 '+(current_prompt_line[:60]+'…' if len(current_prompt_line)>60 else current_prompt_line))
     for current_field_name in HISTORY_SUMMARY_FIELD_NAMES:
+        if current_field_name == 'seed':
+            continue
         if current_field_name not in current_request_record:
             continue
         current_field_value=current_request_record[current_field_name]
@@ -98,7 +103,7 @@ def format_history_request_summary(current_request_record):
         if current_field_name=='action' and current_field_value in ('generate','prepare'):
             continue
         if current_field_name=='directions' and isinstance(current_field_value,list):
-            summary_text_values.append(f'방향 {len(current_field_value)}개')
+            summary_text_values.append('방향 '+(', '.join(map(str,current_field_value)) if current_field_value else '미선택'))
         elif current_field_name=='start_frame' and 'end_frame' in current_request_record:
             summary_text_values.append(f'프레임 {current_field_value}–{current_request_record["end_frame"]}')
         elif current_field_name=='end_frame' and 'start_frame' in current_request_record:
@@ -238,13 +243,13 @@ def render_history_selection_table(current_history_records,current_selected_iden
             current_thumbnail_markup='<span class="generation-history-table-thumbnail" aria-label="WAV 오디오 결과">WAV</span>'
         else:
             current_thumbnail_markup='<span class="generation-history-table-thumbnail is-empty" aria-label="썸네일 없음">썸네일 없음</span>'
-        current_cell_markup=''.join('<td>'+html.escape(str(current_cell_value))+'</td>' for current_cell_value in current_table_row[:-1])
+        current_cell_markup=''.join(('<td nowrap>' if current_cell_index in (0,1) else '<td>')+html.escape(str(current_cell_value))+'</td>' for current_cell_index,current_cell_value in enumerate(current_table_row[:-1]))
         current_identifier_markup = html.escape(current_job_identifier)
         current_copy_markup = '<button type="button" data-history-copy-id="'+html.escape(current_job_identifier,quote=True)+'" aria-label="'+html.escape(current_job_identifier+' ID 복사',quote=True)+'">ID 복사</button><span role="status" aria-live="polite" data-history-copy-status></span>'
         current_cell_markup += '<td>'+current_identifier_markup+('<br>'+current_copy_markup if enable_identifier_clipboard else '')+'</td>'
         current_thumbnail_cell='<td>'+current_thumbnail_markup+'</td>' if show_thumbnail_column else ''
         current_row_markup.append('<tr><td>'+current_radio_markup+'</td>'+current_thumbnail_cell+current_cell_markup+'</tr>')
-    return '<div style="overflow-x:auto"><table><caption>현재 페이지의 생성 이력</caption><thead><tr>'+current_header_markup+'</tr></thead><tbody>'+''.join(current_row_markup)+'</tbody></table></div>'
+    return '<div style="overflow-x:auto"><table><caption>현재 페이지의 생성 이력 · 좁은 화면에서는 좌우로 스크롤</caption><thead><tr>'+current_header_markup+'</tr></thead><tbody>'+''.join(current_row_markup)+'</tbody></table></div>'
 
 
 def collect_history_result_images(current_status_record, server_base_address):
@@ -345,7 +350,6 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             return gr.update(interactive=False,value='우선 실행 · 상태 확인 실패: '+str(current_lookup_error))
         current_waiting_status = bool(current_status_record) and current_status_record.get('status') == 'queued'
         return gr.update(interactive=current_waiting_status,value='우선 실행' if current_waiting_status else '우선 실행 · 대기 작업 선택')
-    history_selection_value.change(refresh_priority_control,history_selection_value,history_priority_button,queue=False)
     history_cancel_button.click(lambda selected_job_identifier:update_selected_generation(selected_job_identifier,'cancel'),history_selection_value,result_status_value,queue=False)
     bind_gpu_generation_confirmation(history_resume_button,lambda selected_job_identifier:(update_selected_generation(selected_job_identifier,'resume'), gr.Timer(active=True)),history_selection_value,[result_status_value, current_history_timer])
 
@@ -361,7 +365,6 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         generation_resume_allowed=current_status_record.get('resume_allowed',True)
         return gr.update(interactive=current_status_value in ('running','queued','paused'),value='작업 중지'),gr.update(interactive=generation_resume_allowed and current_status_value in ('failed','cancelled','paused'),value=('다음 단계' if current_status_value=='paused' else '생성 재개') if generation_resume_allowed else current_status_record['resume_block_reason'])
     # 라디오 선택과 수동 목록 변경을 같은 선택 상태에 반영한다. 전체 목록은 주기적으로 갱신하지 않는다.
-    history_selection_value.change(refresh_history_controls,history_selection_value,[history_cancel_button,history_resume_button],queue=False)
 
     def read_history_page(current_page_number,current_selected_identifier=None):
         current_history_records=execute_service_command('history',{}).get('records',[])
@@ -478,7 +481,6 @@ def build_generation_history_view(execute_service_command,server_base_address,de
                 return gr.update(interactive=False,value='선택 이력 삭제 · 삭제된 작업, 목록 새로고침 필요')
             current_delete_enabled=current_status_record.get('status') in ('completed','failed','cancelled','paused')
             return gr.update(interactive=current_delete_enabled,value='선택 이력 삭제' if current_delete_enabled else '선택 이력 삭제 · 완료·중지 후 가능')
-        history_selection_value.change(update_history_delete_button,history_selection_value,history_delete_button,queue=False)
         def close_delete_confirmation():
             return gr.update(visible=False),'',''
         current_delete_outputs=[current_delete_panel,current_delete_identifier,current_delete_display]
@@ -510,6 +512,11 @@ def build_generation_history_view(execute_service_command,server_base_address,de
                 current_status_snapshots[current_job_identifier] = read_existing_generation_status(execute_service_command, current_job_identifier)
         except (ValueError, RuntimeError, OSError) as current_lookup_error:
             current_failure_updates = [gr.skip()] * len(current_poll_outputs)
+            current_failure_updates[0] = gr.update(interactive=False,value='우선 실행 · 상태 확인 실패')
+            current_failure_updates[1] = gr.update(interactive=False,value='작업 중지 · 상태 확인 실패')
+            current_failure_updates[2] = gr.update(interactive=False,value='생성 재개 · 상태 확인 실패')
+            if allow_individual_delete:
+                current_failure_updates[3] = gr.update(interactive=False,value='선택 이력 삭제 · 상태 확인 실패 · 자동 재확인 중')
             current_failure_updates[-6] = '상태 갱신 실패: ' + str(current_lookup_error)
             current_failure_updates[-1] = gr.Timer(active=bool(current_selected_identifier or current_result_identifier))
             return current_failure_updates

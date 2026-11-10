@@ -222,6 +222,7 @@ def create_initial_selection_script(page_record_values):
 
 MANAGEMENT_NAVIGATION_WIDTH = 320
 MANAGEMENT_MOBILE_BREAKPOINT = 768
+MANAGEMENT_GPU_REFRESH_SECONDS = 5
 
 
 def create_sidebar_responsive_script(current_inline_mode=False):
@@ -319,7 +320,7 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
         interface_blocks_value.load(initialize_menu_selection,current_navigation_inputs,[search_text_value,category_select_value,page_select_value,tool_count_value,selected_page_status_value,page_preview_value],js=initial_selection_script,queue=False,preprocess=False)
         interface_blocks_value.load(fn=None,js=create_sidebar_responsive_script(current_inline_mode))
         interface_blocks_value.load(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,queue=False)
-        if hasattr(gr,'Timer'):gr.Timer(3).tick(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,show_progress='hidden')
+        if hasattr(gr,'Timer'):gr.Timer(MANAGEMENT_GPU_REFRESH_SECONDS).tick(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,show_progress='hidden')
     return interface_blocks_value,initial_selection_script
 
 if __name__=='__main__':

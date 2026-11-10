@@ -21,6 +21,44 @@ def write_keyframe_test_previews(current_attempt_root,current_frame_count):
 
 
 class KimodoGenerationContractTests(unittest.TestCase):
+    def test_multiview_gui_payload_and_history_roundtrip(self):
+        from PIL import Image
+        from tools.review.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs
+        current_view_text='45 0 135 90 225 315 180 270'
+        with tempfile.TemporaryDirectory() as current_temporary_root:
+            current_job_root=Path(current_temporary_root)/'trial'
+            current_job_root.mkdir()
+            current_image_path=current_job_root/'reference-1.png'
+            Image.new('RGB',(64,64),'white').save(current_image_path)
+            current_inputs=('stand still',90,10,42,2,0,True,['front'],False,True,[str(current_image_path)],85,False,False,'',None,[],0,current_view_text)
+            current_payload_record=build_kimodo_payload(*current_inputs)
+            self.assertEqual(current_payload_record['proportion_multiview_angles'],[45,0,135,90,225,315,180,270])
+            current_saved_request={**current_payload_record,'references':['reference-1.png']}
+            current_saved_request.pop('proportion_images')
+            with patch('tools.review.ui.gradio.kimodo_app.KIMODO_JOB_STORAGE',Path(current_temporary_root)):
+                current_restored_values=restore_kimodo_inputs({'id':'trial','request':current_saved_request})
+            self.assertEqual(build_kimodo_payload(*current_restored_values[:-1])['proportion_multiview_angles'],current_payload_record['proportion_multiview_angles'])
+            with self.assertRaisesRegex(ValueError,'각도 8개'):
+                build_kimodo_payload(*current_inputs[:-1],'0 45')
+
+    def test_reference_joint_edits_require_matching_image_and_unique_target(self):
+        import base64,hashlib,io
+        from PIL import Image
+        current_image_buffer=io.BytesIO()
+        Image.new('RGB',(64,64),'white').save(current_image_buffer,format='PNG')
+        current_image_bytes=current_image_buffer.getvalue()
+        current_edit_record={'image':1,'person':1,'joint':2,'original':[10,10],'edited':[10,12],'image_sha256':hashlib.sha256(current_image_bytes).hexdigest()}
+        current_request_record={**self.current_request_record,'proportion_images':[base64.b64encode(current_image_bytes).decode()],'proportion_joint_edits':[current_edit_record]}
+        self.assertEqual(validate_kimodo_request(current_request_record)['proportion_joint_edits'],[current_edit_record])
+        with self.assertRaisesRegex(ValueError,'이미지'):
+            validate_kimodo_request({**current_request_record,'proportion_joint_edits':[{**current_edit_record,'image_sha256':'0'*64}]})
+        with self.assertRaisesRegex(ValueError,'중복'):
+            validate_kimodo_request({**current_request_record,'proportion_joint_edits':[current_edit_record,current_edit_record]})
+        current_view_angles=[45,0,135,90,225,315,180,270]
+        self.assertEqual(validate_kimodo_request({**current_request_record,'proportion_multiview_angles':current_view_angles})['proportion_multiview_angles'],current_view_angles)
+        with self.assertRaisesRegex(ValueError,'각도 8개'):
+            validate_kimodo_request({**current_request_record,'proportion_multiview_angles':[0,45]})
+
     def test_camera_elevation_rotation_and_input_validation(self):
         import numpy as np
         from generators.kimodo.soma_render import build_soma_camera_rotation
@@ -361,6 +399,9 @@ class KimodoGenerationContractTests(unittest.TestCase):
         for current_expected in ('신체 비율: 적용 · 1장','키프레임: 1개','공식 후처리: 켜짐','수평 이동 제거: 꺼짐'):
             self.assertIn(current_expected,current_summary)
         self.assertIn('설정 확인 필요',describe_kimodo_input_summary(False,['reference.png'],[],False,False))
+        current_full_summary=describe_kimodo_input_summary(True,['/tmp/body.png'],[],True,False,202,180,['front_right_30'],15)
+        for current_expected_text in ('시드: 202','180프레임','전방 우측 -30°','고도: 15°','body.png'):
+            self.assertIn(current_expected_text,current_full_summary)
 
     def test_output_directions_validate_and_restore_legacy_history(self):
         from tools.review.ui.gradio.kimodo_app import restore_kimodo_inputs
@@ -399,6 +440,14 @@ class KimodoGenerationContractTests(unittest.TestCase):
         self.assertIn('href="/kimodo/preview.mp4"',current_result_markup)
         self.assertIn('/kimodo/frames.zip',current_result_markup)
         self.assertIn('리타게팅 후',current_result_markup)
+
+    def test_result_previews_explain_status_and_conversion(self):
+        from tools.review.ui.gradio.kimodo_app import render_kimodo_result
+        current_status_record = {'video':'/preview.mp4','download':'/frames.zip','direct_pose_status':'completed','dwpose_status':'warning','dwpose_error':'19프레임 검출 실패','preprocess_videos':{'SOMA 렌더 · front':'/render.mp4','직접 포즈 · front':'/direct.mp4'}}
+        current_result_markup = render_kimodo_result('job',current_status_record,'http://localhost')
+        for current_expected_text in ('직접 포즈: 생성 완료','DWPose: 생성 오류','19프레임 검출 실패','원본 동작 검수용','SOMA 관절을 투영','16fps로 변환'):
+            self.assertIn(current_expected_text,current_result_markup)
+        self.assertNotIn('DWPose 포즈 · front',current_result_markup)
 
     def test_pose_render_colors_and_missing_joints(self):
         import numpy as np
@@ -465,7 +514,7 @@ class KimodoPoseLibraryTests(unittest.TestCase):
             self.assertEqual(current_new_constraints,build_soma_endpoint_records(current_pose_record['id'],current_request_record['frames'])[0])
         for current_patch_record in ({'endpoint_pose_id':'../bad'},{'endpoint_pose_id':42},{'post_processing':False},{'heading_degrees':45}):
             with self.assertRaises(ValueError):validate_kimodo_request({**current_request_record,**current_patch_record})
-        self.assertEqual(apply_complete_kimodo_example(next(iter(load_kimodo_examples())))[-3:],(None,[],0))
+        self.assertEqual(apply_complete_kimodo_example(next(iter(load_kimodo_examples())))[-4:],(None,[],0,''))
 
     def test_pose_library_rejects_modified_files(self):
         from generators.kimodo.pose_library import KIMODO_POSE_LIBRARY_ROOT,load_soma_pose_catalog

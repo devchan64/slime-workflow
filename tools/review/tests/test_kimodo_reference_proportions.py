@@ -13,12 +13,46 @@ def create_test_reference_points():
 
 
 class KimodoReferenceProportionTests(unittest.TestCase):
+    def test_manual_joint_edit_preserves_original_and_rejects_stale_point(self):
+        from generators.kimodo.reference_joint_edits import apply_reference_joint_edits
+        current_source_points=create_test_reference_points()
+        current_edit_records=[{'joint':2,'original':[170,100],'edited':[170,108]}]
+        current_adjusted_points,current_evidence_records=apply_reference_joint_edits(current_source_points,current_edit_records,(400,400))
+        np.testing.assert_array_equal(current_source_points[2,:2],[170,100])
+        np.testing.assert_array_equal(current_adjusted_points[2,:2],[170,108])
+        self.assertEqual(current_evidence_records[0]['source_confidence'],.95)
+        with self.assertRaisesRegex(ValueError,'원본이 변경'):
+            apply_reference_joint_edits(current_source_points,[{'joint':2,'original':[170,101],'edited':[170,108]}],(400,400))
+        with self.assertRaisesRegex(ValueError,'중복'):
+            apply_reference_joint_edits(current_source_points,current_edit_records*2,(400,400))
+        with self.assertRaisesRegex(ValueError,'이미지 범위'):
+            apply_reference_joint_edits(current_source_points,[{'joint':2,'original':[170,100],'edited':[400,108]}],(400,400))
+
+    def test_overlapping_arms_select_segment_score_before_longest(self):
+        current_pose_points=create_test_reference_points()
+        current_pose_points[[2,5],:2]=[[197,100],[203,100]]
+        current_pose_points[[3,6],:2]=[[197,150],[203,155]]
+        current_pose_points[[2,3],2]=.95
+        current_pose_points[[5,6],2]=.7
+        current_ratio_record=estimate_reference_proportions([current_pose_points])
+        current_observation_record=current_ratio_record['evidence']['upper_arm']['observations'][0]
+        self.assertEqual(current_observation_record['joint_pair'],[2,3])
+        self.assertIn('겹친',current_observation_record['candidates'][0]['selection_reason'])
+        self.assertFalse(current_observation_record['candidates'][1]['selected_for_observation'])
+
+    def test_separate_arms_keep_longest_despite_lower_score(self):
+        current_pose_points=create_test_reference_points()
+        current_pose_points[6,1]=160
+        current_pose_points[[5,6],2]=.7
+        current_ratio_record=estimate_reference_proportions([current_pose_points])
+        self.assertEqual(current_ratio_record['evidence']['upper_arm']['observations'][0]['joint_pair'],[5,6])
+
     def test_projected_axis_matches_reference_and_preserves_limb_vectors(self):
         from generators.kimodo.direct_pose_export import adjust_projected_body_axis
         current_points=create_test_reference_points()
         current_positions=np.stack([current_points[:,:2],current_points[:,:2]+[50,20]])
         current_reference_record=estimate_reference_proportions([current_points])
-        current_reference_record['body_axis']['nose_shoulder_to_torso']=.6
+        current_reference_record['body_axis']['vertical_nose_shoulder_to_torso']=.6
         current_adjusted,current_gain=adjust_projected_body_axis(current_positions,current_reference_record)
         self.assertAlmostEqual(current_gain,.8125)
         current_shoulders=current_adjusted[:,[2,5]].mean(axis=1)
@@ -51,7 +85,7 @@ class KimodoReferenceProportionTests(unittest.TestCase):
         current_outlier_points[[9,10,12,13],1]+=[140,280,140,280]
         current_ratio_record=estimate_reference_proportions([current_pose_points,current_scaled_points,current_outlier_points])
         self.assertAlmostEqual(current_ratio_record['ratios']['thigh'],.7)
-        self.assertEqual(current_ratio_record['evidence']['thigh']['accepted_images'],[1,2])
+        self.assertEqual(current_ratio_record['evidence']['thigh']['accepted_images'],[1])
         self.assertAlmostEqual(current_ratio_record['ratios']['shoulder_width'],.6)
 
     def test_low_confidence_and_asymmetric_observations_reject(self):
@@ -61,8 +95,8 @@ class KimodoReferenceProportionTests(unittest.TestCase):
             estimate_reference_proportions([current_pose_points])
         current_pose_points=create_test_reference_points()
         current_pose_points[3,:2]=[170,110]
-        with self.assertRaisesRegex(ValueError,'upper_arm'):
-            estimate_reference_proportions([current_pose_points])
+        current_ratio_record=estimate_reference_proportions([current_pose_points])
+        self.assertAlmostEqual(current_ratio_record['ratios']['upper_arm'],np.linalg.norm([15,50])/100)
 
     def test_rotated_short_observations_do_not_shorten_full_length(self):
         current_reference_points=create_test_reference_points()
@@ -76,7 +110,49 @@ class KimodoReferenceProportionTests(unittest.TestCase):
         current_ratio_record=estimate_reference_proportions(current_reference_records)
         self.assertAlmostEqual(current_ratio_record['ratios']['thigh'],.7)
         self.assertAlmostEqual(current_ratio_record['ratios']['shin'],.7)
-        self.assertEqual(current_ratio_record['evidence']['thigh']['accepted_images'],[5,6])
+        self.assertEqual(current_ratio_record['evidence']['thigh']['accepted_images'],[5])
+
+    def test_head_axis_is_selected_independently_of_shoulder_width(self):
+        current_front_points=create_test_reference_points()
+        current_side_points=current_front_points.copy()
+        current_side_points[[2,5],0]=[185,215]
+        current_side_points[0,1]=40
+        current_ratio_record=estimate_reference_proportions([current_front_points,current_side_points])
+        self.assertEqual(current_ratio_record['evidence']['shoulder_width']['accepted_images'],[1])
+        self.assertEqual(current_ratio_record['body_axis']['accepted_observations'],[2])
+        self.assertAlmostEqual(current_ratio_record['body_axis']['nose_shoulder_to_torso'],.6)
+        self.assertAlmostEqual(current_ratio_record['body_axis']['observations'][1]['vertical_ratio'],.6)
+
+    def test_vertical_axis_ignores_horizontal_nose_projection(self):
+        current_front_points=create_test_reference_points()
+        current_side_points=current_front_points.copy()
+        current_side_points[0,0]+=80
+        current_ratio_record=estimate_reference_proportions([current_front_points,current_side_points],[400.,400.])
+        self.assertAlmostEqual(current_ratio_record['body_axis']['vertical_nose_shoulder_to_torso'],.3)
+        self.assertEqual(current_ratio_record['body_axis']['accepted_observations'],[1])
+        self.assertGreater(current_ratio_record['body_axis']['observations'][1]['ratio'],.3)
+
+    def test_common_height_normalization_resists_shorter_torso(self):
+        current_normal_points=create_test_reference_points()
+        current_short_points=current_normal_points.copy()
+        current_short_points[[8,11],1]=180
+        current_ratio_record=estimate_reference_proportions([current_normal_points,current_short_points],[400.,400.])
+        self.assertAlmostEqual(current_ratio_record['ratios']['shoulder_width'],60/90)
+        self.assertEqual(current_ratio_record['normalization']['method'],'bbox_height_common_torso')
+
+    def test_box_height_evidence_does_not_require_face_for_limb(self):
+        current_front_points=create_test_reference_points()
+        current_back_points=current_front_points.copy()
+        current_back_points[0,2]=0
+        current_back_points[[2,5],0]=[160,240]
+        current_ratio_record=estimate_reference_proportions([current_front_points,current_back_points],[400.0,400.0])
+        self.assertEqual(current_ratio_record['evidence']['shoulder_width']['accepted_images'],[2])
+        current_sample_record=current_ratio_record['evidence']['shoulder_width']['observations'][1]['candidates'][0]
+        self.assertAlmostEqual(current_sample_record['length_px'],80)
+        self.assertAlmostEqual(current_sample_record['height_ratio'],.2)
+        self.assertNotIn(2,current_ratio_record['body_axis']['accepted_observations'])
+        with self.assertRaisesRegex(ValueError,'높이'):
+            estimate_reference_proportions([current_front_points],[0])
 
     def test_adjustment_preserves_bone_directions_root_motion_and_source(self):
         current_pose_points=create_test_reference_points()

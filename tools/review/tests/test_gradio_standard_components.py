@@ -36,6 +36,12 @@ class GradioStandardComponentTests(unittest.TestCase):
             self.assertEqual(current_seed_callback.fn(), KIMODO_MAXIMUM_SEED_VALUE)
             current_random_function.assert_called_once_with(KIMODO_MAXIMUM_SEED_VALUE + 1)
 
+    def test_history_summary_prioritizes_seed_and_shows_direction(self):
+        from tools.review.common.gradio_history import format_history_request_summary
+        current_summary_text = format_history_request_summary({'prompt':'A person walks.','seed':202,'directions':['front_right_30']})
+        self.assertTrue(current_summary_text.startswith('시드 202'))
+        self.assertIn('방향 front_right_30',current_summary_text)
+
     def test_history_selection_uses_radio_table_and_shared_state(self):
         with gr.Blocks() as current_interface_blocks:
             _,current_history_outputs=build_generation_history_view(lambda *_:{'records':[]},'http://localhost','검수용')
