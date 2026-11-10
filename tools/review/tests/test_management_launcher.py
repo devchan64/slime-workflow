@@ -46,16 +46,19 @@ class ManagementLauncherTests(unittest.TestCase):
             selected_environment_path = management_launcher.resolve_management_environment('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH', '.venv-management')
         self.assertEqual(selected_environment_path, management_launcher.WORKFLOW_ROOT_DIRECTORY/'.tmp/custom environment')
 
-    def test_setup_prepares_both_environments_only_when_requested(self):
-        with tempfile.TemporaryDirectory() as temporary_directory_name, patch.dict(os.environ, {'VIRTUAL_ENVIRONMENT_PATH': temporary_directory_name+'/runtime', 'MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH': temporary_directory_name+'/ui'}), patch.object(management_setup, 'run_logged_management_command') as run_command_mock:
+    def test_setup_prepares_shared_environment_only_when_requested(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_name, patch.dict(os.environ, {'VIRTUAL_ENVIRONMENT_PATH': temporary_directory_name+'/runtime'}, clear=True), patch.object(management_setup, 'run_logged_management_command') as run_command_mock:
             management_launcher.prepare_management_environments(None)
         command_argument_records = [current_call_value.args[0] for current_call_value in run_command_mock.call_args_list]
-        self.assertEqual(sum('venv' in current_command_values for current_command_values in command_argument_records), 2)
-        self.assertEqual(sum('pip' in current_command_values for current_command_values in command_argument_records), 2)
-        installation_command_records = [current_command_values for current_command_values in command_argument_records if 'pip' in current_command_values]
-        self.assertEqual(installation_command_records[0][-1], str(management_setup.WORKFLOW_ROOT_DIRECTORY/'requirements.txt'))
-        self.assertEqual(installation_command_records[1][-1], str(management_setup.WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/gradio/requirements.txt'))
-        self.assertNotIn('gradio', (management_setup.WORKFLOW_ROOT_DIRECTORY/'requirements.txt').read_text().lower())
+        self.assertEqual(sum('venv' in current_command_values for current_command_values in command_argument_records), 1)
+        self.assertEqual(command_argument_records[-2][-1], str(management_setup.WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/gradio/requirements.txt'))
+        self.assertEqual(command_argument_records[-1][-2:], ['pip', 'check'])
+
+    def test_gradio_uses_shared_environment_and_allows_explicit_override(self):
+        with patch.dict(os.environ, {'VIRTUAL_ENVIRONMENT_PATH': '.tmp/shared'}, clear=True):
+            self.assertEqual(management_launcher.resolve_gradio_environment(), management_launcher.WORKFLOW_ROOT_DIRECTORY/'.tmp/shared')
+            with patch.dict(os.environ, {'MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH': '.tmp/ui'}):
+                self.assertEqual(management_launcher.resolve_gradio_environment(), management_launcher.WORKFLOW_ROOT_DIRECTORY/'.tmp/ui')
 
     def test_failure_preserves_output_and_exact_exit_code(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name, patch.object(management_process, 'WORKFLOW_ROOT_DIRECTORY', Path(temporary_directory_name)), contextlib.redirect_stdout(io.StringIO()):

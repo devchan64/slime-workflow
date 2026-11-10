@@ -90,14 +90,14 @@ Gradio Python 콜백 → HTTP 클라이언트 ───┼→ 게이트웨이(87
 
 | 스크립트 | 역할 |
 | --- | --- |
-| `scripts/setup_management.sh` | `.venv`·`.venv-management` 준비와 환경별 의존성 설치 |
+| `scripts/setup_management.sh` | `.venv` 준비와 공용 의존성 설치 |
 | `scripts/run_management_gateway.sh` | 독립 게이트웨이 시작; `--watch` 지원; 프론트엔드·Gradio 환경 불필요 |
 | `scripts/run_management_gui.sh` | GUI 시작; `--watch`, `--root`, `--frontend-repo` 등 기존 옵션 전달 |
 | `scripts/watch_review_server.sh` | `run_management_gui.sh --watch` 호환 연결 |
 
 공용 진입점은 `tools/review/common/management_launcher.py`다. 환경·접속 설정은 `management_environment.py`, 명시적 설치는 `management_setup.py`, 로그·heartbeat·프로세스 그룹 수명은 `management_process.py`가 맡는다. Gradio는 환경 설정 모듈만 참조한다. 서버 실행 시 패키지를 설치하거나 환경을 자동 복구하지 않는다. 환경이 없으면 준비 명령을 안내하고 즉시 실패한다. `setup`은 서버가 실행 중이지 않을 때 최초 준비 또는 의존성 갱신 목적으로 명시적으로 실행한다.
 
-`VIRTUAL_ENVIRONMENT_PATH`는 서버 Python 환경, `MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH`는 실제 Gradio 자식 환경을 지정한다. GPU 모델 실행기의 기존 환경 정책은 별개다. 상대 경로와 전달한 상대 파일 인자는 저장소 루트를 기준으로 한다. `REVIEW_SERVER_PORT`·`MANAGEMENT_GATEWAY_PORT`는 각 서버 포트이며 명시적인 `--port`가 우선한다. `FRONTEND_REPOSITORY_PATH`는 GUI 기본 프론트엔드 경로로만 사용하고 `--root`·`--walking`·`--frontend-repo`를 지정하면 적용하지 않는다. 게이트웨이 포트를 바꿔도 GUI·CLI 목적지는 자동 변경하지 않으므로 `--gateway-url`·`--server-url` 또는 `SLIME_MANAGEMENT_GATEWAY_URL`도 설정한다.
+`VIRTUAL_ENVIRONMENT_PATH`는 서버와 Gradio의 공용 Python 환경을 지정한다. `MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH`는 별도 Gradio 환경이 필요한 경우에만 명시적으로 지정한다. GPU 모델 실행기의 기존 환경 정책은 별개다. 상대 경로와 전달한 상대 파일 인자는 저장소 루트를 기준으로 한다. `REVIEW_SERVER_PORT`·`MANAGEMENT_GATEWAY_PORT`는 각 서버 포트이며 명시적인 `--port`가 우선한다. `FRONTEND_REPOSITORY_PATH`는 GUI 기본 프론트엔드 경로로만 사용하고 `--root`·`--walking`·`--frontend-repo`를 지정하면 적용하지 않는다. 게이트웨이 포트를 바꿔도 GUI·CLI 목적지는 자동 변경하지 않으므로 `--gateway-url`·`--server-url` 또는 `SLIME_MANAGEMENT_GATEWAY_URL`도 설정한다.
 
 시작·명령·출력·5초 heartbeat와 실패 traceback은 `.tmp/management-launcher-logs/`에 누적한다. 실패 시 명령과 최근 로그를 출력하고 종료 코드를 반환한다. `Ctrl+C` 또는 SIGTERM은 해당 실행기가 시작한 서버 프로세스 그룹에만 전달한다. GUI와 게이트웨이는 별도 그룹이며 독립 세션으로 시작한 GPU 작업·대기열은 정리 대상이 아니다. 부모 종료 뒤 같은 그룹에 남아 SIGTERM을 무시하는 자식은 강제 종료한다. 다른 실행기가 시작한 그룹과 독립 세션은 건드리지 않는다. 검증이나 재시작을 위해 기존 서버의 포트 점유 프로세스를 강제로 종료하지 않는다.
 
@@ -204,7 +204,7 @@ python3 tools/manager.py character-animation sprite-save asset:character.default
 
 MoMask의 얼굴 포인트·커스텀 포즈·렌더 재개와 AnyPose 애니메이션의 생성 배속·해상도·강도 설정은 폐기된 생성 화면의 기능이다. 현행 명령으로 안내하지 않는다. HY-Motion의 렌더 프레임 스텝·투영·OpenPose 출력과 VNCCS의 단일 이미지 입력은 각 도구 안내를 따른다.
 
-현행 Gradio UI는 `.venv-management`에서 실행하며 설정·이력·로그·브라우저 재생을 공용 컴포넌트로 구성한다. 설치는 `scripts/setup_management.sh`, GUI 로그는 `.tmp/manager-current/gradio.log`를 사용한다. 폐기된 MoMask 화면을 UI 전환·검증 대상으로 다시 실행하지 않는다.
+현행 Gradio UI는 `.venv`에서 실행하며 설정·이력·로그·브라우저 재생을 공용 컴포넌트로 구성한다. 설치는 `scripts/setup_management.sh`, GUI 로그는 `.tmp/manager-current/gradio.log`를 사용한다. 폐기된 MoMask 화면을 UI 전환·검증 대상으로 다시 실행하지 않는다.
 
 ### 로컬 GPU 대기·중지·재개
 
@@ -571,7 +571,7 @@ CLI에서는 같은 `qwen-21 generate`에 `--prompt-file generators/image/config
 
 설정 예: `{"map":"ash-edge","show_character":true,"show_safe_boundary":true,"edges":false,"tile_edges":false}`. `map`은 필수이며 나머지는 예시 값이 기본값이다. 원본 맵의 타일·빌보드 배율을 그대로 사용한다. 투명 RGBA PNG, 긴 변 최대 4096px이며 화면 캡처와 같은 전체 범위 계산을 사용한다.
 
-실행: `PYTHONPATH=. .venv-management/bin/python tools/manager.py command map-review capture --payload-file /tmp/map-capture.json`. 응답의 `images.map`이 결과 경로다. 기존 캡처 저장소 `.tmp/test/character-review-capture/<실행 시각>/`에 `map.png`, `result.yaml`, `worker.log`, `browser.log`를 보존한다. 별도 Chrome 프로필을 사용하고 종료 후 정리한다. 입력 오류·리소스 오류·빈 PNG·시간 초과는 실패 처리하며 사용자 브라우저나 실행 중 생성기를 조작하지 않는다.
+실행: `PYTHONPATH=. .venv/bin/python tools/manager.py command map-review capture --payload-file /tmp/map-capture.json`. 응답의 `images.map`이 결과 경로다. 기존 캡처 저장소 `.tmp/test/character-review-capture/<실행 시각>/`에 `map.png`, `result.yaml`, `worker.log`, `browser.log`를 보존한다. 별도 Chrome 프로필을 사용하고 종료 후 정리한다. 입력 오류·리소스 오류·빈 PNG·시간 초과는 실패 처리하며 사용자 브라우저나 실행 중 생성기를 조작하지 않는다.
 
 ### 공용 빌보드 에셋 편집
 
@@ -723,7 +723,7 @@ GUI 결과 조회와 CLI `status`의 `audio_stems`로 MR·보컬을 조회합니
 
 ### 관리 UI 단일 포트 실행
 
-관리 GUI는 `8770`의 ASGI 서버 한 개에서 Gradio 화면을 경로별로 연결합니다. `serve.py`는 `.venv-management`에서 실행하며, 처음 접근한 화면만 구성하고 같은 서버 수명 안에서 큐·스트리밍을 유지합니다. 도구별 TCP 포트와 Gradio 자식 서버는 실행하지 않습니다. 별도 GPU 작업 서비스와 공용 게이트웨이 `8771`의 실행·기록 계약은 유지합니다. 기존 정적 파일·명령 중계 핸들러는 서버 내부 어댑터로 호출합니다. 워치 재시작 시 화면 상태는 다시 연결되며 생성 작업은 별도 작업 서비스에서 계속됩니다.
+관리 GUI는 `8770`의 ASGI 서버 한 개에서 Gradio 화면을 경로별로 연결합니다. `serve.py`는 `.venv`에서 실행하며, 처음 접근한 화면만 구성하고 같은 서버 수명 안에서 큐·스트리밍을 유지합니다. 도구별 TCP 포트와 Gradio 자식 서버는 실행하지 않습니다. 별도 GPU 작업 서비스와 공용 게이트웨이 `8771`의 실행·기록 계약은 유지합니다. 기존 정적 파일·명령 중계 핸들러는 서버 내부 어댑터로 호출합니다. 워치 재시작 시 화면 상태는 다시 연결되며 생성 작업은 별도 작업 서비스에서 계속됩니다.
 
 ### 그림자 중심 좌표와 수동 초기화
 
@@ -904,7 +904,7 @@ GUI와 CLI는 `map-assets effect-list`, `effect-load`, `effect-save`를 공유�
 
 `/management/frame/wan22-vace-generator/`와 `wan22-vace` 서비스는 같은 대기열·이력 계약을 사용한다. `text`는 이미지 없이 생성하고, `reference`는 외형 참조 1장을 별도 잠재 슬롯으로 전달한 뒤 출력 전에 제거한다. `first_frame`은 이미지 1장을 첫 프레임 조건으로, 첫 프레임 0/나머지 1 마스크와 함께 전달한다. 첫 프레임 조건은 픽셀 완전 일치 보장이 아니다. `video_edit`는 원본 MP4·흰색 편집 마스크·외형 참조 1장을 사용한다. 영상·마스크는 832×480·16fps이며 각 32MiB 이하, 요청 길이 이상이어야 한다. 다중 주체는 지원하지 않는다.
 
-모델은 `QuantStack/Wan2.2-VACE-Fun-A14B-GGUF` revision `93b339260b1d819e2c171dd7ca9e66a761d4a84d`의 고·저노이즈 Q4_K_M으로 고정한다. 모델명은 입력받지 않는다. `.venv-management/bin/python -m generators.wan_vace.prepare`는 전용 파일 2개(총 23,278,907,200바이트)를 `.model/wan22-vace/`에 다운로드하고 크기·SHA-256을 검증한다. 준비 실행은 GPU 접근 정책에 따라 샌드박스 밖에서 수행한다. 준비 기록은 `.tmp/test/wan22-vace-prepare/<시각>/`에 저장한다. 텍스트 인코더는 제작자 원본 UMT5 BF16을 양자화 없이 사용한다. 원본 인코더와 SentencePiece 토크나이저는 `alibaba-pai/Wan2.2-VACE-Fun-A14B` revision `4438caabbfdd7437bbb0283d86cb200d1b7223ba`에서 받아 크기·SHA-256을 검증하며 약 11.37GB가 추가된다. 공식 인코더에 원본 가중치를 strict 로드한다. CUDA에서 연산하고 CPU RAM에는 가중치만 오프로드한다. 기존 Wan2.1 VAE를 공식 모델에 로드하고 공식 VideoX-Fun 소스·토크나이저를 고정 해시로 준비한다. ComfyUI 실행 의존성은 제거했다. 아래 기존 실행 검증은 변경 전 UMT5 Q4 기준이다.
+모델은 `QuantStack/Wan2.2-VACE-Fun-A14B-GGUF` revision `93b339260b1d819e2c171dd7ca9e66a761d4a84d`의 고·저노이즈 Q4_K_M으로 고정한다. 모델명은 입력받지 않는다. `.venv/bin/python -m generators.wan_vace.prepare`는 전용 파일 2개(총 23,278,907,200바이트)를 `.model/wan22-vace/`에 다운로드하고 크기·SHA-256을 검증한다. 준비 실행은 GPU 접근 정책에 따라 샌드박스 밖에서 수행한다. 준비 기록은 `.tmp/test/wan22-vace-prepare/<시각>/`에 저장한다. 텍스트 인코더는 제작자 원본 UMT5 BF16을 양자화 없이 사용한다. 원본 인코더와 SentencePiece 토크나이저는 `alibaba-pai/Wan2.2-VACE-Fun-A14B` revision `4438caabbfdd7437bbb0283d86cb200d1b7223ba`에서 받아 크기·SHA-256을 검증하며 약 11.37GB가 추가된다. 공식 인코더에 원본 가중치를 strict 로드한다. CUDA에서 연산하고 CPU RAM에는 가중치만 오프로드한다. 기존 Wan2.1 VAE를 공식 모델에 로드하고 공식 VideoX-Fun 소스·토크나이저를 고정 해시로 준비한다. ComfyUI 실행 의존성은 제거했다. 아래 기존 실행 검증은 변경 전 UMT5 Q4 기준이다.
 
 공용 CLI는 `tools/manager.py command wan22-vace generate --payload-file <요청.json> --detach`이다. 필수 필드는 `action: generate`, `mode: text|reference|first_frame|video_edit|pose`, `prompt`, `negative_prompt`, `images`, `width: 832`, `height: 480`, `frames`, `steps`, `seed`, `flow_shift`, `guidance_scale`, `reference_strength`이다. `images`는 text에서 빈 목록, 다른 모드에서 불투명 832×480 PNG base64 1장이다. GUI는 원본 비율을 유지하고 흰 여백을 합성한다. `video_edit`에서만 `edit_video`, `edit_mask` MP4 base64 필드가 추가된다. `pose`에서는 `pose_video` MP4 base64와 참조 PNG 1장을 사용하며 편집 마스크 필드는 받지 않는다. 키모도 DWPose 영상은 832×480·16fps, 32MiB 이하, 요청 프레임 이상이어야 하며 재추출하지 않는다. GUI 검증의 내부 tag를 API 요청에 추가하지 않는다.
 

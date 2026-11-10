@@ -172,6 +172,6 @@ current_stage_result = apply_anny_skin_barrier(
 GUI·CLI는 `anny-landmarks` 게이트웨이 서비스를 공유한다. 명령은 `landmark-source`, `landmark-preview`, `landmark-save`, `landmark-load`, `landmark-history`이며 `--payload-file`로 JSON 객체를 받는다. 원본/이력 조회는 `{}`, 불러오기는 `{"id":"시각/고유 ID"}`, 검수/저장은 `{"source": 원본 응답의 source, "points": {기준점 ID: {"position": [X,Y,Z], "method": "manual_xyz 또는 surface_pick", "evidence": "지정 근거"}}}`다. 알 수 없는 필드·기준점, 비유한 좌표·범위 이탈, 근거 누락, 원본 불일치를 거절한다.
 
 ```bash
-.venv-management/bin/python tools/manager.py help anny-landmarks
-.venv-management/bin/python tools/manager.py command anny-landmarks landmark-source --payload-file /absolute/path/empty-object.json
+.venv/bin/python tools/manager.py help anny-landmarks
+.venv/bin/python tools/manager.py command anny-landmarks landmark-source --payload-file /absolute/path/empty-object.json
 ```

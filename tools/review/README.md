@@ -186,7 +186,7 @@ VACE 공용 작업자는 CUDA 초기화 전에 `expandable_segments:True`를 적
 가벼운 수정은 영향받는 모듈만 지정한다. 문서만 수정하면 형식·링크·diff 확인으로 충분하며, UI 변경은 해당 흐름의 브라우저 검증을 함께 수행한다. 전체 전수 검사 중에도 매 변경마다 전체 회귀를 반복하지 않는다.
 
 ```bash
-.venv-management/bin/python tools/review/tests/run_management_audit.py --module tools.review.tests.test_writer_agent_gradio
+.venv/bin/python tools/review/tests/run_management_audit.py --module tools.review.tests.test_writer_agent_gradio
 ```
 
 여러 모듈은 `--module`을 반복한다. 광범위한 공용 계약 변경 등 전체 검사가 필요한 이유가 있을 때만 `--all`을 사용한다. 인자가 없거나 `--module`과 `--all`을 함께 지정하면 실행 전에 거절한다. 로그·종료 코드·최종 요약은 기존 공용 회귀 실행기가 보존한다. 통과 후 새 변경이나 실패 근거 없이 같은 검사를 반복하지 않는다.

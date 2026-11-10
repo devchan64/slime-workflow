@@ -7,7 +7,7 @@ import sys
 import traceback
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
-from tools.review.common.management_environment import WORKFLOW_ROOT_DIRECTORY, resolve_management_environment
+from tools.review.common.management_environment import WORKFLOW_ROOT_DIRECTORY, resolve_management_environment, resolve_gradio_environment
 from tools.review.common.management_process import ManagementLaunchLogger, run_logged_management_command
 from tools.review.common.management_setup import prepare_management_environments
 
@@ -34,7 +34,7 @@ def build_management_launch_command(launcher_mode_name, forwarded_argument_value
         if not explicit_source_selected and os.environ.get('FRONTEND_REPOSITORY_PATH'):
             selected_command_values.extend(['--frontend-repo', os.environ['FRONTEND_REPOSITORY_PATH']])
         if not any(current_argument_text in ('-h', '--help') for current_argument_text in forwarded_argument_values):
-            management_environment_path = resolve_management_environment('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH', '.venv-management')
+            management_environment_path = resolve_gradio_environment()
             if not (management_environment_path/'bin/python').is_file():
                 raise ValueError(f'Gradio 환경이 없습니다: {management_environment_path}. scripts/setup_management.sh를 먼저 실행하세요.')
     return selected_command_values + list(forwarded_argument_values)

@@ -16,6 +16,13 @@ def resolve_management_environment(environment_variable_name, default_directory_
     return selected_directory_path.absolute()
 
 
+def resolve_gradio_environment():
+    """기본 런타임을 공유하고 명시적인 기존 UI 경로 설정은 존중한다."""
+    if 'MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH' in os.environ:
+        return resolve_management_environment('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH', '.venv')
+    return resolve_management_environment('VIRTUAL_ENVIRONMENT_PATH', '.venv')
+
+
 def validate_gateway_address(gateway_base_address):
     gateway_url_parts = urlsplit(gateway_base_address)
     if (gateway_url_parts.scheme != 'http' or gateway_url_parts.hostname != '127.0.0.1'

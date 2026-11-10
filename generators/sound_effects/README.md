@@ -12,11 +12,11 @@
 ## 준비와 실행
 
 ```bash
-.venv-management/bin/python generators/sound_effects/setup_runtime.py
-.venv-management/bin/python tools/manager.py command sfx-dasheng-audiogen prepare
-.venv-management/bin/python tools/manager.py command sfx-dasheng-audiogen generate --prompt 'A single boxing glove punch, a sharp smack and a heavy thud.' --seed 42 --tag '권투 타격음 실험' --detach
-.venv-management/bin/python tools/manager.py command sfx-dasheng-audiogen history
-.venv-management/bin/python tools/manager.py command sfx-dasheng-audiogen status <생성ID>
+.venv/bin/python generators/sound_effects/setup_runtime.py
+.venv/bin/python tools/manager.py command sfx-dasheng-audiogen prepare
+.venv/bin/python tools/manager.py command sfx-dasheng-audiogen generate --prompt 'A single boxing glove punch, a sharp smack and a heavy thud.' --seed 42 --tag '권투 타격음 실험' --detach
+.venv/bin/python tools/manager.py command sfx-dasheng-audiogen history
+.venv/bin/python tools/manager.py command sfx-dasheng-audiogen status <생성ID>
 ```
 
 `.venv-sfx-dasheng`은 Python 3.12·PyTorch 2.8 CUDA 12.8·Transformers 4.57 전용 환경이다. 모델 본체·텍스트 인코더·오디오 토크나이저의 revision을 `runtime.py`에서 고정하고 `.model/music/sfx-dasheng-audiogen/`에 준비한다. 로컬 원격 코드도 파일 해시를 검증한 뒤 실행한다. 생성 시에는 로컬 파일만 로드한다.

@@ -42,9 +42,9 @@
 CLI도 동일한 서비스와 기록을 사용한다.
 
 ```bash
-.venv-management/bin/python tools/manager.py command music-heartmula generate --prompt 'piano,harp,flute,acoustic,peaceful,female vocals' --lyrics $'[Verse]\nMorning warms the village lane\nDewdrops shine after the rain\n[Chorus]\nGentle roads will lead us home\n[Outro]' --duration-seconds 300 --seed 7 --tag bgm-test --detach
-.venv-management/bin/python tools/manager.py command music-heartmula status <생성ID>
-.venv-management/bin/python tools/manager.py command music-heartmula logs <생성ID>
+.venv/bin/python tools/manager.py command music-heartmula generate --prompt 'piano,harp,flute,acoustic,peaceful,female vocals' --lyrics $'[Verse]\nMorning warms the village lane\nDewdrops shine after the rain\n[Chorus]\nGentle roads will lead us home\n[Outro]' --duration-seconds 300 --seed 7 --tag bgm-test --detach
+.venv/bin/python tools/manager.py command music-heartmula status <생성ID>
+.venv/bin/python tools/manager.py command music-heartmula logs <생성ID>
 ```
 
 ## 4. 결과 비교와 다운로드
