@@ -1,0 +1,37 @@
+schema_version: 1
+description: 기본 캐릭터 풀플레이트 아머 복장 4방향
+status: 사용자 지정 · 풀플레이트 아머 복장 기준
+image: default-full-plate-armor-four-directions-v1.png
+image_sha256: bfb8bdd58df317a3d00b34fc024f995bdb5a96404f7e1c1a73790715e1fd1fe7
+registered_on: '2026-11-10'
+registration_note: 사용자 지시에 따라 원본 복장 시트에 v15 갑옷을 참조하여 편집한 v16 결과를 가죽 소재의 풀플레이트 아머 복장으로 등록했다. 라이트아머 기준과 동일한 4방향
+  파일명 및 등록 기록 구성을 적용했다.
+source_image: .tmp/2026-11-10_22-53-56/default-outfit-leather-armor-edit-v16.png
+source_record: .tmp/2026-11-10_22-53-56/prompt-v16.txt
+source_image_sha256: bfb8bdd58df317a3d00b34fc024f995bdb5a96404f7e1c1a73790715e1fd1fe7
+review_note: 명시적 픽셀 마스크 없는 참조 기반 편집이다. 얼굴·체형·배치의 원본 픽셀 일치, 방향 간 결합 구조 및 실제 동작 시 관절 간섭은 정밀 검증하지 않았다.
+source_status: 후보와 프롬프트는 저장소 루트 기준 .tmp 경로에 현재 보관하며 임시 자료이다. 이 등록 기록에 최종 프롬프트와 출처 해시를 보존한다.
+generator: image_gen_builtin
+generation_references:
+- image: default-outfit-four-directions-v1.png
+  role: 편집 대상 · 캐릭터 외형·체형·자세·4방향 배치 기준
+  sha256: d4083d01ca5f9c6ee01e17c58d3329aeace431ea3f8febcd757e66b309f4f473
+- image: .tmp/2026-11-10_22-53-56/default-leather-full-plate-four-directions-v15.png
+  role: 갑옷 디자인 참조 · 저장소 루트 기준 임시 후보 경로
+  sha256: 0befc3d40d4a842f4c64343f46e923e13b45ba7a618f580eea793a906cfad95d
+prompt: 'Localized clothing inpainting edit. IMAGE 1 is the sole EDIT TARGET and authoritative character
+  baseline. IMAGE 2 is ARMOR DESIGN REFERENCE ONLY; do not copy its face, anatomy, pose or framing. On
+  IMAGE 1, replace the clothing and cover the body from below the neck to fingers and toes with the exact
+  refined leather armor design from image 2. Preserve image 1''s original face, expression, hair shape,
+  skin tone at the exposed head/neck, head size, muscular anatomy, limb lengths, stance, hand positions,
+  viewing angles, character placement, 2x2 grid and white background. Do not redesign or beautify the
+  character. Restrict changes to the garment/armor footprint and the small extra volume needed for armor
+  outside the body silhouette. Match the reference armor: dark espresso molded leather breastplate/backplate
+  with fine tonal border, layered shoulder shells, articulated abdominal lames, pelvic protective panels
+  over a continuous supple leather under-tunic, thigh guards, floating knee cups, greaves, articulated
+  boots and gloves. Match small brushed dark-metal functional buckles and short flat leather closure tabs
+  at shoulders, torso sides, forearms and calves. No laces or knots, no gold floral ornaments, no helmet
+  or weapons. Retain joint flexion clearances and consistent armor construction across all four baseline
+  views. Keep the original baseline illustration style and composition. Output only the edited first image.'
+word_count: 212
+prompt_sha256: 432dfc8ff857e523ed0acb87e47b137a179947924ef0fb9e9e8cd093e73c6395
