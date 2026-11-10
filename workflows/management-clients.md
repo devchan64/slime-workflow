@@ -308,13 +308,13 @@ GUI와 `tools/manager.py command seamless-tile generate`는 같은 공용 게이
 이전 Qwen 2511 schema 1 기록은 조회할 수 있으나 재개를 거절한다. schema 2·3·4·6·7 기록은 Qwen 2.1 실행기로 재개하며 저장된 GPU 명령도 2.1 실행기인지 검증한다.
 기존 URL·서비스 이름·기록 저장 경로는 변경하지 않는다.
 
-2.1 작업자는 `.venv-qwen21` 분리 환경에서 실행한다. 검증 환경은 Python 3.12,
-PyTorch 2.11.0+cu128, diffusers git `8b33bfc04b6b5e8bb58a58e55f68746c1bbee4cd`,
-transformers 5.18.0, accelerate 1.13.0이다. 모델은
+2.1 작업자는 Kimodo·관리도구와 같은 `.venv`에서 실행한다. 검증 환경은 Python 3.12,
+PyTorch 2.11.0+cu128, diffusers git `122b1e11fd497c3eeef14b3b98ca26a60166e48b`,
+transformers 5.1.0, accelerate 1.15.0이다. 모델은
 `.model/qwen-image-2.1/<revision>/`에 공식 snapshot 전체를 준비한다.
 환경·모델이 없으면 접수 전에 실패하며 실행 중 자동 설치나 다른 모델 대체는 없다.
-현재 실험 환경은 기존 `.venv` 패키지를 `.pth`로 재사용하고 diffusers·transformers만 분리 설치했다.
-기존 환경 삭제·갱신 시 해당 의존성을 재검증해야 한다.
+공용 환경의 의존성을 갱신할 때 Qwen과 Kimodo를 함께 재검증해야 한다.
+2026-11-10 공용 대기열의 격리 작업에서 256×256·20스텝 GPU 샘플 한 장을 생성했다. 이미지 품질은 별도 검수한다.
 GPU 추론에는 sequential CPU offload와 VAE tiling을 사용한다. CPU 단독 추론은 허용하지 않는다.
 2.1 모델 실행 성공과 심리스 품질 승인은 구분하며 반복 검수 후 사용자 채택을 받는다.
 

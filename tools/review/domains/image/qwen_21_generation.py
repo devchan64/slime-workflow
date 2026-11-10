@@ -96,7 +96,7 @@ class QwenPlainGenerationManager(ImageGenerationManager):
 
     def validate_generation_runtime(self, saved_request_record=None):
         validate_qwen_model_assets()
-        validate_image_runtime(WORKFLOW_ROOT_PATH / '.venv-qwen21')
+        validate_image_runtime(WORKFLOW_ROOT_PATH / '.venv')
 
     def validate_generation_request(self, request_record_value):
         return validate_qwen_plain_request(request_record_value)

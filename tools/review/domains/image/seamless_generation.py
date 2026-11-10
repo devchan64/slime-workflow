@@ -139,7 +139,7 @@ class SeamlessGenerationManager(ImageGenerationManager):
             from generators.image.qwen_21_runtime import validate_qwen_model_assets
             validate_qwen_model_assets()
             from tools.review.domains.image.image_runtime import validate_image_runtime
-            validate_image_runtime(WORKFLOW_ROOT_PATH / '.venv-qwen21')
+            validate_image_runtime(WORKFLOW_ROOT_PATH / '.venv')
         else:
             super().validate_generation_runtime(saved_request_record)
 

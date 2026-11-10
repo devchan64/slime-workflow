@@ -7,11 +7,11 @@ import sys
 import traceback
 
 WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[2]
-QWEN_ENVIRONMENT_ROOT = WORKFLOW_ROOT_PATH / '.venv-qwen21'
+QWEN_ENVIRONMENT_ROOT = WORKFLOW_ROOT_PATH / '.venv'
 
 
 def execute_qwen_reference_worker():
-    # 대기열이 Python 심볼릭 링크를 해석해도 분리 환경을 보존한다.
+    # 대기열이 Python 심볼릭 링크를 해석해도 공용 환경을 사용한다.
     if Path(sys.prefix) != QWEN_ENVIRONMENT_ROOT:
         environment_python_path = QWEN_ENVIRONMENT_ROOT / 'bin/python'
         os.execv(str(environment_python_path), [str(environment_python_path), str(Path(__file__).resolve()), *sys.argv[1:]])

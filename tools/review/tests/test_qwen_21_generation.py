@@ -16,6 +16,19 @@ from tools.review.common.management_gateway import execute_gateway_arguments
 
 
 class QwenPlainGenerationTests(unittest.TestCase):
+    def test_qwen_uses_shared_runtime_for_worker_and_validation(self):
+        from generators.image.run_qwen_21_reference import QWEN_ENVIRONMENT_ROOT
+        from tools.review.domains.image import qwen_21_generation
+        from tools.review.domains.image.seamless_generation import SeamlessGenerationManager
+        current_shared_environment = qwen_21_generation.WORKFLOW_ROOT_PATH / '.venv'
+        self.assertEqual(QWEN_ENVIRONMENT_ROOT, current_shared_environment)
+        with patch.object(qwen_21_generation, 'validate_qwen_model_assets'), patch.object(qwen_21_generation, 'validate_image_runtime') as current_runtime_check:
+            QwenPlainGenerationManager().validate_generation_runtime()
+            current_runtime_check.assert_called_once_with(current_shared_environment)
+        with patch('generators.image.qwen_21_runtime.validate_qwen_model_assets'), patch('tools.review.domains.image.image_runtime.validate_image_runtime') as current_runtime_check:
+            SeamlessGenerationManager().validate_generation_runtime()
+            current_runtime_check.assert_called_once_with(current_shared_environment)
+
     def create_reference_request(self, reference_image_count=0):
         current_image_buffer = io.BytesIO()
         Image.new('RGB', (16, 16), 'red').save(current_image_buffer, format='PNG')
