@@ -114,6 +114,8 @@ CLI는 `--lyrics` 또는 `--lyrics-file`을 지원합니다. 예제 조건은 `-
 
 2026-10-24 MiniMax는 보컬 제어에 대한 청취 평가에 따라 메뉴에서 제외하고 신규 생성·모델 준비·재개를 차단했습니다. 기존 `.tmp/test/music-minimax` 결과·로그·이력은 보존하며 공용 게이트웨이 조회와 삭제 계약은 유지합니다.
 
+2026-11-10 사용자 요청에 따라 MiniMax 전용 `.venv-music-minimax/`를 삭제했습니다. 모델 캐시와 생성 이력은 유지합니다.
+
 `/management/frame/music-magenta/?tool=music-magenta&category=sound-management`는 Magenta RT2 Small 실험 입력 페이지입니다. 공용 서비스 이름은 `music-magenta`, 작업 루트는 `.tmp/test/music-magenta`, 모델 캐시는 `.model/music/music-magenta`입니다. 프롬프트·5~120초 길이·시드·태그만 받으며 lyrics·토큰 상한·반복 요청은 지원하지 않습니다. GPU 검증 후 공용 작업자에 ONNX CUDA 인코더·JAX 생성 경로를 연결했습니다. 길이는 25Hz 프레임으로 반올림하며 스트리밍 출력을 지정 길이에서 종료합니다. 종결 보장은 없습니다. 시드는 스타일 매퍼 난수에 적용하고 공식 JAX 샘플러 시드는 0으로 유지합니다. 127 SentencePiece 토큰을 넘는 프롬프트는 잘라내지 않고 오류로 종료합니다.
 
 공식 MusicCoCa는 CPU TFLite 경로이므로 저장소 GPU 전용 규칙에 맞지 않습니다. `generators/music/magenta/verify_gpu_encoder.py`는 공식 `google/magenta-realtime-2`의 text_encoder·mapper·pretrained_vector_quantizer 그래프를 ONNX로 변환하고 `session.disable_cpu_ep_fallback=1`로 CUDA만 허용하는 검증 코드입니다. TensorFlow CPU 패키지는 그래프 변환용이며 모델 추론에 사용하지 않습니다. 검증 의존성은 `magenta/requirements-validation.txt`, 결과·로그는 `.tmp/test/magenta-gpu-encoder`에 보관합니다. 변환 모델은 검증 산출물이며 공식 배포 ONNX가 아닙니다. CUDA 실행 성공과 원본 수치 동등성·최종 음악 품질은 구분합니다.
