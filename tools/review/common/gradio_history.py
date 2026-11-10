@@ -165,7 +165,7 @@ def build_history_reset_controls(deletion_scope_text):
         reset_preview_record=gr.State(None)
         confirmation_checkbox_value=gr.Checkbox(value=False,label='작업 수와 복구 불가를 확인했습니다.',interactive=False)
         with gr.Row():
-            reset_button_value=gr.Button('확인 · 전체 파일과 이력 삭제',interactive=False,variant='stop')
+            reset_button_value=gr.Button('확인 · 대상 파일과 이력 삭제',interactive=False,variant='stop')
             reset_cancel_button=gr.Button('취소 · 이력 유지')
         reset_status_value=gr.Markdown()
     confirmation_checkbox_value.change(lambda current_confirm_value,current_preview_record:gr.update(interactive=bool(current_confirm_value and current_preview_record and current_preview_record['can_reset'])),[confirmation_checkbox_value,reset_preview_record],reset_button_value,queue=False)
@@ -178,7 +178,8 @@ def bind_history_reset_action(control_component_values,execute_service_command,r
         current_preview_record=execute_service_command('history-reset-preview',{})
         current_summary_text=f"삭제 대상: **{current_preview_record['job_count']}개 작업**\n\n{current_preview_record['scope']}\n\n{current_preview_record['notice']}"
         if current_preview_record['blocked_jobs']:
-            current_summary_text+='\n\n삭제 불가: '+describe_cleanup_blocked_jobs(current_preview_record['blocked_jobs'])+' · 작업 종료 후 다시 확인하세요.'
+            current_suffix_text=' · 삭제 대상에서 제외하고 보존합니다.' if current_preview_record.get('excludes_blocked') else ' · 작업 종료 후 다시 확인하세요.'
+            current_summary_text+=f"\n\n삭제 제외: **{len(current_preview_record['blocked_jobs'])}개 작업** · "+describe_cleanup_blocked_jobs(current_preview_record['blocked_jobs'])+current_suffix_text
         return current_preview_record,current_summary_text,gr.update(value=False,interactive=current_preview_record['can_reset']),gr.update(interactive=False)
     def cancel_history_reset(current_preview_record):
         if current_preview_record is not None:current_preview_record['can_reset']=False
@@ -545,5 +546,8 @@ def build_generation_history_view(execute_service_command,server_base_address,de
 def format_cleanup_result(current_cleanup_result):
     """실제 서비스가 반환한 삭제량만 표시한다."""
     if isinstance(current_cleanup_result,dict) and 'deleted_bytes' in current_cleanup_result:
-        return f"작업 {current_cleanup_result['deleted_jobs']}건 삭제 · 파일 {current_cleanup_result['deleted_bytes']:,}바이트 ({current_cleanup_result['deleted_bytes']/2**20:.2f} MiB) 정리 완료"
+        current_result_text=f"작업 {current_cleanup_result['deleted_jobs']}건 삭제 · 파일 {current_cleanup_result['deleted_bytes']:,}바이트 ({current_cleanup_result['deleted_bytes']/2**20:.2f} MiB) 정리 완료"
+        if current_cleanup_result.get('skipped_jobs'):
+            current_result_text+=f" · 삭제 제외 {len(current_cleanup_result['skipped_jobs'])}건 보존"
+        return current_result_text
     return '삭제 명령을 처리했습니다. 삭제 용량은 서비스에서 제공하지 않았습니다.'

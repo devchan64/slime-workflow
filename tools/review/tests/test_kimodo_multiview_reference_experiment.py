@@ -40,9 +40,11 @@ class KimodoMultiviewExperimentTests(unittest.TestCase):
         current_original_fit=fit_multiview_reference(current_reference_record,current_view_angles)
         current_reference_record['keypoints'][1][6][0]+=30
         current_changed_fit=fit_multiview_reference(current_reference_record,current_view_angles)
-        np.testing.assert_allclose(current_original_fit['joint_positions'],current_changed_fit['joint_positions'],atol=1e-9)
+        np.testing.assert_allclose(current_original_fit['validation']['joint_positions'],current_changed_fit['validation']['joint_positions'],atol=1e-9)
+        self.assertGreater(np.max(np.abs(np.asarray(current_original_fit['joint_positions'])-np.asarray(current_changed_fit['joint_positions']))),1e-4)
         self.assertGreater(current_changed_fit['views'][1]['holdout_error_px'],current_original_fit['views'][1]['holdout_error_px']+10)
         self.assertEqual(current_original_fit['held_out_observations'],8)
+        self.assertEqual(current_original_fit['training_observations'],current_original_fit['validation']['training_observations']+8)
 
     def test_requires_eight_views_and_camera_angles(self):
         current_reference_record,current_view_angles=create_multiview_test_record()
@@ -69,6 +71,7 @@ class KimodoMultiviewExperimentTests(unittest.TestCase):
                     current_dwpose_root=current_root/f'dwpose-{current_name}'
                     current_dwpose_root.mkdir()
                     (current_dwpose_root/'pose-keypoints-adjusted.json').write_text(json.dumps([[[[current_frame_points]]]]))
+                    (current_root/f'dwpose-{current_name}.mp4').write_bytes(b'test')
                 (current_root/'soma-direct-pose.json').write_text(json.dumps({'directions':current_directions}))
             current_result_record=compare_multiview_outputs(*current_roots,current_mapping)
             for current_kind_name in ('direct_first','direct_median','dwpose_first','dwpose_median'):
@@ -76,6 +79,20 @@ class KimodoMultiviewExperimentTests(unittest.TestCase):
                 self.assertGreater(current_metric_record['baseline'],0)
                 self.assertAlmostEqual(current_metric_record['multiview'],0)
             self.assertEqual(len(current_result_record['views']),8)
+            current_external_reference=Path(current_temporary_root)/'separate-reference.json'
+            current_external_reference.write_text(json.dumps(current_reference_record))
+            current_separate_result=compare_multiview_outputs(*current_roots,current_mapping,current_external_reference)
+            self.assertEqual(current_separate_result['reference_source'],str(current_external_reference))
+            self.assertEqual(current_separate_result['mean_absolute_error'],current_result_record['mean_absolute_error'])
+            (current_roots[0]/'dwpose-view_1'/'pose-keypoints-adjusted.json').unlink()
+            (current_roots[0]/'dwpose-error.json').write_text(json.dumps({'error':'골반 보정 배율 초과'}))
+            current_partial_result=compare_multiview_outputs(*current_roots,current_mapping,current_external_reference)
+            self.assertEqual(current_partial_result['views'][0]['baseline']['dwpose_status'],'unavailable')
+            self.assertEqual(current_partial_result['views'][0]['baseline']['dwpose_error'],'골반 보정 배율 초과')
+            self.assertEqual(current_partial_result['mean_absolute_error']['dwpose_first']['upper_arm']['paired_views'],7)
+            self.assertEqual(current_partial_result['mean_absolute_error']['direct_first']['upper_arm']['paired_views'],8)
+            with self.assertRaisesRegex(ValueError,'참조 관절 기록'):
+                compare_multiview_outputs(*current_roots,current_mapping,Path(current_temporary_root)/'missing.json')
 
 
 if __name__=='__main__':

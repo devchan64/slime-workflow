@@ -74,21 +74,22 @@ def prepare_multiview_observations(current_reference_record, current_view_angles
     return np.asarray(current_observation_points), np.asarray(current_observation_weights), np.asarray(current_hip_centers), np.asarray(current_box_heights)
 
 
-def fit_multiview_reference(current_reference_record, current_view_angles, current_holdout_joints=MULTIVIEW_HOLDOUT_JOINTS):
-    """8방향 공통 자세와 카메라를 최적화하고 제외한 관측을 별도로 평가한다."""
+def fit_multiview_reference_pass(current_reference_record, current_view_angles, current_holdout_joints):
+    """지정한 관측을 제외하거나 전체 관측으로 공통 자세를 각각 맞춘다."""
     current_view_angles = np.asarray(current_view_angles, dtype=float)
     if current_view_angles.shape != (8,) or not np.isfinite(current_view_angles).all():
         raise ValueError('카메라 각도 형식 오류')
     if len({round(float(current_angle_value)%360,6) for current_angle_value in current_view_angles})!=8:
         raise ValueError('다중 시점 카메라 각도 8개가 서로 달라야 합니다.')
-    if len(current_holdout_joints) != 8 or any(type(current_joint_index) is not int or current_joint_index not in MULTIVIEW_BODY_JOINTS or current_joint_index in (8, 11) for current_joint_index in current_holdout_joints):
+    if current_holdout_joints is not None and (len(current_holdout_joints) != 8 or any(type(current_joint_index) is not int or current_joint_index not in MULTIVIEW_BODY_JOINTS or current_joint_index in (8, 11) for current_joint_index in current_holdout_joints)):
         raise ValueError('방향별 검증 관절 형식 오류')
     current_observations, current_weights, current_centers, current_heights = prepare_multiview_observations(current_reference_record, current_view_angles, current_holdout_joints)
     current_training_weights = current_weights.copy()
-    for current_view_index, current_joint_index in enumerate(current_holdout_joints):
-        if current_weights[current_view_index, current_joint_index - 2] <= 0:
-            raise ValueError('검증 대상으로 선택한 관절이 유효하지 않습니다.')
-        current_training_weights[current_view_index, current_joint_index - 2] = 0
+    if current_holdout_joints is not None:
+        for current_view_index, current_joint_index in enumerate(current_holdout_joints):
+            if current_weights[current_view_index, current_joint_index - 2] <= 0:
+                raise ValueError('검증 대상으로 선택한 관절이 유효하지 않습니다.')
+            current_training_weights[current_view_index, current_joint_index - 2] = 0
     current_front_index = int(np.argmin(np.abs(current_view_angles)))
     current_initial_joints = np.column_stack((current_observations[current_front_index, :, 0], -current_observations[current_front_index, :, 1], np.zeros(12)))
     current_initial_angles = np.deg2rad(current_view_angles)
@@ -135,8 +136,8 @@ def fit_multiview_reference(current_reference_record, current_view_angles, curre
     current_view_records = []
     for current_view_index in range(8):
         current_training_mask = current_training_weights[current_view_index] > 0
-        current_holdout_index = current_holdout_joints[current_view_index] - 2
-        current_view_records.append({'observation': current_view_index + 1, 'assumed_yaw_degrees': float(current_view_angles[current_view_index]), 'fitted_yaw_degrees': float(np.rad2deg(current_camera_angles[current_view_index])), 'scale': float(current_camera_scales[current_view_index]), 'offset': current_camera_offsets[current_view_index].tolist(), 'limb_rotation_degrees': np.rad2deg(current_limb_angles[current_view_index]).tolist(), 'train_mean_px': float(current_error_pixels[current_view_index, current_training_mask].mean()), 'holdout_joint': current_holdout_joints[current_view_index], 'holdout_error_px': float(current_error_pixels[current_view_index, current_holdout_index]), 'weights': current_weights[current_view_index].tolist(), 'observed_xy': (current_observations[current_view_index] * current_heights[current_view_index] + current_centers[current_view_index]).tolist(), 'projected_xy': (current_projected_points[current_view_index] * current_heights[current_view_index] + current_centers[current_view_index]).tolist()})
+        current_holdout_index = current_holdout_joints[current_view_index] - 2 if current_holdout_joints is not None else None
+        current_view_records.append({'observation': current_view_index + 1, 'assumed_yaw_degrees': float(current_view_angles[current_view_index]), 'fitted_yaw_degrees': float(np.rad2deg(current_camera_angles[current_view_index])), 'scale': float(current_camera_scales[current_view_index]), 'offset': current_camera_offsets[current_view_index].tolist(), 'limb_rotation_degrees': np.rad2deg(current_limb_angles[current_view_index]).tolist(), 'train_mean_px': float(current_error_pixels[current_view_index, current_training_mask].mean()), 'holdout_joint': current_holdout_joints[current_view_index] if current_holdout_joints is not None else None, 'holdout_error_px': float(current_error_pixels[current_view_index, current_holdout_index]) if current_holdout_index is not None else None, 'weights': current_weights[current_view_index].tolist(), 'observed_xy': (current_observations[current_view_index] * current_heights[current_view_index] + current_centers[current_view_index]).tolist(), 'projected_xy': (current_projected_points[current_view_index] * current_heights[current_view_index] + current_centers[current_view_index]).tolist()})
     current_shoulder_center = current_joint_positions[[0, 3]].mean(axis=0)
     current_hip_center = current_joint_positions[[6, 9]].mean(axis=0)
     current_torso_length = float(np.linalg.norm(current_shoulder_center - current_hip_center))
@@ -144,7 +145,24 @@ def fit_multiview_reference(current_reference_record, current_view_angles, curre
         raise ValueError('최적화된 몸통 길이가 0입니다.')
     from generators.kimodo.reference_proportions import REFERENCE_SEGMENT_GROUPS
     current_segment_ratios = {current_group_name: float(np.mean([np.linalg.norm(current_joint_positions[current_start_index - 2] - current_joint_positions[current_end_index - 2]) for current_start_index, current_end_index in current_joint_pairs]) / current_torso_length) for current_group_name, current_joint_pairs in REFERENCE_SEGMENT_GROUPS.items()}
-    return {'schema': 'kimodo-multiview-experiment-v1', 'body18_joint_indices': list(MULTIVIEW_BODY_JOINTS), 'joint_positions': current_joint_positions.tolist(), 'ratios': current_segment_ratios, 'views': current_view_records, 'training_observations': int((current_training_weights > 0).sum()), 'held_out_observations': len(current_holdout_joints), 'fit_cost': float(current_fit_result.cost), 'limitations': ['정사영 및 근사적 공통 자세 가정', '방향별 팔다리 자세 차이는 투영된 2D 회전으로 근사하며 3D 관절 회전이 아님', '검출 점수는 확률이 아니며 좌우 가림 판정은 휴리스틱', '검증 관절을 제외한 같은 방향 관측은 카메라 추정에 사용', '8방향 각도 대응은 입력 가정이며 실제 각도 보장 없음', '절대 길이 및 실제 3D 정답 미검증']}
+    return {'schema': 'kimodo-multiview-experiment-v2', 'body18_joint_indices': list(MULTIVIEW_BODY_JOINTS), 'joint_positions': current_joint_positions.tolist(), 'ratios': current_segment_ratios, 'views': current_view_records, 'training_observations': int((current_training_weights > 0).sum()), 'held_out_observations': len(current_holdout_joints) if current_holdout_joints is not None else 0, 'fit_cost': float(current_fit_result.cost), 'limitations': ['정사영 및 근사적 공통 자세 가정', '방향별 팔다리 자세 차이는 투영된 2D 회전으로 근사하며 3D 관절 회전이 아님', '검출 점수는 확률이 아니며 좌우 가림 판정은 휴리스틱', '검증 관절을 제외한 같은 방향 관측은 카메라 추정에 사용', '8방향 각도 대응은 입력 가정이며 실제 각도 보장 없음', '절대 길이 및 실제 3D 정답 미검증']}
+
+
+def fit_multiview_reference(current_reference_record, current_view_angles, current_holdout_joints=MULTIVIEW_HOLDOUT_JOINTS):
+    """제외 관측으로 검증한 뒤 유효한 관측 전체로 최종 비율을 다시 추정한다."""
+    if current_holdout_joints is None:
+        raise ValueError('다중 시점 검증 관절을 지정해야 합니다.')
+    current_validation_record=fit_multiview_reference_pass(current_reference_record,current_view_angles,current_holdout_joints)
+    current_final_record=fit_multiview_reference_pass(current_reference_record,current_view_angles,None)
+    for current_final_view,current_validation_view in zip(current_final_record['views'],current_validation_record['views']):
+        current_final_view['holdout_joint']=current_validation_view['holdout_joint']
+        current_final_view['holdout_error_px']=current_validation_view['holdout_error_px']
+        current_final_view['validation_train_mean_px']=current_validation_view['train_mean_px']
+        current_final_view['validation_projected_xy']=current_validation_view['projected_xy']
+    current_final_record['held_out_observations']=current_validation_record['held_out_observations']
+    current_final_record['validation']={'joint_positions':current_validation_record['joint_positions'],'ratios':current_validation_record['ratios'],'views':current_validation_record['views'],'training_observations':current_validation_record['training_observations'],'fit_cost':current_validation_record['fit_cost']}
+    current_final_record['fit_policy']='미사용 관측 검증과 전체 유효 관측 최종 추정을 별도로 실행'
+    return current_final_record
 
 
 if __name__ == '__main__':

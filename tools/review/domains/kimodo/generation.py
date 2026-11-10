@@ -8,6 +8,29 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
         from tools.review.domains.kimodo.keyframe_storage import KIMODO_KEYFRAME_STORAGE
         self.keyframe_storage_root = KIMODO_KEYFRAME_STORAGE
 
+    def preview_generation_cleanup(self):
+        from tools.review.common.generation_cleanup import describe_cleanup_excluding_blocked
+        from tools.review.domains.image.image_generation import MANAGER_HISTORY_LOCK
+        with self.current_request_lock, MANAGER_HISTORY_LOCK:
+            return describe_cleanup_excluding_blocked(self.job_storage_root,self.list_cleanup_targets())
+
+    def clear_image_generation_files(self,current_expected_jobs=None):
+        """현재 실행·대기 및 검증 불가 작업은 건드리지 않고 확인된 종료 작업만 정리한다."""
+        from tools.review.common.generation_cleanup import describe_cleanup_excluding_blocked,delete_generation_job_files
+        from tools.review.domains.image.image_generation import MANAGER_HISTORY_LOCK
+        with self.current_request_lock, MANAGER_HISTORY_LOCK:
+            current_preview_record=describe_cleanup_excluding_blocked(self.job_storage_root,self.list_cleanup_targets())
+            if current_expected_jobs is not None and current_expected_jobs!=current_preview_record['jobs']:
+                raise ValueError('삭제 대상 또는 상태가 변경되었습니다. 삭제 대상을 다시 확인하세요.')
+            if not current_preview_record['jobs']:
+                raise ValueError('삭제 가능한 종료 작업이 없습니다.')
+            current_job_targets=[self.job_storage_root/current_job_record['path'] for current_job_record in current_preview_record['jobs']]
+            current_index_targets=[self.history_storage_path()/(current_job_record['path']+'.json') for current_job_record in current_preview_record['jobs']]
+            current_cleanup_result=delete_generation_job_files(self.job_storage_root,current_job_targets,current_index_targets,current_preview_record['jobs'])
+            if self.current_job_identifier in {current_job_record['path'] for current_job_record in current_preview_record['jobs']}:
+                self.current_job_identifier=None
+            return {**current_cleanup_result,'skipped_jobs':current_preview_record['blocked_jobs']}
+
     def handle_image_request(self, current_http_handler):
         """게이트웨이에서 검증한 키프레임 저장·목록 명령을 처리한다."""
         import json

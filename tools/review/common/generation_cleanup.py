@@ -112,6 +112,26 @@ def describe_generation_cleanup(current_storage_root, current_job_targets):
             'notice': '목록에서 숨긴 작업도 포함합니다. 삭제 시 상태를 다시 검증합니다.'}
 
 
+def describe_cleanup_excluding_blocked(current_storage_root, current_job_targets):
+    """안전하게 검증 가능한 종료 작업만 선택하고 다른 작업은 사유와 함께 보존한다."""
+    current_eligible_records=[]
+    current_blocked_records=[]
+    for current_target_path in sorted(set(map(Path,current_job_targets))):
+        current_relative_path=str(current_target_path.absolute().relative_to(Path(current_storage_root).absolute()))
+        try:
+            current_single_preview=describe_generation_cleanup(current_storage_root,[current_target_path])
+            if current_single_preview['blocked_jobs']:
+                current_blocked_records.extend(current_single_preview['blocked_jobs'])
+            else:
+                current_eligible_records.extend(current_single_preview['jobs'])
+        except (ValueError,OSError,json.JSONDecodeError) as current_target_error:
+            current_blocked_records.append({'path':current_relative_path,'status':'unknown','reason':str(current_target_error)})
+    return {'job_count':len(current_eligible_records),'jobs':current_eligible_records,'excludes_blocked':True,
+            'blocked_jobs':current_blocked_records,'can_reset':bool(current_eligible_records),
+            'scope':GENERATION_CLEANUP_SCOPE_TEXT,
+            'notice':'삭제 가능한 종료 작업만 삭제합니다. 실행·대기 중이거나 검증할 수 없는 작업과 해당 이력은 보존합니다. 목록에서 숨긴 작업도 검사합니다.'}
+
+
 def read_cleanup_confirmation(current_request_record, current_allow_empty=False):
     """기존 CLI 초기화와 GUI의 확인한 대상 목록을 엄격히 구분한다."""
     if current_allow_empty and current_request_record=={}:return None

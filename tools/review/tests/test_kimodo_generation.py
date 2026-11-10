@@ -351,6 +351,64 @@ class KimodoGenerationContractTests(unittest.TestCase):
             self.assertFalse(current_job_root.exists())
             self.assertTrue(current_external_path.exists())
 
+    def test_reset_skips_blocked_jobs_and_keeps_their_history(self):
+        import fcntl
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as current_temp_root:
+            current_service_instance=KimodoGenerationManager()
+            current_service_instance.job_storage_root=Path(current_temp_root)/'jobs'
+            current_history_root=Path(current_temp_root)/'history'
+            current_history_root.mkdir()
+            current_job_names=[f'2026-10-29_00-00-0{current_index}-{current_index:08x}' for current_index in range(6)]
+            for current_job_index,current_status_value in enumerate(('completed','running','queued','completed','completed','completed')):
+                current_job_root=current_service_instance.job_storage_root/current_job_names[current_job_index]
+                current_job_root.mkdir(parents=True)
+                (current_job_root/'status.json').write_text(json.dumps({'status':current_status_value}))
+                (current_job_root/'input.png').write_bytes(b'input')
+                (current_history_root/(current_job_names[current_job_index]+'.json')).write_text('{}')
+            (current_service_instance.job_storage_root/current_job_names[0]/'.history-deleted').touch()
+            (current_service_instance.job_storage_root/current_job_names[4]/'unsafe').symlink_to(current_history_root)
+            (current_service_instance.job_storage_root/current_job_names[5]/'status.json').write_text('{잘못된 상태')
+            current_service_instance.current_worker_process=SimpleNamespace(poll=lambda:None)
+            current_service_instance.current_job_identifier=current_job_names[1]
+            with patch.object(current_service_instance,'history_storage_path',return_value=current_history_root):
+                with (current_service_instance.job_storage_root/current_job_names[3]/'execution.lock').open('a') as current_execution_handle:
+                    fcntl.flock(current_execution_handle,fcntl.LOCK_EX)
+                    current_preview_record=current_service_instance.preview_generation_cleanup()
+                    self.assertEqual(current_preview_record['job_count'],1)
+                    self.assertEqual(len(current_preview_record['blocked_jobs']),5)
+                    self.assertTrue(current_preview_record['can_reset'])
+                    current_cleanup_result=current_service_instance.reset_generation_history(current_preview_record['jobs'])
+                    self.assertEqual(current_cleanup_result['deleted_jobs'],1)
+                    self.assertEqual(len(current_cleanup_result['skipped_jobs']),5)
+                    self.assertFalse((current_service_instance.job_storage_root/current_job_names[0]).exists())
+                    self.assertFalse((current_history_root/(current_job_names[0]+'.json')).exists())
+                    for current_job_name in current_job_names[1:]:
+                        self.assertTrue((current_service_instance.job_storage_root/current_job_name/'input.png').exists())
+                        self.assertTrue((current_history_root/(current_job_name+'.json')).exists())
+                    self.assertEqual(current_service_instance.current_job_identifier,current_job_names[1])
+
+    def test_partial_reset_rechecks_confirmed_eligible_targets(self):
+        with tempfile.TemporaryDirectory() as current_temp_root:
+            current_service_instance=KimodoGenerationManager()
+            current_service_instance.job_storage_root=Path(current_temp_root)/'jobs'
+            current_job_root=current_service_instance.job_storage_root/'2026-10-29_00-00-00-12345678'
+            current_job_root.mkdir(parents=True)
+            (current_job_root/'status.json').write_text('{"status":"completed"}')
+            with patch.object(current_service_instance,'history_storage_path',return_value=Path(current_temp_root)/'history'):
+                current_preview_record=current_service_instance.preview_generation_cleanup()
+                (current_job_root/'status.json').write_text('{"status":"queued"}')
+                with self.assertRaisesRegex(ValueError,'대상 또는 상태'):
+                    current_service_instance.reset_generation_history(current_preview_record['jobs'])
+                self.assertTrue(current_job_root.exists())
+                self.assertFalse(current_service_instance.preview_generation_cleanup()['can_reset'])
+
+    def test_partial_cleanup_result_reports_preserved_count(self):
+        from tools.review.common.gradio_history import format_cleanup_result
+        current_result_text=format_cleanup_result({'deleted_jobs':2,'deleted_bytes':4096,'skipped_jobs':[{'path':'active','status':'running'}]})
+        self.assertIn('작업 2건 삭제',current_result_text)
+        self.assertIn('삭제 제외 1건 보존',current_result_text)
+
     def test_examples_update_only_prompt_and_frames(self):
         from tools.review.ui.gradio.kimodo_app import apply_kimodo_example,describe_kimodo_duration,load_kimodo_examples
         current_example_records=load_kimodo_examples()
@@ -358,7 +416,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
         from tools.review.ui.gradio.kimodo_app import build_kimodo_payload
         current_standing_payload = build_kimodo_payload(*apply_kimodo_example('relaxed_shoulder_width_standing'))
         self.assertEqual(current_standing_payload['frames'],180)
-        self.assertEqual(current_standing_payload['seed'],1681778616)
+        self.assertEqual(current_standing_payload['seed'],516925645)
         self.assertEqual(current_standing_payload['prompt'],'A man stands still like a male fashion model.')
         self.assertEqual(current_standing_payload['directions'],['front_right_30'])
         self.assertFalse(current_standing_payload['remove_horizontal_motion'])

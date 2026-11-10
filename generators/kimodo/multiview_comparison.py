@@ -17,10 +17,13 @@ def calculate_projected_body_ratios(current_body_points, current_segment_pairs):
     return {current_group_name:float(np.mean([np.linalg.norm(current_body_array[current_parent_index,:2]-current_body_array[current_child_index,:2]) for current_parent_index,current_child_index in current_pairs])/current_body_height) for current_group_name,current_pairs in current_segment_pairs.items()}
 
 
-def compare_multiview_outputs(current_baseline_root,current_experiment_root,current_direction_mapping):
+def compare_multiview_outputs(current_baseline_root,current_experiment_root,current_direction_mapping,current_reference_ratio_path=None):
     current_baseline_root=Path(current_baseline_root)
     current_experiment_root=Path(current_experiment_root)
-    current_reference_record=json.loads((current_baseline_root/'reference-proportions.json').read_text())
+    current_reference_path=Path(current_reference_ratio_path) if current_reference_ratio_path is not None else current_baseline_root/'reference-proportions.json'
+    if not current_reference_path.is_file():
+        raise ValueError('비교할 참조 관절 기록이 없습니다.')
+    current_reference_record=json.loads(current_reference_path.read_text())
     current_baseline_direct=json.loads((current_baseline_root/'soma-direct-pose.json').read_text())['directions']
     current_experiment_direct=json.loads((current_experiment_root/'soma-direct-pose.json').read_text())['directions']
     if set(current_direction_mapping)!=set(current_baseline_direct) or set(current_direction_mapping)!=set(current_experiment_direct) or sorted(current_direction_mapping.values())!=list(range(1,9)):
@@ -44,22 +47,33 @@ def compare_multiview_outputs(current_baseline_root,current_experiment_root,curr
         current_output_records={}
         for current_output_name,current_output_root,current_direct_records in [('baseline',current_baseline_root,current_baseline_direct),('multiview',current_experiment_root,current_experiment_direct)]:
             current_direct_frames=current_direct_records[current_direction_name]['body_points_832x480']
-            current_dwpose_frames=json.loads((current_output_root/f'dwpose-{current_direction_name}'/'pose-keypoints-adjusted.json').read_text())
-            if not current_direct_frames or not current_dwpose_frames:
-                raise ValueError('비교할 포즈 프레임이 없습니다.')
+            current_dwpose_path=current_output_root/f'dwpose-{current_direction_name}'/'pose-keypoints-adjusted.json'
+            current_dwpose_video=current_output_root/f'dwpose-{current_direction_name}.mp4'
+            if not current_direct_frames:
+                raise ValueError('비교할 직접 포즈 프레임이 없습니다.')
             current_direct_ratios=[calculate_projected_body_ratios(current_frame_points,current_segment_pairs) for current_frame_points in current_direct_frames]
-            current_dwpose_ratios=[calculate_projected_body_ratios(current_frame_record[0][0][0],current_segment_pairs) for current_frame_record in current_dwpose_frames]
-            current_output_records[current_output_name]={'direct_first':current_direct_ratios[0], 'direct_median':{current_group_name:float(np.median([current_frame[current_group_name] for current_frame in current_direct_ratios])) for current_group_name in current_segment_pairs}, 'dwpose_first':current_dwpose_ratios[0], 'dwpose_median':{current_group_name:float(np.median([current_frame[current_group_name] for current_frame in current_dwpose_ratios])) for current_group_name in current_segment_pairs}, 'direct_frames':len(current_direct_frames), 'dwpose_frames':len(current_dwpose_frames)}
+            current_output_record={'direct_first':current_direct_ratios[0], 'direct_median':{current_group_name:float(np.median([current_frame[current_group_name] for current_frame in current_direct_ratios])) for current_group_name in current_segment_pairs},'direct_frames':len(current_direct_frames)}
+            if current_dwpose_path.is_file() and current_dwpose_video.is_file():
+                current_dwpose_frames=json.loads(current_dwpose_path.read_text())
+                if not current_dwpose_frames: raise ValueError('DWPose 관절 기록이 비어 있습니다.')
+                current_dwpose_ratios=[calculate_projected_body_ratios(current_frame_record[0][0][0],current_segment_pairs) for current_frame_record in current_dwpose_frames]
+                current_output_record.update(dwpose_first=current_dwpose_ratios[0],dwpose_median={current_group_name:float(np.median([current_frame[current_group_name] for current_frame in current_dwpose_ratios])) for current_group_name in current_segment_pairs},dwpose_frames=len(current_dwpose_frames),dwpose_status='available')
+            else:
+                current_error_path=current_output_root/'dwpose-error.json'
+                current_error_text=json.loads(current_error_path.read_text()).get('error') if current_error_path.is_file() else 'DWPose 관절 기록이 없습니다.'
+                current_output_record.update(dwpose_first=None,dwpose_median=None,dwpose_frames=0,dwpose_status='unavailable',dwpose_error=current_error_text)
+            current_output_records[current_output_name]=current_output_record
         current_comparison_rows.append({'direction':current_direction_name,'reference_observation':current_observation_number,'reference':current_reference_ratios,'reference_pairs':{current_name:[list(current_pair) for current_pair in current_pairs] for current_name,current_pairs in current_segment_pairs.items()},**current_output_records})
     current_summary_record={}
     for current_output_type in ('direct_first','direct_median','dwpose_first','dwpose_median'):
         current_summary_record[current_output_type]={}
         for current_group_name in REFERENCE_SEGMENT_GROUPS:
-            current_valid_rows=[current_row for current_row in current_comparison_rows if current_group_name in current_row['reference']]
+            current_valid_rows=[current_row for current_row in current_comparison_rows if current_group_name in current_row['reference'] and current_row['baseline'][current_output_type] is not None and current_row['multiview'][current_output_type] is not None]
             if not current_valid_rows:
-                raise ValueError(f'{current_group_name} 비교에 사용할 참조 구간이 없습니다.')
-            current_summary_record[current_output_type][current_group_name]={current_method_name:float(np.mean([abs(current_row[current_method_name][current_output_type][current_group_name]-current_row['reference'][current_group_name]) for current_row in current_valid_rows])) for current_method_name in ('baseline','multiview')}
-    return {'schema':'kimodo-multiview-comparison-v1','normalization':'양 어깨 중점부터 양 발목 중점까지 영상 세로 거리','direction_mapping_assumed':current_direction_mapping,'views':current_comparison_rows,'mean_absolute_error':current_summary_record,'limitations':['대각 참조의 정확한 각도와 출력 방향 대응은 가정이다','2D 검출점이 정답이라는 보장은 없다','영상 중앙값과 단일 정지 참조의 비교에는 자세 변화가 포함된다','가림 판정은 위팔에만 적용했고 나머지 구간의 가림은 자동 판정하지 않았다']}
+                current_summary_record[current_output_type][current_group_name]={'baseline':None,'multiview':None,'paired_views':0}
+                continue
+            current_summary_record[current_output_type][current_group_name]={**{current_method_name:float(np.mean([abs(current_row[current_method_name][current_output_type][current_group_name]-current_row['reference'][current_group_name]) for current_row in current_valid_rows])) for current_method_name in ('baseline','multiview')},'paired_views':len(current_valid_rows)}
+    return {'schema':'kimodo-multiview-comparison-v1','reference_source':str(current_reference_path),'normalization':'양 어깨 중점부터 양 발목 중점까지 영상 세로 거리','direction_mapping_assumed':current_direction_mapping,'views':current_comparison_rows,'mean_absolute_error':current_summary_record,'limitations':['대각 참조의 정확한 각도와 출력 방향 대응은 가정이다','2D 검출점이 정답이라는 보장은 없다','영상 중앙값과 단일 정지 참조의 비교에는 자세 변화가 포함된다','가림 판정은 위팔에만 적용했고 나머지 구간의 가림은 자동 판정하지 않았다']}
 
 
 if __name__=='__main__':
@@ -69,7 +83,8 @@ if __name__=='__main__':
     current_argument_parser.add_argument('experiment_root',type=Path)
     current_argument_parser.add_argument('mapping_json',type=Path)
     current_argument_parser.add_argument('output_json',type=Path)
+    current_argument_parser.add_argument('--reference-json',type=Path,help='선택적 별도 참조 관절 기록')
     current_arguments=current_argument_parser.parse_args()
-    current_result_record=compare_multiview_outputs(current_arguments.baseline_root,current_arguments.experiment_root,json.loads(current_arguments.mapping_json.read_text()))
+    current_result_record=compare_multiview_outputs(current_arguments.baseline_root,current_arguments.experiment_root,json.loads(current_arguments.mapping_json.read_text()),current_arguments.reference_json)
     current_arguments.output_json.write_text(json.dumps(current_result_record,ensure_ascii=False,indent=2))
     print(f'8방향 비율 비교 저장: {current_arguments.output_json}',flush=True)
