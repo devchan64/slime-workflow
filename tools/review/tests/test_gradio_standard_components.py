@@ -25,6 +25,17 @@ class GradioStandardComponentTests(unittest.TestCase):
         self.assertEqual(current_seed_callback.outputs,[current_seed_control])
         self.assertEqual(current_seed_control.value,123)
 
+    def test_seed_limit_matches_random_selection(self):
+        from unittest.mock import patch
+        from generators.kimodo.contracts import KIMODO_MAXIMUM_SEED_VALUE
+        with gr.Blocks() as current_interface_blocks:
+            current_seed_control = build_generation_seed(42, maximum_seed_value=KIMODO_MAXIMUM_SEED_VALUE)
+        self.assertEqual(current_seed_control.maximum, KIMODO_MAXIMUM_SEED_VALUE)
+        current_seed_callback = next(current_function_value for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn.__name__ == 'generate_bounded_seed_value')
+        with patch('tools.review.common.gradio_seed.secrets.randbelow', return_value=KIMODO_MAXIMUM_SEED_VALUE) as current_random_function:
+            self.assertEqual(current_seed_callback.fn(), KIMODO_MAXIMUM_SEED_VALUE)
+            current_random_function.assert_called_once_with(KIMODO_MAXIMUM_SEED_VALUE + 1)
+
     def test_history_selection_uses_radio_table_and_shared_state(self):
         with gr.Blocks() as current_interface_blocks:
             _,current_history_outputs=build_generation_history_view(lambda *_:{'records':[]},'http://localhost','검수용')

@@ -13,6 +13,7 @@ KIMODO_SOURCE_ROOT = KIMODO_WORKSPACE_ROOT / '.local/kimodo/upstream'
 KIMODO_JOB_STORAGE = KIMODO_WORKSPACE_ROOT / '.tmp/test/kimodo'
 KIMODO_ENVIRONMENT_PYTHON = KIMODO_WORKSPACE_ROOT / '.venv/bin/python'
 KIMODO_CONFIG_ROOT = Path(__file__).parent / 'config'
+KIMODO_MAXIMUM_SEED_VALUE = 2147483647
 
 class UniqueConfigLoader(yaml.SafeLoader):
     """중복 설정 키를 거절한다."""
@@ -99,7 +100,7 @@ def validate_kimodo_request(current_request_record):
         raise ValueError('프롬프트는 1~100단어, 2000자 이내로 입력하세요.')
     if not any(current_character_value.isalnum() for current_character_value in current_prompt_text):
         raise ValueError('프롬프트에 문자 또는 숫자가 필요합니다.')
-    for current_field_name, current_minimum_value, current_maximum_value in [('frames',30,300),('steps',2,100),('seed',0,2147483647)]:
+    for current_field_name, current_minimum_value, current_maximum_value in [('frames',30,300),('steps',2,100),('seed',0,KIMODO_MAXIMUM_SEED_VALUE)]:
         current_field_value = current_request_record[current_field_name]
         if type(current_field_value) is not int or not current_minimum_value <= current_field_value <= current_maximum_value:
             raise ValueError(f'{current_field_name}: {current_minimum_value}~{current_maximum_value} 정수 필요')

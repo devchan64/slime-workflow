@@ -5,7 +5,7 @@ import yaml
 import base64
 from pathlib import Path
 from tools.review.common.gradio_input_preview import build_input_preview
-from generators.kimodo.contracts import KIMODO_JOB_STORAGE
+from generators.kimodo.contracts import KIMODO_JOB_STORAGE, KIMODO_MAXIMUM_SEED_VALUE
 from generators.kimodo.contracts import KIMODO_CONFIG_ROOT, UniqueConfigLoader, KIMODO_DIRECTION_RECORDS
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from generators.kimodo.contracts import KIMODO_DEFAULT_SETTINGS,normalize_kimodo_prompt,validate_kimodo_request
@@ -247,7 +247,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         current_duration_output = gr.Markdown(describe_kimodo_duration(KIMODO_DEFAULT_SETTINGS['frames']))
         current_frame_control.change(describe_kimodo_duration,current_frame_control,current_duration_output,queue=False)
         current_segment_control = gr.Textbox(label='순차 생성 구간 프레임 · 선택',value='',info='예: 90 120 90. 프롬프트 3줄에 각각 적용하며 합계는 전체 프레임 수와 같아야 합니다. 비우면 단일 설명입니다. 공식 multi_prompt 순차 생성과 기본 5프레임 전환을 사용합니다. 구간마다 설정한 스텝을 실행합니다.')
-        current_seed_control = build_generation_seed(default_seed_value=KIMODO_DEFAULT_SETTINGS['seed'])
+        current_seed_control = build_generation_seed(default_seed_value=KIMODO_DEFAULT_SETTINGS['seed'], maximum_seed_value=KIMODO_MAXIMUM_SEED_VALUE)
         with gr.Accordion('고급 설정',open=False):
             current_steps_control = gr.Number(label='샘플링 스텝',value=KIMODO_DEFAULT_SETTINGS['steps'],minimum=2,maximum=100,precision=0,info='공식 기본 100. 2스텝은 실행 연결 확인용이며 품질 평가에 사용하지 마세요.')
             current_guidance_control = gr.Number(label='텍스트 CFG',value=KIMODO_DEFAULT_SETTINGS['guidance_scale'],minimum=0,maximum=10,info='공식 기본 2. 텍스트 조건의 영향이며 원하는 동작의 성공을 보장하지 않습니다.')
