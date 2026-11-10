@@ -6,7 +6,9 @@
 
 관리도구 분류 **소리 관리**에 MiniMax-Music3 고정 생성기를 제공한다.
 
-2026-10-21 MiniMax 채택에 따라 ACE-Step은 메뉴·게이트웨이·직접 실행 진입점·설치 경로에서 폐기했다. 진행 중인 MiniMax 요청의 해시 검증을 위해 공용 runtime.py와 defaults.yaml의 기존 ACE 구현·프로필은 호환용으로만 보존하며 서비스 허용 목록에서 차단한다. 기존 `.tmp/test/music-ace-step/` 결과·이력 및 `.model/music/music-ace-step/` 캐시·가상환경은 보존하지만 활성 도구로 제공하지 않는다. GUI와 통합 CLI가 같은 작업 서비스·공용 GPU 대기열·기록 저장소를 사용한다. 게임에 자동 전달하지 않으며 출력은 청취 검수 전 후보다.
+2026-10-21 MiniMax 채택에 따라 ACE-Step은 메뉴·게이트웨이·직접 실행 진입점·설치 경로에서 폐기했다. 진행 중인 MiniMax 요청의 해시 검증을 위해 공용 runtime.py와 defaults.yaml의 기존 ACE 구현·프로필은 호환용으로만 보존하며 서비스 허용 목록에서 차단한다. 당시 기존 결과·이력과 모델 캐시·가상환경은 보존했다. GUI와 통합 CLI가 같은 작업 서비스·공용 GPU 대기열·기록 저장소를 사용한다. 게임에 자동 전달하지 않으며 출력은 청취 검수 전 후보다.
+
+2026-11-10 사용자 요청에 따라 ACE-Step 전용 `.venv-music-ace/`, `.model/music/music-ace-step/`, `.tmp/test/music-ace-step/`, `.tmp/manager-current/music-ace-step/`을 삭제했다. 호환용 코드·기본 설정은 유지한다.
 
 | 서비스 | 고정 모델 | 출력 | 메모리 설정 |
 |---|---|---|---|
@@ -129,6 +131,8 @@ CLI는 `--lyrics` 또는 `--lyrics-file`을 지원합니다. 예제 조건은 `-
 ### HeartMuLa 입력 페이지 / Magenta 폐기 (2026-10-24)
 
 Magenta는 신규 생성·준비·재개를 차단하고 메뉴에서 제거했습니다. 기존 결과·로그·이력과 조회·삭제 명령은 보존합니다. HeartMuLa 페이지는 `/management/frame/music-heartmula/?tool=music-heartmula&category=sound-management`이며 공용 서비스는 `music-heartmula`입니다. 기준 데이터는 `heartmula_defaults.yaml`에서 추적합니다. 공식 권장 `HeartMuLa/HeartMuLa-oss-3B-happy-new-year`와 `HeartCodec-oss-20260123` 조합을 안내합니다.
+
+2026-11-10 사용자 요청에 따라 Magenta 생성 전용 `.venv-music-magenta/`를 삭제했습니다. 모델 캐시·생성 이력과 별도 검증 환경은 유지합니다.
 
 태그(prompt 계약으로 저장), lyrics(사용자 직접 입력 필수; `[Instrumental]` 자동 삽입 없음), 최대 출력 시간(duration_seconds를 max_audio_length_ms로 환산), 시드·이력 태그를 받습니다. 공용 작업자와 게이트웨이를 통해 준비·생성·재개합니다. GUI 생성 버튼은 현재 런타임 해시와 일치하는 GPU 검증 작업의 완료 기록이 있어야 활성화됩니다. 모델 파일 준비와 GPU 추론 검증은 별도 상태이며 파일 존재만으로 실행 가능하다고 표시하지 않습니다. 반주 제어와 음악 품질은 생성 후 청취 검수가 필요합니다. 모델 캐시는 `.model/music/music-heartmula`, 기록 루트는 `.tmp/test/music-heartmula`, 이력 인덱스는 `.tmp/manager-current/music-heartmula`입니다.
 
