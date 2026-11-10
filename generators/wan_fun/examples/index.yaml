@@ -1,0 +1,6 @@
+schema_version: 1
+examples:
+- id: walk-21frames-50steps
+  label: 걷기 · 21프레임 · 50스텝
+- id: standing-101frames-20steps
+  label: 서있기 · 101프레임 · 20스텝

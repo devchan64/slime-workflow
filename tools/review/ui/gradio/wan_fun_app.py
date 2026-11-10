@@ -22,19 +22,41 @@ from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 FUN_WALK_EXAMPLE_DIRECTORY = Path(__file__).resolve().parents[4] / 'generators/wan_fun/examples/walk-21frames-50steps'
 
 
-def load_fun_walk_example():
+def load_fun_example_catalog():
+    current_catalog_record = yaml.load((FUN_WALK_EXAMPLE_DIRECTORY.parent / 'index.yaml').read_text(), Loader=UniqueConfigLoader)
+    if not isinstance(current_catalog_record, dict) or set(current_catalog_record) != {'schema_version', 'examples'} or current_catalog_record['schema_version'] != 1 or not isinstance(current_catalog_record['examples'], list):
+        raise ValueError('예제 목록 계약 오류')
+    current_example_mapping = {}
+    for current_example_record in current_catalog_record['examples']:
+        if not isinstance(current_example_record, dict) or set(current_example_record) != {'id', 'label'} or any(not isinstance(current_example_record[current_field_name], str) or not current_example_record[current_field_name].strip() for current_field_name in ('id', 'label')):
+            raise ValueError('예제 목록 필드 오류')
+        current_example_identifier = current_example_record['id']
+        if current_example_identifier in current_example_mapping or Path(current_example_identifier).name != current_example_identifier or current_example_identifier in ('.', '..'):
+            raise ValueError('예제 ID 중복 또는 경로 오류')
+        current_example_mapping[current_example_identifier] = current_example_record['label']
+    return current_example_mapping
+
+
+def load_fun_selected_example(current_example_identifier):
+    if current_example_identifier not in load_fun_example_catalog():
+        raise ValueError('예제를 선택하세요.')
+    current_example_directory = FUN_WALK_EXAMPLE_DIRECTORY.parent / current_example_identifier
     """이력 삭제와 독립된 제작 기준 예제를 입력에만 적용한다."""
-    current_example_record = yaml.load((FUN_WALK_EXAMPLE_DIRECTORY / 'input.yaml').read_text(), Loader=UniqueConfigLoader)
+    current_example_record = yaml.load((current_example_directory / 'input.yaml').read_text(), Loader=UniqueConfigLoader)
     if not isinstance(current_example_record, dict) or set(current_example_record) != {'source_job', 'request'} or not isinstance(current_example_record['source_job'], str) or not isinstance(current_example_record['request'], dict):
         raise ValueError('Fun Control 예제 필드 오류')
     current_request_record = current_example_record['request']
-    current_reference_path = FUN_WALK_EXAMPLE_DIRECTORY / 'reference-1.png'
-    current_video_path = FUN_WALK_EXAMPLE_DIRECTORY / 'pose-input.mp4'
+    current_reference_path = current_example_directory / 'reference-1.png'
+    current_video_path = current_example_directory / 'pose-input.mp4'
     current_validation_record = dict(current_request_record)
     current_validation_record['images'] = [base64.b64encode(current_reference_path.read_bytes()).decode()]
     current_validation_record['pose_video'] = base64.b64encode(current_video_path.read_bytes()).decode()
     validate_fun_request(current_validation_record)
     return (str(current_reference_path), str(current_video_path), None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'pose-video', False, False, None, None, False)
+
+
+def load_fun_walk_example():
+    return load_fun_selected_example('walk-21frames-50steps')
 
 
 def render_fun_video_result(current_job_identifier, current_status_record, current_server_address):
@@ -166,9 +188,12 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         current_model_refresh.click(read_fun_model_status, outputs=current_model_status, queue=False)
         current_interface_blocks.load(read_fun_model_status, outputs=current_model_status)
         gr.Markdown('### 1. 입력 준비')
-        current_example_button = gr.Button('걷기 예제 불러오기 · 21프레임 · 50스텝')
+        with gr.Row():
+            current_example_selector = gr.Dropdown(choices=[(current_example_label, current_example_identifier) for current_example_identifier, current_example_label in load_fun_example_catalog().items()], value=None, label='동작 예제', filterable=True, info='이름을 입력해 검색하고 예제를 선택하세요. 불러오기는 입력만 교체하며 생성하지 않습니다.')
+            current_example_button = gr.Button('예제 불러오기')
+        current_pending_example = gr.State(None)
         with gr.Group(visible=False) as current_example_confirmation:
-            gr.Markdown('현재 참조·포즈·프롬프트·생성 설정을 걷기 예제로 교체합니다. 생성은 실행하지 않습니다.')
+            gr.Markdown('현재 참조·포즈·프롬프트·생성 설정을 선택한 예제로 교체합니다. 생성은 실행하지 않습니다.')
             with gr.Row():
                 current_example_confirm = gr.Button('입력 교체 확인')
                 current_example_cancel = gr.Button('취소')
@@ -228,9 +253,9 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             current_switch_control.change(describe_fun_step_split, [current_steps_control,current_switch_control], current_split_summary, queue=False)
             gr.Markdown('범위는 이 페이지의 실험 허용 범위입니다. [모델카드](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control) · [공식 ComfyUI 안내](https://docs.comfy.org/tutorials/video/wan/wan2-2-fun-control). 가속 4스텝 LoRA 예제와 현재 Q4 비가속 설정은 다릅니다.')
         current_input_controls = [current_reference_control,current_video_control,current_frames_control,current_type_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_switch_control,current_mode_control,current_hands_control,current_face_control,current_start_control,current_end_control,current_same_control]
-        current_example_button.click(lambda: gr.update(visible=True),outputs=current_example_confirmation,queue=False)
+        current_example_button.click(lambda current_example_identifier: (current_example_identifier, gr.update(visible=True)),current_example_selector,[current_pending_example,current_example_confirmation],queue=False)
         current_example_cancel.click(lambda: gr.update(visible=False),outputs=current_example_confirmation,queue=False)
-        current_example_confirm.click(lambda: (*load_fun_walk_example(),gr.update(visible=False)),outputs=[*current_input_controls,current_example_confirmation],queue=False)
+        current_example_confirm.click(lambda current_example_identifier: (*load_fun_selected_example(current_example_identifier),gr.update(visible=False)),inputs=current_pending_example,outputs=[*current_input_controls,current_example_confirmation],queue=False)
         gr.Markdown('### 3. 실행 조건 확인')
         current_request_summary = gr.Markdown()
         def describe_current_fun_settings(current_mode_value,current_frame_value,current_steps_value,current_seed_value,current_shift_value,current_cfg_value,current_ratio_value):
