@@ -320,8 +320,8 @@ class KimodoGenerationContractTests(unittest.TestCase):
         from tools.review.ui.gradio.kimodo_app import build_kimodo_payload
         current_standing_payload = build_kimodo_payload(*apply_kimodo_example('relaxed_shoulder_width_standing'))
         self.assertEqual(current_standing_payload['frames'],180)
-        self.assertEqual(current_standing_payload['seed'],874905572)
-        self.assertEqual(current_standing_payload['prompt'],'A person stands still like a fashion model.')
+        self.assertEqual(current_standing_payload['seed'],1681778616)
+        self.assertEqual(current_standing_payload['prompt'],'A man stands still like a male fashion model.')
         self.assertEqual(current_standing_payload['directions'],['front_right_30'])
         self.assertFalse(current_standing_payload['remove_horizontal_motion'])
         current_example_payload = build_kimodo_payload(*apply_kimodo_example('male_runway_in_place'))

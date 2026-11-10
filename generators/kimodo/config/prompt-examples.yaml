@@ -40,14 +40,14 @@ examples:
     pose_include_hands: false
     pose_include_face: false
   reference_example: character_eight_directions
-# 출처: 2026-11-09_23-16-47-e9f39a59
+# 설정 출처: 2026-11-10_13-49-27-4165bcc0 (프롬프트는 남성 모델로 수정)
 - id: relaxed_shoulder_width_standing
-  label: 모델처럼 가만히 서기 · 오른쪽 30도 · 6초
-  prompt: A person stands still like a fashion model.
+  label: 남성 패션 모델처럼 가만히 서기 · 오른쪽 30도 · 6초
+  prompt: A man stands still like a male fashion model.
   frames: 180
   settings:
     steps: 100
-    seed: 874905572
+    seed: 1681778616
     guidance_scale: 2.0
     heading_degrees: 0.0
     post_processing: true
