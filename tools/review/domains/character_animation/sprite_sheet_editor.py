@@ -15,7 +15,7 @@ SPRITE_SHEET_JOB_ROOT = Path(__file__).resolve().parents[4] / '.tmp/test/sprite-
 SPRITE_SHEET_IMAGE_LIMIT = 8_000_000
 SPRITE_SHEET_PIXEL_LIMIT = 16_777_216
 SPRITE_SHEET_FRAME_LIMIT = 128
-SPRITE_BASELINE_ROOT = Path(__file__).resolve().parents[4] / 'baseline/character-baselines'
+SPRITE_BASELINE_ROOT = Path(__file__).resolve().parents[4] / 'baseline'
 SPRITE_GIF_ALLOWED_FPS = (4, 6, 8, 12, 16, 24, 30)
 SPRITE_GIF_PIXEL_BUDGET = 64_000_000
 
