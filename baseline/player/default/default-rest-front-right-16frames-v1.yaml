@@ -1,0 +1,72 @@
+schema_version: 1
+description: 기본 캐릭터 휴식 · 화면 오른쪽 앞 · 앉기·유지·일어나기 16프레임
+status: 사용자 지정 · 베이스라인
+image: default-rest-front-right-16frames-v1.png
+image_sha256: ff74ee9ff1074055500e1abe442e4dd3ee9b31ecf991fe08c16d9841ac76e405
+sha256: ff74ee9ff1074055500e1abe442e4dd3ee9b31ecf991fe08c16d9841ac76e405
+image_size:
+- 1076
+- 1448
+width: 1076
+height: 1448
+coordinates: default-rest-front-right-16frames-v1.coordinates.json
+layout:
+  columns: 4
+  rows: 4
+  frame_count: 16
+  frame_width: 269
+  row_heights:
+  - 455
+  - 272
+  - 271
+  - 450
+animation:
+  action: rest
+  direction: front-right
+  frame_order:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  - 12
+  - 13
+  - 14
+  - 15
+  - 16
+  loop: false
+  source_fps: 16
+  source_frame_indices:
+  - 0
+  - 5
+  - 10
+  - 15
+  - 20
+  - 25
+  - 30
+  - 36
+  - 48
+  - 64
+  - 76
+  - 82
+  - 88
+  - 94
+  - 101
+  - 112
+source:
+  service: wan22-fun-control
+  generation_id: 2026-11-11_21-46-59-ddeaf091
+  attempt_id: bd20f32a937d4f0a8b55e68a43210950
+  selection_sheet_sha256: 77a91b7fa69fe60311b7684e70185d7cb3ebcae6b34f5f6036ee6c412387f835
+note: 행별 동일 크기, 전경 검출 경계 기준 약 15px 이상 여백. 원본 영상에서 가변 간격으로 선택했으므로 재생 시간은 별도 설정이 필요하다.
+  배경은 원본 흰색이다.
+consistency_reference:
+  image: default-eight-directions-v1.png
+  sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+  note: 오른쪽 앞 캐릭터와 승인된 앉기 샘플을 참조한 생성 보강
