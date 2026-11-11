@@ -352,7 +352,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_waiting_status = bool(current_status_record) and current_status_record.get('status') == 'queued'
         return gr.update(interactive=current_waiting_status,value='우선 실행' if current_waiting_status else '우선 실행 · 대기 작업 선택')
     history_cancel_button.click(lambda selected_job_identifier:update_selected_generation(selected_job_identifier,'cancel'),history_selection_value,result_status_value,queue=False)
-    bind_gpu_generation_confirmation(history_resume_button,lambda selected_job_identifier:(update_selected_generation(selected_job_identifier,'resume'), gr.Timer(active=True)),history_selection_value,[result_status_value, current_history_timer])
+    bind_gpu_generation_confirmation(history_resume_button,lambda selected_job_identifier:(update_selected_generation(selected_job_identifier,'resume'), gr.Timer(active=True)),history_selection_value,[result_status_value, current_history_timer],generation_confirmation_container=history_selected_panel)
 
     def refresh_history_controls(current_selected_identifier, current_status_snapshots=None):
         if not current_selected_identifier:return gr.update(interactive=False),gr.update(interactive=False)

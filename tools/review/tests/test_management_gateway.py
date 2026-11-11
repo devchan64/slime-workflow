@@ -11,6 +11,23 @@ from tools.review.common.management_gateway import ManagementCommandGateway, res
 
 
 class GatewayContractTest(unittest.TestCase):
+    def test_connection_failure_diagnostic(self):
+        from unittest.mock import patch
+        from urllib.error import URLError
+        from tools.review.common.management_gateway import call_management_api
+        for current_failure_error in (URLError(ConnectionRefusedError(111, 'Connection refused')), TimeoutError('timed out')):
+            current_error_output = io.StringIO()
+            with self.subTest(error=type(current_failure_error).__name__):
+                with patch('urllib.request.urlopen', side_effect=current_failure_error) as current_request_mock:
+                    with contextlib.redirect_stderr(current_error_output), self.assertRaisesRegex(ValueError, '게이트웨이 연결 실패'):
+                        call_management_api('http://127.0.0.1:8771', '/wan22-fun-control/jobs', {'prompt':'private-prompt'})
+                    self.assertEqual(current_request_mock.call_count, 1)
+                current_logged_record = current_error_output.getvalue()
+                self.assertIn('/management-client/connection-failed', current_logged_record)
+                self.assertIn('wan22-fun-control', current_logged_record)
+                self.assertIn('elapsed_seconds', current_logged_record)
+                self.assertNotIn('private-prompt', current_logged_record)
+
     def test_retired_stretch_cli_is_rejected(self):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as command_exit_context:
             execute_gateway_cli(['command','momask','generate','--action','stretch'])

@@ -8,6 +8,14 @@ from tools.review.common.gradio_history import build_generation_history_view, co
 
 
 class GradioHistoryTest(unittest.TestCase):
+    def test_resume_confirmation_is_inside_selected_panel(self):
+        with gr.Blocks() as current_history_blocks:
+            build_generation_history_view(lambda current_command_name,current_payload_record:{'records':[]},'http://localhost','검증')
+        current_resume_button = next(current_component for current_component in current_history_blocks.blocks.values() if getattr(current_component,'value',None)=='생성 재개')
+        current_confirm_group = next(current_component for current_component in current_history_blocks.blocks.values() if str(getattr(current_component,'elem_id','')).startswith('gpu-confirmation-'))
+        self.assertIs(current_confirm_group.parent, current_resume_button.parent.parent)
+        current_history_blocks.close()
+
     def test_video_history_uses_status_thumbnail_and_prompt_summary(self):
         from tools.review.common.gradio_history import render_history_selection_table
         current_record={'id':'job-1','created_at':'2026-11-07','request':{'prompt':'A person walks forward.','seed':42},'status':{'status':'completed','image':'/kimodo/jobs/job-1/output-000.png'},'image':None}

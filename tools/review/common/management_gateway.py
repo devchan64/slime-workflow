@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[3]))
 import argparse
+from datetime import datetime
 import os
 from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS
 import base64
@@ -516,6 +517,7 @@ def call_management_api(server_base_address, request_route_path, request_body_va
     request_body_bytes=json.dumps({'service':service_command_name,'command':operation_command_name,'payload':command_payload_value},ensure_ascii=False,allow_nan=False).encode()
     request_header_values['Content-Type']='application/json'
     management_request_value = urllib.request.Request(server_base_address+request_route_path, data=request_body_bytes, headers=request_header_values)
+    current_request_started = time.monotonic()
     try:
         with urllib.request.urlopen(management_request_value, timeout=180 if operation_command_name=='capture' else 30) as management_response_handle:
             response_body_text = management_response_handle.read().decode()
@@ -527,5 +529,21 @@ def call_management_api(server_base_address, request_route_path, request_body_va
         except ValueError:
             pass
         raise ValueError(f'관리 API 오류 ({management_http_error.code}): {response_error_text}') from None
-    except urllib.error.URLError as management_connection_error:
-        raise ValueError(f'관리도구 서버에 연결할 수 없습니다: {server_base_address}. 서버 실행과 포트를 확인하세요.') from management_connection_error
+    except (urllib.error.URLError, TimeoutError, ConnectionError) as management_connection_error:
+        current_failure_reason = getattr(management_connection_error, 'reason', management_connection_error)
+        current_connection_record = {
+            'service': service_command_name, 'command': operation_command_name,
+            'gateway': server_base_address, 'method': 'POST', 'route': request_route_path,
+            'elapsed_seconds': round(time.monotonic() - current_request_started, 3),
+            'error_type': type(current_failure_reason).__name__, 'reason': str(current_failure_reason),
+        }
+        # 요청 본문·인증 헤더는 기록하지 않는다. GUI/CLI 실행 로그에 같은 진단을 남긴다.
+        print(f'{datetime.now().astimezone().isoformat()}/management-client/connection-failed '
+              + json.dumps(current_connection_record, ensure_ascii=False), file=sys.stderr, flush=True)
+        raise ValueError(
+            f'관리 게이트웨이 연결 실패: {server_base_address} · {service_command_name}/{operation_command_name} · '
+            f'{type(current_failure_reason).__name__}: {current_failure_reason}. '
+            'GUI 서버와 별도로 게이트웨이 실행·포트를 확인하세요. '
+            '실행: scripts/run_management_gateway.sh --watch · 로그: .tmp/gateway-server-logs/. '
+            '요청은 자동 재전송하지 않았습니다. 생성 요청이었다면 이력을 확인한 뒤 재시도하세요.'
+        ) from management_connection_error
