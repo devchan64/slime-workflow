@@ -59,7 +59,7 @@ KIMODO_DIRECTION_CONFIG = yaml.load((KIMODO_CONFIG_ROOT/'output-directions.yaml'
 if not isinstance(KIMODO_DIRECTION_CONFIG,dict) or set(KIMODO_DIRECTION_CONFIG)!={'schema_version','directions'} or KIMODO_DIRECTION_CONFIG['schema_version']!=1:
     raise ValueError('출력 방향 설정 계약 오류')
 KIMODO_DIRECTION_RECORDS = KIMODO_DIRECTION_CONFIG['directions']
-if not isinstance(KIMODO_DIRECTION_RECORDS,dict) or set(KIMODO_DIRECTION_RECORDS)!={'front','front_left_30','front_left','left','back_left','back','back_right','right','front_right_60','front_right','front_right_30','front_right_15'}:
+if not isinstance(KIMODO_DIRECTION_RECORDS,dict) or set(KIMODO_DIRECTION_RECORDS)!={'front','front_left_30','front_left','left','back_left','back','back_right','right','front_right_75','front_right_60','front_right','front_right_30','front_right_15'}:
     raise ValueError('출력 방향 목록 오류')
 for current_direction_record in KIMODO_DIRECTION_RECORDS.values():
     if not isinstance(current_direction_record,dict) or set(current_direction_record)!={'label','angle'} or not isinstance(current_direction_record['label'],str) or not current_direction_record['label'] or type(current_direction_record['angle']) is not int or not -180<=current_direction_record['angle']<=180:

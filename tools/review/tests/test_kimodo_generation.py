@@ -451,7 +451,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
         current_combination_request = build_kimodo_payload(*current_combination_values)
         self.assertFalse(current_combination_request['pose_include_hands'])
         self.assertEqual(current_combination_request['seed'],404)
-        self.assertEqual(current_combination_request['directions'],['front','front_right_15'])
+        self.assertEqual(current_combination_request['directions'],['front_right_60'])
         self.assertEqual(current_combination_request['camera_elevation_degrees'],30)
         self.assertEqual(current_combination_request['frames'],40)
         self.assertNotIn('keyframes',current_combination_request)
