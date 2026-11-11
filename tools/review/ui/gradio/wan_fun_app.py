@@ -75,18 +75,10 @@ def encode_fun_image(current_image_object, current_padding_color):
 
 
 def build_fun_payload(current_reference_path, current_video_path, current_frame_paths, current_control_type, current_prompt_text, current_negative_text, current_frame_count, current_seed_value, current_steps_value, current_shift_value, current_guidance_value, current_switch_ratio, current_input_mode="preprocessed", current_include_hands=False, current_include_face=False, current_start_path=None, current_end_path=None, current_same_endpoint=False):
-    current_endpoint_fields = {}
-    if current_same_endpoint and not current_start_path:
-        raise ValueError('시작 이미지를 첨부하세요.')
-    if current_same_endpoint:
-        current_end_path = None
-    for current_endpoint_name, current_endpoint_path in [('start_image', current_start_path), ('end_image', current_end_path)]:
-        if current_endpoint_path:
-            with Image.open(current_endpoint_path) as current_endpoint_image:
-                current_endpoint_fields[current_endpoint_name] = encode_fun_image(current_endpoint_image, 'white')
-    if current_same_endpoint:
-        current_endpoint_fields['end_image_same_as_start'] = True
-    if not current_reference_path or (current_input_mode != 'reference-only' and bool(current_video_path) == bool(current_frame_paths)):
+    reject_retired_rgb_input({'input_mode': current_input_mode})
+    if current_start_path or current_end_path or current_same_endpoint:
+        raise ValueError('시작·종료 이미지 자체 확장은 폐기되었습니다.')
+    if not current_reference_path or (bool(current_video_path) == bool(current_frame_paths)):
         raise ValueError('외형 참조 1장과 제어 영상 또는 PNG 목록 중 하나를 첨부하세요.')
     for current_integer_value in (current_frame_count, current_seed_value, current_steps_value):
         if isinstance(current_integer_value, bool) or not isinstance(current_integer_value, (int, float)) or not float(current_integer_value).is_integer():
@@ -98,14 +90,8 @@ def build_fun_payload(current_reference_path, current_video_path, current_frame_
         if current_reference_image.size != (832, 480):
             gr.Warning('참조 이미지를 비율 유지해 832×480 흰 여백으로 맞춥니다. 원본은 보존합니다.')
         current_encoded_images = [encode_fun_image(current_reference_image, 'white')]
-    if current_input_mode == 'reference-only':
-        current_payload_record = {'action':'generate','prompt':current_prompt_text,'negative_prompt':current_negative_text,'images':current_encoded_images,'control_type':'pose','width':832,'height':480,'frames':current_frame_count,'seed':int(current_seed_value),'steps':int(current_steps_value),'flow_shift':current_shift_value,'guidance_scale':current_guidance_value,'switch_ratio':current_switch_ratio,'input_mode':'reference-only'}
-        current_payload_record.update(current_endpoint_fields)
-        validate_fun_request(current_payload_record)
-        return current_payload_record
     if current_input_mode == 'pose-video':
         current_payload_record = {'action':'generate','prompt':current_prompt_text,'negative_prompt':current_negative_text,'images':current_encoded_images,'control_type':'pose','width':832,'height':480,'frames':current_frame_count,'seed':int(current_seed_value),'steps':int(current_steps_value),'flow_shift':current_shift_value,'guidance_scale':current_guidance_value,'switch_ratio':current_switch_ratio,'pose_video':base64.b64encode(Path(current_video_path).read_bytes()).decode()}
-        current_payload_record.update(current_endpoint_fields)
         validate_fun_request(current_payload_record)
         return current_payload_record
     if current_input_mode == 'soma-video':
@@ -138,7 +124,6 @@ def build_fun_payload(current_reference_path, current_video_path, current_frame_
     if current_input_mode == 'soma-video':
         current_payload_record.update(pose_include_hands=current_include_hands, pose_include_face=current_include_face)
         current_payload_record['driving_video'] = base64.b64encode(Path(current_video_path).read_bytes()).decode()
-    current_payload_record.update(current_endpoint_fields)
     validate_fun_request(current_payload_record)
     return current_payload_record
 
@@ -150,8 +135,7 @@ def restore_fun_inputs(current_history_record):
         raise ValueError('이력 경로 오류')
     current_request_record = current_history_record['request']
     reject_retired_rgb_input(current_request_record)
-    current_reference_only = current_request_record.get('input_mode') == 'reference-only'
-    if not current_reference_only and (current_request_record.get('pose_video_file') != 'pose-input.mp4' or not (current_job_directory/'pose-input.mp4').is_file()):
+    if (current_request_record.get('pose_video_file') != 'pose-input.mp4' or not (current_job_directory/'pose-input.mp4').is_file()):
         raise ValueError('이전 작업은 처리된 포즈 MP4 입력이 없습니다. Kimodo의 DWPose MP4를 첨부해 새 작업을 생성하세요. 기존 결과는 조회할 수 있습니다.')
     current_reference_paths = []
     for current_reference_name in current_request_record['references']:
@@ -159,7 +143,7 @@ def restore_fun_inputs(current_history_record):
         if current_reference_path.parent != current_job_directory or not current_reference_path.is_file():
             raise ValueError('이력 입력 사본 누락 또는 경로 오류')
         current_reference_paths.append(str(current_reference_path))
-    return (current_reference_paths[0], None if current_reference_only else str(current_job_directory/'pose-input.mp4'), current_reference_paths[1:] or None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'reference-only' if current_reference_only else 'pose-video', current_request_record.get('pose_include_hands', bool(current_request_record.get('driving_video_file'))), current_request_record.get('pose_include_face', bool(current_request_record.get('driving_video_file'))), str(current_job_directory/'start-image.png') if current_request_record.get('start_image_file') else None, str(current_job_directory/'end-image.png') if current_request_record.get('end_image_file') else None, current_request_record.get('end_image_same_as_start', False), current_job_identifier)
+    return (current_reference_paths[0], str(current_job_directory/'pose-input.mp4'), current_reference_paths[1:] or None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'pose-video', current_request_record.get('pose_include_hands', bool(current_request_record.get('driving_video_file'))), current_request_record.get('pose_include_face', bool(current_request_record.get('driving_video_file'))), str(current_job_directory/'start-image.png') if current_request_record.get('start_image_file') else None, str(current_job_directory/'end-image.png') if current_request_record.get('end_image_file') else None, current_request_record.get('end_image_same_as_start', False), current_job_identifier)
 
 
 def describe_fun_step_split(current_steps_value, current_switch_ratio):
@@ -173,7 +157,7 @@ def describe_fun_step_split(current_steps_value, current_switch_ratio):
 def build_fun_interface(current_server_address, current_command_callback=None):
     current_execute_command = current_command_callback or execute_fun_command
     with gr.Blocks(title='Wan2.2 Fun Control 생성기') as current_interface_blocks:
-        gr.Markdown('## Wan2.2 Fun Control A14B 실험 생성기\n포즈 영상 기반 또는 참조 이미지와 프롬프트만으로 애니메이션을 생성합니다. VideoX-Fun DWPose 추출과 관절 길이 보정은 Kimodo 생성기에서 수행합니다.')
+        gr.Markdown('## Wan2.2 Fun Control A14B 실험 생성기\n포즈 영상과 참조 이미지로 애니메이션을 생성합니다. VideoX-Fun DWPose 추출과 관절 길이 보정은 Kimodo 생성기에서 수행합니다.')
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
         current_model_refresh = gr.Button('모델 준비 상태 확인')
         def read_fun_model_status():
@@ -193,34 +177,25 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             with gr.Row():
                 current_example_confirm = gr.Button('입력 교체 확인')
                 current_example_cancel = gr.Button('취소')
-        current_mode_control = gr.Radio(choices=[('포즈 영상 + 참조 이미지', 'pose-video'), ('참조 이미지 + 프롬프트 · 실험', 'reference-only')], value='pose-video', label='생성 모드')
+        current_mode_control = gr.State('pose-video')
         current_frames_control = gr.State(None)
         current_type_control = gr.State('pose')
-        gr.Markdown('포즈 모드는 영상의 동작을 따릅니다. 참조 전용 모드는 프롬프트로 동작을 생성하며 포즈 영상은 사용하지 않습니다. 참조 이미지는 외형 조건이며 첫 프레임 고정이 아닙니다.')
+        gr.Markdown('포즈 영상의 동작을 따릅니다. 참조 이미지는 외형 조건이며 첫 프레임 고정이 아닙니다.')
         with gr.Row():
             with gr.Column():
                 current_reference_control = gr.Image(type='filepath', sources=['upload'], label='캐릭터 외형 참조 · 1장')
             with gr.Column():
                 current_video_control = gr.Video(sources=['upload'], label='처리된 포즈 영상 · MP4 · 832×480 · 16fps', include_audio=True, buttons=['download'])
-        current_mode_control.change(lambda current_mode_value: gr.Video(visible=current_mode_value == 'pose-video'), current_mode_control, current_video_control, queue=False)
-        with gr.Accordion('시작·종료 프레임 이미지 · 실험', open=False):
-            gr.Markdown('외형 참조와 별도인 양끝 프레임 조건입니다. 같은 서기 자세로 시작·종료하려면 시작 이미지를 첨부하고 아래 체크박스를 켜세요. 비율을 유지해 832×480 흰 여백으로 맞춥니다. 픽셀 동일성을 보장하지 않으며 추가 VAE 인코딩으로 메모리·시간이 늘 수 있습니다.')
-            with gr.Row():
-                current_start_control = gr.Image(type='filepath', sources=['upload'], label='시작 프레임 이미지 · 선택')
-                current_end_control = gr.Image(type='filepath', sources=['upload'], label='종료 프레임 이미지 · 선택')
-            current_same_control = gr.Checkbox(value=False, label='시작 이미지를 종료에도 사용')
-            current_same_control.change(lambda current_same_value: gr.update(interactive=not current_same_value),current_same_control,current_end_control,queue=False)
-            gr.Markdown('시작 이미지 재사용을 켜면 종료 이미지 입력은 비활성화되며 첨부된 종료 이미지는 사용하지 않습니다. 체크를 해제하면 다시 사용할 수 있습니다.')
-            gr.Markdown('포즈 영상은 자동 변경하지 않습니다. 양끝 포즈가 이미지와 다르면 조건이 충돌할 수 있으므로 입력 포즈도 확인하세요. 생성 결과를 참조 이미지로 덮어쓰는 후처리는 하지 않습니다.')
+        current_start_control = gr.State(None)
+        current_end_control = gr.State(None)
+        current_same_control = gr.State(False)
         current_hands_control = gr.State(False)
         current_face_control = gr.State(False)
         current_pose_help = gr.Markdown('**포즈 모드:** Kimodo 결과의 DWPose 포즈 MP4를 입력하세요. SOMA 인체 렌더 영상은 입력 대상이 아닙니다. 832×480 · 16fps 영상을 앞에서부터 지정 프레임 수만큼 사용하며 포즈 재검출·관절 길이 보정은 수행하지 않습니다.')
         with gr.Accordion('시작 프레임이 흐릴 때 · 포즈 준비 구간 가이드', open=False) as current_pose_guide:
             gr.Markdown('시작 구간이 흐리고 뒤로 갈수록 선명해질 때, 포즈 영상 앞에 첫 프레임을 반복한 준비 구간을 추가해 보세요. 이번 휴식 동작 실험에서는 첫 프레임 4장을 앞에 추가한 20스텝 결과가 개선됐습니다. 모든 동작에서 같은 효과를 보장하거나 원인이 확정된 것은 아닙니다.')
             gr.Markdown('**적용 예:** 기존 109프레임 앞에 첫 포즈 4장을 추가하면 113프레임입니다. 원래 첫 프레임까지 같은 포즈가 5프레임 연속이며, 추가 시간은 16fps 기준 0.25초입니다. 준비 구간을 포함한 출력 프레임 수를 지정하세요. 출력은 4n+1, 최대 129프레임이며 입력 영상은 그 길이 이상이어야 합니다. 이 안내가 영상을 자동으로 수정하지는 않습니다.')
-            gr.Markdown('**검수:** 처음 1~5프레임과 동작 시작 이후의 선명도·잔상·캐릭터 크기를 비교하세요. 필요한 경우 생성 후 준비 구간을 잘라 사용할 수 있지만, 제거할 길이는 결과를 보고 결정하세요. 시작 이미지를 함께 사용한다면 첫 포즈의 자세·위치·크기와 맞춰 조건 충돌을 줄이세요.')
-        current_reference_help = gr.Markdown('**참조 전용 모드:** 외형 참조와 동작 프롬프트만 입력합니다. 예: The character walks in place. 제어 영상 없이 ComfyUI 기본 조건 처리를 사용하며 검은 영상을 대신 넣지 않습니다. 동작·외형 유지 품질은 미검증입니다. 기존에 첨부한 영상은 이 모드의 요청에서 제외됩니다.', visible=False)
-        current_mode_control.change(lambda current_mode_value: (gr.update(visible=current_mode_value=='pose-video'),gr.update(visible=current_mode_value=='pose-video'),gr.update(visible=current_mode_value=='reference-only')),current_mode_control,[current_pose_help,current_pose_guide,current_reference_help],queue=False)
+            gr.Markdown('**검수:** 처음 1~5프레임과 동작 시작 이후의 선명도·잔상·캐릭터 크기를 비교하세요. 필요한 경우 생성 후 준비 구간을 잘라 사용할 수 있지만, 제거할 길이는 결과를 보고 결정하세요.')
         gr.Markdown('### 2. 동작과 생성 설정')
         current_prompt_control = gr.Textbox(label='장면·동작 프롬프트', lines=3)
         current_prompt_summary = gr.Markdown('원문 0단어 · 최종 0단어 · 추가 문구 없음')
@@ -261,7 +236,6 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             current_summary_control.change(describe_current_fun_settings,current_summary_inputs,current_request_summary,queue=False)
         current_interface_blocks.load(describe_current_fun_settings,current_summary_inputs,current_request_summary)
         current_required_help=gr.Markdown('필수: 외형 참조 · 처리된 포즈 MP4 · 동작 프롬프트. 입력 후 대기열 등록 확인을 진행하세요.')
-        current_mode_control.change(lambda current_mode_value: '필수: 외형 참조 · 동작 프롬프트. 포즈 영상은 사용하지 않습니다.' if current_mode_value=='reference-only' else '필수: 외형 참조 · 처리된 포즈 MP4 · 동작 프롬프트.',current_mode_control,current_required_help,queue=False)
         current_generate_button = gr.Button('대기열에 추가', variant='primary', interactive=False)
         build_button_guidance(current_generate_button, '현재 모드의 필수 입력을 준비하세요. 확인 후 대기열에 등록하며 취소하면 실행하지 않습니다.')
         with gr.Column() as current_confirmation_container:
@@ -275,7 +249,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         def enqueue_fun_generation(*current_input_values):
             current_job_record = current_execute_command('generate',build_fun_payload(*current_input_values))
             return current_job_record['id'], '공용 GPU 대기열에 등록했습니다.'
-        bind_gpu_generation_confirmation(current_generate_button,enqueue_fun_generation,current_input_controls,[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=lambda current_reference_path,current_video_path,current_frame_paths,current_prompt_text,current_mode_value: bool(current_reference_path and (current_mode_value == 'reference-only' or (bool(current_video_path)!=bool(current_frame_paths))) and current_prompt_text.strip()),generation_readiness_inputs=[current_reference_control,current_video_control,current_frames_control,current_prompt_control,current_mode_control])
+        bind_gpu_generation_confirmation(current_generate_button,enqueue_fun_generation,current_input_controls,[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=lambda current_reference_path,current_video_path,current_frame_paths,current_prompt_text,current_mode_value: bool(current_reference_path and (bool(current_video_path)!=bool(current_frame_paths)) and current_prompt_text.strip()),generation_readiness_inputs=[current_reference_control,current_video_control,current_frames_control,current_prompt_control,current_mode_control])
         current_generation_timer = gr.Timer(5,active=False)
         def refresh_fun_status(current_job_identifier,current_logs_enabled,current_previous_result):
             if not current_job_identifier:

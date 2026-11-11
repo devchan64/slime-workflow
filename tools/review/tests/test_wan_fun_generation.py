@@ -120,23 +120,10 @@ class FunGenerationContractTests(unittest.TestCase):
             restore_fun_inputs({'id':'../outside','request':{}})
 
 class FunReferenceOnlyTests(unittest.TestCase):
-    def test_reference_only_payload_restore_and_reject_video(self):
-        from tools.review.ui.gradio.wan_fun_app import build_fun_payload, restore_fun_inputs
-        with tempfile.TemporaryDirectory() as current_temporary_root:
-            current_job_identifier = 'reference-only-test'
-            current_job_directory = Path(current_temporary_root)/current_job_identifier
-            current_job_directory.mkdir()
-            current_reference_path = current_job_directory/'reference-1.png'
-            Image.new('RGB',(832,480),'white').save(current_reference_path)
-            current_payload_record = build_fun_payload(str(current_reference_path),'unused.mp4',None,'pose','A person walks.','',21,42,20,5,6,0.3,'reference-only')
-            self.assertEqual(len(current_payload_record['images']),1)
-            self.assertNotIn('pose_video',current_payload_record)
-            self.assertEqual(validate_fun_request(current_payload_record)['input_mode'],'reference-only')
-            for current_invalid_fields in ({'pose_video':'invalid'},{'driving_video':'invalid'},{'input_mode':'unknown'},{'images':current_payload_record['images']*2}):
-                with self.assertRaises(ValueError):
-                    validate_fun_request({**current_payload_record,**current_invalid_fields})
-            current_saved_request = {**current_payload_record,'references':['reference-1.png']}
-            with patch('tools.review.ui.gradio.wan_fun_app.FUN_JOB_STORAGE',Path(current_temporary_root)):
-                current_restored_inputs = restore_fun_inputs({'id':current_job_identifier,'request':current_saved_request})
-            self.assertIsNone(current_restored_inputs[1])
-            self.assertEqual(current_restored_inputs[12],'reference-only')
+    def test_retired_reference_mode_rejected(self):
+        from generators.wan_fun.contracts import reject_retired_rgb_input
+        from tools.review.ui.gradio.wan_fun_app import build_fun_payload
+        with self.assertRaisesRegex(ValueError, '폐기'):
+            reject_retired_rgb_input({'input_mode': 'reference-only'})
+        with self.assertRaisesRegex(ValueError, '폐기'):
+            build_fun_payload(None,None,None,'pose','stand','',9,42,20,5,6,.5,'reference-only')
