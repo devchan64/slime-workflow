@@ -18,7 +18,7 @@ PROJECTION_GAIN_MAXIMUM = 2.5
 KIMODO_DWPOSE_OUTPUT_FPS = 30
 
 
-def calculate_projected_segment_gains(current_attempt_root, current_ratio_record, current_detected_frames, current_direction_name, current_output_fps=16):
+def calculate_projected_segment_gains(current_attempt_root, current_ratio_record, current_detected_frames, current_direction_name, current_output_fps=16, current_excluded_groups=()):
     """3D 투영 단축과 실제 검출 비율을 비교해 영상 전체에 적용할 고정 배율을 구한다."""
     from generators.kimodo.contracts import KIMODO_DIRECTION_RECORDS
     current_skeleton_record = json.loads((current_attempt_root/'skeleton.json').read_text())
@@ -63,8 +63,12 @@ def calculate_projected_segment_gains(current_attempt_root, current_ratio_record
                     continue
                 current_reference_samples[current_group_name].append((current_length_2d/current_length_3d)/(current_torso_2d/current_torso_3d))
                 current_detected_samples[current_group_name].append(current_detected_length/current_detected_torso)
+    if not isinstance(current_excluded_groups, (tuple,list)) or any(current_group not in REFERENCE_SEGMENT_GROUPS for current_group in current_excluded_groups) or len(set(current_excluded_groups)) != len(current_excluded_groups):
+        raise ValueError('제외할 관절 그룹이 유효하지 않습니다.')
     current_gains = {}
     for current_group_name in REFERENCE_SEGMENT_GROUPS:
+        if current_group_name in current_excluded_groups:
+            continue
         if not current_reference_samples[current_group_name]:
             raise ValueError(f'{current_group_name}의 투영·검출 비율을 계산할 수 없습니다.')
         current_target_ratio = current_ratio_record['ratios'][current_group_name]
@@ -148,6 +152,24 @@ def export_kimodo_dwpose(current_job_root,current_attempt_root):
     current_request_record = json.loads((current_job_root/'request.json').read_text())
     current_ratio_path = current_attempt_root/'reference-proportions.json'
     current_ratio_record = json.loads(current_ratio_path.read_text()) if current_ratio_path.exists() else None
+    current_hip_projection_enabled = current_request_record.get('proportion_projected_hip',False)
+    if type(current_hip_projection_enabled) is not bool:
+        raise ValueError('3D 투영 골반 시험 여부는 참/거짓이어야 합니다.')
+    current_direct_pose = None
+    current_direct_hash = None
+    if current_hip_projection_enabled:
+        if current_ratio_record is None or 'weighted_body_face_candidate' not in current_ratio_record or 'proportion_reviewed_multiview' not in current_request_record:
+            raise ValueError('3D 투영 골반 시험에는 검수 3D 골격 비율이 필요합니다.')
+        if current_ratio_record['weighted_body_face_candidate'] != current_request_record['proportion_reviewed_multiview'].get('skeleton'):
+            raise ValueError('작업에 적용한 3D 골격이 요청한 후보와 다릅니다.')
+        current_direct_path = current_attempt_root/'soma-direct-pose.json'
+        if not current_direct_path.is_file():
+            raise ValueError('3D 골반 투영에 같은 시도의 직접 포즈 기록이 필요합니다.')
+        current_direct_bytes = current_direct_path.read_bytes()
+        current_direct_hash = hashlib.sha256(current_direct_bytes).hexdigest()
+        current_direct_pose = json.loads(current_direct_bytes)
+        if current_direct_pose.get('fps') != KIMODO_DWPOSE_OUTPUT_FPS or current_direct_pose.get('size') != [832,480]:
+            raise ValueError('3D 골반 투영의 직접 포즈 FPS 또는 크기가 다릅니다.')
     current_direction_gains = {}
     current_output_videos = {}
     current_axis_measurements = {}
@@ -159,7 +181,16 @@ def export_kimodo_dwpose(current_job_root,current_attempt_root):
         current_pose_request = {'driving_video_file':'driving.mp4','driving_video_sha256':hashlib.sha256(current_source_path.read_bytes()).hexdigest(),'frames':current_request_record['frames'],'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False)}
         current_direction_measurement={}
         def transform_detected_frames(current_frames,current_shape):
-            current_gains = calculate_projected_segment_gains(current_attempt_root,current_ratio_record,current_frames,current_direction_name,KIMODO_DWPOSE_OUTPUT_FPS) if current_ratio_record else {}
+            current_excluded_groups=('hip_width',) if current_hip_projection_enabled else ()
+            current_gains = calculate_projected_segment_gains(current_attempt_root,current_ratio_record,current_frames,current_direction_name,KIMODO_DWPOSE_OUTPUT_FPS,current_excluded_groups) if current_ratio_record else {}
+            if current_hip_projection_enabled:
+                from generators.kimodo.dwpose_hip_projection_experiment import reconstruct_projected_hip_frames
+                current_direct_direction = current_direct_pose.get('directions',{}).get(current_direction_name)
+                if not isinstance(current_direct_direction,dict) or current_direct_direction.get('source_frames') != list(range(len(current_frames))):
+                    raise ValueError('3D 골반 투영의 방향 또는 원본 프레임이 일치하지 않습니다.')
+                current_frames = reconstruct_projected_hip_frames(current_frames,current_direct_direction.get('body_points_832x480'))
+                current_gains['hip_width'] = 1.0
+                current_direction_measurement['hip_reconstruction'] = {'method':'same-frame-soma-projected-hip','source_sha256':current_direct_hash,'frames':len(current_frames),'note':'골반은 DWPose 검출이 아니라 보정된 SOMA 직접 포즈의 투영 벡터로 재구성'}
             current_direction_gains[current_direction_name] = current_gains
             return adjust_detected_pose_frames(current_frames,current_shape,current_gains,current_request_record.get('openpose_scale_percent',85),current_ratio_record,current_direction_measurement)
         prepare_fun_pose_frames(current_work_directory,current_work_directory,current_pose_request,transform_detected_frames,current_output_fps=KIMODO_DWPOSE_OUTPUT_FPS)
@@ -167,7 +198,7 @@ def export_kimodo_dwpose(current_job_root,current_attempt_root):
         current_output_name = f'dwpose-{current_direction_name}.mp4'
         shutil.copy2(current_work_directory/'pose.mp4',current_attempt_root/current_output_name)
         current_output_videos[current_direction_name] = current_output_name
-    (current_attempt_root/'dwpose-export.json').write_text(json.dumps({'videos':current_output_videos,'fps':KIMODO_DWPOSE_OUTPUT_FPS,'width':832,'height':480,'segment_gains_by_direction':current_direction_gains,'body_axis':current_axis_measurements,'length_basis':'SOMA 3D 투영 단축과 DWPose 검출 비율을 방향별로 비교한 영상 전체 고정 배율','scale_percent':current_request_record.get('openpose_scale_percent',85),'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False)},ensure_ascii=False))
+    (current_attempt_root/'dwpose-export.json').write_text(json.dumps({'videos':current_output_videos,'fps':KIMODO_DWPOSE_OUTPUT_FPS,'width':832,'height':480,'segment_gains_by_direction':current_direction_gains,'body_axis':current_axis_measurements,'hip_projection_enabled':current_hip_projection_enabled,'length_basis':'SOMA 3D 투영 단축과 DWPose 검출 비율을 방향별로 비교한 영상 전체 고정 배율','scale_percent':current_request_record.get('openpose_scale_percent',85),'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False)},ensure_ascii=False))
 
 
 if __name__ == '__main__':

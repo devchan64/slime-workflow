@@ -9,7 +9,10 @@ from datetime import datetime
 def export_kimodo_pose_outputs(current_job_root,current_attempt_root,current_request_record,current_metrics_recorder):
     current_metrics_recorder.update_generation_stage('direct-pose-export')
     current_workspace_root = Path(__file__).resolve().parents[2]
-    subprocess.run([str(current_workspace_root/'.venv/bin/python'),'-m','generators.kimodo.direct_pose_export',str(current_attempt_root),str(current_attempt_root),*current_request_record.get('directions',['front_left'])],cwd=current_workspace_root,check=True)
+    current_direct_command=[str(current_workspace_root/'.venv/bin/python'),'-m','generators.kimodo.direct_pose_export',str(current_attempt_root),str(current_attempt_root),*current_request_record.get('directions',['front_left'])]
+    if 'proportion_face_anchor_calibration' in current_request_record:
+        current_direct_command.extend(['--request-json',str(current_job_root/'request.json')])
+    subprocess.run(current_direct_command,cwd=current_workspace_root,check=True)
     current_direct_record = json.loads((current_attempt_root/'soma-direct-pose.json').read_text())
     current_metrics_recorder.update_generation_stage('dwpose-export')
     current_workspace_root = Path(__file__).resolve().parents[2]

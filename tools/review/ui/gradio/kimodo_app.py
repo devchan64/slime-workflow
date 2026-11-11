@@ -4,6 +4,7 @@ import gradio as gr
 import yaml
 import base64
 import hashlib
+import tempfile
 from pathlib import Path
 from tools.review.common.gradio_input_preview import build_input_preview
 from generators.kimodo.contracts import KIMODO_JOB_STORAGE, KIMODO_MAXIMUM_SEED_VALUE
@@ -75,6 +76,185 @@ def build_reference_joint_edit_payload(current_editor_rows,current_editor_state)
             current_edit_records.append({'image':current_image_index,'person':current_person_index,'joint':current_joint_index,'original':current_original_row[3:5],'edited':current_editor_row[5:7],'image_sha256':current_editor_state['hashes'][current_image_index-1]})
     return current_edit_records
 
+def select_multiview_review_rows(current_review_record,current_observation_number):
+    """선택한 방향의 관절별 가중치와 두 종류의 오차를 표시한다."""
+    if current_review_record is None:
+        return []
+    if type(current_observation_number) is not int or not 1 <= current_observation_number <= 8:
+        raise ValueError('검수할 관측 번호를 선택하세요.')
+    current_view_record=current_review_record['views'][current_observation_number-1]
+    current_rows=[]
+    for current_joint_record in sorted(current_view_record['joints'],key=lambda current_row:current_row['joint']):
+        current_heldout_record=current_joint_record['heldout']
+        current_rows.append([str(current_joint_record['joint']),f"{current_joint_record['detector_score']:.3f}",f"{current_joint_record['declared_weight']:.3f}",f"{current_joint_record['effective_weight']:.3f}",current_joint_record['weight_reason'],f"{current_joint_record['fitted_error_px']:.2f}" if current_joint_record['fitted_error_px'] is not None else '제외',f"{current_heldout_record['error_px']:.2f}" if current_heldout_record and current_heldout_record.get('error_px') is not None else '미검증'])
+    return current_rows
+
+
+def load_multiview_review_files(current_reference_path,current_skeleton_path,current_image_path,current_heldout_path,current_observation_number):
+    """같은 출처의 관절·3D·이미지만 8방향 겹침 검수로 불러온다."""
+    from PIL import Image
+    from generators.kimodo.multiview_review_report import build_multiview_review_report,render_multiview_review_overlay
+    if not current_reference_path or not current_skeleton_path or not current_image_path:
+        raise ValueError('참조 관절 JSON, 3D 골격 JSON, 참조 이미지를 모두 선택하세요.')
+    current_reference=json.loads(Path(current_reference_path).read_text())
+    current_skeleton=json.loads(Path(current_skeleton_path).read_text())
+    current_heldout=json.loads(Path(current_heldout_path).read_text()) if current_heldout_path else None
+    current_report=build_multiview_review_report(current_reference,current_skeleton,current_heldout)
+    current_image_bytes=Path(current_image_path).read_bytes()
+    current_image_hash=hashlib.sha256(current_image_bytes).hexdigest()
+    if current_skeleton.get('reference_image_sha256') != [current_image_hash]:
+        raise ValueError('3D 골격의 참조 이미지 해시가 없거나 일치하지 않습니다.')
+    with Image.open(current_image_path) as current_image:
+        current_preview=render_multiview_review_overlay(current_image,current_report)
+    current_report['review_binding_sha256']=calculate_review_source_binding(current_reference,current_skeleton,current_image_hash)
+    current_notice='8방향 검수 기록을 불러왔습니다. 초록색: DWPose, 보라색: 3D 재투영. 적합 오차와 제외 관측 오차는 별개입니다.'
+    if not current_heldout_path:
+        current_notice+=' 제외 관측 기록을 선택하지 않아 미검증으로 표시합니다.'
+    return current_report,current_preview,current_notice,select_multiview_review_rows(current_report,current_observation_number)
+
+
+def calculate_review_source_binding(current_reference_record,current_skeleton_record,current_image_hash):
+    """검수 중인 입력의 변경 여부를 확인한다."""
+    current_bytes=json.dumps({'reference':current_reference_record,'skeleton':current_skeleton_record,'image_sha256':current_image_hash},ensure_ascii=False,sort_keys=True,separators=(',',':'),allow_nan=False).encode()
+    return hashlib.sha256(current_bytes).hexdigest()
+
+
+def build_reviewed_bundle_from_review(current_review_record,current_reference_path,current_skeleton_path,current_image_path,current_generation_references):
+    """검수한 출처 그대로 생성 참조에 사용할 후보 묶음을 구성한다."""
+    from generators.kimodo.multiview_reviewed_bundle import REVIEWED_BUNDLE_SCHEMA_VERSION,validate_reviewed_multiview_bundle
+    from tools.review.domains.image.three_reference_generation import decode_reference_image
+    if current_review_record is None or not all((current_reference_path,current_skeleton_path,current_image_path,current_generation_references)):
+        raise ValueError('8방향 검수 기록을 불러오고 생성 참조 이미지를 선택하세요.')
+    current_reference=json.loads(Path(current_reference_path).read_text())
+    current_skeleton=json.loads(Path(current_skeleton_path).read_text())
+    current_image_hash=hashlib.sha256(Path(current_image_path).read_bytes()).hexdigest()
+    if current_review_record.get('review_binding_sha256') != calculate_review_source_binding(current_reference,current_skeleton,current_image_hash):
+        raise ValueError('검수 입력이 변경됐습니다. 8방향 검수를 다시 불러오세요.')
+    current_hashes=[]
+    for current_path in current_generation_references:
+        current_png=decode_reference_image(base64.b64encode(Path(current_path).read_bytes()).decode(),composite_transparent_background=True)
+        current_hashes.append(hashlib.sha256(current_png).hexdigest())
+    return validate_reviewed_multiview_bundle({'schema':REVIEWED_BUNDLE_SCHEMA_VERSION,'reference_observations':current_reference,'skeleton':current_skeleton},current_hashes)
+
+
+def handle_reviewed_bundle_from_review(current_review_record,current_reference_path,current_skeleton_path,current_image_path,current_generation_references):
+    try:
+        return build_reviewed_bundle_from_review(current_review_record,current_reference_path,current_skeleton_path,current_image_path,current_generation_references)
+    except (ValueError,OSError,KeyError,TypeError) as current_error:
+        raise gr.Error(str(current_error)) from current_error
+
+
+
+def load_multiview_weight_editor(current_review_record,current_reference_path,current_skeleton_path,current_image_path):
+    """검수 출처와 일치하는 8×18 판단 가중치를 편집 표로 만든다."""
+    from generators.kimodo.multiview_joint_weights import validate_multiview_joint_weights
+    if current_review_record is None or not all((current_reference_path,current_skeleton_path,current_image_path)):
+        raise gr.Error('먼저 같은 입력으로 8방향 검수를 불러오세요.')
+    try:
+        current_reference=json.loads(Path(current_reference_path).read_text())
+        current_skeleton=json.loads(Path(current_skeleton_path).read_text())
+        current_image_hash=hashlib.sha256(Path(current_image_path).read_bytes()).hexdigest()
+        if current_review_record.get('review_binding_sha256')!=calculate_review_source_binding(current_reference,current_skeleton,current_image_hash):
+            raise ValueError('검수 입력이 변경됐습니다. 8방향 검수를 다시 불러오세요.')
+        current_table=current_skeleton['joint_weight_table']
+        validate_multiview_joint_weights(current_table)
+        current_rows=[[current_view['observation'],current_joint['joint'],current_joint['weight'],current_joint['reason']] for current_view in current_table['views'] for current_joint in current_view['joints']]
+        return current_rows,{'binding':current_review_record['review_binding_sha256'],'targets':[[current_row[0],current_row[1]] for current_row in current_rows]},'8방향 × BODY18 관절 144개를 불러왔습니다. 수정 후 검증·파일 만들기를 누르세요.'
+    except (ValueError,OSError,KeyError,TypeError) as current_error:
+        raise gr.Error(str(current_error)) from current_error
+
+
+def save_multiview_weight_editor(current_editor_rows,current_editor_state,current_review_record,current_reference_path,current_skeleton_path,current_image_path):
+    """대상 순서를 보존하고 가중치·근거를 검증해 별도 JSON 파일을 만든다."""
+    from generators.kimodo.multiview_joint_weights import validate_multiview_joint_weights
+    try:
+        if not isinstance(current_editor_state,dict) or current_review_record is None or current_editor_state.get('binding')!=current_review_record.get('review_binding_sha256'):
+            raise ValueError('검수 기록이 변경됐습니다. 가중치 표를 다시 불러오세요.')
+        if not all((current_reference_path,current_skeleton_path,current_image_path)):
+            raise ValueError('검수 입력을 다시 선택하세요.')
+        current_reference=json.loads(Path(current_reference_path).read_text())
+        current_skeleton=json.loads(Path(current_skeleton_path).read_text())
+        current_image_hash=hashlib.sha256(Path(current_image_path).read_bytes()).hexdigest()
+        if current_editor_state['binding']!=calculate_review_source_binding(current_reference,current_skeleton,current_image_hash):
+            raise ValueError('검수 입력이 변경됐습니다. 가중치 표를 다시 불러오세요.')
+        if hasattr(current_editor_rows,'tolist'):
+            current_editor_rows=current_editor_rows.tolist()
+        if not isinstance(current_editor_rows,list) or len(current_editor_rows)!=144:
+            raise ValueError('8방향 × BODY18 관절 144개가 필요합니다.')
+        current_views=[{'observation':current_view_index+1,'joints':[]} for current_view_index in range(8)]
+        for current_index,current_row in enumerate(current_editor_rows):
+            if not isinstance(current_row,(list,tuple)) or len(current_row)!=4 or list(current_row[:2])!=current_editor_state['targets'][current_index]:
+                raise ValueError('관측 번호·관절 번호와 행 순서는 변경할 수 없습니다.')
+            current_weight=current_row[2]
+            if isinstance(current_weight,str):
+                try:
+                    current_weight=float(current_weight.strip())
+                except ValueError as current_error:
+                    raise ValueError('가중치는 0~1 숫자로 입력하세요.') from current_error
+            if type(current_weight) not in (int,float):
+                raise ValueError('가중치는 0~1 숫자로 입력하세요.')
+            current_views[current_index//18]['joints'].append({'joint':current_index%18,'weight':current_weight,'reason':current_row[3]})
+        current_table={'schema':'kimodo-body18-view-weights-v1','views':current_views}
+        validate_multiview_joint_weights(current_table)
+        with tempfile.NamedTemporaryFile(mode='w',encoding='utf-8',prefix='kimodo-joint-weights-',suffix='.json',delete=False) as current_file:
+            json.dump(current_table,current_file,ensure_ascii=False,indent=2,allow_nan=False)
+        return current_file.name,'가중치 파일을 만들었습니다. 새 3D 추정과 검수 후에만 생성 참조로 선택할 수 있습니다.'
+    except (ValueError,OSError,KeyError,TypeError) as current_error:
+        raise gr.Error(str(current_error)) from current_error
+
+def load_reviewed_multiview_bundle(current_bundle_path,current_reference_paths):
+    """선택한 참조 이미지와 검수 골격의 출처를 확인한다."""
+    from generators.kimodo.multiview_reviewed_bundle import REVIEWED_BUNDLE_MAXIMUM_BYTES,validate_reviewed_multiview_bundle
+    from tools.review.domains.image.three_reference_generation import decode_reference_image
+    if not current_bundle_path or not current_reference_paths:
+        raise ValueError('검수 골격 JSON과 참조 이미지를 먼저 선택하세요.')
+    current_file_path=Path(current_bundle_path)
+    if current_file_path.stat().st_size>REVIEWED_BUNDLE_MAXIMUM_BYTES:
+        raise ValueError('검수 스켈레톤 묶음이 2MiB를 초과합니다.')
+    current_bundle=json.loads(current_file_path.read_text())
+    current_hashes=[]
+    for current_path in current_reference_paths:
+        current_png=decode_reference_image(base64.b64encode(Path(current_path).read_bytes()).decode(),composite_transparent_background=True)
+        current_hashes.append(hashlib.sha256(current_png).hexdigest())
+    return validate_reviewed_multiview_bundle(current_bundle,current_hashes)
+
+
+def handle_reviewed_multiview_bundle(current_bundle_path,current_reference_paths):
+    """관리 화면에서 입력 오류의 원인을 표시한다."""
+    try:
+        return load_reviewed_multiview_bundle(current_bundle_path,current_reference_paths)
+    except (ValueError,OSError,KeyError,TypeError) as current_error:
+        raise gr.Error(str(current_error)) from current_error
+
+
+def describe_reviewed_multiview_bundle(current_bundle_record):
+    if current_bundle_record is None:
+        return '검수 3D 골격: 선택 안 됨. 파일을 선택한 뒤 불러오기를 누르세요.'
+    return '검수 3D 골격 선택됨 · 생성 시 현재 참조 이미지와 출처를 다시 확인합니다. 새 3D 각도 추정·수동 관절 수정과 함께 사용할 수 없습니다.'
+
+
+
+def load_face_anchor_calibration(current_calibration_path):
+    """출처가 기록된 얼굴 앵커 교정을 불러온다."""
+    from generators.kimodo.multiview_face_anchor_experiment import validate_face_calibration_format
+    try:
+        if not current_calibration_path:
+            raise ValueError('얼굴 앵커 교정 JSON을 선택하세요.')
+        current_path=Path(current_calibration_path)
+        if current_path.stat().st_size>65536:
+            raise ValueError('얼굴 앵커 교정 파일은 64KiB 이하여야 합니다.')
+        current_record=json.loads(current_path.read_text())
+        validate_face_calibration_format(current_record,current_require_source=True)
+        return current_record
+    except (ValueError,OSError,TypeError,KeyError) as current_error:
+        raise gr.Error(str(current_error)) from current_error
+
+
+def describe_face_anchor_calibration(current_calibration_record):
+    if current_calibration_record is None:
+        return '얼굴 앵커: 선택 안 됨'
+    return f"얼굴 앵커 시험 선택됨 · 교정 프레임 {current_calibration_record['source']['frame']} (0부터) · 검수 골격과 SOMA 리그 결합을 생성 시 확인합니다. 앵커와 표면의 깊이 차이를 기록하지만 얼굴 가림은 판정하지 않습니다."
+
 def load_proportion_examples():
     current_workspace_root=Path(__file__).resolve().parents[4]
     current_config_record=yaml.load((KIMODO_CONFIG_ROOT/'proportion-examples.yaml').read_text(),Loader=UniqueConfigLoader)
@@ -112,7 +292,7 @@ def execute_kimodo_command(current_command_name,current_payload_record):
     return execute_remote_management_command('kimodo',current_command_name,current_payload_record)
 
 
-def build_kimodo_payload(current_prompt_text,current_frame_count,current_step_count,current_seed_value,current_guidance_value,current_heading_value,current_postprocessing_value,current_direction_names=None,current_horizontal_removal=False,current_proportions_enabled=False,current_reference_paths=None,current_scale_percent=KIMODO_DEFAULT_SETTINGS['openpose_scale_percent'],current_include_hands=False,current_include_face=False,current_segment_text="",current_endpoint_identifier=None,current_keyframe_rows=None,current_elevation_angle=0,current_multiview_text=''):
+def build_kimodo_payload(current_prompt_text,current_frame_count,current_step_count,current_seed_value,current_guidance_value,current_heading_value,current_postprocessing_value,current_direction_names=None,current_horizontal_removal=False,current_proportions_enabled=False,current_reference_paths=None,current_scale_percent=KIMODO_DEFAULT_SETTINGS['openpose_scale_percent'],current_include_hands=False,current_include_face=False,current_segment_text="",current_endpoint_identifier=None,current_keyframe_rows=None,current_elevation_angle=0,current_multiview_text='',current_reviewed_bundle=None,current_projected_hip=False,current_face_calibration=None):
     for current_integer_value in (current_frame_count,current_step_count,current_seed_value):
         if type(current_integer_value) not in (int,float) or not float(current_integer_value).is_integer():
             raise ValueError('프레임·스텝·시드는 정수로 입력하세요.')
@@ -139,6 +319,14 @@ def build_kimodo_payload(current_prompt_text,current_frame_count,current_step_co
             current_request_record['proportion_multiview_angles']=[float(current_angle_value) for current_angle_value in current_multiview_text.split()]
         except ValueError as current_input_error:
             raise ValueError('다중 시점 각도는 공백으로 구분한 숫자 8개가 필요합니다.') from current_input_error
+    if current_reviewed_bundle is not None:
+        current_request_record['proportion_reviewed_multiview']=current_reviewed_bundle
+    if type(current_projected_hip) is not bool:
+        raise ValueError('3D 투영 골반 시험 여부는 참/거짓이어야 합니다.')
+    if current_projected_hip:
+        current_request_record['proportion_projected_hip']=True
+    if current_face_calibration is not None:
+        current_request_record['proportion_face_anchor_calibration']=current_face_calibration
     current_validated_request=validate_kimodo_request(current_request_record)
     if current_proportions_enabled:
         current_request_record['proportion_images']=current_validated_request['images']
@@ -173,7 +361,7 @@ def restore_kimodo_inputs(current_history_record):
         if current_request_record['endpoint_pose_id']!='relaxed-standing-v1' or current_keyframe_placements:
             raise ValueError('이전 양 끝 자세를 키프레임으로 변환할 수 없습니다.')
         current_keyframe_placements=[{'id':'b0000000000000000000000000000004','frame':1},{'id':'b0000000000000000000000000000004','frame':current_request_record['frames']}]
-    return tuple(current_request_record[current_field_name] for current_field_name in ('prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'))+(current_request_record.get('directions',['front_left']),current_request_record.get('remove_horizontal_motion',False),bool(current_reference_paths),current_reference_paths,current_request_record.get('openpose_scale_percent',100.0),current_request_record.get('pose_include_hands',False),current_request_record.get('pose_include_face',False),' '.join(map(str,current_request_record.get('segment_frames',[]))),None,[[current_placement['id'],current_placement['frame']] for current_placement in current_keyframe_placements],current_request_record.get('camera_elevation_degrees',0),' '.join(map(str,current_request_record.get('proportion_multiview_angles',[]))),current_history_record['id'])
+    return tuple(current_request_record[current_field_name] for current_field_name in ('prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'))+(current_request_record.get('directions',['front_left']),current_request_record.get('remove_horizontal_motion',False),bool(current_reference_paths),current_reference_paths,current_request_record.get('openpose_scale_percent',100.0),current_request_record.get('pose_include_hands',False),current_request_record.get('pose_include_face',False),' '.join(map(str,current_request_record.get('segment_frames',[]))),None,[[current_placement['id'],current_placement['frame']] for current_placement in current_keyframe_placements],current_request_record.get('camera_elevation_degrees',0),' '.join(map(str,current_request_record.get('proportion_multiview_angles',[]))),current_request_record.get('proportion_reviewed_multiview'),current_request_record.get('proportion_projected_hip',False),current_request_record.get('proportion_face_anchor_calibration'),current_history_record['id'])
 
 
 def restore_kimodo_inputs_with_joint_edits(current_history_record):
@@ -191,9 +379,16 @@ def restore_kimodo_inputs_with_joint_edits(current_history_record):
     return current_input_values+load_reference_joint_editor(str(current_result_path),current_input_values[10])
 
 
-def check_kimodo_readiness(current_model_ready,current_prompt_text,current_direction_names,current_proportions_enabled=False,current_reference_paths=None,current_keyframe_rows=None,current_postprocessing_enabled=False,current_segment_text='',current_endpoint_identifier=None,current_horizontal_removal=False):
+
+def restore_kimodo_inputs_with_summary(current_history_record):
+    """복원한 상태와 접힌 설정의 안내를 같은 응답으로 갱신한다."""
+    current_values=restore_kimodo_inputs_with_joint_edits(current_history_record)
+    current_summary=describe_kimodo_input_summary(*(current_values[current_index] for current_index in (9,10,16,6,8,3,1,7,17,19,20,21)))
+    return current_values+(describe_reviewed_multiview_bundle(current_values[19]),describe_face_anchor_calibration(current_values[21]),current_summary)
+
+def check_kimodo_readiness(current_model_ready,current_prompt_text,current_direction_names,current_proportions_enabled=False,current_reference_paths=None,current_keyframe_rows=None,current_postprocessing_enabled=False,current_segment_text='',current_endpoint_identifier=None,current_horizontal_removal=False,current_reviewed_bundle=None,current_projected_hip=False,current_face_calibration=None):
     current_keyframe_compatible = not current_keyframe_rows or (current_postprocessing_enabled and not current_endpoint_identifier and not current_horizontal_removal)
-    return bool(current_model_ready and current_prompt_text and current_prompt_text.strip() and current_direction_names and (bool(current_proportions_enabled)==bool(current_reference_paths)) and current_keyframe_compatible)
+    return bool(current_model_ready and current_prompt_text and current_prompt_text.strip() and current_direction_names and (bool(current_proportions_enabled)==bool(current_reference_paths)) and current_keyframe_compatible and (not current_projected_hip or current_reviewed_bundle is not None) and (current_face_calibration is None or current_reviewed_bundle is not None))
 
 
 def load_kimodo_examples():
@@ -236,7 +431,7 @@ def apply_complete_kimodo_example(current_example_identifier):
     current_reference_identifier=current_example_record.get('reference_example')
     current_reference_values=apply_proportion_example(current_reference_identifier) if current_reference_identifier else (False,[])
     current_keyframe_rows = [[current_item['id'],current_item['frame']] for current_item in current_settings_record.get('keyframes',[])]
-    return (*apply_kimodo_example(current_example_identifier),*current_reference_values,*(current_settings_record.get(current_field_name,gr.skip()) for current_field_name in ('openpose_scale_percent','pose_include_hands','pose_include_face')),' '.join(map(str,current_settings_record.get('segment_frames',[]))),None,current_keyframe_rows,current_settings_record.get('camera_elevation_degrees',0),'')
+    return (*apply_kimodo_example(current_example_identifier),*current_reference_values,*(current_settings_record.get(current_field_name,gr.skip()) for current_field_name in ('openpose_scale_percent','pose_include_hands','pose_include_face')),' '.join(map(str,current_settings_record.get('segment_frames',[]))),None,current_keyframe_rows,current_settings_record.get('camera_elevation_degrees',0),'',None,False,None)
 
 
 def describe_kimodo_duration(current_frame_count):
@@ -245,7 +440,7 @@ def describe_kimodo_duration(current_frame_count):
     return f'모션 길이 **{current_frame_count/30:g}초** · {int(current_frame_count)}프레임 · 30fps'
 
 
-def describe_kimodo_input_summary(current_proportions_enabled,current_reference_paths,current_keyframe_rows,current_postprocessing_enabled,current_horizontal_removal,current_seed_value=None,current_frame_count=None,current_direction_names=None,current_elevation_angle=None):
+def describe_kimodo_input_summary(current_proportions_enabled,current_reference_paths,current_keyframe_rows,current_postprocessing_enabled,current_horizontal_removal,current_seed_value=None,current_frame_count=None,current_direction_names=None,current_elevation_angle=None,current_reviewed_bundle=None,current_projected_hip=False,current_face_calibration=None):
     """접힌 설정을 열지 않아도 생성에 적용되는 상태를 확인한다."""
     current_reference_count = len(current_reference_paths or [])
     if current_proportions_enabled and current_reference_count:
@@ -257,10 +452,28 @@ def describe_kimodo_input_summary(current_proportions_enabled,current_reference_
     current_direction_text = ", ".join(f"{KIMODO_DIRECTION_RECORDS[current_direction_name]['label']} {KIMODO_DIRECTION_RECORDS[current_direction_name]['angle']}°" for current_direction_name in (current_direction_names or []) if current_direction_name in KIMODO_DIRECTION_RECORDS) or "미선택"
     current_duration_text = describe_kimodo_duration(current_frame_count) if current_frame_count is not None else "미입력"
     return (f"**생성 전 설정** · 시드: {current_seed_value if current_seed_value is not None else '미입력'} · {current_duration_text} · 방향: {current_direction_text} · 고도: {current_elevation_angle if current_elevation_angle is not None else 0}°\n\n"
-            f"신체 비율: {current_reference_text} · 키프레임: {len(current_keyframe_rows or [])}개"
+            f"신체 비율: {current_reference_text} · 가중 3D 골격: {'선택됨' if current_reviewed_bundle is not None else '없음'} · 3D 골반 시험: {'켜짐' if current_projected_hip else '꺼짐'} · 얼굴 앵커 시험: {'켜짐' if current_face_calibration is not None else '꺼짐'} · 키프레임: {len(current_keyframe_rows or [])}개"
             f" · 공식 후처리: {'켜짐' if current_postprocessing_enabled else '꺼짐'}"
             f" · 수평 이동 제거: {'켜짐' if current_horizontal_removal else '꺼짐'}")
 
+
+
+def render_face_depth_summary(current_summary_record):
+    """생성 이력에서 얼굴 앵커 깊이 차이와 미측정 수를 표시한다."""
+    import html
+    if not current_summary_record:
+        return ''
+    current_message=html.escape(str(current_summary_record.get('message','깊이 기록 상태를 확인할 수 없습니다.')))
+    if current_summary_record.get('status')!='valid':
+        return '<p><strong>얼굴 앵커 깊이 기록: 사용 불가</strong> · '+current_message+'</p>'
+    current_rows=''
+    for current_row in current_summary_record.get('rows',[]):
+        current_values=[html.escape(str(current_row['direction'])),html.escape(str(current_row['label'])),f"{current_row['measured']}/{current_row['total']}"]
+        for current_field in ('median_gap','min_gap','max_gap'):
+            current_value=current_row.get(current_field)
+            current_values.append(f'{current_value:.3f}' if current_value is not None else '미측정')
+        current_rows+='<tr>'+''.join('<td>'+current_value+'</td>' for current_value in current_values)+'</tr>'
+    return '<p><strong>얼굴 앵커 깊이 검수 · SOMA 좌표 단위</strong><br>'+current_message+' 전체 프레임 기록은 결과 ZIP에 포함됩니다.</p><table><thead><tr><th>방향</th><th>관절</th><th>측정 프레임</th><th>중앙값</th><th>최솟값</th><th>최댓값</th></tr></thead><tbody>'+current_rows+'</tbody></table>'
 
 def render_kimodo_result(current_job_identifier,current_status_record,current_server_address):
     import html
@@ -273,6 +486,7 @@ def render_kimodo_result(current_job_identifier,current_status_record,current_se
             current_pose_status_html+='<p><strong>DWPose: 생성 오류 · 경고</strong> — '+html.escape(current_status_record.get('dwpose_error','상세 원인은 실행 로그를 확인하세요.'))+'<br>직접 포즈는 사용할 수 있으며 전체 모션 작업은 완료됐습니다.</p>'
         else:
             current_pose_status_html+='<p>DWPose: '+('생성 완료' if current_status_record.get('dwpose_status')=='completed' else '결과 기록 없음')+'</p>'
+        current_pose_status_html+=render_face_depth_summary(current_status_record.get('face_anchor_depth_summary'))
         current_video_descriptions = {'SOMA 렌더':'원본 동작 검수용 영상입니다.', '직접 포즈':'SOMA 관절을 투영한 포즈입니다. Fun Control에 쓰는 30fps 결과는 16fps로 변환하세요.', 'DWPose 포즈':'렌더 영상에서 검출한 포즈입니다. Fun Control에 쓰는 30fps 결과는 16fps로 변환하세요.'}
         current_preview_html = ''
         for current_video_label,current_video_url in current_status_record['preprocess_videos'].items():
@@ -479,6 +693,62 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
             build_input_preview(current_reference_control,'신체 비율 참조 미리보기 · 입력 순서')
             with gr.Accordion('8방향 3D 비율 실험 · 선택',open=False):
                 current_multiview_control=gr.Textbox(label='검출 관측 순서의 카메라 각도 8개 · 도',value='',placeholder='예: 45 0 135 90 225 315 180 270',info='비우면 기존 2D 보정입니다. 시험 시 검출 결과의 관측 순서와 방향 대응을 직접 확인하세요. 추정 결과와 미사용 관절 오차는 reference-proportions.json에 기록됩니다.')
+            with gr.Accordion('검수 3D 골격을 비율 참조로 사용 · 실험',open=False):
+                gr.Markdown('참조 이미지와 검수 골격의 출처가 같아야 합니다. 골격은 파일 선택 후 불러오기 버튼을 눌러야 적용되며, 파일 선택만으로 생성하지 않습니다.')
+                current_reviewed_file=gr.File(label='검수 골격 묶음 JSON',file_types=['.json'],type='filepath')
+                current_reviewed_bundle_state=gr.State(None)
+                current_reviewed_notice=gr.Markdown(describe_reviewed_multiview_bundle(None))
+                current_projected_hip_control=gr.Checkbox(value=False,label='DWPose 골반을 같은 프레임의 SOMA 투영으로 재구성 · 실험',info='검수 3D 골격이 필요합니다. 골반 좌표는 DWPose 검출 결과가 아니며 다른 누락 관절을 복원하지 않습니다.')
+                with gr.Row():
+                    current_reviewed_load=gr.Button('검수 골격 불러오기')
+                    current_reviewed_clear=gr.Button('검수 골격 해제')
+                current_reviewed_file_event=current_reviewed_file.change(lambda:None,None,current_reviewed_bundle_state,queue=False)
+                current_reviewed_load_event=current_reviewed_load.click(handle_reviewed_multiview_bundle,[current_reviewed_file,current_reference_control],current_reviewed_bundle_state,queue=False)
+                current_reviewed_clear_event=current_reviewed_clear.click(lambda:None,None,current_reviewed_bundle_state,queue=False)
+                current_reviewed_bundle_state.change(describe_reviewed_multiview_bundle,current_reviewed_bundle_state,current_reviewed_notice,queue=False)
+                current_face_calibration_file=gr.File(label='얼굴 앵커 교정 JSON · 실험',file_types=['.json'],type='filepath')
+                current_face_calibration_state=gr.State(None)
+                current_face_calibration_notice=gr.Markdown(describe_face_anchor_calibration(None))
+                with gr.Row():
+                    current_face_calibration_load=gr.Button('얼굴 앵커 불러오기')
+                    current_face_calibration_clear=gr.Button('얼굴 앵커 해제')
+                current_face_file_event=current_face_calibration_file.change(lambda:None,None,current_face_calibration_state,queue=False)
+                current_face_load_event=current_face_calibration_load.click(load_face_anchor_calibration,current_face_calibration_file,current_face_calibration_state,queue=False)
+                current_face_clear_event=current_face_calibration_clear.click(lambda:None,None,current_face_calibration_state,queue=False)
+                current_face_calibration_state.change(describe_face_anchor_calibration,current_face_calibration_state,current_face_calibration_notice,queue=False)
+            with gr.Accordion('8방향 DWPose·3D 골격 검수 · 실험',open=False):
+                gr.Markdown('같은 참조 이미지의 관절·가중 3D 골격 기록을 비교합니다. 학습에 사용한 적합 오차는 독립 정확도 검증이 아닙니다. 검수 불러오기는 생성 설정을 바꾸지 않으며 후보 선택 버튼을 눌러야 생성 설정에 적용됩니다.')
+                with gr.Row():
+                    current_review_reference=gr.File(label='참조 DWPose 관절 JSON',file_types=['.json'],type='filepath')
+                    current_review_skeleton=gr.File(label='가중 3D 골격 JSON',file_types=['.json'],type='filepath')
+                with gr.Row():
+                    current_review_image=gr.File(label='참조 이미지 PNG',file_types=['.png'],type='filepath')
+                    current_review_heldout=gr.File(label='제외 관측 검증 JSON · 선택',file_types=['.json'],type='filepath')
+                current_review_direction=gr.Dropdown(choices=[(f'{current_number}번 관측',current_number) for current_number in range(1,9)],value=1,label='검수할 참조 관측')
+                current_review_button=gr.Button('8방향 검수 불러오기')
+                current_review_state=gr.State(None)
+                current_review_notice=gr.Markdown('검수 기록을 선택한 뒤 불러오세요.')
+                current_review_preview=gr.Image(label='초록: DWPose · 보라: 공통 3D 재투영',type='pil',interactive=False)
+                current_review_table=gr.Dataframe(headers=['관절','검출 점수','지정 가중치','실제 가중치','판단 근거','적합 오차 px','제외 관측 오차 px'],datatype=['str']*7,interactive=False,label='관절별 검수',value=[])
+                current_review_button.click(load_multiview_review_files,[current_review_reference,current_review_skeleton,current_review_image,current_review_heldout,current_review_direction],[current_review_state,current_review_preview,current_review_notice,current_review_table],queue=False)
+                with gr.Accordion('관절별 방향 가중치 수정 · 실험',open=False):
+                    gr.Markdown('현재 검수 기록의 8방향 × BODY18 18개를 편집합니다. 관측·관절 번호는 고정하고 가중치 0~1과 판단 근거만 수정합니다. 얼굴의 별도 가시성 입력도 추정에 영향을 줍니다. 저장만으로 골격이나 생성 입력은 변경되지 않습니다.')
+                    current_weight_editor=gr.Dataframe(headers=['관측','관절','가중치','판단 근거'],datatype=['number','number','number','str'],type='array',interactive=True,label='8방향 관절 가중치',value=[])
+                    current_weight_editor_state=gr.State(None)
+                    current_weight_editor_notice=gr.Markdown('8방향 검수 후 표를 불러오세요.')
+                    current_weight_load=gr.Button('가중치 표 불러오기')
+                    current_weight_output=gr.File(label='검증된 가중치 JSON',interactive=False)
+                    current_weight_save=gr.Button('검증 후 가중치 파일 만들기')
+                    current_weight_load_event=current_weight_load.click(load_multiview_weight_editor,[current_review_state,current_review_reference,current_review_skeleton,current_review_image],[current_weight_editor,current_weight_editor_state,current_weight_editor_notice],queue=False)
+                    current_weight_load_event.success(lambda:None,None,current_weight_output,queue=False)
+                    current_weight_save.click(save_multiview_weight_editor,[current_weight_editor,current_weight_editor_state,current_review_state,current_review_reference,current_review_skeleton,current_review_image],[current_weight_output,current_weight_editor_notice],queue=False)
+                    current_weight_editor.input(lambda:(None,'표가 수정됐습니다. 다시 검증해 파일을 만드세요.'),None,[current_weight_output,current_weight_editor_notice],queue=False)
+                current_review_use_button=gr.Button('검수 결과를 비율 참조 후보로 선택')
+                current_review_use_event=current_review_use_button.click(handle_reviewed_bundle_from_review,[current_review_state,current_review_reference,current_review_skeleton,current_review_image,current_reference_control],current_reviewed_bundle_state,queue=False)
+                current_review_direction.change(select_multiview_review_rows,[current_review_state,current_review_direction],current_review_table,queue=False)
+                for current_review_input in (current_review_reference,current_review_skeleton,current_review_image,current_review_heldout):
+                    current_review_input.change(lambda:(None,None,'입력이 변경되어 검수 기록을 다시 불러와야 합니다.',[]),None,[current_review_state,current_review_preview,current_review_notice,current_review_table],queue=False)
+                    current_review_input.change(lambda:([],None,None,'검수 입력이 변경되어 가중치 표를 다시 불러와야 합니다.'),None,[current_weight_editor,current_weight_editor_state,current_weight_output,current_weight_editor_notice],queue=False)
             with gr.Accordion('참조 관절점 수동 수정 · 선택',open=False):
                 gr.Markdown('완료된 생성 결과의 reference-proportions.json을 불러와 수정 X·Y를 입력합니다. 좌표는 정규화 참조 이미지의 픽셀 기준입니다. 수정 대상의 원본과 이미지가 일치하지 않으면 생성이 실패합니다.')
                 current_joint_result_file=gr.File(label='참조 검출 결과 JSON',file_types=['.json'],type='filepath')
@@ -498,15 +768,23 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         gr.Markdown('SOMA 렌더 → VideoX-Fun DWPose → 선택 참조 관절 길이 보정 → 832×480 · 30fps 포즈 MP4. Fun Control의 현행 입력은 16fps이므로 별도 변환이 필요합니다. 몸 18점의 코·눈·귀는 유지합니다.')
         current_prompt_control.change(describe_kimodo_prompt,[current_prompt_control,current_segment_control],current_prompt_summary,queue=False)
         current_segment_control.change(describe_kimodo_prompt,[current_prompt_control,current_segment_control],current_prompt_summary,queue=False)
-        current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control,current_horizontal_control,current_proportions_control,current_reference_control,current_scale_control,current_hands_control,current_face_control,current_segment_control,current_endpoint_selector,current_keyframe_rows,current_elevation_control,current_multiview_control]
-        current_example_button.click(apply_complete_kimodo_example,current_example_selector,current_input_controls,queue=False)
+        current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control,current_horizontal_control,current_proportions_control,current_reference_control,current_scale_control,current_hands_control,current_face_control,current_segment_control,current_endpoint_selector,current_keyframe_rows,current_elevation_control,current_multiview_control,current_reviewed_bundle_state,current_projected_hip_control,current_face_calibration_state]
+        current_example_event=current_example_button.click(apply_complete_kimodo_example,current_example_selector,current_input_controls,queue=False)
         current_input_summary = gr.Markdown(describe_kimodo_input_summary(False,[],[],KIMODO_DEFAULT_SETTINGS['post_processing'],KIMODO_DEFAULT_SETTINGS['remove_horizontal_motion'],KIMODO_DEFAULT_SETTINGS['seed'],KIMODO_DEFAULT_SETTINGS['frames'],KIMODO_DEFAULT_SETTINGS['directions'],0))
-        current_summary_inputs = [current_proportions_control,current_reference_control,current_keyframe_rows,current_postprocessing_control,current_horizontal_control,current_seed_control,current_frame_control,current_direction_control,current_elevation_control]
+        current_summary_inputs = [current_proportions_control,current_reference_control,current_keyframe_rows,current_postprocessing_control,current_horizontal_control,current_seed_control,current_frame_control,current_direction_control,current_elevation_control,current_reviewed_bundle_state,current_projected_hip_control,current_face_calibration_state]
         for current_summary_control in current_summary_inputs:
             current_summary_control.change(describe_kimodo_input_summary,current_summary_inputs,current_input_summary,queue=False)
+        current_reviewed_events=[current_reviewed_file_event,current_reviewed_load_event,current_reviewed_clear_event,current_review_use_event,current_example_event]
+        current_face_events=[current_face_file_event,current_face_load_event,current_face_clear_event,current_example_event]
+        for current_event in current_reviewed_events:
+            current_event.success(describe_reviewed_multiview_bundle,current_reviewed_bundle_state,current_reviewed_notice,queue=False)
+        for current_event in current_face_events:
+            current_event.success(describe_face_anchor_calibration,current_face_calibration_state,current_face_calibration_notice,queue=False)
+        for current_event in [*current_reviewed_events,*current_face_events[:-1]]:
+            current_event.success(describe_kimodo_input_summary,current_summary_inputs,current_input_summary,queue=False)
         gr.Markdown('예시는 시작점입니다. 생성된 동작의 자세와 움직임을 검수하세요.')
         current_generate_button = gr.Button('대기열에 추가',variant='primary',interactive=False)
-        build_button_guidance(current_generate_button,'모델 자료와 전용 환경을 준비한 뒤 상태를 새로 확인하고 동작 프롬프트와 출력 방향을 한 개 이상 선택하세요. 신체 비율 참조 옵션을 켰다면 RGB PNG 이미지를 첨부하세요. 키프레임을 배치했다면 공식 후처리를 켜고 수평 이동 제거를 해제하세요.')
+        build_button_guidance(current_generate_button,'모델 자료와 전용 환경을 준비한 뒤 상태를 새로 확인하고 동작 프롬프트와 출력 방향을 한 개 이상 선택하세요. 신체 비율 참조 옵션을 켰다면 RGB PNG 이미지를 첨부하세요. 키프레임을 배치했다면 공식 후처리를 켜고 수평 이동 제거를 해제하세요. 3D 골반 또는 얼굴 앵커 시험을 쓰려면 검수 골격을 불러오세요.')
         with gr.Column() as current_confirmation_container:
             pass
         gr.Markdown('### 진행 상태 · 최신 결과\n접수한 작업의 진행률·예상 시간·VRAM과 완료 영상을 표시합니다. 이전 작업은 아래 생성 이력에서 조회하세요.')
@@ -520,9 +798,9 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
                 validate_kimodo_request(current_request_record)
             current_job_record = current_execute_command('generate',current_request_record)
             return current_job_record['id'],'공용 GPU 대기열에 등록했습니다.'
-        bind_gpu_generation_confirmation(current_generate_button,enqueue_kimodo_generation,[*current_input_controls,current_joint_editor,current_joint_editor_state],[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=check_kimodo_readiness,generation_readiness_inputs=[current_model_ready,current_prompt_control,current_direction_control,current_proportions_control,current_reference_control,current_keyframe_rows,current_postprocessing_control,current_segment_control,current_endpoint_selector,current_horizontal_control],generation_readiness_events=[current_refresh_event,current_load_event])
+        bind_gpu_generation_confirmation(current_generate_button,enqueue_kimodo_generation,[*current_input_controls,current_joint_editor,current_joint_editor_state],[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=check_kimodo_readiness,generation_readiness_inputs=[current_model_ready,current_prompt_control,current_direction_control,current_proportions_control,current_reference_control,current_keyframe_rows,current_postprocessing_control,current_segment_control,current_endpoint_selector,current_horizontal_control,current_reviewed_bundle_state,current_projected_hip_control,current_face_calibration_state],generation_readiness_events=[current_refresh_event,current_load_event,*current_reviewed_events,*current_face_events])
         build_video_job_monitor(current_execute_command,current_server_address,current_job_control,current_status_output,result_renderer_callback=render_kimodo_result)
-        current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_kimodo_inputs_with_joint_edits,restore_output_components=[*current_input_controls,current_job_control,current_joint_editor,current_joint_editor_state,current_joint_editor_notice,current_joint_preview_image],result_renderer_callback=render_kimodo_result,record_folder_route='/kimodo',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
+        current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_kimodo_inputs_with_summary,restore_output_components=[*current_input_controls,current_job_control,current_joint_editor,current_joint_editor_state,current_joint_editor_notice,current_joint_preview_image,current_reviewed_notice,current_face_calibration_notice,current_input_summary],result_renderer_callback=render_kimodo_result,record_folder_route='/kimodo',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
         with gr.Accordion('선택한 이력에서 키프레임 저장',open=False,elem_id='kimodo-history-keyframe-save'):
             gr.Markdown('위 생성 이력에서 완료된 작업을 선택하고 프레임을 불러오세요. 원본 SOMA 관절 미리보기는 30fps이며 첫 프레임은 1번입니다. 확인할 프레임으로 이동한 뒤 표시한 프레임 선택을 누르세요.')

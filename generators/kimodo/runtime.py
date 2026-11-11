@@ -175,7 +175,7 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     from generators.kimodo.soma_render import render_soma_motion
     from generators.kimodo.contracts import KIMODO_DIRECTION_RECORDS
     current_metrics_recorder.update_generation_stage('soma-render')
-    current_soma_videos = render_soma_motion(current_attempt_root, {current_direction_name: KIMODO_DIRECTION_RECORDS[current_direction_name]['angle'] for current_direction_name in current_request_record.get('directions', ['front_left'])},current_elevation_angle=current_request_record.get('camera_elevation_degrees',0))
+    current_soma_videos = render_soma_motion(current_attempt_root, {current_direction_name: KIMODO_DIRECTION_RECORDS[current_direction_name]['angle'] for current_direction_name in current_request_record.get('directions', ['front_left'])},current_elevation_angle=current_request_record.get('camera_elevation_degrees',0),current_face_calibration_record=current_request_record.get('proportion_face_anchor_calibration'))
     from generators.kimodo.pose_outputs import export_kimodo_pose_outputs
     current_direct_record,current_dwpose_record,current_quality_warnings = export_kimodo_pose_outputs(current_job_root,current_attempt_root,current_request_record,current_metrics_recorder)
     from generators.kimodo.comparison import export_pose_comparison
@@ -183,6 +183,8 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     with zipfile.ZipFile(current_attempt_root/'frames.zip','a') as current_output_archive:
         for current_pose_path in [current_attempt_root/'dwpose-export.json',current_attempt_root/'soma-direct-pose.json',*current_attempt_root.glob('soma-direct-*.mp4'),*current_attempt_root.glob('dwpose-*.mp4'),*current_attempt_root.glob('dwpose-*/*.json')]:
             current_output_archive.write(current_pose_path,str(current_pose_path.relative_to(current_attempt_root)))
+        if (current_attempt_root/'soma-face-anchor-depth.json').is_file():
+            current_output_archive.write(current_attempt_root/'soma-face-anchor-depth.json','soma-face-anchor-depth.json')
         for current_soma_filename in [*current_soma_videos.values(), 'soma-render.json']:
             current_output_archive.write(current_attempt_root/current_soma_filename, current_soma_filename)
         if current_request_record.get('remove_horizontal_motion',False):
@@ -205,4 +207,6 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     current_result_record['dwpose_status'] = current_dwpose_record.get('status','completed')
     current_result_record['dwpose_videos'] = current_dwpose_record['videos']
     current_result_record['soma_render_videos'] = current_soma_videos
+    if (current_attempt_root/'soma-face-anchor-depth.json').is_file():
+        current_result_record['face_anchor_depth']='soma-face-anchor-depth.json'
     return current_result_record

@@ -76,7 +76,7 @@ validate_kimodo_directions(KIMODO_DEFAULT_SETTINGS['directions'])
 
 def validate_kimodo_request(current_request_record):
     current_required_fields = {'action','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'}
-    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'endpoint_pose_id','keyframes','segment_frames','directions','remove_horizontal_motion','proportion_images','proportion_joint_edits','proportion_multiview_angles','openpose_scale_percent','pose_include_hands','pose_include_face','camera_elevation_degrees'}:
+    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'endpoint_pose_id','keyframes','segment_frames','directions','remove_horizontal_motion','proportion_images','proportion_joint_edits','proportion_multiview_angles','proportion_reviewed_multiview','proportion_projected_hip','proportion_face_anchor_calibration','openpose_scale_percent','pose_include_hands','pose_include_face','camera_elevation_degrees'}:
         raise ValueError('Kimodo 요청 필드 오류')
     current_elevation_angle = current_request_record.get('camera_elevation_degrees',0)
     if type(current_elevation_angle) is not int or current_elevation_angle not in (0,15,30):
@@ -178,6 +178,23 @@ def validate_kimodo_request(current_request_record):
             current_coordinates=current_edit_record[current_coordinate_name]
             if not isinstance(current_coordinates,list) or len(current_coordinates)!=2 or any(type(current_coordinate_value) not in (int,float) or not math.isfinite(current_coordinate_value) for current_coordinate_value in current_coordinates):
                 raise ValueError('참조 관절 수정 좌표 형식 오류')
+    if type(current_request_record.get('proportion_projected_hip',False)) is not bool:
+        raise ValueError('3D 투영 골반 시험 여부는 참/거짓이어야 합니다.')
+    if current_request_record.get('proportion_projected_hip',False) and 'proportion_reviewed_multiview' not in current_request_record:
+        raise ValueError('3D 투영 골반 시험에는 검수 3D 골격이 필요합니다.')
+    if 'proportion_face_anchor_calibration' in current_request_record:
+        if 'proportion_reviewed_multiview' not in current_request_record:
+            raise ValueError('얼굴 앵커 시험에는 검수 3D 골격이 필요합니다.')
+        from generators.kimodo.multiview_face_anchor_experiment import validate_face_calibration_format
+        validate_face_calibration_format(current_request_record['proportion_face_anchor_calibration'],current_require_source=True)
+    if 'proportion_reviewed_multiview' in current_request_record:
+        if not current_normalized_images:
+            raise ValueError('검수 3D 스켈레톤에는 일치하는 참조 이미지가 필요합니다.')
+        if current_edit_records or 'proportion_multiview_angles' in current_request_record:
+            raise ValueError('검수 3D 스켈레톤은 관절 수정 또는 새 다중 시점 추정과 동시에 사용할 수 없습니다.')
+        from generators.kimodo.multiview_reviewed_bundle import validate_reviewed_multiview_bundle
+        current_ordered_hashes=[hashlib.sha256(base64.b64decode(current_encoded_image)).hexdigest() for current_encoded_image in current_normalized_images]
+        validate_reviewed_multiview_bundle(current_request_record['proportion_reviewed_multiview'],current_ordered_hashes)
     return {**{current_field_name:current_field_value for current_field_name,current_field_value in current_request_record.items() if current_field_name!='proportion_images'}, 'camera_elevation_degrees':current_elevation_angle, 'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False),'openpose_scale_percent':current_scale_percent, 'remove_horizontal_motion':current_request_record.get('remove_horizontal_motion',False), 'directions':validate_kimodo_directions(current_request_record.get('directions',['front_left'])), 'prompt':current_prompt_text.strip(), 'images':current_normalized_images, 'width':512, 'height':512, 'tag':'kimodo'}
 
 

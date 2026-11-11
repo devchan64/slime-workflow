@@ -111,7 +111,10 @@ def extract_reference_body_proportions(current_job_root,current_attempt_root):
     current_ratio_record['original_keypoints']=[current_point_values.tolist() for current_point_values in current_original_records]
     current_ratio_record['manual_joint_edits']=current_applied_edits
     current_ratio_record['reference_image_sha256']=[hashlib.sha256((current_job_root/current_reference_name).read_bytes()).hexdigest() for current_reference_name in current_request_record['references']]
-    if 'proportion_multiview_angles' in current_request_record:
+    if 'proportion_reviewed_multiview' in current_request_record:
+        from generators.kimodo.multiview_reviewed_bundle import apply_reviewed_multiview_bundle
+        current_ratio_record=apply_reviewed_multiview_bundle(current_ratio_record,current_request_record['proportion_reviewed_multiview'],current_ratio_record['reference_image_sha256'])
+    elif 'proportion_multiview_angles' in current_request_record:
         from generators.kimodo.multiview_reference_experiment import fit_multiview_reference
         current_multiview_record=fit_multiview_reference(current_ratio_record,current_request_record['proportion_multiview_angles'])
         current_ratio_record['baseline_2d_ratios']=current_ratio_record['ratios']

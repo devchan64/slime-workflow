@@ -162,6 +162,16 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
             if current_reference_record_path.is_file():
                 current_reference_record=json.loads(current_reference_record_path.read_text())
                 current_status_record['reference_observation_count']=current_reference_record.get('observation_count',current_reference_record.get('image_count',0))
+            if current_result_record.get('face_anchor_depth'):
+                from tools.review.domains.kimodo.face_anchor_depth import read_face_anchor_depth_summary
+                current_depth_path=current_job_root/'attempts'/current_result_record['attempt']/'soma-face-anchor-depth.json'
+                try:
+                    if current_result_record['face_anchor_depth']!='soma-face-anchor-depth.json' or current_depth_path.is_symlink() or not current_depth_path.resolve().is_relative_to(current_job_root.resolve()) or not current_depth_path.is_file():
+                        raise ValueError('얼굴 앵커 깊이 파일 누락 또는 경로 오류')
+                    current_depth_stat=current_depth_path.stat()
+                    current_status_record['face_anchor_depth_summary']=read_face_anchor_depth_summary(str(current_depth_path.resolve()),current_depth_stat.st_mtime_ns,current_depth_stat.st_size,current_frame_count,tuple(current_result_record.get('soma_render_videos',{})))
+                except (ValueError,OSError,KeyError,TypeError) as current_depth_error:
+                    current_status_record['face_anchor_depth_summary']={'status':'invalid','message':'깊이 기록을 확인할 수 없습니다: '+str(current_depth_error)}
             current_status_record['remove_horizontal_motion'] = current_result_record.get('remove_horizontal_motion',False)
             current_comparison_path = current_job_root/'attempts'/current_result_record['attempt']/'comparison.mp4'
             if current_comparison_path.is_file() and current_comparison_path.resolve().is_relative_to(current_job_root.resolve()):

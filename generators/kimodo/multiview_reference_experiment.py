@@ -36,7 +36,7 @@ def project_multiview_joints(current_joint_positions, current_camera_angles, cur
     return current_projected_points * current_camera_scales[:, None, None] + current_camera_offsets[:, None, :]
 
 
-def prepare_multiview_observations(current_reference_record, current_view_angles, current_holdout_joints=None):
+def prepare_multiview_observations(current_reference_record, current_view_angles, current_holdout_joints=None, current_ignored_joint=None):
     """각도는 입력 순서에 대응하는 명시적 가정이며 검출 순서로 추론하지 않는다."""
     current_reference_points = current_reference_record['keypoints']
     current_source_records = current_reference_record['observation_sources']
@@ -59,6 +59,8 @@ def prepare_multiview_observations(current_reference_record, current_view_angles
         current_joint_weights = np.where(current_point_array[list(MULTIVIEW_BODY_JOINTS), 2] >= MULTIVIEW_MINIMUM_SCORE, np.clip(current_point_array[list(MULTIVIEW_BODY_JOINTS), 2], 0, 1), 0.0)
         for current_left_pair, current_right_pair in MULTIVIEW_SYMMETRIC_PAIRS:
             if current_holdout_joints is not None and current_holdout_joints[current_view_index] in (*current_left_pair, *current_right_pair):
+                continue
+            if current_ignored_joint is not None and current_ignored_joint[0] == current_view_index and current_ignored_joint[1] in (*current_left_pair, *current_right_pair):
                 continue
             current_lengths = [np.linalg.norm(current_point_array[current_pair[1], :2] - current_point_array[current_pair[0], :2]) for current_pair in (current_left_pair, current_right_pair)]
             current_average_length = float(np.mean(current_lengths))

@@ -41,6 +41,16 @@ class KimodoGenerationContractTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'각도 8개'):
                 build_kimodo_payload(*current_inputs[:-1],'0 45')
 
+    def test_reviewed_bundle_history_is_not_silently_dropped(self):
+        from tools.review.ui.gradio.kimodo_app import restore_kimodo_inputs
+        current_request={**self.current_request_record,'proportion_reviewed_multiview':{'candidate':'test'}}
+        current_restored=restore_kimodo_inputs({'id':'trial','request':current_request})
+        self.assertEqual(current_restored[-4],current_request['proportion_reviewed_multiview'])
+        from tools.review.ui.gradio.kimodo_app import restore_kimodo_inputs_with_summary
+        current_with_summary=restore_kimodo_inputs_with_summary({'id':'trial','request':current_request})
+        self.assertIn('선택됨',current_with_summary[-3])
+        self.assertIn('가중 3D 골격: 선택됨',current_with_summary[-1])
+
     def test_reference_joint_edits_require_matching_image_and_unique_target(self):
         import base64,hashlib,io
         from PIL import Image
@@ -457,6 +467,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
         for current_expected in ('신체 비율: 적용 · 1장','키프레임: 1개','공식 후처리: 켜짐','수평 이동 제거: 꺼짐'):
             self.assertIn(current_expected,current_summary)
         self.assertIn('설정 확인 필요',describe_kimodo_input_summary(False,['reference.png'],[],False,False))
+        self.assertIn('가중 3D 골격: 선택됨',describe_kimodo_input_summary(True,['reference.png'],[],False,False,42,90,['front'],0,{'candidate':'test'}))
         current_full_summary=describe_kimodo_input_summary(True,['/tmp/body.png'],[],True,False,202,180,['front_right_30'],15)
         for current_expected_text in ('시드: 202','180프레임','전방 우측 -30°','고도: 15°','body.png'):
             self.assertIn(current_expected_text,current_full_summary)
@@ -572,7 +583,7 @@ class KimodoPoseLibraryTests(unittest.TestCase):
             self.assertEqual(current_new_constraints,build_soma_endpoint_records(current_pose_record['id'],current_request_record['frames'])[0])
         for current_patch_record in ({'endpoint_pose_id':'../bad'},{'endpoint_pose_id':42},{'post_processing':False},{'heading_degrees':45}):
             with self.assertRaises(ValueError):validate_kimodo_request({**current_request_record,**current_patch_record})
-        self.assertEqual(apply_complete_kimodo_example(next(iter(load_kimodo_examples())))[-4:],(None,[],0,''))
+        self.assertEqual(apply_complete_kimodo_example(next(iter(load_kimodo_examples())))[-7:],(None,[],0,'',None,False,None))
 
     def test_pose_library_rejects_modified_files(self):
         from generators.kimodo.pose_library import KIMODO_POSE_LIBRARY_ROOT,load_soma_pose_catalog
