@@ -1,19 +1,18 @@
 schema_version: 1
 description: 대기 스프라이트 · 화면 오른쪽 앞 방향 · 8프레임
-status: 사용자 제공 프레임시트 · 베이스라인
+status: 사용자 채택 · 8방향 기준으로 캐릭터 일관성 개선
 image: idle-front-right-8frames-v1.png
-image_sha256: a503dda72a77031e8098e5da7542b8e45fd04ac255ace0aeb7df59754cee224a
+image_sha256: f5a6a87436c7dcb470a85c61f5692d0745372fa69b745f6c4e51ea76230b3ec1
 image_size:
-- 784
-- 896
+- 1173
+- 1341
 layout:
   columns: 4
   rows: 2
   frame_count: 8
   row_heights:
-  - 448
-  - 448
-  frame_width: 196
+  - 670
+  - 671
 animation:
   action: idle
   direction: front-right
@@ -28,8 +27,12 @@ animation:
   - 8
   loop: true
   fps: 6
-note: 왼쪽에서 오른쪽으로, 위 행 다음 아래 행 순서. 흰 배경 유지. 각 프레임 앵커는 양발 사이 지면 기준.
+note: 왼쪽에서 오른쪽으로, 위 행 다음 아래 행 순서. 흰 배경 유지. 앵커는 양발 사이 지면 기준.
 coordinates: idle-front-right-8frames-v1.coordinates.json
-sha256: a503dda72a77031e8098e5da7542b8e45fd04ac255ace0aeb7df59754cee224a
-width: 784
-height: 896
+sha256: f5a6a87436c7dcb470a85c61f5692d0745372fa69b745f6c4e51ea76230b3ec1
+width: 1173
+height: 1341
+reference:
+  image: default-eight-directions-v1.png
+  sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+  role: 캐릭터 외형 기준
