@@ -8,6 +8,7 @@ directions:
   back: {label: 후면, angle: 180}
   back_right: {label: 후방 우측, angle: -135}
   right: {label: 우측면, angle: -90}
+  front_right_60: {label: 전방 우측, angle: -60}
   front_right: {label: 전방 우측, angle: -45}
   front_right_30: {label: 전방 우측, angle: -30}
   front_right_15: {label: 전방 우측, angle: -15}
