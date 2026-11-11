@@ -1,4 +1,4 @@
-source_job: 2026-11-09_23-21-30-02a5c292
+source_job: 2026-11-11_13-39-02-b9f9a84d
 request:
   action: generate
   prompt: The same male character from the reference image stands still in a relaxed
@@ -8,7 +8,7 @@ request:
   negative_prompt: camera movement, walking, changing clothes, body distortion
   width: 832
   height: 480
-  frames: 101
+  frames: 93
   steps: 20
   seed: 42
   flow_shift: 5
@@ -17,3 +17,4 @@ request:
   control_type: pose
   use_regular_vae: true
   pose_encode_full_temporal: false
+  end_image_same_as_start: false

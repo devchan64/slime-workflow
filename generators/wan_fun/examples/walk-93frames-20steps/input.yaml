@@ -1,0 +1,20 @@
+source_job: 2026-11-11_14-33-19-10be0e7b
+request:
+  action: generate
+  prompt: The same male character from the reference image walks in place with a confident
+    runway gait, following the supplied pose video. Preserve his face, amber eyes,
+    brown hairstyle, skin tone, muscular build, body proportions, gray sleeveless
+    top and dark shorts. Bare feet. Full body, fixed camera, plain white background.
+  negative_prompt: camera movement, changing clothes, body distortion
+  width: 832
+  height: 480
+  frames: 93
+  steps: 20
+  seed: 42
+  flow_shift: 5
+  guidance_scale: 6
+  switch_ratio: 0.5
+  control_type: pose
+  use_regular_vae: true
+  pose_encode_full_temporal: false
+  end_image_same_as_start: false
