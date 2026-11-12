@@ -13,6 +13,7 @@ layout:
   row_heights:
   - 586
   - 588
+  frame_width: 312
 animation:
   action: walk
   direction: front-right
@@ -45,3 +46,6 @@ reference:
   image: default-eight-directions-v1.png
   sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
   role: 캐릭터 일관성 보강 기준
+sha256: 3276217c8bd29095199c695cc60a3c96f120b9009160da0db2aa93e30039a399
+width: 1248
+height: 1174

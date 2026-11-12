@@ -14,12 +14,12 @@ layout:
   columns: 4
   rows: 4
   frame_count: 16
-  frame_width: 269
   row_heights:
   - 455
   - 272
   - 271
   - 450
+  frame_width: 269
 animation:
   action: rest
   direction: front-right
