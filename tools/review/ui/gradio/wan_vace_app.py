@@ -15,10 +15,11 @@ from tools.review.common.gradio_video_results import render_video_generation_res
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
 
-VACE_INPUT_CHOICES = [('키모도 DWPose 영상 + 캐릭터 참조', 'pose'), ('영상 부분 편집 + 외형 참조', 'video_edit'), ('외형 참조 + 텍스트 (R2V)', 'reference'), ('첫 프레임 + 텍스트 (I2V)', 'first_frame'), ('텍스트만 (T2V)', 'text')]
+VACE_INPUT_CHOICES = [('키모도 DWPose 영상 + 캐릭터 참조', 'pose'), ('영상 전체 조건 + 외형 참조 · 실험', 'video_condition'), ('영상 부분 편집 + 외형 참조', 'video_edit'), ('외형 참조 + 텍스트 (R2V)', 'reference'), ('첫 프레임 + 텍스트 (I2V)', 'first_frame'), ('텍스트만 (T2V)', 'text')]
 
 
 VACE_MODE_HELP_TEXT = {
+    'video_condition': '**영상 전체 조건 · 실험**\n\n원본 RGB MP4와 캐릭터 참조 이미지 1장을 입력합니다. 전체 검정 마스크를 모델에 전달해 영상 전체를 조건으로 사용합니다. 원본과 자동 합성하지 않으며 자세·외형 보존 및 일관성 개선은 보장되지 않습니다. 영상은 832×480·16fps·32MiB 이하이며 출력 길이 이상이어야 합니다. 8GB 실행·품질은 별도 검수합니다.',
     'pose': '**포즈 동작 따라 생성**\n\n1. 캐릭터 외형 참조 이미지 1장을 첨부합니다.\n2. 키모도 결과의 DWPose MP4를 첨부합니다. SOMA 렌더나 완성 캐릭터 영상이 아닙니다.\n3. 원하는 동작을 짧게 적고 출력 프레임을 영상 길이 이내의 4n+1로 설정합니다.\n\n포즈 재추출 없이 동작 조건으로 사용합니다. 편집 마스크는 필요 없습니다. 영상은 832×480·16fps·32MiB 이하이며 부족한 프레임을 반복하지 않습니다.',
     'video_edit': '**기존 영상의 일부 다시 그리기**\n\n1. 바꾸려는 캐릭터의 외형 참조 이미지 1장을 첨부합니다.\n2. 완성된 원본 MP4와 같은 좌표·길이의 마스크 MP4를 첨부합니다.\n3. 바꾸려는 내용을 프롬프트로 적습니다.\n\n흰색은 재생성, 검정은 원본 보존 조건입니다. 두 영상 모두 832×480·16fps·32MiB 이하이며 출력 길이 이상이어야 합니다. 마스크 밖도 달라질 수 있으며 원본과 자동 합성하지 않습니다.',
     'reference': '**캐릭터 외형을 참고해 새 영상 생성**\n\n1. 외형 참조 이미지 1장을 첨부합니다.\n2. 주체·동작·카메라를 짧게 적습니다.\n3. 출력 프레임과 스텝을 선택합니다.\n\n이미지는 외형 조건이며 첫 화면이나 동작을 고정하지 않습니다. 동작을 지정한 영상대로 따라가려면 포즈 모드를 사용하세요.',
@@ -34,15 +35,16 @@ def describe_vace_mode(current_input_mode):
     if current_input_mode != 'text':
         current_mode_description += '\n\n참조 이미지는 비율을 유지해 832×480 흰 여백으로 맞춥니다. 원본은 보존하며, 여백도 영상 내용에 영향을 줄 수 있습니다.'
     return (current_mode_description,gr.update(visible=current_input_mode!='text'),
-            gr.update(visible=current_input_mode=='pose'),gr.update(visible=current_input_mode=='video_edit'),
-            gr.update(label='시작 장면 이미지 · 1장' if current_input_mode=='first_frame' else '캐릭터 외형 참조 · 1장'))
+            gr.update(visible=current_input_mode=='pose'),gr.update(visible=current_input_mode in ('video_edit','video_condition')),
+            gr.update(label='시작 장면 이미지 · 1장' if current_input_mode=='first_frame' else '캐릭터 외형 참조 · 1장'),gr.update(visible=current_input_mode=='video_edit'))
 
 
 def select_vace_mode_inputs(current_input_values):
     current_selected_values = list(current_input_values)
     current_input_mode = current_selected_values[0]
     if current_input_mode == 'text': current_selected_values[1] = None
-    if current_input_mode != 'video_edit': current_selected_values[10:12] = [None,None]
+    if current_input_mode not in ('video_edit','video_condition'): current_selected_values[10:12] = [None,None]
+    if current_input_mode == 'video_condition': current_selected_values[11] = None
     if current_input_mode != 'pose': current_selected_values[12] = None
     return current_selected_values
 
@@ -50,7 +52,7 @@ def select_vace_mode_inputs(current_input_values):
 def check_visible_vace_readiness(current_model_ready,current_input_mode,current_reference_path,current_prompt_text,current_edit_video,current_edit_mask,current_pose_video):
     return check_vace_readiness(current_model_ready,current_input_mode,
         current_reference_path if current_input_mode!='text' else None,current_prompt_text,
-        current_edit_video if current_input_mode=='video_edit' else None,
+        current_edit_video if current_input_mode in ('video_edit','video_condition') else None,
         current_edit_mask if current_input_mode=='video_edit' else None,
         current_pose_video if current_input_mode=='pose' else None)
 
@@ -85,6 +87,10 @@ def build_vace_payload(current_input_mode, current_reference_path, current_promp
         if not current_edit_video or not current_edit_mask:
             raise ValueError('원본 MP4와 편집 마스크 MP4가 필요합니다.')
         current_payload_record.update(edit_video=base64.b64encode(Path(current_edit_video).read_bytes()).decode(), edit_mask=base64.b64encode(Path(current_edit_mask).read_bytes()).decode())
+    elif current_input_mode == 'video_condition':
+        if not current_edit_video or current_edit_mask:
+            raise ValueError('영상 전체 조건에는 원본 MP4만 필요하며 마스크는 입력하지 않습니다.')
+        current_payload_record['edit_video'] = base64.b64encode(Path(current_edit_video).read_bytes()).decode()
     elif current_edit_video or current_edit_mask:
         raise ValueError('영상 편집 외 모드에서는 영상·마스크를 비워 주세요.')
     validate_vace_request(current_payload_record)
@@ -102,7 +108,7 @@ def restore_vace_inputs(current_history_record):
         if current_reference_file.parent != current_job_directory or not current_reference_file.is_file():
             raise ValueError('이력 입력 사본 누락 또는 경로 오류')
         current_reference_path = str(current_reference_file)
-    return (current_request_record['mode'], current_reference_path, current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['reference_strength'], str(current_job_directory/'edit-video.mp4') if current_request_record['mode']=='video_edit' else None, str(current_job_directory/'edit-mask.mp4') if current_request_record['mode']=='video_edit' else None, str(current_job_directory/'pose-video.mp4') if current_request_record['mode']=='pose' else None, current_history_record['id'])
+    return (current_request_record['mode'], current_reference_path, current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['reference_strength'], str(current_job_directory/'edit-video.mp4') if current_request_record['mode'] in ('video_edit','video_condition') else None, str(current_job_directory/'edit-mask.mp4') if current_request_record['mode']=='video_edit' else None, str(current_job_directory/'pose-video.mp4') if current_request_record['mode']=='pose' else None, current_history_record['id'])
 
 
 def check_vace_readiness(current_model_ready, current_input_mode, current_reference_path, current_prompt_text, current_edit_video=None, current_edit_mask=None, current_pose_video=None):
@@ -112,6 +118,8 @@ def check_vace_readiness(current_model_ready, current_input_mode, current_refere
         return False
     if current_input_mode == 'video_edit':
         return bool(current_model_ready and current_prompt_text.strip() and current_reference_path and current_edit_video and current_edit_mask)
+    if current_input_mode == 'video_condition':
+        return bool(current_model_ready and current_prompt_text.strip() and current_reference_path and current_edit_video and not current_edit_mask)
     if current_edit_video or current_edit_mask:
         return False
     return bool(current_model_ready and current_prompt_text and current_prompt_text.strip() and ((current_input_mode == 'text' and not current_reference_path) or (current_input_mode in ('reference', 'first_frame') and current_reference_path)))
@@ -120,7 +128,7 @@ def check_vace_readiness(current_model_ready, current_input_mode, current_refere
 def build_vace_interface(current_server_address, current_command_callback=None):
     current_execute_command = current_command_callback or execute_vace_command
     with gr.Blocks(title='Wan2.2 VACE-Fun 생성기') as current_interface_blocks:
-        gr.Markdown('## Wan2.2 VACE-Fun A14B 생성기\n키모도 DWPose 영상과 캐릭터 참조 이미지로 동작을 따라 생성할 수 있습니다. 텍스트·이미지 생성도 지원합니다. 영상 부분 편집은 원본 MP4·흰색 편집 마스크·외형 참조를 함께 사용합니다.')
+        gr.Markdown('## Wan2.2 VACE-Fun A14B 생성기\n키모도 DWPose 영상과 캐릭터 참조 이미지로 동작을 따라 생성할 수 있습니다. 텍스트·이미지 생성도 지원합니다. 영상 부분 편집은 원본 MP4·흰색 편집 마스크·외형 참조를 함께 사용하며, 영상 전체 조건은 원본 MP4와 참조를 사용하는 별도 실험입니다.')
         current_model_ready = gr.State(False)
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
         current_model_refresh = gr.Button('모델 준비 상태 확인')
@@ -142,7 +150,7 @@ def build_vace_interface(current_server_address, current_command_callback=None):
         with gr.Row(visible=False) as current_edit_group:
             current_edit_video = gr.Video(sources=['upload'], label='편집할 원본 MP4 · 832×480 · 16fps')
             current_edit_mask = gr.Video(sources=['upload'], label='마스크 MP4 · 흰색 재생성 / 검정 보존 조건')
-        current_mode_control.change(describe_vace_mode,current_mode_control,[current_mode_help,current_reference_panel,current_pose_group,current_edit_group,current_reference_control],queue=False)
+        current_mode_control.change(describe_vace_mode,current_mode_control,[current_mode_help,current_reference_panel,current_pose_group,current_edit_group,current_reference_control,current_edit_mask],queue=False)
         current_prompt_control = gr.Textbox(label='장면·동작 프롬프트', lines=3, placeholder='The character walks four steps. Full body, fixed camera.', info='주체 → 동작 → 카메라 순서로 짧게 작성하세요. 입력한 문구를 그대로 전달합니다. 걸음 수는 보장되지 않습니다.')
         current_prompt_summary = gr.Markdown('원문 0단어 · 최종 0단어 · 추가 문구 없음')
         current_prompt_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어 · 추가 문구 없음', current_prompt_control, current_prompt_summary, queue=False)
@@ -164,7 +172,8 @@ def build_vace_interface(current_server_address, current_command_callback=None):
         current_duration_output = gr.Markdown(describe_video_frame_duration(VACE_DEFAULT_SETTINGS['frames']))
         current_count_control.change(describe_video_frame_duration, current_count_control, current_duration_output, queue=False)
         current_seed_control = build_generation_seed(default_seed_value=VACE_DEFAULT_SETTINGS['seed'])
-        with gr.Accordion('고급 설정 · 설정값 안내', open=False):
+        with gr.Group():
+            gr.Markdown('### 고급 설정 · 설정값 안내')
             current_steps_control = gr.Number(value=VACE_DEFAULT_SETTINGS['steps'], precision=0, minimum=2, maximum=100, label='스텝', info='현재 실험 기준으로 매끄러운 영상 생성을 위해 30스텝 이상을 권장합니다. 제작자 예제는 50스텝입니다. 2스텝은 연결 확인용이며 품질 평가용이 아닙니다.')
             current_shift_control = gr.Number(value=VACE_DEFAULT_SETTINGS['flow_shift'], minimum=0.1, maximum=20, label='Flow shift', info='제작자 Flow 설정 12. 노이즈 시간 배분을 바꾸며 고·저노이즈 단계 수에도 영향을 줍니다.')
             current_guidance_control = gr.Number(value=VACE_DEFAULT_SETTINGS['guidance_scale'], minimum=1, maximum=10, label='CFG', info='제작자 예제 5. 텍스트 유도 강도이며 동작량 조절값은 아닙니다.')

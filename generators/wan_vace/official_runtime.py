@@ -110,7 +110,7 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
     if current_request_record['references']:
         current_reference_pixels = np.array(Image.open(current_job_root/current_request_record['references'][0]).convert('RGB'))
         current_reference_tensor = torch.from_numpy(current_reference_pixels.astype(np.float32)/255).permute(2,0,1)[None,:,None]
-        if current_request_record['mode'] in ('reference','video_edit','pose'):
+        if current_request_record['mode'] in ('reference','video_edit','video_condition','pose'):
             current_condition_inputs['subject_ref_images'] = current_reference_tensor
         elif current_request_record['mode'] == 'first_frame':
             current_video_tensor = torch.zeros((1,3,current_frame_count,480,832))
@@ -128,6 +128,9 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
             if current_field_name=='edit_mask':current_frame_arrays=(current_frame_arrays>=128).astype(np.uint8)*255
             current_condition_inputs[current_argument_name]=torch.from_numpy(current_frame_arrays.astype(np.float32)/255).permute(3,0,1,2)[None]
             if current_field_name=='edit_mask':current_condition_inputs[current_argument_name]=current_condition_inputs[current_argument_name][:,:1]
+    if current_request_record['mode'] == 'video_condition':
+        from generators.wan_vace.video_edit import build_video_condition_inputs
+        current_condition_inputs.update(build_video_condition_inputs(current_job_root, current_request_record))
     if current_request_record['mode'] == 'pose':
         current_condition_inputs.update(build_pose_conditions(current_job_root, current_request_record))
     if 'noise_prefix_frames' in current_request_record:

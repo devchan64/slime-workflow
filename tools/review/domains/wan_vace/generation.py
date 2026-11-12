@@ -11,6 +11,9 @@ class VaceVideoGenerationManager(ReferenceVideoGenerationManager):
         if current_request_record['mode'] == 'video_edit':
             from generators.wan_vace.video_edit import save_edit_inputs
             return save_edit_inputs(current_job_root, current_request_record)
+        if current_request_record['mode'] == 'video_condition':
+            from generators.wan_vace.video_edit import save_edit_inputs
+            return save_edit_inputs(current_job_root, current_request_record, ('edit_video',))
         if current_request_record['mode'] == 'pose':
             from generators.wan_vace.video_edit import save_edit_inputs
             return save_edit_inputs(current_job_root, current_request_record, ('pose_video',))

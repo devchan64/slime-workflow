@@ -25,7 +25,7 @@ VACE_MODEL_FILES = {
 VACE_RUNTIME_REVISIONS = {'ComfyUI': 'b8730510db30c8858e1e5d8e126ef19eac395560', 'ComfyUI-GGUF': '6ea2651e7df66d7585f6ffee804b20e92fb38b8a'}
 VACE_DEFAULT_SETTINGS = {'mode': 'reference', 'frames': 21, 'steps': 50, 'seed': 42, 'flow_shift': 12.0, 'guidance_scale': 5.0, 'reference_strength': 1.0}
 VACE_EXPERT_BOUNDARY = 0.875
-VACE_INPUT_MODES = ('text', 'reference', 'first_frame', 'video_edit', 'pose')
+VACE_INPUT_MODES = ('text', 'reference', 'first_frame', 'video_edit', 'video_condition', 'pose')
 
 
 def inspect_vace_assets():
@@ -64,6 +64,8 @@ def validate_vace_request(current_request_record):
     required_field_names = {'action', 'mode', 'prompt', 'negative_prompt', 'images', 'width', 'height', 'frames', 'steps', 'seed', 'flow_shift', 'guidance_scale', 'reference_strength'}
     if isinstance(current_request_record, dict) and current_request_record.get('mode') == 'video_edit':
         required_field_names |= {'edit_video', 'edit_mask'}
+    if isinstance(current_request_record, dict) and current_request_record.get('mode') == 'video_condition':
+        required_field_names.add('edit_video')
     if isinstance(current_request_record, dict) and current_request_record.get('mode') == 'pose':
         required_field_names.add('pose_video')
     if isinstance(current_request_record, dict) and 'noise_prefix_frames' in current_request_record:
@@ -81,7 +83,7 @@ def validate_vace_request(current_request_record):
     if not isinstance(current_request_record, dict) or set(current_request_record) != required_field_names:
         raise ValueError('VACE 요청 필드가 맞지 않습니다.')
     if current_request_record['action'] != 'generate' or current_request_record['mode'] not in VACE_INPUT_MODES:
-        raise ValueError('generate와 text/reference/first_frame/video_edit/pose 모드가 필요합니다.')
+        raise ValueError('generate와 지원되는 VACE 입력 모드가 필요합니다.')
     for current_field_name in ('prompt', 'negative_prompt'):
         if not isinstance(current_request_record[current_field_name], str) or len(current_request_record[current_field_name]) > 8000:
             raise ValueError('프롬프트는 8000자 이하 문자열이어야 합니다.')
@@ -107,6 +109,9 @@ def validate_vace_request(current_request_record):
     if current_request_record['mode'] == 'video_edit':
         from generators.wan_vace.video_edit import validate_edit_inputs
         validate_edit_inputs(current_request_record)
+    if current_request_record['mode'] == 'video_condition':
+        from generators.wan_vace.video_edit import validate_edit_inputs
+        validate_edit_inputs(current_request_record, ('edit_video',))
     if current_request_record['mode'] == 'pose':
         from generators.wan_vace.video_edit import validate_edit_inputs
         validate_edit_inputs(current_request_record, ('pose_video',))

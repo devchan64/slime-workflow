@@ -9,6 +9,17 @@ import numpy as np
 VACE_EDIT_INPUT_FIELDS = ('edit_video', 'edit_mask')
 
 
+def build_video_condition_inputs(current_job_root, current_request_record):
+    """원본 전체를 조건으로 전달하고 별도 편집 영역은 두지 않는다."""
+    import torch
+    current_input_path = Path(current_job_root) / 'edit-video.mp4'
+    if current_request_record['edit_video_file'] != 'edit-video.mp4' or hashlib.sha256(current_input_path.read_bytes()).hexdigest() != current_request_record['edit_video_sha256']:
+        raise ValueError('영상 조건 입력 해시 불일치')
+    current_video_arrays = decode_edit_video(current_input_path, current_request_record['frames'])
+    current_video_tensor = torch.from_numpy(current_video_arrays.astype(np.float32)/255).permute(3,0,1,2)[None]
+    return {'video': current_video_tensor, 'mask_video': torch.zeros_like(current_video_tensor[:,:1])}
+
+
 def decode_edit_video(current_video_path, current_frame_count):
     current_video_capture = cv2.VideoCapture(str(current_video_path))
     try:
