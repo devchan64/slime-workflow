@@ -78,6 +78,15 @@ class FrontendReviewTests(unittest.TestCase):
         self.assertEqual(len(source_image_paths), 1)
         self.assertEqual(self.animation_metadata_path.read_bytes(), original_metadata_bytes)
 
+    def test_front_right_single_direction_loads(self):
+        self.animation_source_data['frames'] = [self.animation_source_data['frames'][1]]
+        self.animation_source_data['clips'] = [self.animation_source_data['clips'][1]]
+        self.write_source_fixture()
+        current_frame_records, current_source_metadata, current_image_paths = load_animation_review(self.frontend_asset_root, self.animation_metadata_path)
+        self.assertEqual(current_frame_records[0]['direction'], 'down_right')
+        self.assertEqual(current_source_metadata['clips'][0]['direction'], 'down_right')
+        self.assertEqual(current_image_paths, {self.frontend_asset_root/'idle.png'})
+
     def test_rest_multiple_actions_preserve_hold_policy(self):
         self.animation_source_data['animationId'] = 'character.default.white-shirt.rest'
         self.animation_source_data['frames'] = self.animation_source_data['frames'][:1]

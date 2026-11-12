@@ -158,8 +158,8 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
     source_reference_body_height = source_manifest_data.get('referenceBodyHeight', declared_reference_body_height)
     source_game_body_height = source_manifest_data.get('gameBodyHeight', declared_game_body_height)
     selected_clip_directions = {current_clip_record['direction'] for current_clip_record in animation_source_data['clips']}
-    if selected_clip_directions not in ({'down_left'}, set(REVIEW_DIRECTION_NAMES)):
-        raise ValueError('정면왼쪽 단일 방향 또는 네 방향 클립이 필요합니다.')
+    if selected_clip_directions not in ({'down_left'}, {'down_right'}, set(REVIEW_DIRECTION_NAMES)):
+        raise ValueError('정면 대각 단일 방향 또는 네 방향 클립이 필요합니다.')
     direction_sheet_paths = {}
     expected_sheet_hashes = {}
     if 'sheets' in source_manifest_data:
