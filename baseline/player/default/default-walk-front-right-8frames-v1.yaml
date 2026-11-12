@@ -1,0 +1,43 @@
+schema_version: 1
+description: 걷기 기본복장 · 오른쪽 앞 · 8프레임 반복 · 20px 여백
+status: 사용자 요청 등록 · 생성 영상 프레임 원본
+image: default-walk-front-right-8frames-v1.png
+image_sha256: 901d75defbf70ae5d2cbd0e9f55f78713257baf3472be748497d2807c1831acf
+image_size:
+- 1044
+- 986
+layout:
+  columns: 4
+  rows: 2
+  frame_count: 8
+  row_heights:
+  - 492
+  - 494
+animation:
+  action: walk
+  direction: front-right
+  frame_order:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  loop: true
+  fps: 6
+coordinates: default-walk-front-right-8frames-v1.coordinates.json
+source:
+  generation_id: 2026-11-12_13-14-53-602b3e1e
+  frame_numbers_1based:
+  - 30
+  - 32
+  - 34
+  - 36
+  - 38
+  - 40
+  - 42
+  - 44
+note: CV 전경 크롭, 최소 20px 여백. 가로 동일, 세로는 행별 동일. 앵커 X·Y는 원본 영상의 회색 상의 몸통 영역 중심으로 정렬하며
+  채택한 비교 GIF와 같은 정수 좌표를 사용한다. 발 바닥 기준 앵커가 아니다. 흰 배경, 이미지 및 크롭·배율 유지.
