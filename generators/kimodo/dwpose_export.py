@@ -127,7 +127,7 @@ def adjust_detected_pose_frames(current_detected_frames, current_image_shape, cu
         if not np.isfinite(current_original_points[[8,11]]).all():
             raise ValueError('골반 Y 기준에 필요한 좌우 고관절 검출 누락')
         # 프레임별 원래 골반 높이는 보존한다. 시간축의 골반 움직임을 고정하지 않는다.
-        current_center_point[1] = current_original_points[[8,11],1].mean()
+        current_center_point = current_original_points[[8,11]].mean(axis=0)
         current_adjusted_points = current_original_points.copy()
         if current_segment_gains:
             if not np.isfinite(current_original_points[1:14]).all():
@@ -154,7 +154,7 @@ def adjust_detected_pose_frames(current_detected_frames, current_image_shape, cu
         current_output_hip_y = (current_output_points[8].y+current_output_points[11].y)/2
         current_hip_y_errors.append(abs(current_output_hip_y-current_center_point[1]))
     if current_axis_measurements is not None:
-        current_axis_measurements['pelvis_y_anchor'] = {'basis':'각 프레임 보정 전 좌우 고관절 중점 Y', 'unit':'pixel', 'frames':len(current_hip_y_errors), 'maximum_error':max(current_hip_y_errors,default=0.0), 'scale_origin':'X는 화면 중심, Y는 보정 전 골반 중심'}
+        current_axis_measurements['pelvis_y_anchor'] = {'basis':'각 프레임 보정 전 좌우 고관절 중점 Y', 'unit':'pixel', 'frames':len(current_hip_y_errors), 'maximum_error':max(current_hip_y_errors,default=0.0), 'scale_origin':'XY 모두 보정 전 좌우 고관절 중점'}
     return current_output_frames
 
 

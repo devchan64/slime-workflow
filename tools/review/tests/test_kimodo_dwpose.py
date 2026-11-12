@@ -23,6 +23,7 @@ class KimodoDwposeTests(unittest.TestCase):
         for current_frame_index,current_vertical_offset in enumerate((0,60,-30)):
             current_output_points = current_output_frames[current_frame_index][0].body.keypoints
             self.assertAlmostEqual((current_output_points[8].y+current_output_points[11].y)/2,210+current_vertical_offset)
+            self.assertAlmostEqual((current_output_points[8].x+current_output_points[11].x)/2,200)
             self.assertAlmostEqual(current_output_points[0].y,116.5+current_vertical_offset)
         self.assertLess(current_measurement_record['pelvis_y_anchor']['maximum_error'],1e-8)
         current_frame_records[0][0].body.keypoints[8] = None
