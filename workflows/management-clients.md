@@ -1074,6 +1074,10 @@ RGB 영상 직접 입력 실험은 폐기했습니다. 신규 생성·기존 RGB
 
 ### Animate-2 동작 전사
 
+**사용 보류:** 현재 장비에서 시스템 RAM·GPU 메모리 부족이 관측되어 안정적인
+실행 검증 전까지 신규 생성과 재개를 보류한다. 기존 이력과 결과는 보존한다.
+이는 운영 방침이며 GUI·CLI 실행 차단이 구현됐다는 뜻은 아니다.
+
 `wan22-animate2`는 별도 공식 Base 모델로 RGB 동작 MP4와 캐릭터 참조를 받는다.
 Fun Control의 폐기된 RGB 편집 입력과 구분한다. GUI·CLI는 같은 게이트웨이와
 `.tmp/test/wan22-animate2/` 작업 저장소를 사용한다. `generate --payload-file`의

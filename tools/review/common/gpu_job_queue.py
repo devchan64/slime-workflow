@@ -14,6 +14,7 @@ sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.generation_records import write_record_atomically
 from tools.review.common.queue_generation_telemetry import QueueGenerationTelemetry
 from tools.review.common.gpu_memory_history import read_worker_memory, save_memory_observation, estimate_required_memory, identify_execution_command
+from tools.review.common.host_memory_guard import start_animate_memory_guard
 GPU_QUEUE_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/gpu-queue'
 GPU_MEMORY_REQUIREMENTS = {'momask': 4096, 'character-animation': 6144, 'image': 6144}
 # HY-Motion의 초기 예약은 실측 전 보수적 값이며 완료 후 공용 이력의 peak로 갱신한다.
@@ -190,6 +191,7 @@ def execute_locked_generation(generation_job_path):
     memory_measurement_error = None
     last_memory_sample_time = 0
     generation_worker_process = None
+    current_memory_guard = None
     current_telemetry_recorder = None
     import signal
     signal.signal(signal.SIGTERM, lambda *_: (generation_job_path/"cancel.request").touch())
@@ -269,6 +271,8 @@ def execute_locked_generation(generation_job_path):
             write_record_atomically(generation_job_path/'status.json', {'status':'running', 'memory_estimate':memory_estimate_record})
             current_telemetry_recorder.start_generation_telemetry()
             generation_worker_process = subprocess.Popen(generation_command_record['command'], start_new_session=True, env=dict(os.environ, SLIME_GPU_RESERVATION_PATH=str(active_reservation_path.resolve())))
+            if len(generation_command_record['command']) > 1 and Path(generation_command_record['command'][1]).resolve() == WORKFLOW_ROOT_DIRECTORY/'generators/wan_animate2/worker.py':
+                current_memory_guard = start_animate_memory_guard(generation_worker_process)
             while generation_worker_process.poll() is None:
                 if (generation_job_path/'cancel.request').exists():
                     import signal
@@ -287,8 +291,13 @@ def execute_locked_generation(generation_job_path):
                         memory_measurement_error = str(measurement_error)
                 time.sleep(.25)
             generation_exit_value = generation_worker_process.returncode
+            if current_memory_guard is not None:
+                current_memory_guard[0].set()
+                current_memory_guard[1].join()
             generation_status_record = json.loads((generation_job_path/'status.json').read_text())
             if (generation_job_path/'cancel.request').exists(): generation_status_record = {'status':'cancelled'}
+            elif current_memory_guard is not None and current_memory_guard[2].get('error'):
+                generation_status_record = {'status':'failed', 'exit_code':generation_exit_value, 'error':current_memory_guard[2]['error']}
             elif generation_exit_value == 0 and (generation_job_path/'stage-pause.json').exists():
                 generation_status_record = {'status':'paused','message':'단계 결과를 확인한 뒤 다음 단계로 진행하세요.'}
             elif generation_status_record['status'] in ('running','queued'):
@@ -300,6 +309,9 @@ def execute_locked_generation(generation_job_path):
         print(f'GPU 대기 실행 실패: {generation_error_value}', flush=True)
         return 1
     finally:
+        if current_memory_guard is not None:
+            current_memory_guard[0].set()
+            current_memory_guard[1].join()
         queue_ticket_path.unlink(missing_ok=True)
         if generation_worker_process is not None and generation_worker_process.poll() is None:
             import signal

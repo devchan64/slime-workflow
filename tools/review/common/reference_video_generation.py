@@ -3,6 +3,7 @@ import json
 from tools.review.domains.image.image_generation import ImageGenerationManager, MANAGER_HISTORY_ROOT
 from tools.review.common.video_result_files import enrich_video_result_status
 from tools.review.common.queue_generation_telemetry import merge_generation_worker_metrics
+from tools.review.common.video_job_recovery import normalize_recovered_video_metrics, recover_interrupted_video_job
 class ReferenceVideoGenerationManager(ImageGenerationManager):
  def __init__(self,current_route_prefix,current_job_storage,current_runner_path,current_request_validator,current_assets_validator,current_assets_inspector=None):
   super().__init__(three_reference_mode=True)
@@ -17,18 +18,21 @@ class ReferenceVideoGenerationManager(ImageGenerationManager):
  def validate_generation_runtime(self,saved_request_record=None):
   self.current_assets_validator()
  def validate_generation_resume(self,selected_job_directory):
+  recover_interrupted_video_job(selected_job_directory)
   self.current_assets_validator()
  def select_generation_runner(self,saved_request_record=None):
   return self.current_runner_path
  def history_storage_path(self):
   return MANAGER_HISTORY_ROOT/self.route_prefix_value.lstrip('/')
  def read_generation_status_record(self,current_job_root,fallback_status_record=None,include_log_value=False):
+  recover_interrupted_video_job(current_job_root)
   current_status_record=super().read_generation_status_record(current_job_root,fallback_status_record,include_log_value)
   current_attempt_path=current_job_root/'current-attempt.json'
   if current_attempt_path.exists():
    current_metrics_path=current_job_root/'attempts'/json.loads(current_attempt_path.read_text())['id']/'metrics.json'
    if current_metrics_path.exists():
     merge_generation_worker_metrics(current_status_record,json.loads(current_metrics_path.read_text()))
+  normalize_recovered_video_metrics(current_status_record)
   return enrich_video_result_status(current_job_root,current_status_record,self.route_prefix_value)
  def handle_image_request(self,current_http_handler):
   import re

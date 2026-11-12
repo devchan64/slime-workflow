@@ -45,6 +45,7 @@ def build_animate_interface(current_server_address,current_command_callback=None
     current_execute_command=current_command_callback or execute_animate_command
     with gr.Blocks(title='Wan Animate-2 캐릭터 동작 전사') as current_interface_blocks:
         gr.Markdown('## Wan Animate-2 캐릭터 동작 전사\nRGB 동작 영상과 기본 캐릭터 참조로 외형 일관성을 검증합니다. 포즈 선 영상·관절 JSON 입력이나 자유로운 영상 편집 기능이 아닙니다.')
+        gr.Markdown('**사용 보류:** 현재 장비에서 시스템 RAM과 GPU 메모리 부족이 관측되었습니다. 안정적인 실행이 검증될 때까지 신규 생성과 재개를 보류합니다. 기존 이력과 결과는 보존합니다.')
         current_model_ready=gr.State(False)
         current_model_status=gr.Markdown('모델 준비 확인 중')
         current_model_button=gr.Button('모델 준비 상태 확인')

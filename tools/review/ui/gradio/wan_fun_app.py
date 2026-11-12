@@ -180,10 +180,12 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         current_mode_control = gr.State('pose-video')
         current_frames_control = gr.State(None)
         current_type_control = gr.State('pose')
-        gr.Markdown('포즈 영상의 동작을 따릅니다. 참조 이미지는 외형 조건이며 첫 프레임 고정이 아닙니다.')
+        gr.Markdown('포즈 영상의 동작을 따릅니다. 참조 이미지는 캐릭터 조건이며 첫 프레임을 고정하지 않습니다. 참조의 자세도 결과에 영향을 줄 수 있습니다.')
         with gr.Row():
             with gr.Column():
                 current_reference_control = gr.Image(type='filepath', sources=['upload'], label='캐릭터 외형 참조 · 1장')
+                gr.Markdown('**참조 자세 권장:** 입력 포즈 영상의 첫 프레임과 비슷한 자세의 캐릭터 이미지를 넣으세요. 몸 방향·팔과 다리 위치·화면 안 크기를 맞춥니다. 예: 가드로 시작하는 영상에는 맨손 가드 자세 참조를 사용합니다. 캐릭터 외형과 복장은 유지하세요.')
+                gr.Markdown('자세 차이에 따른 간섭을 줄이기 위한 비교 가이드이며 품질 개선을 보장하지 않습니다. 시작 이미지 고정 기능이 아니며, 자세를 바꾸며 얼굴·신체비율까지 달라지지 않았는지 검수하세요.')
             with gr.Column():
                 current_video_control = gr.Video(sources=['upload'], label='처리된 포즈 영상 · MP4 · 832×480 · 16fps', include_audio=True, buttons=['download'])
         current_start_control = gr.State(None)

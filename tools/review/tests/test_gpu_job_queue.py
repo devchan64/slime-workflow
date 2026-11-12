@@ -12,6 +12,9 @@ class GpuJobQueueTests(unittest.TestCase):
         self.addCleanup(self.temporary_job_root.cleanup)
         self.current_job_path = Path(self.temporary_job_root.name)/'job'
         self.current_job_path.mkdir()
+        current_service_patch = patch.dict(queue_module.GPU_MEMORY_REQUIREMENTS, {'anny': 2048})
+        current_service_patch.start()
+        self.addCleanup(current_service_patch.stop)
         (self.current_job_path/'status.json').write_text('{"status":"running"}')
         (self.current_job_path/'gpu-command.json').write_text(json.dumps({'command':['test-worker'],'service':'anny'}))
         self.queue_path_patch = patch.object(queue_module,'GPU_QUEUE_DIRECTORY',Path(self.temporary_job_root.name)/'queue')
@@ -51,6 +54,20 @@ class GpuJobQueueTests(unittest.TestCase):
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
             worker_launch_mock.assert_called_once()
         self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'completed')
+
+    def test_animate_guard_failure_is_recorded_as_failed(self):
+        current_worker_path = queue_module.WORKFLOW_ROOT_DIRECTORY/'generators/wan_animate2/worker.py'
+        (self.current_job_path/'gpu-command.json').write_text(json.dumps({'command':['python',str(current_worker_path)],'service':'image'}))
+        current_worker_mock = Mock(returncode=-9)
+        current_worker_mock.poll.return_value = -9
+        current_event_mock = Mock()
+        current_thread_mock = Mock()
+        current_guard_result = {'error':'시스템 RAM 보호: 테스트'}
+        with patch.object(queue_module,'read_gpu_memory',return_value=(24000,24000)), patch.object(queue_module.subprocess,'Popen',return_value=current_worker_mock), patch.object(queue_module,'start_animate_memory_guard',return_value=(current_event_mock,current_thread_mock,current_guard_result)):
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),-9)
+        current_status_record = json.loads((self.current_job_path/'status.json').read_text())
+        self.assertEqual(current_status_record['status'],'failed')
+        self.assertIn('시스템 RAM 보호',current_status_record['error'])
 
     def test_insufficient_total_memory_fails_explicitly(self):
         with patch.object(queue_module,'read_gpu_memory',return_value=(1000,1000)),patch.object(queue_module.subprocess,'Popen') as worker_launch_mock:
