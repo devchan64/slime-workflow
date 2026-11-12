@@ -1,0 +1,37 @@
+schema_version: 1
+description: 기본 캐릭터 복싱 동작 · 8프레임
+status: 사용자 채택 · 8방향 기준 캐릭터 일관성 보강
+image: default-boxing-8frames-v1.png
+image_sha256: 34275baf6e89f9aa4240a30471036d2bca3762faee9f5339762f4ee0c15a6469
+image_size:
+- 1376
+- 1102
+layout:
+  columns: 4
+  rows: 2
+  frame_count: 8
+  row_heights:
+  - 553
+  - 549
+  frame_width: 344
+animation:
+  action: boxing
+  frame_order:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+note: 왼쪽에서 오른쪽으로, 위 행 다음 아래 행 순서. 전경 검출 기준 약 20px 이상 여백과 행별 동일 크기. 앵커는 자동 계산한 전경 중심
+  지면 기준이며 재생 검수가 필요하다.
+coordinates: default-boxing-8frames-v1.coordinates.json
+sha256: 34275baf6e89f9aa4240a30471036d2bca3762faee9f5339762f4ee0c15a6469
+width: 1376
+height: 1102
+consistency_reference:
+  image: default-eight-directions-v1.png
+  sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+  note: 8방향 캐릭터 기준으로 복싱 후보 외형 보강
