@@ -9,6 +9,7 @@ import gradio as gr
 import yaml
 from tools.review.common.strict_yaml import UniqueConfigLoader
 from generators.wan_fun.contracts import reject_retired_rgb_input, FUN_JOB_STORAGE, FUN_DEFAULT_SETTINGS, FUN_MAX_FRAME_COUNT, validate_fun_request
+from generators.wan_fun.video_input import FUN_VIDEO_MAXIMUM_BYTES
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_button_guidance import build_button_guidance
@@ -20,6 +21,52 @@ from tools.review.common.generation_status_lookup import read_existing_generatio
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 
 FUN_EXAMPLE_STORAGE_ROOT = Path(__file__).resolve().parents[4] / 'generators/wan_fun/examples'
+
+
+def inspect_fun_pose_video(current_video_path):
+    """업로드 영상의 조건과 추천 프레임 수를 확인한다."""
+    if not current_video_path:
+        return None, '포즈 MP4를 첨부하세요.'
+    try:
+        current_video_file = Path(current_video_path)
+        if current_video_file.stat().st_size > FUN_VIDEO_MAXIMUM_BYTES:
+            return None, '영상이 32MiB를 초과합니다. 크기를 줄여 다시 첨부하세요.'
+        with current_video_file.open('rb') as current_video_stream:
+            if current_video_stream.read(8)[4:8] != b'ftyp':
+                return None, 'MP4 영상을 첨부하세요.'
+        current_video_capture = cv2.VideoCapture(str(current_video_file))
+        try:
+            if not current_video_capture.isOpened():
+                return None, '영상을 읽을 수 없습니다. MP4를 다시 첨부하세요.'
+            current_frame_rate = current_video_capture.get(cv2.CAP_PROP_FPS)
+            current_frame_count = int(current_video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+            current_frame_width = int(current_video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+            current_frame_height = int(current_video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        finally:
+            current_video_capture.release()
+        current_description_text = f'입력: {current_frame_width}×{current_frame_height} · {current_frame_rate:.2f}fps · {current_frame_count}프레임.'
+        if (current_frame_width, current_frame_height) != (832, 480) or not 15.99 <= current_frame_rate <= 16.01:
+            return None, current_description_text + ' 832×480·16fps로 변환해 다시 첨부하세요.'
+        current_recommended_count = min(FUN_MAX_FRAME_COUNT, 1 + 4 * ((current_frame_count - 1) // 4))
+        if current_recommended_count < 5:
+            return None, current_description_text + ' 최소 5프레임의 영상을 첨부하세요.'
+        return current_recommended_count, current_description_text + f' 사용 가능 · 최대 {current_recommended_count}프레임 선택 가능.'
+    except (OSError, ValueError, OverflowError):
+        return None, '영상 정보를 읽을 수 없습니다. MP4를 다시 첨부하세요.'
+
+
+def describe_fun_input_readiness(current_reference_path, current_video_path, current_prompt_text, current_frame_count):
+    current_recommended_count, current_video_description = inspect_fun_pose_video(current_video_path)
+    current_missing_items = []
+    if not current_reference_path:
+        current_missing_items.append('외형 참조 이미지를 첨부하세요.')
+    if not current_prompt_text or not current_prompt_text.strip():
+        current_missing_items.append('동작 프롬프트를 입력하세요.')
+    if current_recommended_count is None:
+        current_missing_items.append(current_video_description)
+    elif not isinstance(current_frame_count, (int, float)) or isinstance(current_frame_count, bool) or not float(current_frame_count).is_integer() or not 5 <= current_frame_count <= current_recommended_count or (int(current_frame_count) - 1) % 4:
+        current_missing_items.append(f'출력 프레임은 5~{current_recommended_count}의 4n+1로 선택하세요.')
+    return not current_missing_items, ' '.join(current_missing_items) if current_missing_items else '입력 조건 확인 완료. 대기열 등록을 진행하세요.'
 
 
 def load_fun_example_catalog():
@@ -184,10 +231,12 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         with gr.Row():
             with gr.Column():
                 current_reference_control = gr.Image(type='filepath', sources=['upload'], label='캐릭터 외형 참조 · 1장')
-                gr.Markdown('**참조 자세 권장:** 입력 포즈 영상의 첫 프레임과 비슷한 자세의 캐릭터 이미지를 넣으세요. 몸 방향·팔과 다리 위치·화면 안 크기를 맞춥니다. 예: 가드로 시작하는 영상에는 맨손 가드 자세 참조를 사용합니다. 캐릭터 외형과 복장은 유지하세요.')
-                gr.Markdown('자세 차이에 따른 간섭을 줄이기 위한 비교 가이드이며 품질 개선을 보장하지 않습니다. 시작 이미지 고정 기능이 아니며, 자세를 바꾸며 얼굴·신체비율까지 달라지지 않았는지 검수하세요.')
+                with gr.Accordion('참조 자세 권장 사항', open=False):
+                    gr.Markdown('포즈 영상의 첫 프레임과 비슷한 몸 방향·팔다리 위치·크기의 참조를 권장합니다. 첫 프레임 고정은 아니며 결과의 외형과 비율을 검수하세요.')
             with gr.Column():
                 current_video_control = gr.Video(sources=['upload'], label='처리된 포즈 영상 · MP4 · 832×480 · 16fps', include_audio=True, buttons=['download'])
+                current_video_summary = gr.Markdown('포즈 MP4를 첨부하세요.')
+                current_recommended_button = gr.Button('입력 영상의 최대 프레임 적용', interactive=False)
         current_start_control = gr.State(None)
         current_end_control = gr.State(None)
         current_same_control = gr.State(False)
@@ -206,8 +255,13 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             current_negative_control = gr.Textbox(label='부정 프롬프트', value='')
             current_negative_summary = gr.Markdown('원문 0단어 · 최종 0단어')
             current_negative_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어', current_negative_control, current_negative_summary, queue=False)
-        gr.Markdown('고정: 고·저노이즈 Q4_K_M · 832×480 · 16fps · Euler/simple · CUDA 연산/CPU 가중치 오프로드 · 가속 LoRA 없음. 8GB 환경에서 최대 129프레임 완료 기록이 있으며 품질과 모든 조건의 실행을 보장하지 않습니다.')
+        gr.Markdown('출력 고정: 832×480 · 16fps. 8GB에서 129프레임 완료 기록이 있으나 모든 조건을 보장하지 않습니다.')
         current_count_control = gr.Number(value=FUN_DEFAULT_SETTINGS['frames'], precision=0, minimum=5, maximum=FUN_MAX_FRAME_COUNT, step=4, label=f'출력 프레임 · 4n+1 · 5~{FUN_MAX_FRAME_COUNT}', info='최대 129프레임입니다. 8GB 환경에서 129프레임 생성 완료를 확인했으며 품질은 별도 검수합니다. 부족한 제어 프레임은 자동 반복하지 않습니다.')
+        def update_fun_video_summary(current_video_path):
+            current_recommended_count, current_video_description = inspect_fun_pose_video(current_video_path)
+            return current_video_description, gr.update(interactive=current_recommended_count is not None)
+        current_video_control.change(update_fun_video_summary, current_video_control, [current_video_summary, current_recommended_button], queue=False)
+        current_recommended_button.click(lambda current_video_path: inspect_fun_pose_video(current_video_path)[0], current_video_control, current_count_control, queue=False)
         current_steps_control = gr.Number(value=FUN_DEFAULT_SETTINGS['steps'], precision=0, minimum=2, maximum=100, label='스텝 · 2~100', info='실험 기본 20. 증가하면 계산량이 늘며 동작 개선을 보장하지 않습니다.')
         current_duration_output = gr.Markdown()
         current_count_control.change(lambda current_frame_value: f'{current_frame_value}프레임 · {current_frame_value/16:.3f}초 · 16fps' if current_frame_value else '프레임 수를 입력하세요.',current_count_control,current_duration_output,queue=False)
@@ -217,6 +271,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         current_frame_presets.input(lambda current_frame_value: current_frame_value,current_frame_presets,current_count_control,queue=False)
         current_seed_control = build_generation_seed(default_seed_value=FUN_DEFAULT_SETTINGS['seed'])
         with gr.Accordion('고급 설정', open=False):
+            gr.Markdown('고정: 고·저노이즈 Q4_K_M · Euler/simple · CUDA 연산/CPU 가중치 오프로드 · 가속 LoRA 없음.')
             current_shift_control = gr.Number(value=FUN_DEFAULT_SETTINGS['flow_shift'], minimum=0.1, maximum=20, label='Flow shift · 노이즈 시간 배분', info='기본 5. 높이면 같은 스텝 위치의 노이즈 수준이 높아집니다. CFG와 독립적으로 입력합니다. 동작 속도나 참조 강도가 아닙니다.')
             current_guidance_control = gr.Number(value=FUN_DEFAULT_SETTINGS['guidance_scale'], minimum=1, maximum=10, label='CFG 강도 · 조건 유도', info='기본 6. 조건부·무조건부 예측 차이에 적용하는 배율입니다. Flow shift나 참조 이미지 전용 강도가 아닙니다.')
             current_switch_control = gr.Number(value=FUN_DEFAULT_SETTINGS['switch_ratio'], minimum=0.1, maximum=0.9, label='고노이즈 스텝 비율 · 0.1~0.9', info='기본 0.5. 전체 스텝의 앞부분은 고노이즈 모델, 나머지는 저노이즈 모델을 사용합니다.')
@@ -232,12 +287,16 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         gr.Markdown('### 3. 실행 조건 확인')
         current_request_summary = gr.Markdown()
         def describe_current_fun_settings(current_mode_value,current_frame_value,current_steps_value,current_seed_value,current_shift_value,current_cfg_value,current_ratio_value):
-            return f"모드: {current_mode_value} · 출력 {current_frame_value}프레임 · 스텝 {current_steps_value} · 시드 {current_seed_value} · Flow shift {current_shift_value} · CFG {current_cfg_value}\n\n{describe_fun_step_split(current_steps_value,current_ratio_value)}"
+            current_duration_text = f'{current_frame_value / 16:.3f}초' if isinstance(current_frame_value, (int, float)) else '미정'
+            return f"입력: 처리된 포즈 영상 · 출력 {current_frame_value}프레임 · 16fps · {current_duration_text} · 스텝 {current_steps_value} · 시드 {current_seed_value} · Flow shift {current_shift_value} · CFG {current_cfg_value}\n\n{describe_fun_step_split(current_steps_value,current_ratio_value)}"
         current_summary_inputs=[current_mode_control,current_count_control,current_steps_control,current_seed_control,current_shift_control,current_guidance_control,current_switch_control]
         for current_summary_control in current_summary_inputs:
             current_summary_control.change(describe_current_fun_settings,current_summary_inputs,current_request_summary,queue=False)
         current_interface_blocks.load(describe_current_fun_settings,current_summary_inputs,current_request_summary)
         current_required_help=gr.Markdown('필수: 외형 참조 · 처리된 포즈 MP4 · 동작 프롬프트. 입력 후 대기열 등록 확인을 진행하세요.')
+        current_readiness_inputs = [current_reference_control, current_video_control, current_prompt_control, current_count_control]
+        for current_readiness_control in current_readiness_inputs:
+            current_readiness_control.change(lambda *current_values: describe_fun_input_readiness(*current_values)[1], current_readiness_inputs, current_required_help, queue=False)
         current_generate_button = gr.Button('대기열에 추가', variant='primary', interactive=False)
         build_button_guidance(current_generate_button, '현재 모드의 필수 입력을 준비하세요. 확인 후 대기열에 등록하며 취소하면 실행하지 않습니다.')
         with gr.Column() as current_confirmation_container:
@@ -251,7 +310,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         def enqueue_fun_generation(*current_input_values):
             current_job_record = current_execute_command('generate',build_fun_payload(*current_input_values))
             return current_job_record['id'], '공용 GPU 대기열에 등록했습니다.'
-        bind_gpu_generation_confirmation(current_generate_button,enqueue_fun_generation,current_input_controls,[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=lambda current_reference_path,current_video_path,current_frame_paths,current_prompt_text,current_mode_value: bool(current_reference_path and (bool(current_video_path)!=bool(current_frame_paths)) and current_prompt_text.strip()),generation_readiness_inputs=[current_reference_control,current_video_control,current_frames_control,current_prompt_control,current_mode_control])
+        bind_gpu_generation_confirmation(current_generate_button,enqueue_fun_generation,current_input_controls,[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=lambda *current_values: describe_fun_input_readiness(*current_values)[0],generation_readiness_inputs=current_readiness_inputs)
         current_generation_timer = gr.Timer(5,active=False)
         def refresh_fun_status(current_job_identifier,current_logs_enabled,current_previous_result):
             if not current_job_identifier:
