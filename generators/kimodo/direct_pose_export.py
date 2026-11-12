@@ -66,6 +66,7 @@ def export_direct_pose_video(current_attempt_root, current_output_root, current_
         current_body_positions = apply_reference_proportions(current_body_positions,current_reference_record)
     current_axis_basis_positions = current_body_positions.copy()
     current_experimental_face_binding = None
+    current_reference_face_source = None
     if current_face_anchor_calibration is not None:
         if current_reference_ratio_path is None or current_reference_record is None or 'weighted_body_face_candidate' not in current_reference_record:
             raise ValueError('얼굴 앵커 시험에는 명시적인 가중 3D 비율 후보가 필요합니다.')
@@ -73,12 +74,17 @@ def export_direct_pose_video(current_attempt_root, current_output_root, current_
         current_face_offsets = validate_face_anchor_calibration(current_face_anchor_calibration, current_reference_record['weighted_body_face_candidate'], current_joint_names)
         current_body_positions = apply_multiview_face_anchors(current_body_positions, current_joint_positions[:,current_head_index], current_joint_rotations[:,current_head_index], current_face_offsets)
         current_experimental_face_binding = current_face_anchor_calibration['binding_sha256']
+    elif current_reference_record is not None:
+        from generators.kimodo.reference_face_anchors import apply_registered_reference_face
+        current_body_positions, current_reference_face_source = apply_registered_reference_face(
+            current_body_positions, current_joint_positions[:,current_head_index],
+            current_joint_rotations[:,current_head_index], current_reference_record)
     current_direction_points = {}
     current_direction_axis_gains = {}
     for current_direction_name in current_direction_names:
         current_projected_points = project_recorded_camera_points(current_body_positions, current_render_record['cameras'][current_direction_name])
         if current_reference_record is not None:
-            current_axis_basis_points = project_recorded_camera_points(current_axis_basis_positions,current_render_record['cameras'][current_direction_name]) if current_experimental_face_binding is not None else None
+            current_axis_basis_points = project_recorded_camera_points(current_axis_basis_positions,current_render_record['cameras'][current_direction_name]) if current_experimental_face_binding is not None or current_reference_face_source is not None else None
             current_projected_points,current_projected_gain = adjust_projected_body_axis(current_projected_points,current_reference_record,current_axis_basis_points)
             current_direction_axis_gains[current_direction_name] = current_projected_gain
         current_body_points = np.zeros((len(current_projected_points),18,3))
@@ -102,6 +108,9 @@ def export_direct_pose_video(current_attempt_root, current_output_root, current_
     if current_experimental_face_binding is not None:
         current_metadata_record['experimental_face_calibration_source'] = current_face_anchor_calibration.get('source')
         current_metadata_record['limitations'] = '실험용 가중 3D 얼굴 앵커 사용. 참조 관절·초기 교정의 불확실성 및 얼굴 가림 판정 없음. 손 상세·얼굴 상세는 합성하지 않음. 목은 어깨 중점.'
+    current_metadata_record['reference_face_anchors'] = current_reference_face_source
+    if current_reference_face_source is not None:
+        current_metadata_record['limitations'] = current_reference_face_source['limitations'] + ' 첫 프레임 몸 기준으로 정렬한 뒤 SOMA Head 상대 운동 적용. 얼굴 상세·가림 판정 없음.'
     (current_output_root/'soma-direct-pose.json').write_text(json.dumps(current_metadata_record, ensure_ascii=False))
     return current_metadata_record
 
