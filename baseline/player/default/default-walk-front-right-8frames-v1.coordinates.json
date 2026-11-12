@@ -2,178 +2,178 @@
   "schemaVersion": 1,
   "image": "default-walk-front-right-8frames-v1.png",
   "sheet": {
-    "width": 1044,
-    "height": 986
+    "width": 1248,
+    "height": 1174
   },
-  "sourceSha256": "39b1f49b8e59b147546774db34c5244b2515769e25b7288f79cee208867c7737",
-  "sha256": "901d75defbf70ae5d2cbd0e9f55f78713257baf3472be748497d2807c1831acf",
+  "sourceSha256": "92c84cd2e91845ab5a80bd62e2d349bb1573010e1fce514c89e0520796fea4bb",
+  "sha256": "edb73d6653e3c9a29ccef00a79693808d47e9d6590b800058a8213bb4865ae2d",
   "frames": [
     {
       "frameId": "frame.0",
       "rect": {
         "x": 0,
         "y": 0,
-        "width": 261,
-        "height": 492
+        "width": 312,
+        "height": 586
       },
       "anchor": {
-        "x": 119,
-        "y": 175
+        "x": 144,
+        "y": 209
       },
       "source": {
         "x": 0,
         "y": 0,
-        "width": 261,
-        "height": 492,
-        "anchorX": 119,
-        "anchorY": 175
+        "width": 312,
+        "height": 586,
+        "anchorX": 144,
+        "anchorY": 209
       }
     },
     {
       "frameId": "frame.1",
       "rect": {
-        "x": 261,
+        "x": 312,
         "y": 0,
-        "width": 261,
-        "height": 492
+        "width": 312,
+        "height": 586
       },
       "anchor": {
-        "x": 117,
-        "y": 176
+        "x": 143,
+        "y": 209
       },
       "source": {
-        "x": 261,
+        "x": 312,
         "y": 0,
-        "width": 261,
-        "height": 492,
-        "anchorX": 117,
-        "anchorY": 176
+        "width": 312,
+        "height": 586,
+        "anchorX": 143,
+        "anchorY": 209
       }
     },
     {
       "frameId": "frame.2",
       "rect": {
-        "x": 522,
+        "x": 624,
         "y": 0,
-        "width": 261,
-        "height": 492
+        "width": 312,
+        "height": 586
       },
       "anchor": {
-        "x": 117,
-        "y": 170
+        "x": 140,
+        "y": 203
       },
       "source": {
-        "x": 522,
+        "x": 624,
         "y": 0,
-        "width": 261,
-        "height": 492,
-        "anchorX": 117,
-        "anchorY": 170
+        "width": 312,
+        "height": 586,
+        "anchorX": 140,
+        "anchorY": 203
       }
     },
     {
       "frameId": "frame.3",
       "rect": {
-        "x": 783,
+        "x": 936,
         "y": 0,
-        "width": 261,
-        "height": 492
+        "width": 312,
+        "height": 586
       },
       "anchor": {
-        "x": 121,
-        "y": 168
+        "x": 142,
+        "y": 202
       },
       "source": {
-        "x": 783,
+        "x": 936,
         "y": 0,
-        "width": 261,
-        "height": 492,
-        "anchorX": 121,
-        "anchorY": 168
+        "width": 312,
+        "height": 586,
+        "anchorX": 142,
+        "anchorY": 202
       }
     },
     {
       "frameId": "frame.4",
       "rect": {
         "x": 0,
-        "y": 492,
-        "width": 261,
-        "height": 494
+        "y": 586,
+        "width": 312,
+        "height": 588
       },
       "anchor": {
-        "x": 115,
-        "y": 177
+        "x": 137,
+        "y": 208
       },
       "source": {
         "x": 0,
-        "y": 492,
-        "width": 261,
-        "height": 494,
-        "anchorX": 115,
-        "anchorY": 177
+        "y": 586,
+        "width": 312,
+        "height": 588,
+        "anchorX": 137,
+        "anchorY": 208
       }
     },
     {
       "frameId": "frame.5",
       "rect": {
-        "x": 261,
-        "y": 492,
-        "width": 261,
-        "height": 494
+        "x": 312,
+        "y": 586,
+        "width": 312,
+        "height": 588
       },
       "anchor": {
-        "x": 134,
-        "y": 177
+        "x": 160,
+        "y": 208
       },
       "source": {
-        "x": 261,
-        "y": 492,
-        "width": 261,
-        "height": 494,
-        "anchorX": 134,
-        "anchorY": 177
+        "x": 312,
+        "y": 586,
+        "width": 312,
+        "height": 588,
+        "anchorX": 160,
+        "anchorY": 208
       }
     },
     {
       "frameId": "frame.6",
       "rect": {
-        "x": 522,
-        "y": 492,
-        "width": 261,
-        "height": 494
+        "x": 624,
+        "y": 586,
+        "width": 312,
+        "height": 588
       },
       "anchor": {
-        "x": 140,
-        "y": 176
+        "x": 166,
+        "y": 205
       },
       "source": {
-        "x": 522,
-        "y": 492,
-        "width": 261,
-        "height": 494,
-        "anchorX": 140,
-        "anchorY": 176
+        "x": 624,
+        "y": 586,
+        "width": 312,
+        "height": 588,
+        "anchorX": 166,
+        "anchorY": 205
       }
     },
     {
       "frameId": "frame.7",
       "rect": {
-        "x": 783,
-        "y": 492,
-        "width": 261,
-        "height": 494
+        "x": 936,
+        "y": 586,
+        "width": 312,
+        "height": 588
       },
       "anchor": {
-        "x": 130,
-        "y": 171
+        "x": 156,
+        "y": 202
       },
       "source": {
-        "x": 783,
-        "y": 492,
-        "width": 261,
-        "height": 494,
-        "anchorX": 130,
-        "anchorY": 171
+        "x": 936,
+        "y": 586,
+        "width": 312,
+        "height": 588,
+        "anchorX": 156,
+        "anchorY": 202
       }
     }
   ]
