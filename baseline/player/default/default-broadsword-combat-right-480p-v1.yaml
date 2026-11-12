@@ -1,0 +1,25 @@
+schema_version: 1
+description: 기본복장 한손 브로드소드 전투 기본자세 · 화면 오른쪽 측면 · 480p
+status: 사용자 요청으로 기준 자료에 추가 · 자세와 비율 검수 필요
+date: '2026-11-13'
+generator: image_gen_builtin
+reference: default-eight-directions-v1.png
+reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+source_image_sha256: 88d94a67ff283491c42d8282cb4766a012653aff80767285f278b95b5833e8b7
+source_image_size: [1024, 1536]
+image: default-broadsword-combat-right-480p-v1.png
+image_size: [832, 480]
+image_sha256: 40de1219507146e4ed165c60667219cdd996c62a2d2f01c00f9d82dd43db48e7
+operation: resize-and-pad
+resize:
+  width: 256
+  height: 384
+  interpolation: Pillow LANCZOS
+  aspect_ratio_preserved: true
+placement:
+  left: 288
+  top: 96
+  background: white
+  note: 최종 캔버스 높이의 20%를 원본 이미지 위에 추가했다. 원본 자체의 여백은 유지한다.
+prompt: >-
+  Use case: stylized-concept. Reference image: the provided eight-direction baseline sheet, especially the top row third figure. Draw a single full-body character in a combat-ready idle stance, strict right-facing side profile. Preserve the baseline character's identity, short brown hair, proportions, gray sleeveless cropped top, charcoal shorts, bare feet, and illustration style. The character holds one broad-bladed one-handed broadsword in one hand, clearly gripped, ready for combat; knees slightly bent and feet planted. Show the entire character and sword with clear silhouette on a plain white background. No extra weapons, armor, text, or multiple figures.
