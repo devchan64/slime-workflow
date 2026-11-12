@@ -119,10 +119,15 @@ def adjust_detected_pose_frames(current_detected_frames, current_image_shape, cu
         current_axis_measurements['torso_gain']=current_torso_gain
         current_axis_measurements['valid_frames']=len(current_axis_frames) if current_ratio_record is not None and current_ratio_record.get('body_axis') is not None else 0
         current_axis_measurements['total_frames']=len(current_detected_frames)
+    current_hip_y_errors = []
     for current_frame_records in current_detected_frames:
         current_pose_record = current_frame_records[0]
         current_body_points = current_pose_record.body.keypoints
         current_original_points = np.array([[current_point.x,current_point.y] if current_point else [np.nan,np.nan] for current_point in current_body_points],dtype=float)
+        if not np.isfinite(current_original_points[[8,11]]).all():
+            raise ValueError('골반 Y 기준에 필요한 좌우 고관절 검출 누락')
+        # 프레임별 원래 골반 높이는 보존한다. 시간축의 골반 움직임을 고정하지 않는다.
+        current_center_point[1] = current_original_points[[8,11],1].mean()
         current_adjusted_points = current_original_points.copy()
         if current_segment_gains:
             if not np.isfinite(current_original_points[1:14]).all():
@@ -145,6 +150,11 @@ def adjust_detected_pose_frames(current_detected_frames, current_image_shape, cu
             return [current_point._replace(x=float((current_point.x+current_translation_vector[0]-current_center_point[0])*current_scale_percent/100+current_center_point[0]), y=float((current_point.y+current_translation_vector[1]-current_center_point[1])*current_scale_percent/100+current_center_point[1])) if current_point else None for current_point in current_point_list]
         current_updated_body = [current_point._replace(x=float(current_adjusted_points[current_point_index,0]),y=float(current_adjusted_points[current_point_index,1])) if current_point else None for current_point_index,current_point in enumerate(current_body_points)]
         current_output_frames.append([current_pose_record._replace(body=current_pose_record.body._replace(keypoints=transform_pose_points(current_updated_body,[0,0])),left_hand=transform_pose_points(current_pose_record.left_hand,current_adjusted_points[7]-current_original_points[7] if current_body_points[7] else [0,0]),right_hand=transform_pose_points(current_pose_record.right_hand,current_adjusted_points[4]-current_original_points[4] if current_body_points[4] else [0,0]),face=transform_pose_points(current_pose_record.face,[0,0]))])
+        current_output_points = current_output_frames[-1][0].body.keypoints
+        current_output_hip_y = (current_output_points[8].y+current_output_points[11].y)/2
+        current_hip_y_errors.append(abs(current_output_hip_y-current_center_point[1]))
+    if current_axis_measurements is not None:
+        current_axis_measurements['pelvis_y_anchor'] = {'basis':'각 프레임 보정 전 좌우 고관절 중점 Y', 'unit':'pixel', 'frames':len(current_hip_y_errors), 'maximum_error':max(current_hip_y_errors,default=0.0), 'scale_origin':'X는 화면 중심, Y는 보정 전 골반 중심'}
     return current_output_frames
 
 

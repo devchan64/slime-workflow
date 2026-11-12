@@ -169,4 +169,6 @@ def apply_reference_proportions(current_body_positions,current_ratio_record):
             current_vector_lengths=np.linalg.norm(current_direction_vectors,axis=-1,keepdims=True)
             if np.any(current_vector_lengths<=0): raise ValueError('SOMA 팔다리 길이 오류')
             current_adjusted_positions[:,current_child_index]=current_adjusted_positions[:,current_parent_index]+current_direction_vectors/current_vector_lengths*current_target_ratios[current_group_name]*current_base_torso
+    if not np.allclose(current_adjusted_positions[:,[8,11],1].mean(1),current_hip_centers[:,1],rtol=0,atol=1e-8):
+        raise ValueError('참조 비율 보정으로 골반 중심 Y가 이동했습니다.')
     return current_adjusted_positions

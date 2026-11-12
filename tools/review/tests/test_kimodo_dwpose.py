@@ -8,6 +8,27 @@ from generators.kimodo.dwpose_export import adjust_detected_pose_frames
 from generators.wan_fun.video_input import validate_processed_pose_video
 
 class KimodoDwposeTests(unittest.TestCase):
+    def test_scaled_pose_keeps_original_pelvis_vertical_motion(self):
+        current_point_type = namedtuple('Point','x y score id',defaults=[1.0,0])
+        current_body_type = namedtuple('Body','keypoints')
+        current_pose_type = namedtuple('Pose','body left_hand right_hand face')
+        current_frame_records = []
+        for current_vertical_offset in (0,60,-30):
+            current_body_points = [current_point_type(200,100+current_vertical_offset) for current_joint_index in range(18)]
+            current_body_points[8] = current_point_type(180,200+current_vertical_offset)
+            current_body_points[11] = current_point_type(220,220+current_vertical_offset)
+            current_frame_records.append([current_pose_type(current_body_type(current_body_points),None,None,None)])
+        current_measurement_record = {}
+        current_output_frames = adjust_detected_pose_frames(current_frame_records,(480,832),{},85,None,current_measurement_record)
+        for current_frame_index,current_vertical_offset in enumerate((0,60,-30)):
+            current_output_points = current_output_frames[current_frame_index][0].body.keypoints
+            self.assertAlmostEqual((current_output_points[8].y+current_output_points[11].y)/2,210+current_vertical_offset)
+            self.assertAlmostEqual(current_output_points[0].y,116.5+current_vertical_offset)
+        self.assertLess(current_measurement_record['pelvis_y_anchor']['maximum_error'],1e-8)
+        current_frame_records[0][0].body.keypoints[8] = None
+        with self.assertRaisesRegex(ValueError,'골반 Y'):
+            adjust_detected_pose_frames(current_frame_records,(480,832),{},85)
+
     def test_kimodo_dwpose_exports_every_source_frame_at_30fps(self):
         import json
         from unittest.mock import patch

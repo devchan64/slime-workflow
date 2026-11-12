@@ -58,6 +58,7 @@ def export_direct_pose_video(current_attempt_root, current_output_root, current_
             raise ValueError('코·귀 앵커 좌표 오류')
         current_body_positions[:,current_landmark_index]=current_joint_positions[:,current_head_index]+np.einsum('nij,j->ni',current_joint_rotations[:,current_head_index],current_anchor_offset)
     current_body_positions[:,1] = current_body_positions[:,[2,5]].mean(axis=1)
+    current_original_hip_y = current_body_positions[:,[8,11],1].mean(1).copy()
     current_axis_gain=None
     if current_reference_record is not None:
         from generators.kimodo.reference_proportions import apply_reference_proportions, calculate_reference_torso_gain
@@ -96,7 +97,8 @@ def export_direct_pose_video(current_attempt_root, current_output_root, current_
                 current_pose_image = render_fun_control_body(current_pose_points[current_source_index].tolist())
                 current_video_writer.append_data(np.asarray(ImageOps.pad(current_pose_image, DIRECT_POSE_OUTPUT_SIZE, color='black')))
         current_output_records[current_direction_name] = {'video': current_video_path.name, 'source_frames': current_source_indices, 'body_points_832x480': current_pose_points[current_source_indices].tolist()}
-    current_metadata_record = {'reference_proportions': current_reference_record, 'body_axis_torso_gain':current_axis_gain, 'projected_body_axis_gains':current_direction_axis_gains, 'proportion_basis': '3D 몸통 보정 후 방향별 2D 얼굴·어깨·골반 비율 보정', 'source': 'SOMA 3D joints', 'projection_scale_basis': '기록된 SOMA 카메라 배율 그대로 사용 · 추가 배율 없음', 'additional_scale_percent': 100.0, 'fps': DIRECT_POSE_OUTPUT_FPS, 'size': DIRECT_POSE_OUTPUT_SIZE, 'missing_points': [], 'head_anchors': current_anchor_record, 'experimental_face_anchor_binding':current_experimental_face_binding, 'limitations': '코·귀는 검증 기록이 있는 Head 로컬 앵커 추정. 참조 얼굴 비율도 2D 추정이며 실제 목 길이 복원이 아님. 손 상세·얼굴 상세는 합성하지 않음. 목은 어깨 중점. 가림 판정 없음. confidence=1은 검출 확률이 아닌 대응 관절 존재 표시.', 'directions': current_output_records}
+    current_hip_anchor_record = {'basis':'각 프레임 SOMA 보정 전 좌우 고관절 중점 Y', 'unit':'meter', 'maximum_error':float(np.max(np.abs(current_body_positions[:,[8,11],1].mean(1)-current_original_hip_y))), 'frames':len(current_body_positions)}
+    current_metadata_record = {'pelvis_y_anchor':current_hip_anchor_record, 'reference_proportions': current_reference_record, 'body_axis_torso_gain':current_axis_gain, 'projected_body_axis_gains':current_direction_axis_gains, 'proportion_basis': '3D 몸통 보정 후 방향별 2D 얼굴·어깨·골반 비율 보정', 'source': 'SOMA 3D joints', 'projection_scale_basis': '기록된 SOMA 카메라 배율 그대로 사용 · 추가 배율 없음', 'additional_scale_percent': 100.0, 'fps': DIRECT_POSE_OUTPUT_FPS, 'size': DIRECT_POSE_OUTPUT_SIZE, 'missing_points': [], 'head_anchors': current_anchor_record, 'experimental_face_anchor_binding':current_experimental_face_binding, 'limitations': '코·귀는 검증 기록이 있는 Head 로컬 앵커 추정. 참조 얼굴 비율도 2D 추정이며 실제 목 길이 복원이 아님. 손 상세·얼굴 상세는 합성하지 않음. 목은 어깨 중점. 가림 판정 없음. confidence=1은 검출 확률이 아닌 대응 관절 존재 표시.', 'directions': current_output_records}
     if current_experimental_face_binding is not None:
         current_metadata_record['experimental_face_calibration_source'] = current_face_anchor_calibration.get('source')
         current_metadata_record['limitations'] = '실험용 가중 3D 얼굴 앵커 사용. 참조 관절·초기 교정의 불확실성 및 얼굴 가림 판정 없음. 손 상세·얼굴 상세는 합성하지 않음. 목은 어깨 중점.'
