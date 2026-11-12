@@ -792,7 +792,7 @@ DB 모드의 `map-assets anchor-save` 호환 명령도 공용 빌보드 속성 A
 DB 연결 설정은 `.local/content/connection.yaml`에 두면 공용 실행기와 게이트웨이가 시작할 때 자동으로 읽습니다. 다른 설정 파일은 `SLIME_CONTENT_CONFIG_FILE`로 지정합니다. 설정 파일이 존재하지만 유효하지 않으면 시작을 중단합니다. 설정은 실행 전에 전체 검증하며, 필드 누락·추가·중복이나 상대 경로는 거절합니다. 인증값은 넣지 않고 비밀 파일 경로만 기록합니다. 이 설정을 지정하면 DB 모드로 실행되며 기존 파일 모드로 자동 대체하지 않습니다.
 
 ```yaml
-serviceOrigin: http://127.0.0.1:18083
+serviceOrigin: http://127.0.0.1:8791
 secretFile: /absolute/private/content-service-secret
 assetRoot: /absolute/slime-assets
 snapshotRoot: /absolute/slime-assets/snapshots/content
