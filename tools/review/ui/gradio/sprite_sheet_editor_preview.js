@@ -1,4 +1,4 @@
-(currentImageData,currentFrameRows,currentFrameIndex,currentPlayEnabled,currentShadowEnabled,currentEditMode,currentSourceBounds,currentPlaybackRate=6,currentBaselineEnabled=false,currentOnionEnabled=false,currentPreviewClip='',currentSourceRecord={},currentGameSizeEnabled=false,currentReferenceHeight=480,currentGameBodyHeight=80,currentFeetEnabled=false,currentRestoredFeet={})=>{
+(currentImageData,currentFrameRows,currentFrameIndex,currentPlayEnabled,currentShadowEnabled,currentEditMode,currentSourceBounds,currentPlaybackRate=6,currentBaselineEnabled=false,currentOnionEnabled=false,currentPreviewClip='',currentSourceRecord={},currentGameSizeEnabled=false,currentReferenceHeight=480,currentGameBodyHeight=80,currentFeetEnabled=false,currentRestoredFeet={},currentHeightGuideEnabled=false)=>{
  const currentCanvasElement=document.getElementById('sprite-sheet-alignment-preview');
  if(!currentCanvasElement)return '미리보기 캔버스가 없습니다.';
  const currentRows=(Array.isArray(currentFrameRows)?currentFrameRows:currentFrameRows?.data)?.map(currentFrameRow=>currentFrameRow.map(Number));
@@ -90,6 +90,15 @@
    }
    if(currentBaselineEnabled){currentCanvasContext.strokeStyle='#e5bd24';currentCanvasContext.beginPath();currentCanvasContext.moveTo(0,currentFixedAnchorTop);currentCanvasContext.lineTo(currentCanvasSize,currentFixedAnchorTop);currentCanvasContext.stroke();}
    if(currentShadowEnabled){currentCanvasContext.fillStyle='rgba(0,0,0,.22)';currentCanvasContext.beginPath();currentCanvasContext.ellipse(currentAnchorLeft,currentAnchorTop,currentOriginalRow[2]*currentDrawScale*.24,currentOriginalRow[3]*currentDrawScale*.06,0,0,Math.PI*2);currentCanvasContext.fill();}
+   if(currentHeightGuideEnabled){
+    const currentSourceHeight=Number(currentReferenceHeight),currentOutputHeight=Number(currentGameBodyHeight),currentGuidePixels=80;
+    if(Number.isFinite(currentSourceHeight)&&currentSourceHeight>0&&Number.isFinite(currentOutputHeight)&&currentOutputHeight>0){
+     const currentGuideHeight=currentGuidePixels*currentSourceHeight/currentOutputHeight*currentDrawScale;
+     const currentGuideX=32,currentGuideTop=currentAnchorTop-currentGuideHeight;
+     currentCanvasContext.strokeStyle='#087e8b';currentCanvasContext.lineWidth=2;currentCanvasContext.beginPath();currentCanvasContext.moveTo(currentGuideX,currentAnchorTop);currentCanvasContext.lineTo(currentGuideX,currentGuideTop);currentCanvasContext.moveTo(currentGuideX-6,currentAnchorTop);currentCanvasContext.lineTo(currentGuideX+6,currentAnchorTop);currentCanvasContext.moveTo(currentGuideX-6,currentGuideTop);currentCanvasContext.lineTo(currentGuideX+6,currentGuideTop);currentCanvasContext.stroke();
+     currentCanvasContext.fillStyle='#075b65';currentCanvasContext.fillText('게임 80px · 앵커 기준',currentGuideX+10,Math.max(42,currentGuideTop-8));
+    }else{currentCanvasContext.fillStyle='#222';currentCanvasContext.fillText('80px 기준 표시: 원본 신체 높이와 게임 출력 높이를 입력하세요.',16,44);}
+   }
    if(!currentPlayEnabled){currentCanvasContext.strokeStyle='#987000';currentCanvasContext.lineWidth=2;currentCanvasContext.strokeRect(currentOriginLeft+(currentDraftRow[0]-currentOriginalRow[0])*currentScaleValue,currentOriginTop+(currentDraftRow[1]-currentOriginalRow[1])*currentScaleValue,currentDraftRow[2]*currentScaleValue,currentDraftRow[3]*currentScaleValue);}
    currentCanvasContext.strokeStyle='#e22';currentCanvasContext.beginPath();currentCanvasContext.arc(currentAnchorLeft,currentAnchorTop,currentAnchorRadius,0,Math.PI*2);currentCanvasContext.moveTo(currentAnchorLeft-14,currentAnchorTop);currentCanvasContext.lineTo(currentAnchorLeft+14,currentAnchorTop);currentCanvasContext.moveTo(currentAnchorLeft,currentAnchorTop-14);currentCanvasContext.lineTo(currentAnchorLeft,currentAnchorTop+14);currentCanvasContext.stroke();
    currentCanvasContext.fillStyle='#222';currentCanvasContext.fillText(`프레임 ${currentActiveIndex+1}/${currentRows.length} · ${currentPlayEnabled?(currentClipRecord?.loop===false&&currentPlaybackStep>=currentPlaybackIndices.length-1?'재생 완료 · 정지를 눌러 마지막 프레임을 편집하세요.':'재생 중에는 편집할 수 없습니다.'):currentEditMode+' 드래그 후 적용 버튼을 누르세요.'}`,16,24);

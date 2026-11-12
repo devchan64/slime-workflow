@@ -81,3 +81,18 @@ currentAnchorCalls=[];
 renderCurrentPreview('image',currentFrameRows,1,false,false,'크롭',null,6,false,false,'',{},false,480,80,true);
 currentAssertModule.strictEqual(currentAnchorCalls.length,1);
 console.log('등록 발 중심 표시 및 미등록 시 임의 좌표 생성 방지 검증');
+
+// 80px 가이드는 게임 배율을 원본 좌표에 환산하며, 기준 높이가 없으면 선을 그리지 않는다.
+let currentGuideMoves=[],currentGuideLabels=[];
+currentCanvasContext.moveTo=(...currentArguments)=>currentGuideMoves.push(currentArguments);
+currentCanvasContext.lineTo=()=>{};
+currentCanvasContext.fillText=(...currentArguments)=>currentGuideLabels.push(currentArguments[0]);
+renderCurrentPreview('image',currentFrameRows,1,false,false,'크롭',null,6,false,false,'',{},true,400,80,false,{},true);
+currentAssertModule.ok(currentGuideLabels.includes('게임 80px · 앵커 기준'));
+currentAssertModule.ok(currentGuideMoves.some(currentPoint=>currentPoint[0]===32));
+currentGuideMoves=[];currentGuideLabels=[];
+renderCurrentPreview('image',currentFrameRows,1,false,false,'크롭',null,6,false,false,'',{},false,null,null,false,{},true);
+currentAssertModule.ok(currentGuideLabels.some(currentLabel=>currentLabel.includes('원본 신체 높이와 게임 출력 높이')));
+currentAssertModule.ok(!currentGuideMoves.some(currentPoint=>currentPoint[0]===32));
+currentAssertModule.strictEqual(JSON.stringify(currentFrameRows),currentOriginalRows);
+console.log('80px 가이드 표시·기준 누락 안내·좌표 불변 검증');
