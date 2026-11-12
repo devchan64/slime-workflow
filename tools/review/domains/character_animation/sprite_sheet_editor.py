@@ -241,7 +241,13 @@ def execute_sprite_asset_command(current_command_name,current_payload_record):
             current_manifest_record=yaml.load(current_manifest_path.read_text(),Loader=UniqueAssetYamlLoader) if current_manifest_path.suffix=='.yaml' else json.loads(current_manifest_path.read_text())
             if not isinstance(current_manifest_record,dict):raise ValueError('출처 메타데이터는 객체여야 합니다.')
             current_runtime_dimensions.update({current_field_name:current_manifest_record[current_field_name] for current_field_name in ('referenceBodyHeight','gameBodyHeight') if current_field_name in current_manifest_record})
-        for current_dimension_value in current_runtime_dimensions.values():
+            current_body_reference=current_manifest_record.get('bodyReference')
+            if current_body_reference is not None:
+                if not isinstance(current_body_reference,dict) or set(current_body_reference)!={'frameId','headY'} or not isinstance(current_body_reference['frameId'],str) or type(current_body_reference['headY']) not in (int,float) or not math.isfinite(current_body_reference['headY']):raise ValueError('머리 기준 메타데이터 형식 오류')
+                current_reference_frames=[current_frame_record for current_frame_record in current_animation_record['frames'] if current_frame_record['frameId']==current_body_reference['frameId']]
+                if len(current_reference_frames)!=1 or not 0<=current_body_reference['headY']<current_reference_frames[0]['anchor']['y']<current_reference_frames[0]['rect']['height']:raise ValueError('머리 기준이 프레임 또는 배치 앵커 범위를 벗어났습니다.')
+                current_runtime_dimensions['bodyReference']=current_body_reference
+        for current_dimension_value in (current_runtime_dimensions[current_dimension_name] for current_dimension_name in ('referenceBodyHeight','gameBodyHeight') if current_dimension_name in current_runtime_dimensions):
             if type(current_dimension_value) not in (int,float) or not math.isfinite(current_dimension_value) or current_dimension_value<=0:raise ValueError('게임 신체 높이는 유한한 양수여야 합니다.')
     return {'image':base64.b64encode(current_image_bytes).decode(),'path':current_asset_path,'metadataSha256':current_metadata_matches[0]['sha256'] if len(current_metadata_matches)==1 else None,'animation':current_animation_record,'runtimeDimensions':current_runtime_dimensions}
 
@@ -308,7 +314,7 @@ def update_registered_sprite_sheet(current_request_record):
     import yaml
     from tools.review.common.strict_yaml import UniqueConfigLoader
     from tools.review.common.map_tile_assets import load_registered_tiles, UniqueAssetYamlLoader
-    if not isinstance(current_request_record,dict) or set(current_request_record)!={'path','metadataSha256','payload','confirm'} or current_request_record['confirm'] is not True:
+    if not isinstance(current_request_record,dict) or set(current_request_record) not in ({'path','metadataSha256','payload','confirm'},{'path','metadataSha256','payload','confirm','bodyReference'}) or current_request_record['confirm'] is not True:
         raise ValueError('대상·좌표맵 해시·편집 입력·확인이 필요합니다.')
     with SPRITE_SHEET_UPDATE_LOCK:
         current_asset_root,current_asset_records=load_registered_tiles()
@@ -323,6 +329,7 @@ def update_registered_sprite_sheet(current_request_record):
         if sha256(current_metadata_bytes).hexdigest()!=current_request_record['metadataSha256'] or current_request_record['metadataSha256']!=current_asset_records[current_metadata_paths[0]]['sha256']:raise ValueError('좌표맵이 변경되었습니다. 다시 확인하세요.')
         current_metadata_record=json.loads(current_metadata_bytes)
         current_target_frames=select_sprite_texture_frames(current_metadata_record,Path(current_asset_path).name)
+        current_previous_frames=json.loads(json.dumps(current_target_frames))
         if len(current_target_frames)!=len(current_request_record['payload']['frames']):raise ValueError('기존 프레임 수를 유지해야 합니다.')
         current_export_record=execute_sprite_sheet_export(current_request_record['payload'])
         if 'sheets' in current_metadata_record:
@@ -339,6 +346,7 @@ def update_registered_sprite_sheet(current_request_record):
         current_source_candidates=[current_asset_root/Path(current_asset_path).parent/current_source_name for current_source_name in ('source.yaml','source.json')]
         current_source_candidates=[current_source_path for current_source_path in current_source_candidates if current_source_path.exists()]
         if len(current_source_candidates)>1:raise ValueError('source.yaml과 source.json이 중복되었습니다.')
+        if 'bodyReference' in current_request_record and not current_source_candidates:raise ValueError('머리 기준을 저장할 등록 출처 메타데이터가 없습니다.')
         for current_source_path in current_source_candidates:
             current_source_relative=current_source_path.relative_to(current_asset_root).as_posix()
             if current_source_relative not in current_asset_records:raise ValueError('출처 메타데이터가 등록부에 없습니다.')
@@ -347,6 +355,23 @@ def update_registered_sprite_sheet(current_request_record):
             if sha256(current_source_bytes).hexdigest()!=current_asset_records[current_source_relative]['sha256']:raise ValueError('출처 메타데이터 해시 불일치')
             current_source_document=yaml.load(current_source_bytes,Loader=UniqueAssetYamlLoader) if current_source_path.suffix=='.yaml' else json.loads(current_source_bytes)
             current_source_changed=False
+            current_new_body_reference=current_request_record.get('bodyReference')
+            if current_new_body_reference is not None:
+                if not isinstance(current_new_body_reference,dict) or set(current_new_body_reference)!={'frame','headY'} or type(current_new_body_reference['frame']) is not int or not 1<=current_new_body_reference['frame']<=len(current_target_frames) or type(current_new_body_reference['headY']) not in (int,float) or not math.isfinite(current_new_body_reference['headY']):raise ValueError('머리 기준 프레임 또는 Y가 올바르지 않습니다.')
+                current_reference_index=current_new_body_reference['frame']-1
+                current_reference_frame=current_export_record['coordinates']['frames'][current_reference_index]
+                current_reference_head=current_new_body_reference['headY']
+                if not 0<=current_reference_head<current_reference_frame['anchor']['y']<current_reference_frame['rect']['height']:raise ValueError('머리 기준은 배치 앵커보다 위의 프레임 내부여야 합니다.')
+                current_source_document['bodyReference']={'frameId':current_target_frames[current_reference_index]['frameId'],'headY':current_reference_head}
+                current_source_changed=True
+            elif 'bodyReference' in current_source_document:
+                current_previous_reference=current_source_document['bodyReference']
+                current_previous_index=next((current_frame_index for current_frame_index,current_frame_record in enumerate(current_target_frames) if current_frame_record['frameId']==current_previous_reference.get('frameId')),None)
+                if current_previous_index is None:raise ValueError('저장된 머리 기준 프레임을 찾을 수 없습니다.')
+                current_previous_frame=current_previous_frames[current_previous_index]
+                current_candidate_frame=current_export_record['coordinates']['frames'][current_previous_index]
+                current_source_rect=current_candidate_frame['source']
+                if any(current_previous_frame['rect'][current_field_name]!=current_source_rect[current_field_name] for current_field_name in ('x','y','width','height')) or current_previous_frame['anchor']['y']!=current_source_rect['anchorY']:raise ValueError('머리 기준 프레임의 크롭·앵커를 변경했습니다. 머리 기준을 다시 지정하세요.')
             if current_source_document.get('image')==Path(current_asset_path).name:
                 for current_dimension_name in ('width','height'):
                     if current_dimension_name in current_source_document:current_source_document[current_dimension_name]=current_export_record['coordinates']['sheet'][current_dimension_name]

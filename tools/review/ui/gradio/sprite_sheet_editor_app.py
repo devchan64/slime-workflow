@@ -236,7 +236,12 @@ def apply_automatic_sprite_crops(current_pending_record,current_image_data,curre
 
 def prepare_sprite_sheet_update(current_asset_record,current_asset_choice,*current_editor_values):
     if not current_asset_record or current_asset_record.get('path')!=current_asset_choice or not current_asset_record.get('metadataSha256'):raise gr.Error('좌표맵이 하나 등록된 에셋을 검색해서 다시 가져오세요.')
-    current_pending_record={'path':current_asset_record['path'],'metadataSha256':current_asset_record['metadataSha256'],'payload':build_sprite_sheet_payload(*current_editor_values),'confirm':True}
+    current_body_reference=current_editor_values[4] if len(current_editor_values)==5 else None
+    current_pending_record={'path':current_asset_record['path'],'metadataSha256':current_asset_record['metadataSha256'],'payload':build_sprite_sheet_payload(*current_editor_values[:4]),'confirm':True}
+    if current_body_reference:
+        if current_asset_record.get('source')=='baseline':raise gr.Error('머리 기준 저장은 등록 에셋에서만 지원합니다.')
+        if not isinstance(current_body_reference,dict) or set(current_body_reference)!={'frame','headY'}:raise gr.Error('머리 기준 형식이 올바르지 않습니다.')
+        current_pending_record['bodyReference']=current_body_reference
     current_original_frames=(current_asset_record.get('animation') or {}).get('frames',[])
     current_edited_frames=current_pending_record['payload']['frames']
     current_layout_record=current_asset_record.get('layout') or {}
@@ -258,6 +263,7 @@ def prepare_sprite_sheet_update(current_asset_record,current_asset_choice,*curre
     else:
         current_change_label=f'기존 좌표맵 없음 · **{current_expected_count}프레임**의 좌표맵을 새로 생성합니다.'
     current_change_summary=f'\n\n{current_change_label} · 출력 {current_pending_record["payload"]["columns"]}열. 저장 시 시트 이미지를 재배치합니다.'
+    if current_body_reference:current_change_summary+=f' 머리 기준: **{current_body_reference["frame"]}번 프레임 · Y {current_body_reference["headY"]}px**.'
     if current_asset_record.get('source')=='baseline':
         current_pending_record['source']='baseline'
         return current_pending_record,gr.update(visible=True),f"**베이스라인 갱신 대상:** {current_asset_record['path']}\n\n이미지·좌표맵·YAML 크기와 해시를 갱신합니다. 프레임 ID와 동작 구분을 유지하고 변경 전 사본을 보관합니다."+current_change_summary
@@ -410,12 +416,13 @@ def build_sprite_sheet_editor_interface(current_review_port):
                 current_canvas_target=gr.Radio(['전체','현재 프레임','선택 프레임'],value='전체',label='캔버스 편집 적용 대상')
                 gr.Markdown('### 2. 편집·재생 검수\n대상 선택 → 드래그 → 편집 반영. 전체는 프레임별 앵커 차이를 유지합니다.')
                 current_canvas_selection=gr.Dropdown(choices=[str(current_frame_number) for current_frame_number in range(1,129)],multiselect=True,label='선택 프레임 번호',visible=False)
-                current_canvas_mode=gr.Radio(['크롭','앵커'],value='크롭',label='캔버스 편집 도구')
+                current_canvas_mode=gr.Radio(['크롭','배치 앵커','머리 기준'],value='크롭',label='캔버스 편집 도구')
                 with gr.Accordion('크롭·앵커 조작 안내',open=False):
                     gr.Markdown('회색 영역은 이미지 바깥입니다. 크롭을 바깥으로 드래그하면 투명 여백을 확장합니다. 큰 확장은 고급 좌표 설정의 음수 여백을 사용하세요. 앵커는 클릭하거나 드래그하세요. 크롭으로 앵커가 영역 밖이 되면 가장 가까운 내부 경계로 이동합니다. 선택·전체 프레임에는 같은 크롭 여백과 앵커 이동량을 적용하며 기존 프레임별 앵커 차이를 유지합니다. 드래그는 현재 프레임의 미리보기만 변경합니다. 선택한 대상에 편집 반영을 눌러 선택한 범위에 반영하세요.')
                 gr.HTML('<canvas id="sprite-sheet-alignment-preview" width="640" height="640" style="width:100%;max-width:640px;aspect-ratio:1;background:#fff;touch-action:none" aria-label="프레임 크롭과 앵커 정렬 미리보기"></canvas>')
                 current_height_guide_enabled=gr.Checkbox(label='게임 80px 높이 기준 표시',value=True)
                 gr.Markdown('기준선은 앵커에서 위로 게임 80px에 해당하는 길이입니다. 원본 신체 높이와 게임 출력 높이가 필요하며, 앵커가 발바닥이 아닐 수 있습니다.')
+                gr.Markdown('서 있는 프레임에서 머리 기준을 클릭하면 적용된 배치 앵커 Y와의 차이로 80px 배율을 계산합니다. 앵커 이동은 먼저 편집 반영이 필요합니다. 등록 에셋은 원본 업데이트 확인 시 머리 기준을 함께 저장합니다.')
                 with gr.Row():
                     current_frame_index=gr.Slider(label='프레임',minimum=1,maximum=2,value=1,step=1)
                     current_play_enabled=gr.Checkbox(label='재생 상태',value=False,visible=False)
@@ -522,9 +529,11 @@ def build_sprite_sheet_editor_interface(current_review_port):
         current_history_save.click(save_sprite_anchor_history,[current_asset_record,current_frame_rows],[current_history_choice,current_status_text],trigger_mode='once')
         current_history_prepare.click(prepare_sprite_anchor_restore,[current_history_choice,current_asset_record,current_frame_rows],[current_history_pending,current_history_group])
         current_history_cancel.click(lambda:({},gr.update(visible=False)),outputs=[current_history_pending,current_history_group],queue=False)
-        current_update_inputs=[current_asset_record,current_loaded_path,current_image_data,current_frame_rows,current_output_columns,current_source_bounds]
+        current_pending_body_reference=gr.State({})
+        current_read_body_reference_js="()=>{const r=document.getElementById('sprite-sheet-alignment-preview')?.spriteEditorState?.bodyReference;return r?{frame:r.frame,headY:r.headY}:{};}"
+        current_update_inputs=[current_asset_record,current_loaded_path,current_image_data,current_frame_rows,current_output_columns,current_source_bounds,current_pending_body_reference]
         current_asset_record.change(lambda current_loaded_record: gr.update(interactive=bool(current_loaded_record.get('metadataSha256'))),current_asset_record,current_update_button)
-        current_update_button.click(prepare_sprite_sheet_update,current_update_inputs,[current_pending_update,current_update_group,current_update_summary])
+        current_update_button.click(fn=None,outputs=current_pending_body_reference,js=current_read_body_reference_js,queue=False).then(prepare_sprite_sheet_update,current_update_inputs,[current_pending_update,current_update_group,current_update_summary])
         current_update_cancel.click(lambda:({},gr.update(visible=False)),outputs=[current_pending_update,current_update_group],queue=False)
         current_canvas_target.change(lambda current_target_mode:gr.update(visible=current_target_mode=='선택 프레임'),current_canvas_target,current_canvas_selection,queue=False)
         current_anchor_sync_script="(currentFrameRows,currentFrameIndex)=>{const currentRows=Array.isArray(currentFrameRows)?currentFrameRows:currentFrameRows?.data;const currentFrameRow=currentRows?.[Number(currentFrameIndex)-1];return currentFrameRow?[Number(currentFrameRow[4]),Number(currentFrameRow[5])]:[0,0];}"
@@ -545,7 +554,7 @@ def build_sprite_sheet_editor_interface(current_review_port):
                               current_auto_preview,current_auto_confirm,current_output_files,current_asset_record,current_loaded_path,
                               current_loaded_summary,current_source_group,current_play_enabled]
         current_interface_blocks.load(load_linked_sprite_sheet,outputs=current_load_outputs).then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
-        current_update_confirm.click(update_and_reload_sprite_sheet,[current_pending_update,*current_update_inputs],[*current_load_outputs,current_pending_update,current_update_group],trigger_mode='once').then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
+        current_update_confirm.click(fn=None,outputs=current_pending_body_reference,js=current_read_body_reference_js,queue=False).then(update_and_reload_sprite_sheet,[current_pending_update,*current_update_inputs],[*current_load_outputs,current_pending_update,current_update_group],trigger_mode='once').then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_select_button.click(prepare_registered_sprite_load,[current_asset_choice,current_source_kind,current_image_data],current_load_outputs,trigger_mode='once').then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_load_button.click(prepare_uploaded_sprite_load,[current_input_file,current_input_columns,current_input_rows,current_image_data],current_load_outputs,trigger_mode='once').then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)
         current_confirm_button.click(confirm_selected_sprite_load,[current_pending_load,current_asset_choice,current_source_kind,current_input_file,current_input_columns,current_input_rows],current_load_outputs,trigger_mode='once').then(fn=None,inputs=current_preview_inputs,outputs=current_preview_status,js=current_preview_script,queue=False)

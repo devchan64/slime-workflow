@@ -188,9 +188,13 @@ class SpriteSheetEditorTests(unittest.TestCase):
             current_records=[{'managementId':current_file_path.name,'version':'v1','path':current_file_path.relative_to(current_asset_root).as_posix(),'sha256':hashlib.sha256(current_file_path.read_bytes()).hexdigest(),'source':{}} for current_file_path in (current_image_path,current_metadata_path,current_source_path)]
             (current_asset_root/'asset-registry.yaml').write_text(yaml.safe_dump({'schema_version':1,'assets':current_records}))
             (current_frontend_root/'sprite-assets.lock.yaml').write_text(yaml.safe_dump({'files':[{'path':current_record['path'],'source_path':current_record['path'],'sha256':current_record['sha256']} for current_record in current_records]}))
-            current_payload={'image':base64.b64encode(current_image_path.read_bytes()).decode(),'frames':[{'x':1,'y':1,'width':2,'height':2,'anchorX':0,'anchorY':0}],'columns':1}
-            current_request={'path':current_records[0]['path'],'metadataSha256':current_records[1]['sha256'],'payload':current_payload,'confirm':True}
+            current_payload={'image':base64.b64encode(current_image_path.read_bytes()).decode(),'frames':[{'x':1,'y':1,'width':2,'height':2,'anchorX':0,'anchorY':1}],'columns':1}
+            current_request={'path':current_records[0]['path'],'metadataSha256':current_records[1]['sha256'],'payload':current_payload,'confirm':True,'bodyReference':{'frame':1,'headY':0}}
             with patch.dict(os.environ,{'SLIME_ASSETS_ROOT':str(current_asset_root)}),patch.object(sprite_sheet_editor,'SPRITE_SHEET_JOB_ROOT',current_root_path/'jobs'):
+                current_invalid_request={**current_request,'bodyReference':{'frame':1,'headY':1}}
+                with self.assertRaisesRegex(ValueError,'머리 기준'):
+                    execute_management_command('character-animation','sheet-update',current_invalid_request)
+                self.assertNotIn('bodyReference',yaml.safe_load(current_source_path.read_text()))
                 execute_management_command('character-animation','sheet-update',current_request)
                 current_updated_metadata=json.loads(current_metadata_path.read_text())
                 self.assertEqual(current_updated_metadata['clips'],current_metadata_record['clips'])
@@ -198,7 +202,7 @@ class SpriteSheetEditorTests(unittest.TestCase):
                 self.assertEqual((current_source_document['width'],current_source_document['height']),(2,2))
                 self.assertEqual(current_source_document['sha256'],hashlib.sha256(current_image_path.read_bytes()).hexdigest())
                 current_loaded_image=execute_management_command('character-animation','sheet-image',{'path':current_records[0]['path']})
-                self.assertEqual(current_loaded_image['runtimeDimensions'],{'referenceBodyHeight':3.5,'gameBodyHeight':80})
+                self.assertEqual(current_loaded_image['runtimeDimensions'],{'referenceBodyHeight':3.5,'gameBodyHeight':80,'bodyReference':{'frameId':'idle.0','headY':0}})
 
                 self.assertEqual(current_updated_metadata['frames'][0]['frameId'],'idle.0')
                 self.assertEqual(current_updated_metadata['sheet'],{'width':2,'height':2})

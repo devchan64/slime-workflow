@@ -96,3 +96,29 @@ currentAssertModule.ok(currentGuideLabels.some(currentLabel=>currentLabel.includ
 currentAssertModule.ok(!currentGuideMoves.some(currentPoint=>currentPoint[0]===32));
 currentAssertModule.strictEqual(JSON.stringify(currentFrameRows),currentOriginalRows);
 console.log('80px 가이드 표시·기준 누락 안내·좌표 불변 검증');
+
+currentCanvasElement.getBoundingClientRect=()=>({left:0,top:0,width:640,height:640});
+currentCanvasElement.setPointerCapture=()=>{};
+renderCurrentPreview('image',currentFrameRows,1,false,false,'머리 기준',null,6);
+currentCanvasElement.onpointerdown({clientX:320,clientY:200,pointerId:1,preventDefault:()=>{}});
+currentCanvasElement.onpointerup();
+currentAssertModule.ok(Number.isFinite(currentCanvasElement.spriteEditorState.headValues[0]));
+currentAssertModule.strictEqual(currentCanvasElement.spriteEditorState.bodyReference.height,327-currentCanvasElement.spriteEditorState.headValues[0]);
+currentAssertModule.strictEqual(JSON.stringify(currentFrameRows),currentOriginalRows);
+currentImageCalls=[];
+renderCurrentPreview('image',currentFrameRows,2,false,false,'크롭',null,6,false,false,'',{},true,null,null);
+currentAssertModule.ok(Math.abs(currentImageCalls[0][7]/232-80/currentCanvasElement.spriteEditorState.bodyReference.height)<1e-9);
+console.log('캔버스 머리끝 지정과 앵커 불변 검증');
+renderCurrentPreview('image',currentFrameRows,1,false,false,'배치 앵커',null,6);
+currentCanvasElement.onpointerdown({clientX:320,clientY:300,pointerId:1,preventDefault:()=>{}});
+currentCanvasElement.onpointerup();
+currentAssertModule.notDeepStrictEqual(currentCanvasElement.spriteEditorState.drafts[0],currentFrameRows[0]);
+currentAssertModule.strictEqual(JSON.stringify(currentFrameRows),currentOriginalRows);
+console.log('배치 앵커 도구의 미반영 초안 검증');
+
+const currentSavedReferenceSource={animation:{frames:[{frameId:'idle.0'},{frameId:'idle.1'}]},runtimeDimensions:{bodyReference:{frameId:'idle.0',headY:27}}};
+currentImageCalls=[];
+renderCurrentPreview('saved-image',currentFrameRows,1,false,false,'크롭',null,6,false,false,'',currentSavedReferenceSource,true,null,null);
+currentAssertModule.strictEqual(currentCanvasElement.spriteEditorState.bodyReference.height,300);
+currentAssertModule.ok(Math.abs(currentImageCalls[0][7]/232-80/300)<1e-9);
+console.log('저장한 머리 기준 복원과 80px 배율 검증');
