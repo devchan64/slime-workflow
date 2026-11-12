@@ -1,0 +1,31 @@
+schema_version: 1
+description: 기본복장 맨손 전투 시작 자세 · 화면 오른쪽 · 480p
+status: 사용자 요청으로 기준 자료에 추가 · 측면 방향과 비율 검수 필요
+date: '2026-11-13'
+generator: image_gen_builtin
+reference: default-eight-directions-v1.png
+reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+source_image_sha256: ef62ff23d58f8d1d1605e25f6d77e0c3dde116fa8ff908cc101b202957b69a2b
+source_image_size:
+- 1536
+- 1024
+image: default-unarmed-combat-right-480p-v1.png
+image_size:
+- 832
+- 480
+image_sha256: 40532a892874d29594f7f5f407a860127c3d8fee74f84271fa91e9ddbcd9874f
+operation: resize-and-pad
+resize:
+  width: 576
+  height: 384
+  interpolation: Pillow LANCZOS
+  aspect_ratio_preserved: true
+placement:
+  left: 128
+  top: 96
+  background: white
+  note: 최종 캔버스 높이의 20%를 원본 이미지 위에 추가했다. 원본 자체의 여백은 유지한다.
+prompt: Create a full-body 2D fantasy game animation starting-pose reference. Match the supplied baseline character's
+  identity, short brown hair, proportions, gray sleeveless cropped top, charcoal shorts and bare feet. The character
+  faces screen right in a clear side view, in a balanced combat-ready stance with an unarmed fighting stance with
+  raised fists. Show complete body and equipment with clear hand grips against a plain white background. No text.

@@ -1,0 +1,31 @@
+schema_version: 1
+description: 기본복장 쌍단검 전투 시작 자세 · 화면 오른쪽 · 480p
+status: 사용자 요청으로 기준 자료에 추가 · 측면 방향과 비율 검수 필요
+date: '2026-11-13'
+generator: image_gen_builtin
+reference: default-eight-directions-v1.png
+reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+source_image_sha256: d76c4bc7f28d34f5fd8dce70971f0ab68c9772f178faac25fd45b143c353d593
+source_image_size:
+- 1199
+- 1312
+image: default-dual-daggers-combat-right-480p-v1.png
+image_size:
+- 832
+- 480
+image_sha256: 51038d14ff2159afad3cc83d5f99df9af7cd0346c04bca79770d7e119fdf46f1
+operation: resize-and-pad
+resize:
+  width: 351
+  height: 384
+  interpolation: Pillow LANCZOS
+  aspect_ratio_preserved: true
+placement:
+  left: 240
+  top: 96
+  background: white
+  note: 최종 캔버스 높이의 20%를 원본 이미지 위에 추가했다. 원본 자체의 여백은 유지한다.
+prompt: Create a full-body 2D fantasy game animation starting-pose reference. Match the supplied baseline character's
+  identity, short brown hair, proportions, gray sleeveless cropped top, charcoal shorts and bare feet. The character
+  faces screen right in a clear side view, in a balanced combat-ready stance with a small dagger in each hand. Show
+  complete body and equipment with clear hand grips against a plain white background. No text.
