@@ -60,7 +60,7 @@ examples:
   reference_example: character_eight_directions
 # 출처: 2026-11-09_15-00-04-73ccd4a0
 - id: boxing_jab_straight_combination
-  label: 복싱 원투 · 우측 60도 · 고도 30도 · 40프레임
+  label: 복싱 원투 · 우측 60도 · 고도 0도 · 8방향 비율 참조 · 40프레임
   prompt: A boxer throws a quick left jab, then pivots on the right foot and throws a right straight punch. Both hands return to guard.
   frames: 40
   settings:
@@ -70,8 +70,9 @@ examples:
     heading_degrees: 0.0
     post_processing: true
     directions: [front_right_60]
-    camera_elevation_degrees: 30
+    camera_elevation_degrees: 0
     remove_horizontal_motion: false
     openpose_scale_percent: 85.0
     pose_include_hands: false
     pose_include_face: false
+  reference_example: character_eight_directions
