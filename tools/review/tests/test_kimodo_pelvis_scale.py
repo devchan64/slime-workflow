@@ -13,3 +13,18 @@ class PelvisScaleTests(unittest.TestCase):
         np.testing.assert_allclose(scale_pose_about_pelvis(current_input_points,100),current_input_points)
         with self.assertRaises(ValueError):
             scale_pose_about_pelvis(current_input_points,float('nan'))
+
+    def test_increase_all_margins_without_moving_pelvis(self):
+        current_input_points = np.full((1,18,2),[416.,240.])
+        current_input_points[0,0] = [416,50]
+        current_input_points[0,4] = [200,240]
+        current_input_points[0,7] = [620,240]
+        current_input_points[0,10] = [400,430]
+        current_input_points[0,8] = [390,240]
+        current_input_points[0,11] = [442,240]
+        current_output_points = scale_pose_about_pelvis(current_input_points,85)
+        np.testing.assert_allclose(current_output_points[:,[8,11]].mean(1),[[416,240]])
+        self.assertGreater(current_output_points[:,:,0].min(),current_input_points[:,:,0].min())
+        self.assertLess(current_output_points[:,:,0].max(),current_input_points[:,:,0].max())
+        self.assertGreater(current_output_points[:,:,1].min(),current_input_points[:,:,1].min())
+        self.assertLess(current_output_points[:,:,1].max(),current_input_points[:,:,1].max())

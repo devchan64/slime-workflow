@@ -38,7 +38,7 @@ def scale_pose_about_pelvis(current_projected_points, current_scale_percent):
     return current_pelvis_centers + (current_projected_points-current_pelvis_centers)*(current_scale_percent/100)
 
 
-def export_direct_pose_video(current_attempt_root, current_output_root, current_direction_names, current_reference_ratio_path=None, current_face_anchor_calibration=None, current_scale_percent=85.0):
+def export_direct_pose_video(current_attempt_root, current_output_root, current_direction_names, current_reference_ratio_path=None, current_face_anchor_calibration=None, current_scale_percent=75.0):
     current_output_root = Path(current_output_root)
     current_output_root.mkdir(parents=True, exist_ok=True)
     current_attempt_root = Path(current_attempt_root)
@@ -133,7 +133,7 @@ if __name__ == '__main__':
     current_parser.add_argument('attempt',type=Path)
     current_parser.add_argument('output',type=Path)
     current_parser.add_argument('directions',nargs='+')
-    current_parser.add_argument('--scale-percent',type=float,default=85.0)
+    current_parser.add_argument('--scale-percent',type=float,default=75.0)
     current_parser.add_argument('--request-json',type=Path)
     current_arguments=current_parser.parse_args()
     current_calibration=None

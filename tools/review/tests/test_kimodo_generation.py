@@ -439,7 +439,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
         import hashlib
         current_standing_values = apply_complete_kimodo_example('relaxed_shoulder_width_standing')
         current_standing_request = build_kimodo_payload(*current_standing_values)
-        self.assertEqual(current_standing_request['openpose_scale_percent'],85)
+        self.assertEqual(current_standing_request['openpose_scale_percent'],75)
         self.assertTrue(current_standing_request['post_processing'])
         self.assertFalse(current_standing_request['pose_include_hands'])
         self.assertFalse(current_standing_request['pose_include_face'])

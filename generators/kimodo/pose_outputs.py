@@ -10,7 +10,7 @@ def export_kimodo_pose_outputs(current_job_root,current_attempt_root,current_req
     current_metrics_recorder.update_generation_stage('direct-pose-export')
     current_workspace_root = Path(__file__).resolve().parents[2]
     current_direct_command=[str(current_workspace_root/'.venv/bin/python'),'-m','generators.kimodo.direct_pose_export',str(current_attempt_root),str(current_attempt_root),*current_request_record.get('directions',['front_left'])]
-    current_direct_command.extend(['--scale-percent',str(current_request_record.get('openpose_scale_percent',85.0))])
+    current_direct_command.extend(['--scale-percent',str(current_request_record.get('openpose_scale_percent',75.0))])
     if 'proportion_face_anchor_calibration' in current_request_record:
         current_direct_command.extend(['--request-json',str(current_job_root/'request.json')])
     subprocess.run(current_direct_command,cwd=current_workspace_root,check=True)

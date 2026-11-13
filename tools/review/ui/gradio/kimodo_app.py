@@ -671,7 +671,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
             current_keyframe_rows.change(lambda current_rows:current_rows,current_keyframe_rows,current_keyframe_display,queue=False)
         gr.Markdown('### 출력 설정')
         current_horizontal_control = gr.Checkbox(label='제자리 보행 보정 · 수평 이동 제거',value=KIMODO_DEFAULT_SETTINGS['remove_horizontal_motion'],info='골반의 X·Z 이동을 제거하고 상하 움직임·관절 회전을 유지합니다. 걷기 자체를 만들지는 않으며 발 미끄러짐을 검수하세요. 원본 모션은 ZIP에 보존합니다.')
-        current_scale_control=gr.Slider(minimum=10,maximum=100,step=0.5,value=KIMODO_DEFAULT_SETTINGS['openpose_scale_percent'],label='OpenPose 출력 크기 (%)',info='기본 85%. 직접 포즈와 DWPose 모두 비율 보정 후 각 프레임 골반 중심(XY)을 유지하여 축소합니다. 골반의 시간축 이동은 유지합니다.')
+        current_scale_control=gr.Slider(minimum=10,maximum=100,step=0.5,value=KIMODO_DEFAULT_SETTINGS['openpose_scale_percent'],label='OpenPose 출력 크기 (%)',info='기본 75%. 직접 포즈와 DWPose 모두 비율 보정 후 각 프레임 골반 중심(XY)을 유지하여 축소합니다. 골반의 시간축 이동은 유지합니다.')
         with gr.Accordion('OpenPose 신체 비율 참조 · 선택',open=False):
             current_proportions_control=gr.Checkbox(value=False,label='참조 이미지의 신체 비율을 OpenPose 출력에 적용')
             current_reference_control=gr.File(file_count='multiple',file_types=['.png'],label='같은 캐릭터 PNG 참조 · 최대 8장 · 장당 8MiB')

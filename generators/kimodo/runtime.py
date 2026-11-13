@@ -175,7 +175,7 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     from generators.kimodo.soma_render import render_soma_motion
     from generators.kimodo.contracts import KIMODO_DIRECTION_RECORDS
     current_metrics_recorder.update_generation_stage('soma-render')
-    current_soma_videos = render_soma_motion(current_attempt_root, {current_direction_name: KIMODO_DIRECTION_RECORDS[current_direction_name]['angle'] for current_direction_name in current_request_record.get('directions', ['front_left'])},current_scale_percent=100.0,current_elevation_angle=current_request_record.get('camera_elevation_degrees',0),current_face_calibration_record=current_request_record.get('proportion_face_anchor_calibration'))
+    current_soma_videos = render_soma_motion(current_attempt_root, {current_direction_name: KIMODO_DIRECTION_RECORDS[current_direction_name]['angle'] for current_direction_name in current_request_record.get('directions', ['front_left'])},current_elevation_angle=current_request_record.get('camera_elevation_degrees',0),current_face_calibration_record=current_request_record.get('proportion_face_anchor_calibration'))
     from generators.kimodo.pose_outputs import export_kimodo_pose_outputs
     current_direct_record,current_dwpose_record,current_quality_warnings = export_kimodo_pose_outputs(current_job_root,current_attempt_root,current_request_record,current_metrics_recorder)
     from generators.kimodo.comparison import export_pose_comparison
