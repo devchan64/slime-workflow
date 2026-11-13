@@ -1,0 +1,34 @@
+schema_version: 1
+description: 기본복장 양손 권총 전투 시작 자세 · 화면 오른쪽 · 480p
+status: 사용자 요청으로 기준 자료에 추가 · 자세와 총기 형태 검수 필요
+date: '2026-11-13'
+generator: image_gen_builtin
+reference: default-eight-directions-v1.png
+reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+source_image_sha256: 8dd20937e4bc4d14aa34bacb02dd65c0e6b2edc88fdfbc06aca6656ecb11fd53
+source_image_size:
+- 1024
+- 1536
+image: default-dual-pistols-combat-right-480p-v1.png
+image_size:
+- 832
+- 480
+image_sha256: 75abb3bd530b7fca1f38d93c4d26023def2c6a7ded6ca53dd622df490fdbebcd
+operation: resize-and-pad
+resize:
+  width: 256
+  height: 384
+  interpolation: Pillow LANCZOS
+  aspect_ratio_preserved: true
+placement:
+  left: 288
+  top: 96
+  background: white
+  note: 최종 캔버스 높이의 20%를 원본 이미지 위에 추가했다. 원본 자체의 여백은 유지한다.
+prompt: 'Create a new full-body 2D fantasy game character animation starting pose. Use the supplied eight-direction
+  sheet only as the character and clothing reference: short brown hair, gray sleeveless cropped top, charcoal shorts,
+  bare feet, matching proportions and art style. Face screen right in a clear side view with a stable, relaxed combat-ready
+  stance and slightly bent knees. Hold one compact single-shot fantasy pistol in each hand, both in front of the
+  torso and oriented toward the right. Keep both hands and pistols readable, with naturally bent elbows and shoulders;
+  avoid fully extended arms. Complete body and both pistols visible against a plain white background. No text.'
+note: 권총 외형은 이미지 제작 후보이며 구조의 확정 설정을 의미하지 않는다.
