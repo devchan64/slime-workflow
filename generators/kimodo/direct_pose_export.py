@@ -27,15 +27,17 @@ def adjust_projected_body_axis(current_projected_points, current_reference_recor
     return current_adjusted_points,current_torso_gain
 
 
-def scale_pose_about_pelvis(current_projected_points, current_scale_percent):
-    """보정 완료 좌표를 각 프레임 골반 XY 중심으로 균등 축소한다."""
+def scale_pose_about_camera(current_projected_points, current_scale_percent, current_image_size=DIRECT_POSE_OUTPUT_SIZE):
+    """보정 완료 좌표를 고정 카메라 화면 중심으로 균등 축소한다."""
     current_projected_points = np.asarray(current_projected_points, dtype=float)
     if not np.isfinite(current_scale_percent) or not 10 <= current_scale_percent <= 100:
         raise ValueError('포즈 배율은 10~100%여야 합니다.')
     if current_projected_points.ndim != 3 or current_projected_points.shape[1:] != (18, 2) or not np.isfinite(current_projected_points).all():
-        raise ValueError('골반 중심 축소 좌표 형식 오류')
-    current_pelvis_centers = current_projected_points[:, [8, 11]].mean(axis=1, keepdims=True)
-    return current_pelvis_centers + (current_projected_points-current_pelvis_centers)*(current_scale_percent/100)
+        raise ValueError('화면 중심 축소 좌표 형식 오류')
+    current_camera_center = np.asarray(current_image_size, dtype=float)/2
+    if current_camera_center.shape != (2,) or not np.isfinite(current_camera_center).all() or (current_camera_center <= 0).any():
+        raise ValueError('카메라 화면 크기 오류')
+    return current_camera_center + (current_projected_points-current_camera_center)*(current_scale_percent/100)
 
 
 def export_direct_pose_video(current_attempt_root, current_output_root, current_direction_names, current_reference_ratio_path=None, current_face_anchor_calibration=None, current_scale_percent=80.0):
@@ -98,7 +100,7 @@ def export_direct_pose_video(current_attempt_root, current_output_root, current_
             current_axis_basis_points = project_recorded_camera_points(current_axis_basis_positions,current_render_record['cameras'][current_direction_name]) if current_experimental_face_binding is not None or current_reference_face_source is not None else None
             current_projected_points,current_projected_gain = adjust_projected_body_axis(current_projected_points,current_reference_record,current_axis_basis_points)
             current_direction_axis_gains[current_direction_name] = current_projected_gain
-        current_projected_points = scale_pose_about_pelvis(current_projected_points, current_scale_percent)
+        current_projected_points = scale_pose_about_camera(current_projected_points, current_scale_percent, (current_render_record['cameras'][current_direction_name]['width'],current_render_record['cameras'][current_direction_name]['height']))
         current_body_points = np.zeros((len(current_projected_points),18,3))
         current_body_points[:,:,:2] = current_projected_points
         current_body_points[:,:,2] = 1
@@ -116,7 +118,7 @@ def export_direct_pose_video(current_attempt_root, current_output_root, current_
                 current_video_writer.append_data(np.asarray(ImageOps.pad(current_pose_image, DIRECT_POSE_OUTPUT_SIZE, color='black')))
         current_output_records[current_direction_name] = {'video': current_video_path.name, 'source_frames': current_source_indices, 'body_points_832x480': current_pose_points[current_source_indices].tolist()}
     current_hip_anchor_record = {'basis':'각 프레임 SOMA 보정 전 좌우 고관절 중점 Y', 'unit':'meter', 'maximum_error':float(np.max(np.abs(current_body_positions[:,[8,11],1].mean(1)-current_original_hip_y))), 'frames':len(current_body_positions)}
-    current_metadata_record = {'pelvis_y_anchor':current_hip_anchor_record, 'reference_proportions': current_reference_record, 'body_axis_torso_gain':current_axis_gain, 'projected_body_axis_gains':current_direction_axis_gains, 'proportion_basis': '3D 몸통 보정 후 방향별 2D 얼굴·어깨·골반 비율 보정', 'source': 'SOMA 3D joints', 'projection_scale_basis': '보정 완료 후 각 프레임 좌우 고관절 중점 XY 기준 균등 축소', 'additional_scale_percent': current_scale_percent, 'fps': DIRECT_POSE_OUTPUT_FPS, 'size': DIRECT_POSE_OUTPUT_SIZE, 'missing_points': [], 'head_anchors': current_anchor_record, 'experimental_face_anchor_binding':current_experimental_face_binding, 'limitations': '코·귀는 검증 기록이 있는 Head 로컬 앵커 추정. 참조 얼굴 비율도 2D 추정이며 실제 목 길이 복원이 아님. 손 상세·얼굴 상세는 합성하지 않음. 목은 어깨 중점. 가림 판정 없음. confidence=1은 검출 확률이 아닌 대응 관절 존재 표시.', 'directions': current_output_records}
+    current_metadata_record = {'pelvis_y_anchor':current_hip_anchor_record, 'reference_proportions': current_reference_record, 'body_axis_torso_gain':current_axis_gain, 'projected_body_axis_gains':current_direction_axis_gains, 'proportion_basis': '3D 몸통 보정 후 방향별 2D 얼굴·어깨·골반 비율 보정', 'source': 'SOMA 3D joints', 'projection_scale_basis': '보정 완료 후 고정 카메라 화면 중심 XY 기준 균등 축소', 'additional_scale_percent': current_scale_percent, 'fps': DIRECT_POSE_OUTPUT_FPS, 'size': DIRECT_POSE_OUTPUT_SIZE, 'missing_points': [], 'head_anchors': current_anchor_record, 'experimental_face_anchor_binding':current_experimental_face_binding, 'limitations': '코·귀는 검증 기록이 있는 Head 로컬 앵커 추정. 참조 얼굴 비율도 2D 추정이며 실제 목 길이 복원이 아님. 손 상세·얼굴 상세는 합성하지 않음. 목은 어깨 중점. 가림 판정 없음. confidence=1은 검출 확률이 아닌 대응 관절 존재 표시.', 'directions': current_output_records}
     if current_experimental_face_binding is not None:
         current_metadata_record['experimental_face_calibration_source'] = current_face_anchor_calibration.get('source')
         current_metadata_record['limitations'] = '실험용 가중 3D 얼굴 앵커 사용. 참조 관절·초기 교정의 불확실성 및 얼굴 가림 판정 없음. 손 상세·얼굴 상세는 합성하지 않음. 목은 어깨 중점.'
