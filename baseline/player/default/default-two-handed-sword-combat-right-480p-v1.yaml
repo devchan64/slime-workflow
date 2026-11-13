@@ -1,0 +1,25 @@
+schema_version: 1
+description: 기본복장 양손검 전투 기본자세 · 화면 오른쪽 측면 · 480p
+status: 사용자 요청으로 기준 자료에 추가 · 자세와 비율 검수 필요
+date: '2026-11-13'
+generator: image_gen_builtin
+reference: default-eight-directions-v1.png
+reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+source_image_sha256: fa8f71b4371d0e6fab867b99cc8c1e0bdbce4ae0c86926f768ac2c7a35dd9bfc
+source_image_size: [1536, 1024]
+image: default-two-handed-sword-combat-right-480p-v1.png
+image_size: [832, 480]
+image_sha256: 325bc4b0a77c69963d0eb89ff2b0fa8c7f50666c731190c0b413213db691a26b
+operation: resize-and-pad
+resize:
+  width: 576
+  height: 384
+  interpolation: Pillow LANCZOS
+  aspect_ratio_preserved: true
+placement:
+  left: 128
+  top: 96
+  background: white
+  note: 최종 캔버스 높이의 20%를 원본 이미지 위에 추가했다. 원본 자체의 여백은 유지한다.
+prompt: >-
+  Use case: stylized-concept. Reference image: the eight-direction baseline character, particularly the top-row right-facing side view. Create one full-body character in a right-facing side-view combat-ready stance, gripping a large two-handed sword with both hands on its long hilt. Preserve the reference character's short brown hair, body proportions, gray sleeveless cropped top, charcoal shorts, bare feet, and refined 2D game illustration style. Knees slightly bent, balanced stance. Show the entire character and sword on a plain white background. No shield, no additional weapons, no text.

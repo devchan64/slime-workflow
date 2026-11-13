@@ -1,0 +1,32 @@
+schema_version: 1
+description: 기본복장 단검 전투 자세 · 화면 오른쪽 측면 · 480p
+status: 사용자 요청으로 기준 자료에 추가 · 자세, 방향과 비율 검수 필요
+date: '2026-11-13'
+generator: image_gen_builtin
+reference: default-eight-directions-v1.png
+reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+source_image_sha256: e6b5b9684906bb425392c3d8e2b9752c2544238b1aa3082c4a7ea1bdd8501a60
+source_image_size:
+- 1199
+- 1312
+image: default-dagger-combat-right-480p-v1.png
+image_size:
+- 832
+- 480
+image_sha256: 73bde6d8be8054491c974ddef4fe35de6d34c166bdcda46b2fb09511384131b1
+operation: resize-and-pad
+resize:
+  width: 351
+  height: 384
+  interpolation: Pillow LANCZOS
+  aspect_ratio_preserved: true
+placement:
+  left: 240
+  top: 96
+  background: white
+  note: 최종 캔버스 높이의 20%를 원본 이미지 위에 추가했다. 원본 자체의 여백은 유지한다.
+prompt: 'Use case: stylized-concept. Use the supplied eight-direction baseline character, especially the right-facing
+  side view, as identity and outfit reference. Draw one full-body character in a right-facing side-view combat-ready
+  stance with a medieval dagger held ready in one hand, other hand free. Preserve short brown hair, body proportions,
+  gray sleeveless cropped top, charcoal shorts, bare feet, and refined 2D game illustration style. Show entire character
+  and weapon on plain white background. No text or extra weapons.'

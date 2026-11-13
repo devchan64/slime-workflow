@@ -3,6 +3,11 @@
 - [전신 8방향 시트](default-eight-directions-v1.png) · [생성 기록](default-eight-directions-v1.yaml): 사용자 지정 기본 자료. 아래 행 두 번째의 방향과 참조 대비 신체 비율은 추가 검수가 필요하다.
 - [한손 브로드소드 전투 기본자세 · 오른쪽 측면 480p](default-broadsword-combat-right-480p-v1.png) · [생성 기록](default-broadsword-combat-right-480p-v1.yaml): 기본복장 참조, 상단 20% 여백. 자세와 비율의 정밀 검수는 필요하다.
 - [한손 브로드소드와 버클러 전투 기본자세 · 오른쪽 측면 480p](default-broadsword-buckler-combat-right-480p-v1.png) · [생성 기록](default-broadsword-buckler-combat-right-480p-v1.yaml): 기존 전투 자세에 작은 버클러를 추가하고 상단에 20% 여백을 적용했다. 자세와 비율의 정밀 검수는 필요하다.
+- [양손검 전투 기본자세 · 오른쪽 측면 480p](default-two-handed-sword-combat-right-480p-v1.png) · [생성 기록](default-two-handed-sword-combat-right-480p-v1.yaml): 기본복장 참조, 상단 20% 여백. 자세와 비율의 정밀 검수는 필요하다.
+- [창 전투 자세 · 오른쪽 측면 480p](default-spear-combat-right-480p-v1.png) · [생성 기록](default-spear-combat-right-480p-v1.yaml): 상단 20% 여백. 자세·방향·비율 검수 필요.
+- [도끼 전투 자세 · 오른쪽 측면 480p](default-axe-combat-right-480p-v1.png) · [생성 기록](default-axe-combat-right-480p-v1.yaml): 상단 20% 여백. 자세·방향·비율 검수 필요.
+- [철퇴 전투 자세 · 오른쪽 측면 480p](default-mace-combat-right-480p-v1.png) · [생성 기록](default-mace-combat-right-480p-v1.yaml): 상단 20% 여백. 자세·방향·비율 검수 필요.
+- [단검 전투 자세 · 오른쪽 측면 480p](default-dagger-combat-right-480p-v1.png) · [생성 기록](default-dagger-combat-right-480p-v1.yaml): 상단 20% 여백. 자세·방향·비율 검수 필요.
 - [한손창과 버클러 전투 시작 자세 · 오른쪽 480p](default-spear-buckler-combat-right-480p-v1.png) · [생성 기록](default-spear-buckler-combat-right-480p-v1.yaml): 상단 20% 여백. 측면 방향과 비율 검수 필요.
 - [쌍단검 전투 시작 자세 · 오른쪽 480p](default-dual-daggers-combat-right-480p-v1.png) · [생성 기록](default-dual-daggers-combat-right-480p-v1.yaml): 상단 20% 여백. 측면 방향과 비율 검수 필요.
 - [한손검과 단검 전투 시작 자세 · 오른쪽 480p](default-sword-dagger-combat-right-480p-v1.png) · [생성 기록](default-sword-dagger-combat-right-480p-v1.yaml): 상단 20% 여백. 측면 방향과 비율 검수 필요.
