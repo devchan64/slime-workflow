@@ -26,6 +26,8 @@ MANAGEMENT_SERVICE_ROUTES['wan22-animate2']='/wan22-animate2'
 MANAGEMENT_SERVICE_COMMANDS['wan22-animate2']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_ROUTES['wan22-fun-control']='/wan22-fun-control'
 MANAGEMENT_SERVICE_COMMANDS['wan22-fun-control']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
+MANAGEMENT_SERVICE_ROUTES['dwpose']='/dwpose'
+MANAGEMENT_SERVICE_COMMANDS['dwpose']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_ROUTES['kimodo']='/kimodo'
 MANAGEMENT_SERVICE_COMMANDS['kimodo']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('keyframe-save','keyframe-list','keyframe-preview','keyframe-replace','keyframe-retire')
@@ -247,6 +249,7 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['sfx-dasheng-audiogen']='효과음 생성 · Das
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-animate2']='Animate-2 · RGB 동작 영상과 캐릭터 참조 · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fun-control']='Wan2.2 Fun Control Q4 · 참조/포즈 영상 · 선택 시작·종료 PNG 조건 · --payload-file'
+MANAGEMENT_COMMAND_DESCRIPTIONS['dwpose']='단일 832×480 PNG DWPose 추출 · CUDA · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['kimodo']='Kimodo SOMA v1.2 · NF4 텍스트 인코더 · 원본 관절 모션·미리보기 · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace']='Wan2.2 VACE-Fun A14B Q4 · 텍스트·외형 참조·첫 프레임·DWPose·부분 편집·영상 전체 조건 실험 · --payload-file'
 
@@ -320,8 +323,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                     current_duration_group.add_argument('--max-new-tokens',type=int,help='MiniMax 오디오 프레임 상한 125~3000; 25개≈1초, 조기 종료 가능')
                 operation_argument_parser.add_argument('--seed',type=int,default=current_music_defaults['seed'])
                 operation_argument_parser.add_argument('--loop-request',action=argparse.BooleanOptionalAction,default=current_music_defaults['loop_request'],help='반복 구조 요청; 심리스 연결 보장 없음')
-            elif service_command_name in ('wan22-fun-control','wan22-vace','kimodo','wan22-animate2'):
-                operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='Kimodo 텍스트·프레임·샘플링·키프레임 배치 JSON 요청' if service_command_name=='kimodo' else 'images PNG base64와 driving_video MP4 base64, prompt, frames, steps, seed, width, height JSON 요청' if service_command_name=='wan22-animate2' else 'images PNG base64와 frame_entries를 포함한 JSON 요청')
+            elif service_command_name in ('wan22-fun-control','wan22-vace','kimodo','wan22-animate2','dwpose'):
+                operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='action=generate, images=[PNG base64], pose_include_hands/pose_include_face bool JSON' if service_command_name=='dwpose' else 'Kimodo 텍스트·프레임·샘플링·키프레임 배치 JSON 요청' if service_command_name=='kimodo' else 'images PNG base64와 driving_video MP4 base64, prompt, frames, steps, seed, width, height JSON 요청' if service_command_name=='wan22-animate2' else 'images PNG base64와 frame_entries를 포함한 JSON 요청')
             elif service_command_name=='character-animation':
                 operation_argument_parser.add_argument('--steps',type=int,choices=(4,30),default=None,help='4: Lightning, 30: 표준 생성 (기본 4)')
                 operation_argument_parser.add_argument('--resolution',type=int,choices=(512,768,1024,1280),default=512)
@@ -404,7 +407,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if getattr(command_argument_values,'max_new_tokens',None) is not None:
                 command_payload_value.pop('duration_seconds')
                 command_payload_value['max_new_tokens'] = command_argument_values.max_new_tokens
-        elif service_command_name in ('wan22-fun-control','wan22-vace','kimodo','wan22-animate2'):
+        elif service_command_name in ('wan22-fun-control','wan22-vace','kimodo','wan22-animate2','dwpose'):
             command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
         elif service_command_name=='character-animation':
             command_payload_value={'motion':command_argument_values.motion,'character':command_argument_values.character,'source':command_argument_values.source,'directions':command_argument_values.directions}

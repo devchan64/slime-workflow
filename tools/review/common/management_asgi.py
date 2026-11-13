@@ -22,6 +22,7 @@ QWEN_INTERFACE_OPTIONS = {
     'expression-generator': {'expression_mode_enabled': True},
 }
 MANAGEMENT_INTERFACE_BUILDERS = {
+    'dwpose-generator': ('dwpose_app', 'build_dwpose_interface', 'url'),
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
     'wan22-vace-generator': ('wan_vace_app', 'build_vace_interface', 'url'),
     'wan22-animate2-generator': ('wan_animate2_app', 'build_animate_interface', 'url'),

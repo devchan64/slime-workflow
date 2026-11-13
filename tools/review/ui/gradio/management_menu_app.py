@@ -20,7 +20,7 @@ CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-managemen
 LEGACY_SOUND_CATEGORY_NAMES=('music-generation','sound-effects')
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={}
-NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('wan22-animate2-generator','kimodo-generator','wan22-vace-generator','wan22-fun-control-generator','billboard-generator','effect-editor','asset-editor','building-editor','world-map','vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-heartmula','qwen-21-circular-generator','qwen-21-generator','expression-generator','map-review','writer-agent','sprite-sheet-editor'))
+NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('dwpose-generator','wan22-animate2-generator','kimodo-generator','wan22-vace-generator','wan22-fun-control-generator','billboard-generator','effect-editor','asset-editor','building-editor','world-map','vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-heartmula','qwen-21-circular-generator','qwen-21-generator','expression-generator','map-review','writer-agent','sprite-sheet-editor'))
 DEFAULT_MANAGER_SOURCE_PATH=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json'
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
@@ -34,6 +34,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'kimodo-generator','label':'Kimodo 모션 생성기 · NF4','path':'/management/frame/kimodo-generator/','category':'animation-tool','uiMode':'gradio','description':'SOMA v1.2 · 텍스트→3D 모션 · NF4 인코더'},
     {'id':'wan22-vace-generator','label':'Wan2.2 VACE-Fun 영상 생성기','path':'/management/frame/wan22-vace-generator/','category':'animation-tool','uiMode':'gradio','description':'A14B Q4 · 텍스트·외형 참조·첫 프레임'},
     {'id':'wan22-animate2-generator','label':'Wan Animate-2 캐릭터 동작 전사','path':'/management/frame/wan22-animate2-generator/','category':'animation-tool','uiMode':'gradio','description':'RGB 동작 영상 + 캐릭터 참조 · 일관성 실험'},
+    {'id':'dwpose-generator','label':'DWPose 이미지 추출','path':'/management/frame/dwpose-generator/','category':'animation-tool','uiMode':'gradio','description':'단일 PNG · 포즈와 좌표 추출 · CUDA 대기열'},
     {'id':'wan22-fun-control-generator','label':'Wan2.2 Fun Control 영상 생성기','path':'/management/frame/wan22-fun-control-generator/','category':'animation-tool','uiMode':'gradio','description':'A14B Q4 · 외형 참조+제어 영상 · 고·저노이즈 순차 실행'},
     {'id':'qwen-21-circular-generator','label':'Qwen 2.1 순환 VAE 생성기','path':'/image-generation-21-circular/','category':'image-generation','uiMode':'gradio','description':'XY 순환 디코더 · 3×3 반복 검수'},
     {'id':'vegetation-generator','label':'Qwen 2.1 빌보드 자연물타입 생성기','path':'/vegetation-generator/','category':'image-generation','uiMode':'gradio','description':'자연물 빌보드 기본 문구 · 레이아웃·외형 참조 · 전용 대기열·이력'},

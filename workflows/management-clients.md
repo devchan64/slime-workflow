@@ -1084,3 +1084,13 @@ Fun Control의 폐기된 RGB 편집 입력과 구분한다. GUI·CLI는 같은 �
 입력·고정 버전·준비·실험 한계는 [실행 가이드](../generators/wan_animate2/README.md)를 따른다.
 
 스프라이트 시트 편집기의 **GIF 애니메이션 검수**는 편집이 반영된 크롭·앵커, 연속 프레임 범위와 검수 FPS를 사용해 흰 배경의 반복 GIF를 생성한다. 시트 번호를 지정하며 선택한 등록 클립은 자동 적용하지 않는다. GIF는 프레임 시간을 10ms 단위로 기록하므로 실제 재생 속도는 설정 FPS와 다소 다를 수 있다. 원본 시트와 등록 에셋은 변경하지 않는다. CLI는 `python3 tools/manager.py command character-animation sheet-gif --payload-file 요청.json`을 사용하며 `sheet-export`와 같은 `image`, `frames`, `columns`, 선택적 `sourceFrames`에 `fps`(4·6·8·12·16·24·30)를 추가한다. 프레임 순서는 요청 목록 순서다. 응답의 `gif`는 base64이며 `id`, `frameCount`, `durationMs`를 함께 반환한다. 생성 기록은 기존 스프라이트 편집기 작업 경로에 보관한다.
+
+## 단일 이미지 DWPose 추출
+
+서비스 `dwpose`, 화면 `/management/frame/dwpose-generator/`는 832×480 PNG 한 장을 공용 GPU 대기열에서 처리한다. Kimodo에서 사용하는 고정 VideoX-Fun DWPose 가중치를 재사용하며 CUDA에서만 추론한다. 원본 이미지에 축소·비율 보정은 적용하지 않는다. 몸 18점은 눈·코·귀를 포함하며 손·얼굴 상세 렌더링은 기본 비활성이다.
+
+` .venv/bin/python tools/manager.py command dwpose generate --detach --payload-file request.json`으로 접수한다. JSON 계약은 `action: "generate"`, `images: ["PNG base64"]`, 선택 bool `pose_include_hands`, `pose_include_face`이다. `status <ID>`, `logs <ID>`, `history`, `resume`, `prioritize`, `cancel`, `history-delete`, `history-reset`은 공용 명령을 따른다. 입력·결과·로그는 `.tmp/test/dwpose/<ID>/`에 보존한다.
+
+결과 ZIP에는 `output-000.png`와 `keypoints.yaml`이 들어간다. YAML의 `body_keypoints`는 원본 832×480 픽셀 좌표이며 `poses`는 검출 입력 크기의 원시 좌표다. 검출 실패 점은 null로 보존한다. 원본·출력 SHA-256, 모델 리비전과 검출 신뢰도를 기록한다. 공용 결과 계약용 단일 프레임 MP4도 보존한다. 완료 결과를 베이스라인에 등록하는 것은 별도 검수·복사 작업이다. 새 GPU 작업 서비스는 공용 실행기의 대기·진행·ETA·VRAM 관측 기록을 사용한다.
+
+런타임 ONNX Runtime은 `generators/dwpose/requirements-runtime.txt`의 CUDA 12 계열 버전을 사용한다. CUDA 13 전용 패키지로 임의 업그레이드하면 현재 PyTorch CUDA 12.8 라이브러리와 맞지 않아 CPU 대체 차단 상태에서 세션 초기화가 실패한다.

@@ -20,3 +20,5 @@
 - [풀플레이트 아머 4방향 복장](default-full-plate-armor-four-directions-v1.png) · [등록 기록](default-full-plate-armor-four-directions-v1.yaml): 가죽 속갑옷 위에 성형 가죽 보호판을 겹치고 금속 버클로 결합한 사용자 지정 복장 기준. 헬멧·끈 결합은 제외하며 원본 체형 일치와 동작 시 관절 간섭은 정밀 검수가 필요하다.
 
 기준 자료 등록은 생성기의 기본 입력이나 게임 에셋을 자동으로 변경하지 않는다.
+
+- [기본복장 480p DWPose](default-body-front-right-480p-dwpose-v1.png) · [좌표·신뢰도·출처](default-body-front-right-480p-dwpose-v1.yaml): 원본 픽셀 기준 몸 18점. 손·얼굴 상세 표시는 제외하며 눈·코·귀는 포함한다. 위치·신체비율·배율 보정 없음.

@@ -1,0 +1,2 @@
+# 기존 CUDA 12.8 PyTorch 환경과 함께 사용한다.
+onnxruntime-gpu==1.23.2

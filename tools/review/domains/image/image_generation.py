@@ -194,7 +194,7 @@ class ImageGenerationManager:
                 current_history_record['path'] = str(current_job_root.resolve())
                 current_history_record['status'] = self.read_generation_status_record(current_job_root,current_history_record.get('status',{'status':'missing'}))
                 current_history_record['progress'] = current_history_record['status']['progress']
-                current_history_record['image'] = f"{self.route_prefix_value}/jobs/{current_history_record['id']}/result.png" if (current_job_root/'result.png').exists() else None
+                current_history_record['image'] = current_history_record['status'].get('image') or (f"{self.route_prefix_value}/jobs/{current_history_record['id']}/result.png" if (current_job_root/'result.png').exists() else None)
                 current_history_records.append(current_history_record)
         return current_history_records
 
@@ -337,7 +337,7 @@ class ImageGenerationManager:
                 else:
                     current_status_record=self.read_generation_status_record(current_job_root,include_log_value=True)
                     current_status_record['log_url']=f'{self.route_prefix_value}/jobs/{current_path_match[1]}/worker.log'
-                    current_status_record['image']=f'{self.route_prefix_value}/jobs/{current_path_match[1]}/result.png' if (current_job_root/'result.png').exists() else None
+                    current_status_record.setdefault('image',f'{self.route_prefix_value}/jobs/{current_path_match[1]}/result.png' if (current_job_root/'result.png').exists() else None)
                     send_response_data(200,self.enrich_generation_status(current_job_root,current_status_record))
         except (ValueError,FileNotFoundError) as current_error_value:
             send_response_data(400,{'error':str(current_error_value)})
