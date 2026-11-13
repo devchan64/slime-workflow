@@ -43,7 +43,7 @@ generation_source:
   - 24
   - 27
   - 29
-  reference_image: default-body-front-right-480p-v1.png
+  reference_image: 480p/default-body-front-right-480p-v1.png
   reference_sha256: 55fa29f410a7ebd42eeb4e39a291bc391cda43d40aa480d7b3aeda86518d486f
 consistency_reference:
   image: default-eight-directions-v1.png

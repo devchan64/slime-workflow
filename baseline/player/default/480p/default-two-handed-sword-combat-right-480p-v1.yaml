@@ -3,7 +3,7 @@ description: 기본복장 양손검 전투 기본자세 · 화면 오른쪽 측�
 status: 사용자 요청으로 기준 자료에 추가 · 자세와 비율 검수 필요
 date: '2026-11-13'
 generator: image_gen_builtin
-reference: default-eight-directions-v1.png
+reference: ../default-eight-directions-v1.png
 reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
 source_image_sha256: fa8f71b4371d0e6fab867b99cc8c1e0bdbce4ae0c86926f768ac2c7a35dd9bfc
 source_image_size: [1536, 1024]

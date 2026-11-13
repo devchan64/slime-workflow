@@ -3,7 +3,7 @@ description: 기본복장 양손 권총 전투 시작 자세 · 화면 오른쪽
 status: 사용자 요청으로 기준 자료에 추가 · 자세와 총기 형태 검수 필요
 date: '2026-11-13'
 generator: image_gen_builtin
-reference: default-eight-directions-v1.png
+reference: ../default-eight-directions-v1.png
 reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
 source_image_sha256: 8dd20937e4bc4d14aa34bacb02dd65c0e6b2edc88fdfbc06aca6656ecb11fd53
 source_image_size:

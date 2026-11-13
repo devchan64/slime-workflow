@@ -3,7 +3,7 @@ description: 기본복장 가벼운 지팡이 전투 시작 자세 · 화면 오
 status: 사용자 요청으로 기준 자료에 추가 · 측면 방향과 비율 검수 필요
 date: '2026-11-13'
 generator: image_gen_builtin
-reference: default-eight-directions-v1.png
+reference: ../default-eight-directions-v1.png
 reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
 source_image_sha256: 43e80f668c7b711f3fb510056a139b71e229dacc85036bafd4f4252d2af14563
 source_image_size:

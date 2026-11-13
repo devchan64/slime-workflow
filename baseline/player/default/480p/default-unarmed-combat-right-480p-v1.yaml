@@ -3,7 +3,7 @@ description: 기본복장 맨손 전투 시작 자세 · 화면 오른쪽 · 480
 status: 사용자 요청으로 기준 자료에 추가 · 측면 방향과 비율 검수 필요
 date: '2026-11-13'
 generator: image_gen_builtin
-reference: default-eight-directions-v1.png
+reference: ../default-eight-directions-v1.png
 reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
 source_image_sha256: ef62ff23d58f8d1d1605e25f6d77e0c3dde116fa8ff908cc101b202957b69a2b
 source_image_size:

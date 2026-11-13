@@ -1,32 +1,32 @@
 schema_version: 1
-description: 기본복장 창 전투 자세 · 화면 오른쪽 측면 · 480p
+description: 기본복장 도끼 전투 자세 · 화면 오른쪽 측면 · 480p
 status: 사용자 요청으로 기준 자료에 추가 · 자세, 방향과 비율 검수 필요
 date: '2026-11-13'
 generator: image_gen_builtin
-reference: default-eight-directions-v1.png
+reference: ../default-eight-directions-v1.png
 reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
-source_image_sha256: 7fb2ff1ca5c7c23562d2d5f40fc8f304233130372e5099849f0c591c8a64c4ca
+source_image_sha256: 177e2f7dfcb09a9266f54d9bad3291f652fecfd21a24e678271a77e937aa7cad
 source_image_size:
-- 1536
-- 1024
-image: default-spear-combat-right-480p-v1.png
+- 1199
+- 1312
+image: default-axe-combat-right-480p-v1.png
 image_size:
 - 832
 - 480
-image_sha256: 1c87aa158d85b2ca0e8cb739226b8d765d4f39f4f19f58b94fb54ea01e6b05df
+image_sha256: 29e53816253de56950889b0a5953af0a1ae17c1218e6252a3c3540753671928c
 operation: resize-and-pad
 resize:
-  width: 576
+  width: 351
   height: 384
   interpolation: Pillow LANCZOS
   aspect_ratio_preserved: true
 placement:
-  left: 128
+  left: 240
   top: 96
   background: white
   note: 최종 캔버스 높이의 20%를 원본 이미지 위에 추가했다. 원본 자체의 여백은 유지한다.
 prompt: 'Use case: stylized-concept. Use the supplied eight-direction baseline character, especially the right-facing
   side view, as identity and outfit reference. Draw one full-body character in a right-facing side-view combat-ready
-  stance with a medieval spear gripped with both hands, point directed forward in a ready stance. Preserve short
-  brown hair, body proportions, gray sleeveless cropped top, charcoal shorts, bare feet, and refined 2D game illustration
-  style. Show entire character and weapon on plain white background. No text or extra weapons.'
+  stance with a one-handed medieval axe held ready in one hand, other hand free. Preserve short brown hair, body
+  proportions, gray sleeveless cropped top, charcoal shorts, bare feet, and refined 2D game illustration style.
+  Show entire character and weapon on plain white background. No text or extra weapons.'

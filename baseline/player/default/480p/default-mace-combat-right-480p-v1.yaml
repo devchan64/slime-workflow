@@ -3,7 +3,7 @@ description: 기본복장 철퇴 전투 자세 · 화면 오른쪽 측면 · 480
 status: 사용자 요청으로 기준 자료에 추가 · 자세, 방향과 비율 검수 필요
 date: '2026-11-13'
 generator: image_gen_builtin
-reference: default-eight-directions-v1.png
+reference: ../default-eight-directions-v1.png
 reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
 source_image_sha256: bb98b39cd0c849215d5d2741968afee289c2e87fc26468e756b5e18d06362709
 source_image_size:

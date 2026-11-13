@@ -3,7 +3,7 @@ description: 기본복장 단검 전투 자세 · 화면 오른쪽 측면 · 480
 status: 사용자 요청으로 기준 자료에 추가 · 자세, 방향과 비율 검수 필요
 date: '2026-11-13'
 generator: image_gen_builtin
-reference: default-eight-directions-v1.png
+reference: ../default-eight-directions-v1.png
 reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
 source_image_sha256: e6b5b9684906bb425392c3d8e2b9752c2544238b1aa3082c4a7ea1bdd8501a60
 source_image_size:
