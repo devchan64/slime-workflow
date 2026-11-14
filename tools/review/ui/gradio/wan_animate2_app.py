@@ -47,7 +47,7 @@ def build_animate_interface(current_server_address,current_command_callback=None
     with gr.Blocks(title='Wan Animate-2 캐릭터 동작 전사') as current_interface_blocks:
         gr.Markdown('## Wan Animate-2 캐릭터 동작 전사\nRGB 동작 영상과 기본 캐릭터 참조로 외형 일관성을 검증합니다. 포즈 선 영상·관절 JSON 입력이나 자유로운 영상 편집 기능이 아닙니다.')
         gr.Markdown('**사용 보류:** 현재 장비에서 시스템 RAM과 GPU 메모리 부족이 관측되었습니다. 안정적인 실행이 검증될 때까지 신규 생성과 재개를 보류합니다. 기존 이력과 결과는 보존합니다.')
-        current_model_ready, current_model_events = build_model_download_controls(current_interface_blocks, current_execute_command)
+        current_model_ready, current_model_events = build_model_download_controls(current_interface_blocks, current_execute_command, model_service_name='wan22-animate2')
         with gr.Row():
             with gr.Column():
                 gr.Markdown('### 1. 입력 준비\n캐릭터 PNG 1장(832×480)과 SOMA 인체 렌더 또는 RGB 동작 MP4를 넣으세요. 입력 시간 기준 24fps로 샘플링하며, 부족한 구간을 임의 반복하지 않습니다.')

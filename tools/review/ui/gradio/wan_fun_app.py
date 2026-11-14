@@ -206,6 +206,8 @@ def build_fun_interface(current_server_address, current_command_callback=None):
     with gr.Blocks(title='Wan2.2 Fun Control 생성기') as current_interface_blocks:
         gr.Markdown('## Wan2.2 Fun Control A14B 실험 생성기\n포즈 영상과 참조 이미지로 애니메이션을 생성합니다. VideoX-Fun DWPose 추출과 관절 길이 보정은 Kimodo 생성기에서 수행합니다.')
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
+        from tools.review.common.gradio_model_download import build_model_progress_display
+        build_model_progress_display(current_interface_blocks, 'wan22-fun-control')
         with gr.Row():
             current_model_refresh = gr.Button('상태 확인')
             current_model_prepare = gr.Button('다운로드 및 준비')

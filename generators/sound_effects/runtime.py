@@ -124,7 +124,7 @@ def prepare_effects_model(current_service_name,current_metrics_recorder,current_
         if (current_model_root/'prepared.json').exists():
             return validate_effects_model(current_service_name)
         current_torch_module = require_effects_cuda()
-        from huggingface_hub import snapshot_download
+        from tools.review.common.model_huggingface_download import tracked_snapshot_download as snapshot_download
         current_metrics_recorder.update_generation_stage('download')
         current_file_records = []
         for current_repository_name,current_revision_value,current_directory_name in DASHENG_MODEL_REVISIONS:

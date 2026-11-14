@@ -928,7 +928,7 @@ GUI와 CLI는 `map-assets effect-list`, `effect-load`, `effect-save`를 공유�
 
 ## Kimodo 비양자화 ROCm 생성기
 
-`kimodo` 서비스와 `/management/frame/kimodo-generator/` 페이지를 추가했다. GUI·통합 CLI는 공용 게이트웨이, GPU 대기열, `.tmp/test/kimodo/` 기록을 공유한다. 텍스트 인코더는 비양자화 BF16, 모션 모델은 FP32로 AMD ROCm에서 실행한다. 모델 다운로드에는 Meta Llama 3 8B Instruct 접근 권한과 서버의 Hugging Face 로그인이 필요하다. 모델 준비·JSON 요청·출력 범위는 [Kimodo 사용 설명](../generators/kimodo/README.md)을 따른다. 기본 스텝은 100이며 2스텝은 실행 연결 검사에만 사용한다. 선택 삭제·초기화·우선 실행·취소·재개는 공용 계약을 사용한다.
+`kimodo` 서비스와 `/management/frame/kimodo-generator/` 페이지를 추가했다. GUI·통합 CLI는 공용 게이트웨이, GPU 대기열, `.tmp/test/kimodo/` 기록을 공유한다. 텍스트 인코더는 비양자화 BF16, 모션 모델은 FP32로 AMD ROCm에서 실행한다. 모델 다운로드는 고정 Ollama FP16 GGUF를 받아 검증하고 Kimodo용 safetensors로 변환한다. SOMA와 LLM2Vec 어댑터는 고정 공개 리비전에서 받는다. 모델 준비·JSON 요청·출력 범위는 [Kimodo 사용 설명](../generators/kimodo/README.md)을 따른다. 기본 스텝은 100이며 2스텝은 실행 연결 검사에만 사용한다. 선택 삭제·초기화·우선 실행·취소·재개는 공용 계약을 사용한다.
 
 GUI **모델 다운로드**와 CLI `command kimodo prepare`는 같은 백그라운드 다운로드를 요청한다. HTTP 입력은 `{"action":"prepare"}`이며 추가 필드를 받지 않는다. `model-status`의 `preparation_status`는 `idle`, `running`, `completed`, `failed` 중 하나다. `ready`는 현재 파일 준비 상태를 나타낸다.
 

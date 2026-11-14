@@ -16,11 +16,8 @@ def prepare_separation_model(current_model_root, current_download_requested):
     if not current_checkpoint_path.is_file():
         if not current_download_requested:
             raise FileNotFoundError(f'MR 분리 모델 준비 필요: {current_checkpoint_path}')
-        import torch
-        current_checkpoint_root.mkdir(parents=True, exist_ok=True)
-        current_download_path = current_checkpoint_path.with_suffix('.download')
-        torch.hub.download_url_to_file(DEMUCS_CHECKPOINT_URL, str(current_download_path), hash_prefix=DEMUCS_CHECKPOINT_SHA256)
-        current_download_path.replace(current_checkpoint_path)
+        from tools.review.common.model_http_download import download_verified_http
+        download_verified_http(DEMUCS_CHECKPOINT_URL, current_checkpoint_path, DEMUCS_CHECKPOINT_SHA256, 'heartmula/demucs')
     current_checkpoint_hash = calculate_music_checksum(current_checkpoint_path)
     if current_checkpoint_hash != DEMUCS_CHECKPOINT_SHA256:
         raise ValueError(f'Demucs 체크포인트 해시 불일치: {current_checkpoint_path}')

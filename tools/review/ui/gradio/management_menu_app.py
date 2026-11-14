@@ -16,14 +16,15 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_R
 from tools.review.common.gpu_status import read_gpu_status
 from tools.review.common.gradio_error_trace import trace_management_callback
 
-CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-management':'소리 관리','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation-tool':'애니메이션 도구','game-ui':'게임 UI · 디자인 시스템'}
+CATEGORY_LABEL_VALUES={'all':'전체','model-management':'모델 관리','map-review':'맵 검수','sound-management':'소리 관리','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation-tool':'애니메이션 도구','game-ui':'게임 UI · 디자인 시스템'}
 LEGACY_SOUND_CATEGORY_NAMES=('music-generation','sound-effects')
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={}
-NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('dwpose-generator','wan22-animate2-generator','kimodo-generator','wan22-vace-generator','wan22-fun-control-generator','billboard-generator','effect-editor','asset-editor','building-editor','world-map','vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-heartmula','qwen-21-circular-generator','qwen-21-generator','expression-generator','map-review','writer-agent','sprite-sheet-editor'))
+NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('model-management','dwpose-generator','wan22-animate2-generator','kimodo-generator','wan22-vace-generator','wan22-fun-control-generator','billboard-generator','effect-editor','asset-editor','building-editor','world-map','vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-heartmula','qwen-21-circular-generator','qwen-21-generator','expression-generator','map-review','writer-agent','sprite-sheet-editor'))
 DEFAULT_MANAGER_SOURCE_PATH=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json'
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
+    {'id':'model-management','label':'모델 다운로드 상태','path':'/management/frame/model-management/','category':'model-management','uiMode':'gradio','description':'생성기 모델 준비와 다운로드 상태'},
     {'id':'sprite-sheet-editor','label':'스프라이트 시트 편집기','path':'/management/frame/sprite-sheet-editor/','category':'animation-tool','uiMode':'gradio','description':'프레임 크롭 · 앵커 정렬 · 시트와 좌표맵 출력'},
     {'id':'effect-editor','label':'발광 이펙트 좌표 검수','path':'/management/frame/effect-editor/','category':'map-review','uiMode':'gradio','description':'빌보드 연결 발광·프레임 정렬·DB 저장'},
     {'id':'building-editor','label':'건물 에셋 관리','path':'/management/frame/building-editor/','category':'map-review','uiMode':'gradio','description':'건물 원본·사용 맵·공용 앵커 관리'},

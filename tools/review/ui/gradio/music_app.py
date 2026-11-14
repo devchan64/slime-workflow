@@ -83,6 +83,9 @@ def build_music_interface(current_service_name,current_server_address):
                             '최대 출력 시간은 상한이며 자연스러운 끝맺음이나 정확한 길이를 보장하지 않습니다.')
         gr.Markdown(f"고정 모델: `{current_profile_record['model_id']}` · {('길이 자동 예측' if current_effects_mode else '최대 생성 길이 기본값 '+str(current_default_record['duration_seconds'])+'초')} · batch 1 · {current_hardware_notice}\n\n[{current_profile_record['license_notice']}]({current_profile_record['license_url']})")
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
+        from tools.review.common.gradio_model_download import MODEL_DOWNLOAD_PREFIXES, build_model_progress_display
+        if current_service_name in MODEL_DOWNLOAD_PREFIXES:
+            build_model_progress_display(current_interface_blocks, current_service_name)
         with gr.Accordion('모델 준비 · 다운로드 / 재점검',open=False):
             current_prepare_button = gr.Button('준비 파일 재점검' if current_magenta_mode and not current_heartmula_mode else '모델 다운로드·준비',interactive=not current_heartmula_mode)
             if current_heartmula_mode:

@@ -131,6 +131,8 @@ def build_vace_interface(current_server_address, current_command_callback=None):
         gr.Markdown('## Wan2.2 VACE-Fun A14B 생성기\n키모도 DWPose 영상과 캐릭터 참조 이미지로 동작을 따라 생성할 수 있습니다. 텍스트·이미지 생성도 지원합니다. 영상 부분 편집은 원본 MP4·흰색 편집 마스크·외형 참조를 함께 사용하며, 영상 전체 조건은 원본 MP4와 참조를 사용하는 별도 실험입니다.')
         current_model_ready = gr.State(False)
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
+        from tools.review.common.gradio_model_download import build_model_progress_display
+        build_model_progress_display(current_interface_blocks, 'wan22-vace')
         current_model_refresh = gr.Button('모델 준비 상태 확인')
         def read_vace_model_status():
             try:

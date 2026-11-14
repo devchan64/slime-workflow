@@ -130,7 +130,8 @@ def prepare_music_model(current_service_name,current_metrics_recorder,current_re
             return current_manifest_record
         require_music_cuda()
         importlib.import_module(MUSIC_RUNTIME_MODULES[current_service_name])
-        from huggingface_hub import HfApi, snapshot_download
+        from huggingface_hub import HfApi
+        from tools.review.common.model_huggingface_download import tracked_snapshot_download as snapshot_download
         current_metrics_recorder.update_generation_stage('download')
         current_download_records = []
         current_download_specs = [(current_profile_record['model_id'],current_model_root/('checkpoints' if current_service_name=='music-ace-step' else 'model'))]

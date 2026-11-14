@@ -50,7 +50,7 @@ def execute_image_worker():
         if not torch.cuda.is_available():
             raise RuntimeError('CUDA 사용 불가: CPU 추론은 지원하지 않습니다.')
         if current_request_record['action'] == 'prepare':
-            from huggingface_hub import snapshot_download, hf_hub_download
+            from tools.review.common.model_huggingface_download import tracked_snapshot_download as snapshot_download, tracked_hf_hub_download as hf_hub_download
             publish_worker_progress({'stage':'download-model'})
             snapshot_download(FIXED_MODEL_IDENTIFIER, revision=FIXED_MODEL_REVISION, local_dir=FIXED_MODEL_DIRECTORY)
             publish_worker_progress({'stage':'download-lightning'})

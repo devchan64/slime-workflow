@@ -35,7 +35,7 @@ def validate_qwen_model_assets():
 
 def download_qwen_model_assets():
     """공식 비양자화 스냅샷을 기존 로컬 모델 경로에 준비한다."""
-    from huggingface_hub import snapshot_download
+    from tools.review.common.model_huggingface_download import tracked_snapshot_download as snapshot_download
 
     QWEN_MODEL_DIRECTORY.mkdir(parents=True, exist_ok=True)
     with (QWEN_MODEL_DIRECTORY/'.prepare.lock').open('a') as current_prepare_lock:

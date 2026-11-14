@@ -1,11 +1,12 @@
 """소품 전용 Qwen 작업·이력. GPU 실행기는 공용으로 유지한다."""
 import logging
 import subprocess
-from threading import Thread
+import sys
 from urllib.parse import urlsplit
 
 from generators.image.qwen_21_runtime import download_qwen_model_assets, validate_qwen_model_assets
 from tools.review.common.management_transport import send_management_json_response
+from tools.review.common.model_prepare_process import inspect_detached_preparation, start_detached_preparation
 from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager, WORKFLOW_ROOT_PATH
 from tools.review.domains.image.image_generation import MANAGER_HISTORY_ROOT
 
@@ -40,7 +41,7 @@ class PropGenerationManager(QwenPlainGenerationManager):
 
     def inspect_prop_model_status(self):
         with self.current_request_lock:
-            current_download_status = self.model_download_status
+            current_download_status = inspect_detached_preparation(WORKFLOW_ROOT_PATH/'.local/model-preparation/qwen-21')
         if current_download_status == 'running':
             return {'ready': False, 'message': '공식 비양자화 모델 다운로드 중입니다.', 'preparation_status': current_download_status}
         try:
@@ -48,7 +49,7 @@ class PropGenerationManager(QwenPlainGenerationManager):
         except (OSError, ValueError, KeyError, TypeError) as current_model_error:
             current_status_message = str(current_model_error)
             if current_download_status == 'failed':
-                current_status_message = '모델 다운로드 실패. 게이트웨이 로그를 확인한 뒤 다시 시도하세요. ' + current_status_message
+                current_status_message = '모델 다운로드 실패. 모델 준비 로그를 확인한 뒤 다시 시도하세요. ' + current_status_message
             return {'ready': False, 'message': current_status_message, 'preparation_status': current_download_status}
         current_status_message = '공식 비양자화 모델 파일 준비 완료.'
         try:
@@ -61,31 +62,18 @@ class PropGenerationManager(QwenPlainGenerationManager):
             current_generation_ready = True
         return {'ready': True, 'generation_ready': current_generation_ready, 'message': current_status_message, 'preparation_status': current_download_status}
 
-    def run_prop_model_download(self):
-        try:
-            download_qwen_model_assets()
-        except Exception:
-            logging.getLogger(__name__).exception('소품 Qwen Image 2.1 모델 다운로드 실패')
-            current_download_status = 'failed'
-        else:
-            current_download_status = 'completed'
-        with self.current_request_lock:
-            self.model_download_status = current_download_status
-
     def start_prop_model_download(self):
         with self.current_request_lock:
-            if self.model_download_status == 'running':
+            current_state_root = WORKFLOW_ROOT_PATH/'.local/model-preparation/qwen-21'
+            if inspect_detached_preparation(current_state_root) == 'running':
                 return {'preparation_status': 'running'}
             try:
                 validate_qwen_model_assets()
             except (OSError, ValueError, KeyError, TypeError):
-                self.model_download_status = 'running'
                 try:
-                    Thread(target=self.run_prop_model_download, name='prop-qwen-prepare', daemon=True).start()
-                except RuntimeError as current_start_error:
-                    self.model_download_status = 'idle'
+                    return start_detached_preparation(current_state_root, [sys.executable, '-m', 'tools.review.common.model_prepare_worker', '--profile', 'qwen-21'], WORKFLOW_ROOT_PATH)
+                except OSError as current_start_error:
                     raise ValueError('모델 다운로드를 시작할 수 없습니다.') from current_start_error
-                return {'preparation_status': 'running'}
             return {'preparation_status': 'completed'}
 
     def handle_image_request(self, current_http_handler):

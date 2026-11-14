@@ -20,7 +20,7 @@ def prepare_animate_models():
 
 
 def download_animate_pinned_assets():
-    from huggingface_hub import snapshot_download
+    from tools.review.common.model_huggingface_download import tracked_snapshot_download as snapshot_download
     current_stop_event=threading.Event()
     def report_prepare_progress():
         while not current_stop_event.wait(5):

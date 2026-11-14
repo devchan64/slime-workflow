@@ -119,14 +119,9 @@ def download_verified_file(current_download_url, current_target_path, expected_s
             if calculate_file_digest(current_target_path) != expected_sha256_value:
                 raise ValueError(f'기존 파일 해시 불일치: {current_target_path}')
         return
-    partial_download_path = current_target_path.with_suffix(current_target_path.suffix + '.partial')
+    from tools.review.common.model_http_download import download_verified_http
     emit_runtime_trace('download', f'시작: {current_target_path.name}')
-    with trace_runtime_progress('download', lambda: f'수신바이트={partial_download_path.stat().st_size if partial_download_path.exists() else 0}'):
-        with urllib.request.urlopen(current_download_url, timeout=60) as response_stream_handle, partial_download_path.open('wb') as target_stream_handle:
-            shutil.copyfileobj(response_stream_handle, target_stream_handle, 1024 * 1024)
-        if calculate_file_digest(partial_download_path) != expected_sha256_value:
-            raise ValueError(f'다운로드 해시 불일치: {partial_download_path}')
-        partial_download_path.replace(current_target_path)
+    download_verified_http(current_download_url, current_target_path, expected_sha256_value, 'writer-agent/' + current_target_path.name)
     emit_runtime_trace('download', f'완료: {current_target_path}')
 
 

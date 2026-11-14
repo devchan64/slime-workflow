@@ -2,7 +2,6 @@
 import hashlib
 import io
 import tarfile
-import urllib.request
 from pathlib import Path
 import yaml
 from generators.wan_vace.contracts import VACE_WORKSPACE_ROOT, VACE_ENCODER_IDENTIFIER, VACE_ENCODER_REVISION
@@ -27,8 +26,10 @@ def verify_official_runtime():
 def prepare_official_runtime():
     current_manifest_record=yaml.safe_load(VACE_OFFICIAL_MANIFEST_PATH.read_text())
     current_revision_text=current_manifest_record['source_revision']
-    with urllib.request.urlopen(f'https://github.com/aigc-apps/VideoX-Fun/archive/{current_revision_text}.tar.gz',timeout=120) as current_download_stream:
-        current_archive_bytes=current_download_stream.read()
+    from tools.review.common.model_http_download import download_verified_http
+    current_archive_path = VACE_OFFICIAL_INSTALL_ROOT.parent/'videox-fun-vace-downloads'/(current_revision_text+'.tar.gz')
+    download_verified_http(f'https://github.com/aigc-apps/VideoX-Fun/archive/{current_revision_text}.tar.gz', current_archive_path, current_manifest_record['archive_sha256'], 'wan-vace/official-source')
+    current_archive_bytes = current_archive_path.read_bytes()
     if hashlib.sha256(current_archive_bytes).hexdigest()!=current_manifest_record['archive_sha256']:
         raise ValueError('공식 소스 압축파일 해시 불일치')
     VACE_OFFICIAL_INSTALL_ROOT.mkdir(parents=True,exist_ok=True)
@@ -42,9 +43,7 @@ def prepare_official_runtime():
             current_output_path.write_bytes(current_archive_file.extractfile(current_member_record).read())
     VACE_OFFICIAL_TOKENIZER_ROOT.mkdir(parents=True,exist_ok=True)
     for current_file_name,current_expected_hash in current_manifest_record['tokenizer_files'].items():
-        with urllib.request.urlopen(f'https://huggingface.co/{VACE_ENCODER_IDENTIFIER}/resolve/{VACE_ENCODER_REVISION}/google/umt5-xxl/{current_file_name}',timeout=120) as current_download_stream:
-            current_file_bytes=current_download_stream.read()
-        if hashlib.sha256(current_file_bytes).hexdigest()!=current_expected_hash:raise ValueError('토크나이저 해시 불일치')
-        (VACE_OFFICIAL_TOKENIZER_ROOT/current_file_name).write_bytes(current_file_bytes)
+        current_tokenizer_path = VACE_OFFICIAL_TOKENIZER_ROOT/current_file_name
+        download_verified_http(f'https://huggingface.co/{VACE_ENCODER_IDENTIFIER}/resolve/{VACE_ENCODER_REVISION}/google/umt5-xxl/{current_file_name}', current_tokenizer_path, current_expected_hash, 'wan-vace/tokenizer/'+current_file_name)
     (VACE_OFFICIAL_INSTALL_ROOT/'PINNED_REVISION').write_text(current_revision_text+'\n')
     verify_official_runtime()

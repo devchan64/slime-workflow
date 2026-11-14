@@ -13,6 +13,12 @@ from generators.wan_vace.contracts import VACE_WORKSPACE_ROOT, VACE_MODEL_FILES,
 
 
 def prepare_vace_models():
+    from tools.review.common.model_download_records import track_model_download
+    with track_model_download('wan22-vace') as current_shared_record:
+        return execute_vace_preparation(current_shared_record)
+
+
+def execute_vace_preparation(current_shared_record):
     current_record_root = VACE_WORKSPACE_ROOT / '.tmp/test/wan22-vace-prepare' / datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
     current_record_root.mkdir(parents=True)
     current_stop_event = threading.Event()
@@ -44,15 +50,36 @@ def prepare_vace_models():
                 current_remote_url = f'https://huggingface.co/{VACE_MODEL_IDENTIFIER}/resolve/{VACE_MODEL_REVISION}/{current_remote_name}'
                 if current_model_key in VACE_ENCODER_REMOTE_FILES:
                     current_remote_url = f'https://huggingface.co/{VACE_ENCODER_IDENTIFIER}/resolve/{VACE_ENCODER_REVISION}/{VACE_ENCODER_REMOTE_FILES[current_model_key]}'
-                current_progress_record.update(stage=f'download-{current_model_key}', bytes=0)
-                with urllib.request.urlopen(current_remote_url, timeout=120) as current_download_stream, current_partial_path.open('wb') as current_output_stream:
-                    while current_download_chunk := current_download_stream.read(8 * 1024 * 1024):
-                        current_output_stream.write(current_download_chunk)
-                        current_progress_record['bytes'] += len(current_download_chunk)
+                current_resume_offset = current_partial_path.stat().st_size if current_partial_path.exists() else 0
+                if current_resume_offset > expected_model_size:
+                    raise ValueError(f'부분 다운로드 크기 오류: {current_partial_path}')
+                current_progress_record.update(stage=f'download-{current_model_key}', bytes=current_resume_offset, total_bytes=expected_model_size)
+                current_shared_record.update(**current_progress_record, resumed_bytes=current_resume_offset)
+                if current_resume_offset < expected_model_size:
+                    current_request_headers = {'Range': f'bytes={current_resume_offset}-'} if current_resume_offset else {}
+                    current_download_request = urllib.request.Request(current_remote_url, headers=current_request_headers)
+                    with urllib.request.urlopen(current_download_request, timeout=120) as current_download_stream:
+                        current_response_status = current_download_stream.status
+                        if current_resume_offset and current_response_status == 206:
+                            current_content_range = current_download_stream.headers.get('Content-Range', '')
+                            if not current_content_range.startswith(f'bytes {current_resume_offset}-'):
+                                raise ValueError(f'이어받기 응답 범위 오류: {current_content_range}')
+                            current_output_mode = 'ab'
+                        elif current_response_status == 200:
+                            current_output_mode = 'wb'
+                            current_progress_record['bytes'] = 0
+                        else:
+                            raise ValueError(f'다운로드 응답 오류: {current_response_status}')
+                        with current_partial_path.open(current_output_mode) as current_output_stream:
+                            while current_download_chunk := current_download_stream.read(8 * 1024 * 1024):
+                                current_output_stream.write(current_download_chunk)
+                                current_progress_record['bytes'] += len(current_download_chunk)
+                                current_shared_record.update(**current_progress_record)
                 current_check_path = current_partial_path
             else:
                 current_check_path = current_model_path
             current_progress_record['stage'] = f'verify-{current_model_key}'
+            current_shared_record.update(**current_progress_record)
             with current_check_path.open('rb') as current_model_stream:
                 current_model_digest = hashlib.file_digest(current_model_stream, 'sha256').hexdigest()
             if current_check_path.stat().st_size != expected_model_size or current_model_digest != expected_model_hash:

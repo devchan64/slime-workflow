@@ -10,7 +10,7 @@ from generators.wan_fun.pose_preprocess import FUN_POSE_MODEL_DIRECTORY, FUN_POS
 
 
 def prepare_fun_pose_models():
-    from huggingface_hub import hf_hub_download
+    from tools.review.common.model_huggingface_download import tracked_hf_hub_download as hf_hub_download
     import onnx
     from onnxsim import simplify
     current_log_directory = Path('.tmp/test/fun-pose-prepare')

@@ -1,8 +1,9 @@
 """Animate-2를 기존 공용 GPU 대기열과 기록 저장소에 연결한다."""
 import base64
 import hashlib
-import logging
-from threading import Thread
+import sys
+from pathlib import Path
+from tools.review.common.model_prepare_process import inspect_detached_preparation, start_detached_preparation
 from urllib.parse import urlsplit
 from generators.wan_animate2.contracts import ANIMATE_JOB_STORAGE, inspect_animate_assets, validate_animate_assets, validate_animate_request
 from generators.wan_animate2.prepare import prepare_animate_models
@@ -17,7 +18,7 @@ class AnimateTwoGenerationManager(ReferenceVideoGenerationManager):
 
     def inspect_model_download(self):
         with self.current_request_lock:
-            current_download_status = self.model_download_status
+            current_download_status = inspect_detached_preparation(Path(__file__).resolve().parents[4]/'.local/model-preparation/wan-animate2')
             if current_download_status == 'running':
                 return {'ready': False, 'message': '모델 다운로드 및 파일 해시 기록 중입니다.', 'preparation_status': current_download_status}
             current_asset_status = inspect_animate_assets()
@@ -25,31 +26,18 @@ class AnimateTwoGenerationManager(ReferenceVideoGenerationManager):
                 current_asset_status['message'] = '모델 다운로드 실패. 게이트웨이 로그에서 디스크 공간, 모델 접근 권한, Diffusers 리비전을 확인한 뒤 다시 시도하세요.'
             return {**current_asset_status, 'preparation_status': current_download_status}
 
-    def run_model_download(self):
-        try:
-            prepare_animate_models()
-            validate_animate_assets()
-        except Exception:
-            logging.getLogger(__name__).exception('Wan Animate-2 모델 준비 실패')
-            current_download_status = 'failed'
-        else:
-            current_download_status = 'completed'
-        with self.current_request_lock:
-            self.model_download_status = current_download_status
-
     def start_model_download(self):
         with self.current_request_lock:
-            if self.model_download_status == 'running':
+            current_workflow_root = Path(__file__).resolve().parents[4]
+            current_state_root = current_workflow_root/'.local/model-preparation/wan-animate2'
+            if inspect_detached_preparation(current_state_root) == 'running':
                 return {'preparation_status': 'running'}
             if inspect_animate_assets()['ready']:
                 return {'preparation_status': 'completed'}
-            self.model_download_status = 'running'
             try:
-                Thread(target=self.run_model_download, name='wan-animate2-prepare', daemon=True).start()
-            except RuntimeError as current_start_error:
-                self.model_download_status = 'idle'
+                return start_detached_preparation(current_state_root, [sys.executable, '-m', 'tools.review.common.model_prepare_worker', '--profile', 'wan-animate2'], current_workflow_root)
+            except OSError as current_start_error:
                 raise ValueError('모델 다운로드를 시작할 수 없습니다.') from current_start_error
-            return {'preparation_status': 'running'}
 
     def handle_image_request(self, current_http_handler):
         current_command_payload = getattr(current_http_handler, 'management_command_payload', None)
