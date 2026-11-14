@@ -13,13 +13,18 @@ from tools.review.common.generation_records import write_record_atomically
 
 def encode_kimodo_prompt(current_prompt_text, current_attempt_root):
     import torch
+    from accelerate import cpu_offload
     from transformers import AutoTokenizer
     from peft import PeftModel
     from kimodo.model.llm2vec.models.bidirectional_llama import LlamaBiModel
     from kimodo.model.llm2vec.llm2vec import LLM2Vec
+    current_gpu_device = torch.device('cuda:0')
+    current_free_bytes, _ = torch.cuda.mem_get_info(current_gpu_device)
+    current_offload_enabled = current_free_bytes < 20 * 2**30
     current_base_encoder = LlamaBiModel.from_pretrained(
-        str(KIMODO_MODEL_ROOT/'encoder-base'), local_files_only=True,
-        device_map={'':'cuda:0'}, dtype=torch.bfloat16, attn_implementation='sdpa',
+        str(KIMODO_MODEL_ROOT/'encoder-base-ollama'), local_files_only=True,
+        device_map={'': 'cpu' if current_offload_enabled else current_gpu_device},
+        dtype=torch.bfloat16, attn_implementation='sdpa',
     )
     current_mntp_encoder = PeftModel.from_pretrained(
         current_base_encoder, str(KIMODO_MODEL_ROOT/'encoder-mntp'), local_files_only=True,
@@ -27,7 +32,9 @@ def encode_kimodo_prompt(current_prompt_text, current_attempt_root):
     current_adapted_encoder = PeftModel.from_pretrained(
         current_mntp_encoder, str(KIMODO_MODEL_ROOT/'encoder-supervised'), local_files_only=True,
     ).eval()
-    if any(current_parameter_value.device.type != 'cuda' for current_parameter_value in current_adapted_encoder.parameters()):
+    if current_offload_enabled:
+        cpu_offload(current_adapted_encoder, execution_device=current_gpu_device, offload_buffers=True)
+    elif any(current_parameter_value.device.type != 'cuda' for current_parameter_value in current_adapted_encoder.parameters()):
         raise RuntimeError('인코더 가중치가 ROCm GPU에 로드되지 않았습니다.')
     current_adapted_encoder.config._name_or_path = 'meta-llama/Meta-Llama-3-8B-Instruct'
     current_tokenizer_value = AutoTokenizer.from_pretrained(str(KIMODO_MODEL_ROOT/'encoder-mntp'),local_files_only=True)
@@ -76,7 +83,17 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
         from pathlib import Path
         current_workspace_root=Path(__file__).resolve().parents[2]
         current_metrics_recorder.update_generation_stage('reference-proportions')
-        subprocess.run([str(current_workspace_root/'.venv/bin/python'),str(Path(__file__).with_name('reference_extraction.py')),str(current_job_root),str(current_attempt_root)],env={**os.environ,'PYTHONPATH':str(current_workspace_root/'.local/wan22-animate/preprocess-deps')},check=True)
+        import importlib.util
+        from generators.kimodo.contracts import KIMODO_ENVIRONMENT_PYTHON
+        current_library_paths=[]
+        for current_module_name,current_library_directory in (('onnxruntime','capi'),('migraphx_libs','')):
+            current_module_spec=importlib.util.find_spec(current_module_name)
+            if current_module_spec and current_module_spec.submodule_search_locations:
+                current_library_paths.append(str(Path(next(iter(current_module_spec.submodule_search_locations)))/current_library_directory))
+        if os.environ.get('LD_LIBRARY_PATH'):
+            current_library_paths.append(os.environ['LD_LIBRARY_PATH'])
+        subprocess.run([str(KIMODO_ENVIRONMENT_PYTHON),str(Path(__file__).with_name('reference_extraction.py')),str(current_job_root),str(current_attempt_root)],env={**os.environ,'LD_LIBRARY_PATH':os.pathsep.join(current_library_paths)},check=True)
+
     from generators.kimodo.motion_sequence import resolve_motion_segments
     current_segment_prompts,current_segment_frames = resolve_motion_segments(current_request_record['prompt'],current_request_record['frames'],current_request_record.get('segment_frames'))
     current_final_prompts = [normalize_kimodo_prompt(current_segment_prompt) for current_segment_prompt in current_segment_prompts]
@@ -206,7 +223,7 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
                 current_output_archive.write(current_attempt_root/current_artifact_name,current_artifact_name)
         for current_artifact_name in ('soma-pose.json','comparison.mp4','joint-preview.mp4'):
             current_output_archive.write(current_attempt_root/current_artifact_name,current_artifact_name)
-    current_result_record = {'attempt':current_attempt_root.name,'frames':current_request_record['frames'],'fps':30,'width':640,'height':480,'frame_sha256':current_frame_hashes,'model':'nvidia/Kimodo-SOMA-RP-v1.2','encoder':'meta-llama/Meta-Llama-3-8B-Instruct','encoder_quantization':None,'encoder_precision':'BF16','motion_precision':'FP32','source_revision':KIMODO_ASSET_CONFIG['source_revision'],'model_revisions':{current_asset_record['role']:current_asset_record['revision'] for current_asset_record in KIMODO_ASSET_CONFIG['models']},'skeleton':'somaskel77','compute_device':'rocm','post_processing':current_request_record['post_processing'],'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20}
+    current_result_record = {'attempt':current_attempt_root.name,'frames':current_request_record['frames'],'fps':30,'width':640,'height':480,'frame_sha256':current_frame_hashes,'model':'nvidia/Kimodo-SOMA-RP-v1.2','encoder':'meta-llama/Meta-Llama-3-8B-Instruct','encoder_source':'ollama:llama3:8b-instruct-fp16','encoder_quantization':None,'encoder_precision':'BF16','motion_precision':'FP32','source_revision':KIMODO_ASSET_CONFIG['source_revision'],'model_revisions':{current_asset_record['role']:current_asset_record['revision'] for current_asset_record in KIMODO_ASSET_CONFIG['models']},'skeleton':'somaskel77','compute_device':'rocm','post_processing':current_request_record['post_processing'],'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20}
     current_result_record.update(openpose_scale_basis='legacy-fit',openpose_scale_percent=current_request_record.get('openpose_scale_percent',100.0),remove_horizontal_motion=current_request_record.get('remove_horizontal_motion',False),directions=current_request_record.get('directions',['front_left']),pose_source='soma',anny_enabled=False,reference_proportions=bool(current_request_record.get('references')))
     current_result_record['camera_elevation_degrees'] = current_request_record.get('camera_elevation_degrees',0)
     current_result_record['direct_pose_videos'] = {current_direction_name:current_direction_record['video'] for current_direction_name,current_direction_record in current_direct_record['directions'].items()}

@@ -6,12 +6,13 @@ import math
 import re
 from pathlib import Path
 import yaml
+from generators.kimodo.ollama_encoder import OLLAMA_ENCODER_SHA256
 
 KIMODO_WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 KIMODO_MODEL_ROOT = KIMODO_WORKSPACE_ROOT / '.model/kimodo'
 KIMODO_SOURCE_ROOT = KIMODO_WORKSPACE_ROOT / '.local/kimodo/upstream'
 KIMODO_JOB_STORAGE = KIMODO_WORKSPACE_ROOT / '.tmp/test/kimodo'
-KIMODO_ENVIRONMENT_PYTHON = KIMODO_WORKSPACE_ROOT / '.venv/bin/python'
+KIMODO_ENVIRONMENT_PYTHON = KIMODO_WORKSPACE_ROOT / '.local/venvs/kimodo-rocm/bin/python'
 KIMODO_CONFIG_ROOT = Path(__file__).parent / 'config'
 KIMODO_MAXIMUM_SEED_VALUE = 2147483647
 
@@ -32,8 +33,8 @@ KIMODO_ASSET_CONFIG = yaml.load((KIMODO_CONFIG_ROOT / 'assets.yaml').read_text()
 KIMODO_DEFAULT_SETTINGS = yaml.load((KIMODO_CONFIG_ROOT / 'defaults.yaml').read_text(), Loader=UniqueConfigLoader)
 if not isinstance(KIMODO_ASSET_CONFIG,dict) or set(KIMODO_ASSET_CONFIG) != {'source_revision','models'} or not re.fullmatch(r'[a-f0-9]{40}',KIMODO_ASSET_CONFIG['source_revision']):
     raise ValueError('Kimodo 자료 설정 계약 오류')
-if not isinstance(KIMODO_ASSET_CONFIG['models'],list) or len(KIMODO_ASSET_CONFIG['models']) != 4:
-    raise ValueError('Kimodo 모델 구성은 모션·인코더 베이스·MNTP·supervised여야 합니다.')
+if not isinstance(KIMODO_ASSET_CONFIG['models'],list) or len(KIMODO_ASSET_CONFIG['models']) != 3:
+    raise ValueError('Kimodo 모델 구성은 모션·MNTP·supervised여야 합니다.')
 for current_asset_record in KIMODO_ASSET_CONFIG['models']:
     if not isinstance(current_asset_record,dict) or set(current_asset_record) != {'role','repository','revision','files'} or not re.fullmatch(r'[a-f0-9]{40}',current_asset_record['revision']):
         raise ValueError('Kimodo 모델 리비전 설정 오류')
@@ -49,7 +50,7 @@ for current_asset_record in KIMODO_ASSET_CONFIG['models']:
         current_seen_paths.add(current_file_name)
         if type(current_file_record['size']) is not int or current_file_record['size'] <= 0 or (current_file_record['sha256'] is not None and not re.fullmatch(r'[a-f0-9]{64}',current_file_record['sha256'])):
             raise ValueError('Kimodo 자료 크기·해시 설정 오류')
-if {current_asset_record['role'] for current_asset_record in KIMODO_ASSET_CONFIG['models']} != {'motion','encoder-base','encoder-mntp','encoder-supervised'}:
+if {current_asset_record['role'] for current_asset_record in KIMODO_ASSET_CONFIG['models']} != {'motion','encoder-mntp','encoder-supervised'}:
     raise ValueError('Kimodo 모델 역할 설정 오류')
 if set(KIMODO_DEFAULT_SETTINGS) != {'schema_version','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing','directions','remove_horizontal_motion','openpose_scale_percent','pose_include_hands','pose_include_face'} or KIMODO_DEFAULT_SETTINGS['schema_version'] != 1:
     raise ValueError('Kimodo 기본 설정 계약 오류')
@@ -198,8 +199,32 @@ def validate_kimodo_request(current_request_record):
     return {**{current_field_name:current_field_value for current_field_name,current_field_value in current_request_record.items() if current_field_name!='proportion_images'}, 'camera_elevation_degrees':current_elevation_angle, 'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False),'openpose_scale_percent':current_scale_percent, 'remove_horizontal_motion':current_request_record.get('remove_horizontal_motion',False), 'directions':validate_kimodo_directions(current_request_record.get('directions',['front_left'])), 'prompt':current_prompt_text.strip(), 'images':current_normalized_images, 'width':512, 'height':512, 'tag':'kimodo'}
 
 
+def read_converted_encoder_files(current_verify_hashes=False):
+    current_encoder_root = KIMODO_MODEL_ROOT/'encoder-base-ollama'
+    current_encoder_record = json.loads((current_encoder_root/'conversion.json').read_text())
+    if current_encoder_record['source_sha256'] != OLLAMA_ENCODER_SHA256:
+        raise ValueError('Ollama 원본 모델 해시 불일치')
+    current_encoder_index = json.loads((current_encoder_root/'model.safetensors.index.json').read_text())
+    current_shard_names = set(current_encoder_index['weight_map'].values())
+    current_file_records = current_encoder_record['files']
+    if not current_shard_names or set(current_file_records) != current_shard_names | {'config.json', 'model.safetensors.index.json'}:
+        raise ValueError('Ollama 변환 파일 목록 불일치')
+    for current_file_name, current_file_record in current_file_records.items():
+        current_file_path = current_encoder_root/current_file_name
+        if not current_file_path.resolve().is_relative_to(current_encoder_root.resolve()) or current_file_path.stat().st_size != current_file_record['size']:
+            raise ValueError('Ollama 변환 파일 크기 또는 경로 불일치')
+        if current_verify_hashes:
+            with current_file_path.open('rb') as current_file_stream:
+                if hashlib.file_digest(current_file_stream, 'sha256').hexdigest() != current_file_record['sha256']:
+                    raise ValueError(f'Ollama 변환 파일 해시 불일치: {current_file_name}')
+
+
 def inspect_kimodo_assets():
     current_missing_paths = []
+    try:
+        read_converted_encoder_files()
+    except (OSError, ValueError, TypeError, KeyError):
+        current_missing_paths.append('Ollama FP16 인코더 변환 파일')
     for current_asset_record in KIMODO_ASSET_CONFIG['models']:
         for current_file_record in current_asset_record['files']:
             current_file_path = KIMODO_MODEL_ROOT / current_asset_record['role'] / current_file_record['path']
@@ -230,6 +255,7 @@ def validate_kimodo_assets():
 
 def verify_kimodo_weights():
     validate_kimodo_assets()
+    read_converted_encoder_files(current_verify_hashes=True)
     for current_asset_record in KIMODO_ASSET_CONFIG['models']:
         for current_file_record in current_asset_record['files']:
             if current_file_record['sha256']:

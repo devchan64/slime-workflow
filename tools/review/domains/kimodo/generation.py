@@ -1,8 +1,10 @@
 """공용 대기열·누적 이력·실제 파일 삭제 계약을 사용하는 Kimodo 서비스."""
-from threading import Thread
+import sys
+from pathlib import Path
+from tools.review.common.model_prepare_process import inspect_detached_preparation, start_detached_preparation
 
 from tools.review.common.management_transport import send_management_json_response
-from generators.kimodo.contracts import KIMODO_JOB_STORAGE,inspect_kimodo_assets,validate_kimodo_assets,validate_kimodo_request
+from generators.kimodo.contracts import KIMODO_JOB_STORAGE,KIMODO_ENVIRONMENT_PYTHON,inspect_kimodo_assets,validate_kimodo_assets,validate_kimodo_request
 from tools.review.common.reference_video_generation import ReferenceVideoGenerationManager
 
 class KimodoGenerationManager(ReferenceVideoGenerationManager):
@@ -11,40 +13,31 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
         from tools.review.domains.kimodo.keyframe_storage import KIMODO_KEYFRAME_STORAGE
         self.keyframe_storage_root = KIMODO_KEYFRAME_STORAGE
 
+    def select_generation_python(self, saved_request_record=None):
+        return KIMODO_ENVIRONMENT_PYTHON
+
     def inspect_model_preparation(self):
         with self.current_request_lock:
             current_asset_status = inspect_kimodo_assets()
-            current_prepare_state = getattr(self, 'model_preparation_state', 'idle')
+            current_prepare_state = inspect_detached_preparation(Path(__file__).resolve().parents[4]/'.local/model-preparation/kimodo')
             if current_prepare_state == 'running':
                 current_asset_status.update(ready=False, message='모델 다운로드 및 무결성 확인 중입니다.')
             elif current_prepare_state == 'failed' and not current_asset_status['ready']:
-                current_asset_status['message'] = '모델 다운로드 실패. Llama 3 8B Instruct 접근 권한과 서버의 hf auth login 상태를 확인하세요. 상세 오류는 .tmp/test/kimodo-prepare/ 로그에 있습니다.'
+                current_asset_status['message'] = '모델 준비 실패. 상세 오류는 .tmp/test/kimodo-prepare/ 로그에 있습니다.'
             return {**current_asset_status, 'preparation_status': current_prepare_state}
-
-    def run_model_preparation(self):
-        from generators.kimodo.prepare import prepare_kimodo_assets
-        try:
-            prepare_kimodo_assets()
-        except Exception:
-            current_prepare_state = 'failed'
-        else:
-            current_prepare_state = 'completed'
-        with self.current_request_lock:
-            self.model_preparation_state = current_prepare_state
 
     def start_model_preparation(self):
         with self.current_request_lock:
-            if getattr(self, 'model_preparation_state', 'idle') == 'running':
+            current_workflow_root = Path(__file__).resolve().parents[4]
+            current_state_root = current_workflow_root/'.local/model-preparation/kimodo'
+            if inspect_detached_preparation(current_state_root) == 'running':
                 return {'preparation_status': 'running'}
             if inspect_kimodo_assets()['ready']:
                 return {'preparation_status': 'completed'}
-            self.model_preparation_state = 'running'
             try:
-                Thread(target=self.run_model_preparation, name='kimodo-model-prepare', daemon=True).start()
-            except RuntimeError as current_start_error:
-                self.model_preparation_state = 'idle'
+                return start_detached_preparation(current_state_root, [sys.executable, '-m', 'tools.review.common.model_prepare_worker', '--profile', 'kimodo'], current_workflow_root)
+            except OSError as current_start_error:
                 raise ValueError('모델 다운로드를 시작할 수 없습니다.') from current_start_error
-            return {'preparation_status': 'running'}
 
     def preview_generation_cleanup(self):
         from tools.review.common.generation_cleanup import describe_cleanup_excluding_blocked

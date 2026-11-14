@@ -4,8 +4,8 @@
 GUI·`tools/manager.py command kimodo`는 공용 게이트웨이와 GPU 대기열을 사용한다.
 
 - 모션: `nvidia/Kimodo-SOMA-RP-v1.2`, 원본 FP32.
-- 텍스트: 공식 Meta Llama 3 8B Instruct 원본과 McGill-NLP MNTP·supervised 어댑터, 비양자화 BF16 ROCm 연산. 공식 LLM2Vec의 양방향 attention·평균 풀링·supervised adapter를 사용한다.
-- 인코딩을 마친 뒤 인코더를 해제하고 모션 모델을 ROCm GPU에 로드한다. CPU 추론 대체는 없다.
+- 텍스트: Ollama의 Meta Llama 3 8B Instruct FP16 배포본과 McGill-NLP MNTP·supervised 어댑터, 비양자화 BF16 ROCm 연산. 공식 LLM2Vec의 양방향 attention·평균 풀링·supervised adapter를 사용한다.
+- 인코딩을 마친 뒤 인코더를 해제하고 모션 모델을 ROCm GPU에 로드한다. 가용 GPU 메모리가 20GiB 미만이면 인코더 가중치를 RAM에 두고 층별로 ROCm GPU에 옮겨 연산한다.
 - 기본값: 90프레임, 30fps, DDIM 100스텝, 텍스트 CFG 2, 초기 방향 0도, 시드 42, 후처리 해제. 2스텝은 실행 확인용이다.
 - GUI 출력 방향 기본 선택은 전방 좌측 30도다. 동작 예제와 기존 이력을 불러오면 각각 저장된 방향이 적용된다.
 - 30~300프레임을 입력받으며 모든 길이의 8GB 실행·품질을 보장하지 않는다. 초기 방향은 이후의 방향을 고정하지 않는다.
@@ -13,20 +13,20 @@ GUI·`tools/manager.py command kimodo`는 공용 게이트웨이와 GPU 대기�
 
 ## 자료와 실행 환경 준비
 
-모델 파일은 `.model/kimodo/`, 고정 공식 소스는 `.local/kimodo/upstream/`, 공용 환경은 `.venv`에 둔다. `config/assets.yaml`의 리비전과 LFS SHA-256을 확인한다. 기본 입력 원본은 추적 파일 `config/defaults.yaml`이다. 준비·설치는 GPU 접근이 가능한 샌드박스 밖에서 실행한다.
+모델 파일은 `.model/kimodo/`, 고정 공식 소스는 `.local/kimodo/upstream/`, 실행 환경은 `.local/venvs/kimodo-rocm`에 둔다. `config/assets.yaml`의 리비전과 LFS SHA-256을 확인한다. 기본 입력 원본은 추적 파일 `config/defaults.yaml`이다. 준비·설치는 GPU 접근이 가능한 샌드박스 밖에서 실행한다.
 
 ```bash
+uv pip install --python .local/venvs/kimodo-rocm/bin/python -r generators/kimodo/requirements.txt
 .venv/bin/python -m generators.kimodo.prepare
-uv pip install --python .venv/bin/python -r generators/kimodo/requirements.txt
-PATH="$PWD/.venv/bin:$PATH" uv pip install --python .venv/bin/python --no-build-isolation .local/kimodo/upstream
+PATH="$PWD/.local/venvs/kimodo-rocm/bin:$PATH" uv pip install --python .local/venvs/kimodo-rocm/bin/python --no-build-isolation .local/kimodo/upstream
 ```
 
 
 관리도구에서는 **모델 다운로드**를 눌러 고정 SOMA 모델, 비양자화 인코더, 공식 소스를 받을 수 있다. CLI의 `.venv/bin/python tools/manager.py command kimodo prepare`도 같은 다운로드를 시작하며, `command kimodo model-status`에서 진행 상태를 확인한다. 위 패키지 설치 명령은 환경을 처음 구성할 때 별도로 실행한다.
 
-Built with Meta Llama 3. 초기 다운로드에는 Hugging Face에서 승인된 Llama 모델 접근 권한과 서버에서 `hf auth login`으로 저장한 인증이 필요하다. 패키지 설치 전 호스트에 맞는 AMD ROCm PyTorch를 준비한다.
+Built with Meta Llama 3. 고정 Ollama GGUF를 SHA-256 검증 후 FP16 safetensors로 변환한다. AMD ROCm PyTorch와 Kimodo 의존성을 `.local/venvs/kimodo-rocm`에 준비한다.
 
-공식 패키지 설치에는 C++ 컴파일러와 CMake가 필요하다. 준비 로그는 `.tmp/test/kimodo-prepare/`에 5초 heartbeat와 함께 저장된다. 고정 리비전 자료를 오프라인으로 읽으며 모델 선택 입력은 허용하지 않는다. 모델 상태의 ‘파일 준비 완료’는 가중치 크기·준비 기록 확인이며 ROCm 실행 성공을 뜻하지 않는다.
+공식 소스가 아직 없으면 모델 준비 명령으로 고정 소스와 가중치를 받은 뒤 공식 패키지를 설치한다. 준비 로그는 `.tmp/test/kimodo-prepare/`에 5초 heartbeat와 함께 저장된다. 고정 리비전 자료를 오프라인으로 읽으며 모델 선택 입력은 허용하지 않는다. 모델 상태의 ‘파일 준비 완료’는 가중치 크기·준비 기록 확인이며 ROCm 실행 성공을 뜻하지 않는다.
 
 ## 공용 CLI
 
@@ -87,7 +87,7 @@ CUDA ViTPose/YOLO로 BODY18을 추출하고, 어깨·골반 중심 간 몸통 �
 
 ZIP의 `reference-proportions.json`에 입력별 포즈·신뢰도·채택 관측·최종 비율을 저장하고 `reference-pose-N.png`로 추출 포즈를 제공한다. `soma-pose.json`에도 보정 기록을 포함한다. 비교 MP4는 SOMA 원본과 비율 보정 OpenPose를 함께 표시한다. 참조 사본은 공용 작업 저장소에 보관하며 이력 복원·삭제 계약을 따른다.
 
-전처리는 기존 `.local/wan22-animate/preprocess` 공식 검출 소스, `preprocess-deps` CUDA 12 ONNX Runtime과 `.model/wan22-animate-preprocess/process_checkpoint` 가중치를 공유한다. 옵션을 사용한 요청만 준비 상태를 검사하며 모델 추론은 별도 CUDA 자식 프로세스에서 수행한다.
+참조 비율에 필요한 Wan2.2 YOLOv10·ViTPose 코드는 `python -m generators.kimodo.prepare_reference_pose`로 고정 리비전과 SHA-256을 검증해 준비한다. 참조 추출은 Kimodo ROCm 환경의 MIGraphX GPU 실행 공급자를 사용한다.
 
 시트 내 검출 점수 0.2 이상 모든 인물을 개별 추정한다. 관측 번호는 `observation_sources`의 이미지·인물·bbox에 대응한다. 부위별로 3개 이상 관측 시 두 번째 최장값의 1.35배를 넘는 단독 과대값을 제외한 뒤, 남은 관측 중 구간별 가장 큰 정규화 비율을 선택한다. 코–어깨는 수직 거리 기준으로 선택하며 얼굴 가림은 검출 점수만으로 확인할 수 없다. 좌우 후보와 제외 이유도 기록한다. 회전 투영의 단축 편향을 줄이는 휴리스틱이며 3D 길이 복원이나 수학적 최적값 보장은 아니다. 모든 방향에서 단축되거나 몸통 자체가 기울면 오차가 남는다. 검출 점수는 가림 여부를 보장하지 않으므로 얼굴이 가려진 후면 등은 채택 결과를 육안으로 검수해야 한다.
 

@@ -1,6 +1,7 @@
-"""선택 참조 이미지의 BODY18 검출을 별도 CUDA 프로세스에서 수행한다."""
+"""선택 참조 이미지의 BODY18 검출을 별도 ROCm 프로세스에서 수행한다."""
 from pathlib import Path
 import hashlib
+import os
 import sys,json,threading,time
 
 REFERENCE_WORKSPACE_ROOT=Path(__file__).resolve().parents[2]
@@ -20,15 +21,24 @@ def normalize_reference_keypoints(current_body_points):
 
 
 def validate_reference_pose_runtime():
-    import subprocess
-    current_runtime_root=REFERENCE_WORKSPACE_ROOT/'.local/wan22-animate'
-    current_model_root=REFERENCE_WORKSPACE_ROOT/'.model/wan22-animate-preprocess/process_checkpoint'
-    for current_required_path in (REFERENCE_WORKSPACE_ROOT/'.venv/bin/python',current_runtime_root/'preprocess/pose2d.py',current_runtime_root/'preprocess-deps/onnxruntime/__init__.py',current_model_root/'det/yolov10m.onnx'):
+    from generators.kimodo.contracts import KIMODO_ENVIRONMENT_PYTHON
+    from generators.kimodo.prepare_reference_pose import REFERENCE_MODEL_REVISION, REFERENCE_MODEL_ROOT
+    current_source_root = REFERENCE_WORKSPACE_ROOT/'.local/wan-reference-source/wan/modules/animate/preprocess'
+    current_model_root = REFERENCE_WORKSPACE_ROOT/'.model/wan22-animate-preprocess/process_checkpoint'
+    for current_required_path in (KIMODO_ENVIRONMENT_PYTHON, current_source_root/'pose2d.py', current_source_root/'pose2d_utils.py', current_model_root/'det/yolov10m.onnx', current_model_root/'pose2d/vitpose_h_wholebody.onnx/end2end-rocm.onnx'):
         if not current_required_path.is_file():
             raise ValueError(f'참조 포즈 추출 준비 누락: {current_required_path}')
-    current_check_result=subprocess.run([str(REFERENCE_WORKSPACE_ROOT/'.venv/bin/python'),str(REFERENCE_WORKSPACE_ROOT/'generators/common/onnx_model_validation.py'),str(current_model_root/'pose2d/vitpose_h_wholebody.onnx')],capture_output=True,text=True,timeout=30)
-    if current_check_result.returncode:
-        raise ValueError('참조 포즈 모델 검사 실패: '+current_check_result.stderr)
+    current_manifest_path=REFERENCE_MODEL_ROOT/'prepared-reference.json'
+    try:
+        current_manifest_record=json.loads(current_manifest_path.read_text())
+        if current_manifest_record['revision']!=REFERENCE_MODEL_REVISION or len(current_manifest_record['files'])!=395:
+            raise ValueError('참조 포즈 준비 기록 불일치')
+        for current_file_name,current_file_record in current_manifest_record['files'].items():
+            current_file_path=(REFERENCE_MODEL_ROOT/current_file_name).resolve()
+            if not current_file_path.is_relative_to(REFERENCE_MODEL_ROOT.resolve()) or current_file_path.stat().st_size!=current_file_record['size']:
+                raise ValueError(f'참조 포즈 파일 누락 또는 크기 불일치: {current_file_name}')
+    except (OSError,KeyError,TypeError,ValueError) as current_manifest_error:
+        raise ValueError('참조 포즈 파일 준비 필요: python -m generators.kimodo.prepare_reference_pose') from current_manifest_error
 
 
 def extract_reference_body_proportions(current_job_root,current_attempt_root):
@@ -38,22 +48,32 @@ def extract_reference_body_proportions(current_job_root,current_attempt_root):
     from PIL import Image,ImageOps
     from generators.kimodo.reference_proportions import estimate_reference_proportions
     from generators.kimodo.pose_rendering import render_body_pose_image
-    if not torch.cuda.is_available(): raise RuntimeError('참조 포즈 추출에는 CUDA가 필요합니다.')
-    torch.zeros(1,device='cuda')
-    ort.preload_dlls()
-    current_session_constructor=ort.InferenceSession
-    def create_reference_cuda_session(*current_session_args,**current_session_kwargs):
-        current_session_kwargs['providers']=[('CUDAExecutionProvider',{'device_id':0})]
-        current_session_value=current_session_constructor(*current_session_args,**current_session_kwargs)
-        if current_session_value.get_providers()[0]!='CUDAExecutionProvider': raise RuntimeError('참조 포즈 CUDA 초기화 실패')
-        current_session_value.disable_fallback()
-        return current_session_value
-    ort.InferenceSession=create_reference_cuda_session
-    sys.path.insert(0,str(REFERENCE_WORKSPACE_ROOT/'.local/wan22-animate/preprocess'))
-    from pose2d import Pose2d
+    if not torch.version.hip or not torch.cuda.is_available():
+        raise RuntimeError('참조 포즈 추출에는 AMD ROCm GPU가 필요합니다.')
+    import migraphx
+    import onnxruntime_ep_migraphx as current_provider_plugin
+    for current_provider_name,current_library_path in zip(current_provider_plugin.get_ep_names(),current_provider_plugin.get_library_paths()):
+        if current_provider_name not in ort.get_available_providers():
+            ort.register_execution_provider_library(current_provider_name,current_library_path)
+    current_gpu_devices=[current_device_record for current_device_record in ort.get_ep_devices() if current_device_record.ep_name=='MIGraphXExecutionProvider' and current_device_record.device.type==ort.OrtHardwareDeviceType.GPU]
+    if not current_gpu_devices:
+        raise RuntimeError('참조 포즈 MIGraphX GPU 장치를 찾지 못했습니다.')
+    from types import SimpleNamespace
+    def create_reference_rocm_session(current_model_path, **current_session_options):
+        current_options=ort.SessionOptions()
+        current_options.add_session_config_entry('session.disable_cpu_ep_fallback','1')
+        current_options.add_provider_for_devices(current_gpu_devices[:1],{})
+        current_session=ort.InferenceSession(current_model_path,sess_options=current_options)
+        if current_session.get_providers()[0]!='MIGraphXExecutionProvider':
+            raise RuntimeError('참조 포즈 MIGraphX 초기화 실패')
+        current_session.disable_fallback()
+        return current_session
+    sys.path.insert(0,str(REFERENCE_WORKSPACE_ROOT/'.local/wan-reference-source/wan/modules/animate/preprocess'))
+    import pose2d
     from pose2d_utils import load_pose_metas_from_kp2ds_seq
+    pose2d.onnxruntime=SimpleNamespace(InferenceSession=create_reference_rocm_session)
     current_model_root=REFERENCE_WORKSPACE_ROOT/'.model/wan22-animate-preprocess/process_checkpoint'
-    current_pose_detector=Pose2d(str(current_model_root/'pose2d/vitpose_h_wholebody.onnx'),str(current_model_root/'det/yolov10m.onnx'),device='cuda:0')
+    current_pose_detector=pose2d.Pose2d(str(current_model_root/'pose2d/vitpose_h_wholebody.onnx/end2end-rocm.onnx'),str(current_model_root/'det/yolov10m.onnx'),device='cuda:0')
     current_request_record=json.loads((current_job_root/'request.json').read_text())
     current_reference_records=[]
     current_original_records=[]
@@ -84,6 +104,8 @@ def extract_reference_body_proportions(current_job_root,current_attempt_root):
             current_body_points=np.asarray(current_pose_record['keypoints_body'][:18],dtype=float).copy()
             current_body_points[:,:2]*=np.array([current_image_array.shape[1],current_image_array.shape[0]])
             current_raw_scores=current_body_points[:,2].tolist()
+            if os.environ.get('KIMODO_REFERENCE_DIAGNOSTICS') == '1':
+                print('참조 관절 원시값',current_reference_index,current_person_index,current_person_box[:5].tolist(),current_body_points.tolist(),flush=True)
             current_body_points=normalize_reference_keypoints(current_body_points)
             current_original_records.append(current_body_points.copy())
             current_person_edits=[current_edit for current_edit in current_pending_edits if current_edit['image']==current_reference_index and current_edit['person']==current_person_index]
@@ -128,7 +150,7 @@ if __name__=='__main__':
     current_stop_event=threading.Event()
     def report_reference_heartbeat():
         while not current_stop_event.wait(5):
-            print(time.strftime('%Y-%m-%dT%H:%M:%S')+'/kimodo/reference-heartbeat CUDA 포즈 추출 중',flush=True)
+            print(time.strftime('%Y-%m-%dT%H:%M:%S')+'/kimodo/reference-heartbeat ROCm 포즈 추출 중',flush=True)
     threading.Thread(target=report_reference_heartbeat,daemon=True).start()
     try:
         extract_reference_body_proportions(Path(sys.argv[1]),Path(sys.argv[2]))
