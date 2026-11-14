@@ -67,7 +67,7 @@ class MemoryHistoryTests(unittest.TestCase):
                 self.assertEqual(unknown_estimate_record['method'],'configured-initial-estimate')
                 self.assertEqual(unknown_estimate_record['required_memory_mib'],6144)
 
-    def test_model_offload_ignores_older_memory_observations(self):
+    def test_unoffloaded_image_ignores_older_memory_observations(self):
         with tempfile.TemporaryDirectory() as temporary_directory_value:
             current_root_path = Path(temporary_directory_value)
             current_job_path = current_root_path / 'job'
@@ -76,10 +76,19 @@ class MemoryHistoryTests(unittest.TestCase):
             with patch.object(memory, 'MEMORY_HISTORY_DIRECTORY', current_root_path / 'history'), patch.object(memory, 'IMAGE_HISTORY_ROOT_PATHS', (current_root_path,)):
                 memory.save_memory_observation('image',current_job_path,6000,3,'completed',command_identity_name='run_qwen_21_reference.py')
                 current_identity_name = memory.identify_execution_command(['python','run_qwen_21_reference.py'], current_job_path)
-                self.assertTrue(current_identity_name.endswith(':offload=model-v1'))
-                self.assertEqual(memory.estimate_required_memory('image',6144,current_identity_name)['required_memory_mib'],32768)
+                self.assertTrue(current_identity_name.endswith(':offload=none-full-v1'))
+                self.assertEqual(memory.estimate_required_memory('image',6144,current_identity_name)['required_memory_mib'],65536)
                 memory.save_memory_observation('image',current_job_path,37000,3,'completed',command_identity_name=current_identity_name)
                 self.assertEqual(memory.estimate_required_memory('image',6144,current_identity_name)['required_memory_mib'],37000)
+
+    def test_circular_vae_without_cpu_offload_has_own_reservation(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_path = Path(current_directory_name)
+            (current_job_path / 'request.json').write_text(json.dumps({'width':512,'height':512,'steps':40,'references':[], 'circular_vae':{}}))
+            with patch.object(memory, 'MEMORY_HISTORY_DIRECTORY', current_job_path / 'history'):
+                current_identity_name = memory.identify_execution_command(['python','run_qwen_21_reference.py'], current_job_path)
+                self.assertTrue(current_identity_name.endswith(':offload=none-circular-v1'))
+                self.assertEqual(memory.estimate_required_memory('image',6144,current_identity_name)['required_memory_mib'],65536)
 
     def test_image_profiles_keep_twenty_samples_independently(self):
         with tempfile.TemporaryDirectory() as temporary_directory_value,patch.object(memory,'MEMORY_HISTORY_DIRECTORY',Path(temporary_directory_value)):

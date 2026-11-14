@@ -166,6 +166,7 @@
 - Wan 2.2 Fun Control은 2026-11-14에 Radeon 8060S에서 ROCm PyTorch·MIGraphX 포즈 전처리와 BF16 5프레임·2스텝 생성을 검증했다. 더 긴 입력과 다른 환경은 별도 검증하며, 실행 성공과 결과물 품질 승인을 구분한다.
 - VRAM 절감을 위한 CPU 메모리 오프로드는 허용한다. 가중치를 CPU RAM에 대기시키고 연산 시 GPU로 옮기는 모델·레이어 단위 오프로드와 단계별 GPU 로드·해제를 사용할 수 있다. CPU 추론 금지를 CPU 메모리 오프로드 금지로 해석하지 않는다.
 - 외부 구현의 `offload` 옵션은 실제 연산 장치를 확인한다. 텍스트 인코더 등 모델 구성요소를 CPU에서 연산하는 방식은 CPU 메모리 오프로드와 구분하며 위 GPU 추론 규칙을 적용한다.
+- 비양자화 이미지 생성·편집 모델은 CPU 오프로드 없이 AMD GPU에서 실행한다. GPU 메모리가 부족하면 자동 오프로드·양자화·CPU 추론으로 대체하지 않는다. GPU 대기열은 오프로드 실행과 별도의 메모리 프로필을 사용한다.
 - GPU 상태 확인·모델 준비·GPU 추론은 샌드박스 밖에서 실행한다. 샌드박스 내부 접근 실패를 GPU 부재로 판단하지 않으며, 외부 실행에서도 GPU를 사용할 수 없을 때 명확한 원인으로 즉시 실패한다.
 - All music pipelines must prepare model artifacts before execution.
 - If prepare fails, fail immediately (no fallback) and print `model_id/model_root(or download_tmp_dir)/model_path(or bundle)/binary path` to stdout.
