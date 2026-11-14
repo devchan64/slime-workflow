@@ -45,3 +45,12 @@ class HostMemoryGuardTests(unittest.TestCase):
         with patch.object(guard_module, 'read_memory_field_kib', side_effect=[1024, 1024]), patch.object(guard_module.os, 'killpg') as current_kill_mock, patch.object(guard_module, 'HOST_MEMORY_POLL_SECONDS', 0):
             guard_module.monitor_animate_host_memory(current_worker_mock, threading.Event(), {})
         current_kill_mock.assert_not_called()
+
+    def test_exiting_zombie_without_rss_is_not_reported_as_failure(self):
+        current_worker_mock = Mock(pid=1234)
+        current_worker_mock.poll.return_value = None
+        current_guard_result = {}
+        with patch.object(guard_module, 'read_memory_field_kib', side_effect=[1024, ValueError('VmRSS 누락')]), patch.object(guard_module.Path, 'read_text', return_value='Name:\tpython\nState:\tZ (zombie)\n'), patch.object(guard_module.os, 'killpg') as current_kill_mock:
+            guard_module.monitor_animate_host_memory(current_worker_mock, threading.Event(), current_guard_result)
+        self.assertEqual(current_guard_result, {})
+        current_kill_mock.assert_not_called()

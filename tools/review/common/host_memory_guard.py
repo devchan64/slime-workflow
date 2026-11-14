@@ -24,12 +24,23 @@ def read_memory_field_kib(current_file_path, current_field_name):
 def monitor_animate_host_memory(current_worker_process, current_stop_event, current_guard_result):
     """시스템 RAM 부족 시 해당 작업 프로세스 그룹만 종료한다."""
     while not current_stop_event.is_set() and current_worker_process.poll() is None:
+        current_host_read_complete = False
         try:
             current_available_kib = read_memory_field_kib('/proc/meminfo', 'MemAvailable')
+            current_host_read_complete = True
             current_worker_rss_kib = read_memory_field_kib(f'/proc/{current_worker_process.pid}/status', 'VmRSS')
         except (OSError, ValueError) as current_read_error:
             if current_worker_process.poll() is not None:
                 return
+            if current_host_read_complete:
+                try:
+                    current_process_status = Path(f'/proc/{current_worker_process.pid}/status').read_text()
+                except FileNotFoundError:
+                    return
+                except OSError:
+                    current_process_status = ''
+                if any(current_status_line.split()[:2] == ['State:', 'Z'] for current_status_line in current_process_status.splitlines()):
+                    return
             current_guard_result['error'] = f'시스템 RAM 감시 실패: {current_read_error}'
         else:
             if current_available_kib >= HOST_MEMORY_RESERVE_KIB or current_worker_rss_kib < HOST_WORKER_MINIMUM_RSS_KIB:
