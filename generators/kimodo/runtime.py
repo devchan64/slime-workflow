@@ -1,4 +1,4 @@
-"""사전 NF4 인코더와 원본 FP32 모션 모델을 CUDA에서 순차 실행한다."""
+"""비양자화 BF16 인코더와 원본 FP32 모션 모델을 AMD ROCm에서 순차 실행한다."""
 import gc
 import hashlib
 import json
@@ -17,15 +17,20 @@ def encode_kimodo_prompt(current_prompt_text, current_attempt_root):
     from peft import PeftModel
     from kimodo.model.llm2vec.models.bidirectional_llama import LlamaBiModel
     from kimodo.model.llm2vec.llm2vec import LLM2Vec
-    current_encoder_root = KIMODO_MODEL_ROOT/'encoder'
-    current_base_encoder = LlamaBiModel.from_pretrained(str(current_encoder_root),local_files_only=True,device_map={'':'cuda:0'},dtype=torch.bfloat16,attn_implementation='sdpa')
-    if not getattr(current_base_encoder,'is_loaded_in_4bit',False):
-        raise RuntimeError('NF4 가중치가 4비트로 로드되지 않았습니다.')
-    current_adapted_encoder = PeftModel.from_pretrained(current_base_encoder,str(current_encoder_root/'supervised_adapter'),local_files_only=True).eval()
+    current_base_encoder = LlamaBiModel.from_pretrained(
+        str(KIMODO_MODEL_ROOT/'encoder-base'), local_files_only=True,
+        device_map={'':'cuda:0'}, dtype=torch.bfloat16, attn_implementation='sdpa',
+    )
+    current_mntp_encoder = PeftModel.from_pretrained(
+        current_base_encoder, str(KIMODO_MODEL_ROOT/'encoder-mntp'), local_files_only=True,
+    ).merge_and_unload()
+    current_adapted_encoder = PeftModel.from_pretrained(
+        current_mntp_encoder, str(KIMODO_MODEL_ROOT/'encoder-supervised'), local_files_only=True,
+    ).eval()
     if any(current_parameter_value.device.type != 'cuda' for current_parameter_value in current_adapted_encoder.parameters()):
-        raise RuntimeError('인코더 연산 가중치가 CUDA 밖에 있습니다.')
+        raise RuntimeError('인코더 가중치가 ROCm GPU에 로드되지 않았습니다.')
     current_adapted_encoder.config._name_or_path = 'meta-llama/Meta-Llama-3-8B-Instruct'
-    current_tokenizer_value = AutoTokenizer.from_pretrained(str(current_encoder_root),local_files_only=True)
+    current_tokenizer_value = AutoTokenizer.from_pretrained(str(KIMODO_MODEL_ROOT/'encoder-mntp'),local_files_only=True)
     current_tokenizer_value.pad_token = current_tokenizer_value.eos_token
     current_tokenizer_value.padding_side = 'left'
     current_llm_encoder = LLM2Vec(current_adapted_encoder,current_tokenizer_value,pooling_mode='mean',max_length=512,doc_max_length=400,skip_instruction=True)
@@ -46,7 +51,7 @@ def encode_kimodo_prompt(current_prompt_text, current_attempt_root):
         current_embedding_values.append(current_segment_embedding)
     current_embedding_tensor = torch.cat(current_embedding_values,dim=0)
     write_record_atomically(current_attempt_root/'prompt.json',current_prompt_records[0] if len(current_prompt_records)==1 else {'segments':current_prompt_records,'word_count':sum(current_prompt_record['word_count'] for current_prompt_record in current_prompt_records)})
-    del current_token_features,current_llm_encoder,current_adapted_encoder,current_base_encoder,current_tokenizer_value
+    del current_token_features,current_llm_encoder,current_adapted_encoder,current_base_encoder,current_mntp_encoder,current_tokenizer_value
     gc.collect()
     torch.cuda.empty_cache()
     return current_embedding_tensor[:,None,:]
@@ -56,6 +61,8 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     if current_request_record.get('pose_constraints'):
         raise ValueError('전신 키프레임 제약 기능은 폐기되었습니다. 입력값을 불러와 제약 없이 새로 생성하세요.')
     import torch
+    if not torch.version.hip or not torch.cuda.is_available():
+        raise RuntimeError('Kimodo 모션 생성에는 AMD ROCm PyTorch와 사용 가능한 GPU가 필요합니다.')
     import subprocess
     from pathlib import Path
     import numpy as np
@@ -199,7 +206,7 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
                 current_output_archive.write(current_attempt_root/current_artifact_name,current_artifact_name)
         for current_artifact_name in ('soma-pose.json','comparison.mp4','joint-preview.mp4'):
             current_output_archive.write(current_attempt_root/current_artifact_name,current_artifact_name)
-    current_result_record = {'attempt':current_attempt_root.name,'frames':current_request_record['frames'],'fps':30,'width':640,'height':480,'frame_sha256':current_frame_hashes,'model':'nvidia/Kimodo-SOMA-RP-v1.2','encoder':'matbee/kimodo-llm2vec-nf4','encoder_quantization':'NF4','motion_precision':'FP32','source_revision':KIMODO_ASSET_CONFIG['source_revision'],'model_revisions':{current_asset_record['role']:current_asset_record['revision'] for current_asset_record in KIMODO_ASSET_CONFIG['models']},'skeleton':'somaskel77','compute_device':'cuda','post_processing':current_request_record['post_processing'],'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20}
+    current_result_record = {'attempt':current_attempt_root.name,'frames':current_request_record['frames'],'fps':30,'width':640,'height':480,'frame_sha256':current_frame_hashes,'model':'nvidia/Kimodo-SOMA-RP-v1.2','encoder':'meta-llama/Meta-Llama-3-8B-Instruct','encoder_quantization':None,'encoder_precision':'BF16','motion_precision':'FP32','source_revision':KIMODO_ASSET_CONFIG['source_revision'],'model_revisions':{current_asset_record['role']:current_asset_record['revision'] for current_asset_record in KIMODO_ASSET_CONFIG['models']},'skeleton':'somaskel77','compute_device':'rocm','post_processing':current_request_record['post_processing'],'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20}
     current_result_record.update(openpose_scale_basis='legacy-fit',openpose_scale_percent=current_request_record.get('openpose_scale_percent',100.0),remove_horizontal_motion=current_request_record.get('remove_horizontal_motion',False),directions=current_request_record.get('directions',['front_left']),pose_source='soma',anny_enabled=False,reference_proportions=bool(current_request_record.get('references')))
     current_result_record['camera_elevation_degrees'] = current_request_record.get('camera_elevation_degrees',0)
     current_result_record['direct_pose_videos'] = {current_direction_name:current_direction_record['video'] for current_direction_name,current_direction_record in current_direct_record['directions'].items()}

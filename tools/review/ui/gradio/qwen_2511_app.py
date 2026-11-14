@@ -22,6 +22,7 @@ from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_results import build_generation_gallery, collect_generation_gallery
 from tools.review.common.gradio_logs import build_execution_logs
 from tools.review.common.gradio_history import build_generation_history_view, format_generation_status
+from tools.review.common.gradio_model_download import build_model_download_controls
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_reference_images import build_reference_image_inputs, REFERENCE_IMAGE_CARD_HEIGHT
 from tools.review.common.gradio_button_guidance import build_button_guidance
@@ -134,6 +135,9 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         return tuple(restored_input_values)
     with gr.Blocks(title=current_page_title) as interface_blocks_value:
         gr.Markdown('## ' + current_page_title + '\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.')
+        if current_service_name == 'prop-generator':
+            gr.Markdown('공식 Qwen Image 2.1 비양자화 모델 · BF16 · AMD ROCm')
+            current_prop_ready, current_prop_model_events = build_model_download_controls(interface_blocks_value, execute_reference_gateway)
         if billboard_guide_enabled:
             from tools.review.ui.gradio.billboard_guide_controls import build_billboard_guide_controls
             from tools.review.domains.image.billboard_guide_prompt import load_billboard_guide_image, compose_billboard_guide_prompt
@@ -277,7 +281,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             gr.Markdown('순환 반경은 좌우·상하에 동일 적용합니다. 경계 1줄 참조 · 모서리 참조 없음.')
         if outfit_transfer_enabled:
             width_value.change(lambda selected_resolution_value: selected_resolution_value, width_value, height_value, queue=False)
-        generation_button_value = gr.Button('대기열에 추가', variant='primary', interactive=not billboard_guide_enabled and (vegetation_mode_enabled or prop_mode_enabled or (not outfit_transfer_enabled and (not plain_options_enabled) and (not expression_mode_enabled))))
+        generation_button_value = gr.Button('대기열에 추가', variant='primary', interactive=not prop_mode_enabled and not billboard_guide_enabled and (vegetation_mode_enabled or (not outfit_transfer_enabled and (not plain_options_enabled) and (not expression_mode_enabled))))
         if outfit_transfer_enabled:
             build_button_guidance(generation_button_value, '두 필수 참조 이미지를 모두 첨부하면 대기열에 추가할 수 있습니다. 확인 중에는 추가 접수를 할 수 없습니다.')
         if expression_mode_enabled:
@@ -285,7 +289,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if building_mode_enabled:
             build_button_guidance(generation_button_value, '첫 슬롯에 레이아웃 이미지를 선택하고 최종 프롬프트를 1~99단어로 맞추세요. 확인 후 대기열에 등록됩니다.')
         elif plain_options_enabled or circular_mode_enabled:
-            build_button_guidance(generation_button_value, '프롬프트를 입력하거나 추가 문구 옵션을 선택하세요. 옵션을 포함한 최종 입력은 1~99단어여야 하며, 확인 중에는 추가 접수할 수 없습니다.')
+            build_button_guidance(generation_button_value, ('모델 파일과 AMD ROCm 환경을 준비하세요. ' if current_service_name == 'prop-generator' else '') + '프롬프트를 입력하거나 추가 문구 옵션을 선택하세요. 옵션을 포함한 최종 입력은 1~99단어여야 하며, 확인 중에는 추가 접수할 수 없습니다.')
         with gr.Column() as generation_confirmation_container:
             pass
         status_value = gr.Markdown('참조 이미지와 설정을 확인하세요.' if outfit_transfer_enabled else '프롬프트와 옵션을 확인하세요.' if plain_options_enabled or circular_mode_enabled else '참조 이미지를 1장 이상 첨부하세요.' if expression_mode_enabled else '생성 가능 · 설정을 확인하세요.')
@@ -335,7 +339,10 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             except (ValueError, OSError) as generation_request_error:
                 raise gr.Error(str(generation_request_error)) from generation_request_error
             return (generation_record_value['id'], '상태: ' + format_generation_status(generation_record_value))
-        bind_gpu_generation_confirmation(generation_button_value, start_reference_generation, [prompt_text_value, generation_tag_value, *reference_image_controls, width_value, height_value, step_value, seed_value] + ([circular_radius_control, soft_shading_control, pattern_view_control, baseline_decode_control] if circular_mode_enabled else []) + ([common_style_control, transparent_background_control] if plain_options_enabled else []) + ([building_prompt_control] if building_mode_enabled or billboard_guide_enabled else []), [identifier_value, status_value], generation_confirmation_container=generation_confirmation_container, generation_readiness_callback=check_building_input_readiness if building_mode_enabled or billboard_guide_enabled else (lambda *current_reference_values: all((current_reference_value is not None for current_reference_value in current_reference_values))) if outfit_transfer_enabled else check_expression_reference_readiness if expression_mode_enabled else check_plain_prompt_readiness if plain_options_enabled else check_circular_prompt_readiness if circular_mode_enabled else None, generation_readiness_inputs=[prompt_text_value, common_style_control, transparent_background_control, reference_image_controls[0], building_prompt_control] if building_mode_enabled or billboard_guide_enabled else reference_image_controls if outfit_transfer_enabled or expression_mode_enabled else [prompt_text_value, common_style_control, transparent_background_control] if plain_options_enabled else [prompt_text_value, soft_shading_control, pattern_view_control] if circular_mode_enabled else None)
+        def check_prop_generation_readiness(current_model_ready, *current_prompt_options):
+            return current_model_ready and check_plain_prompt_readiness(*current_prompt_options)
+
+        bind_gpu_generation_confirmation(generation_button_value, start_reference_generation, [prompt_text_value, generation_tag_value, *reference_image_controls, width_value, height_value, step_value, seed_value] + ([circular_radius_control, soft_shading_control, pattern_view_control, baseline_decode_control] if circular_mode_enabled else []) + ([common_style_control, transparent_background_control] if plain_options_enabled else []) + ([building_prompt_control] if building_mode_enabled or billboard_guide_enabled else []), [identifier_value, status_value], generation_confirmation_container=generation_confirmation_container, generation_readiness_callback=check_prop_generation_readiness if current_service_name == 'prop-generator' else check_building_input_readiness if building_mode_enabled or billboard_guide_enabled else (lambda *current_reference_values: all((current_reference_value is not None for current_reference_value in current_reference_values))) if outfit_transfer_enabled else check_expression_reference_readiness if expression_mode_enabled else check_plain_prompt_readiness if plain_options_enabled else check_circular_prompt_readiness if circular_mode_enabled else None, generation_readiness_events=current_prop_model_events if current_service_name == 'prop-generator' else None, generation_readiness_inputs=[current_prop_ready, prompt_text_value, common_style_control, transparent_background_control] if current_service_name == 'prop-generator' else [prompt_text_value, common_style_control, transparent_background_control, reference_image_controls[0], building_prompt_control] if building_mode_enabled or billboard_guide_enabled else reference_image_controls if outfit_transfer_enabled or expression_mode_enabled else [prompt_text_value, common_style_control, transparent_background_control] if plain_options_enabled else [prompt_text_value, soft_shading_control, pattern_view_control] if circular_mode_enabled else None)
 
         def refresh_status(identifier_text_value, refresh_log_enabled):
             if not identifier_text_value:

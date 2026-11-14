@@ -1,4 +1,5 @@
 """관리도구가 공유하는 고정 Qwen Image 2.1 GPU 실행 모듈."""
+import fcntl
 import hashlib
 import json
 import threading
@@ -30,6 +31,20 @@ def validate_qwen_model_assets():
     if not (QWEN_MODEL_DIRECTORY / 'vae/diffusion_pytorch_model.safetensors').is_file():
         raise FileNotFoundError(f'Qwen 2.1 VAE 가중치 누락: {QWEN_MODEL_DIRECTORY}')
     return QWEN_MODEL_DIRECTORY
+
+
+def download_qwen_model_assets():
+    """공식 비양자화 스냅샷을 기존 로컬 모델 경로에 준비한다."""
+    from huggingface_hub import snapshot_download
+
+    QWEN_MODEL_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    with (QWEN_MODEL_DIRECTORY/'.prepare.lock').open('a') as current_prepare_lock:
+        fcntl.flock(current_prepare_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        snapshot_download(
+            QWEN_MODEL_IDENTIFIER, revision=QWEN_MODEL_REVISION,
+            local_dir=QWEN_MODEL_DIRECTORY, max_workers=2,
+        )
+        return validate_qwen_model_assets()
 
 
 def execute_qwen_reference_generation(current_job_root, current_request_record, reference_image_paths):

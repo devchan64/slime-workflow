@@ -1,11 +1,11 @@
-# Kimodo NF4 모션 생성기
+# Kimodo 비양자화 모션 생성기
 
 관리 페이지: `/management/frame/kimodo-generator/?tool=kimodo-generator&category=animation-tool`.
 GUI·`tools/manager.py command kimodo`는 공용 게이트웨이와 GPU 대기열을 사용한다.
 
 - 모션: `nvidia/Kimodo-SOMA-RP-v1.2`, 원본 FP32.
-- 텍스트: 커뮤니티 `matbee/kimodo-llm2vec-nf4`, NF4 저장·BF16 CUDA 연산. 공식 LLM2Vec의 양방향 attention·평균 풀링·supervised adapter를 사용한다.
-- 인코딩을 마친 뒤 인코더를 해제하고 모션 모델을 CUDA로 로드한다. CPU 추론 대체는 없다.
+- 텍스트: 공식 Meta Llama 3 8B Instruct 원본과 McGill-NLP MNTP·supervised 어댑터, 비양자화 BF16 ROCm 연산. 공식 LLM2Vec의 양방향 attention·평균 풀링·supervised adapter를 사용한다.
+- 인코딩을 마친 뒤 인코더를 해제하고 모션 모델을 ROCm GPU에 로드한다. CPU 추론 대체는 없다.
 - 기본값: 90프레임, 30fps, DDIM 100스텝, 텍스트 CFG 2, 초기 방향 0도, 시드 42, 후처리 해제. 2스텝은 실행 확인용이다.
 - GUI 출력 방향 기본 선택은 전방 좌측 30도다. 동작 예제와 기존 이력을 불러오면 각각 저장된 방향이 적용된다.
 - 30~300프레임을 입력받으며 모든 길이의 8GB 실행·품질을 보장하지 않는다. 초기 방향은 이후의 방향을 고정하지 않는다.
@@ -17,14 +17,16 @@ GUI·`tools/manager.py command kimodo`는 공용 게이트웨이와 GPU 대기�
 
 ```bash
 .venv/bin/python -m generators.kimodo.prepare
-uv pip install --python .venv/bin/python --index-strategy unsafe-best-match --extra-index-url https://download.pytorch.org/whl/cu128 -r generators/kimodo/requirements.txt
+uv pip install --python .venv/bin/python -r generators/kimodo/requirements.txt
 PATH="$PWD/.venv/bin:$PATH" uv pip install --python .venv/bin/python --no-build-isolation .local/kimodo/upstream
 ```
 
 
-관리도구에서는 **모델 다운로드**를 눌러 고정 SOMA 모델, NF4 인코더, 공식 소스를 받을 수 있다. CLI의 `.venv/bin/python tools/manager.py command kimodo prepare`도 같은 다운로드를 시작하며, `command kimodo model-status`에서 진행 상태를 확인한다. 위 패키지 설치 명령은 환경을 처음 구성할 때 별도로 실행한다.
+관리도구에서는 **모델 다운로드**를 눌러 고정 SOMA 모델, 비양자화 인코더, 공식 소스를 받을 수 있다. CLI의 `.venv/bin/python tools/manager.py command kimodo prepare`도 같은 다운로드를 시작하며, `command kimodo model-status`에서 진행 상태를 확인한다. 위 패키지 설치 명령은 환경을 처음 구성할 때 별도로 실행한다.
 
-공식 패키지 설치에는 C++ 컴파일러와 CMake가 필요하다. 준비 로그는 `.tmp/test/kimodo-prepare/`에 5초 heartbeat와 함께 저장된다. 고정 리비전 자료를 오프라인으로 읽으며 모델 선택 입력은 허용하지 않는다. 모델 상태의 ‘파일 준비 완료’는 가중치 크기·준비 기록 확인이며 CUDA 실행 성공을 뜻하지 않는다.
+Built with Meta Llama 3. 초기 다운로드에는 Hugging Face에서 승인된 Llama 모델 접근 권한과 서버에서 `hf auth login`으로 저장한 인증이 필요하다. 패키지 설치 전 호스트에 맞는 AMD ROCm PyTorch를 준비한다.
+
+공식 패키지 설치에는 C++ 컴파일러와 CMake가 필요하다. 준비 로그는 `.tmp/test/kimodo-prepare/`에 5초 heartbeat와 함께 저장된다. 고정 리비전 자료를 오프라인으로 읽으며 모델 선택 입력은 허용하지 않는다. 모델 상태의 ‘파일 준비 완료’는 가중치 크기·준비 기록 확인이며 ROCm 실행 성공을 뜻하지 않는다.
 
 ## 공용 CLI
 
@@ -40,7 +42,7 @@ PATH="$PWD/.venv/bin:$PATH" uv pip install --python .venv/bin/python --no-build-
 
 2026-10-29 검증: 8GB GPU에서 NF4 인코더와 FP32 모션으로 30프레임/2스텝 및 90프레임/100스텝 완료. 발 후처리 활성화와 최대 300프레임은 별도 검증 대상이다. 이는 실행 검증이며 동작 품질 승인을 의미하지 않는다.
 
-출처: [공식 코드](https://github.com/nv-tlabs/kimodo), [SOMA 모델카드](https://huggingface.co/nvidia/Kimodo-SOMA-RP-v1.2), [NF4 인코더](https://huggingface.co/matbee/kimodo-llm2vec-nf4). 모델별 라이선스는 내려받은 카드·LICENSE를 따른다.
+출처: [공식 코드](https://github.com/nv-tlabs/kimodo), [SOMA 모델카드](https://huggingface.co/nvidia/Kimodo-SOMA-RP-v1.2), [Meta Llama 3 8B Instruct](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct). 모델별 라이선스는 내려받은 카드·LICENSE를 따른다.
 
 ## 입력 화면
 

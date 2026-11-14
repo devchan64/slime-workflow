@@ -18,7 +18,7 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
             if current_prepare_state == 'running':
                 current_asset_status.update(ready=False, message='모델 다운로드 및 무결성 확인 중입니다.')
             elif current_prepare_state == 'failed' and not current_asset_status['ready']:
-                current_asset_status['message'] = '모델 다운로드 실패. Hugging Face 접근 권한과 .tmp/test/kimodo-prepare/ 로그를 확인한 뒤 다시 시도하세요.'
+                current_asset_status['message'] = '모델 다운로드 실패. Llama 3 8B Instruct 접근 권한과 서버의 hf auth login 상태를 확인하세요. 상세 오류는 .tmp/test/kimodo-prepare/ 로그에 있습니다.'
             return {**current_asset_status, 'preparation_status': current_prepare_state}
 
     def run_model_preparation(self):

@@ -1,4 +1,4 @@
-"""Kimodo NF4 실험 폼. 실행과 기록 수명은 공용 게이트웨이가 담당한다."""
+"""Kimodo 모션 생성 폼. 실행과 기록 수명은 공용 게이트웨이가 담당한다."""
 import json
 import gradio as gr
 import yaml
@@ -516,9 +516,10 @@ def render_kimodo_result(current_job_identifier,current_status_record,current_se
 def build_kimodo_interface(current_server_address,current_command_callback=None):
     current_execute_command = current_command_callback or execute_kimodo_command
     with gr.Blocks(title='Kimodo 모션 생성기') as current_interface_blocks:
-        gr.Markdown('## Kimodo 모션 생성기 · NF4 실험\n텍스트로 SOMA 모션을 생성한 뒤 이 생성기에서 VideoX-Fun DWPose 검출과 선택 참조 관절 길이 보정을 수행합니다. Fun Control 입력에는 결과 포즈 영상을 16fps로 변환하세요. SOMA 렌더는 검수용입니다.')
+        gr.Markdown('## Kimodo 모션 생성기 · AMD ROCm\n텍스트로 SOMA 모션을 생성한 뒤 이 생성기에서 VideoX-Fun DWPose 검출과 선택 참조 관절 길이 보정을 수행합니다. Fun Control 입력에는 결과 포즈 영상을 16fps로 변환하세요. SOMA 렌더는 검수용입니다.')
         with gr.Accordion('고정 설정 · 모델 준비',open=False):
-            gr.Markdown('고정: Kimodo-SOMA-RP-v1.2 · 모션 FP32 · LLM2Vec Llama 3 8B NF4 / BF16 연산 · CUDA · 30fps · 1개 샘플 · DDIM. 인코딩 후 인코더를 해제하고 모션을 생성합니다. 이후 모션 모델을 해제하고 SOMA 몸 관절을 512×512·30fps 정사영 포즈로 변환합니다. 모델 선택·부정 프롬프트는 제공하지 않습니다. 선택 이미지 참조는 모션 모델 입력이 아니라 OpenPose 출력 비율 보정에 사용합니다.')
+            gr.Markdown('고정: Kimodo-SOMA-RP-v1.2 · 모션 FP32 · LLM2Vec Llama 3 8B 비양자화 BF16 · AMD ROCm · 30fps · 1개 샘플 · DDIM. 인코딩 후 인코더를 해제하고 모션을 생성합니다. 이후 모션 모델을 해제하고 SOMA 몸 관절을 512×512·30fps 정사영 포즈로 변환합니다. 모델 선택·부정 프롬프트는 제공하지 않습니다. 선택 이미지 참조는 모션 모델 입력이 아니라 OpenPose 출력 비율 보정에 사용합니다.')
+        gr.Markdown('Built with Meta Llama 3. 첫 다운로드 전에 Hugging Face에서 Llama 3 8B Instruct 접근 권한을 받은 계정으로 서버에서 `hf auth login`을 실행하세요.')
         current_model_ready, current_model_events = build_model_download_controls(current_interface_blocks, current_execute_command)
         gr.Markdown('### 모션 설정')
         current_example_mapping = load_kimodo_examples()
@@ -540,7 +541,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
             current_guidance_control = gr.Number(label='텍스트 CFG',value=KIMODO_DEFAULT_SETTINGS['guidance_scale'],minimum=0,maximum=10,info='공식 기본 2. 텍스트 조건의 영향이며 원하는 동작의 성공을 보장하지 않습니다.')
             current_heading_control = gr.State(value=KIMODO_DEFAULT_SETTINGS['heading_degrees'])
             current_postprocessing_control = gr.Checkbox(label='공식 발 미끄러짐 후처리',value=KIMODO_DEFAULT_SETTINGS['post_processing'],info='기본 해제: 원본 동작 비교. 활성화하면 공식 후처리를 적용하고 실행 기록에 남깁니다.')
-            gr.Markdown('[공식 모델카드](https://huggingface.co/nvidia/Kimodo-SOMA-RP-v1.2) · [NF4 인코더](https://huggingface.co/matbee/kimodo-llm2vec-nf4)\n\nANNY 리그 기능은 폐기되었습니다. SOMA 몸 포즈에는 실제 눈 관절이 포함됩니다. 코·귀는 대응 관절이 없어 생략하며 손 상세 점은 없습니다.\n\nNF4는 커뮤니티 양자화본입니다. BF16과 동작이 달라질 수 있으며 실제 품질은 결과를 검수하세요. 내부 30관절 추론을 공식 API가 77관절로 확장해 저장합니다.')
+            gr.Markdown('[공식 모델카드](https://huggingface.co/nvidia/Kimodo-SOMA-RP-v1.2) · [Meta Llama 3 8B Instruct](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct)\n\nANNY 리그 기능은 폐기되었습니다. SOMA 몸 포즈에는 실제 눈 관절이 포함됩니다. 코·귀는 대응 관절이 없어 생략하며 손 상세 점은 없습니다.\n\n내부 30관절 추론을 공식 API가 77관절로 확장해 저장합니다.')
         current_endpoint_selector = gr.State(None)
         with gr.Accordion('저장한 키프레임 배치 · 선택',open=False):
             gr.Markdown('저장 목록을 새로고침하고 키프레임과 출력 프레임 번호를 골라 추가하세요. 1은 시작, 전체 프레임 수는 종료입니다. 공식 발 미끄러짐 후처리를 켜고 수평 이동 제거를 꺼야 하며 같은 출력 번호는 한 번만 지정합니다.')

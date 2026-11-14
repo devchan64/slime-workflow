@@ -73,6 +73,8 @@ for current_service_name in ('billboard-generator','prop-generator', 'vegetation
     MANAGEMENT_SERVICE_ROUTES[current_service_name] = '/' + current_service_name
     MANAGEMENT_SERVICE_COMMANDS[current_service_name] = MANAGEMENT_SERVICE_COMMANDS['qwen-21']
 
+MANAGEMENT_SERVICE_COMMANDS['prop-generator'] += ('prepare',)
+
 MANAGEMENT_SERVICE_ROUTES['building-generator'] = '/building-generator'
 MANAGEMENT_SERVICE_COMMANDS['building-generator'] = MANAGEMENT_SERVICE_COMMANDS['qwen-21']
 
@@ -117,6 +119,8 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('명령 입력은 JSON 객체여야 합니다.')
     if operation_command_name in ('history-reset-preview','writer-state') and command_payload_value:
         raise ValueError('초기화 미리보기는 입력 필드를 받지 않습니다.')
+    if service_command_name == 'prop-generator' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
+        raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
     request_method_value, request_suffix_value = MANAGEMENT_COMMAND_ROUTES[operation_command_name]
     if '{id}' in request_suffix_value:
         generation_job_identifier=command_payload_value.get('id','')
@@ -250,7 +254,7 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['sfx-dasheng-audiogen']='효과음 생성 · Das
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-animate2']='Animate-2 · RGB 동작 영상과 캐릭터 참조 · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fun-control']='Wan2.2 Fun Control Q4 · 참조/포즈 영상 · 선택 시작·종료 PNG 조건 · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['dwpose']='단일 832×480 PNG DWPose 추출 · CUDA · --payload-file'
-MANAGEMENT_COMMAND_DESCRIPTIONS['kimodo']='Kimodo SOMA v1.2 · NF4 텍스트 인코더 · 원본 관절 모션·미리보기 · --payload-file'
+MANAGEMENT_COMMAND_DESCRIPTIONS['kimodo']='Kimodo SOMA v1.2 · 비양자화 BF16 텍스트 인코더 · 원본 관절 모션·미리보기 · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace']='Wan2.2 VACE-Fun A14B Q4 · 텍스트·외형 참조·첫 프레임·DWPose·부분 편집·영상 전체 조건 실험 · --payload-file'
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):

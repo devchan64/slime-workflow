@@ -32,8 +32,8 @@ KIMODO_ASSET_CONFIG = yaml.load((KIMODO_CONFIG_ROOT / 'assets.yaml').read_text()
 KIMODO_DEFAULT_SETTINGS = yaml.load((KIMODO_CONFIG_ROOT / 'defaults.yaml').read_text(), Loader=UniqueConfigLoader)
 if not isinstance(KIMODO_ASSET_CONFIG,dict) or set(KIMODO_ASSET_CONFIG) != {'source_revision','models'} or not re.fullmatch(r'[a-f0-9]{40}',KIMODO_ASSET_CONFIG['source_revision']):
     raise ValueError('Kimodo 자료 설정 계약 오류')
-if not isinstance(KIMODO_ASSET_CONFIG['models'],list) or len(KIMODO_ASSET_CONFIG['models']) != 2:
-    raise ValueError('Kimodo 모델 구성은 모션·인코더 2개여야 합니다.')
+if not isinstance(KIMODO_ASSET_CONFIG['models'],list) or len(KIMODO_ASSET_CONFIG['models']) != 4:
+    raise ValueError('Kimodo 모델 구성은 모션·인코더 베이스·MNTP·supervised여야 합니다.')
 for current_asset_record in KIMODO_ASSET_CONFIG['models']:
     if not isinstance(current_asset_record,dict) or set(current_asset_record) != {'role','repository','revision','files'} or not re.fullmatch(r'[a-f0-9]{40}',current_asset_record['revision']):
         raise ValueError('Kimodo 모델 리비전 설정 오류')
@@ -49,7 +49,7 @@ for current_asset_record in KIMODO_ASSET_CONFIG['models']:
         current_seen_paths.add(current_file_name)
         if type(current_file_record['size']) is not int or current_file_record['size'] <= 0 or (current_file_record['sha256'] is not None and not re.fullmatch(r'[a-f0-9]{64}',current_file_record['sha256'])):
             raise ValueError('Kimodo 자료 크기·해시 설정 오류')
-if {current_asset_record['role'] for current_asset_record in KIMODO_ASSET_CONFIG['models']} != {'motion','encoder'}:
+if {current_asset_record['role'] for current_asset_record in KIMODO_ASSET_CONFIG['models']} != {'motion','encoder-base','encoder-mntp','encoder-supervised'}:
     raise ValueError('Kimodo 모델 역할 설정 오류')
 if set(KIMODO_DEFAULT_SETTINGS) != {'schema_version','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing','directions','remove_horizontal_motion','openpose_scale_percent','pose_include_hands','pose_include_face'} or KIMODO_DEFAULT_SETTINGS['schema_version'] != 1:
     raise ValueError('Kimodo 기본 설정 계약 오류')
@@ -219,7 +219,7 @@ def inspect_kimodo_assets():
                 current_missing_paths.append('준비 기록의 모델 리비전 불일치')
         except (ValueError,AttributeError):
             current_missing_paths.append('준비 기록 형식 오류')
-    return {'ready':not current_missing_paths,'missing':current_missing_paths,'message':'Kimodo SOMA v1.2 · NF4 파일 준비 완료 · 실행·품질은 별도 검수' if not current_missing_paths else '준비 필요: '+', '.join(current_missing_paths[:3])}
+    return {'ready':not current_missing_paths,'missing':current_missing_paths,'message':'Kimodo SOMA v1.2 · 비양자화 인코더 파일 준비 완료 · 실행·품질은 별도 검수' if not current_missing_paths else '준비 필요: '+', '.join(current_missing_paths[:3])}
 
 
 def validate_kimodo_assets():

@@ -1,4 +1,4 @@
-"""고정 Kimodo·NF4 자료 다운로드. 실행 로그와 5초 heartbeat를 남긴다."""
+"""고정 Kimodo·비양자화 인코더 자료 다운로드. 실행 로그와 5초 heartbeat를 남긴다."""
 import fcntl
 import hashlib
 import json
@@ -7,6 +7,7 @@ import threading
 import time
 import traceback
 from datetime import datetime
+from pathlib import Path
 from generators.kimodo.contracts import KIMODO_ASSET_CONFIG, KIMODO_MODEL_ROOT, KIMODO_SOURCE_ROOT, KIMODO_WORKSPACE_ROOT
 from tools.review.common.generation_records import write_record_atomically
 
@@ -34,7 +35,15 @@ def download_kimodo_pinned_assets():
     current_heartbeat_thread = threading.Thread(target=record_prepare_heartbeat,daemon=True)
     current_heartbeat_thread.start()
     try:
-        from huggingface_hub import hf_hub_download
+        from huggingface_hub import get_hf_file_metadata, hf_hub_download, hf_hub_url
+        from huggingface_hub.errors import GatedRepoError
+        current_base_record = next(current_asset_record for current_asset_record in KIMODO_ASSET_CONFIG['models'] if current_asset_record['role'] == 'encoder-base')
+        current_base_path = KIMODO_MODEL_ROOT/'encoder-base'
+        if any(not (current_base_path/current_file_record['path']).is_file() for current_file_record in current_base_record['files']):
+            try:
+                get_hf_file_metadata(hf_hub_url(current_base_record['repository'], 'model-00001-of-00004.safetensors', revision=current_base_record['revision']))
+            except GatedRepoError as current_access_error:
+                raise ValueError('Meta Llama 3 8B Instruct 접근 권한을 받은 Hugging Face 계정으로 서버에서 hf auth login을 실행하세요.') from current_access_error
         KIMODO_SOURCE_ROOT.parent.mkdir(parents=True,exist_ok=True)
         if not KIMODO_SOURCE_ROOT.exists():
             subprocess.run(['git','clone','https://github.com/nv-tlabs/kimodo.git',str(KIMODO_SOURCE_ROOT)],check=True)
@@ -48,6 +57,8 @@ def download_kimodo_pinned_assets():
             for current_file_record in current_asset_record['files']:
                 record_prepare_progress(f"download {current_asset_record['repository']} {current_file_record['path']}")
                 current_file_path = hf_hub_download(current_asset_record['repository'],current_file_record['path'],revision=current_asset_record['revision'],local_dir=KIMODO_MODEL_ROOT/current_asset_record['role'])
+                if Path(current_file_path).stat().st_size != current_file_record['size']:
+                    raise ValueError(f'모델 파일 크기 불일치: {current_file_path}')
                 with open(current_file_path,'rb') as current_file_stream:
                     current_file_hash = hashlib.file_digest(current_file_stream,'sha256').hexdigest()
                 if current_file_record['sha256'] and current_file_hash != current_file_record['sha256']:

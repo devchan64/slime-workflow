@@ -17,7 +17,7 @@ def build_model_download_controls(current_interface_blocks, current_execute_comm
             current_download_running = current_asset_record.get('preparation_status') == 'running'
             return (
                 current_asset_record['message'],
-                current_asset_record['ready'],
+                current_asset_record.get('generation_ready', current_asset_record['ready']),
                 gr.update(interactive=not current_asset_record['ready'] and not current_download_running),
                 gr.Timer(active=current_download_running),
             )

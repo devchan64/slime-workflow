@@ -31,37 +31,54 @@ models:
   - path: stats/motion/local_root/std.npy
     size: 160
     sha256: 5f57b41f51ced7832cffa81702f6e04d8694e16475c184baec6c8be0e98c8dba
-- role: encoder
-  repository: matbee/kimodo-llm2vec-nf4
-  revision: 268b2f7bbbb8361bce76cc3f34d61b5467643a59
+- role: encoder-base
+  repository: meta-llama/Meta-Llama-3-8B-Instruct
+  revision: 8afb486c1db24fe5011ec46dfbe5b5dccdb575c2
   files:
-  - path: LICENSE-Llama-3.txt
-    size: 239
-    sha256: null
-  - path: README.md
-    size: 8520
-    sha256: null
-  - path: chat_template.jinja
-    size: 389
-    sha256: null
   - path: config.json
-    size: 1216
+    size: 654
     sha256: null
-  - path: model.safetensors
-    size: 4652064697
-    sha256: 64d4bea7b029f5ea40c52eb84c11cb370ddb4d7d45f4e9f8d3babe92e3665c5d
-  - path: qbench_export.json
-    size: 471
+  - path: model.safetensors.index.json
+    size: 23950
     sha256: null
-  - path: supervised_adapter/adapter_config.json
+  - path: model-00001-of-00004.safetensors
+    size: 4976698672
+    sha256: d8cf9c4d0dd972e1a2131bfe656235ee98221679711a3beef6d46dadf0f20b5c
+  - path: model-00002-of-00004.safetensors
+    size: 4999802720
+    sha256: 8d4782b4a69ef03845159ce1a15e272aadaaf134dc138d68f616098e8531729c
+  - path: model-00003-of-00004.safetensors
+    size: 4915916176
+    sha256: 3acdd690e65c24f42a24581b8467af98bd3ca357444580f8012aacd2bd607921
+  - path: model-00004-of-00004.safetensors
+    size: 1168138808
+    sha256: 67e9ad31c8c32abf3a55ee7fc7217b3ecb35fd3c74d98a5bd233e0e4d6964f46
+- role: encoder-mntp
+  repository: McGill-NLP/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp
+  revision: 31474e395ada192e8ed1586db6be79fb3b70c9c0
+  files:
+  - path: adapter_config.json
     size: 794
     sha256: null
-  - path: supervised_adapter/adapter_model.safetensors
+  - path: adapter_model.safetensors
+    size: 167829552
+    sha256: de9c8736618a13173c6a1623cdef1b75e86c69317f1073ae82cd516ac36a632d
+  - path: special_tokens_map.json
+    size: 335
+    sha256: null
+  - path: tokenizer.json
+    size: 9085671
+    sha256: null
+  - path: tokenizer_config.json
+    size: 51042
+    sha256: null
+- role: encoder-supervised
+  repository: McGill-NLP/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp-supervised
+  revision: baa8ebf04a1c2500e61288e7dad65e8ae42601a7
+  files:
+  - path: adapter_config.json
+    size: 794
+    sha256: null
+  - path: adapter_model.safetensors
     size: 167829552
     sha256: 53f8f94ebdf396667ba99dd96e78203edae27bbcdbd1cf5f12b611e1d916b225
-  - path: tokenizer.json
-    size: 17209961
-    sha256: 3c5cf44023714fb39b05e71e425f8d7b92805ff73f7988b083b8c87f0bf87393
-  - path: tokenizer_config.json
-    size: 320
-    sha256: null

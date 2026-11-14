@@ -545,6 +545,8 @@ CLI에서는 같은 `qwen-21 generate`에 `--prompt-file generators/image/config
 
 `/management/frame/prop-generator/`는 상자·가판대·작업대·표지판 등 소품용 Qwen 2.1 GUI다. 추적 기본 문구 `generators/image/config/prop-qwen-prompt.txt`는 직교투영·일정한 축척·접지점·투명 배경을 지시하며 복원 버튼을 제공한다. 대상·용도·자재를 추가하고 옵션 포함 최종 99단어 이내로 유지한다. 레이아웃·외형 참조는 최대 10장 선택 입력이며 텍스트만으로도 생성할 수 있다. 기본 출력은 512×512다.
 
+GUI **모델 다운로드**와 CLI `command prop-generator prepare`는 고정 리비전의 공식 비양자화 Qwen Image 2.1 스냅샷을 서버 캐시에 받는다. `command prop-generator model-status`에서 다운로드 상태, 파일 준비 여부와 AMD ROCm 추론 준비 여부를 확인한다. 추론은 `.venv`의 ROCm PyTorch와 Qwen 파이프라인에서 BF16으로 실행한다.
+
 `prop-generator` 전용 서비스의 대기열·상태·로그·이력을 사용한다. CLI도 `prop-generator generate --prompt-file generators/image/config/prop-qwen-prompt.txt`와 선택 `--reference`로 같은 서비스를 사용한다. 결과는 자동 등록하지 않으며 검수 후 `slime-assets/assets/billboards/`에 소품로 등록한다. 새 모델·작업 실행기·AWS 인프라는 추가하지 않는다.
 
 ### 자연물 생성 페이지
@@ -924,9 +926,9 @@ GUI와 CLI는 `map-assets effect-list`, `effect-load`, `effect-save`를 공유�
 
 2026-10-27 UMT5 비양자화 전환: 원본 BF16 인코더·토크나이저 해시 검증 완료. 양성 프롬프트와 빈 부정 프롬프트를 인코딩해 각각 24개 블록의 CUDA 실행과 유한한 `[1,512,4096]` 임베딩을 확인했다. 약 9.5초, 작업 프로세스 VRAM 관측 피크 6,948MiB(5초 샘플링)이며 인코더 단독 검사다. 이후 BF16 인코더를 사용한 전체 영상 생성도 완료했다. 81프레임·2스텝은 약 6분 45초, 61프레임·30스텝은 약 50분 44초이며 후자의 작업 프로세스 VRAM 관측 피크는 6,948MiB다. 이는 실행 검증이며 보행 품질이나 Q4 인코더 대비 품질 향상을 보장하지 않는다. 가중치 이름 변환의 텐서 보존·미지원 키 거절을 포함한 샘플링 계약 검사 4건이 통과했다.
 
-## Kimodo NF4 실험 생성기
+## Kimodo 비양자화 ROCm 생성기
 
-`kimodo` 서비스와 `/management/frame/kimodo-generator/` 페이지를 추가했다. GUI·통합 CLI는 공용 게이트웨이, GPU 대기열, `.tmp/test/kimodo/` 기록을 공유한다. 텍스트 인코더만 NF4이며 모션 모델은 FP32 CUDA로 실행한다. 모델 준비·JSON 요청·출력 범위는 [Kimodo 사용 설명](../generators/kimodo/README.md)을 따른다. 기본 스텝은 100이며 2스텝은 실행 연결 검사에만 사용한다. 선택 삭제·초기화·우선 실행·취소·재개는 공용 계약을 사용한다.
+`kimodo` 서비스와 `/management/frame/kimodo-generator/` 페이지를 추가했다. GUI·통합 CLI는 공용 게이트웨이, GPU 대기열, `.tmp/test/kimodo/` 기록을 공유한다. 텍스트 인코더는 비양자화 BF16, 모션 모델은 FP32로 AMD ROCm에서 실행한다. 모델 다운로드에는 Meta Llama 3 8B Instruct 접근 권한과 서버의 Hugging Face 로그인이 필요하다. 모델 준비·JSON 요청·출력 범위는 [Kimodo 사용 설명](../generators/kimodo/README.md)을 따른다. 기본 스텝은 100이며 2스텝은 실행 연결 검사에만 사용한다. 선택 삭제·초기화·우선 실행·취소·재개는 공용 계약을 사용한다.
 
 GUI **모델 다운로드**와 CLI `command kimodo prepare`는 같은 백그라운드 다운로드를 요청한다. HTTP 입력은 `{"action":"prepare"}`이며 추가 필드를 받지 않는다. `model-status`의 `preparation_status`는 `idle`, `running`, `completed`, `failed` 중 하나다. `ready`는 현재 파일 준비 상태를 나타낸다.
 
