@@ -50,20 +50,19 @@ def read_gpu_status():
                     current_memory_records = current_process_values['memory_usage']
                     current_gpu_memory = [current_memory_records['vram_mem'], current_memory_records['gtt_mem']]
                     current_memory_value = (sum(current_memory_record['value'] for current_memory_record in current_gpu_memory) + 1048575) // 1048576 if all(current_memory_record['unit'] == 'B' for current_memory_record in current_gpu_memory) else None
-                    processes.append({'pid':pid,'memory_mib':current_memory_value,**identify_gpu_command(pid)})
+                    current_process_memory = {f'{current_domain_name}_memory_mib': (current_memory_records[f'{current_domain_name}_mem']['value'] + 1048575) // 1048576 if current_memory_records[f'{current_domain_name}_mem']['unit'] == 'B' else None for current_domain_name in ('gtt','vram')}
+                    processes.append({'pid':pid,'memory_mib':current_memory_value,**current_process_memory,**identify_gpu_command(pid)})
             memory_result = subprocess.run(['amd-smi','metric','-m','--json'],capture_output=True,text=True,timeout=10,check=True)
-            memory_total_mib = memory_used_mib = memory_free_mib = 0
+            current_memory_totals = {f'{current_domain_name}_{current_measure_name}_mib':0 for current_domain_name in ('gtt','vram') for current_measure_name in ('total','used','free')}
             for current_gpu_record in json.loads(memory_result.stdout)['gpu_data']:
                 current_memory_values = current_gpu_record['mem_usage']
-                current_total_memory = int(current_memory_values['total_gtt']['value'])
-                current_used_memory = int(current_memory_values['used_gtt']['value']) + int(current_memory_values['used_vram']['value'])
-                memory_total_mib += current_total_memory
-                memory_used_mib += current_used_memory
-                memory_free_mib += max(0, int(current_memory_values['free_gtt']['value']) - int(current_memory_values['used_vram']['value']))
-            if memory_total_mib <= 0:
+                for current_domain_name in ('gtt','vram'):
+                    for current_measure_name in ('total','used','free'):
+                        current_memory_totals[f'{current_domain_name}_{current_measure_name}_mib'] += int(current_memory_values[f'{current_measure_name}_{current_domain_name}']['value'])
+            if current_memory_totals['gtt_total_mib'] <= 0:
                 raise ValueError('GPU 메모리 정보를 읽을 수 없습니다.')
             record = {'status':'busy' if processes else 'idle','processes':processes,
-                'memory_total_mib':memory_total_mib,'memory_used_mib':memory_used_mib,'memory_free_mib':memory_free_mib}
+                **current_memory_totals, **{f'memory_{current_measure_name}_mib':current_memory_totals[f'gtt_{current_measure_name}_mib'] for current_measure_name in ('total','used','free')}}
         except (OSError,subprocess.SubprocessError,ValueError,KeyError,TypeError):
             record = {'status':'unavailable','processes':[]}
         _status_cache = (time.monotonic(),record)

@@ -102,6 +102,7 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.wan_vace.generation import VaceVideoGenerationManager
     from generators.music.contracts import AUDIO_SERVICE_NAMES
     from tools.review.domains.music.generation import MusicGenerationManager
+    from tools.review.common.model_download_records import MODEL_DOWNLOAD_RECORD_ROOT
     writer_agent_service = WriterAgentManager(writer_workspace_config or DEFAULT_WORKSPACE_CONFIG)
     try:
         animate_two_service = AnimateTwoGenerationManager()
@@ -124,7 +125,12 @@ def create_management_runtime(writer_workspace_config=None):
         handle_building_compatibility_request = build_building_compatibility_handler(billboard_generation_service)
         def reject_writer_folder_access(current_record_identifier):
             raise ValueError('작가 기록은 writer-detail 명령으로 조회하세요.')
+        def reject_model_download_folder(current_record_identifier):
+            raise ValueError('모델 다운로드 기록은 상태 명령으로 조회하세요.')
+        def handle_model_download_request(current_http_handler):
+            return False
         service_binding_records = {
+            'model-downloads': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
             'writer-agent': ManagementServiceBinding(writer_agent_service.handle_writer_request,writer_agent_service.workspace_config_path.parent,reject_writer_folder_access),
             'wan22-animate2': bind_stored_management_service(animate_two_service.handle_image_request,animate_two_service.job_storage_root),
             'dwpose': bind_stored_management_service(dwpose_generation_service.handle_image_request,dwpose_generation_service.job_storage_root),

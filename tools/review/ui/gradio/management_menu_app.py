@@ -51,7 +51,8 @@ def format_gpu_status(gpu_status_record):
         process_status_values=[]
         for current_process_record in gpu_status_record.get('processes',[]):
             identifier_text_value=current_process_record.get('id') or f"PID {current_process_record.get('pid','?')}"
-            memory_text_value=f" · {current_process_record['memory_mib']} MiB" if current_process_record.get('memory_mib') is not None else ''
+            current_process_memory=[f"{current_domain_name.upper()} {current_process_record[f'{current_domain_name}_memory_mib']:,} MiB" for current_domain_name in ('gtt','vram') if isinstance(current_process_record.get(f'{current_domain_name}_memory_mib'),int)]
+            memory_text_value=' · '+' · '.join(current_process_memory) if current_process_memory else (f" · {current_process_record['memory_mib']} MiB" if current_process_record.get('memory_mib') is not None else '')
             process_status_values.append(f"{current_process_record.get('command','외부 GPU 작업')} · {identifier_text_value}{memory_text_value}")
         return 'GPU 사용 중 · '+' / '.join(process_status_values)
     if gpu_status_record.get('status')=='idle':return 'GPU · 실행 중인 연산 작업 없음'
@@ -61,9 +62,14 @@ def format_gpu_status(gpu_status_record):
 def render_gpu_status_card(gpu_status_record):
     """기본 Markdown으로 GPU 상태와 메모리를 표시한다."""
     current_status_text=format_gpu_status(gpu_status_record)
-    current_memory_values=[gpu_status_record.get(current_field_name) for current_field_name in ('memory_used_mib','memory_free_mib','memory_total_mib')]
-    if all(isinstance(current_memory_value,int) and current_memory_value>=0 for current_memory_value in current_memory_values):
-        current_status_text+='\n\n'+ ' · '.join(f'{current_memory_label} {current_memory_value:,} MiB' for current_memory_label,current_memory_value in zip(('사용','여유','총'),current_memory_values))
+    for current_domain_name in ('gtt','vram'):
+        current_memory_values=[gpu_status_record.get(f'{current_domain_name}_{current_measure_name}_mib') for current_measure_name in ('used','free','total')]
+        if all(isinstance(current_memory_value,int) and current_memory_value>=0 for current_memory_value in current_memory_values):
+            current_status_text+='\n\n'+current_domain_name.upper()+' · '+ ' · '.join(f'{current_memory_label} {current_memory_value:,} MiB' for current_memory_label,current_memory_value in zip(('사용','여유','총'),current_memory_values))
+    if 'gtt_total_mib' not in gpu_status_record:
+        current_memory_values=[gpu_status_record.get(current_field_name) for current_field_name in ('memory_used_mib','memory_free_mib','memory_total_mib')]
+        if all(isinstance(current_memory_value,int) and current_memory_value>=0 for current_memory_value in current_memory_values):
+            current_status_text+='\n\n'+ ' · '.join(f'{current_memory_label} {current_memory_value:,} MiB' for current_memory_label,current_memory_value in zip(('사용','여유','총'),current_memory_values))
     return current_status_text
 
 def load_manager_page_records(source_file_path, current_animation_catalog=False):

@@ -143,6 +143,12 @@ class GradioManagementMenuTests(unittest.TestCase):
         self.assertIn('여유 11,264 MiB', busy_status_card)
         self.assertIn('총 12,288 MiB', busy_status_card)
 
+    def test_gpu_status_card_distinguishes_memory_pools(self):
+        current_status_card = render_gpu_status_card({'status':'busy','processes':[{'command':'작업','id':'sample','gtt_memory_mib':500,'vram_memory_mib':12}], 'gtt_total_mib':12288,'gtt_used_mib':1000,'gtt_free_mib':11288,'vram_total_mib':4096,'vram_used_mib':280,'vram_free_mib':3816})
+        self.assertIn('GTT 500 MiB · VRAM 12 MiB', current_status_card)
+        self.assertIn('GTT · 사용 1,000 MiB · 여유 11,288 MiB · 총 12,288 MiB', current_status_card)
+        self.assertIn('VRAM · 사용 280 MiB · 여유 3,816 MiB · 총 4,096 MiB', current_status_card)
+
 
 class ManagementMenuRefreshTests(unittest.TestCase):
     def test_menu_updates_do_not_bind_server_change_events(self):

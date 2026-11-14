@@ -14,7 +14,9 @@ IMAGE_HISTORY_ROOT_PATHS = tuple(WORKFLOW_ROOT_DIRECTORY/current_relative_path f
 MEMORY_HISTORY_DIRECTORY = Path(__file__).resolve().parents[3]/'.tmp/gpu-memory-history'
 
 
-def read_worker_memory(worker_pid):
+def read_worker_memory(worker_pid, current_memory_domain='combined'):
+    if current_memory_domain not in ('combined', 'gtt', 'vram'):
+        raise ValueError('알 수 없는 GPU 메모리 영역입니다.')
     parent_process_map = {}
     for process_path in Path('/proc').glob('[0-9]*/stat'):
         try:
@@ -38,7 +40,8 @@ def read_worker_memory(worker_pid):
             if current_process_values['pid'] in worker_process_ids:
                 try:
                     current_memory_records = current_process_values['memory_usage']
-                    current_gpu_memory = [current_memory_records['vram_mem'], current_memory_records['gtt_mem']]
+                    current_domain_names = ('vram','gtt') if current_memory_domain == 'combined' else (current_memory_domain,)
+                    current_gpu_memory = [current_memory_records[f'{current_domain_name}_mem'] for current_domain_name in current_domain_names]
                     if any(current_memory_record['unit'] != 'B' or not isinstance(current_memory_record['value'], int) or current_memory_record['value'] < 0 for current_memory_record in current_gpu_memory):
                         raise ValueError('AMD 프로세스 GPU 메모리 값 오류')
                     total_memory_mib += (sum(current_memory_record['value'] for current_memory_record in current_gpu_memory) + 1048575) // 1048576

@@ -27,6 +27,9 @@ class GpuJobQueueTests(unittest.TestCase):
         self.worker_memory_patch = patch.object(queue_module,'read_worker_memory',return_value=0)
         self.worker_memory_patch.start()
         self.addCleanup(self.worker_memory_patch.stop)
+        current_host_memory_patch = patch.object(queue_module,'read_host_available_memory',return_value=100000)
+        current_host_memory_patch.start()
+        self.addCleanup(current_host_memory_patch.stop)
         self.signal_handler_patch = patch('signal.signal')
         self.signal_handler_patch.start()
         self.addCleanup(self.signal_handler_patch.stop)
@@ -74,6 +77,17 @@ class GpuJobQueueTests(unittest.TestCase):
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),1)
             worker_launch_mock.assert_not_called()
         self.assertIn('요구량',json.loads((self.current_job_path/'status.json').read_text())['error'])
+
+    def test_system_available_memory_limits_gpu_queue(self):
+        def check_waiting_memory(current_delay_seconds):
+            current_status_record=json.loads((self.current_job_path/'status.json').read_text())
+            self.assertEqual(current_status_record['free_memory_mib'],20000)
+            self.assertEqual(current_status_record['host_available_memory_mib'],1000)
+            self.assertEqual(current_status_record['available_memory_mib'],1000)
+            queue_module.cancel_gpu_generation(self.current_job_path)
+        with patch.object(queue_module,'read_gpu_memory',return_value=(24000,20000)),patch.object(queue_module,'read_host_available_memory',return_value=1000),patch.object(queue_module.time,'sleep',side_effect=check_waiting_memory),patch.object(queue_module.subprocess,'Popen') as current_launch_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+            current_launch_mock.assert_not_called()
 
     def test_available_memory_admits_job_alongside_active_reservation(self):
         active = queue_module.GPU_QUEUE_DIRECTORY/'active'

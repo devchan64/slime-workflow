@@ -14,7 +14,7 @@ sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.generation_records import write_record_atomically
 from tools.review.common.queue_generation_telemetry import QueueGenerationTelemetry
 from tools.review.common.gpu_memory_history import read_worker_memory, save_memory_observation, estimate_required_memory, identify_execution_command
-from tools.review.common.host_memory_guard import start_animate_memory_guard
+from tools.review.common.host_memory_guard import start_animate_memory_guard, read_memory_field_kib
 GPU_QUEUE_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/gpu-queue'
 GPU_MEMORY_REQUIREMENTS = {'momask': 4096, 'character-animation': 6144, 'image': 6144}
 GPU_MEMORY_REQUIREMENTS['wan-fun'] = 30000
@@ -30,9 +30,13 @@ def read_gpu_memory():
     memory_query_result = subprocess.run(['amd-smi', 'metric', '-m', '--json'], capture_output=True, text=True, check=True, timeout=10)
     current_memory_values = json.loads(memory_query_result.stdout)['gpu_data'][0]['mem_usage']
     current_total_memory = int(current_memory_values['total_gtt']['value'])
-    current_used_video_memory = int(current_memory_values['used_vram']['value'])
-    current_free_memory = max(0, int(current_memory_values['free_gtt']['value'])-current_used_video_memory)
+    current_free_memory = max(0, int(current_memory_values['free_gtt']['value']))
     return current_total_memory, current_free_memory
+
+
+def read_host_available_memory():
+    """GTT는 시스템 RAM을 사용하므로 실제 사용 가능한 RAM도 확인한다."""
+    return read_memory_field_kib('/proc/meminfo', 'MemAvailable') // 1024
 
 
 def launch_gpu_process(command_argument_values, generation_job_path, generation_service_name, **process_option_values):
@@ -251,20 +255,21 @@ def execute_locked_generation(generation_job_path):
                                     write_record_atomically(reservation_path, reservation_record)
                             # 실측 여유에는 이미 사용 중인 메모리가 반영되어 있다.
                             try:
-                                measured_reservation_mib = read_worker_memory(reservation_record['pid'])
+                                measured_reservation_mib = read_worker_memory(reservation_record['pid'], current_memory_domain='gtt')
                             except (OSError, ValueError, subprocess.SubprocessError):
                                 measured_reservation_mib = 0
                             reserved_memory_value += max(0, reservation_record['required_memory_mib']-measured_reservation_mib)
                         # 아직 사용하지 않은 예약분만 차감해 모델 로딩 여유를 확보한다.
                         memory_total_value, memory_free_value = read_gpu_memory()
-                        available_memory_value = max(0, memory_free_value-reserved_memory_value)
+                        host_available_memory = read_host_available_memory()
+                        available_memory_value = max(0, min(memory_free_value, host_available_memory)-reserved_memory_value)
                         if select_runnable_ticket(available_memory_value) == queue_ticket_path:
                             write_record_atomically(active_reservation_path, {'pid':os.getpid(), 'path':str(generation_job_path), 'required_memory_mib':required_memory_value})
                             queue_ticket_path.unlink(missing_ok=True)
                             break
                     finally:
                         fcntl.flock(gpu_execution_handle, fcntl.LOCK_UN)
-                queue_status_record = {'status':'queued', 'queue_position':queue_position_value, 'free_memory_mib':memory_free_value, 'required_memory_mib':required_memory_value, 'reserved_memory_mib':reserved_memory_value, 'available_memory_mib':available_memory_value, 'memory_estimate':memory_estimate_record, 'message':'GPU 메모리 여유 또는 실행 가능한 앞선 작업 대기'}
+                queue_status_record = {'status':'queued', 'queue_position':queue_position_value, 'free_memory_mib':memory_free_value, 'host_available_memory_mib':read_host_available_memory(), 'required_memory_mib':required_memory_value, 'reserved_memory_mib':reserved_memory_value, 'available_memory_mib':available_memory_value, 'memory_estimate':memory_estimate_record, 'message':'GPU 또는 시스템 메모리 여유 또는 실행 가능한 앞선 작업 대기'}
                 write_record_atomically(generation_job_path/'status.json', queue_status_record)
                 print(f'{time.strftime("%Y-%m-%dT%H:%M:%S")}/gpu-queue/wait {queue_status_record}', flush=True)
                 time.sleep(GPU_POLL_INTERVAL)
@@ -289,7 +294,7 @@ def execute_locked_generation(generation_job_path):
                 if time.monotonic()-last_memory_sample_time >= GPU_POLL_INTERVAL:
                     last_memory_sample_time = time.monotonic()
                     try:
-                        peak_memory_mib = max(peak_memory_mib, read_worker_memory(generation_worker_process.pid))
+                        peak_memory_mib = max(peak_memory_mib, read_worker_memory(generation_worker_process.pid, current_memory_domain='gtt'))
                         memory_sample_count += 1
                     except (OSError, ValueError, subprocess.SubprocessError) as measurement_error:
                         memory_measurement_error = str(measurement_error)

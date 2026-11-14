@@ -14,6 +14,16 @@ from tools.review import gateway_server
 
 
 class ManagementRuntimeTests(unittest.TestCase):
+    def test_real_runtime_binds_model_download_status(self):
+        from tools.review.common.management_runtime import create_management_runtime
+        current_runtime_manager = create_management_runtime()
+        self.addCleanup(current_runtime_manager.close_runtime_services)
+        current_http_handler = SimpleNamespace(command='GET',path='/model-downloads/status',server=SimpleNamespace(server_port=8771),headers={'Host':'127.0.0.1:8771'},send_response=Mock(),send_header=Mock(),end_headers=Mock(),wfile=io.BytesIO())
+        with patch('tools.review.common.model_download_records.list_model_download_records',return_value=[{'status':'running'}]):
+            self.assertTrue(current_runtime_manager.dispatch_runtime_request(current_http_handler))
+        current_http_handler.send_response.assert_called_once_with(200)
+        self.assertIn(b'running',current_http_handler.wfile.getvalue())
+
     def create_service_bindings(self):
         return {
             service_command_name: bind_stored_management_service(Mock(return_value=True), Path('/tmp')/service_command_name)
