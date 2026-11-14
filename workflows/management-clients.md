@@ -545,7 +545,7 @@ CLI에서는 같은 `qwen-21 generate`에 `--prompt-file generators/image/config
 
 `/management/frame/prop-generator/`는 상자·가판대·작업대·표지판 등 소품용 Qwen 2.1 GUI다. 추적 기본 문구 `generators/image/config/prop-qwen-prompt.txt`는 직교투영·일정한 축척·접지점·투명 배경을 지시하며 복원 버튼을 제공한다. 대상·용도·자재를 추가하고 옵션 포함 최종 99단어 이내로 유지한다. 레이아웃·외형 참조는 최대 10장 선택 입력이며 텍스트만으로도 생성할 수 있다. 기본 출력은 512×512다.
 
-GUI **모델 다운로드**와 CLI `command prop-generator prepare`는 고정 리비전의 공식 비양자화 Qwen Image 2.1 스냅샷을 서버 캐시에 받는다. `command prop-generator model-status`에서 다운로드 상태, 파일 준비 여부와 AMD ROCm 추론 준비 여부를 확인한다. 추론은 `.venv`의 ROCm PyTorch와 Qwen 파이프라인에서 BF16으로 실행한다.
+GUI **모델 다운로드**와 CLI `command prop-generator prepare`는 고정 리비전의 공식 비양자화 Qwen Image 2.1 스냅샷을 공용 모델 준비 작업자로 서버 캐시에 받는다. 작업자는 게이트웨이와 별도 세션이며, 재시작 후 `model-status`에서 실행 상태를 다시 조회한다. 실패 로그는 `.local/model-preparation/qwen-21/worker.log`에 남는다. `command prop-generator model-status`에서 다운로드 상태, 파일 준비 여부와 AMD ROCm 추론 준비 여부를 확인한다. 추론은 `.venv`의 ROCm PyTorch와 Qwen 파이프라인에서 BF16으로 실행한다.
 
 `prop-generator` 전용 서비스의 대기열·상태·로그·이력을 사용한다. CLI도 `prop-generator generate --prompt-file generators/image/config/prop-qwen-prompt.txt`와 선택 `--reference`로 같은 서비스를 사용한다. 결과는 자동 등록하지 않으며 검수 후 `slime-assets/assets/billboards/`에 소품로 등록한다. 새 모델·작업 실행기·AWS 인프라는 추가하지 않는다.
 

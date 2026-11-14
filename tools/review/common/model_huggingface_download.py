@@ -5,6 +5,7 @@ import threading
 import time
 from tqdm.auto import tqdm
 from tools.review.common.model_download_records import track_model_download
+from tools.review.common.model_huggingface_recovery import ModelRecoveryError
 
 
 def execute_huggingface_download(current_function_name, current_argument_values, current_keyword_values):
@@ -17,12 +18,13 @@ def execute_huggingface_download(current_function_name, current_argument_values,
     with track_model_download(current_model_name) as current_download_record:
         current_snapshot_total = None
         current_cached_bytes = 0
-        if current_function_name == 'snapshot' and not current_keyword_values.get('dry_run') and 'dry_run' in inspect.signature(current_download_function).parameters:
+        if current_function_name in ('snapshot', 'file') and not current_keyword_values.get('dry_run') and 'dry_run' in inspect.signature(current_download_function).parameters:
             try:
                 current_probe_options = dict(current_keyword_values)
                 current_probe_options['dry_run'] = True
                 current_probe_options.pop('tqdm_class', None)
-                current_probe_records = current_download_function(*current_argument_values, **current_probe_options)
+                current_probe_result = current_download_function(*current_argument_values, **current_probe_options)
+                current_probe_records = current_probe_result if isinstance(current_probe_result, list) else [current_probe_result]
                 if isinstance(current_probe_records, list) and current_probe_records and all(isinstance(getattr(current_file_record, 'file_size', None), int) and current_file_record.file_size >= 0 for current_file_record in current_probe_records):
                     current_snapshot_total = sum(current_file_record.file_size for current_file_record in current_probe_records)
                     current_cached_bytes = sum(current_file_record.file_size for current_file_record in current_probe_records if current_file_record.is_cached and not current_file_record.will_download)
@@ -35,10 +37,14 @@ def execute_huggingface_download(current_function_name, current_argument_values,
                                     if recover_huggingface_partial(current_repo_name, current_file_record.commit_hash, current_keyword_values['local_dir'], current_file_record, current_keyword_values.get('endpoint')):
                                         current_cached_bytes += current_file_record.file_size
                                         current_download_record.update(bytes=current_cached_bytes)
+                                except ModelRecoveryError:
+                                    raise
                                 except Exception as current_recovery_error:
                                     # 원본을 보존하고 기존 다운로드 경로를 사용한다.
                                     logging.getLogger(__name__).warning('기존 부분 파일 복구 건너뜀: %s · %s', current_file_record.filename, type(current_recovery_error).__name__)
                                     continue
+            except ModelRecoveryError:
+                raise
             except Exception:
                 # 메타데이터를 얻지 못해도 실제 다운로드와 기존 캐시 계약을 유지한다.
                 pass
@@ -56,7 +62,7 @@ def execute_huggingface_download(current_function_name, current_argument_values,
                 current_clock_value = time.monotonic()
                 if force_report_value or current_clock_value - self.current_report_time >= 1:
                     with current_record_lock:
-                        current_download_record.update(stage='다운로드', bytes=self.current_received_bytes + current_cached_bytes, total_bytes=current_snapshot_total if current_snapshot_total is not None else (int(self.total) if self.total else None), resumed_bytes=self.current_resume_bytes)
+                        current_download_record.update(stage='다운로드', bytes=min(self.current_received_bytes + current_cached_bytes, current_snapshot_total) if current_snapshot_total is not None else self.current_received_bytes + current_cached_bytes, total_bytes=current_snapshot_total if current_snapshot_total is not None else (int(self.total) if self.total else None), resumed_bytes=self.current_resume_bytes)
                     self.current_report_time = current_clock_value
 
             def update(self, current_increment_value=1):

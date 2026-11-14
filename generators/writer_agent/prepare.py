@@ -183,16 +183,39 @@ def prepare_embedding_model():
     emit_runtime_trace('prepared',f'embedding_model={EMBEDDING_MODEL_NAME} model_path={MODEL_DOWNLOAD_ROOT/EMBEDDING_DOWNLOAD_NAME}')
 
 
-if __name__ == '__main__':
-    current_argument_parser=argparse.ArgumentParser(description='작가 에이전트 고정 GPU 환경 준비')
-    current_argument_parser.add_argument('--run-dir',type=Path,required=True)
-    current_argument_values=current_argument_parser.parse_args()
+def execute_writer_preparation(current_argument_values, current_prepare_callback=None):
+    global CURRENT_LOG_PATH
+    if current_prepare_callback is None:
+        current_prepare_callback = prepare_runtime_environment
     current_argument_values.run_dir.mkdir(parents=True,exist_ok=True)
     CURRENT_LOG_PATH=current_argument_values.run_dir/'execution.log'
     RUNTIME_INSTALL_ROOT.mkdir(parents=True,exist_ok=True)
-    try:
-        with lock_gpu_runtime():
-            prepare_runtime_environment()
-    except Exception:
-        emit_runtime_trace('failed',traceback.format_exc())
-        raise
+    from generators.writer_agent.jobs import update_job_status, read_process_identity
+    from tools.review.common.generation_records import write_record_atomically
+    current_preparation_lock = os.fdopen(current_argument_values.lock_fd, 'a') if current_argument_values.lock_fd is not None else contextlib.nullcontext()
+    with current_preparation_lock:
+        update_job_status(current_argument_values.run_dir,'preparing',process_id=os.getpid(),process_identity=read_process_identity(os.getpid()))
+        if current_argument_values.status_path:
+            write_record_atomically(current_argument_values.status_path, {'status': 'running'})
+        try:
+            with lock_gpu_runtime():
+                current_prepare_callback()
+        except BaseException as current_prepare_error:
+            emit_runtime_trace('failed',traceback.format_exc())
+            update_job_status(current_argument_values.run_dir,'failed',error=str(current_prepare_error))
+            if current_argument_values.status_path:
+                write_record_atomically(current_argument_values.status_path, {'status': 'failed'})
+            raise
+        else:
+            update_job_status(current_argument_values.run_dir,'completed',summary='환경 준비 완료',error='')
+            if current_argument_values.status_path:
+                write_record_atomically(current_argument_values.status_path, {'status': 'completed'})
+
+
+if __name__ == '__main__':
+    current_argument_parser=argparse.ArgumentParser(description='작가 에이전트 고정 GPU 환경 준비')
+    current_argument_parser.add_argument('--run-dir',type=Path,required=True)
+    current_argument_parser.add_argument('--status-path',type=Path)
+    current_argument_parser.add_argument('--lock-fd',type=int)
+    current_argument_values=current_argument_parser.parse_args()
+    execute_writer_preparation(current_argument_values)

@@ -590,6 +590,14 @@ with patch.object(model_huggingface_recovery,'track_model_download',factory),pat
                     current_record_factory = lambda current_name: track_model_download(current_name, current_root_path/'records')
                     current_probe_record = SimpleNamespace(filename='weights.bin', file_size=len(current_content_bytes), local_path=str(current_local_paths.file_path))
                     with patch.object(model_huggingface_recovery, 'track_model_download', current_record_factory), patch.object(model_http_download, 'track_model_download', current_record_factory), patch('huggingface_hub.hf_hub_url', return_value=current_download_url), patch('huggingface_hub.get_hf_file_metadata', return_value=SimpleNamespace(etag=current_expected_hash, size=len(current_content_bytes))):
+                        if current_mode_value == 'link':
+                            current_partial_path = current_local_paths.file_path.with_suffix('.bin.partial')
+                            with current_partial_path.open('r+b') as current_partial_stream:
+                                current_partial_stream.write(b'X')
+                            with self.assertRaisesRegex(ValueError, '해시'):
+                                model_huggingface_recovery.recover_huggingface_partial('local/model', 'a'*40, current_model_root, current_probe_record)
+                            with current_partial_path.open('r+b') as current_partial_stream:
+                                current_partial_stream.write(current_content_bytes[:1])
                         if current_mode_value == 'publish':
                             self.assertFalse(model_huggingface_recovery.recover_huggingface_partial('local/model', 'a'*40, current_model_root, current_probe_record))
                         else:
@@ -679,3 +687,331 @@ server.serve_forever()
                 current_gateway_process.stdout.close()
                 current_gateway_process.stderr.close()
             self.assertEqual(inspect_detached_preparation(current_root_path), 'completed')
+
+class WriterPreparationLifecycleTest(unittest.TestCase):
+    def test_gateway_close_preserves_preparation_but_not_other_writer_jobs(self):
+        from unittest.mock import MagicMock, patch
+        from generators.writer_agent.management import WriterAgentManager
+        current_manager_value = WriterAgentManager()
+        current_process_value = MagicMock()
+        current_process_value.poll.return_value = None
+        current_process_value.pid = 12345
+        current_manager_value.worker_process_handle = current_process_value
+        with patch('generators.writer_agent.management.os.killpg') as current_signal_mock:
+            current_manager_value.worker_prepare_flag = True
+            current_manager_value.close_writer_worker()
+            current_signal_mock.assert_not_called()
+            current_manager_value.worker_prepare_flag = False
+            current_manager_value.close_writer_worker()
+            current_signal_mock.assert_called_once()
+
+    def test_writer_preparation_records_completion_without_gateway_monitor(self):
+        import contextlib
+        import json
+        from pathlib import Path
+        import tempfile
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from generators.writer_agent import prepare
+        from generators.writer_agent.documents import read_yaml_document
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path = Path(current_directory_name)
+            current_arguments = SimpleNamespace(run_dir=current_root_path/'job', status_path=current_root_path/'status.json', lock_fd=None)
+            with patch.object(prepare, 'RUNTIME_INSTALL_ROOT', current_root_path/'runtime'), patch.object(prepare, 'lock_gpu_runtime', return_value=contextlib.nullcontext()), patch.object(prepare, 'CURRENT_LOG_PATH', None):
+                prepare.execute_writer_preparation(current_arguments, lambda: None)
+            self.assertEqual(read_yaml_document(current_arguments.run_dir/'status.yaml')['stage'], 'completed')
+            self.assertEqual(json.loads(current_arguments.status_path.read_text())['status'], 'completed')
+
+class HttpResumeSafetyTest(unittest.TestCase):
+    def test_server_ignoring_range_keeps_existing_partial(self):
+        from email.message import Message
+        from io import BytesIO
+        from pathlib import Path
+        import tempfile
+        from unittest.mock import patch
+        from tools.review.common import model_http_download
+        from tools.review.common.model_download_records import track_model_download
+        class FullResponse(BytesIO):
+            status = 200
+            headers = Message()
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path = Path(current_directory_name)
+            current_target_path = current_root_path/'model.bin'
+            current_partial_path = current_target_path.with_suffix('.bin.partial')
+            current_partial_path.write_bytes(b'preserved')
+            with patch.object(model_http_download, 'track_model_download', lambda current_name: track_model_download(current_name, current_root_path/'records')), patch('urllib.request.urlopen', return_value=FullResponse(b'full content')):
+                with self.assertRaisesRegex(ValueError, '보존'):
+                    model_http_download.download_verified_http('https://example.invalid/file', current_target_path, '0'*64, 'test')
+            self.assertEqual(current_partial_path.read_bytes(), b'preserved')
+            self.assertFalse(current_target_path.exists())
+
+class CommonPreparationProfileTest(unittest.TestCase):
+    def test_registered_profiles_share_one_worker_and_reject_unknown(self):
+        from pathlib import Path
+        from unittest.mock import patch
+        from tools.review.common.model_prepare_process import start_registered_preparation
+        current_root_path = Path('/tmp/isolated-profile')
+        with patch('tools.review.common.model_prepare_process.start_detached_preparation', return_value={'preparation_status': 'running'}) as current_start_mock:
+            for current_profile_name in ('qwen-21', 'kimodo', 'wan-animate2'):
+                self.assertEqual(start_registered_preparation(current_root_path, current_profile_name), {'preparation_status': 'running'})
+                current_command_values = current_start_mock.call_args.args[1]
+                self.assertEqual(current_command_values[1:3], ['-m', 'tools.review.common.model_prepare_worker'])
+                self.assertEqual(current_command_values[-1], current_profile_name)
+            with self.assertRaises(ValueError):
+                start_registered_preparation(current_root_path, '../unknown')
+
+    def test_legacy_vace_partial_uses_common_downloader(self):
+        import hashlib
+        from email.message import Message
+        from io import BytesIO
+        from pathlib import Path
+        import tempfile
+        from unittest.mock import patch
+        from tools.review.common import model_http_download
+        from tools.review.common.model_download_records import track_model_download
+        current_content_bytes = b'known-model-data'
+        class PartialResponse(BytesIO):
+            status = 206
+            def __init__(self):
+                super().__init__(current_content_bytes[5:])
+                self.headers = Message()
+                self.headers['Content-Range'] = f'bytes 5-{len(current_content_bytes)-1}/{len(current_content_bytes)}'
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path = Path(current_directory_name)
+            current_target_path = current_root_path/'model.gguf'
+            current_legacy_path = current_target_path.with_suffix('.partial')
+            current_legacy_path.write_bytes(current_content_bytes[:5])
+            with patch.object(model_http_download, 'track_model_download', lambda current_name: track_model_download(current_name, current_root_path/'records')), patch('urllib.request.urlopen', return_value=PartialResponse()):
+                model_http_download.download_verified_http('https://example.invalid/model', current_target_path, hashlib.sha256(current_content_bytes).hexdigest(), 'vace-test', current_partial_path=current_legacy_path, expected_total_bytes=len(current_content_bytes))
+            self.assertEqual(current_target_path.read_bytes(), current_content_bytes)
+            self.assertFalse(current_legacy_path.exists())
+
+class SingleFileSharedRecoveryTest(unittest.TestCase):
+    def test_single_file_uses_same_recovery_path(self):
+        from pathlib import Path
+        import tempfile
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from tools.review.common import model_huggingface_download
+        from tools.review.common.model_download_records import list_model_download_records, track_model_download
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path = Path(current_directory_name)
+            current_local_root = current_root_path/'model'
+            current_probe_value = SimpleNamespace(filename='weights.bin', file_size=100, is_cached=False, will_download=True, commit_hash='a'*40, local_path=str(current_local_root/'weights.bin'))
+            def fake_hub_download(repo_id, filename, *, local_dir=None, revision=None, dry_run=False, tqdm_class=None):
+                if dry_run:
+                    return current_probe_value
+                return str(current_local_root/'weights.bin')
+            with patch.object(model_huggingface_download, 'track_model_download', lambda current_name: track_model_download(current_name,current_root_path/'records')), patch('huggingface_hub.hf_hub_download', fake_hub_download), patch('tools.review.common.model_huggingface_recovery.recover_huggingface_partial', return_value=True) as current_recovery_mock:
+                model_huggingface_download.tracked_hf_hub_download('repo', 'weights.bin', revision='a'*40, local_dir=current_local_root)
+            current_recovery_mock.assert_called_once()
+            current_record_value = list_model_download_records(current_root_path/'records')[0]
+            self.assertEqual((current_record_value['bytes'],current_record_value['total_bytes'],current_record_value['status']), (100,100,'completed'))
+
+    def test_curl_transport_uses_common_status_and_integrity(self):
+        import hashlib
+        from pathlib import Path
+        import tempfile
+        from unittest.mock import patch
+        from tools.review.common import model_http_download
+        from tools.review.common.model_download_records import list_model_download_records, track_model_download
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_target_path=current_root_path/'model.gguf'
+            current_target_path.write_bytes(b'abc')
+            def fake_curl_command(current_command_values, **current_options):
+                self.assertIn('--continue-at', current_command_values)
+                with current_target_path.open('ab') as current_file_stream:
+                    current_file_stream.write(b'def')
+            with patch.object(model_http_download, 'track_model_download', lambda current_name: track_model_download(current_name,current_root_path/'records')), patch('subprocess.run', side_effect=fake_curl_command):
+                model_http_download.download_verified_curl('https://example.invalid/model',current_target_path,hashlib.sha256(b'abcdef').hexdigest(),6,'ollama-test')
+            current_record_value=list_model_download_records(current_root_path/'records')[0]
+            self.assertEqual((current_record_value['status'],current_record_value['bytes'],current_record_value['resumed_bytes']),('completed',6,3))
+
+class CommonPreparationFailureTest(unittest.TestCase):
+    def test_corrupt_recovery_does_not_fall_back_to_new_download(self):
+        from pathlib import Path
+        import tempfile
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from tools.review.common import model_huggingface_download
+        from tools.review.common.model_download_records import list_model_download_records, track_model_download
+        from tools.review.common.model_huggingface_recovery import ModelRecoveryError
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path = Path(current_directory_name)
+            current_probe_record = SimpleNamespace(filename='weights.bin',file_size=100,is_cached=False,will_download=True,commit_hash='a'*40,local_path=str(current_root_path/'model/weights.bin'))
+            current_actual_calls = []
+            def fake_snapshot_download(repo_id, *, revision=None, local_dir=None, dry_run=False, tqdm_class=None):
+                if dry_run:
+                    return [current_probe_record]
+                current_actual_calls.append('download')
+                return str(local_dir)
+            with patch.object(model_huggingface_download,'track_model_download',lambda current_name: track_model_download(current_name,current_root_path/'records')), patch('huggingface_hub.snapshot_download',fake_snapshot_download), patch('tools.review.common.model_huggingface_recovery.recover_huggingface_partial',side_effect=ModelRecoveryError('검증 지점 손상')):
+                with self.assertRaisesRegex(ModelRecoveryError,'검증 지점 손상'):
+                    model_huggingface_download.tracked_snapshot_download('repo',revision='a'*40,local_dir=current_root_path/'model')
+            self.assertEqual(current_actual_calls, [])
+            self.assertEqual(list_model_download_records(current_root_path/'records')[0]['status'],'failed')
+
+    def test_worker_start_failure_is_not_reported_as_completed(self):
+        from pathlib import Path
+        import tempfile
+        from unittest.mock import patch
+        from tools.review.common.model_prepare_process import inspect_detached_preparation, start_detached_preparation
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path = Path(current_directory_name)
+            with patch('tools.review.common.model_prepare_process.subprocess.Popen',side_effect=OSError('start failed')):
+                with self.assertRaises(OSError):
+                    start_detached_preparation(current_root_path,['unavailable'],current_root_path)
+            self.assertEqual(inspect_detached_preparation(current_root_path),'failed')
+
+class VerificationProcessKillTest(unittest.TestCase):
+    def test_process_killed_after_checkpoint_resumes_at_saved_offset(self):
+        import hashlib
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        from pathlib import Path
+        import subprocess
+        import sys
+        import tempfile
+        from threading import Thread
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from huggingface_hub._local_folder import get_local_download_paths
+        from tools.review.common import model_huggingface_recovery, model_http_download
+        from tools.review.common.model_download_records import track_model_download
+        current_content_bytes = b'abcdefgh' * (3 * 1024 * 1024)
+        current_prefix_bytes = 20 * 1024 * 1024
+        current_expected_hash = hashlib.sha256(current_content_bytes).hexdigest()
+        current_range_values = []
+        class CheckpointKillHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                current_range_text = self.headers['Range']
+                current_range_values.append(current_range_text)
+                current_start_text, current_end_text = current_range_text[6:].split('-')
+                current_start_value = int(current_start_text)
+                current_end_value = int(current_end_text) if current_end_text else len(current_content_bytes)-1
+                self.send_response(206)
+                self.send_header('Content-Range', f'bytes {current_start_value}-{current_end_value}/{len(current_content_bytes)}')
+                self.send_header('Content-Length', str(current_end_value-current_start_value+1))
+                self.end_headers()
+                try:
+                    self.wfile.write(current_content_bytes[current_start_value:current_end_value+1])
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
+            def log_message(self, *current_arguments):
+                pass
+        try:
+            current_server_value = ThreadingHTTPServer(('127.0.0.1',0), CheckpointKillHandler)
+        except PermissionError:
+            self.skipTest('로컬 소켓 권한이 없어 프로세스 중단 검사를 생략합니다.')
+        current_server_thread = Thread(target=current_server_value.serve_forever, daemon=True)
+        current_server_thread.start()
+        current_child_script = '''
+import json,os,sys
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+from tools.review.common import model_huggingface_recovery,model_http_download
+from tools.review.common.model_download_records import track_model_download
+root=Path(sys.argv[1]);url=sys.argv[2];digest=sys.argv[3];size=int(sys.argv[4])
+record=SimpleNamespace(filename='weights.bin',file_size=size,local_path=str(root/'model/weights.bin'))
+factory=lambda name: track_model_download(name,root/'records')
+real_replace=os.replace
+def kill_after_checkpoint(src,dst,*args,**kwargs):
+ is_checkpoint=str(dst).endswith('.checkpoint.json')
+ committed=json.loads(Path(src).read_text())['bytes'] if is_checkpoint else 0
+ result=real_replace(src,dst,*args,**kwargs)
+ if is_checkpoint and committed>=16*1024*1024: os._exit(76)
+ return result
+with patch.object(model_huggingface_recovery,'track_model_download',factory),patch.object(model_http_download,'track_model_download',factory),patch('huggingface_hub.hf_hub_url',return_value=url),patch('huggingface_hub.get_hf_file_metadata',return_value=SimpleNamespace(etag=digest,size=size)),patch('os.replace',side_effect=kill_after_checkpoint):
+ model_huggingface_recovery.recover_huggingface_partial('local/model','a'*40,root/'model',record)
+'''
+        try:
+            with tempfile.TemporaryDirectory() as current_directory_name:
+                current_root_path=Path(current_directory_name)
+                current_model_root=current_root_path/'model'
+                current_local_paths=get_local_download_paths(current_model_root,'weights.bin')
+                current_old_path=current_local_paths.incomplete_path(current_expected_hash)
+                current_old_path.write_bytes(current_content_bytes[:current_prefix_bytes])
+                current_download_url=f'http://127.0.0.1:{current_server_value.server_port}/file'
+                current_child_result=subprocess.run([sys.executable,'-c',current_child_script,str(current_root_path),current_download_url,current_expected_hash,str(len(current_content_bytes))],cwd=Path.cwd(),capture_output=True,timeout=30)
+                self.assertEqual(current_child_result.returncode,76,current_child_result.stderr.decode(errors='replace'))
+                current_record_factory=lambda current_name:track_model_download(current_name,current_root_path/'records')
+                current_probe_record=SimpleNamespace(filename='weights.bin',file_size=len(current_content_bytes),local_path=str(current_local_paths.file_path))
+                with patch.object(model_huggingface_recovery,'track_model_download',current_record_factory),patch.object(model_http_download,'track_model_download',current_record_factory),patch('huggingface_hub.hf_hub_url',return_value=current_download_url),patch('huggingface_hub.get_hf_file_metadata',return_value=SimpleNamespace(etag=current_expected_hash,size=len(current_content_bytes))):
+                    self.assertTrue(model_huggingface_recovery.recover_huggingface_partial('local/model','a'*40,current_model_root,current_probe_record))
+                self.assertEqual(current_local_paths.file_path.read_bytes(),current_content_bytes)
+                self.assertEqual(current_old_path.stat().st_size,current_prefix_bytes)
+                self.assertEqual(current_range_values,[f'bytes=0-{current_prefix_bytes-1}',f'bytes={16*1024*1024}-{current_prefix_bytes-1}',f'bytes={current_prefix_bytes}-'])
+        finally:
+            current_server_value.shutdown()
+            current_server_value.server_close()
+            current_server_thread.join()
+
+class RegisteredPreparationServiceTest(unittest.TestCase):
+    def test_all_direct_services_use_shared_profiles_after_manager_recreation(self):
+        from unittest.mock import patch
+        from tools.review.domains.image import prop_generation
+        from tools.review.domains.kimodo import generation as kimodo_generation
+        from tools.review.domains.wan_animate2 import generation as animate_generation
+        current_service_specs = (
+            (prop_generation, prop_generation.PropGenerationManager, 'qwen-21', 'start_prop_model_download', 'inspect_prop_model_status', 'validate_qwen_model_assets'),
+            (kimodo_generation, kimodo_generation.KimodoGenerationManager, 'kimodo', 'start_model_preparation', 'inspect_model_preparation', 'inspect_kimodo_assets'),
+            (animate_generation, animate_generation.AnimateTwoGenerationManager, 'wan-animate2', 'start_model_download', 'inspect_model_download', 'inspect_animate_assets'),
+        )
+        for current_module_value, current_manager_class, current_profile_name, current_start_name, current_inspect_name, current_asset_name in current_service_specs:
+            with self.subTest(profile=current_profile_name):
+                current_asset_result = {'ready': False, 'message': '미준비'}
+                current_asset_effect = ValueError('미준비') if current_profile_name == 'qwen-21' else None
+                with patch.object(current_module_value, 'inspect_registered_preparation', return_value='idle'), patch.object(current_module_value, current_asset_name, return_value=current_asset_result, side_effect=current_asset_effect), patch.object(current_module_value, 'start_registered_preparation', return_value={'preparation_status':'running'}) as current_start_mock:
+                    self.assertEqual(getattr(current_manager_class(), current_start_name)(), {'preparation_status':'running'})
+                    self.assertEqual(current_start_mock.call_args.args[1], current_profile_name)
+                with patch.object(current_module_value, 'inspect_registered_preparation', return_value='running'), patch.object(current_module_value, current_asset_name, return_value=current_asset_result):
+                    self.assertEqual(getattr(current_manager_class(), current_inspect_name)()['preparation_status'], 'running')
+
+class WriterDetachedResumeTest(unittest.TestCase):
+    def test_writer_preparation_updates_own_state_after_launcher_exit(self):
+        import subprocess
+        import sys
+        import tempfile
+        import time
+        from pathlib import Path
+        from generators.writer_agent.documents import read_yaml_document, save_yaml_document
+        from generators.writer_agent.management import WriterAgentManager
+        from tools.review.common.model_prepare_process import inspect_detached_preparation
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path = Path(current_directory_name)
+            current_job_root = current_root_path/'job'
+            current_job_root.mkdir()
+            save_yaml_document(current_job_root/'status.yaml', {'id':'isolated-job','mode':'prepare','stage':'preparing'})
+            current_worker_path = current_root_path/'writer_worker.py'
+            current_worker_path.write_text('''import argparse,contextlib,sys,time
+from pathlib import Path
+sys.path.insert(0,str(Path.cwd()))
+from generators.writer_agent import prepare
+p=argparse.ArgumentParser();p.add_argument('--status-path',type=Path);p.add_argument('--lock-fd',type=int);a=p.parse_args()
+a.run_dir=Path(__file__).parent/'job'
+prepare.RUNTIME_INSTALL_ROOT=Path(__file__).parent/'runtime'
+prepare.lock_gpu_runtime=lambda: contextlib.nullcontext()
+def prepare_test_assets():
+ (Path(__file__).parent/'ready').touch()
+ while not (Path(__file__).parent/'release').exists(): time.sleep(.05)
+prepare.execute_writer_preparation(a,prepare_test_assets)
+''')
+            current_state_root = current_root_path/'shared-state'
+            current_launcher_code = "from pathlib import Path;import sys;from tools.review.common.model_prepare_process import start_detached_preparation;print(start_detached_preparation(Path(sys.argv[1]),[sys.executable,sys.argv[2]],Path.cwd()))"
+            subprocess.run([sys.executable,'-c',current_launcher_code,str(current_state_root),str(current_worker_path)],check=True,capture_output=True,text=True)
+            try:
+                current_deadline_value=time.monotonic()+10
+                while not (current_root_path/'ready').exists() and time.monotonic()<current_deadline_value:
+                    time.sleep(.05)
+                self.assertTrue((current_root_path/'ready').exists(), (current_state_root/'worker.log').read_text(errors='replace'))
+                self.assertEqual(inspect_detached_preparation(current_state_root),'running')
+                current_status_value=read_yaml_document(current_job_root/'status.yaml')
+                self.assertEqual(WriterAgentManager().resolve_observed_status(current_status_value)['stage'],'preparing')
+            finally:
+                (current_root_path/'release').touch()
+                current_deadline_value=time.monotonic()+10
+                while inspect_detached_preparation(current_state_root)=='running' and time.monotonic()<current_deadline_value:
+                    time.sleep(.05)
+            self.assertEqual(inspect_detached_preparation(current_state_root),'completed')
+            self.assertEqual(read_yaml_document(current_job_root/'status.yaml')['stage'],'completed')

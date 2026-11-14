@@ -1,7 +1,5 @@
 """Ollama의 고정 FP16 GGUF를 Kimodo용 safetensors로 변환한다."""
 import hashlib
-import subprocess
-import threading
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -11,32 +9,11 @@ OLLAMA_ENCODER_BYTES = 16068890912
 
 
 def download_ollama_encoder(current_blob_path):
-    from tools.review.common.model_download_records import track_model_download
-    current_blob_path.parent.mkdir(parents=True, exist_ok=True)
-    current_resume_bytes = current_blob_path.stat().st_size if current_blob_path.exists() else 0
-    with track_model_download('ollama/llama3:8b-instruct-fp16') as current_download_record:
-        current_download_record.update(stage='다운로드', bytes=current_resume_bytes, total_bytes=OLLAMA_ENCODER_BYTES, resumed_bytes=current_resume_bytes)
-        current_stop_event = threading.Event()
-        def report_encoder_progress():
-            while not current_stop_event.wait(1):
-                current_received_bytes = current_blob_path.stat().st_size if current_blob_path.exists() else 0
-                current_download_record.update(bytes=current_received_bytes)
-        current_progress_thread = threading.Thread(target=report_encoder_progress, daemon=True)
-        current_progress_thread.start()
-        try:
-            if current_resume_bytes != OLLAMA_ENCODER_BYTES:
-                subprocess.run([
-                    'curl', '--fail', '--location', '--silent', '--show-error', '--retry', '2',
-                    '--continue-at', '-', '--output', str(current_blob_path),
-                    f'https://registry.ollama.ai/v2/library/llama3/blobs/sha256:{OLLAMA_ENCODER_SHA256}',
-                ], check=True)
-        finally:
-            current_stop_event.set()
-            current_progress_thread.join()
-        current_download_record.update(stage='SHA-256 검증', bytes=current_blob_path.stat().st_size)
-        with current_blob_path.open('rb') as current_blob_file:
-            if hashlib.file_digest(current_blob_file, 'sha256').hexdigest() != OLLAMA_ENCODER_SHA256:
-                raise ValueError('Ollama FP16 GGUF SHA-256 불일치')
+    from tools.review.common.model_http_download import download_verified_curl
+    download_verified_curl(
+        f'https://registry.ollama.ai/v2/library/llama3/blobs/sha256:{OLLAMA_ENCODER_SHA256}',
+        current_blob_path, OLLAMA_ENCODER_SHA256, OLLAMA_ENCODER_BYTES, 'ollama/llama3:8b-instruct-fp16',
+    )
 
 
 def convert_ollama_encoder(current_blob_path, current_output_root):

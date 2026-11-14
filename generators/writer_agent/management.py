@@ -12,6 +12,7 @@ from .documents import (DEFAULT_WORKSPACE_CONFIG,WORKFLOW_REPOSITORY_ROOT,load_w
 from .jobs import create_writer_job,resolve_job_directory,update_job_status,read_process_identity
 from .agent import apply_reviewed_proposal
 from . import prepare
+from tools.review.common.model_prepare_process import inspect_detached_preparation, start_detached_preparation
 
 WRITER_ROUTE_PREFIX='/writer-agent'
 MAXIMUM_REQUEST_BYTES=32000
@@ -24,6 +25,7 @@ class WriterAgentManager:
         self.request_lock_handle=threading.Lock()
         self.worker_process_handle=None
         self.worker_job_identifier=None
+        self.worker_prepare_flag=False
         self.csrf_token_value=uuid.uuid4().hex
 
     def read_workspace_state(self):
@@ -53,16 +55,29 @@ class WriterAgentManager:
         with self.request_lock_handle:
             if self.worker_process_handle and self.worker_process_handle.poll() is None:raise ValueError('이미 작가 에이전트 작업이 실행 중입니다.')
             current_prepare_flag=current_request_values=={'mode':'prepare','prompt':''}
+            current_prepare_root = WORKFLOW_REPOSITORY_ROOT/'.local/model-preparation/writer-agent'
+            if inspect_detached_preparation(current_prepare_root) == 'running':
+                raise ValueError('이미 작가 에이전트 모델 준비가 실행 중입니다.')
             if not current_prepare_flag and not prepare.RUNTIME_PYTHON_PATH.is_file():raise ValueError('먼저 환경 준비를 실행하세요.')
             current_job_identifier=create_writer_job(current_config_values,{'mode':'learn','prompt':''} if current_prepare_flag else current_request_values)
             current_job_root=resolve_job_directory(current_config_values,current_job_identifier)
             if current_prepare_flag:
                 save_yaml_document(current_job_root/'request.yaml',current_request_values)
                 update_job_status(current_job_root,'preparing',mode='prepare')
-                current_command_values=[sys.executable,str(Path(__file__).with_name('prepare.py')),'--run-dir',str(current_job_root)]
-            else:current_command_values=[str(prepare.RUNTIME_PYTHON_PATH),'-m','generators.writer_agent.jobs','--config',str(self.workspace_config_path),'--job-id',current_job_identifier]
-            with (current_job_root/'worker.log').open('w') as current_worker_log:
-                self.worker_process_handle=subprocess.Popen(current_command_values,cwd=WORKFLOW_REPOSITORY_ROOT,stdout=current_worker_log,stderr=subprocess.STDOUT,start_new_session=True)
+                current_command_values=[sys.executable,'-m','generators.writer_agent.prepare','--run-dir',str(current_job_root)]
+                try:
+                    self.worker_process_handle=start_detached_preparation(current_prepare_root,current_command_values,WORKFLOW_REPOSITORY_ROOT,return_process_value=True,current_log_path=current_job_root/'worker.log')
+                except OSError as current_launch_error:
+                    update_job_status(current_job_root,'failed',error='모델 준비 프로세스를 시작하지 못했습니다.')
+                    raise ValueError('모델 준비 프로세스를 시작하지 못했습니다.') from current_launch_error
+                if self.worker_process_handle is None:
+                    update_job_status(current_job_root,'failed',error='다른 모델 준비가 이미 실행 중입니다.')
+                    raise ValueError('이미 작가 에이전트 모델 준비가 실행 중입니다.')
+            else:
+                current_command_values=[str(prepare.RUNTIME_PYTHON_PATH),'-m','generators.writer_agent.jobs','--config',str(self.workspace_config_path),'--job-id',current_job_identifier]
+                with (current_job_root/'worker.log').open('w') as current_worker_log:
+                    self.worker_process_handle=subprocess.Popen(current_command_values,cwd=WORKFLOW_REPOSITORY_ROOT,stdout=current_worker_log,stderr=subprocess.STDOUT,start_new_session=True)
+            self.worker_prepare_flag=current_prepare_flag
             self.worker_job_identifier=current_job_identifier
             current_worker_process=self.worker_process_handle
             def monitor_writer_process():
@@ -77,7 +92,7 @@ class WriterAgentManager:
     def close_writer_worker(self):
         with self.request_lock_handle:
             current_worker_process=self.worker_process_handle
-            if current_worker_process and current_worker_process.poll() is None:
+            if current_worker_process and current_worker_process.poll() is None and not self.worker_prepare_flag:
                 os.killpg(current_worker_process.pid,signal.SIGTERM)
                 try:current_worker_process.wait(timeout=3)
                 except subprocess.TimeoutExpired:

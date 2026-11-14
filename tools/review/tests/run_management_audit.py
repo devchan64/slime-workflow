@@ -24,7 +24,7 @@ MANAGEMENT_AUDIT_MODULES = tuple('tools.review.tests.' + current_module_name for
     'test_static_review_gradio',
     'test_floor_generation', 'test_seamless_pattern', 'test_seamless_generation',
     'test_dasheng_audio_sfx', 'test_music_generation', 'test_music_management_audit', 'test_heartmula_separation', 'test_wan_animate2_generation', 'test_wan_animate_retirement', 'test_wan_fun_generation', 'test_wan_vace_generation', 'test_vace_video_edit', 'test_vace_official_runtime', 'test_wan_vace_sampling', 'test_writer_agent_gradio',
-)) + ('generators.animation.tests.test_qwen_pose', 'generators.writer_agent.tests.test_writer_agent')
+)) + ('generators.animation.tests.test_qwen_pose', 'generators.writer_agent.tests.test_writer_agent', 'generators.writer_agent.tests.test_writer_api')
 
 if __name__ == '__main__':
     current_argument_parser = argparse.ArgumentParser(description=__doc__)

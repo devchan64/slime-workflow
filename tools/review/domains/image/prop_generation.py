@@ -1,12 +1,10 @@
 """소품 전용 Qwen 작업·이력. GPU 실행기는 공용으로 유지한다."""
-import logging
 import subprocess
-import sys
 from urllib.parse import urlsplit
 
-from generators.image.qwen_21_runtime import download_qwen_model_assets, validate_qwen_model_assets
+from generators.image.qwen_21_runtime import validate_qwen_model_assets
 from tools.review.common.management_transport import send_management_json_response
-from tools.review.common.model_prepare_process import inspect_detached_preparation, start_detached_preparation
+from tools.review.common.model_prepare_process import inspect_registered_preparation, start_registered_preparation
 from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager, WORKFLOW_ROOT_PATH
 from tools.review.domains.image.image_generation import MANAGER_HISTORY_ROOT
 
@@ -14,7 +12,6 @@ from tools.review.domains.image.image_generation import MANAGER_HISTORY_ROOT
 class PropGenerationManager(QwenPlainGenerationManager):
     def __init__(self):
         super().__init__()
-        self.model_download_status = 'idle'
         self.route_prefix_value = '/prop-generator'
         self.job_storage_root = WORKFLOW_ROOT_PATH / '.tmp/test/prop-generator'
 
@@ -41,7 +38,7 @@ class PropGenerationManager(QwenPlainGenerationManager):
 
     def inspect_prop_model_status(self):
         with self.current_request_lock:
-            current_download_status = inspect_detached_preparation(WORKFLOW_ROOT_PATH/'.local/model-preparation/qwen-21')
+            current_download_status = inspect_registered_preparation(WORKFLOW_ROOT_PATH, 'qwen-21')
         if current_download_status == 'running':
             return {'ready': False, 'message': '공식 비양자화 모델 다운로드 중입니다.', 'preparation_status': current_download_status}
         try:
@@ -64,14 +61,13 @@ class PropGenerationManager(QwenPlainGenerationManager):
 
     def start_prop_model_download(self):
         with self.current_request_lock:
-            current_state_root = WORKFLOW_ROOT_PATH/'.local/model-preparation/qwen-21'
-            if inspect_detached_preparation(current_state_root) == 'running':
+            if inspect_registered_preparation(WORKFLOW_ROOT_PATH, 'qwen-21') == 'running':
                 return {'preparation_status': 'running'}
             try:
                 validate_qwen_model_assets()
             except (OSError, ValueError, KeyError, TypeError):
                 try:
-                    return start_detached_preparation(current_state_root, [sys.executable, '-m', 'tools.review.common.model_prepare_worker', '--profile', 'qwen-21'], WORKFLOW_ROOT_PATH)
+                    return start_registered_preparation(WORKFLOW_ROOT_PATH, 'qwen-21')
                 except OSError as current_start_error:
                     raise ValueError('모델 다운로드를 시작할 수 없습니다.') from current_start_error
             return {'preparation_status': 'completed'}

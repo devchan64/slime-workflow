@@ -1,7 +1,6 @@
 """공용 대기열·누적 이력·실제 파일 삭제 계약을 사용하는 Kimodo 서비스."""
-import sys
 from pathlib import Path
-from tools.review.common.model_prepare_process import inspect_detached_preparation, start_detached_preparation
+from tools.review.common.model_prepare_process import inspect_registered_preparation, start_registered_preparation
 
 from tools.review.common.management_transport import send_management_json_response
 from generators.kimodo.contracts import KIMODO_JOB_STORAGE,KIMODO_ENVIRONMENT_PYTHON,inspect_kimodo_assets,validate_kimodo_assets,validate_kimodo_request
@@ -19,23 +18,22 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
     def inspect_model_preparation(self):
         with self.current_request_lock:
             current_asset_status = inspect_kimodo_assets()
-            current_prepare_state = inspect_detached_preparation(Path(__file__).resolve().parents[4]/'.local/model-preparation/kimodo')
+            current_prepare_state = inspect_registered_preparation(Path(__file__).resolve().parents[4], 'kimodo')
             if current_prepare_state == 'running':
                 current_asset_status.update(ready=False, message='모델 다운로드 및 무결성 확인 중입니다.')
             elif current_prepare_state == 'failed' and not current_asset_status['ready']:
-                current_asset_status['message'] = '모델 준비 실패. 상세 오류는 .tmp/test/kimodo-prepare/ 로그에 있습니다.'
+                current_asset_status['message'] = '모델 준비 실패. 상세 오류는 .local/model-preparation/kimodo/worker.log 및 .tmp/test/kimodo-prepare/ 로그를 확인하세요.'
             return {**current_asset_status, 'preparation_status': current_prepare_state}
 
     def start_model_preparation(self):
         with self.current_request_lock:
             current_workflow_root = Path(__file__).resolve().parents[4]
-            current_state_root = current_workflow_root/'.local/model-preparation/kimodo'
-            if inspect_detached_preparation(current_state_root) == 'running':
+            if inspect_registered_preparation(current_workflow_root, 'kimodo') == 'running':
                 return {'preparation_status': 'running'}
             if inspect_kimodo_assets()['ready']:
                 return {'preparation_status': 'completed'}
             try:
-                return start_detached_preparation(current_state_root, [sys.executable, '-m', 'tools.review.common.model_prepare_worker', '--profile', 'kimodo'], current_workflow_root)
+                return start_registered_preparation(current_workflow_root, 'kimodo')
             except OSError as current_start_error:
                 raise ValueError('모델 다운로드를 시작할 수 없습니다.') from current_start_error
 
