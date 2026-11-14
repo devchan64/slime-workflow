@@ -20,7 +20,13 @@ class MigraphxPoseInferenceSession:
         return self.current_session_instance.get_inputs()
 
     def run(self, current_output_names, current_input_values):
-        current_output_values = self.current_session_instance.run(current_output_names, current_input_values)
+        import numpy as np
+        current_input_name, current_input_tensor = next(iter(current_input_values.items()))
+        if current_input_tensor.shape[0] > 1:
+            current_batch_outputs = [self.current_session_instance.run(current_output_names, {current_input_name: current_input_tensor[current_batch_index:current_batch_index+1]}) for current_batch_index in range(current_input_tensor.shape[0])]
+            current_output_values = [np.concatenate(current_output_parts, axis=0) for current_output_parts in zip(*current_batch_outputs)]
+        else:
+            current_output_values = self.current_session_instance.run(current_output_names, current_input_values)
         if len(current_output_values) != 2:
             raise ValueError('DWPose SimCC 출력 개수가 올바르지 않습니다.')
         if (current_output_values[0].shape[-1], current_output_values[1].shape[-1]) == (768, 576):
@@ -53,13 +59,10 @@ def render_selected_pose_parts(current_pose_records, current_image_shape, curren
     return draw_pose(current_selected_records, *current_image_shape)
 
 
-def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_request_record, current_pose_transform=None, current_output_fps=16):
-    import cv2
-    import numpy as np
+def create_fun_pose_detector():
+    """ROCm GPU에서 VideoX-Fun 인물·관절 검출 세션을 생성한다."""
     import torch
     import onnxruntime as ort
-    import imageio.v2 as imageio
-    from PIL import Image, ImageOps
     from generators.wan_fun.vendor.videox_fun.dwpose_utils.wholebody import Wholebody
     validate_fun_pose_assets()
     if not torch.version.hip or not torch.cuda.is_available():
@@ -77,9 +80,6 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
                            and current_device_record.device.type == ort.OrtHardwareDeviceType.GPU]
     if not current_gpu_devices:
         raise RuntimeError('MIGraphX에서 AMD GPU 장치를 찾지 못했습니다.')
-    current_source_path = current_job_root/'driving.mp4'
-    if current_request_record['driving_video_file'] != 'driving.mp4' or hashlib.sha256(current_source_path.read_bytes()).hexdigest() != current_request_record['driving_video_sha256']:
-        raise ValueError('SOMA 입력 영상 사본 해시 불일치')
     # 공식 Wholebody의 OpenCV CPU 초기화만 우회한다. 공식 ONNX 추론 분기를 사용한다.
     current_body_detector = Wholebody.__new__(Wholebody)
     for current_session_field, current_model_name in zip(('session_det', 'session_pose'), FUN_POSE_MODEL_NAMES):
@@ -93,6 +93,20 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
         if current_session_field == 'session_pose':
             current_gpu_session = MigraphxPoseInferenceSession(current_gpu_session)
         setattr(current_body_detector, current_session_field, current_gpu_session)
+    return current_body_detector
+
+
+def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_request_record, current_pose_transform=None, current_output_fps=16):
+    import cv2
+    import numpy as np
+    import torch
+    import imageio.v2 as imageio
+    from PIL import Image, ImageOps
+    from generators.wan_fun.vendor.videox_fun.dwpose_utils.wholebody import Wholebody
+    current_source_path = current_job_root/'driving.mp4'
+    if current_request_record['driving_video_file'] != 'driving.mp4' or hashlib.sha256(current_source_path.read_bytes()).hexdigest() != current_request_record['driving_video_sha256']:
+        raise ValueError('SOMA 입력 영상 사본 해시 불일치')
+    current_body_detector = create_fun_pose_detector()
     # 과거 기록은 손·얼굴 포함으로 재개한다. 신규 요청은 검증 시 False를 저장한다.
     current_include_hands = current_request_record.get('pose_include_hands', True)
     current_include_face = current_request_record.get('pose_include_face', True)

@@ -14,12 +14,30 @@ class KimodoDwposeTests(unittest.TestCase):
         current_x_values = np.zeros((1, 133, 576))
         current_y_values = np.zeros((1, 133, 768))
         current_session = SimpleNamespace(run=lambda *args: [current_y_values, current_x_values])
-        current_outputs = MigraphxPoseInferenceSession(current_session).run(None, {})
+        current_input_values = {'input': np.zeros((1, 3, 384, 288))}
+        current_outputs = MigraphxPoseInferenceSession(current_session).run(None, current_input_values)
         self.assertIs(current_outputs[0], current_x_values)
         self.assertIs(current_outputs[1], current_y_values)
         current_session.run = lambda *args: [current_x_values, current_x_values]
         with self.assertRaisesRegex(ValueError, '출력 크기'):
-            MigraphxPoseInferenceSession(current_session).run(None, {})
+            MigraphxPoseInferenceSession(current_session).run(None, current_input_values)
+
+    def test_migraphx_pose_splits_multiple_people_into_fixed_batches(self):
+        from types import SimpleNamespace
+        from generators.kimodo.dwpose_runtime import MigraphxPoseInferenceSession
+        current_batch_sizes = []
+        def run_fixture_batch(current_output_names, current_input_values):
+            current_batch = current_input_values['input']
+            current_batch_sizes.append(current_batch.shape[0])
+            current_marker = current_batch[:, 0, 0, 0]
+            return [np.broadcast_to(current_marker[:, None, None], (1, 133, 768)),
+                    np.broadcast_to(current_marker[:, None, None], (1, 133, 576))]
+        current_session = SimpleNamespace(run=run_fixture_batch)
+        current_input_batch = np.arange(6).reshape(6, 1, 1, 1)
+        current_outputs = MigraphxPoseInferenceSession(current_session).run(None, {'input': current_input_batch})
+        self.assertEqual(current_batch_sizes, [1] * 6)
+        self.assertEqual(current_outputs[0].shape, (6, 133, 576))
+        np.testing.assert_array_equal(current_outputs[0][:, 0, 0], np.arange(6))
 
     def test_scaled_pose_keeps_original_pelvis_vertical_motion(self):
         current_point_type = namedtuple('Point','x y score id',defaults=[1.0,0])
