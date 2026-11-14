@@ -19,6 +19,7 @@ class QwenProgressContractTests(unittest.TestCase):
                 current_output_path.mkdir(parents=True)
                 current_progress_writer = WorkerGenerationProgress(current_output_path)
                 current_observed_records = []
+                current_offload_calls = []
 
                 def record_worker_observation(current_progress_record):
                     current_progress_writer.record_worker_progress(current_progress_record)
@@ -32,8 +33,8 @@ class QwenProgressContractTests(unittest.TestCase):
                     def load_lora_weights(self, *current_argument_values, **current_keyword_values):
                         pass
 
-                    def enable_sequential_cpu_offload(self):
-                        pass
+                    def enable_model_cpu_offload(self):
+                        current_offload_calls.append(True)
 
                     def __call__(self, **current_keyword_values):
                         for current_step_index in range(4):
@@ -50,6 +51,7 @@ class QwenProgressContractTests(unittest.TestCase):
                             qwen_2512.generate_qwen_2512_lightning_image(**current_input_values)
                     else:
                         qwen_2512.generate_qwen_2512_lightning_image(**current_input_values)
+                self.assertEqual(current_offload_calls, [True])
                 current_saved_record = json.loads((current_output_path/'worker-progress.json').read_text())
                 self.assertEqual(current_saved_record['stage'],'inference' if current_failure_enabled else 'postprocess')
                 self.assertEqual(current_saved_record['step'],2 if current_failure_enabled else 4)

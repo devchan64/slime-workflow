@@ -56,7 +56,7 @@
 ./scripts/setup_management.sh
 ```
 
-`.venv`에 `tools/review/ui/gradio/requirements.txt`의 관리·검수 의존성을 설치한다. Kimodo도 같은 환경을 사용하므로 의존성을 변경할 때 모델 제약과 관리 UI를 함께 검증한다. 다른 모델별 추론 환경은 기존 생성기 절차를 따른다.
+`setup_management.sh`는 관리·검수 의존성과 Qwen 이미지 실행 의존성을 설치하고 `pip check` 및 파이프라인 import를 검증한다. 이미지 작업자가 사용하는 `.venv`에는 Radeon 8060S(gfx1151)용 ROCm PyTorch와 고정된 Diffusers·Transformers를 설치한다. 다른 PyTorch 빌드가 이미 있으면 자동 교체하지 않고 실패한다. 이 설정은 Linux·Python 3.14·gfx1151 호스트 기준이며 다른 GPU에서는 호환되는 ROCm 환경을 별도로 구성해야 한다. 모델 가중치는 설치하지 않으며 모델 관리에서 준비한다. Kimodo·Wan·음악 등 별도 추론 환경은 각 생성기 준비 절차를 따른다. `VIRTUAL_ENVIRONMENT_PATH`로 서버 환경을 바꿔도 이미지 작업자의 `.venv`는 별도로 준비한다.
 
 터미널 1에서 게이트웨이를 시작한다. GPU 작업을 접수하려면 GPU 접근이 가능한 샌드박스 밖에서 실행한다.
 

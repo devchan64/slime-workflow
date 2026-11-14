@@ -58,7 +58,7 @@ class MemoryHistoryTests(unittest.TestCase):
                     (generation_job_directory/'request.json').write_text(json.dumps({'width':width_pixel_value,'height':width_pixel_value,'steps':inference_step_count}))
                     memory.save_memory_observation('image',generation_job_directory,measured_peak_value,3,'completed',command_identity_name='run_qwen_2512.py')
                 for job_identifier_value,expected_peak_value in (('small',4500),('large',6202),('slow',5500)):
-                    command_identity_value = memory.identify_execution_command(['python','run_qwen_2512.py'],temporary_root_path/job_identifier_value)
+                    command_identity_value = memory.build_image_memory_identity('run_qwen_2512.py',temporary_root_path/job_identifier_value)
                     estimated_memory_record = memory.estimate_required_memory('image',6144,command_identity_value)
                     self.assertEqual(estimated_memory_record['samples'],1)
                     self.assertEqual(estimated_memory_record['required_memory_mib'],expected_peak_value)
@@ -66,6 +66,20 @@ class MemoryHistoryTests(unittest.TestCase):
                 self.assertEqual(unknown_estimate_record['samples'],0)
                 self.assertEqual(unknown_estimate_record['method'],'configured-initial-estimate')
                 self.assertEqual(unknown_estimate_record['required_memory_mib'],6144)
+
+    def test_model_offload_ignores_older_memory_observations(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_value:
+            current_root_path = Path(temporary_directory_value)
+            current_job_path = current_root_path / 'job'
+            current_job_path.mkdir()
+            (current_job_path / 'request.json').write_text(json.dumps({'width':512,'height':512,'steps':40,'references':[]}))
+            with patch.object(memory, 'MEMORY_HISTORY_DIRECTORY', current_root_path / 'history'), patch.object(memory, 'IMAGE_HISTORY_ROOT_PATHS', (current_root_path,)):
+                memory.save_memory_observation('image',current_job_path,6000,3,'completed',command_identity_name='run_qwen_21_reference.py')
+                current_identity_name = memory.identify_execution_command(['python','run_qwen_21_reference.py'], current_job_path)
+                self.assertTrue(current_identity_name.endswith(':offload=model-v1'))
+                self.assertEqual(memory.estimate_required_memory('image',6144,current_identity_name)['required_memory_mib'],32768)
+                memory.save_memory_observation('image',current_job_path,37000,3,'completed',command_identity_name=current_identity_name)
+                self.assertEqual(memory.estimate_required_memory('image',6144,current_identity_name)['required_memory_mib'],37000)
 
     def test_image_profiles_keep_twenty_samples_independently(self):
         with tempfile.TemporaryDirectory() as temporary_directory_value,patch.object(memory,'MEMORY_HISTORY_DIRECTORY',Path(temporary_directory_value)):
@@ -84,5 +98,5 @@ class MemoryHistoryTests(unittest.TestCase):
                     current_job_directory.mkdir()
                     (current_job_directory/'request.json').write_text(json.dumps({'width':1024,'height':1024,'steps':40,'references':['image.png']*current_reference_count}))
                     memory.save_memory_observation('image',current_job_directory,current_peak_value,3,'completed',command_identity_name='run_qwen_21_reference.py')
-                current_command_identity = memory.identify_execution_command(['python','run_qwen_21_reference.py'],temporary_root_path/'2')
+                current_command_identity = memory.build_image_memory_identity('run_qwen_21_reference.py',temporary_root_path/'2')
                 self.assertEqual(memory.estimate_required_memory('image',6144,current_command_identity)['required_memory_mib'],6600)

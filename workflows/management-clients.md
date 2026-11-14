@@ -126,16 +126,14 @@ GUI와 CLI는 서비스별 동일한 작업·이력을 조회하며 서로 다�
 
 ## Qwen 이미지 생성
 
-Qwen Image Edit 2511 생성기는 폐기되었으며 생성·재개와 과거 독립 생성 기록 접근을 지원하지 않는다. 표정 생성은 Qwen Image 2.1과 고정 LoRA를 사용한다. Qwen 2512 텍스트 생성과 Qwen 2.1 생성은 각각 공용 게이트웨이를 통해 사용한다.
+Qwen Image 2512와 Qwen Image Edit 2511 생성기는 폐기되었다. 2512의 신규 모델 준비·생성·재개는 차단하며 모델 파일과 기존 이력은 삭제하지 않는다. 2512 이력과 종료된 작업의 결과·로그 조회 및 명시적인 수동 삭제는 공용 게이트웨이에서 가능하다. 2511의 과거 독립 생성 기록 접근은 지원하지 않는다. 이미지 생성과 표정 생성은 Qwen Image 2.1을 사용한다.
 
 ```bash
-python3 tools/manager.py help qwen-2512 generate
-python3 tools/manager.py command qwen-2512 generate --prompt-file /tmp/prompt.txt --width 1024 --height 1024 --steps 4 --detach
+python3 tools/manager.py command qwen-2512 history
 python3 tools/manager.py command qwen-2512 status GENERATION_ID
-python3 tools/manager.py command qwen-2512 history-reset
 ```
 
-2512 결과·로그는 `.tmp/test/qwen-image-2512/<생성 ID>/`, 이력은 `.tmp/manager-current/qwen-2512/`에 저장한다. `history-reset`은 명시적 수동 디스크 정리이며 실행·대기 중이거나 상태가 불명확한 작업이 있으면 거절한다. 하위 타일 작업, 등록 에셋과 모델 캐시는 삭제하지 않는다.
+2512 결과·로그는 `.tmp/test/qwen-image-2512/<생성 ID>/`, 이력은 `.tmp/manager-current/qwen-2512/`에 보존한다. 실행·대기 중 작업과 불명확한 상태의 삭제는 거절하며 하위 타일 작업·등록 에셋·모델 캐시는 보호한다.
 
 ## 통합 명령 게이트웨이
 
@@ -317,7 +315,7 @@ transformers 5.1.0, accelerate 1.15.0이다. 모델은
 환경·모델이 없으면 접수 전에 실패하며 실행 중 자동 설치나 다른 모델 대체는 없다.
 공용 환경의 의존성을 갱신할 때 Qwen과 Kimodo를 함께 재검증해야 한다.
 2026-11-10 공용 대기열의 격리 작업에서 256×256·20스텝 GPU 샘플 한 장을 생성했다. 이미지 품질은 별도 검수한다.
-GPU 추론에는 sequential CPU offload와 VAE tiling을 사용한다. CPU 단독 추론은 허용하지 않는다.
+GPU 추론에는 모델 단위 CPU 메모리 오프로드와 VAE tiling을 사용한다. 반복 추론 중 모델 전체를 GPU에 유지하며 메모리가 더 필요하다. CPU 단독 추론은 허용하지 않는다.
 2.1 모델 실행 성공과 심리스 품질 승인은 구분하며 반복 검수 후 사용자 채택을 받는다.
 
 ### Qwen 2.1 이미지 생성기 — 추가 프롬프트 없음
@@ -545,7 +543,15 @@ CLI에서는 같은 `qwen-21 generate`에 `--prompt-file generators/image/config
 
 `/management/frame/prop-generator/`는 상자·가판대·작업대·표지판 등 소품용 Qwen 2.1 GUI다. 추적 기본 문구 `generators/image/config/prop-qwen-prompt.txt`는 직교투영·일정한 축척·접지점·투명 배경을 지시하며 복원 버튼을 제공한다. 대상·용도·자재를 추가하고 옵션 포함 최종 99단어 이내로 유지한다. 레이아웃·외형 참조는 최대 10장 선택 입력이며 텍스트만으로도 생성할 수 있다. 기본 출력은 512×512다.
 
-GUI **모델 다운로드**와 CLI `command prop-generator prepare`는 고정 리비전의 공식 비양자화 Qwen Image 2.1 스냅샷을 공용 모델 준비 작업자로 서버 캐시에 받는다. 작업자는 게이트웨이와 별도 세션이며, 재시작 후 `model-status`에서 실행 상태를 다시 조회한다. 실패 로그는 `.local/model-preparation/qwen-21/worker.log`에 남는다. `command prop-generator model-status`에서 다운로드 상태, 파일 준비 여부와 AMD ROCm 추론 준비 여부를 확인한다. 추론은 `.venv`의 ROCm PyTorch와 Qwen 파이프라인에서 BF16으로 실행한다.
+GUI **모델 관리 → 모델 다운로드·빌드 상태**와 CLI `command prop-generator prepare`는 고정 리비전의 공식 비양자화 Qwen Image 2.1 스냅샷을 공용 모델 준비 작업자로 서버 캐시에 받는다. 작업자는 게이트웨이와 별도 세션이며, 재시작 후 `model-status`에서 실행 상태를 다시 조회한다. 실패 로그는 `.local/model-preparation/qwen-21/worker.log`에 남는다. `command prop-generator model-status`에서 다운로드 상태, 파일 준비 여부와 AMD ROCm 추론 준비 여부를 확인한다. 추론은 `.venv`의 ROCm PyTorch와 Qwen 파이프라인에서 BF16으로 실행한다.
+
+Qwen 2.1 실행 환경 복구 시 `.venv`의 Python 버전과 GPU 접근 권한을 먼저 확인한다. AMD Radeon 8060S(gfx1151), Python 3.14 환경에서 다음 버전 조합의 파이프라인 import와 GPU 연산을 확인했다. Diffusers는 QwenImage21Pipeline을 포함하는 커밋을 고정한다. 다른 GPU에서는 해당 장치에 맞는 AMD PyTorch 패키지를 선택해야 한다.
+
+```bash
+.venv/bin/python -m pip install --index-url https://stable.repo.amd.com/rocm/whl-next/ 'torch[device-gfx1151]==2.13.0+rocm10.0.0' 'torchvision[device-gfx1151]==0.28.0+rocm10.0.0'
+.venv/bin/python -m pip install 'diffusers @ git+https://github.com/huggingface/diffusers.git@8c54b38fea3d624d23d0e43c0c96037f080a79f9' 'transformers==5.23.0' 'accelerate==1.15.0' 'safetensors==0.8.0'
+.venv/bin/python tools/manager.py command prop-generator model-status
+```
 
 `prop-generator` 전용 서비스의 대기열·상태·로그·이력을 사용한다. CLI도 `prop-generator generate --prompt-file generators/image/config/prop-qwen-prompt.txt`와 선택 `--reference`로 같은 서비스를 사용한다. 결과는 자동 등록하지 않으며 검수 후 `slime-assets/assets/billboards/`에 소품로 등록한다. 새 모델·작업 실행기·AWS 인프라는 추가하지 않는다.
 

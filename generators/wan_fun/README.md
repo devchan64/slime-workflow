@@ -1,6 +1,12 @@
 # Fun Control VAE 처리
 
+관리도구 **모델 관리 → Wan Fun Control**에서 모델 준비 상태와 파일별 다운로드·이어받기를 확인하고 준비가 필요하면 **모델 다운로드**를 실행한다. 기존 생성기 화면과 CLI `command wan22-fun-control prepare`도 같은 게이트웨이 명령을 사용한다. 준비 작업은 ROCm 환경 검사 때문에 기존 GPU 대기열에서 수행하며, 대기 중과 실행 중에는 중복 요청을 막는다. 실제 모델 파일은 공용 Hugging Face 다운로더로 받는다.
+
+Wan Fun 모델과 포즈 가중치는 HTTP 전송을 사용한다. 부분 파일의 연속된 데이터를 서버와 대조한 뒤 이어받기 위해 Xet 희소 파일 전송은 사용하지 않는다. 기존 Xet 부분 파일은 보존하며 안전하게 확인할 수 있는 구간만 복구한다.
+
 저장소 루트에서 `python3 -m generators.wan_fun.setup_rocm`을 실행한다. 별도 `.local/venvs/wan-fun-rocm`에 AMD ROCm PyTorch·MIGraphX 환경과 DWPose를 준비한다. 고·저노이즈 BF16 모델, UMT5 FP16, Wan2.1 VAE는 고정 리비전에서 받아 크기와 SHA-256을 검증한다. 고정 커밋의 ComfyUI 의존성을 설치하며 기존 소스에 수정 사항이나 다른 커밋이 있으면 중단한다. 로그는 `.tmp/management-launcher-logs/`와 `.tmp/test/wan22-fun-control-prepare/`에 저장한다.
+
+모델 가중치는 BF16으로 GPU에 직접 적재하고 고·저노이즈 모델을 순차 실행한다. 직접 적재 전 GPU 여유가 가중치 파일 크기의 두 배에 4GiB를 더한 값보다 작으면 실패한다. gfx1151에서 긴 self-attention은 여유 GPU 메모리가 있을 때 연속 배치를 사용하며, 여유 부족이나 복사 OOM에는 원래 배치로 실행한다. 입력·출력의 NaN과 무한대는 실패로 처리한다. 진단 시 `SLIME_WAN_ATTENTION_PROFILE=1`을 설정하면 실행 시도 폴더의 `attention-profile.jsonl`에 앞쪽 attention 호출의 GPU 동기화 시간과 첫 커널을 기록한다.
 
 참조·포즈 인코딩과 결과 디코딩은 일반 ComfyUI VAE로 고정한다.
 타일 VAE 실행·UI 선택은 제거했으며 OOM 시 자동 타일 대체 없이 명시적으로 실패한다.
@@ -18,7 +24,7 @@ CLI 호환을 위해 `use_regular_vae: true`, `pose_encode_full_temporal: false`
 
 `걷기 예제 불러오기`는 `examples/walk-21frames-50steps/`의 참조 PNG·포즈 MP4·설정을 입력에 복원하며 자동 생성하지 않는다. 원본 작업은 `2026-11-02_23-24-48-85eb00f7`이며 21프레임·50스텝·시드 42·시프트 5·CFG 6·고노이즈 비율 0.3이다.
 
-GUI·CLI 입력 범위는 5~129프레임(`4n+1`)으로 고정한다. 8GB 환경에서 129프레임·20스텝 생성 완료를 확인했다. 161프레임 실험은 첫 추론 스텝의 RoPE 연산에서 CUDA OOM으로 실패하여 지원 범위에서 제외했다. 생성 완료와 품질 승인은 별개다. 포즈 MP4는 요청 프레임 이상이어야 하며 부족한 프레임을 반복하지 않는다.
+GUI·CLI 입력 범위는 5~129프레임(`4n+1`)으로 고정한다. 2026-11-14 Radeon 8060S의 96GiB GPU 예약 환경에서 113프레임·2스텝 BF16 실행을 확인했다. 이 진단은 출력 품질을 보장하지 않으며 20스텝 전체는 별도 검증이 필요하다. 포즈 MP4는 요청 프레임 이상이어야 하며 부족한 프레임을 반복하지 않는다.
 
 ### 폐기된 양끝 이미지 자체 확장
 

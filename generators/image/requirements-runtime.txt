@@ -1,0 +1,5 @@
+# Qwen Image 2.1 실행 의존성. ROCm PyTorch는 별도 AMD 인덱스에서 먼저 설치한다.
+diffusers @ git+https://github.com/huggingface/diffusers.git@8c54b38fea3d624d23d0e43c0c96037f080a79f9
+transformers==5.23.0
+accelerate==1.15.0
+safetensors==0.8.0

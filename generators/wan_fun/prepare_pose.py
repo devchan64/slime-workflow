@@ -1,6 +1,7 @@
 """VideoX-Fun 포즈 검출 가중치를 고정 리비전에서 준비한다."""
 import hashlib
 import json
+import os
 import threading
 import time
 import traceback
@@ -10,6 +11,9 @@ from generators.wan_fun.pose_preprocess import FUN_POSE_MODEL_DIRECTORY, FUN_POS
 
 
 def prepare_fun_pose_models():
+    os.environ['HF_HUB_DISABLE_XET'] = '1'
+    import huggingface_hub.constants as current_hub_constants
+    current_hub_constants.HF_HUB_DISABLE_XET = True
     from tools.review.common.model_huggingface_download import tracked_hf_hub_download as hf_hub_download
     import onnx
     from onnxsim import simplify

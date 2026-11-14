@@ -278,7 +278,7 @@ class GpuJobQueueTests(unittest.TestCase):
 
     def test_observed_peak_admits_job_without_extra_margin(self):
         from tools.review.common import gpu_memory_history
-        gpu_memory_history.save_memory_observation('image','previous',7538,3,'completed',command_identity_name='run_qwen_2512.py:1280x1280:steps=4:references=0')
+        gpu_memory_history.save_memory_observation('image','previous',7538,3,'completed',command_identity_name='run_qwen_2512.py:1280x1280:steps=4:references=0:offload=model-v1')
         (self.current_job_path/'request.json').write_text(json.dumps({'width':1280,'height':1280,'steps':4}))
         (self.current_job_path/'gpu-command.json').write_text(json.dumps({'command':['python','run_qwen_2512.py'],'service':'image'}))
         worker_process_mock = Mock(returncode=0)

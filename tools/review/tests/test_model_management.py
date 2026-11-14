@@ -4,6 +4,46 @@ from tools.review.ui.gradio.model_management_app import read_model_job_status, b
 
 
 class ModelManagementTest(unittest.TestCase):
+    def test_models_are_displayed_in_name_order(self):
+        from tools.review.ui.gradio.model_management_app import MODEL_PREPARATION_SERVICES, MODEL_JOB_SERVICES, MODEL_OBSERVATION_SERVICES
+        current_model_names = [current_name for current_name, _ in (*MODEL_PREPARATION_SERVICES, *MODEL_JOB_SERVICES, *MODEL_OBSERVATION_SERVICES)]
+        current_interface_config = build_model_management_interface().config
+        current_display_names = [current_component['props']['value'][4:] for current_component in current_interface_config['components']
+                                 if current_component.get('type') == 'markdown' and current_component.get('props', {}).get('value', '').startswith('### ')
+                                 and current_component['props']['value'][4:] in current_model_names]
+        self.assertEqual(current_display_names, sorted(current_model_names, key=str.casefold))
+
+    def test_model_file_inventory_excludes_partial_cache_and_symlinks(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from tools.review.common.model_file_inventory import list_model_inventory_files
+        from tools.review.ui.gradio.model_management_app import format_model_inventory_files
+        with TemporaryDirectory() as current_directory_name:
+            current_workspace_path = Path(current_directory_name)
+            current_model_path = current_workspace_path/'.model'/'sample'
+            current_model_path.mkdir(parents=True)
+            (current_model_path/'z.safetensors').write_bytes(b'12345')
+            (current_model_path/'a.json').write_bytes(b'{}')
+            (current_model_path/'incomplete.partial').write_bytes(b'x')
+            (current_model_path/'incomplete.partial.verified').write_bytes(b'x')
+            (current_model_path/'.cache').mkdir()
+            (current_model_path/'.cache'/'private').write_bytes(b'x')
+            (current_model_path/'link').symlink_to(current_model_path/'a.json')
+            current_outside_path = current_workspace_path/'outside'
+            current_outside_path.write_bytes(b'secret')
+            current_inventory_value = list_model_inventory_files({'test': [current_model_path, current_outside_path]}, current_workspace_path)['test']
+            self.assertEqual([current_file['path'] for current_file in current_inventory_value['files']], ['sample/a.json', 'sample/z.safetensors'])
+            self.assertEqual(current_inventory_value['count'], 2)
+            self.assertFalse(current_inventory_value['incomplete'])
+            current_display_text = format_model_inventory_files(current_inventory_value)
+            self.assertIn('저장된 파일 2개', current_display_text)
+            self.assertIn('sample/z.safetensors', current_display_text)
+            self.assertIn('해시 검증 결과는 아닙니다', current_display_text)
+
+    def test_retired_qwen_2512_is_not_in_model_management(self):
+        from tools.review.ui.gradio.model_management_app import MODEL_PREPARATION_SERVICES, MODEL_JOB_SERVICES
+        self.assertNotIn('qwen-2512', [current_service for _, current_service in (*MODEL_PREPARATION_SERVICES, *MODEL_JOB_SERVICES)])
+
     def test_running_preparation_explains_disabled_download(self):
         import gradio as gr
         from tools.review.common.gradio_model_download import build_model_download_controls
@@ -51,8 +91,11 @@ class SharedModelDownloadTest(unittest.TestCase):
     def test_status_command_rejects_extra_fields(self):
         from tools.review.common.management_gateway import resolve_management_command
         self.assertEqual(resolve_management_command('model-downloads', 'download-status', {}), ('GET', '/model-downloads/status'))
+        self.assertEqual(resolve_management_command('model-downloads', 'download-inventory', {}), ('GET', '/model-downloads/inventory'))
         with self.assertRaises(ValueError):
             resolve_management_command('model-downloads', 'download-status', {'unexpected': True})
+        with self.assertRaises(ValueError):
+            resolve_management_command('model-downloads', 'download-inventory', {'path': '/tmp'})
 
 class HuggingFaceDownloadRecordTest(unittest.TestCase):
     def test_file_progress_and_resume_are_recorded(self):

@@ -36,7 +36,7 @@ def execute_huggingface_download(current_function_name, current_argument_values,
                                 try:
                                     def report_file_resume(current_resume_bytes):
                                         if current_function_name == 'file':
-                                            current_download_record.update(resumed_bytes=current_resume_bytes)
+                                            current_download_record.update(bytes=current_resume_bytes, resumed_bytes=current_resume_bytes)
                                     if recover_huggingface_partial(current_repo_name, current_file_record.commit_hash, current_keyword_values['local_dir'], current_file_record, current_keyword_values.get('endpoint'), resume_report_callback=report_file_resume):
                                         current_cached_bytes += current_file_record.file_size
                                         current_download_record.update(bytes=current_cached_bytes)

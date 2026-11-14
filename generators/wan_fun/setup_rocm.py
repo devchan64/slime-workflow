@@ -16,6 +16,9 @@ FUN_ONNX_INDEX = 'https://stable.repo.amd.com/rocm/onnxruntime/whl-next/'
 
 
 def setup_fun_rocm_environment():
+    # Xet의 희소 부분 파일은 길이만으로 이어받을 접두 구간을 판별할 수 없다.
+    # 모델 준비 하위 프로세스는 공용 HTTP 복구 경로를 사용한다.
+    os.environ['HF_HUB_DISABLE_XET'] = '1'
     current_trace_logger = ManagementLaunchLogger('wan-fun-rocm-setup')
     current_lock_path = FUN_WORKSPACE_DIRECTORY / '.local/wan-fun-rocm-setup.lock'
     current_lock_path.parent.mkdir(parents=True, exist_ok=True)

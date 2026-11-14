@@ -112,7 +112,7 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
                 raise ValueError('순환 VAE 고정 설정 불일치')
         else:
             current_pipeline_model.vae.enable_tiling()
-        current_pipeline_model.enable_sequential_cpu_offload()
+        current_pipeline_model.enable_model_cpu_offload()
         reference_image_values = []
         for reference_image_path in reference_image_paths:
             with Image.open(reference_image_path) as current_reference_image:

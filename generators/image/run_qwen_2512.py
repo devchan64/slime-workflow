@@ -82,4 +82,4 @@ def execute_image_worker():
 
 
 if __name__ == '__main__':
-    execute_image_worker()
+    raise SystemExit('Qwen Image 2512 모델과 생성 기능은 폐기되었습니다.')

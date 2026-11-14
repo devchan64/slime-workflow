@@ -90,6 +90,8 @@ class QwenPlainGenerationTests(unittest.TestCase):
             current_diffusers_module = SimpleNamespace(QwenImage21Pipeline=SimpleNamespace(from_pretrained=MagicMock(return_value=current_pipeline_mock)))
             with patch.dict('sys.modules', {'torch':current_torch_module,'diffusers':current_diffusers_module}), patch.object(qwen_21_runtime,'validate_qwen_model_assets',return_value=current_job_root), patch.object(WorkerGenerationProgress,'record_worker_progress',record_observed_progress):
                 qwen_21_runtime.execute_qwen_reference_generation(current_job_root, {'prompt':'A tree.','steps':40,'width':512,'height':512,'seed':1}, [])
+            current_pipeline_mock.enable_model_cpu_offload.assert_called_once_with()
+            current_pipeline_mock.enable_sequential_cpu_offload.assert_not_called()
             self.assertEqual([current_record['step'] for current_record in current_inference_records], [0,0])
             current_elapsed_seconds = (datetime.fromisoformat(current_inference_records[1]['updated_at'])-datetime.fromisoformat(current_inference_records[0]['updated_at'])).total_seconds()
             self.assertGreater(current_elapsed_seconds, 4)

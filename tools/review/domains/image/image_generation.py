@@ -139,10 +139,14 @@ class ImageGenerationManager:
 
     def validate_generation_resume(self, selected_job_directory):
         """도메인별 재개 가능 기록을 GPU 명령 실행 전에 검증한다."""
+        if type(self) is ImageGenerationManager and not self.three_reference_mode:
+            raise ValueError('Qwen Image 2512 모델과 생성 기능은 폐기되었습니다.')
 
     def validate_generation_runtime(self, saved_request_record=None):
         if type(self) is ImageGenerationManager and self.three_reference_mode:
             raise ValueError('Qwen Image Edit 2511 생성기는 폐기되었습니다. Qwen 2.1을 사용하세요.')
+        if type(self) is ImageGenerationManager and not self.three_reference_mode:
+            raise ValueError('Qwen Image 2512 모델과 생성 기능은 폐기되었습니다.')
         validate_image_runtime()
 
     def select_generation_runner(self, saved_request_record=None):

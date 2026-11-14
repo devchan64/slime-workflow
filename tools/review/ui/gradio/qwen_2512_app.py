@@ -17,6 +17,7 @@ from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_results import build_generation_gallery, collect_generation_gallery
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_logs import build_execution_logs
+from tools.review.common.gradio_model_download import build_model_readiness_controls
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_reference_restore import validate_history_input_settings
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
@@ -70,9 +71,8 @@ def build_qwen_2512_interface(server_base_address):
                     step_select_value=gr.Radio(IMAGE_STEP_VALUES,value=4,label='생성 스텝')
                     seed_number_value=build_generation_seed(DEFAULT_IMAGE_SEED)
                 with gr.Row():
-                    prepare_button_value=gr.Button('모델 준비 확인')
                     generation_button_value=gr.Button('대기열에 추가',variant='primary')
-                model_status_value=gr.Markdown('모델 상태를 확인하세요.')
+                build_model_readiness_controls(interface_blocks_value, execute_image_gateway)
                 generation_status_value=gr.Markdown('생성 가능 · 프롬프트를 입력하세요.')
                 gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
             with gr.Column(scale=2,min_width=520):
@@ -89,10 +89,6 @@ def build_qwen_2512_interface(server_base_address):
             allow_individual_delete=True,
         )
         prompt_text_value.change(lambda prompt_text_value:f'최종 프롬프트: **{count_prompt_words(prompt_text_value)}단어**',prompt_text_value,prompt_word_count_value,queue=False)
-        def check_model_ready():
-            model_record_value=execute_image_gateway('model-status',{})
-            return ('모델 준비됨 · '+model_record_value['message']) if model_record_value.get('ready') else ('모델 준비 필요 · '+model_record_value['message'])
-        prepare_button_value.click(check_model_ready,outputs=model_status_value,queue=False)
         def start_generation(prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value):
             generation_record_value=execute_image_gateway('generate',build_generation_request(prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value))
             return generation_record_value['id'],describe_generation_status(generation_record_value)

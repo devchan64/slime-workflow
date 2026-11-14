@@ -31,7 +31,10 @@ class BuildingPromptContractTests(unittest.TestCase):
         for current_service_manager in current_service_managers:
             self.assertEqual(validate_three_reference_job_path(current_service_manager.job_storage_root), current_service_manager.job_storage_root)
         for current_service_name in ('billboard-generator','prop-generator', 'vegetation-generator'):
-            self.assertEqual(MANAGEMENT_SERVICE_COMMANDS[current_service_name], MANAGEMENT_SERVICE_COMMANDS['qwen-21'])
+            current_expected_commands = set(MANAGEMENT_SERVICE_COMMANDS['qwen-21'])
+            if current_service_name == 'prop-generator':
+                current_expected_commands.add('prepare')
+            self.assertEqual(set(MANAGEMENT_SERVICE_COMMANDS[current_service_name]), current_expected_commands)
 
     def test_layout_and_word_limit(self):
         current_prompt_text = load_building_base_prompt()

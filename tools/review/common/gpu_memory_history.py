@@ -7,6 +7,7 @@ import subprocess
 import time
 from tools.review.common.generation_records import write_record_atomically
 
+MODEL_OFFLOAD_WORKER_NAMES = {'run_qwen_2512.py', 'run_qwen_21_reference.py'}
 IMAGE_MEMORY_WORKER_NAMES = {'run_qwen_2512.py', 'run_qwen_2511_three_reference.py', 'run_qwen_21_reference.py'}
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[3]
 IMAGE_HISTORY_ROOT_PATHS = tuple(WORKFLOW_ROOT_DIRECTORY/current_relative_path for current_relative_path in ('.tmp/test/billboard-generator', '.tmp/test/prop-generator', '.tmp/test/vegetation-generator', '.tmp/test/building-generator', '.tmp/test/qwen-image-2512', '.tmp/test/qwen-image-2512/tile-map', '.tmp/test/qwen-image-2512/floor-tile', '.tmp/test/qwen-image-2511-three-reference', '.tmp/test/qwen-image-21', '.tmp/test/seamless-tile-generator'))
@@ -89,6 +90,8 @@ def save_memory_observation(service, job_path, peak_memory_mib, samples, status,
 
 
 def estimate_required_memory(service, configured_floor_mib, command_identity_name=None):
+    if service == 'image' and isinstance(command_identity_name, str) and command_identity_name.endswith(':offload=model-v1'):
+        configured_floor_mib = max(configured_floor_mib, 32768)
     observations = [record for _,record in load_recent_observations(service, command_identity_name)[:20]]
     summary = summarize_memory_observations(service, observations)
     measured_peak_mib = summary['peak_memory_mib']
@@ -111,7 +114,9 @@ def identify_execution_command(command_argument_values, generation_job_directory
         current_profile_name = f'wan-fun:worker.py:{current_profile_values[0]}x{current_profile_values[1]}:frames={current_profile_values[2]}'
         return current_profile_name + (f':domain={current_memory_domain}' if current_memory_domain else '')
     if generation_job_directory is not None and len(command_argument_values)>1 and Path(command_argument_values[1]).name in IMAGE_MEMORY_WORKER_NAMES:
-        return build_image_memory_identity(Path(command_argument_values[1]).name, Path(generation_job_directory))
+        current_worker_name = Path(command_argument_values[1]).name
+        current_profile_name = build_image_memory_identity(current_worker_name, Path(generation_job_directory))
+        return current_profile_name + ':offload=model-v1' if current_worker_name in MODEL_OFFLOAD_WORKER_NAMES else current_profile_name
     if len(command_argument_values)>2 and command_argument_values[1]=='-m':
         return command_argument_values[2]
     if len(command_argument_values)>1 and command_argument_values[1].endswith('.py'):

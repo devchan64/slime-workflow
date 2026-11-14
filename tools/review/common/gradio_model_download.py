@@ -46,10 +46,12 @@ def build_model_download_controls(current_interface_blocks, current_execute_comm
     def refresh_model_download_status():
         try:
             current_asset_record = current_execute_command('model-status',{})
-            current_download_running = current_asset_record.get('preparation_status') == 'running'
+            current_preparation_status = current_asset_record.get('preparation_status')
+            current_download_running = current_preparation_status in ('queued', 'running')
             current_status_message = current_asset_record['message']
             if current_download_running:
-                current_status_message += ' · 다운로드가 진행 중이므로 중복 요청을 막고 있습니다.'
+                current_status_message += (' · 모델 준비가 대기 중이므로 중복 요청을 막고 있습니다.' if current_preparation_status == 'queued'
+                                           else ' · 모델 준비가 진행 중이므로 중복 요청을 막고 있습니다.')
             return (
                 current_status_message,
                 current_asset_record.get('generation_ready', current_asset_record['ready']),
@@ -63,7 +65,7 @@ def build_model_download_controls(current_interface_blocks, current_execute_comm
         try:
             current_execute_command('prepare',{'action':'prepare'})
         except Exception as current_download_error:
-            return f'다운로드 요청 실패: {current_download_error}',False,gr.update(interactive=True),gr.Timer(active=poll_always_enabled)
+            return f'다운로드 요청 실패: {current_download_error}',False,gr.update(interactive=False),gr.Timer(active=True)
         return refresh_model_download_status()
 
     current_refresh_event = current_refresh_button.click(refresh_model_download_status,outputs=current_model_outputs,queue=False)

@@ -22,7 +22,7 @@ from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_results import build_generation_gallery, collect_generation_gallery
 from tools.review.common.gradio_logs import build_execution_logs
 from tools.review.common.gradio_history import build_generation_history_view, format_generation_status
-from tools.review.common.gradio_model_download import build_model_download_controls, build_model_progress_display
+from tools.review.common.gradio_model_download import build_model_readiness_controls
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_reference_images import build_reference_image_inputs, REFERENCE_IMAGE_CARD_HEIGHT
 from tools.review.common.gradio_button_guidance import build_button_guidance
@@ -137,9 +137,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         gr.Markdown('## ' + current_page_title + '\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.')
         if current_service_name == 'prop-generator':
             gr.Markdown('공식 Qwen Image 2.1 비양자화 모델 · BF16 · AMD ROCm')
-            current_prop_ready, current_prop_model_events = build_model_download_controls(interface_blocks_value, execute_reference_gateway, model_service_name='prop-generator')
-        elif current_service_name in ('qwen-21', 'qwen-21-circular', 'expression', 'vegetation-generator', 'billboard-generator', 'building-generator'):
-            build_model_progress_display(interface_blocks_value, 'prop-generator')
+        current_prop_ready, current_prop_model_events = build_model_readiness_controls(interface_blocks_value, execute_reference_gateway)
         if billboard_guide_enabled:
             from tools.review.ui.gradio.billboard_guide_controls import build_billboard_guide_controls
             from tools.review.domains.image.billboard_guide_prompt import load_billboard_guide_image, compose_billboard_guide_prompt

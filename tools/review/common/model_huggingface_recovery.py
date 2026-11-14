@@ -87,12 +87,12 @@ def recover_huggingface_partial(current_repo_name, current_revision_value, curre
                 current_previous_target = current_partial_path.with_name(current_partial_path.name + '.verified')
                 if read_completed_verification(current_partial_path, current_partial_path, current_file_etag, current_file_size):
                     report_partial_resume()
-                    download_verified_http(current_file_url, current_target_path, current_file_etag, current_repo_name + '/' + current_file_name)
+                    download_verified_http(current_file_url, current_target_path, current_file_etag, current_repo_name + '/' + current_file_name, expected_total_bytes=current_file_size)
                     remove_completed_verification(current_partial_path)
                     return True
                 if read_completed_verification(current_previous_target, current_partial_path, current_file_etag, current_file_size):
                     report_partial_resume()
-                    download_verified_http(current_file_url, current_target_path, current_file_etag, current_repo_name + '/' + current_file_name)
+                    download_verified_http(current_file_url, current_target_path, current_file_etag, current_repo_name + '/' + current_file_name, expected_total_bytes=current_file_size)
                     remove_completed_verification(current_previous_target)
                     return True
                 if current_partial_path.is_symlink() or not current_partial_path.is_file():
@@ -100,7 +100,7 @@ def recover_huggingface_partial(current_repo_name, current_revision_value, curre
                 current_partial_size = current_partial_path.stat().st_size
                 if current_partial_size == current_file_size:
                     report_partial_resume()
-                    download_verified_http(current_file_url, current_target_path, current_file_etag, current_repo_name + '/' + current_file_name)
+                    download_verified_http(current_file_url, current_target_path, current_file_etag, current_repo_name + '/' + current_file_name, expected_total_bytes=current_file_size)
                     return True
                 if not 0 < current_partial_size < current_file_size:
                     raise ValueError('이어받기 부분 파일의 크기가 올바르지 않습니다.')
@@ -123,7 +123,7 @@ def recover_huggingface_partial(current_repo_name, current_revision_value, curre
                 finally:
                     os.close(current_directory_fd)
             report_partial_resume()
-            download_verified_http(current_file_url, current_target_path, current_file_etag, current_repo_name + '/' + current_file_name)
+            download_verified_http(current_file_url, current_target_path, current_file_etag, current_repo_name + '/' + current_file_name, expected_total_bytes=current_file_size)
             remove_completed_verification(current_verified_path)
         return True
     except Exception as current_recovery_error:

@@ -41,7 +41,7 @@ class ManagementSeparationTests(unittest.TestCase):
             send_management_json_response(current_http_handler, 202, {'id': 'preserved-job', 'status': 'queued'})
             return True
 
-        management_command_gateway = ManagementCommandGateway({'qwen-2512': handle_test_service})
+        management_command_gateway = ManagementCommandGateway({'qwen-21': handle_test_service})
         with run_test_http_server(create_gateway_request_handler(management_command_gateway.handle)) as gateway_http_server:
             gateway_base_address = f'http://127.0.0.1:{gateway_http_server.server_port}'
 
@@ -56,11 +56,11 @@ class ManagementSeparationTests(unittest.TestCase):
                 with run_test_http_server(TestGuiHandler) as gui_http_server:
                     gui_base_address = f'http://127.0.0.1:{gui_http_server.server_port}'
                     with patch.dict(os.environ, {'SLIME_MANAGEMENT_GATEWAY_URL': gui_base_address}):
-                        command_result_record = execute_remote_management_command('qwen-2512', 'generate', {'prompt': '잔디'})
+                        command_result_record = execute_remote_management_command('qwen-21', 'generate', {'prompt': '잔디'})
                     self.assertEqual(command_result_record['id'], 'preserved-job')
                 # GUI 종료 뒤에도 같은 게이트웨이에 CLI/HTTP 접수가 가능하다.
                 with patch.dict(os.environ, {'SLIME_MANAGEMENT_GATEWAY_URL': gateway_base_address}):
-                    self.assertEqual(execute_remote_management_command('qwen-2512', 'generate', {'prompt': '도로'})['status'], 'queued')
+                    self.assertEqual(execute_remote_management_command('qwen-21', 'generate', {'prompt': '도로'})['status'], 'queued')
             self.assertEqual(received_command_records, [{'prompt': '잔디'}, {'prompt': '도로'}] * 2)
 
     def test_proxy_rejects_foreign_origin_before_forwarding(self):
@@ -100,5 +100,5 @@ class ManagementSeparationTests(unittest.TestCase):
     def test_gateway_failure_does_not_run_local_or_retry(self):
         with patch.dict(os.environ, {'SLIME_MANAGEMENT_GATEWAY_URL': 'http://127.0.0.1:9871'}), patch('tools.review.common.management_gateway.call_management_api', side_effect=ValueError('게이트웨이 종료')) as remote_command_mock:
             with self.assertRaisesRegex(ValueError, '게이트웨이 종료'):
-                execute_remote_management_command('hy-motion', 'history', {})
+                execute_remote_management_command('qwen-21', 'history', {})
             remote_command_mock.assert_called_once()

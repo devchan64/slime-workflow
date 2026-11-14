@@ -23,8 +23,9 @@ MANAGEMENT_SERVICE_COMMANDS = {'qwen-21-circular': ('history-delete', 'resume', 
 
 
 MANAGEMENT_SERVICE_ROUTES['model-downloads']='/model-downloads'
-MANAGEMENT_SERVICE_COMMANDS['model-downloads']=('download-status',)
+MANAGEMENT_SERVICE_COMMANDS['model-downloads']=('download-status','download-inventory')
 MANAGEMENT_COMMAND_ROUTES['download-status']=('GET','/status')
+MANAGEMENT_COMMAND_ROUTES['download-inventory']=('GET','/inventory')
 
 MANAGEMENT_SERVICE_ROUTES['wan22-animate2']='/wan22-animate2'
 MANAGEMENT_SERVICE_COMMANDS['wan22-animate2']=('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset')
@@ -117,6 +118,8 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('MoMask 포즈 생성기와 과거 기록은 폐기되었습니다. Kimodo를 사용하세요.')
     if service_command_name == 'qwen-2511':
         raise ValueError('Qwen Image Edit 2511 생성기는 폐기되었습니다. Qwen 2.1을 사용하세요.')
+    if service_command_name == 'qwen-2512' and operation_command_name in ('generate', 'prepare', 'resume', 'model-status'):
+        raise ValueError('Qwen Image 2512 모델과 생성 기능은 폐기되었습니다. 기존 이력은 조회할 수 있습니다.')
     if service_command_name == 'floor-tile' and operation_command_name in ('generate', 'resume', 'prioritize'):
         raise ValueError('바닥 타일 생성기는 폐기되었습니다. 생성과 재개는 지원하지 않습니다.')
     if service_command_name not in MANAGEMENT_SERVICE_COMMANDS or operation_command_name not in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
@@ -125,7 +128,7 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('명령 입력은 JSON 객체여야 합니다.')
     if operation_command_name in ('migraphx-build', 'migraphx-build-status') and command_payload_value:
         raise ValueError('MIGraphX 빌드 명령은 입력 필드를 받지 않습니다.')
-    if operation_command_name in ('history-reset-preview','writer-state','download-status') and command_payload_value:
+    if operation_command_name in ('history-reset-preview','writer-state','download-status','download-inventory') and command_payload_value:
         raise ValueError('초기화 미리보기는 입력 필드를 받지 않습니다.')
     if service_command_name == 'prop-generator' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
@@ -241,7 +244,7 @@ class ManagementCommandGateway:
         return True
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'qwen-21-circular': 'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수', 'qwen-21': 'Qwen Image 2.1 · 공용 화풍·투명 배경 선택 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)', 'seamless-tile': 'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능', 'expression': 'Qwen 2.1 Anime consistency AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정', 'floor-tile': '바닥 타일 생성기 폐기 · 기존 이력 조회·삭제 가능 · 생성·재개 불가', 'character-animation': '생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)', 'momask': '폐기된 MoMask 도구 · 모든 명령 거절 · Kimodo 사용', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'qwen-21-circular': 'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수', 'qwen-21': 'Qwen Image 2.1 · 공용 화풍·투명 배경 선택 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)', 'seamless-tile': 'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능', 'expression': 'Qwen 2.1 Anime consistency AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정', 'floor-tile': '바닥 타일 생성기 폐기 · 기존 이력 조회·삭제 가능 · 생성·재개 불가', 'character-animation': '생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)', 'momask': '폐기된 MoMask 도구 · 모든 명령 거절 · Kimodo 사용', 'qwen-2512': 'Qwen Image 2512 폐기 · 기존 이력 조회 가능', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['model-downloads']='공유 모델 다운로드 상태 조회'
 MANAGEMENT_COMMAND_DESCRIPTIONS['writer-agent']='작가 문서 학습·제안·조회·해시 확인 적용 · --payload-file · 기존 문서/기록 경로 유지'
@@ -272,8 +275,11 @@ def execute_management_command(service_command_name, operation_command_name, com
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
     if gateway_request_handler is not None:
         if service_command_name == 'model-downloads':
-            from tools.review.common.model_download_records import list_model_download_records
             from tools.review.common.management_transport import send_management_json_response
+            if operation_command_name == 'download-inventory':
+                from tools.review.common.model_file_inventory import list_model_inventory_files
+                return send_management_json_response(gateway_request_handler, 200, {'models': list_model_inventory_files()})
+            from tools.review.common.model_download_records import list_model_download_records
             return send_management_json_response(gateway_request_handler, 200, {'records': list_model_download_records()})
         if operation_command_name == 'prioritize':
             from tools.review.common.gpu_job_queue import prioritize_waiting_generation

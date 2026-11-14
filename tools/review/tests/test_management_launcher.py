@@ -46,13 +46,45 @@ class ManagementLauncherTests(unittest.TestCase):
             selected_environment_path = management_launcher.resolve_management_environment('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH', '.venv-management')
         self.assertEqual(selected_environment_path, management_launcher.WORKFLOW_ROOT_DIRECTORY/'.tmp/custom environment')
 
-    def test_setup_prepares_shared_environment_only_when_requested(self):
-        with tempfile.TemporaryDirectory() as temporary_directory_name, patch.dict(os.environ, {'VIRTUAL_ENVIRONMENT_PATH': temporary_directory_name+'/runtime'}, clear=True), patch.object(management_setup, 'run_logged_management_command') as run_command_mock:
-            management_launcher.prepare_management_environments(None)
+    def test_setup_prepares_image_and_separate_management_environment(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            current_root_path = Path(temporary_directory_name)
+            current_image_path = current_root_path / 'image'
+            current_shared_path = current_root_path / 'runtime'
+            with patch.dict(os.environ, {'VIRTUAL_ENVIRONMENT_PATH': str(current_shared_path)}, clear=True), \
+                    patch.object(management_setup, 'IMAGE_ENVIRONMENT_PATH', current_image_path), \
+                    patch.object(management_setup, 'run_logged_management_command') as run_command_mock:
+                management_launcher.prepare_management_environments(None)
         command_argument_records = [current_call_value.args[0] for current_call_value in run_command_mock.call_args_list]
-        self.assertEqual(sum('venv' in current_command_values for current_command_values in command_argument_records), 1)
-        self.assertEqual(command_argument_records[-2][-1], str(management_setup.WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/gradio/requirements.txt'))
-        self.assertEqual(command_argument_records[-1][-2:], ['pip', 'check'])
+        current_image_commands = [current_command for current_command in command_argument_records if current_command[0] == str(current_image_path / 'bin/python')]
+        current_shared_commands = [current_command for current_command in command_argument_records if current_command[0] == str(current_shared_path / 'bin/python')]
+        self.assertTrue(any(management_setup.IMAGE_ROCM_INDEX_URL in current_command for current_command in current_image_commands))
+        self.assertTrue(any(str(management_setup.IMAGE_REQUIREMENTS_PATH) in current_command and str(management_setup.IMAGE_CONSTRAINTS_PATH) in current_command for current_command in current_image_commands))
+        self.assertTrue(any('QwenImage21Pipeline' in ' '.join(current_command) for current_command in current_image_commands))
+        self.assertTrue(any(str(management_setup.WORKFLOW_ROOT_DIRECTORY / 'tools/review/ui/gradio/requirements.txt') in current_command for current_command in current_shared_commands))
+        self.assertFalse(any(management_setup.IMAGE_ROCM_INDEX_URL in current_command for current_command in current_shared_commands))
+        self.assertIn(['npm', '--prefix', str(management_setup.WORKFLOW_ROOT_DIRECTORY.parent / 'slime-frontend'), 'run', 'build:field-renderer'], command_argument_records)
+
+    def test_setup_uses_constraints_for_shared_image_environment(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            current_image_path = Path(temporary_directory_name) / 'image'
+            with patch.dict(os.environ, {'VIRTUAL_ENVIRONMENT_PATH': str(current_image_path)}, clear=True), \
+                    patch.object(management_setup, 'IMAGE_ENVIRONMENT_PATH', current_image_path), \
+                    patch.object(management_setup, 'run_logged_management_command') as run_command_mock:
+                management_launcher.prepare_management_environments(None)
+        command_argument_records = [current_call_value.args[0] for current_call_value in run_command_mock.call_args_list]
+        current_gui_install = next(current_command for current_command in command_argument_records if str(management_setup.WORKFLOW_ROOT_DIRECTORY / 'tools/review/ui/gradio/requirements.txt') in current_command)
+        self.assertIn(str(management_setup.IMAGE_CONSTRAINTS_PATH), current_gui_install)
+        self.assertEqual(sum('venv' in current_command for current_command in command_argument_records), 1)
+
+    def test_existing_incompatible_torch_is_not_replaced(self):
+        with patch.object(management_setup, 'run_logged_management_command') as run_command_mock:
+            management_setup.prepare_image_runtime_environment(Path('/tmp/image/bin/python'), None)
+        current_preflight_code = run_command_mock.call_args_list[0].args[0][-1]
+        current_fake_code = "import sys,types; m=types.ModuleType('importlib.metadata'); m.version=lambda n: '2.0.0'; import importlib.util; importlib.util.find_spec=lambda n: object(); sys.modules['importlib.metadata']=m; "
+        current_process_result = subprocess.run([sys.executable, '-c', current_fake_code + current_preflight_code], capture_output=True, text=True)
+        self.assertNotEqual(current_process_result.returncode, 0)
+        self.assertIn('기존 PyTorch 빌드를 교체하지 않습니다', current_process_result.stderr)
 
     def test_gradio_uses_shared_environment_and_allows_explicit_override(self):
         with patch.dict(os.environ, {'VIRTUAL_ENVIRONMENT_PATH': '.tmp/shared'}, clear=True):

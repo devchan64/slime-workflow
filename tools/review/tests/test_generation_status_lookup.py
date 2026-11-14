@@ -31,7 +31,7 @@ class GenerationStatusLookupTests(unittest.TestCase):
     def test_qwen_variants_clear_deleted_preview_and_keep_telemetry(self):
         from tools.review.ui.gradio import qwen_2511_app, qwen_2512_app
         current_interface_cases=[(qwen_2512_app,qwen_2512_app.build_qwen_2512_interface,{},'refresh_generation_status')]
-        current_interface_cases += [(qwen_2511_app,qwen_2511_app.build_qwen_2511_interface,current_mode_options,'refresh_status') for current_mode_options in ({},{'qwen21_mode_enabled':True},{'qwen21_mode_enabled':True,'circular_mode_enabled':True},{'qwen21_mode_enabled':True,'pose_transfer_enabled':True},{'expression_mode_enabled':True})]
+        current_interface_cases += [(qwen_2511_app,qwen_2511_app.build_qwen_2511_interface,current_mode_options,'refresh_status') for current_mode_options in ({},{'qwen21_mode_enabled':True},{'qwen21_mode_enabled':True,'circular_mode_enabled':True},{'expression_mode_enabled':True})]
         for current_module_value,current_builder_callback,current_mode_options,current_callback_name in current_interface_cases:
             with self.subTest(module=current_module_value.__name__,options=current_mode_options):
                 current_interface_blocks=current_builder_callback('http://127.0.0.1:9988',**current_mode_options)
@@ -87,7 +87,7 @@ class GenerationStatusLookupTests(unittest.TestCase):
         current_repository_root=Path(__file__).resolve().parents[3]
         current_process_environment=dict(os.environ)
         current_process_environment.pop('PYTHONPATH',None)
-        for current_script_name in ('pose_transfer_app.py','qwen_2512_app.py'):
+        for current_script_name in ('qwen_2511_app.py','qwen_2512_app.py'):
             with self.subTest(script=current_script_name):
                 current_process_result=subprocess.run([sys.executable,str(current_repository_root/'tools/review/ui/gradio'/current_script_name),'--help'],cwd='/tmp',env=current_process_environment,capture_output=True,text=True,timeout=15)
                 self.assertEqual(current_process_result.returncode,0,current_process_result.stderr)
