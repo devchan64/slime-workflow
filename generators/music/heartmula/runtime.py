@@ -35,6 +35,15 @@ def validate_heartmula_artifacts(current_service_name):
 
 
 def prepare_heartmula_model(current_service_name,current_metrics_recorder,current_download_requested):
+    import fcntl
+    current_model_root = resolve_music_paths(current_service_name)[1]
+    current_model_root.mkdir(parents=True, exist_ok=True)
+    with (current_model_root/'prepare.lock').open('a') as current_lock_stream:
+        fcntl.flock(current_lock_stream, fcntl.LOCK_EX)
+        return execute_heartmula_preparation(current_service_name,current_metrics_recorder,current_download_requested)
+
+
+def execute_heartmula_preparation(current_service_name,current_metrics_recorder,current_download_requested):
     import lameenc  # 생성 시작 전에 MP3 인코더 의존성을 확인한다.
     from generators.music.heartmula.separation import prepare_separation_model
     current_model_root = validate_heartmula_artifacts(current_service_name)

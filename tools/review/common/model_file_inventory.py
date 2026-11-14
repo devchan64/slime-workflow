@@ -73,6 +73,7 @@ def list_model_inventory_files(current_model_paths=None, current_workspace_root=
         current_sorted_files = sorted(current_file_records.items(), key=lambda current_item: current_item[0].casefold())
         current_inventory_records[current_service_name] = {
             'count': len(current_sorted_files),
+            'total_bytes': sum(current_file_bytes for _, current_file_bytes in current_sorted_files),
             'files': [{'path': current_path_name, 'bytes': current_file_bytes}
                       for current_path_name, current_file_bytes in current_sorted_files[:MODEL_INVENTORY_LIMIT]],
             'truncated': len(current_sorted_files) > MODEL_INVENTORY_LIMIT,

@@ -52,10 +52,14 @@ def build_model_download_controls(current_interface_blocks, current_execute_comm
             if current_download_running:
                 current_status_message += (' · 모델 준비가 대기 중이므로 중복 요청을 막고 있습니다.' if current_preparation_status == 'queued'
                                            else ' · 모델 준비가 진행 중이므로 중복 요청을 막고 있습니다.')
+            elif current_asset_record['ready']:
+                current_status_message += ' · 모델이 준비되어 다운로드할 필요가 없습니다.'
+            elif not current_asset_record.get('can_prepare', True):
+                current_status_message += ' · 현재 준비 작업이 끝난 뒤 다운로드할 수 있습니다.'
             return (
                 current_status_message,
                 current_asset_record.get('generation_ready', current_asset_record['ready']),
-                gr.update(interactive=not current_asset_record['ready'] and not current_download_running),
+                gr.update(interactive=not current_asset_record['ready'] and not current_download_running and current_asset_record.get('can_prepare', True)),
                 gr.Timer(active=poll_always_enabled or current_download_running),
             )
         except Exception as current_asset_error:
@@ -79,7 +83,7 @@ MODEL_DOWNLOAD_PREFIXES = {
     'kimodo': ('nvidia/Kimodo', 'McGill-NLP/LLM2Vec', 'ollama/llama3', 'Wan-AI/Wan2.2-Animate-14B'),
     'wan22-animate2': ('Wan-AI/Wan2.2-Animate-2-14B-Diffusers',),
     'wan22-fun-control': ('Comfy-Org/Wan-2.2', 'Comfy-Org/Wan-2.1', 'yzd-v/DWPose'),
-    'wan22-vace': ('wan22-vace', 'wan-vace/', 'QuantStack/Wan2.2-VACE', 'alibaba-pai/Wan2.2-VACE'),
+    'wan22-vace': ('wan22-vace', 'wan-vace/', 'QuantStack/Wan2.2-VACE', 'alibaba-pai/Wan2.2-VACE', 'Comfy-Org/Wan-2.1/split_files/vae/wan_2.1_vae.safetensors'),
     'music-heartmula': ('HeartMuLa/', 'heartmula/'),
     'sfx-dasheng-audiogen': ('mispeech/Dasheng-AudioGen', 'mispeech/dashengtokenizer', 'google/flan-t5-large'),
     'writer-agent': ('writer-agent/',),

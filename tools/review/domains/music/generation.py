@@ -49,6 +49,16 @@ class MusicGenerationManager:
         if not self.runtime_python_path.is_file():
             raise FileNotFoundError(f"음악 실행 환경이 없습니다: {self.runtime_python_path}. 해당 생성기 README.md의 설치 절차를 먼저 실행하세요. model_id={self.current_profile_record['model_id']} model_root={self.model_storage_root} model_path={self.model_storage_root}")
         with self.hold_music_lock():
+            if self.current_service_name in ('music-heartmula', 'sfx-dasheng-audiogen'):
+                from tools.review.common.audio_model_download import AUDIO_DOWNLOAD_PROFILES
+                from tools.review.common.model_prepare_process import inspect_registered_preparation
+                if inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY, AUDIO_DOWNLOAD_PROFILES[self.current_service_name]) == 'running':
+                    raise ValueError('모델 파일 다운로드가 진행 중입니다. 완료 후 다시 요청하세요.')
+            if current_request_record['action'] == 'prepare':
+                for current_history_record in self.list_music_history():
+                    if (current_history_record.get('request', {}).get('action') == 'prepare'
+                            and current_history_record.get('status', {}).get('status') in ('queued', 'running')):
+                        raise ValueError('모델 준비가 이미 대기 중이거나 실행 중입니다.')
             current_created_time = datetime.now(ZoneInfo('Asia/Seoul'))
             current_job_identifier = current_created_time.strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
             current_job_root = self.job_storage_root/current_job_identifier
@@ -128,6 +138,7 @@ class MusicGenerationManager:
                 from generators.music.magenta.runtime import validate_magenta_artifacts as validate_prepared_music
             if self.current_service_name == 'music-heartmula':
                 from generators.music.heartmula.runtime import validate_heartmula_artifacts as validate_prepared_music
+            current_download_available = self.runtime_python_path.is_file()
             try:
                 validate_prepared_music(self.current_service_name)
                 if self.current_service_name == 'music-heartmula':
@@ -140,10 +151,10 @@ class MusicGenerationManager:
                         current_validation_record = read_music_record(current_validation_path)
                         current_verified_root = self.resolve_music_job(current_validation_record['generation_id'])
                         current_gpu_verified = current_validation_record.get('status') == 'passed' and current_validation_record.get('runtime_sha256') == calculate_music_checksum(WORKFLOW_ROOT_DIRECTORY/'generators/music/heartmula/runtime.py') and read_music_record(current_verified_root/'status.json').get('status') == 'completed'
-                    return {'ready':current_gpu_verified,'artifacts_ready':True,'message':'모델 준비·GPU 생성 검증 완료 · NF4 생성/FP32 디코더' if current_gpu_verified else '모델 파일 준비 완료 · GPU 생성 검증 대기 중','model_id':self.current_profile_record['model_id']}
-                return {'ready':True,'message':'모델 준비됨 · VRAM 관측 피크는 실행 이력에서 확인','model_id':self.current_profile_record['model_id']}
+                    return {'ready':current_gpu_verified,'artifacts_ready':True,'can_prepare':current_download_available,'message':'모델 준비·GPU 생성 검증 완료 · NF4 생성/FP32 디코더' if current_gpu_verified else '모델 파일 준비 완료 · GPU 생성 검증 대기 중','model_id':self.current_profile_record['model_id']}
+                return {'ready':True,'can_prepare':current_download_available,'message':'모델 준비됨 · VRAM 관측 피크는 실행 이력에서 확인','model_id':self.current_profile_record['model_id']}
             except (OSError,ValueError,KeyError) as current_prepare_error:
-                return {'ready':False,'message':str(current_prepare_error),'model_id':self.current_profile_record['model_id']}
+                return {'ready':False,'can_prepare':current_download_available,'message':str(current_prepare_error),'model_id':self.current_profile_record['model_id']}
         if current_command_name in ('history','active'):
             current_history_records = self.list_music_history()
             if current_command_name=='history':

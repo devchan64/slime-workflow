@@ -183,6 +183,42 @@ def prepare_embedding_model():
     emit_runtime_trace('prepared',f'embedding_model={EMBEDDING_MODEL_NAME} model_path={MODEL_DOWNLOAD_ROOT/EMBEDDING_DOWNLOAD_NAME}')
 
 
+def inspect_writer_model_files():
+    """고정 모델 두 파일의 마지막 검증 결과와 현재 파일 식별자를 확인한다."""
+    current_receipt_path = WORKFLOW_REPOSITORY_ROOT/'.local/model-preparation/writer-model/files.json'
+    try:
+        current_receipt_record = json.loads(current_receipt_path.read_text())
+        for current_file_name, current_expected_hash in ((MODEL_DOWNLOAD_NAME, MODEL_DOWNLOAD_SHA256), (EMBEDDING_DOWNLOAD_NAME, EMBEDDING_DOWNLOAD_SHA256)):
+            current_file_path = MODEL_DOWNLOAD_ROOT/current_file_name
+            current_file_stat = current_file_path.stat()
+            current_file_record = current_receipt_record[current_file_name]
+            if (not current_file_path.is_file() or current_file_path.is_symlink() or current_file_record !=
+                    {'sha256': current_expected_hash, 'size': current_file_stat.st_size, 'mtime_ns': current_file_stat.st_mtime_ns, 'ctime_ns': current_file_stat.st_ctime_ns}):
+                return False
+        return True
+    except (OSError, ValueError, TypeError, KeyError):
+        return False
+
+
+def prepare_writer_model_files():
+    """작가 문서 작업 공간 없이 고정 모델 파일만 다운로드하고 검증한다."""
+    from tools.review.common.generation_records import write_record_atomically
+    RUNTIME_INSTALL_ROOT.mkdir(parents=True, exist_ok=True)
+    with lock_gpu_runtime():
+        current_file_specs = ((MODEL_DOWNLOAD_URL, MODEL_DOWNLOAD_NAME, MODEL_DOWNLOAD_SHA256),
+                              (EMBEDDING_DOWNLOAD_URL, EMBEDDING_DOWNLOAD_NAME, EMBEDDING_DOWNLOAD_SHA256))
+        current_receipt_record = {}
+        for current_file_url, current_file_name, current_expected_hash in current_file_specs:
+            current_file_path = MODEL_DOWNLOAD_ROOT/current_file_name
+            download_verified_file(current_file_url, current_file_path, current_expected_hash)
+            current_file_stat = current_file_path.stat()
+            current_receipt_record[current_file_name] = {'sha256': current_expected_hash, 'size': current_file_stat.st_size,
+                                                         'mtime_ns': current_file_stat.st_mtime_ns, 'ctime_ns': current_file_stat.st_ctime_ns}
+        current_receipt_path = WORKFLOW_REPOSITORY_ROOT/'.local/model-preparation/writer-model/files.json'
+        current_receipt_path.parent.mkdir(parents=True, exist_ok=True)
+        write_record_atomically(current_receipt_path, current_receipt_record)
+
+
 def execute_writer_preparation(current_argument_values, current_prepare_callback=None):
     global CURRENT_LOG_PATH
     if current_prepare_callback is None:

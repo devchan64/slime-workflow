@@ -44,7 +44,7 @@ MANAGEMENT_COMMAND_ROUTES['keyframe-preview'] = ('POST','/keyframes/preview')
 MANAGEMENT_COMMAND_ROUTES['keyframe-replace'] = ('POST','/keyframes/replace')
 MANAGEMENT_COMMAND_ROUTES['keyframe-retire'] = ('POST','/keyframes/retire')
 MANAGEMENT_SERVICE_ROUTES['wan22-vace']='/wan22-vace'
-MANAGEMENT_SERVICE_COMMANDS['wan22-vace']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
+MANAGEMENT_SERVICE_COMMANDS['wan22-vace']=('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset')
 
 MANAGEMENT_COMMAND_ROUTES['sheet-auto'] = ('POST', '/sheet/auto')
 MANAGEMENT_COMMAND_ROUTES['sheet-export'] = ('POST', '/sheet/export')
@@ -54,7 +54,7 @@ MANAGEMENT_COMMAND_ROUTES.update({'sheet-update':('POST','/sheet/update'),'sheet
 
 WRITER_PAYLOAD_COMMAND_NAMES = ('writer-detail', 'writer-submit', 'writer-apply')
 MANAGEMENT_SERVICE_ROUTES['writer-agent'] = '/writer-agent'
-MANAGEMENT_SERVICE_COMMANDS['writer-agent'] = ('writer-state', *WRITER_PAYLOAD_COMMAND_NAMES)
+MANAGEMENT_SERVICE_COMMANDS['writer-agent'] = ('writer-state', 'model-status', 'prepare', *WRITER_PAYLOAD_COMMAND_NAMES)
 MANAGEMENT_COMMAND_ROUTES.update({'writer-state': ('GET', '/api/state'), 'writer-detail': ('POST', '/api/detail'), 'writer-submit': ('POST', '/api/jobs'), 'writer-apply': ('POST', '/api/apply')})
 
 
@@ -88,6 +88,10 @@ MANAGEMENT_SERVICE_COMMANDS['building-generator'] = MANAGEMENT_SERVICE_COMMANDS[
 for current_service_name in AUDIO_SERVICE_NAMES:
     MANAGEMENT_SERVICE_ROUTES[current_service_name] = '/' + current_service_name
     MANAGEMENT_SERVICE_COMMANDS[current_service_name] = ('generate','prepare','status','logs','history','active','model-status','cancel','resume','history-delete','history-reset')
+
+for current_service_name in ('music-heartmula', 'sfx-dasheng-audiogen'):
+    MANAGEMENT_SERVICE_COMMANDS[current_service_name] += ('download-model', 'download-model-status')
+MANAGEMENT_COMMAND_ROUTES.update({'download-model': ('POST', '/model-download'), 'download-model-status': ('GET', '/model-download')})
 
 MANAGEMENT_COMMAND_ROUTES['history-reset-preview'] = ('GET', '/history/reset-preview')
 for current_service_name, current_command_names in tuple(MANAGEMENT_SERVICE_COMMANDS.items()):
@@ -128,12 +132,14 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('명령 입력은 JSON 객체여야 합니다.')
     if operation_command_name in ('migraphx-build', 'migraphx-build-status') and command_payload_value:
         raise ValueError('MIGraphX 빌드 명령은 입력 필드를 받지 않습니다.')
-    if operation_command_name in ('history-reset-preview','writer-state','download-status','download-inventory') and command_payload_value:
+    if operation_command_name in ('history-reset-preview','writer-state','download-status','download-inventory','download-model','download-model-status') and command_payload_value:
         raise ValueError('초기화 미리보기는 입력 필드를 받지 않습니다.')
     if service_command_name == 'prop-generator' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'wan22-fun-control' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('Fun Control 모델 준비에는 action=prepare만 허용합니다.')
+    if service_command_name in ('wan22-vace', 'writer-agent') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
+        raise ValueError('모델 준비에는 action=prepare만 허용합니다.')
     request_method_value, request_suffix_value = MANAGEMENT_COMMAND_ROUTES[operation_command_name]
     if '{id}' in request_suffix_value:
         generation_job_identifier=command_payload_value.get('id','')
@@ -281,6 +287,34 @@ def execute_management_command(service_command_name, operation_command_name, com
                 return send_management_json_response(gateway_request_handler, 200, {'models': list_model_inventory_files()})
             from tools.review.common.model_download_records import list_model_download_records
             return send_management_json_response(gateway_request_handler, 200, {'records': list_model_download_records()})
+        if service_command_name == 'writer-agent' and operation_command_name in ('model-status', 'prepare'):
+            from generators.writer_agent.prepare import WORKFLOW_REPOSITORY_ROOT, inspect_writer_model_files
+            from tools.review.common.model_prepare_process import inspect_detached_preparation, inspect_registered_preparation, start_registered_preparation
+            from tools.review.common.management_transport import send_management_json_response
+            current_preparation_status = inspect_registered_preparation(WORKFLOW_REPOSITORY_ROOT, 'writer-model')
+            if current_preparation_status != 'running' and inspect_detached_preparation(WORKFLOW_REPOSITORY_ROOT/'.local/model-preparation/writer-agent') == 'running':
+                current_preparation_status = 'running'
+            current_models_ready = inspect_writer_model_files()
+            if operation_command_name == 'prepare' and current_preparation_status != 'running' and not current_models_ready:
+                current_preparation_status = start_registered_preparation(WORKFLOW_REPOSITORY_ROOT, 'writer-model')['preparation_status']
+            current_status_message = ('작가 AI 모델 파일 검증 완료 · 실행 환경은 별도 준비' if current_models_ready else
+                                      '작가 AI 모델 파일 준비 필요 · 실행 환경은 별도 준비')
+            if current_preparation_status == 'failed':
+                current_status_message += ' · 이전 준비 실패, 작업 로그 확인 후 다시 시도하세요.'
+            return send_management_json_response(gateway_request_handler, 200, {'ready': current_models_ready, 'message': current_status_message, 'preparation_status': current_preparation_status})
+        if service_command_name in ('music-heartmula', 'sfx-dasheng-audiogen') and operation_command_name in ('download-model', 'download-model-status'):
+            from tools.review.common.audio_model_download import AUDIO_DOWNLOAD_PROFILES, WORKFLOW_ROOT_DIRECTORY, inspect_audio_download_files
+            from tools.review.common.model_prepare_process import inspect_registered_preparation, start_registered_preparation
+            from tools.review.common.management_transport import send_management_json_response
+            current_profile_name = AUDIO_DOWNLOAD_PROFILES[service_command_name]
+            current_preparation_status = inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY, current_profile_name)
+            current_models_ready = inspect_audio_download_files(service_command_name)
+            if operation_command_name == 'download-model' and current_preparation_status != 'running' and not current_models_ready:
+                current_preparation_status = start_registered_preparation(WORKFLOW_ROOT_DIRECTORY, current_profile_name)['preparation_status']
+            current_status_message = '모델 파일 다운로드 완료 · 실행 환경과 GPU 검증은 별도 준비' if current_models_ready else '모델 파일 다운로드 필요 · 실행 환경은 별도 준비'
+            if current_preparation_status == 'failed':
+                current_status_message += ' · 이전 다운로드 실패, 로그 확인 후 다시 시도하세요.'
+            return send_management_json_response(gateway_request_handler, 200, {'ready': current_models_ready, 'message': current_status_message, 'preparation_status': current_preparation_status})
         if operation_command_name == 'prioritize':
             from tools.review.common.gpu_job_queue import prioritize_waiting_generation
             from tools.review.common.management_transport import send_management_json_response

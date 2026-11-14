@@ -11,6 +11,10 @@ MODEL_PREPARATION_PROFILES = {
     'qwen-21': (('generators.image.qwen_21_runtime', 'download_qwen_model_assets'),),
     'kimodo': (('generators.kimodo.prepare', 'prepare_kimodo_assets'),),
     'wan-animate2': (('generators.wan_animate2.prepare', 'prepare_animate_models'), ('generators.wan_animate2.contracts', 'validate_animate_assets')),
+    'wan-vace': (('generators.wan_vace.prepare', 'prepare_vace_models'),),
+    'writer-model': (('generators.writer_agent.prepare', 'prepare_writer_model_files'),),
+    'heartmula-model': (('tools.review.common.audio_model_download', 'download_heartmula_model_files'),),
+    'dasheng-model': (('tools.review.common.audio_model_download', 'download_dasheng_model_files'),),
 }
 
 

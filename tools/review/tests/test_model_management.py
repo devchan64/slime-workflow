@@ -4,6 +4,258 @@ from tools.review.ui.gradio.model_management_app import read_model_job_status, b
 
 
 class ModelManagementTest(unittest.TestCase):
+    def test_four_models_have_preparation_controls(self):
+        from tools.review.ui.gradio.model_management_app import MODEL_PREPARATION_SERVICES
+        current_services = {current_service for _, current_service in MODEL_PREPARATION_SERVICES}
+        self.assertTrue({'music-heartmula', 'sfx-dasheng-audiogen', 'wan22-vace', 'writer-agent'} <= current_services)
+
+    def test_four_management_buttons_dispatch_correct_download_command(self):
+        from unittest.mock import patch
+        from tools.review.ui.gradio import model_management_app
+        current_commands = []
+        def execute_test_command(current_service, current_command, current_payload):
+            current_commands.append((current_service, current_command, current_payload))
+            if current_command in ('model-status', 'download-model-status'):
+                return {'ready': False, 'message': '준비 필요', 'preparation_status': 'idle'}
+            if current_command == 'history':
+                return {'records': []}
+            return {'preparation_status': 'running'}
+        with patch.object(model_management_app, 'execute_remote_management_command', side_effect=execute_test_command):
+            current_interface = model_management_app.build_model_management_interface()
+            current_callbacks = [current_function.fn for current_function in current_interface.fns.values()
+                                 if current_function.fn and current_function.fn.__name__ == 'request_model_download']
+            for current_service in ('music-heartmula', 'sfx-dasheng-audiogen', 'wan22-vace', 'writer-agent'):
+                with self.subTest(service=current_service):
+                    current_callback = next(current_value for current_value in current_callbacks
+                                            if any(getattr(current_cell.cell_contents, '__defaults__', None) == (current_service,)
+                                                   for current_cell in (current_value.__closure__ or ())))
+                    current_callback()
+                    current_expected_command = 'download-model' if current_service in ('music-heartmula', 'sfx-dasheng-audiogen') else 'prepare'
+                    current_expected_payload = {} if current_expected_command == 'download-model' else {'action': 'prepare'}
+                    self.assertIn((current_service, current_expected_command, current_expected_payload), current_commands)
+
+    def test_audio_queue_status_and_preparation_prerequisite(self):
+        from unittest.mock import patch
+        from tools.review.ui.gradio import model_management_app
+        def execute_test_command(current_service, current_command, current_payload):
+            if current_command == 'model-status':
+                return {'ready': False, 'can_prepare': False, 'message': '전용 실행 환경 설치 필요'}
+            if current_command == 'download-model-status':
+                return {'ready': False, 'preparation_status': 'idle', 'message': '모델 파일 다운로드 필요'}
+            return {'records': [{'request': {'action': 'prepare'}, 'status': {'status': 'queued'}}]}
+        with patch.object(model_management_app, 'execute_remote_management_command', side_effect=execute_test_command):
+            current_result = model_management_app.execute_model_preparation_command('music-heartmula', 'model-status', {})
+        self.assertEqual(current_result['preparation_status'], 'queued')
+        self.assertNotIn('can_prepare', current_result)
+        self.assertIn('대기 중', current_result['message'])
+
+    def test_audio_download_command_uses_shared_model_worker(self):
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import resolve_management_command
+        from tools.review.ui.gradio import model_management_app
+        for current_service in ('music-heartmula', 'sfx-dasheng-audiogen'):
+            with self.subTest(service=current_service):
+                self.assertEqual(resolve_management_command(current_service, 'download-model', {}), ('POST', '/'+current_service+'/model-download'))
+                with patch.object(model_management_app, 'execute_remote_management_command', return_value={'preparation_status': 'running'}) as current_remote_mock:
+                    model_management_app.execute_model_preparation_command(current_service, 'prepare', {'action': 'prepare'})
+                current_remote_mock.assert_called_once_with(current_service, 'download-model', {})
+
+    def test_audio_download_gateway_starts_correct_profiles(self):
+        import json
+        from unittest.mock import Mock, patch
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.tests.test_management_gateway import GatewayContractTest
+        for current_service, current_profile in [('music-heartmula', 'heartmula-model'), ('sfx-dasheng-audiogen', 'dasheng-model')]:
+            with self.subTest(service=current_service):
+                current_gateway_value = ManagementCommandGateway({current_service: Mock()})
+                current_handler_value = GatewayContractTest().create_request_handler('/management/command', {'service': current_service, 'command': 'download-model', 'payload': {}})
+                with patch('tools.review.common.audio_model_download.inspect_audio_download_files', return_value=False), \
+                     patch('tools.review.common.model_prepare_process.inspect_registered_preparation', return_value='idle'), \
+                     patch('tools.review.common.model_prepare_process.start_registered_preparation', return_value={'preparation_status': 'running'}) as current_start_mock:
+                    self.assertTrue(current_gateway_value.handle(current_handler_value))
+                self.assertEqual(current_handler_value.responses, [200])
+                self.assertEqual(json.loads(current_handler_value.wfile.getvalue())['preparation_status'], 'running')
+                self.assertEqual(current_start_mock.call_args.args[1], current_profile)
+
+    def test_audio_file_download_uses_fixed_sources_and_detects_changes(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from tools.review.common import audio_model_download
+        with TemporaryDirectory() as current_directory_name:
+            current_root = Path(current_directory_name)
+            current_model_root = current_root/'.model/music/sfx-dasheng-audiogen'
+            current_sources = (('repo/main', 'a'*40, 'model'), ('repo/encoder', 'b'*40, 'text-encoder'))
+            current_calls = []
+            def download_test_snapshot(**current_options):
+                current_calls.append(current_options)
+                current_destination = Path(current_options['local_dir'])
+                current_destination.mkdir(parents=True, exist_ok=True)
+                (current_destination/'weights.safetensors').write_bytes(current_options['repo_id'].encode())
+            with patch.object(audio_model_download, 'WORKFLOW_ROOT_DIRECTORY', current_root), \
+                 patch.object(audio_model_download, 'resolve_music_paths', return_value=(None, current_model_root, None)), \
+                 patch.object(audio_model_download, 'resolve_audio_download_sources', return_value=current_sources), \
+                 patch.dict('os.environ', {}), patch('huggingface_hub.constants.HF_HUB_DISABLE_XET', False), \
+                 patch('tools.review.common.model_huggingface_download.tracked_snapshot_download', side_effect=download_test_snapshot):
+                self.assertFalse(audio_model_download.inspect_audio_download_files('sfx-dasheng-audiogen'))
+                audio_model_download.download_audio_model_files('sfx-dasheng-audiogen')
+                self.assertEqual([current_call['revision'] for current_call in current_calls], ['a'*40, 'b'*40])
+                self.assertTrue(audio_model_download.inspect_audio_download_files('sfx-dasheng-audiogen'))
+                (current_model_root/'model/weights.safetensors').write_bytes(b'changed')
+                self.assertFalse(audio_model_download.inspect_audio_download_files('sfx-dasheng-audiogen'))
+
+    def test_heartmula_download_includes_separation_checkpoint(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from tools.review.common import audio_model_download
+        with TemporaryDirectory() as current_directory_name:
+            current_root = Path(current_directory_name)
+            current_model_root = current_root/'.model/music/music-heartmula'
+            current_sources = (('repo/bundle', 'a'*40, 'bundle'), ('repo/music', 'b'*40, 'bundle/HeartMuLa-oss-3B'), ('repo/codec', 'c'*40, 'bundle/HeartCodec-oss'))
+            def download_test_snapshot(**current_options):
+                current_destination = Path(current_options['local_dir'])
+                current_destination.mkdir(parents=True, exist_ok=True)
+                if current_destination.name == 'bundle':
+                    (current_destination/'tokenizer.json').write_text('{}')
+                    (current_destination/'gen_config.json').write_text('{}')
+                else:
+                    (current_destination/'config.json').write_text('{}')
+                    (current_destination/'model.safetensors.index.json').write_text('{"weight_map":{"a":"weights.safetensors"}}')
+                    (current_destination/'weights.safetensors').write_bytes(b'weights')
+            def prepare_test_separation(current_target_root, current_download_flag):
+                self.assertTrue(current_download_flag)
+                (current_target_root/'demucs').mkdir(parents=True, exist_ok=True)
+                (current_target_root/'demucs/checkpoint.th').write_bytes(b'demucs')
+            with patch.object(audio_model_download, 'WORKFLOW_ROOT_DIRECTORY', current_root), \
+                 patch.object(audio_model_download, 'resolve_music_paths', return_value=(None, current_model_root, None)), \
+                 patch.object(audio_model_download, 'resolve_audio_download_sources', return_value=current_sources), \
+                 patch.dict('os.environ', {}), patch('huggingface_hub.constants.HF_HUB_DISABLE_XET', False), \
+                 patch('tools.review.common.model_huggingface_download.tracked_snapshot_download', side_effect=download_test_snapshot), \
+                 patch('generators.music.heartmula.separation.prepare_separation_model', side_effect=prepare_test_separation):
+                audio_model_download.download_audio_model_files('music-heartmula')
+                self.assertTrue(audio_model_download.inspect_audio_download_files('music-heartmula'))
+                (current_model_root/'demucs/checkpoint.th').unlink()
+                self.assertFalse(audio_model_download.inspect_audio_download_files('music-heartmula'))
+
+    def test_audio_duplicate_preparation_is_rejected(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from tools.review.domains.music.generation import MusicGenerationManager
+        current_manager_value = MusicGenerationManager('music-heartmula')
+        with TemporaryDirectory() as current_directory_name:
+            current_root = Path(current_directory_name)
+            current_python_path = current_root/'python'
+            current_python_path.touch()
+            with patch.object(current_manager_value, 'runtime_python_path', current_python_path), \
+                 patch.object(current_manager_value, 'history_storage_root', current_root/'history'), \
+                 patch.object(current_manager_value, 'list_music_history', return_value=[{'request': {'action': 'prepare'}, 'status': {'status': 'queued'}}]), \
+                 patch('tools.review.common.model_prepare_process.inspect_registered_preparation', return_value='idle'), \
+                 patch('tools.review.domains.music.generation.launch_gpu_process') as current_launch_mock:
+                with self.assertRaisesRegex(ValueError, '이미'):
+                    current_manager_value.create_music_job({'action': 'prepare'})
+                current_launch_mock.assert_not_called()
+
+    def test_heartmula_model_ready_is_distinct_from_gpu_validation(self):
+        from unittest.mock import patch
+        from tools.review.ui.gradio import model_management_app
+        def execute_test_command(current_service, current_command, current_payload):
+            if current_command == 'model-status':
+                return {'ready': False, 'artifacts_ready': True, 'message': 'GPU 생성 검증 대기'}
+            if current_command == 'download-model-status':
+                return {'ready': False, 'preparation_status': 'idle', 'message': '모델 파일 다운로드 필요'}
+            return {'records': []}
+        with patch.object(model_management_app, 'execute_remote_management_command', side_effect=execute_test_command):
+            current_result = model_management_app.execute_model_preparation_command('music-heartmula', 'model-status', {})
+        self.assertTrue(current_result['ready'])
+        self.assertFalse(current_result['generation_ready'])
+
+    def test_vace_prepare_uses_detached_worker(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import resolve_management_command
+        from tools.review.domains.wan_vace.generation import VaceVideoGenerationManager
+        self.assertEqual(resolve_management_command('wan22-vace', 'prepare', {'action': 'prepare'}), ('POST', '/wan22-vace/jobs'))
+        current_manager_value = VaceVideoGenerationManager()
+        current_handler_value = SimpleNamespace(command='POST', path='/wan22-vace/jobs', management_command_payload={'action': 'prepare'})
+        with patch.object(current_manager_value, 'start_model_download', return_value={'preparation_status': 'running'}) as current_start_mock, \
+             patch('tools.review.domains.wan_vace.generation.send_management_json_response') as current_response_mock:
+            self.assertTrue(current_manager_value.handle_image_request(current_handler_value))
+        current_start_mock.assert_called_once()
+        self.assertEqual(current_response_mock.call_args.args[2]['preparation_status'], 'running')
+
+    def test_vace_preparation_downloads_shared_vae(self):
+        import hashlib
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import Mock, patch
+        from generators.wan_fun import prepare as fun_prepare
+        from generators.wan_vace import prepare as vace_prepare
+        with TemporaryDirectory() as current_directory_name:
+            current_root = Path(current_directory_name)
+            current_files = {current_key: (f'.model/wan22-vace/{current_key}.bin', 3, 'hash') for current_key in ('high', 'low', 'encoder', 'tokenizer')}
+            current_files['vae'] = ('.model/wan22-animate-components/split_files/vae/wan_2.1_vae.safetensors', 3, None)
+            def download_test_http(current_url, current_target_path, *current_args, **current_kwargs):
+                current_target_path.write_bytes(b'abc')
+            def download_test_vae(**current_options):
+                current_target_path = Path(current_options['local_dir'])/current_options['filename']
+                current_target_path.parent.mkdir(parents=True, exist_ok=True)
+                current_target_path.write_bytes(b'vae')
+                return str(current_target_path)
+            current_vae_source = ('repo/vae', 'a'*40, 'split_files/vae/wan_2.1_vae.safetensors', hashlib.sha256(b'vae').hexdigest())
+            with patch.object(vace_prepare, 'VACE_WORKSPACE_ROOT', current_root), patch.object(vace_prepare, 'VACE_MODEL_FILES', current_files), \
+                 patch.object(vace_prepare, 'validate_vace_assets'), patch.dict(fun_prepare.FUN_SHARED_MODEL_SOURCES, {'vae': current_vae_source}), \
+                 patch('tools.review.common.model_http_download.download_verified_http', side_effect=download_test_http), \
+                 patch('tools.review.common.model_huggingface_download.tracked_hf_hub_download', side_effect=download_test_vae) as current_vae_mock, \
+                 patch('generators.wan_vace.official_prepare.prepare_official_runtime'):
+                vace_prepare.execute_vace_preparation(Mock())
+            current_vae_mock.assert_called_once()
+            self.assertEqual((current_root/current_files['vae'][0]).read_bytes(), b'vae')
+
+    def test_writer_models_verify_without_document_workspace(self):
+        import hashlib
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from generators.writer_agent import prepare
+        current_contents = {'main.gguf': b'main model', 'embedding.gguf': b'embedding model'}
+        with TemporaryDirectory() as current_directory_name:
+            current_root = Path(current_directory_name)
+            def download_test_file(current_url, current_target_path, current_expected_hash):
+                current_target_path.parent.mkdir(parents=True, exist_ok=True)
+                current_target_path.write_bytes(current_contents[current_target_path.name])
+                self.assertEqual(hashlib.sha256(current_target_path.read_bytes()).hexdigest(), current_expected_hash)
+            with patch.object(prepare, 'WORKFLOW_REPOSITORY_ROOT', current_root), \
+                 patch.object(prepare, 'RUNTIME_INSTALL_ROOT', current_root/'runtime'), \
+                 patch.object(prepare, 'MODEL_DOWNLOAD_ROOT', current_root/'.model/writer-agent'), \
+                 patch.object(prepare, 'MODEL_DOWNLOAD_NAME', 'main.gguf'), \
+                 patch.object(prepare, 'EMBEDDING_DOWNLOAD_NAME', 'embedding.gguf'), \
+                 patch.object(prepare, 'MODEL_DOWNLOAD_SHA256', hashlib.sha256(current_contents['main.gguf']).hexdigest()), \
+                 patch.object(prepare, 'EMBEDDING_DOWNLOAD_SHA256', hashlib.sha256(current_contents['embedding.gguf']).hexdigest()), \
+                 patch.object(prepare, 'download_verified_file', side_effect=download_test_file):
+                self.assertFalse(prepare.inspect_writer_model_files())
+                prepare.prepare_writer_model_files()
+                self.assertTrue(prepare.inspect_writer_model_files())
+                (current_root/'.model/writer-agent/main.gguf').write_bytes(b'changed')
+                self.assertFalse(prepare.inspect_writer_model_files())
+
+    def test_writer_download_gateway_needs_no_document_workspace(self):
+        import json
+        from unittest.mock import Mock, patch
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.tests.test_management_gateway import GatewayContractTest
+        current_gateway_value = ManagementCommandGateway({'writer-agent': Mock()})
+        current_handler_value = GatewayContractTest().create_request_handler('/management/command', {'service': 'writer-agent', 'command': 'prepare', 'payload': {'action': 'prepare'}})
+        with patch('generators.writer_agent.prepare.inspect_writer_model_files', return_value=False), \
+             patch('tools.review.common.model_prepare_process.inspect_registered_preparation', return_value='idle'), \
+             patch('tools.review.common.model_prepare_process.inspect_detached_preparation', return_value='idle'), \
+             patch('tools.review.common.model_prepare_process.start_registered_preparation', return_value={'preparation_status': 'running'}) as current_start_mock:
+            self.assertTrue(current_gateway_value.handle(current_handler_value))
+        self.assertEqual(current_handler_value.responses, [200])
+        self.assertEqual(json.loads(current_handler_value.wfile.getvalue())['preparation_status'], 'running')
+        self.assertEqual(current_start_mock.call_args.args[1], 'writer-model')
+
     def test_models_are_displayed_in_name_order(self):
         from tools.review.ui.gradio.model_management_app import MODEL_PREPARATION_SERVICES, MODEL_JOB_SERVICES, MODEL_OBSERVATION_SERVICES
         current_model_names = [current_name for current_name, _ in (*MODEL_PREPARATION_SERVICES, *MODEL_JOB_SERVICES, *MODEL_OBSERVATION_SERVICES)]
@@ -17,7 +269,7 @@ class ModelManagementTest(unittest.TestCase):
         from pathlib import Path
         from tempfile import TemporaryDirectory
         from tools.review.common.model_file_inventory import list_model_inventory_files
-        from tools.review.ui.gradio.model_management_app import format_model_inventory_files
+        from tools.review.ui.gradio.model_management_app import format_model_inventory_files, format_model_inventory_summary
         with TemporaryDirectory() as current_directory_name:
             current_workspace_path = Path(current_directory_name)
             current_model_path = current_workspace_path/'.model'/'sample'
@@ -34,7 +286,10 @@ class ModelManagementTest(unittest.TestCase):
             current_inventory_value = list_model_inventory_files({'test': [current_model_path, current_outside_path]}, current_workspace_path)['test']
             self.assertEqual([current_file['path'] for current_file in current_inventory_value['files']], ['sample/a.json', 'sample/z.safetensors'])
             self.assertEqual(current_inventory_value['count'], 2)
+            self.assertEqual(current_inventory_value['total_bytes'], 7)
             self.assertFalse(current_inventory_value['incomplete'])
+            self.assertIn('저장된 파일 2개 · 7바이트', format_model_inventory_summary(current_inventory_value))
+            self.assertIn('일부 저장 위치 확인 실패', format_model_inventory_summary({**current_inventory_value, 'incomplete': True}))
             current_display_text = format_model_inventory_files(current_inventory_value)
             self.assertIn('저장된 파일 2개', current_display_text)
             self.assertIn('sample/z.safetensors', current_display_text)

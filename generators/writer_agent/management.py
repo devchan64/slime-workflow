@@ -58,6 +58,8 @@ class WriterAgentManager:
             current_prepare_root = WORKFLOW_REPOSITORY_ROOT/'.local/model-preparation/writer-agent'
             if inspect_detached_preparation(current_prepare_root) == 'running':
                 raise ValueError('이미 작가 에이전트 모델 준비가 실행 중입니다.')
+            if inspect_detached_preparation(WORKFLOW_REPOSITORY_ROOT/'.local/model-preparation/writer-model') == 'running':
+                raise ValueError('작가 AI 모델 다운로드가 실행 중입니다.')
             if not current_prepare_flag and not prepare.RUNTIME_PYTHON_PATH.is_file():raise ValueError('먼저 환경 준비를 실행하세요.')
             current_job_identifier=create_writer_job(current_config_values,{'mode':'learn','prompt':''} if current_prepare_flag else current_request_values)
             current_job_root=resolve_job_directory(current_config_values,current_job_identifier)
