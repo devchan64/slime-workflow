@@ -163,7 +163,7 @@
 - 모델 추론 연산은 AMD GPU의 ROCm 환경에서 수행한다. GPU를 사용할 수 없을 때 CPU 추론으로 대체하지 않고 명확한 원인과 함께 즉시 실패한다. 기존 NVIDIA CUDA 실행 환경은 사용하지 않는다.
 - 개발 호스트는 2026-11-14 기준 AMD Ryzen AI Max+ PRO 395와 Radeon 8060S(`gfx1151`), Ubuntu 26.04.1 LTS, Python 3.14.4를 사용한다. 호스트 `rocminfo`에서 ROCm GPU 인식을 확인했다. 환경은 변경될 수 있으므로 작업 전에 다시 확인한다.
 - AMD 모델 실행과 준비는 해당 GPU·OS·Python에 맞는 ROCm PyTorch 및 전처리 런타임을 검증한다. PyTorch의 `torch.cuda` API는 ROCm에서도 사용하므로 이름만으로 NVIDIA 전용 여부를 판정하지 않는다. CUDA 전용 확장·ONNX 실행 공급자·OpenCV 전처리는 AMD 지원 여부를 별도로 확인한다. 패키지 설치가 기존 ROCm PyTorch를 다른 빌드로 교체하지 않도록 확인한다.
-- Wan 2.2 Fun Control의 현재 준비 명령은 ROCm PyTorch 선택과 AMD 전처리 지원을 아직 검증하지 않았다. AMD 환경에서 설치·추론 성공을 선언하기 전에 실제 GPU 접근과 각 실행 단계를 확인한다.
+- Wan 2.2 Fun Control은 2026-11-14에 Radeon 8060S에서 ROCm PyTorch·MIGraphX 포즈 전처리와 BF16 5프레임·2스텝 생성을 검증했다. 더 긴 입력과 다른 환경은 별도 검증하며, 실행 성공과 결과물 품질 승인을 구분한다.
 - VRAM 절감을 위한 CPU 메모리 오프로드는 허용한다. 가중치를 CPU RAM에 대기시키고 연산 시 GPU로 옮기는 모델·레이어 단위 오프로드와 단계별 GPU 로드·해제를 사용할 수 있다. CPU 추론 금지를 CPU 메모리 오프로드 금지로 해석하지 않는다.
 - 외부 구현의 `offload` 옵션은 실제 연산 장치를 확인한다. 텍스트 인코더 등 모델 구성요소를 CPU에서 연산하는 방식은 CPU 메모리 오프로드와 구분하며 위 GPU 추론 규칙을 적용한다.
 - GPU 상태 확인·모델 준비·GPU 추론은 샌드박스 밖에서 실행한다. 샌드박스 내부 접근 실패를 GPU 부재로 판단하지 않으며, 외부 실행에서도 GPU를 사용할 수 없을 때 명확한 원인으로 즉시 실패한다.

@@ -17,10 +17,32 @@ class FunControlGenerationManager(ReferenceVideoGenerationManager):
             return 'generators/wan_fun/prepare_worker.py'
         return super().select_generation_runner(saved_request_record)
 
+    def select_generation_service(self, saved_request_record=None):
+        if saved_request_record and saved_request_record.get('action') == 'prepare':
+            return 'image'
+        return 'wan-fun'
+
     def validate_generation_request(self, current_request_record):
         if current_request_record == {'action': 'prepare'}:
             return {'action': 'prepare', 'images': []}
         return super().validate_generation_request(current_request_record)
+
+    def ensure_generation_request_available(self, current_request_record):
+        if current_request_record.get('action') != 'prepare' or not self.job_storage_root.exists():
+            return
+        import json
+        for current_job_directory in self.job_storage_root.iterdir():
+            current_request_path = current_job_directory / 'request.json'
+            current_status_path = current_job_directory / 'status.json'
+            if not current_request_path.is_file() or not current_status_path.is_file():
+                continue
+            current_saved_request = json.loads(current_request_path.read_text())
+            if current_saved_request.get('action') == 'prepare':
+                from tools.review.common.video_job_recovery import recover_interrupted_video_job
+                recover_interrupted_video_job(current_job_directory)
+            current_saved_status = json.loads(current_status_path.read_text())
+            if current_saved_request.get('action') == 'prepare' and current_saved_status.get('status') in ('queued', 'running'):
+                raise ValueError(f'모델 준비가 이미 진행 중입니다: {current_job_directory.name}')
 
     def validate_generation_runtime(self, saved_request_record=None):
         if saved_request_record and saved_request_record.get('action') == 'prepare':
@@ -56,7 +78,11 @@ class FunControlGenerationManager(ReferenceVideoGenerationManager):
         import json
         current_request_path = current_job_root / 'request.json'
         if current_request_path.is_file() and json.loads(current_request_path.read_text()).get('action') == 'prepare':
-            return ImageGenerationManager.read_generation_status_record(self, current_job_root, fallback_status_record, include_log_value)
+            from tools.review.common.video_job_recovery import recover_interrupted_video_job, normalize_recovered_video_metrics
+            recover_interrupted_video_job(current_job_root)
+            current_status_record = ImageGenerationManager.read_generation_status_record(self, current_job_root, fallback_status_record, include_log_value)
+            normalize_recovered_video_metrics(current_status_record)
+            return current_status_record
         current_status_record = super().read_generation_status_record(current_job_root, fallback_status_record, include_log_value)
         if current_status_record.get('video'):
             import json

@@ -878,17 +878,17 @@ Animate 전용 모델·생성 기록·생성기·UI를 폐기했다. 이전 URL�
 Fun Control·VACE·키모도가 공유하는 UMT5·Wan2.1 VAE·전처리 모델·실행 환경은 기존 경로에 보존한다.
 키모도의 ONNX 파일 검증은 `generators/common/onnx_model_validation.py`를 사용한다.
 
-### Wan2.2 Fun Control Q4 실험 생성기
+### Wan2.2 Fun Control BF16 실험 생성기
 
 애니메이션 도구의 `/management/frame/wan22-fun-control-generator/`는 외형 참조 1장과 전처리된 pose/depth/canny/mlsd 제어 영상을 입력받습니다. 기본 입력은 Kimodo의 SOMA 단일 인체 렌더 MP4입니다. VideoX-Fun DWPose 공식 검출·그리기를 작업 프로세스에서 실행하고 결과 조회에 추출 영상을 표시합니다. 원본 시간 기준 16fps로 추출하며 영상 길이가 부족하면 거절합니다. 기존 전처리 입력 모드도 유지합니다. 영상의 앞 N프레임 또는 업로드 순서대로 N장의 PNG를 사용하고 부족한 프레임은 반복하지 않습니다. 참조는 흰색, 제어는 검은색 여백으로 비율을 유지해 832×480에 맞춥니다. 출력은 16fps입니다.
 
-실험 기본값은 21프레임·20스텝·Shift 5·CFG 6·seed 42·고노이즈 스텝 비율 0.5입니다. 프레임은 5~81의 4n+1, 스텝은 2~100, Shift 0.1~20, CFG 1~10, 전환 비율 0.1~0.9를 허용합니다. 이 값은 로컬 실험 범위이며 공식 권장 범위를 뜻하지 않습니다. Euler/simple로 고·저노이즈 전문가를 순차 실행하며 4스텝 가속 LoRA는 사용하지 않습니다. Q4 모델 준비와 실제 8GB 추론 성공은 별도로 검증합니다.
+실험 기본값은 21프레임·20스텝·Shift 5·CFG 6·seed 42·고노이즈 스텝 비율 0.5입니다. 프레임은 5~129의 4n+1, 스텝은 2~100, Shift 0.1~20, CFG 1~10, 전환 비율 0.1~0.9를 허용합니다. 이 값은 로컬 실험 범위이며 공식 권장 범위를 뜻하지 않습니다. Euler/simple로 고·저노이즈 전문가를 순차 실행하며 4스텝 가속 LoRA는 사용하지 않습니다.
 
 공용 서비스는 `wan22-fun-control`입니다. CLI `tools/manager.py command wan22-fun-control generate --payload-file <요청.json> --detach`의 필드는 `action`, `prompt`, `negative_prompt`, `images`, `width`, `height`, `frames`, `steps`, `seed`, `flow_shift`, `guidance_scale`, `switch_ratio`, `control_type`입니다. `images`는 기존 전처리 모드에서 참조 1장 다음 제어 N장을 PNG base64로 전달합니다. SOMA 모드에서는 `images`에 참조 1장만 넣고 `driving_video`에 MP4 base64(32MiB 이하)를 추가하며 `control_type`은 `pose`입니다. 원본은 작업 폴더의 `driving.mp4`와 SHA-256으로 보존합니다. Kimodo 결과 ZIP의 `soma-render-<direction>.mp4`를 입력합니다. 모델 선택은 입력받지 않습니다. 모델 상태·생성·조회·취소·재개·우선 실행·선택 삭제·전체 초기화는 공용 게이트웨이 계약을 따릅니다. 작업별 입력·결과·로그·VRAM 관측치·예상 시간은 `.tmp/test/wan22-fun-control/`에 보존합니다. 기존 Animate/VACE 이력과 분리합니다.
 
-고·저노이즈 가중치는 `QuantStack/Wan2.2-Fun-A14B-Control-GGUF`의 revision `26d412a4bec09e1324fc80654dcee0d58218db52`, Q4_K_M을 `.model/wan22-fun-control/`에 보관합니다. UMT5 Q4·Wan2.1 VAE와 고정 ComfyUI 런타임은 Animate와 공유합니다. CUDA 추론과 CPU 가중치 오프로드, 타일 VAE를 사용하며 CPU 추론 대체는 없습니다.
+고·저노이즈 가중치는 `Comfy-Org/Wan-2.2`의 고정 revision `ee6f4a40737a995bf5818954cfce6d59443b0f04` BF16을 사용합니다. UMT5 FP16·Wan2.1 VAE와 고정 ComfyUI를 사용하며 AMD ROCm에서 실행합니다. 모델 다운로드와 준비는 화면의 `다운로드 및 준비` 버튼 또는 `python3 -m generators.wan_fun.setup_rocm`으로 실행합니다.
 
-Fun Control은 시간 타일 경계의 밝기 흔들림·잔상을 줄이기 위해 잠재값 시간축 전체를 한 타일로 디코딩합니다. 공간 타일 32·겹침 8과 입력 인코딩 설정은 유지합니다. 추론 잠재값은 실행 시도 폴더의 `denoised-latents.safetensors`에, 실제 디코딩 설정과 잠재값 해시는 `decode-policy.json`에 보존합니다. 기존 방식의 비교 결과는 매번 생성하지 않습니다. 다른 생성기의 공용 기본 디코딩 설정은 유지하며 메모리 부족 시 자동 대체하지 않습니다. 41프레임·20스텝 실험에서 완료와 VRAM 관측 피크 6,480MiB를 확인했으며 더 긴 입력의 메모리 요구량은 별도 검증이 필요합니다. 잠재값 보존에 따른 디스크 사용량이 추가되며 작업 이력 삭제 시 함께 정리됩니다.
+Fun Control은 일반 VAE 인코딩과 디코딩을 사용합니다. 추론 잠재값은 실행 시도 폴더의 `denoised-latents.safetensors`에, 실제 디코딩 설정과 잠재값 해시는 `decode-policy.json`에 보존합니다. AMD Radeon 8060S에서 BF16 5프레임·2스텝 생성과 MIGraphX 포즈 전처리를 확인했습니다. 더 긴 입력의 메모리 요구량과 생성 품질은 별도 검증이 필요합니다. 잠재값 보존에 따른 디스크 사용량이 추가되며 작업 이력 삭제 시 함께 정리됩니다.
 
 ### Wan2.2 TI2V 생성기 폐기 · 2026-10-27
 

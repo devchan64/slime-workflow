@@ -1,6 +1,7 @@
 """고정 Fun Control 모델을 다운로드하고 공용 실행 자산을 확인한다."""
 import shutil
 import hashlib
+import fcntl
 import subprocess
 import sys
 import threading
@@ -22,7 +23,7 @@ FUN_DIFFUSION_HASHES = {'high': 'e4be07ca25d67aaf3461ef87fbb5ad8762f602a5efa620a
                         'low': 'd82bc21cd703e089eee4f6fabc25e90ebbd00965623fdc5e83d46d01dbeac2c3'}
 
 
-def prepare_fun_control_models():
+def download_fun_control_models():
     from huggingface_hub import hf_hub_download
     import torch
     if not torch.version.hip or not torch.cuda.is_available():
@@ -110,6 +111,17 @@ def prepare_fun_control_models():
     finally:
         current_stop_event.set()
         current_heartbeat_thread.join()
+
+
+def prepare_fun_control_models():
+    current_lock_path = FUN_WORKSPACE_ROOT / '.local/wan-fun-model-download.lock'
+    current_lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with current_lock_path.open('a') as current_lock_stream:
+        try:
+            fcntl.flock(current_lock_stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as current_lock_error:
+            raise RuntimeError('Fun Control 모델 다운로드가 이미 진행 중입니다.') from current_lock_error
+        download_fun_control_models()
 
 
 if __name__ == '__main__':

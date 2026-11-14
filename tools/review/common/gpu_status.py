@@ -26,7 +26,7 @@ def identify_gpu_command(process_identifier):
     generation_id = re.search(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}', combined)
     anny_id = re.search(r'anny-attribute-renderer/([a-f0-9]{8})', combined)
     label = '외부 GPU 작업'
-    for marker, name in [('generators/kimodo/','Kimodo 모션·ANNY 렌더'),('character-animation','캐릭터 애니메이션'),('momask','MoMask 모션 생성'),('anny-attribute','ANNY 속성 렌더'),('tile-map','타일맵 생성'),('run_qwen_2511','Qwen 2511 참조 생성'),('run_qwen_2512','Qwen 2512 이미지 생성')]:
+    for marker, name in [('generators/wan_fun/','Wan2.2 Fun Control'),('generators/kimodo/','Kimodo 모션·ANNY 렌더'),('character-animation','캐릭터 애니메이션'),('momask','MoMask 모션 생성'),('anny-attribute','ANNY 속성 렌더'),('tile-map','타일맵 생성'),('run_qwen_2511','Qwen 2511 참조 생성'),('run_qwen_2512','Qwen 2512 이미지 생성')]:
         if marker in combined:
             label = name
             break
@@ -39,7 +39,7 @@ def read_gpu_status():
         if time.monotonic()-_status_cache[0] < 3:
             return _status_cache[1]
         try:
-            result = subprocess.run(['amd-smi','process','-G','--json'],capture_output=True,text=True,timeout=10,check=True)
+            result = subprocess.run(['amd-smi','process','--json'],capture_output=True,text=True,timeout=10,check=True)
             processes = []
             for current_gpu_record in json.loads(result.stdout):
                 for current_process_record in current_gpu_record.get('process_list', []):
@@ -47,16 +47,19 @@ def read_gpu_status():
                     if current_process_values == 'No running processes detected':
                         continue
                     pid = current_process_values['pid']
-                    current_memory_record = current_process_values['mem_usage']
-                    current_memory_value = (current_memory_record['value'] + 1048575) // 1048576 if current_memory_record['unit'] == 'B' else None
+                    current_memory_records = current_process_values['memory_usage']
+                    current_gpu_memory = [current_memory_records['vram_mem'], current_memory_records['gtt_mem']]
+                    current_memory_value = (sum(current_memory_record['value'] for current_memory_record in current_gpu_memory) + 1048575) // 1048576 if all(current_memory_record['unit'] == 'B' for current_memory_record in current_gpu_memory) else None
                     processes.append({'pid':pid,'memory_mib':current_memory_value,**identify_gpu_command(pid)})
             memory_result = subprocess.run(['amd-smi','metric','-m','--json'],capture_output=True,text=True,timeout=10,check=True)
             memory_total_mib = memory_used_mib = memory_free_mib = 0
             for current_gpu_record in json.loads(memory_result.stdout)['gpu_data']:
                 current_memory_values = current_gpu_record['mem_usage']
-                memory_total_mib += int(current_memory_values['total_gtt']['value'])
-                memory_used_mib += int(current_memory_values['used_gtt']['value'])
-                memory_free_mib += int(current_memory_values['free_gtt']['value'])
+                current_total_memory = int(current_memory_values['total_gtt']['value'])
+                current_used_memory = int(current_memory_values['used_gtt']['value']) + int(current_memory_values['used_vram']['value'])
+                memory_total_mib += current_total_memory
+                memory_used_mib += current_used_memory
+                memory_free_mib += max(0, int(current_memory_values['free_gtt']['value']) - int(current_memory_values['used_vram']['value']))
             if memory_total_mib <= 0:
                 raise ValueError('GPU 메모리 정보를 읽을 수 없습니다.')
             record = {'status':'busy' if processes else 'idle','processes':processes,

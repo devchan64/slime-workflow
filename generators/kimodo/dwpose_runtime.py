@@ -68,7 +68,8 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
     import migraphx
     import onnxruntime_ep_migraphx as current_provider_plugin
     for current_provider_name, current_library_path in zip(current_provider_plugin.get_ep_names(), current_provider_plugin.get_library_paths()):
-        ort.register_execution_provider_library(current_provider_name, current_library_path)
+        if current_provider_name not in ort.get_available_providers():
+            ort.register_execution_provider_library(current_provider_name, current_library_path)
     if 'MIGraphXExecutionProvider' not in ort.get_available_providers():
         raise RuntimeError('ONNX Runtime MIGraphX 실행 공급자를 사용할 수 없습니다.')
     current_gpu_devices = [current_device_record for current_device_record in ort.get_ep_devices()

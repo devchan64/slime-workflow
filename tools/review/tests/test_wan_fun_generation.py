@@ -27,6 +27,58 @@ class FunGenerationContractTests(unittest.TestCase):
         current_manager.validate_generation_runtime(current_request)
         self.assertEqual(current_manager.select_generation_runner(current_request), 'generators/wan_fun/prepare_worker.py')
 
+    def test_model_prepare_rejects_duplicate_active_job(self):
+        import json
+        from tools.review.domains.wan_fun.generation import FunControlGenerationManager
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            current_job_directory = Path(current_temp_directory) / 'existing'
+            current_job_directory.mkdir()
+            (current_job_directory / 'request.json').write_text(json.dumps({'action': 'prepare'}))
+            (current_job_directory / 'status.json').write_text(json.dumps({'status': 'queued'}))
+            current_manager = FunControlGenerationManager()
+            current_manager.job_storage_root = Path(current_temp_directory)
+            with self.assertRaisesRegex(ValueError, '이미 진행 중'):
+                current_manager.ensure_generation_request_available({'action': 'prepare'})
+            (current_job_directory / 'status.json').write_text(json.dumps({'status': 'completed'}))
+            current_manager.ensure_generation_request_available({'action': 'prepare'})
+
+    def test_model_prepare_request_uses_rocm_setup_worker(self):
+        import json
+        from tools.review.domains.wan_fun.generation import FunControlGenerationManager
+        from tools.review.tests.test_image_generation import ImageGenerationTests
+        current_manager = FunControlGenerationManager()
+        current_handler = ImageGenerationTests().make_http_handler('/wan22-fun-control/jobs', 'POST')
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            current_manager.job_storage_root = Path(current_temp_directory) / 'jobs'
+            current_process_mock = Mock()
+            current_process_mock.wait.return_value = 0
+            current_process_mock.poll.return_value = 0
+            with patch.object(current_manager, 'history_storage_path', return_value=Path(current_temp_directory) / 'history'), \
+                    patch('tools.review.domains.image.image_generation.launch_gpu_process', return_value=current_process_mock) as current_launch_mock, \
+                    patch('tools.review.domains.image.image_generation.threading.Thread'):
+                current_manager.handle_image_request(current_handler)
+            self.assertEqual(current_handler.status, 202)
+            current_command_values = current_launch_mock.call_args.args[0]
+            self.assertTrue(current_command_values[1].endswith('/generators/wan_fun/prepare_worker.py'))
+            self.assertEqual(json.loads(current_handler.wfile.getvalue())['status'], 'running')
+
+    def test_prepare_worker_reports_completion_without_video(self):
+        import json
+        from generators.wan_fun import prepare_worker
+        from tools.review.domains.wan_fun.generation import FunControlGenerationManager
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            current_job_directory = Path(current_temp_directory) / 'job'
+            current_job_directory.mkdir()
+            (current_job_directory / 'request.json').write_text(json.dumps({'action': 'prepare'}))
+            with patch.object(prepare_worker, 'FUN_JOB_STORAGE', Path(current_temp_directory)), \
+                    patch.object(prepare_worker, 'setup_fun_rocm_environment'), \
+                    patch('sys.argv', ['prepare_worker', '--job-dir', str(current_job_directory)]), \
+                    patch('signal.signal'):
+                prepare_worker.run_fun_prepare_worker()
+            current_status = FunControlGenerationManager().read_generation_status_record(current_job_directory)
+            self.assertEqual(current_status['status'], 'completed')
+            self.assertNotIn('result_error', current_status)
+
     def test_temporal_decode_override_preserves_shared_defaults(self):
         from generators.common.wan_video_memory import TiledWanVideoVae
         current_output_tensor = SimpleNamespace(ndim=4)

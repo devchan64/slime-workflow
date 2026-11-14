@@ -8,6 +8,29 @@ from tools.review.common.queue_generation_telemetry import QueueGenerationTeleme
 from tools.review.domains.image.image_generation import ImageGenerationManager
 
 
+def convert_gpu_test_samples(current_sample_values):
+    """기존 장치·프로세스 표본을 amd-smi JSON 응답으로 표현한다."""
+    current_results = []
+    for current_sample_index, current_sample_text in enumerate(current_sample_values):
+        current_device_records = []
+        current_process_records = {}
+        for current_sample_line in current_sample_text.splitlines():
+            current_fields = [current_field.strip() for current_field in current_sample_line.split(',')]
+            current_device_id = current_fields[0].removeprefix('GPU-')
+            if current_sample_index % 2 == 0:
+                current_device_records.append({'gpu': current_device_id, 'mem_usage': {'used_vram': {'value': current_fields[1]}, 'used_gtt': {'value': 0}}})
+            else:
+                current_process_id = int(current_fields[1]) if current_fields[1].isdigit() else current_fields[1]
+                current_memory_text = current_fields[2]
+                current_memory_bytes = int(current_memory_text) * 1048576 if current_memory_text.lstrip('-').isdigit() else current_memory_text
+                current_process_records.setdefault(current_device_id, []).append({'process_info': {'pid': current_process_id, 'memory_usage': {'vram_mem': {'unit': 'B', 'value': current_memory_bytes}, 'gtt_mem': {'unit': 'B', 'value': 0}}}})
+        if current_sample_index % 2 == 0:
+            current_results.append(json.dumps({'gpu_data': current_device_records}))
+        else:
+            current_results.append(json.dumps([{'gpu': current_device_id, 'process_list': current_process_list} for current_device_id, current_process_list in current_process_records.items()]))
+    return current_results
+
+
 class QueueGenerationTelemetryTests(unittest.TestCase):
     def test_structured_worker_progress_persists_without_attempt_pointer(self):
         from tools.review.common.worker_generation_progress import WorkerGenerationProgress
@@ -52,7 +75,7 @@ class QueueGenerationTelemetryTests(unittest.TestCase):
             self.assertIn('현재 미측정 · 관측 피크 200 MiB',current_display_text)
             self.assertIn('GPU 조회 권한 오류',current_display_text)
             import os
-            with patch('tools.review.common.generation_telemetry.subprocess.check_output',side_effect=['GPU-A, 300',f'GPU-A, {os.getpid()}, 80']):
+            with patch('tools.review.common.generation_telemetry.subprocess.check_output',side_effect=convert_gpu_test_samples(['GPU-A, 300',f'GPU-A, {os.getpid()}, 80'])):
                 current_recorder_value.sample_generation_memory()
             current_device_record=current_recorder_value.current_run_state['gpu_observations']['GPU-A']
             self.assertEqual(current_device_record['process_current_mib'],80)
@@ -224,7 +247,7 @@ class GenerationMemoryScopeTests(unittest.TestCase):
             current_mock_samples=['GPU-A, 900\nGPU-B, 700',f'GPU-A, {current_process_number}, 100\nGPU-B, {current_process_number}, 200',
                 'GPU-A, 800',f'GPU-A, {current_process_number}, 90',
                 'GPU-A, 850\nGPU-B, 650',f'GPU-A, {current_process_number}, 95\nGPU-B, {current_process_number}, 180']
-            with patch('tools.review.common.generation_telemetry.subprocess.check_output',side_effect=current_mock_samples):
+            with patch('tools.review.common.generation_telemetry.subprocess.check_output',side_effect=convert_gpu_test_samples(current_mock_samples)):
                 current_recorder_value.sample_generation_memory()
                 current_recorder_value.sample_generation_memory()
                 current_device_records=current_recorder_value.current_run_state['gpu_observations']
@@ -246,7 +269,7 @@ class GenerationMemoryScopeTests(unittest.TestCase):
             for current_invalid_snapshot in ('GPU-A, 100\nGPU-B, N/A','GPU-A, 100\nGPU-A, 200','GPU-A, -1',', 100'):
                 with self.subTest(snapshot=current_invalid_snapshot):
                     current_recorder_value=GenerationTelemetryRecorder(Path(current_directory_name),0,[])
-                    with patch('tools.review.common.generation_telemetry.subprocess.check_output',side_effect=[current_invalid_snapshot,'']):
+                    with patch('tools.review.common.generation_telemetry.subprocess.check_output',side_effect=convert_gpu_test_samples([current_invalid_snapshot,''])):
                         current_recorder_value.capture_generation_memory()
                     self.assertEqual(current_recorder_value.current_run_state['gpu_observations'],{})
                     self.assertEqual(len(current_recorder_value.current_run_state['measurement_gaps']),1)
@@ -257,7 +280,7 @@ class GenerationMemoryScopeTests(unittest.TestCase):
             for current_process_snapshot in ('GPU-A, 100, -1', ', 100, 20', 'GPU-A, 100, N/A', 'GPU-A, 100, 300\nGPU-A, 100, 300', 'GPU-B, 100, 300'):
                 with self.subTest(snapshot=current_process_snapshot):
                     current_recorder_value=GenerationTelemetryRecorder(Path(current_directory_name),0,[])
-                    with patch('tools.review.common.generation_telemetry.os.getpid',return_value=100), patch('tools.review.common.generation_telemetry.Path.glob',return_value=[]), patch('tools.review.common.generation_telemetry.subprocess.check_output',side_effect=['GPU-A, 500','GPU-A, 100, 200','GPU-A, 600',current_process_snapshot]):
+                    with patch('tools.review.common.generation_telemetry.os.getpid',return_value=100), patch('tools.review.common.generation_telemetry.Path.glob',return_value=[]), patch('tools.review.common.generation_telemetry.subprocess.check_output',side_effect=convert_gpu_test_samples(['GPU-A, 500','GPU-A, 100, 200','GPU-A, 600',current_process_snapshot])):
                         current_recorder_value.sample_generation_memory()
                         current_recorder_value.capture_generation_memory()
                     current_device_record=current_recorder_value.current_run_state['gpu_observations']['GPU-A']
@@ -286,7 +309,7 @@ class GenerationMemoryScopeTests(unittest.TestCase):
             current_recorder_value = GenerationTelemetryRecorder(Path(current_directory_name), 0, [])
             with patch('tools.review.common.generation_telemetry.os.getpid', return_value=100), \
                  patch('tools.review.common.generation_telemetry.Path.glob', return_value=current_process_records), \
-                 patch('tools.review.common.generation_telemetry.subprocess.check_output', side_effect=current_gpu_samples):
+                 patch('tools.review.common.generation_telemetry.subprocess.check_output', side_effect=convert_gpu_test_samples(current_gpu_samples)):
                 current_recorder_value.sample_generation_memory()
                 current_recorder_value.sample_generation_memory()
             current_gpu_observations = current_recorder_value.current_run_state['gpu_observations']

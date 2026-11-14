@@ -8,6 +8,19 @@ from generators.kimodo.dwpose_export import adjust_detected_pose_frames
 from generators.wan_fun.video_input import validate_processed_pose_video
 
 class KimodoDwposeTests(unittest.TestCase):
+    def test_migraphx_pose_outputs_use_correct_axes(self):
+        from types import SimpleNamespace
+        from generators.kimodo.dwpose_runtime import MigraphxPoseInferenceSession
+        current_x_values = np.zeros((1, 133, 576))
+        current_y_values = np.zeros((1, 133, 768))
+        current_session = SimpleNamespace(run=lambda *args: [current_y_values, current_x_values])
+        current_outputs = MigraphxPoseInferenceSession(current_session).run(None, {})
+        self.assertIs(current_outputs[0], current_x_values)
+        self.assertIs(current_outputs[1], current_y_values)
+        current_session.run = lambda *args: [current_x_values, current_x_values]
+        with self.assertRaisesRegex(ValueError, '출력 크기'):
+            MigraphxPoseInferenceSession(current_session).run(None, {})
+
     def test_scaled_pose_keeps_original_pelvis_vertical_motion(self):
         current_point_type = namedtuple('Point','x y score id',defaults=[1.0,0])
         current_body_type = namedtuple('Body','keypoints')

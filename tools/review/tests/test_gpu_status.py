@@ -10,10 +10,10 @@ from tools.review.common import gpu_status
 class GpuStatusTests(unittest.TestCase):
     def test_gpu_status_includes_total_used_and_free_memory(self):
         compute_result = subprocess.CompletedProcess(
-            args=[], returncode=0, stdout=json.dumps([{'gpu': 0, 'process_list': [{'process_info': {'pid': 100, 'mem_usage': {'value': 512 * 1048576, 'unit': 'B'}}}, {'process_info': {'pid': 200, 'mem_usage': {'value': 768 * 1048576, 'unit': 'B'}}}]}]), stderr=''
+            args=[], returncode=0, stdout=json.dumps([{'gpu': 0, 'process_list': [{'process_info': {'pid': 100, 'memory_usage': {'vram_mem': {'value': 12 * 1048576, 'unit': 'B'}, 'gtt_mem': {'value': 500 * 1048576, 'unit': 'B'}}}}, {'process_info': {'pid': 200, 'memory_usage': {'vram_mem': {'value': 768 * 1048576, 'unit': 'B'}, 'gtt_mem': {'value': 0, 'unit': 'B'}}}}]}]), stderr=''
         )
         memory_result = subprocess.CompletedProcess(
-            args=[], returncode=0, stdout=json.dumps({'gpu_data': [{'mem_usage': {'total_gtt': {'value': 12288}, 'used_gtt': {'value': 1280}, 'free_gtt': {'value': 11008}}}]}), stderr=''
+            args=[], returncode=0, stdout=json.dumps({'gpu_data': [{'mem_usage': {'total_gtt': {'value': 12288}, 'used_gtt': {'value': 1000}, 'used_vram': {'value': 280}, 'free_gtt': {'value': 11288}}}]}), stderr=''
         )
         with patch.object(gpu_status.subprocess, 'run', side_effect=[compute_result, memory_result]), patch.object(
             gpu_status, 'identify_gpu_command', side_effect=[

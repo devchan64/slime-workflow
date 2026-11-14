@@ -2,6 +2,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import os
+import json
 from pathlib import Path
 import subprocess
 import threading
@@ -57,29 +58,48 @@ class GenerationTelemetryRecorder:
             if current_child_ids <= current_process_ids:
                 break
             current_process_ids.update(current_child_ids)
-        current_device_text = subprocess.check_output(['nvidia-smi','--query-gpu=uuid,memory.used','--format=csv,noheader,nounits'],text=True,timeout=2)
+        current_device_text = subprocess.check_output(['amd-smi', 'metric', '-m', '--json'], text=True, timeout=10)
         if not current_device_text.strip():
             raise ValueError('GPU 장치 표본이 비어 있습니다. 사용량을 0으로 간주하지 않습니다.')
-        current_process_text = subprocess.check_output(['nvidia-smi','--query-compute-apps=gpu_uuid,pid,used_memory','--format=csv,noheader,nounits'],text=True,timeout=2)
+        current_device_values = json.loads(current_device_text)['gpu_data']
+        if not current_device_values:
+            raise ValueError('GPU 장치 표본이 비어 있습니다. 사용량을 0으로 간주하지 않습니다.')
+        current_process_text = subprocess.check_output(['amd-smi', 'process', '--json'], text=True, timeout=10)
         current_usage_records = {}
         current_process_keys = set()
-        for current_process_line in current_process_text.splitlines():
-            current_uuid_value,current_pid_text,current_usage_text = map(str.strip,current_process_line.split(','))
-            if int(current_pid_text) in current_process_ids:
-                current_process_key = (current_uuid_value,int(current_pid_text))
+        for current_device_record in json.loads(current_process_text):
+            current_device_identifier = current_device_record['gpu']
+            if current_device_identifier == '':
+                raise ValueError('GPU 장치 식별자가 없습니다.')
+            current_uuid_value = 'GPU-' + str(current_device_identifier)
+            for current_process_record in current_device_record.get('process_list', []):
+                current_process_values = current_process_record['process_info']
+                if current_process_values == 'No running processes detected':
+                    continue
+                if not isinstance(current_process_values['pid'], int):
+                    raise ValueError('AMD GPU 프로세스 ID 오류')
+                if current_process_values['pid'] not in current_process_ids:
+                    continue
+                current_process_key = (current_uuid_value, current_process_values['pid'])
                 if current_process_key in current_process_keys:
                     raise ValueError('GPU 작업 프로세스 표본의 장치·PID가 중복되었습니다.')
                 current_process_keys.add(current_process_key)
-                current_process_usage = int(current_usage_text)
-                if not current_uuid_value or current_process_usage < 0:
-                    raise ValueError('GPU 작업 프로세스 표본의 장치 식별자가 없거나 사용량이 음수입니다.')
+                current_memory_records = current_process_values['memory_usage']
+                current_gpu_memory = [current_memory_records['vram_mem'], current_memory_records['gtt_mem']]
+                if any(current_memory_record['unit'] != 'B' or current_memory_record['value'] < 0 for current_memory_record in current_gpu_memory):
+                    raise ValueError('AMD GPU 프로세스 메모리 값 오류')
+                current_process_usage = (sum(current_memory_record['value'] for current_memory_record in current_gpu_memory) + 1048575) // 1048576
                 current_usage_records[current_uuid_value] = current_usage_records.get(current_uuid_value,0)+current_process_usage
         current_device_samples = {}
-        for current_device_line in current_device_text.splitlines():
-            current_uuid_value,current_usage_text = map(str.strip,current_device_line.split(','))
+        for current_device_record in current_device_values:
+            current_device_identifier = current_device_record['gpu']
+            if current_device_identifier == '':
+                raise ValueError('GPU 장치 식별자가 없습니다.')
+            current_uuid_value = 'GPU-' + str(current_device_identifier)
             if not current_uuid_value or current_uuid_value in current_device_samples:
                 raise ValueError('GPU 장치 표본의 식별자가 없거나 중복되었습니다.')
-            current_usage_value = int(current_usage_text)
+            current_memory_values = current_device_record['mem_usage']
+            current_usage_value = int(current_memory_values['used_vram']['value']) + int(current_memory_values['used_gtt']['value'])
             if current_usage_value < 0:
                 raise ValueError('GPU 장치 사용량은 음수일 수 없습니다.')
             current_device_samples[current_uuid_value] = current_usage_value
@@ -94,7 +114,7 @@ class GenerationTelemetryRecorder:
                         measurement_reason=current_missing_reason,updated_at=current_sample_timestamp)
                     self.current_run_state['measurement_gaps'].append({'at':current_sample_timestamp,'error':current_missing_reason})
             for current_uuid_value,current_usage_value in current_device_samples.items():
-                current_device_record = self.current_run_state['gpu_observations'].setdefault(current_uuid_value,{'process_peak_mib':None,'device_peak_mib':None,'sample_count':0,'method':'nvidia-smi','unit':'MiB','interval_seconds':5,'scope':'작업자 및 자식 프로세스; 장치 전체 값은 다른 작업 포함; 샘플 사이 순간 피크 누락 가능'})
+                current_device_record = self.current_run_state['gpu_observations'].setdefault(current_uuid_value,{'process_peak_mib':None,'device_peak_mib':None,'sample_count':0,'method':'amd-smi','unit':'MiB','interval_seconds':5,'scope':'작업자 및 자식 프로세스; 장치 전체 VRAM과 GTT 사용량에는 다른 작업 포함; 샘플 사이 순간 피크 누락 가능'})
                 current_process_usage = current_usage_records.get(current_uuid_value)
                 current_device_record.update(process_current_mib=current_process_usage,device_current_mib=current_usage_value,updated_at=current_sample_timestamp)
                 current_device_record['device_peak_mib'] = max(current_device_record['device_peak_mib'] or 0,current_usage_value)
@@ -118,7 +138,7 @@ class GenerationTelemetryRecorder:
     def capture_generation_memory(self):
         try:
             self.sample_generation_memory()
-        except (OSError,ValueError,subprocess.SubprocessError) as current_measurement_error:
+        except (OSError,ValueError,KeyError,TypeError,subprocess.SubprocessError) as current_measurement_error:
             with self.current_state_lock:
                 current_failure_timestamp = datetime.now(ZoneInfo('Asia/Seoul')).isoformat()
                 self.current_run_state['measurement_gaps'].append({'at':current_failure_timestamp,'error':str(current_measurement_error)})

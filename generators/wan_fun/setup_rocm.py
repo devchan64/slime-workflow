@@ -1,6 +1,7 @@
 """AMD ROCm 전용 환경과 Fun Control 자산을 준비한다."""
 from pathlib import Path
 import fcntl
+import os
 import subprocess
 import sys
 
@@ -41,8 +42,17 @@ def setup_fun_rocm_environment():
         current_library_link = current_onnx_directory / 'libonnxruntime.so.1'
         if not current_library_link.exists():
             current_library_link.symlink_to('libonnxruntime.so.1.29.0')
+        current_library_paths = [str(current_onnx_directory), str(current_site_directory / 'migraphx_libs')]
+        if os.environ.get('LD_LIBRARY_PATH'):
+            current_library_paths.append(os.environ['LD_LIBRARY_PATH'])
+        os.environ['LD_LIBRARY_PATH'] = os.pathsep.join(current_library_paths)
         run_logged_management_command([current_python_path, '-c',
-            "import torch; assert torch.version.hip and torch.cuda.is_available(), 'ROCm GPU를 사용할 수 없습니다'; print(torch.cuda.get_device_name(0), flush=True)"], current_trace_logger)
+            "import torch, migraphx, onnxruntime as ort, onnxruntime_ep_migraphx as plugin\n"
+            "assert torch.version.hip and torch.cuda.is_available(), 'ROCm GPU를 사용할 수 없습니다'\n"
+            "assert torch.ones(1, device='cuda').item() == 1\n"
+            "for name, path in zip(plugin.get_ep_names(), plugin.get_library_paths()): ort.register_execution_provider_library(name, path)\n"
+            "assert any(device.ep_name == 'MIGraphXExecutionProvider' and device.device.type == ort.OrtHardwareDeviceType.GPU for device in ort.get_ep_devices()), 'MIGraphX GPU를 사용할 수 없습니다'\n"
+            "print(torch.cuda.get_device_name(0), flush=True)"], current_trace_logger)
         run_logged_management_command([current_python_path, '-m', 'generators.wan_fun.prepare_pose'], current_trace_logger)
         run_logged_management_command([current_python_path, '-m', 'generators.wan_fun.prepare'], current_trace_logger)
         current_trace_logger.emit_launch_trace('complete', 'ROCm 모델 준비 완료')

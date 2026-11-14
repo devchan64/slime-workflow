@@ -17,6 +17,7 @@ from tools.review.common.gpu_memory_history import read_worker_memory, save_memo
 from tools.review.common.host_memory_guard import start_animate_memory_guard
 GPU_QUEUE_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/gpu-queue'
 GPU_MEMORY_REQUIREMENTS = {'momask': 4096, 'character-animation': 6144, 'image': 6144}
+GPU_MEMORY_REQUIREMENTS['wan-fun'] = 30000
 # HY-Motion의 초기 예약은 실측 전 보수적 값이며 완료 후 공용 이력의 peak로 갱신한다.
 # 음악 모델의 초기 예약값. 실제 관측 피크는 공용 메모리 이력이 갱신한다.
 GPU_MEMORY_REQUIREMENTS.update({'music-minimax':7000,'music-magenta':7000,'music-heartmula':7300,'sfx-dasheng-audiogen':7000})
@@ -28,7 +29,10 @@ GPU_POLL_INTERVAL = 2
 def read_gpu_memory():
     memory_query_result = subprocess.run(['amd-smi', 'metric', '-m', '--json'], capture_output=True, text=True, check=True, timeout=10)
     current_memory_values = json.loads(memory_query_result.stdout)['gpu_data'][0]['mem_usage']
-    return int(current_memory_values['total_gtt']['value']), int(current_memory_values['free_gtt']['value'])
+    current_total_memory = int(current_memory_values['total_gtt']['value'])
+    current_used_video_memory = int(current_memory_values['used_vram']['value'])
+    current_free_memory = max(0, int(current_memory_values['free_gtt']['value'])-current_used_video_memory)
+    return current_total_memory, current_free_memory
 
 
 def launch_gpu_process(command_argument_values, generation_job_path, generation_service_name, **process_option_values):

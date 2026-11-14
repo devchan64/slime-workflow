@@ -206,8 +206,9 @@ def build_fun_interface(current_server_address, current_command_callback=None):
     with gr.Blocks(title='Wan2.2 Fun Control 생성기') as current_interface_blocks:
         gr.Markdown('## Wan2.2 Fun Control A14B 실험 생성기\n포즈 영상과 참조 이미지로 애니메이션을 생성합니다. VideoX-Fun DWPose 추출과 관절 길이 보정은 Kimodo 생성기에서 수행합니다.')
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
-        current_model_refresh = gr.Button('모델 준비 상태 확인')
-        current_model_prepare = gr.Button('모델 다운로드 및 준비')
+        with gr.Row():
+            current_model_refresh = gr.Button('상태 확인')
+            current_model_prepare = gr.Button('다운로드 및 준비')
         def read_fun_model_status():
             try:
                 return current_execute_command('model-status', {})['message']
@@ -228,7 +229,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         current_mode_control = gr.State('pose-video')
         current_frames_control = gr.State(None)
         current_type_control = gr.State('pose')
-        gr.Markdown('포즈 영상의 동작을 따릅니다. 참조 이미지는 캐릭터 조건이며 첫 프레임을 고정하지 않습니다. 참조의 자세도 결과에 영향을 줄 수 있습니다.')
+        gr.Markdown('참조 이미지는 캐릭터 조건이며 첫 프레임을 고정하지 않습니다. 참조 자세도 결과에 영향을 줄 수 있습니다.')
         with gr.Row():
             with gr.Column():
                 current_reference_control = gr.Image(type='filepath', sources=['upload'], label='캐릭터 외형 참조 · 1장')
@@ -256,8 +257,8 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             current_negative_control = gr.Textbox(label='부정 프롬프트', value='')
             current_negative_summary = gr.Markdown('원문 0단어 · 최종 0단어')
             current_negative_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어', current_negative_control, current_negative_summary, queue=False)
-        gr.Markdown('출력 고정: 832×480 · 16fps. 8GB에서 129프레임 완료 기록이 있으나 모든 조건을 보장하지 않습니다.')
-        current_count_control = gr.Number(value=FUN_DEFAULT_SETTINGS['frames'], precision=0, minimum=5, maximum=FUN_MAX_FRAME_COUNT, step=4, label=f'출력 프레임 · 4n+1 · 5~{FUN_MAX_FRAME_COUNT}', info='최대 129프레임입니다. 8GB 환경에서 129프레임 생성 완료를 확인했으며 품질은 별도 검수합니다. 부족한 제어 프레임은 자동 반복하지 않습니다.')
+        gr.Markdown('출력 고정: 832×480 · 16fps.')
+        current_count_control = gr.Number(value=FUN_DEFAULT_SETTINGS['frames'], precision=0, minimum=5, maximum=FUN_MAX_FRAME_COUNT, step=4, label=f'출력 프레임 · 4n+1 · 5~{FUN_MAX_FRAME_COUNT}', info='부족한 제어 프레임은 자동 반복하지 않습니다.')
         def update_fun_video_summary(current_video_path):
             current_recommended_count, current_video_description = inspect_fun_pose_video(current_video_path)
             return current_video_description, gr.update(interactive=current_recommended_count is not None)

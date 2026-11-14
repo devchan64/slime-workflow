@@ -28,7 +28,7 @@ def read_worker_memory(worker_pid):
         if descendants <= worker_process_ids:
             break
         worker_process_ids.update(descendants)
-    query_result = subprocess.run(['amd-smi', 'process', '-G', '--json'], capture_output=True, text=True, check=True, timeout=10)
+    query_result = subprocess.run(['amd-smi', 'process', '--json'], capture_output=True, text=True, check=True, timeout=10)
     total_memory_mib = 0
     for current_device_record in json.loads(query_result.stdout):
         for current_process_record in current_device_record.get('process_list', []):
@@ -36,10 +36,14 @@ def read_worker_memory(worker_pid):
             if current_process_values == 'No running processes detected':
                 continue
             if current_process_values['pid'] in worker_process_ids:
-                current_memory_record = current_process_values['mem_usage']
-                if current_memory_record['unit'] != 'B':
-                    raise ValueError('AMD 프로세스 GPU 메모리 단위 오류')
-                total_memory_mib += (current_memory_record['value'] + 1048575) // 1048576
+                try:
+                    current_memory_records = current_process_values['memory_usage']
+                    current_gpu_memory = [current_memory_records['vram_mem'], current_memory_records['gtt_mem']]
+                    if any(current_memory_record['unit'] != 'B' or not isinstance(current_memory_record['value'], int) or current_memory_record['value'] < 0 for current_memory_record in current_gpu_memory):
+                        raise ValueError('AMD 프로세스 GPU 메모리 값 오류')
+                    total_memory_mib += (sum(current_memory_record['value'] for current_memory_record in current_gpu_memory) + 1048575) // 1048576
+                except (KeyError, TypeError) as current_measurement_error:
+                    raise ValueError('AMD 프로세스 GPU 메모리 정보를 읽을 수 없습니다.') from current_measurement_error
     return total_memory_mib
 
 

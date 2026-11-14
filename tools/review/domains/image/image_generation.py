@@ -154,6 +154,12 @@ class ImageGenerationManager:
     def select_generation_python(self, saved_request_record=None):
         return WORKFLOW_ROOT_PATH / '.venv/bin/python'
 
+    def select_generation_service(self, saved_request_record=None):
+        return 'image'
+
+    def ensure_generation_request_available(self, current_request_record):
+        """도메인별 중복 접수 조건을 잠금 안에서 확인한다."""
+
     def history_storage_path(self):
         return MANAGER_HISTORY_ROOT / ('qwen-2511' if self.three_reference_mode else 'qwen-2512')
 
@@ -245,7 +251,7 @@ class ImageGenerationManager:
                     if current_url_path.endswith('/resume') and not (selected_job_directory/'gpu-command.json').exists():
                         saved_request_record=json.loads((selected_job_directory/'request.json').read_text())
                         saved_command_values=[str(self.select_generation_python(saved_request_record)),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(saved_request_record)),'--job-dir',str(selected_job_directory)]
-                        legacy_command_record = {'command':saved_command_values,'service':'image'}
+                        legacy_command_record = {'command':saved_command_values,'service':self.select_generation_service(saved_request_record)}
                     selected_operation_result = resume_gpu_generation(selected_job_directory, legacy_command_record=legacy_command_record) if current_url_path.endswith('/resume') else cancel_gpu_generation(selected_job_directory)
                     send_response_data(200,selected_operation_result)
                     return True
@@ -263,6 +269,7 @@ class ImageGenerationManager:
                 current_request_record=self.validate_generation_request(current_request_record)
                 self.validate_generation_runtime(current_request_record)
                 with self.current_request_lock:
+                    self.ensure_generation_request_available(current_request_record)
                     current_job_identifier = datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
                     current_job_root = self.job_storage_root / current_job_identifier
                     current_job_root.mkdir(parents=True,exist_ok=False)
@@ -279,7 +286,7 @@ class ImageGenerationManager:
                         self.history_storage_path().mkdir(parents=True,exist_ok=True)
                         write_record_atomically(self.history_storage_path()/(current_job_identifier+'.json'), {'id':current_job_identifier,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':current_request_record,'status':{'status':'running'},'job_path':str(current_job_root)})
                     with (current_job_root/'worker.log').open('w') as current_log_handle:
-                        self.current_worker_process = launch_gpu_process([str(self.select_generation_python(current_request_record)),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(current_request_record)),'--job-dir',str(current_job_root)],current_job_root,'image',stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True)
+                        self.current_worker_process = launch_gpu_process([str(self.select_generation_python(current_request_record)),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(current_request_record)),'--job-dir',str(current_job_root)],current_job_root,self.select_generation_service(current_request_record),stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True)
                     self.current_job_identifier = current_job_identifier
                     current_worker_process = self.current_worker_process
                     def watch_worker_exit():
