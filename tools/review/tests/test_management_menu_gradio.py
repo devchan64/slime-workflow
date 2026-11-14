@@ -164,6 +164,14 @@ class ManagementMenuRefreshTests(unittest.TestCase):
         self.assertNotIn('.click()', selection_script_text)
 
 class ManagementNativeNavigationTests(unittest.TestCase):
+    def test_gpu_process_information_uses_collapsible_panel(self):
+        current_interface_blocks,_=build_management_menu_interface([],8770)
+        current_component_records=current_interface_blocks.get_config_file()['components']
+        current_panel_record=next(current_record for current_record in current_component_records if current_record.get('props',{}).get('elem_id')=='management-gpu-floating')
+        self.assertEqual(current_panel_record['type'],'accordion')
+        self.assertFalse(current_panel_record['props']['open'])
+        self.assertTrue(any(current_record.get('props',{}).get('elem_id')=='management-gpu-status' for current_record in current_component_records))
+
     def test_inline_blocks_keep_shared_sidebar_and_remove_frame_sizing(self):
         import gradio as gr
         from tools.review.ui.gradio.management_menu_app import create_sidebar_responsive_script

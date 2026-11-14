@@ -280,7 +280,8 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
             page_select_value=gr.Dropdown(choices=create_tool_choice_values(page_record_values),value=initial_page_identifier,label='도구 목록',elem_id='management-tool-list')
         with gr.Row(elem_id='management-header'):
             gr.Markdown('## SLIME 관리도구',scale=3)
-            gpu_status_value=gr.Markdown(render_gpu_status_card({}),elem_id='management-gpu-status',scale=2)
+        with gr.Accordion('GPU 프로세스 정보',open=False,elem_id='management-gpu-floating'):
+            gpu_status_value=gr.Markdown(render_gpu_status_card({}),elem_id='management-gpu-status')
         with gr.Row(elem_id='management-shell'):
             with gr.Column(scale=3,min_width=280,elem_id='management-workspace'):
                 selected_page_status_value=gr.Markdown(f"**{html.escape(page_record_values[0]['label'])}** · {html.escape(page_record_values[0]['description'])}" if page_record_values else '표시할 관리 화면이 없습니다.')
