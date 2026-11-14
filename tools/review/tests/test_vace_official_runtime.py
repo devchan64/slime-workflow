@@ -65,13 +65,13 @@ class VaceOfficialRuntimeTest(unittest.TestCase):
             self.assertIsNone(current_after_hook(current_module_object, (), current_output_value))
             self.assertEqual([current_call.args[0] for current_call in current_module_object.to.call_args_list], ['cuda', 'cpu'])
 
-    def test_existing_quantization_revision_is_preserved(self):
+    def test_official_full_precision_revision_is_fixed(self):
         from generators.wan_vace.contracts import VACE_MODEL_REVISION,VACE_SOURCE_REVISION,VACE_MODEL_FILES
         current_manifest_record=yaml.safe_load(Path('generators/wan_vace/config/official-runtime.yaml').read_text())
-        self.assertEqual(VACE_MODEL_REVISION,'93b339260b1d819e2c171dd7ca9e66a761d4a84d')
+        self.assertEqual(VACE_MODEL_REVISION,'4438caabbfdd7437bbb0283d86cb200d1b7223ba')
         self.assertEqual(current_manifest_record['source_revision'],VACE_SOURCE_REVISION)
-        self.assertIn('Q4_K_M',VACE_MODEL_FILES['high'][0])
-        self.assertIn('Q4_K_M',VACE_MODEL_FILES['low'][0])
+        self.assertTrue(VACE_MODEL_FILES['high'][0].endswith('.safetensors'))
+        self.assertTrue(VACE_MODEL_FILES['low'][0].endswith('.safetensors'))
         self.assertIn('bf16',VACE_MODEL_FILES['encoder'][0])
 
     def test_official_source_and_tokenizer_are_verified(self):

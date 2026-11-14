@@ -8,6 +8,7 @@ import traceback
 from tools.review.common.generation_records import write_record_atomically
 
 MODEL_PREPARATION_PROFILES = {
+    'expression-lora': (('tools.review.domains.image.expression_generation', 'download_expression_adapter'),),
     'qwen-21': (('generators.image.qwen_21_runtime', 'download_qwen_model_assets'),),
     'kimodo': (('generators.kimodo.prepare', 'prepare_kimodo_assets'),),
     'wan-animate2': (('generators.wan_animate2.prepare', 'prepare_animate_models'), ('generators.wan_animate2.contracts', 'validate_animate_assets')),

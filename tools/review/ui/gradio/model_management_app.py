@@ -7,6 +7,7 @@ from tools.review.common.management_client import execute_remote_management_comm
 
 MODEL_PREPARATION_SERVICES = (
     ('Qwen Image 2.1', 'prop-generator'),
+    ('Qwen 2.1 표정 LoRA', 'expression-lora'),
     ('Kimodo', 'kimodo'),
     ('Wan Animate-2', 'wan22-animate2'),
     ('Wan Fun Control', 'wan22-fun-control'),

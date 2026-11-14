@@ -12,6 +12,30 @@ from generators.wan_fun.contracts import validate_fun_request, inspect_fun_asset
 from tools.review.common.management_gateway import resolve_management_command
 
 class FunAttentionOptimizationTests(unittest.TestCase):
+    def test_conditioning_fingerprint_detects_changed_tensors(self):
+        import torch
+        from generators.wan_fun.numerical_diagnostics import fingerprint_fun_tensor
+        current_first_record = fingerprint_fun_tensor(torch, torch.tensor([1.0, 2.0]))
+        current_same_record = fingerprint_fun_tensor(torch, torch.tensor([1.0, 2.0]))
+        current_changed_record = fingerprint_fun_tensor(torch, torch.tensor([1.0, 3.0]))
+        self.assertEqual(current_first_record, current_same_record)
+        self.assertNotEqual(current_first_record['sha256'], current_changed_record['sha256'])
+        self.assertFalse(fingerprint_fun_tensor(torch, torch.tensor([float('nan')]))['finite'])
+
+    def test_numerical_diagnostics_record_first_nonfinite_step(self):
+        import json
+        import torch
+        from generators.wan_fun.numerical_diagnostics import record_fun_numerical_step
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_attempt_root = Path(current_directory_name)
+            record_fun_numerical_step(torch, current_attempt_root, 'high', 1, torch.tensor([2.0]), torch.tensor([-3.0]))
+            with self.assertRaisesRegex(ValueError, '2단계'):
+                record_fun_numerical_step(torch, current_attempt_root, 'high', 2, torch.tensor([float('nan')]), torch.tensor([1.0]))
+            current_records = [json.loads(current_line) for current_line in (current_attempt_root / 'numerical-steps.jsonl').read_text().splitlines()]
+            self.assertEqual(current_records[0]['sample']['max_abs'], 3.0)
+            self.assertEqual(current_records[1]['denoised']['nonfinite'], 1)
+            self.assertIsNone(current_records[1]['denoised']['max_abs'])
+
     def test_long_attention_uses_contiguous_inputs_only_with_room(self):
         from generators.wan_fun.attention_optimization import install_fun_attention_optimization
         current_cuda_mock = SimpleNamespace(is_available=lambda:True,get_device_properties=lambda _:SimpleNamespace(gcnArchName='gfx1151'),mem_get_info=Mock(return_value=(2**40,2**40)),OutOfMemoryError=MemoryError,empty_cache=Mock())

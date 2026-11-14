@@ -194,7 +194,7 @@ class ModelManagementTest(unittest.TestCase):
         from generators.wan_vace import prepare as vace_prepare
         with TemporaryDirectory() as current_directory_name:
             current_root = Path(current_directory_name)
-            current_files = {current_key: (f'.model/wan22-vace/{current_key}.bin', 3, 'hash') for current_key in ('high', 'low', 'encoder', 'tokenizer')}
+            current_files = {current_key: (f'.model/{"wan22-vace-official" if current_key in ("high", "low") else "wan22-vace"}/{current_key}.bin', 3, 'hash') for current_key in ('high', 'low', 'encoder', 'tokenizer')}
             current_files['vae'] = ('.model/wan22-animate-components/split_files/vae/wan_2.1_vae.safetensors', 3, None)
             def download_test_http(current_url, current_target_path, *current_args, **current_kwargs):
                 current_target_path.write_bytes(b'abc')

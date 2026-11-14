@@ -9,20 +9,19 @@ from tools.review.domains.image.three_reference_generation import decode_referen
 VACE_WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 VACE_JOB_STORAGE = VACE_WORKSPACE_ROOT / '.tmp/test/wan22-vace'
 VACE_RUNTIME_DIRECTORY = VACE_WORKSPACE_ROOT / '.local/wan22-animate'
-VACE_MODEL_IDENTIFIER = 'QuantStack/Wan2.2-VACE-Fun-A14B-GGUF'
-VACE_MODEL_REVISION = '93b339260b1d819e2c171dd7ca9e66a761d4a84d'
+VACE_MODEL_IDENTIFIER = 'alibaba-pai/Wan2.2-VACE-Fun-A14B'
+VACE_MODEL_REVISION = '4438caabbfdd7437bbb0283d86cb200d1b7223ba'
 VACE_SOURCE_REVISION = '13bb3c625e8b1e457d7124d92207b49e00e4a6fe'
 VACE_ENCODER_IDENTIFIER = 'alibaba-pai/Wan2.2-VACE-Fun-A14B'
 VACE_ENCODER_REVISION = '4438caabbfdd7437bbb0283d86cb200d1b7223ba'
 VACE_ENCODER_REMOTE_FILES = {'encoder': 'models_t5_umt5-xxl-enc-bf16.pth', 'tokenizer': 'google/umt5-xxl/spiece.model'}
 VACE_MODEL_FILES = {
-    'high': ('.model/wan22-vace/HighNoise/Wan2.2-VACE-Fun-A14B-high-noise-Q4_K_M.gguf', 11639453600, '46584a1be3a01d50cfdb7b4e326d01f9a4ef9ddeb2a85b6df8bcd5f5f874916c'),
-    'low': ('.model/wan22-vace/LowNoise/Wan2.2-VACE-Fun-A14B-low-noise-Q4_K_M.gguf', 11639453600, 'efa88568f8a8fec0b7e3867db40b8c940b95bcfcf5543cf9fb8db8c5aca1dac2'),
+    'high': ('.model/wan22-vace-official/high_noise_model/diffusion_pytorch_model.safetensors', 34675325000, '66c61b736c5674deeeef17861e494d3652cc9b1463a9656bf18c2c72d2c5f007'),
+    'low': ('.model/wan22-vace-official/low_noise_model/diffusion_pytorch_model.safetensors', 34675325000, '0bf791adfb8330d451d2f5c03577b2a8fb780453f8ef05e23a8fa91f27a2134d'),
     'encoder': ('.model/wan22-vace/models_t5_umt5-xxl-enc-bf16.pth', 11361920418, '7cace0da2b446bbbbc57d031ab6cf163a3d59b366da94e5afe36745b746fd81d'),
     'tokenizer': ('.model/wan22-vace/spiece.model', 4548313, 'e3909a67b780650b35cf529ac782ad2b6b26e6d1f849d3fbb6a872905f452458'),
-    'vae': ('.model/wan22-animate-components/split_files/vae/wan_2.1_vae.safetensors', 253815318, None),
+    'vae': ('.model/wan22-animate-components/split_files/vae/wan_2.1_vae.safetensors', 253815318, '2fc39d31359a4b0a64f55876d8ff7fa8d780956ae2cb13463b0223e15148976b'),
 }
-VACE_RUNTIME_REVISIONS = {'ComfyUI': 'b8730510db30c8858e1e5d8e126ef19eac395560', 'ComfyUI-GGUF': '6ea2651e7df66d7585f6ffee804b20e92fb38b8a'}
 VACE_DEFAULT_SETTINGS = {'mode': 'reference', 'frames': 21, 'steps': 50, 'seed': 42, 'flow_shift': 12.0, 'guidance_scale': 5.0, 'reference_strength': 1.0}
 VACE_EXPERT_BOUNDARY = 0.875
 VACE_INPUT_MODES = ('text', 'reference', 'first_frame', 'video_edit', 'video_condition', 'pose')
@@ -39,7 +38,7 @@ def inspect_vace_assets():
         verify_official_runtime()
     except ValueError as current_runtime_error:
         missing_model_paths.append(str(current_runtime_error))
-    return {'ready': not missing_model_paths, 'missing': missing_model_paths, 'message': '모델 파일 준비 완료 · 8GB 실행·품질은 별도 검수' if not missing_model_paths else '모델 준비 필요: ' + ', '.join(missing_model_paths)}
+    return {'ready': not missing_model_paths, 'missing': missing_model_paths, 'message': '공식 BF16 모델 파일 준비 완료 · GPU 메모리와 품질은 별도 검수' if not missing_model_paths else '모델 준비 필요: ' + ', '.join(missing_model_paths)}
 
 
 def validate_vace_assets():
@@ -115,7 +114,7 @@ def validate_vace_request(current_request_record):
     if current_request_record['mode'] == 'pose':
         from generators.wan_vace.video_edit import validate_edit_inputs
         validate_edit_inputs(current_request_record, ('pose_video',))
-    return {**current_request_record, 'prompt': current_request_record['prompt'].strip(), 'tag': 'wan22-vace'}
+    return {**current_request_record, 'prompt': current_request_record['prompt'].strip(), 'tag': 'wan22-vace', 'model_profile': 'official-bf16-resident-v1'}
 
 
 def locate_expert_switch(current_sigma_values):

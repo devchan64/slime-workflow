@@ -9,6 +9,7 @@ MODEL_INVENTORY_LIMIT = 500
 def resolve_model_inventory_paths():
     """생성기 계약에 등록된 모델만 조회하며 실행 환경·시험 파일은 제외한다."""
     from generators.image.qwen_21_runtime import QWEN_MODEL_DIRECTORY
+    from tools.review.domains.image.expression_generation import EXPRESSION_ADAPTER_PATH
     from generators.kimodo.contracts import KIMODO_MODEL_ROOT
     from generators.kimodo.dwpose_runtime import FUN_POSE_MODEL_DIRECTORY
     from generators.music.contracts import resolve_music_paths
@@ -18,6 +19,7 @@ def resolve_model_inventory_paths():
     from generators.writer_agent.prepare import MODEL_DOWNLOAD_ROOT
     return {
         'prop-generator': [QWEN_MODEL_DIRECTORY],
+        'expression-lora': [EXPRESSION_ADAPTER_PATH],
         'kimodo': [KIMODO_MODEL_ROOT, FUN_POSE_MODEL_DIRECTORY],
         'wan22-animate2': [ANIMATE_MODEL_DIRECTORY],
         'wan22-fun-control': [*(FUN_WORKSPACE_ROOT / current_file_record[0] for current_file_record in FUN_MODEL_FILES.values()), FUN_POSE_MODEL_DIRECTORY],

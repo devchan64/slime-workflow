@@ -1,2 +1,2 @@
-# 기존 CUDA 12.8 PyTorch 환경과 함께 사용한다.
-onnxruntime-gpu==1.23.2
+# 단일 DWPose는 Wan Fun Control ROCm 환경을 재사용한다.
+# generators/wan_fun/setup_rocm.py에서 PyTorch·MIGraphX·ONNX Runtime을 함께 설치한다.

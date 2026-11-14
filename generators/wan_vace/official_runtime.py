@@ -1,70 +1,54 @@
-"""고정 GGUF와 공식 VideoX-Fun 파이프라인을 연결하는 CUDA 실행부."""
+"""공식 BF16 VACE 모델을 GPU에 상주시켜 실행한다."""
 import sys
 import os
 import json
 import hashlib
 from pathlib import Path
 from generators.wan_vace.contracts import VACE_WORKSPACE_ROOT, VACE_MODEL_FILES, VACE_MODEL_REVISION, VACE_SOURCE_REVISION, VACE_MODEL_IDENTIFIER, VACE_ENCODER_REVISION
-from generators.wan_vace.official_gguf import VACE_OFFICIAL_SOURCE_ROOT, load_official_gguf
+from generators.wan_vace.official_prepare import VACE_OFFICIAL_INSTALL_ROOT as VACE_OFFICIAL_SOURCE_ROOT
+from generators.wan_vace.official_full_precision import load_full_precision_expert
 
 
 def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.0, current_attempt_root=None):
-    os.environ['VIDEOX_OFFLOAD_VACE_LATENTS'] = '1'
+    # 공식 구현은 문자열 "0"도 참으로 취급한다.
+    os.environ.pop('VIDEOX_OFFLOAD_VACE_LATENTS', None)
     from generators.wan_vace.official_prepare import verify_official_runtime
     verify_official_runtime()
     import torch
     import yaml
-    from accelerate import cpu_offload
     from safetensors.torch import load_file
     from transformers import AutoTokenizer
     from generators.wan_vace.sampling import build_vace_scheduler
-    if not torch.cuda.is_available():
-        raise RuntimeError('공식 VACE 실행은 CUDA가 필요합니다.')
-    sys.path.insert(0,str(VACE_OFFICIAL_SOURCE_ROOT))
-    from videox_fun.models import AutoencoderKLWan, WanT5EncoderModel
-    from videox_fun.models import wan_transformer3d
-    from generators.wan_vace.query_offload import install_query_result_offload
-    install_query_result_offload(wan_transformer3d)
-    from generators.wan_vace.cpu_offload import install_expert_block_offload, VACE_TRANSIENT_MODULE_NAMES
+    if not torch.version.hip or not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
+        raise RuntimeError('BF16을 지원하는 AMD ROCm GPU가 필요합니다.')
+    sys.path.insert(0, str(VACE_OFFICIAL_SOURCE_ROOT))
+    from videox_fun.models import AutoencoderKLWan, WanT5EncoderModel, VaceWanTransformer3DModel
     from videox_fun.pipeline import Wan2_2VaceFunPipeline
-    current_model_class = None
-    if current_attempt_root is not None:
-        from generators.wan_vace.activation_offload import load_input_offload_pipeline, load_branch_offload_model
-        Wan2_2VaceFunPipeline = load_input_offload_pipeline(VACE_OFFICIAL_SOURCE_ROOT, current_attempt_root)
-        current_model_class = load_branch_offload_model(VACE_OFFICIAL_SOURCE_ROOT, current_attempt_root)
-    current_config_record = yaml.safe_load((VACE_OFFICIAL_SOURCE_ROOT/'config/wan2.2/wan_civitai_t2v.yaml').read_text())
-    current_encoder_config = {current_field_name:current_field_value for current_field_name,current_field_value in current_config_record['text_encoder_kwargs'].items() if current_field_name not in ('text_encoder_subpath','tokenizer_subpath','text_length')}
+    current_config_record = yaml.safe_load((VACE_OFFICIAL_SOURCE_ROOT / 'config/wan2.2/wan_civitai_t2v.yaml').read_text())
+    current_encoder_config = {current_field_name: current_field_value for current_field_name, current_field_value in current_config_record['text_encoder_kwargs'].items() if current_field_name not in ('text_encoder_subpath', 'tokenizer_subpath', 'text_length')}
     with torch.device('meta'):
         current_text_encoder = WanT5EncoderModel(**current_encoder_config)
-    current_encoder_state = torch.load(VACE_WORKSPACE_ROOT/VACE_MODEL_FILES['encoder'][0],map_location='cpu',weights_only=True,mmap=True)
-    current_text_encoder.load_state_dict(current_encoder_state,strict=True,assign=True)
-    current_text_encoder.eval().requires_grad_(False)
-    cpu_offload(current_text_encoder,execution_device=torch.device('cuda'))
+    current_encoder_state = torch.load(VACE_WORKSPACE_ROOT / VACE_MODEL_FILES['encoder'][0], map_location='cpu', weights_only=True, mmap=True)
+    current_text_encoder.load_state_dict(current_encoder_state, strict=True, assign=True)
+    current_text_encoder.to(device='cuda', dtype=torch.bfloat16).eval().requires_grad_(False)
+    del current_encoder_state
     current_vae_model = AutoencoderKLWan()
-    current_vae_state = load_file(str(VACE_WORKSPACE_ROOT/VACE_MODEL_FILES['vae'][0]))
-    current_vae_model.load_state_dict({'model.'+current_tensor_name:current_tensor_value for current_tensor_name,current_tensor_value in current_vae_state.items()},strict=True)
-    current_vae_model.to(device='cuda',dtype=torch.bfloat16).eval().requires_grad_(False)
-    current_low_model = load_official_gguf('low', current_model_class)
-    current_high_model = load_official_gguf('high', current_model_class)
-    install_expert_block_offload(current_low_model)
-    install_expert_block_offload(current_high_model)
-    current_tokenizer_model = AutoTokenizer.from_pretrained(str(VACE_WORKSPACE_ROOT/'.model/wan22-vace/official-tokenizer'),local_files_only=True)
-    current_pipeline_object = Wan2_2VaceFunPipeline(tokenizer=current_tokenizer_model,text_encoder=current_text_encoder,vae=current_vae_model,transformer=current_low_model,transformer_2=current_high_model,scheduler=build_vace_scheduler(current_flow_shift))
+    current_vae_state = load_file(str(VACE_WORKSPACE_ROOT / VACE_MODEL_FILES['vae'][0]))
+    current_vae_model.load_state_dict({'model.' + current_tensor_name: current_tensor_value for current_tensor_name, current_tensor_value in current_vae_state.items()}, strict=True)
+    current_vae_model.to(device='cuda', dtype=torch.bfloat16).eval().requires_grad_(False)
+    del current_vae_state
+    current_low_model = load_full_precision_expert('low', VaceWanTransformer3DModel)
+    current_high_model = load_full_precision_expert('high', VaceWanTransformer3DModel)
+    current_tokenizer_model = AutoTokenizer.from_pretrained(str(VACE_WORKSPACE_ROOT / '.model/wan22-vace/official-tokenizer'), local_files_only=True)
+    current_pipeline_object = Wan2_2VaceFunPipeline(tokenizer=current_tokenizer_model, text_encoder=current_text_encoder, vae=current_vae_model, transformer=current_low_model, transformer_2=current_high_model, scheduler=build_vace_scheduler(current_flow_shift))
     current_inference_started = False
-    def prepare_active_expert(current_active_model, current_input_values):
+    def record_inference_start(current_active_model, current_input_values):
         nonlocal current_inference_started
         if not current_inference_started and current_metrics_recorder is not None:
             current_metrics_recorder.update_generation_stage('inference')
             current_inference_started = True
-        current_inactive_model = current_high_model if current_active_model is current_low_model else current_low_model
-        current_inactive_model.to('cpu')
-        current_vae_model.to('cpu')
-        for current_child_name,current_child_module in current_active_model.named_children():
-            if current_child_name not in {'blocks', 'vace_blocks'} | VACE_TRANSIENT_MODULE_NAMES:
-                current_child_module.to('cuda')
-        torch.cuda.empty_cache()
-    current_low_model.register_forward_pre_hook(prepare_active_expert)
-    current_high_model.register_forward_pre_hook(prepare_active_expert)
+    current_low_model.register_forward_pre_hook(record_inference_start)
+    current_high_model.register_forward_pre_hook(record_inference_start)
     return current_pipeline_object
 
 
@@ -77,20 +61,18 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
     from tools.review.common.generation_records import write_record_atomically
     write_record_atomically(current_attempt_root / 'model-selection.json', {
         'model_id': VACE_MODEL_IDENTIFIER, 'revision': VACE_MODEL_REVISION,
-        'files': VACE_MODEL_FILES, 'quantization': 'Q4_K_M',
-        'text_encoder_precision': 'BF16', 'text_encoder_quantized': False,
-        'text_encoder_revision': VACE_ENCODER_REVISION,
-        'source_revision': VACE_SOURCE_REVISION,
-        'runtime': 'VideoX-Fun official + GGUF adapter',
-        'adapter_source_sha256': {
-            current_source_name: hashlib.sha256((Path(__file__).parent / current_source_name).read_bytes()).hexdigest()
-            for current_source_name in ('official_runtime.py', 'official_gguf.py', 'cpu_offload.py', 'activation_offload.py', 'query_offload.py', 'memory_diagnostics.py', 'sampling.py', 'noise_experiment.py', 'attention_experiment.py')
-        },
-        'compute_device': 'cuda', 'offload_device': 'cpu',
-        'non_block_module_offload': True,
-        'encoded_input_cpu_offload': True,
-        'rope_query_result_cpu_offload': True,
-        'active_expert_block_offload': True, 'official_forward_unmodified': False, 'official_math_unmodified': 'attention_prefix_frames' not in current_request_record, 'branch_activation_cpu_offload': True, 'custom_math_patches': 'attention_prefix_frames' in current_request_record, 'vace_latent_offload': True, 'inactive_expert_offload': True, 'vae_inference_offload': True, 'temporal_vae_tiling': False,
+        'files': VACE_MODEL_FILES, 'quantization': None, 'precision': 'BF16',
+        'text_encoder_revision': VACE_ENCODER_REVISION, 'source_revision': VACE_SOURCE_REVISION,
+        'runtime': 'VideoX-Fun official BF16', 'gpu_backend': 'rocm',
+        'gpu_runtime_version': torch.version.hip,
+        'gpu_device_name': torch.cuda.get_device_name() if torch.cuda.is_available() else None,
+        'model_profile': 'official-bf16-resident-v1', 'offload_device': None,
+        'active_expert_block_offload': False, 'inactive_expert_offload': False,
+        'encoded_input_cpu_offload': False, 'branch_activation_cpu_offload': False,
+        'rope_query_result_cpu_offload': False, 'vace_latent_offload': False,
+        'vae_inference_offload': False,
+        'custom_math_patches': 'attention_prefix_frames' in current_request_record,
+        'adapter_source_sha256': {current_source_name: hashlib.sha256((Path(__file__).parent / current_source_name).read_bytes()).hexdigest() for current_source_name in ('official_runtime.py', 'official_full_precision.py', 'sampling.py', 'noise_experiment.py', 'attention_experiment.py')},
     })
     current_metrics_recorder.update_generation_stage('load')
     current_pipeline_object = load_official_pipeline(current_metrics_recorder, current_request_record['flow_shift'], current_attempt_root)
@@ -142,10 +124,6 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
             if 'attention_prefix_frames' in current_request_record:
                 from safetensors.torch import save_file
                 save_file({'latents': current_callback_values['latents'].detach().cpu().contiguous()}, str(current_attempt_root / 'final-latents.safetensors'))
-            current_pipeline_value.transformer.to('cpu')
-            current_pipeline_value.transformer_2.to('cpu')
-            torch.cuda.empty_cache()
-            current_pipeline_value.vae.to('cuda')
             current_metrics_recorder.update_generation_stage('decoding')
         return current_callback_values
     current_metrics_recorder.update_generation_stage('encoding')
@@ -155,7 +133,7 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
         'mode': current_request_record['mode'],
         'sigmas': current_sigma_values.tolist(), 'boundary': .875,
         'switch_step': int((current_pipeline_object.scheduler.timesteps >= 875).sum()),
-        'implementation': 'VideoX-Fun official + GGUF adapter',
+        'implementation': 'VideoX-Fun official BF16',
         'source_revision': VACE_SOURCE_REVISION,
     })
     if not torch.isfinite(current_output_tensor).all():
@@ -173,7 +151,7 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
         current_comparison_root = current_attempt_root / 'comparison-prefix'
         current_comparison_root.mkdir()
         save_video_outputs(current_comparison_root, current_comparison_frames, 16)
-    return {'attempt':current_attempt_root.name,'mode':current_request_record['mode'],'prompt':current_request_record['prompt'],'frames':current_frame_count,'fps':16,'output_sha256':current_output_hashes,'runtime':'VideoX-Fun official + GGUF adapter','source_revision':VACE_SOURCE_REVISION,'model_revision':VACE_MODEL_REVISION,'prompt_words':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'quality_status':'사용자 검수 대기'}
+    return {'attempt':current_attempt_root.name,'mode':current_request_record['mode'],'prompt':current_request_record['prompt'],'frames':current_frame_count,'fps':16,'output_sha256':current_output_hashes,'runtime':'VideoX-Fun official BF16','source_revision':VACE_SOURCE_REVISION,'model_revision':VACE_MODEL_REVISION,'prompt_words':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'quality_status':'사용자 검수 대기'}
 
 
 def build_pose_conditions(current_job_root, current_request_record):

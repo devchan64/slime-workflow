@@ -94,6 +94,8 @@ def estimate_required_memory(service, configured_floor_mib, command_identity_nam
         configured_floor_mib = max(configured_floor_mib, 32768)
     if service == 'image' and isinstance(command_identity_name, str) and command_identity_name.endswith((':offload=none-circular-v1', ':offload=none-full-v1')):
         configured_floor_mib = max(configured_floor_mib, 65536)
+    if service == 'image' and isinstance(command_identity_name, str) and command_identity_name.startswith('wan-vace-bf16:'):
+        configured_floor_mib = max(configured_floor_mib, 81920)
     observations = [record for _,record in load_recent_observations(service, command_identity_name)[:20]]
     summary = summarize_memory_observations(service, observations)
     measured_peak_mib = summary['peak_memory_mib']
@@ -108,6 +110,15 @@ def estimate_required_memory(service, configured_floor_mib, command_identity_nam
 
 def identify_execution_command(command_argument_values, generation_job_directory=None, current_memory_domain=None):
     """이미지는 실행기·해상도·스텝·참조 개수까지 메모리 프로필로 구분한다."""
+    if generation_job_directory is not None and len(command_argument_values)>1 and Path(command_argument_values[1]).parts[-2:] == ('wan_vace','worker.py'):
+        current_request_record = json.loads((Path(generation_job_directory)/'request.json').read_text())
+        if current_request_record.get('model_profile') != 'official-bf16-resident-v1':
+            raise ValueError('폐기된 Q4 VACE 작업은 실행할 수 없습니다.')
+        current_frame_count = current_request_record.get('frames')
+        if type(current_frame_count) is not int or current_frame_count <= 0:
+            raise ValueError('VACE 메모리 예측에 프레임 수가 필요합니다.')
+        current_profile_name = f'wan-vace-bf16:frames={current_frame_count}:offload=none-v1'
+        return current_profile_name + (f':domain={current_memory_domain}' if current_memory_domain else '')
     if generation_job_directory is not None and len(command_argument_values)>1 and Path(command_argument_values[1]).parts[-2:] == ('wan_fun','worker.py'):
         current_request_record = json.loads((Path(generation_job_directory)/'request.json').read_text())
         current_profile_values = [current_request_record.get(current_field_name) for current_field_name in ('width','height','frames')]

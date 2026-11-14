@@ -2,6 +2,7 @@
 import base64
 import io
 import unittest
+from unittest.mock import patch
 from PIL import Image
 from generators.dwpose.contracts import validate_dwpose_request
 from tools.review.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS, MANAGEMENT_SERVICE_ROUTES
@@ -19,6 +20,17 @@ class DwposeGenerationTests(unittest.TestCase):
         for current_invalid_request in (self.make_image_request((480,480)), {**self.make_image_request(),'images':[]}, {**self.make_image_request(),'pose_include_face':1}, {**self.make_image_request(),'unknown':True}):
             with self.assertRaises(ValueError):
                 validate_dwpose_request(current_invalid_request)
+
+    def test_rocm_worker_and_missing_environment(self):
+        from pathlib import Path
+        from tools.review.domains.dwpose import generation
+        current_manager = generation.DwposeGenerationManager()
+        self.assertTrue(current_manager.select_generation_runner().endswith('generators/dwpose/rocm_worker.py'))
+        self.assertEqual(current_manager.select_generation_python(), generation.FUN_PYTHON_EXECUTABLE)
+        with patch.object(generation, 'FUN_PYTHON_EXECUTABLE', Path('/nonexistent/dwpose/python')):
+            self.assertFalse(generation.inspect_dwpose_runtime_status()['ready'])
+            with self.assertRaisesRegex(ValueError, 'ROCm'):
+                current_manager.validate_generation_runtime()
 
     def test_gateway_and_ui_contract(self):
         self.assertEqual(MANAGEMENT_SERVICE_ROUTES['dwpose'],'/dwpose')

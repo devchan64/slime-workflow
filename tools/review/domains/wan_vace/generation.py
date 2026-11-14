@@ -11,6 +11,11 @@ class VaceVideoGenerationManager(ReferenceVideoGenerationManager):
     def __init__(self):
         super().__init__('/wan22-vace', VACE_JOB_STORAGE, 'generators/wan_vace/worker.py', validate_vace_request, validate_vace_assets, self.inspect_model_download)
 
+    def validate_generation_runtime(self, saved_request_record=None):
+        if saved_request_record is not None and saved_request_record.get('model_profile') != 'official-bf16-resident-v1':
+            raise ValueError('폐기된 Q4 작업은 재개할 수 없습니다. 입력을 불러와 새 작업을 생성하세요.')
+        validate_vace_assets()
+
     def inspect_model_download(self):
         current_root_path = Path(__file__).resolve().parents[4]
         current_preparation_status = inspect_registered_preparation(current_root_path, 'wan-vace')

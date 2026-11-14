@@ -6,7 +6,7 @@ Wan Fun 모델과 포즈 가중치는 HTTP 전송을 사용한다. 부분 파일
 
 저장소 루트에서 `python3 -m generators.wan_fun.setup_rocm`을 실행한다. 별도 `.local/venvs/wan-fun-rocm`에 AMD ROCm PyTorch·MIGraphX 환경과 DWPose를 준비한다. 고·저노이즈 BF16 모델, UMT5 FP16, Wan2.1 VAE는 고정 리비전에서 받아 크기와 SHA-256을 검증한다. 고정 커밋의 ComfyUI 의존성을 설치하며 기존 소스에 수정 사항이나 다른 커밋이 있으면 중단한다. 로그는 `.tmp/management-launcher-logs/`와 `.tmp/test/wan22-fun-control-prepare/`에 저장한다.
 
-모델 가중치는 BF16으로 GPU에 직접 적재하고 고·저노이즈 모델을 순차 실행한다. 직접 적재 전 GPU 여유가 가중치 파일 크기의 두 배에 4GiB를 더한 값보다 작으면 실패한다. gfx1151에서 긴 self-attention은 여유 GPU 메모리가 있을 때 연속 배치를 사용하며, 여유 부족이나 복사 OOM에는 원래 배치로 실행한다. 입력·출력의 NaN과 무한대는 실패로 처리한다. 진단 시 `SLIME_WAN_ATTENTION_PROFILE=1`을 설정하면 실행 시도 폴더의 `attention-profile.jsonl`에 앞쪽 attention 호출의 GPU 동기화 시간과 첫 커널을 기록한다.
+고·저노이즈 모델은 비양자화 BF16으로 GPU에 직접 적재하고 순차 실행·해제한다. UMT5 FP16과 VAE도 GPU 전용으로 실행하며 모델·레이어 CPU 오프로드를 사용하지 않는다. 파일 로딩 중 일시적인 호스트 메모리 사용은 가능하다. 직접 적재 전 GPU 여유가 가중치 파일 크기의 두 배에 4GiB를 더한 값보다 작으면 실패하며, 그 밖의 GPU 메모리 부족도 오프로드로 우회하지 않는다. gfx1151에서 긴 self-attention은 여유 GPU 메모리가 있을 때 연속 배치를 사용하며, 여유 부족이나 복사 OOM에는 원래 배치로 실행한다. 입력·출력의 NaN과 무한대는 실패로 처리한다. 진단 시 `SLIME_WAN_ATTENTION_PROFILE=1`을 설정하면 실행 시도 폴더의 `attention-profile.jsonl`에 앞쪽 attention 호출의 GPU 동기화 시간과 첫 커널을 기록한다.
 
 참조·포즈 인코딩과 결과 디코딩은 일반 ComfyUI VAE로 고정한다.
 타일 VAE 실행·UI 선택은 제거했으며 OOM 시 자동 타일 대체 없이 명시적으로 실패한다.

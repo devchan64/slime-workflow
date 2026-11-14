@@ -19,7 +19,7 @@ VACE_INPUT_CHOICES = [('키모도 DWPose 영상 + 캐릭터 참조', 'pose'), ('
 
 
 VACE_MODE_HELP_TEXT = {
-    'video_condition': '**영상 전체 조건 · 실험**\n\n원본 RGB MP4와 캐릭터 참조 이미지 1장을 입력합니다. 전체 검정 마스크를 모델에 전달해 영상 전체를 조건으로 사용합니다. 원본과 자동 합성하지 않으며 자세·외형 보존 및 일관성 개선은 보장되지 않습니다. 영상은 832×480·16fps·32MiB 이하이며 출력 길이 이상이어야 합니다. 8GB 실행·품질은 별도 검수합니다.',
+    'video_condition': '**영상 전체 조건 · 실험**\n\n원본 RGB MP4와 캐릭터 참조 이미지 1장을 입력합니다. 전체 검정 마스크를 모델에 전달해 영상 전체를 조건으로 사용합니다. 원본과 자동 합성하지 않으며 자세·외형 보존 및 일관성 개선은 보장되지 않습니다. 영상은 832×480·16fps·32MiB 이하이며 출력 길이 이상이어야 합니다. 비양자화 GPU 실행·품질은 별도 검수합니다.',
     'pose': '**포즈 동작 따라 생성**\n\n1. 캐릭터 외형 참조 이미지 1장을 첨부합니다.\n2. 키모도 결과의 DWPose MP4를 첨부합니다. SOMA 렌더나 완성 캐릭터 영상이 아닙니다.\n3. 원하는 동작을 짧게 적고 출력 프레임을 영상 길이 이내의 4n+1로 설정합니다.\n\n포즈 재추출 없이 동작 조건으로 사용합니다. 편집 마스크는 필요 없습니다. 영상은 832×480·16fps·32MiB 이하이며 부족한 프레임을 반복하지 않습니다.',
     'video_edit': '**기존 영상의 일부 다시 그리기**\n\n1. 바꾸려는 캐릭터의 외형 참조 이미지 1장을 첨부합니다.\n2. 완성된 원본 MP4와 같은 좌표·길이의 마스크 MP4를 첨부합니다.\n3. 바꾸려는 내용을 프롬프트로 적습니다.\n\n흰색은 재생성, 검정은 원본 보존 조건입니다. 두 영상 모두 832×480·16fps·32MiB 이하이며 출력 길이 이상이어야 합니다. 마스크 밖도 달라질 수 있으며 원본과 자동 합성하지 않습니다.',
     'reference': '**캐릭터 외형을 참고해 새 영상 생성**\n\n1. 외형 참조 이미지 1장을 첨부합니다.\n2. 주체·동작·카메라를 짧게 적습니다.\n3. 출력 프레임과 스텝을 선택합니다.\n\n이미지는 외형 조건이며 첫 화면이나 동작을 고정하지 않습니다. 동작을 지정한 영상대로 따라가려면 포즈 모드를 사용하세요.',
@@ -163,13 +163,13 @@ def build_vace_interface(current_server_address, current_command_callback=None):
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 앞을 보며 같은 방향으로 걷기 | The character walks while looking ahead, maintaining the same heading. Show the full body. | 14 / 14 · 추가 문구 없음 | 없음 | 외형 참조 1장 (R2V) | 832×480 | 81 / 16 | 30 | 42 | 5 | 12 | 1 |
 
-기준 생성 ID: `2026-10-28_21-53-52-058bb9fb` · VACE-Fun A14B Q4_K_M · UMT5 BF16 비양자화 · Wan2.1 VAE · Euler/FlowMatch · 전문가 경계 0.875.
+과거 Q4 예시 생성 ID: `2026-10-28_21-53-52-058bb9fb` · VACE-Fun A14B Q4_K_M · UMT5 BF16 비양자화 · Wan2.1 VAE · Euler/FlowMatch · 전문가 경계 0.875.
 ''')
         with gr.Accordion('부정 프롬프트', open=False):
             current_negative_control = gr.Textbox(label='부정 프롬프트', value='', info='필요한 제외 항목만 입력하세요. 자동으로 문구를 추가하지 않습니다.')
             current_negative_summary = gr.Markdown('원문 0단어 · 최종 0단어')
             current_negative_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어', current_negative_control, current_negative_summary, queue=False)
-        gr.Markdown('고정: VACE-Fun A14B 고·저노이즈 Q4_K_M · UMT5 BF16 비양자화 · Wan2.1 VAE · 832×480 · 16fps · Euler/FlowMatch · 전문가 경계 0.875 · CUDA 연산/CPU 가중치 오프로드. LoRA는 사용하지 않습니다.')
+        gr.Markdown('고정: VACE-Fun A14B 고·저노이즈 BF16 · UMT5 BF16 · Wan2.1 VAE · 832×480 · 16fps · Euler/FlowMatch · 전문가 경계 0.875 · AMD GPU 상주, CPU 오프로드 없음. LoRA는 사용하지 않습니다.')
         current_count_control = gr.Number(value=VACE_DEFAULT_SETTINGS['frames'], precision=0, minimum=5, maximum=129, step=4, label='출력 프레임', info='5~129의 4n+1. 81 초과는 장영상 실험 범위입니다. 로컬 기본 21장, 제작자 학습·예제는 81장/16fps. 프레임이 늘면 계산·메모리 요구량이 증가합니다.')
         current_duration_output = gr.Markdown(describe_video_frame_duration(VACE_DEFAULT_SETTINGS['frames']))
         current_count_control.change(describe_video_frame_duration, current_count_control, current_duration_output, queue=False)
@@ -180,7 +180,7 @@ def build_vace_interface(current_server_address, current_command_callback=None):
             current_shift_control = gr.Number(value=VACE_DEFAULT_SETTINGS['flow_shift'], minimum=0.1, maximum=20, label='Flow shift', info='제작자 Flow 설정 12. 노이즈 시간 배분을 바꾸며 고·저노이즈 단계 수에도 영향을 줍니다.')
             current_guidance_control = gr.Number(value=VACE_DEFAULT_SETTINGS['guidance_scale'], minimum=1, maximum=10, label='CFG', info='제작자 예제 5. 텍스트 유도 강도이며 동작량 조절값은 아닙니다.')
             current_strength_control = gr.Number(value=VACE_DEFAULT_SETTINGS['reference_strength'], minimum=0.1, maximum=2, label='VACE 조건 강도', info='제작자 기본 1. 외형 참조·첫 프레임 조건의 영향입니다. 크게 올려도 보존·동작 개선을 보장하지 않습니다.')
-            gr.Markdown('**검증 범위:** 공식 VideoX-Fun 파이프라인에 기존 Q4_K_M 가중치를 독립 GGUF 어댑터로 연결합니다. 텍스트 인코더는 비양자화 BF16이며 ComfyUI를 사용하지 않습니다. 원본 구현과 동일한 결과나 8GB의 모든 길이 실행을 보장하지 않습니다.\n\n[모델카드](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B) · [제작자 외형 참조 예제](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/examples/wan2.2_vace_fun/predict_s2v.py) · [제작자 첫 프레임 예제](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/examples/wan2.2_vace_fun/predict_i2v.py)')
+            gr.Markdown('**검증 범위:** 공식 VideoX-Fun과 비양자화 BF16 가중치를 사용합니다. AMD GPU 전체 생성과 메모리 사용량은 검증되지 않았습니다.\n\n[모델카드](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B) · [제작자 외형 참조 예제](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/examples/wan2.2_vace_fun/predict_s2v.py) · [제작자 첫 프레임 예제](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/examples/wan2.2_vace_fun/predict_i2v.py)')
         current_input_controls = [current_mode_control,current_reference_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_strength_control,current_edit_video,current_edit_mask,current_pose_video]
         current_generate_button = gr.Button('대기열에 추가', variant='primary', interactive=False)
         build_button_guidance(current_generate_button, '모델 준비 상태를 확인하고 모드별 안내에 표시된 필수 첨부와 프롬프트를 입력하세요.')

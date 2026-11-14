@@ -30,6 +30,32 @@ class VaceVideoContractTests(unittest.TestCase):
             with self.subTest(field=current_field_name),self.assertRaises(ValueError):
                 validate_vace_request({**self.current_request_record,current_field_name:current_field_value})
 
+    def test_retired_q4_jobs_cannot_resume(self):
+        from tools.review.domains.wan_vace.generation import VaceVideoGenerationManager
+        current_service_instance = VaceVideoGenerationManager()
+        with patch('tools.review.domains.wan_vace.generation.validate_vace_assets') as current_assets_mock:
+            with self.assertRaisesRegex(ValueError, 'Q4'):
+                current_service_instance.validate_generation_runtime({'tag': 'wan22-vace'})
+            current_assets_mock.assert_not_called()
+            current_validated_record = validate_vace_request(self.current_request_record)
+            self.assertEqual(current_validated_record['model_profile'], 'official-bf16-resident-v1')
+            current_service_instance.validate_generation_runtime(current_validated_record)
+            current_assets_mock.assert_called_once()
+
+    def test_bf16_memory_profile_excludes_retired_q4_observations(self):
+        import json
+        from tools.review.common.gpu_memory_history import identify_execution_command, estimate_required_memory
+        with tempfile.TemporaryDirectory() as current_temp_root:
+            current_job_path = Path(current_temp_root)
+            (current_job_path / 'request.json').write_text(json.dumps({'frames': 21, 'model_profile': 'official-bf16-resident-v1'}))
+            current_profile_name = identify_execution_command(['python', 'generators/wan_vace/worker.py'], current_job_path, 'gtt')
+            self.assertEqual(current_profile_name, 'wan-vace-bf16:frames=21:offload=none-v1:domain=gtt')
+            with patch('tools.review.common.gpu_memory_history.load_recent_observations', return_value=[]):
+                self.assertEqual(estimate_required_memory('image', 6144, current_profile_name)['required_memory_mib'], 81920)
+            (current_job_path / 'request.json').write_text(json.dumps({'frames': 21}))
+            with self.assertRaisesRegex(ValueError, 'Q4'):
+                identify_execution_command(['python', 'generators/wan_vace/worker.py'], current_job_path, 'gtt')
+
     def test_boundary_is_sigma_not_step_ratio(self):
         self.assertEqual(locate_expert_switch([1,.95,.875,.8,.4,0]),3)
         self.assertEqual(locate_expert_switch([1,.1,0]),1)

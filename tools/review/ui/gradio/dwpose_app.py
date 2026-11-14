@@ -36,7 +36,7 @@ def build_dwpose_interface(current_server_address, current_command_callback=None
         current_image_control = gr.File(label='입력 PNG · 832×480', file_types=['.png'], type='filepath')
         current_hands_control = gr.Checkbox(label='손 상세 표시', value=False)
         current_face_control = gr.Checkbox(label='얼굴 상세 표시', value=False)
-        gr.Markdown('CUDA 추론 · 공용 GPU 대기열 사용 · 프롬프트·시드 없음. 결과 ZIP은 포즈 PNG와 원본 픽셀 좌표·신뢰도 YAML을 포함합니다. 기준 데이터 등록은 검수 후 별도로 수행합니다.')
+        gr.Markdown('AMD ROCm MIGraphX 추론 · 공용 GPU 대기열 사용 · 프롬프트·시드 없음. 결과 ZIP은 포즈 PNG와 원본 픽셀 좌표·신뢰도 YAML을 포함합니다. 기준 데이터 등록은 검수 후 별도로 수행합니다.')
         current_model_output = gr.Markdown()
         def read_dwpose_model_status():
             try:

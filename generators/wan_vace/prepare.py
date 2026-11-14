@@ -1,4 +1,4 @@
-"""고정 Q4 확산 모델과 BF16 텍스트 인코더를 다운로드하고 SHA-256으로 검증한다. GPU 추론은 실행하지 않는다."""
+"""공식 BF16 확산 모델과 텍스트 인코더를 다운로드하고 SHA-256으로 검증한다. GPU 추론은 실행하지 않는다."""
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import json
@@ -47,7 +47,7 @@ def execute_vace_preparation(current_shared_record):
             current_model_path = VACE_WORKSPACE_ROOT / current_model_name
             current_model_path.parent.mkdir(parents=True, exist_ok=True)
             current_partial_path = current_model_path.with_suffix('.partial')
-            current_remote_name = current_model_path.relative_to(VACE_WORKSPACE_ROOT / '.model/wan22-vace').as_posix()
+            current_remote_name = current_model_path.relative_to(VACE_WORKSPACE_ROOT / ('.model/wan22-vace-official' if current_model_key in ('high', 'low') else '.model/wan22-vace')).as_posix()
             current_remote_url = f'https://huggingface.co/{VACE_MODEL_IDENTIFIER}/resolve/{VACE_MODEL_REVISION}/{current_remote_name}'
             if current_model_key in VACE_ENCODER_REMOTE_FILES:
                 current_remote_url = f'https://huggingface.co/{VACE_ENCODER_IDENTIFIER}/resolve/{VACE_ENCODER_REVISION}/{VACE_ENCODER_REMOTE_FILES[current_model_key]}'

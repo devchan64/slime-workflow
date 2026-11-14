@@ -126,6 +126,8 @@ GUI와 CLI는 서비스별 동일한 작업·이력을 조회하며 서로 다�
 
 ## Qwen 이미지 생성
 
+표정 생성에 필요한 `Qwen2.1_Anime_consistency.safetensors`는 **모델 관리 → Qwen 2.1 표정 LoRA**에서 다운로드한다. 공개 배포본 `WarmBloodAban/Qwen-Image-2.1-LoRAs`의 `90abd1e` 리비전을 사용하며 SHA-256 검증 후 기존 모델 경로에 설치한다. 다운로드는 중단 시 재개할 수 있고 기존 파일의 해시가 다르면 덮어쓰지 않고 오류를 표시한다. 기본 Qwen 2.1 모델과 실행 환경은 별도로 준비한다. CLI는 `python3 tools/manager.py command expression-lora model-status`와 `python3 tools/manager.py command expression-lora prepare`를 사용한다.
+
 Qwen Image 2512와 Qwen Image Edit 2511 생성기는 폐기되었다. 2512의 신규 모델 준비·생성·재개는 차단하며 모델 파일과 기존 이력은 삭제하지 않는다. 2512 이력과 종료된 작업의 결과·로그 조회 및 명시적인 수동 삭제는 공용 게이트웨이에서 가능하다. 2511의 과거 독립 생성 기록 접근은 지원하지 않는다. 이미지 생성과 표정 생성은 Qwen Image 2.1을 사용한다.
 
 ```bash
@@ -917,11 +919,11 @@ GUI와 CLI는 `map-assets effect-list`, `effect-load`, `effect-save`를 공유�
 
 `/management/frame/wan22-vace-generator/`와 `wan22-vace` 서비스는 같은 대기열·이력 계약을 사용한다. `text`는 이미지 없이 생성하고, `reference`는 외형 참조 1장을 별도 잠재 슬롯으로 전달한 뒤 출력 전에 제거한다. `first_frame`은 이미지 1장을 첫 프레임 조건으로, 첫 프레임 0/나머지 1 마스크와 함께 전달한다. 첫 프레임 조건은 픽셀 완전 일치 보장이 아니다. `video_edit`는 원본 MP4·흰색 편집 마스크·외형 참조 1장을 사용한다. 영상·마스크는 832×480·16fps이며 각 32MiB 이하, 요청 길이 이상이어야 한다. 다중 주체는 지원하지 않는다.
 
-모델은 `QuantStack/Wan2.2-VACE-Fun-A14B-GGUF` revision `93b339260b1d819e2c171dd7ca9e66a761d4a84d`의 고·저노이즈 Q4_K_M으로 고정한다. 모델명은 입력받지 않는다. `.venv/bin/python -m generators.wan_vace.prepare`는 전용 파일 2개(총 23,278,907,200바이트)를 `.model/wan22-vace/`에 다운로드하고 크기·SHA-256을 검증한다. 준비 실행은 GPU 접근 정책에 따라 샌드박스 밖에서 수행한다. 준비 기록은 `.tmp/test/wan22-vace-prepare/<시각>/`에 저장한다. 텍스트 인코더는 제작자 원본 UMT5 BF16을 양자화 없이 사용한다. 원본 인코더와 SentencePiece 토크나이저는 `alibaba-pai/Wan2.2-VACE-Fun-A14B` revision `4438caabbfdd7437bbb0283d86cb200d1b7223ba`에서 받아 크기·SHA-256을 검증하며 약 11.37GB가 추가된다. 공식 인코더에 원본 가중치를 strict 로드한다. CUDA에서 연산하고 CPU RAM에는 가중치만 오프로드한다. 기존 Wan2.1 VAE를 공식 모델에 로드하고 공식 VideoX-Fun 소스·토크나이저를 고정 해시로 준비한다. ComfyUI 실행 의존성은 제거했다. 아래 기존 실행 검증은 변경 전 UMT5 Q4 기준이다.
+모델은 공식 `alibaba-pai/Wan2.2-VACE-Fun-A14B` revision `4438caabbfdd7437bbb0283d86cb200d1b7223ba`의 BF16 고·저노이즈 전문가로 고정한다. Q4 생성과 재개는 폐기하고 이력은 보존한다. `.venv/bin/python -m generators.wan_vace.prepare`는 전문가 두 파일(총 69,350,650,000바이트), BF16 인코더, VAE와 공식 소스·토크나이저를 준비하고 고정 해시를 검증한다. 모델과 활성값은 AMD GPU에 상주하며 CPU 오프로드나 자동 양자화 대체를 하지 않는다. 비양자화 전체 추론과 품질은 아직 검증되지 않았다.
 
 공용 CLI는 `tools/manager.py command wan22-vace generate --payload-file <요청.json> --detach`이다. 필수 필드는 `action: generate`, `mode: text|reference|first_frame|video_edit|video_condition|pose`, `prompt`, `negative_prompt`, `images`, `width: 832`, `height: 480`, `frames`, `steps`, `seed`, `flow_shift`, `guidance_scale`, `reference_strength`이다. `images`는 text에서 빈 목록, 다른 모드에서 불투명 832×480 PNG base64 1장이다. GUI는 원본 비율을 유지하고 흰 여백을 합성한다. `video_edit`에는 `edit_video`, `edit_mask` MP4 base64가 필요하다. `video_condition` 실험에는 `edit_video`만 필요하며 전체 검정 마스크를 모델에 전달한다. 원본 보존과 품질 개선은 보장하지 않는다. `pose`에서는 `pose_video` MP4 base64와 참조 PNG 1장을 사용하며 편집 마스크 필드는 받지 않는다. 키모도 DWPose 영상은 832×480·16fps, 32MiB 이하, 요청 프레임 이상이어야 하며 재추출하지 않는다. GUI 검증의 내부 tag를 API 요청에 추가하지 않는다.
 
-로컬 기본은 외형 참조·21프레임·50스텝·seed 42·shift 12·CFG 5·조건 강도 1이다. 프레임 5~129의 4n+1 (81 초과는 장영상 실험 범위), 스텝 2~100, shift 0.1~20, CFG 1~10, 조건 강도 0.1~2를 허용한다. 제작자 `VideoX-Fun` revision `13bb3c625e8b1e457d7124d92207b49e00e4a6fe`의 `examples/wan2.2_vace_fun/predict_s2v.py`, `predict_i2v.py`, `config/wan2.2/wan_civitai_t2v.yaml`을 기준으로 FlowMatchEuler 스케줄과 노이즈 경계 0.875를 적용한다. 이는 전체 스텝의 87.5%라는 의미가 아니다. 노이즈 수준으로 전환 지점을 구하고 고·저노이즈 전문가를 순차 로드한다. 텍스트 인코더·VAE·확산 연산은 CUDA이며 CPU는 가중치 대기에 사용한다. 공식 파이프라인에 독립 GGUF 어댑터를 연결하며 기존 양자화 리비전은 유지한다. 공식 VACE 잠재 텐서 오프로드를 사용하고 디코딩 전에 확산 가중치를 CPU로 내린다.
+로컬 기본은 외형 참조·21프레임·50스텝·seed 42·shift 12·CFG 5·조건 강도 1이다. 프레임 5~129의 4n+1 (81 초과는 장영상 실험 범위), 스텝 2~100, shift 0.1~20, CFG 1~10, 조건 강도 0.1~2를 허용한다. 제작자 `VideoX-Fun` revision `13bb3c625e8b1e457d7124d92207b49e00e4a6fe`의 `examples/wan2.2_vace_fun/predict_s2v.py`, `predict_i2v.py`, `config/wan2.2/wan_civitai_t2v.yaml`을 기준으로 FlowMatchEuler 스케줄과 노이즈 경계 0.875를 적용한다. 이는 전체 스텝의 87.5%라는 의미가 아니다. 노이즈 수준으로 전환 지점을 구하고 GPU에 상주하는 고·저노이즈 전문가를 선택한다. 텍스트 인코더·VAE·확산 연산은 AMD ROCm GPU에서 수행한다.
 
 작업 입력·시도별 요청·프롬프트 원문/단어 수/해시·가중치 선택·실제 sigma 배열·전환 지점·VRAM·예상 시간·결과 MP4/PNG ZIP은 `.tmp/test/wan22-vace/`에 보존한다. `status`, `logs`, `history`, `active`, `model-status`, `cancel`, `resume`, `prioritize`, `history-delete`, `history-reset-preview`, `history-reset`은 공용 게이트웨이 계약을 사용한다. 이력 삭제는 모델이나 외부 입력 원본을 삭제하지 않는다. 영상은 16fps이며 공식 VAE의 시간축 캐시를 유지한다. 별도의 시간축 타일 래퍼는 사용하지 않는다. 모델 파일 준비·최소 실행·81프레임 품질 검수는 각각 구분한다.
 
@@ -1100,13 +1102,13 @@ Fun Control의 폐기된 RGB 편집 입력과 구분한다. GUI·CLI는 같은 �
 
 ## 단일 이미지 DWPose 추출
 
-서비스 `dwpose`, 화면 `/management/frame/dwpose-generator/`는 832×480 PNG 한 장을 공용 GPU 대기열에서 처리한다. Kimodo에서 사용하는 고정 VideoX-Fun DWPose 가중치를 재사용하며 CUDA에서만 추론한다. 원본 이미지에 축소·비율 보정은 적용하지 않는다. 몸 18점은 눈·코·귀를 포함하며 손·얼굴 상세 렌더링은 기본 비활성이다.
+서비스 `dwpose`, 화면 `/management/frame/dwpose-generator/`는 832×480 PNG 한 장을 공용 GPU 대기열에서 처리한다. Kimodo에서 사용하는 고정 VideoX-Fun DWPose 가중치와 Wan Fun Control ROCm 환경을 재사용하며 ONNX Runtime MIGraphX로 AMD GPU에서 추론한다. 원본 이미지에 축소·비율 보정은 적용하지 않는다. 몸 18점은 눈·코·귀를 포함하며 손·얼굴 상세 렌더링은 기본 비활성이다.
 
 ` .venv/bin/python tools/manager.py command dwpose generate --detach --payload-file request.json`으로 접수한다. JSON 계약은 `action: "generate"`, `images: ["PNG base64"]`, 선택 bool `pose_include_hands`, `pose_include_face`이다. `status <ID>`, `logs <ID>`, `history`, `resume`, `prioritize`, `cancel`, `history-delete`, `history-reset`은 공용 명령을 따른다. 입력·결과·로그는 `.tmp/test/dwpose/<ID>/`에 보존한다.
 
 결과 ZIP에는 `output-000.png`와 `keypoints.yaml`이 들어간다. YAML의 `body_keypoints`는 원본 832×480 픽셀 좌표이며 `poses`는 검출 입력 크기의 원시 좌표다. 검출 실패 점은 null로 보존한다. 원본·출력 SHA-256, 모델 리비전과 검출 신뢰도를 기록한다. 공용 결과 계약용 단일 프레임 MP4도 보존한다. 완료 결과를 베이스라인에 등록하는 것은 별도 검수·복사 작업이다. 새 GPU 작업 서비스는 공용 실행기의 대기·진행·ETA·VRAM 관측 기록을 사용한다.
 
-런타임 ONNX Runtime은 `generators/dwpose/requirements-runtime.txt`의 CUDA 12 계열 버전을 사용한다. CUDA 13 전용 패키지로 임의 업그레이드하면 현재 PyTorch CUDA 12.8 라이브러리와 맞지 않아 CPU 대체 차단 상태에서 세션 초기화가 실패한다.
+모델 관리의 Wan Fun Control 준비에서 공용 DWPose 모델과 `.local/venvs/wan-fun-rocm` 실행 환경을 준비한다. ONNX Runtime MIGraphX GPU 공급자를 사용하며 CPU 추론으로 대체하지 않는다. 기존 `.cuda.onnx` 파일명은 과거부터 사용한 고정 형상 모델 파일명이며 CUDA 실행 공급자를 사용한다는 뜻이 아니다.
 
 ### 결계탑 공용 앵커·크기 편집
 

@@ -80,6 +80,7 @@ def build_model_download_controls(current_interface_blocks, current_execute_comm
 
 MODEL_DOWNLOAD_PREFIXES = {
     'prop-generator': ('Qwen/Qwen-Image-2.1',),
+    'expression-lora': ('WarmBloodAban/Qwen-Image-2.1-LoRAs',),
     'kimodo': ('nvidia/Kimodo', 'McGill-NLP/LLM2Vec', 'ollama/llama3', 'Wan-AI/Wan2.2-Animate-14B'),
     'wan22-animate2': ('Wan-AI/Wan2.2-Animate-2-14B-Diffusers',),
     'wan22-fun-control': ('Comfy-Org/Wan-2.2', 'Comfy-Org/Wan-2.1', 'yzd-v/DWPose'),

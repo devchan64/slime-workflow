@@ -22,6 +22,31 @@ def validate_expression_adapter():
     return EXPRESSION_ADAPTER_PATH
 
 
+
+def download_expression_adapter():
+    """공개 배포본을 임시 경로에서 검증한 뒤 기존 원본 경로에 설치한다."""
+    import os
+    from tools.review.common.model_huggingface_download import tracked_hf_hub_download
+    if EXPRESSION_ADAPTER_PATH.exists():
+        return validate_expression_adapter()
+    EXPRESSION_ADAPTER_PATH.parent.mkdir(parents=True, exist_ok=True)
+    current_download_root = WORKFLOW_ROOT_PATH / '.local/model-preparation/expression-lora/download'
+    current_download_root.mkdir(parents=True, exist_ok=True)
+    current_download_path = tracked_hf_hub_download(repo_id='WarmBloodAban/Qwen-Image-2.1-LoRAs',
+        revision='90abd1e', filename=EXPRESSION_ADAPTER_PATH.name, local_dir=str(current_download_root))
+    current_download_hash = hashlib.sha256()
+    with open(current_download_path, 'rb') as current_download_file:
+        for current_file_block in iter(lambda: current_download_file.read(1024 * 1024), b''):
+            current_download_hash.update(current_file_block)
+    if current_download_hash.hexdigest() != EXPRESSION_ADAPTER_SHA256:
+        raise ValueError('표정 LoRA 다운로드 해시가 일치하지 않습니다.')
+    try:
+        os.link(current_download_path, EXPRESSION_ADAPTER_PATH)
+    except FileExistsError:
+        return validate_expression_adapter()
+
+    return validate_expression_adapter()
+
 def expression_adapter_metadata():
     return {'repository': EXPRESSION_ADAPTER_REPOSITORY, 'revision': EXPRESSION_ADAPTER_REVISION, 'filename': EXPRESSION_ADAPTER_PATH.name, 'sha256': EXPRESSION_ADAPTER_SHA256, 'scale': EXPRESSION_ADAPTER_SCALE}
 

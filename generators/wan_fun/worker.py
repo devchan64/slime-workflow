@@ -40,6 +40,8 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     # 두 노이즈 모델은 순차 실행하며 사용 가능한 GPU 메모리에 우선 적재한다.
     comfy.cli_args.args.lowvram = False
     comfy.cli_args.args.highvram = True
+    comfy.cli_args.args.gpu_only = True
+    comfy.cli_args.args.cpu_vae = False
     comfy.cli_args.args.bf16_unet = True
     import nodes, folder_paths, comfy.model_management, comfy.sample, comfy.sd, comfy.utils, comfy.supported_models
     import comfy.ops
@@ -60,8 +62,8 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
         folder_paths.add_model_folder_path(current_folder_name, str(FUN_WORKSPACE_ROOT / current_folder_path))
     current_metrics_recorder.update_generation_stage('load')
     current_text_encoder = nodes.CLIPLoader().load_clip('umt5_xxl_fp16.safetensors', type='wan')[0]
-    if current_text_encoder.patcher.load_device.type != 'cuda':
-        raise RuntimeError('텍스트 인코더 CUDA 설정 오류')
+    if current_text_encoder.patcher.load_device.type != 'cuda' or current_text_encoder.patcher.offload_device.type != 'cuda':
+        raise RuntimeError('텍스트 인코더는 GPU 전용이어야 합니다.')
     positive_condition_data = nodes.CLIPTextEncode().encode(current_text_encoder, current_request_record['prompt'])[0]
     negative_condition_data = nodes.CLIPTextEncode().encode(current_text_encoder, current_request_record['negative_prompt'])[0]
     comfy.model_management.unload_all_models()
@@ -70,6 +72,8 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     comfy.model_management.soft_empty_cache()
     current_metrics_recorder.update_generation_stage('encoding')
     current_vae_model = nodes.VAELoader().load_vae('wan_2.1_vae.safetensors')[0]
+    if current_vae_model.device.type != 'cuda' or current_vae_model.patcher.offload_device.type != 'cuda':
+        raise RuntimeError('VAE는 GPU 전용이어야 합니다.')
     from generators.wan_fun.vae_diagnostic import disable_vae_tiled_fallback
     disable_vae_tiled_fallback(current_vae_model)
     write_record_atomically(current_attempt_root / 'encode-policy.json', {
@@ -90,16 +94,32 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     write_record_atomically(current_attempt_root / 'conditioning.json', {'input_mode': current_request_record.get('input_mode', 'controlled'), 'control_video_present': True, 'control_type': current_request_record['control_type'], 'reference_mode': 'reference_latents', 'face_video': False, 'switch_step': current_switch_step, 'sampler': 'euler', 'scheduler': 'simple', 'model_revision': FUN_MODEL_REVISION, 'tiled_vae': False})
     current_latent_tensor = current_latent_record['samples']
     current_noise_tensor = comfy.sample.prepare_noise(current_latent_tensor, current_request_record['seed'])
+    from generators.wan_fun.numerical_diagnostics import fingerprint_fun_tensor
+    current_condition_metadata = positive_condition_data[0][1]
+    write_record_atomically(current_attempt_root / 'conditioning-fingerprints.json', {
+        current_tensor_name: fingerprint_fun_tensor(torch, current_tensor_value)
+        for current_tensor_name, current_tensor_value in (
+            ('positive_text', positive_condition_data[0][0]),
+            ('negative_text', negative_condition_data[0][0]),
+            ('reference_latent', current_condition_metadata['reference_latents'][0]),
+            ('control_latent', current_condition_metadata['concat_latent_image']),
+            ('initial_noise', current_noise_tensor),
+        )
+    })
     for current_model_stage, current_start_step, current_end_step in [('high', 0, current_switch_step), ('low', current_switch_step, current_step_total)]:
         current_metrics_recorder.update_generation_stage('load')
         current_model_relative = Path(FUN_MODEL_FILES[current_model_stage][0]).name
         from generators.wan_fun.gpu_direct_loader import load_fun_gpu_unet
         current_diffusion_model = load_fun_gpu_unet(torch, folder_paths, comfy.sd, comfy.utils, comfy.supported_models, current_model_relative)
+        if current_diffusion_model.load_device.type != 'cuda' or current_diffusion_model.offload_device.type != 'cuda':
+            raise RuntimeError('확산 모델은 GPU 전용이어야 합니다.')
         current_diffusion_model = ModelSamplingSD3().patch(current_diffusion_model, current_request_record['flow_shift'])[0]
         current_metrics_recorder.update_generation_stage('inference')
         def record_fun_step(current_step_index, current_denoised_tensor, current_sample_tensor, current_stage_total):
             # ROCm 커널 제출만 끝난 상태를 완료된 스텝으로 기록하지 않는다.
             torch.cuda.synchronize()
+            from generators.wan_fun.numerical_diagnostics import record_fun_numerical_step
+            record_fun_numerical_step(torch, current_attempt_root, current_model_stage, current_start_step + current_step_index + 1, current_denoised_tensor, current_sample_tensor)
             current_metrics_recorder.record_generation_step(current_start_step + current_step_index + 1)
         current_latent_tensor = comfy.sample.sample(current_diffusion_model, current_noise_tensor if current_start_step == 0 else torch.zeros_like(current_noise_tensor), current_step_total, current_request_record['guidance_scale'], 'euler', 'simple', positive_condition_data, negative_condition_data, current_latent_tensor, denoise=1.0, disable_noise=current_start_step != 0, start_step=current_start_step, last_step=current_end_step, force_full_denoise=current_end_step == current_step_total, callback=record_fun_step, seed=current_request_record['seed'])
         if not torch.isfinite(current_latent_tensor).all().item():

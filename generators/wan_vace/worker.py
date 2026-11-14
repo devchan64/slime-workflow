@@ -1,4 +1,4 @@
-"""VACE-Fun Q4 고·저노이즈 전문가를 CUDA에서 순차 실행한다."""
+"""VACE-Fun 공식 BF16 전문가를 AMD GPU에서 실행한다."""
 from pathlib import Path
 import sys
 import os
@@ -24,8 +24,9 @@ def build_vace_conditions(current_request_record, current_reference_tensor):
 
 
 def execute_vace_inference(current_job_root, current_attempt_root, current_request_record, current_metrics_recorder):
-    """공식 파이프라인과 고정 GGUF 어댑터로 실행한다."""
-    os.environ['PYTORCH_ALLOC_CONF'] = 'expandable_segments:True'
+    """공식 비양자화 파이프라인으로 실행한다."""
+    if current_request_record.get('model_profile') != 'official-bf16-resident-v1':
+        raise ValueError('폐기된 Q4 작업은 재실행할 수 없습니다. 새 작업을 생성하세요.')
     from generators.wan_vace.official_runtime import execute_official_inference
     from generators.wan_vace.memory_diagnostics import record_cuda_memory_failure
     with record_cuda_memory_failure(current_attempt_root):

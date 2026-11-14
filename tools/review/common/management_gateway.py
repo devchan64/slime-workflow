@@ -81,6 +81,8 @@ for current_service_name in ('billboard-generator','prop-generator', 'vegetation
     MANAGEMENT_SERVICE_COMMANDS[current_service_name] = MANAGEMENT_SERVICE_COMMANDS['qwen-21']
 
 MANAGEMENT_SERVICE_COMMANDS['prop-generator'] += ('prepare',)
+MANAGEMENT_SERVICE_ROUTES['expression-lora'] = '/expression-lora'
+MANAGEMENT_SERVICE_COMMANDS['expression-lora'] = ('model-status', 'prepare')
 
 MANAGEMENT_SERVICE_ROUTES['building-generator'] = '/building-generator'
 MANAGEMENT_SERVICE_COMMANDS['building-generator'] = MANAGEMENT_SERVICE_COMMANDS['qwen-21']
@@ -134,6 +136,8 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('MIGraphX 빌드 명령은 입력 필드를 받지 않습니다.')
     if operation_command_name in ('history-reset-preview','writer-state','download-status','download-inventory','download-model','download-model-status') and command_payload_value:
         raise ValueError('초기화 미리보기는 입력 필드를 받지 않습니다.')
+    if service_command_name == 'expression-lora' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
+        raise ValueError('표정 LoRA 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'prop-generator' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'wan22-fun-control' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
@@ -250,7 +254,7 @@ class ManagementCommandGateway:
         return True
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'qwen-21-circular': 'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수', 'qwen-21': 'Qwen Image 2.1 · 공용 화풍·투명 배경 선택 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)', 'seamless-tile': 'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능', 'expression': 'Qwen 2.1 Anime consistency AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정', 'floor-tile': '바닥 타일 생성기 폐기 · 기존 이력 조회·삭제 가능 · 생성·재개 불가', 'character-animation': '생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)', 'momask': '폐기된 MoMask 도구 · 모든 명령 거절 · Kimodo 사용', 'qwen-2512': 'Qwen Image 2512 폐기 · 기존 이력 조회 가능', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'expression-lora': 'Qwen 2.1 표정 LoRA 다운로드와 검증', 'qwen-21-circular': 'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수', 'qwen-21': 'Qwen Image 2.1 · 공용 화풍·투명 배경 선택 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)', 'seamless-tile': 'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능', 'expression': 'Qwen 2.1 Anime consistency AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정', 'floor-tile': '바닥 타일 생성기 폐기 · 기존 이력 조회·삭제 가능 · 생성·재개 불가', 'character-animation': '생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)', 'momask': '폐기된 MoMask 도구 · 모든 명령 거절 · Kimodo 사용', 'qwen-2512': 'Qwen Image 2512 폐기 · 기존 이력 조회 가능', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['model-downloads']='공유 모델 다운로드 상태 조회'
 MANAGEMENT_COMMAND_DESCRIPTIONS['writer-agent']='작가 문서 학습·제안·조회·해시 확인 적용 · --payload-file · 기존 문서/기록 경로 유지'
@@ -275,7 +279,7 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-animate2']='Animate-2 · RGB 동작 영�
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fun-control']='Wan2.2 Fun Control BF16 · 참조/포즈 영상 · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['dwpose']='단일 832×480 PNG DWPose 추출 · CUDA · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['kimodo']='Kimodo SOMA v1.2 · 비양자화 BF16 텍스트 인코더 · 원본 관절 모션·미리보기 · --payload-file'
-MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace']='Wan2.2 VACE-Fun A14B Q4 · 텍스트·외형 참조·첫 프레임·DWPose·부분 편집·영상 전체 조건 실험 · --payload-file'
+MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace']='Wan2.2 VACE-Fun A14B BF16 · 텍스트·외형 참조·첫 프레임·DWPose·부분 편집·영상 전체 조건 실험 · --payload-file'
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
@@ -287,6 +291,21 @@ def execute_management_command(service_command_name, operation_command_name, com
                 return send_management_json_response(gateway_request_handler, 200, {'models': list_model_inventory_files()})
             from tools.review.common.model_download_records import list_model_download_records
             return send_management_json_response(gateway_request_handler, 200, {'records': list_model_download_records()})
+        if service_command_name == 'expression-lora':
+            from tools.review.domains.image.expression_generation import validate_expression_adapter, WORKFLOW_ROOT_PATH
+            from tools.review.common.model_prepare_process import inspect_registered_preparation, start_registered_preparation
+            from tools.review.common.management_transport import send_management_json_response
+            current_status_value = inspect_registered_preparation(WORKFLOW_ROOT_PATH, 'expression-lora')
+            try:
+                validate_expression_adapter()
+                current_ready_value = True
+                current_message_text = '표정 LoRA 파일과 SHA-256 검증 완료'
+            except (OSError, ValueError) as current_validation_error:
+                current_ready_value = False
+                current_message_text = f'표정 LoRA 준비 필요: {current_validation_error}'
+            if operation_command_name == 'prepare' and current_status_value != 'running' and not current_ready_value:
+                current_status_value = start_registered_preparation(WORKFLOW_ROOT_PATH, 'expression-lora')['preparation_status']
+            return send_management_json_response(gateway_request_handler, 200, {'ready': current_ready_value, 'message': current_message_text, 'preparation_status': current_status_value})
         if service_command_name == 'writer-agent' and operation_command_name in ('model-status', 'prepare'):
             from generators.writer_agent.prepare import WORKFLOW_REPOSITORY_ROOT, inspect_writer_model_files
             from tools.review.common.model_prepare_process import inspect_detached_preparation, inspect_registered_preparation, start_registered_preparation
@@ -312,6 +331,8 @@ def execute_management_command(service_command_name, operation_command_name, com
             if operation_command_name == 'download-model' and current_preparation_status != 'running' and not current_models_ready:
                 current_preparation_status = start_registered_preparation(WORKFLOW_ROOT_DIRECTORY, current_profile_name)['preparation_status']
             current_status_message = '모델 파일 다운로드 완료 · 실행 환경과 GPU 검증은 별도 준비' if current_models_ready else '모델 파일 다운로드 필요 · 실행 환경은 별도 준비'
+            if current_preparation_status == 'running':
+                current_status_message = '모델 파일 다운로드 중 · 실행 환경과 GPU 검증은 별도 준비'
             if current_preparation_status == 'failed':
                 current_status_message += ' · 이전 다운로드 실패, 로그 확인 후 다시 시도하세요.'
             return send_management_json_response(gateway_request_handler, 200, {'ready': current_models_ready, 'message': current_status_message, 'preparation_status': current_preparation_status})
