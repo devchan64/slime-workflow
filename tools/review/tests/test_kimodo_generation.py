@@ -450,7 +450,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
         current_combination_values = apply_complete_kimodo_example('boxing_jab_straight_combination')
         current_combination_request = build_kimodo_payload(*current_combination_values)
         self.assertFalse(current_combination_request['pose_include_hands'])
-        self.assertEqual(current_combination_request['seed'],404)
+        self.assertEqual(current_combination_request['seed'],405)
         self.assertEqual(current_combination_request['directions'],['front_right_60'])
         self.assertEqual(current_combination_request.get('camera_elevation_degrees',0),0)
         self.assertTrue(current_combination_values[9])

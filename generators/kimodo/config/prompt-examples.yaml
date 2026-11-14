@@ -66,7 +66,7 @@ examples:
   frames: 40
   settings:
     steps: 100
-    seed: 404
+    seed: 405
     guidance_scale: 2.0
     heading_degrees: 0.0
     post_processing: true
