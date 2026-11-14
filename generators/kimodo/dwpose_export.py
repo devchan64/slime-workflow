@@ -182,6 +182,7 @@ def export_kimodo_dwpose(current_job_root,current_attempt_root):
             raise ValueError('3D 골반 투영의 직접 포즈 FPS 또는 크기가 다릅니다.')
     current_direction_gains = {}
     current_output_videos = {}
+    current_fallback_records = {}
     current_axis_measurements = {}
     for current_direction_name in current_request_record.get('directions',['front_left']):
         current_source_path = current_attempt_root/f'soma-render-{current_direction_name}.mp4'
@@ -203,12 +204,14 @@ def export_kimodo_dwpose(current_job_root,current_attempt_root):
                 current_direction_measurement['hip_reconstruction'] = {'method':'same-frame-soma-projected-hip','source_sha256':current_direct_hash,'frames':len(current_frames),'note':'골반은 DWPose 검출이 아니라 보정된 SOMA 직접 포즈의 투영 벡터로 재구성'}
             current_direction_gains[current_direction_name] = current_gains
             return adjust_detected_pose_frames(current_frames,current_shape,current_gains,current_request_record.get('openpose_scale_percent',80),current_ratio_record,current_direction_measurement)
-        prepare_fun_pose_frames(current_work_directory,current_work_directory,current_pose_request,transform_detected_frames,current_output_fps=KIMODO_DWPOSE_OUTPUT_FPS)
+        prepare_fun_pose_frames(current_work_directory,current_work_directory,current_pose_request,transform_detected_frames,current_output_fps=KIMODO_DWPOSE_OUTPUT_FPS,current_soma_foreground_fallback=True)
+        current_preprocess_record = json.loads((current_work_directory/'pose-preprocess.json').read_text())
+        current_fallback_records[current_direction_name] = current_preprocess_record['soma_foreground_fallback_frames']
         current_axis_measurements[current_direction_name]=current_direction_measurement
         current_output_name = f'dwpose-{current_direction_name}.mp4'
         shutil.copy2(current_work_directory/'pose.mp4',current_attempt_root/current_output_name)
         current_output_videos[current_direction_name] = current_output_name
-    (current_attempt_root/'dwpose-export.json').write_text(json.dumps({'videos':current_output_videos,'fps':KIMODO_DWPOSE_OUTPUT_FPS,'width':832,'height':480,'segment_gains_by_direction':current_direction_gains,'body_axis':current_axis_measurements,'hip_projection_enabled':current_hip_projection_enabled,'length_basis':'SOMA 3D 투영 단축과 DWPose 검출 비율을 방향별로 비교한 영상 전체 고정 배율','scale_percent':current_request_record.get('openpose_scale_percent',80),'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False)},ensure_ascii=False))
+    (current_attempt_root/'dwpose-export.json').write_text(json.dumps({'videos':current_output_videos,'fps':KIMODO_DWPOSE_OUTPUT_FPS,'width':832,'height':480,'segment_gains_by_direction':current_direction_gains,'body_axis':current_axis_measurements,'soma_foreground_fallback_frames':current_fallback_records,'hip_projection_enabled':current_hip_projection_enabled,'length_basis':'SOMA 3D 투영 단축과 DWPose 검출 비율을 방향별로 비교한 영상 전체 고정 배율','scale_percent':current_request_record.get('openpose_scale_percent',80),'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False)},ensure_ascii=False))
 
 
 if __name__ == '__main__':

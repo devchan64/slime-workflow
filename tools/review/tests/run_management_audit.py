@@ -8,8 +8,8 @@ sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.tests.run_music_regression import execute_music_regression
 
 MANAGEMENT_AUDIT_MODULES = tuple('tools.review.tests.' + current_module_name for current_module_name in (
-    'test_kimodo_generation', 'test_kimodo_dwpose', 'test_hymotion_retirement',
-    'test_regression_runner', 'test_management_browser_scripts', 'test_landmarks_retirement',
+    'test_kimodo_generation', 'test_kimodo_dwpose', 'test_kimodo_migraphx_build', 'test_kimodo_readiness', 'test_hymotion_retirement',
+    'test_regression_runner', 'test_management_browser_scripts', 'test_landmarks_retirement', 'test_host_memory_guard',
     'test_gpu_confirmation', 'test_gradio_button_guidance', 'test_browser_gpu_confirmation', 'test_gradio_history', 'test_gradio_history_inputs',
     'test_gradio_proxy_response', 'test_gradio_standard_components', 'test_generation_status_display', 'test_generation_status_lookup', 'test_generation_estimates',
     'test_generation_cleanup', 'test_queue_generation_telemetry', 'test_generation_history', 'test_gpu_queue_priority',
@@ -23,7 +23,7 @@ MANAGEMENT_AUDIT_MODULES = tuple('tools.review.tests.' + current_module_name for
     'test_qwen_2512_gradio', 'test_map_layout_editor', 'test_map_brushes', 'test_map_review_gradio', 'test_map_review_lifecycle', 'test_character_review_capture', 'test_review_asset_publication',
     'test_static_review_gradio',
     'test_floor_generation', 'test_seamless_pattern', 'test_seamless_generation',
-    'test_dasheng_audio_sfx', 'test_music_generation', 'test_music_management_audit', 'test_heartmula_separation', 'test_wan_animate2_generation', 'test_wan_animate_retirement', 'test_wan_fun_generation', 'test_wan_vace_generation', 'test_vace_video_edit', 'test_vace_official_runtime', 'test_wan_vace_sampling', 'test_writer_agent_gradio',
+    'test_dasheng_audio_sfx', 'test_music_generation', 'test_music_management_audit', 'test_heartmula_separation', 'test_wan_animate2_generation', 'test_wan_animate_retirement', 'test_wan_fun_generation', 'test_wan_fun_model_prepare', 'test_wan_vace_generation', 'test_vace_video_edit', 'test_vace_official_runtime', 'test_wan_vace_sampling', 'test_writer_agent_gradio',
 )) + ('generators.animation.tests.test_qwen_pose', 'generators.writer_agent.tests.test_writer_agent', 'generators.writer_agent.tests.test_writer_api')
 
 if __name__ == '__main__':

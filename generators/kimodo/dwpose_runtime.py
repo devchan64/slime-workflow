@@ -4,6 +4,7 @@ import hashlib
 import json
 import sys
 import time
+import os
 
 FUN_POSE_SOURCE_REVISION = '13bb3c625e8b1e457d7124d92207b49e00e4a6fe'
 FUN_POSE_MODEL_REVISION = '1a7144101628d69ee7a3768d1ee3a094070dc388'
@@ -59,7 +60,7 @@ def render_selected_pose_parts(current_pose_records, current_image_shape, curren
     return draw_pose(current_selected_records, *current_image_shape)
 
 
-def create_fun_pose_detector():
+def create_fun_pose_detector(current_build_cache=False):
     """ROCm GPU에서 VideoX-Fun 인물·관절 검출 세션을 생성한다."""
     import torch
     import onnxruntime as ort
@@ -82,11 +83,25 @@ def create_fun_pose_detector():
         raise RuntimeError('MIGraphX에서 AMD GPU 장치를 찾지 못했습니다.')
     # 공식 Wholebody의 OpenCV CPU 초기화만 우회한다. 공식 ONNX 추론 분기를 사용한다.
     current_body_detector = Wholebody.__new__(Wholebody)
+    from generators.kimodo.migraphx_build import resolve_pose_cache_directories, verify_pose_cache_files
+    current_cache_directories = resolve_pose_cache_directories(torch, ort, current_provider_plugin)
     for current_session_field, current_model_name in zip(('session_det', 'session_pose'), FUN_POSE_MODEL_NAMES):
         current_session_options = ort.SessionOptions()
         current_session_options.add_session_config_entry('session.disable_cpu_ep_fallback', '1')
-        current_session_options.add_provider_for_devices(current_gpu_devices[:1], {})
-        current_gpu_session = ort.InferenceSession(str((FUN_POSE_MODEL_DIRECTORY/current_model_name).with_suffix('.cuda.onnx')), sess_options=current_session_options)
+        current_cache_directory = current_cache_directories[current_model_name]
+        current_use_cache = current_build_cache or verify_pose_cache_files(current_cache_directory)
+        current_provider_options = {'cache_dir': str(current_cache_directory)} if current_use_cache else {}
+        current_previous_cache = os.environ.pop('ORT_MIGRAPHX_CACHE_DIR', None)
+        try:
+            if current_use_cache:
+                current_cache_directory.mkdir(parents=True, exist_ok=True)
+                os.environ['ORT_MIGRAPHX_CACHE_DIR'] = str(current_cache_directory)
+            current_session_options.add_provider_for_devices(current_gpu_devices[:1], current_provider_options)
+            current_gpu_session = ort.InferenceSession(str((FUN_POSE_MODEL_DIRECTORY/current_model_name).with_suffix('.cuda.onnx')), sess_options=current_session_options)
+        finally:
+            os.environ.pop('ORT_MIGRAPHX_CACHE_DIR', None)
+            if current_previous_cache is not None:
+                os.environ['ORT_MIGRAPHX_CACHE_DIR'] = current_previous_cache
         if current_gpu_session.get_providers()[0] != 'MIGraphXExecutionProvider':
             raise RuntimeError('VideoX-Fun ONNX MIGraphX 초기화 실패')
         current_gpu_session.disable_fallback()
@@ -96,7 +111,40 @@ def create_fun_pose_detector():
     return current_body_detector
 
 
-def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_request_record, current_pose_transform=None, current_output_fps=16):
+def extract_soma_foreground_box(current_rgb_image):
+    """흰 배경의 단일 SOMA 렌더에서 가시 인물 영역을 구한다."""
+    import numpy as np
+    if current_rgb_image.ndim != 3 or current_rgb_image.shape[2] != 3:
+        raise ValueError('SOMA 렌더의 RGB 형식이 올바르지 않습니다.')
+    current_border_pixels = np.concatenate((current_rgb_image[0], current_rgb_image[-1], current_rgb_image[:, 0], current_rgb_image[:, -1]))
+    if np.mean(np.all(current_border_pixels >= 245, axis=1)) < 0.995:
+        raise ValueError('SOMA 렌더의 흰 배경을 확인할 수 없습니다.')
+    current_foreground_mask = np.any(current_rgb_image < 235, axis=2)
+    current_pixel_y, current_pixel_x = np.nonzero(current_foreground_mask)
+    if current_pixel_x.size < 64:
+        raise ValueError('SOMA 렌더에서 인물 영역을 찾을 수 없습니다.')
+    current_min_x, current_max_x = int(current_pixel_x.min()), int(current_pixel_x.max()) + 1
+    current_min_y, current_max_y = int(current_pixel_y.min()), int(current_pixel_y.max()) + 1
+    if min(current_max_x-current_min_x, current_max_y-current_min_y) < 16:
+        raise ValueError('SOMA 인물 영역이 너무 작습니다.')
+    return [current_min_x, current_min_y, current_max_x, current_max_y]
+
+
+def infer_soma_foreground_pose(current_body_detector, current_rgb_image, current_bounding_box):
+    """인물 상자만 보완하고 관절은 동일한 DWPose 모델로 추론한다."""
+    import numpy as np
+    from generators.wan_fun.vendor.videox_fun.dwpose_utils.onnxpose import inference_pose
+    from generators.wan_fun.vendor.videox_fun.dwpose_utils.wholebody import Wholebody
+    current_keypoints, current_scores = inference_pose(current_body_detector.session_pose, np.asarray([current_bounding_box], dtype=np.float32), current_rgb_image)
+    current_keypoint_data = np.concatenate((current_keypoints, current_scores[..., None]), axis=-1)
+    current_neck_joint = np.mean(current_keypoint_data[:, [5, 6]], axis=1)
+    current_neck_joint[:, 2:4] = np.logical_and(current_keypoint_data[:, 5, 2:4] > 0.3, current_keypoint_data[:, 6, 2:4] > 0.3).astype(int)
+    current_openpose_data = np.insert(current_keypoint_data, 17, current_neck_joint, axis=1)
+    current_openpose_data[:, [1, 2, 3, 4, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17]] = current_openpose_data[:, [17, 6, 8, 10, 7, 9, 12, 14, 16, 13, 15, 2, 1, 4, 3]]
+    return Wholebody.format_result(current_openpose_data)
+
+
+def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_request_record, current_pose_transform=None, current_output_fps=16, current_soma_foreground_fallback=False):
     import cv2
     import numpy as np
     import torch
@@ -116,6 +164,7 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
     current_output_directory = current_attempt_root/'pose-frames'
     current_output_directory.mkdir()
     current_detected_frames = []
+    current_fallback_frames = []
     try:
         for current_frame_index in range(current_request_record['frames']):
             current_video_capture.set(cv2.CAP_PROP_POS_FRAMES, round(current_frame_index*current_source_fps/current_output_fps))
@@ -129,6 +178,10 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
             current_padded_image = np.pad(current_scaled_image, ((0, (-current_scaled_height)%64), (0, (-current_scaled_width)%64), (0, 0)), mode='edge')
             with torch.no_grad():
                 current_pose_records = Wholebody.format_result(current_body_detector(np.ascontiguousarray(current_padded_image)))
+                if not current_pose_records and current_soma_foreground_fallback:
+                    current_foreground_box = extract_soma_foreground_box(current_scaled_image)
+                    current_pose_records = infer_soma_foreground_pose(current_body_detector, np.ascontiguousarray(current_padded_image), current_foreground_box)
+                    current_fallback_frames.append({'frame': current_frame_index+1, 'bbox_xyxy': current_foreground_box})
             if len(current_pose_records) != 1:
                 raise ValueError(f'단일 인체 검출 필요: {current_frame_index+1}프레임')
             current_detected_frames.append(current_pose_records)
@@ -151,7 +204,7 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
                 print(time.strftime('%Y-%m-%dT%H:%M:%S')+f'/fun/pose {current_frame_index+1}/{current_request_record["frames"]}', flush=True)
     finally:
         current_video_capture.release()
-    (current_attempt_root/'pose-preprocess.json').write_text(json.dumps({'source': 'VideoX-Fun VideoToPose / DWposeDetector', 'revision': FUN_POSE_SOURCE_REVISION, 'model_revision': FUN_POSE_MODEL_REVISION, 'backend': 'ONNX Runtime MIGraphX; CPU fallback disabled', 'source_fps': current_source_fps, 'output_fps': current_output_fps, 'pose_include_hands': current_include_hands, 'pose_include_face': current_include_face, 'body_head_points': True, 'frames': current_frame_paths}, ensure_ascii=False))
+    (current_attempt_root/'pose-preprocess.json').write_text(json.dumps({'source': 'VideoX-Fun VideoToPose / DWposeDetector', 'revision': FUN_POSE_SOURCE_REVISION, 'model_revision': FUN_POSE_MODEL_REVISION, 'backend': 'ONNX Runtime MIGraphX; CPU fallback disabled', 'source_fps': current_source_fps, 'output_fps': current_output_fps, 'pose_include_hands': current_include_hands, 'pose_include_face': current_include_face, 'body_head_points': True, 'frames': current_frame_paths, 'soma_foreground_fallback_frames': current_fallback_frames}, ensure_ascii=False))
     return current_frame_paths
 
 

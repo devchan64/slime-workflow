@@ -29,12 +29,14 @@ MANAGEMENT_COMMAND_ROUTES['download-status']=('GET','/status')
 MANAGEMENT_SERVICE_ROUTES['wan22-animate2']='/wan22-animate2'
 MANAGEMENT_SERVICE_COMMANDS['wan22-animate2']=('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_ROUTES['wan22-fun-control']='/wan22-fun-control'
-MANAGEMENT_SERVICE_COMMANDS['wan22-fun-control']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
+MANAGEMENT_SERVICE_COMMANDS['wan22-fun-control']=('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_ROUTES['dwpose']='/dwpose'
 MANAGEMENT_SERVICE_COMMANDS['dwpose']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_ROUTES['kimodo']='/kimodo'
 MANAGEMENT_SERVICE_COMMANDS['kimodo']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('prepare','keyframe-save','keyframe-list','keyframe-preview','keyframe-replace','keyframe-retire')
+MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('migraphx-build', 'migraphx-build-status')
+MANAGEMENT_COMMAND_ROUTES.update({'migraphx-build': ('POST', '/migraphx-build'), 'migraphx-build-status': ('GET', '/migraphx-build-status')})
 MANAGEMENT_COMMAND_ROUTES['keyframe-save'] = ('POST','/keyframes/save')
 MANAGEMENT_COMMAND_ROUTES['keyframe-list'] = ('POST','/keyframes/list')
 MANAGEMENT_COMMAND_ROUTES['keyframe-preview'] = ('POST','/keyframes/preview')
@@ -121,10 +123,14 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('지원하지 않는 관리 명령')
     if not isinstance(command_payload_value,dict):
         raise ValueError('명령 입력은 JSON 객체여야 합니다.')
+    if operation_command_name in ('migraphx-build', 'migraphx-build-status') and command_payload_value:
+        raise ValueError('MIGraphX 빌드 명령은 입력 필드를 받지 않습니다.')
     if operation_command_name in ('history-reset-preview','writer-state','download-status') and command_payload_value:
         raise ValueError('초기화 미리보기는 입력 필드를 받지 않습니다.')
     if service_command_name == 'prop-generator' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
+    if service_command_name == 'wan22-fun-control' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
+        raise ValueError('Fun Control 모델 준비에는 action=prepare만 허용합니다.')
     request_method_value, request_suffix_value = MANAGEMENT_COMMAND_ROUTES[operation_command_name]
     if '{id}' in request_suffix_value:
         generation_job_identifier=command_payload_value.get('id','')

@@ -4,6 +4,18 @@ from tools.review.ui.gradio.model_management_app import read_model_job_status, b
 
 
 class ModelManagementTest(unittest.TestCase):
+    def test_running_preparation_explains_disabled_download(self):
+        import gradio as gr
+        from tools.review.common.gradio_model_download import build_model_download_controls
+        with gr.Blocks() as current_interface_blocks:
+            build_model_download_controls(current_interface_blocks, lambda *_: {
+                'message': '모델 다운로드 중', 'preparation_status': 'running', 'ready': False})
+        current_refresh_function = next(current_function.fn for current_function in current_interface_blocks.fns.values()
+                                        if current_function.fn and current_function.fn.__name__ == 'refresh_model_download_status')
+        current_message_value, _, current_button_update, _ = current_refresh_function()
+        self.assertIn('중복 요청', current_message_value)
+        self.assertFalse(current_button_update['interactive'])
+
     def test_running_prepare_is_selected_over_newer_generation(self):
         def execute_test_command(service_name_value, command_name_value, payload_record_value):
             return {'records': [
@@ -413,6 +425,16 @@ class CurrentDownloadStatusTest(unittest.TestCase):
         self.assertIn('Qwen/Qwen-Image-2.1/shard · 완료', current_status_text)
         self.assertNotIn('nvidia/Kimodo', current_status_text)
         self.assertNotIn('Qwen/Qwen-Image-2.1/old', current_status_text)
+
+    def test_existing_partial_verification_is_distinct_from_download(self):
+        from tools.review.common.gradio_model_download import format_model_download_status
+        current_status_values = [{'model': 'Qwen/Qwen-Image-2.1/shard', 'status': 'running',
+                                  'stage': '기존 부분 파일 검증', 'bytes': 40, 'total_bytes': 200,
+                                  'existing_bytes': 100, 'resumed_bytes': 20}]
+        current_status_text = format_model_download_status(current_status_values, 'prop-generator')
+        self.assertIn('기존 부분 100바이트 보존', current_status_text)
+        self.assertIn('검증 40.0% (40 / 100바이트)', current_status_text)
+        self.assertIn('시작 시 검증 지점 20바이트', current_status_text)
 
 class DetachedModelPreparationTest(unittest.TestCase):
     def test_worker_survives_launcher_exit_and_remains_singleton(self):

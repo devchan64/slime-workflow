@@ -8,6 +8,17 @@ from generators.kimodo.dwpose_export import adjust_detected_pose_frames
 from generators.wan_fun.video_input import validate_processed_pose_video
 
 class KimodoDwposeTests(unittest.TestCase):
+    def test_soma_foreground_box_requires_white_background_and_visible_person(self):
+        from generators.kimodo.dwpose_runtime import extract_soma_foreground_box
+        current_image_value = np.full((100, 140, 3), 255, dtype=np.uint8)
+        current_image_value[30:80, 55:90] = (180, 170, 160)
+        self.assertEqual(extract_soma_foreground_box(current_image_value), [55, 30, 90, 80])
+        with self.assertRaisesRegex(ValueError, '인물 영역'):
+            extract_soma_foreground_box(np.full((100, 140, 3), 255, dtype=np.uint8))
+        current_image_value[0, :, :] = 0
+        with self.assertRaisesRegex(ValueError, '흰 배경'):
+            extract_soma_foreground_box(current_image_value)
+
     def test_migraphx_pose_outputs_use_correct_axes(self):
         from types import SimpleNamespace
         from generators.kimodo.dwpose_runtime import MigraphxPoseInferenceSession
@@ -72,9 +83,11 @@ class KimodoDwposeTests(unittest.TestCase):
             (current_job_root/'request.json').write_text(json.dumps({'frames':40,'directions':['front']}))
             (current_attempt_root/'soma-render-front.mp4').write_bytes(b'fixture')
             current_calls=[]
-            def prepare_fixture_pose(current_job_directory,current_output_directory,current_pose_request,current_pose_transform=None,current_output_fps=16):
+            def prepare_fixture_pose(current_job_directory,current_output_directory,current_pose_request,current_pose_transform=None,current_output_fps=16,current_soma_foreground_fallback=False):
                 current_calls.append((current_pose_request['frames'],current_output_fps))
                 (current_output_directory/'pose.mp4').write_bytes(b'fixture')
+                (current_output_directory/'pose-preprocess.json').write_text(json.dumps({'soma_foreground_fallback_frames': []}))
+                self.assertTrue(current_soma_foreground_fallback)
             with patch('generators.kimodo.dwpose_export.prepare_fun_pose_frames',side_effect=prepare_fixture_pose):
                 export_kimodo_dwpose(current_job_root,current_attempt_root)
             current_export_record=json.loads((current_attempt_root/'dwpose-export.json').read_text())

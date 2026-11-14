@@ -14,7 +14,7 @@ from generators.kimodo.contracts import KIMODO_DEFAULT_SETTINGS,normalize_kimodo
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_button_guidance import build_button_guidance
-from tools.review.common.gradio_model_download import build_model_download_controls
+from tools.review.common.gradio_model_download import build_model_readiness_controls
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_video_results import build_video_job_monitor,render_video_generation_result
@@ -520,7 +520,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         with gr.Accordion('고정 설정 · 모델 준비',open=False):
             gr.Markdown('고정: Kimodo-SOMA-RP-v1.2 · 모션 FP32 · LLM2Vec Llama 3 8B 비양자화 BF16 · AMD ROCm · 30fps · 1개 샘플 · DDIM. 인코딩 후 인코더를 해제하고 모션을 생성합니다. 이후 모션 모델을 해제하고 SOMA 몸 관절을 512×512·30fps 정사영 포즈로 변환합니다. 모델 선택·부정 프롬프트는 제공하지 않습니다. 선택 이미지 참조는 모션 모델 입력이 아니라 OpenPose 출력 비율 보정에 사용합니다.')
         gr.Markdown('Built with Meta Llama 3. 서버에 Ollama FP16 가중치를 내려받아 Kimodo용 safetensors로 변환합니다.')
-        current_model_ready, current_model_events = build_model_download_controls(current_interface_blocks, current_execute_command, model_service_name='kimodo')
+        current_model_ready, current_model_events = build_model_readiness_controls(current_interface_blocks, current_execute_command)
         gr.Markdown('### 모션 설정')
         current_example_mapping = load_kimodo_examples()
         with gr.Row():

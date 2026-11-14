@@ -1,13 +1,14 @@
 """고정 Kimodo·비양자화 인코더 자료 다운로드. 실행 로그와 5초 heartbeat를 남긴다."""
 import fcntl
 import hashlib
+import os
 import subprocess
 import threading
 import time
 import traceback
 from datetime import datetime
 from pathlib import Path
-from generators.kimodo.contracts import KIMODO_ASSET_CONFIG, KIMODO_ENVIRONMENT_PYTHON, read_converted_encoder_files, KIMODO_MODEL_ROOT, KIMODO_SOURCE_ROOT, KIMODO_WORKSPACE_ROOT
+from generators.kimodo.contracts import KIMODO_ASSET_CONFIG, KIMODO_ENVIRONMENT_PYTHON, read_converted_encoder_files, KIMODO_MODEL_ROOT, KIMODO_SOURCE_ROOT, KIMODO_WORKSPACE_ROOT, inspect_motion_correction_runtime, inspect_kimodo_assets
 from tools.review.common.generation_records import write_record_atomically
 
 
@@ -17,7 +18,30 @@ def prepare_kimodo_assets():
     KIMODO_MODEL_ROOT.mkdir(parents=True, exist_ok=True)
     with (KIMODO_MODEL_ROOT/'.prepare.lock').open('a') as current_prepare_lock:
         fcntl.flock(current_prepare_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        current_asset_status = inspect_kimodo_assets()
+        if current_asset_status['missing'] == ['공식 후처리 motion_correction 실행 환경']:
+            install_kimodo_official_runtime()
+            return
         download_kimodo_pinned_assets()
+
+
+def install_kimodo_official_runtime():
+    """공식 setup으로 후처리 확장을 빌드하며 ROCm 의존성은 교체하지 않는다."""
+    if inspect_motion_correction_runtime():
+        return
+    print('Kimodo 공식 setup: motion_correction 네이티브 확장 준비', flush=True)
+    current_python_executable = str(KIMODO_ENVIRONMENT_PYTHON)
+    current_pybind_check = subprocess.run([current_python_executable, '-c', 'import pybind11'], capture_output=True, check=False)
+    if current_pybind_check.returncode:
+        subprocess.run([current_python_executable, '-m', 'pip', 'install', '--no-deps', 'pybind11>=3,<4'], check=True)
+    current_pybind_directory = subprocess.check_output([current_python_executable, '-m', 'pybind11', '--cmakedir'], text=True).strip()
+    current_build_environment = os.environ.copy()
+    current_build_environment['SKIP_MOTION_CORRECTION_IN_SETUP'] = '0'
+    current_build_environment['CMAKE_PREFIX_PATH'] = os.pathsep.join(filter(None, (current_pybind_directory, current_build_environment.get('CMAKE_PREFIX_PATH', ''))))
+    subprocess.run([current_python_executable, '-m', 'pip', 'install', '--no-deps', '--no-build-isolation', str(KIMODO_SOURCE_ROOT)],
+                   cwd=KIMODO_WORKSPACE_ROOT, env=current_build_environment, check=True)
+    if not inspect_motion_correction_runtime():
+        raise RuntimeError('Kimodo 공식 setup 후 motion_correction 확장을 불러올 수 없습니다.')
 
 
 def download_kimodo_pinned_assets():
@@ -55,6 +79,7 @@ def download_kimodo_pinned_assets():
         if current_revision_text != KIMODO_ASSET_CONFIG['source_revision']:
             raise ValueError('소스 리비전 불일치')
         (KIMODO_SOURCE_ROOT.parent/'PINNED_REVISION').write_text(current_revision_text)
+        install_kimodo_official_runtime()
         current_file_hashes = {}
         for current_asset_record in KIMODO_ASSET_CONFIG['models']:
             for current_file_record in current_asset_record['files']:

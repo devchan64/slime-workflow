@@ -66,6 +66,14 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
         from urllib.parse import urlsplit
         current_request_path = urlsplit(current_http_handler.path).path
         current_command_payload = getattr(current_http_handler, 'management_command_payload', None)
+        if current_request_path in ('/kimodo/migraphx-build', '/kimodo/migraphx-build-status'):
+            from tools.review.domains.kimodo.migraphx_build import inspect_pose_build_status, start_pose_build_job
+            current_expected_method = 'POST' if current_request_path.endswith('/migraphx-build') else 'GET'
+            if current_http_handler.command != current_expected_method or current_command_payload != {}:
+                raise ValueError('MIGraphX 빌드 명령 형식 오류')
+            current_build_status = start_pose_build_job() if current_expected_method == 'POST' else inspect_pose_build_status()
+            send_management_json_response(current_http_handler, 200, current_build_status)
+            return True
         if current_request_path == '/kimodo/jobs' and current_http_handler.command == 'POST' and isinstance(current_command_payload, dict) and current_command_payload.get('action') == 'prepare':
             if set(current_command_payload) != {'action'}:
                 raise ValueError('Kimodo 모델 준비는 추가 입력을 받지 않습니다.')

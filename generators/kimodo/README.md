@@ -22,11 +22,11 @@ PATH="$PWD/.local/venvs/kimodo-rocm/bin:$PATH" uv pip install --python .local/ve
 ```
 
 
-관리도구에서는 **모델 다운로드**를 눌러 고정 SOMA 모델, 비양자화 인코더, 공식 소스를 받을 수 있다. CLI의 `.venv/bin/python tools/manager.py command kimodo prepare`도 같은 다운로드를 시작하며, `command kimodo model-status`에서 진행 상태를 확인한다. 위 패키지 설치 명령은 환경을 처음 구성할 때 별도로 실행한다.
+Kimodo 화면에서는 모델 준비 상태를 확인하고, 준비되지 않은 경우 **모델 관리로 이동**에서 고정 SOMA 모델·비양자화 인코더·공식 소스를 준비한다. CLI의 `.venv/bin/python tools/manager.py command kimodo prepare`도 같은 다운로드를 시작하며, `command kimodo model-status`에서 진행 상태를 확인한다. 위 패키지 설치 명령은 환경을 처음 구성할 때 별도로 실행한다.
 
 Built with Meta Llama 3. 고정 Ollama GGUF를 SHA-256 검증 후 FP16 safetensors로 변환한다. AMD ROCm PyTorch와 Kimodo 의존성을 `.local/venvs/kimodo-rocm`에 준비한다.
 
-공식 소스가 아직 없으면 모델 준비 명령으로 고정 소스와 가중치를 받은 뒤 공식 패키지를 설치한다. 준비 로그는 `.tmp/test/kimodo-prepare/`에 5초 heartbeat와 함께 저장된다. 고정 리비전 자료를 오프라인으로 읽으며 모델 선택 입력은 허용하지 않는다. 모델 상태의 ‘파일 준비 완료’는 가중치 크기·준비 기록 확인이며 ROCm 실행 성공을 뜻하지 않는다.
+모델 준비 명령은 고정 소스와 가중치를 준비하고 공식 `setup.py`의 `motion_correction` 네이티브 확장을 설치한다. 후처리 확장만 누락되면 모델을 다시 다운로드하지 않고 공식 설치를 수행한다. 설치에는 C++17 컴파일러·CMake·pybind11과 Eigen 빌드 의존성이 필요하다. 후처리 확장을 실제로 불러올 수 있어야 모델 준비 완료로 표시하고 생성 접수를 허용한다. 준비 로그는 `.tmp/test/kimodo-prepare/` 또는 `.local/model-preparation/kimodo/worker.log`에 저장된다. 고정 리비전 자료를 오프라인으로 읽으며 모델 선택 입력은 허용하지 않는다. 준비 완료는 ROCm 생성 성공이나 품질을 보장하지 않는다.
 
 ## 공용 CLI
 
@@ -88,6 +88,10 @@ ROCm MIGraphX의 YOLOX-L·DWPose로 BODY18을 추출하고, 어깨·골반 중�
 ZIP의 `reference-proportions.json`에 입력별 포즈·신뢰도·채택 관측·최종 비율을 저장하고 `reference-pose-N.png`로 추출 포즈를 제공한다. `soma-pose.json`에도 보정 기록을 포함한다. 비교 MP4는 SOMA 원본과 비율 보정 OpenPose를 함께 표시한다. 참조 사본은 공용 작업 저장소에 보관하며 이력 복원·삭제 계약을 따른다.
 
 참조 추출은 VideoX-Fun의 고정 YOLOX-L·DWPose 가중치와 Kimodo ROCm 환경의 MIGraphX GPU 실행 공급자를 사용한다. 가중치 준비는 `python -m generators.wan_fun.prepare_pose`를 따른다.
+
+관리도구 **모델 관리 → Kimodo → MIGraphX 빌드 시작**은 이 두 포즈 모델의 고정 입력 그래프를 공용 GPU 대기열에서 별도로 컴파일한다. CLI는 `.venv/bin/python tools/manager.py command kimodo migraphx-build`로 접수하고 `command kimodo migraphx-build-status`로 상태를 조회한다. 가중치 다운로드와 별도이며 준비된 VideoX-Fun 포즈 가중치와 Kimodo ROCm 환경이 필요하다. 최초 빌드는 수 분 이상 걸릴 수 있다. 빌드 후 GPU 출력과 재로드 출력을 비교하고 파일 해시를 확인한 결과만 참조 추출과 출력 포즈에서 재사용한다. 모델 해시·GPU 아키텍처·ROCm 및 관련 라이브러리가 바뀌면 기존 캐시를 사용하지 않으므로 다시 빌드한다. 빌드 기록은 `.tmp/test/kimodo-migraphx-build/`, 캐시는 Git 제외 `.local/model-builds/kimodo-dwpose/`에 저장한다. 빌드하지 않은 기존 실행은 종전처럼 실행 시 컴파일한다.
+
+빌드 상태는 현재 모델과 GPU·실행 라이브러리 식별자에 맞는 두 캐시 파일의 해시를 별도 프로세스에서 확인한다. 결과는 30초 동안 재사용하며, 재검사 중이거나 환경을 확인하지 못하면 버튼을 잠근다. 현재 환경에 맞는 캐시가 없거나 손상된 경우에만 버튼이 활성화되고 접수 직전에도 다시 확인한다.
 
 시트 내 검출 점수 0.2 이상 모든 인물을 개별 추정한다. 관측 번호는 `observation_sources`의 이미지·인물·bbox에 대응한다. 부위별로 3개 이상 관측 시 두 번째 최장값의 1.35배를 넘는 단독 과대값을 제외한 뒤, 남은 관측 중 구간별 가장 큰 정규화 비율을 선택한다. 코–어깨는 수직 거리 기준으로 선택하며 얼굴 가림은 검출 점수만으로 확인할 수 없다. 좌우 후보와 제외 이유도 기록한다. 회전 투영의 단축 편향을 줄이는 휴리스틱이며 3D 길이 복원이나 수학적 최적값 보장은 아니다. 모든 방향에서 단축되거나 몸통 자체가 기울면 오차가 남는다. 검출 점수는 가림 여부를 보장하지 않으므로 얼굴이 가려진 후면 등은 채택 결과를 육안으로 검수해야 한다.
 

@@ -57,7 +57,7 @@ def remove_completed_verification(current_checkpoint_target):
     current_checkpoint_target.with_name(current_checkpoint_target.name + '.checkpoint.json').unlink(missing_ok=True)
 
 
-def recover_huggingface_partial(current_repo_name, current_revision_value, current_local_root, current_file_record, current_endpoint_value=None):
+def recover_huggingface_partial(current_repo_name, current_revision_value, current_local_root, current_file_record, current_endpoint_value=None, resume_report_callback=None):
     """같은 파일·해시의 조각을 서버와 대조해 완성한다. 원본 조각은 보존한다."""
     from huggingface_hub import get_hf_file_metadata, hf_hub_url
     from huggingface_hub._local_folder import get_local_download_paths
@@ -76,6 +76,9 @@ def recover_huggingface_partial(current_repo_name, current_revision_value, curre
     current_legacy_path = current_local_paths.incomplete_path(current_file_etag)
     current_target_path = current_local_paths.file_path
     current_partial_path = current_target_path.with_suffix(current_target_path.suffix + '.partial')
+    def report_partial_resume():
+        if resume_report_callback is not None:
+            resume_report_callback(current_partial_path.stat().st_size)
     try:
         with WeakFileLock(current_local_paths.lock_path, timeout=0.25):
             if current_target_path.exists():
@@ -83,10 +86,12 @@ def recover_huggingface_partial(current_repo_name, current_revision_value, curre
             if current_partial_path.exists():
                 current_previous_target = current_partial_path.with_name(current_partial_path.name + '.verified')
                 if read_completed_verification(current_partial_path, current_partial_path, current_file_etag, current_file_size):
+                    report_partial_resume()
                     download_verified_http(current_file_url, current_target_path, current_file_etag, current_repo_name + '/' + current_file_name)
                     remove_completed_verification(current_partial_path)
                     return True
                 if read_completed_verification(current_previous_target, current_partial_path, current_file_etag, current_file_size):
+                    report_partial_resume()
                     download_verified_http(current_file_url, current_target_path, current_file_etag, current_repo_name + '/' + current_file_name)
                     remove_completed_verification(current_previous_target)
                     return True
@@ -94,6 +99,7 @@ def recover_huggingface_partial(current_repo_name, current_revision_value, curre
                     raise ValueError('이어받기 부분 파일은 일반 파일이어야 합니다.')
                 current_partial_size = current_partial_path.stat().st_size
                 if current_partial_size == current_file_size:
+                    report_partial_resume()
                     download_verified_http(current_file_url, current_target_path, current_file_etag, current_repo_name + '/' + current_file_name)
                     return True
                 if not 0 < current_partial_size < current_file_size:
@@ -116,6 +122,7 @@ def recover_huggingface_partial(current_repo_name, current_revision_value, curre
                     os.fsync(current_directory_fd)
                 finally:
                     os.close(current_directory_fd)
+            report_partial_resume()
             download_verified_http(current_file_url, current_target_path, current_file_etag, current_repo_name + '/' + current_file_name)
             remove_completed_verification(current_verified_path)
         return True

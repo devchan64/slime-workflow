@@ -216,8 +216,25 @@ def build_fun_interface(current_server_address, current_command_callback=None):
                 return current_execute_command('model-status', {})['message']
             except Exception as current_status_error:
                 return f'모델 상태 확인 실패: {current_status_error}'
-        current_model_refresh.click(read_fun_model_status, outputs=current_model_status, queue=False)
-        current_interface_blocks.load(read_fun_model_status, outputs=current_model_status)
+        def refresh_fun_model_controls():
+            try:
+                current_model_record = current_execute_command('model-status', {})
+                current_history_record = current_execute_command('history', {})
+                current_prepare_records = [current_job_record for current_job_record in current_history_record.get('records', [])
+                                           if current_job_record.get('request', {}).get('action') == 'prepare']
+                current_active_records = [current_job_record for current_job_record in current_prepare_records
+                                          if current_job_record.get('status', {}).get('status') in ('queued', 'running')]
+                current_status_message = current_model_record['message']
+                if current_active_records:
+                    current_status_message += ' · 모델 준비 ' + ('대기 중' if current_active_records[0]['status']['status'] == 'queued' else '진행 중')
+                elif current_model_record.get('ready'):
+                    current_status_message += ' · 환경과 포즈 모델을 다시 준비할 수 있습니다.'
+                return current_status_message, gr.update(interactive=not current_active_records)
+            except Exception as current_status_error:
+                return f'모델 상태 확인 실패: {current_status_error}', gr.update(interactive=False)
+        current_model_refresh.click(refresh_fun_model_controls, outputs=[current_model_status, current_model_prepare], queue=False)
+        current_interface_blocks.load(refresh_fun_model_controls, outputs=[current_model_status, current_model_prepare])
+        gr.Timer(5).tick(refresh_fun_model_controls, outputs=[current_model_status, current_model_prepare], queue=False)
         gr.Markdown('### 1. 입력 준비')
         with gr.Row():
             current_example_selector = gr.Dropdown(choices=[(current_example_label, current_example_identifier) for current_example_identifier, current_example_label in load_fun_example_catalog().items()], value=None, label='동작 예제', filterable=True, info='이름을 입력해 검색하고 예제를 선택하세요. 불러오기는 입력만 교체하며 생성하지 않습니다.')
@@ -313,8 +330,11 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         current_result_identity = gr.State('')
         current_log_output,current_log_enabled,_ = build_execution_logs()
         def enqueue_fun_model_prepare():
-            current_job_record = current_execute_command('generate', {'action': 'prepare'})
-            return current_job_record['id'], '모델 준비를 공용 GPU 대기열에 등록했습니다.'
+            try:
+                current_job_record = current_execute_command('prepare', {'action': 'prepare'})
+                return current_job_record['id'], '모델 준비를 공용 GPU 대기열에 등록했습니다.'
+            except Exception as current_prepare_error:
+                return gr.skip(), f'모델 준비 요청 실패: {current_prepare_error}'
         current_model_prepare.click(enqueue_fun_model_prepare, outputs=[current_job_control, current_status_output], queue=False)
         def enqueue_fun_generation(*current_input_values):
             current_job_record = current_execute_command('generate',build_fun_payload(*current_input_values))

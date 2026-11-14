@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 import re
+import subprocess
 from pathlib import Path
 import yaml
 from generators.kimodo.ollama_encoder import OLLAMA_ENCODER_SHA256
@@ -219,8 +220,24 @@ def read_converted_encoder_files(current_verify_hashes=False):
                     raise ValueError(f'Ollama 변환 파일 해시 불일치: {current_file_name}')
 
 
+def inspect_motion_correction_runtime():
+    """Kimodo 전용 Python에서 공식 후처리 네이티브 확장을 실제로 로드한다."""
+    if not KIMODO_ENVIRONMENT_PYTHON.is_file():
+        return False
+    current_import_command = ('import importlib.util; import motion_correction._motion_correction; '
+                              'assert importlib.util.find_spec("motion_correction.motion_postprocess") is not None')
+    try:
+        current_import_result = subprocess.run([str(KIMODO_ENVIRONMENT_PYTHON), '-c', current_import_command],
+                                               capture_output=True, text=True, timeout=15, check=False)
+        return current_import_result.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def inspect_kimodo_assets():
     current_missing_paths = []
+    if not inspect_motion_correction_runtime():
+        current_missing_paths.append('공식 후처리 motion_correction 실행 환경')
     try:
         read_converted_encoder_files()
     except (OSError, ValueError, TypeError, KeyError):
@@ -244,7 +261,7 @@ def inspect_kimodo_assets():
                 current_missing_paths.append('준비 기록의 모델 리비전 불일치')
         except (ValueError,AttributeError):
             current_missing_paths.append('준비 기록 형식 오류')
-    return {'ready':not current_missing_paths,'missing':current_missing_paths,'message':'Kimodo SOMA v1.2 · 비양자화 인코더 파일 준비 완료 · 실행·품질은 별도 검수' if not current_missing_paths else '준비 필요: '+', '.join(current_missing_paths[:3])}
+    return {'ready':not current_missing_paths,'missing':current_missing_paths,'message':'Kimodo SOMA v1.2 · 비양자화 인코더·공식 후처리 준비 완료 · 실행·품질은 별도 검수' if not current_missing_paths else '준비 필요: '+', '.join(current_missing_paths[:3])}
 
 
 def validate_kimodo_assets():

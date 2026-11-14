@@ -34,15 +34,51 @@ def read_model_job_status(current_service_name, current_execute_command=execute_
         return f'모델 준비 이력 조회 실패: {current_status_error}'
 
 
+def format_migraphx_build_status(current_status_record):
+    current_state_name = current_status_record.get('status', 'idle')
+    current_state_label = {'idle': '빌드 이력 없음', 'queued': 'GPU 대기 중', 'running': '빌드 중',
+                           'completed': '최근 빌드 완료', 'failed': '빌드 실패', 'cancelled': '취소됨',
+                           'checking': '모델·GPU 환경 및 빌드 확인 중', 'ready': '현재 환경에서 빌드 준비 완료',
+                           'rebuild_required': '현재 환경에 맞는 빌드 필요', 'unavailable': '빌드 유효성 확인 실패'}.get(current_state_name, current_state_name)
+    current_job_identifier = current_status_record.get('id')
+    current_job_text = f' · 작업 ID `{current_job_identifier}`' if current_job_identifier else ''
+    current_error_text = f" · {current_status_record['error']}" if current_status_record.get('error') else ''
+    current_log_text = f' · 상세 로그: `.tmp/test/kimodo-migraphx-build/{current_job_identifier}/worker.log`' if current_state_name == 'failed' and current_job_identifier else ''
+    return f'{current_state_label}{current_job_text}{current_error_text}{current_log_text}'
+
+
+def build_migraphx_build_controls(current_interface_blocks):
+    gr.Markdown('### Kimodo DWPose MIGraphX 빌드\n참조 포즈와 출력 포즈에 사용할 GPU 실행 그래프를 미리 빌드합니다. GPU 대기열에서 실행하며 최초 빌드에는 시간이 걸립니다. 모델과 GPU 실행 환경이 바뀌면 다시 빌드해야 합니다.')
+    current_build_status = gr.Markdown('빌드 상태 확인 중')
+    current_build_button = gr.Button('MIGraphX 빌드 시작', interactive=False)
+    def refresh_migraphx_build_status():
+        try:
+            current_status_record = execute_remote_management_command('kimodo', 'migraphx-build-status', {})
+            return format_migraphx_build_status(current_status_record), gr.update(interactive=current_status_record.get('status') == 'rebuild_required')
+        except Exception as current_status_error:
+            return f'빌드 상태 조회 실패: {current_status_error}', gr.update(interactive=False)
+    def request_migraphx_build_job():
+        try:
+            current_status_record = execute_remote_management_command('kimodo', 'migraphx-build', {})
+            return format_migraphx_build_status(current_status_record), gr.update(interactive=False)
+        except Exception as current_build_error:
+            return f'빌드 요청 실패: {current_build_error}', gr.update(interactive=False)
+    current_interface_blocks.load(refresh_migraphx_build_status, outputs=[current_build_status, current_build_button])
+    gr.Timer(5).tick(refresh_migraphx_build_status, outputs=[current_build_status, current_build_button], queue=False)
+    current_build_button.click(request_migraphx_build_job, outputs=[current_build_status, current_build_button], queue=False)
+
+
 def build_model_management_interface():
-    with gr.Blocks(title='모델 다운로드 상태') as current_interface_blocks:
-        gr.Markdown('## 모델 다운로드 상태\n다른 생성기 화면이나 통합 CLI에서 시작한 모델 준비도 같은 게이트웨이 상태에서 확인합니다. 5초마다 갱신됩니다. 각 모델에서 현재 다운로드와 최근 완료·실패 상태를 표시합니다. 스냅샷 다운로드는 전체 크기가 확인되는 동안 진행률이 바뀔 수 있습니다.')
+    with gr.Blocks(title='모델 다운로드·빌드 상태') as current_interface_blocks:
+        gr.Markdown('## 모델 다운로드·빌드 상태\n다른 생성기 화면이나 통합 CLI에서 시작한 모델 준비도 같은 게이트웨이 상태에서 확인합니다. 5초마다 갱신됩니다. 각 모델에서 현재 다운로드와 최근 완료·실패 상태를 표시합니다. 스냅샷 다운로드는 전체 크기가 확인되는 동안 진행률이 바뀔 수 있습니다.')
         for current_label_name, current_service_name in MODEL_PREPARATION_SERVICES:
             with gr.Group():
                 gr.Markdown(f'### {current_label_name}')
                 def execute_model_command(current_command_name, current_payload_record, service_name_value=current_service_name):
                     return execute_remote_management_command(service_name_value, current_command_name, current_payload_record)
                 build_model_download_controls(current_interface_blocks, execute_model_command, poll_always_enabled=True, model_service_name=current_service_name)
+                if current_service_name == 'kimodo':
+                    build_migraphx_build_controls(current_interface_blocks)
         gr.Markdown('### 대기열로 준비하는 모델\n다운로드 요청은 각 생성기 화면에서 실행합니다.')
         for current_label_name, current_service_name in MODEL_JOB_SERVICES:
             with gr.Group():

@@ -2,6 +2,36 @@
 import gradio as gr
 
 
+def read_model_readiness_status(current_execute_command):
+    """모델 준비 상태와 생성 가능 여부를 읽고 미준비 시 관리 화면을 안내한다."""
+    try:
+        current_asset_record = current_execute_command('model-status', {})
+        current_model_ready = current_asset_record.get('generation_ready', current_asset_record['ready'])
+        current_preparation_running = current_asset_record.get('preparation_status') == 'running'
+        return (current_asset_record['message'], current_model_ready,
+                gr.update(visible=not current_model_ready), gr.Timer(active=current_preparation_running))
+    except Exception as current_asset_error:
+        return (f'모델 상태 확인 실패: {current_asset_error}. 모델 준비 상태 확인을 다시 눌러 주세요.', False,
+                gr.update(visible=True), gr.Timer(active=False))
+
+
+def build_model_readiness_controls(current_interface_blocks, current_execute_command):
+    """다운로드를 실행하지 않고 상태와 모델 관리 이동만 제공한다."""
+    current_model_ready = gr.State(False)
+    current_model_output = gr.Markdown('모델 상태 확인 중')
+    with gr.Row():
+        current_refresh_button = gr.Button('모델 준비 상태 확인')
+        current_management_button = gr.Button('모델 관리로 이동', link='/management/?tool=model-management&category=model-management', link_target='_self', visible=False)
+    current_readiness_timer = gr.Timer(5, active=False)
+    current_model_outputs = [current_model_output, current_model_ready, current_management_button, current_readiness_timer]
+    def refresh_model_readiness_status():
+        return read_model_readiness_status(current_execute_command)
+    current_refresh_event = current_refresh_button.click(refresh_model_readiness_status, outputs=current_model_outputs, queue=False)
+    current_load_event = current_interface_blocks.load(refresh_model_readiness_status, outputs=current_model_outputs)
+    current_timer_event = current_readiness_timer.tick(refresh_model_readiness_status, outputs=current_model_outputs, queue=False)
+    return current_model_ready, [current_refresh_event, current_load_event, current_timer_event]
+
+
 def build_model_download_controls(current_interface_blocks, current_execute_command, poll_always_enabled=False, model_service_name=None):
     current_model_ready = gr.State(False)
     current_model_output = gr.Markdown('모델 상태 확인 중')
@@ -17,8 +47,11 @@ def build_model_download_controls(current_interface_blocks, current_execute_comm
         try:
             current_asset_record = current_execute_command('model-status',{})
             current_download_running = current_asset_record.get('preparation_status') == 'running'
+            current_status_message = current_asset_record['message']
+            if current_download_running:
+                current_status_message += ' · 다운로드가 진행 중이므로 중복 요청을 막고 있습니다.'
             return (
-                current_asset_record['message'],
+                current_status_message,
                 current_asset_record.get('generation_ready', current_asset_record['ready']),
                 gr.update(interactive=not current_asset_record['ready'] and not current_download_running),
                 gr.Timer(active=poll_always_enabled or current_download_running),
@@ -67,9 +100,18 @@ def format_model_download_status(current_status_values, model_service_name):
         current_status_name = current_status_value['status']
         if current_status_name == 'completed' and not current_total_bytes:
             current_progress_text = '크기 정보 없음'
+        current_existing_bytes = current_status_value.get('existing_bytes')
+        if current_status_value.get('stage') == '기존 부분 파일 검증' and isinstance(current_existing_bytes, int) and current_existing_bytes > 0:
+            current_progress_text = (f'기존 부분 {current_existing_bytes:,}바이트 보존 · '
+                                     f'검증 {current_received_bytes / current_existing_bytes * 100:.1f}% '
+                                     f'({current_received_bytes:,} / {current_existing_bytes:,}바이트)')
+        elif current_status_value.get('stage') == '기존 부분 파일 검증':
+            # 이전 버전에서 시작한 작업은 기존 부분 크기를 보고하지 않는다.
+            current_progress_text = f'검증한 데이터 {current_received_bytes:,}바이트 · 전체 파일 기준 {current_progress_text}'
         current_resume_bytes = current_status_value.get('resumed_bytes')
         current_resume_text = f'{current_resume_bytes:,}바이트' if current_resume_bytes is not None else '확인 불가'
-        current_result_lines.append(f"- {current_status_value['model']} · {current_status_labels[current_status_name]} · {current_status_value.get('stage', '준비')} · {current_progress_text} · 시작 시 이어받은 바이트 {current_resume_text}")
+        current_resume_label = '시작 시 검증 지점' if current_status_value.get('stage') == '기존 부분 파일 검증' else '시작 시 이어받은 바이트'
+        current_result_lines.append(f"- {current_status_value['model']} · {current_status_labels[current_status_name]} · {current_status_value.get('stage', '준비')} · {current_progress_text} · {current_resume_label} {current_resume_text}")
     return '\n'.join(current_result_lines) if current_result_lines else '진행 중인 다운로드와 최근 결과가 없습니다.'
 
 

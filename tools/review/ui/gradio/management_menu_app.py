@@ -24,7 +24,7 @@ NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('model-management','dwpose-generator',
 DEFAULT_MANAGER_SOURCE_PATH=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json'
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
-    {'id':'model-management','label':'모델 다운로드 상태','path':'/management/frame/model-management/','category':'model-management','uiMode':'gradio','description':'생성기 모델 준비와 다운로드 상태'},
+    {'id':'model-management','label':'모델 다운로드·빌드 상태','path':'/management/frame/model-management/','category':'model-management','uiMode':'gradio','description':'생성기 모델 다운로드와 GPU 빌드 상태'},
     {'id':'sprite-sheet-editor','label':'스프라이트 시트 편집기','path':'/management/frame/sprite-sheet-editor/','category':'animation-tool','uiMode':'gradio','description':'프레임 크롭 · 앵커 정렬 · 시트와 좌표맵 출력'},
     {'id':'effect-editor','label':'발광 이펙트 좌표 검수','path':'/management/frame/effect-editor/','category':'map-review','uiMode':'gradio','description':'빌보드 연결 발광·프레임 정렬·DB 저장'},
     {'id':'building-editor','label':'건물 에셋 관리','path':'/management/frame/building-editor/','category':'map-review','uiMode':'gradio','description':'건물 원본·사용 맵·공용 앵커 관리'},

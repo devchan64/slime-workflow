@@ -163,7 +163,7 @@ def import_verified_http_prefix(current_download_url, current_source_path, curre
         current_verified_stream.seek(current_verified_bytes)
         if not current_checkpoint_path.exists():
             persist_verified_checkpoint(current_verified_stream)
-        current_record_value.update(stage='기존 부분 파일 검증', bytes=current_verified_bytes, total_bytes=expected_total_bytes, verified_bytes=current_verified_bytes, resumed_bytes=current_verified_bytes)
+        current_record_value.update(stage='기존 부분 파일 검증', bytes=current_verified_bytes, total_bytes=expected_total_bytes, existing_bytes=current_prefix_bytes, verified_bytes=current_verified_bytes, resumed_bytes=current_verified_bytes)
         if current_verified_bytes < current_prefix_bytes:
             current_http_request = urllib.request.Request(current_download_url, headers={'Range': f'bytes={current_verified_bytes}-{current_prefix_bytes-1}', 'Accept-Encoding': 'identity'})
             with urllib.request.urlopen(current_http_request, timeout=120) as current_http_response:
