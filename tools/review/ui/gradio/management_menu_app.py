@@ -60,6 +60,56 @@ def format_gpu_status(gpu_status_record):
     return 'GPU · 상태 확인 불가'
 
 
+def build_gpu_process_groups(gpu_status_record):
+    """GPU 프로세스 간 실제 조상 관계만 연결한다."""
+    current_process_records = gpu_status_record.get('processes', [])
+    current_pid_records = {current_record.get('pid'): current_record for current_record in current_process_records if type(current_record.get('pid')) is int}
+    current_groups = {}
+    for current_record in current_process_records:
+        current_root_record = current_record
+        current_seen_pids = set()
+        while current_root_record.get('gpu_parent_pid') in current_pid_records and current_root_record.get('gpu_parent_pid') not in current_seen_pids:
+            current_seen_pids.add(current_root_record.get('pid'))
+            current_root_record = current_pid_records[current_root_record['gpu_parent_pid']]
+        current_group_key = current_root_record.get('pid')
+        current_groups.setdefault(current_group_key, {'root':current_root_record, 'processes':[]})['processes'].append(current_record)
+    return list(current_groups.values())
+
+
+def format_gpu_group_summary(current_group_record):
+    current_root_record = current_group_record['root']
+    current_process_records = current_group_record['processes']
+    current_summary_parts = [str(current_root_record.get('command') or '외부 GPU 작업')]
+    for current_domain_name in ('vram','gtt'):
+        current_memory_values = [current_record.get(f'{current_domain_name}_memory_mib') for current_record in current_process_records]
+        current_known_values = [current_value for current_value in current_memory_values if type(current_value) is int and current_value >= 0]
+        current_memory_text = f'{sum(current_known_values):,} MiB' if len(current_known_values) == len(current_memory_values) else '일부 미측정' if current_known_values else '미측정'
+        current_summary_parts.append(f'{current_domain_name.upper()} 합 {current_memory_text}')
+    current_summary_parts.append(f'{len(current_process_records)}개 프로세스')
+    return ' · '.join(current_summary_parts)
+
+
+def render_gpu_process_tree(current_group_record):
+    current_process_records = current_group_record['processes']
+    current_group_pids = {current_record.get('pid') for current_record in current_process_records}
+    current_tree_lines = []
+    current_rendered_records = set()
+    def append_process_branch(current_record, current_depth_value):
+        if id(current_record) in current_rendered_records:
+            return
+        current_rendered_records.add(id(current_record))
+        current_role_text = html.escape(str(current_record.get('process_role') or ('부모 프로세스' if current_depth_value == 0 else '자식 프로세스')))
+        current_pid_value = current_record.get('pid')
+        current_identifier_text = f" · 작업 {html.escape(str(current_record['id']))}" if current_record.get('id') else ''
+        current_memory_parts = [f"{current_domain_name.upper()} {current_record[f'{current_domain_name}_memory_mib']:,} MiB" for current_domain_name in ('vram','gtt') if type(current_record.get(f'{current_domain_name}_memory_mib')) is int and current_record[f'{current_domain_name}_memory_mib'] >= 0]
+        current_tree_lines.append('  ' * current_depth_value + f"- {current_role_text} · PID {current_pid_value if type(current_pid_value) is int else '?'}{current_identifier_text}" + (' · ' + ' · '.join(current_memory_parts) if current_memory_parts else ' · 메모리 미측정'))
+        for current_child_record in current_process_records:
+            if current_child_record.get('gpu_parent_pid') == current_pid_value and current_child_record.get('pid') in current_group_pids and current_child_record is not current_record:
+                append_process_branch(current_child_record, current_depth_value+1)
+    append_process_branch(current_group_record['root'], 0)
+    return '\n'.join(current_tree_lines)
+
+
 def render_gpu_status_card(gpu_status_record):
     """동시에 실행 중인 프로세스를 각각 구분하고 메모리 풀을 표시한다."""
     if gpu_status_record.get('status') == 'busy':
@@ -87,6 +137,15 @@ def render_gpu_status_card(gpu_status_record):
         if all(isinstance(current_memory_value,int) and current_memory_value>=0 for current_memory_value in current_memory_values):
             current_status_text+='\n\n'+ ' · '.join(f'{current_memory_label} {current_memory_value:,} MiB' for current_memory_label,current_memory_value in zip(('사용','여유','총'),current_memory_values))
     return current_status_text
+
+
+def render_gpu_capacity_summary(gpu_status_record):
+    current_memory_lines = []
+    for current_domain_name in ('gtt', 'vram'):
+        current_memory_values = [gpu_status_record.get(f'{current_domain_name}_{current_measure_name}_mib') for current_measure_name in ('used','free','total')]
+        if all(type(current_memory_value) is int and current_memory_value >= 0 for current_memory_value in current_memory_values):
+            current_memory_lines.append(current_domain_name.upper()+' · '+' · '.join(f'{current_memory_label} {current_memory_value:,} MiB' for current_memory_label,current_memory_value in zip(('사용','여유','총'),current_memory_values)))
+    return '\n\n'.join(current_memory_lines)
 
 def load_manager_page_records(source_file_path, current_animation_catalog=False):
     source_record_values=json.loads(source_file_path.read_text())
@@ -313,7 +372,19 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
         with gr.Row(elem_id='management-header'):
             gr.Markdown('## SLIME 관리도구',scale=3)
         with gr.Accordion('GPU 프로세스 정보',open=False,elem_id='management-gpu-floating'):
-            gpu_status_value=gr.Markdown(render_gpu_status_card({}),elem_id='management-gpu-status')
+            gpu_status_value=gr.State({})
+            @gr.render(inputs=gpu_status_value, queue=False)
+            def render_gpu_process_groups(current_gpu_status):
+                current_group_records = build_gpu_process_groups(current_gpu_status)
+                current_status_text = f"GPU 사용 중 · {len(current_group_records)}개 프로세스 그룹 · {len(current_gpu_status.get('processes', []))}개 프로세스" if current_gpu_status.get('status') == 'busy' else format_gpu_status(current_gpu_status)
+                gr.Markdown(current_status_text, elem_id='management-gpu-status')
+                for current_group_record in current_group_records:
+                    current_root_identifier = current_group_record['root'].get('pid')
+                    with gr.Accordion(format_gpu_group_summary(current_group_record), open=False, key=f'gpu-process-{current_root_identifier}', preserved_by_key=['open']):
+                        gr.Markdown(render_gpu_process_tree(current_group_record))
+                current_capacity_text = render_gpu_capacity_summary(current_gpu_status)
+                if current_capacity_text:
+                    gr.Markdown(current_capacity_text)
         with gr.Row(elem_id='management-shell'):
             with gr.Column(scale=3,min_width=280,elem_id='management-workspace'):
                 selected_page_status_value=gr.Markdown(f"**{html.escape(page_record_values[0]['label'])}** · {html.escape(page_record_values[0]['description'])}" if page_record_values else '표시할 관리 화면이 없습니다.')
@@ -358,8 +429,8 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
             return [current_search_text,current_category_name,*current_selection_updates]
         interface_blocks_value.load(initialize_menu_selection,current_navigation_inputs,[search_text_value,category_select_value,page_select_value,tool_count_value,selected_page_status_value,page_preview_value],js=initial_selection_script,queue=False,preprocess=False)
         interface_blocks_value.load(fn=None,js=create_sidebar_responsive_script(current_inline_mode))
-        interface_blocks_value.load(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,queue=False)
-        if hasattr(gr,'Timer'):gr.Timer(MANAGEMENT_GPU_REFRESH_SECONDS).tick(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,show_progress='hidden')
+        interface_blocks_value.load(read_gpu_status,outputs=gpu_status_value,queue=False)
+        if hasattr(gr,'Timer'):gr.Timer(MANAGEMENT_GPU_REFRESH_SECONDS).tick(read_gpu_status,outputs=gpu_status_value,show_progress='hidden',queue=False)
     return interface_blocks_value,initial_selection_script
 
 if __name__=='__main__':

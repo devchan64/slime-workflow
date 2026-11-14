@@ -5,7 +5,7 @@ import inspect
 
 from tools.review.ui.gradio.management_menu_app import build_management_menu_interface
 
-from tools.review.ui.gradio.management_menu_app import create_initial_selection_script, create_menu_navigation_script, create_page_preview_html, create_tool_choice_values, filter_manager_page_records, format_gpu_status, render_gpu_status_card
+from tools.review.ui.gradio.management_menu_app import create_initial_selection_script, create_menu_navigation_script, create_page_preview_html, create_tool_choice_values, filter_manager_page_records, format_gpu_status, render_gpu_status_card, build_gpu_process_groups, format_gpu_group_summary, render_gpu_process_tree
 
 
 class GradioManagementMenuTests(unittest.TestCase):
@@ -157,6 +157,23 @@ class GradioManagementMenuTests(unittest.TestCase):
         self.assertIn('VRAM 1,200 MiB · GTT 8 MiB', current_status_card)
         self.assertIn('VRAM 300 MiB · GTT 4 MiB', current_status_card)
 
+    def test_gpu_process_tree_aggregates_only_real_descendants(self):
+        current_records = [
+            {'pid':101,'gpu_parent_pid':None,'id':'same','command':'Kimodo','vram_memory_mib':421,'gtt_memory_mib':22},
+            {'pid':202,'gpu_parent_pid':101,'id':'same','command':'Kimodo','process_role':'DWPose 출력','vram_memory_mib':710,'gtt_memory_mib':8},
+            {'pid':303,'gpu_parent_pid':None,'id':'same','command':'Kimodo','vram_memory_mib':30,'gtt_memory_mib':2},
+        ]
+        current_groups = build_gpu_process_groups({'processes':current_records})
+        self.assertEqual([len(current_group['processes']) for current_group in current_groups],[2,1])
+        self.assertIn('VRAM 합 1,131 MiB · GTT 합 30 MiB · 2개 프로세스',format_gpu_group_summary(current_groups[0]))
+        current_tree_text = render_gpu_process_tree(current_groups[0])
+        self.assertIn('- 부모 프로세스 · PID 101',current_tree_text)
+        self.assertIn('  - DWPose 출력 · PID 202',current_tree_text)
+
+    def test_gpu_process_group_does_not_present_partial_sum_as_total(self):
+        current_group_record = build_gpu_process_groups({'processes':[{'pid':1,'command':'작업','vram_memory_mib':5,'gtt_memory_mib':2},{'pid':2,'gpu_parent_pid':1,'vram_memory_mib':None,'gtt_memory_mib':3}]})[0]
+        self.assertIn('VRAM 합 일부 미측정 · GTT 합 5 MiB', format_gpu_group_summary(current_group_record))
+
 
 class ManagementMenuRefreshTests(unittest.TestCase):
     def test_menu_updates_do_not_bind_server_change_events(self):
@@ -178,7 +195,7 @@ class ManagementNativeNavigationTests(unittest.TestCase):
         current_panel_record=next(current_record for current_record in current_component_records if current_record.get('props',{}).get('elem_id')=='management-gpu-floating')
         self.assertEqual(current_panel_record['type'],'accordion')
         self.assertFalse(current_panel_record['props']['open'])
-        self.assertTrue(any(current_record.get('props',{}).get('elem_id')=='management-gpu-status' for current_record in current_component_records))
+        self.assertTrue(any(current_record['type']=='state' for current_record in current_component_records))
 
     def test_inline_blocks_keep_shared_sidebar_and_remove_frame_sizing(self):
         import gradio as gr

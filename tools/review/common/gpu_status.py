@@ -12,6 +12,7 @@ _status_cache = (0, {})
 
 def identify_gpu_command(process_identifier):
     process_chain = []
+    current_ancestor_identifiers = []
     for _ in range(12):
         try:
             root = Path('/proc') / str(process_identifier)
@@ -20,6 +21,7 @@ def identify_gpu_command(process_identifier):
             process_identifier = int(re.search(r'^PPid:\s+(\d+)', status, re.M)[1])
             if process_identifier <= 1:
                 break
+            current_ancestor_identifiers.append(process_identifier)
         except (OSError, ValueError, TypeError):
             break
     combined = ' '.join(process_chain)
@@ -30,7 +32,8 @@ def identify_gpu_command(process_identifier):
         if marker in combined:
             label = name
             break
-    return {'command':label,'id':generation_id[0] if generation_id else anny_id[1] if anny_id else None}
+    current_process_role = 'DWPose 출력' if process_chain and 'dwpose_export.py' in process_chain[0] else '생성 작업자' if process_chain and 'worker.py' in process_chain[0] else None
+    return {'command':label,'id':generation_id[0] if generation_id else anny_id[1] if anny_id else None,'ancestor_pids':current_ancestor_identifiers,'process_role':current_process_role}
 
 
 def read_gpu_status():
@@ -52,6 +55,9 @@ def read_gpu_status():
                     current_memory_value = (sum(current_memory_record['value'] for current_memory_record in current_gpu_memory) + 1048575) // 1048576 if all(current_memory_record['unit'] == 'B' for current_memory_record in current_gpu_memory) else None
                     current_process_memory = {f'{current_domain_name}_memory_mib': (current_memory_records[f'{current_domain_name}_mem']['value'] + 1048575) // 1048576 if current_memory_records[f'{current_domain_name}_mem']['unit'] == 'B' else None for current_domain_name in ('gtt','vram')}
                     processes.append({'pid':pid,'memory_mib':current_memory_value,**current_process_memory,**identify_gpu_command(pid)})
+            current_gpu_process_ids = {current_process_record['pid'] for current_process_record in processes}
+            for current_process_record in processes:
+                current_process_record['gpu_parent_pid'] = next((current_parent_pid for current_parent_pid in current_process_record.get('ancestor_pids', []) if current_parent_pid in current_gpu_process_ids), None)
             memory_result = subprocess.run(['amd-smi','metric','-m','--json'],capture_output=True,text=True,timeout=10,check=True)
             current_memory_totals = {f'{current_domain_name}_{current_measure_name}_mib':0 for current_domain_name in ('gtt','vram') for current_measure_name in ('total','used','free')}
             for current_gpu_record in json.loads(memory_result.stdout)['gpu_data']:

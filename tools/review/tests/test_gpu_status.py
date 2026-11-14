@@ -40,6 +40,17 @@ class GpuStatusTests(unittest.TestCase):
             current_process_record=gpu_status.identify_gpu_command(123)
         self.assertEqual(current_process_record['command'],'Kimodo 모션·SOMA 렌더')
 
+    def test_parent_detection_skips_non_gpu_intermediate_process(self):
+        current_process_list = [{'process_info':{'pid':current_pid,'memory_usage':{'vram_mem':{'value':1048576,'unit':'B'},'gtt_mem':{'value':0,'unit':'B'}}}} for current_pid in (100,200)]
+        current_metrics = {'gpu_data':[{'mem_usage':{f'{current_measure}_{current_domain}':{'value':1000 if current_measure=='total' else 0} for current_domain in ('gtt','vram') for current_measure in ('total','used','free')}}]}
+        current_results = [subprocess.CompletedProcess([],0,json.dumps([{'process_list':current_process_list}])),subprocess.CompletedProcess([],0,json.dumps(current_metrics))]
+        current_identity_records = [{'command':'Kimodo','id':'same','ancestor_pids':[50]},{'command':'Kimodo','id':'same','ancestor_pids':[150,100,50]}]
+        with patch.object(gpu_status.subprocess,'run',side_effect=current_results),patch.object(gpu_status,'identify_gpu_command',side_effect=current_identity_records):
+            gpu_status._status_cache = (0,{})
+            current_status_record = gpu_status.read_gpu_status()
+        self.assertIsNone(current_status_record['processes'][0]['gpu_parent_pid'])
+        self.assertEqual(current_status_record['processes'][1]['gpu_parent_pid'],100)
+
     def test_queue_uses_gtt_free_without_subtracting_vram(self):
         current_metrics = {'gpu_data':[{'mem_usage':{'total_gtt':{'value':12288},'free_gtt':{'value':11288},'used_vram':{'value':280}}}]}
         with patch.object(gpu_job_queue.subprocess, 'run', return_value=subprocess.CompletedProcess([],0,json.dumps(current_metrics))):
