@@ -38,7 +38,7 @@ class GpuStatusTests(unittest.TestCase):
     def test_kimodo_child_stage_is_not_momask_generation(self):
         with patch.object(gpu_status.Path,'read_bytes',return_value=b'python\0generators/momask/templates/run_stage.py\0generators/kimodo/anny_stage.py\0'),patch.object(gpu_status.Path,'read_text',return_value='PPid:\t1\n'):
             current_process_record=gpu_status.identify_gpu_command(123)
-        self.assertEqual(current_process_record['command'],'Kimodo 모션·ANNY 렌더')
+        self.assertEqual(current_process_record['command'],'Kimodo 모션·SOMA 렌더')
 
     def test_queue_uses_gtt_free_without_subtracting_vram(self):
         current_metrics = {'gpu_data':[{'mem_usage':{'total_gtt':{'value':12288},'free_gtt':{'value':11288},'used_vram':{'value':280}}}]}

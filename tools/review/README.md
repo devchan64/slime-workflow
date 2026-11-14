@@ -24,7 +24,7 @@ tools/manager.py                  통합 CLI 진입점
      management_log_viewer.py    공용 로그 동작
    domains/
      character_animation/        스프라이트·앵커 편집·과거 기록 호환
-     kimodo/                     모션 생성·ANNY 렌더·작업 서비스
+     kimodo/                     모션 생성·SOMA 렌더·작업 서비스
      anny/                       체형 속성·미리보기·렌더 API
      image/                      Qwen 이미지 API·참조 입력 검증
    ui/
@@ -297,7 +297,7 @@ VACE 공용 작업자는 CUDA 초기화 전에 `expandable_segments:True`를 적
 
 시작 메뉴는 DB의 맵 인덱스·이름을 한 번 조회하여 구성합니다. 렌더 크기 계산에는 맵 본문을 읽지 않습니다. 맵 본문·배치 검증은 `/management/map-assets/maps/<id>` 요청 시 수행합니다. 전체 맵 검수는 메뉴 생성 성공과 별개이며, 시작 시간 단축을 위해 검수 결과를 오래 캐시하지 않습니다.
 
-HY-Motion은 2026-10-29 폐기했다. 공용 ANNY 렌더는 `generators/animation/anny_render/`, YAML 검증은 `common/strict_yaml.py`로 분리하여 Kimodo·ANNY에서 사용한다.
+HY-Motion은 2026-10-29 폐기했다. Kimodo는 SOMA 렌더를 사용하며 ANNY 리타게팅·렌더는 폐기했다. YAML 검증은 `common/strict_yaml.py`에서 관리한다.
 
 ### 모델 다운로드·빌드 상태
 
