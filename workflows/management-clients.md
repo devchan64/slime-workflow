@@ -928,6 +928,8 @@ GUI와 CLI는 `map-assets effect-list`, `effect-load`, `effect-save`를 공유�
 
 `kimodo` 서비스와 `/management/frame/kimodo-generator/` 페이지를 추가했다. GUI·통합 CLI는 공용 게이트웨이, GPU 대기열, `.tmp/test/kimodo/` 기록을 공유한다. 텍스트 인코더만 NF4이며 모션 모델은 FP32 CUDA로 실행한다. 모델 준비·JSON 요청·출력 범위는 [Kimodo 사용 설명](../generators/kimodo/README.md)을 따른다. 기본 스텝은 100이며 2스텝은 실행 연결 검사에만 사용한다. 선택 삭제·초기화·우선 실행·취소·재개는 공용 계약을 사용한다.
 
+GUI **모델 다운로드**와 CLI `command kimodo prepare`는 같은 백그라운드 다운로드를 요청한다. HTTP 입력은 `{"action":"prepare"}`이며 추가 필드를 받지 않는다. `model-status`의 `preparation_status`는 `idle`, `running`, `completed`, `failed` 중 하나다. `ready`는 현재 파일 준비 상태를 나타낸다.
+
 Kimodo 출력 방향: GUI의 `출력 방향 · 복수 선택`과 CLI JSON의 `directions` 배열을 공유한다. 허용 방향은 생성기 README를 따른다. 생략한 과거 요청은 `front_left`, 빈 배열·중복·미지원 값은 거절한다. 여러 방향은 비교 MP4와 ZIP의 방향별 원본 PNG·MP4로 저장하며 모션 추론은 한 번만 실행한다.
 
 Kimodo 신규 직접 포즈·DWPose 영상은 SOMA 원본과 동일한 30fps·동일 프레임 수다. 기존 16fps 이력은 유지한다. Fun Control과 VACE의 현행 처리 포즈 입력은 16fps이므로 전달 전에 별도 변환해야 한다.
@@ -1077,6 +1079,8 @@ RGB 영상 직접 입력 실험은 폐기했습니다. 신규 생성·기존 RGB
 **사용 보류:** 현재 장비에서 시스템 RAM·GPU 메모리 부족이 관측되어 안정적인
 실행 검증 전까지 신규 생성과 재개를 보류한다. 기존 이력과 결과는 보존한다.
 이는 운영 방침이며 GUI·CLI 실행 차단이 구현됐다는 뜻은 아니다.
+
+GUI **모델 다운로드**와 CLI `command wan22-animate2 prepare`는 같은 백그라운드 준비를 시작한다. HTTP 입력은 `{"action":"prepare"}`이며 `model-status`에서 준비 상태를 조회한다.
 
 `wan22-animate2`는 별도 공식 Base 모델로 RGB 동작 MP4와 캐릭터 참조를 받는다.
 Fun Control의 폐기된 RGB 편집 입력과 구분한다. GUI·CLI는 같은 게이트웨이와

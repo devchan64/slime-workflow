@@ -1,12 +1,50 @@
 """공용 대기열·누적 이력·실제 파일 삭제 계약을 사용하는 Kimodo 서비스."""
+from threading import Thread
+
+from tools.review.common.management_transport import send_management_json_response
 from generators.kimodo.contracts import KIMODO_JOB_STORAGE,inspect_kimodo_assets,validate_kimodo_assets,validate_kimodo_request
 from tools.review.common.reference_video_generation import ReferenceVideoGenerationManager
 
 class KimodoGenerationManager(ReferenceVideoGenerationManager):
     def __init__(self):
-        super().__init__('/kimodo',KIMODO_JOB_STORAGE,'generators/kimodo/worker.py',validate_kimodo_request,validate_kimodo_assets,inspect_kimodo_assets)
+        super().__init__('/kimodo',KIMODO_JOB_STORAGE,'generators/kimodo/worker.py',validate_kimodo_request,validate_kimodo_assets,self.inspect_model_preparation)
         from tools.review.domains.kimodo.keyframe_storage import KIMODO_KEYFRAME_STORAGE
         self.keyframe_storage_root = KIMODO_KEYFRAME_STORAGE
+
+    def inspect_model_preparation(self):
+        with self.current_request_lock:
+            current_asset_status = inspect_kimodo_assets()
+            current_prepare_state = getattr(self, 'model_preparation_state', 'idle')
+            if current_prepare_state == 'running':
+                current_asset_status.update(ready=False, message='모델 다운로드 및 무결성 확인 중입니다.')
+            elif current_prepare_state == 'failed' and not current_asset_status['ready']:
+                current_asset_status['message'] = '모델 다운로드 실패. Hugging Face 접근 권한과 .tmp/test/kimodo-prepare/ 로그를 확인한 뒤 다시 시도하세요.'
+            return {**current_asset_status, 'preparation_status': current_prepare_state}
+
+    def run_model_preparation(self):
+        from generators.kimodo.prepare import prepare_kimodo_assets
+        try:
+            prepare_kimodo_assets()
+        except Exception:
+            current_prepare_state = 'failed'
+        else:
+            current_prepare_state = 'completed'
+        with self.current_request_lock:
+            self.model_preparation_state = current_prepare_state
+
+    def start_model_preparation(self):
+        with self.current_request_lock:
+            if getattr(self, 'model_preparation_state', 'idle') == 'running':
+                return {'preparation_status': 'running'}
+            if inspect_kimodo_assets()['ready']:
+                return {'preparation_status': 'completed'}
+            self.model_preparation_state = 'running'
+            try:
+                Thread(target=self.run_model_preparation, name='kimodo-model-prepare', daemon=True).start()
+            except RuntimeError as current_start_error:
+                self.model_preparation_state = 'idle'
+                raise ValueError('모델 다운로드를 시작할 수 없습니다.') from current_start_error
+            return {'preparation_status': 'running'}
 
     def preview_generation_cleanup(self):
         from tools.review.common.generation_cleanup import describe_cleanup_excluding_blocked
@@ -32,10 +70,16 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
             return {**current_cleanup_result,'skipped_jobs':current_preview_record['blocked_jobs']}
 
     def handle_image_request(self, current_http_handler):
-        """게이트웨이에서 검증한 키프레임 저장·목록 명령을 처리한다."""
+        """게이트웨이에서 검증한 모델 준비·키프레임 명령을 처리한다."""
         import json
         from urllib.parse import urlsplit
         current_request_path = urlsplit(current_http_handler.path).path
+        current_command_payload = getattr(current_http_handler, 'management_command_payload', None)
+        if current_request_path == '/kimodo/jobs' and current_http_handler.command == 'POST' and isinstance(current_command_payload, dict) and current_command_payload.get('action') == 'prepare':
+            if set(current_command_payload) != {'action'}:
+                raise ValueError('Kimodo 모델 준비는 추가 입력을 받지 않습니다.')
+            send_management_json_response(current_http_handler, 200, self.start_model_preparation())
+            return True
         if current_request_path not in ('/kimodo/keyframes/save', '/kimodo/keyframes/list', '/kimodo/keyframes/preview', '/kimodo/keyframes/replace', '/kimodo/keyframes/retire'):
             return super().handle_image_request(current_http_handler)
         try:

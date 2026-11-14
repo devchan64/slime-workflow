@@ -12,11 +12,11 @@ JSON을 직접 받지 않는다. Fun Control RGB 편집 실험 및 폐기된 `wa
 
 ## 준비·실행
 
-저장소의 `.venv`에서 `python generators/wan_animate2/prepare.py`를 실행한다.
+GUI 상단의 **모델 다운로드** 또는 `.venv/bin/python tools/manager.py command wan22-animate2 prepare`로 준비를 시작한다. CLI에서 진행 상태는 `command wan22-animate2 model-status`로 조회한다. 실패 원인은 게이트웨이 로그에서 확인할 수 있다.
 모델은 `.model/wan22-animate2`, 공식 Diffusers 소스는
 `.local/wan-animate2/diffusers`에 준비한다. 별도 가상환경이나 설치된 Diffusers의
 일괄 업그레이드를 요구하지 않는다. 모델·소스 revision은 `contracts.py`로 고정한다.
-준비 로그는 파일로 보관한다. GPU 확인·모델 준비·추론은 샌드박스 밖에서 실행한다.
+모델 준비 중에는 모델 파일과 공식 소스를 다운로드하고 파일 해시를 기록한다.
 
 GUI: `/management/frame/wan22-animate2-generator/?tool=wan22-animate2-generator&category=animation-tool`
 

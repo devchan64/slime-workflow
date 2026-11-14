@@ -22,6 +22,8 @@ PATH="$PWD/.venv/bin:$PATH" uv pip install --python .venv/bin/python --no-build-
 ```
 
 
+관리도구에서는 **모델 다운로드**를 눌러 고정 SOMA 모델, NF4 인코더, 공식 소스를 받을 수 있다. CLI의 `.venv/bin/python tools/manager.py command kimodo prepare`도 같은 다운로드를 시작하며, `command kimodo model-status`에서 진행 상태를 확인한다. 위 패키지 설치 명령은 환경을 처음 구성할 때 별도로 실행한다.
+
 공식 패키지 설치에는 C++ 컴파일러와 CMake가 필요하다. 준비 로그는 `.tmp/test/kimodo-prepare/`에 5초 heartbeat와 함께 저장된다. 고정 리비전 자료를 오프라인으로 읽으며 모델 선택 입력은 허용하지 않는다. 모델 상태의 ‘파일 준비 완료’는 가중치 크기·준비 기록 확인이며 CUDA 실행 성공을 뜻하지 않는다.
 
 ## 공용 CLI

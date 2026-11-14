@@ -23,14 +23,14 @@ MANAGEMENT_SERVICE_COMMANDS = {'qwen-21-circular': ('history-delete', 'resume', 
 
 
 MANAGEMENT_SERVICE_ROUTES['wan22-animate2']='/wan22-animate2'
-MANAGEMENT_SERVICE_COMMANDS['wan22-animate2']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
+MANAGEMENT_SERVICE_COMMANDS['wan22-animate2']=('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_ROUTES['wan22-fun-control']='/wan22-fun-control'
 MANAGEMENT_SERVICE_COMMANDS['wan22-fun-control']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_ROUTES['dwpose']='/dwpose'
 MANAGEMENT_SERVICE_COMMANDS['dwpose']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_ROUTES['kimodo']='/kimodo'
 MANAGEMENT_SERVICE_COMMANDS['kimodo']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
-MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('keyframe-save','keyframe-list','keyframe-preview','keyframe-replace','keyframe-retire')
+MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('prepare','keyframe-save','keyframe-list','keyframe-preview','keyframe-replace','keyframe-retire')
 MANAGEMENT_COMMAND_ROUTES['keyframe-save'] = ('POST','/keyframes/save')
 MANAGEMENT_COMMAND_ROUTES['keyframe-list'] = ('POST','/keyframes/list')
 MANAGEMENT_COMMAND_ROUTES['keyframe-preview'] = ('POST','/keyframes/preview')

@@ -6,6 +6,7 @@ import gradio as gr
 from generators.wan_animate2.contracts import ANIMATE_JOB_STORAGE, validate_animate_request
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
+from tools.review.common.gradio_model_download import build_model_download_controls
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
 from tools.review.common.gradio_history import build_generation_history_view
@@ -46,14 +47,7 @@ def build_animate_interface(current_server_address,current_command_callback=None
     with gr.Blocks(title='Wan Animate-2 캐릭터 동작 전사') as current_interface_blocks:
         gr.Markdown('## Wan Animate-2 캐릭터 동작 전사\nRGB 동작 영상과 기본 캐릭터 참조로 외형 일관성을 검증합니다. 포즈 선 영상·관절 JSON 입력이나 자유로운 영상 편집 기능이 아닙니다.')
         gr.Markdown('**사용 보류:** 현재 장비에서 시스템 RAM과 GPU 메모리 부족이 관측되었습니다. 안정적인 실행이 검증될 때까지 신규 생성과 재개를 보류합니다. 기존 이력과 결과는 보존합니다.')
-        current_model_ready=gr.State(False)
-        current_model_status=gr.Markdown('모델 준비 확인 중')
-        current_model_button=gr.Button('모델 준비 상태 확인')
-        def read_animate_model_status():
-            current_status_record=current_execute_command('model-status',{})
-            return current_status_record['message'],current_status_record['ready']
-        current_refresh_event=current_model_button.click(read_animate_model_status,outputs=[current_model_status,current_model_ready])
-        current_model_load=current_interface_blocks.load(read_animate_model_status,outputs=[current_model_status,current_model_ready])
+        current_model_ready, current_model_events = build_model_download_controls(current_interface_blocks, current_execute_command)
         with gr.Row():
             with gr.Column():
                 gr.Markdown('### 1. 입력 준비\n캐릭터 PNG 1장(832×480)과 SOMA 인체 렌더 또는 RGB 동작 MP4를 넣으세요. 입력 시간 기준 24fps로 샘플링하며, 부족한 구간을 임의 반복하지 않습니다.')
@@ -82,7 +76,7 @@ def build_animate_interface(current_server_address,current_command_callback=None
             return current_job_record['id'],'공용 GPU 대기열에 등록했습니다.'
         def check_animate_readiness(current_ready_flag,current_reference_path,current_motion_path,current_prompt_text):
             return bool(current_ready_flag and current_reference_path and current_motion_path and current_prompt_text.strip())
-        bind_gpu_generation_confirmation(current_generate_button,enqueue_animate_generation,current_input_controls,[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=check_animate_readiness,generation_readiness_inputs=[current_model_ready,current_reference_control,current_motion_control,current_prompt_control],generation_readiness_events=[current_refresh_event,current_model_load])
+        bind_gpu_generation_confirmation(current_generate_button,enqueue_animate_generation,current_input_controls,[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=check_animate_readiness,generation_readiness_inputs=[current_model_ready,current_reference_control,current_motion_control,current_prompt_control],generation_readiness_events=[*current_model_events])
         current_read_history,current_history_outputs=build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_animate_inputs,restore_output_components=[*current_input_controls,current_job_control],result_renderer_callback=render_video_generation_result,record_folder_route='/wan22-animate2',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
     return current_interface_blocks

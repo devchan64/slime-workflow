@@ -14,6 +14,7 @@ from generators.kimodo.contracts import KIMODO_DEFAULT_SETTINGS,normalize_kimodo
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_button_guidance import build_button_guidance
+from tools.review.common.gradio_model_download import build_model_download_controls
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_video_results import build_video_job_monitor,render_video_generation_result
@@ -518,17 +519,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         gr.Markdown('## Kimodo 모션 생성기 · NF4 실험\n텍스트로 SOMA 모션을 생성한 뒤 이 생성기에서 VideoX-Fun DWPose 검출과 선택 참조 관절 길이 보정을 수행합니다. Fun Control 입력에는 결과 포즈 영상을 16fps로 변환하세요. SOMA 렌더는 검수용입니다.')
         with gr.Accordion('고정 설정 · 모델 준비',open=False):
             gr.Markdown('고정: Kimodo-SOMA-RP-v1.2 · 모션 FP32 · LLM2Vec Llama 3 8B NF4 / BF16 연산 · CUDA · 30fps · 1개 샘플 · DDIM. 인코딩 후 인코더를 해제하고 모션을 생성합니다. 이후 모션 모델을 해제하고 SOMA 몸 관절을 512×512·30fps 정사영 포즈로 변환합니다. 모델 선택·부정 프롬프트는 제공하지 않습니다. 선택 이미지 참조는 모션 모델 입력이 아니라 OpenPose 출력 비율 보정에 사용합니다.')
-        current_model_ready = gr.State(False)
-        current_model_output = gr.Markdown('모델 상태 확인 중')
-        current_refresh_button = gr.Button('모델 준비 상태 확인')
-        def refresh_kimodo_assets():
-            try:
-                current_asset_record = current_execute_command('model-status',{})
-                return current_asset_record['message'],current_asset_record['ready']
-            except Exception as current_asset_error:
-                return f'모델 상태 확인 실패: {current_asset_error}',False
-        current_refresh_event = current_refresh_button.click(refresh_kimodo_assets,outputs=[current_model_output,current_model_ready],queue=False)
-        current_load_event = current_interface_blocks.load(refresh_kimodo_assets,outputs=[current_model_output,current_model_ready])
+        current_model_ready, current_model_events = build_model_download_controls(current_interface_blocks, current_execute_command)
         gr.Markdown('### 모션 설정')
         current_example_mapping = load_kimodo_examples()
         with gr.Row():
@@ -798,7 +789,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
                 validate_kimodo_request(current_request_record)
             current_job_record = current_execute_command('generate',current_request_record)
             return current_job_record['id'],'공용 GPU 대기열에 등록했습니다.'
-        bind_gpu_generation_confirmation(current_generate_button,enqueue_kimodo_generation,[*current_input_controls,current_joint_editor,current_joint_editor_state],[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=check_kimodo_readiness,generation_readiness_inputs=[current_model_ready,current_prompt_control,current_direction_control,current_proportions_control,current_reference_control,current_keyframe_rows,current_postprocessing_control,current_segment_control,current_endpoint_selector,current_horizontal_control,current_reviewed_bundle_state,current_projected_hip_control,current_face_calibration_state],generation_readiness_events=[current_refresh_event,current_load_event,*current_reviewed_events,*current_face_events])
+        bind_gpu_generation_confirmation(current_generate_button,enqueue_kimodo_generation,[*current_input_controls,current_joint_editor,current_joint_editor_state],[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=check_kimodo_readiness,generation_readiness_inputs=[current_model_ready,current_prompt_control,current_direction_control,current_proportions_control,current_reference_control,current_keyframe_rows,current_postprocessing_control,current_segment_control,current_endpoint_selector,current_horizontal_control,current_reviewed_bundle_state,current_projected_hip_control,current_face_calibration_state],generation_readiness_events=[*current_model_events,*current_reviewed_events,*current_face_events])
         build_video_job_monitor(current_execute_command,current_server_address,current_job_control,current_status_output,result_renderer_callback=render_kimodo_result)
         current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_kimodo_inputs_with_summary,restore_output_components=[*current_input_controls,current_job_control,current_joint_editor,current_joint_editor_state,current_joint_editor_notice,current_joint_preview_image,current_reviewed_notice,current_face_calibration_notice,current_input_summary],result_renderer_callback=render_kimodo_result,record_folder_route='/kimodo',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)

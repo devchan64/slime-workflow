@@ -1,4 +1,5 @@
 """고정 Kimodo·NF4 자료 다운로드. 실행 로그와 5초 heartbeat를 남긴다."""
+import fcntl
 import hashlib
 import json
 import subprocess
@@ -11,8 +12,14 @@ from tools.review.common.generation_records import write_record_atomically
 
 
 def prepare_kimodo_assets():
-    from huggingface_hub import hf_hub_download
-    current_log_root = KIMODO_WORKSPACE_ROOT/'.tmp/test/kimodo-prepare'/datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    KIMODO_MODEL_ROOT.mkdir(parents=True, exist_ok=True)
+    with (KIMODO_MODEL_ROOT/'.prepare.lock').open('a') as current_prepare_lock:
+        fcntl.flock(current_prepare_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        download_kimodo_pinned_assets()
+
+
+def download_kimodo_pinned_assets():
+    current_log_root = KIMODO_WORKSPACE_ROOT/'.tmp/test/kimodo-prepare'/datetime.now().strftime('%Y-%m-%d_%H-%M-%S-%f')
     current_log_root.mkdir(parents=True)
     current_stop_event = threading.Event()
     current_start_time = time.monotonic()
@@ -27,7 +34,7 @@ def prepare_kimodo_assets():
     current_heartbeat_thread = threading.Thread(target=record_prepare_heartbeat,daemon=True)
     current_heartbeat_thread.start()
     try:
-        KIMODO_MODEL_ROOT.mkdir(parents=True,exist_ok=True)
+        from huggingface_hub import hf_hub_download
         KIMODO_SOURCE_ROOT.parent.mkdir(parents=True,exist_ok=True)
         if not KIMODO_SOURCE_ROOT.exists():
             subprocess.run(['git','clone','https://github.com/nv-tlabs/kimodo.git',str(KIMODO_SOURCE_ROOT)],check=True)
