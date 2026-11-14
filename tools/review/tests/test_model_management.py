@@ -618,6 +618,7 @@ class GatewayRestartIsolationTest(unittest.TestCase):
             current_worker_path = current_root_path/'worker.py'
             current_worker_path.write_text("""import sys,time,types
 from pathlib import Path
+sys.path.insert(0, str(Path.cwd()))
 from tools.review.common import model_prepare_worker
 current_root_path = Path(sys.argv[sys.argv.index('--status-path')+1]).parent
 current_test_module = types.ModuleType('isolated_model_preparer')
@@ -661,7 +662,7 @@ server.serve_forever()
                 current_deadline_value = time.monotonic()+10
                 while not (current_root_path/'ready').exists() and time.monotonic()<current_deadline_value:
                     time.sleep(.05)
-                self.assertTrue((current_root_path/'ready').exists())
+                self.assertTrue((current_root_path/'ready').exists(), (current_root_path/'worker.log').read_text(errors='replace'))
                 self.assertEqual(inspect_detached_preparation(current_root_path), 'running')
                 current_gateway_process.terminate()
                 current_gateway_process.wait(timeout=10)
