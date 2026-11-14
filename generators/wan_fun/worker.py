@@ -34,6 +34,9 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     os.environ['PYTORCH_ALLOC_CONF'] = 'expandable_segments:True'
     sys.path.insert(0, str(FUN_RUNTIME_DIRECTORY / 'ComfyUI'))
     import torch
+    if os.environ.get('SLIME_WAN_ATTENTION_PROFILE') == '1':
+        from generators.wan_fun.attention_profile import install_fun_attention_profile
+        install_fun_attention_profile(current_attempt_root)
     import numpy as np
     from PIL import Image
     import comfy.cli_args
@@ -89,6 +92,8 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
         current_diffusion_model = ModelSamplingSD3().patch(current_diffusion_model, current_request_record['flow_shift'])[0]
         current_metrics_recorder.update_generation_stage('inference')
         def record_fun_step(current_step_index, current_denoised_tensor, current_sample_tensor, current_stage_total):
+            # ROCm 커널 제출만 끝난 상태를 완료된 스텝으로 기록하지 않는다.
+            torch.cuda.synchronize()
             current_metrics_recorder.record_generation_step(current_start_step + current_step_index + 1)
         current_latent_tensor = comfy.sample.sample(current_diffusion_model, current_noise_tensor if current_start_step == 0 else torch.zeros_like(current_noise_tensor), current_step_total, current_request_record['guidance_scale'], 'euler', 'simple', positive_condition_data, negative_condition_data, current_latent_tensor, denoise=1.0, disable_noise=current_start_step != 0, start_step=current_start_step, last_step=current_end_step, force_full_denoise=current_end_step == current_step_total, callback=record_fun_step, seed=current_request_record['seed'])
         comfy.model_management.unload_all_models()
