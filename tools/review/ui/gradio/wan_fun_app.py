@@ -270,7 +270,8 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         current_count_control.change(lambda current_frame_value: gr.update(value=current_frame_value if current_frame_value in (21,41,81,129) else None),current_count_control,current_frame_presets,queue=False)
         current_frame_presets.input(lambda current_frame_value: current_frame_value,current_frame_presets,current_count_control,queue=False)
         current_seed_control = build_generation_seed(default_seed_value=FUN_DEFAULT_SETTINGS['seed'])
-        with gr.Accordion('고급 설정', open=False):
+        with gr.Group():
+            gr.Markdown('### 고급 설정')
             gr.Markdown('고정: 고·저노이즈 Q4_K_M · Euler/simple · CUDA 연산/CPU 가중치 오프로드 · 가속 LoRA 없음.')
             current_shift_control = gr.Number(value=FUN_DEFAULT_SETTINGS['flow_shift'], minimum=0.1, maximum=20, label='Flow shift · 노이즈 시간 배분', info='기본 5. 높이면 같은 스텝 위치의 노이즈 수준이 높아집니다. CFG와 독립적으로 입력합니다. 동작 속도나 참조 강도가 아닙니다.')
             current_guidance_control = gr.Number(value=FUN_DEFAULT_SETTINGS['guidance_scale'], minimum=1, maximum=10, label='CFG 강도 · 조건 유도', info='기본 6. 조건부·무조건부 예측 차이에 적용하는 배율입니다. Flow shift나 참조 이미지 전용 강도가 아닙니다.')
