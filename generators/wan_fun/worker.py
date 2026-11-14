@@ -34,16 +34,21 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     os.environ['PYTORCH_ALLOC_CONF'] = 'expandable_segments:True'
     sys.path.insert(0, str(FUN_RUNTIME_DIRECTORY / 'ComfyUI'))
     import torch
-    if os.environ.get('SLIME_WAN_ATTENTION_PROFILE') == '1':
-        from generators.wan_fun.attention_profile import install_fun_attention_profile
-        install_fun_attention_profile(current_attempt_root)
     import numpy as np
     from PIL import Image
     import comfy.cli_args
     # 두 노이즈 모델은 순차 실행하며 사용 가능한 GPU 메모리에 우선 적재한다.
     comfy.cli_args.args.lowvram = False
     comfy.cli_args.args.highvram = True
-    import nodes, folder_paths, comfy.model_management, comfy.sample
+    comfy.cli_args.args.bf16_unet = True
+    import nodes, folder_paths, comfy.model_management, comfy.sample, comfy.sd, comfy.utils, comfy.supported_models
+    import comfy.ops
+    if os.environ.get('SLIME_WAN_CONTIGUOUS_ATTENTION', '1') == '1':
+        from generators.wan_fun.attention_optimization import install_fun_attention_optimization
+        install_fun_attention_optimization(torch, comfy.ops)
+    if os.environ.get('SLIME_WAN_ATTENTION_PROFILE') == '1':
+        from generators.wan_fun.attention_profile import install_fun_attention_profile
+        install_fun_attention_profile(current_attempt_root, comfy.ops)
     from comfy_extras.nodes_wan import Wan22FunControlToVideo
     from comfy_extras.nodes_model_advanced import ModelSamplingSD3
     def resolve_encoder_cuda():
@@ -88,7 +93,8 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     for current_model_stage, current_start_step, current_end_step in [('high', 0, current_switch_step), ('low', current_switch_step, current_step_total)]:
         current_metrics_recorder.update_generation_stage('load')
         current_model_relative = Path(FUN_MODEL_FILES[current_model_stage][0]).name
-        current_diffusion_model = nodes.UNETLoader().load_unet(current_model_relative, 'default')[0]
+        from generators.wan_fun.gpu_direct_loader import load_fun_gpu_unet
+        current_diffusion_model = load_fun_gpu_unet(torch, folder_paths, comfy.sd, comfy.utils, comfy.supported_models, current_model_relative)
         current_diffusion_model = ModelSamplingSD3().patch(current_diffusion_model, current_request_record['flow_shift'])[0]
         current_metrics_recorder.update_generation_stage('inference')
         def record_fun_step(current_step_index, current_denoised_tensor, current_sample_tensor, current_stage_total):
@@ -96,6 +102,8 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
             torch.cuda.synchronize()
             current_metrics_recorder.record_generation_step(current_start_step + current_step_index + 1)
         current_latent_tensor = comfy.sample.sample(current_diffusion_model, current_noise_tensor if current_start_step == 0 else torch.zeros_like(current_noise_tensor), current_step_total, current_request_record['guidance_scale'], 'euler', 'simple', positive_condition_data, negative_condition_data, current_latent_tensor, denoise=1.0, disable_noise=current_start_step != 0, start_step=current_start_step, last_step=current_end_step, force_full_denoise=current_end_step == current_step_total, callback=record_fun_step, seed=current_request_record['seed'])
+        if not torch.isfinite(current_latent_tensor).all().item():
+            raise ValueError(f'{current_model_stage} 추론의 잠재값에 NaN 또는 무한대가 있어 출력을 중단합니다.')
         comfy.model_management.unload_all_models()
         del current_diffusion_model
         gc.collect()
@@ -116,6 +124,8 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
         current_decoded_frames = current_decoded_frames.flatten(0, 1)
     if current_decoded_frames.shape[0] != current_request_record['frames']:
         raise ValueError('출력 프레임 수 불일치')
+    if not torch.isfinite(current_decoded_frames).all().item():
+        raise ValueError('디코딩된 영상에 NaN 또는 무한대가 있어 저장을 중단합니다.')
     current_frame_arrays = (current_decoded_frames.clamp(0, 1).cpu().numpy() * 255).round().astype(np.uint8)
     current_output_hashes = save_video_outputs(current_attempt_root, current_frame_arrays, 16)
     if current_request_record.get('driving_video_file'):

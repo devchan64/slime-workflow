@@ -3,10 +3,10 @@ import json
 import time
 
 
-def install_fun_attention_profile(current_attempt_root, current_call_limit=4):
+def install_fun_attention_profile(current_attempt_root, current_ops_module, current_call_limit=4):
     import torch
     from torch.profiler import profile, ProfilerActivity
-    current_original_function = torch.nn.functional.scaled_dot_product_attention
+    current_original_function = current_ops_module.scaled_dot_product_attention
     current_output_path = current_attempt_root / 'attention-profile.jsonl'
     current_profile_state = {'calls': 0}
 
@@ -36,4 +36,4 @@ def install_fun_attention_profile(current_attempt_root, current_call_limit=4):
         record_attention_event({**current_shape_record, 'status':'completed', 'elapsed_seconds':round(time.monotonic()-current_started_time, 3), 'kernels':current_kernel_names})
         return current_output_tensor
 
-    torch.nn.functional.scaled_dot_product_attention = profile_attention_call
+    current_ops_module.scaled_dot_product_attention = profile_attention_call

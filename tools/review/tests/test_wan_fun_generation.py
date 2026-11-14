@@ -11,6 +11,45 @@ from PIL import Image
 from generators.wan_fun.contracts import validate_fun_request, inspect_fun_assets
 from tools.review.common.management_gateway import resolve_management_command
 
+class FunAttentionOptimizationTests(unittest.TestCase):
+    def test_long_attention_uses_contiguous_inputs_only_with_room(self):
+        from generators.wan_fun.attention_optimization import install_fun_attention_optimization
+        current_cuda_mock = SimpleNamespace(is_available=lambda:True,get_device_properties=lambda _:SimpleNamespace(gcnArchName='gfx1151'),mem_get_info=Mock(return_value=(2**40,2**40)),OutOfMemoryError=MemoryError,empty_cache=Mock())
+        current_torch_mock = SimpleNamespace(version=SimpleNamespace(hip='7.15'),cuda=current_cuda_mock,float16='fp16',bfloat16='bf16')
+        current_attention_mock = Mock(return_value='result')
+        current_ops_mock = SimpleNamespace(scaled_dot_product_attention=current_attention_mock)
+        def make_test_tensor(current_sequence_length):
+            return SimpleNamespace(ndim=4,device=SimpleNamespace(type='cuda'),shape=(2,40,current_sequence_length,128),dtype='fp16',numel=lambda:100,element_size=lambda:2,is_contiguous=lambda:False,contiguous=Mock(return_value='contiguous'))
+        self.assertTrue(install_fun_attention_optimization(current_torch_mock,current_ops_mock))
+        current_tensors = [make_test_tensor(46800) for _ in range(3)]
+        self.assertEqual(current_ops_mock.scaled_dot_product_attention(*current_tensors), 'result')
+        current_attention_mock.assert_called_with('contiguous','contiguous','contiguous')
+        current_cuda_mock.mem_get_info.return_value = (0,2**40)
+        current_ops_mock.scaled_dot_product_attention(*current_tensors)
+        current_attention_mock.assert_called_with(*current_tensors)
+        current_cuda_mock.mem_get_info.return_value = (2**40,2**40)
+        current_tensors[0].contiguous.side_effect = MemoryError('GPU 메모리 부족')
+        current_ops_mock.scaled_dot_product_attention(*current_tensors)
+        current_attention_mock.assert_called_with(*current_tensors)
+        current_cuda_mock.empty_cache.assert_called_once()
+        current_short_tensors = [make_test_tensor(512) for _ in range(3)]
+        current_ops_mock.scaled_dot_product_attention(*current_short_tensors)
+        current_attention_mock.assert_called_with(*current_short_tensors)
+
+    def test_direct_gpu_loader_restores_model_builder_on_failure(self):
+        from generators.wan_fun.gpu_direct_loader import load_fun_gpu_unet
+        class TestFunConfig:
+            def get_model(self, current_state_dict, current_prefix='', device=None):
+                return None
+        current_original_builder = TestFunConfig.get_model
+        current_torch_mock = SimpleNamespace(device=lambda value:value,bfloat16='bf16',cuda=SimpleNamespace(mem_get_info=lambda _: (8*1024**3, 8*1024**3)))
+        current_folder_mock = SimpleNamespace(get_full_path_or_raise=lambda *_: __file__)
+        current_utils_mock = SimpleNamespace(load_torch_file=Mock(side_effect=RuntimeError('로드 오류')))
+        with self.assertRaisesRegex(RuntimeError, '로드 오류'):
+            load_fun_gpu_unet(current_torch_mock,current_folder_mock,SimpleNamespace(),current_utils_mock,SimpleNamespace(WAN21_FunControl2V=TestFunConfig),'model')
+        self.assertIs(TestFunConfig.get_model, current_original_builder)
+        self.assertEqual(current_utils_mock.load_torch_file.call_args.kwargs['device'],'cuda:0')
+
 class FunGenerationContractTests(unittest.TestCase):
     def test_model_prepare_button_submits_prepare_job(self):
         from tools.review.domains.wan_fun.generation import FunControlGenerationManager
@@ -20,7 +59,7 @@ class FunGenerationContractTests(unittest.TestCase):
         current_prepare_callback = next(current_function.fn for current_function in current_interface.fns.values()
             if current_function.fn and current_function.fn.__name__ == 'enqueue_fun_model_prepare')
         self.assertEqual(current_prepare_callback()[0], 'prepare-job')
-        current_command_mock.assert_called_with('generate', {'action': 'prepare'})
+        current_command_mock.assert_called_with('prepare', {'action': 'prepare'})
         current_manager = FunControlGenerationManager()
         current_request = current_manager.validate_generation_request({'action': 'prepare'})
         self.assertEqual(current_request, {'action': 'prepare', 'images': []})
