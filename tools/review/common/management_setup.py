@@ -1,6 +1,8 @@
 """명시적 setup 명령에서만 가상환경과 의존성을 준비한다."""
 import os
 import sys
+import json
+from pathlib import Path
 from tools.review.common.management_environment import WORKFLOW_ROOT_DIRECTORY, resolve_management_environment
 from tools.review.common.management_process import run_logged_management_command
 
@@ -27,3 +29,10 @@ def prepare_management_environments(launcher_trace_logger):
         # 공용 환경의 모델 패키지 제약과 GUI 의존성을 함께 확인한다.
         run_logged_management_command([str(selected_python_path), '-m', 'pip', 'install', '--disable-pip-version-check', '-r', str(WORKFLOW_ROOT_DIRECTORY/dependency_manifest_path)], launcher_trace_logger)
         run_logged_management_command([str(selected_python_path), '-m', 'pip', 'check'], launcher_trace_logger)
+    frontend_repository_path = Path(os.environ.get('FRONTEND_REPOSITORY_PATH', WORKFLOW_ROOT_DIRECTORY.parent / 'slime-frontend')).resolve()
+    renderer_package_path = frontend_repository_path / 'packages/field-renderer/package.json'
+    renderer_package_version = json.loads(renderer_package_path.read_text(encoding='utf-8'))['version']
+    run_logged_management_command(['npm', '--prefix', str(frontend_repository_path), 'run', 'build:field-renderer'], launcher_trace_logger)
+    renderer_bundle_directory = frontend_repository_path / '.tmp/field-renderer' / renderer_package_version
+    shared_python_path = resolve_management_environment('VIRTUAL_ENVIRONMENT_PATH', '.venv') / 'bin/python'
+    run_logged_management_command([str(shared_python_path), str(WORKFLOW_ROOT_DIRECTORY / 'tools/review/install_field_renderer.py'), '--source', str(renderer_bundle_directory)], launcher_trace_logger)

@@ -156,7 +156,7 @@ MoMask 작업 서비스와 루트 호환 모듈은 제거했다. 이전 HTTP 주
 
 ### 렌더러 배포본 준비
 
-새 체크아웃에는 번들 파일이 없습니다. 프론트엔드에서 `npm run build:field-renderer`를 실행한 뒤, 워크플로우에서 `.venv/bin/python tools/review/install_field_renderer.py --source /절대경로/slime-frontend/.tmp/field-renderer/<버전>`으로 설치합니다. 채택할 새 버전은 생성된 `manifest.yaml`을 `tools/review/ui/map/vendor/field-renderer/manifest.yaml`에 먼저 반영합니다. 설치기는 고정 manifest와 전체 파일 해시를 검증한 뒤 로컬 배포본을 복사합니다. 관리 서버는 이 배포본을 사용하며 프론트엔드 소스를 런타임에 import하지 않습니다.
+새 체크아웃에서는 `scripts/setup_management.sh`가 인접 `slime-frontend`의 렌더러를 빌드하고 설치합니다. 프론트엔드 의존성 설치와 Node.js가 필요하며 다른 저장소 경로는 `FRONTEND_REPOSITORY_PATH`로 지정합니다. 수동 설치는 프론트엔드에서 `npm run build:field-renderer` 실행 후 `.venv/bin/python tools/review/install_field_renderer.py --source /절대경로/slime-frontend/.tmp/field-renderer/<버전>`으로 수행합니다. 채택할 새 버전은 생성된 `manifest.yaml`을 `tools/review/ui/map/vendor/field-renderer/manifest.yaml`에 먼저 반영합니다. 설치기는 고정 manifest와 전체 파일 해시를 검증한 뒤 로컬 배포본을 복사합니다. 관리 서버는 이 배포본을 사용하며 프론트엔드 소스를 런타임에 import하지 않습니다.
 
 ### Wan2.1 VACE 영상 생성
 
