@@ -45,6 +45,12 @@ class GpuStatusTests(unittest.TestCase):
         with patch.object(gpu_job_queue.subprocess, 'run', return_value=subprocess.CompletedProcess([],0,json.dumps(current_metrics))):
             self.assertEqual(gpu_job_queue.read_gpu_memory(), (12288,11288))
 
+    def test_queue_uses_vram_when_vram_is_larger_pool(self):
+        current_metrics = {'gpu_data':[{'mem_usage':{'total_gtt':{'value':15542},'free_gtt':{'value':15450},'total_vram':{'value':98304},'free_vram':{'value':96000}}}]}
+        with patch.object(gpu_job_queue.subprocess, 'run', return_value=subprocess.CompletedProcess([],0,json.dumps(current_metrics))):
+            self.assertEqual(gpu_job_queue.read_gpu_memory(), (98304,96000))
+            self.assertEqual(gpu_job_queue.read_gpu_memory_domain(), 'vram')
+
     def test_worker_measurement_selects_requested_pool(self):
         current_processes = [{'process_list':[{'process_info':{'pid':123,'memory_usage':{'gtt_mem':{'value':500*1048576,'unit':'B'},'vram_mem':{'value':12*1048576,'unit':'B'}}}}]}]
         with patch.object(gpu_memory_history.Path, 'glob', return_value=[]), patch.object(gpu_memory_history.subprocess, 'run', return_value=subprocess.CompletedProcess([],0,json.dumps(current_processes))):

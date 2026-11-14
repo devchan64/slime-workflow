@@ -30,6 +30,9 @@ class GpuJobQueueTests(unittest.TestCase):
         current_host_memory_patch = patch.object(queue_module,'read_host_available_memory',return_value=100000)
         current_host_memory_patch.start()
         self.addCleanup(current_host_memory_patch.stop)
+        current_domain_patch = patch.object(queue_module,'read_gpu_memory_domain',return_value='gtt')
+        current_domain_patch.start()
+        self.addCleanup(current_domain_patch.stop)
         self.signal_handler_patch = patch('signal.signal')
         self.signal_handler_patch.start()
         self.addCleanup(self.signal_handler_patch.stop)
@@ -72,6 +75,18 @@ class GpuJobQueueTests(unittest.TestCase):
         self.assertEqual(current_status_record['status'],'failed')
         self.assertIn('시스템 RAM 보호',current_status_record['error'])
 
+    def test_wan_fun_uses_host_memory_guard(self):
+        current_worker_path=queue_module.WORKFLOW_ROOT_DIRECTORY/'generators/wan_fun/worker.py'
+        (self.current_job_path/'gpu-command.json').write_text(json.dumps({'command':['python',str(current_worker_path)],'service':'anny'}))
+        (self.current_job_path/'request.json').write_text(json.dumps({'width':832,'height':480,'frames':113}))
+        current_worker_mock=Mock(returncode=0)
+        current_worker_mock.poll.return_value=0
+        current_event_mock=Mock()
+        current_thread_mock=Mock()
+        with patch.object(queue_module,'read_gpu_memory',return_value=(98304,90000)),patch.object(queue_module.subprocess,'Popen',return_value=current_worker_mock),patch.object(queue_module,'start_animate_memory_guard',return_value=(current_event_mock,current_thread_mock,{})) as current_guard_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+            current_guard_mock.assert_called_once_with(current_worker_mock)
+
     def test_insufficient_total_memory_fails_explicitly(self):
         with patch.object(queue_module,'read_gpu_memory',return_value=(1000,1000)),patch.object(queue_module.subprocess,'Popen') as worker_launch_mock:
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),1)
@@ -88,6 +103,13 @@ class GpuJobQueueTests(unittest.TestCase):
         with patch.object(queue_module,'read_gpu_memory',return_value=(24000,20000)),patch.object(queue_module,'read_host_available_memory',return_value=1000),patch.object(queue_module.time,'sleep',side_effect=check_waiting_memory),patch.object(queue_module.subprocess,'Popen') as current_launch_mock:
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
             current_launch_mock.assert_not_called()
+
+    def test_vram_pool_is_not_limited_to_gtt_host_available(self):
+        current_worker_mock=Mock(returncode=0)
+        current_worker_mock.poll.return_value=0
+        with patch.object(queue_module,'read_gpu_memory',return_value=(98304,90000)),patch.object(queue_module,'read_gpu_memory_domain',return_value='vram'),patch.object(queue_module,'read_host_available_memory',return_value=15000),patch.object(queue_module.subprocess,'Popen',return_value=current_worker_mock) as current_launch_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+            current_launch_mock.assert_called_once()
 
     def test_available_memory_admits_job_alongside_active_reservation(self):
         active = queue_module.GPU_QUEUE_DIRECTORY/'active'

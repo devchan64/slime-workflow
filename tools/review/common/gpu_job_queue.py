@@ -14,7 +14,7 @@ sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.generation_records import write_record_atomically
 from tools.review.common.queue_generation_telemetry import QueueGenerationTelemetry
 from tools.review.common.gpu_memory_history import read_worker_memory, save_memory_observation, estimate_required_memory, identify_execution_command
-from tools.review.common.host_memory_guard import start_animate_memory_guard, read_memory_field_kib
+from tools.review.common.host_memory_guard import start_animate_memory_guard, read_memory_field_kib, HOST_MEMORY_RESERVE_KIB
 GPU_QUEUE_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/gpu-queue'
 GPU_MEMORY_REQUIREMENTS = {'momask': 4096, 'character-animation': 6144, 'image': 6144}
 GPU_MEMORY_REQUIREMENTS['wan-fun'] = 30000
@@ -29,9 +29,20 @@ GPU_POLL_INTERVAL = 2
 def read_gpu_memory():
     memory_query_result = subprocess.run(['amd-smi', 'metric', '-m', '--json'], capture_output=True, text=True, check=True, timeout=10)
     current_memory_values = json.loads(memory_query_result.stdout)['gpu_data'][0]['mem_usage']
-    current_total_memory = int(current_memory_values['total_gtt']['value'])
-    current_free_memory = max(0, int(current_memory_values['free_gtt']['value']))
+    current_memory_domain = select_gpu_memory_domain(current_memory_values)
+    current_total_memory = int(current_memory_values[f'total_{current_memory_domain}']['value'])
+    current_free_memory = max(0, int(current_memory_values[f'free_{current_memory_domain}']['value']))
     return current_total_memory, current_free_memory
+
+
+def select_gpu_memory_domain(current_memory_values):
+    """이 호스트의 ROCm 장치 한도로 보고되는 더 큰 풀을 선택한다."""
+    return 'vram' if int(current_memory_values.get('total_vram', {'value':0})['value']) > int(current_memory_values['total_gtt']['value']) else 'gtt'
+
+
+def read_gpu_memory_domain():
+    current_memory_result = subprocess.run(['amd-smi', 'metric', '-m', '--json'], capture_output=True, text=True, check=True, timeout=10)
+    return select_gpu_memory_domain(json.loads(current_memory_result.stdout)['gpu_data'][0]['mem_usage'])
 
 
 def read_host_available_memory():
@@ -135,7 +146,7 @@ def prioritize_waiting_generation(current_job_identifier):
         return {'id': current_job_identifier, 'status': 'queued', 'queue_position': 1, 'message': '대기열 맨 앞으로 이동했습니다. 실행 중 작업은 유지하며 GPU 메모리가 확보되면 실행합니다.'}
 
 
-def select_runnable_ticket(available_memory_mib):
+def select_runnable_ticket(available_memory_mib, current_memory_domain=None):
     """잠금 안에서 접수 순서대로 확인해 메모리가 맞는 첫 작업을 선택한다."""
     for waiting_ticket_path in read_priority_tickets():
         try:
@@ -149,7 +160,7 @@ def select_runnable_ticket(available_memory_mib):
             continue
         waiting_memory_estimate = estimate_required_memory(
             waiting_command_record['service'], GPU_MEMORY_REQUIREMENTS[waiting_command_record['service']],
-            identify_execution_command(waiting_command_record['command'], waiting_job_directory))
+            identify_execution_command(waiting_command_record['command'], waiting_job_directory, current_memory_domain))
         if waiting_memory_estimate['required_memory_mib'] <= available_memory_mib:
             return waiting_ticket_path
     return None
@@ -201,6 +212,7 @@ def execute_locked_generation(generation_job_path):
     generation_worker_process = None
     current_memory_guard = None
     current_telemetry_recorder = None
+    current_memory_domain = None
     import signal
     signal.signal(signal.SIGTERM, lambda *_: (generation_job_path/"cancel.request").touch())
     try:
@@ -220,8 +232,9 @@ def execute_locked_generation(generation_job_path):
                     except FileNotFoundError: pass
                 queued_ticket_values = read_priority_tickets()
                 queue_position_value = queued_ticket_values.index(queue_ticket_path)+1
+                current_memory_domain = read_gpu_memory_domain()
                 memory_total_value, memory_free_value = read_gpu_memory()
-                memory_estimate_record = estimate_required_memory(generation_command_record['service'], GPU_MEMORY_REQUIREMENTS[generation_command_record['service']], identify_execution_command(generation_command_record['command'], generation_job_path))
+                memory_estimate_record = estimate_required_memory(generation_command_record['service'], GPU_MEMORY_REQUIREMENTS[generation_command_record['service']], identify_execution_command(generation_command_record['command'], generation_job_path, current_memory_domain))
                 required_memory_value = memory_estimate_record['required_memory_mib']
                 if memory_total_value < required_memory_value:
                     raise ValueError(f'GPU 전체 메모리 {memory_total_value} MiB: 요구량 {required_memory_value} MiB보다 작습니다.')
@@ -249,27 +262,28 @@ def execute_locked_generation(generation_job_path):
                             reservation_job_directory = Path(reservation_record['path']) if 'path' in reservation_record else None
                             if reservation_job_directory and (reservation_job_directory/'gpu-command.json').exists():
                                 reservation_command_record = json.loads((reservation_job_directory/'gpu-command.json').read_text())
-                                reservation_memory_estimate = estimate_required_memory(reservation_command_record['service'], GPU_MEMORY_REQUIREMENTS[reservation_command_record['service']], identify_execution_command(reservation_command_record['command'], reservation_job_directory))
+                                reservation_memory_estimate = estimate_required_memory(reservation_command_record['service'], GPU_MEMORY_REQUIREMENTS[reservation_command_record['service']], identify_execution_command(reservation_command_record['command'], reservation_job_directory, current_memory_domain))
                                 if reservation_memory_estimate['samples']:
                                     reservation_record['required_memory_mib'] = reservation_memory_estimate['required_memory_mib']
                                     write_record_atomically(reservation_path, reservation_record)
                             # 실측 여유에는 이미 사용 중인 메모리가 반영되어 있다.
                             try:
-                                measured_reservation_mib = read_worker_memory(reservation_record['pid'], current_memory_domain='gtt')
+                                measured_reservation_mib = read_worker_memory(reservation_record['pid'], current_memory_domain=current_memory_domain)
                             except (OSError, ValueError, subprocess.SubprocessError):
                                 measured_reservation_mib = 0
                             reserved_memory_value += max(0, reservation_record['required_memory_mib']-measured_reservation_mib)
                         # 아직 사용하지 않은 예약분만 차감해 모델 로딩 여유를 확보한다.
                         memory_total_value, memory_free_value = read_gpu_memory()
                         host_available_memory = read_host_available_memory()
-                        available_memory_value = max(0, min(memory_free_value, host_available_memory)-reserved_memory_value)
-                        if select_runnable_ticket(available_memory_value) == queue_ticket_path:
+                        current_pool_available = min(memory_free_value, host_available_memory) if current_memory_domain == 'gtt' else memory_free_value if host_available_memory >= HOST_MEMORY_RESERVE_KIB // 1024 else 0
+                        available_memory_value = max(0, current_pool_available-reserved_memory_value)
+                        if select_runnable_ticket(available_memory_value, current_memory_domain) == queue_ticket_path:
                             write_record_atomically(active_reservation_path, {'pid':os.getpid(), 'path':str(generation_job_path), 'required_memory_mib':required_memory_value})
                             queue_ticket_path.unlink(missing_ok=True)
                             break
                     finally:
                         fcntl.flock(gpu_execution_handle, fcntl.LOCK_UN)
-                queue_status_record = {'status':'queued', 'queue_position':queue_position_value, 'free_memory_mib':memory_free_value, 'host_available_memory_mib':read_host_available_memory(), 'required_memory_mib':required_memory_value, 'reserved_memory_mib':reserved_memory_value, 'available_memory_mib':available_memory_value, 'memory_estimate':memory_estimate_record, 'message':'GPU 또는 시스템 메모리 여유 또는 실행 가능한 앞선 작업 대기'}
+                queue_status_record = {'status':'queued', 'queue_position':queue_position_value, 'memory_domain':current_memory_domain, 'free_memory_mib':memory_free_value, 'host_available_memory_mib':read_host_available_memory(), 'required_memory_mib':required_memory_value, 'reserved_memory_mib':reserved_memory_value, 'available_memory_mib':available_memory_value, 'memory_estimate':memory_estimate_record, 'message':'GPU 또는 시스템 메모리 여유 또는 실행 가능한 앞선 작업 대기'}
                 write_record_atomically(generation_job_path/'status.json', queue_status_record)
                 print(f'{time.strftime("%Y-%m-%dT%H:%M:%S")}/gpu-queue/wait {queue_status_record}', flush=True)
                 time.sleep(GPU_POLL_INTERVAL)
@@ -280,7 +294,7 @@ def execute_locked_generation(generation_job_path):
             write_record_atomically(generation_job_path/'status.json', {'status':'running', 'memory_estimate':memory_estimate_record})
             current_telemetry_recorder.start_generation_telemetry()
             generation_worker_process = subprocess.Popen(generation_command_record['command'], start_new_session=True, env=dict(os.environ, SLIME_GPU_RESERVATION_PATH=str(active_reservation_path.resolve())))
-            if len(generation_command_record['command']) > 1 and Path(generation_command_record['command'][1]).resolve() == WORKFLOW_ROOT_DIRECTORY/'generators/wan_animate2/worker.py':
+            if len(generation_command_record['command']) > 1 and Path(generation_command_record['command'][1]).resolve() in (WORKFLOW_ROOT_DIRECTORY/'generators/wan_animate2/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/wan_fun/worker.py'):
                 current_memory_guard = start_animate_memory_guard(generation_worker_process)
             while generation_worker_process.poll() is None:
                 if (generation_job_path/'cancel.request').exists():
@@ -294,7 +308,7 @@ def execute_locked_generation(generation_job_path):
                 if time.monotonic()-last_memory_sample_time >= GPU_POLL_INTERVAL:
                     last_memory_sample_time = time.monotonic()
                     try:
-                        peak_memory_mib = max(peak_memory_mib, read_worker_memory(generation_worker_process.pid, current_memory_domain='gtt'))
+                        peak_memory_mib = max(peak_memory_mib, read_worker_memory(generation_worker_process.pid, current_memory_domain=current_memory_domain))
                         memory_sample_count += 1
                     except (OSError, ValueError, subprocess.SubprocessError) as measurement_error:
                         memory_measurement_error = str(measurement_error)
@@ -330,7 +344,7 @@ def execute_locked_generation(generation_job_path):
         try:
             if generation_worker_process is not None:
                 final_status = json.loads((generation_job_path/'status.json').read_text())['status']
-                observation_record = save_memory_observation(generation_command_record['service'], generation_job_path, peak_memory_mib, memory_sample_count, final_status, memory_measurement_error, identify_execution_command(generation_command_record['command'], generation_job_path))
+                observation_record = save_memory_observation(generation_command_record['service'], generation_job_path, peak_memory_mib, memory_sample_count, final_status, memory_measurement_error, identify_execution_command(generation_command_record['command'], generation_job_path, current_memory_domain))
                 write_record_atomically(generation_job_path/'gpu-memory.json', observation_record)
         finally:
             if current_telemetry_recorder is not None:

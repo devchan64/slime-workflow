@@ -101,8 +101,15 @@ def estimate_required_memory(service, configured_floor_mib, command_identity_nam
             'method':'recent-20-max-successful-peak' if measured_peak_mib else 'configured-initial-estimate'}
 
 
-def identify_execution_command(command_argument_values, generation_job_directory=None):
+def identify_execution_command(command_argument_values, generation_job_directory=None, current_memory_domain=None):
     """이미지는 실행기·해상도·스텝·참조 개수까지 메모리 프로필로 구분한다."""
+    if generation_job_directory is not None and len(command_argument_values)>1 and Path(command_argument_values[1]).parts[-2:] == ('wan_fun','worker.py'):
+        current_request_record = json.loads((Path(generation_job_directory)/'request.json').read_text())
+        current_profile_values = [current_request_record.get(current_field_name) for current_field_name in ('width','height','frames')]
+        if any(type(current_profile_value) is not int or current_profile_value <= 0 for current_profile_value in current_profile_values):
+            raise ValueError('Wan GPU 메모리 예측에 필요한 해상도·프레임 설정이 없습니다.')
+        current_profile_name = f'wan-fun:worker.py:{current_profile_values[0]}x{current_profile_values[1]}:frames={current_profile_values[2]}'
+        return current_profile_name + (f':domain={current_memory_domain}' if current_memory_domain else '')
     if generation_job_directory is not None and len(command_argument_values)>1 and Path(command_argument_values[1]).name in IMAGE_MEMORY_WORKER_NAMES:
         return build_image_memory_identity(Path(command_argument_values[1]).name, Path(generation_job_directory))
     if len(command_argument_values)>2 and command_argument_values[1]=='-m':

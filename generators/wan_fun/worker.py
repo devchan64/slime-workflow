@@ -37,7 +37,9 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     import numpy as np
     from PIL import Image
     import comfy.cli_args
-    comfy.cli_args.args.lowvram = True
+    # 두 노이즈 모델은 순차 실행하며 사용 가능한 GPU 메모리에 우선 적재한다.
+    comfy.cli_args.args.lowvram = False
+    comfy.cli_args.args.highvram = True
     import nodes, folder_paths, comfy.model_management, comfy.sample
     from comfy_extras.nodes_wan import Wan22FunControlToVideo
     from comfy_extras.nodes_model_advanced import ModelSamplingSD3

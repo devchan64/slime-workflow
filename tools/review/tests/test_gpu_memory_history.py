@@ -6,6 +6,16 @@ from unittest.mock import patch
 from tools.review.common import gpu_memory_history as memory
 
 class MemoryHistoryTests(unittest.TestCase):
+    def test_wan_profiles_do_not_reuse_short_or_legacy_samples(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_directory_path=Path(current_directory_name)
+            with patch.object(memory,'MEMORY_HISTORY_DIRECTORY',current_directory_path/'history'):
+                memory.save_memory_observation('wan-fun','legacy',384,5,'completed',command_identity_name='worker.py')
+                (current_directory_path/'request.json').write_text(json.dumps({'width':832,'height':480,'frames':113}))
+                current_profile_name=memory.identify_execution_command(['python','generators/wan_fun/worker.py'],current_directory_path)
+                self.assertEqual(current_profile_name,'wan-fun:worker.py:832x480:frames=113')
+                self.assertEqual(memory.estimate_required_memory('wan-fun',30000,current_profile_name)['required_memory_mib'],30000)
+
     def test_recent_twenty_and_summary_refresh_per_service(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(memory,'MEMORY_HISTORY_DIRECTORY',Path(directory)):
             for index in range(22):

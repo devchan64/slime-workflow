@@ -1,4 +1,4 @@
-"""Animate-2 작업의 시스템 메모리 압박을 독립적으로 감시한다."""
+"""영상 생성 작업의 시스템 메모리 압박을 독립적으로 감시한다."""
 import os
 from pathlib import Path
 import signal
