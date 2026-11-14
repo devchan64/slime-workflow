@@ -44,7 +44,7 @@ def build_management_blocks(current_tool_name, current_review_port, current_sour
     from tools.review.ui.gradio.management_menu_app import compose_management_interface, build_management_menu_interface, load_manager_page_records
     current_server_address = f'http://127.0.0.1:{current_review_port}'
     from tools.review.serve import REVIEW_LIVE_RELOAD_SCRIPT
-    current_mount_options = {'allowed_paths': [], 'ssr_mode': False, 'head': REVIEW_LIVE_RELOAD_SCRIPT.decode(), 'css': '#management-gpu-floating{position:fixed;right:12px;bottom:12px;z-index:50;width:min(28rem,calc(100vw - 24px));max-height:60dvh;overflow:auto}'}
+    current_mount_options = {'allowed_paths': [], 'ssr_mode': False, 'head': REVIEW_LIVE_RELOAD_SCRIPT.decode(), 'css': '#management-gpu-floating{position:fixed;right:12px;bottom:12px;z-index:50;width:min(12rem,calc(100vw - 24px));max-height:45dvh;overflow:auto}#management-gpu-floating:has(button.open){width:min(27rem,calc(100vw - 24px))}'}
     if current_tool_name == 'management':
         return build_management_menu_interface(load_manager_page_records(current_source_path), current_review_port)[0], current_mount_options
     if current_tool_name in QWEN_INTERFACE_OPTIONS:

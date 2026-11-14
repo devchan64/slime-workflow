@@ -145,9 +145,17 @@ class GradioManagementMenuTests(unittest.TestCase):
 
     def test_gpu_status_card_distinguishes_memory_pools(self):
         current_status_card = render_gpu_status_card({'status':'busy','processes':[{'command':'작업','id':'sample','gtt_memory_mib':500,'vram_memory_mib':12}], 'gtt_total_mib':12288,'gtt_used_mib':1000,'gtt_free_mib':11288,'vram_total_mib':4096,'vram_used_mib':280,'vram_free_mib':3816})
-        self.assertIn('GTT 500 MiB · VRAM 12 MiB', current_status_card)
+        self.assertIn('VRAM 12 MiB · GTT 500 MiB', current_status_card)
         self.assertIn('GTT · 사용 1,000 MiB · 여유 11,288 MiB · 총 12,288 MiB', current_status_card)
         self.assertIn('VRAM · 사용 280 MiB · 여유 3,816 MiB · 총 4,096 MiB', current_status_card)
+
+    def test_gpu_status_card_lists_parallel_processes_separately(self):
+        current_status_card = render_gpu_status_card({'status':'busy','processes':[{'command':'Wan','id':'job-a','pid':101,'vram_memory_mib':1200,'gtt_memory_mib':8},{'command':'Kimodo','pid':202,'vram_memory_mib':300,'gtt_memory_mib':4}]})
+        self.assertIn('2개 프로세스', current_status_card)
+        self.assertIn('- **Wan** · PID 101 · 작업 job-a', current_status_card)
+        self.assertIn('- **Kimodo** · PID 202', current_status_card)
+        self.assertIn('VRAM 1,200 MiB · GTT 8 MiB', current_status_card)
+        self.assertIn('VRAM 300 MiB · GTT 4 MiB', current_status_card)
 
 
 class ManagementMenuRefreshTests(unittest.TestCase):

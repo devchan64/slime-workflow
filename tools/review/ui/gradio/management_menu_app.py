@@ -61,8 +61,23 @@ def format_gpu_status(gpu_status_record):
 
 
 def render_gpu_status_card(gpu_status_record):
-    """기본 Markdown으로 GPU 상태와 메모리를 표시한다."""
-    current_status_text=format_gpu_status(gpu_status_record)
+    """동시에 실행 중인 프로세스를 각각 구분하고 메모리 풀을 표시한다."""
+    if gpu_status_record.get('status') == 'busy':
+        current_process_values = gpu_status_record.get('processes', [])
+        current_status_lines = [f'**GPU 사용 중 · {len(current_process_values)}개 프로세스**']
+        for current_process_record in current_process_values:
+            current_command_text = html.escape(str(current_process_record.get('command') or '외부 GPU 작업'))
+            current_process_identifier = current_process_record.get('pid')
+            current_pid_text = str(current_process_identifier) if type(current_process_identifier) is int else '?'
+            current_job_identifier = current_process_record.get('id')
+            current_job_text = f" · 작업 {html.escape(str(current_job_identifier))}" if current_job_identifier else ''
+            current_process_memory = [f"{current_domain_name.upper()} {current_process_record[f'{current_domain_name}_memory_mib']:,} MiB" for current_domain_name in ('vram','gtt') if type(current_process_record.get(f'{current_domain_name}_memory_mib')) is int and current_process_record[f'{current_domain_name}_memory_mib'] >= 0]
+            if not current_process_memory and type(current_process_record.get('memory_mib')) is int:
+                current_process_memory = [f"메모리 {current_process_record['memory_mib']:,} MiB"]
+            current_status_lines.append(f"- **{current_command_text}** · PID {current_pid_text}{current_job_text}" + ('  \n  ' + ' · '.join(current_process_memory) if current_process_memory else ''))
+        current_status_text = '\n\n'.join(current_status_lines)
+    else:
+        current_status_text=format_gpu_status(gpu_status_record)
     for current_domain_name in ('gtt','vram'):
         current_memory_values=[gpu_status_record.get(f'{current_domain_name}_{current_measure_name}_mib') for current_measure_name in ('used','free','total')]
         if all(isinstance(current_memory_value,int) and current_memory_value>=0 for current_memory_value in current_memory_values):
@@ -235,6 +250,22 @@ MANAGEMENT_GPU_REFRESH_SECONDS = 5
 def create_sidebar_responsive_script(current_inline_mode=False):
     """Gradio 기본 슬라이딩 동작에 화면 폭 전환과 접근성 이름만 연결한다."""
     current_sidebar_script="""()=>{
+        const initializeGpuPanelAccessibility=()=>{
+            const currentPanelElement=document.getElementById('management-gpu-floating');
+            const currentPanelButton=currentPanelElement?.querySelector('button');
+            const currentPanelContent=currentPanelElement?.querySelector('[data-testid="accordion-content"]');
+            if(!currentPanelButton||!currentPanelContent)return false;
+            if(currentPanelButton.getAttribute('aria-controls')==='management-gpu-panel-content')return true;
+            currentPanelContent.id='management-gpu-panel-content';
+            currentPanelButton.setAttribute('aria-controls',currentPanelContent.id);
+            const synchronizeGpuPanelState=()=>currentPanelButton.setAttribute('aria-expanded',String(currentPanelButton.classList.contains('open')));
+            new MutationObserver(synchronizeGpuPanelState).observe(currentPanelButton,{attributes:true,attributeFilter:['class']});
+            synchronizeGpuPanelState();
+            return true;
+        };
+        const currentGpuPanelObserver=new MutationObserver(()=>{if(initializeGpuPanelAccessibility())currentGpuPanelObserver.disconnect();});
+        currentGpuPanelObserver.observe(document.body,{childList:true,subtree:true});
+        requestAnimationFrame(()=>{if(initializeGpuPanelAccessibility())currentGpuPanelObserver.disconnect();});
         const synchronizeGalleryOverflow=()=>{
             document.querySelectorAll('.gallery-container .grid-wrap').forEach(currentGalleryElement=>{
                 if(currentGalleryElement.style.height==='max-content'&&currentGalleryElement.style.overflow!=='visible')currentGalleryElement.style.overflow='visible';
