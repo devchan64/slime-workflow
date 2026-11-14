@@ -12,6 +12,21 @@ from generators.wan_fun.contracts import validate_fun_request, inspect_fun_asset
 from tools.review.common.management_gateway import resolve_management_command
 
 class FunGenerationContractTests(unittest.TestCase):
+    def test_model_prepare_button_submits_prepare_job(self):
+        from tools.review.domains.wan_fun.generation import FunControlGenerationManager
+        from tools.review.ui.gradio.wan_fun_app import build_fun_interface
+        current_command_mock = Mock(return_value={'id': 'prepare-job'})
+        current_interface = build_fun_interface('http://localhost', current_command_mock)
+        current_prepare_callback = next(current_function.fn for current_function in current_interface.fns.values()
+            if current_function.fn and current_function.fn.__name__ == 'enqueue_fun_model_prepare')
+        self.assertEqual(current_prepare_callback()[0], 'prepare-job')
+        current_command_mock.assert_called_with('generate', {'action': 'prepare'})
+        current_manager = FunControlGenerationManager()
+        current_request = current_manager.validate_generation_request({'action': 'prepare'})
+        self.assertEqual(current_request, {'action': 'prepare', 'images': []})
+        current_manager.validate_generation_runtime(current_request)
+        self.assertEqual(current_manager.select_generation_runner(current_request), 'generators/wan_fun/prepare_worker.py')
+
     def test_temporal_decode_override_preserves_shared_defaults(self):
         from generators.common.wan_video_memory import TiledWanVideoVae
         current_output_tensor = SimpleNamespace(ndim=4)

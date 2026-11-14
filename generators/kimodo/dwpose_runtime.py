@@ -1,4 +1,4 @@
-"""VideoX-Fun DWPose 원본과 CUDA ONNX 세션을 연결한다."""
+"""VideoX-Fun DWPose 원본과 ROCm ONNX 세션을 연결한다."""
 from pathlib import Path
 import hashlib
 import json
@@ -9,6 +9,25 @@ FUN_POSE_SOURCE_REVISION = '13bb3c625e8b1e457d7124d92207b49e00e4a6fe'
 FUN_POSE_MODEL_REVISION = '1a7144101628d69ee7a3768d1ee3a094070dc388'
 FUN_POSE_MODEL_DIRECTORY = Path(__file__).resolve().parents[2]/'.model/wan22-fun-pose'
 FUN_POSE_MODEL_NAMES = ('yolox_l.onnx', 'dw-ll_ucoco_384.onnx')
+
+
+class MigraphxPoseInferenceSession:
+    """MIGraphX가 반환한 SimCC 축을 입력 크기에 맞춰 확인한다."""
+    def __init__(self, current_session_instance):
+        self.current_session_instance = current_session_instance
+
+    def get_inputs(self):
+        return self.current_session_instance.get_inputs()
+
+    def run(self, current_output_names, current_input_values):
+        current_output_values = self.current_session_instance.run(current_output_names, current_input_values)
+        if len(current_output_values) != 2:
+            raise ValueError('DWPose SimCC 출력 개수가 올바르지 않습니다.')
+        if (current_output_values[0].shape[-1], current_output_values[1].shape[-1]) == (768, 576):
+            current_output_values = [current_output_values[1], current_output_values[0]]
+        if (current_output_values[0].shape[-1], current_output_values[1].shape[-1]) != (576, 768):
+            raise ValueError('DWPose SimCC 출력 크기가 올바르지 않습니다.')
+        return current_output_values
 
 
 def validate_fun_pose_assets():
@@ -43,10 +62,20 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
     from PIL import Image, ImageOps
     from generators.wan_fun.vendor.videox_fun.dwpose_utils.wholebody import Wholebody
     validate_fun_pose_assets()
-    if not torch.cuda.is_available():
-        raise RuntimeError('VideoX-Fun 포즈 추출에는 CUDA가 필요합니다.')
+    if not torch.version.hip or not torch.cuda.is_available():
+        raise RuntimeError('VideoX-Fun 포즈 추출에는 AMD ROCm GPU가 필요합니다.')
     torch.zeros(1, device='cuda')
-    ort.preload_dlls()
+    import migraphx
+    import onnxruntime_ep_migraphx as current_provider_plugin
+    for current_provider_name, current_library_path in zip(current_provider_plugin.get_ep_names(), current_provider_plugin.get_library_paths()):
+        ort.register_execution_provider_library(current_provider_name, current_library_path)
+    if 'MIGraphXExecutionProvider' not in ort.get_available_providers():
+        raise RuntimeError('ONNX Runtime MIGraphX 실행 공급자를 사용할 수 없습니다.')
+    current_gpu_devices = [current_device_record for current_device_record in ort.get_ep_devices()
+                           if current_device_record.ep_name == 'MIGraphXExecutionProvider'
+                           and current_device_record.device.type == ort.OrtHardwareDeviceType.GPU]
+    if not current_gpu_devices:
+        raise RuntimeError('MIGraphX에서 AMD GPU 장치를 찾지 못했습니다.')
     current_source_path = current_job_root/'driving.mp4'
     if current_request_record['driving_video_file'] != 'driving.mp4' or hashlib.sha256(current_source_path.read_bytes()).hexdigest() != current_request_record['driving_video_sha256']:
         raise ValueError('SOMA 입력 영상 사본 해시 불일치')
@@ -55,11 +84,14 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
     for current_session_field, current_model_name in zip(('session_det', 'session_pose'), FUN_POSE_MODEL_NAMES):
         current_session_options = ort.SessionOptions()
         current_session_options.add_session_config_entry('session.disable_cpu_ep_fallback', '1')
-        current_cuda_session = ort.InferenceSession(str((FUN_POSE_MODEL_DIRECTORY/current_model_name).with_suffix('.cuda.onnx')), sess_options=current_session_options, providers=['CUDAExecutionProvider'])
-        if current_cuda_session.get_providers()[0] != 'CUDAExecutionProvider':
-            raise RuntimeError('VideoX-Fun ONNX CUDA 초기화 실패')
-        current_cuda_session.disable_fallback()
-        setattr(current_body_detector, current_session_field, current_cuda_session)
+        current_session_options.add_provider_for_devices(current_gpu_devices[:1], {})
+        current_gpu_session = ort.InferenceSession(str((FUN_POSE_MODEL_DIRECTORY/current_model_name).with_suffix('.cuda.onnx')), sess_options=current_session_options)
+        if current_gpu_session.get_providers()[0] != 'MIGraphXExecutionProvider':
+            raise RuntimeError('VideoX-Fun ONNX MIGraphX 초기화 실패')
+        current_gpu_session.disable_fallback()
+        if current_session_field == 'session_pose':
+            current_gpu_session = MigraphxPoseInferenceSession(current_gpu_session)
+        setattr(current_body_detector, current_session_field, current_gpu_session)
     # 과거 기록은 손·얼굴 포함으로 재개한다. 신규 요청은 검증 시 False를 저장한다.
     current_include_hands = current_request_record.get('pose_include_hands', True)
     current_include_face = current_request_record.get('pose_include_face', True)
@@ -104,7 +136,7 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
                 print(time.strftime('%Y-%m-%dT%H:%M:%S')+f'/fun/pose {current_frame_index+1}/{current_request_record["frames"]}', flush=True)
     finally:
         current_video_capture.release()
-    (current_attempt_root/'pose-preprocess.json').write_text(json.dumps({'source': 'VideoX-Fun VideoToPose / DWposeDetector', 'revision': FUN_POSE_SOURCE_REVISION, 'model_revision': FUN_POSE_MODEL_REVISION, 'backend': 'ONNX Runtime CUDA; CPU fallback disabled', 'source_fps': current_source_fps, 'output_fps': current_output_fps, 'pose_include_hands': current_include_hands, 'pose_include_face': current_include_face, 'body_head_points': True, 'frames': current_frame_paths}, ensure_ascii=False))
+    (current_attempt_root/'pose-preprocess.json').write_text(json.dumps({'source': 'VideoX-Fun VideoToPose / DWposeDetector', 'revision': FUN_POSE_SOURCE_REVISION, 'model_revision': FUN_POSE_MODEL_REVISION, 'backend': 'ONNX Runtime MIGraphX; CPU fallback disabled', 'source_fps': current_source_fps, 'output_fps': current_output_fps, 'pose_include_hands': current_include_hands, 'pose_include_face': current_include_face, 'body_head_points': True, 'frames': current_frame_paths}, ensure_ascii=False))
     return current_frame_paths
 
 
@@ -114,7 +146,7 @@ if __name__ == '__main__':
     current_stop_event = threading.Event()
     def report_pose_heartbeat():
         while not current_stop_event.wait(5):
-            print(time.strftime('%Y-%m-%dT%H:%M:%S')+'/fun/pose-heartbeat VideoX-Fun CUDA 전처리 중', flush=True)
+            print(time.strftime('%Y-%m-%dT%H:%M:%S')+'/fun/pose-heartbeat VideoX-Fun ROCm 전처리 중', flush=True)
     threading.Thread(target=report_pose_heartbeat, daemon=True).start()
     try:
         current_job_directory = Path(sys.argv[1])

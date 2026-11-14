@@ -207,6 +207,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         gr.Markdown('## Wan2.2 Fun Control A14B 실험 생성기\n포즈 영상과 참조 이미지로 애니메이션을 생성합니다. VideoX-Fun DWPose 추출과 관절 길이 보정은 Kimodo 생성기에서 수행합니다.')
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
         current_model_refresh = gr.Button('모델 준비 상태 확인')
+        current_model_prepare = gr.Button('모델 다운로드 및 준비')
         def read_fun_model_status():
             try:
                 return current_execute_command('model-status', {})['message']
@@ -272,7 +273,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         current_seed_control = build_generation_seed(default_seed_value=FUN_DEFAULT_SETTINGS['seed'])
         with gr.Group():
             gr.Markdown('### 고급 설정')
-            gr.Markdown('고정: 고·저노이즈 Q4_K_M · Euler/simple · CUDA 연산/CPU 가중치 오프로드 · 가속 LoRA 없음.')
+            gr.Markdown('고정: 고·저노이즈 BF16 · Euler/simple · AMD ROCm 연산 · 가속 LoRA 없음.')
             current_shift_control = gr.Number(value=FUN_DEFAULT_SETTINGS['flow_shift'], minimum=0.1, maximum=20, label='Flow shift · 노이즈 시간 배분', info='기본 5. 높이면 같은 스텝 위치의 노이즈 수준이 높아집니다. CFG와 독립적으로 입력합니다. 동작 속도나 참조 강도가 아닙니다.')
             current_guidance_control = gr.Number(value=FUN_DEFAULT_SETTINGS['guidance_scale'], minimum=1, maximum=10, label='CFG 강도 · 조건 유도', info='기본 6. 조건부·무조건부 예측 차이에 적용하는 배율입니다. Flow shift나 참조 이미지 전용 강도가 아닙니다.')
             current_switch_control = gr.Number(value=FUN_DEFAULT_SETTINGS['switch_ratio'], minimum=0.1, maximum=0.9, label='고노이즈 스텝 비율 · 0.1~0.9', info='기본 0.5. 전체 스텝의 앞부분은 고노이즈 모델, 나머지는 저노이즈 모델을 사용합니다.')
@@ -280,7 +281,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             current_split_summary = gr.Markdown(describe_fun_step_split(FUN_DEFAULT_SETTINGS['steps'], FUN_DEFAULT_SETTINGS['switch_ratio']))
             current_steps_control.change(describe_fun_step_split, [current_steps_control,current_switch_control], current_split_summary, queue=False)
             current_switch_control.change(describe_fun_step_split, [current_steps_control,current_switch_control], current_split_summary, queue=False)
-            gr.Markdown('범위는 이 페이지의 실험 허용 범위입니다. [모델카드](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control) · [공식 ComfyUI 안내](https://docs.comfy.org/tutorials/video/wan/wan2-2-fun-control). 가속 4스텝 LoRA 예제와 현재 Q4 비가속 설정은 다릅니다.')
+            gr.Markdown('범위는 이 페이지의 실험 허용 범위입니다. [모델카드](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control) · [공식 ComfyUI 안내](https://docs.comfy.org/tutorials/video/wan/wan2-2-fun-control).')
         current_input_controls = [current_reference_control,current_video_control,current_frames_control,current_type_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_switch_control,current_mode_control,current_hands_control,current_face_control,current_start_control,current_end_control,current_same_control]
         current_example_button.click(lambda current_example_identifier: (current_example_identifier, gr.update(visible=True)),current_example_selector,[current_pending_example,current_example_confirmation],queue=False)
         current_example_cancel.click(lambda: gr.update(visible=False),outputs=current_example_confirmation,queue=False)
@@ -308,6 +309,10 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         current_result_output = gr.HTML('')
         current_result_identity = gr.State('')
         current_log_output,current_log_enabled,_ = build_execution_logs()
+        def enqueue_fun_model_prepare():
+            current_job_record = current_execute_command('generate', {'action': 'prepare'})
+            return current_job_record['id'], '모델 준비를 공용 GPU 대기열에 등록했습니다.'
+        current_model_prepare.click(enqueue_fun_model_prepare, outputs=[current_job_control, current_status_output], queue=False)
         def enqueue_fun_generation(*current_input_values):
             current_job_record = current_execute_command('generate',build_fun_payload(*current_input_values))
             return current_job_record['id'], '공용 GPU 대기열에 등록했습니다.'
@@ -315,13 +320,14 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         current_generation_timer = gr.Timer(5,active=False)
         def refresh_fun_status(current_job_identifier,current_logs_enabled,current_previous_result):
             if not current_job_identifier:
-                return gr.skip(),gr.skip(),gr.skip(),gr.skip(),gr.Timer(active=False)
+                return gr.skip(),gr.skip(),gr.skip(),gr.skip(),gr.Timer(active=False),gr.skip()
             current_status_record = read_existing_generation_status(current_execute_command,current_job_identifier)
             if current_status_record is None:
-                return '삭제된 이력입니다.','','','',gr.Timer(active=False)
+                return '삭제된 이력입니다.','','','',gr.Timer(active=False),gr.skip()
             current_result_url = current_status_record.get('video','')
-            return describe_video_generation_status(current_status_record),render_fun_video_result(current_job_identifier,current_status_record,current_server_address) if current_result_url and current_result_url!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_result_url,gr.Timer(active=current_status_record.get('status') not in ('completed','failed','cancelled','paused'))
-        current_generation_timer.tick(refresh_fun_status,[current_job_control,current_log_enabled,current_result_identity],[current_status_output,current_result_output,current_log_output,current_result_identity,current_generation_timer],queue=False,show_progress='hidden')
+            current_model_message = read_fun_model_status() if current_status_record.get('status') == 'completed' else gr.skip()
+            return describe_video_generation_status(current_status_record),render_fun_video_result(current_job_identifier,current_status_record,current_server_address) if current_result_url and current_result_url!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_result_url,gr.Timer(active=current_status_record.get('status') not in ('completed','failed','cancelled','paused')),current_model_message
+        current_generation_timer.tick(refresh_fun_status,[current_job_control,current_log_enabled,current_result_identity],[current_status_output,current_result_output,current_log_output,current_result_identity,current_generation_timer,current_model_status],queue=False,show_progress='hidden')
         current_job_control.change(lambda current_job_identifier:gr.Timer(active=bool(current_job_identifier)),current_job_control,current_generation_timer,queue=False)
         current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_fun_inputs,restore_output_components=[*current_input_controls,current_job_control],result_renderer_callback=render_fun_video_result,record_folder_route='/wan22-fun-control',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)

@@ -1,6 +1,5 @@
-"""실제 CUDA 프로세스와 부모 실행 명령을 읽는 공용 GPU 상태 조회."""
-import csv
-import io
+"""AMD GPU 프로세스와 부모 실행 명령을 읽는 공용 상태 조회."""
+import json
 import re
 import subprocess
 import threading
@@ -40,30 +39,29 @@ def read_gpu_status():
         if time.monotonic()-_status_cache[0] < 3:
             return _status_cache[1]
         try:
-            result = subprocess.run(['nvidia-smi','--query-compute-apps=pid,used_gpu_memory','--format=csv,noheader,nounits'],capture_output=True,text=True,timeout=3,check=True)
+            result = subprocess.run(['amd-smi','process','-G','--json'],capture_output=True,text=True,timeout=10,check=True)
             processes = []
-            for row in csv.reader(io.StringIO(result.stdout)):
-                if len(row)!=2:
-                    continue
-                pid = int(row[0].strip())
-                processes.append({'pid':pid,'memory_mib':int(row[1].strip()) if row[1].strip().isdigit() else None,**identify_gpu_command(pid)})
-            memory_result = subprocess.run(['nvidia-smi','--query-gpu=memory.total,memory.used,memory.free','--format=csv,noheader,nounits'],capture_output=True,text=True,timeout=3,check=True)
+            for current_gpu_record in json.loads(result.stdout):
+                for current_process_record in current_gpu_record.get('process_list', []):
+                    current_process_values = current_process_record['process_info']
+                    if current_process_values == 'No running processes detected':
+                        continue
+                    pid = current_process_values['pid']
+                    current_memory_record = current_process_values['mem_usage']
+                    current_memory_value = (current_memory_record['value'] + 1048575) // 1048576 if current_memory_record['unit'] == 'B' else None
+                    processes.append({'pid':pid,'memory_mib':current_memory_value,**identify_gpu_command(pid)})
+            memory_result = subprocess.run(['amd-smi','metric','-m','--json'],capture_output=True,text=True,timeout=10,check=True)
             memory_total_mib = memory_used_mib = memory_free_mib = 0
-            for row in csv.reader(io.StringIO(memory_result.stdout)):
-                if len(row) != 3:
-                    continue
-                try:
-                    total_value,used_value,free_value=(int(current_value.strip()) for current_value in row)
-                except ValueError:
-                    continue
-                memory_total_mib += total_value
-                memory_used_mib += used_value
-                memory_free_mib += free_value
+            for current_gpu_record in json.loads(memory_result.stdout)['gpu_data']:
+                current_memory_values = current_gpu_record['mem_usage']
+                memory_total_mib += int(current_memory_values['total_gtt']['value'])
+                memory_used_mib += int(current_memory_values['used_gtt']['value'])
+                memory_free_mib += int(current_memory_values['free_gtt']['value'])
             if memory_total_mib <= 0:
                 raise ValueError('GPU 메모리 정보를 읽을 수 없습니다.')
             record = {'status':'busy' if processes else 'idle','processes':processes,
                 'memory_total_mib':memory_total_mib,'memory_used_mib':memory_used_mib,'memory_free_mib':memory_free_mib}
-        except (OSError,subprocess.SubprocessError,ValueError):
+        except (OSError,subprocess.SubprocessError,ValueError,KeyError,TypeError):
             record = {'status':'unavailable','processes':[]}
         _status_cache = (time.monotonic(),record)
         return record

@@ -101,7 +101,7 @@
 ## Generator GPU Memory Peak Standard
 - 모든 GPU 생성기는 VRAM 사용량 피크 측정·기록을 기본 기능으로 제공한다. 신규·기존 생성기 모두 적용하며 모델 로드·추론·리타게팅·렌더·후처리 등 GPU 사용 단계와 별도 자식 프로세스를 포함한다. 일부 모델의 피크만 측정하고 전체 작업 피크로 표시하지 않는다.
 - 측정은 공용 작업 실행기·작업 서비스에서 수행하고 GUI·CLI는 게이트웨이를 통해 같은 기록을 조회한다. 작업 ID·실행 시도별로 현재 사용량·관측 최대값·단위(MiB)·GPU 식별자·측정 방식·대상 범위·샘플 간격·갱신 시각을 보존한다. 여러 GPU는 장치별로 기록하며 각 장치의 서로 다른 시점 최대값 합계를 동시 피크로 표현하지 않는다.
-- 프로세스 기반 VRAM 사용량과 장치 전체 사용량을 구분한다. 장치 전체 값에는 다른 프로세스가 포함될 수 있음을 명시한다. PyTorch의 allocated/reserved 최대값은 프레임워크 할당자 통계로 별도 기록하며 CUDA 컨텍스트·외부 라이브러리·Blender를 포함한 실제 전체 VRAM 피크로 대체하지 않는다.
+- 프로세스 기반 VRAM 사용량과 장치 전체 사용량을 구분한다. 장치 전체 값에는 다른 프로세스가 포함될 수 있음을 명시한다. PyTorch의 allocated/reserved 최대값은 프레임워크 할당자 통계로 별도 기록하며 GPU 실행 컨텍스트·외부 라이브러리·Blender를 포함한 실제 전체 VRAM 피크로 대체하지 않는다.
 - GPU 작업 시작 전부터 종료까지 주기적으로 측정하고 단계 전환·최대 5초 간격 heartbeat마다 누적 피크를 기록한다. 샘플링 최대값은 ‘관측 피크’로 표시하며 순간 피크를 놓칠 수 있다는 한계를 명시한다. 측정 불가·지원하지 않는 장치·권한 오류는 0으로 기록하지 않고 미측정 사유와 측정 누락 구간을 남긴다.
 - 완료·실패·취소·OOM에도 확보한 피크를 실행 로그와 영구 실행 기록에 보존한다. 강제 종료에 대비해 실행 중에도 저장하며 재개 시 새 시도의 피크와 기존 시도 기록을 분리한다. GUI에는 현재 사용량·관측 피크·측정 범위를 표시하고 종료 후에는 최종 피크를 유지한다.
 - 검증에는 정상 완료·실패/OOM·취소·재개·별도 렌더 프로세스·측정 불가·GUI/CLI 값 일치를 포함한다. 규칙 추가만으로 모든 생성기의 구현이 완료됐다고 보고하지 않는다.
@@ -160,7 +160,10 @@
 - Accept only allowed output formats; disallow permissive recovery parsing.
 - If rules conflict, model card I/O policy takes precedence.
 - For Musician-Llama nodes, prioritize natural-language input + pipe/comma MIDI tuple contract.
-- 모델 추론 연산은 GPU(CUDA/MPS)에서 수행한다. GPU를 사용할 수 없을 때 CPU 추론으로 대체하지 않고 명확한 원인과 함께 즉시 실패한다.
+- 모델 추론 연산은 AMD GPU의 ROCm 환경에서 수행한다. GPU를 사용할 수 없을 때 CPU 추론으로 대체하지 않고 명확한 원인과 함께 즉시 실패한다. 기존 NVIDIA CUDA 실행 환경은 사용하지 않는다.
+- 개발 호스트는 2026-11-14 기준 AMD Ryzen AI Max+ PRO 395와 Radeon 8060S(`gfx1151`), Ubuntu 26.04.1 LTS, Python 3.14.4를 사용한다. 호스트 `rocminfo`에서 ROCm GPU 인식을 확인했다. 환경은 변경될 수 있으므로 작업 전에 다시 확인한다.
+- AMD 모델 실행과 준비는 해당 GPU·OS·Python에 맞는 ROCm PyTorch 및 전처리 런타임을 검증한다. PyTorch의 `torch.cuda` API는 ROCm에서도 사용하므로 이름만으로 NVIDIA 전용 여부를 판정하지 않는다. CUDA 전용 확장·ONNX 실행 공급자·OpenCV 전처리는 AMD 지원 여부를 별도로 확인한다. 패키지 설치가 기존 ROCm PyTorch를 다른 빌드로 교체하지 않도록 확인한다.
+- Wan 2.2 Fun Control의 현재 준비 명령은 ROCm PyTorch 선택과 AMD 전처리 지원을 아직 검증하지 않았다. AMD 환경에서 설치·추론 성공을 선언하기 전에 실제 GPU 접근과 각 실행 단계를 확인한다.
 - VRAM 절감을 위한 CPU 메모리 오프로드는 허용한다. 가중치를 CPU RAM에 대기시키고 연산 시 GPU로 옮기는 모델·레이어 단위 오프로드와 단계별 GPU 로드·해제를 사용할 수 있다. CPU 추론 금지를 CPU 메모리 오프로드 금지로 해석하지 않는다.
 - 외부 구현의 `offload` 옵션은 실제 연산 장치를 확인한다. 텍스트 인코더 등 모델 구성요소를 CPU에서 연산하는 방식은 CPU 메모리 오프로드와 구분하며 위 GPU 추론 규칙을 적용한다.
 - GPU 상태 확인·모델 준비·GPU 추론은 샌드박스 밖에서 실행한다. 샌드박스 내부 접근 실패를 GPU 부재로 판단하지 않으며, 외부 실행에서도 GPU를 사용할 수 없을 때 명확한 원인으로 즉시 실패한다.

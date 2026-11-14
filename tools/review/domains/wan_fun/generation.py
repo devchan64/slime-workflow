@@ -1,12 +1,30 @@
 """Fun Control을 공용 대기열·이력에 연결한다."""
 from tools.review.common.reference_video_generation import ReferenceVideoGenerationManager
-from generators.wan_fun.contracts import reject_retired_rgb_input, FUN_JOB_STORAGE, validate_fun_request, validate_fun_assets, inspect_fun_assets
+from tools.review.domains.image.image_generation import ImageGenerationManager
+from generators.wan_fun.contracts import reject_retired_rgb_input, FUN_JOB_STORAGE, FUN_PYTHON_EXECUTABLE, validate_fun_request, validate_fun_assets, inspect_fun_assets
 
 class FunControlGenerationManager(ReferenceVideoGenerationManager):
     def __init__(self):
         super().__init__('/wan22-fun-control', FUN_JOB_STORAGE, 'generators/wan_fun/worker.py', validate_fun_request, validate_fun_assets, inspect_fun_assets)
 
+    def select_generation_python(self, saved_request_record=None):
+        if saved_request_record and saved_request_record.get('action') == 'prepare':
+            return FUN_JOB_STORAGE.parents[2] / '.venv/bin/python'
+        return FUN_PYTHON_EXECUTABLE
+
+    def select_generation_runner(self, saved_request_record=None):
+        if saved_request_record and saved_request_record.get('action') == 'prepare':
+            return 'generators/wan_fun/prepare_worker.py'
+        return super().select_generation_runner(saved_request_record)
+
+    def validate_generation_request(self, current_request_record):
+        if current_request_record == {'action': 'prepare'}:
+            return {'action': 'prepare', 'images': []}
+        return super().validate_generation_request(current_request_record)
+
     def validate_generation_runtime(self, saved_request_record=None):
+        if saved_request_record and saved_request_record.get('action') == 'prepare':
+            return
         super().validate_generation_runtime(saved_request_record)
         if saved_request_record and ('driving_video' in saved_request_record or 'driving_video_file' in saved_request_record):
             from generators.wan_fun.pose_preprocess import validate_fun_pose_assets
@@ -35,6 +53,10 @@ class FunControlGenerationManager(ReferenceVideoGenerationManager):
         self.validate_generation_runtime(current_request_record)
 
     def read_generation_status_record(self, current_job_root, fallback_status_record=None, include_log_value=False):
+        import json
+        current_request_path = current_job_root / 'request.json'
+        if current_request_path.is_file() and json.loads(current_request_path.read_text()).get('action') == 'prepare':
+            return ImageGenerationManager.read_generation_status_record(self, current_job_root, fallback_status_record, include_log_value)
         current_status_record = super().read_generation_status_record(current_job_root, fallback_status_record, include_log_value)
         if current_status_record.get('video'):
             import json

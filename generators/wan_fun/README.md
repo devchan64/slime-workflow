@@ -1,5 +1,7 @@
 # Fun Control VAE 처리
 
+저장소 루트에서 `python3 -m generators.wan_fun.setup_rocm`을 실행한다. 별도 `.local/venvs/wan-fun-rocm`에 AMD ROCm PyTorch·MIGraphX 환경과 DWPose를 준비한다. 고·저노이즈 BF16 모델, UMT5 FP16, Wan2.1 VAE는 고정 리비전에서 받아 크기와 SHA-256을 검증한다. 고정 커밋의 ComfyUI 의존성을 설치하며 기존 소스에 수정 사항이나 다른 커밋이 있으면 중단한다. 로그는 `.tmp/management-launcher-logs/`와 `.tmp/test/wan22-fun-control-prepare/`에 저장한다.
+
 참조·포즈 인코딩과 결과 디코딩은 일반 ComfyUI VAE로 고정한다.
 타일 VAE 실행·UI 선택은 제거했으며 OOM 시 자동 타일 대체 없이 명시적으로 실패한다.
 

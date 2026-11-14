@@ -8,11 +8,13 @@ from tools.review.domains.image.three_reference_generation import decode_referen
 FUN_WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 FUN_JOB_STORAGE = FUN_WORKSPACE_ROOT / '.tmp/test/wan22-fun-control'
 FUN_RUNTIME_DIRECTORY = FUN_WORKSPACE_ROOT / '.local/wan22-animate'
-FUN_MODEL_REVISION = '26d412a4bec09e1324fc80654dcee0d58218db52'
+FUN_PYTHON_EXECUTABLE = FUN_WORKSPACE_ROOT / '.local/venvs/wan-fun-rocm/bin/python'
+FUN_MODEL_IDENTIFIER = 'Comfy-Org/Wan-2.2'
+FUN_MODEL_REVISION = 'ee6f4a40737a995bf5818954cfce6d59443b0f04'
 FUN_MODEL_FILES = {
-    'high': ('.model/wan22-fun-control/HighNoise/Wan2.2-Fun-A14B-Control_HighNoise-Q4_K_M.gguf', 9663556352),
-    'low': ('.model/wan22-fun-control/LowNoise/Wan2.2-Fun-A14B-Control_LowNoise-Q4_K_M.gguf', 9663556352),
-    'encoder': ('.model/wan22-animate-components/umt5-xxl-encoder-Q4_K_M.gguf', 3655145312),
+    'high': ('.model/wan22-fun-control/split_files/diffusion_models/wan2.2_fun_control_high_noise_14B_bf16.safetensors', 28579237064),
+    'low': ('.model/wan22-fun-control/split_files/diffusion_models/wan2.2_fun_control_low_noise_14B_bf16.safetensors', 28579237064),
+    'encoder': ('.model/wan22-animate-components/split_files/text_encoders/umt5_xxl_fp16.safetensors', 11366399385),
     'vae': ('.model/wan22-animate-components/split_files/vae/wan_2.1_vae.safetensors', 253815318),
 }
 FUN_DEFAULT_SETTINGS = {'frames': 21, 'steps': 20, 'seed': 42, 'flow_shift': 5.0, 'guidance_scale': 6.0, 'switch_ratio': 0.5}
@@ -26,10 +28,12 @@ def inspect_fun_assets():
         current_model_path = FUN_WORKSPACE_ROOT / current_model_name
         if not current_model_path.is_file() or current_model_path.stat().st_size != expected_model_size:
             missing_model_paths.append(current_model_name)
-    for current_runtime_name, expected_revision_text in [('ComfyUI', 'b8730510db30c8858e1e5d8e126ef19eac395560'), ('ComfyUI-GGUF', '6ea2651e7df66d7585f6ffee804b20e92fb38b8a')]:
+    for current_runtime_name, expected_revision_text in [('ComfyUI', 'b8730510db30c8858e1e5d8e126ef19eac395560')]:
         current_revision_path = FUN_RUNTIME_DIRECTORY / current_runtime_name / 'PINNED_REVISION'
         if not current_revision_path.is_file() or current_revision_path.read_text().strip() != expected_revision_text:
             missing_model_paths.append(str(current_revision_path))
+    if not FUN_PYTHON_EXECUTABLE.is_file():
+        missing_model_paths.append(str(FUN_PYTHON_EXECUTABLE))
     return {'ready': not missing_model_paths, 'missing': missing_model_paths, 'message': '모델 파일 준비 완료 · 실행 가능 여부는 입력 조건과 GPU 여유 메모리에 따라 달라집니다.' if not missing_model_paths else '모델 준비 필요: ' + ', '.join(missing_model_paths)}
 
 

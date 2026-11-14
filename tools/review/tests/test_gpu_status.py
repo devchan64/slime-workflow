@@ -1,5 +1,6 @@
 """GPU 상태 카드에 필요한 실제 메모리 요약을 검증한다."""
 import subprocess
+import json
 import unittest
 from unittest.mock import patch
 
@@ -9,10 +10,10 @@ from tools.review.common import gpu_status
 class GpuStatusTests(unittest.TestCase):
     def test_gpu_status_includes_total_used_and_free_memory(self):
         compute_result = subprocess.CompletedProcess(
-            args=[], returncode=0, stdout='100, 512\n200, 768\n', stderr=''
+            args=[], returncode=0, stdout=json.dumps([{'gpu': 0, 'process_list': [{'process_info': {'pid': 100, 'mem_usage': {'value': 512 * 1048576, 'unit': 'B'}}}, {'process_info': {'pid': 200, 'mem_usage': {'value': 768 * 1048576, 'unit': 'B'}}}]}]), stderr=''
         )
         memory_result = subprocess.CompletedProcess(
-            args=[], returncode=0, stdout='12288, 1280, 11008\n', stderr=''
+            args=[], returncode=0, stdout=json.dumps({'gpu_data': [{'mem_usage': {'total_gtt': {'value': 12288}, 'used_gtt': {'value': 1280}, 'free_gtt': {'value': 11008}}}]}), stderr=''
         )
         with patch.object(gpu_status.subprocess, 'run', side_effect=[compute_result, memory_result]), patch.object(
             gpu_status, 'identify_gpu_command', side_effect=[

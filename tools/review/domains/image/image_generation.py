@@ -151,6 +151,9 @@ class ImageGenerationManager:
             return 'generators/image/run_qwen_2511_three_reference.py'
         return 'generators/image/run_qwen_2512.py'
 
+    def select_generation_python(self, saved_request_record=None):
+        return WORKFLOW_ROOT_PATH / '.venv/bin/python'
+
     def history_storage_path(self):
         return MANAGER_HISTORY_ROOT / ('qwen-2511' if self.three_reference_mode else 'qwen-2512')
 
@@ -241,7 +244,7 @@ class ImageGenerationManager:
                     legacy_command_record = None
                     if current_url_path.endswith('/resume') and not (selected_job_directory/'gpu-command.json').exists():
                         saved_request_record=json.loads((selected_job_directory/'request.json').read_text())
-                        saved_command_values=[str(WORKFLOW_ROOT_PATH/'.venv/bin/python'),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(saved_request_record)),'--job-dir',str(selected_job_directory)]
+                        saved_command_values=[str(self.select_generation_python(saved_request_record)),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(saved_request_record)),'--job-dir',str(selected_job_directory)]
                         legacy_command_record = {'command':saved_command_values,'service':'image'}
                     selected_operation_result = resume_gpu_generation(selected_job_directory, legacy_command_record=legacy_command_record) if current_url_path.endswith('/resume') else cancel_gpu_generation(selected_job_directory)
                     send_response_data(200,selected_operation_result)
@@ -276,7 +279,7 @@ class ImageGenerationManager:
                         self.history_storage_path().mkdir(parents=True,exist_ok=True)
                         write_record_atomically(self.history_storage_path()/(current_job_identifier+'.json'), {'id':current_job_identifier,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':current_request_record,'status':{'status':'running'},'job_path':str(current_job_root)})
                     with (current_job_root/'worker.log').open('w') as current_log_handle:
-                        self.current_worker_process = launch_gpu_process([str(WORKFLOW_ROOT_PATH/'.venv/bin/python'),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(current_request_record)),'--job-dir',str(current_job_root)],current_job_root,'image',stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True)
+                        self.current_worker_process = launch_gpu_process([str(self.select_generation_python(current_request_record)),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(current_request_record)),'--job-dir',str(current_job_root)],current_job_root,'image',stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True)
                     self.current_job_identifier = current_job_identifier
                     current_worker_process = self.current_worker_process
                     def watch_worker_exit():

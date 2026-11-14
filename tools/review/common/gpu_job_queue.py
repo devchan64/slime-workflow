@@ -26,9 +26,9 @@ GPU_POLL_INTERVAL = 2
 
 
 def read_gpu_memory():
-    memory_query_result = subprocess.run(['nvidia-smi', '--query-gpu=memory.total,memory.free', '--format=csv,noheader,nounits'], capture_output=True, text=True, check=True, timeout=5)
-    memory_total_value, memory_free_value = map(int, memory_query_result.stdout.splitlines()[0].split(','))
-    return memory_total_value, memory_free_value
+    memory_query_result = subprocess.run(['amd-smi', 'metric', '-m', '--json'], capture_output=True, text=True, check=True, timeout=10)
+    current_memory_values = json.loads(memory_query_result.stdout)['gpu_data'][0]['mem_usage']
+    return int(current_memory_values['total_gtt']['value']), int(current_memory_values['free_gtt']['value'])
 
 
 def launch_gpu_process(command_argument_values, generation_job_path, generation_service_name, **process_option_values):

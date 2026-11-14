@@ -1,13 +1,12 @@
-"""Fun Control Q4 고·저노이즈 모델을 순차 로드하는 GPU 작업자."""
+"""Fun Control 비양자화 고·저노이즈 모델을 순차 로드하는 GPU 작업자."""
 from pathlib import Path
 import sys
 import os
 import gc
 import hashlib
-import importlib.util
 FUN_WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(FUN_WORKSPACE_ROOT))
-from generators.wan_fun.contracts import reject_retired_rgb_input, FUN_JOB_STORAGE, FUN_RUNTIME_DIRECTORY, FUN_MODEL_FILES, FUN_MODEL_REVISION, validate_fun_assets
+from generators.wan_fun.contracts import reject_retired_rgb_input, FUN_JOB_STORAGE, FUN_RUNTIME_DIRECTORY, FUN_MODEL_FILES, FUN_MODEL_IDENTIFIER, FUN_MODEL_REVISION, FUN_PYTHON_EXECUTABLE, validate_fun_assets
 from generators.common.reference_video_worker import run_reference_video_worker, save_video_outputs
 from tools.review.common.generation_records import write_record_atomically
 
@@ -21,8 +20,15 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     if current_request_record.get('driving_video_file'):
         import subprocess
         import json
+        import sysconfig
         current_metrics_recorder.update_generation_stage('pose-preprocess')
-        subprocess.run([str(FUN_WORKSPACE_ROOT/'.venv/bin/python'), str(Path(__file__).with_name('pose_preprocess.py')), str(current_job_root), str(current_attempt_root)], env={**os.environ, 'PYTHONPATH': str(FUN_RUNTIME_DIRECTORY/'preprocess-deps')}, check=True)
+        current_site_directory = Path(sysconfig.get_paths()['purelib'])
+        current_process_environment = os.environ.copy()
+        current_library_paths = [str(current_site_directory/'onnxruntime/capi'), str(current_site_directory/'migraphx_libs')]
+        if current_process_environment.get('LD_LIBRARY_PATH'):
+            current_library_paths.append(current_process_environment['LD_LIBRARY_PATH'])
+        current_process_environment['LD_LIBRARY_PATH'] = os.pathsep.join(current_library_paths)
+        subprocess.run([str(FUN_PYTHON_EXECUTABLE), str(Path(__file__).with_name('pose_preprocess.py')), str(current_job_root), str(current_attempt_root)], env=current_process_environment, check=True)
         current_preprocess_record = json.loads((current_attempt_root/'pose-preprocess.json').read_text())
         current_control_paths.extend(Path(current_frame_path) for current_frame_path in current_preprocess_record['frames'])
     os.environ['PYTORCH_ALLOC_CONF'] = 'expandable_segments:True'
@@ -38,14 +44,12 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     def resolve_encoder_cuda():
         return torch.device('cuda:0')
     comfy.model_management.text_encoder_device = resolve_encoder_cuda
-    current_package_spec = importlib.util.spec_from_file_location('fun_gguf_runtime', FUN_RUNTIME_DIRECTORY / 'ComfyUI-GGUF/__init__.py', submodule_search_locations=[str(FUN_RUNTIME_DIRECTORY / 'ComfyUI-GGUF')])
-    current_package_module = importlib.util.module_from_spec(current_package_spec)
-    sys.modules[current_package_spec.name] = current_package_module
-    current_package_spec.loader.exec_module(current_package_module)
-    for current_folder_name, current_folder_path in [('unet_gguf', '.model/wan22-fun-control'), ('diffusion_models', '.model/wan22-fun-control'), ('clip', '.model/wan22-animate-components'), ('clip_gguf', '.model/wan22-animate-components'), ('vae', '.model/wan22-animate-components/split_files/vae')]:
+    if not torch.version.hip:
+        raise RuntimeError('AMD ROCm PyTorch가 필요합니다.')
+    for current_folder_name, current_folder_path in [('diffusion_models', '.model/wan22-fun-control/split_files/diffusion_models'), ('text_encoders', '.model/wan22-animate-components/split_files/text_encoders'), ('vae', '.model/wan22-animate-components/split_files/vae')]:
         folder_paths.add_model_folder_path(current_folder_name, str(FUN_WORKSPACE_ROOT / current_folder_path))
     current_metrics_recorder.update_generation_stage('load')
-    current_text_encoder = current_package_module.NODE_CLASS_MAPPINGS['CLIPLoaderGGUF']().load_clip('umt5-xxl-encoder-Q4_K_M.gguf', type='wan')[0]
+    current_text_encoder = nodes.CLIPLoader().load_clip('umt5_xxl_fp16.safetensors', type='wan')[0]
     if current_text_encoder.patcher.load_device.type != 'cuda':
         raise RuntimeError('텍스트 인코더 CUDA 설정 오류')
     positive_condition_data = nodes.CLIPTextEncode().encode(current_text_encoder, current_request_record['prompt'])[0]
@@ -78,8 +82,8 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     current_noise_tensor = comfy.sample.prepare_noise(current_latent_tensor, current_request_record['seed'])
     for current_model_stage, current_start_step, current_end_step in [('high', 0, current_switch_step), ('low', current_switch_step, current_step_total)]:
         current_metrics_recorder.update_generation_stage('load')
-        current_model_relative = Path(FUN_MODEL_FILES[current_model_stage][0]).relative_to('.model/wan22-fun-control')
-        current_diffusion_model = current_package_module.NODE_CLASS_MAPPINGS['UnetLoaderGGUF']().load_unet(str(current_model_relative))[0]
+        current_model_relative = Path(FUN_MODEL_FILES[current_model_stage][0]).name
+        current_diffusion_model = nodes.UNETLoader().load_unet(current_model_relative, 'default')[0]
         current_diffusion_model = ModelSamplingSD3().patch(current_diffusion_model, current_request_record['flow_shift'])[0]
         current_metrics_recorder.update_generation_stage('inference')
         def record_fun_step(current_step_index, current_denoised_tensor, current_sample_tensor, current_stage_total):
@@ -115,7 +119,7 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     comfy.model_management.unload_all_models()
     del current_vae_model
     gc.collect()
-    return {'attempt': current_attempt_root.name, 'frames': len(current_frame_arrays), 'fps': 16, 'output_sha256': current_output_hashes, 'model_id': 'QuantStack/Wan2.2-Fun-A14B-Control-GGUF', 'model_revision': FUN_MODEL_REVISION, 'prompt_words': len(current_request_record['prompt'].split()), 'prompt_sha256': hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(), 'quality_status': '사용자 검수 대기'}
+    return {'attempt': current_attempt_root.name, 'frames': len(current_frame_arrays), 'fps': 16, 'output_sha256': current_output_hashes, 'model_id': FUN_MODEL_IDENTIFIER, 'model_revision': FUN_MODEL_REVISION, 'prompt_words': len(current_request_record['prompt'].split()), 'prompt_sha256': hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(), 'quality_status': '사용자 검수 대기'}
 
 
 if __name__ == '__main__':
