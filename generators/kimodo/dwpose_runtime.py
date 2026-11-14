@@ -178,7 +178,9 @@ def prepare_fun_pose_frames(current_job_root, current_attempt_root, current_requ
             current_padded_image = np.pad(current_scaled_image, ((0, (-current_scaled_height)%64), (0, (-current_scaled_width)%64), (0, 0)), mode='edge')
             with torch.no_grad():
                 current_pose_records = Wholebody.format_result(current_body_detector(np.ascontiguousarray(current_padded_image)))
-                if not current_pose_records and current_soma_foreground_fallback:
+                current_needs_soma_box = (not current_pose_records or
+                                          (len(current_pose_records) == 1 and any(current_pose_records[0].body.keypoints[current_index] is None for current_index in (8, 11))))
+                if current_needs_soma_box and current_soma_foreground_fallback:
                     current_foreground_box = extract_soma_foreground_box(current_scaled_image)
                     current_pose_records = infer_soma_foreground_pose(current_body_detector, np.ascontiguousarray(current_padded_image), current_foreground_box)
                     current_fallback_frames.append({'frame': current_frame_index+1, 'bbox_xyxy': current_foreground_box})

@@ -120,7 +120,8 @@ def adjust_detected_pose_frames(current_detected_frames, current_image_shape, cu
         current_axis_measurements['valid_frames']=len(current_axis_frames) if current_ratio_record is not None and current_ratio_record.get('body_axis') is not None else 0
         current_axis_measurements['total_frames']=len(current_detected_frames)
     current_hip_y_errors = []
-    for current_frame_records in current_detected_frames:
+    current_partial_joint_frames = []
+    for current_frame_index, current_frame_records in enumerate(current_detected_frames):
         current_pose_record = current_frame_records[0]
         current_body_points = current_pose_record.body.keypoints
         current_original_points = np.array([[current_point.x,current_point.y] if current_point else [np.nan,np.nan] for current_point in current_body_points],dtype=float)
@@ -130,19 +131,27 @@ def adjust_detected_pose_frames(current_detected_frames, current_image_shape, cu
         current_original_hip_center = current_original_points[[8,11]].mean(axis=0)
         current_adjusted_points = current_original_points.copy()
         if current_segment_gains:
-            if not np.isfinite(current_original_points[1:14]).all():
-                raise ValueError('관절 길이 보정에 필요한 몸 관절 검출 누락')
-            current_shoulder_center=current_original_points[[2,5]].mean(0)
             current_hip_center=current_original_points[[8,11]].mean(0)
-            current_shoulder_shift=(current_shoulder_center-current_hip_center)*(current_torso_gain-1)
-            current_adjusted_points[1]=current_original_points[1]+current_shoulder_shift
+            current_missing_joints = [current_joint_index for current_joint_index in range(1, 14) if not np.isfinite(current_original_points[current_joint_index]).all()]
+            if current_missing_joints:
+                current_partial_joint_frames.append({'frame': current_frame_index+1, 'missing_joints': current_missing_joints})
+            current_shoulder_shift = np.zeros(2)
+            if np.isfinite(current_original_points[[2,5]]).all():
+                current_shoulder_center=current_original_points[[2,5]].mean(0)
+                current_shoulder_shift=(current_shoulder_center-current_hip_center)*(current_torso_gain-1)
+                if np.isfinite(current_original_points[1]).all():
+                    current_adjusted_points[1]=current_original_points[1]+current_shoulder_shift
             for current_group_name in ('shoulder_width','hip_width'):
                 current_left_index,current_right_index = REFERENCE_SEGMENT_GROUPS[current_group_name][0]
+                if not np.isfinite(current_original_points[[current_left_index,current_right_index]]).all():
+                    continue
                 current_pair_center = current_original_points[[current_left_index,current_right_index]].mean(0)
                 if current_group_name=='shoulder_width': current_pair_center=current_pair_center+current_shoulder_shift
                 current_adjusted_points[[current_left_index,current_right_index]] = current_pair_center+(current_original_points[[current_left_index,current_right_index]]-current_original_points[[current_left_index,current_right_index]].mean(0))*current_segment_gains[current_group_name]*current_torso_gain
             for current_group_name in ('upper_arm','forearm','thigh','shin'):
                 for current_parent_index,current_child_index in REFERENCE_SEGMENT_GROUPS[current_group_name]:
+                    if not np.isfinite(current_original_points[[current_parent_index,current_child_index]]).all() or not np.isfinite(current_adjusted_points[current_parent_index]).all():
+                        continue
                     current_adjusted_points[current_child_index] = current_adjusted_points[current_parent_index]+(current_original_points[current_child_index]-current_original_points[current_parent_index])*current_segment_gains[current_group_name]*current_torso_gain
         def transform_pose_points(current_point_list, current_translation_vector):
             if current_point_list is None:
@@ -154,6 +163,7 @@ def adjust_detected_pose_frames(current_detected_frames, current_image_shape, cu
         current_output_hip_y = (current_output_points[8].y+current_output_points[11].y)/2
         current_hip_y_errors.append(abs(current_adjusted_points[[8,11],1].mean()-current_original_hip_center[1]))
     if current_axis_measurements is not None:
+        current_axis_measurements['partial_joint_frames'] = current_partial_joint_frames
         current_axis_measurements['pelvis_y_anchor'] = {'basis':'각 프레임 보정 전 좌우 고관절 중점 Y', 'unit':'pixel', 'frames':len(current_hip_y_errors), 'maximum_error':max(current_hip_y_errors,default=0.0), 'scale_origin':'고정 카메라 화면 중심 XY', 'measurement_stage':'출력 축소 전 비율 보정'}
     return current_output_frames
 
@@ -203,7 +213,30 @@ def export_kimodo_dwpose(current_job_root,current_attempt_root):
                 current_gains['hip_width'] = 1.0
                 current_direction_measurement['hip_reconstruction'] = {'method':'same-frame-soma-projected-hip','source_sha256':current_direct_hash,'frames':len(current_frames),'note':'골반은 DWPose 검출이 아니라 보정된 SOMA 직접 포즈의 투영 벡터로 재구성'}
             current_direction_gains[current_direction_name] = current_gains
-            return adjust_detected_pose_frames(current_frames,current_shape,current_gains,current_request_record.get('openpose_scale_percent',80),current_ratio_record,current_direction_measurement)
+            current_adjusted_frames = adjust_detected_pose_frames(current_frames,current_shape,current_gains,current_request_record.get('openpose_scale_percent',80),current_ratio_record,current_direction_measurement)
+            if any(any(current_frame[0].body.keypoints[current_index] is None for current_index in (3,4,6,7,9,10,12,13)) for current_frame in current_adjusted_frames):
+                from generators.kimodo.dwpose_joint_completion import complete_occluded_body_joints
+                current_direct_path = current_attempt_root/'soma-direct-pose.json'
+                current_direct_bytes = current_direct_path.read_bytes()
+                current_direct_metadata = json.loads(current_direct_bytes)
+                current_direction_direct = current_direct_metadata.get('directions', {}).get(current_direction_name, {})
+                if (current_direct_metadata.get('fps') != KIMODO_DWPOSE_OUTPUT_FPS or current_direct_metadata.get('size') != [832,480]
+                        or current_direct_metadata.get('additional_scale_percent') != current_request_record.get('openpose_scale_percent',80)
+                        or current_direction_direct.get('source_frames') != list(range(len(current_adjusted_frames)))):
+                    raise ValueError('같은 방향·프레임·배율의 SOMA 직접 투영 기록이 필요합니다.')
+                current_render_metadata = json.loads((current_attempt_root/'soma-render.json').read_text())
+                current_source_width, current_source_height = current_render_metadata['width'], current_render_metadata['height']
+                if (current_source_width, current_source_height) != (832,480):
+                    raise ValueError('SOMA 렌더의 좌표 크기가 직접 투영과 일치하지 않습니다.')
+                current_resize_ratio = 512/min(current_source_width,current_source_height)
+                current_scaled_width = round(current_source_width*current_resize_ratio)
+                current_scaled_height = round(current_source_height*current_resize_ratio)
+                if current_shape != (current_scaled_height+(-current_scaled_height)%64,current_scaled_width+(-current_scaled_width)%64):
+                    raise ValueError('SOMA와 DWPose 입력 크기가 일치하지 않습니다.')
+                current_adjusted_frames,current_completed_joints = complete_occluded_body_joints(current_adjusted_frames,current_direction_direct['body_points_832x480'],(current_scaled_width/832,current_scaled_height/480))
+                current_direction_measurement['joint_completion'] = {'method':'same-frame-soma-projected-bone-vectors', 'source_sha256':hashlib.sha256(current_direct_bytes).hexdigest(), 'frames':current_completed_joints, 'score':0.0, 'note':'누락 관절은 SOMA 투영 추정이며 DWPose 검출값이 아닙니다.'}
+            current_direction_measurement['remaining_partial_joint_frames'] = [{'frame':current_frame_index+1,'missing_joints':[current_joint_index for current_joint_index in range(1,14) if current_frame[0].body.keypoints[current_joint_index] is None]} for current_frame_index,current_frame in enumerate(current_adjusted_frames) if any(current_frame[0].body.keypoints[current_joint_index] is None for current_joint_index in range(1,14))]
+            return current_adjusted_frames
         prepare_fun_pose_frames(current_work_directory,current_work_directory,current_pose_request,transform_detected_frames,current_output_fps=KIMODO_DWPOSE_OUTPUT_FPS,current_soma_foreground_fallback=True)
         current_preprocess_record = json.loads((current_work_directory/'pose-preprocess.json').read_text())
         current_fallback_records[current_direction_name] = current_preprocess_record['soma_foreground_fallback_frames']

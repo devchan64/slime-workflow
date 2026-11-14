@@ -33,6 +33,13 @@ def export_kimodo_pose_outputs(current_job_root,current_attempt_root,current_req
         current_process_environment['LD_LIBRARY_PATH'] = os.pathsep.join(current_library_paths)
         subprocess.run([str(KIMODO_ENVIRONMENT_PYTHON),str(Path(__file__).with_name('dwpose_export.py')),str(current_job_root),str(current_attempt_root)],cwd=current_workspace_root,env=current_process_environment,check=True)
         current_dwpose_record = json.loads((current_attempt_root/'dwpose-export.json').read_text())
+        for current_direction_name, current_axis_record in current_dwpose_record.get('body_axis', {}).items():
+            current_completed_count = len(current_axis_record.get('joint_completion', {}).get('frames', []))
+            current_remaining_count = len(current_axis_record.get('remaining_partial_joint_frames', current_axis_record.get('partial_joint_frames', [])))
+            if current_completed_count:
+                current_quality_warnings.append(f'DWPose {current_direction_name}: {current_completed_count}프레임의 미검출 관절은 같은 프레임 SOMA 투영으로 추정했습니다. DWPose 검출값이 아니며 상세 프레임은 dwpose-export.json을 확인하세요.')
+            if current_remaining_count:
+                current_quality_warnings.append(f'DWPose {current_direction_name}: {current_remaining_count}프레임에 검출·보완되지 않은 관절이 남아 있습니다. 상세 프레임은 dwpose-export.json을 확인하세요.')
     except (subprocess.CalledProcessError,OSError,ValueError) as current_export_error:
         current_warning_text = f'DWPose 생성 오류: {current_export_error}. 직접 포즈 결과는 유지합니다. 상세 원인은 실행 로그를 확인하세요.'
         current_quality_warnings.append(current_warning_text)

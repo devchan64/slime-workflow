@@ -8,6 +8,42 @@ from generators.kimodo.dwpose_export import adjust_detected_pose_frames
 from generators.wan_fun.video_input import validate_processed_pose_video
 
 class KimodoDwposeTests(unittest.TestCase):
+    def test_occluded_joints_use_soma_vectors_and_preserve_detected_points(self):
+        from generators.kimodo.dwpose_joint_completion import complete_occluded_body_joints
+        current_point_type = namedtuple('Point','x y score id',defaults=[1.0,0])
+        current_body_type = namedtuple('Body','keypoints')
+        current_pose_type = namedtuple('Pose','body left_hand right_hand face')
+        current_reference_points = np.zeros((1,18,3)); current_reference_points[:,:,2] = 1
+        current_reference_points[0,5,:2] = [10,10]
+        current_reference_points[0,6,:2] = [20,10]
+        current_reference_points[0,7,:2] = [30,10]
+        current_body_points = [current_point_type(10,10,0.9,i) for i in range(18)]
+        current_body_points[5] = current_point_type(100,100,0.9,5)
+        current_body_points[6] = None
+        current_body_points[7] = current_point_type(124,104,0.8,7)
+        current_pose_record = current_pose_type(current_body_type(current_body_points),None,None,None)
+        current_output, current_completion = complete_occluded_body_joints([[current_pose_record]],current_reference_points,(1,1))
+        current_result_points = current_output[0][0].body.keypoints
+        self.assertEqual(current_result_points[5],current_body_points[5])
+        self.assertEqual(current_result_points[7],current_body_points[7])
+        self.assertEqual((current_result_points[6].x,current_result_points[6].y,current_result_points[6].score),(112,102,0.0))
+        self.assertEqual(current_completion,[{'frame':1,'joints':[6]}])
+        current_body_points[7] = None
+        current_output, current_completion = complete_occluded_body_joints([[current_pose_record]],current_reference_points,(1,1))
+        current_result_points = current_output[0][0].body.keypoints
+        self.assertEqual((current_result_points[6].x,current_result_points[7].x),(110,120))
+        self.assertEqual(current_completion,[{'frame':1,'joints':[6,7]}])
+        with self.assertRaisesRegex(ValueError,'투영 프레임'):
+            complete_occluded_body_joints([[current_pose_record]],np.zeros((2,18,3)),(1,1))
+
+    def test_result_displays_partial_detection_warning(self):
+        from tools.review.ui.gradio.kimodo_app import render_kimodo_result
+        current_status_record = {'video':'/kimodo/preview.mp4', 'download':'/kimodo/frames.zip',
+                                 'preprocess_videos':{'DWPose 포즈 · front':'/kimodo/dwpose-front.mp4'},
+                                 'dwpose_status':'completed', 'quality_warnings':['30프레임 관절 누락']}
+        current_result_markup = render_kimodo_result('job', current_status_record, 'http://localhost')
+        self.assertIn('30프레임 관절 누락', current_result_markup)
+
     def test_soma_foreground_box_requires_white_background_and_visible_person(self):
         from generators.kimodo.dwpose_runtime import extract_soma_foreground_box
         current_image_value = np.full((100, 140, 3), 255, dtype=np.uint8)
@@ -71,6 +107,20 @@ class KimodoDwposeTests(unittest.TestCase):
         current_frame_records[0][0].body.keypoints[8] = None
         with self.assertRaisesRegex(ValueError,'골반 Y'):
             adjust_detected_pose_frames(current_frame_records,(480,832),{},85)
+
+    def test_partial_arm_detection_is_preserved_without_inventing_joints(self):
+        current_point_type = namedtuple('Point','x y score id',defaults=[1.0,0])
+        current_body_type = namedtuple('Body','keypoints')
+        current_pose_type = namedtuple('Pose','body left_hand right_hand face')
+        current_body_points = [current_point_type(100+current_index*3,100+current_index*4) for current_index in range(18)]
+        current_body_points[6] = None
+        current_pose_record = current_pose_type(current_body_type(current_body_points),None,None,None)
+        current_gains_record = {current_name: 1.0 for current_name in ('shoulder_width','hip_width','upper_arm','forearm','thigh','shin')}
+        current_measurements = {}
+        current_output_frames = adjust_detected_pose_frames([[current_pose_record]],(480,832),current_gains_record,100,None,current_measurements)
+        self.assertIsNone(current_output_frames[0][0].body.keypoints[6])
+        self.assertEqual(current_output_frames[0][0].body.keypoints[7],current_body_points[7])
+        self.assertEqual(current_measurements['partial_joint_frames'],[{'frame':1,'missing_joints':[6]}])
 
     def test_kimodo_dwpose_exports_every_source_frame_at_30fps(self):
         import json

@@ -487,6 +487,8 @@ def render_kimodo_result(current_job_identifier,current_status_record,current_se
             current_pose_status_html+='<p><strong>DWPose: 생성 오류 · 경고</strong> — '+html.escape(current_status_record.get('dwpose_error','상세 원인은 실행 로그를 확인하세요.'))+'<br>직접 포즈는 사용할 수 있으며 전체 모션 작업은 완료됐습니다.</p>'
         else:
             current_pose_status_html+='<p>DWPose: '+('생성 완료' if current_status_record.get('dwpose_status')=='completed' else '결과 기록 없음')+'</p>'
+            for current_quality_warning in current_status_record.get('quality_warnings', []):
+                current_pose_status_html += '<p><strong>포즈 검수 안내:</strong> '+html.escape(str(current_quality_warning))+'</p>'
         current_pose_status_html+=render_face_depth_summary(current_status_record.get('face_anchor_depth_summary'))
         current_video_descriptions = {'SOMA 렌더':'원본 동작 검수용 영상입니다.', '직접 포즈':'SOMA 관절을 투영한 포즈입니다. Fun Control에 쓰는 30fps 결과는 16fps로 변환하세요.', 'DWPose 포즈':'렌더 영상에서 검출한 포즈입니다. Fun Control에 쓰는 30fps 결과는 16fps로 변환하세요.'}
         current_preview_html = ''
