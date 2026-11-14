@@ -4,6 +4,10 @@ import re
 from pathlib import Path
 from urllib.parse import quote
 from uuid import uuid4
+from tools.review.common.sprite_display_properties import validate_sprite_display_properties
+
+BUILDING_SHADOW_DEFAULT_VALUES = {"shadowShape":"circle","shadowOffsetColumn":0,"shadowOffsetRow":0,"shadowScaleX":1,"shadowScaleY":1}
+BUILDING_SHADOW_PROPERTY_FIELDS = set(BUILDING_SHADOW_DEFAULT_VALUES)
 from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_asset
 from tools.review.domains.map_assets.database_client import execute_content_api_request
 
@@ -22,14 +26,21 @@ def load_building_editor_catalog(current_request_payload):
         for current_building_record in current_map_document['buildings']:
             current_identifier=current_building_record['sprite']['textureKey']
             current_usage_records.setdefault(current_identifier,[]).append({'map':current_city_identifier,'name':current_building_record['name'],'width':current_building_record['width'],'height':current_building_record['height'],'facing':current_building_record['facing'],'contentWidth':current_building_record['sprite']['contentWidth']})
+    for current_field_identifier in current_initial_bundle['documents']['field_tiles/index.yaml']['data']['includes']['maps']:
+        current_field_bundle=execute_content_api_request('GET','/internal/v1/content/review-bundle?map='+quote(current_field_identifier,safe=''))
+        if current_field_bundle['generation']!=current_generation_number:raise ValueError('조회 중 콘텐츠가 변경되었습니다. 다시 불러오세요.')
+        current_field_document=current_field_bundle['documents']['field_tiles/'+current_field_identifier+'.yaml']['data']
+        for current_field_object in current_field_document.get('objects',[]):
+            if current_field_object.get('kind')=='ward-tower':
+                current_usage_records.setdefault('ward-tower-v1',[]).append({'map':current_field_identifier,'name':'결계탑','width':1,'height':1,'facing':'front','contentWidth':1,'tower':True})
     current_asset_root,current_registry_records=load_registered_tiles()
     current_catalog_rows=[]
     for current_path,current_registry_record in sorted(current_registry_records.items()):
-        if not re.fullmatch(r'assets/buildings/town-[a-z0-9-]+-v[1-9][0-9]*\.png',current_path):continue
+        if not re.fullmatch(r'assets/buildings/(?:town-[a-z0-9-]+-v[1-9][0-9]*|ward-tower-v1)\.png',current_path):continue
         current_identifier=Path(current_path).stem
         if current_identifier not in current_properties:continue
         current_property_values=current_properties[current_identifier]
-        if set(current_property_values) not in ({'anchorX','anchorY'}, {'anchorX','anchorY','displayWidthAdjustment','displayHeightAdjustment'}):continue
+        if set(current_property_values)-BUILDING_SHADOW_PROPERTY_FIELDS not in ({'anchorX','anchorY'}, {'anchorX','anchorY','displayWidthAdjustment','displayHeightAdjustment'}):continue
         current_image_path,_=resolve_registered_asset(current_path,current_asset_root,current_registry_records,'assets/buildings')
         current_catalog_rows.append({'texture':current_identifier,'image':str(current_image_path),'properties':current_property_values,'maps':current_usage_records.get(current_identifier,[]),'width':current_registry_record['width'],'height':current_registry_record['height']})
     return {'generation':current_generation_number,'assets':current_catalog_rows}
@@ -38,12 +49,16 @@ def load_building_editor_catalog(current_request_payload):
 def save_building_editor_anchor(current_request_payload):
     if not isinstance(current_request_payload,dict) or set(current_request_payload)!={'texture','generation','expected','properties'}:raise ValueError('건물 ID·세대·기존 앵커·새 앵커가 필요합니다.')
     current_identifier=current_request_payload['texture']
-    if not isinstance(current_identifier,str) or not re.fullmatch(r'town-[a-z0-9-]+-v[1-9][0-9]*',current_identifier):raise ValueError('건물 ID 오류')
+    if not isinstance(current_identifier,str) or not re.fullmatch(r'(?:town-[a-z0-9-]+-v[1-9][0-9]*|ward-tower-v1)',current_identifier):raise ValueError('건물 ID 오류')
     for current_name in ('expected','properties'):
         current_value=current_request_payload[current_name]
-        if not isinstance(current_value,dict) or set(current_value) not in ({'anchorX','anchorY'}, {'anchorX','anchorY','displayWidthAdjustment','displayHeightAdjustment'}):raise ValueError('건물 공용 속성 형식 오류')
+        validate_sprite_display_properties({current_identifier:current_value})
+        if set(current_value) & BUILDING_SHADOW_PROPERTY_FIELDS and not BUILDING_SHADOW_PROPERTY_FIELDS <= set(current_value):raise ValueError('그림자 형태·위치·크기를 함께 지정하세요.')
+        if any(not .1 <= current_value[current_field_name] <= 4 for current_field_name in ('shadowScaleX','shadowScaleY') if current_field_name in current_value):raise ValueError('그림자 크기는 0.1~4배여야 합니다.')
+        if not isinstance(current_value,dict) or set(current_value)-BUILDING_SHADOW_PROPERTY_FIELDS not in ({'anchorX','anchorY'}, {'anchorX','anchorY','displayWidthAdjustment','displayHeightAdjustment'}):raise ValueError('건물 공용 속성 형식 오류')
         if any(type(current_value[k]) not in (int,float) or not math.isfinite(current_value[k]) or not 0<=current_value[k]<=16 for k in ('anchorX','anchorY')):raise ValueError('앵커는 0~16 범위여야 합니다.')
         if any(type(current_value[k]) is not int or not -2048<=current_value[k]<=2048 for k in ('displayWidthAdjustment','displayHeightAdjustment') if k in current_value):raise ValueError('크기 보정은 -2048~2048 정수여야 합니다.')
+    if current_identifier == 'ward-tower-v1' and any(current_request_payload['properties'].get(current_field_name,0) < -138 for current_field_name in ('displayWidthAdjustment','displayHeightAdjustment')):raise ValueError('결계탑 크기 보정은 -138px 이상이어야 합니다.')
     if type(current_request_payload['generation']) is not int:raise ValueError('세대 오류')
     return execute_content_api_request('POST','/internal/v1/content/buildings/'+quote(current_identifier,safe='')+'/anchor',{'requestId':'building-anchor-'+uuid4().hex,'expectedGeneration':current_request_payload['generation'],'expected':current_request_payload['expected'],'properties':current_request_payload['properties']})
 
@@ -60,11 +75,12 @@ def execute_building_lifecycle(current_request_payload, current_action_name):
     from PIL import Image
     from tools.review.maintenance.sync_billboard_catalog import load_unique_yaml_document
 
+    if isinstance(current_request_payload,dict) and current_request_payload.get('texture')=='ward-tower-v1':raise ValueError('결계탑은 공용 에셋이므로 등록·삭제할 수 없습니다. 앵커·크기를 편집하세요.')
     current_required_fields={'texture','generation','requestId'} | ({'imageBase64','properties'} if current_action_name=='register' else set())
     if current_action_name not in ('register','retire') or not isinstance(current_request_payload,dict) or set(current_request_payload)!=current_required_fields:
         raise ValueError('건물 명령 입력 오류')
     current_identifier=current_request_payload['texture']
-    if not isinstance(current_identifier,str) or not re.fullmatch(r'town-[a-z0-9-]+-v[1-9][0-9]*',current_identifier):raise ValueError('건물 ID 오류')
+    if not isinstance(current_identifier,str) or not re.fullmatch(r'(?:town-[a-z0-9-]+-v[1-9][0-9]*|ward-tower-v1)',current_identifier):raise ValueError('건물 ID 오류')
     if type(current_request_payload['generation']) is not int or current_request_payload['generation']<0:raise ValueError('건물 세대 오류')
     current_request_identifier=current_request_payload['requestId']
     if not isinstance(current_request_identifier,str) or not re.fullmatch(r'[a-zA-Z0-9-]{1,128}',current_request_identifier):raise ValueError('요청 ID 오류')

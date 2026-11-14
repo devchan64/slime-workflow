@@ -16,6 +16,24 @@ class BuildingEditorTest(unittest.TestCase):
         self.assertIn('building-editor',MANAGEMENT_INTERFACE_BUILDERS)
         self.assertIn('/management/frame/building-editor/',resolve_management_page_path(current_records[0]))
 
+    def test_registered_ward_tower_is_editable_with_shared_properties(self):
+        from pathlib import Path
+        current_bundle={'generation':2,'documents':{'field_tiles/index.yaml':{'data':{'includes':{'maps':{}}}},'sprite-display-properties.yaml':{'data':{'ward-tower-v1':{'anchorX':.5,'anchorY':.8203125}}},'city_layouts/index.yaml':{'data':{'includes':{'layouts':{}}}}}}
+        current_registry={'assets/buildings/ward-tower-v1.png':{'width':256,'height':256}}
+        with patch('tools.review.domains.map_assets.building_editor.execute_content_api_request',return_value=current_bundle),patch('tools.review.domains.map_assets.building_editor.load_registered_tiles',return_value=(Path('/assets'),current_registry)),patch('tools.review.domains.map_assets.building_editor.resolve_registered_asset',return_value=(Path('/assets/ward-tower-v1.png'),{})):
+            current_result=load_building_editor_catalog({})
+        self.assertEqual(current_result['assets'][0]['texture'],'ward-tower-v1')
+        self.assertEqual(current_result['assets'][0]['properties']['anchorY'],.8203125)
+
+    def test_ward_tower_save_uses_same_versioned_api_and_retirement_is_blocked(self):
+        from tools.review.ui.gradio.building_editor_panel import prepare_building_retirement
+        current_request={'texture':'ward-tower-v1','generation':2,'expected':{'anchorX':.5,'anchorY':.82},'properties':{'anchorX':.51,'anchorY':.83,'displayWidthAdjustment':4,'displayHeightAdjustment':2}}
+        with patch('tools.review.domains.map_assets.building_editor.execute_content_api_request',return_value={'saved':True}) as current_remote:
+            save_building_editor_anchor(current_request)
+            self.assertIn('/ward-tower-v1/anchor',current_remote.call_args.args[1])
+        with self.assertRaisesRegex(Exception,'공용 결계탑'):
+            prepare_building_retirement({'texture':'ward-tower-v1'})
+
     def test_gateway_routes_building_commands(self):
         self.assertEqual(resolve_management_command('map-assets','building-list',{}),('POST','/map-assets/editor-building-list'))
         self.assertEqual(resolve_management_command('map-assets','building-save',{}),('POST','/map-assets/editor-building-save'))
@@ -58,13 +76,13 @@ class BuildingEditorTest(unittest.TestCase):
         self.assertEqual(current_map['buildings'][0]['sprite']['displayHeightAdjustment'],-7)
 
     def test_catalog_rejects_changed_generation(self):
-        current_bundle={'generation':1,'documents':{'sprite-display-properties.yaml':{'data':{}},'city_layouts/index.yaml':{'data':{'includes':{'layouts':{'iseulon':'iseulon.yaml'}}}}}}
+        current_bundle={'generation':1,'documents':{'field_tiles/index.yaml':{'data':{'includes':{'maps':{}}}},'sprite-display-properties.yaml':{'data':{'ward-tower-v1':{'anchorX':.5,'anchorY':.8203125}}},'city_layouts/index.yaml':{'data':{'includes':{'layouts':{'iseulon':'iseulon.yaml'}}}}}}
         with patch('tools.review.domains.map_assets.building_editor.execute_content_api_request',side_effect=[current_bundle,{'generation':2}]):
             with self.assertRaisesRegex(ValueError,'조회 중 콘텐츠가 변경'):load_building_editor_catalog({})
 
     def test_unchanged_anchor_does_not_write(self):
         from tools.review.ui.gradio.building_editor_panel import save_building_editor_panel
-        current_selected_record={'texture':'town-iseulon-guild-v2','properties':{'anchorX':0.52,'anchorY':0.97},'preview':'preview'}
+        current_selected_record={'texture':'town-iseulon-guild-v2','properties':{'anchorX':0.52,'anchorY':0.97,'shadowShape':'circle','shadowOffsetColumn':0,'shadowOffsetRow':0,'shadowScaleX':1,'shadowScaleY':1},'preview':'preview'}
         with patch('tools.review.ui.gradio.building_editor_panel.execute_remote_management_command') as current_remote:
             current_result=save_building_editor_panel({'generation':10},current_selected_record,0.5199999809265137,0.9700000286102295)
         self.assertIn('변경된 앵커 값이 없습니다',current_result[2])
