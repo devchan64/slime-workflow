@@ -216,21 +216,22 @@ def build_music_interface(current_service_name,current_server_address):
         bind_gpu_generation_confirmation(current_prepare_button,prepare_music_assets,[],[current_job_control,current_status_display,current_result_display,current_result_identity],generation_confirmation_container=current_prepare_container)
         def refresh_music_result(current_job_identifier,current_logs_enabled,current_previous_result):
             if not current_job_identifier:
-                return (gr.skip(),)*6
+                return (gr.skip(),)*6 + (gr.Timer(value=5, active=False),)
             current_status_record = read_existing_generation_status(execute_music_command,current_job_identifier)
             if current_status_record is None:
-                return '선택한 작업 이력이 삭제되었습니다.','<p>생성 이력에서 다른 작업을 선택하세요.</p>','','',gr.skip(),''
+                return '선택한 작업 이력이 삭제되었습니다.','<p>생성 이력에서 다른 작업을 선택하세요.</p>','','',gr.skip(),'',gr.Timer(value=5, active=False)
             current_audio_identity = current_status_record.get('audio') or (current_job_identifier+':prepared' if current_status_record.get('result',{}).get('prepared') else '')
             current_model_message = execute_music_command('model-status',{})['message'] if current_audio_identity and current_audio_identity!=current_previous_result else gr.skip()
-            return describe_audio_generation_status(current_status_record),render_audio_generation_result(current_job_identifier,current_status_record,current_server_address) if current_audio_identity and current_audio_identity!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_audio_identity,current_model_message,gr.skip()
+            return describe_audio_generation_status(current_status_record),render_audio_generation_result(current_job_identifier,current_status_record,current_server_address) if current_audio_identity and current_audio_identity!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_audio_identity,current_model_message,gr.skip(),gr.Timer(value=5, active=current_status_record.get('status') not in ('completed','failed','cancelled','paused'))
         if current_heartmula_mode:
             def refresh_heartmula_readiness(current_prompt_text,current_lyrics_text,current_legacy_value):
                 current_model_record = execute_music_command('model-status',{})
                 current_inputs_ready = bool(current_prompt_text and current_prompt_text.strip() and current_lyrics_text and current_lyrics_text.strip())
                 return gr.update(interactive=bool(current_model_record.get('ready')) and current_inputs_ready),gr.update(interactive=bool(current_model_record.get('artifacts_ready'))),describe_music_readiness(current_prompt_text,current_lyrics_text,current_legacy_value) if current_model_record.get('ready') else current_model_record['message']
-            gr.Timer(5).tick(refresh_heartmula_readiness,current_readiness_controls,[current_generate_button,current_prepare_button,current_generate_notice],queue=False,show_progress='hidden')
-        current_refresh_timer = gr.Timer(5)
-        current_refresh_timer.tick(refresh_music_result,[current_job_control,current_log_refresh,current_result_identity],[current_status_display,current_result_display,current_log_output,current_result_identity,current_model_status,current_job_control],queue=False,show_progress='hidden')
+            gr.Timer(30).tick(refresh_heartmula_readiness,current_readiness_controls,[current_generate_button,current_prepare_button,current_generate_notice],queue=False,show_progress='hidden')
+        current_refresh_timer = gr.Timer(5, active=False)
+        current_refresh_timer.tick(refresh_music_result,[current_job_control,current_log_refresh,current_result_identity],[current_status_display,current_result_display,current_log_output,current_result_identity,current_model_status,current_job_control,current_refresh_timer],queue=False,show_progress='hidden')
+        current_job_control.change(lambda current_job_identifier: gr.Timer(value=5, active=bool(current_job_identifier)), current_job_control, current_refresh_timer, queue=False)
         def restore_music_inputs(current_history_record):
             from tools.review.common.gradio_reference_restore import validate_history_input_settings
             current_request_record = validate_history_input_settings(current_history_record)

@@ -352,7 +352,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_waiting_status = bool(current_status_record) and current_status_record.get('status') == 'queued'
         return gr.update(interactive=current_waiting_status,value='우선 실행' if current_waiting_status else '우선 실행 · 대기 작업 선택')
     history_cancel_button.click(lambda selected_job_identifier:update_selected_generation(selected_job_identifier,'cancel'),history_selection_value,result_status_value,queue=False)
-    bind_gpu_generation_confirmation(history_resume_button,lambda selected_job_identifier:(update_selected_generation(selected_job_identifier,'resume'), gr.Timer(active=True)),history_selection_value,[result_status_value, current_history_timer],generation_confirmation_container=history_selected_panel)
+    bind_gpu_generation_confirmation(history_resume_button,lambda selected_job_identifier:(update_selected_generation(selected_job_identifier,'resume'), gr.Timer(value=5, active=True)),history_selection_value,[result_status_value, current_history_timer],generation_confirmation_container=history_selected_panel)
 
     def refresh_history_controls(current_selected_identifier, current_status_snapshots=None):
         if not current_selected_identifier:return gr.update(interactive=False),gr.update(interactive=False)
@@ -519,7 +519,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             if allow_individual_delete:
                 current_failure_updates[3] = gr.update(interactive=False,value='선택 이력 삭제 · 상태 확인 실패 · 자동 재확인 중')
             current_failure_updates[-6] = '상태 갱신 실패: ' + str(current_lookup_error)
-            current_failure_updates[-1] = gr.Timer(active=bool(current_selected_identifier or current_result_identifier))
+            current_failure_updates[-1] = gr.Timer(value=5, active=bool(current_selected_identifier or current_result_identifier))
             return current_failure_updates
         current_button_updates = [refresh_priority_control(current_selected_identifier, current_status_snapshots), *refresh_history_controls(current_selected_identifier, current_status_snapshots)]
         if allow_individual_delete:
@@ -528,7 +528,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_result_record = current_status_snapshots.get(current_result_identifier)
         current_log_update = ((current_result_record.get('log') or '기록된 로그가 없습니다.')[-12000:] if current_logs_enabled and current_result_record else gr.skip())
         current_poll_active = any(current_status_record and current_status_record.get('status') not in ('completed', 'failed', 'cancelled', 'paused') for current_status_record in current_status_snapshots.values())
-        return [*current_button_updates, *current_result_updates, current_log_update, gr.Timer(active=current_poll_active)]
+        return [*current_button_updates, *current_result_updates, current_log_update, gr.Timer(value=5, active=current_poll_active)]
 
     current_poll_inputs = [history_selection_value, result_identifier_value, log_refresh_value]
     current_history_timer.tick(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False, show_progress='hidden')

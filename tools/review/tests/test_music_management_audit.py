@@ -101,7 +101,8 @@ class MusicManagementAuditTests(unittest.TestCase):
                 return {'records':[]}
             with patch('tools.review.ui.gradio.music_app.execute_remote_management_command',side_effect=execute_deleted_command):
                 current_update_values=current_refresh_callback('removed',True,'old.wav')
-                self.assertEqual(current_update_values[-1],'')
+                self.assertEqual(current_update_values[-2],'')
+                self.assertFalse(current_update_values[-1].active)
                 self.assertIn('삭제',current_update_values[0])
                 self.assertNotIn('old.wav',current_update_values[1])
             with patch('tools.review.ui.gradio.music_app.execute_remote_management_command',side_effect=[ValueError('손상된 기록'),{'records':[{'id':'existing'}]}]):

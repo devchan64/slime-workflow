@@ -2,7 +2,7 @@
 import html
 import gradio as gr
 
-from tools.review.common.gradio_model_download import build_model_download_controls, build_model_progress_display
+from tools.review.common.gradio_model_download import build_model_download_controls, build_model_progress_display, format_model_download_status
 from tools.review.common.management_client import execute_remote_management_command
 
 MODEL_PREPARATION_SERVICES = (
@@ -145,8 +145,10 @@ def build_migraphx_build_controls(current_interface_blocks):
 
 def build_model_management_interface():
     with gr.Blocks(title='모델 다운로드·빌드 상태') as current_interface_blocks:
-        gr.Markdown('## 모델 다운로드·빌드 상태\n모델을 이름순으로 표시합니다. 각 모델에서 다운로드와 이어받기 상태를 확인하고 파일 목록을 펼칠 수 있습니다. 진행 상태는 5초마다, 파일 목록은 30초마다 갱신합니다. 파일 수와 용량은 저장된 파일의 존재 기준이며 부분 파일은 제외합니다. 파일 존재는 무결성 검증이나 실행 준비 완료를 뜻하지 않습니다.')
+        gr.Markdown('## 모델 다운로드·빌드 상태\n모델을 이름순으로 표시합니다. 각 모델에서 다운로드와 이어받기 상태를 확인하고 파일 목록을 펼칠 수 있습니다. 다운로드 진행률은 5초마다, 모델 준비 상태와 파일 목록은 30초마다 갱신합니다. 다운로드 중인 모델의 준비 상태는 5초마다 확인합니다. 파일 수와 용량은 저장된 파일의 존재 기준이며 부분 파일은 제외합니다. 파일 존재는 무결성 검증이나 실행 준비 완료를 뜻하지 않습니다.')
         current_inventory_refresh = gr.Button('저장된 파일 목록 새로고침')
+        current_shared_refresh_records = []
+        current_shared_progress_outputs = []
         current_inventory_outputs = []
         current_inventory_services = []
         current_all_services = sorted((*MODEL_PREPARATION_SERVICES, *MODEL_JOB_SERVICES, *MODEL_OBSERVATION_SERVICES), key=lambda current_item: current_item[0].casefold())
@@ -158,7 +160,7 @@ def build_model_management_interface():
                 if current_service_name in current_preparation_names:
                     def execute_model_command(current_command_name, current_payload_record, service_name_value=current_service_name):
                         return execute_model_preparation_command(service_name_value, current_command_name, current_payload_record)
-                    build_model_download_controls(current_interface_blocks, execute_model_command, poll_always_enabled=True, model_service_name=current_service_name)
+                    build_model_download_controls(current_interface_blocks, execute_model_command, model_service_name=current_service_name, shared_refresh_records=current_shared_refresh_records, shared_progress_outputs=current_shared_progress_outputs)
                     if current_service_name == 'kimodo':
                         build_migraphx_build_controls(current_interface_blocks)
                 else:
@@ -174,6 +176,24 @@ def build_model_management_interface():
                 with gr.Accordion('저장된 모델 파일 보기', open=False):
                     current_inventory_outputs.append(gr.Markdown('파일 목록 확인 중'))
                     current_inventory_services.append(current_service_name)
+        def refresh_all_model_statuses():
+            return [current_result_value for current_refresh_callback, _ in current_shared_refresh_records
+                    for current_result_value in current_refresh_callback()]
+        current_status_outputs = [current_output_value for _, current_output_values in current_shared_refresh_records
+                                  for current_output_value in current_output_values]
+        if current_status_outputs:
+            gr.Timer(30).tick(refresh_all_model_statuses, outputs=current_status_outputs, queue=False, show_progress='hidden')
+        def refresh_all_download_progress():
+            try:
+                current_download_records = execute_remote_management_command('model-downloads', 'download-status', {})['records']
+                return [format_model_download_status(current_download_records, current_service_name)
+                        for current_service_name, _ in current_shared_progress_outputs]
+            except Exception as current_status_error:
+                return [f'다운로드 상태 확인 실패: {current_status_error}' for _ in current_shared_progress_outputs]
+        if current_shared_progress_outputs:
+            current_progress_outputs = [current_output_value for _, current_output_value in current_shared_progress_outputs]
+            current_interface_blocks.load(refresh_all_download_progress, outputs=current_progress_outputs)
+            gr.Timer(5).tick(refresh_all_download_progress, outputs=current_progress_outputs, queue=False, show_progress='hidden')
         def refresh_model_inventory_files():
             try:
                 current_inventory_records = execute_remote_management_command('model-downloads', 'download-inventory', {})['models']
