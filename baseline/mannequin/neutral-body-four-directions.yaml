@@ -2,7 +2,7 @@ schema_version: 1
 title: 중성형 기본 신체 마네킨
 status: 사용자 지정 · 현재 기준
 image: neutral-body-four-directions.png
-image_sha256: bb2b24b24dac8d0a81965fd8641ff1df726a28d8059c6ff8832e1dad89380f35
+image_sha256: acd57ff3ef1a5081777808e4fe6bfc6152650947db8b695dd16728e2402af972
 source_type: 사용자 첨부 이미지
 source_filename: codex-clipboard-208cc9a9-3366-4d9a-9f34-ab666cd6560d.png
 related_version: ../../prompts/references/mannequin/research/v4/neutral-body-four-directions-v4.png
@@ -13,4 +13,31 @@ order:
 - front-quarter
 - profile
 - back
-updated_on: '2026-10-31'
+updated_on: '2026-11-15'
+version: 1.1.0
+layout_edit:
+  date: '2026-11-15'
+  operation: 각 방향 동일 크롭과 재배치, 캔버스 여백 추가; 원본 픽셀 확대·축소 없음
+  source_image_sha256: bb2b24b24dac8d0a81965fd8641ff1df726a28d8059c6ff8832e1dad89380f35
+  source_version: 미기록
+  canvas_size:
+  - 768
+  - 1152
+  body_crop_rectangles_xyxy:
+  - - 280
+    - 0
+    - 600
+    - 500
+  - - 920
+    - 0
+    - 1240
+    - 500
+  - - 280
+    - 500
+    - 600
+    - 1024
+  - - 920
+    - 500
+    - 1240
+    - 1024
+  note: 전신 두 장은 동일한 크롭 좌표를 사용했다.

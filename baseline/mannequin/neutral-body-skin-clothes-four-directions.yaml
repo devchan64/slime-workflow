@@ -1,5 +1,5 @@
 schema_version: 1
-version: 11.0.0
+version: 14.0.0
 title: 중성형 기본 신체 · 피부·기본복·호박색 눈
 status: 사용자 지정 · 현재 기준
 image: neutral-body-skin-clothes-four-directions.png
@@ -22,10 +22,10 @@ prompt: 'Edit IMAGE 1, the full-body skin and fitted clothing sheet. Add the fac
   keep all body and clothing unchanged.'
 word_count: 129
 prompt_sha256: 288de3973e89a08c8af6c2f22886d85b7b8148033407851670ceaf1a42a30b7a
-image_sha256: 146f242fcab0a0105b6d45675132e19b6d40c84e96fb354a2077ffa7010fc118
+image_sha256: 13350a0aeda2cef3119d15903714192123cf9d6c6bf3bb97d3cb6e954701daed
 review_note: 얼굴·체형의 정확한 비율 및 가슴 외 픽셀 동일성은 미측정.
 source_image: prompts/references/mannequin/research/v11/neutral-body-amber-eyes-four-directions-v11.png
-updated_on: '2026-11-09'
+updated_on: '2026-11-15'
 registration_note: 사용자 지시에 따라 연구 v11 결과로 교체. 기본형 얼굴의 이목구비와 호박색 눈을 적용한 전신 4방향 시트.
 latest_edit:
   date: '2026-11-09'
@@ -37,3 +37,29 @@ latest_edit:
   previous_hash_note: 교체 직전 실측 해시와 당시 기록 해시가 일치했다.
   image_sha256: 146f242fcab0a0105b6d45675132e19b6d40c84e96fb354a2077ffa7010fc118
   review_note: 가슴 외 영역의 픽셀 단위 불변성은 검증하지 않았다.
+layout_edit:
+  date: '2026-11-15'
+  operation: 각 방향 동일 크롭과 재배치, 캔버스 여백 추가; 원본 픽셀 확대·축소 없음
+  source_image_sha256: 146f242fcab0a0105b6d45675132e19b6d40c84e96fb354a2077ffa7010fc118
+  source_version: 11.0.0
+  canvas_size:
+  - 768
+  - 1152
+  body_crop_rectangles_xyxy:
+  - - 280
+    - 0
+    - 600
+    - 500
+  - - 920
+    - 0
+    - 1240
+    - 500
+  - - 280
+    - 500
+    - 600
+    - 1024
+  - - 920
+    - 500
+    - 1240
+    - 1024
+  note: 전신 두 장은 동일한 크롭 좌표를 사용했다.

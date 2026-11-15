@@ -60,7 +60,9 @@ class MannequinGeneratorTests(unittest.TestCase):
         current_module = importlib.import_module('generators.mannequin-generator.page.interface')
         for current_preset_id, current_preset_record in current_module.MANNEQUIN_PRESET_RECORDS.items():
             self.assertEqual(current_preview_callback(current_preset_id)[3], current_preset_record[3])
-        self.assertTrue(any(getattr(current_function.fn, '__name__', '') == 'apply_mannequin_stage' for current_function in current_blocks.fns.values()))
+        current_apply_callback = next(current_function.fn for current_function in current_blocks.fns.values() if getattr(current_function.fn, '__name__', '') == 'apply_mannequin_stage')
+        self.assertEqual(current_apply_callback('face')[-2:], (1056, 1056))
+        self.assertEqual(current_apply_callback('face-on-body')[-2:], (768, 1152))
 
 
 if __name__ == '__main__':

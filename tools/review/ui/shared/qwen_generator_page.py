@@ -170,11 +170,11 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if character_mode_enabled:
             gr.Markdown('공용 화풍 v1.5.0 영문 원문과 캐릭터 외관 v1.2.0의 축약 예시를 기본 입력에 포함합니다. 캐릭터 조건을 편집하세요. 일반 Qwen 2.1과 대기열·이력을 공유하므로 이력 삭제·초기화는 일반 Qwen 작업에도 적용됩니다. 결과는 검수용 후보입니다.')
         if mannequin_mode_enabled:
-            gr.Markdown('마네킨 제작 단계를 선택해 프롬프트와 참조를 적용한 뒤 필요한 변경 조건을 입력하세요. 원본과 같은 3:2 출력 비율이 적용됩니다. 생성 모델은 신체 비율을 고정하지 않으므로 원본과 결과를 반드시 비교하세요. 공용 화풍 v1.5.0과 GPU 대기열을 사용하며 이력은 마네킨 전용입니다. 이전 공유 이력은 일반 Qwen 2.1에서 확인하세요. 결과는 후보이며 기준 원본을 자동으로 교체하지 않습니다.')
+            gr.Markdown('마네킨 제작 단계를 선택해 프롬프트와 참조를 적용한 뒤 필요한 변경 조건을 입력하세요. 제작 단계에 맞춰 전신 2:3 또는 얼굴 1:1 출력 비율이 적용됩니다. 생성 모델은 신체 비율을 고정하지 않으므로 원본과 결과를 반드시 비교하세요. 공용 화풍 v1.5.0과 GPU 대기열을 사용하며 이력은 마네킨 전용입니다. 이전 공유 이력은 일반 Qwen 2.1에서 확인하세요. 결과는 후보이며 기준 원본을 자동으로 교체하지 않습니다.')
         if mannequin_mode_enabled:
             current_mannequin_module = import_module('generators.mannequin-generator.page.interface')
             with gr.Group():
-                gr.Markdown('### 마네킨 제작 단계\n적용하면 프롬프트와 참조 이미지 1·2를 교체하고 출력 크기를 768×512로 설정합니다. 참조 3 이후는 유지됩니다.')
+                gr.Markdown('### 마네킨 제작 단계\n적용하면 프롬프트와 참조 이미지 1·2를 교체하고 출력 크기를 전신 768×1152, 얼굴 1056×1056으로 설정합니다. 참조 3 이후는 유지됩니다.')
                 current_mannequin_selector = gr.Dropdown([(current_record[0], current_key) for current_key, current_record in current_mannequin_module.MANNEQUIN_PRESET_RECORDS.items()], value='jointed', label='제작 단계')
                 current_mannequin_description, current_first_preview, current_second_preview = current_mannequin_module.preview_mannequin_preset('jointed')
                 current_mannequin_description_control = gr.Markdown(current_mannequin_description)
@@ -344,8 +344,8 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             building_layout_apply_button.click(load_building_layout_preset, [building_layout_selector], reference_image_controls[0], queue=False)
         gr.Markdown(('생성 출력: 512×512 또는 768×768.' if outfit_transfer_enabled else '생성 출력 최소 크기: 256×256.' if qwen21_mode_enabled else '생성 출력 최소 크기: 512×512.') + ' 참조 이미지의 크기·비율은 자유입니다. RGB/RGBA PNG, 장당 3MB 이하. ' + ('투명 영역은 흰색 배경에 합성해 전달합니다.' if qwen21_mode_enabled else '투명 배경은 사용할 수 없습니다.'))
         with gr.Row():
-            width_value = gr.Dropdown([512, 768] if outfit_transfer_enabled else [256, 384, 512, 768, 1024, 1280] if qwen21_mode_enabled else [512, 768, 1024, 1280], value=512 if vegetation_mode_enabled or prop_mode_enabled or building_mode_enabled or circular_mode_enabled else 768 if qwen21_mode_enabled else 512, label='해상도' if outfit_transfer_enabled else '너비', interactive=True, scale=1, min_width=120)
-            height_value = gr.Dropdown([512, 768] if outfit_transfer_enabled else [256, 384, 512, 768, 1024, 1280] if qwen21_mode_enabled else [512, 768, 1024, 1280], value=512 if vegetation_mode_enabled or prop_mode_enabled or building_mode_enabled or circular_mode_enabled else 768 if qwen21_mode_enabled else 512, label='높이', visible=not outfit_transfer_enabled, scale=1, min_width=120)
+            width_value = gr.Dropdown([512, 768] if outfit_transfer_enabled else [256, 384, 512, 768, 1024, 1056, 1152, 1280] if mannequin_mode_enabled else [256, 384, 512, 768, 1024, 1280] if qwen21_mode_enabled else [512, 768, 1024, 1280], value=512 if vegetation_mode_enabled or prop_mode_enabled or building_mode_enabled or circular_mode_enabled else 768 if qwen21_mode_enabled else 512, label='해상도' if outfit_transfer_enabled else '너비', interactive=True, scale=1, min_width=120)
+            height_value = gr.Dropdown([512, 768] if outfit_transfer_enabled else [256, 384, 512, 768, 1024, 1056, 1152, 1280] if mannequin_mode_enabled else [256, 384, 512, 768, 1024, 1280] if qwen21_mode_enabled else [512, 768, 1024, 1280], value=512 if vegetation_mode_enabled or prop_mode_enabled or building_mode_enabled or circular_mode_enabled else 768 if qwen21_mode_enabled else 512, label='높이', visible=not outfit_transfer_enabled, scale=1, min_width=120)
             step_value = gr.Dropdown([20, 30, 40, 50], value=40, label='생성 스텝', interactive=True, scale=1, min_width=120) if qwen21_mode_enabled or expression_mode_enabled else gr.Radio([4, 30], value=4, label='생성 스텝', scale=1, min_width=120)
             if circular_mode_enabled:
                 circular_radius_control = gr.Dropdown([4, 8, 12, 16, 24], value=12, label='순환 반경 · 토큰', scale=1, min_width=120)
@@ -353,7 +353,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 seed_value = build_generation_seed(10107)
         if mannequin_mode_enabled:
             def apply_mannequin_stage(current_stage_identifier):
-                return (*current_mannequin_module.load_mannequin_preset(current_stage_identifier), 768, 512)
+                return (*current_mannequin_module.load_mannequin_preset(current_stage_identifier), *((1056, 1056) if current_stage_identifier == 'face' else (768, 1152)))
             current_mannequin_apply.click(apply_mannequin_stage, [current_mannequin_selector], [prompt_text_value, reference_image_controls[0], reference_image_controls[1], width_value, height_value], queue=False)
         if circular_mode_enabled:
             with gr.Row(equal_height=False):

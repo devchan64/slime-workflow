@@ -22,7 +22,7 @@ class CharacterBodyReferenceTests(unittest.TestCase):
     def test_catalog_images_and_version(self):
         self.assertEqual({current_record['id'] for current_record in self.body_catalog}, {'neutral-body-clothed'})
         for current_record in self.body_catalog:
-            self.assertEqual(self.body_module.load_body_reference_image(current_record['id']).size, (1536, 1024))
+            self.assertEqual(self.body_module.load_body_reference_image(current_record['id']).size, (768, 1152))
         with self.assertRaises(ValueError):
             self.body_module.load_body_reference_image('../outside')
 
