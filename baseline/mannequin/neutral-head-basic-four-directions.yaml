@@ -1,51 +1,90 @@
 schema_version: 1
-version: 11.0.0
+version: 12.0.0
 title: 중성형 기본 얼굴
 status: 사용자 채택 · 현재 기준
 image: neutral-head-basic-four-directions.png
-generator: image_gen_builtin
-reference_images: []
-prompt: Refine this exact gray neutral head mannequin four-view sheet WITHOUT changing facial feature
-  proportions. Lock eye size and spacing, eyebrow thickness/length/location, nose height and projection,
-  mouth width and thickness, and all feature positions exactly as reference. Clean up facial surface transitions
-  and shading around eyelids, nose, cheeks, mouth and jaw for a coherent polished sculpt; remove uneven
-  shading and minor contour artifacts. Preserve the existing head silhouette and neutral expression, not
-  a redesign or beautification. Same bald gray matte head, neck, ears, white background, 2x2 front/quarter/profile/back
-  views, scale and lighting. No hair, makeup, labels or extra views. Keep all identity-defining proportions
-  and the thin brows.
-word_count: 105
-prompt_sha256: 3eb614cc84d27af0ede6ad4c4d7766cbc8573f068442d108a4d9b8f0fcc719a0
-image_sha256: 795603764c9510cfc0d24e8e9be2aef3d55e4e7f86a5b2cd2038725eb9d6f16f
-review_note: 사용자가 얼굴 v10을 기본형 얼굴로 지정하여 복사 등록했다. 정확한 비율 수치는 미측정.
+image_sha256: 7d184150559428341d3ce1949e04839289cdb7a67a2e91ca5c6849f3fb3fe546
+source_type: 사용자 채택 생성 결과
+generation_id: 2026-11-15_22-31-49-d4510064
+generator: Qwen/Qwen-Image-2.1
+model_revision: d26bb61231c349cf6b7896fa83353113880e1ba3
+prompt: 'Edit image 1 as a neutral mannequin head. Preserve head silhouette and facial proportions unless
+  requested. Four views: front, front-quarter, profile, back, in a 2x2 grid. Plain background. Refined
+  2D fantasy game illustration with fine warm brown outlines and soft cel shading. Simplify small details
+  into clear grouped shapes while preserving subtle painted texture. Use gently softened shadow transitions,
+  restrained highlights and material-appropriate texture. Keep silhouettes clear and readable.'
+word_count: 69
+prompt_sha256: 6634493434c98a2f4c3c74230d98c61a711deb36911cc2b96397c49d704a67c2
+reference_images:
+- role: 편집 대상 · 이전 얼굴 기준
+  source: baseline/mannequin/neutral-head-basic-four-directions.png
+  version: 11.0.0
+  sha256: 795603764c9510cfc0d24e8e9be2aef3d55e4e7f86a5b2cd2038725eb9d6f16f
+common_style:
+  id: slime_common_art_style
+  version: 1.5.0
+  sha256: ca366d541fda72a98d6746a0cbf8d01c008398b15f8dcc0226a49cc3231000c7
+width: 1056
+height: 1056
+steps: 40
+seed: 10107
+layout: 2x2
+order:
+- front
+- front-quarter
+- profile
+- back
 updated_on: '2026-11-15'
-historical_reference_images:
-- prompts/references/mannequin/research/v9/neutral-head-thin-brows-four-directions-v9.png
-historical_reference_status: 생성 당시 사용한 얼굴 연구 자료는 사용자 요청으로 폐기됨. 현재 입력 경로가 아니다.
-historical_source_image: prompts/references/mannequin/research/v10/neutral-head-refined-four-directions-v10.png
-historical_source_status: 원본 연구 얼굴은 폐기됨. latest 채택 복사본과 생성 프롬프트는 보존한다.
-layout_edit:
-  date: '2026-11-15'
-  operation: 각 방향 동일 크롭과 재배치, 캔버스 여백 추가; 원본 픽셀 확대·축소 없음
-  source_image_sha256: 59ea822a925da65f44cf3f41bf1e44fd12a53dd113c73bec89358c154bd349d3
-  source_version: 10.0.0
-  canvas_size:
-  - 1056
-  - 1056
-  body_crop_rectangles_xyxy:
-  - - 290
-    - 0
-    - 690
-    - 500
-  - - 840
-    - 0
-    - 1240
-    - 500
-  - - 290
-    - 500
-    - 690
-    - 1024
-  - - 840
-    - 500
-    - 1240
-    - 1024
-  note: 얼굴 사방향에 공통 크롭 크기를 사용했다.
+review_note: 사용자가 생성 결과를 현재 기준으로 지정했다. 옅은 녹색·자주색 줄무늬가 일부 보이며 얼굴 비율의 이전 기준 일치는 실측하지 않았다.
+historical_baseline:
+  schema_version: 1
+  version: 11.0.0
+  title: 중성형 기본 얼굴
+  status: 사용자 채택 · 현재 기준
+  image: neutral-head-basic-four-directions.png
+  generator: image_gen_builtin
+  reference_images: []
+  prompt: Refine this exact gray neutral head mannequin four-view sheet WITHOUT changing facial feature
+    proportions. Lock eye size and spacing, eyebrow thickness/length/location, nose height and projection,
+    mouth width and thickness, and all feature positions exactly as reference. Clean up facial surface
+    transitions and shading around eyelids, nose, cheeks, mouth and jaw for a coherent polished sculpt;
+    remove uneven shading and minor contour artifacts. Preserve the existing head silhouette and neutral
+    expression, not a redesign or beautification. Same bald gray matte head, neck, ears, white background,
+    2x2 front/quarter/profile/back views, scale and lighting. No hair, makeup, labels or extra views.
+    Keep all identity-defining proportions and the thin brows.
+  word_count: 105
+  prompt_sha256: 3eb614cc84d27af0ede6ad4c4d7766cbc8573f068442d108a4d9b8f0fcc719a0
+  image_sha256: 795603764c9510cfc0d24e8e9be2aef3d55e4e7f86a5b2cd2038725eb9d6f16f
+  review_note: 사용자가 얼굴 v10을 기본형 얼굴로 지정하여 복사 등록했다. 정확한 비율 수치는 미측정.
+  updated_on: '2026-11-15'
+  historical_reference_images:
+  - prompts/references/mannequin/research/v9/neutral-head-thin-brows-four-directions-v9.png
+  historical_reference_status: 생성 당시 사용한 얼굴 연구 자료는 사용자 요청으로 폐기됨. 현재 입력 경로가 아니다.
+  historical_source_image: prompts/references/mannequin/research/v10/neutral-head-refined-four-directions-v10.png
+  historical_source_status: 원본 연구 얼굴은 폐기됨. latest 채택 복사본과 생성 프롬프트는 보존한다.
+  layout_edit:
+    date: '2026-11-15'
+    operation: 각 방향 동일 크롭과 재배치, 캔버스 여백 추가; 원본 픽셀 확대·축소 없음
+    source_image_sha256: 59ea822a925da65f44cf3f41bf1e44fd12a53dd113c73bec89358c154bd349d3
+    source_version: 10.0.0
+    canvas_size:
+    - 1056
+    - 1056
+    body_crop_rectangles_xyxy:
+    - - 290
+      - 0
+      - 690
+      - 500
+    - - 840
+      - 0
+      - 1240
+      - 500
+    - - 290
+      - 500
+      - 690
+      - 1024
+    - - 840
+      - 500
+      - 1240
+      - 1024
+    note: 얼굴 사방향에 공통 크롭 크기를 사용했다.
