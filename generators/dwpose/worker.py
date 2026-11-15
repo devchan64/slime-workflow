@@ -7,7 +7,7 @@ import zipfile
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from generators.dwpose.contracts import DWPOSE_JOB_STORAGE, validate_fun_pose_assets
 from generators.common.reference_video_worker import run_reference_video_worker, save_video_outputs
-from generators.kimodo.dwpose_runtime import FUN_POSE_MODEL_DIRECTORY, FUN_POSE_MODEL_NAMES, FUN_POSE_MODEL_REVISION, FUN_POSE_SOURCE_REVISION, create_fun_pose_detector, render_selected_pose_parts
+from generators.kimodo.dwpose_runtime import FUN_POSE_MODEL_DIRECTORY, FUN_POSE_MODEL_NAMES, FUN_POSE_MODEL_REVISION, FUN_POSE_SOURCE_REVISION, create_fun_pose_detector, prepare_dwpose_combined_output, render_selected_pose_parts
 
 
 def execute_dwpose_inference(current_job_root, current_attempt_root, current_request_record, current_metrics_recorder):
@@ -17,7 +17,11 @@ def execute_dwpose_inference(current_job_root, current_attempt_root, current_req
     import yaml
     from generators.wan_fun.vendor.videox_fun.dwpose_utils.wholebody import Wholebody
     current_metrics_recorder.update_generation_stage('model-load')
-    current_body_detector = create_fun_pose_detector()
+    current_pose_model_path = prepare_dwpose_combined_output(current_attempt_root)
+    try:
+        current_body_detector = create_fun_pose_detector(current_pose_model_path=current_pose_model_path)
+    finally:
+        current_pose_model_path.unlink(missing_ok=True)
     current_source_path = current_job_root/current_request_record['references'][0]
     current_source_image = cv2.cvtColor(cv2.imread(str(current_source_path)), cv2.COLOR_BGR2RGB)
     current_scaled_height, current_scaled_width = 512, round(832*512/480)

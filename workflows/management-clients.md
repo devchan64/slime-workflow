@@ -1106,6 +1106,8 @@ Fun Control의 폐기된 RGB 편집 입력과 구분한다. GUI·CLI는 같은 �
 
 ` .venv/bin/python tools/manager.py command dwpose generate --detach --payload-file request.json`으로 접수한다. JSON 계약은 `action: "generate"`, `images: ["PNG base64"]`, 선택 bool `pose_include_hands`, `pose_include_face`이다. `status <ID>`, `logs <ID>`, `history`, `resume`, `prioritize`, `cancel`, `history-delete`, `history-reset`은 공용 명령을 따른다. 입력·결과·로그는 `.tmp/test/dwpose/<ID>/`에 보존한다.
 
+MIGraphX의 다중 출력 순서와 ONNX Runtime의 출력 이름이 엇갈리는 경우를 방지하기 위해 DWPose 실행 시 SimCC x·y를 ONNX 그래프 안에서 한 출력으로 결합하고 추론 직후 576·768 축으로 분리한다. 원본 모델과 해시는 유지하며, 변환된 임시 그래프는 세션 초기화 후 삭제한다. 별도 그래프이므로 기존 Kimodo MIGraphX 빌드 캐시를 사용하지 않아 매 실행에 추가 컴파일 시간이 걸릴 수 있다. 2026-11-15 단일 캐릭터 입력 검증에서는 ONNX 출력 크기 경고 없이 18개 몸 좌표가 이전과 일치했으며 신뢰도 최대 차이는 약 0.0000006이었다. MIGraphX 컴파일의 별도 출력 버퍼 경고는 남아 있다.
+
 결과 ZIP에는 `output-000.png`와 `keypoints.yaml`이 들어간다. YAML의 `body_keypoints`는 원본 832×480 픽셀 좌표이며 `poses`는 검출 입력 크기의 원시 좌표다. 검출 실패 점은 null로 보존한다. 원본·출력 SHA-256, 모델 리비전과 검출 신뢰도를 기록한다. 공용 결과 계약용 단일 프레임 MP4도 보존한다. 완료 결과를 베이스라인에 등록하는 것은 별도 검수·복사 작업이다. 새 GPU 작업 서비스는 공용 실행기의 대기·진행·ETA·VRAM 관측 기록을 사용한다.
 
 모델 관리의 Wan Fun Control 준비에서 공용 DWPose 모델과 `.local/venvs/wan-fun-rocm` 실행 환경을 준비한다. ONNX Runtime MIGraphX GPU 공급자를 사용하며 CPU 추론으로 대체하지 않는다. 기존 `.cuda.onnx` 파일명은 과거부터 사용한 고정 형상 모델 파일명이며 CUDA 실행 공급자를 사용한다는 뜻이 아니다.

@@ -69,6 +69,19 @@ class KimodoDwposeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '출력 크기'):
             MigraphxPoseInferenceSession(current_session).run(None, current_input_values)
 
+    def test_migraphx_combined_axes_preserve_order_and_reject_invalid_size(self):
+        from types import SimpleNamespace
+        from generators.kimodo.dwpose_runtime import MigraphxPoseInferenceSession
+        current_combined_values = np.concatenate([np.full((1,133,576), 2.0), np.full((1,133,768), 3.0)], axis=-1)
+        current_session = SimpleNamespace(run=lambda *current_args: [current_combined_values])
+        current_output_values = MigraphxPoseInferenceSession(current_session).run(None, {'input': np.zeros((1,3,384,288))})
+        self.assertEqual([current_value.shape[-1] for current_value in current_output_values], [576,768])
+        self.assertTrue((current_output_values[0] == 2.0).all())
+        self.assertTrue((current_output_values[1] == 3.0).all())
+        current_session.run = lambda *current_args: [current_combined_values[..., :-1]]
+        with self.assertRaisesRegex(ValueError, '출력 크기'):
+            MigraphxPoseInferenceSession(current_session).run(None, {'input': np.zeros((1,3,384,288))})
+
     def test_migraphx_pose_splits_multiple_people_into_fixed_batches(self):
         from types import SimpleNamespace
         from generators.kimodo.dwpose_runtime import MigraphxPoseInferenceSession

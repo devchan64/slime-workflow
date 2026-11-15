@@ -28,6 +28,11 @@ class MigraphxPoseInferenceSession:
             current_output_values = [np.concatenate(current_output_parts, axis=0) for current_output_parts in zip(*current_batch_outputs)]
         else:
             current_output_values = self.current_session_instance.run(current_output_names, current_input_values)
+        if len(current_output_values) == 1:
+            current_combined_values = current_output_values[0]
+            if current_combined_values.shape[-1] != 1344:
+                raise ValueError('DWPose 결합 SimCC 출력 크기가 올바르지 않습니다.')
+            current_output_values = [current_combined_values[..., :576], current_combined_values[..., 576:]]
         if len(current_output_values) != 2:
             raise ValueError('DWPose SimCC 출력 개수가 올바르지 않습니다.')
         if (current_output_values[0].shape[-1], current_output_values[1].shape[-1]) == (768, 576):
@@ -60,7 +65,24 @@ def render_selected_pose_parts(current_pose_records, current_image_shape, curren
     return draw_pose(current_selected_records, *current_image_shape)
 
 
-def create_fun_pose_detector(current_build_cache=False):
+def prepare_dwpose_combined_output(current_attempt_root):
+    """순서가 정해진 단일 출력으로 SimCC 두 축을 연결한 실행용 모델을 만든다."""
+    import onnx
+    from onnx import TensorProto, helper
+    current_source_path = (FUN_POSE_MODEL_DIRECTORY / FUN_POSE_MODEL_NAMES[1]).with_suffix('.cuda.onnx')
+    current_model_graph = onnx.load(str(current_source_path))
+    if [current_output_value.name for current_output_value in current_model_graph.graph.output] != ['simcc_x', 'simcc_y']:
+        raise ValueError('DWPose ONNX 출력 이름이 예상과 다릅니다.')
+    current_model_graph.graph.node.append(helper.make_node('Concat', ['simcc_x', 'simcc_y'], ['simcc_xy'], axis=2, name='combine_simcc_axes'))
+    del current_model_graph.graph.output[:]
+    current_model_graph.graph.output.append(helper.make_tensor_value_info('simcc_xy', TensorProto.FLOAT, [1, 133, 1344]))
+    onnx.checker.check_model(current_model_graph)
+    current_output_path = current_attempt_root / 'dwpose-combined-output.onnx'
+    onnx.save(current_model_graph, str(current_output_path))
+    return current_output_path
+
+
+def create_fun_pose_detector(current_build_cache=False, current_pose_model_path=None):
     """ROCm GPU에서 VideoX-Fun 인물·관절 검출 세션을 생성한다."""
     import torch
     import onnxruntime as ort
@@ -89,7 +111,7 @@ def create_fun_pose_detector(current_build_cache=False):
         current_session_options = ort.SessionOptions()
         current_session_options.add_session_config_entry('session.disable_cpu_ep_fallback', '1')
         current_cache_directory = current_cache_directories[current_model_name]
-        current_use_cache = current_build_cache or verify_pose_cache_files(current_cache_directory)
+        current_use_cache = (current_build_cache or verify_pose_cache_files(current_cache_directory)) and not (current_session_field == 'session_pose' and current_pose_model_path is not None)
         current_provider_options = {'cache_dir': str(current_cache_directory)} if current_use_cache else {}
         current_previous_cache = os.environ.pop('ORT_MIGRAPHX_CACHE_DIR', None)
         try:
@@ -97,7 +119,8 @@ def create_fun_pose_detector(current_build_cache=False):
                 current_cache_directory.mkdir(parents=True, exist_ok=True)
                 os.environ['ORT_MIGRAPHX_CACHE_DIR'] = str(current_cache_directory)
             current_session_options.add_provider_for_devices(current_gpu_devices[:1], current_provider_options)
-            current_gpu_session = ort.InferenceSession(str((FUN_POSE_MODEL_DIRECTORY/current_model_name).with_suffix('.cuda.onnx')), sess_options=current_session_options)
+            current_model_path = current_pose_model_path if current_session_field == 'session_pose' and current_pose_model_path is not None else (FUN_POSE_MODEL_DIRECTORY/current_model_name).with_suffix('.cuda.onnx')
+            current_gpu_session = ort.InferenceSession(str(current_model_path), sess_options=current_session_options)
         finally:
             os.environ.pop('ORT_MIGRAPHX_CACHE_DIR', None)
             if current_previous_cache is not None:
