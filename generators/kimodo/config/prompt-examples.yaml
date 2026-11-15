@@ -17,13 +17,13 @@ examples:
     openpose_scale_percent: 80.0
   reference_example: character_eight_directions
 - id: male_floor_rest_cycle
-  label: 남성 바닥 휴식 · 서기–앉기–일어서기 · 오른쪽 30도 · 7초
+  label: 남성 바닥 휴식 · 서기–앉기–일어서기 · 오른쪽 30도 · 160프레임
   prompt: 'A person stands upright, then sits down on the floor with knees raised and feet planted in front.
 
     A person sits on the floor with knees raised, resting each forearm on its corresponding knee and hands relaxed.
 
     A person rises from the floor and stands upright.'
-  frames: 210
+  frames: 160
   settings:
     steps: 100
     seed: 46
@@ -34,9 +34,9 @@ examples:
     - front_right_30
     remove_horizontal_motion: false
     segment_frames:
-    - 75
-    - 60
-    - 75
+    - 64
+    - 32
+    - 64
     openpose_scale_percent: 80
     pose_include_hands: false
     pose_include_face: false

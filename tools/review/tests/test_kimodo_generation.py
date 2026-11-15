@@ -100,6 +100,9 @@ class KimodoGenerationContractTests(unittest.TestCase):
         from generators.kimodo.motion_sequence import resolve_motion_segments
         current_prompt_text='A person stands.\nA person sits down.\nA person stands up.'
         self.assertEqual(resolve_motion_segments(current_prompt_text,300,[90,120,90])[1],[90,120,90])
+        self.assertEqual(resolve_motion_segments(current_prompt_text,80,[32,16,32])[1],[32,16,32])
+        with self.assertRaises(ValueError):
+            resolve_motion_segments(current_prompt_text,79,[32,15,32])
         for current_segment_frames in ([100,100], [90,90,90], [True,149,150]):
             with self.assertRaises(ValueError):
                 resolve_motion_segments(current_prompt_text,300,current_segment_frames)

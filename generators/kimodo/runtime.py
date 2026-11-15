@@ -96,7 +96,7 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     current_final_prompt = current_final_prompts[0]
     current_metrics_recorder.update_generation_stage('encoding')
     current_embedding_tensor = encode_kimodo_prompt(current_final_prompts,current_attempt_root)
-    np.save(current_attempt_root/'text-embedding.npy',current_embedding_tensor.numpy())
+    np.save(current_attempt_root/'text-embedding.npy',current_embedding_tensor.detach().cpu().numpy())
     current_metrics_recorder.update_generation_stage('load')
     current_model_config = OmegaConf.load(KIMODO_MODEL_ROOT/'motion/config.yaml')
     current_model_config.checkpoint_dir = str(KIMODO_MODEL_ROOT/'motion')
