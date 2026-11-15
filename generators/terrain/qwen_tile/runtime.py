@@ -290,6 +290,8 @@ def execute_tile_set_generation(*, ticket_file_path, style_reference_path, trial
         qwen_pipeline_module.VAE_IMAGE_SIZE = generation_width * generation_height
         execution_logger.info('load model_id=%s revision=%s path=%s', FIXED_MODEL_IDENTIFIER, FIXED_MODEL_REVISION, FIXED_MODEL_DIRECTORY)
         image_edit_pipeline = QwenImageEditPlusPipeline.from_pretrained(str(FIXED_MODEL_DIRECTORY), torch_dtype=torch.bfloat16, local_files_only=True, low_cpu_mem_usage=True)
+        from generators.common.numerical_guard import check_denoise_latents, install_vae_decode_guard
+        install_vae_decode_guard(image_edit_pipeline.vae, torch)
         image_edit_pipeline.to('cuda')
         image_edit_pipeline.vae.enable_slicing()
         image_edit_pipeline.vae.enable_tiling()
@@ -300,6 +302,7 @@ def execute_tile_set_generation(*, ticket_file_path, style_reference_path, trial
             progress_state.update({'stage': 'inference', 'role': tile_role, 'step': 0})
             execution_logger.info('inference role=%s size=%sx%s steps=%s', tile_role, generation_width, generation_height, FIXED_INFERENCE_STEPS)
             def record_denoise_progress(pipeline_instance, step_index, timestep_value, callback_values):
+                check_denoise_latents(callback_values, torch, f'지형 {tile_role} 스텝 {step_index + 1} 잠재값')
                 progress_state['step'] = step_index + 1
                 execution_logger.info('denoise role=%s step=%s/%s', tile_role, step_index + 1, FIXED_INFERENCE_STEPS)
                 return callback_values

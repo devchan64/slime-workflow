@@ -1,7 +1,9 @@
 """공식 Animate-2 ModularPipeline을 ROCm GPU 상주 연산로 실행한다."""
 import hashlib
+from functools import wraps
 import os
-os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+os.environ.pop('PYTORCH_CUDA_ALLOC_CONF', None)
+os.environ['PYTORCH_ALLOC_CONF'] = 'expandable_segments:True'
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
@@ -32,6 +34,23 @@ def guard_animate_vae_encoding(current_encode_function, current_torch_module):
     return encode_checked_animate_video
 
 
+def install_animate_vae_math_attention(current_vae_model):
+    """VAE 인코딩·디코딩 안에서만 수학 SDPA를 선택한다."""
+    from torch.nn.attention import SDPBackend, sdpa_kernel
+
+    for current_method_name in ('encode', 'decode'):
+        current_original_method = getattr(current_vae_model, current_method_name)
+
+        def build_guarded_vae_method(current_vae_method):
+            @wraps(current_vae_method)
+            def execute_with_math_attention(*current_method_arguments, **current_method_keywords):
+                with sdpa_kernel(SDPBackend.MATH):
+                    return current_vae_method(*current_method_arguments, **current_method_keywords)
+            return execute_with_math_attention
+
+        setattr(current_vae_model, current_method_name, build_guarded_vae_method(current_original_method))
+
+
 def execute_animate_inference(current_job_root,current_attempt_root,current_request_record,current_metrics_recorder):
     sys.path.insert(0,str(ANIMATE_RUNTIME_DIRECTORY/'src'))
     import torch
@@ -53,6 +72,7 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
     for current_component_name in ('transformer','text_encoder','image_encoder','vae','tokenizer','scheduler'):
         if getattr(current_pipeline_model,current_component_name,None) is None:
             raise RuntimeError(f'공식 모델 구성요소 로드 실패: {current_component_name}')
+    install_animate_vae_math_attention(current_pipeline_model.vae)
     # 체크포인트의 Transformers 4.57 UMT5는 encoder와 shared 임베딩을 공유한다.
     # Transformers 5의 분리 초기화가 원본 가중치를 대신하지 않도록 공식 setter로 연결한다.
     current_pipeline_model.text_encoder.set_input_embeddings(current_pipeline_model.text_encoder.shared)
@@ -91,7 +111,7 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
         raise ValueError(f'공식 출력 프레임 불일치: {len(current_frame_arrays)} / {current_frame_count}')
     current_metrics_recorder.update_generation_stage('postprocess')
     current_output_hashes=save_video_outputs(current_attempt_root,current_frame_arrays,24)
-    return {'attempt':current_attempt_root.name,'frames':current_frame_count,'fps':24,'output_sha256':current_output_hashes,'model_id':ANIMATE_MODEL_IDENTIFIER,'model_revision':ANIMATE_MODEL_REVISION,'runtime_revision':ANIMATE_RUNTIME_REVISION,'prompt_words':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'attention_execution':'inductor-fullgraph-isolated','reference_kv_offload':None,'compute_backend':'rocm','weight_offload':None,'cuda_allocator':'expandable_segments:True','quality_status':'사용자 검수 대기'}
+    return {'attempt':current_attempt_root.name,'frames':current_frame_count,'fps':24,'output_sha256':current_output_hashes,'model_id':ANIMATE_MODEL_IDENTIFIER,'model_revision':ANIMATE_MODEL_REVISION,'runtime_revision':ANIMATE_RUNTIME_REVISION,'prompt_words':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'attention_execution':'inductor-fullgraph-isolated','vae_attention_backend':'math','reference_kv_offload':None,'compute_backend':'rocm','weight_offload':None,'cuda_allocator':'expandable_segments:True','quality_status':'사용자 검수 대기'}
 
 if __name__=='__main__':
     run_reference_video_worker(ANIMATE_JOB_STORAGE,Path(__file__),validate_animate_assets,execute_animate_inference)

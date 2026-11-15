@@ -158,6 +158,8 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
                 run_output_logger.info('adapter name=%s strength=%s path=%s', adapter_record_values['name'], adapter_record_values['strength'], adapter_file_path)
                 image_edit_pipeline.load_lora_weights(str(adapter_file_path.parent), weight_name=adapter_file_path.name, adapter_name=adapter_record_values['name'], local_files_only=True)
             image_edit_pipeline.set_adapters([adapter_record_values['name'] for adapter_record_values in resolved_adapter_records], adapter_weights=[adapter_record_values['strength'] for adapter_record_values in resolved_adapter_records])
+        from generators.common.numerical_guard import check_denoise_latents, install_vae_decode_guard
+        install_vae_decode_guard(image_edit_pipeline.vae, torch)
         image_edit_pipeline.to('cuda')
         image_edit_pipeline.vae.enable_slicing()
         image_edit_pipeline.vae.enable_tiling()
@@ -166,6 +168,7 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
         run_output_logger.info('inference size=%sx%s steps=%s seed=%s device=rocm dtype=bfloat16 offload=none',selected_output_width,selected_output_height,selected_inference_steps,selected_generator_seed)
 
         def record_denoise_progress(pipeline_instance_value, step_index_value, timestep_value, callback_value_dictionary):
+            check_denoise_latents(callback_value_dictionary, torch, f'Qwen 스텝 {step_index_value + 1} 잠재값')
             current_stage_state['step']=step_index_value+1
             current_progress_writer.record_worker_progress(current_stage_state)
             run_output_logger.info('denoise step=%s/%s',step_index_value+1,selected_inference_steps)

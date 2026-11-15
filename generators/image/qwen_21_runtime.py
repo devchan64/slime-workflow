@@ -52,6 +52,7 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
     import torch
     from PIL import Image
     from diffusers import QwenImage21Pipeline
+    from generators.common.numerical_guard import check_denoise_latents, install_vae_decode_guard
 
     if not getattr(torch.version, 'hip', None) or not torch.cuda.is_available():
         raise RuntimeError('Qwen 2.1 추론에 ROCm PyTorch와 AMD GPU가 필요합니다.')
@@ -72,6 +73,7 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
             print(f'{datetime.now().isoformat()}/qwen21/heartbeat {current_progress_record}', flush=True)
 
     def record_inference_progress(current_pipeline_value, current_step_index, current_timestep_value, current_callback_values):
+        check_denoise_latents(current_callback_values, torch, f'Qwen 2.1 스텝 {current_step_index + 1} 잠재값')
         current_progress_record['step'] = current_step_index + 1
         current_progress_writer.record_worker_progress(current_progress_record)
         return current_callback_values
@@ -112,6 +114,7 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
                 raise ValueError('순환 VAE 고정 설정 불일치')
         else:
             current_pipeline_model.vae.enable_tiling()
+        install_vae_decode_guard(current_pipeline_model.vae, torch)
         current_pipeline_model.to('cuda')
         reference_image_values = []
         for reference_image_path in reference_image_paths:

@@ -27,6 +27,30 @@ class AnimateTwoContractTests(unittest.TestCase):
         current_valid_frames=np.zeros((2,2,2,3),dtype=np.uint8)
         self.assertIs(validate_animate_output_frames(current_valid_frames,np),current_valid_frames)
 
+    def test_vae_math_attention_is_scoped_and_restores_after_failure(self):
+        import torch
+        from generators.wan_animate2.worker import install_animate_vae_math_attention
+
+        class ExampleVaeModel:
+            def encode(self, current_should_fail=False):
+                self.asserted_flags = (torch.backends.cuda.math_sdp_enabled(), torch.backends.cuda.flash_sdp_enabled())
+                if current_should_fail:
+                    raise RuntimeError('expected')
+                return 'encoded'
+
+            def decode(self):
+                return (torch.backends.cuda.math_sdp_enabled(), torch.backends.cuda.flash_sdp_enabled())
+
+        current_vae_model = ExampleVaeModel()
+        current_original_flags = (torch.backends.cuda.math_sdp_enabled(), torch.backends.cuda.flash_sdp_enabled())
+        install_animate_vae_math_attention(current_vae_model)
+        self.assertEqual(current_vae_model.encode(), 'encoded')
+        self.assertEqual(current_vae_model.asserted_flags, (True, False))
+        self.assertEqual(current_vae_model.decode(), (True, False))
+        with self.assertRaisesRegex(RuntimeError, 'expected'):
+            current_vae_model.encode(True)
+        self.assertEqual((torch.backends.cuda.math_sdp_enabled(), torch.backends.cuda.flash_sdp_enabled()), current_original_flags)
+
     def test_rgb_request_duration_and_dimensions(self):
         import cv2
         import numpy as np
