@@ -424,6 +424,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             current_error_message = '결과 조회 실패: '+str(current_lookup_error)
             return current_selected_identifier,'',current_error_message,gr.update(visible=False),{},gr.update(value=current_error_message,label='실행 로그 · '+current_selected_identifier)
         current_history_record=next((value for value in current_history_records if value['id']==current_selected_identifier),{})
+        current_history_record={**current_history_record,'status':{**(current_history_record.get('status') if isinstance(current_history_record.get('status'),dict) else {}),'status':current_status_record.get('status')}}
         current_image_html=result_renderer_callback(current_selected_identifier,current_status_record,server_base_address) if result_renderer_callback is not None else collect_history_result_images(current_status_record,server_base_address)
         current_result_notice = '\n\n'+describe_missing_generation_result(current_status_record,'이미지') if not current_image_html and result_renderer_callback is None else ''
         return current_selected_identifier,current_history_record.get('path','기록 경로가 없습니다.'),describe_generation_status(current_status_record)+(' · 대기 순서 '+str(current_status_record['queue_position']) if 'queue_position' in current_status_record else '')+current_result_notice,gr.update(value=current_image_html,visible=bool(current_image_html)),current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
@@ -464,7 +465,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     history_next_button.click(lambda current_page_number,current_selected_identifier:read_history_page((current_page_number or 1)+1,current_selected_identifier),[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel],preprocess=False,queue=False)
     history_page_value.input(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel],preprocess=False,queue=False)
     current_result_lookup_event = result_lookup_button.click(read_selected_result,history_selection_value,[result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value],queue=False).success(fn=None,js="()=>{requestAnimationFrame(()=>{document.getElementById('generation-history-result-anchor')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});});}")
-    def refresh_result_observation(current_result_identifier, current_status_snapshots=None):
+    def refresh_result_observation(current_result_identifier, current_status_snapshots=None, current_displayed_record=None):
         from tools.review.common.generation_status_display import describe_generation_status
         from tools.review.common.generation_status_lookup import read_existing_generation_status
         if not current_result_identifier:
@@ -478,6 +479,12 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_status_text = describe_generation_status(current_status_record)
         if 'queue_position' in current_status_record:
             current_status_text += ' · 대기 순서 '+str(current_status_record['queue_position'])
+        current_displayed_status = (current_displayed_record or {}).get('status', {})
+        current_displayed_status = current_displayed_status.get('status') if isinstance(current_displayed_status, dict) else current_displayed_status
+        if current_status_record.get('status') in ('completed', 'failed', 'cancelled', 'paused') and current_displayed_status != current_status_record.get('status'):
+            current_result_content = result_renderer_callback(current_result_identifier,current_status_record,server_base_address) if result_renderer_callback is not None else collect_history_result_images(current_status_record,server_base_address)
+            current_updated_record = {**(current_displayed_record or {}), 'status': {**((current_displayed_record or {}).get('status') if isinstance((current_displayed_record or {}).get('status'),dict) else {}), 'status':current_status_record.get('status')}}
+            return current_status_text, gr.skip(), gr.update(value=current_result_content,visible=bool(current_result_content)), current_updated_record
         return current_status_text, gr.skip(), gr.skip(), gr.skip()
     if record_folder_route is not None:
         folder_open_script=f"""async(identifierValue)=>{{if(!identifierValue)throw new Error('먼저 생성 이력을 선택하세요.');const responseValue=await fetch('/management/record-folder/open',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{route:{record_folder_route!r},id:identifierValue}})}});const payloadValue=await responseValue.json();if(!responseValue.ok)throw new Error(payloadValue.error);return payloadValue.message;}}"""
@@ -526,7 +533,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_poll_outputs.append(history_delete_button)
     current_poll_outputs.extend([result_status_value, result_identifier_value, result_image_value, result_record_value, log_output_value, current_history_timer])
 
-    def refresh_combined_history(current_selected_identifier, current_result_identifier, current_logs_enabled):
+    def refresh_combined_history(current_selected_identifier, current_result_identifier, current_logs_enabled, current_displayed_record=None):
         current_status_snapshots = {}
         try:
             for current_job_identifier in {current_selected_identifier, current_result_identifier} - {None, ''}:
@@ -544,13 +551,13 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_button_updates = [refresh_priority_control(current_selected_identifier, current_status_snapshots), *refresh_history_controls(current_selected_identifier, current_status_snapshots)]
         if allow_individual_delete:
             current_button_updates.append(update_history_delete_button(current_selected_identifier, current_status_snapshots))
-        current_result_updates = refresh_result_observation(current_result_identifier, current_status_snapshots)
+        current_result_updates = refresh_result_observation(current_result_identifier, current_status_snapshots, current_displayed_record)
         current_result_record = current_status_snapshots.get(current_result_identifier)
         current_log_update = ((current_result_record.get('log') or '기록된 로그가 없습니다.')[-12000:] if current_logs_enabled and current_result_record else gr.skip())
         current_poll_active = any(current_status_record and current_status_record.get('status') not in ('completed', 'failed', 'cancelled', 'paused') for current_status_record in current_status_snapshots.values())
         return [*current_button_updates, *current_result_updates, current_log_update, gr.Timer(value=5, active=current_poll_active)]
 
-    current_poll_inputs = [history_selection_value, result_identifier_value, log_refresh_value]
+    current_poll_inputs = [history_selection_value, result_identifier_value, log_refresh_value, result_record_value]
     current_history_timer.tick(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False, show_progress='hidden')
     history_selection_value.change(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)
     # 같은 ID 출력이 change를 다시 호출하는 순환을 피한다. 조회 성공 뒤 한 번 갱신한다.

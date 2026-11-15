@@ -30,7 +30,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'building-editor','label':'건물 에셋 관리','path':'/management/frame/building-editor/','category':'map-review','uiMode':'gradio','description':'건물 원본·사용 맵·공용 앵커 관리'},
     {'id':'asset-editor','label':'공용 빌보드 에셋 관리','path':'/management/frame/asset-editor/','category':'map-review','uiMode':'gradio','description':'전체 에셋 속성·점유 타일·미리보기·일괄 편집'},
     {'id':'world-map','label':'월드맵 검수','path':'/management/frame/world-map/','category':'map-review','uiMode':'gradio','description':'전체 맵 썸네일·노드·연결·원본 해시 검증'},
-    {'id': 'sfx-dasheng-audiogen', 'label': 'Dasheng-AudioGen · 효과음', 'path': '/management/frame/sfx-dasheng-audiogen/', 'category': 'sound-management', 'uiMode': 'gradio', 'description': '로컬 CUDA · 길이 자동 예측 · 시드 · 16kHz WAV'},
+    {'id': 'sfx-dasheng-audiogen', 'label': 'Dasheng-AudioGen · 효과음', 'path': '/management/frame/sfx-dasheng-audiogen/', 'category': 'sound-management', 'uiMode': 'gradio', 'description': '로컬 ROCm · 길이 자동 예측 · 시드 · 16kHz WAV'},
     {'id': 'music-heartmula', 'label': 'HeartMuLa 3B', 'path': '/management/frame/music-heartmula/', 'category': 'sound-management', 'uiMode': 'gradio', 'description': 'tags·lyrics 입력 · 무보컬 보장 없음'},
     {'id':'kimodo-generator','label':'Kimodo 모션 생성기 · ROCm','path':'/management/frame/kimodo-generator/','category':'animation-tool','uiMode':'gradio','description':'SOMA v1.2 · 텍스트→3D 모션 · 비양자화 BF16 인코더'},
     {'id':'wan22-vace-generator','label':'Wan2.2 VACE-Fun 영상 생성기','path':'/management/frame/wan22-vace-generator/','category':'animation-tool','uiMode':'gradio','description':'A14B BF16 · 텍스트·외형 참조·첫 프레임'},

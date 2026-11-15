@@ -304,8 +304,9 @@ class HistoryRadioTableTest(unittest.TestCase):
         with gr.Blocks():
             current_read_history,current_output_components=build_generation_history_view(lambda *_:{'records':current_history_records},'http://localhost','검증',show_thumbnail_column=False)
             current_page_updates=current_read_history(1,'sound-job')
-        self.assertNotIn('썸네일',current_page_updates[3])
-        self.assertIn(' checked',current_page_updates[3])
+        self.assertEqual(len(current_page_updates[3][0]),5)
+        self.assertEqual(current_page_updates[3][0][-1],'sound-job')
+        self.assertEqual(current_page_updates[0]['value'],'sound-job')
 
     def test_completed_history_row_includes_result_thumbnail(self):
         from tools.review.common.gradio_history import render_history_selection_table
@@ -426,6 +427,26 @@ class HistoryProgressDetailTests(unittest.TestCase):
 
 
 class CombinedHistoryPollingTest(unittest.TestCase):
+    def test_completed_result_is_shown_once_after_running_lookup(self):
+        current_status_record = {'status':'running'}
+        def execute_test_command(current_command_name, current_request_payload):
+            if current_command_name == 'history':
+                return {'records':[{'id':'job-1','status':{'status':'running'}}]}
+            return current_status_record
+        with gr.Blocks() as current_history_blocks:
+            build_generation_history_view(execute_test_command, 'http://localhost', '테스트', result_renderer_callback=lambda current_identifier,current_status,current_server: '<audio src="/sound.wav"></audio>' if current_status.get('audio') else '<p>생성 중</p>')
+        current_lookup_callback = next(current_function.fn for current_function in current_history_blocks.fns.values() if current_function.name == 'read_selected_result')
+        current_poll_callback = next(current_function.fn for current_function in current_history_blocks.fns.values() if current_function.name == 'refresh_combined_history')
+        current_displayed_record = current_lookup_callback('job-1')[4]
+        current_status_record.update(status='completed',audio='/sound.wav')
+        current_poll_result = current_poll_callback('job-1','job-1',False,current_displayed_record)
+        self.assertIn('<audio',current_poll_result[5]['value'])
+        self.assertTrue(current_poll_result[5]['visible'])
+        self.assertEqual(current_poll_result[6]['status']['status'],'completed')
+        current_repeated_result = current_poll_callback('job-1','job-1',False,current_poll_result[6])
+        self.assertEqual(current_repeated_result[5],gr.skip())
+        self.assertEqual(current_repeated_result[6],gr.skip())
+
     def test_poll_reads_same_job_once_and_stops_when_completed(self):
         current_command_calls = []
         current_status_record = {'status': 'running', 'log': '진행 중'}
