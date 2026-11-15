@@ -5,7 +5,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[3]))
 import argparse
 from datetime import datetime
 import os
-from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS
+from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_loopback_request_host
 import base64
 import time
 import io
@@ -231,9 +231,7 @@ class ManagementCommandGateway:
         if not gateway_envelope_request and not legacy_command_match:
             return False
         try:
-            expected_origin_value=f'http://127.0.0.1:{current_http_handler.server.server_port}'
-            if current_http_handler.headers.get('Host')!=expected_origin_value.removeprefix('http://'):
-                raise ValueError('허용하지 않는 Host')
+            expected_origin_value=validate_loopback_request_host(current_http_handler)
             request_payload_value={}
             if current_http_handler.command=='POST':
                 if current_http_handler.headers.get('Origin')!=expected_origin_value or current_http_handler.headers.get('Content-Type','').split(';')[0]!='application/json':
@@ -475,8 +473,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     if server_base_address is not None:
         server_base_address=server_base_address.rstrip('/')
         server_address_parts=urlsplit(server_base_address)
-        if server_address_parts.scheme!='http' or server_address_parts.hostname!='127.0.0.1' or server_address_parts.username or server_address_parts.password or server_address_parts.path or server_address_parts.query or server_address_parts.fragment:
-            raise ValueError('관리도구 주소는 http://127.0.0.1:포트 형식이어야 합니다.')
+        if server_address_parts.scheme!='http' or server_address_parts.hostname not in ('127.0.0.1','localhost') or server_address_parts.username or server_address_parts.password or server_address_parts.path or server_address_parts.query or server_address_parts.fragment:
+            raise ValueError('관리도구 주소는 http://127.0.0.1:포트 또는 http://localhost:포트 형식이어야 합니다.')
     operation_command_name=command_argument_values.command
     command_payload_value={}
     if operation_command_name == 'keyframe-save':

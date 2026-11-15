@@ -106,6 +106,7 @@ Gradio Python 콜백 → HTTP 클라이언트 ───┼→ 게이트웨이(87
 ```
 
 - 기본 주소는 GUI `http://127.0.0.1:8770`, 게이트웨이 `http://127.0.0.1:8771`이다. GUI 포트와 게이트웨이 포트를 같게 지정할 수 없다.
+- GUI와 게이트웨이는 `localhost`와 `127.0.0.1` 접속을 모두 허용한다. POST 요청의 Origin은 접속한 Host 및 포트와 일치해야 하므로 두 이름을 섞어 사용하지 않는다.
 - 게이트웨이 포트를 바꾸면 `scripts/run_management_gateway.sh --port 9871`, GUI `scripts/run_management_gui.sh --gateway-url http://127.0.0.1:9871`, CLI `<서비스> --server-url http://127.0.0.1:9871 <명령>`을 사용한다. GUI·CLI 기본 접속 주소는 `SLIME_MANAGEMENT_GATEWAY_URL`로 지정할 수도 있다.
 - 기존 브라우저 명령·결과·로그 URL은 GUI 서버가 중계한다. GUI 종료 중에도 CLI는 게이트웨이로 직접 접수·조회·취소·재개할 수 있다. Gradio Python 콜백은 공용 HTTP 클라이언트를 사용하며 로컬 서비스로 우회하지 않는다.
 - `GET /management/health`는 게이트웨이 역할·PID·응답 상태를 반환한다. GUI 주소에서도 같은 경로로 중계 상태를 확인할 수 있다. GPU 가용성은 별도 상태 조회로 확인한다.

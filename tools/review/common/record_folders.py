@@ -21,8 +21,9 @@ def handle_record_folder_request(current_http_handler, folder_service_routes):
     if urlsplit(current_http_handler.path).path != '/management/record-folder/open':
         return False
     try:
-        expected_origin_value = f'http://127.0.0.1:{current_http_handler.server.server_port}'
-        if current_http_handler.headers.get('Host') != expected_origin_value.removeprefix('http://') or current_http_handler.headers.get('Origin') != expected_origin_value:
+        from tools.review.common.management_environment import validate_loopback_request_host
+        expected_origin_value = validate_loopback_request_host(current_http_handler)
+        if current_http_handler.headers.get('Origin') != expected_origin_value:
             raise ValueError('같은 관리도구 화면에서만 폴더를 열 수 있습니다.')
         if current_http_handler.headers.get('Content-Type','').split(';')[0] != 'application/json':
             raise ValueError('JSON 요청이 필요합니다.')

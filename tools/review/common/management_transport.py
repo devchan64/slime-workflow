@@ -3,7 +3,7 @@ import http.client
 import json
 from urllib.parse import urlsplit
 
-from tools.review.common.management_environment import validate_gateway_address
+from tools.review.common.management_environment import validate_gateway_address, validate_loopback_request_host
 MAXIMUM_GATEWAY_BODY_BYTES = 40_200_000
 GATEWAY_REQUEST_TIMEOUT_SECONDS = 30
 GATEWAY_CONTROL_ROUTE_PATHS = (
@@ -35,11 +35,7 @@ def send_management_json_response(current_http_handler, response_status_code, re
 
 
 def validate_management_http_request(current_http_handler):
-    current_request_host = current_http_handler.headers.get('Host')
-    current_allowed_hosts = tuple(f'{current_host_name}:{current_http_handler.server.server_port}' for current_host_name in ('127.0.0.1', 'localhost'))
-    if current_request_host not in current_allowed_hosts:
-        raise ValueError('허용하지 않는 Host')
-    expected_origin_value = f'http://{current_request_host}'
+    expected_origin_value = validate_loopback_request_host(current_http_handler)
     if current_http_handler.headers.get('Transfer-Encoding'):
         raise ValueError('Transfer-Encoding 요청은 허용하지 않습니다.')
     request_content_length = int(current_http_handler.headers.get('Content-Length', '0'))

@@ -11,6 +11,27 @@ from tools.review.common.management_gateway import ManagementCommandGateway, res
 
 
 class GatewayContractTest(unittest.TestCase):
+    def test_loopback_hosts_require_matching_origin(self):
+        from tools.review.common.management_environment import validate_gateway_address
+        from tools.review.common.management_transport import validate_management_http_request
+        for current_host_name in ('127.0.0.1', 'localhost'):
+            with self.subTest(host=current_host_name):
+                current_server_address = f'http://{current_host_name}:8770'
+                self.assertEqual(validate_gateway_address(current_server_address), current_server_address)
+                current_request_handler = self.create_request_handler('/management/command', {})
+                current_request_handler.headers['Host'] = f'{current_host_name}:8770'
+                current_request_handler.headers['Origin'] = current_server_address
+                self.assertEqual(validate_management_http_request(current_request_handler), 2)
+                current_request_handler.headers['Origin'] = 'http://other.example:8770'
+                with self.assertRaises(ValueError):
+                    validate_management_http_request(current_request_handler)
+                current_other_host = 'localhost' if current_host_name == '127.0.0.1' else '127.0.0.1'
+                current_request_handler.headers['Origin'] = f'http://{current_other_host}:8770'
+                with self.assertRaises(ValueError):
+                    validate_management_http_request(current_request_handler)
+        with self.assertRaises(ValueError):
+            validate_gateway_address('http://example.com:8770')
+
     def test_connection_failure_diagnostic(self):
         from unittest.mock import patch
         from urllib.error import URLError

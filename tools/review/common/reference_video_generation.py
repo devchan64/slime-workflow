@@ -42,7 +42,8 @@ class ReferenceVideoGenerationManager(ImageGenerationManager):
   if current_http_handler.command=='GET' and (current_file_match or current_url_path==self.route_prefix_value+'/model-status'):
    current_content_type='application/json'
    try:
-    if current_http_handler.headers.get('Host')!=f'127.0.0.1:{current_http_handler.server.server_port}': raise ValueError('허용하지 않는 Host')
+    from tools.review.common.management_environment import validate_loopback_request_host
+    validate_loopback_request_host(current_http_handler)
     if current_file_match:
      current_file_path=self.job_storage_root/current_file_match[1]/'attempts'/current_file_match[2]/current_file_match[3]
      if not current_file_path.resolve().is_relative_to(self.job_storage_root.resolve()): raise ValueError('결과 경로 오류')

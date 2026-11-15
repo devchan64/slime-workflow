@@ -224,9 +224,8 @@ class ImageGenerationManager:
             current_http_handler.end_headers()
             current_http_handler.wfile.write(current_response_bytes)
         try:
-            expected_origin_value = f'http://127.0.0.1:{current_http_handler.server.server_port}'
-            if current_http_handler.headers.get('Host') != expected_origin_value.removeprefix('http://'):
-                raise ValueError('허용하지 않는 Host')
+            from tools.review.common.management_environment import validate_loopback_request_host
+            expected_origin_value = validate_loopback_request_host(current_http_handler)
             if current_http_handler.command == 'POST':
                 if current_http_handler.headers.get('Origin') != expected_origin_value:
                     raise ValueError('동일 출처 요청만 허용합니다.')
