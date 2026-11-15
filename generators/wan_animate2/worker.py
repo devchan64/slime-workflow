@@ -65,6 +65,9 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
     from diffusers.modular_pipelines.wan_animate_2 import encoders as animate_encoder_module, denoise as animate_denoise_module
     from generators.wan_animate2.attention_compile import enable_compiled_attention
     enable_compiled_attention()
+    from diffusers.models.transformers import transformer_wan_animate_2 as current_transformer_module
+    from generators.wan_animate2.attention_layout import install_animate_reference_layout
+    install_animate_reference_layout(current_transformer_module,torch)
     current_checked_vae_encode=guard_animate_vae_encoding(animate_encoder_module.encode_vae,torch)
     animate_encoder_module.encode_vae=current_checked_vae_encode
     animate_denoise_module.encode_vae=current_checked_vae_encode

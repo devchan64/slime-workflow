@@ -11,6 +11,55 @@ from tools.review.common.management_gateway import resolve_management_command, M
 
 
 class AnimateTwoContractTests(unittest.TestCase):
+    def test_flex_head_splitting_is_restricted_to_known_mask(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        import torch
+        import generators.wan_animate2.attention_layout as layout
+        class SimulatedRocmTensor(torch.Tensor):
+            @property
+            def is_cuda(self):
+                return True
+        class CurrentTransformerModel:
+            def create_mask(self):
+                def attention_mask_logic(current_batch,current_head,current_query,current_key):
+                    return current_query >= 0
+                return attention_mask_logic
+        current_dispatch_calls=[]
+        def original_dispatch(current_query,current_key,current_value,**current_keywords):
+            current_dispatch_calls.append(current_query.shape[2])
+            return current_query+current_key.mean(dim=1,keepdim=True)+current_value.mean(dim=1,keepdim=True)
+        current_module=SimpleNamespace(WanAnimate2Transformer3DModel=CurrentTransformerModel,dispatch_attention_fn=original_dispatch)
+        current_torch_module=SimpleNamespace(version=SimpleNamespace(hip='test'),cuda=SimpleNamespace(mem_get_info=lambda device:(4*1024**3,0)),cat=torch.cat)
+        layout.install_animate_reference_layout(current_module,current_torch_module)
+        current_query=torch.rand((1,16,8,4)).as_subclass(SimulatedRocmTensor)
+        current_key=torch.rand((1,24,8,4)).as_subclass(SimulatedRocmTensor)
+        current_value=torch.rand((1,24,8,4)).as_subclass(SimulatedRocmTensor)
+        current_mask=SimpleNamespace(mask_mod=CurrentTransformerModel().create_mask())
+        with patch.object(layout,'ANIMATE_ATTENTION_MINIMUM_TOKENS',8):
+            current_result=current_module.dispatch_attention_fn(current_query,current_key,current_value,attn_mask=current_mask,backend='flex',parallel_config=None)
+            self.assertEqual(current_dispatch_calls,[4,4])
+            self.assertTrue(torch.equal(current_result,current_query+current_key.mean(dim=1,keepdim=True)+current_value.mean(dim=1,keepdim=True)))
+            current_dispatch_calls.clear()
+            current_mask.mask_mod=lambda current_batch,current_head,current_query,current_key: current_head == 0
+            current_module.dispatch_attention_fn(current_query,current_key,current_value,attn_mask=current_mask,backend='flex',parallel_config=None)
+            self.assertEqual(current_dispatch_calls,[8])
+
+    def test_reference_attention_layout_preserves_values_and_memory_guard(self):
+        import torch
+        from generators.wan_animate2.attention_layout import prepare_animate_attention_layout
+        current_query_tensor=torch.arange(240,dtype=torch.float32).reshape(1,10,3,8)
+        current_tensor_values=(current_query_tensor,current_query_tensor+1,current_query_tensor+2)
+        current_result_values,current_changed_flag=prepare_animate_attention_layout(*current_tensor_values,3*1024**3,current_minimum_tokens=8)
+        self.assertTrue(current_changed_flag)
+        for current_before_tensor,current_after_tensor in zip(current_tensor_values,current_result_values):
+            self.assertTrue(torch.equal(current_before_tensor,current_after_tensor))
+            self.assertTrue(current_after_tensor.transpose(1,2).is_contiguous())
+        current_skipped_values,current_changed_flag=prepare_animate_attention_layout(*current_tensor_values,0,current_minimum_tokens=8)
+        self.assertFalse(current_changed_flag)
+        self.assertIs(current_skipped_values[0],current_query_tensor)
+        self.assertFalse(prepare_animate_attention_layout(*current_tensor_values,3*1024**3,current_minimum_tokens=100)[1])
+
     def test_animate_allocator_overrides_conflicting_legacy_settings(self):
         from generators.wan_animate2.worker import configure_animate_memory_allocator
         current_environment_values={'PYTORCH_ALLOC_CONF':'expandable_segments:True','PYTORCH_CUDA_ALLOC_CONF':'expandable_segments:True','OTHER':'keep'}
