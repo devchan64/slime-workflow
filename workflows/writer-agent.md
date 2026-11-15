@@ -40,6 +40,8 @@ F16 임베딩 도입 전 Q8 색인은 검색에 사용하지 않는다. 환경�
 
 `state_root/rag.sqlite3`가 검색 색인이다. `state_root/jobs/작업ID/`에는 request/status/search/context/model-result/proposal/application YAML과 execution/worker/model-server 로그를 저장한다. 준비 작업은 준비·컴파일 로그를 저장한다. 화면에서 최근 40개 작업을 조회하며 개별 API 또는 CLI의 ID 조회로 이전 작업도 볼 수 있다.
 
+화면에서 검색어를 비우고 **전체 이력 검색**을 누르면 40개 이전 기록까지 표시한다. 작업 ID·종류·상태·요약·작성 지시를 검색하며 행을 선택해 상세를 조회한다. 선택 기록 삭제는 확인 후 `state_root/.history-trash/작업ID/`로 이동한다. 문서 원본과 색인은 유지하고 실행·대기 중이거나 적용 복구가 필요한 기록은 거부한다. 복구는 관리자가 동일 ID의 활성 기록이 없는지 확인한 뒤 휴지통의 작업 폴더를 `state_root/jobs/`로 이동한다. 검색 결과는 검색 버튼을 다시 눌러 갱신한다.
+
 ```bash
 .local/writer-agent/venv/bin/python -m generators.writer_agent.cli learn
 .local/writer-agent/venv/bin/python -m generators.writer_agent.cli write --prompt '작성 지시'

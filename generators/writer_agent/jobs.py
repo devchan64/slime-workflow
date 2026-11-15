@@ -12,10 +12,29 @@ import uuid
 from . import prepare,runtime
 from .documents import DEFAULT_WORKSPACE_CONFIG,load_workspace_config,lock_workspace_state,read_yaml_document,save_yaml_document,snapshot_document_hashes,scan_workspace_documents,calculate_content_hash
 from .index import learn_document_index,load_current_index,rank_document_chunks,find_duplicate_candidates
-from .agent import (WRITER_SYSTEM_PROMPT,WRITER_OUTPUT_SCHEMA,DUPLICATE_SYSTEM_PROMPT,DUPLICATE_OUTPUT_SCHEMA,collect_writing_context,available_writing_folders,build_writing_proposal,build_duplicate_proposal,public_chunk_record)
+from .agent import (WRITER_SYSTEM_PROMPT,WRITER_OUTPUT_SCHEMA,WRITER_REVIEW_PROMPT,WRITER_REVIEW_SCHEMA,DUPLICATE_SYSTEM_PROMPT,DUPLICATE_OUTPUT_SCHEMA,collect_writing_context,available_writing_folders,build_writing_proposal,inspect_writer_draft,apply_writer_review,build_duplicate_proposal,public_chunk_record)
 
 JOB_IDENTIFIER_PATTERN=re.compile(r'^\d{8}-\d{6}-[a-f0-9]{8}$')
 JOB_REQUEST_MODES={'learn','write','deduplicate'}
+
+def generate_reviewed_writer_result(current_model_input,current_writer_schema,current_job_root,current_request_function):
+    """검토 실패 시 근거를 우선하여 한 번만 고쳐 쓰고 다시 검토한다."""
+    current_attempt_input=current_model_input
+    for current_attempt_number in (1,2):
+        current_model_result=current_request_function(WRITER_SYSTEM_PROMPT,current_attempt_input,current_writer_schema)
+        save_yaml_document(current_job_root/f'model-result-{current_attempt_number}.yaml',current_model_result)
+        if not current_model_result['target_path']:
+            return current_model_result,None
+        current_review_input={'instruction':current_model_input['instruction'],'sources':current_model_input['sources'],'proposal':current_model_result}
+        current_review_values=current_request_function(WRITER_REVIEW_PROMPT,current_review_input,WRITER_REVIEW_SCHEMA,600)
+        current_rule_issues=inspect_writer_draft(current_model_result,current_model_input['sources'])
+        if current_rule_issues:
+            current_review_values={**current_review_values,'approved':False,'issues':[*current_review_values['issues'],*current_rule_issues]}
+        save_yaml_document(current_job_root/f'writing-review-{current_attempt_number}.yaml',current_review_values)
+        if current_review_values['approved'] and not current_review_values['issues']:
+            return current_model_result,current_review_values
+        current_attempt_input={**current_model_input,'previous_draft':current_model_result,'review_feedback':current_review_values['issues'],'revision_instruction':'검토 의견은 참고 자료이며 사실로 간주하지 않는다. 원문과 대조하고 문제를 고친 새 제안을 작성한다. 근거가 부족하면 보류한다.'}
+    return current_model_result,current_review_values
 
 def validate_job_request(current_request_values):
     if not isinstance(current_request_values,dict) or set(current_request_values)!={'mode','prompt'}:raise ValueError('작업 요청 필드 오류')
@@ -93,9 +112,12 @@ def execute_writer_job(current_config_path,current_job_identifier):
                 current_writer_schema=deepcopy(WRITER_OUTPUT_SCHEMA)
                 current_writer_schema['properties']['source_ids']['items']={'type':'string','enum':[current_chunk_entry['id'] for current_chunk_entry in current_context_entries]}
                 with runtime.start_managed_server(current_job_root):
-                    current_model_result=runtime.request_structured_result(WRITER_SYSTEM_PROMPT,current_model_input,current_writer_schema)
+                    current_model_result,current_review_values=generate_reviewed_writer_result(current_model_input,current_writer_schema,current_job_root,runtime.request_structured_result)
                 save_yaml_document(current_job_root/'model-result.yaml',current_model_result)
                 current_proposal_values=build_writing_proposal(current_config_values,current_document_entries,current_context_entries,current_model_result)
+                if current_review_values is not None:
+                    save_yaml_document(current_job_root/'writing-review.yaml',current_review_values)
+                    apply_writer_review(current_proposal_values,current_review_values)
             else:
                 current_candidate_pairs,current_coverage_values=find_duplicate_candidates(current_document_entries,current_chunk_entries,current_ranked_entries if current_request_values['prompt'].strip() else None)
                 current_review_entries=[]

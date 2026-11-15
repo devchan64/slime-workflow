@@ -46,6 +46,35 @@ class WriterApiContracts(TestCase):
         self.assertEqual(current_observed_status['stage'],'failed')
         self.assertEqual(current_observed_status['error'],'GPU 조회 실패')
 
+    def test_search_all_history_and_move_only_finished_job_to_trash(self):
+        from generators.writer_agent.documents import save_yaml_document,load_workspace_config
+        from generators.writer_agent.jobs import create_writer_job,resolve_job_directory,update_job_status
+        current_test_root=Path(self.temporary_root_handle.name)
+        current_documents_root=current_test_root/'docs'
+        (current_documents_root/'ideas').mkdir(parents=True)
+        current_original_path=current_documents_root/'ideas/original.md'
+        current_original_path.write_text('원본 보존')
+        current_workspace_path=current_test_root/'workspace.yaml'
+        save_yaml_document(current_workspace_path,{'schema_version':1,'document_root':str(current_documents_root),'state_root':str(current_test_root/'state'),'write_roots':['ideas'],'excluded_roots':[],'protected_paths':[],'catalog_path':None})
+        current_config_values=load_workspace_config(current_workspace_path)
+        current_identifiers=[]
+        for current_job_number in range(45):
+            current_identifier=create_writer_job(current_config_values,{'mode':'write','prompt':'고유검증사십이' if current_job_number==42 else f'검색대상 {current_job_number}'})
+            update_job_status(resolve_job_directory(current_config_values,current_identifier),'completed')
+            current_identifiers.append(current_identifier)
+        current_manager=WriterAgentManager(current_workspace_path)
+        self.assertEqual(current_manager.search_writer_history('')['count'],45)
+        self.assertEqual(current_manager.search_writer_history('고유검증사십이')['count'],1)
+        current_deleted_identifier=current_identifiers[0]
+        current_manager.delete_writer_history(current_deleted_identifier)
+        self.assertFalse(resolve_job_directory(current_config_values,current_deleted_identifier).exists())
+        self.assertTrue((current_test_root/'state/.history-trash'/current_deleted_identifier/'request.yaml').is_file())
+        self.assertEqual(current_original_path.read_text(),'원본 보존')
+        current_active_identifier=current_identifiers[1]
+        update_job_status(resolve_job_directory(current_config_values,current_active_identifier),'indexing',process_id=os.getpid(),process_identity=read_process_identity(os.getpid()))
+        with self.assertRaisesRegex(ValueError,'실행 중'):
+            current_manager.delete_writer_history(current_active_identifier)
+
     def test_submit_uses_shared_queue_and_rejects_duplicate_after_restart(self):
         from generators.writer_agent.documents import save_yaml_document
         current_test_root=Path(self.temporary_root_handle.name)

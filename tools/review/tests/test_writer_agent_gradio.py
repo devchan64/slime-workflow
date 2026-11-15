@@ -49,7 +49,7 @@ class WriterAgentGradioTest(unittest.TestCase):
             current_ready_values=current_refresh_callback('job-a','작성 지시')
             self.assertTrue(current_ready_values[6]['interactive'])
             self.assertTrue(current_ready_values[9]['interactive'])
-            self.assertFalse(current_refresh_callback('missing','작성 지시')[9]['interactive'])
+            self.assertEqual(current_refresh_callback('older-job','작성 지시')[3],'older-job')
             current_workspace_record['active_job']='job-running'
             current_busy_values=current_refresh_callback('job-a','작성 지시')
             self.assertFalse(current_busy_values[6]['interactive'])
@@ -67,7 +67,8 @@ class WriterAgentGradioTest(unittest.TestCase):
     def test_uses_native_components_without_html(self):
         current_interface_blocks=build_writer_agent_interface(8770)
         self.assertFalse(any(isinstance(current_component_value,gr.HTML) for current_component_value in current_interface_blocks.blocks.values()))
-        self.assertTrue(any(isinstance(current_component_value,gr.Dropdown) for current_component_value in current_interface_blocks.blocks.values()))
+        self.assertTrue(any(isinstance(current_component_value,gr.Dataframe) for current_component_value in current_interface_blocks.blocks.values()))
+        self.assertFalse(any(isinstance(current_component_value,gr.Dropdown) for current_component_value in current_interface_blocks.blocks.values()))
 
     def test_detail_retains_diff_evidence_and_apply_hash(self):
         current_detail_record={'id':'job-a','job_path':'/records/job-a','status':{'stage':'review','proposal_hash':'hash-a'},'request':{'mode':'write'},'proposal':{'reason':'근거','changes':[{'path':'a.md','diff':'+문장'}],'evidence':[{'text':'자료'}]}}
@@ -162,13 +163,47 @@ class WriterAgentGradioTest(unittest.TestCase):
         current_interface_blocks=build_writer_agent_interface(8770)
         current_clear_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='clear_writer_selection_detail')
         current_clear_function=next(current_function_value for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn is current_clear_callback)
-        self.assertEqual([current_target_value[1] for current_target_value in current_clear_function.targets],['change'])
+        self.assertTrue(current_clear_function.outputs)
         current_output_values=current_clear_callback()
         self.assertEqual(len(current_output_values),16)
         for current_output_index in (1,2,5,8,9,11):self.assertEqual(current_output_values[current_output_index],'')
         self.assertEqual(current_output_values[0],{})
         self.assertFalse(current_output_values[12]['interactive'])
         self.assertFalse(current_output_values[13])
+
+    def test_history_row_selects_job_and_selection_loads_detail(self):
+        from types import SimpleNamespace
+        current_interface_blocks=build_writer_agent_interface(8770)
+        current_select_callback=next(current_binding.fn for current_binding in current_interface_blocks.fns.values() if current_binding.fn and current_binding.fn.__name__=='select_writer_history')
+        current_load_callback=next(current_binding.fn for current_binding in current_interface_blocks.fns.values() if current_binding.fn and current_binding.fn.__name__=='load_selected_writer_detail')
+        current_rows=[['job-a','작성 제안','검토',''],['job-b','문서 학습','완료','']]
+        current_selection_update=current_select_callback(current_rows,SimpleNamespace(index=(1,2)))
+        self.assertEqual(current_selection_update,'job-b')
+        current_detail_record={'id':'job-b','job_path':'/records/job-b','status':{'stage':'completed'},'request':{'mode':'learn'}}
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',return_value=current_detail_record):
+            self.assertEqual(current_load_callback('job-b')[1],'job-b')
+        self.assertEqual(current_load_callback(None)[0],{})
+
+    def test_search_and_delete_require_current_selection_confirmation(self):
+        current_interface_blocks=build_writer_agent_interface(8770)
+        current_search_callback=next(current_binding.fn for current_binding in current_interface_blocks.fns.values() if current_binding.fn and current_binding.fn.__name__=='search_writer_history_records')
+        current_delete_callback=next(current_binding.fn for current_binding in current_interface_blocks.fns.values() if current_binding.fn and current_binding.fn.__name__=='delete_selected_writer_history')
+        current_readiness_callback=next(current_binding.fn for current_binding in current_interface_blocks.fns.values() if current_binding.fn and current_binding.fn.__name__=='update_writer_delete_readiness')
+        current_readiness_values=current_readiness_callback({'id':'job-a','status':{'stage':'completed'}},'job-a',True)
+        self.assertTrue(current_readiness_values[0]['interactive'])
+        self.assertIn('job-a',current_readiness_values[1])
+        current_history_response={'jobs':[{'id':'job-a','mode':'write','stage':'review'}],'count':1}
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',return_value=current_history_response):
+            self.assertEqual(current_search_callback('주제','job-a')[1],'job-a')
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service') as current_service_mock:
+            for current_detail_record,current_selected_identifier,current_confirm_value in (({'id':'job-a'},'job-b',True),({'id':'job-a'},'job-a',False)):
+                with self.assertRaises(gr.Error):current_delete_callback(current_detail_record,current_selected_identifier,current_confirm_value,'')
+            current_service_mock.assert_not_called()
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',side_effect=[{'status':'deleted'},{'jobs':[],'count':0}]) as current_service_mock:
+            current_result_values=current_delete_callback({'id':'job-a'},'job-a',True,'')
+            current_service_mock.assert_any_call(8770,'delete',{'id':'job-a'})
+            self.assertEqual(current_result_values[0],[])
+            self.assertFalse(current_result_values[3])
 
     def test_missing_changes_or_hash_never_dispatches_apply(self):
         current_interface_blocks=build_writer_agent_interface(8770)
@@ -191,7 +226,8 @@ class WriterAgentGradioTest(unittest.TestCase):
         current_progress_functions=[current_function_value for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='refresh_writer_progress']
         self.assertEqual(len(current_progress_functions),3)
         for current_function_value in current_progress_functions:
-            self.assertFalse(any(isinstance(current_component_value,(gr.Dropdown,gr.Dataframe)) for current_component_value in current_function_value.outputs))
+            self.assertFalse(any(isinstance(current_component_value,gr.Dropdown) for current_component_value in current_function_value.outputs))
+            self.assertFalse(any(isinstance(current_component_value,gr.Dataframe) for current_component_value in current_function_value.outputs))
         current_workspace_record={'configured':True,'ready':True,'trained':True,'jobs':[{'id':'job-a','mode':'write','stage':'review'}]}
         with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',return_value=current_workspace_record):
             current_progress_values=current_progress_functions[0].fn(None,'')

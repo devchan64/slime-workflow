@@ -11,8 +11,8 @@ from generators.writer_agent.documents import (load_workspace_config,save_yaml_d
 from generators.writer_agent.management import WriterAgentManager
 from generators.writer_agent.documents import calculate_content_hash
 from generators.writer_agent.index import (learn_document_index,load_current_index,find_duplicate_candidates)
-from generators.writer_agent.agent import (build_writing_proposal,build_duplicate_proposal,apply_reviewed_proposal,WRITER_OUTPUT_SCHEMA,collect_writing_context)
-from generators.writer_agent.jobs import validate_job_request,resolve_job_directory,create_writer_job,update_job_status
+from generators.writer_agent.agent import (build_writing_proposal,inspect_writer_draft,apply_writer_review,build_duplicate_proposal,apply_reviewed_proposal,WRITER_OUTPUT_SCHEMA,collect_writing_context)
+from generators.writer_agent.jobs import validate_job_request,resolve_job_directory,create_writer_job,update_job_status,generate_reviewed_writer_result
 
 TEST_PARAGRAPH_TEXT='별빛 도서관은 항해 기록의 관측 시각과 장소를 확인한다. 사서는 두 관측자의 결과가 일치한 경우에만 정식 항로로 등록한다. 폭풍이 일어난 날의 기록은 검토함에 보관한다. 확인되지 않은 항로는 임시 표식을 붙여 정식 항로와 구분한다.'
 
@@ -72,6 +72,11 @@ class WriterAgentContracts(TestCase):
         for current_chunk_entry in current_context_entries:
             self.assertEqual(current_chunk_entry['can_append'],current_chunk_entry['path'] not in {'CATALOG.md','world/README.md'})
 
+    def test_context_includes_document_opening_for_status(self):
+        current_document_chunks=sorted((current_entry for current_entry in self.document_chunk_entries if current_entry['path']=='world/main.md'),key=lambda current_entry:current_entry['start'])
+        current_selected_entries=collect_writing_context(self.document_entry_lookup,self.document_chunk_entries,[current_document_chunks[-1]])
+        self.assertIn(current_document_chunks[0]['id'],[current_entry['id'] for current_entry in current_selected_entries])
+
     def test_structured_paragraph_contract(self):
         current_model_values={'target_path':'world/main.md','heading':'새 절','paragraphs':['첫 문단','둘째 문단'],'reason':'근거','source_ids':[self.document_chunk_entries[0]['id']],'warnings':[]}
         Draft202012Validator(WRITER_OUTPUT_SCHEMA).validate(current_model_values)
@@ -80,6 +85,38 @@ class WriterAgentContracts(TestCase):
         for current_invalid_text in ('[링크](bad.md)','줄바꿈\n본문','큰"따옴표','역'+chr(92)+'슬래시'):
             current_model_values['paragraphs']=[current_invalid_text]
             with self.assertRaises(ValidationError):Draft202012Validator(WRITER_OUTPUT_SCHEMA).validate(current_model_values)
+
+    def test_review_blocks_unsupported_proposal(self):
+        current_proposal_values=self.create_test_proposal()
+        current_review_values={'approved':False,'issues':['서로 다른 요청을 구분하지 못하는 식별자']}
+        current_reviewed_proposal=apply_writer_review(current_proposal_values,current_review_values)
+        self.assertEqual(current_reviewed_proposal['changes'],[])
+        self.assertIn('서로 다른 요청을 구분하지 못하는 식별자',current_reviewed_proposal['warnings'])
+        self.assertTrue(current_reviewed_proposal['evidence'])
+
+    def test_unsupported_status_and_id_combination_are_flagged(self):
+        current_model_result={'heading':'납품','reason':'미확정 제안','paragraphs':['시즌 ID와 개인 인증자를 결합한 식별자를 쓰고 CLAIMED 상태로 기록한다.']}
+        current_issue_values=inspect_writer_draft(current_model_result,[{'text':'납품은 미확정 제안이다.'}])
+        self.assertTrue(any('CLAIMED' in current_issue for current_issue in current_issue_values))
+        self.assertTrue(any('식별자 조합' in current_issue for current_issue in current_issue_values))
+        current_model_result['paragraphs']=['시즌 경계에서 재전송이 거부되는지 확인한다.']
+        self.assertTrue(any('재전송' in current_issue for current_issue in inspect_writer_draft(current_model_result,[{'text':'재요청 시 기존 결과를 확인한다.'}])))
+
+    def test_rejected_draft_is_revised_and_reviewed_once(self):
+        current_draft_values={'target_path':'world/main.md','paragraphs':['초안']}
+        current_revised_values={'target_path':'world/main.md','paragraphs':['수정안']}
+        current_model_input={'instruction':'검토','sources':[],'folders':['world']}
+        current_request_calls=[]
+        current_responses=iter([current_draft_values,{'approved':False,'issues':['원문 상태 확인']},current_revised_values,{'approved':True,'issues':[]}])
+        def request_test_result(*current_request_values):
+            current_request_calls.append(current_request_values)
+            return next(current_responses)
+        current_result_values,current_review_values=generate_reviewed_writer_result(current_model_input,{},self.job_record_root,request_test_result)
+        self.assertEqual(current_result_values,current_revised_values)
+        self.assertTrue(current_review_values['approved'])
+        self.assertEqual(current_request_calls[2][1]['review_feedback'],['원문 상태 확인'])
+        self.assertTrue((self.job_record_root/'writing-review-1.yaml').is_file())
+        self.assertTrue((self.job_record_root/'writing-review-2.yaml').is_file())
 
     def test_append_preserves_original(self):
         current_proposal_values=self.create_test_proposal()

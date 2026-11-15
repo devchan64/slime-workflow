@@ -12,7 +12,7 @@ import sys
 import threading
 import uuid
 from .documents import (DEFAULT_WORKSPACE_CONFIG,WORKFLOW_REPOSITORY_ROOT,load_workspace_config,read_yaml_document,save_yaml_document,parse_unique_json,calculate_content_hash,lock_workspace_state)
-from .jobs import create_writer_job,resolve_job_directory,update_job_status,read_process_identity
+from .jobs import JOB_IDENTIFIER_PATTERN,create_writer_job,resolve_job_directory,update_job_status,read_process_identity
 from .agent import apply_reviewed_proposal
 from . import prepare
 from tools.review.common.model_prepare_process import inspect_detached_preparation, start_detached_preparation
@@ -114,6 +114,7 @@ class WriterAgentManager:
             def monitor_writer_process():
                 current_exit_code=current_worker_process.wait()
                 with self.request_lock_handle:
+                    if not (current_job_root/'status.yaml').exists():return
                     current_stage_name=read_yaml_document(current_job_root/'status.yaml')['stage']
                     if current_stage_name in ACTIVE_JOB_STAGES:
                         update_job_status(current_job_root,'completed' if current_prepare_flag and current_exit_code==0 else 'failed',summary='환경 준비 완료' if current_prepare_flag and current_exit_code==0 else '',error='' if current_exit_code==0 else f'실행 종료 코드 {current_exit_code}. 로그에서 원인을 확인하세요.')
@@ -142,6 +143,46 @@ class WriterAgentManager:
                 current_result_values['log']=current_log_stream.read().decode(errors='replace')
         else:current_result_values['log']=''
         return current_result_values
+
+    def search_writer_history(self,current_query_text):
+        if not isinstance(current_query_text,str) or len(current_query_text)>200:raise ValueError('검색어는 200자 이하의 문자열이어야 합니다.')
+        current_config_values=load_workspace_config(self.workspace_config_path)
+        current_query_terms=current_query_text.casefold().split()
+        current_history_records=[]
+        for current_job_root in sorted((Path(current_config_values['state_root'])/'jobs').glob('*'),reverse=True):
+            if not JOB_IDENTIFIER_PATTERN.fullmatch(current_job_root.name) or current_job_root.is_symlink() or not current_job_root.is_dir() or not (current_job_root/'status.yaml').is_file():continue
+            current_status_values=self.resolve_observed_status(read_yaml_document(current_job_root/'status.yaml'),current_job_root)
+            if current_status_values.get('id')!=current_job_root.name:raise ValueError('작업 이력의 ID가 경로와 일치하지 않습니다.')
+            current_request_values=read_yaml_document(current_job_root/'request.yaml')
+            current_mode_labels={'learn':'문서 학습','write':'작성 제안','deduplicate':'중복 검토','prepare':'환경 준비'}
+            current_stage_labels={'queued':'대기','indexing':'학습','searching':'탐색','reasoning':'작성 판단','review':'변경 검토 대기','completed':'완료','applied':'적용 완료','failed':'실패','interrupted':'중단','preparing':'환경 준비'}
+            current_search_text=' '.join(str(current_value) for current_value in (current_status_values.get('id',''),current_status_values.get('mode',''),current_mode_labels.get(current_status_values.get('mode'),''),current_status_values.get('stage',''),current_stage_labels.get(current_status_values.get('stage'),''),current_status_values.get('summary',''),current_status_values.get('error',''),current_request_values.get('prompt',''))).casefold()
+            if all(current_term in current_search_text for current_term in current_query_terms):current_history_records.append(current_status_values)
+        return {'jobs':current_history_records,'query':current_query_text,'count':len(current_history_records)}
+
+    def delete_writer_history(self,current_job_identifier):
+        current_config_values=load_workspace_config(self.workspace_config_path)
+        current_job_root=resolve_job_directory(current_config_values,current_job_identifier)
+        with self.request_lock_handle, (Path(current_config_values['state_root'])/'submission.lock').open('a') as current_submission_lock, lock_workspace_state(current_config_values):
+            fcntl.flock(current_submission_lock,fcntl.LOCK_EX)
+            if not current_job_root.is_dir():raise ValueError('작업이 없습니다.')
+            current_status_values=self.resolve_observed_status(read_yaml_document(current_job_root/'status.yaml'),current_job_root)
+            if current_status_values['stage'] in ACTIVE_JOB_STAGES:raise ValueError('대기 또는 실행 중인 작업은 삭제할 수 없습니다.')
+            current_application_path=current_job_root/'application.yaml'
+            if current_application_path.exists() and read_yaml_document(current_application_path).get('status') in ('applying','rollback_conflict'):
+                raise ValueError('원본 적용 복구가 필요한 기록은 삭제할 수 없습니다.')
+            current_execution_path=current_job_root/'execution.lock'
+            if current_execution_path.is_symlink():raise ValueError('작업 실행 잠금이 올바르지 않습니다.')
+            with current_execution_path.open('a') as current_execution_lock:
+                try:fcntl.flock(current_execution_lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                except BlockingIOError as current_lock_error:raise ValueError('작업 종료 기록 저장 중입니다. 잠시 후 다시 시도하세요.') from current_lock_error
+                current_trash_root=Path(current_config_values['state_root'])/'.history-trash'
+                current_trash_root.mkdir(mode=0o700,exist_ok=True)
+                if current_trash_root.is_symlink():raise ValueError('휴지통 경로가 올바르지 않습니다.')
+                current_destination_path=current_trash_root/current_job_identifier
+                if current_destination_path.exists():raise ValueError('동일한 휴지통 기록이 있습니다.')
+                current_job_root.rename(current_destination_path)
+        return {'id':current_job_identifier,'status':'deleted','recoverable':True}
 
     def handle_writer_request(self,current_http_handler):
         current_url_parts=urlsplit(current_http_handler.path)
@@ -177,6 +218,12 @@ class WriterAgentManager:
             if current_route_path==WRITER_ROUTE_PREFIX+'/api/detail':
                 if not isinstance(current_request_values,dict) or set(current_request_values)!={'id'}:raise ValueError('작업 조회 필드 오류')
                 send_writer_response(200,self.read_writer_detail(current_request_values['id']))
+            elif current_route_path==WRITER_ROUTE_PREFIX+'/api/history':
+                if not isinstance(current_request_values,dict) or set(current_request_values)!={'query'}:raise ValueError('이력 검색 필드 오류')
+                send_writer_response(200,self.search_writer_history(current_request_values['query']))
+            elif current_route_path==WRITER_ROUTE_PREFIX+'/api/history/delete':
+                if not isinstance(current_request_values,dict) or set(current_request_values)!={'id'}:raise ValueError('이력 삭제 필드 오류')
+                send_writer_response(200,self.delete_writer_history(current_request_values['id']))
             elif current_route_path==WRITER_ROUTE_PREFIX+'/api/jobs':send_writer_response(202,self.launch_writer_process(current_request_values))
             elif current_route_path==WRITER_ROUTE_PREFIX+'/api/apply':
                 if not isinstance(current_request_values,dict) or set(current_request_values)!={'id','proposal_hash'}:raise ValueError('변경 적용 요청 필드 오류')

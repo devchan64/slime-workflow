@@ -52,10 +52,10 @@ MANAGEMENT_COMMAND_ROUTES['sheet-gif'] = ('POST', '/sheet/gif')
 MANAGEMENT_SERVICE_COMMANDS['character-animation'] += ('sheet-auto','sheet-export','sheet-gif','sheet-search','sheet-image','sheet-update')
 MANAGEMENT_COMMAND_ROUTES.update({'sheet-update':('POST','/sheet/update'),'sheet-search':('POST','/sheet/search'),'sheet-image':('POST','/sheet/image')})
 
-WRITER_PAYLOAD_COMMAND_NAMES = ('writer-detail', 'writer-submit', 'writer-apply')
+WRITER_PAYLOAD_COMMAND_NAMES = ('writer-detail', 'writer-submit', 'writer-apply', 'writer-history', 'writer-delete')
 MANAGEMENT_SERVICE_ROUTES['writer-agent'] = '/writer-agent'
 MANAGEMENT_SERVICE_COMMANDS['writer-agent'] = ('writer-state', 'model-status', 'prepare', *WRITER_PAYLOAD_COMMAND_NAMES)
-MANAGEMENT_COMMAND_ROUTES.update({'writer-state': ('GET', '/api/state'), 'writer-detail': ('POST', '/api/detail'), 'writer-submit': ('POST', '/api/jobs'), 'writer-apply': ('POST', '/api/apply')})
+MANAGEMENT_COMMAND_ROUTES.update({'writer-state': ('GET', '/api/state'), 'writer-detail': ('POST', '/api/detail'), 'writer-submit': ('POST', '/api/jobs'), 'writer-apply': ('POST', '/api/apply'), 'writer-history': ('POST', '/api/history'), 'writer-delete': ('POST', '/api/history/delete')})
 
 
 MANAGEMENT_SERVICE_ROUTES['map-assets']='/map-assets'
