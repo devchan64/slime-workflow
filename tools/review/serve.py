@@ -152,6 +152,7 @@ def parse_review_arguments(command_argument_values=None):
 def collect_review_watch_paths(parsed_argument_values):
     workflow_repo_root = Path(__file__).resolve().parents[2]
     watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review/ui']
+    watch_paths.extend(current_page_directory for current_page_directory in (workflow_repo_root/'generators').glob('*/page') if current_page_directory.is_dir())
     watch_paths.extend(current_config_directory for current_config_directory in (workflow_repo_root/'generators').rglob('config') if current_config_directory.is_dir())
     watch_paths.extend(workflow_repo_root/'generators/writer_agent'/current_file_name for current_file_name in ('manager.html','manager.js'))
     watch_paths.extend((workflow_repo_root/'tools/review').glob('build_*.py'))

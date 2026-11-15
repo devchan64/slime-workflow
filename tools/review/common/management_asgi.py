@@ -12,15 +12,6 @@ from fastapi import FastAPI
 from starlette.responses import Response, RedirectResponse
 import gradio as gr
 
-QWEN_INTERFACE_OPTIONS = {
-    'billboard-generator': {'qwen21_mode_enabled': True, 'prop_mode_enabled': True, 'billboard_guide_enabled': True},
-    'vegetation-generator': {'qwen21_mode_enabled': True, 'vegetation_mode_enabled': True},
-    'prop-generator': {'qwen21_mode_enabled': True, 'prop_mode_enabled': True},
-    'building-generator': {'qwen21_mode_enabled': True, 'prop_mode_enabled': True, 'billboard_guide_enabled': True},
-    'qwen-21-generator': {'qwen21_mode_enabled': True},
-    'qwen-21-circular-generator': {'qwen21_mode_enabled': True, 'circular_mode_enabled': True},
-    'expression-generator': {'expression_mode_enabled': True},
-}
 MANAGEMENT_INTERFACE_BUILDERS = {
     'model-management': ('model_management_app', 'build_model_management_interface', 'none'),
     'dwpose-generator': ('dwpose_app', 'build_dwpose_interface', 'url'),
@@ -38,6 +29,9 @@ MANAGEMENT_INTERFACE_BUILDERS = {
 }
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
 MUSIC_INTERFACE_SERVICES = ('music-heartmula', 'sfx-dasheng-audiogen')
+GENERATOR_PAGE_PACKAGES = {'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator', 'music-heartmula': 'music-heartmula', 'sfx-dasheng-audiogen': 'sfx-dasheng-audiogen', 'writer-agent': 'writer_agent'}
+# 기존 소비자는 옵션 등록부를 읽는다. 원본 설정은 각 생성기 페이지가 소유한다.
+QWEN_INTERFACE_OPTIONS = {current_identifier: importlib.import_module(f'generators.{GENERATOR_PAGE_PACKAGES[current_identifier]}.page.interface').GENERATOR_PAGE_OPTIONS for current_identifier in ('qwen-21-generator', 'qwen-21-circular-generator', 'expression-generator', 'vegetation-generator', 'prop-generator', 'billboard-generator', 'building-generator')}
 
 
 def build_management_blocks(current_tool_name, current_review_port, current_source_path):
@@ -47,12 +41,10 @@ def build_management_blocks(current_tool_name, current_review_port, current_sour
     current_mount_options = {'allowed_paths': [], 'ssr_mode': False, 'head': REVIEW_LIVE_RELOAD_SCRIPT.decode(), 'css': '#management-gpu-floating{position:fixed;right:12px;bottom:12px;z-index:50;width:min(12rem,calc(100vw - 24px));max-height:45dvh;overflow-x:hidden;overflow-y:auto}#management-gpu-floating:has(>button.open){width:min(27rem,calc(100vw - 24px))}#management-gpu-floating .gr-accordion{min-width:0!important;overflow-x:hidden}#management-gpu-floating .gr-accordion>button{min-width:0;width:100%;white-space:normal;text-align:left}#management-gpu-floating .gr-accordion>button>span:first-child{min-width:0;overflow-wrap:anywhere}#management-gpu-floating .gr-accordion>button>span:last-child{flex-shrink:0;align-self:center;min-width:1.25rem;text-align:center}#management-gpu-floating [data-testid="markdown"]{overflow-wrap:anywhere}'}
     if current_tool_name == 'management':
         return build_management_menu_interface(load_manager_page_records(current_source_path), current_review_port)[0], current_mount_options
-    if current_tool_name in QWEN_INTERFACE_OPTIONS:
-        from tools.review.ui.gradio.qwen_2511_app import build_qwen_2511_interface
-        current_interface_blocks = build_qwen_2511_interface(current_server_address, **QWEN_INTERFACE_OPTIONS[current_tool_name])
-    elif current_tool_name in MUSIC_INTERFACE_SERVICES:
-        from tools.review.ui.gradio.music_app import build_music_interface
-        current_interface_blocks = build_music_interface(current_tool_name, current_server_address)
+    if current_tool_name in GENERATOR_PAGE_PACKAGES:
+        current_page_package = GENERATOR_PAGE_PACKAGES[current_tool_name]
+        current_page_module = importlib.import_module(f'generators.{current_page_package}.page.interface')
+        current_interface_blocks = current_page_module.build_generator_page(current_server_address, current_review_port)
     elif current_tool_name == 'static-review':
         from tools.review.ui.gradio.static_review_app import load_static_review_paths, build_static_review_interface, create_static_review_loader
         current_static_paths = load_static_review_paths(current_source_path)
@@ -112,7 +104,7 @@ def build_management_application(current_handler_class, current_root_path, curre
             yield
 
     current_root_application = FastAPI(lifespan=manage_application_lifespan)
-    current_supported_tools = {*QWEN_INTERFACE_OPTIONS, *MANAGEMENT_INTERFACE_BUILDERS, *MUSIC_INTERFACE_SERVICES, 'management', 'static-review'}
+    current_supported_tools = {*GENERATOR_PAGE_PACKAGES, *MANAGEMENT_INTERFACE_BUILDERS, *MUSIC_INTERFACE_SERVICES, 'management', 'static-review'}
 
     async def dispatch_management_request(current_request_scope, current_receive_call, current_send_call):
         current_request_path = current_request_scope['path']

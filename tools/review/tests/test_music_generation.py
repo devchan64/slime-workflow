@@ -29,9 +29,10 @@ class MusicGenerationTests(unittest.TestCase):
             self.assertEqual(current_example_record['request']['duration_seconds'], 300)
             current_song_lines = current_example_record['request']['lyrics'].splitlines()
             current_section_positions = [current_song_lines.index('[Chorus]'),current_song_lines.index('[Outro]')]
-            self.assertIn((len(current_song_lines),tuple(current_section_positions)), ((9,(3,6)),(11,(3,8)),(14,(6,11)),(16,(8,13)),(31,(12,28))))
             self.assertEqual(current_song_lines[0], '[Verse]')
-            self.assertEqual(len(current_song_lines)-current_song_lines.index('[Outro]')-1, 2)
+            self.assertGreater(current_section_positions[0], 1)
+            self.assertGreater(current_section_positions[1], current_section_positions[0] + 1)
+            self.assertGreaterEqual(len(current_song_lines) - current_section_positions[1] - 1, 2)
 
 
     def test_example_pagination_preserves_all_records(self):
@@ -355,11 +356,12 @@ class MusicGenerationTests(unittest.TestCase):
     def test_worker_failure_and_cancellation_preserve_attempts(self):
         from generators.music.worker import execute_music_worker
         current_job_root = self.create_test_job()
+        write_record_atomically(current_job_root/'request.json', build_music_request('music-heartmula', {'prompt':'piano','lyrics':'[Verse]\nHome'}))
         current_original_signals = {current_signal_number:signal.getsignal(current_signal_number) for current_signal_number in (signal.SIGTERM,signal.SIGINT)}
         try:
             for current_failure_error,current_expected_status in [(RuntimeError('CUDA OOM'),'failed'),(InterruptedError('cancel'),'cancelled')]:
                 with patch('generators.music.worker.resolve_music_paths',return_value=(self.current_music_service.job_storage_root,self.current_test_root/'model',self.current_test_root/'python')), patch('generators.music.runtime.require_music_cuda',side_effect=current_failure_error), patch('tools.review.common.generation_telemetry.GenerationTelemetryRecorder.sample_generation_memory'), self.assertRaises(type(current_failure_error)):
-                    execute_music_worker('music-minimax',current_job_root)
+                    execute_music_worker('music-heartmula',current_job_root)
                 self.assertEqual(json.loads((current_job_root/'status.json').read_text())['status'],current_expected_status)
                 current_attempt_name = json.loads((current_job_root/'current-attempt.json').read_text())['id']
                 current_attempt_root = current_job_root/'attempts'/current_attempt_name

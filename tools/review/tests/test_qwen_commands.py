@@ -52,17 +52,23 @@ class QwenCommandsTest(unittest.TestCase):
                 self.assertEqual(current_final_text, ' '.join(current_expected_parts))
                 self.assertEqual(len(current_final_text.split()), 2 + len(current_added_text.split()))
 
-    def test_both_generation_routes(self):
-        for service_name_value,route_prefix_value,default_seed_value in [('qwen-2512','/image-generation',251204)]:
+    def test_active_generation_route(self):
+        for service_name_value,route_prefix_value,default_seed_value in [('qwen-21','/image-generation-21',10107)]:
             with patch.object(COMMAND_MODULE_VALUE,'call_management_api',return_value={'id':'2026-09-25_00-00-00-12345678','status':'running'}) as api_call_handle, contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(COMMAND_MODULE_VALUE.execute_gateway_arguments(service_name_value,['generate','--prompt','한국어 프롬프트','--detach']),0)
             request_call_args=api_call_handle.call_args.args
             self.assertEqual(request_call_args[1],route_prefix_value+'/jobs')
             self.assertEqual(request_call_args[2]['seed'],default_seed_value)
-            self.assertEqual(request_call_args[2]['width'],512 if service_name_value=='qwen-2511' else 1024)
-            self.assertEqual(request_call_args[2]['height'],512 if service_name_value=='qwen-2511' else 1024)
+            self.assertEqual(request_call_args[2]['width'],768)
+            self.assertEqual(request_call_args[2]['height'],768)
             self.assertEqual(request_call_args[2]['prompt'],'한국어 프롬프트')
-            self.assertEqual('images' in request_call_args[2],service_name_value=='qwen-2511')
+            self.assertIn('images', request_call_args[2])
+
+    def test_retired_generation_route_is_rejected(self):
+        with patch.object(COMMAND_MODULE_VALUE, 'call_management_api') as current_api_mock:
+            with self.assertRaisesRegex(ValueError, '폐기'):
+                COMMAND_MODULE_VALUE.execute_gateway_arguments('qwen-2512', ['generate', '--prompt', 'test'])
+            current_api_mock.assert_not_called()
 
     def test_reference_order_and_prompt_file(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
@@ -77,7 +83,7 @@ class QwenCommandsTest(unittest.TestCase):
 
     def test_failed_generation_exit_status(self):
         with patch.object(COMMAND_MODULE_VALUE,'call_management_api',side_effect=[{'id':'2026-09-25_00-00-00-12345678'},{'status':'failed','error':'실패'}]), contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(COMMAND_MODULE_VALUE.execute_gateway_arguments('qwen-2512',['generate','--prompt','test']),1)
+            self.assertEqual(COMMAND_MODULE_VALUE.execute_gateway_arguments('qwen-21',['generate','--prompt','test']),1)
 
     def test_help_does_not_connect(self):
         with patch.object(COMMAND_MODULE_VALUE,'call_management_api') as api_call_handle, contextlib.redirect_stdout(io.StringIO()):

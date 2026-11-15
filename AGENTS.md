@@ -34,6 +34,10 @@
 - 관리도구 소스는 [도메인 구조 가이드](tools/review/README.md)를 따른다. 공용 Python은 `tools/review/common/`, 생성기별 서비스는 `tools/review/domains/`, UI는 `tools/review/ui/`에서 관리한다.
 - 루트의 이전 서비스 파일은 import·직접 실행 호환 연결이다. 신규 기능은 정식 도메인 모듈에 추가하며 URL·CLI·기록 저장 경로를 디렉터리 이동에 맞춰 바꾸지 않는다.
 
+## Generator Page and Changelog Standard
+- 모든 현행·신규 생성기는 생성 기능과 해당 생성기 페이지를 한 세트로 제공한다. 각 생성기는 독립 `CHANGELOG.md`를 Git으로 관리하고, 페이지 안에서 그 문서의 내용을 읽을 수 있어야 한다. 링크만 제공하거나 생성 작업 이력으로 대체하지 않는다.
+- 생성기별 폴더 구성, 변경 기록 형식, 공용 코드와 기존 경로의 이관·검증 기준은 [생성기 구성 가이드](workflows/generator-structure.md)를 따른다. 기존 생성기도 전환 대상이며 가이드 작성만으로 페이지·체인지로그 구현이 완료된 것으로 간주하지 않는다.
+
 ## Management UI Guide
 - 미전환 독립 HTML의 전역 스타일은 `tools/review/ui/shared/management.css`에서 관리한다. 웹 페이지는 `/management/style.css`를 연결하고, 단독 검수 HTML은 `read_review_shared_styles()`로 삽입한다. 도메인 CSS에는 배치만 추가하며 공용 색상·상태 스타일을 복제하지 않는다.
 - 생성 UI는 [예상 시간 표시 규칙](workflows/management-ui.md#생성-예상-시간-표시-규칙)에 따라 예상 남은 시간·완료 시각과 추정 근거를 표시한다. 근거가 없으면 계산 중임을 안내한다.
