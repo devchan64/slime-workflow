@@ -310,7 +310,7 @@ class HistoryRadioTableTest(unittest.TestCase):
         with gr.Blocks():
             current_read_history,current_output_components=build_generation_history_view(lambda *_:{'records':current_history_records},'http://localhost','검증',show_thumbnail_column=False)
             current_page_updates=current_read_history(1,'sound-job')
-        self.assertIn('ID: sound-job',current_page_updates[3][0][1])
+        self.assertIn('ID: sound-job',current_page_updates[3].value[0]['caption'])
         self.assertEqual(current_page_updates[0]['value'],'sound-job')
 
     def test_history_card_page_size_and_selection(self):
@@ -319,23 +319,25 @@ class HistoryRadioTableTest(unittest.TestCase):
             current_read_history,_=build_generation_history_view(lambda *_:{'records':current_history_records},'http://localhost','검증')
         current_page_updates=current_read_history(2,'job-0',4)
         self.assertIn('2 / 3페이지',current_page_updates[1])
-        self.assertEqual(len(current_page_updates[3]),4)
-        self.assertIn('job-4',current_page_updates[3][0][1])
+        self.assertEqual(len(current_page_updates[3].value),4)
+        self.assertIn('job-4',current_page_updates[3].value[0]['caption'])
         self.assertIsNone(current_page_updates[0]['value'])
+        self.assertIsNone(current_page_updates[3].selected_index)
+        self.assertEqual(current_read_history(2,'job-5',4)[3].selected_index,1)
         current_selection_callback=next(value.fn for value in current_history_blocks.fns.values() if value.fn and value.fn.__name__=='select_history_table_record')
-        self.assertEqual(current_selection_callback(2,4,gr.SelectData(None,{'index':0,'value':{'caption':current_page_updates[3][0][1]}}))['value'],'job-4')
+        self.assertEqual(current_selection_callback(2,4,gr.SelectData(None,{'index':0,'value':{'caption':current_page_updates[3].value[0]['caption']}}))['value'],'job-4')
         current_history_records.insert(0, {'id':'new-job','status':'completed','request':{}})
-        self.assertEqual(current_selection_callback(2,4,gr.SelectData(None,{'index':0,'value':{'caption':current_page_updates[3][0][1]}}))['value'],'job-4')
+        self.assertEqual(current_selection_callback(2,4,gr.SelectData(None,{'index':0,'value':{'caption':current_page_updates[3].value[0]['caption']}}))['value'],'job-4')
         current_history_records.pop(0)
         with self.assertRaises(gr.Error):
             current_selection_callback(2,4,gr.SelectData(None,{'index':0,'value':{'caption':'ID: missing'}}))
         current_last_page=current_read_history(99,None,4)
         self.assertIn('3 / 3페이지',current_last_page[1])
-        self.assertEqual(len(current_last_page[3]),2)
+        self.assertEqual(len(current_last_page[3].value),2)
         self.assertFalse(current_last_page[5]['interactive'])
         current_large_page=current_read_history(1,None,16)
         self.assertIn('1 / 1페이지',current_large_page[1])
-        self.assertEqual(len(current_large_page[3]),10)
+        self.assertEqual(len(current_large_page[3].value),10)
         current_gallery_component=next(current_block_value for current_block_value in current_history_blocks.blocks.values() if isinstance(current_block_value,gr.Gallery) and current_block_value.elem_id=='generation-history-cards')
         from tools.review.common.gradio_history_cards import CardGallery
         self.assertIsInstance(current_gallery_component,CardGallery)
@@ -344,16 +346,21 @@ class HistoryRadioTableTest(unittest.TestCase):
         self.assertEqual(current_gallery_component.get_block_name(),'cardgallery')
         self.assertEqual(current_gallery_component.get_config()['columns'],4)
         self.assertEqual(current_gallery_component.get_config()['rows'],2)
-        self.assertEqual(len(current_gallery_component.postprocess(current_page_updates[3]).root),4)
+        self.assertEqual(len(current_page_updates[3].value),4)
         import asyncio
         from unittest.mock import patch
         async def run_gallery_test_inline(current_callback_function,*current_callback_inputs,**current_thread_options):
             return current_callback_function(*current_callback_inputs)
         current_gallery_function=next(current_function for current_function in current_history_blocks.fns.values() if current_function.fn is current_selection_callback)
-        current_selection_event=gr.SelectData(current_gallery_component,{'index':0,'value':{'caption':current_page_updates[3][0][1]}})
+        current_selection_event=gr.SelectData(current_gallery_component,{'index':0,'value':{'caption':current_page_updates[3].value[0]['caption']}})
         with patch('anyio.to_thread.run_sync',side_effect=run_gallery_test_inline):
             current_selection_result=asyncio.run(current_history_blocks.process_api(current_gallery_function,[2,4],event_data=current_selection_event))
         self.assertEqual(current_selection_result['data'][0]['value'],'job-4')
+        current_page_function=next(current_function for current_function in current_history_blocks.fns.values() if current_function.fn is current_read_history)
+        with patch('anyio.to_thread.run_sync',side_effect=run_gallery_test_inline):
+            current_page_result=asyncio.run(current_history_blocks.process_api(current_page_function,[2,'job-0',4]))
+        self.assertIsNone(current_page_result['data'][3]['selected_index'])
+        self.assertEqual(len(current_page_result['data'][3]['value']),4)
 
     def test_history_thumbnail_is_bounded_without_changing_original(self):
         from unittest.mock import patch

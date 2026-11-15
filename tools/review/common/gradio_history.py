@@ -406,7 +406,9 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         selected_history_identifier=current_selected_identifier if current_selected_identifier in [value for _,value in current_choice_values] else None
         # 목록과 선택값을 함께 갱신하여 브라우저와 서버의 선택 상태를 맞춘다.
         selection_update_values = {'choices':current_choice_values, 'value':selected_history_identifier}
-        return gr.update(**selection_update_values),f'총 {len(current_history_records)}건 · {current_page_number} / {current_page_count}페이지' if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),render_generation_history_cards(current_page_records,build_history_table_rows(current_page_records),selected_history_identifier,show_thumbnail_column,server_base_address),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count),gr.update(visible=bool(selected_history_identifier))
+        selected_card_index=next((current_index for current_index,current_record in enumerate(current_page_records) if current_record['id']==selected_history_identifier),None)
+        current_card_values=render_generation_history_cards(current_page_records,build_history_table_rows(current_page_records),selected_history_identifier,show_thumbnail_column,server_base_address)
+        return gr.update(**selection_update_values),f'총 {len(current_history_records)}건 · {current_page_number} / {current_page_count}페이지' if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),CardGallery(value=current_card_values,selected_index=selected_card_index,render=False),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count),gr.update(visible=bool(selected_history_identifier))
 
     def select_history_table_record(current_page_number,current_page_size,current_selection_event:gr.SelectData):
         current_row_index=current_selection_event.index

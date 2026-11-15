@@ -911,17 +911,6 @@
 		height: var(--size-full);
 	}
 
-	.fixed-height {
-		min-height: var(--size-80);
-		max-height: 55vh;
-	}
-
-	@media (--screen-xl) {
-		.fixed-height {
-			min-height: 450px;
-		}
-	}
-
 	.media-button {
 		height: calc(100% - 60px);
 		width: 100%;
@@ -1047,13 +1036,16 @@
 	.grid-wrap {
 		position: relative;
 		padding: var(--size-2);
-		overflow-y: scroll;
+		overflow-y: auto;
+	}
+
+	.grid-wrap.fixed-height {
+		overflow: visible;
 	}
 
 	.grid-container {
 		display: grid;
 		position: relative;
-		grid-template-rows: repeat(var(--grid-rows), minmax(100px, 1fr));
 		grid-template-columns: repeat(var(--grid-cols), minmax(0, 1fr));
 		grid-auto-rows: minmax(100px, 1fr);
 		gap: var(--spacing-lg);
