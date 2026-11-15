@@ -15,6 +15,7 @@ MODEL_PREPARATION_SERVICES = (
     ('HeartMuLa', 'music-heartmula'),
     ('Dasheng-AudioGen', 'sfx-dasheng-audiogen'),
     ('작가 AI', 'writer-agent'),
+    ('TranslateGemma 4B', 'prompt-translation'),
 )
 MODEL_JOB_SERVICES = ()
 MODEL_OBSERVATION_SERVICES = ()
@@ -158,6 +159,8 @@ def build_model_management_interface():
             with gr.Group():
                 gr.Markdown(f'### {current_label_name}')
                 if current_service_name in current_preparation_names:
+                    if current_service_name == 'prompt-translation':
+                        gr.Markdown('[Gemma 이용약관과 모델 접근 조건](https://huggingface.co/google/translategemma-4b-it)을 검토·동의하고 Hugging Face에 로그인해야 다운로드할 수 있습니다. 실패 시 `.local/model-preparation/prompt-translation-model/worker.log`를 확인하세요.')
                     def execute_model_command(current_command_name, current_payload_record, service_name_value=current_service_name):
                         return execute_model_preparation_command(service_name_value, current_command_name, current_payload_record)
                     build_model_download_controls(current_interface_blocks, execute_model_command, model_service_name=current_service_name, shared_refresh_records=current_shared_refresh_records, shared_progress_outputs=current_shared_progress_outputs)

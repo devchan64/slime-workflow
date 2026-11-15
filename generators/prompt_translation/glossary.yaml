@@ -1,0 +1,22 @@
+version: 1
+terms:
+  - source: 이슬온
+    targets:
+      en: Iseulon
+    source_ref: slime-assets/assets/maps/map_names/iseulon.yaml
+    status: approved
+  - source: 셀 음영
+    targets:
+      en: cel shading
+    source_ref: slime-workflow/prompts/common/art-style-v1.5.0.yaml
+    status: approved
+  - source: 묶음 형태의 머리카락
+    targets:
+      en: grouped hair locks
+    source_ref: slime-workflow/prompts/common/character-appearance-v1.2.0.yaml
+    status: approved
+  - source: 눈의 크기와 간격
+    targets:
+      en: eye size and spacing
+    source_ref: slime-workflow/prompts/common/character-appearance-v1.2.0.yaml
+    status: approved

@@ -6,6 +6,11 @@ from unittest.mock import patch
 from tools.review.common import gpu_memory_history as memory
 
 class MemoryHistoryTests(unittest.TestCase):
+    def test_translation_reserves_verifier_memory_despite_old_history(self):
+        with tempfile.TemporaryDirectory() as current_directory_name, patch.object(memory, 'MEMORY_HISTORY_DIRECTORY', Path(current_directory_name)):
+            memory.save_memory_observation('prompt-translation', 'old', 8500, 2, 'completed', command_identity_name='worker.py')
+            self.assertEqual(memory.estimate_required_memory('prompt-translation', 16384, 'worker.py')['required_memory_mib'], 16384)
+
     def test_writer_embedding_observation_preserves_generation_floor(self):
         with tempfile.TemporaryDirectory() as current_directory_name, patch.object(memory,'MEMORY_HISTORY_DIRECTORY',Path(current_directory_name)):
             memory.save_memory_observation('writer-agent','learn',2048,2,'completed',command_identity_name='generators.writer_agent.jobs')
