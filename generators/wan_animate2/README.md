@@ -89,3 +89,7 @@ Inductor `fullgraph=True`로 컴파일하고 오프로드는 바깥에서 실행
 `triton_tem_fused_flex_attention_0` 호출을 확인했다. CUPTI 초기화 실패로
 GPU 상세 이벤트는 확보하지 못했다. 전체 영상 동등성 검증과는 구분한다.
 재시험: `2026-11-09_13-51-37-9e993a46`, 동일 21프레임·40스텝.
+
+### ROCm VAE 수치 안정성 검증
+
+GPU 초기화 전에 `PYTORCH_ALLOC_CONF=expandable_segments:False`를 고정하고 이전 별칭을 제거한다. VAE 수학 SDPA 및 비유한 값 검사를 함께 유지한다. 2026-11-15 실제 5프레임·2스텝 반복 비교에서 True 조건의 VAE 실패와 False 조건의 완료를 관측했다. 내부 오류 원인과 긴 영상 안정성은 미확정이며 상세 조건은 [NaN 사례집](../../workflows/rocm-nan-cases.md)을 따른다.

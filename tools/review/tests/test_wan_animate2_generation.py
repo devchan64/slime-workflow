@@ -11,6 +11,12 @@ from tools.review.common.management_gateway import resolve_management_command, M
 
 
 class AnimateTwoContractTests(unittest.TestCase):
+    def test_animate_allocator_overrides_conflicting_legacy_settings(self):
+        from generators.wan_animate2.worker import configure_animate_memory_allocator
+        current_environment_values={'PYTORCH_ALLOC_CONF':'expandable_segments:True','PYTORCH_CUDA_ALLOC_CONF':'expandable_segments:True','OTHER':'keep'}
+        configure_animate_memory_allocator(current_environment_values)
+        self.assertEqual(current_environment_values,{'PYTORCH_ALLOC_CONF':'expandable_segments:False','OTHER':'keep'})
+
     def test_nonfinite_scheduler_and_video_output_fail_before_conversion(self):
         import numpy as np
         import torch

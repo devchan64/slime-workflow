@@ -2,8 +2,13 @@
 import hashlib
 from functools import wraps
 import os
-os.environ.pop('PYTORCH_CUDA_ALLOC_CONF', None)
-os.environ['PYTORCH_ALLOC_CONF'] = 'expandable_segments:True'
+def configure_animate_memory_allocator(current_environment_values):
+    """GPU 초기화 전에 검증된 할당 정책을 고정하고 이전 별칭 충돌을 제거한다."""
+    current_environment_values.pop('PYTORCH_CUDA_ALLOC_CONF', None)
+    current_environment_values['PYTORCH_ALLOC_CONF'] = 'expandable_segments:False'
+
+
+configure_animate_memory_allocator(os.environ)
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
@@ -111,7 +116,7 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
         raise ValueError(f'공식 출력 프레임 불일치: {len(current_frame_arrays)} / {current_frame_count}')
     current_metrics_recorder.update_generation_stage('postprocess')
     current_output_hashes=save_video_outputs(current_attempt_root,current_frame_arrays,24)
-    return {'attempt':current_attempt_root.name,'frames':current_frame_count,'fps':24,'output_sha256':current_output_hashes,'model_id':ANIMATE_MODEL_IDENTIFIER,'model_revision':ANIMATE_MODEL_REVISION,'runtime_revision':ANIMATE_RUNTIME_REVISION,'prompt_words':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'attention_execution':'inductor-fullgraph-isolated','vae_attention_backend':'math','reference_kv_offload':None,'compute_backend':'rocm','weight_offload':None,'cuda_allocator':'expandable_segments:True','quality_status':'사용자 검수 대기'}
+    return {'attempt':current_attempt_root.name,'frames':current_frame_count,'fps':24,'output_sha256':current_output_hashes,'model_id':ANIMATE_MODEL_IDENTIFIER,'model_revision':ANIMATE_MODEL_REVISION,'runtime_revision':ANIMATE_RUNTIME_REVISION,'prompt_words':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'attention_execution':'inductor-fullgraph-isolated','vae_attention_backend':'math','reference_kv_offload':None,'compute_backend':'rocm','weight_offload':None,'cuda_allocator':'expandable_segments:False','quality_status':'사용자 검수 대기'}
 
 if __name__=='__main__':
     run_reference_video_worker(ANIMATE_JOB_STORAGE,Path(__file__),validate_animate_assets,execute_animate_inference)
