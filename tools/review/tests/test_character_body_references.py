@@ -49,11 +49,31 @@ class CharacterBodyReferenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '첫 참조'):
             validate_styled_qwen_request({**self.request_values, 'body_reference_id': self.body_catalog[0]['id'], 'images': [base64.b64encode(current_buffer.getvalue()).decode()]})
 
+    def test_body_reference_search_and_selection(self):
+        current_gallery = importlib.import_module('generators.character-generator.page.body_reference_gallery')
+        self.assertEqual([current_record['id'] for current_record in current_gallery.search_body_reference_catalog('관절')], ['neutral-body-jointed'])
+        self.assertEqual([current_record['id'] for current_record in current_gallery.search_body_reference_catalog('NEUTRAL-BODY-CLOTHED')], ['neutral-body-clothed'])
+        self.assertEqual(len(current_gallery.search_body_reference_catalog('중성형 비율')), 2)
+        self.assertEqual(current_gallery.search_body_reference_catalog('검색불가'), [])
+        current_empty_page = current_gallery.render_body_reference_page('검색불가', 1)
+        self.assertEqual(current_empty_page[0], [])
+        self.assertIsNone(current_empty_page[6])
+        self.assertFalse(current_empty_page[9]['interactive'])
+        current_page_values = current_gallery.render_body_reference_page('관절', 1)
+        current_event_value = gr.SelectData(None, {'index': 0, 'value': 'reference.png'})
+        current_selection = current_gallery.select_body_reference_card('관절', 1, current_page_values[2], current_event_value)
+        self.assertEqual(current_selection[0], 'neutral-body-jointed')
+        self.assertIn(self.body_catalog[0]['sha256'], current_selection[2])
+        self.assertTrue(current_selection[3]['interactive'])
+        with self.assertRaises(gr.Error):
+            current_gallery.select_body_reference_card('피부', 1, current_page_values[2], current_event_value)
+
     def test_character_page_has_reference_selection(self):
         current_page = importlib.import_module('generators.character-generator.page.interface')
         current_blocks = current_page.build_generator_page('http://127.0.0.1:8770', 8770)
         current_components = current_blocks.config['components']
-        self.assertTrue(any(current_item['props'].get('label') == '신체 비율 참조 선택' for current_item in current_components))
+        self.assertTrue(any(current_item['props'].get('label') == '신체 비율 참조 검색' for current_item in current_components))
+        self.assertTrue(any(current_item['props'].get('label') == '신체 비율 참조 카드' for current_item in current_components))
         self.assertTrue(any(current_item['props'].get('value') == '선택 기준을 첫 참조에 적용' for current_item in current_components))
         current_image_control = next(current_component for current_component in current_blocks.blocks.values() if isinstance(current_component, gr.Image) and current_component.label == '참조 이미지 1')
         current_original_image = self.body_module.load_body_reference_image('neutral-body-jointed')

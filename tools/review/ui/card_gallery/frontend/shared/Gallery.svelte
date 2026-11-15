@@ -799,7 +799,7 @@
 				style="--grid-cols:{effective_columns}; --grid-rows:{rows}; --object-fit: {object_fit};"
 				class:pt-6={show_label}
 			>
-				{#each resolved_value as entry, i}
+				{#each resolved_value as entry, i (i + ":" + ("image" in entry ? (typeof entry.image === "string" ? entry.image : entry.image.url) : entry.video.url))}
 					<div class="gallery-item">
 						<button
 							class="thumbnail-item thumbnail-lg"
@@ -839,7 +839,14 @@
 							{#if entry.caption}
 								<div class="card-fields">
 									{#each entry.caption.split("\n") as current_field}
-										<div>{current_field}</div>
+										<div class="card-field">
+											{#if current_field.includes(": ")}
+												<span class="card-field-label">{current_field.slice(0, current_field.indexOf(": "))}</span>
+												<span>{current_field.slice(current_field.indexOf(": ") + 2)}</span>
+											{:else}
+												<span>{current_field}</span>
+											{/if}
+										</div>
 									{/each}
 								</div>
 							{/if}
@@ -980,9 +987,9 @@
 		box-shadow:
 			inset 0 0 0 1px var(--ring-color),
 			var(--shadow-drop);
-		border: 1px solid var(--border-color-primary);
+		border: 1px solid currentColor;
 		border-radius: var(--button-small-radius);
-		background: var(--background-fill-secondary);
+		background: transparent;
 		aspect-ratio: var(--ratio-square);
 		width: var(--size-full);
 		height: var(--size-full);
@@ -1081,6 +1088,22 @@
 		font-size: var(--block-label-text-size);
 		overflow-wrap: anywhere;
 		white-space: normal;
+	}
+
+	.card-field {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--spacing-xs);
+	}
+
+	.card-field-label {
+		flex: none;
+		border: 1px solid var(--border-color-primary);
+		border-radius: var(--radius-sm);
+		background: var(--background-fill-secondary);
+		color: var(--body-text-color-subdued);
+		padding: 0 var(--spacing-xs);
+		font-weight: var(--weight-semibold);
 	}
 
 	.grid-wrap.minimal {

@@ -288,26 +288,9 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if character_mode_enabled:
             from importlib import import_module
             current_body_module = import_module('generators.character-generator.body_references')
-            current_body_records = current_body_module.load_body_reference_catalog()
             character_body_state = gr.State(None)
-            with gr.Group():
-                gr.Markdown('### 신체 비율 참조 기준\n선택한 기준을 첫 번째 참조에 적용합니다. 기존 첫 참조는 교체됩니다. 2×2 이미지는 신체 비율만 참고하며, 재질·눈색·기본복은 복제하지 않습니다.')
-                with gr.Row():
-                    with gr.Column():
-                        character_body_selector = gr.Dropdown([(current_record['label'], current_record['id']) for current_record in current_body_records], value=None, label='신체 비율 참조 선택', allow_custom_value=False)
-                        character_body_description = gr.Markdown('참조를 선택하면 원본과 용도를 확인할 수 있습니다.')
-                        character_body_apply = gr.Button('선택 기준을 첫 참조에 적용', variant='secondary')
-                    character_body_preview = gr.Image(type='pil', format='png', interactive=False, label='신체 비율 기준 미리보기', height=REFERENCE_IMAGE_CARD_HEIGHT)
-
-            def preview_character_body(current_reference_id):
-                if not current_reference_id:
-                    return None, '참조를 선택하면 원본과 용도를 확인할 수 있습니다.'
-                current_reference_record = next((current_record for current_record in current_body_module.load_body_reference_catalog() if current_record['id'] == current_reference_id), None)
-                if current_reference_record is None:
-                    raise gr.Error('신체 비율 참조를 다시 선택하세요.')
-                return current_body_module.load_body_reference_image(current_reference_id), f"{current_reference_record['role']}  버전 {current_reference_record['version']} · SHA-256 {current_reference_record['sha256']}"
-
-            character_body_selector.change(preview_character_body, character_body_selector, [character_body_preview, character_body_description], queue=False)
+            current_body_gallery = import_module('generators.character-generator.page.body_reference_gallery')
+            character_body_selector, character_body_apply = current_body_gallery.build_body_reference_gallery()
         with gr.Accordion('자연물 레이아웃·외형 참조 · 선택' if vegetation_mode_enabled else '소품 레이아웃·외형 참조 · 선택' if prop_mode_enabled else '레이아웃 이미지 · 필수 / 추가 외형 참조 · 선택' if building_mode_enabled else '참조 이미지 · 선택 · 최대 10장', open=building_mode_enabled or prop_mode_enabled or vegetation_mode_enabled) if qwen21_mode_enabled and (not outfit_transfer_enabled) else contextlib.nullcontext():
             reference_upload_group, reference_image_controls = build_reference_image_inputs(reference_image_mode=None, reference_image_format='png' if character_mode_enabled else 'webp', reference_slot_count=reference_slot_count, reference_slot_labels=[f'자연물 레이아웃·외형 참조 {current_slot_number} · 선택' for current_slot_number in range(1, 11)] if vegetation_mode_enabled else [f'소품 레이아웃·외형 참조 {current_slot_number} · 선택' for current_slot_number in range(1, 11)] if prop_mode_enabled else ['레이아웃 이미지 · 필수 (투영·바닥·출입구)'] + [f'외형·자재 참조 {current_slot_number} · 선택' for current_slot_number in range(2, 11)] if building_mode_enabled else ['바디 레퍼런스 · 필수', '아웃핏 레퍼런스 · 필수'] if outfit_transfer_enabled else None)
         if character_mode_enabled:
