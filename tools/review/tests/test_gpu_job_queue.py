@@ -59,7 +59,9 @@ class GpuJobQueueTests(unittest.TestCase):
         with patch.object(queue_module,'read_gpu_memory',side_effect=[(24000,1000),(24000,1000),(24000,8000),(24000,8000)]),patch.object(queue_module.time,'sleep'),patch.object(queue_module.subprocess,'Popen',return_value=worker_process_mock) as worker_launch_mock:
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
             worker_launch_mock.assert_called_once()
-        self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'completed')
+        current_status_record=json.loads((self.current_job_path/'status.json').read_text())
+        self.assertEqual(current_status_record['status'],'completed')
+        self.assertIn('completed_at',current_status_record)
 
     def test_animate_guard_failure_is_recorded_as_failed(self):
         current_worker_path = queue_module.WORKFLOW_ROOT_DIRECTORY/'generators/wan_animate2/worker.py'

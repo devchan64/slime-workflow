@@ -1,5 +1,6 @@
 """별도 프로세스에서 GPU 메모리와 공용 실행 잠금을 기다리는 영속 작업 대기열."""
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import fcntl
 import json
@@ -327,6 +328,8 @@ def execute_locked_generation(generation_job_path):
                 generation_status_record = {'status':'paused','message':'단계 결과를 확인한 뒤 다음 단계로 진행하세요.'}
             elif generation_status_record['status'] in ('running','queued'):
                 generation_status_record = {'status':'completed' if generation_exit_value == 0 else 'failed', 'exit_code':generation_exit_value}
+            if generation_status_record.get('status') == 'completed':
+                generation_status_record.setdefault('completed_at', datetime.now(timezone.utc).isoformat())
             write_record_atomically(generation_job_path/'status.json', generation_status_record)
             return generation_exit_value
     except Exception as generation_error_value:
