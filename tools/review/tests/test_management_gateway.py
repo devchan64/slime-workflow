@@ -54,28 +54,10 @@ class GatewayContractTest(unittest.TestCase):
             execute_gateway_cli(['command','momask','generate','--action','stretch'])
         self.assertEqual(command_exit_context.exception.code,2)
 
-    def test_retired_qwen_2512_rejects_execution_but_keeps_history(self):
-        for current_command_name, current_payload_record in [('generate', {}), ('prepare', {'action': 'prepare'}),
-                                                             ('resume', {'id': '2026-11-14_01-02-03-12345678'}), ('model-status', {})]:
-            with self.subTest(command=current_command_name), self.assertRaisesRegex(ValueError, '폐기'):
-                resolve_management_command('qwen-2512', current_command_name, current_payload_record)
-        self.assertEqual(resolve_management_command('qwen-2512', 'history', {}), ('GET', '/image-generation/history'))
-
-    def test_retired_qwen_2512_direct_service_and_worker_are_blocked(self):
-        import subprocess
-        from tools.review.domains.image.image_generation import ImageGenerationManager
-        from tools.review.tests.test_image_generation import ImageGenerationTests
-        current_manager_value = ImageGenerationManager()
-        current_handler_value = ImageGenerationTests().make_http_handler('/image-generation/jobs', 'POST')
-        current_manager_value.handle_image_request(current_handler_value)
-        self.assertEqual(current_handler_value.status, 400)
-        self.assertIn('폐기', json.loads(current_handler_value.wfile.getvalue())['error'])
-        with self.assertRaisesRegex(ValueError, '폐기'):
-            current_manager_value.validate_generation_resume(Path('/tmp/unused'))
-        current_worker_path = Path(__file__).resolve().parents[3] / 'generators/image/run_qwen_2512.py'
-        current_result_value = subprocess.run([sys.executable, str(current_worker_path)], capture_output=True, text=True, timeout=15)
-        self.assertNotEqual(current_result_value.returncode, 0)
-        self.assertIn('폐기', current_result_value.stderr)
+    def test_retired_qwen_2512_service_is_unavailable(self):
+        for current_command_name in ('generate', 'prepare', 'resume', 'model-status', 'history', 'status'):
+            with self.subTest(command=current_command_name), self.assertRaises(ValueError):
+                resolve_management_command('qwen-2512', current_command_name, {})
 
     def create_request_handler(self,path,body,origin='http://127.0.0.1:8770'):
         data=json.dumps(body).encode()

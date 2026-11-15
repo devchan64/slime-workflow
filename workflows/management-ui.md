@@ -450,7 +450,7 @@ HY-Motion의 렌더 프레임 스텝·원본 FPS·선택한 원본 프레임 번
 
 ## 폐기된 생성 화면
 
-`three-reference-generator`(Qwen 2511 3참조), `image-generator`(Qwen 2512), `floor-tile-generator`(맵 타일 생성기), `seamless-tile-generator`(심리스 패턴 생성기) 화면은 폐기했다. 도구 목록에서 제외하며 기존 화면 URL은 HTTP 410을 반환한다. Qwen 2.1 생성기를 사용한다. 다른 제작 기능에서 사용하는 공용 실행 코드와 기존 생성 기록은 유지한다.
+`three-reference-generator`(Qwen 2511 3참조), `image-generator`(Qwen 2512), `floor-tile-generator`(맵 타일 생성기), `seamless-tile-generator`(심리스 패턴 생성기) 화면은 폐기했다. 도구 목록에서 제외하며 기존 화면 URL은 HTTP 410을 반환한다. Qwen 2.1 생성기를 사용한다. 다른 제작 기능의 공용 코드는 유지하며 Qwen 2512 전용 구현·모델·이력은 폐기했다.
 
 - 관리 메뉴의 검색·분류·도구 선택은 사용자 입력 이벤트로 처리한다. 선택지의 서버 갱신이 화면 선택을 재실행하지 않아야 하며, 필터 변경 후에도 같은 도구가 선택되어 있으면 iframe을 유지한다. 초기 선택도 이미 선택된 항목을 다시 클릭하지 않는다.
 

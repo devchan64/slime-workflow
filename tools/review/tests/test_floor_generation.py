@@ -164,80 +164,14 @@ class FloorGenerationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'9개'): extract_center_tile(original_image_value)
         with self.assertRaises(ValueError): extract_center_tile(np.zeros((1280,1280,3),dtype='uint8'))
 
-    def test_three_stage_failure_resume_and_integrity(self):
-        from PIL import Image
-        from tools.review.domains.tile.floor_pipeline import execute_floor_pipeline, execute_mechanical_crop
-        from tools.review.common.gpu_memory_history import build_image_memory_identity
-        with tempfile.TemporaryDirectory() as temporary_directory_value:
-            current_job_root = Path(temporary_directory_value)
-            prepared_request_value = prepare_floor_request(self.create_floor_request())
-            prepared_request_value.update(width=1024,height=1024)
-            import hashlib
-            prepared_request_value['floor_separation']={'version':10,'prompt':'잔디밭','width':512,'height':512,'steps':4,'seed':10107,'prompt_words':1,'prompt_sha256':hashlib.sha256('잔디밭'.encode()).hexdigest()}
-            (current_job_root/'request.json').write_text(json.dumps(prepared_request_value))
-            self.assertNotIn('floor_rectify',prepared_request_value)
-            self.assertEqual(prepared_request_value['floor_separation']['prompt'],'잔디밭')
-            self.assertIn('floor-three-stage-v10',build_image_memory_identity('run_qwen_2512.py',current_job_root))
-            launched_stage_names = []
-            def simulate_stage_process(command_argument_values, **process_keyword_values):
-                stage_output_directory = Path(command_argument_values[-1])
-                launched_stage_names.append(stage_output_directory.name)
-                self.assertNotIn('start_new_session',process_keyword_values)
-                if stage_output_directory.name == 'stage-3-redraw' and launched_stage_names.count('stage-3-redraw') == 1:
-                    (stage_output_directory/'execution.log').write_text('중단 기록')
-                    raise RuntimeError('3단계 추론 실패')
-                stage_request_record = json.loads((stage_output_directory/'request.json').read_text())
-                if stage_output_directory.name == 'stage-1-grid':
-                    cv2.imwrite(str(stage_output_directory/'result.png'),self.create_molding_fixture())
-                else:
-                    self.assertEqual(stage_request_record['prompt'],'잔디밭')
-                    Image.new('RGB',(512,512),'green').save(stage_output_directory/'result.png')
-                (stage_output_directory/'result.json').write_text('{"elapsed_seconds":10}')
-                (stage_output_directory/'status.json').write_text('{"status":"completed"}')
-                from unittest.mock import Mock
-                return Mock(wait=lambda timeout:0)
-            import threading
-            from tools.review.common.worker_generation_progress import WorkerGenerationProgress
-            current_crop_heartbeat = threading.Event()
-            current_crop_records = []
-            current_original_writer = WorkerGenerationProgress.record_worker_progress
-            def observe_crop_heartbeat(current_writer_instance,current_progress_record):
-                current_original_writer(current_writer_instance,current_progress_record)
-                if '크롭' in current_progress_record['stage']:
-                    current_crop_records.append(json.loads((current_job_root/'worker-progress.json').read_text()))
-                    if len(current_crop_records)>=2:
-                        current_crop_heartbeat.set()
-            def verify_crop_stage_record(current_crop_root,current_crop_version):
-                current_progress_record = json.loads((current_crop_root/'worker-progress.json').read_text())
-                self.assertEqual(current_progress_record['step'],1)
-                self.assertEqual(current_progress_record['step_total'],3)
-                self.assertIn('크롭',current_progress_record['stage'])
-                self.assertIn('파이프라인 단계 수',current_progress_record['scope'])
-                self.assertTrue(current_crop_heartbeat.wait(8),'크롭 heartbeat 미수신')
-                self.assertNotEqual(current_crop_records[0]['updated_at'],current_crop_records[1]['updated_at'])
-                return execute_mechanical_crop(current_crop_root,current_crop_version)
-            with patch('tools.review.domains.tile.floor_pipeline.subprocess.Popen',side_effect=simulate_stage_process), patch('tools.review.domains.tile.floor_pipeline.execute_mechanical_crop',side_effect=verify_crop_stage_record), patch.object(WorkerGenerationProgress,'record_worker_progress',observe_crop_heartbeat):
-                with self.assertRaisesRegex(RuntimeError,'3단계 추론 실패'):
-                    execute_floor_pipeline(current_job_root,prepared_request_value)
-                self.assertTrue((current_job_root/'result.png').exists())
-                self.assertEqual(json.loads((current_job_root/'status.json').read_text())['status'],'failed')
-                execute_floor_pipeline(current_job_root,prepared_request_value)
-                self.assertEqual(launched_stage_names,['stage-1-grid','stage-3-redraw','stage-3-redraw'])
-                self.assertTrue(list((current_job_root/'stage-3-redraw').glob('attempt-*/execution.log')))
-                self.assertTrue((current_job_root/'single-tile.png').exists())
-                self.assertTrue((current_job_root/'center-tile.png').exists())
-                self.assertEqual(len(json.loads((current_job_root/'result.json').read_text())['stages']),3)
-                with Image.open(current_job_root/'reference-1.png') as reference_image_value:
-                    self.assertEqual(reference_image_value.size,(512,512))
-                self.assertEqual(json.loads((current_job_root/'status.json').read_text())['status'],'completed')
-                current_completed_progress = json.loads((current_job_root/'worker-progress.json').read_text())
-                self.assertEqual(current_completed_progress['step'],3)
-                self.assertIn('파이프라인 단계 수',current_completed_progress['scope'])
-                execute_floor_pipeline(current_job_root,prepared_request_value)
-                self.assertEqual(len(launched_stage_names),3)
-                (current_job_root/'stage-1-grid/result.png').write_bytes(b'changed')
-                with self.assertRaisesRegex(ValueError,'무결성'):
-                    execute_floor_pipeline(current_job_root,prepared_request_value)
+    def test_retired_pipeline_cannot_start_generation(self):
+        from tools.review.domains.tile.floor_pipeline import execute_floor_pipeline
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as current_temp_directory:
+            current_job_root = Path(current_temp_directory)
+            current_request_record = {'floor_separation': {'version': 10}, 'action': 'generate', 'prompt': 'test', 'width': 768, 'height': 768, 'steps': 4, 'seed': 1}
+            with self.assertRaisesRegex(ValueError, '폐기'):
+                execute_floor_pipeline(current_job_root, current_request_record)
 
     def test_child_progress_reaches_parent_without_old_attempt(self):
         import subprocess
@@ -265,7 +199,7 @@ class FloorGenerationTests(unittest.TestCase):
                 WorkerGenerationProgress(current_stage_path).record_worker_progress({'stage':'complete','step':4,'total':4})
                 return 0
             with patch('tools.review.domains.tile.floor_pipeline.subprocess.Popen',return_value=Mock(wait=simulate_stage_wait)):
-                execute_floor_stage(current_job_path,'stage-1-grid','run_qwen_2512.py',{'steps':4})
+                execute_floor_stage(current_job_path,'stage-1-grid','isolated_worker.py',{'steps':4})
             self.assertEqual(current_wait_count,[5,5])
             self.assertEqual(json.loads((current_job_path/'worker-progress.json').read_text())['step'],4)
             self.assertEqual(len(list(current_stage_path.glob('attempt-*/worker-progress.json'))),1)

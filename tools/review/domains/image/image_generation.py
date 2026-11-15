@@ -153,7 +153,7 @@ class ImageGenerationManager:
         saved_request_record = saved_request_record or {}
         if self.three_reference_mode or saved_request_record.get('references'):
             return 'generators/image/run_qwen_2511_three_reference.py'
-        return 'generators/image/run_qwen_2512.py'
+        raise ValueError('폐기된 이미지 생성기는 실행할 수 없습니다.')
 
     def select_generation_python(self, saved_request_record=None):
         return WORKFLOW_ROOT_PATH / '.venv/bin/python'
@@ -165,7 +165,7 @@ class ImageGenerationManager:
         """도메인별 중복 접수 조건을 잠금 안에서 확인한다."""
 
     def history_storage_path(self):
-        return MANAGER_HISTORY_ROOT / ('qwen-2511' if self.three_reference_mode else 'qwen-2512')
+        return MANAGER_HISTORY_ROOT / ('qwen-2511' if self.three_reference_mode else 'retired-image')
 
     def reset_generation_history(self,current_expected_jobs=None):
         return self.clear_image_generation_files(current_expected_jobs)
@@ -328,14 +328,7 @@ class ImageGenerationManager:
                 elif self.select_generation_runner().endswith('run_qwen_2511_three_reference.py'):
                     send_response_data(200,{'ready':False,'message':'2511 모델 준비 상태는 생성 시 검증합니다.'})
                 else:
-                    import sys
-                    sys.path.insert(0,str(WORKFLOW_ROOT_PATH/'generators/image'))
-                    from qwen_2512 import validate_qwen_2512_assets
-                    try:
-                        validate_qwen_2512_assets(verify_adapter_hash=False)
-                        send_response_data(200,{'ready':True,'message':'모델·Lightning 파일 준비됨. 생성 시 해시를 검증합니다.'})
-                    except (ValueError,FileNotFoundError) as current_model_error:
-                        send_response_data(200,{'ready':False,'message':str(current_model_error)})
+                    send_response_data(200, {'ready': False, 'message': '폐기된 이미지 생성기입니다.'})
             elif current_url_path in (self.route_prefix_value,self.route_prefix_value+'/'):
                 send_response_data(410,{'error':'이전 관리 화면은 폐기되었습니다. /management/에서 Gradio 화면을 여세요.'})
             else:

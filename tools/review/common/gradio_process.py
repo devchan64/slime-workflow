@@ -94,7 +94,6 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'sfx-dasheng-audiogen':('sfx_dasheng_app.py',131,'/management/frame/sfx-dasheng-audiogen/'),
             'music-heartmula':('music_heartmula_app.py',138,'/management/frame/music-heartmula/'),
             'management-menu':('management_menu_app.py',100,'/management/'),
-            'qwen-2512':('qwen_2512_app.py',103,'/management/frame/image-generator/'),
             'qwen-21-circular':('qwen_circular_app.py',118,'/management/frame/qwen-21-circular-generator/'),
             'vegetation':('vegetation_app.py',134,'/management/frame/vegetation-generator/'),
             'billboard':('billboard_app.py',137,'/management/frame/billboard-generator/'),
@@ -162,9 +161,6 @@ def ensure_gradio_application(review_server_port, application_name, application_
 def ensure_management_menu_server(review_server_port, manager_source_path):
     GRADIO_MANAGER_SOURCE_PATHS[review_server_port]=Path(manager_source_path)
     return ensure_gradio_application(review_server_port,'management-menu',manager_source_path)
-
-def ensure_qwen_2512_server(review_server_port):
-    return ensure_gradio_application(review_server_port,'qwen-2512')
 
 def ensure_qwen_2511_server(review_server_port):
     return ensure_gradio_application(review_server_port,'qwen-2511')

@@ -79,78 +79,7 @@ def execute_floor_stage(current_job_root, stage_directory_name, worker_file_name
 
 
 def execute_floor_pipeline(current_job_root, current_request_record):
-    pipeline_start_seconds = time.monotonic()
-    mechanical_crop_enabled = current_request_record['floor_separation']['version'] in (2,3,4,5,6,7,8,9,10)
-    pipeline_stage_count = 3 if mechanical_crop_enabled else 2
-    current_stage_name = f'1/{pipeline_stage_count} · 9칸 생성'
-    current_pipeline_writer = WorkerGenerationProgress(current_job_root)
-    def publish_pipeline_stage(current_completed_count):
-        current_pipeline_writer.record_worker_progress({'stage':current_stage_name,'step':current_completed_count,'total':pipeline_stage_count,'scope':'완료한 파이프라인 단계 수; 추론 스텝 및 시간 기반 전체 예상 진행률과 구분'})
-    try:
-        separation_request_record = current_request_record['floor_separation']
-        if separation_request_record['version'] not in (1,2,3,4,5,6,7,8,9,10):
-            raise ValueError('지원하지 않는 바닥 분리 단계 버전')
-        write_pipeline_record(current_job_root/'status.json',{'status':'running','stage':current_stage_name})
-        publish_pipeline_stage(0)
-        grid_request_record = {current_field_name:current_request_record[current_field_name] for current_field_name in ('action','prompt','width','height','steps','seed')}
-        grid_output_directory = execute_floor_stage(current_job_root,'stage-1-grid','run_qwen_2512.py',grid_request_record)
-        shutil.copyfile(grid_output_directory/'result.png',current_job_root/'result.png')
-        reference_source_path = current_job_root/'result.png'
-        crop_output_directory = None
-        if mechanical_crop_enabled:
-            current_stage_name = '2/3 · 중앙 몰딩 기계식 크롭'
-            write_pipeline_record(current_job_root/'status.json',{'status':'running','stage':current_stage_name})
-            publish_pipeline_stage(1)
-            current_crop_stop_event = threading.Event()
-            def record_crop_heartbeat():
-                while not current_crop_stop_event.wait(5):
-                    publish_pipeline_stage(1)
-                    logging.info('heartbeat stage=%s',current_stage_name)
-            current_crop_thread = threading.Thread(target=record_crop_heartbeat,daemon=True)
-            current_crop_thread.start()
-            try:
-                crop_output_directory = execute_mechanical_crop(current_job_root,separation_request_record['version']-1)
-            finally:
-                current_crop_stop_event.set()
-                current_crop_thread.join()
-            reference_source_path = crop_output_directory/'result.png'
-        current_stage_name = f'{pipeline_stage_count}/{pipeline_stage_count} · 사용자 설명으로 다시 그리기'
-        reference_stage_directory = 'stage-3-redraw' if mechanical_crop_enabled else 'stage-2-separation'
-        write_pipeline_record(current_job_root/'status.json',{'status':'running','stage':current_stage_name})
-        publish_pipeline_stage(pipeline_stage_count-1)
-        reference_output_directory = current_job_root/reference_stage_directory
-        reference_output_directory.mkdir(exist_ok=True)
-        reference_image_path = reference_output_directory/'reference-1.png'
-        if not (reference_output_directory/'request.json').exists():
-            with Image.open(reference_source_path) as original_image_value:
-                original_image_value.convert('RGB').resize((512,512),Image.Resampling.LANCZOS).save(current_job_root/'reference-1.png')
-            # 중단된 참조 저장 단계만 재시도한다. 완료된 단계는 아래 해시로 검증한다.
-            reference_image_path.unlink(missing_ok=True)
-            reference_request_record = save_three_reference_inputs(reference_output_directory,{
-                'action':'generate',**{current_field_name:separation_request_record[current_field_name] for current_field_name in ('prompt','width','height','steps','seed')},
-                'images':[base64.b64encode((current_job_root/'reference-1.png').read_bytes()).decode()]})
-            reference_request_record.update({current_field_name:separation_request_record[current_field_name] for current_field_name in ('prompt_words','prompt_sha256')})
-            reference_request_record['source_sha256'] = calculate_file_digest(reference_source_path)
-            write_pipeline_record(reference_output_directory/'request.json',reference_request_record)
-        reference_request_record = json.loads((reference_output_directory/'request.json').read_text())
-        if any(reference_request_record[current_field_name] != separation_request_record[current_field_name] for current_field_name in ('prompt','width','height','steps','seed','prompt_words','prompt_sha256')):
-            raise ValueError('저장된 참조 생성 요청과 원래 설정 불일치')
-        if reference_request_record['source_sha256'] != calculate_file_digest(reference_source_path):
-            raise ValueError('참조 생성 입력의 출처 불일치')
-        from tools.review.domains.image.three_reference_generation import verify_reference_snapshots
-        verify_reference_snapshots(reference_output_directory,reference_request_record)
-        separated_output_directory = execute_floor_stage(current_job_root,reference_stage_directory,'run_qwen_2511_three_reference.py',reference_request_record)
-        shutil.copyfile(separated_output_directory/'result.png',current_job_root/'single-tile.png')
-        completed_stage_directories = (grid_output_directory,crop_output_directory,separated_output_directory) if mechanical_crop_enabled else (grid_output_directory,separated_output_directory)
-        write_pipeline_record(current_job_root/'result.json',{'elapsed_seconds':sum(json.loads((current_stage_directory/'result.json').read_text())['elapsed_seconds'] for current_stage_directory in completed_stage_directories),'last_attempt_seconds':time.monotonic()-pipeline_start_seconds,'pipeline_version':separation_request_record['version'],'stages':[{'path':str(current_stage_directory.relative_to(current_job_root)),'request':json.loads((current_stage_directory/'request.json').read_text()),'result':json.loads((current_stage_directory/'result.json').read_text())} for current_stage_directory in completed_stage_directories],'original_sha256':calculate_file_digest(current_job_root/'result.png'),'separated_sha256':calculate_file_digest(current_job_root/'single-tile.png')})
-        current_stage_name = f'{pipeline_stage_count}/{pipeline_stage_count} · 완료'
-        publish_pipeline_stage(pipeline_stage_count)
-        write_pipeline_record(current_job_root/'status.json',{'status':'completed','stage':current_stage_name})
-        logging.info('complete output=%s',current_job_root/'single-tile.png')
-    except Exception as current_error_value:
-        write_pipeline_record(current_job_root/'status.json',{'status':'failed','stage':current_stage_name,'error':str(current_error_value)})
-        logging.exception('failed stage=%s output=%s',current_stage_name,current_job_root)
-        raise
+    raise ValueError('폐기된 바닥 타일 생성 파이프라인은 실행할 수 없습니다.')
 
 
 def execute_mechanical_crop(current_job_root, crop_algorithm_version=9):

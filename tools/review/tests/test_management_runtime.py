@@ -39,10 +39,10 @@ class ManagementRuntimeTests(unittest.TestCase):
         service_binding_records = self.create_service_bindings()
         legacy_request_handler = Mock()
         runtime_service_manager = ManagementServiceRuntime(service_binding_records, legacy_request_handler, Mock())
-        current_http_handler = SimpleNamespace(command='GET', path='/image-generation/jobs/2026-09-30_01-02-03-12345678/result.png')
+        current_http_handler = SimpleNamespace(command='GET', path='/image-generation-21/jobs/2026-09-30_01-02-03-12345678/result.png')
         self.assertTrue(runtime_service_manager.dispatch_runtime_request(current_http_handler))
         for service_command_name, service_binding_record in service_binding_records.items():
-            self.assertEqual(service_binding_record.request_handler_callback.call_count, int(service_command_name == 'qwen-2512'))
+            self.assertEqual(service_binding_record.request_handler_callback.call_count, int(service_command_name == 'qwen-21'))
         legacy_request_handler.assert_not_called()
 
     def test_record_folder_uses_same_service_binding(self):

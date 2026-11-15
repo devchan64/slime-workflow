@@ -66,7 +66,7 @@ class QwenCommandsTest(unittest.TestCase):
 
     def test_retired_generation_route_is_rejected(self):
         with patch.object(COMMAND_MODULE_VALUE, 'call_management_api') as current_api_mock:
-            with self.assertRaisesRegex(ValueError, '폐기'):
+            with self.assertRaises((ValueError, SystemExit)):
                 COMMAND_MODULE_VALUE.execute_gateway_arguments('qwen-2512', ['generate', '--prompt', 'test'])
             current_api_mock.assert_not_called()
 

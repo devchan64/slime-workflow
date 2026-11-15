@@ -103,7 +103,8 @@ class ImageGenerationTests(unittest.TestCase):
                 self.assertEqual(current_handler_value.status,404)
     def test_running_image_generation_does_not_block_queue_submission(self):
         class ActiveTestImageManager(ImageGenerationManager):
-            pass
+            def select_generation_runner(self, saved_request_record=None):
+                return 'generators/image/run_qwen_21_reference.py'
         current_manager_value=ActiveTestImageManager()
         current_request_value={'action':'generate','prompt':'대기열 검증','width':512,'height':512,'steps':4,'seed':1}
         current_request_bytes=json.dumps(current_request_value).encode()

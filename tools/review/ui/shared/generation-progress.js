@@ -32,7 +32,7 @@ async function synchronizeGenerationAvailability(){
  document.querySelector('#cancel-generation').disabled=!currentActiveRecord.running;
  if(!currentActiveRecord.running){
   activeJobIdentifier=null;
-  sessionStorage.removeItem(currentGeneratorRoute.endsWith('2511')?'qwen2511Job':'qwen2512Job');
+  sessionStorage.removeItem('qwen2511Job');
   document.querySelector('#status').textContent='입력 준비 완료 · 생성할 수 있습니다.';
  }else{
   activeJobIdentifier=currentActiveRecord.id;

@@ -112,7 +112,6 @@ def create_management_runtime(writer_workspace_config=None):
         fun_generation_service = FunControlGenerationManager()
         kimodo_generation_service = KimodoGenerationManager()
         vace_generation_service = VaceVideoGenerationManager()
-        image_generation_service = ImageGenerationManager()
         seamless_generation_service = SeamlessGenerationManager()
         qwen_circular_service = QwenCircularGenerationManager()
         qwen_plain_service = QwenPlainGenerationManager()
@@ -154,7 +153,6 @@ def create_management_runtime(writer_workspace_config=None):
             'seamless-tile': bind_stored_management_service(seamless_generation_service.handle_image_request, seamless_generation_service.job_storage_root),
             'expression': bind_stored_management_service(expression_generation_service.handle_image_request, expression_generation_service.job_storage_root),
             'floor-tile': bind_stored_management_service(floor_generation_service.handle_image_request, floor_generation_service.job_storage_root),
-            'qwen-2512': bind_stored_management_service(image_generation_service.handle_image_request, image_generation_service.job_storage_root),
             'qwen-2511': bind_stored_management_service(three_reference_service.handle_image_request, three_reference_service.job_storage_root),
             'momask': ManagementServiceBinding(momask_generation_service.handle, Path(__file__).resolve().parents[3]/'.tmp/momask-generator/jobs', reject_retired_record_access),
             'character-animation': ManagementServiceBinding(character_animation_service.handle, GENERATION_ROOT_DIRECTORY, resolve_generation_directory),

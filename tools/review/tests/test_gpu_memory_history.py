@@ -74,13 +74,13 @@ class MemoryHistoryTests(unittest.TestCase):
                     generation_job_directory = temporary_root_path/job_identifier_value
                     generation_job_directory.mkdir()
                     (generation_job_directory/'request.json').write_text(json.dumps({'width':width_pixel_value,'height':width_pixel_value,'steps':inference_step_count}))
-                    memory.save_memory_observation('image',generation_job_directory,measured_peak_value,3,'completed',command_identity_name='run_qwen_2512.py')
+                    memory.save_memory_observation('image',generation_job_directory,measured_peak_value,3,'completed',command_identity_name='run_qwen_21_reference.py')
                 for job_identifier_value,expected_peak_value in (('small',4500),('large',6202),('slow',5500)):
-                    command_identity_value = memory.build_image_memory_identity('run_qwen_2512.py',temporary_root_path/job_identifier_value)
+                    command_identity_value = memory.build_image_memory_identity('run_qwen_21_reference.py',temporary_root_path/job_identifier_value)
                     estimated_memory_record = memory.estimate_required_memory('image',6144,command_identity_value)
                     self.assertEqual(estimated_memory_record['samples'],1)
                     self.assertEqual(estimated_memory_record['required_memory_mib'],expected_peak_value)
-                unknown_estimate_record = memory.estimate_required_memory('image',6144,'run_qwen_2512.py:768x768:steps=30:references=0')
+                unknown_estimate_record = memory.estimate_required_memory('image',6144,'run_qwen_21_reference.py:768x768:steps=30:references=0')
                 self.assertEqual(unknown_estimate_record['samples'],0)
                 self.assertEqual(unknown_estimate_record['method'],'configured-initial-estimate')
                 self.assertEqual(unknown_estimate_record['required_memory_mib'],6144)
@@ -111,10 +111,10 @@ class MemoryHistoryTests(unittest.TestCase):
     def test_image_profiles_keep_twenty_samples_independently(self):
         with tempfile.TemporaryDirectory() as temporary_directory_value,patch.object(memory,'MEMORY_HISTORY_DIRECTORY',Path(temporary_directory_value)):
             for sample_index_value in range(22):
-                memory.save_memory_observation('image',f'large-{sample_index_value}',6202,2,'completed',command_identity_name='run_qwen_2512.py:1280x1280:steps=4:references=0')
-            memory.save_memory_observation('image','small',4500,2,'completed',command_identity_name='run_qwen_2512.py:1024x1024:steps=4:references=0')
-            self.assertEqual(len(memory.load_recent_observations('image','run_qwen_2512.py:1280x1280:steps=4:references=0')),20)
-            self.assertEqual(len(memory.load_recent_observations('image','run_qwen_2512.py:1024x1024:steps=4:references=0')),1)
+                memory.save_memory_observation('image',f'large-{sample_index_value}',6202,2,'completed',command_identity_name='run_qwen_21_reference.py:1280x1280:steps=4:references=0')
+            memory.save_memory_observation('image','small',4500,2,'completed',command_identity_name='run_qwen_21_reference.py:1024x1024:steps=4:references=0')
+            self.assertEqual(len(memory.load_recent_observations('image','run_qwen_21_reference.py:1280x1280:steps=4:references=0')),20)
+            self.assertEqual(len(memory.load_recent_observations('image','run_qwen_21_reference.py:1024x1024:steps=4:references=0')),1)
 
     def test_qwen21_legacy_profiles_separate_reference_counts(self):
         with tempfile.TemporaryDirectory() as temporary_directory_value:

@@ -164,14 +164,7 @@ GUI와 CLI는 서비스별 동일한 작업·이력을 조회하며 서로 다�
 
 표정 생성에 필요한 `Qwen2.1_Anime_consistency.safetensors`는 **모델 관리 → Qwen 2.1 표정 LoRA**에서 다운로드한다. 공개 배포본 `WarmBloodAban/Qwen-Image-2.1-LoRAs`의 `90abd1e` 리비전을 사용하며 SHA-256 검증 후 기존 모델 경로에 설치한다. 다운로드는 중단 시 재개할 수 있고 기존 파일의 해시가 다르면 덮어쓰지 않고 오류를 표시한다. 기본 Qwen 2.1 모델과 실행 환경은 별도로 준비한다. CLI는 `python3 tools/manager.py command expression-lora model-status`와 `python3 tools/manager.py command expression-lora prepare`를 사용한다.
 
-Qwen Image 2512와 Qwen Image Edit 2511 생성기는 폐기되었다. 2512의 신규 모델 준비·생성·재개는 차단하며 모델 파일과 기존 이력은 삭제하지 않는다. 2512 이력과 종료된 작업의 결과·로그 조회 및 명시적인 수동 삭제는 공용 게이트웨이에서 가능하다. 2511의 과거 독립 생성 기록 접근은 지원하지 않는다. 이미지 생성과 표정 생성은 Qwen Image 2.1을 사용한다.
-
-```bash
-python3 tools/manager.py command qwen-2512 history
-python3 tools/manager.py command qwen-2512 status GENERATION_ID
-```
-
-2512 결과·로그는 `.tmp/test/qwen-image-2512/<생성 ID>/`, 이력은 `.tmp/manager-current/qwen-2512/`에 보존한다. 실행·대기 중 작업과 불명확한 상태의 삭제는 거절하며 하위 타일 작업·등록 에셋·모델 캐시는 보호한다.
+Qwen Image 2512와 Qwen Image Edit 2511 생성기는 폐기되었다. 2512의 생성기 구현·모델·이력도 폐기하며 기존 명령은 제공하지 않는다. 이미지 생성과 표정 생성은 Qwen Image 2.1을 사용한다.
 
 ## 통합 명령 게이트웨이
 
@@ -375,11 +368,11 @@ transformers 5.1.0, accelerate 1.15.0이다. 모델은
 서비스는 `qwen-21`, 페이지는 `?tool=qwen-21-generator`, API는 `/image-generation-21`이다.
 기록은 `.tmp/test/qwen-image-21/<생성 ID>/`와 공용 이력 저장소의 `qwen-21`에 저장한다.
 참조 순서·해시·원문·단어 수·모델 revision을 보존하고 재개 시 다시 검증한다.
-이 생성기의 초기화·삭제는 심리스 및 기존 2511·2512 이력에 영향을 주지 않는다.
+이 생성기의 초기화·삭제는 심리스 및 기존 2511 이력에 영향을 주지 않는다.
 
 ### 이미지 생성 이력의 재시작 보존
 
-Qwen 2511·2512·2.1, 심리스, 표정, 건물·바닥 생성기는 `common/generation_records.py`의 공용 조회를 사용한다. 기존 색인 경로를 유지하며 색인이 누락된 경우 해당 생성기 작업 폴더의 `request.json`·`status.json`을 합쳐 조회한다. 작업 ID 형식이 아닌 실험 폴더는 포함하지 않는다. 삭제 표시와 이전 초기화 시각은 존중하며, 종료된 작업의 명시적 삭제·초기화는 기존대로 파일도 제거한다. 조회 자체는 색인을 다시 쓰지 않는다.
+Qwen 2511·2.1, 심리스, 표정, 건물·바닥 생성기는 `common/generation_records.py`의 공용 조회를 사용한다. 기존 색인 경로를 유지하며 색인이 누락된 경우 해당 생성기 작업 폴더의 `request.json`·`status.json`을 합쳐 조회한다. 작업 ID 형식이 아닌 실험 폴더는 포함하지 않는다. 삭제 표시와 이전 초기화 시각은 존중하며, 종료된 작업의 명시적 삭제·초기화는 기존대로 파일도 제거한다. 조회 자체는 색인을 다시 쓰지 않는다.
 
 검수 화면 재빌드는 자신이 만든 화면 파일·애니메이션 게시 폴더만 정리한다. 생성기 이름별 보존 목록을 사용하지 않으며 알 수 없는 폴더, 생성 이력, 서버 기록은 보존한다. 이력 색인 갱신은 공용 원자적 저장을 사용한다.
 

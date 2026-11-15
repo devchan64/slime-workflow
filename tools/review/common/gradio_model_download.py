@@ -97,7 +97,6 @@ MODEL_DOWNLOAD_PREFIXES = {
     'sfx-dasheng-audiogen': ('mispeech/Dasheng-AudioGen', 'mispeech/dashengtokenizer', 'google/flan-t5-large'),
     'writer-agent': ('writer-agent/',),
     'prompt-translation': ('google/translategemma-4b-it',),
-    'qwen-2512': ('Qwen/Qwen-Image-2512', 'lightx2v/Qwen-Image-2512-Lightning'),
 }
 
 
