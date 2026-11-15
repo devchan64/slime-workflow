@@ -114,6 +114,21 @@ class VaceVideoContractTests(unittest.TestCase):
             current_source_video.release()
             current_result_video.release()
 
+    def test_initial_history_failure_is_actionable_and_not_queued(self):
+        from tools.review.ui.gradio.wan_vace_app import build_vace_interface
+        def execute_test_command(current_command_name,current_payload_record):
+            if current_command_name == 'history':
+                raise RuntimeError('게이트웨이 연결 실패')
+            return {'ready': False, 'message': '검사', 'items': []}
+        current_interface_blocks = build_vace_interface('http://localhost:8770', execute_test_command)
+        current_history_binding = next(current_binding for current_binding in current_interface_blocks.fns.values()
+                                       if current_binding.fn and current_binding.fn.__name__ == 'load_vace_history_initially')
+        self.assertFalse(current_history_binding.queue)
+        self.assertEqual(current_history_binding.show_progress, 'hidden')
+        self.assertIn('게이트웨이 연결 실패', current_history_binding.fn()[1])
+        self.assertIn('새로고침', current_history_binding.fn()[1])
+        current_interface_blocks.close()
+
     def test_gradio_builds_without_generation_and_has_history_actions(self):
         from tools.review.ui.gradio.wan_vace_app import build_vace_interface
         def reject_generation_command(current_command_name,current_payload_record):

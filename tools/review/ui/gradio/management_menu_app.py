@@ -431,7 +431,7 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
             else:
                 current_selection_updates[2:4]=select_menu_page(current_selection_updates[0]['value'])
             return [current_search_text,current_category_name,*current_selection_updates]
-        interface_blocks_value.load(initialize_menu_selection,current_navigation_inputs,[search_text_value,category_select_value,page_select_value,tool_count_value,selected_page_status_value,page_preview_value],js=initial_selection_script,queue=False,preprocess=False)
+        interface_blocks_value.load(initialize_menu_selection,current_navigation_inputs,[search_text_value,category_select_value,page_select_value,tool_count_value,selected_page_status_value,page_preview_value],js=initial_selection_script,queue=False,preprocess=False,show_progress='hidden')
         interface_blocks_value.load(fn=None,js=create_sidebar_responsive_script(current_inline_mode))
         interface_blocks_value.load(read_gpu_status,outputs=gpu_status_value,queue=False)
         if hasattr(gr,'Timer'):gr.Timer(MANAGEMENT_GPU_REFRESH_SECONDS).tick(read_gpu_status,outputs=gpu_status_value,show_progress='hidden',queue=False)

@@ -144,7 +144,7 @@ def build_vace_interface(current_server_address, current_command_callback=None):
             except Exception as current_status_error:
                 return f'모델 상태 확인 실패: {current_status_error}', False
         current_refresh_event = current_model_refresh.click(read_vace_model_status, outputs=[current_model_status, current_model_ready], queue=False)
-        current_model_load = current_interface_blocks.load(read_vace_model_status, outputs=[current_model_status, current_model_ready])
+        current_model_load = current_interface_blocks.load(read_vace_model_status, outputs=[current_model_status, current_model_ready], queue=False, show_progress='hidden')
         current_mode_control = gr.Radio(choices=VACE_INPUT_CHOICES, value=VACE_DEFAULT_SETTINGS['mode'], label='생성 모드')
         current_mode_help = gr.Markdown(describe_vace_mode(VACE_DEFAULT_SETTINGS['mode'])[0])
         gr.Markdown('모드 전환 시 첨부값은 보관되며, 현재 모드에 표시되는 입력만 전송합니다. 입력을 준비한 뒤 **대기열에 추가 → 확인 후 대기열에 추가**를 누르세요.')
@@ -198,5 +198,10 @@ def build_vace_interface(current_server_address, current_command_callback=None):
         bind_gpu_generation_confirmation(current_generate_button, enqueue_vace_generation, current_input_controls, [current_job_control,current_status_output], generation_confirmation_container=current_confirmation_container, generation_readiness_callback=check_visible_vace_readiness, generation_readiness_inputs=[current_model_ready,current_mode_control,current_reference_control,current_prompt_control,current_edit_video,current_edit_mask,current_pose_video], generation_readiness_events=[current_refresh_event,current_model_load])
         build_video_job_monitor(current_execute_command,current_server_address,current_job_control,current_status_output)
         current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_vace_inputs,restore_output_components=[*current_input_controls,current_job_control],result_renderer_callback=render_video_generation_result,record_folder_route='/wan22-vace',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
-        current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
+        def load_vace_history_initially():
+            try:
+                return current_read_history(1)
+            except (ValueError, RuntimeError, OSError) as current_history_error:
+                return [gr.skip(), f'이력 조회 실패: {current_history_error} · 새로고침으로 다시 시도하세요.', *[gr.skip() for _ in range(len(current_history_outputs)-2)]]
+        current_interface_blocks.load(load_vace_history_initially,outputs=current_history_outputs,queue=False,show_progress='hidden')
     return current_interface_blocks

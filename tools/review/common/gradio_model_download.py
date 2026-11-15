@@ -145,6 +145,6 @@ def build_model_progress_display(current_interface_blocks, model_service_name):
         except Exception as current_status_error:
             return f'다운로드 상태 확인 실패: {current_status_error}', gr.Timer(value=30, active=True)
     current_progress_outputs = [current_progress_output, current_progress_timer]
-    current_interface_blocks.load(refresh_model_progress_status, outputs=current_progress_outputs)
+    current_interface_blocks.load(refresh_model_progress_status, outputs=current_progress_outputs, queue=False, show_progress='hidden')
     current_progress_timer.tick(refresh_model_progress_status, outputs=current_progress_outputs, queue=False, show_progress='hidden')
     return current_progress_output
