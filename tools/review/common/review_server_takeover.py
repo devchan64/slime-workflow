@@ -2,6 +2,7 @@
 from pathlib import Path
 import os
 import signal
+import sys
 import psutil
 
 SERVER_STOP_TIMEOUT_SECONDS = 10
@@ -27,7 +28,25 @@ def release_review_server_port(current_port_number, current_script_path):
             raise RuntimeError(f'{current_port_number} 포트 소유자를 확인할 수 없어 종료하지 않습니다.')
         current_listener_process = psutil.Process(current_listener_pid)
         if not matches_review_server(current_listener_process, current_script_path):
-            raise RuntimeError(f'{current_port_number} 포트를 다른 프로그램이 사용 중입니다: PID={current_listener_pid}')
+            current_creation_time = current_listener_process.create_time()
+            current_command_text = ' '.join(current_listener_process.cmdline()) or current_listener_process.name()
+            if not sys.stdin.isatty():
+                raise RuntimeError(f'{current_port_number} 포트를 다른 프로그램이 사용 중입니다: PID={current_listener_pid} 명령={current_command_text}. 대화형 터미널에서 다시 실행하세요.')
+            selected_answer_text = input(f'{current_port_number} 포트 사용 프로세스를 강제 종료하고 실행할까요? PID={current_listener_pid} 명령={current_command_text} [y/N] ')
+            if selected_answer_text.strip().lower() not in ('y', 'yes'):
+                raise RuntimeError('포트 점유 프로세스를 유지하여 GUI 실행을 취소했습니다.')
+            current_listener_process = psutil.Process(current_listener_pid)
+            if current_listener_process.create_time() != current_creation_time or not any(
+                current_connection.pid == current_listener_pid and current_connection.status == psutil.CONN_LISTEN and current_connection.laddr.port == current_port_number
+                for current_connection in psutil.net_connections(kind='tcp')
+            ):
+                raise RuntimeError('확인 중 포트 점유 프로세스가 변경되었습니다. 다시 실행하세요.')
+            current_listener_process.kill()
+            try:
+                current_listener_process.wait(timeout=SERVER_STOP_TIMEOUT_SECONDS)
+            except psutil.TimeoutExpired as current_timeout_error:
+                raise RuntimeError(f'포트 점유 프로세스 종료 시간 초과: PID={current_listener_pid}') from current_timeout_error
+            continue
         current_owner_process = current_listener_process.parent()
         if current_owner_process and matches_review_server(current_owner_process, current_script_path) and '--watch' in current_owner_process.cmdline():
             current_stop_processes[current_owner_process.pid] = current_owner_process
