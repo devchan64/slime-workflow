@@ -20,7 +20,7 @@ class CharacterBodyReferenceTests(unittest.TestCase):
         self.request_values = {'action': 'generate', 'prompt': 'A character. ' + self.body_module.BODY_REFERENCE_ROLE_PROMPT, 'images': [], 'width': 768, 'height': 768, 'steps': 40, 'seed': 1}
 
     def test_catalog_images_and_version(self):
-        self.assertEqual({current_record['id'] for current_record in self.body_catalog}, {'neutral-body-jointed', 'neutral-body-clothed'})
+        self.assertEqual({current_record['id'] for current_record in self.body_catalog}, {'neutral-body-clothed'})
         for current_record in self.body_catalog:
             self.assertEqual(self.body_module.load_body_reference_image(current_record['id']).size, (1536, 1024))
         with self.assertRaises(ValueError):
@@ -33,11 +33,14 @@ class CharacterBodyReferenceTests(unittest.TestCase):
             current_input = {**self.request_values, 'body_reference_id': current_record['id'], 'images': [base64.b64encode(current_buffer.getvalue()).decode()]}
             current_request = validate_styled_qwen_request(current_input)
             self.assertEqual(current_request['body_reference_sources'][0]['source_sha256'], current_record['sha256'])
+            self.assertEqual(current_request['body_reference_sources'][0]['source'], 'baseline/mannequin/' + current_record['image'])
             with tempfile.TemporaryDirectory() as current_directory:
                 current_root = Path(current_directory)
                 current_saved = {**current_request, **save_three_reference_inputs(current_root, current_request)}
                 current_saved.pop('images')
                 with patch.object(self.body_module, 'load_body_reference_catalog', side_effect=AssertionError('현재 목록을 읽으면 안 됨')):
+                    verify_qwen_saved_request(current_root, current_saved)
+                    current_saved['body_reference_sources'][0]['source'] = 'prompts/references/mannequin/latest/' + current_record['image']
                     verify_qwen_saved_request(current_root, current_saved)
                 current_saved['body_reference_sources'][0]['pixel_sha256'] = '0' * 64
                 with self.assertRaises(ValueError):
@@ -51,22 +54,25 @@ class CharacterBodyReferenceTests(unittest.TestCase):
 
     def test_body_reference_search_and_selection(self):
         current_gallery = importlib.import_module('generators.character-generator.page.body_reference_gallery')
-        self.assertEqual([current_record['id'] for current_record in current_gallery.search_body_reference_catalog('관절')], ['neutral-body-jointed'])
+        self.assertEqual(current_gallery.search_body_reference_catalog('관절'), [])
         self.assertEqual([current_record['id'] for current_record in current_gallery.search_body_reference_catalog('NEUTRAL-BODY-CLOTHED')], ['neutral-body-clothed'])
-        self.assertEqual(len(current_gallery.search_body_reference_catalog('중성형 비율')), 2)
+        self.assertEqual(len(current_gallery.search_body_reference_catalog('중성형 비율')), 1)
         self.assertEqual(current_gallery.search_body_reference_catalog('검색불가'), [])
         current_empty_page = current_gallery.render_body_reference_page('검색불가', 1)
         self.assertEqual(current_empty_page[0], [])
         self.assertIsNone(current_empty_page[6])
         self.assertFalse(current_empty_page[9]['interactive'])
-        current_page_values = current_gallery.render_body_reference_page('관절', 1)
-        current_event_value = gr.SelectData(None, {'index': 0, 'value': 'reference.png'})
-        current_selection = current_gallery.select_body_reference_card('관절', 1, current_page_values[2], current_event_value)
-        self.assertEqual(current_selection[0], 'neutral-body-jointed')
+        current_page_values = current_gallery.render_body_reference_page('피부', 1)
+        current_event_value = gr.SelectData(None, {'index': 0, 'value': {'caption': '중성형 피부·기본복 전신 · 4방향\nID: neutral-body-clothed'}})
+        current_selection = current_gallery.select_body_reference_card('피부', 1, current_page_values[2], current_event_value)
+        self.assertEqual(current_selection[0], 'neutral-body-clothed')
         self.assertIn(self.body_catalog[0]['sha256'], current_selection[2])
         self.assertTrue(current_selection[3]['interactive'])
         with self.assertRaises(gr.Error):
-            current_gallery.select_body_reference_card('피부', 1, current_page_values[2], current_event_value)
+            current_gallery.select_body_reference_card('검색불가', 1, current_page_values[2], current_event_value)
+        current_wrong_card = gr.SelectData(None, {'index': 0, 'value': {'caption': 'ID: neutral-body-jointed'}})
+        with self.assertRaises(gr.Error):
+            current_gallery.select_body_reference_card('피부', 1, current_page_values[2], current_wrong_card)
 
     def test_character_page_has_reference_selection(self):
         current_page = importlib.import_module('generators.character-generator.page.interface')
@@ -76,17 +82,17 @@ class CharacterBodyReferenceTests(unittest.TestCase):
         self.assertTrue(any(current_item['props'].get('label') == '신체 비율 참조 카드' for current_item in current_components))
         self.assertTrue(any(current_item['props'].get('value') == '선택 기준을 첫 참조에 적용' for current_item in current_components))
         current_image_control = next(current_component for current_component in current_blocks.blocks.values() if isinstance(current_component, gr.Image) and current_component.label == '참조 이미지 1')
-        current_original_image = self.body_module.load_body_reference_image('neutral-body-jointed')
+        current_original_image = self.body_module.load_body_reference_image('neutral-body-clothed')
         current_roundtrip_image = current_image_control.preprocess(current_image_control.postprocess(current_original_image))
         self.assertEqual(current_image_control.format, 'png')
         self.assertEqual(current_roundtrip_image.tobytes(), current_original_image.tobytes())
         current_apply_callback = next(current_function.fn for current_function in current_blocks.fns.values() if getattr(current_function.fn, '__name__', '') == 'apply_character_body')
-        current_image, current_prompt, current_identifier = current_apply_callback('neutral-body-jointed', current_page.load_character_default_prompt(), False)
-        self.assertEqual(current_identifier, 'neutral-body-jointed')
+        current_image, current_prompt, current_identifier = current_apply_callback('neutral-body-clothed', current_page.load_character_default_prompt(), False)
+        self.assertEqual(current_identifier, 'neutral-body-clothed')
         self.assertEqual(current_prompt.count(self.body_module.BODY_REFERENCE_ROLE_PROMPT), 1)
         self.assertEqual(current_apply_callback('neutral-body-clothed', current_prompt, False)[1], current_prompt)
         with self.assertRaises(Exception):
-            current_apply_callback('neutral-body-jointed', current_prompt, True)
+            current_apply_callback('neutral-body-clothed', current_prompt, True)
 
 
 if __name__ == '__main__':

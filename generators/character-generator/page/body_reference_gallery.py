@@ -48,6 +48,10 @@ def select_body_reference_card(current_search_text, current_page_number, display
     if type(current_selected_index) is not int or not 0 <= current_selected_index < len(current_page_records):
         raise gr.Error('신체 비율 참조 카드를 다시 선택하세요.')
     current_selected_record = current_page_records[current_selected_index]
+    current_selected_value = current_selection_event.value
+    current_selected_caption = current_selected_value.get('caption') if isinstance(current_selected_value, dict) else None
+    if not isinstance(current_selected_caption, str) or f"ID: {current_selected_record['id']}" not in current_selected_caption.splitlines():
+        raise gr.Error('검색 결과가 변경되었습니다. 카드를 다시 선택하세요.')
     current_description = f"선택: {current_selected_record['label']}\n\n{current_selected_record['role']}\n\n버전 {current_selected_record['version']} · SHA-256 {current_selected_record['sha256']}"
     return current_selected_record['id'], BODY_REFERENCE_MODULE.load_body_reference_image(current_selected_record['id']), current_description, gr.update(interactive=True)
 
@@ -60,7 +64,7 @@ def build_body_reference_gallery():
         current_page_control = gr.State(1)
         current_page_ids = gr.State(initial_page_values[2])
         current_selected_id = gr.State(None)
-        current_gallery_control = CardGallery(value=initial_page_values[0], label='신체 비율 참조 카드', columns=4, rows=2)
+        current_gallery_control = CardGallery(value=initial_page_values[0], label='신체 비율 참조 카드', columns=4, rows=None, height='max-content')
         current_page_notice = gr.Markdown(initial_page_values[3])
         with gr.Row():
             current_previous_button = gr.Button('← 이전', visible=False, interactive=False)

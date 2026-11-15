@@ -38,10 +38,10 @@
 | 경로 | 용도 |
 | --- | --- |
 | `prompts/references/mannequin/research/<버전>/` | 마네킨·피부·얼굴 조정 실험과 생성 기록 |
-| `prompts/references/mannequin/latest/` | 캐릭터 생성의 현재 신체 비율 베이스라인·얼굴 기준과 신체 참조 목록 |
+| `baseline/mannequin/` | 캐릭터 생성의 현재 신체 비율 베이스라인·얼굴 기준과 신체 참조 목록 |
 | `baseline/character-baselines/<캐릭터>/baseline-v<번호>/` | 캐릭터별 시트, 얼굴·전신 파생 이미지와 등록 기록 |
 
-새 마네킨 생성 결과는 `latest`에 직접 저장하지 않는다. 사용자 반영 지시 후 선택한 이미지를 복사하고 파일명·YAML·README를 함께 갱신한다. 기존 이미지 교체와 새 후보 추가를 구분하며 삭제한 파일을 임의로 복원하지 않는다. 캐릭터 결과도 기존 파일 교체 지시가 없으면 별도 이름이나 버전으로 저장한다.
+마네킨 생성기의 단계별 프리셋으로 기준 이미지를 불러와 후보를 생성한다. 새 마네킨 생성 결과는 `baseline/mannequin/`에 직접 저장하지 않는다. 사용자 반영 지시 후 선택한 이미지를 복사하고 파일명·YAML·README를 함께 갱신한다. 기존 이미지 교체와 새 후보 추가를 구분하며 삭제한 파일을 임의로 복원하지 않는다. 캐릭터 결과도 기존 파일 교체 지시가 없으면 별도 이름이나 버전으로 저장한다.
 
 이미지마다 같은 이름의 YAML에 실제 최종 프롬프트, 단어 수, 프롬프트 SHA-256, 이미지 SHA-256, 실제 참조 경로와 역할, 생성 도구, 후보·채택 상태를 기록한다. 참조 해시를 함께 남겨 같은 경로의 이미지 교체를 구분한다. 사용자 첨부 자료는 첨부 파일명과 해시를 기록하며 생성 프롬프트를 추측해 만들지 않는다. 공통 프롬프트의 영문 원문과 한국어 번역은 함께 유지한다.
 
@@ -49,7 +49,7 @@
 
 ## 현재 자료와 관련 문서
 
-- [현재 신체·피부·얼굴 참조](../prompts/references/mannequin/latest/README.md)
+- [현재 신체·피부·얼굴 참조](../baseline/mannequin/README.md)
 - [마네킨 연구 기록](../prompts/references/mannequin/research/README.md)
 - 기본 캐릭터 베이스라인은 사용자 요청으로 폐기했다.
 - [공통 화풍](../prompts/common/art-style.md), [캐릭터 외관 기준](../prompts/common/character-appearance.md)

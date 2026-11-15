@@ -10,7 +10,7 @@ from tools.review.common.map_tile_assets import UniqueAssetYamlLoader
 import yaml
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
-BODY_REFERENCE_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / 'prompts/references/mannequin/latest'
+BODY_REFERENCE_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / 'baseline/mannequin'
 BODY_CATALOG_PATH = BODY_REFERENCE_DIRECTORY / 'body-reference-catalog.yaml'
 BODY_REFERENCE_ROLE_PROMPT = 'Use image 1 for body proportions only; follow the requested character appearance.'
 
@@ -62,7 +62,7 @@ def identify_body_reference_images(current_image_values):
         current_pixel_hash = calculate_reference_pixel_hash(base64.b64decode(current_image_value, validate=True))
         if current_pixel_hash in current_known_pixels:
             current_record = current_known_pixels[current_pixel_hash]
-            current_matches.append({'order': current_image_index, 'id': current_record['id'], 'version': current_record['version'], 'source': 'prompts/references/mannequin/latest/' + current_record['image'], 'source_sha256': current_record['sha256'], 'pixel_sha256': current_pixel_hash, 'role': '신체 비율 참고'})
+            current_matches.append({'order': current_image_index, 'id': current_record['id'], 'version': current_record['version'], 'source': 'baseline/mannequin/' + current_record['image'], 'source_sha256': current_record['sha256'], 'pixel_sha256': current_pixel_hash, 'role': '신체 비율 참고'})
     return current_matches
 
 
@@ -73,7 +73,7 @@ def verify_body_reference_history(current_job_root, current_request_record):
     for current_record in current_reference_records:
         if not isinstance(current_record, dict) or set(current_record) != {'order', 'id', 'version', 'source', 'source_sha256', 'pixel_sha256', 'role'} or type(current_record['order']) is not int or not 1 <= current_record['order'] <= len(current_request_record['references']):
             raise ValueError('저장된 신체 비율 참조 출처 오류')
-        if not isinstance(current_record['id'], str) or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', current_record['id']) or not isinstance(current_record['version'], str) or not re.fullmatch(r'\d+\.\d+\.\d+', current_record['version']) or not isinstance(current_record['source'], str) or not re.fullmatch(r'prompts/references/mannequin/latest/[a-z0-9-]+\.png', current_record['source']) or any(not isinstance(current_record[current_hash_field], str) or not re.fullmatch(r'[a-f0-9]{64}', current_record[current_hash_field]) for current_hash_field in ('source_sha256', 'pixel_sha256')) or current_record['role'] != '신체 비율 참고':
+        if not isinstance(current_record['id'], str) or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', current_record['id']) or not isinstance(current_record['version'], str) or not re.fullmatch(r'\d+\.\d+\.\d+', current_record['version']) or not isinstance(current_record['source'], str) or not re.fullmatch(r'(?:baseline/mannequin|prompts/references/mannequin/latest)/[a-z0-9-]+\.png', current_record['source']) or any(not isinstance(current_record[current_hash_field], str) or not re.fullmatch(r'[a-f0-9]{64}', current_record[current_hash_field]) for current_hash_field in ('source_sha256', 'pixel_sha256')) or current_record['role'] != '신체 비율 참고':
             raise ValueError('저장된 신체 비율 참조 출처 필드 오류')
         current_image_path = Path(current_job_root) / f"reference-{current_record['order']}.png"
         if calculate_reference_pixel_hash(current_image_path.read_bytes()) != current_record['pixel_sha256']:

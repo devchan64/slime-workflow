@@ -5,7 +5,7 @@ image: neutral-body-four-directions.png
 image_sha256: bb2b24b24dac8d0a81965fd8641ff1df726a28d8059c6ff8832e1dad89380f35
 source_type: 사용자 첨부 이미지
 source_filename: codex-clipboard-208cc9a9-3366-4d9a-9f34-ab666cd6560d.png
-related_version: ../research/v4/neutral-body-four-directions-v4.png
+related_version: ../../prompts/references/mannequin/research/v4/neutral-body-four-directions-v4.png
 identical_to_related_version: false
 layout: 2x2
 order:

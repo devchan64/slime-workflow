@@ -7,7 +7,7 @@
 - `v3/`: 중성형 어깨 축소
 - `v4/`: 중성형 허리 축소
 
-현재 지정한 중성형 신체는 [latest](../latest/neutral-body-four-directions.png)를 사용한다. 전체 자료의 용도와 채택 상태는 [상위 색인](../README.md)을 따른다.
+현재 지정한 중성형 신체는 [latest](../../../../baseline/mannequin/neutral-body-four-directions.png)를 사용한다. 전체 자료의 용도와 채택 상태는 [상위 색인](../README.md)을 따른다.
 
 ## v5 · 피부·기본복 가슴 수정
 
@@ -17,7 +17,7 @@
 생성 결과는 research에 보존하며 latest 반영은 사용자 지정 시 수행한다.
 
 
-얼굴 마네킨 연구 이미지·기록은 사용자 요청으로 폐기했다. 현재 [기본형 얼굴](../latest/neutral-head-basic-four-directions.png)은 latest에 보존한다.
+얼굴 마네킨 연구 이미지·기록은 사용자 요청으로 폐기했다. 현재 [기본형 얼굴](../../../../baseline/mannequin/neutral-head-basic-four-directions.png)은 `baseline/mannequin/`에 보존한다.
 
 ## v11 · 얼굴 적용 전신
 

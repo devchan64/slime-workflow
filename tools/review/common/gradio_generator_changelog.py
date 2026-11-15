@@ -5,6 +5,7 @@ import gradio as gr
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[3]
 GENERATOR_CHANGELOG_PATHS = {
+    'mannequin-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/mannequin-generator/CHANGELOG.md',
     'character-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/character-generator/CHANGELOG.md',
     'qwen-21': WORKFLOW_ROOT_DIRECTORY / 'generators/qwen-21/CHANGELOG.md',
     'qwen-21-circular': WORKFLOW_ROOT_DIRECTORY / 'generators/qwen-21-circular/CHANGELOG.md',
