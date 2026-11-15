@@ -168,7 +168,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if vegetation_mode_enabled:
             gr.Markdown('나무·관목·풀·꽃·갈대 등 자연물 빌보드를 생성합니다. 기본 문구 뒤에 식물 종류·계절·색상·군락 밀도를 추가하세요. 레이아웃은 투영·바닥 영역, 식물 참조는 잎·줄기 형태 기준입니다. 참조는 선택 사항이며 결과는 검수 후 slime-assets/assets/billboards/에 자연물으로 등록합니다.')
         if prop_mode_enabled and (not billboard_guide_enabled):
-            gr.Markdown('상자·가판대·작업대·표지판 등 소품 스프라이트를 생성합니다. 기본 문구 뒤에 대상·용도·자재를 추가하세요. 레이아웃은 투영·바닥 영역, 외형 참조는 형태·자재 기준입니다. 참조는 선택 사항이며 결과는 검수 후 slime-assets/assets/billboards/에 등록합니다.')
+            gr.Markdown('상자·가판대·작업대·표지판 등 소품 스프라이트를 생성합니다. 기본 문구 뒤에 대상·용도·자재를 추가하세요. 레이아웃은 투영·바닥 영역, 외형 참조는 형태·자재 기준입니다. 참조는 선택 사항이며 결과는 검수 후 slime-assets/assets/billboards/에 등록합니다. 기본 문구의 투명 배경 표현과 별개로, 네이티브 RGBA 출력 검증은 아래 투명 배경 옵션을 선택할 때 적용됩니다.')
         if building_mode_enabled:
             gr.Markdown('레이아웃 이미지 → 건물 후보 생성. 첫 참조는 실제 맵의 타일 축·건물 바닥 영역·출입구를 표시한 이미지입니다. 건물 용도·자재를 입력하고 건물 기본 프롬프트 추가를 선택하세요. 옵션을 합친 최종 문구는 99단어 이내여야 합니다. 생성 결과는 검수 후 slime-assets/assets/buildings/에 등록합니다.')
         if circular_mode_enabled:
@@ -187,7 +187,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 from generators.image.qwen_21_circular import CIRCULAR_DEFAULT_PROMPT
                 prompt_text_value = gr.Textbox(value=CIRCULAR_DEFAULT_PROMPT if circular_mode_enabled else default_prompt_text, interactive=not outfit_transfer_enabled, label='프롬프트', lines=3, scale=1, min_width=240)
             generation_tag_value = gr.Textbox(label='생성 이력 태그 · 선택 사항', placeholder='예: 돌온재 참조 후보', lines=3, scale=1, min_width=240)
-        if plain_options_enabled:
+        if plain_options_enabled and not (prop_mode_enabled and not billboard_guide_enabled):
             gr.ClearButton(components=[prompt_text_value], value='프롬프트 초기화', variant='secondary')
         if qwen21_mode_enabled:
             gr.Markdown('Qwen Image 2.1 고정 · 첫 참조 레이아웃 필수 · 건물 용도와 자재를 문구에 추가하세요.' if building_mode_enabled else '바디 1장: 신체 비율·자세·외형 기준. 아웃핏 1장: 입힐 의상·신발 기준. 바디를 유지하고 복장을 입힙니다.' if outfit_transfer_enabled else 'Qwen Image 2.1 · 참조 최대 10장. 선택한 프롬프트 옵션을 입력 문구에 추가합니다.' if circular_mode_enabled else 'Qwen Image 2.1 · 기본 입력에 화풍 원문이 포함됩니다. 참조 없이 텍스트만으로도 생성할 수 있습니다.' if character_mode_enabled else 'Qwen Image 2.1 · 공용 화풍 v1.5.0을 기본 적용합니다. 참조 없이 텍스트만으로도 생성할 수 있습니다.')
@@ -361,7 +361,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if building_mode_enabled:
             build_button_guidance(generation_button_value, '첫 슬롯에 레이아웃 이미지를 선택하고 최종 프롬프트를 1~99단어로 맞추세요. 확인 후 대기열에 등록됩니다.')
         elif plain_options_enabled or circular_mode_enabled:
-            build_button_guidance(generation_button_value, ('모델 파일과 AMD ROCm 환경을 준비하세요. ' if current_service_name == 'prop-generator' else '') + '프롬프트를 입력하거나 추가 문구 옵션을 선택하세요. 옵션을 포함한 최종 입력은 1~99단어여야 하며, 확인 중에는 추가 접수할 수 없습니다.')
+            build_button_guidance(generation_button_value, ('모델 준비 상태를 확인하세요. ' if current_service_name == 'prop-generator' else '') + '프롬프트를 입력하거나 추가 문구 옵션을 선택하세요. 옵션을 포함한 최종 입력은 1~99단어여야 하며, 확인 중에는 추가 접수할 수 없습니다.')
         with gr.Column() as generation_confirmation_container:
             pass
         status_value = gr.Markdown('참조 이미지와 설정을 확인하세요.' if outfit_transfer_enabled else '프롬프트와 옵션을 확인하세요.' if plain_options_enabled or circular_mode_enabled else '참조 이미지를 1장 이상 첨부하세요.' if expression_mode_enabled else '생성 가능 · 설정을 확인하세요.')

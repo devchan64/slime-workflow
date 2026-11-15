@@ -68,6 +68,7 @@ class BuildingPromptContractTests(unittest.TestCase):
         current_component_records = current_interface_blocks.config['components']
         self.assertTrue(any(current_component_record['props'].get('label') == '소품 레이아웃·외형 참조 1 · 선택' for current_component_record in current_component_records))
         self.assertTrue(any(current_component_record['props'].get('value') == '소품 기본 프롬프트 복원' for current_component_record in current_component_records))
+        self.assertFalse(any(current_component_record['props'].get('value') == '프롬프트 초기화' for current_component_record in current_component_records))
         with self.assertRaises(ValueError):
             build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, building_mode_enabled=True, prop_mode_enabled=True)
 

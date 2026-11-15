@@ -17,7 +17,7 @@ def read_model_readiness_status(current_execute_command):
 
 def build_model_readiness_controls(current_interface_blocks, current_execute_command, show_management_always=False):
     """다운로드를 실행하지 않고 상태와 모델 관리 이동만 제공한다."""
-    current_model_ready = gr.State(False)
+    current_model_ready = gr.Checkbox(value=False, visible=False)
     current_model_output = gr.Markdown('모델 상태 확인 중')
     with gr.Row():
         current_refresh_button = gr.Button('모델 준비 상태 확인')
