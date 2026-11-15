@@ -1,11 +1,39 @@
 """Gradio Gallery를 확장한 공용 카드 갤러리."""
 from datetime import datetime
+from collections import OrderedDict
+from threading import Lock
+from time import monotonic
 from concurrent.futures import ThreadPoolExecutor
 from zoneinfo import ZoneInfo
 import gradio as gr
 from gradio.data_classes import DeveloperPath
 from PIL import Image
 from tools.review.common.gradio_results import load_gallery_image_values
+
+
+_thumbnail_cache_values = OrderedDict()
+_thumbnail_cache_lock = Lock()
+_THUMBNAIL_CACHE_SECONDS = 30
+_THUMBNAIL_CACHE_LIMIT = 128
+
+
+def load_cached_history_thumbnail(current_image_address, server_base_address):
+    """짧게 보관한 카드 이미지를 재사용하고 실패는 보관하지 않는다."""
+    current_cache_key = (server_base_address, current_image_address)
+    with _thumbnail_cache_lock:
+        current_cache_entry = _thumbnail_cache_values.get(current_cache_key)
+        if current_cache_entry and monotonic() - current_cache_entry[0] < _THUMBNAIL_CACHE_SECONDS:
+            _thumbnail_cache_values.move_to_end(current_cache_key)
+            return current_cache_entry[1].copy()
+        _thumbnail_cache_values.pop(current_cache_key, None)
+    current_thumbnail_image = load_gallery_image_values([(current_image_address, '')], server_base_address, timeout_seconds=1)[0][0]
+    current_thumbnail_image.thumbnail((320, 320), Image.Resampling.LANCZOS)
+    with _thumbnail_cache_lock:
+        _thumbnail_cache_values[current_cache_key] = (monotonic(), current_thumbnail_image.copy())
+        _thumbnail_cache_values.move_to_end(current_cache_key)
+        while len(_thumbnail_cache_values) > _THUMBNAIL_CACHE_LIMIT:
+            _thumbnail_cache_values.popitem(last=False)
+    return current_thumbnail_image
 
 
 class CardGallery(gr.Gallery):
@@ -66,12 +94,13 @@ def render_generation_history_cards(current_history_records, current_table_rows,
         current_image_path=current_record_value.get('image') or (current_record_value.get('status',{}).get('image') if isinstance(current_record_value.get('status'),dict) else None)
         if show_thumbnail_column and isinstance(current_image_path,str) and current_image_path.startswith('/') and not current_image_path.startswith('//'):
             try:
-                return load_gallery_image_values([(server_base_address.rstrip('/')+current_image_path,'')],server_base_address,timeout_seconds=1)[0][0], None
+                current_thumbnail_image=load_cached_history_thumbnail(server_base_address.rstrip('/')+current_image_path,server_base_address)
+                return current_thumbnail_image, None
             except (OSError,ValueError):
                 return None, '썸네일 조회 실패 · 새로고침으로 재시도'
         return None, '이미지 없음'
 
-    # 1枚の遅いサムネイルがページ全体や他のサムネイルを待たせない。
+    # 썸네일을 병렬로 읽고 카드 표시 크기에 맞춰 전송량을 줄인다.
     with ThreadPoolExecutor(max_workers=min(8,max(1,len(current_history_records)))) as current_thumbnail_pool:
         current_thumbnail_values=list(current_thumbnail_pool.map(load_history_thumbnail,current_history_records))
     current_card_values=[]

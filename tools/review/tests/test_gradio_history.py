@@ -324,6 +324,9 @@ class HistoryRadioTableTest(unittest.TestCase):
         self.assertIsNone(current_page_updates[0]['value'])
         current_selection_callback=next(value.fn for value in current_history_blocks.fns.values() if value.fn and value.fn.__name__=='select_history_table_record')
         self.assertEqual(current_selection_callback(2,4,gr.SelectData(None,{'index':0,'value':{'caption':current_page_updates[3][0][1]}}))['value'],'job-4')
+        current_history_records.insert(0, {'id':'new-job','status':'completed','request':{}})
+        self.assertEqual(current_selection_callback(2,4,gr.SelectData(None,{'index':0,'value':{'caption':current_page_updates[3][0][1]}}))['value'],'job-4')
+        current_history_records.pop(0)
         with self.assertRaises(gr.Error):
             current_selection_callback(2,4,gr.SelectData(None,{'index':0,'value':{'caption':'ID: missing'}}))
         current_last_page=current_read_history(99,None,4)
@@ -351,6 +354,38 @@ class HistoryRadioTableTest(unittest.TestCase):
         with patch('anyio.to_thread.run_sync',side_effect=run_gallery_test_inline):
             current_selection_result=asyncio.run(current_history_blocks.process_api(current_gallery_function,[2,4],event_data=current_selection_event))
         self.assertEqual(current_selection_result['data'][0]['value'],'job-4')
+
+    def test_history_thumbnail_is_bounded_without_changing_original(self):
+        from unittest.mock import patch
+        from PIL import Image
+        from tools.review.common.gradio_history_cards import render_generation_history_cards
+        current_original_image = Image.new('RGB', (1600, 800))
+        current_history_records = [{'id': 'large-image', 'image': '/image.png', 'status': 'completed'}]
+        current_table_rows = [('완료', '기록 없음', '', '', 'large-image')]
+        with patch('tools.review.common.gradio_history_cards.load_gallery_image_values', return_value=[(current_original_image.copy(), '')]):
+            current_card_values = render_generation_history_cards(current_history_records, current_table_rows, server_base_address='http://localhost')
+        self.assertEqual(current_card_values[0][0].size, (320, 160))
+        self.assertEqual(current_original_image.size, (1600, 800))
+        self.assertIn('생성 ID: large-image', current_card_values[0][1])
+
+    def test_thumbnail_cache_expires_and_does_not_cache_failures(self):
+        from unittest.mock import patch
+        from PIL import Image
+        from tools.review.common import gradio_history_cards as current_cards_module
+        current_cards_module._thumbnail_cache_values.clear()
+        with patch.object(current_cards_module, 'monotonic', side_effect=[0, 1, 31, 31]), \
+             patch.object(current_cards_module, 'load_gallery_image_values', side_effect=[[(Image.new('RGB', (640, 320)), '')], [(Image.new('RGB', (100, 100)), '')]]) as current_loader_mock:
+            self.assertEqual(current_cards_module.load_cached_history_thumbnail('http://localhost/a', 'http://localhost').size, (320, 160))
+            self.assertEqual(current_cards_module.load_cached_history_thumbnail('http://localhost/a', 'http://localhost').size, (320, 160))
+            self.assertEqual(current_cards_module.load_cached_history_thumbnail('http://localhost/a', 'http://localhost').size, (100, 100))
+            self.assertEqual(current_loader_mock.call_count, 2)
+        current_cards_module._thumbnail_cache_values.clear()
+        with patch.object(current_cards_module, 'load_gallery_image_values', side_effect=[OSError('실패'), [(Image.new('RGB', (10, 10)), '')]]) as current_loader_mock:
+            with self.assertRaises(OSError):
+                current_cards_module.load_cached_history_thumbnail('http://localhost/a', 'http://localhost')
+            current_cards_module.load_cached_history_thumbnail('http://localhost/a', 'http://localhost')
+            self.assertEqual(current_loader_mock.call_count, 2)
+        current_cards_module._thumbnail_cache_values.clear()
 
     def test_history_card_shows_recorded_or_observed_completion(self):
         from tools.review.common.gradio_history_cards import describe_history_completion_time, format_history_timestamp

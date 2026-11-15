@@ -416,8 +416,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_caption_value=current_selected_value.get('caption','') if isinstance(current_selected_value,dict) else ''
         current_job_identifier=current_caption_value.rsplit('\n생성 ID: ',1)[-1]
         current_history_records=execute_service_command('history',{}).get('records',[])
-        current_record_index=(max(1,int(current_page_number or 1))-1)*current_page_size+current_row_index
-        if current_record_index>=len(current_history_records) or current_history_records[current_record_index]['id']!=current_job_identifier:
+        if current_row_index>=current_page_size or not any(current_history_record.get('id')==current_job_identifier for current_history_record in current_history_records):
             raise gr.Error('선택한 이력이 없습니다. 목록을 새로고침하세요.')
         return gr.update(value=current_job_identifier)
     history_cards_value.select(select_history_table_record,inputs=[history_page_value,history_page_size],outputs=history_selection_value,queue=False)
