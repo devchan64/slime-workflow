@@ -17,18 +17,17 @@ from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
 from generators.wan_vace.page.video_preview import prepare_vace_browser_video
 
-VACE_INPUT_CHOICES = [('키모도 DWPose 영상 + 캐릭터 참조', 'pose'), ('영상 전체 조건 + 외형 참조 · 실험', 'video_condition'), ('영상 부분 편집 + 외형 참조', 'video_edit'), ('외형 참조 + 텍스트 (R2V)', 'reference'), ('첫 프레임 + 텍스트 (I2V)', 'first_frame'), ('텍스트만 (T2V)', 'text')]
+VACE_INPUT_CHOICES = [('제어 영상 + 참조 이미지 · 포즈', 'pose'), ('참조 이미지 + 프롬프트', 'reference'), ('첫 프레임 + 프롬프트', 'first_frame'), ('프롬프트만', 'text'), ('영상 부분 편집 + 참조 이미지', 'video_edit'), ('영상 전체 조건 + 참조 이미지 · 실험', 'video_condition')]
 
 
 VACE_MODE_HELP_TEXT = {
-    'video_condition': '**영상 전체 조건 · 실험**\n\n원본 RGB MP4와 캐릭터 참조 이미지 1장을 입력합니다. 전체 검정 마스크를 모델에 전달해 영상 전체를 조건으로 사용합니다. 원본과 자동 합성하지 않으며 자세·외형 보존 및 일관성 개선은 보장되지 않습니다. 영상은 832×480·16fps·32MiB 이하이며 출력 길이 이상이어야 합니다. 비양자화 GPU 실행·품질은 별도 검수합니다.',
-    'pose': '**포즈 동작 따라 생성**\n\n1. 캐릭터 외형 참조 이미지 1장을 첨부합니다.\n2. 키모도 결과의 DWPose MP4를 첨부합니다. SOMA 렌더나 완성 캐릭터 영상이 아닙니다.\n3. 원하는 동작을 짧게 적고 출력 프레임을 영상 길이 이내의 4n+1로 설정합니다.\n\n포즈 재추출 없이 동작 조건으로 사용합니다. 편집 마스크는 필요 없습니다. 영상은 832×480·16fps·32MiB 이하이며 부족한 프레임을 반복하지 않습니다.',
-    'video_edit': '**기존 영상의 일부 다시 그리기**\n\n1. 바꾸려는 캐릭터의 외형 참조 이미지 1장을 첨부합니다.\n2. 완성된 원본 MP4와 같은 좌표·길이의 마스크 MP4를 첨부합니다.\n3. 바꾸려는 내용을 프롬프트로 적습니다.\n\n흰색은 재생성, 검정은 원본 보존 조건입니다. 두 영상 모두 832×480·16fps·32MiB 이하이며 출력 길이 이상이어야 합니다. 마스크 밖도 달라질 수 있으며 원본과 자동 합성하지 않습니다.',
-    'reference': '**캐릭터 외형을 참고해 새 영상 생성**\n\n1. 외형 참조 이미지 1장을 첨부합니다.\n2. 주체·동작·카메라를 짧게 적습니다.\n3. 출력 프레임과 스텝을 선택합니다.\n\n이미지는 외형 조건이며 첫 화면이나 동작을 고정하지 않습니다. 동작을 지정한 영상대로 따라가려면 포즈 모드를 사용하세요.',
-    'first_frame': '**이미지에서 시작하는 영상 생성**\n\n1. 시작 장면 이미지 1장을 첨부합니다.\n2. 그 장면에서 이어질 동작을 적습니다.\n3. 출력 프레임과 스텝을 선택합니다.\n\n이미지를 첫 프레임 조건으로 전달합니다. 출력 첫 프레임의 픽셀 완전 일치는 보장하지 않습니다.',
-    'text': '**텍스트만으로 영상 생성**\n\n1. 주체·동작·배경·카메라를 짧게 적습니다.\n2. 출력 프레임과 스텝을 선택합니다.\n\n이미지나 영상은 사용하지 않습니다. 특정 캐릭터의 외형을 유지하려면 외형 참조 또는 포즈 모드를 사용하세요.',
+    'pose': '**제어 영상 + 참조 이미지 · 포즈**\n\n1. 캐릭터 외형 참조 이미지 1장과 키모도 DWPose MP4를 첨부합니다. SOMA 렌더나 완성 캐릭터 영상은 포즈 입력이 아닙니다.\n2. 주체·동작·카메라를 적고 출력 프레임을 영상 길이 이내의 4n+1로 설정합니다.\n3. 고급 설정에서 스텝·CFG·Flow shift·VACE 조건 강도를 확인합니다. 제작자 예제는 81프레임·16fps, 50스텝, CFG 5, shift 12, 조건 강도 1을 사용합니다. 설정은 자동으로 바뀌지 않습니다.\n\nMP4는 832×480·16fps·32MiB 이하여야 합니다. 관절 위치를 강제하지 않으므로 자세와 타이밍을 검수하세요. 현재 화면은 제어 영상 중 DWPose만 지원합니다.',
+    'reference': '**참조 이미지 + 프롬프트**\n\n1. 캐릭터 외형 참조 이미지 1장을 첨부합니다.\n2. 주체·동작·카메라를 적고 출력 프레임을 선택합니다.\n3. 고급 설정에서 스텝·CFG·Flow shift·VACE 조건 강도를 조정합니다.\n\n이미지는 외형 조건이며 첫 화면이나 동작을 고정하지 않습니다. 포즈 영상을 따르려면 제어 영상 + 참조 이미지를 선택하세요.',
+    'first_frame': '**첫 프레임 + 프롬프트**\n\n1. 시작 장면 이미지 1장을 첨부합니다.\n2. 이어질 동작을 적고 출력 프레임을 선택합니다.\n3. 고급 설정에서 스텝·CFG·Flow shift를 조정합니다.\n\n이미지는 첫 프레임 조건이며 출력 픽셀의 완전 일치는 보장되지 않습니다.',
+    'text': '**프롬프트만**\n\n1. 주체·동작·배경·카메라를 적습니다.\n2. 출력 프레임을 선택하고 고급 설정에서 스텝·CFG·Flow shift를 조정합니다.\n\n이미지나 영상은 사용하지 않습니다. 특정 외형이나 포즈가 필요하면 참조 이미지 또는 제어 영상 모드를 선택하세요.',
+    'video_edit': '**영상 부분 편집 + 참조 이미지**\n\n1. 외형 참조 이미지와 원본 MP4, 같은 좌표·길이의 마스크 MP4를 첨부합니다.\n2. 바꿀 내용을 적고 출력 프레임을 입력 길이 이내로 정합니다.\n3. 고급 설정에서 스텝·CFG·Flow shift·VACE 조건 강도를 조정합니다.\n\n마스크의 흰색은 재생성, 검정은 보존 조건입니다. MP4는 832×480·16fps·각 32MiB 이하여야 합니다. 마스크 밖도 바뀔 수 있으며 원본과 자동 합성하지 않습니다.',
+    'video_condition': '**영상 전체 조건 + 참조 이미지 · 실험**\n\n1. 캐릭터 참조 이미지 1장과 원본 RGB 영상을 첨부합니다.\n2. 장면과 원하는 변화를 적고 출력 프레임을 영상 길이 이내로 설정합니다.\n3. 고급 설정에서 스텝·CFG·Flow shift·VACE 조건 강도를 조정합니다.\n\n전체 영상이 조건이며 자동 합성하지 않습니다. 자세와 외형 보존은 보장되지 않습니다. MP4는 832×480·16fps·32MiB 이하여야 합니다.',
 }
-
 
 def describe_vace_mode(current_input_mode):
     if current_input_mode not in VACE_MODE_HELP_TEXT:
@@ -180,11 +179,12 @@ def build_vace_interface(current_server_address, current_command_callback=None):
         current_seed_control = build_generation_seed(default_seed_value=VACE_DEFAULT_SETTINGS['seed'])
         with gr.Group():
             gr.Markdown('### 고급 설정 · 설정값 안내')
-            current_steps_control = gr.Number(value=VACE_DEFAULT_SETTINGS['steps'], precision=0, minimum=2, maximum=100, label='스텝', info='현재 실험 기준으로 매끄러운 영상 생성을 위해 30스텝 이상을 권장합니다. 제작자 예제는 50스텝입니다. 2스텝은 연결 확인용이며 품질 평가용이 아닙니다.')
-            current_shift_control = gr.Number(value=VACE_DEFAULT_SETTINGS['flow_shift'], minimum=0.1, maximum=20, label='Flow shift', info='제작자 Flow 설정 12. 노이즈 시간 배분을 바꾸며 고·저노이즈 단계 수에도 영향을 줍니다.')
-            current_guidance_control = gr.Number(value=VACE_DEFAULT_SETTINGS['guidance_scale'], minimum=1, maximum=10, label='CFG', info='제작자 예제 5. 텍스트 유도 강도이며 동작량 조절값은 아닙니다.')
-            current_strength_control = gr.Number(value=VACE_DEFAULT_SETTINGS['reference_strength'], minimum=0.1, maximum=2, label='VACE 조건 강도', info='제작자 기본 1. 외형 참조·첫 프레임 조건의 영향입니다. 크게 올려도 보존·동작 개선을 보장하지 않습니다.')
-            gr.Markdown('**검증 범위:** 공식 VideoX-Fun과 비양자화 BF16 가중치를 사용합니다. AMD GPU 전체 생성과 메모리 사용량은 검증되지 않았습니다.\n\n[모델카드](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B) · [제작자 외형 참조 예제](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/examples/wan2.2_vace_fun/predict_s2v.py) · [제작자 첫 프레임 예제](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/examples/wan2.2_vace_fun/predict_i2v.py)')
+            gr.Markdown('[모델카드](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)는 81프레임·16fps 학습과 포즈 등 제어 입력을 설명합니다. 아래 비교값은 [제작자의 제어 영상 + 참조 이미지 예제](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/examples/wan2.2_vace_fun/predict_v2v_control_ref.py)의 설정이며 모든 입력의 최적값이나 품질을 보장하지 않습니다. 값을 직접 바꾸며, 모드 전환 시 자동 적용하지 않습니다.')
+            current_steps_control = gr.Number(value=VACE_DEFAULT_SETTINGS['steps'], precision=0, minimum=2, maximum=100, label='스텝', info='제작자 제어 예제 50. 반복 횟수이며 변경하면 시간과 결과가 달라집니다. 2스텝은 연결 확인용입니다.')
+            current_shift_control = gr.Number(value=VACE_DEFAULT_SETTINGS['flow_shift'], minimum=0.1, maximum=20, label='Flow shift', info='제작자 제어 예제 12. 이 도구의 Euler/FlowMatch 노이즈 시간 배분에 적용됩니다.')
+            current_guidance_control = gr.Number(value=VACE_DEFAULT_SETTINGS['guidance_scale'], minimum=1, maximum=10, label='CFG', info='제작자 제어 예제 5. 프롬프트 유도 강도이며 1은 classifier-free guidance를 사용하지 않습니다.')
+            current_strength_control = gr.Number(value=VACE_DEFAULT_SETTINGS['reference_strength'], minimum=0.1, maximum=2, label='VACE 조건 강도', info='제작자 제어 예제 1. 제어 영상과 참조 등을 포함한 VACE 조건 전체에 적용하며 외형 참조 전용 강도가 아닙니다.')
+            gr.Markdown('**검증 범위:** 공식 VideoX-Fun과 비양자화 BF16 가중치를 사용합니다. AMD GPU에서 포즈 65프레임·20스텝 생성과 수치 검사를 확인했습니다. 다른 입력의 결과 품질은 별도 검수해야 합니다.\n\n[모델카드](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B) · [제작자 외형 참조 예제](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/examples/wan2.2_vace_fun/predict_s2v.py) · [제작자 첫 프레임 예제](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/examples/wan2.2_vace_fun/predict_i2v.py)')
         current_input_controls = [current_mode_control,current_reference_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_strength_control,current_edit_video,current_edit_mask,current_pose_video]
         current_generate_button = gr.Button('대기열에 추가', variant='primary', interactive=False)
         build_button_guidance(current_generate_button, '모델 준비 상태를 확인하고 모드별 안내에 표시된 필수 첨부와 프롬프트를 입력하세요.')

@@ -11,6 +11,14 @@ from tools.review.common.management_gateway import resolve_management_command
 
 
 class VaceVideoContractTests(unittest.TestCase):
+    def test_mode_guides_keep_api_values_and_show_pose_requirements(self):
+        from generators.wan_vace.page.interface import VACE_INPUT_CHOICES, describe_vace_mode
+        self.assertEqual({current_mode for _,current_mode in VACE_INPUT_CHOICES}, {'pose','reference','first_frame','text','video_edit','video_condition'})
+        current_pose_guide = describe_vace_mode('pose')[0]
+        for current_required_phrase in ('DWPose', '50스텝', 'CFG 5', 'shift 12', '자동으로 바뀌지 않습니다'):
+            self.assertIn(current_required_phrase, current_pose_guide)
+        self.assertIn('이미지나 영상은 사용하지 않습니다', describe_vace_mode('text')[0])
+
     def setUp(self):
         current_image_buffer = io.BytesIO()
         Image.new('RGB', (832,480), 'white').save(current_image_buffer, format='PNG')
