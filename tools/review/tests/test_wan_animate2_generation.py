@@ -11,6 +11,22 @@ from tools.review.common.management_gateway import resolve_management_command, M
 
 
 class AnimateTwoContractTests(unittest.TestCase):
+    def test_nonfinite_scheduler_and_video_output_fail_before_conversion(self):
+        import numpy as np
+        import torch
+        from generators.wan_animate2.worker import check_animate_finite_tensor, guard_animate_vae_encoding, validate_animate_output_frames
+        check_animate_finite_tensor(torch.tensor([0.5]), torch, '검사')
+        with self.assertRaisesRegex(ValueError, 'NaN'):
+            check_animate_finite_tensor(torch.tensor([float('nan')]), torch, '예측값')
+        with self.assertRaisesRegex(ValueError, '무한대'):
+            validate_animate_output_frames(np.array([0.0,float('inf')]), np)
+        current_guarded_encoder=guard_animate_vae_encoding(lambda value: value,torch)
+        self.assertTrue(torch.equal(current_guarded_encoder(torch.tensor([1.0])),torch.tensor([1.0])))
+        with self.assertRaisesRegex(ValueError, 'VAE 인코딩 출력'):
+            current_guarded_encoder(torch.tensor([float('nan')]))
+        current_valid_frames=np.zeros((2,2,2,3),dtype=np.uint8)
+        self.assertIs(validate_animate_output_frames(current_valid_frames,np),current_valid_frames)
+
     def test_rgb_request_duration_and_dimensions(self):
         import cv2
         import numpy as np

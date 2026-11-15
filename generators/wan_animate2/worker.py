@@ -9,14 +9,41 @@ from generators.wan_animate2.contracts import ANIMATE_JOB_STORAGE, ANIMATE_MODEL
 from generators.common.reference_video_worker import run_reference_video_worker, save_video_outputs
 
 
+def check_animate_finite_tensor(current_tensor_value, current_torch_module, current_stage_name):
+    """스케줄러에 전달되는 GPU 텐서의 비유한 값을 실패로 처리한다."""
+    if isinstance(current_tensor_value, current_torch_module.Tensor) and (current_tensor_value.is_floating_point() or current_tensor_value.is_complex()):
+        if not bool(current_torch_module.isfinite(current_tensor_value).all().item()):
+            raise ValueError(f'Animate2 {current_stage_name}에 NaN 또는 무한대가 있습니다.')
+
+
+def validate_animate_output_frames(current_frame_arrays, current_numpy_module):
+    """비유한 프레임을 정수로 변환해 정상 결과로 저장하지 않는다."""
+    if not bool(current_numpy_module.isfinite(current_frame_arrays).all()):
+        raise ValueError('Animate2 출력 프레임에 NaN 또는 무한대가 있습니다.')
+    return current_frame_arrays
+
+
+def guard_animate_vae_encoding(current_encode_function, current_torch_module):
+    """참조 영상과 이미지의 VAE 잠재값을 사용하기 전에 검증한다."""
+    def encode_checked_animate_video(*current_encode_arguments, **current_encode_keywords):
+        current_latent_tensor = current_encode_function(*current_encode_arguments, **current_encode_keywords)
+        check_animate_finite_tensor(current_latent_tensor, current_torch_module, 'VAE 인코딩 출력')
+        return current_latent_tensor
+    return encode_checked_animate_video
+
+
 def execute_animate_inference(current_job_root,current_attempt_root,current_request_record,current_metrics_recorder):
     sys.path.insert(0,str(ANIMATE_RUNTIME_DIRECTORY/'src'))
     import torch
     import numpy as np
     from diffusers import ModularPipeline
     from diffusers.utils import load_image, load_video
+    from diffusers.modular_pipelines.wan_animate_2 import encoders as animate_encoder_module, denoise as animate_denoise_module
     from generators.wan_animate2.attention_compile import enable_compiled_attention
     enable_compiled_attention()
+    current_checked_vae_encode=guard_animate_vae_encoding(animate_encoder_module.encode_vae,torch)
+    animate_encoder_module.encode_vae=current_checked_vae_encode
+    animate_denoise_module.encode_vae=current_checked_vae_encode
     current_video_path=current_job_root/'driving.mp4'
     if current_request_record['driving_video_file']!='driving.mp4' or hashlib.sha256(current_video_path.read_bytes()).hexdigest()!=current_request_record['driving_video_sha256']:
         raise ValueError('동작 영상 사본 해시 불일치')
@@ -43,13 +70,21 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
     current_scheduler_step=current_pipeline_model.scheduler.step
     current_completed_steps=[0]
     def record_scheduler_step(*current_step_arguments,**current_step_keywords):
+        current_model_output=current_step_keywords.get('model_output',current_step_arguments[0] if current_step_arguments else None)
+        current_input_sample=current_step_keywords.get('sample',current_step_arguments[2] if len(current_step_arguments)>2 else None)
+        check_animate_finite_tensor(current_model_output,torch,'스케줄러 예측값')
+        check_animate_finite_tensor(current_input_sample,torch,'스케줄러 입력')
         current_step_result=current_scheduler_step(*current_step_arguments,**current_step_keywords)
+        current_previous_sample=getattr(current_step_result,'prev_sample',None)
+        if current_previous_sample is None and isinstance(current_step_result,(tuple,list)) and current_step_result:
+            current_previous_sample=current_step_result[0]
+        check_animate_finite_tensor(current_previous_sample,torch,'스케줄러 출력')
         current_completed_steps[0]+=1
         current_metrics_recorder.record_generation_step(current_completed_steps[0])
         return current_step_result
     current_pipeline_model.scheduler.step=record_scheduler_step
     current_output_videos=current_pipeline_model(image=load_image(str(current_job_root/current_request_record['references'][0])),driving_video=current_driving_frames,driving_video_fps=24,prompt=current_request_record['prompt'],height=480,width=832,segment_frame_length=current_frame_count,num_inference_steps=current_request_record['steps'],generator=torch.Generator(device='cuda').manual_seed(current_request_record['seed']),output='videos')
-    current_frame_arrays=np.asarray(current_output_videos[0])
+    current_frame_arrays=validate_animate_output_frames(np.asarray(current_output_videos[0]),np)
     if current_frame_arrays.dtype!=np.uint8:
         current_frame_arrays=np.rint(np.clip(current_frame_arrays,0,1)*255).astype(np.uint8)
     if len(current_frame_arrays)!=current_frame_count:
