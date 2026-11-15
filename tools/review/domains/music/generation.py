@@ -134,8 +134,6 @@ class MusicGenerationManager:
             from generators.music.runtime import validate_prepared_music
             if self.current_service_name == 'sfx-dasheng-audiogen':
                 from generators.sound_effects.runtime import validate_effects_model as validate_prepared_music
-            if self.current_service_name == 'music-magenta':
-                from generators.music.magenta.runtime import validate_magenta_artifacts as validate_prepared_music
             if self.current_service_name == 'music-heartmula':
                 from generators.music.heartmula.runtime import validate_heartmula_artifacts as validate_prepared_music
             current_download_available = self.runtime_python_path.is_file()
@@ -150,8 +148,8 @@ class MusicGenerationManager:
                     if current_validation_path.is_file():
                         current_validation_record = read_music_record(current_validation_path)
                         current_verified_root = self.resolve_music_job(current_validation_record['generation_id'])
-                        current_gpu_verified = current_validation_record.get('status') == 'passed' and current_validation_record.get('runtime_sha256') == calculate_music_checksum(WORKFLOW_ROOT_DIRECTORY/'generators/music/heartmula/runtime.py') and read_music_record(current_verified_root/'status.json').get('status') == 'completed'
-                    return {'ready':current_gpu_verified,'artifacts_ready':True,'can_prepare':current_download_available,'message':'모델 준비·GPU 생성 검증 완료 · NF4 생성/FP32 디코더' if current_gpu_verified else '모델 파일 준비 완료 · GPU 생성 검증 대기 중','model_id':self.current_profile_record['model_id']}
+                        current_gpu_verified = current_validation_record.get('backend') == 'rocm' and current_validation_record.get('status') == 'passed' and current_validation_record.get('runtime_sha256') == calculate_music_checksum(WORKFLOW_ROOT_DIRECTORY/'generators/music/heartmula/runtime.py') and read_music_record(current_verified_root/'status.json').get('status') == 'completed'
+                    return {'ready':current_gpu_verified,'artifacts_ready':True,'can_prepare':current_download_available,'message':'모델 준비·GPU 생성 검증 완료 · BF16 비양자화 생성/FP32 디코더' if current_gpu_verified else '모델 파일 준비 완료 · GPU 생성 검증 대기 중','model_id':self.current_profile_record['model_id']}
                 return {'ready':True,'can_prepare':current_download_available,'message':'모델 준비됨 · VRAM 관측 피크는 실행 이력에서 확인','model_id':self.current_profile_record['model_id']}
             except (OSError,ValueError,KeyError) as current_prepare_error:
                 return {'ready':False,'can_prepare':current_download_available,'message':str(current_prepare_error),'model_id':self.current_profile_record['model_id']}

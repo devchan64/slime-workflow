@@ -47,8 +47,8 @@ def execute_image_worker():
         publish_worker_progress(current_stage_state)
         acquire_worker_lock(current_lock_handle,current_stage_state['stage'])
         import torch
-        if not torch.cuda.is_available():
-            raise RuntimeError('CUDA 사용 불가: CPU 추론은 지원하지 않습니다.')
+        if not getattr(torch.version, 'hip', None) or not torch.cuda.is_available():
+            raise RuntimeError('ROCm PyTorch 또는 AMD GPU 사용 불가: CPU 추론은 지원하지 않습니다.')
         if current_request_record['action'] == 'prepare':
             from tools.review.common.model_huggingface_download import tracked_snapshot_download as snapshot_download, tracked_hf_hub_download as hf_hub_download
             publish_worker_progress({'stage':'download-model'})

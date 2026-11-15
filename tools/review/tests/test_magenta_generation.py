@@ -13,9 +13,12 @@ class MagentaGenerationTests(unittest.TestCase):
                 build_music_request('music-magenta',{'prompt':'harp',**current_invalid_payload})
 
     def test_unverified_and_retired_execution_blocked(self):
+        from generators.music.worker import execute_music_worker
         for current_service_name in ('music-minimax','music-magenta'):
             current_service_manager = MusicGenerationManager(current_service_name)
             for current_command_name,current_payload_record in (('generate',{'prompt':'harp'}),('prepare',{'action':'prepare'}),('resume',{'id':'2026-10-24_19-44-27-113c612c'})):
                 with self.subTest(service=current_service_name,command=current_command_name), self.assertRaises(ValueError):
                     current_service_manager.execute_music_command(current_command_name,current_payload_record)
             self.assertFalse(current_service_manager.execute_music_command('model-status',{})['ready'])
+            with self.assertRaisesRegex(ValueError, '폐기'):
+                execute_music_worker(current_service_name, None)

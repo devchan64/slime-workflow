@@ -1,4 +1,4 @@
-"""HeartMuLa 원곡을 보존하고 CUDA Demucs로 MR·보컬을 분리한다."""
+"""HeartMuLa 원곡을 보존하고 ROCm Demucs로 MR·보컬을 분리한다."""
 from pathlib import Path
 import gc
 

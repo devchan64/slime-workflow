@@ -13,17 +13,14 @@ from tools.review.common.generation_records import write_record_atomically
 
 def encode_kimodo_prompt(current_prompt_text, current_attempt_root):
     import torch
-    from accelerate import cpu_offload
     from transformers import AutoTokenizer
     from peft import PeftModel
     from kimodo.model.llm2vec.models.bidirectional_llama import LlamaBiModel
     from kimodo.model.llm2vec.llm2vec import LLM2Vec
     current_gpu_device = torch.device('cuda:0')
-    current_free_bytes, _ = torch.cuda.mem_get_info(current_gpu_device)
-    current_offload_enabled = current_free_bytes < 20 * 2**30
     current_base_encoder = LlamaBiModel.from_pretrained(
         str(KIMODO_MODEL_ROOT/'encoder-base-ollama'), local_files_only=True,
-        device_map={'': 'cpu' if current_offload_enabled else current_gpu_device},
+        device_map={'': current_gpu_device},
         dtype=torch.bfloat16, attn_implementation='sdpa',
     )
     current_mntp_encoder = PeftModel.from_pretrained(
@@ -32,9 +29,7 @@ def encode_kimodo_prompt(current_prompt_text, current_attempt_root):
     current_adapted_encoder = PeftModel.from_pretrained(
         current_mntp_encoder, str(KIMODO_MODEL_ROOT/'encoder-supervised'), local_files_only=True,
     ).eval()
-    if current_offload_enabled:
-        cpu_offload(current_adapted_encoder, execution_device=current_gpu_device, offload_buffers=True)
-    elif any(current_parameter_value.device.type != 'cuda' for current_parameter_value in current_adapted_encoder.parameters()):
+    if any(current_parameter_value.device.type != 'cuda' for current_parameter_value in current_adapted_encoder.parameters()):
         raise RuntimeError('인코더 가중치가 ROCm GPU에 로드되지 않았습니다.')
     current_adapted_encoder.config._name_or_path = 'meta-llama/Meta-Llama-3-8B-Instruct'
     current_tokenizer_value = AutoTokenizer.from_pretrained(str(KIMODO_MODEL_ROOT/'encoder-mntp'),local_files_only=True)
@@ -52,7 +47,7 @@ def encode_kimodo_prompt(current_prompt_text, current_attempt_root):
         current_token_features = current_llm_encoder.tokenize([current_prepared_text])
         current_token_features = {current_field_name:current_tensor_value.to('cuda:0') for current_field_name,current_tensor_value in current_token_features.items()}
         with torch.inference_mode():
-            current_segment_embedding = current_llm_encoder(current_token_features).float().detach().cpu()
+            current_segment_embedding = current_llm_encoder(current_token_features).float().detach()
         if current_segment_embedding.shape != (1,4096) or not torch.isfinite(current_segment_embedding).all():
             raise ValueError('텍스트 임베딩 형식·유한값 오류')
         current_embedding_values.append(current_segment_embedding)

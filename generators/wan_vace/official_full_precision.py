@@ -52,7 +52,7 @@ def load_full_precision_expert(current_expert_name, current_model_class):
     from safetensors import safe_open
     from videox_fun.models.wan_transformer3d import rope_params
 
-    if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
+    if not getattr(torch.version, 'hip', None) or not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
         raise RuntimeError('비양자화 VACE는 BF16을 지원하는 GPU가 필요합니다.')
     current_weight_path = verify_full_precision_file(current_expert_name)
     current_config_path = Path(__file__).parent / 'config/official-model.yaml'

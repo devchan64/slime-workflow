@@ -53,8 +53,8 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
     from PIL import Image
     from diffusers import QwenImage21Pipeline
 
-    if not torch.cuda.is_available():
-        raise RuntimeError('Qwen 2.1 추론에 CUDA GPU가 필요합니다.')
+    if not getattr(torch.version, 'hip', None) or not torch.cuda.is_available():
+        raise RuntimeError('Qwen 2.1 추론에 ROCm PyTorch와 AMD GPU가 필요합니다.')
     selected_inference_steps = current_request_record['steps']
     if type(selected_inference_steps) is not int or selected_inference_steps not in QWEN_ALLOWED_INFERENCE_STEPS:
         raise ValueError('Qwen 2.1 스텝은 20·30·40·50 중 선택해야 합니다.')

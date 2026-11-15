@@ -75,7 +75,7 @@ def render_soma_motion(current_attempt_root, current_direction_angles, current_s
     from generators.kimodo.contracts import KIMODO_SOURCE_ROOT, KIMODO_ASSET_CONFIG
     from tools.review.common.generation_records import write_record_atomically
 
-    if not torch.cuda.is_available():
+    if not getattr(torch.version, 'hip', None) or not torch.cuda.is_available():
         raise RuntimeError('SOMA 스키닝에 CUDA가 필요합니다.')
     current_skin_source = KIMODO_SOURCE_ROOT/'kimodo/viz/soma_skin.py'
     current_module_spec = importlib.util.spec_from_file_location('kimodo_official_soma_skin', current_skin_source)

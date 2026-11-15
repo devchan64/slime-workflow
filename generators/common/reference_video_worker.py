@@ -52,8 +52,8 @@ def run_reference_video_worker(current_storage_root, current_worker_path, curren
     try:
         current_assets_validator()
         import torch
-        if not torch.cuda.is_available():
-            raise RuntimeError('GPU 사용 불가: CUDA 또는 ROCm PyTorch와 GPU 장치 접근을 확인하세요.')
+        if not getattr(torch.version, 'hip', None) or not torch.cuda.is_available():
+            raise RuntimeError('GPU 사용 불가: ROCm PyTorch와 AMD GPU 장치 접근을 확인하세요.')
         with torch.inference_mode():
             current_result_record = current_inference_callback(current_job_root, current_attempt_root, current_request_record, current_metrics_recorder)
         write_record_atomically(current_attempt_root / 'result.json', current_result_record)

@@ -1,7 +1,5 @@
+-c ../../wan_fun/rocm-constraints.txt
 heartlib @ git+https://github.com/HeartMuLa/heartlib.git@5858ca8f1ffe58d62be7c007ea55f1033c5ca456
-torch==2.8.0
-torchaudio==2.8.0
-torchvision==0.23.0
 PyYAML==6.0.3
 demucs==4.0.1
 lameenc==1.9.0

@@ -1,4 +1,4 @@
-"""Dasheng-AudioGen 고정 로컬 모델·단계별 CUDA 추론 어댑터."""
+"""Dasheng-AudioGen 고정 로컬 모델·단계별 ROCm GPU 추론 어댑터."""
 from datetime import datetime
 from functools import lru_cache
 import fcntl
@@ -25,8 +25,8 @@ def calculate_cached_checksum(current_file_path,current_file_size,current_modifi
 
 def require_effects_cuda():
     import torch
-    if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
-        raise RuntimeError('Dasheng-AudioGen에는 BF16 지원 CUDA GPU가 필요합니다. CPU 추론으로 대체하지 않습니다.')
+    if not getattr(torch.version, 'hip', None) or not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
+        raise RuntimeError('Dasheng-AudioGen에는 BF16 지원 ROCm PyTorch와 AMD GPU가 필요합니다. CPU 추론으로 대체하지 않습니다.')
     return torch
 
 
@@ -56,40 +56,22 @@ def validate_effects_model(current_service_name):
     return current_manifest_record
 
 
-def attach_effects_offload(current_model_module,current_metrics_recorder=None):
-    """CPU는 가중치 대기용이며 텍스트·DiT·디코더 연산은 모두 CUDA다."""
-    import torch
+def attach_effects_stage_progress(current_model_module,current_metrics_recorder=None):
+    """모델 전체를 GPU에 유지하며 단계 전환만 기록한다."""
     current_stage_modules = {
-        'text':(current_model_module.text_encoder_backbone,),
-        'inference':(current_model_module.backbone,),
-        'decode':tuple(current_module_value for current_module_value in (current_model_module.audio_tokenizer.upsampler,current_model_module.audio_tokenizer.decoder) if current_module_value is not None),
+        'text': (current_model_module.text_encoder_backbone,),
+        'inference': (current_model_module.backbone,),
+        'decode': tuple(current_module_value for current_module_value in (current_model_module.audio_tokenizer.upsampler, current_model_module.audio_tokenizer.decoder) if current_module_value is not None),
     }
-    current_active_stage = [None]
-    def build_stage_transition(current_stage_name):
-        def activate_effects_stage(current_target_module,current_input_values):
-            if current_active_stage[0] == current_stage_name:
-                return
-            for current_other_name,current_module_values in current_stage_modules.items():
-                if current_other_name != current_stage_name:
-                    for current_module_value in current_module_values:
-                        current_module_value.to('cpu')
-            torch.cuda.empty_cache()
-            for current_module_value in current_stage_modules[current_stage_name]:
-                current_module_value.to('cuda')
-            current_active_stage[0] = current_stage_name
-            print(f'{datetime.now().isoformat()}/dasheng/{current_stage_name} compute=cuda weight_offload=cpu',flush=True)
+    def build_stage_callback(current_stage_name):
+        def record_effects_stage(current_target_module,current_input_values):
             if current_metrics_recorder is not None:
                 current_metrics_recorder.update_generation_stage(current_stage_name)
-        return activate_effects_stage
+        return record_effects_stage
+    current_model_module.to('cuda')
     for current_stage_name,current_module_values in current_stage_modules.items():
         for current_module_value in current_module_values:
-            current_module_value.register_forward_pre_hook(build_stage_transition(current_stage_name))
-    current_model_module.content_adapter.to('cuda')
-    current_model_module.content_encoder.to('cuda')
-    for current_parameter_value in current_model_module.parameters(recurse=False):
-        current_parameter_value.data = current_parameter_value.data.to('cuda')
-    for current_buffer_name,current_buffer_value in current_model_module.named_buffers(recurse=False):
-        setattr(current_model_module,current_buffer_name,current_buffer_value.to('cuda'))
+            current_module_value.register_forward_pre_hook(build_stage_callback(current_stage_name))
     attach_cuda_guards(current_model_module)
     return current_model_module
 
@@ -108,7 +90,7 @@ def load_effects_model(current_model_root,current_metrics_recorder=None):
     current_model_module.eval().to(dtype=torch.bfloat16)
     # 공식 Vocos는 최종 ISTFT head에서 autocast를 끄고 FP32 입력을 사용한다.
     current_model_module.audio_tokenizer.decoder.head.float()
-    return attach_effects_offload(current_model_module,current_metrics_recorder)
+    return attach_effects_stage_progress(current_model_module,current_metrics_recorder)
 
 
 def prepare_effects_model(current_service_name,current_metrics_recorder,current_refresh_assets=False):

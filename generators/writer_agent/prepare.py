@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""고정 CUDA 환경을 준비하고 로컬 문서 작업을 실행한다."""
+"""고정 ROCm 환경을 준비하고 로컬 문서 작업을 실행한다."""
 from __future__ import annotations
 
 import argparse
@@ -27,19 +27,19 @@ RUNTIME_INSTALL_ROOT = WORKFLOW_REPOSITORY_ROOT / '.local/writer-agent'
 RUNTIME_PYTHON_PATH = RUNTIME_INSTALL_ROOT / 'venv/bin/python'
 MODEL_DOWNLOAD_ROOT = WORKFLOW_REPOSITORY_ROOT / '.model/writer-agent'
 MODEL_UPSTREAM_NAME = 'Qwen/Qwen3.5-4B'
-MODEL_DOWNLOAD_NAME = 'Qwen_Qwen3.5-4B-Q4_K_M.gguf'
+MODEL_DOWNLOAD_NAME = 'Qwen_Qwen3.5-4B-bf16.gguf'
 MODEL_DOWNLOAD_REVISION = '4168f45a16a1290d65a4ec0fa312ae917a4c15d6'
-MODEL_DOWNLOAD_SHA256 = '13c16f426047e2de38cd075bdade4a7bcbc8c774384876f677740cda65f8a983'
+MODEL_DOWNLOAD_SHA256 = '714270d4eb1d336bca9a8dcf0446982e45721be0399d810586a6b82e727dfee5'
 MODEL_DOWNLOAD_URL = f'https://huggingface.co/bartowski/Qwen_Qwen3.5-4B-GGUF/resolve/{MODEL_DOWNLOAD_REVISION}/{MODEL_DOWNLOAD_NAME}'
 EMBEDDING_MODEL_NAME = 'Qwen/Qwen3-Embedding-0.6B-GGUF'
-EMBEDDING_DOWNLOAD_NAME = 'Qwen3-Embedding-0.6B-Q8_0.gguf'
+EMBEDDING_DOWNLOAD_NAME = 'Qwen3-Embedding-0.6B-f16.gguf'
 EMBEDDING_DOWNLOAD_REVISION = '370f27d7550e0def9b39c1f16d3fbaa13aa67728'
-EMBEDDING_DOWNLOAD_SHA256 = '06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439'
+EMBEDDING_DOWNLOAD_SHA256 = '421a27e58d165478cc7acb984a688c2aa41404968b0203e7cd743ece44c54340'
 EMBEDDING_DOWNLOAD_URL = f'https://huggingface.co/{EMBEDDING_MODEL_NAME}/resolve/{EMBEDDING_DOWNLOAD_REVISION}/{EMBEDDING_DOWNLOAD_NAME}'
 SOURCE_RELEASE_NAME = 'b10964'
 SOURCE_ARCHIVE_SHA256 = '4c96d72c40cefdacf621457d8a12fe5673b8de5b640ff7fe6d342ea1c579a9fe'
 SOURCE_DOWNLOAD_URL = f'https://codeload.github.com/ggml-org/llama.cpp/tar.gz/refs/tags/{SOURCE_RELEASE_NAME}'
-RUNTIME_SERVER_PATH = RUNTIME_INSTALL_ROOT / f'llama.cpp-{SOURCE_RELEASE_NAME}/build/bin/llama-server'
+RUNTIME_SERVER_PATH = RUNTIME_INSTALL_ROOT / f'llama.cpp-{SOURCE_RELEASE_NAME}/build-rocm/bin/llama-server'
 TRACE_HEARTBEAT_SECONDS = 4
 CURRENT_LOG_PATH = None
 
@@ -125,56 +125,49 @@ def download_verified_file(current_download_url, current_target_path, expected_s
     emit_runtime_trace('download', f'완료: {current_target_path}')
 
 
-def inspect_gpu_environment(minimum_memory_mib=4096):
-    """CUDA 호스트에서 GPU 가용성을 확인한다. CPU 추론은 허용하지 않는다."""
-    if not shutil.which('nvidia-smi'):
-        raise RuntimeError('nvidia-smi가 없습니다. 샌드박스 밖의 NVIDIA GPU 호스트에서 실행하세요.')
-    gpu_command_result = subprocess.run(['nvidia-smi', '--query-gpu=name,memory.total,memory.free,driver_version,compute_cap', '--format=csv,noheader,nounits'], capture_output=True, text=True, check=True)
-    gpu_result_fields = [current_field_text.strip() for current_field_text in gpu_command_result.stdout.splitlines()[0].split(',')]
-    emit_runtime_trace('gpu', gpu_command_result.stdout.strip())
-    if len(gpu_result_fields) != 5 or float(gpu_result_fields[2]) < minimum_memory_mib:
-        raise RuntimeError(f'GPU 여유 메모리가 {minimum_memory_mib}MiB 미만이거나 GPU 정보를 해석할 수 없습니다.')
-    return gpu_result_fields
+def inspect_gpu_environment(minimum_memory_mib=12288):
+    """ROCm 장치와 공용 GPU 메모리 측정값을 확인한다."""
+    from tools.review.common.gpu_job_queue import read_gpu_memory, read_gpu_memory_domain, read_host_available_memory
+    current_rocminfo_result = subprocess.run(['rocminfo'], capture_output=True, text=True, check=True, timeout=30)
+    if 'gfx1151' not in current_rocminfo_result.stdout:
+        raise RuntimeError('지원 대상 gfx1151 ROCm GPU를 확인할 수 없습니다.')
+    current_total_memory, current_free_memory = read_gpu_memory()
+    if read_gpu_memory_domain() == 'gtt':
+        current_free_memory = min(current_free_memory, read_host_available_memory())
+    emit_runtime_trace('gpu', f'gfx1151 total={current_total_memory}MiB free={current_free_memory}MiB')
+    if current_free_memory < minimum_memory_mib:
+        raise RuntimeError(f'GPU 여유 메모리가 {minimum_memory_mib}MiB 미만입니다.')
+    return 'gfx1151'
 
 
 def prepare_runtime_environment():
-    """시스템 드라이버를 바꾸지 않고 전용 Python·CUDA·서버·모델을 준비한다."""
+    """호스트 ROCm으로 고정 llama.cpp 서버와 모델을 준비한다."""
     if platform.system() != 'Linux' or platform.machine() != 'x86_64':
-        raise RuntimeError('현재 자동 준비 지원 환경은 Linux x86_64 NVIDIA CUDA입니다.')
-    current_gpu_fields = inspect_gpu_environment()
-    if not shutil.which('uv') or not shutil.which('g++'):
-        raise RuntimeError('호스트에 uv와 g++가 필요합니다.')
+        raise RuntimeError('현재 자동 준비 지원 환경은 Linux x86_64 ROCm입니다.')
+    current_gpu_architecture = inspect_gpu_environment()
+    current_rocm_root = Path(os.environ.get('ROCM_PATH', '/opt/rocm'))
+    current_hip_compiler = current_rocm_root/'bin/hipcc'
+    if not current_hip_compiler.is_file() or not shutil.which('uv') or not shutil.which('g++'):
+        raise RuntimeError('ROCm hipcc, uv와 g++가 필요합니다.')
     if not RUNTIME_PYTHON_PATH.exists():
         execute_logged_command(['uv', 'venv', '--python', sys.executable, str(RUNTIME_PYTHON_PATH.parent.parent)])
     execute_logged_command(['uv', 'pip', 'sync', '--python', str(RUNTIME_PYTHON_PATH), '--require-hashes', str(WORKFLOW_MODULE_ROOT / 'requirements.lock')])
-    runtime_python_site = subprocess.check_output([str(RUNTIME_PYTHON_PATH), '-c', 'import site; print(site.getsitepackages()[0])'], text=True).strip()
-    cuda_compiler_paths = list(Path(runtime_python_site).rglob('bin/nvcc'))
-    if len(cuda_compiler_paths) != 1:
-        raise RuntimeError(f'CUDA nvcc 경로를 하나로 결정할 수 없습니다: {cuda_compiler_paths}')
-    cuda_toolkit_root = cuda_compiler_paths[0].parent.parent
-    if not (cuda_toolkit_root / 'lib64').exists():
-        (cuda_toolkit_root / 'lib64').symlink_to('lib', target_is_directory=True)
-    for cuda_library_path in (cuda_toolkit_root / 'lib').glob('*.so.*'):
-        cuda_link_path = cuda_library_path.with_name(cuda_library_path.name.split('.so.')[0] + '.so')
-        if not cuda_link_path.exists():
-            cuda_link_path.symlink_to(cuda_library_path.name)
-    runtime_process_environment = os.environ.copy()
-    runtime_process_environment['PATH'] = str(RUNTIME_PYTHON_PATH.parent) + ':' + str(cuda_toolkit_root / 'bin') + ':' + runtime_process_environment.get('PATH', '')
-    runtime_process_environment['LD_LIBRARY_PATH'] = str(cuda_toolkit_root / 'lib')
+    current_build_environment = os.environ.copy()
+    current_build_environment['PATH'] = str(RUNTIME_PYTHON_PATH.parent) + ':' + str(current_rocm_root/'bin') + ':' + current_build_environment.get('PATH', '')
     source_archive_path = RUNTIME_INSTALL_ROOT / f'{SOURCE_RELEASE_NAME}.tar.gz'
     download_verified_file(SOURCE_DOWNLOAD_URL, source_archive_path, SOURCE_ARCHIVE_SHA256)
     source_directory_path = RUNTIME_INSTALL_ROOT / f'llama.cpp-{SOURCE_RELEASE_NAME}'
     if not source_directory_path.exists():
         with tarfile.open(source_archive_path) as source_archive_handle:
             source_archive_handle.extractall(RUNTIME_INSTALL_ROOT, filter='data')
-    execute_logged_command([str(RUNTIME_PYTHON_PATH.parent / 'cmake'), '-S', str(source_directory_path), '-B', str(source_directory_path / 'build'), '-G', 'Ninja', '-DGGML_CUDA=ON', '-DGGML_NATIVE=OFF', '-DLLAMA_CURL=OFF', '-DLLAMA_BUILD_TESTS=OFF', '-DLLAMA_BUILD_EXAMPLES=OFF', '-DCMAKE_BUILD_TYPE=Release', f'-DCMAKE_CUDA_COMPILER={cuda_compiler_paths[0]}', f'-DCUDAToolkit_ROOT={cuda_toolkit_root}', f'-DCMAKE_CUDA_ARCHITECTURES={current_gpu_fields[4].replace(".", "")}'], runtime_process_environment)
-    execute_logged_command([str(RUNTIME_PYTHON_PATH.parent / 'cmake'), '--build', str(source_directory_path / 'build'), '--target', 'llama-server', '-j', '4'], runtime_process_environment)
-    download_verified_file(MODEL_DOWNLOAD_URL, MODEL_DOWNLOAD_ROOT / MODEL_DOWNLOAD_NAME, MODEL_DOWNLOAD_SHA256)
+    current_build_directory = source_directory_path/'build-rocm'
+    execute_logged_command([str(RUNTIME_PYTHON_PATH.parent/'cmake'), '-S', str(source_directory_path), '-B', str(current_build_directory), '-G', 'Ninja', '-DGGML_HIP=ON', '-DGGML_CUDA=OFF', '-DGGML_NATIVE=OFF', '-DLLAMA_CURL=OFF', '-DLLAMA_BUILD_TESTS=OFF', '-DLLAMA_BUILD_EXAMPLES=OFF', '-DCMAKE_BUILD_TYPE=Release', f'-DCMAKE_HIP_COMPILER={current_rocm_root}/llvm/bin/clang++', f'-DAMDGPU_TARGETS={current_gpu_architecture}'], current_build_environment)
+    execute_logged_command([str(RUNTIME_PYTHON_PATH.parent/'cmake'), '--build', str(current_build_directory), '--target', 'llama-server', '-j', '4'], current_build_environment)
+    download_verified_file(MODEL_DOWNLOAD_URL, MODEL_DOWNLOAD_ROOT/MODEL_DOWNLOAD_NAME, MODEL_DOWNLOAD_SHA256)
     prepare_embedding_model()
-    prepared_manifest_data = {'model_upstream_name': MODEL_UPSTREAM_NAME, 'model_download_revision': MODEL_DOWNLOAD_REVISION, 'model_file_sha256': MODEL_DOWNLOAD_SHA256, 'server_release_name': SOURCE_RELEASE_NAME, 'server_binary_sha256': calculate_file_digest(RUNTIME_SERVER_PATH), 'runtime_library_paths': [str(current_library_path) for current_library_path in Path(runtime_python_site).rglob('lib') if 'nvidia' in str(current_library_path)], 'requirements_file_sha256': calculate_file_digest(WORKFLOW_MODULE_ROOT / 'requirements.lock')}
-    (RUNTIME_INSTALL_ROOT / 'prepared.json').write_text(json.dumps(prepared_manifest_data, indent=2) + '\n')
-    emit_runtime_trace('prepared', f'model_id={MODEL_UPSTREAM_NAME} model_root={MODEL_DOWNLOAD_ROOT} model_path={MODEL_DOWNLOAD_ROOT / MODEL_DOWNLOAD_NAME} binary_path={RUNTIME_SERVER_PATH}')
-
+    prepared_manifest_data = {'backend': 'rocm', 'gpu_architecture': current_gpu_architecture, 'model_upstream_name': MODEL_UPSTREAM_NAME, 'model_download_revision': MODEL_DOWNLOAD_REVISION, 'model_file_sha256': MODEL_DOWNLOAD_SHA256, 'embedding_file_sha256': EMBEDDING_DOWNLOAD_SHA256, 'server_release_name': SOURCE_RELEASE_NAME, 'server_binary_sha256': calculate_file_digest(RUNTIME_SERVER_PATH), 'runtime_library_paths': [str(current_rocm_root/'lib')], 'requirements_file_sha256': calculate_file_digest(WORKFLOW_MODULE_ROOT/'requirements.lock')}
+    (RUNTIME_INSTALL_ROOT/'prepared.json').write_text(json.dumps(prepared_manifest_data, indent=2)+'\n')
+    emit_runtime_trace('prepared', f'model_id={MODEL_UPSTREAM_NAME} model_root={MODEL_DOWNLOAD_ROOT} model_path={MODEL_DOWNLOAD_ROOT/MODEL_DOWNLOAD_NAME} binary_path={RUNTIME_SERVER_PATH}')
 
 
 def prepare_embedding_model():

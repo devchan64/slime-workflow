@@ -8,12 +8,12 @@
 
 | 역할 | 고정 구성 |
 |---|---|
-| 음악 생성 | HeartMuLa/HeartMuLa-oss-3B-happy-new-year, NF4/BF16 |
+| 음악 생성 | HeartMuLa/HeartMuLa-oss-3B-happy-new-year, 비양자화 BF16 |
 | 오디오 복원 | HeartCodec-oss-20260123, FP32, 디코더 창 7.44초 |
-| MR 분리 | Demucs 4.0.1, htdemucs, CUDA, 7초 구간 |
+| MR 분리 | Demucs 4.0.1, htdemucs, ROCm GPU, 7초 구간 |
 | MP3 인코딩 | lameenc 1.9.0, 320kbps |
 
-모델·라이브러리 리비전은 [runtime.py](heartmula/runtime.py), 분리 체크포인트와 SHA-256은 [separation.py](heartmula/separation.py)에 고정한다. 전용 환경은 `.venv-music-heartmula`, 의존성은 [requirements.txt](heartmula/requirements.txt)다. 모델 연산은 CUDA에서 순차 실행하며 CPU 추론으로 대체하지 않는다. MP3 인코딩·파일 입출력은 모델 추론이 아니다.
+모델·라이브러리 리비전은 [runtime.py](heartmula/runtime.py), 분리 체크포인트와 SHA-256은 [separation.py](heartmula/separation.py)에 고정한다. 전용 환경은 `.venv-music-heartmula`, 의존성은 [requirements.txt](heartmula/requirements.txt)다. 먼저 호스트에 맞는 ROCm PyTorch를 별도 환경에 설치하고 의존성 설치 시 ROCm 제약을 유지한다. 비양자화 모델 생성·분리는 AMD GPU 실측 검증이 필요하다. 모델 연산은 ROCm GPU에서 순차 실행하며 CPU 추론으로 대체하지 않는다. MP3 인코딩·파일 입출력은 모델 추론이 아니다.
 
 캐시는 `.model/music/music-heartmula/`만 사용한다. 모델 준비는 로컬 파일·인덱스와 해시를 검사한다. 모델 파일 준비와 실제 GPU 생성 검증은 다르며 누락·실패 시 원인을 고쳐야 한다. Demucs는 준비 단계에서 공식 체크포인트 다운로드와 해시 검증을 수행한다.
 

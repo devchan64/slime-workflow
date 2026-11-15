@@ -7,7 +7,7 @@
 - 길이는 모델이 예측한다. `duration_seconds`는 생략하거나 null이어야 하며 숫자를 지정하면 거절한다. 자동 잘라내기·연장 없이 실제 길이를 기록한다.
 - 최종 입력은 `<|caption|>` 태그와 사용자 설명, 선택한 반복 환경음 문구다. 실제 입력의 단어 수·해시를 기록한다.
 - 출력은 16kHz mono PCM16 `sound.wav`다. 스테레오·44.1kHz로 표시하거나 변환하지 않는다. 심리스 루프를 보장하지 않는다.
-- 25스텝·CFG 5·batch 1·BF16 CUDA 추론. 텍스트 인코더 → DiT → 디코더 순서로 GPU에 올리고 나머지 가중치는 CPU RAM에 대기시킨다. CPU 모델 연산은 거절한다. 8GB 동작·음질은 실제 생성으로 검증해야 한다.
+- 25스텝·CFG 5·batch 1·BF16 ROCm 추론. 텍스트 인코더·DiT·디코더를 모두 GPU에 유지한다. CPU 오프로드와 CPU 모델 연산은 사용하지 않는다. 실제 GPU 메모리 사용량과 음질은 생성으로 검증해야 한다.
 
 ## 준비와 실행
 
@@ -19,7 +19,7 @@
 .venv/bin/python tools/manager.py command sfx-dasheng-audiogen status <생성ID>
 ```
 
-`.venv-sfx-dasheng`은 Python 3.12·PyTorch 2.8 CUDA 12.8·Transformers 4.57 전용 환경이다. 모델 본체·텍스트 인코더·오디오 토크나이저의 revision을 `runtime.py`에서 고정하고 `.model/music/sfx-dasheng-audiogen/`에 준비한다. 로컬 원격 코드도 파일 해시를 검증한 뒤 실행한다. 생성 시에는 로컬 파일만 로드한다.
+`.venv-sfx-dasheng`은 호스트 Python과 gfx1151용 ROCm PyTorch·Transformers 4.57 전용 환경이다. 기존 PyTorch가 다른 빌드이면 자동 교체하지 않고 실패한다. 모델 본체·텍스트 인코더·오디오 토크나이저의 revision을 `runtime.py`에서 고정하고 `.model/music/sfx-dasheng-audiogen/`에 준비한다. 로컬 원격 코드도 파일 해시를 검증한 뒤 실행한다. 생성 시에는 로컬 파일만 로드한다. 새 ROCm 환경과 전체 모델 상주 추론은 별도 실측 검증이 필요하다.
 
 공용 GUI·CLI → 게이트웨이 → 음악 작업 서비스 → GPU 실행기·기록 저장소를 재사용한다. `prepare/model-status/generate/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset-preview/history-reset`을 지원한다. 생성 이력 표는 썸네일 컬럼을 표시하지 않으며 선택 행동·삭제 확인·청취·다운로드는 공용 구성요소를 사용한다.
 

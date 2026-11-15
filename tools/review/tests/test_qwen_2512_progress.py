@@ -33,7 +33,7 @@ class QwenProgressContractTests(unittest.TestCase):
                     def load_lora_weights(self, *current_argument_values, **current_keyword_values):
                         pass
 
-                    def enable_model_cpu_offload(self):
+                    def to(self, current_device_name):
                         current_offload_calls.append(True)
 
                     def __call__(self, **current_keyword_values):
@@ -43,7 +43,7 @@ class QwenProgressContractTests(unittest.TestCase):
                                 raise RuntimeError('격리 추론 실패')
                         return types.SimpleNamespace(images=[Image.new('RGB', (256,256))])
 
-                current_torch_module = types.SimpleNamespace(cuda=types.SimpleNamespace(is_available=lambda:True),bfloat16='bf16',Generator=lambda **kwargs:types.SimpleNamespace(manual_seed=lambda value:None))
+                current_torch_module = types.SimpleNamespace(version=types.SimpleNamespace(hip='test'),cuda=types.SimpleNamespace(is_available=lambda:True),bfloat16='bf16',Generator=lambda **kwargs:types.SimpleNamespace(manual_seed=lambda value:None))
                 with patch.object(qwen_2512,'WORKFLOW_REPOSITORY_ROOT',current_root_path), patch.object(qwen_2512,'validate_qwen_2512_assets',return_value=(current_root_path/'model',current_root_path/'adapter')), patch.dict('sys.modules',{'torch':current_torch_module,'diffusers':types.SimpleNamespace(QwenImagePipeline=FakeImagePipeline)}):
                     current_input_values = dict(output_directory=current_output_path,prompt_text='A field.',width=256,height=256,worker_progress_callback=record_worker_observation)
                     if current_failure_enabled:
@@ -93,7 +93,7 @@ class QwenProgressContractTests(unittest.TestCase):
                 current_lock_handles.append(current_lock_handle)
                 self.assertEqual(current_wait_stage,'waiting-gpu')
 
-            with patch.object(current_worker_module,'WORKFLOW_REPOSITORY_ROOT',current_root_path), patch.object(current_worker_module,'generate_qwen_2512_lightning_image',simulate_worker_inference), patch.object(current_worker_module,'acquire_worker_lock',observe_worker_lock), patch.object(WorkerGenerationProgress,'record_worker_progress',observe_worker_progress), patch.dict('sys.modules',{'torch':types.SimpleNamespace(cuda=types.SimpleNamespace(is_available=lambda:True))}), patch('sys.argv',['worker','--job-dir',str(current_job_path)]):
+            with patch.object(current_worker_module,'WORKFLOW_REPOSITORY_ROOT',current_root_path), patch.object(current_worker_module,'generate_qwen_2512_lightning_image',simulate_worker_inference), patch.object(current_worker_module,'acquire_worker_lock',observe_worker_lock), patch.object(WorkerGenerationProgress,'record_worker_progress',observe_worker_progress), patch.dict('sys.modules',{'torch':types.SimpleNamespace(version=types.SimpleNamespace(hip='test'),cuda=types.SimpleNamespace(is_available=lambda:True))}), patch('sys.argv',['worker','--job-dir',str(current_job_path)]):
                 with self.assertRaisesRegex(RuntimeError,'격리 작업자 실패'):
                     current_worker_module.execute_image_worker()
             self.assertTrue(current_lock_handles[0].closed)
@@ -156,7 +156,7 @@ class QwenProgressContractTests(unittest.TestCase):
                     current_lock_handles.append(current_lock_handle)
 
                 current_fake_modules = {
-                    'torch': types.SimpleNamespace(cuda=types.SimpleNamespace(is_available=lambda: True)),
+                    'torch': types.SimpleNamespace(version=types.SimpleNamespace(hip='test'),cuda=types.SimpleNamespace(is_available=lambda: True)),
                     'huggingface_hub': types.SimpleNamespace(snapshot_download=simulate_snapshot_download, hf_hub_download=simulate_adapter_download),
                 }
                 with patch.object(current_worker_module, 'WORKFLOW_REPOSITORY_ROOT', current_root_path), patch.object(current_worker_module, 'acquire_worker_lock', capture_prepare_lock), patch.object(current_worker_module, 'validate_qwen_2512_assets') as current_validate_assets, patch.object(current_worker_module, 'generate_qwen_2512_lightning_image') as current_generate_image, patch('tools.review.common.model_huggingface_download.track_model_download', lambda current_name: __import__('tools.review.common.model_download_records', fromlist=['track_model_download']).track_model_download(current_name, current_root_path / 'download-records')), patch.dict('sys.modules', current_fake_modules), patch('sys.argv', ['worker', '--job-dir', str(current_job_path)]):

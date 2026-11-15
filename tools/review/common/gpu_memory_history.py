@@ -90,6 +90,10 @@ def save_memory_observation(service, job_path, peak_memory_mib, samples, status,
 
 
 def estimate_required_memory(service, configured_floor_mib, command_identity_name=None):
+    if isinstance(command_identity_name, str) and command_identity_name.startswith('kimodo/worker.py:rocm-unquantized-resident-v1'):
+        configured_floor_mib = max(configured_floor_mib, 32768)
+    if isinstance(command_identity_name, str) and command_identity_name.startswith('wan_animate2/worker.py:rocm-unquantized-resident-v1'):
+        configured_floor_mib = max(configured_floor_mib, 65536)
     if service == 'image' and isinstance(command_identity_name, str) and command_identity_name.endswith(':offload=model-v1'):
         configured_floor_mib = max(configured_floor_mib, 32768)
     if service == 'image' and isinstance(command_identity_name, str) and command_identity_name.endswith((':offload=none-circular-v1', ':offload=none-full-v1')):
@@ -110,6 +114,12 @@ def estimate_required_memory(service, configured_floor_mib, command_identity_nam
 
 def identify_execution_command(command_argument_values, generation_job_directory=None, current_memory_domain=None):
     """이미지는 실행기·해상도·스텝·참조 개수까지 메모리 프로필로 구분한다."""
+    current_resident_workers = {('music','worker.py'), ('kimodo','worker.py'), ('wan_animate2','worker.py')}
+    for current_argument_value in command_argument_values[1:]:
+        current_worker_parts = Path(current_argument_value).parts[-2:]
+        if current_worker_parts in current_resident_workers:
+            current_profile_name = '/'.join(current_worker_parts) + ':rocm-unquantized-resident-v1'
+            return current_profile_name + (f':domain={current_memory_domain}' if current_memory_domain else '')
     if generation_job_directory is not None and len(command_argument_values)>1 and Path(command_argument_values[1]).parts[-2:] == ('wan_vace','worker.py'):
         current_request_record = json.loads((Path(generation_job_directory)/'request.json').read_text())
         if current_request_record.get('model_profile') != 'official-bf16-resident-v1':

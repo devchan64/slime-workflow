@@ -60,15 +60,15 @@ def build_music_interface(current_service_name,current_server_address):
     current_magenta_mode = current_service_name in ('music-magenta','music-heartmula')
     current_content_label = '효과음' if current_effects_mode else '음악'
     current_prompt_label = '소리·재질·동작 설명' if current_effects_mode else '음악 설명 · prompt'
-    current_content_description = '짧은 게임 효과음과 환경음 후보를 로컬 CUDA에서 생성합니다. 출력은 16kHz mono PCM16 WAV입니다.' if current_effects_mode else '게임 BGM 후보를 로컬 CUDA에서 생성합니다. 출력은 stereo WAV이며 MIDI는 생성하지 않습니다.'
-    current_hardware_notice = '25스텝 · CUDA BF16 · 길이는 모델 자동 예측 · 실제 VRAM 피크·음질은 생성 후 확인' if current_effects_mode else '8GB GPU 로딩 검증 완료, 음악 생성 피크는 별도 확인 필요'
+    current_content_description = '짧은 게임 효과음과 환경음 후보를 로컬 ROCm GPU에서 생성합니다. 출력은 16kHz mono PCM16 WAV입니다.' if current_effects_mode else '게임 BGM 후보를 로컬 ROCm GPU에서 생성합니다. 출력은 stereo WAV이며 MIDI는 생성하지 않습니다.'
+    current_hardware_notice = '25스텝 · ROCm BF16 · 길이는 모델 자동 예측 · 실제 VRAM 피크·음질은 생성 후 확인' if current_effects_mode else 'ROCm 생성 검증 및 실제 메모리 사용량 확인 필요'
     if current_magenta_mode:
-        current_hardware_notice = 'ONNX CUDA 인코더·JAX 생성·디코더 검증 완료 · 5초 관측 피크 5974MiB'
-        current_content_description = 'Magenta RT2 Small(230M) 반주 실험 입력 화면입니다. 출력 목표는 48kHz stereo WAV입니다. 허밍·보컬 미포함과 자연스러운 종결은 보장하지 않습니다.'
+        current_hardware_notice = '폐기 · 기존 이력·결과 조회와 삭제만 지원'
+        current_content_description = 'Magenta 생성기는 폐기되었습니다. 신규 생성·준비·재개는 지원하지 않습니다.'
     if current_heartmula_mode:
         current_prompt_label = '음악 태그 · tags (쉼표로 구분)'
-        current_content_description = 'HeartMuLa로 가사가 있는 음악을 생성하고 Demucs로 MR을 분리합니다. 두 모델을 8GB CUDA에서 순차 실행하며, 원곡과 MR을 함께 확인할 수 있습니다.'
-        current_hardware_notice = 'HeartCodec FP32 · 생성 모델 NF4/BF16 · CUDA 순차 로드 · 실제 준비 상태는 아래 표시'
+        current_content_description = 'HeartMuLa로 가사가 있는 음악을 생성하고 Demucs로 MR을 분리합니다. 두 모델을 ROCm GPU에서 순차 실행하며, 원곡과 MR을 함께 확인할 수 있습니다.'
+        current_hardware_notice = 'HeartCodec FP32 · 비양자화 생성 모델 BF16 · ROCm 실행 검증 필요'
     def execute_music_command(current_command_name,current_payload_record):
         return execute_remote_management_command(current_service_name,current_command_name,current_payload_record)
     with gr.Blocks(title=current_profile_record['label']+' '+current_content_label+' 생성') as current_interface_blocks:
@@ -79,7 +79,7 @@ def build_music_interface(current_service_name,current_server_address):
             with gr.Accordion('두 모델 소개 · 실행 방식과 품질 안내',open=False):
                 gr.Markdown(f"**HeartMuLa** · `{current_profile_record['model_id']}` · [모델 카드]({current_profile_record['license_url']})\n\n"
                             '**Demucs** · `htdemucs`, 4.0.1 · [공식 저장소](https://github.com/facebookresearch/demucs)\n\n'
-                            '두 모델은 CUDA에서 순차 실행합니다. MR에는 보컬 잔향이나 악기 손실이 생길 수 있습니다. '
+                            '두 모델은 ROCm GPU에서 순차 실행합니다. MR에는 보컬 잔향이나 악기 손실이 생길 수 있습니다. '
                             '최대 출력 시간은 상한이며 자연스러운 끝맺음이나 정확한 길이를 보장하지 않습니다.')
         gr.Markdown(f"고정 모델: `{current_profile_record['model_id']}` · {('길이 자동 예측' if current_effects_mode else '최대 생성 길이 기본값 '+str(current_default_record['duration_seconds'])+'초')} · batch 1 · {current_hardware_notice}\n\n[{current_profile_record['license_notice']}]({current_profile_record['license_url']})")
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
@@ -87,7 +87,7 @@ def build_music_interface(current_service_name,current_server_address):
         if current_service_name in MODEL_DOWNLOAD_PREFIXES:
             build_model_progress_display(current_interface_blocks, current_service_name)
         with gr.Accordion('모델 준비 · 다운로드 / 재점검',open=False):
-            current_prepare_button = gr.Button('준비 파일 재점검' if current_magenta_mode and not current_heartmula_mode else '모델 다운로드·준비',interactive=not current_heartmula_mode)
+            current_prepare_button = gr.Button('준비 파일 재점검' if current_magenta_mode and not current_heartmula_mode else '모델 다운로드·준비',interactive=not current_magenta_mode)
             if current_heartmula_mode:
                 gr.Markdown('가사가 있는 원곡을 생성한 뒤 Demucs로 MR·보컬을 분리합니다. 원곡과 분리 파일을 모두 보존합니다. 생성은 GPU 검증 완료 및 tags·lyrics 직접 입력 후 활성화됩니다.')
             elif current_magenta_mode:
@@ -160,8 +160,10 @@ def build_music_interface(current_service_name,current_server_address):
         def update_music_prompt(current_prompt_text,current_loop_value,current_legacy_value):
             return describe_music_prompt(current_service_name,current_prompt_text,current_loop_value,current_legacy_value)
         current_tag_control = gr.Textbox(label='이력 태그 · 선택 사항',max_lines=1,info='예: 초원 낮 · 비교 실험 1. 모델 입력에는 포함되지 않습니다.')
-        current_generate_button = gr.Button('대기열에 추가',variant='primary',interactive=bool(current_default_record['prompt'].strip()) and not current_heartmula_mode)
+        current_generate_button = gr.Button('대기열에 추가',variant='primary',interactive=bool(current_default_record['prompt'].strip()) and not current_magenta_mode)
         def describe_music_readiness(current_prompt_text,current_lyrics_text,current_legacy_value):
+            if current_service_name == 'music-magenta':
+                return '폐기된 생성기입니다. 기존 이력과 결과를 조회하세요.'
             if current_heartmula_mode:
                 return '예제를 불러오거나 음악 태그와 가사를 입력하세요. MR은 원곡 생성 후 자동 분리됩니다.' if not (current_prompt_text and current_prompt_text.strip() and current_lyrics_text and current_lyrics_text.strip()) else '입력한 설정을 확인한 뒤 대기열에 등록합니다.'
             if not current_prompt_text or not current_prompt_text.strip():
@@ -173,7 +175,7 @@ def build_music_interface(current_service_name,current_server_address):
             if current_heartmula_mode:
                 return bool(current_prompt_text and current_prompt_text.strip() and current_lyrics_text and current_lyrics_text.strip() and execute_music_command('model-status',{}).get('ready'))
             if current_magenta_mode:
-                return bool(current_prompt_text and current_prompt_text.strip())
+                return False
             return bool(current_prompt_text and current_prompt_text.strip() and (current_effects_mode or current_legacy_value or (current_lyrics_text and current_lyrics_text.strip())))
         current_readiness_controls = [current_prompt_control,current_lyrics_control,current_legacy_control]
         current_generate_notice = build_button_guidance(current_generate_button,describe_music_readiness(current_default_record['prompt'],'' if current_heartmula_mode else '[Instrumental]',current_effects_mode))

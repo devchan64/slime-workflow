@@ -1,4 +1,4 @@
-"""공식 Python API를 사용하는 두 음악 모델의 CUDA 전용 어댑터."""
+"""공식 Python API를 사용하는 두 음악 모델의 ROCm GPU 어댑터."""
 import fcntl
 from contextlib import contextmanager
 from datetime import datetime
@@ -23,10 +23,10 @@ def configure_music_cache(current_model_root):
 
 def require_music_cuda():
     import torch
-    if not torch.cuda.is_available():
-        raise RuntimeError('CUDA 사용 불가: CPU 추론으로 전환하지 않습니다.')
+    if not getattr(torch.version, 'hip', None) or not torch.cuda.is_available():
+        raise RuntimeError('ROCm PyTorch 또는 AMD GPU 사용 불가: CPU 추론으로 전환하지 않습니다.')
     if not torch.cuda.is_bf16_supported():
-        raise RuntimeError('이 음악 실행 설정에는 BF16 지원 CUDA GPU가 필요합니다.')
+        raise RuntimeError('이 음악 실행 설정에는 BF16 지원 ROCm GPU가 필요합니다.')
     torch.cuda.reset_peak_memory_stats()
     return torch
 

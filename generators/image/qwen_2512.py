@@ -70,8 +70,8 @@ def generate_qwen_2512_lightning_image(*, output_directory: Path, prompt_text: s
     started_at = time.monotonic()
     import torch
     from diffusers import QwenImagePipeline
-    if not torch.cuda.is_available():
-        raise RuntimeError('CUDA를 사용할 수 없어 중단합니다. CPU 추론은 지원하지 않습니다.')
+    if not getattr(torch.version, 'hip', None) or not torch.cuda.is_available():
+        raise RuntimeError('ROCm PyTorch 또는 AMD GPU를 사용할 수 없어 중단합니다. CPU 추론은 지원하지 않습니다.')
     def publish_inference_progress(current_stage_name, current_step_number):
         if worker_progress_callback is not None:
             worker_progress_callback({'stage':current_stage_name,'step':current_step_number,'total':selected_inference_steps})
@@ -80,7 +80,7 @@ def generate_qwen_2512_lightning_image(*, output_directory: Path, prompt_text: s
     pipeline = QwenImagePipeline.from_pretrained(str(FIXED_MODEL_DIRECTORY), torch_dtype=torch.bfloat16, local_files_only=True)
     if enable_lightning_adapter:
         pipeline.load_lora_weights(str(lightning_file_path.parent), weight_name=lightning_file_path.name, local_files_only=True)
-    pipeline.enable_model_cpu_offload()
+    pipeline.to('cuda')
     def record_denoise_progress(current_pipeline_value,current_step_index,current_timestep_value,current_callback_values):
         publish_inference_progress('inference', current_step_index+1)
         logging.info('denoise step=%s/%s',current_step_index+1,selected_inference_steps)

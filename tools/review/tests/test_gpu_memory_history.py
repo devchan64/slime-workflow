@@ -6,6 +6,13 @@ from unittest.mock import patch
 from tools.review.common import gpu_memory_history as memory
 
 class MemoryHistoryTests(unittest.TestCase):
+    def test_resident_audio_does_not_reuse_offload_observations(self):
+        with tempfile.TemporaryDirectory() as current_directory_name, patch.object(memory, 'MEMORY_HISTORY_DIRECTORY', Path(current_directory_name)):
+            memory.save_memory_observation('music-heartmula', 'old', 7000, 3, 'completed', command_identity_name='python')
+            current_profile_name = memory.identify_execution_command(['python', '-u', 'generators/music/worker.py', '--service', 'music-heartmula'])
+            current_estimate_record = memory.estimate_required_memory('music-heartmula', 20000, current_profile_name)
+            self.assertEqual(current_estimate_record['samples'], 0)
+            self.assertEqual(current_estimate_record['required_memory_mib'], 20000)
     def test_wan_profiles_do_not_reuse_short_or_legacy_samples(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_directory_path=Path(current_directory_name)

@@ -114,7 +114,7 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
         while not heartbeat_stop_event.wait(5):
             current_progress_writer.record_worker_progress(current_stage_state)
             try:
-                gpu_status_result = subprocess.run(['nvidia-smi','--query-gpu=memory.used,utilization.gpu','--format=csv,noheader'], capture_output=True,text=True,timeout=3,check=True)
+                gpu_status_result = subprocess.run(['amd-smi','metric','-m','--json'], capture_output=True,text=True,timeout=3,check=True)
             except (OSError, subprocess.SubprocessError):
                 run_output_logger.exception('heartbeat GPU 상태 조회 실패')
                 continue
@@ -134,8 +134,8 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
         original_reference_area = qwen_pipeline_module.VAE_IMAGE_SIZE
         qwen_pipeline_module.VAE_IMAGE_SIZE = FIXED_IMAGE_DIMENSIONS * FIXED_IMAGE_DIMENSIONS
         run_output_logger.info("reference vae_size=512x512 output_size=%sx%s condition_size=384x384",selected_output_width,selected_output_height)
-        if not torch.cuda.is_available():
-            raise RuntimeError('CUDA를 사용할 수 없어 중단합니다. CPU 추론은 지원하지 않습니다.')
+        if not getattr(torch.version, 'hip', None) or not torch.cuda.is_available():
+            raise RuntimeError('ROCm PyTorch 또는 AMD GPU를 사용할 수 없어 중단합니다. CPU 추론은 지원하지 않습니다.')
         if (trial_output_root/'result.png').exists():
             raise FileExistsError('기존 결과를 덮어쓸 수 없습니다. 새 실행 경로를 사용하세요.')
         (trial_output_root / 'prompt.txt').write_text(prompt_text_value + '\n')
@@ -158,12 +158,12 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
                 run_output_logger.info('adapter name=%s strength=%s path=%s', adapter_record_values['name'], adapter_record_values['strength'], adapter_file_path)
                 image_edit_pipeline.load_lora_weights(str(adapter_file_path.parent), weight_name=adapter_file_path.name, adapter_name=adapter_record_values['name'], local_files_only=True)
             image_edit_pipeline.set_adapters([adapter_record_values['name'] for adapter_record_values in resolved_adapter_records], adapter_weights=[adapter_record_values['strength'] for adapter_record_values in resolved_adapter_records])
-        image_edit_pipeline.enable_sequential_cpu_offload()
+        image_edit_pipeline.to('cuda')
         image_edit_pipeline.vae.enable_slicing()
         image_edit_pipeline.vae.enable_tiling()
         current_stage_state['stage']='inference'
         current_progress_writer.record_worker_progress(current_stage_state)
-        run_output_logger.info('inference size=%sx%s steps=%s seed=%s device=cuda dtype=bfloat16 offload=sequential',selected_output_width,selected_output_height,selected_inference_steps,selected_generator_seed)
+        run_output_logger.info('inference size=%sx%s steps=%s seed=%s device=rocm dtype=bfloat16 offload=none',selected_output_width,selected_output_height,selected_inference_steps,selected_generator_seed)
 
         def record_denoise_progress(pipeline_instance_value, step_index_value, timestep_value, callback_value_dictionary):
             current_stage_state['step']=step_index_value+1
@@ -178,7 +178,7 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
         current_stage_state['stage']='postprocess'
         current_progress_writer.record_worker_progress(current_stage_state)
         output_image_value.save(trial_output_root/'result.png')
-        trial_result_record = {'status':'completed','model_id':'Qwen/Qwen-Image-Edit-2511','revision':FIXED_MODEL_REVISION,'size':[selected_output_width,selected_output_height],'reference_vae_size':[512,512],'reference_condition_size':[384,384],'steps':selected_inference_steps,'seed':selected_generator_seed,'true_cfg_scale':selected_true_cfg_scale,'guidance_scale':1.0,'lightning_lora':active_lightning_adapter,'dtype':'bfloat16','execution_device':'cuda','weight_offload':'sequential_cpu_offload','torch_version':torch.__version__,'diffusers_version':diffusers.__version__,'elapsed_seconds':round(time.monotonic()-run_started_time,2),'prompt_sha256':hashlib.sha256(prompt_text_value.encode()).hexdigest(),'input_order':[input_file_path.name for input_file_path in input_image_paths],'input_sha256':{input_file_path.name:hashlib.sha256(input_file_path.read_bytes()).hexdigest() for input_file_path in input_image_paths},'quality_warnings':['실험 결과의 최종 품질 승인이 필요합니다.'],'output':'result.png'}
+        trial_result_record = {'status':'completed','model_id':'Qwen/Qwen-Image-Edit-2511','revision':FIXED_MODEL_REVISION,'size':[selected_output_width,selected_output_height],'reference_vae_size':[512,512],'reference_condition_size':[384,384],'steps':selected_inference_steps,'seed':selected_generator_seed,'true_cfg_scale':selected_true_cfg_scale,'guidance_scale':1.0,'lightning_lora':active_lightning_adapter,'dtype':'bfloat16','execution_device':'cuda','compute_backend':'rocm','weight_offload':'none','torch_version':torch.__version__,'diffusers_version':diffusers.__version__,'elapsed_seconds':round(time.monotonic()-run_started_time,2),'prompt_sha256':hashlib.sha256(prompt_text_value.encode()).hexdigest(),'input_order':[input_file_path.name for input_file_path in input_image_paths],'input_sha256':{input_file_path.name:hashlib.sha256(input_file_path.read_bytes()).hexdigest() for input_file_path in input_image_paths},'quality_warnings':['실험 결과의 최종 품질 승인이 필요합니다.'],'output':'result.png'}
         trial_result_record.update({'pose_reference_kind': pose_reference_kind, 'reference_order': selected_reference_order, 'prompt_source': prompt_source_record, 'adapters': resolved_adapter_records, 'execution_preset': 'qwen-lightning-multi-reference-v1' if active_lightning_adapter else 'qwen-standard-v1', 'input_references': [{'role': input_image_role, 'path': str(input_file_path), 'sha256': hashlib.sha256(input_file_path.read_bytes()).hexdigest()} for input_image_role, input_file_path in zip(input_image_roles, input_image_paths)]})
         (trial_output_root/'result.json').write_text(json.dumps(trial_result_record,ensure_ascii=False,indent=2)+'\n')
         current_stage_state['stage']='complete'

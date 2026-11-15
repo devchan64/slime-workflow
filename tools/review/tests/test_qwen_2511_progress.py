@@ -52,7 +52,7 @@ class QwenWorkerProgressTests(unittest.TestCase):
                     self.assertEqual(json.loads((current_job_path/'worker-progress.json').read_text())['stage'],'load')
                     return cls()
 
-                def enable_sequential_cpu_offload(current_pipeline_self):
+                def to(current_pipeline_self, current_device_name):
                     pass
 
                 def __call__(current_pipeline_self,**current_input_values):
@@ -66,7 +66,7 @@ class QwenWorkerProgressTests(unittest.TestCase):
                             raise RuntimeError('격리 추론 실패')
                     return types.SimpleNamespace(images=[Image.new('RGB',(512,512))])
 
-            current_torch_module=types.SimpleNamespace(__version__='isolated',cuda=types.SimpleNamespace(is_available=lambda:True),bfloat16='bf16',inference_mode=contextlib.nullcontext,Generator=lambda **current_generator_options:types.SimpleNamespace(manual_seed=lambda current_seed_value:None))
+            current_torch_module=types.SimpleNamespace(__version__='isolated',version=types.SimpleNamespace(hip='test'),cuda=types.SimpleNamespace(is_available=lambda:True),bfloat16='bf16',inference_mode=contextlib.nullcontext,Generator=lambda **current_generator_options:types.SimpleNamespace(manual_seed=lambda current_seed_value:None))
             current_diffusers_module=types.ModuleType('diffusers')
             current_diffusers_module.__version__='0.37.0'
             current_diffusers_module.QwenImageEditPlusPipeline=FakeImagePipeline

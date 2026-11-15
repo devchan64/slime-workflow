@@ -1,9 +1,11 @@
 """로컬 관리도구의 작가 에이전트 요청·작업·변경 미리보기 API."""
 from pathlib import Path
+from contextlib import closing
 from urllib.parse import urlsplit,parse_qs
 import json
 import os
 import signal
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -29,11 +31,24 @@ class WriterAgentManager:
         self.csrf_token_value=uuid.uuid4().hex
 
     def read_workspace_state(self):
-        current_ready_flag=(prepare.RUNTIME_INSTALL_ROOT/'prepared.json').is_file()
+        try:
+            current_manifest_record=json.loads((prepare.RUNTIME_INSTALL_ROOT/'prepared.json').read_text())
+            current_ready_flag=current_manifest_record.get('backend') == 'rocm' and current_manifest_record.get('model_file_sha256') == prepare.MODEL_DOWNLOAD_SHA256 and current_manifest_record.get('embedding_file_sha256') == prepare.EMBEDDING_DOWNLOAD_SHA256 and prepare.RUNTIME_SERVER_PATH.is_file()
+        except (OSError, ValueError, AttributeError):
+            current_ready_flag=False
         current_state_values={'configured':self.workspace_config_path.is_file(),'ready':current_ready_flag,'csrf_token':self.csrf_token_value,'config_path':str(self.workspace_config_path),'active_job':self.worker_job_identifier if self.worker_process_handle and self.worker_process_handle.poll() is None else None,'jobs':[]}
         if not current_state_values['configured']:return current_state_values
         current_config_values=load_workspace_config(self.workspace_config_path)
-        current_state_values.update({'document_root':current_config_values['document_root'],'state_root':current_config_values['state_root'],'index_path':str(Path(current_config_values['state_root'])/'rag.sqlite3'),'trained':(Path(current_config_values['state_root'])/'rag.sqlite3').is_file()})
+        current_index_path=Path(current_config_values['state_root'])/'rag.sqlite3'
+        current_index_ready=False
+        if current_index_path.is_file():
+            try:
+                from .index import INDEX_SCHEMA_VERSION
+                with closing(sqlite3.connect(f'file:{current_index_path}?mode=ro', uri=True)) as current_index_connection:
+                    current_index_ready=current_index_connection.execute("SELECT value FROM metadata WHERE key='version'").fetchone() == (INDEX_SCHEMA_VERSION,)
+            except sqlite3.Error:
+                pass
+        current_state_values.update({'document_root':current_config_values['document_root'],'state_root':current_config_values['state_root'],'index_path':str(current_index_path),'trained':current_index_ready})
         for current_job_root in sorted((Path(current_config_values['state_root'])/'jobs').glob('*'),reverse=True)[:40]:
             if not current_job_root.is_dir() or current_job_root.is_symlink() or not (current_job_root/'status.yaml').is_file():continue
             current_status_values=read_yaml_document(current_job_root/'status.yaml')

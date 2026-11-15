@@ -28,12 +28,12 @@ def convert_encoder_state(current_original_state):
 
 
 def load_vace_encoder():
-    """CPU는 가중치 보관에만 사용하며 Comfy의 레이어 오프로드를 사용한다."""
+    """비양자화 인코더를 ROCm GPU에 상주시킨다."""
     import torch
     import comfy.sd
     import comfy.text_encoders.wan
-    if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
-        raise RuntimeError('비양자화 UMT5는 BF16 CUDA 지원이 필요합니다.')
+    if not getattr(torch.version, 'hip', None) or not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
+        raise RuntimeError('비양자화 UMT5는 BF16 지원 ROCm GPU가 필요합니다.')
     current_original_state = torch.load(VACE_WORKSPACE_ROOT / VACE_MODEL_FILES['encoder'][0], map_location='cpu', weights_only=True, mmap=True)
     if any(current_weight_tensor.dtype != torch.bfloat16 for current_weight_tensor in current_original_state.values()):
         raise ValueError('UMT5 원본 가중치는 모두 BF16이어야 합니다.')
@@ -41,7 +41,7 @@ def load_vace_encoder():
     current_encoder_target = SimpleNamespace(params={}, clip=comfy.text_encoders.wan.te(dtype_t5=torch.bfloat16), tokenizer=comfy.text_encoders.wan.WanT5Tokenizer)
     current_text_encoder = comfy.sd.CLIP(current_encoder_target,
         tokenizer_data={'spiece_model': (VACE_WORKSPACE_ROOT / VACE_MODEL_FILES['tokenizer'][0]).read_bytes()},
-        model_options={'dtype': torch.bfloat16, 'initial_device': torch.device('cpu'), 'load_device': torch.device('cuda:0'), 'offload_device': torch.device('cpu')})
+        model_options={'dtype': torch.bfloat16, 'initial_device': torch.device('cuda:0'), 'load_device': torch.device('cuda:0'), 'offload_device': torch.device('cuda:0')})
     missing_weight_names, unexpected_weight_names = current_text_encoder.load_sd(current_converted_state)
     if missing_weight_names or unexpected_weight_names:
         raise ValueError(f'UMT5 로드 불일치: 누락={missing_weight_names}, 추가={unexpected_weight_names}')

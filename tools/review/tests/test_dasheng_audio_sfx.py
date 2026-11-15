@@ -164,6 +164,17 @@ class DashengAudioEffectsTests(unittest.TestCase):
         with patch.dict('sys.modules', {'torch':current_torch_module}), self.assertRaisesRegex(RuntimeError, 'CPU 추론'):
             require_effects_cuda()
 
+    def test_nvidia_build_is_rejected_even_with_available_gpu(self):
+        from generators.sound_effects.runtime import require_effects_cuda
+        from generators.music.runtime import require_music_cuda
+        current_torch_module = Mock()
+        current_torch_module.version.hip = None
+        current_torch_module.cuda.is_available.return_value = True
+        with patch.dict('sys.modules', {'torch': current_torch_module}):
+            for current_guard_function in (require_music_cuda, require_effects_cuda):
+                with self.subTest(guard=current_guard_function.__name__), self.assertRaisesRegex(RuntimeError, 'ROCm'):
+                    current_guard_function()
+
     def test_yaml_duplicate_and_unknown_fields_rejected(self):
         from generators.music import contracts
         current_default_text = contracts.SOUND_EFFECT_DEFAULTS.read_text()

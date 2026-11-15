@@ -1,4 +1,4 @@
-"""공식 Animate-2 ModularPipeline을 CUDA 연산·CPU 가중치 오프로드로 실행한다."""
+"""공식 Animate-2 ModularPipeline을 ROCm GPU 상주 연산로 실행한다."""
 import hashlib
 import os
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
@@ -14,11 +14,7 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
     import torch
     import numpy as np
     from diffusers import ModularPipeline
-    from diffusers.hooks import apply_group_offloading
     from diffusers.utils import load_image, load_video
-    from diffusers.models.transformers.transformer_wan_animate_2 import WanAnimate2KVLayerCache
-    from generators.wan_animate2.cache_offload import enable_reference_cache_offload
-    enable_reference_cache_offload(WanAnimate2KVLayerCache)
     from generators.wan_animate2.attention_compile import enable_compiled_attention
     enable_compiled_attention()
     current_video_path=current_job_root/'driving.mp4'
@@ -35,9 +31,8 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
     current_pipeline_model.text_encoder.set_input_embeddings(current_pipeline_model.text_encoder.shared)
     if current_pipeline_model.text_encoder.encoder.embed_tokens.weight is not current_pipeline_model.text_encoder.shared.weight:
         raise RuntimeError('UMT5 원본 공유 임베딩 연결 실패')
-    current_pipeline_model.transformer.enable_group_offload(onload_device=torch.device('cuda'),offload_device=torch.device('cpu'),offload_type='leaf_level',use_stream=False)
-    for current_component_model in (current_pipeline_model.text_encoder,current_pipeline_model.image_encoder,current_pipeline_model.vae):
-        apply_group_offloading(current_component_model,onload_device=torch.device('cuda'),offload_device=torch.device('cpu'),offload_type='leaf_level',use_stream=False)
+    for current_component_model in (current_pipeline_model.transformer,current_pipeline_model.text_encoder,current_pipeline_model.image_encoder,current_pipeline_model.vae):
+        current_component_model.to('cuda')
     current_source_frames,current_source_rate=load_video(str(current_video_path),return_fps=True)
     current_frame_count=current_request_record['frames']
     current_frame_indices=np.round(np.arange(current_frame_count)*current_source_rate/24).astype(int)
@@ -61,7 +56,7 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
         raise ValueError(f'공식 출력 프레임 불일치: {len(current_frame_arrays)} / {current_frame_count}')
     current_metrics_recorder.update_generation_stage('postprocess')
     current_output_hashes=save_video_outputs(current_attempt_root,current_frame_arrays,24)
-    return {'attempt':current_attempt_root.name,'frames':current_frame_count,'fps':24,'output_sha256':current_output_hashes,'model_id':ANIMATE_MODEL_IDENTIFIER,'model_revision':ANIMATE_MODEL_REVISION,'runtime_revision':ANIMATE_RUNTIME_REVISION,'prompt_words':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'attention_execution':'inductor-fullgraph-isolated','reference_kv_offload':'cpu-lossless','cuda_allocator':'expandable_segments:True','quality_status':'사용자 검수 대기'}
+    return {'attempt':current_attempt_root.name,'frames':current_frame_count,'fps':24,'output_sha256':current_output_hashes,'model_id':ANIMATE_MODEL_IDENTIFIER,'model_revision':ANIMATE_MODEL_REVISION,'runtime_revision':ANIMATE_RUNTIME_REVISION,'prompt_words':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'attention_execution':'inductor-fullgraph-isolated','reference_kv_offload':None,'compute_backend':'rocm','weight_offload':None,'cuda_allocator':'expandable_segments:True','quality_status':'사용자 검수 대기'}
 
 if __name__=='__main__':
     run_reference_video_worker(ANIMATE_JOB_STORAGE,Path(__file__),validate_animate_assets,execute_animate_inference)

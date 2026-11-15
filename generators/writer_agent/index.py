@@ -12,7 +12,8 @@ import uuid
 from .documents import chunk_document_blocks,snapshot_document_hashes,scan_workspace_documents
 
 EMBEDDING_VECTOR_DIMENSIONS=1024
-INDEX_SCHEMA_VERSION='writer-rag-v2-qwen3-embedding-q8'
+INDEX_SCHEMA_VERSION='writer-rag-v3-qwen3-embedding-f16'
+PREVIOUS_INDEX_SCHEMA_VERSION='writer-rag-v2-qwen3-embedding-q8'
 SEARCH_RESULT_LIMIT=12
 DUPLICATE_PAIR_LIMIT=12
 DUPLICATE_SIMILARITY_THRESHOLD=0.93
@@ -34,8 +35,10 @@ def learn_document_index(current_config_values,current_embedding_function,curren
     if current_index_path.exists():
         with closing(sqlite3.connect(f'file:{current_index_path}?mode=ro',uri=True)) as current_previous_database:
             current_metadata_values=dict(current_previous_database.execute('SELECT key,value FROM metadata'))
-            if current_metadata_values.get('version')!=INDEX_SCHEMA_VERSION:raise ValueError('기존 색인의 모델·스키마 버전 불일치')
-            current_vector_cache=dict(current_previous_database.execute('SELECT text_hash,vector FROM chunks'))
+            if current_metadata_values.get('version') == INDEX_SCHEMA_VERSION:
+                current_vector_cache=dict(current_previous_database.execute('SELECT text_hash,vector FROM chunks'))
+            elif current_metadata_values.get('version') != PREVIOUS_INDEX_SCHEMA_VERSION:
+                raise ValueError('기존 색인의 모델·스키마 버전 불일치')
     current_temporary_path=current_index_path.with_name('learning-'+uuid.uuid4().hex+'.sqlite3')
     current_chunk_count=0
     current_cached_count=0

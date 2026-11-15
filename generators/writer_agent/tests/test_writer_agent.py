@@ -39,6 +39,28 @@ class WriterAgentContracts(TestCase):
         self.job_record_root=Path(self.workspace_config_values['state_root'])/'job'
         self.job_record_root.mkdir()
 
+    def test_legacy_cuda_manifest_does_not_mark_runtime_ready(self):
+        from generators.writer_agent import prepare
+        current_install_root = Path(self.temporary_root_handle.name)/'runtime'
+        current_install_root.mkdir()
+        (current_install_root/'prepared.json').write_text(json.dumps({'server_binary_sha256':'legacy'}))
+        with patch.object(prepare, 'RUNTIME_INSTALL_ROOT', current_install_root):
+            current_manager_service = WriterAgentManager(self.workspace_config_path)
+            self.assertFalse(current_manager_service.read_workspace_state()['ready'])
+
+    def test_embedding_precision_change_rebuilds_without_reusing_vectors(self):
+        import sqlite3
+        from generators.writer_agent.index import PREVIOUS_INDEX_SCHEMA_VERSION
+        current_first_result = learn_document_index(self.workspace_config_values, generate_test_vector, lambda current_progress_values: None)
+        with sqlite3.connect(current_first_result['index_path']) as current_database_handle:
+            current_database_handle.execute('UPDATE metadata SET value=? WHERE key=?', (PREVIOUS_INDEX_SCHEMA_VERSION, 'version'))
+        with self.assertRaisesRegex(ValueError, '색인'):
+            load_current_index(self.workspace_config_values)
+        current_second_result = learn_document_index(self.workspace_config_values, generate_test_vector, lambda current_progress_values: None)
+        self.assertGreater(current_second_result['chunks'], 0)
+        self.assertEqual(current_second_result['reused_chunks'], 0)
+        load_current_index(self.workspace_config_values)
+
     def create_test_proposal(self,current_mode_name='append'):
         current_model_values={'target_path':'world/main.md' if current_mode_name=='append' else 'world/new-topic.md','heading':'새 설정','paragraphs':['사서는 관측 기구를 수리하는 작은 작업대를 운영한다.'],'reason':'관련 원본과 같은 위치','source_ids':[self.document_chunk_entries[0]['id']],'warnings':[]}
         current_proposal_values=build_writing_proposal(self.workspace_config_values,self.document_entry_lookup,self.document_chunk_entries,current_model_values)

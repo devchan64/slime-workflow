@@ -267,7 +267,7 @@ def execute_tile_set_generation(*, ticket_file_path, style_reference_path, trial
     def emit_progress_heartbeat():
         while not heartbeat_stop_event.wait(5):
             try:
-                gpu_result = subprocess.run(['nvidia-smi', '--query-gpu=memory.used,utilization.gpu', '--format=csv,noheader'], check=True, capture_output=True, text=True, timeout=3)
+                gpu_result = subprocess.run(['amd-smi', 'metric', '-m', '--json'], check=True, capture_output=True, text=True, timeout=3)
                 execution_logger.info('heartbeat stage=%s role=%s step=%s/%s elapsed=%.0fs gpu=%s', progress_state['stage'], progress_state['role'], progress_state['step'], FIXED_INFERENCE_STEPS, time.monotonic() - run_started_time, gpu_result.stdout.strip())
             except (OSError, subprocess.SubprocessError):
                 execution_logger.exception('heartbeat GPU 상태 조회 실패')
@@ -279,8 +279,8 @@ def execute_tile_set_generation(*, ticket_file_path, style_reference_path, trial
         import torch
         from diffusers import QwenImageEditPlusPipeline
         from diffusers.pipelines.qwenimage import pipeline_qwenimage_edit_plus as qwen_pipeline_module
-        if not torch.cuda.is_available():
-            raise RuntimeError('CUDA를 사용할 수 없어 중단합니다. CPU 추론은 지원하지 않습니다.')
+        if not getattr(torch.version, 'hip', None) or not torch.cuda.is_available():
+            raise RuntimeError('ROCm PyTorch 또는 AMD GPU를 사용할 수 없어 중단합니다. CPU 추론은 지원하지 않습니다.')
         if diffusers.__version__ != '0.37.0':
             raise RuntimeError('검증한 diffusers 0.37.0 환경에서만 실행합니다.')
         if not (FIXED_MODEL_DIRECTORY / 'model_index.json').is_file():
@@ -290,7 +290,7 @@ def execute_tile_set_generation(*, ticket_file_path, style_reference_path, trial
         qwen_pipeline_module.VAE_IMAGE_SIZE = generation_width * generation_height
         execution_logger.info('load model_id=%s revision=%s path=%s', FIXED_MODEL_IDENTIFIER, FIXED_MODEL_REVISION, FIXED_MODEL_DIRECTORY)
         image_edit_pipeline = QwenImageEditPlusPipeline.from_pretrained(str(FIXED_MODEL_DIRECTORY), torch_dtype=torch.bfloat16, local_files_only=True, low_cpu_mem_usage=True)
-        image_edit_pipeline.enable_sequential_cpu_offload()
+        image_edit_pipeline.to('cuda')
         image_edit_pipeline.vae.enable_slicing()
         image_edit_pipeline.vae.enable_tiling()
         generated_tile_images = {}
@@ -322,7 +322,7 @@ def execute_tile_set_generation(*, ticket_file_path, style_reference_path, trial
                 preview_tile_images['ground'] = reference_image.convert('RGBA').resize(tuple(ticket_values['tile_size']), Image.LANCZOS)
             build_height_preview(preview_tile_images, ticket_values['tile_size'], ticket_values['height_steps'], trial_output_root / 'height-preview.png')
         (trial_output_root / 'ticket.yaml').write_text(ticket_file_path.read_text(encoding='utf-8'), encoding='utf-8')
-        result_values = {'status': 'candidate-needs-user-review', 'asset_id': ticket_values['asset_id'], 'model_id': FIXED_MODEL_IDENTIFIER, 'revision': FIXED_MODEL_REVISION, 'generation_size': ticket_values['generation_size'], 'tile_size': ticket_values['tile_size'], 'tileability': ticket_values['tileability'], 'height_steps': ticket_values['height_steps'], 'style_reference_id': ticket_values['style_reference_id'], 'style_reference_path': str(Path(style_reference_path).resolve()), 'style_reference_sha256': reference_sha256, 'material_reference_id': ticket_values.get('material_reference_id'), 'material_reference_path': str(Path(material_reference_path).resolve()) if material_reference_path else None, 'material_reference_sha256': material_reference_sha256, 'shape_reference_id': ticket_values.get('shape_reference_id'), 'shape_reference_path': str(Path(shape_reference_path).resolve()) if shape_reference_path else None, 'shape_reference_sha256': shape_reference_sha256, 'shape_alpha_applied': final_alpha_mask is not None and ticket_values.get('apply_shape_alpha', False), 'steps': FIXED_INFERENCE_STEPS, 'true_cfg_scale': FIXED_TRUE_CFG_SCALE, 'guidance_scale': FIXED_GUIDANCE_SCALE, 'seed': FIXED_GENERATOR_SEED, 'execution_device': 'cuda', 'elapsed_seconds': round(time.monotonic() - run_started_time, 2), 'variants': generated_records, 'preview_ground': 'generated-ground' if 'ground' in generated_tile_images else 'style-reference-resize', 'preview': 'height-preview.png' if ticket_values['acceptance']['seam_check'] else None, 'quality_warnings': ['이음새와 높이 변화 미리보기를 검수한 뒤에만 정식 에셋으로 채택합니다.']}
+        result_values = {'status': 'candidate-needs-user-review', 'asset_id': ticket_values['asset_id'], 'model_id': FIXED_MODEL_IDENTIFIER, 'revision': FIXED_MODEL_REVISION, 'generation_size': ticket_values['generation_size'], 'tile_size': ticket_values['tile_size'], 'tileability': ticket_values['tileability'], 'height_steps': ticket_values['height_steps'], 'style_reference_id': ticket_values['style_reference_id'], 'style_reference_path': str(Path(style_reference_path).resolve()), 'style_reference_sha256': reference_sha256, 'material_reference_id': ticket_values.get('material_reference_id'), 'material_reference_path': str(Path(material_reference_path).resolve()) if material_reference_path else None, 'material_reference_sha256': material_reference_sha256, 'shape_reference_id': ticket_values.get('shape_reference_id'), 'shape_reference_path': str(Path(shape_reference_path).resolve()) if shape_reference_path else None, 'shape_reference_sha256': shape_reference_sha256, 'shape_alpha_applied': final_alpha_mask is not None and ticket_values.get('apply_shape_alpha', False), 'steps': FIXED_INFERENCE_STEPS, 'true_cfg_scale': FIXED_TRUE_CFG_SCALE, 'guidance_scale': FIXED_GUIDANCE_SCALE, 'seed': FIXED_GENERATOR_SEED, 'execution_device': 'cuda', 'compute_backend': 'rocm', 'elapsed_seconds': round(time.monotonic() - run_started_time, 2), 'variants': generated_records, 'preview_ground': 'generated-ground' if 'ground' in generated_tile_images else 'style-reference-resize', 'preview': 'height-preview.png' if ticket_values['acceptance']['seam_check'] else None, 'quality_warnings': ['이음새와 높이 변화 미리보기를 검수한 뒤에만 정식 에셋으로 채택합니다.']}
         (trial_output_root / 'result.json').write_text(json.dumps(result_values, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
         map_preview_record = None
         if map_preview_snapshot is not None:

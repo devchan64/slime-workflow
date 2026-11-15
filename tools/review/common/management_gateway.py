@@ -267,17 +267,17 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['vegetation-generator'] = 'Qwen 자연물 생성
 MANAGEMENT_COMMAND_DESCRIPTIONS['building-generator'] = '빌보드·건물 통합 생성기의 호환 명령 · 공용 대기열·이력'
 
 for current_service_name in AUDIO_SERVICE_NAMES:
-    MANAGEMENT_COMMAND_DESCRIPTIONS[current_service_name] = '음악생성 · 고정 로컬 모델 · CUDA · WAV · 8GB용 설정(실측 검증 필요)'
+    MANAGEMENT_COMMAND_DESCRIPTIONS[current_service_name] = '음악생성 · 고정 로컬 모델 · ROCm GPU · WAV · 실측 검증 필요'
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['music-minimax']='폐기 · 기존 결과와 로그 조회 · 신규 생성·준비·재개 차단'
 MANAGEMENT_COMMAND_DESCRIPTIONS['music-heartmula']='HeartMuLa 3B · 입력 페이지 · GPU 실행 검증 전 차단'
-MANAGEMENT_COMMAND_DESCRIPTIONS['music-magenta']='Magenta RT2 Small 실험 · ONNX CUDA 인코더·JAX 음악 생성'
-MANAGEMENT_COMMAND_DESCRIPTIONS['sfx-dasheng-audiogen']='효과음 생성 · Dasheng-AudioGen · CUDA · 길이 자동 예측 · 16kHz mono WAV'
+MANAGEMENT_COMMAND_DESCRIPTIONS['music-magenta']='폐기 · 기존 결과와 로그 조회 · 신규 생성·준비·재개 차단'
+MANAGEMENT_COMMAND_DESCRIPTIONS['sfx-dasheng-audiogen']='효과음 생성 · Dasheng-AudioGen · ROCm GPU · 길이 자동 예측 · 16kHz mono WAV'
 
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-animate2']='Animate-2 · RGB 동작 영상과 캐릭터 참조 · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fun-control']='Wan2.2 Fun Control BF16 · 참조/포즈 영상 · --payload-file'
-MANAGEMENT_COMMAND_DESCRIPTIONS['dwpose']='단일 832×480 PNG DWPose 추출 · CUDA · --payload-file'
+MANAGEMENT_COMMAND_DESCRIPTIONS['dwpose']='단일 832×480 PNG DWPose 추출 · ROCm MIGraphX · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['kimodo']='Kimodo SOMA v1.2 · 비양자화 BF16 텍스트 인코더 · 원본 관절 모션·미리보기 · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace']='Wan2.2 VACE-Fun A14B BF16 · 텍스트·외형 참조·첫 프레임·DWPose·부분 편집·영상 전체 조건 실험 · --payload-file'
 

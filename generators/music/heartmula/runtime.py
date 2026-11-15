@@ -1,4 +1,4 @@
-"""HeartMuLa NF4 생성·FP32 디코더를 순차 CUDA 실행한다."""
+"""HeartMuLa BF16 비양자화 생성·FP32 디코더를 순차 ROCm GPU 실행한다."""
 from pathlib import Path
 import json
 import os
@@ -14,6 +14,12 @@ HEARTMULA_SOURCE_REVISIONS = (
 HEARTMULA_LIBRARY_REVISION = '5858ca8f1ffe58d62be7c007ea55f1033c5ca456'
 HEARTMULA_DECODE_WINDOW_SECONDS = 7.44
 HEARTMULA_SAMPLING_SETTINGS = {'topk':50,'temperature':1.0,'cfg_scale':3.0}
+
+
+def load_heartmula_resident_model(current_model_class,current_model_path,current_torch_module):
+    """양자화·CPU 오프로드 없이 고정 모델을 GPU에 로드한다."""
+    return current_model_class.from_pretrained(current_model_path, local_files_only=True,
+        device_map={'': 'cuda:0'}, dtype=current_torch_module.bfloat16)
 
 
 def validate_heartmula_artifacts(current_service_name):
@@ -62,7 +68,6 @@ def execute_heartmula_inference(current_service_name,current_request_record,curr
     import torch
     import soundfile
     import numpy
-    from transformers import BitsAndBytesConfig
     from heartlib import HeartMuLaGenPipeline
     from heartlib.heartmula.modeling_heartmula import HeartMuLa
     from heartlib.heartcodec.modeling_heartcodec import HeartCodec
@@ -80,7 +85,7 @@ def execute_heartmula_inference(current_service_name,current_request_record,curr
         def mula(self):
             if self._mula is None:
                 current_metrics_recorder.update_generation_stage('load')
-                self._mula = HeartMuLa.from_pretrained(self.mula_path,local_files_only=True,device_map={'':'cuda:0'},dtype=torch.bfloat16,quantization_config=BitsAndBytesConfig(load_in_4bit=True,bnb_4bit_quant_type='nf4',bnb_4bit_use_double_quant=True,bnb_4bit_compute_dtype=torch.bfloat16,llm_int8_skip_modules=['audio_head','text_embeddings','audio_embeddings','projection','muq_linear']))
+                self._mula = load_heartmula_resident_model(HeartMuLa,self.mula_path,torch)
                 self._mula.backbone.max_seq_len = current_cache_length
                 attach_cuda_guards(self._mula)
                 current_metrics_recorder.update_generation_stage('inference')
@@ -129,7 +134,7 @@ def execute_heartmula_inference(current_service_name,current_request_record,curr
     current_metrics_recorder.update_generation_stage('saving')
     current_audio_path = current_attempt_root/'music.wav'
     soundfile.write(current_audio_path,current_audio_samples,48000,subtype='PCM_16')
-    current_result_record = {'attempt':current_attempt_root.name,'model_id':HEARTMULA_SOURCE_REVISIONS[1][0],'format':'wav','channels':2,'sample_rate':48000,'duration_seconds':len(current_audio_samples)/48000,'output_sha256':calculate_music_checksum(current_audio_path),'runtime_sha256':calculate_music_checksum(Path(__file__)),'prompt_sha256':current_request_record['prompt_sha256'],'model_compute_device':'cuda','quantization':'NF4 double quant, BF16 compute','codec_dtype':'float32','codec_window_seconds':HEARTMULA_DECODE_WINDOW_SECONDS,'sampling':HEARTMULA_SAMPLING_SETTINGS,'seed':current_request_record['seed'],'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20,'torch_peak_reserved_mib':torch.cuda.max_memory_reserved()/2**20,'quality_warnings':['4비트 생성 모델의 품질·보컬 유입·끝맺음은 청취 검수가 필요합니다.'],'quality_status':'사용자 청취 검수 대기','seamless_loop_guaranteed':False}
+    current_result_record = {'attempt':current_attempt_root.name,'model_id':HEARTMULA_SOURCE_REVISIONS[1][0],'format':'wav','channels':2,'sample_rate':48000,'duration_seconds':len(current_audio_samples)/48000,'output_sha256':calculate_music_checksum(current_audio_path),'runtime_sha256':calculate_music_checksum(Path(__file__)),'prompt_sha256':current_request_record['prompt_sha256'],'model_compute_device':'cuda','quantization':None,'model_dtype':'bfloat16','compute_backend':'rocm','codec_dtype':'float32','codec_window_seconds':HEARTMULA_DECODE_WINDOW_SECONDS,'sampling':HEARTMULA_SAMPLING_SETTINGS,'seed':current_request_record['seed'],'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20,'torch_peak_reserved_mib':torch.cuda.max_memory_reserved()/2**20,'quality_warnings':['생성 음악의 품질·보컬 유입·끝맺음은 청취 검수가 필요합니다.'],'quality_status':'사용자 청취 검수 대기','seamless_loop_guaranteed':False}
     current_result_record['termination'] = current_termination_record
     if not current_eos_observed:
         current_result_record['quality_warnings'].append('최대 출력 시간에 도달해 종료했습니다. 음악적 끝맺음이 완료되었다는 의미가 아닙니다.')
@@ -142,5 +147,5 @@ def execute_heartmula_inference(current_service_name,current_request_record,curr
     current_result_record['torch_peak_allocated_mib'] = torch.cuda.max_memory_allocated()/2**20
     current_result_record['torch_peak_reserved_mib'] = torch.cuda.max_memory_reserved()/2**20
     current_result_record['quality_warnings'].append('MR은 Demucs 분리 결과입니다. 보컬 잔향·악기 손실을 원곡과 비교하세요.')
-    write_record_atomically(current_model_root/'gpu-validation.json',{'generation_id':current_attempt_root.parent.parent.name,'attempt':current_attempt_root.name,'runtime_sha256':current_result_record['runtime_sha256'],'status':'passed'})
+    write_record_atomically(current_model_root/'gpu-validation.json',{'generation_id':current_attempt_root.parent.parent.name,'attempt':current_attempt_root.name,'runtime_sha256':current_result_record['runtime_sha256'],'backend':'rocm','status':'passed'})
     return current_result_record

@@ -38,11 +38,13 @@ def start_managed_server(current_run_root,current_runtime_kind='generation'):
     current_server_port=EMBEDDING_SERVER_PORT if embedding_runtime_flag else MODEL_SERVER_PORT
     current_model_name=prepare.EMBEDDING_DOWNLOAD_NAME if embedding_runtime_flag else prepare.MODEL_DOWNLOAD_NAME
     current_model_digest=prepare.EMBEDDING_DOWNLOAD_SHA256 if embedding_runtime_flag else prepare.MODEL_DOWNLOAD_SHA256
-    prepare.inspect_gpu_environment(1024 if embedding_runtime_flag else 4096)
+    prepare.inspect_gpu_environment(2048 if embedding_runtime_flag else 12288)
     prepared_manifest_path=prepare.RUNTIME_INSTALL_ROOT/'prepared.json'
     if not prepared_manifest_path.exists():
         raise RuntimeError('모델 환경이 준비되지 않았습니다. 관리도구에서 환경 준비를 실행하세요.')
     current_manifest_data=parse_unique_json(prepared_manifest_path.read_text())
+    if (current_manifest_data.get('backend') != 'rocm' or current_manifest_data.get('model_file_sha256') != prepare.MODEL_DOWNLOAD_SHA256 or current_manifest_data.get('embedding_file_sha256') != prepare.EMBEDDING_DOWNLOAD_SHA256):
+        raise RuntimeError('ROCm 실행 환경을 다시 준비하세요.')
     with prepare.trace_runtime_progress('verify'):
         if prepare.calculate_file_digest(prepare.MODEL_DOWNLOAD_ROOT/current_model_name)!=current_model_digest:
             raise ValueError('모델 체크섬 불일치')
@@ -54,11 +56,11 @@ def start_managed_server(current_run_root,current_runtime_kind='generation'):
     server_log_path=current_run_root/('embedding-server.log' if embedding_runtime_flag else 'model-server.log')
     server_environment_values=os.environ.copy()
     server_environment_values['LD_LIBRARY_PATH']=':'.join(current_manifest_data['runtime_library_paths'])
-    server_environment_values['CUDA_VISIBLE_DEVICES']='0'
+    server_environment_values['HIP_VISIBLE_DEVICES']='0'
     server_command_parts=[str(prepare.RUNTIME_SERVER_PATH),'-m',str(prepare.MODEL_DOWNLOAD_ROOT/prepare.MODEL_DOWNLOAD_NAME),'--alias',MODEL_SERVER_ALIAS,'--host','127.0.0.1','--port',str(MODEL_SERVER_PORT),'-ngl','all','--fit','off','-c',str(MODEL_CONTEXT_LIMIT),'-np','1','-b','256','-ub','128','--jinja','--reasoning','off','--no-context-shift','--verbosity','4','--cors-origins','http://127.0.0.1:8773']
     if embedding_runtime_flag:
         server_command_parts=[str(prepare.RUNTIME_SERVER_PATH),'-m',str(prepare.MODEL_DOWNLOAD_ROOT/current_model_name),'--alias','slime-writer-embedding','--host','127.0.0.1','--port',str(current_server_port),'-ngl','all','--fit','off','-c','4096','-b','4096','-ub','4096','-np','1','--embedding','--pooling','last','--verbosity','4']
-    prepare.emit_runtime_trace('server',f'CUDA 서버 시작: {current_runtime_kind}')
+    prepare.emit_runtime_trace('server',f'ROCm 서버 시작: {current_runtime_kind}')
     server_log_offset=server_log_path.stat().st_size if server_log_path.exists() else 0
     with server_log_path.open('a') as server_log_stream:
         server_process_handle=subprocess.Popen(server_command_parts,stdout=server_log_stream,stderr=subprocess.STDOUT,env=server_environment_values)
