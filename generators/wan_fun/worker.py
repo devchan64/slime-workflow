@@ -4,6 +4,15 @@ import sys
 import os
 import gc
 import hashlib
+def configure_fun_memory_allocator(current_environment_values):
+    """gfx1151의 확장형 세그먼트 사용을 차단한다."""
+    current_environment_values['PYTORCH_ALLOC_CONF'] = 'expandable_segments:False'
+    current_environment_values.pop('PYTORCH_CUDA_ALLOC_CONF', None)
+
+
+# 공용 작업자가 torch를 가져오기 전에 설정해야 한다.
+if __name__ == '__main__':
+    configure_fun_memory_allocator(os.environ)
 FUN_WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(FUN_WORKSPACE_ROOT))
 from generators.wan_fun.contracts import reject_retired_rgb_input, FUN_JOB_STORAGE, FUN_RUNTIME_DIRECTORY, FUN_MODEL_FILES, FUN_MODEL_IDENTIFIER, FUN_MODEL_REVISION, FUN_PYTHON_EXECUTABLE, validate_fun_assets
@@ -31,7 +40,6 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
         subprocess.run([str(FUN_PYTHON_EXECUTABLE), str(Path(__file__).with_name('pose_preprocess.py')), str(current_job_root), str(current_attempt_root)], env=current_process_environment, check=True)
         current_preprocess_record = json.loads((current_attempt_root/'pose-preprocess.json').read_text())
         current_control_paths.extend(Path(current_frame_path) for current_frame_path in current_preprocess_record['frames'])
-    os.environ['PYTORCH_ALLOC_CONF'] = 'expandable_segments:True'
     sys.path.insert(0, str(FUN_RUNTIME_DIRECTORY / 'ComfyUI'))
     import torch
     import numpy as np
@@ -42,6 +50,9 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     comfy.cli_args.args.highvram = True
     comfy.cli_args.args.gpu_only = True
     comfy.cli_args.args.cpu_vae = False
+    comfy.cli_args.args.fp16_vae = False
+    comfy.cli_args.args.bf16_vae = False
+    comfy.cli_args.args.fp32_vae = True
     comfy.cli_args.args.bf16_unet = True
     import nodes, folder_paths, comfy.model_management, comfy.sample, comfy.sd, comfy.utils, comfy.supported_models
     import comfy.ops
@@ -71,13 +82,16 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     gc.collect()
     comfy.model_management.soft_empty_cache()
     current_metrics_recorder.update_generation_stage('encoding')
-    current_vae_model = nodes.VAELoader().load_vae('wan_2.1_vae.safetensors')[0]
-    if current_vae_model.device.type != 'cuda' or current_vae_model.patcher.offload_device.type != 'cuda':
-        raise RuntimeError('VAE는 GPU 전용이어야 합니다.')
     from generators.wan_fun.vae_diagnostic import disable_vae_tiled_fallback
-    disable_vae_tiled_fallback(current_vae_model)
+    def load_fun_gpu_vae():
+        current_loaded_vae = nodes.VAELoader().load_vae('wan_2.1_vae.safetensors')[0]
+        if current_loaded_vae.device.type != 'cuda' or current_loaded_vae.patcher.offload_device.type != 'cuda' or current_loaded_vae.vae_dtype != torch.float32:
+            raise RuntimeError('VAE는 FP32 GPU 전용이어야 합니다.')
+        disable_vae_tiled_fallback(current_loaded_vae)
+        return current_loaded_vae
+    current_vae_model = load_fun_gpu_vae()
     write_record_atomically(current_attempt_root / 'encode-policy.json', {
-        'use_regular_vae': True, 'temporal_tile_frames': None,
+        'use_regular_vae': True, 'vae_dtype': 'float32', 'temporal_tile_frames': None,
         'spatial_tile_pixels': None, 'policy': '일반 VAE 고정 · OOM 타일 대체 차단',
     })
     current_image_tensors = []
@@ -87,16 +101,29 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     with torch.inference_mode():
         current_condition_output = Wan22FunControlToVideo.execute(positive_condition_data, negative_condition_data, current_vae_model, 832, 480, current_request_record['frames'], 1, ref_image=current_image_tensors[0].unsqueeze(0), control_video=torch.stack(current_image_tensors[1:]))
     positive_condition_data, negative_condition_data, current_latent_record = current_condition_output[:3]
+    from generators.wan_fun.numerical_diagnostics import fingerprint_fun_tensor
+    current_condition_metadata = positive_condition_data[0][1]
+    current_initial_condition_fingerprints = {
+        current_tensor_name: fingerprint_fun_tensor(torch, current_tensor_value)
+        for current_tensor_name, current_tensor_value in (
+            ('reference_latent', current_condition_metadata['reference_latents'][0]),
+            ('control_latent', current_condition_metadata['concat_latent_image']),
+        )
+    }
+    write_record_atomically(current_attempt_root / 'conditioning-before-release.json', current_initial_condition_fingerprints)
+    current_invalid_initial = [current_tensor_name for current_tensor_name, current_fingerprint_record in current_initial_condition_fingerprints.items() if not current_fingerprint_record['finite']]
+    if current_invalid_initial:
+        raise ValueError('VAE 인코딩 결과에 NaN 또는 무한대가 있습니다: ' + ', '.join(current_invalid_initial))
     comfy.model_management.unload_all_models()
+    del current_vae_model
+    gc.collect()
     comfy.model_management.soft_empty_cache()
     current_step_total = current_request_record['steps']
     current_switch_step = max(1, min(current_step_total - 1, round(current_step_total * current_request_record['switch_ratio'])))
     write_record_atomically(current_attempt_root / 'conditioning.json', {'input_mode': current_request_record.get('input_mode', 'controlled'), 'control_video_present': True, 'control_type': current_request_record['control_type'], 'reference_mode': 'reference_latents', 'face_video': False, 'switch_step': current_switch_step, 'sampler': 'euler', 'scheduler': 'simple', 'model_revision': FUN_MODEL_REVISION, 'tiled_vae': False})
     current_latent_tensor = current_latent_record['samples']
     current_noise_tensor = comfy.sample.prepare_noise(current_latent_tensor, current_request_record['seed'])
-    from generators.wan_fun.numerical_diagnostics import fingerprint_fun_tensor
-    current_condition_metadata = positive_condition_data[0][1]
-    write_record_atomically(current_attempt_root / 'conditioning-fingerprints.json', {
+    current_condition_fingerprints = {
         current_tensor_name: fingerprint_fun_tensor(torch, current_tensor_value)
         for current_tensor_name, current_tensor_value in (
             ('positive_text', positive_condition_data[0][0]),
@@ -105,7 +132,11 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
             ('control_latent', current_condition_metadata['concat_latent_image']),
             ('initial_noise', current_noise_tensor),
         )
-    })
+    }
+    write_record_atomically(current_attempt_root / 'conditioning-fingerprints.json', current_condition_fingerprints)
+    current_invalid_conditions = [current_tensor_name for current_tensor_name, current_fingerprint_record in current_condition_fingerprints.items() if not current_fingerprint_record['finite']]
+    if current_invalid_conditions:
+        raise ValueError('추론 입력 조건에 NaN 또는 무한대가 있습니다: ' + ', '.join(current_invalid_conditions))
     for current_model_stage, current_start_step, current_end_step in [('high', 0, current_switch_step), ('low', current_switch_step, current_step_total)]:
         current_metrics_recorder.update_generation_stage('load')
         current_model_relative = Path(FUN_MODEL_FILES[current_model_stage][0]).name
@@ -134,10 +165,11 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     current_latent_path = current_attempt_root / 'denoised-latents.safetensors'
     save_file({'samples': current_latent_tensor.detach().cpu().contiguous()}, str(current_latent_path))
     write_record_atomically(current_attempt_root / 'decode-policy.json', {
-        'use_regular_vae': True, 'temporal_tile': None, 'spatial_tile': None,
+        'use_regular_vae': True, 'vae_dtype': 'float32', 'temporal_tile': None, 'spatial_tile': None,
         'latent_sha256': hashlib.sha256(current_latent_path.read_bytes()).hexdigest(),
         'policy': '일반 VAE 고정 · OOM 타일 대체 차단',
     })
+    current_vae_model = load_fun_gpu_vae()
     with torch.inference_mode():
         current_decoded_frames = current_vae_model.decode(current_latent_tensor)
     if current_decoded_frames.ndim == 5:

@@ -12,6 +12,12 @@ from generators.wan_fun.contracts import validate_fun_request, inspect_fun_asset
 from tools.review.common.management_gateway import resolve_management_command
 
 class FunAttentionOptimizationTests(unittest.TestCase):
+    def test_fun_allocator_disables_expandable_segments_and_legacy_override(self):
+        from generators.wan_fun.worker import configure_fun_memory_allocator
+        current_environment_values = {'PYTORCH_ALLOC_CONF': 'expandable_segments:True', 'PYTORCH_CUDA_ALLOC_CONF': 'expandable_segments:True', 'KEEP': 'yes'}
+        configure_fun_memory_allocator(current_environment_values)
+        self.assertEqual(current_environment_values, {'PYTORCH_ALLOC_CONF': 'expandable_segments:False', 'KEEP': 'yes'})
+
     def test_conditioning_fingerprint_detects_changed_tensors(self):
         import torch
         from generators.wan_fun.numerical_diagnostics import fingerprint_fun_tensor
