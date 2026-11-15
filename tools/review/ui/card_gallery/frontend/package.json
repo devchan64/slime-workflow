@@ -1,0 +1,53 @@
+{
+  "name": "gradio_cardgallery",
+  "version": "0.19.4",
+  "description": "Gradio UI packages",
+  "type": "module",
+  "author": "",
+  "license": "ISC",
+  "private": false,
+  "dependencies": {
+    "@gradio/atoms": "0.26.3",
+    "@gradio/client": "2.7.2",
+    "@gradio/file": "0.16.3",
+    "@gradio/icons": "0.16.0",
+    "@gradio/image": "0.28.5",
+    "@gradio/statustracker": "0.16.0",
+    "@gradio/upload": "0.19.1",
+    "@gradio/utils": "0.15.0",
+    "@gradio/video": "0.23.3",
+    "dequal": "^2.0.3",
+    "svelte": "^5.48.0"
+  },
+  "devDependencies": {
+    "@gradio/preview": "0.17.1"
+  },
+  "main": "./Index.svelte",
+  "main_changeset": true,
+  "exports": {
+    ".": {
+      "gradio": "./Index.svelte",
+      "svelte": "./dist/Index.svelte",
+      "types": "./dist/Index.svelte.d.ts"
+    },
+    "./package.json": "./package.json",
+    "./base": {
+      "gradio": "./shared/Gallery.svelte",
+      "svelte": "./dist/shared/Gallery.svelte",
+      "types": "./dist/shared/Gallery.svelte.d.ts"
+    },
+    "./example": {
+      "gradio": "./Example.svelte",
+      "svelte": "./dist/Example.svelte",
+      "types": "./dist/Example.svelte.d.ts"
+    }
+  },
+  "peerDependencies": {
+    "svelte": "^5.48.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gradio-app/gradio.git",
+    "directory": "js/gallery"
+  }
+}

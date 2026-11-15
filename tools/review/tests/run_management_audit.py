@@ -10,11 +10,11 @@ from tools.review.tests.run_music_regression import execute_music_regression
 MANAGEMENT_AUDIT_MODULES = tuple('tools.review.tests.' + current_module_name for current_module_name in (
     'test_kimodo_generation', 'test_kimodo_dwpose', 'test_kimodo_migraphx_build', 'test_kimodo_readiness', 'test_hymotion_retirement',
     'test_regression_runner', 'test_management_browser_scripts', 'test_landmarks_retirement', 'test_host_memory_guard',
-    'test_gpu_confirmation', 'test_gradio_button_guidance', 'test_browser_gpu_confirmation', 'test_gradio_history', 'test_gradio_history_inputs',
+    'test_gpu_confirmation', 'test_gradio_button_guidance', 'test_browser_gpu_confirmation', 'test_gradio_history', 'test_gradio_history_inputs', 'test_history_thumbnail_loading',
     'test_gradio_proxy_response', 'test_gradio_standard_components', 'test_generation_status_display', 'test_generation_status_lookup', 'test_generation_estimates',
     'test_generation_cleanup', 'test_queue_generation_telemetry', 'test_generation_history', 'test_gpu_queue_priority',
     'test_gpu_job_queue', 'test_gpu_memory_history', 'test_gpu_status', 'test_anny_retirement',
-    'test_anchor_history', 'test_anchor_asset_update', 'test_history_preservation', 'test_gradio_process', 'test_management_single_port', 'test_review_server_takeover',
+    'test_anchor_history', 'test_anchor_asset_update', 'test_history_preservation', 'test_gradio_process', 'test_management_single_port', 'test_management_heartbeat_bridge', 'test_review_server_takeover',
     'test_management_gateway', 'test_management_runtime', 'test_management_menu_gradio', 'test_model_management', 'test_image_generation',
     'test_pose_transfer_retirement',
     'test_three_reference_generation', 'test_qwen_21_generation', 'test_qwen_2511_progress','test_qwen_2512_progress', 'test_qwen_circular_generation', 'test_expression_generation',

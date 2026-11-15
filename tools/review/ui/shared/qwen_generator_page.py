@@ -353,7 +353,8 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             status_record_value = read_existing_generation_status(execute_reference_gateway, identifier_text_value)
             if status_record_value is None:
                 return ('선택한 작업 이력이 삭제되었습니다.', '', gr.update(value=[], visible=False), '')
-            return (describe_generation_status(status_record_value), gr.update(value=status_record_value.get('log', '')) if refresh_log_enabled else gr.skip(), gr.update(value=collect_generation_gallery(status_record_value.get('image'), circular_mode_enabled, server_base_address), visible=True) if status_record_value.get('image') else gr.skip(), gr.skip())
+            from tools.review.common.gradio_results import load_gallery_image_values
+            return (describe_generation_status(status_record_value), gr.update(value=status_record_value.get('log', '')) if refresh_log_enabled else gr.skip(), gr.update(value=load_gallery_image_values(collect_generation_gallery(status_record_value.get('image'), circular_mode_enabled, server_base_address), server_base_address), visible=True) if status_record_value.get('image') else gr.skip(), gr.skip())
         interface_blocks_value.load(lambda: read_history_page(1), outputs=history_output_values)
         gr.Button('상태 새로고침').click(refresh_status, [identifier_value, refresh_log_value], [status_value, log_value, preview_value, identifier_value], queue=False)
         if hasattr(gr, 'Timer'):

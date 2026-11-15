@@ -7,6 +7,8 @@ import os
 from types import SimpleNamespace
 from urllib.parse import parse_qs
 import logging
+from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from starlette.responses import Response, RedirectResponse
@@ -93,6 +95,60 @@ def execute_legacy_request(current_handler_class, current_root_path, current_req
     return current_response_value
 
 
+async def bridge_gradio_heartbeat(current_application, current_scope, current_receive, current_send):
+    """Gradio의 heartbeat 요청과 종료 처리를 동일 서버의 WebSocket으로 전달한다."""
+    current_headers = dict(current_scope.get('headers', []))
+    current_origin = urlsplit(current_headers.get(b'origin', b'').decode('latin1'))
+    if current_origin.scheme not in ('http', 'https') or current_origin.netloc.lower() != current_headers.get(b'host', b'').decode('latin1').lower():
+        await current_send({'type': 'websocket.close', 'code': 1008})
+        return
+    if (await current_receive())['type'] != 'websocket.connect':
+        return
+    current_http_scope = dict(current_scope, type='http', method='GET', http_version='1.1', scheme='https' if current_scope['scheme'] == 'wss' else 'http')
+    current_http_scope['path'] = current_scope['path'].replace('/gradio_api/heartbeat-ws/', '/gradio_api/heartbeat/', 1)
+    current_http_scope['raw_path'] = current_http_scope['path'].encode()
+    current_disconnected = asyncio.Event()
+    current_first_request = True
+    current_accepted = False
+
+    async def receive_heartbeat_http():
+        nonlocal current_first_request
+        if current_first_request:
+            current_first_request = False
+            return {'type': 'http.request', 'body': b'', 'more_body': False}
+        await current_disconnected.wait()
+        return {'type': 'http.disconnect'}
+
+    async def send_heartbeat_http(current_message):
+        nonlocal current_accepted
+        if current_message['type'] == 'http.response.start':
+            if current_message['status'] != 200:
+                await current_send({'type': 'websocket.close', 'code': 1008})
+                return
+            await current_send({'type': 'websocket.accept'})
+            current_accepted = True
+        elif current_message['type'] == 'http.response.body' and current_accepted:
+            if current_message.get('body'):
+                await current_send({'type': 'websocket.send', 'bytes': current_message['body']})
+            if not current_message.get('more_body', False):
+                await current_send({'type': 'websocket.close', 'code': 1000})
+
+    async def observe_heartbeat_disconnect():
+        while True:
+            current_message = await current_receive()
+            if current_message['type'] == 'websocket.disconnect':
+                current_disconnected.set()
+                return
+
+    current_disconnect_task = asyncio.create_task(observe_heartbeat_disconnect())
+    try:
+        await current_application(current_http_scope, receive_heartbeat_http, send_heartbeat_http)
+    finally:
+        current_disconnected.set()
+        current_disconnect_task.cancel()
+        await asyncio.gather(current_disconnect_task, return_exceptions=True)
+
+
 def build_management_application(current_handler_class, current_root_path, current_source_path, current_review_port, current_static_routes):
     os.environ['SLIME_MANAGEMENT_MENU_SOURCE'] = str(current_source_path)
     current_mounted_apps = {}
@@ -109,6 +165,13 @@ def build_management_application(current_handler_class, current_root_path, curre
 
     async def dispatch_management_request(current_request_scope, current_receive_call, current_send_call):
         current_request_path = current_request_scope['path']
+        if current_request_scope['type'] == 'websocket':
+            current_tool_name = current_request_path.split('/')[3] if current_request_path.startswith('/management/frame/') else 'management'
+            current_application = current_mounted_apps.get(current_tool_name)
+            current_path_parts = current_request_path.split('/gradio_api/heartbeat-ws/')
+            if current_application is None or len(current_path_parts) != 2 or not current_path_parts[1] or '/' in current_path_parts[1]:
+                return await current_send_call({'type': 'websocket.close', 'code': 1008})
+            return await bridge_gradio_heartbeat(current_application, current_request_scope, current_receive_call, current_send_call)
         current_query_values = parse_qs(current_request_scope.get('query_string', b'').decode())
         if current_request_path.rstrip('/') == '/management/frame/character-review' or current_request_path.startswith('/management/frame/character-review/') or 'character-review' in current_query_values.get('tool', []):
             return await Response('캐릭터 표현 검수 페이지는 폐기되었습니다.', status_code=410)(current_request_scope, current_receive_call, current_send_call)
@@ -170,6 +233,26 @@ def build_management_application(current_handler_class, current_root_path, curre
                         logging.exception('관리 화면 초기화 실패: %s', current_tool_name)
                         current_failure_response = Response('관리 화면 초기화 실패. 서버 로그를 확인하세요.', status_code=503)
                         return await current_failure_response(current_request_scope, current_receive_call, current_send_call)
+            current_is_document = current_request_scope.get('method') == 'GET' and current_request_path.rstrip('/') == current_mount_path
+            if current_is_document:
+                current_script_bytes = b'<script>'+Path(__file__).with_name('gradio_heartbeat_bridge.js').read_bytes()+b'</script>'
+                current_start_message = None
+                async def send_document_with_heartbeat_bridge(current_message):
+                    nonlocal current_start_message
+                    if current_message['type'] == 'http.response.start':
+                        current_start_message = current_message
+                        return
+                    if current_message['type'] == 'http.response.body' and current_start_message is not None:
+                        current_body_bytes = current_message.get('body', b'')
+                        current_content_type = dict(current_start_message.get('headers', [])).get(b'content-type', b'')
+                        if b'text/html' in current_content_type and b'<head>' in current_body_bytes:
+                            current_body_bytes = current_body_bytes.replace(b'<head>', b'<head>'+current_script_bytes, 1)
+                            current_start_message['headers'] = [(current_name, str(len(current_body_bytes)).encode() if current_name.lower() == b'content-length' else current_value) for current_name, current_value in current_start_message['headers']]
+                        await current_send_call(current_start_message)
+                        current_start_message = None
+                        current_message = dict(current_message, body=current_body_bytes)
+                    await current_send_call(current_message)
+                return await current_mounted_apps[current_tool_name](current_request_scope, current_receive_call, send_document_with_heartbeat_bridge)
             return await current_mounted_apps[current_tool_name](current_request_scope, current_receive_call, current_send_call)
         current_request_body = bytearray()
         while True:
