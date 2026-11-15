@@ -17,6 +17,7 @@ def resolve_model_inventory_paths():
     from generators.wan_fun.contracts import FUN_MODEL_FILES, FUN_WORKSPACE_ROOT
     from generators.wan_vace.contracts import VACE_MODEL_FILES, VACE_WORKSPACE_ROOT
     from generators.writer_agent.prepare import MODEL_DOWNLOAD_ROOT
+    from tools.review.domains.translation.service import TRANSLATION_MODEL_ROOT
     return {
         'prop-generator': [QWEN_MODEL_DIRECTORY],
         'expression-lora': [EXPRESSION_ADAPTER_PATH],
@@ -27,6 +28,7 @@ def resolve_model_inventory_paths():
         'music-heartmula': [resolve_music_paths('music-heartmula')[1]],
         'sfx-dasheng-audiogen': [resolve_music_paths('sfx-dasheng-audiogen')[1]],
         'writer-agent': [MODEL_DOWNLOAD_ROOT],
+        'prompt-translation': [TRANSLATION_MODEL_ROOT],
     }
 
 

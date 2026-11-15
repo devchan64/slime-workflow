@@ -16,6 +16,7 @@ MODEL_PREPARATION_PROFILES = {
     'writer-model': (('generators.writer_agent.prepare', 'prepare_writer_model_files'),),
     'heartmula-model': (('tools.review.common.audio_model_download', 'download_heartmula_model_files'),),
     'dasheng-model': (('tools.review.common.audio_model_download', 'download_dasheng_model_files'),),
+    'prompt-translation-model': (('generators.prompt_translation.prepare', 'prepare_translation_model'),),
 }
 
 

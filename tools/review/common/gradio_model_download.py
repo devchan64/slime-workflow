@@ -15,17 +15,20 @@ def read_model_readiness_status(current_execute_command):
                 gr.update(visible=True), gr.Timer(value=5, active=False))
 
 
-def build_model_readiness_controls(current_interface_blocks, current_execute_command):
+def build_model_readiness_controls(current_interface_blocks, current_execute_command, show_management_always=False):
     """다운로드를 실행하지 않고 상태와 모델 관리 이동만 제공한다."""
     current_model_ready = gr.State(False)
     current_model_output = gr.Markdown('모델 상태 확인 중')
     with gr.Row():
         current_refresh_button = gr.Button('모델 준비 상태 확인')
-        current_management_button = gr.Button('모델 관리로 이동', link='/management/?tool=model-management&category=model-management', link_target='_self', visible=False)
+        current_management_button = gr.Button('모델 관리로 이동', link='/management/?tool=model-management&category=model-management', link_target='_self', visible=show_management_always)
     current_readiness_timer = gr.Timer(5, active=False)
     current_model_outputs = [current_model_output, current_model_ready, current_management_button, current_readiness_timer]
     def refresh_model_readiness_status():
-        return read_model_readiness_status(current_execute_command)
+        current_status_values = list(read_model_readiness_status(current_execute_command))
+        if show_management_always:
+            current_status_values[2] = gr.update(visible=True)
+        return current_status_values
     current_refresh_event = current_refresh_button.click(refresh_model_readiness_status, outputs=current_model_outputs, queue=False)
     current_load_event = current_interface_blocks.load(refresh_model_readiness_status, outputs=current_model_outputs)
     current_timer_event = current_readiness_timer.tick(refresh_model_readiness_status, outputs=current_model_outputs, queue=False)
@@ -93,6 +96,7 @@ MODEL_DOWNLOAD_PREFIXES = {
     'music-heartmula': ('HeartMuLa/', 'heartmula/'),
     'sfx-dasheng-audiogen': ('mispeech/Dasheng-AudioGen', 'mispeech/dashengtokenizer', 'google/flan-t5-large'),
     'writer-agent': ('writer-agent/',),
+    'prompt-translation': ('google/translategemma-4b-it',),
     'qwen-2512': ('Qwen/Qwen-Image-2512', 'lightx2v/Qwen-Image-2512-Lightning'),
 }
 
