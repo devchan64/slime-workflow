@@ -3,6 +3,7 @@ import unittest
 from tools.review.domains.image.qwen_circular_generation import QwenCircularGenerationManager
 from tools.review.domains.image.qwen_21_generation import validate_qwen_plain_request
 from generators.image.qwen_21_circular import CIRCULAR_DEFAULT_PROMPT, CIRCULAR_VAE_CONFIGURATION
+from generators.image.common_art_style import compose_common_style_prompt
 from tools.review.common.management_gateway import MANAGEMENT_SERVICE_ROUTES, MANAGEMENT_SERVICE_COMMANDS
 
 class CircularGenerationTests(unittest.TestCase):
@@ -11,7 +12,7 @@ class CircularGenerationTests(unittest.TestCase):
         current_service_manager = QwenCircularGenerationManager()
         current_output_record = current_service_manager.validate_generation_request(current_input_record)
         self.assertEqual(current_output_record['circular_vae'], {**CIRCULAR_VAE_CONFIGURATION, 'baseline_decode': False, 'boundary_radius': 12, 'vertical_boundary_radius': 12})
-        self.assertEqual(current_output_record['prompt'], CIRCULAR_DEFAULT_PROMPT + ' Top view. Repeat pattern. Close-up')
+        self.assertEqual(current_output_record['prompt'], compose_common_style_prompt(CIRCULAR_DEFAULT_PROMPT + ' Top view. Repeat pattern. Close-up')[0])
         self.assertNotIn('circular_vae', validate_qwen_plain_request(current_input_record))
         self.assertEqual(current_service_manager.route_prefix_value, MANAGEMENT_SERVICE_ROUTES['qwen-21-circular'])
         self.assertIn('resume', MANAGEMENT_SERVICE_COMMANDS['qwen-21-circular'])
@@ -124,6 +125,7 @@ class CircularGenerationTests(unittest.TestCase):
         for soft_shading_enabled in (False, True):
             current_output_values=current_service_manager.validate_generation_request({**current_request_values, 'soft_shading':soft_shading_enabled, 'pattern_view':False})
             expected_prompt_text=current_request_values['prompt'] + (' ' + CIRCULAR_SOFT_SHADING_PROMPT if soft_shading_enabled else '')
+            expected_prompt_text = compose_common_style_prompt(expected_prompt_text)[0]
             self.assertEqual(current_output_values['prompt'],expected_prompt_text)
             self.assertEqual(current_output_values['user_prompt'],current_request_values['prompt'])
             self.assertEqual(current_output_values['qwen21']['prompt_word_count'],len(expected_prompt_text.split()))
@@ -134,6 +136,7 @@ class CircularGenerationTests(unittest.TestCase):
         for pattern_view_enabled in (False,True):
             current_output_values=current_service_manager.validate_generation_request({**current_request_values,'pattern_view':pattern_view_enabled,'soft_shading':True})
             expected_prompt_text='Grass.' + (' Top view. Repeat pattern. Close-up' if pattern_view_enabled else '') + ' Illustration with soft shading.'
+            expected_prompt_text = compose_common_style_prompt(expected_prompt_text)[0]
             self.assertEqual(current_output_values['prompt'],expected_prompt_text)
             self.assertEqual(current_output_values['pattern_view'],pattern_view_enabled)
             self.assertEqual(current_output_values['qwen21']['prompt_word_count'],len(expected_prompt_text.split()))

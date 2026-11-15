@@ -33,16 +33,20 @@ from tools.review.common.management_client import execute_remote_management_comm
 
 def check_circular_prompt_readiness(current_prompt_text, current_shading_enabled, current_pattern_enabled):
     from generators.image.qwen_21_circular import CIRCULAR_SOFT_SHADING_PROMPT, CIRCULAR_PATTERN_VIEW_PROMPT
-    current_word_count = len(current_prompt_text.split()) + (len(CIRCULAR_SOFT_SHADING_PROMPT.split()) if current_shading_enabled else 0) + (len(CIRCULAR_PATTERN_VIEW_PROMPT.split()) if current_pattern_enabled else 0)
-    return 0 < current_word_count < 100
+    from generators.image.common_art_style import compose_common_style_prompt
+    current_styled_prompt, current_style_record = compose_common_style_prompt(' '.join((current_prompt_text, CIRCULAR_SOFT_SHADING_PROMPT if current_shading_enabled else '', CIRCULAR_PATTERN_VIEW_PROMPT if current_pattern_enabled else '')))
+    current_word_count = len(current_styled_prompt.split())
+    return bool(current_prompt_text.strip() or current_shading_enabled or current_pattern_enabled) and 0 < current_word_count < 100
 
 def check_expression_reference_readiness(*current_reference_values):
     return any((current_reference_value is not None for current_reference_value in current_reference_values))
 
 def check_plain_prompt_readiness(current_prompt_text, current_style_enabled, current_transparency_enabled):
     from generators.image.qwen_21_prompt_options import compose_qwen_option_prompt
-    current_final_prompt, current_added_prompt = compose_qwen_option_prompt(current_prompt_text, current_style_enabled, current_transparency_enabled)
-    return 0 < len(current_final_prompt.split()) < 100
+    from generators.image.common_art_style import compose_common_style_prompt
+    current_styled_prompt, current_style_record = compose_common_style_prompt(current_prompt_text)
+    current_final_prompt, current_added_prompt = compose_qwen_option_prompt(current_styled_prompt, False, current_transparency_enabled)
+    return bool(current_prompt_text.strip()) and 0 < len(current_final_prompt.split()) < 100
 
 def execute_reference_gateway(command_name_value, payload_value):
     return execute_management_command('qwen-2511', command_name_value, payload_value)
@@ -84,7 +88,7 @@ def render_circular_comparison(current_selected_identifier, current_status_recor
             result_section_values.append('<h3>순환 VAE · 3×3 반복 검수</h3>' + result_preview_html(current_image_address.replace('/result.png', '/tiled-preview.png'), '순환 VAE · 3×3 반복 검수'))
     return ''.join(result_section_values) if result_section_values else '<p>아직 저장된 결과 이미지가 없습니다.</p>'
 
-def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False, qwen21_mode_enabled=False, circular_mode_enabled=False, pose_transfer_enabled=False, outfit_transfer_enabled=False, building_mode_enabled=False, prop_mode_enabled=False, vegetation_mode_enabled=False, billboard_guide_enabled=False):
+def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False, qwen21_mode_enabled=False, circular_mode_enabled=False, pose_transfer_enabled=False, outfit_transfer_enabled=False, building_mode_enabled=False, prop_mode_enabled=False, vegetation_mode_enabled=False, billboard_guide_enabled=False, character_mode_enabled=False):
     if billboard_guide_enabled and (not (prop_mode_enabled and qwen21_mode_enabled)):
         raise ValueError('빌보드 가이드는 소품 Qwen 2.1 모드에서 사용합니다.')
     if sum((building_mode_enabled, prop_mode_enabled, vegetation_mode_enabled)) > 1:
@@ -98,11 +102,17 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         raise ValueError('표정 생성과 Qwen 2.1 일반 생성은 별도 모드입니다.')
     if outfit_transfer_enabled:
         raise ValueError('복장 착용 생성기와 이력은 폐기되었습니다.')
-    default_prompt_text = load_vegetation_base_prompt() if vegetation_mode_enabled else load_prop_base_prompt() if prop_mode_enabled else '' if building_mode_enabled else load_outfit_transfer_prompt() if outfit_transfer_enabled else ''
+    if character_mode_enabled and (not qwen21_mode_enabled or any((expression_mode_enabled, circular_mode_enabled, building_mode_enabled, prop_mode_enabled, vegetation_mode_enabled, billboard_guide_enabled))):
+        raise ValueError('캐릭터 화면은 일반 Qwen 2.1 모드만 지원합니다.')
+    from importlib import import_module
+    character_default_prompt = import_module('generators.character-generator.page.interface').load_character_default_prompt() if character_mode_enabled else ''
+    default_prompt_text = character_default_prompt if character_mode_enabled else load_vegetation_base_prompt() if vegetation_mode_enabled else load_prop_base_prompt() if prop_mode_enabled else '' if building_mode_enabled else load_outfit_transfer_prompt() if outfit_transfer_enabled else ''
     plain_options_enabled = qwen21_mode_enabled and (not circular_mode_enabled) and (not outfit_transfer_enabled) and (not outfit_transfer_enabled)
     reference_slot_count = 2 if outfit_transfer_enabled else 10 if qwen21_mode_enabled else 3
     current_service_name = 'billboard-generator' if billboard_guide_enabled else 'prop-generator' if prop_mode_enabled else 'vegetation-generator' if vegetation_mode_enabled else 'building-generator' if building_mode_enabled else 'outfit-transfer' if outfit_transfer_enabled else 'qwen-21-circular' if circular_mode_enabled else 'qwen-21' if qwen21_mode_enabled else 'expression' if expression_mode_enabled else 'qwen-2511'
     current_page_title = 'Qwen 2.1 빌보드 자연물타입 생성기' if vegetation_mode_enabled else 'Qwen 2.1 빌보드 소품타입 생성기' if prop_mode_enabled else 'Qwen 2.1 건물 생성기' if building_mode_enabled else '복장 착용 생성기' if outfit_transfer_enabled else 'Qwen 2.1 순환 VAE 생성기' if circular_mode_enabled else 'Qwen 2.1 이미지 생성기' if qwen21_mode_enabled else 'Qwen 2.1 표정 생성기' if expression_mode_enabled else 'Qwen 2511 3참조 생성기'
+    if character_mode_enabled:
+        current_page_title = 'Qwen 2.1 캐릭터 이미지 생성기'
     if billboard_guide_enabled:
         current_page_title = 'Qwen2.1 빌보드 가이드참조 생성기'
 
@@ -129,14 +139,21 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             restored_input_values.extend([current_history_record['request'].get('circular_vae', {}).get('boundary_radius', 12), current_history_record['request'].get('soft_shading', False), current_history_record['request'].get('pattern_view', False), current_history_record['request'].get('circular_vae', {}).get('baseline_decode', False)])
         if plain_options_enabled:
             current_prompt_metadata = current_history_record['request'].get('qwen21', {})
-            restored_input_values[0] = current_prompt_metadata.get('user_prompt', restored_input_values[0])
+            restored_input_values[0] = current_history_record['request'].get('common_style_v1', {}).get('user_prompt', current_prompt_metadata.get('user_prompt', restored_input_values[0]))
             restored_input_values.extend([current_prompt_metadata.get('prompt_options', {}).get('common_style', False), current_prompt_metadata.get('prompt_options', {}).get('transparent_background', False)])
         if building_mode_enabled or billboard_guide_enabled:
             restored_input_values.append(False)
+        if character_mode_enabled:
+            current_sources = current_history_record['request'].get('body_reference_sources', [])
+            current_known_records = import_module('generators.character-generator.body_references').load_body_reference_catalog()
+            current_known_ids = {current_record['id']: current_record['sha256'] for current_record in current_known_records}
+            current_restored_id = next((current_record['id'] for current_record in current_sources if current_record.get('order') == 1 and current_known_ids.get(current_record.get('id')) == current_record.get('source_sha256')), None)
+            restored_input_values.append(current_restored_id)
         return tuple(restored_input_values)
     with gr.Blocks(title=current_page_title) as interface_blocks_value:
-        if current_service_name in GENERATOR_CHANGELOG_PATHS:
-            build_generator_changelog(interface_blocks_value, current_service_name)
+        current_changelog_name = 'character-generator' if character_mode_enabled else current_service_name
+        if current_changelog_name in GENERATOR_CHANGELOG_PATHS:
+            build_generator_changelog(interface_blocks_value, current_changelog_name)
         gr.Markdown('## ' + current_page_title + '\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.')
         if current_service_name == 'prop-generator':
             gr.Markdown('공식 Qwen Image 2.1 비양자화 모델 · BF16 · AMD ROCm')
@@ -146,6 +163,8 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             from tools.review.domains.image.billboard_guide_prompt import load_billboard_guide_image, compose_billboard_guide_prompt
             gr.Markdown('로컬 Qwen 2.1 고정 · 빌보드와 건물은 공용 대기열·이력을 사용합니다. 점유 가이드 또는 건물 구도를 첫 참조에 적용하세요. 건물은 짧은 용도·재질 문구와 건물 기본 프롬프트 옵션을 함께 사용할 수 있습니다. 가이드 적용 → 입력 확인 → 대기열 추가 → 결과 검수 순서로 진행하세요.')
             billboard_profile_control, billboard_subject_control, billboard_apply_button = build_billboard_guide_controls()
+        if character_mode_enabled:
+            gr.Markdown('공용 화풍 v1.5.0 영문 원문과 캐릭터 외관 v1.2.0의 축약 예시를 기본 입력에 포함합니다. 캐릭터 조건을 편집하세요. 일반 Qwen 2.1과 대기열·이력을 공유하므로 이력 삭제·초기화는 일반 Qwen 작업에도 적용됩니다. 결과는 검수용 후보입니다.')
         if vegetation_mode_enabled:
             gr.Markdown('나무·관목·풀·꽃·갈대 등 자연물 빌보드를 생성합니다. 기본 문구 뒤에 식물 종류·계절·색상·군락 밀도를 추가하세요. 레이아웃은 투영·바닥 영역, 식물 참조는 잎·줄기 형태 기준입니다. 참조는 선택 사항이며 결과는 검수 후 slime-assets/assets/billboards/에 자연물으로 등록합니다.')
         if prop_mode_enabled and (not billboard_guide_enabled):
@@ -171,7 +190,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if plain_options_enabled:
             gr.ClearButton(components=[prompt_text_value], value='프롬프트 초기화', variant='secondary')
         if qwen21_mode_enabled:
-            gr.Markdown('Qwen Image 2.1 고정 · 첫 참조 레이아웃 필수 · 건물 용도와 자재를 문구에 추가하세요.' if building_mode_enabled else '바디 1장: 신체 비율·자세·외형 기준. 아웃핏 1장: 입힐 의상·신발 기준. 바디를 유지하고 복장을 입힙니다.' if outfit_transfer_enabled else 'Qwen Image 2.1 · 참조 최대 10장. 선택한 프롬프트 옵션을 입력 문구에 추가합니다.' if circular_mode_enabled else 'Qwen Image 2.1 · 공용 화풍·투명 배경 옵션을 선택할 수 있습니다. 참조 없이 텍스트만으로도 생성할 수 있습니다.')
+            gr.Markdown('Qwen Image 2.1 고정 · 첫 참조 레이아웃 필수 · 건물 용도와 자재를 문구에 추가하세요.' if building_mode_enabled else '바디 1장: 신체 비율·자세·외형 기준. 아웃핏 1장: 입힐 의상·신발 기준. 바디를 유지하고 복장을 입힙니다.' if outfit_transfer_enabled else 'Qwen Image 2.1 · 참조 최대 10장. 선택한 프롬프트 옵션을 입력 문구에 추가합니다.' if circular_mode_enabled else 'Qwen Image 2.1 · 기본 입력에 화풍 원문이 포함됩니다. 참조 없이 텍스트만으로도 생성할 수 있습니다.' if character_mode_enabled else 'Qwen Image 2.1 · 공용 화풍 v1.5.0을 기본 적용합니다. 참조 없이 텍스트만으로도 생성할 수 있습니다.')
 
             def describe_plain_prompt(current_prompt_text):
                 current_word_count = len(current_prompt_text.split())
@@ -183,10 +202,10 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             from generators.image.qwen_21_prompt_options import compose_qwen_option_prompt, load_qwen_prompt_options
             current_option_prompts = load_qwen_prompt_options()
             building_prompt_control = gr.Checkbox(value=building_mode_enabled, label='건물 기본 프롬프트 추가', info=str(len(load_building_base_prompt().split())) + '단어 · ' + load_building_base_prompt(), visible=building_mode_enabled or billboard_guide_enabled)
-            common_style_control = gr.Checkbox(value=False, label='공용 화풍 추가', info=str(len(current_option_prompts['common_style'].split())) + '단어 · ' + current_option_prompts['common_style'])
+            common_style_control = gr.Checkbox(value=False, visible=False)
             current_transparency_prompt = current_option_prompts['transparent_background'] + ' … ' + current_option_prompts['transparent_background_suffix']
             current_transparency_count = len(current_option_prompts['transparent_background'].split()) + len(current_option_prompts['transparent_background_suffix'].split())
-            gr.Markdown('조합 순서: 투명 배경 시작 문구 → 공용 화풍 → 입력 프롬프트 → 투명 배경 마무리 문구. 선택한 옵션만 적용됩니다.')
+            gr.Markdown('공용 화풍 v1.5.0 원문을 기본 적용합니다. 투명 배경을 선택하면 시작·마무리 문구가 추가됩니다.')
             transparent_background_control = gr.Checkbox(value=False, label='투명 배경 요청 · 네이티브 RGBA', info=str(current_transparency_count) + '단어 · ' + current_transparency_prompt)
             with gr.Accordion('최종 모델 입력', open=False):
                 plain_final_preview = gr.Textbox(value=default_prompt_text, label='옵션 포함 최종 프롬프트', interactive=False)
@@ -195,7 +214,9 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 current_user_word_count = len(current_prompt_text.split())
                 if building_prompt_enabled:
                     current_prompt_text = (current_prompt_text.strip() + ' ' + load_building_base_prompt()).strip()
-                current_final_prompt, current_added_prompt = compose_qwen_option_prompt(current_prompt_text, common_style_enabled, transparent_background_enabled)
+                from generators.image.common_art_style import compose_common_style_prompt
+                current_styled_prompt, current_style_record = compose_common_style_prompt(current_prompt_text)
+                current_final_prompt, current_added_prompt = compose_qwen_option_prompt(current_styled_prompt, False, transparent_background_enabled)
                 return (f'사용자 {current_user_word_count}단어 · 추가 {len(current_final_prompt.split()) - current_user_word_count}단어 · 최종 {len(current_final_prompt.split())}단어 (최대 99단어)', current_final_prompt)
             for current_option_control in (prompt_text_value, common_style_control, transparent_background_control, building_prompt_control):
                 current_option_control.change(describe_plain_options, [prompt_text_value, common_style_control, transparent_background_control, building_prompt_control], [prompt_count_control, plain_final_preview], queue=False)
@@ -207,11 +228,21 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
 
             def describe_circular_prompt(current_prompt_text, soft_shading_enabled, pattern_view_enabled):
                 user_word_count = len(current_prompt_text.split())
-                added_word_count = (len(CIRCULAR_SOFT_SHADING_PROMPT.split()) if soft_shading_enabled else 0) + (len(CIRCULAR_PATTERN_VIEW_PROMPT.split()) if pattern_view_enabled else 0)
-                return f'사용자 {user_word_count}단어 · 추가 {added_word_count}단어 · 최종 {user_word_count + added_word_count}단어 (최대 99단어)'
+                from generators.image.common_art_style import compose_common_style_prompt
+                current_styled_prompt, current_style_record = compose_common_style_prompt(' '.join((current_prompt_text, CIRCULAR_PATTERN_VIEW_PROMPT if pattern_view_enabled else '', CIRCULAR_SOFT_SHADING_PROMPT if soft_shading_enabled else '')))
+                current_total_count = len(current_styled_prompt.split())
+                return f'사용자 {user_word_count}단어 · 추가 {current_total_count - user_word_count}단어 · 최종 {current_total_count}단어 (최대 99단어)'
+            def describe_circular_final_prompt(current_prompt_text, soft_shading_enabled, pattern_view_enabled):
+                from generators.image.common_art_style import compose_common_style_prompt
+                current_combined_prompt = ' '.join((current_prompt_text, CIRCULAR_PATTERN_VIEW_PROMPT if pattern_view_enabled else '', CIRCULAR_SOFT_SHADING_PROMPT if soft_shading_enabled else ''))
+                return compose_common_style_prompt(current_combined_prompt)[0]
+            gr.Markdown('공용 화풍 v1.5.0 원문: 41단어 · 기본 적용')
+            with gr.Accordion('최종 모델 입력', open=False):
+                circular_final_preview = gr.Textbox(value=describe_circular_final_prompt(CIRCULAR_DEFAULT_PROMPT, True, True), label='최종 프롬프트', interactive=False)
             prompt_count_control.value = describe_circular_prompt(CIRCULAR_DEFAULT_PROMPT, True, True)
             for current_prompt_control in (prompt_text_value, soft_shading_control, pattern_view_control):
                 current_prompt_control.change(describe_circular_prompt, [prompt_text_value, soft_shading_control, pattern_view_control], prompt_count_control, queue=False)
+                current_prompt_control.change(describe_circular_final_prompt, [prompt_text_value, soft_shading_control, pattern_view_control], circular_final_preview, queue=False)
         if outfit_transfer_enabled:
 
             def toggle_fixed_prompt(selected_fixed_enabled, current_prompt_text, saved_custom_prompt):
@@ -237,8 +268,10 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
 
             def describe_expression_prompt(expression_identifier_value):
                 final_prompt_value, expression_source_record = build_expression_prompt(expression_identifier_value)
+                from generators.image.common_art_style import compose_common_style_prompt
+                final_prompt_value, current_style_record = compose_common_style_prompt(final_prompt_value)
                 base_prompt_value = load_expression_configuration()['base_prompt']
-                return 'AU 참고: ' + ', '.join(('AU' + str(value) for value in expression_source_record['au_hints'])) + '\n\n움직임 (' + str(len(expression_source_record['movement_prompt'].split())) + '단어): ' + expression_source_record['movement_prompt'] + '\n\n외형 유지 (' + str(len(base_prompt_value.split())) + '단어): ' + base_prompt_value + '\n\n최종 입력 (' + str(expression_source_record['prompt_word_count']) + '단어): ' + final_prompt_value
+                return '공용 화풍 v1.5.0: 41단어 · 기본 적용\n\nAU 참고: ' + ', '.join(('AU' + str(value) for value in expression_source_record['au_hints'])) + '\n\n움직임 (' + str(len(expression_source_record['movement_prompt'].split())) + '단어): ' + expression_source_record['movement_prompt'] + '\n\n외형 유지 (' + str(len(base_prompt_value.split())) + '단어): ' + base_prompt_value + '\n\n최종 입력 (' + str(len(final_prompt_value.split())) + '단어): ' + final_prompt_value
             expression_prompt_preview = gr.Markdown(describe_expression_prompt(expression_preset_records[0]['id']))
             prompt_text_value.change(describe_expression_prompt, prompt_text_value, expression_prompt_preview, queue=False)
         if building_mode_enabled:
@@ -252,8 +285,44 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                         building_layout_apply_button = gr.Button('선택한 구도를 레이아웃 참조에 적용')
                     building_layout_preview = gr.Image(value=load_building_layout_preset(BUILDING_LAYOUT_PRESET_NAMES[0]), type='pil', interactive=False, label='구도 그림 미리보기', height=REFERENCE_IMAGE_CARD_HEIGHT)
                 building_layout_selector.change(load_building_layout_preset, [building_layout_selector], building_layout_preview, queue=False)
+        if character_mode_enabled:
+            from importlib import import_module
+            current_body_module = import_module('generators.character-generator.body_references')
+            current_body_records = current_body_module.load_body_reference_catalog()
+            character_body_state = gr.State(None)
+            with gr.Group():
+                gr.Markdown('### 신체 비율 참조 기준\n선택한 기준을 첫 번째 참조에 적용합니다. 기존 첫 참조는 교체됩니다. 2×2 이미지는 신체 비율만 참고하며, 재질·눈색·기본복은 복제하지 않습니다.')
+                with gr.Row():
+                    with gr.Column():
+                        character_body_selector = gr.Dropdown([(current_record['label'], current_record['id']) for current_record in current_body_records], value=None, label='신체 비율 참조 선택', allow_custom_value=False)
+                        character_body_description = gr.Markdown('참조를 선택하면 원본과 용도를 확인할 수 있습니다.')
+                        character_body_apply = gr.Button('선택 기준을 첫 참조에 적용', variant='secondary')
+                    character_body_preview = gr.Image(type='pil', format='png', interactive=False, label='신체 비율 기준 미리보기', height=REFERENCE_IMAGE_CARD_HEIGHT)
+
+            def preview_character_body(current_reference_id):
+                if not current_reference_id:
+                    return None, '참조를 선택하면 원본과 용도를 확인할 수 있습니다.'
+                current_reference_record = next((current_record for current_record in current_body_module.load_body_reference_catalog() if current_record['id'] == current_reference_id), None)
+                if current_reference_record is None:
+                    raise gr.Error('신체 비율 참조를 다시 선택하세요.')
+                return current_body_module.load_body_reference_image(current_reference_id), f"{current_reference_record['role']}  버전 {current_reference_record['version']} · SHA-256 {current_reference_record['sha256']}"
+
+            character_body_selector.change(preview_character_body, character_body_selector, [character_body_preview, character_body_description], queue=False)
         with gr.Accordion('자연물 레이아웃·외형 참조 · 선택' if vegetation_mode_enabled else '소품 레이아웃·외형 참조 · 선택' if prop_mode_enabled else '레이아웃 이미지 · 필수 / 추가 외형 참조 · 선택' if building_mode_enabled else '참조 이미지 · 선택 · 최대 10장', open=building_mode_enabled or prop_mode_enabled or vegetation_mode_enabled) if qwen21_mode_enabled and (not outfit_transfer_enabled) else contextlib.nullcontext():
-            reference_upload_group, reference_image_controls = build_reference_image_inputs(reference_image_mode=None, reference_slot_count=reference_slot_count, reference_slot_labels=[f'자연물 레이아웃·외형 참조 {current_slot_number} · 선택' for current_slot_number in range(1, 11)] if vegetation_mode_enabled else [f'소품 레이아웃·외형 참조 {current_slot_number} · 선택' for current_slot_number in range(1, 11)] if prop_mode_enabled else ['레이아웃 이미지 · 필수 (투영·바닥·출입구)'] + [f'외형·자재 참조 {current_slot_number} · 선택' for current_slot_number in range(2, 11)] if building_mode_enabled else ['바디 레퍼런스 · 필수', '아웃핏 레퍼런스 · 필수'] if outfit_transfer_enabled else None)
+            reference_upload_group, reference_image_controls = build_reference_image_inputs(reference_image_mode=None, reference_image_format='png' if character_mode_enabled else 'webp', reference_slot_count=reference_slot_count, reference_slot_labels=[f'자연물 레이아웃·외형 참조 {current_slot_number} · 선택' for current_slot_number in range(1, 11)] if vegetation_mode_enabled else [f'소품 레이아웃·외형 참조 {current_slot_number} · 선택' for current_slot_number in range(1, 11)] if prop_mode_enabled else ['레이아웃 이미지 · 필수 (투영·바닥·출입구)'] + [f'외형·자재 참조 {current_slot_number} · 선택' for current_slot_number in range(2, 11)] if building_mode_enabled else ['바디 레퍼런스 · 필수', '아웃핏 레퍼런스 · 필수'] if outfit_transfer_enabled else None)
+        if character_mode_enabled:
+            def apply_character_body(current_reference_id, current_prompt_text, current_alpha_enabled):
+                if not current_reference_id:
+                    raise gr.Error('신체 비율 참조를 먼저 선택하세요.')
+                current_role_text = current_body_module.BODY_REFERENCE_ROLE_PROMPT
+                current_updated_prompt = current_prompt_text if current_role_text in current_prompt_text else (current_prompt_text.strip() + ' ' + current_role_text).strip()
+                if not check_plain_prompt_readiness(current_updated_prompt, False, current_alpha_enabled):
+                    raise gr.Error('신체 기준 설명과 공용 화풍을 포함해 99단어 이내로 프롬프트를 줄이세요.')
+                return current_body_module.load_body_reference_image(current_reference_id), current_updated_prompt, current_reference_id
+
+            character_body_apply.click(apply_character_body, [character_body_selector, prompt_text_value, transparent_background_control], [reference_image_controls[0], prompt_text_value, character_body_state], queue=False)
+            reference_image_controls[0].input(lambda: None, outputs=character_body_state, queue=False)
+            reference_upload_group.reference_delete_buttons[0].click(lambda: None, outputs=character_body_state, queue=False)
         if billboard_guide_enabled:
 
             def apply_billboard_guide_inputs(selected_profile_name, selected_subject_text):
@@ -284,7 +353,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             gr.Markdown('순환 반경은 좌우·상하에 동일 적용합니다. 경계 1줄 참조 · 모서리 참조 없음.')
         if outfit_transfer_enabled:
             width_value.change(lambda selected_resolution_value: selected_resolution_value, width_value, height_value, queue=False)
-        generation_button_value = gr.Button('대기열에 추가', variant='primary', interactive=not prop_mode_enabled and not billboard_guide_enabled and (vegetation_mode_enabled or (not outfit_transfer_enabled and (not plain_options_enabled) and (not expression_mode_enabled))))
+        generation_button_value = gr.Button('대기열에 추가', variant='primary', interactive=(character_mode_enabled and check_plain_prompt_readiness(default_prompt_text, False, False)) or (not prop_mode_enabled and not billboard_guide_enabled and (vegetation_mode_enabled or (not outfit_transfer_enabled and (not plain_options_enabled) and (not expression_mode_enabled)))))
         if outfit_transfer_enabled:
             build_button_guidance(generation_button_value, '두 필수 참조 이미지를 모두 첨부하면 대기열에 추가할 수 있습니다. 확인 중에는 추가 접수를 할 수 없습니다.')
         if expression_mode_enabled:
@@ -299,11 +368,14 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
         identifier_value = build_generation_identifier()
         preview_value = build_generation_gallery()
-        gr.Markdown('빌보드·건물 공용 생성 이력입니다. 기존 건물 CLI도 이 이력을 사용합니다.' if billboard_guide_enabled else '건물 전용 대기열·생성 이력입니다. 기존 공유 Qwen 이력은 일반 Qwen 생성기에서 조회하세요.' if building_mode_enabled else '소품 전용 대기열·생성 이력입니다. 기존 공유 이력은 일반 Qwen에서 조회하세요.' if prop_mode_enabled else '자연물 전용 대기열·생성 이력입니다. 기존 공유 이력은 일반 Qwen에서 조회하세요.' if vegetation_mode_enabled else '복장 착용 전용 생성 이력입니다.' if outfit_transfer_enabled else 'Qwen 2.1 전용 생성 이력입니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if qwen21_mode_enabled else '표정 생성 이력은 별도로 관리합니다. 이전 Qwen 2511 작업은 조회할 수 있지만 재개할 수 없습니다.' if expression_mode_enabled else 'Qwen 2511 참조 생성 이력은 표정 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.')
+        gr.Markdown('일반 Qwen 2.1과 공유하는 생성 이력입니다. 삭제·초기화는 공유 이력 전체에 적용됩니다.' if character_mode_enabled else '빌보드·건물 공용 생성 이력입니다. 기존 건물 CLI도 이 이력을 사용합니다.' if billboard_guide_enabled else '건물 전용 대기열·생성 이력입니다. 기존 공유 Qwen 이력은 일반 Qwen 생성기에서 조회하세요.' if building_mode_enabled else '소품 전용 대기열·생성 이력입니다. 기존 공유 이력은 일반 Qwen에서 조회하세요.' if prop_mode_enabled else '자연물 전용 대기열·생성 이력입니다. 기존 공유 이력은 일반 Qwen에서 조회하세요.' if vegetation_mode_enabled else '복장 착용 전용 생성 이력입니다.' if outfit_transfer_enabled else 'Qwen 2.1 전용 생성 이력입니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if qwen21_mode_enabled else '표정 생성 이력은 별도로 관리합니다. 이전 Qwen 2511 작업은 조회할 수 있지만 재개할 수 없습니다.' if expression_mode_enabled else 'Qwen 2511 참조 생성 이력은 표정 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.')
         log_value, refresh_log_value, _ = build_execution_logs()
-        read_history_page, history_output_values = build_generation_history_view(execute_reference_gateway, server_base_address, '이력과 해당 생성기의 임시 작업 폴더(결과·참조 입력 사본·로그)를 함께 삭제합니다. 이전에 목록에서 제거한 작업도 포함합니다. 정식 에셋과 모델 캐시는 유지합니다. 대기·실행 중에는 초기화할 수 없습니다.', result_renderer_callback=render_circular_comparison if circular_mode_enabled else None, restore_input_callback=restore_selected_inputs, restore_output_components=[prompt_text_value, generation_tag_value, width_value, height_value, step_value, seed_value, *reference_image_controls, status_value] + (reference_upload_group.reference_slot_outputs if qwen21_mode_enabled and (not outfit_transfer_enabled) else []) + ([fixed_prompt_enabled, custom_prompt_memory] if outfit_transfer_enabled else []) + ([circular_radius_control, soft_shading_control, pattern_view_control, baseline_decode_control] if circular_mode_enabled else []) + ([common_style_control, transparent_background_control] if plain_options_enabled else []) + ([building_prompt_control] if building_mode_enabled or billboard_guide_enabled else []), record_folder_route='/billboard-generator' if billboard_guide_enabled else '/prop-generator' if prop_mode_enabled else '/vegetation-generator' if vegetation_mode_enabled else '/building-generator' if building_mode_enabled else '/outfit-transfer' if outfit_transfer_enabled else '/image-generation-21-circular' if circular_mode_enabled else '/image-generation-21' if qwen21_mode_enabled else '/expression-generator' if expression_mode_enabled else '/image-generation-2511', allow_individual_delete=True)
+        read_history_page, history_output_values = build_generation_history_view(execute_reference_gateway, server_base_address, '이력과 해당 생성기의 임시 작업 폴더(결과·참조 입력 사본·로그)를 함께 삭제합니다. 이전에 목록에서 제거한 작업도 포함합니다. 정식 에셋과 모델 캐시는 유지합니다. 대기·실행 중에는 초기화할 수 없습니다.', result_renderer_callback=render_circular_comparison if circular_mode_enabled else None, restore_input_callback=restore_selected_inputs, restore_output_components=[prompt_text_value, generation_tag_value, width_value, height_value, step_value, seed_value, *reference_image_controls, status_value] + (reference_upload_group.reference_slot_outputs if qwen21_mode_enabled and (not outfit_transfer_enabled) else []) + ([fixed_prompt_enabled, custom_prompt_memory] if outfit_transfer_enabled else []) + ([circular_radius_control, soft_shading_control, pattern_view_control, baseline_decode_control] if circular_mode_enabled else []) + ([common_style_control, transparent_background_control] if plain_options_enabled else []) + ([building_prompt_control] if building_mode_enabled or billboard_guide_enabled else []) + ([character_body_state] if character_mode_enabled else []), record_folder_route='/billboard-generator' if billboard_guide_enabled else '/prop-generator' if prop_mode_enabled else '/vegetation-generator' if vegetation_mode_enabled else '/building-generator' if building_mode_enabled else '/outfit-transfer' if outfit_transfer_enabled else '/image-generation-21-circular' if circular_mode_enabled else '/image-generation-21' if qwen21_mode_enabled else '/expression-generator' if expression_mode_enabled else '/image-generation-2511', allow_individual_delete=True)
 
         def start_reference_generation(prompt_text_value, generation_tag_value, *generation_input_values):
+            current_body_reference_id = generation_input_values[-1] if character_mode_enabled else None
+            if character_mode_enabled:
+                generation_input_values = generation_input_values[:-1]
             if building_mode_enabled or billboard_guide_enabled:
                 building_prompt_enabled = generation_input_values[-1]
                 generation_input_values = generation_input_values[:-1]
@@ -327,12 +399,14 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                     generation_request_value.update(circular_radius=generation_input_values[-4], soft_shading=generation_input_values[-3], pattern_view=generation_input_values[-2], baseline_decode=generation_input_values[-1])
                     QwenCircularGenerationManager().validate_generation_request(generation_request_value)
                 elif qwen21_mode_enabled:
-                    from tools.review.domains.image.qwen_21_generation import validate_qwen_plain_request
+                    from tools.review.domains.image.qwen_21_generation import validate_styled_qwen_request
                     generation_request_value['prompt'] = prompt_text_value
+                    if current_body_reference_id is not None:
+                        generation_request_value['body_reference_id'] = current_body_reference_id
                     if plain_options_enabled:
                         generation_request_value['common_style'] = generation_input_values[-2]
                         generation_request_value['transparent_background'] = generation_input_values[-1]
-                    validate_qwen_plain_request(generation_request_value, allowed_inference_steps=(20, 30, 40, 50))
+                    validate_styled_qwen_request(generation_request_value)
                 elif expression_mode_enabled:
                     from tools.review.domains.image.expression_generation import ExpressionGenerationManager
                     ExpressionGenerationManager().validate_generation_request(generation_request_value)
@@ -345,7 +419,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         def check_prop_generation_readiness(current_model_ready, *current_prompt_options):
             return current_model_ready and check_plain_prompt_readiness(*current_prompt_options)
 
-        bind_gpu_generation_confirmation(generation_button_value, start_reference_generation, [prompt_text_value, generation_tag_value, *reference_image_controls, width_value, height_value, step_value, seed_value] + ([circular_radius_control, soft_shading_control, pattern_view_control, baseline_decode_control] if circular_mode_enabled else []) + ([common_style_control, transparent_background_control] if plain_options_enabled else []) + ([building_prompt_control] if building_mode_enabled or billboard_guide_enabled else []), [identifier_value, status_value], generation_confirmation_container=generation_confirmation_container, generation_readiness_callback=check_prop_generation_readiness if current_service_name == 'prop-generator' else check_building_input_readiness if building_mode_enabled or billboard_guide_enabled else (lambda *current_reference_values: all((current_reference_value is not None for current_reference_value in current_reference_values))) if outfit_transfer_enabled else check_expression_reference_readiness if expression_mode_enabled else check_plain_prompt_readiness if plain_options_enabled else check_circular_prompt_readiness if circular_mode_enabled else None, generation_readiness_events=current_prop_model_events if current_service_name == 'prop-generator' else None, generation_readiness_inputs=[current_prop_ready, prompt_text_value, common_style_control, transparent_background_control] if current_service_name == 'prop-generator' else [prompt_text_value, common_style_control, transparent_background_control, reference_image_controls[0], building_prompt_control] if building_mode_enabled or billboard_guide_enabled else reference_image_controls if outfit_transfer_enabled or expression_mode_enabled else [prompt_text_value, common_style_control, transparent_background_control] if plain_options_enabled else [prompt_text_value, soft_shading_control, pattern_view_control] if circular_mode_enabled else None)
+        bind_gpu_generation_confirmation(generation_button_value, start_reference_generation, [prompt_text_value, generation_tag_value, *reference_image_controls, width_value, height_value, step_value, seed_value] + ([circular_radius_control, soft_shading_control, pattern_view_control, baseline_decode_control] if circular_mode_enabled else []) + ([common_style_control, transparent_background_control] if plain_options_enabled else []) + ([building_prompt_control] if building_mode_enabled or billboard_guide_enabled else []) + ([character_body_state] if character_mode_enabled else []), [identifier_value, status_value], generation_confirmation_container=generation_confirmation_container, generation_readiness_callback=check_prop_generation_readiness if current_service_name == 'prop-generator' else check_building_input_readiness if building_mode_enabled or billboard_guide_enabled else (lambda *current_reference_values: all((current_reference_value is not None for current_reference_value in current_reference_values))) if outfit_transfer_enabled else check_expression_reference_readiness if expression_mode_enabled else check_plain_prompt_readiness if plain_options_enabled else check_circular_prompt_readiness if circular_mode_enabled else None, generation_readiness_events=current_prop_model_events if current_service_name == 'prop-generator' else None, generation_readiness_inputs=[current_prop_ready, prompt_text_value, common_style_control, transparent_background_control] if current_service_name == 'prop-generator' else [prompt_text_value, common_style_control, transparent_background_control, reference_image_controls[0], building_prompt_control] if building_mode_enabled or billboard_guide_enabled else reference_image_controls if outfit_transfer_enabled or expression_mode_enabled else [prompt_text_value, common_style_control, transparent_background_control] if plain_options_enabled else [prompt_text_value, soft_shading_control, pattern_view_control] if circular_mode_enabled else None)
 
         def refresh_status(identifier_text_value, refresh_log_enabled):
             if not identifier_text_value:

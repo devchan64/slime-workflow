@@ -3,9 +3,7 @@ source:
   section: AiBook P7-5.9
   version: v2026.09.16
   sha256: 5e528ae06367253044e524fe22f5366be924911661fb1bdbdbc666019fbafd2d
-base_prompt: Edit the facial expression of the character in image 1. Use additional
-  images as identity references. Keep facial proportions, iris color, hairstyle, camera,
-  background, lighting and art style unchanged.
+base_prompt: Edit image 1's facial expression. Use additional images for identity. Preserve facial proportions, iris color, hairstyle, camera, background and lighting.
 expressions:
 - id: sternness
   label_ko: 엄격함
@@ -289,11 +287,7 @@ expressions:
 - id: puffed_pout
   label_ko: 볼 부푼 삐짐
   au_hints: []
-  movement_prompt: a restrained closed-mouth pout, lips gently brought together and
-    pushed slightly forward, with only a faint localized fullness in the lower cheeks
-    immediately beside the mouth; keep the original overall face width, jawline and
-    chin shape nearly unchanged, cheeks otherwise relaxed, mildly lowered inner brows,
-    eyes looking forward, keep the original skin tone of the nose and cheeks unchanged
+  movement_prompt: a subtle closed-mouth pout, slightly forward lips and faint lower cheek fullness. Preserve face width, jawline, chin and skin tone; mildly lowered inner brows, eyes forward
 - id: wink
   label_ko: 윙크
   au_hints: []

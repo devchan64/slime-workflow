@@ -10,7 +10,7 @@ REFERENCE_IMAGE_MINIMUM_WIDTH = 180
 REFERENCE_DROP_SCRIPT_PATH = Path(__file__).resolve().parents[1] / 'ui/shared/reference-image-drop.js'
 
 
-def build_reference_image_inputs(*, reference_panel_visible=True, reference_panel_identifier=None, reference_image_mode='RGB', reference_slot_count=REFERENCE_IMAGE_SLOT_COUNT, reference_slot_labels=None):
+def build_reference_image_inputs(*, reference_panel_visible=True, reference_panel_identifier=None, reference_image_mode='RGB', reference_slot_count=REFERENCE_IMAGE_SLOT_COUNT, reference_slot_labels=None, reference_image_format='webp'):
     if reference_slot_count not in (1, 2, 3, 4, 10):
         raise ValueError('참조 슬롯은 1개·2개·3개·4개·10개를 지원합니다.')
     dynamic_slots_enabled = reference_slot_count in (4, 10)
@@ -26,7 +26,7 @@ def build_reference_image_inputs(*, reference_panel_visible=True, reference_pane
             for reference_slot_index in range(reference_slot_count):
                 with gr.Column(min_width=REFERENCE_IMAGE_MINIMUM_WIDTH, visible=not dynamic_slots_enabled or reference_slot_index == 0, elem_classes=['reference-upload-slot']) as reference_slot_group:
                     reference_slot_groups.append(reference_slot_group)
-                    reference_image_controls.append(gr.Image(type='pil', image_mode=reference_image_mode, sources=['upload', 'clipboard'], label=reference_slot_labels[reference_slot_index] if reference_slot_labels else f'참조 이미지 {reference_slot_index+1}', height=REFERENCE_IMAGE_CARD_HEIGHT, elem_classes=['reference-upload-card'], placeholder='이미지 끌어놓기'))
+                    reference_image_controls.append(gr.Image(type='pil', format=reference_image_format, image_mode=reference_image_mode, sources=['upload', 'clipboard'], label=reference_slot_labels[reference_slot_index] if reference_slot_labels else f'참조 이미지 {reference_slot_index+1}', height=REFERENCE_IMAGE_CARD_HEIGHT, elem_classes=['reference-upload-card'], placeholder='이미지 끌어놓기'))
                     if dynamic_slots_enabled:
                         reference_delete_buttons.append(gr.Button('삭제', size='sm', variant='secondary'))
 
@@ -74,6 +74,7 @@ def build_reference_image_inputs(*, reference_panel_visible=True, reference_pane
                 return delete_reference_slot
 
             slot_update_outputs = [visible_slot_state, *reference_slot_groups, reference_add_button, reference_slot_status]
+            reference_upload_group.reference_delete_buttons = reference_delete_buttons
             reference_upload_group.reference_slot_outputs = slot_update_outputs
             reference_upload_group.build_reference_updates = build_slot_updates
             slot_update_inputs = [visible_slot_state, *reference_image_controls]

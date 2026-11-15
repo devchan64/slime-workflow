@@ -1,0 +1,16 @@
+schema_version: 1
+references:
+  - id: neutral-body-jointed
+    version: 1.0.0
+    label: 중성형 관절 마네킨 · 4방향
+    image: neutral-body-four-directions.png
+    sha256: bb2b24b24dac8d0a81965fd8641ff1df726a28d8059c6ff8832e1dad89380f35
+    source: 사용자 첨부 이미지 · 2026-10-31
+    role: 머리 대비 신장, 몸통과 팔다리 비율 및 자세 참고. 회색 재질과 관절 구조는 외형으로 복제하지 않는다.
+  - id: neutral-body-clothed
+    version: 13.0.0
+    label: 중성형 피부·기본복 전신 · 4방향
+    image: neutral-body-skin-clothes-four-directions.png
+    sha256: 146f242fcab0a0105b6d45675132e19b6d40c84e96fb354a2077ffa7010fc118
+    source: 사용자 지정 현재 기준 · 연구 v13
+    role: 전신 비율과 자세 참고. 피부색, 눈색, 기본복과 화풍은 캐릭터 설정으로 결정한다.

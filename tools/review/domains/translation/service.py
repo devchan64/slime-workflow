@@ -9,7 +9,6 @@ from zoneinfo import ZoneInfo
 from tools.review.common.generation_records import write_record_atomically
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation
 from tools.review.common.management_transport import validate_management_http_request, send_management_json_response
-from generators.prompt_translation.terms import validate_translation_glossary, load_approved_translation_terms
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 TRANSLATION_JOB_ROOT = WORKFLOW_ROOT_DIRECTORY / '.tmp/test/prompt-translation'
@@ -34,47 +33,24 @@ class TranslationServiceManager:
         if not isinstance(translation_payload_record, dict):
             raise ValueError('입력은 객체여야 합니다.')
         if translation_command_name == 'translation-submit':
-            if not {'text', 'target_language'} <= set(translation_payload_record) or set(translation_payload_record) - {'text', 'target_language', 'glossary'}:
-                raise ValueError('원문·목표 언어와 선택 용어만 전달하세요.')
+            if set(translation_payload_record) != {'text', 'target_language'}:
+                raise ValueError('원문과 목표 언어만 전달하세요.')
             translation_source_text = translation_payload_record['text']
             translation_target_language = translation_payload_record['target_language']
             if not isinstance(translation_source_text, str) or not translation_source_text.strip() or len(translation_source_text) > 6000:
                 raise ValueError('원문은 1~6000자여야 합니다.')
             if translation_target_language not in ('en', 'zh-CN'):
                 raise ValueError('목표 언어는 영어 또는 중국어 간체여야 합니다.')
-            translation_glossary_values = validate_translation_glossary(translation_payload_record.get('glossary', []))
-            if any(current_term_record['source'] not in translation_source_text for current_term_record in translation_glossary_values):
-                raise ValueError('지정한 원문 용어가 입력에 없습니다.')
-            translation_approved_records = load_approved_translation_terms(translation_target_language)
-            translation_approved_lookup = {current_term['source']: current_term['target'] for current_term in translation_approved_records}
-            if any(current_term['source'] in translation_approved_lookup and current_term['target'] != translation_approved_lookup[current_term['source']] for current_term in translation_glossary_values):
-                raise ValueError('입력한 용어가 승인 용어집과 충돌합니다.')
-            translation_check_records = [current_term for current_term in translation_approved_records if current_term['source'] in translation_source_text]
-            translation_check_records.extend({**current_term, 'source_ref':'사용자가 요청에서 확인'} for current_term in translation_glossary_values if current_term['source'] not in translation_approved_lookup)
             if not TRANSLATION_PYTHON_PATH.is_file() or not (TRANSLATION_MODEL_ROOT / 'manifest.json').is_file():
                 raise ValueError('TranslateGemma 모델과 ROCm 환경을 먼저 준비하세요.')
             translation_created_time = datetime.now(ZoneInfo('Asia/Seoul'))
             translation_job_identifier = translation_created_time.strftime('%Y-%m-%d_%H-%M-%S') + '-' + uuid.uuid4().hex[:8]
             translation_job_path = self.job_storage_root / translation_job_identifier
             translation_job_path.mkdir(parents=True)
-            write_record_atomically(translation_job_path / 'request.json', {'text': translation_source_text, 'target_language': translation_target_language, 'model_id': 'google/translategemma-4b-it', 'glossary': translation_glossary_values, 'check_terms': translation_check_records})
+            write_record_atomically(translation_job_path / 'request.json', {'text': translation_source_text, 'target_language': translation_target_language, 'model_id': 'google/translategemma-4b-it'})
             with (translation_job_path / 'worker.log').open('a') as translation_log_handle:
                 launch_gpu_process([str(TRANSLATION_PYTHON_PATH), str(WORKFLOW_ROOT_DIRECTORY / 'generators/prompt_translation/worker.py'), '--job-dir', str(translation_job_path)], translation_job_path, 'prompt-translation', stdout=translation_log_handle, stderr=subprocess.STDOUT, start_new_session=True, cwd=WORKFLOW_ROOT_DIRECTORY)
             return {'id': translation_job_identifier, 'status': 'queued'}
-        if translation_command_name == 'translation-rag':
-            if set(translation_payload_record) != {'text'} or not isinstance(translation_payload_record['text'], str) or not translation_payload_record['text'].strip() or len(translation_payload_record['text']) > 6000:
-                raise ValueError('검색할 원문은 1~6000자여야 합니다.')
-            from generators.writer_agent.documents import load_workspace_config
-            from generators.writer_agent.index import load_current_index, tokenize_search_terms
-            _, translation_chunk_records = load_current_index(load_workspace_config())
-            translation_query_terms = tokenize_search_terms(translation_payload_record['text'])
-            translation_matches = []
-            for translation_chunk_record in translation_chunk_records:
-                translation_matching_terms = translation_query_terms & tokenize_search_terms(translation_chunk_record['heading'] + ' ' + translation_chunk_record['text'])
-                if translation_matching_terms:
-                    translation_matches.append({'path':translation_chunk_record['path'], 'heading':translation_chunk_record['heading'], 'text':translation_chunk_record['text'][:1200], 'matched_terms':sorted(translation_matching_terms)})
-            translation_matches.sort(key=lambda current_match: (-len(current_match['matched_terms']), current_match['path'], current_match['heading']))
-            return {'candidates':translation_matches[:5], 'method':'작가 AI 최신 RAG 색인의 단어 일치 · 승인된 번역어가 아닌 문서 근거'}
         if translation_command_name == 'translation-history':
             if translation_payload_record:
                 raise ValueError('이력은 입력을 받지 않습니다.')

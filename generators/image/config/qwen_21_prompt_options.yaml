@@ -1,6 +1,3 @@
-style_source: prompts/art-style.yaml#slime_painterly_diorama_v1
-common_style: >-
-  Hand-painted game illustration, soft shading, clear materials, moderate detail.
 transparent_background: >-
   This is an RGBA image with transparency.
 transparent_background_suffix: >-

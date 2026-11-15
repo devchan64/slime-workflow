@@ -3,7 +3,7 @@ import hashlib
 import json
 import yaml
 from tools.review.domains.image.image_generation import MANAGER_HISTORY_ROOT, WORKFLOW_ROOT_PATH
-from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager, validate_qwen_plain_request, verify_qwen_saved_request
+from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager, validate_styled_qwen_request, verify_qwen_saved_request
 from tools.review.domains.image.three_reference_generation import validate_three_reference_request
 
 EXPRESSION_CONFIGURATION_PATH = WORKFLOW_ROOT_PATH / 'generators/image/config/expression_presets.yaml'
@@ -55,7 +55,7 @@ def verify_expression_saved_request(current_job_root, current_request_record):
     if current_request_record.get('expression_adapter') != expression_adapter_metadata():
         raise ValueError('이전 표정 이력 또는 LoRA 설정이 일치하지 않아 재개할 수 없습니다.')
     current_expression_record = current_request_record.get('expression')
-    if not isinstance(current_expression_record, dict) or hashlib.sha256(current_request_record['prompt'].encode()).hexdigest() != current_expression_record.get('prompt_sha256'):
+    if not isinstance(current_expression_record, dict) or hashlib.sha256(current_request_record.get('expression_source_prompt', current_request_record['prompt']).encode()).hexdigest() != current_expression_record.get('prompt_sha256'):
         raise ValueError('저장된 표정 프롬프트 해시가 일치하지 않습니다.')
     verify_qwen_saved_request(current_job_root, current_request_record)
 
@@ -125,7 +125,8 @@ class ExpressionGenerationManager(QwenPlainGenerationManager):
         if not 1 <= len(current_request_record['images']) <= 3:
             raise ValueError('표정 생성에는 참조 이미지 1~3장이 필요합니다.')
         final_prompt_value, expression_source_record = build_expression_prompt(current_request_record['prompt'])
-        current_request_record = validate_qwen_plain_request({**current_request_record, 'prompt': final_prompt_value})
+        current_request_record = validate_styled_qwen_request({**current_request_record, 'prompt': final_prompt_value})
+        current_request_record['expression_source_prompt'] = final_prompt_value
         return {**current_request_record, 'expression':expression_source_record, 'expression_adapter':expression_adapter_metadata()}
 
     def validate_generation_runtime(self, saved_request_record=None):

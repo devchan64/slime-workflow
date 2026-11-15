@@ -6,6 +6,7 @@ from pathlib import Path
 from PIL import Image
 from tools.review.domains.image.seamless_generation import validate_seamless_request
 from tools.review.domains.image.seamless_pattern import execute_pattern_pipeline
+from generators.image.common_art_style import compose_common_style_prompt, load_common_style_record
 
 class SeamlessPatternTests(unittest.TestCase):
     def test_initial_prompt_readiness_matches_stage_limits(self):
@@ -13,7 +14,7 @@ class SeamlessPatternTests(unittest.TestCase):
         from tools.review.domains.image.seamless_pattern import build_pattern_request
         self.assertFalse(check_seamless_prompt_readiness(' '))
         current_final_prompt, _ = build_pattern_request('grass')
-        current_fixed_count = len(current_final_prompt.split()) - 1
+        current_fixed_count = len(current_final_prompt.split()) - 1 + load_common_style_record()['word_count']
         self.assertTrue(check_seamless_prompt_readiness(' '.join(['grass'] * (99-current_fixed_count))))
         self.assertFalse(check_seamless_prompt_readiness(' '.join(['grass'] * (100-current_fixed_count))))
 
@@ -57,9 +58,9 @@ class SeamlessPatternTests(unittest.TestCase):
     def test_text_prompt_contract(self):
         current_request_record=self.create_pattern_request()
         self.assertEqual(current_request_record['seamless_tile']['schema_version'],7)
-        self.assertEqual(current_request_record['seamless_tile']['stage_prompts'][0], '낙엽\nOverhead view, camera pointing straight down at the surface. Softly shaded illustration.')
+        self.assertEqual(current_request_record['seamless_tile']['stage_prompts'][0], compose_common_style_prompt('낙엽\nOverhead view, camera pointing straight down at the surface. Softly shaded illustration.')[0])
         self.assertEqual(current_request_record['seamless_tile']['grid_prompt'], 'Overhead view, camera pointing straight down at the surface. Softly shaded illustration.')
-        self.assertEqual(current_request_record['seamless_tile']['stage_prompts'][1], 'Connect the boundaries naturally.')
+        self.assertEqual(current_request_record['seamless_tile']['stage_prompts'][1], compose_common_style_prompt('Connect the boundaries naturally.')[0])
         self.assertTrue(all(current_word_count<100 for current_word_count in current_request_record['seamless_tile']['stage_prompt_words']))
 
     def test_cli_text_request_and_partial_preview(self):
@@ -125,7 +126,7 @@ class SeamlessPatternTests(unittest.TestCase):
                     self.assertEqual(repair_reference_image.size,(768,768))
                     with Image.open(current_stage_root.parent/source_array_name) as original_array_image:
                         self.assertEqual(repair_reference_image.tobytes(),original_array_image.convert('RGB').tobytes())
-                    self.assertEqual(current_stage_request['prompt'],'Connect the boundaries naturally.')
+                    self.assertEqual(current_stage_request['prompt'], 'Connect the boundaries naturally.' if schema_version_number == 6 else compose_common_style_prompt('Connect the boundaries naturally.')[0])
             generated_sample_image = Image.new('RGB',(current_stage_request['width'],current_stage_request['height']),'green')
             if current_stage_root.name == 'stage-5-vertical':
                 generated_sample_image.paste('red',(256,256,512,512))

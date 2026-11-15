@@ -25,15 +25,25 @@ from tools.review.domains.image.seamless_pattern import build_pattern_request
 
 def check_seamless_prompt_readiness(current_prompt_text):
     try:
-        build_pattern_request(current_prompt_text)
+        describe_seamless_stage_prompts(current_prompt_text)
     except ValueError:
         return False
     return True
 
 
+def describe_seamless_stage_prompts(current_prompt_text):
+    from generators.image.common_art_style import compose_common_style_prompt
+    current_grid_prompt, current_source_record = build_pattern_request(current_prompt_text)
+    current_stage_prompts = [compose_common_style_prompt(current_stage_prompt)[0] for current_stage_prompt in current_source_record['stage_prompts']]
+    if any(len(current_stage_prompt.split()) >= 100 for current_stage_prompt in current_stage_prompts):
+        raise ValueError('공용 화풍을 포함한 각 단계 프롬프트는 99단어 이하여야 합니다.')
+    current_source_record['stage_prompts'] = current_stage_prompts
+    return current_grid_prompt, current_source_record
+
+
 def describe_seamless_prompt(user_prompt_text):
     try:
-        _, prompt_source_record = build_pattern_request(user_prompt_text)
+        _, prompt_source_record = describe_seamless_stage_prompts(user_prompt_text)
         return '\n\n'.join(f"{(1,3,5)[current_stage_index]}단계 · 사용자 {len(user_prompt_text.split()) if current_stage_index == 0 else 0}단어 · 고정 {len(prompt_source_record[current_prompt_key].split())}단어 · 최종 {len(current_prompt_text.split())}단어\n\n{current_prompt_text}" for current_stage_index,(current_prompt_key,current_prompt_text) in enumerate(zip(('grid_prompt','horizontal_prompt','vertical_prompt'),prompt_source_record['stage_prompts'])))
     except ValueError as current_prompt_error:
         return str(current_prompt_error)

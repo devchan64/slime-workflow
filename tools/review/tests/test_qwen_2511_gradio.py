@@ -97,8 +97,9 @@ class Qwen2511GradioTests(unittest.TestCase):
     def test_plain_prompt_readiness_matches_final_word_limit(self):
         self.assertFalse(qwen_2511_app.check_plain_prompt_readiness('  ',False,False))
         self.assertTrue(qwen_2511_app.check_plain_prompt_readiness('figure',False,False))
-        self.assertTrue(qwen_2511_app.check_plain_prompt_readiness('',True,False))
-        self.assertTrue(qwen_2511_app.check_plain_prompt_readiness('word '*99,False,False))
+        self.assertFalse(qwen_2511_app.check_plain_prompt_readiness('',True,False))
+        self.assertTrue(qwen_2511_app.check_plain_prompt_readiness('word '*58,False,False))
+        self.assertFalse(qwen_2511_app.check_plain_prompt_readiness('word '*59,False,False))
         self.assertFalse(qwen_2511_app.check_plain_prompt_readiness('word '*100,False,False))
         self.assertFalse(qwen_2511_app.check_plain_prompt_readiness('word '*99,False,True))
         current_interface_blocks=qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770',qwen21_mode_enabled=True)

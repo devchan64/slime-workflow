@@ -50,6 +50,10 @@ def verify_qwen_saved_request(current_job_root, current_request_record):
     if not circular_storage_enabled and 'circular_vae' in current_request_record:
         raise ValueError('일반 Qwen 기록에 순환 VAE 설정을 사용할 수 없습니다.')
     verify_reference_snapshots(current_job_root, current_request_record)
+    if 'body_reference_sources' in current_request_record:
+        from importlib import import_module
+        import_module('generators.character-generator.body_references').verify_body_reference_history(current_job_root, current_request_record)
+    verify_saved_common_style(current_request_record)
     # 저장된 메타데이터도 동일한 입력 검증에서 다시 계산한다.
     import base64
     restored_input_record = {current_field_name: current_request_record[current_field_name]
@@ -84,6 +88,49 @@ def verify_qwen_saved_request(current_job_root, current_request_record):
         raise ValueError('Qwen 2.1 실행 기록의 모델·프롬프트 정보가 일치하지 않습니다.')
 
 
+def validate_styled_qwen_request(current_request_record):
+    from generators.image.common_art_style import compose_common_style_prompt
+    if not isinstance(current_request_record, dict):
+        raise ValueError('생성 요청은 객체여야 합니다.')
+    current_request_values = dict(current_request_record)
+    current_body_reference_id = current_request_values.pop('body_reference_id', None)
+    if current_body_reference_id is not None and (not isinstance(current_body_reference_id, str) or not current_body_reference_id):
+        raise ValueError('신체 비율 참조 ID 형식 오류')
+    current_legacy_style = current_request_values.pop('common_style', False)
+    if type(current_legacy_style) is not bool:
+        raise ValueError('이전 공용 화풍 옵션은 불리언이어야 합니다.')
+    current_styled_prompt, current_style_record = compose_common_style_prompt(current_request_values.get('prompt'))
+    current_request_values['prompt'] = current_styled_prompt
+    current_validated_record = validate_qwen_plain_request(current_request_values)
+    if current_body_reference_id is not None:
+        from importlib import import_module
+        current_reference_matches = import_module('generators.character-generator.body_references').identify_body_reference_images(current_validated_record['images'])
+        current_selected_matches = [current_match for current_match in current_reference_matches if current_match['order'] == 1 and current_match['id'] == current_body_reference_id]
+        if len(current_selected_matches) != 1:
+            raise ValueError('첫 참조 이미지가 선택한 신체 기준과 다릅니다. 기준을 다시 적용하세요.')
+        current_validated_record['body_reference_sources'] = current_selected_matches
+    return {**current_validated_record, 'common_style_v1': current_style_record}
+
+
+def verify_saved_common_style(current_request_record):
+    current_style_record = current_request_record.get('common_style_v1')
+    if current_style_record is None:
+        return
+    if not isinstance(current_style_record, dict) or set(current_style_record) != {'id', 'version', 'source', 'prompt', 'sha256', 'already_present', 'user_prompt'}:
+        raise ValueError('저장된 공용 화풍 기록 형식 오류')
+    if current_style_record['id'] != 'slime_common_art_style' or current_style_record['version'] != '1.5.0' or current_style_record['source'] != 'prompts/common/art-style-v1.5.0.yaml' or type(current_style_record['already_present']) is not bool or not isinstance(current_style_record['user_prompt'], str) or not isinstance(current_style_record['prompt'], str) or hashlib.sha256(current_style_record['prompt'].encode()).hexdigest() != current_style_record['sha256']:
+        raise ValueError('저장된 공용 화풍 기록 무결성 오류')
+    current_normalized_style = ' '.join(current_style_record['prompt'].split())
+    current_original_prompt = current_style_record['user_prompt']
+    current_contains_style = current_normalized_style in ' '.join(current_original_prompt.split())
+    if current_contains_style != current_style_record['already_present']:
+        raise ValueError('저장된 화풍 중복 정보가 일치하지 않습니다.')
+    current_styled_prompt = current_original_prompt.strip() if current_contains_style else ' '.join(filter(None, (current_original_prompt.strip(), current_style_record['prompt'])))
+    current_saved_prompt = current_request_record.get('qwen21', {}).get('user_prompt', current_request_record['prompt'])
+    if current_styled_prompt != current_saved_prompt:
+        raise ValueError('저장된 사용자 입력과 공용 화풍 조합이 일치하지 않습니다.')
+
+
 class QwenPlainGenerationManager(ImageGenerationManager):
     def __init__(self):
         super().__init__(three_reference_mode=True)
@@ -99,7 +146,7 @@ class QwenPlainGenerationManager(ImageGenerationManager):
         validate_image_runtime(WORKFLOW_ROOT_PATH / '.venv')
 
     def validate_generation_request(self, request_record_value):
-        return validate_qwen_plain_request(request_record_value)
+        return validate_styled_qwen_request(request_record_value)
 
     def validate_generation_resume(self, selected_job_directory):
         current_request_record = json.loads((selected_job_directory / 'request.json').read_text())

@@ -15,8 +15,10 @@ def load_building_base_prompt():
 def check_building_input_readiness(current_prompt_text, current_style_enabled, current_transparency_enabled, current_layout_image, building_prompt_enabled=False):
     if building_prompt_enabled:
         current_prompt_text = (current_prompt_text.strip() + ' ' + load_building_base_prompt()).strip()
-    current_final_prompt, current_added_prompt = compose_qwen_option_prompt(current_prompt_text, current_style_enabled, current_transparency_enabled)
-    return current_layout_image is not None and 0 < len(current_final_prompt.split()) < 100
+    from generators.image.common_art_style import compose_common_style_prompt
+    current_styled_prompt, current_style_record = compose_common_style_prompt(current_prompt_text)
+    current_final_prompt, current_added_prompt = compose_qwen_option_prompt(current_styled_prompt, False, current_transparency_enabled)
+    return current_layout_image is not None and bool(current_prompt_text.strip()) and 0 < len(current_final_prompt.split()) < 100
 
 
 def load_prop_base_prompt():

@@ -193,8 +193,8 @@ class QwenPlainGenerationTests(unittest.TestCase):
 
     def test_prompt_options_and_saved_replay(self):
         current_request_record = validate_qwen_plain_request({**self.create_reference_request(), 'common_style': True, 'transparent_background': True})
-        self.assertIn('soft shading, clear materials, moderate detail', current_request_record['prompt'])
-        self.assertIn('Hand-painted', current_request_record['prompt'])
+        self.assertIn('fine warm brown outlines', current_request_record['prompt'])
+        self.assertIn('Refined 2D fantasy game illustration', current_request_record['prompt'])
         self.assertIn('This is an RGBA image with transparency.', current_request_record['prompt'])
         self.assertLess(current_request_record['qwen21']['prompt_word_count'], 100)
         with tempfile.TemporaryDirectory() as current_directory_name:
@@ -212,8 +212,8 @@ class QwenPlainGenerationTests(unittest.TestCase):
 
     def test_cli_prompt_options(self):
         with patch('tools.review.common.management_gateway.execute_management_command', return_value={'id':'test'}) as current_gateway_mock, contextlib.redirect_stdout(io.StringIO()):
-            execute_gateway_arguments('qwen-21',['generate','--detach','--prompt','One tree.','--common-style','--transparent-background'])
+            execute_gateway_arguments('qwen-21',['generate','--detach','--prompt','One tree.','--transparent-background'])
         current_payload_record = current_gateway_mock.call_args.args[2]
-        self.assertTrue(current_payload_record['common_style'])
+        self.assertNotIn('common_style', current_payload_record)
         self.assertTrue(current_payload_record['transparent_background'])
         self.assertIn('This is an RGBA image with transparency.',validate_qwen_plain_request(current_payload_record)['prompt'])

@@ -53,9 +53,9 @@ MANAGEMENT_SERVICE_COMMANDS['character-animation'] += ('sheet-auto','sheet-expor
 MANAGEMENT_COMMAND_ROUTES.update({'sheet-update':('POST','/sheet/update'),'sheet-search':('POST','/sheet/search'),'sheet-image':('POST','/sheet/image')})
 
 WRITER_PAYLOAD_COMMAND_NAMES = ('writer-detail', 'writer-submit', 'writer-apply', 'writer-history', 'writer-delete')
-TRANSLATION_PAYLOAD_COMMAND_NAMES = ('translation-submit', 'translation-status', 'translation-cancel', 'translation-history', 'translation-rag')
+TRANSLATION_PAYLOAD_COMMAND_NAMES = ('translation-submit', 'translation-status', 'translation-cancel', 'translation-history')
 MANAGEMENT_SERVICE_ROUTES['prompt-translation'] = '/prompt-translation'
-MANAGEMENT_SERVICE_COMMANDS['prompt-translation'] = (*TRANSLATION_PAYLOAD_COMMAND_NAMES, 'model-status', 'prepare')
+MANAGEMENT_SERVICE_COMMANDS['prompt-translation'] = TRANSLATION_PAYLOAD_COMMAND_NAMES
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name: ('POST', '/' + current_command_name) for current_command_name in TRANSLATION_PAYLOAD_COMMAND_NAMES})
 MANAGEMENT_SERVICE_ROUTES['writer-agent'] = '/writer-agent'
 MANAGEMENT_SERVICE_COMMANDS['writer-agent'] = ('writer-state', 'model-status', 'prepare', *WRITER_PAYLOAD_COMMAND_NAMES)
@@ -146,7 +146,7 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'wan22-fun-control' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('Fun Control 모델 준비에는 action=prepare만 허용합니다.')
-    if service_command_name in ('wan22-vace', 'writer-agent', 'prompt-translation') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
+    if service_command_name in ('wan22-vace', 'writer-agent') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('모델 준비에는 action=prepare만 허용합니다.')
     request_method_value, request_suffix_value = MANAGEMENT_COMMAND_ROUTES[operation_command_name]
     if '{id}' in request_suffix_value:
@@ -289,23 +289,6 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace']='Wan2.2 VACE-Fun A14B BF16 · 텍�
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
     if gateway_request_handler is not None:
-        if service_command_name == 'prompt-translation' and operation_command_name in ('model-status', 'prepare'):
-            if operation_command_name == 'model-status' and command_payload_value:
-                raise ValueError('모델 상태 조회에는 입력을 전달할 수 없습니다.')
-            from generators.prompt_translation.prepare import inspect_translation_model_files, WORKFLOW_ROOT_DIRECTORY
-            from tools.review.domains.translation.service import TRANSLATION_PYTHON_PATH
-            from tools.review.common.model_prepare_process import inspect_registered_preparation, start_registered_preparation
-            from tools.review.common.management_transport import send_management_json_response
-            current_preparation_status = inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY, 'prompt-translation-model')
-            current_models_ready = inspect_translation_model_files()
-            if operation_command_name == 'prepare' and current_preparation_status != 'running' and not current_models_ready:
-                current_preparation_status = start_registered_preparation(WORKFLOW_ROOT_DIRECTORY, 'prompt-translation-model')['preparation_status']
-            current_status_message = '모델 파일 준비 완료 · 해시와 GPU 추론은 실행 시 확인' if current_models_ready else '모델 준비 필요 · Hugging Face 로그인 및 Gemma 약관 동의 확인'
-            if current_preparation_status == 'failed':
-                current_status_message += ' · 다운로드 실패: 모델 관리 로그 확인 후 다시 시도'
-            if current_models_ready and not TRANSLATION_PYTHON_PATH.is_file():
-                current_status_message += ' · ROCm 실행 환경 준비 필요'
-            return send_management_json_response(gateway_request_handler, 200, {'ready': current_models_ready, 'generation_ready': current_models_ready and TRANSLATION_PYTHON_PATH.is_file(), 'message': current_status_message, 'preparation_status': current_preparation_status})
         if service_command_name == 'model-downloads':
             from tools.review.common.management_transport import send_management_json_response
             if operation_command_name == 'download-inventory':
@@ -459,7 +442,6 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--height',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
                 operation_argument_parser.add_argument('--steps',type=int,choices=(20,30,40,50) if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer','expression') else (40,) if service_command_name=='seamless-tile' else (4,) if service_command_name=='floor-tile' else (4,30),default=40 if service_command_name in ('seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer','expression') else 4)
                 if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21'):
-                    operation_argument_parser.add_argument('--common-style', action=argparse.BooleanOptionalAction, default=False, help='SLIME 공용 화풍 추가')
                     operation_argument_parser.add_argument('--transparent-background', action=argparse.BooleanOptionalAction, default=False, help='네이티브 RGBA 투명 배경 요청')
                 if service_command_name == 'qwen-21-circular':
                     operation_argument_parser.add_argument('--baseline-decode', action=argparse.BooleanOptionalAction, default=False, help='일반 VAE 비교 생성 · 기본 OFF')
@@ -544,7 +526,6 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 if command_argument_values.add_margins is not None:
                     command_payload_value['add_margins']=command_argument_values.add_margins
             if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21'):
-                command_payload_value['common_style'] = command_argument_values.common_style
                 command_payload_value['transparent_background'] = command_argument_values.transparent_background
             if service_command_name == 'qwen-21-circular':
                 command_payload_value['circular_radius'] = command_argument_values.circular_radius

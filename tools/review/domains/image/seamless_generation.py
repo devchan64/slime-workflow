@@ -45,6 +45,12 @@ def validate_seamless_request(request_record_value):
         if (current_request_record['width'], current_request_record['height']) != (768,768):
             raise ValueError('패턴 생성 출력은 768×768 고정입니다.')
         final_prompt_text, prompt_source_record = build_pattern_request(current_request_record['prompt'])
+        from generators.image.common_art_style import compose_common_style_prompt
+        current_stage_values = [compose_common_style_prompt(current_stage_prompt)[0] for current_stage_prompt in prompt_source_record['stage_prompts']]
+        if any(len(current_stage_prompt.split()) >= 100 for current_stage_prompt in current_stage_values):
+            raise ValueError('공용 화풍을 포함한 각 단계 프롬프트는 99단어 이하여야 합니다.')
+        final_prompt_text = current_stage_values[0]
+        prompt_source_record.update(stage_prompts=current_stage_values, stage_prompt_words=[len(current_stage_prompt.split()) for current_stage_prompt in current_stage_values], stage_prompt_hashes=[hashlib.sha256(current_stage_prompt.encode()).hexdigest() for current_stage_prompt in current_stage_values], prompt_sha256=hashlib.sha256(final_prompt_text.encode()).hexdigest(), common_style_version='1.5.0')
         return {**current_request_record,'prompt':final_prompt_text,'seamless_tile':prompt_source_record}
     if len(current_request_record['images']) != 1:
         raise ValueError('정사각형 원본 타일 한 장을 첨부하세요.')
@@ -54,6 +60,11 @@ def validate_seamless_request(request_record_value):
     if (current_request_record['width'], current_request_record['height']) != (768, 768):
         raise ValueError('연결 보정 출력은 768×768 고정입니다.')
     final_prompt_text, prompt_source_record = build_seamless_prompt(current_request_record['prompt'])
+    from generators.image.common_art_style import compose_common_style_prompt
+    final_prompt_text, current_style_record = compose_common_style_prompt(final_prompt_text)
+    if len(final_prompt_text.split()) >= 100:
+        raise ValueError('공용 화풍을 포함한 최종 프롬프트는 99단어 이하여야 합니다.')
+    prompt_source_record.update(prompt_word_count=len(final_prompt_text.split()), prompt_sha256=hashlib.sha256(final_prompt_text.encode()).hexdigest(), common_style_version='1.5.0')
     return {**current_request_record, 'prompt': final_prompt_text, 'seamless_tile': prompt_source_record}
 
 

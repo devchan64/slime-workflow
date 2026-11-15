@@ -36,7 +36,7 @@ class QwenCommandsTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'중복 키: common_style'):
                     load_qwen_prompt_options()
         current_final_text,current_added_text = compose_qwen_option_prompt('figure',True,True)
-        self.assertTrue(current_final_text.startswith('This is an RGBA image with transparency. Hand-painted'))
+        self.assertTrue(current_final_text.startswith('This is an RGBA image with transparency. Refined 2D fantasy'))
         self.assertTrue(current_final_text.endswith('figure The image has alpha channel and the background is transparent.'))
 
     def test_optional_prompt_composition_order(self):

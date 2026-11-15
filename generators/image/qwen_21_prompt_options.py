@@ -24,8 +24,12 @@ UniquePromptOptionsLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAP
 
 
 def load_qwen_prompt_options():
+    from generators.image.common_art_style import load_common_style_record
     current_option_record = yaml.load(QWEN_PROMPT_OPTIONS_PATH.read_text(), Loader=UniquePromptOptionsLoader)
-    return validate_prompt_option_record(current_option_record)
+    if not isinstance(current_option_record, dict) or set(current_option_record) != {'transparent_background', 'transparent_background_suffix'}:
+        raise ValueError('Qwen 프롬프트 옵션 설정 필드 오류')
+    current_style_record = load_common_style_record()
+    return validate_prompt_option_record({**current_option_record, 'common_style': current_style_record['prompt'], 'style_source': 'prompts/common/art-style-v1.5.0.yaml'})
 
 
 def validate_prompt_option_record(current_option_record):
