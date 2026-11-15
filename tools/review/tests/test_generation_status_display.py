@@ -112,7 +112,9 @@ class GenerationStatusDisplayTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_attempt_root=Path(current_directory_name)
             current_recorder_value=GenerationTelemetryRecorder(current_attempt_root,0,[])
-            with patch('tools.review.common.generation_telemetry.os.getpid',return_value=100), patch('tools.review.common.generation_telemetry.Path.glob',return_value=[]), patch('tools.review.common.generation_telemetry.subprocess.check_output',side_effect=['GPU-A, 500','GPU-A, 100, 200','GPU-A, 600','GPU-A, 100, 300\nGPU-A, 100, 300']):
+            current_device_sample = lambda current_vram_value: json.dumps({'gpu_data':[{'gpu':'A','mem_usage':{'used_vram':{'value':current_vram_value},'used_gtt':{'value':0}}}]})
+            current_process_sample = lambda current_count_value: json.dumps([{'gpu':'A','process_list':[{'process_info':{'pid':100,'memory_usage':{'vram_mem':{'unit':'B','value':200*1048576},'gtt_mem':{'unit':'B','value':0}}}}]*current_count_value}])
+            with patch('tools.review.common.generation_telemetry.os.getpid',return_value=100), patch('tools.review.common.generation_telemetry.Path.glob',return_value=[]), patch('tools.review.common.generation_telemetry.subprocess.check_output',side_effect=[current_device_sample(500),current_process_sample(1),current_device_sample(600),current_process_sample(2)]):
                 current_recorder_value.capture_generation_memory()
                 current_recorder_value.finish_generation_telemetry('failed')
             current_saved_metrics=json.loads((current_attempt_root/'metrics.json').read_text())
@@ -222,6 +224,7 @@ class GenerationStatusDisplayTests(unittest.TestCase):
         current_status_text = describe_video_generation_status(current_status_record)
         for current_expected_text in ('23초','7초','추론 종료까지의 참고 추정','5개'):
             self.assertIn(current_expected_text, current_status_text)
+        self.assertEqual(current_status_text.count('| 항목 | 내용 |'), 1)
         current_status_record['status'] = 'completed'
         self.assertNotIn('7초', describe_video_generation_status(current_status_record))
         current_status_record.pop('worker_metrics')

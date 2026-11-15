@@ -213,25 +213,26 @@ def build_history_table_rows(current_history_records):
         current_status_record=current_history_record.get('status',{})
         current_progress_record=current_history_record.get('progress') or (current_status_record.get('progress',{}) if isinstance(current_status_record,dict) else {})
         current_progress_text=format_history_progress(current_progress_record) if current_progress_record else ''
+        current_status_text=format_generation_status(current_status_record)
+        if current_progress_text == current_status_text:
+            current_progress_text=''
+        elif current_progress_text.startswith(current_status_text+' · '):
+            current_progress_text=current_progress_text[len(current_status_text)+3:]
         if current_progress_record.get('current_source_frame') is not None:
             current_progress_text+=f" · Fra:{current_progress_record['current_source_frame']}"
         if current_progress_record.get('detail'):
             current_progress_text+=' · '+str(current_progress_record['detail'])
-        current_table_rows.append([format_generation_status(current_status_record),format_history_created_time(current_history_record),format_history_request_summary(current_history_record.get('request',{})),current_progress_text,current_history_record['id']])
+        current_table_rows.append([current_status_text,format_history_created_time(current_history_record),format_history_request_summary(current_history_record.get('request',{})),current_progress_text,current_history_record['id']])
     return current_table_rows
 
 
 def build_history_dataframe_rows(current_history_records, show_thumbnail_column=True):
-    """썸네일과 줄바꿈된 이력 정보를 좁은 표에 표시한다."""
+    """썸네일과 상태·설정·진행·식별자를 각각의 열로 표시한다."""
     from urllib.parse import quote
     current_result_rows=[]
     for current_history_record,current_table_row in zip(current_history_records,build_history_table_rows(current_history_records)):
         current_status_text,current_created_text,current_settings_text,current_progress_text,current_job_identifier=current_table_row
-        current_detail_text=f'{current_status_text} · {current_created_text}\n{current_settings_text}'
-        if current_progress_text:
-            current_detail_text+=f'\n진행: {current_progress_text}'
-        current_detail_text+=f'\nID: {current_job_identifier}'
-        current_result_row=[current_detail_text]
+        current_result_row=[current_status_text,current_created_text,current_settings_text,current_progress_text or '—',current_job_identifier]
         if show_thumbnail_column:
             current_status_record=current_history_record.get('status')
             current_image_path=current_history_record.get('image') or (current_status_record.get('image') if isinstance(current_status_record,dict) else None)
@@ -306,8 +307,8 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             history_page_value=gr.Number(value=1,minimum=1,precision=0,label='페이지 이동',show_label=False,container=False,scale=0,min_width=60,elem_classes=['generation-history-page'])
             history_next_button=gr.Button('다음 →',scale=0,min_width=120,interactive=False)
         history_selection_value=gr.Dropdown(choices=[],value=None,label='이력 선택',info='작업을 선택한 뒤 결과 조회·입력값 불러오기·중지·재개를 사용하세요.',interactive=True,visible=False,elem_id='generation-history-selection')
-        gr.Markdown('표의 셀을 선택한 뒤 결과 조회·입력값 불러오기·삭제를 사용하세요. 선택한 ID는 아래에서 복사할 수 있습니다.')
-        history_cards_value=gr.Dataframe(headers=(['썸네일'] if show_thumbnail_column else [])+['생성 정보'], datatype=(['markdown'] if show_thumbnail_column else [])+['str'], column_widths=([80, 200] if show_thumbnail_column else [280]), value=[], interactive=False, type='array', wrap=True, label='생성 이력', elem_id='generation-history-cards')
+        gr.Markdown('표의 셀을 선택한 뒤 결과 조회·입력값 불러오기·삭제를 사용하세요. 좁은 화면에서는 표를 가로로 스크롤하고, 선택한 ID는 아래에서 복사할 수 있습니다.')
+        history_cards_value=gr.Dataframe(headers=(['썸네일'] if show_thumbnail_column else [])+['상태','생성 시각','설정','진행','ID'], datatype=(['markdown'] if show_thumbnail_column else [])+['str']*5, column_widths=([80, 110, 160, 300, 160, 220] if show_thumbnail_column else [110, 160, 300, 160, 220]), value=[], interactive=False, type='array', wrap=True, label='생성 이력', elem_id='generation-history-cards')
         (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button, history_priority_button)=build_history_selection_panel(restore_input_callback is not None, allow_individual_delete)
         if allow_individual_delete:
             current_delete_identifier=gr.State('')
@@ -404,7 +405,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_row_index=current_selection_event.index[0]
         if not isinstance(current_row_index,int) or current_row_index<0 or current_row_index>=len(current_table_rows):
             raise gr.Error('선택한 이력이 없습니다. 목록을 새로고침하세요.')
-        current_job_identifier=current_table_rows[current_row_index][-1].rsplit('\nID: ',1)[-1]
+        current_job_identifier=current_table_rows[current_row_index][-1]
         current_history_records=execute_service_command('history',{}).get('records',[])
         if current_job_identifier not in [current_record_value['id'] for current_record_value in current_history_records]:
             raise gr.Error('선택한 이력이 없습니다. 목록을 새로고침하세요.')

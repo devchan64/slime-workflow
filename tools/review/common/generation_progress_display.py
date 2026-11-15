@@ -16,7 +16,7 @@ def format_progress_timestamp(current_timestamp_value):
         return str(current_timestamp_value)
 
 
-def render_generation_estimate(current_eta_record, current_status_name):
+def render_generation_estimate(current_eta_record, current_status_name, compact_display_enabled=False):
     if current_status_name not in ('running', 'queued'):
         return '작업 종료 · 예상 시간 갱신 종료'
     def format_estimate_value(current_field_name, current_unit_label):
@@ -36,4 +36,6 @@ def render_generation_estimate(current_eta_record, current_status_name):
         ('표본 수', f'{current_eta_record.get("sample_count", 0)}개'),
         ('최근 갱신', format_progress_timestamp(current_eta_record.get('updated_at'))),
     ])
+    if compact_display_enabled:
+        return ' · '.join(f'{current_row_label}: {format_progress_cell(current_row_value)}' for current_row_label, current_row_value in current_table_rows)
     return '| 항목 | 내용 |\n|---|---|\n' + '\n'.join(f'| {current_row_label} | {format_progress_cell(current_row_value)} |' for current_row_label, current_row_value in current_table_rows) + '\n\n예상값은 GPU 부하와 단계별 처리 상황에 따라 달라집니다.'

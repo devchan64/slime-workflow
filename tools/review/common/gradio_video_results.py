@@ -44,7 +44,7 @@ def describe_video_generation_status(current_status_record):
     if current_worker_metrics is not None:
         current_metrics_record = current_worker_metrics
     if current_metrics_record.get('inference_estimate'):
-        current_status_text+='\n\n추론 종료까지의 참고 추정\n\n'+render_generation_estimate(current_metrics_record['inference_estimate'],current_status_record['status'])
+        current_status_text+='\n\n**추론 종료까지의 참고 추정** · '+render_generation_estimate(current_metrics_record['inference_estimate'],current_status_record['status'],compact_display_enabled=True)
     return current_status_text
 
 

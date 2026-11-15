@@ -50,6 +50,7 @@ class GradioStandardComponentTests(unittest.TestCase):
         self.assertIsInstance(current_history_outputs[3],gr.Dataframe)
         self.assertEqual(current_history_outputs[3].datatype[0], 'markdown')
         self.assertTrue(current_history_outputs[3].wrap)
+        self.assertEqual(current_history_outputs[3].column_widths, ['80px', '110px', '160px', '300px', '160px', '220px'])
         self.assertIsInstance(current_history_outputs[6],gr.Column)
         self.assertTrue(any(isinstance(current_block_value,gr.Gallery) for current_block_value in current_interface_blocks.blocks.values()))
         self.assertFalse(any(current_function_value.js and 'selectionInputElement' in current_function_value.js for current_function_value in current_interface_blocks.fns.values()))
@@ -60,6 +61,12 @@ class GradioStandardComponentTests(unittest.TestCase):
         self.assertIn('20/40',current_table_rows[0][3])
         self.assertIn('Fra:4',current_table_rows[0][3])
         self.assertEqual(current_table_rows[0][-1],'job-a')
+
+    def test_queue_status_is_not_repeated_in_progress_column(self):
+        current_table_rows=build_history_table_rows([{'id':'queued-job','status':{'status':'queued'},'progress':{'stage':'queued','queue_position':3,'detail':'메모리 대기'}}, {'id':'done-job','status':'completed','progress':{'stage':'completed'}}])
+        self.assertEqual(current_table_rows[0][0], 'GPU 대기 중')
+        self.assertEqual(current_table_rows[0][3], '대기 순서 3 · 메모리 대기')
+        self.assertEqual(current_table_rows[1][3], '')
 
     def test_consumers_do_not_inject_theme_or_css(self):
         current_application_root=Path(__file__).parents[1]/'ui/gradio'
