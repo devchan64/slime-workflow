@@ -15,6 +15,7 @@ from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_video_results import render_video_generation_result, build_video_job_monitor, describe_video_frame_duration
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
+from generators.wan_vace.page.video_preview import prepare_vace_browser_video
 
 VACE_INPUT_CHOICES = [('키모도 DWPose 영상 + 캐릭터 참조', 'pose'), ('영상 전체 조건 + 외형 참조 · 실험', 'video_condition'), ('영상 부분 편집 + 외형 참조', 'video_edit'), ('외형 참조 + 텍스트 (R2V)', 'reference'), ('첫 프레임 + 텍스트 (I2V)', 'first_frame'), ('텍스트만 (T2V)', 'text')]
 
@@ -109,7 +110,7 @@ def restore_vace_inputs(current_history_record):
         if current_reference_file.parent != current_job_directory or not current_reference_file.is_file():
             raise ValueError('이력 입력 사본 누락 또는 경로 오류')
         current_reference_path = str(current_reference_file)
-    return (current_request_record['mode'], current_reference_path, current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['reference_strength'], str(current_job_directory/'edit-video.mp4') if current_request_record['mode'] in ('video_edit','video_condition') else None, str(current_job_directory/'edit-mask.mp4') if current_request_record['mode']=='video_edit' else None, str(current_job_directory/'pose-video.mp4') if current_request_record['mode']=='pose' else None, current_history_record['id'])
+    return (current_request_record['mode'], current_reference_path, current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['reference_strength'], str(current_job_directory/'edit-video.mp4') if current_request_record['mode'] in ('video_edit','video_condition') else None, str(current_job_directory/'edit-mask.mp4') if current_request_record['mode']=='video_edit' else None, prepare_vace_browser_video(current_job_directory/'pose-video.mp4') if current_request_record['mode']=='pose' else None, current_history_record['id'])
 
 
 def check_vace_readiness(current_model_ready, current_input_mode, current_reference_path, current_prompt_text, current_edit_video=None, current_edit_mask=None, current_pose_video=None):
@@ -154,6 +155,7 @@ def build_vace_interface(current_server_address, current_command_callback=None):
         with gr.Row(visible=False) as current_edit_group:
             current_edit_video = gr.Video(sources=['upload'], label='편집할 원본 MP4 · 832×480 · 16fps')
             current_edit_mask = gr.Video(sources=['upload'], label='마스크 MP4 · 흰색 재생성 / 검정 보존 조건')
+        current_pose_video.upload(prepare_vace_browser_video, current_pose_video, current_pose_video, queue=False)
         current_mode_control.change(describe_vace_mode,current_mode_control,[current_mode_help,current_reference_panel,current_pose_group,current_edit_group,current_reference_control,current_edit_mask],queue=False)
         current_prompt_control = gr.Textbox(label='장면·동작 프롬프트', lines=3, placeholder='The character walks four steps. Full body, fixed camera.', info='주체 → 동작 → 카메라 순서로 짧게 작성하세요. 입력한 문구를 그대로 전달합니다. 걸음 수는 보장되지 않습니다.')
         current_prompt_summary = gr.Markdown('원문 0단어 · 최종 0단어 · 추가 문구 없음')

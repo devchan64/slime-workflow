@@ -1,10 +1,28 @@
 """공식 실행 소스와 양자화 고정 계약을 검사한다."""
 import unittest
 from pathlib import Path
+import tempfile
+from types import SimpleNamespace
+from unittest.mock import patch
+import torch
 import yaml
+from generators.wan_vace.numerical_guard import install_vace_attention_guard
 
 
 class VaceOfficialRuntimeTest(unittest.TestCase):
+    def test_bf16_checkpoint_does_not_inherit_fp32_meta_dtype(self):
+        from accelerate.utils import set_module_tensor_to_device
+        from generators.wan_vace.official_full_precision import assign_vace_bf16_weight
+        with torch.device('meta'):
+            current_model_object = torch.nn.Linear(2, 2, bias=False)
+        current_file_tensor = torch.tensor([[1, 2], [3, 4]], dtype=torch.bfloat16)
+        def set_on_test_cpu(current_model, current_name, current_device, **current_options):
+            self.assertEqual(current_device, 'cuda')
+            set_module_tensor_to_device(current_model, current_name, 'cpu', **current_options)
+        assign_vace_bf16_weight(set_on_test_cpu, current_model_object, 'weight', current_file_tensor, torch)
+        self.assertEqual(current_model_object.weight.dtype, torch.bfloat16)
+        self.assertTrue(torch.equal(current_model_object.weight, current_file_tensor))
+
     def test_branch_offload_preserves_non_transfer_syntax(self):
         import ast
         from generators.wan_vace.activation_offload import VACE_BRANCH_OFFLOAD_REPLACEMENTS
@@ -124,3 +142,42 @@ class VaceOfficialRuntimeTest(unittest.TestCase):
         self.assertNotIn('exec(',current_offload_source)
         self.assertIn("register_forward_pre_hook",current_offload_source)
         self.assertIn("register_forward_hook",current_offload_source)
+
+
+class VaceNumericalGuardTests(unittest.TestCase):
+    def test_nonfinite_output_saves_inputs_and_compares_math_attention(self):
+        import json
+        from generators.wan_vace.numerical_guard import save_vace_attention_failure
+        current_tensor_value = torch.ones((1, 2, 1, 2))
+        current_arguments = {'q': current_tensor_value, 'k': current_tensor_value, 'v': current_tensor_value, 'attn_mask': None, 'causal': False, 'dropout_p': 0}
+        current_output_value = current_tensor_value.clone()
+        current_output_value[0, 0, 0, 0] = float('nan')
+        with tempfile.TemporaryDirectory() as current_directory_name, patch.object(torch.cuda, 'get_device_name', return_value='test GPU'):
+            current_attempt_root = Path(current_directory_name)
+            save_vace_attention_failure(current_attempt_root, torch, {'step': 1, 'attention_calls': 1}, current_arguments, {'q': True, 'k': True, 'v': True}, current_output_value)
+            current_record_value = json.loads((current_attempt_root/'attention-failure.json').read_text())
+            self.assertTrue((current_attempt_root/'attention-failure-inputs.safetensors').is_file())
+            self.assertTrue(current_record_value['math_comparison']['finite'])
+            self.assertEqual(current_record_value['math_comparison']['query_index'], [0, 0, 0, 0])
+
+    def test_finite_attention_preserves_original_result(self):
+        current_output_tensor = torch.tensor([[[[3.0]]]])
+        def current_attention_function(q, k, v, attn_mask=None, causal=False, dropout_p=0):
+            return current_output_tensor
+        current_module_object = SimpleNamespace(attention=current_attention_function)
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_guard_state = install_vace_attention_guard(current_module_object, Path(current_directory_name), torch)
+            current_tensor_value = torch.ones((1, 1, 1, 1))
+            self.assertIs(current_module_object.attention(current_tensor_value, current_tensor_value, current_tensor_value), current_output_tensor)
+            self.assertEqual(current_guard_state['attention_calls'], 1)
+
+    def test_nonfinite_attention_output_is_preserved_and_rejected(self):
+        def current_attention_function(q, k, v, attn_mask=None, causal=False, dropout_p=0):
+            return torch.full_like(q, float('nan'))
+        current_module_object = SimpleNamespace(attention=current_attention_function)
+        with tempfile.TemporaryDirectory() as current_directory_name, patch('generators.wan_vace.numerical_guard.save_vace_attention_failure') as current_save_mock:
+            install_vace_attention_guard(current_module_object, Path(current_directory_name), torch)
+            current_tensor_value = torch.ones((1, 1, 1, 1))
+            with self.assertRaisesRegex(ValueError, '어텐션 출력'):
+                current_module_object.attention(current_tensor_value, current_tensor_value, current_tensor_value)
+            self.assertTrue(all(current_save_mock.call_args.args[4].values()))

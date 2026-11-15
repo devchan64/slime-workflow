@@ -54,14 +54,23 @@ def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.
 
 def execute_official_inference(current_job_root,current_attempt_root,current_request_record,current_metrics_recorder):
     import torch
+    import torch.nn.functional as torch_functional_module
     import numpy as np
     from PIL import Image
     from generators.wan_vace.video_edit import decode_edit_video
     from generators.common.reference_video_worker import save_video_outputs
+    from generators.wan_fun.attention_optimization import install_fun_attention_optimization
+    from generators.wan_fun.attention_profile import install_fun_attention_profile
     from tools.review.common.generation_records import write_record_atomically
+    current_contiguous_enabled = install_fun_attention_optimization(torch, torch_functional_module)
+    if os.environ.get('SLIME_VACE_ATTENTION_PROFILE', '1') == '1':
+        install_fun_attention_profile(current_attempt_root, torch_functional_module, current_call_limit=2)
     write_record_atomically(current_attempt_root / 'model-selection.json', {
         'model_id': VACE_MODEL_IDENTIFIER, 'revision': VACE_MODEL_REVISION,
         'files': VACE_MODEL_FILES, 'quantization': None, 'precision': 'BF16',
+        'pytorch_version': torch.__version__, 'rocm_version': torch.version.hip,
+        'gpu_name': torch.cuda.get_device_name(0), 'allocator_backend': torch.cuda.memory.get_allocator_backend(),
+        'allocator_configuration': os.environ.get('PYTORCH_ALLOC_CONF'),
         'text_encoder_revision': VACE_ENCODER_REVISION, 'source_revision': VACE_SOURCE_REVISION,
         'runtime': 'VideoX-Fun official BF16', 'gpu_backend': 'rocm',
         'gpu_runtime_version': torch.version.hip,
@@ -71,13 +80,28 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
         'encoded_input_cpu_offload': False, 'branch_activation_cpu_offload': False,
         'rope_query_result_cpu_offload': False, 'vace_latent_offload': False,
         'vae_inference_offload': False,
+        'contiguous_long_attention': current_contiguous_enabled,
+        'attention_profile_enabled': os.environ.get('SLIME_VACE_ATTENTION_PROFILE', '1') == '1',
         'custom_math_patches': 'attention_prefix_frames' in current_request_record,
-        'adapter_source_sha256': {current_source_name: hashlib.sha256((Path(__file__).parent / current_source_name).read_bytes()).hexdigest() for current_source_name in ('official_runtime.py', 'official_full_precision.py', 'sampling.py', 'noise_experiment.py', 'attention_experiment.py')},
+        'adapter_source_sha256': {current_source_name: hashlib.sha256((Path(__file__).parent / current_source_name).read_bytes()).hexdigest() for current_source_name in ('official_runtime.py', 'official_full_precision.py', 'sampling.py', 'noise_experiment.py', 'attention_experiment.py', 'numerical_guard.py')},
     })
     current_metrics_recorder.update_generation_stage('load')
     current_pipeline_object = load_official_pipeline(current_metrics_recorder, current_request_record['flow_shift'], current_attempt_root)
+    from videox_fun.models import wan_transformer3d
+    from generators.wan_vace.numerical_guard import install_vace_attention_guard
+    current_guard_state = install_vace_attention_guard(wan_transformer3d, current_attempt_root, torch)
+    def check_vace_expert_output(current_expert_module, current_expert_inputs, current_expert_output):
+        current_checked_output = current_expert_output[0] if isinstance(current_expert_output, (tuple, list)) else current_expert_output
+        if not isinstance(current_checked_output, torch.Tensor) or not torch.isfinite(current_checked_output).all().item():
+            write_record_atomically(current_attempt_root / 'numerical-failure.json', {'stage': 'expert-output', 'step': current_guard_state['step'], 'shape': list(current_checked_output.shape) if isinstance(current_checked_output, torch.Tensor) else None, 'dtype': str(current_checked_output.dtype) if isinstance(current_checked_output, torch.Tensor) else None})
+            raise ValueError(f"VACE 전문가 출력에 NaN 또는 무한대가 있습니다: 단계 {current_guard_state['step']}")
+    def mark_vace_expert_step(current_expert_module, current_expert_inputs):
+        current_guard_state['step'] += 1
+    for current_expert_model in (current_pipeline_object.transformer, current_pipeline_object.transformer_2):
+        if current_expert_model is not None:
+            current_expert_model.register_forward_pre_hook(mark_vace_expert_step)
+            current_expert_model.register_forward_hook(check_vace_expert_output)
     if 'attention_prefix_frames' in current_request_record:
-        from videox_fun.models import wan_transformer3d
         from generators.wan_vace.attention_experiment import install_prefix_attention_isolation
         current_branch_scope = current_request_record.get("attention_branch_scope", "all")
         install_prefix_attention_isolation(wan_transformer3d, current_pipeline_object, current_branch_scope)
@@ -119,6 +143,10 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
         from generators.wan_vace.noise_experiment import build_prefix_noise_latents
         current_condition_inputs['latents'] = build_prefix_noise_latents(current_pipeline_object, current_request_record, current_attempt_root)
     def record_official_step(current_pipeline_value,current_step_index,current_time_value,current_callback_values):
+        if 'latents' not in current_callback_values or not torch.isfinite(current_callback_values['latents']).all().item():
+            current_failed_latents = current_callback_values.get('latents')
+            write_record_atomically(current_attempt_root / 'numerical-failure.json', {'stage': 'scheduler-latents', 'step': current_step_index + 1, 'shape': list(current_failed_latents.shape) if isinstance(current_failed_latents, torch.Tensor) else None, 'dtype': str(current_failed_latents.dtype) if isinstance(current_failed_latents, torch.Tensor) else None})
+            raise ValueError(f'VACE 추론 {current_step_index + 1}단계 잠재값에 NaN 또는 무한대가 있습니다.')
         current_metrics_recorder.record_generation_step(current_step_index+1)
         if current_step_index + 1 == current_request_record['steps']:
             if 'attention_prefix_frames' in current_request_record:
@@ -128,6 +156,7 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
         return current_callback_values
     current_metrics_recorder.update_generation_stage('encoding')
     current_output_tensor=current_pipeline_object(prompt=current_request_record['prompt'],negative_prompt=current_request_record['negative_prompt'],height=480,width=832,num_frames=current_frame_count,num_inference_steps=current_request_record['steps'],guidance_scale=current_request_record['guidance_scale'],generator=torch.Generator(device='cuda').manual_seed(current_request_record['seed']),boundary=.875,shift=current_request_record['flow_shift'],vace_context_scale=current_request_record['reference_strength'],callback_on_step_end=record_official_step,**current_condition_inputs).videos
+    write_record_atomically(current_attempt_root / 'numerical-validation.json', {'attention_calls': current_guard_state['attention_calls'], 'expert_calls': current_guard_state['step'], 'latent_steps_checked': current_request_record['steps'], 'attention_qkv_and_output_checked': True, 'expert_output_checked': True})
     current_sigma_values = current_pipeline_object.scheduler.sigmas.cpu()
     write_record_atomically(current_attempt_root / 'conditioning.json', {
         'mode': current_request_record['mode'],

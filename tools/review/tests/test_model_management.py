@@ -751,6 +751,23 @@ class CurrentDownloadStatusTest(unittest.TestCase):
         self.assertIn('검증 40.0% (40 / 100바이트)', current_status_text)
         self.assertIn('시작 시 검증 지점 20바이트', current_status_text)
 
+    def test_completed_aggregate_does_not_claim_zero_percent(self):
+        from tools.review.common.gradio_model_download import format_model_download_status
+        current_status_values = [{'model': 'wan22-vace', 'status': 'completed',
+                                  'stage': 'download-tokenizer', 'bytes': 0, 'total_bytes': 4548313}]
+        current_status_text = format_model_download_status(current_status_values, 'wan22-vace')
+        self.assertIn('전송량 기록 불일치', current_status_text)
+        self.assertNotIn('0.0%', current_status_text)
+        self.assertNotIn('이어받은 바이트 확인 불가', current_status_text)
+
+    def test_completed_preparation_has_no_stale_transfer_progress(self):
+        from tools.review.common.gradio_model_download import format_model_download_status
+        current_status_values = [{'model': 'wan22-vace', 'status': 'completed',
+                                  'stage': '준비 완료', 'bytes': 0, 'total_bytes': None}]
+        current_status_text = format_model_download_status(current_status_values, 'wan22-vace')
+        self.assertIn('모델 준비 상태 확인', current_status_text)
+        self.assertNotIn('0.0%', current_status_text)
+
 class DetachedModelPreparationTest(unittest.TestCase):
     def test_worker_survives_launcher_exit_and_remains_singleton(self):
         import json

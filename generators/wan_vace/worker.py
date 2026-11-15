@@ -2,6 +2,9 @@
 from pathlib import Path
 import sys
 import os
+if __name__ == '__main__':
+    os.environ['PYTORCH_ALLOC_CONF'] = 'expandable_segments:False'
+    os.environ.pop('PYTORCH_CUDA_ALLOC_CONF', None)
 VACE_WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(VACE_WORKSPACE_ROOT))
 from generators.wan_vace.contracts import VACE_JOB_STORAGE, verify_vace_weights

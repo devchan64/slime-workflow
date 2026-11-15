@@ -295,7 +295,7 @@ def execute_locked_generation(generation_job_path):
             write_record_atomically(generation_job_path/'status.json', {'status':'running', 'memory_estimate':memory_estimate_record})
             current_telemetry_recorder.start_generation_telemetry()
             generation_worker_process = subprocess.Popen(generation_command_record['command'], start_new_session=True, env=dict(os.environ, SLIME_GPU_RESERVATION_PATH=str(active_reservation_path.resolve())))
-            if len(generation_command_record['command']) > 1 and Path(generation_command_record['command'][1]).resolve() in (WORKFLOW_ROOT_DIRECTORY/'generators/wan_animate2/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/wan_fun/worker.py'):
+            if len(generation_command_record['command']) > 1 and Path(generation_command_record['command'][1]).resolve() in (WORKFLOW_ROOT_DIRECTORY/'generators/wan_animate2/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/wan_fun/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/wan_vace/worker.py'):
                 current_memory_guard = start_animate_memory_guard(generation_worker_process)
             while generation_worker_process.poll() is None:
                 if (generation_job_path/'cancel.request').exists():

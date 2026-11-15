@@ -88,6 +88,32 @@ class VaceVideoContractTests(unittest.TestCase):
             self.assertEqual(current_restored_values[0],'reference')
             self.assertEqual(current_restored_values[-1],'job')
 
+    def test_pose_video_browser_copy_preserves_frames(self):
+        import cv2
+        import numpy as np
+        from generators.wan_vace.page.video_preview import prepare_vace_browser_video
+        with tempfile.TemporaryDirectory() as current_temp_root:
+            current_source_path = Path(current_temp_root)/'source.mp4'
+            current_writer_object = cv2.VideoWriter(str(current_source_path), cv2.VideoWriter_fourcc(*'mp4v'), 16, (64, 64))
+            self.assertTrue(current_writer_object.isOpened())
+            for current_frame_index in range(5):
+                current_writer_object.write(np.full((64, 64, 3), current_frame_index * 40, dtype=np.uint8))
+            current_writer_object.release()
+            with patch('generators.wan_vace.page.video_preview.VACE_WORKSPACE_ROOT', Path(current_temp_root)):
+                current_result_path = prepare_vace_browser_video(current_source_path)
+                self.assertEqual(current_result_path, prepare_vace_browser_video(current_source_path))
+            current_source_video = cv2.VideoCapture(str(current_source_path))
+            current_result_video = cv2.VideoCapture(current_result_path)
+            self.assertAlmostEqual(current_result_video.get(cv2.CAP_PROP_FPS), 16)
+            for current_frame_index in range(5):
+                current_source_ok,current_source_frame = current_source_video.read()
+                current_result_ok,current_result_frame = current_result_video.read()
+                self.assertTrue(current_source_ok and current_result_ok)
+                np.testing.assert_array_equal(current_source_frame, current_result_frame)
+            self.assertFalse(current_result_video.read()[0])
+            current_source_video.release()
+            current_result_video.release()
+
     def test_gradio_builds_without_generation_and_has_history_actions(self):
         from tools.review.ui.gradio.wan_vace_app import build_vace_interface
         def reject_generation_command(current_command_name,current_payload_record):

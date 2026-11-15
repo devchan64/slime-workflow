@@ -58,6 +58,8 @@ def execute_vace_preparation(current_shared_record):
                                    current_partial_path=current_partial_path, expected_total_bytes=expected_model_size)
             if current_model_path.stat().st_size != expected_model_size:
                 raise ValueError(f'모델 크기 불일치: {current_model_path}')
+            current_progress_record.update(stage=f'verified-{current_model_key}', bytes=expected_model_size, total_bytes=expected_model_size)
+            current_shared_record.update(**current_progress_record)
             write_prepare_trace('verified', str(current_model_path))
         from generators.wan_fun.prepare import FUN_SHARED_MODEL_SOURCES
         from tools.review.common.model_huggingface_download import tracked_hf_hub_download
@@ -71,9 +73,12 @@ def execute_vace_preparation(current_shared_record):
             if current_vae_path.stat().st_size != VACE_MODEL_FILES['vae'][1] or hashlib.file_digest(current_vae_stream, 'sha256').hexdigest() != current_expected_hash:
                 raise ValueError('공용 VAE 모델 크기 또는 SHA-256 불일치')
         from generators.wan_vace.official_prepare import prepare_official_runtime
-        current_progress_record["stage"] = "official-runtime"
+        current_progress_record.update(stage='official-runtime', bytes=0, total_bytes=None)
+        current_shared_record.update(**current_progress_record)
         prepare_official_runtime()
         validate_vace_assets()
+        current_progress_record.update(stage='준비 완료', bytes=0, total_bytes=None)
+        current_shared_record.update(**current_progress_record)
         (current_record_root / 'result.json').write_text(json.dumps({'status': 'completed', 'model_id': VACE_MODEL_IDENTIFIER, 'revision': VACE_MODEL_REVISION, 'files': VACE_MODEL_FILES}, ensure_ascii=False))
         write_prepare_trace('completed', str(current_record_root))
     except BaseException:

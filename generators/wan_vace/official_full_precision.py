@@ -44,6 +44,11 @@ def download_full_precision_file(current_expert_name):
     return verify_full_precision_file(current_expert_name)
 
 
+def assign_vace_bf16_weight(current_setter_function, current_model_object, current_tensor_name, current_file_tensor, current_torch_module):
+    """메타 모델 기본 dtype이 FP32여도 파일의 BF16 정밀도를 유지한다."""
+    current_setter_function(current_model_object, current_tensor_name, 'cuda', value=current_file_tensor, dtype=current_torch_module.bfloat16)
+
+
 def load_full_precision_expert(current_expert_name, current_model_class):
     """검증된 전문가를 GPU에 직접 적재한다. CPU 추론이나 오프로드는 사용하지 않는다."""
     import torch
@@ -63,13 +68,21 @@ def load_full_precision_expert(current_expert_name, current_model_class):
     with safe_open(str(current_weight_path), framework='pt', device='cpu') as current_safe_file:
         if set(current_safe_file.keys()) != set(current_expected_state):
             raise ValueError('공식 전문가 텐서 이름이 모델과 일치하지 않습니다.')
-        for current_tensor_name, current_model_tensor in current_expected_state.items():
+    # 대형 체크포인트의 mmap 전체를 열린 채 읽으면 이미 GPU로 복사한
+    # 페이지도 작업자 RSS에 남아 한정된 호스트 RAM을 고갈시킬 수 있다.
+    # 각 텐서 복사 후 참조와 매핑을 해제한다. 가중치는 GPU에 상주한다.
+    for current_tensor_name, current_model_tensor in current_expected_state.items():
+        with safe_open(str(current_weight_path), framework='pt', device='cpu') as current_safe_file:
             current_file_tensor = current_safe_file.get_tensor(current_tensor_name)
             if current_file_tensor.shape != current_model_tensor.shape:
                 raise ValueError(f'공식 전문가 텐서 형상 불일치: {current_tensor_name}')
             if current_file_tensor.dtype != torch.bfloat16:
                 raise ValueError(f'공식 전문가 텐서가 BF16이 아닙니다: {current_tensor_name}')
-            set_module_tensor_to_device(current_model_object, current_tensor_name, 'cuda', value=current_file_tensor)
+            assign_vace_bf16_weight(set_module_tensor_to_device, current_model_object, current_tensor_name, current_file_tensor, torch)
+            del current_file_tensor
+    for current_tensor_name, current_loaded_tensor in current_model_object.state_dict().items():
+        if current_loaded_tensor.dtype != torch.bfloat16 or current_loaded_tensor.device.type != 'cuda':
+            raise RuntimeError(f'공식 전문가 텐서는 GPU BF16이어야 합니다: {current_tensor_name}')
     current_head_dimension = current_model_object.dim // current_model_object.num_heads
     current_model_object.freqs = torch.cat([
         rope_params(1024, current_head_dimension - 4 * (current_head_dimension // 6)),
