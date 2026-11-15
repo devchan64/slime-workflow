@@ -12,6 +12,22 @@ from generators.music.heartmula.runtime import load_heartmula_resident_model
 
 
 class RocmAudioGuardTests(unittest.TestCase):
+    def test_heartmula_rejects_nonfinite_sampling_logits(self):
+        import torch
+        from generators.music.heartmula.runtime import sample_heartmula_finite_logits
+        current_sampling_function = Mock(return_value='sample')
+        current_valid_tensor = torch.tensor([1.0, 2.0])
+        self.assertEqual(sample_heartmula_finite_logits(current_valid_tensor, current_sampling_function, torch), 'sample')
+        with self.assertRaisesRegex(RuntimeError, 'NaN'):
+            sample_heartmula_finite_logits(torch.tensor([float('nan')]), current_sampling_function, torch)
+        self.assertEqual(current_sampling_function.call_count, 1)
+
+    def test_heartmula_allocator_overrides_legacy_environment(self):
+        from generators.music.worker import configure_heartmula_memory_allocator
+        current_environment_values = {'PYTORCH_ALLOC_CONF': 'expandable_segments:True', 'PYTORCH_CUDA_ALLOC_CONF': 'expandable_segments:True'}
+        configure_heartmula_memory_allocator(current_environment_values)
+        self.assertEqual(current_environment_values, {'PYTORCH_ALLOC_CONF': 'expandable_segments:False'})
+
     def test_setup_does_not_replace_existing_cuda_torch(self):
         from generators.sound_effects import setup_runtime
         with TemporaryDirectory() as current_directory_name:
@@ -25,10 +41,28 @@ class RocmAudioGuardTests(unittest.TestCase):
                 current_command_mock.assert_not_called()
 
     def test_heartmula_loads_unquantized_on_gpu(self):
+        from contextlib import nullcontext
         current_model_class = Mock()
-        current_torch_module = SimpleNamespace(bfloat16='bf16')
+        current_cache_module = SimpleNamespace(is_cache_built=False, rope_init=Mock())
+        current_model_class.from_pretrained.return_value.modules.return_value = [current_cache_module]
+        current_torch_module = SimpleNamespace(bfloat16='bf16', device=lambda *_: nullcontext())
         load_heartmula_resident_model(current_model_class, '/model', current_torch_module)
         current_model_class.from_pretrained.assert_called_once_with('/model', local_files_only=True, device_map={'': 'cuda:0'}, dtype='bf16')
+        current_cache_module.rope_init.assert_called_once_with()
+
+    def test_heartmula_decoder_uses_math_attention(self):
+        from contextlib import contextmanager
+        from generators.music.heartmula.runtime import configure_heartmula_decoder_attention
+        current_events_list = []
+        @contextmanager
+        def current_attention_context(current_backend_value):
+            current_events_list.append(('enter', current_backend_value))
+            yield
+            current_events_list.append(('exit', current_backend_value))
+        current_decoder_module = SimpleNamespace(forward=lambda value: value + 1)
+        configure_heartmula_decoder_attention(SimpleNamespace(decoder=current_decoder_module), current_attention_context, 'math')
+        self.assertEqual(current_decoder_module.forward(4), 5)
+        self.assertEqual(current_events_list, [('enter', 'math'), ('exit', 'math')])
 
     def test_effects_stages_never_move_models_to_cpu(self):
         current_model_module = Mock()

@@ -120,7 +120,7 @@ examples:
     min_duration_seconds: 0
 - id: grove-vocal-mr-minute
   label: 푸른 숲 · 기승전결 가사곡과 MR
-  description: 어쿠스틱 챔버 포크 · 오보에 선율·비올라·첼로·하프의 교대로 굽은 길과 빛·그늘 대비 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제 길이·악기·전개·종결은
+  description: 어쿠스틱 챔버 포크 · 오보에 선율·비올라·첼로·하프의 교대로 굽은 길과 빛·그늘 대비 표현. 도입 3행 → 변화 3행 → 후렴 6행 → 마무리 3행. 60~90초 안팎을 목표로 하되 실제 길이·악기·전개·종결은
     생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
   source_generation_id: 2026-10-25_17-04-31-610ffd78
   request:
@@ -131,11 +131,15 @@ examples:
 
       Forest paths are warm and bright
 
+      Morning whispers through the trees
+
       [Verse]
 
       Older tracks beneath the fern
 
       Lead us round another turn
+
+      Quiet streams beside us run
 
       [Chorus]
 
@@ -147,11 +151,17 @@ examples:
 
       Wider than our morning dreams
 
+      Every winding trail can be
+
+      A little way to wander free
+
       [Outro]
 
       At its edge we rest our feet
 
       Leaf and sunlight softly meet
+
+      Forest songs will guide us home
 
       '
     duration_seconds: 300

@@ -16,10 +16,33 @@ HEARTMULA_DECODE_WINDOW_SECONDS = 7.44
 HEARTMULA_SAMPLING_SETTINGS = {'topk':50,'temperature':1.0,'cfg_scale':3.0}
 
 
+def sample_heartmula_finite_logits(current_logits_tensor, current_sampling_function, current_torch_module, *current_sampling_arguments, **current_sampling_keywords):
+    if not bool(current_torch_module.isfinite(current_logits_tensor).all()):
+        raise RuntimeError('HeartMuLa 생성 점수에 NaN 또는 무한대가 발생해 오염된 음악 생성을 중단했습니다.')
+    return current_sampling_function(current_logits_tensor, *current_sampling_arguments, **current_sampling_keywords)
+
+
+def configure_heartmula_decoder_attention(current_model_module, current_attention_context, current_math_backend):
+    """ROCm 기본 SDPA에서 NaN이 발생한 코드북 디코더만 수학 구현을 사용한다."""
+    current_original_forward = current_model_module.decoder.forward
+    def execute_decoder_math_attention(*current_forward_arguments, **current_forward_keywords):
+        with current_attention_context(current_math_backend):
+            return current_original_forward(*current_forward_arguments, **current_forward_keywords)
+    current_model_module.decoder.forward = execute_decoder_math_attention
+
+
 def load_heartmula_resident_model(current_model_class,current_model_path,current_torch_module):
     """양자화·CPU 오프로드 없이 고정 모델을 GPU에 로드한다."""
-    return current_model_class.from_pretrained(current_model_path, local_files_only=True,
+    current_loaded_model = current_model_class.from_pretrained(current_model_path, local_files_only=True,
         device_map={'': 'cuda:0'}, dtype=current_torch_module.bfloat16)
+    # 메타 장치에서 생성된 비영속 RoPE 버퍼는 가중치 로딩 시 복원되지 않는다.
+    with current_torch_module.device('cuda:0'):
+        for current_model_module in current_loaded_model.modules():
+            if getattr(current_model_module, 'is_cache_built', None) is False and callable(getattr(current_model_module, 'rope_init', None)):
+                current_model_module.rope_init()
+    from torch.nn.attention import sdpa_kernel, SDPBackend
+    configure_heartmula_decoder_attention(current_loaded_model, sdpa_kernel, SDPBackend.MATH)
+    return current_loaded_model
 
 
 def validate_heartmula_artifacts(current_service_name):
@@ -69,6 +92,7 @@ def execute_heartmula_inference(current_service_name,current_request_record,curr
     import soundfile
     import numpy
     from heartlib import HeartMuLaGenPipeline
+    from heartlib.heartmula import modeling_heartmula as current_heartmula_module
     from heartlib.heartmula.modeling_heartmula import HeartMuLa
     from heartlib.heartcodec.modeling_heartcodec import HeartCodec
     current_model_root = validate_heartmula_artifacts(current_service_name)
@@ -109,6 +133,7 @@ def execute_heartmula_inference(current_service_name,current_request_record,curr
     if current_cache_length > 8192:
         raise ValueError(f'HeartMuLa 컨텍스트 상한 초과: {current_cache_length}')
     current_original_generate = HeartMuLa.generate_frame
+    current_original_sampling = current_heartmula_module.sample_topk
     current_generated_count = 0
     current_eos_observed = False
     def record_heartmula_frame(current_model_instance,*current_frame_arguments,**current_frame_keywords):
@@ -118,7 +143,10 @@ def execute_heartmula_inference(current_service_name,current_request_record,curr
         current_eos_observed = bool(torch.any(current_frame_output[0:1] >= current_music_pipeline.config.audio_eos_id))
         current_metrics_recorder.record_generation_step(current_generated_count)
         return current_frame_output
+    def validate_heartmula_sampling(current_logits_tensor,*current_sampling_arguments,**current_sampling_keywords):
+        return sample_heartmula_finite_logits(current_logits_tensor,current_original_sampling,torch,*current_sampling_arguments,**current_sampling_keywords)
     HeartMuLa.generate_frame = record_heartmula_frame
+    current_heartmula_module.sample_topk = validate_heartmula_sampling
     try:
         with torch.inference_mode():
             current_model_outputs = current_music_pipeline._forward(current_model_inputs,max_audio_length_ms=int(current_request_record['duration_seconds']*1000),**HEARTMULA_SAMPLING_SETTINGS)
@@ -129,8 +157,9 @@ def execute_heartmula_inference(current_service_name,current_request_record,curr
             current_music_pipeline._unload()
     finally:
         HeartMuLa.generate_frame = current_original_generate
+        current_heartmula_module.sample_topk = current_original_sampling
     if current_audio_samples.ndim != 2 or current_audio_samples.shape[1] != 2 or not len(current_audio_samples) or not numpy.isfinite(current_audio_samples).all():
-        raise ValueError('HeartMuLa stereo WAV 유한값 계약 위반')
+        raise ValueError(f'HeartMuLa stereo WAV 유한값 계약 위반: shape={current_audio_samples.shape}, finite={int(numpy.isfinite(current_audio_samples).sum())}/{current_audio_samples.size}')
     current_metrics_recorder.update_generation_stage('saving')
     current_audio_path = current_attempt_root/'music.wav'
     soundfile.write(current_audio_path,current_audio_samples,48000,subtype='PCM_16')

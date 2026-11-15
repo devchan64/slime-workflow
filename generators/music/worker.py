@@ -1,10 +1,21 @@
 """음악 모델 준비·생성을 공용 GPU 실행기 아래에서 수행한다."""
 import argparse
+import os
 from pathlib import Path
 import signal
 import sys
 import traceback
 import uuid
+
+
+def configure_heartmula_memory_allocator(current_environment_values):
+    current_environment_values['PYTORCH_ALLOC_CONF'] = 'expandable_segments:False'
+    current_environment_values.pop('PYTORCH_CUDA_ALLOC_CONF', None)
+
+
+# PyTorch import 또는 GPU 초기화 전에 설정해야 한다.
+if __name__ == '__main__' and 'music-heartmula' in sys.argv:
+    configure_heartmula_memory_allocator(os.environ)
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
@@ -71,6 +82,14 @@ def execute_music_worker(current_service_name,current_job_root):
         current_request_record = verify_music_request(current_service_name,read_music_record(current_job_root/'request.json'))
         write_record_atomically(current_attempt_root/'request.json',current_request_record)
         current_torch_module = current_cuda_callback()
+        if current_service_name == 'music-heartmula':
+            current_allocator_probe = current_torch_module.empty(1, device='cuda')
+            current_allocator_settings = current_torch_module.cuda.memory._snapshot().get('allocator_settings', {})
+            current_allocator_value = current_allocator_settings.get('expandable_segments')
+            write_record_atomically(current_attempt_root/'allocator.json', {'configured': os.environ.get('PYTORCH_ALLOC_CONF'), 'expandable_segments': current_allocator_value})
+            del current_allocator_probe
+            if current_allocator_value is not False:
+                raise RuntimeError('GPU 확장형 할당 해제 여부를 확인하지 못했습니다.')
         current_torch_module.cuda.reset_peak_memory_stats()
         current_device_name = current_torch_module.cuda.get_device_name()
         current_metrics_recorder.current_run_state['gpu_name'] = current_device_name

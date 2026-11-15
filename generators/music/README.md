@@ -17,6 +17,8 @@
 
 캐시는 `.model/music/music-heartmula/`만 사용한다. 모델 준비는 로컬 파일·인덱스와 해시를 검사한다. 모델 파일 준비와 실제 GPU 생성 검증은 다르며 누락·실패 시 원인을 고쳐야 한다. Demucs는 준비 단계에서 공식 체크포인트 다운로드와 해시 검증을 수행한다.
 
+2026-11-15 AMD ROCm 검증에서는 기존 공용 ROCm PyTorch `2.13.0+rocm10.0.0`를 전용 환경에서 참조하고 AMD 저장소의 `torchaudio 2.11.0.2+rocm10.0.0`을 사용했다. HeartLib의 의존성 메타데이터는 이 PyTorch 버전 범위를 허용하지 않으므로 자동 의존성 설치로 공용 PyTorch를 교체하지 않는다. 전용 환경의 Transformers `4.57.0`, tokenizers `0.22.1`, huggingface-hub `0.36.0`, datasets `4.4.1` 조합으로 5초 GPU 생성과 Demucs 분리를 검증했다. Transformers 5에서는 코덱 가중치 누락이 관측됐다. 이 검증은 긴 곡의 완성도나 모든 GPU 환경을 보장하지 않는다.
+
 ## 2. 예제 선택과 입력
 
 **예제 프롬프트 목록 → 이전/다음 예제 페이지 → 예제 선택 → 선택한 예제를 폼에 불러오기**를 누른다. 30개 맵 예제와 안개 호수 허스키 보컬 비교 예제, 총 31개를 페이지당 10개씩 표시한다. 페이지 이동은 해당 페이지 첫 예제를 미리 보며, 예제 선택만으로 입력을 바꾸지 않는다. 불러오기는 현재 입력을 덮어쓰지만 작업을 접수하지 않는다. 제작 기준 예제는 [heartmula/examples.yaml](heartmula/examples.yaml)에서 Git으로 관리한다. 이전 8행 실험 파일 [iseulon_vocal_mr.yaml](heartmula/iseulon_vocal_mr.yaml)은 과거 재현 입력이다.

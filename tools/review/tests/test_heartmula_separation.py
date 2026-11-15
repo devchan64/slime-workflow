@@ -33,8 +33,10 @@ class HeartmulaSeparationTests(unittest.TestCase):
             (current_job_root/'result.json').write_text(json.dumps(current_result_record))
             current_music_manager = MusicGenerationManager('music-heartmula')
             current_status_record = current_music_manager.read_music_status(current_job_root,False)
-            current_player_markup = render_audio_generation_result(current_job_root.name,current_status_record,'')
+            current_player_markup = render_audio_generation_result(current_job_root.name,current_status_record,'http://127.0.0.1:8770')
             self.assertEqual(current_player_markup.count('<audio '),3)
+            self.assertNotIn('127.0.0.1', current_player_markup)
+            self.assertIn('src="/music-heartmula/jobs/', current_player_markup)
             self.assertIn('/mr.wav',current_status_record['audio_stems']['mr'])
             self.assertIn('/music.wav',current_status_record['audio'])
             current_status_record['result']['duration_seconds'] = 70.32
