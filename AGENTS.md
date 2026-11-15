@@ -165,6 +165,7 @@
 - If rules conflict, model card I/O policy takes precedence.
 - For Musician-Llama nodes, prioritize natural-language input + pipe/comma MIDI tuple contract.
 - 모델 추론 연산은 AMD GPU의 ROCm 환경에서 수행한다. GPU를 사용할 수 없을 때 CPU 추론으로 대체하지 않고 명확한 원인과 함께 즉시 실패한다. 기존 NVIDIA CUDA 실행 환경은 사용하지 않는다.
+- AMD 추론 환경 확인과 CUDA 이전 시 메모리 영역·데이터 단위·dtype·어텐션·수치 검증은 [ROCm 추론 가이드](workflows/rocm-inference.md)를 따른다. 모델별 실행 정책과 검증 범위는 아래 규칙과 각 생성기 문서를 함께 확인한다.
 - 개발 호스트는 2026-11-14 기준 AMD Ryzen AI Max+ PRO 395와 Radeon 8060S(`gfx1151`), Ubuntu 26.04.1 LTS, Python 3.14.4를 사용한다. 호스트 `rocminfo`에서 ROCm GPU 인식을 확인했다. 환경은 변경될 수 있으므로 작업 전에 다시 확인한다.
 - AMD 모델 실행과 준비는 해당 GPU·OS·Python에 맞는 ROCm PyTorch 및 전처리 런타임을 검증한다. PyTorch의 `torch.cuda` API는 ROCm에서도 사용하므로 이름만으로 NVIDIA 전용 여부를 판정하지 않는다. CUDA 전용 확장·ONNX 실행 공급자·OpenCV 전처리는 AMD 지원 여부를 별도로 확인한다. 패키지 설치가 기존 ROCm PyTorch를 다른 빌드로 교체하지 않도록 확인한다.
 - CUDA에서 ROCm으로 생성기를 이전할 때 실행 완료·출력 파일 존재·유한한 최종 출력만으로 수치 정확도나 생성 품질을 승인하지 않는다. 해당 모델의 실제 입력·정밀도·텐서 크기·마스크·캐시·시드와 GPU 환경을 기록하고, 중간 활성값·어텐션 출력·생성 점수와 최종 결과의 NaN·무한대를 확인한다. 비정상 값이 있으면 원인과 발생 단계를 기록하고 실패 처리하며 임의 치환하거나 결과를 정상 완료로 표시하지 않는다. 음악·이미지·영상의 품질은 별도로 청취·시각 검수한다.

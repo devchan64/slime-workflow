@@ -1,0 +1,67 @@
+# AMD ROCm 추론과 CUDA 전환 가이드
+
+이 문서는 이 저장소의 AMD GPU 추론을 준비하고 CUDA 구현을 ROCm으로 옮길 때의 확인 절차다. 실제 모델의 실행 정책은 해당 생성기 README와 `AGENTS.md`를 함께 따른다. 실행 완료, 수치 정상, 결과 품질 검수는 각각 별도의 결과다.
+
+## 실행 환경 확인
+
+관리도구 환경을 준비한 뒤 저장소 루트에서 확인한다. `rocminfo`와 `amd-smi`는 호스트에 설치된 경우 사용한다.
+
+```bash
+rocminfo
+amd-smi metric -m --json
+amd-smi process --json
+free -h
+.venv/bin/python -c 'import torch; print("PyTorch:", torch.__version__, "ROCm:", torch.version.hip, "GPU 사용 가능:", torch.cuda.is_available()); print("GPU:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "없음")'
+```
+
+ROCm PyTorch도 장치와 API에 `cuda`·`torch.cuda`라는 이름을 사용한다. `torch.version.hip`과 실제 장치를 함께 확인하며 이름만 보고 NVIDIA 빌드로 판정하지 않는다. 의존성 설치 전후 PyTorch 버전·ROCm 빌드와 GPU 인식 여부를 다시 확인하고, CUDA 전용 확장과 전처리 실행 공급자는 AMD 지원을 별도로 검증한다. GPU가 없으면 CPU 추론으로 대체하지 않는다.
+
+## 메모리 영역과 데이터 단위
+
+- `amd-smi metric -m`의 GPU 전체 사용량과 `amd-smi process`의 프로세스별 사용량은 출력의 `unit`을 각각 확인한다. 현행 코드에서는 metric의 MiB와 process의 B를 따로 처리한다. B를 MiB로 바꿀 때는 1,048,576으로 나눈다. 다른 ROCm 버전의 JSON 형식과 단위를 가정하지 않는다.
+- VRAM, GTT, 시스템 RAM의 전체·사용·여유를 각각 기록한다. GTT 여유에서 VRAM 사용량을 다시 빼지 않는다. GTT는 시스템 RAM과 관계가 있으므로 GTT 작업의 예약 가능량은 시스템 `MemAvailable`도 함께 고려한다. 통합 메모리 장치의 숫자를 서로 독립된 물리 메모리로 단순 합산하지 않는다.
+- 대기열은 작업의 메모리 영역과 관측 피크·미사용 예약분을 기준으로 판단한다. 이미 여유량에 반영된 사용량을 예약에서 다시 차감하지 않는다. 샘플이 없는 추정치는 실측 최대치가 아니다. 호스트 RAM 부족도 GPU 여유와 별도로 확인한다.
+- 텐서의 dtype과 단위도 명시한다. BF16 가중치를 FP32 기본 메타 모델에 주입할 때 암묵적 형변환이 일어나지 않도록 실제 적재 후 dtype·장치와 메모리 사용량을 검사한다. 이미지 픽셀 범위, 잠재값 스케일, 프레임 수와 fps를 CUDA 기준 입력과 동일하게 맞춘다.
+
+프로젝트의 일반 GPU 추론은 모델별 정책에 따라 CPU 메모리 오프로드를 허용할 수 있지만 CPU 연산 대체는 허용하지 않는다. **Wan 2.2 VACE와 비양자화 이미지 생성·편집 모델은 오프로드 없이 GPU에서 실행**한다. Wan Fun Control도 현재 오프로드 없이 GPU에서 실행한다. 모델 메모리 부족 시 실패하며 자동 양자화·CPU 추론으로 우회하지 않는다. 디스크에서 GPU로 적재하는 동안의 일시적인 호스트 메모리 사용은 구분한다.
+
+## 어텐션과 수치 검증
+
+1. 모델·가중치 리비전과 해시, 입력·시드, 모양, dtype, 마스크·길이, 캐시, GPU·ROCm·PyTorch 버전 및 사용된 어텐션 경로를 기록한다. 같은 조건에서 CUDA와 비교할 때 입력 전처리와 정규화 단위까지 맞춘다.
+2. Q·K·V, 어텐션 출력, 모델 중간 활성값과 스케줄러 잠재값, 최종 출력의 NaN·무한대를 검사한다. 비유한 값은 임의 치환하지 않고 발생 위치와 조건을 저장해 실패 처리한다. 최종 영상·이미지·음성은 별도로 시각·청취 검수한다.
+3. 유한한 Q·K·V에서 비유한 어텐션 출력이 발생하면 실제 입력과 마스크·길이를 보존한다. 같은 GPU와 같은 조건으로 기본 SDPA와 수학 SDPA를 비교한다. 마스크·길이·causal·dropout 등 의미가 달라지는 비교는 동등한 결과로 취급하지 않는다. 큰 입력은 진단 자체의 메모리 사용도 고려한다.
+4. 대체 어텐션은 재현된 경로에만 적용하고 정확도·메모리·속도와 실제 결과를 재검증한다. 패딩 마스크 비활성화 경고는 길이별 불필요한 연산 가능성을 나타내지만, 경고만으로 지연이나 NaN의 원인이라고 확정하지 않는다. GPU 사용률 100%나 heartbeat 갱신만으로 한 스텝의 진척을 증명할 수 없다.
+
+HeartMuLa 코드북 디코더에서는 기본 SDPA의 NaN과 동일 입력의 수학 SDPA 정상 출력을 관측해 그 디코더에만 수학 SDPA를 적용했다. 내부 커널의 근본 원인은 미확인이며 모든 모델에 일반화하지 않는다. 비영속 RoPE 버퍼도 메타 모델 로딩 후 실제 장치에서 초기화됐는지 확인한다.
+
+## 할당과 성능 진단
+
+PyTorch와 GPU 초기화 전에 할당 옵션을 정하고 실제 적용값을 실행 기록에 남긴다. Wan Fun Control의 gfx1151 실험에서는 `expandable_segments:True`와 VAE 조건 불안정이 함께 관측되어 해당 작업자는 `PYTORCH_ALLOC_CONF=expandable_segments:False`를 사용한다. HeartMuLa의 NaN은 `False`에서도 관측됐으므로 이 설정을 모든 문제의 원인이나 해결책으로 단정하지 않는다.
+
+실행 중인 사용자 작업을 방해하지 않는 범위에서 스텝·어텐션 호출 시간, GPU 동기화 시간, 커널, 사용률, 클럭, VRAM·GTT·호스트 RAM과 스왑을 함께 관찰한다. GPU 커널은 비동기이므로 CPU 측 시간만으로 커널 시간을 추정하지 않는다. Wan Fun Control의 진단 옵션 `SLIME_WAN_ATTENTION_PROFILE=1`은 해당 작업의 `attention-profile.jsonl`에 측정값을 남긴다. 진단용 동기화·유한값 검사는 실행 속도에 영향을 줄 수 있으므로 사용 여부를 기록한다.
+
+## Wan 2.2 VACE 예시
+
+모델 준비와 상태 조회는 공용 게이트웨이를 통해 수행한다. `prepare`는 다운로드 및 환경 준비를 시작한다.
+
+```bash
+.venv/bin/python tools/manager.py command wan22-vace model-status
+.venv/bin/python tools/manager.py command wan22-vace prepare
+.venv/bin/python tools/manager.py command wan22-vace history
+```
+
+요청 형식과 생성 명령은 [관리 클라이언트 가이드](management-clients.md)와 [VACE README](../generators/wan_vace/README.md)를 따른다. 작업별 `worker.log`, 현재 시도와 `attempts/`의 요청·모델 선택·측정 및 수치 오류 기록을 함께 확인한다. 다운로드 상태의 전송량과 모델 파일 준비 여부는 별개다.
+
+2026-11-15의 65프레임 BF16 VACE 작업은 첫 스텝에서 장시간 실행 중이었고 GPU 사용률 100%와 SDPA 패딩 경고가 관측됐다. 이는 성능 원인이나 전체 생성 성공, NaN 부재를 입증하지 않는다. 해당 실행의 완료·수치 기록과 결과 품질을 따로 확인해야 한다. Wan Fun Control의 9프레임·10스텝 반복 실험은 해당 GPU·입력의 결과이며 VACE나 긴 영상의 검증으로 대체하지 않는다.
+
+## 저장소 이력 근거
+
+| 커밋 | 확인한 내용 |
+| --- | --- |
+| `3b3cfc0e` | AMD SMI 프로세스 메모리 출력 구조와 바이트 단위 확인 |
+| `d9a4d752` | GTT·VRAM 분리 및 시스템 가용 RAM을 고려한 대기열 계산 |
+| `47dc9967`, `5189a80f` | Wan 어텐션 시간·커널 진단과 GPU 적재·어텐션 경로 개선 |
+| `a7d11326` | Wan Fun의 FP32 VAE, 조건값 검사와 할당 옵션별 실험 |
+| `68a3f7bb` | HeartMuLa의 비유한 점수 검사, RoPE 초기화와 디코더 한정 수학 SDPA |
+
+현재 워크트리의 VACE BF16 적재 및 수치 검사 변경은 별도의 미커밋 작업일 수 있다. 실행 기록의 소스 해시로 실제 적용 버전을 확인하고, 해당 변경이나 장시간 실행을 위 커밋의 완료 검증으로 취급하지 않는다.

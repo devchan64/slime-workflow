@@ -74,3 +74,5 @@ self-attention에서 앞 7잠재 슬롯의 질의가 뒤쪽 슬롯을 참조하�
 ## AMD ROCm 실행 환경
 
 ROCm PyTorch는 AMD GPU에서도 `torch.cuda`와 `cuda` 장치 이름을 사용한다. 실행은 BF16 지원 AMD GPU가 필요하며 GPU 백엔드·버전·모델 해시를 기록한다. 모델 및 활성값의 CPU 오프로드는 사용하지 않는다. AMD 전체 생성·메모리 한계는 별도 검증해야 한다.
+
+CUDA 전환 시 데이터 단위·dtype·어텐션과 NaN 검증 절차는 [ROCm 추론 가이드](../../workflows/rocm-inference.md)를 따른다.
