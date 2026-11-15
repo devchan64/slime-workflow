@@ -53,13 +53,16 @@ class QwenPlainGenerationTests(unittest.TestCase):
                 return SimpleNamespace(images=[Image.new('RGB', (512,512))])
             current_pipeline_mock.side_effect = execute_mock_pipeline
             current_diffusers_module = SimpleNamespace(QwenImage21Pipeline=SimpleNamespace(from_pretrained=MagicMock(return_value=current_pipeline_mock)))
-            with patch.dict('sys.modules', {'torch': current_torch_module, 'diffusers': current_diffusers_module}), patch.object(qwen_21_runtime, 'validate_qwen_model_assets', return_value=current_job_root), patch.object(qwen_21_runtime.threading, 'Thread'):
+            with patch.dict('sys.modules', {'torch': current_torch_module, 'diffusers': current_diffusers_module}), patch.object(qwen_21_runtime, 'validate_qwen_model_assets', return_value=current_job_root), patch.object(qwen_21_runtime.threading, 'Thread'), patch('generators.common.numerical_guard.check_denoise_latents'):
                 qwen_21_runtime.execute_qwen_reference_generation(current_job_root, {'prompt':'A tree.', 'steps':40,'width':512,'height':512,'seed':1}, [])
             current_progress_record = json.loads((current_job_root/'worker-progress.json').read_text())
             self.assertEqual(current_observed_steps, [1,40])
             self.assertEqual(current_progress_record['stage'], 'postprocess')
             self.assertEqual(current_progress_record['step_total'], 40)
             self.assertTrue((current_job_root/'result.png').is_file())
+            current_pipeline_mock.vae.disable_tiling.assert_called_once()
+            current_pipeline_mock.vae.enable_tiling.assert_not_called()
+            self.assertEqual(json.loads((current_job_root/'result.json').read_text())['vae_tiling'], {'encode': False, 'decode': False})
 
     def test_idle_inference_heartbeat_updates_persisted_timestamp(self):
         from datetime import datetime

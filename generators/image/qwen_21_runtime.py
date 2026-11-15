@@ -82,6 +82,8 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
     try:
         print(f'{datetime.now().isoformat()}/qwen21/load {current_model_root}', flush=True)
         current_pipeline_model = QwenImage21Pipeline.from_pretrained(current_model_root, torch_dtype=torch.bfloat16, local_files_only=True)
+        current_pipeline_model.vae.disable_tiling()
+        print(f'{datetime.now().isoformat()}/qwen21/vae VAE 인코딩·디코딩 타일링 비활성', flush=True)
         if current_job_root.parent.name == 'expression-generator':
             from tools.review.domains.image.expression_generation import validate_expression_adapter, expression_adapter_metadata
             if current_request_record.get('expression_adapter') != expression_adapter_metadata():
@@ -101,8 +103,6 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
                         install_circular_comparison(current_pipeline_model, current_job_root)
                     else:
                         apply_circular_decoder(current_pipeline_model.vae)
-                else:
-                    current_pipeline_model.vae.enable_tiling()
                 print(f'{datetime.now().isoformat()}/qwen21/toroidal 생성 토큰 경계 K/V · {patched_block_count}개 블록 · VAE 설정 {current_request_record["circular_vae"]["vae"]}', flush=True)
             elif current_request_record['circular_vae'] == CIRCULAR_HALO_CONFIGURATION:
                 install_circular_halo_decode(current_pipeline_model, current_job_root)
@@ -112,8 +112,6 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
                 print(f'{datetime.now().isoformat()}/qwen21/circular 기존 디코더 {patched_module_count}개 · XY 순환', flush=True)
             else:
                 raise ValueError('순환 VAE 고정 설정 불일치')
-        else:
-            current_pipeline_model.vae.enable_tiling()
         install_vae_decode_guard(current_pipeline_model.vae, torch)
         current_pipeline_model.to('cuda')
         reference_image_values = []
@@ -155,6 +153,7 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
             'seed': current_request_record['seed'], 'prompt': current_request_record['prompt'],
             'prompt_word_count': len(current_request_record['prompt'].split()),
             'prompt_sha256': hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),
+            'vae_tiling': {'encode': False, 'decode': False},
             'expression_adapter': current_request_record.get('expression_adapter'),
             'circular_vae': current_request_record.get('circular_vae'),
             'peak_gpu_bytes': torch.cuda.max_memory_allocated(), 'quality_warnings': [],
