@@ -57,7 +57,7 @@ def format_writer_detail(current_detail_record):
 def build_writer_agent_interface(review_server_port):
     with gr.Blocks(title='작가 AI 에이전트') as current_interface_blocks:
         build_generator_changelog(current_interface_blocks, 'writer-agent')
-        gr.Markdown('## 작가 AI 에이전트\n문서 학습·작성 제안·변경 검토·실행 기록을 관리합니다.')
+        gr.Markdown('## 작가 AI 에이전트\n문서를 색인한 뒤 작성 제안을 만들고, 근거와 변경 내용을 검토합니다. 원본에는 확인 후 적용합니다.')
         current_detail_state=gr.State({})
         current_feedback_text=gr.Textbox(label='작업 안내',interactive=False)
         gr.Markdown('### 모델 파일 확인\n모델 파일 준비 상태를 확인합니다. 문서 연결과 ROCm 실행 환경 준비는 별도로 확인합니다.')
@@ -65,7 +65,7 @@ def build_writer_agent_interface(review_server_port):
         def execute_writer_model_status(current_command_name, current_payload_record):
             return execute_remote_management_command('writer-agent', current_command_name, current_payload_record)
         build_model_readiness_controls(current_interface_blocks, execute_writer_model_status)
-        gr.Markdown('### 1. 문서 학습\n원문을 바꾸지 않고 검색용 색인을 만듭니다. 문서를 수정한 뒤 학습을 갱신하세요.')
+        gr.Markdown('### 1. 문서 학습\n처음에는 **학습 · 색인 갱신**을 눌러 주세요. 문서 원문은 변경하지 않으며, 변경된 문서는 다시 학습해야 검색에 반영됩니다.')
         current_workspace_text=create_copyable_log_textbox(label='문서·색인·기록 경로',interactive=False,lines=3)
         current_readiness_text=gr.Textbox(label='준비 상태',interactive=False)
         from tools.review.common.gradio_model_download import build_model_progress_display
@@ -74,14 +74,14 @@ def build_writer_agent_interface(review_server_port):
             current_prepare_button=gr.Button('환경 준비',interactive=False)
             current_learn_button=gr.Button('학습 · 색인 갱신',interactive=False)
             current_refresh_button=gr.Button('새로고침')
-        gr.Markdown('### 2. 아이디어와 작성 지시')
-        current_prompt_input=gr.Textbox(label='추가하고 싶은 내용이나 정리할 범위',lines=4,max_length=6000)
+        gr.Markdown('### 2. 아이디어와 작성 지시\n원하는 내용과 참고할 범위를 적고 작성 제안을 요청하세요. 결과는 아래 실행 기록에서 확인합니다.')
+        current_prompt_input=gr.Textbox(label='추가하고 싶은 내용이나 정리할 범위',placeholder='예: 마을 시장의 운영 방식을 기존 설정에 맞게 구체화해 주세요.',lines=4,max_length=6000)
         with gr.Row():
             current_write_button=gr.Button('관련 문서 탐색 · 작성 제안',variant='primary',interactive=False)
             current_deduplicate_button=gr.Button('중복 검토',interactive=False)
         current_write_notice=gr.Markdown('아이디어나 작성 지시를 입력하세요. 준비 상태도 확인하세요.')
         gr.Markdown('중복 검토는 입력을 비우면 전체 색인을 비교합니다. 삭제 후보는 아래에서 검토한 뒤 원본에 적용합니다.')
-        gr.Markdown('### 3. 실행 기록')
+        gr.Markdown('### 3. 실행 기록과 결과 검토\n작업을 선택하고 **결과 조회**를 누르세요. 작성 제안은 변경 미리보기와 근거를 검토한 뒤 적용할 수 있습니다.')
         current_history_table=gr.Dataframe(headers=['ID','작업','상태','요약'],datatype='str',interactive=False,wrap=True)
         current_history_choice=gr.Dropdown(label='실행 기록 선택',choices=[],interactive=True)
         current_detail_button=gr.Button('결과 조회',interactive=False)
@@ -113,8 +113,16 @@ def build_writer_agent_interface(review_server_port):
             current_configured_flag=current_workspace_record.get('configured',False)
             current_ready_flag=current_workspace_record.get('ready',False)
             current_trained_flag=current_workspace_record.get('trained',False)
-            current_workspace_paths='\n'.join(str(current_workspace_record.get(current_path_key,'')) for current_path_key in ('document_root','index_path','state_root')) if current_configured_flag else str(current_workspace_record.get('config_path',''))
-            current_ready_text='실행 중인 작업 완료 후 사용할 수 있습니다.' if current_busy_flag else '운영자가 문서 폴더를 연결해야 합니다.' if not current_configured_flag else '환경 준비를 실행하세요.' if not current_ready_flag else '첫 학습을 실행하세요.' if not current_trained_flag else '색인 있음 · 원문을 수정했다면 학습을 갱신하세요.'
+            current_workspace_paths='\n'.join(current_path_label+': '+str(current_workspace_record.get(current_path_key,'')) for current_path_label,current_path_key in (('문서','document_root'),('색인','index_path'),('기록','state_root'))) if current_configured_flag else '연결 설정: '+str(current_workspace_record.get('config_path',''))
+            current_active_job=next((current_job_record for current_job_record in current_job_records if current_job_record.get('id')==current_workspace_record.get('active_job')),None)
+            if current_busy_flag:
+                current_active_label=WRITER_MODE_LABELS.get(current_active_job.get('mode'),current_active_job.get('mode','작업')) if current_active_job else '작업'
+                current_active_stage=WRITER_STAGE_LABELS.get(current_active_job.get('stage'),current_active_job.get('stage','진행 중')) if current_active_job else '진행 중'
+                current_queue_position=current_active_job.get('queue_position') if current_active_job else None
+                current_queue_notice=f' · GPU 대기 순서 {current_queue_position}번' if current_active_stage=='대기' and current_queue_position else ''
+                current_ready_text=f'{current_active_label} · {current_active_stage}{current_queue_notice} · 완료 후 다음 작업을 시작할 수 있습니다. 실행 기록에서 진행 상황을 확인하세요.'
+            else:
+                current_ready_text='문서 폴더가 연결되지 않았습니다. 운영자가 연결 설정을 완료해야 합니다.' if not current_configured_flag else '환경 준비 버튼을 눌러 ROCm 실행 환경을 준비하세요.' if not current_ready_flag else '첫 학습이 필요합니다. 학습 · 색인 갱신을 눌러 검색용 색인을 만드세요.' if not current_trained_flag else '작성과 중복 검토를 사용할 수 있습니다. 문서 원문을 수정했다면 학습을 갱신하세요.'
             current_job_rows=[[current_job_record['id'],WRITER_MODE_LABELS.get(current_job_record['mode'],current_job_record['mode']),WRITER_STAGE_LABELS.get(current_job_record['stage'],current_job_record['stage']),current_job_record.get('summary') or current_job_record.get('error') or ''] for current_job_record in current_job_records]
             current_job_choices=[(current_job_row[1]+' · '+current_job_row[2]+' · '+current_job_row[0],current_job_row[0]) for current_job_row in current_job_rows]
             return (current_workspace_paths,current_ready_text,current_job_rows,gr.update(choices=current_job_choices,value=current_selected_identifier if current_selected_identifier in [current_job_row[0] for current_job_row in current_job_rows] else None),gr.update(interactive=current_configured_flag and not current_busy_flag),gr.update(interactive=current_configured_flag and current_ready_flag and not current_busy_flag),gr.update(interactive=current_configured_flag and current_ready_flag and current_trained_flag and not current_busy_flag and bool(current_prompt_text.strip())),gr.update(interactive=current_configured_flag and current_ready_flag and current_trained_flag and not current_busy_flag),current_ready_text if not (current_configured_flag and current_ready_flag and current_trained_flag and not current_busy_flag) else '작성 제안을 요청할 수 있습니다.' if current_prompt_text.strip() else '아이디어나 작성 지시를 입력하세요.',gr.update(interactive=any(current_job_row[0]==current_selected_identifier for current_job_row in current_job_rows)),'선택한 실행 기록의 결과를 조회합니다.' if any(current_job_row[0]==current_selected_identifier for current_job_row in current_job_rows) else '실행 기록을 선택하면 결과를 조회할 수 있습니다.')

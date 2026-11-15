@@ -4,6 +4,23 @@ from tools.review.ui.gradio.model_management_app import read_model_job_status, b
 
 
 class ModelManagementTest(unittest.TestCase):
+    def test_download_progress_is_fetched_once_for_all_models(self):
+        from unittest.mock import patch
+        from tools.review.ui.gradio import model_management_app
+        current_interface = model_management_app.build_model_management_interface()
+        current_progress_callbacks = [current_binding for current_binding in current_interface.fns.values()
+                                      if current_binding.fn and current_binding.fn.__name__ == 'refresh_all_download_progress']
+        self.assertEqual(len(current_progress_callbacks), 2)
+        current_status_records = {'records': [{'model': 'Qwen/Qwen-Image-2.1', 'status': 'completed', 'bytes': 10, 'total_bytes': 10}]}
+        with patch.object(model_management_app, 'execute_remote_management_command', return_value=current_status_records) as current_gateway_mock:
+            current_rendered_values = current_progress_callbacks[0].fn()
+        current_gateway_mock.assert_called_once_with('model-downloads', 'download-status', {})
+        self.assertEqual(len(current_rendered_values), len(model_management_app.MODEL_PREPARATION_SERVICES))
+        self.assertTrue(any('Qwen/Qwen-Image-2.1' in current_value for current_value in current_rendered_values))
+        current_individual_progress = [current_binding for current_binding in current_interface.fns.values()
+                                       if current_binding.fn and current_binding.fn.__name__ == 'refresh_model_progress_status']
+        self.assertEqual(current_individual_progress, [])
+
     def test_four_models_have_preparation_controls(self):
         from tools.review.ui.gradio.model_management_app import MODEL_PREPARATION_SERVICES
         current_services = {current_service for _, current_service in MODEL_PREPARATION_SERVICES}
@@ -1009,7 +1026,7 @@ server.serve_forever()
             self.assertEqual(inspect_detached_preparation(current_root_path), 'completed')
 
 class WriterPreparationLifecycleTest(unittest.TestCase):
-    def test_gateway_close_preserves_preparation_but_not_other_writer_jobs(self):
+    def test_gateway_close_preserves_all_writer_jobs(self):
         from unittest.mock import MagicMock, patch
         from generators.writer_agent.management import WriterAgentManager
         current_manager_value = WriterAgentManager()
@@ -1023,7 +1040,7 @@ class WriterPreparationLifecycleTest(unittest.TestCase):
             current_signal_mock.assert_not_called()
             current_manager_value.worker_prepare_flag = False
             current_manager_value.close_writer_worker()
-            current_signal_mock.assert_called_once()
+            current_signal_mock.assert_not_called()
 
     def test_writer_preparation_records_completion_without_gateway_monitor(self):
         import contextlib

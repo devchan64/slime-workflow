@@ -214,4 +214,24 @@ class WriterAgentContracts(TestCase):
         with self.assertRaises(ValueError):resolve_job_directory(self.workspace_config_values,'../escape')
         with self.assertRaises(ValidationError):Draft202012Validator(WRITER_OUTPUT_SCHEMA).validate({'mode':'append'})
 
+class WriterRuntimePreparationTest(TestCase):
+    def test_uses_workflow_uv_when_missing_from_path(self):
+        from generators.writer_agent import prepare
+        with TemporaryDirectory() as current_directory_name:
+            current_test_root=Path(current_directory_name)
+            current_uv_path=current_test_root/'.venv/bin/uv'
+            current_uv_path.parent.mkdir(parents=True)
+            current_uv_path.write_text('')
+            current_uv_path.chmod(0o755)
+            current_hip_path=current_test_root/'rocm/bin/hipcc'
+            current_hip_path.parent.mkdir(parents=True)
+            current_hip_path.touch()
+            current_python_path=current_test_root/'runtime/venv/bin/python'
+            current_python_path.parent.mkdir(parents=True)
+            current_python_path.touch()
+            with patch.object(prepare,'WORKFLOW_REPOSITORY_ROOT',current_test_root), patch.object(prepare,'RUNTIME_PYTHON_PATH',current_python_path), patch.object(prepare,'inspect_gpu_environment',return_value='gfx1151'), patch.object(prepare.shutil,'which',side_effect=lambda current_name: '/usr/bin/g++' if current_name=='g++' else None), patch.dict(prepare.os.environ,{'ROCM_PATH':str(current_test_root/'rocm')}), patch.object(prepare,'execute_logged_command',side_effect=RuntimeError('검증 중단')) as current_command_mock:
+                with self.assertRaisesRegex(RuntimeError,'검증 중단'):
+                    prepare.prepare_runtime_environment()
+            self.assertEqual(current_command_mock.call_args.args[0][0],str(current_uv_path))
+
 if __name__=='__main__':main()

@@ -3,6 +3,7 @@ from pathlib import Path
 from contextlib import closing
 from urllib.parse import urlsplit,parse_qs
 import json
+import fcntl
 import os
 import signal
 import sqlite3
@@ -15,6 +16,8 @@ from .jobs import create_writer_job,resolve_job_directory,update_job_status,read
 from .agent import apply_reviewed_proposal
 from . import prepare
 from tools.review.common.model_prepare_process import inspect_detached_preparation, start_detached_preparation
+from tools.review.common.gpu_job_queue import launch_gpu_process
+from tools.review.common.generation_records import write_record_atomically
 
 WRITER_ROUTE_PREFIX='/writer-agent'
 MAXIMUM_REQUEST_BYTES=32000
@@ -52,13 +55,26 @@ class WriterAgentManager:
         for current_job_root in sorted((Path(current_config_values['state_root'])/'jobs').glob('*'),reverse=True)[:40]:
             if not current_job_root.is_dir() or current_job_root.is_symlink() or not (current_job_root/'status.yaml').is_file():continue
             current_status_values=read_yaml_document(current_job_root/'status.yaml')
-            current_status_values=self.resolve_observed_status(current_status_values)
+            current_status_values=self.resolve_observed_status(current_status_values,current_job_root)
             if current_status_values['stage'] in ACTIVE_JOB_STAGES:current_state_values['active_job']=current_job_root.name
             current_state_values['jobs'].append(current_status_values)
         return current_state_values
 
-    def resolve_observed_status(self,current_status_values):
+    def resolve_observed_status(self,current_status_values,current_job_root=None):
         if current_status_values['stage'] not in ACTIVE_JOB_STAGES:return current_status_values
+        if current_job_root is not None:
+            try:
+                current_queue_record=json.loads((current_job_root/'status.json').read_text())
+                current_supervisor_record=json.loads((current_job_root/'queue-process.json').read_text())
+                current_supervisor_alive=read_process_identity(current_supervisor_record['pid'])==current_supervisor_record['identity'] and current_supervisor_record['identity'] is not None
+                if current_queue_record.get('status') in ('failed','cancelled'):
+                    return {**current_status_values,'stage':'failed' if current_queue_record['status']=='failed' else 'interrupted','error':current_queue_record.get('error') or 'GPU 대기 작업이 중지되었습니다.'}
+                if current_supervisor_alive:
+                    if current_status_values['stage']=='queued':
+                        return {**current_status_values,'queue_position':current_queue_record.get('queue_position'),'summary':current_queue_record.get('message','GPU 실행 대기')}
+                    return current_status_values
+            except (OSError, ValueError, TypeError, KeyError):
+                pass
         if current_status_values['id']==self.worker_job_identifier and self.worker_process_handle and self.worker_process_handle.poll() is None:return current_status_values
         current_process_identifier=current_status_values.get('process_id')
         current_process_identity=current_status_values.get('process_identity')
@@ -67,8 +83,9 @@ class WriterAgentManager:
 
     def launch_writer_process(self,current_request_values):
         current_config_values=load_workspace_config(self.workspace_config_path)
-        with self.request_lock_handle:
-            if self.worker_process_handle and self.worker_process_handle.poll() is None:raise ValueError('이미 작가 에이전트 작업이 실행 중입니다.')
+        with self.request_lock_handle, (Path(current_config_values['state_root'])/'submission.lock').open('a') as current_submission_lock:
+            fcntl.flock(current_submission_lock,fcntl.LOCK_EX)
+            if self.read_workspace_state()['active_job']:raise ValueError('이미 작가 에이전트 작업이 실행 중이거나 대기 중입니다.')
             current_prepare_flag=current_request_values=={'mode':'prepare','prompt':''}
             current_prepare_root = WORKFLOW_REPOSITORY_ROOT/'.local/model-preparation/writer-agent'
             if inspect_detached_preparation(current_prepare_root) == 'running':
@@ -80,20 +97,17 @@ class WriterAgentManager:
             current_job_root=resolve_job_directory(current_config_values,current_job_identifier)
             if current_prepare_flag:
                 save_yaml_document(current_job_root/'request.yaml',current_request_values)
-                update_job_status(current_job_root,'preparing',mode='prepare')
+                update_job_status(current_job_root,'queued',mode='prepare')
                 current_command_values=[sys.executable,'-m','generators.writer_agent.prepare','--run-dir',str(current_job_root)]
-                try:
-                    self.worker_process_handle=start_detached_preparation(current_prepare_root,current_command_values,WORKFLOW_REPOSITORY_ROOT,return_process_value=True,current_log_path=current_job_root/'worker.log')
-                except OSError as current_launch_error:
-                    update_job_status(current_job_root,'failed',error='모델 준비 프로세스를 시작하지 못했습니다.')
-                    raise ValueError('모델 준비 프로세스를 시작하지 못했습니다.') from current_launch_error
-                if self.worker_process_handle is None:
-                    update_job_status(current_job_root,'failed',error='다른 모델 준비가 이미 실행 중입니다.')
-                    raise ValueError('이미 작가 에이전트 모델 준비가 실행 중입니다.')
             else:
                 current_command_values=[str(prepare.RUNTIME_PYTHON_PATH),'-m','generators.writer_agent.jobs','--config',str(self.workspace_config_path),'--job-id',current_job_identifier]
+            try:
                 with (current_job_root/'worker.log').open('w') as current_worker_log:
-                    self.worker_process_handle=subprocess.Popen(current_command_values,cwd=WORKFLOW_REPOSITORY_ROOT,stdout=current_worker_log,stderr=subprocess.STDOUT,start_new_session=True)
+                    self.worker_process_handle=launch_gpu_process(current_command_values,current_job_root,'writer-agent',cwd=WORKFLOW_REPOSITORY_ROOT,stdout=current_worker_log,stderr=subprocess.STDOUT,start_new_session=True)
+                write_record_atomically(current_job_root/'queue-process.json',{'pid':self.worker_process_handle.pid,'identity':read_process_identity(self.worker_process_handle.pid)})
+            except (OSError, ValueError) as current_launch_error:
+                update_job_status(current_job_root,'failed',error=str(current_launch_error))
+                raise
             self.worker_prepare_flag=current_prepare_flag
             self.worker_job_identifier=current_job_identifier
             current_worker_process=self.worker_process_handle
@@ -107,20 +121,14 @@ class WriterAgentManager:
             return {'id':current_job_identifier,'job_path':str(current_job_root)}
 
     def close_writer_worker(self):
-        with self.request_lock_handle:
-            current_worker_process=self.worker_process_handle
-            if current_worker_process and current_worker_process.poll() is None and not self.worker_prepare_flag:
-                os.killpg(current_worker_process.pid,signal.SIGTERM)
-                try:current_worker_process.wait(timeout=3)
-                except subprocess.TimeoutExpired:
-                    os.killpg(current_worker_process.pid,signal.SIGKILL)
-                    current_worker_process.wait()
+        """공용 대기열 작업은 게이트웨이 종료 후에도 계속 실행한다."""
+        return
 
     def read_writer_detail(self,current_job_identifier):
         current_config_values=load_workspace_config(self.workspace_config_path)
         current_job_root=resolve_job_directory(current_config_values,current_job_identifier)
         if not current_job_root.is_dir():raise ValueError('작업이 없습니다.')
-        current_result_values={'id':current_job_identifier,'job_path':str(current_job_root),'status':self.resolve_observed_status(read_yaml_document(current_job_root/'status.yaml')),'request':read_yaml_document(current_job_root/'request.yaml')}
+        current_result_values={'id':current_job_identifier,'job_path':str(current_job_root),'status':self.resolve_observed_status(read_yaml_document(current_job_root/'status.yaml'),current_job_root),'request':read_yaml_document(current_job_root/'request.yaml')}
         for current_record_name in ('proposal','result','search','application'):
             current_record_path=current_job_root/(current_record_name+'.yaml')
             if current_record_path.exists():

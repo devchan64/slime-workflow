@@ -18,6 +18,7 @@ from tools.review.common.host_memory_guard import start_animate_memory_guard, re
 GPU_QUEUE_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/gpu-queue'
 GPU_MEMORY_REQUIREMENTS = {'momask': 4096, 'character-animation': 6144, 'image': 6144}
 GPU_MEMORY_REQUIREMENTS['wan-fun'] = 30000
+GPU_MEMORY_REQUIREMENTS['writer-agent'] = 16384
 # HY-Motion의 초기 예약은 실측 전 보수적 값이며 완료 후 공용 이력의 peak로 갱신한다.
 # 음악 모델의 초기 예약값. 실제 관측 피크는 공용 메모리 이력이 갱신한다.
 GPU_MEMORY_REQUIREMENTS.update({'music-minimax':7000,'music-magenta':7000,'music-heartmula':20000,'sfx-dasheng-audiogen':20000})
@@ -366,10 +367,10 @@ def list_waiting_gpu_jobs():
             waiting_ticket_record=json.loads(waiting_ticket_path.read_text())
             os.kill(waiting_ticket_record['pid'],0)
             waiting_job_directory=Path(waiting_ticket_record['path'])
-            if not waiting_job_directory.resolve().is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp'):continue
             waiting_status_record=json.loads((waiting_job_directory/'status.json').read_text())
             if waiting_status_record['status']!='queued':continue
             waiting_command_record=json.loads((waiting_job_directory/'gpu-command.json').read_text())
+            if not waiting_job_directory.resolve().is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp') and waiting_command_record.get('service') != 'writer-agent':continue
             waiting_job_records.append({'id':waiting_job_directory.name,'service':waiting_command_record['service']})
         except (FileNotFoundError,ProcessLookupError):continue
     return {'jobs':waiting_job_records}

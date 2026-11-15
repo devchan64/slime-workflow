@@ -6,6 +6,12 @@ from unittest.mock import patch
 from tools.review.common import gpu_memory_history as memory
 
 class MemoryHistoryTests(unittest.TestCase):
+    def test_writer_embedding_observation_preserves_generation_floor(self):
+        with tempfile.TemporaryDirectory() as current_directory_name, patch.object(memory,'MEMORY_HISTORY_DIRECTORY',Path(current_directory_name)):
+            memory.save_memory_observation('writer-agent','learn',2048,2,'completed',command_identity_name='generators.writer_agent.jobs')
+            current_estimate_record=memory.estimate_required_memory('writer-agent',16384,'generators.writer_agent.jobs')
+            self.assertEqual(current_estimate_record['observed_peak_mib'],2048)
+            self.assertEqual(current_estimate_record['required_memory_mib'],16384)
     def test_resident_audio_does_not_reuse_offload_observations(self):
         with tempfile.TemporaryDirectory() as current_directory_name, patch.object(memory, 'MEMORY_HISTORY_DIRECTORY', Path(current_directory_name)):
             memory.save_memory_observation('music-heartmula', 'old', 7000, 3, 'completed', command_identity_name='python')

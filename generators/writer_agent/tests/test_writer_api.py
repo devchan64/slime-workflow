@@ -31,6 +31,41 @@ class WriterApiContracts(TestCase):
         current_status_values['process_identity']='different-process-start'
         self.assertEqual(self.writer_manager_service.resolve_observed_status(current_status_values)['stage'],'interrupted')
 
+    def test_queued_job_survives_manager_restart_and_reports_failure(self):
+        current_job_root=Path(self.temporary_root_handle.name)/'job'
+        current_job_root.mkdir()
+        current_status_values={'id':'test-job','stage':'queued'}
+        (current_job_root/'queue-process.json').write_text(json.dumps({'pid':os.getpid(),'identity':read_process_identity(os.getpid())}))
+        (current_job_root/'status.json').write_text(json.dumps({'status':'queued','queue_position':2,'message':'GPU 대기'}))
+        current_fresh_manager=WriterAgentManager(self.writer_manager_service.workspace_config_path)
+        current_observed_status=current_fresh_manager.resolve_observed_status(current_status_values,current_job_root)
+        self.assertEqual(current_observed_status['stage'],'queued')
+        self.assertEqual(current_observed_status['queue_position'],2)
+        (current_job_root/'status.json').write_text(json.dumps({'status':'failed','error':'GPU 조회 실패'}))
+        current_observed_status=current_fresh_manager.resolve_observed_status(current_status_values,current_job_root)
+        self.assertEqual(current_observed_status['stage'],'failed')
+        self.assertEqual(current_observed_status['error'],'GPU 조회 실패')
+
+    def test_submit_uses_shared_queue_and_rejects_duplicate_after_restart(self):
+        from generators.writer_agent.documents import save_yaml_document
+        current_test_root=Path(self.temporary_root_handle.name)
+        current_documents_root=current_test_root/'docs'
+        (current_documents_root/'ideas').mkdir(parents=True)
+        current_workspace_path=current_test_root/'workspace.yaml'
+        save_yaml_document(current_workspace_path,{'schema_version':1,'document_root':str(current_documents_root),'state_root':str(current_test_root/'state'),'write_roots':['ideas'],'excluded_roots':[],'protected_paths':[],'catalog_path':None})
+        current_manager=WriterAgentManager(current_workspace_path)
+        def launch_mock_queue(current_command_parts,current_job_root,current_service_name,**current_options):
+            self.assertEqual(current_service_name,'writer-agent')
+            (current_job_root/'status.json').write_text(json.dumps({'status':'queued','queue_position':1}))
+            return SimpleNamespace(pid=os.getpid(),poll=lambda:None)
+        with patch('generators.writer_agent.management.launch_gpu_process',side_effect=launch_mock_queue) as current_launch_mock, patch('generators.writer_agent.management.inspect_detached_preparation',return_value='idle'), patch('generators.writer_agent.management.threading.Thread'):
+            current_submitted_job=current_manager.launch_writer_process({'mode':'learn','prompt':''})
+            self.assertEqual(current_launch_mock.call_count,1)
+            current_fresh_manager=WriterAgentManager(current_workspace_path)
+            self.assertEqual(current_fresh_manager.read_workspace_state()['active_job'],current_submitted_job['id'])
+            with self.assertRaisesRegex(ValueError,'대기 중'):
+                current_fresh_manager.launch_writer_process({'mode':'learn','prompt':''})
+
     def test_unconfigured_state_is_visible(self):
         current_http_handler=self.build_request_handler('/writer-agent/api/state')
         self.assertTrue(self.writer_manager_service.handle_writer_request(current_http_handler))

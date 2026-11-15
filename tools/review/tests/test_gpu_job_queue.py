@@ -69,7 +69,7 @@ class GpuJobQueueTests(unittest.TestCase):
         current_event_mock = Mock()
         current_thread_mock = Mock()
         current_guard_result = {'error':'시스템 RAM 보호: 테스트'}
-        with patch.object(queue_module,'read_gpu_memory',return_value=(24000,24000)), patch.object(queue_module.subprocess,'Popen',return_value=current_worker_mock), patch.object(queue_module,'start_animate_memory_guard',return_value=(current_event_mock,current_thread_mock,current_guard_result)):
+        with patch.object(queue_module,'read_gpu_memory',return_value=(98304,98304)), patch.object(queue_module.subprocess,'Popen',return_value=current_worker_mock), patch.object(queue_module,'start_animate_memory_guard',return_value=(current_event_mock,current_thread_mock,current_guard_result)):
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),-9)
         current_status_record = json.loads((self.current_job_path/'status.json').read_text())
         self.assertEqual(current_status_record['status'],'failed')

@@ -147,11 +147,16 @@ def prepare_runtime_environment():
     current_gpu_architecture = inspect_gpu_environment()
     current_rocm_root = Path(os.environ.get('ROCM_PATH', '/opt/rocm'))
     current_hip_compiler = current_rocm_root/'bin/hipcc'
-    if not current_hip_compiler.is_file() or not shutil.which('uv') or not shutil.which('g++'):
+    current_uv_path = shutil.which('uv')
+    if not current_uv_path:
+        current_uv_candidate = WORKFLOW_REPOSITORY_ROOT / '.venv/bin/uv'
+        if current_uv_candidate.is_file() and os.access(current_uv_candidate, os.X_OK):
+            current_uv_path = str(current_uv_candidate)
+    if not current_hip_compiler.is_file() or not current_uv_path or not shutil.which('g++'):
         raise RuntimeError('ROCm hipcc, uv와 g++가 필요합니다.')
     if not RUNTIME_PYTHON_PATH.exists():
-        execute_logged_command(['uv', 'venv', '--python', sys.executable, str(RUNTIME_PYTHON_PATH.parent.parent)])
-    execute_logged_command(['uv', 'pip', 'sync', '--python', str(RUNTIME_PYTHON_PATH), '--require-hashes', str(WORKFLOW_MODULE_ROOT / 'requirements.lock')])
+        execute_logged_command([current_uv_path, 'venv', '--python', sys.executable, str(RUNTIME_PYTHON_PATH.parent.parent)])
+    execute_logged_command([current_uv_path, 'pip', 'sync', '--python', str(RUNTIME_PYTHON_PATH), '--require-hashes', str(WORKFLOW_MODULE_ROOT / 'requirements.lock')])
     current_build_environment = os.environ.copy()
     current_build_environment['PATH'] = str(RUNTIME_PYTHON_PATH.parent) + ':' + str(current_rocm_root/'bin') + ':' + current_build_environment.get('PATH', '')
     source_archive_path = RUNTIME_INSTALL_ROOT / f'{SOURCE_RELEASE_NAME}.tar.gz'

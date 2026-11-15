@@ -55,6 +55,14 @@ class WriterAgentGradioTest(unittest.TestCase):
             self.assertFalse(current_busy_values[6]['interactive'])
             self.assertFalse(current_busy_values[7]['interactive'])
             self.assertIn('완료 후',current_busy_values[8])
+            current_workspace_record['jobs'].append({'id':'job-running','mode':'learn','stage':'indexing'})
+            self.assertIn('문서 학습 · 학습',current_refresh_callback(None)[1])
+            current_workspace_record.pop('active_job')
+            current_workspace_record['trained']=False
+            current_first_values=current_refresh_callback(None)
+            self.assertTrue(current_first_values[5]['interactive'])
+            self.assertFalse(current_first_values[6]['interactive'])
+            self.assertIn('학습 · 색인 갱신',current_first_values[1])
 
     def test_uses_native_components_without_html(self):
         current_interface_blocks=build_writer_agent_interface(8770)
