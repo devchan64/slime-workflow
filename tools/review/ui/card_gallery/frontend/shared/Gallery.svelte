@@ -987,9 +987,9 @@
 		box-shadow:
 			inset 0 0 0 1px var(--ring-color),
 			var(--shadow-drop);
-		border: 1px solid currentColor;
+		border: 1px solid var(--border-color-primary);
 		border-radius: var(--button-small-radius);
-		background: transparent;
+		background: var(--background-fill-secondary);
 		aspect-ratio: var(--ratio-square);
 		width: var(--size-full);
 		height: var(--size-full);
@@ -1098,9 +1098,9 @@
 
 	.card-field-label {
 		flex: none;
-		border: 1px solid var(--border-color-primary);
+		border: 1px solid currentColor;
 		border-radius: var(--radius-sm);
-		background: var(--background-fill-secondary);
+		background: transparent;
 		color: var(--body-text-color-subdued);
 		padding: 0 var(--spacing-xs);
 		font-weight: var(--weight-semibold);
