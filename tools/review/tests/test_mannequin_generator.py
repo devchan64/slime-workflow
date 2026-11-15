@@ -30,6 +30,19 @@ class MannequinGeneratorTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             current_module.load_mannequin_preset('../outside')
 
+    def test_mannequin_service_is_separate_from_general_qwen(self):
+        from tools.review.domains.image.mannequin_generation import MannequinGenerationManager
+        from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager
+        from tools.review.common.management_gateway import MANAGEMENT_SERVICE_ROUTES, MANAGEMENT_SERVICE_COMMANDS
+        from tools.review.domains.image.three_reference_generation import validate_three_reference_job_path
+        current_mannequin_manager = MannequinGenerationManager()
+        current_general_manager = QwenPlainGenerationManager()
+        self.assertNotEqual(current_mannequin_manager.job_storage_root, current_general_manager.job_storage_root)
+        self.assertNotEqual(current_mannequin_manager.history_storage_path(), current_general_manager.history_storage_path())
+        self.assertEqual(MANAGEMENT_SERVICE_ROUTES['mannequin-generator'], '/mannequin-generator')
+        self.assertEqual(MANAGEMENT_SERVICE_COMMANDS['mannequin-generator'], MANAGEMENT_SERVICE_COMMANDS['qwen-21'])
+        self.assertEqual(validate_three_reference_job_path(current_mannequin_manager.job_storage_root / 'example'), (current_mannequin_manager.job_storage_root / 'example').resolve())
+
     def test_page_integrates_with_management_menu(self):
         from tools.review.common.management_asgi import build_management_blocks
         from tools.review.ui.gradio.management_menu_app import DEFAULT_PAGE_RECORDS, resolve_management_page_path
@@ -41,7 +54,13 @@ class MannequinGeneratorTests(unittest.TestCase):
             current_blocks, _ = build_management_blocks('mannequin-generator', 8770, Path('/tmp/no-menu.json'))
         current_labels = [current_item.get('props', {}).get('label') for current_item in current_blocks.config['components']]
         self.assertIn('제작 단계', current_labels)
-        self.assertTrue(any(getattr(current_function.fn, '__name__', '') == 'load_mannequin_preset' for current_function in current_blocks.fns.values()))
+        self.assertIn('제작 단계 프롬프트 예시', current_labels)
+        self.assertLess(current_labels.index('제작 단계'), current_labels.index('프롬프트'))
+        current_preview_callback = next(current_function.fn for current_function in current_blocks.fns.values() if getattr(current_function.fn, '__name__', '') == 'preview_mannequin_stage')
+        current_module = importlib.import_module('generators.mannequin-generator.page.interface')
+        for current_preset_id, current_preset_record in current_module.MANNEQUIN_PRESET_RECORDS.items():
+            self.assertEqual(current_preview_callback(current_preset_id)[3], current_preset_record[3])
+        self.assertTrue(any(getattr(current_function.fn, '__name__', '') == 'apply_mannequin_stage' for current_function in current_blocks.fns.values()))
 
 
 if __name__ == '__main__':

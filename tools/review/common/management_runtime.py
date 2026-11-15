@@ -83,6 +83,7 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.image.billboard_generation import BillboardGuideGenerationManager
     from tools.review.domains.image.prop_generation import PropGenerationManager
     from tools.review.domains.image.vegetation_generation import VegetationGenerationManager
+    from tools.review.domains.image.mannequin_generation import MannequinGenerationManager
     from tools.review.domains.image.expression_generation import ExpressionGenerationManager
     from generators.writer_agent.management import WriterAgentManager
     from generators.writer_agent.documents import DEFAULT_WORKSPACE_CONFIG
@@ -118,6 +119,7 @@ def create_management_runtime(writer_workspace_config=None):
         billboard_generation_service = BillboardGuideGenerationManager()
         prop_generation_service = PropGenerationManager()
         vegetation_generation_service = VegetationGenerationManager()
+        mannequin_generation_service = MannequinGenerationManager()
         expression_generation_service = ExpressionGenerationManager()
         three_reference_service = ImageGenerationManager(three_reference_mode=True)
         floor_generation_service = FloorGenerationManager()
@@ -145,6 +147,7 @@ def create_management_runtime(writer_workspace_config=None):
             'qwen-21-circular': bind_stored_management_service(qwen_circular_service.handle_image_request, qwen_circular_service.job_storage_root),
             'billboard-generator': bind_stored_management_service(billboard_generation_service.handle_image_request, billboard_generation_service.job_storage_root),
             'prop-generator': bind_stored_management_service(prop_generation_service.handle_image_request, prop_generation_service.job_storage_root),
+            'mannequin-generator': bind_stored_management_service(mannequin_generation_service.handle_image_request, mannequin_generation_service.job_storage_root),
             'vegetation-generator': bind_stored_management_service(vegetation_generation_service.handle_image_request, vegetation_generation_service.job_storage_root),
             'building-generator': bind_stored_management_service(handle_building_compatibility_request, billboard_generation_service.job_storage_root),
             'qwen-21': bind_stored_management_service(qwen_plain_service.handle_image_request, qwen_plain_service.job_storage_root),

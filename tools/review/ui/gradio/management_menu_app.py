@@ -43,7 +43,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'billboard-generator','label':'Qwen2.1 빌보드 가이드참조 생성기','path':'/billboard-generator/','category':'image-generation','uiMode':'gradio','description':'높은형·중간형·바닥형 점유 가이드 · 80% 채움 · 벽면 밀착·낮은 판형 · 빌보드 독립 대기열·이력'},
     {'id':'prop-generator','label':'Qwen 2.1 빌보드 소품타입 생성기','path':'/prop-generator/','category':'image-generation','uiMode':'gradio','description':'소품 직교투영 기본 문구 · 레이아웃·자재 참조 · 전용 대기열·이력'},
     {'id':'building-generator','label':'Qwen 2.1 건물 생성기','path':'/building-generator/','category':'image-generation','uiMode':'gradio','description':'직교투영 기본 문구 · 레이아웃 이미지 선택 · 전용 대기열·이력'},
-    {'id':'mannequin-generator','label':'Qwen 2.1 마네킨 생성기','path':'/mannequin-generator/','category':'image-generation','uiMode':'gradio','description':'관절 신체·피부·기본복·얼굴 기준 후보 생성 · Qwen 이력 공유'},
+    {'id':'mannequin-generator','label':'Qwen 2.1 마네킨 생성기','path':'/mannequin-generator/','category':'image-generation','uiMode':'gradio','description':'관절 신체·피부·기본복·얼굴 기준 후보 생성 · 마네킨 전용 이력'},
     {'id':'character-generator','label':'Qwen 2.1 캐릭터 이미지 생성기','path':'/character-generator/','category':'image-generation','uiMode':'gradio','description':'공용 화풍 v1.5.0 원문 · 캐릭터 외관 예시 · Qwen 이력 공유'},
     {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'공용 화풍 v1.5.0 기본 적용 · 투명 배경·참조 이미지 선택'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},

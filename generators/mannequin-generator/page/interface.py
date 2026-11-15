@@ -9,7 +9,7 @@ MANNEQUIN_PRESET_RECORDS = {
     'jointed': ('관절 신체 조정', 'neutral-body-four-directions.png', None, 'Edit image 1 as an articulated neutral body mannequin. Preserve head size, body proportions and pose unless requested. Four views: front, front-quarter, profile, back, in a 2x2 grid. Plain background.'),
     'clothed': ('피부·기본복 적용', 'neutral-body-four-directions.png', None, 'Edit image 1. Replace mechanical joints with skin and add a fitted simple top and shorts. Preserve body proportions, head size, pose and four-view 2x2 layout. Bald, no facial features. Plain background.'),
     'face': ('기본 얼굴 조정', 'neutral-head-basic-four-directions.png', None, 'Edit image 1 as a neutral mannequin head. Preserve head silhouette and facial proportions unless requested. Four views: front, front-quarter, profile, back, in a 2x2 grid. Plain background.'),
-    'face-on-body': ('전신에 얼굴 적용', 'neutral-body-four-directions.png', 'neutral-head-basic-four-directions.png', 'Edit image 1 using image 2 only for facial feature proportions. Preserve image 1 head size, body proportions, pose, mannequin material, joints and four-view 2x2 layout. No hair. Plain background.'),
+    'face-on-body': ('전신에 얼굴 적용', 'neutral-body-four-directions.png', 'neutral-head-basic-four-directions.png', 'Edit only facial features in image 1, using image 2 as reference. Keep image 1 head silhouette and every body part unchanged: positions, outlines, proportions, joints and gray shading. Add eyes, nose and mouth to front, quarter and profile. Preserve exact 2x2 layout and back view. No hair.'),
 }
 
 
