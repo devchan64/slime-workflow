@@ -58,6 +58,11 @@ def build_writer_agent_interface(review_server_port):
         gr.Markdown('## 작가 AI 에이전트\n문서 학습·작성 제안·변경 검토·실행 기록을 관리합니다.')
         current_detail_state=gr.State({})
         current_feedback_text=gr.Textbox(label='작업 안내',interactive=False)
+        gr.Markdown('### 모델 파일 확인\n모델 파일 준비 상태를 확인합니다. 문서 연결과 ROCm 실행 환경 준비는 별도로 확인합니다.')
+        from tools.review.common.gradio_model_download import build_model_readiness_controls
+        def execute_writer_model_status(current_command_name, current_payload_record):
+            return execute_remote_management_command('writer-agent', current_command_name, current_payload_record)
+        build_model_readiness_controls(current_interface_blocks, execute_writer_model_status)
         gr.Markdown('### 1. 문서 학습\n원문을 바꾸지 않고 검색용 색인을 만듭니다. 문서를 수정한 뒤 학습을 갱신하세요.')
         current_workspace_text=create_copyable_log_textbox(label='문서·색인·기록 경로',interactive=False,lines=3)
         current_readiness_text=gr.Textbox(label='준비 상태',interactive=False)

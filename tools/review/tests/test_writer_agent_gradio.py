@@ -6,6 +6,22 @@ from tools.review.ui.gradio.writer_agent_app import build_writer_agent_interface
 
 
 class WriterAgentGradioTest(unittest.TestCase):
+    def test_model_readiness_links_to_management_when_not_ready(self):
+        current_interface_blocks = build_writer_agent_interface(8770)
+        current_links = [current_component for current_component in current_interface_blocks.config['components']
+                         if current_component.get('props', {}).get('value') == '모델 관리로 이동']
+        self.assertEqual(len(current_links), 1)
+        self.assertEqual(current_links[0]['props']['link'], '/management/?tool=model-management&category=model-management')
+        current_refresh_callback = next(current_binding.fn for current_binding in current_interface_blocks.fns.values()
+                                        if current_binding.fn and current_binding.fn.__name__ == 'refresh_model_readiness_status')
+        with patch('tools.review.ui.gradio.writer_agent_app.execute_remote_management_command', return_value={'ready': False, 'message': '모델 파일 준비 필요'}) as current_gateway_mock:
+            current_result_values = current_refresh_callback()
+        current_gateway_mock.assert_called_once_with('writer-agent', 'model-status', {})
+        self.assertFalse(current_result_values[1])
+        self.assertTrue(current_result_values[2]['visible'])
+        with patch('tools.review.ui.gradio.writer_agent_app.execute_remote_management_command', return_value={'ready': True, 'message': '파일 준비 완료'}):
+            self.assertFalse(current_refresh_callback()[2]['visible'])
+
     def test_failed_detail_clears_previous_proposal_and_confirmation(self):
         current_interface_blocks=build_writer_agent_interface(8770)
         current_read_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='read_writer_selection')
