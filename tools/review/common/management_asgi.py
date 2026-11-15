@@ -25,6 +25,7 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'building-editor': ('building_editor_panel', 'build_building_editor_interface', 'port'),
     'world-map': ('world_map_app', 'build_world_review_interface', 'port'),
     'writer-agent': ('writer_agent_app', 'build_writer_agent_interface', 'port'),
+    'prompt-translation': ('prompt_translation_app', 'build_translation_interface', 'none'),
     'sprite-sheet-editor': ('sprite_sheet_editor_app', 'build_sprite_sheet_editor_interface', 'port'),
 }
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}

@@ -38,7 +38,9 @@ def identify_gpu_command(process_identifier):
 
 def read_gpu_status():
     global _status_cache
-    with _status_lock:
+    if not _status_lock.acquire(blocking=False):
+        return _status_cache[1] or {'status':'unavailable','processes':[]}
+    try:
         if time.monotonic()-_status_cache[0] < 3:
             return _status_cache[1]
         try:
@@ -73,3 +75,5 @@ def read_gpu_status():
             record = {'status':'unavailable','processes':[]}
         _status_cache = (time.monotonic(),record)
         return record
+    finally:
+        _status_lock.release()

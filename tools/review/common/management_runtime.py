@@ -102,6 +102,7 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.wan_vace.generation import VaceVideoGenerationManager
     from generators.music.contracts import AUDIO_SERVICE_NAMES
     from tools.review.domains.music.generation import MusicGenerationManager
+    from tools.review.domains.translation.service import TranslationServiceManager
     from tools.review.common.model_download_records import MODEL_DOWNLOAD_RECORD_ROOT
     writer_agent_service = WriterAgentManager(writer_workspace_config or DEFAULT_WORKSPACE_CONFIG)
     try:
@@ -155,6 +156,8 @@ def create_management_runtime(writer_workspace_config=None):
             'momask': ManagementServiceBinding(momask_generation_service.handle, Path(__file__).resolve().parents[3]/'.tmp/momask-generator/jobs', reject_retired_record_access),
             'character-animation': ManagementServiceBinding(character_animation_service.handle, GENERATION_ROOT_DIRECTORY, resolve_generation_directory),
         }
+        current_translation_service = TranslationServiceManager()
+        service_binding_records['prompt-translation'] = bind_stored_management_service(current_translation_service.handle_translation_request, current_translation_service.job_storage_root)
         for current_service_name in AUDIO_SERVICE_NAMES:
             current_music_manager = MusicGenerationManager(current_service_name)
             service_binding_records[current_service_name] = bind_stored_management_service(current_music_manager.handle_music_request,current_music_manager.job_storage_root)

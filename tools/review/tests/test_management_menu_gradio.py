@@ -195,7 +195,8 @@ class ManagementNativeNavigationTests(unittest.TestCase):
         current_panel_record=next(current_record for current_record in current_component_records if current_record.get('props',{}).get('elem_id')=='management-gpu-floating')
         self.assertEqual(current_panel_record['type'],'accordion')
         self.assertFalse(current_panel_record['props']['open'])
-        self.assertTrue(any(current_record['type']=='state' for current_record in current_component_records))
+        self.assertTrue(any(current_record['type']=='json' and not current_record['props']['visible'] for current_record in current_component_records))
+        self.assertFalse(current_interface_blocks.get_config_file()['connect_heartbeat'])
 
     def test_inline_blocks_keep_shared_sidebar_and_remove_frame_sizing(self):
         import gradio as gr

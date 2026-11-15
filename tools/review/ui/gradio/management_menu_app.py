@@ -16,11 +16,12 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_R
 from tools.review.common.gpu_status import read_gpu_status
 from tools.review.common.gradio_error_trace import trace_management_callback
 
-CATEGORY_LABEL_VALUES={'all':'전체','model-management':'모델 관리','map-review':'맵 검수','sound-management':'소리 관리','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation-tool':'애니메이션 도구','game-ui':'게임 UI · 디자인 시스템'}
+CATEGORY_LABEL_VALUES={'all':'전체','model-management':'모델 관리','map-review':'맵 검수','sound-management':'소리 관리','writer-agent':'텍스트 기반','image-generation':'이미지 생성','animation-tool':'애니메이션 도구','game-ui':'게임 UI · 디자인 시스템'}
 LEGACY_SOUND_CATEGORY_NAMES=('music-generation','sound-effects')
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={}
 NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('model-management','dwpose-generator','wan22-animate2-generator','kimodo-generator','wan22-vace-generator','wan22-fun-control-generator','billboard-generator','effect-editor','asset-editor','building-editor','world-map','vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-heartmula','qwen-21-circular-generator','qwen-21-generator','expression-generator','map-review','writer-agent','sprite-sheet-editor'))
+NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {'prompt-translation'}
 DEFAULT_MANAGER_SOURCE_PATH=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json'
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
@@ -44,6 +45,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'building-generator','label':'Qwen 2.1 건물 생성기','path':'/building-generator/','category':'image-generation','uiMode':'gradio','description':'직교투영 기본 문구 · 레이아웃 이미지 선택 · 전용 대기열·이력'},
     {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'공용 화풍·투명 배경 문구 선택 · 참조 이미지 선택'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
+    {'id':'prompt-translation','label':'프롬프트 번역','path':'/management/frame/prompt-translation/','category':'writer-agent','uiMode':'gradio','description':'한국어 → 영어·중국어 · 기능 준비 중'},
     {'id':'expression-generator','label':'Qwen 2.1 표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · AU 표정 39종 · 참조 1~3장'},
 )
 
@@ -372,7 +374,9 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
         with gr.Row(elem_id='management-header'):
             gr.Markdown('## SLIME 관리도구',scale=3)
         with gr.Accordion('GPU 프로세스 정보',open=False,elem_id='management-gpu-floating'):
-            gpu_status_value=gr.State({})
+            # GPU 표시 상태는 페이지 내부에서만 사용한다. gr.State는 각 탭에
+            # 상시 heartbeat 연결을 만들어 브라우저의 연결 한도를 점유한다.
+            gpu_status_value=gr.JSON(value={},visible=False)
             @gr.render(inputs=gpu_status_value, queue=False)
             def render_gpu_process_groups(current_gpu_status):
                 current_group_records = build_gpu_process_groups(current_gpu_status)

@@ -19,6 +19,7 @@ GPU_QUEUE_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/gpu-queue'
 GPU_MEMORY_REQUIREMENTS = {'momask': 4096, 'character-animation': 6144, 'image': 6144}
 GPU_MEMORY_REQUIREMENTS['wan-fun'] = 30000
 GPU_MEMORY_REQUIREMENTS['writer-agent'] = 16384
+GPU_MEMORY_REQUIREMENTS['prompt-translation'] = 12000
 # HY-Motion의 초기 예약은 실측 전 보수적 값이며 완료 후 공용 이력의 peak로 갱신한다.
 # 음악 모델의 초기 예약값. 실제 관측 피크는 공용 메모리 이력이 갱신한다.
 GPU_MEMORY_REQUIREMENTS.update({'music-minimax':7000,'music-magenta':7000,'music-heartmula':20000,'sfx-dasheng-audiogen':20000})
