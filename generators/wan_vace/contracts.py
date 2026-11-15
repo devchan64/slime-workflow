@@ -22,7 +22,7 @@ VACE_MODEL_FILES = {
     'tokenizer': ('.model/wan22-vace/spiece.model', 4548313, 'e3909a67b780650b35cf529ac782ad2b6b26e6d1f849d3fbb6a872905f452458'),
     'vae': ('.model/wan22-animate-components/split_files/vae/wan_2.1_vae.safetensors', 253815318, '2fc39d31359a4b0a64f55876d8ff7fa8d780956ae2cb13463b0223e15148976b'),
 }
-VACE_DEFAULT_SETTINGS = {'mode': 'reference', 'frames': 21, 'steps': 50, 'seed': 42, 'flow_shift': 12.0, 'guidance_scale': 5.0, 'reference_strength': 1.0}
+VACE_DEFAULT_SETTINGS = {'mode': 'reference', 'frames': 21, 'steps': 20, 'seed': 42, 'flow_shift': 12.0, 'guidance_scale': 5.0, 'reference_strength': 1.0}
 VACE_EXPERT_BOUNDARY = 0.875
 VACE_INPUT_MODES = ('text', 'reference', 'first_frame', 'video_edit', 'video_condition', 'pose')
 

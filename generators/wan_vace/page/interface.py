@@ -180,7 +180,7 @@ def build_vace_interface(current_server_address, current_command_callback=None):
         with gr.Group():
             gr.Markdown('### 고급 설정 · 설정값 안내')
             gr.Markdown('[모델카드](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)는 81프레임·16fps 학습과 포즈 등 제어 입력을 설명합니다. 아래 비교값은 [제작자의 제어 영상 + 참조 이미지 예제](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/examples/wan2.2_vace_fun/predict_v2v_control_ref.py)의 설정이며 모든 입력의 최적값이나 품질을 보장하지 않습니다. 값을 직접 바꾸며, 모드 전환 시 자동 적용하지 않습니다.')
-            current_steps_control = gr.Number(value=VACE_DEFAULT_SETTINGS['steps'], precision=0, minimum=2, maximum=100, label='스텝', info='제작자 제어 예제 50. 반복 횟수이며 변경하면 시간과 결과가 달라집니다. 2스텝은 연결 확인용입니다.')
+            current_steps_control = gr.Number(value=VACE_DEFAULT_SETTINGS['steps'], precision=0, minimum=2, maximum=100, label='스텝', info='기본 20, 제작자 제어 예제 50. 반복 횟수이며 변경하면 시간과 결과가 달라집니다. 2스텝은 연결 확인용입니다.')
             current_shift_control = gr.Number(value=VACE_DEFAULT_SETTINGS['flow_shift'], minimum=0.1, maximum=20, label='Flow shift', info='제작자 제어 예제 12. 이 도구의 Euler/FlowMatch 노이즈 시간 배분에 적용됩니다.')
             current_guidance_control = gr.Number(value=VACE_DEFAULT_SETTINGS['guidance_scale'], minimum=1, maximum=10, label='CFG', info='제작자 제어 예제 5. 프롬프트 유도 강도이며 1은 classifier-free guidance를 사용하지 않습니다.')
             current_strength_control = gr.Number(value=VACE_DEFAULT_SETTINGS['reference_strength'], minimum=0.1, maximum=2, label='VACE 조건 강도', info='제작자 제어 예제 1. 제어 영상과 참조 등을 포함한 VACE 조건 전체에 적용하며 외형 참조 전용 강도가 아닙니다.')
