@@ -32,6 +32,9 @@ def describe_music_prompt(current_service_name,current_prompt_text,current_loop_
         current_final_prompt += ' '+current_default_record['loop_suffix']
     if current_service_name == 'sfx-dasheng-audiogen':
         current_final_prompt = '<|caption|> '+current_final_prompt.strip()
+    if current_service_name == 'music-heartmula':
+        current_music_tags = [current_tag_text.strip() for current_tag_text in current_prompt_text.split(',') if current_tag_text.strip()]
+        return f'음악 태그 {len(current_music_tags)}개 · 입력한 태그를 그대로 전달합니다.',current_final_prompt.strip()
     return f'원문 {len(current_prompt_text.split())}단어 · 추가 {len(current_final_prompt.split())-len(current_prompt_text.split())}단어 · 최종 {len(current_final_prompt.split())}단어',current_final_prompt.strip()
 
 
@@ -79,6 +82,8 @@ def build_music_interface(current_service_name,current_server_address):
         if current_heartmula_mode:
             gr.Markdown('**HeartMuLa 3B**: 태그·가사로 원곡 생성 → **Demucs htdemucs**: 보컬·MR 분리 → **WAV + 320kbps MP3** 저장.\n\n'
                         '**사용 순서** · 예제 불러오기 → 입력 확인 → 대기열 등록 → 완료 이력에서 원곡·MR 비교')
+            current_history_jump = gr.Button('생성 이력과 결과로 이동',size='sm')
+            current_history_jump.click(fn=None,js="() => document.getElementById('generation-history-heading')?.scrollIntoView({block: 'start', behavior: 'smooth'})")
             with gr.Accordion('두 모델 소개 · 실행 방식과 품질 안내',open=False):
                 gr.Markdown(f"**HeartMuLa** · `{current_profile_record['model_id']}` · [모델 카드]({current_profile_record['license_url']})\n\n"
                             '**Demucs** · `htdemucs`, 4.0.1 · [공식 저장소](https://github.com/facebookresearch/demucs)\n\n'
@@ -99,7 +104,7 @@ def build_music_interface(current_service_name,current_server_address):
                 pass
         if current_minimax_mode or current_heartmula_mode:
             current_example_records = load_music_examples(current_service_name)
-            with gr.Accordion('예제 프롬프트 목록',open=current_heartmula_mode):
+            with gr.Accordion('예제 프롬프트 목록 · 선택 후 입력에 불러오기',open=False):
                 current_example_selector = build_paginated_example_picker(current_example_records)
                 current_example_preview = preview_music_example(current_example_records[0]['id'],current_service_name)
                 current_example_summary = gr.Markdown(current_example_preview[0])
@@ -113,7 +118,7 @@ def build_music_interface(current_service_name,current_server_address):
         current_vocal_draft = gr.State('')
         current_vocal_control = gr.State('반주') if not current_minimax_mode else gr.Radio(choices=['반주','보컬'],value='반주',label='음악 유형',info='반주는 가창 없이 생성합니다. 보컬은 가사를 입력하고 음악 설명에도 원하는 목소리를 적어 주세요.')
         current_lyrics_control = gr.Textbox(value='',label='가사·구간 태그 · lyrics',lines=6,info='예제를 불러오거나 직접 작성하세요. [Verse], [Chorus], [Outro] 아래에 가사를 입력합니다. MR도 먼저 가사곡을 생성한 뒤 분리합니다.') if current_heartmula_mode else gr.State(None) if not current_minimax_mode else gr.Textbox(value='[Instrumental]',label='가사·구간 구성 · lyrics',lines=6,interactive=False,info='반주는 [Instrumental]. 보컬은 [verse], [chorus]와 가사를 입력하세요. 프롬프트의 보컬 지시와 일치시켜 주세요.')
-        current_prompt_reset = gr.Button('음악 설명만 비우기' if not current_effects_mode else '프롬프트 초기화',size='sm')
+        current_prompt_reset = gr.Button('음악 태그만 비우기' if current_heartmula_mode else '음악 설명만 비우기' if not current_effects_mode else '프롬프트 초기화',size='sm')
         current_prompt_reset.click(lambda:'',outputs=current_prompt_control,queue=False)
         with gr.Row():
             current_length_control = gr.State(None) if current_effects_mode else gr.Number(value=current_default_record['duration_seconds'],minimum=resolve_audio_minimum(current_service_name),maximum=current_profile_record['max_duration_seconds'],label='최대 출력 시간(초) · max_audio_length_ms 환산' if current_heartmula_mode else '생성 길이(초)' if current_magenta_mode else 'audio_duration · 최대 생성 길이(초)',info='5~300초. 기본값 300초(5분). 목표·완결 길이가 아닌 최대 출력 상한이며 EOS가 나오면 먼저 끝납니다.' if current_heartmula_mode else '5~120초 실험 입력. 자연스러운 종결은 보장하지 않습니다.' if current_magenta_mode else '5~120초. 선택한 예제의 상한을 확인하세요. 종료 토큰이 나오면 먼저 끝날 수 있습니다.')
@@ -189,7 +194,7 @@ def build_music_interface(current_service_name,current_server_address):
 
         with gr.Column() as current_generation_container:
             pass
-        gr.Markdown('모델 준비가 없으면 생성 작업에서 먼저 준비합니다. 다운로드 권한·실행 환경 오류는 로그에 기록하며 다른 모델로 대체하지 않습니다.')
+        gr.Markdown('모델 준비와 GPU 실행 검증이 필요하면 위의 모델 준비 메뉴에서 확인하세요. 오류는 실행 로그에서 확인할 수 있습니다.' if current_heartmula_mode else '모델 준비가 없으면 생성 작업에서 먼저 준비합니다. 다운로드 권한·실행 환경 오류는 로그에 기록하며 다른 모델로 대체하지 않습니다.')
         current_job_control = gr.Textbox(label='생성 ID')
         current_status_display = gr.Markdown('실행 관측이 없으면 예상 시간은 계산 중으로 표시합니다.')
         current_result_display = gr.HTML('<p>생성 완료 후 오디오를 표시합니다.</p>')

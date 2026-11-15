@@ -278,7 +278,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     import html
     from tools.review.common.gradio_logs import build_execution_logs,create_copyable_log_textbox
     with gr.Column():
-        gr.Markdown('### 생성 이력',elem_classes=['generation-history-heading'])
+        gr.Markdown('### 생성 이력',elem_id='generation-history-heading',elem_classes=['generation-history-heading'])
         history_count_value=gr.Markdown('이력을 불러오는 중입니다.')
         with gr.Row(equal_height=True):
             history_refresh_button=gr.Button('새로고침',variant='secondary',scale=0,min_width=120)

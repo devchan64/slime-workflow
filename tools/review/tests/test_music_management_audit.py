@@ -1,4 +1,4 @@
-"""두 음악 생성기의 폐기 경계·파일 삭제·UI 갱신 계약을 격리 검증한다."""
+"""음악 생성기의 폐기 경계·파일 삭제·UI 갱신 계약을 격리 검증한다."""
 import json
 from pathlib import Path
 import tempfile
@@ -13,7 +13,7 @@ from tools.review.domains.music.generation import MusicGenerationManager
 class MusicManagementAuditTests(unittest.TestCase):
     def test_retired_model_cannot_return_from_cached_menu(self):
         from tools.review.ui.gradio.management_menu_app import load_manager_page_records
-        self.assertEqual(MUSIC_SERVICE_NAMES,('music-minimax',))
+        self.assertEqual(MUSIC_SERVICE_NAMES,('music-minimax','music-magenta','music-heartmula'))
         self.assertNotIn('music-stable-audio',MANAGEMENT_SERVICE_COMMANDS)
         self.assertNotIn('music-ace-step',MANAGEMENT_SERVICE_COMMANDS)
         with self.assertRaises(ValueError):
@@ -26,23 +26,29 @@ class MusicManagementAuditTests(unittest.TestCase):
             current_menu_path=Path(current_temp_directory)/'menu.json'
             current_menu_path.write_text(json.dumps({'pages':[{'id':'music-ace-step','label':'폐기','path':'/management/frame/music-stable-audio/','category':'music-generation','description':'이전 메뉴'}]}))
             current_music_records=[current_page_record['id'] for current_page_record in load_manager_page_records(current_menu_path) if current_page_record['category']=='sound-management']
-            self.assertCountEqual(current_music_records,[*MUSIC_SERVICE_NAMES,'sfx-dasheng-audiogen'])
+            self.assertCountEqual(current_music_records,['music-heartmula','sfx-dasheng-audiogen'])
 
-    def test_both_services_delete_files_and_reset_hidden_jobs(self):
+    def test_music_services_delete_files_and_reset_hidden_jobs(self):
         for current_service_name in MUSIC_SERVICE_NAMES:
             with self.subTest(service=current_service_name),tempfile.TemporaryDirectory() as current_temp_directory,patch('tools.review.domains.music.generation.launch_gpu_process'):
                 current_test_root=Path(current_temp_directory)
                 current_music_service=MusicGenerationManager(current_service_name)
                 current_music_service.job_storage_root=current_test_root/'jobs'
                 current_music_service.history_storage_root=current_test_root/'history'
+                current_music_service.history_storage_root.mkdir()
                 current_music_service.runtime_python_path=current_test_root/'python'
                 current_music_service.runtime_python_path.touch()
                 current_protected_path=current_test_root/'external-source.wav'
                 current_protected_path.write_bytes(b'protected')
                 current_job_paths=[]
                 for current_job_number in range(3):
-                    current_job_record=current_music_service.create_music_job({'prompt':'flute','seed':current_job_number})
-                    current_job_root=current_music_service.resolve_music_job(current_job_record['id'])
+                    # 폐기된 생성기는 신규 접수가 불가능하므로 이전 이력을 직접 구성한다.
+                    current_job_identifier=f'2026-10-15_00-00-0{current_job_number}-{current_job_number:08x}'
+                    current_job_root=current_music_service.job_storage_root/current_job_identifier
+                    current_job_root.mkdir(parents=True)
+                    current_request_record={'action':'generate','prompt':'flute','seed':current_job_number}
+                    write_record_atomically(current_job_root/'request.json',current_request_record)
+                    write_record_atomically(current_music_service.history_storage_root/(current_job_identifier+'.json'),{'id':current_job_identifier,'created_at':'2026-10-15T00:00:00+09:00','request':current_request_record,'path':str(current_job_root)})
                     write_record_atomically(current_job_root/'status.json',{'status':'completed'})
                     for current_relative_name in ('input.wav','intermediate.bin','attempts/first/music.wav','attempts/first/metrics.json','attempts/second/request.json','attempts/second/worker.log'):
                         current_artifact_path=current_job_root/current_relative_name
@@ -84,12 +90,19 @@ class MusicManagementAuditTests(unittest.TestCase):
             current_callback_records = [current_callback.fn for current_callback in current_interface_blocks.fns.values() if current_callback.fn]
             current_readiness_callback = next(current_callback for current_callback in current_callback_records if current_callback.__name__ == 'refresh_generation_readiness')
             current_cancel_callback = next(current_callback for current_callback in current_callback_records if current_callback.__name__ == 'cancel_generation_confirmation')
-            self.assertFalse(current_readiness_callback(None, '')['interactive'])
-            self.assertTrue(current_readiness_callback(None, 'flute')['interactive'])
-            current_pending_record = {'inputs': ('flute',), 'consumed': False}
-            self.assertFalse(current_readiness_callback(current_pending_record, 'changed')['interactive'])
-            self.assertFalse(current_cancel_callback(current_pending_record, '  ')[2]['interactive'])
-            self.assertTrue(current_cancel_callback(None, 'flute')[2]['interactive'])
+            current_missing_inputs = ('', '[Verse]\nHome', False)
+            current_ready_inputs = ('flute', '[Verse]\nHome', False)
+            current_pending_record = {'inputs': current_ready_inputs, 'consumed': False}
+            with patch('tools.review.ui.gradio.music_app.execute_remote_management_command',return_value={'ready':True}):
+                self.assertFalse(current_readiness_callback(None, *current_missing_inputs)['interactive'])
+                self.assertEqual(current_readiness_callback(None, *current_ready_inputs)['interactive'],current_service_name != 'music-magenta')
+                self.assertFalse(current_readiness_callback(current_pending_record, *current_ready_inputs)['interactive'])
+                self.assertFalse(current_cancel_callback(current_pending_record, *current_missing_inputs)[2]['interactive'])
+                self.assertEqual(current_cancel_callback(None, *current_ready_inputs)[2]['interactive'],current_service_name != 'music-magenta')
+                if current_service_name == 'music-heartmula':
+                    self.assertFalse(current_readiness_callback(None, 'flute', '', False)['interactive'])
+                    with patch('tools.review.ui.gradio.music_app.execute_remote_management_command',return_value={'ready':False}):
+                        self.assertFalse(current_readiness_callback(None, *current_ready_inputs)['interactive'])
 
     def test_deleted_active_record_clears_preview_without_hiding_existing_errors(self):
         from tools.review.ui.gradio.music_app import build_music_interface

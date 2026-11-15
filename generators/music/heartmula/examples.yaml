@@ -120,48 +120,70 @@ examples:
     min_duration_seconds: 0
 - id: grove-vocal-mr-minute
   label: 푸른 숲 · 기승전결 가사곡과 MR
-  description: 어쿠스틱 챔버 포크 · 오보에 선율·비올라·첼로·하프의 교대로 굽은 길과 빛·그늘 대비 표현. 도입 3행 → 변화 3행 → 후렴 6행 → 마무리 3행. 60~90초 안팎을 목표로 하되 실제 길이·악기·전개·종결은
+  description: 어쿠스틱 챔버 포크 · 오보에 선율·비올라·첼로·하프의 교대로 굽은 길과 빛·그늘 대비 표현. 도입 5행 → 변화 5행 → 후렴 6행 → 다리 5행 → 마무리 4행, 총 25행. 실제 길이·악기·전개·종결은
     생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
   source_generation_id: 2026-10-25_17-04-31-610ffd78
   request:
     prompt: acoustic chamber folk,oboe melody,viola,cello,harp,wooded,measured,reflective,female vocals
     lyrics: '[Verse]
 
-      Leaves are dancing in the light
+      Morning gathers in the leaves
 
-      Forest paths are warm and bright
+      Silver dew along the trail
 
-      Morning whispers through the trees
+      Sunlight slips between the trees
+
+      Waking every hidden green
+
+      Where the woodland meets the vale
 
       [Verse]
 
-      Older tracks beneath the fern
+      Older footsteps mark the ground
 
-      Lead us round another turn
+      Ferns unfold beside the bend
 
-      Quiet streams beside us run
+      Far away a stream is calling
+
+      Through the shade its waters wander
+
+      Past the roots where shadows end
 
       [Chorus]
 
-      Gentle branches shelter me
+      Carry me through the green
 
-      Room beneath the emerald tree
+      Where the quiet branches sway
 
-      Through the shade a clearing gleams
+      Every winding path between
 
-      Wider than our morning dreams
+      Leads the wandering heart astray
 
-      Every winding trail can be
+      Till a clearing opens wide
 
-      A little way to wander free
+      And the sun returns to guide
+
+      [Bridge]
+
+      When the afternoon grows still
+
+      Listen to the song of rain
+
+      Every leaf can hold a story
+
+      Every shadow shelters life
+
+      Light will find the path again
 
       [Outro]
 
-      At its edge we rest our feet
+      Evening settles on the moss
 
-      Leaf and sunlight softly meet
+      Golden traces softly fade
 
-      Forest songs will guide us home
+      We will carry home the wonder
+
+      Of the green beneath the shade
 
       '
     duration_seconds: 300
