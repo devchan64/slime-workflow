@@ -221,6 +221,26 @@ def build_history_table_rows(current_history_records):
     return current_table_rows
 
 
+def build_history_dataframe_rows(current_history_records, show_thumbnail_column=True):
+    """썸네일과 줄바꿈된 이력 정보를 좁은 표에 표시한다."""
+    from urllib.parse import quote
+    current_result_rows=[]
+    for current_history_record,current_table_row in zip(current_history_records,build_history_table_rows(current_history_records)):
+        current_status_text,current_created_text,current_settings_text,current_progress_text,current_job_identifier=current_table_row
+        current_detail_text=f'{current_status_text} · {current_created_text}\n{current_settings_text}'
+        if current_progress_text:
+            current_detail_text+=f'\n진행: {current_progress_text}'
+        current_detail_text+=f'\nID: {current_job_identifier}'
+        current_result_row=[current_detail_text]
+        if show_thumbnail_column:
+            current_status_record=current_history_record.get('status')
+            current_image_path=current_history_record.get('image') or (current_status_record.get('image') if isinstance(current_status_record,dict) else None)
+            current_image_markup='![썸네일]('+quote(current_image_path,safe='/:?=&%')+')' if isinstance(current_image_path,str) and current_image_path.startswith('/') and not current_image_path.startswith('//') else '이미지 없음'
+            current_result_row.insert(0,current_image_markup)
+        current_result_rows.append(current_result_row)
+    return current_result_rows
+
+
 def render_history_selection_table(current_history_records,current_selected_identifier=None,server_base_address='',enable_identifier_clipboard=True,show_thumbnail_column=True):
     """첫 열 선택·선택적 썸네일·기본 활성화된 ID 복사를 표시한다."""
     import html
@@ -286,8 +306,8 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             history_page_value=gr.Number(value=1,minimum=1,precision=0,label='페이지 이동',show_label=False,container=False,scale=0,min_width=60,elem_classes=['generation-history-page'])
             history_next_button=gr.Button('다음 →',scale=0,min_width=120,interactive=False)
         history_selection_value=gr.Dropdown(choices=[],value=None,label='이력 선택',info='작업을 선택한 뒤 결과 조회·입력값 불러오기·중지·재개를 사용하세요.',interactive=True,visible=False,elem_id='generation-history-selection')
-        gr.Markdown('첫 번째 열에서 작업을 선택한 뒤 결과 조회·입력값 불러오기·삭제를 사용하세요. 입력값을 불러오면 설정을 확인한 뒤 다시 생성할 수 있습니다.')
-        history_cards_value=gr.HTML(value='',elem_id='generation-history-cards',js_on_load=HISTORY_SELECTION_SCRIPT_PATH.read_text(encoding='utf-8'))
+        gr.Markdown('표의 셀을 선택한 뒤 결과 조회·입력값 불러오기·삭제를 사용하세요. 선택한 ID는 아래에서 복사할 수 있습니다.')
+        history_cards_value=gr.Dataframe(headers=(['썸네일'] if show_thumbnail_column else [])+['생성 정보'], datatype=(['markdown'] if show_thumbnail_column else [])+['str'], column_widths=([80, 200] if show_thumbnail_column else [280]), value=[], interactive=False, type='array', wrap=True, label='생성 이력', elem_id='generation-history-cards')
         (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button, history_priority_button)=build_history_selection_panel(restore_input_callback is not None, allow_individual_delete)
         if allow_individual_delete:
             current_delete_identifier=gr.State('')
@@ -378,21 +398,20 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         selected_history_identifier=current_selected_identifier if current_selected_identifier in [value for _,value in current_choice_values] else None
         # 목록과 선택값을 함께 갱신하여 브라우저와 서버의 선택 상태를 맞춘다.
         selection_update_values = {'choices':current_choice_values, 'value':selected_history_identifier}
-        return gr.update(**selection_update_values),f'총 {len(current_history_records)}건 · {current_page_number} / {current_page_count}페이지' if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),render_history_selection_table(current_page_records,selected_history_identifier,server_base_address,show_thumbnail_column=show_thumbnail_column),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count),gr.update(visible=bool(selected_history_identifier))
+        return gr.update(**selection_update_values),f'총 {len(current_history_records)}건 · {current_page_number} / {current_page_count}페이지' if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),build_history_dataframe_rows(current_page_records,show_thumbnail_column),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count),gr.update(visible=bool(selected_history_identifier))
 
-    def update_selected_card_layout(current_page_number,current_selected_identifier):
-        current_page_updates=read_history_page(current_page_number,current_selected_identifier)
-        return [current_page_updates[index] for index in (3,6)]
-
-    def select_history_table_record(current_selection_event:gr.EventData):
-        current_job_identifier=current_selection_event.identifier
+    def select_history_table_record(current_table_rows, current_selection_event:gr.SelectData):
+        current_row_index=current_selection_event.index[0]
+        if not isinstance(current_row_index,int) or current_row_index<0 or current_row_index>=len(current_table_rows):
+            raise gr.Error('선택한 이력이 없습니다. 목록을 새로고침하세요.')
+        current_job_identifier=current_table_rows[current_row_index][-1].rsplit('\nID: ',1)[-1]
         current_history_records=execute_service_command('history',{}).get('records',[])
         if current_job_identifier not in [current_record_value['id'] for current_record_value in current_history_records]:
             raise gr.Error('선택한 이력이 없습니다. 목록을 새로고침하세요.')
         return gr.update(value=current_job_identifier)
-    history_cards_value.click(select_history_table_record,outputs=history_selection_value,queue=False)
+    history_cards_value.select(select_history_table_record,inputs=history_cards_value,outputs=history_selection_value,queue=False)
 
-    history_selection_value.change(update_selected_card_layout,[history_page_value,history_selection_value],[history_cards_value,history_selected_panel],queue=False)
+    history_selection_value.change(lambda current_selected_identifier: gr.update(visible=bool(current_selected_identifier)),history_selection_value,history_selected_panel,queue=False)
 
     def read_selected_result(current_selected_identifier):
         from tools.review.common.generation_status_display import describe_generation_status
