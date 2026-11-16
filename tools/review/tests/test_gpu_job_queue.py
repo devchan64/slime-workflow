@@ -66,6 +66,7 @@ class GpuJobQueueTests(unittest.TestCase):
     def test_animate_guard_failure_is_recorded_as_failed(self):
         current_worker_path = queue_module.WORKFLOW_ROOT_DIRECTORY/'generators/wan_animate2/worker.py'
         (self.current_job_path/'gpu-command.json').write_text(json.dumps({'command':['python',str(current_worker_path)],'service':'image'}))
+        (self.current_job_path/'request.json').write_text(json.dumps({'frames': 65}))
         current_worker_mock = Mock(returncode=-9)
         current_worker_mock.poll.return_value = -9
         current_event_mock = Mock()

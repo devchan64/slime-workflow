@@ -6,6 +6,26 @@ from unittest.mock import patch
 from tools.review.common import gpu_memory_history as memory
 
 class MemoryHistoryTests(unittest.TestCase):
+    def test_animate_short_run_does_not_reduce_long_run_reservation(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_short_job=current_root_path/'short'
+            current_long_job=current_root_path/'long'
+            current_short_job.mkdir()
+            current_long_job.mkdir()
+            (current_short_job/'request.json').write_text(json.dumps({'frames':5}))
+            (current_long_job/'request.json').write_text(json.dumps({'frames':65}))
+            current_command_values=['python','generators/wan_animate2/worker.py']
+            current_short_profile=memory.identify_execution_command(current_command_values,current_short_job,'vram')
+            current_long_profile=memory.identify_execution_command(current_command_values,current_long_job,'vram')
+            self.assertNotEqual(current_short_profile,current_long_profile)
+            with patch.object(memory,'MEMORY_HISTORY_DIRECTORY',current_root_path/'history'):
+                memory.save_memory_observation('image',current_short_job,57000,2,'completed',command_identity_name=current_short_profile)
+                self.assertEqual(memory.estimate_required_memory('image',6144,current_short_profile)['required_memory_mib'],65536)
+                current_long_estimate=memory.estimate_required_memory('image',6144,current_long_profile)
+                self.assertEqual(current_long_estimate['samples'],0)
+                self.assertEqual(current_long_estimate['required_memory_mib'],65536)
+
     def test_translation_reserves_verifier_memory_despite_old_history(self):
         with tempfile.TemporaryDirectory() as current_directory_name, patch.object(memory, 'MEMORY_HISTORY_DIRECTORY', Path(current_directory_name)):
             memory.save_memory_observation('prompt-translation', 'old', 8500, 2, 'completed', command_identity_name='worker.py')

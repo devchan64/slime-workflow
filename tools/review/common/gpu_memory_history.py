@@ -107,7 +107,7 @@ def estimate_required_memory(service, configured_floor_mib, command_identity_nam
     # 완료된 실측값이 없을 때만 초기 기준을 사용한다.
     required_memory_mib = measured_peak_mib if measured_peak_mib else configured_floor_mib
     # 작가와 번역은 여러 모델을 순차 사용하므로 기존의 작은 모델 실측으로 예약을 줄이지 않는다.
-    if service in {'writer-agent', 'prompt-translation'}:
+    if service in {'writer-agent', 'prompt-translation'} or (isinstance(command_identity_name,str) and command_identity_name.startswith('wan_animate2/worker.py:rocm-unquantized-resident-v1')):
         required_memory_mib = max(configured_floor_mib, measured_peak_mib)
     return {'required_memory_mib':required_memory_mib, 'samples':summary['usable_runs'],
             'retained_runs':summary['retained_runs'], 'observed_peak_mib':measured_peak_mib, 'configured_floor_mib':configured_floor_mib,
@@ -117,6 +117,13 @@ def estimate_required_memory(service, configured_floor_mib, command_identity_nam
 
 def identify_execution_command(command_argument_values, generation_job_directory=None, current_memory_domain=None):
     """이미지는 실행기·해상도·스텝·참조 개수까지 메모리 프로필로 구분한다."""
+    if generation_job_directory is not None and len(command_argument_values)>1 and Path(command_argument_values[1]).parts[-2:] == ('wan_animate2','worker.py'):
+        current_request_record = json.loads((Path(generation_job_directory)/'request.json').read_text())
+        current_frame_count = current_request_record.get('frames')
+        if type(current_frame_count) is not int or current_frame_count <= 0:
+            raise ValueError('Animate2 GPU 메모리 예측에 프레임 수가 필요합니다.')
+        current_profile_name = f'wan_animate2/worker.py:rocm-unquantized-resident-v1:frames={current_frame_count}'
+        return current_profile_name + (f':domain={current_memory_domain}' if current_memory_domain else '')
     current_resident_workers = {('music','worker.py'), ('kimodo','worker.py'), ('wan_animate2','worker.py')}
     for current_argument_value in command_argument_values[1:]:
         current_worker_parts = Path(current_argument_value).parts[-2:]
