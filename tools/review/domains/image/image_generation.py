@@ -161,6 +161,12 @@ class ImageGenerationManager:
     def select_generation_service(self, saved_request_record=None):
         return 'image'
 
+    def launch_generation_worker(self, current_job_root, current_request_record, current_log_handle):
+        return launch_gpu_process([str(self.select_generation_python(current_request_record)),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(current_request_record)),'--job-dir',str(current_job_root)],current_job_root,self.select_generation_service(current_request_record),stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True)
+
+    def resume_generation_job(self, selected_job_directory, saved_request_record, legacy_command_record):
+        return resume_gpu_generation(selected_job_directory, legacy_command_record=legacy_command_record)
+
     def ensure_generation_request_available(self, current_request_record):
         """도메인별 중복 접수 조건을 잠금 안에서 확인한다."""
 
@@ -255,7 +261,7 @@ class ImageGenerationManager:
                         saved_request_record=json.loads((selected_job_directory/'request.json').read_text())
                         saved_command_values=[str(self.select_generation_python(saved_request_record)),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(saved_request_record)),'--job-dir',str(selected_job_directory)]
                         legacy_command_record = {'command':saved_command_values,'service':self.select_generation_service(saved_request_record)}
-                    selected_operation_result = resume_gpu_generation(selected_job_directory, legacy_command_record=legacy_command_record) if current_url_path.endswith('/resume') else cancel_gpu_generation(selected_job_directory)
+                    selected_operation_result = self.resume_generation_job(selected_job_directory, saved_request_record, legacy_command_record) if current_url_path.endswith('/resume') else cancel_gpu_generation(selected_job_directory)
                     send_response_data(200,selected_operation_result)
                     return True
                 if current_url_path == self.route_prefix_value+'/history/reset':
@@ -289,7 +295,7 @@ class ImageGenerationManager:
                         self.history_storage_path().mkdir(parents=True,exist_ok=True)
                         write_record_atomically(self.history_storage_path()/(current_job_identifier+'.json'), {'id':current_job_identifier,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':current_request_record,'status':{'status':'running'},'job_path':str(current_job_root)})
                     with (current_job_root/'worker.log').open('w') as current_log_handle:
-                        self.current_worker_process = launch_gpu_process([str(self.select_generation_python(current_request_record)),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(current_request_record)),'--job-dir',str(current_job_root)],current_job_root,self.select_generation_service(current_request_record),stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True)
+                        self.current_worker_process = self.launch_generation_worker(current_job_root,current_request_record,current_log_handle)
                     self.current_job_identifier = current_job_identifier
                     current_worker_process = self.current_worker_process
                     def watch_worker_exit():

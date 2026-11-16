@@ -4,4 +4,6 @@ FLUX 3 공용 실행기와 용도별 설정을 사용한다. 생성 결과는 �
 
 공용 화풍 v1.5.0 원문을 기본으로 조합한다. 참조 이미지는 최대 두 장이며, 투명 참조는 흰색 배경과 합성한다. FLUX 출력은 RGB이며 투명 배경을 보장하지 않는다. 원본 참조 사본·해시·프롬프트·시드·모델 리비전과 생성기별 별도 이력을 보관하고 입력 복원을 지원한다.
 
-CLI 예시: `.venv/bin/python tools/manager.py command flux-building generate --prompt 'A simple fantasy object' --reference <참조.png> --detach` (필수 참조: 마네킨·빌보드 가이드·건물).
+한국어 건물 디자인을 입력하면 공용 번역 대기열에서 영어로 번역하고 건물 기본 문구·번역문·공용 화풍을 결합한 뒤 이미지 대기열에 자동 등록한다. 번역 실패 시 이미지를 생성하지 않는다. 원문·번역문·번역 작업 ID·검토 항목·최종 프롬프트를 이력에 보존한다. 번역 정확성은 보장되지 않으므로 완료 후 이력에서 확인한다. TranslateGemma 로컬 모델 준비가 필요하다.
+
+CLI 예시: `.venv/bin/python tools/manager.py command flux-building generate --design-ko '나무 기둥과 파란 기와 지붕이 있는 작은 집' --reference <참조.png> --detach`. 기존 영어 `--prompt` 명령은 직접 생성 방식으로 유지한다.

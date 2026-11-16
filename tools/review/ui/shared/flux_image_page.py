@@ -32,7 +32,8 @@ def restore_flux_image_inputs(current_history_record, current_profile_name):
     if any(type(current_request_record.get(name)) is not int or not 256 <= current_request_record[name] <= 1664 or current_request_record[name] % 16 for name in ('width','height')):
         raise gr.Error('저장된 출력 크기가 올바르지 않습니다.')
     current_restored_values = restore_reference_inputs(current_history_record, WORKFLOW_ROOT_DIRECTORY/'.tmp/test'/(current_profile_name+'-generator'),reference_slot_limit=2)
-    current_output_values=(current_user_prompt,current_restored_values[6],current_restored_values[7],current_restored_values[2],current_restored_values[3],current_restored_values[5],current_restored_values[1])
+    current_input_prompt=current_request_record.get('building_design_ko',current_user_prompt) if current_profile_name=='flux-building' else current_user_prompt
+    current_output_values=(current_input_prompt,current_restored_values[6],current_restored_values[7],current_restored_values[2],current_restored_values[3],current_restored_values[5],current_restored_values[1])
     if current_profile_name == 'flux-seamless':
         current_saved_method=current_request_record.get('seamless_method','edge-blend')
         if current_saved_method not in ('global-periodic-v1','circular-vae-v2','circular-vae','edge-blend'): raise gr.Error('저장된 심리스 처리 방식이 올바르지 않습니다.')
@@ -105,12 +106,19 @@ def build_flux_image_page(current_profile_name, current_server_address, current_
         current_default_prompt=''
         if current_profile_name == 'flux-seamless':
             current_default_prompt='Top-down repeatable ground texture with even lighting. Material: '
-        if current_profile_name in ('flux-prop','flux-vegetation','flux-building'):
+        if current_profile_name in ('flux-prop','flux-vegetation'):
             current_source_name={'flux-prop':'prop-qwen-prompt.txt','flux-vegetation':'vegetation-qwen-prompt.txt','flux-building':'building-qwen-prompt.txt'}[current_profile_name]
             current_default_prompt=(WORKFLOW_ROOT_DIRECTORY/'generators/image/config'/current_source_name).read_text().strip().replace('transparent background','plain background')
-        current_prompt_control=gr.Textbox(value=current_default_prompt,label='프롬프트',lines=4)
-        current_final_display=gr.Markdown(describe_flux_image_prompt(current_default_prompt))
-        current_prompt_control.change(describe_flux_image_prompt,current_prompt_control,current_final_display,queue=False)
+        current_prompt_control=gr.Textbox(value=current_default_prompt,label='건물 디자인 (한국어)' if current_profile_name=='flux-building' else '프롬프트',lines=4)
+        if current_profile_name == 'flux-building':
+            from tools.review.domains.image.building_prompt import load_building_base_prompt
+            current_prepared_prompt=load_building_base_prompt().replace('transparent background','plain background')
+            gr.Markdown('한국어 디자인은 번역 대기열에서 영어로 번역한 뒤 건물 기본 문구·공용 화풍과 결합하여 자동 생성합니다. 번역 결과와 검토 항목은 생성 이력에서 확인하세요.')
+            current_prepared_final,current_prepared_style=compose_common_style_prompt(current_prepared_prompt)
+            current_final_display=gr.Markdown(f'**준비 문구 · 번역 전** · 건물 기본 {len(current_prepared_prompt.split())}단어 · 공용 화풍 v{current_prepared_style["version"]} {len(current_prepared_style["prompt"].split())}단어\n\n{current_prepared_final}\n\n번역 완료 후 영어 디자인이 추가되어 최종 모델 입력이 결정됩니다.')
+        else:
+            current_final_display=gr.Markdown(describe_flux_image_prompt(current_default_prompt))
+            current_prompt_control.change(describe_flux_image_prompt,current_prompt_control,current_final_display,queue=False)
         with gr.Row():
             current_first_reference=gr.Image(label='참조 1 · 새 심리스 작업 사용 불가' if current_profile_name=='flux-seamless' else '참조 1',type='pil',image_mode='RGBA')
             current_second_reference=gr.Image(label='참조 2 · 새 심리스 작업 사용 불가' if current_profile_name=='flux-seamless' else '참조 2 (선택)',type='pil',image_mode='RGBA')
@@ -154,6 +162,8 @@ def build_flux_image_page(current_profile_name, current_server_address, current_
                 if current_image_value is not None:
                     current_image_buffer=io.BytesIO(); current_image_value.save(current_image_buffer,format='PNG'); current_image_values.append(base64.b64encode(current_image_buffer.getvalue()).decode())
             current_payload_record={'action':'generate','prompt':current_prompt_text,'images':current_image_values,'width':int(current_width_value),'height':int(current_height_value),'steps':16,'seed':int(current_seed_value),'tag':current_tag_value or ''}
+            if current_profile_name == 'flux-building' and re.search('[가-힣]',current_prompt_text):
+                current_payload_record['building_design_ko']=current_prompt_text
             current_result_record=execute_profile_command('generate',current_payload_record)
             return current_result_record['id'],'대기열에 등록했습니다. 생성 이력을 새로고침해 확인하세요.'
         current_input_controls=[current_prompt_control,current_first_reference,current_second_reference,current_width_control,current_height_control,current_seed_control,current_tag_control]

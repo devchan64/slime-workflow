@@ -166,6 +166,104 @@ class FluxImageGenerationTests(unittest.TestCase):
                 with self.assertRaises(Exception):
                     restore_flux_image_inputs({'id':current_job_identifier,'request':current_saved_record},current_profile_name)
 class FluxBuildingGuideGalleryTests(unittest.TestCase):
+    def test_korean_building_request_keeps_source_and_prepared_prompt(self):
+        current_guide_image = load_building_layout_preset(BUILDING_LAYOUT_PRESET_NAMES[0])
+        current_image_buffer = io.BytesIO()
+        current_guide_image.save(current_image_buffer, format='PNG')
+        current_request_record = FluxImageGenerationManager('flux-building').validate_generation_request({
+            'action':'generate','prompt':'나무 집','building_design_ko':'나무 집',
+            'images':[base64.b64encode(current_image_buffer.getvalue()).decode()],
+            'width':768,'height':768,'steps':16,'seed':42,
+        })
+        self.assertEqual(current_request_record['building_design_ko'],'나무 집')
+        self.assertIn('Match image 1',current_request_record['building_base_prompt'])
+        self.assertIn(current_request_record['building_base_prompt'],current_request_record['prompt'])
+        self.assertNotIn('나무 집',current_request_record['prompt'])
+        self.assertNotIn('translated_design',current_request_record)
+        current_implicit_record=FluxImageGenerationManager('flux-building').validate_generation_request({
+            'action':'generate','prompt':'나무 집','images':[base64.b64encode(current_image_buffer.getvalue()).decode()],
+            'width':768,'height':768,'steps':16,'seed':42,
+        })
+        self.assertEqual(current_implicit_record['building_design_ko'],'나무 집')
+        self.assertEqual(current_implicit_record['prompt'],current_request_record['prompt'])
+
+    def test_translation_pipeline_combines_and_queues_or_stops_on_failure(self):
+        import json
+        from unittest.mock import patch, MagicMock
+        from generators.image import run_flux_building_pipeline as building_pipeline
+        from generators.image.common_art_style import load_common_style_record
+        current_translation_id='2026-11-16_23-01-00-12345678'
+        for current_failure_value in (False,True):
+            with self.subTest(failure=current_failure_value), tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+                current_root_path=Path(current_directory_name).resolve()
+                current_job_path=current_root_path/'.tmp/test/flux-building-generator/2026-11-16_23-00-00-12345678'
+                current_job_path.mkdir(parents=True)
+                (current_job_path/'request.json').write_text(json.dumps({'building_design_ko':'나무 집','building_base_prompt':'A complete building.'},ensure_ascii=False))
+                current_fake_manager=MagicMock()
+                current_translation_record={'id':current_translation_id,'request':{'text':'나무 집','target_language':'en'},'status':{'status':'failed' if current_failure_value else 'completed','error':'모델 오류'},'result':{'text':'A wooden house.','model_id':'translation-model','revision':'revision-1','quality_checks':[],'term_checks':[]}}
+                current_fake_manager.execute_translation_command.side_effect=lambda current_command_name,current_payload_value: {'id':current_translation_id} if current_command_name=='translation-submit' else current_translation_record
+                with patch.object(building_pipeline,'WORKFLOW_ROOT_DIRECTORY',current_root_path), patch.object(building_pipeline,'TranslationServiceManager',return_value=current_fake_manager), patch.object(building_pipeline,'launch_gpu_process') as current_launch_mock:
+                    current_launch_mock.return_value.wait.return_value=0
+                    if current_failure_value:
+                        with self.assertRaisesRegex(ValueError,'번역 실패'):
+                            building_pipeline.execute_building_pipeline(current_job_path)
+                        current_launch_mock.assert_not_called()
+                        self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'failed')
+                    else:
+                        building_pipeline.execute_building_pipeline(current_job_path)
+                        current_launch_mock.assert_called_once()
+                        current_saved_record=json.loads((current_job_path/'request.json').read_text())
+                        self.assertEqual(current_saved_record['translated_design'],'A wooden house.')
+                        self.assertEqual(current_saved_record['translation']['id'],current_translation_id)
+                        self.assertIn('A complete building. A wooden house.',current_saved_record['prompt'])
+                        self.assertEqual(current_saved_record['prompt'].count(load_common_style_record()['prompt']),1)
+
+    def test_translation_pipeline_cancel_does_not_enqueue_work(self):
+        import json
+        from unittest.mock import patch, MagicMock
+        from generators.image import run_flux_building_pipeline as building_pipeline
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_root_path=Path(current_directory_name).resolve()
+            current_job_path=current_root_path/'.tmp/test/flux-building-generator/2026-11-16_23-00-00-87654321'
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'request.json').write_text(json.dumps({'building_design_ko':'나무 집','building_base_prompt':'A complete building.'},ensure_ascii=False))
+            (current_job_path/'cancel.request').touch()
+            current_fake_manager=MagicMock()
+            with patch.object(building_pipeline,'WORKFLOW_ROOT_DIRECTORY',current_root_path), patch.object(building_pipeline,'TranslationServiceManager',return_value=current_fake_manager), patch.object(building_pipeline,'launch_gpu_process') as current_launch_mock:
+                building_pipeline.execute_building_pipeline(current_job_path)
+                current_fake_manager.execute_translation_command.assert_not_called()
+                current_launch_mock.assert_not_called()
+                self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'cancelled')
+
+    def test_building_history_reads_completed_translation_from_job(self):
+        import json
+        from unittest.mock import patch
+        from tools.review.domains.image.image_generation import ImageGenerationManager
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_job_root=Path(current_directory_name)
+            current_identifier_value='2026-11-16_23-00-00-12345678'
+            current_job_path=current_job_root/current_identifier_value
+            current_job_path.mkdir()
+            (current_job_path/'request.json').write_text(json.dumps({'building_design_ko':'나무 집','translated_design':'A wooden house.'},ensure_ascii=False))
+            current_manager_value=FluxImageGenerationManager('flux-building')
+            current_manager_value.job_storage_root=current_job_root
+            with patch.object(ImageGenerationManager,'list_generation_history',return_value=[{'id':current_identifier_value,'request':{'building_design_ko':'나무 집'}}]):
+                current_history_value=current_manager_value.list_generation_history()
+            self.assertEqual(current_history_value[0]['request']['translated_design'],'A wooden house.')
+
+    def test_building_history_displays_translation_and_pending_state(self):
+        from tools.review.common.gradio_history_inputs import collect_saved_input_view, collect_saved_stage_prompts, describe_saved_prompt_counts
+        current_request_record={'building_design_ko':'나무 집','building_base_prompt':'A building.',
+            'common_style':{'version':'1.5.0','prompt':'Soft shading.'},'prompt':'A building. Soft shading.'}
+        self.assertIn('최종 입력 미확정',describe_saved_prompt_counts({'request':current_request_record}))
+        self.assertIn('최종 모델 입력이 확정되지 않습니다',collect_saved_input_view({'request':current_request_record})[0])
+        self.assertNotIn('최종 모델 입력',collect_saved_stage_prompts({'request':current_request_record}))
+        current_request_record.update(translated_design='A wooden house.',prompt='A building. A wooden house. Soft shading.')
+        current_stage_text=collect_saved_stage_prompts({'request':current_request_record})
+        for current_expected_value in ('한국어 디자인\n나무 집','영어 번역\nA wooden house.','건물 기본 문구\nA building.','공용 화풍 v1.5.0','최종 모델 입력'):
+            self.assertIn(current_expected_value,current_stage_text)
+        self.assertIn('영어 번역 3단어',describe_saved_prompt_counts({'request':current_request_record}))
+
     def test_building_request_applies_common_style_once_and_displays_final_prompt(self):
         import hashlib
         from generators.image.common_art_style import load_common_style_record
