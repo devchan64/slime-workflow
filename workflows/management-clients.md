@@ -1,5 +1,9 @@
 # 관리도구 GUI·CLI 클라이언트
 
+> **2026-11-16 Qwen 이미지 계열 아카이브:** `qwen-21`, `qwen-21-circular`, `mannequin-generator`, `billboard-generator`, `prop-generator`, `vegetation-generator`, `building-generator`, `expression`, `seamless-tile`의 신규 생성·재개·우선 실행은 중단했다. 캐릭터 화면은 `qwen-21`을 공유한다. 기존 이력·입력·결과·로그는 기존 경로에서 조회할 수 있고 실행 중 작업은 자동 취소하지 않는다. 아래 이전 Qwen 실행·재개 설명은 과거 계약 기록이다. FLUX 도입 검토는 [FLUX 3 Image Klein 도입 검토](flux-3-image-evaluation.md)를 따른다.
+
+> 검증: 실행 중인 게이트웨이에서 위 9개 서비스의 이력 조회 및 신규 생성 차단을 확인했다. 결과가 있는 마네킨·일반 Qwen·순환 VAE·소품 이력의 PNG를 HTTP 200으로 읽었다. 합성 관리도구 문서의 아카이브 안내는 확인했으나, 이 대화의 브라우저 접근이 불가능하여 실제 화면 조작 검증은 미완료다.
+
 ## 프롬프트 번역 계획
 
 **구현 및 실제 모델 검증 진행 중.** 텍스트 기반 분류의 프롬프트 번역 화면과 `prompt-translation` 게이트웨이는 한국어 원문을 영어 또는 중국어 간체로 번역하는 작업을 공용 GPU 대기열에 접수한다. 결과는 화면에서 확인·수정하여 생성기에 직접 복사한다. 기본 모델은 [TranslateGemma 4B](https://huggingface.co/google/translategemma-4b-it)이며, [공개 비교](https://huggingface.co/ThakiCloud/K-MT-7B-v0.1)의 한국어→영어 FLORES 1,012문장 COMET-22는 0.8742다. 이는 프로젝트 프롬프트의 정확성을 보장하지 않는다. Gemma 약관·접근 조건을 확인하고 사용한다. ROCm BF16으로 실행하며 외부 번역 API는 사용하지 않는다.

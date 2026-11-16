@@ -228,7 +228,7 @@ def build_history_table_rows(current_history_records):
     return current_table_rows
 
 
-def build_history_dataframe_rows(current_history_records, show_thumbnail_column=True):
+def build_history_dataframe_rows(current_history_records, show_thumbnail_column=True,archive_mode_enabled=False):
     """좁은 화면에서도 볼 수 있도록 이력 하나를 한 열에 표시한다."""
     from urllib.parse import quote
     current_result_rows=[]
@@ -372,6 +372,8 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         return '중지를 요청했습니다.' if selected_operation_name=='cancel' else '재개 요청을 접수했습니다. GPU 여유가 생기면 실행합니다.'
     history_priority_button.click(lambda selected_job_identifier:update_selected_generation(selected_job_identifier,'prioritize'),history_selection_value,result_status_value,queue=False)
     def refresh_priority_control(current_selected_identifier, current_status_snapshots=None):
+        if archive_mode_enabled:
+            return gr.update(interactive=False, value='우선 실행 불가 · 아카이브')
         try:
             current_status_record = (current_status_snapshots[current_selected_identifier] if current_status_snapshots is not None else read_existing_generation_status(execute_service_command, current_selected_identifier)) if current_selected_identifier else None
         except (ValueError, RuntimeError, OSError) as current_lookup_error:
@@ -390,6 +392,8 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         if current_status_record is None:
             return gr.update(interactive=False),gr.update(interactive=False)
         current_status_value=current_status_record.get('status')
+        if archive_mode_enabled:
+            return gr.update(interactive=current_status_value in ('running','queued','paused'), value='작업 중지'), gr.update(interactive=False, value='재개 불가 · 아카이브')
         generation_resume_allowed=current_status_record.get('resume_allowed',True)
         return gr.update(interactive=current_status_value in ('running','queued','paused'),value='작업 중지'),gr.update(interactive=generation_resume_allowed and current_status_value in ('failed','cancelled','paused'),value=('다음 단계' if current_status_value=='paused' else '생성 재개') if generation_resume_allowed else current_status_record['resume_block_reason'])
     # 라디오 선택과 수동 목록 변경을 같은 선택 상태에 반영한다. 전체 목록은 주기적으로 갱신하지 않는다.

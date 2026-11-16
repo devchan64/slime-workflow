@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from tools.review.common.management_gateway import ManagementCommandGateway, resolve_management_command, execute_gateway_cli, MANAGEMENT_SERVICE_COMMANDS
 
@@ -113,6 +114,7 @@ class GatewayContractTest(unittest.TestCase):
                     execute_gateway_cli(['help',service_name_value,command_name_value])
                 self.assertEqual(command_exit_context.exception.code,0)
 
+    @patch('tools.review.common.management_gateway.ARCHIVED_QWEN_IMAGE_SERVICES', frozenset())
     def test_gui_and_cli_reach_same_operation(self):
         calls=[]
         def backend_handler(request):
@@ -149,6 +151,7 @@ class GatewayContractTest(unittest.TestCase):
             self.assertTrue(current_job_path.exists())
             self.assertIn('폐기',json.loads(current_request_value.wfile.getvalue())['error'])
 
+    @patch('tools.review.common.management_gateway.ARCHIVED_QWEN_IMAGE_SERVICES', frozenset())
     def test_circular_invalid_prompt_returns_client_error_without_launch(self):
         from unittest.mock import patch
         from tools.review.domains.image.qwen_circular_generation import QwenCircularGenerationManager

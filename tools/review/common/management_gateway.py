@@ -109,7 +109,16 @@ for current_service_name, current_command_names in tuple(MANAGEMENT_SERVICE_COMM
     if 'resume' in current_command_names:
         MANAGEMENT_SERVICE_COMMANDS[current_service_name] += ('prioritize',)
 
+ARCHIVED_QWEN_IMAGE_SERVICES = frozenset((
+    'qwen-21', 'qwen-21-circular', 'mannequin-generator', 'billboard-generator',
+    'prop-generator', 'vegetation-generator', 'building-generator', 'expression',
+    'seamless-tile',
+))
+
+
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
+    if service_command_name in ARCHIVED_QWEN_IMAGE_SERVICES and operation_command_name in ('generate', 'resume', 'prioritize'):
+        raise ValueError('Qwen 이미지 생성기는 아카이브되어 새 생성·재개·우선 실행을 지원하지 않습니다. 기존 이력과 결과는 조회할 수 있습니다.')
     if service_command_name == 'anny':
         raise ValueError('ANNY 속성 렌더러·모델·결과는 폐기되었습니다.')
     if service_command_name == 'anny-landmarks':

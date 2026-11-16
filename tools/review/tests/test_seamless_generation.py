@@ -107,6 +107,7 @@ class SeamlessGenerationTests(unittest.TestCase):
                 self.assertEqual(repeated_tile_image.getpixel((512,512)),(1,2,3))
             self.assertEqual(json.loads((current_job_root/'result.json').read_text())['size'],[256,256])
 
+    @patch('tools.review.common.management_gateway.ARCHIVED_QWEN_IMAGE_SERVICES', frozenset())
     def test_cli_uses_same_request_contract(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             reference_image_path = Path(temporary_directory_name)/'tile.png'

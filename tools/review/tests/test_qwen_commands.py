@@ -18,6 +18,7 @@ COMMAND_MODULE_SPEC.loader.exec_module(COMMAND_MODULE_VALUE)
 
 
 class QwenCommandsTest(unittest.TestCase):
+    @patch.object(COMMAND_MODULE_VALUE, 'ARCHIVED_QWEN_IMAGE_SERVICES', frozenset())
     def test_billboard_generation_service_route(self):
         with patch.object(COMMAND_MODULE_VALUE,'call_management_api',return_value={'id':'isolated','status':'queued'}) as current_api_mock, contextlib.redirect_stdout(io.StringIO()):
             COMMAND_MODULE_VALUE.execute_gateway_arguments('billboard-generator',['generate','--prompt','Quartz rock','--detach'])
@@ -52,6 +53,7 @@ class QwenCommandsTest(unittest.TestCase):
                 self.assertEqual(current_final_text, ' '.join(current_expected_parts))
                 self.assertEqual(len(current_final_text.split()), 2 + len(current_added_text.split()))
 
+    @patch.object(COMMAND_MODULE_VALUE, 'ARCHIVED_QWEN_IMAGE_SERVICES', frozenset())
     def test_active_generation_route(self):
         for service_name_value,route_prefix_value,default_seed_value in [('qwen-21','/image-generation-21',10107)]:
             with patch.object(COMMAND_MODULE_VALUE,'call_management_api',return_value={'id':'2026-09-25_00-00-00-12345678','status':'running'}) as api_call_handle, contextlib.redirect_stdout(io.StringIO()):
@@ -70,6 +72,7 @@ class QwenCommandsTest(unittest.TestCase):
                 COMMAND_MODULE_VALUE.execute_gateway_arguments('qwen-2512', ['generate', '--prompt', 'test'])
             current_api_mock.assert_not_called()
 
+    @patch.object(COMMAND_MODULE_VALUE, 'ARCHIVED_QWEN_IMAGE_SERVICES', frozenset())
     def test_reference_order_and_prompt_file(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             prompt_file_path=Path(temporary_directory_name)/'prompt.txt';prompt_file_path.write_text('참조 사용',encoding='utf-8')
@@ -81,6 +84,7 @@ class QwenCommandsTest(unittest.TestCase):
             self.assertEqual(request_body_value['seed'],42)
             self.assertEqual(request_body_value['steps'],30)
 
+    @patch.object(COMMAND_MODULE_VALUE, 'ARCHIVED_QWEN_IMAGE_SERVICES', frozenset())
     def test_failed_generation_exit_status(self):
         with patch.object(COMMAND_MODULE_VALUE,'call_management_api',side_effect=[{'id':'2026-09-25_00-00-00-12345678'},{'status':'failed','error':'실패'}]), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(COMMAND_MODULE_VALUE.execute_gateway_arguments('qwen-21',['generate','--prompt','test']),1)
