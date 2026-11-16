@@ -311,13 +311,15 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             history_selection_value=gr.Dropdown(choices=[],value=None,label='이력 선택',info='작업을 선택한 뒤 결과 조회·입력값 불러오기·중지·재개를 사용하세요.',interactive=True,visible=False,elem_id='generation-history-selection')
             history_cards_value=build_generation_history_cards()
             with gr.Row():
-                history_count_value=gr.Markdown('이력을 불러오는 중입니다.',scale=0,min_width=230)
-                history_previous_button=gr.Button('← 이전',size='md',scale=0,min_width=72,interactive=False)
-                history_page_value=gr.Number(value=1,minimum=1,precision=0,label='페이지 이동 (입력 후 Enter)',show_label=False,container=False,scale=0,min_width=64,elem_classes=['generation-history-page'])
-                history_next_button=gr.Button('다음 →',size='md',scale=0,min_width=72,interactive=False)
-                gr.Column(scale=1,min_width=0)
-                history_page_size=gr.Dropdown(choices=[(f'{current_page_size}개씩',current_page_size) for current_page_size in (4,8,16,32)],value=CardGallery.DEFAULT_PAGE_SIZE,label='페이지당 항목',show_label=False,container=False,scale=0,min_width=95,interactive=True)
+                history_count_value=gr.Markdown('이력을 불러오는 중입니다.',scale=0,min_width=200)
                 history_refresh_button=gr.Button('새로고침',variant='secondary',size='md',scale=0,min_width=80)
+                gr.Column(scale=1,min_width=0)
+                with gr.Column(scale=0,min_width=260):
+                    with gr.Row(equal_height=True):
+                        history_previous_button=gr.Button('← 이전',size='md',scale=0,min_width=72,interactive=False)
+                        history_page_value=gr.Number(value=1,minimum=1,precision=0,label='페이지 이동 (입력 후 Enter)',show_label=False,container=False,scale=0,min_width=64,elem_classes=['generation-history-page'])
+                        history_next_button=gr.Button('다음 →',size='md',scale=0,min_width=72,interactive=False)
+                history_page_size=gr.Dropdown(choices=[(f'{current_page_size}개씩',current_page_size) for current_page_size in (4,8,16,32)],value=CardGallery.DEFAULT_PAGE_SIZE,label='페이지당 항목',show_label=False,container=False,scale=0,min_width=95,interactive=True)
         (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button, history_priority_button)=build_history_selection_panel(restore_input_callback is not None, allow_individual_delete)
         if allow_individual_delete:
             current_delete_identifier=gr.State('')
