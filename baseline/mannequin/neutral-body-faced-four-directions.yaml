@@ -1,0 +1,48 @@
+schema_version: 1
+version: 1.0.0
+title: 중성형 관절 신체·얼굴 마네킨 4방향
+status: 사용자 지정 · 현재 기준
+image: neutral-body-faced-four-directions.png
+image_sha256: 1fa8c88ba68acc739ddd654e7c67b0215539e92ea4761f9253d0f358d7965464
+source_type: 사용자 지정 생성 결과
+generation_id: 2026-11-16_10-29-54-cff8f9ed
+generator: Qwen/Qwen-Image-2.1
+model_revision: d26bb61231c349cf6b7896fa83353113880e1ba3
+prompt: 'Edit only facial features in image 1, using image 2 as reference. Keep image 1 head silhouette
+  and every body part unchanged: positions, outlines, proportions, joints and original shading. Add eyes,
+  nose and mouth to front, quarter and profile. Preserve exact 2x2 layout and back view. No hair. Refined
+  2D fantasy game illustration with fine warm brown outlines and soft cel shading. Simplify small details
+  into clear grouped shapes while preserving subtle painted texture. Use gently softened shadow transitions,
+  restrained highlights and material-appropriate texture. Keep silhouettes clear and readable.'
+word_count: 89
+prompt_sha256: ad883d9f54d4b429d90e230699e38ed4a4429807c50d9476f21f6c17aa9e0d1d
+reference_images:
+- role: 관절 전신 신체 비율·자세 기준
+  source: baseline/mannequin/neutral-body-four-directions.png
+  sha256: ba091b8110f8b4b56907e7ead9678136327ff83a0cf668cccf6aae36f811c7ad
+  input_snapshot_sha256: e1f9dcc0731e4a69b1c881ae5f2b7e0280c41568abddcc86ba46dd81217a7a83
+- role: 얼굴 이목구비 기준
+  source: baseline/mannequin/neutral-head-basic-four-directions.png
+  sha256: 7d184150559428341d3ce1949e04839289cdb7a67a2e91ca5c6849f3fb3fe546
+  input_snapshot_sha256: 3dbaaf70d37006366798260fd5b34a92f754bdc0ccc919cdd70bea353de9729f
+common_style:
+  id: slime_common_art_style
+  version: 1.5.0
+  sha256: ca366d541fda72a98d6746a0cbf8d01c008398b15f8dcc0226a49cc3231000c7
+width: 768
+height: 1152
+steps: 40
+seed: 10110
+reference_resolution: 1024
+vae_tiling:
+  encode: false
+  decode: false
+layout: 2x2
+order:
+- front
+- front-quarter
+- profile
+- back
+updated_on: '2026-11-16'
+review_note: 사용자가 첨부 이미지와 같은 생성 결과의 베이스라인 적용을 지시했다. JPEG 첨부와 같은 장면의 생성 PNG를 사용했다. 관절형은 캐릭터 신체 비율 참조 목록에
+  포함하지 않는다. 네 방향 실루엣은 대체로 유지되나 신체 세부 비율과 얼굴 동일성은 자동 보장되지 않는다.

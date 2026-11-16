@@ -69,5 +69,8 @@
 
 - [중성형 기본 얼굴](../../../baseline/mannequin/neutral-head-basic-four-directions.png)
 - [생성·등록 기록](../../../baseline/mannequin/neutral-head-basic-four-directions.yaml)
+- [얼굴이 적용된 관절형 전신 기준](../../../baseline/mannequin/neutral-body-faced-four-directions.png) · [생성 기록](../../../baseline/mannequin/neutral-body-faced-four-directions.yaml)
+
+얼굴이 있는 피부·기본복 전신 기준도 별도로 있으며, 관절형 전신은 캐릭터 생성기의 신체 비율 참조 목록에 추가하지 않는다.
 
 사용자가 연구 v10을 채택한 현재 기본형 얼굴이다. 이전 얼굴 연구 원본은 사용자 요청으로 폐기했다.

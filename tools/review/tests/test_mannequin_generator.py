@@ -9,6 +9,20 @@ from tools.review.ui.shared.qwen_generator_page import prepare_reference_image_b
 
 
 class MannequinGeneratorTests(unittest.TestCase):
+    def test_clothed_preset_uses_faced_body_and_preserves_face(self):
+        current_module = importlib.import_module('generators.mannequin-generator.page.interface')
+        current_description, current_preview, current_unused = current_module.preview_mannequin_preset('clothed')
+        current_prompt, current_first_image, current_second_image = current_module.load_mannequin_preset('clothed')
+        self.assertIn('neutral-body-faced-four-directions.png', current_description)
+        self.assertIn('Preserve the existing facial features and expression', current_prompt)
+        self.assertNotIn('no facial features', current_prompt.lower())
+        self.assertEqual(current_preview.tobytes(), current_first_image.tobytes())
+        self.assertIsNone(current_unused)
+        self.assertIsNone(current_second_image)
+        current_request = validate_styled_qwen_request({'action': 'generate', 'prompt': current_prompt, 'images': [base64.b64encode(prepare_reference_image_bytes([current_first_image])[0]).decode()], 'width': 768, 'height': 1152, 'steps': 40, 'seed': 10110})
+        self.assertLess(current_request['qwen21']['prompt_word_count'], 100)
+        self.assertEqual(current_request['common_style_v1']['version'], '1.5.0')
+
     def test_presets_produce_valid_requests(self):
         current_module = importlib.import_module('generators.mannequin-generator.page.interface')
         for current_key in current_module.MANNEQUIN_PRESET_RECORDS:

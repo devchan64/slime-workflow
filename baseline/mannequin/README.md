@@ -4,10 +4,11 @@
 
 - [중성형 피부·기본복 전신 4방향](neutral-body-skin-clothes-four-directions.png) · [출처 및 버전 기록](neutral-body-skin-clothes-four-directions.yaml)
 - [중성형 관절 마네킨 4방향](neutral-body-four-directions.png) · [출처 기록](neutral-body-four-directions.yaml)
+- [얼굴이 있는 중성형 관절 마네킨 4방향](neutral-body-faced-four-directions.png) · [출처 기록](neutral-body-faced-four-directions.yaml)
 - [중성형 기본 얼굴 4방향](neutral-head-basic-four-directions.png) · [출처 및 버전 기록](neutral-head-basic-four-directions.yaml)
 - [캐릭터 생성기 신체 비율 참조 목록](body-reference-catalog.yaml)
 
-관절 마네킨은 보존된 기준 자료이며 생성기의 신체 비율 참조 목록에는 포함하지 않는다. 실험과 이전 버전은 [마네킨 연구 기록](../../prompts/references/mannequin/research/README.md)에 보관한다.
+얼굴 유무와 관계없이 관절 마네킨은 보존된 기준 자료이며 생성기의 신체 비율 참조 목록에는 포함하지 않는다. 얼굴이 있는 피부·기본복 전신 기준도 별도로 존재한다. 실험과 이전 버전은 [마네킨 연구 기록](../../prompts/references/mannequin/research/README.md)에 보관한다.
 
 ## 기준과 사용
 
