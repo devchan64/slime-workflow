@@ -82,8 +82,9 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
         'vae_inference_offload': False,
         'contiguous_long_attention': current_contiguous_enabled,
         'attention_profile_enabled': os.environ.get('SLIME_VACE_ATTENTION_PROFILE', '1') == '1',
+        'vae_sdpa_diagnostic_enabled': os.environ.get('SLIME_VACE_VAE_SDPA_DIAGNOSTIC') == '1',
         'custom_math_patches': 'attention_prefix_frames' in current_request_record,
-        'adapter_source_sha256': {current_source_name: hashlib.sha256((Path(__file__).parent / current_source_name).read_bytes()).hexdigest() for current_source_name in ('official_runtime.py', 'official_full_precision.py', 'sampling.py', 'noise_experiment.py', 'attention_experiment.py', 'numerical_guard.py', 'vae_numerical_guard.py')},
+        'adapter_source_sha256': {current_source_name: hashlib.sha256((Path(__file__).parent / current_source_name).read_bytes()).hexdigest() for current_source_name in ('official_runtime.py', 'official_full_precision.py', 'sampling.py', 'noise_experiment.py', 'attention_experiment.py', 'numerical_guard.py', 'vae_numerical_guard.py', 'vae_attention_diagnostics.py')},
     })
     current_metrics_recorder.update_generation_stage('load')
     current_pipeline_object = load_official_pipeline(current_metrics_recorder, current_request_record['flow_shift'], current_attempt_root)
@@ -156,9 +157,8 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
         return current_callback_values
     current_metrics_recorder.update_generation_stage('encoding')
     from generators.wan_vace.vae_numerical_guard import guard_vace_vae_boundaries
-    with guard_vace_vae_boundaries(current_pipeline_object, current_attempt_root, torch) as current_vae_check_counts:
+    with guard_vace_vae_boundaries(current_pipeline_object, current_attempt_root, torch, os.environ.get('SLIME_VACE_VAE_SDPA_DIAGNOSTIC') == '1') as current_vae_check_counts:
         current_output_tensor=current_pipeline_object(prompt=current_request_record['prompt'],negative_prompt=current_request_record['negative_prompt'],height=480,width=832,num_frames=current_frame_count,num_inference_steps=current_request_record['steps'],guidance_scale=current_request_record['guidance_scale'],generator=torch.Generator(device='cuda').manual_seed(current_request_record['seed']),boundary=.875,shift=current_request_record['flow_shift'],vace_context_scale=current_request_record['reference_strength'],callback_on_step_end=record_official_step,**current_condition_inputs).videos
-    write_record_atomically(current_attempt_root / 'numerical-validation.json', {'attention_calls': current_guard_state['attention_calls'], 'expert_calls': current_guard_state['step'], 'latent_steps_checked': current_request_record['steps'], 'attention_qkv_and_output_checked': True, 'expert_output_checked': True, 'vae_boundary_checks': current_vae_check_counts})
     current_sigma_values = current_pipeline_object.scheduler.sigmas.cpu()
     write_record_atomically(current_attempt_root / 'conditioning.json', {
         'mode': current_request_record['mode'],
@@ -169,6 +169,7 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
     })
     from generators.wan_vace.vae_numerical_guard import check_vace_boundary_values
     check_vace_boundary_values(current_output_tensor, 'final-output', current_attempt_root, torch)
+    write_record_atomically(current_attempt_root / 'numerical-validation.json', {'attention_calls': current_guard_state['attention_calls'], 'expert_calls': current_guard_state['step'], 'latent_steps_checked': current_request_record['steps'], 'attention_qkv_and_output_checked': True, 'expert_output_checked': True, 'vae_boundary_checks': current_vae_check_counts})
     current_frame_arrays=(current_output_tensor[0].permute(1,2,3,0).clamp(0,1).cpu().numpy()*255).round().astype(np.uint8)
     if len(current_frame_arrays)!=current_frame_count:raise ValueError('공식 출력 프레임 수 불일치')
     current_metrics_recorder.update_generation_stage('saving')

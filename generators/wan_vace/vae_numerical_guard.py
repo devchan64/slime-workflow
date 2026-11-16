@@ -1,5 +1,5 @@
 """VACE VAE와 조건 구성 경계의 비유한 값을 감지한다."""
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from functools import wraps
 
 
@@ -23,10 +23,11 @@ def check_vace_boundary_values(current_value_object, current_stage_name, current
 
 
 @contextmanager
-def guard_vace_vae_boundaries(current_pipeline_object, current_attempt_root, current_torch_module):
+def guard_vace_vae_boundaries(current_pipeline_object, current_attempt_root, current_torch_module, current_diagnostic_enabled=False):
     """공식 메서드의 결과를 검사하고 종료 시 원래 메서드를 복원한다."""
     current_replaced_methods = []
     current_check_counts = {}
+    current_diagnostic_state = set()
 
     def wrap_vace_boundary_method(current_owner_object, current_method_name, current_stage_name):
         current_original_method = getattr(current_owner_object, current_method_name)
@@ -35,7 +36,13 @@ def guard_vace_vae_boundaries(current_pipeline_object, current_attempt_root, cur
 
         @wraps(current_original_method)
         def check_vace_method_result(*current_argument_values, **current_keyword_values):
-            current_output_value = current_original_method(*current_argument_values, **current_keyword_values)
+            current_phase_name = {'vae-encode-output': 'encode', 'vae-decode-before-clamp': 'decode'}.get(current_stage_name)
+            current_diagnostic_context = nullcontext()
+            if current_diagnostic_enabled and current_phase_name:
+                from generators.wan_vace.vae_attention_diagnostics import capture_vace_vae_attention
+                current_diagnostic_context = capture_vace_vae_attention(current_phase_name, current_attempt_root, current_torch_module, current_diagnostic_state)
+            with current_diagnostic_context:
+                current_output_value = current_original_method(*current_argument_values, **current_keyword_values)
             check_vace_boundary_values(current_output_value, current_stage_name, current_attempt_root, current_torch_module)
             current_check_counts[current_stage_name] = current_check_counts.get(current_stage_name, 0) + 1
             return current_output_value
