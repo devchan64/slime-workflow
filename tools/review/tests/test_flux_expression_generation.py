@@ -26,6 +26,32 @@ class FluxExpressionGenerationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 current_manager_value.validate_generation_request({**self.create_sample_request(),'images':current_reference_list})
 
+    def test_korean_expression_addition_preserves_preset(self):
+        current_manager_value=FluxExpressionGenerationManager()
+        current_request_record=current_manager_value.validate_generation_request({**self.create_sample_request(),'translation_source_ko':'눈썹을 조금 올린다'})
+        self.assertEqual(current_request_record['translation_source_ko'],'눈썹을 조금 올린다')
+        self.assertEqual(current_request_record['translation_base_prompt'],build_flux_expression_prompt('joy'))
+        self.assertEqual(current_request_record['prompt'],build_flux_expression_prompt('joy'))
+        self.assertNotIn('common_style',current_request_record)
+
+    def test_translated_expression_restores_preset_and_korean(self):
+        import hashlib
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        from tools.review.domains.image.three_reference_generation import save_three_reference_inputs
+        current_restore_function=importlib.import_module('generators.flux-expression.page.interface').restore_flux_expression_inputs
+        with TemporaryDirectory() as current_directory_name:
+            current_identifier_value='2026-11-17_08-00-00-12345678'
+            current_job_path=Path(current_directory_name)/current_identifier_value
+            current_job_path.mkdir()
+            current_request_record=FluxExpressionGenerationManager().validate_generation_request({**self.create_sample_request(),'translation_source_ko':'부드럽게 웃는다'})
+            current_saved_record=save_three_reference_inputs(current_job_path,current_request_record)
+            current_final_prompt=build_flux_expression_prompt('joy')+' Smile gently.'
+            current_saved_record.update(prompt=current_final_prompt,prompt_sha256=hashlib.sha256(current_final_prompt.encode()).hexdigest(),translated_design='Smile gently.')
+            current_restored_values=current_restore_function({'id':current_identifier_value,'request':current_saved_record},Path(current_directory_name))
+            self.assertEqual(current_restored_values[1],'joy')
+            self.assertEqual(current_restored_values[-1],'부드럽게 웃는다')
+
     def test_gateway_and_cli_use_flux(self):
         self.assertEqual(resolve_management_command('flux-expression','generate',{})[1],'/flux-expression-generator/jobs')
         with patch('tools.review.common.management_gateway.execute_management_command',return_value={'id':'test'}) as current_gateway_mock:
@@ -34,10 +60,11 @@ class FluxExpressionGenerationTests(unittest.TestCase):
             with TemporaryDirectory() as current_temporary_directory:
                 current_image_path=Path(current_temporary_directory)/'face.png'
                 current_image_path.write_bytes(base64.b64decode(self.create_sample_request()['images'][0]))
-                execute_gateway_arguments('flux-expression',['generate','--expression','joy','--reference',str(current_image_path),'--detach'])
+                execute_gateway_arguments('flux-expression',['generate','--expression','joy','--reference',str(current_image_path),'--translation-ko','눈썹을 올린다','--detach'])
             current_payload_value=current_gateway_mock.call_args.args[2]
             self.assertEqual((current_payload_value['width'],current_payload_value['height'],current_payload_value['steps']),(768,512,16))
             self.assertEqual(len(current_payload_value['images']),1)
+            self.assertEqual(current_payload_value['translation_source_ko'],'눈썹을 올린다')
 
     def test_resume_checks_saved_inputs_and_runner(self):
         import json
@@ -71,7 +98,7 @@ class FluxExpressionGenerationTests(unittest.TestCase):
             current_history_record = {'id':current_job_identifier,'request':current_request_record}
             current_restored_values = current_restore_function(current_history_record,current_storage_root)
             self.assertEqual(current_restored_values[0].size,(16,16))
-            self.assertEqual(current_restored_values[1:],('joy',768,512,42,''))
+            self.assertEqual(current_restored_values[1:],('joy',768,512,42,'',''))
             with self.assertRaises(gr.Error):
                 current_restore_function({'id':current_job_identifier,'request':{**current_request_record,'prompt':'변조'}},current_storage_root)
             (current_job_root/'reference-1.png').write_bytes(b'changed')

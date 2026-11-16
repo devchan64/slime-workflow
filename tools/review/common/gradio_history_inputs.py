@@ -37,7 +37,7 @@ def collect_saved_input_view(current_history_record, server_base_address='', rec
         return '', {}, [], ''
     current_request_record = current_history_record.get('request', {})
     current_prompt_text = current_request_record.get('final_prompt', current_request_record.get('prompt', current_request_record.get('user_prompt', '')))
-    if isinstance(current_request_record.get('building_design_ko'),str) and not current_request_record.get('translated_design'):
+    if (isinstance(current_request_record.get('building_design_ko'),str) or isinstance(current_request_record.get('translation_source_ko'),str)) and not current_request_record.get('translated_design'):
         current_prompt_text = '번역 완료 전에는 최종 모델 입력이 확정되지 않습니다.'
     current_reference_images = []
     current_reference_notices = []
@@ -92,8 +92,9 @@ def describe_saved_prompt_counts(current_history_record):
     if not current_history_record:
         return ''
     current_request_record = current_history_record.get('request', {})
-    if isinstance(current_request_record.get('building_design_ko'),str):
-        current_count_values=[f'한국어 디자인 {len(current_request_record["building_design_ko"].split())}단어']
+    current_korean_source=current_request_record.get('translation_source_ko',current_request_record.get('building_design_ko'))
+    if isinstance(current_korean_source,str):
+        current_count_values=[f'한국어 {"디자인" if "building_design_ko" in current_request_record else "설명"} {len(current_korean_source.split())}단어']
         current_translated_text=current_request_record.get('translated_design')
         if isinstance(current_translated_text,str):
             current_count_values.append(f'영어 번역 {len(current_translated_text.split())}단어')
@@ -130,11 +131,12 @@ def describe_saved_prompt_counts(current_history_record):
 def collect_saved_stage_prompts(current_history_record):
     """접수 문구와 단계별 실행 요청을 구분하여 현재 설정 없이 표시한다."""
     current_request_record = (current_history_record or {}).get('request', {})
-    if isinstance(current_request_record.get('building_design_ko'),str):
+    current_korean_source=current_request_record.get('translation_source_ko',current_request_record.get('building_design_ko'))
+    if isinstance(current_korean_source,str):
         current_translated_text=current_request_record.get('translated_design')
-        current_stage_values=['한국어 디자인\n'+current_request_record['building_design_ko'],
+        current_stage_values=['한국어 '+('디자인' if 'building_design_ko' in current_request_record else '설명')+'\n'+current_korean_source,
             '영어 번역\n'+(current_translated_text if isinstance(current_translated_text,str) else '번역 대기 또는 실패'),
-            '건물 기본 문구\n'+str(current_request_record.get('building_base_prompt','기록 없음'))]
+            ('건물 기본 문구' if 'building_design_ko' in current_request_record else '준비 문구')+'\n'+str(current_request_record.get('translation_base_prompt',current_request_record.get('building_base_prompt','기록 없음')))]
         current_style_record=current_request_record.get('common_style')
         if isinstance(current_style_record,dict) and isinstance(current_style_record.get('prompt'),str):
             current_stage_values.append('공용 화풍 v'+str(current_style_record.get('version','기록 없음'))+'\n'+current_style_record['prompt'])

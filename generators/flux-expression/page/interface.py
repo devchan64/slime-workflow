@@ -40,6 +40,9 @@ def restore_flux_expression_inputs(current_history_record, reference_storage_roo
         current_expected_prompt = build_flux_expression_prompt(current_expression_identifier)
     except ValueError as current_preset_error:
         raise gr.Error('저장된 표정 프리셋을 현재 사용할 수 없습니다.') from current_preset_error
+    current_translated_text=current_request_record.get('translated_design')
+    if isinstance(current_translated_text,str):
+        current_expected_prompt=' '.join((current_expected_prompt,current_translated_text.strip()))
     if current_request_record.get('prompt') != current_expected_prompt or current_request_record.get('prompt_sha256') != hashlib.sha256(current_expected_prompt.encode()).hexdigest():
         raise gr.Error('저장된 프롬프트가 현재 프리셋과 달라 동일한 입력으로 복원할 수 없습니다.')
     if current_request_record.get('steps') != 16:
@@ -52,7 +55,7 @@ def restore_flux_expression_inputs(current_history_record, reference_storage_roo
     if not isinstance(current_reference_names, list) or len(current_reference_names) != 1:
         raise gr.Error('얼굴 참조 이미지 1장의 저장 정보가 필요합니다.')
     restored_reference_values = restore_reference_inputs(current_history_record, reference_storage_root or Path(__file__).resolve().parents[3] / '.tmp/test/flux-expression-generator', reference_slot_limit=1)
-    return (restored_reference_values[6], current_expression_identifier, restored_reference_values[2], restored_reference_values[3], restored_reference_values[5], restored_reference_values[1])
+    return (restored_reference_values[6], current_expression_identifier, restored_reference_values[2], restored_reference_values[3], restored_reference_values[5], restored_reference_values[1],current_request_record.get('translation_source_ko',''))
 
 
 def build_generator_page(current_server_address, current_review_port):
@@ -64,6 +67,8 @@ def build_generator_page(current_server_address, current_review_port):
         current_reference_image = gr.Image(label='얼굴 참조 이미지', type='pil', image_mode='RGB')
         gr.Button('기본 캐릭터 정면 얼굴 불러오기').click(load_default_face_reference, outputs=current_reference_image, queue=False)
         current_expression_control = gr.Dropdown(choices=current_choices_list,value=current_choices_list[0][1],label='표정')
+        current_korean_control = gr.Textbox(label='한국어 추가 지시 (선택)',lines=2,placeholder='예: 눈썹을 조금 올리고 부드럽게 웃는 표정')
+        gr.Markdown('한국어 추가 지시는 번역 대기열에서 영어로 번역한 뒤 선택한 표정 프리셋에 결합해 자동 생성합니다. 번역과 검토 항목은 이력에서 확인하세요.')
         current_prompt_display = gr.Markdown(describe_flux_expression_prompt(current_choices_list[0][1]))
         current_expression_control.change(describe_flux_expression_prompt,current_expression_control,current_prompt_display,queue=False)
         with gr.Row():
@@ -78,14 +83,15 @@ def build_generator_page(current_server_address, current_review_port):
             pass
         current_job_control = gr.Textbox(visible=False)
         current_status_control = gr.Markdown('결과와 작업 상태는 아래 생성 이력에서 확인하세요.')
-        def start_flux_expression(current_image_value,current_expression_value,current_width_value,current_height_value,current_seed_value,current_tag_value):
+        def start_flux_expression(current_image_value,current_expression_value,current_width_value,current_height_value,current_seed_value,current_tag_value,current_korean_value):
             if current_image_value is None:
                 raise gr.Error('얼굴 참조 이미지를 선택하세요.')
             current_image_buffer = io.BytesIO()
             current_image_value.convert('RGB').save(current_image_buffer,format='PNG')
             current_payload_record = {'action':'generate','prompt':current_expression_value,'images':[base64.b64encode(current_image_buffer.getvalue()).decode()],'width':int(current_width_value),'height':int(current_height_value),'steps':16,'seed':int(current_seed_value),'tag':current_tag_value or ''}
+            if current_korean_value and current_korean_value.strip(): current_payload_record['translation_source_ko']=current_korean_value.strip()
             current_result_record = execute_flux_expression_command('generate',current_payload_record)
             return current_result_record['id'],'대기열에 등록했습니다. 생성 이력을 새로고침해 확인하세요.'
-        bind_gpu_generation_confirmation(current_start_button,start_flux_expression,[current_reference_image,current_expression_control,current_width_control,current_height_control,current_seed_control,current_tag_control],[current_job_control,current_status_control],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=lambda current_image_value: current_image_value is not None,generation_readiness_inputs=[current_reference_image])
-        build_generation_history_view(execute_flux_expression_command,current_server_address,'FLUX 표정 생성 이력과 결과를 삭제합니다.',restore_input_callback=restore_flux_expression_inputs,restore_output_components=[current_reference_image,current_expression_control,current_width_control,current_height_control,current_seed_control,current_tag_control],record_folder_route='/flux-expression-generator',allow_individual_delete=True,observed_job_control=current_job_control)
+        bind_gpu_generation_confirmation(current_start_button,start_flux_expression,[current_reference_image,current_expression_control,current_width_control,current_height_control,current_seed_control,current_tag_control,current_korean_control],[current_job_control,current_status_control],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=lambda current_image_value: current_image_value is not None,generation_readiness_inputs=[current_reference_image])
+        build_generation_history_view(execute_flux_expression_command,current_server_address,'FLUX 표정 생성 이력과 결과를 삭제합니다.',restore_input_callback=restore_flux_expression_inputs,restore_output_components=[current_reference_image,current_expression_control,current_width_control,current_height_control,current_seed_control,current_tag_control,current_korean_control],record_folder_route='/flux-expression-generator',allow_individual_delete=True,observed_job_control=current_job_control)
     return current_page_blocks

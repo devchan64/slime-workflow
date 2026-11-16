@@ -99,7 +99,7 @@ class FluxImageGenerationTests(unittest.TestCase):
                 current_manager_value.validate_generation_resume(current_job_path)
                 with patch('tools.review.ui.shared.flux_image_page.WORKFLOW_ROOT_DIRECTORY',current_workspace_root):
                     current_restored_value=restore_flux_image_inputs({'id':current_identifier_value,'request':current_saved_value},'flux-seamless')
-                self.assertEqual(len(current_restored_value),7)
+                self.assertEqual(len(current_restored_value),8)
                 self.assertEqual(current_restored_value[0],'grass')
 
     def test_transparent_reference_is_composited_on_white(self):
@@ -161,11 +161,99 @@ class FluxImageGenerationTests(unittest.TestCase):
                 self.assertEqual(current_restored_values[0],'A tree')
                 self.assertEqual(current_restored_values[1].size,(16,16))
                 self.assertIsNone(current_restored_values[2])
-                self.assertEqual(current_restored_values[3:],(768,512,42,''))
+                self.assertEqual(current_restored_values[3:],(768,512,42,'',''))
                 (current_job_root/'reference-1.png').write_bytes(b'changed')
                 with self.assertRaises(Exception):
                     restore_flux_image_inputs({'id':current_job_identifier,'request':current_saved_record},current_profile_name)
 class FluxBuildingGuideGalleryTests(unittest.TestCase):
+    def test_korean_translation_request_across_image_profiles(self):
+        current_image_buffer=io.BytesIO()
+        Image.new('RGB',(16,16),'white').save(current_image_buffer,format='PNG')
+        current_encoded_image=base64.b64encode(current_image_buffer.getvalue()).decode()
+        for current_profile_name,current_profile_record in FLUX_IMAGE_PROFILE_RECORDS.items():
+            if current_profile_name=='flux-building':
+                continue
+            with self.subTest(profile=current_profile_name):
+                current_size_value=512 if current_profile_name=='flux-seamless' else 768
+                current_payload_record={'action':'generate','prompt':'A prepared guide.', 'translation_source_ko':'따뜻한 녹색 풀',
+                    'images':[current_encoded_image] if current_profile_record[4] else [],'width':current_size_value,'height':current_size_value,'steps':16,'seed':42}
+                current_result_record=FluxImageGenerationManager(current_profile_name).validate_generation_request(current_payload_record)
+                self.assertEqual(current_result_record['translation_source_ko'],'따뜻한 녹색 풀')
+                self.assertEqual(current_result_record['translation_base_prompt'],'A prepared guide.')
+                self.assertNotIn('따뜻한',current_result_record['prompt'])
+                self.assertEqual(current_result_record['common_style']['version'],'1.5.0')
+                current_payload_record.pop('translation_source_ko')
+                current_payload_record['prompt']='따뜻한 녹색 풀'
+                current_auto_record=FluxImageGenerationManager(current_profile_name).validate_generation_request(current_payload_record)
+                self.assertEqual(current_auto_record['translation_source_ko'],'따뜻한 녹색 풀')
+                self.assertEqual(current_auto_record['translation_base_prompt'],'')
+
+    def test_general_translation_pipeline_routes_profile_and_style(self):
+        import json
+        from unittest.mock import patch,MagicMock
+        from generators.image import run_flux_translation_pipeline as current_pipeline_module
+        for current_profile_name in ('flux-image','flux-seamless','flux-expression'):
+            with self.subTest(profile=current_profile_name), tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+                current_root_path=Path(current_directory_name).resolve()
+                current_job_path=current_root_path/'.tmp/test'/(current_profile_name+'-generator')/'2026-11-17_00-00-00-12345678'
+                current_job_path.mkdir(parents=True)
+                (current_job_path/'request.json').write_text(json.dumps({'translation_source_ko':'녹색 풀','translation_base_prompt':'A prepared guide.'},ensure_ascii=False))
+                current_fake_manager=MagicMock()
+                current_translation_record={'request':{'text':'녹색 풀','target_language':'en'},'status':{'status':'completed'},'result':{'text':'Green grass.','model_id':'model','revision':'rev'}}
+                current_fake_manager.execute_translation_command.side_effect=lambda current_command_name,current_payload_value: {'id':'2026-11-17_00-00-00-abcdef12'} if current_command_name=='translation-submit' else current_translation_record
+                with patch.object(current_pipeline_module,'WORKFLOW_ROOT_DIRECTORY',current_root_path), patch.object(current_pipeline_module,'TranslationServiceManager',return_value=current_fake_manager), patch.object(current_pipeline_module,'launch_gpu_process') as current_launch_mock:
+                    current_launch_mock.return_value.wait.return_value=0
+                    current_pipeline_module.execute_flux_translation_pipeline(current_job_path)
+                current_saved_record=json.loads((current_job_path/'request.json').read_text())
+                self.assertIn('A prepared guide. Green grass.',current_saved_record['prompt'])
+                self.assertEqual(current_saved_record['translated_design'],'Green grass.')
+                current_command_values=current_launch_mock.call_args.args
+                self.assertEqual(current_command_values[2],'flux-expression' if current_profile_name=='flux-expression' else 'flux-image')
+                self.assertEqual('common_style' in current_saved_record,current_profile_name!='flux-expression')
+
+    def test_translated_image_history_restores_base_and_korean_without_duplication(self):
+        import hashlib
+        from unittest.mock import patch
+        from generators.image.common_art_style import compose_common_style_prompt
+        current_manager_value=FluxImageGenerationManager('flux-image')
+        current_request_record=current_manager_value.validate_generation_request({'action':'generate','prompt':'A small cottage.',
+            'translation_source_ko':'파란 지붕','images':[],'width':512,'height':512,'steps':16,'seed':42})
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_root_path=Path(current_directory_name).resolve()
+            current_identifier_value='2026-11-17_08-00-00-12345678'
+            current_job_path=current_root_path/'.tmp/test/flux-image-generator'/current_identifier_value
+            current_job_path.mkdir(parents=True)
+            current_saved_record=save_three_reference_inputs(current_job_path,current_request_record)
+            current_final_prompt,current_style_record=compose_common_style_prompt('A small cottage. Blue roof.')
+            current_saved_record.update(user_prompt='A small cottage. Blue roof.',prompt=current_final_prompt,common_style=current_style_record,
+                prompt_sha256=hashlib.sha256(current_final_prompt.encode()).hexdigest(),translated_design='Blue roof.')
+            with patch('tools.review.ui.shared.flux_image_page.WORKFLOW_ROOT_DIRECTORY',current_root_path):
+                current_restored_values=restore_flux_image_inputs({'id':current_identifier_value,'request':current_saved_record},'flux-image')
+            self.assertEqual(current_restored_values[0],'A small cottage.')
+            self.assertEqual(current_restored_values[-1],'파란 지붕')
+            self.assertNotIn('Blue roof.',current_restored_values[0])
+
+    def test_untranslated_job_resume_requeues_translation(self):
+        import json
+        from unittest.mock import patch
+        current_manager_value=FluxImageGenerationManager('flux-seamless')
+        current_request_record=current_manager_value.validate_generation_request({'action':'generate','prompt':'풀잎',
+            'images':[],'width':512,'height':512,'steps':16,'seed':42})
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_job_path=Path(current_directory_name)
+            current_saved_record=save_three_reference_inputs(current_job_path,current_request_record)
+            (current_job_path/'request.json').write_text(json.dumps(current_saved_record,ensure_ascii=False))
+            (current_job_path/'status.json').write_text('{"status":"cancelled"}')
+            (current_job_path/'cancel.request').touch()
+            current_manager_value.validate_generation_resume(current_job_path)
+            with patch.object(current_manager_value,'launch_generation_worker') as current_launch_mock:
+                current_resume_record=current_manager_value.resume_generation_job(current_job_path,current_saved_record,None)
+            current_launch_mock.assert_called_once()
+            self.assertEqual(current_resume_record['status'],'queued')
+            self.assertFalse((current_job_path/'cancel.request').exists())
+            self.assertEqual(json.loads((current_job_path/'status.json').read_text())['stage'],'translation')
+
+
     def test_korean_building_request_keeps_source_and_prepared_prompt(self):
         current_guide_image = load_building_layout_preset(BUILDING_LAYOUT_PRESET_NAMES[0])
         current_image_buffer = io.BytesIO()
@@ -190,7 +278,7 @@ class FluxBuildingGuideGalleryTests(unittest.TestCase):
     def test_translation_pipeline_combines_and_queues_or_stops_on_failure(self):
         import json
         from unittest.mock import patch, MagicMock
-        from generators.image import run_flux_building_pipeline as building_pipeline
+        from generators.image import run_flux_translation_pipeline as building_pipeline
         from generators.image.common_art_style import load_common_style_record
         current_translation_id='2026-11-16_23-01-00-12345678'
         for current_failure_value in (False,True):
@@ -206,11 +294,11 @@ class FluxBuildingGuideGalleryTests(unittest.TestCase):
                     current_launch_mock.return_value.wait.return_value=0
                     if current_failure_value:
                         with self.assertRaisesRegex(ValueError,'번역 실패'):
-                            building_pipeline.execute_building_pipeline(current_job_path)
+                            building_pipeline.execute_flux_translation_pipeline(current_job_path)
                         current_launch_mock.assert_not_called()
                         self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'failed')
                     else:
-                        building_pipeline.execute_building_pipeline(current_job_path)
+                        building_pipeline.execute_flux_translation_pipeline(current_job_path)
                         current_launch_mock.assert_called_once()
                         current_saved_record=json.loads((current_job_path/'request.json').read_text())
                         self.assertEqual(current_saved_record['translated_design'],'A wooden house.')
@@ -221,7 +309,7 @@ class FluxBuildingGuideGalleryTests(unittest.TestCase):
     def test_translation_pipeline_cancel_does_not_enqueue_work(self):
         import json
         from unittest.mock import patch, MagicMock
-        from generators.image import run_flux_building_pipeline as building_pipeline
+        from generators.image import run_flux_translation_pipeline as building_pipeline
         with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
             current_root_path=Path(current_directory_name).resolve()
             current_job_path=current_root_path/'.tmp/test/flux-building-generator/2026-11-16_23-00-00-87654321'
@@ -230,7 +318,7 @@ class FluxBuildingGuideGalleryTests(unittest.TestCase):
             (current_job_path/'cancel.request').touch()
             current_fake_manager=MagicMock()
             with patch.object(building_pipeline,'WORKFLOW_ROOT_DIRECTORY',current_root_path), patch.object(building_pipeline,'TranslationServiceManager',return_value=current_fake_manager), patch.object(building_pipeline,'launch_gpu_process') as current_launch_mock:
-                building_pipeline.execute_building_pipeline(current_job_path)
+                building_pipeline.execute_flux_translation_pipeline(current_job_path)
                 current_fake_manager.execute_translation_command.assert_not_called()
                 current_launch_mock.assert_not_called()
                 self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'cancelled')
