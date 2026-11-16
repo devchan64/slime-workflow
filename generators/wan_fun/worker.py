@@ -4,6 +4,7 @@ import sys
 import os
 import gc
 import hashlib
+from contextlib import nullcontext
 def configure_fun_memory_allocator(current_environment_values):
     """gfx1151의 확장형 세그먼트 사용을 차단한다."""
     current_environment_values['PYTORCH_ALLOC_CONF'] = 'expandable_segments:False'
@@ -90,6 +91,22 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
         disable_vae_tiled_fallback(current_loaded_vae)
         return current_loaded_vae
     current_vae_model = load_fun_gpu_vae()
+    from generators.wan_fun.numerical_diagnostics import describe_fun_vae_attention, guard_fun_vae_method, guard_fun_vae_attention
+    current_gpu_properties = torch.cuda.get_device_properties(0)
+    write_record_atomically(current_attempt_root / 'runtime-environment.json', {
+        'pytorch_version': str(torch.__version__), 'hip_version': torch.version.hip,
+        'gpu_name': torch.cuda.get_device_name(0),
+        'gpu_architecture': getattr(current_gpu_properties, 'gcnArchName', None),
+        'allocator_configuration_environment': os.environ.get('PYTORCH_ALLOC_CONF'),
+        'allocator_backend': torch.cuda.memory.get_allocator_backend(),
+        'model_revision': FUN_MODEL_REVISION, 'requested_model_dtype': 'bfloat16',
+        'text_encoder_checkpoint': 'umt5_xxl_fp16.safetensors', 'vae_dtype': str(current_vae_model.vae_dtype),
+        'vae_attention_functions': describe_fun_vae_attention(current_vae_model),
+        'selected_gpu_kernel': '미확인',
+        'attention_profile_enabled': os.environ.get('SLIME_WAN_ATTENTION_PROFILE') == '1',
+        'boundary_checks_synchronize_gpu': True,
+        'vae_attention_diagnostic_enabled': os.environ.get('SLIME_FUN_VAE_ATTENTION_DIAGNOSTIC') == '1',
+    })
     write_record_atomically(current_attempt_root / 'encode-policy.json', {
         'use_regular_vae': True, 'vae_dtype': 'float32', 'temporal_tile_frames': None,
         'spatial_tile_pixels': None, 'policy': '일반 VAE 고정 · OOM 타일 대체 차단',
@@ -98,7 +115,8 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     for current_reference_name in current_control_paths:
         with Image.open(current_reference_name) as current_image_file:
             current_image_tensors.append(torch.from_numpy(np.asarray(current_image_file.convert('RGB'), dtype=np.float32) / 255.0))
-    with torch.inference_mode():
+    current_encode_diagnostic = guard_fun_vae_attention(current_vae_model, current_attempt_root, torch, 'encode') if os.environ.get('SLIME_FUN_VAE_ATTENTION_DIAGNOSTIC') == '1' else nullcontext()
+    with torch.inference_mode(), guard_fun_vae_method(current_vae_model, current_attempt_root, torch, 'encode'), current_encode_diagnostic:
         current_condition_output = Wan22FunControlToVideo.execute(positive_condition_data, negative_condition_data, current_vae_model, 832, 480, current_request_record['frames'], 1, ref_image=current_image_tensors[0].unsqueeze(0), control_video=torch.stack(current_image_tensors[1:]))
     positive_condition_data, negative_condition_data, current_latent_record = current_condition_output[:3]
     from generators.wan_fun.numerical_diagnostics import fingerprint_fun_tensor
@@ -170,7 +188,8 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
         'policy': '일반 VAE 고정 · OOM 타일 대체 차단',
     })
     current_vae_model = load_fun_gpu_vae()
-    with torch.inference_mode():
+    current_decode_diagnostic = guard_fun_vae_attention(current_vae_model, current_attempt_root, torch, 'decode') if os.environ.get('SLIME_FUN_VAE_ATTENTION_DIAGNOSTIC') == '1' else nullcontext()
+    with torch.inference_mode(), guard_fun_vae_method(current_vae_model, current_attempt_root, torch, 'decode'), current_decode_diagnostic:
         current_decoded_frames = current_vae_model.decode(current_latent_tensor)
     if current_decoded_frames.ndim == 5:
         current_decoded_frames = current_decoded_frames.flatten(0, 1)

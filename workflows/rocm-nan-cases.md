@@ -29,6 +29,8 @@ VAE 인코딩 직후와 모델 해제 이후 조건 텐서의 지문·유한 여
 
 주의: `1c427908`의 제목에도 수치 안정성이 있지만 실제 diff는 모션 프레임 배분·UI·테스트다. VAE 수정 근거는 `a7d11326`이다.
 
+2026-11-17 코드 보강: ComfyUI VAE의 인코딩 출력과 디코딩 후처리 전 출력을 검사하고 환경·조건 원본의 dtype·stride 및 지정된 VAE 어텐션 함수를 기록한다. 선택적 진단은 첫 VAE 어텐션의 입력을 보존하며 고정 ComfyUI PyTorch 함수일 때만 기본 반복과 수학 SDPA를 비교한다. 함수 선택은 실제 GPU 커널을 증명하지 않고 추가 검사·복사·연산은 실행 조건에 영향을 준다. 합성 CPU 테스트만 수행했고 실제 Fun Control ROCm 입력의 비교, 생성 및 품질 평가는 수행하지 않았다. 이는 NaN 근본 원인 해결이나 정확성 승인 근거가 아니다.
+
 ## VACE — 지연과 NaN을 구분
 
 근거: Git `ec21e9a1`, `generators/wan_vace/numerical_guard.py`, `official_runtime.py`, `official_full_precision.py`, `workflows/rocm-inference.md`.

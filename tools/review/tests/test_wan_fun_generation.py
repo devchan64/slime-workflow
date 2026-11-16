@@ -28,6 +28,85 @@ class FunAttentionOptimizationTests(unittest.TestCase):
         self.assertNotEqual(current_first_record['sha256'], current_changed_record['sha256'])
         self.assertFalse(fingerprint_fun_tensor(torch, torch.tensor([float('nan')]))['finite'])
 
+    def test_vae_guard_rejects_infinity_before_clamp_and_restores(self):
+        import json
+        import torch
+        from generators.wan_fun.numerical_diagnostics import guard_fun_vae_method
+        class FakeFunVaeModel:
+            def decode(self, current_input_tensor):
+                return current_input_tensor
+        current_inner_model = FakeFunVaeModel()
+        current_vae_model = SimpleNamespace(first_stage_model=current_inner_model)
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_attempt_root = Path(current_directory_name)
+            with self.assertRaisesRegex(ValueError, 'decode'):
+                with guard_fun_vae_method(current_vae_model, current_attempt_root, torch, 'decode'):
+                    current_inner_model.decode(torch.tensor([float('inf')])).clamp_(0, 1)
+            self.assertEqual(json.loads((current_attempt_root / 'numerical-failure.json').read_text())['stage'], 'vae-decode-before-postprocessing')
+            self.assertNotIn('decode', vars(current_inner_model))
+            current_input_tensor = torch.ones(1)
+            with guard_fun_vae_method(current_vae_model, current_attempt_root, torch, 'decode'):
+                self.assertIs(current_inner_model.decode(current_input_tensor), current_input_tensor)
+
+    def test_fingerprint_records_original_layout_and_dtype(self):
+        import torch
+        from generators.wan_fun.numerical_diagnostics import fingerprint_fun_tensor
+        current_input_tensor = torch.arange(6, dtype=torch.bfloat16).reshape(2, 3).t()
+        current_record_value = fingerprint_fun_tensor(torch, current_input_tensor)
+        self.assertEqual(current_record_value['stride'], list(current_input_tensor.stride()))
+        self.assertEqual(current_record_value['dtype'], 'torch.bfloat16')
+        self.assertEqual(current_record_value['hash_representation'], 'cpu-float32-contiguous')
+
+    def test_attention_path_records_callable_without_claiming_kernel(self):
+        import torch
+        from generators.wan_fun.numerical_diagnostics import describe_fun_vae_attention
+        current_model_object = torch.nn.Module()
+        current_model_object.optimized_attention = torch.nn.functional.scaled_dot_product_attention
+        current_path_values = describe_fun_vae_attention(SimpleNamespace(first_stage_model=current_model_object))
+        self.assertEqual(len(current_path_values), 1)
+        self.assertIn('scaled_dot_product_attention', current_path_values[0])
+
+    def test_optional_vae_attention_compares_matching_pytorch_and_restores(self):
+        import json
+        import torch
+        import torch.nn.functional as torch_functional_module
+        from generators.wan_fun.numerical_diagnostics import guard_fun_vae_attention
+        def pytorch_attention(current_query_tensor, current_key_tensor, current_value_tensor):
+            current_batch_count, current_channel_count = current_query_tensor.shape[:2]
+            current_attention_inputs = [current_tensor.reshape(current_batch_count, 1, current_channel_count, -1).transpose(2, 3).contiguous() for current_tensor in (current_query_tensor, current_key_tensor, current_value_tensor)]
+            return torch_functional_module.scaled_dot_product_attention(*current_attention_inputs).transpose(2, 3).reshape(current_query_tensor.shape)
+        pytorch_attention.__module__ = 'comfy.ldm.modules.diffusionmodules.model'
+        current_model_object = torch.nn.Module()
+        current_model_object.optimized_attention = pytorch_attention
+        current_vae_model = SimpleNamespace(first_stage_model=current_model_object)
+        current_input_tensor = torch.arange(12, dtype=torch.float32).reshape(1, 3, 2, 2)
+        current_expected_tensor = pytorch_attention(current_input_tensor, current_input_tensor, current_input_tensor)
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_attempt_root = Path(current_directory_name)
+            with guard_fun_vae_attention(current_vae_model, current_attempt_root, torch, 'encode'):
+                current_output_tensor = current_model_object.optimized_attention(current_input_tensor, current_input_tensor, current_input_tensor)
+                self.assertTrue(torch.equal(current_output_tensor, current_expected_tensor))
+            self.assertIs(current_model_object.optimized_attention, pytorch_attention)
+            current_record_value = json.loads((current_attempt_root / 'vae-attention-encode.json').read_text())
+            self.assertEqual(current_record_value['status'], 'compared')
+            self.assertTrue((current_attempt_root / 'vae-attention-encode.safetensors').exists())
+            self.assertIn('mean_absolute_error', current_record_value['default_vs_math'])
+
+    def test_optional_vae_attention_skips_unknown_path(self):
+        import json
+        import torch
+        from generators.wan_fun.numerical_diagnostics import guard_fun_vae_attention
+        def normal_attention(current_query_tensor, current_key_tensor, current_value_tensor):
+            return current_query_tensor
+        current_model_object = torch.nn.Module()
+        current_model_object.optimized_attention = normal_attention
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_attempt_root = Path(current_directory_name)
+            with guard_fun_vae_attention(SimpleNamespace(first_stage_model=current_model_object), current_attempt_root, torch, 'decode'):
+                current_input_tensor = torch.ones((1, 1, 1, 1))
+                self.assertIs(current_model_object.optimized_attention(current_input_tensor, current_input_tensor, current_input_tensor), current_input_tensor)
+            self.assertEqual(json.loads((current_attempt_root / 'vae-attention-decode.json').read_text())['status'], 'comparison-skipped')
+
     def test_numerical_diagnostics_record_first_nonfinite_step(self):
         import json
         import torch
