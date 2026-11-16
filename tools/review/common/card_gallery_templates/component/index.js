@@ -1,6 +1,6 @@
-import { $ as e, B as t, C as n, D as r, E as i, F as a, G as o, H as s, J as c, K as l, L as u, M as d, N as f, O as p, P as m, Q as h, S as g, T as _, U as v, V as y, W as b, X as x, Y as S, Z as C, _ as w, _t as T, a as E, at as D, b as O, c as k, ct as A, d as j, dt as M, et as N, f as ee, ft as P, g as te, gt as F, h as ne, ht as re, i as ie, it as I, j as ae, k as oe, l as se, lt as L, m as ce, mt as le, n as ue, nt as R, o as de, ot as fe, p as pe, pt as me, q as he, r as z, rt as B, s as ge, st as V, t as _e, tt as ve, u as ye, v as be, w as xe, x as Se, y as H, z as Ce } from "./index-client-BcR4L1tb.js";
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/atoms/dist/src/Block.svelte
-var we = v("<svg class=\"resize-handle svelte-1pmrx66\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"><line x1=\"1\" y1=\"9\" x2=\"9\" y2=\"1\" stroke=\"gray\" stroke-width=\"0.5\" class=\"svelte-1pmrx66\"></line><line x1=\"5\" y1=\"9\" x2=\"9\" y2=\"5\" stroke=\"gray\" stroke-width=\"0.5\" class=\"svelte-1pmrx66\"></line></svg>"), Te = s("<!> <!>", 1), Ee = s("<div class=\"placeholder svelte-1pmrx66\"></div>");
+import { $ as e, B as t, C as n, D as r, E as i, F as a, G as o, H as s, J as c, K as l, L as u, M as d, N as f, O as p, P as m, Q as h, S as g, T as _, U as v, V as y, W as b, X as x, Y as S, Z as C, _ as w, _t as T, a as E, at as D, b as O, c as k, ct as A, d as j, dt as M, et as N, f as ee, ft as P, g as te, gt as F, h as ne, ht as re, i as ie, it as I, j as ae, k as oe, l as se, lt as L, m as ce, mt as le, n as ue, nt as R, o as de, ot as fe, p as pe, pt as me, q as he, r as z, rt as B, s as ge, st as V, t as _e, tt as ve, u as ye, v as be, w as xe, x as Se, y as H, z as Ce } from "./index-client-Do0qPkI9.js";
+// frontend/node_modules/@gradio/atoms/dist/src/Block.svelte
+var we = v("<svg class=\"resize-handle svelte-1stq1b1\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"><line x1=\"1\" y1=\"9\" x2=\"9\" y2=\"1\" stroke=\"gray\" stroke-width=\"0.5\" class=\"svelte-1stq1b1\"></line><line x1=\"5\" y1=\"9\" x2=\"9\" y2=\"5\" stroke=\"gray\" stroke-width=\"0.5\" class=\"svelte-1stq1b1\"></line></svg>"), Te = s("<!> <!>", 1), Ee = s("<div class=\"placeholder svelte-1stq1b1\"></div>");
 function De(e, n) {
 	P(n, !0);
 	let r = z(n, "height", 3, void 0), i = z(n, "min_height", 3, void 0), o = z(n, "max_height", 3, void 0), s = z(n, "width", 3, void 0), c = z(n, "elem_id", 3, ""), u = z(n, "elem_classes", 19, () => []), d = z(n, "variant", 3, "solid"), f = z(n, "border_mode", 3, "base"), p = z(n, "padding", 3, !0), m = z(n, "type", 3, "normal"), h = z(n, "test_id", 3, void 0), g = z(n, "explicit_call", 3, !1), v = z(n, "container", 3, !0), b = z(n, "visible", 3, !0), x = z(n, "allow_overflow", 3, !0), C = z(n, "overflow_behavior", 3, "auto"), E = z(n, "scale", 3, null), O = z(n, "min_width", 3, 0), k = z(n, "flex", 3, !1), j = z(n, "resizable", 3, !1), F = z(n, "rtl", 3, !1), re = z(n, "fullscreen", 15, !1), ie = z(n, "label", 3, void 0), I = re(), oe = A(void 0), se = L(() => m() === "fieldset" ? "fieldset" : "div"), ce = L(() => b() ? k() : !1), le = A(0), ue = A(0), R = A(null), de = null, fe = null, pe = null;
@@ -100,7 +100,7 @@ function De(e, n) {
 				() => re() ? void 0 : xe(i()),
 				() => re() ? void 0 : xe(o()),
 				() => re() ? void 0 : typeof s() == "number" ? `calc(min(${s()}px, 100%))` : xe(s())
-			], void 0, void 0, "svelte-1pmrx66");
+			], void 0, void 0, "svelte-1stq1b1");
 			var _ = Te(), y = B(_);
 			ae(y, () => n.children ?? T);
 			var k = D(y, 2), A = (e) => {
@@ -128,8 +128,8 @@ function De(e, n) {
 	}), t(e, Ce), M();
 }
 o(["mousedown"]);
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/atoms/dist/src/BlockLabel.svelte
-var Oe = s("<label data-testid=\"block-label\"><span class=\"svelte-1i44k1k\"><!></span> </label>");
+// frontend/node_modules/@gradio/atoms/dist/src/BlockLabel.svelte
+var Oe = s("<label data-testid=\"block-label\"><span class=\"svelte-1fzogyz\"><!></span> </label>");
 function ke(e, n) {
 	let r = z(n, "label", 3, null), i = z(n, "show_label", 3, !0), a = z(n, "disable", 3, !1), o = z(n, "float", 3, !0), s = z(n, "rtl", 3, !1);
 	var c = Oe();
@@ -140,7 +140,7 @@ function ke(e, n) {
 	}), F(d);
 	var p = D(d);
 	F(c), N(() => {
-		be(c, "dir", s() ? "rtl" : "ltr"), l = g(c, 1, "svelte-1i44k1k", null, l, {
+		be(c, "dir", s() ? "rtl" : "ltr"), l = g(c, 1, "svelte-1fzogyz", null, l, {
 			hide: !i(),
 			"sr-only": !i(),
 			float: o(),
@@ -148,7 +148,7 @@ function ke(e, n) {
 		}), u(p, ` ${r() ?? ""}`), c.dir = c.dir;
 	}), t(e, c);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/atoms/dist/src/DownloadLink.svelte
+// frontend/node_modules/@gradio/atoms/dist/src/DownloadLink.svelte
 var Ae = /* @__PURE__ */ new Set([
 	"$$slots",
 	"$$events",
@@ -177,12 +177,12 @@ function Me(e, n) {
 		download: o,
 		...c,
 		[te]: { position: "relative" }
-	}), void 0, void 0, void 0, "svelte-l74rq5");
+	}), void 0, void 0, void 0, "svelte-q1286o");
 	var u = R(l);
 	s?.(u), F(l), t(e, l), M();
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/atoms/dist/src/IconButton.svelte
-var Ne = s("<span class=\"svelte-dzhpww\"> </span>"), Pe = s("<button><!> <div><!> <!></div></button>");
+// frontend/node_modules/@gradio/atoms/dist/src/IconButton.svelte
+var Ne = s("<span class=\"svelte-vvirtv\"> </span>"), Pe = s("<button><!> <div><!> <!></div></button>");
 function Fe(e, n) {
 	let r = z(n, "label", 3, ""), i = z(n, "show_label", 3, !1), o = z(n, "pending", 3, !1), s = z(n, "size", 3, "small"), c = z(n, "padded", 3, !0), d = z(n, "highlight", 3, !1), f = z(n, "disabled", 3, !1), p = z(n, "hasPopup", 3, !1), m = z(n, "color", 3, "var(--block-label-text-color)"), h = z(n, "transparent", 3, !1), _ = z(n, "background", 3, "var(--block-background-fill)"), v = z(n, "border", 3, "transparent"), b = L(() => d() ? "var(--color-accent)" : m());
 	var x = Pe();
@@ -207,7 +207,7 @@ function Fe(e, n) {
 	a(j, (e) => {
 		n.children && e(M);
 	}), F(O), F(x), N(() => {
-		C = g(x, 1, "icon-button svelte-dzhpww", null, C, {
+		C = g(x, 1, "icon-button svelte-vvirtv", null, C, {
 			pending: o(),
 			padded: c(),
 			highlight: d(),
@@ -216,7 +216,7 @@ function Fe(e, n) {
 			"--border-color": v(),
 			color: !f() && S(b) ? S(b) : "var(--block-label-text-color)",
 			"--bg-color": f() ? "auto" : _()
-		}), k = g(O, 1, "svelte-dzhpww", null, k, {
+		}), k = g(O, 1, "svelte-vvirtv", null, k, {
 			"x-small": s() === "x-small",
 			small: s() === "small",
 			large: s() === "large",
@@ -227,8 +227,8 @@ function Fe(e, n) {
 	}), t(e, x);
 }
 o(["click"]);
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/atoms/dist/src/Empty.svelte
-var Ie = s("<div aria-label=\"Empty value\"><div class=\"icon svelte-vcwm4q\"><!></div></div>");
+// frontend/node_modules/@gradio/atoms/dist/src/Empty.svelte
+var Ie = s("<div aria-label=\"Empty value\"><div class=\"icon svelte-1xcwp1t\"><!></div></div>");
 function Le(e, n) {
 	let r = z(n, "size", 3, "small"), i = z(n, "unpadded_box", 3, !1), a = A(void 0), o = L(() => s(S(a)));
 	function s(e) {
@@ -239,106 +239,106 @@ function Le(e, n) {
 	var c = Ie();
 	let l;
 	var u = R(c), d = R(u);
-	ae(d, () => n.children ?? T), F(u), F(c), ee(c, (e) => V(a, e), () => S(a)), N(() => l = g(c, 1, "empty svelte-vcwm4q", null, l, {
+	ae(d, () => n.children ?? T), F(u), F(c), ee(c, (e) => V(a, e), () => S(a)), N(() => l = g(c, 1, "empty svelte-1xcwp1t", null, l, {
 		small: r() === "small",
 		large: r() === "large",
 		unpadded_box: i(),
 		small_parent: S(o)
 	})), t(e, c);
 }
-// ../slime-card-gallery-template/frontend/node_modules/svelte/src/internal/flags/legacy.js
+// frontend/node_modules/svelte/src/internal/flags/legacy.js
 le();
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Camera.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Camera.svelte
 var Re = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"feather feather-camera\"><path d=\"M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z\"></path><circle cx=\"12\" cy=\"13\" r=\"4\"></circle></svg>");
 function ze(e) {
 	var n = Re();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Circle.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Circle.svelte
 var U = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 24 24\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"feather feather-circle\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle></svg>");
 function Be(e) {
 	var n = U();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Clear.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Clear.svelte
 var Ve = v("<svg width=\"100%\" height=\"100%\" viewBox=\"0 0 24 24\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xml:space=\"preserve\" stroke=\"currentColor\" style=\"fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;\"><g transform=\"matrix(1.14096,-0.140958,-0.140958,1.14096,-0.0559523,0.0559523)\"><path d=\"M18,6L6.087,17.913\" style=\"fill:none;fill-rule:nonzero;stroke-width:2px;\"></path></g><path d=\"M4.364,4.364L19.636,19.636\" style=\"fill:none;fill-rule:nonzero;stroke-width:2px;\"></path></svg>");
 function He(e) {
 	var n = Ve();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Community.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Community.svelte
 var Ue = v("<svg id=\"icon\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 32 32\" width=\"100%\" height=\"100%\"><path d=\"M23,20a5,5,0,0,0-3.89,1.89L11.8,17.32a4.46,4.46,0,0,0,0-2.64l7.31-4.57A5,5,0,1,0,18,7a4.79,4.79,0,0,0,.2,1.32l-7.31,4.57a5,5,0,1,0,0,6.22l7.31,4.57A4.79,4.79,0,0,0,18,25a5,5,0,1,0,5-5ZM23,4a3,3,0,1,1-3,3A3,3,0,0,1,23,4ZM7,19a3,3,0,1,1,3-3A3,3,0,0,1,7,19Zm16,9a3,3,0,1,1,3-3A3,3,0,0,1,23,28Z\" fill=\"currentColor\"></path></svg>");
 function We(e) {
 	var n = Ue();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Download.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Download.svelte
 var Ge = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 32 32\"><path fill=\"currentColor\" d=\"M26 24v4H6v-4H4v4a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2v-4zm0-10l-1.41-1.41L17 20.17V2h-2v18.17l-7.59-7.58L6 14l10 10l10-10z\"></path></svg>");
 function Ke(e) {
 	var n = Ge();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/DownloadAll.svelte
+// frontend/node_modules/@gradio/icons/dist/src/DownloadAll.svelte
 var qe = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 32 32\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M24 4H10a2 2 0 0 0-2 2v2H6a2 2 0 0 0-2 2v12h2V10h14v4h2V10a2 2 0 0 0-2-2H10V6h14v8h2V6a2 2 0 0 0-2-2Z\"></path><path fill=\"currentColor\" d=\"M27.59 20.59L22 26.17V16h-2v10.17l-5.59-5.58L13 22l8 8l8-8l-1.41-1.41Z\"></path><path fill=\"currentColor\" d=\"M10 26H4v-2h6v2Zm4 4H6a2 2 0 0 1-2-2h10v2Z\"></path></svg>");
 function Je(e) {
 	var n = qe();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/DropdownArrow.svelte
-var Ye = v("<svg class=\"dropdown-arrow svelte-x0uriz\" xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 18 18\"><path d=\"M5 8l4 4 4-4z\"></path></svg>");
+// frontend/node_modules/@gradio/icons/dist/src/DropdownArrow.svelte
+var Ye = v("<svg class=\"dropdown-arrow svelte-gtiaeq\" xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 18 18\"><path d=\"M5 8l4 4 4-4z\"></path></svg>");
 function Xe(e) {
 	var n = Ye();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Edit.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Edit.svelte
 var Ze = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"feather feather-edit-2\"><path d=\"M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z\"></path></svg>");
 function Qe(e) {
 	var n = Ze();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/File.svelte
+// frontend/node_modules/@gradio/icons/dist/src/File.svelte
 var $e = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"feather feather-file\"><path d=\"M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z\"></path><polyline points=\"13 2 13 9 20 9\"></polyline></svg>");
 function et(e) {
 	var n = $e();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Image.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Image.svelte
 var tt = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"feather feather-image\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" ry=\"2\"></rect><circle cx=\"8.5\" cy=\"8.5\" r=\"1.5\"></circle><polyline points=\"21 15 16 10 5 21\"></polyline></svg>");
 function nt(e) {
 	var n = tt();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/ImagePaste.svelte
+// frontend/node_modules/@gradio/icons/dist/src/ImagePaste.svelte
 var rt = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 256 256\"><path fill=\"currentColor\" d=\"M200 32h-36.26a47.92 47.92 0 0 0-71.48 0H56a16 16 0 0 0-16 16v168a16 16 0 0 0 16 16h144a16 16 0 0 0 16-16V48a16 16 0 0 0-16-16m-72 0a32 32 0 0 1 32 32H96a32 32 0 0 1 32-32m72 184H56V48h26.75A47.9 47.9 0 0 0 80 64v8a8 8 0 0 0 8 8h80a8 8 0 0 0 8-8v-8a47.9 47.9 0 0 0-2.75-16H200Z\"></path></svg>");
 function it(e) {
 	var n = rt();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Maximize.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Maximize.svelte
 var at = v("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"feather feather-maximize\" width=\"100%\" height=\"100%\"><path d=\"M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3\"></path></svg>");
 function ot(e) {
 	var n = at();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Microphone.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Microphone.svelte
 var st = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"feather feather-mic\"><path d=\"M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z\"></path><path d=\"M19 10v2a7 7 0 0 1-14 0v-2\"></path><line x1=\"12\" y1=\"19\" x2=\"12\" y2=\"23\"></line><line x1=\"8\" y1=\"23\" x2=\"16\" y2=\"23\"></line></svg>");
 function ct(e) {
 	var n = st();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Minimize.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Minimize.svelte
 var lt = v("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"feather feather-minimize\" width=\"100%\" height=\"100%\"><path d=\"M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3\"></path></svg>");
 function ut(e) {
 	var n = lt();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Play.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Play.svelte
 var dt = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 24 24\" fill=\"currentColor\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polygon points=\"5 3 19 12 5 21 5 3\"></polygon></svg>");
 function ft(e) {
 	var n = dt();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Square.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Square.svelte
 var pt = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"feather feather-square\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" ry=\"2\"></rect></svg>");
 function mt(e, n) {
 	let r = z(n, "fill", 8, "currentColor"), i = z(n, "stroke_width", 8, 1.5);
@@ -347,37 +347,37 @@ function mt(e, n) {
 		be(a, "fill", r()), be(a, "stroke-width", `${i()}`);
 	}), t(e, a);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Undo.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Undo.svelte
 var ht = v("<svg aria-label=\"undo\" xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"feather feather-rotate-ccw\"><polyline points=\"1 4 1 10 7 10\"></polyline><path d=\"M3.51 15a9 9 0 1 0 2.13-9.36L1 10\"></path></svg>");
 function gt(e) {
 	var n = ht();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Upload.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Upload.svelte
 var _t = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"90%\" height=\"90%\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"feather feather-upload\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"></path><polyline points=\"17 8 12 3 7 8\"></polyline><line x1=\"12\" y1=\"3\" x2=\"12\" y2=\"15\"></line></svg>");
 function vt(e) {
 	var n = _t();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Video.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Video.svelte
 var yt = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"feather feather-video\"><polygon points=\"23 7 16 12 23 17 23 7\"></polygon><rect x=\"1\" y=\"5\" width=\"15\" height=\"14\" rx=\"2\" ry=\"2\"></rect></svg>");
 function bt(e) {
 	var n = yt();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Webcam.svelte
+// frontend/node_modules/@gradio/icons/dist/src/Webcam.svelte
 var xt = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M12 2c-4.963 0-9 4.038-9 9c0 3.328 1.82 6.232 4.513 7.79l-2.067 1.378A1 1 0 0 0 6 22h12a1 1 0 0 0 .555-1.832l-2.067-1.378C19.18 17.232 21 14.328 21 11c0-4.962-4.037-9-9-9zm0 16c-3.859 0-7-3.141-7-7c0-3.86 3.141-7 7-7s7 3.14 7 7c0 3.859-3.141 7-7 7z\"></path><path fill=\"currentColor\" d=\"M12 6c-2.757 0-5 2.243-5 5s2.243 5 5 5s5-2.243 5-5s-2.243-5-5-5zm0 8c-1.654 0-3-1.346-3-3s1.346-3 3-3s3 1.346 3 3s-1.346 3-3 3z\"></path></svg>");
 function St(e) {
 	var n = xt();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/icons/dist/src/Spinner.svelte
-var Ct = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 50 50\" class=\"svelte-13pr9oa\"><circle cx=\"25\" cy=\"25\" r=\"20\" fill=\"none\" stroke-width=\"3.0\" stroke-linecap=\"round\" stroke-dasharray=\"94.2477796076938 94.2477796076938\" stroke-dashoffset=\"0\" class=\"svelte-13pr9oa\"><animateTransform attributeName=\"transform\" type=\"rotate\" from=\"0 25 25\" to=\"360 25 25\" repeatCount=\"indefinite\" class=\"svelte-13pr9oa\"></animateTransform></circle></svg>");
+// frontend/node_modules/@gradio/icons/dist/src/Spinner.svelte
+var Ct = v("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 50 50\" class=\"svelte-3g80w1\"><circle cx=\"25\" cy=\"25\" r=\"20\" fill=\"none\" stroke-width=\"3.0\" stroke-linecap=\"round\" stroke-dasharray=\"94.2477796076938 94.2477796076938\" stroke-dashoffset=\"0\" class=\"svelte-3g80w1\"><animateTransform attributeName=\"transform\" type=\"rotate\" from=\"0 25 25\" to=\"360 25 25\" repeatCount=\"indefinite\" class=\"svelte-3g80w1\"></animateTransform></circle></svg>");
 function wt(e) {
 	var n = Ct();
 	t(e, n);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/theme/dist/src/colors.js
+// frontend/node_modules/@gradio/theme/dist/src/colors.js
 var Tt = [
 	{
 		color: "red",
@@ -729,12 +729,12 @@ Tt.reduce((e, { color: t, primary: n, secondary: r }) => ({
 		secondary: Et[t][r]
 	}
 }), {});
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/utils/dist/src/url.js
+// frontend/node_modules/@gradio/utils/dist/src/url.js
 function Dt(e, t, n) {
 	let r = n ?? (typeof window < "u" ? window.location.href : void 0), i = r ? new URL(e || "/", r) : new URL(e), a = r ? new URL(r) : null, o = i.pathname.replace(/\/$/, ""), s = t.startsWith("/") ? t : `/${t}`, c = n !== void 0 || typeof window < "u" && window.gradio_config !== void 0, l = a && i.hostname === a.hostname && c ? a.origin : i.origin;
 	return new URL(`${o}${s}`, l);
 }
-// ../slime-card-gallery-template/frontend/node_modules/svelte/src/store/index-client.js
+// frontend/node_modules/svelte/src/store/index-client.js
 function Ot(t) {
 	let n, r = Ce((e) => {
 		let r = !1, i = t.subscribe((t) => {
@@ -917,7 +917,7 @@ var It = class {
 		});
 	}
 };
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/atoms/dist/src/ShareButton.svelte
+// frontend/node_modules/@gradio/atoms/dist/src/ShareButton.svelte
 function Lt(e, t) {
 	P(t, !0);
 	let n = A(!1);
@@ -950,7 +950,7 @@ function Lt(e, t) {
 	}
 	M();
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/atoms/dist/src/utils/parse_placeholder.js
+// frontend/node_modules/@gradio/atoms/dist/src/utils/parse_placeholder.js
 var Rt = /^(#\s*)(.+)$/m;
 function zt(e) {
 	let t = e.trim(), n = t.match(Rt);
@@ -960,8 +960,8 @@ function zt(e) {
 	let o = n.index === void 0 ? 0 : n.index + r.length;
 	return [a, t.substring(o).trim() || !1];
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/atoms/dist/src/UploadText.svelte
-var Bt = s("<h2 class=\"svelte-92vhab\"> </h2>"), Vt = s("<p class=\"svelte-92vhab\"> </p>"), Ht = s("<!> <!>", 1), Ut = s("<span class=\"or svelte-92vhab\"> </span> ", 1), Wt = s(" <!>", 1), Gt = s("<span class=\"or svelte-92vhab\"> </span> <span> </span>", 1), Kt = s("<span> </span> <!>", 1), qt = s("<div class=\"prompt svelte-92vhab\"><!></div>"), Jt = s("<div data-testid=\"upload-text\"><span data-testid=\"upload-icon\"><!></span> <!></div>");
+// frontend/node_modules/@gradio/atoms/dist/src/UploadText.svelte
+var Bt = s("<h2 class=\"svelte-cmuu9m\"> </h2>"), Vt = s("<p class=\"svelte-cmuu9m\"> </p>"), Ht = s("<!> <!>", 1), Ut = s("<span class=\"or svelte-cmuu9m\"> </span> ", 1), Wt = s(" <!>", 1), Gt = s("<span class=\"or svelte-cmuu9m\"> </span> <span> </span>", 1), Kt = s("<span> </span> <!>", 1), qt = s("<div class=\"prompt svelte-cmuu9m\"><!></div>"), Jt = s("<div data-testid=\"upload-text\"><span data-testid=\"upload-icon\"><!></span> <!></div>");
 function Yt(e, n) {
 	P(n, !0);
 	let r = z(n, "type", 3, "file"), i = z(n, "message", 3, void 0), o = z(n, "mode", 3, "full"), s = z(n, "hovered", 3, !1), c = z(n, "placeholder", 3, void 0), l = {
@@ -1068,14 +1068,14 @@ function Yt(e, n) {
 	a(O, (e) => {
 		S(h) === "full" ? e(k) : e(j, -1);
 	}), F(v), ee(v, (e) => m = e, () => m), N(() => {
-		b = g(v, 1, "wrap svelte-92vhab", null, b, {
+		b = g(v, 1, "wrap svelte-cmuu9m", null, b, {
 			compact: S(h) === "compact",
 			minimal: S(h) === "minimal"
-		}), be(v, "data-upload-density", S(h)), C = g(x, 1, "icon-wrap svelte-92vhab", null, C, { hovered: s() });
+		}), be(v, "data-upload-density", S(h)), C = g(x, 1, "icon-wrap svelte-cmuu9m", null, C, { hovered: s() });
 	}), t(e, v), M();
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/atoms/dist/src/SelectSource.svelte
-var Xt = s("<button aria-label=\"Upload file\"><!></button>"), Zt = s("<button aria-label=\"Record audio\"><!></button>"), Qt = s("<button aria-label=\"Capture from camera\"><!></button>"), $t = s("<button aria-label=\"Record video from camera\"><!></button>"), en = s("<button aria-label=\"Paste from clipboard\"><!></button>"), tn = s("<span class=\"source-selection svelte-1h5d9dg\" data-testid=\"source-select\"><!> <!> <!> <!> <!></span>");
+// frontend/node_modules/@gradio/atoms/dist/src/SelectSource.svelte
+var Xt = s("<button aria-label=\"Upload file\"><!></button>"), Zt = s("<button aria-label=\"Record audio\"><!></button>"), Qt = s("<button aria-label=\"Capture from camera\"><!></button>"), $t = s("<button aria-label=\"Record video from camera\"><!></button>"), en = s("<button aria-label=\"Paste from clipboard\"><!></button>"), tn = s("<span class=\"source-selection svelte-5d261r\" data-testid=\"source-select\"><!> <!> <!> <!> <!></span>");
 function nn(e, n) {
 	P(n, !0);
 	var r = this && this.__awaiter || function(e, t, n, r) {
@@ -1115,7 +1115,7 @@ function nn(e, n) {
 		var r = tn(), o = R(r), s = (e) => {
 			var n = Xt();
 			let r;
-			vt(R(n), {}), F(n), N(() => r = g(n, 1, "icon svelte-1h5d9dg", null, r, { selected: i() === "upload" || !i() })), l("click", n, () => u("upload")), t(e, n);
+			vt(R(n), {}), F(n), N(() => r = g(n, 1, "icon svelte-5d261r", null, r, { selected: i() === "upload" || !i() })), l("click", n, () => u("upload")), t(e, n);
 		}, c = L(() => n.sources.includes("upload"));
 		a(o, (e) => {
 			S(c) && e(s);
@@ -1123,7 +1123,7 @@ function nn(e, n) {
 		var d = D(o, 2), f = (e) => {
 			var n = Zt();
 			let r;
-			ct(R(n), {}), F(n), N(() => r = g(n, 1, "icon svelte-1h5d9dg", null, r, { selected: i() === "microphone" })), l("click", n, () => u("microphone")), t(e, n);
+			ct(R(n), {}), F(n), N(() => r = g(n, 1, "icon svelte-5d261r", null, r, { selected: i() === "microphone" })), l("click", n, () => u("microphone")), t(e, n);
 		}, p = L(() => n.sources.includes("microphone"));
 		a(d, (e) => {
 			S(p) && e(f);
@@ -1131,7 +1131,7 @@ function nn(e, n) {
 		var m = D(d, 2), h = (e) => {
 			var n = Qt();
 			let r;
-			St(R(n), {}), F(n), N(() => r = g(n, 1, "icon svelte-1h5d9dg", null, r, { selected: i() === "webcam" })), l("click", n, () => u("webcam")), t(e, n);
+			St(R(n), {}), F(n), N(() => r = g(n, 1, "icon svelte-5d261r", null, r, { selected: i() === "webcam" })), l("click", n, () => u("webcam")), t(e, n);
 		}, _ = L(() => n.sources.includes("webcam"));
 		a(m, (e) => {
 			S(_) && e(h);
@@ -1139,7 +1139,7 @@ function nn(e, n) {
 		var v = D(m, 2), y = (e) => {
 			var n = $t();
 			let r;
-			bt(R(n), {}), F(n), N(() => r = g(n, 1, "icon svelte-1h5d9dg", null, r, { selected: i() === "webcam-video" })), l("click", n, () => u("webcam-video")), t(e, n);
+			bt(R(n), {}), F(n), N(() => r = g(n, 1, "icon svelte-5d261r", null, r, { selected: i() === "webcam-video" })), l("click", n, () => u("webcam-video")), t(e, n);
 		}, b = L(() => n.sources.includes("webcam-video"));
 		a(v, (e) => {
 			S(b) && e(y);
@@ -1147,7 +1147,7 @@ function nn(e, n) {
 		var x = D(v, 2), C = (e) => {
 			var n = en();
 			let r;
-			it(R(n), {}), F(n), N(() => r = g(n, 1, "icon svelte-1h5d9dg", null, r, { selected: i() === "clipboard" })), l("click", n, () => u("clipboard")), t(e, n);
+			it(R(n), {}), F(n), N(() => r = g(n, 1, "icon svelte-5d261r", null, r, { selected: i() === "clipboard" })), l("click", n, () => u("clipboard")), t(e, n);
 		}, w = L(() => n.sources.includes("clipboard"));
 		a(x, (e) => {
 			S(w) && e(C);
@@ -1158,8 +1158,8 @@ function nn(e, n) {
 	}), t(e, d), M();
 }
 o(["click"]);
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/atoms/dist/src/CustomButton.svelte
-var rn = s("<span class=\"custom-button-label svelte-avkj2u\"> </span>"), an = s("<button class=\"custom-button svelte-avkj2u\"><!></button>");
+// frontend/node_modules/@gradio/atoms/dist/src/CustomButton.svelte
+var rn = s("<span class=\"custom-button-label svelte-g7x491\"> </span>"), an = s("<button class=\"custom-button svelte-g7x491\"><!></button>");
 function on(e, n) {
 	P(n, !0);
 	var r = an(), i = R(r), o = (e) => {
@@ -1173,7 +1173,7 @@ function on(e, n) {
 	}), l("click", r, () => n.on_click(n.button.id)), t(e, r), M();
 }
 o(["click"]);
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/atoms/dist/src/IconButtonWrapper.svelte
+// frontend/node_modules/@gradio/atoms/dist/src/IconButtonWrapper.svelte
 var sn = s("<div><!> <!></div>");
 function cn(e, n) {
 	P(n, !0);
@@ -1205,9 +1205,9 @@ function cn(e, n) {
 	};
 	a(p, (e) => {
 		s() && e(h);
-	}), F(l), N(() => g(l, 1, `icon-button-wrapper ${r() ? "top-panel" : ""} ${i() ? "display-top-corner" : "hide-top-corner"} ${o() ? "" : "no-background"}`, "svelte-1277jcl")), t(e, l), M();
+	}), F(l), N(() => g(l, 1, `icon-button-wrapper ${r() ? "top-panel" : ""} ${i() ? "display-top-corner" : "hide-top-corner"} ${o() ? "" : "no-background"}`, "svelte-1f7yqtk")), t(e, l), M();
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/atoms/dist/src/FullscreenButton.svelte
+// frontend/node_modules/@gradio/atoms/dist/src/FullscreenButton.svelte
 function ln(e, n) {
 	P(n, !0);
 	var r = y(), i = B(r), o = (e) => {
@@ -1231,7 +1231,7 @@ function ln(e, n) {
 		n.fullscreen ? e(o) : e(s, -1);
 	}), t(e, r), M();
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/client/dist/browser.js
+// frontend/node_modules/@gradio/client/dist/browser.js
 async function un(e, t) {
 	return e.map((e) => new dn({
 		path: e.name,
@@ -1260,8 +1260,8 @@ var dn = class {
 typeof process < "u" && process.versions && process.versions.node, TransformStream;
 var fn = "gradio:run-history:";
 `${fn}`, `${fn}`, `${fn}`;
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/upload/dist/src/UploadProgress.svelte
-var pn = s("<div class=\"file svelte-n12gk0\"><span><div class=\"progress-bar svelte-n12gk0\"><progress style=\"visibility:hidden;height:0;width:0;\" max=\"100\" class=\"svelte-n12gk0\"> </progress></div></span> <span class=\"file-name svelte-n12gk0\"> </span></div>"), mn = s("<div><span class=\"uploading svelte-n12gk0\"> </span> <!></div>");
+// frontend/node_modules/@gradio/upload/dist/src/UploadProgress.svelte
+var pn = s("<div class=\"file svelte-12marlv\"><span><div class=\"progress-bar svelte-12marlv\"><progress style=\"visibility:hidden;height:0;width:0;\" max=\"100\" class=\"svelte-12marlv\"> </progress></div></span> <span class=\"file-name svelte-12marlv\"> </span></div>"), mn = s("<div><span class=\"uploading svelte-12marlv\"> </span> <!></div>");
 function hn(e, n) {
 	P(n, !0);
 	var r = this && this.__awaiter || function(e, t, n, r) {
@@ -1332,11 +1332,11 @@ function hn(e, n) {
 	a(y, (e) => {
 		S(l) && e(b);
 	}), F(m), N(() => {
-		h = g(m, 1, "wrap svelte-n12gk0", null, h, { progress: S(o) }), u(v, `Uploading ${S(c).length ?? ""}
+		h = g(m, 1, "wrap svelte-12marlv", null, h, { progress: S(o) }), u(v, `Uploading ${S(c).length ?? ""}
 		${S(c).length > 1 ? "files" : "file"}...`);
 	}), t(e, m), M();
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/upload/dist/src/utils.js
+// frontend/node_modules/@gradio/upload/dist/src/utils.js
 function gn(e, t, n) {
 	if (!e || e === "*" || e === "file/*" || Array.isArray(e) && e.some((e) => e === "*" || e === "file/*")) return !0;
 	let r;
@@ -1422,7 +1422,7 @@ function bn(e, t) {
 	let r = Array.isArray(t) ? t.join(", ") : t;
 	return `Invalid file type${e.length > 1 ? "s" : ""}: ${n}. Only ${r} allowed.`;
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/upload/dist/src/Upload.svelte
+// frontend/node_modules/@gradio/upload/dist/src/Upload.svelte
 function xn(e, n) {
 	P(n, !0);
 	var r = this && this.__awaiter || function(e, t, n, r) {
@@ -1583,7 +1583,7 @@ function xn(e, n) {
 					"icon-mode": C()
 				},
 				[te]: { height: C() ? "" : T() ? typeof T() == "number" ? T() + "px" : T() : "100%" }
-			}), void 0, void 0, void 0, "svelte-167bwal");
+			}), void 0, void 0, void 0, "svelte-tgi0k0");
 			var i = y(), o = B(i), s = (e) => {
 				var r = y(), i = B(r);
 				ae(i, () => n.children), t(e, r);
@@ -1637,7 +1637,7 @@ function xn(e, n) {
 					"icon-mode": C()
 				},
 				[te]: { height: C() ? "" : T() ? typeof T() == "number" ? T() + "px" : T() : "100%" }
-			}), void 0, void 0, void 0, "svelte-167bwal");
+			}), void 0, void 0, void 0, "svelte-tgi0k0");
 			var o = y(), s = B(o), h = (e) => {
 				var r = y(), i = B(r);
 				ae(i, () => n.children), t(e, r);
@@ -1651,7 +1651,7 @@ function xn(e, n) {
 		s() === "clipboard" ? e(he) : g() && v() ? e(ge, 1) : e(_e, -1);
 	}), t(e, pe), M(fe);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/upload/dist/src/ModifyUpload.svelte
+// frontend/node_modules/@gradio/upload/dist/src/ModifyUpload.svelte
 var Sn = s("<!> <!> <!> <!> <!>", 1);
 function Cn(e, n) {
 	P(n, !0);
@@ -1744,7 +1744,7 @@ function Cn(e, n) {
 		$$slots: { default: !0 }
 	}), M();
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/image/dist/shared/Image.svelte
+// frontend/node_modules/@gradio/image/dist/shared/Image.svelte
 var wn = /* @__PURE__ */ new Set([
 	"$$slots",
 	"$$events",
@@ -1780,21 +1780,21 @@ function En(e, n) {
 		...S(p),
 		...S(m),
 		onload: u
-	}), void 0, void 0, void 0, "svelte-64a5t6"), c(g), t(e, g), M();
+	}), void 0, void 0, void 0, "svelte-5xcf1t"), c(g), t(e, g), M();
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/image/dist/shared/ImagePreview.svelte
+// frontend/node_modules/@gradio/image/dist/shared/ImagePreview.svelte
 o(["click"]);
-// ../slime-card-gallery-template/frontend/node_modules/@ffmpeg/ffmpeg/dist/esm/const.js
+// frontend/node_modules/@ffmpeg/ffmpeg/dist/esm/const.js
 var Dn;
 (function(e) {
 	e.LOAD = "LOAD", e.EXEC = "EXEC", e.FFPROBE = "FFPROBE", e.WRITE_FILE = "WRITE_FILE", e.READ_FILE = "READ_FILE", e.DELETE_FILE = "DELETE_FILE", e.RENAME = "RENAME", e.CREATE_DIR = "CREATE_DIR", e.LIST_DIR = "LIST_DIR", e.DELETE_DIR = "DELETE_DIR", e.ERROR = "ERROR", e.DOWNLOAD = "DOWNLOAD", e.PROGRESS = "PROGRESS", e.LOG = "LOG", e.MOUNT = "MOUNT", e.UNMOUNT = "UNMOUNT";
 })(Dn ||= {});
-// ../slime-card-gallery-template/frontend/node_modules/@ffmpeg/ffmpeg/dist/esm/types.js
+// frontend/node_modules/@ffmpeg/ffmpeg/dist/esm/types.js
 var On;
 (function(e) {
 	e.MEMFS = "MEMFS", e.NODEFS = "NODEFS", e.NODERAWFS = "NODERAWFS", e.IDBFS = "IDBFS", e.WORKERFS = "WORKERFS", e.PROXYFS = "PROXYFS";
 })(On ||= {});
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/video/dist/shared/utils.js
+// frontend/node_modules/@gradio/video/dist/shared/utils.js
 function kn(e, { autoplay: t }) {
 	function n() {
 		t && Nt(e);
@@ -1803,7 +1803,7 @@ function kn(e, { autoplay: t }) {
 		e.removeEventListener("loadeddata", n);
 	} };
 }
-// ../slime-card-gallery-template/frontend/node_modules/hls.js/dist/hls.mjs
+// frontend/node_modules/hls.js/dist/hls.mjs
 var W = Number.isFinite || function(e) {
 	return typeof e == "number" && isFinite(e);
 }, An = Number.isSafeInteger || function(e) {
@@ -20139,7 +20139,7 @@ var Hp = class {
 	}
 };
 Up.defaultConfig = void 0;
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/utils/dist/src/hls.js
+// frontend/node_modules/@gradio/utils/dist/src/hls.js
 function Wp() {
 	return Up.isSupported();
 }
@@ -20192,8 +20192,8 @@ function Qp(e) {
 		deliveryDirectives: null
 	});
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/video/dist/shared/Video.svelte
-var $p = s("<div><span class=\"load-wrap svelte-13a01ra\"><span class=\"loader svelte-13a01ra\"></span></span></div> <video crossorigin=\"anonymous\" class=\"svelte-13a01ra\"><!></video>", 3);
+// frontend/node_modules/@gradio/video/dist/shared/Video.svelte
+var $p = s("<div><span class=\"load-wrap svelte-1me9ud\"><span class=\"loader svelte-1me9ud\"></span></span></div> <video crossorigin=\"anonymous\" class=\"svelte-1me9ud\"><!></video>", 3);
 function em(e, n) {
 	P(n, !0);
 	let r = z(n, "src", 3, void 0), i = z(n, "muted", 3, void 0), o = z(n, "playsinline", 3, void 0), s = z(n, "preload", 3, void 0), c = z(n, "autoplay", 3, void 0), u = z(n, "controls", 3, void 0), d = z(n, "currentTime", 15, void 0), f = z(n, "duration", 15, void 0), p = z(n, "paused", 15, void 0), m = z(n, "node", 15, void 0), _ = z(n, "processingVideo", 3, !1), v, b, x;
@@ -20219,7 +20219,7 @@ function em(e, n) {
 	a(k, (e) => {
 		n.children && e(A);
 	}), F(O), h(() => pe(O, d)), h(() => j("duration", "durationchange", O, f)), h(() => ce(O, p)), ee(O, (e) => m(e), () => m()), xe(O, (e, t) => kn?.(e, t), () => ({ autoplay: c() ?? !1 })), N(() => {
-		E = g(T, 1, "overlay svelte-13a01ra", null, E, { hidden: !_() }), be(O, "src", r()), O.muted = i(), O.playsInline = o(), be(O, "preload", s()), O.autoplay = c(), O.controls = u(), O.loop = n.loop, be(O, "data-testid", n["data-testid"]);
+		E = g(T, 1, "overlay svelte-1me9ud", null, E, { hidden: !_() }), be(O, "src", r()), O.muted = i(), O.playsInline = o(), be(O, "preload", s()), O.autoplay = c(), O.controls = u(), O.loop = n.loop, be(O, "data-testid", n["data-testid"]);
 	}), he("loadeddata", O, () => n.onloadeddata?.()), l("click", O, () => n.onclick?.()), he("play", O, () => n.onplay?.()), he("pause", O, () => n.onpause?.()), he("ended", O, () => n.onended?.()), l("mouseover", O, () => n.onmouseover?.()), l("mouseout", O, () => n.onmouseout?.()), he("focus", O, () => n.onfocus?.()), he("blur", O, () => n.onblur?.()), he("error", O, () => n.onerror?.("Video not playable")), he("loadstart", O, () => n.onloadstart?.()), he("loadedmetadata", O, () => n.onloadedmetadata?.()), t(e, w), M();
 }
 o([
@@ -20227,7 +20227,7 @@ o([
 	"mouseover",
 	"mouseout"
 ]);
-// ../slime-card-gallery-template/frontend/node_modules/dequal/dist/index.mjs
+// frontend/node_modules/dequal/dist/index.mjs
 var tm = Object.prototype.hasOwnProperty;
 function nm(e, t, n) {
 	for (n of e.keys()) if (rm(n, t)) return n;
@@ -20869,7 +20869,7 @@ function bm(e, n) {
 		f(ue, 23, () => S(H), (e, t) => t + ":" + ("image" in e ? typeof e.image == "string" ? e.image : e.image.url : e.video.url), (e, r, i) => {
 			var o = vm(), s = R(o);
 			let c;
-			var d = R(s), h = (e) => {
+			var d = R(s), h = (e) => {}, _ = L(() => S(r).caption?.startsWith("__card_no_thumbnail__\n")), v = (e) => {
 				{
 					let t = L(() => S(r).caption || ""), n = L(() => typeof S(r).image == "string" ? S(r).image : S(r).image.url);
 					En(e, {
@@ -20882,7 +20882,7 @@ function bm(e, n) {
 						loading: "lazy"
 					});
 				}
-			}, _ = (e) => {
+			}, y = (e) => {
 				var n = lm(), a = B(n);
 				ft(a, {});
 				var o = D(a, 2);
@@ -20907,11 +20907,11 @@ function bm(e, n) {
 				t(e, n);
 			};
 			a(d, (e) => {
-				"image" in S(r) ? e(h) : e(_, -1);
+				S(_) ? e(h) : "image" in S(r) ? e(v, 1) : e(y, -1);
 			});
-			var v = D(d, 2), y = (e) => {
+			var x = D(d, 2), C = (e) => {
 				var n = gm();
-				f(n, 21, () => S(r).caption.split("\n"), m, (e, n) => {
+				f(n, 21, () => S(r).caption.split("\n").filter((e) => e !== "__card_no_thumbnail__"), m, (e, n) => {
 					var r = hm(), i = R(r), o = (e) => {
 						var r = pm(), i = B(r), a = I(i, !0), o = D(i, 2), s = I(o, !0);
 						N((e, t) => {
@@ -20926,20 +20926,20 @@ function bm(e, n) {
 					}), F(r), t(e, r);
 				}), F(n), t(e, n);
 			};
-			a(v, (e) => {
-				S(r).caption && e(y);
+			a(x, (e) => {
+				S(r).caption && e(C);
 			}), F(s);
-			var x = D(s, 2), C = (e) => {
+			var w = D(s, 2), T = (e) => {
 				var n = _m();
 				He(R(n), {}), F(n), l("click", n, (e) => {
 					e.stopPropagation(), $e(S(i));
 				}), t(e, n);
 			};
-			a(x, (e) => {
-				n.interactive && e(C);
-			}), F(o), N(() => {
-				c = g(s, 1, "thumbnail-item thumbnail-lg svelte-1qqxspv", null, c, { selected: b() === S(i) }), be(s, "aria-label", "Thumbnail " + (S(i) + 1) + " of " + S(H).length);
-			}), l("click", s, () => {
+			a(w, (e) => {
+				n.interactive && e(T);
+			}), F(o), N((e) => {
+				c = g(s, 1, "thumbnail-item thumbnail-lg svelte-1qqxspv", null, c, { selected: b() === S(i) }), be(s, "aria-label", e);
+			}, [() => (S(r).caption?.startsWith("__card_no_thumbnail__\n") ? "Card " : "Thumbnail ") + (S(i) + 1) + " of " + S(H).length]), l("click", s, () => {
 				b() === null && p() && ne()(), b(S(i)), Oe(S(i));
 			}), t(e, o);
 		}), F(ue), F(k), F(r), ee(r, (e) => _e = e, () => _e), N(() => {
@@ -20955,7 +20955,7 @@ function bm(e, n) {
 	}), ye("innerHeight", (e) => e), t(e, tt), M();
 }
 o(["keydown", "click"]);
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/statustracker/dist/static/utils.js
+// frontend/node_modules/@gradio/statustracker/dist/static/utils.js
 function xm(e) {
 	let t = [
 		"",
@@ -20971,11 +20971,11 @@ function xm(e) {
 	let r = t[n];
 	return (Number.isInteger(e) ? e : e.toFixed(1)) + r;
 }
-// ../slime-card-gallery-template/frontend/node_modules/svelte/src/motion/utils.js
+// frontend/node_modules/svelte/src/motion/utils.js
 function Sm(e) {
 	return Object.prototype.toString.call(e) === "[object Date]";
 }
-// ../slime-card-gallery-template/frontend/node_modules/svelte/src/motion/spring.js
+// frontend/node_modules/svelte/src/motion/spring.js
 function Cm(e, t, n, r) {
 	if (typeof n == "number" || Sm(n)) {
 		let i = r - n, a = (n - t) / (e.dt || 1 / 60), o = (a + (e.opts.stiffness * i - e.opts.damping * a) * e.inv_mass) * e.dt;
@@ -21020,8 +21020,8 @@ function wm(e, t = {}) {
 	};
 	return _;
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/statustracker/dist/static/Loader.svelte
-var Tm = s("<div><svg viewBox=\"-1200 -1200 3000 3000\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" class=\"svelte-1dpdlu2\"><g><path d=\"M255.926 0.754768L509.702 139.936V221.027L255.926 81.8465V0.754768Z\" fill=\"#FF7C00\" fill-opacity=\"0.4\" class=\"svelte-1dpdlu2\"></path><path d=\"M509.69 139.936L254.981 279.641V361.255L509.69 221.55V139.936Z\" fill=\"#FF7C00\" class=\"svelte-1dpdlu2\"></path><path d=\"M0.250138 139.937L254.981 279.641V361.255L0.250138 221.55V139.937Z\" fill=\"#FF7C00\" fill-opacity=\"0.4\" class=\"svelte-1dpdlu2\"></path><path d=\"M255.923 0.232622L0.236328 139.936V221.55L255.923 81.8469V0.232622Z\" fill=\"#FF7C00\" class=\"svelte-1dpdlu2\"></path></g><g><path d=\"M255.926 141.5L509.702 280.681V361.773L255.926 222.592V141.5Z\" fill=\"#FF7C00\" fill-opacity=\"0.4\" class=\"svelte-1dpdlu2\"></path><path d=\"M509.69 280.679L254.981 420.384V501.998L509.69 362.293V280.679Z\" fill=\"#FF7C00\" class=\"svelte-1dpdlu2\"></path><path d=\"M0.250138 280.681L254.981 420.386V502L0.250138 362.295V280.681Z\" fill=\"#FF7C00\" fill-opacity=\"0.4\" class=\"svelte-1dpdlu2\"></path><path d=\"M255.923 140.977L0.236328 280.68V362.294L255.923 222.591V140.977Z\" fill=\"#FF7C00\" class=\"svelte-1dpdlu2\"></path></g></svg></div>");
+// frontend/node_modules/@gradio/statustracker/dist/static/Loader.svelte
+var Tm = s("<div><svg viewBox=\"-1200 -1200 3000 3000\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" class=\"svelte-m6d381\"><g><path d=\"M255.926 0.754768L509.702 139.936V221.027L255.926 81.8465V0.754768Z\" fill=\"#FF7C00\" fill-opacity=\"0.4\" class=\"svelte-m6d381\"></path><path d=\"M509.69 139.936L254.981 279.641V361.255L509.69 221.55V139.936Z\" fill=\"#FF7C00\" class=\"svelte-m6d381\"></path><path d=\"M0.250138 139.937L254.981 279.641V361.255L0.250138 221.55V139.937Z\" fill=\"#FF7C00\" fill-opacity=\"0.4\" class=\"svelte-m6d381\"></path><path d=\"M255.923 0.232622L0.236328 139.936V221.55L255.923 81.8469V0.232622Z\" fill=\"#FF7C00\" class=\"svelte-m6d381\"></path></g><g><path d=\"M255.926 141.5L509.702 280.681V361.773L255.926 222.592V141.5Z\" fill=\"#FF7C00\" fill-opacity=\"0.4\" class=\"svelte-m6d381\"></path><path d=\"M509.69 280.679L254.981 420.384V501.998L509.69 362.293V280.679Z\" fill=\"#FF7C00\" class=\"svelte-m6d381\"></path><path d=\"M0.250138 280.681L254.981 420.386V502L0.250138 362.295V280.681Z\" fill=\"#FF7C00\" fill-opacity=\"0.4\" class=\"svelte-m6d381\"></path><path d=\"M255.923 140.977L0.236328 280.68V362.294L255.923 222.591V140.977Z\" fill=\"#FF7C00\" class=\"svelte-m6d381\"></path></g></svg></div>");
 function Em(e, n) {
 	P(n, !0);
 	let r = () => ge(l, "$top", a), i = () => ge(u, "$bottom", a), [a, o] = de();
@@ -21075,10 +21075,10 @@ function Em(e, n) {
 	let _;
 	var v = R(h), y = R(v), b = D(y);
 	F(v), F(h), N(() => {
-		_ = g(h, 1, "svelte-1dpdlu2", null, _, { margin: c() }), Se(y, `transform: translate(${r()[0] ?? ""}px, ${r()[1] ?? ""}px);`), Se(b, `transform: translate(${i()[0] ?? ""}px, ${i()[1] ?? ""}px);`);
+		_ = g(h, 1, "svelte-m6d381", null, _, { margin: c() }), Se(y, `transform: translate(${r()[0] ?? ""}px, ${r()[1] ?? ""}px);`), Se(b, `transform: translate(${i()[0] ?? ""}px, ${i()[1] ?? ""}px);`);
 	}), t(e, h), M(), o();
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/statustracker/dist/static/index.svelte
+// frontend/node_modules/@gradio/statustracker/dist/static/index.svelte
 var Dm = function(e, t, n, r) {
 	function i(e) {
 		return e instanceof n ? e : new n(function(t) {
@@ -21125,7 +21125,7 @@ function Mm(e) {
 		}
 	});
 }
-var Nm = s("<div class=\"validation-error svelte-1r56it3\"> <button class=\"svelte-1r56it3\"><!></button></div>"), Pm = s("<div class=\"eta-bar svelte-1r56it3\"></div>"), Fm = s("<!> ", 1), Im = s("<!> <!> <!> <!>", 1), Lm = s("<div class=\"progress-level svelte-1r56it3\"><div class=\"progress-level-inner svelte-1r56it3\"><!></div> <div class=\"progress-bar-wrap svelte-1r56it3\" role=\"progressbar\" aria-valuemin=\"0\" aria-valuemax=\"100\"><div class=\"progress-bar svelte-1r56it3\"></div></div></div>"), Rm = s("<p class=\"loading svelte-1r56it3\"> </p> <!>", 1), zm = s("<!> <div><!> <!></div> <!> <!>", 1), Bm = s("<div class=\"clear-status svelte-1r56it3\"><!></div> <span class=\"error svelte-1r56it3\"> </span> <!>", 1), Vm = s("<div> <!> </div>"), Hm = s("<div data-testid=\"status-tracker\"><!> <!></div> <!>", 1);
+var Nm = s("<div class=\"validation-error svelte-124hqw6\"> <button class=\"svelte-124hqw6\"><!></button></div>"), Pm = s("<div class=\"eta-bar svelte-124hqw6\"></div>"), Fm = s("<!> ", 1), Im = s("<!> <!> <!> <!>", 1), Lm = s("<div class=\"progress-level svelte-124hqw6\"><div class=\"progress-level-inner svelte-124hqw6\"><!></div> <div class=\"progress-bar-wrap svelte-124hqw6\" role=\"progressbar\" aria-valuemin=\"0\" aria-valuemax=\"100\"><div class=\"progress-bar svelte-124hqw6\"></div></div></div>"), Rm = s("<p class=\"loading svelte-124hqw6\"> </p> <!>", 1), zm = s("<!> <div><!> <!></div> <!> <!>", 1), Bm = s("<div class=\"clear-status svelte-124hqw6\"><!></div> <span class=\"error svelte-124hqw6\"> </span> <!>", 1), Vm = s("<div> <!> </div>"), Hm = s("<div data-testid=\"status-tracker\"><!> <!></div> <!>", 1);
 function Um(e, n) {
 	P(n, !0);
 	let r = z(n, "eta", 3, null), i = z(n, "component_id", 3, null), o = z(n, "fn_index", 3, null), s = z(n, "scroll_to_output", 3, !1), c = z(n, "timer", 3, !0), l = z(n, "show_progress", 3, "full"), d = z(n, "message", 3, null), p = z(n, "progress", 3, null), h = z(n, "time_start", 3, null), _ = z(n, "eta_total", 3, null), v = z(n, "variant", 3, "default"), x = z(n, "loading_text", 3, "Loading..."), w = z(n, "absolute", 3, !0), E = z(n, "translucent", 3, !1), O = z(n, "border", 3, !1), k = z(n, "validation_error", 7, null), j = z(n, "show_validation_error", 3, !0), te = z(n, "type", 3, null), ne = z(n, "used_cache", 3, null), re = z(n, "cache_duration", 3, null), ie = z(n, "avg_time", 3, null), oe = z(n, "cache_event_id", 3, null), se, ce = !1, le = A(0), ue = A(null), de = A(null), fe = A(!1), pe = A(null), me = A(!1), he = A(!1), ge = A(null), _e = A(null), ye = A("from cache"), xe = A(!1), H = null, Ce = null, we = null;
@@ -21335,7 +21335,7 @@ function Um(e, n) {
 		};
 		a(ee, (e) => {
 			c() || e(P);
-		}), N(() => h = g(d, 1, "progress-text svelte-1r56it3", null, h, {
+		}), N(() => h = g(d, 1, "progress-text svelte-124hqw6", null, h, {
 			"meta-text-center": v() === "center",
 			"meta-text": v() === "default"
 		})), t(e, i);
@@ -21376,13 +21376,13 @@ function Um(e, n) {
 		});
 		var l = D(s);
 		F(n), N(() => {
-			r = g(n, 1, "cache-indicator svelte-1r56it3", null, r, { "fade-out": S(he) }), i = Se(n, "", i, { position: w() ? "absolute" : "static" }), u(o, `⚡ ${S(ye) ?? ""}: `), u(l, `${S(ge) ?? ""}s`);
+			r = g(n, 1, "cache-indicator svelte-124hqw6", null, r, { "fade-out": S(he) }), i = Se(n, "", i, { position: w() ? "absolute" : "static" }), u(o, `⚡ ${S(ye) ?? ""}: `), u(l, `${S(ge) ?? ""}s`);
 		}), t(e, n);
 	};
 	a(Je, (e) => {
 		S(me) && e(Ye);
 	}), N(() => {
-		Be = g(U, 1, `wrap ${v() ?? ""} ${l() ?? ""}`, "svelte-1r56it3", Be, {
+		Be = g(U, 1, `wrap ${v() ?? ""} ${l() ?? ""}`, "svelte-124hqw6", Be, {
 			"no-click": k() && j(),
 			hide: S(Ee),
 			translucent: v() === "center" && (n.status === "pending" || n.status === "error") || E() || l() === "minimal" || k(),
@@ -21394,7 +21394,7 @@ function Um(e, n) {
 		});
 	}), t(e, ze), M();
 }
-// ../slime-card-gallery-template/frontend/node_modules/amuchina/dist/utils.js
+// frontend/node_modules/amuchina/dist/utils.js
 var Wm = (e) => JSON.parse(JSON.stringify(e)), Gm = (e) => e.nodeType === 1, Km = (e) => Sh.has(e.tagName), qm = (e) => "action" in e, Jm = (e) => e.tagName === "IFRAME", Ym = (e) => "formAction" in e, Xm = (e) => "protocol" in e, Zm = (() => {
 	let e = /^(?:\w+script|data):/i;
 	return (t) => e.test(t);
@@ -21565,10 +21565,10 @@ var bh = {
 	}
 };
 Eh = /* @__PURE__ */ new WeakMap(), Dh = /* @__PURE__ */ new WeakMap(), Oh = /* @__PURE__ */ new WeakMap(), kh.getDefaultConfiguration = () => Wm(Ch);
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/sanitize/dist/browser.js
+// frontend/node_modules/@gradio/sanitize/dist/browser.js
 var Ah = kh.getDefaultConfiguration();
 Ah.allowElements = (Ah.allowElements ?? []).filter((e) => e !== "style" && e !== "svg:style" && e !== "link" && e !== "meta"), new kh(Ah);
-// ../slime-card-gallery-template/frontend/node_modules/svelte/src/transition/index.js
+// frontend/node_modules/svelte/src/transition/index.js
 var jh = (e) => e;
 function Mh(e, { delay: t = 0, duration: n = 400, easing: r = jh } = {}) {
 	let i = +getComputedStyle(e).opacity;
@@ -21579,7 +21579,7 @@ function Mh(e, { delay: t = 0, duration: n = 400, easing: r = jh } = {}) {
 		css: (e) => `opacity: ${e * i}`
 	};
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/statustracker/dist/static/ToastContent.svelte
+// frontend/node_modules/@gradio/statustracker/dist/static/ToastContent.svelte
 o([
 	"touchstart",
 	"touchmove",
@@ -21587,8 +21587,8 @@ o([
 	"click",
 	"keydown"
 ]);
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/statustracker/dist/static/StreamingBar.svelte
-var Nh = s("<div class=\"streaming-bar svelte-8ow6js\"></div>");
+// frontend/node_modules/@gradio/statustracker/dist/static/StreamingBar.svelte
+var Nh = s("<div class=\"streaming-bar svelte-xj6qzf\"></div>");
 function Ph(e, n) {
 	var r = y(), i = B(r), o = (e) => {
 		var r = Nh();
@@ -21599,7 +21599,7 @@ function Ph(e, n) {
 		n.time_limit && e(o);
 	}), t(e, r);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/file/dist/shared/utils.js
+// frontend/node_modules/@gradio/file/dist/shared/utils.js
 var Fh = (e) => {
 	let t = [
 		"B",
@@ -21611,7 +21611,7 @@ var Fh = (e) => {
 	for (; e > 1024;) e /= 1024, n++;
 	let r = t[n];
 	return e.toFixed(1) + "&nbsp;" + r;
-}, Ih = s("<span class=\"drag-handle svelte-fjygce\">⋮⋮</span>"), Lh = s("<!>&nbsp;&#8675;", 1), Rh = s("<td class=\"svelte-fjygce\"><button class=\"label-clear-button svelte-fjygce\" aria-label=\"Remove this file\">×</button></td>"), zh = s("<tr><td class=\"filename svelte-fjygce\"><!> <span class=\"stem svelte-fjygce\"> </span> <span class=\"ext svelte-fjygce\"> </span></td><td class=\"download svelte-fjygce\"><!></td><!></tr>"), Bh = s("<div class=\"file-preview-holder svelte-fjygce\"><table class=\"file-preview svelte-fjygce\"><tbody class=\"svelte-fjygce\"></tbody></table></div>");
+}, Ih = s("<span class=\"drag-handle svelte-87ui99\">⋮⋮</span>"), Lh = s("<!>&nbsp;&#8675;", 1), Rh = s("<td class=\"svelte-87ui99\"><button class=\"label-clear-button svelte-87ui99\" aria-label=\"Remove this file\">×</button></td>"), zh = s("<tr><td class=\"filename svelte-87ui99\"><!> <span class=\"stem svelte-87ui99\"> </span> <span class=\"ext svelte-87ui99\"> </span></td><td class=\"download svelte-87ui99\"><!></td><!></tr>"), Bh = s("<div class=\"file-preview-holder svelte-87ui99\"><table class=\"file-preview svelte-87ui99\"><tbody class=\"svelte-87ui99\"></tbody></table></div>");
 function Vh(e, n) {
 	P(n, !0);
 	let r = z(n, "value", 7), i = z(n, "selectable", 3, !1), o = z(n, "height", 3, void 0), s = z(n, "allow_reordering", 3, !1), c = A(null), p = A(null);
@@ -21712,7 +21712,7 @@ function Vh(e, n) {
 		a(oe, (e) => {
 			S(x).length > 1 && e(se);
 		}), F(f), N(() => {
-			y = g(f, 1, "file svelte-fjygce", null, y, {
+			y = g(f, 1, "file svelte-87ui99", null, y, {
 				selectable: i(),
 				dragging: S(c) === S(o),
 				"drop-target": S(p) === S(o) || S(o) === S(x).length - 1 && S(p) === S(x).length
@@ -21723,7 +21723,7 @@ function Vh(e, n) {
 	}), F(ee), F(j), F(O), N(() => k = Se(O, "", k, { "max-height": o() ? typeof o() == "number" ? o() + "px" : o() : "auto" })), t(e, O), M();
 }
 o(["click", "keydown"]);
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/file/dist/shared/FileUpload.svelte
+// frontend/node_modules/@gradio/file/dist/shared/FileUpload.svelte
 var Hh = s("<!> <!>", 1), Uh = s("<!> <!> <!>", 1);
 function Wh(e, n) {
 	P(n, !0);
@@ -21977,8 +21977,8 @@ function Wh(e, n) {
 		S(te) ? e(ee) : e(F, -1);
 	}), t(e, E), M();
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/image/dist/shared/WebcamPermissions.svelte
-var Gh = s("<button class=\"svelte-s2p4m4\"><div class=\"wrap svelte-s2p4m4\"><span class=\"icon-wrap svelte-s2p4m4\"><!></span> </div></button>");
+// frontend/node_modules/@gradio/image/dist/shared/WebcamPermissions.svelte
+var Gh = s("<button class=\"svelte-9xp153\"><div class=\"wrap svelte-9xp153\"><span class=\"icon-wrap svelte-9xp153\"><!></span> </div></button>");
 function Kh(e, n) {
 	var r = Gh();
 	Se(r, "", {}, { height: "100%" });
@@ -21990,7 +21990,7 @@ function Kh(e, n) {
 	}), t(e, r);
 }
 o(["click"]);
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/image/dist/shared/stream_utils.js
+// frontend/node_modules/@gradio/image/dist/shared/stream_utils.js
 function qh() {
 	return navigator.mediaDevices.enumerateDevices();
 }
@@ -22013,8 +22013,8 @@ async function Yh(e, t, n, r) {
 function Xh(e) {
 	return e.filter((e) => e.kind === "videoinput");
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/image/dist/shared/Webcam.svelte
-var Zh = s("<div title=\"grant webcam access\" style=\"height: 100%\"><!></div>"), Qh = s("<div class=\"icon-with-text svelte-qnfbls\" style=\"width:var(--size-24);\"><div class=\"icon color-primary svelte-qnfbls\" title=\"spinner\"><!></div> </div>"), $h = s("<div class=\"icon-with-text svelte-qnfbls\"><div class=\"icon color-primary svelte-qnfbls\" title=\"stop recording\"><!></div> </div>"), eg = s("<div class=\"icon-with-text svelte-qnfbls\"><div class=\"icon color-primary svelte-qnfbls\" title=\"start recording\"><!></div> </div>"), tg = s("<div class=\"icon svelte-qnfbls\" title=\"capture photo\"><!></div>"), ng = s("<button class=\"device-select-button svelte-qnfbls\" aria-label=\"select input source\" aria-haspopup=\"listbox\"><span class=\"device-select-icon svelte-qnfbls\"><!></span></button>"), rg = s("<option class=\"svelte-qnfbls\"> </option>"), ig = s("<select class=\"select-wrap svelte-qnfbls\" aria-label=\"select source\"></select>"), ag = s("<div class=\"button-wrap svelte-qnfbls\"><button><!></button> <!> <!></div>"), og = s("<div class=\"wrap svelte-qnfbls\"><!>  <video data-testid=\"webcam-video\" playsinline=\"\"></video> <img/> <!></div>", 2);
+// frontend/node_modules/@gradio/image/dist/shared/Webcam.svelte
+var Zh = s("<div title=\"grant webcam access\" style=\"height: 100%\"><!></div>"), Qh = s("<div class=\"icon-with-text svelte-1d3tw37\" style=\"width:var(--size-24);\"><div class=\"icon color-primary svelte-1d3tw37\" title=\"spinner\"><!></div> </div>"), $h = s("<div class=\"icon-with-text svelte-1d3tw37\"><div class=\"icon color-primary svelte-1d3tw37\" title=\"stop recording\"><!></div> </div>"), eg = s("<div class=\"icon-with-text svelte-1d3tw37\"><div class=\"icon color-primary svelte-1d3tw37\" title=\"start recording\"><!></div> </div>"), tg = s("<div class=\"icon svelte-1d3tw37\" title=\"capture photo\"><!></div>"), ng = s("<button class=\"device-select-button svelte-1d3tw37\" aria-label=\"select input source\" aria-haspopup=\"listbox\"><span class=\"device-select-icon svelte-1d3tw37\"><!></span></button>"), rg = s("<option class=\"svelte-1d3tw37\"> </option>"), ig = s("<select class=\"select-wrap svelte-1d3tw37\" aria-label=\"select source\"></select>"), ag = s("<div class=\"button-wrap svelte-1d3tw37\"><button><!></button> <!> <!></div>"), og = s("<div class=\"wrap svelte-1d3tw37\"><!>  <video data-testid=\"webcam-video\" playsinline=\"\"></video> <img/> <!></div>", 2);
 function sg(e, n) {
 	P(n, !0);
 	var r = this && this.__awaiter || function(e, t, n, r) {
@@ -22198,19 +22198,19 @@ function sg(e, n) {
 		a(w, (e) => {
 			S(ce) && S(c) && e(T);
 		}), F(r), N(() => {
-			o = g(i, 1, "capture-button svelte-qnfbls", null, o, { "photo-capture": x() === "image" && !h() }), be(i, "aria-label", x() === "image" ? "capture photo" : "start recording");
+			o = g(i, 1, "capture-button svelte-1d3tw37", null, o, { "photo-capture": x() === "image" && !h() }), be(i, "aria-label", x() === "image" ? "capture photo" : "start recording");
 		}), l("click", i, () => L()), t(e, r);
 	};
 	return a(H, (e) => {
 		S(se) ? e(we, -1) : e(Ce);
 	}), F(me), N(() => {
-		ve = g(ge, 1, "svelte-qnfbls", null, ve, {
+		ve = g(ge, 1, "svelte-1d3tw37", null, ve, {
 			flip: n.mirror_webcam,
 			hide: !S(se) || S(se) && !!w()
-		}), be(ye, "src", w()?.url), Se = g(ye, 1, "svelte-qnfbls", null, Se, { hide: !S(se) || S(se) && !w() });
+		}), be(ye, "src", w()?.url), Se = g(ye, 1, "svelte-1d3tw37", null, Se, { hide: !S(se) || S(se) && !w() });
 	}), t(e, me), M(pe);
 }
-// ../slime-card-gallery-template/frontend/node_modules/@gradio/image/dist/shared/ImageUploader.svelte
+// frontend/node_modules/@gradio/image/dist/shared/ImageUploader.svelte
 o(["click", "change"]), o(["click"]);
 // frontend/Example.svelte
 var cg = s("<span class=\"caption svelte-s3apn9\"> </span>"), lg = s("<div class=\"image-container svelte-s3apn9\"><img class=\"svelte-s3apn9\"/> <!></div>"), ug = s("<div class=\"image-container svelte-s3apn9\"><video preload=\"metadata\" class=\"svelte-s3apn9\"></video> <!></div>", 2), dg = s("<div class=\"more-indicator svelte-s3apn9\">…</div>"), fg = s("<div class=\"images-wrapper svelte-s3apn9\"><!> <!></div>"), pg = s("<div><!></div>");

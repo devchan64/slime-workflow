@@ -811,12 +811,14 @@
 								selected_index = i;
 								dispatch_select(i);
 							}}
-							aria-label={"Thumbnail " +
+							aria-label={(entry.caption?.startsWith("__card_no_thumbnail__\n") ? "Card " : "Thumbnail ") +
 								(i + 1) +
 								" of " +
 								resolved_value.length}
 						>
-							{#if "image" in entry}
+							{#if entry.caption?.startsWith("__card_no_thumbnail__\n")}
+								<!-- 텍스트 전용 카드는 미디어 영역을 표시하지 않는다. -->
+							{:else if "image" in entry}
 								<Image
 									alt={entry.caption || ""}
 									src={typeof entry.image === "string"
@@ -838,7 +840,7 @@
 							{/if}
 							{#if entry.caption}
 								<div class="card-fields">
-									{#each entry.caption.split("\n") as current_field}
+									{#each entry.caption.split("\n").filter((current_field) => current_field !== "__card_no_thumbnail__") as current_field}
 										<div class="card-field">
 											{#if current_field.includes(": ")}
 												<span class="card-field-label">{current_field.slice(0, current_field.indexOf(": "))}</span>

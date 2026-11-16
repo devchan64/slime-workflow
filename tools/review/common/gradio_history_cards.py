@@ -124,7 +124,7 @@ def render_generation_history_cards(current_history_records, current_table_rows,
                 return current_thumbnail_image, None
             except (OSError,ValueError):
                 return None, '썸네일 조회 실패 · 새로고침으로 재시도'
-        return None, '이미지 없음'
+        return None, '이미지 없음' if show_thumbnail_column else None
 
     # 썸네일을 병렬로 읽고 카드 표시 크기에 맞춰 전송량을 줄인다.
     with ThreadPoolExecutor(max_workers=min(8,max(1,len(current_history_records)))) as current_thumbnail_pool:
@@ -133,11 +133,12 @@ def render_generation_history_cards(current_history_records, current_table_rows,
     for current_record_value,current_table_row,(current_thumbnail_value,current_thumbnail_notice) in zip(current_history_records,current_table_rows,current_thumbnail_values):
         current_status_text,current_created_text,current_settings_text,current_progress_text,current_job_identifier=current_table_row
         current_image_value=current_thumbnail_value if current_thumbnail_value is not None else Image.new('RGB',(128,128),(75,75,80))
-        current_image_available=current_thumbnail_value is not None
         current_completion_text=describe_history_completion_time(current_record_value)
         current_caption_text=f'상태: {current_status_text}\n생성 시각: {current_created_text}\n{current_completion_text}\n설정: {current_settings_text}'
-        if not current_image_available:
+        if current_thumbnail_notice:
             current_caption_text+='\n'+current_thumbnail_notice
+        if not show_thumbnail_column:
+            current_caption_text='__card_no_thumbnail__\n'+current_caption_text
         if current_progress_text:
             current_caption_text+='\n진행: '+current_progress_text
         current_card_values.append((current_image_value,current_caption_text+'\n생성 ID: '+current_job_identifier))

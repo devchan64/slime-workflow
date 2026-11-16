@@ -1,4 +1,4 @@
-import { A as e, I as t, R as n, ut as r } from "./index-client-BcR4L1tb.js";
+import { A as e, I as t, R as n, ut as r } from "./index-client-Do0qPkI9.js";
 // \0rolldown/runtime.js
 var i = Object.defineProperty, a = /* @__PURE__ */ ((e, t) => {
 	let n = {};

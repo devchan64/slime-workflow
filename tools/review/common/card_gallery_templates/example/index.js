@@ -1,6 +1,6 @@
-import { C as e, S as t, _ as n, a as r, d as i, f as a, g as o, h as s, l as c, m as l, n as u, o as d, p as f, r as p, s as m, t as h, v as g, x as _, y as v } from "./index-client-K1UgFW6C.js";
-// Example.svelte
-var y = f("<span class=\"caption svelte-1uec0xe\"> </span>"), b = f("<div class=\"image-container svelte-1uec0xe\"><img class=\"svelte-1uec0xe\"/> <!></div>"), x = f("<div class=\"image-container svelte-1uec0xe\"><video preload=\"metadata\" class=\"svelte-1uec0xe\"></video> <!></div>", 2), S = f("<div class=\"more-indicator svelte-1uec0xe\">…</div>"), C = f("<div class=\"images-wrapper svelte-1uec0xe\"><!> <!></div>"), w = f("<div><!></div>");
+import { C as e, S as t, _ as n, a as r, d as i, f as a, g as o, h as s, l as c, m as l, n as u, o as d, p as f, r as p, s as m, t as h, v as g, x as _, y as v } from "./index-client-DliZyeTQ.js";
+// frontend/Example.svelte
+var y = f("<span class=\"caption svelte-s3apn9\"> </span>"), b = f("<div class=\"image-container svelte-s3apn9\"><img class=\"svelte-s3apn9\"/> <!></div>"), x = f("<div class=\"image-container svelte-s3apn9\"><video preload=\"metadata\" class=\"svelte-s3apn9\"></video> <!></div>", 2), S = f("<div class=\"more-indicator svelte-s3apn9\">…</div>"), C = f("<div class=\"images-wrapper svelte-s3apn9\"><!> <!></div>"), w = f("<div><!></div>");
 function T(f, T) {
 	t(T, !0);
 	let E = h(T, "selected", 3, !1);
@@ -44,7 +44,7 @@ function T(f, T) {
 	};
 	m(k, (e) => {
 		T.value && T.value.length > 0 && e(A);
-	}), e(D), s(() => O = p(D, 1, "container svelte-1uec0xe", null, O, {
+	}), e(D), s(() => O = p(D, 1, "container svelte-s3apn9", null, O, {
 		table: T.type === "table",
 		gallery: T.type === "gallery",
 		selected: E()

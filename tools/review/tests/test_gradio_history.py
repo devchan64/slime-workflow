@@ -356,6 +356,8 @@ class HistoryRadioTableTest(unittest.TestCase):
             current_read_history,current_output_components=build_generation_history_view(lambda *_:{'records':current_history_records},'http://localhost','검증',show_thumbnail_column=False)
             current_page_updates=current_read_history(1,'sound-job')
         self.assertIn('ID: sound-job',current_page_updates[3].value[0]['caption'])
+        self.assertTrue(current_page_updates[3].value[0]['caption'].startswith('__card_no_thumbnail__\n'))
+        self.assertNotIn('이미지 없음',current_page_updates[3].value[0]['caption'])
         self.assertEqual(current_page_updates[0]['value'],'sound-job')
 
     def test_history_card_page_size_and_selection(self):
