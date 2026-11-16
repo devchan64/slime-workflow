@@ -80,3 +80,5 @@ self-attention에서 앞 7잠재 슬롯의 질의가 뒤쪽 슬롯을 참조하�
 ROCm PyTorch는 AMD GPU에서도 `torch.cuda`와 `cuda` 장치 이름을 사용한다. 실행은 BF16 지원 AMD GPU가 필요하며 GPU 백엔드·버전·모델 해시를 기록한다. 모델 및 활성값의 CPU 오프로드는 사용하지 않는다. AMD 전체 생성·메모리 한계는 별도 검증해야 한다.
 
 CUDA 전환 시 데이터 단위·dtype·어텐션과 NaN 검증 절차는 [ROCm 추론 가이드](../../workflows/rocm-inference.md)를 따른다.
+
+VAE 내부 인코딩 출력, 디코딩 제한 전 출력과 조건 텐서를 검사한다. 비유한 값은 단계·형상·stride·dtype을 작업의 `numerical-failure.json`에 기록하고 실패 처리한다. 검사는 GPU 동기화와 실행 시간에 영향을 줄 수 있다. 합성 CPU 테스트만 수행했으며 실제 ROCm VAE 정확도·생성·영상 품질은 검증하지 않았다.
