@@ -3,6 +3,8 @@ import gradio as gr
 from pathlib import Path
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_model_download import build_model_readiness_controls
+from tools.review.common.gradio_history import build_generation_history_view
+from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 
 
 def parse_translation_glossary(translation_glossary_text):
@@ -89,20 +91,38 @@ def build_translation_interface():
             translation_rag_button = gr.Button('작가 AI 색인 검색')
             translation_rag_output = gr.JSON(label='후보 문서와 출처')
             translation_rag_button.click(search_translation_rag, translation_source_control, translation_rag_output, queue=False)
+        translation_source_count = gr.Markdown('원문 0단어 · 최종 입력 0단어')
+        translation_source_control.change(lambda translation_source_value: f'원문 {len((translation_source_value or "").split())}단어 · 최종 입력 {len((translation_source_value or "").split())}단어', translation_source_control, translation_source_count, queue=False)
         translation_submit_control = gr.Button('번역 대기열에 추가', variant='primary')
-        translation_job_control = gr.Textbox(label='번역 작업 ID')
-        translation_status_control = gr.Markdown('원문과 목표 언어를 선택하세요.')
-        with gr.Row():
-            translation_refresh_control = gr.Button('상태·결과 새로고침')
-            translation_cancel_control = gr.Button('번역 중지')
-        translation_original_control = gr.Textbox(label='요청 당시 원문', lines=4, interactive=False)
-        translation_result_control = gr.Textbox(label='번역 결과 · 수정 가능', lines=5)
-        translation_check_control = gr.Dataframe(headers=['원문 항목', '번역 확인', '검사 결과', '근거'], interactive=False, label='용어·배치·조건 점검 · 일부 표현만 검사하며 문맥 확인이 필요합니다')
-        gr.Markdown('결과는 요청 당시 원문을 기준으로 합니다. 현재 원문이 바뀌었는지 확인하세요. 실행 시간은 관측 이력이 없어 계산 중입니다.')
-        with gr.Accordion('번역 이력', open=False):
-            translation_history_control = gr.Dataframe(headers=['작업 ID', '상태', '목표 언어'], interactive=False)
-            gr.Button('이력 새로고침').click(refresh_translation_history, outputs=translation_history_control)
-        translation_submit_control.click(submit_translation_request, [translation_source_control, translation_target_control, translation_glossary_control], [translation_job_control, translation_status_control, translation_result_control, translation_original_control, translation_check_control])
-        translation_refresh_control.click(refresh_translation_status, translation_job_control, [translation_status_control, translation_result_control, translation_original_control, translation_check_control])
-        translation_cancel_control.click(cancel_translation_request, translation_job_control, translation_status_control)
+        translation_status_control = gr.Markdown('원문과 목표 언어를 선택하세요. 실행 시간은 관측 이력이 없어 계산 중입니다.')
+        translation_job_state = gr.State('')
+        def start_translation_generation(translation_source_value, translation_target_value, translation_glossary_value):
+            translation_response_record = execute_translation_model_command('translation-submit', {'text': translation_source_value, 'target_language': translation_target_value, 'glossary': parse_translation_glossary(translation_glossary_value)})
+            return translation_response_record['id'], 'GPU 대기열에 등록했습니다. 아래 생성 이력에서 결과를 확인하세요.'
+        bind_gpu_generation_confirmation(translation_submit_control, start_translation_generation, [translation_source_control, translation_target_control, translation_glossary_control], [translation_job_state, translation_status_control])
+        def restore_translation_inputs(translation_history_record):
+            translation_request_record = translation_history_record['request']
+            return [translation_request_record['text'], translation_request_record['target_language'], '\n'.join(current_term['source'] + ' => ' + current_term['target'] for current_term in translation_request_record.get('glossary', []))]
+        def render_translation_result(translation_job_identifier, translation_status_record, translation_server_address):
+            translation_result_record = translation_status_record.get('result') or {}
+            if not translation_result_record:
+                return ''
+            translation_result_lines = [translation_result_record.get('text', ''), '', '--- 용어·배치·조건 점검 · 문맥 확인 필요 ---']
+            for translation_check_record in translation_result_record.get('term_checks', []):
+                translation_result_lines.append(f"{translation_check_record['source']} → {translation_check_record['target']} · {'일치' if translation_check_record['status'] == 'matched' else '불일치 · 확인 필요'} · {translation_check_record.get('source_ref', '')}")
+            if 'quality_checks' not in translation_result_record:
+                translation_result_lines.append('배치·조건 · 이전 작업은 검사되지 않음')
+            for translation_check_record in translation_result_record.get('quality_checks', []):
+                translation_check_label = {'matched': '표현 발견 · 문맥 확인', 'reversed': '행·열 역전', 'review': '확인 필요'}.get(translation_check_record.get('status'), '확인 필요')
+                translation_result_lines.append(f"{translation_check_record.get('source', '')} → {translation_check_record.get('target', '')} · {translation_check_label} · {translation_check_record.get('source_ref', '')}")
+            return '\n'.join(translation_result_lines)
+        translation_history_callback, translation_history_outputs = build_generation_history_view(
+            execute_translation_model_command, '',
+            '번역 작업의 요청·결과·로그와 실행 기록을 삭제하며 복구할 수 없습니다.',
+            restore_translation_inputs, [translation_source_control, translation_target_control, translation_glossary_control],
+            result_renderer_callback=render_translation_result,
+            result_component_factory=lambda: gr.Textbox(label='번역 결과 · 수정 후 복사 가능 · 아래 점검 내용은 참고용', lines=10, interactive=True),
+            allow_individual_delete=True, show_thumbnail_column=False, observed_job_control=translation_job_state)
+        translation_interface_blocks.load(lambda: translation_history_callback(1), outputs=translation_history_outputs)
+        translation_job_state.change(lambda: translation_history_callback(1), outputs=translation_history_outputs, queue=False)
     return translation_interface_blocks

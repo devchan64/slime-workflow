@@ -1,4 +1,7 @@
 """프롬프트 번역을 공용 GPU 대기열과 연결한다."""
+from contextlib import contextmanager
+import fcntl
+import threading
 from datetime import datetime
 import json
 from pathlib import Path
@@ -7,8 +10,9 @@ import subprocess
 import uuid
 from zoneinfo import ZoneInfo
 from tools.review.common.generation_records import write_record_atomically
-from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation
+from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
 from tools.review.common.management_transport import validate_management_http_request, send_management_json_response
+from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup, read_cleanup_confirmation
 from generators.prompt_translation.terms import validate_translation_glossary, load_approved_translation_terms
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
@@ -21,6 +25,7 @@ TRANSLATION_JOB_PATTERN = re.compile(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0
 class TranslationServiceManager:
     def __init__(self):
         self.job_storage_root = TRANSLATION_JOB_ROOT
+        self.translation_thread_lock = threading.RLock()
 
     def resolve_translation_job(self, translation_job_identifier):
         if not isinstance(translation_job_identifier, str) or not TRANSLATION_JOB_PATTERN.fullmatch(translation_job_identifier):
@@ -30,7 +35,18 @@ class TranslationServiceManager:
             raise ValueError('번역 작업을 찾을 수 없습니다.')
         return translation_job_path
 
+    @contextmanager
+    def hold_translation_service_lock(self):
+        self.job_storage_root.mkdir(parents=True, exist_ok=True)
+        with self.translation_thread_lock, (self.job_storage_root / '.service.lock').open('a') as translation_lock_handle:
+            fcntl.flock(translation_lock_handle, fcntl.LOCK_EX)
+            yield
+
     def execute_translation_command(self, translation_command_name, translation_payload_record):
+        with self.hold_translation_service_lock():
+            return self.execute_locked_translation_command(translation_command_name, translation_payload_record)
+
+    def execute_locked_translation_command(self, translation_command_name, translation_payload_record):
         if not isinstance(translation_payload_record, dict):
             raise ValueError('입력은 객체여야 합니다.')
         if translation_command_name == 'translation-submit':
@@ -81,9 +97,48 @@ class TranslationServiceManager:
             if not self.job_storage_root.exists():
                 return {'records': []}
             return {'records': [self.read_translation_job(current_job_path) for current_job_path in sorted(self.job_storage_root.iterdir(), reverse=True) if current_job_path.is_dir() and not current_job_path.is_symlink() and TRANSLATION_JOB_PATTERN.fullmatch(current_job_path.name)][:100]}
+        if translation_command_name in ('history', 'history-reset-preview', 'history-reset'):
+            if translation_command_name != 'history-reset' and translation_payload_record:
+                raise ValueError('이 명령은 입력을 받지 않습니다.')
+            translation_job_targets = [current_job_path for current_job_path in self.job_storage_root.iterdir() if TRANSLATION_JOB_PATTERN.fullmatch(current_job_path.name)]
+            if translation_command_name == 'history':
+                translation_history_records = []
+                for current_job_path in sorted(translation_job_targets, reverse=True):
+                    if current_job_path.is_symlink() or not current_job_path.is_dir():
+                        raise ValueError('번역 작업 경로 오류')
+                    current_job_record = self.read_translation_job(current_job_path)
+                    current_job_record['path'] = str(current_job_path)
+                    current_job_record['request'] = {**current_job_record['request'], 'prompt': current_job_record['request']['text']}
+                    translation_history_records.append(current_job_record)
+                return {'records': translation_history_records}
+            if translation_command_name == 'history-reset-preview':
+                return describe_generation_cleanup(self.job_storage_root, translation_job_targets)
+            translation_expected_jobs = read_cleanup_confirmation(translation_payload_record)
+            return delete_generation_job_files(self.job_storage_root, translation_job_targets, current_expected_jobs=translation_expected_jobs)
         if set(translation_payload_record) != {'id'}:
             raise ValueError('작업 ID만 전달하세요.')
         translation_job_path = self.resolve_translation_job(translation_payload_record['id'])
+        if translation_command_name == 'status':
+            translation_job_record = self.read_translation_job(translation_job_path)
+            translation_status_record = dict(translation_job_record['status'])
+            translation_status_record['result'] = translation_job_record['result']
+            translation_status_record['id'] = translation_job_path.name
+            translation_log_path = translation_job_path / 'worker.log'
+            if translation_log_path.is_file() and not translation_log_path.is_symlink():
+                with translation_log_path.open('rb') as translation_log_handle:
+                    translation_log_handle.seek(max(0, translation_log_path.stat().st_size - 16000))
+                    translation_status_record['log'] = translation_log_handle.read().decode(errors='replace')
+            if not (translation_job_path / 'gpu-command.json').is_file():
+                translation_status_record.update(resume_allowed=False, resume_block_reason='생성 재개 불가 · 실행 기록 없음')
+            return translation_status_record
+        if translation_command_name == 'logs':
+            return {'log': self.execute_locked_translation_command('status', translation_payload_record).get('log', '')}
+        if translation_command_name == 'history-delete':
+            return delete_generation_job_files(self.job_storage_root, [translation_job_path])
+        if translation_command_name == 'resume':
+            return resume_gpu_generation(translation_job_path)
+        if translation_command_name == 'cancel':
+            return cancel_gpu_generation(translation_job_path)
         if translation_command_name == 'translation-status':
             return self.read_translation_job(translation_job_path)
         if translation_command_name == 'translation-cancel':
@@ -105,6 +160,14 @@ class TranslationServiceManager:
             if not translation_command_match or translation_command_match[0] != 'prompt-translation':
                 raise ValueError('지원하지 않는 번역 요청입니다.')
             translation_response_record = self.execute_translation_command(translation_command_match[1], translation_command_match[2])
+            if translation_command_match[1] == 'logs':
+                translation_log_bytes = translation_response_record['log'].encode('utf-8')
+                translation_http_handler.send_response(200)
+                translation_http_handler.send_header('Content-Type', 'text/plain; charset=utf-8')
+                translation_http_handler.send_header('Content-Length', str(len(translation_log_bytes)))
+                translation_http_handler.end_headers()
+                translation_http_handler.wfile.write(translation_log_bytes)
+                return True
             send_management_json_response(translation_http_handler, 200, translation_response_record)
         except (OSError, ValueError, KeyError, TypeError) as translation_request_error:
             send_management_json_response(translation_http_handler, 400, {'error': str(translation_request_error)})

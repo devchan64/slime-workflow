@@ -55,7 +55,7 @@ MANAGEMENT_COMMAND_ROUTES.update({'sheet-update':('POST','/sheet/update'),'sheet
 WRITER_PAYLOAD_COMMAND_NAMES = ('writer-detail', 'writer-submit', 'writer-apply', 'writer-history', 'writer-delete')
 TRANSLATION_PAYLOAD_COMMAND_NAMES = ('translation-submit', 'translation-status', 'translation-cancel', 'translation-history', 'translation-rag')
 MANAGEMENT_SERVICE_ROUTES['prompt-translation'] = '/prompt-translation'
-MANAGEMENT_SERVICE_COMMANDS['prompt-translation'] = (*TRANSLATION_PAYLOAD_COMMAND_NAMES, 'model-status', 'prepare')
+MANAGEMENT_SERVICE_COMMANDS['prompt-translation'] = (*TRANSLATION_PAYLOAD_COMMAND_NAMES, 'model-status', 'prepare', 'history', 'status', 'logs', 'cancel', 'resume', 'history-delete', 'history-reset')
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name: ('POST', '/' + current_command_name) for current_command_name in TRANSLATION_PAYLOAD_COMMAND_NAMES})
 MANAGEMENT_SERVICE_ROUTES['writer-agent'] = '/writer-agent'
 MANAGEMENT_SERVICE_COMMANDS['writer-agent'] = ('writer-state', 'model-status', 'prepare', *WRITER_PAYLOAD_COMMAND_NAMES)

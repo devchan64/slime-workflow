@@ -89,6 +89,36 @@ class TranslationServiceTests(unittest.TestCase):
             translation_method_value, translation_route_value = resolve_management_command('prompt-translation', translation_command_name, translation_payload_record)
             self.assertEqual(identify_management_command(translation_route_value, translation_method_value, translation_payload_record), ('prompt-translation', translation_command_name, translation_payload_record))
 
+    def test_common_history_cleanup_and_status_contract(self):
+        with tempfile.TemporaryDirectory() as translation_temp_directory:
+            translation_manager_value = service.TranslationServiceManager()
+            translation_manager_value.job_storage_root = Path(translation_temp_directory) / 'jobs'
+            translation_manager_value.job_storage_root.mkdir()
+            translation_job_ids = ['2026-11-15_12-00-00-12345678', '2026-11-15_12-00-01-12345678']
+            for translation_job_identifier, translation_status_value in zip(translation_job_ids, ('completed', 'queued')):
+                translation_job_path = translation_manager_value.job_storage_root / translation_job_identifier
+                translation_job_path.mkdir()
+                (translation_job_path / 'request.json').write_text(json.dumps({'text': '나무', 'target_language': 'en', 'glossary': []}))
+                (translation_job_path / 'status.json').write_text(json.dumps({'status': translation_status_value}))
+                (translation_job_path / 'worker.log').write_text('실행 기록')
+            translation_completed_path = translation_manager_value.job_storage_root / translation_job_ids[0]
+            (translation_completed_path / 'result.json').write_text(json.dumps({'text': 'tree'}))
+            translation_history_records = translation_manager_value.execute_translation_command('history', {})['records']
+            self.assertEqual(len(translation_history_records), 2)
+            self.assertEqual(translation_manager_value.execute_translation_command('status', {'id': translation_job_ids[0]})['result']['text'], 'tree')
+            translation_preview_record = translation_manager_value.execute_translation_command('history-reset-preview', {})
+            self.assertFalse(translation_preview_record['can_reset'])
+            with self.assertRaises(ValueError):
+                translation_manager_value.execute_translation_command('history-reset', {'action': 'reset', 'expected_jobs': translation_preview_record['jobs']})
+            with self.assertRaises(ValueError):
+                translation_manager_value.execute_translation_command('history-delete', {'id': translation_job_ids[1]})
+            self.assertTrue(translation_completed_path.exists())
+            translation_deleted_record = translation_manager_value.execute_translation_command('history-delete', {'id': translation_job_ids[0]})
+            self.assertEqual(translation_deleted_record['deleted_jobs'], 1)
+            self.assertGreater(translation_deleted_record['deleted_bytes'], 0)
+            self.assertFalse(translation_completed_path.exists())
+            self.assertTrue((translation_manager_value.job_storage_root / translation_job_ids[1]).exists())
+
     def test_queue_preserves_original_and_checks_input(self):
         with tempfile.TemporaryDirectory() as translation_temp_directory:
             translation_temp_path = Path(translation_temp_directory)
@@ -130,10 +160,10 @@ class TranslationModelManagementTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             resolve_management_command('prompt-translation', 'prepare', {'action': 'prepare', 'revision': 'arbitrary'})
 
-    def test_translation_page_has_model_management_link_without_heartbeat(self):
+    def test_translation_page_has_model_management_link_and_history_timer(self):
         from tools.review.ui.gradio.prompt_translation_app import build_translation_interface
         from tools.review.ui.gradio.management_menu_app import build_management_menu_interface
         translation_interface_value, _ = build_management_menu_interface([], 8770, build_translation_interface())
         translation_configuration_value = translation_interface_value.get_config_file()
-        self.assertFalse(translation_configuration_value['connect_heartbeat'])
+        self.assertTrue(translation_configuration_value['connect_heartbeat'])
         self.assertTrue(any(current_component.get('props', {}).get('link') == '/management/?tool=model-management&category=model-management' for current_component in translation_configuration_value['components']))
