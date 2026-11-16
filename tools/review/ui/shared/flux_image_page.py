@@ -42,8 +42,11 @@ def restore_flux_image_inputs(current_history_record, current_profile_name):
 def describe_flux_image_prompt(current_prompt_text):
     if not current_prompt_text or not current_prompt_text.strip():
         return '프롬프트를 입력하세요.'
-    current_final_prompt,_ = compose_common_style_prompt(current_prompt_text)
-    return f'입력 {len(current_prompt_text.split())}단어 · 최종 {len(current_final_prompt.split())}단어\n\n{current_final_prompt}'
+    current_final_prompt,current_style_record = compose_common_style_prompt(current_prompt_text)
+    current_style_note = '입력에 포함됨' if current_style_record['already_present'] else '자동 적용'
+    return (f'**최종 모델 입력** · 입력 {len(current_prompt_text.split())}단어 · '
+            f'공용 화풍 v{current_style_record["version"]} {len(current_style_record["prompt"].split())}단어 ({current_style_note}) · '
+            f'최종 {len(current_final_prompt.split())}단어\n\n{current_final_prompt}')
 
 
 def execute_flux_image_command(current_profile_name, current_command_name, current_payload_record):
@@ -97,9 +100,8 @@ def build_flux_image_page(current_profile_name, current_server_address, current_
             current_subject_control=gr.Textbox(value=BILLBOARD_DEFAULT_SUBJECT,label='생성 대상')
             current_guide_button=gr.Button('선택한 가이드와 프롬프트 적용')
         if current_profile_name == 'flux-building':
-            from tools.review.domains.image.building_prompt import BUILDING_LAYOUT_PRESET_NAMES, load_building_layout_preset
-            current_building_control=gr.Dropdown(choices=list(BUILDING_LAYOUT_PRESET_NAMES),label='건물 배치 가이드 검색·선택',filterable=True)
-            current_building_button=gr.Button('선택한 건물 가이드를 첫 참조에 적용')
+            from tools.review.ui.gradio.building_guide_gallery import build_building_guide_gallery, apply_selected_building_guide
+            current_building_control,current_building_button=build_building_guide_gallery()
         current_default_prompt=''
         if current_profile_name == 'flux-seamless':
             current_default_prompt='Top-down repeatable ground texture with even lighting. Material: '
@@ -123,7 +125,7 @@ def build_flux_image_page(current_profile_name, current_server_address, current_
                 return load_billboard_guide_image(current_profile_identifier),compose_billboard_guide_prompt(current_profile_identifier,current_subject_text).replace('transparent background','plain background')
             current_guide_button.click(apply_billboard_reference,[current_guide_control,current_subject_control],[current_first_reference,current_prompt_control],queue=False)
         if current_profile_name == 'flux-building':
-            current_building_button.click(load_building_layout_preset,current_building_control,current_first_reference,queue=False)
+            current_building_button.click(apply_selected_building_guide,current_building_control,current_first_reference,queue=False)
         with gr.Row():
             current_width_control=gr.Number(value=current_default_width,minimum=256,maximum=1664,precision=0,label='너비')
             current_height_control=gr.Number(value=current_default_height,minimum=256,maximum=1664,precision=0,label='높이')

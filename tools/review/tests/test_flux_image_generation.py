@@ -4,11 +4,19 @@ import io
 import tempfile
 import unittest
 from pathlib import Path
+import gradio as gr
 from PIL import Image
+from tools.review.domains.image.building_prompt import BUILDING_LAYOUT_PRESET_NAMES, BUILDING_STRUCTURE_RECORDS, load_building_layout_preset
 from tools.review.domains.image.flux_image_generation import FLUX_IMAGE_PROFILE_RECORDS, FluxImageGenerationManager
 from tools.review.domains.image.three_reference_generation import save_three_reference_inputs
 from tools.review.ui.shared.flux_image_page import restore_flux_image_inputs
 from tools.review.common.management_gateway import resolve_management_command
+from tools.review.ui.gradio.building_guide_gallery import (
+    apply_selected_building_guide,
+    render_building_guide_page,
+    search_building_guide_catalog,
+    select_building_guide_card,
+)
 
 
 class FluxImageGenerationTests(unittest.TestCase):
@@ -157,3 +165,73 @@ class FluxImageGenerationTests(unittest.TestCase):
                 (current_job_root/'reference-1.png').write_bytes(b'changed')
                 with self.assertRaises(Exception):
                     restore_flux_image_inputs({'id':current_job_identifier,'request':current_saved_record},current_profile_name)
+class FluxBuildingGuideGalleryTests(unittest.TestCase):
+    def test_building_request_applies_common_style_once_and_displays_final_prompt(self):
+        import hashlib
+        from generators.image.common_art_style import load_common_style_record
+        from tools.review.ui.shared.flux_image_page import describe_flux_image_prompt
+        current_guide_image = load_building_layout_preset(BUILDING_LAYOUT_PRESET_NAMES[0])
+        current_image_buffer = io.BytesIO()
+        current_guide_image.save(current_image_buffer, format='PNG')
+        current_user_prompt = 'A timber guild hall.'
+        current_request_record = FluxImageGenerationManager('flux-building').validate_generation_request({
+            'action': 'generate', 'prompt': current_user_prompt,
+            'images': [base64.b64encode(current_image_buffer.getvalue()).decode()],
+            'width': 768, 'height': 768, 'steps': 16, 'seed': 42,
+        })
+        current_style_record = load_common_style_record()
+        self.assertEqual(current_request_record['common_style']['version'], '1.5.0')
+        self.assertEqual(current_request_record['common_style']['sha256'], current_style_record['sha256'])
+        self.assertEqual(current_request_record['prompt'].count(current_style_record['prompt']), 1)
+        self.assertEqual(current_request_record['prompt_sha256'], hashlib.sha256(current_request_record['prompt'].encode()).hexdigest())
+        current_display_text = describe_flux_image_prompt(current_user_prompt)
+        self.assertIn('공용 화풍 v1.5.0 41단어 (자동 적용)', current_display_text)
+        self.assertIn(current_request_record['prompt'], current_display_text)
+        self.assertIn(f'최종 {len(current_request_record["prompt"].split())}단어', current_display_text)
+        self.assertIn('입력에 포함됨', describe_flux_image_prompt(current_request_record['prompt']))
+
+    def test_catalog_search_pagination_and_empty_result(self):
+        self.assertEqual(search_building_guide_catalog(''), list(BUILDING_LAYOUT_PRESET_NAMES))
+        current_matching_names = search_building_guide_catalog('박공 2층')
+        self.assertTrue(current_matching_names)
+        self.assertTrue(all(BUILDING_STRUCTURE_RECORDS[current_name]['roof'] == 'gable' and BUILDING_STRUCTURE_RECORDS[current_name]['floors'] == 2 for current_name in current_matching_names))
+        current_first_page = render_building_guide_page('', 1)
+        current_second_page = render_building_guide_page('', 2)
+        self.assertEqual(len(current_first_page[2]), 8)
+        self.assertFalse(set(current_first_page[2]) & set(current_second_page[2]))
+        self.assertIn('총 50건', current_first_page[3])
+        self.assertIn('없습니다', render_building_guide_page('없는가이드', 1)[3])
+        current_four_page = render_building_guide_page('', 2, 4)
+        self.assertEqual(current_four_page[2], list(BUILDING_LAYOUT_PRESET_NAMES[4:8]))
+        self.assertEqual(current_four_page[1]['value'], 2)
+        current_final_page = render_building_guide_page('', 99, 16)
+        self.assertEqual(current_final_page[1]['value'], 4)
+        self.assertEqual(len(current_final_page[2]), 2)
+        self.assertFalse(current_final_page[5]['interactive'])
+        self.assertEqual(len(render_building_guide_page('', 1, 32)[2]), 32)
+
+    def test_selection_identity_and_full_size_application(self):
+        current_first_page = render_building_guide_page('', 1)
+        current_selected_name = current_first_page[2][0]
+        current_selected_event = gr.SelectData(None, {'index': 0, 'value': {'caption': f'건물\nID: {current_selected_name}'}})
+        current_selected_result = select_building_guide_card('', 1, 8, current_first_page[2], current_selected_event)
+        self.assertEqual(current_selected_result[0], current_selected_name)
+        self.assertIn(current_selected_name, current_selected_result[1])
+        self.assertTrue(current_selected_result[2]['interactive'])
+        self.assertEqual(apply_selected_building_guide(current_selected_name).tobytes(), load_building_layout_preset(current_selected_name).tobytes())
+        with self.assertRaises(gr.Error):
+            select_building_guide_card('없는가이드', 1, 8, current_first_page[2], current_selected_event)
+        with self.assertRaises(gr.Error):
+            select_building_guide_card('', 1, 8, current_first_page[2], gr.SelectData(None, {'index': 0, 'value': {'caption': 'ID: wrong'}}))
+        with self.assertRaises(gr.Error):
+            select_building_guide_card('', 1, 4, current_first_page[2], current_selected_event)
+        with self.assertRaises(gr.Error):
+            apply_selected_building_guide(None)
+
+    def test_flux_building_page_has_gallery_and_no_guide_dropdown(self):
+        from tools.review.ui.shared.flux_image_page import build_flux_image_page
+        current_page_blocks = build_flux_image_page('flux-building', 'http://127.0.0.1:8770', 8770)
+        current_component_values = current_page_blocks.config['components']
+        self.assertTrue(any(current_component_value['props'].get('label') == '건물 가이드 카드' for current_component_value in current_component_values))
+        self.assertFalse(any(current_component_value['props'].get('label') == '건물 가이드 미리보기' for current_component_value in current_component_values))
+        self.assertFalse(any(current_component_value['props'].get('label') == '건물 배치 가이드 검색·선택' for current_component_value in current_component_values))

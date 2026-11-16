@@ -59,6 +59,27 @@ class CardGallery(gr.Gallery):
         return super().get_config(gr.Gallery)
 
 
+def build_card_gallery_pagination(initial_notice_text, initial_page_count=1, show_refresh_button=False):
+    """카드 갤러리의 공용 페이지 크기·번호·이전/다음 UI를 만든다."""
+    with gr.Row():
+        with gr.Column(scale=0, min_width=210):
+            with gr.Row(equal_height=True):
+                current_refresh_button = gr.Button('새로고침', variant='secondary', size='md', scale=0, min_width=80) if show_refresh_button else None
+                current_page_size = gr.Dropdown(choices=[(f'{current_size_value}개씩', current_size_value) for current_size_value in (4, 8, 16, 32)],
+                    value=CardGallery.DEFAULT_PAGE_SIZE, label='페이지당 항목', show_label=False, container=False, scale=0, min_width=95, interactive=True)
+        with gr.Column(scale=1, min_width=480):
+            with gr.Row():
+                current_page_notice = gr.Markdown(initial_notice_text, scale=1, min_width=200)
+                with gr.Column(scale=0, min_width=260):
+                    with gr.Row(equal_height=True):
+                        current_previous_button = gr.Button('← 이전', size='md', scale=0, min_width=72, interactive=False)
+                        current_page_number = gr.Number(value=1, minimum=1, precision=0,
+                            label='페이지 이동 (입력 후 Enter)', show_label=False, container=False, scale=0, min_width=64,
+                            interactive=initial_page_count > 1, elem_classes=['generation-history-page'])
+                        current_next_button = gr.Button('다음 →', size='md', scale=0, min_width=72, interactive=initial_page_count > 1)
+    return current_refresh_button, current_page_size, current_page_notice, current_previous_button, current_page_number, current_next_button
+
+
 def format_history_timestamp(current_time_value):
     if not isinstance(current_time_value,str) or not current_time_value.strip():
         return '기록 없음'
