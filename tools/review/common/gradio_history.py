@@ -306,11 +306,11 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     current_status_formatter = status_formatter_callback or describe_generation_status
     from tools.review.common.gradio_logs import build_execution_logs,create_copyable_log_textbox
     with gr.Column():
-        with gr.Column(variant='panel'):
+        from tools.review.common.gradio_history_cards import build_card_gallery_panel, build_card_gallery_pagination
+        with build_card_gallery_panel():
             gr.Markdown('### 생성 이력',elem_id='generation-history-heading',elem_classes=['generation-history-heading'])
             history_selection_value=gr.Dropdown(choices=[],value=None,label='이력 선택',info='작업을 선택한 뒤 결과 조회·입력값 불러오기·중지·재개를 사용하세요.',interactive=True,visible=False,elem_id='generation-history-selection')
             history_cards_value=build_generation_history_cards()
-            from tools.review.common.gradio_history_cards import build_card_gallery_pagination
             (history_refresh_button,history_page_size,history_count_value,history_previous_button,
              history_page_value,history_next_button)=build_card_gallery_pagination('이력을 불러오는 중입니다.',show_refresh_button=True)
         (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button, history_priority_button)=build_history_selection_panel(restore_input_callback is not None, allow_individual_delete)

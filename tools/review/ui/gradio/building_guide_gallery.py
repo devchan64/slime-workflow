@@ -2,7 +2,7 @@
 import gradio as gr
 from PIL import Image
 
-from tools.review.common.gradio_history_cards import CardGallery, build_card_gallery_pagination
+from tools.review.common.gradio_history_cards import CardGallery, build_card_gallery_panel, build_card_gallery_pagination
 from tools.review.domains.image.building_prompt import (
     BUILDING_LAYOUT_PRESET_NAMES,
     BUILDING_STRUCTURE_RECORDS,
@@ -77,19 +77,20 @@ def apply_selected_building_guide(current_selected_name):
 
 def build_building_guide_gallery():
     initial_page_values = render_building_guide_page('', 1)
-    with gr.Group():
+    with build_card_gallery_panel():
         gr.Markdown('### 건물 배치 가이드\n카드를 선택해 구조를 확인하고 적용하면 첫 번째 참조 이미지를 교체합니다.')
         current_search_control = gr.Textbox(label='건물 가이드 검색', placeholder='규격, 층수, 지붕, 입구 또는 ID 검색', lines=1)
         current_page_ids = gr.State(initial_page_values[2])
         current_selected_id = gr.State(None)
         current_gallery_control = CardGallery(value=initial_page_values[0], label='건물 가이드 카드', columns=4, rows=None, height='max-content')
-        (_, current_page_size, current_page_notice, current_previous_button, current_page_control,
-         current_next_button) = build_card_gallery_pagination(initial_page_values[3], initial_page_count=initial_page_values[1]['maximum'])
+        (current_refresh_button, current_page_size, current_page_notice, current_previous_button, current_page_control,
+         current_next_button) = build_card_gallery_pagination(initial_page_values[3], initial_page_count=initial_page_values[1]['maximum'], show_refresh_button=True)
         current_description_text = gr.Markdown('카드를 선택하면 건물 구조를 확인할 수 있습니다.')
         current_apply_button = gr.Button('선택한 가이드를 첫 참조에 적용', variant='secondary', interactive=False)
     current_page_outputs = [current_gallery_control, current_page_control, current_page_ids, current_page_notice, current_previous_button, current_next_button,
                             current_selected_id, current_description_text, current_apply_button]
     current_search_control.input(lambda current_search_text, current_size_value: render_building_guide_page(current_search_text, 1, current_size_value), [current_search_control, current_page_size], current_page_outputs, queue=False)
+    current_refresh_button.click(render_building_guide_page, [current_search_control, current_page_control, current_page_size], current_page_outputs, queue=False)
     current_page_size.input(lambda current_search_text, current_size_value: render_building_guide_page(current_search_text, 1, current_size_value), [current_search_control, current_page_size], current_page_outputs, queue=False)
     current_previous_button.click(lambda current_search_text, current_page_number, current_size_value: render_building_guide_page(current_search_text, (current_page_number or 1) - 1, current_size_value), [current_search_control, current_page_control, current_page_size], current_page_outputs, queue=False)
     current_next_button.click(lambda current_search_text, current_page_number, current_size_value: render_building_guide_page(current_search_text, (current_page_number or 1) + 1, current_size_value), [current_search_control, current_page_control, current_page_size], current_page_outputs, queue=False)

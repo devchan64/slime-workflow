@@ -333,3 +333,38 @@ class FluxBuildingGuideGalleryTests(unittest.TestCase):
         self.assertTrue(any(current_component_value['props'].get('label') == '건물 가이드 카드' for current_component_value in current_component_values))
         self.assertFalse(any(current_component_value['props'].get('label') == '건물 가이드 미리보기' for current_component_value in current_component_values))
         self.assertFalse(any(current_component_value['props'].get('label') == '건물 배치 가이드 검색·선택' for current_component_value in current_component_values))
+
+    def test_building_and_history_share_panel_and_pagination_controls(self):
+        from tools.review.ui.shared.flux_image_page import build_flux_image_page
+        current_page_blocks=build_flux_image_page('flux-building','http://127.0.0.1:8770',8770)
+        current_page_config=current_page_blocks.config
+        current_component_lookup={current_component_value['id']:current_component_value for current_component_value in current_page_config['components']}
+        current_gallery_panels={}
+
+        def find_gallery_panels(current_layout_node, current_panel_stack):
+            current_component_record=current_component_lookup.get(current_layout_node['id'],{})
+            current_component_props=current_component_record.get('props',{})
+            if current_component_record.get('type')=='column' and current_component_props.get('variant')=='panel':
+                current_panel_stack=[*current_panel_stack,current_layout_node]
+            if current_component_props.get('label')=='건물 가이드 카드':
+                current_gallery_panels['building']=current_panel_stack[-1]
+            if current_component_props.get('elem_id')=='generation-history-cards':
+                current_gallery_panels['history']=current_panel_stack[-1]
+            for current_child_node in current_layout_node.get('children',[]):
+                find_gallery_panels(current_child_node,current_panel_stack)
+
+        def collect_panel_controls(current_layout_node):
+            current_component_record=current_component_lookup.get(current_layout_node['id'],{})
+            current_component_props=current_component_record.get('props',{})
+            current_controls_value=[]
+            if current_component_props.get('label') in ('페이지당 항목','페이지 이동 (입력 후 Enter)') or current_component_props.get('value') in ('새로고침','← 이전','다음 →'):
+                current_controls_value.append((current_component_record.get('type'),current_component_props.get('label'),current_component_props.get('value'),current_component_props.get('size'),current_component_props.get('min_width')))
+            for current_child_node in current_layout_node.get('children',[]):
+                current_controls_value.extend(collect_panel_controls(current_child_node))
+            return current_controls_value
+
+        find_gallery_panels(current_page_config['layout'],[])
+        self.assertEqual(set(current_gallery_panels),{'building','history'})
+        self.assertEqual(collect_panel_controls(current_gallery_panels['building']),collect_panel_controls(current_gallery_panels['history']))
+        current_refresh_functions=[current_function_value for current_function_value in current_page_blocks.fns.values() if current_function_value.fn is render_building_guide_page]
+        self.assertGreaterEqual(len(current_refresh_functions),2)

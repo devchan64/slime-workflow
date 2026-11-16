@@ -59,6 +59,11 @@ class CardGallery(gr.Gallery):
         return super().get_config(gr.Gallery)
 
 
+def build_card_gallery_panel():
+    """갤러리와 탐색 도구를 같은 패널 레이아웃에 배치한다."""
+    return gr.Column(variant='panel')
+
+
 def build_card_gallery_pagination(initial_notice_text, initial_page_count=1, show_refresh_button=False):
     """카드 갤러리의 공용 페이지 크기·번호·이전/다음 UI를 만든다."""
     with gr.Row():
