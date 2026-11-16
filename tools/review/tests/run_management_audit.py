@@ -17,7 +17,7 @@ MANAGEMENT_AUDIT_MODULES = tuple('tools.review.tests.' + current_module_name for
     'test_anchor_history', 'test_anchor_asset_update', 'test_history_preservation', 'test_gradio_process', 'test_management_single_port', 'test_management_heartbeat_bridge', 'test_review_server_takeover',
     'test_management_gateway', 'test_management_runtime', 'test_management_menu_gradio', 'test_model_management', 'test_image_generation', 'test_prompt_translation',
     'test_pose_transfer_retirement',
-    'test_mannequin_generator', 'test_character_generator', 'test_character_body_references', 'test_generator_changelog', 'test_three_reference_generation', 'test_qwen_21_generation', 'test_qwen_archive_policy', 'test_expression_lora_preparation', 'test_qwen_2511_progress','test_qwen_circular_generation', 'test_expression_generation',
+    'test_mannequin_generator', 'test_character_generator', 'test_character_body_references', 'test_generator_changelog', 'test_three_reference_generation', 'test_qwen_21_generation', 'test_qwen_archive_policy', 'test_flux_expression_generation', 'test_flux_image_generation', 'test_expression_lora_preparation', 'test_qwen_2511_progress','test_qwen_circular_generation', 'test_expression_generation',
     'test_animation_separation_retirement', 'test_sprite_sheet_editor', 'test_management_separation',
     'test_retired_management_ui', 'test_qwen_commands', 'test_qwen_2511_gradio',
     'test_map_layout_editor', 'test_map_brushes', 'test_map_review_gradio', 'test_map_review_lifecycle', 'test_character_review_capture', 'test_review_asset_publication',

@@ -22,6 +22,8 @@ GPU_MEMORY_REQUIREMENTS['wan-fun'] = 30000
 GPU_MEMORY_REQUIREMENTS['writer-agent'] = 16384
 GPU_MEMORY_REQUIREMENTS['prompt-translation'] = 16384  # 번역 후 작가 AI 의미 검토 모델을 순차 사용한다.
 GPU_MEMORY_REQUIREMENTS['flux3-evaluation'] = 36864  # 768×1152 편집 시험에서 관측한 32812 MiB 피크에 여유를 둔다.
+GPU_MEMORY_REQUIREMENTS['flux-expression'] = 45056  # 768×512 표정 작업 관측 피크 39166 MiB에 여유를 둔다.
+GPU_MEMORY_REQUIREMENTS['flux-image'] = 57344  # 2참조 768×1152 실험 관측 피크 51679 MiB에 여유를 둔다.
 # HY-Motion의 초기 예약은 실측 전 보수적 값이며 완료 후 공용 이력의 peak로 갱신한다.
 # 음악 모델의 초기 예약값. 실제 관측 피크는 공용 메모리 이력이 갱신한다.
 GPU_MEMORY_REQUIREMENTS.update({'music-minimax':7000,'music-magenta':7000,'music-heartmula':20000,'sfx-dasheng-audiogen':20000})

@@ -1,0 +1,16 @@
+# FLUX 표정 생성기
+
+FLUX 3 Image Klein으로 얼굴 참조 1장에 표정을 적용한다. 관리도구의 이미지 생성 분류에서 FLUX 3 표정 생성기를 선택한다. 기본 캐릭터 정면 얼굴을 불러오거나 다른 불투명 PNG를 지정할 수 있다. 표정·시드·참조를 선택한 뒤 GPU 대기열에 등록하고 생성 이력에서 결과를 원본과 비교한다.
+
+FLUX 생성 이력은 `flux-expression`에, 기존 Qwen 표정 이력은 별도 아카이브에 보존한다. 입력 원본 사본·프롬프트·시드·모델 리비전을 새 이력에 기록한다. 마스크와 VAE 타일링을 사용하지 않는다. 색상 및 얼굴 비율 보존은 보장되지 않는다.
+
+CLI 예시:
+
+```bash
+.venv/bin/python tools/manager.py command flux-expression generate --expression joy --reference baseline/player/default/default-face-front-v1.png --seed 1770797539 --detach
+.venv/bin/python tools/manager.py command flux-expression history
+```
+
+FLUX 모델 사용에는 모델 가중치의 FLUX Kommunity License 조건이 적용된다. Qwen 2.1 표정 LoRA는 사용하지 않는다.
+
+768×512 단일 참조 시험에서 프로세스 GPU 메모리 피크 39,166 MiB를 관측했다. 새 표정 작업의 초기 대기열 예약은 45,056 MiB이며, 해상도와 동시 부하에 따라 실제 사용량은 달라진다. 예약량보다 사용 가능한 총 GPU 메모리가 작으면 작업을 거절한다.

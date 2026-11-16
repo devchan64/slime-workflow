@@ -1,0 +1,78 @@
+"""용도별 FLUX 이미지 생성의 공통 요청과 이력."""
+import base64
+import hashlib
+import importlib
+import json
+from pathlib import Path
+from generators.image.common_art_style import compose_common_style_prompt
+from tools.review.domains.image.image_generation import ImageGenerationManager, MANAGER_HISTORY_ROOT, WORKFLOW_ROOT_PATH
+from tools.review.domains.image.three_reference_generation import decode_reference_image, validate_three_reference_request, verify_reference_snapshots
+from tools.review.domains.image.flux_expression_generation import FLUX_MODEL_ROOT_DIRECTORY, FLUX_MODEL_REVISION_VALUE
+
+FLUX_IMAGE_PROFILE_RECORDS = {
+    'flux-image': ('일반 이미지', '입력한 내용과 참조 이미지로 이미지를 생성합니다.', 768, 768, 0),
+    'flux-character': ('캐릭터', '캐릭터 외형과 자세를 설명하세요. 첫 참조로 신체 비율 기준을 선택할 수 있습니다.', 768, 1152, 0),
+    'flux-mannequin': ('마네킨', '마네킨 제작 단계와 참조를 선택하고 필요한 변경을 입력하세요.', 768, 1152, 1),
+    'flux-billboard': ('빌보드 가이드', '첫 참조에 점유 가이드를 선택하세요.', 768, 768, 1),
+    'flux-prop': ('소품', '소품의 용도와 재질을 설명하세요.', 768, 768, 0),
+    'flux-vegetation': ('식생', '식물의 종류와 형태를 설명하세요.', 768, 768, 0),
+    'flux-building': ('건물', '첫 참조에 건물 배치 가이드를 선택하고 용도와 재질을 설명하세요.', 768, 768, 1),
+    'flux-seamless': ('심리스 타일', '반복할 바닥 소재를 설명하세요. 가장자리 색을 보간하며 3×3 반복으로 결과를 검수합니다.', 768, 768, 0),
+}
+
+
+def require_flux_image_profile(current_profile_name):
+    if current_profile_name not in FLUX_IMAGE_PROFILE_RECORDS:
+        raise ValueError('등록되지 않은 FLUX 이미지 생성기입니다.')
+    return FLUX_IMAGE_PROFILE_RECORDS[current_profile_name]
+
+
+class FluxImageGenerationManager(ImageGenerationManager):
+    def __init__(self, current_profile_name):
+        require_flux_image_profile(current_profile_name)
+        super().__init__(three_reference_mode=True)
+        self.current_profile_name = current_profile_name
+        self.route_prefix_value = '/' + current_profile_name + '-generator'
+        self.job_storage_root = WORKFLOW_ROOT_PATH / '.tmp/test' / (current_profile_name + '-generator')
+        self.reference_request_limit = 12_100_000
+
+    def history_storage_path(self):
+        return MANAGER_HISTORY_ROOT / self.current_profile_name
+
+    def select_generation_runner(self, saved_request_record=None):
+        return 'generators/image/run_flux_image.py'
+
+    def select_generation_service(self, saved_request_record=None):
+        return 'flux-image'
+
+    def validate_generation_runtime(self, saved_request_record=None):
+        if not all((FLUX_MODEL_ROOT_DIRECTORY / name).exists() for name in ('manifest.json','transformer','vae','text_encoder')):
+            raise ValueError('FLUX 3 Image Klein 모델 구성 요소가 없습니다.')
+
+    def validate_generation_request(self, request_record_value):
+        if isinstance(request_record_value,dict) and isinstance(request_record_value.get('images'),list):
+            request_record_value = {**request_record_value,'images':[base64.b64encode(decode_reference_image(current_image_text,composite_transparent_background=True)).decode() for current_image_text in request_record_value['images']]}
+        current_request_record = validate_three_reference_request(request_record_value, allowed_inference_steps=(16,), maximum_reference_count=2, minimum_output_size=256)
+        if len(current_request_record['images']) < require_flux_image_profile(self.current_profile_name)[4]:
+            raise ValueError('이 생성기는 첫 참조 이미지가 필요합니다.')
+        current_final_prompt, current_style_record = compose_common_style_prompt(current_request_record['prompt'])
+        current_body_sources = importlib.import_module('generators.character-generator.body_references').identify_body_reference_images(current_request_record['images']) if self.current_profile_name == 'flux-character' else []
+        return {**current_request_record, 'user_prompt':current_request_record['prompt'], 'prompt':current_final_prompt, 'common_style':current_style_record, 'body_reference_sources':current_body_sources, 'profile':self.current_profile_name, 'flux_model_revision':FLUX_MODEL_REVISION_VALUE, 'prompt_sha256':hashlib.sha256(current_final_prompt.encode()).hexdigest()}
+
+    def validate_generation_resume(self, selected_job_directory):
+        current_request_record = json.loads((selected_job_directory/'request.json').read_text())
+        verify_reference_snapshots(selected_job_directory,current_request_record)
+        if current_request_record.get('body_reference_sources'):
+            importlib.import_module('generators.character-generator.body_references').verify_body_reference_history(selected_job_directory,current_request_record)
+        current_references_value = current_request_record.get('references')
+        if not isinstance(current_references_value,list) or not require_flux_image_profile(self.current_profile_name)[4] <= len(current_references_value) <= 2:
+            raise ValueError('저장된 참조 이미지 수가 올바르지 않습니다.')
+        if current_request_record.get('profile') != self.current_profile_name or current_request_record.get('flux_model_revision') != FLUX_MODEL_REVISION_VALUE or hashlib.sha256(current_request_record['prompt'].encode()).hexdigest() != current_request_record.get('prompt_sha256'):
+            raise ValueError('저장된 생성기·모델 또는 프롬프트가 일치하지 않습니다.')
+        if current_request_record.get('steps') != 16 or type(current_request_record.get('seed')) is not int or not 0 <= current_request_record['seed'] <= 4294967295:
+            raise ValueError('저장된 스텝 또는 시드가 올바르지 않습니다.')
+        if any(type(current_request_record.get(name)) is not int or not 256 <= current_request_record[name] <= 1664 or current_request_record[name] % 16 for name in ('width','height')):
+            raise ValueError('저장된 출력 크기가 올바르지 않습니다.')
+        current_command_record=json.loads((selected_job_directory/'gpu-command.json').read_text())
+        if Path(current_command_record['command'][1]).resolve() != (WORKFLOW_ROOT_PATH/self.select_generation_runner()).resolve():
+            raise ValueError('저장된 실행기가 일치하지 않습니다.')

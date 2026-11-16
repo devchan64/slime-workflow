@@ -5,6 +5,7 @@ import gradio as gr
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[3]
 GENERATOR_CHANGELOG_PATHS = {
+    'flux-expression-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/flux-expression/CHANGELOG.md',
     'mannequin-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/mannequin-generator/CHANGELOG.md',
     'character-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/character-generator/CHANGELOG.md',
     'qwen-21': WORKFLOW_ROOT_DIRECTORY / 'generators/qwen-21/CHANGELOG.md',
@@ -22,6 +23,8 @@ GENERATOR_CHANGELOG_PATHS = {
     'wan22-fun-control-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/wan_fun/CHANGELOG.md',
     'kimodo-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/kimodo/CHANGELOG.md',
 }
+for current_flux_profile in ('flux-image','flux-character','flux-mannequin','flux-billboard','flux-prop','flux-vegetation','flux-building','flux-seamless'):
+    GENERATOR_CHANGELOG_PATHS[current_flux_profile+'-generator'] = WORKFLOW_ROOT_DIRECTORY/'generators'/current_flux_profile/'CHANGELOG.md'
 
 
 def read_generator_changelog(current_generator_identifier):

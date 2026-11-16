@@ -1,0 +1,91 @@
+"""FLUX 표정 생성기 페이지."""
+import base64
+import hashlib
+import io
+from pathlib import Path
+import gradio as gr
+from PIL import Image
+from tools.review.common.gradio_generator_changelog import build_generator_changelog
+from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
+from tools.review.common.gradio_history import build_generation_history_view
+from tools.review.common.gradio_reference_restore import restore_reference_inputs, validate_history_input_settings
+from tools.review.common.gradio_seed import build_generation_seed
+from tools.review.common.management_client import execute_remote_management_command
+from tools.review.domains.image.expression_generation import load_expression_configuration
+from tools.review.domains.image.flux_expression_generation import build_flux_expression_prompt
+
+DEFAULT_FACE_IMAGE_PATH = Path(__file__).resolve().parents[3] / 'baseline/player/default/default-face-front-v1.png'
+
+
+def load_default_face_reference():
+    with Image.open(DEFAULT_FACE_IMAGE_PATH) as current_image_file:
+        return current_image_file.convert('RGB').copy()
+
+
+def execute_flux_expression_command(current_command_name, current_payload_record):
+    return execute_remote_management_command('flux-expression', current_command_name, current_payload_record)
+
+
+def describe_flux_expression_prompt(current_expression_identifier):
+    current_prompt_text = build_flux_expression_prompt(current_expression_identifier)
+    return f'{len(current_prompt_text.split())}단어 · {current_prompt_text}'
+
+
+def restore_flux_expression_inputs(current_history_record, reference_storage_root=None):
+    current_request_record = validate_history_input_settings(current_history_record)
+    current_expression_identifier = current_request_record.get('expression_id')
+    if not isinstance(current_expression_identifier, str):
+        raise gr.Error('저장된 표정 프리셋이 없습니다. 표정을 직접 선택하세요.')
+    try:
+        current_expected_prompt = build_flux_expression_prompt(current_expression_identifier)
+    except ValueError as current_preset_error:
+        raise gr.Error('저장된 표정 프리셋을 현재 사용할 수 없습니다.') from current_preset_error
+    if current_request_record.get('prompt') != current_expected_prompt or current_request_record.get('prompt_sha256') != hashlib.sha256(current_expected_prompt.encode()).hexdigest():
+        raise gr.Error('저장된 프롬프트가 현재 프리셋과 달라 동일한 입력으로 복원할 수 없습니다.')
+    if current_request_record.get('steps') != 16:
+        raise gr.Error('저장된 생성 단계가 현재 설정과 다릅니다.')
+    if any(type(current_request_record.get(name)) is not int or not 256 <= current_request_record[name] <= 1664 or current_request_record[name] % 16 for name in ('width', 'height')):
+        raise gr.Error('저장된 출력 크기가 올바르지 않습니다.')
+    if type(current_request_record.get('seed')) is not int or not 0 <= current_request_record['seed'] <= 4294967295:
+        raise gr.Error('저장된 시드가 올바르지 않습니다.')
+    current_reference_names = current_request_record.get('references')
+    if not isinstance(current_reference_names, list) or len(current_reference_names) != 1:
+        raise gr.Error('얼굴 참조 이미지 1장의 저장 정보가 필요합니다.')
+    restored_reference_values = restore_reference_inputs(current_history_record, reference_storage_root or Path(__file__).resolve().parents[3] / '.tmp/test/flux-expression-generator', reference_slot_limit=1)
+    return (restored_reference_values[6], current_expression_identifier, restored_reference_values[2], restored_reference_values[3], restored_reference_values[5], restored_reference_values[1])
+
+
+def build_generator_page(current_server_address, current_review_port):
+    current_preset_records = load_expression_configuration()['expressions']
+    current_choices_list = [(item['label_ko'],item['id']) for item in current_preset_records]
+    with gr.Blocks() as current_page_blocks:
+        gr.Markdown('## FLUX 3 표정 생성기\n기본 얼굴 참조 1장과 표정을 선택하세요. 결과의 얼굴 특징과 피부·머리색을 원본과 비교해야 합니다. 기존 Qwen 표정 이력은 이미지 생성 아카이브에서 조회합니다.')
+        build_generator_changelog(current_page_blocks, 'flux-expression-generator')
+        current_reference_image = gr.Image(label='얼굴 참조 이미지', type='pil', image_mode='RGB')
+        gr.Button('기본 캐릭터 정면 얼굴 불러오기').click(load_default_face_reference, outputs=current_reference_image, queue=False)
+        current_expression_control = gr.Dropdown(choices=current_choices_list,value=current_choices_list[0][1],label='표정')
+        current_prompt_display = gr.Markdown(describe_flux_expression_prompt(current_choices_list[0][1]))
+        current_expression_control.change(describe_flux_expression_prompt,current_expression_control,current_prompt_display,queue=False)
+        with gr.Row():
+            current_width_control = gr.Number(value=768,minimum=256,maximum=1664,precision=0,label='너비')
+            current_height_control = gr.Number(value=512,minimum=256,maximum=1664,precision=0,label='높이')
+        gr.Markdown('생성 단계: 16 · 프롬프트 확장기, 마스크와 VAE 타일링 사용 안 함 · 예상 시간은 작업 이력이 쌓일 때까지 계산 중')
+        current_seed_control = build_generation_seed()
+        current_tag_control = gr.Textbox(label='이력 태그 (선택)')
+        current_start_button = gr.Button('대기열에 추가',interactive=False,variant='primary')
+        gr.Markdown('얼굴 참조 이미지를 선택하면 생성할 수 있습니다.')
+        with gr.Column() as current_confirmation_container:
+            pass
+        current_job_control = gr.Textbox(visible=False)
+        current_status_control = gr.Markdown('결과와 작업 상태는 아래 생성 이력에서 확인하세요.')
+        def start_flux_expression(current_image_value,current_expression_value,current_width_value,current_height_value,current_seed_value,current_tag_value):
+            if current_image_value is None:
+                raise gr.Error('얼굴 참조 이미지를 선택하세요.')
+            current_image_buffer = io.BytesIO()
+            current_image_value.convert('RGB').save(current_image_buffer,format='PNG')
+            current_payload_record = {'action':'generate','prompt':current_expression_value,'images':[base64.b64encode(current_image_buffer.getvalue()).decode()],'width':int(current_width_value),'height':int(current_height_value),'steps':16,'seed':int(current_seed_value),'tag':current_tag_value or ''}
+            current_result_record = execute_flux_expression_command('generate',current_payload_record)
+            return current_result_record['id'],'대기열에 등록했습니다. 생성 이력을 새로고침해 확인하세요.'
+        bind_gpu_generation_confirmation(current_start_button,start_flux_expression,[current_reference_image,current_expression_control,current_width_control,current_height_control,current_seed_control,current_tag_control],[current_job_control,current_status_control],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=lambda current_image_value: current_image_value is not None,generation_readiness_inputs=[current_reference_image])
+        build_generation_history_view(execute_flux_expression_command,current_server_address,'FLUX 표정 생성 이력과 결과를 삭제합니다.',restore_input_callback=restore_flux_expression_inputs,restore_output_components=[current_reference_image,current_expression_control,current_width_control,current_height_control,current_seed_control,current_tag_control],record_folder_route='/flux-expression-generator',allow_individual_delete=True,observed_job_control=current_job_control)
+    return current_page_blocks

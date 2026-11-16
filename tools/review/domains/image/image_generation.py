@@ -319,7 +319,13 @@ class ImageGenerationManager:
             elif current_url_path == self.route_prefix_value+'/history':
                 send_response_data(200,{'records':self.list_generation_history()})
             elif current_url_path == self.route_prefix_value+'/model-status':
-                if self.select_generation_runner().endswith('run_qwen_21_reference.py'):
+                if self.select_generation_runner().endswith(('run_flux_expression.py','run_flux_image.py')):
+                    try:
+                        self.validate_generation_runtime()
+                        send_response_data(200, {'ready': True, 'message': 'FLUX 3 Image Klein 로컬 모델 파일 준비됨 · GPU 실행 시 확인'})
+                    except (ValueError, OSError) as current_model_error:
+                        send_response_data(200, {'ready': False, 'message': str(current_model_error)})
+                elif self.select_generation_runner().endswith('run_qwen_21_reference.py'):
                     try:
                         self.validate_generation_runtime()
                         send_response_data(200, {'ready': True, 'message': 'Qwen Image 2.1 로컬 모델·실행 환경 준비됨'})
@@ -332,7 +338,7 @@ class ImageGenerationManager:
             elif current_url_path in (self.route_prefix_value,self.route_prefix_value+'/'):
                 send_response_data(410,{'error':'이전 관리 화면은 폐기되었습니다. /management/에서 Gradio 화면을 여세요.'})
             else:
-                current_path_match = re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/([0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8})(/baseline.png|/baseline-preview.png|/split-preview.png|/sample-grid.png|/repair-mask.png|/repair-composite.png|/repair-input.png|/grid-input.png|/grid-edited.png|/tiled-preview.png|/result.png|/single-tile.png|/square-crop.png|/center-tile.png|/quadrilateral.png|/border-crop.png|/worker.log|/reference-(?:[1-9]|10)\.png)?',current_url_path)
+                current_path_match = re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/([0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8})(/baseline.png|/baseline-preview.png|/split-preview.png|/sample-grid.png|/repair-mask.png|/repair-composite.png|/repair-input.png|/grid-input.png|/grid-edited.png|/tiled-preview.png|/raw-result.png|/result.png|/single-tile.png|/square-crop.png|/center-tile.png|/quadrilateral.png|/border-crop.png|/worker.log|/reference-(?:[1-9]|10)\.png)?',current_url_path)
                 if not current_path_match:
                     send_response_data(404,{'error':'작업 경로 없음'})
                     return True

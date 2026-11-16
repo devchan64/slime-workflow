@@ -85,6 +85,8 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.image.vegetation_generation import VegetationGenerationManager
     from tools.review.domains.image.mannequin_generation import MannequinGenerationManager
     from tools.review.domains.image.expression_generation import ExpressionGenerationManager
+    from tools.review.domains.image.flux_expression_generation import FluxExpressionGenerationManager
+    from tools.review.domains.image.flux_image_generation import FluxImageGenerationManager, FLUX_IMAGE_PROFILE_RECORDS
     from generators.writer_agent.management import WriterAgentManager
     from generators.writer_agent.documents import DEFAULT_WORKSPACE_CONFIG
     from tools.review.domains.tile.floor_generation import FloorGenerationManager
@@ -120,6 +122,7 @@ def create_management_runtime(writer_workspace_config=None):
         vegetation_generation_service = VegetationGenerationManager()
         mannequin_generation_service = MannequinGenerationManager()
         expression_generation_service = ExpressionGenerationManager()
+        flux_expression_service = FluxExpressionGenerationManager()
         three_reference_service = ImageGenerationManager(three_reference_mode=True)
         floor_generation_service = FloorGenerationManager()
         momask_generation_service = RetiredMoMaskHandler()
@@ -152,6 +155,7 @@ def create_management_runtime(writer_workspace_config=None):
             'qwen-21': bind_stored_management_service(qwen_plain_service.handle_image_request, qwen_plain_service.job_storage_root),
             'seamless-tile': bind_stored_management_service(seamless_generation_service.handle_image_request, seamless_generation_service.job_storage_root),
             'expression': bind_stored_management_service(expression_generation_service.handle_image_request, expression_generation_service.job_storage_root),
+            'flux-expression': bind_stored_management_service(flux_expression_service.handle_image_request, flux_expression_service.job_storage_root),
             'floor-tile': bind_stored_management_service(floor_generation_service.handle_image_request, floor_generation_service.job_storage_root),
             'qwen-2511': bind_stored_management_service(three_reference_service.handle_image_request, three_reference_service.job_storage_root),
             'momask': ManagementServiceBinding(momask_generation_service.handle, Path(__file__).resolve().parents[3]/'.tmp/momask-generator/jobs', reject_retired_record_access),
@@ -159,6 +163,9 @@ def create_management_runtime(writer_workspace_config=None):
         }
         current_translation_service = TranslationServiceManager()
         service_binding_records['prompt-translation'] = bind_stored_management_service(current_translation_service.handle_translation_request, current_translation_service.job_storage_root)
+        for current_flux_profile in FLUX_IMAGE_PROFILE_RECORDS:
+            current_flux_manager = FluxImageGenerationManager(current_flux_profile)
+            service_binding_records[current_flux_profile] = bind_stored_management_service(current_flux_manager.handle_image_request, current_flux_manager.job_storage_root)
         for current_service_name in AUDIO_SERVICE_NAMES:
             current_music_manager = MusicGenerationManager(current_service_name)
             service_binding_records[current_service_name] = bind_stored_management_service(current_music_manager.handle_music_request,current_music_manager.job_storage_root)

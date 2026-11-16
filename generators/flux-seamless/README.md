@@ -1,0 +1,7 @@
+# FLUX 심리스 타일 생성기
+
+FLUX 3 결과에 가장자리 보간을 적용하고 3×3 반복 미리보기를 생성한다. 생성된 무늬와 보간으로 생길 수 있는 흐림은 사용자가 검수한다. 이전 Qwen 순환 VAE와 다단계 이미지 보정과는 다른 방식이다.
+
+공용 화풍 v1.5.0 원문을 기본으로 조합한다. 참조 이미지는 최대 두 장이며, 투명 참조는 흰색 배경과 합성한다. FLUX 출력은 RGB이며 투명 배경을 보장하지 않는다. 원본 참조 사본·해시·프롬프트·시드·모델 리비전과 생성기별 별도 이력을 보관하고 입력 복원을 지원한다.
+
+CLI 예시: `.venv/bin/python tools/manager.py command flux-seamless generate --prompt 'A simple fantasy object' --reference <참조.png> --detach` (필수 참조: 마네킨·빌보드 가이드·건물).
