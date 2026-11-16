@@ -306,17 +306,18 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     current_status_formatter = status_formatter_callback or describe_generation_status
     from tools.review.common.gradio_logs import build_execution_logs,create_copyable_log_textbox
     with gr.Column():
-        gr.Markdown('### 생성 이력',elem_id='generation-history-heading',elem_classes=['generation-history-heading'])
-        history_count_value=gr.Markdown('이력을 불러오는 중입니다.')
-        with gr.Row(equal_height=True):
-            history_refresh_button=gr.Button('새로고침',variant='secondary',scale=0,min_width=120)
-            history_page_size=gr.Dropdown(choices=[4,8,16,32],value=CardGallery.DEFAULT_PAGE_SIZE,label='페이지당 항목',scale=0,min_width=120,interactive=True)
-            history_previous_button=gr.Button('← 이전',scale=0,min_width=120,interactive=False)
-            history_page_value=gr.Number(value=1,minimum=1,precision=0,label='페이지 이동',show_label=False,container=False,scale=0,min_width=60,elem_classes=['generation-history-page'])
-            history_next_button=gr.Button('다음 →',scale=0,min_width=120,interactive=False)
-        history_selection_value=gr.Dropdown(choices=[],value=None,label='이력 선택',info='작업을 선택한 뒤 결과 조회·입력값 불러오기·중지·재개를 사용하세요.',interactive=True,visible=False,elem_id='generation-history-selection')
-        gr.Markdown('이력을 선택한 뒤 결과 조회·입력값 불러오기·삭제를 사용하세요. 선택한 ID는 아래에서 복사할 수 있습니다.')
-        history_cards_value=build_generation_history_cards()
+        with gr.Column(variant='panel'):
+            gr.Markdown('### 생성 이력',elem_id='generation-history-heading',elem_classes=['generation-history-heading'])
+            history_selection_value=gr.Dropdown(choices=[],value=None,label='이력 선택',info='작업을 선택한 뒤 결과 조회·입력값 불러오기·중지·재개를 사용하세요.',interactive=True,visible=False,elem_id='generation-history-selection')
+            history_cards_value=build_generation_history_cards()
+            with gr.Row():
+                history_count_value=gr.Markdown('이력을 불러오는 중입니다.',scale=0,min_width=230)
+                history_previous_button=gr.Button('← 이전',size='md',scale=0,min_width=72,interactive=False)
+                history_page_value=gr.Number(value=1,minimum=1,precision=0,label='페이지 이동 (입력 후 Enter)',show_label=False,container=False,scale=0,min_width=64,elem_classes=['generation-history-page'])
+                history_next_button=gr.Button('다음 →',size='md',scale=0,min_width=72,interactive=False)
+                gr.Column(scale=1,min_width=0)
+                history_page_size=gr.Dropdown(choices=[(f'{current_page_size}개씩',current_page_size) for current_page_size in (4,8,16,32)],value=CardGallery.DEFAULT_PAGE_SIZE,label='페이지당 항목',show_label=False,container=False,scale=0,min_width=95,interactive=True)
+                history_refresh_button=gr.Button('새로고침',variant='secondary',size='md',scale=0,min_width=80)
         (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button, history_priority_button)=build_history_selection_panel(restore_input_callback is not None, allow_individual_delete)
         if allow_individual_delete:
             current_delete_identifier=gr.State('')
@@ -414,7 +415,9 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         selection_update_values = {'choices':current_choice_values, 'value':selected_history_identifier}
         selected_card_index=next((current_index for current_index,current_record in enumerate(current_page_records) if current_record['id']==selected_history_identifier),None)
         current_card_values=render_generation_history_cards(current_page_records,build_history_table_rows(current_page_records),selected_history_identifier,show_thumbnail_column,server_base_address)
-        return gr.update(**selection_update_values),f'총 {len(current_history_records)}건 · {current_page_number} / {current_page_count}페이지' if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),CardGallery(value=current_card_values,selected_index=selected_card_index,render=False),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count),gr.update(visible=bool(selected_history_identifier))
+        current_range_start=(current_page_number-1)*current_page_size+1
+        current_range_end=min(current_page_number*current_page_size,len(current_history_records))
+        return gr.update(**selection_update_values),f'총 {len(current_history_records)}건 · {current_range_start}–{current_range_end}건 표시 · {current_page_number} / {current_page_count}페이지'+(' · 번호 입력 후 Enter' if current_page_count>1 else '') if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),CardGallery(value=current_card_values,selected_index=selected_card_index,render=False),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count),gr.update(visible=bool(selected_history_identifier))
 
     def select_history_table_record(current_page_number,current_page_size,current_selection_event:gr.SelectData):
         current_row_index=current_selection_event.index
@@ -482,7 +485,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     history_refresh_button.click(read_history_page,current_page_inputs,current_page_outputs,preprocess=False,queue=False)
     history_previous_button.click(lambda current_page_number,current_selected_identifier,current_page_size:read_history_page((current_page_number or 1)-1,current_selected_identifier,current_page_size),current_page_inputs,current_page_outputs,preprocess=False,queue=False)
     history_next_button.click(lambda current_page_number,current_selected_identifier,current_page_size:read_history_page((current_page_number or 1)+1,current_selected_identifier,current_page_size),current_page_inputs,current_page_outputs,preprocess=False,queue=False)
-    history_page_value.input(read_history_page,current_page_inputs,current_page_outputs,preprocess=False,queue=False)
+    history_page_value.submit(read_history_page,current_page_inputs,current_page_outputs,preprocess=False,queue=False)
     history_page_size.input(lambda current_page_size,current_selected_identifier:read_history_page(1,current_selected_identifier,current_page_size),[history_page_size,history_selection_value],current_page_outputs,preprocess=False,queue=False)
     current_result_lookup_event = result_lookup_button.click(read_selected_result,history_selection_value,[result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value],queue=False).success(fn=None,js="()=>{requestAnimationFrame(()=>{document.getElementById('generation-history-result-anchor')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});});}")
     def refresh_result_observation(current_result_identifier, current_status_snapshots=None, current_displayed_record=None):

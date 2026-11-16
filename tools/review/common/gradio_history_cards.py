@@ -119,4 +119,4 @@ def render_generation_history_cards(current_history_records, current_table_rows,
 
 
 def build_generation_history_cards():
-    return CardGallery(value=[],label='카드 갤러리',elem_id='generation-history-cards')
+    return CardGallery(value=[],show_label=False,elem_id='generation-history-cards')
