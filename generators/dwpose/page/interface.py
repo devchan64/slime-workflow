@@ -8,7 +8,7 @@ from generators.dwpose.contracts import DWPOSE_JOB_STORAGE, validate_dwpose_requ
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_history import build_generation_history_view
-from tools.review.common.gradio_video_results import build_video_job_monitor
+from tools.review.common.gradio_video_results import describe_video_generation_status
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 
 
@@ -49,7 +49,7 @@ def build_dwpose_interface(current_server_address, current_command_callback=None
         current_generate_button = gr.Button('대기열에 추가', interactive=False, variant='primary')
         with gr.Column() as current_confirmation_container:
             pass
-        current_job_control = gr.Textbox(label='생성 ID')
+        current_job_control = gr.Textbox(value='', visible=False)
         current_status_output = gr.Markdown('PNG를 첨부하세요. 실행 중 작업이 있으면 종료 후 추출합니다.')
         current_input_controls = [current_image_control, current_hands_control, current_face_control]
         def enqueue_dwpose_generation(current_image_path, current_include_hands, current_include_face):
@@ -58,7 +58,6 @@ def build_dwpose_interface(current_server_address, current_command_callback=None
             current_job_record = current_execute_command('generate', current_payload_record)
             return current_job_record['id'], '공용 GPU 대기열에 등록했습니다.'
         bind_gpu_generation_confirmation(current_generate_button, enqueue_dwpose_generation, current_input_controls, [current_job_control, current_status_output], generation_confirmation_container=current_confirmation_container, generation_readiness_callback=lambda current_image_path: bool(current_image_path), generation_readiness_inputs=[current_image_control])
-        build_video_job_monitor(current_execute_command, current_server_address, current_job_control, current_status_output, result_renderer_callback=render_dwpose_result)
-        current_read_history, current_history_outputs = build_generation_history_view(current_execute_command, current_server_address, GENERATION_CLEANUP_SCOPE_TEXT, restore_input_callback=restore_dwpose_inputs, restore_output_components=[*current_input_controls,current_job_control], result_renderer_callback=render_dwpose_result, record_folder_route='/dwpose', allow_individual_delete=True, individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
+        current_read_history, current_history_outputs = build_generation_history_view(current_execute_command, current_server_address, GENERATION_CLEANUP_SCOPE_TEXT, restore_input_callback=restore_dwpose_inputs, restore_output_components=[*current_input_controls,current_job_control], result_renderer_callback=render_dwpose_result, record_folder_route='/dwpose', allow_individual_delete=True, individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT, observed_job_control=current_job_control, status_formatter_callback=describe_video_generation_status)
         current_interface_blocks.load(lambda: current_read_history(1), outputs=current_history_outputs)
     return current_interface_blocks

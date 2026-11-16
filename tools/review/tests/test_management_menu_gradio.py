@@ -9,6 +9,22 @@ from tools.review.ui.gradio.management_menu_app import create_initial_selection_
 
 
 class GradioManagementMenuTests(unittest.TestCase):
+    def test_archived_qwen_pages_are_separate_and_accessible(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from tools.review.ui.gradio.management_menu_app import load_manager_page_records, ARCHIVED_IMAGE_PAGE_IDENTIFIERS, resolve_management_page_path
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_source_path = Path(current_temporary_directory) / 'source.json'
+            current_source_path.write_text(json.dumps({'pages': [{'id':'mannequin-generator','label':'기존 마네킨','path':'/mannequin-generator/','category':'image-generation','description':'기존 설명','uiMode':'gradio'}]}))
+            current_page_records = load_manager_page_records(current_source_path)
+        current_archived_records = [current_record for current_record in current_page_records if current_record['id'] in ARCHIVED_IMAGE_PAGE_IDENTIFIERS]
+        self.assertEqual({current_record['id'] for current_record in current_archived_records}, ARCHIVED_IMAGE_PAGE_IDENTIFIERS)
+        for current_record in current_archived_records:
+            self.assertEqual(current_record['category'], 'archived-image-generation')
+            self.assertIn('아카이브', current_record['label'])
+            self.assertTrue(resolve_management_page_path(current_record).startswith('/management/frame/'))
+
     def test_animation_menu_preserves_full_catalog(self):
         import json
         import tempfile

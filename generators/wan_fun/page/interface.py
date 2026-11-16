@@ -325,12 +325,8 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         build_button_guidance(current_generate_button, '현재 모드의 필수 입력을 준비하세요. 확인 후 대기열에 등록하며 취소하면 실행하지 않습니다.')
         with gr.Column() as current_confirmation_container:
             pass
-        gr.Markdown('### 4. 현재 작업과 결과 검수')
-        current_job_control = gr.Textbox(label='조회 중인 생성 ID')
+        current_job_control = gr.Textbox(value='', visible=False)
         current_status_output = gr.Markdown('입력을 준비하세요.')
-        current_result_output = gr.HTML('')
-        current_result_identity = gr.State('')
-        current_log_output,current_log_enabled,_ = build_execution_logs()
         def enqueue_fun_model_prepare():
             try:
                 current_job_record = current_execute_command('prepare', {'action': 'prepare'})
@@ -342,18 +338,6 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             current_job_record = current_execute_command('generate',build_fun_payload(*current_input_values))
             return current_job_record['id'], '공용 GPU 대기열에 등록했습니다.'
         bind_gpu_generation_confirmation(current_generate_button,enqueue_fun_generation,current_input_controls,[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=lambda *current_values: describe_fun_input_readiness(*current_values)[0],generation_readiness_inputs=current_readiness_inputs)
-        current_generation_timer = gr.Timer(5,active=False)
-        def refresh_fun_status(current_job_identifier,current_logs_enabled,current_previous_result):
-            if not current_job_identifier:
-                return gr.skip(),gr.skip(),gr.skip(),gr.skip(),gr.Timer(value=5, active=False),gr.skip()
-            current_status_record = read_existing_generation_status(current_execute_command,current_job_identifier)
-            if current_status_record is None:
-                return '삭제된 이력입니다.','','','',gr.Timer(value=5, active=False),gr.skip()
-            current_result_url = current_status_record.get('video','')
-            current_model_message = read_fun_model_status() if current_status_record.get('status') == 'completed' else gr.skip()
-            return describe_video_generation_status(current_status_record),render_fun_video_result(current_job_identifier,current_status_record,current_server_address) if current_result_url and current_result_url!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_result_url,gr.Timer(value=5, active=current_status_record.get('status') not in ('completed','failed','cancelled','paused')),current_model_message
-        current_generation_timer.tick(refresh_fun_status,[current_job_control,current_log_enabled,current_result_identity],[current_status_output,current_result_output,current_log_output,current_result_identity,current_generation_timer,current_model_status],queue=False,show_progress='hidden')
-        current_job_control.change(lambda current_job_identifier:gr.Timer(value=5, active=bool(current_job_identifier)),current_job_control,current_generation_timer,queue=False)
-        current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_fun_inputs,restore_output_components=[*current_input_controls,current_job_control],result_renderer_callback=render_fun_video_result,record_folder_route='/wan22-fun-control',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
+        current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_fun_inputs,restore_output_components=[*current_input_controls,current_job_control],result_renderer_callback=render_fun_video_result,record_folder_route='/wan22-fun-control',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT,observed_job_control=current_job_control,status_formatter_callback=describe_video_generation_status)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
     return current_interface_blocks

@@ -11,7 +11,7 @@ from tools.review.common.gradio_model_download import build_model_download_contr
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
 from tools.review.common.gradio_history import build_generation_history_view
-from tools.review.common.gradio_video_results import build_video_job_monitor, render_video_generation_result
+from tools.review.common.gradio_video_results import describe_video_generation_status, render_video_generation_result
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 
 
@@ -62,16 +62,15 @@ def build_animate_interface(current_server_address,current_command_callback=None
                 current_frame_control=gr.Number(value=21,precision=0,minimum=5,maximum=81,step=4,label='실험 프레임 · 24fps · 4n+1')
                 current_steps_control=gr.Number(value=40,precision=0,minimum=2,maximum=50,label='스텝 · 공식 Base 기본 40')
                 current_seed_control=build_generation_seed(default_seed_value=42)
-                gr.Markdown('고정: 공식 Base BF16 · 공식 스케줄러/CFG · CUDA 연산 · CPU 가중치 오프로드. 8GB 실행과 캐릭터 비율 보존은 미검증입니다.')
+                gr.Markdown('고정: 공식 Base BF16 · 공식 스케줄러/CFG · AMD ROCm GPU 연산 · 가중치 CPU 오프로드 없음. 실행 안정성과 캐릭터 비율 보존은 별도 검증이 필요합니다.')
                 current_generate_button=gr.Button('대기열에 추가',variant='primary',interactive=False)
                 gr.Markdown('모델 준비와 필수 입력을 갖추면 등록할 수 있습니다. 등록 전 인라인 확인 영역에서 확인·취소합니다.')
                 with gr.Column() as current_confirmation_container:
                     pass
             with gr.Column():
-                gr.Markdown('### 2. 진행·결과 검수\n참조 대비 얼굴·머리·어깨·골반·팔다리 비율과 입력 대비 동작을 확인하세요. SOMA 체형이 자동 교정된다고 보장하지 않습니다.')
-                current_job_control=gr.Textbox(label='생성 ID')
+                gr.Markdown('### 2. 결과 검수 안내\n진행 상태와 영상은 아래 생성 이력에서 확인하세요. 참조 대비 얼굴·머리·어깨·골반·팔다리 비율과 입력 대비 동작을 확인하세요. SOMA 체형이 자동 교정된다고 보장하지 않습니다.')
+                current_job_control=gr.Textbox(value='', visible=False)
                 current_status_output=gr.Markdown('입력을 준비하세요.')
-                build_video_job_monitor(current_execute_command,current_server_address,current_job_control,current_status_output)
         current_input_controls=[current_reference_control,current_motion_control,current_prompt_control,current_frame_control,current_steps_control,current_seed_control]
         def enqueue_animate_generation(*current_input_values):
             current_job_record=current_execute_command('generate',build_animate_payload(*current_input_values))
@@ -79,6 +78,6 @@ def build_animate_interface(current_server_address,current_command_callback=None
         def check_animate_readiness(current_ready_flag,current_reference_path,current_motion_path,current_prompt_text):
             return bool(current_ready_flag and current_reference_path and current_motion_path and current_prompt_text.strip())
         bind_gpu_generation_confirmation(current_generate_button,enqueue_animate_generation,current_input_controls,[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=check_animate_readiness,generation_readiness_inputs=[current_model_ready,current_reference_control,current_motion_control,current_prompt_control],generation_readiness_events=[*current_model_events])
-        current_read_history,current_history_outputs=build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_animate_inputs,restore_output_components=[*current_input_controls,current_job_control],result_renderer_callback=render_video_generation_result,record_folder_route='/wan22-animate2',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
+        current_read_history,current_history_outputs=build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_animate_inputs,restore_output_components=[*current_input_controls,current_job_control],result_renderer_callback=render_video_generation_result,record_folder_route='/wan22-animate2',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT, observed_job_control=current_job_control, status_formatter_callback=describe_video_generation_status)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
     return current_interface_blocks

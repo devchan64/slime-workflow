@@ -18,7 +18,7 @@ from tools.review.common.gradio_button_guidance import build_button_guidance
 from tools.review.common.gradio_model_download import build_model_readiness_controls
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_history import build_generation_history_view
-from tools.review.common.gradio_video_results import build_video_job_monitor,render_video_generation_result
+from tools.review.common.gradio_video_results import describe_video_generation_status,render_video_generation_result
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 
 
@@ -783,8 +783,8 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
         build_button_guidance(current_generate_button,'모델 자료와 전용 환경을 준비한 뒤 상태를 새로 확인하고 동작 프롬프트와 출력 방향을 한 개 이상 선택하세요. 신체 비율 참조 옵션을 켰다면 RGB PNG 이미지를 첨부하세요. 키프레임을 배치했다면 공식 후처리를 켜고 수평 이동 제거를 해제하세요. 3D 골반 또는 얼굴 앵커 시험을 쓰려면 검수 골격을 불러오세요.')
         with gr.Column() as current_confirmation_container:
             pass
-        gr.Markdown('### 진행 상태 · 최신 결과\n접수한 작업의 진행률·예상 시간·VRAM과 완료 영상을 표시합니다. 이전 작업은 아래 생성 이력에서 조회하세요.')
-        current_job_control = build_generation_identifier('접수한 생성 ID')
+        gr.Markdown('진행 상태와 결과는 아래 생성 이력에서 확인하세요.')
+        current_job_control = gr.Textbox(value='', visible=False)
         current_status_output = gr.Markdown('입력을 준비하세요.')
         def enqueue_kimodo_generation(*current_input_values):
             current_request_record=build_kimodo_payload(*current_input_values[:-2])
@@ -795,8 +795,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
             current_job_record = current_execute_command('generate',current_request_record)
             return current_job_record['id'],'공용 GPU 대기열에 등록했습니다.'
         bind_gpu_generation_confirmation(current_generate_button,enqueue_kimodo_generation,[*current_input_controls,current_joint_editor,current_joint_editor_state],[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=check_kimodo_readiness,generation_readiness_inputs=[current_model_ready,current_prompt_control,current_direction_control,current_proportions_control,current_reference_control,current_keyframe_rows,current_postprocessing_control,current_segment_control,current_endpoint_selector,current_horizontal_control,current_reviewed_bundle_state,current_projected_hip_control,current_face_calibration_state],generation_readiness_events=[*current_model_events,*current_reviewed_events,*current_face_events])
-        build_video_job_monitor(current_execute_command,current_server_address,current_job_control,current_status_output,result_renderer_callback=render_kimodo_result)
-        current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_kimodo_inputs_with_summary,restore_output_components=[*current_input_controls,current_job_control,current_joint_editor,current_joint_editor_state,current_joint_editor_notice,current_joint_preview_image,current_reviewed_notice,current_face_calibration_notice,current_input_summary],result_renderer_callback=render_kimodo_result,record_folder_route='/kimodo',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
+        current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_kimodo_inputs_with_summary,restore_output_components=[*current_input_controls,current_job_control,current_joint_editor,current_joint_editor_state,current_joint_editor_notice,current_joint_preview_image,current_reviewed_notice,current_face_calibration_notice,current_input_summary],result_renderer_callback=render_kimodo_result,record_folder_route='/kimodo',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT, observed_job_control=current_job_control, status_formatter_callback=describe_video_generation_status)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
         with gr.Accordion('선택한 이력에서 키프레임 저장',open=False,elem_id='kimodo-history-keyframe-save'):
             gr.Markdown('위 생성 이력에서 완료된 작업을 선택하고 프레임을 불러오세요. 원본 SOMA 관절 미리보기는 30fps이며 첫 프레임은 1번입니다. 확인할 프레임으로 이동한 뒤 표시한 프레임 선택을 누르세요.')

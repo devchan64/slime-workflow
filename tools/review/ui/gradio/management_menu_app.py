@@ -16,15 +16,19 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_R
 from tools.review.common.gpu_status import read_gpu_status
 from tools.review.common.gradio_error_trace import trace_management_callback
 
-CATEGORY_LABEL_VALUES={'all':'전체','model-management':'모델 관리','map-review':'맵 검수','sound-management':'소리 관리','writer-agent':'텍스트 기반','image-generation':'이미지 생성','animation-tool':'애니메이션 도구','game-ui':'게임 UI · 디자인 시스템'}
+CATEGORY_LABEL_VALUES={'all':'전체','model-management':'모델 관리','map-review':'맵 검수','sound-management':'소리 관리','writer-agent':'텍스트 기반','image-generation':'이미지 생성','archived-image-generation':'이미지 생성 아카이브','animation-tool':'애니메이션 도구','game-ui':'게임 UI · 디자인 시스템'}
+ARCHIVED_IMAGE_PAGE_IDENTIFIERS=frozenset(('mannequin-generator','character-generator','qwen-21-generator','qwen-21-circular-generator','expression-generator','vegetation-generator','prop-generator','billboard-generator'))
 LEGACY_SOUND_CATEGORY_NAMES=('music-generation','sound-effects')
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={}
 NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('mannequin-generator','character-generator','model-management','dwpose-generator','wan22-animate2-generator','kimodo-generator','wan22-vace-generator','wan22-fun-control-generator','billboard-generator','effect-editor','asset-editor','building-editor','world-map','vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-heartmula','qwen-21-circular-generator','qwen-21-generator','expression-generator','map-review','writer-agent','sprite-sheet-editor'))
-NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {'prompt-translation'}
+NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {'prompt-translation', 'mock-progress-validation', 'mock-dwpose-validation', 'mock-animate-validation'}
 DEFAULT_MANAGER_SOURCE_PATH=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json'
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
+    {'id':'mock-dwpose-validation','label':'DWPose 격리 모의 검증','path':'/management/frame/mock-dwpose-validation/','category':'model-management','uiMode':'gradio','description':'실제 화면과 격리 모의 작업'},
+    {'id':'mock-animate-validation','label':'Animate-2 격리 모의 검증','path':'/management/frame/mock-animate-validation/','category':'model-management','uiMode':'gradio','description':'실제 화면과 격리 모의 작업'},
+    {'id':'mock-progress-validation','label':'모의 진행 상태 검증','path':'/management/frame/mock-progress-validation/','category':'model-management','uiMode':'gradio','description':'실제 작업과 분리된 상태 갱신 검증'},
     {'id':'model-management','label':'모델 다운로드·빌드 상태','path':'/management/frame/model-management/','category':'model-management','uiMode':'gradio','description':'생성기 모델 다운로드와 GPU 빌드 상태'},
     {'id':'sprite-sheet-editor','label':'스프라이트 시트 편집기','path':'/management/frame/sprite-sheet-editor/','category':'animation-tool','uiMode':'gradio','description':'프레임 크롭 · 앵커 정렬 · 시트와 좌표맵 출력'},
     {'id':'effect-editor','label':'발광 이펙트 좌표 검수','path':'/management/frame/effect-editor/','category':'map-review','uiMode':'gradio','description':'빌보드 연결 발광·프레임 정렬·DB 저장'},
@@ -169,11 +173,15 @@ def load_manager_page_records(source_file_path, current_animation_catalog=False)
         if any(current_page_record.get(current_field_name) is not None and not isinstance(current_page_record[current_field_name],str) for current_field_name in ('frameIdentifier','frameQuery')):raise ValueError('관리 메뉴 프레임 항목 형식 오류')
         if current_page_record['category'] in LEGACY_SOUND_CATEGORY_NAMES:
             current_page_record={**current_page_record,'category':'sound-management'}
+        if current_page_record['id'] in ARCHIVED_IMAGE_PAGE_IDENTIFIERS:
+            current_page_record={**current_page_record,'category':'archived-image-generation'}
         if current_page_record['id'] in ('tile-map-generator','sprite-editor-v2','character-review'):continue
         if current_page_record['id'] in ('wan22-animate-generator', 'anny-attribute-renderer', 'anny-attributes', 'anny-landmarks', 'pose-transfer-generator', 'animation-separation', 'outfit-transfer-generator', 'hy-motion-generator', 'character-animation', 'momask-generator', 'wan21-vace-generator', 'music-stable-audio', 'music-ace-step', 'sfx-stable-audio'):continue
         if current_page_record['id'] in ('qwen-21-generator','expression-generator','vegetation-generator','prop-generator','billboard-generator'):
             current_release_record = next(current_default_record for current_default_record in DEFAULT_PAGE_RECORDS if current_default_record['id'] == current_page_record['id'])
             current_page_record = {**current_page_record, 'label': current_release_record['label'], 'description': current_release_record['description']}
+        if current_page_record['id'] in ARCHIVED_IMAGE_PAGE_IDENTIFIERS:
+            current_page_record={**current_page_record,'label':current_page_record['label']+' · 아카이브','description':'신규 생성 중단 · 기존 이력 조회'}
         if current_page_record['id'].startswith('map-review-'):
             # 빌드된 메뉴의 분류를 사용한다. 공용 메뉴 표시에는 콘텐츠 API가 필요하지 않다.
             current_review_category=current_page_record['category']

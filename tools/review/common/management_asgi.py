@@ -15,6 +15,9 @@ from starlette.responses import Response, RedirectResponse
 import gradio as gr
 
 MANAGEMENT_INTERFACE_BUILDERS = {
+    'mock-dwpose-validation': ('mock_progress_validation_app', 'build_mock_dwpose_interface', 'url'),
+    'mock-animate-validation': ('mock_progress_validation_app', 'build_mock_animate_interface', 'url'),
+    'mock-progress-validation': ('mock_progress_validation_app', 'build_mock_progress_validation_interface', 'url'),
     'model-management': ('model_management_app', 'build_model_management_interface', 'none'),
     'dwpose-generator': ('dwpose_app', 'build_dwpose_interface', 'url'),
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),

@@ -228,7 +228,7 @@ def build_history_table_rows(current_history_records):
     return current_table_rows
 
 
-def build_history_dataframe_rows(current_history_records, show_thumbnail_column=True,archive_mode_enabled=False):
+def build_history_dataframe_rows(current_history_records, show_thumbnail_column=True):
     """좁은 화면에서도 볼 수 있도록 이력 하나를 한 열에 표시한다."""
     from urllib.parse import quote
     current_result_rows=[]
@@ -298,10 +298,12 @@ def render_generation_images(current_status_record, server_base_address):
     return ''.join(f'<section><h3>{html.escape(current_image_label)}</h3><img width="100%" src="{html.escape(current_image_url,quote=True)}" alt="{html.escape(current_image_label)}"></section>' for current_image_url,current_image_label in current_result_items) or '<p>아직 생성된 결과 이미지가 없습니다.</p>'
 
 
-def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None,allow_individual_delete=False,result_component_factory=None,individual_delete_scope_text=None,show_thumbnail_column=True):
+def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None,allow_individual_delete=False,result_component_factory=None,individual_delete_scope_text=None,show_thumbnail_column=True,observed_job_control=None,status_formatter_callback=None,observed_refresh_control=None,archive_mode_enabled=False):
 
     """목록·페이지·명시적 조회·결과·입력·로그·초기화를 묶은 공용 영역."""
     import html
+    from tools.review.common.generation_status_display import describe_generation_status
+    current_status_formatter = status_formatter_callback or describe_generation_status
     from tools.review.common.gradio_logs import build_execution_logs,create_copyable_log_textbox
     with gr.Column():
         gr.Markdown('### 생성 이력',elem_id='generation-history-heading',elem_classes=['generation-history-heading'])
@@ -442,7 +444,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_history_record={**current_history_record,'status':{**(current_history_record.get('status') if isinstance(current_history_record.get('status'),dict) else {}),'status':current_status_record.get('status')}}
         current_image_html=result_renderer_callback(current_selected_identifier,current_status_record,server_base_address) if result_renderer_callback is not None else load_gallery_image_values(collect_history_result_images(current_status_record,server_base_address),server_base_address)
         current_result_notice = '\n\n'+describe_missing_generation_result(current_status_record,'이미지') if not current_image_html and result_renderer_callback is None else ''
-        return current_selected_identifier,current_history_record.get('path','기록 경로가 없습니다.'),describe_generation_status(current_status_record)+(' · 대기 순서 '+str(current_status_record['queue_position']) if 'queue_position' in current_status_record else '')+current_result_notice,gr.update(value=current_image_html,visible=bool(current_image_html)),current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
+        return current_selected_identifier,current_history_record.get('path','기록 경로가 없습니다.'),current_status_formatter(current_status_record)+(' · 대기 순서 '+str(current_status_record['queue_position']) if 'queue_position' in current_status_record else '')+current_result_notice,gr.update(value=current_image_html,visible=bool(current_image_html)),current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
 
     def describe_selected_history(current_selected_identifier):
         if not current_selected_identifier:
@@ -494,7 +496,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             return '상태 갱신 실패: '+str(current_lookup_error), gr.skip(), gr.skip(), gr.skip()
         if current_status_record is None:
             return '조회한 이력이 삭제되었습니다. 목록을 새로고침하세요.', '', gr.update(visible=False), {}
-        current_status_text = describe_generation_status(current_status_record)
+        current_status_text = current_status_formatter(current_status_record)
         if 'queue_position' in current_status_record:
             current_status_text += ' · 대기 순서 '+str(current_status_record['queue_position'])
         current_displayed_status = (current_displayed_record or {}).get('status', {})
@@ -503,6 +505,9 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             current_result_content = result_renderer_callback(current_result_identifier,current_status_record,server_base_address) if result_renderer_callback is not None else load_gallery_image_values(collect_history_result_images(current_status_record,server_base_address),server_base_address)
             current_updated_record = {**(current_displayed_record or {}), 'status': {**((current_displayed_record or {}).get('status') if isinstance((current_displayed_record or {}).get('status'),dict) else {}), 'status':current_status_record.get('status')}}
             return current_status_text, gr.skip(), gr.update(value=current_result_content,visible=bool(current_result_content)), current_updated_record
+        if current_displayed_status is not None and current_status_record.get('status') != current_displayed_status:
+            current_updated_record = {**(current_displayed_record or {}), 'status': {**((current_displayed_record or {}).get('status') if isinstance((current_displayed_record or {}).get('status'),dict) else {}), 'status':current_status_record.get('status')}}
+            return current_status_text, gr.skip(), gr.skip(), current_updated_record
         return current_status_text, gr.skip(), gr.skip(), gr.skip()
     if record_folder_route is not None:
         folder_open_script=f"""async(identifierValue)=>{{if(!identifierValue)throw new Error('먼저 생성 이력을 선택하세요.');const responseValue=await fetch('/management/record-folder/open',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{route:{record_folder_route!r},id:identifierValue}})}});const payloadValue=await responseValue.json();if(!responseValue.ok)throw new Error(payloadValue.error);return payloadValue.message;}}"""
@@ -580,6 +585,15 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     history_selection_value.change(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)
     # 같은 ID 출력이 change를 다시 호출하는 순환을 피한다. 조회 성공 뒤 한 번 갱신한다.
     current_result_lookup_event.success(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)
+    if observed_job_control is not None:
+        def observe_requested_job(current_job_identifier):
+            if not current_job_identifier:
+                return (gr.skip(),) * 6
+            return read_selected_result(current_job_identifier)
+        current_observe_event = observed_job_control.change(observe_requested_job, observed_job_control, [result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value], queue=False)
+        current_observe_event.success(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)
+    if observed_refresh_control is not None:
+        observed_refresh_control.change(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)
     log_refresh_value.change(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)
     log_panel_value.expand(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)
     history_priority_button.click(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)

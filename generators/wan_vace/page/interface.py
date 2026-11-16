@@ -12,7 +12,7 @@ from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_conf
 from tools.review.common.gradio_button_guidance import build_button_guidance
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_history import build_generation_history_view
-from tools.review.common.gradio_video_results import render_video_generation_result, build_video_job_monitor, describe_video_frame_duration
+from tools.review.common.gradio_video_results import render_video_generation_result, describe_video_generation_status, describe_video_frame_duration
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
 from generators.wan_vace.page.video_preview import prepare_vace_browser_video
@@ -190,14 +190,13 @@ def build_vace_interface(current_server_address, current_command_callback=None):
         build_button_guidance(current_generate_button, '모델 준비 상태를 확인하고 모드별 안내에 표시된 필수 첨부와 프롬프트를 입력하세요.')
         with gr.Column() as current_confirmation_container:
             pass
-        current_job_control = gr.Textbox(label='생성 ID')
+        current_job_control = gr.Textbox(value='', visible=False)
         current_status_output = gr.Markdown('입력을 준비하세요.')
         def enqueue_vace_generation(*current_input_values):
             current_job_record = current_execute_command('generate', build_vace_payload(*select_vace_mode_inputs(current_input_values)))
             return current_job_record['id'], '공용 GPU 대기열에 등록했습니다.'
         bind_gpu_generation_confirmation(current_generate_button, enqueue_vace_generation, current_input_controls, [current_job_control,current_status_output], generation_confirmation_container=current_confirmation_container, generation_readiness_callback=check_visible_vace_readiness, generation_readiness_inputs=[current_model_ready,current_mode_control,current_reference_control,current_prompt_control,current_edit_video,current_edit_mask,current_pose_video], generation_readiness_events=[current_refresh_event,current_model_load])
-        build_video_job_monitor(current_execute_command,current_server_address,current_job_control,current_status_output)
-        current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_vace_inputs,restore_output_components=[*current_input_controls,current_job_control],result_renderer_callback=render_video_generation_result,record_folder_route='/wan22-vace',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
+        current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_vace_inputs,restore_output_components=[*current_input_controls,current_job_control],result_renderer_callback=render_video_generation_result,record_folder_route='/wan22-vace',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT, observed_job_control=current_job_control, status_formatter_callback=describe_video_generation_status)
         def load_vace_history_initially():
             try:
                 return current_read_history(1)

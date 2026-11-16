@@ -372,10 +372,8 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             pass
         status_value = gr.Markdown('참조 이미지와 설정을 확인하세요.' if outfit_transfer_enabled else '프롬프트와 옵션을 확인하세요.' if plain_options_enabled or circular_mode_enabled else '참조 이미지를 1장 이상 첨부하세요.' if expression_mode_enabled else '생성 가능 · 설정을 확인하세요.')
         gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
-        identifier_value = build_generation_identifier()
-        preview_value = build_generation_gallery()
+        identifier_value = gr.State('')
         gr.Markdown('마네킨 전용 생성 이력입니다. 이전 공유 이력은 일반 Qwen 2.1에서 확인하세요.' if mannequin_mode_enabled else '일반 Qwen 2.1과 공유하는 생성 이력입니다. 삭제·초기화는 공유 이력 전체에 적용됩니다.' if character_mode_enabled else '빌보드·건물 공용 생성 이력입니다. 기존 건물 CLI도 이 이력을 사용합니다.' if billboard_guide_enabled else '건물 전용 대기열·생성 이력입니다. 기존 공유 Qwen 이력은 일반 Qwen 생성기에서 조회하세요.' if building_mode_enabled else '소품 전용 대기열·생성 이력입니다. 기존 공유 이력은 일반 Qwen에서 조회하세요.' if prop_mode_enabled else '자연물 전용 대기열·생성 이력입니다. 기존 공유 이력은 일반 Qwen에서 조회하세요.' if vegetation_mode_enabled else '복장 착용 전용 생성 이력입니다.' if outfit_transfer_enabled else 'Qwen 2.1 전용 생성 이력입니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if qwen21_mode_enabled else '표정 생성 이력은 별도로 관리합니다. 이전 Qwen 2511 작업은 조회할 수 있지만 재개할 수 없습니다.' if expression_mode_enabled else 'Qwen 2511 참조 생성 이력은 표정 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.')
-        log_value, refresh_log_value, _ = build_execution_logs()
         read_history_page, history_output_values = build_generation_history_view(execute_reference_gateway, server_base_address, '이력과 해당 생성기의 임시 작업 폴더(결과·참조 입력 사본·로그)를 함께 삭제합니다. 이전에 목록에서 제거한 작업도 포함합니다. 정식 에셋과 모델 캐시는 유지합니다. 대기·실행 중에는 초기화할 수 없습니다.', result_renderer_callback=render_circular_comparison if circular_mode_enabled else None, restore_input_callback=restore_selected_inputs, restore_output_components=[prompt_text_value, generation_tag_value, width_value, height_value, step_value, seed_value, *reference_image_controls, status_value] + (reference_upload_group.reference_slot_outputs if qwen21_mode_enabled and (not outfit_transfer_enabled) else []) + ([fixed_prompt_enabled, custom_prompt_memory] if outfit_transfer_enabled else []) + ([circular_radius_control, soft_shading_control, pattern_view_control, baseline_decode_control] if circular_mode_enabled else []) + ([common_style_control, transparent_background_control] if plain_options_enabled else []) + ([building_prompt_control] if building_mode_enabled or billboard_guide_enabled else []) + ([character_body_state] if character_mode_enabled else []) + [automatic_seed_control], record_folder_route='/mannequin-generator' if mannequin_mode_enabled else '/billboard-generator' if billboard_guide_enabled else '/prop-generator' if prop_mode_enabled else '/vegetation-generator' if vegetation_mode_enabled else '/building-generator' if building_mode_enabled else '/outfit-transfer' if outfit_transfer_enabled else '/image-generation-21-circular' if circular_mode_enabled else '/image-generation-21' if qwen21_mode_enabled else '/expression-generator' if expression_mode_enabled else '/image-generation-2511', allow_individual_delete=True, archive_mode_enabled=True)
 
         def start_reference_generation(prompt_text_value, generation_tag_value, *generation_input_values):
@@ -429,18 +427,8 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             return current_model_ready and check_plain_prompt_readiness(*current_prompt_options)
 
 
-        def refresh_status(identifier_text_value, refresh_log_enabled):
-            if not identifier_text_value:
-                return (gr.skip(),) * 4
-            status_record_value = read_existing_generation_status(execute_reference_gateway, identifier_text_value)
-            if status_record_value is None:
-                return ('선택한 작업 이력이 삭제되었습니다.', '', gr.update(value=[], visible=False), '')
-            from tools.review.common.gradio_results import load_gallery_image_values
-            return (describe_generation_status(status_record_value), gr.update(value=status_record_value.get('log', '')) if refresh_log_enabled else gr.skip(), gr.update(value=load_gallery_image_values(collect_generation_gallery(status_record_value.get('image'), circular_mode_enabled, server_base_address), server_base_address), visible=True) if status_record_value.get('image') else gr.skip(), gr.skip())
         interface_blocks_value.load(lambda: read_history_page(1), outputs=history_output_values)
-        gr.Button('상태 새로고침').click(refresh_status, [identifier_value, refresh_log_value], [status_value, log_value, preview_value, identifier_value], queue=False)
-        if hasattr(gr, 'Timer'):
-            gr.Timer(2).tick(refresh_status, [identifier_value, refresh_log_value], [status_value, log_value, preview_value, identifier_value], queue=False, show_progress='hidden')
+        identifier_value.change(lambda: read_history_page(1), outputs=history_output_values, queue=False)
     return interface_blocks_value
 if __name__ == '__main__':
     parser_value = argparse.ArgumentParser()

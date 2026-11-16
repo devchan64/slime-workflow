@@ -37,16 +37,14 @@ class SeamlessGenerationTests(unittest.TestCase):
             if current_function.fn and current_function.fn.__name__ == 'refresh_seamless_status')
         for current_error_type in (ValueError, RuntimeError, OSError):
             with patch.object(seamless_tile_app, 'read_existing_generation_status', side_effect=current_error_type('격리 조회 오류')):
-                current_output_values = current_refresh_callback('saved-job', True)
+                current_output_values = current_refresh_callback('saved-job')
             self.assertIn('상태 조회 실패', current_output_values[0])
-            self.assertEqual(current_output_values[1:3], (gr.skip(), gr.skip()))
-            self.assertFalse(current_output_values[3])
-            self.assertFalse(current_output_values[4]['interactive'])
-            self.assertEqual(current_output_values[5], gr.skip())
-        with patch.object(seamless_tile_app, 'read_existing_generation_status', return_value={'status': 'paused', 'pipeline': {'stage': '검수'}, 'log': '복구 로그'}):
-            current_output_values = current_refresh_callback('saved-job', True)
-        self.assertEqual(current_output_values[1], '복구 로그')
-        self.assertTrue(current_output_values[3])
+            self.assertFalse(current_output_values[1])
+            self.assertFalse(current_output_values[2]['interactive'])
+        with patch.object(seamless_tile_app, 'read_existing_generation_status', return_value={'status': 'paused', 'pipeline': {'stage': '검수'}}):
+            current_output_values = current_refresh_callback('saved-job')
+        self.assertIn('검수', current_output_values[0])
+        self.assertTrue(current_output_values[1])
 
     def test_boundary_measurement_detects_wrap_jump(self):
         from tools.review.domains.image.seamless_generation import measure_texture_boundaries

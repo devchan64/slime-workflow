@@ -107,10 +107,9 @@ def build_seamless_interface(server_base_address):
             with gr.Row():
                 saved_identifier_input = gr.Textbox(label='이전 작업 ID', lines=1, max_lines=1, scale=3, min_width=240)
                 load_stage_button = gr.Button('작업 불러오기', scale=1, min_width=120)
-        gr.Markdown('### 2. 현재 단계 검수')
-        generation_identifier_control = build_generation_identifier()
+        gr.Markdown('### 2. 단계 제어 · 결과는 아래 생성 이력에서 확인')
+        generation_identifier_control = gr.Textbox(value='', visible=False)
         generation_status_control = gr.Markdown('패턴을 새로 생성하거나 이전 작업을 불러오세요.')
-        generation_preview_control = gr.HTML('<p>단계가 완료되면 이곳에 결과가 표시됩니다.</p>')
         gr.Markdown('### 3. 확인 후 다음 단계\n각 단계 완료 후 검수 대기하며, 한 단계씩 진행합니다. 실행 중 일시정지는 현재 단계를 저장한 뒤 적용됩니다. 반복 검수 후 채택하며 정식 에셋에는 자동 등록하지 않습니다.')
         current_stage_ready = gr.State(False)
         with gr.Row():
@@ -118,14 +117,13 @@ def build_seamless_interface(server_base_address):
             pause_stage_button = gr.Button('현재 단계 후 일시정지', interactive=False)
             refresh_stage_button = gr.Button('상태 새로고침')
         build_button_guidance(next_stage_button, '아카이브된 생성기에서는 다음 단계 실행과 재개를 지원하지 않습니다.')
-        execution_log_control, refresh_log_control, _ = build_execution_logs()
         history_page_callback, history_output_controls = build_generation_history_view(
             execute_seamless_command, server_base_address,
             '현재 생성기의 이력·입력·결과·로그를 삭제합니다. 실행 중에는 초기화할 수 없습니다.',
             restore_input_callback=restore_seamless_inputs,
             restore_output_components=[user_prompt_control,generation_tag_control,generation_step_control,generation_seed_control,automatic_seed_control],
             result_renderer_callback=lambda selected_job_identifier, current_status_record, server_address_value: render_seamless_previews(current_status_record),
-            record_folder_route='/seamless-tile-generator', allow_individual_delete=True, archive_mode_enabled=True)
+            record_folder_route='/seamless-tile-generator', allow_individual_delete=True, observed_job_control=generation_identifier_control, observed_refresh_control=generation_status_control, archive_mode_enabled=True)
 
         def start_seamless_generation(user_prompt_text, generation_tag_text, generation_step_count, generation_seed_value, automatic_seed_enabled):
             generation_seed_value = select_generation_seed_value(generation_seed_value, automatic_seed_enabled)
@@ -138,17 +136,16 @@ def build_seamless_interface(server_base_address):
             return generation_record_value['id'], f'작업을 대기열에 등록했습니다. · 사용 시드: {generation_seed_value}', generation_seed_value
 
 
-        def refresh_seamless_status(generation_identifier_text, refresh_log_enabled):
+        def refresh_seamless_status(generation_identifier_text):
             if not generation_identifier_text:
-                return gr.skip(), gr.skip(), gr.skip(), False, gr.update(interactive=False), gr.skip()
+                return gr.skip(), False, gr.update(interactive=False)
             try:
                 generation_status_record = read_existing_generation_status(execute_seamless_command,generation_identifier_text)
             except (ValueError, RuntimeError, OSError) as current_lookup_error:
-                return '상태 조회 실패: '+str(current_lookup_error)+' · 다음 조회에서 다시 확인합니다.', gr.skip(), gr.skip(), False, gr.update(interactive=False), gr.skip()
+                return '상태 조회 실패: '+str(current_lookup_error)+' · 다음 조회에서 다시 확인합니다.', False, gr.update(interactive=False)
             if generation_status_record is None:
-                return '선택한 작업 이력이 삭제되었습니다.', '', '<p>다른 작업을 선택하세요.</p>', False, gr.update(interactive=False), ''
-            preview_html_value = render_seamless_previews(generation_status_record)
-            return describe_generation_status(generation_status_record)+'\n\n패턴 단계: '+generation_status_record.get('pipeline',{}).get('stage','대기 중'), generation_status_record.get('log','') if refresh_log_enabled else gr.skip(), preview_html_value, generation_status_record['status'] in ('paused','failed','cancelled'), gr.update(interactive=generation_status_record['status'] in ('running','queued')), gr.skip()
+                return '선택한 작업 이력이 삭제되었습니다.', False, gr.update(interactive=False)
+            return '패턴 단계: '+generation_status_record.get('pipeline',{}).get('stage','대기 중'), generation_status_record['status'] in ('paused','failed','cancelled'), gr.update(interactive=generation_status_record['status'] in ('running','queued'))
 
         def continue_seamless_stage(generation_identifier_text):
             execute_seamless_command('resume', {'id':generation_identifier_text})
@@ -164,10 +161,10 @@ def build_seamless_interface(server_base_address):
         pause_stage_button.click(pause_seamless_stage,generation_identifier_control,generation_status_control,queue=False)
         load_stage_button.click(load_seamless_stage,saved_identifier_input,generation_identifier_control,queue=False)
         history_output_controls[0].change(lambda selected_job_identifier: selected_job_identifier or gr.skip(),history_output_controls[0],generation_identifier_control,queue=False)
-        current_identifier_event = generation_identifier_control.change(refresh_seamless_status,[generation_identifier_control,refresh_log_control],[generation_status_control,execution_log_control,generation_preview_control,current_stage_ready,pause_stage_button,generation_identifier_control],queue=False)
+        current_identifier_event = generation_identifier_control.change(refresh_seamless_status,[generation_identifier_control],[generation_status_control,current_stage_ready,pause_stage_button],queue=False)
         interface_blocks_value.load(lambda:history_page_callback(1), outputs=history_output_controls)
-        current_refresh_event = refresh_stage_button.click(refresh_seamless_status,[generation_identifier_control,refresh_log_control],[generation_status_control,execution_log_control,generation_preview_control,current_stage_ready,pause_stage_button,generation_identifier_control],queue=False)
-        current_timer_event = gr.Timer(2).tick(refresh_seamless_status,[generation_identifier_control,refresh_log_control],[generation_status_control,execution_log_control,generation_preview_control,current_stage_ready,pause_stage_button,generation_identifier_control],show_progress='hidden')
+        current_refresh_event = refresh_stage_button.click(refresh_seamless_status,[generation_identifier_control],[generation_status_control,current_stage_ready,pause_stage_button],queue=False)
+        current_timer_event = gr.Timer(2).tick(refresh_seamless_status,[generation_identifier_control],[generation_status_control,current_stage_ready,pause_stage_button],show_progress='hidden')
     return interface_blocks_value
 
 

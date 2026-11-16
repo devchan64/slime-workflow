@@ -28,55 +28,46 @@ class GenerationStatusLookupTests(unittest.TestCase):
                 with self.assertRaises((ValueError,RuntimeError)):
                     read_existing_generation_status(Mock(side_effect=current_failure_responses),'existing')
 
-    def test_qwen_variants_clear_deleted_preview_and_keep_telemetry(self):
+    def test_qwen_variants_use_shared_history_refresh(self):
         from tools.review.ui.gradio import qwen_2511_app
-        current_interface_cases = [(qwen_2511_app,qwen_2511_app.build_qwen_2511_interface,current_mode_options,'refresh_status') for current_mode_options in ({},{'qwen21_mode_enabled':True},{'qwen21_mode_enabled':True,'circular_mode_enabled':True},{'expression_mode_enabled':True})]
-        for current_module_value,current_builder_callback,current_mode_options,current_callback_name in current_interface_cases:
-            with self.subTest(module=current_module_value.__name__,options=current_mode_options):
-                current_interface_blocks=current_builder_callback('http://127.0.0.1:9988',**current_mode_options)
-                current_refresh_binding=next(current_binding for current_binding in current_interface_blocks.fns.values() if current_binding.fn and current_binding.fn.__name__==current_callback_name)
-                self.assertEqual(len(current_refresh_binding.outputs),4)
-                with patch.object(current_module_value,'execute_management_command',side_effect=[ValueError('missing'),{'records':[]}]):
-                    current_output_values=current_refresh_binding.fn('removed',True)
-                self.assertIn('삭제',current_output_values[0])
-                self.assertEqual(current_output_values[1],'')
-                self.assertEqual(current_output_values[2]['value'],[])
-                self.assertFalse(current_output_values[2]['visible'])
-                self.assertEqual(current_output_values[3],'')
-                current_status_record={'status':'running','estimate':{'remaining':12},'metrics':{'gpu_observations':{'GPU-test':{'process_current_mib':120,'process_peak_mib':7123,'scope':'작업자'}}}}
-                with patch.object(current_module_value,'execute_management_command',return_value=current_status_record):
-                    current_output_values=current_refresh_binding.fn('existing',False)
-                self.assertIn('약 12초',current_output_values[0])
-                self.assertIn('관측 피크 7123 MiB',current_output_values[0])
-                self.assertEqual(current_output_values[-1],{'__type__':'update'})
+        for current_mode_options in ({}, {'qwen21_mode_enabled': True}, {'qwen21_mode_enabled': True, 'circular_mode_enabled': True}, {'expression_mode_enabled': True}):
+            with self.subTest(options=current_mode_options):
+                current_interface_blocks = qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:9988', **current_mode_options)
+                current_refresh_binding = next(current_binding for current_binding in current_interface_blocks.fns.values() if current_binding.fn and current_binding.fn.__name__ == 'refresh_combined_history')
+                with patch.object(qwen_2511_app, 'execute_management_command', side_effect=[ValueError('missing'), {'records': []}]):
+                    current_output_values = current_refresh_binding.fn('removed', 'removed', True, {})
+                self.assertIn('삭제', current_output_values[4])
+                self.assertEqual(current_output_values[5], '')
+                self.assertFalse(current_output_values[6]['visible'])
+                self.assertEqual(current_output_values[7], {})
+                current_status_record = {'status': 'running', 'estimate': {'remaining': 12}, 'metrics': {'gpu_observations': {'GPU-test': {'process_current_mib': 120, 'process_peak_mib': 7123, 'scope': '작업자'}}}}
+                with patch.object(qwen_2511_app, 'execute_management_command', return_value=current_status_record):
+                    current_output_values = current_refresh_binding.fn('existing', 'existing', False, {})
+                self.assertIn('약 12초', current_output_values[4])
+                self.assertIn('관측 피크 7123 MiB', current_output_values[4])
 
-    def test_tile_refresh_clears_deleted_selection_and_stage_actions(self):
+    def test_tile_history_and_stage_refresh_handle_deleted_job(self):
         from tools.review.ui.gradio import floor_tile_app, seamless_tile_app
         from tools.review.domains.tile.floor_generation import load_floor_configuration
-        with patch.object(floor_tile_app,'execute_floor_gateway',return_value=load_floor_configuration()):
-            current_floor_interface=floor_tile_app.build_floor_interface('http://127.0.0.1:9988')
-        current_floor_callback=next(current_binding.fn for current_binding in current_floor_interface.fns.values() if current_binding.fn and current_binding.fn.__name__=='refresh_floor_progress')
-        with patch.object(floor_tile_app,'execute_floor_gateway',side_effect=[{},ValueError('missing'),{'records':[]}]):
-            current_output_values=current_floor_callback('removed')
-        self.assertEqual(current_output_values[0],'')
-        self.assertIn('삭제',current_output_values[1])
-        with patch.object(floor_tile_app,'execute_floor_gateway',side_effect=[{'id':'new-active'},{'status':'running'}]):
-            self.assertEqual(current_floor_callback('removed')[0],'new-active')
-        current_seamless_interface=seamless_tile_app.build_seamless_interface('http://127.0.0.1:9988')
-        current_refresh_bindings=[current_binding for current_binding in current_seamless_interface.fns.values() if current_binding.fn and current_binding.fn.__name__=='refresh_seamless_status']
-        self.assertEqual(len(current_refresh_bindings),3)
-        for current_refresh_binding in current_refresh_bindings:
-            self.assertEqual(len(current_refresh_binding.outputs),6)
-            with patch.object(seamless_tile_app,'execute_management_command',side_effect=[ValueError('missing'),{'records':[]}]):
-                current_output_values=current_refresh_binding.fn('removed',True)
-            self.assertEqual(current_output_values[-1],'')
-            self.assertEqual(current_output_values[1],'')
-            self.assertFalse(current_output_values[3])
-            self.assertFalse(current_output_values[4]['interactive'])
-            with patch.object(seamless_tile_app,'execute_management_command',return_value={'status':'paused'}):
-                current_output_values=current_refresh_binding.fn('existing',False)
-            self.assertTrue(current_output_values[3])
-            self.assertFalse(current_output_values[4]['interactive'])
+        with patch.object(floor_tile_app, 'execute_floor_gateway', return_value=load_floor_configuration()) as current_gateway_mock:
+            current_floor_interface = floor_tile_app.build_floor_interface('http://127.0.0.1:9988')
+            current_floor_callback = next(current_binding.fn for current_binding in current_floor_interface.fns.values() if current_binding.fn and current_binding.fn.__name__ == 'refresh_combined_history')
+            current_gateway_mock.side_effect = [ValueError('missing'), {'records': []}]
+            current_output_values = current_floor_callback('removed', 'removed', True, {})
+        self.assertIn('삭제', current_output_values[4])
+        self.assertFalse(current_output_values[6]['visible'])
+        current_seamless_interface = seamless_tile_app.build_seamless_interface('http://127.0.0.1:9988')
+        current_refresh_binding = next(current_binding for current_binding in current_seamless_interface.fns.values() if current_binding.fn and current_binding.fn.__name__ == 'refresh_seamless_status')
+        self.assertEqual(len(current_refresh_binding.outputs), 3)
+        with patch.object(seamless_tile_app, 'execute_management_command', side_effect=[ValueError('missing'), {'records': []}]):
+            current_output_values = current_refresh_binding.fn('removed')
+        self.assertIn('삭제', current_output_values[0])
+        self.assertFalse(current_output_values[1])
+        self.assertFalse(current_output_values[2]['interactive'])
+        with patch.object(seamless_tile_app, 'execute_management_command', return_value={'status': 'paused'}):
+            current_output_values = current_refresh_binding.fn('existing')
+        self.assertTrue(current_output_values[1])
+        self.assertFalse(current_output_values[2]['interactive'])
 
     def test_direct_qwen_entrypoints_initialize_repository_imports(self):
         import os

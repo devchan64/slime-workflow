@@ -69,21 +69,12 @@ def build_floor_interface(server_base_address):
             generation_result_record = execute_floor_gateway('generate',{'action':'generate','user_prompt':user_prompt_value,'tag':generation_tag_value,'width':int(output_size_value),'height':int(output_size_value),'steps':int(inference_step_value),'seed':int(generation_seed_value),'add_margins':add_margins_value})
             return generation_result_record['id'], '생성 요청: '+generation_result_record['id']+' · '+generation_result_record['status']+f' · 사용 시드: {generation_seed_value}', generation_seed_value
         bind_gpu_generation_confirmation(generation_start_button,start_floor_generation,[user_prompt_control,generation_tag_control,output_size_control,inference_step_control,generation_seed_control,add_margins_control,automatic_seed_control],[current_identifier_state,generation_status_control,generation_seed_control], generation_readiness_callback=lambda current_ready_value: current_ready_value, generation_readiness_inputs=[current_prompt_ready])
-        def refresh_floor_progress(current_generation_identifier):
-            active_job_record = execute_floor_gateway('active',{})
-            selected_job_identifier = active_job_record.get('id') or current_generation_identifier
-            if not selected_job_identifier: return '', '작업이 없습니다. 바닥 표면과 최종 프롬프트를 확인하세요.'
-            current_status_record = read_existing_generation_status(execute_floor_gateway,selected_job_identifier)
-            if current_status_record is None:
-                return '', '선택한 작업 이력이 삭제되었습니다.'
-            return selected_job_identifier, describe_generation_status(current_status_record)
-        interface_block_value.load(refresh_floor_progress,current_identifier_state,[current_identifier_state,generation_status_control])
-        gr.Timer(3).tick(refresh_floor_progress,current_identifier_state,[current_identifier_state,generation_status_control],queue=False)
         def restore_floor_inputs(history_record_value):
             saved_request_record = history_record_value['request']
             return [saved_request_record['user_prompt'],saved_request_record.get('tag',''),512,4,saved_request_record['seed'],saved_request_record.get('add_margins',False),False]
         read_history_page,history_output_values = build_generation_history_view(execute_floor_gateway,server_base_address,'초기화하면 바닥 타일 생성 기록과 결과 파일을 삭제합니다. 실행 중에는 사용할 수 없습니다.',restore_floor_inputs,[user_prompt_control,generation_tag_control,output_size_control,inference_step_control,generation_seed_control,add_margins_control,automatic_seed_control],record_folder_route='/floor-tile-generator',allow_individual_delete=True)
         interface_block_value.load(lambda:read_history_page(1),outputs=history_output_values)
+        current_identifier_state.change(lambda:read_history_page(1),outputs=history_output_values,queue=False)
     return interface_block_value
 
 if __name__=='__main__':

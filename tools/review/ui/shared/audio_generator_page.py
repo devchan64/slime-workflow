@@ -195,11 +195,8 @@ def build_music_interface(current_service_name,current_server_address):
         with gr.Column() as current_generation_container:
             pass
         gr.Markdown('모델 준비와 GPU 실행 검증이 필요하면 위의 모델 준비 메뉴에서 확인하세요. 오류는 실행 로그에서 확인할 수 있습니다.' if current_heartmula_mode else '모델 준비가 없으면 생성 작업에서 먼저 준비합니다. 다운로드 권한·실행 환경 오류는 로그에 기록하며 다른 모델로 대체하지 않습니다.')
-        current_job_control = gr.Textbox(label='생성 ID')
+        current_job_control = gr.Textbox(value='', visible=False)
         current_status_display = gr.Markdown('실행 관측이 없으면 예상 시간은 계산 중으로 표시합니다.')
-        current_result_display = gr.HTML('<p>생성 완료 후 오디오를 표시합니다.</p>')
-        current_result_identity = gr.State('')
-        current_log_output,current_log_refresh,_ = build_execution_logs()
         def start_music_generation(current_prompt_text,current_duration_value,current_seed_value,current_loop_value,current_tag_value,current_minimum_value=0,current_lyrics_text='[Instrumental]',current_legacy_value=False):
             if type(current_seed_value) not in (int,float) or current_seed_value != int(current_seed_value):
                 raise gr.Error('시드는 정수여야 합니다.')
@@ -213,30 +210,18 @@ def build_music_interface(current_service_name,current_server_address):
                 current_payload_record['min_duration_seconds'] = current_minimum_value
             build_music_request(current_service_name,current_payload_record)
             current_job_record = execute_music_command('generate',current_payload_record)
-            return current_job_record['id'],current_content_label+' 생성 대기열에 등록했습니다.', '<p>새 작업의 결과를 기다립니다.</p>',''
-        bind_gpu_generation_confirmation(current_generate_button,start_music_generation,[current_prompt_control,current_length_control,current_seed_control,current_loop_control,current_tag_control,current_minimum_control,current_lyrics_control,current_legacy_control],[current_job_control,current_status_display,current_result_display,current_result_identity],generation_confirmation_container=current_generation_container, generation_readiness_callback=check_music_readiness, generation_readiness_inputs=current_readiness_controls)
+            return current_job_record['id'],current_content_label+' 생성 대기열에 등록했습니다. 아래 결과 영역에서 확인하세요.'
+        bind_gpu_generation_confirmation(current_generate_button,start_music_generation,[current_prompt_control,current_length_control,current_seed_control,current_loop_control,current_tag_control,current_minimum_control,current_lyrics_control,current_legacy_control],[current_job_control,current_status_display],generation_confirmation_container=current_generation_container, generation_readiness_callback=check_music_readiness, generation_readiness_inputs=current_readiness_controls)
         def prepare_music_assets():
             current_job_record = execute_music_command('prepare',{'action':'prepare'})
-            return current_job_record['id'],'모델 준비 대기열에 등록했습니다.','<p>모델 준비 작업입니다.</p>',''
-        bind_gpu_generation_confirmation(current_prepare_button,prepare_music_assets,[],[current_job_control,current_status_display,current_result_display,current_result_identity],generation_confirmation_container=current_prepare_container)
-        def refresh_music_result(current_job_identifier,current_logs_enabled,current_previous_result):
-            if not current_job_identifier:
-                return (gr.skip(),)*6 + (gr.Timer(value=5, active=False),)
-            current_status_record = read_existing_generation_status(execute_music_command,current_job_identifier)
-            if current_status_record is None:
-                return '선택한 작업 이력이 삭제되었습니다.','<p>생성 이력에서 다른 작업을 선택하세요.</p>','','',gr.skip(),'',gr.Timer(value=5, active=False)
-            current_audio_identity = current_status_record.get('audio') or (current_job_identifier+':prepared' if current_status_record.get('result',{}).get('prepared') else '')
-            current_model_message = execute_music_command('model-status',{})['message'] if current_audio_identity and current_audio_identity!=current_previous_result else gr.skip()
-            return describe_audio_generation_status(current_status_record),render_audio_generation_result(current_job_identifier,current_status_record,current_server_address) if current_audio_identity and current_audio_identity!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_audio_identity,current_model_message,gr.skip(),gr.Timer(value=5, active=current_status_record.get('status') not in ('completed','failed','cancelled','paused'))
+            return current_job_record['id'],'모델 준비 대기열에 등록했습니다. 아래 결과 영역에서 확인하세요.'
+        bind_gpu_generation_confirmation(current_prepare_button,prepare_music_assets,[],[current_job_control,current_status_display],generation_confirmation_container=current_prepare_container)
         if current_heartmula_mode:
             def refresh_heartmula_readiness(current_prompt_text,current_lyrics_text,current_legacy_value):
                 current_model_record = execute_music_command('model-status',{})
                 current_inputs_ready = bool(current_prompt_text and current_prompt_text.strip() and current_lyrics_text and current_lyrics_text.strip())
                 return gr.update(interactive=bool(current_model_record.get('ready')) and current_inputs_ready),gr.update(interactive=bool(current_model_record.get('artifacts_ready'))),describe_music_readiness(current_prompt_text,current_lyrics_text,current_legacy_value) if current_model_record.get('ready') else current_model_record['message']
             gr.Timer(30).tick(refresh_heartmula_readiness,current_readiness_controls,[current_generate_button,current_prepare_button,current_generate_notice],queue=False,show_progress='hidden')
-        current_refresh_timer = gr.Timer(5, active=False)
-        current_refresh_timer.tick(refresh_music_result,[current_job_control,current_log_refresh,current_result_identity],[current_status_display,current_result_display,current_log_output,current_result_identity,current_model_status,current_job_control,current_refresh_timer],queue=False,show_progress='hidden')
-        current_job_control.change(lambda current_job_identifier: gr.Timer(value=5, active=bool(current_job_identifier)), current_job_control, current_refresh_timer, queue=False)
         def restore_music_inputs(current_history_record):
             from tools.review.common.gradio_reference_restore import validate_history_input_settings
             current_request_record = validate_history_input_settings(current_history_record)
@@ -255,11 +240,12 @@ def build_music_interface(current_service_name,current_server_address):
         current_cleanup_scope = current_profile_record['label']+' · '+GENERATION_CLEANUP_SCOPE_TEXT
         current_read_history,current_history_outputs = build_generation_history_view(execute_music_command,current_server_address,current_cleanup_scope,
             restore_input_callback=restore_music_inputs,restore_output_components=[current_prompt_control,current_length_control,current_seed_control,current_loop_control,current_tag_control,current_job_control,current_minimum_control,current_lyrics_control,current_legacy_control],
-            result_renderer_callback=render_audio_generation_result,record_folder_route='/'+current_service_name,allow_individual_delete=True,individual_delete_scope_text=current_cleanup_scope,show_thumbnail_column=False)
+            result_renderer_callback=render_audio_generation_result,record_folder_route='/'+current_service_name,allow_individual_delete=True,individual_delete_scope_text=current_cleanup_scope,show_thumbnail_column=False,observed_job_control=current_job_control,status_formatter_callback=describe_audio_generation_status)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
         current_job_control.change(lambda:current_read_history(1),outputs=current_history_outputs,queue=False)
         current_interface_blocks.load(lambda:execute_music_command('active',{}).get('id') or '',outputs=current_job_control)
         current_interface_blocks.load(lambda:execute_music_command('model-status',{})['message'],outputs=current_model_status)
+        gr.Timer(30).tick(lambda:execute_music_command('model-status',{})['message'],outputs=current_model_status,queue=False,show_progress='hidden')
     return current_interface_blocks
 
 

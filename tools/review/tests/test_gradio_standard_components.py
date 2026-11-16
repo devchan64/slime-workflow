@@ -4,6 +4,7 @@ from pathlib import Path
 import unittest
 import gradio as gr
 from tools.review.common.gradio_history import build_generation_history_view, build_history_table_rows
+from tools.review.common.gradio_history_cards import CardGallery
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
 from tools.review.common.gradio_seed import build_generation_seed
 
@@ -42,15 +43,17 @@ class GradioStandardComponentTests(unittest.TestCase):
         self.assertTrue(current_summary_text.startswith('시드 202'))
         self.assertIn('방향 front_right_30',current_summary_text)
 
-    def test_history_selection_uses_dataframe_and_shared_state(self):
+    def test_history_selection_uses_card_gallery_and_shared_state(self):
         with gr.Blocks() as current_interface_blocks:
             _,current_history_outputs=build_generation_history_view(lambda *_:{'records':[]},'http://localhost','검수용')
         self.assertIsInstance(current_history_outputs[0],gr.Dropdown)
         self.assertFalse(current_history_outputs[0].visible)
-        self.assertIsInstance(current_history_outputs[3],gr.Dataframe)
-        self.assertEqual(current_history_outputs[3].datatype[0], 'markdown')
-        self.assertTrue(current_history_outputs[3].wrap)
-        self.assertEqual(current_history_outputs[3].column_widths, ['80px', '110px', '160px', '300px', '160px', '220px'])
+        current_history_gallery = current_history_outputs[3]
+        self.assertIsInstance(current_history_gallery, CardGallery)
+        self.assertFalse(current_history_gallery.allow_preview)
+        self.assertEqual(current_history_gallery.columns, CardGallery.DEFAULT_COLUMNS)
+        current_selection_callback = next(current_function for current_function in current_interface_blocks.fns.values() if current_function.name == 'select_history_table_record')
+        self.assertIn(current_history_outputs[0], current_selection_callback.outputs)
         self.assertIsInstance(current_history_outputs[6],gr.Column)
         self.assertTrue(any(isinstance(current_block_value,gr.Gallery) for current_block_value in current_interface_blocks.blocks.values()))
         self.assertFalse(any(current_function_value.js and 'selectionInputElement' in current_function_value.js for current_function_value in current_interface_blocks.fns.values()))

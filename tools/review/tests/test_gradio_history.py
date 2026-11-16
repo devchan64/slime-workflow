@@ -8,6 +8,51 @@ from tools.review.common.gradio_history import build_generation_history_view, co
 
 
 class GradioHistoryTest(unittest.TestCase):
+    def test_observed_job_displays_and_refreshes_in_result_area(self):
+        def execute_fixture_command(current_command_name, current_payload_record):
+            if current_command_name == 'history':
+                return {'records': [{'id': 'job-a', 'request': {}}]}
+            return {'status': 'queued', 'progress': {'stage': 'queued'}}
+        with gr.Blocks() as current_history_blocks:
+            current_job_control = gr.State('')
+            build_generation_history_view(execute_fixture_command, 'http://localhost', '검증', observed_job_control=current_job_control)
+        current_observe_function = next(current_function for current_function in current_history_blocks.fns.values() if current_function.name == 'observe_requested_job')
+        current_observed_values = current_observe_function.fn('job-a')
+        self.assertEqual(current_observed_values[0], 'job-a')
+        self.assertIn('상태:', current_observed_values[2])
+        self.assertTrue(any(current_dependency.get('trigger_after') == current_observe_function._id for current_dependency in current_history_blocks.config['dependencies']))
+        current_history_blocks.close()
+
+    def test_generator_job_observation_uses_mock_queue_and_tracks_completion(self):
+        from tools.review.ui.gradio.dwpose_app import build_dwpose_interface
+        from tools.review.ui.gradio.wan_animate2_app import build_animate_interface
+        for current_build_function in (build_dwpose_interface, build_animate_interface):
+            with self.subTest(generator=current_build_function.__name__):
+                current_fixture_record = {'status': 'queued', 'progress': {'stage': 'queued'}}
+                def execute_fixture_command(current_command_name, current_payload_record):
+                    if current_command_name == 'history':
+                        return {'records': [{'id': 'mock-job', 'request': {}}]}
+                    if current_command_name == 'status':
+                        return dict(current_fixture_record)
+                    raise AssertionError('격리 검증에서 작업 명령 금지: ' + current_command_name)
+                current_interface_blocks = current_build_function('http://localhost', execute_fixture_command)
+                current_observe_callback = next(current_function for current_function in current_interface_blocks.fns.values() if current_function.name == 'observe_requested_job')
+                current_job_state = current_observe_callback.inputs[0]
+                self.assertTrue(any(current_job_state in current_function.outputs and current_function.name == 'execute_confirmed_generation' for current_function in current_interface_blocks.fns.values()))
+                self.assertTrue(any((current_job_state._id, 'change') in [tuple(current_target) for current_target in current_dependency['targets']] for current_dependency in current_interface_blocks.config['dependencies']))
+                current_observed_values = current_observe_callback.fn('mock-job')
+                self.assertIn('GPU 대기 중', current_observed_values[2])
+                current_refresh_callback = next(current_function.fn for current_function in current_interface_blocks.fns.values() if current_function.name == 'refresh_combined_history')
+                current_fixture_record.update(status='running', progress={'stage': 'inference', 'step': 1, 'total': 2})
+                current_running_values = current_refresh_callback('', 'mock-job', False, current_observed_values[4])
+                self.assertIn('1/2', current_running_values[4])
+                self.assertTrue(current_running_values[-1].active)
+                current_fixture_record.update(status='completed', progress={'stage': 'completed'})
+                current_completed_values = current_refresh_callback('', 'mock-job', False, current_running_values[7])
+                self.assertIn('완료', current_completed_values[4])
+                self.assertFalse(current_completed_values[-1].active)
+                current_interface_blocks.close()
+
     def test_resume_confirmation_is_inside_selected_panel(self):
         with gr.Blocks() as current_history_blocks:
             build_generation_history_view(lambda current_command_name,current_payload_record:{'records':[]},'http://localhost','검증')
