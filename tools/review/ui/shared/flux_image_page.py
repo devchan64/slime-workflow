@@ -4,6 +4,7 @@ import hashlib
 import html
 import importlib
 import io
+import re
 from pathlib import Path
 import gradio as gr
 from generators.image.common_art_style import compose_common_style_prompt
@@ -31,7 +32,12 @@ def restore_flux_image_inputs(current_history_record, current_profile_name):
     if any(type(current_request_record.get(name)) is not int or not 256 <= current_request_record[name] <= 1664 or current_request_record[name] % 16 for name in ('width','height')):
         raise gr.Error('저장된 출력 크기가 올바르지 않습니다.')
     current_restored_values = restore_reference_inputs(current_history_record, WORKFLOW_ROOT_DIRECTORY/'.tmp/test'/(current_profile_name+'-generator'),reference_slot_limit=2)
-    return (current_user_prompt,current_restored_values[6],current_restored_values[7],current_restored_values[2],current_restored_values[3],current_restored_values[5],current_restored_values[1])
+    current_output_values=(current_user_prompt,current_restored_values[6],current_restored_values[7],current_restored_values[2],current_restored_values[3],current_restored_values[5],current_restored_values[1])
+    if current_profile_name == 'flux-seamless':
+        current_saved_method=current_request_record.get('seamless_method','edge-blend')
+        if current_saved_method not in ('circular-vae','edge-blend'): raise gr.Error('저장된 심리스 처리 방식이 올바르지 않습니다.')
+        current_output_values += (current_saved_method,)
+    return current_output_values
 
 
 def describe_flux_image_prompt(current_prompt_text):
@@ -49,10 +55,20 @@ def render_flux_seamless_comparison(current_selected_identifier, current_status_
     current_result_path=current_status_record.get('image')
     if not current_result_path:
         return '<p>아직 저장된 결과 이미지가 없습니다.</p>'
-    current_result_address=current_server_address.rstrip('/')+current_result_path
+    if not isinstance(current_selected_identifier,str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_selected_identifier):
+        return '<p>생성 ID가 올바르지 않아 결과를 표시할 수 없습니다.</p>'
+    current_result_address=f'/flux-seamless-generator/jobs/{current_selected_identifier}/result.png'
+    if current_result_path != current_result_address:
+        return '<p>저장된 결과 경로가 선택한 이력과 일치하지 않습니다.</p>'
     current_preview_address=current_result_address.removesuffix('result.png')+'tiled-preview.png'
     current_raw_address=current_result_address.removesuffix('result.png')+'raw-result.png'
-    return '<h3>FLUX 생성 원본</h3><img width="100%" src="'+html.escape(current_raw_address,quote=True)+'" alt="생성 원본"><h3>경계 보간 타일</h3><img width="100%" src="'+html.escape(current_result_address,quote=True)+'" alt="타일"><h3>3×3 반복 검수</h3><img width="100%" src="'+html.escape(current_preview_address,quote=True)+'" alt="3×3 반복 검수">'
+    current_method_value=current_status_record.get('seamless_method','edge-blend')
+    current_result_label='순환 VAE 타일' if current_method_value=='circular-vae' else '경계 보간 타일'
+    current_html_value='<h3>일반 VAE 생성 원본</h3><img width="100%" src="'+html.escape(current_raw_address,quote=True)+'" alt="생성 원본"><h3>'+current_result_label+'</h3><img width="100%" src="'+html.escape(current_result_address,quote=True)+'" alt="타일"><h3>3×3 반복 검수</h3><img width="100%" src="'+html.escape(current_preview_address,quote=True)+'" alt="3×3 반복 검수">'
+    if current_method_value=='circular-vae':
+        current_blend_address=current_result_address.removesuffix('result.png')+'blend-preview.png'
+        current_html_value += '<h3>동일 잠재값 · 기존 경계 보간 3×3</h3><img width="100%" src="'+html.escape(current_blend_address,quote=True)+'" alt="경계 보간 반복 비교">'
+    return current_html_value
 
 
 def build_flux_image_page(current_profile_name, current_server_address, current_review_port):
@@ -62,7 +78,8 @@ def build_flux_image_page(current_profile_name, current_server_address, current_
     with gr.Blocks() as current_page_blocks:
         gr.Markdown(f'## FLUX 3 {current_label_text} 생성기\n{current_description_text}\n\n결과는 검수용 후보이며 비율·색상·화풍을 보장하지 않습니다. 투명 참조는 흰 배경에 합성하며 투명 출력은 제공하지 않습니다. 기존 Qwen 이력은 이미지 생성 아카이브에서 조회하세요.')
         if current_profile_name == 'flux-seamless':
-            gr.Markdown('FLUX 출력의 반대편 가장자리 색을 보간합니다. 이는 Qwen 순환 VAE나 다단계 보정이 아니며 무늬 연결과 흐림은 반복 미리보기로 검수하세요.')
+            gr.Markdown('기본 순환 VAE는 디코더 합성곱에 순환 패딩을 적용합니다. 같은 잠재값의 일반 VAE 출력에 기존 경계 보간을 적용한 비교도 저장합니다. VAE 타일링은 사용하지 않습니다.')
+            current_seamless_control=gr.Dropdown(choices=[('순환 VAE · 기존 보간 비교','circular-vae'),('기존 경계 보간','edge-blend')],value='circular-vae',label='심리스 처리 방식')
         build_generator_changelog(current_page_blocks,current_profile_name+'-generator')
         if current_profile_name == 'flux-mannequin':
             current_mannequin_module=importlib.import_module('generators.mannequin-generator.page.interface')
@@ -125,15 +142,17 @@ def build_flux_image_page(current_profile_name, current_server_address, current_
         current_status_control=gr.Markdown('결과와 작업 상태는 아래 생성 이력에서 확인하세요.')
         def check_flux_image_readiness(current_prompt_text,current_first_image):
             return bool(current_prompt_text and current_prompt_text.strip() and (not current_minimum_references or current_first_image is not None))
-        def start_flux_image_generation(current_prompt_text,current_first_image,current_second_image,current_width_value,current_height_value,current_seed_value,current_tag_value):
+        def start_flux_image_generation(current_prompt_text,current_first_image,current_second_image,current_width_value,current_height_value,current_seed_value,current_tag_value,current_seamless_value=None):
             if current_second_image is not None and current_first_image is None: raise gr.Error('두 번째 참조는 첫 참조와 함께 사용하세요.')
             current_image_values=[]
             for current_image_value in (current_first_image,current_second_image):
                 if current_image_value is not None:
                     current_image_buffer=io.BytesIO(); current_image_value.save(current_image_buffer,format='PNG'); current_image_values.append(base64.b64encode(current_image_buffer.getvalue()).decode())
             current_payload_record={'action':'generate','prompt':current_prompt_text,'images':current_image_values,'width':int(current_width_value),'height':int(current_height_value),'steps':16,'seed':int(current_seed_value),'tag':current_tag_value or ''}
+            if current_profile_name == 'flux-seamless': current_payload_record['seamless_method']=current_seamless_value
             current_result_record=execute_profile_command('generate',current_payload_record)
             return current_result_record['id'],'대기열에 등록했습니다. 생성 이력을 새로고침해 확인하세요.'
-        bind_gpu_generation_confirmation(current_start_button,start_flux_image_generation,[current_prompt_control,current_first_reference,current_second_reference,current_width_control,current_height_control,current_seed_control,current_tag_control],[current_job_control,current_status_control],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=check_flux_image_readiness,generation_readiness_inputs=[current_prompt_control,current_first_reference])
-        build_generation_history_view(execute_profile_command,current_server_address,'이 생성기의 FLUX 이력과 결과를 삭제합니다.',restore_input_callback=lambda current_history_record:restore_flux_image_inputs(current_history_record,current_profile_name),restore_output_components=[current_prompt_control,current_first_reference,current_second_reference,current_width_control,current_height_control,current_seed_control,current_tag_control],result_renderer_callback=render_flux_seamless_comparison if current_profile_name=='flux-seamless' else None,record_folder_route='/'+current_profile_name+'-generator',allow_individual_delete=True,observed_job_control=current_job_control)
+        current_input_controls=[current_prompt_control,current_first_reference,current_second_reference,current_width_control,current_height_control,current_seed_control,current_tag_control]+([current_seamless_control] if current_profile_name=='flux-seamless' else [])
+        bind_gpu_generation_confirmation(current_start_button,start_flux_image_generation,current_input_controls,[current_job_control,current_status_control],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=check_flux_image_readiness,generation_readiness_inputs=[current_prompt_control,current_first_reference])
+        build_generation_history_view(execute_profile_command,current_server_address,'이 생성기의 FLUX 이력과 결과를 삭제합니다.',restore_input_callback=lambda current_history_record:restore_flux_image_inputs(current_history_record,current_profile_name),restore_output_components=current_input_controls,result_renderer_callback=render_flux_seamless_comparison if current_profile_name=='flux-seamless' else None,record_folder_route='/'+current_profile_name+'-generator',allow_individual_delete=True,observed_job_control=current_job_control)
     return current_page_blocks

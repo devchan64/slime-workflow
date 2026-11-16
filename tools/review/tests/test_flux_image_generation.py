@@ -12,6 +12,34 @@ from tools.review.common.management_gateway import resolve_management_command
 
 
 class FluxImageGenerationTests(unittest.TestCase):
+    def test_seamless_method_defaults_and_validation(self):
+        current_manager_value=FluxImageGenerationManager('flux-seamless')
+        current_request_record={'action':'generate','prompt':'grass','images':[],'width':512,'height':512,'steps':16,'seed':42}
+        self.assertEqual(current_manager_value.validate_generation_request(current_request_record)['seamless_method'],'circular-vae')
+        self.assertEqual(current_manager_value.validate_generation_request({**current_request_record,'seamless_method':'edge-blend'})['seamless_method'],'edge-blend')
+        with self.assertRaises(ValueError): current_manager_value.validate_generation_request({**current_request_record,'seamless_method':'unknown'})
+        with self.assertRaises(ValueError): FluxImageGenerationManager('flux-image').validate_generation_request({**current_request_record,'seamless_method':'circular-vae'})
+
+    def test_circular_preview_and_old_restore_method(self):
+        from tools.review.ui.shared.flux_image_page import render_flux_seamless_comparison
+        current_job_identifier='2026-11-16_18-54-49-49a54a00'
+        current_result_path='/flux-seamless-generator/jobs/'+current_job_identifier+'/result.png'
+        current_markup_value=render_flux_seamless_comparison(current_job_identifier,{'image':current_result_path,'seamless_method':'circular-vae'},'http://127.0.0.1:8770')
+        self.assertIn('순환 VAE 타일',current_markup_value)
+        self.assertIn('/blend-preview.png',current_markup_value)
+        current_old_markup=render_flux_seamless_comparison(current_job_identifier,{'image':current_result_path},'http://127.0.0.1:8770')
+        self.assertIn('경계 보간 타일',current_old_markup)
+        self.assertNotIn('/blend-preview.png',current_old_markup)
+
+    def test_seamless_preview_uses_same_origin_and_checks_job(self):
+        from tools.review.ui.shared.flux_image_page import render_flux_seamless_comparison
+        current_job_identifier='2026-11-16_18-54-49-49a54a00'
+        current_result_path='/flux-seamless-generator/jobs/'+current_job_identifier+'/result.png'
+        current_markup_value=render_flux_seamless_comparison(current_job_identifier,{'image':current_result_path},'http://127.0.0.1:8770')
+        for current_image_name in ('raw-result.png','result.png','tiled-preview.png'):
+            self.assertIn('src="/flux-seamless-generator/jobs/'+current_job_identifier+'/'+current_image_name+'"',current_markup_value)
+        self.assertNotIn('127.0.0.1',current_markup_value)
+        self.assertIn('일치하지',render_flux_seamless_comparison(current_job_identifier,{'image':'/other/result.png'},'http://127.0.0.1:8770'))
     def test_transparent_reference_is_composited_on_white(self):
         current_image_buffer=io.BytesIO(); Image.new('RGBA',(16,16),(0,0,0,0)).save(current_image_buffer,format='PNG')
         current_request_record=FluxImageGenerationManager('flux-mannequin').validate_generation_request({'action':'generate','prompt':'A figure','images':[base64.b64encode(current_image_buffer.getvalue()).decode()],'width':768,'height':1152,'steps':16,'seed':42})

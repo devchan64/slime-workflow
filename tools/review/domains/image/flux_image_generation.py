@@ -17,8 +17,9 @@ FLUX_IMAGE_PROFILE_RECORDS = {
     'flux-prop': ('소품', '소품의 용도와 재질을 설명하세요.', 768, 768, 0),
     'flux-vegetation': ('식생', '식물의 종류와 형태를 설명하세요.', 768, 768, 0),
     'flux-building': ('건물', '첫 참조에 건물 배치 가이드를 선택하고 용도와 재질을 설명하세요.', 768, 768, 1),
-    'flux-seamless': ('심리스 타일', '반복할 바닥 소재를 설명하세요. 가장자리 색을 보간하며 3×3 반복으로 결과를 검수합니다.', 768, 768, 0),
+    'flux-seamless': ('심리스 타일', '반복할 바닥 소재를 설명하세요. 순환 VAE와 경계 보간을 3×3으로 비교합니다.', 768, 768, 0),
 }
+FLUX_SEAMLESS_METHOD_VALUES = ('circular-vae', 'edge-blend')
 
 
 def require_flux_image_profile(current_profile_name):
@@ -50,6 +51,12 @@ class FluxImageGenerationManager(ImageGenerationManager):
             raise ValueError('FLUX 3 Image Klein 모델 구성 요소가 없습니다.')
 
     def validate_generation_request(self, request_record_value):
+        current_seamless_method = None
+        if isinstance(request_record_value,dict) and self.current_profile_name == 'flux-seamless':
+            current_seamless_method = request_record_value.get('seamless_method','circular-vae')
+            if current_seamless_method not in FLUX_SEAMLESS_METHOD_VALUES:
+                raise ValueError('지원하지 않는 심리스 처리 방식입니다.')
+            request_record_value = {key:value for key,value in request_record_value.items() if key != 'seamless_method'}
         if isinstance(request_record_value,dict) and isinstance(request_record_value.get('images'),list):
             request_record_value = {**request_record_value,'images':[base64.b64encode(decode_reference_image(current_image_text,composite_transparent_background=True)).decode() for current_image_text in request_record_value['images']]}
         current_request_record = validate_three_reference_request(request_record_value, allowed_inference_steps=(16,), maximum_reference_count=2, minimum_output_size=256)
@@ -57,10 +64,18 @@ class FluxImageGenerationManager(ImageGenerationManager):
             raise ValueError('이 생성기는 첫 참조 이미지가 필요합니다.')
         current_final_prompt, current_style_record = compose_common_style_prompt(current_request_record['prompt'])
         current_body_sources = importlib.import_module('generators.character-generator.body_references').identify_body_reference_images(current_request_record['images']) if self.current_profile_name == 'flux-character' else []
-        return {**current_request_record, 'user_prompt':current_request_record['prompt'], 'prompt':current_final_prompt, 'common_style':current_style_record, 'body_reference_sources':current_body_sources, 'profile':self.current_profile_name, 'flux_model_revision':FLUX_MODEL_REVISION_VALUE, 'prompt_sha256':hashlib.sha256(current_final_prompt.encode()).hexdigest()}
+        return {**current_request_record, 'user_prompt':current_request_record['prompt'], 'prompt':current_final_prompt, 'common_style':current_style_record, 'body_reference_sources':current_body_sources, 'profile':self.current_profile_name, 'flux_model_revision':FLUX_MODEL_REVISION_VALUE, 'prompt_sha256':hashlib.sha256(current_final_prompt.encode()).hexdigest(), **({'seamless_method':current_seamless_method} if current_seamless_method else {})}
+
+    def enrich_generation_status(self, current_job_root, current_status_record):
+        if self.current_profile_name == 'flux-seamless' and (current_job_root/'request.json').is_file():
+            current_request_record=json.loads((current_job_root/'request.json').read_text())
+            current_status_record['seamless_method']=current_request_record.get('seamless_method','edge-blend')
+        return current_status_record
 
     def validate_generation_resume(self, selected_job_directory):
         current_request_record = json.loads((selected_job_directory/'request.json').read_text())
+        if self.current_profile_name == 'flux-seamless' and current_request_record.get('seamless_method','edge-blend') not in FLUX_SEAMLESS_METHOD_VALUES:
+            raise ValueError('저장된 심리스 처리 방식이 올바르지 않습니다.')
         verify_reference_snapshots(selected_job_directory,current_request_record)
         if current_request_record.get('body_reference_sources'):
             importlib.import_module('generators.character-generator.body_references').verify_body_reference_history(selected_job_directory,current_request_record)
