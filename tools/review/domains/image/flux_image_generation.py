@@ -17,9 +17,9 @@ FLUX_IMAGE_PROFILE_RECORDS = {
     'flux-prop': ('소품', '소품의 용도와 재질을 설명하세요.', 768, 768, 0),
     'flux-vegetation': ('식생', '식물의 종류와 형태를 설명하세요.', 768, 768, 0),
     'flux-building': ('건물', '첫 참조에 건물 배치 가이드를 선택하고 용도와 재질을 설명하세요.', 768, 768, 1),
-    'flux-seamless': ('심리스 타일', '반복할 바닥 소재를 설명하세요. 순환 VAE와 경계 보간을 3×3으로 비교합니다.', 768, 768, 0),
+    'flux-seamless': ('심리스 타일', '전역 주기 어텐션과 순환 VAE로 생성하고 3×3으로 확인합니다. 새 작업은 512×512 무참조만 지원합니다.', 512, 512, 0),
 }
-FLUX_SEAMLESS_METHOD_VALUES = ('circular-vae', 'edge-blend')
+FLUX_SEAMLESS_METHOD_VALUES = ('global-periodic-v1', 'circular-vae-v2', 'circular-vae', 'edge-blend')
 
 
 def require_flux_image_profile(current_profile_name):
@@ -53,13 +53,16 @@ class FluxImageGenerationManager(ImageGenerationManager):
     def validate_generation_request(self, request_record_value):
         current_seamless_method = None
         if isinstance(request_record_value,dict) and self.current_profile_name == 'flux-seamless':
-            current_seamless_method = request_record_value.get('seamless_method','circular-vae')
-            if current_seamless_method not in FLUX_SEAMLESS_METHOD_VALUES:
-                raise ValueError('지원하지 않는 심리스 처리 방식입니다.')
+            current_requested_method = request_record_value.get('seamless_method','global-periodic-v1')
+            if current_requested_method != 'global-periodic-v1':
+                raise ValueError('새 작업은 전역 주기 어텐션과 순환 VAE 방식만 지원합니다.')
+            current_seamless_method = 'global-periodic-v1'
             request_record_value = {key:value for key,value in request_record_value.items() if key != 'seamless_method'}
         if isinstance(request_record_value,dict) and isinstance(request_record_value.get('images'),list):
             request_record_value = {**request_record_value,'images':[base64.b64encode(decode_reference_image(current_image_text,composite_transparent_background=True)).decode() for current_image_text in request_record_value['images']]}
         current_request_record = validate_three_reference_request(request_record_value, allowed_inference_steps=(16,), maximum_reference_count=2, minimum_output_size=256)
+        if self.current_profile_name == 'flux-seamless' and (current_request_record['width'] != 512 or current_request_record['height'] != 512 or current_request_record['images']):
+            raise ValueError('전역 주기 어텐션의 새 작업은 512×512와 참조 이미지 없음만 지원합니다.')
         if len(current_request_record['images']) < require_flux_image_profile(self.current_profile_name)[4]:
             raise ValueError('이 생성기는 첫 참조 이미지가 필요합니다.')
         current_final_prompt, current_style_record = compose_common_style_prompt(current_request_record['prompt'])
@@ -82,6 +85,8 @@ class FluxImageGenerationManager(ImageGenerationManager):
         current_references_value = current_request_record.get('references')
         if not isinstance(current_references_value,list) or not require_flux_image_profile(self.current_profile_name)[4] <= len(current_references_value) <= 2:
             raise ValueError('저장된 참조 이미지 수가 올바르지 않습니다.')
+        if self.current_profile_name == 'flux-seamless' and current_request_record.get('seamless_method') == 'global-periodic-v1' and (current_request_record.get('width') != 512 or current_request_record.get('height') != 512 or current_references_value):
+            raise ValueError('저장된 전역 주기 작업은 512×512 무참조여야 합니다.')
         if current_request_record.get('profile') != self.current_profile_name or current_request_record.get('flux_model_revision') != FLUX_MODEL_REVISION_VALUE or hashlib.sha256(current_request_record['prompt'].encode()).hexdigest() != current_request_record.get('prompt_sha256'):
             raise ValueError('저장된 생성기·모델 또는 프롬프트가 일치하지 않습니다.')
         if current_request_record.get('steps') != 16 or type(current_request_record.get('seed')) is not int or not 0 <= current_request_record['seed'] <= 4294967295:
