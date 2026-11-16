@@ -13,11 +13,13 @@ class ExpressionLoraPreparationTests(unittest.TestCase):
     def test_gateway_and_model_catalog_contract(self):
         from tools.review.ui.gradio.model_management_app import MODEL_PREPARATION_SERVICES
         self.assertIn(('Qwen 2.1 표정 LoRA', 'expression-lora'), MODEL_PREPARATION_SERVICES)
-        self.assertEqual(resolve_management_command('expression-lora', 'prepare', {'action': 'prepare'}), ('POST', '/expression-lora/jobs'))
+        with self.assertRaisesRegex(ValueError, '라이선스'):
+            resolve_management_command('expression-lora', 'prepare', {'action': 'prepare'})
         with self.assertRaises(ValueError):
             resolve_management_command('expression-lora', 'prepare', {'action': 'prepare', 'path': '/tmp/other'})
 
-    def test_verified_download_and_existing_file_protection(self):
+    @patch('generators.image.qwen_21_runtime.reject_retired_qwen_usage')
+    def test_verified_download_and_existing_file_protection(self, current_retirement_guard):
         with tempfile.TemporaryDirectory() as current_temp_directory:
             current_root_path = Path(current_temp_directory)
             current_target_path = current_root_path / 'model' / 'adapter.safetensors'
@@ -35,7 +37,8 @@ class ExpressionLoraPreparationTests(unittest.TestCase):
                     expression_generation.download_expression_adapter()
                 self.assertEqual(current_target_path.read_bytes(), b'corrupt')
 
-    def test_hash_mismatch_does_not_install_file(self):
+    @patch('generators.image.qwen_21_runtime.reject_retired_qwen_usage')
+    def test_hash_mismatch_does_not_install_file(self, current_retirement_guard):
         with tempfile.TemporaryDirectory() as current_temp_directory:
             current_root_path = Path(current_temp_directory)
             current_target_path = current_root_path / 'model' / 'adapter.safetensors'

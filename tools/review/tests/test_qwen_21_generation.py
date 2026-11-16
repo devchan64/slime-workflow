@@ -16,6 +16,16 @@ from tools.review.common.management_gateway import execute_gateway_arguments
 
 
 class QwenPlainGenerationTests(unittest.TestCase):
+    def test_retired_runtime_rejects_inference_and_download(self):
+        from generators.image.qwen_21_runtime import download_qwen_model_assets, execute_qwen_reference_generation
+        with self.assertRaisesRegex(RuntimeError, '라이선스'):
+            execute_qwen_reference_generation(None, None, None)
+        with self.assertRaisesRegex(RuntimeError, '라이선스'):
+            download_qwen_model_assets()
+        from tools.review.domains.image.expression_generation import download_expression_adapter
+        with self.assertRaisesRegex(RuntimeError, '라이선스'):
+            download_expression_adapter()
+
     def test_qwen_uses_shared_runtime_for_worker_and_validation(self):
         from generators.image.run_qwen_21_reference import QWEN_ENVIRONMENT_ROOT
         from tools.review.domains.image import qwen_21_generation
@@ -35,7 +45,8 @@ class QwenPlainGenerationTests(unittest.TestCase):
         return {'action':'generate','prompt':'  붉은 사과.\n흰 배경.  ','images':[base64.b64encode(current_image_buffer.getvalue()).decode()]*reference_image_count,
             'width':512,'height':512,'steps':40,'seed':10107}
 
-    def test_runtime_publishes_progress_without_gpu_execution(self):
+    @patch('generators.image.qwen_21_runtime.reject_retired_qwen_usage')
+    def test_runtime_publishes_progress_without_gpu_execution(self, current_retirement_guard):
         from types import SimpleNamespace
         from unittest.mock import MagicMock
         from generators.image import qwen_21_runtime
@@ -127,7 +138,8 @@ class QwenPlainGenerationTests(unittest.TestCase):
             current_pipeline_model._encode_vae_image.assert_called_once()
             current_pipeline_model.vae.decode.assert_called_once()
 
-    def test_idle_inference_heartbeat_updates_persisted_timestamp(self):
+    @patch('generators.image.qwen_21_runtime.reject_retired_qwen_usage')
+    def test_idle_inference_heartbeat_updates_persisted_timestamp(self, current_retirement_guard):
         from datetime import datetime
         from types import SimpleNamespace
         from unittest.mock import MagicMock
@@ -235,6 +247,7 @@ class QwenPlainGenerationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 verify_qwen_saved_request(current_job_root,saved_request_record)
 
+    @patch('tools.review.common.management_gateway.ARCHIVED_QWEN_IMAGE_SERVICES', frozenset())
     def test_cli_raw_prompt_and_ten_references(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             current_reference_path = Path(temporary_directory_name)/'input.png'

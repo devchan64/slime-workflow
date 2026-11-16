@@ -25,6 +25,8 @@ def validate_expression_adapter():
 
 def download_expression_adapter():
     """공개 배포본을 임시 경로에서 검증한 뒤 기존 원본 경로에 설치한다."""
+    from generators.image.qwen_21_runtime import reject_retired_qwen_usage
+    reject_retired_qwen_usage()
     import os
     from tools.review.common.model_huggingface_download import tracked_hf_hub_download
     if EXPRESSION_ADAPTER_PATH.exists():

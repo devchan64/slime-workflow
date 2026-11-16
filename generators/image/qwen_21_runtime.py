@@ -15,6 +15,10 @@ QWEN_INFERENCE_STEPS = 40
 QWEN_ALLOWED_INFERENCE_STEPS = (20, 30, 40, 50)
 
 
+def reject_retired_qwen_usage():
+    raise RuntimeError('Qwen 2.1은 라이선스 사유로 사용이 중단되었습니다. 기존 이력만 조회할 수 있습니다.')
+
+
 def save_reference_vae_roundtrip(current_pipeline_model, current_reference_image, current_job_root, reference_resolution_value, torch):
     """실제 조건 이미지 전처리·VAE 경로를 별도 기록해 생성 열화와 구분한다."""
     from diffusers.pipelines.qwenimage21.pipeline_qwenimage21 import calculate_dimensions
@@ -58,6 +62,7 @@ def validate_qwen_model_assets():
 
 def download_qwen_model_assets():
     """공식 비양자화 스냅샷을 기존 로컬 모델 경로에 준비한다."""
+    reject_retired_qwen_usage()
     from tools.review.common.model_huggingface_download import tracked_snapshot_download as snapshot_download
 
     QWEN_MODEL_DIRECTORY.mkdir(parents=True, exist_ok=True)
@@ -72,6 +77,7 @@ def download_qwen_model_assets():
 
 def execute_qwen_reference_generation(current_job_root, current_request_record, reference_image_paths):
     """로컬 모델만 로드하며 실패 시 다른 모델로 대체하지 않는다."""
+    reject_retired_qwen_usage()
     import torch
     from PIL import Image
     from diffusers import QwenImage21Pipeline

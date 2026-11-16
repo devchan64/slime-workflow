@@ -13,7 +13,7 @@ from tools.review.common.management_gateway import (
 class QwenArchivePolicyTests(unittest.TestCase):
     def test_archived_services_reject_new_or_restarted_work(self):
         for current_service_name in ARCHIVED_QWEN_IMAGE_SERVICES:
-            for current_operation_name in ('generate', 'resume', 'prioritize'):
+            for current_operation_name in ('generate', 'resume', 'prioritize', 'prepare'):
                 with self.subTest(service=current_service_name, operation=current_operation_name):
                     with self.assertRaisesRegex(ValueError, '아카이브'):
                         resolve_management_command(current_service_name, current_operation_name, {})
@@ -29,6 +29,10 @@ class QwenArchivePolicyTests(unittest.TestCase):
 
     def test_unrelated_generation_remains_available(self):
         self.assertEqual(resolve_management_command('kimodo', 'generate', {})[0], 'POST')
+
+    def test_expression_adapter_download_is_retired(self):
+        with self.assertRaisesRegex(ValueError, '라이선스'):
+            resolve_management_command('expression-lora', 'prepare', {'action': 'prepare'})
 
     def test_legacy_and_enveloped_requests_cannot_start_archived_work(self):
         current_service_calls = []

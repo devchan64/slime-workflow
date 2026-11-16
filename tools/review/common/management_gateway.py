@@ -117,8 +117,10 @@ ARCHIVED_QWEN_IMAGE_SERVICES = frozenset((
 
 
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
-    if service_command_name in ARCHIVED_QWEN_IMAGE_SERVICES and operation_command_name in ('generate', 'resume', 'prioritize'):
-        raise ValueError('Qwen 이미지 생성기는 아카이브되어 새 생성·재개·우선 실행을 지원하지 않습니다. 기존 이력과 결과는 조회할 수 있습니다.')
+    if service_command_name == 'expression-lora' and operation_command_name == 'prepare':
+        raise ValueError('Qwen 2.1 표정 LoRA는 라이선스 사유로 사용과 다운로드가 중단되었습니다.')
+    if service_command_name in ARCHIVED_QWEN_IMAGE_SERVICES and operation_command_name in ('generate', 'resume', 'prioritize', 'prepare'):
+        raise ValueError('Qwen 이미지 생성기는 라이선스 사유로 아카이브되어 모델 준비·새 생성·재개·우선 실행을 지원하지 않습니다. 기존 이력과 결과는 조회할 수 있습니다.')
     if service_command_name == 'anny':
         raise ValueError('ANNY 속성 렌더러·모델·결과는 폐기되었습니다.')
     if service_command_name == 'anny-landmarks':

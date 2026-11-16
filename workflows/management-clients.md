@@ -1,6 +1,6 @@
 # 관리도구 GUI·CLI 클라이언트
 
-> **2026-11-16 Qwen 이미지 계열 아카이브:** `qwen-21`, `qwen-21-circular`, `mannequin-generator`, `billboard-generator`, `prop-generator`, `vegetation-generator`, `building-generator`, `expression`, `seamless-tile`의 신규 생성·재개·우선 실행은 중단했다. 캐릭터 화면은 `qwen-21`을 공유한다. 기존 이력·입력·결과·로그는 기존 경로에서 조회할 수 있고 실행 중 작업은 자동 취소하지 않는다. 아래 이전 Qwen 실행·재개 설명은 과거 계약 기록이다. FLUX 도입 검토는 [FLUX 3 Image Klein 도입 검토](flux-3-image-evaluation.md)를 따른다.
+> **2026-11-16 Qwen 이미지 계열 아카이브:** 사용자 결정에 따라 라이선스 사유로 Qwen 2.1 사용을 중단한다. 모델 준비와 직접 추론도 차단한다. `qwen-21`, `qwen-21-circular`, `mannequin-generator`, `billboard-generator`, `prop-generator`, `vegetation-generator`, `building-generator`, `expression`, `seamless-tile`의 신규 생성·재개·우선 실행은 중단했다. 캐릭터 화면은 `qwen-21`을 공유한다. 기존 이력·입력·결과·로그는 기존 경로에서 조회할 수 있고 실행 중 작업은 자동 취소하지 않는다. 아래 이전 Qwen 실행·재개 설명은 과거 계약 기록이다. FLUX 도입 검토는 [FLUX 3 Image Klein 도입 검토](flux-3-image-evaluation.md)를 따른다.
 
 > 검증: 실행 중인 게이트웨이에서 위 9개 서비스의 이력 조회 및 신규 생성 차단을 확인했다. 결과가 있는 마네킨·일반 Qwen·순환 VAE·소품 이력의 PNG를 HTTP 200으로 읽었다. 합성 관리도구 문서의 아카이브 안내는 확인했으나, 이 대화의 브라우저 접근이 불가능하여 실제 화면 조작 검증은 미완료다.
 
