@@ -12,6 +12,24 @@ from tools.review.ui.gradio import qwen_2511_app
 
 
 class Qwen2511GradioTests(unittest.TestCase):
+    def test_all_shared_qwen_page_variants_show_seed_guidance_and_auto_default(self):
+        current_page_options = (
+            {}, {'expression_mode_enabled': True}, {'qwen21_mode_enabled': True},
+            {'qwen21_mode_enabled': True, 'circular_mode_enabled': True},
+            {'qwen21_mode_enabled': True, 'building_mode_enabled': True},
+            {'qwen21_mode_enabled': True, 'prop_mode_enabled': True},
+            {'qwen21_mode_enabled': True, 'vegetation_mode_enabled': True},
+            {'qwen21_mode_enabled': True, 'prop_mode_enabled': True, 'billboard_guide_enabled': True},
+            {'qwen21_mode_enabled': True, 'character_mode_enabled': True},
+            {'qwen21_mode_enabled': True, 'mannequin_mode_enabled': True},
+        )
+        for current_options in current_page_options:
+            with self.subTest(options=current_options):
+                current_blocks = qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770', **current_options)
+                current_checkbox = next(current_component for current_component in current_blocks.blocks.values() if isinstance(current_component, gr.Checkbox) and current_component.label == '생성마다 무작위 시드')
+                self.assertTrue(current_checkbox.value)
+                self.assertTrue(any(isinstance(current_component, gr.Markdown) and '같은 시드를 재사용' in str(current_component.value) for current_component in current_blocks.blocks.values()))
+
     def test_retired_pose_interface_rejected(self):
         with self.assertRaisesRegex(ValueError, "폐기"):
             qwen_2511_app.build_qwen_2511_interface("http://127.0.0.1:8770", qwen21_mode_enabled=True, pose_transfer_enabled=True)
@@ -47,7 +65,7 @@ class Qwen2511GradioTests(unittest.TestCase):
         from unittest.mock import patch
         current_interface_blocks=qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770',qwen21_mode_enabled=True,circular_mode_enabled=True)
         current_start_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='execute_confirmed_generation' and inspect.getclosurevars(current_function_value.fn).nonlocals['generation_callback_value'].__name__=='start_reference_generation')
-        current_input_values=[None]*10+[512,512,40,42,12,True,True,False]
+        current_input_values=[None]*10+[512,512,40,42,12,True,True,False,False]
         with patch.object(qwen_2511_app,'execute_management_command',return_value={'id':'mock-id','status':'queued'}) as current_gateway_mock:
             list(current_start_callback({'inputs':('','',*current_input_values),'consumed':False}))
             current_request_record=current_gateway_mock.call_args.args[2]
@@ -60,6 +78,48 @@ class Qwen2511GradioTests(unittest.TestCase):
         self.assertFalse(qwen_2511_app.check_circular_prompt_readiness('',False,False))
         self.assertTrue(qwen_2511_app.check_circular_prompt_readiness('',True,True))
         self.assertFalse(qwen_2511_app.check_circular_prompt_readiness('word '*95,True,True))
+
+    def test_auto_seed_is_used_for_generation_and_manual_seed_is_reproducible(self):
+        from unittest.mock import patch
+        current_blocks = qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, circular_mode_enabled=True)
+        current_start = next(current_function.fn for current_function in current_blocks.fns.values() if current_function.fn and current_function.fn.__name__ == 'execute_confirmed_generation' and inspect.getclosurevars(current_function.fn).nonlocals['generation_callback_value'].__name__ == 'start_reference_generation')
+        current_inputs = [None] * 10 + [512, 512, 40, 42, 12, True, True, False]
+        with patch.object(qwen_2511_app, 'execute_management_command', return_value={'id':'mock-id','status':'queued'}) as current_gateway, patch('tools.review.common.gradio_seed.generate_random_seed_value', side_effect=[100, 101]):
+            for current_expected_seed in (100, 101):
+                list(current_start({'inputs':('', '', *current_inputs, True), 'consumed':False}))
+                self.assertEqual(current_gateway.call_args.args[2]['seed'], current_expected_seed)
+            list(current_start({'inputs':('', '', *current_inputs, False), 'consumed':False}))
+            self.assertEqual(current_gateway.call_args.args[2]['seed'], 42)
+
+    def test_tile_generators_use_auto_and_manual_seeds(self):
+        from unittest.mock import patch
+        from tools.review.ui.gradio import floor_tile_app, seamless_tile_app
+        from tools.review.domains.tile.floor_generation import load_floor_configuration
+        for current_module, current_builder, current_gateway_name, current_inputs in (
+            (floor_tile_app, floor_tile_app.build_floor_interface, 'execute_floor_gateway', ('stone', '', 512, 4, 42, False)),
+            (seamless_tile_app, seamless_tile_app.build_seamless_interface, 'execute_management_command', ('grass', '', 40, 42)),
+        ):
+            with self.subTest(page=current_gateway_name):
+                def execute_mock_gateway(*current_arguments):
+                    if 'catalog' in current_arguments:
+                        return load_floor_configuration()
+                    return {'id':'mock-id','status':'queued'}
+                with patch.object(current_module, current_gateway_name, side_effect=execute_mock_gateway) as current_gateway, patch('tools.review.common.gradio_seed.generate_random_seed_value', return_value=123):
+                    current_blocks = current_builder('http://127.0.0.1:8770')
+                    current_checkbox = next(current_component for current_component in current_blocks.blocks.values() if isinstance(current_component, gr.Checkbox) and current_component.label == '생성마다 무작위 시드')
+                    self.assertTrue(current_checkbox.value)
+                    self.assertTrue(any(isinstance(current_component, gr.Markdown) and '같은 시드를 재사용' in str(current_component.value) for current_component in current_blocks.blocks.values()))
+                    current_restore_wrapper = next(current_function.fn for current_function in current_blocks.fns.values() if getattr(current_function.fn, '__name__', '') == 'restore_selected_inputs')
+                    current_restore_callback = inspect.getclosurevars(current_restore_wrapper).nonlocals['restore_input_callback']
+                    current_saved_request = {'seed': 42, 'tag': 'saved', 'user_prompt': 'stone', 'add_margins': False, 'seamless_tile': {'user_prompt': 'grass'}}
+                    current_restored_values = current_restore_callback({'id': 'isolated', 'request': current_saved_request})
+                    self.assertEqual(current_restored_values[-1], False)
+                    self.assertIn(42, current_restored_values)
+                    current_start = next(current_function.fn for current_function in current_blocks.fns.values() if getattr(current_function.fn, '__name__', '') == 'execute_confirmed_generation' and getattr(inspect.getclosurevars(current_function.fn).nonlocals.get('generation_callback_value'), '__name__', '').startswith(('start_floor_generation', 'start_seamless_generation')))
+                    list(current_start({'inputs':(*current_inputs, True), 'consumed':False}))
+                    self.assertEqual(current_gateway.call_args.args[-1]['seed'], 123)
+                    list(current_start({'inputs':(*current_inputs, False), 'consumed':False}))
+                    self.assertEqual(current_gateway.call_args.args[-1]['seed'], 42)
 
     def test_circular_history_restores_saved_options_and_reference_order(self):
         from unittest.mock import patch
@@ -90,7 +150,7 @@ class Qwen2511GradioTests(unittest.TestCase):
                     self.assertEqual(current_restored_values[6].getpixel((0, 0)), (255, 0, 0))
                     self.assertEqual(current_restored_values[7].getpixel((0, 0)), (0, 0, 255))
                     self.assertTrue(all(current_reference_image is None for current_reference_image in current_restored_values[8:16]))
-                    self.assertEqual(current_restored_values[-4:], (24, current_option_enabled, current_option_enabled, current_option_enabled))
+                    self.assertEqual(current_restored_values[-5:], (24, current_option_enabled, current_option_enabled, current_option_enabled, False))
                     self.assertEqual(len(current_restored_values), len(current_restore_function.outputs) - 1)
                 current_gateway_mock.assert_not_called()
 

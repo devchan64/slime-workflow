@@ -146,6 +146,8 @@ def identify_execution_command(command_argument_values, generation_job_directory
         if current_worker_name == 'run_qwen_21_reference.py' and 'circular_vae' in current_request_record:
             return current_profile_name + ':offload=none-circular-v1'
         if current_worker_name == 'run_qwen_21_reference.py':
+            if 'reference_resolution' in current_request_record.get('qwen21', {}):
+                return current_profile_name + f":untiled-v1:reference-resolution={current_request_record['qwen21']['reference_resolution']}:offload=none-full-v1"
             return current_profile_name + ':offload=none-full-v1'
         return current_profile_name + ':offload=model-v1' if current_worker_name in MODEL_OFFLOAD_WORKER_NAMES else current_profile_name
     if len(command_argument_values)>2 and command_argument_values[1]=='-m':

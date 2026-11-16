@@ -28,7 +28,7 @@ from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_conf
 from tools.review.common.gradio_reference_images import build_reference_image_inputs, REFERENCE_IMAGE_CARD_HEIGHT
 from tools.review.common.gradio_button_guidance import build_button_guidance
 from tools.review.common.gradio_reference_restore import restore_reference_inputs
-from tools.review.common.gradio_seed import build_generation_seed
+from tools.review.common.gradio_seed import build_generation_seed, select_generation_seed_value, QWEN_SEED_GUIDANCE
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 
 def check_circular_prompt_readiness(current_prompt_text, current_shading_enabled, current_pattern_enabled):
@@ -153,12 +153,14 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             current_known_ids = {current_record['id']: current_record['sha256'] for current_record in current_known_records}
             current_restored_id = next((current_record['id'] for current_record in current_sources if current_record.get('order') == 1 and current_known_ids.get(current_record.get('id')) == current_record.get('source_sha256')), None)
             restored_input_values.append(current_restored_id)
+        restored_input_values.append(False)
         return tuple(restored_input_values)
     with gr.Blocks(title=current_page_title) as interface_blocks_value:
         current_changelog_name = 'mannequin-generator' if mannequin_mode_enabled else 'character-generator' if character_mode_enabled else current_service_name
         if current_changelog_name in GENERATOR_CHANGELOG_PATHS:
             build_generator_changelog(interface_blocks_value, current_changelog_name)
         gr.Markdown('## ' + current_page_title + '\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.')
+        gr.Markdown(QWEN_SEED_GUIDANCE)
         if current_service_name == 'prop-generator':
             gr.Markdown('공식 Qwen Image 2.1 비양자화 모델 · BF16 · AMD ROCm')
         current_prop_ready, current_prop_model_events = build_model_readiness_controls(interface_blocks_value, execute_reference_gateway)
@@ -350,17 +352,18 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             if circular_mode_enabled:
                 circular_radius_control = gr.Dropdown([4, 8, 12, 16, 24], value=12, label='순환 반경 · 토큰', scale=1, min_width=120)
             else:
-                seed_value = build_generation_seed(10107)
+                seed_value = build_generation_seed(10107, random_initial_enabled=True)
         if mannequin_mode_enabled:
             def apply_mannequin_stage(current_stage_identifier):
                 return (*current_mannequin_module.load_mannequin_preset(current_stage_identifier), *((1056, 1056) if current_stage_identifier == 'face' else (768, 1152)))
             current_mannequin_apply.click(apply_mannequin_stage, [current_mannequin_selector], [prompt_text_value, reference_image_controls[0], reference_image_controls[1], width_value, height_value], queue=False)
         if circular_mode_enabled:
             with gr.Row(equal_height=False):
-                seed_value = build_generation_seed(10107)
+                seed_value = build_generation_seed(10107, random_initial_enabled=True)
                 with gr.Column(min_width=220):
                     baseline_decode_control = gr.Checkbox(value=False, label='일반 VAE 비교 생성', info='동일 잠재값의 일반 VAE 결과를 추가합니다.')
             gr.Markdown('순환 반경은 좌우·상하에 동일 적용합니다. 경계 1줄 참조 · 모서리 참조 없음.')
+        automatic_seed_control = gr.Checkbox(value=True, label='생성마다 무작위 시드', info='끄면 표시된 시드를 사용합니다. 이력을 불러오면 자동으로 꺼집니다.')
         if outfit_transfer_enabled:
             width_value.change(lambda selected_resolution_value: selected_resolution_value, width_value, height_value, queue=False)
         generation_button_value = gr.Button('대기열에 추가', variant='primary', interactive=(character_mode_enabled and check_plain_prompt_readiness(default_prompt_text, False, False)) or (not prop_mode_enabled and not billboard_guide_enabled and (vegetation_mode_enabled or (not outfit_transfer_enabled and (not plain_options_enabled) and (not expression_mode_enabled)))))
@@ -380,9 +383,11 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         preview_value = build_generation_gallery()
         gr.Markdown('마네킨 전용 생성 이력입니다. 이전 공유 이력은 일반 Qwen 2.1에서 확인하세요.' if mannequin_mode_enabled else '일반 Qwen 2.1과 공유하는 생성 이력입니다. 삭제·초기화는 공유 이력 전체에 적용됩니다.' if character_mode_enabled else '빌보드·건물 공용 생성 이력입니다. 기존 건물 CLI도 이 이력을 사용합니다.' if billboard_guide_enabled else '건물 전용 대기열·생성 이력입니다. 기존 공유 Qwen 이력은 일반 Qwen 생성기에서 조회하세요.' if building_mode_enabled else '소품 전용 대기열·생성 이력입니다. 기존 공유 이력은 일반 Qwen에서 조회하세요.' if prop_mode_enabled else '자연물 전용 대기열·생성 이력입니다. 기존 공유 이력은 일반 Qwen에서 조회하세요.' if vegetation_mode_enabled else '복장 착용 전용 생성 이력입니다.' if outfit_transfer_enabled else 'Qwen 2.1 전용 생성 이력입니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if qwen21_mode_enabled else '표정 생성 이력은 별도로 관리합니다. 이전 Qwen 2511 작업은 조회할 수 있지만 재개할 수 없습니다.' if expression_mode_enabled else 'Qwen 2511 참조 생성 이력은 표정 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.')
         log_value, refresh_log_value, _ = build_execution_logs()
-        read_history_page, history_output_values = build_generation_history_view(execute_reference_gateway, server_base_address, '이력과 해당 생성기의 임시 작업 폴더(결과·참조 입력 사본·로그)를 함께 삭제합니다. 이전에 목록에서 제거한 작업도 포함합니다. 정식 에셋과 모델 캐시는 유지합니다. 대기·실행 중에는 초기화할 수 없습니다.', result_renderer_callback=render_circular_comparison if circular_mode_enabled else None, restore_input_callback=restore_selected_inputs, restore_output_components=[prompt_text_value, generation_tag_value, width_value, height_value, step_value, seed_value, *reference_image_controls, status_value] + (reference_upload_group.reference_slot_outputs if qwen21_mode_enabled and (not outfit_transfer_enabled) else []) + ([fixed_prompt_enabled, custom_prompt_memory] if outfit_transfer_enabled else []) + ([circular_radius_control, soft_shading_control, pattern_view_control, baseline_decode_control] if circular_mode_enabled else []) + ([common_style_control, transparent_background_control] if plain_options_enabled else []) + ([building_prompt_control] if building_mode_enabled or billboard_guide_enabled else []) + ([character_body_state] if character_mode_enabled else []), record_folder_route='/mannequin-generator' if mannequin_mode_enabled else '/billboard-generator' if billboard_guide_enabled else '/prop-generator' if prop_mode_enabled else '/vegetation-generator' if vegetation_mode_enabled else '/building-generator' if building_mode_enabled else '/outfit-transfer' if outfit_transfer_enabled else '/image-generation-21-circular' if circular_mode_enabled else '/image-generation-21' if qwen21_mode_enabled else '/expression-generator' if expression_mode_enabled else '/image-generation-2511', allow_individual_delete=True)
+        read_history_page, history_output_values = build_generation_history_view(execute_reference_gateway, server_base_address, '이력과 해당 생성기의 임시 작업 폴더(결과·참조 입력 사본·로그)를 함께 삭제합니다. 이전에 목록에서 제거한 작업도 포함합니다. 정식 에셋과 모델 캐시는 유지합니다. 대기·실행 중에는 초기화할 수 없습니다.', result_renderer_callback=render_circular_comparison if circular_mode_enabled else None, restore_input_callback=restore_selected_inputs, restore_output_components=[prompt_text_value, generation_tag_value, width_value, height_value, step_value, seed_value, *reference_image_controls, status_value] + (reference_upload_group.reference_slot_outputs if qwen21_mode_enabled and (not outfit_transfer_enabled) else []) + ([fixed_prompt_enabled, custom_prompt_memory] if outfit_transfer_enabled else []) + ([circular_radius_control, soft_shading_control, pattern_view_control, baseline_decode_control] if circular_mode_enabled else []) + ([common_style_control, transparent_background_control] if plain_options_enabled else []) + ([building_prompt_control] if building_mode_enabled or billboard_guide_enabled else []) + ([character_body_state] if character_mode_enabled else []) + [automatic_seed_control], record_folder_route='/mannequin-generator' if mannequin_mode_enabled else '/billboard-generator' if billboard_guide_enabled else '/prop-generator' if prop_mode_enabled else '/vegetation-generator' if vegetation_mode_enabled else '/building-generator' if building_mode_enabled else '/outfit-transfer' if outfit_transfer_enabled else '/image-generation-21-circular' if circular_mode_enabled else '/image-generation-21' if qwen21_mode_enabled else '/expression-generator' if expression_mode_enabled else '/image-generation-2511', allow_individual_delete=True)
 
         def start_reference_generation(prompt_text_value, generation_tag_value, *generation_input_values):
+            automatic_seed_enabled = generation_input_values[-1]
+            generation_input_values = generation_input_values[:-1]
             current_body_reference_id = generation_input_values[-1] if character_mode_enabled else None
             if character_mode_enabled:
                 generation_input_values = generation_input_values[:-1]
@@ -399,6 +404,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 raise gr.Error('바디와 아웃핏 이미지를 각각 한 장 첨부하세요.')
             reference_bytes_values = prepare_reference_image_bytes(generation_input_values[:reference_slot_count], composite_transparent_background=qwen21_mode_enabled)
             width_value, height_value, step_value, seed_value = generation_input_values[reference_slot_count:reference_slot_count + 4]
+            seed_value = select_generation_seed_value(seed_value, automatic_seed_enabled)
             if outfit_transfer_enabled:
                 height_value = width_value
             from tools.review.domains.image.three_reference_generation import validate_three_reference_request
@@ -425,11 +431,11 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 generation_record_value = execute_reference_gateway('generate', generation_request_value)
             except (ValueError, OSError) as generation_request_error:
                 raise gr.Error(str(generation_request_error)) from generation_request_error
-            return (generation_record_value['id'], '상태: ' + format_generation_status(generation_record_value))
+            return (generation_record_value['id'], '상태: ' + format_generation_status(generation_record_value) + f' · 사용 시드: {seed_value}', seed_value)
         def check_prop_generation_readiness(current_model_ready, *current_prompt_options):
             return current_model_ready and check_plain_prompt_readiness(*current_prompt_options)
 
-        bind_gpu_generation_confirmation(generation_button_value, start_reference_generation, [prompt_text_value, generation_tag_value, *reference_image_controls, width_value, height_value, step_value, seed_value] + ([circular_radius_control, soft_shading_control, pattern_view_control, baseline_decode_control] if circular_mode_enabled else []) + ([common_style_control, transparent_background_control] if plain_options_enabled else []) + ([building_prompt_control] if building_mode_enabled or billboard_guide_enabled else []) + ([character_body_state] if character_mode_enabled else []), [identifier_value, status_value], generation_confirmation_container=generation_confirmation_container, generation_readiness_callback=check_prop_generation_readiness if current_service_name == 'prop-generator' else check_building_input_readiness if building_mode_enabled or billboard_guide_enabled else (lambda *current_reference_values: all((current_reference_value is not None for current_reference_value in current_reference_values))) if outfit_transfer_enabled else check_expression_reference_readiness if expression_mode_enabled else check_plain_prompt_readiness if plain_options_enabled else check_circular_prompt_readiness if circular_mode_enabled else None, generation_readiness_events=current_prop_model_events if current_service_name == 'prop-generator' else None, generation_readiness_inputs=[current_prop_ready, prompt_text_value, common_style_control, transparent_background_control] if current_service_name == 'prop-generator' else [prompt_text_value, common_style_control, transparent_background_control, reference_image_controls[0], building_prompt_control] if building_mode_enabled or billboard_guide_enabled else reference_image_controls if outfit_transfer_enabled or expression_mode_enabled else [prompt_text_value, common_style_control, transparent_background_control] if plain_options_enabled else [prompt_text_value, soft_shading_control, pattern_view_control] if circular_mode_enabled else None)
+        bind_gpu_generation_confirmation(generation_button_value, start_reference_generation, [prompt_text_value, generation_tag_value, *reference_image_controls, width_value, height_value, step_value, seed_value] + ([circular_radius_control, soft_shading_control, pattern_view_control, baseline_decode_control] if circular_mode_enabled else []) + ([common_style_control, transparent_background_control] if plain_options_enabled else []) + ([building_prompt_control] if building_mode_enabled or billboard_guide_enabled else []) + ([character_body_state] if character_mode_enabled else []) + [automatic_seed_control], [identifier_value, status_value, seed_value], generation_confirmation_container=generation_confirmation_container, generation_readiness_callback=check_prop_generation_readiness if current_service_name == 'prop-generator' else check_building_input_readiness if building_mode_enabled or billboard_guide_enabled else (lambda *current_reference_values: all((current_reference_value is not None for current_reference_value in current_reference_values))) if outfit_transfer_enabled else check_expression_reference_readiness if expression_mode_enabled else check_plain_prompt_readiness if plain_options_enabled else check_circular_prompt_readiness if circular_mode_enabled else None, generation_readiness_events=current_prop_model_events if current_service_name == 'prop-generator' else None, generation_readiness_inputs=[current_prop_ready, prompt_text_value, common_style_control, transparent_background_control] if current_service_name == 'prop-generator' else [prompt_text_value, common_style_control, transparent_background_control, reference_image_controls[0], building_prompt_control] if building_mode_enabled or billboard_guide_enabled else reference_image_controls if outfit_transfer_enabled or expression_mode_enabled else [prompt_text_value, common_style_control, transparent_background_control] if plain_options_enabled else [prompt_text_value, soft_shading_control, pattern_view_control] if circular_mode_enabled else None)
 
         def refresh_status(identifier_text_value, refresh_log_enabled):
             if not identifier_text_value:

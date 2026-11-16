@@ -16,7 +16,7 @@ from tools.review.ui.gradio.qwen_2511_app import (
 )
 from tools.review.common.generation_status_display import describe_generation_status
 from tools.review.common.generation_status_lookup import read_existing_generation_status
-from tools.review.common.gradio_seed import build_generation_seed
+from tools.review.common.gradio_seed import build_generation_seed, select_generation_seed_value, QWEN_SEED_GUIDANCE
 from tools.review.common.gradio_button_guidance import build_button_guidance
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.domains.image.seamless_generation import validate_seamless_request
@@ -83,7 +83,7 @@ def build_seamless_interface(server_base_address):
             })
         except ValueError as current_restore_error:
             raise gr.Error(f'저장된 패턴 입력을 복원할 수 없습니다: {current_restore_error}') from current_restore_error
-        return (current_validated_request['seamless_tile']['user_prompt'],current_validated_request['tag'],40,current_validated_request['seed'])
+        return (current_validated_request['seamless_tile']['user_prompt'],current_validated_request['tag'],40,current_validated_request['seed'],False)
 
     with gr.Blocks(title='Qwen2.1 심리스 패턴 생성기') as interface_blocks_value:
         gr.Markdown('## Qwen2.1 심리스 패턴 생성기\n패턴 생성 → 가로 3등분·3열 배열 → 좌우 연결 → 세로 3등분·3행 배열 → 상하 연결')
@@ -95,7 +95,9 @@ def build_seamless_interface(server_base_address):
             gr.Markdown('Qwen Image 2.1 · 1단계 768×768 · 연결 보정 768×768. 마스크 없이 원본 배열의 경계를 연결합니다. 최종 산출물은 중앙 256×256 타일입니다.')
             with gr.Row():
                 generation_step_control = gr.Number(value=40, label='생성 스텝 · 고정', interactive=False, precision=0)
-                generation_seed_control = build_generation_seed(10107)
+                generation_seed_control = build_generation_seed(10107, random_initial_enabled=True)
+            automatic_seed_control = gr.Checkbox(value=True, label='생성마다 무작위 시드', info='끄면 표시된 시드를 사용합니다. 이력을 불러오면 자동으로 꺼집니다.')
+            gr.Markdown(QWEN_SEED_GUIDANCE)
             prompt_preview_control = gr.Markdown(describe_seamless_prompt(''))
         user_prompt_control.change(describe_seamless_prompt, user_prompt_control, prompt_preview_control, queue=False)
         generation_start_button = gr.Button('대기열에 추가', variant='primary', interactive=False)
@@ -121,20 +123,21 @@ def build_seamless_interface(server_base_address):
             execute_seamless_command, server_base_address,
             '현재 생성기의 이력·입력·결과·로그를 삭제합니다. 실행 중에는 초기화할 수 없습니다.',
             restore_input_callback=restore_seamless_inputs,
-            restore_output_components=[user_prompt_control,generation_tag_control,generation_step_control,generation_seed_control],
+            restore_output_components=[user_prompt_control,generation_tag_control,generation_step_control,generation_seed_control,automatic_seed_control],
             result_renderer_callback=lambda selected_job_identifier, current_status_record, server_address_value: render_seamless_previews(current_status_record),
             record_folder_route='/seamless-tile-generator', allow_individual_delete=True)
 
-        def start_seamless_generation(user_prompt_text, generation_tag_text, generation_step_count, generation_seed_value):
+        def start_seamless_generation(user_prompt_text, generation_tag_text, generation_step_count, generation_seed_value, automatic_seed_enabled):
+            generation_seed_value = select_generation_seed_value(generation_seed_value, automatic_seed_enabled)
             try:
                 request_record_value = build_reference_request(user_prompt_text,generation_tag_text,[],768,768,generation_step_count,generation_seed_value)
                 validate_seamless_request(request_record_value)
                 generation_record_value = execute_seamless_command('generate', request_record_value)
             except (ValueError,OSError) as generation_request_error:
                 raise gr.Error(str(generation_request_error)) from generation_request_error
-            return generation_record_value['id'], '작업을 대기열에 등록했습니다.'
+            return generation_record_value['id'], f'작업을 대기열에 등록했습니다. · 사용 시드: {generation_seed_value}', generation_seed_value
 
-        bind_gpu_generation_confirmation(generation_start_button,start_seamless_generation,[user_prompt_control,generation_tag_control,generation_step_control,generation_seed_control],[generation_identifier_control,generation_status_control], generation_readiness_callback=check_seamless_prompt_readiness, generation_readiness_inputs=[user_prompt_control])
+        bind_gpu_generation_confirmation(generation_start_button,start_seamless_generation,[user_prompt_control,generation_tag_control,generation_step_control,generation_seed_control,automatic_seed_control],[generation_identifier_control,generation_status_control,generation_seed_control], generation_readiness_callback=check_seamless_prompt_readiness, generation_readiness_inputs=[user_prompt_control])
 
         def refresh_seamless_status(generation_identifier_text, refresh_log_enabled):
             if not generation_identifier_text:

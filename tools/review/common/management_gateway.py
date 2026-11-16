@@ -459,6 +459,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--steps',type=int,choices=(20,30,40,50) if service_command_name in ('mannequin-generator','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer','expression') else (40,) if service_command_name=='seamless-tile' else (4,) if service_command_name=='floor-tile' else (4,30),default=40 if service_command_name in ('mannequin-generator','seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer','expression') else 4)
                 if service_command_name in ('mannequin-generator','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21'):
                     operation_argument_parser.add_argument('--transparent-background', action=argparse.BooleanOptionalAction, default=False, help='네이티브 RGBA 투명 배경 요청')
+                if service_command_name == 'mannequin-generator':
+                    operation_argument_parser.add_argument('--reference-resolution', type=int, choices=(992, 1024, 1056), default=None, help='실험용 참조 처리 해상도')
+                    operation_argument_parser.add_argument('--diagnostic-vae-roundtrip', action='store_true', help='실험용 참조 VAE 왕복 비교 기록')
                 if service_command_name == 'qwen-21-circular':
                     operation_argument_parser.add_argument('--baseline-decode', action=argparse.BooleanOptionalAction, default=False, help='일반 VAE 비교 생성 · 기본 OFF')
                     operation_argument_parser.add_argument('--pattern-view', action=argparse.BooleanOptionalAction, default=True, help='Top view. Repeat pattern. Close-up 추가')
@@ -543,6 +546,10 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                     command_payload_value['add_margins']=command_argument_values.add_margins
             if service_command_name in ('mannequin-generator','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21'):
                 command_payload_value['transparent_background'] = command_argument_values.transparent_background
+            if service_command_name == 'mannequin-generator' and command_argument_values.reference_resolution is not None:
+                command_payload_value['reference_resolution'] = command_argument_values.reference_resolution
+            if service_command_name == 'mannequin-generator' and command_argument_values.diagnostic_vae_roundtrip:
+                command_payload_value['vae_roundtrip_diagnostic'] = True
             if service_command_name == 'qwen-21-circular':
                 command_payload_value['circular_radius'] = command_argument_values.circular_radius
                 command_payload_value['soft_shading'] = command_argument_values.soft_shading

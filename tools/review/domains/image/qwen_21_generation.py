@@ -15,6 +15,20 @@ QWEN_GENERATION_ROOT = WORKFLOW_ROOT_PATH / '.tmp/test/qwen-image-21'
 
 def validate_qwen_plain_request(current_request_record, allowed_inference_steps=QWEN_ALLOWED_INFERENCE_STEPS):
     from generators.image.qwen_21_prompt_options import compose_qwen_option_prompt, load_qwen_prompt_options, QWEN_PROMPT_OPTION_NAMES
+    reference_resolution_value = None
+    vae_roundtrip_diagnostic = None
+    if isinstance(current_request_record, dict) and 'vae_roundtrip_diagnostic' in current_request_record:
+        current_request_record = dict(current_request_record)
+        vae_roundtrip_diagnostic = current_request_record.pop('vae_roundtrip_diagnostic')
+        if vae_roundtrip_diagnostic is not True or not isinstance(current_request_record.get('images'), list) or len(current_request_record['images']) != 1:
+            raise ValueError('VAE 왕복 진단에는 참조 이미지 한 장과 true 설정이 필요합니다.')
+    if isinstance(current_request_record, dict) and 'reference_resolution' in current_request_record:
+        current_request_record = dict(current_request_record)
+        reference_resolution_value = current_request_record.pop('reference_resolution')
+        if type(reference_resolution_value) is not int or reference_resolution_value not in (992, 1024, 1056):
+            raise ValueError('참조 처리 해상도는 992·1024·1056 중 선택해야 합니다.')
+        if not current_request_record.get('images'):
+            raise ValueError('참조 처리 해상도에는 참조 이미지가 필요합니다.')
     current_prompt_options = None
     if isinstance(current_request_record, dict) and any(current_option_name in current_request_record for current_option_name in QWEN_PROMPT_OPTION_NAMES):
         current_request_record = dict(current_request_record)
@@ -37,6 +51,8 @@ def validate_qwen_plain_request(current_request_record, allowed_inference_steps=
         'prompt_word_count': prompt_word_count,
         'prompt_sha256': hashlib.sha256(validated_request_record['prompt'].encode()).hexdigest(),
         'additional_prompt': current_added_prompt if current_prompt_options is not None else '',
+        **({'reference_resolution': reference_resolution_value} if reference_resolution_value is not None else {}),
+        **({'vae_roundtrip_diagnostic': True} if vae_roundtrip_diagnostic else {}),
         **({'prompt_options': current_prompt_options, 'user_prompt': current_user_prompt, 'option_prompt_snapshot': current_option_snapshot, 'composition_version': 2} if current_prompt_options is not None else {}),
     }}
 
@@ -60,6 +76,10 @@ def verify_qwen_saved_request(current_job_root, current_request_record):
         for current_field_name in ('action', 'prompt', 'tag', 'width', 'height', 'steps', 'seed')}
     restored_input_record['images'] = [base64.b64encode((current_job_root / current_reference_name).read_bytes()).decode()
         for current_reference_name in current_request_record['references']]
+    if 'reference_resolution' in current_request_record.get('qwen21', {}):
+        restored_input_record['reference_resolution'] = current_request_record['qwen21']['reference_resolution']
+    if 'vae_roundtrip_diagnostic' in current_request_record.get('qwen21', {}):
+        restored_input_record['vae_roundtrip_diagnostic'] = current_request_record['qwen21']['vae_roundtrip_diagnostic']
     if 'prompt_options' in current_request_record.get('qwen21', {}):
         from generators.image.qwen_21_prompt_options import compose_qwen_option_prompt
         current_prompt_metadata = current_request_record['qwen21']

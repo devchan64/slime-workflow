@@ -54,7 +54,7 @@ class QwenPlainGenerationTests(unittest.TestCase):
             current_pipeline_mock.side_effect = execute_mock_pipeline
             current_diffusers_module = SimpleNamespace(QwenImage21Pipeline=SimpleNamespace(from_pretrained=MagicMock(return_value=current_pipeline_mock)))
             with patch.dict('sys.modules', {'torch': current_torch_module, 'diffusers': current_diffusers_module}), patch.object(qwen_21_runtime, 'validate_qwen_model_assets', return_value=current_job_root), patch.object(qwen_21_runtime.threading, 'Thread'), patch('generators.common.numerical_guard.check_denoise_latents'):
-                qwen_21_runtime.execute_qwen_reference_generation(current_job_root, {'prompt':'A tree.', 'steps':40,'width':512,'height':512,'seed':1}, [])
+                qwen_21_runtime.execute_qwen_reference_generation(current_job_root, {'prompt':'A tree.', 'steps':40,'width':512,'height':512,'seed':1, 'qwen21': {'reference_resolution': 992}}, [])
             current_progress_record = json.loads((current_job_root/'worker-progress.json').read_text())
             self.assertEqual(current_observed_steps, [1,40])
             self.assertEqual(current_progress_record['stage'], 'postprocess')
@@ -63,6 +63,69 @@ class QwenPlainGenerationTests(unittest.TestCase):
             current_pipeline_mock.vae.disable_tiling.assert_called_once()
             current_pipeline_mock.vae.enable_tiling.assert_not_called()
             self.assertEqual(json.loads((current_job_root/'result.json').read_text())['vae_tiling'], {'encode': False, 'decode': False})
+            self.assertEqual(current_pipeline_mock.call_args.kwargs['output_resolution'], 992)
+            self.assertEqual(json.loads((current_job_root/'result.json').read_text())['reference_resolution'], 992)
+
+    def test_reference_resolution_validation_and_saved_resume(self):
+        for selected_resolution_value in (992, 1024, 1056):
+            current_request_record = validate_qwen_plain_request({**self.create_reference_request(1), 'reference_resolution': selected_resolution_value})
+            with tempfile.TemporaryDirectory() as current_directory_name:
+                current_job_root = Path(current_directory_name)
+                saved_request_record = {**current_request_record, **save_three_reference_inputs(current_job_root, current_request_record)}
+                saved_request_record.pop('images')
+                verify_qwen_saved_request(current_job_root, saved_request_record)
+                self.assertEqual(saved_request_record['qwen21']['reference_resolution'], selected_resolution_value)
+        for invalid_resolution_value in (True, None, 1000, '1024'):
+            with self.assertRaises(ValueError):
+                validate_qwen_plain_request({**self.create_reference_request(1), 'reference_resolution': invalid_resolution_value})
+        with self.assertRaises(ValueError):
+            validate_qwen_plain_request({**self.create_reference_request(), 'reference_resolution': 992})
+        self.assertNotIn('reference_resolution', validate_qwen_plain_request(self.create_reference_request())['qwen21'])
+
+    def test_reference_resolution_keeps_safe_memory_floor(self):
+        from tools.review.common.gpu_memory_history import estimate_required_memory, identify_execution_command
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_root = Path(current_directory_name)
+            current_request_record = validate_qwen_plain_request({**self.create_reference_request(1), 'reference_resolution': 1056})
+            (current_job_root / 'request.json').write_text(json.dumps(current_request_record))
+            current_identity_name = identify_execution_command(['python', 'run_qwen_21_reference.py'], current_job_root)
+            with patch('tools.review.common.gpu_memory_history.load_recent_observations', return_value=[]):
+                current_memory_estimate = estimate_required_memory('image', 6144, current_identity_name)
+            self.assertEqual(current_memory_estimate['required_memory_mib'], 65536)
+            self.assertIn('reference-resolution=1056', current_identity_name)
+
+    def test_vae_diagnostic_is_explicit_and_survives_resume(self):
+        current_request_record = validate_qwen_plain_request({**self.create_reference_request(1), 'reference_resolution': 1024, 'vae_roundtrip_diagnostic': True})
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_root = Path(current_directory_name)
+            saved_request_record = {**current_request_record, **save_three_reference_inputs(current_job_root, current_request_record)}
+            saved_request_record.pop('images')
+            verify_qwen_saved_request(current_job_root, saved_request_record)
+            self.assertIs(saved_request_record['qwen21']['vae_roundtrip_diagnostic'], True)
+        for current_image_count, current_diagnostic_value in ((0, True), (2, True), (1, False), (1, 1)):
+            with self.assertRaises(ValueError):
+                validate_qwen_plain_request({**self.create_reference_request(current_image_count), 'vae_roundtrip_diagnostic': current_diagnostic_value})
+
+    def test_vae_diagnostic_saves_preprocessed_and_roundtrip_images(self):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+        from generators.image.qwen_21_runtime import save_reference_vae_roundtrip
+        current_pipeline_model = MagicMock()
+        current_pipeline_model.vae.config.z_dim = 16
+        current_pipeline_model.image_processor.postprocess.return_value = [Image.new('RGB', (832, 1248), 'white')]
+        current_torch_module = MagicMock()
+        current_torch_module.isfinite.return_value.all.return_value = True
+        current_diffusers_module = SimpleNamespace(calculate_dimensions=lambda *_: (832, 1248, 1))
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_root = Path(current_directory_name)
+            with patch.dict('sys.modules', {'diffusers.pipelines.qwenimage21.pipeline_qwenimage21': current_diffusers_module}):
+                current_result_record = save_reference_vae_roundtrip(current_pipeline_model, Image.new('RGB', (768, 1152)), current_job_root, 1024, current_torch_module)
+            self.assertTrue((current_job_root / 'vae-input.png').is_file())
+            self.assertTrue((current_job_root / 'vae-roundtrip.png').is_file())
+            self.assertEqual(current_result_record['preprocessed_size'], [832, 1248])
+            self.assertEqual(current_result_record['vae_tiling'], {'encode': False, 'decode': False})
+            current_pipeline_model._encode_vae_image.assert_called_once()
+            current_pipeline_model.vae.decode.assert_called_once()
 
     def test_idle_inference_heartbeat_updates_persisted_timestamp(self):
         from datetime import datetime

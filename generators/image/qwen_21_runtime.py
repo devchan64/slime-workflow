@@ -15,6 +15,29 @@ QWEN_INFERENCE_STEPS = 40
 QWEN_ALLOWED_INFERENCE_STEPS = (20, 30, 40, 50)
 
 
+def save_reference_vae_roundtrip(current_pipeline_model, current_reference_image, current_job_root, reference_resolution_value, torch):
+    """실제 조건 이미지 전처리·VAE 경로를 별도 기록해 생성 열화와 구분한다."""
+    from diffusers.pipelines.qwenimage21.pipeline_qwenimage21 import calculate_dimensions
+    reference_width_value, reference_height_value, _ = calculate_dimensions(
+        reference_resolution_value ** 2, current_reference_image.width / current_reference_image.height)
+    current_reference_image = current_reference_image.convert('RGBA')
+    reference_tensor_value = current_pipeline_model.image_processor.preprocess(
+        current_reference_image, width=reference_width_value, height=reference_height_value)
+    current_pipeline_model.image_processor.postprocess(reference_tensor_value, output_type='pil')[0].save(current_job_root / 'vae-input.png')
+    reference_tensor_value = reference_tensor_value.unsqueeze(2).to(device='cuda', dtype=torch.bfloat16)
+    with torch.inference_mode():
+        normalized_latent_value = current_pipeline_model._encode_vae_image(reference_tensor_value, generator=None)
+        if not bool(torch.isfinite(normalized_latent_value).all()):
+            raise ValueError('VAE 참조 잠재값에 유한하지 않은 값이 있습니다.')
+        latent_mean_value = torch.tensor(current_pipeline_model.vae.config.latents_mean, device='cuda', dtype=normalized_latent_value.dtype).view(1, current_pipeline_model.vae.config.z_dim, 1, 1, 1)
+        latent_std_value = torch.tensor(current_pipeline_model.vae.config.latents_std, device='cuda', dtype=normalized_latent_value.dtype).view(1, current_pipeline_model.vae.config.z_dim, 1, 1, 1)
+        decoded_reference_value = current_pipeline_model.vae.decode(normalized_latent_value * latent_std_value + latent_mean_value, return_dict=False)[0][:, :, 0]
+        if not bool(torch.isfinite(decoded_reference_value).all()):
+            raise ValueError('VAE 왕복 출력에 유한하지 않은 값이 있습니다.')
+        current_pipeline_model.image_processor.postprocess(decoded_reference_value, output_type='pil')[0].save(current_job_root / 'vae-roundtrip.png')
+    return {'reference_resolution': reference_resolution_value, 'preprocessed_size': [reference_width_value, reference_height_value], 'dtype': 'bfloat16', 'latent': 'argmax', 'vae_tiling': {'encode': False, 'decode': False}, 'input': 'vae-input.png', 'output': 'vae-roundtrip.png'}
+
+
 def validate_qwen_model_assets():
     for required_component_name in ('model_index.json', 'transformer/config.json', 'vae/config.json', 'text_encoder/config.json'):
         if not (QWEN_MODEL_DIRECTORY / required_component_name).is_file():
@@ -124,6 +147,7 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
             generated_output_image = current_pipeline_model(
                 image=reference_image_values or None, prompt=current_request_record['prompt'],
                 width=current_request_record['width'], height=current_request_record['height'],
+                output_resolution=current_request_record.get('qwen21', {}).get('reference_resolution', 1024),
                 num_inference_steps=selected_inference_steps,
                 generator=torch.Generator('cuda').manual_seed(current_request_record['seed']),
                 callback_on_step_end=record_inference_progress,
@@ -154,10 +178,18 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
             'prompt_word_count': len(current_request_record['prompt'].split()),
             'prompt_sha256': hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),
             'vae_tiling': {'encode': False, 'decode': False},
+            'reference_resolution': current_request_record.get('qwen21', {}).get('reference_resolution', 1024),
             'expression_adapter': current_request_record.get('expression_adapter'),
             'circular_vae': current_request_record.get('circular_vae'),
             'peak_gpu_bytes': torch.cuda.max_memory_allocated(), 'quality_warnings': [],
         }
+        if current_request_record.get('qwen21', {}).get('vae_roundtrip_diagnostic') is True:
+            if len(reference_image_values) != 1:
+                raise ValueError('VAE 왕복 진단에는 참조 이미지 한 장이 필요합니다.')
+            current_result_record['vae_roundtrip_diagnostic'] = save_reference_vae_roundtrip(
+                current_pipeline_model, reference_image_values[0], current_job_root,
+                current_request_record['qwen21'].get('reference_resolution', 1024), torch)
+            current_result_record['peak_gpu_bytes'] = torch.cuda.max_memory_allocated()
         if current_request_record.get('qwen21', {}).get('prompt_options', {}).get('transparent_background'):
             current_alpha_extrema = generated_output_image.getchannel('A').getextrema()
             current_result_record['alpha_output'] = {'mode': generated_output_image.mode, 'minimum': current_alpha_extrema[0], 'maximum': current_alpha_extrema[1], 'method': 'native-rgba'}
