@@ -6,6 +6,7 @@ from tools.review.common.gradio_model_download import build_model_download_contr
 from tools.review.common.management_client import execute_remote_management_command
 
 MODEL_PREPARATION_SERVICES = (
+    ('Hermes 코딩 모델 Qwen3.8 27B IQ4_XS', 'hermes-model'),
     ('Qwen Image 2.1', 'prop-generator'),
     ('Qwen 2.1 표정 LoRA', 'expression-lora'),
     ('Kimodo', 'kimodo'),

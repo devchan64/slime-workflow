@@ -96,6 +96,7 @@ MODEL_DOWNLOAD_PREFIXES = {
     'music-heartmula': ('HeartMuLa/', 'heartmula/'),
     'sfx-dasheng-audiogen': ('mispeech/Dasheng-AudioGen', 'mispeech/dashengtokenizer', 'google/flan-t5-large'),
     'writer-agent': ('writer-agent/',),
+    'hermes-model': ('hermes-agent/',),
     'prompt-translation': ('google/translategemma-4b-it',),
 }
 

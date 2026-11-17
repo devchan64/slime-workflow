@@ -24,6 +24,8 @@ MANAGEMENT_SERVICE_COMMANDS = {'qwen-21-circular': ('history-delete', 'resume', 
 
 MANAGEMENT_SERVICE_ROUTES['model-downloads']='/model-downloads'
 MANAGEMENT_SERVICE_COMMANDS['model-downloads']=('download-status','download-inventory')
+MANAGEMENT_SERVICE_ROUTES['hermes-model'] = '/hermes-model'
+MANAGEMENT_SERVICE_COMMANDS['hermes-model'] = ('model-status', 'prepare')
 MANAGEMENT_COMMAND_ROUTES['download-status']=('GET','/status')
 MANAGEMENT_COMMAND_ROUTES['download-inventory']=('GET','/inventory')
 
@@ -54,6 +56,10 @@ MANAGEMENT_COMMAND_ROUTES.update({'sheet-update':('POST','/sheet/update'),'sheet
 
 WRITER_PAYLOAD_COMMAND_NAMES = ('writer-detail', 'writer-submit', 'writer-apply', 'writer-history', 'writer-delete')
 TRANSLATION_PAYLOAD_COMMAND_NAMES = ('translation-submit', 'translation-status', 'translation-cancel', 'translation-history', 'translation-rag')
+HERMES_PAYLOAD_COMMAND_NAMES = ('hermes-submit', 'hermes-detail', 'hermes-history', 'hermes-diff', 'hermes-cancel')
+MANAGEMENT_SERVICE_ROUTES['hermes-agent'] = '/hermes-agent'
+MANAGEMENT_SERVICE_COMMANDS['hermes-agent'] = HERMES_PAYLOAD_COMMAND_NAMES
+MANAGEMENT_COMMAND_ROUTES.update({current_command_name: ('POST', '/' + current_command_name) for current_command_name in HERMES_PAYLOAD_COMMAND_NAMES})
 MANAGEMENT_SERVICE_ROUTES['prompt-translation'] = '/prompt-translation'
 MANAGEMENT_SERVICE_COMMANDS['prompt-translation'] = (*TRANSLATION_PAYLOAD_COMMAND_NAMES, 'model-status', 'prepare', 'history', 'status', 'logs', 'cancel', 'resume', 'history-delete', 'history-reset')
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name: ('POST', '/' + current_command_name) for current_command_name in TRANSLATION_PAYLOAD_COMMAND_NAMES})
@@ -161,8 +167,10 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'wan22-fun-control' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('Fun Control 모델 준비에는 action=prepare만 허용합니다.')
-    if service_command_name in ('wan22-vace', 'writer-agent', 'prompt-translation') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
+    if service_command_name in ('wan22-vace', 'writer-agent', 'prompt-translation', 'hermes-model') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('모델 준비에는 action=prepare만 허용합니다.')
+    if service_command_name == 'hermes-model' and operation_command_name == 'model-status' and command_payload_value:
+        raise ValueError('모델 상태 조회에는 입력을 전달할 수 없습니다.')
     request_method_value, request_suffix_value = MANAGEMENT_COMMAND_ROUTES[operation_command_name]
     if '{id}' in request_suffix_value:
         generation_job_identifier=command_payload_value.get('id','')
@@ -274,6 +282,8 @@ class ManagementCommandGateway:
 MANAGEMENT_COMMAND_DESCRIPTIONS = {'flux-expression': 'FLUX 3 표정 생성 · 얼굴 참조 1장', 'expression-lora': 'Qwen 2.1 표정 LoRA 다운로드와 검증', 'qwen-21-circular': 'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수', 'qwen-21': 'Qwen Image 2.1 · 공용 화풍·투명 배경 선택 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)', 'seamless-tile': 'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능', 'expression': 'Qwen 2.1 Anime consistency AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정', 'floor-tile': '바닥 타일 생성기 폐기 · 기존 이력 조회·삭제 가능 · 생성·재개 불가', 'character-animation': '생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)', 'momask': '폐기된 MoMask 도구 · 모든 명령 거절 · Kimodo 사용', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['model-downloads']='공유 모델 다운로드 상태 조회'
+MANAGEMENT_COMMAND_DESCRIPTIONS['hermes-model']='Hermes 코딩 모델 다운로드와 SHA-256 검증'
+MANAGEMENT_COMMAND_DESCRIPTIONS['hermes-agent']='격리 Hermes 작업 접수·상태·이력·취소 --payload-file'
 for current_flux_profile, current_flux_values in FLUX_IMAGE_PROFILE_RECORDS.items():
     MANAGEMENT_COMMAND_DESCRIPTIONS[current_flux_profile] = 'FLUX 3 ' + current_flux_values[0] + ' 이미지 생성'
 MANAGEMENT_COMMAND_DESCRIPTIONS['writer-agent']='작가 문서 학습·제안·조회·해시 확인 적용 · --payload-file · 기존 문서/기록 경로 유지'
@@ -305,6 +315,27 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace']='Wan2.2 VACE-Fun A14B BF16 · 텍�
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
     if gateway_request_handler is not None:
+        if service_command_name == 'hermes-model':
+            from tools.review.common.hermes_model_download import WORKFLOW_ROOT_DIRECTORY, inspect_hermes_model_files
+            from tools.review.common.model_prepare_process import inspect_registered_preparation, start_registered_preparation
+            from tools.review.common.management_transport import send_management_json_response
+            from tools.review.domains.hermes_agent.service import validate_hermes_runtime_ready
+            current_preparation_status = inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY, 'hermes-model')
+            current_model_ready = inspect_hermes_model_files()
+            if operation_command_name == 'prepare' and current_preparation_status != 'running' and not current_model_ready:
+                current_preparation_status = start_registered_preparation(WORKFLOW_ROOT_DIRECTORY, 'hermes-model')['preparation_status']
+            current_runtime_ready = False
+            current_status_message = '모델 파일 준비 필요 · 다운로드 후 SHA-256 검증'
+            if current_model_ready:
+                try:
+                    validate_hermes_runtime_ready()
+                    current_runtime_ready = True
+                    current_status_message = '모델과 실행 구성 준비 · GPU 접근과 전체 해시는 실행 시 확인'
+                except ValueError as current_runtime_error:
+                    current_status_message = '모델 파일 준비됨 · ' + str(current_runtime_error)
+            if current_preparation_status == 'failed':
+                current_status_message += ' · 다운로드 실패: 준비 로그 확인 후 재시도'
+            return send_management_json_response(gateway_request_handler, 200, {'ready': current_model_ready, 'generation_ready': current_runtime_ready, 'message': current_status_message, 'preparation_status': current_preparation_status})
         if service_command_name == 'prompt-translation' and operation_command_name in ('model-status', 'prepare'):
             if operation_command_name == 'model-status' and command_payload_value:
                 raise ValueError('모델 상태 조회에는 입력을 전달할 수 없습니다.')
@@ -404,7 +435,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='폐기할 키프레임 ID 배열을 담은 JSON')
         if service_command_name=='momask' and operation_command_name=='generate':
             operation_argument_parser.add_argument('--face',action=argparse.BooleanOptionalAction,default=False,help='ANNY 얼굴 5점 포함')
-        if operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES + TRANSLATION_PAYLOAD_COMMAND_NAMES or operation_command_name in ('sheet-auto','sheet-export','sheet-gif','sheet-search','sheet-image','sheet-update','capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-replace','asset-list','asset-register','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):
+        if operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES + TRANSLATION_PAYLOAD_COMMAND_NAMES + HERMES_PAYLOAD_COMMAND_NAMES or operation_command_name in ('sheet-auto','sheet-export','sheet-gif','sheet-search','sheet-image','sheet-update','capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-replace','asset-list','asset-register','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='GUI와 동일한 명령 JSON 입력 파일')
         if operation_command_name=='anchor-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
         if operation_command_name=='anchor-load':operation_argument_parser.add_argument('id')
@@ -518,7 +549,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         command_payload_value={'id':command_argument_values.id}
         if operation_command_name=='sprite-history-delete':command_payload_value['revision']=command_argument_values.revision
         if operation_command_name=='sprite-save':command_payload_value['document']=parse_management_request_json(command_argument_values.document_file.read_text())
-    if operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES + TRANSLATION_PAYLOAD_COMMAND_NAMES or operation_command_name in ('sheet-auto','sheet-export','sheet-gif','sheet-search','sheet-image','sheet-update','capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-replace','asset-list','asset-register','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
+    if operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES + TRANSLATION_PAYLOAD_COMMAND_NAMES + HERMES_PAYLOAD_COMMAND_NAMES or operation_command_name in ('sheet-auto','sheet-export','sheet-gif','sheet-search','sheet-image','sheet-update','capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-replace','asset-list','asset-register','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
     if operation_command_name=='anchor-save':command_payload_value={'document':parse_management_request_json(command_argument_values.document_file.read_text())}
     if operation_command_name in ('anchor-history','anchor-history-reset'):command_payload_value={'animation_id':command_argument_values.animation_id,'animation_version':command_argument_values.animation_version}
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}

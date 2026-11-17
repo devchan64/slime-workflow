@@ -106,6 +106,7 @@ def create_management_runtime(writer_workspace_config=None):
     from generators.music.contracts import AUDIO_SERVICE_NAMES
     from tools.review.domains.music.generation import MusicGenerationManager
     from tools.review.domains.translation.service import TranslationServiceManager
+    from tools.review.domains.hermes_agent.service import HermesServiceManager
     from tools.review.common.model_download_records import MODEL_DOWNLOAD_RECORD_ROOT
     writer_agent_service = WriterAgentManager(writer_workspace_config or DEFAULT_WORKSPACE_CONFIG)
     try:
@@ -135,6 +136,7 @@ def create_management_runtime(writer_workspace_config=None):
         def handle_model_download_request(current_http_handler):
             return False
         service_binding_records = {
+            'hermes-model': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
             'model-downloads': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
             'expression-lora': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
             'writer-agent': ManagementServiceBinding(writer_agent_service.handle_writer_request,writer_agent_service.workspace_config_path.parent,reject_writer_folder_access),
@@ -163,6 +165,8 @@ def create_management_runtime(writer_workspace_config=None):
         }
         current_translation_service = TranslationServiceManager()
         service_binding_records['prompt-translation'] = bind_stored_management_service(current_translation_service.handle_translation_request, current_translation_service.job_storage_root)
+        current_hermes_service = HermesServiceManager()
+        service_binding_records['hermes-agent'] = bind_stored_management_service(current_hermes_service.handle_hermes_request, current_hermes_service.hermes_storage_root)
         for current_flux_profile in FLUX_IMAGE_PROFILE_RECORDS:
             current_flux_manager = FluxImageGenerationManager(current_flux_profile)
             service_binding_records[current_flux_profile] = bind_stored_management_service(current_flux_manager.handle_image_request, current_flux_manager.job_storage_root)

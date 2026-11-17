@@ -1154,3 +1154,10 @@ GUI와 `map-assets building-save`는 `shadowShape`(`circle`/`rectangle`), `shado
 ### 캐릭터 이미지 생성기
 
 관리 메뉴의 `Qwen 2.1 캐릭터 이미지 생성기`는 일반 Qwen 2.1 서비스·CLI·대기열·이력을 공유한다. 기본 입력에 공용 화풍 v1.5.0 영문 원문과 캐릭터 외관 v1.2.0의 단일 이미지용 축약 예시를 제공한다. 캐릭터 조건을 직접 편집하고 최종 99단어 제한을 확인한다. 공용 화풍 v1.5.0은 기본 적용되며 입력에 포함된 원문을 중복하지 않는다. 공유 이력의 삭제·초기화는 일반 Qwen 작업에도 적용된다. 생성 결과는 승인 전 후보다.
+## Hermes 코딩 모델 다운로드
+
+모델 관리의 **Hermes 코딩 모델 Qwen3.8 27B IQ4_XS**는 공개 GGUF 파일을 고정 리비전과 SHA-256으로 검증하여 `.model/hermes-agent/`에 저장한다. GUI와 CLI는 `hermes-model` 서비스의 `model-status`와 `prepare`를 공유한다. 상태 조회는 다운로드 당시 검증 기록과 현재 파일의 크기·수정 시각을 비교하며 매 조회마다 파일을 다시 해시하지 않는다. 실제 추론 작업자는 `verify_hermes_model_integrity`로 실행 직전 파일 해시를 다시 확인한다. 파일 준비는 Hermes 설치나 GPU 추론 검증을 뜻하지 않는다. 실패 시 `.local/model-preparation/hermes-model/worker.log`를 확인하고 다시 시도한다. 가중치는 Git에 등록하지 않는다.
+
+## Hermes 격리 코딩 작업과 MCP
+
+공용 게이트웨이의 `hermes-agent`는 `hermes-submit`, `hermes-detail`, `hermes-history`, `hermes-diff`, `hermes-cancel` 명령을 제공한다. GUI와 MCP가 같은 작업 ID와 기록을 사용하며, 고정된 요청 식별자로 중복 접수를 막는다. GPU는 공용 대기열에서 배타적으로 사용하고 원본 작업 트리에는 자동 적용하지 않는다. 실행환경 준비, 결과·부분 diff, Codex 설정과 현재 검증 범위는 [Hermes 실행 안내](../generators/hermes_agent/README.md)를 따른다.

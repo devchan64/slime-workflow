@@ -8,6 +8,7 @@ import traceback
 from tools.review.common.generation_records import write_record_atomically
 
 MODEL_PREPARATION_PROFILES = {
+    'hermes-model': (('tools.review.common.hermes_model_download', 'prepare_hermes_model_files'),),
     'expression-lora': (('tools.review.domains.image.expression_generation', 'download_expression_adapter'),),
     'qwen-21': (('generators.image.qwen_21_runtime', 'download_qwen_model_assets'),),
     'kimodo': (('generators.kimodo.prepare', 'prepare_kimodo_assets'),),

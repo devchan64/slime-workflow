@@ -7,6 +7,25 @@ from unittest.mock import patch, Mock
 from tools.review.common import gpu_job_queue as queue_module
 
 class GpuJobQueueTests(unittest.TestCase):
+    def test_hermes_queue_is_exclusive_with_active_work(self):
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            current_root_path = Path(current_temp_directory)
+            current_job_path = current_root_path / 'job'
+            current_job_path.mkdir()
+            (current_job_path / 'gpu-command.json').write_text(json.dumps({'command': ['python', 'worker.py'], 'service': 'hermes-agent'}))
+            current_ticket_path = current_root_path / 'ticket.json'
+            import os
+            current_ticket_path.write_text(json.dumps({'pid': os.getpid(), 'path': str(current_job_path)}))
+            with patch.object(queue_module, 'read_priority_tickets', return_value=[current_ticket_path]), patch.object(queue_module, 'estimate_required_memory', return_value={'required_memory_mib': 1}):
+                self.assertIsNone(queue_module.select_runnable_ticket(100, 'vram', ['image']))
+                self.assertIsNone(queue_module.select_runnable_ticket(100, 'vram', ['hermes-agent']))
+                self.assertEqual(queue_module.select_runnable_ticket(100, 'vram', []), current_ticket_path)
+
+    def test_active_hermes_blocks_other_waiting_work(self):
+        with patch.object(queue_module, 'read_priority_tickets') as current_ticket_mock:
+            self.assertIsNone(queue_module.select_runnable_ticket(100, 'vram', ['hermes-agent']))
+            current_ticket_mock.assert_not_called()
+
     def setUp(self):
         self.temporary_job_root = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary_job_root.cleanup)

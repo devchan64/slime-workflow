@@ -1004,7 +1004,7 @@ from tools.review.gateway_server import create_gateway_request_handler
 root=Path(sys.argv[1]);worker=sys.argv[2]
 def handle_request(handler):
  return send_management_json_response(handler,200,start_detached_preparation(root,[sys.executable,worker],Path.cwd()))
-gateway=ManagementCommandGateway({'prop-generator':handle_request})
+gateway=ManagementCommandGateway({'wan22-fun-control':handle_request})
 server=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(gateway.handle))
 server.emit_gateway_trace=lambda *args: None
 print(server.server_port,flush=True)
@@ -1019,7 +1019,7 @@ server.serve_forever()
                         self.skipTest('로컬 소켓 권한이 없어 실제 게이트웨이 검사를 생략합니다.')
                     self.fail('격리 게이트웨이 시작 실패: '+current_error_text)
                 current_gateway_address = f'http://127.0.0.1:{int(current_port_line)}'
-                current_response_value = execute_management_command('prop-generator', 'prepare', {'action': 'prepare'}, current_gateway_address)
+                current_response_value = execute_management_command('wan22-fun-control', 'prepare', {'action': 'prepare'}, current_gateway_address)
                 self.assertEqual(current_response_value['preparation_status'], 'running')
                 current_deadline_value = time.monotonic()+10
                 while not (current_root_path/'ready').exists() and time.monotonic()<current_deadline_value:

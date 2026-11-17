@@ -29,6 +29,6 @@ class QueuePriorityContractTests(unittest.TestCase):
                     gpu_job_queue.prioritize_waiting_generation('job-0')
 
     def test_gateway_priority_route(self):
-        self.assertEqual(resolve_management_command('hy-motion','prioritize',{'id':'2026-10-09_21-13-20-1a356bbd'}), ('POST','/hy-motion-generator/history/2026-10-09_21-13-20-1a356bbd/prioritize'))
+        self.assertEqual(resolve_management_command('kimodo','prioritize',{'id':'2026-10-09_21-13-20-1a356bbd'}), ('POST','/kimodo/history/2026-10-09_21-13-20-1a356bbd/prioritize'))
         with self.assertRaises(ValueError):
-            resolve_management_command('hy-motion','prioritize',{'id':'../invalid'})
+            resolve_management_command('kimodo','prioritize',{'id':'../invalid'})

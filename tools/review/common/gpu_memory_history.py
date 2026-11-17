@@ -107,7 +107,7 @@ def estimate_required_memory(service, configured_floor_mib, command_identity_nam
     # 완료된 실측값이 없을 때만 초기 기준을 사용한다.
     required_memory_mib = measured_peak_mib if measured_peak_mib else configured_floor_mib
     # 작가와 번역은 여러 모델을 순차 사용하므로 기존의 작은 모델 실측으로 예약을 줄이지 않는다.
-    if service in {'writer-agent', 'prompt-translation'} or (isinstance(command_identity_name,str) and command_identity_name.startswith('wan_animate2/worker.py:rocm-unquantized-resident-v1')):
+    if service in {'writer-agent', 'prompt-translation', 'hermes-agent'} or (isinstance(command_identity_name,str) and command_identity_name.startswith('wan_animate2/worker.py:rocm-unquantized-resident-v1')):
         required_memory_mib = max(configured_floor_mib, measured_peak_mib)
     return {'required_memory_mib':required_memory_mib, 'samples':summary['usable_runs'],
             'retained_runs':summary['retained_runs'], 'observed_peak_mib':measured_peak_mib, 'configured_floor_mib':configured_floor_mib,

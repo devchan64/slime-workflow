@@ -17,6 +17,7 @@ GENERATOR_CHANGELOG_PATHS = {
     'music-heartmula': WORKFLOW_ROOT_DIRECTORY / 'generators/music-heartmula/CHANGELOG.md',
     'sfx-dasheng-audiogen': WORKFLOW_ROOT_DIRECTORY / 'generators/sfx-dasheng-audiogen/CHANGELOG.md',
     'writer-agent': WORKFLOW_ROOT_DIRECTORY / 'generators/writer_agent/CHANGELOG.md',
+    'hermes-agent': WORKFLOW_ROOT_DIRECTORY / 'generators/hermes_agent/CHANGELOG.md',
     'dwpose-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/dwpose/CHANGELOG.md',
     'wan22-animate2-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/wan_animate2/CHANGELOG.md',
     'wan22-vace-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/wan_vace/CHANGELOG.md',
