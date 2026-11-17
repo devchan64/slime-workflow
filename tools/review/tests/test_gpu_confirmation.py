@@ -70,6 +70,22 @@ class GpuConfirmationTests(unittest.TestCase):
         self.assertFalse(current_cancel_result[2]['interactive'])
         self.assertTrue(current_callback_functions['cancel_generation_confirmation'](None, 'identity', 'pose')[2]['interactive'])
 
+    def test_confirmation_rejects_input_changed_while_open(self):
+        current_generation_callback = Mock(return_value='accepted')
+        with gr.Blocks() as current_interface_blocks:
+            current_prompt_control = gr.Textbox()
+            bind_gpu_generation_confirmation(gr.Button('생성'), current_generation_callback, [current_prompt_control], gr.Textbox(), generation_confirmation_validator=lambda current_saved, current_live: current_saved == current_live, generation_confirmation_inputs=[current_prompt_control])
+        current_callback_functions = {current_function_record.fn.__name__: current_function_record.fn for current_function_record in current_interface_blocks.fns.values() if current_function_record.fn}
+        current_pending_inputs = current_callback_functions['prepare_generation_confirmation']('first')[0]
+        with self.assertRaises(gr.Error):
+            list(current_callback_functions['execute_confirmed_generation'](current_pending_inputs, 'changed'))
+        current_generation_callback.assert_not_called()
+        with self.assertRaises(gr.Error):
+            list(current_callback_functions['execute_confirmed_generation'](current_pending_inputs, 'first'))
+        current_pending_inputs = current_callback_functions['prepare_generation_confirmation']('second')[0]
+        self.assertEqual(list(current_callback_functions['execute_confirmed_generation'](current_pending_inputs, 'second')), ['accepted'])
+        current_generation_callback.assert_called_once_with('second')
+
     def test_failed_submission_releases_confirmation_for_new_inputs(self):
         current_generation_callback = Mock(side_effect=[ValueError('입력 검증 실패'), 'accepted'])
         with gr.Blocks() as current_interface_blocks:

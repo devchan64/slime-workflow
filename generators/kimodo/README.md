@@ -1,7 +1,7 @@
 # Kimodo 비양자화 모션 생성기
 
 관리 페이지: `/management/frame/kimodo-generator/?tool=kimodo-generator&category=animation-tool`.
-GUI·`tools/manager.py command kimodo`는 공용 게이트웨이와 GPU 대기열을 사용한다.
+GUI·`tools/manager.py command kimodo`는 공용 게이트웨이와 GPU 대기열을 사용한다. 대기열은 실행 중 호스트 가용 RAM이 6 GiB 미만이고 Kimodo 작업자 RSS가 8 GiB 이상이면 해당 작업 프로세스 그룹을 중지하고 실패 사유를 기록한다. 이는 작업자 RSS 기준이며 전체 메모리 사용량의 완전한 상한은 아니다.
 
 - 모션: `nvidia/Kimodo-SOMA-RP-v1.2`, 원본 FP32.
 - 텍스트: Ollama의 Meta Llama 3 8B Instruct FP16 배포본과 McGill-NLP MNTP·supervised 어댑터, 비양자화 BF16 ROCm 연산. 공식 LLM2Vec의 양방향 attention·평균 풀링·supervised adapter를 사용한다.

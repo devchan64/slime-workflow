@@ -22,9 +22,11 @@ from tools.review.common.hermes_model_download import HERMES_MODEL_DIRECTORY, HE
 from tools.review.domains.hermes_agent.runtime_integrity import verify_hermes_runtime_integrity
 from tools.review.domains.hermes_agent.verification import validate_hermes_verification_modules
 from tools.review.domains.hermes_agent.workspace_snapshot import copy_snapshot_source_files, collect_snapshot_change_diff
+from tools.review.domains.hermes_agent.management_bridge import serve_hermes_observer_connections
 
 HERMES_RUNTIME_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.local/hermes-agent-runtime'
 HERMES_SANDBOX_CLIENT = Path(__file__).with_name('sandbox_client.py')
+HERMES_OBSERVER_CLIENT = Path(__file__).with_name('management_status_client.py')
 
 
 def build_hermes_sandbox_environment():
@@ -152,7 +154,9 @@ def execute_hermes_gpu_job(worker_job_directory):
     (worker_workspace_path / '.venv').mkdir()
     write_record_atomically(worker_job_directory / 'baseline.json', worker_baseline_record)
     worker_control_hashes = hash_hermes_verification_controls(worker_workspace_path) if worker_verification_modules else {}
-    (worker_job_directory / 'query.txt').write_text(worker_request_record['prompt'], encoding='utf-8')
+    worker_observer_guidance = '\n\n[관리 상태 조회] 필요하면 /runtime/.venv/bin/python /control/management-status.py 를 실행해 모델 준비 상태, GPU 상태, 공용 대기열과 GPU 예약 기록, Kimodo 모델 및 활성 작업 상태와 최근 Hermes 작업 ID·상태를 읽을 수 있습니다. 조회 시각과 GPU 캐시 안내를 확인하세요. 메모리 기준 충족은 다른 활성 예약과 대기 순서를 반영하지 않으므로 즉시 실행 가능하다고 단정하지 마세요. GPU busy에는 현재 Hermes 추론 프로세스도 포함될 수 있습니다. 이 명령은 변경 기능이 없습니다.'
+    worker_proposal_guidance = '\n\n[Kimodo 위임 제안] 사용자가 Kimodo 모션 생성을 요청한 경우 실행하지 말고 필요한 정보를 설명하세요. 제안이 가능하면 최종 답변 끝에 HERMES_KIMODO_PROPOSAL 줄, 다음 줄에 JSON 객체 {"prompt":"동작 설명","frames":90,"steps":100,"seed":42}, 마지막 줄에 END_HERMES_KIMODO_PROPOSAL을 넣으세요. 값은 사용자 요청을 따르고 모르면 가정임을 명시하세요. 사용자가 검토하고 별도로 확인하기 전에는 접수되지 않습니다.'
+    (worker_job_directory / 'query.txt').write_text(worker_request_record['prompt'] + worker_observer_guidance + worker_proposal_guidance, encoding='utf-8')
     with socket.socket() as worker_port_socket:
         worker_port_socket.bind(('127.0.0.1', 0))
         worker_server_port = worker_port_socket.getsockname()[1]
@@ -167,12 +171,15 @@ def execute_hermes_gpu_job(worker_job_directory):
         worker_server_process = subprocess.Popen(worker_server_arguments, stdout=worker_log_stream, stderr=subprocess.STDOUT, env=worker_environment_values)
         try:
             worker_offload_value = wait_worker_model_ready(worker_server_process, worker_server_port, worker_log_path)
-            with socket.socket(socket.AF_UNIX) as worker_listen_socket:
+            with socket.socket(socket.AF_UNIX) as worker_listen_socket, socket.socket(socket.AF_UNIX) as worker_observer_socket:
                 os.chdir(worker_job_directory)
                 worker_listen_socket.bind('model-proxy.sock')
                 worker_listen_socket.listen()
                 threading.Thread(target=serve_worker_model_proxy, args=(worker_listen_socket, worker_server_port), daemon=True).start()
-                worker_sandbox_arguments = ['bwrap', '--die-with-parent', '--unshare-all', '--clearenv', '--ro-bind', '/usr', '/usr', '--ro-bind', '/lib', '/lib', '--ro-bind', '/lib64', '/lib64', '--ro-bind', '/bin', '/bin', '--ro-bind', '/etc/ssl', '/etc/ssl', '--size', '2147483648', '--tmpfs', '/tmp', '--dir', '/control', '--ro-bind', str(HERMES_RUNTIME_DIRECTORY), '/runtime', '--bind', str(worker_workspace_path), '/workspace', '--ro-bind', str(worker_workspace_path / '.git'), '/workspace/.git', '--ro-bind', str(worker_project_environment), '/workspace/.venv', '--ro-bind', str(worker_socket_path), '/control/model-proxy.sock', '--ro-bind', str(worker_job_directory / 'query.txt'), '/control/query.txt', '--ro-bind', str(HERMES_SANDBOX_CLIENT), '/control/client.py', '--proc', '/proc', '--dev', '/dev', '--', '/runtime/.venv/bin/python', '/control/client.py']
+                worker_observer_socket.bind('management-status.sock')
+                worker_observer_socket.listen(4)
+                threading.Thread(target=serve_hermes_observer_connections, args=(worker_observer_socket,), daemon=True).start()
+                worker_sandbox_arguments = ['bwrap', '--die-with-parent', '--unshare-all', '--clearenv', '--ro-bind', '/usr', '/usr', '--ro-bind', '/lib', '/lib', '--ro-bind', '/lib64', '/lib64', '--ro-bind', '/bin', '/bin', '--ro-bind', '/etc/ssl', '/etc/ssl', '--size', '2147483648', '--tmpfs', '/tmp', '--dir', '/control', '--ro-bind', str(HERMES_RUNTIME_DIRECTORY), '/runtime', '--bind', str(worker_workspace_path), '/workspace', '--ro-bind', str(worker_workspace_path / '.git'), '/workspace/.git', '--ro-bind', str(worker_project_environment), '/workspace/.venv', '--ro-bind', str(worker_socket_path), '/control/model-proxy.sock', '--ro-bind', str(worker_job_directory / 'management-status.sock'), '/control/management-status.sock', '--ro-bind', str(HERMES_OBSERVER_CLIENT), '/control/management-status.py', '--ro-bind', str(worker_job_directory / 'query.txt'), '/control/query.txt', '--ro-bind', str(HERMES_SANDBOX_CLIENT), '/control/client.py', '--proc', '/proc', '--dev', '/dev', '--', '/runtime/.venv/bin/python', '/control/client.py']
                 with (worker_job_directory / 'hermes-events.jsonl').open('w') as worker_event_stream:
                     worker_sandbox_process = subprocess.Popen(worker_sandbox_arguments, stdout=worker_event_stream, env=build_hermes_sandbox_environment())
                     try:

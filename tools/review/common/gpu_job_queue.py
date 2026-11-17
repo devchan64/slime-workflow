@@ -425,7 +425,7 @@ def execute_locked_generation(generation_job_path):
                     write_record_atomically(active_reservation_path, current_reservation_record)
                 finally:
                     fcntl.flock(gpu_execution_handle, fcntl.LOCK_UN)
-            if len(generation_command_record['command']) > 1 and Path(generation_command_record['command'][1]).resolve() in (WORKFLOW_ROOT_DIRECTORY/'generators/wan_animate2/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/wan_fun/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/wan_vace/worker.py'):
+            if len(generation_command_record['command']) > 1 and Path(generation_command_record['command'][1]).resolve() in (WORKFLOW_ROOT_DIRECTORY/'generators/wan_animate2/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/wan_fun/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/wan_vace/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/kimodo/worker.py'):
                 current_memory_guard = start_animate_memory_guard(generation_worker_process)
             while generation_worker_process.poll() is None:
                 if (generation_job_path/'cancel.request').exists():

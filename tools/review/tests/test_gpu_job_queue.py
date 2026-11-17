@@ -75,6 +75,29 @@ class GpuJobQueueTests(unittest.TestCase):
         current_memory_query_patch.start()
         self.addCleanup(current_memory_query_patch.stop)
 
+    def test_generator_waits_until_hermes_reservation_released(self):
+        import os
+        current_active_root = queue_module.GPU_QUEUE_DIRECTORY / 'active'
+        current_active_root.mkdir(parents=True)
+        current_reservation_path = current_active_root / 'hermes-test.json'
+        current_reservation_path.write_text(json.dumps({'pid':os.getpid(), 'service':'hermes-agent', 'required_memory_mib':1}))
+        current_worker_mock = Mock(returncode=0)
+        current_worker_mock.poll.return_value = 0
+        current_observations = []
+        def release_test_reservation(current_wait_seconds):
+            current_status_record = json.loads((self.current_job_path / 'status.json').read_text())
+            self.assertEqual(current_status_record['status'], 'queued')
+            current_launch_mock.assert_not_called()
+            self.assertTrue(current_reservation_path.exists())
+            current_observations.append('blocked')
+            current_reservation_path.unlink()
+        with patch.object(queue_module, 'read_gpu_memory', return_value=(24000, 20000)), patch.object(queue_module.time, 'sleep', side_effect=release_test_reservation), patch.object(queue_module.subprocess, 'Popen', return_value=current_worker_mock) as current_launch_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path), 0)
+        self.assertEqual(current_observations, ['blocked'])
+        current_launch_mock.assert_called_once()
+        self.assertEqual(json.loads((self.current_job_path / 'status.json').read_text())['status'], 'completed')
+        self.assertEqual(list(current_active_root.glob('*.json')), [])
+
     def test_memory_wait_can_be_cancelled_without_launch(self):
         def cancel_waiting_job(_):
             current_status_record=json.loads((self.current_job_path/'status.json').read_text())
@@ -111,6 +134,20 @@ class GpuJobQueueTests(unittest.TestCase):
         current_status_record = json.loads((self.current_job_path/'status.json').read_text())
         self.assertEqual(current_status_record['status'],'failed')
         self.assertIn('시스템 RAM 보호',current_status_record['error'])
+
+    def test_kimodo_uses_host_memory_guard_and_records_failure(self):
+        current_worker_path = queue_module.WORKFLOW_ROOT_DIRECTORY / 'generators/kimodo/worker.py'
+        (self.current_job_path / 'gpu-command.json').write_text(json.dumps({'command':['python',str(current_worker_path)], 'service':'image'}))
+        current_worker_mock = Mock(returncode=-9)
+        current_worker_mock.poll.return_value = -9
+        current_guard_event = Mock()
+        current_guard_thread = Mock()
+        with patch.object(queue_module, 'read_gpu_memory', return_value=(98304, 98304)), patch.object(queue_module.subprocess, 'Popen', return_value=current_worker_mock), patch.object(queue_module, 'start_animate_memory_guard', return_value=(current_guard_event, current_guard_thread, {'error':'시스템 RAM 보호: 시험'})) as current_guard_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path), -9)
+        current_guard_mock.assert_called_once_with(current_worker_mock)
+        current_status_record = json.loads((self.current_job_path / 'status.json').read_text())
+        self.assertEqual(current_status_record['status'], 'failed')
+        self.assertIn('시스템 RAM 보호', current_status_record['error'])
 
     def test_wan_fun_uses_host_memory_guard(self):
         current_worker_path=queue_module.WORKFLOW_ROOT_DIRECTORY/'generators/wan_fun/worker.py'

@@ -56,7 +56,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'character-generator','label':'Qwen 2.1 캐릭터 이미지 생성기','path':'/character-generator/','category':'image-generation','uiMode':'gradio','description':'공용 화풍 v1.5.0 원문 · 캐릭터 외관 예시 · Qwen 이력 공유'},
     {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'공용 화풍 v1.5.0 기본 적용 · 투명 배경·참조 이미지 선택'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
-    {'id':'hermes-agent','label':'Hermes 코딩 에이전트','path':'/management/frame/hermes-agent/','category':'writer-agent','uiMode':'gradio','description':'로컬 GPU · 격리 작업 · 검토용 변경'},
+    {'id':'hermes-agent','label':'Hermes 관리 에이전트','path':'/management/frame/hermes-agent/','category':'writer-agent','uiMode':'gradio','description':'관리 상태·대화·작업 위임·격리 코딩'},
     {'id':'prompt-translation','label':'프롬프트 번역','path':'/management/frame/prompt-translation/','category':'writer-agent','uiMode':'gradio','description':'한국어 → 영어·중국어 · 기능 준비 중'},
     {'id':'expression-generator','label':'Qwen 2.1 표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · AU 표정 39종 · 참조 1~3장'},
 )

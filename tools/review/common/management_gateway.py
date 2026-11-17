@@ -56,7 +56,7 @@ MANAGEMENT_COMMAND_ROUTES.update({'sheet-update':('POST','/sheet/update'),'sheet
 
 WRITER_PAYLOAD_COMMAND_NAMES = ('writer-detail', 'writer-submit', 'writer-apply', 'writer-history', 'writer-delete')
 TRANSLATION_PAYLOAD_COMMAND_NAMES = ('translation-submit', 'translation-status', 'translation-cancel', 'translation-history', 'translation-rag')
-HERMES_PAYLOAD_COMMAND_NAMES = ('hermes-submit', 'hermes-detail', 'hermes-history', 'hermes-diff', 'hermes-cancel')
+HERMES_PAYLOAD_COMMAND_NAMES = ('hermes-submit', 'hermes-detail', 'hermes-history', 'hermes-diff', 'hermes-cancel', 'hermes-session-create', 'hermes-session-read', 'hermes-session-list', 'hermes-session-submit', 'hermes-session-view', 'hermes-management-status', 'hermes-delegate-kimodo', 'hermes-kimodo-proposal', 'hermes-delegation-status', 'hermes-delegation-cancel', 'hermes-delegation-job-status', 'hermes-delegation-history', 'hermes-capabilities')
 MANAGEMENT_SERVICE_ROUTES['hermes-agent'] = '/hermes-agent'
 MANAGEMENT_SERVICE_COMMANDS['hermes-agent'] = HERMES_PAYLOAD_COMMAND_NAMES
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name: ('POST', '/' + current_command_name) for current_command_name in HERMES_PAYLOAD_COMMAND_NAMES})
@@ -322,23 +322,13 @@ def execute_management_command(service_command_name, operation_command_name, com
             from tools.review.common.hermes_model_download import WORKFLOW_ROOT_DIRECTORY, inspect_hermes_model_files
             from tools.review.common.model_prepare_process import inspect_registered_preparation, start_registered_preparation
             from tools.review.common.management_transport import send_management_json_response
-            from tools.review.domains.hermes_agent.service import validate_hermes_runtime_ready
             current_preparation_status = inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY, 'hermes-model')
             current_model_ready = inspect_hermes_model_files()
             if operation_command_name == 'prepare' and current_preparation_status != 'running' and not current_model_ready:
                 current_preparation_status = start_registered_preparation(WORKFLOW_ROOT_DIRECTORY, 'hermes-model')['preparation_status']
-            current_runtime_ready = False
-            current_status_message = '모델 파일 준비 필요 · 다운로드 후 SHA-256 검증'
-            if current_model_ready:
-                try:
-                    validate_hermes_runtime_ready()
-                    current_runtime_ready = True
-                    current_status_message = '모델과 실행 구성 준비 · GPU 접근과 전체 해시는 실행 시 확인'
-                except ValueError as current_runtime_error:
-                    current_status_message = '모델 파일 준비됨 · ' + str(current_runtime_error)
-            if current_preparation_status == 'failed':
-                current_status_message += ' · 다운로드 실패: 준비 로그 확인 후 재시도'
-            return send_management_json_response(gateway_request_handler, 200, {'ready': current_model_ready, 'generation_ready': current_runtime_ready, 'message': current_status_message, 'preparation_status': current_preparation_status})
+            from tools.review.domains.hermes_agent.management_observer import inspect_hermes_model_status
+            current_model_status = inspect_hermes_model_status(current_model_ready, current_preparation_status)
+            return send_management_json_response(gateway_request_handler, 200, current_model_status)
         if service_command_name == 'prompt-translation' and operation_command_name in ('model-status', 'prepare'):
             if operation_command_name == 'model-status' and command_payload_value:
                 raise ValueError('모델 상태 조회에는 입력을 전달할 수 없습니다.')

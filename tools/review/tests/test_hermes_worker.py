@@ -22,6 +22,50 @@ class HermesWorkerTests(unittest.TestCase):
         current_root_patch.start()
         self.addCleanup(current_root_patch.stop)
 
+    def test_real_isolated_network_cannot_reach_host_loopback(self):
+        import shutil
+        import socket
+        import sys
+        current_bwrap_path = shutil.which('bwrap')
+        if current_bwrap_path is None:
+            self.skipTest('bubblewrap이 없습니다.')
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as current_listener_socket:
+            current_listener_socket.bind(('127.0.0.1', 0))
+            current_listener_socket.listen(2)
+            current_listener_port = current_listener_socket.getsockname()[1]
+            with socket.create_connection(('127.0.0.1', current_listener_port), timeout=2):
+                pass
+            current_sandbox_code = "import json,os,socket,sys; s=socket.socket(); s.settimeout(2); result=s.connect_ex(('127.0.0.1',int(sys.argv[1]))); print(json.dumps({'connect_result':result,'test_env':os.environ.get('HERMES_BOUNDARY_TEST_VALUE'),'host_home_visible':os.path.exists('/home')}))"
+            current_sandbox_arguments = [current_bwrap_path, '--die-with-parent', '--unshare-all', '--clearenv', '--ro-bind', '/usr', '/usr', '--ro-bind', '/lib', '/lib', '--ro-bind', '/lib64', '/lib64', '--tmpfs', '/tmp', '--proc', '/proc', '--dev', '/dev', '--', '/usr/bin/python3', '-c', current_sandbox_code, str(current_listener_port)]
+            current_sandbox_environment = dict(os.environ, HERMES_BOUNDARY_TEST_VALUE='not-for-sandbox')
+            current_sandbox_result = subprocess.run(current_sandbox_arguments, env=current_sandbox_environment, capture_output=True, text=True, timeout=10)
+            if current_sandbox_result.returncode and ('Operation not permitted' in current_sandbox_result.stderr or 'Creating new namespace failed' in current_sandbox_result.stderr):
+                self.skipTest('이 환경은 격리 네임스페이스 실행을 허용하지 않습니다.')
+            self.assertEqual(current_sandbox_result.returncode, 0, current_sandbox_result.stderr)
+            current_sandbox_record = json.loads(current_sandbox_result.stdout)
+            self.assertNotEqual(current_sandbox_record['connect_result'], 0)
+            self.assertIsNone(current_sandbox_record['test_env'])
+            self.assertFalse(current_sandbox_record['host_home_visible'])
+
+    def test_observer_bridge_accepts_only_fixed_read_request(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        for current_request_bytes, current_expected_key in ((b'gpu-queue\n', 'gpu'), (b'gpu-queue\nother\n', 'error'), (b'run shell\n', 'error')):
+            with self.subTest(request=current_request_bytes):
+                current_client_socket, current_server_socket = socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                self.addCleanup(current_server_socket.close)
+                with patch.object(management_bridge, 'read_hermes_management_snapshot', return_value={'gpu': {'status':'idle'}}) as current_snapshot_mock:
+                    current_thread_handle = threading.Thread(target=management_bridge.handle_hermes_observer_connection, args=(current_server_socket,))
+                    current_thread_handle.start()
+                    current_client_socket.sendall(current_request_bytes)
+                    current_response_record = json.loads(current_client_socket.makefile('rb').readline())
+                    current_thread_handle.join(timeout=3)
+                    self.assertFalse(current_thread_handle.is_alive())
+                    self.assertIn(current_expected_key, current_response_record)
+                    self.assertEqual(current_snapshot_mock.call_count, 1 if current_expected_key == 'gpu' else 0)
+
     def test_changed_audit_runner_blocks_independent_verification(self):
         with tempfile.TemporaryDirectory() as hermes_temporary_root:
             hermes_job_path = Path(hermes_temporary_root) / 'job'
