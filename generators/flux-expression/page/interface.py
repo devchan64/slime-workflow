@@ -62,7 +62,7 @@ def build_generator_page(current_server_address, current_review_port):
     current_preset_records = load_expression_configuration()['expressions']
     current_choices_list = [(item['label_ko'],item['id']) for item in current_preset_records]
     with gr.Blocks() as current_page_blocks:
-        gr.Markdown('## FLUX 3 표정 생성기\n기본 얼굴 참조 1장과 표정을 선택하세요. 결과의 얼굴 특징과 피부·머리색을 원본과 비교해야 합니다. 기존 Qwen 표정 이력은 이미지 생성 아카이브에서 조회합니다.')
+        gr.Markdown('## FLUX 3 표정 생성기\n기본 얼굴 참조 1장과 표정을 선택하세요. 결과의 얼굴 특징과 피부·머리색을 원본과 비교해야 합니다.')
         build_generator_changelog(current_page_blocks, 'flux-expression-generator')
         current_reference_image = gr.Image(label='얼굴 참조 이미지', type='pil', image_mode='RGB')
         gr.Button('기본 캐릭터 정면 얼굴 불러오기').click(load_default_face_reference, outputs=current_reference_image, queue=False)

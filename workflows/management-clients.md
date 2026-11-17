@@ -1,3 +1,5 @@
+> **2026-11-17 폐기:** Qwen 이미지 생성 아카이브 분류와 기존 작업 이력·입력 사본·결과·로그를 삭제했다. 아래 2026-11-16 보존·조회 안내는 당시 기록이다.
+
 # 관리도구 GUI·CLI 클라이언트
 
 > **2026-11-16 Qwen 이미지 계열 아카이브:** 사용자 결정에 따라 라이선스 사유로 Qwen 2.1 사용을 중단한다. 모델 준비와 직접 추론도 차단한다. `qwen-21`, `qwen-21-circular`, `mannequin-generator`, `billboard-generator`, `prop-generator`, `vegetation-generator`, `building-generator`, `expression`, `seamless-tile`의 신규 생성·재개·우선 실행은 중단했다. 캐릭터 화면은 `qwen-21`을 공유한다. 기존 이력·입력·결과·로그는 기존 경로에서 조회할 수 있고 실행 중 작업은 자동 취소하지 않는다. 아래 이전 Qwen 실행·재개 설명은 과거 계약 기록이다. FLUX 도입 검토는 [FLUX 3 Image Klein 도입 검토](flux-3-image-evaluation.md)를 따른다.

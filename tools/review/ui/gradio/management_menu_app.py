@@ -16,7 +16,7 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_R
 from tools.review.common.gpu_status import read_gpu_status
 from tools.review.common.gradio_error_trace import trace_management_callback
 
-CATEGORY_LABEL_VALUES={'all':'전체','model-management':'모델 관리','map-review':'맵 검수','sound-management':'소리 관리','writer-agent':'텍스트 기반','image-generation':'이미지 생성','archived-image-generation':'이미지 생성 아카이브','animation-tool':'애니메이션 도구','game-ui':'게임 UI · 디자인 시스템'}
+CATEGORY_LABEL_VALUES={'all':'전체','model-management':'모델 관리','map-review':'맵 검수','sound-management':'소리 관리','writer-agent':'텍스트 기반','image-generation':'이미지 생성','animation-tool':'애니메이션 도구','game-ui':'게임 UI · 디자인 시스템'}
 ARCHIVED_IMAGE_PAGE_IDENTIFIERS=frozenset(('mannequin-generator','character-generator','qwen-21-generator','qwen-21-circular-generator','expression-generator','vegetation-generator','prop-generator','billboard-generator'))
 LEGACY_SOUND_CATEGORY_NAMES=('music-generation','sound-effects')
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
@@ -179,15 +179,12 @@ def load_manager_page_records(source_file_path, current_animation_catalog=False)
         if any(current_page_record.get(current_field_name) is not None and not isinstance(current_page_record[current_field_name],str) for current_field_name in ('frameIdentifier','frameQuery')):raise ValueError('관리 메뉴 프레임 항목 형식 오류')
         if current_page_record['category'] in LEGACY_SOUND_CATEGORY_NAMES:
             current_page_record={**current_page_record,'category':'sound-management'}
-        if current_page_record['id'] in ARCHIVED_IMAGE_PAGE_IDENTIFIERS:
-            current_page_record={**current_page_record,'category':'archived-image-generation'}
+        if current_page_record['id'] in ARCHIVED_IMAGE_PAGE_IDENTIFIERS: continue
         if current_page_record['id'] in ('tile-map-generator','sprite-editor-v2','character-review'):continue
         if current_page_record['id'] in ('wan22-animate-generator', 'anny-attribute-renderer', 'anny-attributes', 'anny-landmarks', 'pose-transfer-generator', 'animation-separation', 'outfit-transfer-generator', 'hy-motion-generator', 'character-animation', 'momask-generator', 'wan21-vace-generator', 'music-stable-audio', 'music-ace-step', 'sfx-stable-audio'):continue
         if current_page_record['id'] in ('qwen-21-generator','expression-generator','vegetation-generator','prop-generator','billboard-generator'):
             current_release_record = next(current_default_record for current_default_record in DEFAULT_PAGE_RECORDS if current_default_record['id'] == current_page_record['id'])
             current_page_record = {**current_page_record, 'label': current_release_record['label'], 'description': current_release_record['description']}
-        if current_page_record['id'] in ARCHIVED_IMAGE_PAGE_IDENTIFIERS:
-            current_page_record={**current_page_record,'label':current_page_record['label']+' · 아카이브','description':'신규 생성 중단 · 기존 이력 조회'}
         if current_page_record['id'].startswith('map-review-'):
             # 빌드된 메뉴의 분류를 사용한다. 공용 메뉴 표시에는 콘텐츠 API가 필요하지 않다.
             current_review_category=current_page_record['category']

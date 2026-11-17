@@ -86,7 +86,7 @@ def build_flux_image_page(current_profile_name, current_server_address, current_
     def execute_profile_command(current_command_name,current_payload_record):
         return execute_flux_image_command(current_profile_name,current_command_name,current_payload_record)
     with gr.Blocks() as current_page_blocks:
-        gr.Markdown(f'## FLUX 3 {current_label_text} 생성기\n{current_description_text}\n\n결과는 검수용 후보이며 비율·색상·화풍을 보장하지 않습니다. 투명 참조는 흰 배경에 합성하며 투명 출력은 제공하지 않습니다. 기존 Qwen 이력은 이미지 생성 아카이브에서 조회하세요.')
+        gr.Markdown(f'## FLUX 3 {current_label_text} 생성기\n{current_description_text}\n\n결과는 검수용 후보이며 비율·색상·화풍을 보장하지 않습니다. 투명 참조는 흰 배경에 합성하며 투명 출력은 제공하지 않습니다.')
         if current_profile_name == 'flux-seamless':
             gr.Markdown('전역 최단 주기 어텐션과 16개 위치 순환 이동, 순환 패딩 VAE를 적용합니다. 새 작업은 512×512·참조 이미지 없음만 지원합니다. 기존 이력 재개는 저장 당시 설정을 유지합니다. VAE 타일링은 사용하지 않습니다.')
         build_generator_changelog(current_page_blocks,current_profile_name+'-generator')
