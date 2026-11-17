@@ -149,7 +149,7 @@ class VaceNumericalGuardTests(unittest.TestCase):
         import json
         from generators.wan_vace.numerical_guard import save_vace_attention_failure
         current_tensor_value = torch.ones((1, 2, 1, 2))
-        current_arguments = {'q': current_tensor_value, 'k': current_tensor_value, 'v': current_tensor_value, 'attn_mask': None, 'causal': False, 'dropout_p': 0}
+        current_arguments = {'q': current_tensor_value, 'k': current_tensor_value, 'v': current_tensor_value, 'attn_mask': None, 'causal': False, 'dropout_p': 0, 'attention_type': 'SDPA'}
         current_output_value = current_tensor_value.clone()
         current_output_value[0, 0, 0, 0] = float('nan')
         with tempfile.TemporaryDirectory() as current_directory_name, patch.object(torch.cuda, 'get_device_name', return_value='test GPU'):
@@ -159,6 +159,21 @@ class VaceNumericalGuardTests(unittest.TestCase):
             self.assertTrue((current_attempt_root/'attention-failure-inputs.safetensors').is_file())
             self.assertTrue(current_record_value['math_comparison']['finite'])
             self.assertEqual(current_record_value['math_comparison']['query_index'], [0, 0, 0, 0])
+
+    def test_attention_failure_skips_comparison_with_lengths_or_scale(self):
+        import json
+        from generators.wan_vace.numerical_guard import save_vace_attention_failure
+        current_tensor_value = torch.ones((1, 2, 1, 2))
+        current_output_value = current_tensor_value.clone()
+        current_output_value[0, 0, 0, 0] = float('nan')
+        for current_extra_options in ({'k_lens': torch.tensor([1])}, {'softmax_scale': 0.25}, {'attention_type': None}):
+            current_argument_values = {'q': current_tensor_value, 'k': current_tensor_value, 'v': current_tensor_value, 'attention_type': 'SDPA', **current_extra_options}
+            with tempfile.TemporaryDirectory() as current_directory_name, patch.object(torch.cuda, 'get_device_name', return_value='test GPU'):
+                current_attempt_root = Path(current_directory_name)
+                save_vace_attention_failure(current_attempt_root, torch, {'step': 1, 'attention_calls': 1}, current_argument_values, {'q': True, 'k': True, 'v': True}, current_output_value)
+                current_record_value = json.loads((current_attempt_root/'attention-failure.json').read_text())
+                self.assertEqual(current_record_value['math_comparison'], '미실행')
+                self.assertEqual(current_record_value['input_strides']['q'], list(current_tensor_value.stride()))
 
     def test_finite_attention_preserves_original_result(self):
         current_output_tensor = torch.tensor([[[[3.0]]]])

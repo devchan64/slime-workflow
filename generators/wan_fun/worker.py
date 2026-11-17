@@ -119,7 +119,7 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     with torch.inference_mode(), guard_fun_vae_method(current_vae_model, current_attempt_root, torch, 'encode'), current_encode_diagnostic:
         current_condition_output = Wan22FunControlToVideo.execute(positive_condition_data, negative_condition_data, current_vae_model, 832, 480, current_request_record['frames'], 1, ref_image=current_image_tensors[0].unsqueeze(0), control_video=torch.stack(current_image_tensors[1:]))
     positive_condition_data, negative_condition_data, current_latent_record = current_condition_output[:3]
-    from generators.wan_fun.numerical_diagnostics import fingerprint_fun_tensor
+    from generators.wan_fun.numerical_diagnostics import fingerprint_fun_tensor, record_fun_tensor_failure
     current_condition_metadata = positive_condition_data[0][1]
     current_initial_condition_fingerprints = {
         current_tensor_name: fingerprint_fun_tensor(torch, current_tensor_value)
@@ -131,6 +131,7 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     write_record_atomically(current_attempt_root / 'conditioning-before-release.json', current_initial_condition_fingerprints)
     current_invalid_initial = [current_tensor_name for current_tensor_name, current_fingerprint_record in current_initial_condition_fingerprints.items() if not current_fingerprint_record['finite']]
     if current_invalid_initial:
+        record_fun_tensor_failure(torch, current_attempt_root, 'conditioning-before-release', {current_name: current_condition_metadata['reference_latents'][0] if current_name == 'reference_latent' else current_condition_metadata['concat_latent_image'] for current_name in current_invalid_initial})
         raise ValueError('VAE 인코딩 결과에 NaN 또는 무한대가 있습니다: ' + ', '.join(current_invalid_initial))
     comfy.model_management.unload_all_models()
     del current_vae_model
@@ -141,19 +142,18 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     write_record_atomically(current_attempt_root / 'conditioning.json', {'input_mode': current_request_record.get('input_mode', 'controlled'), 'control_video_present': True, 'control_type': current_request_record['control_type'], 'reference_mode': 'reference_latents', 'face_video': False, 'switch_step': current_switch_step, 'sampler': 'euler', 'scheduler': 'simple', 'model_revision': FUN_MODEL_REVISION, 'tiled_vae': False})
     current_latent_tensor = current_latent_record['samples']
     current_noise_tensor = comfy.sample.prepare_noise(current_latent_tensor, current_request_record['seed'])
-    current_condition_fingerprints = {
-        current_tensor_name: fingerprint_fun_tensor(torch, current_tensor_value)
-        for current_tensor_name, current_tensor_value in (
+    current_condition_tensors = dict((
             ('positive_text', positive_condition_data[0][0]),
             ('negative_text', negative_condition_data[0][0]),
             ('reference_latent', current_condition_metadata['reference_latents'][0]),
             ('control_latent', current_condition_metadata['concat_latent_image']),
             ('initial_noise', current_noise_tensor),
-        )
-    }
+        ))
+    current_condition_fingerprints = {current_tensor_name: fingerprint_fun_tensor(torch, current_tensor_value) for current_tensor_name, current_tensor_value in current_condition_tensors.items()}
     write_record_atomically(current_attempt_root / 'conditioning-fingerprints.json', current_condition_fingerprints)
     current_invalid_conditions = [current_tensor_name for current_tensor_name, current_fingerprint_record in current_condition_fingerprints.items() if not current_fingerprint_record['finite']]
     if current_invalid_conditions:
+        record_fun_tensor_failure(torch, current_attempt_root, 'conditioning-before-sampling', {current_name: current_condition_tensors[current_name] for current_name in current_invalid_conditions})
         raise ValueError('추론 입력 조건에 NaN 또는 무한대가 있습니다: ' + ', '.join(current_invalid_conditions))
     for current_model_stage, current_start_step, current_end_step in [('high', 0, current_switch_step), ('low', current_switch_step, current_step_total)]:
         current_metrics_recorder.update_generation_stage('load')
@@ -172,6 +172,7 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
             current_metrics_recorder.record_generation_step(current_start_step + current_step_index + 1)
         current_latent_tensor = comfy.sample.sample(current_diffusion_model, current_noise_tensor if current_start_step == 0 else torch.zeros_like(current_noise_tensor), current_step_total, current_request_record['guidance_scale'], 'euler', 'simple', positive_condition_data, negative_condition_data, current_latent_tensor, denoise=1.0, disable_noise=current_start_step != 0, start_step=current_start_step, last_step=current_end_step, force_full_denoise=current_end_step == current_step_total, callback=record_fun_step, seed=current_request_record['seed'])
         if not torch.isfinite(current_latent_tensor).all().item():
+            record_fun_tensor_failure(torch, current_attempt_root, 'sampler-final-latents', {'latents': current_latent_tensor}, {'model_stage': current_model_stage, 'step': current_end_step})
             raise ValueError(f'{current_model_stage} 추론의 잠재값에 NaN 또는 무한대가 있어 출력을 중단합니다.')
         comfy.model_management.unload_all_models()
         del current_diffusion_model
@@ -196,6 +197,7 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     if current_decoded_frames.shape[0] != current_request_record['frames']:
         raise ValueError('출력 프레임 수 불일치')
     if not torch.isfinite(current_decoded_frames).all().item():
+        record_fun_tensor_failure(torch, current_attempt_root, 'decoded-frames', {'frames': current_decoded_frames})
         raise ValueError('디코딩된 영상에 NaN 또는 무한대가 있어 저장을 중단합니다.')
     current_frame_arrays = (current_decoded_frames.clamp(0, 1).cpu().numpy() * 255).round().astype(np.uint8)
     current_output_hashes = save_video_outputs(current_attempt_root, current_frame_arrays, 16)

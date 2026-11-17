@@ -3,6 +3,18 @@ import hashlib
 import json
 
 
+def record_fun_tensor_failure(current_torch_module, current_attempt_root, current_stage_name, current_tensor_values, current_additional_record=None):
+    """실패 경계의 메타데이터와 원본 텐서를 작업 시도에 보존한다."""
+    from safetensors.torch import save_file
+    from tools.review.common.generation_records import write_record_atomically
+    current_tensor_records = {current_name: {'shape': list(current_tensor.shape), 'stride': list(current_tensor.stride()),
+        'dtype': str(current_tensor.dtype), 'device': str(current_tensor.device)} for current_name, current_tensor in current_tensor_values.items()}
+    current_failure_record = {'stage': current_stage_name, 'tensors': current_tensor_records, 'tensor_storage': 'cpu-contiguous', **(current_additional_record or {})}
+    write_record_atomically(current_attempt_root / 'numerical-failure.json', current_failure_record)
+    current_saved_values = {current_name: current_tensor.detach().to(device='cpu', copy=True).contiguous() for current_name, current_tensor in current_tensor_values.items()}
+    save_file(current_saved_values, str(current_attempt_root / 'numerical-failure.safetensors'))
+
+
 def fingerprint_fun_tensor(current_torch_module, current_tensor_value):
     current_detached_tensor = current_tensor_value.detach().to(dtype=current_torch_module.float32, device='cpu').contiguous()
     return {'shape': list(current_tensor_value.shape), 'stride': list(current_tensor_value.stride()), 'dtype': str(current_tensor_value.dtype), 'device': str(current_tensor_value.device), 'hash_representation': 'cpu-float32-contiguous', 'sha256': hashlib.sha256(current_detached_tensor.numpy().tobytes()).hexdigest(), 'finite': bool(current_torch_module.isfinite(current_detached_tensor).all().item())}
@@ -13,10 +25,11 @@ def record_fun_numerical_step(current_torch_module, current_attempt_root, curren
     for current_tensor_name, current_tensor_value in (('denoised', current_denoised_tensor), ('sample', current_sample_tensor)):
         current_tensor_finite = current_torch_module.isfinite(current_tensor_value)
         current_nonfinite_count = int((~current_tensor_finite).sum().item())
-        current_step_record[current_tensor_name] = {'nonfinite': current_nonfinite_count, 'max_abs': None if current_nonfinite_count else float(current_tensor_value.abs().max().item())}
+        current_step_record[current_tensor_name] = {'shape': list(current_tensor_value.shape), 'stride': list(current_tensor_value.stride()), 'dtype': str(current_tensor_value.dtype), 'device': str(current_tensor_value.device), 'nonfinite': current_nonfinite_count, 'max_abs': None if current_nonfinite_count else float(current_tensor_value.abs().max().item())}
     with (current_attempt_root / 'numerical-steps.jsonl').open('a', encoding='utf-8') as current_output_file:
         current_output_file.write(json.dumps(current_step_record, ensure_ascii=False, allow_nan=False) + '\n')
     if any(current_step_record[current_tensor_name]['nonfinite'] for current_tensor_name in ('denoised', 'sample')):
+        record_fun_tensor_failure(current_torch_module, current_attempt_root, 'sampler-callback', {'denoised': current_denoised_tensor, 'sample': current_sample_tensor}, {'model_stage': current_model_stage, 'step': current_step_number})
         raise ValueError(f'{current_model_stage} 추론 {current_step_number}단계에서 NaN 또는 무한대가 발견되었습니다. numerical-steps.jsonl을 확인하세요.')
 
 
@@ -39,11 +52,10 @@ def guard_fun_vae_method(current_vae_model, current_attempt_root, current_torch_
             if not isinstance(current_result_tensor, current_torch_module.Tensor):
                 raise TypeError(f'Fun VAE {current_method_name} 출력이 텐서가 아닙니다.')
             if not current_torch_module.isfinite(current_result_tensor).all().item():
-                write_record_atomically(current_attempt_root / 'numerical-failure.json', {
-                    'stage': f'vae-{current_method_name}-before-postprocessing',
-                    'shape': list(current_result_tensor.shape), 'stride': list(current_result_tensor.stride()),
-                    'dtype': str(current_result_tensor.dtype), 'device': str(current_result_tensor.device),
-                })
+                current_tensor_values = {'output': current_result_tensor}
+                if current_arguments and isinstance(current_arguments[0], current_torch_module.Tensor):
+                    current_tensor_values['input'] = current_arguments[0]
+                record_fun_tensor_failure(current_torch_module, current_attempt_root, f'vae-{current_method_name}-before-postprocessing', current_tensor_values)
                 raise ValueError(f'Fun VAE {current_method_name} 출력에 NaN 또는 무한대가 있습니다.')
             return current_result_tensor
 
@@ -120,6 +132,8 @@ def guard_fun_vae_attention(current_vae_model, current_attempt_root, current_tor
                             current_repeat_output = current_attention_function(current_query_tensor, current_key_tensor, current_value_tensor)
                             current_batch_count, current_channel_count = current_query_tensor.shape[:2]
                             current_attention_inputs = [current_tensor.reshape(current_batch_count, 1, current_channel_count, -1).transpose(2, 3).contiguous() for current_tensor in current_tensor_values.values()]
+                            current_record_value['sdpa_inputs'] = {current_name: {'shape': list(current_tensor.shape), 'stride': list(current_tensor.stride()), 'dtype': str(current_tensor.dtype), 'device': str(current_tensor.device)} for current_name, current_tensor in zip(('query', 'key', 'value'), current_attention_inputs)}
+                            current_record_value['sdpa_scale'] = 'default: 1/sqrt(head_dim)'
                             with current_torch_module.nn.attention.sdpa_kernel(current_torch_module.nn.attention.SDPBackend.MATH):
                                 current_math_output = current_torch_module.nn.functional.scaled_dot_product_attention(*current_attention_inputs, attn_mask=None, dropout_p=0.0, is_causal=False)
                             current_math_output = current_math_output.transpose(2, 3).reshape(current_query_tensor.shape)

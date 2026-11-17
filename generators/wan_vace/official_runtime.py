@@ -89,12 +89,13 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
     current_metrics_recorder.update_generation_stage('load')
     current_pipeline_object = load_official_pipeline(current_metrics_recorder, current_request_record['flow_shift'], current_attempt_root)
     from videox_fun.models import wan_transformer3d
+    from generators.wan_vace.vae_numerical_guard import record_vace_tensor_failure
     from generators.wan_vace.numerical_guard import install_vace_attention_guard
     current_guard_state = install_vace_attention_guard(wan_transformer3d, current_attempt_root, torch)
     def check_vace_expert_output(current_expert_module, current_expert_inputs, current_expert_output):
         current_checked_output = current_expert_output[0] if isinstance(current_expert_output, (tuple, list)) else current_expert_output
         if not isinstance(current_checked_output, torch.Tensor) or not torch.isfinite(current_checked_output).all().item():
-            write_record_atomically(current_attempt_root / 'numerical-failure.json', {'stage': 'expert-output', 'step': current_guard_state['step'], 'shape': list(current_checked_output.shape) if isinstance(current_checked_output, torch.Tensor) else None, 'dtype': str(current_checked_output.dtype) if isinstance(current_checked_output, torch.Tensor) else None})
+            record_vace_tensor_failure(current_attempt_root, 'expert-output', torch, {'output': current_checked_output} if isinstance(current_checked_output, torch.Tensor) else {}, {'step': current_guard_state['step']})
             raise ValueError(f"VACE 전문가 출력에 NaN 또는 무한대가 있습니다: 단계 {current_guard_state['step']}")
     def mark_vace_expert_step(current_expert_module, current_expert_inputs):
         current_guard_state['step'] += 1
@@ -144,9 +145,9 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
         from generators.wan_vace.noise_experiment import build_prefix_noise_latents
         current_condition_inputs['latents'] = build_prefix_noise_latents(current_pipeline_object, current_request_record, current_attempt_root)
     def record_official_step(current_pipeline_value,current_step_index,current_time_value,current_callback_values):
-        if 'latents' not in current_callback_values or not torch.isfinite(current_callback_values['latents']).all().item():
+        if not isinstance(current_callback_values.get('latents'), torch.Tensor) or not torch.isfinite(current_callback_values['latents']).all().item():
             current_failed_latents = current_callback_values.get('latents')
-            write_record_atomically(current_attempt_root / 'numerical-failure.json', {'stage': 'scheduler-latents', 'step': current_step_index + 1, 'shape': list(current_failed_latents.shape) if isinstance(current_failed_latents, torch.Tensor) else None, 'dtype': str(current_failed_latents.dtype) if isinstance(current_failed_latents, torch.Tensor) else None})
+            record_vace_tensor_failure(current_attempt_root, 'scheduler-latents', torch, {'latents': current_failed_latents} if isinstance(current_failed_latents, torch.Tensor) else {}, {'step': current_step_index + 1})
             raise ValueError(f'VACE 추론 {current_step_index + 1}단계 잠재값에 NaN 또는 무한대가 있습니다.')
         current_metrics_recorder.record_generation_step(current_step_index+1)
         if current_step_index + 1 == current_request_record['steps']:

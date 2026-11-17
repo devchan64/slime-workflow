@@ -58,6 +58,10 @@ class VaceVaeNumericalGuardTest(unittest.TestCase):
             current_failure_record = json.loads((current_attempt_root / 'numerical-failure.json').read_text())
             self.assertEqual(current_failure_record['stage'], 'vae-decode-before-clamp')
             self.assertEqual(current_failure_record['shape'], [1])
+            from safetensors.torch import load_file
+            current_saved_tensors = load_file(str(current_attempt_root / 'numerical-failure.safetensors'))
+            self.assertTrue(torch.isinf(current_saved_tensors['output']).all())
+            self.assertTrue(torch.isinf(current_saved_tensors['input']).all())
             self.assertNotIn('decode', vars(current_pipeline_object.vae.model))
 
     def test_nonfinite_nested_condition_is_rejected(self):
@@ -69,6 +73,7 @@ class VaceVaeNumericalGuardTest(unittest.TestCase):
                     current_pipeline_object.vace_latent([torch.tensor([float('nan')])])
             current_failure_record = json.loads((current_attempt_root / 'numerical-failure.json').read_text())
             self.assertEqual(current_failure_record['stage'], 'condition-context')
+            self.assertEqual(current_failure_record['value_path'], 'output.context[0]')
 
     def test_existing_instance_method_is_restored(self):
         current_pipeline_object = FakeVacePipeline()

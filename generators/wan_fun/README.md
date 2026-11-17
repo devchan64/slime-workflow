@@ -39,3 +39,5 @@ RGB 영상 직접 입력 실험은 폐기했습니다. 신규 생성·기존 RGB
 VAE 내부 인코딩 출력과 디코딩 후처리 전 출력을 검사하여 무한대가 영상 범위 제한으로 가려지기 전에 실패 처리한다. 실행 시도 `runtime-environment.json`에 환경 설정과 VAE에 지정된 어텐션 함수 이름을 기록한다. 함수 이름은 실제 실행 GPU 커널을 뜻하지 않는다. 조건값 지문의 해시는 CPU FP32 연속 배치 기준이며 원래 dtype·device·stride를 별도 기록한다.
 
 선택적으로 작업자 환경에 `SLIME_FUN_VAE_ATTENTION_DIAGNOSTIC=1`을 설정하면 인코딩·디코딩 각각 첫 VAE 어텐션의 입력·출력을 검사하고 `vae-attention-encode`·`vae-attention-decode`의 JSON과 safetensors에 입력과 형상을 보존한다. 선택 함수가 고정 ComfyUI의 `pytorch_attention`일 때만 같은 입력으로 기본 경로 반복과 수학 SDPA를 비교하고 다른 경로는 비교를 생략한다. PyTorch 경로는 내부 OOM 시 분할 어텐션으로 대체될 수 있어 함수명만으로 GPU 커널을 확정하지 않는다. 진단은 추가 연산·복사·동기화로 시간과 메모리 상태를 바꾼다. 파일은 작업별 비공개 데이터이며 Git에 등록하지 않는다. 합성 CPU 테스트만 수행했고 실제 ROCm 입력 비교·생성·품질 검증은 수행하지 않았다.
+
+수치 오류 시 `numerical-failure.json`에 최초 감지 경계와 원래 텐서 형상·stride·dtype을 기록하고, 가능한 경우 `numerical-failure.safetensors`에 실패 텐서와 VAE 입출력을 연속 CPU 사본으로 보존한다. 저장 실패나 대형 텐서 복사는 추가 메모리·디스크가 필요하다. SDPA 진단은 ComfyUI 변환 후 실제 비교에 사용한 Q/K/V 형상·stride와 scale도 기록한다. 합성 CPU 검증만 수행했다.

@@ -37,9 +37,18 @@ def save_vace_attention_failure(current_attempt_root, current_torch_module, curr
         current_optional_tensor = current_argument_values.get(current_name)
         if isinstance(current_optional_tensor, current_torch_module.Tensor):
             current_tensor_values[current_name] = current_optional_tensor.detach().to(device='cpu', copy=True).contiguous()
+    if current_output_tensor is not None:
+        current_tensor_values['output'] = current_output_tensor.detach().to(device='cpu', copy=True).contiguous()
     save_file(current_tensor_values, str(current_attempt_root / 'attention-failure-inputs.safetensors'))
-    current_record_value = {'step': current_guard_state['step'], 'attention_call': current_guard_state['attention_calls'], 'input_finite': current_input_finite, 'output_finite': False if current_output_tensor is not None else None, 'input_shapes': {current_name: list(current_argument_values[current_name].shape) for current_name in ('q', 'k', 'v')}, 'input_dtypes': {current_name: str(current_argument_values[current_name].dtype) for current_name in ('q', 'k', 'v')}, 'options': {current_name: str(current_value) for current_name, current_value in current_argument_values.items() if current_name not in ('q', 'k', 'v', 'attn_mask', 'q_lens', 'k_lens')}, 'mask_present': current_argument_values.get('attn_mask') is not None, 'pytorch': current_torch_module.__version__, 'rocm': current_torch_module.version.hip, 'gpu': current_torch_module.cuda.get_device_name(0), 'math_comparison': '미실행'}
-    if current_output_tensor is not None and all(current_input_finite.values()) and current_argument_values.get('attn_mask') is None and not current_argument_values.get('causal', False) and not current_argument_values.get('dropout_p', 0):
+    current_record_value = {'step': current_guard_state['step'], 'attention_call': current_guard_state['attention_calls'], 'input_finite': current_input_finite, 'output_finite': False if current_output_tensor is not None else None, 'input_shapes': {current_name: list(current_argument_values[current_name].shape) for current_name in ('q', 'k', 'v')}, 'input_dtypes': {current_name: str(current_argument_values[current_name].dtype) for current_name in ('q', 'k', 'v')}, 'input_strides': {current_name: list(current_argument_values[current_name].stride()) for current_name in ('q', 'k', 'v')}, 'saved_tensors_are_contiguous': True, 'options': {current_name: str(current_value) for current_name, current_value in current_argument_values.items() if current_name not in ('q', 'k', 'v', 'attn_mask', 'q_lens', 'k_lens')}, 'mask_present': current_argument_values.get('attn_mask') is not None, 'pytorch': current_torch_module.__version__, 'rocm': current_torch_module.version.hip, 'gpu': current_torch_module.cuda.get_device_name(0), 'math_comparison': '미실행'}
+    current_comparison_supported = (
+        current_output_tensor is not None and all(current_input_finite.values())
+        and all(current_argument_values.get(current_option_name) is None for current_option_name in ('attn_mask', 'q_lens', 'k_lens', 'softmax_scale', 'q_scale'))
+        and not current_argument_values.get('causal', False) and not current_argument_values.get('dropout_p', 0)
+        and current_argument_values.get('window_size', (-1, -1)) == (-1, -1)
+        and current_argument_values.get('attention_type') == 'SDPA'
+    )
+    if current_comparison_supported:
         try:
             current_bad_index = (~current_torch_module.isfinite(current_output_tensor)).nonzero()[0].tolist()
             current_batch_index, current_sequence_index, current_head_index = current_bad_index[:3]

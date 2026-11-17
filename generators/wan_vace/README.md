@@ -84,3 +84,5 @@ CUDA 전환 시 데이터 단위·dtype·어텐션과 NaN 검증 절차는 [ROCm
 VAE 내부 인코딩 출력, 디코딩 제한 전 출력과 조건 텐서를 검사한다. 비유한 값은 단계·형상·stride·dtype을 작업의 `numerical-failure.json`에 기록하고 실패 처리한다. 검사는 GPU 동기화와 실행 시간에 영향을 줄 수 있다. 합성 CPU 테스트만 수행했으며 실제 ROCm VAE 정확도·생성·영상 품질은 검증하지 않았다.
 
 VAE SDPA 진단은 작업자 환경에 `SLIME_VACE_VAE_SDPA_DIAGNOSTIC=1`을 명시할 때만 켜진다. 인코딩·디코딩 각각 첫 호출의 동일 Q/K/V와 마스크로 기본 경로 두 번과 수학 경로 한 번을 실행한다. 작업 시도 폴더의 `vae-sdpa-encode`·`vae-sdpa-decode` JSON에는 원래 shape·stride·dtype, 옵션, 환경, 유한값, 오차, 반복 차이와 시간이 남고 safetensors에는 입력과 마스크를 연속 배치로 저장한다. 실제 선택 커널은 미확인으로 기록한다. 이 진단은 추가 GPU 연산·동기화·입력 복사와 디스크 공간을 사용하며 타이밍·메모리 상태를 바꾼다. dropout이 있으면 반복 비교를 생략한다. 진단 입력은 작업 데이터이므로 Git에 등록하지 않는다. 이 기능은 합성 CPU 테스트만 수행했으며 VACE 실제 입력의 ROCm 비교 및 영상 생성·품질 검증은 수행하지 않았다.
+
+VAE·조건·전문가·스케줄러·최종 출력에서 비유한 값이 감지되면 작업 시도에 `numerical-failure.json`과 가능한 경우 실패 텐서의 연속 CPU 사본 `numerical-failure.safetensors`를 보존한다. VAE 입력이 텐서이면 함께 저장하며 중첩된 출력의 위치와 원래 stride를 기록한다. 실패 텐서 복사는 추가 메모리와 디스크가 필요하다. Transformer 어텐션 실패 행의 수학 경로 비교는 명시적 SDPA이고 마스크·길이·별도 scale·부분 창 등 비교 의미를 바꾸는 옵션이 없을 때만 수행한다. 그 외는 미실행으로 기록한다. 합성 CPU 테스트만 수행했으며 ROCm 실생성과 정확도는 미검증이다.

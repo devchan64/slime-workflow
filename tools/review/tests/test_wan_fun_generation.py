@@ -43,6 +43,8 @@ class FunAttentionOptimizationTests(unittest.TestCase):
                 with guard_fun_vae_method(current_vae_model, current_attempt_root, torch, 'decode'):
                     current_inner_model.decode(torch.tensor([float('inf')])).clamp_(0, 1)
             self.assertEqual(json.loads((current_attempt_root / 'numerical-failure.json').read_text())['stage'], 'vae-decode-before-postprocessing')
+            from safetensors.torch import load_file
+            self.assertTrue(torch.isinf(load_file(str(current_attempt_root / 'numerical-failure.safetensors'))['output']).all())
             self.assertNotIn('decode', vars(current_inner_model))
             current_input_tensor = torch.ones(1)
             with guard_fun_vae_method(current_vae_model, current_attempt_root, torch, 'decode'):
@@ -91,6 +93,8 @@ class FunAttentionOptimizationTests(unittest.TestCase):
             self.assertEqual(current_record_value['status'], 'compared')
             self.assertTrue((current_attempt_root / 'vae-attention-encode.safetensors').exists())
             self.assertIn('mean_absolute_error', current_record_value['default_vs_math'])
+            self.assertEqual(current_record_value['sdpa_inputs']['query']['shape'], [1, 1, 4, 3])
+            self.assertEqual(current_record_value['sdpa_scale'], 'default: 1/sqrt(head_dim)')
 
     def test_optional_vae_attention_skips_unknown_path(self):
         import json
@@ -120,6 +124,8 @@ class FunAttentionOptimizationTests(unittest.TestCase):
             self.assertEqual(current_records[0]['sample']['max_abs'], 3.0)
             self.assertEqual(current_records[1]['denoised']['nonfinite'], 1)
             self.assertIsNone(current_records[1]['denoised']['max_abs'])
+            self.assertEqual(current_records[1]['denoised']['dtype'], 'torch.float32')
+            self.assertTrue((current_attempt_root / 'numerical-failure.safetensors').exists())
 
     def test_long_attention_uses_contiguous_inputs_only_with_room(self):
         from generators.wan_fun.attention_optimization import install_fun_attention_optimization
