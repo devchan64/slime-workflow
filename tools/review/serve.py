@@ -134,6 +134,7 @@ def parse_review_arguments(command_argument_values=None):
     argument_value_parser.add_argument('--ui-bundle',type=Path,help='프론트엔드에서 전달한 UI 검수 빌드 폴더')
     argument_value_parser.add_argument('--gateway-url',default=os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL',DEFAULT_GATEWAY_ADDRESS),type=validate_gateway_address,help='독립 명령 게이트웨이 주소 (기본: 127.0.0.1:8771)')
     argument_value_parser.add_argument('--watch',action='store_true',help='소스 변경 시 GUI만 재시작 (독립 게이트웨이·GPU 작업 유지)')
+    argument_value_parser.add_argument('--no-takeover',action='store_true',help='포트가 점유되어 있으면 기존 프로세스를 종료하지 않고 실패')
     parsed_argument_values=argument_value_parser.parse_args(command_argument_values)
     if not any((parsed_argument_values.root, parsed_argument_values.walking, parsed_argument_values.frontend_repo, parsed_argument_values.standing)):
         parsed_argument_values.frontend_repo=DEFAULT_FRONTEND_REPOSITORY
@@ -533,8 +534,9 @@ def run_review_server(parsed_argument_values):
 
 if __name__ == '__main__':
     parsed_argument_values = parse_review_arguments()
-    from tools.review.common.review_server_takeover import release_review_server_port
-    release_review_server_port(parsed_argument_values.port, Path(__file__))
+    if not parsed_argument_values.no_takeover:
+        from tools.review.common.review_server_takeover import release_review_server_port
+        release_review_server_port(parsed_argument_values.port, Path(__file__))
     if parsed_argument_values.watch:
         run_review_watch_mode(parsed_argument_values)
     else:

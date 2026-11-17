@@ -1,5 +1,15 @@
-# Qwen Image 2.1 실행 의존성. ROCm PyTorch는 별도 AMD 인덱스에서 먼저 설치한다.
+# FLUX 3 및 기존 이미지 실행 의존성. ROCm PyTorch는 별도 AMD 인덱스에서 먼저 설치한다.
 diffusers @ git+https://github.com/huggingface/diffusers.git@8c54b38fea3d624d23d0e43c0c96037f080a79f9
 transformers==5.23.0
 accelerate==1.15.0
 safetensors==0.8.0
+
+# 공유 영상 작업자의 공식 VACE 패키지 및 영상 출력 의존성
+einops==0.8.2
+imageio==2.38.1
+imageio-ffmpeg>=0.6
+ftfy==6.3.1
+librosa==1.0.0
+func-timeout==4.3.5
+opencv-python-headless==5.0.0.93
+av==19.0.2

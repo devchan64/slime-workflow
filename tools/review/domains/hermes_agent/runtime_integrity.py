@@ -21,7 +21,7 @@ def verify_hermes_runtime_integrity(hermes_runtime_path):
     if hermes_marker_record != {'revision':HERMES_RUNTIME_REVISION, 'release':HERMES_RUNTIME_RELEASE, 'source':HERMES_RUNTIME_SOURCE}:
         raise ValueError('Hermes 실행환경의 고정 리비전 기록이 다릅니다.')
     hermes_git_environment = {hermes_key_value: hermes_item_value for hermes_key_value, hermes_item_value in os.environ.items() if not hermes_key_value.startswith('GIT_')}
-    hermes_git_environment.update(GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL='/dev/null', GIT_TERMINAL_PROMPT='0')
+    hermes_git_environment.update(GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL='/dev/null', GIT_TERMINAL_PROMPT='0', GIT_OPTIONAL_LOCKS='0')
     hermes_git_prefix = ['git', '-C', str(hermes_runtime_path), '-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=/dev/null']
     try:
         hermes_revision_result = subprocess.run([*hermes_git_prefix, 'rev-parse', 'HEAD'], env=hermes_git_environment, capture_output=True, text=True, check=True, timeout=30)

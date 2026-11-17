@@ -16,17 +16,17 @@ GUI·`tools/manager.py command kimodo`는 공용 게이트웨이와 GPU 대기�
 모델 파일은 `.model/kimodo/`, 고정 공식 소스는 `.local/kimodo/upstream/`, 실행 환경은 `.local/venvs/kimodo-rocm`에 둔다. `config/assets.yaml`의 리비전과 LFS SHA-256을 확인한다. 기본 입력 원본은 추적 파일 `config/defaults.yaml`이다. 준비·설치는 GPU 접근이 가능한 샌드박스 밖에서 실행한다.
 
 ```bash
-uv pip install --python .local/venvs/kimodo-rocm/bin/python -r generators/kimodo/requirements.txt
-.venv/bin/python -m generators.kimodo.prepare
-PATH="$PWD/.local/venvs/kimodo-rocm/bin:$PATH" uv pip install --python .local/venvs/kimodo-rocm/bin/python --no-build-isolation .local/kimodo/upstream
+./scripts/workflow.sh setup --scope kimodo-runtime
+./scripts/workflow.sh model prepare kimodo
+./scripts/workflow.sh model status kimodo
 ```
 
 
-Kimodo 화면에서는 모델 준비 상태를 확인하고, 준비되지 않은 경우 **모델 관리로 이동**에서 고정 SOMA 모델·비양자화 인코더·공식 소스를 준비한다. CLI의 `.venv/bin/python tools/manager.py command kimodo prepare`도 같은 다운로드를 시작하며, `command kimodo model-status`에서 진행 상태를 확인한다. 위 패키지 설치 명령은 환경을 처음 구성할 때 별도로 실행한다.
+Kimodo 화면에서는 모델 준비 상태를 확인하고, 준비되지 않은 경우 **모델 관리로 이동**에서 고정 SOMA 모델·비양자화 인코더·공식 소스를 준비한다. CLI의 `.venv/bin/python tools/manager.py command kimodo prepare`도 같은 다운로드를 시작하며, `command kimodo model-status`에서 진행 상태를 확인한다. 런타임 준비는 고정 공식 소스 사본과 AMD ROCm·MIGraphX를 설치하고 공용 GPU 예약 아래에서 검증한다. 기존 Kimodo 환경이 있으면 자동 변경하지 않으며, 중간 실패로 남은 환경도 상태를 확인해 별도로 보존한 뒤 다시 준비해야 한다. 대기열 밖의 작업은 이 예약으로 보호할 수 없다. 현재 장비의 기존 전용 환경은 `pip check`에서 누락과 버전 불일치가 확인되어 전체 의존성 정합성이 검증되지 않았다.
 
 Built with Meta Llama 3. 고정 Ollama GGUF를 SHA-256 검증 후 FP16 safetensors로 변환한다. AMD ROCm PyTorch와 Kimodo 의존성을 `.local/venvs/kimodo-rocm`에 준비한다.
 
-모델 준비 명령은 고정 소스와 가중치를 준비하고 공식 `setup.py`의 `motion_correction` 네이티브 확장을 설치한다. 후처리 확장만 누락되면 모델을 다시 다운로드하지 않고 공식 설치를 수행한다. 설치에는 C++17 컴파일러·CMake·pybind11과 Eigen 빌드 의존성이 필요하다. 후처리 확장을 실제로 불러올 수 있어야 모델 준비 완료로 표시하고 생성 접수를 허용한다. 준비 로그는 `.tmp/test/kimodo-prepare/` 또는 `.local/model-preparation/kimodo/worker.log`에 저장된다. 고정 리비전 자료를 오프라인으로 읽으며 모델 선택 입력은 허용하지 않는다. 준비 완료는 ROCm 생성 성공이나 품질을 보장하지 않는다.
+모델 준비 명령은 고정 소스와 가중치를 준비하고 공식 `setup.py`의 `motion_correction` 네이티브 확장을 설치한다. 기존 공식 소스가 변경되었거나 고정 리비전과 다르면 자동 전환하지 않는다. 후처리 확장 설치는 공용 GPU 예약 아래에서 실행하며 다른 예약이 남아 있으면 실패하므로 확인 후 다시 요청한다. 후처리 확장만 누락되면 모델을 다시 다운로드하지 않고 공식 설치를 수행한다. 설치에는 C++17 컴파일러·CMake·pybind11과 Eigen 빌드 의존성이 필요하다. 후처리 확장을 실제로 불러올 수 있어야 모델 준비 완료로 표시하고 생성 접수를 허용한다. 준비 로그는 `.tmp/test/kimodo-prepare/` 또는 `.local/model-preparation/kimodo/worker.log`에 저장된다. 고정 리비전 자료를 오프라인으로 읽으며 모델 선택 입력은 허용하지 않는다. 준비 완료는 ROCm 생성 성공이나 품질을 보장하지 않는다.
 
 ## 공용 CLI
 
@@ -135,7 +135,7 @@ SOMA 렌더 뒤 참조 신체 비율을 적용한 직접 포즈 MP4를 먼저 �
 
 ### 공용 Python 환경
 
-Kimodo 작업 실행기·참조 분석·직접 포즈·DWPose는 모두 `.venv/bin/python`을 사용합니다. GPU 메모리 해제를 위한 별도 프로세스는 유지합니다. 공식 소스의 Transformers 5.1.0 고정을 따르므로 공용 환경을 갱신할 때 이 요구를 함께 검증하세요. 관리 GUI도 동일한 `.venv`를 사용하며 의존성 변경 시 양쪽을 함께 검증합니다.
+Kimodo 작업 실행기·참조 분석·직접 포즈·DWPose는 전용 `.local/venvs/kimodo-rocm/bin/python`을 사용합니다. 관리 GUI의 `.venv`와 별도이며 GPU 메모리 해제를 위한 별도 프로세스도 유지합니다. 현재 장비의 전용 환경은 경로 설정 파일을 통해 `.local/kimodo/runtime-deps`, 공식 소스와 `.local/venvs/wan-fun-rocm`의 일부 패키지를 참조합니다. 따라서 Python 경로가 다르다는 사실만으로 패키지까지 독립적이라고 가정하지 않습니다. 공식 소스의 Transformers 5.1.0 요구를 따르며, 공유 대상의 변경 시 Kimodo와 Wan Fun 실행 경로를 각각 검증하세요. 다른 장비는 실제 설치 구성을 확인해야 합니다.
 
 ### Kimodo 순차 동작 생성
 

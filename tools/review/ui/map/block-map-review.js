@@ -154,7 +154,7 @@ function renderAppliedTileSourceList(){
    if(currentCatalogKey)currentAssetGroups.tiles.add(currentCatalogKey);
   }
  }
- const currentNextSourceSignature=JSON.stringify([Object.fromEntries(Object.entries(currentAssetGroups).map(([currentGroupName,currentGroupKeys])=>[currentGroupName,[...currentGroupKeys].sort()])),currentSafeVisualRecords,currentMapRecord.guardCenters??[]]);
+ const currentNextSourceSignature=JSON.stringify([Object.fromEntries(Object.entries(currentAssetGroups).map(([currentGroupName,currentGroupKeys])=>[currentGroupName,[...currentGroupKeys].sort().map(currentCatalogKey=>[currentCatalogKey,currentTextureRecords[currentCatalogKey]])])),currentSafeVisualRecords,currentMapRecord.guardCenters??[]]);
  if(currentAppliedSourceSignature===currentNextSourceSignature)return;
  const currentGroupSelectors={tiles:'#applied-tile-list',buildings:'#applied-building-list',billboards:'#applied-billboard-list'};
  for(const [currentGroupName,currentGroupKeys] of Object.entries(currentAssetGroups)){

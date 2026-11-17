@@ -12,14 +12,16 @@
 ## 준비와 실행
 
 ```bash
-.venv/bin/python generators/sound_effects/setup_runtime.py
+./scripts/workflow.sh setup --scope sfx-runtime
 .venv/bin/python tools/manager.py command sfx-dasheng-audiogen prepare
 .venv/bin/python tools/manager.py command sfx-dasheng-audiogen generate --prompt 'A single boxing glove punch, a sharp smack and a heavy thud.' --seed 42 --tag '권투 타격음 실험' --detach
 .venv/bin/python tools/manager.py command sfx-dasheng-audiogen history
 .venv/bin/python tools/manager.py command sfx-dasheng-audiogen status <생성ID>
 ```
 
-`.venv-sfx-dasheng`은 호스트 Python과 gfx1151용 ROCm PyTorch·Transformers 4.57 전용 환경이다. 기존 PyTorch가 다른 빌드이면 자동 교체하지 않고 실패한다. 모델 본체·텍스트 인코더·오디오 토크나이저의 revision을 `runtime.py`에서 고정하고 `.model/music/sfx-dasheng-audiogen/`에 준비한다. 로컬 원격 코드도 파일 해시를 검증한 뒤 실행한다. 생성 시에는 로컬 파일만 로드한다. 새 ROCm 환경과 전체 모델 상주 추론은 별도 실측 검증이 필요하다.
+공통 설치 명령은 대기열 활성 예약이 있으면 중단하고 설치 중 새 GPU 작업의 시작을 막는다. 대기열 밖에서 직접 실행한 작업은 보호하지 못한다. 기존 직접 설치 스크립트도 호환 경로로 유지하지만 이 예약을 사용하지 않는다.
+
+`.venv-sfx-dasheng`은 호스트 Python과 gfx1151용 ROCm PyTorch·Transformers 4.57 전용 환경이다. 기존 PyTorch가 다른 빌드이면 자동 교체하지 않고 실패한다. 모델 본체·텍스트 인코더·오디오 토크나이저의 revision을 `runtime.py`에서 고정하고 `.model/music/sfx-dasheng-audiogen/`에 준비한다. 로컬 원격 코드도 파일 해시를 검증한 뒤 실행한다. 생성 시에는 로컬 파일만 로드한다. Radeon 8060S의 새 격리 ROCm 환경에서 전체 모델 상주 추론 1회와 16kHz WAV 저장을 확인했다. 청취 품질과 다른 장비는 별도 검증이 필요하다.
 
 공용 GUI·CLI → 게이트웨이 → 음악 작업 서비스 → GPU 실행기·기록 저장소를 재사용한다. `prepare/model-status/generate/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset-preview/history-reset`을 지원한다. 생성 이력 표는 썸네일 컬럼을 표시하지 않으며 선택 행동·삭제 확인·청취·다운로드는 공용 구성요소를 사용한다.
 

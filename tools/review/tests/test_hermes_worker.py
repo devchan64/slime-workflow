@@ -11,6 +11,17 @@ from tools.review.domains.hermes_agent import runtime_integrity as hermes_runtim
 
 
 class HermesWorkerTests(unittest.TestCase):
+    def setUp(self):
+        current_trial_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(current_trial_directory.cleanup)
+        current_trial_root = Path(current_trial_directory.name)
+        current_python_path = current_trial_root / '.venv/bin/python'
+        current_python_path.parent.mkdir(parents=True)
+        current_python_path.touch()
+        current_root_patch = patch.object(hermes_worker_module, 'WORKFLOW_ROOT_DIRECTORY', current_trial_root)
+        current_root_patch.start()
+        self.addCleanup(current_root_patch.stop)
+
     def test_changed_audit_runner_blocks_independent_verification(self):
         with tempfile.TemporaryDirectory() as hermes_temporary_root:
             hermes_job_path = Path(hermes_temporary_root) / 'job'

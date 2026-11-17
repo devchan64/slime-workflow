@@ -9,10 +9,8 @@ from tools.review.common.generation_records import validate_history_tag
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 MUSIC_DEFAULTS_FILE = Path(__file__).with_name('defaults.yaml')
-MUSIC_SERVICE_NAMES = ('music-minimax', 'music-magenta', 'music-heartmula')
+from generators.music.service_constants import MUSIC_SERVICE_NAMES, RETIRED_AUDIO_SERVICE_NAMES, SOUND_EFFECT_SERVICE, AUDIO_SERVICE_NAMES
 MAGENTA_DEFAULTS_FILE = Path(__file__).with_name('magenta_defaults.yaml')
-SOUND_EFFECT_SERVICE = 'sfx-dasheng-audiogen'
-AUDIO_SERVICE_NAMES = (*MUSIC_SERVICE_NAMES, SOUND_EFFECT_SERVICE)
 SOUND_EFFECT_DEFAULTS = WORKFLOW_ROOT_DIRECTORY/'generators/sound_effects/defaults.yaml'
 MUSIC_IDENTIFIER_PATTERN = r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}'
 MUSIC_PROFILE_FIELDS = {'label','model_id','runtime_directory','max_duration_seconds','sample_rate','steps','license_url','license_notice'}

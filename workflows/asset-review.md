@@ -1,17 +1,17 @@
 # 공통 에셋 웹 검수
 
-웹 검수 서버는 `tools/review/serve.py`에서 관리한다. 최초 환경 준비는 `scripts/setup_management.sh`, 실행은 `scripts/run_management_gui.sh`를 사용한다. 생성 명령은 별도 터미널의 `scripts/run_management_gateway.sh`가 필요하며 정적 검수는 GUI만으로 실행할 수 있다. 기존 애니메이션 전용 `generators/animation/serve_asset_review.py`는 이 경로로 이전했다. 생성기는 HTML·이미지·좌표 산출물만 만들고 웹서버 구현을 복제하지 않는다.
+웹 검수 서버는 `tools/review/serve.py`에서 관리한다. 최초 환경 준비는 `scripts/workflow.sh setup --scope management`, 실행은 `scripts/workflow.sh gui`를 사용한다. 생성 명령은 별도 게이트웨이가 필요하며 정적 검수는 GUI만으로 실행할 수 있다. 기존 애니메이션 전용 `generators/animation/serve_asset_review.py`는 이 경로로 이전했다. 생성기는 HTML·이미지·좌표 산출물만 만들고 웹서버 구현을 복제하지 않는다.
 
 ```bash
 # 스탠딩 앵커 검수
-./scripts/run_management_gui.sh --root .tmp/2026-09-20_22-22-51 --port 8765
+./scripts/workflow.sh gui --root .tmp/2026-09-20_22-22-51 --no-takeover
 # 리그·OpenPose·Depth 검수
-./scripts/run_management_gui.sh --root .tmp/2026-09-20_21-01-21 --port 8766
+./scripts/workflow.sh gui --root .tmp/2026-09-20_21-01-21 --no-takeover
 # 다른 이름의 오버레이 검수 페이지
-./scripts/run_management_gui.sh --root .tmp/2026-09-20_19-32-12 --entry overlay-review.html --port 8767
+./scripts/workflow.sh gui --root .tmp/2026-09-20_19-32-12 --entry overlay-review.html --no-takeover
 ```
 
-저장소 루트에서 실행한다. 기본 진입 페이지는 `preview.html`이며 `--entry`는 검수 폴더 기준 상대 HTML 경로다. 실행 시 출력되는 `http://127.0.0.1:포트/`를 연다. 페이지 파일이 없거나 포트가 사용 중이면 즉시 실패한다. 서로 다른 검수 폴더를 동시에 열 때 포트를 구분한다. 종료는 Ctrl+C다.
+저장소 루트에서 실행한다. 기본 진입 페이지는 `preview.html`이며 `--entry`는 검수 폴더 기준 상대 HTML 경로다. 실행 시 출력되는 `http://127.0.0.1:8770/`을 연다. 위 예시는 페이지 파일이 없거나 8770 포트가 사용 중이면 실패하며 기존 GUI를 종료하지 않는다. 서로 다른 검수 폴더는 한 번에 하나씩 연다. 종료는 Ctrl+C다.
 
 검수 대상은 워크플로우 `.tmp/`, 기존 `.result/`, 정식 제작 자산 `assets/` 아래 개별 폴더다. 상위 루트 전체 공개·디렉터리 목록·숨김 파일·경로 이탈·외부 심볼릭 링크는 허용하지 않는다. HTML·이미지·JSON·JS·CSS·MP4만 제공하고 로그·프롬프트·모델 파일은 제공하지 않는다. 진입 HTML이 없는 자산은 검수 페이지와 참조 사본을 `.tmp/한국시간/`에 준비한다.
 

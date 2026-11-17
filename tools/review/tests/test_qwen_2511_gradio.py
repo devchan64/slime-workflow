@@ -34,17 +34,16 @@ class Qwen2511GradioTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "폐기"):
             qwen_2511_app.build_qwen_2511_interface("http://127.0.0.1:8770", qwen21_mode_enabled=True, pose_transfer_enabled=True)
 
-    def test_expression_requires_at_least_one_reference(self):
-        self.assertFalse(qwen_2511_app.check_expression_reference_readiness(None,None,None))
+    def test_archived_expression_keeps_reference_checks_and_disables_generation(self):
+        self.assertFalse(qwen_2511_app.check_expression_reference_readiness(None, None, None))
         for current_slot_number in range(3):
-            current_reference_values=[None]*3
-            current_reference_values[current_slot_number]=Image.new('RGB',(8,8))
+            current_reference_values = [None] * 3
+            current_reference_values[current_slot_number] = Image.new('RGB', (8, 8))
             self.assertTrue(qwen_2511_app.check_expression_reference_readiness(*current_reference_values))
-        current_interface_blocks=qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770',expression_mode_enabled=True)
-        current_generate_button=next(current_component for current_component in current_interface_blocks.blocks.values() if isinstance(current_component,gr.Button) and current_component.value=='대기열에 추가')
+        current_interface_blocks = qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770', expression_mode_enabled=True)
+        current_generate_button = next(current_component for current_component in current_interface_blocks.blocks.values() if isinstance(current_component, gr.Button) and current_component.value == '생성 불가 · 아카이브')
         self.assertFalse(current_generate_button.interactive)
-        current_readiness_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='refresh_generation_readiness')
-        self.assertIs(inspect.getclosurevars(current_readiness_callback).nonlocals['generation_readiness_callback'],qwen_2511_app.check_expression_reference_readiness)
+        self.assertFalse(any(getattr(current_function_value.fn, '__name__', '') == 'execute_confirmed_generation' and getattr(inspect.getclosurevars(current_function_value.fn).nonlocals.get('generation_callback_value'), '__name__', '') == 'start_reference_generation' for current_function_value in current_interface_blocks.fns.values()))
 
     def test_expression_restore_rejects_invalid_preset_without_mutation(self):
         from copy import deepcopy
@@ -61,35 +60,14 @@ class Qwen2511GradioTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'표정'):
             current_restore_callback({'request':current_request_record})
 
-    def test_circular_gui_validates_options_before_dispatch(self):
-        from unittest.mock import patch
-        current_interface_blocks=qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770',qwen21_mode_enabled=True,circular_mode_enabled=True)
-        current_start_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='execute_confirmed_generation' and inspect.getclosurevars(current_function_value.fn).nonlocals['generation_callback_value'].__name__=='start_reference_generation')
-        current_input_values=[None]*10+[512,512,40,42,12,True,True,False,False]
-        with patch.object(qwen_2511_app,'execute_management_command',return_value={'id':'mock-id','status':'queued'}) as current_gateway_mock:
-            list(current_start_callback({'inputs':('','',*current_input_values),'consumed':False}))
-            current_request_record=current_gateway_mock.call_args.args[2]
-            self.assertEqual(current_request_record['prompt'],'')
-            self.assertTrue(current_request_record['pattern_view'])
-            current_gateway_mock.reset_mock()
-            with self.assertRaises(gr.Error):
-                list(current_start_callback({'inputs':('word '*95,'',*current_input_values),'consumed':False}))
-            current_gateway_mock.assert_not_called()
-        self.assertFalse(qwen_2511_app.check_circular_prompt_readiness('',False,False))
-        self.assertTrue(qwen_2511_app.check_circular_prompt_readiness('',True,True))
-        self.assertFalse(qwen_2511_app.check_circular_prompt_readiness('word '*95,True,True))
-
-    def test_auto_seed_is_used_for_generation_and_manual_seed_is_reproducible(self):
-        from unittest.mock import patch
-        current_blocks = qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, circular_mode_enabled=True)
-        current_start = next(current_function.fn for current_function in current_blocks.fns.values() if current_function.fn and current_function.fn.__name__ == 'execute_confirmed_generation' and inspect.getclosurevars(current_function.fn).nonlocals['generation_callback_value'].__name__ == 'start_reference_generation')
-        current_inputs = [None] * 10 + [512, 512, 40, 42, 12, True, True, False]
-        with patch.object(qwen_2511_app, 'execute_management_command', return_value={'id':'mock-id','status':'queued'}) as current_gateway, patch('tools.review.common.gradio_seed.generate_random_seed_value', side_effect=[100, 101]):
-            for current_expected_seed in (100, 101):
-                list(current_start({'inputs':('', '', *current_inputs, True), 'consumed':False}))
-                self.assertEqual(current_gateway.call_args.args[2]['seed'], current_expected_seed)
-            list(current_start({'inputs':('', '', *current_inputs, False), 'consumed':False}))
-            self.assertEqual(current_gateway.call_args.args[2]['seed'], 42)
+    def test_archived_circular_gui_keeps_prompt_checks_without_dispatch(self):
+        current_interface_blocks = qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, circular_mode_enabled=True)
+        current_generate_button = next(current_component for current_component in current_interface_blocks.blocks.values() if isinstance(current_component, gr.Button) and current_component.value == '생성 불가 · 아카이브')
+        self.assertFalse(current_generate_button.interactive)
+        self.assertFalse(any(getattr(current_function_value.fn, '__name__', '') == 'execute_confirmed_generation' and getattr(inspect.getclosurevars(current_function_value.fn).nonlocals.get('generation_callback_value'), '__name__', '') == 'start_reference_generation' for current_function_value in current_interface_blocks.fns.values()))
+        self.assertFalse(qwen_2511_app.check_circular_prompt_readiness('', False, False))
+        self.assertTrue(qwen_2511_app.check_circular_prompt_readiness('', True, True))
+        self.assertFalse(qwen_2511_app.check_circular_prompt_readiness('word ' * 95, True, True))
 
     def test_tile_generators_use_auto_and_manual_seeds(self):
         from unittest.mock import patch
@@ -97,7 +75,6 @@ class Qwen2511GradioTests(unittest.TestCase):
         from tools.review.domains.tile.floor_generation import load_floor_configuration
         for current_module, current_builder, current_gateway_name, current_inputs in (
             (floor_tile_app, floor_tile_app.build_floor_interface, 'execute_floor_gateway', ('stone', '', 512, 4, 42, False)),
-            (seamless_tile_app, seamless_tile_app.build_seamless_interface, 'execute_management_command', ('grass', '', 40, 42)),
         ):
             with self.subTest(page=current_gateway_name):
                 def execute_mock_gateway(*current_arguments):
@@ -120,6 +97,17 @@ class Qwen2511GradioTests(unittest.TestCase):
                     self.assertEqual(current_gateway.call_args.args[-1]['seed'], 123)
                     list(current_start({'inputs':(*current_inputs, False), 'consumed':False}))
                     self.assertEqual(current_gateway.call_args.args[-1]['seed'], 42)
+
+    def test_archived_seamless_page_restores_seed_without_generation(self):
+        from tools.review.ui.gradio import seamless_tile_app
+        current_blocks = seamless_tile_app.build_seamless_interface('http://127.0.0.1:8770')
+        current_generate_button = next(current_component for current_component in current_blocks.blocks.values() if isinstance(current_component, gr.Button) and current_component.value == '대기열에 추가')
+        self.assertFalse(current_generate_button.interactive)
+        current_restore_wrapper = next(current_function.fn for current_function in current_blocks.fns.values() if getattr(current_function.fn, '__name__', '') == 'restore_selected_inputs')
+        current_restore_callback = inspect.getclosurevars(current_restore_wrapper).nonlocals['restore_input_callback']
+        current_restored_values = current_restore_callback({'request': {'seed': 42, 'tag': 'saved', 'seamless_tile': {'user_prompt': 'grass'}}})
+        self.assertEqual(current_restored_values[-2:], (42, False))
+        self.assertFalse(any(getattr(current_function.fn, '__name__', '') == 'execute_confirmed_generation' and getattr(inspect.getclosurevars(current_function.fn).nonlocals.get('generation_callback_value'), '__name__', '') == 'start_seamless_generation' for current_function in current_blocks.fns.values()))
 
     def test_circular_history_restores_saved_options_and_reference_order(self):
         from unittest.mock import patch
@@ -163,7 +151,7 @@ class Qwen2511GradioTests(unittest.TestCase):
         self.assertFalse(qwen_2511_app.check_plain_prompt_readiness('word '*100,False,False))
         self.assertFalse(qwen_2511_app.check_plain_prompt_readiness('word '*99,False,True))
         current_interface_blocks=qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770',qwen21_mode_enabled=True)
-        current_generate_button=next(current_component for current_component in current_interface_blocks.blocks.values() if isinstance(current_component,gr.Button) and current_component.value=='대기열에 추가')
+        current_generate_button=next(current_component for current_component in current_interface_blocks.blocks.values() if isinstance(current_component,gr.Button) and current_component.value=='생성 불가 · 아카이브')
         self.assertFalse(current_generate_button.interactive)
 
     def test_restore_rejects_cross_job_reference_links(self):

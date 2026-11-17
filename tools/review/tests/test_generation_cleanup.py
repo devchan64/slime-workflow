@@ -366,7 +366,7 @@ class CleanupResumeConcurrencyTests(unittest.TestCase):
             current_handler_value.send_response = current_handler_value.responses.append
             current_handler_value.send_header = lambda *current_arguments: None
             current_handler_value.end_headers = lambda: None
-            with patch.object(current_service_manager, 'validate_generation_runtime'), patch.object(current_service_manager, 'history_storage_path', return_value=current_storage_root / 'history'), patch('tools.review.domains.image.image_generation.launch_gpu_process', side_effect=register_fake_generation), ThreadPoolExecutor(max_workers=1) as current_generate_pool, ThreadPoolExecutor(max_workers=1, thread_name_prefix='reset-operation') as current_reset_pool:
+            with patch.object(current_service_manager, 'validate_generation_runtime'), patch.object(current_service_manager, 'select_generation_runner', return_value='isolated-fake-worker.py'), patch.object(current_service_manager, 'history_storage_path', return_value=current_storage_root / 'history'), patch('tools.review.domains.image.image_generation.launch_gpu_process', side_effect=register_fake_generation), ThreadPoolExecutor(max_workers=1) as current_generate_pool, ThreadPoolExecutor(max_workers=1, thread_name_prefix='reset-operation') as current_reset_pool:
                 try:
                     current_generate_future = current_generate_pool.submit(current_service_manager.handle_image_request, current_handler_value)
                     self.assertTrue(current_launch_entered.wait(5))
@@ -403,7 +403,7 @@ class CleanupResumeConcurrencyTests(unittest.TestCase):
                 current_handler_value.send_header = lambda *current_arguments: None
                 current_handler_value.end_headers = lambda: None
                 current_worker_process = SimpleNamespace(poll=lambda: 0, wait=lambda: 0)
-                with patch.object(current_service_manager, 'validate_generation_runtime'), patch.object(current_service_manager, 'history_storage_path', return_value=current_storage_root / 'history'), patch('tools.review.domains.image.image_generation.launch_gpu_process', return_value=current_worker_process), patch('tools.review.domains.image.image_generation.threading.Thread') as current_thread_factory:
+                with patch.object(current_service_manager, 'validate_generation_runtime'), patch.object(current_service_manager, 'select_generation_runner', return_value='isolated-fake-worker.py'), patch.object(current_service_manager, 'history_storage_path', return_value=current_storage_root / 'history'), patch('tools.review.domains.image.image_generation.launch_gpu_process', return_value=current_worker_process), patch('tools.review.domains.image.image_generation.threading.Thread') as current_thread_factory:
                     current_service_manager.handle_image_request(current_handler_value)
                     self.assertEqual(current_handler_value.responses, [202])
                     current_exit_callback = current_thread_factory.call_args.kwargs['target']

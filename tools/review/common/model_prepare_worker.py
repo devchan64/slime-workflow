@@ -9,9 +9,11 @@ from tools.review.common.generation_records import write_record_atomically
 
 MODEL_PREPARATION_PROFILES = {
     'hermes-model': (('tools.review.common.hermes_model_download', 'prepare_hermes_model_files'),),
+    'flux-image': (('generators.image.flux_model_prepare', 'prepare_flux_model_files'),),
     'expression-lora': (('tools.review.domains.image.expression_generation', 'download_expression_adapter'),),
     'qwen-21': (('generators.image.qwen_21_runtime', 'download_qwen_model_assets'),),
     'kimodo': (('generators.kimodo.prepare', 'prepare_kimodo_assets'),),
+    'dwpose-pose': (('generators.dwpose.prepare', 'prepare_dwpose_model_files'),),
     'wan-animate2': (('generators.wan_animate2.prepare', 'prepare_animate_models'), ('generators.wan_animate2.contracts', 'validate_animate_assets')),
     'wan-vace': (('generators.wan_vace.prepare', 'prepare_vace_models'),),
     'writer-model': (('generators.writer_agent.prepare', 'prepare_writer_model_files'),),

@@ -11,7 +11,7 @@ import threading
 from urllib.parse import urlsplit
 import uuid
 from zoneinfo import ZoneInfo
-from generators.music.contracts import WORKFLOW_ROOT_DIRECTORY, MUSIC_IDENTIFIER_PATTERN, build_music_request, read_music_record, resolve_music_paths, resolve_music_profile, validate_music_identifier, verify_music_request
+from generators.music.contracts import WORKFLOW_ROOT_DIRECTORY, MUSIC_IDENTIFIER_PATTERN, RETIRED_AUDIO_SERVICE_NAMES, build_music_request, read_music_record, resolve_music_paths, resolve_music_profile, validate_music_identifier, verify_music_request
 from tools.review.common.generation_records import write_record_atomically, load_generation_history_records
 from tools.review.common.generation_estimates import calculate_generation_estimate
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
@@ -43,7 +43,7 @@ class MusicGenerationManager:
         return current_job_root
 
     def create_music_job(self,current_payload_record):
-        if self.current_service_name in ('music-minimax','music-magenta'):
+        if self.current_service_name in RETIRED_AUDIO_SERVICE_NAMES:
             raise ValueError('해당 음악 생성기는 폐기되었습니다. 기존 이력 조회만 지원합니다.')
         current_request_record = build_music_request(self.current_service_name,current_payload_record)
         if not self.runtime_python_path.is_file():
@@ -126,10 +126,10 @@ class MusicGenerationManager:
             raise ValueError('음악 명령·필드 오류')
         if current_command_name in ('generate','prepare'):
             return self.create_music_job(current_payload_record)
-        if current_command_name == 'resume' and self.current_service_name in ('music-minimax','music-magenta'):
+        if current_command_name == 'resume' and self.current_service_name in RETIRED_AUDIO_SERVICE_NAMES:
             raise ValueError('폐기 또는 GPU 전용 실행 미검증 생성기는 재개할 수 없습니다.')
         if current_command_name=='model-status':
-            if self.current_service_name in ('music-minimax','music-magenta'):
+            if self.current_service_name in RETIRED_AUDIO_SERVICE_NAMES:
                 return {'ready':False,'message':'폐기된 생성기 · 기존 결과·로그 조회만 지원','model_id':self.current_profile_record['model_id']}
             from generators.music.runtime import validate_prepared_music
             if self.current_service_name == 'sfx-dasheng-audiogen':

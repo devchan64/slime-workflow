@@ -6,10 +6,12 @@ from tools.review.common.gradio_model_download import build_model_download_contr
 from tools.review.common.management_client import execute_remote_management_command
 
 MODEL_PREPARATION_SERVICES = (
+    ('FLUX 3 Image Klein', 'flux-image'),
     ('Hermes 코딩 모델 Qwen3.8 27B IQ4_XS', 'hermes-model'),
     ('Qwen Image 2.1', 'prop-generator'),
     ('Qwen 2.1 표정 LoRA', 'expression-lora'),
     ('Kimodo', 'kimodo'),
+    ('DWPose 포즈 모델', 'dwpose'),
     ('Wan Animate-2', 'wan22-animate2'),
     ('Wan Fun Control', 'wan22-fun-control'),
     ('Wan VACE', 'wan22-vace'),
@@ -63,10 +65,17 @@ def format_model_inventory_files(current_inventory_record):
 
 def execute_model_preparation_command(current_service_name, current_command_name, current_payload_record):
     """대기열 모델의 준비 상태를 공용 다운로드 컨트롤 계약에 맞춘다."""
+    from tools.review.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS, inspect_registered_model_operation
+    current_command_names = MANAGEMENT_SERVICE_COMMANDS.get(current_service_name, ())
+    current_prepare_allowed = inspect_registered_model_operation(current_service_name, current_command_names, 'prepare') is not None
+    if not current_prepare_allowed and current_command_name == 'prepare':
+        raise ValueError('현재 서비스 정책상 모델 다운로드가 중단되었습니다.')
     current_audio_services = ('music-heartmula', 'sfx-dasheng-audiogen')
     if current_service_name in current_audio_services and current_command_name == 'prepare':
         return execute_remote_management_command(current_service_name, 'download-model', {})
     current_result_record = execute_remote_management_command(current_service_name, current_command_name, current_payload_record)
+    if not current_prepare_allowed and current_command_name == 'model-status':
+        current_result_record = {**current_result_record, 'generation_ready': False, 'can_prepare': False, 'prepare_blocked_reason': '현재 서비스 정책상 모델 다운로드가 중단되었습니다.'}
     if current_service_name not in ('wan22-fun-control', *current_audio_services) or current_command_name != 'model-status':
         return current_result_record
     if current_service_name in current_audio_services:
@@ -91,6 +100,16 @@ def execute_model_preparation_command(current_service_name, current_command_name
             # 파일은 남아 있어도 ROCm 설치·검증이 실패했을 수 있으므로 재시도를 허용한다.
             current_result_record['ready'] = False
     return current_result_record
+
+
+def read_model_observation_status(current_service_name, current_execute_command=execute_remote_management_command):
+    """게이트웨이의 모델 구성 상태를 파일 목록과 구분해 표시한다."""
+    try:
+        current_status_record = current_execute_command(current_service_name, 'model-status', {})
+        current_status_message = current_status_record.get('message', '상세 상태가 없습니다.')
+        return f'서비스 상태: {current_status_message} · 전체 해시와 GPU 실행은 별도 확인'
+    except Exception as current_status_error:
+        return f'서비스 상태 확인 실패: {current_status_error}'
 
 
 def read_model_job_status(current_service_name, current_execute_command=execute_remote_management_command):
@@ -160,6 +179,8 @@ def build_model_management_interface():
             with gr.Group():
                 gr.Markdown(f'### {current_label_name}')
                 if current_service_name in current_preparation_names:
+                    if current_service_name == 'flux-image':
+                        gr.Markdown('공식 고정 리비전 약 20.32GB를 검증합니다. [모델 사용 조건](https://huggingface.co/black-forest-labs/flux-3-image-klein)을 확인하고 Hugging Face 접근 권한과 로그인을 준비하세요. 기존 파일은 덮어쓰지 않습니다.')
                     if current_service_name == 'prompt-translation':
                         gr.Markdown('[Gemma 이용약관과 모델 접근 조건](https://huggingface.co/google/translategemma-4b-it)을 검토·동의하고 Hugging Face에 로그인해야 다운로드할 수 있습니다. 실패 시 `.local/model-preparation/prompt-translation-model/worker.log`를 확인하세요.')
                     def execute_model_command(current_command_name, current_payload_record, service_name_value=current_service_name):
@@ -168,7 +189,8 @@ def build_model_management_interface():
                     if current_service_name == 'kimodo':
                         build_migraphx_build_controls(current_interface_blocks)
                 else:
-                    build_model_progress_display(current_interface_blocks, current_service_name)
+                    if current_service_name in current_job_names:
+                        build_model_progress_display(current_interface_blocks, current_service_name)
                     if current_service_name in current_job_names:
                         gr.Markdown('다운로드 요청은 해당 생성기 화면에서 실행합니다.')
                         current_status_output = gr.Markdown('모델 준비 상태 확인 중')

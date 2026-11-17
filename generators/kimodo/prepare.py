@@ -26,9 +26,18 @@ def prepare_kimodo_assets():
 
 
 def install_kimodo_official_runtime():
-    """공식 setup으로 후처리 확장을 빌드하며 ROCm 의존성은 교체하지 않는다."""
+    """공식 setup 중 공유 GPU 환경을 사용하는 대기열 작업을 시작하지 않는다."""
     if inspect_motion_correction_runtime():
         return
+    prepare_kimodo_source_repository()
+    from tools.review.common.management_setup import hold_shared_environment_reservation
+    with hold_shared_environment_reservation():
+        if not inspect_motion_correction_runtime():
+            build_kimodo_official_runtime()
+
+
+def build_kimodo_official_runtime():
+    """공식 setup으로 후처리 확장을 빌드하며 ROCm 의존성은 교체하지 않는다."""
     print('Kimodo 공식 setup: motion_correction 네이티브 확장 준비', flush=True)
     current_python_executable = str(KIMODO_ENVIRONMENT_PYTHON)
     current_pybind_check = subprocess.run([current_python_executable, '-c', 'import pybind11'], capture_output=True, check=False)
@@ -42,6 +51,24 @@ def install_kimodo_official_runtime():
                    cwd=KIMODO_WORKSPACE_ROOT, env=current_build_environment, check=True)
     if not inspect_motion_correction_runtime():
         raise RuntimeError('Kimodo 공식 setup 후 motion_correction 확장을 불러올 수 없습니다.')
+
+
+def prepare_kimodo_source_repository():
+    """기존 공식 소스의 변경·다른 리비전을 임의로 덮어쓰지 않는다."""
+    current_source_existed = KIMODO_SOURCE_ROOT.exists() or KIMODO_SOURCE_ROOT.is_symlink()
+    if KIMODO_SOURCE_ROOT.is_symlink():
+        raise ValueError('Kimodo 공식 소스가 심볼릭 링크여서 변경하지 않습니다.')
+    if not current_source_existed:
+        KIMODO_SOURCE_ROOT.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(['git', 'clone', '--no-checkout', 'https://github.com/nv-tlabs/kimodo.git', str(KIMODO_SOURCE_ROOT)], check=True)
+        subprocess.run(['git', '-C', str(KIMODO_SOURCE_ROOT), 'checkout', '--detach', KIMODO_ASSET_CONFIG['source_revision']], check=True)
+    current_git_environment = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
+    current_git_command = ['git', '-C', str(KIMODO_SOURCE_ROOT)]
+    current_source_revision = subprocess.check_output([*current_git_command, 'rev-parse', 'HEAD'], text=True, env=current_git_environment).strip()
+    current_source_changes = subprocess.check_output([*current_git_command, 'status', '--porcelain', '--untracked-files=normal'], text=True, env=current_git_environment)
+    if current_source_revision != KIMODO_ASSET_CONFIG['source_revision'] or current_source_changes:
+        raise ValueError('기존 Kimodo 소스에 변경 사항이 있거나 고정 리비전이 달라 자동 변경하지 않습니다.')
+    return current_source_revision
 
 
 def download_kimodo_pinned_assets():
@@ -71,13 +98,7 @@ def download_kimodo_pinned_assets():
                 str(current_blob_path), str(KIMODO_MODEL_ROOT/'encoder-base-ollama'),
             ], cwd=KIMODO_WORKSPACE_ROOT, check=True)
             read_converted_encoder_files()
-        KIMODO_SOURCE_ROOT.parent.mkdir(parents=True,exist_ok=True)
-        if not KIMODO_SOURCE_ROOT.exists():
-            subprocess.run(['git','clone','https://github.com/nv-tlabs/kimodo.git',str(KIMODO_SOURCE_ROOT)],check=True)
-        subprocess.run(['git','-C',str(KIMODO_SOURCE_ROOT),'checkout','--detach',KIMODO_ASSET_CONFIG['source_revision']],check=True)
-        current_revision_text = subprocess.check_output(['git','-C',str(KIMODO_SOURCE_ROOT),'rev-parse','HEAD'],text=True).strip()
-        if current_revision_text != KIMODO_ASSET_CONFIG['source_revision']:
-            raise ValueError('소스 리비전 불일치')
+        current_revision_text = prepare_kimodo_source_repository()
         (KIMODO_SOURCE_ROOT.parent/'PINNED_REVISION').write_text(current_revision_text)
         install_kimodo_official_runtime()
         current_file_hashes = {}

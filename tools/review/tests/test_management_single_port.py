@@ -11,6 +11,19 @@ from tools.review.common.management_asgi import build_management_application
 
 
 class ManagementSinglePortTests(unittest.TestCase):
+    def test_gui_health_exposes_only_its_own_launch_identity(self):
+        import os
+        with tempfile.TemporaryDirectory() as temporary_directory_name, \
+                patch.dict(os.environ, {'SLIME_MANAGEMENT_STACK_TOKEN':'fixture-token'}):
+            current_root_path = Path(temporary_directory_name)
+            current_app_value = build_management_application(SimpleHTTPRequestHandler, current_root_path, current_root_path / 'source.json', 8770, [])
+            with TestClient(current_app_value) as current_test_client:
+                current_response_value = current_test_client.get('/management/gui-health')
+            self.assertEqual(current_response_value.status_code, 200)
+            self.assertEqual(current_response_value.json()['role'], 'management-gui')
+            self.assertEqual(current_response_value.json()['launch_token'], 'fixture-token')
+            self.assertEqual(current_response_value.headers['cache-control'], 'no-store')
+
     def test_retired_sprite_editor_is_unavailable(self):
         from tools.review.ui.gradio.management_menu_app import load_manager_page_records
         from tools.review.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS

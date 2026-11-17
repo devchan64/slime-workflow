@@ -1,10 +1,10 @@
 # Fun Control VAE 처리
 
-관리도구 **모델 관리 → Wan Fun Control**에서 모델 준비 상태와 파일별 다운로드·이어받기를 확인하고 준비가 필요하면 **모델 다운로드**를 실행한다. 기존 생성기 화면과 CLI `command wan22-fun-control prepare`도 같은 게이트웨이 명령을 사용한다. 준비 작업은 ROCm 환경 검사 때문에 기존 GPU 대기열에서 수행하며, 대기 중과 실행 중에는 중복 요청을 막는다. 실제 모델 파일은 공용 Hugging Face 다운로더로 받는다.
+관리도구 **모델 관리 → Wan Fun Control**에서 모델 준비 상태와 파일별 다운로드·이어받기를 확인하고 준비가 필요하면 **모델 다운로드**를 실행한다. 기존 생성기 화면과 CLI `command wan22-fun-control prepare`도 같은 게이트웨이 명령을 사용한다. 준비 작업은 ROCm 환경 검사 때문에 공용 GPU 대기열에서 수행하며, 대기 중과 실행 중에는 중복 요청을 막는다. 새 예약 정책이 적용된 게이트웨이에서는 준비가 다른 대기열 작업과 겹치지 않는다. 이미 실행 중인 구버전 게이트웨이에는 이 정책이 적용되지 않으므로 작업 상태를 확인한 후 재시작해야 한다. 대기열 밖 GPU 프로세스는 배타 예약 대상이 아니다. 실제 모델 파일은 공용 Hugging Face 다운로더로 받는다.
 
 Wan Fun 모델과 포즈 가중치는 HTTP 전송을 사용한다. 부분 파일의 연속된 데이터를 서버와 대조한 뒤 이어받기 위해 Xet 희소 파일 전송은 사용하지 않는다. 기존 Xet 부분 파일은 보존하며 안전하게 확인할 수 있는 구간만 복구한다.
 
-저장소 루트에서 `python3 -m generators.wan_fun.setup_rocm`을 실행한다. 별도 `.local/venvs/wan-fun-rocm`에 AMD ROCm PyTorch·MIGraphX 환경과 DWPose를 준비한다. 고·저노이즈 BF16 모델, UMT5 FP16, Wan2.1 VAE는 고정 리비전에서 받아 크기와 SHA-256을 검증한다. 고정 커밋의 ComfyUI 의존성을 설치하며 기존 소스에 수정 사항이나 다른 커밋이 있으면 중단한다. 로그는 `.tmp/management-launcher-logs/`와 `.tmp/test/wan22-fun-control-prepare/`에 저장한다.
+모델과 전체 준비는 공용 CLI `./scripts/workflow.sh model prepare wan22-fun-control` 또는 모델 관리 화면에서 접수한다. 모델을 받지 않고 ROCm 실행 환경만 준비하려면 `./scripts/workflow.sh setup --scope wan-fun-runtime`을 사용한다. 이 명령은 공유 대기열의 활성 예약이 있으면 중단하며 설치 중 새 GPU 작업을 대기시킨다. 대기열 밖에서 직접 실행한 작업은 보호하지 못하므로 별도로 확인해야 한다. 준비 과정은 기존 전용 환경의 패키지를 설치·갱신할 수 있으며, 해당 환경은 현재 Kimodo도 참조할 수 있다. 실행 전 공유 의존성과 대기열 외 작업을 확인한다. 설치 전 기존 PyTorch·MIGraphX·ONNX 공급자 버전이 지정된 값과 다르면 자동 교체하지 않고 중단한다. 각 설치 단계는 공용 PyTorch 제약과 Wan Fun 전용 MIGraphX 제약을 함께 사용한다. 이 검사는 다른 모든 의존성의 변경이 없음을 보장하지 않는다. 별도 `.local/venvs/wan-fun-rocm`에 AMD ROCm PyTorch·MIGraphX 환경과 DWPose를 준비한다. 고·저노이즈 BF16 모델, UMT5 FP16, Wan2.1 VAE는 고정 리비전에서 받아 크기와 SHA-256을 검증한다. 고정 커밋의 ComfyUI 의존성을 설치하며 기존 소스에 수정 사항이나 다른 커밋이 있으면 중단한다. 로그는 `.tmp/management-launcher-logs/`와 `.tmp/test/wan22-fun-control-prepare/`에 저장한다.
 
 고·저노이즈 모델은 비양자화 BF16으로 GPU에 직접 적재하고 순차 실행·해제한다. UMT5 FP16과 VAE도 GPU 전용으로 실행하며 모델·레이어 CPU 오프로드를 사용하지 않는다. 파일 로딩 중 일시적인 호스트 메모리 사용은 가능하다. 직접 적재 전 GPU 여유가 가중치 파일 크기의 두 배에 4GiB를 더한 값보다 작으면 실패하며, 그 밖의 GPU 메모리 부족도 오프로드로 우회하지 않는다. gfx1151에서 긴 self-attention은 여유 GPU 메모리가 있을 때 연속 배치를 사용하며, 여유 부족이나 복사 OOM에는 원래 배치로 실행한다. 입력·출력의 NaN과 무한대는 실패로 처리한다. 진단 시 `SLIME_WAN_ATTENTION_PROFILE=1`을 설정하면 실행 시도 폴더의 `attention-profile.jsonl`에 앞쪽 attention 호출의 GPU 동기화 시간과 첫 커널을 기록한다.
 

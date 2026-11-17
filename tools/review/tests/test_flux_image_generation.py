@@ -84,6 +84,7 @@ class FluxImageGenerationTests(unittest.TestCase):
     def test_legacy_seamless_resume_and_input_restore(self):
         import json
         from unittest.mock import patch
+        from tools.review.domains.image.flux_image_generation import WORKFLOW_ROOT_PATH
         current_manager_value=FluxImageGenerationManager('flux-seamless')
         current_request_value=current_manager_value.validate_generation_request({'action':'generate','prompt':'grass','images':[],'width':512,'height':512,'steps':16,'seed':42})
         with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
@@ -95,7 +96,7 @@ class FluxImageGenerationTests(unittest.TestCase):
             for current_method_value in ('edge-blend','circular-vae','circular-vae-v2','global-periodic-v1'):
                 current_saved_value['seamless_method']=current_method_value
                 (current_job_path/'request.json').write_text(json.dumps(current_saved_value))
-                (current_job_path/'gpu-command.json').write_text(json.dumps({'command':['python',str(Path('generators/image/run_flux_image.py').resolve())]}))
+                (current_job_path/'gpu-command.json').write_text(json.dumps({'command':['python',str(WORKFLOW_ROOT_PATH / 'generators/image/run_flux_image.py')]}))
                 current_manager_value.validate_generation_resume(current_job_path)
                 with patch('tools.review.ui.shared.flux_image_page.WORKFLOW_ROOT_DIRECTORY',current_workspace_root):
                     current_restored_value=restore_flux_image_inputs({'id':current_identifier_value,'request':current_saved_value},'flux-seamless')

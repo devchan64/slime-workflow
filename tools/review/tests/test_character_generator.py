@@ -19,9 +19,10 @@ class CharacterGeneratorTest(unittest.TestCase):
         from tools.review.ui.shared.qwen_generator_page import build_qwen_2511_interface
         current_page_blocks = build_qwen_2511_interface('http://127.0.0.1:8770', **QWEN_INTERFACE_OPTIONS['character-generator'])
         self.assertEqual(current_page_blocks.title, 'Qwen 2.1 캐릭터 이미지 생성기')
-        current_buttons = [current_component for current_component in current_page_blocks.blocks.values() if getattr(current_component, 'value', None) == '대기열에 추가']
+        current_buttons = [current_component for current_component in current_page_blocks.blocks.values() if getattr(current_component, 'value', None) == '생성 불가 · 아카이브']
         self.assertEqual(len(current_buttons), 1)
-        self.assertTrue(current_buttons[0].interactive)
+        self.assertFalse(current_buttons[0].interactive)
+        self.assertTrue(any('기존 이력과 결과' in str(getattr(current_component, 'value', '')) for current_component in current_page_blocks.blocks.values()))
 
 
 if __name__ == '__main__':

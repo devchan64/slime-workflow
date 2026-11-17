@@ -19,7 +19,7 @@ class FunControlGenerationManager(ReferenceVideoGenerationManager):
 
     def select_generation_service(self, saved_request_record=None):
         if saved_request_record and saved_request_record.get('action') == 'prepare':
-            return 'image'
+            return 'wan-fun-prepare'
         return 'wan-fun'
 
     def validate_generation_request(self, current_request_record):

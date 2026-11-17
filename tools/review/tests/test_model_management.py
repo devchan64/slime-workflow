@@ -4,6 +4,20 @@ from tools.review.ui.gradio.model_management_app import read_model_job_status, b
 
 
 class ModelManagementTest(unittest.TestCase):
+    def test_retired_model_download_is_disabled_before_gateway_call(self):
+        from unittest.mock import patch
+        from tools.review.ui.gradio import model_management_app
+        for current_service_name in ('prop-generator', 'expression-lora'):
+            with self.subTest(service=current_service_name), \
+                    patch.object(model_management_app, 'execute_remote_management_command', return_value={'ready':False, 'message':'사용 중단'}) as current_gateway_mock:
+                current_status_record = model_management_app.execute_model_preparation_command(current_service_name, 'model-status', {})
+                self.assertFalse(current_status_record['can_prepare'])
+                self.assertFalse(current_status_record['generation_ready'])
+                self.assertIn('중단', current_status_record['prepare_blocked_reason'])
+                with self.assertRaisesRegex(ValueError, '중단'):
+                    model_management_app.execute_model_preparation_command(current_service_name, 'prepare', {'action':'prepare'})
+                self.assertEqual(current_gateway_mock.call_count, 1)
+
     def test_download_progress_is_fetched_once_for_all_models(self):
         from unittest.mock import patch
         from tools.review.ui.gradio import model_management_app
@@ -281,6 +295,43 @@ class ModelManagementTest(unittest.TestCase):
                                  if current_component.get('type') == 'markdown' and current_component.get('props', {}).get('value', '').startswith('### ')
                                  and current_component['props']['value'][4:] in current_model_names]
         self.assertEqual(current_display_names, sorted(current_model_names, key=str.casefold))
+
+    def test_flux_prepare_gateway_uses_single_detached_worker(self):
+        import json
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.domains.image.flux_image_generation import FluxImageGenerationManager
+        from tools.review.tests.test_management_gateway import GatewayContractTest
+        current_flux_manager = FluxImageGenerationManager('flux-image')
+        current_gateway_value = ManagementCommandGateway({'flux-image': current_flux_manager.handle_image_request})
+        current_handler_value = GatewayContractTest().create_request_handler('/management/command', {'service': 'flux-image', 'command': 'prepare', 'payload': {'action': 'prepare'}})
+        with patch('tools.review.common.model_prepare_process.inspect_registered_preparation', return_value='idle'), \
+             patch('tools.review.common.model_prepare_process.start_registered_preparation', return_value={'preparation_status': 'running'}) as current_start_mock:
+            self.assertTrue(current_gateway_value.handle(current_handler_value))
+        self.assertEqual(current_handler_value.responses, [200])
+        self.assertEqual(json.loads(current_handler_value.wfile.getvalue())['preparation_status'], 'running')
+        self.assertEqual(current_start_mock.call_args.args[1], 'flux-image')
+        with patch('tools.review.common.model_prepare_process.inspect_registered_preparation', return_value='running'), \
+             patch('tools.review.common.model_prepare_process.start_registered_preparation') as current_duplicate_mock:
+            self.assertEqual(current_flux_manager.start_flux_model_preparation(), {'preparation_status': 'running'})
+            current_duplicate_mock.assert_not_called()
+
+    def test_flux_model_observation_uses_service_status_and_reports_failures(self):
+        from tools.review.ui.gradio.model_management_app import read_model_observation_status
+        def execute_trial_command(current_service_name, current_command_name, current_payload_record):
+            self.assertEqual((current_service_name, current_command_name, current_payload_record), ('flux-image', 'model-status', {}))
+            return {'ready': True, 'message': '구성 파일 확인'}
+        self.assertIn('구성 파일 확인', read_model_observation_status('flux-image', execute_trial_command))
+        def execute_failed_command(current_service_name, current_command_name, current_payload_record):
+            raise RuntimeError('연결 실패')
+        self.assertIn('연결 실패', read_model_observation_status('flux-image', execute_failed_command))
+
+    def test_flux_model_is_available_for_inventory_observation(self):
+        from tools.review.common.model_file_inventory import resolve_model_inventory_paths
+        from tools.review.domains.image.flux_expression_generation import FLUX_MODEL_ROOT_DIRECTORY
+        from tools.review.ui.gradio.model_management_app import MODEL_PREPARATION_SERVICES
+        self.assertEqual(resolve_model_inventory_paths()['flux-image'], [FLUX_MODEL_ROOT_DIRECTORY])
+        self.assertIn(('FLUX 3 Image Klein', 'flux-image'), MODEL_PREPARATION_SERVICES)
 
     def test_model_file_inventory_excludes_partial_cache_and_symlinks(self):
         from pathlib import Path

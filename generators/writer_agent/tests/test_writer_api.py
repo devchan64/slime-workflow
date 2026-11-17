@@ -83,11 +83,13 @@ class WriterApiContracts(TestCase):
         current_workspace_path=current_test_root/'workspace.yaml'
         save_yaml_document(current_workspace_path,{'schema_version':1,'document_root':str(current_documents_root),'state_root':str(current_test_root/'state'),'write_roots':['ideas'],'excluded_roots':[],'protected_paths':[],'catalog_path':None})
         current_manager=WriterAgentManager(current_workspace_path)
+        current_runtime_path=current_test_root/'python'
+        current_runtime_path.touch()
         def launch_mock_queue(current_command_parts,current_job_root,current_service_name,**current_options):
             self.assertEqual(current_service_name,'writer-agent')
             (current_job_root/'status.json').write_text(json.dumps({'status':'queued','queue_position':1}))
             return SimpleNamespace(pid=os.getpid(),poll=lambda:None)
-        with patch('generators.writer_agent.management.launch_gpu_process',side_effect=launch_mock_queue) as current_launch_mock, patch('generators.writer_agent.management.inspect_detached_preparation',return_value='idle'), patch('generators.writer_agent.management.threading.Thread'):
+        with patch('generators.writer_agent.prepare.RUNTIME_PYTHON_PATH',current_runtime_path), patch('generators.writer_agent.management.launch_gpu_process',side_effect=launch_mock_queue) as current_launch_mock, patch('generators.writer_agent.management.inspect_detached_preparation',return_value='idle'), patch('generators.writer_agent.management.threading.Thread'):
             current_submitted_job=current_manager.launch_writer_process({'mode':'learn','prompt':''})
             self.assertEqual(current_launch_mock.call_count,1)
             current_fresh_manager=WriterAgentManager(current_workspace_path)

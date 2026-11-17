@@ -21,8 +21,10 @@ from tools.review.common.host_memory_guard import start_animate_memory_guard, re
 GPU_QUEUE_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/gpu-queue'
 GPU_MEMORY_REQUIREMENTS = {'momask': 4096, 'character-animation': 6144, 'image': 6144}
 GPU_MEMORY_REQUIREMENTS['wan-fun'] = 30000
+GPU_MEMORY_REQUIREMENTS['wan-fun-prepare'] = 6144  # 공유 ROCm 환경 변경은 다른 대기열 작업과 겹치지 않는다.
 GPU_MEMORY_REQUIREMENTS['writer-agent'] = 16384
 GPU_MEMORY_REQUIREMENTS['hermes-agent'] = 32768
+GPU_EXCLUSIVE_SERVICES = frozenset(('hermes-agent', 'wan-fun-prepare', 'management-setup'))
 GPU_MEMORY_REQUIREMENTS['prompt-translation'] = 16384  # 번역 후 작가 AI 의미 검토 모델을 순차 사용한다.
 GPU_MEMORY_REQUIREMENTS['flux3-evaluation'] = 36864  # 768×1152 편집 시험에서 관측한 32812 MiB 피크에 여유를 둔다.
 GPU_MEMORY_REQUIREMENTS['flux-expression'] = 45056  # 768×512 표정 작업 관측 피크 39166 MiB에 여유를 둔다.
@@ -158,7 +160,7 @@ def prioritize_waiting_generation(current_job_identifier):
 
 def select_runnable_ticket(available_memory_mib, current_memory_domain=None, active_service_names=()):
     """잠금 안에서 접수 순서대로 확인해 메모리가 맞는 첫 작업을 선택한다."""
-    if 'hermes-agent' in active_service_names or 'unreadable' in active_service_names:
+    if GPU_EXCLUSIVE_SERVICES.intersection(active_service_names) or 'unreadable' in active_service_names:
         return None
     for waiting_ticket_path in read_priority_tickets():
         try:
@@ -170,7 +172,7 @@ def select_runnable_ticket(available_memory_mib, current_memory_domain=None, act
             waiting_command_record = json.loads((waiting_job_directory/'gpu-command.json').read_text())
         except (FileNotFoundError, ProcessLookupError):
             continue
-        if waiting_command_record['service'] == 'hermes-agent' and active_service_names:
+        if waiting_command_record['service'] in GPU_EXCLUSIVE_SERVICES and active_service_names:
             continue
         waiting_memory_estimate = estimate_required_memory(
             waiting_command_record['service'], GPU_MEMORY_REQUIREMENTS[waiting_command_record['service']],
@@ -241,6 +243,9 @@ def open_verified_hermes_process_group(reservation_record_value):
 
 def recover_stale_hermes_reservation(reservation_record_value):
     """실행기가 죽은 Hermes 예약은 하위 그룹 종료를 확인한 뒤에만 회수한다."""
+    if reservation_record_value.get('service') == 'management-setup':
+        # 설치 자식 프로세스의 생존 여부를 확인할 수 없으므로 자동으로 예약을 제거하지 않는다.
+        return False
     if reservation_record_value.get('service') != 'hermes-agent':
         return True
     worker_pid_descriptor = open_verified_hermes_process_group(reservation_record_value)

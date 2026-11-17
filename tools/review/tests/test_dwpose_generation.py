@@ -27,10 +27,47 @@ class DwposeGenerationTests(unittest.TestCase):
         current_manager = generation.DwposeGenerationManager()
         self.assertTrue(current_manager.select_generation_runner().endswith('generators/dwpose/rocm_worker.py'))
         self.assertEqual(current_manager.select_generation_python(), generation.FUN_PYTHON_EXECUTABLE)
-        with patch.object(generation, 'FUN_PYTHON_EXECUTABLE', Path('/nonexistent/dwpose/python')):
+        with patch.object(generation, 'inspect_registered_preparation', return_value='idle'), \
+                patch.object(generation, 'FUN_PYTHON_EXECUTABLE', Path('/nonexistent/dwpose/python')):
             self.assertFalse(generation.inspect_dwpose_runtime_status()['ready'])
             with self.assertRaisesRegex(ValueError, 'ROCm'):
                 current_manager.validate_generation_runtime()
+
+    def test_model_preparation_reports_running_and_avoids_duplicate(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from tools.review.domains.dwpose import generation
+        with TemporaryDirectory() as current_directory_name:
+            current_python_path = Path(current_directory_name) / 'python'
+            current_python_path.touch()
+            with patch.object(generation, 'FUN_PYTHON_EXECUTABLE', current_python_path), \
+                    patch.object(generation, 'inspect_registered_preparation', return_value='running'), \
+                    patch.object(generation, 'start_registered_preparation') as current_start_mock:
+                current_status_record = generation.inspect_dwpose_runtime_status()
+                self.assertFalse(current_status_record['ready'])
+                self.assertEqual(generation.DwposeGenerationManager().start_model_preparation()['preparation_status'], 'running')
+                current_start_mock.assert_not_called()
+
+    def test_pose_preparation_reserves_queue_and_reuses_existing_downloader(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from generators.dwpose import prepare
+        from tools.review.common import gpu_job_queue
+        with TemporaryDirectory() as current_directory_name:
+            current_root_path = Path(current_directory_name)
+            current_python_path = current_root_path / 'python'
+            current_python_path.touch()
+            current_queue_path = current_root_path / 'queue'
+            def verify_pose_prepare_command(current_command_values, **current_options_values):
+                self.assertEqual(current_command_values[1:], ['-m', 'generators.wan_fun.prepare_pose'])
+                self.assertEqual(len(list((current_queue_path / 'active').glob('*.json'))), 1)
+            with patch.object(prepare, 'FUN_PYTHON_EXECUTABLE', current_python_path), \
+                    patch.object(gpu_job_queue, 'GPU_QUEUE_DIRECTORY', current_queue_path), \
+                    patch.object(prepare, 'validate_fun_pose_assets', side_effect=[ValueError('missing'), None]), \
+                    patch.object(prepare.subprocess, 'run', side_effect=verify_pose_prepare_command) as current_run_mock:
+                prepare.prepare_dwpose_model_files()
+            current_run_mock.assert_called_once()
+            self.assertFalse(list((current_queue_path / 'active').glob('*.json')))
 
     def test_gateway_and_ui_contract(self):
         self.assertEqual(MANAGEMENT_SERVICE_ROUTES['dwpose'],'/dwpose')

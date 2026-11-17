@@ -34,7 +34,7 @@ MANAGEMENT_SERVICE_COMMANDS['wan22-animate2']=('history-delete','resume','genera
 MANAGEMENT_SERVICE_ROUTES['wan22-fun-control']='/wan22-fun-control'
 MANAGEMENT_SERVICE_COMMANDS['wan22-fun-control']=('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_ROUTES['dwpose']='/dwpose'
-MANAGEMENT_SERVICE_COMMANDS['dwpose']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
+MANAGEMENT_SERVICE_COMMANDS['dwpose']=('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_ROUTES['kimodo']='/kimodo'
 MANAGEMENT_SERVICE_COMMANDS['kimodo']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('prepare','keyframe-save','keyframe-list','keyframe-preview','keyframe-replace','keyframe-retire')
@@ -85,7 +85,7 @@ MANAGEMENT_SERVICE_COMMANDS['character-review']=('capture',)
 MANAGEMENT_COMMAND_ROUTES['capture']=('POST','/capture')
 
 
-from generators.music.contracts import AUDIO_SERVICE_NAMES, load_music_defaults
+from generators.music.service_constants import AUDIO_SERVICE_NAMES, RETIRED_AUDIO_SERVICE_NAMES
 for current_service_name in ('billboard-generator','prop-generator', 'vegetation-generator', 'mannequin-generator'):
     MANAGEMENT_SERVICE_ROUTES[current_service_name] = '/' + current_service_name
     MANAGEMENT_SERVICE_COMMANDS[current_service_name] = MANAGEMENT_SERVICE_COMMANDS['qwen-21']
@@ -95,10 +95,11 @@ MANAGEMENT_SERVICE_ROUTES['expression-lora'] = '/expression-lora'
 MANAGEMENT_SERVICE_COMMANDS['expression-lora'] = ('model-status', 'prepare')
 MANAGEMENT_SERVICE_ROUTES['flux-expression'] = '/flux-expression-generator'
 MANAGEMENT_SERVICE_COMMANDS['flux-expression'] = ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset')
-from tools.review.domains.image.flux_image_generation import FLUX_IMAGE_PROFILE_RECORDS
+from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
 for current_flux_profile in FLUX_IMAGE_PROFILE_RECORDS:
     MANAGEMENT_SERVICE_ROUTES[current_flux_profile] = '/' + current_flux_profile + '-generator'
     MANAGEMENT_SERVICE_COMMANDS[current_flux_profile] = MANAGEMENT_SERVICE_COMMANDS['flux-expression']
+MANAGEMENT_SERVICE_COMMANDS['flux-image'] += ('prepare',)
 
 MANAGEMENT_SERVICE_ROUTES['building-generator'] = '/building-generator'
 MANAGEMENT_SERVICE_COMMANDS['building-generator'] = MANAGEMENT_SERVICE_COMMANDS['qwen-21']
@@ -129,6 +130,8 @@ ARCHIVED_QWEN_IMAGE_SERVICES = frozenset((
 
 
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
+    if service_command_name in RETIRED_AUDIO_SERVICE_NAMES and operation_command_name == 'prepare':
+        raise ValueError('폐기된 음악 생성기는 모델 준비를 지원하지 않습니다. 기존 이력은 조회할 수 있습니다.')
     if service_command_name == 'expression-lora' and operation_command_name == 'prepare':
         raise ValueError('Qwen 2.1 표정 LoRA는 라이선스 사유로 사용과 다운로드가 중단되었습니다.')
     if service_command_name in ARCHIVED_QWEN_IMAGE_SERVICES and operation_command_name in ('generate', 'resume', 'prioritize', 'prepare'):
@@ -167,7 +170,7 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'wan22-fun-control' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('Fun Control 모델 준비에는 action=prepare만 허용합니다.')
-    if service_command_name in ('wan22-vace', 'writer-agent', 'prompt-translation', 'hermes-model') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
+    if service_command_name in ('wan22-vace', 'writer-agent', 'prompt-translation', 'hermes-model', 'dwpose') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('모델 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'hermes-model' and operation_command_name == 'model-status' and command_payload_value:
         raise ValueError('모델 상태 조회에는 입력을 전달할 수 없습니다.')
@@ -453,7 +456,14 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         if operation_command_name in ('generate','queue'):
             operation_argument_parser.add_argument('--tag',default='',help='생성 이력 구분 태그, 최대 80자')
             if service_command_name in AUDIO_SERVICE_NAMES:
-                current_music_defaults = load_music_defaults(service_command_name)
+                try:
+                    from generators.music.contracts import load_music_defaults
+                    current_music_defaults = load_music_defaults(service_command_name)
+                except ModuleNotFoundError:
+                    if '--help' not in command_argument_list and '-h' not in command_argument_list:
+                        raise
+                    current_music_defaults = {'duration_seconds': None, 'seed': None, 'loop_request': None}
+                    operation_argument_parser.description = '기본 설정은 관리 환경을 준비한 후 확인할 수 있습니다.'
                 current_prompt_group = operation_argument_parser.add_mutually_exclusive_group(required=True)
                 current_prompt_group.add_argument('--prompt')
                 current_prompt_group.add_argument('--prompt-file',type=Path)
@@ -497,8 +507,16 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             else:
                 prompt_argument_group=operation_argument_parser.add_mutually_exclusive_group(required=service_command_name not in ('outfit-transfer',))
                 if service_command_name in ('expression', 'flux-expression'):
-                    from tools.review.domains.image.expression_generation import load_expression_configuration
-                    prompt_argument_group.add_argument('--expression','--prompt',dest='prompt',choices=[current_expression_record['id'] for current_expression_record in load_expression_configuration()['expressions']],help='표정 프리셋 ID (AU 참고 기반)')
+                    try:
+                        from tools.review.domains.image.expression_generation import load_expression_configuration
+                        current_expression_choices = [current_expression_record['id'] for current_expression_record in load_expression_configuration()['expressions']]
+                        current_expression_help = '표정 프리셋 ID (AU 참고 기반)'
+                    except ModuleNotFoundError:
+                        if '--help' not in command_argument_list and '-h' not in command_argument_list:
+                            raise
+                        current_expression_choices = None
+                        current_expression_help = '표정 프리셋 ID; 목록은 관리 환경을 준비한 후 확인'
+                    prompt_argument_group.add_argument('--expression','--prompt',dest='prompt',choices=current_expression_choices,help=current_expression_help)
                 else:
                     if service_command_name in ('outfit-transfer',):
                         operation_argument_parser.add_argument('--resolution',type=int,choices=(512,768),default=768,help='정사각형 해상도 (기본 768)')
@@ -647,6 +665,21 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         return 130
 
 
+def inspect_registered_model_operation(current_service_name, current_command_names, current_action_name):
+    """등록된 명령과 실제 게이트웨이 정책이 모두 허용하는 모델 동작만 표시한다."""
+    current_candidates_list = (('download-model-status', 'model-status') if current_action_name == 'status' else ('download-model', 'prepare'))
+    for current_operation_name in current_candidates_list:
+        if current_operation_name not in current_command_names:
+            continue
+        current_payload_record = {'action': 'prepare'} if current_operation_name == 'prepare' else {}
+        try:
+            resolve_management_command(current_service_name, current_operation_name, current_payload_record)
+        except ValueError:
+            continue
+        return current_operation_name
+    return None
+
+
 def execute_gateway_cli(command_argument_list=None):
     management_argument_parser = argparse.ArgumentParser(description=__doc__)
     management_subparser_group = management_argument_parser.add_subparsers(dest='tool', required=True)
@@ -656,7 +689,32 @@ def execute_gateway_cli(command_argument_list=None):
     help_argument_parser = management_subparser_group.add_parser('help', help='지원 명령과 사용법 조회')
     help_argument_parser.add_argument('service', nargs='?', choices=MANAGEMENT_SERVICE_COMMANDS)
     help_argument_parser.add_argument('arguments', nargs=argparse.REMAINDER)
+    model_argument_parser = management_subparser_group.add_parser('model', help='등록된 서비스의 모델 상태와 준비')
+    model_argument_parser.add_argument('action', choices=('list', 'status', 'prepare'))
+    model_argument_parser.add_argument('service', nargs='?')
+    model_argument_parser.add_argument('--server-url', default=None)
     management_argument_values = management_argument_parser.parse_args(command_argument_list)
+    if management_argument_values.tool == 'model':
+        current_model_services = {current_service_name: current_command_names for current_service_name, current_command_names in MANAGEMENT_SERVICE_COMMANDS.items()
+                                  if 'model-status' in current_command_names or 'download-model-status' in current_command_names}
+        if management_argument_values.action == 'list':
+            if management_argument_values.service or management_argument_values.server_url:
+                model_argument_parser.error('model list는 서비스나 서버 주소를 받지 않습니다.')
+            print(json.dumps({current_service_name: {'status': inspect_registered_model_operation(current_service_name, current_command_names, 'status'),
+                  'prepare': inspect_registered_model_operation(current_service_name, current_command_names, 'prepare'),
+                  'qwen_archived': current_service_name in ARCHIVED_QWEN_IMAGE_SERVICES,
+                  'retired': current_service_name in ARCHIVED_QWEN_IMAGE_SERVICES or current_service_name in RETIRED_AUDIO_SERVICE_NAMES or current_service_name in ('qwen-2511', 'floor-tile', 'expression-lora')}
+                for current_service_name, current_command_names in current_model_services.items()}, ensure_ascii=False, indent=2))
+            return 0
+        current_service_name = management_argument_values.service
+        if current_service_name not in current_model_services:
+            model_argument_parser.error('모델 상태 명령이 등록된 서비스를 지정하세요. model list로 확인할 수 있습니다.')
+        current_command_names = current_model_services[current_service_name]
+        current_operation_name = inspect_registered_model_operation(current_service_name, current_command_names, management_argument_values.action)
+        if current_operation_name is None:
+            model_argument_parser.error('현재 서비스 정책에서 해당 모델 명령을 지원하지 않습니다. model list로 확인하세요.')
+        current_forward_arguments = (['--server-url', management_argument_values.server_url] if management_argument_values.server_url else []) + [current_operation_name]
+        return execute_gateway_arguments(current_service_name, current_forward_arguments)
     if management_argument_values.tool == 'help':
         if not management_argument_values.service:
             management_argument_parser.print_help()

@@ -6,6 +6,7 @@ import subprocess
 import sys
 import traceback
 
+sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from tools.review.common.management_environment import WORKFLOW_ROOT_DIRECTORY, resolve_management_environment, resolve_gradio_environment
 from tools.review.common.management_process import ManagementLaunchLogger, run_logged_management_command
@@ -42,19 +43,66 @@ def build_management_launch_command(launcher_mode_name, forwarded_argument_value
 
 def run_management_launcher(command_argument_values=None):
     launcher_argument_parser = argparse.ArgumentParser(description=__doc__)
-    launcher_argument_parser.add_argument('mode', choices=('setup', 'gui', 'gateway', 'snapshot'))
+    launcher_argument_parser.add_argument('mode', choices=('setup', 'gui', 'gateway', 'snapshot', 'doctor', 'test', 'command', 'help', 'start', 'model'))
     launcher_argument_parser.add_argument('arguments', nargs=argparse.REMAINDER)
     launcher_argument_values = launcher_argument_parser.parse_args(command_argument_values)
-    if launcher_argument_values.mode == 'setup' and launcher_argument_values.arguments:
-        if launcher_argument_values.arguments in (['--help'], ['-h']):
-            print('환경 준비: scripts/setup_management.sh · 실행 시 의존성을 설치하지 않습니다.')
+    if launcher_argument_values.mode == 'start':
+        start_argument_parser = argparse.ArgumentParser(prog='workflow start', description='비어 있는 포트에서 게이트웨이와 GUI를 독립 실행합니다.')
+        start_argument_parser.parse_args(launcher_argument_values.arguments)
+        from tools.review.common.management_stack import start_management_stack
+        try:
+            return start_management_stack()
+        except (OSError, ValueError, RuntimeError) as stack_start_error:
+            print(f'통합 시작 실패: {stack_start_error}', file=sys.stderr)
+            return 1
+    if launcher_argument_values.mode in ('command', 'help', 'model'):
+        if (launcher_argument_values.mode == 'help' or
+                any(current_argument_text in ('-h', '--help') for current_argument_text in launcher_argument_values.arguments)):
+            current_manager_path = WORKFLOW_ROOT_DIRECTORY / 'tools/manager.py'
+            current_runtime_python = resolve_management_environment('VIRTUAL_ENVIRONMENT_PATH', '.venv') / 'bin/python'
+            current_help_command = ([str(current_runtime_python), '-I', '-B'] if current_runtime_python.is_file() else [sys.executable, '-I', '-S', '-B'])
+            return subprocess.run([*current_help_command, str(current_manager_path), launcher_argument_values.mode, *launcher_argument_values.arguments], check=False).returncode
+        current_runtime_path = resolve_management_environment('VIRTUAL_ENVIRONMENT_PATH', '.venv') / 'bin/python'
+        if not current_runtime_path.is_file():
+            launcher_argument_parser.error('관리 Python 환경이 없습니다. setup --scope management를 먼저 실행하세요.')
+        current_manager_path = WORKFLOW_ROOT_DIRECTORY / 'tools/manager.py'
+        return subprocess.run([str(current_runtime_path), str(current_manager_path), launcher_argument_values.mode, *launcher_argument_values.arguments], check=False).returncode
+    if launcher_argument_values.mode == 'doctor':
+        doctor_argument_parser = argparse.ArgumentParser(prog='workflow doctor', description='환경을 변경하지 않고 준비 상태를 확인합니다.')
+        doctor_argument_parser.add_argument('--inventory', action='store_true', help='등록된 모델 파일 수·용량도 읽기 전용으로 확인합니다.')
+        doctor_argument_parser.add_argument('--dependencies', action='store_true', help='생성기 패키지 의존성 메타데이터도 읽기 전용으로 확인합니다.')
+        doctor_argument_values = doctor_argument_parser.parse_args(launcher_argument_values.arguments)
+        from tools.review.common.management_diagnostics import inspect_management_environment
+        return inspect_management_environment(doctor_argument_values.inventory, doctor_argument_values.dependencies)
+    if launcher_argument_values.mode in ('gui', 'gateway') and any(current_argument_text in ('-h', '--help') for current_argument_text in launcher_argument_values.arguments):
+        current_script_path = WORKFLOW_ROOT_DIRECTORY / LAUNCHER_MODE_SCRIPT_PATHS[launcher_argument_values.mode]
+        return subprocess.run([sys.executable, '-I', '-S', '-B', str(current_script_path), *launcher_argument_values.arguments], check=False).returncode
+    if launcher_argument_values.mode == 'test':
+        if (launcher_argument_values.arguments in (['-h'], ['--help'], ['--list-all']) or
+                len(launcher_argument_values.arguments) == 2 and launcher_argument_values.arguments[0] == '--list-group'):
+            from tools.review.tests.run_management_audit import run_management_audit_cli
+            return run_management_audit_cli(launcher_argument_values.arguments)
+        current_runtime_path = resolve_management_environment('VIRTUAL_ENVIRONMENT_PATH', '.venv') / 'bin/python'
+        if not current_runtime_path.is_file():
+            launcher_argument_parser.error('관리 Python 환경이 없습니다. setup --scope management를 먼저 실행하세요.')
+        current_test_path = WORKFLOW_ROOT_DIRECTORY / 'tools/review/tests/run_management_audit.py'
+        return subprocess.run([str(current_runtime_path), str(current_test_path), *launcher_argument_values.arguments], check=False).returncode
+    selected_setup_scope = 'legacy'
+    if launcher_argument_values.mode == 'setup':
+        setup_argument_parser = argparse.ArgumentParser(prog='workflow setup', description='선택한 환경만 명시적으로 준비합니다.')
+        setup_argument_parser.add_argument('--scope', choices=('legacy', 'management', 'image', 'renderer', 'hermes-runtime', 'hermes-mcp', 'wan-fun-runtime', 'sfx-runtime', 'kimodo-runtime', 'heartmula-runtime', 'writer-runtime'), default='legacy')
+        setup_argument_parser.add_argument('--plan', action='store_true', help='변경 없이 준비 대상과 다운로드를 표시합니다.')
+        current_setup_arguments = setup_argument_parser.parse_args(launcher_argument_values.arguments)
+        selected_setup_scope = current_setup_arguments.scope
+        from tools.review.common.management_setup_plan import print_management_setup_plan
+        print_management_setup_plan(selected_setup_scope)
+        if current_setup_arguments.plan:
             return 0
-        launcher_argument_parser.error('setup은 추가 인자를 받지 않습니다.')
     launcher_trace_logger = ManagementLaunchLogger(launcher_argument_values.mode)
     try:
         launcher_trace_logger.emit_launch_trace('start', f'root={WORKFLOW_ROOT_DIRECTORY} log={launcher_trace_logger.output_log_path}')
         if launcher_argument_values.mode == 'setup':
-            prepare_management_environments(launcher_trace_logger)
+            prepare_management_environments(launcher_trace_logger, selected_setup_scope)
         else:
             from tools.review.common.content_launch_config import apply_content_launch_configuration
             apply_content_launch_configuration()
@@ -78,4 +126,12 @@ def run_management_launcher(command_argument_values=None):
 
 
 if __name__ == '__main__':
+    # 실행·콘텐츠 설정은 선택한 관리 환경의 의존성을 사용한다.
+    # 진단과 설치는 site 실행 없이 시작해 깨진 환경도 복구할 수 있다.
+    if (len(sys.argv) > 1 and sys.argv[1] in ('gui', 'gateway', 'snapshot') and
+            not (sys.argv[1] in ('gui', 'gateway') and any(current_argument_text in ('-h', '--help') for current_argument_text in sys.argv[2:]))):
+        selected_runtime_directory = resolve_management_environment('VIRTUAL_ENVIRONMENT_PATH', '.venv')
+        selected_runtime_python = selected_runtime_directory / 'bin/python'
+        if selected_runtime_python.is_file() and (sys.flags.no_site or Path(sys.prefix).resolve() != selected_runtime_directory.resolve()):
+            os.execv(str(selected_runtime_python), [str(selected_runtime_python), '-I', '-B', str(Path(__file__).resolve()), *sys.argv[1:]])
     raise SystemExit(run_management_launcher())

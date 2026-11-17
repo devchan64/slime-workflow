@@ -5,22 +5,14 @@ import importlib
 import json
 import re
 from pathlib import Path
+from urllib.parse import urlsplit
 from generators.image.common_art_style import compose_common_style_prompt
 from tools.review.domains.image.image_generation import ImageGenerationManager, MANAGER_HISTORY_ROOT, WORKFLOW_ROOT_PATH
 from tools.review.domains.image.three_reference_generation import decode_reference_image, validate_three_reference_request, verify_reference_snapshots
 from tools.review.domains.image.flux_expression_generation import FLUX_MODEL_ROOT_DIRECTORY, FLUX_MODEL_REVISION_VALUE
 from tools.review.domains.image.flux_translation_queue import FluxTranslationQueueMixin, validate_flux_translation_runtime
 
-FLUX_IMAGE_PROFILE_RECORDS = {
-    'flux-image': ('일반 이미지', '입력한 내용과 참조 이미지로 이미지를 생성합니다.', 768, 768, 0),
-    'flux-character': ('캐릭터', '캐릭터 외형과 자세를 설명하세요. 첫 참조로 신체 비율 기준을 선택할 수 있습니다.', 768, 1152, 0),
-    'flux-mannequin': ('마네킨', '마네킨 제작 단계와 참조를 선택하고 필요한 변경을 입력하세요.', 768, 1152, 1),
-    'flux-billboard': ('빌보드 가이드', '첫 참조에 점유 가이드를 선택하세요.', 768, 768, 1),
-    'flux-prop': ('소품', '소품의 용도와 재질을 설명하세요.', 768, 768, 0),
-    'flux-vegetation': ('식생', '식물의 종류와 형태를 설명하세요.', 768, 768, 0),
-    'flux-building': ('건물', '첫 참조에 건물 배치 가이드를 선택하고 용도와 재질을 설명하세요.', 768, 768, 1),
-    'flux-seamless': ('심리스 타일', '전역 주기 어텐션과 순환 VAE로 생성하고 3×3으로 확인합니다. 새 작업은 512×512 무참조만 지원합니다.', 512, 512, 0),
-}
+from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
 FLUX_SEAMLESS_METHOD_VALUES = ('global-periodic-v1', 'circular-vae-v2', 'circular-vae', 'edge-blend')
 
 
@@ -52,6 +44,44 @@ class FluxImageGenerationManager(FluxTranslationQueueMixin, ImageGenerationManag
         if not all((FLUX_MODEL_ROOT_DIRECTORY / name).exists() for name in ('manifest.json','transformer','vae','text_encoder')):
             raise ValueError('FLUX 3 Image Klein 모델 구성 요소가 없습니다.')
         validate_flux_translation_runtime(saved_request_record)
+
+    def inspect_flux_model_status(self):
+        from generators.image.flux_model_prepare import FLUX_MODEL_DIRECTORY, read_flux_model_lock, inspect_flux_model_file_sizes
+        from tools.review.common.model_prepare_process import inspect_registered_preparation
+        current_preparation_status = inspect_registered_preparation(WORKFLOW_ROOT_PATH, 'flux-image')
+        current_model_exists = FLUX_MODEL_DIRECTORY.exists() or FLUX_MODEL_DIRECTORY.is_symlink()
+        current_model_ready = False
+        if current_model_exists:
+            current_model_ready = inspect_flux_model_file_sizes(FLUX_MODEL_DIRECTORY, read_flux_model_lock())
+        current_status_message = ('공식 모델 파일 크기 확인 · 전체 해시와 GPU 실행은 별도 확인' if current_model_ready else
+            '기존 모델이 불완전합니다. 자동으로 덮어쓰지 않습니다.' if current_model_exists else '공식 모델 파일 준비가 필요합니다.')
+        if current_preparation_status == 'failed':
+            current_status_message += ' 준비 실패: .local/model-preparation/flux-image/worker.log를 확인하세요.'
+        return {'ready': current_model_ready, 'generation_ready': current_model_ready,
+                'can_prepare': not current_model_exists or current_model_ready, 'message': current_status_message,
+                'prepare_blocked_reason': '기존 모델은 자동 변경하지 않습니다.', 'preparation_status': current_preparation_status}
+
+    def start_flux_model_preparation(self):
+        from tools.review.common.model_prepare_process import inspect_registered_preparation, start_registered_preparation
+        with self.current_request_lock:
+            if inspect_registered_preparation(WORKFLOW_ROOT_PATH, 'flux-image') == 'running':
+                return {'preparation_status': 'running'}
+            return start_registered_preparation(WORKFLOW_ROOT_PATH, 'flux-image')
+
+    def handle_image_request(self, current_http_handler):
+        from tools.review.common.management_transport import send_management_json_response
+        current_request_path = urlsplit(current_http_handler.path).path
+        current_command_payload = getattr(current_http_handler, 'management_command_payload', None)
+        if self.current_profile_name == 'flux-image' and current_command_payload is not None:
+            if current_http_handler.command == 'GET' and current_request_path == self.route_prefix_value + '/model-status':
+                send_management_json_response(current_http_handler, 200, self.inspect_flux_model_status())
+                return True
+            if current_http_handler.command == 'POST' and current_request_path == self.route_prefix_value + '/jobs' and isinstance(current_command_payload, dict) and current_command_payload.get('action') == 'prepare':
+                if current_command_payload != {'action': 'prepare'}:
+                    raise ValueError('FLUX 모델 준비는 추가 입력을 받지 않습니다.')
+                send_management_json_response(current_http_handler, 200, self.start_flux_model_preparation())
+                return True
+        return super().handle_image_request(current_http_handler)
 
     def validate_generation_request(self, request_record_value):
         current_seamless_method = None

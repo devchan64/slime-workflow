@@ -12,6 +12,66 @@ from tools.review.common.management_gateway import ManagementCommandGateway, res
 
 
 class GatewayContractTest(unittest.TestCase):
+    def test_model_cli_reuses_registered_service_operations(self):
+        with contextlib.redirect_stdout(io.StringIO()) as model_list_stream:
+            self.assertEqual(execute_gateway_cli(['model', 'list']), 0)
+        current_model_list = json.loads(model_list_stream.getvalue())
+        self.assertEqual(current_model_list['hermes-model']['prepare'], 'prepare')
+        self.assertEqual(current_model_list['music-heartmula']['prepare'], 'download-model')
+        self.assertEqual(current_model_list['dwpose']['prepare'], 'prepare')
+        self.assertEqual(current_model_list['flux-image']['prepare'], 'prepare')
+        self.assertTrue(current_model_list['qwen-21']['qwen_archived'])
+        self.assertIsNone(current_model_list['qwen-21']['prepare'])
+        self.assertIsNone(current_model_list['qwen-2511']['status'])
+        self.assertIsNone(current_model_list['expression-lora']['prepare'])
+        self.assertTrue(current_model_list['floor-tile']['retired'])
+        for current_service_name, current_model_record in current_model_list.items():
+            for current_action_name in ('status', 'prepare'):
+                current_operation_name = current_model_record[current_action_name]
+                if current_operation_name is not None:
+                    current_payload_value = {'action':'prepare'} if current_operation_name == 'prepare' else {}
+                    resolve_management_command(current_service_name, current_operation_name, current_payload_value)
+        for current_retired_name in ('music-minimax', 'music-magenta'):
+            self.assertTrue(current_model_list[current_retired_name]['retired'])
+            self.assertIsNone(current_model_list[current_retired_name]['prepare'])
+        with patch('tools.review.common.management_gateway.execute_gateway_arguments', return_value=7) as gateway_arguments_mock:
+            self.assertEqual(execute_gateway_cli(['model', 'prepare', 'music-heartmula']), 7)
+            gateway_arguments_mock.assert_called_once_with('music-heartmula', ['download-model'])
+        with patch('tools.review.common.management_gateway.execute_gateway_arguments', return_value=0) as gateway_arguments_mock:
+            self.assertEqual(execute_gateway_cli(['model', 'status', 'hermes-model', '--server-url', 'http://127.0.0.1:8771']), 0)
+            gateway_arguments_mock.assert_called_once_with('hermes-model', ['--server-url', 'http://127.0.0.1:8771', 'model-status'])
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            execute_gateway_cli(['model', 'prepare', 'not-a-service'])
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            execute_gateway_cli(['model', 'prepare', 'qwen-21'])
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            execute_gateway_cli(['model', 'prepare', 'music-minimax'])
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            execute_gateway_cli(['model', 'prepare', 'expression-lora'])
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            execute_gateway_cli(['model', 'status', 'qwen-2511'])
+
+    def test_gateway_health_identifies_current_launch(self):
+        import os
+        import threading
+        from http.server import ThreadingHTTPServer
+        from urllib.request import urlopen
+        from tools.review.gateway_server import create_gateway_request_handler
+        with patch.dict(os.environ, {'SLIME_MANAGEMENT_STACK_TOKEN':'fixture-token'}):
+            current_gateway_server = ThreadingHTTPServer(('127.0.0.1', 0), create_gateway_request_handler(lambda current_handler: False))
+            current_gateway_server.emit_gateway_trace = lambda *current_trace_values: None
+            current_gateway_thread = threading.Thread(target=current_gateway_server.serve_forever, daemon=True)
+            current_gateway_thread.start()
+            try:
+                with urlopen(f'http://127.0.0.1:{current_gateway_server.server_port}/management/health', timeout=5) as current_health_response:
+                    current_health_record = json.load(current_health_response)
+                self.assertEqual(current_health_record['role'], 'management-gateway')
+                self.assertEqual(current_health_record['launch_token'], 'fixture-token')
+            finally:
+                current_gateway_server.shutdown()
+                current_gateway_thread.join(timeout=5)
+                current_gateway_server.server_close()
+
     def test_loopback_hosts_require_matching_origin(self):
         from tools.review.common.management_environment import validate_gateway_address
         from tools.review.common.management_transport import validate_management_http_request

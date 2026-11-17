@@ -28,6 +28,57 @@ class RocmAudioGuardTests(unittest.TestCase):
         configure_heartmula_memory_allocator(current_environment_values)
         self.assertEqual(current_environment_values, {'PYTORCH_ALLOC_CONF': 'expandable_segments:False'})
 
+    def test_heartmula_setup_accepts_only_documented_metadata_exceptions(self):
+        from types import SimpleNamespace
+        from generators.music.heartmula import setup_runtime
+        current_logger_mock = __import__('unittest.mock', fromlist=['Mock']).Mock()
+        current_known_record = SimpleNamespace(returncode=1, stdout='The package `heartlib` requires `torch>=2.4,<2.11`, but another version is installed\n', stderr='')
+        with patch.object(setup_runtime.subprocess, 'run', return_value=current_known_record):
+            self.assertEqual(setup_runtime.inspect_heartmula_dependency_exceptions('uv', 'python', current_logger_mock), 1)
+        current_unexpected_record = SimpleNamespace(returncode=1, stdout='The package `demucs` requires `torch>=3`, but another version is installed\n', stderr='')
+        with patch.object(setup_runtime.subprocess, 'run', return_value=current_unexpected_record):
+            with self.assertRaisesRegex(ValueError, '다른 의존성'):
+                setup_runtime.inspect_heartmula_dependency_exceptions('uv', 'python', current_logger_mock)
+
+    def test_heartmula_setup_preserves_existing_environment(self):
+        from generators.music.heartmula import setup_runtime
+        with TemporaryDirectory() as current_directory_name:
+            current_runtime_path = Path(current_directory_name) / 'runtime'
+            current_runtime_path.mkdir()
+            current_marker_path = current_runtime_path / 'keep.txt'
+            current_marker_path.write_text('keep')
+            with patch.object(setup_runtime, 'HEARTMULA_RUNTIME_DIRECTORY', current_runtime_path), \
+                    patch.object(setup_runtime, 'run_logged_management_command') as current_run_mock:
+                with self.assertRaisesRegex(ValueError, '자동 변경하지 않습니다'):
+                    setup_runtime.prepare_heartmula_runtime_environment()
+            current_run_mock.assert_not_called()
+            self.assertEqual(current_marker_path.read_text(), 'keep')
+
+    def test_effects_setup_rejects_non_rocm_in_optimized_mode(self):
+        import subprocess
+        import sys
+        from generators.sound_effects.setup_runtime import build_effects_rocm_validation
+        current_mock_code = "import sys,types; sys.modules['torch']=types.SimpleNamespace(version=types.SimpleNamespace(hip=None))\n"
+        current_process_result = subprocess.run([sys.executable, '-O', '-c', current_mock_code + build_effects_rocm_validation()], capture_output=True, text=True)
+        self.assertNotEqual(current_process_result.returncode, 0)
+        self.assertIn('BF16 ROCm GPU', current_process_result.stderr)
+
+    def test_sfx_setup_preserves_incomplete_environment(self):
+        from generators.sound_effects import setup_runtime
+        with TemporaryDirectory() as current_directory_name:
+            current_workspace_root = Path(current_directory_name)
+            current_runtime_path = current_workspace_root / '.venv-sfx-dasheng'
+            current_runtime_path.mkdir()
+            current_marker_path = current_runtime_path / 'keep.txt'
+            current_marker_path.write_text('keep')
+            with patch.object(setup_runtime, 'WORKFLOW_ROOT_DIRECTORY', current_workspace_root), \
+                    patch.object(setup_runtime.shutil, 'which', return_value='/usr/bin/uv'), \
+                    patch.object(setup_runtime, 'run_logged_management_command') as current_command_mock:
+                with self.assertRaisesRegex(ValueError, '불완전'):
+                    setup_runtime.install_effects_runtime()
+            current_command_mock.assert_not_called()
+            self.assertEqual(current_marker_path.read_text(), 'keep')
+
     def test_setup_does_not_replace_existing_cuda_torch(self):
         from generators.sound_effects import setup_runtime
         with TemporaryDirectory() as current_directory_name:
@@ -35,6 +86,7 @@ class RocmAudioGuardTests(unittest.TestCase):
             current_python_path = current_workspace_root/'.venv-sfx-dasheng/bin/python'
             current_python_path.parent.mkdir(parents=True)
             current_python_path.touch()
+            (current_workspace_root / '.venv-sfx-dasheng/pyvenv.cfg').touch()
             with patch.object(setup_runtime, 'WORKFLOW_ROOT_DIRECTORY', current_workspace_root), patch.object(setup_runtime.shutil, 'which', return_value='/usr/bin/uv'), patch.object(setup_runtime.subprocess, 'check_output', return_value='2.8.0+cu128\n'), patch.object(setup_runtime, 'ManagementLaunchLogger'), patch.object(setup_runtime, 'run_logged_management_command') as current_command_mock:
                 with self.assertRaisesRegex(RuntimeError, '교체하지 않습니다'):
                     setup_runtime.install_effects_runtime()

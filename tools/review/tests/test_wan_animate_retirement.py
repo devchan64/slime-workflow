@@ -17,6 +17,23 @@ class WanAnimateRetirementTests(unittest.TestCase):
     def test_shared_validation_preserved(self):
         from generators.common.onnx_model_validation import validate_external_tensor_files
         self.assertTrue(callable(validate_external_tensor_files))
-        self.assertIn('generators/common/onnx_model_validation.py',Path('generators/kimodo/reference_extraction.py').read_text())
+        import hashlib
+        import json
+        import tempfile
+        from unittest.mock import patch
+        from generators.kimodo import dwpose_runtime
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            current_model_directory = Path(temporary_directory_name)
+            current_model_hashes = {}
+            for current_model_name in dwpose_runtime.FUN_POSE_MODEL_NAMES:
+                current_model_path = (current_model_directory / current_model_name).with_suffix('.cuda.onnx')
+                current_model_path.write_bytes(current_model_name.encode())
+                current_model_hashes[current_model_path.name] = hashlib.sha256(current_model_path.read_bytes()).hexdigest()
+            (current_model_directory / 'prepared.json').write_text(json.dumps({'revision': dwpose_runtime.FUN_POSE_MODEL_REVISION, 'files': current_model_hashes}))
+            with patch.object(dwpose_runtime, 'FUN_POSE_MODEL_DIRECTORY', current_model_directory):
+                dwpose_runtime.validate_fun_pose_assets()
+                current_model_path.write_bytes(b'changed')
+                with self.assertRaisesRegex(ValueError, '해시 불일치'):
+                    dwpose_runtime.validate_fun_pose_assets()
         from generators.wan_vace.contracts import VACE_MODEL_FILES
         self.assertIn('wan_2.1_vae.safetensors',VACE_MODEL_FILES['vae'][0])

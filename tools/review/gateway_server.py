@@ -28,7 +28,10 @@ def create_gateway_request_handler(dispatch_runtime_request):
                 return
             request_route_path = urlsplit(self.path).path
             if self.command == 'GET' and request_route_path == '/management/health':
-                send_management_json_response(self, 200, {'status': 'ok', 'role': 'management-gateway', 'pid': os.getpid()})
+                current_health_record = {'status': 'ok', 'role': 'management-gateway', 'pid': os.getpid()}
+                if os.environ.get('SLIME_MANAGEMENT_STACK_TOKEN'):
+                    current_health_record['launch_token'] = os.environ['SLIME_MANAGEMENT_STACK_TOKEN']
+                send_management_json_response(self, 200, current_health_record)
                 return
             if self.command == 'GET' and request_route_path in ('/management/gpu-status', '/management/gpu-queue'):
                 from tools.review.common.gpu_status import read_gpu_status

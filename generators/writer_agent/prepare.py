@@ -217,6 +217,17 @@ def prepare_writer_model_files():
         write_record_atomically(current_receipt_path, current_receipt_record)
 
 
+def prepare_new_writer_environment():
+    """GPU 잠금 안에서 기존 환경을 다시 확인한 뒤 최초 준비한다."""
+    current_protected_paths = (RUNTIME_PYTHON_PATH.parent.parent,
+        RUNTIME_INSTALL_ROOT / ('llama.cpp-' + SOURCE_RELEASE_NAME),
+        RUNTIME_INSTALL_ROOT / (SOURCE_RELEASE_NAME + '.tar.gz'),
+        RUNTIME_INSTALL_ROOT / 'prepared.json')
+    if RUNTIME_INSTALL_ROOT.is_symlink() or any(current_path_value.exists() or current_path_value.is_symlink() for current_path_value in current_protected_paths):
+        raise ValueError('기존 작가 실행 환경이 발견되어 자동 변경하지 않습니다.')
+    prepare_runtime_environment()
+
+
 def execute_writer_preparation(current_argument_values, current_prepare_callback=None):
     global CURRENT_LOG_PATH
     if current_prepare_callback is None:
@@ -251,5 +262,6 @@ if __name__ == '__main__':
     current_argument_parser.add_argument('--run-dir',type=Path,required=True)
     current_argument_parser.add_argument('--status-path',type=Path)
     current_argument_parser.add_argument('--lock-fd',type=int)
+    current_argument_parser.add_argument('--new-only', action='store_true')
     current_argument_values=current_argument_parser.parse_args()
-    execute_writer_preparation(current_argument_values)
+    execute_writer_preparation(current_argument_values, prepare_new_writer_environment if current_argument_values.new_only else None)

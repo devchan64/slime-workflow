@@ -8,25 +8,17 @@ Hermes는 관리도구의 현재 추적 파일과 Git에서 무시하지 않는 
 - **Hermes:** 공식 `v0.23.1`, Git 리비전 `3b421578588243f920886e6fe79a6faa87ea026e`. Git 제외 경로 `.local/hermes-agent-runtime/`에 준비한다. `prepared-local.json`, Git HEAD, 추적 파일 변경과 무시되지 않은 신규 파일을 실행 직전에 검사한다. 이 검사는 `.venv/`의 모든 패키지 파일 해시를 검증하는 기능은 아니다.
 - **추론 서버:** 작가 AI가 준비한 ROCm `llama-server` 바이너리와 준비 manifest를 읽고 바이너리 SHA-256을 확인한다. 모델 프로세스는 Hermes 전용이며 작가 AI 서버의 실행 상태를 변경하지 않는다.
 - **GPU 프로세스 정리:** PID 재사용에 안전한 프로세스 그룹 종료를 위해 Linux 6.9 이상의 `pidfd_send_signal` 그룹 신호 지원이 필요하다. 지원되지 않으면 GPU 사용 전에 작업을 실패 처리한다.
-- **MCP 실행환경:** Python 3.14 전용 별도 환경에 버전 고정 의존성을 설치한다. 아래 명령은 해당 경로에 새 환경을 준비할 때 사용한다.
+- **MCP 실행환경:** Python 3.14 전용 별도 환경에 버전 고정 의존성을 설치한다.
+
+저장소 루트의 공용 진입점에서 필요한 환경을 선택하여 준비한다. `writer-runtime`은 공용 서버와 작가 AI 모델 두 개도 준비하며, 기존 준비 환경은 해시만 검증한다. Hermes 모델 다운로드와 Codex 등록은 별도 단계다.
 
 ```bash
-python3 -m venv .local/hermes-mcp
-.local/hermes-mcp/bin/pip install -r generators/hermes_agent/requirements-mcp.lock
+./scripts/workflow.sh setup --scope writer-runtime
+./scripts/workflow.sh setup --scope hermes-runtime
+./scripts/workflow.sh setup --scope hermes-mcp
 ```
 
-Hermes 소스 환경은 현재 수동 준비 단계다. 저장소 루트에서 다음 명령으로 [공식 소스](https://github.com/NousResearch/hermes-agent)의 고정 리비전과 잠금 의존성을 준비할 수 있다. 기존 디렉터리는 덮어쓰지 않는다. 준비가 중간에 실패하면 남은 디렉터리와 로그를 확인한 뒤 처리하며, 다른 사용자의 파일을 자동 삭제하지 않는다.
-
-```bash
-if [ -e .local/hermes-agent-runtime ]; then
-  printf '기존 Hermes 실행 디렉터리가 있어 준비를 중단합니다.\n'
-else
-  git clone --no-checkout https://github.com/NousResearch/hermes-agent .local/hermes-agent-runtime &&
-  git -C .local/hermes-agent-runtime checkout --detach 3b421578588243f920886e6fe79a6faa87ea026e &&
-  (cd .local/hermes-agent-runtime && ../../.venv/bin/uv sync --locked --no-dev) &&
-  python3 -c 'import json; from pathlib import Path; Path(".local/hermes-agent-runtime/prepared-local.json").write_text(json.dumps({"revision":"3b421578588243f920886e6fe79a6faa87ea026e","release":"v0.23.1","source":"https://github.com/NousResearch/hermes-agent"}) + "\n")'
-fi
-```
+Hermes 소스는 [공식 소스](https://github.com/NousResearch/hermes-agent)의 고정 리비전을 내려받고 `uv sync --locked --no-dev`로 준비한다. 실행에는 `uv`가 필요하다. 이미 설치된 소스는 리비전과 변경 여부를 검증하고 재사용한다. 기존 MCP 환경은 Python 버전과 고정 패키지 버전, `pip check`를 확인하며 자동 변경하지 않는다. 설치가 중간에 실패하거나 기존 디렉터리가 불완전하면 남은 파일과 로그를 확인해야 한다. 자동 삭제·덮어쓰기는 하지 않는다. 패키지 파일 자체의 해시 전체를 검사한다는 뜻은 아니다.
 
 모델 다운로드만으로 Hermes·ROCm 서버가 준비되는 것은 아니다. 추론 서버 준비는 [작가 AI 실행 안내](../../workflows/writer-agent.md)를 참고한다.
 

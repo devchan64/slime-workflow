@@ -19,7 +19,7 @@ if __name__ == '__main__' and 'music-heartmula' in sys.argv:
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
-from generators.music.contracts import AUDIO_SERVICE_NAMES, read_music_record, resolve_music_paths, resolve_music_profile, verify_music_request, validate_music_identifier
+from generators.music.contracts import AUDIO_SERVICE_NAMES, RETIRED_AUDIO_SERVICE_NAMES, read_music_record, resolve_music_paths, resolve_music_profile, verify_music_request, validate_music_identifier
 from generators.music.runtime import prepare_music_model, execute_music_inference, calculate_music_checksum
 from tools.review.common.generation_records import write_record_atomically
 from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
@@ -49,7 +49,7 @@ def collect_music_durations(current_storage_root,current_request_record,current_
 
 
 def execute_music_worker(current_service_name,current_job_root):
-    if current_service_name in ('music-magenta', 'music-minimax'):
+    if current_service_name in RETIRED_AUDIO_SERVICE_NAMES:
         raise ValueError('폐기된 음악 생성기는 실행할 수 없습니다.')
     current_prepare_callback = prepare_music_model
     from generators.music.structured_inputs import execute_structured_inference

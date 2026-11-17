@@ -16,12 +16,13 @@ const isFieldMapReview=false,isCharacterReviewPage=true;
 const groundTextureNames={paving:'first'};
 const currentMapRecord={terrainCodes:{p:'paving'},guardCenters:[]};
 const currentSafeVisualRecords={};
-const currentTextureRecords={first:{path:'first.png',source_size:[128,128],expected_source_size:[128,128]},second:{path:'second.png',source_size:[128,128],expected_source_size:[128,128]}};
+const currentTextureRecords={first:{path:'first.png',source:'/tiles/first.png',source_size:[128,128]},second:{path:'second.png',source:'/tiles/second.png',source_size:[128,128]}};
+const currentAppliedGameKeys={};
 let currentReplacementCount=0;
-function createTestElement(){return {children:[],append(...currentChildNodes){this.children.push(...currentChildNodes);},prepend(...currentChildNodes){this.children.unshift(...currentChildNodes);}};}
-const currentSourceList=createTestElement();
+function createTestElement(){return {children:[],append(...currentChildNodes){this.children.push(...currentChildNodes);},setAttribute(){},addEventListener(){},replaceChildren(){this.children=[];},get childElementCount(){return this.children.length;}};}
+const currentSourceList=createTestElement(),currentOtherLists={};
 currentSourceList.replaceChildren=()=>{currentReplacementCount++;currentSourceList.children=[];};
-const document={querySelector:()=>currentSourceList,createElement:createTestElement};
+const document={querySelector:(currentSelectorName)=>currentSelectorName==='#applied-tile-list'?currentSourceList:(currentOtherLists[currentSelectorName]??=createTestElement()),createElement:createTestElement};
 SOURCE
 renderAppliedTileSourceList();
 const currentOriginalNode=currentSourceList.children[0];
@@ -35,7 +36,7 @@ assert.equal(currentReplacementCount,2);
 assert.notEqual(currentSourceList.children[0],currentOriginalNode);
 currentTextureRecords.second.path='updated.png';renderAppliedTileSourceList();
 assert.equal(currentReplacementCount,3);
-assert.equal(currentSourceList.children[0].children[0].src,'http://localhost/updated.png');
+assert.equal(currentSourceList.children[1].children[1].children[0].children[0].children[0].href,'http://localhost/updated.png');
 """.replace('SOURCE',current_render_source)
         current_test_result=subprocess.run(['node','-e',current_script_source],capture_output=True,text=True,timeout=10)
         self.assertEqual(current_test_result.returncode,0,current_test_result.stderr)
@@ -82,35 +83,29 @@ const createTestReview=()=>createSharedFieldReview(currentCanvasElement,{}, {},c
         self.assertEqual(current_test_result.returncode,0,current_test_result.stderr)
 
     def test_texture_progress_preserves_failure_during_other_completions(self):
-        current_loader_path=Path(__file__).parents[1]/'ui/map/block-map-review.js'
-        current_loader_source=current_loader_path.read_text().split('const currentTextureEntries=',1)[1].split('const reviewCharacterRecord=',1)[0]
-        current_loader_source=('const currentTextureEntries='+current_loader_source).replace('import.meta.url',json.dumps('http://localhost/'))
-        current_script_source=r"""
+        current_loader_path = (Path(__file__).parents[1] / 'ui/map/vendor/field-renderer/town-renderer.mjs').resolve()
+        current_loader_source = 'var MAP_RESOURCE_CONCURRENCY = ' + current_loader_path.read_text().split('var MAP_RESOURCE_CONCURRENCY = ', 1)[1].split('function collectMapResourceKeys', 1)[0]
+        current_script_source = r"""
 const assert=require('node:assert/strict');
-const currentLoadTextures=new (Object.getPrototypeOf(async function(){}).constructor)('currentTextureRecords','loadedTextureImages','Image','document',SOURCE);
-async function verifyTextureProgress(currentFailRequested){
- const currentStatusElement={textContent:''},currentImageElements=[];
- class TestImage{constructor(){currentImageElements.push(this);}set src(value){}}
- const currentPendingLoad=currentLoadTextures({a:{path:'a.png'},b:{path:'b.png'}},{},TestImage,{querySelector:()=>currentStatusElement});
- assert.match(currentStatusElement.textContent,/0 \/ 2/);
- if(currentFailRequested){
-  const currentRejectedLoad=assert.rejects(currentPendingLoad,/타일 로드 실패: a/);
-  currentImageElements[0].onerror();currentImageElements[1].onload();
-  await currentRejectedLoad;
-  assert.equal(currentStatusElement.textContent,'타일 로드 실패: a');
-  currentImageElements[1].onerror();
-  assert.equal(currentStatusElement.textContent,'타일 로드 실패: a');
- }else{
-  currentImageElements[0].onload();
-  assert.match(currentStatusElement.textContent,/1 \/ 2/);
-  currentImageElements[1].onload();await currentPendingLoad;
-  assert.equal(currentStatusElement.textContent,'기본 캐릭터 원본 불러오는 중');
- }
-}
-(async()=>{await verifyTextureProgress(false);await verifyTextureProgress(true);})().catch(error=>{console.error(error);process.exitCode=1;});
-""".replace('SOURCE',json.dumps(current_loader_source))
-        current_test_result=subprocess.run(['node','-e',current_script_source],capture_output=True,text=True,timeout=10)
-        self.assertEqual(current_test_result.returncode,0,current_test_result.stderr)
+SOURCE
+(async()=>{
+ const currentProgressRecords=[],currentPendingLoads={};
+ const currentResourceRecords=[{key:'a',url:'a.png'},{key:'b',url:'b.png'}];
+ const currentLoadPromise=loadMapResourceImages(currentResourceRecords,{onProgress:currentProgressRecord=>currentProgressRecords.push(currentProgressRecord),loadImage:(currentImageUrl)=>new Promise((resolveImage,rejectImage)=>{currentPendingLoads[currentImageUrl]={resolveImage,rejectImage};})});
+ const currentRejectedLoad=assert.rejects(currentLoadPromise,/타일 로드 실패/);
+ currentPendingLoads['a.png'].rejectImage(Error('타일 로드 실패'));
+ await currentRejectedLoad;
+ currentPendingLoads['b.png'].resolveImage({});
+ await new Promise(currentResolve=>setImmediate(currentResolve));
+ assert.deepEqual(currentProgressRecords,[{completed:0,total:2}]);
+ const currentSuccessProgress=[];
+ const currentImages=await loadMapResourceImages(currentResourceRecords,{onProgress:currentProgressRecord=>currentSuccessProgress.push(currentProgressRecord),loadImage:async currentImageUrl=>currentImageUrl});
+ assert.deepEqual(currentImages,{a:'a.png',b:'b.png'});
+ assert.deepEqual(currentSuccessProgress,[{completed:0,total:2},{completed:1,total:2},{completed:2,total:2}]);
+})().catch(currentError=>{console.error(currentError);process.exitCode=1;});
+""".replace('SOURCE', current_loader_source)
+        current_test_result = subprocess.run(['node', '-e', current_script_source], capture_output=True, text=True, timeout=10)
+        self.assertEqual(current_test_result.returncode, 0, current_test_result.stderr)
 
     def test_resize_uses_parent_bounds_and_rejects_zero_area(self):
         current_adapter_source=(Path(__file__).parents[1]/'ui/map/field-map-view.js').read_text()
@@ -174,6 +169,7 @@ currentFrameCallback=null;currentResizeCallback();assert.equal(currentFrameCallb
         current_script_source=r"""
 const assert=require('node:assert/strict');
 const isCharacterReviewPage=false;
+const canTraverseBridgeEdge=()=>true;
 const currentMapRecord={columns:3,rows:3},currentBlockedCells=new Set(['2,1']),currentMapCanvas={};
 let currentCharacterCell={column:1,row:1},currentOffsetX=0,currentOffsetY=0,currentRenderCount=0;
 const MAP_KEYBOARD_PAN_DISTANCE=48,MAP_ZOOM_FACTOR=1.25,currentStatusElement={textContent:''};

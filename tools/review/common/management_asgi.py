@@ -11,7 +11,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI
-from starlette.responses import Response, RedirectResponse
+from starlette.responses import Response, RedirectResponse, JSONResponse
 import gradio as gr
 
 MANAGEMENT_INTERFACE_BUILDERS = {
@@ -48,7 +48,7 @@ def build_management_blocks(current_tool_name, current_review_port, current_sour
     from tools.review.ui.gradio.management_menu_app import compose_management_interface, build_management_menu_interface, load_manager_page_records
     current_server_address = f'http://127.0.0.1:{current_review_port}'
     from tools.review.serve import REVIEW_LIVE_RELOAD_SCRIPT
-    current_mount_options = {'allowed_paths': [], 'ssr_mode': False, 'head': REVIEW_LIVE_RELOAD_SCRIPT.decode(), 'css': '#management-gpu-floating{position:fixed;right:12px;bottom:12px;z-index:50;width:min(12rem,calc(100vw - 24px));max-height:45dvh;overflow-x:hidden;overflow-y:auto}#management-gpu-floating:has(>button.open){width:min(27rem,calc(100vw - 24px))}#management-gpu-floating .gr-accordion{min-width:0!important;overflow-x:hidden}#management-gpu-floating .gr-accordion>button{min-width:0;width:100%;white-space:normal;text-align:left}#management-gpu-floating .gr-accordion>button>span:first-child{min-width:0;overflow-wrap:anywhere}#management-gpu-floating .gr-accordion>button>span:last-child{flex-shrink:0;align-self:center;min-width:1.25rem;text-align:center}#management-gpu-floating [data-testid="markdown"]{overflow-wrap:anywhere}'}
+    current_mount_options = {'allowed_paths': [], 'ssr_mode': False, 'head': REVIEW_LIVE_RELOAD_SCRIPT.decode(), 'css': '#management-sidebar.open{left:0!important;transform:none!important;transition:none!important}#management-gpu-floating{position:fixed;right:12px;bottom:12px;z-index:50;width:min(12rem,calc(100vw - 24px));max-height:45dvh;overflow-x:hidden;overflow-y:auto}#management-gpu-floating:has(>button.open){width:min(27rem,calc(100vw - 24px))}#management-gpu-floating .gr-accordion{min-width:0!important;overflow-x:hidden}#management-gpu-floating .gr-accordion>button{min-width:0;width:100%;white-space:normal;text-align:left}#management-gpu-floating .gr-accordion>button>span:first-child{min-width:0;overflow-wrap:anywhere}#management-gpu-floating .gr-accordion>button>span:last-child{flex-shrink:0;align-self:center;min-width:1.25rem;text-align:center}#management-gpu-floating [data-testid="markdown"]{overflow-wrap:anywhere}'}
     if current_tool_name == 'management':
         return build_management_menu_interface(load_manager_page_records(current_source_path), current_review_port)[0], current_mount_options
     if current_tool_name in GENERATOR_PAGE_PACKAGES:
@@ -74,7 +74,7 @@ def build_management_blocks(current_tool_name, current_review_port, current_sour
             from tools.review.common.map_tile_assets import load_registered_tiles
             current_asset_directory = 'buildings' if current_tool_name == 'building-editor' else 'billboards'
             current_mount_options['allowed_paths'] = [str(load_registered_tiles()[0] / 'assets' / current_asset_directory)]
-    return compose_management_interface(current_interface_blocks, current_review_port), current_mount_options
+    return compose_management_interface(current_interface_blocks, current_review_port, current_source_path), current_mount_options
 
 
 def execute_legacy_request(current_handler_class, current_root_path, current_request_scope, current_request_body):
@@ -172,6 +172,11 @@ def build_management_application(current_handler_class, current_root_path, curre
 
     async def dispatch_management_request(current_request_scope, current_receive_call, current_send_call):
         current_request_path = current_request_scope['path']
+        if current_request_scope['type'] == 'http' and current_request_scope.get('method') == 'GET' and current_request_path == '/management/gui-health':
+            current_health_record = {'status': 'ok', 'role': 'management-gui', 'pid': os.getpid()}
+            if os.environ.get('SLIME_MANAGEMENT_STACK_TOKEN'):
+                current_health_record['launch_token'] = os.environ['SLIME_MANAGEMENT_STACK_TOKEN']
+            return await JSONResponse(current_health_record, headers={'Cache-Control': 'no-store'})(current_request_scope, current_receive_call, current_send_call)
         if current_request_scope['type'] == 'websocket':
             current_tool_name = current_request_path.split('/')[3] if current_request_path.startswith('/management/frame/') else 'management'
             current_application = current_mounted_apps.get(current_tool_name)

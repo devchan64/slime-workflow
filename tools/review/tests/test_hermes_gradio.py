@@ -15,7 +15,8 @@ class HermesGradioTests(unittest.TestCase):
             hermes_source_path.write_text('{"pages":[]}')
             hermes_page_records = load_manager_page_records(hermes_source_path)
             self.assertIn('hermes-agent', [hermes_page_record['id'] for hermes_page_record in hermes_page_records])
-            hermes_interface_blocks, hermes_mount_options = build_management_blocks('hermes-agent', 8770, hermes_source_path)
+            with patch.dict('os.environ', {'SLIME_MANAGEMENT_MENU_SOURCE': str(Path(hermes_temporary_root) / 'missing.json')}):
+                hermes_interface_blocks, hermes_mount_options = build_management_blocks('hermes-agent', 8770, hermes_source_path)
             hermes_component_labels = [getattr(hermes_component_value, 'label', None) for hermes_component_value in hermes_interface_blocks.blocks.values()]
             self.assertIn('작업 지시', hermes_component_labels)
             self.assertIn('검토용 변경 diff', hermes_component_labels)

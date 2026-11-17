@@ -5,3 +5,4 @@ websockets==17.4
 imageio-ffmpeg>=0.6
 
 psutil>=5.9
+uv==0.13.8

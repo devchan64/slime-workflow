@@ -63,15 +63,16 @@ class SeamlessPatternTests(unittest.TestCase):
         self.assertEqual(current_request_record['seamless_tile']['stage_prompts'][1], compose_common_style_prompt('Connect the boundaries naturally.')[0])
         self.assertTrue(all(current_word_count<100 for current_word_count in current_request_record['seamless_tile']['stage_prompt_words']))
 
-    def test_cli_text_request_and_partial_preview(self):
+    def test_archived_cli_rejects_generation_and_partial_preview_remains(self):
         import contextlib
         import io
         from unittest.mock import patch
         from tools.review.common.management_gateway import execute_gateway_arguments
         from tools.review.domains.image.seamless_generation import SeamlessGenerationManager
         with patch('tools.review.common.management_gateway.call_management_api',return_value={'id':'test'}) as gateway_call_mock, contextlib.redirect_stdout(io.StringIO()):
-            execute_gateway_arguments('seamless-tile',['generate','--prompt','낙엽','--detach'])
-        self.assertEqual(validate_seamless_request(gateway_call_mock.call_args.args[2])['seamless_tile']['schema_version'],7)
+            with self.assertRaisesRegex(ValueError, '아카이브'):
+                execute_gateway_arguments('seamless-tile',['generate','--prompt','낙엽','--detach'])
+        gateway_call_mock.assert_not_called()
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             current_job_root=Path(temporary_directory_name)
             (current_job_root/'grid-input.png').touch()

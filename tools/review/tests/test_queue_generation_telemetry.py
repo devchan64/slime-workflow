@@ -225,6 +225,8 @@ class QueueExecutionTelemetryTests(unittest.TestCase):
                 current_patch_stack.enter_context(patch.object(gpu_job_queue, 'write_record_atomically', side_effect=verify_running_publication))
                 current_patch_stack.enter_context(patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_root))
                 current_patch_stack.enter_context(patch.object(gpu_job_queue,'read_gpu_memory',return_value=(8192,8192)))
+                current_patch_stack.enter_context(patch.object(gpu_job_queue,'read_gpu_memory_domain',return_value='vram'))
+                current_patch_stack.enter_context(patch.object(gpu_job_queue,'read_host_available_memory',return_value=8192))
                 current_patch_stack.enter_context(patch.object(gpu_job_queue,'estimate_required_memory',return_value={'required_memory_mib':1,'samples':0}))
                 current_patch_stack.enter_context(patch.object(gpu_job_queue,'select_runnable_ticket',side_effect=lambda *_:next(current_queue_root.glob('*.json'))))
                 current_patch_stack.enter_context(patch.object(gpu_job_queue,'reload_waiting_executor'))

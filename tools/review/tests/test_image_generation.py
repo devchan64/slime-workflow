@@ -118,7 +118,7 @@ class ImageGenerationTests(unittest.TestCase):
             def launch_queued_process(command_argument_values,generation_job_path,generation_service_name,**process_option_values):
                 (generation_job_path/'status.json').write_text('{"status":"queued"}')
                 return queued_worker_process
-            with patch.object(current_manager_value,'job_storage_root',temporary_root_path/'jobs'),patch.object(current_manager_value,'history_storage_path',return_value=temporary_root_path/'history'),patch('tools.review.domains.image.image_generation.launch_gpu_process',side_effect=launch_queued_process):
+            with patch.object(current_manager_value,'validate_generation_runtime'),patch.object(current_manager_value,'job_storage_root',temporary_root_path/'jobs'),patch.object(current_manager_value,'history_storage_path',return_value=temporary_root_path/'history'),patch('tools.review.domains.image.image_generation.launch_gpu_process',side_effect=launch_queued_process):
                 current_manager_value.current_worker_process=SimpleNamespace(poll=lambda:None)
                 current_manager_value.handle_image_request(current_handler_value)
                 self.assertEqual(current_handler_value.status,202)

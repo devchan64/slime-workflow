@@ -31,20 +31,20 @@ class QwenPoseContractTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         load_pose_prompt(profile_output_path, 'rig')
 
-    def test_output_boundary_before_gpu(self):
-        with self.assertRaisesRegex(ValueError, '.tmp'):
+    def test_retired_generation_rejects_output(self):
+        with self.assertRaisesRegex(RuntimeError, '폐기'):
             execute_pose_generation(trial_output_root='/tmp/invalid-qwen-output', prompt_text_value='test', character_image_path='/missing.png', pose_reference_path='/missing.png', pose_reference_kind='rig')
 
-    def test_anypose_contract_before_gpu(self):
+    def test_retired_generation_rejects_anypose_options(self):
         for reference_order_value, inference_steps_value in [('pose-first', 4), ('standing-first', 10)]:
             with self.subTest(order=reference_order_value, steps=inference_steps_value):
-                with self.assertRaisesRegex(ValueError, 'AnyPose'):
+                with self.assertRaisesRegex(RuntimeError, '폐기'):
                     execute_pose_generation(trial_output_root='/tmp/unused', prompt_text_value='test', character_image_path='/missing.png', pose_reference_path='/missing.png', pose_reference_kind='rig', selected_reference_order=reference_order_value, selected_inference_steps=inference_steps_value, enable_anypose_adapter=True)
 
-    def test_anypose_without_lightning_contract(self):
-        with self.assertRaisesRegex(ValueError, '폐기'):
+    def test_retired_generation_rejects_lightning_options(self):
+        with self.assertRaisesRegex(RuntimeError, '폐기'):
             execute_pose_generation(trial_output_root='/tmp/unused', prompt_text_value='test', character_image_path='/missing.png', pose_reference_path='/missing.png', pose_reference_kind='rig', selected_inference_steps=10, enable_anypose_adapter=True, enable_lightning_adapter=False)
-        with self.assertRaisesRegex(ValueError, 'AnyPose'):
+        with self.assertRaisesRegex(RuntimeError, '폐기'):
             execute_pose_generation(trial_output_root='/tmp/unused', prompt_text_value='test', character_image_path='/missing.png', pose_reference_path='/missing.png', pose_reference_kind='rig', selected_inference_steps=4, enable_anypose_adapter=True, enable_lightning_adapter=False)
 
     def test_retired_adapter_entrypoints_reject(self):
@@ -56,15 +56,15 @@ class QwenPoseContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '폐기'):
             anypose.prepare_anypose_models()
 
-    def test_anypose_strength_validation(self):
+    def test_retired_generation_rejects_strength_options(self):
         for invalid_strength_value in (-0.1, 1.6, float('nan'), float('inf'), True, '1'):
             for strength_field_name in ('selected_base_strength', 'selected_helper_strength'):
                 with self.subTest(value=invalid_strength_value, field=strength_field_name):
-                    with self.assertRaisesRegex(ValueError, 'strength'):
+                    with self.assertRaisesRegex(RuntimeError, '폐기'):
                         execute_pose_generation(trial_output_root='/tmp/unused', prompt_text_value='test', character_image_path='/missing.png', pose_reference_path='/missing.png', pose_reference_kind='rig', selected_inference_steps=10, enable_anypose_adapter=False, enable_lightning_adapter=False, **{strength_field_name: invalid_strength_value})
 
-    def test_invalid_kind_before_gpu(self):
-        with self.assertRaisesRegex(ValueError, 'pose kind'):
+    def test_retired_generation_rejects_pose_kind(self):
+        with self.assertRaisesRegex(RuntimeError, '폐기'):
             execute_pose_generation(trial_output_root='/tmp/unused', prompt_text_value='test', character_image_path='/missing.png', pose_reference_path='/missing.png', pose_reference_kind='guessed')
 
 

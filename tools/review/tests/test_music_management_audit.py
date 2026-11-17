@@ -108,19 +108,21 @@ class MusicManagementAuditTests(unittest.TestCase):
         from tools.review.ui.gradio.music_app import build_music_interface
         for current_service_name in MUSIC_SERVICE_NAMES:
             current_interface_blocks=build_music_interface(current_service_name,'http://127.0.0.1:9988')
-            current_refresh_callback=next(current_callback.fn for current_callback in current_interface_blocks.fns.values() if current_callback.fn and current_callback.fn.__name__=='refresh_music_result')
+            current_refresh_callback=next(current_callback.fn for current_callback in current_interface_blocks.fns.values() if current_callback.fn and current_callback.fn.__name__=='refresh_combined_history')
             def execute_deleted_command(current_service_value,current_command_value,current_payload_value):
                 if current_command_value=='status':raise ValueError('작업 경로가 없습니다')
                 return {'records':[]}
             with patch('tools.review.ui.gradio.music_app.execute_remote_management_command',side_effect=execute_deleted_command):
-                current_update_values=current_refresh_callback('removed',True,'old.wav')
-                self.assertEqual(current_update_values[-2],'')
+                current_update_values=current_refresh_callback('removed','removed',True,{'old':'old.wav'})
+                self.assertIn('삭제',current_update_values[-6])
+                self.assertEqual(current_update_values[-5], '')
+                self.assertFalse(current_update_values[-4]['visible'])
+                self.assertEqual(current_update_values[-3], {})
                 self.assertFalse(current_update_values[-1].active)
-                self.assertIn('삭제',current_update_values[0])
-                self.assertNotIn('old.wav',current_update_values[1])
             with patch('tools.review.ui.gradio.music_app.execute_remote_management_command',side_effect=[ValueError('손상된 기록'),{'records':[{'id':'existing'}]}]):
-                with self.assertRaisesRegex(ValueError,'손상된 기록'):
-                    current_refresh_callback('existing',True,'')
+                current_update_values=current_refresh_callback('existing','existing',True,{})
+                self.assertIn('손상된 기록',current_update_values[-6])
+                self.assertTrue(current_update_values[-1].active)
 
     def test_both_services_keep_attempt_telemetry_across_terminal_and_resume_states(self):
         from tools.review.common.gradio_audio_results import describe_audio_generation_status

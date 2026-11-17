@@ -193,7 +193,7 @@ class DashengAudioEffectsTests(unittest.TestCase):
             current_cancel_callback = next(current_function_value for current_function_value in current_event_functions if current_function_value.__name__=='cancel_generation_confirmation')
             current_execute_callback = next(current_function_value for current_function_value in current_event_functions if current_function_value.__name__=='execute_confirmed_generation')
             current_pending_record = current_prepare_callback('wet impact',None,42,False,'test')[0]
-            current_cancel_callback(current_pending_record,'wet impact')
+            current_cancel_callback(current_pending_record,'wet impact','',False)
             with self.assertRaises(Exception):
                 list(current_execute_callback(current_pending_record))
             current_command_mock.assert_not_called()
