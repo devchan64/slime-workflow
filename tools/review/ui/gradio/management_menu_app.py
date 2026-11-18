@@ -56,7 +56,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'character-generator','label':'Qwen 2.1 캐릭터 이미지 생성기','path':'/character-generator/','category':'image-generation','uiMode':'gradio','description':'공용 화풍 v1.5.0 원문 · 캐릭터 외관 예시 · Qwen 이력 공유'},
     {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'공용 화풍 v1.5.0 기본 적용 · 투명 배경·참조 이미지 선택'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
-    {'id':'hermes-agent','label':'Hermes 관리 에이전트','path':'/management/frame/hermes-agent/','category':'writer-agent','uiMode':'gradio','description':'관리 상태·대화·작업 위임·격리 코딩'},
+    {'id':'hermes-agent','label':'운영 대화','path':'/management/frame/hermes-agent/','category':'writer-agent','uiMode':'gradio','description':'대화로 관리 상태 확인과 작업 요청'},
     {'id':'prompt-translation','label':'프롬프트 번역','path':'/management/frame/prompt-translation/','category':'writer-agent','uiMode':'gradio','description':'한국어 → 영어·중국어 · 기능 준비 중'},
     {'id':'expression-generator','label':'Qwen 2.1 표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · AU 표정 39종 · 참조 1~3장'},
 )
@@ -294,6 +294,7 @@ def create_initial_selection_script(page_record_values):
     return f"""()=>{{
         const pageRecords={serialized_page_records};
         const currentUrlValue=new URL(window.location.href);
+        if(currentUrlValue.pathname.replace(/\/$/,'')==='/management/frame/hermes-agent')return ['', 'all', 'hermes-agent'];
         if(['field-map-review','town-map-review'].includes(currentUrlValue.searchParams.get('category'))){{currentUrlValue.searchParams.set('category','map-review');window.history.replaceState(window.history.state,'',currentUrlValue.href);}}
         if({json.dumps(LEGACY_SOUND_CATEGORY_NAMES)}.includes(currentUrlValue.searchParams.get('category'))){{currentUrlValue.searchParams.set('category','sound-management');window.history.replaceState(window.history.state,'',currentUrlValue.href);}}
         const requestedPageIdentifier=currentUrlValue.searchParams.get('review')||currentUrlValue.searchParams.get('tool');
@@ -375,6 +376,7 @@ def create_sidebar_responsive_script(current_inline_mode=False):
 
 def build_management_menu_interface(page_record_values, review_server_port, current_inline_interface=None):
     current_inline_mode=current_inline_interface is not None
+    page_record_values=[current_page_record for current_page_record in page_record_values if current_page_record['id'] != 'hermes-agent']
     initial_page_identifier=page_record_values[0]['id'] if page_record_values else ''
     initial_selection_script=create_initial_selection_script(page_record_values)
     with gr.Blocks(title='SLIME 관리도구',fill_width=True) as interface_blocks_value:
@@ -386,6 +388,7 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
             page_select_value=gr.Dropdown(choices=create_tool_choice_values(page_record_values),value=initial_page_identifier,label='도구 목록',elem_id='management-tool-list')
         with gr.Row(elem_id='management-header'):
             gr.Markdown('## SLIME 관리도구',scale=3)
+            gr.HTML('<a href="/management/frame/hermes-agent/" target="_self">운영 대화로 돌아가기</a>', scale=1)
         with gr.Accordion('GPU 프로세스 정보',open=False,elem_id='management-gpu-floating'):
             # GPU 표시 상태는 페이지 내부에서만 사용한다. gr.State는 각 탭에
             # 상시 heartbeat 연결을 만들어 브라우저의 연결 한도를 점유한다.
@@ -430,6 +433,8 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
         current_navigation_inputs=[search_text_value,category_select_value,page_select_value]
         @trace_management_callback('메뉴 초기화')
         def initialize_menu_selection(current_search_text,current_category_name,current_page_identifier):
+            if current_page_identifier == 'hermes-agent':
+                return ['', 'all', gr.update(choices=create_tool_choice_values(page_record_values),value=None), f'**{len(page_record_values)}개** 도구 · 전체 {len(page_record_values)}개', '운영 대화 · 관리 작업의 시작과 진행', gr.skip() if current_inline_mode else '']
             if current_page_identifier == 'building-generator':
                 current_page_identifier = 'billboard-generator'
             if current_category_name not in CATEGORY_LABEL_VALUES:current_category_name='all'

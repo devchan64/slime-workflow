@@ -74,7 +74,7 @@ class ManagementSinglePortTests(unittest.TestCase):
                 current_app_value = build_management_application(SimpleHTTPRequestHandler, current_root_path, current_source_path, 8770, [])
                 with TestClient(current_app_value) as current_test_client:
                     self.assertEqual(current_test_client.get('/test.txt').text, '검수 파일')
-                    self.assertEqual(current_test_client.get('/', follow_redirects=False).headers['location'], '/management/')
+                    self.assertEqual(current_test_client.get('/', follow_redirects=False).headers['location'], '/management/frame/hermes-agent/')
                     for current_tool_name in ('billboard-generator',):
                         current_route_prefix = '/management/frame/' + current_tool_name
                         self.assertEqual(current_test_client.get(current_route_prefix+'/').status_code, 200)
