@@ -40,10 +40,9 @@ def execute_flux_image_worker():
     current_blocks_value.sub_blocks.pop('prompt_upsampler')
     current_manager_value = ComponentsManager()
     current_pipeline_value = current_blocks_value.init_pipeline(FLUX_MODEL_ROOT_DIRECTORY,components_manager=current_manager_value)
-    current_component_paths = {name:str(FLUX_MODEL_ROOT_DIRECTORY) for name in ('text_encoder','tokenizer','transformer','vae')}
-    current_pipeline_value.load_components(dtype={'vae':torch.float32,'default':torch.bfloat16},pretrained_model_name_or_path=current_component_paths,local_files_only=True)
+    from generators.image.flux_gpu_resident import load_flux_resident_components
+    load_flux_resident_components(current_pipeline_value, torch, FLUX_MODEL_ROOT_DIRECTORY)
     current_pipeline_value.vae.disable_tiling()
-    current_manager_value.enable_auto_cpu_offload(device='cuda',memory_reserve_margin='4GB')
     install_vae_decode_guard(current_pipeline_value.vae, torch)
     current_patched_layer_count = 0
     if current_seamless_method in ('global-periodic-v1','circular-vae','circular-vae-v2'):
@@ -111,7 +110,7 @@ def execute_flux_image_worker():
             build_repeated_tile_preview(current_output_image).save(current_job_root/'tiled-preview.png')
         current_output_image.save(current_job_root/'result.png')
     current_output_hash = hashlib.sha256((current_job_root/'result.png').read_bytes()).hexdigest()
-    current_result_record={'image_sha256':current_output_hash,'reference_sha256':[item['sha256'] for item in current_request_record['reference_snapshots']],'prompt_sha256':current_request_record['prompt_sha256'],'model_revision':FLUX_MODEL_REVISION_VALUE,'seed':current_request_record['seed'],'steps':current_request_record['steps'],'width':current_request_record['width'],'height':current_request_record['height'],'torch_version':torch.__version__,'hip_version':torch.version.hip,'device_name':torch.cuda.get_device_name(),'allocated_peak_bytes':torch.cuda.max_memory_allocated(),'dtype':'bfloat16; vae float32'}
+    current_result_record={'image_sha256':current_output_hash,'reference_sha256':[item['sha256'] for item in current_request_record['reference_snapshots']],'prompt_sha256':current_request_record['prompt_sha256'],'model_revision':FLUX_MODEL_REVISION_VALUE,'seed':current_request_record['seed'],'steps':current_request_record['steps'],'width':current_request_record['width'],'height':current_request_record['height'],'torch_version':torch.__version__,'hip_version':torch.version.hip,'device_name':torch.cuda.get_device_name(),'allocated_peak_bytes':torch.cuda.max_memory_allocated(),'dtype':'bfloat16; vae float32','offload':'none','device_policy':'rocm-gpu-resident-v1'}
     if current_profile_name == 'flux-seamless':
         current_result_record['edge_processing'] = {'method':current_seamless_method,'decoder_patched_conv2d_count':current_patched_layer_count,'preview_sha256':hashlib.sha256((current_job_root/'tiled-preview.png').read_bytes()).hexdigest()}
         if current_seamless_method not in ('global-periodic-v1','circular-vae-v2'):

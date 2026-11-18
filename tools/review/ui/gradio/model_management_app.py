@@ -5,21 +5,8 @@ import gradio as gr
 from tools.review.common.gradio_model_download import build_model_download_controls, build_model_progress_display, format_model_download_status
 from tools.review.common.management_client import execute_remote_management_command
 
-MODEL_PREPARATION_SERVICES = (
-    ('FLUX 3 Image Klein', 'flux-image'),
-    ('Hermes 코딩 모델 Qwen3.8 27B IQ4_XS', 'hermes-model'),
-    ('Qwen Image 2.1', 'prop-generator'),
-    ('Qwen 2.1 표정 LoRA', 'expression-lora'),
-    ('Kimodo', 'kimodo'),
-    ('DWPose 포즈 모델', 'dwpose'),
-    ('Wan Animate-2', 'wan22-animate2'),
-    ('Wan Fun Control', 'wan22-fun-control'),
-    ('Wan VACE', 'wan22-vace'),
-    ('HeartMuLa', 'music-heartmula'),
-    ('Dasheng-AudioGen', 'sfx-dasheng-audiogen'),
-    ('작가 AI', 'writer-agent'),
-    ('TranslateGemma 4B', 'prompt-translation'),
-)
+from tools.review.common.model_management_catalog import MODEL_PREPARATION_SERVICES
+
 MODEL_JOB_SERVICES = ()
 MODEL_OBSERVATION_SERVICES = ()
 

@@ -65,6 +65,23 @@ class KimodoMigraphxBuildTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             resolve_management_command('kimodo', 'migraphx-build', {'path': '/tmp'})
 
+    def test_passive_build_observation_never_checks_gpu(self):
+        from tools.review.domains.kimodo import migraphx_build
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_root=Path(current_directory_name)
+            current_job_identifier='2026-11-18_00-00-00-12345678'
+            current_job_directory=current_job_root/current_job_identifier
+            current_job_directory.mkdir()
+            (current_job_root/'latest.json').write_text(json.dumps({'job':current_job_identifier}))
+            (current_job_directory/'status.json').write_text(json.dumps({'status':'completed','private':'secret'}))
+            with patch.object(migraphx_build,'POSE_BUILD_JOB_ROOT',current_job_root),patch.object(migraphx_build,'inspect_pose_cache_validity') as current_cache_mock,patch.object(migraphx_build,'check_pose_cache_environment') as current_gpu_mock:
+                self.assertEqual(migraphx_build.inspect_recorded_pose_build_status(),{'status':'completed','id':current_job_identifier,'cache_status':'unverified'})
+                current_cache_mock.assert_not_called()
+                current_gpu_mock.assert_not_called()
+            self.assertEqual(resolve_management_command('kimodo','migraphx-build-observe',{}),('GET','/kimodo/migraphx-build-observe'))
+            with self.assertRaises(ValueError):
+                resolve_management_command('kimodo','migraphx-build-observe',{'path':'other'})
+
     def test_duplicate_build_returns_existing_job(self):
         from tools.review.domains.kimodo import migraphx_build
         with tempfile.TemporaryDirectory() as current_directory_name:
@@ -93,6 +110,47 @@ class KimodoMigraphxBuildTests(unittest.TestCase):
             with self.subTest(status=current_status_name), patch('tools.review.ui.gradio.model_management_app.execute_remote_management_command', return_value={'status': current_status_name}):
                 _, current_button_update = current_refresh_callback()
                 self.assertEqual(current_button_update['interactive'], current_expected_value)
+
+    def test_cache_check_uses_exclusive_queue_and_checks_result(self):
+        from unittest.mock import Mock
+        from tools.review.domains.kimodo import migraphx_build
+        from tools.review.common.gpu_job_queue import GPU_EXCLUSIVE_SERVICES, GPU_MEMORY_REQUIREMENTS
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_python_path=current_root_path/'python'
+            current_python_path.touch()
+            current_process_mock=Mock()
+            current_process_mock.wait.return_value=0
+            current_process_mock.poll.return_value=0
+            def launch_test_check(current_command_values,current_job_root,current_service_name,**current_options):
+                self.assertEqual(current_service_name,'kimodo-cache-check')
+                self.assertEqual(current_command_values[-1],'--check')
+                current_options['stdout'].write('대기열 기록\n'+json.dumps({'ready':True})+'\n')
+                current_options['stdout'].flush()
+                (current_job_root/'status.json').write_text(json.dumps({'status':'completed'}))
+                return current_process_mock
+            with patch.object(migraphx_build,'POSE_BUILD_JOB_ROOT',current_root_path/'jobs'),patch.object(migraphx_build,'KIMODO_ENVIRONMENT_PYTHON',current_python_path),patch.object(migraphx_build,'launch_gpu_process',side_effect=launch_test_check):
+                self.assertTrue(migraphx_build.check_pose_cache_environment())
+            self.assertEqual(list((current_root_path/'jobs/cache-checks').iterdir()),[])
+            self.assertIn('kimodo-cache-check',GPU_EXCLUSIVE_SERVICES)
+            self.assertGreater(GPU_MEMORY_REQUIREMENTS['kimodo-cache-check'],0)
+
+    def test_cache_check_timeout_requests_cancellation_and_keeps_live_state(self):
+        import subprocess
+        from unittest.mock import Mock
+        from tools.review.domains.kimodo import migraphx_build
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_python_path=current_root_path/'python'
+            current_python_path.touch()
+            current_process_mock=Mock()
+            current_process_mock.wait.side_effect=[subprocess.TimeoutExpired('queue',120),subprocess.TimeoutExpired('queue',30)]
+            current_process_mock.poll.return_value=None
+            with patch.object(migraphx_build,'POSE_BUILD_JOB_ROOT',current_root_path/'jobs'),patch.object(migraphx_build,'KIMODO_ENVIRONMENT_PYTHON',current_python_path),patch.object(migraphx_build,'launch_gpu_process',return_value=current_process_mock):
+                with self.assertRaisesRegex(RuntimeError,'시간 제한'):migraphx_build.check_pose_cache_environment()
+            current_check_paths=list((current_root_path/'jobs/cache-checks').iterdir())
+            self.assertEqual(len(current_check_paths),1)
+            self.assertTrue((current_check_paths[0]/'cancel.request').exists())
 
     def test_cache_state_controls_build_submission(self):
         from tools.review.domains.kimodo import migraphx_build

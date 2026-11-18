@@ -16,7 +16,7 @@ from .jobs import JOB_IDENTIFIER_PATTERN,create_writer_job,resolve_job_directory
 from .agent import apply_reviewed_proposal
 from . import prepare
 from tools.review.common.model_prepare_process import inspect_detached_preparation, start_detached_preparation
-from tools.review.common.gpu_job_queue import launch_gpu_process
+from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation
 from tools.review.common.generation_records import write_record_atomically
 
 WRITER_ROUTE_PREFIX='/writer-agent'
@@ -61,20 +61,24 @@ class WriterAgentManager:
         return current_state_values
 
     def resolve_observed_status(self,current_status_values,current_job_root=None):
-        if current_status_values['stage'] not in ACTIVE_JOB_STAGES:return current_status_values
-        if current_job_root is not None:
+        if current_job_root is not None and (current_status_values['stage'] in ACTIVE_JOB_STAGES or current_status_values['stage']=='failed'):
             try:
                 current_queue_record=json.loads((current_job_root/'status.json').read_text())
+                current_queue_error=current_queue_record.get('error')
+                if current_status_values['stage'] in ACTIVE_JOB_STAGES and current_queue_record.get('status') in ('failed','cancelled'):
+                    return {**current_status_values,'stage':'failed' if current_queue_record['status']=='failed' else 'interrupted','error':current_queue_error or 'GPU 대기 작업이 중지되었습니다.'}
+                if current_status_values['stage']=='failed' and current_queue_record.get('status')=='failed' and isinstance(current_queue_error,str) and current_queue_error.startswith(('시스템 RAM 보호:', '시스템 RAM 감시 실패:')):
+                    return {**current_status_values,'error':current_queue_error}
+                if current_status_values['stage'] not in ACTIVE_JOB_STAGES:return current_status_values
                 current_supervisor_record=json.loads((current_job_root/'queue-process.json').read_text())
                 current_supervisor_alive=read_process_identity(current_supervisor_record['pid'])==current_supervisor_record['identity'] and current_supervisor_record['identity'] is not None
-                if current_queue_record.get('status') in ('failed','cancelled'):
-                    return {**current_status_values,'stage':'failed' if current_queue_record['status']=='failed' else 'interrupted','error':current_queue_record.get('error') or 'GPU 대기 작업이 중지되었습니다.'}
                 if current_supervisor_alive:
                     if current_status_values['stage']=='queued':
                         return {**current_status_values,'queue_position':current_queue_record.get('queue_position'),'summary':current_queue_record.get('message','GPU 실행 대기')}
                     return current_status_values
             except (OSError, ValueError, TypeError, KeyError):
                 pass
+        if current_status_values['stage'] not in ACTIVE_JOB_STAGES:return current_status_values
         if current_status_values['id']==self.worker_job_identifier and self.worker_process_handle and self.worker_process_handle.poll() is None:return current_status_values
         current_process_identifier=current_status_values.get('process_id')
         current_process_identity=current_status_values.get('process_identity')
@@ -117,9 +121,32 @@ class WriterAgentManager:
                     if not (current_job_root/'status.yaml').exists():return
                     current_stage_name=read_yaml_document(current_job_root/'status.yaml')['stage']
                     if current_stage_name in ACTIVE_JOB_STAGES:
-                        update_job_status(current_job_root,'completed' if current_prepare_flag and current_exit_code==0 else 'failed',summary='환경 준비 완료' if current_prepare_flag and current_exit_code==0 else '',error='' if current_exit_code==0 else f'실행 종료 코드 {current_exit_code}. 로그에서 원인을 확인하세요.')
+                        try:current_queue_status=json.loads((current_job_root/'status.json').read_text()).get('status')
+                        except (OSError,ValueError,TypeError):current_queue_status=None
+                        if current_queue_status=='cancelled':
+                            update_job_status(current_job_root,'interrupted',summary='사용자가 중지를 요청했습니다.',error='작업이 중지되었습니다.')
+                        else:
+                            update_job_status(current_job_root,'completed' if current_prepare_flag and current_exit_code==0 else 'failed',summary='환경 준비 완료' if current_prepare_flag and current_exit_code==0 else '',error='' if current_exit_code==0 else f'실행 종료 코드 {current_exit_code}. 로그에서 원인을 확인하세요.')
             threading.Thread(target=monitor_writer_process,daemon=True).start()
             return {'id':current_job_identifier,'job_path':str(current_job_root)}
+
+    def request_writer_cancellation(self,current_job_identifier):
+        current_config_values=load_workspace_config(self.workspace_config_path)
+        current_job_root=resolve_job_directory(current_config_values,current_job_identifier)
+        with self.request_lock_handle:
+            current_status_values=read_yaml_document(current_job_root/'status.yaml')
+            if current_status_values.get('id')!=current_job_identifier or current_status_values.get('stage') not in ACTIVE_JOB_STAGES:
+                raise ValueError('대기 또는 실행 중인 작가 작업만 중지할 수 있습니다.')
+            try:
+                current_supervisor_record=json.loads((current_job_root/'queue-process.json').read_text())
+                current_supervisor_pid=current_supervisor_record['pid']
+                current_supervisor_identity=current_supervisor_record['identity']
+                if type(current_supervisor_pid) is not int or not isinstance(current_supervisor_identity,str) or read_process_identity(current_supervisor_pid)!=current_supervisor_identity:
+                    raise ValueError('작가 작업 실행기를 확인할 수 없습니다. 상태를 다시 조회하세요.')
+            except (OSError,KeyError,TypeError) as current_supervisor_error:
+                raise ValueError('작가 작업 실행기를 확인할 수 없습니다. 상태를 다시 조회하세요.') from current_supervisor_error
+            current_cancel_value=cancel_gpu_generation(current_job_root)
+            return {'id':current_job_identifier,'status':current_cancel_value['status'],'cancel_requested':True}
 
     def close_writer_worker(self):
         """공용 대기열 작업은 게이트웨이 종료 후에도 계속 실행한다."""
@@ -159,6 +186,46 @@ class WriterAgentManager:
             current_search_text=' '.join(str(current_value) for current_value in (current_status_values.get('id',''),current_status_values.get('mode',''),current_mode_labels.get(current_status_values.get('mode'),''),current_status_values.get('stage',''),current_stage_labels.get(current_status_values.get('stage'),''),current_status_values.get('summary',''),current_status_values.get('error',''),current_request_values.get('prompt',''))).casefold()
             if all(current_term in current_search_text for current_term in current_query_terms):current_history_records.append(current_status_values)
         return {'jobs':current_history_records,'query':current_query_text,'count':len(current_history_records)}
+
+    def observe_writer_history(self,current_page_request):
+        """기존 작업 ID와 기록 단계만 읽는다. 문서·요청·복구 상태는 조회하지 않는다."""
+        import hashlib
+        import re
+        import yaml
+        if not isinstance(current_page_request,dict) or set(current_page_request)-{'offset','limit','snapshot'}:
+            raise ValueError('작가 이력 관측 필드 오류')
+        current_offset_value=current_page_request.get('offset',0)
+        current_limit_value=current_page_request.get('limit',10)
+        current_snapshot_value=current_page_request.get('snapshot')
+        if type(current_offset_value) is not int or current_offset_value<0 or type(current_limit_value) is not int or not 1<=current_limit_value<=30:
+            raise ValueError('작가 이력 페이지 오류')
+        if current_snapshot_value is not None and (not isinstance(current_snapshot_value,str) or not re.fullmatch(r'[a-f0-9]{64}',current_snapshot_value)):
+            raise ValueError('작가 이력 스냅샷 오류')
+        if current_offset_value and current_snapshot_value is None:
+            raise ValueError('후속 페이지에는 스냅샷이 필요합니다.')
+        current_config_values=load_workspace_config(self.workspace_config_path)
+        current_job_root=Path(current_config_values['state_root'])/'jobs'
+        current_job_paths=sorted((current_path_value for current_path_value in current_job_root.glob('*') if JOB_IDENTIFIER_PATTERN.fullmatch(current_path_value.name) and not current_path_value.is_symlink() and current_path_value.is_dir()),reverse=True)
+        current_job_identifiers=[current_path_value.name for current_path_value in current_job_paths]
+        current_snapshot_hash=hashlib.sha256(json.dumps(current_job_identifiers,separators=(',',':')).encode()).hexdigest()
+        if current_snapshot_value is not None and current_snapshot_value!=current_snapshot_hash:
+            raise ValueError('작가 이력이 변경되었습니다. 첫 페이지부터 다시 조회하세요.')
+        current_output_records=[]
+        for current_job_path in current_job_paths[current_offset_value:current_offset_value+current_limit_value]:
+            current_stage_value='unknown'
+            try:
+                current_status_path=current_job_path/'status.yaml'
+                if current_status_path.is_symlink():raise ValueError('상태 경로 오류')
+                current_status_value=read_yaml_document(current_status_path)
+                if not isinstance(current_status_value,dict) or current_status_value.get('id')!=current_job_path.name:
+                    raise ValueError('상태 ID 오류')
+                if current_status_value.get('stage') in ('queued','preparing','indexing','searching','reasoning','review','completed','applied','failed','interrupted'):
+                    current_stage_value=current_status_value['stage']
+            except (OSError,ValueError,TypeError,KeyError,yaml.YAMLError):
+                pass
+            current_output_records.append({'id':current_job_path.name,'recorded_status':current_stage_value,'status_source':'job' if current_stage_value!='unknown' else 'unavailable'})
+        current_next_offset=current_offset_value+len(current_output_records)
+        return {'records':current_output_records,'total':len(current_job_identifiers),'offset':current_offset_value,'next_offset':current_next_offset if current_next_offset<len(current_job_identifiers) else None,'snapshot':current_snapshot_hash,'unavailable_count':0,'note':'기록 단계이며 실제 작업 생존·원본 적용 여부는 별도 확인해야 합니다.'}
 
     def delete_writer_history(self,current_job_identifier):
         current_config_values=load_workspace_config(self.workspace_config_path)
@@ -204,6 +271,7 @@ class WriterAgentManager:
                 if current_route_path in {WRITER_ROUTE_PREFIX,WRITER_ROUTE_PREFIX+'/',WRITER_ROUTE_PREFIX+'/embedded/'}:send_writer_response(200,Path(__file__).with_name('manager.html').read_bytes(),'text/html; charset=utf-8')
                 elif current_route_path==WRITER_ROUTE_PREFIX+'/manager.js':send_writer_response(200,Path(__file__).with_name('manager.js').read_bytes(),'text/javascript; charset=utf-8')
                 elif current_route_path==WRITER_ROUTE_PREFIX+'/api/state':send_writer_response(200,self.read_workspace_state())
+                elif current_route_path==WRITER_ROUTE_PREFIX+'/api/token':send_writer_response(200,{'csrf_token':self.csrf_token_value})
                 elif current_route_path==WRITER_ROUTE_PREFIX+'/api/job':
                     current_query_values=parse_qs(current_url_parts.query,strict_parsing=True)
                     if set(current_query_values)!={'id'} or len(current_query_values['id'])!=1:raise ValueError('작업 조회 인자 오류')
@@ -215,9 +283,25 @@ class WriterAgentManager:
             current_body_length=int(current_http_handler.headers.get('Content-Length','0'))
             if not 1<=current_body_length<=MAXIMUM_REQUEST_BYTES:raise ValueError('요청 크기 오류')
             current_request_values=parse_unique_json(current_http_handler.rfile.read(current_body_length).decode())
-            if current_route_path==WRITER_ROUTE_PREFIX+'/api/detail':
+            if current_route_path==WRITER_ROUTE_PREFIX+'/api/index-status':
+                if current_request_values!={}:raise ValueError('색인 상태 조회에는 입력을 전달할 수 없습니다.')
+                from .index import load_current_index
+                try:
+                    load_current_index(load_workspace_config(self.workspace_config_path))
+                    current_index_status='fresh'
+                except ValueError as current_index_error:
+                    current_index_status='stale' if '색인이 오래되었습니다' in str(current_index_error) else 'unavailable'
+                except (OSError,sqlite3.Error,TypeError,KeyError):
+                    current_index_status='unavailable'
+                send_writer_response(200,{'status':current_index_status})
+            elif current_route_path==WRITER_ROUTE_PREFIX+'/api/detail':
                 if not isinstance(current_request_values,dict) or set(current_request_values)!={'id'}:raise ValueError('작업 조회 필드 오류')
                 send_writer_response(200,self.read_writer_detail(current_request_values['id']))
+            elif current_route_path==WRITER_ROUTE_PREFIX+'/api/cancel':
+                if not isinstance(current_request_values,dict) or set(current_request_values)!={'id'}:raise ValueError('작업 중지 필드 오류')
+                send_writer_response(200,self.request_writer_cancellation(current_request_values['id']))
+            elif current_route_path==WRITER_ROUTE_PREFIX+'/api/history/observe':
+                send_writer_response(200,self.observe_writer_history(current_request_values))
             elif current_route_path==WRITER_ROUTE_PREFIX+'/api/history':
                 if not isinstance(current_request_values,dict) or set(current_request_values)!={'query'}:raise ValueError('이력 검색 필드 오류')
                 send_writer_response(200,self.search_writer_history(current_request_values['query']))

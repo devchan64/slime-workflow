@@ -31,7 +31,7 @@ class AnyPoseRetirementTests(unittest.TestCase):
             anypose.prepare_anypose_models()
         with self.assertRaisesRegex(ValueError, '폐기'):
             anypose.validate_adapter_files()
-        with self.assertRaisesRegex(ValueError, '폐기'):
+        with self.assertRaisesRegex(RuntimeError, '폐기'):
             execute_pose_generation(trial_output_root='/unused', prompt_text_value='test', character_image_path='/missing', pose_reference_path='/missing', pose_reference_kind='rig', enable_anypose_adapter=True)
 
     def test_standalone_lightning_does_not_require_anypose(self):

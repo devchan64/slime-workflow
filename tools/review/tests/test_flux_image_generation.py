@@ -126,7 +126,7 @@ class FluxImageGenerationTests(unittest.TestCase):
             (current_job_root/'request.json').write_text(json.dumps({'action':'generate','width':768,'height':1152,'steps':16,'references':['reference-1.png','reference-2.png']}))
             current_identity_text=identify_execution_command(['python','generators/image/run_flux_image.py'],current_job_root)
             self.assertIn('768x1152:steps=16:references=2',current_identity_text)
-            self.assertIn('offload=model-v1',current_identity_text)
+            self.assertIn('offload=none-flux-resident-v1',current_identity_text)
     def test_profile_requests_and_pages(self):
         from tools.review.common.management_asgi import build_management_blocks
         current_image_buffer=io.BytesIO(); Image.new('RGB',(16,16),'white').save(current_image_buffer,format='PNG')

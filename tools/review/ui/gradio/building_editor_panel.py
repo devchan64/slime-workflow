@@ -83,7 +83,7 @@ def build_building_editor_panel():
         current_load=gr.Button('건물 목록 불러오기')
         current_feedback=gr.Markdown('건물 목록을 불러오세요.')
         with gr.Accordion('신규 건물 등록',open=False):
-            gr.Markdown('목록을 불러온 뒤 512px 이하 투명 PNG와 고유 건물 ID를 입력하세요. 등록 후 앵커를 조정할 수 있습니다.')
+            gr.Markdown('목록을 불러온 뒤 512px 이하 투명 PNG와 고유 건물 ID를 입력하세요. 등록·폐기는 콘텐츠 서비스의 지원 확인이 필요합니다. 지원하지 않거나 확인할 수 없는 서비스에서는 변경을 중지합니다.')
             current_new_identifier=gr.Textbox(label='건물 ID',placeholder='town-iseulon-house-v1')
             current_new_image=gr.File(label='건물 투명 PNG',file_types=['.png'],type='filepath')
             with gr.Row():

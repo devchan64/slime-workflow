@@ -10,9 +10,12 @@ from unittest.mock import patch
 
 class FakeHermesMcpServer:
     def __init__(self, *server_argument_values, **server_keyword_values):
-        pass
+        self.test_instructions=server_keyword_values.get("instructions", "")
     def tool(self, **tool_keyword_values):
-        return lambda current_tool_callback: current_tool_callback
+        def register_fake_tool(current_tool_callback):
+            current_tool_callback.test_annotations=tool_keyword_values.get('annotations',{})
+            return current_tool_callback
+        return register_fake_tool
 
 
 fake_mcp_module = types.ModuleType('mcp')
@@ -31,6 +34,86 @@ with patch.dict(sys.modules, {'mcp':fake_mcp_module, 'mcp.server':fake_mcp_serve
 
 
 class HermesMcpTests(unittest.TestCase):
+    def test_server_instructions_distinguish_isolation_and_live_delegation(self):
+        current_instructions_text=hermes_module_value.hermes_mcp_server.test_instructions
+        self.assertIn('관리도구 사본',current_instructions_text)
+        self.assertIn('실제 생성기·데이터',current_instructions_text)
+        self.assertIn('요청 식별자',current_instructions_text)
+
+    def test_writer_reservation_recovery_forwards_acknowledgement(self):
+        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value={}) as current_gateway_mock:
+            hermes_module_value.recover_hermes_writer_reservation('recovery_123','20261118-120000-12345678','a'*64,True)
+            current_gateway_mock.assert_called_once_with('hermes-writer-reservation-recover',{'request_id':'recovery_123','job_id':'20261118-120000-12345678','review_sha256':'a'*64,'outside_processes_checked':True})
+            self.assertTrue(hermes_module_value.recover_hermes_writer_reservation.test_annotations['destructive_hint'])
+
+    def test_writer_cancel_forwards_both_identifiers(self):
+        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value={}) as current_gateway_mock:
+            hermes_module_value.cancel_hermes_writer('request_123','20261118-120000-12345678')
+            current_gateway_mock.assert_called_once_with('hermes-writer-cancel',{'request_id':'request_123','job_id':'20261118-120000-12345678'})
+            self.assertTrue(hermes_module_value.cancel_hermes_writer.test_annotations['destructive_hint'])
+            self.assertFalse(hermes_module_value.cancel_hermes_writer.test_annotations['idempotent_hint'])
+
+    def test_building_anchor_review_save_and_receipt_are_forwarded(self):
+        current_draft_value={'texture':'town-test-v1'}
+        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value={}) as current_gateway_mock:
+            hermes_module_value.preview_hermes_building_anchor(current_draft_value)
+            current_gateway_mock.assert_called_with('hermes-building-preview',{'draft':current_draft_value})
+            hermes_module_value.save_hermes_building_anchor('request_123',current_draft_value,'a'*64)
+            current_gateway_mock.assert_called_with('hermes-building-save',{'request_id':'request_123','draft':current_draft_value,'review_sha256':'a'*64})
+            hermes_module_value.read_hermes_building_anchor_receipt('request_123')
+            current_gateway_mock.assert_called_with('hermes-building-receipt',{'request_id':'request_123'})
+            self.assertTrue(hermes_module_value.save_hermes_building_anchor.test_annotations['destructive_hint'])
+
+    def test_building_catalog_forwards_snapshot(self):
+        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value={}) as current_gateway_mock:
+            hermes_module_value.read_hermes_building_catalog('길드',1,1,'a'*64)
+            current_gateway_mock.assert_called_once_with('hermes-building-catalog',{'query':'길드','offset':1,'limit':1,'snapshot':'a'*64})
+
+    def test_kimodo_keyframe_batch_validation_forwards_inputs(self):
+        current_placements_value=[{'id':'a'*32,'frame':1}]
+        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value={}) as current_gateway_mock:
+            hermes_module_value.validate_hermes_kimodo_keyframes(current_placements_value,30)
+            current_gateway_mock.assert_called_once_with('hermes-kimodo-keyframe-validate',{'keyframes':current_placements_value,'frames':30})
+
+    def test_kimodo_keyframe_search_forwards_pagination(self):
+        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value={}) as current_gateway_mock:
+            hermes_module_value.list_hermes_kimodo_keyframes('walk',20,10)
+            current_gateway_mock.assert_called_once_with('hermes-kimodo-keyframes',{'query':'walk','offset':20,'limit':10})
+
+    def test_effect_registration_commands_forward_confirmed_inputs(self):
+        current_draft_value={'id':'fog-v1'}
+        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value={'state':'completed'}) as current_command_mock:
+            hermes_module_value.preview_hermes_effect_registration(current_draft_value)
+            current_command_mock.assert_called_with('hermes-effect-register-preview',{'draft':current_draft_value})
+            hermes_module_value.register_hermes_effect('request_123',current_draft_value,'b'*64)
+            current_command_mock.assert_called_with('hermes-effect-register',{'request_id':'request_123','draft':current_draft_value,'review_sha256':'b'*64})
+            hermes_module_value.read_hermes_effect_registration_receipt('request_123')
+            current_command_mock.assert_called_with('hermes-effect-register-receipt',{'request_id':'request_123'})
+
+    def test_waypoint_replacement_commands_forward_confirmed_inputs(self):
+        current_draft_value={'id':'waypoint-v1','revision':'a'*64,'effect':{}}
+        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value={'state':'completed'}) as current_command_mock:
+            hermes_module_value.preview_hermes_waypoint_replacement(current_draft_value)
+            current_command_mock.assert_called_with('hermes-waypoint-preview',{'draft':current_draft_value})
+            hermes_module_value.replace_hermes_waypoint('request_123',current_draft_value,'b'*64)
+            current_command_mock.assert_called_with('hermes-waypoint-replace',{'request_id':'request_123','draft':current_draft_value,'review_sha256':'b'*64})
+            hermes_module_value.read_hermes_waypoint_receipt('request_123')
+            current_command_mock.assert_called_with('hermes-waypoint-receipt',{'request_id':'request_123'})
+        self.assertTrue(hermes_module_value.replace_hermes_waypoint.test_annotations['destructive_hint'])
+
+    def test_local_locking_queries_are_not_advertised_as_read_only(self):
+        current_tool_names=('read_hermes_coding_task','list_hermes_coding_tasks','read_hermes_task_diff','read_hermes_session','read_hermes_session_view','list_hermes_sessions','read_hermes_video_proposal','read_hermes_audio_proposal','read_hermes_translation_proposal','read_hermes_sprite_proposal','read_hermes_effect_proposal','read_hermes_billboard_proposal','read_hermes_field_map_proposal','list_hermes_delegation_receipts','read_hermes_delegation_status','read_hermes_kimodo_proposal','read_hermes_flux_proposal','list_hermes_flux_delegations','read_hermes_management_status')
+        for current_tool_name in current_tool_names:
+            with self.subTest(tool=current_tool_name):
+                self.assertFalse(getattr(hermes_module_value,current_tool_name).test_annotations['read_only_hint'])
+        self.assertTrue(hermes_module_value.list_hermes_management_capabilities.test_annotations['read_only_hint'])
+
+    def test_cancellation_tools_do_not_promise_repeatable_success(self):
+        for current_tool_name in ('cancel_hermes_video','cancel_hermes_audio','cancel_hermes_flux_profile','cancel_hermes_translation','cancel_hermes_flux_delegation','cancel_hermes_kimodo_delegation'):
+            with self.subTest(tool=current_tool_name):
+                self.assertFalse(getattr(hermes_module_value,current_tool_name).test_annotations['idempotent_hint'])
+                self.assertTrue(getattr(hermes_module_value,current_tool_name).test_annotations['destructive_hint'])
+
     def test_submit_forwards_same_request_identifier_to_gateway(self):
         hermes_response_file = io.BytesIO(b'{"id":"job-id","status":"queued"}')
         with patch.dict('os.environ', {'SLIME_MANAGEMENT_GATEWAY_URL':'http://127.0.0.1:8771'}), patch.object(hermes_module_value.urllib.request, 'build_opener') as hermes_opener_mock:
@@ -61,9 +144,188 @@ class HermesMcpTests(unittest.TestCase):
                 hermes_module_value.read_hermes_gpu_queue_status()
 
     def test_capability_catalog_uses_shared_gateway(self):
-        with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={'records':[]}) as current_gateway_mock:
-            hermes_module_value.list_hermes_management_capabilities()
+        with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={'records':[],'unlisted_commands':['hermes-new-command']}) as current_gateway_mock:
+            current_catalog_value=hermes_module_value.list_hermes_management_capabilities()
+        self.assertEqual(current_catalog_value['unlisted_commands'],['hermes-new-command'])
         current_gateway_mock.assert_called_once_with('hermes-capabilities', {})
+
+    def test_service_registration_uses_shared_gateway(self):
+        with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={'services':[]}) as current_gateway_mock:
+            self.assertEqual(hermes_module_value.list_management_service_registration()['services'], [])
+        current_gateway_mock.assert_called_once_with('hermes-service-registration', {})
+
+    def test_service_search_uses_shared_gateway(self):
+        with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={'services':[],'next_offset':None}) as current_gateway_mock:
+            self.assertIsNone(hermes_module_value.search_hermes_management_services('음악',5,5)['next_offset'])
+        current_gateway_mock.assert_called_once_with('hermes-service-registration', {'query':'음악','offset':5,'limit':5})
+
+    def test_generator_source_history_uses_shared_gateway(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={'records':[]}) as current_gateway_mock:
+            hermes_module_value.list_hermes_generator_source_history('wan22-vace',10,10,'a'*64)
+        current_gateway_mock.assert_called_once_with('hermes-generator-source-history',{'service':'wan22-vace','offset':10,'limit':10,'snapshot':'a'*64})
+
+    def test_audio_source_history_uses_shared_gateway(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={'records':[]}) as current_gateway_mock:
+            hermes_module_value.list_hermes_audio_source_history('music-heartmula',10,10,'a'*64)
+        current_gateway_mock.assert_called_once_with('hermes-audio-source-history',{'service':'music-heartmula','offset':10,'limit':10,'snapshot':'a'*64})
+
+    def test_kimodo_build_status_uses_shared_gateway(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={'status':'checking'}) as current_gateway_mock:
+            self.assertEqual(hermes_module_value.read_hermes_kimodo_build_status()['status'],'checking')
+        current_gateway_mock.assert_called_once_with('hermes-kimodo-build-status',{})
+
+    def test_flux_proposal_uses_shared_gateway(self):
+        with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={'proposal':{}}) as current_gateway_mock:
+            hermes_module_value.read_hermes_flux_proposal('job-1')
+        current_gateway_mock.assert_called_once_with('hermes-flux-proposal', {'id':'job-1'})
+
+    def test_flux_delegation_uses_matching_gateway_commands(self):
+        with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={}) as current_gateway_mock:
+            hermes_module_value.delegate_hermes_flux_generation('request_123', {'prompt':'x'})
+            current_gateway_mock.assert_called_with('hermes-delegate-flux-image', {'request_id':'request_123', 'request':{'prompt':'x'}})
+            hermes_module_value.read_hermes_flux_delegation('request_123')
+            current_gateway_mock.assert_called_with('hermes-flux-delegation-status', {'request_id':'request_123'})
+            hermes_module_value.cancel_hermes_flux_delegation('request_123', 'job-1')
+            current_gateway_mock.assert_called_with('hermes-flux-delegation-cancel', {'request_id':'request_123', 'job_id':'job-1'})
+
+    def test_model_preparation_mcp_preserves_request_and_service(self):
+        with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={}) as current_gateway_mock:
+            hermes_module_value.list_hermes_model_preparation_receipts()
+            current_gateway_mock.assert_called_with('hermes-model-prepare-history', {})
+            hermes_module_value.prepare_hermes_managed_model('request_123', 'flux-image')
+            current_gateway_mock.assert_called_with('hermes-model-prepare', {'request_id':'request_123', 'service':'flux-image'})
+            hermes_module_value.read_hermes_model_preparation_receipt('request_123', 'flux-image')
+            current_gateway_mock.assert_called_with('hermes-model-prepare-status', {'request_id':'request_123', 'service':'flux-image'})
+
+    def test_video_proposal_mcp_uses_fixed_command(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:
+            hermes_module_value.read_hermes_video_proposal('job-1')
+        current_gateway_mock.assert_called_once_with('hermes-video-proposal',{'id':'job-1'})
+
+    def test_video_mcp_uses_matching_service(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:
+            hermes_module_value.delegate_hermes_video('video_request_123','dwpose',{'action':'generate'})
+            current_gateway_mock.assert_called_with('hermes-delegate-video',{'request_id':'video_request_123','service':'dwpose','request':{'action':'generate'}})
+            hermes_module_value.read_hermes_video_status('video_request_123','dwpose')
+            current_gateway_mock.assert_called_with('hermes-video-status',{'request_id':'video_request_123','service':'dwpose'})
+            hermes_module_value.list_hermes_video_receipts('dwpose')
+            current_gateway_mock.assert_called_with('hermes-video-history',{'service':'dwpose'})
+            hermes_module_value.cancel_hermes_video('video_request_123','dwpose','job-1')
+            current_gateway_mock.assert_called_with('hermes-video-cancel',{'request_id':'video_request_123','service':'dwpose','job_id':'job-1'})
+
+    def test_audio_proposal_mcp_uses_fixed_command(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:
+            hermes_module_value.read_hermes_audio_proposal('job-1')
+        current_gateway_mock.assert_called_once_with('hermes-audio-proposal',{'id':'job-1'})
+
+    def test_audio_mcp_uses_matching_service(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:
+            hermes_module_value.delegate_hermes_audio('audio_request_123','sfx-dasheng-audiogen',{'prompt':'splash'})
+            current_gateway_mock.assert_called_with('hermes-delegate-audio',{'request_id':'audio_request_123','service':'sfx-dasheng-audiogen','request':{'prompt':'splash'}})
+            hermes_module_value.read_hermes_audio_status('audio_request_123','sfx-dasheng-audiogen')
+            current_gateway_mock.assert_called_with('hermes-audio-status',{'request_id':'audio_request_123','service':'sfx-dasheng-audiogen'})
+            hermes_module_value.list_hermes_audio_receipts('sfx-dasheng-audiogen')
+            current_gateway_mock.assert_called_with('hermes-audio-history',{'service':'sfx-dasheng-audiogen'})
+            hermes_module_value.cancel_hermes_audio('audio_request_123','sfx-dasheng-audiogen','job-1')
+            current_gateway_mock.assert_called_with('hermes-audio-cancel',{'request_id':'audio_request_123','service':'sfx-dasheng-audiogen','job_id':'job-1'})
+
+    def test_flux_profile_mcp_uses_matching_service(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:
+            hermes_module_value.delegate_hermes_flux_profile('profile_request_123','flux-building',{'prompt':'house'})
+            current_gateway_mock.assert_called_with('hermes-delegate-flux-profile',{'request_id':'profile_request_123','service':'flux-building','request':{'prompt':'house'}})
+            hermes_module_value.read_hermes_flux_profile_status('profile_request_123','flux-building')
+            current_gateway_mock.assert_called_with('hermes-flux-profile-status',{'request_id':'profile_request_123','service':'flux-building'})
+            hermes_module_value.list_hermes_flux_profile_receipts('flux-building')
+            current_gateway_mock.assert_called_with('hermes-flux-profile-history',{'service':'flux-building'})
+            hermes_module_value.cancel_hermes_flux_profile('profile_request_123','flux-building','job-1')
+            current_gateway_mock.assert_called_with('hermes-flux-profile-cancel',{'request_id':'profile_request_123','service':'flux-building','job_id':'job-1'})
+
+    def test_writer_apply_mcp_uses_matching_gateway(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:
+            hermes_module_value.apply_hermes_writer_proposal('apply_request_123','writer_request_123','job-1','a'*64)
+            current_gateway_mock.assert_called_with('hermes-writer-apply',{'request_id':'apply_request_123','writer_request_id':'writer_request_123','job_id':'job-1','proposal_hash':'a'*64})
+            hermes_module_value.read_hermes_writer_apply_receipt('apply_request_123')
+            current_gateway_mock.assert_called_with('hermes-writer-apply-status',{'request_id':'apply_request_123'})
+            hermes_module_value.list_hermes_writer_apply_receipts()
+            current_gateway_mock.assert_called_with('hermes-writer-apply-history',{})
+
+    def test_writer_mcp_uses_matching_gateway(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:
+            hermes_module_value.delegate_hermes_writer('writer_request_123',{'mode':'write','prompt':'제안'})
+            current_gateway_mock.assert_called_with('hermes-delegate-writer',{'request_id':'writer_request_123','request':{'mode':'write','prompt':'제안'}})
+            hermes_module_value.read_hermes_writer_status('writer_request_123')
+            current_gateway_mock.assert_called_with('hermes-writer-status',{'request_id':'writer_request_123'})
+            hermes_module_value.list_hermes_writer_receipts()
+            current_gateway_mock.assert_called_with('hermes-writer-history',{})
+
+    def test_translation_proposal_mcp_uses_fixed_command(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:
+            hermes_module_value.read_hermes_translation_proposal('job-1')
+        current_gateway_mock.assert_called_once_with('hermes-translation-proposal',{'id':'job-1'})
+
+    def test_translation_mcp_uses_matching_gateway(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:
+            hermes_module_value.delegate_hermes_translation('translation_123',{'text':'나무','target_language':'en'})
+            current_gateway_mock.assert_called_with('hermes-delegate-translation',{'request_id':'translation_123','request':{'text':'나무','target_language':'en'}})
+            hermes_module_value.read_hermes_translation_status('translation_123')
+            current_gateway_mock.assert_called_with('hermes-translation-status',{'request_id':'translation_123'})
+            hermes_module_value.list_hermes_translation_receipts()
+            current_gateway_mock.assert_called_with('hermes-translation-history',{})
+            hermes_module_value.cancel_hermes_translation('translation_123','job-1')
+            current_gateway_mock.assert_called_with('hermes-translation-cancel',{'request_id':'translation_123','job_id':'job-1'})
+
+    def test_field_proposal_mcp_forwards_fixed_command(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:
+            hermes_module_value.read_hermes_field_map_proposal('job-1')
+        current_gateway_mock.assert_called_once_with('hermes-field-proposal',{'id':'job-1'})
+
+    def test_field_region_mcp_preserves_revision_and_bounds(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:
+            hermes_module_value.read_hermes_field_region('sample',2,3,4,5,6,7,'revision')
+        current_gateway_mock.assert_called_once_with('hermes-field-region',{'map':'sample','column':2,'row':3,'width':4,'height':5,'offset':6,'limit':7,'revision':'revision'})
+
+    def test_city_map_mcp_forwards_fixed_operations(self):
+        current_draft_value = {'map':'stonewarm','generation':5,'revision':2,'document':{}}
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:
+            hermes_module_value.load_hermes_city_map('stonewarm')
+            current_gateway_mock.assert_called_with('hermes-city-load',{'map':'stonewarm'})
+            hermes_module_value.preview_hermes_city_map(current_draft_value)
+            current_gateway_mock.assert_called_with('hermes-city-preview',{'draft':current_draft_value})
+            hermes_module_value.save_hermes_city_map('city_request_123',current_draft_value,'a'*64)
+            current_gateway_mock.assert_called_with('hermes-city-save',{'request_id':'city_request_123','draft':current_draft_value,'token':'a'*64})
+            hermes_module_value.read_hermes_city_map_receipt('city_request_123')
+            current_gateway_mock.assert_called_with('hermes-city-receipt',{'request_id':'city_request_123'})
+            hermes_module_value.list_hermes_city_map_receipts()
+            current_gateway_mock.assert_called_with('hermes-city-history',{})
+
+    def test_field_map_mcp_forwards_fixed_operations(self):
+        current_draft_value = {'map':'moss-clearing','revision':'r','cells':[],'objects':[]}
+        with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={}) as current_gateway_mock:
+            hermes_module_value.list_hermes_field_map_receipts()
+            current_gateway_mock.assert_called_with('hermes-field-history',{})
+            hermes_module_value.read_hermes_field_map_receipt('field_request_123')
+            current_gateway_mock.assert_called_with('hermes-field-receipt',{'request_id':'field_request_123'})
+            hermes_module_value.load_hermes_field_map('moss-clearing')
+            current_gateway_mock.assert_called_with('hermes-field-load',{'map':'moss-clearing'})
+            hermes_module_value.preview_hermes_field_map(current_draft_value)
+            current_gateway_mock.assert_called_with('hermes-field-preview',{'draft':current_draft_value})
+            hermes_module_value.save_hermes_field_map('field_request_123',current_draft_value,'a'*64)
+            current_gateway_mock.assert_called_with('hermes-field-save',{'request_id':'field_request_123','draft':current_draft_value,'token':'a'*64})
+
+    def test_content_database_status_uses_fixed_gateway(self):
+        with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={'status':'unavailable'}) as current_gateway_mock:
+            self.assertEqual(hermes_module_value.read_hermes_content_database_status()['status'], 'unavailable')
+        current_gateway_mock.assert_called_once_with('hermes-content-database-status', {})
+
+    def test_model_readiness_uses_shared_gateway(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={'status':'available'}) as current_gateway_mock:
+            self.assertEqual(hermes_module_value.read_hermes_model_readiness('flux-image')['status'],'available')
+        current_gateway_mock.assert_called_once_with('hermes-model-readiness',{'service':'flux-image'})
+
+    def test_model_inventory_uses_shared_gateway(self):
+        with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={'status':'available', 'models':[]}) as current_gateway_mock:
+            self.assertEqual(hermes_module_value.read_hermes_model_inventory()['status'], 'available')
+        current_gateway_mock.assert_called_once_with('hermes-model-inventory', {})
 
     def test_delegation_history_uses_shared_gateway(self):
         with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={'records':[]}) as current_gateway_mock:

@@ -236,12 +236,17 @@ class ImageGenerationManager:
                 if current_http_handler.headers.get('Origin') != expected_origin_value:
                     raise ValueError('동일 출처 요청만 허용합니다.')
                 history_delete_match=re.fullmatch(re.escape(self.route_prefix_value)+r'/history/([0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8})/delete',current_url_path)
-                if (current_url_path not in (self.route_prefix_value+'/jobs',self.route_prefix_value+'/history/reset',self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume',self.route_prefix_value+'/pause') and history_delete_match is None) or current_http_handler.headers.get('Content-Type','').split(';')[0] != 'application/json':
+                if (current_url_path not in (self.route_prefix_value+'/jobs',self.route_prefix_value+'/history/reset',self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume',self.route_prefix_value+'/pause',self.route_prefix_value+'/history/observe') and history_delete_match is None) or current_http_handler.headers.get('Content-Type','').split(';')[0] != 'application/json':
                     raise ValueError('요청 경로 또는 형식 오류')
                 current_body_length = int(current_http_handler.headers.get('Content-Length','0'))
                 if not 1 <= current_body_length <= (getattr(self, 'reference_request_limit', 12_100_000) if self.three_reference_mode or getattr(self,'reference_upload_enabled',False) else IMAGE_REQUEST_LIMIT):
                     raise ValueError('요청 크기 오류')
                 current_request_record = json.loads(current_http_handler.rfile.read(current_body_length),object_pairs_hook=parse_unique_request)
+                if current_url_path == self.route_prefix_value+'/history/observe':
+                    from tools.review.common.generation_records import observe_generation_history_records
+                    with MANAGER_HISTORY_LOCK:
+                        send_response_data(200,observe_generation_history_records(self.history_storage_path(),self.job_storage_root,current_request_record))
+                    return True
                 if current_url_path in (self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume',self.route_prefix_value+'/pause'):
                     if not isinstance(current_request_record,dict) or set(current_request_record)!={'id'} or not re.fullmatch(r'[0-9a-f_-]+',current_request_record['id']):
                         raise ValueError('작업 ID 형식 오류')

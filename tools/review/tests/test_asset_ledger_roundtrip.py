@@ -23,6 +23,8 @@ class AssetLedgerRoundtripTests(unittest.TestCase):
             for current_relative_path in ('assets/maps','assets/billboards','assets/sprites/effects'):
                 shutil.copytree(current_source_root/current_relative_path,current_asset_root/current_relative_path)
             current_first_result=publish_content_asset_ledger(current_asset_root,current_export_payload)
+            current_effect_catalog=load_unique_yaml_document(current_asset_root/'assets/sprites/effects/catalog.yaml')
+            current_test_case.assertEqual(current_effect_catalog['effects'],current_export_payload['effects'])
             current_test_case.assertFalse(current_first_result['consumerLocksUpdated'])
             current_test_case.assertEqual(publish_content_asset_ledger(current_asset_root,current_export_payload)['updatedFiles'],0)
             current_changed_payload=copy.deepcopy(current_export_payload)

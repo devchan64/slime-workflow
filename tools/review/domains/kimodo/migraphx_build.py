@@ -23,19 +23,44 @@ POSE_CACHE_CHECK_STATE = {'future': None, 'signature': None, 'completed': None}
 
 
 def check_pose_cache_environment():
-    """빌드와 같은 Python·라이브러리 환경에서 모델과 캐시를 확인한다."""
+    """GPU 장치 확인을 공용 대기열에서 배타적으로 수행한다."""
+    import shutil
+    import tempfile
     if not KIMODO_ENVIRONMENT_PYTHON.is_file():
         raise RuntimeError('Kimodo ROCm 실행 환경을 먼저 준비하세요.')
-    current_worker_path = WORKFLOW_ROOT_DIRECTORY/'generators/kimodo/migraphx_build_worker.py'
-    current_process_result = subprocess.run([str(KIMODO_ENVIRONMENT_PYTHON), str(current_worker_path), '--check'],
-                                            cwd=WORKFLOW_ROOT_DIRECTORY, capture_output=True, text=True, timeout=120)
-    if current_process_result.returncode:
-        raise RuntimeError('모델·GPU 실행 환경을 확인하지 못했습니다. 모델 준비와 GPU 상태를 확인하세요.')
-    current_output_lines = current_process_result.stdout.strip().splitlines()
-    current_result_record = json.loads(current_output_lines[-1]) if current_output_lines else {}
-    if type(current_result_record.get('ready')) is not bool:
-        raise ValueError('MIGraphX 캐시 검사 결과가 올바르지 않습니다.')
-    return current_result_record['ready']
+    current_check_root=POSE_BUILD_JOB_ROOT/'cache-checks'
+    current_check_root.mkdir(parents=True,exist_ok=True)
+    current_check_path=Path(tempfile.mkdtemp(prefix='check-',dir=current_check_root))
+    current_worker_path=WORKFLOW_ROOT_DIRECTORY/'generators/kimodo/migraphx_build_worker.py'
+    current_queue_process=None
+    try:
+        with (current_check_path/'worker.log').open('w+',encoding='utf-8') as current_log_handle:
+            current_queue_process=launch_gpu_process([str(KIMODO_ENVIRONMENT_PYTHON),str(current_worker_path),'--check'],current_check_path,'kimodo-cache-check',cwd=WORKFLOW_ROOT_DIRECTORY,stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True)
+            try:
+                current_exit_code=current_queue_process.wait(timeout=120)
+            except subprocess.TimeoutExpired as current_timeout_error:
+                (current_check_path/'cancel.request').touch()
+                try:current_queue_process.wait(timeout=30)
+                except subprocess.TimeoutExpired:pass
+                raise RuntimeError('GPU 대기 또는 캐시 검사가 시간 제한을 넘었습니다. 잠시 후 다시 확인하세요.') from current_timeout_error
+            current_status_record=json.loads((current_check_path/'status.json').read_text())
+            if current_exit_code!=0 or current_status_record.get('status')!='completed':
+                raise RuntimeError('모델·GPU 실행 환경을 확인하지 못했습니다. 모델 준비와 GPU 상태를 확인하세요.')
+            current_log_handle.flush()
+            current_log_handle.seek(0)
+            current_output_lines=current_log_handle.read().splitlines()
+            current_result_records=[]
+            for current_output_line in current_output_lines:
+                try:current_parsed_value=json.loads(current_output_line)
+                except (ValueError,TypeError):continue
+                if isinstance(current_parsed_value,dict) and set(current_parsed_value)=={'ready'} and type(current_parsed_value['ready']) is bool:
+                    current_result_records.append(current_parsed_value)
+            if len(current_result_records)!=1:
+                raise ValueError('MIGraphX 캐시 검사 결과가 올바르지 않습니다.')
+            return current_result_records[0]['ready']
+    finally:
+        if current_queue_process is None or current_queue_process.poll() is not None:
+            shutil.rmtree(current_check_path)
 
 
 def inspect_pose_cache_validity(current_job_signature):
@@ -55,6 +80,28 @@ def inspect_pose_cache_validity(current_job_signature):
             return {'status': 'ready' if current_future_value.result() else 'rebuild_required'}
         except Exception as current_check_error:
             return {'status': 'unavailable', 'error': str(current_check_error) or type(current_check_error).__name__}
+
+
+def inspect_recorded_pose_build_status():
+    """GPU 초기화 없이 최근 빌드 기록만 읽는다. 캐시 유효성은 검사하지 않는다."""
+    import re
+    try:
+        current_latest_text=(POSE_BUILD_JOB_ROOT/'latest.json').read_text()
+    except FileNotFoundError:
+        return {'status':'idle','id':None,'cache_status':'unverified'}
+    current_job_identifier=json.loads(current_latest_text)['job']
+    if not isinstance(current_job_identifier,str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_job_identifier):
+        raise ValueError('빌드 작업 ID 오류')
+    current_status_record=json.loads((POSE_BUILD_JOB_ROOT/current_job_identifier/'status.json').read_text())
+    current_status_value=current_status_record['status']
+    if current_status_value not in ('queued','running','completed','failed','cancelled'):
+        raise ValueError('빌드 상태 오류')
+    current_result_record={'status':current_status_value,'id':current_job_identifier,'cache_status':'unverified'}
+    current_error_value=current_status_record.get('error')
+    if current_status_value=='failed' and isinstance(current_error_value,str):
+        if current_error_value.startswith('시스템 RAM 보호:'):current_result_record['failure_code']='host_memory_guard'
+        elif current_error_value.startswith('시스템 RAM 감시 실패:'):current_result_record['failure_code']='host_memory_monitor_failed'
+    return current_result_record
 
 
 def inspect_pose_build_status():

@@ -7,3 +7,5 @@ FLUX 3 공용 실행기와 용도별 설정을 사용한다. 생성 결과는 �
 CLI 예시: `.venv/bin/python tools/manager.py command flux-image generate --prompt 'A simple fantasy object' --reference <참조.png> --detach` (필수 참조: 마네킨·빌보드 가이드·건물).
 
 한국어 설명을 입력하면 번역 대기열에서 영어로 번역한 뒤 준비 문구 및 공용 화풍에 결합해 자동 생성한다. 번역 실패 시 생성하지 않으며 원문·번역·검토 항목은 이력에서 확인한다. 기존 영어 입력과 이력은 유지한다.
+
+FLUX 모델 구성요소는 CPU 자동 오프로드 없이 ROCm GPU에 순차 적재한다. 실행 중 호스트 여유 메모리가 6 GiB 미만이면서 작업 RSS가 8 GiB 이상이면 해당 작업을 중지하고 실패 사유를 기록한다. 이는 시스템 전체의 OOM 방지를 보장하지 않는다. 기존 오프로드 실행의 실측값은 GPU 상주 실행의 예약 추정에 사용하지 않는다.

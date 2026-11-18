@@ -119,6 +119,20 @@ class MemoryHistoryTests(unittest.TestCase):
                 memory.save_memory_observation('image',current_job_path,37000,3,'completed',command_identity_name=current_identity_name)
                 self.assertEqual(memory.estimate_required_memory('image',6144,current_identity_name)['required_memory_mib'],37000)
 
+    def test_flux_resident_profile_never_reuses_offloaded_memory_or_reduces_floor(self):
+        with tempfile.TemporaryDirectory() as current_temp_root:
+            current_job_path = Path(current_temp_root) / 'job'
+            current_job_path.mkdir()
+            (current_job_path / 'request.json').write_text(json.dumps({'width':512,'height':512,'steps':16,'images':[]}))
+            with patch.object(memory,'MEMORY_HISTORY_DIRECTORY',Path(current_temp_root)/'history'):
+                current_identity_value = memory.identify_execution_command(['python','run_flux_image.py'],current_job_path)
+                self.assertTrue(current_identity_value.endswith(':offload=none-flux-resident-v1'))
+                current_previous_identity = current_identity_value.replace(':offload=none-flux-resident-v1',':offload=model-v1')
+                memory.save_memory_observation('flux-image',current_job_path,12000,3,'completed',command_identity_name=current_previous_identity)
+                self.assertEqual(memory.estimate_required_memory('flux-image',57344,current_identity_value)['samples'],0)
+                memory.save_memory_observation('flux-image',current_job_path,20000,3,'completed',command_identity_name=current_identity_value)
+                self.assertEqual(memory.estimate_required_memory('flux-image',57344,current_identity_value)['required_memory_mib'],57344)
+
     def test_circular_vae_without_cpu_offload_has_own_reservation(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_job_path = Path(current_directory_name)

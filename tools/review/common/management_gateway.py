@@ -38,8 +38,10 @@ MANAGEMENT_SERVICE_COMMANDS['dwpose']=('history-delete','resume','generate','pre
 MANAGEMENT_SERVICE_ROUTES['kimodo']='/kimodo'
 MANAGEMENT_SERVICE_COMMANDS['kimodo']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('prepare','keyframe-save','keyframe-list','keyframe-preview','keyframe-replace','keyframe-retire')
-MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('migraphx-build', 'migraphx-build-status')
-MANAGEMENT_COMMAND_ROUTES.update({'migraphx-build': ('POST', '/migraphx-build'), 'migraphx-build-status': ('GET', '/migraphx-build-status')})
+MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('migraphx-build', 'migraphx-build-status', 'migraphx-build-observe')
+MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('active-observe',)
+MANAGEMENT_COMMAND_ROUTES['active-observe']=('GET','/active-observe')
+MANAGEMENT_COMMAND_ROUTES.update({'migraphx-build': ('POST', '/migraphx-build'), 'migraphx-build-status': ('GET', '/migraphx-build-status'), 'migraphx-build-observe': ('GET', '/migraphx-build-observe')})
 MANAGEMENT_COMMAND_ROUTES['keyframe-save'] = ('POST','/keyframes/save')
 MANAGEMENT_COMMAND_ROUTES['keyframe-list'] = ('POST','/keyframes/list')
 MANAGEMENT_COMMAND_ROUTES['keyframe-preview'] = ('POST','/keyframes/preview')
@@ -54,9 +56,9 @@ MANAGEMENT_COMMAND_ROUTES['sheet-gif'] = ('POST', '/sheet/gif')
 MANAGEMENT_SERVICE_COMMANDS['character-animation'] += ('sheet-auto','sheet-export','sheet-gif','sheet-search','sheet-image','sheet-update')
 MANAGEMENT_COMMAND_ROUTES.update({'sheet-update':('POST','/sheet/update'),'sheet-search':('POST','/sheet/search'),'sheet-image':('POST','/sheet/image')})
 
-WRITER_PAYLOAD_COMMAND_NAMES = ('writer-detail', 'writer-submit', 'writer-apply', 'writer-history', 'writer-delete')
+WRITER_PAYLOAD_COMMAND_NAMES = ('writer-index-status', 'writer-detail', 'writer-submit', 'writer-apply', 'writer-history', 'writer-history-observe', 'writer-delete', 'writer-cancel')
 TRANSLATION_PAYLOAD_COMMAND_NAMES = ('translation-submit', 'translation-status', 'translation-cancel', 'translation-history', 'translation-rag')
-HERMES_PAYLOAD_COMMAND_NAMES = ('hermes-submit', 'hermes-detail', 'hermes-history', 'hermes-diff', 'hermes-cancel', 'hermes-session-create', 'hermes-session-read', 'hermes-session-list', 'hermes-session-submit', 'hermes-session-view', 'hermes-management-status', 'hermes-delegate-kimodo', 'hermes-kimodo-proposal', 'hermes-delegation-status', 'hermes-delegation-cancel', 'hermes-delegation-job-status', 'hermes-delegation-history', 'hermes-capabilities')
+HERMES_PAYLOAD_COMMAND_NAMES = ('hermes-submit', 'hermes-detail', 'hermes-history', 'hermes-diff', 'hermes-cancel', 'hermes-session-create', 'hermes-session-read', 'hermes-session-list', 'hermes-session-submit', 'hermes-session-view', 'hermes-management-status', 'hermes-model-inventory', 'hermes-content-database-status', 'hermes-kimodo-build-status', 'hermes-model-readiness', 'hermes-model-prepare', 'hermes-model-prepare-status', 'hermes-model-prepare-history', 'hermes-billboard-catalog', 'hermes-billboard-proposal', 'hermes-billboard-load', 'hermes-billboard-preview', 'hermes-billboard-save', 'hermes-billboard-receipt', 'hermes-building-catalog', 'hermes-building-preview', 'hermes-building-save', 'hermes-building-receipt', 'hermes-sprite-clip-playback', 'hermes-sprite-playback', 'hermes-sprite-proposal', 'hermes-sprite-preview', 'hermes-sprite-save', 'hermes-sprite-receipt', 'hermes-sprite-catalog', 'hermes-sprite-detail', 'hermes-effect-catalog', 'hermes-effect-detail', 'hermes-effect-proposal', 'hermes-effect-preview', 'hermes-effect-save', 'hermes-effect-receipt', 'hermes-effect-register-preview', 'hermes-effect-register', 'hermes-effect-register-receipt', 'hermes-waypoint-preview', 'hermes-waypoint-replace', 'hermes-waypoint-receipt', 'hermes-world-map', 'hermes-field-load', 'hermes-field-region', 'hermes-field-preview', 'hermes-field-save', 'hermes-field-receipt', 'hermes-field-history', 'hermes-city-load', 'hermes-city-preview', 'hermes-city-save', 'hermes-city-receipt', 'hermes-city-history', 'hermes-service-registration', 'hermes-delegate-writer', 'hermes-writer-status', 'hermes-writer-history', 'hermes-writer-cancel', 'hermes-writer-reservation-preview', 'hermes-writer-reservation-recover', 'hermes-writer-reservation-receipt', 'hermes-writer-apply', 'hermes-writer-apply-status', 'hermes-writer-apply-history', 'hermes-delegate-translation', 'hermes-translation-proposal', 'hermes-translation-status', 'hermes-translation-history', 'hermes-translation-cancel', 'hermes-delegate-video', 'hermes-video-proposal', 'hermes-video-status', 'hermes-video-history', 'hermes-video-cancel', 'hermes-delegate-audio', 'hermes-audio-proposal', 'hermes-audio-status', 'hermes-audio-history', 'hermes-audio-source-history', 'hermes-generator-source-history', 'hermes-audio-cancel', 'hermes-delegate-flux-profile', 'hermes-flux-profile-status', 'hermes-flux-profile-history', 'hermes-flux-profile-cancel', 'hermes-delegate-flux-image', 'hermes-flux-delegation-history', 'hermes-flux-delegation-status', 'hermes-flux-delegation-cancel', 'hermes-delegate-kimodo', 'hermes-kimodo-proposal', 'hermes-kimodo-keyframes', 'hermes-kimodo-keyframe-preview', 'hermes-kimodo-keyframe-validate', 'hermes-flux-proposal', 'hermes-field-proposal', 'hermes-delegation-status', 'hermes-delegation-cancel', 'hermes-delegation-job-status', 'hermes-delegation-history', 'hermes-capabilities')
 MANAGEMENT_SERVICE_ROUTES['hermes-agent'] = '/hermes-agent'
 MANAGEMENT_SERVICE_COMMANDS['hermes-agent'] = HERMES_PAYLOAD_COMMAND_NAMES
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name: ('POST', '/' + current_command_name) for current_command_name in HERMES_PAYLOAD_COMMAND_NAMES})
@@ -64,16 +66,16 @@ MANAGEMENT_SERVICE_ROUTES['prompt-translation'] = '/prompt-translation'
 MANAGEMENT_SERVICE_COMMANDS['prompt-translation'] = (*TRANSLATION_PAYLOAD_COMMAND_NAMES, 'model-status', 'prepare', 'history', 'status', 'logs', 'cancel', 'resume', 'history-delete', 'history-reset')
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name: ('POST', '/' + current_command_name) for current_command_name in TRANSLATION_PAYLOAD_COMMAND_NAMES})
 MANAGEMENT_SERVICE_ROUTES['writer-agent'] = '/writer-agent'
-MANAGEMENT_SERVICE_COMMANDS['writer-agent'] = ('writer-state', 'model-status', 'prepare', *WRITER_PAYLOAD_COMMAND_NAMES)
-MANAGEMENT_COMMAND_ROUTES.update({'writer-state': ('GET', '/api/state'), 'writer-detail': ('POST', '/api/detail'), 'writer-submit': ('POST', '/api/jobs'), 'writer-apply': ('POST', '/api/apply'), 'writer-history': ('POST', '/api/history'), 'writer-delete': ('POST', '/api/history/delete')})
+MANAGEMENT_SERVICE_COMMANDS['writer-agent'] = ('writer-state', 'writer-token', 'model-status', 'prepare', *WRITER_PAYLOAD_COMMAND_NAMES)
+MANAGEMENT_COMMAND_ROUTES.update({'writer-index-status': ('POST', '/api/index-status'), 'writer-state': ('GET', '/api/state'), 'writer-token': ('GET', '/api/token'), 'writer-detail': ('POST', '/api/detail'), 'writer-submit': ('POST', '/api/jobs'), 'writer-apply': ('POST', '/api/apply'), 'writer-history': ('POST', '/api/history'), 'writer-history-observe': ('POST', '/api/history/observe'), 'writer-delete': ('POST', '/api/history/delete'), 'writer-cancel': ('POST', '/api/cancel')})
 
 
 MANAGEMENT_SERVICE_ROUTES['map-assets']='/map-assets'
-MANAGEMENT_SERVICE_COMMANDS['map-assets']=('resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-replace','asset-list','asset-register','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore')
+MANAGEMENT_SERVICE_COMMANDS['map-assets']=('resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-register-check','effect-register-reviewed','effect-replace','asset-list','asset-register','asset-preview','asset-save','asset-save-reviewed','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore')
 MANAGEMENT_COMMAND_ROUTES.update({'building-list':('POST','/editor-building-list'),'building-save':('POST','/editor-building-save'),'building-register':('POST','/editor-building-register'),'building-retire':('POST','/editor-building-retire')})
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/'+current_command_name) for current_command_name in ('database-seed','database-status','database-sync','database-snapshot','database-restore')})
-MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/editor-'+current_command_name) for current_command_name in ('effect-list','effect-load','effect-save','effect-register','effect-replace','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save')})
-MANAGEMENT_COMMAND_ROUTES.update({'asset-list':('POST','/editor-list'),'asset-preview':('POST','/editor-preview'),'asset-save':('POST','/editor-save'),'asset-retire-preview':('POST','/editor-retire-preview'),'asset-retire':('POST','/editor-retire')})
+MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/editor-'+current_command_name) for current_command_name in ('effect-list','effect-load','effect-save','effect-register','effect-register-check','effect-register-reviewed','effect-replace','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save')})
+MANAGEMENT_COMMAND_ROUTES.update({'asset-list':('POST','/editor-list'),'asset-preview':('POST','/editor-preview'),'asset-save':('POST','/editor-save'),'asset-save-reviewed':('POST','/editor-save-reviewed'),'asset-retire-preview':('POST','/editor-retire-preview'),'asset-retire':('POST','/editor-retire')})
 MANAGEMENT_COMMAND_ROUTES['asset-register']=('POST','/editor-register')
 MANAGEMENT_COMMAND_ROUTES['map-anchor-save']=('POST','/anchor-save')
 MANAGEMENT_COMMAND_ROUTES.update({'asset-crop-preview':('POST','/editor-crop-preview'),'asset-crop':('POST','/editor-crop')})
@@ -106,12 +108,13 @@ MANAGEMENT_SERVICE_COMMANDS['building-generator'] = MANAGEMENT_SERVICE_COMMANDS[
 
 for current_service_name in AUDIO_SERVICE_NAMES:
     MANAGEMENT_SERVICE_ROUTES[current_service_name] = '/' + current_service_name
-    MANAGEMENT_SERVICE_COMMANDS[current_service_name] = ('generate','prepare','status','logs','history','active','model-status','cancel','resume','history-delete','history-reset')
+    MANAGEMENT_SERVICE_COMMANDS[current_service_name] = ('generate','prepare','status','logs','history','history-observe','active','model-status','cancel','resume','history-delete','history-reset')
 
 for current_service_name in ('music-heartmula', 'sfx-dasheng-audiogen'):
     MANAGEMENT_SERVICE_COMMANDS[current_service_name] += ('download-model', 'download-model-status')
 MANAGEMENT_COMMAND_ROUTES.update({'download-model': ('POST', '/model-download'), 'download-model-status': ('GET', '/model-download')})
 
+MANAGEMENT_COMMAND_ROUTES['history-observe'] = ('POST', '/history/observe')
 MANAGEMENT_COMMAND_ROUTES['history-reset-preview'] = ('GET', '/history/reset-preview')
 for current_service_name, current_command_names in tuple(MANAGEMENT_SERVICE_COMMANDS.items()):
     if 'history-reset' in current_command_names and current_service_name not in ('momask', 'character-animation'):
@@ -122,47 +125,57 @@ for current_service_name, current_command_names in tuple(MANAGEMENT_SERVICE_COMM
     if 'resume' in current_command_names:
         MANAGEMENT_SERVICE_COMMANDS[current_service_name] += ('prioritize',)
 
-ARCHIVED_QWEN_IMAGE_SERVICES = frozenset((
-    'qwen-21', 'qwen-21-circular', 'mannequin-generator', 'billboard-generator',
-    'prop-generator', 'vegetation-generator', 'building-generator', 'expression',
-    'seamless-tile',
-))
+from tools.review.common.source_history_catalog import SOURCE_HISTORY_ARCHIVED_IMAGE_SERVICES, SOURCE_HISTORY_GENERATOR_SERVICES
+ARCHIVED_QWEN_IMAGE_SERVICES = frozenset(SOURCE_HISTORY_ARCHIVED_IMAGE_SERVICES)
+for current_service_name in SOURCE_HISTORY_GENERATOR_SERVICES:
+    if current_service_name != 'writer-agent':
+        MANAGEMENT_SERVICE_COMMANDS[current_service_name] += ('history-observe',)
+
+
+def inspect_management_policy_rejection(service_command_name, operation_command_name):
+    """게이트웨이의 명시적 차단 사유만 반환하며 서비스의 실행 가능성을 판정하지 않는다."""
+    if service_command_name in RETIRED_AUDIO_SERVICE_NAMES and operation_command_name == 'prepare':
+        return '폐기된 음악 생성기는 모델 준비를 지원하지 않습니다. 기존 이력은 조회할 수 있습니다.'
+    if service_command_name == 'expression-lora' and operation_command_name == 'prepare':
+        return 'Qwen 2.1 표정 LoRA는 라이선스 사유로 사용과 다운로드가 중단되었습니다.'
+    if service_command_name in ARCHIVED_QWEN_IMAGE_SERVICES and operation_command_name in ('generate', 'resume', 'prioritize', 'prepare'):
+        return 'Qwen 이미지 생성기는 라이선스 사유로 아카이브되어 모델 준비·새 생성·재개·우선 실행을 지원하지 않습니다. 기존 이력과 결과는 조회할 수 있습니다.'
+    if service_command_name == 'anny':
+        return 'ANNY 속성 렌더러·모델·결과는 폐기되었습니다.'
+    if service_command_name == 'anny-landmarks':
+        return 'ANNY 해부학 기준점 페이지와 기능은 폐기되었습니다.'
+    if service_command_name == 'animation-separation':
+        return '캐릭터 레퍼런스 복장 분리 생성기와 이력은 폐기되었습니다.'
+    if service_command_name == 'outfit-transfer':
+        return '복장 착용 생성기와 이력은 폐기되었습니다.'
+    if service_command_name == 'pose-transfer':
+        return '포즈 변환 생성기·모델·결과는 폐기되었습니다.'
+    if service_command_name == 'wan22-animate':
+        return 'Wan2.2 Animate 모델·생성기·결과는 폐기되었습니다.'
+    if service_command_name == 'hy-motion':
+        return 'HY-Motion 모델·생성기·결과는 폐기되었습니다. Kimodo를 사용하세요.'
+    if service_command_name == 'momask':
+        return 'MoMask 포즈 생성기와 과거 기록은 폐기되었습니다. Kimodo를 사용하세요.'
+    if service_command_name == 'qwen-2511':
+        return 'Qwen Image Edit 2511 생성기는 폐기되었습니다. 사용 가능한 FLUX 생성기를 확인하세요.'
+    if service_command_name == 'floor-tile' and operation_command_name in ('generate', 'resume', 'prioritize'):
+        return '바닥 타일 생성기는 폐기되었습니다. 생성과 재개는 지원하지 않습니다.'
+    return None
 
 
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
-    if service_command_name in RETIRED_AUDIO_SERVICE_NAMES and operation_command_name == 'prepare':
-        raise ValueError('폐기된 음악 생성기는 모델 준비를 지원하지 않습니다. 기존 이력은 조회할 수 있습니다.')
-    if service_command_name == 'expression-lora' and operation_command_name == 'prepare':
-        raise ValueError('Qwen 2.1 표정 LoRA는 라이선스 사유로 사용과 다운로드가 중단되었습니다.')
-    if service_command_name in ARCHIVED_QWEN_IMAGE_SERVICES and operation_command_name in ('generate', 'resume', 'prioritize', 'prepare'):
-        raise ValueError('Qwen 이미지 생성기는 라이선스 사유로 아카이브되어 모델 준비·새 생성·재개·우선 실행을 지원하지 않습니다. 기존 이력과 결과는 조회할 수 있습니다.')
-    if service_command_name == 'anny':
-        raise ValueError('ANNY 속성 렌더러·모델·결과는 폐기되었습니다.')
-    if service_command_name == 'anny-landmarks':
-        raise ValueError('ANNY 해부학 기준점 페이지와 기능은 폐기되었습니다.')
-    if service_command_name == 'animation-separation':
-        raise ValueError('캐릭터 레퍼런스 복장 분리 생성기와 이력은 폐기되었습니다.')
-    if service_command_name == 'outfit-transfer':
-        raise ValueError('복장 착용 생성기와 이력은 폐기되었습니다.')
-    if service_command_name == 'pose-transfer':
-        raise ValueError('포즈 변환 생성기·모델·결과는 폐기되었습니다.')
-    if service_command_name == 'wan22-animate':
-        raise ValueError('Wan2.2 Animate 모델·생성기·결과는 폐기되었습니다.')
-    if service_command_name == 'hy-motion':
-        raise ValueError('HY-Motion 모델·생성기·결과는 폐기되었습니다. Kimodo를 사용하세요.')
-    if service_command_name == 'momask':
-        raise ValueError('MoMask 포즈 생성기와 과거 기록은 폐기되었습니다. Kimodo를 사용하세요.')
-    if service_command_name == 'qwen-2511':
-        raise ValueError('Qwen Image Edit 2511 생성기는 폐기되었습니다. Qwen 2.1을 사용하세요.')
-    if service_command_name == 'floor-tile' and operation_command_name in ('generate', 'resume', 'prioritize'):
-        raise ValueError('바닥 타일 생성기는 폐기되었습니다. 생성과 재개는 지원하지 않습니다.')
+    current_policy_rejection=inspect_management_policy_rejection(service_command_name,operation_command_name)
+    if current_policy_rejection:
+        raise ValueError(current_policy_rejection)
     if service_command_name not in MANAGEMENT_SERVICE_COMMANDS or operation_command_name not in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
         raise ValueError('지원하지 않는 관리 명령')
     if not isinstance(command_payload_value,dict):
         raise ValueError('명령 입력은 JSON 객체여야 합니다.')
-    if operation_command_name in ('migraphx-build', 'migraphx-build-status') and command_payload_value:
+    if service_command_name == 'kimodo' and operation_command_name == 'active-observe' and command_payload_value:
+        raise ValueError('Kimodo 기록 관측은 입력을 받지 않습니다.')
+    if operation_command_name in ('migraphx-build', 'migraphx-build-status', 'migraphx-build-observe') and command_payload_value:
         raise ValueError('MIGraphX 빌드 명령은 입력 필드를 받지 않습니다.')
-    if operation_command_name in ('history-reset-preview','writer-state','download-status','download-inventory','download-model','download-model-status') and command_payload_value:
+    if operation_command_name in ('history-reset-preview','writer-state','writer-token','download-status','download-inventory','download-model','download-model-status') and command_payload_value:
         raise ValueError('초기화 미리보기는 입력 필드를 받지 않습니다.')
     if service_command_name == 'expression-lora' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('표정 LoRA 준비에는 action=prepare만 허용합니다.')
@@ -428,7 +441,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='폐기할 키프레임 ID 배열을 담은 JSON')
         if service_command_name=='momask' and operation_command_name=='generate':
             operation_argument_parser.add_argument('--face',action=argparse.BooleanOptionalAction,default=False,help='ANNY 얼굴 5점 포함')
-        if operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES + TRANSLATION_PAYLOAD_COMMAND_NAMES + HERMES_PAYLOAD_COMMAND_NAMES or operation_command_name in ('sheet-auto','sheet-export','sheet-gif','sheet-search','sheet-image','sheet-update','capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-replace','asset-list','asset-register','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):
+        if operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES + TRANSLATION_PAYLOAD_COMMAND_NAMES + HERMES_PAYLOAD_COMMAND_NAMES or operation_command_name in ('sheet-auto','sheet-export','sheet-gif','sheet-search','sheet-image','sheet-update','capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-register-check','effect-register-reviewed','effect-replace','asset-list','asset-register','asset-preview','asset-save','asset-save-reviewed','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='GUI와 동일한 명령 JSON 입력 파일')
         if operation_command_name=='anchor-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
         if operation_command_name=='anchor-load':operation_argument_parser.add_argument('id')
@@ -557,7 +570,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         command_payload_value={'id':command_argument_values.id}
         if operation_command_name=='sprite-history-delete':command_payload_value['revision']=command_argument_values.revision
         if operation_command_name=='sprite-save':command_payload_value['document']=parse_management_request_json(command_argument_values.document_file.read_text())
-    if operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES + TRANSLATION_PAYLOAD_COMMAND_NAMES + HERMES_PAYLOAD_COMMAND_NAMES or operation_command_name in ('sheet-auto','sheet-export','sheet-gif','sheet-search','sheet-image','sheet-update','capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-replace','asset-list','asset-register','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
+    if operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES + TRANSLATION_PAYLOAD_COMMAND_NAMES + HERMES_PAYLOAD_COMMAND_NAMES or operation_command_name in ('sheet-auto','sheet-export','sheet-gif','sheet-search','sheet-image','sheet-update','capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-register-check','effect-register-reviewed','effect-replace','asset-list','asset-register','asset-preview','asset-save','asset-save-reviewed','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
     if operation_command_name=='anchor-save':command_payload_value={'document':parse_management_request_json(command_argument_values.document_file.read_text())}
     if operation_command_name in ('anchor-history','anchor-history-reset'):command_payload_value={'animation_id':command_argument_values.animation_id,'animation_version':command_argument_values.animation_version}
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}
@@ -726,7 +739,8 @@ def call_management_api(server_base_address, request_route_path, request_body_va
     if command_envelope_parts is None:raise ValueError('지원하지 않는 관리 명령 경로')
     service_command_name,operation_command_name,command_payload_value=command_envelope_parts
     if service_command_name=='writer-agent' and operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES:
-        current_writer_state=execute_management_command('writer-agent','writer-state',{},server_base_address)
+        current_token_command='writer-token' if operation_command_name in ('writer-history-observe','writer-cancel') else 'writer-state'
+        current_writer_state=execute_management_command('writer-agent',current_token_command,{},server_base_address)
         request_header_values['X-Writer-Token']=current_writer_state['csrf_token']
     request_route_path='/management/command'
     request_body_bytes=json.dumps({'service':service_command_name,'command':operation_command_name,'payload':command_payload_value},ensure_ascii=False,allow_nan=False).encode()

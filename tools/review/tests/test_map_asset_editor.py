@@ -114,9 +114,31 @@ class MapAssetEditorTests(unittest.TestCase):
         _,current_preview_result=editor.prepare_editor_changes({**self.current_request_payload,'changes':[{'texture':'sample','values':{'groundFootprintColumns':2}}]},self.current_asset_root)
         self.assertIn('충돌',current_preview_result['map_warnings'][0]['message'])
 
+    def test_reviewed_save_rejects_map_change_since_review(self):
+        current_map_path=self.current_asset_root/'assets/maps/city_layouts/test.yaml'
+        current_map_path.parent.mkdir()
+        current_map_data={'data':{'columns':6,'rows':6,'objects':[{'id':'first','kind':'decoration','textureKey':'sample','position':{'column':2,'row':2}}]}}
+        current_map_path.write_text(yaml.safe_dump(current_map_data))
+        current_preview_result=editor.preview_editor_changes(self.current_request_payload,self.current_asset_root)
+        current_review_payload={**self.current_request_payload,'token':current_preview_result['token'],'review_sha256':editor.hash_billboard_review_result(current_preview_result)}
+        current_map_data['data']['objects'].append({'id':'second','kind':'decoration','textureKey':'sample','position':{'column':2,'row':2}})
+        current_map_path.write_text(yaml.safe_dump(current_map_data))
+        with self.assertRaisesRegex(ValueError,'검수 결과가 변경'):
+            editor.save_reviewed_billboard_changes(current_review_payload,lambda current_payload_value:editor.preview_editor_changes(current_payload_value,self.current_asset_root),lambda current_payload_value:editor.save_editor_changes(current_payload_value,self.current_asset_root))
+        self.assertEqual(hashlib.sha256(self.current_property_path.read_bytes()).hexdigest(),self.current_original_hash)
+
+    def test_reviewed_save_updates_properties_and_consumers(self):
+        current_preview_result=editor.preview_editor_changes(self.current_request_payload,self.current_asset_root)
+        current_review_payload={**self.current_request_payload,'token':current_preview_result['token'],'review_sha256':editor.hash_billboard_review_result(current_preview_result)}
+        current_save_result=editor.save_reviewed_billboard_changes(current_review_payload,lambda current_payload_value:editor.preview_editor_changes(current_payload_value,self.current_asset_root),lambda current_payload_value:editor.save_editor_changes(current_payload_value,self.current_asset_root))
+        self.assertTrue(current_save_result['saved'])
+        self.assertEqual(yaml.safe_load(self.current_property_path.read_text())['data']['sample']['displayHeight'],100)
+        self.assertIn(current_save_result['sha256'],self.current_backend_path.read_text())
+        self.assertIn(current_save_result['sha256'],(self.current_asset_root/'asset-registry.yaml').read_text())
+
     def test_editor_command_routes_share_gateway(self):
         from tools.review.common.management_gateway import resolve_management_command
-        for current_command_name,current_route_path in [('asset-list','/editor-list'),('asset-preview','/editor-preview'),('asset-save','/editor-save')]:
+        for current_command_name,current_route_path in [('asset-list','/editor-list'),('asset-preview','/editor-preview'),('asset-save','/editor-save'),('asset-save-reviewed','/editor-save-reviewed')]:
             current_route_result=resolve_management_command('map-assets',current_command_name,{})
             self.assertEqual(current_route_result,('POST','/map-assets'+current_route_path))
 

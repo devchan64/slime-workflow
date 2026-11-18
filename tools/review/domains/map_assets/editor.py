@@ -102,6 +102,25 @@ def preview_editor_changes(current_request_payload,current_asset_root=None):
     return {**current_preview_result,'token':current_preview_token}
 
 
+
+def hash_billboard_review_result(current_preview_record):
+    """사용자가 확인한 변경 비교와 맵 경고의 공통 해시."""
+    current_review_record={current_field_name:current_preview_record[current_field_name] for current_field_name in ('changes','maps','map_warnings','note')}
+    current_review_bytes=json.dumps(current_review_record,sort_keys=True,ensure_ascii=False,allow_nan=False).encode()
+    return hashlib.sha256(current_review_bytes).hexdigest()
+
+
+def save_reviewed_billboard_changes(current_request_payload,current_preview_handler,current_save_handler):
+    """호출자가 공용 편집 잠금을 보유한 상태에서 검수 비교와 저장을 수행한다."""
+    if not isinstance(current_request_payload,dict) or set(current_request_payload)!={'revision','changes','token','review_sha256'}:
+        raise ValueError('검수한 revision·changes·token·review_sha256이 필요합니다.')
+    current_draft_record={current_field_name:current_request_payload[current_field_name] for current_field_name in ('revision','changes')}
+    current_preview_record=current_preview_handler(current_draft_record)
+    if current_preview_record.get('token')!=current_request_payload['token'] or hash_billboard_review_result(current_preview_record)!=current_request_payload['review_sha256']:
+        raise ValueError('맵 경고 또는 검수 결과가 변경되었습니다. 다시 확인하세요.')
+    return current_save_handler({**current_draft_record,'token':current_request_payload['token']})
+
+
 def save_editor_changes(current_request_payload,current_asset_root=None):
     if not isinstance(current_request_payload,dict) or set(current_request_payload)!={'token','revision','changes'}:raise ValueError('검증 token·revision·changes가 필요합니다.')
     current_validation_payload={current_field_name:current_request_payload[current_field_name] for current_field_name in ('revision','changes')}

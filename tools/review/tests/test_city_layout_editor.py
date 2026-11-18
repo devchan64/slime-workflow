@@ -22,6 +22,46 @@ class CityEditorTests(unittest.TestCase):
         if current_route.endswith('map-changes'):
             self.saved.append(current_payload);return {'saved':True}
         raise AssertionError('예상하지 못한 서비스 경로: '+current_route)
+    def test_hermes_gateway_city_save_uses_existing_db_contract(self):
+        import threading
+        from http.server import ThreadingHTTPServer
+        from tools.review.common.management_gateway import ManagementCommandGateway, execute_management_command
+        from tools.review.gateway_server import create_gateway_request_handler
+        from tools.review.domains.map_assets.resize import handle_map_resize_request
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+        current_root_path = Path(self.temporary.name)
+        current_service_value = HermesServiceManager(current_root_path/'jobs',current_root_path/'sessions')
+        current_gateway_value = ManagementCommandGateway({'hermes-agent':current_service_value.handle_hermes_request,'map-assets':handle_map_resize_request})
+        current_server_value = ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+        current_server_value.emit_gateway_trace = lambda *current_values:None
+        current_thread_value = threading.Thread(target=current_server_value.serve_forever,daemon=True)
+        current_thread_value.start()
+        current_address_value = f'http://127.0.0.1:{current_server_value.server_port}'
+        current_store_value = HermesDelegationStore(current_root_path/'receipts')
+        try:
+            with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_address_value}), patch('tools.review.domains.hermes_agent.city_map_operations.HermesDelegationStore',return_value=current_store_value):
+                current_loaded_value = execute_management_command('hermes-agent','hermes-city-load',{'map':'stonewarm'},current_address_value)
+                self.assertEqual(current_loaded_value,self.payload)
+                current_noop_preview = execute_management_command('hermes-agent','hermes-city-preview',{'draft':self.payload},current_address_value)
+                current_noop_request = {'request_id':'city_noop_123','draft':self.payload,'token':current_noop_preview['token']}
+                self.assertFalse(execute_management_command('hermes-agent','hermes-city-save',current_noop_request,current_address_value)['saved'])
+                self.assertEqual(self.saved,[])
+                self.payload['document']['data']['version']=2
+                current_preview_value = execute_management_command('hermes-agent','hermes-city-preview',{'draft':self.payload},current_address_value)
+                current_request_value = {'request_id':'city_save_123','draft':self.payload,'token':current_preview_value['token']}
+                self.assertTrue(execute_management_command('hermes-agent','hermes-city-save',current_request_value,current_address_value)['saved'])
+                self.assertTrue(execute_management_command('hermes-agent','hermes-city-save',current_request_value,current_address_value)['duplicate'])
+                self.assertEqual(len(self.saved),1)
+                self.assertEqual(self.saved[0]['expectedGeneration'],5)
+                self.assertEqual(self.saved[0]['documents'][0]['document'],self.payload['document'])
+                self.assertEqual(execute_management_command('hermes-agent','hermes-city-receipt',{'request_id':'city_save_123'},current_address_value)['state'],'completed')
+                self.assertEqual(len(execute_management_command('hermes-agent','hermes-city-history',{},current_address_value)['records']),2)
+        finally:
+            current_server_value.shutdown()
+            current_thread_value.join(timeout=5)
+            current_server_value.server_close()
+
     def test_preview_and_save_use_same_document(self):
         self.payload['document']['data']['version']=2
         current_preview=city_editor.preview_city_editor_changes(self.payload)

@@ -95,7 +95,7 @@ def resize_registered_image(current_request_payload):
 
 def handle_map_resize_request(current_http_handler):
     from tools.review.common.management_transport import send_management_json_response
-    if current_http_handler.command != 'POST' or urlsplit(current_http_handler.path).path not in ('/map-assets/editor-register','/map-assets/editor-building-list','/map-assets/editor-building-save','/map-assets/editor-building-register','/map-assets/editor-building-retire','/map-assets/editor-effect-list','/map-assets/editor-effect-load','/map-assets/editor-effect-save','/map-assets/editor-effect-register','/map-assets/editor-effect-replace','/map-assets/resize','/map-assets/anchor-save','/map-assets/editor-list','/map-assets/editor-preview','/map-assets/editor-save','/map-assets/editor-crop-preview','/map-assets/editor-crop','/map-assets/editor-retire-preview','/map-assets/editor-retire','/map-assets/editor-map-edit-load','/map-assets/editor-map-edit-preview','/map-assets/editor-map-edit-save','/map-assets/editor-city-edit-load','/map-assets/editor-city-edit-preview','/map-assets/editor-city-edit-save','/map-assets/database-seed','/map-assets/database-status','/map-assets/database-sync','/map-assets/database-snapshot','/map-assets/database-restore'):
+    if current_http_handler.command != 'POST' or urlsplit(current_http_handler.path).path not in ('/map-assets/editor-register','/map-assets/editor-building-list','/map-assets/editor-building-save','/map-assets/editor-building-register','/map-assets/editor-building-retire','/map-assets/editor-effect-list','/map-assets/editor-effect-load','/map-assets/editor-effect-save','/map-assets/editor-effect-register','/map-assets/editor-effect-register-check','/map-assets/editor-effect-register-reviewed','/map-assets/editor-effect-replace','/map-assets/resize','/map-assets/anchor-save','/map-assets/editor-list','/map-assets/editor-preview','/map-assets/editor-save','/map-assets/editor-save-reviewed','/map-assets/editor-crop-preview','/map-assets/editor-crop','/map-assets/editor-retire-preview','/map-assets/editor-retire','/map-assets/editor-map-edit-load','/map-assets/editor-map-edit-preview','/map-assets/editor-map-edit-save','/map-assets/editor-city-edit-load','/map-assets/editor-city-edit-preview','/map-assets/editor-city-edit-save','/map-assets/database-seed','/map-assets/database-status','/map-assets/database-sync','/map-assets/database-snapshot','/map-assets/database-restore'):
         return False
     try:
         if urlsplit(current_http_handler.path).path.startswith('/map-assets/database-'):
@@ -107,7 +107,7 @@ def handle_map_resize_request(current_http_handler):
             return True
         current_request_payload = json.loads(current_http_handler.rfile.read(int(current_http_handler.headers['Content-Length'])))
         if '/editor-' in urlsplit(current_http_handler.path).path:
-            from tools.review.domains.map_assets.editor import load_editor_catalog, preview_editor_changes, save_editor_changes
+            from tools.review.domains.map_assets.editor import load_editor_catalog, preview_editor_changes, save_editor_changes, save_reviewed_billboard_changes
             if os.environ.get('SLIME_CONTENT_STORAGE')=='database':
                 from tools.review.domains.map_assets.database_editor import load_database_editor_catalog as load_editor_catalog, preview_database_editor_changes as preview_editor_changes, save_database_editor_changes as save_editor_changes
             from tools.review.domains.map_assets.crop import preview_billboard_crop, save_billboard_crop
@@ -117,13 +117,16 @@ def handle_map_resize_request(current_http_handler):
                 from tools.review.domains.map_assets.database_retirement import preview_database_asset_retirement as preview_billboard_retirement, execute_database_asset_retirement as execute_billboard_retirement
             from tools.review.domains.map_assets.registration import register_billboard_asset
             current_editor_handlers={'/map-assets/editor-register':register_billboard_asset,'/map-assets/editor-crop-preview':preview_billboard_crop,'/map-assets/editor-crop':save_billboard_crop,'/map-assets/editor-list':load_editor_catalog,'/map-assets/editor-preview':preview_editor_changes,'/map-assets/editor-save':save_editor_changes,'/map-assets/editor-retire-preview':preview_billboard_retirement,'/map-assets/editor-retire':execute_billboard_retirement}
+            current_editor_handlers['/map-assets/editor-save-reviewed']=lambda current_payload_record:save_reviewed_billboard_changes(current_payload_record,preview_editor_changes,save_editor_changes)
             from tools.review.domains.map_assets.building_editor import load_building_editor_catalog, save_building_editor_anchor, execute_building_lifecycle
             current_editor_handlers.update({'/map-assets/editor-building-list':load_building_editor_catalog,'/map-assets/editor-building-save':save_building_editor_anchor,'/map-assets/editor-building-register':lambda payload:execute_building_lifecycle(payload,'register'),'/map-assets/editor-building-retire':lambda payload:execute_building_lifecycle(payload,'retire')})
             from tools.review.domains.map_assets.map_editor import load_map_editor_document, preview_map_editor_changes, save_map_editor_changes
             current_editor_handlers.update({'/map-assets/editor-map-edit-load':load_map_editor_document,'/map-assets/editor-map-edit-preview':preview_map_editor_changes,'/map-assets/editor-map-edit-save':save_map_editor_changes})
             from tools.review.domains.map_assets.city_editor import load_city_editor_document, preview_city_editor_changes, save_city_editor_changes
             current_editor_handlers.update({'/map-assets/editor-city-edit-load':load_city_editor_document,'/map-assets/editor-city-edit-preview':preview_city_editor_changes,'/map-assets/editor-city-edit-save':save_city_editor_changes})
-            from tools.review.domains.map_assets.effect_editor import execute_effect_editor_command
+            from tools.review.domains.map_assets.effect_editor import execute_effect_editor_command, register_reviewed_effect_with_target, validate_effect_registration_conflicts
+            current_editor_handlers['/map-assets/editor-effect-register-check']=validate_effect_registration_conflicts
+            current_editor_handlers['/map-assets/editor-effect-register-reviewed']=register_reviewed_effect_with_target
             for current_effect_command in ('effect-list','effect-load','effect-save','effect-register','effect-replace'):
                 current_editor_handlers['/map-assets/editor-'+current_effect_command]=lambda current_payload,current_command=current_effect_command:execute_effect_editor_command(current_command,current_payload)
             RESIZE_STORAGE_DIRECTORY.mkdir(parents=True, exist_ok=True)

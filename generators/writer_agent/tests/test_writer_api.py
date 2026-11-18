@@ -46,6 +46,59 @@ class WriterApiContracts(TestCase):
         self.assertEqual(current_observed_status['stage'],'failed')
         self.assertEqual(current_observed_status['error'],'GPU 조회 실패')
 
+    def test_writer_cancel_checks_live_queue_and_keeps_documents_untouched(self):
+        from generators.writer_agent.documents import save_yaml_document
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        current_test_root=Path(self.temporary_root_handle.name)
+        current_docs_root=current_test_root/'docs'
+        (current_docs_root/'ideas').mkdir(parents=True)
+        current_document_path=current_docs_root/'ideas/original.md'
+        current_document_path.write_text('원문 보존')
+        current_workspace_path=current_test_root/'workspace.yaml'
+        save_yaml_document(current_workspace_path,{'schema_version':1,'document_root':str(current_docs_root),'state_root':str(current_test_root/'state'),'write_roots':['ideas'],'excluded_roots':[],'protected_paths':[],'catalog_path':None})
+        current_job_identifier='20261118-120000-12345678'
+        current_job_root=current_test_root/'state/jobs'/current_job_identifier
+        current_job_root.mkdir(parents=True)
+        save_yaml_document(current_job_root/'status.yaml',{'id':current_job_identifier,'stage':'reasoning'})
+        (current_job_root/'status.json').write_text(json.dumps({'status':'running'}))
+        (current_job_root/'queue-process.json').write_text(json.dumps({'pid':os.getpid(),'identity':read_process_identity(os.getpid())}))
+        current_manager_value=WriterAgentManager(current_workspace_path)
+        current_gateway_value=ManagementCommandGateway({'writer-agent':current_manager_value.handle_writer_request})
+        current_handler_value=self.build_request_handler('/management/command','POST',{'service':'writer-agent','command':'writer-cancel','payload':{'id':current_job_identifier}},**{'X-Writer-Token':current_manager_value.csrf_token_value})
+        current_gateway_value.handle(current_handler_value)
+        self.assertEqual(current_handler_value.status_code,200,current_handler_value.wfile.getvalue())
+        self.assertTrue(json.loads(current_handler_value.wfile.getvalue())['cancel_requested'])
+        self.assertTrue((current_job_root/'cancel.request').exists())
+        self.assertEqual(current_document_path.read_text(),'원문 보존')
+        (current_job_root/'cancel.request').unlink()
+        (current_job_root/'queue-process.json').write_text(json.dumps({'pid':os.getpid(),'identity':'stale'}))
+        with self.assertRaisesRegex(ValueError,'실행기'):current_manager_value.request_writer_cancellation(current_job_identifier)
+        self.assertFalse((current_job_root/'cancel.request').exists())
+        save_yaml_document(current_job_root/'status.yaml',{'id':current_job_identifier,'stage':'review'})
+        with self.assertRaisesRegex(ValueError,'작가 작업만'):current_manager_value.request_writer_cancellation(current_job_identifier)
+
+    def test_passive_writer_history_uses_recorded_stage_without_prompt(self):
+        from generators.writer_agent.documents import save_yaml_document
+        current_test_root=Path(self.temporary_root_handle.name)
+        current_documents_root=current_test_root/'docs'
+        (current_documents_root/'ideas').mkdir(parents=True)
+        current_workspace_path=current_test_root/'workspace.yaml'
+        save_yaml_document(current_workspace_path,{'schema_version':1,'document_root':str(current_documents_root),'state_root':str(current_test_root/'state'),'write_roots':['ideas'],'excluded_roots':[],'protected_paths':[],'catalog_path':None})
+        current_manager=WriterAgentManager(current_workspace_path)
+        current_job_root=current_test_root/'state'/'jobs'/'20261118-120000-12345678'
+        current_job_root.mkdir(parents=True)
+        save_yaml_document(current_job_root/'status.yaml',{'id':current_job_root.name,'stage':'reasoning','summary':'secret'})
+        save_yaml_document(current_job_root/'request.yaml',{'prompt':'private'})
+        with patch.object(current_manager,'resolve_observed_status') as current_resolve_mock:
+            current_result_value=current_manager.observe_writer_history({})
+        self.assertEqual(current_result_value['records'],[{'id':current_job_root.name,'recorded_status':'reasoning','status_source':'job'}])
+        self.assertNotIn('private',str(current_result_value))
+        self.assertNotIn('secret',str(current_result_value))
+        current_resolve_mock.assert_not_called()
+        (current_job_root/'status.yaml').write_text('invalid: [')
+        self.assertEqual(current_manager.observe_writer_history({})['records'][0]['recorded_status'],'unknown')
+        with self.assertRaises(ValueError):current_manager.observe_writer_history({'offset':1})
+
     def test_search_all_history_and_move_only_finished_job_to_trash(self):
         from generators.writer_agent.documents import save_yaml_document,load_workspace_config
         from generators.writer_agent.jobs import create_writer_job,resolve_job_directory,update_job_status
@@ -103,6 +156,26 @@ class WriterApiContracts(TestCase):
         self.assertEqual(current_http_handler.status_code,200)
         self.assertFalse(json.loads(current_http_handler.wfile.getvalue())['configured'])
 
+    def test_history_observe_requires_same_origin_and_writer_token(self):
+        from tools.review.common.management_gateway import resolve_management_command
+        self.assertEqual(resolve_management_command('writer-agent','writer-token',{}),('GET','/writer-agent/api/token'))
+        with self.assertRaises(ValueError):
+            resolve_management_command('writer-agent','writer-token',{'extra':True})
+        current_token_handler=self.build_request_handler('/writer-agent/api/token')
+        with patch.object(self.writer_manager_service,'read_workspace_state',side_effect=AssertionError('전체 상태 조회 금지')):
+            self.writer_manager_service.handle_writer_request(current_token_handler)
+        self.assertEqual(current_token_handler.status_code,200)
+        self.assertEqual(json.loads(current_token_handler.wfile.getvalue()),{'csrf_token':self.writer_manager_service.csrf_token_value})
+        current_invalid_host=self.build_request_handler('/writer-agent/api/token',Host='example.invalid:8770')
+        self.writer_manager_service.handle_writer_request(current_invalid_host)
+        self.assertEqual(current_invalid_host.status_code,400)
+        for current_headers in ({'X-Writer-Token':'wrong'},{'Origin':'http://example.invalid'}):
+            current_history_handler=self.build_request_handler('/writer-agent/api/history/observe','POST',{},**current_headers)
+            with patch.object(self.writer_manager_service,'observe_writer_history') as current_observe_mock:
+                self.writer_manager_service.handle_writer_request(current_history_handler)
+            self.assertEqual(current_history_handler.status_code,400)
+            current_observe_mock.assert_not_called()
+
     def test_foreign_origin_host_or_token_blocks_write(self):
         for current_header_values in ({'Origin':'https://other.example'},{'Host':'attacker.example:8770'},{'X-Writer-Token':'wrong'}):
             current_http_handler=self.build_request_handler('/writer-agent/api/jobs','POST',{'mode':'learn','prompt':''},**current_header_values)
@@ -110,6 +183,17 @@ class WriterApiContracts(TestCase):
                 self.writer_manager_service.handle_writer_request(current_http_handler)
                 current_launch_mock.assert_not_called()
             self.assertEqual(current_http_handler.status_code,400)
+
+    def test_index_status_classifies_fresh_stale_and_unavailable(self):
+        for current_index_effect,current_expected_status in ((None,'fresh'),(ValueError('문서 추가·수정·삭제 이후 색인이 오래되었습니다. 학습 갱신이 필요합니다.'),'stale'),(ValueError('private details'),'unavailable')):
+            current_handler_value=self.build_request_handler('/writer-agent/api/index-status','POST',{})
+            with patch('generators.writer_agent.management.load_workspace_config',return_value={}), patch('generators.writer_agent.index.load_current_index',side_effect=current_index_effect):
+                self.writer_manager_service.handle_writer_request(current_handler_value)
+            self.assertEqual(current_handler_value.status_code,200)
+            self.assertEqual(json.loads(current_handler_value.wfile.getvalue()),{'status':current_expected_status})
+        current_handler_value=self.build_request_handler('/writer-agent/api/index-status','POST',{'path':'private'})
+        self.writer_manager_service.handle_writer_request(current_handler_value)
+        self.assertEqual(current_handler_value.status_code,400)
 
     def test_valid_request_dispatch_and_unknown_routes(self):
         current_http_handler=self.build_request_handler('/writer-agent/api/jobs','POST',{'mode':'learn','prompt':''})

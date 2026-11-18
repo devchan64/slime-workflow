@@ -27,7 +27,7 @@ class BuildingLifecycleTests(unittest.TestCase):
         self.assertEqual(resolve_management_command('map-assets','building-retire',{}),('POST','/map-assets/editor-building-retire'))
 
     def test_register_and_retire_keep_image(self):
-        with patch('tools.review.domains.map_assets.building_editor.load_registered_tiles',return_value=(self.current_root,{})),patch('tools.review.domains.map_assets.building_editor.execute_content_api_request',return_value={'saved':True}) as current_remote:
+        with patch('tools.review.domains.map_assets.building_editor.load_registered_tiles',return_value=(self.current_root,{})),patch('tools.review.domains.map_assets.building_editor.execute_content_api_request',side_effect=lambda method,route,*args: {'register':True,'retire':True} if method=='GET' else {'saved':True}) as current_remote:
             execute_building_lifecycle(self.current_request,'register')
             current_image=self.current_root/'assets/buildings/town-test-house-v1.png'
             self.assertTrue(current_image.exists())
@@ -38,7 +38,7 @@ class BuildingLifecycleTests(unittest.TestCase):
             self.assertTrue(current_image.exists())
             current_registry=yaml.safe_load((self.current_root/'asset-registry.yaml').read_text())
             self.assertEqual(current_registry['assets'][0]['source']['lifecycle_status'],'retired')
-            self.assertEqual(current_remote.call_count,2)
+            self.assertEqual(current_remote.call_count,4)
 
     def test_bad_image_rejected_before_remote_write(self):
         self.current_request['imageBase64']=base64.b64encode(b'not png').decode()
@@ -48,14 +48,26 @@ class BuildingLifecycleTests(unittest.TestCase):
             self.assertFalse(list((self.current_root/'assets/buildings').iterdir()))
 
     def test_backend_rejects_delete_without_touching_registry(self):
-        with patch('tools.review.domains.map_assets.building_editor.load_registered_tiles',return_value=(self.current_root,{})),patch('tools.review.domains.map_assets.building_editor.execute_content_api_request',return_value={'saved':True}):
+        with patch('tools.review.domains.map_assets.building_editor.load_registered_tiles',return_value=(self.current_root,{})),patch('tools.review.domains.map_assets.building_editor.execute_content_api_request',side_effect=lambda method,route,*args: {'register':True,'retire':True} if method=='GET' else {'saved':True}):
             execute_building_lifecycle(self.current_request,'register')
         current_registry_path=self.current_root/'asset-registry.yaml'
         current_registry_before=current_registry_path.read_bytes()
-        with patch('tools.review.domains.map_assets.building_editor.load_registered_tiles',return_value=(self.current_root,{})),patch('tools.review.domains.map_assets.building_editor.execute_content_api_request',side_effect=ValueError('사용 중')):
+        with patch('tools.review.domains.map_assets.building_editor.load_registered_tiles',return_value=(self.current_root,{})),patch('tools.review.domains.map_assets.building_editor.execute_content_api_request',side_effect=lambda method,route,*args: {'register':True,'retire':True} if method=='GET' else (_ for _ in ()).throw(ValueError('사용 중'))):
             with self.assertRaisesRegex(ValueError,'사용 중'):
                 execute_building_lifecycle({'texture':'town-test-house-v1','generation':2,'requestId':'test-retire'},'retire')
         self.assertEqual(current_registry_path.read_bytes(),current_registry_before)
+
+    def test_missing_or_unsupported_api_does_not_modify_image_or_registry(self):
+        current_registry_path=self.current_root/'asset-registry.yaml'
+        current_registry_before=current_registry_path.read_bytes()
+        for current_response_value in (ValueError('404'),{'register':False,'retire':False},{'register':1}):
+            with self.subTest(response=current_response_value), patch('tools.review.domains.map_assets.building_editor.load_registered_tiles',return_value=(self.current_root,{})), patch('tools.review.domains.map_assets.building_editor.execute_content_api_request',side_effect=current_response_value if isinstance(current_response_value,Exception) else None,return_value=current_response_value) as current_remote:
+                with self.assertRaisesRegex(ValueError,'지원'):
+                    execute_building_lifecycle(self.current_request,'register')
+                self.assertEqual(current_registry_path.read_bytes(),current_registry_before)
+                self.assertFalse(list((self.current_root/'assets/buildings').iterdir()))
+                self.assertEqual(current_remote.call_count,1)
+                self.assertEqual(current_remote.call_args.args[0],'GET')
 
     def test_ui_requires_selection_and_unchanged_confirmation(self):
         import gradio as gr

@@ -66,6 +66,423 @@ class HermesWorkerTests(unittest.TestCase):
                     self.assertIn(current_expected_key, current_response_record)
                     self.assertEqual(current_snapshot_mock.call_count, 1 if current_expected_key == 'gpu' else 0)
 
+    def test_content_database_bridge_only_accepts_fixed_request(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        for current_request_bytes, current_allowed_value in ((b'content-database-status\n',True),(b'content-database-status extra\n',False)):
+            with self.subTest(request=current_request_bytes):
+                current_client_socket, current_server_socket = socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                with patch.object(management_bridge, 'read_hermes_content_database_status', return_value={'status':'unavailable'}) as current_status_mock:
+                    current_thread_handle = threading.Thread(target=management_bridge.handle_hermes_observer_connection, args=(current_server_socket,))
+                    current_thread_handle.start()
+                    current_client_socket.sendall(current_request_bytes)
+                    current_response_value = json.loads(current_client_socket.makefile('rb').readline())
+                    current_thread_handle.join(timeout=3)
+                    if current_allowed_value:
+                        self.assertEqual(current_response_value['status'],'unavailable')
+                        current_status_mock.assert_called_once()
+                    else:
+                        self.assertIn('error',current_response_value)
+                        current_status_mock.assert_not_called()
+
+    def test_source_history_bridge_rejects_invalid_or_extra_input(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge,audio_operations
+        for current_request_bytes,current_allowed_value in ((b'source-history {"service":"flux-image","limit":1}\n',True),(b'source-history {"service":"flux-image","service":"kimodo"}\n',False),(b'source-history {"service":"flux-image","path":"/tmp"}\n',False)):
+            with self.subTest(request=current_request_bytes):
+                current_client_socket,current_server_socket=socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                with patch.object(audio_operations,'read_hermes_generator_source_history',return_value={'records':[]}) as current_history_mock:
+                    current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                    current_thread_handle.start()
+                    current_client_socket.sendall(current_request_bytes)
+                    current_response_value=json.loads(current_client_socket.makefile('rb').readline())
+                    current_thread_handle.join(timeout=3)
+                    self.assertEqual(current_history_mock.call_count,int(current_allowed_value))
+                    self.assertIn('records' if current_allowed_value else 'error',current_response_value)
+
+    def test_passive_kimodo_build_bridge_rejects_extra_commands(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        for current_request_bytes,current_allowed_value in ((b'kimodo-build-status\n',True),(b'kimodo-build-status extra\n',False)):
+            with self.subTest(request=current_request_bytes):
+                current_client_socket,current_server_socket=socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                with patch.object(management_bridge,'read_hermes_kimodo_build_status',return_value={'status':'completed','cache_status':'unverified'}) as current_status_mock:
+                    current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                    current_thread_handle.start()
+                    current_client_socket.sendall(current_request_bytes)
+                    current_response_value=json.loads(current_client_socket.makefile('rb').readline())
+                    current_thread_handle.join(timeout=3)
+                    self.assertEqual(current_status_mock.call_count,int(current_allowed_value))
+                    self.assertIn('status' if current_allowed_value else 'error',current_response_value)
+
+    def test_model_inventory_bridge_only_accepts_fixed_request(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        current_client_socket, current_server_socket = socket.socketpair()
+        self.addCleanup(current_client_socket.close)
+        with patch.object(management_bridge, 'read_hermes_model_inventory', return_value={'models': []}) as current_inventory_mock:
+            current_thread_handle = threading.Thread(target=management_bridge.handle_hermes_observer_connection, args=(current_server_socket,))
+            current_thread_handle.start()
+            current_client_socket.sendall(b'model-inventory\n')
+            current_response_record = json.loads(current_client_socket.makefile('rb').readline())
+            current_thread_handle.join(timeout=3)
+            self.assertEqual(current_response_record, {'models': []})
+            current_inventory_mock.assert_called_once_with()
+
+    def test_service_registration_bridge_rejects_extra_commands(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        for current_request_bytes, current_allowed_value in ((b'service-registration\n', True), (b'service-registration\nrun shell\n', False)):
+            with self.subTest(request=current_request_bytes):
+                current_client_socket, current_server_socket = socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                with patch.object(management_bridge, 'list_management_service_registration', return_value={'services': []}) as current_catalog_mock:
+                    current_thread_handle = threading.Thread(target=management_bridge.handle_hermes_observer_connection, args=(current_server_socket,))
+                    current_thread_handle.start()
+                    current_client_socket.sendall(current_request_bytes)
+                    current_response_record = json.loads(current_client_socket.makefile('rb').readline())
+                    current_thread_handle.join(timeout=3)
+                    self.assertIn('services' if current_allowed_value else 'error', current_response_record)
+                    self.assertEqual(current_catalog_mock.call_count, int(current_allowed_value))
+
+    def test_capability_bridge_returns_same_catalog_and_rejects_extra_commands(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        from tools.review.domains.hermes_agent.capabilities import list_hermes_capability_catalog
+        current_catalog_value=list_hermes_capability_catalog()
+        for current_request_bytes,current_allowed_value in ((b'capabilities\n',True),(b'capabilities\nrun shell\n',False),(b'capabilities extra\n',False)):
+            with self.subTest(request=current_request_bytes):
+                current_client_socket,current_server_socket=socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                current_thread_handle.start()
+                current_client_socket.sendall(current_request_bytes)
+                current_response_value=json.loads(current_client_socket.makefile('rb').readline())
+                current_thread_handle.join(timeout=3)
+                self.assertFalse(current_thread_handle.is_alive())
+                if current_allowed_value:self.assertEqual(current_response_value,current_catalog_value)
+                else:self.assertIn('error',current_response_value)
+
+    def test_capability_search_from_real_isolated_client(self):
+        import shutil
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge, management_status_client
+        current_bwrap_path=shutil.which('bwrap')
+        if current_bwrap_path is None:self.skipTest('bubblewrap이 없습니다.')
+        with tempfile.TemporaryDirectory() as current_socket_directory, socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as current_listener_socket:
+            current_socket_path=Path(current_socket_directory)/'observer.sock'
+            current_listener_socket.bind(str(current_socket_path))
+            current_listener_socket.listen(1)
+            current_listener_socket.settimeout(10)
+            def serve_one_connection():
+                try:
+                    current_client_socket,_=current_listener_socket.accept()
+                    management_bridge.handle_hermes_observer_connection(current_client_socket)
+                except TimeoutError:
+                    pass
+            current_server_thread=threading.Thread(target=serve_one_connection,daemon=True)
+            current_server_thread.start()
+            current_sandbox_arguments=[current_bwrap_path,'--die-with-parent','--unshare-all','--clearenv','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--dir','/control','--ro-bind',str(current_socket_path),'/control/management-status.sock','--ro-bind',str(Path(management_status_client.__file__)),'/control/management-status.py','--proc','/proc','--dev','/dev','--','/usr/bin/python3','/control/management-status.py','capabilities','{"query":"FLUX","limit":2}']
+            current_sandbox_result=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=12)
+            if current_sandbox_result.returncode and ('Operation not permitted' in current_sandbox_result.stderr or 'Creating new namespace failed' in current_sandbox_result.stderr):self.skipTest('이 환경은 격리 네임스페이스 실행을 허용하지 않습니다.')
+            self.assertEqual(current_sandbox_result.returncode,0,current_sandbox_result.stderr)
+            current_sandbox_record=json.loads(current_sandbox_result.stdout)
+            self.assertEqual(len(current_sandbox_record['records']),2)
+            self.assertEqual(current_sandbox_record['next_offset'],2)
+            self.assertTrue(all('flux' in str(current_record).lower() for current_record in current_sandbox_record['records']))
+            current_server_thread.join(timeout=2)
+            self.assertFalse(current_server_thread.is_alive())
+            current_server_thread=threading.Thread(target=serve_one_connection,daemon=True)
+            current_server_thread.start()
+            current_sandbox_arguments[-2:]=['service-registration','{"query":"music","limit":1}']
+            current_sandbox_result=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=12)
+            self.assertEqual(current_sandbox_result.returncode,0,current_sandbox_result.stderr)
+            current_sandbox_record=json.loads(current_sandbox_result.stdout)
+            self.assertEqual(len(current_sandbox_record['services']),1)
+            self.assertEqual(current_sandbox_record['next_offset'],1)
+            self.assertIn('music',current_sandbox_record['services'][0]['service'])
+            current_server_thread.join(timeout=2)
+            self.assertFalse(current_server_thread.is_alive())
+
+    def test_service_registration_search_pages_and_rejects_bad_input(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        from tools.review.domains.hermes_agent.capabilities import search_management_service_registration
+        current_first_page=search_management_service_registration({'query':'music','limit':1})
+        self.assertEqual(len(current_first_page['services']),1)
+        self.assertEqual(current_first_page['next_offset'],1)
+        current_next_page=search_management_service_registration({'query':'MUSIC','limit':1,'offset':1})
+        self.assertNotEqual(current_first_page['services'][0]['service'],current_next_page['services'][0]['service'])
+        for current_request_bytes,current_expected_key in ((b'service-registration {"query":"music","limit":1}\n','services'),(b'service-registration {"limit":11}\n','error'),(b'service-registration {"query":"a","query":"b"}\n','error')):
+            with self.subTest(request=current_request_bytes):
+                current_client_socket,current_server_socket=socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                current_thread_handle.start()
+                current_client_socket.sendall(current_request_bytes)
+                current_response_value=json.loads(current_client_socket.makefile('rb').readline())
+                current_thread_handle.join(timeout=3)
+                self.assertIn(current_expected_key,current_response_value)
+                if current_expected_key=='services':self.assertEqual(current_response_value,current_first_page)
+
+    def test_service_registration_all_pages_fit_observer_protocol(self):
+        import socket
+        import threading
+        from tools.review.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS
+        from tools.review.domains.hermes_agent import management_bridge
+        current_service_names=[]
+        current_page_offset=0
+        while current_page_offset is not None:
+            current_client_socket,current_server_socket=socket.socketpair()
+            current_client_socket.settimeout(3)
+            current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+            current_thread_handle.start()
+            current_request_bytes=('service-registration '+json.dumps({'limit':10,'offset':current_page_offset})+'\n').encode()
+            current_client_socket.sendall(current_request_bytes)
+            with current_client_socket.makefile('rb') as current_response_stream:
+                current_response_bytes=current_response_stream.readline()
+            current_client_socket.close()
+            current_thread_handle.join(timeout=3)
+            self.assertFalse(current_thread_handle.is_alive())
+            self.assertLessEqual(len(current_response_bytes),management_bridge.HERMES_OBSERVER_MAX_RESPONSE+1)
+            current_response_record=json.loads(current_response_bytes)
+            self.assertNotIn('error',current_response_record)
+            self.assertEqual(current_response_record['offset'],current_page_offset)
+            current_service_names.extend(record['service'] for record in current_response_record['services'])
+            current_next_offset=current_response_record['next_offset']
+            if current_next_offset is not None:
+                self.assertGreater(current_next_offset,current_page_offset)
+            current_page_offset=current_next_offset
+        self.assertEqual(len(current_service_names),len(set(current_service_names)))
+        self.assertEqual(set(current_service_names),set(MANAGEMENT_SERVICE_COMMANDS))
+
+    def test_service_search_finds_korean_capability_labels(self):
+        from tools.review.domains.hermes_agent.capabilities import search_management_service_registration
+        current_audio_page=search_management_service_registration({'query':'음악','limit':10})
+        self.assertTrue({'music-heartmula','sfx-dasheng-audiogen'} <= {current_record['service'] for current_record in current_audio_page['services']})
+        current_effect_page=search_management_service_registration({'query':'이펙트 신규 등록','limit':10})
+        self.assertIn('map-assets',{current_record['service'] for current_record in current_effect_page['services']})
+        current_unknown_page=search_management_service_registration({'query':'존재하지않는기능','limit':10})
+        self.assertEqual(current_unknown_page['services'],[])
+
+    def test_service_search_finds_hermes_links_through_bridge(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        current_client_socket,current_server_socket=socket.socketpair()
+        self.addCleanup(current_client_socket.close)
+        current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+        current_thread_handle.start()
+        current_client_socket.sendall(b'service-registration {\"query\":\"hermes-city-save\",\"limit\":10}\n')
+        current_response_record=json.loads(current_client_socket.makefile('rb').readline())
+        current_thread_handle.join(timeout=3)
+        self.assertFalse(current_thread_handle.is_alive())
+        current_records_by_service={record['service']:record for record in current_response_record['services']}
+        self.assertIn('hermes-city-save',current_records_by_service['map-assets']['hermes_links'])
+        self.assertIn('hermes-city-save',current_records_by_service['hermes-agent']['commands'])
+        self.assertIsNone(current_response_record['next_offset'])
+
+    def test_capability_search_pages_and_rejects_invalid_requests(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        from tools.review.domains.hermes_agent.capabilities import search_hermes_capability_catalog
+        current_first_page=search_hermes_capability_catalog({'query':'FLUX','limit':2})
+        self.assertEqual(len(current_first_page['records']),2)
+        self.assertEqual(current_first_page['next_offset'],2)
+        current_second_page=search_hermes_capability_catalog({'query':'flux','offset':2,'limit':2})
+        self.assertFalse({current_record['command'] for current_record in current_first_page['records']} & {current_record['command'] for current_record in current_second_page['records']})
+        for current_request_bytes,current_expected_key in ((b'capabilities {"query":"FLUX","limit":2}\n','records'),(b'capabilities {"limit":21}\n','error'),(b'capabilities {"query":"x","query":"y"}\n','error')):
+            with self.subTest(request=current_request_bytes):
+                current_client_socket,current_server_socket=socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                current_thread_handle.start()
+                current_client_socket.sendall(current_request_bytes)
+                current_response_value=json.loads(current_client_socket.makefile('rb').readline())
+                current_thread_handle.join(timeout=3)
+                self.assertIn(current_expected_key,current_response_value)
+                if current_expected_key=='records':self.assertEqual(current_response_value,current_first_page)
+
+    def test_model_readiness_bridge_rejects_extra_lines(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        for current_request_bytes, current_allowed_value in ((b'model-readiness flux-image\n',True),(b'model-readiness flux-image\nrun shell\n',False)):
+            with self.subTest(request=current_request_bytes):
+                current_client_socket,current_server_socket = socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                with patch.object(management_bridge,'read_hermes_model_readiness',return_value={'ready':True}) as current_readiness_mock:
+                    current_thread_handle = threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                    current_thread_handle.start()
+                    current_client_socket.sendall(current_request_bytes)
+                    current_response_record = json.loads(current_client_socket.makefile('rb').readline())
+                    current_thread_handle.join(timeout=3)
+                    self.assertIn('ready' if current_allowed_value else 'error',current_response_record)
+                    self.assertEqual(current_readiness_mock.call_count,int(current_allowed_value))
+
+    def test_model_readiness_bridge_preserves_partial_download_status(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        current_client_socket,current_server_socket=socket.socketpair()
+        self.addCleanup(current_client_socket.close)
+        with patch('tools.review.common.management_gateway.execute_management_command',side_effect=[{'ready':False,'preparation_status':'running'},OSError('private path')]):
+            current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+            current_thread_handle.start()
+            current_client_socket.sendall(b'model-readiness music-heartmula\n')
+            current_response_record=json.loads(current_client_socket.makefile('rb').readline())
+            current_thread_handle.join(timeout=3)
+        self.assertFalse(current_thread_handle.is_alive())
+        self.assertEqual(current_response_record['status'],'unavailable')
+        self.assertEqual(current_response_record['download'],{'ready':False,'preparation_status':'running'})
+        self.assertNotIn('private',str(current_response_record))
+
+    def test_sandbox_capability_client_uses_fixed_request(self):
+        from tools.review.domains.hermes_agent.management_status_client import read_sandbox_management_status
+        with patch('tools.review.domains.hermes_agent.management_status_client.socket.socket') as current_socket_factory:
+            current_socket_value=current_socket_factory.return_value.__enter__.return_value
+            current_socket_value.recv.return_value=b'{"records":[],"unlisted_commands":[]}\n'
+            self.assertEqual(read_sandbox_management_status('capabilities')['unlisted_commands'],[])
+            current_socket_value.sendall.assert_called_once_with(b'capabilities\n')
+        with self.assertRaises(ValueError):read_sandbox_management_status('capabilities','{}\nrun shell')
+
+    def test_sandbox_catalog_client_encodes_korean_search_as_utf8(self):
+        from tools.review.domains.hermes_agent.management_status_client import read_sandbox_management_status
+        with patch('tools.review.domains.hermes_agent.management_status_client.socket.socket') as current_socket_factory:
+            current_socket_value=current_socket_factory.return_value.__enter__.return_value
+            current_socket_value.recv.return_value=b'{"items":[]}\n'
+            self.assertEqual(read_sandbox_management_status('billboard-catalog','{"query":"나무"}'),{'items':[]})
+            current_socket_value.sendall.assert_called_once_with('billboard-catalog {"query":"나무"}\n'.encode('utf-8'))
+
+    def test_billboard_bridge_rejects_extra_messages_and_duplicate_keys(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        current_test_cases = ((b'billboard-catalog {"query":"tree"}\n',True),(b'billboard-catalog {"query":"a","query":"b"}\n',False),(b'billboard-catalog {}\nrun shell\n',False))
+        for current_request_bytes,current_allowed_value in current_test_cases:
+            with self.subTest(request=current_request_bytes):
+                current_client_socket,current_server_socket=socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                with patch.object(management_bridge,'read_hermes_billboard_catalog',return_value={'items':[]}) as current_catalog_mock:
+                    current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                    current_thread_handle.start()
+                    current_client_socket.sendall(current_request_bytes)
+                    current_response_record=json.loads(current_client_socket.makefile('rb').readline())
+                    current_thread_handle.join(timeout=3)
+                    self.assertIn('items' if current_allowed_value else 'error',current_response_record)
+                    self.assertEqual(current_catalog_mock.call_count,int(current_allowed_value))
+
+    def test_effect_bridge_accepts_fixed_queries_only(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge, effect_observer
+        current_test_cases=((b'effect-catalog {"query":"fog"}\n','catalog'),(b'effect-detail fog-v1\n','detail'),(b'effect-detail fog-v1\nrun shell\n','error'),(b'effect-catalog {"query":"a","query":"b"}\n','error'))
+        for current_request_bytes,current_expected_kind in current_test_cases:
+            with self.subTest(request=current_request_bytes):
+                current_client_socket,current_server_socket=socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                with patch.object(effect_observer,'list_hermes_effect_catalog',return_value={'catalog':True}) as current_catalog_mock, patch.object(effect_observer,'read_hermes_effect_detail',return_value={'detail':True}) as current_detail_mock:
+                    current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                    current_thread_handle.start()
+                    current_client_socket.sendall(current_request_bytes)
+                    current_response_record=json.loads(current_client_socket.makefile('rb').readline())
+                    current_thread_handle.join(timeout=3)
+                    self.assertIn(current_expected_kind,current_response_record)
+                    self.assertEqual(current_catalog_mock.call_count,int(current_expected_kind=='catalog'))
+                    self.assertEqual(current_detail_mock.call_count,int(current_expected_kind=='detail'))
+
+    def test_world_map_bridge_only_accepts_fixed_request(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        for current_request_bytes,current_allowed_value in ((b'world-map\n',True),(b'world-map\nrun shell\n',False)):
+            with self.subTest(request=current_request_bytes):
+                current_client_socket,current_server_socket=socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                with patch.object(management_bridge,'read_hermes_world_map_catalog',return_value={'maps':[]}) as current_catalog_mock:
+                    current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                    current_thread_handle.start()
+                    current_client_socket.sendall(current_request_bytes)
+                    current_response_record=json.loads(current_client_socket.makefile('rb').readline())
+                    current_thread_handle.join(timeout=3)
+                    self.assertIn('maps' if current_allowed_value else 'error',current_response_record)
+                    self.assertEqual(current_catalog_mock.call_count,int(current_allowed_value))
+
+    def test_sandbox_world_map_client_sends_selected_map(self):
+        from tools.review.domains.hermes_agent.management_status_client import read_sandbox_management_status
+        with patch('tools.review.domains.hermes_agent.management_status_client.socket.socket') as current_socket_factory:
+            current_socket_value=current_socket_factory.return_value.__enter__.return_value
+            current_socket_value.recv.return_value=b'{"maps":[]}\n'
+            self.assertEqual(read_sandbox_management_status('world-map','iseulon'),{'maps':[]})
+            current_socket_value.sendall.assert_called_once_with(b'world-map iseulon\n')
+        with self.assertRaises(ValueError):
+            read_sandbox_management_status('world-map','../outside')
+
+    def test_building_bridge_rejects_duplicate_keys_and_extra_lines(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        for current_request_bytes,current_allowed_value in ((b'building-catalog {"query":"town"}\n',True),(b'building-catalog {"query":"a","query":"b"}\n',False),(b'building-catalog {}\nrun shell\n',False)):
+            with self.subTest(request=current_request_bytes):
+                current_client_socket,current_server_socket=socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                with patch.object(management_bridge,'read_hermes_building_catalog',return_value={'items':[]}) as current_catalog_mock:
+                    current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                    current_thread_handle.start()
+                    current_client_socket.sendall(current_request_bytes)
+                    current_response_record=json.loads(current_client_socket.makefile('rb').readline())
+                    current_thread_handle.join(timeout=3)
+                    self.assertIn('items' if current_allowed_value else 'error',current_response_record)
+                    self.assertEqual(current_catalog_mock.call_count,int(current_allowed_value))
+
+    def test_field_region_bridge_accepts_only_fixed_json(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        for current_request_bytes,current_allowed_value in ((b'field-region {"map":"sample"}\n',True),(b'field-region {"map":"a","map":"b"}\n',False),(b'field-region {}\nrun shell\n',False)):
+            with self.subTest(request=current_request_bytes):
+                current_client_socket,current_server_socket=socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                with patch('tools.review.domains.hermes_agent.field_map_operations.read_hermes_field_region',return_value={'cells':[]}) as current_region_mock:
+                    current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                    current_thread_handle.start()
+                    current_client_socket.sendall(current_request_bytes)
+                    current_response_value=json.loads(current_client_socket.makefile('rb').readline())
+                    current_thread_handle.join(timeout=3)
+                    self.assertIn('cells' if current_allowed_value else 'error',current_response_value)
+                    self.assertEqual(current_region_mock.call_count,int(current_allowed_value))
+
+    def test_sandbox_field_region_client_uses_fixed_command(self):
+        from tools.review.domains.hermes_agent.management_status_client import read_sandbox_management_status
+        with patch('tools.review.domains.hermes_agent.management_status_client.socket.socket') as current_socket_factory:
+            current_socket_value=current_socket_factory.return_value.__enter__.return_value
+            current_socket_value.recv.return_value=b'{"cells":[]}\n'
+            self.assertEqual(read_sandbox_management_status('field-region','{"map":"sample"}'),{'cells':[]})
+            current_socket_value.sendall.assert_called_once_with(b'field-region {"map":"sample"}\n')
+        with self.assertRaises(ValueError):
+            read_sandbox_management_status('field-region','{}\nrun shell')
+
+    def test_sandbox_client_preserves_only_known_error_message(self):
+        from tools.review.domains.hermes_agent.management_status_client import read_sandbox_management_status
+        for current_error_text,current_expected_text in (('건물 목록 조회 실패: 콘텐츠 서비스 연결을 확인하세요.','콘텐츠 서비스 연결'),('/private/path','거절')):
+            current_reply_bytes=(json.dumps({'error':current_error_text},ensure_ascii=False)+'\n').encode('utf-8')
+            with self.subTest(reply=current_error_text),patch('tools.review.domains.hermes_agent.management_status_client.socket.socket') as current_factory:
+                current_factory.return_value.__enter__.return_value.recv.return_value=current_reply_bytes
+                with self.assertRaisesRegex(ValueError,current_expected_text):
+                    read_sandbox_management_status('world-map')
+
     def test_changed_audit_runner_blocks_independent_verification(self):
         with tempfile.TemporaryDirectory() as hermes_temporary_root:
             hermes_job_path = Path(hermes_temporary_root) / 'job'

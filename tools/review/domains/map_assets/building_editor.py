@@ -46,7 +46,7 @@ def load_building_editor_catalog(current_request_payload):
     return {'generation':current_generation_number,'assets':current_catalog_rows}
 
 
-def save_building_editor_anchor(current_request_payload):
+def validate_building_editor_anchor(current_request_payload):
     if not isinstance(current_request_payload,dict) or set(current_request_payload)!={'texture','generation','expected','properties'}:raise ValueError('건물 ID·세대·기존 앵커·새 앵커가 필요합니다.')
     current_identifier=current_request_payload['texture']
     if not isinstance(current_identifier,str) or not re.fullmatch(r'(?:town-[a-z0-9-]+-v[1-9][0-9]*|ward-tower-v1)',current_identifier):raise ValueError('건물 ID 오류')
@@ -60,7 +60,23 @@ def save_building_editor_anchor(current_request_payload):
         if any(type(current_value[k]) is not int or not -2048<=current_value[k]<=2048 for k in ('displayWidthAdjustment','displayHeightAdjustment') if k in current_value):raise ValueError('크기 보정은 -2048~2048 정수여야 합니다.')
     if current_identifier == 'ward-tower-v1' and any(current_request_payload['properties'].get(current_field_name,0) < -138 for current_field_name in ('displayWidthAdjustment','displayHeightAdjustment')):raise ValueError('결계탑 크기 보정은 -138px 이상이어야 합니다.')
     if type(current_request_payload['generation']) is not int:raise ValueError('세대 오류')
+    return current_request_payload
+
+
+def save_building_editor_anchor(current_request_payload):
+    validate_building_editor_anchor(current_request_payload)
+    current_identifier=current_request_payload['texture']
     return execute_content_api_request('POST','/internal/v1/content/buildings/'+quote(current_identifier,safe='')+'/anchor',{'requestId':'building-anchor-'+uuid4().hex,'expectedGeneration':current_request_payload['generation'],'expected':current_request_payload['expected'],'properties':current_request_payload['properties']})
+
+
+def validate_building_lifecycle_support(current_action_name):
+    """지원 여부를 확인하기 전 원본 이미지·등록부를 변경하지 않는다."""
+    try:
+        current_support_record=execute_content_api_request('GET','/internal/v1/content/building-lifecycle-capabilities')
+    except (OSError,ValueError,RuntimeError,TypeError,KeyError) as current_support_error:
+        raise ValueError('콘텐츠 서비스의 건물 등록·폐기 지원을 확인할 수 없습니다. 서비스를 확인하거나 갱신하세요.') from current_support_error
+    if not isinstance(current_support_record,dict) or current_support_record.get(current_action_name) is not True:
+        raise ValueError('현재 콘텐츠 서비스는 이 건물 등록·폐기를 지원하지 않습니다.')
 
 
 def execute_building_lifecycle(current_request_payload, current_action_name):
@@ -108,6 +124,7 @@ def execute_building_lifecycle(current_request_payload, current_action_name):
                 current_image_value.load()
                 if current_image_value.getchannel('A').getextrema()!=(0,255):raise ValueError('투명 배경과 불투명 건물이 필요합니다.')
                 current_image_size=current_image_value.size
+            validate_building_lifecycle_support(current_action_name)
             current_image_hash=hashlib.sha256(current_image_bytes).hexdigest()
             current_new_entry={'managementId':'image.scenery.'+current_identifier,'version':current_identifier.rsplit('-',1)[-1],'path':current_image_relative,'width':current_image_size[0],'height':current_image_size[1],'sha256':current_image_hash,'source':{'repository':'user-provided','operation':'건물 관리 등록'}}
             if current_registry_matches:
@@ -122,6 +139,7 @@ def execute_building_lifecycle(current_request_payload, current_action_name):
             current_backend_payload['properties']=current_property_values
         else:
             if len(current_registry_matches)!=1:raise ValueError('건물 원장 항목을 찾을 수 없습니다.')
+            validate_building_lifecycle_support(current_action_name)
         try:
             current_result=execute_content_api_request('POST','/internal/v1/content/buildings/'+quote(current_identifier,safe='')+'/lifecycle/'+current_action_name,current_backend_payload)
         except Exception as current_lifecycle_error:

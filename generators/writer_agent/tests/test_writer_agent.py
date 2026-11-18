@@ -159,6 +159,48 @@ class WriterAgentContracts(TestCase):
         with self.assertRaisesRegex(ValueError,'의존 관계'):apply_reviewed_proposal(self.workspace_config_values,self.job_record_root,current_proposal_values)
         self.assertFalse((self.job_record_root/'application.yaml').exists())
 
+    def test_hermes_gateway_applies_only_reviewed_isolated_document(self):
+        import os
+        import threading
+        from http.server import ThreadingHTTPServer
+        from tools.review.common.management_gateway import ManagementCommandGateway,execute_management_command
+        from tools.review.gateway_server import create_gateway_request_handler
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+        current_root_path=Path(self.temporary_root_handle.name)
+        current_job_identifier=create_writer_job(self.workspace_config_values,{'mode':'write','prompt':'격리 제안'})
+        current_job_root=resolve_job_directory(self.workspace_config_values,current_job_identifier)
+        save_yaml_document(current_job_root/'proposal.yaml',self.create_test_proposal())
+        current_proposal_hash=calculate_content_hash((current_job_root/'proposal.yaml').read_bytes())
+        update_job_status(current_job_root,'review',proposal_hash=current_proposal_hash)
+        current_store_value=HermesDelegationStore(current_root_path/'receipts')
+        current_store_value.execute_service_delegation_once('writer_request_123','writer-agent',{'mode':'write','prompt':'격리 제안'},lambda current_request_value:{'id':current_job_identifier},lambda current_request_value:None)
+        current_writer_service=WriterAgentManager(self.workspace_config_path)
+        current_hermes_service=HermesServiceManager(current_root_path/'hermes-jobs',current_root_path/'hermes-sessions')
+        current_gateway_value=ManagementCommandGateway({'writer-agent':current_writer_service.handle_writer_request,'hermes-agent':current_hermes_service.handle_hermes_request})
+        current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+        current_server_value.emit_gateway_trace=lambda *current_values:None
+        current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+        current_thread_value.start()
+        current_address_value=f'http://127.0.0.1:{current_server_value.server_port}'
+        try:
+            with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_address_value}), patch('tools.review.domains.hermes_agent.writer_operations.HermesDelegationStore',return_value=current_store_value):
+                current_review_value=execute_management_command('hermes-agent','hermes-writer-status',{'request_id':'writer_request_123'},current_address_value)
+                self.assertEqual(current_review_value['job']['stage'],'review')
+                self.assertFalse(current_review_value['job']['truncated'])
+                current_apply_request={'request_id':'writer_apply_123','writer_request_id':'writer_request_123','job_id':current_job_identifier,'proposal_hash':current_proposal_hash}
+                current_apply_result=execute_management_command('hermes-agent','hermes-writer-apply',current_apply_request,current_address_value)
+                self.assertEqual(current_apply_result['state'],'completed')
+                self.assertFalse(current_apply_result['duplicate'])
+                self.assertTrue(execute_management_command('hermes-agent','hermes-writer-apply',current_apply_request,current_address_value)['duplicate'])
+                self.assertEqual(execute_management_command('hermes-agent','hermes-writer-apply-status',{'request_id':'writer_apply_123'},current_address_value)['state'],'completed')
+                self.assertEqual(execute_management_command('hermes-agent','hermes-writer-apply-history',{},current_address_value)['records'][0]['job_id'],current_job_identifier)
+            self.assertEqual((self.document_root_path/'world/main.md').read_text().count('## 새 설정'),1)
+        finally:
+            current_server_value.shutdown()
+            current_thread_value.join(timeout=5)
+            current_server_value.server_close()
+
     def test_shared_gateway_applies_and_reads_same_saved_record(self):
         from tools.review.common.management_gateway import ManagementCommandGateway
         current_job_identifier=create_writer_job(self.workspace_config_values,{'mode':'write','prompt':'격리 적용'})

@@ -43,8 +43,10 @@ class MusicGenerationManager:
         return current_job_root
 
     def create_music_job(self,current_payload_record):
-        if self.current_service_name in RETIRED_AUDIO_SERVICE_NAMES:
-            raise ValueError('해당 음악 생성기는 폐기되었습니다. 기존 이력 조회만 지원합니다.')
+        from generators.music.service_constants import inspect_retired_audio_rejection
+        current_rejection_reason=inspect_retired_audio_rejection(self.current_service_name,'generate')
+        if current_rejection_reason:
+            raise ValueError(current_rejection_reason)
         current_request_record = build_music_request(self.current_service_name,current_payload_record)
         if not self.runtime_python_path.is_file():
             raise FileNotFoundError(f"음악 실행 환경이 없습니다: {self.runtime_python_path}. 해당 생성기 README.md의 설치 절차를 먼저 실행하세요. model_id={self.current_profile_record['model_id']} model_root={self.model_storage_root} model_path={self.model_storage_root}")
@@ -88,7 +90,10 @@ class MusicGenerationManager:
                 current_status_record.update(metrics=current_metrics_record,estimate=current_metrics_record['estimate'])
             current_error_path = current_attempt_root/'error.json'
             if current_error_path.is_file():
-                current_status_record['error'] = read_music_record(current_error_path)['error']
+                current_attempt_error = read_music_record(current_error_path)['error']
+                current_status_error = current_status_record.get('error')
+                if not (current_status_record.get('status') == 'failed' and isinstance(current_status_error,str) and current_status_error.startswith(('시스템 RAM 보호:', '시스템 RAM 감시 실패:'))):
+                    current_status_record['error'] = current_attempt_error
         if 'estimate' not in current_status_record or current_status_record['status'] not in ('running','queued'):
             current_status_record['estimate'] = calculate_generation_estimate(current_status_record,[],'동일 모델·길이·GPU의 성공 실행 표본 수집 중','GPU 대기 제외; 모델 준비·추론·저장')
         current_result_path = current_job_root/'result.json'
@@ -121,13 +126,15 @@ class MusicGenerationManager:
         return {**current_cleanup_result,'deleted':current_identifier_value}
 
     def execute_music_command(self,current_command_name,current_payload_record):
-        current_allowed_fields = {'generate':{'action','prompt','lyrics','duration_seconds','max_new_tokens','min_duration_seconds','seed','loop_request','tag'},'prepare':{'action'},'status':{'id'},'logs':{'id'},'history':{'page'},'active':set(),'model-status':set(),'cancel':{'id'},'resume':{'id'},'history-delete':{'id'},'history-reset':{'action','expected_jobs'},'history-reset-preview':set()}
+        current_allowed_fields = {'generate':{'action','prompt','lyrics','duration_seconds','max_new_tokens','min_duration_seconds','seed','loop_request','tag'},'prepare':{'action'},'status':{'id'},'logs':{'id'},'history':{'page'},'history-observe':{'offset','limit','snapshot'},'active':set(),'model-status':set(),'cancel':{'id'},'resume':{'id'},'history-delete':{'id'},'history-reset':{'action','expected_jobs'},'history-reset-preview':set()}
         if current_command_name not in current_allowed_fields or not isinstance(current_payload_record,dict) or set(current_payload_record)-current_allowed_fields[current_command_name]:
             raise ValueError('음악 명령·필드 오류')
         if current_command_name in ('generate','prepare'):
             return self.create_music_job(current_payload_record)
-        if current_command_name == 'resume' and self.current_service_name in RETIRED_AUDIO_SERVICE_NAMES:
-            raise ValueError('폐기 또는 GPU 전용 실행 미검증 생성기는 재개할 수 없습니다.')
+        from generators.music.service_constants import inspect_retired_audio_rejection
+        current_rejection_reason=inspect_retired_audio_rejection(self.current_service_name,current_command_name)
+        if current_rejection_reason:
+            raise ValueError(current_rejection_reason)
         if current_command_name=='model-status':
             if self.current_service_name in RETIRED_AUDIO_SERVICE_NAMES:
                 return {'ready':False,'message':'폐기된 생성기 · 기존 결과·로그 조회만 지원','model_id':self.current_profile_record['model_id']}
@@ -153,6 +160,10 @@ class MusicGenerationManager:
                 return {'ready':True,'can_prepare':current_download_available,'message':'모델 준비됨 · VRAM 관측 피크는 실행 이력에서 확인','model_id':self.current_profile_record['model_id']}
             except (OSError,ValueError,KeyError) as current_prepare_error:
                 return {'ready':False,'can_prepare':current_download_available,'message':str(current_prepare_error),'model_id':self.current_profile_record['model_id']}
+        if current_command_name=='history-observe':
+            from tools.review.common.generation_records import observe_generation_history_records
+            with self.hold_music_lock():
+                return observe_generation_history_records(self.history_storage_root,self.job_storage_root,current_payload_record)
         if current_command_name in ('history','active'):
             current_history_records = self.list_music_history()
             if current_command_name=='history':

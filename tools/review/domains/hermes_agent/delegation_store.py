@@ -13,7 +13,18 @@ from tools.review.common.generation_records import write_record_atomically
 HERMES_DELEGATION_ROOT = Path(__file__).resolve().parents[4] / '.local/hermes-agent/delegations'
 HERMES_DELEGATION_ID_PATTERN = re.compile(r'[A-Za-z0-9_-]{8,80}')
 HERMES_DELEGATION_JOB_PATTERN = re.compile(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}')
+HERMES_DELEGATION_SERVICE_PATTERN = re.compile(r'[a-z0-9]+(?:-[a-z0-9]+)*')
 HERMES_DELEGATION_THREAD_LOCK = threading.RLock()
+
+
+def validate_service_job_identifier(current_service_name, current_job_identifier):
+    """서비스별 기존 작업 ID 형식을 유지한다."""
+    if not isinstance(current_job_identifier,str):
+        return False
+    if current_service_name == 'writer-agent':
+        from generators.writer_agent.jobs import JOB_IDENTIFIER_PATTERN
+        return bool(JOB_IDENTIFIER_PATTERN.fullmatch(current_job_identifier))
+    return bool(HERMES_DELEGATION_JOB_PATTERN.fullmatch(current_job_identifier))
 
 
 class HermesDelegationStore:
@@ -68,6 +79,9 @@ class HermesDelegationStore:
                 try:
                     current_updated_time = current_record_path.stat().st_mtime
                     current_saved_record = json.loads(current_record_path.read_text(encoding='utf-8'))
+                    # 기존 Kimodo 화면에는 다른 서비스의 접수 기록을 노출하지 않는다.
+                    if isinstance(current_saved_record, dict) and current_saved_record.get('version') in (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12):
+                        continue
                     if not isinstance(current_saved_record, dict) or current_saved_record.get('version') != 1 or current_saved_record.get('id') != current_receipt_identifier:
                         raise ValueError('위임 기록 형식 오류')
                     current_state_value = current_saved_record.get('state')
@@ -116,3 +130,83 @@ class HermesDelegationStore:
             current_saved_record.update(state='accepted', job_id=current_response_record['id'])
             write_record_atomically(current_record_path, current_saved_record)
             return {'state': 'accepted', 'duplicate': False, 'job_id': current_saved_record['job_id']}
+
+    def read_service_delegation(self, delegation_identifier_value, expected_service_name):
+        """서비스가 일치하는 새 버전의 접수 상태만 반환한다."""
+        if not isinstance(expected_service_name, str) or not HERMES_DELEGATION_SERVICE_PATTERN.fullmatch(expected_service_name) or len(expected_service_name) > 80:
+            raise ValueError('위임 서비스 식별자 형식 오류')
+        with self.hold_delegation_storage_lock():
+            current_record_path = self.resolve_delegation_record_path(delegation_identifier_value)
+            if not current_record_path.exists():
+                return {'state':'not_found'}
+            current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
+            if not isinstance(current_record_value, dict) or current_record_value.get('version') != 2 or current_record_value.get('id') != delegation_identifier_value or current_record_value.get('service') != expected_service_name or current_record_value.get('state') not in ('dispatching', 'accepted'):
+                raise ValueError('위임 서비스 또는 기록이 일치하지 않습니다.')
+            if current_record_value['state'] == 'dispatching':
+                return {'state':'unknown', 'service':expected_service_name, 'message':'접수 결과를 확인하고 자동 재접수하지 마세요.'}
+            current_job_identifier = current_record_value.get('job_id')
+            if not validate_service_job_identifier(expected_service_name, current_job_identifier):
+                raise ValueError('위임 작업 ID 형식 오류')
+            return {'state':'accepted', 'service':expected_service_name, 'job_id':current_job_identifier}
+
+    def list_service_delegations(self, expected_service_name):
+        """선택 서비스의 새 접수 기록을 최근 순으로 읽는다."""
+        if not isinstance(expected_service_name, str) or not HERMES_DELEGATION_SERVICE_PATTERN.fullmatch(expected_service_name) or len(expected_service_name) > 80:
+            raise ValueError('위임 서비스 식별자 형식 오류')
+        with self.hold_delegation_storage_lock():
+            current_records_list = []
+            for current_record_path in self.delegation_storage_root.glob('*.json'):
+                current_record_id = current_record_path.stem
+                if current_record_path.is_symlink() or not current_record_path.is_file() or not HERMES_DELEGATION_ID_PATTERN.fullmatch(current_record_id):
+                    continue
+                try:
+                    current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
+                    if not isinstance(current_record_value, dict) or current_record_value.get('version') != 2 or current_record_value.get('service') != expected_service_name:
+                        continue
+                    if current_record_value.get('id') != current_record_id:
+                        raise ValueError('접수 ID 불일치')
+                    current_state_value = current_record_value.get('state')
+                    current_job_identifier = current_record_value.get('job_id')
+                    if current_state_value == 'dispatching':
+                        current_state_value, current_job_identifier = 'unknown', None
+                    elif current_state_value != 'accepted' or not validate_service_job_identifier(expected_service_name, current_job_identifier):
+                        raise ValueError('접수 상태 오류')
+                    current_updated_time = current_record_path.stat().st_mtime
+                    current_records_list.append({'request_id':current_record_id, 'service':expected_service_name, 'state':current_state_value, 'job_id':current_job_identifier, 'updated_at':datetime.fromtimestamp(current_updated_time, timezone.utc).isoformat(), '_sort_time':current_updated_time})
+                except (OSError, ValueError, TypeError, KeyError):
+                    continue
+            current_records_list.sort(key=lambda current_record_value:(current_record_value['_sort_time'], current_record_value['request_id']), reverse=True)
+            for current_record_value in current_records_list:
+                current_record_value.pop('_sort_time')
+            return {'records':current_records_list[:100], 'truncated':len(current_records_list)>100, 'note':'손상되거나 서비스 확인이 불가능한 기록은 목록에서 제외됩니다.'}
+
+    def execute_service_delegation_once(self, delegation_identifier_value, delegation_service_name, delegation_request_record, delegation_submit_callback, delegation_validate_callback):
+        """서비스와 입력을 함께 고정하고 접수 결과가 불확실하면 재실행하지 않는다."""
+        if not isinstance(delegation_service_name, str) or not HERMES_DELEGATION_SERVICE_PATTERN.fullmatch(delegation_service_name) or len(delegation_service_name) > 80:
+            raise ValueError('위임 서비스 식별자 형식 오류')
+        if not isinstance(delegation_request_record, dict) or not callable(delegation_validate_callback):
+            raise ValueError('검증 가능한 위임 입력이 필요합니다.')
+        current_request_bytes = json.dumps({'service':delegation_service_name, 'request':delegation_request_record}, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False).encode('utf-8')
+        current_request_digest = hashlib.sha256(current_request_bytes).hexdigest()
+        with self.hold_delegation_storage_lock():
+            current_record_path = self.resolve_delegation_record_path(delegation_identifier_value)
+            if current_record_path.exists():
+                current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
+                if not isinstance(current_record_value, dict) or current_record_value.get('version') != 2 or current_record_value.get('id') != delegation_identifier_value or current_record_value.get('service') != delegation_service_name or current_record_value.get('request_sha256') != current_request_digest:
+                    raise ValueError('같은 위임 식별자를 다른 서비스나 입력에 사용할 수 없습니다.')
+                if current_record_value.get('state') == 'dispatching':
+                    return {'state':'unknown', 'duplicate':True, 'service':delegation_service_name}
+                current_job_identifier = current_record_value.get('job_id')
+                if current_record_value.get('state') != 'accepted' or not validate_service_job_identifier(delegation_service_name, current_job_identifier):
+                    raise ValueError('위임 기록 형식 오류')
+                return {'state':'accepted', 'duplicate':True, 'service':delegation_service_name, 'job_id':current_job_identifier}
+            delegation_validate_callback(delegation_request_record)
+            current_record_value = {'version':2, 'id':delegation_identifier_value, 'service':delegation_service_name, 'request_sha256':current_request_digest, 'state':'dispatching'}
+            write_record_atomically(current_record_path, current_record_value)
+            current_response_record = delegation_submit_callback(delegation_request_record)
+            current_job_identifier = current_response_record.get('id') if isinstance(current_response_record, dict) else None
+            if not validate_service_job_identifier(delegation_service_name, current_job_identifier):
+                raise ValueError('접수 응답의 작업 ID를 확인할 수 없습니다. 자동 재접수하지 않습니다.')
+            current_record_value.update(state='accepted', job_id=current_job_identifier)
+            write_record_atomically(current_record_path, current_record_value)
+            return {'state':'accepted', 'duplicate':False, 'service':delegation_service_name, 'job_id':current_job_identifier}

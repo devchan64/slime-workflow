@@ -138,13 +138,16 @@ def read_generation_status(generation_job_identifier):
     return generation_status_record
 
 def start_animation_generation(command_payload_value):
-    raise ValueError('AnyPose 기반 캐릭터 애니메이션 생성기는 폐기되었습니다. VNCCS 포즈 변환 생성기를 사용하세요.')
+    from .retirement_policy import inspect_animation_retirement_policy
+    raise ValueError(inspect_animation_retirement_policy('generate'))
 
 def resume_animation_generation(command_payload_value):
-    raise ValueError('폐기된 AnyPose 애니메이션 작업은 재개할 수 없습니다. 기존 결과·로그 조회만 지원합니다.')
+    from .retirement_policy import inspect_animation_retirement_policy
+    raise ValueError(inspect_animation_retirement_policy('resume'))
 
 def record_vnccs_alpha_pilot(command_payload_value):
-    raise ValueError('폐기된 애니메이션 생성기의 과거 기록은 다시 가져올 수 없습니다.')
+    from .retirement_policy import inspect_animation_retirement_policy
+    raise ValueError(inspect_animation_retirement_policy('record-alpha-vnccs'))
 
 def execute_animation_command(operation_command_name,command_payload_value):
     if operation_command_name == 'sheet-update':

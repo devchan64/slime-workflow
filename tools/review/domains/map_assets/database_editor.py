@@ -2,6 +2,7 @@
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 from urllib.parse import urlencode, quote
 from tools.review.domains.map_assets.database_client import execute_content_api_request
@@ -42,6 +43,46 @@ def load_database_editor_catalog(current_request_payload):
     return {'revision':json.dumps(current_asset_revisions,sort_keys=True,separators=(',',':')),'assets':current_asset_rows,'storage':'database'}
 
 
+
+def inspect_database_billboard_maps(current_asset_records, current_preview_changes):
+    """DB 사용 맵별 스냅샷에서 변경 후 접지와 장식 간 충돌을 검사한다."""
+    from tools.review.domains.map_assets.placement import validate_scenery_object_collisions
+    current_map_paths=set()
+    for current_asset_record in current_asset_records:
+        current_reference_records=current_asset_record.get('metadata',{}).get('mapReferences')
+        if not isinstance(current_reference_records,list):
+            raise ValueError('DB 사용 맵 목록을 확인할 수 없습니다.')
+        for current_reference_record in current_reference_records:
+            current_map_path=current_reference_record.get('path') if isinstance(current_reference_record,dict) else None
+            if not isinstance(current_map_path,str) or not re.fullmatch(r'assets/maps/(field_tiles|city_layouts)/[a-z][a-z0-9-]*\.yaml',current_map_path):
+                raise ValueError('지원하지 않는 빌보드 사용 맵 경로입니다.')
+            current_map_paths.add(current_map_path)
+    current_map_warnings=[]
+    for current_map_path in sorted(current_map_paths):
+        current_relative_path=current_map_path.removeprefix('assets/maps/')
+        current_map_identifier=Path(current_map_path).stem
+        current_bundle_record=execute_content_api_request('GET','/internal/v1/content/review-bundle?'+urlencode({'map':current_map_identifier}))
+        current_documents_record=current_bundle_record['documents']
+        current_property_catalog=dict(current_documents_record['sprite-display-properties.yaml']['data'])
+        for current_change_record in current_preview_changes:
+            if current_property_catalog.get(current_change_record['texture'])!=current_change_record['before']:
+                raise ValueError('에셋 속성이 맵 검수 중 변경되었습니다. 다시 검증하세요.')
+            current_property_catalog[current_change_record['texture']]=current_change_record['after']
+        current_map_data=current_documents_record[current_relative_path]['data']
+        current_object_records=current_map_data.get('objects',[])
+        if current_relative_path.startswith('field_tiles/'):
+            current_elevation_rows=current_documents_record['terrain/maps/'+current_map_identifier+'.yaml']['data']['elevations']
+        else:
+            current_elevation_rows=current_map_data.get('elevations')
+            if current_elevation_rows is None:
+                current_elevation_rows=[[0]*current_map_data['columns'] for current_row_index in range(current_map_data['rows'])]
+        try:
+            validate_scenery_object_collisions(current_object_records,current_property_catalog,current_elevation_rows)
+        except (ValueError,KeyError,TypeError,IndexError) as current_map_error:
+            current_map_warnings.append({'map':current_map_path,'message':str(current_map_error)})
+    return sorted(current_map_paths),current_map_warnings
+
+
 def preview_database_editor_changes(current_request_payload):
     if not isinstance(current_request_payload,dict) or set(current_request_payload)!={'revision','changes'}:
         raise ValueError('revision·changes가 필요합니다.')
@@ -52,9 +93,12 @@ def preview_database_editor_changes(current_request_payload):
     current_preview_token=hashlib.sha256(json.dumps(current_request_payload,sort_keys=True,ensure_ascii=False,allow_nan=False).encode()).hexdigest()
     current_backend_changes=[]
     current_preview_changes=[]
+    current_asset_records=[]
     current_seen_identifiers=set()
     for current_change_record in current_change_records:
-        if set(current_change_record)!={'texture','values'} or not isinstance(current_change_record['values'],dict) or set(current_change_record['values'])-EDITOR_MUTABLE_FIELDS:
+        if (not isinstance(current_change_record,dict) or set(current_change_record)!={'texture','values'}
+                or not isinstance(current_change_record['values'],dict) or not current_change_record['values']
+                or set(current_change_record['values'])-EDITOR_MUTABLE_FIELDS):
             raise ValueError('허용되지 않은 에셋 변경 필드')
         current_asset_identifier=current_change_record['texture']
         if current_asset_identifier in current_seen_identifiers or current_asset_identifier not in current_revision_records:
@@ -63,16 +107,26 @@ def preview_database_editor_changes(current_request_payload):
         current_asset_record=execute_content_api_request('GET','/internal/v1/content/billboards/'+quote(current_asset_identifier,safe=''))
         if current_asset_record['revision']!=current_revision_records[current_asset_identifier]:
             raise ValueError('에셋이 변경되었습니다. 최신 값을 조회하세요: '+current_asset_identifier)
+        current_asset_records.append(current_asset_record)
+        current_original_values=current_asset_record['properties']
+        if not isinstance(current_original_values,dict):
+            raise ValueError('공용 속성이 없는 에셋은 최초 등록 절차를 확인하세요.')
+        if (current_original_values.get('billboardAnchorMode') in ('tile-bottom-center','tile-intersection')
+                and 'billboardPlacementAnchor' in current_change_record['values']):
+            raise ValueError('상하 배치는 앵커에서 자동 판정됩니다.')
         current_updated_values=normalize_sprite_property_precision(calculate_billboard_intersection_properties(
-            {**current_asset_record['properties'],**current_change_record['values']}))
+            {**current_original_values,**current_change_record['values']}))
+        if current_updated_values==current_original_values:
+            raise ValueError('변경 없는 에셋은 제외하세요: '+current_asset_identifier)
         current_backend_changes.append({'assetId':current_asset_identifier,'requestId':current_preview_token+':'+current_asset_identifier,
             'expectedRevision':current_asset_record['revision'],'properties':current_updated_values})
         current_preview_changes.append({'texture':current_asset_identifier,'before':current_asset_record['properties'],'after':current_updated_values})
+    current_affected_maps,current_map_warnings=inspect_database_billboard_maps(current_asset_records,current_preview_changes)
     EDITOR_STORAGE_DIRECTORY.mkdir(parents=True,exist_ok=True)
     current_pending_path=EDITOR_STORAGE_DIRECTORY/(current_preview_token+'-database.json')
     current_pending_path.write_text(json.dumps({'changes':current_backend_changes},ensure_ascii=False))
-    return {'token':current_preview_token,'changes':current_preview_changes,'maps':[],'map_warnings':[],
-        'note':'DB에 즉시 저장하며 파일은 주기적으로 스냅샷됩니다.'}
+    return {'token':current_preview_token,'changes':current_preview_changes,'maps':current_affected_maps,'map_warnings':current_map_warnings,
+        'note':'각 맵의 미리보기 시점 접지·장식 충돌만 검사합니다. 이후 맵 변경이나 전체 게임 통행 검증은 보장하지 않습니다. DB 저장 후 파일은 주기적으로 스냅샷됩니다.'}
 
 
 def save_database_editor_changes(current_request_payload):

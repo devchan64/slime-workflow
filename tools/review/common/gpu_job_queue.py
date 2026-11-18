@@ -24,7 +24,8 @@ GPU_MEMORY_REQUIREMENTS['wan-fun'] = 30000
 GPU_MEMORY_REQUIREMENTS['wan-fun-prepare'] = 6144  # 공유 ROCm 환경 변경은 다른 대기열 작업과 겹치지 않는다.
 GPU_MEMORY_REQUIREMENTS['writer-agent'] = 16384
 GPU_MEMORY_REQUIREMENTS['hermes-agent'] = 32768
-GPU_EXCLUSIVE_SERVICES = frozenset(('hermes-agent', 'wan-fun-prepare', 'management-setup'))
+GPU_MEMORY_REQUIREMENTS['kimodo-cache-check'] = 1024  # 모델 적재 없이 장치와 캐시 식별자만 확인한다.
+GPU_EXCLUSIVE_SERVICES = frozenset(('hermes-agent', 'wan-fun-prepare', 'management-setup', 'kimodo-cache-check'))
 GPU_MEMORY_REQUIREMENTS['prompt-translation'] = 16384  # 번역 후 작가 AI 의미 검토 모델을 순차 사용한다.
 GPU_MEMORY_REQUIREMENTS['flux3-evaluation'] = 36864  # 768×1152 편집 시험에서 관측한 32812 MiB 피크에 여유를 둔다.
 GPU_MEMORY_REQUIREMENTS['flux-expression'] = 45056  # 768×512 표정 작업 관측 피크 39166 MiB에 여유를 둔다.
@@ -60,6 +61,16 @@ def read_gpu_memory_domain():
 def read_host_available_memory():
     """GTT는 시스템 RAM을 사용하므로 실제 사용 가능한 RAM도 확인한다."""
     return read_memory_field_kib('/proc/meminfo', 'MemAvailable') // 1024
+
+
+def calculate_gpu_pool_capacity(current_memory_domain,current_gpu_free_mib,current_host_available_mib):
+    """공유 GTT 사용에도 시스템 RAM 보호 여유를 남긴다."""
+    if current_memory_domain not in ('gtt','vram') or any(type(current_value) is not int or current_value<0 for current_value in (current_gpu_free_mib,current_host_available_mib)):
+        raise ValueError('GPU 또는 호스트 메모리 정보 오류')
+    current_host_reserve_mib=HOST_MEMORY_RESERVE_KIB//1024
+    if current_memory_domain=='gtt':
+        return min(current_gpu_free_mib,max(0,current_host_available_mib-current_host_reserve_mib))
+    return current_gpu_free_mib if current_host_available_mib>=current_host_reserve_mib else 0
 
 
 def launch_gpu_process(command_argument_values, generation_job_path, generation_service_name, **process_option_values):
@@ -183,8 +194,8 @@ def select_runnable_ticket(available_memory_mib, current_memory_domain=None, act
 
 
 def calculate_queue_revision():
-    """실행기와 메모리 추정 코드의 변경을 감지한다."""
-    source_file_paths = [Path(__file__), Path(__file__).with_name('gpu_memory_history.py')]
+    """실행기·메모리 추정·호스트 보호 기준의 변경을 감지한다."""
+    source_file_paths = [Path(__file__), Path(__file__).with_name('gpu_memory_history.py'), Path(__file__).with_name('host_memory_guard.py')]
     return hashlib.sha256(b''.join(source_file_path.read_bytes() for source_file_path in source_file_paths)).hexdigest()
 
 
@@ -201,7 +212,8 @@ def stop_hermes_worker_process_group(worker_process_identifier, worker_pid_descr
     try:
         signal.pidfd_send_signal(worker_pid_descriptor, signal.SIGKILL, None, HERMES_PIDFD_GROUP_FLAG)
     except ProcessLookupError:
-        return
+        # 리더가 종료됐더라도 같은 그룹의 자식이 남았는지 확인한다.
+        pass
     while True:
         remaining_group_processes = []
         for current_process_path in Path('/proc').glob('[0-9]*/stat'):
@@ -243,8 +255,11 @@ def open_verified_hermes_process_group(reservation_record_value):
 
 def recover_stale_hermes_reservation(reservation_record_value):
     """실행기가 죽은 Hermes 예약은 하위 그룹 종료를 확인한 뒤에만 회수한다."""
-    if reservation_record_value.get('service') == 'management-setup':
-        # 설치 자식 프로세스의 생존 여부를 확인할 수 없으므로 자동으로 예약을 제거하지 않는다.
+    if reservation_record_value.get('cleanup_unverified') is True:
+        # 작업 그룹 종료를 확인하지 못한 예약은 운영자가 확인할 때까지 보존한다.
+        return False
+    if reservation_record_value.get('service') in ('management-setup','writer-agent'):
+        # 실행기가 사라져도 하위 프로세스 종료를 입증하지 못하면 예약을 보존한다.
         return False
     if reservation_record_value.get('service') != 'hermes-agent':
         return True
@@ -315,6 +330,7 @@ def execute_locked_generation(generation_job_path):
     generation_worker_process = None
     hermes_worker_pid_descriptor = None
     hermes_group_signal_supported = False
+    current_writer_cleanup_unverified = False
     current_memory_guard = None
     current_telemetry_recorder = None
     current_memory_domain = None
@@ -387,7 +403,7 @@ def execute_locked_generation(generation_job_path):
                         # 아직 사용하지 않은 예약분만 차감해 모델 로딩 여유를 확보한다.
                         memory_total_value, memory_free_value = read_gpu_memory()
                         host_available_memory = read_host_available_memory()
-                        current_pool_available = min(memory_free_value, host_available_memory) if current_memory_domain == 'gtt' else memory_free_value if host_available_memory >= HOST_MEMORY_RESERVE_KIB // 1024 else 0
+                        current_pool_available = calculate_gpu_pool_capacity(current_memory_domain,memory_free_value,host_available_memory)
                         available_memory_value = max(0, current_pool_available-reserved_memory_value)
                         if select_runnable_ticket(available_memory_value, current_memory_domain, active_service_names) == queue_ticket_path:
                             current_queue_stat = Path(f'/proc/{os.getpid()}/stat').read_text().rpartition(') ')[2].split()
@@ -406,7 +422,7 @@ def execute_locked_generation(generation_job_path):
             current_telemetry_recorder.save_generation_metrics()
             write_record_atomically(generation_job_path/'status.json', {'status':'running', 'memory_estimate':memory_estimate_record})
             current_telemetry_recorder.start_generation_telemetry()
-            worker_process_token = uuid.uuid4().hex if generation_command_record['service'] == 'hermes-agent' else None
+            worker_process_token = uuid.uuid4().hex if generation_command_record['service'] in ('hermes-agent','writer-agent') else None
             worker_environment_values = dict(os.environ, SLIME_GPU_RESERVATION_PATH=str(active_reservation_path.resolve()))
             if worker_process_token is not None:
                 worker_environment_values['SLIME_HERMES_PROCESS_TOKEN'] = worker_process_token
@@ -425,10 +441,53 @@ def execute_locked_generation(generation_job_path):
                     write_record_atomically(active_reservation_path, current_reservation_record)
                 finally:
                     fcntl.flock(gpu_execution_handle, fcntl.LOCK_UN)
-            if len(generation_command_record['command']) > 1 and Path(generation_command_record['command'][1]).resolve() in (WORKFLOW_ROOT_DIRECTORY/'generators/wan_animate2/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/wan_fun/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/wan_vace/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/kimodo/worker.py'):
-                current_memory_guard = start_animate_memory_guard(generation_worker_process)
+            if generation_command_record['service']=='writer-agent':
+                try:
+                    current_writer_stat_fields=Path(f'/proc/{generation_worker_process.pid}/stat').read_text().rpartition(') ')[2].split()
+                    if int(current_writer_stat_fields[2])!=generation_worker_process.pid or int(current_writer_stat_fields[3])!=generation_worker_process.pid:
+                        raise ValueError('작가 작업 그룹 식별 오류')
+                    fcntl.flock(gpu_execution_handle,fcntl.LOCK_EX)
+                    try:
+                        current_reservation_record=json.loads(active_reservation_path.read_text())
+                        current_reservation_record.update(worker_pgid=generation_worker_process.pid,worker_start_token=current_writer_stat_fields[19],worker_process_token=worker_process_token)
+                        write_record_atomically(active_reservation_path,current_reservation_record)
+                    finally:
+                        fcntl.flock(gpu_execution_handle,fcntl.LOCK_UN)
+                except (OSError,ValueError,TypeError,IndexError):
+                    # 식별을 기록하지 못해도 이후 정리 미확인 예약은 자동 회수하지 않는다.
+                    pass
+            if generation_command_record['service']=='hermes-agent':
+                current_memory_guard = start_animate_memory_guard(generation_worker_process,current_include_group=True,
+                    current_terminate_callback=lambda:signal.pidfd_send_signal(hermes_worker_pid_descriptor,signal.SIGKILL,None,HERMES_PIDFD_GROUP_FLAG))
+            elif generation_command_record['service']=='writer-agent' and generation_command_record['command'][1:3]==['-m','generators.writer_agent.jobs']:
+                current_memory_guard = start_animate_memory_guard(generation_worker_process, current_include_group=True)
+            elif len(generation_command_record['command'])>1 and Path(generation_command_record['command'][1]).resolve()==WORKFLOW_ROOT_DIRECTORY/'generators/kimodo/migraphx_build_worker.py':
+                current_memory_guard = start_animate_memory_guard(generation_worker_process, current_include_group=True)
+            elif len(generation_command_record['command']) > 1 and any(Path(current_argument_value).resolve() in (WORKFLOW_ROOT_DIRECTORY/'generators/wan_animate2/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/wan_fun/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/wan_vace/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/kimodo/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/image/run_flux_image.py', WORKFLOW_ROOT_DIRECTORY/'generators/image/run_flux_expression.py', WORKFLOW_ROOT_DIRECTORY/'generators/music/worker.py', WORKFLOW_ROOT_DIRECTORY/'generators/prompt_translation/worker.py') for current_argument_value in generation_command_record['command'][1:3]):
+                if generation_command_record['service']=='prompt-translation':
+                    current_memory_guard = start_animate_memory_guard(generation_worker_process, current_include_group=True)
+                else:
+                    current_memory_guard = start_animate_memory_guard(generation_worker_process)
             while generation_worker_process.poll() is None:
                 if (generation_job_path/'cancel.request').exists():
+                    if generation_command_record['service'] == 'writer-agent':
+                        # 종료 확인 전에 실행기가 죽어도 예약이 자동 해제되지 않도록 기록한다.
+                        current_writer_cleanup_unverified = True
+                        fcntl.flock(gpu_execution_handle, fcntl.LOCK_EX)
+                        try:
+                            current_reservation_record=json.loads(active_reservation_path.read_text())
+                            current_reservation_record.update(cleanup_unverified=True,worker_pgid=generation_worker_process.pid)
+                            write_record_atomically(active_reservation_path,current_reservation_record)
+                        finally:
+                            fcntl.flock(gpu_execution_handle, fcntl.LOCK_UN)
+                        current_writer_pid_descriptor=os.pidfd_open(generation_worker_process.pid)
+                        try:
+                            stop_hermes_worker_process_group(generation_worker_process.pid,current_writer_pid_descriptor)
+                        finally:
+                            os.close(current_writer_pid_descriptor)
+                        generation_worker_process.wait()
+                        current_writer_cleanup_unverified = False
+                        break
                     if generation_command_record['service'] == 'hermes-agent':
                         try:
                             signal.pidfd_send_signal(hermes_worker_pid_descriptor, signal.SIGTERM, None, HERMES_PIDFD_GROUP_FLAG)
@@ -495,7 +554,8 @@ def execute_locked_generation(generation_job_path):
         elif generation_worker_process is not None and generation_worker_process.poll() is None:
             os.killpg(generation_worker_process.pid, signal.SIGKILL)
             generation_worker_process.wait()
-        active_reservation_path.unlink(missing_ok=True)
+        if not current_writer_cleanup_unverified:
+            active_reservation_path.unlink(missing_ok=True)
         try:
             if generation_worker_process is not None:
                 final_status = json.loads((generation_job_path/'status.json').read_text())['status']

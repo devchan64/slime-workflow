@@ -113,6 +113,55 @@ class FluxModelPrepareTests(unittest.TestCase):
         self.assertTrue(self.current_model_root.is_dir())
 
 
+class FluxResidentRuntimeTests(unittest.TestCase):
+    def test_components_load_one_at_a_time_and_remain_on_gpu(self):
+        from types import SimpleNamespace
+        from generators.image.flux_gpu_resident import load_flux_resident_components
+        current_events = []
+        class CurrentTensorValue:
+            def __init__(self):
+                self.device = SimpleNamespace(type='cpu')
+        class CurrentModelModule:
+            def __init__(self, current_model_name):
+                self.current_model_name = current_model_name
+                self.current_tensor_value = CurrentTensorValue()
+            def to(self, current_device_name):
+                current_events.append(('move', self.current_model_name, current_device_name))
+                self.current_tensor_value.device.type = current_device_name
+            def parameters(self):
+                return [self.current_tensor_value]
+            def buffers(self):
+                return []
+        class CurrentPipelineValue:
+            def load_components(self, names, **current_options):
+                current_name_value = names[0]
+                current_events.append(('load', current_name_value))
+                setattr(self,current_name_value, object() if current_name_value == 'tokenizer' else CurrentModelModule(current_name_value))
+        current_torch_value = SimpleNamespace(cuda=SimpleNamespace(is_available=lambda:True), version=SimpleNamespace(hip='test'), nn=SimpleNamespace(Module=CurrentModelModule), float32='float32', bfloat16='bfloat16')
+        load_flux_resident_components(CurrentPipelineValue(),current_torch_value,'/model')
+        self.assertEqual(current_events, [('load','text_encoder'),('move','text_encoder','cuda'),('load','tokenizer'),('load','transformer'),('move','transformer','cuda'),('load','vae'),('move','vae','cuda')])
+        current_torch_value.version.hip = None
+        with self.assertRaisesRegex(ValueError,'ROCm'):
+            load_flux_resident_components(CurrentPipelineValue(),current_torch_value,'/model')
+
+    def test_failed_or_non_gpu_component_stops_execution(self):
+        from types import SimpleNamespace
+        from generators.image.flux_gpu_resident import load_flux_resident_components
+        class CurrentModelModule:
+            def to(self, current_device_name):
+                pass
+            def parameters(self):
+                return [SimpleNamespace(device=SimpleNamespace(type='cpu'))]
+            def buffers(self):
+                return []
+        class CurrentPipelineValue:
+            def load_components(self, names, **current_options):
+                setattr(self,names[0], CurrentModelModule())
+        current_torch_value = SimpleNamespace(cuda=SimpleNamespace(is_available=lambda:True), version=SimpleNamespace(hip='test'), nn=SimpleNamespace(Module=CurrentModelModule), float32='float32', bfloat16='bfloat16')
+        with self.assertRaisesRegex(ValueError,'GPU 적재'):
+            load_flux_resident_components(CurrentPipelineValue(),current_torch_value,'/model')
+
+
 class FluxModelLockTests(unittest.TestCase):
     def test_lock_rejects_duplicate_fields_and_missing_required_files(self):
         import yaml

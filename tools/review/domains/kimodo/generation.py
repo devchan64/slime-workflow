@@ -60,12 +60,51 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
                 self.current_job_identifier=None
             return {**current_cleanup_result,'skipped_jobs':current_preview_record['blocked_jobs']}
 
+    def read_kimodo_recorded_active_status(self):
+        """상태 파일만 읽는다. 기록은 실제 프로세스 생존이나 종료를 보증하지 않는다."""
+        import json
+        import re
+        current_active_identifiers=[]
+        current_unknown_count=0
+        if self.job_storage_root.is_symlink():
+            raise ValueError('Kimodo 작업 저장소 심볼릭 링크는 허용하지 않습니다.')
+        if self.job_storage_root.exists():
+            for current_job_path in self.job_storage_root.iterdir():
+                if not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_job_path.name):
+                    continue
+                try:
+                    if current_job_path.is_symlink() or not current_job_path.is_dir():
+                        raise ValueError('Kimodo 작업 경로 오류')
+                    current_status_path=current_job_path/'status.json'
+                    if current_status_path.is_symlink() or not current_status_path.is_file():
+                        raise ValueError('Kimodo 작업 상태 누락')
+                    current_status_record=json.loads(current_status_path.read_text(encoding='utf-8'))
+                    if not isinstance(current_status_record,dict) or current_status_record.get('status') not in ('queued','running','completed','failed','cancelled','paused'):
+                        raise ValueError('Kimodo 작업 상태 형식 오류')
+                    if current_status_record['status'] in ('queued','running'):
+                        current_active_identifiers.append(current_job_path.name)
+                except (OSError,ValueError,TypeError):
+                    current_unknown_count+=1
+        current_active_identifiers.sort(reverse=True)
+        return {'running':bool(current_active_identifiers),'id':current_active_identifiers[0] if current_active_identifiers else None,'count':len(current_active_identifiers),'unknown_count':current_unknown_count,'note':'상태 파일 기록이며 확인 불가 기록과 실제 프로세스 생존·종료는 별도 확인이 필요합니다.'}
+
     def handle_image_request(self, current_http_handler):
         """게이트웨이에서 검증한 모델 준비·키프레임 명령을 처리한다."""
         import json
         from urllib.parse import urlsplit
         current_request_path = urlsplit(current_http_handler.path).path
         current_command_payload = getattr(current_http_handler, 'management_command_payload', None)
+        if current_request_path == '/kimodo/active-observe':
+            if current_http_handler.command != 'GET' or current_command_payload != {}:
+                raise ValueError('Kimodo 기록 관측은 입력을 받지 않습니다.')
+            send_management_json_response(current_http_handler,200,self.read_kimodo_recorded_active_status())
+            return True
+        if current_request_path == '/kimodo/migraphx-build-observe':
+            if current_http_handler.command != 'GET' or current_command_payload != {}:
+                raise ValueError('MIGraphX 기록 조회에는 입력을 전달할 수 없습니다.')
+            from tools.review.domains.kimodo.migraphx_build import inspect_recorded_pose_build_status
+            send_management_json_response(current_http_handler,200,inspect_recorded_pose_build_status())
+            return True
         if current_request_path in ('/kimodo/migraphx-build', '/kimodo/migraphx-build-status'):
             from tools.review.domains.kimodo.migraphx_build import inspect_pose_build_status, start_pose_build_job
             current_expected_method = 'POST' if current_request_path.endswith('/migraphx-build') else 'GET'
@@ -113,9 +152,11 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
                     raise ValueError('키프레임 미리보기에는 ID가 필요합니다.')
                 import base64
                 current_source_storage = resolve_kimodo_keyframe_storage(self.keyframe_storage_root,current_request_record['id'])
-                current_keyframe_record,_,_ = load_kimodo_keyframe_snapshot(current_source_storage,current_request_record['id'])
+                current_keyframe_record,_,current_skeleton_value = load_kimodo_keyframe_snapshot(current_source_storage,current_request_record['id'])
                 current_preview_bytes=(current_source_storage/current_keyframe_record['id']/'preview.png').read_bytes()
-                current_response_record={'record':current_keyframe_record,'image_base64':base64.b64encode(current_preview_bytes).decode('ascii')}
+                import hashlib, json
+                current_skeleton_signature=json.dumps([current_skeleton_value['joint_names'],current_skeleton_value['parents']],ensure_ascii=False,separators=(',',':')).encode()
+                current_response_record={'record':current_keyframe_record,'image_base64':base64.b64encode(current_preview_bytes).decode('ascii'),'skeleton_signature_sha256':hashlib.sha256(current_skeleton_signature).hexdigest()}
             else:
                 if set(current_request_record) != {'job_id', 'attempt_id', 'frame', 'tag'}:
                     raise ValueError('키프레임 저장 필드 오류')

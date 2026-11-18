@@ -27,6 +27,46 @@ class MapLayoutEditorTests(unittest.TestCase):
     def read_test_snapshot(self,current_map_identifier):
         current_source_bytes={current_source_path:current_source_path.read_bytes() for current_source_path in self.current_source_paths+[self.current_property_path]}
         return self.current_asset_root,self.current_source_paths,[yaml.safe_load(current_source_path.read_text()) for current_source_path in self.current_source_paths],current_source_bytes,'revision'
+    def test_hermes_gateway_saves_isolated_map_and_recovers_receipt(self):
+        import os
+        import threading
+        from http.server import ThreadingHTTPServer
+        from tools.review.common.management_gateway import ManagementCommandGateway, execute_management_command
+        from tools.review.gateway_server import create_gateway_request_handler
+        from tools.review.domains.map_assets.resize import handle_map_resize_request
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+        current_root_path = Path(self.current_temp_root.name)
+        current_service_value = HermesServiceManager(current_root_path/'jobs',current_root_path/'sessions')
+        current_gateway_value = ManagementCommandGateway({'hermes-agent':current_service_value.handle_hermes_request,'map-assets':handle_map_resize_request})
+        current_server_value = ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+        current_server_value.emit_gateway_trace = lambda *current_values:None
+        current_thread_value = threading.Thread(target=current_server_value.serve_forever,daemon=True)
+        current_thread_value.start()
+        current_address_value = f'http://127.0.0.1:{current_server_value.server_port}'
+        current_store_value = HermesDelegationStore(current_root_path/'receipts')
+        try:
+            with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_address_value,'SLIME_CONTENT_STORAGE':'file'}), patch('tools.review.domains.hermes_agent.field_map_operations.HermesDelegationStore',return_value=current_store_value):
+                current_preview_value = execute_management_command('hermes-agent','hermes-field-preview',{'draft':self.current_input_payload},current_address_value)
+                self.assertTrue(current_preview_value['changed'])
+                current_request_value = {'request_id':'field_http_123','draft':self.current_input_payload,'token':current_preview_value['token']}
+                current_result_value = execute_management_command('hermes-agent','hermes-field-save',current_request_value,current_address_value)
+                self.assertTrue(current_result_value['saved'])
+                self.assertFalse(current_result_value['duplicate'])
+                self.assertTrue(execute_management_command('hermes-agent','hermes-field-save',current_request_value,current_address_value)['duplicate'])
+                current_receipt_value = execute_management_command('hermes-agent','hermes-field-receipt',{'request_id':'field_http_123'},current_address_value)
+                self.assertEqual(current_receipt_value['state'],'completed')
+                self.assertTrue(current_receipt_value['saved'])
+                self.assertEqual(execute_management_command('hermes-agent','hermes-field-history',{},current_address_value)['records'][0]['request_id'],'field_http_123')
+            self.assertEqual(yaml.safe_load(self.current_source_paths[0].read_text())['data']['rows'][0],'HKK')
+            for current_source_path in self.current_source_paths:
+                for current_metadata_path in self.current_metadata_paths[:2]:
+                    self.assertIn(hashlib.sha256(current_source_path.read_bytes()).hexdigest(),current_metadata_path.read_text())
+        finally:
+            current_server_value.shutdown()
+            current_thread_value.join(timeout=5)
+            current_server_value.server_close()
+
     def test_save_updates_both_hashes_and_preserves_tower(self):
         current_preview_record=map_editor.preview_map_editor_changes(self.current_input_payload)
         current_saved_record=map_editor.save_map_editor_changes({**self.current_input_payload,'token':current_preview_record['token']})

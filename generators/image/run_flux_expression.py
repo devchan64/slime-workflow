@@ -33,10 +33,9 @@ def execute_flux_expression_worker():
     current_blocks_value.sub_blocks.pop('prompt_upsampler')
     current_manager_value = ComponentsManager()
     current_pipeline_value = current_blocks_value.init_pipeline(FLUX_MODEL_ROOT_DIRECTORY,components_manager=current_manager_value)
-    current_component_paths = {name:str(FLUX_MODEL_ROOT_DIRECTORY) for name in ('text_encoder','tokenizer','transformer','vae')}
-    current_pipeline_value.load_components(dtype={'vae':torch.float32,'default':torch.bfloat16},pretrained_model_name_or_path=current_component_paths,local_files_only=True)
+    from generators.image.flux_gpu_resident import load_flux_resident_components
+    load_flux_resident_components(current_pipeline_value, torch, FLUX_MODEL_ROOT_DIRECTORY)
     current_pipeline_value.vae.disable_tiling()
-    current_manager_value.enable_auto_cpu_offload(device='cuda',memory_reserve_margin='4GB')
     install_vae_decode_guard(current_pipeline_value.vae, torch)
     current_scheduler_step = current_pipeline_value.scheduler.step
     current_completed_steps = 0
@@ -53,7 +52,7 @@ def execute_flux_expression_worker():
         current_output_value = current_pipeline_value(prompt=current_request_record['prompt'],image=[current_image_file.convert('RGB')],width=current_request_record['width'],height=current_request_record['height'],num_inference_steps=current_request_record['steps'],generator=torch.Generator('cpu').manual_seed(current_request_record['seed']),output=['images'])
         current_output_value['images'][0].save(current_job_root/'result.png')
     current_output_hash = hashlib.sha256((current_job_root/'result.png').read_bytes()).hexdigest()
-    (current_job_root/'result.json').write_text(json.dumps({'image_sha256':current_output_hash,'reference_sha256':current_request_record['reference_snapshots'][0]['sha256'],'prompt_sha256':current_request_record['prompt_sha256'],'model_revision':FLUX_MODEL_REVISION_VALUE,'seed':current_request_record['seed'],'steps':current_request_record['steps'],'width':current_request_record['width'],'height':current_request_record['height'],'torch_version':torch.__version__,'hip_version':torch.version.hip,'device_name':torch.cuda.get_device_name(),'allocated_peak_bytes':torch.cuda.max_memory_allocated(),'dtype':'bfloat16; vae float32'},ensure_ascii=False,indent=2))
+    (current_job_root/'result.json').write_text(json.dumps({'image_sha256':current_output_hash,'reference_sha256':current_request_record['reference_snapshots'][0]['sha256'],'prompt_sha256':current_request_record['prompt_sha256'],'model_revision':FLUX_MODEL_REVISION_VALUE,'seed':current_request_record['seed'],'steps':current_request_record['steps'],'width':current_request_record['width'],'height':current_request_record['height'],'torch_version':torch.__version__,'hip_version':torch.version.hip,'device_name':torch.cuda.get_device_name(),'allocated_peak_bytes':torch.cuda.max_memory_allocated(),'dtype':'bfloat16; vae float32','offload':'none','device_policy':'rocm-gpu-resident-v1'},ensure_ascii=False,indent=2))
     (current_job_root/'status.json').write_text(json.dumps({'status':'completed','image':f"/flux-expression-generator/jobs/{current_job_root.name}/result.png"},ensure_ascii=False))
 
 

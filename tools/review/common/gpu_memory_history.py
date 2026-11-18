@@ -7,7 +7,7 @@ import subprocess
 import time
 from tools.review.common.generation_records import write_record_atomically
 
-MODEL_OFFLOAD_WORKER_NAMES = {'run_flux_expression.py', 'run_flux_image.py'}
+FLUX_RESIDENT_WORKER_NAMES = {'run_flux_expression.py', 'run_flux_image.py'}
 IMAGE_MEMORY_WORKER_NAMES = {'run_qwen_2511_three_reference.py', 'run_qwen_21_reference.py', 'run_flux_expression.py', 'run_flux_image.py'}
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[3]
 IMAGE_HISTORY_ROOT_PATHS = tuple(WORKFLOW_ROOT_DIRECTORY/current_relative_path for current_relative_path in ('.tmp/test/mannequin-generator', '.tmp/test/billboard-generator', '.tmp/test/prop-generator', '.tmp/test/vegetation-generator', '.tmp/test/building-generator', '.tmp/test/qwen-image-2512/tile-map', '.tmp/test/qwen-image-2512/floor-tile', '.tmp/test/qwen-image-2511-three-reference', '.tmp/test/qwen-image-21', '.tmp/test/seamless-tile-generator'))
@@ -107,7 +107,7 @@ def estimate_required_memory(service, configured_floor_mib, command_identity_nam
     # 완료된 실측값이 없을 때만 초기 기준을 사용한다.
     required_memory_mib = measured_peak_mib if measured_peak_mib else configured_floor_mib
     # 작가와 번역은 여러 모델을 순차 사용하므로 기존의 작은 모델 실측으로 예약을 줄이지 않는다.
-    if service in {'writer-agent', 'prompt-translation', 'hermes-agent'} or (isinstance(command_identity_name,str) and command_identity_name.startswith('wan_animate2/worker.py:rocm-unquantized-resident-v1')):
+    if service in {'writer-agent', 'prompt-translation', 'hermes-agent', 'flux-image', 'flux-expression'} or (isinstance(command_identity_name,str) and command_identity_name.startswith('wan_animate2/worker.py:rocm-unquantized-resident-v1')):
         required_memory_mib = max(configured_floor_mib, measured_peak_mib)
     return {'required_memory_mib':required_memory_mib, 'samples':summary['usable_runs'],
             'retained_runs':summary['retained_runs'], 'observed_peak_mib':measured_peak_mib, 'configured_floor_mib':configured_floor_mib,
@@ -156,7 +156,7 @@ def identify_execution_command(command_argument_values, generation_job_directory
             if 'reference_resolution' in current_request_record.get('qwen21', {}):
                 return current_profile_name + f":untiled-v1:reference-resolution={current_request_record['qwen21']['reference_resolution']}:offload=none-full-v1"
             return current_profile_name + ':offload=none-full-v1'
-        return current_profile_name + ':offload=model-v1' if current_worker_name in MODEL_OFFLOAD_WORKER_NAMES else current_profile_name
+        return current_profile_name + ':offload=none-flux-resident-v1' if current_worker_name in FLUX_RESIDENT_WORKER_NAMES else current_profile_name
     if len(command_argument_values)>2 and command_argument_values[1]=='-m':
         return command_argument_values[2]
     if len(command_argument_values)>1 and command_argument_values[1].endswith('.py'):
