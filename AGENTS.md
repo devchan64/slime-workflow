@@ -322,3 +322,7 @@
 
 ## ROCm Numerical Case Records
 - NaN·무한대 조사와 해결책은 [ROCm NaN 사례집](workflows/rocm-nan-cases.md)에 Git 근거·실제 관측·적용 범위·회귀 검증·미해결 사항을 구분해 갱신한다. 보호 검사나 짧은 성공을 근본 원인 해결로 기록하지 않는다.
+
+## ROCm 드라이버 변경 시 재매핑 점검
+- GPU 드라이버·커널·ROCm/HSA를 설치하거나 변경할 때는 사용 전후 환경과 버전을 기록하고 [ROCm 드라이버 점검 원칙](workflows/rocm-inference.md#드라이버-설치와-갱신-후-점검)을 따른다. 실제 변경을 하기 전 복구 가능한 부팅 경로와 사용자 작업 상태를 확인한다.
+- GPU가 유휴 상태일 때 `tools/rocm_diagnostics/check_vmm_remap.py`의 동일 주소 재사용·별도 주소 대조를 실행한다. 실패 또는 진단 불가는 통과가 아니며 결과를 보존한다. 통과만으로 모든 모델·입력의 안전을 보장하거나 Animate2의 `expandable_segments:False` 정책을 해제하지 않는다.
