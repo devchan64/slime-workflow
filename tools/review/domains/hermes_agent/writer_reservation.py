@@ -32,12 +32,25 @@ def find_writer_reservation_record(current_active_root,current_job_identifier):
         if current_record_path.is_symlink() or not current_record_path.is_file():raise ValueError('GPU 예약 기록을 확인할 수 없습니다.')
         try:current_record_value=json.loads(current_record_path.read_text())
         except (OSError,ValueError,TypeError) as current_record_error:raise ValueError('GPU 예약 기록을 확인할 수 없습니다.') from current_record_error
-        if not isinstance(current_record_value,dict):raise ValueError('GPU 예약 기록 형식 오류')
-        current_path_value=current_record_value.get('path')
-        if current_record_value.get('service')=='writer-agent' and isinstance(current_path_value,str) and Path(current_path_value).name==current_job_identifier:
+        if not isinstance(current_record_value,dict) or not isinstance(current_record_value.get('path'),str) or not isinstance(current_record_value.get('service'),str):raise ValueError('GPU 예약 식별 정보를 확인할 수 없습니다.')
+        if Path(current_record_value['path']).name==current_job_identifier:
             current_matches_list.append((current_record_path,current_record_value))
     if len(current_matches_list)!=1:raise ValueError('일치하는 작가 예약이 없거나 둘 이상입니다.')
+    if current_matches_list[0][1]['service']!='writer-agent':raise ValueError('예약의 원 서비스가 작가와 일치하지 않습니다.')
     return current_matches_list[0]
+
+
+def is_writer_executor_definitely_absent(current_executor_pid):
+    """PID가 현재 존재하지 않는 경우만 부재로 인정한다."""
+    if type(current_executor_pid) is not int or not 1<current_executor_pid<=2147483647:
+        return False
+    try:
+        os.kill(current_executor_pid,0)
+    except ProcessLookupError:
+        return True
+    except OSError:
+        return False
+    return False
 
 
 def inspect_writer_reservation_record(current_record_path,current_record_value,current_job_identifier):
@@ -46,10 +59,10 @@ def inspect_writer_reservation_record(current_record_path,current_record_value,c
         return {'job_id':current_job_identifier,'recoverable':False,'reason':'이미 정리 결과 확인이 필요한 예약입니다.'},None
     current_executor_pid=current_record_value.get('pid')
     current_executor_token=current_record_value.get('pid_start_token')
-    if type(current_executor_pid) is not int or current_executor_pid<=1 or not isinstance(current_executor_token,str):
+    if type(current_executor_pid) is not int or not 1<current_executor_pid<=2147483647 or not isinstance(current_executor_token,str) or not current_executor_token.isascii() or not current_executor_token.isdigit():
         return {'job_id':current_job_identifier,'recoverable':False,'reason':'실행기 신원을 확인할 수 없습니다. 예약을 유지합니다.'},None
-    if current_queue_module.is_gpu_queue_executor_alive(current_executor_pid,current_executor_token):
-        return {'job_id':current_job_identifier,'recoverable':False,'reason':'실행기가 아직 살아 있습니다. 중지 상태를 확인하세요.'},None
+    if not is_writer_executor_definitely_absent(current_executor_pid):
+        return {'job_id':current_job_identifier,'recoverable':False,'reason':'실행기 PID의 부재를 확인할 수 없습니다. 예약을 유지합니다.'},None
     current_worker_descriptor=current_queue_module.open_verified_hermes_process_group(current_record_value)
     if current_worker_descriptor is None:
         return {'job_id':current_job_identifier,'recoverable':False,'reason':'작업자 그룹 리더의 신원을 확인할 수 없습니다. 예약을 유지합니다.'},None
@@ -70,7 +83,12 @@ def preview_writer_reservation_recovery(current_job_identifier):
 
 
 def inspect_writer_recovery_receipt(current_receipt_value,current_request_identifier):
-    if not isinstance(current_receipt_value,dict) or current_receipt_value.get('version')!=12 or current_receipt_value.get('id')!=current_request_identifier or current_receipt_value.get('state') not in ('dispatching','completed'):
+    from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+    if (not isinstance(current_receipt_value,dict) or set(current_receipt_value)!={'version','id','job_id','preview_sha256','state'}
+            or type(current_receipt_value.get('version')) is not int or current_receipt_value.get('version')!=12
+            or current_receipt_value.get('id')!=current_request_identifier or current_receipt_value.get('state') not in ('dispatching','completed')
+            or not validate_service_job_identifier('writer-agent',current_receipt_value.get('job_id'))
+            or not isinstance(current_receipt_value.get('preview_sha256'),str) or not re.fullmatch(r'[a-f0-9]{64}',current_receipt_value['preview_sha256'])):
         raise ValueError('작가 예약 정리 접수 기록 오류')
     return {'request_id':current_request_identifier,'job_id':current_receipt_value['job_id'],'state':'unknown' if current_receipt_value['state']=='dispatching' else 'completed'}
 
@@ -110,12 +128,13 @@ def recover_writer_reservation_once(current_request_identifier,current_job_ident
         current_current_path,current_current_record=find_writer_reservation_record(current_active_root,current_job_identifier)
         if current_current_path!=current_record_path or current_current_record!=current_marked_record:
             raise ValueError('정리 중 예약이 변경됐습니다. 결과를 확인하세요.')
-        if current_queue_module.is_gpu_queue_executor_alive(current_record_value['pid'],current_record_value['pid_start_token']):
+        if not is_writer_executor_definitely_absent(current_record_value['pid']):
             raise ValueError('실행기 상태가 변경됐습니다. 예약을 유지합니다.')
         current_current_path.unlink()
     with current_store_value.hold_delegation_storage_lock():
         current_receipt_value=json.loads(current_receipt_path.read_text())
-        if current_receipt_value.get('state')!='dispatching' or current_receipt_value.get('job_id')!=current_job_identifier or current_receipt_value.get('preview_sha256')!=current_preview_digest:
+        current_expected_value={'version':12,'id':current_request_identifier,'job_id':current_job_identifier,'preview_sha256':current_preview_digest,'state':'dispatching'}
+        if current_receipt_value!=current_expected_value or type(current_receipt_value.get('version')) is not int:
             raise ValueError('정리 접수 기록이 변경됐습니다. 결과를 확인하세요.')
         current_receipt_value['state']='completed'
         write_record_atomically(current_receipt_path,current_receipt_value)

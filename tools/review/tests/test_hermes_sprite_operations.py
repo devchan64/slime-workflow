@@ -48,6 +48,14 @@ class HermesSpriteOperationsTests(unittest.TestCase):
 
     def test_preview_and_save_update_registry_and_lock_once(self):
         current_preview_record=sprite_operations.preview_hermes_sprite_anchor_edit(self.current_draft_record)
+        from tools.review.ui.gradio.hermes_agent_app import format_conversation_sprite_changes
+        current_summary_value=format_conversation_sprite_changes(current_preview_record)
+        self.assertIn('변경 앵커 1개',current_summary_value)
+        self.assertIn('프레임 배치',current_summary_value)
+        self.assertIn(current_preview_record['output_sha256'],current_summary_value)
+        self.assertIn(current_preview_record['clips'][0]['id'],current_summary_value)
+        self.assertIn('클립: '+current_preview_record['clips'][0]['id'],current_summary_value)
+        self.assertIn(str(current_preview_record['clips'][0]['frames'][0]['duration_ms'])+'ms',current_summary_value)
         self.assertEqual(current_preview_record['changed_anchors'][0]['after'],{'x':2,'y':3})
         self.assertEqual(current_preview_record['output_sheet'],{'width':8,'height':4})
         self.assertEqual(hashlib.sha256(base64.b64decode(current_preview_record['preview_image'])).hexdigest(),current_preview_record['output_sha256'])
@@ -55,6 +63,7 @@ class HermesSpriteOperationsTests(unittest.TestCase):
         self.assertEqual(current_preview_record['frame_layout'][1]['after'],{'x':4,'y':0,'width':4,'height':4})
         current_save_args=('sprite_request_123',self.current_draft_record,current_preview_record['token'],current_preview_record['review_sha256'])
         self.assertTrue(sprite_operations.save_hermes_sprite_anchor_once(*current_save_args)['saved'])
+        self.assertEqual(sprite_operations.read_hermes_sprite_anchor_receipt('sprite_request_123')['path'],self.current_draft_record['path'])
         self.assertTrue(sprite_operations.save_hermes_sprite_anchor_once(*current_save_args)['duplicate'])
         current_animation_value=json.loads(self.current_metadata_path.read_text())
         self.assertEqual(current_animation_value['frames'][0]['anchor'],{'x':2,'y':3})
@@ -64,6 +73,24 @@ class HermesSpriteOperationsTests(unittest.TestCase):
             self.assertEqual(current_lock_record['sha256'],current_registry_records[current_lock_record['source_path']]['sha256'])
         with self.assertRaisesRegex(ValueError,'원본이 변경'):sprite_operations.preview_hermes_sprite_anchor_edit(self.current_draft_record)
         self.assertEqual(self.current_store_value.list_delegation_receipts()['records'],[])
+
+    def test_changed_receipt_after_sprite_save_is_not_overwritten(self):
+        current_preview_record=sprite_operations.preview_hermes_sprite_anchor_edit(self.current_draft_record)
+        current_save_args=('sprite_request_123',self.current_draft_record,current_preview_record['token'],current_preview_record['review_sha256'])
+        current_record_path=self.current_store_value.resolve_delegation_record_path('sprite_request_123')
+        current_original_editor=sprite_operations.call_hermes_sprite_editor.side_effect
+        def current_editor_response(current_command_name,current_payload_value):
+            current_result_value=current_original_editor(current_command_name,current_payload_value)
+            if current_command_name=='sheet-update':
+                current_receipt_value=json.loads(current_record_path.read_text())
+                current_receipt_value['external_change']='preserve'
+                current_record_path.write_text(json.dumps(current_receipt_value))
+            return current_result_value
+        with patch.object(sprite_operations,'call_hermes_sprite_editor',side_effect=current_editor_response) as current_editor_mock:
+            with self.assertRaisesRegex(ValueError,'접수 기록이 변경'):sprite_operations.save_hermes_sprite_anchor_once(*current_save_args)
+            self.assertEqual(sprite_operations.save_hermes_sprite_anchor_once(*current_save_args)['state'],'unknown')
+            self.assertEqual(sum(item.args[0]=='sheet-update' for item in current_editor_mock.call_args_list),1)
+            self.assertEqual(json.loads(current_record_path.read_text())['external_change'],'preserve')
 
     def test_registered_clip_playback_preserves_order_and_timing(self):
         from io import BytesIO

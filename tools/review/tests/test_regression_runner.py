@@ -26,6 +26,17 @@ class RegressionRunnerContractTests(unittest.TestCase):
                     )
         self.assertEqual(current_hidden_tests,[], '직접 실행 조건 안의 테스트는 unittest 수집에서 제외됩니다.')
 
+    def test_same_second_runs_get_separate_result_directories(self):
+        from datetime import datetime
+        from tools.review.tests import run_music_regression
+        with tempfile.TemporaryDirectory() as current_directory_name, patch.object(run_music_regression,'WORKFLOW_ROOT_DIRECTORY',Path(current_directory_name)), patch.object(run_music_regression,'datetime') as current_clock_mock:
+            current_clock_mock.now.return_value=datetime(2026,11,19,12,0,0)
+            current_first_path=run_music_regression.create_regression_result_directory('same-area')
+            current_second_path=run_music_regression.create_regression_result_directory('same-area')
+            self.assertNotEqual(current_first_path,current_second_path)
+            self.assertTrue(current_first_path.is_dir() and current_second_path.is_dir())
+            self.assertEqual(current_first_path.parent,current_second_path.parent)
+
     def test_preserves_shutdown_output_and_failure_exit(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_fixture_root = Path(current_directory_name)

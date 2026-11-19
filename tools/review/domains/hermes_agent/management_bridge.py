@@ -62,13 +62,43 @@ def handle_hermes_observer_connection(current_client_socket):
                 except (ValueError,TypeError,UnicodeDecodeError):
                     current_response_record={'error':'기능 검색 실패: 검색어와 페이지를 확인하세요.'}
 
+            elif current_request_bytes.startswith(b'expression-catalog ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.expression_observer import read_hermes_expression_catalog
+                    current_catalog_request=parse_management_request_json(current_request_bytes[len(b'expression-catalog '):-1].decode('utf-8'))
+                    current_response_record=read_hermes_expression_catalog(current_catalog_request)
+                except (OSError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'표정 목록 조회 실패: 검색어와 페이지를 확인하세요.'}
+            elif current_request_bytes.startswith(b'capture-status ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.common.management_environment import WORKFLOW_ROOT_DIRECTORY
+                    from tools.review.domains.hermes_agent.capture_status import read_capture_delegation_status
+                    from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+                    current_capture_request=parse_management_request_json(current_request_bytes[len(b'capture-status '):-1].decode('utf-8'))
+                    if not isinstance(current_capture_request,dict) or set(current_capture_request)!={'service','request_id'}:
+                        raise ValueError('캡처 상태 입력 오류')
+                    current_response_record=read_capture_delegation_status(HermesDelegationStore(),current_capture_request['request_id'],current_capture_request['service'],WORKFLOW_ROOT_DIRECTORY)
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'캡처 상태 조회 실패: 접수 ID와 서비스를 확인하세요.'}
+            elif current_request_bytes.startswith(b'reservation-inspect ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.reservation_observer import inspect_generator_reservation_identity
+                    current_inspection_request=parse_management_request_json(current_request_bytes[len(b'reservation-inspect '):-1].decode('utf-8'))
+                    if not isinstance(current_inspection_request,dict) or set(current_inspection_request)!={'service','job_id'}:
+                        raise ValueError('예약 조회 입력 오류')
+                    current_response_record=inspect_generator_reservation_identity(current_inspection_request['service'],current_inspection_request['job_id'])
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'예약 신원 조회 실패: 서비스와 작업 ID를 확인하세요.'}
             elif current_request_bytes.startswith(b'source-history ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
                 try:
                     from tools.review.common.management_gateway import parse_management_request_json
                     from generators.music.service_constants import AUDIO_SERVICE_NAMES
                     from tools.review.domains.hermes_agent.audio_operations import read_hermes_audio_source_history,read_hermes_generator_source_history
                     current_history_request=parse_management_request_json(current_request_bytes[len(b'source-history '):-1].decode('utf-8'))
-                    if not isinstance(current_history_request,dict) or 'service' not in current_history_request or set(current_history_request)-{'service','offset','limit','snapshot'}:
+                    if not isinstance(current_history_request,dict) or 'service' not in current_history_request or set(current_history_request)-{'service','offset','limit','snapshot','query'}:
                         raise ValueError('이력 조회 입력 오류')
                     current_service_name=current_history_request['service']
                     current_page_request={key:value for key,value in current_history_request.items() if key!='service'}
@@ -84,6 +114,15 @@ def handle_hermes_observer_connection(current_client_socket):
                     current_response_record = read_hermes_field_region(current_region_request)
                 except (OSError, RuntimeError, ValueError, TypeError, KeyError, UnicodeDecodeError):
                     current_response_record = {'error':'야외 맵 영역 조회 실패: 맵 ID·리비전·범위를 확인하세요.'}
+            elif current_request_bytes.startswith(b'city-map ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n') == 1:
+                try:
+                    from tools.review.domains.hermes_agent.city_map_operations import load_hermes_city_map
+                    from tools.review.domains.hermes_agent.field_map_operations import HERMES_FIELD_MAP_PATTERN
+                    current_city_identifier=current_request_bytes[len(b'city-map '):-1].decode('ascii')
+                    if not HERMES_FIELD_MAP_PATTERN.fullmatch(current_city_identifier):raise ValueError('도시 ID 오류')
+                    current_response_record=load_hermes_city_map(current_city_identifier)
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'도시 맵 조회 실패: 맵 ID와 콘텐츠 DB 상태를 확인하세요.'}
             elif any(current_request_bytes.startswith(current_prefix_value) for current_prefix_value in (b'sprite-catalog ',b'sprite-detail ')) and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
                 try:
                     from tools.review.common.management_gateway import parse_management_request_json
@@ -131,8 +170,8 @@ def handle_hermes_observer_connection(current_client_socket):
             else:
                 current_response_record = {'error': '지원하지 않는 조회 요청'}
             current_response_bytes = json.dumps(current_response_record, ensure_ascii=False, allow_nan=False).encode('utf-8')
-            if len(current_response_bytes) > HERMES_OBSERVER_MAX_RESPONSE:
-                current_response_bytes = b'{"error":"response too large"}'
+            if len(current_response_bytes) + 1 > HERMES_OBSERVER_MAX_RESPONSE:
+                current_response_bytes = json.dumps({'error':'조회 응답 크기 제한 초과: 원 도구에서 확인하세요.'},ensure_ascii=False).encode('utf-8')
             current_client_socket.sendall(current_response_bytes + b'\n')
         except (OSError, ValueError, TypeError):
             return

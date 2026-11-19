@@ -43,6 +43,57 @@ def cancel_hermes_writer_request(current_request_identifier,current_job_identifi
     return {'job_id':current_job_identifier,'status':current_cancel_value.get('status','unknown'),'cancel_requested':True}
 
 
+
+def summarize_hermes_writer_evidence(current_evidence_values):
+    """출처 문단의 경로와 일부 본문을 제한하며 빠진 항목을 표시한다."""
+    import re
+    if current_evidence_values is None:
+        return None,None
+    if not isinstance(current_evidence_values,list):
+        raise ValueError('작가 AI 탐색 근거 형식 오류')
+    current_output_values=[]
+    current_incomplete_flag=len(current_evidence_values)>20
+    current_total_length=0
+    def current_chunk_summary(current_chunk_value):
+        if not isinstance(current_chunk_value,dict) or not isinstance(current_chunk_value.get('path'),str) or not isinstance(current_chunk_value.get('text'),str):
+            raise ValueError('작가 AI 근거 문단 형식 오류')
+        current_source_path=current_chunk_value['path']
+        current_source_text=current_chunk_value['text']
+        current_source_heading=current_chunk_value.get('heading','')
+        if not isinstance(current_source_heading,str):raise ValueError('작가 AI 근거 제목 형식 오류')
+        current_path_value=PurePosixPath(current_source_path)
+        if current_path_value.is_absolute() or '..' in current_path_value.parts or '\\' in current_source_path or ':' in current_source_path or len(current_source_path)>512:
+            return None
+        if re.search(r'(?<![A-Za-z0-9_])(?:/[^\s]+|[A-Za-z]:[\\/][^\s]+)',current_source_text+' '+current_source_heading):
+            return None
+        return {'path':current_path_value.as_posix(),'heading':current_source_heading[:500],'text':current_source_text[:4000],'truncated':len(current_source_heading)>500 or len(current_source_text)>4000}
+    for current_evidence_value in current_evidence_values[:20]:
+        if not isinstance(current_evidence_value,dict):raise ValueError('작가 AI 근거 항목 형식 오류')
+        if 'keep' in current_evidence_value or 'remove' in current_evidence_value:
+            current_keep_record=current_chunk_summary(current_evidence_value.get('keep'))
+            current_remove_record=current_chunk_summary(current_evidence_value.get('remove'))
+            current_reason_value=current_evidence_value.get('reason')
+            if not isinstance(current_reason_value,str):raise ValueError('작가 AI 비교 사유 형식 오류')
+            if current_keep_record is None or current_remove_record is None or re.search(r'(?<![A-Za-z0-9_])(?:/[^\s]+|[A-Za-z]:[\\/][^\s]+)',current_reason_value):
+                current_incomplete_flag=True
+                continue
+            current_entry={'keep':current_keep_record,'remove':current_remove_record,'reason':current_reason_value[:2000]}
+            current_incomplete_flag=current_incomplete_flag or current_keep_record['truncated'] or current_remove_record['truncated'] or len(current_reason_value)>2000
+        else:
+            current_entry=current_chunk_summary(current_evidence_value)
+            if current_entry is None:
+                current_incomplete_flag=True
+                continue
+            current_incomplete_flag=current_incomplete_flag or current_entry['truncated']
+        current_entry_length=len(str(current_entry))
+        if current_total_length+current_entry_length>80000:
+            current_incomplete_flag=True
+            break
+        current_total_length+=current_entry_length
+        current_output_values.append(current_entry)
+    return current_output_values,current_incomplete_flag
+
+
 def read_hermes_writer_status(current_request_identifier):
     current_receipt_value=HermesDelegationStore().read_service_delegation(current_request_identifier,'writer-agent')
     if current_receipt_value.get('state')!='accepted':
@@ -78,8 +129,11 @@ def read_hermes_writer_status(current_request_identifier):
         for current_change_value in current_change_values[:20]:
             if not isinstance(current_change_value,dict) or not isinstance(current_change_value.get('path'),str) or not isinstance(current_change_value.get('diff'),str):
                 raise ValueError('작가 AI 변경 형식 오류')
-            current_path_value=PurePosixPath(current_change_value['path'])
-            if current_path_value.is_absolute() or '..' in current_path_value.parts or len(current_path_value.as_posix())>512:
+            current_raw_path=current_change_value['path']
+            current_path_value=PurePosixPath(current_raw_path)
+            if (not current_raw_path or current_path_value.is_absolute() or '..' in current_path_value.parts
+                    or '\\' in current_raw_path or ':' in current_raw_path or any(ord(current_char)<32 for current_char in current_raw_path)
+                    or current_path_value.as_posix()!=current_raw_path or len(current_raw_path)>512):
                 raise ValueError('작가 AI 변경 경로 오류')
             current_diff_text=current_change_value['diff']
             current_remaining_bytes=max(0,100000-current_total_bytes)
@@ -89,7 +143,53 @@ def read_hermes_writer_status(current_request_identifier):
                 current_output_value['truncated']=True
             current_total_bytes+=len(current_diff_text.encode('utf-8'))
             current_output_value['changes'].append({'path':current_path_value.as_posix(),'diff':current_diff_text})
-        current_output_value['warnings']=[item[:1000] for item in current_proposal_value.get('warnings',[])[:30] if isinstance(item,str)]
+        # 근거는 별도로 범위를 표시한다. 전체 맥락을 제공한다는 뜻이 아니다.
+        current_reason_value=current_proposal_value.get('reason')
+        import re
+        if isinstance(current_reason_value,str) and not re.search(r'(?<![A-Za-z0-9_])(?:/[^\s]+|[A-Za-z]:[\\/][^\s]+)',current_reason_value):
+            current_output_value['reason']=current_reason_value[:2000]
+            current_output_value['reason_truncated']=len(current_reason_value)>2000
+        else:
+            current_output_value['reason']=None
+            current_output_value['reason_truncated']=None
+        current_output_value['evidence'],current_output_value['evidence_truncated']=summarize_hermes_writer_evidence(current_proposal_value.get('evidence'))
+        current_coverage_value=current_proposal_value.get('coverage')
+        current_coverage_fields=('eligible_chunks','compared_pairs','candidate_pairs','reviewed_pairs','limited')
+        if current_coverage_value is None:
+            current_output_value['coverage']=None
+        elif (isinstance(current_coverage_value,dict) and set(current_coverage_value)==set(current_coverage_fields)
+              and all(type(current_coverage_value[key]) is int and current_coverage_value[key]>=0 for key in current_coverage_fields[:-1])
+              and type(current_coverage_value['limited']) is bool):
+            current_output_value['coverage']={key:current_coverage_value[key] for key in current_coverage_fields}
+        else:
+            raise ValueError('작가 AI 검토 범위 형식 오류')
+        current_retained_values=current_proposal_value.get('retained')
+        current_output_value['retained']=None
+        current_output_value['retained_truncated']=None
+        if current_retained_values is not None:
+            if not isinstance(current_retained_values,list):
+                raise ValueError('작가 AI 보존 사유 형식 오류')
+            current_retained_output=[]
+            current_retained_incomplete=len(current_retained_values)>30
+            for current_retained_value in current_retained_values[:30]:
+                if not isinstance(current_retained_value,dict) or set(current_retained_value)!={'path','reason'} or not isinstance(current_retained_value['path'],str) or not isinstance(current_retained_value['reason'],str):
+                    raise ValueError('작가 AI 보존 항목 형식 오류')
+                current_retained_path=PurePosixPath(current_retained_value['path'])
+                if current_retained_path.is_absolute() or '..' in current_retained_path.parts or '\\' in current_retained_value['path'] or ':' in current_retained_value['path'] or len(current_retained_path.as_posix())>512 or re.search(r'(?<![A-Za-z0-9_])(?:/[^\s]+|[A-Za-z]:[\\/][^\s]+)',current_retained_value['reason']):
+                    current_retained_incomplete=True
+                    continue
+                current_retained_reason=current_retained_value['reason']
+                if len(current_retained_reason)>2000:
+                    current_retained_incomplete=True
+                current_retained_output.append({'path':current_retained_path.as_posix(),'reason':current_retained_reason[:2000]})
+            current_output_value['retained']=current_retained_output
+            current_output_value['retained_truncated']=current_retained_incomplete
+        current_warning_values=current_proposal_value.get('warnings',[])
+        if any(not isinstance(item,str) for item in current_warning_values):
+            raise ValueError('작가 AI 경고 형식 오류')
+        if len(current_warning_values)>30 or any(len(item)>1000 for item in current_warning_values):
+            current_output_value['truncated']=True
+        current_output_value['warnings']=[item[:1000] for item in current_warning_values[:30]]
     import re
     current_hash_value=current_status_value.get('proposal_hash')
     if isinstance(current_hash_value,str) and re.fullmatch(r'[a-f0-9]{64}',current_hash_value):
@@ -115,6 +215,7 @@ def inspect_writer_apply_receipt(current_record_value,current_apply_identifier):
 
 def apply_hermes_writer_proposal_once(current_apply_identifier,current_writer_identifier,current_job_identifier,current_proposal_hash):
     """확인된 전체 diff의 해시만 적용하며 결과 유실 시 재적용하지 않는다."""
+    import json
     import re
     from tools.review.common.generation_records import write_record_atomically
     from tools.review.domains.hermes_agent.delegation_store import HERMES_DELEGATION_ID_PATTERN, validate_service_job_identifier
@@ -137,7 +238,8 @@ def apply_hermes_writer_proposal_once(current_apply_identifier,current_writer_id
     current_status_value=read_hermes_writer_status(current_writer_identifier)
     current_receipt_value=current_status_value.get('receipt',{})
     current_job_value=current_status_value.get('job',{})
-    if (current_receipt_value.get('job_id')!=current_job_identifier or current_job_value.get('stage')!='review'
+    if (current_receipt_value.get('state')!='accepted' or current_receipt_value.get('service')!='writer-agent'
+            or current_receipt_value.get('job_id')!=current_job_identifier or current_job_value.get('stage')!='review'
             or current_job_value.get('proposal_hash')!=current_proposal_hash or current_job_value.get('truncated') is not False
             or not current_job_value.get('changes')):
         raise ValueError('작업·제안이 바뀌었거나 전체 변경을 확인할 수 없습니다.')
@@ -145,11 +247,23 @@ def apply_hermes_writer_proposal_once(current_apply_identifier,current_writer_id
         current_record_path=current_storage_value.resolve_delegation_record_path(current_apply_identifier)
         if current_record_path.exists():
             return inspect_existing_apply(current_record_path)
+        for current_existing_path in current_storage_value.delegation_storage_root.glob('*.json'):
+            current_existing_identifier=current_existing_path.stem
+            current_storage_value.resolve_delegation_record_path(current_existing_identifier)
+            if not current_existing_path.is_file():raise ValueError('적용 접수 목록을 확인할 수 없습니다.')
+            current_existing_record=json.loads(current_existing_path.read_text(encoding='utf-8'))
+            if not isinstance(current_existing_record,dict):raise ValueError('적용 접수 목록을 확인할 수 없습니다.')
+            if current_existing_record.get('version')!=6:continue
+            current_existing_receipt=inspect_writer_apply_receipt(current_existing_record,current_existing_identifier)
+            if (current_existing_receipt['job_id'],current_existing_receipt['proposal_hash'])==(current_job_identifier,current_proposal_hash):
+                raise ValueError('같은 제안의 기존 적용 접수가 있습니다. 접수와 원본 상태를 확인하세요.')
         current_record_value={'version':6,'id':current_apply_identifier,'writer_request_id':current_writer_identifier,'job_id':current_job_identifier,'proposal_hash':current_proposal_hash,'state':'dispatching'}
         write_record_atomically(current_record_path,current_record_value)
         current_result_value=call_hermes_writer_service('writer-apply',{'id':current_job_identifier,'proposal_hash':current_proposal_hash})
         if not isinstance(current_result_value,dict) or current_result_value.get('status')!='applied':
             raise ValueError('작가 적용 결과 확인 필요. 자동 재적용하지 않습니다.')
+        if json.loads(current_record_path.read_text(encoding='utf-8'))!=current_record_value:
+            raise ValueError('적용 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재적용하지 마세요.')
         current_record_value['state']='completed'
         write_record_atomically(current_record_path,current_record_value)
         return {**inspect_writer_apply_receipt(current_record_value,current_apply_identifier),'duplicate':False}

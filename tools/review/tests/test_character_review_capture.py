@@ -5,6 +5,14 @@ from tools.review.common.management_gateway import resolve_management_command, i
 
 
 class CharacterReviewCaptureTest(unittest.TestCase):
+    def test_invalid_request_does_not_launch_capture(self):
+        from unittest.mock import patch
+        from tools.review.domains.character_review.capture import capture_character_review
+        with patch('tools.review.domains.character_review.capture.execute_review_capture') as current_capture_mock:
+            with self.assertRaises(ValueError):
+                capture_character_review({'width':99999})
+            current_capture_mock.assert_not_called()
+
     def test_capture_defaults_and_gateway_roundtrip(self):
         current_settings_record=validate_capture_settings({})
         self.assertEqual((current_settings_record['width'],current_settings_record['height']),(768,576))

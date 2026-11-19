@@ -193,6 +193,16 @@ VACE 공용 작업자는 CUDA 초기화 전에 `expandable_segments:True`를 적
 
 여러 모듈은 `--module`을 반복한다. 광범위한 공용 계약 변경 등 전체 검사가 필요한 이유가 있을 때만 `--all`을 사용한다. 인자가 없거나 `--module`과 `--all`을 함께 지정하면 실행 전에 거절한다. 로그·종료 코드·최종 요약은 기존 공용 회귀 실행기가 보존한다. 통과 후 새 변경이나 실패 근거 없이 같은 검사를 반복하지 않는다.
 
+### 에셋 원장 합성 입력 검사
+
+격리 DB export가 없는 경우 등록된 에셋을 읽어 합성 원장을 만들고 임시 에셋 사본으로 출판·반복 반영을 검사할 수 있다. 실제 DB export의 정확성을 검증하는 검사는 아니다. 에셋 원본에는 쓰지 않으며 생성된 시험 자료는 Git에 등록하지 않는다.
+
+```bash
+fixture_directory=$(mktemp -d)
+.venv/bin/python -m tools.review.tests.build_asset_ledger_fixture --asset-root ../slime-assets --output "$fixture_directory/ledger.json"
+ASSET_LEDGER_SOURCE_ROOT=../slime-assets ASSET_LEDGER_EXPORT_FILE="$fixture_directory/ledger.json" ./scripts/workflow.sh test --module tools.review.tests.test_asset_ledger_roundtrip
+```
+
 ### 검수 서버 단일 진입점
 
 검수 GUI는 8770만 지원한다(`--port 8770`). 별도 검수 포트와 임시 게시 서버는 사용하지 않는다. 캐릭터 PNG 캡처도 `/management/capture/`에서 활성 작업의 토큰으로 보호된 파일과 결과를 전달하며 종료 후 접근을 닫는다. 캡처 실행에는 8770이 필요하다. 8771은 작업 명령 게이트웨이이며, Gradio 내부 포트는 8770의 프록시 대상이다. 이들은 독립 검수 서버 폐기 대상이 아니다.
@@ -290,6 +300,14 @@ VACE 공용 작업자는 CUDA 초기화 전에 `expandable_segments:True`를 적
 ## GUI 워치 재시작 최적화
 
 `scripts/run_management_gui.sh --watch`는 연속 변경이 1초 동안 멈춘 뒤 한 번 재시작한다. 변경 대기 중에는 기존 GUI를 유지하며 독립 게이트웨이·GPU 작업은 중단하지 않는다.
+
+Hermes 화면에서 `predict` 요청이 반복될 때는 GUI를 다음 진단 옵션으로 실행해 이벤트 번호를 확인할 수 있다.
+
+```bash
+SLIME_HERMES_PREDICT_DIAGNOSTIC=1 ./scripts/run_management_gui.sh --watch
+```
+
+진단은 기본적으로 꺼져 있으며 Hermes 화면의 `POST .../gradio_api/run/predict` 요청에 한해 `Hermes predict event=번호`를 기록한다. 대화와 입력 데이터는 출력하지 않는다. 이벤트 번호는 같은 GUI 인스턴스의 `/management/frame/hermes-agent/config`에 있는 `dependencies` 항목의 `id`와 비교한다. 본문이 64 KiB를 넘거나 JSON 또는 이벤트 번호가 유효하지 않으면 번호를 기록하지 않는다. 진단을 끄려면 환경 변수를 제거하고 GUI를 다시 실행한다. 서버 재시작으로 접수 응답이 끊겼다면 자동 재전송하지 말고 접수 기록을 먼저 확인한다.
 
 `ui/gradio/*.py`와 공용 `gradio_*.py`만 변경되면 같은 워치 세션에서 준비 완료된 검수 폴더를 재사용한다. 프론트엔드 전체 해시 검사와 검수 산출물 생성을 생략하지만 Gradio 프로세스의 기존 소스 지문 검사는 유지한다. 빌드 코드·렌더러·기타 입력 변경, 준비 실패, 워치 최초 실행에는 전체 준비 절차를 수행한다. 프론트엔드 `src`, `review`, `scripts`, 패키지 파일 변경도 감지한다. 맵·에셋 원본은 기존 요청별 검증 경로를 유지한다.
 

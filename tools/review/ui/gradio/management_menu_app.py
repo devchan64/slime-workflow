@@ -295,6 +295,7 @@ def create_initial_selection_script(page_record_values):
         const pageRecords={serialized_page_records};
         const currentUrlValue=new URL(window.location.href);
         if(currentUrlValue.pathname.replace(/\/$/,'')==='/management/frame/hermes-agent')return ['', 'all', 'hermes-agent'];
+        if(currentUrlValue.pathname.replace(/\/$/,'')==='/management/frame/operations-history')return ['', 'all', 'operations-history'];
         if(['field-map-review','town-map-review'].includes(currentUrlValue.searchParams.get('category'))){{currentUrlValue.searchParams.set('category','map-review');window.history.replaceState(window.history.state,'',currentUrlValue.href);}}
         if({json.dumps(LEGACY_SOUND_CATEGORY_NAMES)}.includes(currentUrlValue.searchParams.get('category'))){{currentUrlValue.searchParams.set('category','sound-management');window.history.replaceState(window.history.state,'',currentUrlValue.href);}}
         const requestedPageIdentifier=currentUrlValue.searchParams.get('review')||currentUrlValue.searchParams.get('tool');
@@ -389,6 +390,7 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
         with gr.Row(elem_id='management-header'):
             gr.Markdown('## SLIME 관리도구',scale=3)
             gr.HTML('<a href="/management/frame/hermes-agent/" target="_self">운영 대화로 돌아가기</a>', scale=1)
+            gr.HTML('<a href="/management/frame/operations-history/" target="_blank" rel="noopener">운영 이력</a>', scale=1)
         with gr.Accordion('GPU 프로세스 정보',open=False,elem_id='management-gpu-floating'):
             # GPU 표시 상태는 페이지 내부에서만 사용한다. gr.State는 각 탭에
             # 상시 heartbeat 연결을 만들어 브라우저의 연결 한도를 점유한다.
@@ -433,6 +435,8 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
         current_navigation_inputs=[search_text_value,category_select_value,page_select_value]
         @trace_management_callback('메뉴 초기화')
         def initialize_menu_selection(current_search_text,current_category_name,current_page_identifier):
+            if current_page_identifier == 'operations-history':
+                return ['', 'all', gr.update(choices=create_tool_choice_values(page_record_values),value=None), f'**{len(page_record_values)}개** 도구 · 전체 {len(page_record_values)}개', '운영 이력 · 지시와 GPU 대기 기록', gr.skip() if current_inline_mode else '']
             if current_page_identifier == 'hermes-agent':
                 return ['', 'all', gr.update(choices=create_tool_choice_values(page_record_values),value=None), f'**{len(page_record_values)}개** 도구 · 전체 {len(page_record_values)}개', '운영 대화 · 관리 작업의 시작과 진행', gr.skip() if current_inline_mode else '']
             if current_page_identifier == 'building-generator':

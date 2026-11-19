@@ -1,5 +1,6 @@
 """생성이력 수동 초기화의 공용 UI와 명령 연결."""
 from pathlib import Path
+import re
 from tools.review.common.generation_cleanup import describe_cleanup_blocked_jobs
 from tools.review.common.generation_result_guidance import describe_missing_generation_result
 from tools.review.common.generation_status_lookup import read_existing_generation_status
@@ -298,7 +299,30 @@ def render_generation_images(current_status_record, server_base_address):
     return ''.join(f'<section><h3>{html.escape(current_image_label)}</h3><img width="100%" src="{html.escape(current_image_url,quote=True)}" alt="{html.escape(current_image_label)}"></section>' for current_image_url,current_image_label in current_result_items) or '<p>아직 생성된 결과 이미지가 없습니다.</p>'
 
 
-def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None,allow_individual_delete=False,result_component_factory=None,individual_delete_scope_text=None,show_thumbnail_column=True,observed_job_control=None,status_formatter_callback=None,observed_refresh_control=None,archive_mode_enabled=False):
+def locate_generation_history_job(current_execute_command,current_history_callback,current_job_identifier,current_page_size):
+    """명시된 작업이 원본 이력에 유일할 때만 해당 페이지와 선택을 반환한다."""
+    if not isinstance(current_job_identifier,str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}',current_job_identifier):raise ValueError('작업 ID 형식을 확인하세요.')
+    if current_page_size not in (4,8,16,32):raise ValueError('페이지 크기를 확인하세요.')
+    current_history_result=current_execute_command('history',{})
+    if not isinstance(current_history_result,dict) or not isinstance(current_history_result.get('records'),list):raise ValueError('원본 이력을 확인할 수 없습니다.')
+    current_matches=[current_index for current_index,current_record in enumerate(current_history_result['records']) if isinstance(current_record,dict) and current_record.get('id')==current_job_identifier]
+    if len(current_matches)!=1:raise ValueError('원본 이력에서 작업을 유일하게 확인할 수 없습니다.')
+    current_page_number=current_matches[0]//current_page_size+1
+    current_updates=current_history_callback(current_page_number,current_job_identifier,current_page_size)
+    if not isinstance(current_updates,(tuple,list)) or len(current_updates)!=7 or not isinstance(current_updates[0],dict) or current_updates[0].get('value')!=current_job_identifier:
+        raise ValueError('이력 목록이 변경됐습니다. 다시 확인하세요.')
+    return current_updates
+
+
+def prepare_generation_history_link(current_job_identifier):
+    """링크 입력은 읽기만 하며 작업 상태나 대기열을 조회하지 않는다."""
+    if not current_job_identifier:return None,gr.update(visible=False),''
+    if not isinstance(current_job_identifier,str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}',current_job_identifier):
+        return None,gr.update(visible=True),'작업 ID 형식을 확인할 수 없습니다.'
+    return current_job_identifier,gr.update(visible=True),'운영 이력에서 전달된 작업 '+current_job_identifier+'입니다. 선택하면 원본 이력과 작업 상태를 확인합니다. 일부 서비스의 상태 조회는 중단된 기록을 복구할 수 있습니다.'
+
+
+def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None,allow_individual_delete=False,result_component_factory=None,individual_delete_scope_text=None,show_thumbnail_column=True,observed_job_control=None,status_formatter_callback=None,observed_refresh_control=None,archive_mode_enabled=False,history_deep_link_interface=None):
 
     """목록·페이지·명시적 조회·결과·입력·로그·초기화를 묶은 공용 영역."""
     import html
@@ -313,6 +337,11 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             history_cards_value=build_generation_history_cards()
             (history_refresh_button,history_page_size,history_count_value,history_previous_button,
              history_page_value,history_next_button)=build_card_gallery_pagination('이력을 불러오는 중입니다.',show_refresh_button=True)
+        if history_deep_link_interface is not None:
+            current_linked_job_state=gr.Textbox(visible=False)
+            with gr.Group(visible=False) as current_linked_job_group:
+                current_linked_job_notice=gr.Markdown()
+                current_linked_job_button=gr.Button('전달된 작업을 이력에서 찾기')
         (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button, history_priority_button)=build_history_selection_panel(restore_input_callback is not None, allow_individual_delete)
         if allow_individual_delete:
             current_delete_identifier=gr.State('')
@@ -596,6 +625,15 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     log_panel_value.expand(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)
     history_priority_button.click(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)
     history_cancel_button.click(refresh_combined_history, current_poll_inputs, current_poll_outputs, queue=False)
+    if history_deep_link_interface is not None:
+        def open_linked_generation_history(current_job_identifier,current_page_size):
+            try:
+                current_history_updates=locate_generation_history_job(execute_service_command,read_history_page,current_job_identifier,current_page_size)
+                return (*current_history_updates,'작업을 선택했습니다. 아래 이력에서 상태와 결과를 확인하세요.')
+            except (OSError,ValueError,KeyError,TypeError,RuntimeError):
+                return (*(gr.skip() for _ in range(7)),'작업을 찾을 수 없거나 이력이 변경됐습니다. 원본 이력을 확인하세요.')
+        history_deep_link_interface.load(prepare_generation_history_link,inputs=[current_linked_job_state],outputs=[current_linked_job_state,current_linked_job_group,current_linked_job_notice],js="(_value)=>[new URL(window.location.href).searchParams.get('job') || '']",preprocess=False,queue=False)
+        current_linked_job_button.click(open_linked_generation_history,[current_linked_job_state,history_page_size],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel,current_linked_job_notice],queue=False)
     bind_history_reset_action(reset_control_values,execute_service_command,reset_view_values,reset_output_components)
     return read_history_page,[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel]
 

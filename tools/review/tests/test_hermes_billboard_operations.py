@@ -9,6 +9,16 @@ from tools.review.domains.hermes_agent.delegation_store import HermesDelegationS
 
 
 class HermesBillboardOperationTests(unittest.TestCase):
+    def test_change_summary_shows_values_maps_and_warnings(self):
+        from tools.review.ui.gradio.hermes_agent_app import format_conversation_billboard_changes
+        current_preview_value={'changes':[{'texture':'tree-v1','before':{'displayHeight':520,'anchorY':1},'after':{'displayHeight':500,'anchorY':1}}],'maps':['assets/maps/field_tiles/meadow.yaml'],'map_warnings':[{'map':'assets/maps/field_tiles/meadow.yaml','message':'접지 확인'}],'note':'맵은 다시 확인'}
+        current_summary_value=format_conversation_billboard_changes({'displayHeight':520,'anchorY':1,'other':False},current_preview_value,'저장 시 원본 변경')
+        self.assertIn('에셋: tree-v1',current_summary_value)
+        self.assertIn('표시 높이: 520 → 500',current_summary_value)
+        self.assertIn('other: false',current_summary_value)
+        self.assertIn('assets/maps/field_tiles/meadow.yaml: 접지 확인',current_summary_value)
+        self.assertIn('저장 시 원본 변경',current_summary_value)
+
     def setUp(self):
         self.current_temporary_root=tempfile.TemporaryDirectory()
         self.addCleanup(self.current_temporary_root.cleanup)
@@ -20,6 +30,36 @@ class HermesBillboardOperationTests(unittest.TestCase):
         self.current_store_patch.start()
         self.addCleanup(self.current_store_patch.stop)
 
+    def test_history_asset_target_matching_and_legacy(self):
+        import hashlib
+        from tools.review.ui.gradio import operations_history_app
+        current_session='a'*32
+        current_job='2026-11-18_00-00-00-12345678'
+        current_page={'session_id':current_session,'offset':0,'snapshot':'b'*64}
+        for current_kind,current_target_key,current_good_value,current_bad_value,current_proposal in (
+            ('billboard','textures',['tree-a','tree-b'],['tree-a'],{'changes':[{'texture':'tree-b'},{'texture':'tree-a'}]}),
+            ('sprite','path','assets/sprites/test.png','assets/sprites/other.png',{'path':'assets/sprites/test.png'})):
+            with self.subTest(kind=current_kind):
+                current_request='chat_'+hashlib.sha256((current_session+':'+current_job+':'+current_kind).encode()).hexdigest()
+                current_receipt={'state':'completed','request_id':current_request,'saved':True}
+                def current_gateway(service,command,payload):
+                    if command=='hermes-session-view':return {'id':current_session,'offset':0,'snapshot':'b'*64,'messages':[{'job_id':current_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_'+current_kind.upper()+'_PROPOSAL'}}]}
+                    if command=='hermes-'+current_kind+'-proposal':return {'job_id':current_job,'proposal':current_proposal}
+                    if command=='hermes-'+current_kind+'-receipt':return current_receipt
+                    raise AssertionError(command)
+                with patch.object(operations_history_app,'execute_remote_management_command',side_effect=current_gateway):
+                    current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
+                    self.assertIn('대상 미확인',current_rows[0][3])
+                    current_receipt[current_target_key]=current_bad_value
+                    current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
+                    self.assertEqual(current_rows[0][3],'제안 또는 접수 조회 불가')
+                    current_receipt['state']='unknown'
+                    current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
+                    self.assertEqual(current_rows[0][3],'제안 또는 접수 조회 불가')
+                    current_receipt[current_target_key]=current_good_value
+                    current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
+                    self.assertEqual(current_rows[0][3],'접수 확인 필요')
+
     def test_confirmed_save_and_duplicate_are_single_dispatch(self):
         def execute_test_editor(current_command_name,current_payload_record):
             return {'saved':True} if current_command_name=='asset-save-reviewed' else self.current_preview_record
@@ -27,9 +67,27 @@ class HermesBillboardOperationTests(unittest.TestCase):
             current_review_record=billboard_operations.preview_hermes_billboard_edit(self.current_draft_record)
             current_save_args=('request_123',self.current_draft_record,self.current_token_value,current_review_record['review_sha256'])
             self.assertTrue(billboard_operations.save_hermes_billboard_edit_once(*current_save_args)['saved'])
+            self.assertEqual(billboard_operations.read_hermes_billboard_edit_receipt('request_123')['textures'],sorted(item['texture'] for item in self.current_draft_record['changes']))
             self.assertTrue(billboard_operations.save_hermes_billboard_edit_once(*current_save_args)['duplicate'])
             self.assertEqual(sum(current_call.args[0]=='asset-save-reviewed' for current_call in current_editor_mock.call_args_list),1)
             self.assertEqual(billboard_operations.read_hermes_billboard_edit_receipt('request_123')['state'],'completed')
+
+    def test_changed_receipt_after_save_is_preserved_and_not_retried(self):
+        import json
+        current_record_path=self.current_store_value.resolve_delegation_record_path('request_123')
+        def current_editor_response(current_command_name,current_payload_record):
+            if current_command_name!='asset-save-reviewed':return self.current_preview_record
+            current_changed_record=json.loads(current_record_path.read_text())
+            current_changed_record['external_change']='preserve'
+            current_record_path.write_text(json.dumps(current_changed_record))
+            return {'saved':True}
+        with patch.object(billboard_operations,'call_field_map_editor',side_effect=current_editor_response) as current_editor_mock:
+            current_review_record=billboard_operations.preview_hermes_billboard_edit(self.current_draft_record)
+            current_save_args=('request_123',self.current_draft_record,self.current_token_value,current_review_record['review_sha256'])
+            with self.assertRaisesRegex(ValueError,'접수 기록이 변경'):billboard_operations.save_hermes_billboard_edit_once(*current_save_args)
+            self.assertEqual(billboard_operations.save_hermes_billboard_edit_once(*current_save_args)['state'],'unknown')
+            self.assertEqual(sum(current_call.args[0]=='asset-save-reviewed' for current_call in current_editor_mock.call_args_list),1)
+            self.assertEqual(json.loads(current_record_path.read_text())['external_change'],'preserve')
 
     def test_changed_warning_requires_new_review(self):
         with patch.object(billboard_operations,'call_field_map_editor',return_value=self.current_preview_record) as current_editor_mock:

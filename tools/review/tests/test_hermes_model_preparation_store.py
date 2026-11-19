@@ -29,6 +29,41 @@ class HermesModelPreparationStoreTest(unittest.TestCase):
                 current_store_value.read_model_preparation_receipt('request_123', 'kimodo')
             self.assertEqual(HermesDelegationStore(temporary_root_path).list_delegation_receipts()['records'], [])
 
+    def test_receipt_identity_and_changed_record_are_preserved(self):
+        import json
+        with TemporaryDirectory() as current_directory_name:
+            current_store_value=HermesModelPreparationStore(current_directory_name)
+            current_missing_value=current_store_value.read_model_preparation_receipt('request_missing','flux-image')
+            self.assertEqual(current_missing_value,{'state':'not_found','request_id':'request_missing','service':'flux-image'})
+            current_record_path=Path(current_directory_name)/'request_changed.json'
+            def submit_current_service(current_service_name):
+                current_record_value=json.loads(current_record_path.read_text())
+                current_record_value['external_change']='preserve'
+                current_record_path.write_text(json.dumps(current_record_value))
+                return {'preparation_status':'running'}
+            with self.assertRaisesRegex(ValueError,'접수 기록이 변경'):
+                current_store_value.execute_model_preparation_once('request_changed','flux-image',lambda current_service_name:None,submit_current_service)
+            self.assertEqual(json.loads(current_record_path.read_text())['external_change'],'preserve')
+            current_unknown_value=current_store_value.read_model_preparation_receipt('request_changed','flux-image')
+            self.assertEqual((current_unknown_value['state'],current_unknown_value['request_id'],current_unknown_value['service']),('unknown','request_changed','flux-image'))
+            current_duplicate_value=current_store_value.execute_model_preparation_once('request_changed','flux-image',lambda current_service_name:None,lambda current_service_name:self.fail('must not retry'))
+            self.assertTrue(current_duplicate_value['duplicate'])
+            self.assertEqual(current_duplicate_value['state'],'unknown')
+
+    def test_response_status_is_preserved_without_treating_it_as_current(self):
+        with TemporaryDirectory() as temporary_root_path:
+            current_store_value=HermesModelPreparationStore(temporary_root_path)
+            current_result_value=current_store_value.execute_model_preparation_once('request_status_123','flux-image',lambda current_service_name:None,lambda current_service_name:{'preparation_status':'failed','private':'secret'})
+            self.assertEqual(current_result_value['preparation_status'],'failed')
+            self.assertIn('접수 응답 당시 상태: 실패',current_result_value['message'])
+            self.assertNotIn('secret',str(current_result_value))
+            current_receipt_value=current_store_value.read_model_preparation_receipt('request_status_123','flux-image')
+            self.assertEqual(current_receipt_value['preparation_status'],'failed')
+            self.assertIn('현재 상태는 별도로',current_receipt_value['message'])
+            current_path_value=Path(temporary_root_path)/'request_legacy_123.json'
+            current_path_value.write_text('{"version":3,"id":"request_legacy_123","service":"flux-image","state":"accepted"}')
+            self.assertNotIn('preparation_status',current_store_value.read_model_preparation_receipt('request_legacy_123','flux-image'))
+
     def test_lost_response_stays_unknown_and_is_not_resent(self):
         with TemporaryDirectory() as temporary_root_path:
             current_store_value = HermesModelPreparationStore(temporary_root_path)

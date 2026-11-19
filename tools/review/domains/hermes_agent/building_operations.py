@@ -43,7 +43,10 @@ def inspect_hermes_building_receipt(current_receipt_record,current_request_ident
         raise ValueError('건물 앵커 접수 기록 오류')
     if current_receipt_record['state']=='completed' and current_receipt_record.get('saved') is not True:
         raise ValueError('건물 앵커 저장 결과 오류')
-    return {'request_id':current_request_identifier,'state':'unknown' if current_receipt_record['state']=='dispatching' else 'completed','saved':current_receipt_record.get('saved')}
+    current_texture_value=current_receipt_record.get('texture')
+    if current_texture_value is not None and (not isinstance(current_texture_value,str) or not re.fullmatch(r'(?:town-[a-z0-9-]+-v[1-9][0-9]*|ward-tower-v1)',current_texture_value)):
+        raise ValueError('건물 앵커 접수 대상 오류')
+    return {'request_id':current_request_identifier,'state':'unknown' if current_receipt_record['state']=='dispatching' else 'completed','saved':current_receipt_record.get('saved'),**({'texture':current_texture_value} if current_texture_value is not None else {})}
 
 
 def save_hermes_building_anchor(current_request_identifier,current_draft_record,current_review_digest):
@@ -59,11 +62,12 @@ def save_hermes_building_anchor(current_request_identifier,current_draft_record,
             return {**current_result_record,'duplicate':True}
         if preview_hermes_building_anchor(current_draft_record)['review_sha256']!=current_review_digest:
             raise ValueError('건물 검토 결과가 변경됐습니다. 다시 검토하세요.')
-        current_receipt_record={'version':11,'id':current_request_identifier,'state':'dispatching','draft_sha256':current_draft_digest,'review_sha256':current_review_digest}
+        current_receipt_record={'version':11,'id':current_request_identifier,'state':'dispatching','draft_sha256':current_draft_digest,'review_sha256':current_review_digest,'texture':current_draft_record['texture']}
         write_record_atomically(current_receipt_path,current_receipt_record)
         current_save_record=call_field_map_editor('building-save',current_draft_record)
         if not isinstance(current_save_record,dict) or current_save_record.get('saved') is not True:
             raise ValueError('건물 저장 결과 확인 필요. 자동 재접수하지 않습니다.')
+        if json.loads(current_receipt_path.read_text(encoding='utf-8'))!=current_receipt_record:raise ValueError('저장 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재저장하지 마세요.')
         current_receipt_record.update(state='completed',saved=True)
         write_record_atomically(current_receipt_path,current_receipt_record)
         return {**inspect_hermes_building_receipt(current_receipt_record,current_request_identifier),'duplicate':False}

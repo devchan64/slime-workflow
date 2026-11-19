@@ -66,6 +66,44 @@ class GenerationRecordsObserveTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 observe_generation_history_records(current_history_root,current_root_path/'jobs',{'snapshot':current_result_value['snapshot']})
 
+    def test_duplicate_index_ids_are_not_merged_or_restored_from_jobs(self):
+        with tempfile.TemporaryDirectory() as current_temp_name:
+            current_root_path=Path(current_temp_name)
+            current_history_root=current_root_path/'history'
+            current_jobs_root=current_root_path/'jobs'
+            current_history_root.mkdir()
+            current_job_identifier='2026-11-18_12-00-00-aaaaaaaa'
+            (current_history_root/'first.json').write_text(json.dumps({'id':current_job_identifier,'status':{'status':'completed'}}))
+            (current_history_root/'second.json').write_text(json.dumps({'id':current_job_identifier,'status':{'status':'failed'}}))
+            (current_history_root/'third.json').write_text(json.dumps({'id':current_job_identifier}))
+            (current_history_root/'other.json').write_text(json.dumps({'id':'other-job'}))
+            current_job_path=current_jobs_root/current_job_identifier
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'request.json').write_text('{}')
+            (current_job_path/'status.json').write_text('{"status":"completed"}')
+            current_result_value=observe_generation_history_records(current_history_root,current_jobs_root,{})
+            self.assertEqual([current_item['id'] for current_item in current_result_value['records']],['other-job'])
+            self.assertEqual(current_result_value['unavailable_count'],1)
+            (current_history_root/'second.json').unlink()
+            (current_history_root/'third.json').unlink()
+            with self.assertRaisesRegex(ValueError,'변경'):
+                observe_generation_history_records(current_history_root,current_jobs_root,{'snapshot':current_result_value['snapshot']})
+
+    def test_search_uses_identifier_and_binds_snapshot_to_query(self):
+        with tempfile.TemporaryDirectory() as current_temp_name:
+            current_root_path=Path(current_temp_name)
+            current_history_root=current_root_path/'history'
+            current_history_root.mkdir()
+            for current_identifier in ('alpha-01','alpha-02','beta-01'):
+                (current_history_root/(current_identifier+'.json')).write_text(json.dumps({'id':current_identifier,'request':{'prompt':'private'}}))
+            current_first_page=observe_generation_history_records(current_history_root,current_root_path/'jobs',{'query':'ALPHA','limit':1})
+            self.assertEqual(current_first_page['total'],2)
+            current_second_page=observe_generation_history_records(current_history_root,current_root_path/'jobs',{'query':'alpha','limit':1,'offset':1,'snapshot':current_first_page['snapshot']})
+            self.assertEqual(len(current_second_page['records']),1)
+            self.assertNotIn('private',str(current_second_page))
+            with self.assertRaises(ValueError):observe_generation_history_records(current_history_root,current_root_path/'jobs',{'query':'beta','offset':1,'snapshot':current_first_page['snapshot']})
+            with self.assertRaises(ValueError):observe_generation_history_records(current_history_root,current_root_path/'jobs',{'query':'bad query'})
+
     def test_bad_current_status_does_not_use_stale_index_status(self):
         with tempfile.TemporaryDirectory() as current_temp_name:
             current_root_path=Path(current_temp_name)
@@ -78,6 +116,27 @@ class GenerationRecordsObserveTests(unittest.TestCase):
             (current_job_path/'status.json').write_text('invalid json')
             current_result_value=observe_generation_history_records(current_history_root,current_root_path/'jobs',{})
             self.assertEqual(current_result_value['records'][0]['recorded_status'],'unknown')
+
+    def test_status_ids_must_match_when_present_and_legacy_without_id_remains_valid(self):
+        with tempfile.TemporaryDirectory() as current_temp_name:
+            current_root_path=Path(current_temp_name)
+            current_history_root=current_root_path/'history'
+            current_jobs_root=current_root_path/'jobs'
+            current_history_root.mkdir()
+            for current_identifier in ('job-a','job-b','job-c'):
+                (current_history_root/(current_identifier+'.json')).write_text(json.dumps({'id':current_identifier,'status':{'status':'completed','id':current_identifier}}))
+                (current_jobs_root/current_identifier).mkdir(parents=True)
+            (current_jobs_root/'job-a'/'status.json').write_text(json.dumps({'status':'completed','id':'job-b'}))
+            (current_jobs_root/'job-b'/'status.json').write_text(json.dumps({'status':'failed','id':'job-b'}))
+            (current_jobs_root/'job-c'/'status.json').write_text(json.dumps({'status':'completed'}))
+            current_results={current_record['id']:current_record for current_record in observe_generation_history_records(current_history_root,current_jobs_root,{})['records']}
+            self.assertEqual((current_results['job-a']['recorded_status'],current_results['job-a']['status_source']),('unknown','unavailable'))
+            self.assertEqual(current_results['job-b']['recorded_status'],'failed')
+            self.assertEqual(current_results['job-c']['recorded_status'],'completed')
+            (current_jobs_root/'job-a'/'status.json').unlink()
+            (current_history_root/'job-a.json').write_text(json.dumps({'id':'job-a','status':{'status':'completed','id':'job-b'}}))
+            current_results={current_record['id']:current_record for current_record in observe_generation_history_records(current_history_root,current_jobs_root,{})['records']}
+            self.assertEqual((current_results['job-a']['recorded_status'],current_results['job-a']['status_source']),('unknown','unavailable'))
 
     def test_missing_status_and_invalid_page(self):
         with tempfile.TemporaryDirectory() as current_temp_name:

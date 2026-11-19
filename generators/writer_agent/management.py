@@ -192,11 +192,15 @@ class WriterAgentManager:
         import hashlib
         import re
         import yaml
-        if not isinstance(current_page_request,dict) or set(current_page_request)-{'offset','limit','snapshot'}:
+        if not isinstance(current_page_request,dict) or set(current_page_request)-{'offset','limit','snapshot','query'}:
             raise ValueError('작가 이력 관측 필드 오류')
         current_offset_value=current_page_request.get('offset',0)
         current_limit_value=current_page_request.get('limit',10)
         current_snapshot_value=current_page_request.get('snapshot')
+        current_query_text=current_page_request.get('query','')
+        if not isinstance(current_query_text,str) or len(current_query_text)>80 or (current_query_text and not re.fullmatch(r'[A-Za-z0-9_-]+',current_query_text)):
+            raise ValueError('작가 이력 ID 검색 오류')
+        current_query_text=current_query_text.casefold()
         if type(current_offset_value) is not int or current_offset_value<0 or type(current_limit_value) is not int or not 1<=current_limit_value<=30:
             raise ValueError('작가 이력 페이지 오류')
         if current_snapshot_value is not None and (not isinstance(current_snapshot_value,str) or not re.fullmatch(r'[a-f0-9]{64}',current_snapshot_value)):
@@ -206,8 +210,10 @@ class WriterAgentManager:
         current_config_values=load_workspace_config(self.workspace_config_path)
         current_job_root=Path(current_config_values['state_root'])/'jobs'
         current_job_paths=sorted((current_path_value for current_path_value in current_job_root.glob('*') if JOB_IDENTIFIER_PATTERN.fullmatch(current_path_value.name) and not current_path_value.is_symlink() and current_path_value.is_dir()),reverse=True)
+        if current_query_text:current_job_paths=[current_path_value for current_path_value in current_job_paths if current_query_text in current_path_value.name.casefold()]
         current_job_identifiers=[current_path_value.name for current_path_value in current_job_paths]
-        current_snapshot_hash=hashlib.sha256(json.dumps(current_job_identifiers,separators=(',',':')).encode()).hexdigest()
+        current_snapshot_payload={'ids':current_job_identifiers,'query':current_query_text} if current_query_text else current_job_identifiers
+        current_snapshot_hash=hashlib.sha256(json.dumps(current_snapshot_payload,sort_keys=True,separators=(',',':')).encode()).hexdigest()
         if current_snapshot_value is not None and current_snapshot_value!=current_snapshot_hash:
             raise ValueError('작가 이력이 변경되었습니다. 첫 페이지부터 다시 조회하세요.')
         current_output_records=[]

@@ -41,15 +41,80 @@ def parse_hermes_flux_proposal(current_answer_text):
     if current_block_match is None or len(current_block_match.group(1)) > 4000:
         raise ValueError('FLUX 제안 형식 또는 크기 오류')
     current_proposal_record = parse_management_request_json(current_block_match.group(1))
-    if not isinstance(current_proposal_record, dict) or set(current_proposal_record) != {'prompt','width','height','seed'}:
-        raise ValueError('FLUX 제안에는 prompt, width, height, seed만 허용합니다.')
-    current_generation_record = {**current_proposal_record, 'action':'generate', 'images':[], 'steps':16}
-    FluxImageGenerationManager('flux-image').validate_generation_request(current_generation_record)
+    if not isinstance(current_proposal_record, dict) or set(current_proposal_record) not in ({'prompt','width','height','seed'},{'service','prompt','width','height','seed'}):
+        raise ValueError('FLUX 제안에는 service, prompt, width, height, seed만 허용합니다.')
+    current_service_name=current_proposal_record.get('service','flux-image')
+    from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
+    if not isinstance(current_service_name,str) or current_service_name not in (*FLUX_IMAGE_PROFILE_RECORDS,'flux-expression'):
+        raise ValueError('지원하는 FLUX 이미지 프로필이 아닙니다.')
+    current_generation_record = {key:value for key,value in current_proposal_record.items() if key!='service'}
+    current_placeholder_images=[]
+    if current_service_name=='flux-expression' or FLUX_IMAGE_PROFILE_RECORDS[current_service_name][4]:
+        import base64
+        import io
+        from PIL import Image
+        current_placeholder_buffer=io.BytesIO()
+        Image.new('RGB',(16,16)).save(current_placeholder_buffer,format='PNG')
+        current_placeholder_images=[base64.b64encode(current_placeholder_buffer.getvalue()).decode('ascii')]
+    current_generation_record.update(action='generate',images=current_placeholder_images,steps=16)
+    if current_service_name=='flux-expression':
+        from tools.review.domains.image.flux_expression_generation import FluxExpressionGenerationManager
+        current_generation_record['tag']=''
+        FluxExpressionGenerationManager().validate_generation_request(current_generation_record)
+    else:
+        FluxImageGenerationManager(current_service_name).validate_generation_request(current_generation_record)
     return current_proposal_record
 
 
 HERMES_FIELD_PROPOSAL_START = 'HERMES_FIELD_PROPOSAL'
 HERMES_FIELD_PROPOSAL_END = 'END_HERMES_FIELD_PROPOSAL'
+
+HERMES_CITY_PROPOSAL_START = 'HERMES_CITY_PROPOSAL'
+HERMES_CITY_PROPOSAL_END = 'END_HERMES_CITY_PROPOSAL'
+
+HERMES_BUILDING_PROPOSAL_START = 'HERMES_BUILDING_PROPOSAL'
+HERMES_BUILDING_PROPOSAL_END = 'END_HERMES_BUILDING_PROPOSAL'
+
+
+def parse_hermes_building_proposal(current_answer_text):
+    """완료 답변에서 기존 건물 앵커 변경 초안만 읽는다."""
+    from tools.review.common.management_gateway import parse_management_request_json
+    from tools.review.domains.hermes_agent.building_operations import inspect_hermes_building_draft
+    if not isinstance(current_answer_text,str) or len(current_answer_text)>8000 or current_answer_text.count(HERMES_BUILDING_PROPOSAL_START)!=2 or current_answer_text.count(HERMES_BUILDING_PROPOSAL_END)!=1:
+        raise ValueError('건물 제안 블록이 하나 필요합니다.')
+    current_match_value=re.search(r'(?m)^HERMES_BUILDING_PROPOSAL[ \t]*\n([\s\S]*?)\nEND_HERMES_BUILDING_PROPOSAL[ \t]*$',current_answer_text)
+    if current_match_value is None or len(current_match_value.group(1))>4000:raise ValueError('건물 제안 형식 오류')
+    current_draft_record=parse_management_request_json(current_match_value.group(1))
+    inspect_hermes_building_draft(current_draft_record)
+    return current_draft_record
+
+
+def parse_hermes_city_proposal(current_answer_text):
+    """도시 문서의 기존 값에 대한 제한된 변경 제안을 읽는다."""
+    from tools.review.common.management_gateway import parse_management_request_json
+    from tools.review.domains.hermes_agent.field_map_operations import HERMES_FIELD_MAP_PATTERN
+    if not isinstance(current_answer_text,str) or len(current_answer_text)>8000 or current_answer_text.count(HERMES_CITY_PROPOSAL_START)!=2 or current_answer_text.count(HERMES_CITY_PROPOSAL_END)!=1:
+        raise ValueError('도시 맵 제안 블록이 하나 필요합니다.')
+    current_match_value=re.search(r'(?m)^HERMES_CITY_PROPOSAL[ \t]*\n([\s\S]*?)\nEND_HERMES_CITY_PROPOSAL[ \t]*$',current_answer_text)
+    if current_match_value is None or len(current_match_value.group(1))>6000:raise ValueError('도시 맵 제안 형식 오류')
+    current_proposal_record=parse_management_request_json(current_match_value.group(1))
+    if not isinstance(current_proposal_record,dict) or set(current_proposal_record)!={'map','generation','revision','changes'}:
+        raise ValueError('도시 맵 제안 필드 오류')
+    if not isinstance(current_proposal_record['map'],str) or not HERMES_FIELD_MAP_PATTERN.fullmatch(current_proposal_record['map']):raise ValueError('도시 맵 ID 오류')
+    if any(type(current_proposal_record[current_name]) is not int or current_proposal_record[current_name]<0 for current_name in ('generation','revision')):raise ValueError('도시 세대·리비전 오류')
+    current_changes_value=current_proposal_record['changes']
+    if not isinstance(current_changes_value,list) or not 1<=len(current_changes_value)<=30:raise ValueError('도시 변경은 1~30건이 필요합니다.')
+    current_seen_paths=set()
+    for current_change_record in current_changes_value:
+        if not isinstance(current_change_record,dict) or set(current_change_record)!={'path','before','after'}:raise ValueError('도시 변경 필드 오류')
+        current_path_value=current_change_record['path']
+        if (not isinstance(current_path_value,list) or not 2<=len(current_path_value)<=12 or current_path_value[0]!='data'
+                or any(not ((isinstance(current_item,str) and 1<=len(current_item)<=100 and re.fullmatch(r'[A-Za-z][A-Za-z0-9_-]*',current_item)) or (type(current_item) is int and 0<=current_item<=10000)) for current_item in current_path_value)):
+            raise ValueError('도시 변경 경로 오류')
+        current_path_key=tuple(current_path_value)
+        if any(current_path_key[:len(current_existing)]==current_existing or current_existing[:len(current_path_key)]==current_path_key for current_existing in current_seen_paths):raise ValueError('도시 변경 경로 중복 또는 중첩')
+        current_seen_paths.add(current_path_key)
+    return current_proposal_record
 
 
 def parse_hermes_field_proposal(current_answer_text):
@@ -257,3 +322,43 @@ def parse_hermes_sprite_proposal(current_answer_text):
     current_proposal_record=parse_management_request_json(current_block_match.group(1))
     validate_hermes_sprite_anchor_draft(current_proposal_record)
     return current_proposal_record
+
+
+HERMES_WRITER_PROPOSAL_START = 'HERMES_WRITER_PROPOSAL'
+HERMES_WRITER_PROPOSAL_END = 'END_HERMES_WRITER_PROPOSAL'
+
+
+def parse_hermes_writer_proposal(current_answer_text):
+    """완료 답변의 단일 작가 요청을 검증하며 생성·적용은 수행하지 않는다."""
+    from generators.writer_agent.jobs import validate_job_request
+    from tools.review.common.management_gateway import parse_management_request_json
+    if not isinstance(current_answer_text, str) or len(current_answer_text) > 8000:
+        raise ValueError('최종 답변을 확인할 수 없습니다.')
+    if current_answer_text.count(HERMES_WRITER_PROPOSAL_START) != 2 or current_answer_text.count(HERMES_WRITER_PROPOSAL_END) != 1:
+        raise ValueError('작가 제안 블록이 하나 필요합니다.')
+    current_block_match = re.search(r'(?m)^HERMES_WRITER_PROPOSAL[ \t]*\n([\s\S]*?)\nEND_HERMES_WRITER_PROPOSAL[ \t]*$', current_answer_text)
+    if current_block_match is None or len(current_block_match.group(1)) > 7000:
+        raise ValueError('작가 제안 형식 또는 크기 오류')
+    current_proposal_record = parse_management_request_json(current_block_match.group(1))
+    return validate_job_request(current_proposal_record)
+
+
+HERMES_CAPTURE_PROPOSAL_START = 'HERMES_CAPTURE_PROPOSAL'
+HERMES_CAPTURE_PROPOSAL_END = 'END_HERMES_CAPTURE_PROPOSAL'
+
+
+def parse_hermes_capture_proposal(current_answer_text):
+    """단일 미신뢰 캡처 제안을 기존 검증기로 정규화하며 실행하지 않는다."""
+    from tools.review.common.management_gateway import parse_management_request_json
+    from tools.review.domains.hermes_agent.capture_delegation import normalize_capture_delegation_request
+    if not isinstance(current_answer_text,str) or len(current_answer_text)>8000 or current_answer_text.count(HERMES_CAPTURE_PROPOSAL_START)!=2 or current_answer_text.count(HERMES_CAPTURE_PROPOSAL_END)!=1:
+        raise ValueError('캡처 제안 블록이 하나 필요합니다.')
+    current_block_match=re.search(r'(?m)^HERMES_CAPTURE_PROPOSAL[ \t]*\n([\s\S]*?)\nEND_HERMES_CAPTURE_PROPOSAL[ \t]*$',current_answer_text)
+    if current_block_match is None or len(current_block_match.group(1))>7000:
+        raise ValueError('캡처 제안 형식 또는 크기 오류')
+    current_proposal_value=parse_management_request_json(current_block_match.group(1))
+    if not isinstance(current_proposal_value,dict) or set(current_proposal_value)!={'service','settings'}:
+        raise ValueError('캡처 제안에는 service와 settings만 허용합니다.')
+    current_service_name=current_proposal_value['service']
+    current_capture_settings=normalize_capture_delegation_request(current_service_name,current_proposal_value['settings'])
+    return {'service':current_service_name,'settings':current_capture_settings}

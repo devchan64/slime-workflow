@@ -8,6 +8,27 @@ from tools.review.domains.hermes_agent.delegation_store import HermesDelegationS
 
 
 class HermesTranslationOperationsTests(unittest.TestCase):
+    def test_translation_resume_receipt_duplicate_and_unknown(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from tools.review.domains.hermes_agent import translation_resume_operations
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_fingerprint_value='a'*64
+        with TemporaryDirectory() as current_directory_name,patch.object(translation_resume_operations,'TRANSLATION_RESUME_RECEIPT_ROOT',Path(current_directory_name)),patch.object(translation_resume_operations,'call_hermes_translation_service') as current_service_mock:
+            current_service_mock.return_value={'id':current_job_identifier,'service':'prompt-translation','status':'failed','expected_resume_fingerprint':current_fingerprint_value}
+            self.assertEqual(translation_resume_operations.preview_hermes_translation_resume(current_job_identifier)['status'],'failed')
+            current_service_mock.return_value={'id':current_job_identifier,'status':'queued'}
+            self.assertEqual(translation_resume_operations.submit_hermes_translation_resume_once('translation_resume_123',current_job_identifier,current_fingerprint_value)['state'],'accepted')
+            self.assertTrue(translation_resume_operations.submit_hermes_translation_resume_once('translation_resume_123',current_job_identifier,current_fingerprint_value)['duplicate'])
+            with self.assertRaises(ValueError):translation_resume_operations.submit_hermes_translation_resume_once('translation_resume_123',current_job_identifier,'b'*64)
+            current_service_mock.side_effect=OSError('response lost')
+            with self.assertRaises(OSError):translation_resume_operations.submit_hermes_translation_resume_once('translation_resume_lost',current_job_identifier,'b'*64)
+            self.assertEqual(translation_resume_operations.read_hermes_translation_resume_receipt('translation_resume_lost')['state'],'unknown')
+            self.assertTrue(translation_resume_operations.submit_hermes_translation_resume_once('translation_resume_lost',current_job_identifier,'b'*64)['duplicate'])
+            self.assertEqual(current_service_mock.call_count,3)
+
+
     def test_submit_duplicate_status_and_matching_cancel(self):
         current_request_value={'text':'나무','target_language':'en','glossary':[]}
         current_job_identifier='2026-11-18_00-00-00-12345678'

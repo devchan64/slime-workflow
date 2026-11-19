@@ -85,10 +85,61 @@ def launch_gpu_process(command_argument_values, generation_job_path, generation_
         raise
 
 
-def resume_gpu_generation(generation_job_path, legacy_command_record=None):
+def fingerprint_resume_job_records(current_job_directory):
+    """저장 요청·상태·실행 명령이 모두 있을 때만 바이트 확인값을 만든다."""
+    current_job_directory = Path(current_job_directory)
+    current_fingerprint_hash = hashlib.sha256()
+    for current_record_name in ('request.json','status.json','gpu-command.json'):
+        current_record_path = current_job_directory / current_record_name
+        if current_record_path.is_symlink():
+            raise ValueError('재개 기록은 심볼릭 링크일 수 없습니다.')
+        try:
+            current_record_bytes = current_record_path.read_bytes()
+        except FileNotFoundError as current_record_error:
+            raise ValueError('검토할 재개 요청·상태·실행 명령 기록이 모두 필요합니다.') from current_record_error
+        current_fingerprint_hash.update(current_record_name.encode('ascii') + b'\x00')
+        current_fingerprint_hash.update(b'present\x00' + len(current_record_bytes).to_bytes(8,'big') + current_record_bytes)
+    return current_fingerprint_hash.hexdigest()
+
+
+def preview_gpu_resume_records(current_job_directory,current_service_name,current_expected_command,current_validate_request):
+    """공용 잠금 아래 저장 기록을 확인하며 GPU 작업을 시작하지 않는다."""
+    current_job_directory=Path(current_job_directory)
+    if not isinstance(current_service_name,str) or not current_service_name or not isinstance(current_expected_command,list) or not callable(current_validate_request):
+        raise ValueError('재개 검토 인자 오류')
+    current_resume_lock=current_job_directory/'resume.lock'
+    current_execution_lock=current_job_directory/'execution.lock'
+    if current_resume_lock.is_symlink() or current_execution_lock.is_symlink():
+        raise ValueError('재개 잠금 경로가 올바르지 않습니다.')
+    with current_resume_lock.open('a') as current_resume_handle:
+        fcntl.flock(current_resume_handle,fcntl.LOCK_EX)
+        with current_execution_lock.open('a') as current_execution_handle:
+            try:
+                fcntl.flock(current_execution_handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            except BlockingIOError as current_execution_error:
+                raise ValueError('이전 실행이 종료되지 않았습니다.') from current_execution_error
+            current_fingerprint_value=fingerprint_resume_job_records(current_job_directory)
+            current_status_record=json.loads((current_job_directory/'status.json').read_text())
+            if not isinstance(current_status_record,dict) or current_status_record.get('status') not in ('failed','cancelled','paused'):
+                raise ValueError('일시정지·취소·실패 작업만 재개를 검토할 수 있습니다.')
+            current_request_record=json.loads((current_job_directory/'request.json').read_text())
+            current_validate_request(current_request_record)
+            current_command_record=json.loads((current_job_directory/'gpu-command.json').read_text())
+            if not isinstance(current_command_record,dict) or set(current_command_record)!={'command','service'} or current_command_record.get('service')!=current_service_name or current_command_record.get('command')!=current_expected_command:
+                raise ValueError('재개 실행 명령이 선택한 서비스와 작업에 일치하지 않습니다.')
+            if fingerprint_resume_job_records(current_job_directory)!=current_fingerprint_value:
+                raise ValueError('재개 검토 중 작업 기록이 변경됐습니다.')
+            return {'status':current_status_record['status'],'expected_resume_fingerprint':current_fingerprint_value}
+
+
+def resume_gpu_generation(generation_job_path, legacy_command_record=None, expected_resume_fingerprint=None, expected_resume_service=None, expected_resume_command=None):
     generation_job_path = Path(generation_job_path)
     with (generation_job_path/'resume.lock').open('a') as resume_lock_handle:
         fcntl.flock(resume_lock_handle, fcntl.LOCK_EX)
+        if expected_resume_fingerprint is not None:
+            import re
+            if not isinstance(expected_resume_fingerprint,str) or not re.fullmatch(r'[a-f0-9]{64}',expected_resume_fingerprint) or fingerprint_resume_job_records(generation_job_path)!=expected_resume_fingerprint:
+                raise ValueError('검토한 재개 작업 기록이 변경됐습니다. 다시 확인하세요.')
         generation_status_record = json.loads((generation_job_path/'status.json').read_text())
         if generation_status_record['status'] not in ('failed', 'cancelled', 'paused'):
             raise ValueError('일시정지·취소·실패 작업만 재개할 수 있습니다.')
@@ -100,6 +151,11 @@ def resume_gpu_generation(generation_job_path, legacy_command_record=None):
                 fcntl.flock(current_execution_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError as current_execution_error:
                 raise ValueError('이전 실행의 최종 기록 저장 중입니다. 종료 후 다시 재개하세요.') from current_execution_error
+            if expected_resume_fingerprint is not None and fingerprint_resume_job_records(generation_job_path)!=expected_resume_fingerprint:
+                raise ValueError('검토한 재개 작업 기록이 변경됐습니다. 다시 확인하세요.')
+            generation_status_record = json.loads((generation_job_path/'status.json').read_text())
+            if generation_status_record['status'] not in ('failed', 'cancelled', 'paused'):
+                raise ValueError('일시정지·취소·실패 작업만 재개할 수 있습니다.')
         # 새 실행기가 같은 잠금을 획득할 수 있도록 접수 전에 확인 잠금을 해제한다.
         current_command_path = generation_job_path / 'gpu-command.json'
         generation_command_record = json.loads(current_command_path.read_text()) if current_command_path.exists() else legacy_command_record
@@ -113,6 +169,10 @@ def resume_gpu_generation(generation_job_path, legacy_command_record=None):
             raise ValueError('재개 실행 명령은 실행 파일을 포함한 문자열 목록이어야 합니다.')
         if not isinstance(current_service_name, str) or not current_service_name.strip():
             raise ValueError('재개 실행 명령의 서비스 이름이 올바르지 않습니다.')
+        if expected_resume_service is not None and (not isinstance(expected_resume_service,str) or current_service_name != expected_resume_service):
+            raise ValueError('재개 실행 명령의 서비스가 선택한 서비스와 다릅니다.')
+        if expected_resume_command is not None and (not isinstance(expected_resume_command,list) or current_command_arguments != expected_resume_command):
+            raise ValueError('재개 실행 명령이 검증된 작업 명령과 다릅니다.')
         (generation_job_path/'cancel.request').unlink(missing_ok=True)
         (generation_job_path/'pause.request').unlink(missing_ok=True)
         (generation_job_path/'stage-pause.json').unlink(missing_ok=True)
@@ -139,11 +199,66 @@ def cancel_gpu_generation(generation_job_path):
 def read_priority_tickets():
     """티켓 경로는 유지하고 영속 우선순위로 정렬한다."""
     current_priority_path = GPU_QUEUE_DIRECTORY / 'priority-order'
+    if current_priority_path.is_symlink():raise ValueError('GPU 우선순위 기록 경로 오류')
     current_priority_values = json.loads(current_priority_path.read_text()) if current_priority_path.exists() else {}
+    if not isinstance(current_priority_values,dict) or any(not isinstance(current_key,str) or type(current_value) is not int for current_key,current_value in current_priority_values.items()):
+        raise ValueError('GPU 우선순위 기록 형식 오류')
     return sorted(GPU_QUEUE_DIRECTORY.glob('*.json'), key=lambda current_ticket_path: (current_priority_values.get(current_ticket_path.name, 0), current_ticket_path.name))
 
 
-def prioritize_waiting_generation(current_job_identifier):
+
+def validate_gpu_ticket_process_identifier(current_ticket_record):
+    """시그널 0 조회 전 양의 정수 PID만 허용한다."""
+    if not isinstance(current_ticket_record,dict) or type(current_ticket_record.get('pid')) is not int or not 0<current_ticket_record['pid']<=2147483647:
+        raise ValueError('GPU 대기 실행기 PID 오류')
+    return current_ticket_record['pid']
+
+
+def inspect_gpu_ticket_executor_identity(current_ticket_record):
+    """시작 식별값이 있는 티켓은 PID 재사용을 거부하고 구버전은 미확인으로 둔다."""
+    current_process_identifier=validate_gpu_ticket_process_identifier(current_ticket_record)
+    if 'pid_start_token' not in current_ticket_record:
+        if 'boot_id' in current_ticket_record:raise ValueError('GPU 대기 실행기 식별 정보 오류')
+        return 'unverified'
+    current_start_token=current_ticket_record['pid_start_token']
+    if not isinstance(current_start_token,str) or not current_start_token.isascii() or not current_start_token.isdigit():
+        raise ValueError('GPU 대기 실행기 식별 정보 오류')
+    current_boot_identifier=current_ticket_record.get('boot_id')
+    if 'boot_id' in current_ticket_record and current_boot_identifier is None:
+        raise ValueError('GPU 대기 실행기 부팅 식별 정보 오류')
+    try:
+        current_process_fields=Path(f'/proc/{current_process_identifier}/stat').read_text().rpartition(') ')[2].split()
+        if current_process_fields[0] in ('Z','X') or current_process_fields[19]!=current_start_token:
+            raise ValueError('GPU 대기 실행기 신원이 일치하지 않습니다.')
+    except (OSError,IndexError) as current_identity_error:
+        raise ValueError('GPU 대기 실행기 신원을 확인할 수 없습니다.') from current_identity_error
+    if current_boot_identifier is None:return 'unverified'
+    try:
+        if not isinstance(current_boot_identifier,str) or str(uuid.UUID(current_boot_identifier))!=current_boot_identifier:
+            raise ValueError('GPU 대기 실행기 부팅 식별 정보 오류')
+        if Path('/proc/sys/kernel/random/boot_id').read_text().strip()!=current_boot_identifier:
+            raise ValueError('GPU 대기 실행기 부팅 신원이 일치하지 않습니다.')
+    except OSError as current_boot_error:
+        raise ValueError('GPU 대기 실행기 부팅 신원을 확인할 수 없습니다.') from current_boot_error
+    return 'verified'
+
+
+def fingerprint_gpu_queue_ticket(current_ticket_path):
+    """티켓 교체를 감지할 불투명 식별자를 만들며 경로 원문은 반환하지 않는다."""
+    current_ticket_path=Path(current_ticket_path)
+    if current_ticket_path.is_symlink() or not current_ticket_path.is_file():
+        raise ValueError('대기 티켓을 확인할 수 없습니다.')
+    with current_ticket_path.open('rb') as current_ticket_stream:
+        current_before_stat=os.fstat(current_ticket_stream.fileno())
+        current_ticket_bytes=current_ticket_stream.read(65537)
+        current_after_stat=os.fstat(current_ticket_stream.fileno())
+    if len(current_ticket_bytes)>65536 or (current_before_stat.st_dev,current_before_stat.st_ino,current_before_stat.st_size,current_before_stat.st_mtime_ns)!=(current_after_stat.st_dev,current_after_stat.st_ino,current_after_stat.st_size,current_after_stat.st_mtime_ns):
+        raise ValueError('대기 티켓이 변경됐거나 크기가 너무 큽니다.')
+    current_identity_text=f'{current_ticket_path.name}:{current_after_stat.st_dev}:{current_after_stat.st_ino}:{current_after_stat.st_size}:{current_after_stat.st_mtime_ns}:'
+    return hashlib.sha256(current_identity_text.encode('utf-8')+current_ticket_bytes).hexdigest()
+
+
+def prioritize_waiting_generation(current_job_identifier,current_expected_service=None,current_expected_ticket_revision=None):
     """실행 예약과 같은 잠금으로 대기 작업만 맨 앞으로 옮긴다."""
     if not isinstance(current_job_identifier, str) or not current_job_identifier or Path(current_job_identifier).name != current_job_identifier:
         raise ValueError('생성 ID 형식 오류')
@@ -158,13 +273,35 @@ def prioritize_waiting_generation(current_job_identifier):
                 continue
             if json.loads((current_job_directory / 'status.json').read_text())['status'] != 'queued' or (current_job_directory / 'cancel.request').exists() or (current_job_directory / 'pause.request').exists():
                 raise ValueError('중지 요청이 없는 GPU 대기 작업만 우선 실행할 수 있습니다.')
-            os.kill(current_ticket_record['pid'], 0)
-            current_matching_tickets.append(current_ticket_path)
+            os.kill(validate_gpu_ticket_process_identifier(current_ticket_record), 0)
+            inspect_gpu_ticket_executor_identity(current_ticket_record)
+            current_matching_tickets.append((current_ticket_path,current_job_directory))
         if len(current_matching_tickets) != 1:
             raise ValueError('유일한 대기 티켓을 찾을 수 없습니다. 실행이 시작됐거나 대기 등록 중입니다. 상태를 갱신하세요.')
+        current_ticket_path,current_job_directory=current_matching_tickets[0]
+        if current_expected_ticket_revision is not None:
+            import re
+            if not isinstance(current_expected_ticket_revision,str) or not re.fullmatch(r'[a-f0-9]{64}',current_expected_ticket_revision) or fingerprint_gpu_queue_ticket(current_ticket_path)!=current_expected_ticket_revision:
+                raise ValueError('검토한 대기 티켓이 변경됐습니다. 다시 확인하세요.')
+        if current_expected_service is not None:
+            if not isinstance(current_expected_service,str) or not current_expected_service:
+                raise ValueError('요청 서비스 확인 필요')
+            current_command_path=current_job_directory/'gpu-command.json'
+            if current_command_path.is_symlink() or not current_command_path.is_file():
+                raise ValueError('대기 작업의 서비스 기록을 확인할 수 없습니다.')
+            current_command_record=json.loads(current_command_path.read_text())
+            current_queue_service=current_command_record.get('service') if isinstance(current_command_record,dict) else None
+            if current_queue_service in ('image','flux-image'):
+                current_source_service=identify_gpu_queue_source(current_job_directory,current_queue_service)
+            elif is_dedicated_gpu_source_verifiable(current_queue_service):
+                current_source_service=identify_dedicated_gpu_reservation_source(str(current_job_directory),current_queue_service)
+            else:
+                current_source_service='wan22-fun-control' if current_queue_service=='wan-fun' else current_queue_service
+            if current_source_service!=current_expected_service:
+                raise ValueError('요청 서비스와 대기 작업의 소유 서비스가 일치하지 않습니다.')
         current_priority_path = GPU_QUEUE_DIRECTORY / 'priority-order'
         current_priority_values = json.loads(current_priority_path.read_text()) if current_priority_path.exists() else {}
-        current_priority_values[current_matching_tickets[0].name] = min([0, *current_priority_values.values()]) - 1
+        current_priority_values[current_ticket_path.name] = min([0, *current_priority_values.values()]) - 1
         write_record_atomically(current_priority_path, current_priority_values)
         return {'id': current_job_identifier, 'status': 'queued', 'queue_position': 1, 'message': '대기열 맨 앞으로 이동했습니다. 실행 중 작업은 유지하며 GPU 메모리가 확보되면 실행합니다.'}
 
@@ -176,13 +313,25 @@ def select_runnable_ticket(available_memory_mib, current_memory_domain=None, act
     for waiting_ticket_path in read_priority_tickets():
         try:
             waiting_ticket_record = json.loads(waiting_ticket_path.read_text())
-            os.kill(waiting_ticket_record['pid'], 0)
+            try:
+                current_ticket_pid=validate_gpu_ticket_process_identifier(waiting_ticket_record)
+                os.kill(current_ticket_pid, 0)
+                inspect_gpu_ticket_executor_identity(waiting_ticket_record)
+            except ValueError:
+                return None
             waiting_job_directory = Path(waiting_ticket_record['path'])
             if (waiting_job_directory/'cancel.request').exists():
                 continue
             waiting_command_record = json.loads((waiting_job_directory/'gpu-command.json').read_text())
-        except (FileNotFoundError, ProcessLookupError):
+        except FileNotFoundError:
+            if waiting_ticket_path.exists():return None
             continue
+        except ProcessLookupError:
+            continue
+        except (OSError,ValueError,TypeError,KeyError):
+            return None
+        if not isinstance(waiting_command_record,dict) or not isinstance(waiting_command_record.get('service'),str) or waiting_command_record['service'] not in GPU_MEMORY_REQUIREMENTS or not isinstance(waiting_command_record.get('command'),list):
+            return None
         if waiting_command_record['service'] in GPU_EXCLUSIVE_SERVICES and active_service_names:
             continue
         waiting_memory_estimate = estimate_required_memory(
@@ -233,7 +382,7 @@ def open_verified_hermes_process_group(reservation_record_value):
     worker_group_identifier = reservation_record_value.get('worker_pgid')
     worker_start_token = reservation_record_value.get('worker_start_token')
     worker_process_token = reservation_record_value.get('worker_process_token')
-    if type(worker_group_identifier) is not int or worker_group_identifier <= 1 or not isinstance(worker_start_token, str) or not isinstance(worker_process_token, str) or len(worker_process_token) != 32 or any(worker_hex_digit not in '0123456789abcdef' for worker_hex_digit in worker_process_token):
+    if type(worker_group_identifier) is not int or not 1<worker_group_identifier<=2147483647 or not isinstance(worker_start_token, str) or not isinstance(worker_process_token, str) or len(worker_process_token) != 32 or any(worker_hex_digit not in '0123456789abcdef' for worker_hex_digit in worker_process_token):
         return None
     try:
         worker_pid_descriptor = os.pidfd_open(worker_group_identifier)
@@ -258,11 +407,9 @@ def recover_stale_hermes_reservation(reservation_record_value):
     if reservation_record_value.get('cleanup_unverified') is True:
         # 작업 그룹 종료를 확인하지 못한 예약은 운영자가 확인할 때까지 보존한다.
         return False
-    if reservation_record_value.get('service') in ('management-setup','writer-agent'):
-        # 실행기가 사라져도 하위 프로세스 종료를 입증하지 못하면 예약을 보존한다.
-        return False
     if reservation_record_value.get('service') != 'hermes-agent':
-        return True
+        # 실행기 종료만으로 다른 서비스의 하위 GPU 프로세스 종료를 입증할 수 없다.
+        return False
     worker_pid_descriptor = open_verified_hermes_process_group(reservation_record_value)
     if worker_pid_descriptor is None:
         return False
@@ -285,6 +432,8 @@ def recover_stale_hermes_reservation(reservation_record_value):
 
 def is_gpu_queue_executor_alive(queue_process_identifier, queue_start_token=None):
     """종료된 좀비와 PID 재사용을 살아 있는 실행기로 간주하지 않는다."""
+    if type(queue_process_identifier) is not int or not 0<queue_process_identifier<=2147483647:
+        raise ValueError('GPU 예약 실행기 PID 오류')
     try:
         os.kill(queue_process_identifier, 0)
     except ProcessLookupError:
@@ -317,9 +466,24 @@ def execute_locked_generation(generation_job_path):
     queue_ticket_path = Path(inherited_ticket_value) if inherited_ticket_value else GPU_QUEUE_DIRECTORY/f'{time.time_ns():020d}-{os.getpid()}.json'
     if inherited_ticket_value:
         inherited_ticket_record = json.loads(queue_ticket_path.read_text())
-        if queue_ticket_path.resolve().parent != GPU_QUEUE_DIRECTORY.resolve() or inherited_ticket_record != {'pid':os.getpid(), 'path':str(generation_job_path)}:
+        if (queue_ticket_path.resolve().parent != GPU_QUEUE_DIRECTORY.resolve() or not isinstance(inherited_ticket_record,dict)
+                or set(inherited_ticket_record)-{'pid','path','pid_start_token','boot_id'} or inherited_ticket_record.get('pid')!=os.getpid()
+                or inherited_ticket_record.get('path')!=str(generation_job_path)):
             raise ValueError('대기열 갱신 티켓이 현재 작업과 일치하지 않습니다.')
-    write_record_atomically(queue_ticket_path, {'pid':os.getpid(), 'path':str(generation_job_path)})
+        inspect_gpu_ticket_executor_identity(inherited_ticket_record)
+    current_ticket_record={'pid':os.getpid(), 'path':str(generation_job_path)}
+    try:
+        current_ticket_start=Path(f'/proc/{os.getpid()}/stat').read_text().rpartition(') ')[2].split()[19]
+        if current_ticket_start.isascii() and current_ticket_start.isdigit():current_ticket_record['pid_start_token']=current_ticket_start
+    except (OSError,IndexError):
+        pass
+    if 'pid_start_token' in current_ticket_record:
+        try:
+            current_boot_identifier=Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+            if str(uuid.UUID(current_boot_identifier))==current_boot_identifier:current_ticket_record['boot_id']=current_boot_identifier
+        except (OSError,ValueError):
+            pass
+    write_record_atomically(queue_ticket_path,current_ticket_record)
     active_reservation_directory = GPU_QUEUE_DIRECTORY/'active'
     active_reservation_directory.mkdir(exist_ok=True)
     active_reservation_path = active_reservation_directory/queue_ticket_path.name
@@ -347,11 +511,18 @@ def execute_locked_generation(generation_job_path):
                 reload_waiting_executor(queue_ticket_path, initial_source_revision)
                 # 죽은 대기 프로세스의 표만 제거한다. 생성 기록은 보존한다.
                 for previous_ticket_path in GPU_QUEUE_DIRECTORY.glob('*.json'):
-                    try: os.kill(json.loads(previous_ticket_path.read_text())['pid'], 0)
+                    try:
+                        current_previous_ticket=json.loads(previous_ticket_path.read_text())
+                        os.kill(validate_gpu_ticket_process_identifier(current_previous_ticket),0)
                     except ProcessLookupError: previous_ticket_path.unlink(missing_ok=True)
-                    except FileNotFoundError: pass
-                queued_ticket_values = read_priority_tickets()
-                queue_position_value = queued_ticket_values.index(queue_ticket_path)+1
+                    except (OSError,ValueError,TypeError,KeyError): pass
+                try:
+                    queued_ticket_values = read_priority_tickets()
+                    queue_position_value = queued_ticket_values.index(queue_ticket_path)+1
+                except (OSError,ValueError,TypeError,AttributeError):
+                    write_record_atomically(generation_job_path/'status.json',{'status':'queued','message':'GPU 대기열 순서를 확인할 수 없어 대기 중입니다. 기록을 확인하세요.'})
+                    time.sleep(GPU_POLL_INTERVAL)
+                    continue
                 current_memory_domain = read_gpu_memory_domain()
                 memory_total_value, memory_free_value = read_gpu_memory()
                 memory_estimate_record = estimate_required_memory(generation_command_record['service'], GPU_MEMORY_REQUIREMENTS[generation_command_record['service']], identify_execution_command(generation_command_record['command'], generation_job_path, current_memory_domain))
@@ -371,26 +542,42 @@ def execute_locked_generation(generation_job_path):
                         active_service_names = []
                         for reservation_path in active_reservation_directory.glob('*.json'):
                             try:
+                                if reservation_path.is_symlink():raise ValueError('예약 경로 오류')
                                 reservation_record = json.loads(reservation_path.read_text())
+                                if (not isinstance(reservation_record,dict) or type(reservation_record.get('pid')) is not int or not 0<reservation_record['pid']<=2147483647
+                                        or type(reservation_record.get('required_memory_mib')) is not int or reservation_record['required_memory_mib']<0
+                                        or ('path' in reservation_record and not isinstance(reservation_record['path'],str))
+                                        or ('service' in reservation_record and not isinstance(reservation_record['service'],str))
+                                        or ('pid_start_token' in reservation_record and (not isinstance(reservation_record['pid_start_token'],str) or not reservation_record['pid_start_token'].isascii() or not reservation_record['pid_start_token'].isdigit()))):
+                                    raise ValueError('GPU 예약 형식 오류')
                             except FileNotFoundError:
                                 continue
-                            except (OSError, ValueError):
+                            except (OSError, ValueError, TypeError):
                                 active_service_names.append('unreadable')
                                 continue
-                            if not is_gpu_queue_executor_alive(reservation_record['pid'], reservation_record.get('pid_start_token')):
-                                if not recover_stale_hermes_reservation(reservation_record):
-                                    active_service_names.append('unreadable')
+                            try:
+                                current_reservation_alive=is_gpu_queue_executor_alive(reservation_record['pid'], reservation_record.get('pid_start_token'))
+                                if not current_reservation_alive:
+                                    if not recover_stale_hermes_reservation(reservation_record):
+                                        active_service_names.append('unreadable')
+                                        continue
+                                    reservation_path.unlink(missing_ok=True)
                                     continue
-                                reservation_path.unlink(missing_ok=True)
+                            except (OSError,ValueError,TypeError,KeyError):
+                                active_service_names.append('unreadable')
                                 continue
                             # 구형 실행기의 고정 예약도 완료된 동일 명령 측정값으로 갱신한다.
                             reservation_job_directory = Path(reservation_record['path']) if 'path' in reservation_record else None
                             if reservation_job_directory and (reservation_job_directory/'gpu-command.json').exists():
-                                reservation_command_record = json.loads((reservation_job_directory/'gpu-command.json').read_text())
-                                reservation_memory_estimate = estimate_required_memory(reservation_command_record['service'], GPU_MEMORY_REQUIREMENTS[reservation_command_record['service']], identify_execution_command(reservation_command_record['command'], reservation_job_directory, current_memory_domain))
-                                if reservation_memory_estimate['samples']:
-                                    reservation_record['required_memory_mib'] = reservation_memory_estimate['required_memory_mib']
-                                    write_record_atomically(reservation_path, reservation_record)
+                                try:
+                                    reservation_command_record = json.loads((reservation_job_directory/'gpu-command.json').read_text())
+                                    reservation_memory_estimate = estimate_required_memory(reservation_command_record['service'], GPU_MEMORY_REQUIREMENTS[reservation_command_record['service']], identify_execution_command(reservation_command_record['command'], reservation_job_directory, current_memory_domain))
+                                    if reservation_memory_estimate['samples']:
+                                        reservation_record['required_memory_mib'] = reservation_memory_estimate['required_memory_mib']
+                                        write_record_atomically(reservation_path, reservation_record)
+                                except (OSError,ValueError,TypeError,KeyError,AttributeError):
+                                    active_service_names.append('unreadable')
+                                    continue
                             else:
                                 reservation_command_record = {}
                             active_service_names.append(reservation_record.get('service') or reservation_command_record.get('service') or 'unknown')
@@ -407,7 +594,9 @@ def execute_locked_generation(generation_job_path):
                         available_memory_value = max(0, current_pool_available-reserved_memory_value)
                         if select_runnable_ticket(available_memory_value, current_memory_domain, active_service_names) == queue_ticket_path:
                             current_queue_stat = Path(f'/proc/{os.getpid()}/stat').read_text().rpartition(') ')[2].split()
-                            write_record_atomically(active_reservation_path, {'pid':os.getpid(), 'pid_start_token':current_queue_stat[19], 'path':str(generation_job_path), 'service':generation_command_record['service'], 'required_memory_mib':required_memory_value})
+                            current_reservation_record={'pid':os.getpid(), 'pid_start_token':current_queue_stat[19], 'path':str(generation_job_path), 'service':generation_command_record['service'], 'required_memory_mib':required_memory_value}
+                            if 'boot_id' in current_ticket_record:current_reservation_record['boot_id']=current_ticket_record['boot_id']
+                            write_record_atomically(active_reservation_path,current_reservation_record)
                             queue_ticket_path.unlink(missing_ok=True)
                             break
                     finally:
@@ -422,7 +611,7 @@ def execute_locked_generation(generation_job_path):
             current_telemetry_recorder.save_generation_metrics()
             write_record_atomically(generation_job_path/'status.json', {'status':'running', 'memory_estimate':memory_estimate_record})
             current_telemetry_recorder.start_generation_telemetry()
-            worker_process_token = uuid.uuid4().hex if generation_command_record['service'] in ('hermes-agent','writer-agent') else None
+            worker_process_token = uuid.uuid4().hex
             worker_environment_values = dict(os.environ, SLIME_GPU_RESERVATION_PATH=str(active_reservation_path.resolve()))
             if worker_process_token is not None:
                 worker_environment_values['SLIME_HERMES_PROCESS_TOKEN'] = worker_process_token
@@ -441,11 +630,11 @@ def execute_locked_generation(generation_job_path):
                     write_record_atomically(active_reservation_path, current_reservation_record)
                 finally:
                     fcntl.flock(gpu_execution_handle, fcntl.LOCK_UN)
-            if generation_command_record['service']=='writer-agent':
+            if generation_command_record['service']!='hermes-agent':
                 try:
                     current_writer_stat_fields=Path(f'/proc/{generation_worker_process.pid}/stat').read_text().rpartition(') ')[2].split()
                     if int(current_writer_stat_fields[2])!=generation_worker_process.pid or int(current_writer_stat_fields[3])!=generation_worker_process.pid:
-                        raise ValueError('작가 작업 그룹 식별 오류')
+                        raise ValueError('작업 그룹 식별 오류')
                     fcntl.flock(gpu_execution_handle,fcntl.LOCK_EX)
                     try:
                         current_reservation_record=json.loads(active_reservation_path.read_text())
@@ -573,18 +762,103 @@ if __name__ == '__main__':
     sys.exit(execute_queued_generation(queue_argument_parser.parse_args().job_dir))
 
 
-def list_waiting_gpu_jobs():
+
+def identify_gpu_queue_source(current_job_path,current_queue_service,current_workflow_root=None):
+    """허용된 작업 루트와 원본 티켓 경로가 일치하면 서비스 ID만 반환한다."""
+    import re
+    from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
+    current_root_path=Path(current_workflow_root or WORKFLOW_ROOT_DIRECTORY)
+    current_storage_paths={'kimodo':'kimodo','dwpose':'dwpose','wan22-vace':'wan22-vace','wan22-animate2':'wan22-animate2','qwen-21':'qwen-image-21','qwen-21-circular':'qwen-image-21-circular','mannequin-generator':'mannequin-generator','prop-generator':'prop-generator','vegetation-generator':'vegetation-generator','expression':'expression-generator','seamless-tile':'seamless-tile-generator','floor-tile':'qwen-image-2512/floor-tile','billboard-generator':'billboard-generator','building-generator':'building-generator'}
+    current_expected_service='image'
+    if current_queue_service=='flux-image':
+        current_storage_paths={name:name+'-generator' for name in FLUX_IMAGE_PROFILE_RECORDS}
+        current_expected_service='flux-image'
+    if current_queue_service!=current_expected_service:
+        return None
+    current_path_value=Path(current_job_path)
+    if not current_path_value.is_absolute() or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}',current_path_value.name):
+        return None
+    try:
+        if current_root_path.is_symlink() or not current_root_path.is_dir():return None
+        current_base_path=current_root_path/'.tmp'/'test'
+        if (current_root_path/'.tmp').is_symlink() or current_base_path.is_symlink() or not current_base_path.is_dir():return None
+        current_source_values=[]
+        for current_service_name,current_directory_name in current_storage_paths.items():
+            current_storage_path=current_base_path/current_directory_name
+            if current_storage_path.is_symlink() or not current_storage_path.is_dir() or current_storage_path.resolve()!=current_storage_path.absolute():continue
+            current_expected_path=current_storage_path/current_path_value.name
+            if current_expected_path.is_symlink() or not current_expected_path.is_dir():continue
+            if current_path_value==current_expected_path and current_path_value.resolve()==current_expected_path.resolve():
+                current_source_values.append(current_service_name)
+        return current_source_values[0] if len(current_source_values)==1 else None
+    except (OSError,ValueError,RuntimeError):
+        return None
+
+
+
+def is_dedicated_gpu_source_verifiable(current_queue_service):
+    """원 서비스 작업 루트를 지정해 검증할 수 있는 대기열 서비스다."""
+    from generators.music.service_constants import AUDIO_SERVICE_NAMES
+    return current_queue_service in (*AUDIO_SERVICE_NAMES,'prompt-translation','wan-fun','flux-expression','review-capture')
+
+
+def identify_dedicated_gpu_reservation_source(current_job_path,current_queue_service,current_workflow_root=None):
+    """독립 대기열 서비스의 등록된 작업 디렉터리를 검증한다."""
+    import re
+    from generators.music.service_constants import AUDIO_SERVICE_NAMES
+    current_source_directories={current_audio_name:current_audio_name for current_audio_name in AUDIO_SERVICE_NAMES}
+    current_source_directories.update({'prompt-translation':'prompt-translation','wan-fun':'wan22-fun-control','flux-expression':'flux-expression-generator','review-capture':'review-capture'})
+    current_directory_name=current_source_directories.get(current_queue_service)
+    if current_directory_name is None or not isinstance(current_job_path,str):return None
+    current_root_path=Path(current_workflow_root or WORKFLOW_ROOT_DIRECTORY)
+    current_path_value=Path(current_job_path)
+    if not current_path_value.is_absolute() or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}',current_path_value.name):return None
+    try:
+        current_temporary_root=current_root_path/'.tmp'
+        current_base_root=current_temporary_root/'test'
+        current_service_root=current_base_root/current_directory_name
+        current_expected_path=current_service_root/current_path_value.name
+        for current_path_part in (current_root_path,current_temporary_root,current_base_root,current_service_root,current_expected_path):
+            if current_path_part.is_symlink() or not current_path_part.is_dir():return None
+        if current_path_value!=current_expected_path or current_path_value.resolve()!=current_expected_path.resolve():return None
+        return 'wan22-fun-control' if current_queue_service=='wan-fun' else current_queue_service
+    except (OSError,ValueError,RuntimeError):
+        return None
+
+
+def list_waiting_gpu_jobs(include_source_identity=False):
     """살아 있는 대기 실행기의 작업 목록만 읽는다."""
     waiting_job_records=[]
     for waiting_ticket_path in read_priority_tickets():
         try:
+            current_before_revision=fingerprint_gpu_queue_ticket(waiting_ticket_path) if include_source_identity else None
             waiting_ticket_record=json.loads(waiting_ticket_path.read_text())
-            os.kill(waiting_ticket_record['pid'],0)
+            current_ticket_pid=validate_gpu_ticket_process_identifier(waiting_ticket_record) if include_source_identity else waiting_ticket_record['pid']
+            os.kill(current_ticket_pid,0)
             waiting_job_directory=Path(waiting_ticket_record['path'])
             waiting_status_record=json.loads((waiting_job_directory/'status.json').read_text())
+            if include_source_identity and (not isinstance(waiting_status_record,dict) or waiting_status_record.get('status') not in ('queued','running','completed','failed','cancelled','canceled','paused')):
+                raise ValueError('대기 티켓의 작업 상태를 확인할 수 없습니다.')
             if waiting_status_record['status']!='queued':continue
             waiting_command_record=json.loads((waiting_job_directory/'gpu-command.json').read_text())
             if not waiting_job_directory.resolve().is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp') and waiting_command_record.get('service') != 'writer-agent':continue
-            waiting_job_records.append({'id':waiting_job_directory.name,'service':waiting_command_record['service']})
-        except (FileNotFoundError,ProcessLookupError):continue
+            waiting_job_record={'id':waiting_job_directory.name,'service':waiting_command_record['service']}
+            if include_source_identity:
+                waiting_job_record['executor_identity']=inspect_gpu_ticket_executor_identity(waiting_ticket_record)
+                current_after_revision=fingerprint_gpu_queue_ticket(waiting_ticket_path)
+                if current_before_revision!=current_after_revision:
+                    raise ValueError('대기 티켓이 조회 중 변경됐습니다.')
+                waiting_job_record['ticket_revision']=current_after_revision
+                current_source_service=identify_gpu_queue_source(waiting_job_directory,waiting_command_record['service'])
+                if current_source_service is None and is_dedicated_gpu_source_verifiable(waiting_command_record['service']):
+                    current_source_service=identify_dedicated_gpu_reservation_source(str(waiting_job_directory),waiting_command_record['service'])
+                if current_source_service is not None:
+                    waiting_job_record['source_service']=current_source_service
+            waiting_job_records.append(waiting_job_record)
+        except FileNotFoundError:
+            if include_source_identity and waiting_ticket_path.exists():
+                raise ValueError('살아 있는 대기 티켓의 작업 기록을 확인할 수 없습니다.')
+            continue
+        except ProcessLookupError:
+            continue
     return {'jobs':waiting_job_records}

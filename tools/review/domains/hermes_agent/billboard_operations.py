@@ -83,7 +83,10 @@ def inspect_billboard_edit_receipt(current_receipt_record,current_request_identi
     current_state_value='unknown' if current_receipt_record['state']=='dispatching' else 'completed'
     if current_state_value=='completed' and type(current_receipt_record.get('saved')) is not bool:
         raise ValueError('빌보드 저장 접수 상태 오류')
-    return {'request_id':current_request_identifier,'state':current_state_value,'saved':current_receipt_record.get('saved')}
+    current_target_identifiers=current_receipt_record.get('textures')
+    if current_target_identifiers is not None and (not isinstance(current_target_identifiers,list) or not 1<=len(current_target_identifiers)<=20 or any(not isinstance(current_identifier,str) or not BILLBOARD_IDENTIFIER_PATTERN.fullmatch(current_identifier) for current_identifier in current_target_identifiers) or len(set(current_target_identifiers))!=len(current_target_identifiers)):
+        raise ValueError('빌보드 접수 대상 오류')
+    return {'request_id':current_request_identifier,'state':current_state_value,'saved':current_receipt_record.get('saved'),**({'textures':current_target_identifiers} if current_target_identifiers is not None else {})}
 
 
 def save_hermes_billboard_edit_once(current_request_identifier,current_draft_record,current_preview_token,current_review_digest):
@@ -102,11 +105,12 @@ def save_hermes_billboard_edit_once(current_request_identifier,current_draft_rec
         current_review_record=preview_hermes_billboard_edit(current_draft_record)
         if current_review_record['review_sha256']!=current_review_digest:
             raise ValueError('맵 경고 또는 검수 결과가 변경되었습니다. 다시 확인하세요.')
-        current_receipt_record={'version':7,'id':current_request_identifier,'token':current_preview_token,'review_sha256':current_review_digest,'state':'dispatching'}
+        current_receipt_record={'version':7,'id':current_request_identifier,'token':current_preview_token,'review_sha256':current_review_digest,'state':'dispatching','textures':sorted(current_change_record['texture'] for current_change_record in current_draft_record['changes'])}
         write_record_atomically(current_receipt_path,current_receipt_record)
         current_save_record=call_field_map_editor('asset-save-reviewed',{**current_draft_record,'token':current_preview_token,'review_sha256':current_review_digest})
         if not isinstance(current_save_record,dict) or type(current_save_record.get('saved')) is not bool:
             raise ValueError('빌보드 저장 결과 확인 필요. 자동 재접수하지 않습니다.')
+        if json.loads(current_receipt_path.read_text(encoding='utf-8'))!=current_receipt_record:raise ValueError('저장 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재저장하지 마세요.')
         current_receipt_record.update(state='completed',saved=current_save_record['saved'])
         write_record_atomically(current_receipt_path,current_receipt_record)
         return {**inspect_billboard_edit_receipt(current_receipt_record,current_request_identifier),'duplicate':False}

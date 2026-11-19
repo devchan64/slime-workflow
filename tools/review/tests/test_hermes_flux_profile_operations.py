@@ -25,6 +25,25 @@ class HermesFluxProfileOperationsTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 flux_profile_operations.list_hermes_flux_profile_receipts('arbitrary-service')
 
+    def test_reference_ui_confirms_actual_service_receipt_once(self):
+        from tools.review.ui.gradio import hermes_agent_app
+        current_job='2026-11-18_00-00-00-12345678'
+        current_source={'proposal':{'service':'flux-building'},'request_id':'profile_request_123'}
+        current_review={'source':current_source,'review':{'request_id':'profile_request_123','service':'flux-building','request':{'prompt':'house'}}}
+        def current_gateway(current_service,current_command,current_payload):
+            self.assertEqual(current_service,'hermes-agent')
+            if current_command=='hermes-delegate-flux-profile':return flux_profile_operations.submit_hermes_flux_profile(current_payload['request_id'],current_payload['service'],current_payload['request'])
+            if current_command=='hermes-flux-profile-status':return flux_profile_operations.read_hermes_flux_profile_status(current_payload['request_id'],current_payload['service'])
+            raise AssertionError(current_command)
+        def current_profile_service(current_service,current_command,current_payload):
+            return {'id':current_job} if current_command=='generate' else {'id':current_job,'status':'queued'}
+        with TemporaryDirectory() as current_root, patch.object(flux_profile_operations,'HermesDelegationStore',return_value=HermesDelegationStore(Path(current_root))), patch('tools.review.domains.image.flux_image_generation.FluxImageGenerationManager.validate_generation_request'), patch.object(flux_profile_operations,'call_hermes_flux_profile',side_effect=current_profile_service) as current_profile_mock, patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway), patch.object(hermes_agent_app,'review_conversation_flux_reference',return_value=(current_review,'','')):
+            for current_iteration in range(2):
+                _,current_status=hermes_agent_app.submit_conversation_flux_reference(current_review,current_source,'session','job',None,None)
+                self.assertIn('접수 기록 확인',current_status)
+                self.assertIn('queued',current_status)
+            self.assertEqual(sum(current_call.args[1]=='generate' for current_call in current_profile_mock.call_args_list),1)
+
     def test_expression_uses_its_own_manager_and_service(self):
         current_job_identifier='2026-11-18_00-00-00-12345678'
         with TemporaryDirectory() as current_root_name, patch.object(flux_profile_operations,'HermesDelegationStore',return_value=HermesDelegationStore(Path(current_root_name))), patch('tools.review.domains.image.flux_expression_generation.FluxExpressionGenerationManager.validate_generation_request') as current_validate_mock, patch.object(flux_profile_operations,'call_hermes_flux_profile',return_value={'id':current_job_identifier}) as current_gateway_mock:
@@ -78,6 +97,22 @@ class HermesFluxProfileOperationsTests(unittest.TestCase):
                         with self.assertRaises(ValueError):getattr(current_module_value,current_function_name)(*current_arguments)
                     current_gateway_mock.return_value={'status':'running','cancel_requested':True}
                     self.assertTrue(getattr(current_module_value,current_function_name)(*current_arguments)['cancel_requested'])
+
+    def test_cancel_rejects_other_service_and_job_before_dispatch(self):
+        from tools.review.domains.hermes_agent import audio_operations,video_operations,translation_operations
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_cases=((flux_profile_operations,'call_hermes_flux_profile','flux-building','flux-prop','cancel_hermes_flux_profile'),(audio_operations,'call_hermes_audio_service','music-heartmula','sfx-dasheng-audiogen','cancel_hermes_audio_request'),(video_operations,'call_hermes_video_service','wan22-vace','dwpose','cancel_hermes_video_request'),(translation_operations,'call_hermes_translation_service','prompt-translation',None,'cancel_hermes_translation_request'))
+        for current_module_value,current_gateway_name,current_service_name,current_other_service,current_function_name in current_cases:
+            with self.subTest(service=current_service_name),TemporaryDirectory() as current_root_name:
+                current_store_value=HermesDelegationStore(Path(current_root_name))
+                current_store_value.execute_service_delegation_once('cancel_request_123',current_service_name,{},lambda current_request_value:{'id':current_job_identifier},lambda current_request_value:None)
+                with patch.object(current_module_value,'HermesDelegationStore',return_value=current_store_value),patch.object(current_module_value,current_gateway_name) as current_gateway_mock:
+                    current_function_value=getattr(current_module_value,current_function_name)
+                    current_bad_job_arguments=('cancel_request_123','2026-11-18_00-00-00-ffffffff') if current_other_service is None else ('cancel_request_123',current_service_name,'2026-11-18_00-00-00-ffffffff')
+                    with self.assertRaises(ValueError):current_function_value(*current_bad_job_arguments)
+                    if current_other_service is not None:
+                        with self.assertRaises(ValueError):current_function_value('cancel_request_123',current_other_service,current_job_identifier)
+                    current_gateway_mock.assert_not_called()
 
     def test_unknown_response_and_cancel_require_matching_service_and_job(self):
         current_job_identifier='2026-11-18_00-00-00-12345678'

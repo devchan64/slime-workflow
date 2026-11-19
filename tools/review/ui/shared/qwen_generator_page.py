@@ -167,7 +167,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if billboard_guide_enabled:
             from tools.review.ui.gradio.billboard_guide_controls import build_billboard_guide_controls
             from tools.review.domains.image.billboard_guide_prompt import load_billboard_guide_image, compose_billboard_guide_prompt
-            gr.Markdown('로컬 Qwen 2.1 고정 · 빌보드와 건물은 공용 대기열·이력을 사용합니다. 점유 가이드 또는 건물 구도를 첫 참조에 적용하세요. 건물은 짧은 용도·재질 문구와 건물 기본 프롬프트 옵션을 함께 사용할 수 있습니다. 가이드 적용 → 입력 확인 → 대기열 추가 → 결과 검수 순서로 진행하세요.')
+            gr.Markdown('빌보드와 건물은 공용 이력을 사용합니다. 가이드와 입력 설정은 이전 작업을 확인하는 데 사용할 수 있습니다. 신규 생성과 대기열 추가는 중단되었습니다.')
             billboard_profile_control, billboard_subject_control, billboard_apply_button = build_billboard_guide_controls()
         if character_mode_enabled:
             gr.Markdown('공용 화풍 v1.5.0 영문 원문과 캐릭터 외관 v1.2.0의 축약 예시를 기본 입력에 포함합니다. 캐릭터 조건을 편집하세요. 일반 Qwen 2.1과 대기열·이력을 공유하므로 이력 삭제·초기화는 일반 Qwen 작업에도 적용됩니다. 결과는 검수용 후보입니다.')
@@ -191,9 +191,9 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 current_mannequin_selector.change(preview_mannequin_stage, [current_mannequin_selector], [current_mannequin_description_control, current_first_preview_control, current_second_preview_control, current_example_prompt], queue=False)
                 current_mannequin_apply = gr.Button('선택한 제작 단계 적용')
         if vegetation_mode_enabled:
-            gr.Markdown('나무·관목·풀·꽃·갈대 등 자연물 빌보드를 생성합니다. 기본 문구 뒤에 식물 종류·계절·색상·군락 밀도를 추가하세요. 레이아웃은 투영·바닥 영역, 식물 참조는 잎·줄기 형태 기준입니다. 참조는 선택 사항이며 결과는 검수 후 slime-assets/assets/billboards/에 자연물으로 등록합니다.')
+            gr.Markdown('이전 나무·관목·풀·꽃·갈대 빌보드의 이력과 결과를 확인합니다. 결과를 채택할 때는 검수 후 slime-assets/assets/billboards/에 등록합니다.')
         if prop_mode_enabled and (not billboard_guide_enabled):
-            gr.Markdown('상자·가판대·작업대·표지판 등 소품 스프라이트를 생성합니다. 기본 문구 뒤에 대상·용도·자재를 추가하세요. 레이아웃은 투영·바닥 영역, 외형 참조는 형태·자재 기준입니다. 참조는 선택 사항이며 결과는 검수 후 slime-assets/assets/billboards/에 등록합니다. 기본 문구의 투명 배경 표현과 별개로, 네이티브 RGBA 출력 검증은 아래 투명 배경 옵션을 선택할 때 적용됩니다.')
+            gr.Markdown('이전 상자·가판대·작업대·표지판 등 소품 스프라이트의 이력과 결과를 확인합니다. 결과를 채택할 때는 검수 후 slime-assets/assets/billboards/에 등록합니다.')
         if building_mode_enabled:
             gr.Markdown('레이아웃 이미지 → 건물 후보 생성. 첫 참조는 실제 맵의 타일 축·건물 바닥 영역·출입구를 표시한 이미지입니다. 건물 용도·자재를 입력하고 건물 기본 프롬프트 추가를 선택하세요. 옵션을 합친 최종 문구는 99단어 이내여야 합니다. 생성 결과는 검수 후 slime-assets/assets/buildings/에 등록합니다.')
         if circular_mode_enabled:
@@ -370,7 +370,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         build_button_guidance(generation_button_value, 'Qwen 이미지 생성기는 아카이브되어 신규 생성을 지원하지 않습니다. 기존 이력에서 결과를 확인하세요.')
         with gr.Column() as generation_confirmation_container:
             pass
-        status_value = gr.Markdown('참조 이미지와 설정을 확인하세요.' if outfit_transfer_enabled else '프롬프트와 옵션을 확인하세요.' if plain_options_enabled or circular_mode_enabled else '참조 이미지를 1장 이상 첨부하세요.' if expression_mode_enabled else '생성 가능 · 설정을 확인하세요.')
+        status_value = gr.Markdown('신규 생성이 중단되었습니다. 기존 이력과 결과를 확인하세요.')
         gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
         identifier_value = gr.State('')
         gr.Markdown('마네킨 전용 생성 이력입니다. 이전 공유 이력은 일반 Qwen 2.1에서 확인하세요.' if mannequin_mode_enabled else '일반 Qwen 2.1과 공유하는 생성 이력입니다. 삭제·초기화는 공유 이력 전체에 적용됩니다.' if character_mode_enabled else '빌보드·건물 공용 생성 이력입니다. 기존 건물 CLI도 이 이력을 사용합니다.' if billboard_guide_enabled else '건물 전용 대기열·생성 이력입니다. 기존 공유 Qwen 이력은 일반 Qwen 생성기에서 조회하세요.' if building_mode_enabled else '소품 전용 대기열·생성 이력입니다. 기존 공유 이력은 일반 Qwen에서 조회하세요.' if prop_mode_enabled else '자연물 전용 대기열·생성 이력입니다. 기존 공유 이력은 일반 Qwen에서 조회하세요.' if vegetation_mode_enabled else '복장 착용 전용 생성 이력입니다.' if outfit_transfer_enabled else 'Qwen 2.1 전용 생성 이력입니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if qwen21_mode_enabled else '표정 생성 이력은 별도로 관리합니다. 이전 Qwen 2511 작업은 조회할 수 있지만 재개할 수 없습니다.' if expression_mode_enabled else 'Qwen 2511 참조 생성 이력은 표정 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.')

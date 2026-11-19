@@ -46,12 +46,8 @@ def read_hermes_audio_status(current_request_identifier,current_service_name):
     current_status_value=current_job_value.get('status')
     if current_status_value not in ('queued','running','completed','failed','cancelled','canceled','paused','unknown'):
         current_status_value='unknown'
-    current_audio_path=None
-    if current_status_value=='completed' and isinstance(current_job_value.get('audio'),str):
-        current_expected_name='music.wav' if current_service_name=='music-heartmula' else 'sound.wav'
-        current_expected_pattern='/'+re.escape(current_service_name)+'/jobs/'+re.escape(current_receipt_value['job_id'])+r'/attempts/[a-f0-9]{32}/'+re.escape(current_expected_name)
-        if re.fullmatch(current_expected_pattern,current_job_value['audio']):
-            current_audio_path=current_job_value['audio']
+    from tools.review.domains.hermes_agent.media_result_paths import validate_hermes_audio_result_path
+    current_audio_path=validate_hermes_audio_result_path(current_service_name,current_receipt_value['job_id'],{**current_job_value,'status':current_status_value})
     current_result_status='available' if current_audio_path else 'unavailable' if current_status_value=='completed' else 'not_ready'
     return {'receipt':current_receipt_value,'job':{'status':current_status_value,'audio':current_audio_path,'result_status':current_result_status,
         'note':'완료 결과와 상세 로그·분리 음원은 해당 생성기 이력에서 확인하세요. 생성 결과는 자동으로 에셋에 등록되지 않습니다.', **observe_hermes_failure_reason(current_status_value,current_job_value.get('error'))}}
@@ -88,10 +84,15 @@ def sanitize_hermes_source_history(current_service_name,current_page_request,cur
     """기존 서비스 응답에서 ID·기록 상태와 페이지 정보만 허용한다."""
     if not isinstance(current_result_value,dict) or not isinstance(current_result_value.get('records'),list):
         raise ValueError('오디오 원본 이력 응답 오류')
+    current_query_text=current_page_request.get('query','')
+    if not isinstance(current_query_text,str) or len(current_query_text)>80 or (current_query_text and not re.fullmatch(r'[A-Za-z0-9_-]+',current_query_text)):
+        raise ValueError('생성기 이력 검색어 오류')
+    current_query_text=current_query_text.casefold()
     current_safe_records=[]
     for current_record_value in current_result_value['records']:
         if not isinstance(current_record_value,dict) or not isinstance(current_record_value.get('id'),str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}',current_record_value['id']) or current_record_value.get('recorded_status') not in ('queued','running','completed','failed','cancelled','canceled','paused','unknown','preparing','indexing','searching','reasoning','review','applied','interrupted'):
             raise ValueError('오디오 이력 레코드 오류')
+        if current_query_text and current_query_text not in current_record_value['id'].casefold():raise ValueError('검색 결과 ID 불일치')
         current_status_source=current_record_value.get('status_source')
         if current_status_source not in ('job','index','unavailable') or (current_status_source=='unavailable' and current_record_value['recorded_status']!='unknown'):
             raise ValueError('생성기 이력 상태 출처 오류')
@@ -114,7 +115,7 @@ def sanitize_hermes_source_history(current_service_name,current_page_request,cur
     if (len(current_safe_records)!=current_expected_count or len({current_record['id'] for current_record in current_safe_records})!=len(current_safe_records)
             or current_next_offset!=current_expected_next or (current_next_offset is not None and type(current_next_offset) is not int)):
         raise ValueError('생성기 이력 페이지 오류')
-    return {'service':current_service_name,'records':current_safe_records,'total':current_total_value,'offset':current_offset_value,'next_offset':current_next_offset,'snapshot':current_snapshot_value,'unavailable_count':current_unavailable_count,'note':'기록 상태이며 실제 작업 생존과 결과 품질은 해당 생성기에서 확인하세요.'}
+    return {'service':current_service_name,'records':current_safe_records,'total':current_total_value,'offset':current_offset_value,'next_offset':current_next_offset,'snapshot':current_snapshot_value,'unavailable_count':current_unavailable_count,'note':'기록 상태이며 실제 작업 생존과 결과 품질은 해당 생성기에서 확인하세요. 확인 불가 수에는 손상 색인과 중복 ID가 포함될 수 있습니다.'}
 
 
 

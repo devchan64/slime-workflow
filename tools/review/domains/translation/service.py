@@ -45,6 +45,20 @@ def validate_translation_submission(translation_payload_record):
     return {'text':translation_source_text, 'target_language':translation_target_language, 'glossary':translation_glossary_values, 'check_terms':translation_check_records}
 
 
+def validate_translation_resume_record(current_request_record):
+    """저장된 번역 요청이 현재 입력·용어 계약과 일치하는지 확인한다."""
+    if not isinstance(current_request_record,dict) or set(current_request_record)!={'text','target_language','glossary','check_terms','model_id'} or current_request_record.get('model_id')!='google/translategemma-4b-it':
+        raise ValueError('저장된 번역 요청 형식 오류')
+    current_validated_record=validate_translation_submission({current_field_name:current_request_record[current_field_name] for current_field_name in ('text','target_language','glossary')})
+    if current_request_record!={**current_validated_record,'model_id':'google/translategemma-4b-it'}:
+        raise ValueError('저장된 번역 요청이나 승인 용어가 현재 계약과 다릅니다.')
+
+
+def build_translation_worker_command(current_job_directory):
+    """번역 서비스의 고정 작업 실행 명령을 만든다."""
+    return [str(TRANSLATION_PYTHON_PATH),str(WORKFLOW_ROOT_DIRECTORY/'generators/prompt_translation/worker.py'),'--job-dir',str(current_job_directory)]
+
+
 class TranslationServiceManager:
     def __init__(self):
         self.job_storage_root = TRANSLATION_JOB_ROOT
@@ -82,7 +96,7 @@ class TranslationServiceManager:
             translation_job_path.mkdir(parents=True)
             write_record_atomically(translation_job_path / 'request.json', {**translation_validated_record, 'model_id': 'google/translategemma-4b-it'})
             with (translation_job_path / 'worker.log').open('a') as translation_log_handle:
-                launch_gpu_process([str(TRANSLATION_PYTHON_PATH), str(WORKFLOW_ROOT_DIRECTORY / 'generators/prompt_translation/worker.py'), '--job-dir', str(translation_job_path)], translation_job_path, 'prompt-translation', stdout=translation_log_handle, stderr=subprocess.STDOUT, start_new_session=True, cwd=WORKFLOW_ROOT_DIRECTORY)
+                launch_gpu_process(build_translation_worker_command(translation_job_path), translation_job_path, 'prompt-translation', stdout=translation_log_handle, stderr=subprocess.STDOUT, start_new_session=True, cwd=WORKFLOW_ROOT_DIRECTORY)
             return {'id': translation_job_identifier, 'status': 'queued'}
         if translation_command_name == 'translation-rag':
             if set(translation_payload_record) != {'text'} or not isinstance(translation_payload_record['text'], str) or not translation_payload_record['text'].strip() or len(translation_payload_record['text']) > 6000:
@@ -125,8 +139,9 @@ class TranslationServiceManager:
                 return describe_generation_cleanup(self.job_storage_root, translation_job_targets)
             translation_expected_jobs = read_cleanup_confirmation(translation_payload_record)
             return delete_generation_job_files(self.job_storage_root, translation_job_targets, current_expected_jobs=translation_expected_jobs)
-        if set(translation_payload_record) != {'id'}:
-            raise ValueError('작업 ID만 전달하세요.')
+        current_allowed_fields={'id','expected_resume_fingerprint'} if translation_command_name=='resume' else {'id'}
+        if 'id' not in translation_payload_record or set(translation_payload_record)-current_allowed_fields:
+            raise ValueError('작업 ID와 허용된 재개 확인값만 전달하세요.')
         translation_job_path = self.resolve_translation_job(translation_payload_record['id'])
         if translation_command_name == 'status':
             translation_job_record = self.read_translation_job(translation_job_path)
@@ -145,7 +160,16 @@ class TranslationServiceManager:
             return {'log': self.execute_locked_translation_command('status', translation_payload_record).get('log', '')}
         if translation_command_name == 'history-delete':
             return delete_generation_job_files(self.job_storage_root, [translation_job_path])
+        if translation_command_name == 'resume-preview':
+            from tools.review.common.gpu_job_queue import preview_gpu_resume_records
+            current_preview_record=preview_gpu_resume_records(translation_job_path,'prompt-translation',build_translation_worker_command(translation_job_path),validate_translation_resume_record)
+            return {'id':translation_job_path.name,'service':'prompt-translation',**current_preview_record,'note':'검토 시점 기록이며 실제 재개나 GPU 사용 가능 여부는 별도 확인합니다.'}
         if translation_command_name == 'resume':
+            if 'expected_resume_fingerprint' in translation_payload_record:
+                current_fingerprint_value=translation_payload_record['expected_resume_fingerprint']
+                if not isinstance(current_fingerprint_value,str) or not re.fullmatch(r'[a-f0-9]{64}',current_fingerprint_value):raise ValueError('재개 확인값 형식 오류')
+                validate_translation_resume_record(json.loads((translation_job_path/'request.json').read_text()))
+                return resume_gpu_generation(translation_job_path,expected_resume_fingerprint=current_fingerprint_value,expected_resume_service='prompt-translation',expected_resume_command=build_translation_worker_command(translation_job_path))
             return resume_gpu_generation(translation_job_path)
         if translation_command_name == 'cancel':
             return cancel_gpu_generation(translation_job_path)

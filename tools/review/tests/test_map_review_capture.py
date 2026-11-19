@@ -9,6 +9,15 @@ from tools.review.domains.map_review.capture import validate_map_capture_setting
 from tools.review.common.management_gateway import resolve_management_command, identify_management_command
 
 class MapReviewCaptureTest(unittest.TestCase):
+    def test_invalid_request_does_not_prepare_map_or_launch_capture(self):
+        from unittest.mock import patch
+        from tools.review.domains.map_review.capture import capture_map_review
+        with patch('tools.review.build_block_map_review.build_registered_map_review') as current_prepare_mock, patch('tools.review.domains.character_review.capture.execute_review_capture') as current_capture_mock:
+            with self.assertRaises(ValueError):
+                capture_map_review({'map':'../invalid'})
+            current_prepare_mock.assert_not_called()
+            current_capture_mock.assert_not_called()
+
     def test_map_gateway_roundtrip(self):
         current_payload_value=validate_map_capture_settings({'map':'ash-edge'})
         current_method_name,current_route_path=resolve_management_command('map-review','capture',current_payload_value)

@@ -42,6 +42,10 @@ class MusicGenerationManager:
             raise ValueError('음악 작업 경로가 없거나 허용되지 않습니다.')
         return current_job_root
 
+    def build_music_worker_command(self,current_job_root):
+        """현재 음악 서비스와 작업의 고정 실행 명령을 구성한다."""
+        return [str(self.runtime_python_path),'-u',str(WORKFLOW_ROOT_DIRECTORY/'generators/music/worker.py'),'--service',self.current_service_name,'--job-dir',str(current_job_root)]
+
     def create_music_job(self,current_payload_record):
         from generators.music.service_constants import inspect_retired_audio_rejection
         current_rejection_reason=inspect_retired_audio_rejection(self.current_service_name,'generate')
@@ -69,7 +73,7 @@ class MusicGenerationManager:
             write_record_atomically(current_job_root/'status.json',{'status':'queued'})
             write_record_atomically(self.history_storage_root/(current_job_identifier+'.json'),{'id':current_job_identifier,'created_at':current_created_time.isoformat(),'request':current_request_record,'path':str(current_job_root)})
             with (current_job_root/'worker.log').open('a') as current_log_handle:
-                launch_gpu_process([str(self.runtime_python_path),'-u',str(WORKFLOW_ROOT_DIRECTORY/'generators/music/worker.py'),'--service',self.current_service_name,'--job-dir',str(current_job_root)],current_job_root,self.current_service_name,
+                launch_gpu_process(self.build_music_worker_command(current_job_root),current_job_root,self.current_service_name,
                     stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True,cwd=WORKFLOW_ROOT_DIRECTORY)
         return {'id':current_job_identifier,'status':'queued'}
 
@@ -126,7 +130,7 @@ class MusicGenerationManager:
         return {**current_cleanup_result,'deleted':current_identifier_value}
 
     def execute_music_command(self,current_command_name,current_payload_record):
-        current_allowed_fields = {'generate':{'action','prompt','lyrics','duration_seconds','max_new_tokens','min_duration_seconds','seed','loop_request','tag'},'prepare':{'action'},'status':{'id'},'logs':{'id'},'history':{'page'},'history-observe':{'offset','limit','snapshot'},'active':set(),'model-status':set(),'cancel':{'id'},'resume':{'id'},'history-delete':{'id'},'history-reset':{'action','expected_jobs'},'history-reset-preview':set()}
+        current_allowed_fields = {'generate':{'action','prompt','lyrics','duration_seconds','max_new_tokens','min_duration_seconds','seed','loop_request','tag'},'prepare':{'action'},'status':{'id'},'logs':{'id'},'history':{'page'},'history-observe':{'offset','limit','snapshot','query'},'active':set(),'model-status':set(),'cancel':{'id'},'resume-preview':{'id'},'resume':{'id','expected_resume_fingerprint'},'history-delete':{'id'},'history-reset':{'action','expected_jobs'},'history-reset-preview':set()}
         if current_command_name not in current_allowed_fields or not isinstance(current_payload_record,dict) or set(current_payload_record)-current_allowed_fields[current_command_name]:
             raise ValueError('음악 명령·필드 오류')
         if current_command_name in ('generate','prepare'):
@@ -189,8 +193,17 @@ class MusicGenerationManager:
         with self.hold_music_lock():
             if (current_job_root/'.history-deleted').exists():
                 raise ValueError('삭제한 이력은 재개·중지할 수 없습니다. 새 작업으로 등록하세요.')
+            if current_command_name=='resume-preview':
+                from tools.review.common.gpu_job_queue import preview_gpu_resume_records
+                current_preview_record=preview_gpu_resume_records(current_job_root,self.current_service_name,self.build_music_worker_command(current_job_root),lambda current_request_value:verify_music_request(self.current_service_name,current_request_value))
+                return {'id':current_job_root.name,'service':self.current_service_name,**current_preview_record,'note':'검토 시점의 기록입니다. 실제 재개나 GPU 사용 가능 여부를 보장하지 않습니다.'}
             if current_command_name=='resume':
                 verify_music_request(self.current_service_name,read_music_record(current_job_root/'request.json'))
+                if 'expected_resume_fingerprint' in current_payload_record:
+                    current_expected_fingerprint=current_payload_record['expected_resume_fingerprint']
+                    if not isinstance(current_expected_fingerprint,str) or not re.fullmatch(r'[a-f0-9]{64}',current_expected_fingerprint):
+                        raise ValueError('재개 기록 확인값 형식 오류')
+                    return resume_gpu_generation(current_job_root,expected_resume_fingerprint=current_expected_fingerprint,expected_resume_service=self.current_service_name,expected_resume_command=self.build_music_worker_command(current_job_root))
                 return resume_gpu_generation(current_job_root)
             return cancel_gpu_generation(current_job_root)
 

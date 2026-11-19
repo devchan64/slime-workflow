@@ -69,22 +69,11 @@ def read_hermes_video_status(current_request_identifier,current_service_name):
     current_status_value=current_job_value.get('status')
     if current_status_value not in ('queued','running','completed','failed','cancelled','canceled','paused','unknown'):
         current_status_value='unknown'
-    current_output_value={'status':current_status_value,'video':None,'image':None,'download':None,'result_status':'not_ready'}
-    if current_status_value=='completed':
-        current_attempt_values=set()
-        if not current_job_value.get('result_error'):
-            for current_field_name,current_file_name in (('video','preview.mp4'),('image','output-000.png'),('download','frames.zip')):
-                current_path_value=current_job_value.get(current_field_name)
-                current_path_pattern='/'+re.escape(current_service_name)+'/jobs/'+re.escape(current_receipt_value['job_id'])+r'/attempts/([a-f0-9]{32})/'+re.escape(current_file_name)
-                current_path_match=re.fullmatch(current_path_pattern,current_path_value) if isinstance(current_path_value,str) else None
-                if current_path_match:
-                    current_output_value[current_field_name]=current_path_value
-                    current_attempt_values.add(current_path_match.group(1))
-        if len(current_attempt_values)>1:
-            for current_field_name in ('video','image','download'):
-                current_output_value[current_field_name]=None
-        current_result_count=sum(current_output_value[current_field_name] is not None for current_field_name in ('video','image','download'))
-        current_output_value['result_status']='available' if current_result_count==3 else 'partial' if current_result_count else 'unavailable'
+    from tools.review.domains.hermes_agent.media_result_paths import validate_hermes_video_result_paths
+    current_result_paths=validate_hermes_video_result_paths(current_service_name,current_receipt_value['job_id'],{**current_job_value,'status':current_status_value})
+    current_result_count=sum(current_value is not None for current_value in current_result_paths.values())
+    current_result_status=('available' if current_result_count==3 else 'partial' if current_result_count else 'unavailable') if current_status_value=='completed' else 'not_ready'
+    current_output_value={'status':current_status_value,**current_result_paths,'result_status':current_result_status}
     current_output_value.update(observe_hermes_failure_reason(current_status_value,current_job_value.get('error')))
     current_output_value['note']='상태 조회가 중단 작업 복구를 수행할 수 있습니다. 결과와 상세 로그는 해당 생성기에서 확인하세요.'
     return {'receipt':current_receipt_value,'job':current_output_value}

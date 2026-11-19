@@ -16,6 +16,241 @@ from tools.review.gateway_server import create_gateway_request_handler
 
 
 class HermesGatewayRestartTests(unittest.TestCase):
+    def test_music_resume_preview_and_stale_rejection_over_isolated_gateway(self):
+        from tools.review.domains.music.generation import MusicGenerationManager
+        from tools.review.common.management_gateway import execute_management_command
+        from tools.review.common.generation_records import write_record_atomically
+        from generators.music.contracts import build_music_request
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_manager_value=MusicGenerationManager('music-heartmula')
+            current_manager_value.job_storage_root=current_root_path/'jobs'
+            current_manager_value.history_storage_root=current_root_path/'history'
+            current_manager_value.history_storage_root.mkdir()
+            current_job_identifier='2026-11-18_00-00-00-12345678'
+            current_job_path=current_manager_value.job_storage_root/current_job_identifier
+            current_job_path.mkdir(parents=True)
+            write_record_atomically(current_job_path/'request.json',build_music_request('music-heartmula',{'prompt':'piano','lyrics':'','seed':1}))
+            write_record_atomically(current_job_path/'status.json',{'status':'failed'})
+            write_record_atomically(current_job_path/'gpu-command.json',{'service':'music-heartmula','command':current_manager_value.build_music_worker_command(current_job_path)})
+            current_gateway_value=ManagementCommandGateway({'music-heartmula':current_manager_value.handle_music_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            current_gateway_origin='http://127.0.0.1:'+str(current_server_value.server_port)
+            try:
+                with patch('tools.review.common.gpu_job_queue.launch_gpu_process') as current_launch_mock:
+                    current_preview_value=execute_management_command('music-heartmula','resume-preview',{'id':current_job_identifier},current_gateway_origin)
+                    self.assertEqual((current_preview_value['id'],current_preview_value['status']),(current_job_identifier,'failed'))
+                    write_record_atomically(current_job_path/'status.json',{'status':'cancelled'})
+                    with self.assertRaises((ValueError,HTTPError)):
+                        execute_management_command('music-heartmula','resume',{'id':current_job_identifier,'expected_resume_fingerprint':current_preview_value['expected_resume_fingerprint']},current_gateway_origin)
+                    current_launch_mock.assert_not_called()
+                    current_new_preview=execute_management_command('music-heartmula','resume-preview',{'id':current_job_identifier},current_gateway_origin)
+                    current_result_value=execute_management_command('music-heartmula','resume',{'id':current_job_identifier,'expected_resume_fingerprint':current_new_preview['expected_resume_fingerprint']},current_gateway_origin)
+                    self.assertEqual(current_result_value,{'id':current_job_identifier,'status':'queued'})
+                    current_launch_mock.assert_called_once()
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
+    def test_audio_resume_mcp_through_isolated_gateway(self):
+        import os
+        from tools.review.domains.music.generation import MusicGenerationManager
+        from tools.review.common.generation_records import write_record_atomically
+        from generators.music.contracts import build_music_request
+        from tools.review.domains.hermes_agent import audio_resume_operations
+        from tools.review.tests.test_hermes_mcp import hermes_module_value
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_music_manager=MusicGenerationManager('music-heartmula')
+            current_music_manager.job_storage_root=current_root_path/'music-jobs'
+            current_music_manager.history_storage_root=current_root_path/'history'
+            current_music_manager.history_storage_root.mkdir()
+            current_job_identifier='2026-11-18_00-00-00-12345678'
+            current_job_path=current_music_manager.job_storage_root/current_job_identifier
+            current_job_path.mkdir(parents=True)
+            write_record_atomically(current_job_path/'request.json',build_music_request('music-heartmula',{'prompt':'piano','lyrics':'','seed':1}))
+            write_record_atomically(current_job_path/'status.json',{'status':'failed'})
+            write_record_atomically(current_job_path/'gpu-command.json',{'service':'music-heartmula','command':current_music_manager.build_music_worker_command(current_job_path)})
+            current_hermes_manager=HermesServiceManager(current_root_path/'hermes-jobs',current_root_path/'sessions')
+            current_gateway_value=ManagementCommandGateway({'music-heartmula':current_music_manager.handle_music_request,'hermes-agent':current_hermes_manager.handle_hermes_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            current_gateway_origin='http://127.0.0.1:'+str(current_server_value.server_port)
+            try:
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}),patch.object(audio_resume_operations,'AUDIO_RESUME_RECEIPT_ROOT',current_root_path/'receipts'),patch('tools.review.common.gpu_job_queue.launch_gpu_process') as current_launch_mock:
+                    current_preview_value=hermes_module_value.preview_hermes_audio_resume('music-heartmula',current_job_identifier)
+                    current_fingerprint_value=current_preview_value['expected_resume_fingerprint']
+                    current_first_value=hermes_module_value.submit_hermes_audio_resume('audio_resume_123','music-heartmula',current_job_identifier,current_fingerprint_value)
+                    self.assertEqual(current_first_value['state'],'accepted')
+                    current_repeat_value=hermes_module_value.submit_hermes_audio_resume('audio_resume_123','music-heartmula',current_job_identifier,current_fingerprint_value)
+                    self.assertTrue(current_repeat_value['duplicate'])
+                    self.assertEqual(hermes_module_value.read_hermes_audio_resume_receipt('audio_resume_123')['job_id'],current_job_identifier)
+                    current_launch_mock.assert_called_once()
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
+    def test_translation_resume_mcp_through_isolated_gateway(self):
+        import os
+        from tools.review.domains.translation import service as translation_service
+        from tools.review.common.generation_records import write_record_atomically
+        from tools.review.domains.hermes_agent import translation_resume_operations
+        from tools.review.tests.test_hermes_mcp import hermes_module_value
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_translation_manager=translation_service.TranslationServiceManager()
+            current_translation_manager.job_storage_root=current_root_path/'translation-jobs'
+            current_job_identifier='2026-11-18_00-00-00-12345678'
+            current_job_path=current_translation_manager.job_storage_root/current_job_identifier
+            current_job_path.mkdir(parents=True)
+            current_request_value=translation_service.validate_translation_submission({'text':'나무','target_language':'en'})
+            write_record_atomically(current_job_path/'request.json',{**current_request_value,'model_id':'google/translategemma-4b-it'})
+            write_record_atomically(current_job_path/'status.json',{'status':'failed'})
+            write_record_atomically(current_job_path/'gpu-command.json',{'service':'prompt-translation','command':translation_service.build_translation_worker_command(current_job_path)})
+            current_hermes_manager=HermesServiceManager(current_root_path/'hermes-jobs',current_root_path/'sessions')
+            current_gateway_value=ManagementCommandGateway({'prompt-translation':current_translation_manager.handle_translation_request,'hermes-agent':current_hermes_manager.handle_hermes_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            current_gateway_origin='http://127.0.0.1:'+str(current_server_value.server_port)
+            try:
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}),patch.object(translation_resume_operations,'TRANSLATION_RESUME_RECEIPT_ROOT',current_root_path/'receipts'),patch('tools.review.common.gpu_job_queue.launch_gpu_process') as current_launch_mock:
+                    current_preview_value=hermes_module_value.preview_hermes_translation_resume(current_job_identifier)
+                    current_fingerprint_value=current_preview_value['expected_resume_fingerprint']
+                    current_first_value=hermes_module_value.submit_hermes_translation_resume('translation_resume_123',current_job_identifier,current_fingerprint_value)
+                    self.assertEqual(current_first_value['state'],'accepted')
+                    current_repeat_value=hermes_module_value.submit_hermes_translation_resume('translation_resume_123',current_job_identifier,current_fingerprint_value)
+                    self.assertTrue(current_repeat_value['duplicate'])
+                    self.assertEqual(hermes_module_value.read_hermes_translation_resume_receipt('translation_resume_123')['job_id'],current_job_identifier)
+                    current_launch_mock.assert_called_once()
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
+    def test_capture_status_mcp_uses_isolated_http_gateway(self):
+        import os
+        from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+        from tools.review.tests.test_hermes_mcp import hermes_module_value
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_store_value=HermesDelegationStore(current_root_path/'receipts')
+            current_manager_value=HermesServiceManager(current_root_path/'jobs',current_root_path/'sessions')
+            current_gateway_value=ManagementCommandGateway({'hermes-agent':current_manager_value.handle_hermes_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            current_gateway_origin='http://127.0.0.1:'+str(current_server_value.server_port)
+            try:
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}),patch('tools.review.domains.hermes_agent.delegation_store.HermesDelegationStore',return_value=current_store_value),patch('tools.review.domains.hermes_agent.service.WORKFLOW_ROOT_DIRECTORY',current_root_path):
+                    current_result_value=hermes_module_value.read_hermes_capture_status('request_123','map-review')
+                    self.assertEqual(current_result_value['receipt'],{'state':'not_found','request_id':'request_123','service':'map-review'})
+                    self.assertIsNone(current_result_value['job'])
+                    from tools.review.domains.hermes_agent.capture_delegation import prepare_capture_delegation_once, normalize_capture_delegation_request
+                    current_job_identifier='2026-11-19_12-00-00-12345678'
+                    current_job_path=current_root_path/'.tmp'/'test'/'review-capture'/current_job_identifier
+                    current_job_path.mkdir(parents=True)
+                    current_settings_value=normalize_capture_delegation_request('map-review',{'map':'ash-edge'})
+                    prepare_capture_delegation_once(current_store_value,'request_123','map-review',{'map':'ash-edge'},lambda current_request_value:{'id':current_job_identifier})
+                    (current_job_path/'request.json').write_text(json.dumps({'request_id':'request_123','service':'map-review','settings':current_settings_value}))
+                    (current_job_path/'gpu-command.json').write_text(json.dumps({'service':'review-capture','command':['python','-m','tools.review.domains.hermes_agent.capture_worker','--job-dir',str(current_job_path)]}))
+                    (current_job_path/'status.json').write_text('{"status":"queued"}')
+                    current_queued_value=hermes_module_value.read_hermes_capture_status('request_123','map-review')
+                    self.assertEqual(current_queued_value['receipt']['job_id'],current_job_identifier)
+                    self.assertEqual(current_queued_value['job'],{'status':'queued','result_available':False})
+                    with self.assertRaises(ValueError):hermes_module_value.read_hermes_capture_status('request_123','character-review')
+                    with self.assertRaises(ValueError):hermes_module_value.read_hermes_capture_status('request_123','unsupported')
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
+    def test_model_receipt_mcp_through_isolated_gateway(self):
+        import os
+        from tools.review.domains.hermes_agent.model_preparation_store import HermesModelPreparationStore
+        from tools.review.tests.test_hermes_mcp import hermes_module_value
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_store_value=HermesModelPreparationStore(current_root_path/'receipts')
+            current_manager_value=HermesServiceManager(current_root_path/'jobs',current_root_path/'sessions')
+            current_gateway_value=ManagementCommandGateway({'hermes-agent':current_manager_value.handle_hermes_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            current_gateway_origin='http://127.0.0.1:'+str(current_server_value.server_port)
+            from tools.review.common.management_gateway import execute_management_command as current_gateway_dispatch
+            from unittest.mock import Mock
+            current_prepare_mock=Mock(return_value={'preparation_status':'running'})
+            def dispatch_isolated_model_command(*current_arguments,**current_keywords):
+                if current_keywords.get('gateway_request_handler') is not None:
+                    return current_gateway_dispatch(*current_arguments,**current_keywords)
+                return current_prepare_mock(*current_arguments,**current_keywords)
+            try:
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}),patch('tools.review.domains.hermes_agent.model_preparation_store.HermesModelPreparationStore',return_value=current_store_value),patch('tools.review.common.management_gateway.execute_management_command',side_effect=dispatch_isolated_model_command):
+                    current_missing_value=hermes_module_value.read_hermes_model_preparation_receipt('model_request_123','flux-image')
+                    self.assertEqual((current_missing_value['state'],current_missing_value['request_id'],current_missing_value['service']),('not_found','model_request_123','flux-image'))
+                    current_first_value=hermes_module_value.prepare_hermes_managed_model('model_request_123','flux-image')
+                    current_repeat_value=hermes_module_value.prepare_hermes_managed_model('model_request_123','flux-image')
+                    current_receipt_value=hermes_module_value.read_hermes_model_preparation_receipt('model_request_123','flux-image')
+                    self.assertEqual((current_first_value['state'],current_receipt_value['request_id'],current_receipt_value['service']),('accepted','model_request_123','flux-image'))
+                    self.assertTrue(current_repeat_value['duplicate'])
+                    current_prepare_mock.assert_called_once()
+                    current_prepare_mock.side_effect=OSError('simulated loss')
+                    with self.assertRaises(ValueError):hermes_module_value.prepare_hermes_managed_model('model_request_lost','flux-image')
+                    current_unknown_value=hermes_module_value.read_hermes_model_preparation_receipt('model_request_lost','flux-image')
+                    self.assertEqual((current_unknown_value['state'],current_unknown_value['request_id'],current_unknown_value['service']),('unknown','model_request_lost','flux-image'))
+                    self.assertTrue(hermes_module_value.prepare_hermes_managed_model('model_request_lost','flux-image')['duplicate'])
+                    self.assertEqual(current_prepare_mock.call_count,2)
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
+    def test_city_and_building_proposals_through_isolated_http_gateway(self):
+        from tools.review.common.management_gateway import execute_management_command
+        current_proposals={
+            'city':{'map':'stonewarm','generation':5,'revision':2,'changes':[{'path':['data','name'],'before':'기존','after':'변경'}]},
+            'building':{'texture':'town-test-v1','generation':3,'expected':{'anchorX':0.5,'anchorY':1},'properties':{'anchorX':0.6,'anchorY':1}},
+        }
+        with tempfile.TemporaryDirectory() as current_temp_name:
+            current_root=Path(current_temp_name)
+            current_job='2026-11-18_00-00-00-12345678'
+            current_job_path=current_root/'jobs'/current_job
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'request.json').write_text('{}')
+            (current_job_path/'status.json').write_text('{"status":"completed"}')
+            current_manager=HermesServiceManager(current_root/'jobs',current_root/'sessions')
+            current_gateway=ManagementCommandGateway({'hermes-agent':current_manager.handle_hermes_request})
+            current_server=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway.handle))
+            current_server.emit_gateway_trace=lambda *current_values:None
+            current_thread=threading.Thread(target=current_server.serve_forever,daemon=True)
+            current_thread.start()
+            current_origin='http://127.0.0.1:'+str(current_server.server_port)
+            try:
+                for current_kind,current_proposal in current_proposals.items():
+                    with self.subTest(kind=current_kind):
+                        current_answer='HERMES_'+current_kind.upper()+'_PROPOSAL\n'+json.dumps(current_proposal,ensure_ascii=False)+'\nEND_HERMES_'+current_kind.upper()+'_PROPOSAL'
+                        (current_job_path/'hermes-events.jsonl').write_text(json.dumps({'type':'result','text':current_answer}))
+                        current_result=execute_management_command('hermes-agent','hermes-'+current_kind+'-proposal',{'id':current_job},current_origin)
+                        self.assertEqual(current_result,{'job_id':current_job,'proposal':current_proposal})
+                        (current_job_path/'status.json').write_text('{"status":"running"}')
+                        with self.assertRaises(ValueError):execute_management_command('hermes-agent','hermes-'+current_kind+'-proposal',{'id':current_job},current_origin)
+                        (current_job_path/'status.json').write_text('{"status":"completed"}')
+            finally:
+                current_server.shutdown()
+                current_thread.join(timeout=5)
+                current_server.server_close()
+
     def test_writer_source_history_through_isolated_http_gateway(self):
         import os
         from generators.writer_agent.documents import save_yaml_document
@@ -43,6 +278,10 @@ class HermesGatewayRestartTests(unittest.TestCase):
             try:
                 with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}),patch.object(current_writer_value,'search_writer_history') as current_history_mock:
                     current_result_value=execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'writer-agent'},current_gateway_origin)
+                    current_search_value=execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'writer-agent','query':'12345678'},current_gateway_origin)
+                    self.assertEqual(current_search_value['records'][0]['id'],current_job_identifier)
+                    self.assertEqual(execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'writer-agent','query':'not-found'},current_gateway_origin)['total'],0)
+                    with self.assertRaises(ValueError):execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'writer-agent','query':'not-found','snapshot':current_search_value['snapshot']},current_gateway_origin)
                     self.assertEqual(current_result_value['records'],[{'id':current_job_identifier,'recorded_status':'review','status_source':'job'}])
                     self.assertNotIn('secret',str(current_result_value))
                     self.assertNotIn('private',str(current_result_value))
@@ -124,6 +363,10 @@ class HermesGatewayRestartTests(unittest.TestCase):
             try:
                 with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}),patch.object(current_translation_value,'read_translation_job') as current_detail_mock:
                     current_result_value=execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'prompt-translation'},current_gateway_origin)
+                    current_search_value=execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'prompt-translation','query':'12345678'},current_gateway_origin)
+                    self.assertEqual(current_search_value['records'][0]['id'],current_job_identifier)
+                    self.assertEqual(execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'prompt-translation','query':'not-found'},current_gateway_origin)['total'],0)
+                    with self.assertRaises(ValueError):execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'prompt-translation','query':'not-found','snapshot':current_search_value['snapshot']},current_gateway_origin)
                     self.assertEqual(current_result_value['records'],[{'id':current_job_identifier,'recorded_status':'completed','status_source':'job'}])
                     self.assertNotIn('secret',str(current_result_value))
                     current_detail_mock.assert_not_called()
@@ -227,6 +470,10 @@ class HermesGatewayRestartTests(unittest.TestCase):
             try:
                 with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}),patch.object(current_flux_value,'history_storage_path',return_value=current_history_path),patch.object(current_flux_value,'read_generation_status_record') as current_status_mock:
                     current_result_value=execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'flux-image','limit':1},current_gateway_origin)
+                    current_search_value=execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'flux-image','query':'12345678'},current_gateway_origin)
+                    self.assertEqual(current_search_value['records'][0]['id'],current_job_identifier)
+                    self.assertEqual(execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'flux-image','query':'not-found'},current_gateway_origin)['total'],0)
+                    with self.assertRaises(ValueError):execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'flux-image','query':'not-found','snapshot':current_search_value['snapshot']},current_gateway_origin)
                     self.assertEqual(current_result_value['records'],[{'id':current_job_identifier,'recorded_status':'completed','status_source':'job'}])
                     self.assertNotIn('secret',str(current_result_value))
                     current_status_mock.assert_not_called()
@@ -260,6 +507,10 @@ class HermesGatewayRestartTests(unittest.TestCase):
             try:
                 with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}),patch.object(current_video_value,'history_storage_path',return_value=current_history_path),patch('tools.review.common.reference_video_generation.recover_interrupted_video_job') as current_recovery_mock:
                     current_result_value=execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'wan22-vace','limit':1},current_gateway_origin)
+                    current_search_value=execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'wan22-vace','query':'12345678'},current_gateway_origin)
+                    self.assertEqual(current_search_value['records'][0]['id'],current_job_identifier)
+                    self.assertEqual(execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'wan22-vace','query':'not-found'},current_gateway_origin)['total'],0)
+                    with self.assertRaises(ValueError):execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'wan22-vace','query':'not-found','snapshot':current_search_value['snapshot']},current_gateway_origin)
                     self.assertEqual(current_result_value['records'],[{'id':current_job_identifier,'recorded_status':'running','status_source':'job'}])
                     self.assertNotIn('secret',str(current_result_value))
                     current_recovery_mock.assert_not_called()
@@ -296,6 +547,10 @@ class HermesGatewayRestartTests(unittest.TestCase):
             try:
                 with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}),patch.object(current_music_value,'read_music_status') as current_status_mock:
                     current_result_value=execute_management_command('hermes-agent','hermes-audio-source-history',{'service':'music-heartmula','limit':1},current_gateway_origin)
+                    current_search_value=execute_management_command('hermes-agent','hermes-audio-source-history',{'service':'music-heartmula','query':'12345678'},current_gateway_origin)
+                    self.assertEqual(current_search_value['records'][0]['id'],current_job_identifier)
+                    self.assertEqual(execute_management_command('hermes-agent','hermes-audio-source-history',{'service':'music-heartmula','query':'not-found'},current_gateway_origin)['total'],0)
+                    with self.assertRaises(ValueError):execute_management_command('hermes-agent','hermes-audio-source-history',{'service':'music-heartmula','query':'not-found','snapshot':current_search_value['snapshot']},current_gateway_origin)
                     self.assertEqual(current_result_value['records'],[{'id':current_job_identifier,'recorded_status':'completed','status_source':'job'}])
                     self.assertNotIn('secret',str(current_result_value))
                     current_status_mock.assert_not_called()

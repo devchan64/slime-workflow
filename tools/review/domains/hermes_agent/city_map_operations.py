@@ -80,6 +80,8 @@ def save_hermes_city_map_once(current_request_identifier,current_draft_record,cu
         current_response_value = call_field_map_editor('city-edit-save',{**current_draft_record,'token':current_preview_token})
         if not isinstance(current_response_value,dict) or type(current_response_value.get('saved')) is not bool:
             raise ValueError('도시 맵 저장 결과 확인 필요. 자동 재접수하지 않습니다.')
+        if json.loads(current_record_path.read_text(encoding='utf-8')) != current_record_value:
+            raise ValueError('저장 중 접수 기록이 변경됐습니다. 맵 원본과 이력을 확인하고 자동 재저장하지 마세요.')
         current_record_value.update(state='completed',saved=current_response_value['saved'])
         write_record_atomically(current_record_path,current_record_value)
         return {**inspect_hermes_city_receipt(current_record_value,current_request_identifier),'duplicate':False}

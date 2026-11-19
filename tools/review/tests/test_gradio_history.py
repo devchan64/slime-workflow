@@ -613,3 +613,34 @@ class CombinedHistoryPollingTest(unittest.TestCase):
         current_timers = [current_component for current_component in current_history_blocks.blocks.values() if isinstance(current_component, gr.Timer)]
         self.assertEqual(len(current_timers), 1)
         self.assertFalse(current_timers[0].active)
+
+
+class GenerationHistoryDeepLinkTests(unittest.TestCase):
+    def test_link_preparation_does_not_query_service(self):
+        from tools.review.common.gradio_history import prepare_generation_history_link
+        current_job,current_group,current_notice=prepare_generation_history_link('job-12')
+        self.assertEqual(current_job,'job-12')
+        self.assertTrue(current_group['visible'])
+        self.assertIn('복구',current_notice)
+        self.assertIsNone(prepare_generation_history_link('../bad')[0])
+        self.assertFalse(prepare_generation_history_link('')[1]['visible'])
+
+    def test_selects_unique_job_on_its_page(self):
+        from tools.review.common.gradio_history import locate_generation_history_job
+        current_commands=[]
+        def current_execute(current_operation,current_payload):
+            current_commands.append(current_operation)
+            return {'records':[{'id':f'job-{current_index}'} for current_index in range(12)]}
+        def current_page(current_number,current_identifier,current_size):
+            self.assertEqual((current_number,current_identifier,current_size),(3,'job-10',4))
+            return ({'value':current_identifier},None,None,None,None,None,None)
+        self.assertEqual(locate_generation_history_job(current_execute,current_page,'job-10',4)[0]['value'],'job-10')
+        self.assertEqual(current_commands,['history'])
+
+    def test_rejects_invalid_duplicate_and_changed_history(self):
+        from tools.review.common.gradio_history import locate_generation_history_job
+        def current_duplicate(current_operation,current_payload):return {'records':[{'id':'job-1'},{'id':'job-1'}]}
+        def current_page(*current_values):return ({'value':None},None,None,None,None,None,None)
+        with self.assertRaises(ValueError):locate_generation_history_job(current_duplicate,current_page,'job-1',4)
+        with self.assertRaises(ValueError):locate_generation_history_job(current_duplicate,current_page,'../bad',4)
+        with self.assertRaises(ValueError):locate_generation_history_job(lambda *_:{'records':[{'id':'job-1'}]},current_page,'job-1',4)

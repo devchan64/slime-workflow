@@ -24,6 +24,133 @@ class HermesAudioOperationsTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 audio_operations.validate_hermes_audio_service('music-magenta')
 
+    def test_audio_resume_receipts_prevent_duplicate_and_preserve_unknown(self):
+        from pathlib import Path
+        from tools.review.domains.hermes_agent import audio_resume_operations
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_fingerprint_value='a'*64
+        with TemporaryDirectory() as current_root_name,patch.object(audio_resume_operations,'AUDIO_RESUME_RECEIPT_ROOT',Path(current_root_name)),patch.object(audio_resume_operations,'call_hermes_audio_service') as current_gateway_mock:
+            current_gateway_mock.return_value={'id':current_job_identifier,'service':'music-heartmula','status':'failed','expected_resume_fingerprint':current_fingerprint_value}
+            self.assertEqual(audio_resume_operations.preview_hermes_audio_resume('music-heartmula',current_job_identifier)['status'],'failed')
+            current_gateway_mock.return_value={'id':current_job_identifier,'status':'queued'}
+            current_first_value=audio_resume_operations.submit_hermes_audio_resume_once('resume_request_123','music-heartmula',current_job_identifier,current_fingerprint_value)
+            self.assertEqual(current_first_value['state'],'accepted')
+            self.assertTrue(audio_resume_operations.submit_hermes_audio_resume_once('resume_request_123','music-heartmula',current_job_identifier,current_fingerprint_value)['duplicate'])
+            with self.assertRaises(ValueError):audio_resume_operations.submit_hermes_audio_resume_once('resume_request_123','music-heartmula',current_job_identifier,'b'*64)
+            current_gateway_mock.side_effect=OSError('response lost')
+            with self.assertRaises(OSError):audio_resume_operations.submit_hermes_audio_resume_once('resume_request_lost','music-heartmula',current_job_identifier,'b'*64)
+            self.assertEqual(audio_resume_operations.read_hermes_audio_resume_receipt('resume_request_lost')['state'],'unknown')
+            self.assertTrue(audio_resume_operations.submit_hermes_audio_resume_once('resume_request_lost','music-heartmula',current_job_identifier,'b'*64)['duplicate'])
+            self.assertEqual(current_gateway_mock.call_count,3)
+
+    def test_audio_resume_concurrent_same_request_dispatches_once(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from pathlib import Path
+        import threading
+        from tools.review.domains.hermes_agent import audio_resume_operations
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_fingerprint_value='a'*64
+        current_start_barrier=threading.Barrier(2)
+        def submit_concurrent_request():
+            current_start_barrier.wait(timeout=5)
+            return audio_resume_operations.submit_hermes_audio_resume_once('resume_concurrent_123','music-heartmula',current_job_identifier,current_fingerprint_value)
+        with TemporaryDirectory() as current_directory_name,patch.object(audio_resume_operations,'AUDIO_RESUME_RECEIPT_ROOT',Path(current_directory_name)),patch.object(audio_resume_operations,'call_hermes_audio_service',return_value={'id':current_job_identifier,'status':'queued'}) as current_service_mock:
+            with ThreadPoolExecutor(max_workers=2) as current_executor_value:
+                current_result_values=list(current_executor_value.map(lambda current_unused_value:submit_concurrent_request(),range(2)))
+            self.assertEqual(sum(not item['duplicate'] for item in current_result_values),1)
+            self.assertTrue(all(item['state']=='accepted' for item in current_result_values))
+            current_service_mock.assert_called_once()
+
+    def test_audio_resume_unverified_response_is_not_resent(self):
+        from pathlib import Path
+        from tools.review.domains.hermes_agent import audio_resume_operations
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with TemporaryDirectory() as current_directory_name,patch.object(audio_resume_operations,'AUDIO_RESUME_RECEIPT_ROOT',Path(current_directory_name)),patch.object(audio_resume_operations,'call_hermes_audio_service',return_value={'id':'other','status':'queued'}) as current_service_mock:
+            with self.assertRaises(ValueError):audio_resume_operations.submit_hermes_audio_resume_once('resume_invalid_123','music-heartmula',current_job_identifier,'a'*64)
+            current_receipt_value=audio_resume_operations.read_hermes_audio_resume_receipt('resume_invalid_123')
+            self.assertEqual(current_receipt_value['state'],'unknown')
+            self.assertTrue(audio_resume_operations.submit_hermes_audio_resume_once('resume_invalid_123','music-heartmula',current_job_identifier,'a'*64)['duplicate'])
+            current_service_mock.assert_called_once()
+
+    def test_audio_resume_separate_processes_and_crash_recovery(self):
+        import json
+        import subprocess
+        import sys
+        from tools.review.domains.hermes_agent.audio_resume_operations import validate_audio_resume_target
+        from tools.review.domains.hermes_agent.resume_receipt_store import read_resume_receipt_record
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_child_source="""import json, pathlib, sys, time
+from tools.review.domains.hermes_agent.audio_resume_operations import validate_audio_resume_target
+from tools.review.domains.hermes_agent.resume_receipt_store import submit_resume_receipt_once
+root=pathlib.Path(sys.argv[1])
+def submit(service,job,fingerprint):
+ with (root/'calls').open('a') as stream: stream.write('called\\n')
+ time.sleep(.15)
+ return {'id':job,'status':'queued'}
+print(json.dumps(submit_resume_receipt_once(root/'receipts','resume_process_123','music-heartmula','2026-11-18_00-00-00-12345678','a'*64,validate_audio_resume_target,submit)))
+"""
+            current_children=[subprocess.Popen([sys.executable,'-c',current_child_source,current_directory_name],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True) for current_index_value in range(3)]
+            current_result_values=[]
+            for current_child_value in current_children:
+                current_stdout_text,current_stderr_text=current_child_value.communicate(timeout=15)
+                self.assertEqual(current_child_value.returncode,0,current_stderr_text)
+                current_result_values.append(json.loads(current_stdout_text))
+            self.assertEqual(sum(not item['duplicate'] for item in current_result_values),1)
+            self.assertEqual((current_root_path/'calls').read_text().count('called'),1)
+            current_crash_source="""import os,sys
+from tools.review.domains.hermes_agent.audio_resume_operations import validate_audio_resume_target
+from tools.review.domains.hermes_agent.resume_receipt_store import submit_resume_receipt_once
+submit_resume_receipt_once(sys.argv[1],'resume_crashed_123','music-heartmula','2026-11-18_00-00-00-12345678','b'*64,validate_audio_resume_target,lambda service,job,fingerprint:os._exit(37))
+"""
+            current_crash_value=subprocess.run([sys.executable,'-c',current_crash_source,str(current_root_path/'receipts')],timeout=15)
+            self.assertEqual(current_crash_value.returncode,37)
+            current_receipt_value=read_resume_receipt_record(current_root_path/'receipts','resume_crashed_123',validate_audio_resume_target)
+            self.assertEqual(current_receipt_value['state'],'unknown')
+            self.assertEqual(current_receipt_value['job_id'],current_job_identifier)
+
+    def test_audio_resume_different_ids_race_across_processes(self):
+        import json
+        import subprocess
+        import sys
+        with TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_child_source="""import json, pathlib, sys, time
+from tools.review.domains.hermes_agent.audio_resume_operations import validate_audio_resume_target
+from tools.review.domains.hermes_agent.resume_receipt_store import submit_resume_receipt_once
+root=pathlib.Path(sys.argv[1])
+def submit(service,job,fingerprint):
+ with (root/'calls').open('a') as stream: stream.write('called\\n')
+ time.sleep(.15)
+ return {'id':job,'status':'queued'}
+try:
+ result=submit_resume_receipt_once(root/'receipts',sys.argv[2],'music-heartmula','2026-11-18_00-00-00-12345678','a'*64,validate_audio_resume_target,submit)
+ print(json.dumps({'state':result['state']}))
+except ValueError as error:
+ print(json.dumps({'error':str(error)}))
+"""
+            current_children=[subprocess.Popen([sys.executable,'-c',current_child_source,current_directory_name,f'resume_race_{current_index_value:03d}'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True) for current_index_value in range(3)]
+            current_result_values=[]
+            for current_child_value in current_children:
+                current_stdout_text,current_stderr_text=current_child_value.communicate(timeout=15)
+                self.assertEqual(current_child_value.returncode,0,current_stderr_text)
+                current_result_values.append(json.loads(current_stdout_text))
+            self.assertEqual(sum(current_item_value.get('state')=='accepted' for current_item_value in current_result_values),1)
+            self.assertEqual(sum('기존 접수' in current_item_value.get('error','') for current_item_value in current_result_values),2)
+            self.assertEqual((current_root_path/'calls').read_text().count('called'),1)
+
+    def test_audio_resume_rejects_same_target_under_different_request_id(self):
+        from pathlib import Path
+        from tools.review.domains.hermes_agent import audio_resume_operations
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with TemporaryDirectory() as current_directory_name,patch.object(audio_resume_operations,'AUDIO_RESUME_RECEIPT_ROOT',Path(current_directory_name)),patch.object(audio_resume_operations,'call_hermes_audio_service',side_effect=OSError('response lost')) as current_service_mock:
+            with self.assertRaises(OSError):audio_resume_operations.submit_hermes_audio_resume_once('resume_original_123','music-heartmula',current_job_identifier,'a'*64)
+            with self.assertRaisesRegex(ValueError,'기존 접수'):
+                audio_resume_operations.submit_hermes_audio_resume_once('resume_different_123','music-heartmula',current_job_identifier,'a'*64)
+            self.assertEqual(audio_resume_operations.read_hermes_audio_resume_receipt('resume_original_123')['state'],'unknown')
+            current_service_mock.assert_called_once()
+
     def test_audio_paths_are_same_service_job_and_attempt(self):
         current_job_identifier='2026-11-18_00-00-00-12345678'
         current_good_path='/music-heartmula/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/music.wav'

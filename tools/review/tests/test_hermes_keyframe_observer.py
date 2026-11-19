@@ -18,7 +18,10 @@ class HermesKeyframeObserverTests(unittest.TestCase):
             read_hermes_kimodo_keyframe_catalog({'query':'걷기','offset':1,'snapshot':current_snapshot_value})
         self.assertEqual(current_result_value['items'][0],{'id':'a'*32,'tag':'걷기','source_frame':12})
         self.assertNotIn('secret',str(current_result_value))
-        self.assertEqual(read_hermes_kimodo_keyframe_catalog({'query':'걷기','offset':1})['items'][0]['id'],'b'*32)
+        current_unverified_page=read_hermes_kimodo_keyframe_catalog({'query':'걷기','offset':1})
+        self.assertEqual(current_unverified_page['items'][0]['id'],'b'*32)
+        self.assertIn('변경 여부를 확인하지 못했습니다',current_unverified_page['note'])
+        self.assertNotIn('변경 여부를 확인하지 못했습니다',current_result_value['note'])
         for current_bad_request in ({'limit':31},{'offset':True},{'query':'a\nb'},{'unexpected':1}):
             with self.subTest(request=current_bad_request),self.assertRaises(ValueError):
                 read_hermes_kimodo_keyframe_catalog(current_bad_request)

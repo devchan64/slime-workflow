@@ -72,10 +72,10 @@ def save_hermes_field_map_once(current_request_identifier, current_draft_record,
             if not isinstance(current_record_value,dict) or current_record_value.get('version') != 4 or current_record_value.get('id') != current_request_identifier or current_record_value.get('token') != current_preview_token or current_record_value.get('map') != current_draft_record['map']:
                 raise ValueError('같은 접수 ID를 다른 요청에 사용할 수 없습니다.')
             if current_record_value.get('state') == 'dispatching':
-                return {'state':'unknown','duplicate':True,'map':current_draft_record['map']}
+                return {'request_id':current_request_identifier,'state':'unknown','duplicate':True,'map':current_draft_record['map']}
             if current_record_value.get('state') != 'completed' or type(current_record_value.get('saved')) is not bool:
                 raise ValueError('맵 저장 접수 기록 오류')
-            return {'state':'completed','duplicate':True,'map':current_record_value['map'],'saved':current_record_value['saved']}
+            return {'request_id':current_request_identifier,'state':'completed','duplicate':True,'map':current_record_value['map'],'saved':current_record_value['saved']}
         current_validation_value = preview_hermes_field_map(current_draft_record)
         if current_validation_value['token'] != current_preview_token:
             raise ValueError('맵 초안 검증이 일치하지 않습니다.')
@@ -84,9 +84,11 @@ def save_hermes_field_map_once(current_request_identifier, current_draft_record,
         current_result_value = call_field_map_editor('map-edit-save', {**current_draft_record,'token':current_preview_token})
         if not isinstance(current_result_value,dict) or type(current_result_value.get('saved')) is not bool:
             raise ValueError('맵 저장 결과 확인 필요. 자동 재접수하지 않습니다.')
+        if json.loads(current_record_path.read_text(encoding='utf-8')) != current_record_value:
+            raise ValueError('저장 중 접수 기록이 변경됐습니다. 맵 원본과 이력을 확인하고 자동 재저장하지 마세요.')
         current_record_value.update(state='completed',saved=current_result_value['saved'])
         write_record_atomically(current_record_path,current_record_value)
-        return {'state':'completed','duplicate':False,'map':current_draft_record['map'],'saved':current_record_value['saved']}
+        return {'request_id':current_request_identifier,'state':'completed','duplicate':False,'map':current_draft_record['map'],'saved':current_record_value['saved']}
 
 
 def inspect_hermes_field_receipt(current_record_value, current_request_identifier):

@@ -101,7 +101,7 @@ def read_hermes_gpu_reservation_snapshot(current_queue_root=None):
     import re
     import stat
     from pathlib import Path
-    from tools.review.common.gpu_job_queue import GPU_QUEUE_DIRECTORY, is_gpu_queue_executor_alive, open_verified_hermes_process_group
+    from tools.review.common.gpu_job_queue import GPU_QUEUE_DIRECTORY, is_gpu_queue_executor_alive, open_verified_hermes_process_group, identify_gpu_queue_source, identify_dedicated_gpu_reservation_source, is_dedicated_gpu_source_verifiable
     try:
         current_queue_root = Path(current_queue_root) if current_queue_root is not None else GPU_QUEUE_DIRECTORY
         current_active_root = current_queue_root / 'active'
@@ -131,13 +131,19 @@ def read_hermes_gpu_reservation_snapshot(current_queue_root=None):
                     current_job_identifier = None
                 current_cleanup_flag=current_reservation_record.get('cleanup_unverified',False)
                 if type(current_cleanup_flag) is not bool:raise ValueError('예약 정리 상태 오류')
-                if current_service_name=='writer-agent' and not current_cleanup_flag:
+                if not current_cleanup_flag:
                     current_executor_pid=current_reservation_record.get('pid')
                     current_executor_token=current_reservation_record.get('pid_start_token')
                     if type(current_executor_pid) is not int or current_executor_pid<=1 or not isinstance(current_executor_token,str) or not is_gpu_queue_executor_alive(current_executor_pid,current_executor_token):
                         current_cleanup_flag=True
                 current_safe_record={'state':'cleanup_unverified' if current_cleanup_flag else 'recorded', 'service':current_service_name, 'job_id':current_job_identifier, 'required_memory_mib':current_memory_value}
-                if current_service_name=='writer-agent' and current_cleanup_flag:
+                if current_job_identifier is not None and isinstance(current_job_path,str):
+                    current_source_service=identify_gpu_queue_source(current_job_path,current_service_name)
+                    if current_source_service is None and is_dedicated_gpu_source_verifiable(current_service_name):
+                        current_source_service=identify_dedicated_gpu_reservation_source(current_job_path,current_service_name)
+                    if current_source_service is not None:
+                        current_safe_record['source_service']=current_source_service
+                if current_cleanup_flag and (current_service_name=='writer-agent' or 'worker_pgid' in current_reservation_record):
                     current_worker_descriptor=open_verified_hermes_process_group(current_reservation_record)
                     current_safe_record['worker_leader']='verified_running' if current_worker_descriptor is not None else 'unverified'
                     if current_worker_descriptor is not None:os.close(current_worker_descriptor)
@@ -195,7 +201,7 @@ def read_hermes_management_snapshot():
         current_gpu_values = {'status': 'unavailable'}
 
     try:
-        current_queue_record = list_waiting_gpu_jobs()
+        current_queue_record = list_waiting_gpu_jobs(include_source_identity=True)
         current_waiting_jobs = current_queue_record['jobs']
         if not isinstance(current_waiting_jobs, list):
             raise ValueError('GPU 대기열 형식 오류')
@@ -203,7 +209,27 @@ def read_hermes_management_snapshot():
         for current_job_record in current_waiting_jobs:
             if not isinstance(current_job_record, dict) or not isinstance(current_job_record.get('id'), str) or not isinstance(current_job_record.get('service'), str):
                 raise ValueError('GPU 대기 작업 형식 오류')
-            current_queue_values['jobs'].append({'id': current_job_record['id'], 'service': current_job_record['service']})
+            current_public_job={'id': current_job_record['id'], 'service': current_job_record['service']}
+            current_executor_identity=current_job_record.get('executor_identity','unverified')
+            if current_executor_identity not in ('verified','unverified'):raise ValueError('대기 실행기 신원 형식 오류')
+            current_public_job['executor_identity']=current_executor_identity
+            current_ticket_revision=current_job_record.get('ticket_revision')
+            if isinstance(current_ticket_revision,str):
+                import re
+                if re.fullmatch(r'[a-f0-9]{64}',current_ticket_revision):current_public_job['ticket_revision']=current_ticket_revision
+            current_source_service=current_job_record.get('source_service')
+            if isinstance(current_source_service,str):
+                from tools.review.common.source_history_catalog import SOURCE_HISTORY_GENERATOR_SERVICES,SOURCE_HISTORY_AUDIO_SERVICES
+                if current_source_service in (*SOURCE_HISTORY_GENERATOR_SERVICES,*SOURCE_HISTORY_AUDIO_SERVICES) or (current_job_record['service']=='review-capture' and current_source_service=='review-capture'):
+                    current_public_job['source_service']=current_source_service
+                if current_job_record['service']=='review-capture' and current_source_service=='review-capture':
+                    from tools.review.common.management_environment import WORKFLOW_ROOT_DIRECTORY
+                    from tools.review.domains.hermes_agent.capture_status import find_verified_capture_request_identity
+                    from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+                    current_capture_identity=find_verified_capture_request_identity(HermesDelegationStore(),current_job_record['id'],WORKFLOW_ROOT_DIRECTORY)
+                    if current_capture_identity is not None:
+                        current_public_job.update(current_capture_identity)
+            current_queue_values['jobs'].append(current_public_job)
     except (OSError, ValueError, TypeError, KeyError):
         current_queue_values = {'status': 'unavailable', 'jobs': []}
 
@@ -213,7 +239,7 @@ def read_hermes_management_snapshot():
         current_model_values = {'status': 'unavailable'}
 
     return {'queried_at': datetime.now(timezone.utc).isoformat(),
-            'detail': '조회 시각이며 GPU 관측값은 공용 상태 조회의 짧은 캐시를 사용할 수 있습니다. 최근 작업 조회는 로컬 잠금을 만듭니다. Kimodo 활성 상태는 기록 기준이며 실제 프로세스 생존을 보증하지 않습니다.',
+            'detail': '조회 시각이며 GPU 관측값은 공용 상태 조회의 짧은 캐시를 사용할 수 있습니다. 최근 작업 조회는 로컬 잠금을 만듭니다. 대기 티켓의 실행기 신원은 조회 시점의 부팅 식별값과 PID 시작 식별값으로 확인하며 값이 빠진 티켓은 미확인입니다. Kimodo 활성 상태는 기록 기준이며 실제 프로세스 생존을 보증하지 않습니다.',
             'model': current_model_values, 'gpu': current_gpu_values, 'memory_capacity': read_hermes_memory_capacity(current_gpu_values), 'queue': current_queue_values, 'reservations': read_hermes_gpu_reservation_snapshot(),
             'generators': read_hermes_generator_snapshot(), 'recent_hermes_jobs': read_hermes_recent_job_snapshot()}
 
@@ -289,9 +315,14 @@ def read_hermes_model_readiness(current_service_name):
 def read_hermes_content_database_status():
     """콘텐츠 DB의 세대와 원장 반영 상태만 반환하고 내부 오류는 숨긴다."""
     import os
+    from tools.review.common.map_tile_assets import DEFAULT_ASSET_REPOSITORY
+    from tools.review.domains.map_assets.source_consistency import inspect_hermes_map_sources
+    from pathlib import Path
     from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
     from tools.review.common.management_gateway import execute_management_command
     current_query_time = datetime.now(timezone.utc).isoformat()
+    current_asset_root = Path(os.environ.get('SLIME_ASSETS_ROOT', DEFAULT_ASSET_REPOSITORY))
+    current_map_sources = inspect_hermes_map_sources(current_asset_root, current_asset_root.parent / 'slime-backend/map-data.lock.yaml')
     try:
         current_gateway_address = validate_gateway_address(os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL', DEFAULT_GATEWAY_ADDRESS))
         current_status_record = execute_management_command('map-assets', 'database-status', {}, current_gateway_address)
@@ -319,10 +350,10 @@ def read_hermes_content_database_status():
                 raise ValueError('원장 반영 상태 오류')
             current_latest_value = {'state':current_latest_state, 'generation':current_latest_generation, 'lease_expired':current_lease_expired}
         return {'status':'available', 'queried_at':current_query_time, 'generation':current_generation_value,
-                'ledger_generation':current_snapshot_value, 'pending':current_pending_value, 'latest':current_latest_value,
-                'note':'콘텐츠 DB 응답의 snapshotGeneration은 원장 반영 계약 이름입니다. 파일 스냅샷 보관 여부를 뜻하지 않습니다.'}
+                'ledger_generation':current_snapshot_value, 'pending':current_pending_value, 'latest':current_latest_value, 'map_sources':current_map_sources,
+                'note':'콘텐츠 DB 응답의 snapshotGeneration은 원장 반영 계약 이름입니다. 파일 스냅샷 보관을 뜻하지 않습니다. 맵 원본 비교는 별도 조회 시점 기준이며 DB 또는 실행 중인 백엔드 반영을 확인하지 않습니다.'}
     except (OSError, RuntimeError, ValueError, TypeError, KeyError):
-        return {'status':'unavailable', 'queried_at':current_query_time,
+        return {'status':'unavailable', 'queried_at':current_query_time, 'map_sources':current_map_sources,
                 'note':'콘텐츠 DB 상태를 확인할 수 없습니다. 서비스 연결과 인증을 확인하세요.'}
 
 

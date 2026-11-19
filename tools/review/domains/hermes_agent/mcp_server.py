@@ -55,7 +55,7 @@ def run_hermes_mcp_command(hermes_command_name, hermes_payload_record):
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def submit_hermes_coding_task(request_identifier_value: str, coding_prompt_text: str, verification_module_names: list[str] | None = None) -> dict:
-    """격리 코딩 작업을 접수한다. 선택한 공용 회귀 모듈은 최종 수정 후 독립 실행한다. 응답 유실 시 같은 식별자를 사용한다."""
+    """운영 조회·제안 또는 격리 코드 작업을 접수한다. 코드 변경은 격리 사본에 남고 선택한 공용 회귀 모듈은 최종 수정 후 독립 실행한다. 응답 유실 시 같은 식별자를 사용한다. 추론은 GPU 대기열을 사용한다. 배타 예약은 관리도구 대기열에만 적용되며 외부 GPU 작업과 성능 경합이 가능하다."""
     hermes_request_record = {'request_id':request_identifier_value, 'prompt':coding_prompt_text}
     if verification_module_names:
         hermes_request_record['verification_modules'] = verification_module_names
@@ -72,6 +72,19 @@ def read_hermes_coding_task(job_identifier_value: str) -> dict:
 def list_hermes_coding_tasks() -> dict:
     """공용 기록의 Hermes 작업 이력을 조회한다."""
     return run_hermes_mcp_command('hermes-history', {})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def list_hermes_coding_tasks_page(offset_value: int = 0, limit_value: int = 30, snapshot_value: str | None = None, query_text: str = '', status_name: str = '전체') -> dict:
+    """Hermes 작업을 최근순으로 조회한다. 다음 페이지에는 첫 조회의 snapshot을 전달한다."""
+    current_payload_record={'offset':offset_value,'limit':limit_value}
+    if snapshot_value is not None:
+        current_payload_record['snapshot']=snapshot_value
+    if query_text:
+        current_payload_record['query']=query_text
+    if status_name!='전체':
+        current_payload_record['status']=status_name
+    return run_hermes_mcp_command('hermes-history',current_payload_record)
 
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
@@ -94,17 +107,43 @@ def read_hermes_session(session_identifier_value: str) -> dict:
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def submit_hermes_session_message(session_identifier_value: str, request_identifier_value: str, message_text_value: str, verification_module_names: list[str] | None = None) -> dict:
-    """세션의 이전 완료 작업 문맥을 포함해 격리 Hermes 작업을 접수한다."""
+    """세션의 이전 완료 작업 문맥을 포함해 격리 Hermes 작업을 접수한다. 추론은 GPU 대기열을 사용한다. 배타 예약은 관리도구 대기열에만 적용되며 외부 GPU 작업과 성능 경합이 가능하다."""
     hermes_request_record = {'session_id': session_identifier_value, 'request_id': request_identifier_value, 'prompt': message_text_value}
     if verification_module_names:
         hermes_request_record['verification_modules'] = verification_module_names
     return run_hermes_mcp_command('hermes-session-submit', hermes_request_record)
 
 
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def list_hermes_expression_presets(query_value: str = '', offset_value: int = 0, limit_value: int = 20, snapshot_value: str | None = None) -> dict:
+    """표정 프리셋 ID와 이름을 검색한다. 후속 페이지는 첫 응답의 snapshot을 사용한다."""
+    current_payload_record={'query':query_value,'offset':offset_value,'limit':limit_value}
+    if snapshot_value is not None:current_payload_record['snapshot']=snapshot_value
+    return run_hermes_mcp_command('hermes-expression-catalog',current_payload_record)
+
+
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
-def read_hermes_session_view(session_identifier_value: str) -> dict:
-    """최근 세션 메시지와 연결된 작업의 상태·최종 응답을 조회한다."""
-    return run_hermes_mcp_command('hermes-session-view', {'session_id': session_identifier_value})
+def read_hermes_service_receipt(request_identifier_value: str, service_name: str) -> dict:
+    """접수 ID·서비스·접수 상태를 확인한다. 원 작업의 생존·결과를 확인하거나 복구·생성을 실행하지 않는다. Kimodo는 별도 접수 조회를 사용한다."""
+    return run_hermes_mcp_command('hermes-service-receipt',{'request_id':request_identifier_value,'service':service_name})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def list_hermes_sessions_page(offset_value: int = 0, limit_value: int = 30, snapshot_value: str | None = None, query_text: str = '') -> dict:
+    """세션을 최근 갱신순으로 조회하며 다음 페이지에는 목록 확인값을 전달한다."""
+    current_payload_record={'offset':offset_value,'limit':limit_value}
+    if snapshot_value is not None:current_payload_record['snapshot']=snapshot_value
+    if query_text:current_payload_record['query']=query_text
+    return run_hermes_mcp_command('hermes-session-list',current_payload_record)
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_session_view(session_identifier_value: str, offset_value: int = 0, snapshot_value: str | None = None) -> dict:
+    """최근 메시지부터 20건씩 조회한다. 이전 페이지에는 첫 응답의 snapshot이 필요하다."""
+    current_payload_record={'session_id':session_identifier_value}
+    if offset_value:current_payload_record['offset']=offset_value
+    if snapshot_value is not None:current_payload_record['snapshot']=snapshot_value
+    return run_hermes_mcp_command('hermes-session-view',current_payload_record)
 
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
@@ -145,7 +184,7 @@ def delegate_hermes_video(request_identifier_value: str, video_service_name: str
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def read_hermes_video_status(request_identifier_value: str, video_service_name: str) -> dict:
-    """동작·영상 상태와 검증된 결과 경로를 조회한다. 기존 작업 복구가 따를 수 있다."""
+    """동작·영상 상태와 검증된 결과 경로를 조회한다. 중단 작업 기록의 복구가 따를 수 있으므로 접수 여부만 확인하려면 접수 전용 조회를 사용한다."""
     return run_hermes_mcp_command('hermes-video-status',{'request_id':request_identifier_value,'service':video_service_name})
 
 
@@ -159,6 +198,66 @@ def list_hermes_video_receipts(video_service_name: str) -> dict:
 def cancel_hermes_video(request_identifier_value: str, video_service_name: str, job_identifier_value: str) -> dict:
     """사용자가 확인한 동작·영상 작업에 중지를 요청한다."""
     return run_hermes_mcp_command('hermes-video-cancel',{'request_id':request_identifier_value,'service':video_service_name,'job_id':job_identifier_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def preview_hermes_translation_resume(job_identifier_value: str) -> dict:
+    """번역 재개 기록을 확인하고 접수에 필요한 확인값을 반환한다. GPU 작업은 실행하지 않는다."""
+    return run_hermes_mcp_command('hermes-translation-resume-preview',{'job_id':job_identifier_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def submit_hermes_translation_resume(request_identifier_value: str, job_identifier_value: str, expected_resume_fingerprint: str) -> dict:
+    """확인한 번역 작업을 GPU 대기열에 재접수한다. 다른 GPU 작업과 경합할 수 있다. 응답이 불확실하면 접수와 원 서비스 상태를 확인하고 새 ID로 재접수하지 않는다."""
+    return run_hermes_mcp_command('hermes-translation-resume-submit',{'request_id':request_identifier_value,'job_id':job_identifier_value,'expected_resume_fingerprint':expected_resume_fingerprint})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_translation_resume_receipt(request_identifier_value: str) -> dict:
+    """번역 재개 접수 기록을 확인한다. 접수 상태는 작업 완료나 GPU 종료를 보장하지 않는다."""
+    return run_hermes_mcp_command('hermes-translation-resume-receipt',{'request_id':request_identifier_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def preview_hermes_audio_resume(service_name: str, job_identifier_value: str) -> dict:
+    """음악·효과음 재개 기록을 확인하고 접수에 필요한 확인값을 반환한다. GPU 작업은 실행하지 않는다."""
+    return run_hermes_mcp_command('hermes-audio-resume-preview',{'service':service_name,'job_id':job_identifier_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def submit_hermes_audio_resume(request_identifier_value: str, service_name: str, job_identifier_value: str, expected_resume_fingerprint: str) -> dict:
+    """확인한 음악·효과음 작업을 GPU 대기열에 재접수한다. 다른 GPU 작업과 경합할 수 있다. 응답이 불확실하면 접수와 원 서비스 상태를 확인하고 새 ID로 재접수하지 않는다."""
+    return run_hermes_mcp_command('hermes-audio-resume-submit',{'request_id':request_identifier_value,'service':service_name,'job_id':job_identifier_value,'expected_resume_fingerprint':expected_resume_fingerprint})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_audio_resume_receipt(request_identifier_value: str) -> dict:
+    """음악·효과음 재개 접수 기록을 확인한다. 접수 상태는 작업 완료나 GPU 종료를 보장하지 않는다."""
+    return run_hermes_mcp_command('hermes-audio-resume-receipt',{'request_id':request_identifier_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def submit_hermes_queue_priority(request_identifier_value: str, service_name: str, job_identifier_value: str, ticket_revision_value: str) -> dict:
+    """검토한 대기 작업을 우선 실행한다. 결과 불명 시 같은 접수 기록을 확인한다."""
+    return run_hermes_mcp_command('hermes-priority-submit', {'request_id':request_identifier_value,'service':service_name,'id':job_identifier_value,'ticket_revision':ticket_revision_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_queue_priority_receipt(request_identifier_value: str) -> dict:
+    """GPU 우선 실행 접수 기록을 읽고 대기 순서는 변경하지 않는다."""
+    return run_hermes_mcp_command('hermes-priority-receipt', {'request_id':request_identifier_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def preview_hermes_queue_priority(service_name: str, job_identifier_value: str) -> dict:
+    """원 서비스가 확인된 대기 작업의 우선 실행 대상을 조회하며 순서를 변경하지 않는다."""
+    return run_hermes_mcp_command('hermes-priority-preview', {'service':service_name,'id':job_identifier_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_writer_proposal(job_identifier_value: str) -> dict:
+    """완료된 Hermes 답변의 작가 요청 제안을 검증해 읽는다. 생성·적용은 하지 않는다."""
+    return run_hermes_mcp_command('hermes-writer-proposal', {'id':job_identifier_value})
 
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
@@ -186,18 +285,20 @@ def list_hermes_audio_receipts(audio_service_name: str) -> dict:
 
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
-def list_hermes_audio_source_history(audio_service_name: str, offset_value: int = 0, limit_value: int = 10, snapshot_value: str | None = None) -> dict:
+def list_hermes_audio_source_history(audio_service_name: str, offset_value: int = 0, limit_value: int = 10, snapshot_value: str | None = None, query_text: str = '') -> dict:
     """기존 오디오 생성기의 원본 이력과 기록 상태를 조회한다. 후속 페이지에는 snapshot이 필요하다."""
     current_request_value={'service':audio_service_name,'offset':offset_value,'limit':limit_value}
+    if query_text:current_request_value['query']=query_text
     if snapshot_value is not None:
         current_request_value['snapshot']=snapshot_value
     return run_hermes_mcp_command('hermes-audio-source-history',current_request_value)
 
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
-def list_hermes_generator_source_history(generator_service_name: str, offset_value: int = 0, limit_value: int = 10, snapshot_value: str | None = None) -> dict:
+def list_hermes_generator_source_history(generator_service_name: str, offset_value: int = 0, limit_value: int = 10, snapshot_value: str | None = None, query_text: str = '') -> dict:
     """FLUX·Kimodo·DWPose·Wan·번역·작가의 원본 이력과 기록 상태를 복구 없이 조회한다."""
     current_request_value={'service':generator_service_name,'offset':offset_value,'limit':limit_value}
+    if query_text:current_request_value['query']=query_text
     if snapshot_value is not None:
         current_request_value['snapshot']=snapshot_value
     return run_hermes_mcp_command('hermes-generator-source-history',current_request_value)
@@ -261,6 +362,24 @@ def delegate_hermes_writer(request_identifier_value: str, request_record_value: 
 def read_hermes_writer_status(request_identifier_value: str) -> dict:
     """작가 AI 접수와 제한된 제안 diff를 읽는다. 전체 근거와 적용은 작가 AI 화면에서 확인한다."""
     return run_hermes_mcp_command('hermes-writer-status',{'request_id':request_identifier_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def inspect_hermes_generator_reservation(service_name: str, job_identifier_value: str) -> dict:
+    """생성기 GPU 예약과 작업자 리더를 조회한다. 프로세스 종료·예약 해제는 하지 않는다."""
+    return run_hermes_mcp_command('hermes-generator-reservation-inspect',{'service':service_name,'job_id':job_identifier_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=False))
+def recover_hermes_generator_reservation(request_identifier_value: str, service_name: str, job_identifier_value: str, review_digest_value: str, outside_processes_checked: bool) -> dict:
+    """사용자가 별도 GPU 프로세스를 확인한 뒤 검토한 생성기 작업자 그룹을 강제 종료하고 예약을 해제한다."""
+    return run_hermes_mcp_command('hermes-generator-reservation-recover',{'request_id':request_identifier_value,'service':service_name,'job_id':job_identifier_value,'review_sha256':review_digest_value,'outside_processes_checked':outside_processes_checked})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_generator_reservation_receipt(request_identifier_value: str) -> dict:
+    """생성기 예약 정리의 접수 결과를 조회한다. 확인 불가 결과는 재실행하지 않는다."""
+    return run_hermes_mcp_command('hermes-generator-reservation-receipt',{'request_id':request_identifier_value})
 
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=False))
@@ -496,6 +615,18 @@ def read_hermes_billboard_edit_receipt(request_identifier_value: str) -> dict:
 
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_building_proposal(job_identifier_value: str) -> dict:
+    """완료된 Hermes 작업의 건물 앵커 변경 제안을 읽는다."""
+    return run_hermes_mcp_command('hermes-building-proposal',{'id':job_identifier_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_city_proposal(job_identifier_value: str) -> dict:
+    """완료된 Hermes 작업의 도시 맵 변경 제안을 읽는다."""
+    return run_hermes_mcp_command('hermes-city-proposal',{'id':job_identifier_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def load_hermes_city_map(map_identifier_value: str) -> dict:
     """도시 맵 DB 원장과 세대·리비전을 읽는다. 로컬 잠금이 생길 수 있다."""
     return run_hermes_mcp_command('hermes-city-load',{'map':map_identifier_value})
@@ -619,8 +750,20 @@ def prepare_hermes_managed_model(request_identifier_value: str, model_service_na
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def read_hermes_model_preparation_receipt(request_identifier_value: str, model_service_name: str) -> dict:
-    """모델 준비 접수 기록을 읽는다. 모델 준비 완료 여부는 별도 조회한다."""
+    """요청 ID와 서비스가 포함된 모델 준비 접수 기록을 읽는다. 응답 당시 기록이며 현재 모델 준비 완료 여부는 별도 조회한다."""
     return run_hermes_mcp_command('hermes-model-prepare-status', {'request_id':request_identifier_value, 'service':model_service_name})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_capture_proposal(hermes_job_identifier: str) -> dict:
+    """완료된 대화의 캡처 제안을 읽고 검증한다. 캡처 실행은 지원하지 않는다."""
+    return run_hermes_mcp_command('hermes-capture-proposal', {'id':hermes_job_identifier})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_capture_status(request_identifier_value: str, capture_service_name: str) -> dict:
+    """검수 캡처 접수와 검증된 작업 상태를 읽는다. 캡처 실행은 지원하지 않는다."""
+    return run_hermes_mcp_command('hermes-capture-status', {'request_id':request_identifier_value, 'service':capture_service_name})
 
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
@@ -673,7 +816,7 @@ def cancel_hermes_kimodo_delegation(request_identifier_value: str, confirmed_job
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def read_hermes_delegation_status(request_identifier_value: str) -> dict:
-    """위임 접수 ID로 확인 필요 또는 기존 작업 ID를 조회한다. 재접수하지 않는다."""
+    """Kimodo 접수 ID·서비스와 확인 필요 또는 작업 ID를 조회한다. 작업 상태·생존·결과를 확인하거나 복구·생성을 실행하지 않는다."""
     return run_hermes_mcp_command('hermes-delegation-status', {'request_id': request_identifier_value})
 
 

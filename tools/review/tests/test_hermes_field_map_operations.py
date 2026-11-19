@@ -10,6 +10,20 @@ from tools.review.domains.hermes_agent import field_map_operations
 
 
 class HermesFieldMapOperationsTests(unittest.TestCase):
+    def test_field_change_summary_uses_observed_values_and_marks_missing(self):
+        from tools.review.ui.gradio.hermes_agent_app import format_conversation_field_changes
+        current_source_value={'tiles':{'rows':['ab']},'terrain':{'elevations':[[1,2]],'blocked':[[1,0]]}}
+        current_cells_value=[{'column':1,'row':0,'tile':'c','height':3,'blocked':False},{'column':4,'row':9,'tile':'a'}]
+        current_summary_value=format_conversation_field_changes(current_cells_value,current_source_value,'원본 동기화 확인')
+        self.assertIn('변경할 셀 2건',current_summary_value)
+        self.assertIn('타일 코드: "b" → "c"',current_summary_value)
+        self.assertIn('높이: 2 → 3',current_summary_value)
+        self.assertIn('통행 차단: true → false',current_summary_value)
+        self.assertIn('타일 코드: 확인 불가 → "a"',current_summary_value)
+        self.assertIn('주변 배치',current_summary_value)
+        current_source_value['terrain']['blocked']=[['bad',0]]
+        self.assertIn('통행 차단: 확인 불가 → false',format_conversation_field_changes(current_cells_value,current_source_value,'확인'))
+
     def test_preview_and_concurrent_save_reuses_receipt(self):
         current_draft_value = {'map':'moss-clearing','revision':'old-revision','cells':[],'objects':[]}
         current_token_value = field_map_operations.validate_field_map_draft(current_draft_value)
@@ -28,9 +42,31 @@ class HermesFieldMapOperationsTests(unittest.TestCase):
                     current_results_list = list(current_executor_value.map(lambda unused_value:field_map_operations.save_hermes_field_map_once('field_request_123',current_draft_value,current_token_value),range(4)))
                 self.assertEqual(current_calls_list.count('map-edit-save'),1)
                 self.assertEqual(sum(not item['duplicate'] for item in current_results_list),1)
+                self.assertTrue(all(item['request_id']=='field_request_123' for item in current_results_list))
                 with self.assertRaises(ValueError):
                     field_map_operations.save_hermes_field_map_once('field_request_123',{**current_draft_value,'map':'another'},field_map_operations.validate_field_map_draft({**current_draft_value,'map':'another'}))
                 self.assertEqual(current_store_value.list_delegation_receipts()['records'],[])
+
+    def test_field_ui_consumes_real_service_save_receipt(self):
+        import json
+        from tools.review.ui.gradio import hermes_agent_app
+        current_draft={'map':'moss-clearing','revision':'revision','cells':[],'objects':[]}
+        current_token=field_map_operations.validate_field_map_draft(current_draft)
+        current_review={'request_id':'field_request_123','draft':current_draft,'token':current_token}
+        current_commands=[]
+        def current_editor(current_command,current_payload):
+            current_commands.append(current_command)
+            if current_command=='map-edit-preview':return {'token':current_token,'changed':True,'reachable':1,'objects':0,'cells':0}
+            if current_command=='map-edit-save':return {'saved':True}
+            raise ValueError('unexpected command')
+        def current_gateway(current_service,current_command,current_payload):
+            self.assertEqual((current_service,current_command),('hermes-agent','hermes-field-save'))
+            return field_map_operations.save_hermes_field_map_once(current_payload['request_id'],current_payload['draft'],current_payload['token'])
+        with TemporaryDirectory() as current_directory, patch.object(field_map_operations,'HermesDelegationStore',return_value=HermesDelegationStore(Path(current_directory))), patch.object(field_map_operations,'call_field_map_editor',side_effect=current_editor), patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway):
+            for current_iteration in range(2):
+                _,_,current_status=hermes_agent_app.save_hermes_field_map_draft(current_review,json.dumps(current_draft),current_review['request_id'])
+                self.assertIn('맵 저장 완료',current_status)
+            self.assertEqual(current_commands.count('map-edit-save'),1)
 
     def test_lost_save_response_is_not_retried(self):
         current_draft_value = {'map':'moss-clearing','revision':'old','cells':[],'objects':[]}

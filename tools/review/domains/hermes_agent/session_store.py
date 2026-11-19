@@ -2,6 +2,7 @@
 from contextlib import contextmanager
 from datetime import datetime, timezone
 import fcntl
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -68,17 +69,45 @@ class HermesSessionStore:
         with self.hold_session_storage_lock():
             return self.read_session_record_locked(session_identifier_value)
 
-    def list_session_records(self):
+    def list_session_records(self, current_page_request=None):
+        if current_page_request is not None and (not isinstance(current_page_request,dict) or set(current_page_request)-{'offset','limit','snapshot','query'}):
+            raise ValueError('세션 목록 조회 필드 오류')
+        current_query_value=(current_page_request or {}).get('query','')
+        if not isinstance(current_query_value,str) or len(current_query_value)>100 or any(ord(char)<32 for char in current_query_value):
+            raise ValueError('세션 목록 검색 조건 오류')
+        current_query_value=current_query_value.strip().casefold()
         with self.hold_session_storage_lock():
             current_session_summaries = []
+            current_unreadable_identifiers = []
             for current_record_path in self.session_storage_root.glob('*.json'):
                 current_session_identifier = current_record_path.stem
                 if not HERMES_SESSION_ID_PATTERN.fullmatch(current_session_identifier):
                     continue
-                current_session_record = self.read_session_record_locked(current_session_identifier)
-                current_session_summaries.append({'id': current_session_identifier, 'created_at': current_session_record['created_at'], 'updated_at': current_session_record['updated_at'], 'message_count': len(current_session_record['messages'])})
+                try:
+                    current_session_record = self.read_session_record_locked(current_session_identifier)
+                    current_message_records=current_session_record['messages']
+                    if not isinstance(current_session_record.get('created_at'),str) or not isinstance(current_session_record.get('updated_at'),str) or any(not isinstance(item,dict) or not isinstance(item.get('text'),str) for item in current_message_records):
+                        raise ValueError('세션 지시 기록 오류')
+                except (OSError,ValueError,TypeError,UnicodeError):
+                    current_unreadable_identifiers.append(current_session_identifier)
+                    continue
+                if current_query_value and current_query_value not in current_session_identifier and not any(current_query_value in item['text'].casefold() for item in current_message_records):continue
+                current_session_summaries.append({'id': current_session_identifier, 'created_at': current_session_record['created_at'], 'updated_at': current_session_record['updated_at'], 'message_count': len(current_message_records)})
+            current_unreadable_identifiers.sort()
             current_session_summaries.sort(key=lambda current_session_record: (current_session_record['updated_at'], current_session_record['id']), reverse=True)
-            return {'sessions': current_session_summaries[:100], 'truncated': len(current_session_summaries) > 100}
+            if not current_page_request:
+                return {'sessions': current_session_summaries[:100], 'truncated': len(current_session_summaries) > 100, 'unreadable_count':len(current_unreadable_identifiers)}
+            current_offset_value=current_page_request.get('offset',0)
+            current_limit_value=current_page_request.get('limit',30)
+            if type(current_offset_value) is not int or current_offset_value<0 or type(current_limit_value) is not int or not 1<=current_limit_value<=30:
+                raise ValueError('세션 목록 검색 조건 오류')
+            current_matching_summaries=current_session_summaries
+            current_snapshot_value=hashlib.sha256(json.dumps({'query':current_query_value,'sessions':current_matching_summaries,'unreadable':current_unreadable_identifiers},sort_keys=True,separators=(',',':')).encode('utf-8')).hexdigest()
+            if (current_offset_value>0 and current_page_request.get('snapshot')!=current_snapshot_value) or ('snapshot' in current_page_request and current_page_request['snapshot']!=current_snapshot_value):
+                raise ValueError('세션 목록이 변경됐습니다. 처음부터 다시 조회하세요.')
+            current_page_values=current_matching_summaries[current_offset_value:current_offset_value+current_limit_value]
+            current_next_offset=current_offset_value+len(current_page_values)
+            return {'sessions':current_page_values,'offset':current_offset_value,'next_offset':current_next_offset if current_next_offset<len(current_matching_summaries) else None,'total':len(current_matching_summaries),'snapshot':current_snapshot_value,'unreadable_count':len(current_unreadable_identifiers)}
 
     def append_session_request(self, session_identifier_value, request_identifier_value, request_message_text, execution_prompt_text=None, verification_module_names=None, context_truncated=False):
         if not isinstance(request_identifier_value, str) or not HERMES_SESSION_REQUEST_PATTERN.fullmatch(request_identifier_value):

@@ -8,6 +8,50 @@ from tools.review.domains.hermes_agent.delegation_store import HermesDelegationS
 
 
 class HermesEffectOperationTests(unittest.TestCase):
+    def test_effect_receipt_target_matches_and_legacy_is_distinct(self):
+        from tools.review.domains.hermes_agent.effect_operations import inspect_hermes_effect_receipt
+        current_record={'version':8,'id':'effect_request_123','state':'dispatching','effect_id':'fire'}
+        self.assertEqual(inspect_hermes_effect_receipt(current_record,'effect_request_123')['effect_id'],'fire')
+        current_record['effect_id']='../invalid'
+        with self.assertRaises(ValueError):inspect_hermes_effect_receipt(current_record,'effect_request_123')
+        del current_record['effect_id']
+        self.assertNotIn('effect_id',inspect_hermes_effect_receipt(current_record,'effect_request_123'))
+
+    def test_history_rejects_mismatched_effect_and_labels_legacy(self):
+        import hashlib
+        from tools.review.ui.gradio import operations_history_app
+        current_session='a'*32
+        current_job='2026-11-18_00-00-00-12345678'
+        current_request='chat_'+hashlib.sha256((current_session+':'+current_job+':effect').encode()).hexdigest()
+        current_page={'session_id':current_session,'offset':0,'snapshot':'b'*64}
+        current_receipt={'state':'completed','request_id':current_request,'saved':True}
+        def current_gateway(service,command,payload):
+            if command=='hermes-session-view':return {'id':current_session,'offset':0,'snapshot':'b'*64,'messages':[{'job_id':current_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_EFFECT_PROPOSAL'}}]}
+            if command=='hermes-effect-proposal':return {'job_id':current_job,'proposal':{'id':'fire'}}
+            if command=='hermes-effect-receipt':return current_receipt
+            raise AssertionError(command)
+        with patch.object(operations_history_app,'execute_remote_management_command',side_effect=current_gateway):
+            current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
+            self.assertIn('대상 미확인',current_rows[0][3])
+            current_receipt['effect_id']='water'
+            current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
+            self.assertEqual(current_rows[0][3],'제안 또는 접수 조회 불가')
+            current_receipt['state']='unknown'
+            current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
+            self.assertEqual(current_rows[0][3],'제안 또는 접수 조회 불가')
+            current_receipt['effect_id']='fire'
+            current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
+            self.assertEqual(current_rows[0][3],'접수 확인 필요')
+
+    def test_effect_summary_preserves_each_frame_and_scope(self):
+        from tools.review.ui.gradio.hermes_agent_app import format_conversation_effect_changes
+        current_preview_value={'id':'firefly-v1','before':{'alpha':0.5,'target':[0,0,1,1],'frames':[[0,0,1,1],[1,1,2,2]]},'after':{'alpha':0.7,'target':[1,0,1,1],'frames':[[0,0,1,1],[2,1,2,2]]},'note':'모든 맵에 적용'}
+        current_summary_value=format_conversation_effect_changes(current_preview_value)
+        self.assertIn('불투명도: 0.5 → 0.7',current_summary_value)
+        self.assertIn('1: [1, 1, 2, 2] → [2, 1, 2, 2]',current_summary_value)
+        self.assertIn('모든 맵에 적용',current_summary_value)
+        self.assertIn('이펙트 도구',current_summary_value)
+
     def setUp(self):
         self.current_temp_root=tempfile.TemporaryDirectory()
         self.addCleanup(self.current_temp_root.cleanup)
@@ -27,6 +71,7 @@ class HermesEffectOperationTests(unittest.TestCase):
             self.assertEqual(current_preview_record['after']['texture'],'fireflies')
             current_save_args=('effect_request_123',self.current_draft_record,self.current_preview_token)
             self.assertTrue(effect_operations.save_hermes_effect_edit_once(*current_save_args)['saved'])
+            self.assertEqual(effect_operations.read_hermes_effect_edit_receipt('effect_request_123')['effect_id'],self.current_draft_record['id'])
             self.assertTrue(effect_operations.save_hermes_effect_edit_once(*current_save_args)['duplicate'])
             self.assertEqual(current_editor_mock.call_count,1)
             current_payload_record=current_editor_mock.call_args.args[1]
@@ -36,13 +81,62 @@ class HermesEffectOperationTests(unittest.TestCase):
             self.assertEqual(str(uuid.UUID(current_payload_record['requestId'])),current_payload_record['requestId'])
             self.assertEqual(self.current_store_value.list_delegation_receipts()['records'],[])
 
+    def test_changed_receipt_after_effect_save_is_not_overwritten(self):
+        import json
+        current_record_path=self.current_store_value.resolve_delegation_record_path('effect_request_123')
+        def current_editor_response(current_command_name,current_payload_record):
+            current_receipt_value=json.loads(current_record_path.read_text())
+            current_receipt_value['external_change']='preserve'
+            current_record_path.write_text(json.dumps(current_receipt_value))
+            return {'saved':True,'revision':'b'*64}
+        with patch.object(effect_operations,'read_hermes_effect_detail',return_value=self.current_detail_record),patch.object(effect_operations,'call_hermes_effect_editor',side_effect=current_editor_response) as current_editor_mock:
+            current_save_args=('effect_request_123',self.current_draft_record,self.current_preview_token)
+            with self.assertRaisesRegex(ValueError,'접수 기록이 변경'):effect_operations.save_hermes_effect_edit_once(*current_save_args)
+            self.assertEqual(effect_operations.save_hermes_effect_edit_once(*current_save_args)['state'],'unknown')
+            current_editor_mock.assert_called_once()
+            self.assertEqual(json.loads(current_record_path.read_text())['external_change'],'preserve')
+
     def test_unknown_is_not_redispatched(self):
         with patch.object(effect_operations,'read_hermes_effect_detail',return_value=self.current_detail_record), patch.object(effect_operations,'call_hermes_effect_editor',side_effect=OSError('lost')) as current_editor_mock:
             current_save_args=('effect_request_123',self.current_draft_record,self.current_preview_token)
             with self.assertRaises(OSError):effect_operations.save_hermes_effect_edit_once(*current_save_args)
             self.assertEqual(effect_operations.read_hermes_effect_edit_receipt('effect_request_123')['state'],'unknown')
+            self.assertEqual(effect_operations.read_hermes_effect_edit_receipt('effect_request_123')['effect_id'],self.current_draft_record['id'])
             self.assertEqual(effect_operations.save_hermes_effect_edit_once(*current_save_args)['state'],'unknown')
             self.assertEqual(current_editor_mock.call_count,1)
+
+    def test_registration_ui_accepts_service_receipt_without_duplicate_write(self):
+        import json
+        from tools.review.ui.gradio import hermes_agent_app
+        current_draft={'id':'fog-test-v1'}
+        current_review={'request_id':'registration_request_123','draft':current_draft,'review_sha256':'a'*64}
+        def current_gateway(current_service,current_command,current_payload):
+            self.assertEqual((current_service,current_command),('hermes-agent','hermes-effect-register'))
+            return effect_operations.register_hermes_effect_once(current_payload['request_id'],current_payload['draft'],current_payload['review_sha256'])
+        with patch.object(effect_operations,'preview_hermes_effect_registration',return_value={'review_sha256':'a'*64}), patch.object(effect_operations,'call_hermes_effect_editor',return_value={'created':True,'id':'fog-test-v1','generation':3,'snapshot':'pending'}) as current_editor, patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway):
+            for current_iteration in range(2):
+                _,_,current_status=hermes_agent_app.save_hermes_effect_registration_draft(current_review,json.dumps(current_draft),current_review['request_id'])
+                self.assertIn('DB 등록 완료',current_status)
+            current_editor.assert_called_once()
+
+    def test_effect_registration_and_waypoint_preserve_changed_receipt(self):
+        import json
+        current_cases=(('registration',{'id':'new-effect'},'preview_hermes_effect_registration','register_hermes_effect_once',{'created':True,'id':'new-effect','generation':2,'snapshot':'pending'}),('waypoint',{'id':'old-effect','revision':'b'*64,'effect':{'id':'new-effect'}},'preview_hermes_waypoint_replacement','replace_hermes_waypoint_once',{'saved':True,'id':'new-effect','replaced':'old-effect','generation':2,'snapshot':'pending'}))
+        for current_kind_name,current_draft_value,current_preview_name,current_save_name,current_response_value in current_cases:
+            with self.subTest(kind=current_kind_name):
+                current_request_value=current_kind_name+'_request_123'
+                current_record_path=self.current_store_value.resolve_delegation_record_path(current_request_value)
+                def current_editor_response(current_command_name,current_payload_record):
+                    current_receipt_value=json.loads(current_record_path.read_text())
+                    current_receipt_value['external_change']='preserve'
+                    current_record_path.write_text(json.dumps(current_receipt_value))
+                    return current_response_value
+                with patch.object(effect_operations,current_preview_name,return_value={'review_sha256':'a'*64}),patch.object(effect_operations,'call_hermes_effect_editor',side_effect=current_editor_response) as current_editor_mock:
+                    current_save_function=getattr(effect_operations,current_save_name)
+                    with self.assertRaisesRegex(ValueError,'접수 기록이 변경'):current_save_function(current_request_value,current_draft_value,'a'*64)
+                    self.assertEqual(current_save_function(current_request_value,current_draft_value,'a'*64)['state'],'unknown')
+                    current_editor_mock.assert_called_once()
+                    self.assertEqual(json.loads(current_record_path.read_text())['external_change'],'preserve')
 
     def test_waypoint_replacement_review_duplicate_and_uncertain_response(self):
         current_effect_value={'id':'waypoint-v2','name':'새 웨이포인트','image':'assets/sprites/effects/new.png','animation':'assets/sprites/effects/new.json','renderer':'waypoint-animation','columns':4,'rows':2,'frames':8}

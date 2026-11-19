@@ -32,7 +32,7 @@ REVIEW_SERVER_RETRY_SECONDS = 3
 REVIEW_WATCH_POLL_SECONDS = 0.5
 REVIEW_WATCH_SETTLE_SECONDS = 1.0
 REVIEW_LIVE_RELOAD_PATH = '/__review_live_reload__'
-REVIEW_LIVE_RELOAD_SCRIPT = b'''<script id="review-live-reload">(()=>{let instanceId;const poll=async()=>{try{const response=await fetch('/__review_live_reload__',{cache:'no-store'});if(!response.ok)throw new Error('watch unavailable');const nextInstanceId=(await response.json()).instanceId;if(instanceId&&instanceId!==nextInstanceId){location.reload();return}instanceId=nextInstanceId}catch(_error){}finally{setTimeout(poll,1000)}};poll()})()</script>'''
+REVIEW_LIVE_RELOAD_SCRIPT = b'''<script id="review-live-reload">(()=>{let instanceId;const poll=async()=>{try{const response=await fetch('/__review_live_reload__',{cache:'no-store'});if(!response.ok)throw new Error('watch unavailable');const nextInstanceId=(await response.json()).instanceId;if(instanceId&&instanceId!==nextInstanceId){location.reload();return}instanceId=nextInstanceId}catch(_error){}finally{setTimeout(poll,5000)}};poll()})()</script>'''
 
 def is_review_live_reload_request(request_path):
     return urlsplit(request_path).path == REVIEW_LIVE_RELOAD_PATH

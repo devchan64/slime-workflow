@@ -115,6 +115,147 @@ class GpuJobQueueTests(unittest.TestCase):
         self.assertEqual(json.loads((self.current_job_path / 'status.json').read_text())['status'], 'completed')
         self.assertEqual(list(current_active_root.glob('*.json')), [])
 
+    def test_new_other_service_records_verifiable_worker_group(self):
+        import os
+        import sys
+        import threading
+        (self.current_job_path/'gpu-command.json').write_text(json.dumps({'command':[sys.executable,'-c','import time; time.sleep(60)'],'service':'anny'}))
+        current_observations=[]
+        def inspect_and_cancel(current_wait_seconds):
+            if current_observations:
+                threading.Event().wait(min(current_wait_seconds,0.05))
+                return
+            current_records=list((queue_module.GPU_QUEUE_DIRECTORY/'active').glob('*.json'))
+            self.assertEqual(len(current_records),1)
+            current_record=json.loads(current_records[0].read_text())
+            self.assertEqual(len(current_record['worker_process_token']),32)
+            current_descriptor=None
+            for current_attempt in range(200):
+                current_descriptor=queue_module.open_verified_hermes_process_group(current_record)
+                if current_descriptor is not None:break
+                threading.Event().wait(0.01)
+            self.assertIsNotNone(current_descriptor)
+            os.close(current_descriptor)
+            current_observations.append(True)
+            queue_module.cancel_gpu_generation(self.current_job_path)
+        with patch.object(queue_module,'read_gpu_memory',return_value=(24000,20000)),patch.object(queue_module.time,'sleep',side_effect=inspect_and_cancel):
+            queue_module.execute_queued_generation(self.current_job_path)
+        self.assertEqual(current_observations,[True])
+        self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'cancelled')
+
+    def test_dead_other_executor_does_not_release_live_child_reservation(self):
+        import os
+        import subprocess
+        import sys
+        current_active_root=queue_module.GPU_QUEUE_DIRECTORY/'active'
+        current_active_root.mkdir(parents=True)
+        current_child_process=subprocess.Popen([sys.executable,'-c','import time; time.sleep(60)'],start_new_session=True)
+        self.addCleanup(lambda: current_child_process.wait(timeout=5) if current_child_process.poll() is not None else (current_child_process.terminate(),current_child_process.wait(timeout=5)))
+        current_reservation_path=current_active_root/'orphan.json'
+        current_reservation_path.write_text(json.dumps({'pid':os.getpid(),'pid_start_token':'0','service':'image','required_memory_mib':1024,'worker_pgid':current_child_process.pid}))
+        current_observations=[]
+        def cancel_after_observation(current_wait_seconds):
+            self.assertIsNone(current_child_process.poll())
+            self.assertTrue(current_reservation_path.exists())
+            self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'queued')
+            current_worker_mock.assert_not_called()
+            current_observations.append(True)
+            queue_module.cancel_gpu_generation(self.current_job_path)
+        with patch.object(queue_module,'read_gpu_memory',return_value=(24000,20000)),patch.object(queue_module.time,'sleep',side_effect=cancel_after_observation),patch.object(queue_module.subprocess,'Popen') as current_worker_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+        self.assertEqual(current_observations,[True])
+        self.assertTrue(current_reservation_path.exists())
+        self.assertIsNone(current_child_process.poll())
+
+    def test_unreadable_reservation_identity_does_not_fail_or_release_other_job(self):
+        import os
+        current_active_root=queue_module.GPU_QUEUE_DIRECTORY/'active'
+        current_active_root.mkdir(parents=True)
+        current_reservation_path=current_active_root/'unreadable.json'
+        current_reservation_path.write_text(json.dumps({'pid':os.getpid(),'service':'image','required_memory_mib':1024}))
+        current_observations=[]
+        def cancel_after_observation(current_wait_seconds):
+            self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'queued')
+            self.assertTrue(current_reservation_path.exists())
+            current_worker_mock.assert_not_called()
+            current_observations.append(True)
+            queue_module.cancel_gpu_generation(self.current_job_path)
+        with patch.object(queue_module,'read_gpu_memory',return_value=(24000,20000)),patch.object(queue_module,'is_gpu_queue_executor_alive',side_effect=PermissionError('unavailable')),patch.object(queue_module.time,'sleep',side_effect=cancel_after_observation),patch.object(queue_module.subprocess,'Popen') as current_worker_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+        self.assertEqual(current_observations,[True])
+        self.assertTrue(current_reservation_path.exists())
+        (self.current_job_path/'cancel.request').unlink(missing_ok=True)
+        current_observations.clear()
+        with patch.object(queue_module,'read_gpu_memory',return_value=(24000,20000)),patch.object(queue_module,'is_gpu_queue_executor_alive',return_value=False),patch.object(queue_module,'recover_stale_hermes_reservation',side_effect=OSError('recovery failed')),patch.object(queue_module.time,'sleep',side_effect=cancel_after_observation),patch.object(queue_module.subprocess,'Popen') as current_worker_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+        self.assertEqual(current_observations,[True])
+        self.assertTrue(current_reservation_path.exists())
+
+    def test_malformed_active_reservation_blocks_other_work_without_deletion(self):
+        import os
+        current_active_root=queue_module.GPU_QUEUE_DIRECTORY/'active'
+        current_active_root.mkdir(parents=True)
+        current_reservation_path=current_active_root/'corrupt.json'
+        current_bad_job=Path(self.temporary_job_root.name)/'bad-reservation-job'
+        current_bad_job.mkdir()
+        (current_bad_job/'gpu-command.json').write_text('{invalid')
+        for current_bad_record in ([],{'pid':10**100,'required_memory_mib':1},{'pid':True,'required_memory_mib':1},{'pid':os.getpid()},{'pid':os.getpid(),'required_memory_mib':-1},{'pid':os.getpid(),'required_memory_mib':1,'pid_start_token':None},{'pid':os.getpid(),'required_memory_mib':1,'path':42},{'pid':os.getpid(),'required_memory_mib':1,'path':str(current_bad_job)}):
+            with self.subTest(record=current_bad_record):
+                current_reservation_path.write_text(json.dumps(current_bad_record))
+                (self.current_job_path/'cancel.request').unlink(missing_ok=True)
+                current_observations=[]
+                def cancel_after_observation(current_wait_seconds):
+                    current_status=json.loads((self.current_job_path/'status.json').read_text())
+                    self.assertEqual(current_status['status'],'queued')
+                    self.assertEqual(json.loads(current_reservation_path.read_text()),current_bad_record)
+                    current_worker_mock.assert_not_called()
+                    current_observations.append(True)
+                    queue_module.cancel_gpu_generation(self.current_job_path)
+                with patch.object(queue_module,'read_gpu_memory',return_value=(24000,20000)),patch.object(queue_module.time,'sleep',side_effect=cancel_after_observation),patch.object(queue_module.subprocess,'Popen') as current_worker_mock:
+                    self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+                self.assertEqual(current_observations,[True])
+                self.assertTrue(current_reservation_path.exists())
+
+    def test_corrupt_other_ticket_preserves_waiting_job_and_can_cancel(self):
+        current_queue=queue_module.GPU_QUEUE_DIRECTORY
+        current_queue.mkdir()
+        current_ticket=current_queue/'00000000000000000000.json'
+        current_ticket.write_text('{broken')
+        current_waits=[]
+        def cancel_waiting_after_observation(current_wait_seconds):
+            current_status=json.loads((self.current_job_path/'status.json').read_text())
+            self.assertEqual(current_status['status'],'queued')
+            self.assertTrue(current_ticket.exists())
+            current_worker_mock.assert_not_called()
+            current_waits.append(True)
+            queue_module.cancel_gpu_generation(self.current_job_path)
+        with patch.object(queue_module,'read_gpu_memory',return_value=(24000,20000)),patch.object(queue_module.time,'sleep',side_effect=cancel_waiting_after_observation),patch.object(queue_module.subprocess,'Popen') as current_worker_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+        self.assertEqual(current_waits,[True])
+        self.assertTrue(current_ticket.exists())
+        self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'cancelled')
+
+    def test_corrupt_priority_order_preserves_waiting_job_and_can_cancel(self):
+        current_queue=queue_module.GPU_QUEUE_DIRECTORY
+        current_queue.mkdir()
+        current_priority=current_queue/'priority-order'
+        for current_bad_content in ('{bad','[]','{"ticket.json":"bad"}','{"ticket.json":true}'):
+            current_priority.write_text(current_bad_content)
+            with self.assertRaises(ValueError):queue_module.read_priority_tickets()
+        def cancel_waiting_after_observation(current_wait_seconds):
+            current_status=json.loads((self.current_job_path/'status.json').read_text())
+            self.assertEqual(current_status['status'],'queued')
+            self.assertIn('순서를 확인할 수 없어',current_status['message'])
+            self.assertEqual(current_priority.read_text(),'{bad')
+            current_worker_mock.assert_not_called()
+            current_gpu_mock.assert_not_called()
+            queue_module.cancel_gpu_generation(self.current_job_path)
+        current_priority.write_text('{bad')
+        with patch.object(queue_module,'read_gpu_memory') as current_gpu_mock,patch.object(queue_module.time,'sleep',side_effect=cancel_waiting_after_observation),patch.object(queue_module.subprocess,'Popen') as current_worker_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+        self.assertEqual(current_priority.read_text(),'{bad')
+        self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'cancelled')
+
     def test_memory_wait_can_be_cancelled_without_launch(self):
         def cancel_waiting_job(_):
             current_status_record=json.loads((self.current_job_path/'status.json').read_text())
@@ -369,6 +510,97 @@ class GpuJobQueueTests(unittest.TestCase):
             with self.assertRaises(ValueError):queue_module.resume_gpu_generation(self.current_job_path)
         self.assertEqual((self.current_job_path/'result.png').read_bytes(),b'preserved')
 
+    def test_resume_fingerprint_rejects_changed_records_before_side_effects(self):
+        current_request_path=self.current_job_path/'request.json'
+        current_request_path.write_text('{"prompt":"original"}')
+        (self.current_job_path/'status.json').write_text('{"status":"cancelled"}')
+        (self.current_job_path/'cancel.request').touch()
+        current_review_fingerprint=queue_module.fingerprint_resume_job_records(self.current_job_path)
+        for current_changed_name,current_changed_bytes in (('request.json',b'{"prompt":"changed"}'),('status.json',b'{"status":"failed"}'),('gpu-command.json',b'{}')):
+            current_changed_path=self.current_job_path/current_changed_name
+            current_original_bytes=current_changed_path.read_bytes()
+            current_changed_path.write_bytes(current_changed_bytes)
+            with self.subTest(current_changed_name=current_changed_name),patch.object(queue_module,'launch_gpu_process') as current_launch_mock:
+                with self.assertRaisesRegex(ValueError,'변경됐습니다'):
+                    queue_module.resume_gpu_generation(self.current_job_path,expected_resume_fingerprint=current_review_fingerprint)
+                current_launch_mock.assert_not_called()
+                self.assertTrue((self.current_job_path/'cancel.request').exists())
+            current_changed_path.write_bytes(current_original_bytes)
+        with patch.object(queue_module,'launch_gpu_process') as current_launch_mock:
+            self.assertEqual(queue_module.resume_gpu_generation(self.current_job_path,expected_resume_fingerprint=current_review_fingerprint)['status'],'queued')
+            current_launch_mock.assert_called_once()
+
+    def test_verified_resume_requires_all_records_and_rejects_symlinks(self):
+        current_request_path=self.current_job_path/'request.json'
+        current_request_path.write_text('{"prompt":"original"}')
+        (self.current_job_path/'status.json').write_text('{"status":"failed"}')
+        current_review_fingerprint=queue_module.fingerprint_resume_job_records(self.current_job_path)
+        for current_record_name in ('request.json','status.json','gpu-command.json'):
+            current_record_path=self.current_job_path/current_record_name
+            current_original_bytes=current_record_path.read_bytes()
+            current_record_path.unlink()
+            with self.subTest(current_record_name=current_record_name),patch.object(queue_module,'launch_gpu_process') as current_launch_mock:
+                with self.assertRaises(ValueError):queue_module.fingerprint_resume_job_records(self.current_job_path)
+                with self.assertRaises(ValueError):queue_module.resume_gpu_generation(self.current_job_path,{'command':['other'],'service':'image'},current_review_fingerprint)
+                current_launch_mock.assert_not_called()
+            current_record_path.write_bytes(current_original_bytes)
+        current_request_path.unlink()
+        current_request_path.symlink_to(self.current_job_path/'status.json')
+        with self.assertRaises(ValueError):queue_module.fingerprint_resume_job_records(self.current_job_path)
+
+    def test_resume_rechecks_record_after_executor_lock(self):
+        import fcntl
+        current_request_path=self.current_job_path/'request.json'
+        current_request_path.write_text('{"prompt":"original"}')
+        (self.current_job_path/'status.json').write_text('{"status":"failed"}')
+        (self.current_job_path/'cancel.request').touch()
+        current_review_fingerprint=queue_module.fingerprint_resume_job_records(self.current_job_path)
+        current_original_flock=fcntl.flock
+        def mutate_before_execution_lock(current_lock_handle,current_lock_flags):
+            if current_lock_flags & fcntl.LOCK_NB:
+                current_request_path.write_text('{"prompt":"changed"}')
+            return current_original_flock(current_lock_handle,current_lock_flags)
+        with patch.object(queue_module.fcntl,'flock',side_effect=mutate_before_execution_lock),patch.object(queue_module,'launch_gpu_process') as current_launch_mock:
+            with self.assertRaisesRegex(ValueError,'변경됐습니다'):
+                queue_module.resume_gpu_generation(self.current_job_path,expected_resume_fingerprint=current_review_fingerprint)
+            current_launch_mock.assert_not_called()
+            self.assertTrue((self.current_job_path/'cancel.request').exists())
+            self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'failed')
+
+    def test_verified_resume_rejects_other_gpu_service(self):
+        (self.current_job_path/'request.json').write_text('{}')
+        (self.current_job_path/'status.json').write_text('{"status":"failed"}')
+        (self.current_job_path/'cancel.request').touch()
+        current_review_fingerprint=queue_module.fingerprint_resume_job_records(self.current_job_path)
+        with patch.object(queue_module,'launch_gpu_process') as current_launch_mock:
+            with self.assertRaisesRegex(ValueError,'서비스가'):
+                queue_module.resume_gpu_generation(self.current_job_path,expected_resume_fingerprint=current_review_fingerprint,expected_resume_service='music-heartmula')
+            current_launch_mock.assert_not_called()
+            self.assertTrue((self.current_job_path/'cancel.request').exists())
+
+    def test_verified_resume_rejects_unexpected_worker_command(self):
+        (self.current_job_path/'request.json').write_text('{}')
+        (self.current_job_path/'status.json').write_text('{"status":"failed"}')
+        (self.current_job_path/'cancel.request').touch()
+        current_review_fingerprint=queue_module.fingerprint_resume_job_records(self.current_job_path)
+        with patch.object(queue_module,'launch_gpu_process') as current_launch_mock:
+            with self.assertRaisesRegex(ValueError,'검증된 작업 명령'):
+                queue_module.resume_gpu_generation(self.current_job_path,expected_resume_fingerprint=current_review_fingerprint,expected_resume_command=['different-worker'])
+            current_launch_mock.assert_not_called()
+            self.assertTrue((self.current_job_path/'cancel.request').exists())
+
+    def test_resume_preview_rejects_record_changed_during_validation(self):
+        current_request_path=self.current_job_path/'request.json'
+        current_request_path.write_text('{"prompt":"original"}')
+        (self.current_job_path/'status.json').write_text('{"status":"failed"}')
+        current_command_record=json.loads((self.current_job_path/'gpu-command.json').read_text())
+        def mutate_during_validation(current_request_record):
+            current_request_path.write_text('{"prompt":"changed"}')
+        with patch.object(queue_module,'launch_gpu_process') as current_launch_mock:
+            with self.assertRaisesRegex(ValueError,'검토 중'):
+                queue_module.preview_gpu_resume_records(self.current_job_path,current_command_record['service'],current_command_record['command'],mutate_during_validation)
+            current_launch_mock.assert_not_called()
+
     def test_legacy_resume_prepares_command_only_after_acceptance(self):
         import fcntl
         current_command_path = self.current_job_path / 'gpu-command.json'
@@ -461,6 +693,25 @@ class GpuJobQueueTests(unittest.TestCase):
             queue_module.execute_queued_generation(self.current_job_path)
             terminate_group_mock.assert_called_once()
         self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'cancelled')
+
+    def test_new_and_reloaded_tickets_keep_executor_start_identity(self):
+        import os
+        current_expected_start=Path(f'/proc/{os.getpid()}/stat').read_text().rpartition(') ')[2].split()[19]
+        (self.current_job_path/'cancel.request').touch()
+        with patch.object(queue_module,'write_record_atomically',wraps=queue_module.write_record_atomically) as current_write_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+        current_ticket_records=[current_call.args[1] for current_call in current_write_mock.call_args_list if isinstance(current_call.args[1],dict) and 'pid' in current_call.args[1] and 'path' in current_call.args[1]]
+        self.assertEqual(len(current_ticket_records),1)
+        self.assertEqual(current_ticket_records[0]['pid_start_token'],current_expected_start)
+        self.assertEqual(current_ticket_records[0]['boot_id'],Path('/proc/sys/kernel/random/boot_id').read_text().strip())
+        current_queue=queue_module.GPU_QUEUE_DIRECTORY
+        for current_with_token in (False,True):
+            current_ticket=current_queue/'inherited.json'
+            current_record={'pid':os.getpid(),'path':str(self.current_job_path)}
+            if current_with_token:current_record['pid_start_token']=current_expected_start
+            current_ticket.write_text(json.dumps(current_record))
+            with patch.dict(os.environ,{'SLIME_GPU_QUEUE_TICKET':str(current_ticket)}):
+                self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
 
     def test_later_job_runs_when_earlier_job_does_not_fit(self):
         import os

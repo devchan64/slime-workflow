@@ -45,6 +45,28 @@ class HermesDelegationTests(unittest.TestCase):
             with self.subTest(answer=current_bad_answer), self.assertRaises(ValueError):
                 parse_hermes_flux_proposal(current_bad_answer)
 
+    def test_flux_proposal_supports_registered_image_profiles(self):
+        import json
+        from tools.review.domains.hermes_agent.delegation_proposal import parse_hermes_flux_proposal
+        for current_service in ('flux-image','flux-character','flux-prop','flux-vegetation','flux-seamless','flux-building','flux-billboard','flux-mannequin'):
+            current_payload={'service':current_service,'prompt':'blue sky','width':512,'height':512,'seed':42}
+            current_answer='HERMES_FLUX_PROPOSAL\n'+json.dumps(current_payload)+'\nEND_HERMES_FLUX_PROPOSAL'
+            self.assertEqual(parse_hermes_flux_proposal(current_answer)['service'],current_service)
+        for current_service in ('flux-expression','unknown'):
+            current_payload={'service':current_service,'prompt':'blue sky','width':512,'height':512,'seed':42}
+            with self.assertRaises(ValueError):parse_hermes_flux_proposal('HERMES_FLUX_PROPOSAL\n'+json.dumps(current_payload)+'\nEND_HERMES_FLUX_PROPOSAL')
+        current_payload={'service':'flux-seamless','prompt':'blue sky','width':768,'height':512,'seed':42}
+        with self.assertRaises(ValueError):parse_hermes_flux_proposal('HERMES_FLUX_PROPOSAL\n'+json.dumps(current_payload)+'\nEND_HERMES_FLUX_PROPOSAL')
+
+    def test_flux_expression_proposal_validates_registered_preset(self):
+        import json
+        from tools.review.domains.hermes_agent.delegation_proposal import parse_hermes_flux_proposal
+        current_payload={'service':'flux-expression','prompt':'joy','width':512,'height':512,'seed':42}
+        current_answer='HERMES_FLUX_PROPOSAL\n'+json.dumps(current_payload)+'\nEND_HERMES_FLUX_PROPOSAL'
+        self.assertEqual(parse_hermes_flux_proposal(current_answer),current_payload)
+        current_payload['prompt']='not_a_real_expression'
+        with self.assertRaises(ValueError):parse_hermes_flux_proposal('HERMES_FLUX_PROPOSAL\n'+json.dumps(current_payload)+'\nEND_HERMES_FLUX_PROPOSAL')
+
     def test_flux_proposal_requires_completed_untruncated_job(self):
         import json
         from tools.review.domains.hermes_agent.service import HermesServiceManager
@@ -96,6 +118,31 @@ class HermesDelegationTests(unittest.TestCase):
             (current_job_path/'hermes-events.jsonl').write_text(json.dumps({'type':'result','text':current_answer_value+'x'*8001}))
             with self.assertRaises(ValueError):
                 current_service_value.execute_hermes_command('hermes-video-proposal',{'id':current_job_identifier})
+
+    def test_writer_proposal_validates_request_and_completed_job(self):
+        import json
+        from tools.review.domains.hermes_agent.delegation_proposal import parse_hermes_writer_proposal
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        current_proposal_value={'mode':'write','prompt':'마을 소개를 작성한다'}
+        current_answer_value='HERMES_WRITER_PROPOSAL\n'+json.dumps(current_proposal_value)+'\nEND_HERMES_WRITER_PROPOSAL'
+        self.assertEqual(parse_hermes_writer_proposal(current_answer_value),current_proposal_value)
+        for current_bad_value in ({'mode':'write','prompt':''},{'mode':'learn','prompt':'unexpected'},{'mode':'delete','prompt':'x'},{'mode':'write','prompt':'x','path':'/tmp/x'}):
+            with self.assertRaises(ValueError):
+                parse_hermes_writer_proposal('HERMES_WRITER_PROPOSAL\n'+json.dumps(current_bad_value)+'\nEND_HERMES_WRITER_PROPOSAL')
+        with self.assertRaises(ValueError):parse_hermes_writer_proposal(current_answer_value+'\n'+current_answer_value)
+        with tempfile.TemporaryDirectory() as current_root_name:
+            current_service_value=HermesServiceManager(Path(current_root_name))
+            current_job_identifier='2026-11-18_00-00-00-12345678'
+            current_job_path=Path(current_root_name)/current_job_identifier
+            current_job_path.mkdir()
+            (current_job_path/'request.json').write_text('{}')
+            (current_job_path/'status.json').write_text('{"status":"running"}')
+            (current_job_path/'hermes-events.jsonl').write_text(json.dumps({'type':'result','text':current_answer_value}))
+            with self.assertRaises(ValueError):current_service_value.execute_hermes_command('hermes-writer-proposal',{'id':current_job_identifier})
+            (current_job_path/'status.json').write_text('{"status":"completed"}')
+            self.assertEqual(current_service_value.execute_hermes_command('hermes-writer-proposal',{'id':current_job_identifier})['proposal'],current_proposal_value)
+            (current_job_path/'hermes-events.jsonl').write_text(json.dumps({'type':'result','text':current_answer_value+'x'*8001}))
+            with self.assertRaises(ValueError):current_service_value.execute_hermes_command('hermes-writer-proposal',{'id':current_job_identifier})
 
     def test_audio_proposal_validates_service_fields_and_completed_job(self):
         import json
@@ -256,6 +303,35 @@ class HermesDelegationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 current_manager_value.execute_hermes_command('hermes-billboard-proposal',{'id':current_job_identifier})
 
+    def test_city_and_building_proposal_service_requires_complete_untruncated_job(self):
+        import json
+        from tools.review.common.management_gateway import resolve_management_command,identify_management_command
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        current_proposals={
+            'city':{'map':'stonewarm','generation':5,'revision':2,'changes':[{'path':['data','name'],'before':'기존','after':'변경'}]},
+            'building':{'texture':'town-test-v1','generation':3,'expected':{'anchorX':0.5,'anchorY':1},'properties':{'anchorX':0.6,'anchorY':1}},
+        }
+        with tempfile.TemporaryDirectory() as current_root_name:
+            current_manager=HermesServiceManager(Path(current_root_name))
+            current_job_identifier='2026-11-18_00-00-00-12345678'
+            current_job_path=Path(current_root_name)/current_job_identifier
+            current_job_path.mkdir()
+            (current_job_path/'request.json').write_text('{}')
+            for current_kind,current_proposal in current_proposals.items():
+                with self.subTest(kind=current_kind):
+                    current_command='hermes-'+current_kind+'-proposal'
+                    current_payload={'id':current_job_identifier}
+                    current_method,current_route=resolve_management_command('hermes-agent',current_command,current_payload)
+                    self.assertEqual(identify_management_command(current_route,current_method,current_payload)[:2],('hermes-agent',current_command))
+                    current_answer='HERMES_'+current_kind.upper()+'_PROPOSAL\n'+json.dumps(current_proposal,ensure_ascii=False)+'\nEND_HERMES_'+current_kind.upper()+'_PROPOSAL'
+                    (current_job_path/'hermes-events.jsonl').write_text(json.dumps({'type':'result','text':current_answer}))
+                    (current_job_path/'status.json').write_text('{"status":"running"}')
+                    with self.assertRaises(ValueError):current_manager.execute_hermes_command(current_command,current_payload)
+                    (current_job_path/'status.json').write_text('{"status":"completed"}')
+                    self.assertEqual(current_manager.execute_hermes_command(current_command,current_payload),{'job_id':current_job_identifier,'proposal':current_proposal})
+                    (current_job_path/'hermes-events.jsonl').write_text(json.dumps({'type':'result','text':current_answer+'x'*8001}))
+                    with self.assertRaises(ValueError):current_manager.execute_hermes_command(current_command,current_payload)
+
     def test_field_proposal_rejects_unsafe_and_requires_completed_job(self):
         import json
         from tools.review.domains.hermes_agent.delegation_proposal import parse_hermes_field_proposal
@@ -338,6 +414,11 @@ class HermesDelegationTests(unittest.TestCase):
                 current_result_value = current_service_value.execute_hermes_command('hermes-delegation-job-status', {'request_id':'request_123456'})
                 self.assertEqual(current_result_value['job']['status'], 'completed')
                 self.assertEqual(current_gateway_mock.call_args.args[:3], ('kimodo', 'status', {'id':'2026-11-18_00-00-00-12345678'}))
+                current_gateway_mock.return_value={'id':'2026-11-18_00-00-00-ffffffff','status':'completed'}
+                with self.assertRaises(ValueError):
+                    current_service_value.execute_hermes_command('hermes-delegation-job-status', {'request_id':'request_123456'})
+                current_gateway_mock.return_value={'id':'2026-11-18_00-00-00-12345678','status':'completed'}
+                self.assertEqual(current_service_value.execute_hermes_command('hermes-delegation-job-status', {'request_id':'request_123456'})['job']['id'],'2026-11-18_00-00-00-12345678')
 
     def test_separate_processes_reuse_receipt_and_crash_remains_unknown(self):
         import json
@@ -407,12 +488,14 @@ HermesDelegationStore(sys.argv[1]).execute_delegation_once('crash_request_123', 
         with tempfile.TemporaryDirectory() as current_temp_root:
             current_store_value = HermesDelegationStore(current_temp_root)
             current_job_id = '2026-11-18_00-00-00-12345678'
+            self.assertEqual(current_store_value.read_service_delegation('missing_request_1','flux-image'),{'state':'not_found','request_id':'missing_request_1','service':'flux-image'})
             current_submit_mock = Mock(return_value={'id':current_job_id})
             current_validate_mock = Mock()
             current_store_value.execute_delegation_once('legacy_request_1', {'service':'kimodo'}, current_submit_mock)
             current_result = current_store_value.execute_service_delegation_once('future_request_1', 'flux-image', {'prompt':'x'}, current_submit_mock, current_validate_mock)
             self.assertEqual(current_result['service'], 'flux-image')
             self.assertEqual(current_store_value.read_service_delegation('future_request_1', 'flux-image')['job_id'], current_job_id)
+            self.assertEqual(current_store_value.read_service_delegation('future_request_1', 'flux-image')['request_id'],'future_request_1')
             with self.assertRaises(ValueError):
                 current_store_value.read_service_delegation('future_request_1', 'kimodo')
             with self.assertRaises(ValueError):
@@ -444,8 +527,35 @@ HermesDelegationStore(sys.argv[1]).execute_delegation_once('crash_request_123', 
             with self.assertRaises(TimeoutError):
                 current_store_value.execute_service_delegation_once('lost_request_123', 'flux-image', {}, current_failed_mock, current_validate_mock)
             self.assertEqual(current_store_value.read_service_delegation('lost_request_123', 'flux-image')['state'], 'unknown')
+            self.assertEqual(current_store_value.read_service_delegation('lost_request_123', 'flux-image')['request_id'],'lost_request_123')
             self.assertEqual(current_store_value.execute_service_delegation_once('lost_request_123', 'flux-image', {}, current_failed_mock, current_validate_mock)['state'], 'unknown')
             current_failed_mock.assert_called_once()
+
+    def test_changed_receipt_is_not_overwritten_after_service_accepts(self):
+        import json
+        with tempfile.TemporaryDirectory() as current_temp_root:
+            current_store_value=HermesDelegationStore(current_temp_root)
+            for current_version_name in ('legacy','service'):
+                with self.subTest(version=current_version_name):
+                    current_identifier_value=current_version_name+'_changed_123'
+                    current_record_path=current_store_value.resolve_delegation_record_path(current_identifier_value)
+                    def current_submit_value(current_request_value):
+                        current_changed_record=json.loads(current_record_path.read_text())
+                        current_changed_record['external_change']='preserve'
+                        current_record_path.write_text(json.dumps(current_changed_record))
+                        return {'id':'2026-11-18_00-00-00-12345678'}
+                    current_submit_mock=Mock(side_effect=current_submit_value)
+                    with self.assertRaisesRegex(ValueError,'기록이 변경'):
+                        if current_version_name=='legacy':current_store_value.execute_delegation_once(current_identifier_value,{},current_submit_mock)
+                        else:current_store_value.execute_service_delegation_once(current_identifier_value,'flux-image',{},current_submit_mock,lambda current_value:None)
+                    current_changed_record=json.loads(current_record_path.read_text())
+                    self.assertEqual(current_changed_record['state'],'dispatching')
+                    self.assertEqual(current_changed_record['external_change'],'preserve')
+                    if current_version_name=='legacy':current_retry_value=current_store_value.execute_delegation_once(current_identifier_value,{},current_submit_mock)
+                    else:current_retry_value=current_store_value.execute_service_delegation_once(current_identifier_value,'flux-image',{},current_submit_mock,lambda current_value:None)
+                    self.assertEqual(current_retry_value['state'],'unknown')
+                    self.assertTrue(current_retry_value['duplicate'])
+                    current_submit_mock.assert_called_once()
 
     def test_versioned_history_excludes_other_services_and_input(self):
         with tempfile.TemporaryDirectory() as current_temp_root:

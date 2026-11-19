@@ -262,14 +262,28 @@ class HermesServiceManager:
 
     def read_hermes_session_view_locked(self, hermes_payload_record):
         """세션과 작업의 최근 상태를 한 응답으로 제공한다."""
-        if set(hermes_payload_record) != {'session_id'}:
-            raise ValueError('세션 ID만 전달하세요.')
+        if set(hermes_payload_record)-{'session_id','offset','snapshot'} or 'session_id' not in hermes_payload_record:
+            raise ValueError('세션 ID와 이력 페이지 정보만 전달하세요.')
         from tools.review.domains.hermes_agent.session_store import HermesSessionStore
         hermes_session_store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
         hermes_session_record = hermes_session_store.read_session_record(hermes_payload_record['session_id'])
+        current_offset_value=hermes_payload_record.get('offset',0)
+        current_snapshot_value=hashlib.sha256(json.dumps(hermes_session_record['messages'],sort_keys=True,ensure_ascii=False,separators=(',',':')).encode('utf-8')).hexdigest()
+        if type(current_offset_value) is not int or current_offset_value<0 or current_offset_value>len(hermes_session_record['messages']):
+            raise ValueError('세션 이력 위치 오류')
+        if current_offset_value and hermes_payload_record.get('snapshot')!=current_snapshot_value:
+            raise ValueError('세션 이력이 변경됐습니다. 처음부터 다시 조회하세요.')
+        if 'snapshot' in hermes_payload_record and hermes_payload_record['snapshot']!=current_snapshot_value:
+            raise ValueError('세션 이력이 변경됐습니다. 처음부터 다시 조회하세요.')
+        from collections import Counter
+        if any(not isinstance(item,dict) or (item.get('job_id') is not None and not isinstance(item.get('job_id'),str)) for item in hermes_session_record['messages']):
+            raise ValueError('세션 작업 연결 형식 오류')
+        current_session_job_counts=Counter(item['job_id'] for item in hermes_session_record['messages'] if isinstance(item.get('job_id'),str))
+        current_end_index=len(hermes_session_record['messages'])-current_offset_value
+        current_start_index=max(0,current_end_index-20)
         hermes_view_messages = []
-        for current_message_record in hermes_session_record['messages'][-20:]:
-            current_view_record = {'text': current_message_record['text'], 'job_id': current_message_record.get('job_id'), 'context_truncated': current_message_record.get('context_truncated', False), 'job': None}
+        for current_message_record in hermes_session_record['messages'][current_start_index:current_end_index]:
+            current_view_record = {'text': current_message_record['text'], 'created_at':current_message_record.get('created_at'), 'job_id': current_message_record.get('job_id'), 'session_job_unique':current_session_job_counts[current_message_record['job_id']]==1 if isinstance(current_message_record.get('job_id'),str) else None, 'context_truncated': current_message_record.get('context_truncated', False), 'job': None}
             if current_view_record['job_id']:
                 try:
                     current_job_path = self.resolve_hermes_job_path(current_view_record['job_id'])
@@ -282,11 +296,37 @@ class HermesServiceManager:
                 except (OSError, ValueError, TypeError, KeyError):
                     current_view_record['job'] = {'status': {'status':'unavailable', 'message':'작업 상태를 읽을 수 없습니다.'}, 'final_response': None, 'final_response_truncated': False}
             hermes_view_messages.append(current_view_record)
-        return {'id': hermes_session_record['id'], 'message_count': len(hermes_session_record['messages']), 'messages': hermes_view_messages, 'truncated': len(hermes_session_record['messages']) > 20, 'queried_at': datetime.now(timezone.utc).isoformat()}
+        return {'id': hermes_session_record['id'], 'message_count': len(hermes_session_record['messages']), 'messages': hermes_view_messages, 'truncated': current_start_index > 0, 'offset':current_offset_value, 'next_offset':current_offset_value+len(hermes_view_messages) if current_start_index>0 else None, 'snapshot':current_snapshot_value, 'queried_at': datetime.now(timezone.utc).isoformat()}
 
     def execute_hermes_command(self, hermes_command_name, hermes_payload_record):
         if not isinstance(hermes_payload_record, dict):
             raise ValueError('입력은 객체여야 합니다.')
+        if hermes_command_name=='hermes-expression-catalog':
+            from tools.review.domains.hermes_agent.expression_observer import read_hermes_expression_catalog
+            return read_hermes_expression_catalog(hermes_payload_record)
+        if hermes_command_name == 'hermes-capture-proposal':
+            if set(hermes_payload_record) != {'id'}:
+                raise ValueError('Hermes 작업 ID만 전달하세요.')
+            current_job_path = self.resolve_hermes_job_path(hermes_payload_record['id'])
+            current_job_record = self.read_hermes_job_record(current_job_path)
+            if current_job_record['status'].get('status') != 'completed' or current_job_record.get('final_response_truncated'):
+                raise ValueError('완료되고 잘리지 않은 Hermes 답변이 필요합니다.')
+            from tools.review.domains.hermes_agent.delegation_proposal import parse_hermes_capture_proposal
+            return {'job_id':hermes_payload_record['id'],'proposal':parse_hermes_capture_proposal(current_job_record.get('final_response'))}
+        if hermes_command_name == 'hermes-capture-status':
+            if set(hermes_payload_record) != {'request_id','service'}:
+                raise ValueError('캡처 접수 ID와 서비스가 필요합니다.')
+            from tools.review.domains.hermes_agent.capture_status import read_capture_delegation_status
+            from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+            return read_capture_delegation_status(HermesDelegationStore(),hermes_payload_record['request_id'],hermes_payload_record['service'],WORKFLOW_ROOT_DIRECTORY)
+        if hermes_command_name=='hermes-service-receipt':
+            if set(hermes_payload_record)!={'request_id','service'}:
+                raise ValueError('접수 ID와 서비스가 필요합니다.')
+            from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_hermes_service_receipt_names
+            if hermes_payload_record['service'] not in list_hermes_service_receipt_names():
+                raise ValueError('지원하는 접수 서비스가 아닙니다.')
+            current_receipt_record=HermesDelegationStore().read_service_delegation(hermes_payload_record['request_id'],hermes_payload_record['service'])
+            return {**current_receipt_record,'request_id':hermes_payload_record['request_id']}
         if hermes_command_name == 'hermes-kimodo-build-status':
             if hermes_payload_record:
                 raise ValueError('빌드 상태 조회에는 입력을 전달할 수 없습니다.')
@@ -505,8 +545,8 @@ class HermesServiceManager:
                 return {'receipt': current_receipt_record}
             current_gateway_address = validate_gateway_address(os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL', DEFAULT_GATEWAY_ADDRESS))
             current_job_status = execute_management_command('kimodo', 'status', {'id': current_receipt_record['job_id']}, current_gateway_address)
-            if not isinstance(current_job_status, dict):
-                raise ValueError('Kimodo 작업 상태 응답 형식 오류')
+            if not isinstance(current_job_status, dict) or ('id' in current_job_status and current_job_status['id'] != current_receipt_record['job_id']):
+                raise ValueError('Kimodo 작업 상태 응답 또는 작업 ID 오류')
             return {'receipt': current_receipt_record, 'job': current_job_status}
         if hermes_command_name == 'hermes-delegation-cancel':
             if set(hermes_payload_record) != {'request_id', 'job_id'}:
@@ -527,7 +567,7 @@ class HermesServiceManager:
             if set(hermes_payload_record) != {'request_id'}:
                 raise ValueError('위임 접수 ID만 전달하세요.')
             from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
-            return HermesDelegationStore().read_delegation_status(hermes_payload_record['request_id'])
+            return {**HermesDelegationStore().read_delegation_status(hermes_payload_record['request_id']),'request_id':hermes_payload_record['request_id'],'service':'kimodo'}
         if hermes_command_name in ('hermes-writer-apply','hermes-writer-apply-status','hermes-writer-apply-history'):
             from tools.review.domains.hermes_agent.writer_operations import apply_hermes_writer_proposal_once, read_writer_apply_receipt, list_writer_apply_receipts
             if hermes_command_name=='hermes-writer-apply-history':
@@ -548,6 +588,17 @@ class HermesServiceManager:
             if hermes_command_name=='hermes-writer-reservation-receipt' and set(hermes_payload_record)=={'request_id'}:
                 return read_writer_recovery_receipt(hermes_payload_record['request_id'])
             raise ValueError('작가 예약 정리 입력 필드 오류')
+        if hermes_command_name in ('hermes-generator-reservation-recover','hermes-generator-reservation-receipt'):
+            from tools.review.domains.hermes_agent.generator_reservation_recovery import recover_generator_reservation_once, read_generator_recovery_receipt
+            if hermes_command_name=='hermes-generator-reservation-recover' and set(hermes_payload_record)=={'request_id','service','job_id','review_sha256','outside_processes_checked'}:
+                return recover_generator_reservation_once(hermes_payload_record['request_id'],hermes_payload_record['service'],hermes_payload_record['job_id'],hermes_payload_record['review_sha256'],hermes_payload_record['outside_processes_checked'])
+            if hermes_command_name=='hermes-generator-reservation-receipt' and set(hermes_payload_record)=={'request_id'}:
+                return read_generator_recovery_receipt(hermes_payload_record['request_id'])
+            raise ValueError('생성기 예약 정리 입력 필드 오류')
+        if hermes_command_name=='hermes-generator-reservation-inspect':
+            if set(hermes_payload_record)!={'service','job_id'}:raise ValueError('서비스와 작업 ID가 필요합니다.')
+            from tools.review.domains.hermes_agent.reservation_observer import inspect_generator_reservation_identity
+            return inspect_generator_reservation_identity(hermes_payload_record['service'],hermes_payload_record['job_id'])
         if hermes_command_name=='hermes-writer-reservation-preview':
             if set(hermes_payload_record)!={'job_id'}:raise ValueError('작가 작업 ID가 필요합니다.')
             from tools.review.domains.hermes_agent.writer_reservation import preview_writer_reservation_recovery
@@ -606,12 +657,12 @@ class HermesServiceManager:
                 raise ValueError('접수 ID·동작 서비스·작업 ID가 필요합니다.')
             return cancel_hermes_video_request(hermes_payload_record['request_id'],hermes_payload_record['service'],hermes_payload_record['job_id'])
         if hermes_command_name=='hermes-generator-source-history':
-            if 'service' not in hermes_payload_record or set(hermes_payload_record)-{'service','offset','limit','snapshot'}:
+            if 'service' not in hermes_payload_record or set(hermes_payload_record)-{'service','offset','limit','snapshot','query'}:
                 raise ValueError('생성기 서비스와 이력 페이지 입력을 확인하세요.')
             from tools.review.domains.hermes_agent.audio_operations import read_hermes_generator_source_history
             return read_hermes_generator_source_history(hermes_payload_record['service'],{key:value for key,value in hermes_payload_record.items() if key!='service'})
         if hermes_command_name=='hermes-audio-source-history':
-            if 'service' not in hermes_payload_record or set(hermes_payload_record)-{'service','offset','limit','snapshot'}:
+            if 'service' not in hermes_payload_record or set(hermes_payload_record)-{'service','offset','limit','snapshot','query'}:
                 raise ValueError('오디오 서비스와 이력 페이지 입력을 확인하세요.')
             from tools.review.domains.hermes_agent.audio_operations import read_hermes_audio_source_history
             return read_hermes_audio_source_history(hermes_payload_record['service'],{key:value for key,value in hermes_payload_record.items() if key!='service'})
@@ -706,6 +757,37 @@ class HermesServiceManager:
                 hermes_payload_record['request_id'], {'service': 'kimodo', 'request': current_request_value},
                 lambda current_delegation_record: execute_management_command('kimodo', 'generate', current_delegation_record['request'], current_gateway_address),
                 lambda current_delegation_record: validate_kimodo_request(current_delegation_record['request']))
+        if hermes_command_name in ('hermes-translation-resume-preview','hermes-translation-resume-submit','hermes-translation-resume-receipt'):
+            from tools.review.domains.hermes_agent.translation_resume_operations import preview_hermes_translation_resume,submit_hermes_translation_resume_once,read_hermes_translation_resume_receipt
+            if hermes_command_name=='hermes-translation-resume-preview' and set(hermes_payload_record)=={'job_id'}:
+                return preview_hermes_translation_resume(hermes_payload_record['job_id'])
+            if hermes_command_name=='hermes-translation-resume-submit' and set(hermes_payload_record)=={'request_id','job_id','expected_resume_fingerprint'}:
+                return submit_hermes_translation_resume_once(hermes_payload_record['request_id'],hermes_payload_record['job_id'],hermes_payload_record['expected_resume_fingerprint'])
+            if hermes_command_name=='hermes-translation-resume-receipt' and set(hermes_payload_record)=={'request_id'}:
+                return read_hermes_translation_resume_receipt(hermes_payload_record['request_id'])
+            raise ValueError('번역 재개 요청 필드 오류')
+        if hermes_command_name in ('hermes-audio-resume-preview','hermes-audio-resume-submit','hermes-audio-resume-receipt'):
+            from tools.review.domains.hermes_agent.audio_resume_operations import preview_hermes_audio_resume, submit_hermes_audio_resume_once, read_hermes_audio_resume_receipt
+            if hermes_command_name=='hermes-audio-resume-preview' and set(hermes_payload_record)=={'service','job_id'}:
+                return preview_hermes_audio_resume(hermes_payload_record['service'],hermes_payload_record['job_id'])
+            if hermes_command_name=='hermes-audio-resume-submit' and set(hermes_payload_record)=={'request_id','service','job_id','expected_resume_fingerprint'}:
+                return submit_hermes_audio_resume_once(hermes_payload_record['request_id'],hermes_payload_record['service'],hermes_payload_record['job_id'],hermes_payload_record['expected_resume_fingerprint'])
+            if hermes_command_name=='hermes-audio-resume-receipt' and set(hermes_payload_record)=={'request_id'}:
+                return read_hermes_audio_resume_receipt(hermes_payload_record['request_id'])
+            raise ValueError('음악 재개 요청 필드 오류')
+        if hermes_command_name == 'hermes-priority-receipt':
+            if set(hermes_payload_record) != {'request_id'}:raise ValueError('접수 ID만 전달하세요.')
+            from tools.review.domains.hermes_agent.priority_operations import read_hermes_priority_receipt
+            return read_hermes_priority_receipt(hermes_payload_record['request_id'])
+        if hermes_command_name == 'hermes-priority-submit':
+            if set(hermes_payload_record) != {'request_id','service','id','ticket_revision'}:raise ValueError('접수 ID·서비스·작업 ID·티켓 확인값이 필요합니다.')
+            from tools.review.domains.hermes_agent.priority_operations import submit_hermes_priority_once
+            return submit_hermes_priority_once(hermes_payload_record['request_id'],hermes_payload_record['service'],hermes_payload_record['id'],hermes_payload_record['ticket_revision'])
+        if hermes_command_name == 'hermes-priority-preview':
+            if set(hermes_payload_record) != {'service','id'}:
+                raise ValueError('서비스와 대기 작업 ID가 필요합니다.')
+            from tools.review.domains.hermes_agent.priority_observer import preview_hermes_queue_priority
+            return preview_hermes_queue_priority(hermes_payload_record['service'],hermes_payload_record['id'])
         if hermes_command_name == 'hermes-management-status':
             if hermes_payload_record:
                 raise ValueError('관리 상태 조회에는 입력을 전달할 수 없습니다.')
@@ -715,9 +797,7 @@ class HermesServiceManager:
             from tools.review.domains.hermes_agent.session_store import HermesSessionStore, HERMES_SESSION_ID_PATTERN
             hermes_session_store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
             if hermes_command_name == 'hermes-session-list':
-                if hermes_payload_record:
-                    raise ValueError('세션 목록 조회에는 입력을 전달할 수 없습니다.')
-                return hermes_session_store.list_session_records()
+                return hermes_session_store.list_session_records(hermes_payload_record)
             if set(hermes_payload_record) != {'session_id'}:
                 raise ValueError('세션 ID만 전달하세요.')
             if not isinstance(hermes_payload_record['session_id'], str) or not HERMES_SESSION_ID_PATTERN.fullmatch(hermes_payload_record['session_id']):
@@ -726,6 +806,15 @@ class HermesServiceManager:
                 return hermes_session_store.create_session_record(hermes_payload_record['session_id'])
             return hermes_session_store.read_session_record(hermes_payload_record['session_id'])
         with self.hold_hermes_service_lock():
+            if hermes_command_name == 'hermes-writer-proposal':
+                if set(hermes_payload_record) != {'id'}:
+                    raise ValueError('Hermes 작업 ID만 전달하세요.')
+                current_job_path = self.resolve_hermes_job_path(hermes_payload_record['id'])
+                current_job_record = self.read_hermes_job_record(current_job_path)
+                if current_job_record['status'].get('status') != 'completed' or current_job_record.get('final_response_truncated'):
+                    raise ValueError('완료되고 잘리지 않은 Hermes 답변이 필요합니다.')
+                from tools.review.domains.hermes_agent.delegation_proposal import parse_hermes_writer_proposal
+                return {'job_id': hermes_payload_record['id'], 'proposal': parse_hermes_writer_proposal(current_job_record.get('final_response'))}
             if hermes_command_name == 'hermes-video-proposal':
                 if set(hermes_payload_record) != {'id'}:
                     raise ValueError('Hermes 작업 ID만 전달하세요.')
@@ -786,6 +875,22 @@ class HermesServiceManager:
                     raise ValueError('완료되고 잘리지 않은 Hermes 답변이 필요합니다.')
                 from tools.review.domains.hermes_agent.delegation_proposal import parse_hermes_billboard_proposal
                 return {'job_id':hermes_payload_record['id'],'proposal':parse_hermes_billboard_proposal(current_job_record.get('final_response'))}
+            if hermes_command_name == 'hermes-building-proposal':
+                if set(hermes_payload_record)!={'id'}:raise ValueError('Hermes 작업 ID만 전달하세요.')
+                current_job_path=self.resolve_hermes_job_path(hermes_payload_record['id'])
+                current_job_record=self.read_hermes_job_record(current_job_path)
+                if current_job_record['status'].get('status')!='completed' or current_job_record.get('final_response_truncated'):
+                    raise ValueError('완료되고 잘리지 않은 Hermes 답변이 필요합니다.')
+                from tools.review.domains.hermes_agent.delegation_proposal import parse_hermes_building_proposal
+                return {'job_id':hermes_payload_record['id'],'proposal':parse_hermes_building_proposal(current_job_record.get('final_response'))}
+            if hermes_command_name == 'hermes-city-proposal':
+                if set(hermes_payload_record)!={'id'}:raise ValueError('Hermes 작업 ID만 전달하세요.')
+                current_job_path=self.resolve_hermes_job_path(hermes_payload_record['id'])
+                current_job_record=self.read_hermes_job_record(current_job_path)
+                if current_job_record['status'].get('status')!='completed' or current_job_record.get('final_response_truncated'):
+                    raise ValueError('완료되고 잘리지 않은 Hermes 답변이 필요합니다.')
+                from tools.review.domains.hermes_agent.delegation_proposal import parse_hermes_city_proposal
+                return {'job_id':hermes_payload_record['id'],'proposal':parse_hermes_city_proposal(current_job_record.get('final_response'))}
             if hermes_command_name == 'hermes-field-proposal':
                 if set(hermes_payload_record) != {'id'}:
                     raise ValueError('Hermes 작업 ID만 전달하세요.')
@@ -826,13 +931,58 @@ class HermesServiceManager:
             if hermes_command_name == 'hermes-session-submit':
                 return self.submit_hermes_session_message_locked(hermes_payload_record)
             if hermes_command_name == 'hermes-history':
-                if hermes_payload_record:
-                    raise ValueError('이력 조회는 입력을 받지 않습니다.')
+                if set(hermes_payload_record)-{'offset','limit','snapshot','query','status'}:
+                    raise ValueError('이력 조회 필드 오류')
+                current_history_paths = self.list_hermes_job_paths()
+                if not hermes_payload_record:
+                    current_selected_paths = current_history_paths[:100]
+                else:
+                    current_history_offset = hermes_payload_record.get('offset',0)
+                    current_history_limit = hermes_payload_record.get('limit',30)
+                    current_history_snapshot = hermes_payload_record.get('snapshot')
+                    if type(current_history_offset) is not int or current_history_offset<0 or type(current_history_limit) is not int or not 1<=current_history_limit<=30:
+                        raise ValueError('이력 페이지 범위 오류')
+                    from tools.review.domains.hermes_agent.history_catalog import HERMES_HISTORY_STATUS_LABELS, normalize_hermes_history_status
+                    current_history_query=hermes_payload_record.get('query','')
+                    current_history_status=hermes_payload_record.get('status','전체')
+                    if not isinstance(current_history_query,str) or len(current_history_query)>100 or any(ord(char)<32 for char in current_history_query) or current_history_status not in ('전체',*HERMES_HISTORY_STATUS_LABELS):
+                        raise ValueError('이력 검색 조건 오류')
+                    current_history_query=current_history_query.strip().casefold()
+                    if current_history_query or current_history_status!='전체':
+                        current_matching_paths=[]
+                        for current_job_path in current_history_paths:
+                            if current_history_status!='전체':
+                                current_status_path=current_job_path/'status.json'
+                                if current_status_path.is_symlink():raise ValueError('상태 경로 오류')
+                                if current_status_path.exists():
+                                    if not current_status_path.is_file() or current_status_path.stat().st_size>1048576:raise ValueError('상태 기록 오류')
+                                    current_status_record=json.loads(current_status_path.read_text(encoding='utf-8'))
+                                    if not isinstance(current_status_record,dict):raise ValueError('상태 기록 오류')
+                                    current_status_value=normalize_hermes_history_status(current_status_record.get('status'))
+                                else:current_status_value='unknown'
+                                if current_status_value!=current_history_status:continue
+                            if current_history_query:
+                                current_request_path=current_job_path/'request.json'
+                                if current_request_path.is_symlink() or not current_request_path.is_file() or current_request_path.stat().st_size>1048576:raise ValueError('지시 기록 오류')
+                                current_request_record=json.loads(current_request_path.read_text(encoding='utf-8'))
+                                if not isinstance(current_request_record,dict) or not isinstance(current_request_record.get('prompt'),str):raise ValueError('지시 기록 오류')
+                                if current_history_query not in (current_job_path.name+' '+current_request_record['prompt']).casefold():continue
+                            current_matching_paths.append(current_job_path)
+                        if HERMES_JOB_PATTERN.fullmatch(current_history_query):
+                            current_matching_paths.sort(key=lambda current_job_path:current_job_path.name!=current_history_query)
+                        current_history_paths=current_matching_paths
+                    current_history_digest = hashlib.sha256(json.dumps({'ids':[item.name for item in current_history_paths],'query':current_history_query,'status':current_history_status},ensure_ascii=True,sort_keys=True,separators=(',',':')).encode('utf-8')).hexdigest()
+                    if (current_history_offset>0 and current_history_snapshot!=current_history_digest) or ('snapshot' in hermes_payload_record and current_history_snapshot!=current_history_digest):
+                        raise ValueError('작업 이력 목록이 변경됐습니다. 처음부터 다시 조회하세요.')
+                    current_selected_paths = current_history_paths[current_history_offset:current_history_offset+current_history_limit]
                 hermes_history_records = []
-                for hermes_job_path in self.list_hermes_job_paths()[:100]:
+                for hermes_job_path in current_selected_paths:
                     hermes_job_record = self.read_hermes_job_record(hermes_job_path)
                     hermes_history_records.append({hermes_field_name: hermes_job_record[hermes_field_name] for hermes_field_name in ('id', 'request', 'status', 'result')})
-                return {'records':hermes_history_records}
+                if not hermes_payload_record:
+                    return {'records':hermes_history_records}
+                current_next_offset=current_history_offset+len(hermes_history_records)
+                return {'records':hermes_history_records,'offset':current_history_offset,'next_offset':current_next_offset if current_next_offset<len(current_history_paths) else None,'total':len(current_history_paths),'snapshot':current_history_digest}
             if hermes_command_name == 'hermes-diff':
                 if set(hermes_payload_record) != {'id', 'offset', 'limit'}:
                     raise ValueError('작업 ID와 diff 시작 위치·크기를 전달하세요.')

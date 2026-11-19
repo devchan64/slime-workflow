@@ -189,6 +189,46 @@ class MusicGenerationTests(unittest.TestCase):
             self.current_music_service.execute_music_command('cancel',{'id':current_job_root.name})
             current_cancel_mock.assert_called_once_with(current_job_root)
 
+    def test_music_resume_forwards_valid_fingerprint_without_weakening_legacy(self):
+        current_job_root=self.create_test_job('failed')
+        self.current_music_service.current_service_name='music-heartmula'
+        current_review_fingerprint='a'*64
+        with patch('tools.review.domains.music.generation.verify_music_request'),patch('tools.review.domains.music.generation.resume_gpu_generation',return_value={'status':'queued'}) as current_resume_mock:
+            self.current_music_service.execute_music_command('resume',{'id':current_job_root.name,'expected_resume_fingerprint':current_review_fingerprint})
+            current_resume_mock.assert_called_once_with(current_job_root,expected_resume_fingerprint=current_review_fingerprint,expected_resume_service='music-heartmula',expected_resume_command=self.current_music_service.build_music_worker_command(current_job_root))
+            current_resume_mock.reset_mock()
+            self.current_music_service.execute_music_command('resume',{'id':current_job_root.name})
+            current_resume_mock.assert_called_once_with(current_job_root)
+            for current_invalid_value in (None,'','A'*64,'a'*63,42):
+                current_resume_mock.reset_mock()
+                with self.subTest(current_invalid_value=current_invalid_value),self.assertRaises(ValueError):
+                    self.current_music_service.execute_music_command('resume',{'id':current_job_root.name,'expected_resume_fingerprint':current_invalid_value})
+                current_resume_mock.assert_not_called()
+
+    def test_music_resume_preview_rechecks_records_without_dispatch(self):
+        from tools.review.common.management_gateway import identify_management_command
+        current_job_root=self.create_test_job('failed')
+        self.current_music_service.current_service_name='music-heartmula'
+        write_record_atomically(current_job_root/'gpu-command.json',{'command':self.current_music_service.build_music_worker_command(current_job_root),'service':'music-heartmula'})
+        current_payload_record={'id':current_job_root.name}
+        self.assertEqual(resolve_management_command('music-heartmula','resume-preview',current_payload_record),('POST','/music-heartmula/resume/preview'))
+        self.assertEqual(identify_management_command('/music-heartmula/resume/preview','POST',current_payload_record),('music-heartmula','resume-preview',current_payload_record))
+        with patch('tools.review.domains.music.generation.verify_music_request'),patch('tools.review.domains.music.generation.resume_gpu_generation') as current_resume_mock:
+            current_preview_record=self.current_music_service.execute_music_command('resume-preview',current_payload_record)
+            self.assertEqual(current_preview_record['id'],current_job_root.name)
+            self.assertEqual(current_preview_record['service'],'music-heartmula')
+            self.assertEqual(len(current_preview_record['expected_resume_fingerprint']),64)
+            self.assertNotIn('request',current_preview_record)
+            write_record_atomically(current_job_root/'gpu-command.json',{'command':['wrong-worker'],'service':'music-heartmula'})
+            with self.assertRaises(ValueError):self.current_music_service.execute_music_command('resume-preview',current_payload_record)
+            write_record_atomically(current_job_root/'gpu-command.json',{'command':['worker'],'service':'sfx-dasheng-audiogen'})
+            with self.assertRaises(ValueError):self.current_music_service.execute_music_command('resume-preview',current_payload_record)
+            write_record_atomically(current_job_root/'gpu-command.json',{'command':self.current_music_service.build_music_worker_command(current_job_root),'service':'music-heartmula'})
+            current_resume_mock.assert_not_called()
+            write_record_atomically(current_job_root/'status.json',{'status':'running'})
+            with self.assertRaises(ValueError):self.current_music_service.execute_music_command('resume-preview',current_payload_record)
+            current_resume_mock.assert_not_called()
+
     def test_paths_and_unknown_commands_fail(self):
         for current_invalid_identifier in ('../escape','bad-id',''):
             with self.assertRaises(ValueError):

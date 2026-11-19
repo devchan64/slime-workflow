@@ -39,7 +39,10 @@ def read_hermes_kimodo_keyframe_catalog(current_request_record):
         raise ValueError('키프레임 목록이 변경됐습니다. 처음부터 다시 검색하세요.')
     current_page_value=current_items_value[current_offset_value:current_offset_value+current_limit_value]
     current_next_offset=current_offset_value+len(current_page_value)
-    return {'items':current_page_value,'total':len(current_items_value),'offset':current_offset_value,'snapshot':current_snapshot_value,'next_offset':current_next_offset if current_next_offset<len(current_items_value) else None,'note':'기존 키프레임 기록 목록입니다. 원본 해시·미리보기와 동작 적합성은 Kimodo에서 별도로 확인합니다.'}
+    current_page_note='기존 키프레임 기록 목록입니다. 원본 해시·미리보기와 동작 적합성은 Kimodo에서 별도로 확인합니다.'
+    if current_offset_value>0 and current_expected_snapshot is None:
+        current_page_note+=' 이전 페이지의 목록 확인값 없이 조회해 페이지 간 변경 여부를 확인하지 못했습니다. 처음부터 검색하고 반환된 snapshot을 전달하세요.'
+    return {'items':current_page_value,'total':len(current_items_value),'offset':current_offset_value,'snapshot':current_snapshot_value,'next_offset':current_next_offset if current_next_offset<len(current_items_value) else None,'note':current_page_note}
 
 
 def read_hermes_kimodo_keyframe_preview(current_keyframe_identifier):

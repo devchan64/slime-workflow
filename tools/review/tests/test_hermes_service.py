@@ -16,6 +16,35 @@ class HermesServiceTests(unittest.TestCase):
         self.addCleanup(self.hermes_temporary_root.cleanup)
         self.hermes_service_manager = HermesServiceManager(Path(self.hermes_temporary_root.name) / 'jobs', Path(self.hermes_temporary_root.name) / 'sessions')
 
+    def test_archived_generator_history_does_not_imply_generate_support(self):
+        from tools.review.domains.hermes_agent.capabilities import list_management_service_registration
+        current_records={item['service']:item for item in list_management_service_registration()['services']}
+        for current_service_name in ('qwen-21','mannequin-generator','floor-tile'):
+            current_record=current_records[current_service_name]
+            self.assertIn('hermes-generator-source-history',current_record['hermes_links'])
+            self.assertFalse(any(item.startswith('hermes-delegate-') for item in current_record['hermes_links']))
+            self.assertTrue(any(item['command']=='generate' and item['reason'] for item in current_record['gateway_blocked']+current_record['known_service_blocked']))
+
+    def test_asset_service_catalog_distinguishes_editing_from_lifecycle_operations(self):
+        from tools.review.domains.hermes_agent.capabilities import list_management_service_registration
+        current_asset=next(current_record for current_record in list_management_service_registration()['services'] if current_record['service']=='map-assets')
+        current_notes={current_item['command']:current_item['note'] for current_item in current_asset['conditional_limitations']}
+        for current_command in ('building-register','building-retire','asset-crop','asset-retire'):
+            self.assertIn(current_command,current_notes)
+            self.assertIn('Hermes',current_notes[current_command])
+        self.assertIn('hermes-building-save',current_asset['hermes_links'])
+        self.assertIn('hermes-billboard-save',current_asset['hermes_links'])
+
+    def test_service_catalog_discloses_kimodo_build_gpu_and_retry_limits(self):
+        from tools.review.domains.hermes_agent.capabilities import list_management_service_registration
+        current_records=list_management_service_registration()['services']
+        current_kimodo=next(current_record for current_record in current_records if current_record['service']=='kimodo')
+        current_notes={current_item['command']:current_item['note'] for current_item in current_kimodo['conditional_limitations']}
+        self.assertIn('GPU 대기열',current_notes['migraphx-build-status'])
+        self.assertIn('migraphx-build-observe',current_notes['migraphx-build-status'])
+        self.assertIn('중복 방지',current_notes['migraphx-build'])
+        self.assertIn('Hermes는 빌드 실행을 연결하지 않는다',current_notes['migraphx-build'])
+
     @patch('tools.review.domains.hermes_agent.service.validate_hermes_runtime_ready')
     @patch('tools.review.domains.hermes_agent.service.launch_gpu_process')
     def test_duplicate_submission_is_single_queue_job(self, hermes_launch_mock, hermes_ready_mock):
@@ -45,12 +74,50 @@ class HermesServiceTests(unittest.TestCase):
         self.assertEqual(hermes_observation_record['gpu']['status'], 'busy')
         self.assertIn('Kimodo 활성 상태는 기록 기준',hermes_observation_record['detail'])
         self.assertEqual(hermes_observation_record['gpu']['process_count'], 1)
-        self.assertEqual(hermes_observation_record['queue']['jobs'], [{'id':'job-1', 'service':'kimodo'}])
+        self.assertEqual(hermes_observation_record['queue']['jobs'], [{'id':'job-1', 'service':'kimodo','executor_identity':'unverified'}])
         self.assertNotIn('private', str(hermes_observation_record))
         with patch('tools.review.common.gpu_status.read_gpu_status', side_effect=OSError('unavailable')), patch('tools.review.common.gpu_job_queue.list_waiting_gpu_jobs', side_effect=OSError('unavailable')):
             hermes_observation_record = read_hermes_management_snapshot()
         self.assertEqual(hermes_observation_record['gpu']['status'], 'unavailable')
         self.assertEqual(hermes_observation_record['queue']['status'], 'unavailable')
+
+    def test_management_queue_source_preserves_only_allowlisted_identity(self):
+        from tools.review.domains.hermes_agent.management_observer import read_hermes_management_snapshot
+        current_jobs=[{'id':'job-1','service':'image','source_service':'kimodo','path':'/private/job'},{'id':'job-2','service':'image','source_service':'unknown-service','path':'/private/other'}]
+        with patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}),patch('tools.review.common.gpu_job_queue.list_waiting_gpu_jobs',return_value={'jobs':current_jobs}) as current_queue_mock:
+            current_snapshot=read_hermes_management_snapshot()
+        current_queue_mock.assert_called_once_with(include_source_identity=True)
+        self.assertEqual(current_snapshot['queue']['jobs'],[{'id':'job-1','service':'image','source_service':'kimodo','executor_identity':'unverified'},{'id':'job-2','service':'image','executor_identity':'unverified'}])
+        self.assertNotIn('/private/',str(current_snapshot))
+
+    def test_capture_queue_source_is_preserved_only_for_matching_service(self):
+        from tools.review.domains.hermes_agent.management_observer import read_hermes_management_snapshot
+        current_job_values=[{'id':'job-1','service':'review-capture','source_service':'review-capture','path':'/private/capture'},{'id':'job-2','service':'image','source_service':'review-capture','path':'/private/other'}]
+        with patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}),patch('tools.review.common.gpu_job_queue.list_waiting_gpu_jobs',return_value={'jobs':current_job_values}):
+            current_snapshot_value=read_hermes_management_snapshot()
+        self.assertEqual(current_snapshot_value['queue']['jobs'][0]['source_service'],'review-capture')
+        self.assertNotIn('source_service',current_snapshot_value['queue']['jobs'][1])
+        self.assertNotIn('/private/',str(current_snapshot_value))
+
+    def test_capture_queue_links_only_verified_request_identity(self):
+        from tools.review.domains.hermes_agent.management_observer import read_hermes_management_snapshot
+        current_job_values=[{'id':'2026-11-20_00-00-00-12345678','service':'review-capture','source_service':'review-capture'},{'id':'job-2','service':'image','source_service':'review-capture'}]
+        with patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}),patch('tools.review.common.gpu_job_queue.list_waiting_gpu_jobs',return_value={'jobs':current_job_values}),patch('tools.review.domains.hermes_agent.capture_status.find_verified_capture_request_identity',return_value={'request_id':'request_123','capture_service':'map-review'}) as current_identity_mock:
+            current_snapshot_value=read_hermes_management_snapshot()
+        self.assertEqual(current_snapshot_value['queue']['jobs'][0]['request_id'],'request_123')
+        self.assertNotIn('request_id',current_snapshot_value['queue']['jobs'][1])
+        current_identity_mock.assert_called_once()
+
+    def test_priority_service_requires_exact_contract_and_dispatches(self):
+        current_payload={'request_id':'request_123','service':'kimodo','id':'2026-10-09_21-13-20-1a356bbd','ticket_revision':'a'*64}
+        with patch('tools.review.domains.hermes_agent.priority_operations.submit_hermes_priority_once',return_value={'state':'completed'}) as current_submit_mock:
+            self.assertEqual(self.hermes_service_manager.execute_hermes_command('hermes-priority-submit',current_payload)['state'],'completed')
+            current_submit_mock.assert_called_once_with(current_payload['request_id'],current_payload['service'],current_payload['id'],current_payload['ticket_revision'])
+            with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-priority-submit',{**current_payload,'extra':True})
+            self.assertEqual(current_submit_mock.call_count,1)
+        with patch('tools.review.domains.hermes_agent.priority_operations.read_hermes_priority_receipt',return_value={'state':'unknown'}) as current_read_mock:
+            self.assertEqual(self.hermes_service_manager.execute_hermes_command('hermes-priority-receipt',{'request_id':'request_123'})['state'],'unknown')
+            current_read_mock.assert_called_once_with('request_123')
 
     def test_management_status_uses_shared_observation_and_rejects_input(self):
         from tools.review.domains.hermes_agent import management_observer
@@ -88,7 +155,7 @@ class HermesServiceTests(unittest.TestCase):
         current_vace_record=next(item for item in current_catalog_record['services'] if item['service']=='wan22-vace')
         self.assertTrue(any(item['command']=='resume' and 'official-bf16-resident-v1' in item['note'] for item in current_vace_record['conditional_limitations']))
         current_fun_record=next(item for item in current_catalog_record['services'] if item['service']=='wan22-fun-control')
-        self.assertEqual({item['command'] for item in current_fun_record['conditional_limitations']},{'generate','resume'})
+        self.assertEqual({item['command'] for item in current_fun_record['conditional_limitations']},{'generate','resume','history-delete','history-reset'})
         current_music_record=next(item for item in current_catalog_record['services'] if item['service']=='music-magenta')
         current_music_blocks={item['command']:item['reason'] for item in current_music_record['known_service_blocked']}
         self.assertIn('generate',current_music_blocks)
@@ -387,7 +454,7 @@ class HermesServiceTests(unittest.TestCase):
             (current_active_path / 'two.json').write_text('bad json')
             current_result_value = read_hermes_gpu_reservation_snapshot(current_root_path)
             self.assertEqual(current_result_value['status'], 'available')
-            self.assertEqual(current_result_value['records'][0], {'state':'recorded','service':'hermes-agent','job_id':current_job_id,'required_memory_mib':32768})
+            self.assertEqual(current_result_value['records'][0], {'state':'cleanup_unverified','service':'hermes-agent','job_id':current_job_id,'required_memory_mib':32768})
             self.assertEqual(current_result_value['records'][1]['state'], 'unknown')
             self.assertNotIn('secret', str(current_result_value))
             self.assertNotIn('/private/', str(current_result_value))
@@ -437,6 +504,125 @@ class HermesServiceTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'둘 이상'):preview_writer_reservation_recovery(current_job_identifier)
                 with self.assertRaises(ValueError):preview_writer_reservation_recovery('../private')
 
+    def test_writer_recovery_requires_absent_executor_and_unique_global_job(self):
+        import os
+        from tools.review.common import gpu_job_queue
+        from tools.review.domains.hermes_agent.writer_reservation import preview_writer_reservation_recovery
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_queue_root=Path(current_directory_name)
+            current_active_root=current_queue_root/'active'
+            current_active_root.mkdir()
+            current_job_identifier='20261118-120000-12345678'
+            current_reservation_record={'service':'writer-agent','path':'/private/jobs/'+current_job_identifier,'pid':os.getpid(),'pid_start_token':'1'}
+            (current_active_root/'writer.json').write_text(json.dumps(current_reservation_record))
+            with patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_root),patch.object(gpu_job_queue,'open_verified_hermes_process_group') as current_worker_open:
+                # 시작 시각이 다른 재사용 PID도 확실한 부재가 아니다.
+                self.assertFalse(preview_writer_reservation_recovery(current_job_identifier)['recoverable'])
+                current_worker_open.assert_not_called()
+                with patch('tools.review.domains.hermes_agent.writer_reservation.os.kill',side_effect=PermissionError()):
+                    self.assertFalse(preview_writer_reservation_recovery(current_job_identifier)['recoverable'])
+                current_other_record={**current_reservation_record,'service':'kimodo'}
+                (current_active_root/'other.json').write_text(json.dumps(current_other_record))
+                with self.assertRaisesRegex(ValueError,'둘 이상'):
+                    preview_writer_reservation_recovery(current_job_identifier)
+
+    def test_generator_reservation_recovery_gateway_rejects_extra_inputs(self):
+        from tools.review.common.management_gateway import resolve_management_command
+        current_request_record={'request_id':'recovery_123','service':'kimodo','job_id':'job-123','review_sha256':'a'*64,'outside_processes_checked':True}
+        self.assertEqual(resolve_management_command('hermes-agent','hermes-generator-reservation-recover',current_request_record),('POST','/hermes-agent/hermes-generator-reservation-recover'))
+        with patch('tools.review.domains.hermes_agent.generator_reservation_recovery.recover_generator_reservation_once',return_value={'state':'unknown'}) as current_recover_mock:
+            self.assertEqual(self.hermes_service_manager.execute_hermes_command('hermes-generator-reservation-recover',current_request_record),{'state':'unknown'})
+            current_recover_mock.assert_called_once_with('recovery_123','kimodo','job-123','a'*64,True)
+            with self.assertRaises(ValueError):
+                self.hermes_service_manager.execute_hermes_command('hermes-generator-reservation-recover',{**current_request_record,'extra':True})
+            current_recover_mock.assert_called_once()
+        with patch('tools.review.domains.hermes_agent.generator_reservation_recovery.read_generator_recovery_receipt',return_value={'state':'not_found'}) as current_receipt_mock:
+            self.assertEqual(self.hermes_service_manager.execute_hermes_command('hermes-generator-reservation-receipt',{'request_id':'recovery_123'}),{'state':'not_found'})
+            current_receipt_mock.assert_called_once_with('recovery_123')
+
+    def test_translation_resume_commands_enforce_exact_fields(self):
+        current_payload_value={'request_id':'request_123','job_id':'2026-11-18_00-00-00-12345678','expected_resume_fingerprint':'a'*64}
+        with patch('tools.review.domains.hermes_agent.translation_resume_operations.submit_hermes_translation_resume_once',return_value={'state':'accepted'}) as current_submit_mock:
+            self.assertEqual(self.hermes_service_manager.execute_hermes_command('hermes-translation-resume-submit',current_payload_value)['state'],'accepted')
+            current_submit_mock.assert_called_once()
+            with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-translation-resume-submit',{**current_payload_value,'extra':True})
+        current_catalog_value=self.hermes_service_manager.execute_hermes_command('hermes-capabilities',{})
+        self.assertTrue({'hermes-translation-resume-preview','hermes-translation-resume-submit','hermes-translation-resume-receipt'}<={item['command'] for item in current_catalog_value['records']})
+
+    def test_audio_resume_commands_enforce_exact_fields(self):
+        current_payload_value={'request_id':'request_123','service':'music-heartmula','job_id':'2026-11-18_00-00-00-12345678','expected_resume_fingerprint':'a'*64}
+        with patch('tools.review.domains.hermes_agent.audio_resume_operations.submit_hermes_audio_resume_once',return_value={'state':'accepted'}) as current_submit_mock:
+            self.assertEqual(self.hermes_service_manager.execute_hermes_command('hermes-audio-resume-submit',current_payload_value)['state'],'accepted')
+            current_submit_mock.assert_called_once()
+            with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-audio-resume-submit',{**current_payload_value,'extra':True})
+        current_catalog_value=self.hermes_service_manager.execute_hermes_command('hermes-capabilities',{})
+        self.assertTrue({'hermes-audio-resume-preview','hermes-audio-resume-submit','hermes-audio-resume-receipt'}<={item['command'] for item in current_catalog_value['records']})
+
+    def test_unlinked_resume_and_history_deletion_are_discoverable(self):
+        current_catalog_value=self.hermes_service_manager.execute_hermes_command('hermes-service-registration',{})
+        current_services_by_name={item['service']:item for item in current_catalog_value['services']}
+        for current_service_name,current_commands in (('kimodo',('resume','history-delete','history-reset')),('writer-agent',('writer-delete',))):
+            current_service_record=current_services_by_name[current_service_name]
+            for current_command_name in current_commands:
+                with self.subTest(current_service_name=current_service_name,current_command_name=current_command_name):
+                    current_matching_notes=[item['note'] for item in current_service_record['conditional_limitations'] if item['command']==current_command_name]
+                    self.assertTrue(any('Hermes에서는 이 명령을 직접 실행할 수 없습니다' in item for item in current_matching_notes))
+        current_kimodo_notes=[item['note'] for item in current_services_by_name['wan22-vace']['conditional_limitations'] if item['command']=='resume']
+        self.assertTrue(any('model_profile' in item for item in current_kimodo_notes))
+
+    def test_review_capture_limitations_are_discoverable_without_execution(self):
+        current_catalog_record=self.hermes_service_manager.execute_hermes_command('hermes-service-registration',{})
+        current_services_by_name={current_record['service']:current_record for current_record in current_catalog_record['services']}
+        for current_service_name in ('map-review','character-review'):
+            current_service_record=current_services_by_name[current_service_name]
+            self.assertEqual(current_service_record['hermes_links'],['hermes-capture-status','hermes-capture-proposal'])
+            current_capture_note=next(current_item['note'] for current_item in current_service_record['conditional_limitations'] if current_item['command']=='capture')
+            for current_required_text in ('실행하지 않는다','PNG','GPU','중복 방지'):
+                self.assertIn(current_required_text,current_capture_note)
+        current_capability_catalog=self.hermes_service_manager.execute_hermes_command('hermes-capabilities',{})
+        current_capture_status=next(current_record for current_record in current_capability_catalog['records'] if current_record['command']=='hermes-capture-status')
+        self.assertEqual(current_capture_status['interfaces'],['gui','mcp','isolated_fixed_bridge'])
+        self.assertIn('실행은 아직 지원하지 않는다',current_capture_status['note'])
+        current_search_record=self.hermes_service_manager.execute_hermes_command('hermes-service-registration',{'query':'헤드리스'})
+        self.assertTrue({'map-review','character-review'} <= {current_record['service'] for current_record in current_search_record['services']})
+
+    def test_city_save_discloses_original_and_consumer_sync_limit(self):
+        current_capability_catalog=self.hermes_service_manager.execute_hermes_command('hermes-capabilities',{})
+        current_city_load=next(current_record for current_record in current_capability_catalog['records'] if current_record['command']=='hermes-city-load')
+        self.assertIn('isolated_fixed_bridge',current_city_load['interfaces'])
+        self.assertIn('256 KiB',current_city_load['note'])
+        current_city_record=next(current_record for current_record in current_capability_catalog['records'] if current_record['command']=='hermes-city-save')
+        for current_term_value in ('콘텐츠 DB','원본','등록부','잠금','동기화'):
+            self.assertIn(current_term_value,current_city_record['note'])
+        current_service_catalog=self.hermes_service_manager.execute_hermes_command('hermes-service-registration',{})
+        current_assets_record=next(current_record for current_record in current_service_catalog['services'] if current_record['service']=='map-assets')
+        self.assertTrue(any(current_item['command']=='city-edit-save' and '원본' in current_item['note'] for current_item in current_assets_record['conditional_limitations']))
+
+    def test_generator_reservation_recovery_is_discoverable_for_supported_services(self):
+        current_service_records=self.hermes_service_manager.execute_hermes_command('hermes-service-registration',{})
+        current_service_mapping={current_record['service']:current_record for current_record in current_service_records['services']}
+        for current_service_name in ('kimodo','flux-expression','prompt-translation','music-heartmula','wan22-fun-control'):
+            self.assertTrue({'hermes-generator-reservation-inspect','hermes-generator-reservation-recover','hermes-generator-reservation-receipt'} <= set(current_service_mapping[current_service_name]['hermes_links']))
+
+    def test_generator_reservation_inspection_uses_validated_gateway(self):
+        from tools.review.common.management_gateway import resolve_management_command
+        current_request={'service':'kimodo','job_id':'2026-11-18_12-00-00-12345678'}
+        self.assertEqual(resolve_management_command('hermes-agent','hermes-generator-reservation-inspect',current_request),('POST','/hermes-agent/hermes-generator-reservation-inspect'))
+        with patch('tools.review.domains.hermes_agent.reservation_observer.inspect_generator_reservation_identity',return_value={'executor':'unverified'}) as current_inspect_mock:
+            self.assertEqual(self.hermes_service_manager.execute_hermes_command('hermes-generator-reservation-inspect',current_request),{'executor':'unverified'})
+            current_inspect_mock.assert_called_once_with(current_request['service'],current_request['job_id'])
+        with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-generator-reservation-inspect',{**current_request,'extra':True})
+
+    def test_other_service_dead_executor_reservation_is_visible_as_unverified(self):
+        import os
+        from tools.review.domains.hermes_agent.management_observer import read_hermes_gpu_reservation_snapshot
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_active_path=Path(current_directory_name)/'active'
+            current_active_path.mkdir()
+            (current_active_path/'image.json').write_text(json.dumps({'service':'image','pid':os.getpid(),'pid_start_token':'0','required_memory_mib':1024}))
+            current_result_value=read_hermes_gpu_reservation_snapshot(current_directory_name)
+            self.assertEqual(current_result_value['records'][0]['state'],'cleanup_unverified')
+
     def test_unverified_writer_cleanup_reservation_is_visible(self):
         from tools.review.domains.hermes_agent.management_observer import read_hermes_gpu_reservation_snapshot
         with tempfile.TemporaryDirectory() as current_directory_name:
@@ -480,6 +666,228 @@ class HermesServiceTests(unittest.TestCase):
         self.assertIn('service',current_capabilities_by_name['hermes-delegate-audio']['payload_schema']['properties'])
         with self.assertRaises(ValueError):
             self.hermes_service_manager.execute_hermes_command('hermes-capabilities', {'extra':True})
+
+    def test_service_receipt_discovery_matches_allowed_services_and_registration(self):
+        from jsonschema import Draft202012Validator
+        from tools.review.domains.hermes_agent.delegation_store import list_hermes_service_receipt_names
+        from tools.review.domains.hermes_agent.capabilities import list_management_service_registration
+        current_names = list_hermes_service_receipt_names()
+        self.assertEqual(len(current_names), len(set(current_names)))
+        current_catalog = self.hermes_service_manager.execute_hermes_command('hermes-capabilities', {})
+        current_schema = next(item['payload_schema'] for item in current_catalog['records'] if item['command']=='hermes-service-receipt')
+        current_validator = Draft202012Validator(current_schema)
+        self.assertEqual(set(current_schema['properties']['service']['enum']), set(current_names))
+        current_registration = {item['service']:item for item in list_management_service_registration()['services']}
+        with patch('tools.review.domains.hermes_agent.delegation_store.HermesDelegationStore.read_service_delegation', return_value={'state':'not_found'}) as current_read:
+            for current_service in current_names:
+                with self.subTest(service=current_service):
+                    current_input = {'service':current_service, 'request_id':'request_123'}
+                    self.assertTrue(current_validator.is_valid(current_input))
+                    self.assertIn('hermes-service-receipt', current_registration[current_service]['hermes_links'])
+                    self.assertEqual(self.hermes_service_manager.execute_hermes_command('hermes-service-receipt',current_input), {'state':'not_found','request_id':current_input['request_id']})
+            self.assertEqual(current_read.call_count, len(current_names))
+            self.assertFalse(current_validator.is_valid({'service':'kimodo','request_id':'request_123'}))
+            with self.assertRaises(ValueError):
+                self.hermes_service_manager.execute_hermes_command('hermes-service-receipt',{'service':'kimodo','request_id':'request_123'})
+
+    def test_service_discovery_includes_kimodo_proposal(self):
+        from tools.review.domains.hermes_agent.capabilities import list_management_service_registration,search_management_service_registration
+        current_service_records=list_management_service_registration()['services']
+        current_kimodo_record=next(current_record for current_record in current_service_records if current_record['service']=='kimodo')
+        self.assertIn('hermes-kimodo-proposal',current_kimodo_record['hermes_links'])
+        current_search_result=search_management_service_registration({'query':'Kimodo 제안 읽기'})
+        self.assertIn('kimodo',[current_record['service'] for current_record in current_search_result['services']])
+
+    def test_service_links_resolve_and_include_receipt_and_map_discovery(self):
+        from tools.review.domains.hermes_agent.capabilities import list_management_service_registration,list_hermes_capability_catalog
+        current_catalog_names={current_record['command'] for current_record in list_hermes_capability_catalog()['records']}
+        current_service_records={current_record['service']:current_record for current_record in list_management_service_registration()['services']}
+        for current_service_name,current_service_record in current_service_records.items():
+            with self.subTest(service=current_service_name):
+                current_link_names=current_service_record['hermes_links']
+                self.assertEqual(len(current_link_names),len(set(current_link_names)))
+                self.assertFalse(set(current_link_names)-current_catalog_names)
+        self.assertIn('hermes-delegation-status',current_service_records['kimodo']['hermes_links'])
+        self.assertIn('hermes-world-map',current_service_records['map-assets']['hermes_links'])
+        self.assertIn('hermes-model-prepare-history',current_service_records['hermes-model']['hermes_links'])
+
+    def test_archived_generator_reservation_limit_is_discoverable(self):
+        from tools.review.domains.hermes_agent.capabilities import list_management_service_registration,search_management_service_registration
+        current_service_records={current_record['service']:current_record for current_record in list_management_service_registration()['services']}
+        for current_service_name in ('billboard-generator','building-generator'):
+            with self.subTest(service=current_service_name):
+                current_record_value=current_service_records[current_service_name]
+                self.assertIn('hermes-generator-reservation-inspect',current_record_value['hermes_links'])
+                self.assertTrue(any('건물 호환 요청인지 구분하지 못한다' in current_limit['note'] for current_limit in current_record_value['conditional_limitations']))
+        current_search_result=search_management_service_registration({'query':'건물 호환 요청인지'})
+        self.assertIn('billboard-generator',[current_record['service'] for current_record in current_search_result['services']])
+        for current_service_name in ('qwen-21','qwen-21-circular','mannequin-generator','prop-generator','vegetation-generator','expression','seamless-tile','floor-tile'):
+            self.assertIn('hermes-generator-reservation-inspect',current_service_records[current_service_name]['hermes_links'])
+
+    def test_corrupt_session_does_not_hide_valid_history(self):
+        import json
+        current_root=self.hermes_service_manager.hermes_session_root
+        current_root.mkdir(parents=True,exist_ok=True)
+        current_valid_id='a'*32
+        current_bad_id='b'*32
+        current_valid_record={'version':1,'id':current_valid_id,'created_at':'2026-11-19','updated_at':'2026-11-19','messages':[{'text':'나무 작업'}]}
+        (current_root/(current_valid_id+'.json')).write_text(json.dumps(current_valid_record))
+        (current_root/(current_bad_id+'.json')).write_text('{invalid')
+        current_page=self.hermes_service_manager.execute_hermes_command('hermes-session-list',{'offset':0,'query':'나무'})
+        self.assertEqual([current_item['id'] for current_item in current_page['sessions']],[current_valid_id])
+        self.assertEqual(current_page['unreadable_count'],1)
+        current_old_snapshot=current_page['snapshot']
+        (current_root/(current_bad_id+'.json')).unlink()
+        with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-session-list',{'offset':0,'query':'나무','snapshot':current_old_snapshot})
+
+    def test_session_pagination_reaches_old_sessions_and_detects_reordering(self):
+        import json
+        current_root=self.hermes_service_manager.hermes_session_root
+        current_root.mkdir(parents=True,exist_ok=True)
+        for current_index in range(105):
+            current_identifier='%032x' % current_index
+            current_time='2026-11-%02dT00:00:00Z' % (current_index//5+1)
+            (current_root/(current_identifier+'.json')).write_text(json.dumps({'version':1,'id':current_identifier,'created_at':current_time,'updated_at':current_time,'messages':[]}))
+        current_legacy=self.hermes_service_manager.execute_hermes_command('hermes-session-list',{})
+        self.assertEqual(len(current_legacy['sessions']),100)
+        self.assertTrue(current_legacy['truncated'])
+        current_page=self.hermes_service_manager.execute_hermes_command('hermes-session-list',{'offset':0,'limit':30})
+        current_snapshot=current_page['snapshot']
+        for current_index in range(3):current_page=self.hermes_service_manager.execute_hermes_command('hermes-session-list',{'offset':current_page['next_offset'],'limit':30,'snapshot':current_snapshot})
+        self.assertEqual(len(current_page['sessions']),15)
+        self.assertNotIn(current_page['sessions'][-1]['id'],{item['id'] for item in current_legacy['sessions']})
+        current_query=self.hermes_service_manager.execute_hermes_command('hermes-session-list',{'offset':0,'query':'00000000'})
+        self.assertEqual(current_query['total'],105)
+        current_path=current_root/(current_page['sessions'][-1]['id']+'.json')
+        current_record=json.loads(current_path.read_text())
+        current_record['updated_at']='2026-12-01T00:00:00Z'
+        current_path.write_text(json.dumps(current_record))
+        with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-session-list',{'offset':30,'snapshot':current_snapshot})
+        with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-session-list',{'query':'bad\nquery'})
+        with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-session-list',{'offset':30})
+
+    def test_session_instruction_search_finds_old_sessions_without_returning_text(self):
+        import json
+        current_root=self.hermes_service_manager.hermes_session_root
+        current_root.mkdir(parents=True,exist_ok=True)
+        for current_index in range(105):
+            current_identifier='%032x' % current_index
+            current_time='2026-11-%02dT00:00:00Z' % (current_index//5+1)
+            current_text='고유한 나무 빌보드' if current_index==0 else '일반 테스트'
+            current_record={'version':1,'id':current_identifier,'created_at':current_time,'updated_at':current_time,'messages':[{'role':'user','text':current_text}]}
+            (current_root/(current_identifier+'.json')).write_text(json.dumps(current_record,ensure_ascii=False))
+        current_legacy=self.hermes_service_manager.execute_hermes_command('hermes-session-list',{})
+        self.assertNotIn('0'*32,{item['id'] for item in current_legacy['sessions']})
+        current_found=self.hermes_service_manager.execute_hermes_command('hermes-session-list',{'offset':0,'limit':30,'query':'나무 빌보드'})
+        self.assertEqual(current_found['total'],1)
+        self.assertEqual(current_found['sessions'][0]['id'],'0'*32)
+        self.assertNotIn('고유한',str(current_found))
+        current_first=self.hermes_service_manager.execute_hermes_command('hermes-session-list',{'offset':0,'limit':30,'query':'일반'})
+        self.assertEqual(current_first['total'],104)
+        current_path=current_root/(current_first['sessions'][0]['id']+'.json')
+        current_record=json.loads(current_path.read_text())
+        current_record['messages'][0]['text']='변경된 지시'
+        current_path.write_text(json.dumps(current_record,ensure_ascii=False))
+        with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-session-list',{'offset':30,'query':'일반','snapshot':current_first['snapshot']})
+        with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-session-list',{'offset':30,'query':'다른 검색','snapshot':current_first['snapshot']})
+
+    def test_history_pagination_preserves_legacy_and_detects_list_changes(self):
+        from jsonschema import Draft202012Validator
+        current_root=self.hermes_service_manager.hermes_storage_root
+        current_root.mkdir(parents=True,exist_ok=True)
+        for current_index in range(35):
+            (current_root / ('2026-11-18_00-00-%02d-%08x' % (current_index,current_index))).mkdir()
+        def current_read(current_path):
+            return {'id':current_path.name,'request':{'prompt':'시험'},'status':{'status':'completed'},'result':None}
+        with patch.object(self.hermes_service_manager,'read_hermes_job_record',side_effect=current_read):
+            current_legacy=self.hermes_service_manager.execute_hermes_command('hermes-history',{})
+            self.assertEqual(set(current_legacy),{'records'})
+            self.assertEqual(len(current_legacy['records']),35)
+            current_first=self.hermes_service_manager.execute_hermes_command('hermes-history',{'offset':0,'limit':30})
+            self.assertEqual(current_first['total'],35)
+            self.assertEqual(current_first['next_offset'],30)
+            current_second=self.hermes_service_manager.execute_hermes_command('hermes-history',{'offset':30,'limit':30,'snapshot':current_first['snapshot']})
+            self.assertEqual(len(current_second['records']),5)
+            self.assertIsNone(current_second['next_offset'])
+            self.assertFalse({item['id'] for item in current_first['records']} & {item['id'] for item in current_second['records']})
+            with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-history',{'offset':30})
+            with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-history',{'offset':0,'limit':True})
+            (current_root/'2026-11-19_00-00-00-aaaaaaaa').mkdir()
+            with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-history',{'offset':30,'snapshot':current_first['snapshot']})
+        current_catalog=self.hermes_service_manager.execute_hermes_command('hermes-capabilities',{})
+        current_schema=next(item['payload_schema'] for item in current_catalog['records'] if item['command']=='hermes-history')
+        current_validator=Draft202012Validator(current_schema)
+        self.assertTrue(current_validator.is_valid({}))
+        self.assertFalse(current_validator.is_valid({'offset':1}))
+        self.assertTrue(current_validator.is_valid({'offset':1,'snapshot':'a'*64,'limit':30}))
+        self.assertFalse(current_validator.is_valid({'limit':31}))
+
+    def test_history_page_reaches_beyond_legacy_hundred_records(self):
+        current_root=self.hermes_service_manager.hermes_storage_root
+        current_root.mkdir(parents=True,exist_ok=True)
+        for current_index in range(135):
+            (current_root / ('2026-11-18_00-%02d-%02d-%08x' % (current_index//60,current_index%60,current_index))).mkdir()
+        def current_read(current_path):
+            return {'id':current_path.name,'request':{'prompt':'시험'},'status':{'status':'completed'},'result':None}
+        with patch.object(self.hermes_service_manager,'read_hermes_job_record',side_effect=current_read):
+            current_legacy=self.hermes_service_manager.execute_hermes_command('hermes-history',{})
+            self.assertEqual(len(current_legacy['records']),100)
+            current_page=self.hermes_service_manager.execute_hermes_command('hermes-history',{'offset':0,'limit':30})
+            for current_index in range(4):
+                current_page=self.hermes_service_manager.execute_hermes_command('hermes-history',{'offset':current_page['next_offset'],'limit':30,'snapshot':current_page['snapshot']})
+            self.assertEqual(current_page['offset'],120)
+            self.assertEqual(len(current_page['records']),15)
+            self.assertIsNone(current_page['next_offset'])
+            self.assertNotIn(current_page['records'][-1]['id'],{item['id'] for item in current_legacy['records']})
+
+    def test_history_global_search_finds_older_jobs_and_detects_filter_changes(self):
+        import json
+        current_root=self.hermes_service_manager.hermes_storage_root
+        current_root.mkdir(parents=True,exist_ok=True)
+        for current_index in range(135):
+            current_path=current_root/('2026-11-18_00-%02d-%02d-%08x' % (current_index//60,current_index%60,current_index))
+            current_path.mkdir()
+            (current_path/'request.json').write_text(json.dumps({'prompt':'특별한 오래된 지시' if current_index==0 else '일반 지시'},ensure_ascii=False))
+            (current_path/'status.json').write_text(json.dumps({'status':'failed' if current_index<40 else 'completed'}))
+        def current_read(current_path):
+            return {'id':current_path.name,'request':json.loads((current_path/'request.json').read_text()),'status':json.loads((current_path/'status.json').read_text()),'result':None}
+        with patch.object(self.hermes_service_manager,'read_hermes_job_record',side_effect=current_read):
+            current_search=self.hermes_service_manager.execute_hermes_command('hermes-history',{'offset':0,'limit':30,'query':'특별한','status':'failed'})
+            self.assertEqual(current_search['total'],1)
+            self.assertEqual(current_search['records'][0]['id'],'2026-11-18_00-00-00-00000000')
+            current_first=self.hermes_service_manager.execute_hermes_command('hermes-history',{'offset':0,'limit':30,'status':'failed'})
+            self.assertEqual(current_first['total'],40)
+            current_second=self.hermes_service_manager.execute_hermes_command('hermes-history',{'offset':30,'limit':30,'status':'failed','snapshot':current_first['snapshot']})
+            self.assertEqual(len(current_second['records']),10)
+            current_changed=current_root/current_first['records'][0]['id']/'status.json'
+            current_changed.write_text(json.dumps({'status':'completed'}))
+            with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-history',{'offset':30,'status':'failed','snapshot':current_first['snapshot']})
+            with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-history',{'offset':30,'status':'completed','snapshot':current_first['snapshot']})
+            with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-history',{'query':'bad\nquery'})
+
+    def test_history_exact_job_id_precedes_prompt_mentions(self):
+        current_root_path=self.hermes_service_manager.hermes_storage_root
+        current_root_path.mkdir(parents=True,exist_ok=True)
+        current_target_identifier='2026-11-18_00-00-00-00000000'
+        for current_index_value in range(35):
+            current_job_path=current_root_path/('2026-11-18_00-00-%02d-%08x' % (current_index_value,current_index_value))
+            current_job_path.mkdir()
+            (current_job_path/'request.json').write_text(json.dumps({'prompt':'조회 '+current_target_identifier}))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'completed'}))
+        def read_current_history_record(current_job_path):
+            return {'id':current_job_path.name,'request':json.loads((current_job_path/'request.json').read_text()),'status':{'status':'completed'},'result':None}
+        with patch.object(self.hermes_service_manager,'read_hermes_job_record',side_effect=read_current_history_record):
+            current_first_page=self.hermes_service_manager.execute_hermes_command('hermes-history',{'offset':0,'limit':30,'query':current_target_identifier})
+            self.assertEqual(current_first_page['total'],35)
+            self.assertEqual(current_first_page['records'][0]['id'],current_target_identifier)
+            current_second_page=self.hermes_service_manager.execute_hermes_command('hermes-history',{'offset':30,'limit':30,'query':current_target_identifier,'snapshot':current_first_page['snapshot']})
+            self.assertEqual(len(current_second_page['records']),5)
+            self.assertNotIn(current_target_identifier,[current_record_value['id'] for current_record_value in current_second_page['records']])
+            current_other_ids=[current_record_value['id'] for current_record_value in current_first_page['records'][1:]]+[current_record_value['id'] for current_record_value in current_second_page['records']]
+            self.assertEqual(current_other_ids,sorted(current_other_ids,reverse=True))
+            (current_root_path/'2026-11-18_00-00-34-00000022'/'request.json').write_text(json.dumps({'prompt':'다른 내용'}))
+            with self.assertRaises(ValueError):
+                self.hermes_service_manager.execute_hermes_command('hermes-history',{'offset':30,'limit':30,'query':current_target_identifier,'snapshot':current_first_page['snapshot']})
 
     def test_keyframe_capability_schema_matches_batch_contract(self):
         from jsonschema import Draft202012Validator
@@ -551,12 +959,18 @@ class HermesServiceTests(unittest.TestCase):
             self.assertIn(current_expected_command,current_service_records[current_service_name]['hermes_links'])
         for current_service_name,current_expected_commands in {
             'flux-image':{'hermes-delegate-flux-image','hermes-flux-delegation-status','hermes-flux-delegation-history','hermes-flux-delegation-cancel','hermes-flux-proposal'},
-            'map-assets':{'hermes-billboard-receipt','hermes-effect-receipt','hermes-effect-register-receipt','hermes-waypoint-receipt','hermes-field-receipt','hermes-field-history','hermes-city-receipt','hermes-city-history'},
+            'map-assets':{'hermes-billboard-receipt','hermes-building-proposal','hermes-effect-receipt','hermes-effect-register-receipt','hermes-waypoint-receipt','hermes-field-receipt','hermes-field-history','hermes-city-proposal','hermes-city-receipt','hermes-city-history'},
             'character-animation':{'hermes-sprite-proposal','hermes-sprite-receipt'},
-            'writer-agent':{'hermes-writer-apply-status','hermes-writer-apply-history'},
+            'writer-agent':{'hermes-writer-proposal','hermes-writer-apply-status','hermes-writer-apply-history'},
+            'music-heartmula':{'hermes-audio-proposal'},
+            'wan22-vace':{'hermes-video-proposal'},
             'prompt-translation':{'hermes-translation-proposal'},
         }.items():
             self.assertTrue(current_expected_commands <= set(current_service_records[current_service_name]['hermes_links']))
+        self.assertIn('hermes-priority-preview',current_service_records['kimodo']['hermes_links'])
+        self.assertNotIn('hermes-priority-preview',current_service_records['qwen-21']['hermes_links'])
+        current_search_record=self.hermes_service_manager.execute_hermes_command('hermes-service-registration',{'query':'작가 요청 제안'})
+        self.assertIn('writer-agent',[item['service'] for item in current_search_record['services']])
         for current_service_record in current_service_catalog['services']:
             self.assertTrue(set(current_service_record['hermes_links']) <= current_capability_names)
             self.assertEqual(len(current_service_record['hermes_links']),len(set(current_service_record['hermes_links'])))
@@ -691,6 +1105,73 @@ class HermesServiceTests(unittest.TestCase):
         self.assertEqual(hermes_session_record['messages'][0]['job_id'], hermes_job_identifier)
         with self.assertRaises(ValueError):
             hermes_session_store.read_session_record('../outside')
+
+    def test_expression_catalog_search_pagination_and_snapshot(self):
+        current_first=self.hermes_service_manager.execute_hermes_command('hermes-expression-catalog',{'limit':3})
+        self.assertEqual(len(current_first['records']),3)
+        self.assertEqual(set(current_first['records'][0]),{'id','label'})
+        self.assertEqual(current_first['next_offset'],3)
+        current_second=self.hermes_service_manager.execute_hermes_command('hermes-expression-catalog',{'limit':3,'offset':3,'snapshot':current_first['snapshot']})
+        self.assertNotEqual(current_first['records'],current_second['records'])
+        current_query=self.hermes_service_manager.execute_hermes_command('hermes-expression-catalog',{'query':'기쁨'})
+        self.assertIn({'id':'joy','label':'기쁨'},current_query['records'])
+        for current_bad in ({'offset':3},{'query':'기쁨','offset':3,'snapshot':current_first['snapshot']},{'limit':True},{'path':'/tmp'}):
+            with self.subTest(payload=current_bad),self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-expression-catalog',current_bad)
+
+    def test_session_view_detects_duplicate_jobs_across_pages(self):
+        from tools.review.domains.hermes_agent.session_store import HermesSessionStore
+        current_session='a'*32
+        current_store=HermesSessionStore(self.hermes_service_manager.hermes_session_root)
+        current_store.create_session_record(current_session)
+        for current_index in range(25):current_store.append_session_request(current_session,'request_%04d'%current_index,'지시')
+        current_job='2026-10-09_21-13-20-1a356bbd'
+        current_store.attach_session_job(current_session,'request_0000',current_job)
+        current_store.attach_session_job(current_session,'request_0024',current_job)
+        current_first=self.hermes_service_manager.execute_hermes_command('hermes-session-view',{'session_id':current_session})
+        self.assertFalse(current_first['messages'][-1]['session_job_unique'])
+        current_older=self.hermes_service_manager.execute_hermes_command('hermes-session-view',{'session_id':current_session,'offset':20,'snapshot':current_first['snapshot']})
+        self.assertFalse(current_older['messages'][0]['session_job_unique'])
+        self.assertIsNone(current_older['messages'][1]['session_job_unique'])
+
+    def test_direct_service_receipt_looks_up_old_record_without_service_calls(self):
+        from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+        current_store=HermesDelegationStore(Path(self.hermes_temporary_root.name)/'receipts')
+        current_service='wan22-vace'
+        current_job='2026-10-09_21-13-20-1a356bbd'
+        with current_store.hold_delegation_storage_lock():
+            for current_index in range(105):
+                current_request='request_%04d'%current_index
+                current_record={'version':2,'id':current_request,'service':current_service,'state':'accepted','job_id':current_job}
+                current_store.resolve_delegation_record_path(current_request).write_text(json.dumps(current_record))
+        self.assertNotIn('request_0000',[item['request_id'] for item in current_store.list_service_delegations(current_service)['records']])
+        with patch('tools.review.domains.hermes_agent.delegation_store.HermesDelegationStore',return_value=current_store),patch('tools.review.common.management_gateway.execute_management_command') as current_service_mock:
+            current_result=self.hermes_service_manager.execute_hermes_command('hermes-service-receipt',{'request_id':'request_0000','service':current_service})
+            self.assertEqual(current_result,{'state':'accepted','service':current_service,'job_id':current_job,'request_id':'request_0000'})
+            self.assertEqual(self.hermes_service_manager.execute_hermes_command('hermes-service-receipt',{'request_id':'request_missing','service':current_service}),{'state':'not_found','request_id':'request_missing','service':current_service})
+            with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-service-receipt',{'request_id':'request_0000','service':'dwpose'})
+            with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-service-receipt',{'request_id':'request_0000','service':'unsupported'})
+            current_service_mock.assert_not_called()
+
+    def test_session_history_pages_and_change_detection(self):
+        from tools.review.domains.hermes_agent.session_store import HermesSessionStore
+        current_session='a'*32
+        current_store=HermesSessionStore(self.hermes_service_manager.hermes_session_root)
+        current_store.create_session_record(current_session)
+        for current_index in range(45):
+            current_store.append_session_request(current_session,'request_%04d'%current_index,'지시 %d'%current_index)
+        current_first=self.hermes_service_manager.execute_hermes_command('hermes-session-view',{'session_id':current_session})
+        self.assertEqual([item['text'] for item in current_first['messages']],['지시 %d'%item for item in range(25,45)])
+        self.assertTrue(current_first['messages'][0]['created_at'])
+        self.assertEqual(current_first['next_offset'],20)
+        current_second=self.hermes_service_manager.execute_hermes_command('hermes-session-view',{'session_id':current_session,'offset':20,'snapshot':current_first['snapshot']})
+        self.assertEqual([item['text'] for item in current_second['messages']],['지시 %d'%item for item in range(5,25)])
+        current_last=self.hermes_service_manager.execute_hermes_command('hermes-session-view',{'session_id':current_session,'offset':40,'snapshot':current_first['snapshot']})
+        self.assertEqual(len(current_last['messages']),5)
+        self.assertIsNone(current_last['next_offset'])
+        with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-session-view',{'session_id':current_session,'offset':20})
+        with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-session-view',{'session_id':current_session,'offset':True,'snapshot':current_first['snapshot']})
+        current_store.append_session_request(current_session,'request_new','새 지시')
+        with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-session-view',{'session_id':current_session,'offset':20,'snapshot':current_first['snapshot']})
 
     def test_session_creation_and_read_are_gateway_compatible_and_idempotent(self):
         hermes_session_identifier = 'a' * 32

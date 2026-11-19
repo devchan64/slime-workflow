@@ -21,12 +21,18 @@ class HermesModelPreparationStore(HermesDelegationStore):
                 or preparation_record_value.get('service') != model_service_name):
             raise ValueError('모델 준비 서비스 또는 접수 기록이 일치하지 않습니다.')
         if preparation_record_value.get('state') == 'dispatching':
-            return {'state': 'unknown', 'service': model_service_name,
+            return {'state': 'unknown', 'request_id':request_identifier_value, 'service': model_service_name,
                     'message': '기존 모델 준비 상태를 확인하세요. 자동 재접수하지 않습니다.'}
         if preparation_record_value.get('state') != 'accepted':
             raise ValueError('모델 준비 접수 상태 오류')
-        current_result_value = {'state': 'accepted', 'service': model_service_name,
+        current_result_value = {'state': 'accepted', 'request_id':request_identifier_value, 'service': model_service_name,
                                 'message': '요청 응답을 받았습니다. 완료 여부는 모델 준비 상태에서 확인하세요.'}
+        if 'preparation_status' in preparation_record_value:
+            current_preparation_status=preparation_record_value['preparation_status']
+            if current_preparation_status not in ('running','completed','idle','failed','queued'):
+                raise ValueError('모델 준비 응답 상태 오류')
+            current_result_value['preparation_status']=current_preparation_status
+            current_result_value['message']+=' 접수 응답 당시 상태: '+{'running':'진행 중','completed':'완료','idle':'대기','failed':'실패','queued':'대기열'}[current_preparation_status]+'. 현재 상태는 별도로 확인하세요.'
         if 'job_id' in preparation_record_value:
             current_job_value = preparation_record_value['job_id']
             if not isinstance(current_job_value, str) or not HERMES_DELEGATION_JOB_PATTERN.fullmatch(current_job_value):
@@ -39,7 +45,7 @@ class HermesModelPreparationStore(HermesDelegationStore):
         with self.hold_delegation_storage_lock():
             current_record_path = self.resolve_delegation_record_path(request_identifier_value)
             if not current_record_path.exists():
-                return {'state': 'not_found'}
+                return {'state': 'not_found', 'request_id':request_identifier_value, 'service':model_service_name}
             current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
             return self.inspect_model_preparation_record(request_identifier_value, model_service_name, current_record_value)
 
@@ -87,11 +93,15 @@ class HermesModelPreparationStore(HermesDelegationStore):
                                     'service': model_service_name, 'state': 'dispatching'}
             write_record_atomically(current_record_path, current_record_value)
             current_response_value = preparation_submit_callback(model_service_name)
+            if json.loads(current_record_path.read_text(encoding='utf-8'))!=current_record_value:
+                raise ValueError('모델 준비 중 접수 기록이 변경됐습니다. 기존 상태를 확인하고 자동 재접수하지 마세요.')
             current_status_value = current_response_value.get('preparation_status') if isinstance(current_response_value, dict) else None
             current_job_value = current_response_value.get('id') if isinstance(current_response_value, dict) else None
             if (current_status_value not in ('running', 'completed', 'idle', 'failed', 'queued')
                     and not (isinstance(current_job_value, str) and HERMES_DELEGATION_JOB_PATTERN.fullmatch(current_job_value))):
                 raise ValueError('모델 준비 응답을 확인할 수 없습니다. 자동 재접수하지 않습니다.')
+            if current_status_value in ('running','completed','idle','failed','queued'):
+                current_record_value['preparation_status']=current_status_value
             if isinstance(current_job_value, str) and HERMES_DELEGATION_JOB_PATTERN.fullmatch(current_job_value):
                 current_record_value['job_id'] = current_job_value
             current_record_value['state'] = 'accepted'

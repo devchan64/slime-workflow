@@ -9,6 +9,31 @@ from tools.review.common.management_gateway import resolve_management_command, i
 
 
 class TranslationServiceTests(unittest.TestCase):
+    def test_translation_resume_preview_validates_stored_job_and_command(self):
+        from tools.review.common.generation_records import write_record_atomically
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_manager_value=service.TranslationServiceManager()
+            current_manager_value.job_storage_root=Path(current_directory_name)/'jobs'
+            current_job_identifier='2026-11-18_00-00-00-12345678'
+            current_job_path=current_manager_value.job_storage_root/current_job_identifier
+            current_job_path.mkdir(parents=True)
+            current_request_value=service.validate_translation_submission({'text':'나무','target_language':'en'})
+            write_record_atomically(current_job_path/'request.json',{**current_request_value,'model_id':'google/translategemma-4b-it'})
+            write_record_atomically(current_job_path/'status.json',{'status':'failed'})
+            write_record_atomically(current_job_path/'gpu-command.json',{'service':'prompt-translation','command':service.build_translation_worker_command(current_job_path)})
+            with patch('tools.review.common.gpu_job_queue.launch_gpu_process') as current_launch_mock:
+                current_preview_value=current_manager_value.execute_translation_command('resume-preview',{'id':current_job_identifier})
+                self.assertEqual(current_preview_value['status'],'failed')
+                self.assertNotIn('text',current_preview_value)
+                current_fingerprint_value=current_preview_value['expected_resume_fingerprint']
+                write_record_atomically(current_job_path/'status.json',{'status':'cancelled'})
+                with self.assertRaises(ValueError):current_manager_value.execute_translation_command('resume',{'id':current_job_identifier,'expected_resume_fingerprint':current_fingerprint_value})
+                current_launch_mock.assert_not_called()
+                current_preview_value=current_manager_value.execute_translation_command('resume-preview',{'id':current_job_identifier})
+                current_result_value=current_manager_value.execute_translation_command('resume',{'id':current_job_identifier,'expected_resume_fingerprint':current_preview_value['expected_resume_fingerprint']})
+                self.assertEqual(current_result_value['status'],'queued')
+                current_launch_mock.assert_called_once()
+
     def test_semantic_review_requires_exact_evidence_and_never_automatically_approves(self):
         from generators.prompt_translation.semantic_review import find_negated_source_clauses, validate_semantic_review
         semantic_source_values = find_negated_source_clauses('문자·격자선은 넣지 않는다. 크기는 유지한다.')

@@ -17,6 +17,14 @@ HERMES_DELEGATION_SERVICE_PATTERN = re.compile(r'[a-z0-9]+(?:-[a-z0-9]+)*')
 HERMES_DELEGATION_THREAD_LOCK = threading.RLock()
 
 
+def list_hermes_service_receipt_names():
+    """서비스별 접수 직접 조회가 지원하는 원 서비스만 반환한다."""
+    from tools.review.domains.hermes_agent.audio_operations import HERMES_AUDIO_SERVICES
+    from tools.review.domains.hermes_agent.video_operations import HERMES_VIDEO_SERVICES
+    from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
+    return (*HERMES_AUDIO_SERVICES, *HERMES_VIDEO_SERVICES, *FLUX_IMAGE_PROFILE_RECORDS, 'flux-expression', 'prompt-translation', 'writer-agent')
+
+
 def validate_service_job_identifier(current_service_name, current_job_identifier):
     """서비스별 기존 작업 ID 형식을 유지한다."""
     if not isinstance(current_job_identifier,str):
@@ -127,6 +135,8 @@ class HermesDelegationStore:
             current_response_record = delegation_submit_callback(delegation_request_record)
             if not isinstance(current_response_record, dict) or not isinstance(current_response_record.get('id'), str) or not HERMES_DELEGATION_JOB_PATTERN.fullmatch(current_response_record['id']):
                 raise ValueError('접수 응답의 작업 ID를 확인할 수 없습니다. 자동 재접수하지 않습니다.')
+            if json.loads(current_record_path.read_text(encoding='utf-8')) != current_saved_record:
+                raise ValueError('접수 중 기록이 변경됐습니다. 원 서비스와 접수 기록을 확인하고 자동 재접수하지 마세요.')
             current_saved_record.update(state='accepted', job_id=current_response_record['id'])
             write_record_atomically(current_record_path, current_saved_record)
             return {'state': 'accepted', 'duplicate': False, 'job_id': current_saved_record['job_id']}
@@ -138,16 +148,16 @@ class HermesDelegationStore:
         with self.hold_delegation_storage_lock():
             current_record_path = self.resolve_delegation_record_path(delegation_identifier_value)
             if not current_record_path.exists():
-                return {'state':'not_found'}
+                return {'state':'not_found','request_id':delegation_identifier_value,'service':expected_service_name}
             current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
             if not isinstance(current_record_value, dict) or current_record_value.get('version') != 2 or current_record_value.get('id') != delegation_identifier_value or current_record_value.get('service') != expected_service_name or current_record_value.get('state') not in ('dispatching', 'accepted'):
                 raise ValueError('위임 서비스 또는 기록이 일치하지 않습니다.')
             if current_record_value['state'] == 'dispatching':
-                return {'state':'unknown', 'service':expected_service_name, 'message':'접수 결과를 확인하고 자동 재접수하지 마세요.'}
+                return {'state':'unknown', 'request_id':delegation_identifier_value, 'service':expected_service_name, 'message':'접수 결과를 확인하고 자동 재접수하지 마세요.'}
             current_job_identifier = current_record_value.get('job_id')
             if not validate_service_job_identifier(expected_service_name, current_job_identifier):
                 raise ValueError('위임 작업 ID 형식 오류')
-            return {'state':'accepted', 'service':expected_service_name, 'job_id':current_job_identifier}
+            return {'state':'accepted', 'request_id':delegation_identifier_value, 'service':expected_service_name, 'job_id':current_job_identifier}
 
     def list_service_delegations(self, expected_service_name):
         """선택 서비스의 새 접수 기록을 최근 순으로 읽는다."""
@@ -207,6 +217,8 @@ class HermesDelegationStore:
             current_job_identifier = current_response_record.get('id') if isinstance(current_response_record, dict) else None
             if not validate_service_job_identifier(delegation_service_name, current_job_identifier):
                 raise ValueError('접수 응답의 작업 ID를 확인할 수 없습니다. 자동 재접수하지 않습니다.')
+            if json.loads(current_record_path.read_text(encoding='utf-8')) != current_record_value:
+                raise ValueError('접수 중 기록이 변경됐습니다. 원 서비스와 접수 기록을 확인하고 자동 재접수하지 마세요.')
             current_record_value.update(state='accepted', job_id=current_job_identifier)
             write_record_atomically(current_record_path, current_record_value)
             return {'state':'accepted', 'duplicate':False, 'service':delegation_service_name, 'job_id':current_job_identifier}

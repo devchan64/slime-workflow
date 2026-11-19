@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import signal
 import subprocess
+import tempfile
 import threading
 import time
 import unittest
@@ -88,10 +89,16 @@ def execute_regression_worker(current_test_modules, current_report_area, current
     return current_exit_code
 
 
+def create_regression_result_directory(current_report_area):
+    current_report_root=WORKFLOW_ROOT_DIRECTORY/'.tmp/test'/current_report_area
+    current_report_root.mkdir(parents=True,exist_ok=True)
+    current_time_prefix=datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')+'_'
+    return Path(tempfile.mkdtemp(prefix=current_time_prefix,dir=current_report_root))
+
+
 def execute_music_regression(current_test_modules=MUSIC_REGRESSION_MODULES, current_report_area="music-regression"):
     """별도 프로세스의 종료 정리 출력까지 파일에 보존한다."""
-    current_result_root = WORKFLOW_ROOT_DIRECTORY/'.tmp/test'/current_report_area/datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
-    current_result_root.mkdir(parents=True)
+    current_result_root = create_regression_result_directory(current_report_area)
     current_start_clock = time.monotonic()
     with (current_result_root/'runner.log').open('w') as current_runner_log:
         current_process_result = subprocess.run(

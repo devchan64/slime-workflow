@@ -7,6 +7,7 @@ import os
 from types import SimpleNamespace
 from urllib.parse import parse_qs
 import logging
+import json
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -15,6 +16,7 @@ from starlette.responses import Response, RedirectResponse, JSONResponse
 import gradio as gr
 
 MANAGEMENT_INTERFACE_BUILDERS = {
+    'operations-history': ('operations_history_app', 'build_operations_history_interface', 'none'),
     'mock-dwpose-validation': ('mock_progress_validation_app', 'build_mock_dwpose_interface', 'url'),
     'mock-animate-validation': ('mock_progress_validation_app', 'build_mock_animate_interface', 'url'),
     'mock-progress-validation': ('mock_progress_validation_app', 'build_mock_progress_validation_interface', 'url'),
@@ -156,6 +158,34 @@ async def bridge_gradio_heartbeat(current_application, current_scope, current_re
         await asyncio.gather(current_disconnect_task, return_exceptions=True)
 
 
+def wrap_predict_diagnostic_receiver(current_receive_call, current_emit_function):
+    """옵트인 진단은 이벤트 번호만 기록하며 요청 본문은 전달 후 폐기한다."""
+    current_body_buffer = bytearray()
+    current_body_overflow = False
+    async def receive_predict_diagnostic():
+        nonlocal current_body_overflow
+        current_message_value = await current_receive_call()
+        if current_message_value.get('type') == 'http.request' and not current_body_overflow:
+            current_body_chunk = current_message_value.get('body', b'')
+            if len(current_body_buffer) + len(current_body_chunk) > 65536:
+                current_body_buffer.clear()
+                current_body_overflow = True
+                return current_message_value
+            current_body_buffer.extend(current_body_chunk)
+            if not current_message_value.get('more_body', False):
+                try:
+                    current_request_record = json.loads(current_body_buffer)
+                    current_event_identifier = current_request_record.get('fn_index') if isinstance(current_request_record, dict) else None
+                    if type(current_event_identifier) is int and 0 <= current_event_identifier < 100000:
+                        current_emit_function(current_event_identifier)
+                except (UnicodeError, ValueError, TypeError):
+                    pass
+                finally:
+                    current_body_buffer.clear()
+        return current_message_value
+    return receive_predict_diagnostic
+
+
 def build_management_application(current_handler_class, current_root_path, current_source_path, current_review_port, current_static_routes):
     os.environ['SLIME_MANAGEMENT_MENU_SOURCE'] = str(current_source_path)
     current_mounted_apps = {}
@@ -265,6 +295,8 @@ def build_management_application(current_handler_class, current_root_path, curre
                         current_message = dict(current_message, body=current_body_bytes)
                     await current_send_call(current_message)
                 return await current_mounted_apps[current_tool_name](current_request_scope, current_receive_call, send_document_with_heartbeat_bridge)
+            if current_tool_name == 'hermes-agent' and current_request_scope.get('method') == 'POST' and current_request_path.endswith('/gradio_api/run/predict') and os.environ.get('SLIME_HERMES_PREDICT_DIAGNOSTIC') == '1':
+                current_receive_call = wrap_predict_diagnostic_receiver(current_receive_call, lambda current_event_identifier: logging.warning('Hermes predict event=%d', current_event_identifier))
             return await current_mounted_apps[current_tool_name](current_request_scope, current_receive_call, current_send_call)
         current_request_body = bytearray()
         while True:

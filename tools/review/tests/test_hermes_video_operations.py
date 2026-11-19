@@ -55,6 +55,24 @@ class HermesVideoOperationsTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     video_operations.cancel_hermes_video_request('video_request_123','wan22-vace','2026-11-18_00-00-00-ffffffff')
 
+    def test_attached_video_ui_confirms_real_service_receipt(self):
+        from tools.review.ui.gradio import hermes_agent_app
+        current_job='2026-11-18_00-00-00-12345678'
+        current_source={'proposal':{'service':'dwpose'},'request_id':'video_request_123'}
+        current_review={'source':current_source,'review':{'request_id':'video_request_123','service':'dwpose','request':{'action':'generate'}}}
+        def current_gateway(current_service,current_command,current_payload):
+            self.assertEqual(current_service,'hermes-agent')
+            if current_command=='hermes-delegate-video':return video_operations.submit_hermes_video_request(current_payload['request_id'],current_payload['service'],current_payload['request'])
+            if current_command=='hermes-video-status':return video_operations.read_hermes_video_status(current_payload['request_id'],current_payload['service'])
+            raise AssertionError(current_command)
+        def current_video_service(current_service,current_command,current_payload):
+            return {'id':current_job} if current_command=='generate' else {'id':current_job,'status':'queued'}
+        with TemporaryDirectory() as current_root, patch.object(video_operations,'HermesDelegationStore',return_value=HermesDelegationStore(Path(current_root))), patch.object(video_operations,'validate_hermes_video_request'), patch.object(video_operations,'call_hermes_video_service',side_effect=current_video_service) as current_video_mock, patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway), patch.object(hermes_agent_app,'review_conversation_video_inputs',return_value=(current_review,'','')):
+            for current_iteration in range(2):
+                _,current_message=hermes_agent_app.submit_conversation_video_inputs(current_review,current_source,'session','job','{}',None,None,None,None,None)
+                self.assertIn('queued',current_message)
+            self.assertEqual(sum(current_call.args[1]=='generate' for current_call in current_video_mock.call_args_list),1)
+
     def test_unknown_video_response_is_not_resent(self):
         with TemporaryDirectory() as current_root_name, patch.object(video_operations,'HermesDelegationStore',return_value=HermesDelegationStore(Path(current_root_name))), patch.object(video_operations,'validate_hermes_video_request'), patch.object(video_operations,'call_hermes_video_service',side_effect=OSError('lost')) as current_gateway_mock:
             with self.assertRaises(OSError):
