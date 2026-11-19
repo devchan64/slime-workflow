@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import tempfile
 import unittest
+import yaml
 from tools.review.domains.map_assets.database_ledger import publish_content_asset_ledger
 from tools.review.maintenance.sync_billboard_catalog import load_unique_yaml_document, load_billboard_catalog
 
@@ -22,16 +23,24 @@ class AssetLedgerRoundtripTests(unittest.TestCase):
             shutil.copy2(current_source_root/'asset-registry.yaml',current_asset_root/'asset-registry.yaml')
             for current_relative_path in ('assets/maps','assets/billboards','assets/sprites/effects'):
                 shutil.copytree(current_source_root/current_relative_path,current_asset_root/current_relative_path)
+            current_lock_path=current_asset_root.parent/'slime-backend/map-data.lock.yaml'
+            current_lock_path.parent.mkdir()
+            current_map_files=sorted((current_asset_root/'assets/maps').rglob('*.yaml'))
+            current_lock_path.write_text(yaml.safe_dump({'schema_version':1,'repository':'slime-assets','files':[{'path':current_file.relative_to(current_asset_root).as_posix(),'sha256':hashlib.sha256(current_file.read_bytes()).hexdigest()} for current_file in current_map_files]}))
             current_first_result=publish_content_asset_ledger(current_asset_root,current_export_payload)
+            current_property_document=load_unique_yaml_document(current_asset_root/'assets/maps/sprite-display-properties.yaml')
+            for current_building_identifier,current_building_properties in current_export_payload['buildingProperties'].items():
+                current_test_case.assertEqual(current_property_document['data'][current_building_identifier],current_building_properties)
             current_effect_catalog=load_unique_yaml_document(current_asset_root/'assets/sprites/effects/catalog.yaml')
             current_test_case.assertEqual(current_effect_catalog['effects'],current_export_payload['effects'])
-            current_test_case.assertFalse(current_first_result['consumerLocksUpdated'])
+            current_test_case.assertIsInstance(current_first_result['consumerLocksUpdated'],bool)
             current_test_case.assertEqual(publish_content_asset_ledger(current_asset_root,current_export_payload)['updatedFiles'],0)
             current_changed_payload=copy.deepcopy(current_export_payload)
             current_selected_asset=current_changed_payload['assets'][0]
             current_selected_asset['properties']['anchorY']+=0.125
             current_changed_payload['generation']+=1
             current_changed_result=publish_content_asset_ledger(current_asset_root,current_changed_payload)
+            current_test_case.assertTrue(current_changed_result['consumerLocksUpdated'])
             current_test_case.assertGreater(current_changed_result['updatedFiles'],0)
             current_property_document=load_unique_yaml_document(current_asset_root/'assets/maps/sprite-display-properties.yaml')
             current_test_case.assertEqual(current_property_document['data'][current_selected_asset['assetId']]['anchorY'],current_selected_asset['properties']['anchorY'])

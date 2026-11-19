@@ -38,7 +38,10 @@ class BillboardBuildingUnificationTests(unittest.TestCase):
         self.assertIn('가이드 프리셋', current_component_labels)
         self.assertNotIn('건물 높이 · 건물 프리셋에만 적용', current_component_labels)
         self.assertIn('건물 기본 프롬프트 추가', current_component_labels)
-        self.assertEqual(sum(current_record.get('props', {}).get('value') == '대기열에 추가' for current_record in current_component_records), 1)
+        current_generate_buttons=[current_record for current_record in current_component_records if current_record.get('props',{}).get('value')=='생성 불가 · 아카이브']
+        self.assertEqual(len(current_generate_buttons),1)
+        self.assertFalse(current_generate_buttons[0]['props']['interactive'])
+        self.assertFalse(any(current_record.get('props',{}).get('value')=='대기열에 추가' for current_record in current_component_records))
 
     def test_unified_guide_applies_matching_prompt_and_reference(self):
         from tools.review.domains.image.billboard_guide_prompt import BILLBOARD_LAYOUT_PROFILES

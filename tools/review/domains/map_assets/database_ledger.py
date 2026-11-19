@@ -2,6 +2,8 @@
 from copy import deepcopy
 import hashlib
 import os
+import re
+import stat
 from pathlib import Path
 import shutil
 import tempfile
@@ -57,6 +59,7 @@ def publish_content_asset_ledger(current_asset_root, current_payload_record):
     if current_registry_path.is_symlink() or not current_registry_path.resolve().is_relative_to(current_asset_root):
         raise ValueError('에셋 등록부 경로 이탈')
     current_registry_record=load_unique_yaml_document(current_registry_path)
+    current_original_registry=deepcopy(current_registry_record)
     current_catalog_record=load_billboard_catalog(current_asset_root)
     current_catalog_record['review_categories']=current_payload_record['types']
     current_asset_lookup=resolve_active_ledger_assets(current_payload_record['assets'],current_catalog_record['billboards'])
@@ -138,6 +141,63 @@ def publish_content_asset_ledger(current_asset_root, current_payload_record):
             if len(current_matching_records)!=1 or current_matching_records[0]['sha256']!=current_old_hash:
                 raise ValueError('원장 등록부·잠금 해시 불일치: '+current_relative_name)
             current_matching_records[0]['sha256']=current_new_hash
+    current_map_changes={current_path:current_bytes for current_path,current_bytes in current_pending_files.items()
+        if current_path.is_relative_to(current_asset_root/'assets/maps')}
+    current_backend_lock=None
+    if (current_asset_root/'assets/maps').is_dir():
+        current_backend_lock=current_asset_root.parent/'slime-backend/map-data.lock.yaml'
+        if current_backend_lock.is_symlink() or not current_backend_lock.is_file():
+            raise ValueError('백엔드 맵 잠금 목록을 확인할 수 없습니다.')
+        current_original_lock=current_backend_lock.read_bytes()
+        current_lock_record=load_unique_yaml_document(current_backend_lock)
+        if current_backend_lock.read_bytes()!=current_original_lock:
+            raise ValueError('백엔드 맵 잠금 조회 중 변경되었습니다.')
+        if (not isinstance(current_lock_record,dict) or set(current_lock_record)!={'schema_version','repository','files'}
+                or type(current_lock_record['schema_version']) is not int or current_lock_record['schema_version']!=1
+                or current_lock_record['repository']!='slime-assets' or not isinstance(current_lock_record['files'],list)
+                or not current_lock_record['files']):
+            raise ValueError('백엔드 맵 잠금 목록 형식 오류')
+        current_lock_entries={}
+        for current_lock_entry in current_lock_record['files']:
+            if not isinstance(current_lock_entry,dict) or set(current_lock_entry)!={'path','sha256'}:
+                raise ValueError('백엔드 맵 잠금 항목 오류')
+            current_lock_name=current_lock_entry['path']
+            current_lock_hash=current_lock_entry['sha256']
+            if (not isinstance(current_lock_name,str) or not current_lock_name.startswith('assets/maps/')
+                    or Path(current_lock_name).as_posix()!=current_lock_name or '..' in Path(current_lock_name).parts
+                    or Path(current_lock_name).suffix!='.yaml' or current_lock_name in current_lock_entries
+                    or not isinstance(current_lock_hash,str) or not re.fullmatch(r'[a-f0-9]{64}',current_lock_hash)):
+                raise ValueError('백엔드 맵 잠금 경로 또는 해시 오류')
+            current_lock_entries[current_lock_name]=current_lock_entry
+        current_map_root=current_asset_root/'assets/maps'
+        current_source_names={current_path.relative_to(current_asset_root).as_posix() for current_path in current_map_root.rglob('*.yaml') if current_path.is_file()}
+        if current_source_names!=set(current_lock_entries):
+            raise ValueError('백엔드 맵 잠금 파일 집합 불일치')
+        current_map_registry={}
+        for current_registry_entry in current_original_registry['assets']:
+            current_registry_name=current_registry_entry.get('path')
+            if isinstance(current_registry_name,str) and current_registry_name.startswith('assets/maps/') and current_registry_name.endswith('.yaml'):
+                if current_registry_name in current_map_registry:raise ValueError('맵 등록부 경로 중복')
+                current_map_registry[current_registry_name]=current_registry_entry
+        if set(current_map_registry)!=current_source_names:raise ValueError('맵 등록부 파일 집합 불일치')
+        for current_relative_name,current_lock_entry in current_lock_entries.items():
+            current_source_path=current_asset_root/current_relative_name
+            current_source_bytes=current_source_path.read_bytes()
+            if (current_source_path.is_symlink() or not current_source_path.resolve().is_relative_to(current_map_root.resolve())
+                    or hashlib.sha256(current_source_bytes).hexdigest()!=current_lock_entry['sha256']
+                    or current_map_registry[current_relative_name].get('sha256')!=current_lock_entry['sha256']):
+                raise ValueError('백엔드 맵 잠금 해시 불일치: '+current_relative_name)
+            if current_source_path in current_original_files and current_original_files[current_source_path]!=current_source_bytes:
+                raise ValueError('맵 원본 조회 중 변경되었습니다: '+current_relative_name)
+            current_original_files[current_source_path]=current_source_bytes
+        for current_target_path,current_file_bytes in current_map_changes.items():
+            current_relative_name=current_target_path.relative_to(current_asset_root).as_posix()
+            current_lock_entry=current_lock_entries.get(current_relative_name)
+            if current_lock_entry is None or current_lock_entry['sha256']!=hashlib.sha256(current_original_files[current_target_path]).hexdigest():
+                raise ValueError('백엔드 맵 잠금 해시 불일치: '+current_relative_name)
+            current_lock_entry['sha256']=hashlib.sha256(current_file_bytes).hexdigest()
+        current_original_files[current_backend_lock]=current_original_lock
+        if current_map_changes:current_pending_files[current_backend_lock]=yaml.safe_dump(current_lock_record,allow_unicode=True,sort_keys=False).encode()
     for current_metadata_path,current_metadata_record in ((current_registry_path,current_registry_record),):
         current_original_files[current_metadata_path]=current_metadata_path.read_bytes()
         if load_unique_yaml_document(current_metadata_path)!=current_metadata_record:
@@ -172,28 +232,42 @@ def publish_content_asset_ledger(current_asset_root, current_payload_record):
             if current_original_files[current_target_path]!=current_staged_path.read_bytes():
                 current_pending_files[current_target_path]=current_staged_path.read_bytes()
     for current_target_path,current_original_bytes in current_original_files.items():
-        if current_target_path.is_symlink() or not current_target_path.resolve().is_relative_to(current_asset_root):
+        if current_target_path.is_symlink() or (current_target_path!=current_backend_lock and not current_target_path.resolve().is_relative_to(current_asset_root)):
             raise ValueError('원장 반영 대상 경로 이탈')
         if (current_target_path.read_bytes() if current_target_path.exists() else None)!=current_original_bytes:
             raise ValueError('원장 반영 준비 중 파일이 변경되었습니다: '+str(current_target_path))
+    current_written_paths=[]
+    current_temporary_path=None
     try:
         for current_target_path,current_file_bytes in current_pending_files.items():
-            current_temporary_path=current_target_path.with_suffix('.ledger-tmp')
-            current_temporary_path.write_bytes(current_file_bytes)
+            current_file_descriptor,current_temporary_name=tempfile.mkstemp(prefix='.ledger-',suffix='.tmp',dir=current_target_path.parent)
+            current_temporary_path=Path(current_temporary_name)
+            with os.fdopen(current_file_descriptor,'wb') as current_temporary_stream:
+                os.fchmod(current_temporary_stream.fileno(),stat.S_IMODE(current_target_path.stat().st_mode) if current_target_path.exists() else 0o644)
+                current_temporary_stream.write(current_file_bytes)
             os.replace(current_temporary_path,current_target_path)
-    except Exception:
-        for current_target_path in current_pending_files:
-            if current_original_files[current_target_path] is None:
-                current_target_path.unlink(missing_ok=True)
-            else:
-                current_target_path.write_bytes(current_original_files[current_target_path])
+            current_temporary_path=None
+            current_written_paths.append(current_target_path)
+    except Exception as current_publication_error:
+        if current_temporary_path is not None:current_temporary_path.unlink(missing_ok=True)
+        current_rollback_errors=[]
+        for current_target_path in reversed(current_written_paths):
+            try:
+                if current_target_path.is_symlink() or not current_target_path.is_file() or current_target_path.read_bytes()!=current_pending_files[current_target_path]:
+                    current_rollback_errors.append(current_target_path)
+                    continue
+                if current_original_files[current_target_path] is None:current_target_path.unlink()
+                else:current_target_path.write_bytes(current_original_files[current_target_path])
+            except OSError:
+                current_rollback_errors.append(current_target_path)
+        if current_rollback_errors:raise RuntimeError('원장 반영 실패 후 일부 파일을 안전하게 복원하지 못했습니다. 원본·등록부·잠금을 확인하세요.') from current_publication_error
         raise
     return {'generation':current_payload_record['generation'],'updatedFiles':len(current_pending_files),
         'changedFiles':[{'path':current_target_path.relative_to(current_asset_root).as_posix(),
             'beforeSha256':hashlib.sha256(current_original_files[current_target_path]).hexdigest() if current_original_files[current_target_path] is not None else None,
             'afterSha256':hashlib.sha256(current_file_bytes).hexdigest()}
-            for current_target_path,current_file_bytes in sorted(current_pending_files.items())],
-        'consumerLocksUpdated':False}
+            for current_target_path,current_file_bytes in sorted(current_pending_files.items()) if current_target_path!=current_backend_lock],
+        'consumerLocksUpdated':bool(current_map_changes)}
 
 
 def resolve_active_ledger_assets(current_database_assets,current_catalog_assets):

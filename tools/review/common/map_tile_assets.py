@@ -29,7 +29,7 @@ UniqueAssetYamlLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING
 def load_registered_tiles(asset_repository_path=None):
     asset_repository_path = Path(asset_repository_path or os.environ.get('SLIME_ASSETS_ROOT', DEFAULT_ASSET_REPOSITORY)).resolve()
     asset_registry_record = yaml.load((asset_repository_path / 'asset-registry.yaml').read_text(), Loader=UniqueAssetYamlLoader)
-    if not isinstance(asset_registry_record, dict) or set(asset_registry_record) != {'schema_version', 'assets'} or asset_registry_record['schema_version'] != 1 or not isinstance(asset_registry_record['assets'], list):
+    if not isinstance(asset_registry_record, dict) or set(asset_registry_record) != {'schema_version', 'assets'} or type(asset_registry_record['schema_version']) is not int or asset_registry_record['schema_version'] != 1 or not isinstance(asset_registry_record['assets'], list):
         raise ValueError('에셋 등록부 형식 오류')
     registered_tile_records = {}
     registered_version_pairs = set()
