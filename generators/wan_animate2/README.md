@@ -92,4 +92,4 @@ GPU 상세 이벤트는 확보하지 못했다. 전체 영상 동등성 검증�
 
 ### ROCm VAE 수치 안정성 검증
 
-GPU 초기화 전에 `PYTORCH_ALLOC_CONF=expandable_segments:False`를 고정하고 이전 별칭을 제거한다. VAE 수학 SDPA 및 비유한 값 검사를 함께 유지한다. 2026-11-15 실제 5프레임·2스텝 반복 비교에서 True 조건의 VAE 실패와 False 조건의 완료를 관측했다. 내부 오류 원인과 긴 영상 안정성은 미확정이며 상세 조건은 [NaN 사례집](../../workflows/rocm-nan-cases.md)을 따른다.
+GPU 초기화 전에 `PYTORCH_ALLOC_CONF=expandable_segments:False`를 고정하고 이전 별칭을 제거한다. VAE 수학 SDPA 및 비유한 값 검사를 함께 유지한다. 2026-11-19 같은 가상 주소를 재사용하는 HSA 재현에서는 PyTorch 없이도 손상이 발생했다. 격리 부팅의 Ubuntu TLB 펜스 백포트와 TLB 호출 추가 대조에서는 HSA 및 실제 65프레임 VAE 잠재값이 제한된 반복에서 기준과 일치했다. 백포트 전체 생성 65프레임·20스텝은 별도 시험에서 1회 검증했다. 이는 특정 환경에서의 근거이며 물리 TLB 내부 상태나 다른 입력의 장기 안정성을 확정하지 않는다. 현재 기본 드라이버에는 실험 패치를 적용하지 않았으며 `False` 정책을 유지한다. 실험 조건과 한계는 [NaN 사례집](../../workflows/rocm-nan-cases.md)을 따른다.
