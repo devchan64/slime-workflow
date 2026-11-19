@@ -20866,7 +20866,11 @@ function bm(e, n) {
 		});
 		var ue = D(P, 2);
 		let de;
-		f(ue, 23, () => S(H), (e, t) => t + ":" + ("image" in e ? typeof e.image == "string" ? e.image : e.image.url : e.video.url), (e, r, i) => {
+		f(ue, 23, () => S(H), (e, t) => JSON.stringify([
+			t,
+			"image" in e ? typeof e.image == "string" ? e.image : e.image.url : e.video.url,
+			e.caption
+		]), (e, r, i) => {
 			var o = vm(), s = R(o);
 			let c;
 			var d = R(s), h = (e) => {}, _ = L(() => S(r).caption?.startsWith("__card_no_thumbnail__\n")), v = (e) => {

@@ -799,7 +799,7 @@
 				style="--grid-cols:{effective_columns}; --grid-rows:{rows}; --object-fit: {object_fit};"
 				class:pt-6={show_label}
 			>
-				{#each resolved_value as entry, i (i + ":" + ("image" in entry ? (typeof entry.image === "string" ? entry.image : entry.image.url) : entry.video.url))}
+				{#each resolved_value as entry, i (JSON.stringify([i, "image" in entry ? (typeof entry.image === "string" ? entry.image : entry.image.url) : entry.video.url, entry.caption]))}
 					<div class="gallery-item">
 						<button
 							class="thumbnail-item thumbnail-lg"
