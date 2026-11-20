@@ -428,6 +428,15 @@ class HermesServiceManager:
             if set(hermes_payload_record)!={'id'}:
                 raise ValueError('이펙트 ID만 전달하세요.')
             return read_hermes_effect_detail(hermes_payload_record['id'])
+        if hermes_command_name in ('hermes-kimodo-keyframe-source-review','hermes-kimodo-keyframe-save','hermes-kimodo-keyframe-receipt'):
+            from tools.review.domains.hermes_agent.kimodo_keyframe_operations import preview_hermes_keyframe_source, save_hermes_keyframe_once, read_hermes_keyframe_receipt
+            if hermes_command_name=='hermes-kimodo-keyframe-source-review' and set(hermes_payload_record)=={'job_id','attempt_id','frame','tag'}:
+                return preview_hermes_keyframe_source(hermes_payload_record['job_id'],hermes_payload_record['attempt_id'],hermes_payload_record['frame'],hermes_payload_record['tag'])
+            if hermes_command_name=='hermes-kimodo-keyframe-save' and set(hermes_payload_record)=={'request_id','job_id','attempt_id','frame','tag','review_sha256'}:
+                return save_hermes_keyframe_once(hermes_payload_record['request_id'],{current_key_name:hermes_payload_record[current_key_name] for current_key_name in ('job_id','attempt_id','frame','tag','review_sha256')})
+            if hermes_command_name=='hermes-kimodo-keyframe-receipt' and set(hermes_payload_record)=={'request_id'}:
+                return read_hermes_keyframe_receipt(hermes_payload_record['request_id'])
+            raise ValueError('Kimodo 키프레임 요청 필드 오류')
         if hermes_command_name in ('hermes-billboard-load','hermes-billboard-preview','hermes-billboard-save','hermes-billboard-receipt'):
             from tools.review.domains.hermes_agent.billboard_operations import load_hermes_billboard_edit, preview_hermes_billboard_edit, save_hermes_billboard_edit_once, read_hermes_billboard_edit_receipt
             if hermes_command_name == 'hermes-billboard-load' and set(hermes_payload_record)=={'texture'}:

@@ -432,7 +432,7 @@ def restore_linked_conversation_job(current_session_identifier,current_job_ident
         return gr.update(),'이력에서 지정한 작업을 이 세션에서 확인할 수 없습니다. 운영 이력을 다시 확인하세요.'
 
 
-def prepare_conversation_kimodo_review(current_session_identifier, current_source_job_identifier):
+def prepare_conversation_kimodo_review(current_session_identifier, current_source_job_identifier, current_keyframe_attachment=None):
     """세션에 속한 완료 작업의 Kimodo 제안을 기존 검증기로 고정한다."""
     import hashlib
     if not current_session_identifier or not current_source_job_identifier:
@@ -440,13 +440,35 @@ def prepare_conversation_kimodo_review(current_session_identifier, current_sourc
     find_conversation_session_job(current_session_identifier,current_source_job_identifier)
     current_proposal_record = read_matching_hermes_edit_proposal(current_source_job_identifier,'hermes-kimodo-proposal')
     current_identifier_bytes = (current_session_identifier + ':' + current_source_job_identifier).encode('utf-8')
+    current_keyframes_text=''
+    current_keyframe_validation=None
+    if current_keyframe_attachment is not None:
+        import json
+        if not isinstance(current_keyframe_attachment,dict) or set(current_keyframe_attachment)!={'session_id','receipt_id','keyframe_id','output_frame'} or current_keyframe_attachment['session_id']!=current_session_identifier or not isinstance(current_keyframe_attachment['receipt_id'],str) or not re.fullmatch(r'keyframe_[a-f0-9]{64}',current_keyframe_attachment['receipt_id']) or not isinstance(current_keyframe_attachment['keyframe_id'],str) or not re.fullmatch(r'[a-f0-9]{32}',current_keyframe_attachment['keyframe_id']) or type(current_keyframe_attachment['output_frame']) is not int or not 1<=current_keyframe_attachment['output_frame']<=current_proposal_record['frames']:raise gr.Error('키프레임 선택 또는 출력 프레임 오류')
+        current_saved_receipt=execute_remote_management_command('hermes-agent','hermes-kimodo-keyframe-receipt',{'request_id':current_keyframe_attachment['receipt_id']})
+        if not isinstance(current_saved_receipt,dict) or (current_saved_receipt.get('request_id'),current_saved_receipt.get('state'),current_saved_receipt.get('keyframe_id'))!=(current_keyframe_attachment['receipt_id'],'completed',current_keyframe_attachment['keyframe_id']):raise gr.Error('저장된 키프레임 접수를 확인할 수 없습니다.')
+        current_placements_value=[{'id':current_keyframe_attachment['keyframe_id'],'frame':current_keyframe_attachment['output_frame']}]
+        current_verified_value=execute_remote_management_command('hermes-agent','hermes-kimodo-keyframe-validate',{'keyframes':current_placements_value,'frames':current_proposal_record['frames']})
+        if not isinstance(current_verified_value,dict) or current_verified_value.get('placements')!=current_placements_value or not isinstance(current_verified_value.get('sources'),list) or len(current_verified_value['sources'])!=1 or not isinstance(current_verified_value['sources'][0],dict) or current_verified_value['sources'][0].get('id')!=current_keyframe_attachment['keyframe_id'] or not isinstance(current_verified_value['sources'][0].get('preview_sha256'),str) or not re.fullmatch(r'[a-f0-9]{64}',current_verified_value['sources'][0]['preview_sha256']):raise gr.Error('키프레임 원본 검증을 확인할 수 없습니다.')
+        current_source_hash=current_verified_value['sources'][0].get('source_sha256')
+        if not isinstance(current_source_hash,str) or not re.fullmatch(r'[a-f0-9]{64}',current_source_hash):raise gr.Error('키프레임 원본 검증을 확인할 수 없습니다.')
+        current_skeleton_hash=current_verified_value.get('skeleton_signature_sha256')
+        if not isinstance(current_skeleton_hash,str) or not re.fullmatch(r'[a-f0-9]{64}',current_skeleton_hash):raise gr.Error('키프레임 골격 검증을 확인할 수 없습니다.')
+        current_keyframe_validation={'preview_sha256':current_verified_value['sources'][0]['preview_sha256'],'skeleton_signature_sha256':current_skeleton_hash,'source_sha256':current_source_hash}
+        current_keyframes_text=json.dumps(current_placements_value,ensure_ascii=False)
+        current_identifier_bytes+=b':keyframe:'+json.dumps(current_keyframe_attachment,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()
     current_request_identifier = 'chat_' + hashlib.sha256(current_identifier_bytes).hexdigest()
-    current_review_record, current_preview_text, current_review_message = review_hermes_kimodo_request(current_proposal_record['prompt'], current_proposal_record['frames'], current_proposal_record['steps'], current_proposal_record['seed'], current_request_identifier)
+    current_review_record, current_preview_text, current_review_message = review_hermes_kimodo_request(current_proposal_record['prompt'], current_proposal_record['frames'], current_proposal_record['steps'], current_proposal_record['seed'], current_request_identifier,current_keyframes_text)
     if not current_review_record:
         raise gr.Error(current_review_message)
+    if current_keyframe_attachment is not None:current_review_record['request']['keyframe_source_hashes']={current_keyframe_attachment['keyframe_id']:current_keyframe_validation['source_sha256']}
     current_receipt_record = execute_remote_management_command('hermes-agent', 'hermes-delegation-status', {'request_id': current_request_identifier})
     current_receipt_state = current_receipt_record.get('state') if isinstance(current_receipt_record,dict) else None
     current_card_record = {'session_id': current_session_identifier, 'source_job_id': current_source_job_identifier, 'review': current_review_record, 'ready': False}
+    if current_keyframe_attachment is not None:
+        current_card_record['keyframe_attachment']=dict(current_keyframe_attachment)
+        current_card_record['keyframe_validation']=current_keyframe_validation
+        current_preview_text+='\n저장 사본 미리보기 SHA-256: '+current_keyframe_validation['preview_sha256']+'\n원본 확인값: '+current_keyframe_validation['source_sha256']+'\n골격 확인값: '+current_keyframe_validation['skeleton_signature_sha256']
     if current_receipt_state not in ('not_found', 'accepted', 'unknown') or current_receipt_record.get('request_id') not in (None,current_request_identifier) or current_receipt_record.get('service') not in (None,'kimodo'):
         return current_card_record,current_preview_text,'접수 ID 또는 서비스를 확인할 수 없습니다. Kimodo 이력을 확인하고 자동 재접수하지 마세요.'
     if current_receipt_state in ('not_found','accepted') and (current_receipt_record.get('request_id')!=current_request_identifier or current_receipt_record.get('service')!='kimodo'):
@@ -531,7 +553,11 @@ def submit_conversation_kimodo_review(current_card_record, current_session_ident
         raise gr.Error('먼저 실행 가능한 제안을 검토하세요.')
     if (current_card_record.get('session_id'), current_card_record.get('source_job_id')) != (current_session_identifier, current_source_job_identifier):
         raise gr.Error('세션이나 제안 작업이 바뀌었습니다. 다시 검토하세요.')
-    current_fresh_record, _, current_current_result = prepare_conversation_kimodo_review(current_session_identifier, current_source_job_identifier)
+    current_attachment_value=current_card_record.get('keyframe_attachment')
+    if current_attachment_value is None:current_fresh_record, _, current_current_result = prepare_conversation_kimodo_review(current_session_identifier, current_source_job_identifier)
+    else:current_fresh_record, _, current_current_result = prepare_conversation_kimodo_review(current_session_identifier, current_source_job_identifier,current_attachment_value)
+    if current_attachment_value is not None and current_fresh_record.get('keyframe_validation')!=current_card_record.get('keyframe_validation'):
+        raise gr.Error('키프레임 원본이 변경됐습니다. 다시 검토하세요.')
     if current_fresh_record['review'] != current_card_record['review']:
         raise gr.Error('제안이 변경됐습니다. 다시 검토하세요.')
     if not current_fresh_record['ready']:
@@ -691,9 +717,12 @@ def read_conversation_flux_source_observation(current_service_name,current_job_i
     from tools.review.domains.hermes_agent.flux_profile_operations import validate_hermes_flux_source_response
     try:
         current_response_value=execute_remote_management_command('hermes-agent','hermes-flux-source-status',{'service':current_service_name,'job_id':current_job_identifier})
-        return validate_hermes_flux_source_response(current_service_name,current_job_identifier,current_response_value)
     except (gr.Error,OSError,ValueError,TypeError,KeyError,RuntimeError,AttributeError):
         return None
+    try:
+        return validate_hermes_flux_source_response(current_service_name,current_job_identifier,current_response_value)
+    except (ValueError,TypeError,KeyError,AttributeError) as current_response_error:
+        raise gr.Error('이미지 원본 응답이 일치하지 않아 결과 링크를 표시하지 않습니다.') from current_response_error
 
 
 def read_conversation_video_source_observation(current_service_name,current_job_identifier):
@@ -701,9 +730,29 @@ def read_conversation_video_source_observation(current_service_name,current_job_
     from tools.review.domains.hermes_agent.video_operations import validate_hermes_video_source_response
     try:
         current_response_value=execute_remote_management_command('hermes-agent','hermes-video-source-status',{'service':current_service_name,'job_id':current_job_identifier})
-        return validate_hermes_video_source_response(current_service_name,current_job_identifier,current_response_value)
     except (gr.Error,OSError,ValueError,TypeError,KeyError,RuntimeError,AttributeError):
         return None
+    try:
+        return validate_hermes_video_source_response(current_service_name,current_job_identifier,current_response_value)
+    except (ValueError,TypeError,KeyError,AttributeError) as current_response_error:
+        raise gr.Error('영상 원본 응답이 일치하지 않아 결과 링크를 표시하지 않습니다.') from current_response_error
+
+
+def format_conversation_translation_result(current_result_record):
+    """번역문과 검토 항목을 구분해 제한된 일반 텍스트로 표시한다."""
+    import json
+    if not isinstance(current_result_record,dict) or not isinstance(current_result_record.get('text'),str) or len(current_result_record['text'])>12000:raise ValueError('번역 결과 형식 오류')
+    current_lines_value=['번역 결과','',*['    '+current_line for current_line in (current_result_record['text'].splitlines() or [''])]]
+    for current_field_name,current_label_text in (('term_checks','용어 검사'),('quality_checks','조건 검사')):
+        current_check_records=current_result_record.get(current_field_name,[])
+        if not isinstance(current_check_records,list) or len(current_check_records)>200 or any(not isinstance(current_check_record,dict) for current_check_record in current_check_records):raise ValueError('번역 검토 항목 형식 오류')
+        current_lines_value.extend(['',current_label_text+' '+str(len(current_check_records))+'건'])
+        for current_check_record in current_check_records[:5]:
+            current_display_record={current_key_name:(current_field_value[:200] if isinstance(current_field_value,str) else current_field_value) for current_key_name in ('source','target','status','source_count','target_count') if type(current_field_value:=current_check_record.get(current_key_name)) in (str,int)}
+            current_lines_value.extend(['','    '+json.dumps(current_display_record,ensure_ascii=False,allow_nan=False)])
+        if len(current_check_records)>5:current_lines_value.append('나머지 '+str(len(current_check_records)-5)+'건은 번역 도구에서 확인하세요.')
+    current_lines_value.extend(['','검사 결과는 번역 품질 승인이 아닙니다.'])
+    return '\n'.join(current_lines_value)
 
 
 def read_conversation_service_status(current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_expected_job_identifier=None):
@@ -831,8 +880,7 @@ def read_conversation_service_status(current_card_record,current_session_identif
         current_status_text+='  \n상태 조회 시 기존 중단 작업 복구가 따를 수 있습니다.'
     elif current_service_kind == 'translation':
         if current_job_record.get('status') == 'completed' and current_job_record.get('result') is not None:
-            import json
-            current_status_text+='  \n번역 결과: '+json.dumps(current_job_record['result'],ensure_ascii=False)
+            current_status_text+='  \n\n'+format_conversation_translation_result(current_job_record['result'])
         current_status_text+='  \n[번역 도구 열기]('+build_conversation_result_link('prompt-translation',current_job_identifier,current_session_identifier)+')'
     elif current_service_kind == 'video':
         from tools.review.domains.hermes_agent.media_result_paths import validate_hermes_video_result_paths
@@ -916,6 +964,7 @@ def collect_conversation_kimodo_frame(current_card_record,current_session_identi
     from tools.review.domains.hermes_agent.video_operations import validate_hermes_video_source_response
     from tools.review.domains.hermes_agent.kimodo_frame_observer import validate_kimodo_source_frame_response
     current_identity_value=deepcopy([current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number])
+    current_frame_record=None
     try:
         if update_conversation_kimodo_frame_button(current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind).get('interactive') is not True or type(current_frame_number) is not int or not 1<=current_frame_number<=1000:raise ValueError('대화 또는 프레임 선택 오류')
         current_request_identifier=current_card_record['review']['request_id']
@@ -933,12 +982,206 @@ def collect_conversation_kimodo_frame(current_card_record,current_session_identi
         current_notice_text='프레임 '+str(current_frame_number)+' / '+str(current_frame_record['frame_count'])+' · SHA-256 `'+current_frame_record['image_sha256']+'`  \n[원본 프레임 열기]('+current_frame_record['image']+')  \nPNG 시그니처와 해시만 확인했습니다. 이미지 내용·모션·골격과 저장 가능성은 별도입니다.'
     except (gr.Error,OSError,ValueError,KeyError,TypeError,RuntimeError,AttributeError):
         current_notice_text='프레임을 확인할 수 없습니다. 같은 접수 ID의 완료된 Kimodo 작업과 프레임 번호를 확인하세요.'
-    return {'identity':current_identity_value,'token':current_request_token,'notice':current_notice_text}
+    return {'identity':current_identity_value,'token':current_request_token,'notice':current_notice_text,'frame_record':current_frame_record}
 
 
 def render_conversation_kimodo_frame(current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_request_token,current_result_record):
     if not isinstance(current_result_record,dict) or current_result_record.get('token')!=current_request_token or current_result_record.get('identity')!=[current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number]:return gr.skip()
     return current_result_record['notice']
+
+
+def review_conversation_kimodo_keyframe(current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_frame_result):
+    """현재 대화에서 확인한 프레임과 태그로 저장 내용을 검토한다."""
+    import hashlib
+    import json
+    current_identity_value=[current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number]
+    if not isinstance(current_frame_result,dict) or current_frame_result.get('identity')!=current_identity_value or current_frame_result.get('token')!=current_frame_token or not isinstance(current_frame_result.get('frame_record'),dict):raise gr.Error('현재 대화의 원본 프레임을 먼저 확인하세요.')
+    current_frame_record=current_frame_result['frame_record']
+    current_request_record={'job_id':current_frame_record['job_id'],'attempt_id':current_frame_record['attempt_id'],'frame':current_frame_number,'tag':current_tag_text}
+    current_review_record=execute_remote_management_command('hermes-agent','hermes-kimodo-keyframe-source-review',current_request_record)
+    if not isinstance(current_review_record,dict) or any(current_review_record.get(current_key_name)!=current_expected_value for current_key_name,current_expected_value in {'job_id':current_request_record['job_id'],'attempt_id':current_request_record['attempt_id'],'frame':current_frame_number,'tag':current_tag_text.strip(),'image':current_frame_record['image'],'image_sha256':current_frame_record['image_sha256']}.items()) or not isinstance(current_review_record.get('review_sha256'),str) or not re.fullmatch(r'[a-f0-9]{64}',current_review_record['review_sha256']):raise gr.Error('키프레임 검토 결과가 현재 원본과 다릅니다.')
+    if current_review_record.get('chat_save_readiness') not in ('ready','check_required'):raise gr.Error('기존 키프레임 접수 확인 상태 오류')
+    current_request_record['tag']=current_tag_text.strip()
+    current_request_record['review_sha256']=current_review_record['review_sha256']
+    current_request_identity={current_key_name:current_request_record[current_key_name] for current_key_name in ('job_id','attempt_id','frame','tag')}
+    current_request_bytes=json.dumps([current_session_identifier,current_source_job_identifier,current_request_identity],ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()
+    current_request_identifier='keyframe_'+hashlib.sha256(current_request_bytes).hexdigest()
+    current_legacy_bytes=json.dumps([current_session_identifier,current_source_job_identifier,current_request_record],ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()
+    current_legacy_identifier='keyframe_'+hashlib.sha256(current_legacy_bytes).hexdigest()
+    current_receipt_record=execute_remote_management_command('hermes-agent','hermes-kimodo-keyframe-receipt',{'request_id':current_request_identifier})
+    if not isinstance(current_receipt_record,dict) or current_receipt_record.get('request_id')!=current_request_identifier or current_receipt_record.get('state') not in ('not_found','completed','unknown'):raise gr.Error('키프레임 저장 접수 상태를 확인할 수 없습니다.')
+    if current_receipt_record['state']=='not_found':
+        current_legacy_receipt=execute_remote_management_command('hermes-agent','hermes-kimodo-keyframe-receipt',{'request_id':current_legacy_identifier})
+        if not isinstance(current_legacy_receipt,dict) or current_legacy_receipt.get('request_id')!=current_legacy_identifier or current_legacy_receipt.get('state') not in ('not_found','completed','unknown'):raise gr.Error('기존 키프레임 저장 접수 상태를 확인할 수 없습니다.')
+        if current_legacy_receipt['state']!='not_found':current_request_identifier,current_receipt_record=current_legacy_identifier,current_legacy_receipt
+    current_review_state={'identity':current_identity_value,'frame_token':current_frame_token,'request':current_request_record,'request_id':current_request_identifier,'receipt':current_receipt_record,'chat_save_readiness':current_review_record['chat_save_readiness']}
+    current_notice_text='작업 `'+current_request_record['job_id']+'` · 시도 `'+current_request_record['attempt_id']+'` · 프레임 '+str(current_frame_number)+' · 태그 '+current_request_record['tag']+'  \n[확인한 원본 프레임]('+current_frame_record['image']+') · SHA-256 `'+current_frame_record['image_sha256']+'`  \n원본 모션과 골격을 재검증해 독립 키프레임을 저장합니다. 생성이나 GPU 작업은 하지 않습니다. 접수 상태: '+current_receipt_record['state']
+    if current_review_record['chat_save_readiness']=='check_required':
+        current_notice_text+='  \n기존 키프레임 접수를 확인할 수 없어 새 대화 저장을 보류합니다. [Kimodo 도구](/management/frame/kimodo-generator/)와 기존 접수를 확인하세요.'
+        current_blocker_value=current_review_record.get('legacy_receipts')
+        if current_blocker_value is not None:
+            if not isinstance(current_blocker_value,dict) or set(current_blocker_value)!={'records','truncated'} or not isinstance(current_blocker_value['records'],list) or len(current_blocker_value['records'])>20 or type(current_blocker_value['truncated']) is not bool:raise gr.Error('기존 키프레임 접수 목록 형식 오류')
+            for current_blocker_record in current_blocker_value['records']:
+                if not isinstance(current_blocker_record,dict) or set(current_blocker_record)!={'request_id','state'} or not isinstance(current_blocker_record['request_id'],str) or not re.fullmatch(r'keyframe_[a-f0-9]{64}',current_blocker_record['request_id']) or current_blocker_record['state'] not in ('unknown','completed','unavailable'):raise gr.Error('기존 키프레임 접수 항목 오류')
+                current_notice_text+='  \n접수 ID `'+current_blocker_record['request_id']+'` · 상태 '+{'unknown':'확인 필요','completed':'완료 기록','unavailable':'읽기 불가'}[current_blocker_record['state']]
+            if current_blocker_value['truncated']:current_notice_text+='  \n확인 대상이 20개를 넘어 일부만 표시했습니다.'
+    if current_receipt_record['state']=='unknown':current_notice_text+=' · 원 서비스 목록에서 확인하고 자동 재저장하지 마세요.'
+    if current_receipt_record['state']=='completed':current_notice_text+=' · 키프레임 ID `'+str(current_receipt_record.get('keyframe_id'))+'`'
+    return current_review_state,current_notice_text,False,gr.update(interactive=current_receipt_record['state']=='not_found' and current_review_record['chat_save_readiness']=='ready')
+
+
+def begin_conversation_kimodo_keyframe_review():
+    """새 검토가 시작되면 이전 승인과 저장 버튼을 즉시 해제한다."""
+    return create_conversation_status_token(),None,False,gr.update(interactive=False),'키프레임 원본과 기존 접수를 확인하고 있습니다.'
+
+
+def collect_conversation_kimodo_keyframe_review(current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_request_token,current_frame_result):
+    from copy import deepcopy
+    current_identity_value=deepcopy([current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_request_token])
+    try:
+        current_review_outputs=review_conversation_kimodo_keyframe(current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_frame_result)
+        return {'identity':current_identity_value,'outputs':current_review_outputs}
+    except (gr.Error,OSError,ValueError,KeyError,TypeError,RuntimeError,AttributeError):
+        return {'identity':current_identity_value,'outputs':(None,'원본 저장 검토를 확인할 수 없습니다. 프레임과 태그를 다시 확인하세요.',False,gr.update(interactive=False))}
+
+
+def render_conversation_kimodo_keyframe_review(current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_request_token,current_review_result):
+    if not isinstance(current_review_result,dict) or current_review_result.get('identity')!=[current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_request_token]:return (gr.skip(),gr.skip(),gr.skip(),gr.skip())
+    return current_review_result['outputs']
+
+
+def submit_conversation_kimodo_keyframe(current_review_state,current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_confirm_value):
+    """검토한 선택과 명시적 확인이 유지된 경우에만 저장한다."""
+    current_identity_value=[current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number]
+    if current_confirm_value is not True or not isinstance(current_review_state,dict) or current_review_state.get('identity')!=current_identity_value or current_review_state.get('frame_token')!=current_frame_token or not isinstance(current_tag_text,str) or current_review_state.get('request',{}).get('tag')!=current_tag_text.strip() or current_review_state.get('receipt',{}).get('state')!='not_found' or current_review_state.get('chat_save_readiness')!='ready':raise gr.Error('현재 원본과 기존 접수를 다시 검토하고 저장을 확인하세요.')
+    try:
+        current_result_record=execute_remote_management_command('hermes-agent','hermes-kimodo-keyframe-save',{'request_id':current_review_state['request_id'],**current_review_state['request']})
+        if not isinstance(current_result_record,dict) or current_result_record.get('request_id')!=current_review_state['request_id'] or current_result_record.get('state') not in ('completed','unknown'):raise ValueError('접수 결과 오류')
+    except (OSError,ValueError,KeyError,TypeError,RuntimeError,AttributeError,gr.Error):
+        return '저장 응답을 확인할 수 없습니다. 아래 접수와 원 서비스 및 기존 접수 기록을 확인하고 자동 재저장하지 마세요. 접수 ID `'+current_review_state['request_id']+'`',gr.update(interactive=False)
+    return format_conversation_kimodo_keyframe_receipt(current_review_state,current_result_record),gr.update(interactive=False)
+
+
+def collect_conversation_kimodo_keyframe_submit(current_review_state,current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_confirm_value):
+    """저장 결과에 제출 시 선택과 접수 신원을 함께 보관한다."""
+    from copy import deepcopy
+    current_identity_value=deepcopy([current_review_state,current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token])
+    current_submit_outputs=submit_conversation_kimodo_keyframe(current_review_state,current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_confirm_value)
+    return {'identity':current_identity_value,'outputs':current_submit_outputs}
+
+
+def render_conversation_kimodo_keyframe_submit(current_review_state,current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_submit_result):
+    """지연된 저장 응답은 다른 대화·선택을 덮어쓰지 않는다."""
+    if not isinstance(current_submit_result,dict) or current_submit_result.get('identity')!=[current_review_state,current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token]:return (gr.skip(),gr.skip())
+    return current_submit_result['outputs']
+
+
+def format_conversation_kimodo_keyframe_receipt(current_review_state,current_receipt_record):
+    if not isinstance(current_receipt_record,dict) or current_receipt_record.get('request_id')!=current_review_state['request_id'] or current_receipt_record.get('state') not in ('not_found','completed','unknown'):return '접수 상태를 확인할 수 없습니다. 자동 재저장하지 마세요.'
+    if current_receipt_record['state']=='completed':
+        current_saved_identifier=current_receipt_record.get('keyframe_id')
+        if not isinstance(current_saved_identifier,str) or not re.fullmatch(r'[a-f0-9]{32}',current_saved_identifier):return '저장 결과 ID를 확인할 수 없습니다. 원 서비스를 확인하세요.'
+        return '키프레임 저장 완료 · ID `'+current_saved_identifier+'` · 원 서비스에서 목록과 결과를 확인하세요.'
+    if current_receipt_record['state']=='unknown':return '저장 결과 불확실 · 접수 ID `'+current_review_state['request_id']+'` · [Kimodo 키프레임 목록 열기](/management/frame/kimodo-generator/)에서 확인하고 자동 재저장하지 마세요.'
+    return '저장 접수가 없습니다. 원 서비스의 목록과 접수 ID를 확인하세요.'
+
+
+def refresh_conversation_kimodo_keyframe_receipt(current_review_state):
+    if not isinstance(current_review_state,dict) or not isinstance(current_review_state.get('request_id'),str):return '먼저 저장할 원본을 검토하세요.'
+    try:
+        current_receipt_record=execute_remote_management_command('hermes-agent','hermes-kimodo-keyframe-receipt',{'request_id':current_review_state['request_id']})
+        return format_conversation_kimodo_keyframe_receipt(current_review_state,current_receipt_record)
+    except (OSError,ValueError,KeyError,TypeError,RuntimeError,AttributeError,gr.Error):
+        return '접수 상태를 확인할 수 없습니다. 자동 재저장하지 마세요.'
+
+
+def collect_conversation_kimodo_keyframe_receipt(current_review_state,current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_request_token):
+    from copy import deepcopy
+    current_identity_value=deepcopy([current_review_state,current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_request_token])
+    return {'identity':current_identity_value,'notice':refresh_conversation_kimodo_keyframe_receipt(current_review_state)}
+
+
+def render_conversation_kimodo_keyframe_receipt(current_review_state,current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_request_token,current_receipt_result):
+    if not isinstance(current_receipt_result,dict) or current_receipt_result.get('identity')!=[current_review_state,current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_request_token]:return gr.skip()
+    return current_receipt_result['notice']
+
+
+def collect_conversation_saved_keyframe_preview(current_review_state,current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_request_token):
+    """현재 대화의 완료 접수와 저장된 키프레임 원본을 다시 확인한다."""
+    from copy import deepcopy
+    current_identity_value=deepcopy([current_review_state,current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_request_token])
+    try:
+        current_expected_identity=[current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number]
+        if not isinstance(current_review_state,dict) or current_review_state.get('identity')!=current_expected_identity or current_review_state.get('frame_token')!=current_frame_token or not isinstance(current_tag_text,str) or current_review_state.get('request',{}).get('tag')!=current_tag_text.strip():raise ValueError('대화 선택 오류')
+        current_receipt_record=execute_remote_management_command('hermes-agent','hermes-kimodo-keyframe-receipt',{'request_id':current_review_state['request_id']})
+        current_keyframe_identifier=current_receipt_record.get('keyframe_id') if isinstance(current_receipt_record,dict) else None
+        if not isinstance(current_receipt_record,dict) or current_receipt_record.get('request_id')!=current_review_state['request_id'] or current_receipt_record.get('state')!='completed' or not isinstance(current_keyframe_identifier,str) or not re.fullmatch(r'[a-f0-9]{32}',current_keyframe_identifier):raise ValueError('완료된 저장 접수 없음')
+        current_image_value,current_image_notice=read_hermes_kimodo_keyframe_preview_image(current_keyframe_identifier)
+        current_notice_text='저장된 키프레임 ID `'+current_keyframe_identifier+'` · '+current_image_notice
+    except (gr.Error,OSError,ValueError,KeyError,TypeError,RuntimeError,AttributeError):
+        current_image_value=None
+        current_notice_text='저장된 키프레임을 확인할 수 없습니다. 같은 접수와 원 서비스의 목록을 확인하세요.'
+    return {'identity':current_identity_value,'image':current_image_value,'notice':current_notice_text}
+
+
+def render_conversation_saved_keyframe_preview(current_review_state,current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_request_token,current_preview_result):
+    if not isinstance(current_preview_result,dict) or current_preview_result.get('identity')!=[current_review_state,current_card_record,current_session_identifier,current_source_job_identifier,current_service_kind,current_frame_number,current_tag_text,current_frame_token,current_request_token]:return (gr.skip(),gr.skip())
+    return current_preview_result['image'],current_preview_result['notice']
+
+
+def select_conversation_saved_keyframe(current_review_state,current_session_identifier):
+    """저장 완료 접수를 확인하여 같은 세션에서 다음 제안에 사용할 사본을 선택한다."""
+    if not isinstance(current_review_state,dict) or not isinstance(current_review_state.get('identity'),list) or len(current_review_state['identity'])!=5 or current_review_state['identity'][1]!=current_session_identifier:raise gr.Error('현재 세션의 저장 검토를 선택하세요.')
+    current_request_identifier=current_review_state.get('request_id')
+    if not isinstance(current_request_identifier,str) or not re.fullmatch(r'keyframe_[a-f0-9]{64}',current_request_identifier):raise gr.Error('키프레임 접수 ID 오류')
+    current_receipt_value=execute_remote_management_command('hermes-agent','hermes-kimodo-keyframe-receipt',{'request_id':current_request_identifier})
+    current_keyframe_identifier=current_receipt_value.get('keyframe_id') if isinstance(current_receipt_value,dict) else None
+    if not isinstance(current_receipt_value,dict) or (current_receipt_value.get('request_id'),current_receipt_value.get('state'))!=(current_request_identifier,'completed') or not isinstance(current_keyframe_identifier,str) or not re.fullmatch(r'[a-f0-9]{32}',current_keyframe_identifier):raise gr.Error('완료된 키프레임 접수를 확인할 수 없습니다.')
+    return {'session_id':current_session_identifier,'receipt_id':current_request_identifier,'keyframe_id':current_keyframe_identifier},'다음 Kimodo 제안에 사용할 키프레임 `'+current_keyframe_identifier+'`을 선택했습니다.'
+
+
+def collect_conversation_saved_keyframe_selection(current_review_state,current_session_identifier,current_request_token):
+    from copy import deepcopy
+    current_identity_value=deepcopy([current_review_state,current_session_identifier,current_request_token])
+    try:current_selection_outputs=select_conversation_saved_keyframe(current_review_state,current_session_identifier)
+    except (gr.Error,OSError,ValueError,KeyError,TypeError,RuntimeError,AttributeError):current_selection_outputs=(None,'완료된 키프레임 접수를 확인할 수 없습니다.')
+    return {'identity':current_identity_value,'outputs':current_selection_outputs}
+
+
+def render_conversation_saved_keyframe_selection(current_review_state,current_session_identifier,current_request_token,current_selection_result):
+    if not isinstance(current_selection_result,dict) or current_selection_result.get('identity')!=[current_review_state,current_session_identifier,current_request_token]:return (gr.skip(),gr.skip())
+    return current_selection_result['outputs']
+
+
+def review_conversation_kimodo_with_saved_keyframe(current_saved_selection,current_session_identifier,current_source_job_identifier,current_service_kind,current_output_frame):
+    """선택한 사본을 출력 프레임에 배치한 제안을 별도 검토한다."""
+    if current_service_kind!='kimodo' or not isinstance(current_saved_selection,dict) or set(current_saved_selection)!={'session_id','receipt_id','keyframe_id'} or current_saved_selection['session_id']!=current_session_identifier or type(current_output_frame) is not int:raise gr.Error('현재 세션의 키프레임과 Kimodo 제안을 선택하세요.')
+    current_attachment_value={**current_saved_selection,'output_frame':current_output_frame}
+    current_card_value,current_preview_text,current_status_text=prepare_conversation_kimodo_review(current_session_identifier,current_source_job_identifier,current_attachment_value)
+    return {**current_card_value,'kind':'kimodo'},current_preview_text,current_status_text
+
+
+def begin_conversation_keyframe_attachment_review():
+    """새 첨부 검토를 시작하며 기존 제안 승인을 해제한다."""
+    return create_conversation_status_token(),None,'','키프레임과 제안을 확인하고 있습니다.',gr.update(interactive=False)
+
+
+def collect_conversation_keyframe_attachment_review(current_saved_selection,current_session_identifier,current_source_job_identifier,current_service_kind,current_output_frame,current_request_token):
+    from copy import deepcopy
+    current_identity_value=deepcopy([current_saved_selection,current_session_identifier,current_source_job_identifier,current_service_kind,current_output_frame,current_request_token])
+    try:current_review_outputs=review_conversation_kimodo_with_saved_keyframe(current_saved_selection,current_session_identifier,current_source_job_identifier,current_service_kind,current_output_frame)
+    except (gr.Error,OSError,ValueError,KeyError,TypeError,RuntimeError,AttributeError):current_review_outputs=(None,'','키프레임이나 제안을 확인할 수 없습니다. 선택과 원 서비스를 다시 확인하세요.')
+    return {'identity':current_identity_value,'outputs':current_review_outputs}
+
+
+def render_conversation_keyframe_attachment_review(current_saved_selection,current_session_identifier,current_source_job_identifier,current_service_kind,current_output_frame,current_request_token,current_review_result):
+    if not isinstance(current_review_result,dict) or current_review_result.get('identity')!=[current_saved_selection,current_session_identifier,current_source_job_identifier,current_service_kind,current_output_frame,current_request_token]:return (gr.skip(),gr.skip(),gr.skip())
+    return current_review_result['outputs']
+
+
+def invalidate_conversation_keyframe_attachment(current_card_record):
+    if not isinstance(current_card_record,dict) or 'keyframe_attachment' not in current_card_record:return gr.skip(),gr.skip()
+    return None,gr.update(interactive=False)
 
 
 def collect_attachment_status_result(current_source_record,current_session_identifier,current_source_job_identifier,current_attachment_kind,current_request_token):
@@ -4146,7 +4389,7 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     for current_status_selection in hermes_conversation_status_inputs:
                         current_status_selection.change(create_conversation_status_token,outputs=hermes_conversation_status_token,queue=False)
                     with gr.Group(visible=True) as current_chat_kimodo_frame_group:
-                        gr.Markdown('### Kimodo 원본 프레임 검토\n이 대화에서 접수한 완료 작업의 프레임 번호를 선택합니다. 결과 세 파일이 있는 현재 시도만 확인하며, 키프레임 저장은 지원하지 않습니다.')
+                        gr.Markdown('### Kimodo 원본 프레임과 키프레임 저장\n이 대화에서 접수한 완료 작업의 현재 시도를 확인합니다. 프레임을 보고 태그를 입력한 뒤 저장 내용을 검토하세요.')
                         current_chat_kimodo_frame_number=gr.Number(label='원본 프레임 번호 · 1부터',value=1,minimum=1,maximum=1000,precision=0)
                         current_chat_kimodo_frame_button=gr.Button('대화 작업의 원본 프레임 확인',interactive=False)
                         current_chat_kimodo_frame_notice=gr.Markdown('Kimodo 제안을 연 뒤 확인하세요.')
@@ -4157,6 +4400,55 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                         for current_frame_selection in current_chat_kimodo_frame_inputs:
                             current_frame_selection.change(lambda:(create_conversation_status_token(),'선택 또는 프레임이 바뀌었습니다. 다시 확인하세요.'),outputs=[current_chat_kimodo_frame_token,current_chat_kimodo_frame_notice],queue=False).then(update_conversation_kimodo_frame_button,hermes_conversation_status_inputs,current_chat_kimodo_frame_button,queue=False)
                         current_chat_kimodo_frame_number.input(lambda:(create_conversation_status_token(),'프레임 번호가 바뀌었습니다. 다시 확인하세요.'),outputs=[current_chat_kimodo_frame_token,current_chat_kimodo_frame_notice],queue=False)
+                        current_chat_keyframe_tag=gr.Textbox(label='저장할 키프레임 태그',max_lines=1)
+                        current_chat_keyframe_review=gr.Button('키프레임 저장 검토')
+                        current_chat_keyframe_review_state=gr.State(None)
+                        current_chat_keyframe_review_result=gr.State(None)
+                        current_chat_keyframe_review_token=gr.State(None)
+                        current_chat_keyframe_receipt_token=gr.State(None)
+                        current_chat_keyframe_saved_preview_token=gr.State(None)
+                        current_chat_keyframe_saved_preview_result=gr.State(None)
+                        current_chat_keyframe_submit_result=gr.State(None)
+                        current_chat_keyframe_receipt_result=gr.State(None)
+                        current_chat_keyframe_review_notice=gr.Markdown('원본 프레임을 확인하고 태그를 입력하세요.')
+                        current_chat_keyframe_confirm=gr.Checkbox(label='위 원본과 태그를 확인했으며 독립 키프레임 저장에 동의합니다.',value=False)
+                        with gr.Row():
+                            current_chat_keyframe_save=gr.Button('확인한 키프레임 저장',variant='primary',interactive=False)
+                            current_chat_keyframe_receipt=gr.Button('키프레임 저장 접수 확인')
+                        current_chat_keyframe_status=gr.Markdown('저장 후 결과를 확인할 수 있습니다.')
+                        current_chat_keyframe_saved_preview=gr.Button('저장된 키프레임 검증·보기')
+                        current_chat_keyframe_saved_image=gr.Image(label='저장된 키프레임',interactive=False,type='pil')
+                        current_chat_keyframe_saved_notice=gr.Markdown('저장 완료 후 사본을 다시 검증할 수 있습니다.')
+                        current_chat_keyframe_selected=gr.State(None)
+                        current_chat_keyframe_selection_token=gr.State(None)
+                        current_chat_keyframe_selection_result=gr.State(None)
+                        current_chat_keyframe_attachment_token=gr.State(None)
+                        current_chat_keyframe_attachment_result=gr.State(None)
+                        current_chat_keyframe_selected_notice=gr.Markdown('다음 제안에 사용할 키프레임을 선택할 수 있습니다.')
+                        current_chat_keyframe_select=gr.Button('저장된 키프레임을 다음 제안에 사용')
+                        current_chat_keyframe_output_frame=gr.Number(label='다음 생성의 출력 프레임 · 1부터',value=1,minimum=1,maximum=1000,precision=0)
+                        current_chat_keyframe_attach_review=gr.Button('선택 키프레임으로 현재 제안 검토')
+                        current_chat_keyframe_select.click(create_conversation_status_token,outputs=current_chat_keyframe_selection_token,queue=False).then(collect_conversation_saved_keyframe_selection,[current_chat_keyframe_review_state,hermes_session_control,current_chat_keyframe_selection_token],current_chat_keyframe_selection_result,queue=False,trigger_mode='multiple').then(render_conversation_saved_keyframe_selection,[current_chat_keyframe_review_state,hermes_session_control,current_chat_keyframe_selection_token,current_chat_keyframe_selection_result],[current_chat_keyframe_selected,current_chat_keyframe_selected_notice],queue=False)
+                        for current_selection_input in (current_chat_keyframe_review_state,hermes_session_control):
+                            current_selection_input.change(create_conversation_status_token,outputs=current_chat_keyframe_selection_token,queue=False)
+                        hermes_session_control.change(lambda:(None,'다음 제안에 사용할 키프레임을 선택할 수 있습니다.'),outputs=[current_chat_keyframe_selected,current_chat_keyframe_selected_notice],queue=False)
+                        current_chat_keyframe_attachment_inputs=[current_chat_keyframe_selected,hermes_session_control,hermes_session_job_selection,hermes_conversation_service_kind,current_chat_keyframe_output_frame]
+                        current_chat_keyframe_attach_review_event=current_chat_keyframe_attach_review.click(begin_conversation_keyframe_attachment_review,outputs=[current_chat_keyframe_attachment_token,hermes_conversation_kimodo_card,hermes_conversation_kimodo_preview,hermes_conversation_kimodo_status,hermes_conversation_kimodo_submit],queue=False).then(collect_conversation_keyframe_attachment_review,[*current_chat_keyframe_attachment_inputs,current_chat_keyframe_attachment_token],current_chat_keyframe_attachment_result,queue=False,trigger_mode='multiple').then(render_conversation_keyframe_attachment_review,[*current_chat_keyframe_attachment_inputs,current_chat_keyframe_attachment_token,current_chat_keyframe_attachment_result],[hermes_conversation_kimodo_card,hermes_conversation_kimodo_preview,hermes_conversation_kimodo_status],queue=False)
+                        for current_attachment_selection in current_chat_keyframe_attachment_inputs:
+                            current_attachment_selection.change(create_conversation_status_token,outputs=current_chat_keyframe_attachment_token,queue=False)
+                        current_chat_keyframe_output_frame.input(create_conversation_status_token,outputs=current_chat_keyframe_attachment_token,queue=False)
+                        for current_attachment_input in (current_chat_keyframe_selected,current_chat_keyframe_output_frame):
+                            current_attachment_input.change(invalidate_conversation_keyframe_attachment,hermes_conversation_kimodo_card,[hermes_conversation_kimodo_card,hermes_conversation_kimodo_submit],queue=False)
+                        current_chat_keyframe_output_frame.input(invalidate_conversation_keyframe_attachment,hermes_conversation_kimodo_card,[hermes_conversation_kimodo_card,hermes_conversation_kimodo_submit],queue=False)
+                        current_chat_keyframe_review_inputs=[*current_chat_kimodo_frame_inputs,current_chat_keyframe_tag,current_chat_kimodo_frame_token]
+                        current_chat_keyframe_review.click(begin_conversation_kimodo_keyframe_review,outputs=[current_chat_keyframe_review_token,current_chat_keyframe_review_state,current_chat_keyframe_confirm,current_chat_keyframe_save,current_chat_keyframe_review_notice],queue=False).then(collect_conversation_kimodo_keyframe_review,[*current_chat_keyframe_review_inputs,current_chat_keyframe_review_token,current_chat_kimodo_frame_result],current_chat_keyframe_review_result,queue=False,trigger_mode='multiple').then(render_conversation_kimodo_keyframe_review,[*current_chat_keyframe_review_inputs,current_chat_keyframe_review_token,current_chat_keyframe_review_result],[current_chat_keyframe_review_state,current_chat_keyframe_review_notice,current_chat_keyframe_confirm,current_chat_keyframe_save],queue=False)
+                        current_chat_keyframe_submit_inputs=[current_chat_keyframe_review_state,*current_chat_kimodo_frame_inputs,current_chat_keyframe_tag,current_chat_kimodo_frame_token]
+                        current_chat_keyframe_save.click(collect_conversation_kimodo_keyframe_submit,[*current_chat_keyframe_submit_inputs,current_chat_keyframe_confirm],current_chat_keyframe_submit_result,queue=False,trigger_mode='multiple').then(render_conversation_kimodo_keyframe_submit,[*current_chat_keyframe_submit_inputs,current_chat_keyframe_submit_result],[current_chat_keyframe_status,current_chat_keyframe_save],queue=False)
+                        current_chat_keyframe_receipt.click(create_conversation_status_token,outputs=current_chat_keyframe_receipt_token,queue=False).then(collect_conversation_kimodo_keyframe_receipt,[*current_chat_keyframe_submit_inputs,current_chat_keyframe_receipt_token],current_chat_keyframe_receipt_result,queue=False,trigger_mode='multiple').then(render_conversation_kimodo_keyframe_receipt,[*current_chat_keyframe_submit_inputs,current_chat_keyframe_receipt_token,current_chat_keyframe_receipt_result],current_chat_keyframe_status,queue=False)
+                        current_chat_keyframe_saved_preview.click(create_conversation_status_token,outputs=current_chat_keyframe_saved_preview_token,queue=False).then(collect_conversation_saved_keyframe_preview,[*current_chat_keyframe_submit_inputs,current_chat_keyframe_saved_preview_token],current_chat_keyframe_saved_preview_result,queue=False,trigger_mode='multiple').then(render_conversation_saved_keyframe_preview,[*current_chat_keyframe_submit_inputs,current_chat_keyframe_saved_preview_token,current_chat_keyframe_saved_preview_result],[current_chat_keyframe_saved_image,current_chat_keyframe_saved_notice],queue=False)
+                        for current_keyframe_input in [*current_chat_kimodo_frame_inputs,current_chat_keyframe_tag,current_chat_kimodo_frame_token]:
+                            current_keyframe_input.change(lambda:(None,False,gr.update(interactive=False),'입력이 바뀌었습니다. 다시 검토하세요.','선택한 원본의 접수 결과가 여기에 표시됩니다.',None,'저장 완료 후 사본을 다시 검증할 수 있습니다.'),outputs=[current_chat_keyframe_review_state,current_chat_keyframe_confirm,current_chat_keyframe_save,current_chat_keyframe_review_notice,current_chat_keyframe_status,current_chat_keyframe_saved_image,current_chat_keyframe_saved_notice],queue=False)
+                        current_chat_keyframe_tag.input(lambda:(None,False,gr.update(interactive=False),'태그가 바뀌었습니다. 다시 검토하세요.','선택한 원본의 접수 결과가 여기에 표시됩니다.',None,'저장 완료 후 사본을 다시 검증할 수 있습니다.'),outputs=[current_chat_keyframe_review_state,current_chat_keyframe_confirm,current_chat_keyframe_save,current_chat_keyframe_review_notice,current_chat_keyframe_status,current_chat_keyframe_saved_image,current_chat_keyframe_saved_notice],queue=False)
                         hermes_conversation_service_kind.change(lambda current_kind_value:gr.update(visible=current_kind_value=='kimodo'),inputs=hermes_conversation_service_kind,outputs=current_chat_kimodo_frame_group,queue=False)
                     hermes_conversation_model_prepare=gr.Button('모델 준비 요청 검토',visible=False,interactive=False)
                     hermes_conversation_model_confirmation=gr.State(None)
@@ -4214,7 +4506,7 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     hermes_conversation_service_kind.input(lambda: (None, '', '종류가 바뀌었습니다. 제안을 다시 확인하세요.', gr.update(interactive=False), None, '작가 제안을 확인한 뒤 결과를 조회하세요.'), outputs=[hermes_conversation_kimodo_card, hermes_conversation_kimodo_preview, hermes_conversation_kimodo_status, hermes_conversation_kimodo_submit, hermes_conversation_writer_detail, hermes_conversation_writer_detail_status], queue=False)
                     hermes_conversation_service_kind.change(lambda current_kind:gr.update(visible=current_kind=='writer'),inputs=[hermes_conversation_service_kind],outputs=[hermes_conversation_writer_section],queue=False)
                     hermes_conversation_service_kind.change(lambda:(False,None,gr.update(visible=False),'전체 검토 후 적용 대상을 확인하세요.'),outputs=[hermes_conversation_writer_checked,hermes_conversation_writer_apply_record,hermes_conversation_writer_apply_confirm,hermes_conversation_writer_apply_status],queue=False)
-                    bind_gpu_generation_confirmation(hermes_conversation_kimodo_submit, submit_conversation_service_review, [hermes_conversation_kimodo_card, hermes_session_control, hermes_session_job_selection, hermes_conversation_service_kind], [hermes_conversation_kimodo_card, hermes_conversation_kimodo_status], generation_readiness_callback=lambda current_card_value: isinstance(current_card_value, dict) and current_card_value.get('ready') is True, generation_readiness_inputs=[hermes_conversation_kimodo_card], generation_readiness_events=[hermes_conversation_kimodo_open_event], generation_confirmation_validator=match_hermes_confirmation_inputs, generation_confirmation_inputs=[hermes_conversation_kimodo_card, hermes_session_control, hermes_session_job_selection, hermes_conversation_service_kind])
+                    bind_gpu_generation_confirmation(hermes_conversation_kimodo_submit, submit_conversation_service_review, [hermes_conversation_kimodo_card, hermes_session_control, hermes_session_job_selection, hermes_conversation_service_kind], [hermes_conversation_kimodo_card, hermes_conversation_kimodo_status], generation_readiness_callback=lambda current_card_value: isinstance(current_card_value, dict) and current_card_value.get('ready') is True, generation_readiness_inputs=[hermes_conversation_kimodo_card], generation_readiness_events=[hermes_conversation_kimodo_open_event,current_chat_keyframe_attach_review_event], generation_confirmation_validator=match_hermes_confirmation_inputs, generation_confirmation_inputs=[hermes_conversation_kimodo_card, hermes_session_control, hermes_session_job_selection, hermes_conversation_service_kind])
                 with gr.Accordion('선택한 대화의 맵·에셋 변경 제안', open=False) as hermes_edit_proposal_area:
                     gr.Markdown('제안을 만든 완료 작업을 선택하고 변경 전후와 영향을 확인하세요. 저장하면 실제 원본과 연결된 데이터가 바뀝니다. 상세 이미지와 배치는 해당 도구에서 검수하세요.')
                     hermes_conversation_edit_kind=gr.Dropdown(label='변경 종류',choices=[('빌보드 공용 속성','billboard'),('건물 앵커','building'),('이펙트 좌표','effect'),('야외 맵 셀','field'),('도시 맵','city'),('스프라이트 앵커','sprite')],value='billboard')

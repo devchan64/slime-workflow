@@ -811,6 +811,24 @@ def read_hermes_effect_detail(effect_identifier_value: str) -> dict:
 
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def preview_hermes_kimodo_keyframe_source(job_identifier_value: str, attempt_identifier_value: str, frame_number_value: int, tag_text_value: str) -> dict:
+    """Kimodo 완료 원본의 키프레임 저장 가능성과 확인값을 조회한다."""
+    return run_hermes_mcp_command('hermes-kimodo-keyframe-source-review',{'job_id':job_identifier_value,'attempt_id':attempt_identifier_value,'frame':frame_number_value,'tag':tag_text_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def save_hermes_kimodo_keyframe(request_identifier_value: str, job_identifier_value: str, attempt_identifier_value: str, frame_number_value: int, tag_text_value: str, review_digest_value: str) -> dict:
+    """사용자가 확인한 원본을 접수 ID로 한 번 저장한다. 불확실하면 접수와 원 서비스를 확인한다."""
+    return run_hermes_mcp_command('hermes-kimodo-keyframe-save',{'request_id':request_identifier_value,'job_id':job_identifier_value,'attempt_id':attempt_identifier_value,'frame':frame_number_value,'tag':tag_text_value,'review_sha256':review_digest_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_kimodo_keyframe_receipt(request_identifier_value: str) -> dict:
+    """키프레임 저장 접수와 결과 ID를 확인한다."""
+    return run_hermes_mcp_command('hermes-kimodo-keyframe-receipt',{'request_id':request_identifier_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def read_hermes_billboard_proposal(job_identifier_value: str) -> dict:
     """완료된 Hermes 답변의 미신뢰 빌보드 제안을 읽는다. 현재값 재확인과 검토가 필요하다."""
     return run_hermes_mcp_command('hermes-billboard-proposal',{'id':job_identifier_value})

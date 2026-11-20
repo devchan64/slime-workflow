@@ -452,6 +452,8 @@ class HermesDelegationTests(unittest.TestCase):
                 current_store_value.execute_delegation_once('request_654321', {}, Mock(side_effect=TimeoutError()))
             (Path(current_temp_root) / 'corrupt_123456.json').write_text('not json')
             (Path(current_temp_root) / 'effect_123456.json').write_text(json.dumps({'version':10,'id':'effect_123456','state':'completed','effect':{'id':'test-effect'}}))
+            (Path(current_temp_root) / 'reserve_123456.json').write_text(json.dumps({'version':13,'id':'reserve_123456','state':'dispatching'}))
+            (Path(current_temp_root) / 'keyframe_123456.json').write_text(json.dumps({'version':14,'id':'keyframe_123456','state':'dispatching'}))
             (Path(current_temp_root) / 'linked_123456.json').symlink_to(Path(current_temp_root) / 'request_123456.json')
             current_result_value = current_store_value.list_delegation_receipts()
             current_records_by_id = {current_record['request_id']: current_record for current_record in current_result_value['records']}
@@ -460,6 +462,8 @@ class HermesDelegationTests(unittest.TestCase):
             self.assertEqual(current_records_by_id['corrupt_123456']['state'], 'unavailable')
             self.assertNotIn('linked_123456', current_records_by_id)
             self.assertNotIn('effect_123456', current_records_by_id)
+            self.assertNotIn('reserve_123456', current_records_by_id)
+            self.assertNotIn('keyframe_123456', current_records_by_id)
             self.assertNotIn('private text', json.dumps(current_result_value))
             self.assertNotIn('request_sha256', json.dumps(current_result_value))
 

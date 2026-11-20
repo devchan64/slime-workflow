@@ -123,7 +123,7 @@ class HermesDelegationStore:
                     current_updated_time = current_record_path.stat().st_mtime
                     current_saved_record = read_bounded_delegation_record(current_record_path)
                     # 기존 Kimodo 화면에는 다른 서비스의 접수 기록을 노출하지 않는다.
-                    if isinstance(current_saved_record, dict) and current_saved_record.get('version') in (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12):
+                    if isinstance(current_saved_record, dict) and current_saved_record.get('version') in (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14):
                         continue
                     if not isinstance(current_saved_record, dict) or current_saved_record.get('version') != 1 or current_saved_record.get('id') != current_receipt_identifier:
                         raise ValueError('위임 기록 형식 오류')

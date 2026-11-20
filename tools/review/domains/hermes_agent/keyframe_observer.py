@@ -69,7 +69,9 @@ def read_hermes_kimodo_keyframe_preview(current_keyframe_identifier):
         raise ValueError('키프레임 이미지 인코딩 오류') from current_decode_error
     if hashlib.sha256(current_image_bytes).hexdigest()!=current_file_hashes['preview.png'] or not current_image_bytes.startswith(b'\x89PNG\r\n\x1a\n'):
         raise ValueError('키프레임 미리보기 해시 또는 형식 오류')
-    return {'id':current_keyframe_identifier,'image_base64':current_image_text,'sha256':current_file_hashes['preview.png'],'skeleton_signature_sha256':current_skeleton_signature,'note':'Kimodo가 모션·골격·미리보기 파일을 검증한 결과입니다. 이미지 확인은 생성 동작의 품질 보증이 아닙니다.'}
+    from tools.review.domains.kimodo.keyframe_storage import hash_kimodo_keyframe_source
+    current_source_hash=hash_kimodo_keyframe_source(current_file_hashes)
+    return {'id':current_keyframe_identifier,'image_base64':current_image_text,'sha256':current_file_hashes['preview.png'],'skeleton_signature_sha256':current_skeleton_signature,'source_sha256':current_source_hash,'note':'Kimodo가 모션·골격·미리보기 파일을 검증한 결과입니다. 이미지 확인은 생성 동작의 품질 보증이 아닙니다.'}
 
 
 def validate_hermes_kimodo_keyframe_batch(current_request_record):
@@ -91,5 +93,5 @@ def validate_hermes_kimodo_keyframe_batch(current_request_record):
             raise ValueError('키프레임 골격 구조가 서로 다릅니다.')
         current_skeleton_signature=current_signature_value
         current_seen_values.add(current_identifier_value)
-        current_verified_values.append({'id':current_identifier_value,'preview_sha256':current_preview_value['sha256']})
+        current_verified_values.append({'id':current_identifier_value,'preview_sha256':current_preview_value['sha256'],'source_sha256':current_preview_value['source_sha256']})
     return {'placements':current_placements_value,'sources':current_verified_values,'skeleton_signature_sha256':current_skeleton_signature,'note':'접수 시 원본을 다시 검증하므로 이 검증 뒤 원본이 바뀔 수 있습니다.'}

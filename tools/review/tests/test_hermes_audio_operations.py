@@ -358,6 +358,17 @@ except ValueError as error:
                             current_job_record=audio_operations.validate_hermes_audio_source_response(current_service_name,current_job_identifier,current_response_value)
                             self.assertEqual(current_job_record['file_observation'],'present')
                             with urlopen(Request(current_proxy_url+current_job_record['audio'],headers={'Range':'bytes=0-3'}),timeout=5) as current_http_response:self.assertEqual((current_http_response.status,current_http_response.read()),(206,b'fixt'))
+                            current_original_call=audio_operations.call_hermes_audio_service
+                            current_status_path=current_manager_value.job_storage_root/current_job_identifier/'status.json'
+                            def change_status_after_response(current_name,current_command,current_payload):
+                                current_response=current_original_call(current_name,current_command,current_payload)
+                                current_status_path.write_text(json.dumps({'status':'running'}))
+                                return current_response
+                            with patch.object(audio_operations,'call_hermes_audio_service',side_effect=change_status_after_response):
+                                current_stale_value=execute_management_command('hermes-agent','hermes-audio-source-status',current_payload_record,current_gateway_url)
+                            self.assertEqual(current_stale_value['job']['file_observation'],'unavailable')
+                            self.assertEqual(current_stale_value['job']['audio'],current_job_record['audio'])
+                            current_status_path.write_text(json.dumps({'status':'completed'}))
                             (current_manager_value.job_storage_root/current_job_identifier/'attempts'/('a'*32)/current_manager_value.audio_output_filename).unlink()
                             current_missing_value=execute_management_command('hermes-agent','hermes-audio-source-status',current_payload_record,current_gateway_url)
                             self.assertEqual(current_missing_value['job']['file_observation'],'unavailable')
@@ -390,7 +401,16 @@ except ValueError as error:
                     current_audio_file.symlink_to(current_job_path/'status.json')
                     self.assertEqual(audio_operations.observe_hermes_audio_file(current_service_name,current_job_identifier,current_audio_path),'unavailable')
                     with patch('tools.review.domains.hermes_agent.delegation_store.read_bounded_delegation_record',side_effect=[current_status_record,current_result_record,current_status_record,{'format':'wav','attempt':'b'*32}]):
-                        self.assertEqual(audio_operations.observe_hermes_audio_file(current_service_name,current_job_identifier,current_audio_path),'unknown')
+                        self.assertEqual(audio_operations.observe_hermes_audio_file(current_service_name,current_job_identifier,current_audio_path),'unavailable')
+                    (current_job_path/'status.json').write_text(json.dumps({'status':'running'}))
+                    self.assertEqual(audio_operations.observe_hermes_audio_file(current_service_name,current_job_identifier,current_audio_path),'unavailable')
+                    (current_job_path/'status.json').write_text(json.dumps(current_status_record))
+                    (current_job_path/'result.json').write_text(json.dumps({'format':'wav','attempt':'b'*32}))
+                    self.assertEqual(audio_operations.observe_hermes_audio_file(current_service_name,current_job_identifier,current_audio_path),'unavailable')
+                    (current_job_path/'result.json').write_text('{broken')
+                    self.assertEqual(audio_operations.observe_hermes_audio_file(current_service_name,current_job_identifier,current_audio_path),'unavailable')
+                    (current_job_path/'result.json').unlink()
+                    self.assertEqual(audio_operations.observe_hermes_audio_file(current_service_name,current_job_identifier,current_audio_path),'unknown')
                     self.assertEqual(json.loads((current_job_path/'status.json').read_text()),current_status_record)
 
     def test_source_audio_status_checks_service_job_and_result(self):

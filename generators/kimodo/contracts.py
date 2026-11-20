@@ -78,7 +78,7 @@ validate_kimodo_directions(KIMODO_DEFAULT_SETTINGS['directions'])
 
 def validate_kimodo_request(current_request_record):
     current_required_fields = {'action','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'}
-    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'endpoint_pose_id','keyframes','segment_frames','directions','remove_horizontal_motion','proportion_images','proportion_joint_edits','proportion_multiview_angles','proportion_reviewed_multiview','proportion_projected_hip','proportion_face_anchor_calibration','openpose_scale_percent','pose_include_hands','pose_include_face','camera_elevation_degrees'}:
+    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'endpoint_pose_id','keyframes','keyframe_source_hashes','segment_frames','directions','remove_horizontal_motion','proportion_images','proportion_joint_edits','proportion_multiview_angles','proportion_reviewed_multiview','proportion_projected_hip','proportion_face_anchor_calibration','openpose_scale_percent','pose_include_hands','pose_include_face','camera_elevation_degrees'}:
         raise ValueError('Kimodo 요청 필드 오류')
     current_elevation_angle = current_request_record.get('camera_elevation_degrees',0)
     if type(current_elevation_angle) is not int or current_elevation_angle not in (0,15,30):
@@ -116,6 +116,9 @@ def validate_kimodo_request(current_request_record):
         from tools.review.domains.kimodo.keyframe_storage import validate_kimodo_keyframe_placements
         current_keyframe_placements = validate_kimodo_keyframe_placements(current_request_record['keyframes'], current_request_record['frames'])
         current_request_record = {**current_request_record, 'keyframes': current_keyframe_placements}
+    if 'keyframe_source_hashes' in current_request_record:
+        current_expected_hashes=current_request_record['keyframe_source_hashes']
+        if 'keyframes' not in current_request_record or not isinstance(current_expected_hashes,dict) or set(current_expected_hashes)!={current_placement['id'] for current_placement in current_request_record['keyframes']} or any(not isinstance(current_hash_value,str) or not re.fullmatch(r'[a-f0-9]{64}',current_hash_value) for current_hash_value in current_expected_hashes.values()):raise ValueError('키프레임 원본 확인값 오류')
     from generators.kimodo.motion_sequence import resolve_motion_segments
     resolve_motion_segments(current_prompt_text,current_request_record['frames'],current_request_record.get('segment_frames'))
     for current_field_name, current_minimum_value, current_maximum_value in [('guidance_scale',0,10),('heading_degrees',-180,180)]:

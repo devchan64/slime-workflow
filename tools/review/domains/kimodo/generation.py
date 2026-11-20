@@ -217,7 +217,7 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
                 raise ValueError('Kimodo 모델 준비는 추가 입력을 받지 않습니다.')
             send_management_json_response(current_http_handler, 200, self.start_model_preparation())
             return True
-        if current_request_path not in ('/kimodo/keyframes/save', '/kimodo/keyframes/list', '/kimodo/keyframes/preview', '/kimodo/keyframes/replace', '/kimodo/keyframes/retire'):
+        if current_request_path not in ('/kimodo/keyframes/save', '/kimodo/keyframes/source-review', '/kimodo/keyframes/save-reviewed', '/kimodo/keyframes/list', '/kimodo/keyframes/preview', '/kimodo/keyframes/replace', '/kimodo/keyframes/retire'):
             return super().handle_image_request(current_http_handler)
         try:
             if current_http_handler.command != 'POST' or not hasattr(current_http_handler, 'management_command_payload'):
@@ -227,7 +227,20 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
                 raise ValueError('키프레임 요청은 객체여야 합니다.')
             from tools.review.domains.kimodo.keyframe_storage import list_kimodo_keyframe_records, save_kimodo_keyframe_record, load_kimodo_keyframe_snapshot, resolve_kimodo_keyframe_storage, KIMODO_EXAMPLE_KEYFRAME_STORAGE, KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS, KIMODO_KEYFRAME_STORAGE
             from tools.review.domains.image.image_generation import MANAGER_HISTORY_LOCK
-            if current_request_path.endswith('/retire'):
+            if current_request_path.endswith('/source-review') or current_request_path.endswith('/save-reviewed'):
+                current_expected_fields={'job_id','attempt_id','frame','tag'}
+                if current_request_path.endswith('/save-reviewed'):current_expected_fields.add('review_sha256')
+                if set(current_request_record)!=current_expected_fields:raise ValueError('키프레임 검토 또는 저장 필드 오류')
+                from tools.review.domains.hermes_agent.kimodo_frame_observer import prepare_reviewed_kimodo_keyframe_source
+                from tools.review.domains.kimodo.keyframe_storage import save_prepared_kimodo_keyframe_record
+                with self.current_request_lock, MANAGER_HISTORY_LOCK:
+                    current_review_record,current_prepared_value=prepare_reviewed_kimodo_keyframe_source(current_request_record['job_id'],current_request_record['attempt_id'],current_request_record['frame'],current_request_record['tag'],current_job_storage=self.job_storage_root)
+                    if current_request_path.endswith('/source-review'):
+                        current_response_record=current_review_record
+                    else:
+                        if not isinstance(current_request_record['review_sha256'],str) or current_request_record['review_sha256']!=current_review_record['review_sha256']:raise ValueError('키프레임 검토 결과가 변경됐습니다.')
+                        current_response_record=save_prepared_kimodo_keyframe_record(current_request_record['job_id'],current_request_record['attempt_id'],current_request_record['frame'],current_request_record['tag'],current_prepared_value,current_keyframe_storage=self.keyframe_storage_root)
+            elif current_request_path.endswith('/retire'):
                 if set(current_request_record) != {'ids'}:
                     raise ValueError('키프레임 폐기에는 ids 배열이 필요합니다.')
                 from tools.review.domains.kimodo.keyframe_storage import retire_kimodo_keyframe_records
@@ -252,8 +265,10 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
                 import base64
                 current_source_storage = resolve_kimodo_keyframe_storage(self.keyframe_storage_root,current_request_record['id'])
                 current_keyframe_record,_,current_skeleton_value = load_kimodo_keyframe_snapshot(current_source_storage,current_request_record['id'])
-                current_preview_bytes=(current_source_storage/current_keyframe_record['id']/'preview.png').read_bytes()
+                from tools.review.domains.kimodo.keyframe_storage import read_bounded_kimodo_keyframe_file,KIMODO_KEYFRAME_FILE_LIMITS
+                current_preview_bytes=read_bounded_kimodo_keyframe_file(current_source_storage/current_keyframe_record['id']/'preview.png',KIMODO_KEYFRAME_FILE_LIMITS['preview.png'])
                 import hashlib, json
+                if hashlib.sha256(current_preview_bytes).hexdigest()!=current_keyframe_record['files']['preview.png']:raise ValueError('키프레임 미리보기가 변경됐습니다.')
                 current_skeleton_signature=json.dumps([current_skeleton_value['joint_names'],current_skeleton_value['parents']],ensure_ascii=False,separators=(',',':')).encode()
                 current_response_record={'record':current_keyframe_record,'image_base64':base64.b64encode(current_preview_bytes).decode('ascii'),'skeleton_signature_sha256':hashlib.sha256(current_skeleton_signature).hexdigest()}
             else:
@@ -303,7 +318,7 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
         current_saved_record = super().save_generation_attachments(current_job_root, current_request_record)
         if current_saved_record.get('keyframes'):
             from tools.review.domains.kimodo.keyframe_storage import snapshot_kimodo_keyframes
-            current_snapshot_records = snapshot_kimodo_keyframes(current_job_root,current_saved_record['keyframes'],current_keyframe_storage=self.keyframe_storage_root)
+            current_snapshot_records = snapshot_kimodo_keyframes(current_job_root,current_saved_record['keyframes'],current_keyframe_storage=self.keyframe_storage_root,current_expected_hashes=current_saved_record.get('keyframe_source_hashes'))
             current_saved_record = {**current_saved_record,'keyframe_snapshots':current_snapshot_records}
         return current_saved_record
 

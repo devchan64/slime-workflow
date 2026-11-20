@@ -151,6 +151,9 @@ HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-kimodo-keyframe-validate','label':'Kimodo 키프레임 배치 검증','required':['keyframes','frames'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'kimodo_keyframe_validation','note':'원본과 골격 구조를 검증한다. 접수 시 다시 검증한다.'},
     {'command':'hermes-kimodo-source-frame','label':'Kimodo 원본 프레임 검토','required':['job_id','attempt_id','frame'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'kimodo_source_frame','note':'완료된 현재 시도의 프레임 PNG 시그니처와 해시를 확인한다. 모션·골격 및 저장 가능성은 검증하지 않는다.'},
     {'command':'hermes-kimodo-keyframe-preview','label':'Kimodo 키프레임 검증 미리보기','required':['keyframe_id'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'kimodo_keyframe_preview','note':'기존 서비스의 모션·골격·이미지 해시 검증을 사용한다.'},
+    {'command':'hermes-kimodo-keyframe-source-review','label':'Kimodo 원본 키프레임 검토','required':['job_id','attempt_id','frame','tag'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'kimodo_keyframe_source_review','note':'원본 스냅샷과 검토 해시, 기존 대화 접수 확인 상태를 조회한다. 로컬 잠금이 생길 수 있다.'},
+    {'command':'hermes-kimodo-keyframe-save','label':'Kimodo 검토 키프레임 저장','required':['request_id','job_id','attempt_id','frame','tag','review_sha256'],'optional':[],'effect':'write','gpu':'none','retry':'request_id_or_unknown','interfaces':['gui','mcp'],'result':'kimodo_keyframe_receipt','note':'검토한 원본만 저장하며 응답 유실 시 자동 재저장하지 않는다.'},
+    {'command':'hermes-kimodo-keyframe-receipt','label':'Kimodo 키프레임 저장 접수','required':['request_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'kimodo_keyframe_receipt','note':'완료·불확실·미접수를 구분한다.'},
     {'command':'hermes-kimodo-keyframes','label':'Kimodo 키프레임 목록','required':[],'optional':['query','offset','limit','snapshot'],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'kimodo_keyframe_catalog','note':'기록의 ID·태그·원본 프레임만 제공한다. 다음 페이지에 snapshot을 전달하면 목록 변경을 감지한다. 확인값 없는 이전 페이지는 변경 여부를 확인할 수 없다. 해시와 실제 동작은 Kimodo에서 확인한다.'},
     {'command':'hermes-kimodo-proposal', 'label':'Kimodo 제안 읽기', 'required':['id'], 'optional':[], 'effect':'local_bookkeeping', 'gpu':'none', 'retry':'safe', 'interfaces':['gui','mcp'], 'result':'validated_untrusted_proposal', 'note':'제안은 실행되지 않는다.'},
     {'command':'hermes-delegate-kimodo', 'label':'Kimodo 생성 위임', 'required':['request_id','request'], 'optional':[], 'effect':'enqueue', 'gpu':'queued', 'retry':'request_id_or_unknown', 'interfaces':['gui','mcp'], 'result':'receipt_and_job_id', 'note':'화면은 입력과 GPU 사용 확인 후 접수한다. 응답 불확실 시 재실행하지 않는다.'},
@@ -198,6 +201,7 @@ HERMES_FIELD_SCHEMAS = {
     'verification_modules': {'type':'array', 'items':{'type':'string'}, 'maxItems':5, 'uniqueItems':True, 'note':'공용 회귀 모듈 허용 목록'},
     'id': {'type':'string', 'pattern':'^\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}-[a-f0-9]{8}$'},
     'attempt_id': {'type':'string','pattern':'^[a-f0-9]{32}$'},
+    'tag': {'type':'string','minLength':1,'maxLength':80,'note':'앞뒤 공백을 제거한 값이 비어 있거나 제어 문자를 포함하면 거부한다.'},
     'frame': {'type':'integer','minimum':1,'maximum':1000},
     'job_id': {'type':'string', 'pattern':'^\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}-[a-f0-9]{8}$'},
     'offset': {'type':'integer', 'minimum':0},
@@ -408,6 +412,8 @@ HERMES_SERVICE_CONDITIONAL_LIMITATIONS = {
         {'command':'asset-retire','note':'Hermes는 빌보드 에셋 폐기를 지원하지 않는다. 원 도구에서 사용 맵과 원본 등록 상태를 확인한다.'},
     ],
     'kimodo': [
+        {'command':'keyframe-source-review','note':'원본 프레임·골격·모션을 저장 없이 검토하고 확인값을 반환한다. GPU를 사용하지 않는다.'},
+        {'command':'keyframe-save-reviewed','note':'검토한 원본과 태그를 다시 확인해 저장한다. 요청 ID 중복 방지는 없으므로 응답 유실 시 자동 재실행하지 않는다.'},
         {'command':'keyframe-save','note':'Hermes는 키프레임 저장을 연결하지 않는다. 원 서비스는 완료된 작업의 프레임을 검증해 독립 사본을 새 ID로 저장하며 재요청 시 중복될 수 있다.'},
         {'command':'keyframe-replace','note':'Hermes는 키프레임 교체를 연결하지 않는다. 원 서비스는 새 항목을 확인하고 이전 항목을 .replaced에 보관한다.'},
         {'command':'keyframe-retire','note':'Hermes는 키프레임 폐기를 연결하지 않는다. 원 서비스는 검증한 사용자 항목을 .retired에 보관하며 제작 기준 예제는 폐기할 수 없다.'},
@@ -544,7 +550,7 @@ def list_management_service_registration():
             if current_service_name!='flux-image':current_hermes_links.append('hermes-flux-proposal')
             if current_service_name=='flux-expression':current_hermes_links.append('hermes-expression-catalog')
         elif current_service_name=='kimodo':
-            current_hermes_links=['hermes-video-source-status','hermes-kimodo-source-frame','hermes-kimodo-resume-proposal','hermes-kimodo-resume-preview','hermes-kimodo-resume-submit','hermes-kimodo-resume-receipt','hermes-kimodo-proposal','hermes-kimodo-build-status','hermes-delegate-kimodo','hermes-delegation-status','hermes-delegation-job-status','hermes-delegation-history','hermes-delegation-cancel','hermes-kimodo-keyframes','hermes-kimodo-keyframe-preview','hermes-kimodo-keyframe-validate']
+            current_hermes_links=['hermes-kimodo-keyframe-source-review','hermes-kimodo-keyframe-save','hermes-kimodo-keyframe-receipt','hermes-video-source-status','hermes-kimodo-source-frame','hermes-kimodo-resume-proposal','hermes-kimodo-resume-preview','hermes-kimodo-resume-submit','hermes-kimodo-resume-receipt','hermes-kimodo-proposal','hermes-kimodo-build-status','hermes-delegate-kimodo','hermes-delegation-status','hermes-delegation-job-status','hermes-delegation-history','hermes-delegation-cancel','hermes-kimodo-keyframes','hermes-kimodo-keyframe-preview','hermes-kimodo-keyframe-validate']
         elif current_service_name=='hermes-agent':
             current_hermes_links=['hermes-capabilities','hermes-service-registration','hermes-session-list','hermes-session-read','hermes-session-view','hermes-history','hermes-detail']
         elif current_service_name=='writer-agent':

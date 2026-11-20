@@ -407,6 +407,87 @@ class KimodoGenerationContractTests(unittest.TestCase):
         self.assertEqual(current_service_instance.route_prefix_value,'/kimodo')
         self.assertEqual(current_service_instance.select_generation_runner(),'generators/kimodo/worker.py')
 
+    def test_keyframe_reviewed_gateway_checks_source_before_save(self):
+        import io
+        import numpy as np
+        from email.message import Message
+        from tools.review.common.management_gateway import execute_management_command
+        from tools.review.domains.kimodo.keyframe_storage import KIMODO_FRAME_ARRAY_SHAPES
+        class CaptureGatewayResponse:
+            def __init__(self):
+                self.headers=Message()
+                self.wfile=io.BytesIO()
+                self.status=None
+            def send_response(self,current_status_value):self.status=current_status_value
+            def send_header(self,current_name_value,current_header_value):pass
+            def end_headers(self):pass
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_manager_value=KimodoGenerationManager()
+            current_manager_value.job_storage_root=current_root_path/'jobs'
+            current_manager_value.keyframe_storage_root=current_root_path/'keyframes'
+            current_job_identifier='2026-11-06_12-00-00-12345678'
+            current_attempt_identifier='a'*32
+            current_job_path=current_manager_value.job_storage_root/current_job_identifier
+            current_attempt_root=current_job_path/'attempts'/current_attempt_identifier
+            current_attempt_root.mkdir(parents=True)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'completed'}))
+            (current_job_path/'result.json').write_text(json.dumps({'attempt':current_attempt_identifier}))
+            current_frame_hashes=write_keyframe_test_previews(current_attempt_root,3)
+            (current_attempt_root/'result.json').write_text(json.dumps({'attempt':current_attempt_identifier,'frames':3,'fps':30,'frame_sha256':current_frame_hashes}))
+            (current_attempt_root/'skeleton.json').write_text(json.dumps({'skeleton':'somaskel77','fps':30,'joint_names':list(range(77)),'parents':list(range(77))}))
+            current_arrays_map={current_name:np.zeros((3,*current_shape)) for current_name,current_shape in KIMODO_FRAME_ARRAY_SHAPES.items()}
+            np.savez_compressed(current_attempt_root/'motion.npz',**current_arrays_map)
+            current_valid_motion=(current_attempt_root/'motion.npz').read_bytes()
+            current_request_record={'job_id':current_job_identifier,'attempt_id':current_attempt_identifier,'frame':2,'tag':'검토'}
+            current_handlers_map={'kimodo':current_manager_value.handle_image_request}
+            def execute_test_command(current_command_name,current_payload_value):
+                current_gateway_response=CaptureGatewayResponse()
+                execute_management_command('kimodo',current_command_name,current_payload_value,gateway_request_handler=current_gateway_response,service_handler_values=current_handlers_map)
+                return current_gateway_response.status,json.loads(current_gateway_response.wfile.getvalue())
+            (current_attempt_root/'motion.npz').write_bytes(b'not a zip archive')
+            current_status_value,current_error_record=execute_test_command('keyframe-source-review',current_request_record)
+            self.assertEqual(current_status_value,400)
+            self.assertFalse(current_manager_value.keyframe_storage_root.exists())
+            import zipfile
+            current_malformed_buffer=io.BytesIO()
+            with zipfile.ZipFile(io.BytesIO(current_valid_motion)) as current_original_zip, zipfile.ZipFile(current_malformed_buffer,'w') as current_modified_zip:
+                for current_archive_item in current_original_zip.infolist():
+                    current_member_bytes=current_original_zip.read(current_archive_item.filename)
+                    if current_archive_item.filename=='root_positions.npy':
+                        current_header_buffer=io.BytesIO()
+                        np.lib.format.write_array_header_1_0(current_header_buffer,{'descr':'<f8','fortran_order':False,'shape':(999999999,3)})
+                        current_member_bytes=current_header_buffer.getvalue()
+                    current_modified_zip.writestr(current_archive_item.filename,current_member_bytes)
+            (current_attempt_root/'motion.npz').write_bytes(current_malformed_buffer.getvalue())
+            current_status_value,current_error_record=execute_test_command('keyframe-source-review',current_request_record)
+            self.assertEqual(current_status_value,400)
+            self.assertFalse(current_manager_value.keyframe_storage_root.exists())
+            (current_attempt_root/'motion.npz').write_bytes(current_valid_motion)
+            current_status_value,current_review_record=execute_test_command('keyframe-source-review',current_request_record)
+            self.assertEqual(current_status_value,200)
+            self.assertEqual(current_review_record['frame'],2)
+            self.assertFalse(current_manager_value.keyframe_storage_root.exists())
+            current_arrays_map['root_positions'][1,0]=7
+            np.savez_compressed(current_attempt_root/'motion.npz',**current_arrays_map)
+            current_status_value,current_error_record=execute_test_command('keyframe-save-reviewed',{**current_request_record,'review_sha256':current_review_record['review_sha256']})
+            self.assertEqual(current_status_value,400)
+            self.assertIn('변경',current_error_record['error'])
+            self.assertFalse(current_manager_value.keyframe_storage_root.exists())
+            current_status_value,current_review_record=execute_test_command('keyframe-source-review',current_request_record)
+            self.assertEqual(current_status_value,200)
+            from tools.review.domains.kimodo.keyframe_storage import save_prepared_kimodo_keyframe_record
+            def save_after_source_mutation(*current_positional_values,**current_keyword_values):
+                current_arrays_map['root_positions'][1,0]=9
+                np.savez_compressed(current_attempt_root/'motion.npz',**current_arrays_map)
+                return save_prepared_kimodo_keyframe_record(*current_positional_values,**current_keyword_values)
+            with patch('tools.review.domains.kimodo.keyframe_storage.save_prepared_kimodo_keyframe_record',side_effect=save_after_source_mutation):
+                current_status_value,current_result_value=execute_test_command('keyframe-save-reviewed',{**current_request_record,'review_sha256':current_review_record['review_sha256']})
+            self.assertEqual(current_status_value,200)
+            with np.load(current_manager_value.keyframe_storage_root/current_result_value['id']/'motion.npz',allow_pickle=False) as current_saved_arrays:self.assertEqual(current_saved_arrays['root_positions'][0,0],7)
+            current_status_value,_=execute_test_command('keyframe-save-reviewed',{**current_request_record,'review_sha256':current_review_record['review_sha256'],'extra':True})
+            self.assertEqual(current_status_value,400)
+
     def test_keyframe_gateway_save_list_and_generation_snapshot(self):
         import io
         import numpy as np
@@ -442,6 +523,54 @@ class KimodoGenerationContractTests(unittest.TestCase):
             execute_management_command('kimodo','keyframe-save',{'job_id':current_job_identifier,'attempt_id':current_attempt_identifier,'frame':2,'tag':'가드'},gateway_request_handler=current_gateway_response,service_handler_values=current_handler_values)
             self.assertEqual(current_gateway_response.status,200)
             current_saved_record=json.loads(current_gateway_response.wfile.getvalue())
+            import hashlib, io, zipfile
+            from tools.review.domains.kimodo.keyframe_storage import load_kimodo_keyframe_snapshot
+            current_saved_root=current_service_instance.keyframe_storage_root/current_saved_record['id']
+            current_motion_path=current_saved_root/'motion.npz'
+            current_valid_motion=current_motion_path.read_bytes()
+            current_record_path=current_saved_root/'record.json'
+            current_valid_record=current_record_path.read_bytes()
+            current_invalid_archives=[b'not a zip']
+            current_malformed_buffer=io.BytesIO()
+            with zipfile.ZipFile(io.BytesIO(current_valid_motion)) as current_original_zip,zipfile.ZipFile(current_malformed_buffer,'w') as current_modified_zip:
+                for current_archive_item in current_original_zip.infolist():
+                    current_member_bytes=current_original_zip.read(current_archive_item.filename)
+                    if current_archive_item.filename=='root_positions.npy':
+                        current_header_buffer=io.BytesIO()
+                        np.lib.format.write_array_header_1_0(current_header_buffer,{'descr':'<f8','fortran_order':False,'shape':(999999999,3)})
+                        current_member_bytes=current_header_buffer.getvalue()
+                    current_modified_zip.writestr(current_archive_item.filename,current_member_bytes)
+            current_invalid_archives.append(current_malformed_buffer.getvalue())
+            import struct
+            current_crc_buffer=io.BytesIO()
+            with zipfile.ZipFile(io.BytesIO(current_valid_motion)) as current_original_zip,zipfile.ZipFile(current_crc_buffer,'w',compression=zipfile.ZIP_STORED) as current_modified_zip:
+                for current_archive_item in current_original_zip.infolist():current_modified_zip.writestr(current_archive_item.filename,current_original_zip.read(current_archive_item.filename))
+            current_crc_bytes=bytearray(current_crc_buffer.getvalue())
+            with zipfile.ZipFile(io.BytesIO(current_crc_bytes)) as current_crc_zip:
+                current_crc_item=current_crc_zip.getinfo('root_positions.npy')
+                current_name_size,current_extra_size=struct.unpack_from('<HH',current_crc_bytes,current_crc_item.header_offset+26)
+                current_data_position=current_crc_item.header_offset+30+current_name_size+current_extra_size
+                current_crc_bytes[current_data_position+current_crc_item.file_size-1]^=1
+            current_invalid_archives.append(bytes(current_crc_bytes))
+            for current_invalid_motion in current_invalid_archives:
+                current_motion_path.write_bytes(current_invalid_motion)
+                current_bad_record={**current_saved_record,'files':{**current_saved_record['files'],'motion.npz':hashlib.sha256(current_invalid_motion).hexdigest()}}
+                current_record_path.write_text(json.dumps(current_bad_record))
+                with self.assertRaises(ValueError):load_kimodo_keyframe_snapshot(current_service_instance.keyframe_storage_root,current_saved_record['id'])
+                current_error_response=CaptureGatewayResponse()
+                execute_management_command('kimodo','keyframe-preview',{'id':current_saved_record['id']},gateway_request_handler=current_error_response,service_handler_values=current_handler_values)
+                self.assertEqual(current_error_response.status,400)
+            with current_motion_path.open('wb') as current_motion_stream:current_motion_stream.truncate(16*1024*1024+1)
+            with self.assertRaises(ValueError):load_kimodo_keyframe_snapshot(current_service_instance.keyframe_storage_root,current_saved_record['id'])
+            current_motion_path.unlink()
+            current_motion_path.symlink_to(current_attempt_root/'motion.npz')
+            with self.assertRaises(ValueError):load_kimodo_keyframe_snapshot(current_service_instance.keyframe_storage_root,current_saved_record['id'])
+            current_motion_path.unlink()
+            current_motion_path.write_bytes(current_valid_motion)
+            current_record_path.write_bytes(current_valid_record)
+            import zipfile
+            with patch('tools.review.domains.kimodo.keyframe_storage.np.load',side_effect=zipfile.BadZipFile('corrupt')):
+                with self.assertRaisesRegex(ValueError,'모션을 확인'):load_kimodo_keyframe_snapshot(current_service_instance.keyframe_storage_root,current_saved_record['id'])
             current_gateway_response=CaptureGatewayResponse()
             execute_management_command('kimodo','keyframe-list',{},gateway_request_handler=current_gateway_response,service_handler_values=current_handler_values)
             self.assertEqual(json.loads(current_gateway_response.wfile.getvalue())['records'][0]['id'],current_saved_record['id'])
@@ -457,6 +586,51 @@ class KimodoGenerationContractTests(unittest.TestCase):
             current_saved_request=current_service_instance.save_generation_attachments(current_new_job_root,current_validated_request)
             self.assertEqual(len(current_saved_request['keyframe_snapshots']),2)
             self.assertTrue((current_new_job_root/'keyframes'/current_saved_record['id']/'motion.npz').is_file())
+            from tools.review.domains.kimodo.keyframe_storage import hash_kimodo_keyframe_source
+            current_source_hash=hash_kimodo_keyframe_source(current_saved_record['files'])
+            current_guarded_request={**current_generation_request,'keyframe_source_hashes':{current_saved_record['id']:current_source_hash}}
+            current_guarded_request=current_service_instance.validate_generation_request(current_guarded_request)
+            current_guarded_root=current_temp_root/'guarded-job'
+            current_guarded_root.mkdir()
+            current_guarded_saved=current_service_instance.save_generation_attachments(current_guarded_root,current_guarded_request)
+            self.assertEqual(current_guarded_saved['keyframe_source_hashes'][current_saved_record['id']],current_source_hash)
+            from tools.review.domains.kimodo.keyframe_storage import validate_kimodo_job_keyframe_snapshots
+            validate_kimodo_job_keyframe_snapshots(current_guarded_root,current_guarded_saved)
+            current_snapshot_root=current_guarded_root/'keyframes'/current_saved_record['id']
+            current_snapshot_motion=current_snapshot_root/'motion.npz'
+            with np.load(current_snapshot_motion,allow_pickle=False) as current_archive_value:
+                current_snapshot_arrays={current_array_name:current_archive_value[current_array_name].copy() for current_array_name in current_archive_value.files}
+            current_snapshot_arrays['root_positions'][0,0]=11
+            np.savez_compressed(current_snapshot_motion,**current_snapshot_arrays)
+            import hashlib
+            current_snapshot_record=json.loads((current_snapshot_root/'record.json').read_text())
+            current_snapshot_record['files']['motion.npz']=hashlib.sha256(current_snapshot_motion.read_bytes()).hexdigest()
+            (current_snapshot_root/'record.json').write_text(json.dumps(current_snapshot_record))
+            current_changed_request={**current_guarded_saved,'keyframe_snapshots':[{**current_item,'source':current_snapshot_record} for current_item in current_guarded_saved['keyframe_snapshots']]}
+            with self.assertRaisesRegex(ValueError,'사본이 변경'):
+                validate_kimodo_job_keyframe_snapshots(current_guarded_root,current_changed_request)
+            (current_guarded_root/'request.json').write_text(json.dumps(current_changed_request))
+            with patch.object(current_service_instance,'validate_generation_runtime') as current_runtime_mock:
+                with self.assertRaisesRegex(ValueError,'사본이 변경'):
+                    current_service_instance.validate_generation_resume(current_guarded_root)
+                current_runtime_mock.assert_not_called()
+            for current_invalid_hashes in ({},None,{current_saved_record['id']:'bad'}):
+                with self.assertRaises(ValueError):validate_kimodo_job_keyframe_snapshots(current_guarded_root,{**current_changed_request,'keyframe_source_hashes':current_invalid_hashes})
+            current_mismatch_root=current_temp_root/'mismatch-job'
+            current_mismatch_root.mkdir()
+            with self.assertRaisesRegex(ValueError,'원본이 변경'):
+                current_service_instance.save_generation_attachments(current_mismatch_root,{**current_guarded_request,'keyframe_source_hashes':{current_saved_record['id']:'f'*64}})
+            for current_bad_hashes in ({},{current_saved_record['id']:'bad'},{'e'*32:'a'*64}):
+                with self.assertRaises(ValueError):current_service_instance.validate_generation_request({**current_generation_request,'keyframe_source_hashes':current_bad_hashes})
+            current_mismatch_response=CaptureGatewayResponse()
+            from types import SimpleNamespace
+            current_mismatch_response.server=SimpleNamespace(server_port=8771)
+            current_mismatch_response.headers['Host']='127.0.0.1:8771'
+            current_mismatch_response.headers['Origin']='http://127.0.0.1:8771'
+            with patch.object(current_service_instance,'validate_generation_runtime'), patch.object(current_service_instance,'ensure_generation_request_available'), patch.object(current_service_instance,'launch_generation_worker') as current_worker_mock:
+                execute_management_command('kimodo','generate',{**current_guarded_request,'keyframe_source_hashes':{current_saved_record['id']:'f'*64}},gateway_request_handler=current_mismatch_response,service_handler_values=current_handler_values)
+                self.assertEqual(current_mismatch_response.status,400)
+                current_worker_mock.assert_not_called()
             with self.assertRaisesRegex(ValueError,'후처리'):
                 current_service_instance.validate_generation_request({**current_generation_request,'post_processing':False})
             current_sequence_request = {**current_generation_request,'prompt':'A person stands.\nA person raises an arm.','segment_frames':[30,60]}

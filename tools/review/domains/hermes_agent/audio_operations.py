@@ -46,7 +46,7 @@ def read_hermes_audio_status(current_request_identifier,current_service_name):
 
 
 def observe_hermes_audio_file(current_service_name,current_job_identifier,current_audio_path):
-    """원본 상태·시도와 파일 존재를 읽되 원 서비스 응답과 일치하지 않으면 미확인이다."""
+    """원본 상태·시도 불일치나 조회 중 변경은 링크를 표시할 수 없는 상태다."""
     from pathlib import Path
     from tools.review.domains.hermes_agent.delegation_store import read_bounded_delegation_record
     from tools.review.domains.music.generation import MusicGenerationManager
@@ -60,15 +60,17 @@ def observe_hermes_audio_file(current_service_name,current_job_identifier,curren
         current_result_path=current_job_root/'result.json'
         current_status_record=read_bounded_delegation_record(current_status_path)
         current_result_record=read_bounded_delegation_record(current_result_path)
-        if not isinstance(current_status_record,dict) or current_status_record.get('status')!='completed' or not isinstance(current_result_record,dict) or current_result_record.get('format')!='wav' or current_result_record.get('attempt')!=current_path_match[1]:return 'unknown'
+        if not isinstance(current_status_record,dict) or current_status_record.get('status')!='completed' or not isinstance(current_result_record,dict) or current_result_record.get('format')!='wav' or current_result_record.get('attempt')!=current_path_match[1]:return 'unavailable'
         current_attempts_root=current_job_root/'attempts'
         current_attempt_root=current_attempts_root/current_path_match[1]
         current_audio_file=current_attempt_root/current_path_match[2]
         current_present_value=(not current_attempts_root.is_symlink() and current_attempts_root.is_dir() and not current_attempt_root.is_symlink() and current_attempt_root.is_dir() and current_attempt_root.resolve().parent==current_attempts_root.resolve() and not current_audio_file.is_symlink() and current_audio_file.is_file())
-        if read_bounded_delegation_record(current_status_path)!=current_status_record or read_bounded_delegation_record(current_result_path)!=current_result_record:return 'unknown'
+        if read_bounded_delegation_record(current_status_path)!=current_status_record or read_bounded_delegation_record(current_result_path)!=current_result_record:return 'unavailable'
         return 'present' if current_present_value else 'unavailable'
-    except (OSError,ValueError,TypeError,KeyError):
+    except OSError:
         return 'unknown'
+    except (ValueError,TypeError,KeyError):
+        return 'unavailable'
 
 
 def read_hermes_audio_source_job(current_service_name,current_job_identifier):

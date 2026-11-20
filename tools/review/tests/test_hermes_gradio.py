@@ -274,6 +274,212 @@ class HermesGradioTests(unittest.TestCase):
             current_frame_value['image']='/private/secret'
             self.assertIn('확인할 수 없습니다',hermes_agent_app.collect_conversation_kimodo_frame(current_card_record,current_session_identifier,current_source_identifier,'kimodo',1,'token')['notice'])
 
+    def test_new_keyframe_review_invalidates_previous_confirmation(self):
+        current_token_value,current_review_value,current_confirm_value,current_button_value,current_notice_value=hermes_agent_app.begin_conversation_kimodo_keyframe_review()
+        self.assertTrue(current_token_value)
+        self.assertIsNone(current_review_value)
+        self.assertFalse(current_confirm_value)
+        self.assertFalse(current_button_value['interactive'])
+        self.assertIn('확인',current_notice_value)
+
+    def test_conversation_keyframe_review_requires_confirmation_and_current_identity(self):
+        current_session_identifier='a'*32
+        current_source_identifier='source-job'
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_attempt_identifier='b'*32
+        current_card_record={'session_id':current_session_identifier,'source_job_id':current_source_identifier,'kind':'kimodo','review':{'request_id':'request_123'}}
+        current_frame_record={'job_id':current_job_identifier,'attempt_id':current_attempt_identifier,'frame':1,'frame_count':2,'image':'/kimodo/jobs/'+current_job_identifier+'/attempts/'+current_attempt_identifier+'/output-000.png','image_sha256':'c'*64}
+        current_inputs_value=[current_card_record,current_session_identifier,current_source_identifier,'kimodo',1]
+        current_frame_result={'identity':current_inputs_value,'token':'frame-token','frame_record':current_frame_record}
+        def current_gateway_response(current_service,current_command,current_payload):
+            if current_command=='hermes-kimodo-keyframe-source-review':return {**current_frame_record,'tag':'태그','review_sha256':'d'*64,'chat_save_readiness':'ready'}
+            if current_command=='hermes-kimodo-keyframe-receipt':return {'request_id':current_payload['request_id'],'state':'not_found'}
+            if current_command=='hermes-kimodo-keyframe-save':return {'request_id':current_payload['request_id'],'state':'completed','keyframe_id':'e'*32}
+            raise AssertionError(current_command)
+        with patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway_response) as current_gateway_mock:
+            current_collected_value=hermes_agent_app.collect_conversation_kimodo_keyframe_review(*current_inputs_value,'태그','frame-token','review-1',current_frame_result)
+            current_review_state,current_notice_text,current_confirm_value,current_button_value=hermes_agent_app.render_conversation_kimodo_keyframe_review(*current_inputs_value,'태그','frame-token','review-1',current_collected_value)
+            self.assertIn('프레임 1',current_notice_text)
+            self.assertFalse(current_confirm_value)
+            self.assertTrue(current_button_value['interactive'])
+            self.assertEqual(hermes_agent_app.render_conversation_kimodo_keyframe_review(*current_inputs_value,'변경','frame-token','review-1',current_collected_value),(gr.skip(),)*4)
+            self.assertEqual(hermes_agent_app.render_conversation_kimodo_keyframe_review(*current_inputs_value,'태그','frame-token','review-2',current_collected_value),(gr.skip(),)*4)
+            current_gateway_mock.reset_mock()
+            for current_changed_values in [(False,current_inputs_value,'태그','frame-token'),(True,current_inputs_value,'변경','frame-token'),(True,[*current_inputs_value[:-1],2],'태그','frame-token'),(True,current_inputs_value,'태그','new-token')]:
+                current_confirm_value,current_inputs_changed,current_tag_value,current_token_value=current_changed_values
+                with self.assertRaises(gr.Error):hermes_agent_app.submit_conversation_kimodo_keyframe(current_review_state,*current_inputs_changed,current_tag_value,current_token_value,current_confirm_value)
+            current_gateway_mock.assert_not_called()
+            current_status_text,current_button_value=hermes_agent_app.submit_conversation_kimodo_keyframe(current_review_state,*current_inputs_value,'태그','frame-token',True)
+            self.assertIn('저장 완료',current_status_text)
+            self.assertFalse(current_button_value['interactive'])
+            current_gateway_mock.assert_called_once()
+
+    def test_conversation_keyframe_changed_review_keeps_request_identity(self):
+        current_session_identifier='a'*32
+        current_source_identifier='source-job'
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_attempt_identifier='b'*32
+        current_card_record={'session_id':current_session_identifier,'source_job_id':current_source_identifier,'kind':'kimodo','review':{'request_id':'request_123'}}
+        current_frame_record={'job_id':current_job_identifier,'attempt_id':current_attempt_identifier,'frame':1,'image':'/kimodo/jobs/'+current_job_identifier+'/attempts/'+current_attempt_identifier+'/output-000.png','image_sha256':'c'*64}
+        current_inputs_value=[current_card_record,current_session_identifier,current_source_identifier,'kimodo',1]
+        current_frame_result={'identity':current_inputs_value,'token':'frame-token','frame_record':current_frame_record}
+        current_review_hash=['d'*64]
+        current_receipts_value={}
+        def current_gateway_response(current_service,current_command,current_payload):
+            if current_command=='hermes-kimodo-keyframe-source-review':return {**current_frame_record,'tag':'태그','review_sha256':current_review_hash[0],'chat_save_readiness':'ready'}
+            if current_command=='hermes-kimodo-keyframe-receipt':return {'request_id':current_payload['request_id'],'state':current_receipts_value.get(current_payload['request_id'],'not_found')}
+            raise AssertionError(current_command)
+        with patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway_response):
+            current_first_state,_,_,_=hermes_agent_app.review_conversation_kimodo_keyframe(*current_inputs_value,'태그','frame-token',current_frame_result)
+            current_receipts_value[current_first_state['request_id']]='unknown'
+            current_review_hash[0]='e'*64
+            current_second_state,current_notice_text,_,current_button_value=hermes_agent_app.review_conversation_kimodo_keyframe(*current_inputs_value,'태그','frame-token',current_frame_result)
+            self.assertEqual(current_first_state['request_id'],current_second_state['request_id'])
+            self.assertEqual(current_second_state['receipt']['state'],'unknown')
+            self.assertFalse(current_button_value['interactive'])
+            self.assertIn('자동 재저장하지 마세요',current_notice_text)
+
+    def test_conversation_keyframe_legacy_status_disables_save(self):
+        current_session_identifier='a'*32
+        current_source_identifier='source-job'
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_attempt_identifier='b'*32
+        current_card_record={'session_id':current_session_identifier,'source_job_id':current_source_identifier,'kind':'kimodo','review':{'request_id':'request_123'}}
+        current_frame_record={'job_id':current_job_identifier,'attempt_id':current_attempt_identifier,'frame':1,'image':'/kimodo/jobs/'+current_job_identifier+'/attempts/'+current_attempt_identifier+'/output-000.png','image_sha256':'c'*64}
+        current_inputs_value=[current_card_record,current_session_identifier,current_source_identifier,'kimodo',1]
+        current_frame_result={'identity':current_inputs_value,'token':'frame-token','frame_record':current_frame_record}
+        def current_gateway_response(current_service,current_command,current_payload):
+            if current_command=='hermes-kimodo-keyframe-source-review':return {**current_frame_record,'tag':'태그','review_sha256':'d'*64,'chat_save_readiness':'check_required','legacy_receipts':{'records':[{'request_id':'keyframe_'+'e'*64,'state':'unknown'}],'truncated':False}}
+            if current_command=='hermes-kimodo-keyframe-receipt':return {'request_id':current_payload['request_id'],'state':'not_found'}
+            raise AssertionError(current_command)
+        with patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway_response) as current_gateway_mock:
+            current_review_state,current_notice_text,_,current_button_value=hermes_agent_app.review_conversation_kimodo_keyframe(*current_inputs_value,'태그','frame-token',current_frame_result)
+            self.assertIn('저장을 보류',current_notice_text)
+            self.assertIn('keyframe_'+'e'*64,current_notice_text)
+            self.assertIn('확인 필요',current_notice_text)
+            self.assertFalse(current_button_value['interactive'])
+            current_gateway_mock.reset_mock()
+            with self.assertRaises(gr.Error):hermes_agent_app.submit_conversation_kimodo_keyframe(current_review_state,*current_inputs_value,'태그','frame-token',True)
+            current_gateway_mock.assert_not_called()
+
+    def test_conversation_keyframe_late_save_and_receipt_do_not_replace_other_selection(self):
+        current_session_identifier='a'*32
+        current_source_identifier='source-job'
+        current_card_record={'session_id':current_session_identifier,'source_job_id':current_source_identifier,'kind':'kimodo'}
+        current_review_state={'identity':[current_card_record,current_session_identifier,current_source_identifier,'kimodo',1],'frame_token':'old-token','request':{'tag':'태그'},'request_id':'request_123','receipt':{'state':'not_found'},'chat_save_readiness':'ready'}
+        current_inputs_value=[current_review_state,current_card_record,current_session_identifier,current_source_identifier,'kimodo',1,'태그','old-token']
+        with patch.object(hermes_agent_app,'execute_remote_management_command',return_value={'request_id':'request_123','state':'completed','keyframe_id':'c'*32}):
+            current_submit_result=hermes_agent_app.collect_conversation_kimodo_keyframe_submit(*current_inputs_value,True)
+            current_receipt_result=hermes_agent_app.collect_conversation_kimodo_keyframe_receipt(*current_inputs_value,'receipt-1')
+            self.assertIn('저장 완료',hermes_agent_app.render_conversation_kimodo_keyframe_submit(*current_inputs_value,current_submit_result)[0])
+            self.assertIn('저장 완료',hermes_agent_app.render_conversation_kimodo_keyframe_receipt(*current_inputs_value,'receipt-1',current_receipt_result))
+            self.assertEqual(hermes_agent_app.render_conversation_kimodo_keyframe_receipt(*current_inputs_value,'receipt-2',current_receipt_result),gr.skip())
+            for current_changed_inputs in ([None,*current_inputs_value[1:]],[*current_inputs_value[:-1],'new-token'],[*current_inputs_value[:2],'b'*32,*current_inputs_value[3:]]):
+                self.assertEqual(hermes_agent_app.render_conversation_kimodo_keyframe_submit(*current_changed_inputs,current_submit_result),(gr.skip(),gr.skip()))
+                self.assertEqual(hermes_agent_app.render_conversation_kimodo_keyframe_receipt(*current_changed_inputs,'receipt-1',current_receipt_result),gr.skip())
+
+    def test_kimodo_generation_review_revalidates_saved_keyframe_attachment(self):
+        current_session_identifier='a'*32
+        current_source_identifier='2026-11-18_00-00-00-12345678'
+        current_attachment_value={'session_id':current_session_identifier,'receipt_id':'keyframe_'+'b'*64,'keyframe_id':'c'*32,'output_frame':3}
+        current_proposal_value={'prompt':'walk','frames':90,'steps':100,'seed':42}
+        current_receipt_state=['completed']
+        current_preview_hash=['d'*64]
+        current_source_hash=['1'*64]
+        def current_gateway_response(current_service,current_command,current_payload):
+            if current_command=='hermes-kimodo-keyframe-receipt':return {'request_id':current_attachment_value['receipt_id'],'state':current_receipt_state[0],'keyframe_id':current_attachment_value['keyframe_id']}
+            if current_command=='hermes-kimodo-keyframe-validate':return {'placements':current_payload['keyframes'],'sources':[{'id':current_attachment_value['keyframe_id'],'preview_sha256':current_preview_hash[0],'source_sha256':current_source_hash[0]}],'skeleton_signature_sha256':'e'*64}
+            if current_command=='hermes-delegation-status':return {'request_id':current_payload['request_id'],'service':'kimodo','state':'not_found'}
+            raise AssertionError(current_command)
+        with patch.object(hermes_agent_app,'find_conversation_session_job'),patch.object(hermes_agent_app,'read_matching_hermes_edit_proposal',return_value=current_proposal_value),patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway_response),patch.object(hermes_agent_app,'submit_hermes_kimodo_request',return_value=('2026-11-18_01-00-00-12345678','접수')) as current_submit_mock,patch.object(hermes_agent_app,'read_conversation_kimodo_result',return_value='모의 접수'):
+            current_card_value,current_preview_text,_=hermes_agent_app.prepare_conversation_kimodo_review(current_session_identifier,current_source_identifier,current_attachment_value)
+            self.assertTrue(current_card_value['ready'])
+            self.assertEqual(current_card_value['review']['request']['keyframes'],[{'id':'c'*32,'frame':3}])
+            self.assertEqual(current_card_value['review']['request']['keyframe_source_hashes'],{'c'*32:'1'*64})
+            self.assertIn('키프레임',current_preview_text)
+            current_receipt_state[0]='unknown'
+            with self.assertRaises(gr.Error):hermes_agent_app.submit_conversation_kimodo_review(current_card_value,current_session_identifier,current_source_identifier)
+            current_submit_mock.assert_not_called()
+            current_receipt_state[0]='completed'
+            current_preview_hash[0]='f'*64
+            with self.assertRaises(gr.Error):hermes_agent_app.submit_conversation_kimodo_review(current_card_value,current_session_identifier,current_source_identifier)
+            current_submit_mock.assert_not_called()
+            current_preview_hash[0]='d'*64
+            current_source_hash[0]='2'*64
+            with self.assertRaises(gr.Error):hermes_agent_app.submit_conversation_kimodo_review(current_card_value,current_session_identifier,current_source_identifier)
+            current_submit_mock.assert_not_called()
+            current_source_hash[0]='1'*64
+            current_result_value,_=hermes_agent_app.submit_conversation_kimodo_review(current_card_value,current_session_identifier,current_source_identifier)
+            self.assertFalse(current_result_value['ready'])
+            current_submit_mock.assert_called_once()
+
+    def test_conversation_selects_saved_keyframe_for_next_proposal(self):
+        current_session_identifier='a'*32
+        current_source_identifier='2026-11-18_00-00-00-12345678'
+        current_review_state={'identity':[{},current_session_identifier,current_source_identifier,'kimodo',1],'request_id':'keyframe_'+'b'*64}
+        current_receipt_value={'request_id':current_review_state['request_id'],'state':'completed','keyframe_id':'c'*32}
+        with patch.object(hermes_agent_app,'execute_remote_management_command',return_value=current_receipt_value):
+            current_selection_value,_=hermes_agent_app.select_conversation_saved_keyframe(current_review_state,current_session_identifier)
+            self.assertEqual(current_selection_value['keyframe_id'],'c'*32)
+            with self.assertRaises(gr.Error):hermes_agent_app.select_conversation_saved_keyframe(current_review_state,'z'*32)
+            current_receipt_value['state']='unknown'
+            with self.assertRaises(gr.Error):hermes_agent_app.select_conversation_saved_keyframe(current_review_state,current_session_identifier)
+        current_card_value={'ready':True,'keyframe_attachment':{**current_selection_value,'output_frame':2}}
+        with patch.object(hermes_agent_app,'prepare_conversation_kimodo_review',return_value=(current_card_value,'검토','상태')) as current_prepare_mock:
+            current_result_value,_,_=hermes_agent_app.review_conversation_kimodo_with_saved_keyframe(current_selection_value,current_session_identifier,current_source_identifier,'kimodo',2)
+            self.assertEqual(current_result_value['kind'],'kimodo')
+            current_prepare_mock.assert_called_once_with(current_session_identifier,current_source_identifier,{**current_selection_value,'output_frame':2})
+            with self.assertRaises(gr.Error):hermes_agent_app.review_conversation_kimodo_with_saved_keyframe(current_selection_value,current_session_identifier,current_source_identifier,'flux',2)
+        self.assertIsNone(hermes_agent_app.invalidate_conversation_keyframe_attachment(current_card_value)[0])
+        self.assertEqual(hermes_agent_app.invalidate_conversation_keyframe_attachment({'ready':True}),(gr.skip(),gr.skip()))
+
+    def test_keyframe_selection_and_attachment_review_ignore_late_responses(self):
+        current_session_identifier='a'*32
+        current_source_identifier='2026-11-18_00-00-00-12345678'
+        current_review_state={'identity':[{},current_session_identifier,current_source_identifier,'kimodo',1],'request_id':'keyframe_'+'b'*64}
+        current_saved_selection={'session_id':current_session_identifier,'receipt_id':current_review_state['request_id'],'keyframe_id':'c'*32}
+        with patch.object(hermes_agent_app,'select_conversation_saved_keyframe',return_value=(current_saved_selection,'선택')):
+            current_selection_result=hermes_agent_app.collect_conversation_saved_keyframe_selection(current_review_state,current_session_identifier,'selection-1')
+            self.assertEqual(hermes_agent_app.render_conversation_saved_keyframe_selection(current_review_state,current_session_identifier,'selection-1',current_selection_result),(current_saved_selection,'선택'))
+            self.assertEqual(hermes_agent_app.render_conversation_saved_keyframe_selection(current_review_state,current_session_identifier,'selection-2',current_selection_result),(gr.skip(),gr.skip()))
+            self.assertEqual(hermes_agent_app.render_conversation_saved_keyframe_selection(current_review_state,'b'*32,'selection-1',current_selection_result),(gr.skip(),gr.skip()))
+        current_token_value,current_card_value,_,_,current_button_value=hermes_agent_app.begin_conversation_keyframe_attachment_review()
+        self.assertTrue(current_token_value)
+        self.assertIsNone(current_card_value)
+        self.assertFalse(current_button_value['interactive'])
+        current_inputs_value=[current_saved_selection,current_session_identifier,current_source_identifier,'kimodo',2,'attach-1']
+        with patch.object(hermes_agent_app,'review_conversation_kimodo_with_saved_keyframe',return_value=({'ready':True},'제안','검토')):
+            current_review_result=hermes_agent_app.collect_conversation_keyframe_attachment_review(*current_inputs_value)
+            self.assertEqual(hermes_agent_app.render_conversation_keyframe_attachment_review(*current_inputs_value,current_review_result),({'ready':True},'제안','검토'))
+            for current_changed_inputs in ([*current_inputs_value[:-1],'attach-2'],[*current_inputs_value[:4],3,'attach-1'],[current_saved_selection,'b'*32,*current_inputs_value[2:]]):
+                self.assertEqual(hermes_agent_app.render_conversation_keyframe_attachment_review(*current_changed_inputs,current_review_result),(gr.skip(),)*3)
+
+    def test_saved_keyframe_preview_checks_receipt_and_discards_stale_results(self):
+        current_session_identifier='a'*32
+        current_source_identifier='source-job'
+        current_card_record={'session_id':current_session_identifier,'source_job_id':current_source_identifier,'kind':'kimodo'}
+        current_review_state={'identity':[current_card_record,current_session_identifier,current_source_identifier,'kimodo',1],'frame_token':'frame-token','request':{'tag':'태그'},'request_id':'request_123'}
+        current_inputs_value=[current_review_state,current_card_record,current_session_identifier,current_source_identifier,'kimodo',1,'태그','frame-token','preview-1']
+        current_receipt_value={'request_id':'request_123','state':'completed','keyframe_id':'c'*32}
+        with patch.object(hermes_agent_app,'execute_remote_management_command',return_value=current_receipt_value), patch.object(hermes_agent_app,'read_hermes_kimodo_keyframe_preview_image',return_value=('mock-image','해시 확인')) as current_preview_mock:
+            current_result_value=hermes_agent_app.collect_conversation_saved_keyframe_preview(*current_inputs_value)
+            current_preview_mock.assert_called_once_with('c'*32)
+            self.assertEqual(hermes_agent_app.render_conversation_saved_keyframe_preview(*current_inputs_value,current_result_value),('mock-image','저장된 키프레임 ID `'+('c'*32)+'` · 해시 확인'))
+            self.assertEqual(hermes_agent_app.render_conversation_saved_keyframe_preview(*current_inputs_value[:-1],'preview-2',current_result_value),(gr.skip(),gr.skip()))
+            self.assertEqual(hermes_agent_app.render_conversation_saved_keyframe_preview(*current_inputs_value[:2],'b'*32,*current_inputs_value[3:],current_result_value),(gr.skip(),gr.skip()))
+            current_preview_mock.reset_mock()
+            current_receipt_value['state']='unknown'
+            current_result_value=hermes_agent_app.collect_conversation_saved_keyframe_preview(*current_inputs_value)
+            self.assertIsNone(current_result_value['image'])
+            self.assertIn('확인할 수 없습니다',current_result_value['notice'])
+            current_preview_mock.assert_not_called()
+
+    def test_conversation_keyframe_unknown_result_is_not_automatically_retried(self):
+        current_review_state={'request_id':'request_123'}
+        with patch.object(hermes_agent_app,'execute_remote_management_command',return_value={'request_id':'request_123','state':'unknown'}) as current_gateway_mock:
+            self.assertIn('자동 재저장하지 마세요',hermes_agent_app.refresh_conversation_kimodo_keyframe_receipt(current_review_state))
+            current_gateway_mock.assert_called_once()
+
     def test_operations_kimodo_frame_checks_current_attempt_and_stale_selection(self):
         from tools.review.ui.gradio import operations_history_app
         current_job_identifier='2026-11-18_00-00-00-12345678'
@@ -1301,6 +1507,25 @@ class HermesGradioTests(unittest.TestCase):
                 self.assertEqual(hermes_agent_app.build_conversation_result_link(current_service_name,'../unsafe'),'/management/frame/'+current_page_name+'/')
         self.assertIsNone(hermes_agent_app.build_conversation_result_link('unknown',current_job_identifier))
 
+    def test_all_conversation_service_links_target_registered_pages(self):
+        from urllib.parse import urlsplit,parse_qs
+        from tools.review.common.source_history_catalog import SOURCE_HISTORY_VIDEO_SERVICES
+        from tools.review.domains.hermes_agent.audio_operations import HERMES_AUDIO_SERVICES
+        from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
+        from tools.review.ui.gradio.management_menu_app import NATIVE_MANAGEMENT_APPLICATIONS
+        current_service_names={'kimodo',*SOURCE_HISTORY_VIDEO_SERVICES,*HERMES_AUDIO_SERVICES,*FLUX_IMAGE_PROFILE_RECORDS,'flux-expression','prompt-translation','writer-agent'}
+        current_session_identifier='a'*32
+        for current_service_name in sorted(current_service_names):
+            with self.subTest(service=current_service_name):
+                current_job_identifier='20261118-120000-12345678' if current_service_name=='writer-agent' else '2026-11-18_12-00-00-12345678'
+                current_link_value=hermes_agent_app.build_conversation_result_link(current_service_name,current_job_identifier,current_session_identifier)
+                self.assertIsNotNone(current_link_value)
+                current_link_parts=urlsplit(current_link_value)
+                self.assertTrue(current_link_parts.path.startswith('/management/frame/'))
+                current_page_identifier=current_link_parts.path.removeprefix('/management/frame/').strip('/')
+                self.assertIn(current_page_identifier,NATIVE_MANAGEMENT_APPLICATIONS)
+                self.assertEqual(parse_qs(current_link_parts.query),{'job':[current_job_identifier],'session':[current_session_identifier]})
+
     def test_flux_expression_operations_link_forwards_selected_job(self):
         from tools.review.ui.gradio import operations_history_app
         current_job_identifier='2026-11-18_12-00-00-12345678'
@@ -1406,6 +1631,8 @@ class HermesGradioTests(unittest.TestCase):
                 return {'request_id':current_payload_value['request_id'],'service':'kimodo',**current_receipt_state}
             if current_command_name == 'hermes-delegation-job-status':
                 return {'receipt':{'request_id':current_payload_value['request_id'],'service':'kimodo',**current_receipt_state}, 'job':{'status':'completed'}}
+            if current_command_name == 'hermes-video-source-status':
+                raise ValueError('모의 원본 조회 불가')
             if current_command_name == 'hermes-delegate-kimodo':
                 current_receipt_state.update(state='accepted',job_id=current_generated_job_identifier)
                 return {'state':'accepted','job_id':current_generated_job_identifier}
@@ -1533,6 +1760,21 @@ class HermesGradioTests(unittest.TestCase):
                 with self.assertRaises(gr.Error):hermes_agent_app.submit_conversation_video_inputs(current_after,current_source,current_session,current_job,'{}',None,None,None,None,None)
                 current_gateway.assert_called_once()
 
+    def test_conversation_translation_formats_text_and_limits_checks(self):
+        current_result_value={'text':'Hello\n[untrusted](https://example.invalid)','term_checks':[{'source':'나무','target':'tree','status':'matched'} for _ in range(8)],'quality_checks':[{'status':'review'}]}
+        current_display_text=hermes_agent_app.format_conversation_translation_result(current_result_value)
+        self.assertIn('    Hello\n    [untrusted]',current_display_text)
+        self.assertIn('용어 검사 8건',current_display_text)
+        self.assertIn('나머지 3건',current_display_text)
+        self.assertIn('조건 검사 1건',current_display_text)
+        self.assertIn('품질 승인이 아닙니다',current_display_text)
+        from markdown_it import MarkdownIt
+        current_markup_text=MarkdownIt('commonmark').render(hermes_agent_app.format_conversation_translation_result({'text':'first\r[unsafe](https://example.invalid)','term_checks':[],'quality_checks':[]}))
+        self.assertNotIn('<a href=',current_markup_text)
+        self.assertIn('[unsafe](https://example.invalid)',current_markup_text)
+        for current_bad_value in ({'text':'a','term_checks':'bad'},{'text':'a','quality_checks':[None]},'a'):
+            with self.assertRaises(ValueError):hermes_agent_app.format_conversation_translation_result(current_bad_value)
+
     @patch('tools.review.ui.gradio.hermes_agent_app.execute_remote_management_command')
     def test_conversation_translation_reopens_receipt_and_never_reexecutes(self,current_gateway_mock):
         current_session_identifier='a'*32
@@ -1544,7 +1786,7 @@ class HermesGradioTests(unittest.TestCase):
             if current_command_name=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
             if current_command_name=='hermes-translation-proposal':return {'id':'a'*32,'job_id':current_payload_record['id'],'proposal':current_proposal_record}
             if current_command_name=='hermes-service-receipt':return {'request_id':current_payload_record['request_id'],'service':'prompt-translation',**current_receipt_record}
-            if current_command_name=='hermes-translation-status':return {'receipt':{'request_id':current_payload_record['request_id'],'service':'prompt-translation',**current_receipt_record},'job':{'status':'completed','result':'Hello'}}
+            if current_command_name=='hermes-translation-status':return {'receipt':{'request_id':current_payload_record['request_id'],'service':'prompt-translation',**current_receipt_record},'job':{'status':'completed','result':{'text':'Hello','term_checks':[],'quality_checks':[]}}}
             if current_command_name=='hermes-delegate-translation':
                 current_receipt_record.update(state='accepted',service='prompt-translation',job_id=current_generation_job_identifier)
                 return {'state':'accepted','job_id':current_generation_job_identifier}
@@ -1673,6 +1915,26 @@ class HermesGradioTests(unittest.TestCase):
                 self.assertEqual(current_media_paths['video'] in current_detail_text,current_link_expected)
                 if current_link_expected:self.assertNotIn('파일 존재와 재생 여부는 원 도구',current_notice_text)
 
+    def test_conversation_malformed_media_observation_never_reuses_old_link(self):
+        current_session_identifier='a'*32
+        current_source_identifier='source-job'
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        for current_kind_value,current_service_name,current_status_command,current_source_command,current_result_path in (
+            ('flux','flux-building','hermes-flux-profile-status','hermes-flux-source-status','/flux-building-generator/jobs/'+current_job_identifier+'/result.png'),
+            ('video','wan22-vace','hermes-video-status','hermes-video-source-status','/wan22-vace/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/preview.mp4')):
+            current_card_record={'session_id':current_session_identifier,'source_job_id':current_source_identifier,'kind':current_kind_value,'service':current_service_name,'review':{'request_id':'request_123'}}
+            current_receipt_record={'state':'accepted','request_id':'request_123','service':current_service_name,'job_id':current_job_identifier}
+            current_job_record={'status':'completed',('image' if current_kind_value=='flux' else 'video'):current_result_path}
+            def current_gateway_response(current_service,current_command,current_payload):
+                if current_command==current_status_command:return {'receipt':current_receipt_record,'job':current_job_record}
+                if current_command==current_source_command:return {'service':'wrong','job_id':current_job_identifier,'job':{'status':'completed'}}
+                raise AssertionError(current_command)
+            with self.subTest(kind=current_kind_value),patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway_response):
+                with self.assertRaises(gr.Error):hermes_agent_app.read_conversation_service_status(current_card_record,current_session_identifier,current_source_identifier,current_kind_value)
+                current_notice_text=hermes_agent_app.refresh_conversation_service_status(current_card_record,current_session_identifier,current_source_identifier,current_kind_value)
+                self.assertIn('확인 불가',current_notice_text)
+                self.assertNotIn(current_result_path,current_notice_text)
+
     def test_conversation_flux_completed_checks_fresh_source_before_link(self):
         current_session_identifier='a'*32
         current_source_identifier='source-job'
@@ -1714,7 +1976,10 @@ class HermesGradioTests(unittest.TestCase):
             with self.subTest(kind=current_kind_name):
                 current_card_record={'session_id':current_session_identifier,'source_job_id':current_source_identifier,'kind':current_kind_name,'service':current_service_name,'review':{'request_id':current_request_identifier}}
                 current_response_record={'receipt':{'state':'accepted','request_id':current_request_identifier,'service':current_service_name,'job_id':current_job_identifier},'job':current_job_record}
-                with patch.object(hermes_agent_app,'execute_remote_management_command',return_value=current_response_record):
+                def current_gateway_response(current_service,current_command,current_payload):
+                    if current_command in ('hermes-flux-source-status','hermes-video-source-status'):raise OSError('모의 원본 연결 실패')
+                    return current_response_record
+                with patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway_response):
                     _,current_notice_text=hermes_agent_app.read_conversation_service_status(current_card_record,current_session_identifier,current_source_identifier,current_kind_name)
                     self.assertIn(current_expected_notice,current_notice_text)
                     self.assertIn('품질 승인',current_notice_text)

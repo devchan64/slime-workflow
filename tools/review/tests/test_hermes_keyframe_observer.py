@@ -40,7 +40,7 @@ class HermesKeyframeObserverTests(unittest.TestCase):
         Image.new('RGB',(4,4),'white').save(current_buffer_value,format='PNG')
         current_image_bytes=current_buffer_value.getvalue()
         current_image_hash=hashlib.sha256(current_image_bytes).hexdigest()
-        current_gateway_mock.return_value={'record':{'id':'a'*32,'files':{'preview.png':current_image_hash}},'image_base64':base64.b64encode(current_image_bytes).decode(),'skeleton_signature_sha256':'c'*64}
+        current_gateway_mock.return_value={'record':{'id':'a'*32,'files':{'preview.png':current_image_hash,'motion.npz':'d'*64,'skeleton.json':'e'*64}},'image_base64':base64.b64encode(current_image_bytes).decode(),'skeleton_signature_sha256':'c'*64}
         self.assertEqual(read_hermes_kimodo_keyframe_preview('a'*32)['sha256'],current_image_hash)
         current_gateway_mock.return_value['record']['files']['preview.png']='b'*64
         with self.assertRaises(ValueError):
@@ -51,12 +51,12 @@ class HermesKeyframeObserverTests(unittest.TestCase):
     @patch('tools.review.domains.hermes_agent.keyframe_observer.read_hermes_kimodo_keyframe_preview')
     def test_batch_compares_skeleton_and_deduplicates_sources(self,current_preview_mock):
         from tools.review.domains.hermes_agent.keyframe_observer import validate_hermes_kimodo_keyframe_batch
-        current_preview_mock.return_value={'sha256':'b'*64,'skeleton_signature_sha256':'c'*64}
+        current_preview_mock.return_value={'sha256':'b'*64,'skeleton_signature_sha256':'c'*64,'source_sha256':'f'*64}
         current_request_value={'frames':30,'keyframes':[{'id':'a'*32,'frame':20},{'id':'a'*32,'frame':1}]}
         current_result_value=validate_hermes_kimodo_keyframe_batch(current_request_value)
         self.assertEqual([item['frame'] for item in current_result_value['placements']],[1,20])
         self.assertEqual(len(current_result_value['sources']),1)
         current_preview_mock.assert_called_once()
-        current_preview_mock.side_effect=[{'sha256':'b'*64,'skeleton_signature_sha256':'c'*64},{'sha256':'d'*64,'skeleton_signature_sha256':'e'*64}]
+        current_preview_mock.side_effect=[{'sha256':'b'*64,'skeleton_signature_sha256':'c'*64,'source_sha256':'f'*64},{'sha256':'d'*64,'skeleton_signature_sha256':'e'*64,'source_sha256':'f'*64}]
         with self.assertRaisesRegex(ValueError,'골격 구조'):
             validate_hermes_kimodo_keyframe_batch({'frames':30,'keyframes':[{'id':'a'*32,'frame':1},{'id':'f'*32,'frame':20}]})

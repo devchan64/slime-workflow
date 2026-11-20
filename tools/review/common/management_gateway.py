@@ -38,11 +38,13 @@ MANAGEMENT_SERVICE_ROUTES['dwpose']='/dwpose'
 MANAGEMENT_SERVICE_COMMANDS['dwpose']=('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_ROUTES['kimodo']='/kimodo'
 MANAGEMENT_SERVICE_COMMANDS['kimodo']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
-MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('prepare','keyframe-save','keyframe-list','keyframe-preview','keyframe-replace','keyframe-retire')
+MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('prepare','keyframe-source-review','keyframe-save-reviewed','keyframe-save','keyframe-list','keyframe-preview','keyframe-replace','keyframe-retire')
 MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('migraphx-build', 'migraphx-build-status', 'migraphx-build-observe')
 MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('active-observe',)
 MANAGEMENT_COMMAND_ROUTES['active-observe']=('GET','/active-observe')
 MANAGEMENT_COMMAND_ROUTES.update({'migraphx-build': ('POST', '/migraphx-build'), 'migraphx-build-status': ('GET', '/migraphx-build-status'), 'migraphx-build-observe': ('GET', '/migraphx-build-observe')})
+MANAGEMENT_COMMAND_ROUTES['keyframe-source-review'] = ('POST','/keyframes/source-review')
+MANAGEMENT_COMMAND_ROUTES['keyframe-save-reviewed'] = ('POST','/keyframes/save-reviewed')
 MANAGEMENT_COMMAND_ROUTES['keyframe-save'] = ('POST','/keyframes/save')
 MANAGEMENT_COMMAND_ROUTES['keyframe-list'] = ('POST','/keyframes/list')
 MANAGEMENT_COMMAND_ROUTES['keyframe-preview'] = ('POST','/keyframes/preview')
@@ -63,6 +65,7 @@ HERMES_PAYLOAD_COMMAND_NAMES = ('hermes-generator-reservation-recover', 'hermes-
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-writer-job-search-paths','hermes-writer-job-review','hermes-writer-job-material',)
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-audio-source-status',)
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-video-source-status','hermes-flux-source-status','hermes-image-source-status','hermes-character-source-status','hermes-kimodo-source-frame',)
+HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-kimodo-keyframe-source-review','hermes-kimodo-keyframe-save','hermes-kimodo-keyframe-receipt',)
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-city-source',)
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-city-proposal','hermes-building-proposal')
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-audio-resume-preview','hermes-audio-resume-submit','hermes-audio-resume-receipt')
@@ -480,7 +483,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
         if operation_command_name == 'resume-reviewed':
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='검토한 작업 ID와 두 확인값 JSON')
-        if operation_command_name == 'keyframe-save':
+        if operation_command_name in ('keyframe-save','keyframe-source-review','keyframe-save-reviewed'):
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='생성 ID·시도 ID·원본 프레임 번호·태그 JSON')
         if operation_command_name == 'keyframe-preview':
             operation_argument_parser.add_argument('id',help='저장된 키프레임 ID')
@@ -608,7 +611,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             raise ValueError('관리도구 주소는 http://127.0.0.1:포트 또는 http://localhost:포트 형식이어야 합니다.')
     operation_command_name=command_argument_values.command
     command_payload_value={}
-    if operation_command_name in ('keyframe-save','resume-reviewed'):
+    if operation_command_name in ('keyframe-save','keyframe-source-review','keyframe-save-reviewed','resume-reviewed'):
         command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
     if operation_command_name in ('keyframe-replace','keyframe-retire'):
         command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
