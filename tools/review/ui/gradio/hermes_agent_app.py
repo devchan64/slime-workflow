@@ -628,6 +628,8 @@ def prepare_conversation_service_review(current_session_identifier, current_sour
         current_review_record={'request_id':current_request_identifier,'service':current_target_service,'job_id':current_target_job,'expected_resume_fingerprint':current_expected_fingerprint}
         current_card_record={'session_id':current_session_identifier,'source_job_id':current_source_job_identifier,'kind':current_service_kind,'service':current_target_service,'review':current_review_record,'ready':False}
         current_preview_text=('FLUX 서비스: ' if current_service_kind=='flux_resume' else '영상 서비스: ')+current_target_service+'\n기존 작업: '+current_target_job+'\n접수 ID: '+current_request_identifier+'\n확인하면 기존 작업을 GPU 대기열에 다시 추가합니다. 실행과 메모리 여유는 별도 확인합니다.'
+        if current_service_kind=='video_resume':
+            current_preview_text+='\n재개 검토는 중단된 실행 기록을 복구할 수 있습니다.'
         current_receipt_record=execute_remote_management_command('hermes-agent','hermes-'+('flux' if current_service_kind=='flux_resume' else 'video')+'-resume-receipt',{'request_id':current_request_identifier})
         if not isinstance(current_receipt_record,dict) or current_receipt_record.get('request_id')!=current_request_identifier or current_receipt_record.get('state') not in ('not_found','accepted','unknown'):
             raise gr.Error('재개 접수 기록을 확인할 수 없습니다. 원 서비스 이력을 확인하세요.')
@@ -876,6 +878,8 @@ def read_conversation_service_status(current_card_record,current_session_identif
             else:current_status_text+='  \n원본 작업 상태가 변경되어 이미지 결과를 다시 확인해야 합니다.'
         elif current_job_record.get('status') == 'completed' and current_image_path == current_expected_path:current_status_text+='  \n[생성 이미지 보기]('+current_expected_path+')'
         elif current_job_record.get('status') == 'completed':current_status_text+='  \n완료 기록은 있으나 이미지 경로를 확인할 수 없습니다.'
+        if current_job_record.get('status')=='completed' and current_source_observation is None:
+            current_status_text+='  \n원본 이미지 상태 조회 불가 · 원 도구에서 다시 확인하세요.'
         current_status_text+='  \n[이미지 생성기 열기]('+build_conversation_result_link(current_card_record['service'],current_job_identifier,current_session_identifier)+')'
         current_status_text+='  \n상태 조회 시 기존 중단 작업 복구가 따를 수 있습니다.'
     elif current_service_kind == 'translation':
@@ -890,6 +894,8 @@ def read_conversation_service_status(current_card_record,current_session_identif
             current_media_paths={current_field_name:current_video_observation[current_field_name] for current_field_name in ('video','image','download')}
             if current_video_observation['status']!='completed':current_status_text+='  \n원본 작업 상태가 변경되어 영상 결과를 다시 확인해야 합니다.'
             elif current_video_observation['result_status']=='available':current_status_text+='  \n결과 파일 존재는 조회 시점 기준입니다.'
+        if current_job_record.get('status')=='completed' and current_video_observation is None:
+            current_status_text+='  \n원본 영상 상태 조회 불가 · 원 도구에서 다시 확인하세요.'
         for current_field_name,current_label_text in (('video','생성 영상'),('image','첫 프레임'),('download','프레임 ZIP')):
             current_result_path=current_media_paths[current_field_name]
             if current_result_path:current_status_text+='  \n['+current_label_text+']('+current_result_path+')'
@@ -3700,6 +3706,8 @@ def read_hermes_video_result(current_request_identifier,current_service_name,cur
     if current_video_observation is not None:
         if current_video_observation['status']!='completed':current_result_notice=' · 원본 작업 상태가 변경되어 결과를 다시 확인하세요.'
         elif current_video_observation['result_status']=='available':current_result_notice=' · 파일 존재는 조회 시점 기준'
+    if current_job_value.get('status')=='completed' and current_video_observation is None:
+        current_result_notice+=' · 원본 영상 상태 조회 불가 · 원 도구에서 다시 확인하세요.'
     current_verification_notice=(' · 영상 내용과 재생은 별도로 확인하세요.' if current_video_observation is not None and current_links_text else format_media_link_verification_notice(bool(current_links_text)))
     return current_receipt_value['job_id'],'작업 상태: '+str(current_job_value.get('status','unknown'))+current_result_notice+(' · '+current_job_value['failure_reason'] if current_job_value.get('failure_reason') else '')+current_links_text+' · [생성기 이력]('+current_history_link+') · 상태 조회 시 기존 복구가 따를 수 있습니다.'+current_verification_notice
 
@@ -4019,6 +4027,8 @@ def read_hermes_flux_profile_result(current_request_identifier,current_profile_n
     if current_source_observation is not None:
         current_image_link=' · [생성 이미지 보기]('+current_source_observation['image']+')' if current_source_observation['status']=='completed' and current_source_observation['result_status']=='available' else ''
         current_result_notice=' · 파일 존재는 조회 시점 기준' if current_image_link else ' · 원본 상태 또는 이미지 파일을 다시 확인하세요.'
+    if current_job_status=='completed' and current_source_observation is None:
+        current_result_notice+=' · 원본 이미지 상태 조회 불가 · 원 도구에서 다시 확인하세요.'
     current_quality_notice=' · 완료는 결과 품질 승인이나 에셋 등록을 뜻하지 않습니다.' if current_job_status=='completed' else ''
     return current_receipt_value['job_id'],'작업 상태: '+str(current_job_status)+current_result_notice+(' · '+current_job_value['failure_reason'] if isinstance(current_job_value.get('failure_reason'),str) else '')+current_image_link+' · [해당 생성기 결과 확인]('+str(build_conversation_result_link(current_profile_name,current_receipt_value['job_id'],current_session_identifier))+')'+current_quality_notice+(' · 이미지 내용은 별도로 확인하세요.' if current_source_observation is not None and current_image_link else format_media_link_verification_notice(bool(current_image_link)))
 
@@ -4132,6 +4142,8 @@ def read_hermes_flux_receipt(current_request_identifier,current_session_identifi
         if current_source_observation is not None:
             current_image_link=' · [생성 이미지 보기]('+current_source_observation['image']+')' if current_source_observation['status']=='completed' and current_source_observation['result_status']=='available' else ''
             current_result_notice=' · 파일 존재는 조회 시점 기준' if current_image_link else ' · 원본 상태 또는 이미지 파일을 다시 확인하세요.'
+        if current_job_value.get('status')=='completed' and current_source_observation is None:
+            current_result_notice+=' · 원본 이미지 상태 조회 불가 · 원 도구에서 다시 확인하세요.'
         current_verification_notice=' · 이미지 내용은 별도로 확인하세요.' if current_source_observation is not None and current_image_link else format_media_link_verification_notice(bool(current_image_link))
         return current_job_identifier,'작업 상태: '+str(current_job_value.get('status','확인 불가'))+current_failure_notice+current_result_notice+current_image_link+' · [일반 이미지 생성기]('+str(build_conversation_result_link('flux-image',current_job_identifier,current_session_identifier))+')'+current_verification_notice
     if current_receipt_record.get('state') == 'unknown':
@@ -4322,6 +4334,11 @@ def read_hermes_kimodo_job(current_job_identifier):
         raise gr.Error('Kimodo 작업 조회 실패: ' + str(current_status_error)) from current_status_error
 
 
+def clear_hermes_service_registration_search():
+    """검색어가 바뀌면 이전 페이지와 결과를 제거한다."""
+    return 0, [], '검색 조건이 변경됐습니다. 목록을 다시 조회하세요.', None
+
+
 def read_hermes_service_registration_rows(current_search_text=None,current_offset_value=0):
     """등록 목록과 실제 연결 범위를 구분한다."""
     try:
@@ -4336,15 +4353,27 @@ def read_hermes_service_registration_rows(current_search_text=None,current_offse
         return [], '서비스 등록 목록 조회 실패: ' + str(current_catalog_error)
 
 
+def collect_hermes_service_registration_search(current_search_text,current_offset_value,current_request_token):
+    return {'query':current_search_text,'offset':current_offset_value,'token':current_request_token,'values':read_hermes_service_registration_rows(current_search_text,current_offset_value)}
+
+
+def render_hermes_service_registration_search(current_search_text,current_offset_value,current_request_token,current_result_record):
+    if not isinstance(current_result_record,dict) or not isinstance(current_request_token,str) or (current_result_record.get('query'),current_result_record.get('offset'),current_result_record.get('token'))!=(current_search_text,current_offset_value,current_request_token):
+        return gr.skip(),gr.skip()
+    return current_result_record['values']
+
+
 def read_hermes_capability_rows(current_search_text=""):
     """공용 기능 목록을 사람이 비교하기 쉬운 행으로 보여 준다."""
     try:
         current_catalog_record = execute_remote_management_command('hermes-agent', 'hermes-capabilities', {})
         current_effect_labels = {'read':'조회', 'write':'원본 저장', 'enqueue':'대기열 접수', 'recovery_possible':'상태 복구 가능', 'cancel_request':'중지 요청', 'local_bookkeeping':'상태 조회·로컬 잠금'}
-        current_gpu_labels = {'none':'사용 안 함', 'exclusive':'배타 사용', 'queued':'대기열 사용', 'inspection':'장치 초기화 가능 · 대기열 밖'}
+        current_gpu_labels = {'none':'사용 안 함', 'exclusive':'배타 사용', 'queued':'대기열 사용', 'inspection':'GPU 상태 조회 · 대기열 밖'}
         current_interface_labels={'gui':'화면','mcp':'Codex MCP','isolated_fixed_bridge':'격리 조회'}
         current_retry_labels={'safe':'같은 요청 재시도 가능','request_id':'같은 접수 ID','request_id_or_unknown':'같은 ID · 불확실 시 확인','check_status':'상태 확인'}
-        current_all_rows=[[current_record['label'],current_record['command'],', '.join(current_interface_labels.get(current_interface,current_interface) for current_interface in current_record['interfaces']),', '.join(current_record['required']) or '없음',current_effect_labels.get(current_record['effect'],current_record['effect']),current_gpu_labels.get(current_record['gpu'],current_record['gpu']),current_retry_labels.get(current_record['retry'],current_record['retry']),current_record['note']] for current_record in current_catalog_record['records']]
+        current_all_rows=[[current_record['label'],current_record['command'],', '.join(current_interface_labels.get(current_interface,current_interface) for current_interface in current_record['interfaces']),'필수: '+(', '.join(current_record['required']) or '없음')+' · 선택: '+(', '.join(current_record.get('optional', [])) or '없음'),current_effect_labels.get(current_record['effect'],current_record['effect']),current_gpu_labels.get(current_record['gpu'],current_record['gpu']),current_retry_labels.get(current_record['retry'],current_record['retry']),current_record['note']] for current_record in current_catalog_record['records']]
+        for current_tool_record in current_catalog_record.get('mcp_only_tools',[]):
+            current_all_rows.append([current_tool_record['label'],current_tool_record['name'],'Codex MCP','필수: '+(', '.join(current_tool_record['required']) or '없음')+' · 선택: '+(', '.join(current_tool_record['optional']) or '없음'),current_effect_labels.get(current_tool_record['effect'],current_tool_record['effect']),current_gpu_labels.get(current_tool_record['gpu'],current_tool_record['gpu']),current_retry_labels.get(current_tool_record['retry'],current_tool_record['retry']),current_tool_record['note']])
         if not isinstance(current_search_text,str) or len(current_search_text)>100:
             raise ValueError('검색어는 100자 이하여야 합니다.')
         current_search_value=current_search_text.strip().casefold()
@@ -4365,6 +4394,7 @@ def build_hermes_agent_interface(include_advanced_controls=True):
             gr.HTML('<h2>직접 조회와 작업</h2><p>관리 기능을 직접 확인하거나 실행할 수 있습니다. 아래에서 세션과 작업을 선택하면 관련 제안을 불러올 수 있습니다.</p><p><a href="#hermes-direct-controls">직접 기능으로 이동</a></p>')
         if not include_advanced_controls:
             gr.Markdown('## 운영 대화\nHermes에게 관리 상태 확인과 작업을 요청하세요. 실행된 작업과 세부 입력은 해당 도구에서 확인하거나 직접 조작할 수 있습니다.\n\n대화 요청은 GPU를 사용할 수 있습니다. 대기열의 배타 예약은 관리도구 작업에 적용되며 외부 GPU 작업과의 성능 간섭을 막지는 못합니다. 다른 작업 중에는 GPU 상태를 확인하세요.')
+        gr.Markdown('화면을 열거나 관리 상태를 새로고침하면 amd-smi로 GPU 프로세스와 메모리를 조회합니다. GPU 생성이나 추론은 시작하지 않으며 조회 결과는 잠시 캐시될 수 있습니다.')
         hermes_management_summary = gr.Markdown('관리 상태를 확인하고 있습니다.')
         hermes_management_refresh = gr.Button('관리 상태 새로고침')
         hermes_management_refresh.click(read_hermes_management_summary, outputs=hermes_management_summary, queue=False)
@@ -4388,8 +4418,8 @@ def build_hermes_agent_interface(include_advanced_controls=True):
             hermes_session_list_button.click(list_hermes_session_choices,[hermes_session_control],[hermes_session_control,hermes_session_list_status],queue=False)
             hermes_session_control.change(read_hermes_session_conversation,[hermes_session_control,hermes_session_job_selection],[hermes_session_conversation,hermes_session_status,hermes_session_timer,hermes_session_job_selection],queue=False)
             hermes_session_timer.tick(read_hermes_session_conversation,[hermes_session_control,hermes_session_job_selection],[hermes_session_conversation,hermes_session_status,hermes_session_timer,hermes_session_job_selection],queue=False)
-            hermes_session_control.change(fn=None, inputs=[hermes_session_control], js="(sessionId)=>{if(sessionId){const returnLink=document.querySelector('#management-return-conversation a');if(/^[a-f0-9]{32}$/.test(sessionId)){if(returnLink)returnLink.setAttribute('href','/management/frame/hermes-agent/?session='+sessionId);const historyLink=document.querySelector('#management-open-history a');if(historyLink)historyLink.setAttribute('href','/management/frame/operations-history/?session='+sessionId);}try{sessionStorage.setItem('slime-management-session',sessionId);}catch(e){}try{localStorage.setItem('slime-management-session',sessionId);}catch(e){}const currentUrl=new URL(window.location.href);if(currentUrl.searchParams.has('session')){if(currentUrl.searchParams.get('session')!==sessionId)currentUrl.searchParams.delete('job');currentUrl.searchParams.set('session',sessionId);window.history.replaceState(window.history.state,'',currentUrl.href);}} return sessionId;}", queue=False)
-            hermes_interface_blocks.load(list_hermes_session_choices, inputs=[hermes_session_control], outputs=[hermes_session_control, hermes_session_list_status], js="(sessionId)=>{const linkedSession=new URL(window.location.href).searchParams.get('session');let tabSession=null;let recentSession=null;try{tabSession=sessionStorage.getItem('slime-management-session');}catch(e){}try{recentSession=localStorage.getItem('slime-management-session');}catch(e){}return [linkedSession || tabSession || recentSession || sessionId];}", preprocess=False, queue=False).then(restore_linked_conversation_job,inputs=[hermes_session_control,hermes_older_job_input],outputs=[hermes_session_job_selection,hermes_older_job_status],js="(sessionId,jobId)=>[sessionId,new URL(window.location.href).searchParams.get('job') || '']",preprocess=False,queue=False)
+            hermes_session_control.change(fn=None, inputs=[hermes_session_control], js="(sessionId)=>{if(/^[a-f0-9]{32}$/.test(sessionId || '')){const returnLink=document.querySelector('#management-return-conversation a');if(/^[a-f0-9]{32}$/.test(sessionId)){if(returnLink)returnLink.setAttribute('href','/management/frame/hermes-agent/?session='+sessionId);const historyLink=document.querySelector('#management-open-history a');if(historyLink)historyLink.setAttribute('href','/management/frame/operations-history/?session='+sessionId);}try{sessionStorage.setItem('slime-management-session',sessionId);}catch(e){}try{localStorage.setItem('slime-management-session',sessionId);}catch(e){}const currentUrl=new URL(window.location.href);if(currentUrl.searchParams.has('session')){if(currentUrl.searchParams.get('session')!==sessionId)currentUrl.searchParams.delete('job');currentUrl.searchParams.set('session',sessionId);window.history.replaceState(window.history.state,'',currentUrl.href);}} return sessionId;}", queue=False)
+            hermes_interface_blocks.load(list_hermes_session_choices, inputs=[hermes_session_control], outputs=[hermes_session_control, hermes_session_list_status], js="(sessionId)=>{const linkedSession=new URL(window.location.href).searchParams.get('session');let tabSession=null;let recentSession=null;try{tabSession=sessionStorage.getItem('slime-management-session');}catch(e){}try{recentSession=localStorage.getItem('slime-management-session');}catch(e){}return [[linkedSession,tabSession,recentSession,sessionId].find(value=>typeof value==='string'&&/^[a-f0-9]{32}$/.test(value)) || null];}", preprocess=False, queue=False).then(restore_linked_conversation_job,inputs=[hermes_session_control,hermes_older_job_input],outputs=[hermes_session_job_selection,hermes_older_job_status],js="(sessionId,jobId)=>[sessionId,new URL(window.location.href).searchParams.get('job') || '']",preprocess=False,queue=False)
         else:
             with gr.Group():
                 gr.Markdown('### 대화\n관리 상태를 묻거나 필요한 작업을 요청하세요. 예: GPU 대기 상태를 알려줘 · 사용할 빌보드를 찾아줘 · 걷기 동작을 제안해줘. 이전 작업이 끝나면 후속 메시지를 보낼 수 있습니다.')
@@ -4421,7 +4451,7 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     hermes_older_job_button.click(select_older_conversation_job,[hermes_session_control,hermes_older_job_input],[hermes_session_job_selection,hermes_older_job_status],queue=False)
                     hermes_session_control.change(lambda:('', ''),outputs=[hermes_older_job_input,hermes_older_job_status],queue=False)
                 with gr.Accordion('선택한 대화의 작업 제안', open=False) as hermes_service_proposal_area:
-                    gr.Markdown('위에서 제안을 만든 완료 작업을 선택하고 내용을 확인하세요. 값 변경은 대화에서 새 제안을 요청하세요. 이 화면에서 같은 제안을 다시 열면 기존 접수를 확인합니다. 기존 도구에서 별도로 접수한 작업은 자동 연결되지 않습니다. Kimodo·FLUX·영상의 작업 상태 조회에는 기존 중단 작업 복구가 따를 수 있습니다.')
+                    gr.Markdown('위에서 제안을 만든 완료 작업을 선택하고 내용을 확인하세요. 값 변경은 대화에서 새 제안을 요청하세요. 이 화면에서 같은 제안을 다시 열면 기존 접수를 확인합니다. 기존 도구에서 별도로 접수한 작업은 자동 연결되지 않습니다. Kimodo·FLUX·영상의 작업 상태 조회와 영상 재개 검토에는 기존 중단 작업 복구가 따를 수 있습니다.')
                     hermes_conversation_service_kind = gr.Dropdown(label='제안 종류', choices=[('Kimodo 모션','kimodo'),('FLUX 이미지','flux'),('번역','translation'),('음악·효과음','audio'),('텍스트 영상','video'),('작가 AI','writer'),('모델 준비','model_preparation'),('Kimodo 재개','kimodo_resume'),('FLUX 재개','flux_resume'),('영상 재개','video_resume')],value='kimodo',interactive=True)
                     hermes_conversation_kimodo_card = gr.State(None)
                     hermes_conversation_kimodo_open = gr.Button('선택한 제안 확인')
@@ -4682,9 +4712,9 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                 hermes_session_timer.tick(read_hermes_session_conversation, [hermes_session_control, hermes_session_job_selection], [hermes_session_conversation, hermes_session_status, hermes_session_timer, hermes_session_job_selection], queue=False)
                 hermes_session_recover.click(recover_hermes_session_request, [hermes_session_control], [hermes_session_request, hermes_session_prompt, hermes_session_verification, hermes_session_submit_status], queue=False)
                 bind_gpu_generation_confirmation(hermes_session_send, submit_hermes_session_request, [hermes_session_control, hermes_session_request, hermes_session_prompt, hermes_session_verification], [hermes_session_job, hermes_session_submit_status, hermes_session_request, hermes_session_timer], generation_readiness_callback=lambda current_session_id, current_message_text: bool(current_session_id and (current_message_text or '').strip()), generation_readiness_inputs=[hermes_session_control, hermes_session_prompt], generation_confirmation_validator=match_hermes_confirmation_inputs, generation_confirmation_inputs=[hermes_session_control, hermes_session_request, hermes_session_prompt, hermes_session_verification])
-                hermes_session_control.change(fn=None, inputs=[hermes_session_control], js="(sessionId)=>{if(sessionId){const returnLink=document.querySelector('#management-return-conversation a');if(/^[a-f0-9]{32}$/.test(sessionId)){if(returnLink)returnLink.setAttribute('href','/management/frame/hermes-agent/?session='+sessionId);const historyLink=document.querySelector('#management-open-history a');if(historyLink)historyLink.setAttribute('href','/management/frame/operations-history/?session='+sessionId);}try{sessionStorage.setItem('slime-management-session',sessionId);}catch(e){}try{localStorage.setItem('slime-management-session',sessionId);}catch(e){}const currentUrl=new URL(window.location.href);if(currentUrl.searchParams.has('session')){if(currentUrl.searchParams.get('session')!==sessionId)currentUrl.searchParams.delete('job');currentUrl.searchParams.set('session',sessionId);window.history.replaceState(window.history.state,'',currentUrl.href);}} return sessionId;}", queue=False)
+                hermes_session_control.change(fn=None, inputs=[hermes_session_control], js="(sessionId)=>{if(/^[a-f0-9]{32}$/.test(sessionId || '')){const returnLink=document.querySelector('#management-return-conversation a');if(/^[a-f0-9]{32}$/.test(sessionId)){if(returnLink)returnLink.setAttribute('href','/management/frame/hermes-agent/?session='+sessionId);const historyLink=document.querySelector('#management-open-history a');if(historyLink)historyLink.setAttribute('href','/management/frame/operations-history/?session='+sessionId);}try{sessionStorage.setItem('slime-management-session',sessionId);}catch(e){}try{localStorage.setItem('slime-management-session',sessionId);}catch(e){}const currentUrl=new URL(window.location.href);if(currentUrl.searchParams.has('session')){if(currentUrl.searchParams.get('session')!==sessionId)currentUrl.searchParams.delete('job');currentUrl.searchParams.set('session',sessionId);window.history.replaceState(window.history.state,'',currentUrl.href);}} return sessionId;}", queue=False)
                 hermes_interface_blocks.load(fn=None,js="()=>{const sessionId=new URL(window.location.href).searchParams.get('session');const returnLink=document.querySelector('#management-return-conversation a');if(/^[a-f0-9]{32}$/.test(sessionId || '')){if(returnLink)returnLink.setAttribute('href','/management/frame/hermes-agent/?session='+sessionId);const historyLink=document.querySelector('#management-open-history a');if(historyLink)historyLink.setAttribute('href','/management/frame/operations-history/?session='+sessionId);}}")
-                hermes_interface_blocks.load(list_hermes_session_choices, inputs=[hermes_session_control], outputs=[hermes_session_control, hermes_session_list_status], js="(sessionId)=>{const linkedSession=new URL(window.location.href).searchParams.get('session');let tabSession=null;let recentSession=null;try{tabSession=sessionStorage.getItem('slime-management-session');}catch(e){}try{recentSession=localStorage.getItem('slime-management-session');}catch(e){}return [linkedSession || tabSession || recentSession || sessionId];}", preprocess=False, queue=False).then(restore_linked_conversation_job,inputs=[hermes_session_control,hermes_older_job_input],outputs=[hermes_session_job_selection,hermes_older_job_status],js="(sessionId,jobId)=>[sessionId,new URL(window.location.href).searchParams.get('job') || '']",preprocess=False,queue=False)
+                hermes_interface_blocks.load(list_hermes_session_choices, inputs=[hermes_session_control], outputs=[hermes_session_control, hermes_session_list_status], js="(sessionId)=>{const linkedSession=new URL(window.location.href).searchParams.get('session');let tabSession=null;let recentSession=null;try{tabSession=sessionStorage.getItem('slime-management-session');}catch(e){}try{recentSession=localStorage.getItem('slime-management-session');}catch(e){}return [[linkedSession,tabSession,recentSession,sessionId].find(value=>typeof value==='string'&&/^[a-f0-9]{32}$/.test(value)) || null];}", preprocess=False, queue=False).then(restore_linked_conversation_job,inputs=[hermes_session_control,hermes_older_job_input],outputs=[hermes_session_job_selection,hermes_older_job_status],js="(sessionId,jobId)=>[sessionId,new URL(window.location.href).searchParams.get('job') || '']",preprocess=False,queue=False)
         if include_advanced_controls:
             with gr.Accordion('직접 조회와 작업', open=True, elem_id='hermes-direct-controls') as hermes_advanced_accordion:
                 gr.Markdown('대화에서 나온 제안을 검토하거나 기존 기능을 직접 실행합니다. 이 영역은 대화 중심 작업 흐름으로 전환 중입니다. 전문 설정과 실행 결과는 각 도구 페이지에서도 확인할 수 있습니다.')
@@ -4693,7 +4723,7 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     hermes_capability_search = gr.Textbox(label='관리 기능 검색',placeholder='기능명, 명령, 연결 경로 또는 입력',max_lines=1)
                     hermes_capability_refresh = gr.Button('관리 기능 목록 새로고침')
                     hermes_capability_status = gr.Markdown('목록 새로고침으로 기능을 확인하세요.')
-                    hermes_capability_table = gr.Dataframe(headers=['기능','명령','연결','필수 입력','영향','GPU','재시도','확인 사항'], datatype=['str']*8, interactive=False, type='array', label='관리 기능 목록')
+                    hermes_capability_table = gr.Dataframe(headers=['기능','명령','연결','필수·선택 입력','영향','GPU','재시도','확인 사항'], datatype=['str']*8, interactive=False, type='array', label='관리 기능 목록')
                     hermes_capability_refresh.click(read_hermes_capability_rows, inputs=[hermes_capability_search], outputs=[hermes_capability_table, hermes_capability_status], queue=False)
                     hermes_capability_search.submit(read_hermes_capability_rows, inputs=[hermes_capability_search], outputs=[hermes_capability_table, hermes_capability_status], queue=False)
                 with gr.Accordion('과거 앵커 검수 이력',open=False):
@@ -4720,8 +4750,12 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     hermes_service_registration_button = gr.Button('서비스 등록 목록 조회')
                     hermes_service_registration_status = gr.Markdown('조회하면 게이트웨이에 등록된 서비스를 표시합니다.')
                     hermes_service_registration_table = gr.Dataframe(headers=['서비스','등록된 명령','게이트웨이 명시 차단','확인된 서비스 차단','확인된 조건부 제한','Hermes 연결 기능'], datatype=['str','str','str','str','str','str'], interactive=False, type='array', label='전체 관리 서비스 등록')
-                    hermes_service_registration_button.click(read_hermes_service_registration_rows, inputs=[hermes_service_registration_query,hermes_service_registration_offset], outputs=[hermes_service_registration_table, hermes_service_registration_status], queue=False)
-                    hermes_service_registration_query.submit(read_hermes_service_registration_rows, inputs=[hermes_service_registration_query,hermes_service_registration_offset], outputs=[hermes_service_registration_table, hermes_service_registration_status], queue=False)
+                    hermes_service_registration_token=gr.State(None)
+                    hermes_service_registration_result=gr.State(None)
+                    hermes_service_registration_query.input(clear_hermes_service_registration_search, outputs=[hermes_service_registration_offset,hermes_service_registration_table,hermes_service_registration_status,hermes_service_registration_token], queue=False)
+                    hermes_service_registration_offset.input(lambda:([], '조회 위치가 변경됐습니다. 목록을 다시 조회하세요.', None), outputs=[hermes_service_registration_table,hermes_service_registration_status,hermes_service_registration_token], queue=False)
+                    for current_search_event in (hermes_service_registration_button.click,hermes_service_registration_query.submit):
+                        current_search_event(create_conversation_status_token,outputs=hermes_service_registration_token,queue=False).then(collect_hermes_service_registration_search,[hermes_service_registration_query,hermes_service_registration_offset,hermes_service_registration_token],hermes_service_registration_result,queue=False,trigger_mode='multiple').then(render_hermes_service_registration_search,[hermes_service_registration_query,hermes_service_registration_offset,hermes_service_registration_token,hermes_service_registration_result],[hermes_service_registration_table,hermes_service_registration_status],queue=False)
                 with gr.Accordion('건물 에셋 조회', open=False):
                     gr.Markdown('콘텐츠 서비스의 세대와 등록 건물 원본을 확인합니다. 이미지 픽셀 크기는 게임 표시 크기가 아닙니다. [건물 관리](/management/frame/building-editor/)에서 이미지를 확인하세요.')
                     with gr.Row():

@@ -214,11 +214,52 @@ class QueuePriorityContractTests(unittest.TestCase):
                 current_server_thread=threading.Thread(target=current_server_value.serve_forever,daemon=True)
                 current_server_thread.start()
                 try:
+                    from urllib.error import HTTPError
+                    current_foreign_request=urllib.request.Request('http://127.0.0.1:'+str(current_server_value.server_port)+'/management/hermes-gpu-queue',headers={'Host':'foreign.example'})
+                    with patch.object(gpu_job_queue,'list_waiting_gpu_jobs',side_effect=AssertionError('대기열 조회 금지')) as current_queue_mock,patch('tools.review.common.gpu_status.read_gpu_status',side_effect=AssertionError('GPU 조회 금지')) as current_gpu_mock:
+                        with self.assertRaises(HTTPError) as current_foreign_error:
+                            urllib.request.urlopen(current_foreign_request,timeout=5)
+                        self.assertEqual(current_foreign_error.exception.code,400)
+                        current_foreign_error.exception.close()
+                        current_queue_mock.assert_not_called()
+                        current_gpu_mock.assert_not_called()
                     with urllib.request.urlopen('http://127.0.0.1:'+str(current_server_value.server_port)+'/management/gpu-queue',timeout=5) as current_response_value:
                         current_queue_record=json.load(current_response_value)
                     self.assertEqual(current_queue_record['jobs'],[{'id':current_job_path.name,'service':'writer-agent'}])
                     self.assertEqual(current_queue_record['gpu_status']['status'],'unavailable')
+                    with patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable','processes':[]}) as current_gpu_mock:
+                        with urllib.request.urlopen('http://127.0.0.1:'+str(current_server_value.server_port)+'/management/hermes-gpu-queue',timeout=5) as current_response_value:
+                            current_hermes_record=json.load(current_response_value)
+                        self.assertEqual(current_hermes_record['jobs'],current_queue_record['jobs'])
+                        self.assertNotIn(str(current_job_path),str(current_hermes_record))
+                        current_gpu_mock.assert_called_once_with()
                     self.assertTrue(current_ticket_path.is_file())
+                    with patch('tools.review.common.gpu_status.read_gpu_status',side_effect=RuntimeError('GPU unavailable')):
+                        with urllib.request.urlopen('http://127.0.0.1:'+str(current_server_value.server_port)+'/management/hermes-gpu-queue',timeout=5) as current_response_value:
+                            current_unavailable_record=json.load(current_response_value)
+                        self.assertEqual(current_unavailable_record['jobs'],current_queue_record['jobs'])
+                        self.assertEqual(current_unavailable_record['gpu_status'],{'status':'unavailable','processes':[]})
+                    from urllib.error import HTTPError
+                    current_capture_record={'id':'2026-11-20_00-00-00-12345678','service':'review-capture','source_service':'review-capture','executor_identity':'verified'}
+                    with patch.object(gpu_job_queue,'list_waiting_gpu_jobs',return_value={'jobs':[current_capture_record]}),patch('tools.review.domains.hermes_agent.capture_status.find_verified_capture_request_identity',side_effect=ValueError('접수 손상')) as current_capture_mock,patch('tools.review.common.gpu_status.read_gpu_status',side_effect=AssertionError('GPU 조회 금지')) as current_gpu_mock:
+                        with self.assertRaises(HTTPError) as current_capture_error:
+                            urllib.request.urlopen('http://127.0.0.1:'+str(current_server_value.server_port)+'/management/hermes-gpu-queue',timeout=5)
+                        self.assertEqual(current_capture_error.exception.code,503)
+                        current_capture_error.exception.close()
+                        current_capture_mock.assert_called_once()
+                        current_gpu_mock.assert_not_called()
+                    with patch.object(gpu_job_queue,'list_waiting_gpu_jobs',return_value={'jobs':[{'id':'job-1','service':'image','executor_identity':'invalid'}]}),patch('tools.review.common.gpu_status.read_gpu_status',side_effect=AssertionError('GPU 조회 금지')) as current_gpu_mock:
+                        with self.assertRaises(HTTPError) as current_identity_error:
+                            urllib.request.urlopen('http://127.0.0.1:'+str(current_server_value.server_port)+'/management/hermes-gpu-queue',timeout=5)
+                        self.assertEqual(current_identity_error.exception.code,503)
+                        current_identity_error.exception.close()
+                        current_gpu_mock.assert_not_called()
+                    with patch.object(gpu_job_queue,'fingerprint_gpu_queue_ticket',side_effect=['a'*64,'b'*64]),patch('tools.review.common.gpu_status.read_gpu_status',side_effect=AssertionError('GPU 조회 금지')) as current_gpu_mock:
+                        with self.assertRaises(HTTPError) as current_changed_error:
+                            urllib.request.urlopen('http://127.0.0.1:'+str(current_server_value.server_port)+'/management/hermes-gpu-queue',timeout=5)
+                        self.assertEqual(current_changed_error.exception.code,503)
+                        current_changed_error.exception.close()
+                        current_gpu_mock.assert_not_called()
                     with patch('tools.review.common.gpu_status.read_gpu_status',side_effect=RuntimeError('GPU unavailable')):
                         with urllib.request.urlopen('http://127.0.0.1:'+str(current_server_value.server_port)+'/management/gpu-queue',timeout=5) as current_response_value:
                             current_independent_record=json.load(current_response_value)
@@ -230,6 +271,12 @@ class QueuePriorityContractTests(unittest.TestCase):
                         urllib.request.urlopen('http://127.0.0.1:'+str(current_server_value.server_port)+'/management/gpu-queue',timeout=5)
                     self.assertEqual(current_malformed_error.exception.code,503)
                     current_malformed_error.exception.close()
+                    with patch('tools.review.common.gpu_status.read_gpu_status',side_effect=AssertionError('GPU 조회 금지')) as current_gpu_mock:
+                        with self.assertRaises(HTTPError) as current_hermes_error:
+                            urllib.request.urlopen('http://127.0.0.1:'+str(current_server_value.server_port)+'/management/hermes-gpu-queue',timeout=5)
+                        self.assertEqual(current_hermes_error.exception.code,503)
+                        current_hermes_error.exception.close()
+                        current_gpu_mock.assert_not_called()
                     with patch.object(gpu_job_queue,'list_waiting_gpu_jobs',side_effect=RuntimeError('path loop')):
                         with self.assertRaises(HTTPError) as current_http_error:
                             urllib.request.urlopen('http://127.0.0.1:'+str(current_server_value.server_port)+'/management/gpu-queue',timeout=5)

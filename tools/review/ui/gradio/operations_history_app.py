@@ -1652,6 +1652,9 @@ def render_operations_map_database_receipt(current_request_identifier,current_re
     return current_result_record['notice']
 
 
+OPERATIONS_SESSION_NAVIGATION_JS = """(sessionId)=>{const validSession=/^[a-f0-9]{32}$/.test(sessionId || '');const returnLink=document.querySelector('#management-return-conversation a');if(returnLink)returnLink.setAttribute('href','/management/frame/hermes-agent/'+(validSession?'?session='+sessionId:''));if(validSession){try{sessionStorage.setItem('slime-management-session',sessionId);}catch(e){}try{localStorage.setItem('slime-management-session',sessionId);}catch(e){}}return sessionId;}"""
+
+
 def build_operations_history_interface():
     with gr.Blocks(title='운영 이력') as current_history_interface:
         gr.Markdown('## 운영 이력\n운영 대화의 지시와 Hermes 작업을 찾아 확인합니다. 생성기 원본 이력은 서비스별 기록으로 확인하며 상세 결과는 각 도구에서 확인하세요.')
@@ -1693,7 +1696,7 @@ def build_operations_history_interface():
             current_instruction_result=gr.State(None)
             current_session_rows.select(prepare_operations_instruction_selection,[current_session_dropdown,current_session_rows,current_session_page],[current_instruction_token,current_instruction_selection,current_session_link,current_instruction_text],queue=False).then(collect_operations_instruction_selection,[current_instruction_selection],[current_instruction_result],queue=False,trigger_mode='multiple').then(render_operations_instruction_selection,[current_session_dropdown,current_session_page,current_instruction_token,current_instruction_result],[current_session_link,current_instruction_text],queue=False)
             current_session_dropdown.change(lambda:(create_cleanup_preview_token(),''),outputs=[current_instruction_token,current_instruction_text],queue=False)
-            current_session_dropdown.change(fn=None,inputs=[current_session_dropdown],js="(sessionId)=>{const returnLink=document.querySelector('#management-return-conversation a');if(returnLink)returnLink.setAttribute('href','/management/frame/hermes-agent/'+(/^[a-f0-9]{32}$/.test(sessionId || '')?'?session='+sessionId:''));return sessionId;}",queue=False)
+            current_session_dropdown.change(fn=None,inputs=[current_session_dropdown],js=OPERATIONS_SESSION_NAVIGATION_JS,queue=False)
             current_session_button.click(lambda:(create_cleanup_preview_token(),''),outputs=[current_instruction_token,current_instruction_text],queue=False)
             current_session_older.click(lambda:(create_cleanup_preview_token(),''),outputs=[current_instruction_token,current_instruction_text],queue=False)
             current_session_newer.click(lambda:(create_cleanup_preview_token(),''),outputs=[current_instruction_token,current_instruction_text],queue=False)

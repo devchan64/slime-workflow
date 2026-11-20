@@ -436,6 +436,23 @@ class ManagementLauncherTests(unittest.TestCase):
             current_opener_mock.return_value.open = open_test_response
             self.assertEqual(management_diagnostics.inspect_management_port_identity(8770, '/management/gui-health'), {'identity': 'unknown'})
 
+    def test_gateway_port_diagnostics_reports_queue_feature_without_secrets(self):
+        import json
+        from contextlib import contextmanager
+        from tools.review.common import management_diagnostics
+        current_response_value=SimpleNamespace(status=200,read=lambda current_maximum_bytes:b'')
+        @contextmanager
+        def open_test_response(*current_arguments,**current_options):
+            yield current_response_value
+        for current_features_value,current_expected_status in ((['hermes-gpu-queue-v1'],'supported'),([], 'not_reported'),(None,'unknown'),(['bad']*65,'unknown')):
+            with self.subTest(features=current_features_value):
+                current_response_value.read=lambda current_maximum_bytes:json.dumps({'status':'ok','role':'management-gateway','pid':42,'launch_token':'secret','features':current_features_value}).encode()
+                with patch.object(management_diagnostics,'build_opener') as current_opener_mock:
+                    current_opener_mock.return_value.open=open_test_response
+                    current_identity_record=management_diagnostics.inspect_management_port_identity(8771,'/management/health')
+                self.assertEqual(current_identity_record['hermes_gpu_queue'],current_expected_status)
+                self.assertNotIn('secret',str(current_identity_record))
+
     def test_diagnostics_distinguishes_unavailable_gpu_from_idle(self):
         from tools.review.common.management_diagnostics import inspect_management_environment
         with patch('tools.review.common.gpu_status.read_gpu_status', return_value={'status': 'unavailable', 'processes': []}), \

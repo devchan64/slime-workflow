@@ -28,10 +28,22 @@ def create_gateway_request_handler(dispatch_runtime_request):
                 return
             request_route_path = urlsplit(self.path).path
             if self.command == 'GET' and request_route_path == '/management/health':
-                current_health_record = {'status': 'ok', 'role': 'management-gateway', 'pid': os.getpid()}
+                current_health_record = {'status': 'ok', 'role': 'management-gateway', 'pid': os.getpid(), 'features': ['hermes-gpu-queue-v1']}
                 if os.environ.get('SLIME_MANAGEMENT_STACK_TOKEN'):
                     current_health_record['launch_token'] = os.environ['SLIME_MANAGEMENT_STACK_TOKEN']
                 send_management_json_response(self, 200, current_health_record)
+                return
+            if self.command == 'GET' and request_route_path == '/management/hermes-gpu-queue':
+                from tools.review.domains.hermes_agent.management_observer import read_hermes_queue_snapshot
+                from tools.review.common.gpu_status import read_gpu_status
+                current_queue_record=read_hermes_queue_snapshot()
+                if current_queue_record['status']!='available':
+                    send_management_json_response(self,503,{'error':'GPU 대기열을 확인할 수 없습니다.'})
+                    return
+                current_queue_jobs=current_queue_record['jobs']
+                try:current_gpu_record=read_gpu_status()
+                except (OSError,ValueError,TypeError,KeyError,RuntimeError):current_gpu_record={'status':'unavailable','processes':[]}
+                send_management_json_response(self,200,{'jobs':[{'id':current_job_record['id'],'service':current_job_record['service']} for current_job_record in current_queue_jobs],'gpu_status':current_gpu_record})
                 return
             if self.command == 'GET' and request_route_path in ('/management/gpu-status', '/management/gpu-queue'):
                 from tools.review.common.gpu_status import read_gpu_status

@@ -353,9 +353,11 @@ class HermesServiceTests(unittest.TestCase):
         from tools.review.domains.hermes_agent.capabilities import list_management_service_registration
         current_kimodo_record=next(current_record for current_record in list_management_service_registration()['services'] if current_record['service']=='kimodo')
         current_limit_notes={current_item['command']:current_item['note'] for current_item in current_kimodo_record['conditional_limitations']}
-        for current_command_name in ('keyframe-save','keyframe-replace','keyframe-retire'):
+        for current_command_name in ('keyframe-replace','keyframe-retire'):
             self.assertIn('Hermes는',current_limit_notes[current_command_name])
             self.assertIn('연결하지 않는다',current_limit_notes[current_command_name])
+        self.assertIn('직접 실행하지 않는다',current_limit_notes['keyframe-save'])
+        self.assertIn('별도 저장과 접수 확인',current_limit_notes['keyframe-save'])
         self.assertIn('중복',current_limit_notes['keyframe-save'])
         self.assertIn('.replaced',current_limit_notes['keyframe-replace'])
         self.assertIn('.retired',current_limit_notes['keyframe-retire'])
@@ -418,9 +420,11 @@ class HermesServiceTests(unittest.TestCase):
 
     def test_management_queue_runtime_error_is_unavailable(self):
         from tools.review.domains.hermes_agent.management_observer import read_hermes_management_snapshot
-        with patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}),patch('tools.review.common.gpu_job_queue.list_waiting_gpu_jobs',side_effect=RuntimeError('path loop')):
+        with patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}) as current_gpu_mock,patch('tools.review.common.gpu_job_queue.list_waiting_gpu_jobs',side_effect=RuntimeError('path loop')):
             current_snapshot_value=read_hermes_management_snapshot()
+        current_gpu_mock.assert_called_once_with()
         self.assertEqual(current_snapshot_value['queue'],{'status':'unavailable','jobs':[]})
+        self.assertEqual(current_snapshot_value['gpu'],{'status':'unavailable'})
 
     def test_management_observation_rejects_inconsistent_gpu_without_hiding_queue(self):
         from tools.review.domains.hermes_agent import management_observer
@@ -1176,7 +1180,11 @@ class HermesServiceTests(unittest.TestCase):
     def test_fun_resume_capability_exposes_preview_and_submission(self):
         current_catalog_record = self.hermes_service_manager.execute_hermes_command('hermes-capabilities', {})
         current_capability_records = {current_record['command']:current_record for current_record in current_catalog_record['records']}
-        current_preview_schema = current_capability_records['hermes-video-resume-preview']['payload_schema']
+        current_preview_record = current_capability_records['hermes-video-resume-preview']
+        self.assertEqual(current_preview_record['effect'],'recovery_possible')
+        self.assertEqual(current_preview_record['gpu'],'none')
+        self.assertIn('복구할 수',current_preview_record['note'])
+        current_preview_schema = current_preview_record['payload_schema']
         current_submit_schema = current_capability_records['hermes-video-resume-submit']['payload_schema']
         self.assertIn('wan22-fun-control', current_preview_schema['properties']['service']['enum'])
         self.assertIn('wan22-fun-control', current_submit_schema['properties']['service']['enum'])
@@ -1338,6 +1346,8 @@ class HermesServiceTests(unittest.TestCase):
         for current_command_name in ('hermes-video-proposal','hermes-kimodo-proposal','hermes-diff','hermes-delegation-status','hermes-flux-delegation-history'):
             self.assertEqual(current_capabilities_by_name[current_command_name]['effect'],'local_bookkeeping')
         self.assertEqual(current_capabilities_by_name['hermes-management-status']['effect'],'local_bookkeeping')
+        self.assertEqual(current_capabilities_by_name['hermes-management-status']['gpu'],'inspection')
+        self.assertIn('amd-smi',current_capabilities_by_name['hermes-management-status']['note'])
         self.assertEqual(current_capabilities_by_name['hermes-kimodo-build-status']['gpu'],'none')
         self.assertIn('캐시 유효성',current_capabilities_by_name['hermes-kimodo-build-status']['note'])
         current_command_list=MANAGEMENT_SERVICE_COMMANDS['hermes-agent']
@@ -1589,6 +1599,53 @@ class HermesServiceTests(unittest.TestCase):
         for current_offset_value in range(0,len(current_full_record['records']),20):
             current_page_record=search_hermes_capability_catalog({'offset':current_offset_value,'limit':20})
             self.assertLessEqual(len(json.dumps(current_page_record,ensure_ascii=False,allow_nan=False).encode('utf-8'))+1,HERMES_OBSERVER_MAX_RESPONSE)
+
+    def test_capability_catalog_records_are_independent_across_reads(self):
+        from tools.review.domains.hermes_agent.capabilities import list_hermes_capability_catalog
+        current_first_catalog=list_hermes_capability_catalog()
+        current_first_record=next(current_record for current_record in current_first_catalog['records'] if current_record['command']=='hermes-video-resume-preview')
+        current_first_record['required'].append('unexpected')
+        current_first_record['interfaces'].append('unexpected')
+        current_first_record['payload_schema']['properties']['job_id']['pattern']='changed'
+        current_next_catalog=list_hermes_capability_catalog()
+        current_next_record=next(current_record for current_record in current_next_catalog['records'] if current_record['command']=='hermes-video-resume-preview')
+        self.assertNotIn('unexpected',current_next_record['required'])
+        self.assertNotIn('unexpected',current_next_record['interfaces'])
+        self.assertNotEqual(current_next_record['payload_schema']['properties']['job_id']['pattern'],'changed')
+
+    def test_service_limitations_are_independent_across_catalog_reads(self):
+        from tools.review.domains.hermes_agent.capabilities import list_management_service_registration
+        current_first_catalog=list_management_service_registration()
+        current_first_service=next(current_record for current_record in current_first_catalog['services'] if current_record['service']=='character-animation')
+        current_first_limit=next(current_record for current_record in current_first_service['conditional_limitations'] if current_record['command']=='anchor-load')
+        current_original_note=current_first_limit['note']
+        current_first_limit['note']='changed'
+        current_next_catalog=list_management_service_registration()
+        current_next_service=next(current_record for current_record in current_next_catalog['services'] if current_record['service']=='character-animation')
+        current_next_limit=next(current_record for current_record in current_next_service['conditional_limitations'] if current_record['command']=='anchor-load')
+        self.assertEqual(current_next_limit['note'],current_original_note)
+
+    def test_mcp_only_input_lists_are_independent_across_catalog_reads(self):
+        from tools.review.domains.hermes_agent.capabilities import list_hermes_capability_catalog
+        current_first_catalog=list_hermes_capability_catalog()
+        current_first_catalog['mcp_only_tools'][0]['required'].append('unexpected')
+        current_first_catalog['mcp_only_tools'][0]['optional'].append('unexpected')
+        current_next_catalog=list_hermes_capability_catalog()
+        self.assertEqual(current_next_catalog['mcp_only_tools'][0]['required'],[])
+        self.assertEqual(current_next_catalog['mcp_only_tools'][0]['optional'],[])
+
+    def test_isolated_capability_search_includes_required_and_optional_inputs(self):
+        from tools.review.domains.hermes_agent.capabilities import search_hermes_capability_catalog
+        for current_query_value in ('animation_version', 'snapshot'):
+            current_offset_value=0
+            current_command_names=[]
+            while True:
+                current_page_record=search_hermes_capability_catalog({'query':current_query_value,'offset':current_offset_value,'limit':20})
+                current_command_names.extend(current_record['command'] for current_record in current_page_record['records'])
+                if current_page_record['next_offset'] is None:
+                    break
+                current_offset_value=current_page_record['next_offset']
+            self.assertIn('hermes-anchor-history-observe',current_command_names)
 
     def test_verification_schema_uses_registered_modules(self):
         from jsonschema import Draft202012Validator

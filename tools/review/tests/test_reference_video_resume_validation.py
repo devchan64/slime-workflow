@@ -813,6 +813,27 @@ class VideoAttachmentResumeTests(unittest.TestCase):
                         with self.assertRaisesRegex(ValueError,'이미 진행 중'):
                             current_execute_method('history-reset-preview',{})
 
+    def test_video_resume_preview_can_recover_interrupted_status(self):
+        from tools.review.domains.image.image_generation import WORKFLOW_ROOT_PATH
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_storage_path=Path(current_directory_name)
+            current_job_path=current_storage_path/'2026-11-20_20-00-00-1234abcd'
+            current_job_path.mkdir()
+            current_request_record={'references':['reference-1.png']}
+            (current_job_path/'request.json').write_text(json.dumps(current_request_record))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'running'}))
+            (current_job_path/'execution.lock').touch()
+            (current_job_path/'reference-1.png').write_bytes(b'image')
+            current_manager_instance=ReferenceVideoGenerationManager('/dwpose',current_storage_path,'unused',Mock(),Mock())
+            current_command_values=[str(current_manager_instance.select_generation_python(current_request_record)),str(WORKFLOW_ROOT_PATH/'unused'),'--job-dir',str(current_job_path)]
+            (current_job_path/'gpu-command.json').write_text(json.dumps({'service':'image','command':current_command_values}))
+            with patch('tools.review.common.video_job_recovery.has_live_video_worker',return_value=False):
+                current_preview_record=current_manager_instance.preview_generation_resume(current_job_path)
+            current_status_record=json.loads((current_job_path/'status.json').read_text())
+            self.assertEqual(current_preview_record['status'],'failed')
+            self.assertEqual(current_status_record['status'],'failed')
+            self.assertTrue(current_status_record['recovered_interrupted'])
+
     def test_video_preview_checks_present_command_and_legacy_absence(self):
         from tools.review.domains.image.image_generation import WORKFLOW_ROOT_PATH
         with tempfile.TemporaryDirectory() as current_directory_name:
@@ -837,6 +858,32 @@ class VideoAttachmentResumeTests(unittest.TestCase):
             current_command_path.unlink()
             self.assertEqual(current_manager_instance.preview_generation_resume(current_job_path)['status'],'failed')
 
+
+    def test_vace_legacy_profile_is_rejected_in_preview_and_locked_submission(self):
+        from contextlib import nullcontext
+        from tools.review.common import gpu_job_queue, model_prepare_process
+        from tools.review.domains.wan_vace.generation import VaceVideoGenerationManager
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_storage_path=Path(current_directory_name)
+            current_job_path=current_storage_path/'2026-11-20_20-00-00-1234abcd'
+            current_job_path.mkdir()
+            (current_job_path/'request.json').write_text(json.dumps({'model_profile':'legacy-q4','mode':'text','references':[]}))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            current_manager_instance=VaceVideoGenerationManager()
+            current_manager_instance.job_storage_root=current_storage_path
+            with patch('tools.review.domains.wan_vace.generation.validate_vace_assets') as current_assets_mock:
+                with self.assertRaisesRegex(ValueError,'폐기된 Q4'):
+                    current_manager_instance.preview_generation_resume(current_job_path)
+                current_assets_mock.assert_not_called()
+                current_fingerprint_value=current_manager_instance.fingerprint_generation_resume_inputs(current_job_path)['fingerprint']
+                def invoke_locked_preflight(current_selected_path,**current_resume_arguments):
+                    current_resume_arguments['resume_locked_preflight_callback'](current_selected_path)
+                    self.fail('폐기 프로필은 대기열 접수에 도달할 수 없습니다.')
+                with patch.object(current_manager_instance,'inspect_video_resume_availability',return_value='available'), patch.object(model_prepare_process,'hold_registered_preparation_guard',return_value=nullcontext()), patch.object(gpu_job_queue,'resume_gpu_generation',side_effect=invoke_locked_preflight) as current_resume_mock:
+                    with self.assertRaisesRegex(ValueError,'폐기된 Q4'):
+                        current_manager_instance.resume_reviewed_generation_job(current_job_path,current_fingerprint_value)
+                    current_resume_mock.assert_called_once()
+                current_assets_mock.assert_not_called()
 
     def test_reviewed_video_resume_rejects_unknown_preparation_before_queue(self):
         from tools.review.common import gpu_job_queue

@@ -257,7 +257,14 @@ def inspect_management_port_identity(current_port_number, current_health_path):
         current_reported_pid = current_health_record.get('pid')
         if current_reported_role not in ('management-gui', 'management-gateway') or type(current_reported_pid) is not int or current_reported_pid <= 1:
             return {'identity': 'unknown'}
-        return {'identity': 'self_reported', 'reported_role': current_reported_role, 'reported_pid': current_reported_pid}
+        current_identity_record = {'identity': 'self_reported', 'reported_role': current_reported_role, 'reported_pid': current_reported_pid}
+        if current_reported_role == 'management-gateway':
+            current_feature_values = current_health_record.get('features')
+            if isinstance(current_feature_values,list) and len(current_feature_values)<=64 and all(isinstance(current_feature_value,str) and len(current_feature_value)<=100 for current_feature_value in current_feature_values):
+                current_identity_record['hermes_gpu_queue'] = 'supported' if 'hermes-gpu-queue-v1' in current_feature_values else 'not_reported'
+            else:
+                current_identity_record['hermes_gpu_queue'] = 'unknown'
+        return current_identity_record
     except (OSError, ValueError, TypeError, UnicodeError):
         return {'identity': 'unknown'}
 

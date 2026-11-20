@@ -196,32 +196,9 @@ def read_hermes_recent_job_snapshot(current_service_manager=None):
         return {'status': 'unavailable', 'jobs': [], 'truncated': False}
 
 
-def read_hermes_management_snapshot():
-    """공용 GPU 관측과 대기열에서 지정된 필드만 반환한다."""
-    from tools.review.common.gpu_status import read_gpu_status
+def read_hermes_queue_snapshot():
+    """대기 티켓·실행기 신원·캡처 접수를 기존 정책대로 관측한다."""
     from tools.review.common.gpu_job_queue import list_waiting_gpu_jobs
-
-    try:
-        current_gpu_record = read_gpu_status()
-        if not isinstance(current_gpu_record, dict) or current_gpu_record.get('status') not in ('idle', 'busy', 'unavailable'):
-            raise ValueError('GPU 상태 형식 오류')
-        current_gpu_values = {'status': current_gpu_record['status']}
-        if current_gpu_record['status'] in ('idle', 'busy'):
-            current_process_records = current_gpu_record.get('processes')
-            if not isinstance(current_process_records, list) or any(not isinstance(current_process_record, dict) for current_process_record in current_process_records) or (current_gpu_record['status'] == 'busy') != bool(current_process_records):
-                raise ValueError('GPU 상태와 프로세스 목록 불일치')
-            for current_memory_field in ('gtt_total_mib', 'gtt_free_mib', 'vram_total_mib', 'vram_free_mib'):
-                current_memory_value = current_gpu_record.get(current_memory_field)
-                current_gpu_values[current_memory_field] = current_memory_value if type(current_memory_value) is int and current_memory_value >= 0 else None
-            current_queue_device=current_gpu_record.get('queue_device_memory')
-            if isinstance(current_queue_device,dict):
-                current_gpu_values['queue_device_memory']={current_field_name:current_queue_device.get(current_field_name) if type(current_queue_device.get(current_field_name)) is int and current_queue_device[current_field_name]>=0 else None for current_field_name in ('gtt_total_mib','gtt_free_mib','vram_total_mib','vram_free_mib')}
-            current_device_count=current_gpu_record.get('gpu_count')
-            current_gpu_values['gpu_count']=current_device_count if type(current_device_count) is int and current_device_count>0 else None
-            current_process_records = current_gpu_record.get('processes')
-            current_gpu_values['process_count'] = len(current_process_records) if isinstance(current_process_records, list) else None
-    except (OSError, ValueError, TypeError, KeyError, RuntimeError):
-        current_gpu_values = {'status': 'unavailable'}
 
     try:
         current_queue_record = list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)
@@ -255,6 +232,37 @@ def read_hermes_management_snapshot():
             current_queue_values['jobs'].append(current_public_job)
     except (OSError, ValueError, TypeError, KeyError, RuntimeError):
         current_queue_values = {'status': 'unavailable', 'jobs': []}
+
+    return current_queue_values
+
+
+def read_hermes_management_snapshot():
+    """공용 GPU 관측과 대기열에서 지정된 필드만 반환한다."""
+    from tools.review.common.gpu_status import read_gpu_status
+
+    try:
+        current_gpu_record = read_gpu_status()
+        if not isinstance(current_gpu_record, dict) or current_gpu_record.get('status') not in ('idle', 'busy', 'unavailable'):
+            raise ValueError('GPU 상태 형식 오류')
+        current_gpu_values = {'status': current_gpu_record['status']}
+        if current_gpu_record['status'] in ('idle', 'busy'):
+            current_process_records = current_gpu_record.get('processes')
+            if not isinstance(current_process_records, list) or any(not isinstance(current_process_record, dict) for current_process_record in current_process_records) or (current_gpu_record['status'] == 'busy') != bool(current_process_records):
+                raise ValueError('GPU 상태와 프로세스 목록 불일치')
+            for current_memory_field in ('gtt_total_mib', 'gtt_free_mib', 'vram_total_mib', 'vram_free_mib'):
+                current_memory_value = current_gpu_record.get(current_memory_field)
+                current_gpu_values[current_memory_field] = current_memory_value if type(current_memory_value) is int and current_memory_value >= 0 else None
+            current_queue_device=current_gpu_record.get('queue_device_memory')
+            if isinstance(current_queue_device,dict):
+                current_gpu_values['queue_device_memory']={current_field_name:current_queue_device.get(current_field_name) if type(current_queue_device.get(current_field_name)) is int and current_queue_device[current_field_name]>=0 else None for current_field_name in ('gtt_total_mib','gtt_free_mib','vram_total_mib','vram_free_mib')}
+            current_device_count=current_gpu_record.get('gpu_count')
+            current_gpu_values['gpu_count']=current_device_count if type(current_device_count) is int and current_device_count>0 else None
+            current_process_records = current_gpu_record.get('processes')
+            current_gpu_values['process_count'] = len(current_process_records) if isinstance(current_process_records, list) else None
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError):
+        current_gpu_values = {'status': 'unavailable'}
+
+    current_queue_values = read_hermes_queue_snapshot()
 
     try:
         current_model_values = {'status': 'available', **inspect_hermes_model_status()}

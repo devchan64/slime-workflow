@@ -738,6 +738,15 @@ class HermesWorkerTests(unittest.TestCase):
             self.assertTrue(all('flux' in str(current_record).lower() for current_record in current_sandbox_record['records']))
             current_server_thread.join(timeout=2)
             self.assertFalse(current_server_thread.is_alive())
+            current_server_thread=threading.Thread(target=serve_one_connection,daemon=True)
+            current_server_thread.start()
+            current_sandbox_arguments[-2:]=['capabilities',json.dumps({'query':'animation_version','limit':20})]
+            current_sandbox_result=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=12)
+            self.assertEqual(current_sandbox_result.returncode,0,current_sandbox_result.stderr)
+            current_sandbox_record=json.loads(current_sandbox_result.stdout)
+            self.assertIn('hermes-anchor-history-observe',[current_record['command'] for current_record in current_sandbox_record['records']])
+            current_server_thread.join(timeout=2)
+            self.assertFalse(current_server_thread.is_alive())
             with patch('tools.review.domains.map_assets.database_client.execute_content_api_request',return_value={'state':'matched'}) as current_content_mock:
                 current_server_thread=threading.Thread(target=serve_one_connection,daemon=True)
                 current_server_thread.start()

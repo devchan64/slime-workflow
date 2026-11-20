@@ -42,6 +42,25 @@ check('http://localhost/management/frame/writer-agent/?session=bad','bad',c,'/ma
         current_result_value=subprocess.run(['node','-e',current_runner_text,current_script_text],capture_output=True,text=True,timeout=10)
         self.assertEqual(current_result_value.returncode,0,current_result_value.stderr)
 
+    def test_return_links_follow_same_tab_session_changes(self):
+        import subprocess
+        current_interface_value,_=build_management_menu_interface([],8770)
+        current_scripts=[str(current_dependency.get('js','')) for current_dependency in current_interface_value.get_config_file()['dependencies']]
+        current_script_text=next(current_script for current_script in current_scripts if 'management-return-conversation' in current_script)
+        current_runner_text="""
+const vm=require('vm');const fn=process.argv[1],a='a'.repeat(32),b='b'.repeat(32),c='c'.repeat(32);const links={};let listener;
+const tab={getItem:()=>a},recent={getItem:()=>c};
+const context={URL,sessionStorage:tab,localStorage:recent,window:{location:{href:'http://localhost/'},addEventListener:(kind,callback)=>{if(kind==='storage')listener=callback;}},document:{querySelector:(selector)=>({setAttribute:(_name,value)=>{links[selector]=value;}})}};
+vm.runInNewContext('('+fn+')()',context);if(!listener)throw new Error('storage listener missing');
+listener({storageArea:tab,key:'slime-management-session',newValue:b});
+if(links['#management-return-conversation a']!=='/management/frame/hermes-agent/?session='+b)throw new Error('conversation link');
+if(links['#management-open-history a']!=='/management/frame/operations-history/?session='+b)throw new Error('history link');
+listener({storageArea:recent,key:'slime-management-session',newValue:c});listener({storageArea:tab,key:'slime-management-session',newValue:'invalid'});
+if(links['#management-return-conversation a']!=='/management/frame/hermes-agent/?session='+b)throw new Error('invalid or other tab changed link');
+"""
+        current_result_value=subprocess.run(['node','-e',current_runner_text,current_script_text],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_result_value.returncode,0,current_result_value.stderr)
+
     def test_retired_qwen_pages_are_absent(self):
         import json
         import tempfile

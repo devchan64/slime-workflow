@@ -100,6 +100,12 @@ class GatewayContractTest(unittest.TestCase):
                     current_health_record = json.load(current_health_response)
                 self.assertEqual(current_health_record['role'], 'management-gateway')
                 self.assertEqual(current_health_record['launch_token'], 'fixture-token')
+                self.assertIn('hermes-gpu-queue-v1',current_health_record['features'])
+                from tools.review.common.management_stack import wait_management_stack_endpoint
+                current_process_handle=SimpleNamespace(poll=lambda:None)
+                with patch('tools.review.common.gpu_status.read_gpu_status',side_effect=AssertionError('GPU 조회 금지')) as current_gpu_mock:
+                    wait_management_stack_endpoint(current_process_handle,f'http://127.0.0.1:{current_gateway_server.server_port}/management/health','management-gateway','fixture-token',Path('/tmp/unused-health.log'))
+                    current_gpu_mock.assert_not_called()
             finally:
                 current_gateway_server.shutdown()
                 current_gateway_thread.join(timeout=5)

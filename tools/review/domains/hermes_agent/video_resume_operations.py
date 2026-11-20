@@ -30,7 +30,7 @@ def preview_hermes_video_resume(current_service_name, current_job_identifier):
     return {'service': current_service_name, 'job_id': current_job_identifier, 'status': current_preview_record['status'],
             'resume_availability': current_availability_value,
             'expected_resume_fingerprint': current_preview_record['expected_resume_fingerprint'],
-            'note': '저장 입력 검토 결과입니다. GPU 가용성은 별도이며 접수 시 모델 준비 충돌을 다시 확인합니다.'}
+            'note': '저장 입력 검토 결과입니다. 중단된 실행 기록을 복구할 수 있습니다. GPU 가용성은 별도이며 접수 시 모델 준비 충돌을 다시 확인합니다.'}
 
 
 def read_hermes_video_resume_receipt(current_request_identifier):

@@ -1,9 +1,10 @@
 """Hermes가 제공하는 주요 관리 기능의 범위와 영향 안내."""
+from copy import deepcopy
 
 HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-cleanup-preview','label':'이력 정리 대상 요약','required':['service'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'cleanup_preview','note':'삭제 없이 원 서비스 정리 후보·차단 수를 확인한다. 숨긴 작업까지 전체 순회할 수 있으며 대상과 상태는 변경될 수 있다.'},
     {'command':'hermes-video-resume-proposal','label':'영상 재개 제안 조회','required':['id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'video_resume_proposal','note':'완료된 대화의 영상 재개 제안을 읽는다.'},
-    {'command':'hermes-video-resume-preview','label':'영상 재개 예비 검토','required':['service','job_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'video_resume_preview','note':'저장 입력과 준비 작업 상태를 검토한다. GPU 가용성은 별도다.'},
+    {'command':'hermes-video-resume-preview','label':'영상 재개 예비 검토','required':['service','job_id'],'optional':[],'effect':'recovery_possible','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'video_resume_preview','note':'저장 입력과 준비 작업 상태를 검토한다. 중단된 실행 기록을 복구할 수 있으며 GPU 가용성은 별도다.'},
     {'command':'hermes-video-resume-submit','label':'영상 재개 접수','required':['request_id','service','job_id','expected_resume_fingerprint'],'optional':[],'effect':'enqueue','gpu':'queued','retry':'request_id_or_unknown','interfaces':['gui','mcp'],'result':'video_resume_receipt','note':'검토 지문을 재확인하고 중복 접수를 방지한다.'},
     {'command':'hermes-video-resume-receipt','label':'영상 재개 접수 조회','required':['request_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'video_resume_receipt','note':'접수 기록을 확인한다. 실제 실행 상태는 원 서비스에서 확인한다.'},
     {'command':'hermes-flux-resume-proposal','label':'FLUX 재개 제안 조회','required':['id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'flux_resume_proposal','note':'완료된 Hermes 답변의 서비스·작업 ID와 검토값을 읽는다. GPU 재개는 하지 않는다.'},
@@ -147,7 +148,7 @@ HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-priority-submit','label':'GPU 대기 작업 우선 실행','required':['request_id','service','id','ticket_revision'],'optional':[],'effect':'write','gpu':'none','retry':'request_id_or_unknown','interfaces':['gui','mcp'],'result':'priority_receipt','note':'확인한 티켓을 대기열 맨 앞으로 옮긴다. 결과 불명 시 같은 접수 기록을 확인하며 재실행하지 않는다.'},
     {'command':'hermes-priority-receipt','label':'GPU 우선 실행 접수 조회','required':['request_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'priority_receipt','note':'우선 실행 접수 기록을 읽으며 순서는 변경하지 않는다.'},
     {'command':'hermes-priority-preview','label':'GPU 우선 실행 대상 확인','required':['service','id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'priority_preview','note':'원 서비스가 확인된 유일한 대기 티켓을 조회하며 순서는 변경하지 않는다.'},
-    {'command':'hermes-management-status', 'label':'관리 상태 조회', 'required':[], 'optional':[], 'effect':'local_bookkeeping', 'gpu':'none', 'retry':'safe', 'interfaces':['gui','mcp','isolated_fixed_bridge'], 'result':'model_gpu_queue_and_recent_jobs', 'note':'최근 작업 조회에 로컬 잠금이 따른다. Kimodo 활성 상태는 기록 기준이며 GPU 관측은 캐시될 수 있다.'},
+    {'command':'hermes-management-status', 'label':'관리 상태 조회', 'required':[], 'optional':[], 'effect':'local_bookkeeping', 'gpu':'inspection', 'retry':'safe', 'interfaces':['gui','mcp','isolated_fixed_bridge'], 'result':'model_gpu_queue_and_recent_jobs', 'note':'amd-smi로 GPU 프로세스와 메모리를 조회하며 GPU 생성은 실행하지 않는다. 최근 작업 조회에 로컬 잠금이 따른다. Kimodo 활성 상태는 기록 기준이며 GPU 관측은 캐시될 수 있다.'},
     {'command':'hermes-session-submit', 'label':'대화·격리 작업 접수', 'required':['session_id','request_id','prompt'], 'optional':['verification_modules'], 'effect':'enqueue', 'gpu':'exclusive', 'retry':'request_id', 'interfaces':['gui','mcp'], 'result':'hermes_job_id', 'note':'동일 ID와 입력의 재접수만 허용한다. 배타 예약은 관리도구 대기열에만 적용되며 외부 GPU 작업과 성능 경합이 가능하다.'},
     {'command':'hermes-kimodo-keyframe-validate','label':'Kimodo 키프레임 배치 검증','required':['keyframes','frames'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'kimodo_keyframe_validation','note':'원본과 골격 구조를 검증한다. 접수 시 다시 검증한다.'},
     {'command':'hermes-kimodo-source-frame','label':'Kimodo 원본 프레임 검토','required':['job_id','attempt_id','frame'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'kimodo_source_frame','note':'완료된 현재 시도의 프레임 PNG 시그니처와 해시를 확인한다. 모션·골격 및 저장 가능성은 검증하지 않는다.'},
@@ -211,6 +212,12 @@ HERMES_FIELD_SCHEMAS = {
     'limit': {'type':'integer', 'minimum':1, 'maximum':262144},
     'request': {'type':'object', 'validation':'generators.kimodo.contracts.validate_kimodo_request'},
 }
+
+
+HERMES_MCP_ONLY_TOOLS = (
+    {'name':'read_hermes_gateway_features','required':[],'optional':[],'label':'게이트웨이 기능 확인','effect':'read','gpu':'none','retry':'safe','note':'MCP 전용 도구다. 건강 상태의 자체 보고만 읽으며 GPU와 대기열을 조회하지 않는다. 현재 Codex 연결에는 갱신이 필요할 수 있다.'},
+    {'name':'read_hermes_gpu_queue_status','required':[],'optional':[],'label':'GPU 대기열과 상태 조회','effect':'local_bookkeeping','gpu':'inspection','retry':'safe','note':'MCP 전용 도구다. 대기 티켓을 확인한 후 GPU 상태를 조회한다. 대기열 확인 실패 시 GPU 조회를 생략한다.'},
+)
 
 
 def list_hermes_capability_catalog():
@@ -369,7 +376,7 @@ def list_hermes_capability_catalog():
     if len(current_catalog_commands)!=len(set(current_catalog_commands)):
         raise ValueError('Hermes 기능 목록에 중복 명령이 있습니다.')
     current_unlisted_commands=sorted(set(MANAGEMENT_SERVICE_COMMANDS['hermes-agent'])-set(current_catalog_commands))
-    return {'version':1, 'records':current_catalog_records, 'unlisted_commands':current_unlisted_commands, 'note':'목록에 없는 등록 명령은 지원이나 권한이 확인된 기능으로 간주하지 않는다. 표시된 인터페이스도 별도 사용자 인증·역할 권한 체계를 의미하지 않으며 입력 검증과 확인은 기존 서비스 및 클라이언트가 수행한다. MCP 표시는 서버 구현 기준이며 현재 연결된 Codex 세션의 도구 목록이 최신인지 확인해야 한다. 새 도구가 없으면 MCP 연결을 다시 시작한다.'}
+    return deepcopy({'version':1, 'records':current_catalog_records, 'mcp_only_tools':[{**current_tool_record,'required':list(current_tool_record['required']),'optional':list(current_tool_record['optional'])} for current_tool_record in HERMES_MCP_ONLY_TOOLS], 'unlisted_commands':current_unlisted_commands, 'note':'목록에 없는 등록 명령은 지원이나 권한이 확인된 기능으로 간주하지 않는다. 표시된 인터페이스도 별도 사용자 인증·역할 권한 체계를 의미하지 않으며 입력 검증과 확인은 기존 서비스 및 클라이언트가 수행한다. MCP 표시는 서버 구현 기준이며 현재 연결된 Codex 세션의 도구 목록이 최신인지 확인해야 한다. 새 도구가 없으면 MCP 연결을 다시 시작한다.'})
 
 
 def search_hermes_capability_catalog(current_search_request):
@@ -383,7 +390,7 @@ def search_hermes_capability_catalog(current_search_request):
         raise ValueError('기능 검색 범위 오류')
     current_catalog_value=list_hermes_capability_catalog()
     current_query_text=current_query_text.strip().casefold()
-    current_matching_records=[current_record for current_record in current_catalog_value['records'] if not current_query_text or current_query_text in ' '.join((current_record['command'],current_record['label'],current_record['note'],*current_record['interfaces'])).casefold()]
+    current_matching_records=[current_record for current_record in current_catalog_value['records'] if not current_query_text or current_query_text in ' '.join((current_record['command'],current_record['label'],current_record['note'],*current_record['interfaces'],*current_record['required'],*current_record['optional'])).casefold()]
     current_page_records=current_matching_records[current_offset_value:current_offset_value+current_limit_value]
     current_next_offset=current_offset_value+len(current_page_records)
     return {'version':current_catalog_value['version'],'records':current_page_records,'total':len(current_matching_records),'offset':current_offset_value,'next_offset':current_next_offset if current_next_offset<len(current_matching_records) else None,'unlisted_commands':current_catalog_value['unlisted_commands'],'note':current_catalog_value['note']}
@@ -417,7 +424,7 @@ HERMES_SERVICE_CONDITIONAL_LIMITATIONS = {
     'kimodo': [
         {'command':'keyframe-source-review','note':'원본 프레임·골격·모션을 저장 없이 검토하고 확인값을 반환한다. GPU를 사용하지 않는다.'},
         {'command':'keyframe-save-reviewed','note':'검토한 원본과 태그를 다시 확인해 저장한다. 요청 ID 중복 방지는 없으므로 응답 유실 시 자동 재실행하지 않는다.'},
-        {'command':'keyframe-save','note':'Hermes는 키프레임 저장을 연결하지 않는다. 원 서비스는 완료된 작업의 프레임을 검증해 독립 사본을 새 ID로 저장하며 재요청 시 중복될 수 있다.'},
+        {'command':'keyframe-save','note':'Hermes는 원 서비스의 기존 저장 명령을 직접 실행하지 않는다. 검토된 원본의 별도 저장과 접수 확인을 제공한다. 원 서비스의 기존 저장은 독립 사본을 새 ID로 저장하므로 재요청 시 중복될 수 있다.'},
         {'command':'keyframe-replace','note':'Hermes는 키프레임 교체를 연결하지 않는다. 원 서비스는 새 항목을 확인하고 이전 항목을 .replaced에 보관한다.'},
         {'command':'keyframe-retire','note':'Hermes는 키프레임 폐기를 연결하지 않는다. 원 서비스는 검증한 사용자 항목을 .retired에 보관하며 제작 기준 예제는 폐기할 수 없다.'},
         {'command':'migraphx-build-status','note':'최근 빌드가 대기·실행 중이 아니면 캐시 유효성 확인을 위해 GPU 대기열에 검사 작업을 추가할 수 있다. 기록만 보려면 migraphx-build-observe 또는 Hermes 빌드 기록 조회를 사용한다.'},
@@ -491,7 +498,7 @@ def list_management_service_registration():
                 current_owner_blocks.append({'command':current_command_name,'reason':current_owner_reason})
         from tools.review.domains.hermes_agent.priority_observer import inspect_hermes_priority_retirement
         current_priority_reason=inspect_hermes_priority_retirement(current_service_name) if 'prioritize' in current_command_names else None
-        current_limit_records=list(HERMES_SERVICE_CONDITIONAL_LIMITATIONS.get(current_service_name,[]))
+        current_limit_records=deepcopy(HERMES_SERVICE_CONDITIONAL_LIMITATIONS.get(current_service_name,[]))
         if 'history-reset-preview' in current_command_names and current_service_name in (current_image_history_services|set(AUDIO_SERVICE_NAMES)|set(HERMES_VIDEO_SERVICES)|{'kimodo','prompt-translation'}):
             current_cleanup_note=('종료된 작업만 정리 후보로 표시하고 실행·대기 또는 확인 불가 항목은 제외한다.' if current_service_name=='kimodo' else '전체 정리 대상과 실행·대기 등 차단 항목을 표시한다.')
             current_limit_records.append({'command':'history-reset-preview','note':'원 서비스에서 삭제 없이 숨긴 이력까지 정리 대상을 확인한다. '+current_cleanup_note+' Hermes는 경로 없는 요약만 조회하며 실제 삭제는 지원하지 않는다. 상태를 다시 확인해야 한다.'})

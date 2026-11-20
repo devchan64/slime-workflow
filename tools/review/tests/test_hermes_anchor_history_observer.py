@@ -31,6 +31,33 @@ class HermesAnchorHistoryObserverTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'변경'):
                     read_hermes_anchor_history({'animation_id':'walk','animation_version':'v1','limit':1,'offset':1,'snapshot':current_first_page['snapshot']})
 
+    def test_original_save_and_hide_are_visible_without_modifying_records(self):
+        from tools.review.domains.character_animation import anchor_history
+        current_document_record = {
+            'schemaVersion': 1, 'artifactType': 'character-animation-anchor-review',
+            'description': 'temporary test', 'coordinateMode': 'anchor',
+            'source': {'animationId': 'walk', 'animationVersion': 'v1', 'sheets': [{'image': '/private/sheet.png', 'sha256': 'a' * 64}]},
+            'frames': [{'frameId': 'down.0', 'direction': 'down_left', 'image': '/private/sheet.png',
+                        'rect': {'x': 0, 'y': 0, 'width': 8, 'height': 8},
+                        'points': [{'x': 3, 'y': 6}], 'anchor': {'x': 3, 'y': 6}}],
+        }
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_root_path = Path(current_temporary_directory) / 'history'
+            with patch.object(anchor_history, 'ANCHOR_HISTORY_ROOT', current_root_path):
+                current_saved_record = anchor_history.execute_anchor_history_command('anchor-save', {'document': current_document_record})
+                current_original_page = anchor_history.execute_anchor_history_command('anchor-history', {'animation_id': 'walk', 'animation_version': 'v1'})
+                current_record_path = current_root_path / current_saved_record['id'][:19] / current_saved_record['id'] / 'result.json'
+                current_before_bytes = current_record_path.read_bytes()
+                current_observed_page = read_hermes_anchor_history({'animation_id': 'walk', 'animation_version': 'v1'})
+                self.assertEqual([current_item['id'] for current_item in current_observed_page['records']], [current_item['id'] for current_item in current_original_page['items']])
+                self.assertNotIn('/private/', str(current_observed_page))
+                self.assertEqual(current_before_bytes, current_record_path.read_bytes())
+                anchor_history.execute_anchor_history_command('anchor-history-reset', {'animation_id': 'walk', 'animation_version': 'v1'})
+                self.assertEqual(read_hermes_anchor_history({'animation_id': 'walk', 'animation_version': 'v1'})['records'], [])
+                with self.assertRaisesRegex(ValueError, '변경'):
+                    read_hermes_anchor_history({'animation_id': 'walk', 'animation_version': 'v1', 'snapshot': current_observed_page['snapshot']})
+                self.assertEqual(current_before_bytes, current_record_path.read_bytes())
+
     def test_invalid_or_oversized_records_are_not_empty_history(self):
         from tools.review.domains.character_animation import anchor_history
         from tools.review.domains.hermes_agent import anchor_history_observer
@@ -95,3 +122,52 @@ class HermesAnchorHistoryBridgeTests(unittest.TestCase):
                         else:self.assertIn('error',current_result_value)
                         self.assertNotIn('/private/',str(current_result_value))
             self.assertTrue((current_job_path/'result.json').is_file())
+
+    def test_sandbox_client_round_trip_and_error_redaction(self):
+        import socket
+        import threading
+        from types import SimpleNamespace
+        from tools.review.domains.character_animation import anchor_history
+        from tools.review.domains.hermes_agent import management_bridge, management_status_client
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_root_path = Path(current_temporary_directory) / 'history'
+            current_identifier_value = '2026-11-20_10-00-00-12345678'
+            current_job_path = current_root_path / current_identifier_value[:19] / current_identifier_value
+            current_job_path.mkdir(parents=True)
+            (current_job_path / 'result.json').write_text(json.dumps({'id': current_identifier_value, 'created_at': '2026-11-20T10:00:00+09:00', 'status': 'completed', 'source': {'animationId': 'walk', 'animationVersion': 'v1', 'sheets': [{'image': '/private/image.png'}]}, 'frames': 4}))
+            current_real_socket_factory = socket.socket
+            current_socket_path = str(Path(current_temporary_directory) / 'observer.sock')
+            with current_real_socket_factory(socket.AF_UNIX, socket.SOCK_STREAM) as current_listener_socket:
+                current_listener_socket.bind(current_socket_path)
+                current_listener_socket.listen(2)
+                def serve_temporary_observer():
+                    for current_connection_number in range(2):
+                        current_connection_socket, _ = current_listener_socket.accept()
+                        management_bridge.handle_hermes_observer_connection(current_connection_socket)
+                class TemporaryClientSocket:
+                    def __init__(self, *current_socket_arguments):
+                        self.current_socket = current_real_socket_factory(*current_socket_arguments)
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *current_exit_arguments):
+                        self.current_socket.close()
+                    def settimeout(self, current_timeout_value):
+                        self.current_socket.settimeout(current_timeout_value)
+                    def connect(self, current_original_path):
+                        if current_original_path != '/control/management-status.sock':
+                            raise AssertionError('unexpected observer socket')
+                        self.current_socket.connect(current_socket_path)
+                    def sendall(self, current_request_bytes):
+                        self.current_socket.sendall(current_request_bytes)
+                    def recv(self, current_response_limit):
+                        return self.current_socket.recv(current_response_limit)
+                current_server_thread = threading.Thread(target=serve_temporary_observer, daemon=True)
+                current_server_thread.start()
+                with patch.object(anchor_history, 'ANCHOR_HISTORY_ROOT', current_root_path), patch.object(management_status_client, 'socket', SimpleNamespace(socket=TemporaryClientSocket, AF_UNIX=socket.AF_UNIX, SOCK_STREAM=socket.SOCK_STREAM)):
+                    current_page_result = management_status_client.read_sandbox_management_status('legacy-anchor-history', json.dumps({'animation_id': 'walk', 'animation_version': 'v1'}))
+                    self.assertEqual(current_page_result['records'][0]['id'], current_identifier_value)
+                    self.assertNotIn('/private/', str(current_page_result))
+                    with self.assertRaisesRegex(ValueError, '과거 앵커 이력 조회 실패'):
+                        management_status_client.read_sandbox_management_status('legacy-anchor-history', '{"animation_id":"walk","animation_id":"other","animation_version":"v1"}')
+                current_server_thread.join(timeout=3)
+                self.assertFalse(current_server_thread.is_alive())

@@ -273,7 +273,7 @@ def read_hermes_video_resume_proposal(job_identifier_value: str) -> dict:
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def preview_hermes_video_resume(service_name: str, job_identifier_value: str) -> dict:
-    """DWPose·Animate2·VACE·Wan Fun 작업의 재개 입력을 검토한다. 모델 준비 충돌을 확인하며 GPU 작업은 실행하지 않는다."""
+    """DWPose·Animate2·VACE·Wan Fun 작업의 재개 입력을 검토한다. 중단 실행 기록을 복구할 수 있으며 GPU 작업은 실행하지 않는다."""
     return run_hermes_mcp_command('hermes-video-resume-preview',{'service':service_name,'job_id':job_identifier_value})
 
 
@@ -1152,31 +1152,57 @@ def delegate_hermes_kimodo_generation(request_identifier_value: str, generation_
     return run_hermes_mcp_command('hermes-delegate-kimodo', {'request_id': request_identifier_value, 'request': generation_request_record})
 
 
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_gateway_features() -> dict:
+    """게이트웨이의 자체 보고 기능을 확인한다. GPU·대기열을 조회하지 않는다."""
+    try:
+        current_gateway_address=validate_gateway_address(os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL',DEFAULT_GATEWAY_ADDRESS))
+        current_http_request=urllib.request.Request(current_gateway_address+'/management/health',headers={'Origin':current_gateway_address},method='GET')
+        current_http_opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),RejectHermesGatewayRedirect())
+        with current_http_opener.open(current_http_request,timeout=5) as current_http_response:
+            current_response_bytes=current_http_response.read(4097)
+        if len(current_response_bytes)>4096:raise ValueError('게이트웨이 건강 상태 응답 크기 초과')
+        current_health_record=json.loads(current_response_bytes)
+        if not isinstance(current_health_record,dict) or current_health_record.get('status')!='ok' or current_health_record.get('role')!='management-gateway':raise ValueError('게이트웨이 건강 상태 확인 불가')
+        current_feature_values=current_health_record.get('features')
+        if isinstance(current_feature_values,list) and len(current_feature_values)<=64 and all(isinstance(current_feature_value,str) and len(current_feature_value)<=100 for current_feature_value in current_feature_values):
+            current_queue_support='supported' if 'hermes-gpu-queue-v1' in current_feature_values else 'not_reported'
+        else:
+            current_queue_support='unknown'
+        return {'gateway':'self_reported','hermes_gpu_queue':current_queue_support,'note':'게이트웨이 자체 보고이며 서버 소유권이나 MCP 연결 갱신을 보장하지 않습니다.'}
+    except (OSError,ValueError,TypeError) as current_gateway_error:
+        raise ToolError('게이트웨이 기능 확인 실패: '+str(current_gateway_error)) from current_gateway_error
+
+
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def read_hermes_management_status() -> dict:
-    """동일한 모델 준비·GPU·대기열 관측을 조회한다. GPU 추론은 시작하지 않는다."""
+    """모델 준비·GPU·대기열을 조회한다. amd-smi 상태 조회가 따르며 GPU 추론은 시작하지 않는다."""
     return run_hermes_mcp_command('hermes-management-status', {})
 
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def read_hermes_gpu_queue_status() -> dict:
-    """제한된 대기열 관측과 기존 GPU 상태 형식을 반환한다. 관측 과정에서 로컬 잠금을 만들 수 있다."""
+    """제한된 대기열과 GPU 상태를 조회한다. amd-smi 호출과 로컬 잠금 생성이 따를 수 있다."""
     try:
         hermes_gateway_address = validate_gateway_address(os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL', DEFAULT_GATEWAY_ADDRESS))
-        hermes_management_record=run_hermes_mcp_command('hermes-management-status',{})
-        hermes_queue_record=hermes_management_record.get('queue') if isinstance(hermes_management_record,dict) else None
-        if not isinstance(hermes_queue_record,dict) or hermes_queue_record.get('status')!='available' or not isinstance(hermes_queue_record.get('jobs'),list):
-            raise ValueError('GPU 대기열을 확인할 수 없습니다.')
+        hermes_http_request = urllib.request.Request(hermes_gateway_address + '/management/hermes-gpu-queue', headers={'Origin':hermes_gateway_address}, method='GET')
+        hermes_http_opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), RejectHermesGatewayRedirect())
+        try:
+            with hermes_http_opener.open(hermes_http_request, timeout=30) as hermes_http_response:
+                hermes_response_bytes = hermes_http_response.read(2_000_001)
+        except urllib.error.HTTPError as current_http_error:
+            if current_http_error.code==503:raise ValueError('GPU 대기열을 확인할 수 없습니다.') from current_http_error
+            if current_http_error.code==404:raise ValueError('게이트웨이가 새 GPU 대기열 조회를 지원하지 않습니다. 게이트웨이를 갱신하세요.') from current_http_error
+            raise
+        if len(hermes_response_bytes) > 2_000_000:
+            raise ValueError('관리 게이트웨이 응답이 너무 큽니다.')
+        hermes_queue_record = json.loads(hermes_response_bytes)
+        if not isinstance(hermes_queue_record,dict) or not isinstance(hermes_queue_record.get('jobs'),list):
+            raise ValueError('GPU 대기열 응답 형식이 올바르지 않습니다.')
         hermes_job_records=hermes_queue_record['jobs']
         if any(not isinstance(current_job_record,dict) or not isinstance(current_job_record.get('id'),str) or not isinstance(current_job_record.get('service'),str) for current_job_record in hermes_job_records):
             raise ValueError('GPU 대기열 응답 형식이 올바르지 않습니다.')
-        hermes_http_request = urllib.request.Request(hermes_gateway_address + '/management/gpu-status', headers={'Origin':hermes_gateway_address}, method='GET')
-        hermes_http_opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), RejectHermesGatewayRedirect())
-        with hermes_http_opener.open(hermes_http_request, timeout=30) as hermes_http_response:
-            hermes_response_bytes = hermes_http_response.read(2_000_001)
-        if len(hermes_response_bytes) > 2_000_000:
-            raise ValueError('관리 게이트웨이 응답이 너무 큽니다.')
-        hermes_gpu_record = json.loads(hermes_response_bytes)
+        hermes_gpu_record = hermes_queue_record.get('gpu_status')
         if not isinstance(hermes_gpu_record, dict) or hermes_gpu_record.get('status') not in ('idle','busy','unavailable') or not isinstance(hermes_gpu_record.get('processes'),list) or any(not isinstance(current_process_record,dict) for current_process_record in hermes_gpu_record['processes']):
             raise ValueError('GPU 상태 응답 형식이 올바르지 않습니다.')
         if hermes_gpu_record['status'] in ('idle','busy') and (hermes_gpu_record['status']=='busy') != bool(hermes_gpu_record['processes']):

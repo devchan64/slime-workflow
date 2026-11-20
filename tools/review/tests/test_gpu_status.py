@@ -35,6 +35,19 @@ class GpuStatusTests(unittest.TestCase):
         self.assertEqual(status_record['processes'][0]['vram_memory_mib'], 12)
         self.assertEqual([process_record['memory_mib'] for process_record in status_record['processes']], [512, 768])
 
+    def test_repeated_gpu_status_within_cache_does_not_repeat_smi(self):
+        current_memory_values={f'{current_measure}_{current_domain}':{'value':1000 if current_measure=='total' else 500} for current_domain in ('gtt','vram') for current_measure in ('total','used','free')}
+        current_process_result=subprocess.CompletedProcess([],0,json.dumps([]))
+        current_memory_result=subprocess.CompletedProcess([],0,json.dumps({'gpu_data':[{'mem_usage':current_memory_values}]}))
+        with patch.object(gpu_status,'_status_cache',(0,{})), patch.object(gpu_status.time,'monotonic',side_effect=[10,10,11]), patch.object(gpu_status.subprocess,'run',side_effect=[current_process_result,current_memory_result]) as current_command_mock:
+            current_first_result=gpu_status.read_gpu_status()
+            current_second_result=gpu_status.read_gpu_status()
+        self.assertEqual(current_first_result,current_second_result)
+        self.assertEqual(current_first_result['status'],'idle')
+        self.assertEqual(current_command_mock.call_count,2)
+        self.assertEqual(current_command_mock.call_args_list[0].args[0],['amd-smi','process','--json'])
+        self.assertEqual(current_command_mock.call_args_list[1].args[0],['amd-smi','metric','-m','--json'])
+
     def test_hermes_capacity_uses_queue_device_instead_of_gpu_sum(self):
         from tools.review.domains.hermes_agent.management_observer import read_hermes_memory_capacity
         def build_device_memory(current_total_value,current_free_value):

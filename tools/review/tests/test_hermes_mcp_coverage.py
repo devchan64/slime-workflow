@@ -58,3 +58,38 @@ def proper_write_tool():
         current_capability_records=[{'command':current_name,'interfaces':['mcp'],'effect':current_effect} for current_name,current_effect in (('hermes-write','write'),('hermes-lock','local_bookkeeping'),('hermes-read','read'))]
         current_result_value=inspect_hermes_mcp_command_coverage(current_source_text,current_capability_records)
         self.assertEqual(current_result_value['unsafe_read_only'],['unsafe_lock_tool','unsafe_write_tool'])
+
+    def test_mcp_only_coverage_detects_missing_duplicates_and_read_only_mismatch(self):
+        from tools.review.maintenance.check_hermes_mcp_coverage import inspect_hermes_mcp_only_coverage
+        current_source_text='''
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True))
+def direct_tool():
+    return fetch_health()
+@hermes_mcp_server.tool()
+def hidden_tool():
+    return fetch_queue()
+@hermes_mcp_server.tool()
+def gateway_tool():
+    return run_hermes_mcp_command('hermes-status', {})
+'''
+        current_only_records=[{'name':'direct_tool','effect':'write'},{'name':'direct_tool','effect':'write'},{'name':'obsolete_tool','effect':'read'}]
+        current_result_value=inspect_hermes_mcp_only_coverage(current_source_text,current_only_records)
+        self.assertEqual(current_result_value['missing'],['hidden_tool'])
+        self.assertEqual(current_result_value['unregistered'],['obsolete_tool'])
+        self.assertEqual(current_result_value['duplicate'],['direct_tool'])
+        self.assertIn('direct_tool',current_result_value['unsafe_read_only'])
+        self.assertEqual(current_result_value['input_mismatch'],['direct_tool'])
+
+    def test_mcp_only_coverage_checks_required_optional_and_variadic_inputs(self):
+        from tools.review.maintenance.check_hermes_mcp_coverage import inspect_hermes_mcp_only_coverage
+        current_source_text='''
+@hermes_mcp_server.tool()
+def fixed_tool(required_value, optional_value=1, *, required_flag, optional_flag=False):
+    return fetch_value()
+@hermes_mcp_server.tool()
+def variable_tool(*args):
+    return fetch_value()
+'''
+        current_records=[{'name':'fixed_tool','effect':'read','required':['required_value','required_flag'],'optional':['optional_value','optional_flag']},{'name':'variable_tool','effect':'read','required':[],'optional':[]}]
+        current_result_value=inspect_hermes_mcp_only_coverage(current_source_text,current_records)
+        self.assertEqual(current_result_value['input_mismatch'],['variable_tool'])
