@@ -338,6 +338,17 @@ def select_conversation_workflow_output(current_session_identifier, workflow_run
     raise gr.Error("조회한 결과에서 선택할 단계와 입력 필드를 확인하세요.")
 
 
+def retry_conversation_workflow_step(current_session_identifier, workflow_run_identifier, reviewed_run_record, current_step_identifier):
+    if reviewed_run_record and reviewed_run_record.get("run_id") == workflow_run_identifier:
+        for current_step_record in reviewed_run_record["steps"]:
+            if current_step_record["step_id"] == current_step_identifier and current_step_record["state"] in ("failed", "cancelled"):
+                retry_run_record = execute_remote_management_command("hermes-agent", "hermes-workflow-retry", {
+                    "session_id": current_session_identifier, "run_id": workflow_run_identifier,
+                    "step_id": current_step_identifier, "source_request": current_step_record["request_id"]})
+                return retry_run_record, retry_run_record["run_id"]
+    raise gr.Error("실행 결과를 조회하고 재시도할 실패 또는 취소 단계를 지정하세요.")
+
+
 def cancel_conversation_workflow_run(current_session_identifier, workflow_run_identifier):
     return execute_remote_management_command("hermes-agent", "hermes-workflow-cancel",
         {"session_id": current_session_identifier, "run_id": workflow_run_identifier})
@@ -4930,6 +4941,12 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     gr.Button("조회한 결과를 후속 입력으로 선택").click(select_conversation_workflow_output,
                         [hermes_session_control, workflow_run_identifier, workflow_run_display, workflow_choice_step, workflow_choice_field],
                         workflow_run_display, queue=False)
+                    workflow_retry_step = gr.Textbox(label="재시도할 단계 ID")
+                    workflow_retry_button = gr.Button("이 단계의 고정 입력으로 새 실행 등록")
+                    workflow_retry_inputs = [hermes_session_control, workflow_run_identifier, workflow_run_display, workflow_retry_step]
+                    bind_gpu_generation_confirmation(workflow_retry_button, retry_conversation_workflow_step, workflow_retry_inputs,
+                        [workflow_run_display, workflow_run_identifier], generation_confirmation_validator=match_hermes_confirmation_inputs,
+                        generation_confirmation_inputs=workflow_retry_inputs)
                     workflow_cancel_button = gr.Button("지정한 실행 ID의 워크플로우 취소 요청")
                     workflow_cancel_button.click(cancel_conversation_workflow_run,
                         [hermes_session_control, workflow_run_identifier], workflow_run_display, queue=False)

@@ -70,6 +70,9 @@ class WorkflowRunStore:
                 CREATE TABLE IF NOT EXISTS workflow_observation (
                     request_id TEXT PRIMARY KEY, source_state TEXT NOT NULL, observed_at TEXT NOT NULL, source_job_id TEXT
                 );
+                CREATE TABLE IF NOT EXISTS workflow_retry (
+                    source_request TEXT PRIMARY KEY, retry_run TEXT NOT NULL UNIQUE
+                );
                 CREATE TABLE IF NOT EXISTS workflow_choice (
                     run_id TEXT NOT NULL, step_id TEXT NOT NULL, input_field TEXT NOT NULL,
                     source_request TEXT NOT NULL, digest TEXT NOT NULL, selected INTEGER NOT NULL DEFAULT 0,
@@ -135,6 +138,40 @@ class WorkflowRunStore:
                      current_generator_catalog[current_step_record["generator"]]["category"],
                      encode_workflow_record(current_step_dependencies),
                      "waiting" if current_step_dependencies else "ready", uuid.uuid4().hex))
+
+    def retry_failed_step(self, workflow_run_identifier, conversation_session_identifier, current_step_identifier,
+                          source_attempt_identifier):
+        with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
+            current_database_connection.execute("BEGIN IMMEDIATE")
+            source_attempt_record = current_database_connection.execute(
+                """SELECT request_body, request_digest, generator, generator_version, template_version, category
+                   FROM workflow_step JOIN workflow_run USING(run_id) JOIN workflow_step_contract USING(run_id,step_id)
+                   WHERE run_id=? AND session_id=? AND step_id=? AND request_id=? AND state IN ('failed','cancelled')""",
+                (workflow_run_identifier, conversation_session_identifier, current_step_identifier, source_attempt_identifier)).fetchone()
+            if not source_attempt_record or source_attempt_record[0] is None:
+                raise ValueError("접수 입력이 보존된 실패 또는 취소 시도를 선택하세요.")
+            existing_retry_record = current_database_connection.execute(
+                "SELECT retry_run FROM workflow_retry WHERE source_request=?", (source_attempt_identifier,)).fetchone()
+            if existing_retry_record:
+                return existing_retry_record[0]
+            request_body_text, request_digest_text, generator_name, generator_version, template_version, category_name = source_attempt_record
+            if hashlib.sha256(request_body_text.encode()).hexdigest() != request_digest_text:
+                raise ValueError("원 시도의 고정 입력 해시가 일치하지 않습니다.")
+            current_generator_catalog = read_workflow_generator_catalog()
+            current_generator_contract = current_generator_catalog.get(generator_name, {})
+            if (current_generator_contract.get("version"), current_generator_contract.get("template_version")) != (generator_version, template_version):
+                raise ValueError("원 시도의 생성기 또는 템플릿 버전을 사용할 수 없습니다.")
+            retry_step_definition = [{"id": current_step_identifier, "generator": generator_name, "inputs": json.loads(request_body_text)}]
+            compile_workflow_dependencies(retry_step_definition, current_generator_catalog)
+            retry_run_identifier = uuid.uuid4().hex
+            current_database_connection.execute("INSERT INTO workflow_run VALUES (?, ?, ?)",
+                (retry_run_identifier, conversation_session_identifier, encode_workflow_record(retry_step_definition)))
+            current_database_connection.execute("INSERT INTO workflow_step_contract VALUES (?, ?, ?, ?, ?)",
+                (retry_run_identifier, current_step_identifier, generator_name, generator_version, template_version))
+            current_database_connection.execute("INSERT INTO workflow_step VALUES (?, ?, ?, '[]', 'ready', ?, NULL, NULL)",
+                (retry_run_identifier, current_step_identifier, category_name, uuid.uuid4().hex))
+            current_database_connection.execute("INSERT INTO workflow_retry VALUES (?, ?)", (source_attempt_identifier, retry_run_identifier))
+            return retry_run_identifier
 
     def claim_ready_step(self, workflow_run_identifier, current_step_identifier):
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
@@ -374,6 +411,10 @@ class WorkflowRunStore:
             if current_session_match is None:
                 raise ValueError("이 세션에서 해당 실행을 찾을 수 없습니다.")
             return {"run_id": workflow_run_identifier, "steps": read_step_records_locked(current_database_connection, workflow_run_identifier),
+                    "retries": [dict(current_retry_row) for current_retry_row in current_database_connection.execute(
+                        """SELECT step.run_id AS source_run, step.step_id, retry.source_request, retry.retry_run FROM workflow_retry AS retry
+                           JOIN workflow_step AS step ON step.request_id=retry.source_request WHERE step.run_id=? OR retry.retry_run=?""",
+                        (workflow_run_identifier, workflow_run_identifier))],
                     "choices": [dict(current_choice_row) for current_choice_row in current_database_connection.execute(
                         "SELECT step_id, input_field, source_request, digest, selected FROM workflow_choice WHERE run_id=? ORDER BY rowid",
                         (workflow_run_identifier,))],
