@@ -325,6 +325,19 @@ def display_conversation_workflow_results(current_session_identifier, workflow_r
     return current_run_view, "\n\n".join(translated_result_values), "\n\n".join(image_result_links)
 
 
+def select_conversation_workflow_output(current_session_identifier, workflow_run_identifier, reviewed_run_record,
+                                        current_step_identifier, target_input_field):
+    if not reviewed_run_record or reviewed_run_record.get("run_id") != workflow_run_identifier:
+        raise gr.Error("먼저 해당 실행의 결과를 조회하세요.")
+    for current_choice_record in reviewed_run_record.get("choices", []):
+        if current_choice_record["step_id"] == current_step_identifier and current_choice_record["input_field"] == target_input_field:
+            return execute_remote_management_command("hermes-agent", "hermes-workflow-select", {
+                "session_id": current_session_identifier, "run_id": workflow_run_identifier,
+                "step_id": current_step_identifier, "input_field": target_input_field,
+                "source_request": current_choice_record["source_request"], "digest": current_choice_record["digest"]})
+    raise gr.Error("조회한 결과에서 선택할 단계와 입력 필드를 확인하세요.")
+
+
 def cancel_conversation_workflow_run(current_session_identifier, workflow_run_identifier):
     return execute_remote_management_command("hermes-agent", "hermes-workflow-cancel",
         {"session_id": current_session_identifier, "run_id": workflow_run_identifier})
@@ -4908,10 +4921,15 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                         generation_confirmation_inputs=workflow_graph_inputs)
                 with gr.Accordion("이 대화의 워크플로우 작업 찾기", open=False):
                     workflow_category_filter = gr.Dropdown([("전체", ""), ("번역", "translation"), ("이미지", "image")], value="", label="카테고리")
-                    workflow_state_filter = gr.Dropdown([("전체", ""), ("선행 작업 대기", "waiting"), ("접수 준비", "ready"),
+                    workflow_state_filter = gr.Dropdown([("전체", ""), ("선행 작업 대기", "waiting"), ("사용자 선택 대기", "awaiting_choice"), ("접수 준비", "ready"),
                         ("접수·결과 확인 중", "submitting"), ("생성기 대기", "queued"), ("생성기 실행 중", "running"),
                         ("생성기 일시정지", "paused"), ("생성기 상태 확인 불가", "unknown"), ("완료", "completed"), ("실패", "failed"),
                         ("취소", "cancelled"), ("차단", "blocked")], value="", label="단계 상태")
+                    workflow_choice_step = gr.Textbox(label="결과를 받을 단계 ID")
+                    workflow_choice_field = gr.Textbox(label="결과를 받을 입력 필드")
+                    gr.Button("조회한 결과를 후속 입력으로 선택").click(select_conversation_workflow_output,
+                        [hermes_session_control, workflow_run_identifier, workflow_run_display, workflow_choice_step, workflow_choice_field],
+                        workflow_run_display, queue=False)
                     workflow_cancel_button = gr.Button("지정한 실행 ID의 워크플로우 취소 요청")
                     workflow_cancel_button.click(cancel_conversation_workflow_run,
                         [hermes_session_control, workflow_run_identifier], workflow_run_display, queue=False)

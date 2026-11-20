@@ -24,7 +24,7 @@ def block_waiting_dependents(current_database_connection, workflow_run_identifie
                    json_each(child.dependencies) AS parent JOIN affected ON parent.value=affected.step_id
                    WHERE child.run_id=?
            ) UPDATE workflow_step SET state='blocked'
-             WHERE run_id=? AND state='waiting' AND step_id IN (SELECT step_id FROM affected) RETURNING step_id""",
+             WHERE run_id=? AND state IN ('waiting','awaiting_choice') AND step_id IN (SELECT step_id FROM affected) RETURNING step_id""",
         (current_step_identifier, workflow_run_identifier, workflow_run_identifier)).fetchall()
     current_database_connection.executemany(
         "INSERT INTO workflow_block_reason VALUES (?, ?, ?, ?)",
@@ -69,6 +69,11 @@ class WorkflowRunStore:
                 );
                 CREATE TABLE IF NOT EXISTS workflow_observation (
                     request_id TEXT PRIMARY KEY, source_state TEXT NOT NULL, observed_at TEXT NOT NULL, source_job_id TEXT
+                );
+                CREATE TABLE IF NOT EXISTS workflow_choice (
+                    run_id TEXT NOT NULL, step_id TEXT NOT NULL, input_field TEXT NOT NULL,
+                    source_request TEXT NOT NULL, digest TEXT NOT NULL, selected INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY(run_id, step_id, input_field)
                 );
                 CREATE TABLE IF NOT EXISTS workflow_cancel_request (
                     request_id TEXT PRIMARY KEY, delivery TEXT NOT NULL
@@ -144,7 +149,8 @@ class WorkflowRunStore:
             resolved_input_record = dict(current_step_definition.get("inputs", {}))
             for target_field_name, source_binding_record in current_step_definition.get("bindings", {}).items():
                 source_result_row = current_database_connection.execute(
-                    """SELECT outputs, meta.digest, meta.byte_size FROM workflow_result
+                    """SELECT outputs, meta.digest, meta.byte_size, producer.request_id FROM workflow_result
+                       JOIN workflow_step AS producer USING(run_id, step_id)
                        LEFT JOIN workflow_output_metadata AS meta USING(run_id, step_id)
                        WHERE run_id=? AND step_id=?""",
                     (workflow_run_identifier, source_binding_record["from_step"])).fetchone()
@@ -187,6 +193,22 @@ class WorkflowRunStore:
                     block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier,
                         source_binding_record["from_step"], str(invalid_bound_input))
                     return None
+                if source_binding_record.get("selection") == "user_choice":
+                    choice_key_fields = (workflow_run_identifier, current_step_identifier, target_field_name)
+                    current_database_connection.execute(
+                        "INSERT OR IGNORE INTO workflow_choice VALUES (?, ?, ?, ?, ?, 0)",
+                        (*choice_key_fields, source_result_row[3], source_result_row[1]))
+                    stored_choice_record = current_database_connection.execute(
+                        "SELECT source_request, digest, selected FROM workflow_choice WHERE run_id=? AND step_id=? AND input_field=?",
+                        choice_key_fields).fetchone()
+                    if stored_choice_record[:2] != (source_result_row[3], source_result_row[1]):
+                        block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier,
+                            source_binding_record["from_step"], "선택 대상의 생산 시도 또는 결과 해시가 달라졌습니다.")
+                        return None
+                    if not stored_choice_record[2]:
+                        current_database_connection.execute(
+                            "UPDATE workflow_step SET state='awaiting_choice' WHERE run_id=? AND step_id=?", choice_key_fields[:2])
+                        return None
                 resolved_input_record[target_field_name] = bound_output_value
             encoded_request_body = encode_workflow_record(resolved_input_record)
             current_database_connection.execute(
@@ -288,6 +310,27 @@ class WorkflowRunStore:
                    observed_at=excluded.observed_at, source_job_id=COALESCE(excluded.source_job_id, source_job_id)""",
                 (observed_source_state, datetime.now(timezone.utc).isoformat(), source_job_identifier, current_request_identifier))
 
+    def select_workflow_output(self, workflow_run_identifier, conversation_session_identifier, current_step_identifier,
+                               target_input_field, source_attempt_identifier, source_output_digest):
+        with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
+            current_database_connection.execute("BEGIN IMMEDIATE")
+            choice_key_fields = (workflow_run_identifier, current_step_identifier, target_input_field,
+                                 source_attempt_identifier, source_output_digest)
+            matched_choice_record = current_database_connection.execute(
+                """SELECT selected, state FROM workflow_choice JOIN workflow_step USING(run_id, step_id)
+                   JOIN workflow_run USING(run_id) WHERE run_id=? AND step_id=? AND input_field=?
+                   AND source_request=? AND digest=? AND session_id=?""",
+                (*choice_key_fields, conversation_session_identifier)).fetchone()
+            if matched_choice_record and matched_choice_record[0]:
+                return
+            if not matched_choice_record or matched_choice_record[1] != "awaiting_choice":
+                raise ValueError("이 세션의 선택 대기 단계와 결과 식별자를 확인하세요.")
+            current_database_connection.execute(
+                "UPDATE workflow_choice SET selected=1 WHERE run_id=? AND step_id=? AND input_field=? AND source_request=? AND digest=?",
+                choice_key_fields)
+            current_database_connection.execute(
+                "UPDATE workflow_step SET state='waiting' WHERE run_id=? AND step_id=?", choice_key_fields[:2])
+
     def request_workflow_cancellation(self, workflow_run_identifier, conversation_session_identifier):
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
             current_database_connection.execute("BEGIN IMMEDIATE")
@@ -296,7 +339,7 @@ class WorkflowRunStore:
                     (workflow_run_identifier, conversation_session_identifier)).fetchone():
                 raise ValueError("이 세션에서 해당 실행을 찾을 수 없습니다.")
             current_database_connection.execute(
-                "UPDATE workflow_step SET state='cancelled' WHERE run_id=? AND state IN ('ready','waiting')",
+                "UPDATE workflow_step SET state='cancelled' WHERE run_id=? AND state IN ('ready','waiting','awaiting_choice')",
                 (workflow_run_identifier,))
             current_database_connection.execute(
                 """INSERT OR IGNORE INTO workflow_cancel_request
@@ -331,13 +374,16 @@ class WorkflowRunStore:
             if current_session_match is None:
                 raise ValueError("이 세션에서 해당 실행을 찾을 수 없습니다.")
             return {"run_id": workflow_run_identifier, "steps": read_step_records_locked(current_database_connection, workflow_run_identifier),
+                    "choices": [dict(current_choice_row) for current_choice_row in current_database_connection.execute(
+                        "SELECT step_id, input_field, source_request, digest, selected FROM workflow_choice WHERE run_id=? ORDER BY rowid",
+                        (workflow_run_identifier,))],
                     "results": read_result_records_locked(current_database_connection, workflow_run_identifier),
                     "queried_at": datetime.now(timezone.utc).isoformat()}
 
     def find_session_workflow_steps(self, conversation_session_identifier, current_category_name, current_state_name):
         if current_category_name not in ("", "translation", "image"):
             raise ValueError("지원하지 않는 생성기 카테고리입니다.")
-        if current_state_name not in ("", "ready", "waiting", "submitting", "completed", "failed", "cancelled", "blocked", "queued", "running", "paused", "unknown"):
+        if current_state_name not in ("", "ready", "waiting", "awaiting_choice", "submitting", "completed", "failed", "cancelled", "blocked", "queued", "running", "paused", "unknown"):
             raise ValueError("지원하지 않는 단계 상태입니다.")
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
             current_database_connection.row_factory = sqlite3.Row

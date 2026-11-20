@@ -13,6 +13,8 @@ def execute_workflow_command(workflow_root_directory, current_command_name, curr
     required_field_names = {"session_id", "run_id"}
     if current_command_name == "hermes-workflow-list":
         required_field_names = {"session_id", "category", "state"}
+    elif current_command_name == "hermes-workflow-select":
+        required_field_names.update({"step_id", "input_field", "source_request", "digest"})
     elif current_command_name == "hermes-workflow-register":
         required_field_names.add("steps")
     elif current_command_name not in ("hermes-workflow-view", "hermes-workflow-cancel"):
@@ -34,6 +36,10 @@ def execute_workflow_command(workflow_root_directory, current_command_name, curr
     if current_command_name == "hermes-workflow-register":
         workflow_run_store.register_workflow_run(workflow_run_identifier, conversation_session_identifier,
                                                  current_payload_record["steps"])
+    if current_command_name == "hermes-workflow-select":
+        workflow_run_store.select_workflow_output(workflow_run_identifier, conversation_session_identifier,
+            current_payload_record["step_id"], current_payload_record["input_field"],
+            current_payload_record["source_request"], current_payload_record["digest"])
     if current_command_name == "hermes-workflow-cancel":
         workflow_run_store.request_workflow_cancellation(workflow_run_identifier, conversation_session_identifier)
     return workflow_run_store.read_session_run_view(workflow_run_identifier, conversation_session_identifier)

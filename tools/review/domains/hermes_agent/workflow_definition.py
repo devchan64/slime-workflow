@@ -66,7 +66,8 @@ def compile_workflow_dependencies(workflow_step_records, generator_contract_reco
             validate_fixed_workflow_input(current_field_name, current_input_contracts[current_field_name], current_input_value)
         source_step_identifiers = set()
         for current_field_name, current_binding_record in bound_input_values.items():
-            if (not isinstance(current_binding_record, dict) or set(current_binding_record) != {"from_step", "output"}
+            if (not isinstance(current_binding_record, dict) or set(current_binding_record) not in ({"from_step", "output"}, {"from_step", "output", "selection"})
+                    or current_binding_record.get("selection", "user_choice") != "user_choice"
                     or not all(isinstance(value, str) for value in current_binding_record.values())):
                 raise ValueError("지원하지 않는 출력 연결 형식입니다.")
             source_step_identifier = current_binding_record["from_step"]
