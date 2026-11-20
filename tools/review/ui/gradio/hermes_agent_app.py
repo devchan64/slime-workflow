@@ -324,7 +324,8 @@ def resolve_workflow_priority_target(current_session_identifier, workflow_run_id
             current_receipt_request = {"request_id": current_step_record["request_id"], "service": current_service_name}
             current_receipt_record = execute_remote_management_command("hermes-agent", "hermes-service-receipt", current_receipt_request)
             if (all(current_receipt_record.get(key) == value for key, value in current_receipt_request.items())
-                    and current_receipt_record.get("state") == "accepted" and current_receipt_record.get("job_id")):
+                    and current_receipt_record.get("state") == "accepted" and current_receipt_record.get("job_id")
+                    and current_step_record.get("source_job_id") in (None, current_receipt_record["job_id"])):
                 return {"service": current_service_name, "id": current_receipt_record["job_id"]}
     raise gr.Error("접수된 단계의 서비스 작업 ID를 확인할 수 없습니다.")
 
@@ -332,8 +333,7 @@ def resolve_workflow_priority_target(current_session_identifier, workflow_run_id
 def review_workflow_step_priority(current_session_identifier, workflow_run_identifier, workflow_step_identifier):
     from .operations_history_app import prepare_operations_priority_request
     current_target_record = resolve_workflow_priority_target(current_session_identifier, workflow_run_identifier, workflow_step_identifier)
-    current_request_record, current_notice_text, _, current_button_update = prepare_operations_priority_request(current_target_record)
-    return current_request_record, current_notice_text, current_button_update
+    return prepare_operations_priority_request(current_target_record)
 
 
 def submit_workflow_step_priority(current_request_record, current_session_identifier, workflow_run_identifier, workflow_step_identifier):
@@ -5024,11 +5024,16 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     workflow_priority_review = gr.Button("대기 순번과 대상 검토")
                     workflow_priority_record = gr.State(None)
                     workflow_priority_notice = gr.Markdown()
+                    workflow_priority_receipt = gr.Textbox(label="우선 실행 접수 ID")
                     workflow_priority_submit = gr.Button("검토한 작업 우선 실행", visible=False)
                     workflow_target_inputs = [hermes_session_control, workflow_run_identifier, workflow_step_identifier]
                     workflow_priority_outputs = [workflow_priority_record, workflow_priority_notice, workflow_priority_submit]
-                    workflow_priority_review.click(review_workflow_step_priority, workflow_target_inputs, workflow_priority_outputs, queue=False)
+                    workflow_priority_review.click(review_workflow_step_priority, workflow_target_inputs,
+                        [workflow_priority_record, workflow_priority_notice, workflow_priority_receipt, workflow_priority_submit], queue=False)
                     workflow_priority_submit.click(submit_workflow_step_priority, [workflow_priority_record, *workflow_target_inputs], workflow_priority_outputs, queue=False)
+                    from .operations_history_app import read_operations_priority_request
+                    gr.Button("우선 실행 접수 결과 조회").click(read_operations_priority_request,
+                        workflow_priority_receipt, workflow_priority_notice, queue=False)
                     for workflow_target_input in workflow_target_inputs:
                         workflow_target_input.change(lambda: (None, "", gr.update(visible=False)), outputs=workflow_priority_outputs, queue=False)
                 hermes_session_verification = gr.Textbox(label='세션 작업 검증 모듈 · 선택', lines=2, placeholder='tools.review.tests.test_hermes_service')
