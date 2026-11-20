@@ -6,6 +6,7 @@ import json
 import sqlite3
 import uuid
 from contextlib import closing
+from datetime import datetime, timezone
 
 from .workflow_catalog import read_workflow_generator_catalog
 from .workflow_definition import compile_workflow_dependencies
@@ -236,7 +237,8 @@ class WorkflowRunStore:
         if current_session_match is None:
             raise ValueError("이 세션에서 해당 실행을 찾을 수 없습니다.")
         return {"run_id": workflow_run_identifier, "steps": self.list_run_step_records(workflow_run_identifier),
-                "results": self.read_run_results(workflow_run_identifier)}
+                "results": self.read_run_results(workflow_run_identifier),
+                "queried_at": datetime.now(timezone.utc).isoformat()}
 
     def find_session_workflow_steps(self, conversation_session_identifier, current_category_name, current_state_name):
         if current_category_name not in ("", "translation", "image"):
@@ -253,4 +255,4 @@ class WorkflowRunStore:
                 (conversation_session_identifier, current_category_name, current_category_name,
                  current_state_name, current_state_name)).fetchall()
         return {"steps": [dict(current_step_record) for current_step_record in matching_step_records[:100]],
-                "truncated": len(matching_step_records) > 100}
+                "truncated": len(matching_step_records) > 100, "queried_at": datetime.now(timezone.utc).isoformat()}
