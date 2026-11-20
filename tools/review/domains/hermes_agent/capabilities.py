@@ -33,7 +33,7 @@ HERMES_CAPABILITY_RECORDS = (
     {'command': 'hermes-workflow-register', 'label': '워크플로우 실행 등록', 'required': ['session_id', 'run_id', 'steps'], 'optional': [], 'effect': 'enqueue', 'gpu': 'queued', 'retry': 'request_id', 'interfaces': ['gui'], 'result': 'workflow_register', 'note': '검토한 실행 ID와 단계 정의를 고정하고 준비된 단계를 GPU 대기열에 접수한다.'},
     {'command': 'hermes-workflow-retry', 'label': '실패 단계 재시도', 'required': ['session_id', 'run_id', 'step_id', 'source_request'], 'optional': [], 'effect': 'enqueue', 'gpu': 'queued', 'retry': 'request_id', 'interfaces': ['gui'], 'result': 'workflow_view', 'note': '선택한 원 시도의 입력으로 단일 단계 실행을 등록한다.'},
     {'command': 'hermes-workflow-select', 'label': '후속 입력 결과 선택', 'required': ['session_id', 'run_id', 'step_id', 'input_field', 'source_request', 'digest'], 'optional': [], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_view', 'note': '검토한 생산 시도와 결과 해시를 단계 입력에 고정한다.'},
-    {'command': 'hermes-workflow-cancel', 'label': '워크플로우 취소 요청', 'required': ['session_id', 'run_id'], 'optional': [], 'effect': 'cancel', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_view', 'note': '미접수 단계를 중단하고 접수된 작업은 원 서비스에 취소를 요청한다.'},
+    {'command': 'hermes-workflow-cancel', 'label': '워크플로우 취소 요청', 'required': ['session_id', 'run_id'], 'optional': [], 'effect': 'cancel_request', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_view', 'note': '미접수 단계를 중단하고 접수된 작업은 원 서비스에 취소를 요청한다.'},
     {'command': 'hermes-workflow-view', 'label': '워크플로우 결과 조회', 'required': ['session_id', 'run_id'], 'optional': [], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_view', 'note': '세션에 속한 실행 단계와 결과를 조회한다.'},
     {'command': 'hermes-workflow-list', 'label': '워크플로우 작업 찾기', 'required': ['session_id', 'category', 'state'], 'optional': [], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_list', 'note': '세션별 단계 목록을 카테고리와 상태로 검색한다.'},
     {'command':'hermes-session-create','label':'대화 세션 생성','required':['session_id'],'optional':[],'effect':'write','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'session','note':'같은 세션 ID로 재시도할 수 있다.'},
@@ -174,6 +174,10 @@ HERMES_CAPABILITY_RECORDS = (
 
 
 HERMES_FIELD_SCHEMAS = {
+    'step_id': {'type':'string','minLength':1},
+    'input_field': {'type':'string','minLength':1},
+    'source_request': {'type':'string','pattern':'^[a-f0-9]{32}$'},
+    'digest': {'type':'string','pattern':'^[a-f0-9]{64}$'},
     'run_id': {'type':'string','pattern':'^[a-f0-9]{32}$'},
     'steps': {'type':'array','minItems':1,'items':{'type':'object','required':['id','generator']}},
     'state': {'type':'string','enum':['','ready','waiting','submitting','completed','failed','cancelled','blocked','queued','running','paused','unknown']},
