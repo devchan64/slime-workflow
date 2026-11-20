@@ -69,6 +69,18 @@ class FrontendReviewTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 load_animation_review(self.frontend_asset_root,self.animation_metadata_path)
 
+    def test_versioned_source_takes_precedence_over_shared_source(self):
+        import hashlib
+        Image.new('RGBA', (8, 8)).save(self.frontend_asset_root/'old.png')
+        (self.frontend_asset_root/'source.json').write_text(json.dumps({'image': 'old.png'}))
+        current_image_hash = hashlib.sha256((self.frontend_asset_root/'idle.png').read_bytes()).hexdigest()
+        (self.frontend_asset_root/'idle.source.json').write_text(json.dumps({'image': 'idle.png', 'sha256': current_image_hash}))
+        _, _, current_image_paths = load_animation_review(self.frontend_asset_root, self.animation_metadata_path)
+        self.assertEqual(current_image_paths, {self.frontend_asset_root/'idle.png'})
+        (self.frontend_asset_root/'idle.source.yaml').write_text('image: idle.png\n')
+        with self.assertRaises(ValueError):
+            load_animation_review(self.frontend_asset_root, self.animation_metadata_path)
+
     def test_original_fractional_coordinates_survive(self):
         original_metadata_bytes = self.animation_metadata_path.read_bytes()
         review_frame_records, review_source_metadata, source_image_paths = load_animation_review(self.frontend_asset_root, self.animation_metadata_path)

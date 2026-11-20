@@ -147,7 +147,9 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
     require_record_fields(animation_source_data['sheet'], ('width', 'height'), '시트 크기')
     if any(type(dimension_pixel_value) is not int or dimension_pixel_value < 1 for dimension_pixel_value in animation_source_data['sheet'].values()):
         raise ValueError('시트 크기는 양의 정수여야 합니다.')
-    source_manifest_candidates = [animation_metadata_path.with_name(current_source_filename) for current_source_filename in ('source.yaml', 'source.json')]
+    versioned_source_stem = animation_metadata_path.name.removesuffix('.animation.json') + '.source'
+    versioned_manifest_candidates = [animation_metadata_path.with_name(versioned_source_stem + current_extension_name) for current_extension_name in ('.yaml', '.json')]
+    source_manifest_candidates = versioned_manifest_candidates if any(current_manifest_path.exists() for current_manifest_path in versioned_manifest_candidates) else [animation_metadata_path.with_name(current_source_filename) for current_source_filename in ('source.yaml', 'source.json')]
     existing_manifest_paths = [current_manifest_path for current_manifest_path in source_manifest_candidates if current_manifest_path.exists()]
     if len(existing_manifest_paths) > 1:
         raise ValueError(f'{animation_metadata_path.parent}: source.yaml과 source.json 원본이 중복되었습니다.')
