@@ -9,7 +9,7 @@ from contextlib import closing
 from datetime import datetime, timezone
 
 from .workflow_catalog import read_workflow_generator_catalog
-from .workflow_definition import compile_workflow_dependencies
+from .workflow_definition import compile_workflow_dependencies, validate_fixed_workflow_input
 
 
 def encode_workflow_record(current_record_value):
@@ -176,6 +176,13 @@ class WorkflowRunStore:
                             source_binding_record["from_step"], "보존된 PNG의 SHA-256이 일치하지 않습니다." if stored_image_row else "보존된 PNG가 없습니다.")
                         return None
                     bound_output_value = [base64.b64encode(stored_image_row[0]).decode("ascii")]
+                target_field_contract = read_workflow_generator_catalog()[current_step_definition["generator"]]["inputs"][target_field_name]
+                try:
+                    validate_fixed_workflow_input(target_field_name, target_field_contract, bound_output_value)
+                except ValueError as invalid_bound_input:
+                    block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier,
+                        source_binding_record["from_step"], str(invalid_bound_input))
+                    return None
                 resolved_input_record[target_field_name] = bound_output_value
             encoded_request_body = encode_workflow_record(resolved_input_record)
             current_database_connection.execute(
