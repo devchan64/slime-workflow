@@ -16,6 +16,17 @@ def encode_workflow_record(current_record_value):
                       separators=(",", ":"))
 
 
+def block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier):
+    current_database_connection.execute(
+        """WITH RECURSIVE affected(step_id) AS (
+               SELECT ? UNION SELECT child.step_id FROM workflow_step AS child,
+                   json_each(child.dependencies) AS parent JOIN affected ON parent.value=affected.step_id
+                   WHERE child.run_id=?
+           ) UPDATE workflow_step SET state='blocked'
+             WHERE run_id=? AND state='waiting' AND step_id IN (SELECT step_id FROM affected)""",
+        (current_step_identifier, workflow_run_identifier, workflow_run_identifier))
+
+
 class WorkflowRunStore:
     def __init__(self, workflow_database_path):
         self.workflow_database_path = workflow_database_path
@@ -93,15 +104,15 @@ class WorkflowRunStore:
                 source_output_name = source_binding_record["output"]
                 source_output_values = json.loads(source_result_row[0])
                 if source_output_name not in source_output_values:
-                    current_database_connection.execute("UPDATE workflow_step SET state='blocked' WHERE run_id=? AND step_id=?",
-                        (workflow_run_identifier, current_step_identifier))
+                    block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier)
                     return None
                 bound_output_value = source_output_values[source_output_name]
                 if source_output_name == "images":
                     stored_image_row = current_database_connection.execute(
                         "SELECT content FROM workflow_png WHERE digest=?", (bound_output_value["sha256"],)).fetchone()
                     if not stored_image_row or hashlib.sha256(stored_image_row[0]).hexdigest() != bound_output_value["sha256"]:
-                        raise ValueError("보존된 이미지 해시를 확인할 수 없습니다.")
+                        block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier)
+                        return None
                     bound_output_value = [base64.b64encode(stored_image_row[0]).decode("ascii")]
                 resolved_input_record[target_field_name] = bound_output_value
             encoded_request_body = encode_workflow_record(resolved_input_record)
@@ -195,14 +206,7 @@ class WorkflowRunStore:
                    AND state='submitting'""", (terminal_state_name, workflow_run_identifier,
                    current_step_record["step_id"], current_step_record["request_id"])).rowcount
             if changed_step_count:
-                current_database_connection.execute(
-                    """WITH RECURSIVE affected(step_id) AS (
-                           SELECT ? UNION SELECT child.step_id FROM workflow_step AS child,
-                               json_each(child.dependencies) AS parent JOIN affected ON parent.value=affected.step_id
-                               WHERE child.run_id=?
-                       ) UPDATE workflow_step SET state='blocked'
-                         WHERE run_id=? AND state='waiting' AND step_id IN (SELECT step_id FROM affected)""",
-                    (current_step_record["step_id"], workflow_run_identifier, workflow_run_identifier))
+                block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_record["step_id"])
 
     def list_active_run_identifiers(self):
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
