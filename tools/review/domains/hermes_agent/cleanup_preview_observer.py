@@ -41,11 +41,18 @@ def summarize_cleanup_preview_record(current_service_name, current_preview_recor
 
 def read_hermes_cleanup_preview(current_service_name):
     """지원 서비스의 정리 미리보기를 한 번 조회하고 경로 없는 요약만 반환한다."""
-    from tools.review.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS
+    from tools.review.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS, inspect_management_policy_rejection
     from tools.review.common.management_client import execute_remote_management_command
     if (not isinstance(current_service_name, str) or current_service_name not in MANAGEMENT_SERVICE_COMMANDS
             or 'history-reset-preview' not in MANAGEMENT_SERVICE_COMMANDS[current_service_name]):
         raise ValueError('정리 미리보기를 지원하는 서비스를 선택하세요.')
+    from generators.music.service_constants import inspect_retired_audio_rejection
+    from tools.review.domains.character_animation.retirement_policy import inspect_animation_retirement_policy
+    current_policy_reason = (inspect_management_policy_rejection(current_service_name, 'history-reset-preview')
+        or inspect_retired_audio_rejection(current_service_name, 'history-reset-preview')
+        or (inspect_animation_retirement_policy('history-reset-preview') if current_service_name == 'character-animation' else None))
+    if current_policy_reason:
+        raise ValueError(current_policy_reason)
     with CLEANUP_PREVIEW_LOCK_GUARD:
         current_service_lock = CLEANUP_PREVIEW_SERVICE_LOCKS.setdefault(current_service_name, threading.Lock())
     if not current_service_lock.acquire(blocking=False):

@@ -505,17 +505,35 @@ class HermesServiceManager:
             from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
             from tools.review.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS, inspect_registered_model_operation, execute_management_command
             current_gateway_address = validate_gateway_address(os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL', DEFAULT_GATEWAY_ADDRESS))
+            class ModelPreparationPreflightBlocked(ValueError):
+                pass
             def validate_current_model_service(model_service_name):
                 current_operation_name = inspect_registered_model_operation(model_service_name, MANAGEMENT_SERVICE_COMMANDS.get(model_service_name, ()), 'prepare')
                 if current_operation_name is None:
                     raise ValueError('이 모델의 준비는 기존 관리 정책에서 제한됩니다.')
+                if model_service_name == 'hermes-model':
+                    from tools.review.common.hermes_model_download import inspect_hermes_model_files
+                    from tools.review.common.model_prepare_process import inspect_registered_preparation_strict, hold_hermes_model_usage_guard, HermesModelUsageBusy
+                    try:
+                        current_preparation_state = inspect_registered_preparation_strict(WORKFLOW_ROOT_DIRECTORY, 'hermes-model')
+                    except (OSError, ValueError, TypeError, UnicodeError) as current_preparation_error:
+                        raise ModelPreparationPreflightBlocked('preparation_unknown') from current_preparation_error
+                    if not inspect_hermes_model_files() and current_preparation_state != 'running':
+                        try:
+                            with hold_hermes_model_usage_guard(WORKFLOW_ROOT_DIRECTORY):
+                                pass
+                        except HermesModelUsageBusy as current_usage_error:
+                            raise ModelPreparationPreflightBlocked('model_in_use') from current_usage_error
             def submit_current_model_service(model_service_name):
                 current_operation_name = inspect_registered_model_operation(model_service_name, MANAGEMENT_SERVICE_COMMANDS.get(model_service_name, ()), 'prepare')
                 if current_operation_name is None:
                     raise ValueError('이 모델의 준비는 기존 관리 정책에서 제한됩니다.')
                 current_payload_value = {'action':'prepare'} if current_operation_name == 'prepare' else {}
                 return execute_management_command(model_service_name, current_operation_name, current_payload_value, current_gateway_address)
-            return current_model_store.execute_model_preparation_once(current_request_identifier, current_service_name, validate_current_model_service, submit_current_model_service)
+            try:
+                return current_model_store.execute_model_preparation_once(current_request_identifier, current_service_name, validate_current_model_service, submit_current_model_service)
+            except ModelPreparationPreflightBlocked as current_blocked_error:
+                return {'request_id':current_request_identifier, 'service':current_service_name, 'state':'blocked', 'reason':str(current_blocked_error)}
         if hermes_command_name == 'hermes-model-readiness':
             if set(hermes_payload_record) != {'service'} or not isinstance(hermes_payload_record['service'], str):
                 raise ValueError('모델 서비스 식별자만 전달하세요.')

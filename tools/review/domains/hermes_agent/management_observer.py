@@ -5,12 +5,15 @@ from datetime import datetime, timezone
 def inspect_hermes_model_status(current_model_ready=None, current_preparation_status=None):
     """기존 모델 관리와 같은 준비 판정을 읽는다. 모델을 적재하지 않는다."""
     from tools.review.common.hermes_model_download import WORKFLOW_ROOT_DIRECTORY, inspect_hermes_model_files
-    from tools.review.common.model_prepare_process import inspect_registered_preparation
+    from tools.review.common.model_prepare_process import inspect_registered_preparation_strict
     from tools.review.domains.hermes_agent.service import validate_hermes_runtime_ready
     if current_model_ready is None:
         current_model_ready = inspect_hermes_model_files()
     if current_preparation_status is None:
-        current_preparation_status = inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY, 'hermes-model')
+        try:
+            current_preparation_status = inspect_registered_preparation_strict(WORKFLOW_ROOT_DIRECTORY, 'hermes-model')
+        except (OSError, ValueError, TypeError, UnicodeError):
+            current_preparation_status = 'unknown'
     current_runtime_ready = False
     current_status_message = '모델 파일 준비 필요 · 다운로드 후 SHA-256 검증'
     if current_model_ready:
@@ -20,7 +23,13 @@ def inspect_hermes_model_status(current_model_ready=None, current_preparation_st
             current_status_message = '모델과 실행 구성 준비 · GPU 접근과 전체 해시는 실행 시 확인'
         except ValueError as current_runtime_error:
             current_status_message = '모델 파일 준비됨 · ' + str(current_runtime_error)
-    if current_preparation_status == 'failed':
+    if current_preparation_status == 'running':
+        current_runtime_ready = False
+        current_status_message = '모델 준비 진행 중 · 완료 후 파일과 실행 구성을 다시 확인'
+    elif current_preparation_status not in ('idle','completed','failed'):
+        current_runtime_ready = False
+        current_status_message = '모델 준비 상태 확인 불가 · 상태 기록을 확인'
+    elif current_preparation_status == 'failed':
         current_status_message += ' · 다운로드 실패: 준비 로그 확인 후 재시도'
     return {'ready': current_model_ready, 'generation_ready': current_runtime_ready, 'message': current_status_message, 'preparation_status': current_preparation_status}
 

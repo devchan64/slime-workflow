@@ -981,6 +981,11 @@ def reset_conversation_selection_state():
     return (None,'','세션이나 작업이 바뀌었습니다. 제안을 다시 확인하세요.',gr.update(interactive=False),None,'작가 제안을 확인한 뒤 결과를 조회하세요.',False,None,gr.update(visible=False),'전체 검토 후 적용 대상을 확인하세요.',None,'',None,'선택이 바뀌었습니다. 변경을 다시 확인하세요.',gr.update(visible=False),gr.update(interactive=False),'세션 작업을 선택해 제안을 찾을 수 있습니다.')
 
 
+def reset_conversation_context_state():
+    """세션·작업 변경에 따른 검토와 연결 상태를 한 번에 초기화한다."""
+    return (*reset_conversation_selection_state(), '', None, gr.update(visible=False), gr.update(interactive=False), '', None, gr.update(interactive=False), '선택이 바뀌었습니다. 처음부터 다시 읽으세요.')
+
+
 def reset_conversation_writer_review():
     """제안을 다시 열기 전에 이전 작가 결과와 적용 확인을 무효화한다."""
     return None, '작가 제안을 확인한 뒤 결과를 조회하세요.', False, None, gr.update(visible=False), '전체 검토 후 적용 대상을 확인하세요.', None, '', '제안을 다시 확인하고 있습니다.', gr.update(interactive=False)
@@ -2571,6 +2576,10 @@ def submit_hermes_model_preparation(current_review_record, current_service_name,
         if not isinstance(current_result_value,dict):
             raise ValueError('접수 응답 형식 오류')
         current_state_value = current_result_value.get('state')
+        if current_state_value == 'blocked' and current_result_value.get('request_id') == current_request_identifier and current_result_value.get('service') == 'hermes-model' and current_service_name == 'hermes-model' and current_result_value.get('reason') == 'model_in_use':
+            return None, gr.update(visible=False), '모델 사용 중이어서 준비 요청을 접수하지 않았습니다. 실행이 끝난 뒤 같은 요청을 다시 검토하세요.'
+        if current_state_value == 'blocked' and current_result_value.get('request_id') == current_request_identifier and current_result_value.get('service') == 'hermes-model' and current_service_name == 'hermes-model' and current_result_value.get('reason') == 'preparation_unknown':
+            return None, gr.update(visible=False), '모델 준비 상태를 확인할 수 없어 요청을 접수하지 않았습니다. 원 서비스 상태 기록을 확인하세요.'
         if current_state_value not in ('accepted', 'unknown') or current_result_value.get('request_id')!=current_request_identifier or current_result_value.get('service')!=current_service_name:
             raise ValueError('접수 응답 형식 또는 서비스 오류')
         current_job_value = current_result_value.get('job_id')
@@ -3856,8 +3865,6 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     hermes_proposal_route_button=gr.Button('이 작업의 제안 확인',variant='primary')
                 hermes_history_link_display=gr.HTML()
                 hermes_history_link_button.click(build_conversation_history_link,[hermes_session_control,hermes_session_job_selection],[hermes_history_link_display],queue=False)
-                for current_history_selection in (hermes_session_control,hermes_session_job_selection):
-                    current_history_selection.change(lambda:'',outputs=hermes_history_link_display,queue=False)
                 hermes_proposal_route_state=gr.State(None)
                 hermes_proposal_route_status=gr.Markdown('세션 작업을 선택해 제안을 찾을 수 있습니다.')
                 with gr.Accordion('이전 세션 작업 찾기',open=False):
@@ -3888,8 +3895,6 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     hermes_conversation_service_kind.change(lambda current_kind_value:(gr.update(visible=current_kind_value!='model_preparation'),gr.update(visible=current_kind_value=='model_preparation'),None,gr.update(visible=False)),[hermes_conversation_service_kind],[hermes_conversation_kimodo_submit,hermes_conversation_model_prepare,hermes_conversation_model_confirmation,hermes_conversation_model_confirm_group],queue=False)
                     hermes_conversation_model_prepare.click(prepare_conversation_model_confirmation,[hermes_conversation_kimodo_card,hermes_session_control,hermes_session_job_selection,hermes_conversation_service_kind],[hermes_conversation_model_confirmation,hermes_conversation_model_confirm_group],queue=False)
                     hermes_conversation_model_cancel.click(lambda:(None,gr.update(visible=False)),outputs=[hermes_conversation_model_confirmation,hermes_conversation_model_confirm_group],queue=False)
-                    for current_model_confirmation_input in (hermes_session_control,hermes_session_job_selection):
-                        current_model_confirmation_input.change(lambda:(None,gr.update(visible=False),gr.update(interactive=False)),outputs=[hermes_conversation_model_confirmation,hermes_conversation_model_confirm_group,hermes_conversation_model_prepare],queue=False)
                     hermes_conversation_model_confirm.click(submit_conversation_model_confirmation,[hermes_conversation_model_confirmation,hermes_conversation_kimodo_card,hermes_session_control,hermes_session_job_selection,hermes_conversation_service_kind],[hermes_conversation_kimodo_card,hermes_conversation_kimodo_status,hermes_conversation_model_confirmation,hermes_conversation_model_confirm_group],trigger_mode='once',concurrency_limit=1).success(lambda:gr.update(interactive=False),outputs=[hermes_conversation_model_prepare],queue=False)
                     with gr.Group(visible=False) as hermes_conversation_writer_section:
                         hermes_conversation_writer_detail_button=gr.Button('작가 결과와 변경 조회')
@@ -3923,7 +3928,7 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     hermes_writer_material_outputs=[hermes_writer_material_text,hermes_writer_material_state,hermes_writer_material_next,hermes_writer_material_status]
                     hermes_writer_material_first.click(lambda *current_values:read_conversation_writer_material_page(*current_values,False),hermes_writer_material_inputs,hermes_writer_material_outputs,queue=False)
                     hermes_writer_material_next.click(lambda *current_values:read_conversation_writer_material_page(*current_values,True),hermes_writer_material_inputs,hermes_writer_material_outputs,queue=False)
-                    for current_material_selection in (hermes_session_control,hermes_session_job_selection,hermes_conversation_service_kind,hermes_writer_material_section):
+                    for current_material_selection in (hermes_conversation_service_kind,hermes_writer_material_section):
                         current_material_selection.change(lambda:('',None,gr.update(interactive=False),'선택이 바뀌었습니다. 처음부터 다시 읽으세요.'),outputs=hermes_writer_material_outputs,queue=False)
                     hermes_conversation_writer_reset_outputs=[hermes_conversation_writer_detail,hermes_conversation_writer_detail_status,hermes_conversation_writer_checked,hermes_conversation_writer_apply_record,hermes_conversation_writer_apply_confirm,hermes_conversation_writer_apply_status,hermes_conversation_kimodo_card,hermes_conversation_kimodo_preview,hermes_conversation_kimodo_status,hermes_conversation_kimodo_submit]
                     hermes_conversation_kimodo_open_event=hermes_conversation_kimodo_open.click(reset_conversation_writer_review,outputs=hermes_conversation_writer_reset_outputs,queue=False).then(prepare_conversation_service_review,[hermes_session_control,hermes_session_job_selection,hermes_conversation_service_kind],[hermes_conversation_kimodo_card,hermes_conversation_kimodo_preview,hermes_conversation_kimodo_status],queue=False)
@@ -4022,7 +4027,7 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                 hermes_auto_route_open_event.success(refresh_conversation_model_readiness,[hermes_conversation_kimodo_card,hermes_session_control,hermes_session_job_selection,hermes_conversation_service_kind],[hermes_conversation_model_prepare],queue=False)
                 hermes_auto_route_open_event.then(lambda current_route,current_session,current_job,current_service_card,current_edit_card:(gr.update(interactive=isinstance(current_route,dict) and (current_route.get('session_id'),current_route.get('job_id'))==(current_session,current_job) and current_route.get('area')=='service' and isinstance(current_service_card,dict) and current_service_card.get('ready') is True),gr.update(interactive=isinstance(current_route,dict) and (current_route.get('session_id'),current_route.get('job_id'))==(current_session,current_job) and current_route.get('area')=='edit' and isinstance(current_edit_card,dict) and current_edit_card.get('ready') is True),None,gr.update(visible=False)),[hermes_proposal_route_state,hermes_session_control,hermes_session_job_selection,hermes_conversation_kimodo_card,hermes_conversation_edit_card],[hermes_conversation_kimodo_submit,hermes_conversation_edit_review,hermes_conversation_edit_confirmed,hermes_conversation_edit_confirm],queue=False)
                 for current_route_selection in (hermes_session_control,hermes_session_job_selection):
-                    current_route_selection.change(reset_conversation_selection_state,outputs=[hermes_conversation_kimodo_card,hermes_conversation_kimodo_preview,hermes_conversation_kimodo_status,hermes_conversation_kimodo_submit,hermes_conversation_writer_detail,hermes_conversation_writer_detail_status,hermes_conversation_writer_checked,hermes_conversation_writer_apply_record,hermes_conversation_writer_apply_confirm,hermes_conversation_writer_apply_status,hermes_conversation_edit_card,hermes_conversation_edit_preview,hermes_conversation_edit_image,hermes_conversation_edit_status,hermes_conversation_edit_confirm,hermes_conversation_edit_review,hermes_proposal_route_status],queue=False)
+                    current_route_selection.change(reset_conversation_context_state,outputs=[hermes_conversation_kimodo_card,hermes_conversation_kimodo_preview,hermes_conversation_kimodo_status,hermes_conversation_kimodo_submit,hermes_conversation_writer_detail,hermes_conversation_writer_detail_status,hermes_conversation_writer_checked,hermes_conversation_writer_apply_record,hermes_conversation_writer_apply_confirm,hermes_conversation_writer_apply_status,hermes_conversation_edit_card,hermes_conversation_edit_preview,hermes_conversation_edit_image,hermes_conversation_edit_status,hermes_conversation_edit_confirm,hermes_conversation_edit_review,hermes_proposal_route_status,hermes_history_link_display,hermes_conversation_model_confirmation,hermes_conversation_model_confirm_group,hermes_conversation_model_prepare,*hermes_writer_material_outputs],queue=False)
                 hermes_session_timer = gr.Timer(value=10, active=False)
                 with gr.Row():
                     hermes_session_prompt = gr.Textbox(label='요청 입력', lines=3, max_lines=10, placeholder='무엇을 확인하거나 처리할까요?')

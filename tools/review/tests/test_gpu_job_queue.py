@@ -472,6 +472,21 @@ class GpuJobQueueTests(unittest.TestCase):
                 self.assertEqual(current_status_record['status'],'failed')
                 self.assertIn('시스템 RAM 보호',current_status_record['error'])
 
+    def test_hermes_worker_model_conflict_survives_queue_finalization(self):
+        import os
+        (self.current_job_path/'gpu-command.json').write_text(json.dumps({'command':['python','hermes-worker'],'service':'hermes-agent'}))
+        current_worker_mock = Mock(pid=os.getpid(),returncode=1)
+        current_error_text = 'Hermes 모델이 준비 또는 사용 중이어서 작업을 시작하지 못했습니다.'
+        def record_worker_failure():
+            (self.current_job_path/'status.json').write_text(json.dumps({'status':'failed','error':current_error_text}))
+            return 1
+        current_worker_mock.poll.side_effect = record_worker_failure
+        current_fd_value = os.open('/dev/null',os.O_RDONLY)
+        with patch.object(queue_module,'read_gpu_memory',return_value=(98304,98304)), patch.object(queue_module.subprocess,'Popen',return_value=current_worker_mock), patch.object(queue_module.os,'pidfd_open',return_value=current_fd_value), patch.object(queue_module,'stop_hermes_worker_process_group'), patch.object(queue_module,'start_animate_memory_guard',return_value=(Mock(),Mock(),{})):
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),1)
+        current_status_record = json.loads((self.current_job_path/'status.json').read_text())
+        self.assertEqual(current_status_record, {'status':'failed','error':current_error_text})
+
     def test_hermes_uses_pidfd_group_memory_guard(self):
         import os
         (self.current_job_path/'gpu-command.json').write_text(json.dumps({'command':['python','hermes-worker'],'service':'hermes-agent'}))
@@ -767,6 +782,29 @@ class GpuJobQueueTests(unittest.TestCase):
         self.assertEqual(json.loads((self.current_job_path/'status.json').read_text()),current_status_record)
         self.assertEqual((self.current_job_path/'cancel.request').read_text(),'original')
         with self.assertRaises(ValueError):queue_module.resume_gpu_generation(self.current_job_path,resume_locked_preflight_callback='invalid')
+
+    def test_resume_rejects_unsafe_command_after_locked_preflight(self):
+        import os
+        current_command_path = self.current_job_path / 'gpu-command.json'
+        for current_unsafe_kind in ('symlink', 'fifo', 'oversized'):
+            with self.subTest(kind=current_unsafe_kind):
+                (self.current_job_path / 'status.json').write_text(json.dumps({'status': 'failed'}))
+                current_command_path.unlink(missing_ok=True)
+                current_command_path.write_text(json.dumps({'command': ['worker'], 'service': 'image'}))
+                def replace_reviewed_command(current_job_directory):
+                    current_command_path.unlink()
+                    if current_unsafe_kind == 'symlink':
+                        current_command_path.symlink_to(current_job_directory / 'status.json')
+                    elif current_unsafe_kind == 'fifo':
+                        os.mkfifo(current_command_path)
+                    else:
+                        with current_command_path.open('wb') as current_command_stream:
+                            current_command_stream.truncate(1024 * 1024 + 1)
+                with patch.object(queue_module, 'launch_gpu_process') as current_launch_mock:
+                    with self.assertRaises(ValueError):
+                        queue_module.resume_gpu_generation(self.current_job_path, resume_locked_preflight_callback=replace_reviewed_command)
+                    current_launch_mock.assert_not_called()
+                self.assertEqual(json.loads((self.current_job_path / 'status.json').read_text())['status'], 'failed')
 
     def test_resume_log_open_failure_preserves_terminal_status(self):
         current_status_record={'status':'failed','error':'original failure'}

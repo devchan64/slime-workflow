@@ -221,7 +221,7 @@ def read_hermes_video_resume_proposal(job_identifier_value: str) -> dict:
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def preview_hermes_video_resume(service_name: str, job_identifier_value: str) -> dict:
-    """DWPose·Animate2·VACE 작업의 재개 입력을 검토한다. GPU 작업은 실행하지 않는다."""
+    """DWPose·Animate2·VACE·Wan Fun 작업의 재개 입력을 검토한다. 모델 준비 충돌을 확인하며 GPU 작업은 실행하지 않는다."""
     return run_hermes_mcp_command('hermes-video-resume-preview',{'service':service_name,'job_id':job_identifier_value})
 
 
@@ -921,8 +921,13 @@ def list_hermes_model_preparation_receipts() -> dict:
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=True))
 def prepare_hermes_managed_model(request_identifier_value: str, model_service_name: str) -> dict:
-    """사용자가 명시한 모델을 준비한다. 다운로드·디스크 사용·서비스별 GPU 작업이 발생할 수 있다. 응답 유실 시 같은 ID를 유지하고 상태를 확인한다."""
-    return run_hermes_mcp_command('hermes-model-prepare', {'request_id':request_identifier_value, 'service':model_service_name})
+    """사용자가 명시한 모델을 준비한다. 다운로드·디스크 사용·서비스별 GPU 작업이 발생할 수 있다. Hermes 모델의 blocked/model_in_use 또는 preparation_unknown은 접수 전 차단이며 기록이 없다. 응답 유실 시 같은 ID를 유지하고 상태를 확인한다."""
+    current_result_record = run_hermes_mcp_command('hermes-model-prepare', {'request_id':request_identifier_value, 'service':model_service_name})
+    if (not isinstance(current_result_record,dict) or current_result_record.get('request_id') != request_identifier_value
+            or current_result_record.get('service') != model_service_name or current_result_record.get('state') not in ('accepted','unknown','blocked')
+            or (current_result_record.get('state') == 'blocked' and (model_service_name != 'hermes-model' or current_result_record.get('reason') not in ('model_in_use','preparation_unknown')))):
+        raise ToolError('모델 준비 접수 결과를 확인할 수 없습니다. 같은 요청 ID와 원 서비스 상태를 확인하고 자동 재접수하지 마세요.')
+    return current_result_record
 
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))

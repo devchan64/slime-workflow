@@ -3,7 +3,7 @@
 HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-cleanup-preview','label':'이력 정리 대상 요약','required':['service'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'cleanup_preview','note':'삭제 없이 원 서비스 정리 후보·차단 수를 확인한다. 숨긴 작업까지 전체 순회할 수 있으며 대상과 상태는 변경될 수 있다.'},
     {'command':'hermes-video-resume-proposal','label':'영상 재개 제안 조회','required':['id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'video_resume_proposal','note':'완료된 대화의 영상 재개 제안을 읽는다.'},
-    {'command':'hermes-video-resume-preview','label':'영상 재개 예비 검토','required':['service','job_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'video_resume_preview','note':'저장 입력과 상태를 검토한다. GPU 가용성은 별도다.'},
+    {'command':'hermes-video-resume-preview','label':'영상 재개 예비 검토','required':['service','job_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'video_resume_preview','note':'저장 입력과 준비 작업 상태를 검토한다. GPU 가용성은 별도다.'},
     {'command':'hermes-video-resume-submit','label':'영상 재개 접수','required':['request_id','service','job_id','expected_resume_fingerprint'],'optional':[],'effect':'enqueue','gpu':'queued','retry':'request_id_or_unknown','interfaces':['gui','mcp'],'result':'video_resume_receipt','note':'검토 지문을 재확인하고 중복 접수를 방지한다.'},
     {'command':'hermes-video-resume-receipt','label':'영상 재개 접수 조회','required':['request_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'video_resume_receipt','note':'접수 기록을 확인한다. 실제 실행 상태는 원 서비스에서 확인한다.'},
     {'command':'hermes-flux-resume-proposal','label':'FLUX 재개 제안 조회','required':['id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'flux_resume_proposal','note':'완료된 Hermes 답변의 서비스·작업 ID와 검토값을 읽는다. GPU 재개는 하지 않는다.'},
@@ -77,7 +77,7 @@ HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-field-proposal','label':'야외 맵 셀 변경 제안 읽기','required':['id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'untrusted_field_proposal','note':'완료된 답변의 셀 제안만 읽으며 원본 리비전과 맵 검증은 별도다.'},
     {'command':'hermes-field-region', 'label':'야외 맵 영역과 배치 조회', 'required':['map'], 'optional':['column','row','width','height','offset','limit','revision'], 'effect':'read', 'gpu':'none', 'retry':'safe', 'interfaces':['mcp','isolated_fixed_bridge'], 'result':'field_region_page', 'note':'등록 에셋 원본을 DB 없이 조회한다. asset: 지문은 페이지 조회 전용이며 편집 리비전이 아니다. blocked는 실제 최종 통행 판정이 아니다.'},
     {'command':'hermes-city-source','label':'도시 맵 에셋 원본 조회','required':['map'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'city_asset_document','note':'에셋 원본·등록부·백엔드 잠금을 확인해 도시 문서와 해시를 조회한다. DB 세대·리비전과 실행 중인 백엔드는 확인하지 않으며 저장하지 않는다.'},
-    {'command':'hermes-city-load','label':'도시 맵 원본 읽기','required':['map'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'city_map_document','note':'콘텐츠 DB가 필요하다. 격리 조회는 city-map과 맵 ID를 사용하며 응답 크기는 256 KiB로 제한된다.'},
+    {'command':'hermes-city-load','label':'도시 맵 DB 편집 문서 조회','required':['map'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'city_map_document','note':'콘텐츠 DB 편집 문서와 세대·리비전을 읽는다. 관리 원본은 에셋 저장소이며 원본 확인에는 hermes-city-source를 사용한다. 격리 조회는 city-map과 맵 ID를 사용하며 응답은 256 KiB로 제한된다.'},
     {'command':'hermes-city-preview','label':'도시 맵 초안 검증','required':['draft'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'city_preview_token','note':'원장 세대·리비전과 공간 검증 후 로컬 임시 초안을 남긴다. source_alignment는 현재 도시 DB 문서와 에셋 원본·등록부·잠금의 조회 시점 비교다. 실행 중인 서비스 반영은 확인하지 않으며 신규 저장은 중단된다.'},
     {'command':'hermes-city-save','label':'도시 맵 초안 저장','required':['request_id','draft','token'],'optional':[],'effect':'write','gpu':'none','retry':'request_id_or_unknown','interfaces':['gui','mcp'],'result':'city_save_receipt','note':'기존 콘텐츠 DB 저장은 도시 맵 원본·등록부와 백엔드 잠금의 동기화 저장이 없어 신규 접수를 차단한다. 기존 접수 조회와 동일 요청 재조회는 유지한다.'},
     {'command':'hermes-city-receipt','label':'도시 맵 저장 확인','required':['request_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'city_save_receipt','note':'저장 접수만 확인한다.'},
@@ -89,7 +89,7 @@ HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-field-save', 'label':'야외 맵 초안 저장', 'required':['request_id','draft','token'], 'optional':[], 'effect':'write', 'gpu':'none', 'retry':'request_id_or_unknown', 'interfaces':['gui','mcp'], 'result':'field_save_receipt', 'note':'파일 모드에서는 원본·등록부·백엔드 잠금과 카탈로그를 갱신한다. DB 모드의 기존 저장은 콘텐츠 DB만 갱신하므로 원본과 소비자 동기 저장이 구현될 때까지 원 서비스에서 차단한다. 기존 접수의 결과 확인은 별도다.'},
     {'command':'hermes-content-database-status', 'label':'콘텐츠 DB와 원장 반영 상태', 'required':[], 'optional':[], 'effect':'read', 'gpu':'none', 'retry':'safe', 'interfaces':['gui','mcp','isolated_fixed_bridge'], 'result':'content_database_generation_status', 'note':'콘텐츠 서비스의 DB 세대와 원장 반영 상태를 조회한다. 연결 실패는 미확인이다.'},
     {'command':'hermes-model-prepare-history', 'label':'모델 준비 접수 이력', 'required':[], 'optional':[], 'effect':'local_bookkeeping', 'gpu':'none', 'retry':'safe', 'interfaces':['gui','mcp'], 'result':'preparation_receipt_history', 'note':'최근 접수 기록을 읽는다. 손상된 기록은 제외한다.'},
-    {'command':'hermes-model-prepare', 'label':'모델 준비 요청', 'required':['request_id','service'], 'optional':[], 'effect':'enqueue', 'gpu':'service_dependent', 'retry':'request_id_or_unknown', 'interfaces':['gui','mcp'], 'result':'preparation_receipt', 'note':'다운로드·디스크 사용 및 서비스별 GPU 작업이 발생할 수 있다. 기존 정책을 적용하며 완료는 별도 확인한다.'},
+    {'command':'hermes-model-prepare', 'label':'모델 준비 요청', 'required':['request_id','service'], 'optional':[], 'effect':'enqueue', 'gpu':'service_dependent', 'retry':'request_id_or_unknown', 'interfaces':['gui','mcp'], 'result':'preparation_receipt', 'note':'다운로드·디스크 사용 및 서비스별 GPU 작업이 발생할 수 있다. Hermes 모델 사용 충돌이나 준비 상태 확인 불가가 접수 전 확인되면 blocked를 반환하고 기록하지 않는다. 응답 불명확과 구분하며 완료는 별도 확인한다.'},
     {'command':'hermes-capture-proposal','label':'검수 캡처 제안 읽기','required':['id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['mcp'],'result':'untrusted_capture_proposal','note':'완료된 대화의 캡처 설정을 검증한다. 캡처 실행은 지원하지 않는다.'},
     {'command':'hermes-capture-status','label':'검수 캡처 접수 상태 확인','required':['request_id','service'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'capture_receipt_status','note':'운영 이력의 검증된 대기 항목과 기존 캡처 접수만 확인하며 캡처 실행은 아직 지원하지 않는다.'},
     {'command':'hermes-model-prepare-status', 'label':'모델 준비 접수 확인', 'required':['request_id','service'], 'optional':[], 'effect':'local_bookkeeping', 'gpu':'none', 'retry':'safe', 'interfaces':['gui','mcp'], 'result':'preparation_receipt', 'note':'요청 ID·서비스·접수 기록만 확인한다. 응답 당시 준비 상태는 현재 완료 상태가 아니며 모델 상태를 별도 조회한다.'},
@@ -212,7 +212,7 @@ def list_hermes_capability_catalog():
         if current_command_name=='hermes-cleanup-preview':
             current_payload_schema['properties']['service']={'type':'string','enum':[current_name for current_name,current_commands in MANAGEMENT_SERVICE_COMMANDS.items() if 'history-reset-preview' in current_commands]}
         if current_command_name in ('hermes-video-resume-preview','hermes-video-resume-submit'):
-            current_payload_schema['properties']['service']={'type':'string','enum':['dwpose','wan22-animate2','wan22-vace']}
+            current_payload_schema['properties']['service']={'type':'string','enum':['dwpose','wan22-animate2','wan22-vace','wan22-fun-control']}
         if current_command_name in ('hermes-flux-resume-preview','hermes-flux-resume-submit'):
             from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
             current_payload_schema['properties']['service']={'type':'string','enum':list(FLUX_IMAGE_PROFILE_RECORDS)}
@@ -296,7 +296,7 @@ def list_hermes_capability_catalog():
             current_payload_schema['properties']['draft'] = {'type':'object','validation':'map-assets asset-preview'}
         if current_command_name in ('hermes-city-preview','hermes-city-save'):
             current_payload_schema['properties']['draft'] = {'type':'object','validation':'map-assets city-edit-preview'}
-        if 'service' in current_field_names and (current_command_name.startswith('hermes-video-') or current_command_name == 'hermes-delegate-video'):
+        if 'service' in current_field_names and current_command_name not in ('hermes-video-resume-preview','hermes-video-resume-submit') and (current_command_name.startswith('hermes-video-') or current_command_name == 'hermes-delegate-video'):
             current_payload_schema['properties']['service'] = {'type':'string','enum':['dwpose','wan22-animate2','wan22-fun-control','wan22-vace']}
         if current_command_name == 'hermes-delegate-video':
             current_payload_schema['properties']['request'] = {'type':'object','validation':'해당 동작·영상 생성기의 validate_generation_request'}
@@ -535,7 +535,7 @@ def list_management_service_registration():
             current_hermes_links=['hermes-sprite-pending-status','hermes-sprite-catalog','hermes-sprite-detail','hermes-sprite-preview','hermes-sprite-save','hermes-sprite-playback','hermes-sprite-clip-playback']
         elif current_service_name=='model-downloads':
             current_hermes_links=['hermes-model-inventory','hermes-model-download-status']
-        if current_service_name in ('dwpose','wan22-animate2','wan22-vace'):
+        if current_service_name in ('dwpose','wan22-animate2','wan22-vace','wan22-fun-control'):
             current_hermes_links.extend(['hermes-video-resume-proposal','hermes-video-resume-preview','hermes-video-resume-submit','hermes-video-resume-receipt'])
         if current_service_name in FLUX_IMAGE_PROFILE_RECORDS:
             current_hermes_links.extend(['hermes-flux-resume-proposal','hermes-flux-resume-preview','hermes-flux-resume-submit','hermes-flux-resume-receipt'])
@@ -546,7 +546,7 @@ def list_management_service_registration():
             current_hermes_links.extend(['hermes-priority-preview','hermes-priority-submit','hermes-priority-receipt'])
         if current_service_name in (*SOURCE_HISTORY_AUDIO_SERVICES,*HERMES_VIDEO_SERVICES,*FLUX_IMAGE_PROFILE_RECORDS,'flux-expression','kimodo','prompt-translation','qwen-21','qwen-21-circular','mannequin-generator','prop-generator','vegetation-generator','expression','seamless-tile','floor-tile','billboard-generator','building-generator'):
             current_hermes_links.extend(['hermes-generator-reservation-inspect','hermes-generator-reservation-recover','hermes-generator-reservation-receipt'])
-        if 'history-reset-preview' in current_command_names:
+        if 'history-reset-preview' in current_command_names and not any(current_block_record['command']=='history-reset-preview' for current_block_record in (*current_blocked_commands,*current_owner_blocks)):
             current_hermes_links.append('hermes-cleanup-preview')
         if current_service_name in SOURCE_HISTORY_GENERATOR_SERVICES:
             current_hermes_links.append('hermes-generator-source-history')

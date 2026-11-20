@@ -540,6 +540,48 @@ class HermesServiceTests(unittest.TestCase):
             self.hermes_service_manager.execute_hermes_command('hermes-content-database-status', {'command':'database-restore'})
         self.assertEqual(resolve_management_command('hermes-agent','hermes-content-database-status',{}), ('POST','/hermes-agent/hermes-content-database-status'))
 
+    def test_hermes_model_preparation_conflict_is_rejected_before_receipt(self):
+        from tools.review.common.model_prepare_process import hold_hermes_model_usage_guard
+        from tools.review.domains.hermes_agent.model_preparation_store import HermesModelPreparationStore
+        current_trial_root = Path(self.hermes_temporary_root.name)
+        current_store_value = HermesModelPreparationStore(current_trial_root / 'model-receipts')
+        current_request_value = {'request_id': 'request_model_conflict', 'service': 'hermes-model'}
+        with patch('tools.review.domains.hermes_agent.service.WORKFLOW_ROOT_DIRECTORY', current_trial_root), patch('tools.review.domains.hermes_agent.model_preparation_store.HermesModelPreparationStore', return_value=current_store_value), patch('tools.review.common.hermes_model_download.inspect_hermes_model_files', return_value=False), patch('tools.review.common.management_gateway.execute_management_command') as current_gateway_mock:
+            with hold_hermes_model_usage_guard(current_trial_root):
+                current_blocked_result = self.hermes_service_manager.execute_hermes_command('hermes-model-prepare', current_request_value)
+                self.assertEqual(current_blocked_result, {**current_request_value, 'state':'blocked', 'reason':'model_in_use'})
+            current_gateway_mock.assert_not_called()
+            self.assertEqual(current_store_value.read_model_preparation_receipt('request_model_conflict', 'hermes-model')['state'], 'not_found')
+
+    def test_hermes_model_gateway_rejects_unknown_preparation_state(self):
+        from tools.review.common.management_gateway import execute_management_command
+        current_trial_root = Path(self.hermes_temporary_root.name)
+        current_status_path = current_trial_root / '.local/model-preparation/hermes-model/status.json'
+        current_status_path.parent.mkdir(parents=True)
+        current_status_path.write_text('{broken')
+        with patch('tools.review.common.hermes_model_download.WORKFLOW_ROOT_DIRECTORY', current_trial_root), patch('tools.review.common.hermes_model_download.inspect_hermes_model_files', return_value=True), patch('tools.review.domains.hermes_agent.service.validate_hermes_runtime_ready'), patch('tools.review.common.model_prepare_process.start_registered_preparation') as current_start_mock, patch('tools.review.common.management_transport.send_management_json_response', side_effect=lambda current_handler, current_status, current_body: current_body):
+            current_status_record = execute_management_command('hermes-model','model-status',{},gateway_request_handler=object())
+            self.assertEqual(current_status_record['preparation_status'], 'unknown')
+            self.assertFalse(current_status_record['generation_ready'])
+            self.assertIn('확인 불가',current_status_record['message'])
+            with self.assertRaisesRegex(ValueError,'확인할 수 없어'):
+                execute_management_command('hermes-model','prepare',{'action':'prepare'},gateway_request_handler=object())
+            current_start_mock.assert_not_called()
+
+    def test_hermes_model_preparation_unknown_is_blocked_without_receipt(self):
+        from tools.review.domains.hermes_agent.model_preparation_store import HermesModelPreparationStore
+        current_trial_root = Path(self.hermes_temporary_root.name)
+        current_store_value = HermesModelPreparationStore(current_trial_root / 'model-receipts-unknown')
+        current_request_value = {'request_id':'request_model_unknown', 'service':'hermes-model'}
+        current_status_path = current_trial_root / '.local/model-preparation/hermes-model/status.json'
+        current_status_path.parent.mkdir(parents=True)
+        current_status_path.write_text('{broken')
+        with patch('tools.review.domains.hermes_agent.service.WORKFLOW_ROOT_DIRECTORY', current_trial_root), patch('tools.review.domains.hermes_agent.model_preparation_store.HermesModelPreparationStore', return_value=current_store_value), patch('tools.review.common.management_gateway.execute_management_command') as current_gateway_mock:
+            current_result_record = self.hermes_service_manager.execute_hermes_command('hermes-model-prepare', current_request_value)
+            self.assertEqual(current_result_record, {**current_request_value,'state':'blocked','reason':'preparation_unknown'})
+            current_gateway_mock.assert_not_called()
+            self.assertEqual(current_store_value.read_model_preparation_receipt('request_model_unknown','hermes-model')['state'], 'not_found')
+
     def test_model_preparation_respects_existing_policy_and_keeps_receipt(self):
         from tools.review.domains.hermes_agent.model_preparation_store import HermesModelPreparationStore
         current_store_value = HermesModelPreparationStore(Path(self.hermes_temporary_root.name) / 'receipts')
@@ -893,6 +935,8 @@ class HermesServiceTests(unittest.TestCase):
         current_city_load=next(current_record for current_record in current_capability_catalog['records'] if current_record['command']=='hermes-city-load')
         self.assertIn('isolated_fixed_bridge',current_city_load['interfaces'])
         self.assertIn('256 KiB',current_city_load['note'])
+        self.assertIn('DB 편집 문서',current_city_load['label'])
+        self.assertIn('hermes-city-source',current_city_load['note'])
         current_city_record=next(current_record for current_record in current_capability_catalog['records'] if current_record['command']=='hermes-city-save')
         for current_term_value in ('콘텐츠 DB','원본','등록부','잠금','동기화'):
             self.assertIn(current_term_value,current_city_record['note'])
@@ -971,6 +1015,33 @@ class HermesServiceTests(unittest.TestCase):
                 self.assertIn('중지 요청',current_cancel_note)
                 self.assertIn('GPU 프로세스',current_cancel_note)
                 self.assertIn('확인',current_cancel_note)
+
+    def test_fun_resume_capability_exposes_preview_and_submission(self):
+        current_catalog_record = self.hermes_service_manager.execute_hermes_command('hermes-capabilities', {})
+        current_capability_records = {current_record['command']:current_record for current_record in current_catalog_record['records']}
+        current_preview_schema = current_capability_records['hermes-video-resume-preview']['payload_schema']
+        current_submit_schema = current_capability_records['hermes-video-resume-submit']['payload_schema']
+        self.assertIn('wan22-fun-control', current_preview_schema['properties']['service']['enum'])
+        self.assertIn('wan22-fun-control', current_submit_schema['properties']['service']['enum'])
+        current_services = self.hermes_service_manager.execute_hermes_command('hermes-service-registration', {})['services']
+        current_fun_record = next(current_record for current_record in current_services if current_record['service'] == 'wan22-fun-control')
+        self.assertIn('hermes-video-resume-preview', current_fun_record['hermes_links'])
+        self.assertIn('hermes-video-resume-submit', current_fun_record['hermes_links'])
+
+    def test_cleanup_catalog_excludes_gateway_blocked_services(self):
+        from tools.review.domains.hermes_agent.cleanup_preview_observer import read_hermes_cleanup_preview
+        current_catalog_record = self.hermes_service_manager.execute_hermes_command('hermes-service-registration', {})
+        current_service_records = {current_record['service']:current_record for current_record in current_catalog_record['services']}
+        self.assertNotIn('hermes-cleanup-preview', current_service_records['qwen-2511']['hermes_links'])
+        self.assertIn('hermes-cleanup-preview', current_service_records['flux-image']['hermes_links'])
+        with patch('tools.review.common.management_client.execute_remote_management_command') as current_gateway_mock:
+            with self.assertRaisesRegex(ValueError, '폐기'):
+                read_hermes_cleanup_preview('qwen-2511')
+            current_gateway_mock.assert_not_called()
+        with patch('generators.music.service_constants.inspect_retired_audio_rejection', return_value='정리 조회 정책 제한'), patch('tools.review.common.management_client.execute_remote_management_command') as current_gateway_mock:
+            with self.assertRaisesRegex(ValueError, '정리 조회 정책 제한'):
+                read_hermes_cleanup_preview('music-heartmula')
+            current_gateway_mock.assert_not_called()
 
     def test_cleanup_preview_discloses_kimodo_exception(self):
         current_service_catalog=self.hermes_service_manager.execute_hermes_command('hermes-service-registration',{})
@@ -1571,6 +1642,19 @@ class HermesServiceTests(unittest.TestCase):
             current_activity_record = read_hermes_tool_activity(current_job_path)
             self.assertEqual(len(current_activity_record['events']), 8)
             self.assertTrue(current_activity_record['truncated'])
+
+    def test_hermes_model_readiness_does_not_claim_ready_during_preparation(self):
+        from tools.review.domains.hermes_agent.management_observer import inspect_hermes_model_status
+        with patch('tools.review.domains.hermes_agent.service.validate_hermes_runtime_ready'):
+            current_ready_status = inspect_hermes_model_status(True, 'completed')
+            current_preparing_status = inspect_hermes_model_status(True, 'running')
+        self.assertTrue(current_ready_status['generation_ready'])
+        self.assertFalse(current_preparing_status['generation_ready'])
+        self.assertIn('준비 진행 중', current_preparing_status['message'])
+        with patch('tools.review.domains.hermes_agent.service.validate_hermes_runtime_ready'):
+            current_unknown_status = inspect_hermes_model_status(True, 'unknown')
+        self.assertFalse(current_unknown_status['generation_ready'])
+        self.assertIn('확인 불가', current_unknown_status['message'])
 
     def test_memory_capacity_rejects_inconsistent_gpu_measurements(self):
         from tools.review.domains.hermes_agent.management_observer import read_hermes_memory_capacity

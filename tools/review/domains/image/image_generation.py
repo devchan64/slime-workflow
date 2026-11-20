@@ -164,8 +164,17 @@ class ImageGenerationManager:
     def launch_generation_worker(self, current_job_root, current_request_record, current_log_handle):
         return launch_gpu_process([str(self.select_generation_python(current_request_record)),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(current_request_record)),'--job-dir',str(current_job_root)],current_job_root,self.select_generation_service(current_request_record),stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True)
 
+    def validate_generation_resume_target(self, selected_job_directory):
+        """서비스별 직접 재개 대상 제한을 최초 기록 조회 전에 확인한다."""
+        return None
+
     def resume_generation_job(self, selected_job_directory, saved_request_record, legacy_command_record):
         return resume_gpu_generation(selected_job_directory, legacy_command_record=legacy_command_record)
+
+    def hold_generation_submission_guard(self):
+        """서비스별 접수 잠금이 없으면 기존 동작을 유지한다."""
+        from contextlib import nullcontext
+        return nullcontext()
 
     def ensure_generation_request_available(self, current_request_record):
         """도메인별 중복 접수 조건을 잠금 안에서 확인한다."""
@@ -276,6 +285,7 @@ class ImageGenerationManager:
                         send_response_data(200,self.pause_generation_stage(selected_job_directory))
                         return True
                     if current_url_path.endswith('/resume'):
+                        self.validate_generation_resume_target(selected_job_directory)
                         saved_request_record=json.loads((selected_job_directory/'request.json').read_text())
                         self.validate_generation_runtime(saved_request_record)
                     if current_url_path.endswith('/resume'):
@@ -301,7 +311,7 @@ class ImageGenerationManager:
                     return True
                 current_request_record=self.validate_generation_request(current_request_record)
                 self.validate_generation_runtime(current_request_record)
-                with self.current_request_lock:
+                with self.hold_generation_submission_guard(), self.current_request_lock:
                     self.ensure_generation_request_available(current_request_record)
                     current_job_identifier = datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
                     current_job_root = self.job_storage_root / current_job_identifier

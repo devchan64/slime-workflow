@@ -601,7 +601,7 @@ def read_operations_session_receipts(current_session_identifier,current_page_sta
                 elif current_kind in ('flux_resume','video_resume'):
                     from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
                     current_service=current_proposal['proposal'].get('service')
-                    if current_service not in (FLUX_IMAGE_PROFILE_RECORDS if current_kind=='flux_resume' else ('dwpose','wan22-animate2','wan22-vace')):raise ValueError('재개 서비스 오류')
+                    if current_service not in (FLUX_IMAGE_PROFILE_RECORDS if current_kind=='flux_resume' else ('dwpose','wan22-animate2','wan22-vace','wan22-fun-control')):raise ValueError('재개 서비스 오류')
                     current_target_job=current_proposal['proposal'].get('job_id')
                     current_target_fingerprint=current_proposal['proposal'].get('expected_resume_fingerprint')
                     if not validate_service_job_identifier(current_service,current_target_job) or not isinstance(current_target_fingerprint,str) or not re.fullmatch(r'[a-f0-9]{64}',current_target_fingerprint):raise ValueError('FLUX 재개 제안 대상 오류')
@@ -846,10 +846,10 @@ def render_operations_cleanup_preview(current_service_name,current_request_token
 def prepare_operations_audio_resume(current_service_name,current_job_identifier,current_page_state,current_source_rows):
     """선택된 원본 행과 재개 검토·기존 접수를 확인한다."""
     try:
-        if current_service_name not in ('music-heartmula','sfx-dasheng-audiogen','prompt-translation','kimodo','dwpose','wan22-animate2','wan22-vace',*FLUX_IMAGE_PROFILE_RECORDS) or not isinstance(current_page_state,dict) or current_page_state.get('service')!=current_service_name or not isinstance(current_page_state.get('snapshot'),str) or not re.fullmatch(r'[a-f0-9]{64}',current_page_state['snapshot']):raise ValueError('서비스 또는 페이지 오류')
+        if current_service_name not in ('music-heartmula','sfx-dasheng-audiogen','prompt-translation','kimodo','dwpose','wan22-animate2','wan22-vace','wan22-fun-control',*FLUX_IMAGE_PROFILE_RECORDS) or not isinstance(current_page_state,dict) or current_page_state.get('service')!=current_service_name or not isinstance(current_page_state.get('snapshot'),str) or not re.fullmatch(r'[a-f0-9]{64}',current_page_state['snapshot']):raise ValueError('서비스 또는 페이지 오류')
         if not isinstance(current_job_identifier,str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_job_identifier) or not isinstance(current_source_rows,list):raise ValueError('작업 오류')
         if sum(isinstance(item,(list,tuple)) and len(item)==5 and item[0]==current_job_identifier for item in current_source_rows)!=1:raise ValueError('선택 행 오류')
-        current_preview_command='hermes-flux-resume-preview' if current_service_name in FLUX_IMAGE_PROFILE_RECORDS else {'prompt-translation':'hermes-translation-resume-preview','kimodo':'hermes-kimodo-resume-preview','dwpose':'hermes-video-resume-preview','wan22-animate2':'hermes-video-resume-preview','wan22-vace':'hermes-video-resume-preview'}.get(current_service_name,'hermes-audio-resume-preview')
+        current_preview_command='hermes-flux-resume-preview' if current_service_name in FLUX_IMAGE_PROFILE_RECORDS else {'prompt-translation':'hermes-translation-resume-preview','kimodo':'hermes-kimodo-resume-preview','dwpose':'hermes-video-resume-preview','wan22-animate2':'hermes-video-resume-preview','wan22-vace':'hermes-video-resume-preview','wan22-fun-control':'hermes-video-resume-preview'}.get(current_service_name,'hermes-audio-resume-preview')
         current_preview_payload={'job_id':current_job_identifier} if current_service_name in ('prompt-translation','kimodo') else {'service':current_service_name,'job_id':current_job_identifier}
         current_preview_value=execute_remote_management_command('hermes-agent',current_preview_command,current_preview_payload)
         if not isinstance(current_preview_value,dict) or (current_preview_value.get('service'),current_preview_value.get('job_id'))!=(current_service_name,current_job_identifier) or current_preview_value.get('status') not in ('failed','cancelled','paused'):raise ValueError('재개 대상 오류')
@@ -861,10 +861,10 @@ def prepare_operations_audio_resume(current_service_name,current_job_identifier,
             if current_resume_availability!='available':raise ValueError('재개 가능 상태 오류')
         current_fingerprint_value=current_preview_value.get('expected_resume_fingerprint')
         if not isinstance(current_fingerprint_value,str) or not re.fullmatch(r'[a-f0-9]{64}',current_fingerprint_value):raise ValueError('확인값 오류')
-        current_request_prefix='flux_resume_' if current_service_name in FLUX_IMAGE_PROFILE_RECORDS else {'prompt-translation':'trans_resume_','kimodo':'kimodo_resume_','dwpose':'video_resume_','wan22-animate2':'video_resume_','wan22-vace':'video_resume_'}.get(current_service_name,'audio_resume_')
+        current_request_prefix='flux_resume_' if current_service_name in FLUX_IMAGE_PROFILE_RECORDS else {'prompt-translation':'trans_resume_','kimodo':'kimodo_resume_','dwpose':'video_resume_','wan22-animate2':'video_resume_','wan22-vace':'video_resume_','wan22-fun-control':'video_resume_'}.get(current_service_name,'audio_resume_')
         current_request_identifier=current_request_prefix+hashlib.sha256((current_service_name+'\0'+current_job_identifier+'\0'+current_fingerprint_value).encode()).hexdigest()
         current_request_record={'request_id':current_request_identifier,'service':current_service_name,'job_id':current_job_identifier,'expected_resume_fingerprint':current_fingerprint_value}
-        current_receipt_command='hermes-flux-resume-receipt' if current_service_name in FLUX_IMAGE_PROFILE_RECORDS else {'prompt-translation':'hermes-translation-resume-receipt','kimodo':'hermes-kimodo-resume-receipt','dwpose':'hermes-video-resume-receipt','wan22-animate2':'hermes-video-resume-receipt','wan22-vace':'hermes-video-resume-receipt'}.get(current_service_name,'hermes-audio-resume-receipt')
+        current_receipt_command='hermes-flux-resume-receipt' if current_service_name in FLUX_IMAGE_PROFILE_RECORDS else {'prompt-translation':'hermes-translation-resume-receipt','kimodo':'hermes-kimodo-resume-receipt','dwpose':'hermes-video-resume-receipt','wan22-animate2':'hermes-video-resume-receipt','wan22-vace':'hermes-video-resume-receipt','wan22-fun-control':'hermes-video-resume-receipt'}.get(current_service_name,'hermes-audio-resume-receipt')
         current_receipt_value=execute_remote_management_command('hermes-agent',current_receipt_command,{'request_id':current_request_identifier})
         if not isinstance(current_receipt_value,dict) or current_receipt_value.get('request_id')!=current_request_identifier:raise ValueError('접수 오류')
         if current_receipt_value.get('state')!='not_found':
@@ -881,7 +881,7 @@ def submit_operations_audio_resume(current_request_record,current_service_name,c
     if not isinstance(current_request_record,dict) or (current_request_record.get('service'),current_request_record.get('job_id'))!=(current_service_name,current_job_identifier) or not isinstance(current_page_state,dict) or current_page_state.get('service')!=current_service_name or not isinstance(current_request_record.get('history_snapshot'),str) or not re.fullmatch(r'[a-f0-9]{64}',current_request_record['history_snapshot']) or current_page_state.get('snapshot')!=current_request_record['history_snapshot'] or not isinstance(current_source_rows,list) or sum(isinstance(item,(list,tuple)) and len(item)==5 and item[0]==current_job_identifier for item in current_source_rows)!=1:
         return None,'선택한 작업이 바뀌었습니다. 다시 검토하세요.'
     try:
-        current_submit_command='hermes-flux-resume-submit' if current_service_name in FLUX_IMAGE_PROFILE_RECORDS else {'prompt-translation':'hermes-translation-resume-submit','kimodo':'hermes-kimodo-resume-submit','dwpose':'hermes-video-resume-submit','wan22-animate2':'hermes-video-resume-submit','wan22-vace':'hermes-video-resume-submit'}.get(current_service_name,'hermes-audio-resume-submit')
+        current_submit_command='hermes-flux-resume-submit' if current_service_name in FLUX_IMAGE_PROFILE_RECORDS else {'prompt-translation':'hermes-translation-resume-submit','kimodo':'hermes-kimodo-resume-submit','dwpose':'hermes-video-resume-submit','wan22-animate2':'hermes-video-resume-submit','wan22-vace':'hermes-video-resume-submit','wan22-fun-control':'hermes-video-resume-submit'}.get(current_service_name,'hermes-audio-resume-submit')
         current_submit_payload={current_key_name:current_request_record[current_key_name] for current_key_name in ('request_id','job_id','expected_resume_fingerprint')}
         if current_service_name not in ('prompt-translation','kimodo'):current_submit_payload['service']=current_service_name
         current_receipt_value=execute_remote_management_command('hermes-agent',current_submit_command,current_submit_payload)
@@ -902,7 +902,7 @@ def read_operations_audio_resume_receipt(current_request_identifier,current_sele
         if not isinstance(current_request_identifier,str) or not re.fullmatch(r'[A-Za-z0-9_-]{8,80}',current_request_identifier):raise ValueError('접수 ID 오류')
         current_generated_match=re.fullmatch(r'(audio_resume_|trans_resume_|kimodo_resume_|flux_resume_|video_resume_)[a-f0-9]{64}',current_request_identifier)
         current_service_commands={'prompt-translation':'hermes-translation-resume-receipt','kimodo':'hermes-kimodo-resume-receipt','music-heartmula':'hermes-audio-resume-receipt','sfx-dasheng-audiogen':'hermes-audio-resume-receipt'}
-        current_service_commands.update({current_video_service:'hermes-video-resume-receipt' for current_video_service in ('dwpose','wan22-animate2','wan22-vace')})
+        current_service_commands.update({current_video_service:'hermes-video-resume-receipt' for current_video_service in ('dwpose','wan22-animate2','wan22-vace','wan22-fun-control')})
         current_service_commands.update({current_flux_service:'hermes-flux-resume-receipt' for current_flux_service in FLUX_IMAGE_PROFILE_RECORDS})
         if current_selected_service is not None:
             if current_selected_service not in current_service_commands:raise ValueError('서비스 선택 오류')
@@ -919,7 +919,7 @@ def read_operations_audio_resume_receipt(current_request_identifier,current_sele
         current_fingerprint_value=current_receipt_value.get('expected_resume_fingerprint')
         if current_service_name not in current_service_commands or current_service_commands[current_service_name]!=current_receipt_command or (current_selected_service is not None and current_service_name!=current_selected_service) or not isinstance(current_job_identifier,str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_job_identifier) or not isinstance(current_fingerprint_value,str) or not re.fullmatch(r'[a-f0-9]{64}',current_fingerprint_value):raise ValueError('접수 대상 오류')
         if current_generated_match:
-            current_request_prefix='flux_resume_' if current_service_name in FLUX_IMAGE_PROFILE_RECORDS else {'prompt-translation':'trans_resume_','kimodo':'kimodo_resume_','dwpose':'video_resume_','wan22-animate2':'video_resume_','wan22-vace':'video_resume_'}.get(current_service_name,'audio_resume_')
+            current_request_prefix='flux_resume_' if current_service_name in FLUX_IMAGE_PROFILE_RECORDS else {'prompt-translation':'trans_resume_','kimodo':'kimodo_resume_','dwpose':'video_resume_','wan22-animate2':'video_resume_','wan22-vace':'video_resume_','wan22-fun-control':'video_resume_'}.get(current_service_name,'audio_resume_')
             current_expected_identifier=current_request_prefix+hashlib.sha256((current_service_name+'\0'+current_job_identifier+'\0'+current_fingerprint_value).encode()).hexdigest()
             if current_expected_identifier!=current_request_identifier:raise ValueError('접수 대상 불일치')
         return current_service_name+' · '+current_job_identifier+' · '+('대기열 접수 기록' if current_receipt_value['state']=='accepted' else '접수 결과 확인 필요 · 자동 재요청하지 마세요.')

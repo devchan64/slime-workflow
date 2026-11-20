@@ -44,6 +44,9 @@ class ReferenceVideoGenerationManager(ImageGenerationManager):
   except (OSError,ValueError,TypeError):return 'unknown'
   if current_preparation_state=='running':return 'download_running'
   return 'available' if current_preparation_state in ('idle','completed','failed') else 'unknown'
+ def validate_video_preview_job_type(self,selected_job_directory):
+  """서비스별 예비 검토 대상 제한을 복구 전에 확인한다."""
+  return None
  def preview_generation_resume(self,selected_job_directory):
   """공용 잠금 아래 영상 요청과 모든 입력을 검사하고 지문을 반환한다."""
   import fcntl
@@ -53,12 +56,13 @@ class ReferenceVideoGenerationManager(ImageGenerationManager):
   from pathlib import Path
   from tools.review.common.gpu_job_queue import open_gpu_resume_lock
   selected_job_directory=Path(selected_job_directory)
-  if self.route_prefix_value not in ('/dwpose','/wan22-animate2','/wan22-vace'):
+  if self.route_prefix_value not in ('/dwpose','/wan22-animate2','/wan22-vace','/wan22-fun-control'):
    raise ValueError('이 영상 서비스는 재개 검토를 지원하지 않습니다.')
   if (not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',selected_job_directory.name)
       or selected_job_directory.is_symlink() or not selected_job_directory.is_dir()
       or selected_job_directory.parent.resolve()!=Path(self.job_storage_root).resolve()):
    raise ValueError('영상 재개 작업 경로 오류')
+  self.validate_video_preview_job_type(selected_job_directory)
   recover_interrupted_video_job(selected_job_directory)
   with open_gpu_resume_lock(selected_job_directory) as current_resume_handle:
    fcntl.flock(current_resume_handle,fcntl.LOCK_EX)

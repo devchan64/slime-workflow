@@ -314,10 +314,22 @@ class HermesMcpTests(unittest.TestCase):
         with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={}) as current_gateway_mock:
             hermes_module_value.list_hermes_model_preparation_receipts()
             current_gateway_mock.assert_called_with('hermes-model-prepare-history', {})
+            current_gateway_mock.return_value = {'request_id':'request_123','service':'flux-image','state':'accepted'}
             hermes_module_value.prepare_hermes_managed_model('request_123', 'flux-image')
             current_gateway_mock.assert_called_with('hermes-model-prepare', {'request_id':'request_123', 'service':'flux-image'})
             hermes_module_value.read_hermes_model_preparation_receipt('request_123', 'flux-image')
             current_gateway_mock.assert_called_with('hermes-model-prepare-status', {'request_id':'request_123', 'service':'flux-image'})
+
+    def test_model_preparation_mcp_validates_response_identity_and_block_reason(self):
+        current_valid_record = {'request_id':'request_123', 'service':'hermes-model', 'state':'blocked', 'reason':'model_in_use'}
+        with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value=current_valid_record) as current_gateway_mock:
+            self.assertEqual(hermes_module_value.prepare_hermes_managed_model('request_123', 'hermes-model'), current_valid_record)
+            current_gateway_mock.return_value = {**current_valid_record, 'reason':'preparation_unknown'}
+            self.assertEqual(hermes_module_value.prepare_hermes_managed_model('request_123', 'hermes-model')['reason'], 'preparation_unknown')
+            for current_invalid_record in ({**current_valid_record, 'request_id':'wrong'}, {**current_valid_record, 'service':'flux-image'}, {**current_valid_record, 'reason':'unknown'}, {'request_id':'request_123','service':'hermes-model','state':'other'}, None):
+                current_gateway_mock.return_value = current_invalid_record
+                with self.assertRaisesRegex(hermes_module_value.ToolError, '자동 재접수하지'):
+                    hermes_module_value.prepare_hermes_managed_model('request_123', 'hermes-model')
 
     def test_video_proposal_mcp_uses_fixed_command(self):
         with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:

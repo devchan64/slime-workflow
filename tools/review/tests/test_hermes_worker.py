@@ -22,6 +22,69 @@ class HermesWorkerTests(unittest.TestCase):
         current_root_patch.start()
         self.addCleanup(current_root_patch.stop)
 
+    def test_model_use_guard_distinguishes_running_worker_from_preparation(self):
+        from tools.review.common.model_prepare_process import inspect_registered_preparation, start_registered_preparation, hold_hermes_model_usage_guard
+        current_working_root = hermes_worker_module.WORKFLOW_ROOT_DIRECTORY
+        current_job_path = current_working_root / 'job'
+        current_job_path.mkdir()
+        def check_running_model_guard(current_job_value):
+            self.assertEqual(current_job_value, current_job_path)
+            self.assertEqual(inspect_registered_preparation(current_working_root, 'hermes-model'), 'idle')
+            with patch('tools.review.common.model_prepare_process.subprocess.Popen') as current_spawn_mock:
+                with self.assertRaisesRegex(ValueError, '모델이 준비 또는 실행 중'):
+                    start_registered_preparation(current_working_root, 'hermes-model')
+                current_spawn_mock.assert_not_called()
+            raise RuntimeError('모의 작업 종료')
+        with patch.object(hermes_worker_module, 'wait_hermes_gpu_reservation'), patch.object(hermes_worker_module, 'execute_hermes_gpu_job', side_effect=check_running_model_guard) as current_worker_mock:
+            with self.assertRaisesRegex(RuntimeError, '모의 작업 종료'):
+                hermes_worker_module.execute_guarded_hermes_gpu_job(current_job_path)
+            with hold_hermes_model_usage_guard(current_working_root):
+                with self.assertRaisesRegex(ValueError, '모델이 준비 또는 실행 중'):
+                    hermes_worker_module.execute_guarded_hermes_gpu_job(current_job_path)
+            current_worker_mock.assert_called_once()
+        with hold_hermes_model_usage_guard(current_working_root):
+            pass
+
+    def test_model_use_conflict_records_actionable_job_failure(self):
+        from tools.review.common.model_prepare_process import hold_hermes_model_usage_guard
+        current_working_root = hermes_worker_module.WORKFLOW_ROOT_DIRECTORY
+        current_job_path = current_working_root / 'job-conflict'
+        current_job_path.mkdir()
+        (current_job_path / 'status.json').write_text(json.dumps({'status':'running'}))
+        with hold_hermes_model_usage_guard(current_working_root), patch.object(hermes_worker_module, 'wait_hermes_gpu_reservation') as current_reservation_mock, patch.object(hermes_worker_module, 'execute_hermes_gpu_job') as current_execution_mock:
+            with self.assertRaisesRegex(ValueError, '모델이 준비 또는 실행 중'):
+                hermes_worker_module.execute_guarded_hermes_gpu_job(current_job_path)
+            current_execution_mock.assert_not_called()
+            current_reservation_mock.assert_called_once_with(current_job_path.resolve())
+        current_status_record = json.loads((current_job_path / 'status.json').read_text())
+        self.assertEqual(current_status_record['status'], 'failed')
+        self.assertIn('준비 또는 사용 중', current_status_record['error'])
+        self.assertIn('새 요청', current_status_record['error'])
+
+    def test_model_use_guard_stays_with_detached_preparation_process(self):
+        import sys
+        from tools.review.common.model_prepare_process import hold_hermes_model_usage_guard, start_detached_preparation, start_registered_preparation, inspect_registered_preparation
+        current_working_root = hermes_worker_module.WORKFLOW_ROOT_DIRECTORY
+        current_state_root = current_working_root / '.local/model-preparation/hermes-model'
+        current_script_path = current_working_root / 'fake_prepare.py'
+        current_script_path.write_text('import time\ntime.sleep(0.8)\n')
+        current_process_handle = start_detached_preparation(current_state_root, [sys.executable, str(current_script_path)], current_working_root, return_process_value=True, current_usage_guard=hold_hermes_model_usage_guard(current_working_root))
+        try:
+            self.assertEqual(inspect_registered_preparation(current_working_root, 'hermes-model'), 'running')
+            with patch('tools.review.common.model_prepare_process.subprocess.Popen') as current_duplicate_spawn:
+                self.assertEqual(start_registered_preparation(current_working_root, 'hermes-model'), {'preparation_status': 'running'})
+                current_duplicate_spawn.assert_not_called()
+            with self.assertRaisesRegex(ValueError, '모델이 준비 또는 실행 중'):
+                with hold_hermes_model_usage_guard(current_working_root):
+                    pass
+            self.assertEqual(current_process_handle.wait(timeout=5), 0)
+            with hold_hermes_model_usage_guard(current_working_root):
+                pass
+        finally:
+            if current_process_handle.poll() is None:
+                current_process_handle.terminate()
+                current_process_handle.wait(timeout=5)
+
     def test_real_isolated_network_cannot_reach_host_loopback(self):
         import shutil
         import socket

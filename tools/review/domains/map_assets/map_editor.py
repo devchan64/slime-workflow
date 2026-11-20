@@ -60,11 +60,17 @@ def read_map_editor_snapshot(current_map_identifier):
         current_revision_hash=json.dumps({'generation':current_database_bundle['generation'],'revisions':{current_relative_path:current_database_bundle['revisions'][current_relative_path] for current_relative_path in current_relative_documents},'asset_sha256':{current_source_path.relative_to(current_asset_root/'assets/maps').as_posix():hashlib.sha256(current_bytes_value).hexdigest() for current_source_path,current_bytes_value in current_source_bytes.items()}},sort_keys=True)
         return current_asset_root,current_source_paths,current_documents,current_source_bytes,current_revision_hash
     current_relative_paths=[f'assets/maps/field_tiles/{current_map_identifier}.yaml',f'assets/maps/terrain/maps/{current_map_identifier}.yaml']
-    current_source_paths=[resolve_registered_asset(current_relative_path,current_asset_root,current_asset_records,'assets/maps')[0] for current_relative_path in current_relative_paths]
-    current_documents=[load_unique_yaml_document(current_source_path) for current_source_path in current_source_paths]
-    current_source_bytes={current_source_path:current_source_path.read_bytes() for current_source_path in current_source_paths}
-    current_property_path=current_asset_root/'assets/maps/sprite-display-properties.yaml'
-    current_source_bytes[current_property_path]=current_property_path.read_bytes()
+    from tools.review.common.map_asset_sources import UniqueMapSourceLoader
+    current_registered_sources=[resolve_registered_asset(current_relative_path,current_asset_root,current_asset_records,'assets/maps') for current_relative_path in current_relative_paths]
+    current_property_source=resolve_registered_asset('assets/maps/sprite-display-properties.yaml',current_asset_root,current_asset_records,'assets/maps')
+    current_source_paths=[current_source_path for current_source_path,current_source_record in current_registered_sources]
+    current_source_bytes={}
+    for current_source_path,current_source_record in [*current_registered_sources,current_property_source]:
+        current_source_content=current_source_path.read_bytes()
+        if hashlib.sha256(current_source_content).hexdigest()!=current_source_record['sha256']:
+            raise ValueError('맵 편집 원본이 읽는 중 변경되었습니다.')
+        current_source_bytes[current_source_path]=current_source_content
+    current_documents=[yaml.load(current_source_bytes[current_source_path],Loader=UniqueMapSourceLoader) for current_source_path in current_source_paths]
     current_revision_hash=hashlib.sha256(b''.join(current_source_bytes.values())).hexdigest()
     return current_asset_root,current_source_paths,current_documents,current_source_bytes,current_revision_hash
 

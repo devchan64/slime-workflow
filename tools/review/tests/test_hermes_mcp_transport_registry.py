@@ -36,6 +36,57 @@ asyncio.run(inspect_fresh_mcp_registry())
         self.assertEqual(current_test_process.returncode,0,current_test_process.stderr[-4000:])
 
 
+    def test_model_prepare_block_crosses_stdio_and_temporary_gateway(self):
+        import tempfile
+        import threading
+        from http.server import ThreadingHTTPServer
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.common.model_prepare_process import hold_hermes_model_usage_guard
+        from tools.review.domains.hermes_agent.model_preparation_store import HermesModelPreparationStore
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_repository_root = Path(__file__).resolve().parents[3]
+        current_runtime_python = current_repository_root / '.local/hermes-mcp/bin/python'
+        if not current_runtime_python.is_file():
+            self.skipTest('Hermes MCP 런타임이 설치되지 않았습니다.')
+        current_client_script = r"""
+import asyncio,json,os,sys
+from mcp import ClientSession,StdioServerParameters
+from mcp.client.stdio import stdio_client
+async def inspect_model_prepare_block():
+    current_parameters=StdioServerParameters(command=sys.executable,args=['tools/review/domains/hermes_agent/mcp_server.py'],cwd=os.getcwd(),env=dict(os.environ))
+    async with stdio_client(current_parameters) as (current_reader,current_writer):
+        async with ClientSession(current_reader,current_writer) as current_session:
+            await current_session.initialize()
+            current_result=await current_session.call_tool('prepare_hermes_managed_model',{'request_identifier_value':'request_model_block','model_service_name':'hermes-model'})
+            if current_result.is_error:raise RuntimeError(str(current_result))
+            current_value=current_result.structured_content or json.loads(current_result.content[0].text)
+            if current_value != {'request_id':'request_model_block','service':'hermes-model','state':'blocked','reason':'model_in_use'}:raise RuntimeError(str(current_value))
+asyncio.run(inspect_model_prepare_block())
+"""
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path = Path(current_directory_name)
+            current_store_value = HermesModelPreparationStore(current_root_path / 'receipts')
+            current_hermes_manager = HermesServiceManager(current_root_path/'jobs', current_root_path/'sessions')
+            current_gateway_value = ManagementCommandGateway({'hermes-agent':current_hermes_manager.handle_hermes_request})
+            current_server_value = ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace = lambda *current_values: None
+            current_thread_value = threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            current_gateway_url = 'http://127.0.0.1:' + str(current_server_value.server_port)
+            current_environment_values = dict(os.environ,SLIME_MANAGEMENT_GATEWAY_URL=current_gateway_url,PYTHONPATH=str(current_repository_root))
+            try:
+                with patch('tools.review.domains.hermes_agent.service.WORKFLOW_ROOT_DIRECTORY',current_root_path), patch('tools.review.domains.hermes_agent.model_preparation_store.HermesModelPreparationStore',return_value=current_store_value), patch('tools.review.common.hermes_model_download.inspect_hermes_model_files',return_value=False), hold_hermes_model_usage_guard(current_root_path):
+                    current_process_value = subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment_values,capture_output=True,text=True,timeout=30)
+                    self.assertEqual(current_process_value.returncode,0,current_process_value.stderr[-4000:])
+                    self.assertEqual(current_store_value.read_model_preparation_receipt('request_model_block','hermes-model')['state'],'not_found')
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
+
     def test_kimodo_resume_crosses_stdio_gateway_with_mocked_worker(self):
         import json
         import tempfile
@@ -942,6 +993,71 @@ asyncio.run(inspect_video_preview_transport())
                     current_test_case.assertEqual(current_process.returncode,0,current_process.stderr[-4000:])
                     current_test_case.assertIn('video_preview_transport=ok',current_process.stdout)
                     current_resume_mock.assert_not_called()
+                    current_launch_mock.assert_called_once()
+            finally:
+                current_server.shutdown()
+                current_server.server_close()
+                current_server_thread.join(timeout=5)
+
+
+    def test_fun_resume_preview_and_submission_cross_stdio(self):
+        import hashlib
+        import json
+        import tempfile
+        import threading
+        from http.server import ThreadingHTTPServer
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.domains.wan_fun.generation import FunControlGenerationManager
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_repository_root = Path(__file__).resolve().parents[3]
+        current_runtime_python = current_repository_root/'.local/hermes-mcp/bin/python'
+        if not current_runtime_python.is_file(): self.skipTest('Hermes MCP 런타임이 설치되지 않았습니다.')
+        current_client_script = r"""
+import asyncio,json,os,sys
+from mcp import ClientSession,StdioServerParameters
+from mcp.client.stdio import stdio_client
+async def inspect_fun_preview_transport():
+    current_parameters=StdioServerParameters(command=sys.executable,args=['tools/review/domains/hermes_agent/mcp_server.py'],cwd=os.getcwd(),env=dict(os.environ))
+    async with stdio_client(current_parameters) as (current_reader,current_writer):
+        async with ClientSession(current_reader,current_writer) as current_session:
+            await current_session.initialize()
+            current_job_id='2026-11-20_20-00-00-1234abcd'
+            current_result=await current_session.call_tool('preview_hermes_video_resume',{'service_name':'wan22-fun-control','job_identifier_value':current_job_id})
+            if current_result.is_error: raise RuntimeError(str(current_result.content))
+            current_record=current_result.structured_content or json.loads(current_result.content[0].text)
+            if current_record.get('service')!='wan22-fun-control' or current_record.get('job_id')!=current_job_id or current_record.get('resume_availability')!='available': raise RuntimeError(str(current_record))
+            current_submit=await current_session.call_tool('submit_hermes_video_resume',{'request_identifier_value':'request_fun_123','service_name':'wan22-fun-control','job_identifier_value':current_job_id,'expected_resume_fingerprint':current_record['expected_resume_fingerprint']})
+            if current_submit.is_error: raise RuntimeError(str(current_submit.content))
+            current_receipt=current_submit.structured_content or json.loads(current_submit.content[0].text)
+            if current_receipt.get('state')!='accepted': raise RuntimeError(str(current_receipt))
+asyncio.run(inspect_fun_preview_transport())
+"""
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path = Path(current_directory_name)
+            current_fun_manager = FunControlGenerationManager()
+            current_fun_manager.job_storage_root = current_root_path/'fun-jobs'
+            current_job_path = current_fun_manager.job_storage_root/'2026-11-20_20-00-00-1234abcd'
+            current_job_path.mkdir(parents=True)
+            current_video_bytes = b'pose-input'
+            (current_job_path/'request.json').write_text(json.dumps({'action':'generate','frames':5,'references':['reference-1.png'],'pose_video_file':'pose-input.mp4','pose_video_sha256':hashlib.sha256(current_video_bytes).hexdigest()}))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            (current_job_path/'reference-1.png').write_bytes(b'reference')
+            (current_job_path/'pose-input.mp4').write_bytes(current_video_bytes)
+            current_hermes_manager = HermesServiceManager(current_root_path/'hermes-jobs',current_root_path/'sessions')
+            current_gateway = ManagementCommandGateway({'hermes-agent':current_hermes_manager.handle_hermes_request,'wan22-fun-control':current_fun_manager.handle_image_request})
+            current_server = ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway.handle))
+            current_server.emit_gateway_trace = lambda *current_values: None
+            current_server_thread = threading.Thread(target=current_server.serve_forever,daemon=True)
+            current_server_thread.start()
+            current_gateway_url = 'http://127.0.0.1:'+str(current_server.server_port)
+            current_environment = dict(os.environ,SLIME_MANAGEMENT_GATEWAY_URL=current_gateway_url,PYTHONPATH=str(current_repository_root))
+            try:
+                from tools.review.domains.hermes_agent import video_resume_operations
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_url}), patch.object(video_resume_operations,'VIDEO_RESUME_RECEIPT_ROOT',current_root_path/'receipts'), patch.object(current_fun_manager,'validate_generation_runtime'), patch('tools.review.common.gpu_job_queue.launch_gpu_process') as current_launch_mock:
+                    current_process_value = subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment,capture_output=True,text=True,timeout=30)
+                    self.assertEqual(current_process_value.returncode,0,current_process_value.stderr[-4000:])
                     current_launch_mock.assert_called_once()
             finally:
                 current_server.shutdown()

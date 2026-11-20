@@ -127,12 +127,12 @@ MANAGEMENT_COMMAND_ROUTES.update({'download-model': ('POST', '/model-download'),
 
 MANAGEMENT_COMMAND_ROUTES['resume-reviewed'] = ('POST', '/resume/reviewed')
 MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('resume-reviewed',)
-for current_video_service in ('dwpose','wan22-animate2','wan22-vace'):
+for current_video_service in ('dwpose','wan22-animate2','wan22-vace','wan22-fun-control'):
     MANAGEMENT_SERVICE_COMMANDS[current_video_service] += ('resume-reviewed',)
 for current_flux_profile in FLUX_IMAGE_PROFILE_RECORDS:
     MANAGEMENT_SERVICE_COMMANDS[current_flux_profile] += ('resume-reviewed',)
 MANAGEMENT_COMMAND_ROUTES['resume-preview'] = ('POST', '/resume/preview')
-for current_service_name in ('music-heartmula','sfx-dasheng-audiogen','prompt-translation','kimodo','dwpose','wan22-animate2','wan22-vace',*FLUX_IMAGE_PROFILE_RECORDS):
+for current_service_name in ('music-heartmula','sfx-dasheng-audiogen','prompt-translation','kimodo','dwpose','wan22-animate2','wan22-vace','wan22-fun-control',*FLUX_IMAGE_PROFILE_RECORDS):
     MANAGEMENT_SERVICE_COMMANDS[current_service_name] += ('resume-preview',)
 
 MANAGEMENT_COMMAND_ROUTES['history-observe'] = ('POST', '/history/observe')
@@ -356,10 +356,15 @@ def execute_management_command(service_command_name, operation_command_name, com
     if gateway_request_handler is not None:
         if service_command_name == 'hermes-model':
             from tools.review.common.hermes_model_download import WORKFLOW_ROOT_DIRECTORY, inspect_hermes_model_files
-            from tools.review.common.model_prepare_process import inspect_registered_preparation, start_registered_preparation
+            from tools.review.common.model_prepare_process import inspect_registered_preparation_strict, start_registered_preparation
             from tools.review.common.management_transport import send_management_json_response
-            current_preparation_status = inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY, 'hermes-model')
+            try:
+                current_preparation_status = inspect_registered_preparation_strict(WORKFLOW_ROOT_DIRECTORY, 'hermes-model')
+            except (OSError, ValueError, TypeError, UnicodeError):
+                current_preparation_status = 'unknown'
             current_model_ready = inspect_hermes_model_files()
+            if operation_command_name == 'prepare' and current_preparation_status == 'unknown':
+                raise ValueError('Hermes 모델 준비 상태를 확인할 수 없어 준비 요청을 보류합니다.')
             if operation_command_name == 'prepare' and current_preparation_status != 'running' and not current_model_ready:
                 current_preparation_status = start_registered_preparation(WORKFLOW_ROOT_DIRECTORY, 'hermes-model')['preparation_status']
             from tools.review.domains.hermes_agent.management_observer import inspect_hermes_model_status

@@ -90,6 +90,33 @@ class MapReviewSourceAlignmentTests(unittest.TestCase):
         self.assertEqual(current_menu_by_id['stonewarm']['name'],current_document_records['map_names/stonewarm.yaml']['data']['ko'])
         self.assertEqual(current_menu_by_id['stonewarm']['kind'],'town')
 
+    def test_file_field_editor_rejects_source_changed_after_registration_check(self):
+        import hashlib
+        import os
+        import tempfile
+        from tools.review.domains.map_assets import map_editor
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_asset_root = Path(current_directory_name)
+            current_relative_paths = ('assets/maps/field_tiles/test.yaml', 'assets/maps/terrain/maps/test.yaml', 'assets/maps/sprite-display-properties.yaml')
+            current_expected_bytes = b'data: {}\n'
+            for current_relative_path in current_relative_paths:
+                current_file_path = current_asset_root / current_relative_path
+                current_file_path.parent.mkdir(parents=True, exist_ok=True)
+                current_file_path.write_bytes(current_expected_bytes)
+            current_change_switch = [False]
+            def resolve_changed_source(current_relative_path, current_root_value, current_records_value, current_prefix_value):
+                current_file_path = current_root_value / current_relative_path
+                if current_change_switch[0] and current_relative_path == current_relative_paths[0]:
+                    current_file_path.write_bytes(b'data: {changed: true}\n')
+                return current_file_path, {'sha256': hashlib.sha256(current_expected_bytes).hexdigest()}
+            with patch.dict(os.environ, {'SLIME_CONTENT_STORAGE': 'files'}), patch.object(map_editor, 'load_registered_tiles', return_value=(current_asset_root, {})), patch.object(map_editor, 'resolve_registered_asset', side_effect=resolve_changed_source):
+                current_result_value = map_editor.read_map_editor_snapshot('test')
+                self.assertEqual(current_result_value[2], [{'data': {}}, {'data': {}}])
+                self.assertEqual(current_result_value[4], hashlib.sha256(current_expected_bytes * 3).hexdigest())
+                current_change_switch[0] = True
+                with self.assertRaisesRegex(ValueError, '읽는 중 변경'):
+                    map_editor.read_map_editor_snapshot('test')
+
     def test_database_field_editor_reads_actual_assets_and_hashes(self):
         import hashlib
         import json

@@ -5,7 +5,7 @@ from tools.review.common.management_client import execute_remote_management_comm
 from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
 from tools.review.domains.hermes_agent.resume_receipt_store import read_resume_receipt_record, submit_resume_receipt_once
 
-VIDEO_RESUME_SERVICES = ('dwpose', 'wan22-animate2', 'wan22-vace')
+VIDEO_RESUME_SERVICES = ('dwpose', 'wan22-animate2', 'wan22-vace', 'wan22-fun-control')
 VIDEO_RESUME_RECEIPT_ROOT = Path(__file__).resolve().parents[4] / '.local/hermes-agent/video-resume-receipts'
 
 

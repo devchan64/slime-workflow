@@ -194,7 +194,21 @@ def resume_gpu_generation(generation_job_path, legacy_command_record=None, expec
                 resume_locked_preflight_callback(generation_job_path)
         # 새 실행기가 같은 잠금을 획득할 수 있도록 접수 전에 확인 잠금을 해제한다.
         current_command_path = generation_job_path / 'gpu-command.json'
-        generation_command_record = json.loads(current_command_path.read_text()) if current_command_path.exists() else legacy_command_record
+        try:
+            current_command_descriptor = os.open(current_command_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        except FileNotFoundError:
+            generation_command_record = legacy_command_record
+        except OSError as current_command_error:
+            raise ValueError('재개 실행 명령 기록을 확인할 수 없습니다.') from current_command_error
+        else:
+            with os.fdopen(current_command_descriptor, 'rb') as current_command_stream:
+                current_command_stat = os.fstat(current_command_stream.fileno())
+                if not stat.S_ISREG(current_command_stat.st_mode) or current_command_stat.st_size > 1024 * 1024:
+                    raise ValueError('재개 실행 명령 기록은 크기가 제한된 일반 파일이어야 합니다.')
+                current_command_bytes = current_command_stream.read(1024 * 1024 + 1)
+                if len(current_command_bytes) > 1024 * 1024:
+                    raise ValueError('재개 실행 명령 기록은 크기가 제한된 일반 파일이어야 합니다.')
+                generation_command_record = json.loads(current_command_bytes)
         if generation_command_record is None:
             raise ValueError('재개할 작업의 실행 명령 기록이 없습니다.')
         if not isinstance(generation_command_record, dict) or set(generation_command_record) != {'command', 'service'}:
