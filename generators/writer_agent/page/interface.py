@@ -59,7 +59,7 @@ def prepare_writer_history_link(current_job_identifier):
     if not current_job_identifier:return '',gr.update(visible=False),''
     if not isinstance(current_job_identifier,str) or not JOB_IDENTIFIER_PATTERN.fullmatch(current_job_identifier):
         return '',gr.update(visible=True),'전달된 작가 작업 ID를 확인할 수 없습니다.'
-    return current_job_identifier,gr.update(visible=True),'전달된 작업 '+current_job_identifier+'입니다. 찾기를 누른 뒤 이력에서 결과를 선택하세요.'
+    return current_job_identifier,gr.update(visible=True),'전달된 작업 '+current_job_identifier+'입니다. 찾기를 누르면 일치하는 작업의 결과를 확인합니다.'
 
 
 def build_writer_agent_interface(review_server_port):
@@ -93,6 +93,7 @@ def build_writer_agent_interface(review_server_port):
         with gr.Row():
             current_history_query=gr.Textbox(label='이력 검색',placeholder='작업 ID, 종류, 상태 또는 작성 지시',max_length=200)
             current_history_search_button=gr.Button('전체 이력 검색')
+        current_linked_job_state=gr.State('')
         with gr.Group(visible=False) as current_linked_job_group:
             current_linked_job_notice=gr.Markdown()
             current_linked_job_button=gr.Button('전달된 작업을 이력에서 찾기')
@@ -151,8 +152,10 @@ def build_writer_agent_interface(review_server_port):
         def read_writer_selection(current_selected_identifier):
             if not current_selected_identifier:raise gr.Error('실행 기록을 선택하세요.')
             try:
-                return format_writer_detail(request_writer_service(review_server_port,'job?'+urlencode({'id':current_selected_identifier})))
-            except (ValueError,RuntimeError,OSError) as current_detail_error:
+                current_detail_record=request_writer_service(review_server_port,'job?'+urlencode({'id':current_selected_identifier}))
+                if not isinstance(current_detail_record,dict) or current_detail_record.get('id')!=current_selected_identifier:raise ValueError('선택한 작업과 상세 응답이 일치하지 않습니다.')
+                return format_writer_detail(current_detail_record)
+            except (ValueError,RuntimeError,OSError,TypeError,KeyError) as current_detail_error:
                 current_failure_outputs=list(clear_writer_selection_detail())
                 current_failure_outputs[1]=current_selected_identifier
                 current_failure_outputs[3]='결과 조회 실패 · '+str(current_detail_error)
@@ -177,13 +180,28 @@ def build_writer_agent_interface(review_server_port):
             try:
                 current_history_response=request_writer_service(review_server_port,'history',{'query':current_query_text or ''})
                 current_history_rows=[[current_job_record['id'],WRITER_MODE_LABELS.get(current_job_record['mode'],current_job_record['mode']),WRITER_STAGE_LABELS.get(current_job_record['stage'],current_job_record['stage']),current_job_record.get('summary') or current_job_record.get('error') or ''] for current_job_record in current_history_response['jobs']]
-                if type(current_history_response['count']) is not int or current_history_response['count']<0:raise ValueError('이력 건수 오류')
+                if type(current_history_response['count']) is not int or current_history_response['count']!=len(current_history_rows):raise ValueError('이력 건수 오류')
             except (OSError,ValueError,RuntimeError,TypeError,KeyError):
                 return [],None,'이력 검색에 실패했습니다. 서비스 상태를 확인한 뒤 다시 검색하세요.'
             current_kept_identifier=current_selected_identifier if any(current_row[0]==current_selected_identifier for current_row in current_history_rows) else None
             return current_history_rows,current_kept_identifier,f"검색 결과 {current_history_response['count']}건"
-        current_interface_blocks.load(prepare_writer_history_link,inputs=[current_history_query],outputs=[current_history_query,current_linked_job_group,current_linked_job_notice],js="(_value)=>[new URL(window.location.href).searchParams.get('job') || '']",preprocess=False,queue=False)
-        for current_search_event in (current_history_search_button.click,current_history_query.submit,current_linked_job_button.click):
+        def prepare_linked_writer_search(current_job_identifier):
+            current_query_value,current_group_value,current_notice_value=prepare_writer_history_link(current_job_identifier)
+            return current_query_value,current_query_value,current_group_value,current_notice_value
+        def search_linked_writer_history(current_job_identifier):
+            current_query_value,_,_=prepare_writer_history_link(current_job_identifier)
+            if not current_query_value:return [],None,'전달된 작가 작업 ID를 확인할 수 없습니다.'
+            current_rows_value,_,current_notice_value=search_writer_history_records(current_query_value,None)
+            current_match_records=[current_row for current_row in current_rows_value if current_row[0]==current_query_value]
+            if len(current_match_records)!=1:
+                return current_rows_value,None,current_notice_value+' · 전달된 작업을 유일하게 확인할 수 없습니다.'
+            return current_rows_value,current_query_value,current_notice_value+' · 전달된 작업을 선택했습니다.'
+        current_interface_blocks.load(prepare_linked_writer_search,inputs=[current_history_query],outputs=[current_history_query,current_linked_job_state,current_linked_job_group,current_linked_job_notice],js="(_value)=>[new URL(window.location.href).searchParams.get('job') || '']",preprocess=False,queue=False)
+        current_linked_job_button.click(search_linked_writer_history,current_linked_job_state,[current_history_table,current_history_choice,current_history_count],queue=False).then(
+            lambda:(False,gr.update(interactive=False)),outputs=[current_delete_confirm,current_delete_button],queue=False).then(
+            clear_writer_selection_detail,outputs=current_detail_outputs,queue=False).then(
+            load_selected_writer_detail,current_history_choice,current_detail_outputs,queue=False)
+        for current_search_event in (current_history_search_button.click,current_history_query.submit):
             current_search_event(search_writer_history_records,[current_history_query,current_history_choice],[current_history_table,current_history_choice,current_history_count],queue=False).then(
                 lambda:(False,gr.update(interactive=False)),outputs=[current_delete_confirm,current_delete_button],queue=False).then(
                 clear_writer_selection_detail,outputs=current_detail_outputs,queue=False).then(
@@ -252,11 +270,12 @@ def build_writer_agent_interface(review_server_port):
                 current_workspace_updates=current_workspace_updates[:2]+current_workspace_updates[4:]
                 if not current_selected_identifier:return [*current_workspace_updates,gr.skip(),gr.skip()]
                 current_detail_record=request_writer_service(review_server_port,'job?'+urlencode({'id':current_selected_identifier}))
+                if not isinstance(current_detail_record,dict) or current_detail_record.get('id')!=current_selected_identifier:raise ValueError('선택한 작업과 상세 응답이 일치하지 않습니다.')
                 current_status_record=current_detail_record['status']
                 current_workspace_updates[7]=gr.update(interactive=True)
                 current_workspace_updates[8]='선택한 실행 기록의 결과를 다시 조회합니다.'
                 return [*current_workspace_updates,WRITER_STAGE_LABELS.get(current_status_record['stage'],current_status_record['stage'])+' · '+str(current_status_record.get('error') or current_status_record.get('summary') or current_status_record.get('progress') or ''),current_detail_record.get('log','') if current_log_refresh_enabled else gr.skip()]
-            except (ValueError,RuntimeError,OSError) as current_progress_error:
+            except (ValueError,RuntimeError,OSError,TypeError,KeyError) as current_progress_error:
                 current_failure_message='상태 조회 실패: '+str(current_progress_error)+' · 다음 자동 갱신에서 다시 확인합니다.'
                 return [gr.update(interactive=False) if isinstance(current_output_component,gr.Button)
                         else current_failure_message if current_output_component in (current_readiness_text,current_detail_status,current_write_notice,current_detail_notice)

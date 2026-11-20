@@ -267,6 +267,26 @@ class HermesServiceTests(unittest.TestCase):
                 self.assertIn('원 서비스',current_result_record['job']['failure_reason'])
                 self.assertEqual(current_result_record['job']['exit_code'],1)
 
+    def test_legacy_anchor_history_discovery_explains_limits(self):
+        from tools.review.domains.hermes_agent.capabilities import list_management_service_registration
+        current_service_record=next(current_record for current_record in list_management_service_registration()['services'] if current_record['service']=='character-animation')
+        current_limit_records={current_record['command']:current_record['note'] for current_record in current_service_record['conditional_limitations']}
+        for current_command_name in ('anchor-history','anchor-load'):
+            self.assertIn(current_command_name,current_service_record['commands'])
+            self.assertIn('직접 연결하지 않는다',current_limit_records[current_command_name])
+        self.assertIn('전체 순회',current_limit_records['anchor-history'])
+        self.assertIn('숨김 여부를 확인하지 않는다',current_limit_records['anchor-load'])
+
+    def test_legacy_sprite_project_discovery_explains_separate_history(self):
+        from tools.review.domains.hermes_agent.capabilities import list_management_service_registration
+        current_service_record=next(current_record for current_record in list_management_service_registration()['services'] if current_record['service']=='character-animation')
+        current_limit_records={current_record['command']:current_record['note'] for current_record in current_service_record['conditional_limitations']}
+        for current_command_name in ('sprite-history','sprite-load'):
+            self.assertIn(current_command_name,current_service_record['commands'])
+            self.assertIn('직접 연결하지 않는다',current_limit_records[current_command_name])
+        self.assertIn('전체 문서',current_limit_records['sprite-history'])
+        self.assertIn('등록 에셋',current_limit_records['sprite-load'])
+
     def test_archived_generator_history_does_not_imply_generate_support(self):
         from tools.review.domains.hermes_agent.capabilities import list_management_service_registration
         current_records={item['service']:item for item in list_management_service_registration()['services']}
@@ -387,6 +407,20 @@ class HermesServiceTests(unittest.TestCase):
             hermes_observation_record = read_hermes_management_snapshot()
         self.assertEqual(hermes_observation_record['gpu']['status'], 'unavailable')
         self.assertEqual(hermes_observation_record['queue']['status'], 'unavailable')
+
+    def test_management_gpu_runtime_error_preserves_queue(self):
+        from tools.review.domains.hermes_agent.management_observer import read_hermes_management_snapshot
+        with patch('tools.review.common.gpu_status.read_gpu_status',side_effect=RuntimeError('GPU unavailable')),patch('tools.review.common.gpu_job_queue.list_waiting_gpu_jobs',return_value={'jobs':[{'id':'job-1','service':'kimodo'}]}):
+            current_snapshot_value=read_hermes_management_snapshot()
+        self.assertEqual(current_snapshot_value['gpu'],{'status':'unavailable'})
+        self.assertEqual(current_snapshot_value['queue']['status'],'available')
+        self.assertEqual(current_snapshot_value['queue']['jobs'][0]['id'],'job-1')
+
+    def test_management_queue_runtime_error_is_unavailable(self):
+        from tools.review.domains.hermes_agent.management_observer import read_hermes_management_snapshot
+        with patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}),patch('tools.review.common.gpu_job_queue.list_waiting_gpu_jobs',side_effect=RuntimeError('path loop')):
+            current_snapshot_value=read_hermes_management_snapshot()
+        self.assertEqual(current_snapshot_value['queue'],{'status':'unavailable','jobs':[]})
 
     def test_management_observation_rejects_inconsistent_gpu_without_hiding_queue(self):
         from tools.review.domains.hermes_agent import management_observer

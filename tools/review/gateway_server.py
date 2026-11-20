@@ -35,12 +35,13 @@ def create_gateway_request_handler(dispatch_runtime_request):
                 return
             if self.command == 'GET' and request_route_path in ('/management/gpu-status', '/management/gpu-queue'):
                 from tools.review.common.gpu_status import read_gpu_status
-                response_record_values = read_gpu_status()
+                try:response_record_values = read_gpu_status()
+                except (OSError,ValueError,TypeError,KeyError,RuntimeError):response_record_values={'status':'unavailable'}
                 if request_route_path == '/management/gpu-queue':
                     from tools.review.common.gpu_job_queue import list_waiting_gpu_jobs
                     try:
                         response_record_values = list_waiting_gpu_jobs(observation_limits=True) | {'gpu_status': response_record_values}
-                    except (OSError,ValueError,TypeError,KeyError):
+                    except (OSError,ValueError,TypeError,KeyError,RuntimeError):
                         send_management_json_response(self, 503, {'error':'GPU 대기열을 확인할 수 없습니다.'})
                         return
                 send_management_json_response(self, 200, response_record_values)
@@ -82,6 +83,7 @@ def run_management_gateway(server_port_number, writer_workspace_config=None):
     from tools.review.common.content_launch_config import apply_content_launch_configuration
     apply_content_launch_configuration()
     from tools.review.common.management_runtime import create_management_runtime
+    from generators.writer_agent.documents import DEFAULT_WORKSPACE_CONFIG
     gateway_stop_event = threading.Event()
     gateway_log_directory = WORKFLOW_ROOT_DIRECTORY / '.tmp/gateway-server-logs'
     gateway_log_directory.mkdir(parents=True, exist_ok=True)
@@ -97,7 +99,10 @@ def run_management_gateway(server_port_number, writer_workspace_config=None):
         raise KeyboardInterrupt
 
     management_service_runtime = None
+    current_writer_config_path=str(Path(writer_workspace_config or DEFAULT_WORKSPACE_CONFIG).absolute())
     previous_signal_handler = signal.signal(signal.SIGTERM, terminate_gateway_server)
+    current_writer_environment=os.environ.get('SLIME_WRITER_WORKSPACE_CONFIG')
+    os.environ['SLIME_WRITER_WORKSPACE_CONFIG']=current_writer_config_path
     try:
         management_service_runtime = create_management_runtime(writer_workspace_config)
         with ThreadingHTTPServer((GATEWAY_SERVER_HOST, server_port_number), create_gateway_request_handler(management_service_runtime.dispatch_runtime_request)) as gateway_http_server:
@@ -121,7 +126,10 @@ def run_management_gateway(server_port_number, writer_workspace_config=None):
             if management_service_runtime is not None:
                 management_service_runtime.close_runtime_services()
         finally:
-            signal.signal(signal.SIGTERM, previous_signal_handler)
+            try:signal.signal(signal.SIGTERM, previous_signal_handler)
+            finally:
+                if current_writer_environment is None:os.environ.pop('SLIME_WRITER_WORKSPACE_CONFIG',None)
+                else:os.environ['SLIME_WRITER_WORKSPACE_CONFIG']=current_writer_environment
 
 
 def parse_gateway_arguments(command_argument_values=None):

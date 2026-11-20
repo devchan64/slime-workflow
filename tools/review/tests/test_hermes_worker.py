@@ -808,6 +808,43 @@ class HermesWorkerTests(unittest.TestCase):
                 self.assertFalse(current_server_thread.is_alive())
                 current_writer_paths_mock.assert_called_once_with('request_123')
 
+    def test_custom_writer_queue_crosses_isolated_observer_socket(self):
+        import socket
+        import threading
+        import yaml
+        from tools.review.common import gpu_job_queue
+        from tools.review.domains.hermes_agent import management_bridge,management_observer
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_root_path=Path(current_temporary_directory)
+            current_workflow_root=current_root_path/'workflow'
+            current_queue_path=current_workflow_root/'.tmp'/'gpu-queue'
+            current_queue_path.mkdir(parents=True)
+            current_state_path=current_root_path/'writer-state'
+            current_job_path=current_state_path/'jobs'/'20261121-120000-12345678'
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'queued'}))
+            (current_job_path/'gpu-command.json').write_text(json.dumps({'service':'writer-agent'}))
+            current_ticket_path=current_queue_path/'ticket.json'
+            current_ticket_path.write_text(json.dumps({'pid':os.getpid(),'path':str(current_job_path)}))
+            current_config_path=current_root_path/'writer-custom.yaml'
+            current_config_path.write_text(yaml.safe_dump({'schema_version':1,'document_root':str(current_root_path/'docs'),'state_root':str(current_state_path),'write_roots':['ideas'],'excluded_roots':[],'protected_paths':[],'catalog_path':None}))
+            current_client_socket,current_server_socket=socket.socketpair()
+            current_client_socket.settimeout(3)
+            try:
+                with patch.dict(os.environ,{'SLIME_WRITER_WORKSPACE_CONFIG':str(current_config_path)}),patch.object(gpu_job_queue,'WORKFLOW_ROOT_DIRECTORY',current_workflow_root),patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_path),patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}),patch.object(management_observer,'inspect_hermes_model_status',return_value={}),patch.object(management_observer,'read_hermes_generator_snapshot',return_value={}),patch.object(management_observer,'read_hermes_gpu_reservation_snapshot',return_value={}),patch.object(management_observer,'read_hermes_recent_job_snapshot',return_value={}):
+                    current_thread_value=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                    current_thread_value.start()
+                    current_client_socket.sendall(b'gpu-queue\n')
+                    with current_client_socket.makefile('rb') as current_response_stream:current_result_value=json.loads(current_response_stream.readline())
+                    current_thread_value.join(timeout=3)
+                self.assertFalse(current_thread_value.is_alive())
+                self.assertEqual(current_result_value['queue']['status'],'available')
+                self.assertEqual(current_result_value['queue']['jobs'][0]['id'],current_job_path.name)
+                self.assertNotIn(str(current_job_path),str(current_result_value))
+                self.assertTrue(current_ticket_path.is_file())
+            finally:
+                current_client_socket.close()
+
     def test_service_registration_search_pages_and_rejects_bad_input(self):
         import socket
         import threading

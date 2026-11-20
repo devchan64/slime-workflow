@@ -953,6 +953,38 @@ def identify_dedicated_gpu_reservation_source(current_job_path,current_queue_ser
         return None
 
 
+
+def verify_writer_queue_job_path(current_job_path):
+    """설정된 작가 저장소의 작업 경로인지 부작용 없이 확인한다."""
+    import yaml
+    from generators.writer_agent.documents import DEFAULT_WORKSPACE_CONFIG, UniqueDocumentLoader, WORKSPACE_REQUIRED_FIELDS
+    from generators.writer_agent.jobs import JOB_IDENTIFIER_PATTERN
+    current_job_path=Path(current_job_path)
+    if not current_job_path.is_absolute() or not JOB_IDENTIFIER_PATTERN.fullmatch(current_job_path.name):return False
+    current_config_path=Path(os.environ.get('SLIME_WRITER_WORKSPACE_CONFIG',str(DEFAULT_WORKSPACE_CONFIG)))
+    if not current_config_path.is_absolute():raise ValueError('작가 작업 공간 설정 경로 오류')
+    try:current_resolved_config=current_config_path.resolve(strict=True)
+    except (OSError,RuntimeError) as current_path_error:raise ValueError('작가 작업 공간 설정 경로를 확인할 수 없습니다.') from current_path_error
+    current_config_bytes,_=read_bounded_gpu_observation_bytes(current_resolved_config,GPU_OBSERVATION_MAXIMUM_BYTES)
+    try:current_config_record=yaml.load(current_config_bytes,Loader=UniqueDocumentLoader)
+    except yaml.YAMLError as current_config_error:raise ValueError('작가 작업 공간 설정을 확인할 수 없습니다.') from current_config_error
+    if not isinstance(current_config_record,dict) or set(current_config_record)!=WORKSPACE_REQUIRED_FIELDS or type(current_config_record.get('schema_version')) is not int or current_config_record['schema_version']!=1:return False
+    current_root_value=current_config_record.get('state_root')
+    if not isinstance(current_root_value,str) or not Path(current_root_value).is_absolute():return False
+    try:current_state_root=Path(current_root_value).resolve()
+    except (OSError,RuntimeError) as current_path_error:raise ValueError('작가 작업 저장소 경로를 확인할 수 없습니다.') from current_path_error
+    current_jobs_root=current_state_root/'jobs'
+    current_expected_path=current_jobs_root/current_job_path.name
+    if not current_state_root.is_dir() or current_jobs_root.is_symlink() or not current_jobs_root.is_dir() or current_expected_path.is_symlink() or not current_expected_path.is_dir():return False
+    if current_job_path!=current_expected_path or current_job_path.resolve()!=current_expected_path:return False
+    try:current_rechecked_path=current_config_path.resolve(strict=True)
+    except (OSError,RuntimeError) as current_path_error:raise ValueError('작가 작업 공간 설정 경로가 조회 중 변경됐습니다.') from current_path_error
+    if current_rechecked_path!=current_resolved_config:raise ValueError('작가 작업 공간 설정 경로가 조회 중 변경됐습니다.')
+    current_rechecked_bytes,_=read_bounded_gpu_observation_bytes(current_resolved_config,GPU_OBSERVATION_MAXIMUM_BYTES)
+    if current_rechecked_bytes!=current_config_bytes:raise ValueError('작가 작업 공간 설정이 조회 중 변경됐습니다.')
+    return True
+
+
 def list_waiting_gpu_jobs(include_source_identity=False,observation_limits=False):
     """살아 있는 대기 실행기의 작업 목록만 읽는다."""
     waiting_job_records=[]
@@ -963,12 +995,25 @@ def list_waiting_gpu_jobs(include_source_identity=False,observation_limits=False
             current_ticket_pid=validate_gpu_ticket_process_identifier(waiting_ticket_record) if include_source_identity or observation_limits else waiting_ticket_record['pid']
             os.kill(current_ticket_pid,0)
             waiting_job_directory=Path(waiting_ticket_record['path'])
+            current_external_job=not waiting_job_directory.resolve().is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp')
+            if observation_limits and current_external_job:
+                try:current_writer_verified=verify_writer_queue_job_path(waiting_job_directory)
+                except (OSError,RuntimeError) as current_path_error:raise ValueError('대기 티켓의 작업 경로와 서비스를 확인할 수 없습니다.') from current_path_error
+                if not current_writer_verified:raise ValueError('대기 티켓의 작업 경로와 서비스를 확인할 수 없습니다.')
             waiting_status_record=json.loads(read_bounded_gpu_observation_bytes(waiting_job_directory/'status.json',GPU_OBSERVATION_MAXIMUM_BYTES)[0]) if observation_limits else json.loads((waiting_job_directory/'status.json').read_text())
             if (include_source_identity or observation_limits) and (not isinstance(waiting_status_record,dict) or waiting_status_record.get('status') not in ('queued','running','completed','failed','cancelled','canceled','paused')):
                 raise ValueError('대기 티켓의 작업 상태를 확인할 수 없습니다.')
             if waiting_status_record['status']!='queued':continue
             waiting_command_record=json.loads(read_bounded_gpu_observation_bytes(waiting_job_directory/'gpu-command.json',GPU_OBSERVATION_MAXIMUM_BYTES)[0]) if observation_limits else json.loads((waiting_job_directory/'gpu-command.json').read_text())
-            if not waiting_job_directory.resolve().is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp') and waiting_command_record.get('service') != 'writer-agent':continue
+            if (include_source_identity or observation_limits) and (not isinstance(waiting_command_record,dict) or not isinstance(waiting_command_record.get('service'),str) or not waiting_command_record['service'].strip()):
+                raise ValueError('대기 티켓의 작업 서비스 형식을 확인할 수 없습니다.')
+            if observation_limits and not current_external_job and waiting_command_record['service']=='writer-agent':
+                try:current_writer_verified=verify_writer_queue_job_path(waiting_job_directory)
+                except (OSError,RuntimeError) as current_path_error:raise ValueError('대기 티켓의 작업 경로와 서비스를 확인할 수 없습니다.') from current_path_error
+                if not current_writer_verified:raise ValueError('대기 티켓의 작업 경로와 서비스를 확인할 수 없습니다.')
+            if current_external_job and waiting_command_record.get('service')!='writer-agent':
+                if observation_limits:raise ValueError('대기 티켓의 작업 경로와 서비스를 확인할 수 없습니다.')
+                continue
             waiting_job_record={'id':waiting_job_directory.name,'service':waiting_command_record['service']}
             if include_source_identity:
                 waiting_job_record['executor_identity']=inspect_gpu_ticket_executor_identity(waiting_ticket_record)

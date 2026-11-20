@@ -16,6 +16,83 @@ from tools.review.gateway_server import create_gateway_request_handler
 
 
 class HermesGatewayRestartTests(unittest.TestCase):
+    def test_legacy_anchor_summary_reaches_mcp_via_http(self):
+        import os
+        from tools.review.domains.character_animation import anchor_history
+        from tools.review.tests.test_hermes_mcp import hermes_module_value
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_root_path=Path(current_temporary_directory)
+            current_history_root=current_root_path/'history'
+            current_identifier_value='2026-11-20_10-00-00-12345678'
+            current_job_path=current_history_root/current_identifier_value[:19]/current_identifier_value
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'result.json').write_text(json.dumps({'id':current_identifier_value,'created_at':'2026-11-20T10:00:00+09:00','status':'completed','source':{'animationId':'walk','animationVersion':'v1','sheets':[{'image':'/private/image.png'}]},'frames':4}))
+            current_manager_value=HermesServiceManager(current_root_path/'hermes-jobs',current_root_path/'sessions')
+            current_gateway_value=ManagementCommandGateway({'hermes-agent':current_manager_value.handle_hermes_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_log_values:None
+            current_server_thread=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_server_thread.start()
+            try:
+                current_gateway_origin='http://127.0.0.1:'+str(current_server_value.server_port)
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}),patch.object(anchor_history,'ANCHOR_HISTORY_ROOT',current_history_root):
+                    current_result_value=hermes_module_value.list_hermes_legacy_anchor_history('walk','v1')
+                self.assertEqual(current_result_value['records'][0]['id'],current_identifier_value)
+                self.assertNotIn('/private/',str(current_result_value))
+                self.assertTrue((current_job_path/'result.json').is_file())
+            finally:
+                current_server_value.shutdown()
+                current_server_thread.join(timeout=5)
+                current_server_value.server_close()
+
+    def test_custom_writer_queue_reaches_hermes_mcp_via_http(self):
+        import os
+        import yaml
+        from tools.review.common import gpu_job_queue
+        from tools.review.domains.hermes_agent import management_observer
+        from tools.review.tests.test_hermes_mcp import hermes_module_value
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_root_path=Path(current_temporary_directory)
+            current_workflow_root=current_root_path/'workflow'
+            current_queue_path=current_workflow_root/'.tmp'/'gpu-queue'
+            current_queue_path.mkdir(parents=True)
+            current_state_path=current_root_path/'writer-state'
+            current_job_path=current_state_path/'jobs'/'20261121-120000-12345678'
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'queued'}))
+            (current_job_path/'gpu-command.json').write_text(json.dumps({'service':'writer-agent'}))
+            current_ticket_path=current_queue_path/'ticket.json'
+            current_ticket_path.write_text(json.dumps({'pid':os.getpid(),'path':str(current_job_path)}))
+            current_config_path=current_root_path/'writer-custom.yaml'
+            current_config_path.write_text(yaml.safe_dump({'schema_version':1,'document_root':str(current_root_path/'docs'),'state_root':str(current_state_path),'write_roots':['ideas'],'excluded_roots':[],'protected_paths':[],'catalog_path':None}))
+            current_manager_value=HermesServiceManager(current_root_path/'hermes-jobs',current_root_path/'sessions')
+            current_gateway_value=ManagementCommandGateway({'hermes-agent':current_manager_value.handle_hermes_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_log_values:None
+            current_server_thread=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_server_thread.start()
+            current_gateway_origin='http://127.0.0.1:'+str(current_server_value.server_port)
+            try:
+                with patch.dict(os.environ,{'SLIME_WRITER_WORKSPACE_CONFIG':str(current_config_path),'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}),patch.object(gpu_job_queue,'WORKFLOW_ROOT_DIRECTORY',current_workflow_root),patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_path),patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}),patch.object(management_observer,'inspect_hermes_model_status',return_value={}),patch.object(management_observer,'read_hermes_generator_snapshot',return_value={}),patch.object(management_observer,'read_hermes_gpu_reservation_snapshot',return_value={}),patch.object(management_observer,'read_hermes_recent_job_snapshot',return_value={}):
+                    current_snapshot_value=hermes_module_value.read_hermes_management_status()
+                    current_other_path=current_root_path/'other'/'jobs'/current_job_path.name
+                    current_other_path.mkdir(parents=True)
+                    (current_other_path/'status.json').write_text(json.dumps({'status':'queued'}))
+                    (current_other_path/'gpu-command.json').write_text(json.dumps({'service':'writer-agent'}))
+                    current_ticket_path.write_text(json.dumps({'pid':os.getpid(),'path':str(current_other_path)}))
+                    current_invalid_snapshot=hermes_module_value.read_hermes_management_status()
+                self.assertEqual(current_invalid_snapshot['queue']['status'],'unavailable')
+                self.assertEqual(current_invalid_snapshot['queue']['jobs'],[])
+                self.assertNotIn(str(current_other_path),str(current_invalid_snapshot))
+                self.assertEqual(current_snapshot_value['queue']['status'],'available')
+                self.assertEqual(current_snapshot_value['queue']['jobs'][0]['id'],current_job_path.name)
+                self.assertTrue(current_ticket_path.is_file())
+                self.assertFalse((current_root_path/'docs').exists())
+            finally:
+                current_server_value.shutdown()
+                current_server_thread.join(timeout=5)
+                current_server_value.server_close()
+
     def test_music_resume_preview_and_stale_rejection_over_isolated_gateway(self):
         from tools.review.domains.music.generation import MusicGenerationManager
         from tools.review.common.management_gateway import execute_management_command

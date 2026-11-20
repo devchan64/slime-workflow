@@ -220,7 +220,7 @@ def read_hermes_management_snapshot():
             current_gpu_values['gpu_count']=current_device_count if type(current_device_count) is int and current_device_count>0 else None
             current_process_records = current_gpu_record.get('processes')
             current_gpu_values['process_count'] = len(current_process_records) if isinstance(current_process_records, list) else None
-    except (OSError, ValueError, TypeError, KeyError):
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError):
         current_gpu_values = {'status': 'unavailable'}
 
     try:
@@ -253,7 +253,7 @@ def read_hermes_management_snapshot():
                     if current_capture_identity is not None:
                         current_public_job.update(current_capture_identity)
             current_queue_values['jobs'].append(current_public_job)
-    except (OSError, ValueError, TypeError, KeyError):
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError):
         current_queue_values = {'status': 'unavailable', 'jobs': []}
 
     try:

@@ -138,6 +138,7 @@ HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-delegate-flux-image', 'label':'FLUX 이미지 생성 위임', 'required':['request_id','request'], 'optional':[], 'effect':'enqueue', 'gpu':'queued', 'retry':'request_id_or_unknown', 'interfaces':['gui','mcp'], 'result':'receipt_and_job_id', 'note':'사용자의 생성 요청을 기존 입력 검증과 공용 GPU 대기열로 접수한다.'},
     {'command':'hermes-flux-delegation-status', 'label':'FLUX 위임 작업 상태', 'required':['request_id'], 'optional':[], 'effect':'recovery_possible', 'gpu':'none', 'retry':'safe', 'interfaces':['gui','mcp'], 'result':'receipt_and_job_status', 'note':'작업 상태 조회에 기존 서비스의 복구가 따를 수 있다.'},
     {'command':'hermes-flux-delegation-cancel', 'label':'FLUX 위임 작업 중지', 'required':['request_id','job_id'], 'optional':[], 'effect':'cancel_request', 'gpu':'none', 'retry':'check_status', 'interfaces':['gui','mcp'], 'result':'cancel_request_status', 'note':'일치하는 FLUX 작업만 중지 요청하며 실제 종료는 별도다.'},
+    {'command':'hermes-anchor-history-observe','label':'과거 앵커 검수 이력','required':['animation_id','animation_version'],'optional':['offset','limit','snapshot'],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'legacy_anchor_history','note':'과거 좌표 검수의 경로 없는 요약이며 현재 에셋 상태가 아니다. 후속 페이지는 스냅샷을 확인한다.'},
     {'command':'hermes-service-registration', 'label':'관리 서비스 등록 목록', 'required':[], 'optional':['query','offset','limit'], 'effect':'read', 'gpu':'none', 'retry':'safe', 'interfaces':['gui','mcp','isolated_fixed_bridge'], 'result':'gateway_registered_services', 'note':'등록은 실행 가능·권한·Hermes 연결을 보증하지 않는다.'},
     {'command':'hermes-model-download-status','label':'모델 다운로드 상태 조회','required':[],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'model_download_status','note':'오래된 기록을 삭제하지 않고 조회한다. 외부 다운로드와 PID 재사용은 확인하지 않는다.'},
     {'command':'hermes-model-inventory', 'label':'모델 파일 보유량 조회', 'required':[], 'optional':[], 'effect':'read', 'gpu':'none', 'retry':'safe', 'interfaces':['gui','mcp','isolated_fixed_bridge'], 'result':'model_file_counts_and_sizes', 'note':'파일 존재는 준비 완료나 해시 검증을 뜻하지 않는다.'},
@@ -165,6 +166,8 @@ HERMES_CAPABILITY_RECORDS = (
 
 
 HERMES_FIELD_SCHEMAS = {
+    'animation_id': {'type':'string','pattern':'^[A-Za-z0-9._-]{1,160}$'},
+    'animation_version': {'type':'string','pattern':'^[A-Za-z0-9._-]{1,160}$'},
     'text': {'type':'string','minLength':1,'maxLength':6000},
     'expected_resume_fingerprint': {'type':'string','pattern':'^[a-f0-9]{64}$'},
     'keyframes': {'type':'array','minItems':1,'validation':'Kimodo 키프레임 배치 계약'},
@@ -242,7 +245,7 @@ def list_hermes_capability_catalog():
             current_payload_schema['properties']['prompt'] = {'type':'string','minLength':1,'maxLength':12000,'pattern':r'\S'}
         if current_command_name == 'hermes-effect-detail':
             current_payload_schema['properties']['id'] = {'type':'string','pattern':'^[a-z][a-z0-9-]{0,95}$'}
-        if current_command_name in ('hermes-billboard-catalog', 'hermes-building-catalog', 'hermes-effect-catalog', 'hermes-sprite-catalog', 'hermes-sprite-detail', 'hermes-kimodo-keyframes', 'hermes-audio-source-history', 'hermes-generator-source-history', 'hermes-expression-catalog'):
+        if current_command_name in ('hermes-billboard-catalog', 'hermes-building-catalog', 'hermes-effect-catalog', 'hermes-sprite-catalog', 'hermes-sprite-detail', 'hermes-kimodo-keyframes', 'hermes-audio-source-history', 'hermes-generator-source-history', 'hermes-expression-catalog', 'hermes-anchor-history-observe'):
             current_payload_schema['properties']['limit'] = {'type':'integer','minimum':1,'maximum':30}
         if current_command_name == 'hermes-billboard-catalog':
             current_payload_schema['properties']['category'] = {'anyOf':[HERMES_FIELD_SCHEMAS['category'],{'type':'null'}]}
@@ -250,7 +253,7 @@ def list_hermes_capability_catalog():
             current_payload_schema['properties']['snapshot'] = {'anyOf':[HERMES_FIELD_SCHEMAS['snapshot'],{'type':'null'}]}
         if current_command_name == 'hermes-building-catalog':
             current_payload_schema['properties']['snapshot'] = {'anyOf':[{'type':'string','pattern':'^[a-f0-9]{64}$','note':'후속 건물 목록 페이지에 첫 조회에서 받은 값'},{'type':'null'}]}
-        if current_command_name in ('hermes-sprite-detail','hermes-audio-source-history','hermes-generator-source-history','hermes-session-view','hermes-expression-catalog','hermes-history'):
+        if current_command_name in ('hermes-sprite-detail','hermes-audio-source-history','hermes-generator-source-history','hermes-session-view','hermes-expression-catalog','hermes-history','hermes-anchor-history-observe'):
             current_payload_schema['allOf'] = [{'if':{'required':['offset'],'properties':{'offset':{'minimum':1}}},'then':{'required':['snapshot'],'properties':{'snapshot':HERMES_FIELD_SCHEMAS['snapshot']}}}]
         if current_command_name == 'hermes-session-list':
             current_payload_schema['properties']['limit'] = {'type':'integer','minimum':1,'maximum':30}
@@ -429,8 +432,12 @@ HERMES_SERVICE_CONDITIONAL_LIMITATIONS = {
         {'command':'history-delete','note':'원 서비스에서 선택한 종료 작업의 입력 사본·중간 산출물·결과·로그와 인덱스를 삭제한다. 숨김 처리가 아니며 Hermes는 직접 실행하지 않는다.'},
         {'command':'history-reset','note':'원 서비스에서 검증된 전체 작업 폴더와 인덱스를 삭제한다. 실행·대기 또는 상태 미확인 작업이 있으면 거부하며 Hermes는 직접 실행하지 않는다.'},
         {'command':'anchor-save','note':'원 서비스는 좌표 검수 이력을 저장하거나 apply_registered 선택 시 등록 애니메이션·등록부·프런트 잠금을 갱신한다. Hermes의 시트 앵커 편집은 별도 sheet-update 경로다.'},
+        {'command':'anchor-history','note':'원 서비스는 숨긴 기록을 제외한 과거 좌표 이력을 전체 순회한다. 조회량 제한이 없고 시트 출처 정보가 포함될 수 있어 Hermes에서 직접 연결하지 않는다. 등록 에셋의 현재 앵커 조회와 별도다. 과거 이력 요약은 hermes-anchor-history-observe를 사용한다.'},
+        {'command':'anchor-load','note':'원 서비스는 지정한 과거 좌표 이력의 전체 문서를 읽으며 숨김 여부를 확인하지 않는다. 문서 크기 제한과 경로 없는 응답 계약이 없어 Hermes에서 직접 연결하지 않는다.'},
         {'command':'anchor-history-reset','note':'원 서비스는 해당 앵커 이력을 숨김 처리하며 원본 파일은 보존한다. Hermes는 직접 연결하지 않는다.'},
         {'command':'sprite-save','note':'원 서비스는 별도 정렬 편집 프로젝트와 시트 결과를 로컬 이력에 저장한다. Hermes의 등록 원본 시트 저장과 다른 기능이다.'},
+        {'command':'sprite-history','note':'과거 정렬 프로젝트의 숨기지 않은 버전과 전체 문서를 읽는다. 원본은 임시 카탈로그 또는 완료된 과거 생성 기록을 사용하며 Hermes의 등록 에셋 이력과 다르다. 조회량과 문서 크기에 제한이 없어 Hermes에서 직접 연결하지 않는다.'},
+        {'command':'sprite-load','note':'과거 정렬 프로젝트의 최신 문서를 원본 호환성 검증 후 읽는다. 원본이 바뀌었거나 숨긴 기록이면 문서를 반환하지 않는다. Hermes의 등록 에셋 조회와 별도이며 직접 연결하지 않는다.'},
         {'command':'sprite-history-reset','note':'원 서비스는 편집 프로젝트 이력을 숨기며 파일을 보존한다. Hermes는 직접 연결하지 않는다.'},
         {'command':'sprite-history-delete','note':'원 서비스는 선택한 편집 프로젝트 이력을 숨기며 파일을 보존한다. Hermes는 직접 연결하지 않는다.'},
         {'command':'sheet-auto','note':'원 서비스는 입력 PNG에서 분리된 캐릭터 경계를 CPU로 추정한다. 자동 결과 검수가 필요하며 Hermes는 이 명령을 직접 연결하지 않는다.'},
@@ -561,7 +568,7 @@ def list_management_service_registration():
         elif current_service_name=='map-assets':
             current_hermes_links=['hermes-content-database-status','hermes-map-database-receipt','hermes-building-catalog','hermes-building-preview','hermes-building-save','hermes-building-receipt','hermes-billboard-catalog','hermes-billboard-load','hermes-billboard-preview','hermes-billboard-save','hermes-effect-catalog','hermes-effect-detail','hermes-effect-preview','hermes-effect-save','hermes-effect-register-preview','hermes-effect-register','hermes-waypoint-preview','hermes-waypoint-replace','hermes-field-load','hermes-field-region','hermes-field-preview','hermes-field-save','hermes-city-source','hermes-city-load','hermes-city-preview','hermes-city-save']
         elif current_service_name=='character-animation':
-            current_hermes_links=['hermes-character-source-status','hermes-sprite-pending-status','hermes-sprite-catalog','hermes-sprite-detail','hermes-sprite-preview','hermes-sprite-save','hermes-sprite-playback','hermes-sprite-clip-playback']
+            current_hermes_links=['hermes-anchor-history-observe','hermes-character-source-status','hermes-sprite-pending-status','hermes-sprite-catalog','hermes-sprite-detail','hermes-sprite-preview','hermes-sprite-save','hermes-sprite-playback','hermes-sprite-clip-playback']
         elif current_service_name=='model-downloads':
             current_hermes_links=['hermes-model-inventory','hermes-model-download-status']
         if current_service_name in ('dwpose','wan22-animate2','wan22-vace','wan22-fun-control'):

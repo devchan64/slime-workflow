@@ -17,6 +17,84 @@ class GatewayWatchTests(unittest.TestCase):
         current_builder_path = gateway_watch.WORKFLOW_ROOT_DIRECTORY/'tools/review/build_block_map_review.py'
         self.assertIn(current_builder_path, gateway_watch.collect_gateway_watch_paths())
 
+    def test_gateway_exposes_selected_writer_config_and_restores_environment(self):
+        import os
+        from types import SimpleNamespace
+        from tools.review import gateway_server
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_root_path=Path(current_temporary_directory)
+            current_config_path=current_root_path/'separate-workspace.yaml'
+            current_runtime_value=SimpleNamespace(dispatch_runtime_request=lambda *current_request_values:None,close_runtime_services=lambda:None)
+            current_seen_values=[]
+            class TemporaryGatewayServer:
+                def __init__(self,*current_server_arguments):pass
+                def __enter__(self):return self
+                def __exit__(self,*current_exit_values):return False
+                def serve_forever(self,poll_interval):current_seen_values.append(os.environ.get('SLIME_WRITER_WORKSPACE_CONFIG'))
+            with patch.dict(os.environ,{'SLIME_WRITER_WORKSPACE_CONFIG':'previous-config'}),patch.object(gateway_server,'WORKFLOW_ROOT_DIRECTORY',current_root_path),patch.object(gateway_server,'ThreadingHTTPServer',TemporaryGatewayServer),patch.object(gateway_server.signal,'signal',return_value=None),patch('tools.review.common.content_launch_config.apply_content_launch_configuration'),patch('tools.review.common.management_runtime.create_management_runtime',return_value=current_runtime_value):
+                gateway_server.run_management_gateway(19999,current_config_path)
+                self.assertEqual(os.environ['SLIME_WRITER_WORKSPACE_CONFIG'],'previous-config')
+            self.assertEqual(current_seen_values,[str(current_config_path)])
+
+    def test_gateway_writer_environment_restored_on_start_failure(self):
+        import os
+        from tools.review import gateway_server
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_root_path=Path(current_temporary_directory)
+            current_config_path=current_root_path/'separate-workspace.yaml'
+            with patch.dict(os.environ,{'SLIME_WRITER_WORKSPACE_CONFIG':'previous-config'}),patch.object(gateway_server,'WORKFLOW_ROOT_DIRECTORY',current_root_path),patch.object(gateway_server.signal,'signal',return_value=None),patch('tools.review.common.content_launch_config.apply_content_launch_configuration'),patch('tools.review.common.management_runtime.create_management_runtime',side_effect=RuntimeError('임시 시작 실패')),contextlib.redirect_stdout(io.StringIO()):
+                with self.assertRaisesRegex(RuntimeError,'임시 시작 실패'):
+                    gateway_server.run_management_gateway(19999,current_config_path)
+                self.assertEqual(os.environ['SLIME_WRITER_WORKSPACE_CONFIG'],'previous-config')
+            with patch.dict(os.environ,{'SLIME_WRITER_WORKSPACE_CONFIG':'previous-config'}),patch.object(gateway_server,'WORKFLOW_ROOT_DIRECTORY',current_root_path/'missing-parent'/'file'),patch('pathlib.Path.mkdir',side_effect=OSError('임시 로그 오류')),patch('tools.review.common.content_launch_config.apply_content_launch_configuration'):
+                with self.assertRaisesRegex(OSError,'임시 로그 오류'):
+                    gateway_server.run_management_gateway(19999,current_config_path)
+                self.assertEqual(os.environ['SLIME_WRITER_WORKSPACE_CONFIG'],'previous-config')
+
+    def test_gateway_invalid_config_does_not_replace_signal_handler(self):
+        import os
+        from tools.review import gateway_server
+        with tempfile.TemporaryDirectory() as current_temporary_directory,patch.dict(os.environ,{'SLIME_WRITER_WORKSPACE_CONFIG':'previous-config'}),patch.object(gateway_server,'WORKFLOW_ROOT_DIRECTORY',Path(current_temporary_directory)),patch.object(gateway_server.signal,'signal') as current_signal_mock,patch('tools.review.common.content_launch_config.apply_content_launch_configuration'):
+            with self.assertRaises(TypeError):gateway_server.run_management_gateway(19999,123)
+            current_signal_mock.assert_not_called()
+            self.assertEqual(os.environ['SLIME_WRITER_WORKSPACE_CONFIG'],'previous-config')
+
+    def test_gateway_custom_writer_config_reaches_hermes_queue_snapshot(self):
+        import json
+        import os
+        import yaml
+        from types import SimpleNamespace
+        from tools.review import gateway_server
+        from tools.review.common import gpu_job_queue
+        from tools.review.domains.hermes_agent import management_observer
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_root_path=Path(current_temporary_directory)
+            current_workflow_root=current_root_path/'workflow'
+            current_queue_path=current_workflow_root/'.tmp'/'gpu-queue'
+            current_queue_path.mkdir(parents=True)
+            current_state_path=current_root_path/'writer-state'
+            current_job_path=current_state_path/'jobs'/'20261121-120000-12345678'
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'queued'}))
+            (current_job_path/'gpu-command.json').write_text(json.dumps({'service':'writer-agent'}))
+            (current_queue_path/'ticket.json').write_text(json.dumps({'pid':os.getpid(),'path':str(current_job_path)}))
+            current_config_path=current_root_path/'writer-custom.yaml'
+            current_config_path.write_text(yaml.safe_dump({'schema_version':1,'document_root':str(current_root_path/'docs'),'state_root':str(current_state_path),'write_roots':['ideas'],'excluded_roots':[],'protected_paths':[],'catalog_path':None}))
+            current_runtime_value=SimpleNamespace(dispatch_runtime_request=lambda *current_request_values:None,close_runtime_services=lambda:None)
+            current_snapshot_values=[]
+            class TemporaryGatewayServer:
+                def __init__(self,*current_server_arguments):pass
+                def __enter__(self):return self
+                def __exit__(self,*current_exit_values):return False
+                def serve_forever(self,poll_interval):current_snapshot_values.append(HermesServiceManager().execute_hermes_command('hermes-management-status',{}))
+            with patch.object(gateway_server,'WORKFLOW_ROOT_DIRECTORY',current_workflow_root),patch.object(gateway_server,'ThreadingHTTPServer',TemporaryGatewayServer),patch.object(gateway_server.signal,'signal',return_value=None),patch.object(gpu_job_queue,'WORKFLOW_ROOT_DIRECTORY',current_workflow_root),patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_path),patch('tools.review.common.content_launch_config.apply_content_launch_configuration'),patch('tools.review.common.management_runtime.create_management_runtime',return_value=current_runtime_value),patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}),patch.object(management_observer,'inspect_hermes_model_status',return_value={}),patch.object(management_observer,'read_hermes_generator_snapshot',return_value={}),patch.object(management_observer,'read_hermes_gpu_reservation_snapshot',return_value={}),patch.object(management_observer,'read_hermes_recent_job_snapshot',return_value={}):
+                gateway_server.run_management_gateway(19999,current_config_path)
+            self.assertEqual(current_snapshot_values[0]['queue']['status'],'available')
+            self.assertEqual(current_snapshot_values[0]['queue']['jobs'][0]['id'],current_job_path.name)
+            self.assertTrue((current_queue_path/'ticket.json').is_file())
+            self.assertFalse((current_root_path/'docs').exists())
+
     def test_watch_option_preserves_server_arguments(self):
         argument_record_values = parse_gateway_arguments(['--watch', '--port', '9871', '--writer-agent-config', '/tmp/writer config.yaml'])
         self.assertTrue(argument_record_values.watch)

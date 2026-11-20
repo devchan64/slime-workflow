@@ -20,4 +20,7 @@ class HermesAuditCoverageTests(unittest.TestCase):
             self.assertEqual(current_coverage_value['missing'],[('example-service','write')])
             self.assertEqual(current_coverage_value['obsolete'],[('example-service','old')])
             self.assertEqual(current_coverage_value['duplicates'],[('example-service','read')])
+            self.assertEqual(current_coverage_value['unregistered_sections'],[])
+            current_removed_value=inspect_hermes_command_coverage(current_audit_text+'\n## removed-service\n| `old` | 이전 기능 |\n## 참고\n설명 문단\n')
+            self.assertEqual(current_removed_value['unregistered_sections'],['removed-service'])
             with self.assertRaises(ValueError):inspect_hermes_command_coverage(current_audit_text+'\n## example-service\n')

@@ -14,21 +14,75 @@ class WriterAgentGradioTest(unittest.TestCase):
         self.assertTrue(any(current_component.get('props',{}).get('value')=='전달된 작업을 이력에서 찾기' for current_component in current_config_value['components']))
         self.assertTrue(any("searchParams.get('job')" in str(current_dependency.get('js','')) for current_dependency in current_config_value['dependencies']))
         current_search_callbacks=[current_dependency.fn for current_dependency in current_interface_value.fns.values() if current_dependency.fn and current_dependency.fn.__name__=='search_writer_history_records']
-        self.assertEqual(len(current_search_callbacks),3)
+        self.assertEqual(len(current_search_callbacks),2)
         current_link_values=prepare_writer_history_link(current_job_identifier)
         self.assertTrue(current_link_values[1]['visible'])
         current_response_value={'jobs':[{'id':current_job_identifier,'mode':'write','stage':'review','summary':'검토'}],'count':1}
+        current_linked_callback=next(current_dependency.fn for current_dependency in current_interface_value.fns.values() if current_dependency.fn and current_dependency.fn.__name__=='search_linked_writer_history')
         with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',return_value=current_response_value) as current_service_mock:
-            current_rows,current_selection,current_count=current_search_callbacks[-1](current_link_values[0],'other-job')
+            current_rows,current_selection,current_count=current_linked_callback(current_link_values[0])
         current_service_mock.assert_called_once_with(8770,'history',{'query':current_job_identifier})
         self.assertEqual(current_rows[0][0],current_job_identifier)
-        self.assertIsNone(current_selection)
-        self.assertIn('1건',current_count)
+        self.assertEqual(current_selection,current_job_identifier)
+        self.assertIn('선택했습니다',current_count)
+        for current_jobs_value in ([],[current_response_value['jobs'][0],current_response_value['jobs'][0]],[{'id':'other','mode':'write','stage':'review'}]):
+            with self.subTest(jobs=current_jobs_value),patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',return_value={'jobs':current_jobs_value,'count':len(current_jobs_value)}):
+                self.assertIsNone(current_linked_callback(current_job_identifier)[1])
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',return_value={'jobs':current_response_value['jobs'],'count':2}):
+            current_partial_value=current_linked_callback(current_job_identifier)
+            self.assertIsNone(current_partial_value[1])
+            self.assertIn('검색에 실패',current_partial_value[2])
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service') as current_service_mock:
+            self.assertIsNone(current_linked_callback('../invalid')[1])
+            current_service_mock.assert_not_called()
+
+    def test_linked_writer_job_uses_real_temporary_history_and_detail(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from urllib.parse import parse_qs
+        from generators.writer_agent.documents import save_yaml_document,load_workspace_config
+        from generators.writer_agent.jobs import create_writer_job,resolve_job_directory,update_job_status
+        from generators.writer_agent.management import WriterAgentManager
+        with TemporaryDirectory() as current_temporary_directory:
+            current_root_path=Path(current_temporary_directory)
+            (current_root_path/'docs'/'ideas').mkdir(parents=True)
+            current_workspace_path=current_root_path/'workspace.yaml'
+            save_yaml_document(current_workspace_path,{'schema_version':1,'document_root':str(current_root_path/'docs'),'state_root':str(current_root_path/'state'),'write_roots':['ideas'],'excluded_roots':[],'protected_paths':[],'catalog_path':None})
+            current_workspace_config=load_workspace_config(current_workspace_path)
+            current_job_identifier=create_writer_job(current_workspace_config,{'mode':'write','prompt':'임시 조회 검증'})
+            current_job_path=resolve_job_directory(current_workspace_config,current_job_identifier)
+            update_job_status(current_job_path,'failed',error='임시 실패')
+            current_before_status=(current_job_path/'status.yaml').read_bytes()
+            current_manager_value=WriterAgentManager(current_workspace_path)
+            current_interface_value=build_writer_agent_interface(8770)
+            current_linked_callback=next(current_dependency.fn for current_dependency in current_interface_value.fns.values() if current_dependency.fn and current_dependency.fn.__name__=='search_linked_writer_history')
+            current_detail_callback=next(current_dependency.fn for current_dependency in current_interface_value.fns.values() if current_dependency.fn and current_dependency.fn.__name__=='read_writer_selection')
+            def execute_temporary_writer_request(current_port_value,current_route_path,current_payload_record=None):
+                if current_route_path=='history':return current_manager_value.search_writer_history(current_payload_record['query'])
+                if current_route_path.startswith('job?'):return current_manager_value.read_writer_detail(parse_qs(current_route_path.split('?',1)[1])['id'][0])
+                raise AssertionError(current_route_path)
+            with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',side_effect=execute_temporary_writer_request):
+                current_rows_value,current_selected_identifier,_=current_linked_callback(current_job_identifier)
+                current_detail_values=current_detail_callback(current_selected_identifier)
+            self.assertEqual(current_rows_value[0][0],current_job_identifier)
+            self.assertEqual(current_detail_values[1],current_job_identifier)
+            self.assertIn('실패',current_detail_values[3])
+            self.assertEqual((current_job_path/'status.yaml').read_bytes(),current_before_status)
+
+    def test_writer_detail_rejects_other_job_and_clears_old_result(self):
+        current_interface_value=build_writer_agent_interface(8770)
+        current_detail_callback=next(current_dependency.fn for current_dependency in current_interface_value.fns.values() if current_dependency.fn and current_dependency.fn.__name__=='read_writer_selection')
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',return_value={'id':'another-job'}):
+            current_result_values=current_detail_callback('20261118-120000-12345678')
+        self.assertEqual(current_result_values[0],{})
+        self.assertIn('일치하지 않습니다',current_result_values[3])
+        self.assertEqual(current_result_values[8],'')
+        self.assertFalse(current_result_values[13])
 
     def test_writer_history_search_failure_clears_selection(self):
         current_interface_value=build_writer_agent_interface(8770)
         current_search_callback=next(current_dependency.fn for current_dependency in current_interface_value.fns.values() if current_dependency.fn and current_dependency.fn.__name__=='search_writer_history_records')
-        for current_response_value in (OSError('lost'),{'jobs':[],'count':'bad'},{'jobs':[{}],'count':1}):
+        for current_response_value in (OSError('lost'),{'jobs':[],'count':'bad'},{'jobs':[{}],'count':1},{'jobs':[{'id':'job-a','mode':'write','stage':'review'}],'count':2}):
             with self.subTest(response=current_response_value),patch('tools.review.ui.gradio.writer_agent_app.request_writer_service') as current_service_mock:
                 if isinstance(current_response_value,Exception):current_service_mock.side_effect=current_response_value
                 else:current_service_mock.return_value=current_response_value
@@ -277,7 +331,7 @@ class WriterAgentGradioTest(unittest.TestCase):
         with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',return_value=current_workspace_record):
             current_progress_values=current_progress_functions[0].fn(None,'')
         self.assertEqual(len(current_progress_values),len(current_progress_functions[0].outputs))
-        current_detail_record={'status':{'stage':'review','summary':'검토 대기'},'log':'실행 기록'}
+        current_detail_record={'id':'job-a','status':{'stage':'review','summary':'검토 대기'},'log':'실행 기록'}
         with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',side_effect=[current_workspace_record,current_detail_record]):
             current_progress_values=current_progress_functions[0].fn('job-a','')
         self.assertEqual(current_progress_values[-2:],['변경 검토 대기 · 검토 대기','실행 기록'])
@@ -299,7 +353,11 @@ class WriterAgentGradioTest(unittest.TestCase):
             self.assertIn('상태 조회 실패',current_output_values[-2])
             for current_component_value,current_output_value in zip(current_callback_record.outputs,current_output_values):
                 if isinstance(current_component_value,gr.Button):self.assertFalse(current_output_value['interactive'])
-        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',side_effect=[current_workspace_record,{'status':{'stage':'completed'},'log':'완료 로그'}]):
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',side_effect=[current_workspace_record,{'id':'other-job','status':{'stage':'completed'},'log':'다른 작업 로그'}]):
+            current_output_values=current_callback_record.fn('job-a','검증',True)
+        self.assertEqual(current_output_values[-1],gr.skip())
+        self.assertIn('일치하지 않습니다',current_output_values[-2])
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',side_effect=[current_workspace_record,{'id':'job-a','status':{'stage':'completed'},'log':'완료 로그'}]):
             current_output_values=current_callback_record.fn('job-a','검증',True)
         self.assertEqual(current_output_values[-1],'완료 로그')
         self.assertTrue(current_output_values[4]['interactive'])

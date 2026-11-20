@@ -1910,6 +1910,45 @@ def open_conversation_video_proposal_safely(current_session_identifier,current_s
     return (*current_result_values,gr.update(interactive=False))
 
 
+def read_hermes_legacy_anchor_page(current_animation_identifier,current_animation_version,current_page_state=None,current_next_page=False):
+    """과거 좌표 검수의 경로 없는 이력만 페이지별로 표시한다."""
+    current_payload_record={'animation_id':current_animation_identifier,'animation_version':current_animation_version,'limit':20}
+    if current_next_page:
+        if not isinstance(current_page_state,dict) or (current_page_state.get('animation_id'),current_page_state.get('animation_version'))!=(current_animation_identifier,current_animation_version) or type(current_page_state.get('offset')) is not int or not isinstance(current_page_state.get('snapshot'),str):
+            return [],'검색 조건이 바뀌었습니다. 처음부터 조회하세요.',None,gr.update(interactive=False)
+        current_payload_record.update(offset=current_page_state['offset'],snapshot=current_page_state['snapshot'])
+    try:
+        current_result_record=execute_remote_management_command('hermes-agent','hermes-anchor-history-observe',current_payload_record)
+        if not isinstance(current_result_record,dict) or not isinstance(current_result_record.get('records'),list) or type(current_result_record.get('total')) is not int:raise ValueError('이력 형식 오류')
+        current_rows_value=[]
+        for current_entry_value in current_result_record['records']:
+            if not isinstance(current_entry_value,dict) or not isinstance(current_entry_value.get('id'),str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_entry_value['id']) or not isinstance(current_entry_value.get('created_at'),str) or type(current_entry_value.get('frames')) is not int:raise ValueError('이력 항목 오류')
+            current_rows_value.append([current_entry_value['id'],current_entry_value['created_at'],current_entry_value['frames']])
+        current_snapshot_value=current_result_record.get('snapshot')
+        current_offset_value=current_payload_record.get('offset',0)
+        current_next_offset=current_result_record.get('next_offset')
+        if current_result_record.get('offset')!=current_offset_value or not isinstance(current_snapshot_value,str) or not re.fullmatch(r'[a-f0-9]{64}',current_snapshot_value) or (current_next_page and current_snapshot_value!=current_page_state['snapshot']):raise ValueError('이력 버전 오류')
+        if current_next_offset is not None and (type(current_next_offset) is not int or current_next_offset!=current_offset_value+len(current_rows_value) or current_next_offset<=current_offset_value):raise ValueError('이력 페이지 오류')
+        current_next_state={'animation_id':current_animation_identifier,'animation_version':current_animation_version,'offset':current_next_offset,'snapshot':current_snapshot_value} if current_next_offset is not None else None
+        return current_rows_value,'과거 좌표 검수 '+str(current_result_record['total'])+'건 · 대상 '+current_animation_identifier+' / '+current_animation_version+' · 현재 등록 앵커와 별도입니다.',current_next_state,gr.update(interactive=current_next_state is not None)
+    except (OSError,ValueError,TypeError,KeyError,RuntimeError):
+        return [],'과거 앵커 이력을 확인할 수 없거나 변경됐습니다. 처음부터 조회하세요.',None,gr.update(interactive=False)
+
+
+def read_next_hermes_legacy_anchor_page(current_animation_identifier,current_animation_version,current_page_state):
+    return read_hermes_legacy_anchor_page(current_animation_identifier,current_animation_version,current_page_state,True)
+
+
+def collect_hermes_legacy_anchor_page(current_animation_identifier,current_animation_version,current_page_state,current_request_token,current_next_page):
+    return {'animation_id':current_animation_identifier,'animation_version':current_animation_version,'token':current_request_token,'values':read_hermes_legacy_anchor_page(current_animation_identifier,current_animation_version,current_page_state,current_next_page)}
+
+
+def render_hermes_legacy_anchor_page(current_animation_identifier,current_animation_version,current_request_token,current_result_record):
+    if not isinstance(current_result_record,dict) or (current_result_record.get('animation_id'),current_result_record.get('animation_version'),current_result_record.get('token'))!=(current_animation_identifier,current_animation_version,current_request_token):
+        return gr.skip(),gr.skip(),gr.skip(),gr.skip()
+    return current_result_record['values']
+
+
 def read_conversation_expression_catalog(current_query_text,current_page_state=None,current_next_page=False):
     """대화에 등록 표정의 ID와 한국어 이름을 페이지별로 표시한다."""
     current_query_value=current_query_text or ''
@@ -3274,7 +3313,7 @@ def validate_hermes_result_identity(current_receipt_record,current_request_ident
             raise gr.Error('접수 서비스 또는 작업 ID를 확인할 수 없습니다.')
 
 
-def read_hermes_writer_result(current_request_identifier):
+def read_hermes_writer_result(current_request_identifier,current_session_identifier=None):
     current_status_value=execute_remote_management_command('hermes-agent','hermes-writer-status',{'request_id':current_request_identifier})
     current_receipt_value=current_status_value['receipt']
     validate_hermes_result_identity(current_receipt_value,current_request_identifier,'writer-agent')
@@ -3283,7 +3322,7 @@ def read_hermes_writer_result(current_request_identifier):
     if current_receipt_value.get('state')=='unknown':
         return '', '작가 접수 결과 확인 필요 · 작가 AI 이력을 확인하세요.',None
     current_job_value=current_status_value.get('job',{})
-    return current_receipt_value['job_id'],'작가 작업 상태: '+str(current_job_value.get('stage','unknown'))+(' · '+current_job_value['failure_reason'] if current_job_value.get('failure_reason') else ''),current_job_value
+    return current_receipt_value['job_id'],'작가 작업 상태: '+str(current_job_value.get('stage','unknown'))+(' · '+current_job_value['failure_reason'] if current_job_value.get('failure_reason') else '')+' · [작가 AI 이력 열기]('+build_conversation_result_link('writer-agent',current_receipt_value['job_id'],current_session_identifier)+')',current_job_value
 
 
 def list_hermes_writer_choices():
@@ -3391,7 +3430,7 @@ def submit_hermes_translation_reviewed(current_review_value,current_source_text,
     return current_result_value['job_id'],'번역 접수 완료 · 실제 작업 완료와 결과 검토는 별도로 확인하세요.'
 
 
-def read_hermes_translation_result(current_request_identifier):
+def read_hermes_translation_result(current_request_identifier,current_session_identifier=None):
     current_status_value=execute_remote_management_command('hermes-agent','hermes-translation-status',{'request_id':current_request_identifier})
     current_receipt_value=current_status_value['receipt']
     validate_hermes_result_identity(current_receipt_value,current_request_identifier,'prompt-translation')
@@ -3400,7 +3439,7 @@ def read_hermes_translation_result(current_request_identifier):
     if current_receipt_value.get('state')=='unknown':
         return '', '번역 접수 결과 확인 필요 · 번역기 이력을 확인하세요.', None
     current_job_value=current_status_value.get('job',{})
-    return current_receipt_value['job_id'],'번역 작업 상태: '+str(current_job_value.get('status','unknown'))+(' · '+current_job_value['failure_reason'] if current_job_value.get('failure_reason') else ''),current_job_value.get('result')
+    return current_receipt_value['job_id'],'번역 작업 상태: '+str(current_job_value.get('status','unknown'))+(' · '+current_job_value['failure_reason'] if current_job_value.get('failure_reason') else '')+' · [번역 이력 열기]('+build_conversation_result_link('prompt-translation',current_receipt_value['job_id'],current_session_identifier)+')',current_job_value.get('result')
 
 
 def list_hermes_translation_choices():
@@ -3605,24 +3644,24 @@ def read_safe_hermes_result(current_read_function,current_result_count,*current_
         return ('',current_notice_text,None) if current_result_count==3 else ('',current_notice_text)
 
 
-def read_safe_hermes_writer_result(current_request_identifier):
-    return read_safe_hermes_result(read_hermes_writer_result,3,current_request_identifier)
+def read_safe_hermes_writer_result(current_request_identifier,current_session_identifier=None):
+    return read_safe_hermes_result(read_hermes_writer_result,3,current_request_identifier,current_session_identifier)
 
 
-def read_safe_hermes_translation_result(current_request_identifier):
-    return read_safe_hermes_result(read_hermes_translation_result,3,current_request_identifier)
+def read_safe_hermes_translation_result(current_request_identifier,current_session_identifier=None):
+    return read_safe_hermes_result(read_hermes_translation_result,3,current_request_identifier,current_session_identifier)
 
 
-def read_safe_hermes_video_result(current_request_identifier,current_service_name):
-    return read_safe_hermes_result(read_hermes_video_result,2,current_request_identifier,current_service_name)
+def read_safe_hermes_video_result(current_request_identifier,current_service_name,current_session_identifier=None):
+    return read_safe_hermes_result(read_hermes_video_result,2,current_request_identifier,current_service_name,current_session_identifier)
 
 
-def read_safe_hermes_audio_result(current_request_identifier,current_service_name):
-    return read_safe_hermes_result(read_hermes_audio_result,2,current_request_identifier,current_service_name)
+def read_safe_hermes_audio_result(current_request_identifier,current_service_name,current_session_identifier=None):
+    return read_safe_hermes_result(read_hermes_audio_result,2,current_request_identifier,current_service_name,current_session_identifier)
 
 
-def read_safe_hermes_flux_result(current_request_identifier,current_service_name):
-    return read_safe_hermes_result(read_hermes_flux_profile_result,2,current_request_identifier,current_service_name)
+def read_safe_hermes_flux_result(current_request_identifier,current_service_name,current_session_identifier=None):
+    return read_safe_hermes_result(read_hermes_flux_profile_result,2,current_request_identifier,current_service_name,current_session_identifier)
 
 
 def validate_conversation_result_receipt(current_receipt_value,current_service_name,current_session_identifier=None):
@@ -3731,7 +3770,7 @@ def submit_hermes_audio_reviewed(current_review_value,current_service_name,curre
     return current_result_value['job_id'],'오디오 작업 접수 완료 · 완료와 결과는 별도로 확인하세요.'
 
 
-def read_hermes_audio_result(current_request_identifier,current_service_name):
+def read_hermes_audio_result(current_request_identifier,current_service_name,current_session_identifier=None):
     current_status_value=execute_remote_management_command('hermes-agent','hermes-audio-status',{'request_id':current_request_identifier,'service':current_service_name})
     current_receipt_value=current_status_value['receipt']
     validate_hermes_result_identity(current_receipt_value,current_request_identifier,current_service_name)
@@ -3739,7 +3778,7 @@ def read_hermes_audio_result(current_request_identifier,current_service_name):
         return '', '해당 오디오 서비스의 접수 기록이 없습니다.'
     if current_receipt_value.get('state')=='unknown':
         return '', '오디오 접수 결과 확인 필요 · 해당 생성기 이력을 확인하세요.'
-    current_history_link=validate_conversation_result_receipt(current_receipt_value,current_service_name)
+    current_history_link=validate_conversation_result_receipt(current_receipt_value,current_service_name,current_session_identifier)
     current_job_value=current_status_value.get('job',{})
     from tools.review.domains.hermes_agent.media_result_paths import validate_hermes_audio_result_path
     current_audio_path=validate_hermes_audio_result_path(current_service_name,current_receipt_value['job_id'],current_job_value)
@@ -4074,7 +4113,7 @@ def list_hermes_flux_delegation_choices(current_selected_identifier):
     return gr.update(choices=current_choice_values, value=current_selected_value), 'FLUX 접수 이력 '+str(len(current_choice_values))+'개 · 확인 불가능한 기록은 제외됩니다.'
 
 
-def read_hermes_flux_receipt(current_request_identifier):
+def read_hermes_flux_receipt(current_request_identifier,current_session_identifier=None):
     from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
     current_result_record = execute_remote_management_command('hermes-agent','hermes-flux-delegation-status',{'request_id':current_request_identifier})
     current_receipt_record = current_result_record['receipt']
@@ -4089,10 +4128,19 @@ def read_hermes_flux_receipt(current_request_identifier):
         current_image_link=' · [생성 이미지 보기]('+current_expected_path+')' if current_job_value.get('status')=='completed' and current_result_value.get('image')==current_expected_path else ''
         current_result_notice=' · 완료 기록은 있으나 이미지 링크 확인 불가' if current_result_value.get('status')=='unavailable' else ''
         current_failure_notice=' · '+current_job_value['failure_reason'] if current_job_value.get('status')=='failed' and isinstance(current_job_value.get('failure_reason'),str) else ''
-        return current_job_identifier,'작업 상태: '+str(current_job_value.get('status','확인 불가'))+current_failure_notice+current_result_notice+current_image_link+' · [일반 이미지 생성기]('+str(build_conversation_result_link('flux-image',current_job_identifier))+')'+format_media_link_verification_notice(bool(current_image_link))
+        current_source_observation=read_conversation_flux_source_observation('flux-image',current_job_identifier) if current_job_value.get('status')=='completed' else None
+        if current_source_observation is not None:
+            current_image_link=' · [생성 이미지 보기]('+current_source_observation['image']+')' if current_source_observation['status']=='completed' and current_source_observation['result_status']=='available' else ''
+            current_result_notice=' · 파일 존재는 조회 시점 기준' if current_image_link else ' · 원본 상태 또는 이미지 파일을 다시 확인하세요.'
+        current_verification_notice=' · 이미지 내용은 별도로 확인하세요.' if current_source_observation is not None and current_image_link else format_media_link_verification_notice(bool(current_image_link))
+        return current_job_identifier,'작업 상태: '+str(current_job_value.get('status','확인 불가'))+current_failure_notice+current_result_notice+current_image_link+' · [일반 이미지 생성기]('+str(build_conversation_result_link('flux-image',current_job_identifier,current_session_identifier))+')'+current_verification_notice
     if current_receipt_record.get('state') == 'unknown':
         return '', '접수 여부 확인 필요 · FLUX 이력을 확인하세요.'
     return '', '접수 기록이 없습니다.'
+
+
+def read_safe_hermes_flux_receipt(current_request_identifier,current_session_identifier=None):
+    return read_safe_hermes_result(read_hermes_flux_receipt,2,current_request_identifier,current_session_identifier)
 
 
 def review_hermes_flux_cancellation(current_request_identifier, current_job_identifier):
@@ -4648,6 +4696,22 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     hermes_capability_table = gr.Dataframe(headers=['기능','명령','연결','필수 입력','영향','GPU','재시도','확인 사항'], datatype=['str']*8, interactive=False, type='array', label='관리 기능 목록')
                     hermes_capability_refresh.click(read_hermes_capability_rows, inputs=[hermes_capability_search], outputs=[hermes_capability_table, hermes_capability_status], queue=False)
                     hermes_capability_search.submit(read_hermes_capability_rows, inputs=[hermes_capability_search], outputs=[hermes_capability_table, hermes_capability_status], queue=False)
+                with gr.Accordion('과거 앵커 검수 이력',open=False):
+                    gr.Markdown('과거 좌표 검수 기록 요약입니다. 현재 등록된 앵커와 문서 적용 여부는 별도로 확인하세요.')
+                    with gr.Row():
+                        current_anchor_animation=gr.Textbox(label='애니메이션 ID')
+                        current_anchor_version=gr.Textbox(label='애니메이션 버전')
+                        current_anchor_search=gr.Button('이력 조회')
+                        current_anchor_next=gr.Button('다음 이력',interactive=False)
+                    current_anchor_notice=gr.Markdown('애니메이션 ID와 버전을 입력하세요.')
+                    current_anchor_rows=gr.Dataframe(headers=['이력 ID','저장 시각','프레임 수'],datatype=['str','str','number'],type='array',interactive=False)
+                    current_anchor_page=gr.State(None)
+                    current_anchor_token=gr.State(None)
+                    current_anchor_result=gr.State(None)
+                    for current_anchor_button,current_anchor_direction in ((current_anchor_search,False),(current_anchor_next,True)):
+                        current_anchor_button.click(create_conversation_status_token,outputs=current_anchor_token,queue=False).then(lambda current_animation,current_version,current_page,current_token,current_direction=current_anchor_direction:collect_hermes_legacy_anchor_page(current_animation,current_version,current_page,current_token,current_direction),[current_anchor_animation,current_anchor_version,current_anchor_page,current_anchor_token],current_anchor_result,queue=False,trigger_mode='multiple').then(render_hermes_legacy_anchor_page,[current_anchor_animation,current_anchor_version,current_anchor_token,current_anchor_result],[current_anchor_rows,current_anchor_notice,current_anchor_page,current_anchor_next],queue=False)
+                    for current_anchor_input in (current_anchor_animation,current_anchor_version):
+                        current_anchor_input.input(lambda:([],None,gr.update(interactive=False),'조건이 변경됐습니다. 다시 조회하세요.',None),outputs=[current_anchor_rows,current_anchor_page,current_anchor_next,current_anchor_notice,current_anchor_token],queue=False)
                 with gr.Accordion('전체 관리 서비스 등록 목록', open=False):
                     gr.Markdown('게이트웨이 등록만 표시합니다. 폐기·제한·미연결 명령을 포함하며 Hermes에서 실행할 수 있다는 뜻은 아닙니다.')
                     with gr.Row():
@@ -5096,7 +5160,7 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     bind_gpu_generation_confirmation(hermes_writer_submit,submit_hermes_writer_reviewed,[hermes_writer_review_state,*hermes_writer_inputs],[hermes_writer_job_id,hermes_writer_status],generation_readiness_callback=lambda current_review_value:bool(current_review_value),generation_readiness_inputs=[hermes_writer_review_state],generation_readiness_events=[hermes_writer_review_event],generation_confirmation_validator=match_hermes_confirmation_inputs,generation_confirmation_inputs=[hermes_writer_review_state,*hermes_writer_inputs])
                     hermes_writer_read_button = gr.Button('작가 AI 상태·제안 조회')
                     hermes_writer_result = gr.JSON(label='작가 AI 제안과 제한된 diff')
-                    hermes_writer_read_button.click(read_safe_hermes_writer_result,[hermes_writer_request_id],[hermes_writer_job_id,hermes_writer_status,hermes_writer_result],queue=False)
+                    hermes_writer_read_button.click(read_safe_hermes_writer_result,[hermes_writer_request_id,hermes_session_control],[hermes_writer_job_id,hermes_writer_status,hermes_writer_result],queue=False)
                     hermes_writer_reservation_job=gr.Textbox(label='예약을 확인할 작가 작업 ID',interactive=True)
                     hermes_writer_reservation_request=gr.Textbox(label='작가 GPU 예약 정리 접수 ID',value=lambda:uuid.uuid4().hex,interactive=True)
                     hermes_writer_reservation_button=gr.Button('작가 GPU 예약 신원 확인')
@@ -5150,7 +5214,7 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                         hermes_writer_apply_cancel.click(lambda:(None,gr.update(visible=False)),outputs=[hermes_writer_apply_state,hermes_writer_apply_group],queue=False)
                         for current_writer_apply_input in (hermes_writer_request_id,hermes_writer_apply_id,hermes_writer_apply_checked):
                             (current_writer_apply_input.input if current_writer_apply_input is hermes_writer_request_id else current_writer_apply_input.change)(lambda:(None,gr.update(visible=False)),outputs=[hermes_writer_apply_state,hermes_writer_apply_group],queue=False)
-                        hermes_writer_history_open.click(lambda current_request_value:(current_request_value,None,'',gr.update(interactive=False),None,gr.update(visible=False),None,gr.update(visible=False)),[hermes_writer_history],[hermes_writer_request_id,hermes_writer_review_state,hermes_writer_preview,hermes_writer_submit,hermes_writer_cancel_state,hermes_writer_cancel_group,hermes_writer_apply_state,hermes_writer_apply_group],queue=False).then(read_safe_hermes_writer_result,[hermes_writer_request_id],[hermes_writer_job_id,hermes_writer_status,hermes_writer_result],queue=False)
+                        hermes_writer_history_open.click(lambda current_request_value:(current_request_value,None,'',gr.update(interactive=False),None,gr.update(visible=False),None,gr.update(visible=False)),[hermes_writer_history],[hermes_writer_request_id,hermes_writer_review_state,hermes_writer_preview,hermes_writer_submit,hermes_writer_cancel_state,hermes_writer_cancel_group,hermes_writer_apply_state,hermes_writer_apply_group],queue=False).then(read_safe_hermes_writer_result,[hermes_writer_request_id,hermes_session_control],[hermes_writer_job_id,hermes_writer_status,hermes_writer_result],queue=False)
                         hermes_writer_apply_history = gr.Dropdown(label='작가 제안 적용 이력',choices=[],interactive=True)
                         with gr.Row():
                             hermes_writer_apply_history_refresh = gr.Button('작가 제안 적용 이력 조회')
@@ -5186,14 +5250,14 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     bind_gpu_generation_confirmation(hermes_translation_submit,submit_hermes_translation_reviewed,[hermes_translation_review_state,*hermes_translation_inputs],[hermes_translation_job_id,hermes_translation_status],generation_readiness_callback=lambda current_review_value:bool(current_review_value),generation_readiness_inputs=[hermes_translation_review_state],generation_readiness_events=[hermes_translation_review_event],generation_confirmation_validator=match_hermes_confirmation_inputs,generation_confirmation_inputs=[hermes_translation_review_state,*hermes_translation_inputs])
                     hermes_translation_read_button = gr.Button('번역 상태·결과 조회')
                     hermes_translation_result = gr.JSON(label='번역 결과와 검토 항목')
-                    hermes_translation_read_button.click(read_safe_hermes_translation_result,[hermes_translation_request_id],[hermes_translation_job_id,hermes_translation_status,hermes_translation_result],queue=False)
+                    hermes_translation_read_button.click(read_safe_hermes_translation_result,[hermes_translation_request_id,hermes_session_control],[hermes_translation_job_id,hermes_translation_status,hermes_translation_result],queue=False)
                     hermes_translation_history = gr.Dropdown(label='번역 위임 접수 이력',choices=[],interactive=True)
                     with gr.Row():
                         hermes_translation_history_refresh = gr.Button('번역 위임 이력 조회')
                         hermes_translation_history_open = gr.Button('선택한 번역 접수 확인')
                     hermes_translation_history_status = gr.Markdown('Hermes를 통해 접수한 번역만 표시합니다.')
                     hermes_translation_history_refresh.click(list_hermes_translation_choices,outputs=[hermes_translation_history,hermes_translation_history_status],queue=False)
-                    hermes_translation_history_open.click(lambda current_request_value:current_request_value,[hermes_translation_history],[hermes_translation_request_id],queue=False).then(read_safe_hermes_translation_result,[hermes_translation_request_id],[hermes_translation_job_id,hermes_translation_status,hermes_translation_result],queue=False)
+                    hermes_translation_history_open.click(lambda current_request_value:current_request_value,[hermes_translation_history],[hermes_translation_request_id],queue=False).then(read_safe_hermes_translation_result,[hermes_translation_request_id,hermes_session_control],[hermes_translation_job_id,hermes_translation_status,hermes_translation_result],queue=False)
                     hermes_translation_cancel_review = gr.Button('번역 작업 중지 검토')
                     hermes_translation_cancel_state = gr.State(None)
                     with gr.Group(visible=False) as hermes_translation_cancel_group:
@@ -5233,14 +5297,14 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                         current_video_input.change(lambda:(None,'','입력이 변경되어 다시 검토해야 합니다.',gr.update(interactive=False)),outputs=[hermes_video_review_state,hermes_video_preview,hermes_video_status,hermes_video_submit],queue=False)
                     bind_gpu_generation_confirmation(hermes_video_submit,submit_hermes_video_reviewed,[hermes_video_review_state,*hermes_video_inputs],[hermes_video_job_id,hermes_video_status],generation_readiness_callback=lambda current_review_value:bool(current_review_value),generation_readiness_inputs=[hermes_video_review_state],generation_readiness_events=[hermes_video_review_event],generation_confirmation_validator=match_hermes_confirmation_inputs,generation_confirmation_inputs=[hermes_video_review_state,*hermes_video_inputs])
                     hermes_video_read_button=gr.Button('동작·영상 상태·결과 조회')
-                    hermes_video_read_button.click(read_safe_hermes_video_result,[hermes_video_request_id,hermes_video_service],[hermes_video_job_id,hermes_video_status],queue=False)
+                    hermes_video_read_button.click(read_safe_hermes_video_result,[hermes_video_request_id,hermes_video_service,hermes_session_control],[hermes_video_job_id,hermes_video_status],queue=False)
                     hermes_video_history=gr.Dropdown(label='동작·영상 접수 이력',choices=[],interactive=True)
                     with gr.Row():
                         hermes_video_history_refresh=gr.Button('동작·영상 이력 조회')
                         hermes_video_history_open=gr.Button('선택한 동작·영상 접수 확인')
                     hermes_video_history_status=gr.Markdown('선택한 서비스의 Hermes 접수만 표시합니다.')
                     hermes_video_history_refresh.click(list_hermes_video_choices,[hermes_video_service],[hermes_video_history,hermes_video_history_status],queue=False)
-                    hermes_video_history_open.click(lambda current_request_value:current_request_value,[hermes_video_history],[hermes_video_request_id],queue=False).then(read_safe_hermes_video_result,[hermes_video_request_id,hermes_video_service],[hermes_video_job_id,hermes_video_status],queue=False)
+                    hermes_video_history_open.click(lambda current_request_value:current_request_value,[hermes_video_history],[hermes_video_request_id],queue=False).then(read_safe_hermes_video_result,[hermes_video_request_id,hermes_video_service,hermes_session_control],[hermes_video_job_id,hermes_video_status],queue=False)
                     hermes_video_cancel_review=gr.Button('동작·영상 작업 중지 검토')
                     hermes_video_cancel_state=gr.State(None)
                     with gr.Group(visible=False) as hermes_video_cancel_group:
@@ -5277,7 +5341,7 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                         current_audio_input.change(lambda:(None,'','입력이 변경되어 다시 검토해야 합니다.',gr.update(interactive=False)),outputs=[hermes_audio_review_state,hermes_audio_preview,hermes_audio_status,hermes_audio_submit],queue=False)
                     bind_gpu_generation_confirmation(hermes_audio_submit,submit_hermes_audio_reviewed,[hermes_audio_review_state,*hermes_audio_inputs],[hermes_audio_job_id,hermes_audio_status],generation_readiness_callback=lambda current_review_value:bool(current_review_value),generation_readiness_inputs=[hermes_audio_review_state],generation_readiness_events=[hermes_audio_review_event],generation_confirmation_validator=match_hermes_confirmation_inputs,generation_confirmation_inputs=[hermes_audio_review_state,*hermes_audio_inputs])
                     hermes_audio_read_button = gr.Button('오디오 생성 상태·결과 조회')
-                    hermes_audio_read_button.click(read_safe_hermes_audio_result,[hermes_audio_request_id,hermes_audio_service],[hermes_audio_job_id,hermes_audio_status],queue=False)
+                    hermes_audio_read_button.click(read_safe_hermes_audio_result,[hermes_audio_request_id,hermes_audio_service,hermes_session_control],[hermes_audio_job_id,hermes_audio_status],queue=False)
                     hermes_audio_source_service = gr.Dropdown(label='오디오 이력 서비스',choices=[({'music-heartmula':'HeartMuLa 음악','sfx-dasheng-audiogen':'Dasheng 효과음','music-magenta':'보관된 Magenta 음악','music-minimax':'보관된 MiniMax 음악'}.get(current_service_name,current_service_name),current_service_name) for current_service_name in SOURCE_HISTORY_AUDIO_SERVICES],value='music-heartmula')
                     hermes_audio_source_button = gr.Button('생성기 원본 이력 조회')
                     hermes_audio_source_status = gr.Markdown('Hermes 외 작업도 포함한 기록 상태를 조회합니다.')
@@ -5294,7 +5358,7 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                         hermes_audio_history_open = gr.Button('선택한 오디오 접수 확인')
                     hermes_audio_history_status = gr.Markdown('선택한 서비스의 Hermes 접수만 표시합니다.')
                     hermes_audio_history_refresh.click(list_hermes_audio_choices,[hermes_audio_service],[hermes_audio_history,hermes_audio_history_status],queue=False)
-                    hermes_audio_history_open.click(lambda current_request_value:current_request_value,[hermes_audio_history],[hermes_audio_request_id],queue=False).then(read_safe_hermes_audio_result,[hermes_audio_request_id,hermes_audio_service],[hermes_audio_job_id,hermes_audio_status],queue=False)
+                    hermes_audio_history_open.click(lambda current_request_value:current_request_value,[hermes_audio_history],[hermes_audio_request_id],queue=False).then(read_safe_hermes_audio_result,[hermes_audio_request_id,hermes_audio_service,hermes_session_control],[hermes_audio_job_id,hermes_audio_status],queue=False)
                     hermes_audio_cancel_review = gr.Button('오디오 생성 중지 검토')
                     hermes_audio_cancel_state = gr.State(None)
                     with gr.Group(visible=False) as hermes_audio_cancel_group:
@@ -5333,14 +5397,14 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                         current_expression_input.change(lambda:(None,'','입력이 변경되어 다시 검토해야 합니다.',gr.update(interactive=False)),outputs=[hermes_expression_review_state,hermes_expression_preview,hermes_expression_status,hermes_expression_submit],queue=False)
                     bind_gpu_generation_confirmation(hermes_expression_submit,submit_hermes_flux_expression_reviewed,[hermes_expression_review_state,*hermes_expression_inputs],[hermes_expression_job_id,hermes_expression_status],generation_readiness_callback=lambda current_review_value:bool(current_review_value),generation_readiness_inputs=[hermes_expression_review_state],generation_readiness_events=[hermes_expression_review_event],generation_confirmation_validator=match_hermes_flux_expression_confirmation,generation_confirmation_inputs=[hermes_expression_review_state,*hermes_expression_inputs])
                     hermes_expression_read_button = gr.Button('표정 생성 상태 조회')
-                    hermes_expression_read_button.click(lambda current_request_value:read_safe_hermes_flux_result(current_request_value,'flux-expression'),[hermes_expression_request_id],[hermes_expression_job_id,hermes_expression_status],queue=False)
+                    hermes_expression_read_button.click(lambda current_request_value,current_session_identifier:read_safe_hermes_flux_result(current_request_value,'flux-expression',current_session_identifier),[hermes_expression_request_id,hermes_session_control],[hermes_expression_job_id,hermes_expression_status],queue=False)
                     hermes_expression_history = gr.Dropdown(label='표정 생성 접수 이력',choices=[],interactive=True)
                     with gr.Row():
                         hermes_expression_history_refresh = gr.Button('표정 생성 이력 조회')
                         hermes_expression_history_open = gr.Button('선택한 표정 생성 접수 확인')
                     hermes_expression_history_status = gr.Markdown('Hermes를 통해 접수한 표정 작업만 표시합니다.')
                     hermes_expression_history_refresh.click(lambda:list_hermes_flux_profile_choices('flux-expression'),outputs=[hermes_expression_history,hermes_expression_history_status],queue=False)
-                    hermes_expression_history_open.click(lambda current_request_value:current_request_value,[hermes_expression_history],[hermes_expression_request_id],queue=False).then(lambda current_request_value:read_safe_hermes_flux_result(current_request_value,'flux-expression'),[hermes_expression_request_id],[hermes_expression_job_id,hermes_expression_status],queue=False)
+                    hermes_expression_history_open.click(lambda current_request_value:current_request_value,[hermes_expression_history],[hermes_expression_request_id],queue=False).then(lambda current_request_value,current_session_identifier:read_safe_hermes_flux_result(current_request_value,'flux-expression',current_session_identifier),[hermes_expression_request_id,hermes_session_control],[hermes_expression_job_id,hermes_expression_status],queue=False)
                     hermes_expression_cancel_review = gr.Button('표정 생성 중지 검토')
                     hermes_expression_cancel_state = gr.State(None)
                     with gr.Group(visible=False) as hermes_expression_cancel_group:
@@ -5379,14 +5443,14 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                         current_profile_input.change(lambda:(None,'','입력이 변경되어 다시 검토해야 합니다.',gr.update(interactive=False)),outputs=[hermes_profile_review_state,hermes_profile_preview,hermes_profile_status,hermes_profile_submit],queue=False)
                     bind_gpu_generation_confirmation(hermes_profile_submit,submit_hermes_flux_profile_reviewed,[hermes_profile_review_state,*hermes_profile_inputs],[hermes_profile_job_id,hermes_profile_status],generation_readiness_callback=lambda current_review_value:bool(current_review_value),generation_readiness_inputs=[hermes_profile_review_state],generation_readiness_events=[hermes_profile_review_event],generation_confirmation_validator=match_hermes_flux_profile_confirmation,generation_confirmation_inputs=[hermes_profile_review_state,*hermes_profile_inputs])
                     hermes_profile_read_button = gr.Button('FLUX 프로필 작업 상태 조회')
-                    hermes_profile_read_button.click(read_safe_hermes_flux_result,[hermes_profile_request_id,hermes_profile_selection],[hermes_profile_job_id,hermes_profile_status],queue=False)
+                    hermes_profile_read_button.click(read_safe_hermes_flux_result,[hermes_profile_request_id,hermes_profile_selection,hermes_session_control],[hermes_profile_job_id,hermes_profile_status],queue=False)
                     hermes_profile_history = gr.Dropdown(label='FLUX 프로필 접수 이력',choices=[],interactive=True)
                     with gr.Row():
                         hermes_profile_history_refresh = gr.Button('FLUX 프로필 이력 조회')
                         hermes_profile_history_open = gr.Button('선택한 FLUX 프로필 접수 확인')
                     hermes_profile_history_status = gr.Markdown('선택한 프로필의 접수 이력만 표시합니다.')
                     hermes_profile_history_refresh.click(list_hermes_flux_profile_choices,[hermes_profile_selection],[hermes_profile_history,hermes_profile_history_status],queue=False)
-                    hermes_profile_history_open.click(lambda current_request_value:current_request_value,[hermes_profile_history],[hermes_profile_request_id],queue=False).then(read_safe_hermes_flux_result,[hermes_profile_request_id,hermes_profile_selection],[hermes_profile_job_id,hermes_profile_status],queue=False)
+                    hermes_profile_history_open.click(lambda current_request_value:current_request_value,[hermes_profile_history],[hermes_profile_request_id],queue=False).then(read_safe_hermes_flux_result,[hermes_profile_request_id,hermes_profile_selection,hermes_session_control],[hermes_profile_job_id,hermes_profile_status],queue=False)
                     hermes_profile_cancel_review = gr.Button('FLUX 프로필 작업 중지 검토')
                     hermes_profile_cancel_state = gr.State(None)
                     with gr.Group(visible=False) as hermes_profile_cancel_group:
@@ -5428,9 +5492,9 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     hermes_flux_history_open = gr.Button('선택한 FLUX 접수 열기')
                     hermes_flux_history_status = gr.Markdown('이력을 새로고침하세요.')
                     hermes_flux_history_refresh.click(list_hermes_flux_delegation_choices, [hermes_flux_history], [hermes_flux_history, hermes_flux_history_status], queue=False)
-                    hermes_flux_history_open.click(lambda current_id:(current_id, None, '', gr.update(interactive=False)), [hermes_flux_history], [hermes_flux_request_id, hermes_flux_review_state, hermes_flux_preview, hermes_flux_submit], queue=False).then(read_hermes_flux_receipt, [hermes_flux_request_id], [hermes_flux_job, hermes_flux_status], queue=False)
+                    hermes_flux_history_open.click(lambda current_id:(current_id, None, '', gr.update(interactive=False)), [hermes_flux_history], [hermes_flux_request_id, hermes_flux_review_state, hermes_flux_preview, hermes_flux_submit], queue=False).then(read_safe_hermes_flux_receipt, [hermes_flux_request_id, hermes_session_control], [hermes_flux_job, hermes_flux_status], queue=False)
                     hermes_flux_status_button = gr.Button('FLUX 접수와 작업 상태 조회')
-                    hermes_flux_status_button.click(read_hermes_flux_receipt, [hermes_flux_request_id], [hermes_flux_job, hermes_flux_status], queue=False)
+                    hermes_flux_status_button.click(read_safe_hermes_flux_receipt, [hermes_flux_request_id, hermes_session_control], [hermes_flux_job, hermes_flux_status], queue=False)
                     hermes_flux_cancel_review = gr.Button('FLUX 중지 요청 검토')
                     hermes_flux_cancel_state = gr.State(None)
                     with gr.Group(visible=False) as hermes_flux_cancel_group:

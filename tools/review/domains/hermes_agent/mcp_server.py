@@ -58,6 +58,14 @@ def run_hermes_mcp_command(hermes_command_name, hermes_payload_record):
         raise ToolError('Hermes 관리 명령 실패: ' + str(hermes_gateway_error)) from hermes_gateway_error
 
 
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def list_hermes_legacy_anchor_history(animation_identifier_value: str, animation_version_value: str, offset_value: int = 0, limit_value: int = 20, snapshot_value: str | None = None) -> dict:
+    """과거 앵커 검수의 경로 없는 이력 요약을 읽는다. 후속 페이지에는 스냅샷이 필요하다."""
+    current_payload_record={'animation_id':animation_identifier_value,'animation_version':animation_version_value,'offset':offset_value,'limit':limit_value}
+    if snapshot_value is not None:current_payload_record['snapshot']=snapshot_value
+    return run_hermes_mcp_command('hermes-anchor-history-observe',current_payload_record)
+
+
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def submit_hermes_coding_task(request_identifier_value: str, coding_prompt_text: str, verification_module_names: list[str] | None = None) -> dict:
     """운영 조회·제안 또는 격리 코드 작업을 접수한다. 코드 변경은 격리 사본에 남고 선택한 공용 회귀 모듈은 최종 수정 후 독립 실행한다. 응답 유실 시 같은 식별자를 사용한다. 추론은 GPU 대기열을 사용한다. 배타 예약은 관리도구 대기열에만 적용되며 외부 GPU 작업과 성능 경합이 가능하다."""

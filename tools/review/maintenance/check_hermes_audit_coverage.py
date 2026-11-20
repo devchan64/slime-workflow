@@ -17,13 +17,14 @@ def inspect_hermes_command_coverage(current_audit_text):
     current_missing_rows=[]
     current_obsolete_rows=[]
     current_duplicate_rows=[]
+    current_unregistered_sections=sorted(current_section_name for current_section_name,current_section_text in current_sections_map.items() if current_section_name not in MANAGEMENT_SERVICE_COMMANDS and re.search(r'^\| `[^`]+` \|',current_section_text,re.MULTILINE))
     for current_service_name,current_command_names in MANAGEMENT_SERVICE_COMMANDS.items():
         current_row_names=re.findall(r'^\| `([^`]+)` \|',current_sections_map.get(current_service_name,''),re.MULTILINE)
         current_row_counts=Counter(current_row_names)
         current_missing_rows.extend((current_service_name,current_command_name) for current_command_name in current_command_names if current_command_name not in current_row_counts)
         current_obsolete_rows.extend((current_service_name,current_command_name) for current_command_name in sorted(set(current_row_names)-set(current_command_names)))
         current_duplicate_rows.extend((current_service_name,current_command_name) for current_command_name,current_count_value in current_row_counts.items() if current_count_value>1)
-    return {'services':len(MANAGEMENT_SERVICE_COMMANDS),'commands':sum(map(len,MANAGEMENT_SERVICE_COMMANDS.values())),'missing':current_missing_rows,'obsolete':current_obsolete_rows,'duplicates':current_duplicate_rows}
+    return {'services':len(MANAGEMENT_SERVICE_COMMANDS),'commands':sum(map(len,MANAGEMENT_SERVICE_COMMANDS.values())),'missing':current_missing_rows,'obsolete':current_obsolete_rows,'duplicates':current_duplicate_rows,'unregistered_sections':current_unregistered_sections}
 
 
 def run_hermes_audit_check():
@@ -34,7 +35,8 @@ def run_hermes_audit_check():
     print('서비스 {services}개 · 명령 {commands}개'.format(**current_coverage_record))
     for current_category_name in ('missing','obsolete','duplicates'):
         for current_service_name,current_command_name in current_coverage_record[current_category_name]:print(current_category_name+': '+current_service_name+' / '+current_command_name)
-    return 1 if any(current_coverage_record[current_category_name] for current_category_name in ('missing','obsolete','duplicates')) else 0
+    for current_section_name in current_coverage_record['unregistered_sections']:print('unregistered_service: '+current_section_name)
+    return 1 if any(current_coverage_record[current_category_name] for current_category_name in ('missing','obsolete','duplicates','unregistered_sections')) else 0
 
 
 if __name__=='__main__':

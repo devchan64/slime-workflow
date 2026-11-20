@@ -70,6 +70,204 @@ class QueuePriorityContractTests(unittest.TestCase):
                 self.assertEqual(gpu_job_queue.list_waiting_gpu_jobs(),{'jobs':[]})
                 with self.assertRaises(ValueError):gpu_job_queue.list_waiting_gpu_jobs(observation_limits=True)
 
+    def test_bounded_queue_rejects_malformed_command_without_hiding_queue(self):
+        from tools.review.domains.hermes_agent.management_observer import read_hermes_management_snapshot
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_root_path=Path(current_temporary_directory)
+            current_queue_path=current_root_path/'.tmp'/'gpu-queue'
+            current_job_path=current_root_path/'.tmp'/'test'/'kimodo'/'2026-11-20_00-00-00-12345678'
+            current_queue_path.mkdir(parents=True)
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'queued'}))
+            current_ticket_path=current_queue_path/'ticket.json'
+            current_ticket_path.write_text(json.dumps({'pid':os.getpid(),'path':str(current_job_path)}))
+            with patch.object(gpu_job_queue,'WORKFLOW_ROOT_DIRECTORY',current_root_path),patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_path),patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}):
+                for current_command_value in ([],{}, {'service':[]}, {'service':''}, {'service':'   '}):
+                    with self.subTest(command=current_command_value):
+                        (current_job_path/'gpu-command.json').write_text(json.dumps(current_command_value))
+                        with self.assertRaisesRegex(ValueError,'서비스 형식'):
+                            gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)
+                        self.assertEqual(read_hermes_management_snapshot()['queue']['status'],'unavailable')
+                        self.assertTrue(current_ticket_path.is_file())
+
+    def test_bounded_observation_does_not_hide_outside_queue_ticket(self):
+        from tools.review.domains.hermes_agent.management_observer import read_hermes_management_snapshot
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_root_path=Path(current_temporary_directory)
+            current_workflow_root=current_root_path/'workflow'
+            current_queue_path=current_workflow_root/'.tmp'/'gpu-queue'
+            current_queue_path.mkdir(parents=True)
+            current_job_path=current_root_path/'external'/'job'
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'queued'}))
+            (current_job_path/'gpu-command.json').write_text(json.dumps({'service':'kimodo'}))
+            (current_queue_path/'ticket.json').write_text(json.dumps({'pid':os.getpid(),'path':str(current_job_path)}))
+            with patch.object(gpu_job_queue,'WORKFLOW_ROOT_DIRECTORY',current_workflow_root),patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_path):
+                self.assertEqual(gpu_job_queue.list_waiting_gpu_jobs(),{'jobs':[]})
+                current_read_function=gpu_job_queue.read_bounded_gpu_observation_bytes
+                with patch.object(gpu_job_queue,'read_bounded_gpu_observation_bytes',wraps=current_read_function) as current_read_mock:
+                    with self.assertRaisesRegex(ValueError,'경로와 서비스'):
+                        gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)
+                self.assertFalse(any(current_call.args[0] in (current_job_path/'status.json',current_job_path/'gpu-command.json') for current_call in current_read_mock.call_args_list))
+                with patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}):
+                    self.assertEqual(read_hermes_management_snapshot()['queue']['status'],'unavailable')
+                self.assertTrue((current_queue_path/'ticket.json').exists())
+
+    def test_bounded_writer_observation_verifies_configured_job_root(self):
+        import yaml
+        from generators.writer_agent import documents
+        from tools.review.domains.hermes_agent.management_observer import read_hermes_management_snapshot
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_root_path=Path(current_temporary_directory)
+            current_workflow_root=current_root_path/'workflow'
+            current_queue_path=current_workflow_root/'.tmp'/'gpu-queue'
+            current_queue_path.mkdir(parents=True)
+            current_state_root=current_root_path/'writer-state'
+            current_job_path=current_state_root/'jobs'/'20261121-120000-12345678'
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'queued'}))
+            (current_job_path/'gpu-command.json').write_text(json.dumps({'service':'writer-agent'}))
+            current_ticket_path=current_queue_path/'ticket.json'
+            current_ticket_path.write_text(json.dumps({'pid':os.getpid(),'path':str(current_job_path)}))
+            current_config_path=current_root_path/'workspace.yaml'
+            current_config_path.write_text(yaml.safe_dump({'schema_version':1,'document_root':str(current_root_path/'docs'),'state_root':str(current_state_root),'write_roots':['ideas'],'excluded_roots':[],'protected_paths':[],'catalog_path':None}))
+            with patch.object(gpu_job_queue,'WORKFLOW_ROOT_DIRECTORY',current_workflow_root),patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_path),patch.object(documents,'DEFAULT_WORKSPACE_CONFIG',current_config_path):
+                current_result_value=gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)
+                self.assertEqual(current_result_value['jobs'][0]['id'],current_job_path.name)
+                with patch.dict(os.environ,{'SLIME_WRITER_WORKSPACE_CONFIG':str(current_config_path)}),patch.object(documents,'DEFAULT_WORKSPACE_CONFIG',current_root_path/'missing.yaml'):
+                    current_custom_result=gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)
+                    self.assertEqual(current_custom_result['jobs'][0]['id'],current_job_path.name)
+                current_config_link=current_root_path/'workspace-link.yaml'
+                current_config_link.symlink_to(current_config_path)
+                with patch.dict(os.environ,{'SLIME_WRITER_WORKSPACE_CONFIG':str(current_config_link)}):
+                    self.assertEqual(gpu_job_queue.list_waiting_gpu_jobs(observation_limits=True)['jobs'][0]['id'],current_job_path.name)
+                    current_replacement_path=current_root_path/'replacement.yaml'
+                    current_replacement_path.write_bytes(current_config_path.read_bytes())
+                    current_original_read=gpu_job_queue.read_bounded_gpu_observation_bytes
+                    def replace_writer_config_link(current_file_path,current_maximum_bytes):
+                        current_read_result=current_original_read(current_file_path,current_maximum_bytes)
+                        if current_file_path==current_config_path:
+                            current_config_link.unlink()
+                            current_config_link.symlink_to(current_replacement_path)
+                        return current_read_result
+                    with patch.object(gpu_job_queue,'read_bounded_gpu_observation_bytes',side_effect=replace_writer_config_link):
+                        with self.assertRaisesRegex(ValueError,'경로가 조회 중 변경'):
+                            gpu_job_queue.list_waiting_gpu_jobs(observation_limits=True)
+                with patch.dict(os.environ,{'SLIME_WRITER_WORKSPACE_CONFIG':'relative-config.yaml'}):
+                    with self.assertRaisesRegex(ValueError,'설정 경로 오류'):
+                        gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)
+                current_read_function=gpu_job_queue.read_bounded_gpu_observation_bytes
+                current_config_reads=[]
+                def change_writer_config_during_read(current_file_path,current_maximum_bytes):
+                    current_read_result=current_read_function(current_file_path,current_maximum_bytes)
+                    if current_file_path==current_config_path:
+                        current_config_reads.append(True)
+                        if len(current_config_reads)==1:current_config_path.write_text(current_config_path.read_text()+'\n# 변경\n')
+                    return current_read_result
+                with patch.object(gpu_job_queue,'read_bounded_gpu_observation_bytes',side_effect=change_writer_config_during_read):
+                    with self.assertRaisesRegex(ValueError,'조회 중 변경'):
+                        gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)
+                current_other_path=current_root_path/'other'/'jobs'/current_job_path.name
+                current_other_path.mkdir(parents=True)
+                (current_other_path/'status.json').write_text(json.dumps({'status':'queued'}))
+                (current_other_path/'gpu-command.json').write_text(json.dumps({'service':'writer-agent'}))
+                current_ticket_path.write_text(json.dumps({'pid':os.getpid(),'path':str(current_other_path)}))
+                with self.assertRaisesRegex(ValueError,'경로와 서비스'):
+                    gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)
+                with patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}):
+                    self.assertEqual(read_hermes_management_snapshot()['queue']['status'],'unavailable')
+                self.assertTrue(current_ticket_path.is_file())
+                self.assertFalse((current_root_path/'docs').exists())
+                current_ticket_path.write_text(json.dumps({'pid':os.getpid(),'path':str(current_job_path)}))
+                current_config_path.write_text('state_root: [')
+                with patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}):
+                    self.assertEqual(read_hermes_management_snapshot()['queue']['status'],'unavailable')
+                current_loop_path=current_root_path/'writer-loop'
+                current_loop_path.symlink_to(current_loop_path)
+                current_config_path.write_text(yaml.safe_dump({'schema_version':1,'document_root':str(current_root_path/'docs'),'state_root':str(current_loop_path),'write_roots':['ideas'],'excluded_roots':[],'protected_paths':[],'catalog_path':None}))
+                with patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}):
+                    self.assertEqual(read_hermes_management_snapshot()['queue']['status'],'unavailable')
+
+    def test_custom_writer_queue_over_gateway_http(self):
+        import threading
+        import urllib.request
+        import yaml
+        from http.server import ThreadingHTTPServer
+        from tools.review.gateway_server import create_gateway_request_handler
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_root_path=Path(current_temporary_directory)
+            current_workflow_root=current_root_path/'workflow'
+            current_queue_path=current_workflow_root/'.tmp'/'gpu-queue'
+            current_queue_path.mkdir(parents=True)
+            current_state_path=current_root_path/'writer-state'
+            current_job_path=current_state_path/'jobs'/'20261121-120000-12345678'
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'queued'}))
+            (current_job_path/'gpu-command.json').write_text(json.dumps({'service':'writer-agent'}))
+            current_ticket_path=current_queue_path/'ticket.json'
+            current_ticket_path.write_text(json.dumps({'pid':os.getpid(),'path':str(current_job_path)}))
+            current_config_path=current_root_path/'custom.yaml'
+            current_config_path.write_text(yaml.safe_dump({'schema_version':1,'document_root':str(current_root_path/'docs'),'state_root':str(current_state_path),'write_roots':['ideas'],'excluded_roots':[],'protected_paths':[],'catalog_path':None}))
+            with patch.object(gpu_job_queue,'WORKFLOW_ROOT_DIRECTORY',current_workflow_root),patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_path),patch.dict(os.environ,{'SLIME_WRITER_WORKSPACE_CONFIG':str(current_config_path)}),patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}):
+                current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(lambda current_handler_value:False))
+                current_server_value.emit_gateway_trace=lambda *current_log_values:None
+                current_server_thread=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+                current_server_thread.start()
+                try:
+                    with urllib.request.urlopen('http://127.0.0.1:'+str(current_server_value.server_port)+'/management/gpu-queue',timeout=5) as current_response_value:
+                        current_queue_record=json.load(current_response_value)
+                    self.assertEqual(current_queue_record['jobs'],[{'id':current_job_path.name,'service':'writer-agent'}])
+                    self.assertEqual(current_queue_record['gpu_status']['status'],'unavailable')
+                    self.assertTrue(current_ticket_path.is_file())
+                    with patch('tools.review.common.gpu_status.read_gpu_status',side_effect=RuntimeError('GPU unavailable')):
+                        with urllib.request.urlopen('http://127.0.0.1:'+str(current_server_value.server_port)+'/management/gpu-queue',timeout=5) as current_response_value:
+                            current_independent_record=json.load(current_response_value)
+                    self.assertEqual(current_independent_record['gpu_status']['status'],'unavailable')
+                    self.assertEqual(current_independent_record['jobs'][0]['id'],current_job_path.name)
+                    from urllib.error import HTTPError
+                    (current_job_path/'gpu-command.json').write_text('[]')
+                    with self.assertRaises(HTTPError) as current_malformed_error:
+                        urllib.request.urlopen('http://127.0.0.1:'+str(current_server_value.server_port)+'/management/gpu-queue',timeout=5)
+                    self.assertEqual(current_malformed_error.exception.code,503)
+                    current_malformed_error.exception.close()
+                    with patch.object(gpu_job_queue,'list_waiting_gpu_jobs',side_effect=RuntimeError('path loop')):
+                        with self.assertRaises(HTTPError) as current_http_error:
+                            urllib.request.urlopen('http://127.0.0.1:'+str(current_server_value.server_port)+'/management/gpu-queue',timeout=5)
+                    self.assertEqual(current_http_error.exception.code,503)
+                    current_http_error.exception.close()
+                finally:
+                    current_server_value.shutdown()
+                    current_server_thread.join(timeout=5)
+                    current_server_value.server_close()
+
+    def test_bounded_writer_observation_checks_workspace_inside_tmp(self):
+        import yaml
+        from generators.writer_agent import documents
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_root_path=Path(current_temporary_directory)
+            current_queue_path=current_root_path/'.tmp'/'gpu-queue'
+            current_queue_path.mkdir(parents=True)
+            current_state_path=current_root_path/'.tmp'/'writer-state'
+            current_job_path=current_state_path/'jobs'/'20261121-120000-12345678'
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'queued'}))
+            (current_job_path/'gpu-command.json').write_text(json.dumps({'service':'writer-agent'}))
+            current_ticket_path=current_queue_path/'ticket.json'
+            current_ticket_path.write_text(json.dumps({'pid':os.getpid(),'path':str(current_job_path)}))
+            current_config_path=current_root_path/'workspace.yaml'
+            current_config_path.write_text(yaml.safe_dump({'schema_version':1,'document_root':str(current_root_path/'docs'),'state_root':str(current_state_path),'write_roots':['ideas'],'excluded_roots':[],'protected_paths':[],'catalog_path':None}))
+            with patch.object(gpu_job_queue,'WORKFLOW_ROOT_DIRECTORY',current_root_path),patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_path),patch.object(documents,'DEFAULT_WORKSPACE_CONFIG',current_config_path):
+                self.assertEqual(gpu_job_queue.list_waiting_gpu_jobs(observation_limits=True)['jobs'][0]['id'],current_job_path.name)
+                current_other_path=current_root_path/'.tmp'/'other'/'jobs'/current_job_path.name
+                current_other_path.mkdir(parents=True)
+                (current_other_path/'status.json').write_text(json.dumps({'status':'queued'}))
+                (current_other_path/'gpu-command.json').write_text(json.dumps({'service':'writer-agent'}))
+                current_ticket_path.write_text(json.dumps({'pid':os.getpid(),'path':str(current_other_path)}))
+                with self.assertRaisesRegex(ValueError,'경로와 서비스'):
+                    gpu_job_queue.list_waiting_gpu_jobs(observation_limits=True)
+                self.assertEqual(gpu_job_queue.list_waiting_gpu_jobs()['jobs'][0]['id'],current_job_path.name)
+                self.assertTrue(current_ticket_path.is_file())
+
     def test_bounded_observation_preserves_multiple_job_order_and_identity(self):
         with tempfile.TemporaryDirectory() as current_root_name:
             current_root_path=Path(current_root_name)

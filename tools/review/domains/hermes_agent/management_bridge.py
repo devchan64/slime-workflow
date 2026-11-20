@@ -99,6 +99,14 @@ def handle_hermes_observer_connection(current_client_socket):
                 except (ValueError,TypeError,UnicodeDecodeError):
                     current_response_record={'error':'기능 검색 실패: 검색어와 페이지를 확인하세요.'}
 
+            elif current_request_bytes.startswith(b'legacy-anchor-history ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.anchor_history_observer import read_hermes_anchor_history
+                    current_history_request=parse_management_request_json(current_request_bytes[len(b'legacy-anchor-history '):-1].decode('utf-8'))
+                    current_response_record=read_hermes_anchor_history(current_history_request)
+                except (OSError,ValueError,TypeError,KeyError,RuntimeError,UnicodeDecodeError):
+                    current_response_record={'error':'과거 앵커 이력 조회 실패: 대상과 페이지를 확인하세요.'}
             elif current_request_bytes.startswith(b'expression-catalog ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
                 try:
                     from tools.review.common.management_gateway import parse_management_request_json
