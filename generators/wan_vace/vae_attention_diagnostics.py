@@ -1,4 +1,5 @@
 """VACE VAE SDPA의 실제 입력을 옵트인 방식으로 비교한다."""
+import math
 import os
 import time
 from contextlib import contextmanager
@@ -10,12 +11,17 @@ def describe_vace_tensor(current_tensor_value):
 
 
 def measure_vace_difference(current_first_output, current_reference_output, current_torch_module):
-    current_difference_value = (current_first_output.float() - current_reference_output.float()).abs()
-    current_reference_mean = current_reference_output.float().abs().mean().item()
+    current_first_double = current_first_output.to(dtype=current_torch_module.float64)
+    current_reference_double = current_reference_output.to(dtype=current_torch_module.float64)
+    current_difference_value = (current_first_double - current_reference_double).abs()
+    current_reference_mean = current_reference_double.abs().mean().item()
     current_error_mean = current_difference_value.mean().item()
-    return {'mean_absolute_error': current_error_mean, 'max_absolute_error': current_difference_value.max().item(),
-            'reference_mean_absolute': current_reference_mean,
-            'relative_mean_error': current_error_mean / current_reference_mean if current_reference_mean else None}
+    current_maximum_error = current_difference_value.max().item()
+    current_relative_error = current_error_mean / current_reference_mean if current_reference_mean else None
+    if not all(math.isfinite(current_value) for current_value in (current_error_mean, current_maximum_error, current_reference_mean)) or (current_relative_error is not None and not math.isfinite(current_relative_error)):
+        raise ValueError('VACE 어텐션 오차 통계를 유한한 값으로 계산할 수 없습니다.')
+    return {'mean_absolute_error': current_error_mean, 'max_absolute_error': current_maximum_error,
+            'reference_mean_absolute': current_reference_mean, 'relative_mean_error': current_relative_error, 'statistics_dtype': 'float64'}
 
 
 @contextmanager
@@ -67,6 +73,12 @@ def capture_vace_vae_attention(current_phase_name, current_attempt_root, current
                     raise ValueError('VACE VAE SDPA 입력에 NaN 또는 무한대가 있습니다.')
                 return current_original_function(current_query_tensor, current_key_tensor, current_value_tensor, *current_positional_values, **current_keyword_values)
             current_default_output = current_original_function(current_query_tensor, current_key_tensor, current_value_tensor, *current_positional_values, **current_keyword_values)
+            if not current_torch_module.isfinite(current_default_output).all().item():
+                from generators.wan_vace.vae_numerical_guard import record_vace_tensor_failure
+                current_record_value['status'] = 'nonfinite-output'
+                current_record_value['outputs_finite'] = {'default': False}
+                record_vace_tensor_failure(current_attempt_root, f'vae-sdpa-{current_phase_name}-output', current_torch_module, {'default': current_default_output})
+                raise ValueError('VACE VAE SDPA 기본 출력에 NaN 또는 무한대가 있습니다.')
             current_repeated_output = current_original_function(current_query_tensor, current_key_tensor, current_value_tensor, *current_positional_values, **current_keyword_values)
             with current_torch_module.nn.attention.sdpa_kernel(current_torch_module.nn.attention.SDPBackend.MATH):
                 current_math_output = current_original_function(current_query_tensor, current_key_tensor, current_value_tensor, *current_positional_values, **current_keyword_values)
@@ -79,7 +91,8 @@ def capture_vace_vae_attention(current_phase_name, current_attempt_root, current
                 current_record_value['status'] = 'compared'
             else:
                 current_record_value['status'] = 'nonfinite-output'
-                write_record_atomically(current_attempt_root / 'numerical-failure.json', {'stage': f'vae-sdpa-{current_phase_name}-output', 'outputs_finite': current_outputs_finite})
+                from generators.wan_vace.vae_numerical_guard import record_vace_tensor_failure
+                record_vace_tensor_failure(current_attempt_root, f'vae-sdpa-{current_phase_name}-output', current_torch_module, {'default': current_default_output, 'repeat': current_repeated_output, 'math': current_math_output}, {'outputs_finite': current_outputs_finite})
                 raise ValueError('VACE VAE SDPA 비교 출력에 NaN 또는 무한대가 있습니다.')
             return current_default_output
         except Exception as current_diagnostic_error:

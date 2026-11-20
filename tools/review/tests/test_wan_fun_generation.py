@@ -96,6 +96,33 @@ class FunAttentionOptimizationTests(unittest.TestCase):
             self.assertEqual(current_record_value['sdpa_inputs']['query']['shape'], [1, 1, 4, 3])
             self.assertEqual(current_record_value['sdpa_scale'], 'default: 1/sqrt(head_dim)')
 
+    def test_attention_difference_statistics_do_not_overflow(self):
+        import torch
+        from generators.wan_fun.numerical_diagnostics import measure_fun_attention_difference
+        current_high_tensor = torch.tensor([3e38], dtype=torch.float32)
+        current_low_tensor = torch.tensor([-3e38], dtype=torch.float32)
+        current_record_value = measure_fun_attention_difference(current_high_tensor, current_low_tensor, torch)
+        self.assertGreater(current_record_value['max_absolute_error'], 5e38)
+        self.assertEqual(current_record_value['statistics_dtype'], 'float64')
+
+    def test_nonfinite_vae_attention_output_is_preserved(self):
+        import torch
+        from safetensors.torch import load_file
+        from generators.wan_fun.numerical_diagnostics import guard_fun_vae_attention
+        def current_attention_function(current_query_tensor, current_key_tensor, current_value_tensor):
+            return torch.full_like(current_query_tensor, float('inf'))
+        current_model_object = torch.nn.Module()
+        current_model_object.optimized_attention = current_attention_function
+        current_input_tensor = torch.ones((1, 1, 1, 1))
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_attempt_root = Path(current_directory_name)
+            with self.assertRaisesRegex(ValueError, '어텐션 출력'):
+                with guard_fun_vae_attention(SimpleNamespace(first_stage_model=current_model_object), current_attempt_root, torch, 'decode'):
+                    current_model_object.optimized_attention(current_input_tensor, current_input_tensor, current_input_tensor)
+            current_saved_tensors = load_file(str(current_attempt_root / 'numerical-failure.safetensors'))
+            self.assertTrue(torch.isinf(current_saved_tensors['default']).all())
+            self.assertIs(current_model_object.optimized_attention, current_attention_function)
+
     def test_optional_vae_attention_skips_unknown_path(self):
         import json
         import torch

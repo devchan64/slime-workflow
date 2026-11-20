@@ -43,6 +43,28 @@ class VaceVaeAttentionDiagnosticTest(unittest.TestCase):
             self.assertIs(torch_functional_module.scaled_dot_product_attention, current_original_function)
             self.assertFalse(json.loads((current_attempt_root / 'vae-sdpa-decode.json').read_text())['inputs_finite'])
 
+    def test_large_finite_output_difference_does_not_overflow(self):
+        from generators.wan_vace.vae_attention_diagnostics import measure_vace_difference
+        current_high_tensor = torch.tensor([3e38], dtype=torch.float32)
+        current_low_tensor = torch.tensor([-3e38], dtype=torch.float32)
+        current_record_value = measure_vace_difference(current_high_tensor, current_low_tensor, torch)
+        self.assertGreater(current_record_value['max_absolute_error'], 5e38)
+        self.assertEqual(current_record_value['statistics_dtype'], 'float64')
+
+    def test_nonfinite_default_output_is_saved_before_repeated_calls(self):
+        current_input_tensor = torch.ones((1, 1, 1, 1))
+        current_output_tensor = torch.full_like(current_input_tensor, float('nan'))
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_attempt_root = Path(current_directory_name)
+            with patch.object(torch_functional_module, 'scaled_dot_product_attention', return_value=current_output_tensor) as current_original_mock:
+                with self.assertRaisesRegex(ValueError, '기본 출력'):
+                    with capture_vace_vae_attention('encode', current_attempt_root, torch, set()):
+                        torch_functional_module.scaled_dot_product_attention(current_input_tensor, current_input_tensor, current_input_tensor)
+                self.assertEqual(current_original_mock.call_count, 1)
+            current_saved_tensors = load_file(str(current_attempt_root / 'numerical-failure.safetensors'))
+            self.assertTrue(torch.isnan(current_saved_tensors['default']).all())
+            self.assertEqual(json.loads((current_attempt_root / 'vae-sdpa-encode.json').read_text())['status'], 'nonfinite-output')
+
     def test_dropout_skips_comparison_and_executes_once(self):
         current_query_tensor = torch.ones((1, 1, 2, 2))
         current_output_tensor = torch.ones_like(current_query_tensor)

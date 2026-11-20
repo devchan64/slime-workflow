@@ -1,6 +1,7 @@
 """추론 스텝에서 비유한 값이 처음 나타난 위치를 보존한다."""
 import hashlib
 import json
+import math
 
 
 def record_fun_tensor_failure(current_torch_module, current_attempt_root, current_stage_name, current_tensor_values, current_additional_record=None):
@@ -80,6 +81,21 @@ def describe_fun_vae_attention(current_vae_model):
     return sorted(current_attention_paths)
 
 
+def measure_fun_attention_difference(current_first_output, current_reference_output, current_torch_module):
+    """유한 FP32/BF16 출력의 차이를 FP64로 집계한다."""
+    current_first_double = current_first_output.to(dtype=current_torch_module.float64)
+    current_reference_double = current_reference_output.to(dtype=current_torch_module.float64)
+    current_difference_value = (current_first_double - current_reference_double).abs()
+    current_reference_mean = current_reference_double.abs().mean().item()
+    current_error_mean = current_difference_value.mean().item()
+    current_maximum_error = current_difference_value.max().item()
+    current_relative_error = current_error_mean / current_reference_mean if current_reference_mean else None
+    if not all(math.isfinite(current_value) for current_value in (current_error_mean, current_maximum_error, current_reference_mean)) or (current_relative_error is not None and not math.isfinite(current_relative_error)):
+        raise ValueError('Fun VAE 어텐션 오차 통계를 유한한 값으로 계산할 수 없습니다.')
+    return {'mean_absolute_error': current_error_mean, 'max_absolute_error': current_maximum_error,
+            'reference_mean_absolute': current_reference_mean, 'relative_mean_error': current_relative_error, 'statistics_dtype': 'float64'}
+
+
 def guard_fun_vae_attention(current_vae_model, current_attempt_root, current_torch_module, current_phase_name):
     """진단 선택 시 VAE 첫 어텐션의 입력·출력과 SDPA 비교를 기록한다."""
     from contextlib import contextmanager
@@ -124,7 +140,7 @@ def guard_fun_vae_attention(current_vae_model, current_attempt_root, current_tor
                                 raise ValueError('Fun VAE 어텐션 입력에 NaN 또는 무한대가 있습니다.')
                             current_default_output = current_attention_function(current_query_tensor, current_key_tensor, current_value_tensor)
                             if not current_torch_module.isfinite(current_default_output).all().item():
-                                write_record_atomically(current_attempt_root / 'numerical-failure.json', {'stage': f'vae-attention-{current_phase_name}-output'})
+                                record_fun_tensor_failure(current_torch_module, current_attempt_root, f'vae-attention-{current_phase_name}-output', {'default': current_default_output})
                                 raise ValueError('Fun VAE 어텐션 출력에 NaN 또는 무한대가 있습니다.')
                             if (current_attention_function.__module__, current_attention_function.__name__) != ('comfy.ldm.modules.diffusionmodules.model', 'pytorch_attention'):
                                 current_record_value.update(status='comparison-skipped', reason='선택된 VAE 함수가 PyTorch SDPA 경로가 아님')
@@ -138,13 +154,10 @@ def guard_fun_vae_attention(current_vae_model, current_attempt_root, current_tor
                                 current_math_output = current_torch_module.nn.functional.scaled_dot_product_attention(*current_attention_inputs, attn_mask=None, dropout_p=0.0, is_causal=False)
                             current_math_output = current_math_output.transpose(2, 3).reshape(current_query_tensor.shape)
                             if not all(current_torch_module.isfinite(current_tensor).all().item() for current_tensor in (current_repeat_output, current_math_output)):
-                                write_record_atomically(current_attempt_root / 'numerical-failure.json', {'stage': f'vae-attention-{current_phase_name}-comparison'})
+                                record_fun_tensor_failure(current_torch_module, current_attempt_root, f'vae-attention-{current_phase_name}-comparison', {'default': current_default_output, 'repeat': current_repeat_output, 'math': current_math_output})
                                 raise ValueError('Fun VAE 어텐션 비교 출력에 NaN 또는 무한대가 있습니다.')
                             for current_name, current_compared_tensor in (('default_repeat', current_repeat_output), ('default_vs_math', current_math_output)):
-                                current_difference_tensor = (current_default_output.float() - current_compared_tensor.float()).abs()
-                                current_reference_mean = current_compared_tensor.float().abs().mean().item()
-                                current_error_mean = current_difference_tensor.mean().item()
-                                current_record_value[current_name] = {'mean_absolute_error': current_error_mean, 'max_absolute_error': current_difference_tensor.max().item(), 'reference_mean_absolute': current_reference_mean, 'relative_mean_error': current_error_mean / current_reference_mean if current_reference_mean else None}
+                                current_record_value[current_name] = measure_fun_attention_difference(current_default_output, current_compared_tensor, current_torch_module)
                             current_record_value['status'] = 'compared'
                             return current_default_output
                         except Exception as current_diagnostic_error:
