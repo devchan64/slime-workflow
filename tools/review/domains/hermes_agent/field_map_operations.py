@@ -7,7 +7,7 @@ import re
 from tools.review.common.generation_records import write_record_atomically
 from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
 from tools.review.common.management_gateway import execute_management_command
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_delegation_record_paths, check_delegation_record_exists
 
 HERMES_FIELD_MAP_PATTERN = re.compile(r'[a-z0-9][a-z0-9-]{0,95}')
 HERMES_FIELD_TOKEN_PATTERN = re.compile(r'[a-f0-9]{64}')
@@ -57,7 +57,31 @@ def preview_hermes_field_map(current_draft_record):
     for current_count_name in ('reachable','objects','cells'):
         if type(current_preview_value.get(current_count_name)) is not int or current_preview_value[current_count_name] < 0:
             raise ValueError('맵 미리보기 수량 오류')
-    return {key:current_preview_value[key] for key in ('token','changed','reachable','objects','cells')}
+    current_save_available=current_preview_value.get('save_available')
+    if current_save_available is not None and type(current_save_available) is not bool:raise ValueError('맵 저장 가능 상태 형식 오류')
+    current_result_record={**{key:current_preview_value[key] for key in ('token','changed','reachable','objects','cells')},'save_available':current_save_available}
+    current_block_reason=current_preview_value.get('save_block_reason')
+    if current_block_reason not in (None,'database','interrupted'):raise ValueError('맵 저장 차단 사유 형식 오류')
+    if current_block_reason is not None:
+        if current_save_available is not False:raise ValueError('맵 저장 차단 상태 불일치')
+        current_result_record['save_block_reason']=current_block_reason
+    if current_save_available is False and current_block_reason=='database':
+        current_alignment_record={'status':'unavailable','note':'야외 맵 DB 문서와 에셋 원본의 일치를 확인할 수 없습니다.'}
+        try:
+            from pathlib import Path
+            from tools.review.common.map_tile_assets import DEFAULT_ASSET_REPOSITORY
+            from tools.review.domains.map_assets.source_consistency import inspect_field_source_alignment
+            current_database_record=load_hermes_field_map(current_draft_record['map'])
+            if current_database_record['revision']==current_draft_record['revision']:
+                current_asset_root=Path(os.environ.get('SLIME_ASSETS_ROOT',DEFAULT_ASSET_REPOSITORY)).resolve()
+                current_alignment_record=inspect_field_source_alignment(current_asset_root,current_asset_root.parent/'slime-backend/map-data.lock.yaml',current_draft_record['map'],current_database_record['tiles'],current_database_record['terrain'])
+                current_final_database=load_hermes_field_map(current_draft_record['map'])
+                if current_final_database['revision']!=current_database_record['revision']:
+                    current_alignment_record={'status':'unavailable','note':'야외 맵 DB 문서가 비교 중 변경되어 확인할 수 없습니다.'}
+        except (OSError,ValueError,TypeError,KeyError):
+            pass
+        current_result_record['source_alignment']=current_alignment_record
+    return current_result_record
 
 
 def save_hermes_field_map_once(current_request_identifier, current_draft_record, current_preview_token):
@@ -67,7 +91,7 @@ def save_hermes_field_map_once(current_request_identifier, current_draft_record,
     current_storage_value = HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
         current_record_path = current_storage_value.resolve_delegation_record_path(current_request_identifier)
-        if current_record_path.exists():
+        if check_delegation_record_exists(current_record_path):
             current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
             if not isinstance(current_record_value,dict) or current_record_value.get('version') != 4 or current_record_value.get('id') != current_request_identifier or current_record_value.get('token') != current_preview_token or current_record_value.get('map') != current_draft_record['map']:
                 raise ValueError('같은 접수 ID를 다른 요청에 사용할 수 없습니다.')
@@ -79,6 +103,10 @@ def save_hermes_field_map_once(current_request_identifier, current_draft_record,
         current_validation_value = preview_hermes_field_map(current_draft_record)
         if current_validation_value['token'] != current_preview_token:
             raise ValueError('맵 초안 검증이 일치하지 않습니다.')
+        if current_validation_value['save_available'] is not True:
+            if current_validation_value.get('save_block_reason')=='interrupted':raise ValueError('이전 야외 맵 저장이 중단되어 신규 저장을 보류합니다. 백업과 원본 상태를 확인하세요.')
+            if current_validation_value.get('save_block_reason')=='database':raise ValueError('DB 모드의 신규 저장은 중단되었습니다. 원본과 등록부·백엔드 잠금의 동기화를 확인하세요.')
+            raise ValueError('야외 맵 저장 가능 상태 또는 차단 사유를 확인할 수 없어 신규 저장을 보류합니다. 원 서비스의 상태를 확인하세요.')
         current_record_value = {'version':4,'id':current_request_identifier,'token':current_preview_token,'map':current_draft_record['map'],'state':'dispatching'}
         write_record_atomically(current_record_path,current_record_value)
         current_result_value = call_field_map_editor('map-edit-save', {**current_draft_record,'token':current_preview_token})
@@ -111,7 +139,7 @@ def read_hermes_field_receipt(current_request_identifier):
     current_storage_value = HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
         current_record_path = current_storage_value.resolve_delegation_record_path(current_request_identifier)
-        if not current_record_path.exists():
+        if not check_delegation_record_exists(current_record_path):
             return {'state':'not_found'}
         return inspect_hermes_field_receipt(json.loads(current_record_path.read_text(encoding='utf-8')),current_request_identifier)
 
@@ -121,7 +149,7 @@ def list_hermes_field_receipts():
     current_storage_value = HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
         current_records_list = []
-        for current_record_path in current_storage_value.delegation_storage_root.glob('*.json'):
+        for current_record_path in list_delegation_record_paths(current_storage_value.delegation_storage_root):
             if current_record_path.is_symlink() or not current_record_path.is_file():
                 continue
             try:
@@ -141,6 +169,34 @@ def list_hermes_field_receipts():
         return {'records':current_records_list[:100],'truncated':len(current_records_list)>100,'note':'손상된 기록은 제외됩니다. 확인 불가는 원본 상태를 별도로 확인하세요.'}
 
 
+def load_hermes_field_region_source(current_map_identifier):
+    """편집 DB 없이 등록된 야외 맵과 타일 코드의 조회 스냅샷을 만든다."""
+    import yaml
+    from tools.review.common.map_asset_sources import UniqueMapSourceLoader, normalize_field_surface_data, open_registered_map_source_snapshot
+    from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_asset
+    if not isinstance(current_map_identifier,str) or not HERMES_FIELD_MAP_PATTERN.fullmatch(current_map_identifier):
+        raise ValueError('맵 ID 형식 오류')
+    with open_registered_map_source_snapshot():
+        current_asset_root,current_asset_records=load_registered_tiles()
+        current_relative_paths=[f'field_tiles/{current_map_identifier}.yaml',f'terrain/maps/{current_map_identifier}.yaml','field_tiles/codes.yaml']
+        current_source_values=[]
+        current_source_hashes={}
+        for current_relative_path in current_relative_paths:
+            current_source_path,current_source_record=resolve_registered_asset('assets/maps/'+current_relative_path,current_asset_root,current_asset_records,'assets/maps')
+            current_source_bytes=current_source_path.read_bytes()
+            current_source_hash=hashlib.sha256(current_source_bytes).hexdigest()
+            if current_source_hash!=current_source_record['sha256']:raise ValueError('맵 원본이 조회 중 변경되었습니다.')
+            current_source_document=yaml.load(current_source_bytes,Loader=UniqueMapSourceLoader)
+            if not isinstance(current_source_document,dict) or set(current_source_document)!={'managementId','data'} or current_source_document['managementId']!=current_source_record['managementId'] or not isinstance(current_source_document['data'],dict):
+                raise ValueError('맵 원본 관리 문서 오류')
+            current_source_values.append(current_source_document['data'])
+            current_source_hashes[current_relative_path]=current_source_hash
+        current_tiles_value,current_terrain_value,current_codes_value=current_source_values
+        normalize_field_surface_data(current_terrain_value)
+        current_revision_bytes=json.dumps(current_source_hashes,sort_keys=True,separators=(',',':')).encode()
+        return {'map':current_map_identifier,'revision':'asset:'+hashlib.sha256(current_revision_bytes).hexdigest(),'tiles':current_tiles_value,'terrain':current_terrain_value,'codes':current_codes_value}
+
+
 def read_hermes_field_region(current_request_record):
     """원본 리비전에 고정한 제한 영역과 장식 목록 일부를 반환한다."""
     current_allowed_fields = {'map','column','row','width','height','offset','limit','revision'}
@@ -158,7 +214,9 @@ def read_hermes_field_region(current_request_record):
     current_revision_filter = current_request_record.get('revision')
     if current_revision_filter is not None and (not isinstance(current_revision_filter,str) or not 0<len(current_revision_filter)<=4096):
         raise ValueError('맵 리비전 형식 오류')
-    current_map_value = load_hermes_field_map(current_request_record['map'])
+    if current_offset_value>0 and current_revision_filter is None:
+        raise ValueError('다음 배치 페이지에는 첫 조회의 revision이 필요합니다.')
+    current_map_value = load_hermes_field_region_source(current_request_record['map'])
     if current_revision_filter is not None and current_revision_filter != current_map_value['revision']:
         raise ValueError('원본 리비전이 변경됐습니다. 처음부터 다시 조회하세요.')
     current_tiles_value,current_terrain_value = current_map_value['tiles'],current_map_value['terrain']
@@ -222,4 +280,4 @@ def read_hermes_field_region(current_request_record):
             'objects':current_objects_list[current_offset_value:current_offset_value+current_limit_value],
             'object_total':current_total_value,'object_offset':current_offset_value,
             'object_next_offset':current_offset_value+current_limit_value if current_offset_value+current_limit_value<current_total_value else None,
-            'note':'blocked는 지형 원본의 차단 값입니다. 빌보드 점유·지형 종류·고도와 실제 통행 판정은 기존 맵 검증에서 별도 확인하세요. 페이지를 이어 읽을 때 revision을 전달하세요.'}
+            'note':'blocked는 지형 원본의 차단 값입니다. 빌보드 점유·지형 종류·고도와 실제 통행 판정은 기존 맵 검증에서 별도 확인하세요. 페이지를 이어 읽을 때 revision을 전달하세요. 이 값은 에셋 조회 지문이며 편집 리비전이 아닙니다.'}

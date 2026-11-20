@@ -62,14 +62,18 @@ def read_gpu_status():
                 current_process_record['gpu_parent_pid'] = next((current_parent_pid for current_parent_pid in current_process_record.get('ancestor_pids', []) if current_parent_pid in current_gpu_process_ids), None)
             memory_result = subprocess.run(['amd-smi','metric','-m','--json'],capture_output=True,text=True,timeout=10,check=True)
             current_memory_totals = {f'{current_domain_name}_{current_measure_name}_mib':0 for current_domain_name in ('gtt','vram') for current_measure_name in ('total','used','free')}
-            for current_gpu_record in json.loads(memory_result.stdout)['gpu_data']:
+            current_gpu_records=json.loads(memory_result.stdout)['gpu_data']
+            if not isinstance(current_gpu_records,list) or not current_gpu_records:raise ValueError('GPU 장치 정보가 없습니다.')
+            current_queue_memory=current_gpu_records[0]['mem_usage']
+            current_queue_device={f'{current_domain_name}_{current_measure_name}_mib':int(current_queue_memory[f'{current_measure_name}_{current_domain_name}']['value']) for current_domain_name in ('gtt','vram') for current_measure_name in ('total','free')}
+            for current_gpu_record in current_gpu_records:
                 current_memory_values = current_gpu_record['mem_usage']
                 for current_domain_name in ('gtt','vram'):
                     for current_measure_name in ('total','used','free'):
                         current_memory_totals[f'{current_domain_name}_{current_measure_name}_mib'] += int(current_memory_values[f'{current_measure_name}_{current_domain_name}']['value'])
             if current_memory_totals['gtt_total_mib'] <= 0:
                 raise ValueError('GPU 메모리 정보를 읽을 수 없습니다.')
-            record = {'status':'busy' if processes else 'idle','processes':processes,
+            record = {'status':'busy' if processes else 'idle','processes':processes,'gpu_count':len(current_gpu_records),'queue_device_memory':current_queue_device,
                 **current_memory_totals, **{f'memory_{current_measure_name}_mib':current_memory_totals[f'gtt_{current_measure_name}_mib'] for current_measure_name in ('total','used','free')}}
         except (OSError,subprocess.SubprocessError,ValueError,KeyError,TypeError):
             record = {'status':'unavailable','processes':[]}

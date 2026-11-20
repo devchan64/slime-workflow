@@ -1,12 +1,33 @@
 """생성기 소유 작업 파일의 검증·잠금·용량 집계를 공유한다."""
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 import fcntl
 import json
+import os
+import stat
 from pathlib import Path
 import shutil
+import threading
 
 GENERATION_CLEANUP_TERMINAL_STATES = frozenset(('completed', 'failed', 'cancelled', 'paused'))
 GENERATION_CLEANUP_SCOPE_TEXT = '작업 폴더의 입력 사본·중간 산출물·결과·모든 시도의 로그와 기록을 함께 삭제합니다. 복구할 수 없습니다. 외부 입력 원본·등록 에셋·모델은 제외합니다. 실행·대기 중에는 삭제할 수 없습니다.'
+
+
+CLEANUP_PREVIEW_LOCK_GUARD = threading.Lock()
+CLEANUP_PREVIEW_STORAGE_LOCKS = {}
+
+
+@contextmanager
+def hold_cleanup_preview_guard(current_storage_root):
+    """같은 저장소의 느린 미리보기 중복 요청을 대기시키지 않는다."""
+    current_storage_key = str(Path(current_storage_root).absolute())
+    with CLEANUP_PREVIEW_LOCK_GUARD:
+        current_storage_lock = CLEANUP_PREVIEW_STORAGE_LOCKS.setdefault(current_storage_key, threading.Lock())
+    if not current_storage_lock.acquire(blocking=False):
+        raise ValueError('이 작업 저장소의 정리 미리보기가 이미 진행 중입니다.')
+    try:
+        yield
+    finally:
+        current_storage_lock.release()
 
 
 def validate_cleanup_path(current_target_path, current_storage_root):
@@ -100,8 +121,16 @@ def describe_generation_cleanup(current_storage_root, current_job_targets):
             current_blocked_records.append(current_target_record)
         else:
             current_execution_path = current_target_path / 'execution.lock'
-            if current_execution_path.exists():
-                with current_execution_path.open('r') as current_execution_handle:
+            try:
+                current_lock_descriptor = os.open(current_execution_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            except FileNotFoundError:
+                current_lock_descriptor = None
+            except OSError as current_lock_error:
+                raise ValueError('작업 실행 잠금 파일을 확인할 수 없습니다.') from current_lock_error
+            if current_lock_descriptor is not None:
+                with os.fdopen(current_lock_descriptor, 'r') as current_execution_handle:
+                    if not stat.S_ISREG(os.fstat(current_execution_handle.fileno()).st_mode):
+                        raise ValueError('작업 실행 잠금은 일반 파일이어야 합니다.')
                     try:
                         fcntl.flock(current_execution_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
                     except BlockingIOError:

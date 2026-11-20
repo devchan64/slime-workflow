@@ -137,8 +137,9 @@ def save_editor_changes(current_request_payload,current_asset_root=None):
     current_pending_files={current_source_paths[0]:current_property_bytes}
     for current_metadata_path in (current_source_paths[1],current_source_paths[3]):
         current_metadata_text=current_source_bytes[current_metadata_path].decode()
-        if current_metadata_text.count(current_old_hash)!=1:raise ValueError('등록부·소비자 해시 잠금 불일치')
-        current_pending_files[current_metadata_path]=current_metadata_text.replace(current_old_hash,current_new_hash).encode()
+        from tools.review.domains.map_assets.map_editor import update_registered_map_hashes
+        current_property_relative=current_source_paths[0].relative_to(current_asset_root).as_posix()
+        current_pending_files[current_metadata_path]=update_registered_map_hashes(current_metadata_text,{current_property_relative:(current_old_hash,current_new_hash)}).encode()
     current_backup_directory=EDITOR_STORAGE_DIRECTORY/(current_preview_token+'-backup');current_backup_directory.mkdir(exist_ok=True)
     for current_file_index,(current_file_path,current_file_bytes) in enumerate(current_source_bytes.items()):(current_backup_directory/str(current_file_index)).write_bytes(current_file_bytes)
     (current_backup_directory/'paths.json').write_text(json.dumps([str(current_file_path) for current_file_path in current_source_paths]))

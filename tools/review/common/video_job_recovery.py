@@ -43,7 +43,8 @@ def recover_interrupted_video_job(current_job_directory):
     current_command_path = current_job_directory / 'gpu-command.json'
     if not current_lock_path.is_file() or current_lock_path.is_symlink() or not current_command_path.is_file():
         return
-    with (current_job_directory / 'resume.lock').open('a') as current_resume_lock:
+    from tools.review.common.gpu_job_queue import open_gpu_resume_lock
+    with open_gpu_resume_lock(current_job_directory) as current_resume_lock:
         fcntl.flock(current_resume_lock, fcntl.LOCK_EX)
         with current_lock_path.open('r+') as current_execution_lock:
             try:

@@ -8,6 +8,28 @@ from tools.review.common.generation_records import observe_generation_history_re
 
 
 class GenerationRecordsObserveTests(unittest.TestCase):
+    def test_nested_animation_history_preserves_index_only_and_reports_bad_records(current_test_case):
+        with tempfile.TemporaryDirectory() as current_temp_name:
+            current_root_path=Path(current_temp_name)
+            current_history_root=current_root_path/'history'
+            current_history_root.mkdir()
+            current_indexed_job='2026-11-18_12-00-00-aaaaaaaa'
+            current_unindexed_job='2026-11-18_12-01-00-bbbbbbbb'
+            for current_job_identifier in (current_indexed_job,current_unindexed_job):
+                current_job_path=current_root_path/current_job_identifier[:19]/current_job_identifier
+                current_job_path.mkdir(parents=True)
+                (current_job_path/'request.json').write_text('{"prompt":"private"}')
+                (current_job_path/'status.json').write_text('{"status":"completed"}')
+            (current_history_root/(current_indexed_job+'.json')).write_text(json.dumps({'id':current_indexed_job,'created_at':'2026-11-18'}))
+            (current_history_root/'corrupt.json').write_text('{')
+            current_result=observe_generation_history_records(current_history_root,current_root_path,{},nested_index_only=True)
+            current_test_case.assertEqual(current_result['records'],[{'id':current_indexed_job,'recorded_status':'completed','status_source':'job'}])
+            current_test_case.assertEqual(current_result['unavailable_count'],1)
+            current_test_case.assertNotIn('private',str(current_result))
+            (current_history_root/(current_indexed_job+'.json')).unlink()
+            with current_test_case.assertRaises(ValueError):
+                observe_generation_history_records(current_history_root,current_root_path,{'snapshot':current_result['snapshot']},nested_index_only=True)
+
     def test_hidden_records_pagination_and_snapshot_changes(self):
         with tempfile.TemporaryDirectory() as current_temp_name:
             current_root_path=Path(current_temp_name)
@@ -50,6 +72,26 @@ class GenerationRecordsObserveTests(unittest.TestCase):
             current_result_value=observe_generation_history_records(current_history_root,current_jobs_root,{})
             self.assertEqual(current_result_value['records'],[{'id':current_job_identifiers[1],'recorded_status':'unknown','status_source':'unavailable'},{'id':current_job_identifiers[0],'recorded_status':'completed','status_source':'job'}])
 
+    def test_invalid_unindexed_date_does_not_hide_other_records(self):
+        with tempfile.TemporaryDirectory() as current_temp_name:
+            current_root_path=Path(current_temp_name)
+            current_jobs_root=current_root_path/'jobs'
+            current_history_root=current_root_path/'history'
+            current_history_root.mkdir()
+            current_valid_identifier='2026-11-18_12-00-00-aaaaaaaa'
+            current_invalid_identifier='2026-99-18_12-00-00-bbbbbbbb'
+            for current_job_identifier in (current_valid_identifier,current_invalid_identifier):
+                current_job_path=current_jobs_root/current_job_identifier
+                current_job_path.mkdir(parents=True)
+                (current_job_path/'request.json').write_text('{}')
+                (current_job_path/'status.json').write_text('{"status":"completed"}')
+            current_result_value=observe_generation_history_records(current_history_root,current_jobs_root,{})
+            self.assertEqual(current_result_value['records'],[{'id':current_valid_identifier,'recorded_status':'completed','status_source':'job'}])
+            self.assertEqual(current_result_value['unavailable_count'],1)
+            (current_jobs_root/current_invalid_identifier/'request.json').unlink()
+            with self.assertRaisesRegex(ValueError,'이력이 변경'):
+                observe_generation_history_records(current_history_root,current_jobs_root,{'snapshot':current_result_value['snapshot']})
+
     def test_unreadable_and_legacy_index_do_not_hide_valid_records(self):
         with tempfile.TemporaryDirectory() as current_temp_name:
             current_root_path=Path(current_temp_name)
@@ -88,6 +130,19 @@ class GenerationRecordsObserveTests(unittest.TestCase):
             (current_history_root/'third.json').unlink()
             with self.assertRaisesRegex(ValueError,'변경'):
                 observe_generation_history_records(current_history_root,current_jobs_root,{'snapshot':current_result_value['snapshot']})
+
+    def test_equal_created_time_has_stable_order_across_index_names(self):
+        with tempfile.TemporaryDirectory() as current_temp_name:
+            current_root_path=Path(current_temp_name)
+            current_history_root=current_root_path/'history'
+            current_history_root.mkdir()
+            for current_file_name,current_job_identifier in (('first.json','job-a'),('second.json','job-b')):
+                (current_history_root/current_file_name).write_text(json.dumps({'id':current_job_identifier,'created_at':'2026-11-18'}))
+            current_first_page=observe_generation_history_records(current_history_root,current_root_path/'jobs',{'limit':1})
+            self.assertEqual(current_first_page['records'][0]['id'],'job-b')
+            (current_history_root/'first.json').rename(current_history_root/'third.json')
+            current_second_page=observe_generation_history_records(current_history_root,current_root_path/'jobs',{'limit':1,'offset':1,'snapshot':current_first_page['snapshot']})
+            self.assertEqual(current_second_page['records'][0]['id'],'job-a')
 
     def test_search_uses_identifier_and_binds_snapshot_to_query(self):
         with tempfile.TemporaryDirectory() as current_temp_name:
@@ -187,6 +242,43 @@ class GenerationRecordsObserveTests(unittest.TestCase):
             current_actual_ids=[current_record['id'] for current_record in current_first_page['records']+current_second_page['records']]
             self.assertEqual(current_actual_ids,current_expected_ids)
             self.assertEqual(len(current_actual_ids),42)
+
+    def test_original_history_reads_logs_but_observer_omits_them(self):
+        from unittest.mock import patch
+        from tools.review.domains.music.generation import MusicGenerationManager
+        from tools.review.domains.image.image_generation import ImageGenerationManager
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_history_root=current_root_path/'history'
+            current_history_root.mkdir()
+            current_jobs_root=current_root_path/'jobs'
+            current_job_identifier='2026-11-18_12-00-00-aaaaaaaa'
+            current_job_path=current_jobs_root/current_job_identifier
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'request.json').write_text(json.dumps({'prompt':'fixture prompt'}))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'running'}))
+            (current_job_path/'worker.log').write_text('fixture log content')
+            current_music_manager=MusicGenerationManager('music-heartmula')
+            current_music_manager.history_storage_root=current_history_root
+            current_music_manager.job_storage_root=current_jobs_root
+            current_music_history=current_music_manager.list_music_history()
+            self.assertIn('fixture log content',str(current_music_history))
+            current_image_manager=ImageGenerationManager()
+            with patch.object(current_image_manager,'job_storage_root',current_jobs_root),patch.object(current_image_manager,'history_storage_path',return_value=current_history_root):
+                current_image_history=current_image_manager.list_generation_history()
+            self.assertIn('fixture log content',str(current_image_history))
+            current_observed_history=observe_generation_history_records(current_history_root,current_jobs_root,{})
+            self.assertNotIn('fixture log content',str(current_observed_history))
+            self.assertNotIn('fixture prompt',str(current_observed_history))
+
+    def test_music_active_reports_queued_record_without_worker_process(self):
+        from unittest.mock import patch
+        from tools.review.domains.music.generation import MusicGenerationManager
+        current_manager_value=MusicGenerationManager('music-heartmula')
+        current_job_identifier='2026-11-18_12-00-00-aaaaaaaa'
+        with patch.object(current_manager_value,'list_music_history',return_value=[{'id':current_job_identifier,'status':{'status':'queued'}}]):
+            current_active_record=current_manager_value.execute_music_command('active',{})
+        self.assertEqual(current_active_record,{'id':current_job_identifier})
 
     def test_music_service_exposes_source_records_without_logs(self):
         from unittest.mock import patch

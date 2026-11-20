@@ -18,11 +18,11 @@ class MapAssetEditorTests(unittest.TestCase):
         self.current_property_values={'anchorX':.5,'anchorY':1,'groundFootprintColumns':1,'groundFootprintRows':1,'displayHeight':70,'billboardPlacementAnchor':'bottom','billboardBlocksMovement':False}
         self.current_property_path.write_text(yaml.safe_dump({'data':{'sample':self.current_property_values}}))
         self.current_original_hash=hashlib.sha256(self.current_property_path.read_bytes()).hexdigest()
-        (self.current_asset_root/'asset-registry.yaml').write_text('sha256: '+self.current_original_hash)
+        (self.current_asset_root/'asset-registry.yaml').write_text(yaml.safe_dump({'assets':[{'path':'assets/maps/sprite-display-properties.yaml','sha256':self.current_original_hash},{'path':'assets/maps/other.yaml','sha256':self.current_original_hash}]},sort_keys=False))
         self.current_catalog_path=self.current_asset_root/'assets/billboards/catalog.yaml'
         self.current_catalog_path.parent.mkdir(parents=True);self.current_catalog_path.write_text('original: true\n')
         self.current_backend_path=self.current_asset_root.parent/'slime-backend/map-data.lock.yaml'
-        self.current_backend_path.parent.mkdir();self.current_backend_path.write_text('sha256: '+self.current_original_hash)
+        self.current_backend_path.parent.mkdir();self.current_backend_path.write_text(yaml.safe_dump({'files':[{'path':'assets/maps/sprite-display-properties.yaml','sha256':self.current_original_hash},{'path':'assets/maps/other.yaml','sha256':self.current_original_hash}]},sort_keys=False))
         self.current_catalog_record={'billboards':[{'texture_key':'sample'}]}
         self.current_catalog_path.write_text(yaml.safe_dump(self.current_catalog_record))
         self.current_catalog_patch=patch.object(editor,'build_catalog_reference',return_value=self.current_catalog_record)
@@ -142,11 +142,15 @@ class MapAssetEditorTests(unittest.TestCase):
             current_route_result=resolve_management_command('map-assets',current_command_name,{})
             self.assertEqual(current_route_result,('POST','/map-assets'+current_route_path))
 
-    def test_manual_blocking_is_replaced_by_occupancy(self):
+    def test_manual_blocking_is_preserved_when_height_changes(self):
         current_change_payload={**self.current_request_payload,'changes':[{'texture':'sample','values':{'billboardBlocksMovement':True,'displayHeight':30,'billboardPlacementAnchor':'top'}}]}
         current_preview_result=editor.preview_editor_changes(current_change_payload,self.current_asset_root)
-        self.assertFalse(current_preview_result['changes'][0]['after']['billboardBlocksMovement'])
+        self.assertTrue(current_preview_result['changes'][0]['after']['billboardBlocksMovement'])
         editor.save_editor_changes({**current_change_payload,'token':current_preview_result['token']},self.current_asset_root)
+        for current_metadata_path,current_list_key in ((self.current_asset_root/'asset-registry.yaml','assets'),(self.current_backend_path,'files')):
+            current_metadata_values=yaml.safe_load(current_metadata_path.read_text())[current_list_key]
+            self.assertNotEqual(current_metadata_values[0]['sha256'],self.current_original_hash)
+            self.assertEqual(current_metadata_values[1]['sha256'],self.current_original_hash)
         current_latest_catalog={'revision':editor.read_editor_snapshot(self.current_asset_root)[3]}
         current_resize_payload={'revision':current_latest_catalog['revision'],'changes':[{'texture':'sample','values':{'displayHeight':300}}]}
-        self.assertFalse(editor.preview_editor_changes(current_resize_payload,self.current_asset_root)['changes'][0]['after']['billboardBlocksMovement'])
+        self.assertTrue(editor.preview_editor_changes(current_resize_payload,self.current_asset_root)['changes'][0]['after']['billboardBlocksMovement'])

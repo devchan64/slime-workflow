@@ -17,6 +17,20 @@ HERMES_DELEGATION_SERVICE_PATTERN = re.compile(r'[a-z0-9]+(?:-[a-z0-9]+)*')
 HERMES_DELEGATION_THREAD_LOCK = threading.RLock()
 
 
+def list_delegation_record_paths(current_storage_path):
+    """접수 목록 접근 실패를 빈 목록으로 감추지 않는다."""
+    return [current_record_path for current_record_path in current_storage_path.iterdir() if current_record_path.name.endswith('.json')]
+
+
+def check_delegation_record_exists(current_record_path):
+    """접수 파일의 부재와 확인 오류를 구분한다."""
+    try:
+        current_record_path.lstat()
+    except FileNotFoundError:
+        return False
+    return True
+
+
 def list_hermes_service_receipt_names():
     """서비스별 접수 직접 조회가 지원하는 원 서비스만 반환한다."""
     from tools.review.domains.hermes_agent.audio_operations import HERMES_AUDIO_SERVICES
@@ -65,7 +79,7 @@ class HermesDelegationStore:
         """접수 ID로 저장된 결과만 읽는다. 생성 명령은 실행하지 않는다."""
         with self.hold_delegation_storage_lock():
             current_record_path = self.resolve_delegation_record_path(delegation_identifier_value)
-            if not current_record_path.exists():
+            if not check_delegation_record_exists(current_record_path):
                 return {'state': 'not_found'}
             current_saved_record = json.loads(current_record_path.read_text(encoding='utf-8'))
             if not isinstance(current_saved_record, dict) or current_saved_record.get('version') != 1 or current_saved_record.get('id') != delegation_identifier_value or current_saved_record.get('state') not in ('dispatching', 'accepted'):
@@ -80,7 +94,7 @@ class HermesDelegationStore:
         """최근 접수 식별자와 확인 상태만 반환하며 입력·해시는 공개하지 않는다."""
         with self.hold_delegation_storage_lock():
             current_receipt_values = []
-            for current_record_path in self.delegation_storage_root.glob('*.json'):
+            for current_record_path in list_delegation_record_paths(self.delegation_storage_root):
                 current_receipt_identifier = current_record_path.stem
                 if current_record_path.is_symlink() or not current_record_path.is_file() or not HERMES_DELEGATION_ID_PATTERN.fullmatch(current_receipt_identifier):
                     continue
@@ -117,7 +131,7 @@ class HermesDelegationStore:
         current_request_digest = hashlib.sha256(current_serialized_value).hexdigest()
         with self.hold_delegation_storage_lock():
             current_record_path = self.resolve_delegation_record_path(delegation_identifier_value)
-            if current_record_path.exists():
+            if check_delegation_record_exists(current_record_path):
                 current_saved_record = json.loads(current_record_path.read_text(encoding='utf-8'))
                 if not isinstance(current_saved_record, dict) or current_saved_record.get('version') != 1 or current_saved_record.get('id') != delegation_identifier_value or current_saved_record.get('state') not in ('dispatching', 'accepted'):
                     raise ValueError('위임 기록 형식 오류')
@@ -147,7 +161,7 @@ class HermesDelegationStore:
             raise ValueError('위임 서비스 식별자 형식 오류')
         with self.hold_delegation_storage_lock():
             current_record_path = self.resolve_delegation_record_path(delegation_identifier_value)
-            if not current_record_path.exists():
+            if not check_delegation_record_exists(current_record_path):
                 return {'state':'not_found','request_id':delegation_identifier_value,'service':expected_service_name}
             current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
             if not isinstance(current_record_value, dict) or current_record_value.get('version') != 2 or current_record_value.get('id') != delegation_identifier_value or current_record_value.get('service') != expected_service_name or current_record_value.get('state') not in ('dispatching', 'accepted'):
@@ -165,7 +179,7 @@ class HermesDelegationStore:
             raise ValueError('위임 서비스 식별자 형식 오류')
         with self.hold_delegation_storage_lock():
             current_records_list = []
-            for current_record_path in self.delegation_storage_root.glob('*.json'):
+            for current_record_path in list_delegation_record_paths(self.delegation_storage_root):
                 current_record_id = current_record_path.stem
                 if current_record_path.is_symlink() or not current_record_path.is_file() or not HERMES_DELEGATION_ID_PATTERN.fullmatch(current_record_id):
                     continue
@@ -200,7 +214,7 @@ class HermesDelegationStore:
         current_request_digest = hashlib.sha256(current_request_bytes).hexdigest()
         with self.hold_delegation_storage_lock():
             current_record_path = self.resolve_delegation_record_path(delegation_identifier_value)
-            if current_record_path.exists():
+            if check_delegation_record_exists(current_record_path):
                 current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
                 if not isinstance(current_record_value, dict) or current_record_value.get('version') != 2 or current_record_value.get('id') != delegation_identifier_value or current_record_value.get('service') != delegation_service_name or current_record_value.get('request_sha256') != current_request_digest:
                     raise ValueError('같은 위임 식별자를 다른 서비스나 입력에 사용할 수 없습니다.')

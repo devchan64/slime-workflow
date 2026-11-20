@@ -8,6 +8,46 @@ from tools.review.domains.hermes_agent.delegation_store import HermesDelegationS
 
 
 class HermesTranslationOperationsTests(unittest.TestCase):
+    def test_translation_evidence_preserves_content_and_rejects_invalid_response(self):
+        current_candidate_value={'path':'lore/tree.md','heading':'나무','text':'숲의 나무 근거','matched_terms':['나무'],'extra':'제외'}
+        with patch.object(translation_operations,'call_hermes_translation_service',return_value={'candidates':[current_candidate_value]}) as current_gateway_mock:
+            current_result_value=translation_operations.search_hermes_translation_evidence('나무')
+            self.assertEqual(current_result_value['candidates'][0]['text'],'숲의 나무 근거')
+            self.assertNotIn('extra',current_result_value['candidates'][0])
+            self.assertIn('승인된 번역어',current_result_value['note'])
+            current_gateway_mock.assert_called_once_with('translation-rag',{'text':'나무'})
+        for current_bad_value in ('', ' '*3, 'a'*6001, None):
+            with self.subTest(current_bad_value=current_bad_value), self.assertRaises(ValueError):
+                translation_operations.search_hermes_translation_evidence(current_bad_value)
+        with patch.object(translation_operations,'call_hermes_translation_service',return_value={'candidates':[{'path':'x'}]}), self.assertRaises(ValueError):
+            translation_operations.search_hermes_translation_evidence('나무')
+
+    def test_translation_evidence_crosses_gateway_dispatch_without_gpu(self):
+        from tools.review.common.management_gateway import execute_management_command
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        current_candidate_value={'path':'lore/tree.md','heading':'나무','text':'숲의 나무 근거','matched_terms':['나무']}
+        with TemporaryDirectory() as current_root_name, patch.object(translation_operations,'call_hermes_translation_service',return_value={'candidates':[current_candidate_value]}) as current_gateway_mock:
+            current_root_path=Path(current_root_name)
+            current_manager_value=HermesServiceManager(current_root_path/'jobs',current_root_path/'sessions')
+            import threading
+            from http.server import ThreadingHTTPServer
+            from tools.review.common.management_gateway import ManagementCommandGateway
+            from tools.review.gateway_server import create_gateway_request_handler
+            current_dispatch_value=ManagementCommandGateway({'hermes-agent':current_manager_value.handle_hermes_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_dispatch_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_arguments:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            try:
+                current_gateway_origin='http://127.0.0.1:'+str(current_server_value.server_port)
+                current_response_value=execute_management_command('hermes-agent','hermes-translation-evidence',{'text':'나무'},current_gateway_origin)
+                self.assertEqual(current_response_value['candidates'],[current_candidate_value])
+                current_gateway_mock.assert_called_once_with('translation-rag',{'text':'나무'})
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
     def test_translation_resume_receipt_duplicate_and_unknown(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory

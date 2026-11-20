@@ -6,6 +6,36 @@ from tools.review.common.management_transport import send_management_json_respon
 from generators.kimodo.contracts import KIMODO_JOB_STORAGE,KIMODO_ENVIRONMENT_PYTHON,inspect_kimodo_assets,validate_kimodo_assets,validate_kimodo_request
 from tools.review.common.reference_video_generation import ReferenceVideoGenerationManager
 
+def inspect_kimodo_preparation_for_resume(current_workflow_root):
+    """모델 준비 충돌을 확인하지 못하면 재개를 차단한다."""
+    import fcntl
+    import json
+    import os
+    from tools.review.common.model_prepare_process import resolve_model_preparation_root
+    current_preparation_root=resolve_model_preparation_root(current_workflow_root,'kimodo')
+    if current_preparation_root.is_symlink():raise ValueError('모델 준비 경로 오류')
+    try:
+        current_preparation_root.stat()
+    except FileNotFoundError:
+        return 'idle'
+    current_lock_path=current_preparation_root/'worker.lock'
+    if current_lock_path.is_symlink():raise ValueError('모델 준비 잠금 경로 오류')
+    try:
+        current_lock_descriptor=os.open(current_lock_path,os.O_WRONLY|os.O_CREAT|os.O_APPEND|os.O_NOFOLLOW,0o666)
+        with os.fdopen(current_lock_descriptor,'a') as current_lock_stream:
+            try:fcntl.flock(current_lock_stream,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            except BlockingIOError:return 'running'
+            current_status_path=current_preparation_root/'status.json'
+            if current_status_path.is_symlink():raise ValueError('모델 준비 상태 경로 오류')
+            try:current_status_record=json.loads(current_status_path.read_text(encoding='utf-8'))
+            except FileNotFoundError:return 'idle'
+            if not isinstance(current_status_record,dict) or current_status_record.get('status') not in ('idle','completed','failed'):
+                raise ValueError('모델 준비 상태를 확인할 수 없습니다.')
+            return current_status_record['status']
+    except (OSError,TypeError,json.JSONDecodeError) as current_preparation_error:
+        raise ValueError('모델 준비 상태를 확인할 수 없습니다.') from current_preparation_error
+
+
 class KimodoGenerationManager(ReferenceVideoGenerationManager):
     def __init__(self):
         super().__init__('/kimodo',KIMODO_JOB_STORAGE,'generators/kimodo/worker.py',validate_kimodo_request,validate_kimodo_assets,self.inspect_model_preparation)
@@ -38,10 +68,13 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
                 raise ValueError('모델 다운로드를 시작할 수 없습니다.') from current_start_error
 
     def preview_generation_cleanup(self):
-        from tools.review.common.generation_cleanup import describe_cleanup_excluding_blocked
+        from tools.review.common.generation_cleanup import describe_cleanup_excluding_blocked, hold_cleanup_preview_guard
         from tools.review.domains.image.image_generation import MANAGER_HISTORY_LOCK
-        with self.current_request_lock, MANAGER_HISTORY_LOCK:
-            return describe_cleanup_excluding_blocked(self.job_storage_root,self.list_cleanup_targets())
+        with hold_cleanup_preview_guard(self.job_storage_root):
+            with self.current_request_lock:
+                with MANAGER_HISTORY_LOCK:
+                    current_cleanup_targets=self.list_cleanup_targets()
+                return describe_cleanup_excluding_blocked(self.job_storage_root,current_cleanup_targets)
 
     def clear_image_generation_files(self,current_expected_jobs=None):
         """현재 실행·대기 및 검증 불가 작업은 건드리지 않고 확인된 종료 작업만 정리한다."""
@@ -88,12 +121,78 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
         current_active_identifiers.sort(reverse=True)
         return {'running':bool(current_active_identifiers),'id':current_active_identifiers[0] if current_active_identifiers else None,'count':len(current_active_identifiers),'unknown_count':current_unknown_count,'note':'상태 파일 기록이며 확인 불가 기록과 실제 프로세스 생존·종료는 별도 확인이 필요합니다.'}
 
+    def preview_kimodo_resume_records(self,current_job_identifier):
+        """기존 기록과 키프레임의 검토 시점 상태만 확인하며 재개하지 않는다."""
+        import re
+        from tools.review.common.gpu_job_queue import preview_gpu_resume_records
+        from tools.review.domains.image.image_generation import WORKFLOW_ROOT_PATH
+        if not isinstance(current_job_identifier,str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_job_identifier):
+            raise ValueError('Kimodo 작업 ID 형식 오류')
+        current_job_directory=self.job_storage_root/current_job_identifier
+        if current_job_directory.is_symlink() or not current_job_directory.is_dir():
+            raise ValueError('Kimodo 작업을 확인할 수 없습니다.')
+        current_expected_command=[str(self.select_generation_python()),str(WORKFLOW_ROOT_PATH/self.select_generation_runner()),'--job-dir',str(current_job_directory)]
+        from tools.review.domains.kimodo.keyframe_storage import fingerprint_kimodo_job_keyframes
+        import json
+        current_keyframe_fingerprints=[]
+        def inspect_kimodo_resume_inputs(current_request_value):
+            current_before_fingerprint=fingerprint_kimodo_job_keyframes(current_job_directory,current_request_value)
+            self.validate_generation_resume(current_job_directory)
+            current_after_fingerprint=fingerprint_kimodo_job_keyframes(current_job_directory,current_request_value)
+            if current_before_fingerprint!=current_after_fingerprint:raise ValueError('검토 중 키프레임이 변경됐습니다.')
+            current_keyframe_fingerprints.append(current_after_fingerprint)
+        with self.current_request_lock:
+            try:
+                current_preparation_state=inspect_kimodo_preparation_for_resume(Path(__file__).resolve().parents[4])
+                current_resume_availability='download_running' if current_preparation_state=='running' else 'available' if current_preparation_state in ('idle','completed','failed') else 'unknown'
+            except (OSError,ValueError,TypeError):
+                current_resume_availability='unknown'
+            current_preview_record=preview_gpu_resume_records(current_job_directory,self.select_generation_service(),current_expected_command,inspect_kimodo_resume_inputs)
+            current_request_record=json.loads((current_job_directory/'request.json').read_text())
+            if fingerprint_kimodo_job_keyframes(current_job_directory,current_request_record)!=current_keyframe_fingerprints[0]:raise ValueError('검토 중 키프레임이 변경됐습니다.')
+        return {'id':current_job_identifier,'service':'kimodo',**current_preview_record,'keyframe_fingerprint':current_keyframe_fingerprints[0],'resume_availability':current_resume_availability,'note':'작업 기록·키프레임과 모델 준비 충돌을 조회한 시점의 결과입니다. 접수 시 다시 확인하며 GPU 가용성은 별도입니다.'}
+
+    def resume_kimodo_reviewed_records(self,current_job_identifier,current_expected_fingerprint,current_keyframe_fingerprint):
+        """검토한 기록·키프레임을 공용 재개 잠금에서 다시 확인한다."""
+        import json
+        import re
+        from tools.review.common.gpu_job_queue import resume_gpu_generation
+        from tools.review.domains.image.image_generation import WORKFLOW_ROOT_PATH
+        from tools.review.domains.kimodo.keyframe_storage import fingerprint_kimodo_job_keyframes
+        if not isinstance(current_job_identifier,str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_job_identifier):raise ValueError('Kimodo 작업 ID 형식 오류')
+        if not isinstance(current_expected_fingerprint,str) or not re.fullmatch(r'[a-f0-9]{64}',current_expected_fingerprint):raise ValueError('재개 확인값 오류')
+        if current_keyframe_fingerprint is not None and (not isinstance(current_keyframe_fingerprint,str) or not re.fullmatch(r'[a-f0-9]{64}',current_keyframe_fingerprint)):raise ValueError('키프레임 확인값 오류')
+        current_job_directory=self.job_storage_root/current_job_identifier
+        if current_job_directory.is_symlink() or not current_job_directory.is_dir():raise ValueError('Kimodo 작업을 확인할 수 없습니다.')
+        current_expected_command=[str(self.select_generation_python()),str(WORKFLOW_ROOT_PATH/self.select_generation_runner()),'--job-dir',str(current_job_directory)]
+        def validate_kimodo_resume_guard(current_checked_directory):
+            current_preparation_state=inspect_kimodo_preparation_for_resume(Path(__file__).resolve().parents[4])
+            if current_preparation_state not in ('idle','completed','failed'):
+                raise ValueError('모델 준비가 진행 중이거나 상태를 확인할 수 없습니다.')
+            current_request_record=json.loads((current_checked_directory/'request.json').read_text())
+            if fingerprint_kimodo_job_keyframes(current_checked_directory,current_request_record)!=current_keyframe_fingerprint:raise ValueError('검토한 키프레임이 변경됐습니다.')
+            self.validate_generation_resume(current_checked_directory)
+            if fingerprint_kimodo_job_keyframes(current_checked_directory,current_request_record)!=current_keyframe_fingerprint:raise ValueError('검토 중 키프레임이 변경됐습니다.')
+        with self.current_request_lock:
+            return resume_gpu_generation(current_job_directory,expected_resume_fingerprint=current_expected_fingerprint,expected_resume_service=self.select_generation_service(),expected_resume_command=current_expected_command,resume_validation_callback=validate_kimodo_resume_guard)
+
     def handle_image_request(self, current_http_handler):
         """게이트웨이에서 검증한 모델 준비·키프레임 명령을 처리한다."""
         import json
         from urllib.parse import urlsplit
         current_request_path = urlsplit(current_http_handler.path).path
         current_command_payload = getattr(current_http_handler, 'management_command_payload', None)
+        if current_request_path == '/kimodo/resume/reviewed':
+            if current_http_handler.command!='POST' or not isinstance(current_command_payload,dict) or set(current_command_payload)!={'id','expected_resume_fingerprint','keyframe_fingerprint'}:
+                raise ValueError('Kimodo 재개에는 작업 ID와 검토한 두 확인값이 필요합니다.')
+            current_result_value=self.resume_kimodo_reviewed_records(current_command_payload['id'],current_command_payload['expected_resume_fingerprint'],current_command_payload['keyframe_fingerprint'])
+            send_management_json_response(current_http_handler,200,current_result_value)
+            return True
+        if current_request_path == '/kimodo/resume/preview':
+            if current_http_handler.command!='POST' or not isinstance(current_command_payload,dict) or set(current_command_payload)!={'id'}:
+                raise ValueError('Kimodo 재개 검토에는 작업 ID만 필요합니다.')
+            send_management_json_response(current_http_handler,200,self.preview_kimodo_resume_records(current_command_payload['id']))
+            return True
         if current_request_path == '/kimodo/active-observe':
             if current_http_handler.command != 'GET' or current_command_payload != {}:
                 raise ValueError('Kimodo 기록 관측은 입력을 받지 않습니다.')

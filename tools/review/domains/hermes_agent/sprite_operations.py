@@ -5,7 +5,7 @@ import json
 import math
 import re
 from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists
 from tools.review.domains.hermes_agent.sprite_observer import validate_hermes_sprite_path, call_hermes_sprite_editor
 
 
@@ -182,11 +182,17 @@ def save_hermes_sprite_anchor_once(current_request_identifier,current_draft_reco
     current_storage_value=HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
-        if current_receipt_path.exists():
+        if check_delegation_record_exists(current_receipt_path):
             current_receipt_record=json.loads(current_receipt_path.read_text(encoding='utf-8'))
             current_result_record=inspect_hermes_sprite_receipt(current_receipt_record,current_request_identifier)
             if current_receipt_record.get('token')!=current_preview_token or current_receipt_record.get('review_sha256')!=current_review_digest:raise ValueError('같은 접수 ID를 다른 요청에 사용할 수 없습니다.')
             return {**current_result_record,'duplicate':True}
+        from tools.review.domains.hermes_agent.sprite_pending_observer import inspect_hermes_sprite_pending_status
+        current_pending_record=inspect_hermes_sprite_pending_status()
+        if not isinstance(current_pending_record,dict) or current_pending_record.get('state') not in ('clear','busy','pending','unavailable'):
+            raise ValueError('스프라이트 저장 상태 응답 오류')
+        if current_pending_record['state']!='clear':
+            return {'request_id':current_request_identifier,'state':'blocked','saved':False,'reason':current_pending_record['state'],'path':current_draft_record['path'],'duplicate':False}
         current_update_payload,current_preview_record=prepare_hermes_sprite_anchor_edit(current_draft_record)
         if current_preview_record['review_sha256']!=current_review_digest:raise ValueError('스프라이트 검수 결과가 변경됐습니다. 다시 확인하세요.')
         current_receipt_record={'version':9,'id':current_request_identifier,'token':current_preview_token,'review_sha256':current_review_digest,'state':'dispatching','path':current_draft_record['path']}
@@ -203,5 +209,5 @@ def read_hermes_sprite_anchor_receipt(current_request_identifier):
     current_storage_value=HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
-        if not current_receipt_path.exists():return {'state':'not_found'}
+        if not check_delegation_record_exists(current_receipt_path):return {'state':'not_found'}
         return inspect_hermes_sprite_receipt(json.loads(current_receipt_path.read_text(encoding='utf-8')),current_request_identifier)

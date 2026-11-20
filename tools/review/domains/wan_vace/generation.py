@@ -5,11 +5,23 @@ from generators.wan_vace.contracts import VACE_JOB_STORAGE, inspect_vace_assets,
 from tools.review.common.management_transport import send_management_json_response
 from tools.review.common.model_prepare_process import inspect_registered_preparation, start_registered_preparation
 from tools.review.common.reference_video_generation import ReferenceVideoGenerationManager
+from tools.review.common.video_attachment_verification import verify_saved_video_attachments
 
 
 class VaceVideoGenerationManager(ReferenceVideoGenerationManager):
     def __init__(self):
         super().__init__('/wan22-vace', VACE_JOB_STORAGE, 'generators/wan_vace/worker.py', validate_vace_request, validate_vace_assets, self.inspect_model_download)
+
+    def validate_generation_resume(self, selected_job_directory, recover_interrupted_value=True):
+        saved_request_record = super().validate_generation_resume(selected_job_directory, recover_interrupted_value=recover_interrupted_value)
+        selected_input_fields = {'video_edit': ('edit_video', 'edit_mask'), 'video_condition': ('edit_video',), 'pose': ('pose_video',), 'text': (), 'reference': (), 'first_frame': ()}
+        current_mode_value = saved_request_record.get('mode')
+        if not isinstance(current_mode_value, str) or current_mode_value not in selected_input_fields:
+            raise ValueError('재개할 영상 모드가 올바르지 않습니다.')
+        expected_image_count = 0 if current_mode_value == 'text' else 1
+        if len(saved_request_record['references']) != expected_image_count:
+            raise ValueError('VACE 재개 참조 이미지 수가 입력 모드와 일치하지 않습니다.')
+        verify_saved_video_attachments(selected_job_directory, saved_request_record, selected_input_fields[current_mode_value])
 
     def validate_generation_runtime(self, saved_request_record=None):
         if saved_request_record is not None and saved_request_record.get('model_profile') != 'official-bf16-resident-v1':

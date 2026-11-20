@@ -4,7 +4,7 @@ import os
 import re
 
 from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists
 from tools.review.domains.hermes_agent.reservation_observer import find_generator_reservation_record, inspect_generator_reservation_record
 from tools.review.domains.hermes_agent.writer_reservation import hold_writer_reservation_queue_lock, is_writer_executor_definitely_absent
 
@@ -31,7 +31,7 @@ def recover_generator_reservation_once(current_request_identifier,current_servic
     current_store_value=HermesDelegationStore()
     with current_store_value.hold_delegation_storage_lock():
         current_receipt_path=current_store_value.resolve_delegation_record_path(current_request_identifier)
-        if current_receipt_path.exists():
+        if check_delegation_record_exists(current_receipt_path):
             current_receipt_record=json.loads(current_receipt_path.read_text())
             current_result_record=inspect_generator_recovery_receipt(current_receipt_record,current_request_identifier)
             if (current_receipt_record.get('service'),current_receipt_record.get('job_id'),current_receipt_record.get('review_sha256'))!=(current_service_name,current_job_identifier,current_review_digest):raise ValueError('같은 접수 ID를 다른 예약에 사용할 수 없습니다.')
@@ -72,5 +72,5 @@ def read_generator_recovery_receipt(current_request_identifier):
     current_store_value=HermesDelegationStore()
     with current_store_value.hold_delegation_storage_lock():
         current_receipt_path=current_store_value.resolve_delegation_record_path(current_request_identifier)
-        if not current_receipt_path.exists():return {'state':'not_found'}
+        if not check_delegation_record_exists(current_receipt_path):return {'state':'not_found'}
         return inspect_generator_recovery_receipt(json.loads(current_receipt_path.read_text()),current_request_identifier)

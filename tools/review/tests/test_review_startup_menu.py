@@ -7,16 +7,18 @@ from tools.review.common.game_render_metrics import load_game_city_export_source
 
 
 class ReviewStartupMenuTests(unittest.TestCase):
-    def test_database_menu_uses_single_index_request(self):
-        current_documents={'city_layouts/index.yaml':{'data':{'includes':{'layouts':{'town':'town.yaml'}}}},
-            'field_tiles/index.yaml':{'data':{'includes':{'maps':{'field':'field.yaml'}}}},
-            'map_names/town.yaml':{'data':{'ko':'마을'}},'map_names/field.yaml':{'data':{'ko':'필드'}}}
-        with patch.dict(os.environ,{'SLIME_CONTENT_STORAGE':'database'}),patch('tools.review.domains.map_assets.database_client.execute_content_api_request',return_value={'documents':current_documents}) as current_api_mock,patch('tools.review.common.map_asset_sources.load_registered_map_review',side_effect=AssertionError('본문 조회 금지')):
+    def test_database_menu_reads_asset_snapshot_without_database(self):
+        from tools.review.common.map_asset_sources import CURRENT_REVIEW_ASSET_SOURCE
+        def build_checked_menu_records():
+            self.assertTrue(CURRENT_REVIEW_ASSET_SOURCE.get())
+            return [{'kind':'town'},{'kind':'field'}]
+        with patch.dict(os.environ,{'SLIME_CONTENT_STORAGE':'database'}),patch(
+                'tools.review.domains.map_assets.database_client.execute_content_api_request',side_effect=AssertionError('DB 조회 금지')),patch(
+                'tools.review.common.map_asset_sources.build_registered_map_menu',side_effect=build_checked_menu_records),patch(
+                'tools.review.common.map_asset_sources.load_registered_map_review',side_effect=AssertionError('본문 조회 금지')):
             current_menu_rows=load_review_map_menu()
             self.assertEqual([current_menu_row['kind'] for current_menu_row in current_menu_rows],['town','field'])
-            current_api_mock.assert_called_once_with('GET','/internal/v1/content/review-bundle')
-            del current_documents['map_names/town.yaml']
-            with self.assertRaises(KeyError):load_review_map_menu()
+            self.assertFalse(CURRENT_REVIEW_ASSET_SOURCE.get())
 
     def test_render_metrics_do_not_load_map_bodies(self):
         with patch('tools.review.common.map_asset_sources.load_registered_map_review',side_effect=AssertionError('본문 조회 금지')):

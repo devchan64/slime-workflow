@@ -8,7 +8,7 @@ from tools.review.domains.hermes_agent.capabilities import list_hermes_capabilit
 from tools.review.domains.hermes_agent.asset_observer import read_hermes_billboard_catalog, read_hermes_world_map_catalog, read_hermes_building_catalog
 
 HERMES_OBSERVER_REQUEST = b'gpu-queue\n'
-HERMES_OBSERVER_MAX_REQUEST = 1024
+HERMES_OBSERVER_MAX_REQUEST = 80000
 HERMES_OBSERVER_MAX_RESPONSE = 262144
 
 
@@ -23,12 +23,29 @@ def handle_hermes_observer_connection(current_client_socket):
                 if not current_next_bytes:
                     break
                 current_request_bytes += current_next_bytes
-            if current_request_bytes == HERMES_OBSERVER_REQUEST:
+            if len(current_request_bytes)>HERMES_OBSERVER_MAX_REQUEST or (len(current_request_bytes)>1024 and not current_request_bytes.startswith(b'translation-evidence ')):
+                current_response_record={'error':'지원하지 않는 조회 요청'}
+            elif current_request_bytes == HERMES_OBSERVER_REQUEST:
                 current_response_record = read_hermes_management_snapshot()
+            elif current_request_bytes == b'sprite-pending-status\n':
+                from tools.review.domains.hermes_agent.sprite_pending_observer import inspect_hermes_sprite_pending_status
+                current_response_record=inspect_hermes_sprite_pending_status()
+            elif current_request_bytes == b'writer-index-status\n':
+                try:
+                    from tools.review.domains.hermes_agent.writer_operations import read_hermes_writer_index_status
+                    current_response_record=read_hermes_writer_index_status()
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError):
+                    current_response_record={'error':'작가 색인 상태 조회 실패: 작가 서비스를 확인하세요.'}
             elif current_request_bytes == b'content-database-status\n':
                 current_response_record = read_hermes_content_database_status()
             elif current_request_bytes == b'kimodo-build-status\n':
                 current_response_record = read_hermes_kimodo_build_status()
+            elif current_request_bytes == b'model-download-status\n':
+                try:
+                    from tools.review.domains.hermes_agent.management_observer import read_hermes_model_download_status
+                    current_response_record=read_hermes_model_download_status()
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError):
+                    current_response_record={'error':'모델 다운로드 상태 조회 실패'}
             elif current_request_bytes == b'model-inventory\n':
                 current_response_record = read_hermes_model_inventory()
             elif current_request_bytes == b'world-map\n':
@@ -70,6 +87,63 @@ def handle_hermes_observer_connection(current_client_socket):
                     current_response_record=read_hermes_expression_catalog(current_catalog_request)
                 except (OSError,ValueError,TypeError,KeyError,UnicodeDecodeError):
                     current_response_record={'error':'표정 목록 조회 실패: 검색어와 페이지를 확인하세요.'}
+            elif current_request_bytes.startswith(b'translation-evidence ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.translation_operations import search_hermes_translation_evidence
+                    current_evidence_request=parse_management_request_json(current_request_bytes[len(b'translation-evidence '):-1].decode('utf-8'))
+                    if not isinstance(current_evidence_request,dict) or set(current_evidence_request)!={'text'}:
+                        raise ValueError('번역 근거 검색 입력 오류')
+                    current_response_record=search_hermes_translation_evidence(current_evidence_request['text'])
+                except ValueError as current_evidence_error:
+                    if '문서 추가·수정·삭제 이후 색인이 오래되었습니다' in str(current_evidence_error):
+                        current_response_record={'error':'번역 근거 조회 실패: 작가 색인이 오래되어 갱신이 필요합니다.'}
+                    elif '먼저 학습 명령으로 문서 RAG를 구성하세요' in str(current_evidence_error):
+                        current_response_record={'error':'번역 근거 조회 실패: 작가 색인이 준비되지 않았습니다.'}
+                    else:
+                        current_response_record={'error':'번역 근거 조회 실패: 검색 원문과 작가 색인 상태를 확인하세요.'}
+                except (OSError,RuntimeError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'번역 근거 조회 실패: 검색 원문과 작가 색인 상태를 확인하세요.'}
+            elif current_request_bytes.startswith(b'writer-search-paths ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.writer_operations import read_hermes_writer_search_paths
+                    current_writer_request=parse_management_request_json(current_request_bytes[len(b'writer-search-paths '):-1].decode('utf-8'))
+                    if not isinstance(current_writer_request,dict) or set(current_writer_request)!={'request_id'}:
+                        raise ValueError('작가 검색 입력 오류')
+                    current_response_record=read_hermes_writer_search_paths(current_writer_request['request_id'])
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'작가 검색 경로 조회 실패: 접수 ID를 확인하세요.'}
+            elif current_request_bytes.startswith(b'writer-job-search-paths ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.writer_operations import read_writer_job_search_paths
+                    current_writer_request=parse_management_request_json(current_request_bytes[len(b'writer-job-search-paths '):-1].decode('utf-8'))
+                    if not isinstance(current_writer_request,dict) or set(current_writer_request)!={'job_id'}:
+                        raise ValueError('작가 검색 입력 오류')
+                    current_response_record=read_writer_job_search_paths(current_writer_request['job_id'])
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'작가 검색 경로 조회 실패: 작업 ID와 검색 기록을 확인하세요.'}
+            elif current_request_bytes.startswith(b'writer-job-material ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.writer_operations import read_writer_job_material_page
+                    from generators.writer_agent.material_pages import validate_writer_material_request
+                    current_writer_request=parse_management_request_json(current_request_bytes[len(b'writer-job-material '):-1].decode('utf-8'))
+                    validate_writer_material_request(current_writer_request)
+                    current_response_record=read_writer_job_material_page(current_writer_request)
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'작가 자료 조회 실패: 작업 ID·자료 종류·페이지 지문을 확인하세요.'}
+            elif current_request_bytes.startswith(b'writer-job-review ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.writer_operations import read_writer_job_review
+                    current_writer_request=parse_management_request_json(current_request_bytes[len(b'writer-job-review '):-1].decode('utf-8'))
+                    if not isinstance(current_writer_request,dict) or set(current_writer_request)!={'job_id'}:
+                        raise ValueError('작가 작업 입력 오류')
+                    current_response_record={'job_id':current_writer_request['job_id'],'job':read_writer_job_review(current_writer_request['job_id'])}
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'작가 작업 조회 실패: 작업 ID와 원 서비스를 확인하세요.'}
             elif current_request_bytes.startswith(b'capture-status ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
                 try:
                     from tools.review.common.management_gateway import parse_management_request_json
@@ -114,6 +188,47 @@ def handle_hermes_observer_connection(current_client_socket):
                     current_response_record = read_hermes_field_region(current_region_request)
                 except (OSError, RuntimeError, ValueError, TypeError, KeyError, UnicodeDecodeError):
                     current_response_record = {'error':'야외 맵 영역 조회 실패: 맵 ID·리비전·범위를 확인하세요.'}
+            elif current_request_bytes.startswith(b'cleanup-preview ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.domains.hermes_agent.cleanup_preview_observer import read_hermes_cleanup_preview
+                    current_service_name=current_request_bytes[len(b'cleanup-preview '):-1].decode('ascii')
+                    current_response_record=read_hermes_cleanup_preview(current_service_name)
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'정리 미리보기를 확인할 수 없습니다. 원 서비스 상태를 확인하세요.'}
+            elif current_request_bytes.startswith(b'video-resume-preview ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.video_resume_operations import preview_hermes_video_resume
+                    current_video_request=parse_management_request_json(current_request_bytes[len(b'video-resume-preview '):-1].decode('utf-8'))
+                    if not isinstance(current_video_request,dict) or set(current_video_request)!={'service','job_id'}:raise ValueError('영상 검토 입력 오류')
+                    current_response_record=preview_hermes_video_resume(current_video_request['service'],current_video_request['job_id'])
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'영상 재개 검토 실패: 작업과 원 서비스 상태를 확인하세요.'}
+            elif current_request_bytes.startswith(b'flux-resume-preview ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.flux_resume_operations import preview_hermes_flux_resume
+                    current_flux_request=parse_management_request_json(current_request_bytes[len(b'flux-resume-preview '):-1].decode('utf-8'))
+                    if not isinstance(current_flux_request,dict) or set(current_flux_request)!={'service','job_id'}:raise ValueError('FLUX 검토 입력 오류')
+                    current_response_record=preview_hermes_flux_resume(current_flux_request['service'],current_flux_request['job_id'])
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'FLUX 재개 검토 실패: 작업과 원 서비스 상태를 확인하세요.'}
+            elif current_request_bytes.startswith(b'kimodo-resume-preview ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.domains.hermes_agent.kimodo_resume_operations import preview_hermes_kimodo_resume
+                    from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+                    current_job_identifier=current_request_bytes[len(b'kimodo-resume-preview '):-1].decode('ascii')
+                    if not validate_service_job_identifier('kimodo',current_job_identifier):raise ValueError('Kimodo 작업 ID 오류')
+                    current_response_record=preview_hermes_kimodo_resume(current_job_identifier)
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'Kimodo 재개 검토 실패: 작업과 원 서비스 상태를 확인하세요.'}
+            elif current_request_bytes.startswith(b'city-source ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.domains.hermes_agent.city_map_operations import read_hermes_city_source
+                    current_city_identifier=current_request_bytes[len(b'city-source '):-1].decode('ascii')
+                    current_response_record=read_hermes_city_source(current_city_identifier)
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'도시 원본 조회 실패: 맵 ID와 등록 원본을 확인하세요.'}
             elif current_request_bytes.startswith(b'city-map ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n') == 1:
                 try:
                     from tools.review.domains.hermes_agent.city_map_operations import load_hermes_city_map

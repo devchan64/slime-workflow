@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_delegation_record_paths, check_delegation_record_exists
 
 PRIORITY_RECEIPT_ROOT=Path(__file__).resolve().parents[4]/'.local/hermes-agent/priority-receipts'
 
@@ -26,7 +26,7 @@ def read_hermes_priority_receipt(current_request_identifier):
     current_storage=HermesDelegationStore(PRIORITY_RECEIPT_ROOT)
     with current_storage.hold_delegation_storage_lock():
         current_path=current_storage.resolve_delegation_record_path(current_request_identifier)
-        if not current_path.exists():return {'state':'not_found'}
+        if not check_delegation_record_exists(current_path):return {'state':'not_found'}
         return inspect_hermes_priority_receipt(json.loads(current_path.read_text(encoding='utf-8')),current_request_identifier)
 
 
@@ -40,12 +40,12 @@ def submit_hermes_priority_once(current_request_identifier,current_service_name,
     current_storage=HermesDelegationStore(PRIORITY_RECEIPT_ROOT)
     with current_storage.hold_delegation_storage_lock():
         current_path=current_storage.resolve_delegation_record_path(current_request_identifier)
-        if current_path.exists():
+        if check_delegation_record_exists(current_path):
             current_receipt=inspect_hermes_priority_receipt(json.loads(current_path.read_text(encoding='utf-8')),current_request_identifier)
             if (current_receipt['service'],current_receipt['job_id'],current_receipt['ticket_revision'])!=(current_service_name,current_job_identifier,current_ticket_revision):
                 raise ValueError('같은 접수 ID를 다른 대기 작업이나 티켓에 사용할 수 없습니다.')
             return {**current_receipt,'duplicate':True}
-        for current_existing_path in current_storage.delegation_storage_root.glob('*.json'):
+        for current_existing_path in list_delegation_record_paths(current_storage.delegation_storage_root):
             current_existing_identifier=current_existing_path.stem
             current_storage.resolve_delegation_record_path(current_existing_identifier)
             if not current_existing_path.is_file():raise ValueError('우선 실행 접수 목록을 확인할 수 없습니다.')

@@ -25,6 +25,57 @@ class WriterApiContracts(TestCase):
         current_http_handler.end_headers=lambda:None
         return current_http_handler
 
+    def test_material_page_reads_only_requested_source_and_status(self):
+        import yaml
+        from generators.writer_agent import management
+        current_state_root=Path(self.temporary_root_handle.name)
+        current_job_identifier='20261115-114927-8d274ccd'
+        current_job_root=current_state_root/'jobs'/current_job_identifier
+        current_job_root.mkdir(parents=True)
+        (current_job_root/'status.yaml').write_text(yaml.safe_dump({'id':current_job_identifier,'stage':'review'}))
+        (current_job_root/'search.yaml').write_text(yaml.safe_dump({'results':[{'text':'안녕'*1000}],'snapshot_hashes':{'private':'excluded'}},allow_unicode=True))
+        (current_job_root/'proposal.yaml').write_text('invalid: [')
+        (current_job_root/'execution.log').write_text('로그를 읽으면 안 됩니다')
+        current_request_record={'job_id':current_job_identifier,'section':'search','limit':1000}
+        current_http_handler=self.build_request_handler('/writer-agent/api/material-page','POST',current_request_record)
+        with patch.object(management,'load_workspace_config',return_value={'state_root':str(current_state_root)}),patch.object(management,'read_yaml_document',wraps=management.read_yaml_document) as current_read_mock:
+            self.assertTrue(self.writer_manager_service.handle_writer_request(current_http_handler))
+        self.assertEqual(current_http_handler.status_code,200)
+        current_page_value=json.loads(current_http_handler.wfile.getvalue())
+        self.assertEqual(current_page_value['section'],'search')
+        self.assertEqual({current_call.args[0].name for current_call in current_read_mock.call_args_list},{'status.yaml','search.yaml'})
+        self.assertNotIn('snapshot_hashes',current_page_value['content'])
+        self.assertIsNotNone(current_page_value['next_offset'])
+
+    def test_older_active_job_blocks_new_submission_after_manager_restart(self):
+        from generators.writer_agent.documents import save_yaml_document
+        current_test_root=Path(self.temporary_root_handle.name)
+        current_jobs_root=current_test_root/'jobs'
+        current_jobs_root.mkdir()
+        current_config_path=current_test_root/'workspace.yaml'
+        current_config_path.write_text('configured')
+        current_workspace_config={'state_root':str(current_test_root),'document_root':str(current_test_root/'documents')}
+        current_old_identifier='20261101-000000-00000000'
+        current_old_root=current_jobs_root/current_old_identifier
+        current_old_root.mkdir()
+        save_yaml_document(current_old_root/'status.yaml',{'id':current_old_identifier,'stage':'queued'})
+        (current_old_root/'queue-process.json').write_text(json.dumps({'pid':os.getpid(),'identity':read_process_identity(os.getpid())}))
+        (current_old_root/'status.json').write_text(json.dumps({'status':'queued','queue_position':1}))
+        for current_job_number in range(45):
+            current_job_identifier=f'20261120-000000-{current_job_number:08x}'
+            current_job_root=current_jobs_root/current_job_identifier
+            current_job_root.mkdir()
+            save_yaml_document(current_job_root/'status.yaml',{'id':current_job_identifier,'stage':'completed'})
+        current_manager_value=WriterAgentManager(current_config_path)
+        with patch('generators.writer_agent.management.load_workspace_config',return_value=current_workspace_config), patch('generators.writer_agent.management.launch_gpu_process') as current_launch_mock, patch('generators.writer_agent.management.create_writer_job') as current_create_mock:
+            current_state_value=current_manager_value.read_workspace_state()
+            self.assertEqual(len(current_state_value['jobs']),40)
+            self.assertEqual(current_state_value['active_job'],current_old_identifier)
+            with self.assertRaisesRegex(ValueError,'실행 중이거나 대기 중'):
+                current_manager_value.launch_writer_process({'mode':'learn','prompt':''})
+            current_create_mock.assert_not_called()
+            current_launch_mock.assert_not_called()
+
     def test_external_worker_identity_and_interrupted_status(self):
         current_status_values={'id':'test-job','stage':'indexing','process_id':os.getpid(),'process_identity':read_process_identity(os.getpid())}
         self.assertEqual(self.writer_manager_service.resolve_observed_status(current_status_values)['stage'],'indexing')
@@ -102,6 +153,32 @@ class WriterApiContracts(TestCase):
         (current_job_root/'status.yaml').write_text('invalid: [')
         self.assertEqual(current_manager.observe_writer_history({})['records'][0]['recorded_status'],'unknown')
         with self.assertRaises(ValueError):current_manager.observe_writer_history({'offset':1})
+
+    def test_writer_history_delete_rejects_unknown_or_active_queue_records(self):
+        from generators.writer_agent.documents import save_yaml_document,load_workspace_config
+        from generators.writer_agent.jobs import create_writer_job,resolve_job_directory,update_job_status
+        current_test_root=Path(self.temporary_root_handle.name)
+        current_documents_root=current_test_root/'docs'
+        (current_documents_root/'ideas').mkdir(parents=True)
+        current_workspace_path=current_test_root/'workspace.yaml'
+        save_yaml_document(current_workspace_path,{'schema_version':1,'document_root':str(current_documents_root),'state_root':str(current_test_root/'state'),'write_roots':['ideas'],'excluded_roots':[],'protected_paths':[],'catalog_path':None})
+        current_config_values=load_workspace_config(current_workspace_path)
+        current_job_identifier=create_writer_job(current_config_values,{'mode':'learn','prompt':''})
+        current_job_root=resolve_job_directory(current_config_values,current_job_identifier)
+        current_manager_value=WriterAgentManager(current_workspace_path)
+        for current_queue_value in ({'status':'queued'},{'status':'running'},{'status':'paused'},{'bad':'record'}):
+            update_job_status(current_job_root,'completed')
+            (current_job_root/'status.json').write_text(json.dumps(current_queue_value))
+            with self.subTest(current_queue_value=current_queue_value), self.assertRaisesRegex(ValueError,'삭제할 수 없습니다'):
+                current_manager_value.delete_writer_history(current_job_identifier)
+            self.assertTrue(current_job_root.is_dir())
+        (current_job_root/'status.json').write_text(json.dumps({'status':'completed'}))
+        save_yaml_document(current_job_root/'status.yaml',{'id':current_job_identifier,'stage':'unrecognized'})
+        with self.assertRaisesRegex(ValueError,'상태를 확인'):
+            current_manager_value.delete_writer_history(current_job_identifier)
+        self.assertTrue(current_job_root.is_dir())
+        update_job_status(current_job_root,'completed')
+        self.assertTrue(current_manager_value.delete_writer_history(current_job_identifier)['recoverable'])
 
     def test_search_all_history_and_move_only_finished_job_to_trash(self):
         from generators.writer_agent.documents import save_yaml_document,load_workspace_config

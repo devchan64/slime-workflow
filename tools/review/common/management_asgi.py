@@ -17,6 +17,7 @@ import gradio as gr
 
 MANAGEMENT_INTERFACE_BUILDERS = {
     'operations-history': ('operations_history_app', 'build_operations_history_interface', 'none'),
+    'hermes-direct': ('hermes_agent_app', 'build_hermes_direct_interface', 'none'),
     'mock-dwpose-validation': ('mock_progress_validation_app', 'build_mock_dwpose_interface', 'url'),
     'mock-animate-validation': ('mock_progress_validation_app', 'build_mock_animate_interface', 'url'),
     'mock-progress-validation': ('mock_progress_validation_app', 'build_mock_progress_validation_interface', 'url'),
@@ -104,6 +105,10 @@ def execute_legacy_request(current_handler_class, current_root_path, current_req
     return current_response_value
 
 
+from starlette.requests import ClientDisconnect
+from uvicorn.protocols.utils import ClientDisconnected
+
+
 async def bridge_gradio_heartbeat(current_application, current_scope, current_receive, current_send):
     """Gradio의 heartbeat 요청과 종료 처리를 동일 서버의 WebSocket으로 전달한다."""
     current_headers = dict(current_scope.get('headers', []))
@@ -152,10 +157,25 @@ async def bridge_gradio_heartbeat(current_application, current_scope, current_re
     current_disconnect_task = asyncio.create_task(observe_heartbeat_disconnect())
     try:
         await current_application(current_http_scope, receive_heartbeat_http, send_heartbeat_http)
+    except (ClientDisconnect, ClientDisconnected):
+        current_disconnected.set()
     finally:
         current_disconnected.set()
         current_disconnect_task.cancel()
         await asyncio.gather(current_disconnect_task, return_exceptions=True)
+
+
+def is_hermes_predict_diagnostic_enabled(current_root_path):
+    """환경 변수 또는 최근 60초의 로컬 표식으로 요청 번호 진단을 켠다."""
+    import time
+    if os.environ.get('SLIME_HERMES_PREDICT_DIAGNOSTIC')=='1':return True
+    current_marker_path=Path(current_root_path)/'.tmp'/'hermes-predict-diagnostic'
+    try:
+        if current_marker_path.is_symlink() or not current_marker_path.is_file():return False
+        current_marker_age=time.time()-current_marker_path.stat().st_mtime
+        return 0<=current_marker_age<=60
+    except OSError:
+        return False
 
 
 def wrap_predict_diagnostic_receiver(current_receive_call, current_emit_function):
@@ -295,7 +315,7 @@ def build_management_application(current_handler_class, current_root_path, curre
                         current_message = dict(current_message, body=current_body_bytes)
                     await current_send_call(current_message)
                 return await current_mounted_apps[current_tool_name](current_request_scope, current_receive_call, send_document_with_heartbeat_bridge)
-            if current_tool_name == 'hermes-agent' and current_request_scope.get('method') == 'POST' and current_request_path.endswith('/gradio_api/run/predict') and os.environ.get('SLIME_HERMES_PREDICT_DIAGNOSTIC') == '1':
+            if current_tool_name == 'hermes-agent' and current_request_scope.get('method') == 'POST' and current_request_path.endswith('/gradio_api/run/predict') and is_hermes_predict_diagnostic_enabled(Path(__file__).resolve().parents[3]):
                 current_receive_call = wrap_predict_diagnostic_receiver(current_receive_call, lambda current_event_identifier: logging.warning('Hermes predict event=%d', current_event_identifier))
             return await current_mounted_apps[current_tool_name](current_request_scope, current_receive_call, current_send_call)
         current_request_body = bytearray()

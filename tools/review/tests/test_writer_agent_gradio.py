@@ -6,6 +6,37 @@ from tools.review.ui.gradio.writer_agent_app import build_writer_agent_interface
 
 
 class WriterAgentGradioTest(unittest.TestCase):
+    def test_linked_writer_search_clears_other_selection(self):
+        from tools.review.ui.gradio.writer_agent_app import prepare_writer_history_link
+        current_job_identifier='20261118-120000-12345678'
+        current_interface_value=build_writer_agent_interface(8770)
+        current_config_value=current_interface_value.get_config_file()
+        self.assertTrue(any(current_component.get('props',{}).get('value')=='전달된 작업을 이력에서 찾기' for current_component in current_config_value['components']))
+        self.assertTrue(any("searchParams.get('job')" in str(current_dependency.get('js','')) for current_dependency in current_config_value['dependencies']))
+        current_search_callbacks=[current_dependency.fn for current_dependency in current_interface_value.fns.values() if current_dependency.fn and current_dependency.fn.__name__=='search_writer_history_records']
+        self.assertEqual(len(current_search_callbacks),3)
+        current_link_values=prepare_writer_history_link(current_job_identifier)
+        self.assertTrue(current_link_values[1]['visible'])
+        current_response_value={'jobs':[{'id':current_job_identifier,'mode':'write','stage':'review','summary':'검토'}],'count':1}
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',return_value=current_response_value) as current_service_mock:
+            current_rows,current_selection,current_count=current_search_callbacks[-1](current_link_values[0],'other-job')
+        current_service_mock.assert_called_once_with(8770,'history',{'query':current_job_identifier})
+        self.assertEqual(current_rows[0][0],current_job_identifier)
+        self.assertIsNone(current_selection)
+        self.assertIn('1건',current_count)
+
+    def test_writer_history_search_failure_clears_selection(self):
+        current_interface_value=build_writer_agent_interface(8770)
+        current_search_callback=next(current_dependency.fn for current_dependency in current_interface_value.fns.values() if current_dependency.fn and current_dependency.fn.__name__=='search_writer_history_records')
+        for current_response_value in (OSError('lost'),{'jobs':[],'count':'bad'},{'jobs':[{}],'count':1}):
+            with self.subTest(response=current_response_value),patch('tools.review.ui.gradio.writer_agent_app.request_writer_service') as current_service_mock:
+                if isinstance(current_response_value,Exception):current_service_mock.side_effect=current_response_value
+                else:current_service_mock.return_value=current_response_value
+                current_rows,current_selection,current_notice=current_search_callback('job-a','old-job')
+                self.assertEqual(current_rows,[])
+                self.assertIsNone(current_selection)
+                self.assertIn('검색에 실패',current_notice)
+
     def test_model_readiness_links_to_management_when_not_ready(self):
         current_interface_blocks = build_writer_agent_interface(8770)
         current_links = [current_component for current_component in current_interface_blocks.config['components']
@@ -199,11 +230,25 @@ class WriterAgentGradioTest(unittest.TestCase):
             for current_detail_record,current_selected_identifier,current_confirm_value in (({'id':'job-a'},'job-b',True),({'id':'job-a'},'job-a',False)):
                 with self.assertRaises(gr.Error):current_delete_callback(current_detail_record,current_selected_identifier,current_confirm_value,'')
             current_service_mock.assert_not_called()
-        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',side_effect=[{'status':'deleted'},{'jobs':[],'count':0}]) as current_service_mock:
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',side_effect=[{'id':'job-a','status':'deleted','recoverable':True},{'jobs':[],'count':0}]) as current_service_mock:
             current_result_values=current_delete_callback({'id':'job-a'},'job-a',True,'')
             current_service_mock.assert_any_call(8770,'delete',{'id':'job-a'})
             self.assertEqual(current_result_values[0],[])
             self.assertFalse(current_result_values[3])
+
+    def test_writer_delete_uncertain_response_clears_confirmation(self):
+        current_interface_value=build_writer_agent_interface(8770)
+        current_delete_callback=next(current_dependency.fn for current_dependency in current_interface_value.fns.values() if current_dependency.fn and current_dependency.fn.__name__=='delete_selected_writer_history')
+        for current_response_value in (OSError('lost'),{'id':'other','status':'deleted','recoverable':True},{'id':'job-a','status':'deleted'}):
+            with self.subTest(response=current_response_value),patch('tools.review.ui.gradio.writer_agent_app.request_writer_service') as current_service_mock:
+                if isinstance(current_response_value,Exception):current_service_mock.side_effect=current_response_value
+                else:current_service_mock.return_value=current_response_value
+                current_result_values=current_delete_callback({'id':'job-a'},'job-a',True,'')
+                self.assertIsNone(current_result_values[1])
+                self.assertFalse(current_result_values[3])
+                self.assertFalse(current_result_values[4]['interactive'])
+                self.assertIn('삭제 결과 확인 필요',current_result_values[5])
+                current_service_mock.assert_called_once()
 
     def test_missing_changes_or_hash_never_dispatches_apply(self):
         current_interface_blocks=build_writer_agent_interface(8770)

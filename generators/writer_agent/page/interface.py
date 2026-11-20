@@ -54,6 +54,14 @@ def format_writer_detail(current_detail_record):
             '제안과 차이를 검토하고 적용 확인을 선택하세요.' if current_apply_allowed else '제안 해시가 없어 적용할 수 없습니다. 결과를 다시 조회하세요.' if current_status_record['stage']=='review' and not current_status_record.get('proposal_hash') else '변경 검토 대기 상태의 미적용 제안만 적용할 수 있습니다.',current_application_record or {})
 
 
+def prepare_writer_history_link(current_job_identifier):
+    from generators.writer_agent.jobs import JOB_IDENTIFIER_PATTERN
+    if not current_job_identifier:return '',gr.update(visible=False),''
+    if not isinstance(current_job_identifier,str) or not JOB_IDENTIFIER_PATTERN.fullmatch(current_job_identifier):
+        return '',gr.update(visible=True),'전달된 작가 작업 ID를 확인할 수 없습니다.'
+    return current_job_identifier,gr.update(visible=True),'전달된 작업 '+current_job_identifier+'입니다. 찾기를 누른 뒤 이력에서 결과를 선택하세요.'
+
+
 def build_writer_agent_interface(review_server_port):
     with gr.Blocks(title='작가 AI 에이전트') as current_interface_blocks:
         build_generator_changelog(current_interface_blocks, 'writer-agent')
@@ -85,6 +93,9 @@ def build_writer_agent_interface(review_server_port):
         with gr.Row():
             current_history_query=gr.Textbox(label='이력 검색',placeholder='작업 ID, 종류, 상태 또는 작성 지시',max_length=200)
             current_history_search_button=gr.Button('전체 이력 검색')
+        with gr.Group(visible=False) as current_linked_job_group:
+            current_linked_job_notice=gr.Markdown()
+            current_linked_job_button=gr.Button('전달된 작업을 이력에서 찾기')
         current_history_count=gr.Markdown('전체 이력을 보려면 검색을 누르세요.')
         current_history_table=gr.Dataframe(headers=['ID','작업','상태','요약'],datatype='str',type='array',interactive=False,wrap=True,label='실행 기록 · 행 선택')
         current_history_choice=gr.State(None)
@@ -163,11 +174,16 @@ def build_writer_agent_interface(review_server_port):
             clear_writer_selection_detail,outputs=current_detail_outputs,queue=False).then(
             load_selected_writer_detail,current_history_choice,current_detail_outputs,queue=False)
         def search_writer_history_records(current_query_text,current_selected_identifier):
-            current_history_response=request_writer_service(review_server_port,'history',{'query':current_query_text or ''})
-            current_history_rows=[[current_job_record['id'],WRITER_MODE_LABELS.get(current_job_record['mode'],current_job_record['mode']),WRITER_STAGE_LABELS.get(current_job_record['stage'],current_job_record['stage']),current_job_record.get('summary') or current_job_record.get('error') or ''] for current_job_record in current_history_response['jobs']]
+            try:
+                current_history_response=request_writer_service(review_server_port,'history',{'query':current_query_text or ''})
+                current_history_rows=[[current_job_record['id'],WRITER_MODE_LABELS.get(current_job_record['mode'],current_job_record['mode']),WRITER_STAGE_LABELS.get(current_job_record['stage'],current_job_record['stage']),current_job_record.get('summary') or current_job_record.get('error') or ''] for current_job_record in current_history_response['jobs']]
+                if type(current_history_response['count']) is not int or current_history_response['count']<0:raise ValueError('이력 건수 오류')
+            except (OSError,ValueError,RuntimeError,TypeError,KeyError):
+                return [],None,'이력 검색에 실패했습니다. 서비스 상태를 확인한 뒤 다시 검색하세요.'
             current_kept_identifier=current_selected_identifier if any(current_row[0]==current_selected_identifier for current_row in current_history_rows) else None
             return current_history_rows,current_kept_identifier,f"검색 결과 {current_history_response['count']}건"
-        for current_search_event in (current_history_search_button.click,current_history_query.submit):
+        current_interface_blocks.load(prepare_writer_history_link,inputs=[current_history_query],outputs=[current_history_query,current_linked_job_group,current_linked_job_notice],js="(_value)=>[new URL(window.location.href).searchParams.get('job') || '']",preprocess=False,queue=False)
+        for current_search_event in (current_history_search_button.click,current_history_query.submit,current_linked_job_button.click):
             current_search_event(search_writer_history_records,[current_history_query,current_history_choice],[current_history_table,current_history_choice,current_history_count],queue=False).then(
                 lambda:(False,gr.update(interactive=False)),outputs=[current_delete_confirm,current_delete_button],queue=False).then(
                 clear_writer_selection_detail,outputs=current_detail_outputs,queue=False).then(
@@ -180,7 +196,12 @@ def build_writer_agent_interface(review_server_port):
         def delete_selected_writer_history(current_detail_record,current_selected_identifier,current_confirm_value,current_query_text):
             if not current_confirm_value or not current_selected_identifier or current_detail_record.get('id')!=current_selected_identifier:
                 raise gr.Error('선택한 기록과 삭제 확인을 다시 확인하세요.')
-            request_writer_service(review_server_port,'delete',{'id':current_selected_identifier})
+            try:
+                current_delete_response=request_writer_service(review_server_port,'delete',{'id':current_selected_identifier})
+                if not isinstance(current_delete_response,dict) or current_delete_response.get('id')!=current_selected_identifier or current_delete_response.get('status')!='deleted' or current_delete_response.get('recoverable') is not True:
+                    raise ValueError('삭제 응답 확인 불가')
+            except (OSError,ValueError,RuntimeError,TypeError,KeyError):
+                return [],None,'이력을 다시 확인하세요.',False,gr.update(interactive=False),'삭제 결과 확인 필요 · 같은 작업 이력과 휴지통을 확인하고 자동으로 다시 요청하지 마세요.'
             current_rows,current_choices,current_count=search_writer_history_records(current_query_text,None)
             return current_rows,current_choices,current_count,False,gr.update(interactive=False),'선택한 실행 기록을 휴지통으로 이동했습니다.'
         current_delete_button.click(delete_selected_writer_history,[current_detail_state,current_history_choice,current_delete_confirm,current_history_query],[current_history_table,current_history_choice,current_history_count,current_delete_confirm,current_delete_button,current_delete_notice],trigger_mode='once').success(

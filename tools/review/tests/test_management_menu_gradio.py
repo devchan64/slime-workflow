@@ -9,6 +9,39 @@ from tools.review.ui.gradio.management_menu_app import create_initial_selection_
 
 
 class GradioManagementMenuTests(unittest.TestCase):
+    def test_return_link_uses_recent_session_when_tab_has_none(self):
+        current_interface_value,_=build_management_menu_interface([],8770)
+        current_config_value=current_interface_value.get_config_file()
+        current_scripts=[str(current_dependency.get('js','')) for current_dependency in current_config_value['dependencies']]
+        current_return_scripts=[current_script for current_script in current_scripts if 'management-return-conversation' in current_script]
+        self.assertEqual(len(current_return_scripts),1)
+        self.assertIn("localStorage.getItem('slime-management-session')",current_return_scripts[0])
+        self.assertIn('?tabSession:recentSession',current_return_scripts[0])
+
+    def test_return_session_javascript_uses_origin_before_recent(self):
+        import json
+        import subprocess
+        current_interface_value,_=build_management_menu_interface([],8770)
+        current_scripts=[str(current_dependency.get('js','')) for current_dependency in current_interface_value.get_config_file()['dependencies']]
+        current_script_text=next(current_script for current_script in current_scripts if 'management-return-conversation' in current_script)
+        current_runner_text="""
+const vm=require('vm');
+const fn=process.argv[1];
+function check(url,tab,recent,expected){
+ const links={};
+ const context={URL,window:{location:{href:url}},sessionStorage:{getItem:()=>tab},localStorage:{getItem:()=>recent},document:{querySelector:(selector)=>({setAttribute:(_name,value)=>{links[selector]=value;}})}};
+ vm.runInNewContext('('+fn+')()',context);
+ if(links['#management-return-conversation a']!==expected)throw new Error(JSON.stringify(links));
+}
+const a='a'.repeat(32),b='b'.repeat(32),c='c'.repeat(32);
+check('http://localhost/management/frame/writer-agent/?session='+a,b,c,'/management/frame/hermes-agent/?session='+a);
+check('http://localhost/management/frame/writer-agent/',b,c,'/management/frame/hermes-agent/?session='+b);
+check('http://localhost/management/frame/writer-agent/',null,c,'/management/frame/hermes-agent/?session='+c);
+check('http://localhost/management/frame/writer-agent/?session=bad','bad',c,'/management/frame/hermes-agent/?session='+c);
+"""
+        current_result_value=subprocess.run(['node','-e',current_runner_text,current_script_text],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_result_value.returncode,0,current_result_value.stderr)
+
     def test_retired_qwen_pages_are_absent(self):
         import json
         import tempfile
@@ -199,6 +232,8 @@ class ManagementMenuRefreshTests(unittest.TestCase):
     def test_initial_selection_does_not_click_selected_tool(self):
         selection_script_text = create_initial_selection_script([])
         self.assertNotIn('.click()', selection_script_text)
+        self.assertIn("'/management/frame/hermes-direct'", selection_script_text)
+        self.assertIn("return ['', 'all', 'hermes-direct']", selection_script_text)
 
 class ManagementNativeNavigationTests(unittest.TestCase):
     def test_gpu_process_information_uses_collapsible_panel(self):
@@ -209,6 +244,11 @@ class ManagementNativeNavigationTests(unittest.TestCase):
         self.assertFalse(current_panel_record['props']['open'])
         self.assertTrue(any(current_record['type']=='json' and not current_record['props']['visible'] for current_record in current_component_records))
         self.assertFalse(current_interface_blocks.get_config_file()['connect_heartbeat'])
+        current_config_record=current_interface_blocks.get_config_file()
+        current_timer_record=next(current_record for current_record in current_component_records if current_record['type']=='timer')
+        self.assertFalse(current_timer_record['props']['active'])
+        for current_event_name in ('expand','collapse'):
+            self.assertTrue(any((current_panel_record['id'],current_event_name) in current_dependency['targets'] and current_timer_record['id'] in current_dependency['outputs'] for current_dependency in current_config_record['dependencies']))
 
     def test_inline_blocks_keep_shared_sidebar_and_remove_frame_sizing(self):
         import gradio as gr
@@ -240,6 +280,21 @@ currentNavigateTool('','all','image');assert.equal(new URL(currentNavigationCall
 currentNavigateTool('결과 없음','all','anchor-a');assert.equal(currentNavigationCalls.at(-1)[0],'replace');assert.match(currentNavigationCalls.at(-1)[1],/review=anchor-a/);
 const currentFilterCallback="""+current_filter_source+""";
 currentFilterCallback('이미지','all','anchor-a');assert.equal(currentNavigationCalls.at(-1)[0],'replace');assert.match(currentNavigationCalls.at(-1)[1],/review=anchor-a/);assert.match(currentNavigationCalls.at(-1)[1],/action=walk/);
+"""
+        current_command_result=subprocess.run(['node','-e',current_script_source],text=True,capture_output=True)
+        self.assertEqual(current_command_result.returncode,0,current_command_result.stderr)
+
+    def test_direct_map_url_preserves_selected_map_in_initial_navigation(self):
+        import subprocess
+        current_page_records=[{'id':'mock-animate-validation','label':'모의','path':'/mock','category':'model-management','description':'모의','uiMode':'gradio'},{'id':'map-review-iseulon','label':'맵 검수','path':'/isloon-map-review/map-review.html','category':'map-review','description':'맵','uiMode':'gradio','frameIdentifier':'map-review','frameQuery':'map=iseulon'}]
+        current_selection_source=create_initial_selection_script(current_page_records)
+        current_script_source="""
+const assert=require('node:assert/strict');let currentRedirectCount=0;let currentReplacedUrl='';
+global.window={location:{href:'http://review.test/management/frame/map-review/?map=moss-clearing',replace:()=>currentRedirectCount++},history:{state:null,replaceState:(_state,_title,currentUrl)=>{currentReplacedUrl=currentUrl;}}};
+const currentSelectInitial="""+current_selection_source+""";
+assert.equal(currentSelectInitial()[2],'map-review-iseulon');
+assert.equal(currentRedirectCount,0);
+assert.equal(new URL(currentReplacedUrl).searchParams.get('map'),'moss-clearing');
 """
         current_command_result=subprocess.run(['node','-e',current_script_source],text=True,capture_output=True)
         self.assertEqual(current_command_result.returncode,0,current_command_result.stderr)

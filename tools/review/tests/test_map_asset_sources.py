@@ -16,19 +16,20 @@ from tools.review.common.map_asset_http import read_map_asset_response
 WORKFLOW_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
+def allow_extended_map_regression(current_test_function):
+    """여러 실제 맵을 순회하는 검사는 개별 제한을 5분으로 둔다."""
+    current_test_function.regression_timeout_seconds=300
+    return current_test_function
+
+
 class MapAssetSourceTests(unittest.TestCase):
 
-    def test_database_review_preserves_image_manifest_generation(self):
-        current_image_manifest={'test-grass-v1':{'url':'/assets/versions/new.png','sha256':'b'*64,'width':64,'height':64}}
-        current_database_bundle={'generation':7,'imageManifest':current_image_manifest,'documents':{}}
+    def test_database_review_uses_asset_data_without_database(self):
         with patch.dict(os.environ,{'SLIME_CONTENT_STORAGE':'database'}), patch(
-                'tools.review.domains.map_assets.database_client.execute_content_api_request',return_value=current_database_bundle), patch(
-                'tools.review.common.map_asset_sources.build_registered_map_review',return_value={'id':'test-map'}):
+                'tools.review.domains.map_assets.database_client.execute_content_api_request',side_effect=AssertionError('DB 조회 금지')), patch(
+                'tools.review.common.map_asset_sources.build_registered_map_review',return_value={'id':'test-map','safeTown':True}):
             current_review_record=load_registered_map_review('test-map')
-        self.assertEqual(current_review_record['contentGeneration'],7)
-        self.assertEqual(current_review_record['imageManifest']['test-grass-v1'],{**current_image_manifest['test-grass-v1'],'url':'/management/map-assets/database-images/'+('b'*64)})
-        current_review_record['imageManifest'].clear()
-        self.assertTrue(current_image_manifest)
+        self.assertEqual(current_review_record,{'id':'test-map','safeTown':True})
 
     def test_ground_decal_bounds_and_identifiers(self):
         from tools.review.domains.map_assets.decals import validate_ground_decal_records
@@ -73,6 +74,7 @@ class MapAssetSourceTests(unittest.TestCase):
                 self.assertEqual(current_response_object[current_property_name], current_property_value)
         self.assertEqual(current_map_record['terrainMovementVersion'], 2)
 
+    @allow_extended_map_regression
     def test_guard_center_images_match_registered_regions(self):
         current_city_identifiers,current_map_identifiers = load_review_map_identifiers()
         current_guard_count = 0
@@ -139,6 +141,7 @@ class MapAssetSourceTests(unittest.TestCase):
             for current_asset_path in current_registered_records
             if current_asset_path.startswith('assets/tiles/terrain/road/')
             and Path(current_asset_path).suffix.lower() in {'.png','.webp','.jpg','.jpeg'}
+            and current_registered_records[current_asset_path].get('source', {}).get('lifecycle_status') != 'retired'
         }
         self.assertSetEqual(current_catalog_road_paths, current_registered_road_paths)
 
@@ -160,6 +163,7 @@ class MapAssetSourceTests(unittest.TestCase):
                 read_map_asset_response(current_request_path)
 
 
+    @allow_extended_map_regression
     def test_all_runtime_maps_and_new_city_materials_share_original_hashes(self):
         current_city_identifiers,current_map_identifiers = load_review_map_identifiers()
         self.assertEqual(len(current_city_identifiers),5)

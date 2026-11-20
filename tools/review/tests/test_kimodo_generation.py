@@ -20,7 +20,180 @@ def write_keyframe_test_previews(current_attempt_root,current_frame_count):
     return current_frame_hashes
 
 
+    def test_kimodo_resume_blocks_unknown_or_running_model_preparation(self):
+        import fcntl
+        from tools.review.domains.kimodo.generation import inspect_kimodo_preparation_for_resume
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            self.assertEqual(inspect_kimodo_preparation_for_resume(current_root_path),'idle')
+            current_preparation_path=current_root_path/'.local/model-preparation/kimodo'
+            current_preparation_path.mkdir(parents=True)
+            current_status_path=current_preparation_path/'status.json'
+            current_status_path.write_text('{broken')
+            with self.assertRaises(ValueError):inspect_kimodo_preparation_for_resume(current_root_path)
+            current_status_path.write_text('{"status":"running"}')
+            with self.assertRaises(ValueError):inspect_kimodo_preparation_for_resume(current_root_path)
+            current_status_path.write_text('{"status":"completed"}')
+            self.assertEqual(inspect_kimodo_preparation_for_resume(current_root_path),'completed')
+            with (current_preparation_path/'worker.lock').open('a') as current_lock_stream:
+                fcntl.flock(current_lock_stream,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                self.assertEqual(inspect_kimodo_preparation_for_resume(current_root_path),'running')
+
 class KimodoGenerationContractTests(unittest.TestCase):
+    def test_kimodo_resume_gateway_roundtrip_with_mocked_queue(self):
+        import os
+        import threading
+        from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+        from tools.review.common.management_gateway import ManagementCommandGateway,execute_management_command
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.domains.hermes_agent import kimodo_resume_operations
+        from tools.review.domains.image.image_generation import WORKFLOW_ROOT_PATH
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_manager_value=KimodoGenerationManager()
+            current_manager_value.job_storage_root=current_root_path/'jobs'
+            current_job_identifier='2026-11-20_00-00-00-12345678'
+            current_job_path=current_manager_value.job_storage_root/current_job_identifier
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'request.json').write_text('{"action":"generate"}')
+            (current_job_path/'status.json').write_text('{"status":"failed"}')
+            current_command_value=[str(current_manager_value.select_generation_python()),str(WORKFLOW_ROOT_PATH/current_manager_value.select_generation_runner()),'--job-dir',str(current_job_path)]
+            (current_job_path/'gpu-command.json').write_text(json.dumps({'service':current_manager_value.select_generation_service(),'command':current_command_value}))
+            current_hermes_manager=HermesServiceManager(current_root_path/'hermes-jobs',current_root_path/'sessions')
+            current_gateway_value=ManagementCommandGateway({'kimodo':current_manager_value.handle_image_request,'hermes-agent':current_hermes_manager.handle_hermes_request})
+            class CurrentGatewayHandler(BaseHTTPRequestHandler):
+                def do_POST(self):
+                    if not current_gateway_value.handle(self):self.send_error(404)
+                def log_message(self,current_format_text,*current_format_arguments):pass
+            current_http_server=ThreadingHTTPServer(('127.0.0.1',0),CurrentGatewayHandler)
+            current_server_thread=threading.Thread(target=current_http_server.serve_forever,daemon=True)
+            current_server_thread.start()
+            current_server_address='http://127.0.0.1:'+str(current_http_server.server_port)
+            try:
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_server_address}),patch.object(kimodo_resume_operations,'KIMODO_RESUME_RECEIPT_ROOT',current_root_path/'receipts'),patch.object(current_manager_value,'validate_generation_resume'),patch('tools.review.domains.kimodo.generation.inspect_kimodo_preparation_for_resume',return_value='idle'),patch('tools.review.common.gpu_job_queue.launch_gpu_process') as current_launch_mock:
+                    current_preview_value=execute_management_command('hermes-agent','hermes-kimodo-resume-preview',{'job_id':current_job_identifier},current_server_address)
+                    current_request_record={'request_id':'request_123','job_id':current_job_identifier,'expected_resume_fingerprint':current_preview_value['expected_resume_fingerprint']}
+                    current_result_value=execute_management_command('hermes-agent','hermes-kimodo-resume-submit',current_request_record,current_server_address)
+                    self.assertEqual(current_result_value['state'],'accepted')
+                    self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'queued')
+                    current_launch_mock.assert_called_once()
+                    self.assertTrue(execute_management_command('hermes-agent','hermes-kimodo-resume-submit',current_request_record,current_server_address)['duplicate'])
+                    self.assertEqual(execute_management_command('hermes-agent','hermes-kimodo-resume-receipt',{'request_id':'request_123'},current_server_address)['state'],'accepted')
+                    current_launch_mock.assert_called_once()
+            finally:
+                current_http_server.shutdown()
+                current_http_server.server_close()
+                current_server_thread.join(timeout=5)
+
+    def test_reviewed_kimodo_resume_rejects_changed_keyframe_before_queue(self):
+        from tools.review.domains.image.image_generation import WORKFLOW_ROOT_PATH
+        from tools.review.domains.kimodo.keyframe_storage import fingerprint_kimodo_job_keyframes
+        from tools.review.common.gpu_job_queue import fingerprint_resume_job_records
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_manager_value=KimodoGenerationManager()
+            current_manager_value.job_storage_root=Path(current_directory_name)
+            current_job_identifier='2026-11-20_00-00-00-12345678'
+            current_job_path=current_manager_value.job_storage_root/current_job_identifier
+            current_keyframe_path=current_job_path/'keyframes'/('a'*32)
+            current_keyframe_path.mkdir(parents=True)
+            current_request_record={'action':'generate','frames':30,'keyframes':[{'id':'a'*32,'frame':1}]}
+            (current_job_path/'request.json').write_text(json.dumps(current_request_record))
+            (current_job_path/'status.json').write_text('{"status":"failed"}')
+            current_command_values=[str(current_manager_value.select_generation_python()),str(WORKFLOW_ROOT_PATH/current_manager_value.select_generation_runner()),'--job-dir',str(current_job_path)]
+            (current_job_path/'gpu-command.json').write_text(json.dumps({'service':current_manager_value.select_generation_service(),'command':current_command_values}))
+            for current_file_name in ('record.json','motion.npz','skeleton.json','preview.png'):(current_keyframe_path/current_file_name).write_bytes(current_file_name.encode())
+            current_job_fingerprint=fingerprint_resume_job_records(current_job_path)
+            current_keyframe_fingerprint=fingerprint_kimodo_job_keyframes(current_job_path,current_request_record)
+            (current_keyframe_path/'motion.npz').write_bytes(b'changed')
+            with patch.object(current_manager_value,'validate_generation_resume') as current_validation_mock,patch('tools.review.domains.kimodo.generation.inspect_kimodo_preparation_for_resume',return_value='idle'),patch('tools.review.common.gpu_job_queue.launch_gpu_process') as current_launch_mock:
+                with self.assertRaisesRegex(ValueError,'키프레임이 변경'):
+                    current_manager_value.resume_kimodo_reviewed_records(current_job_identifier,current_job_fingerprint,current_keyframe_fingerprint)
+                self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'failed')
+                current_validation_mock.assert_not_called()
+                current_launch_mock.assert_not_called()
+                (current_keyframe_path/'motion.npz').write_bytes(b'motion.npz')
+                self.assertEqual(current_manager_value.resume_kimodo_reviewed_records(current_job_identifier,current_job_fingerprint,current_keyframe_fingerprint)['status'],'queued')
+                current_validation_mock.assert_called_once_with(current_job_path)
+                current_launch_mock.assert_called_once()
+
+    def test_kimodo_resume_keyframe_fingerprint_rejects_directory_link_and_fifo(self):
+        import os
+        from tools.review.domains.kimodo.keyframe_storage import fingerprint_kimodo_job_keyframes
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_keyframe_identifier='a'*32
+            current_request_record={'frames':30,'keyframes':[{'id':current_keyframe_identifier,'frame':1}]}
+            current_keyframe_root=current_root_path/'keyframes'
+            current_external_root=current_root_path/'external'
+            current_external_root.mkdir()
+            current_keyframe_root.symlink_to(current_external_root,target_is_directory=True)
+            with self.assertRaises(ValueError):fingerprint_kimodo_job_keyframes(current_root_path,current_request_record)
+            current_keyframe_root.unlink()
+            current_keyframe_directory=current_keyframe_root/current_keyframe_identifier
+            current_keyframe_directory.mkdir(parents=True)
+            for current_file_name in ('record.json','motion.npz','skeleton.json'):(current_keyframe_directory/current_file_name).write_bytes(b'test')
+            os.mkfifo(current_keyframe_directory/'preview.png')
+            with self.assertRaises(ValueError):fingerprint_kimodo_job_keyframes(current_root_path,current_request_record)
+
+    def test_kimodo_resume_keyframe_fingerprint_detects_file_changes_and_links(self):
+        from tools.review.domains.kimodo.keyframe_storage import fingerprint_kimodo_job_keyframes
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_keyframe_identifier='a'*32
+            current_keyframe_path=current_root_path/'keyframes'/current_keyframe_identifier
+            current_keyframe_path.mkdir(parents=True)
+            current_request_record={'frames':30,'keyframes':[{'id':current_keyframe_identifier,'frame':1}]}
+            for current_file_name in ('record.json','motion.npz','skeleton.json','preview.png'):(current_keyframe_path/current_file_name).write_bytes(current_file_name.encode())
+            current_initial_hash=fingerprint_kimodo_job_keyframes(current_root_path,current_request_record)
+            (current_keyframe_path/'motion.npz').write_bytes(b'changed')
+            self.assertNotEqual(fingerprint_kimodo_job_keyframes(current_root_path,current_request_record),current_initial_hash)
+            (current_keyframe_path/'preview.png').unlink()
+            (current_keyframe_path/'preview.png').symlink_to(current_keyframe_path/'record.json')
+            with self.assertRaises(ValueError):fingerprint_kimodo_job_keyframes(current_root_path,current_request_record)
+            with self.assertRaises(ValueError):fingerprint_kimodo_job_keyframes(current_root_path,{'frames':30,'keyframes':[]})
+
+    def test_resume_preview_reports_model_preparation_conflicts(self):
+        from tools.review.domains.image.image_generation import WORKFLOW_ROOT_PATH
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_manager_value=KimodoGenerationManager()
+            current_manager_value.job_storage_root=Path(current_directory_name)
+            current_job_identifier='2026-11-20_00-00-00-12345678'
+            current_job_path=current_manager_value.job_storage_root/current_job_identifier
+            current_job_path.mkdir()
+            (current_job_path/'request.json').write_text('{"action":"generate"}')
+            (current_job_path/'status.json').write_text('{"status":"failed"}')
+            current_command_value=[str(current_manager_value.select_generation_python()),str(WORKFLOW_ROOT_PATH/current_manager_value.select_generation_runner()),'--job-dir',str(current_job_path)]
+            (current_job_path/'gpu-command.json').write_text(json.dumps({'service':current_manager_value.select_generation_service(),'command':current_command_value}))
+            for current_model_status,current_expected_availability in (('running','download_running'),('idle','available'),(ValueError('unreadable'),'unknown')):
+                with self.subTest(current_model_status=current_model_status),patch.object(current_manager_value,'validate_generation_resume'),patch('tools.review.domains.kimodo.generation.inspect_kimodo_preparation_for_resume',side_effect=current_model_status if isinstance(current_model_status,Exception) else None,return_value=current_model_status),patch('tools.review.common.gpu_job_queue.launch_gpu_process') as current_launch_mock:
+                    self.assertEqual(current_manager_value.preview_kimodo_resume_records(current_job_identifier)['resume_availability'],current_expected_availability)
+                    current_launch_mock.assert_not_called()
+
+    def test_resume_preview_checks_identity_command_and_terminal_record_without_launch(self):
+        from tools.review.domains.image.image_generation import WORKFLOW_ROOT_PATH
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_manager_value=KimodoGenerationManager()
+            current_manager_value.job_storage_root=Path(current_directory_name)
+            current_job_identifier='2026-11-20_00-00-00-12345678'
+            current_job_path=current_manager_value.job_storage_root/current_job_identifier
+            current_job_path.mkdir()
+            (current_job_path/'request.json').write_text(json.dumps({'action':'generate'}))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            current_command_value=[str(current_manager_value.select_generation_python()),str(WORKFLOW_ROOT_PATH/current_manager_value.select_generation_runner()),'--job-dir',str(current_job_path)]
+            (current_job_path/'gpu-command.json').write_text(json.dumps({'service':current_manager_value.select_generation_service(),'command':current_command_value}))
+            with patch.object(current_manager_value,'validate_generation_resume') as current_validate_mock,patch('tools.review.common.gpu_job_queue.launch_gpu_process') as current_launch_mock:
+                current_result_value=current_manager_value.preview_kimodo_resume_records(current_job_identifier)
+                self.assertEqual((current_result_value['id'],current_result_value['service'],current_result_value['status']),(current_job_identifier,'kimodo','failed'))
+                self.assertRegex(current_result_value['expected_resume_fingerprint'],r'^[a-f0-9]{64}$')
+                self.assertIsNone(current_result_value['keyframe_fingerprint'])
+                current_validate_mock.assert_called_once_with(current_job_path)
+                current_launch_mock.assert_not_called()
+                (current_job_path/'gpu-command.json').write_text(json.dumps({'service':'image','command':['untrusted']}))
+                with self.assertRaises(ValueError):current_manager_value.preview_kimodo_resume_records(current_job_identifier)
+                with self.assertRaises(ValueError):current_manager_value.preview_kimodo_resume_records('../bad')
+                self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'failed')
+                current_launch_mock.assert_not_called()
+
     def test_multiview_gui_payload_and_history_roundtrip(self):
         from PIL import Image
         from tools.review.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs

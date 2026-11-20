@@ -40,6 +40,29 @@ class ManagementHeartbeatBridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(current_http_scopes[0]['path'], '/management/frame/example/gradio_api/heartbeat/session123')
         self.assertEqual(current_sent_messages, [{'type': 'websocket.accept'}, {'type': 'websocket.send', 'bytes': b'data: ALIVE\n\n'}])
 
+    async def test_disconnected_client_during_heartbeat_send_is_normal(self):
+        from uvicorn.protocols.utils import ClientDisconnected
+        from starlette.requests import ClientDisconnect
+        for current_error_type in (ClientDisconnected,ClientDisconnect):
+            with self.subTest(error=current_error_type.__name__):
+                current_messages=asyncio.Queue()
+                await current_messages.put({'type':'websocket.connect'})
+                async def current_send_message(current_message):
+                    if current_message['type']=='websocket.send':raise current_error_type()
+                async def current_gradio_app(current_scope,current_receive,current_send):
+                    await current_receive()
+                    await current_send({'type':'http.response.start','status':200,'headers':[]})
+                    await current_send({'type':'http.response.body','body':b'alive','more_body':True})
+                await asyncio.wait_for(bridge_gradio_heartbeat(current_gradio_app,self.create_scope(),current_messages.get,current_send_message),2)
+
+    async def test_unexpected_application_error_is_not_suppressed(self):
+        current_messages=asyncio.Queue()
+        await current_messages.put({'type':'websocket.connect'})
+        async def current_send_message(current_message):pass
+        async def current_gradio_app(current_scope,current_receive,current_send):raise RuntimeError('unexpected')
+        with self.assertRaisesRegex(RuntimeError,'unexpected'):
+            await bridge_gradio_heartbeat(current_gradio_app,self.create_scope(),current_messages.get,current_send_message)
+
     async def test_untrusted_origin_is_rejected(self):
         current_sent_messages = []
         async def current_send_message(current_message):

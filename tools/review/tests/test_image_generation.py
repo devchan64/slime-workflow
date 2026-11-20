@@ -101,6 +101,30 @@ class ImageGenerationTests(unittest.TestCase):
                 current_handler_value=self.make_http_handler('/image-generation/jobs/'+current_job_root.name+'/request.json')
                 current_manager_value.handle_image_request(current_handler_value)
                 self.assertEqual(current_handler_value.status,404)
+    def test_image_source_logs_return_full_file(self):
+        current_manager_value=ImageGenerationManager()
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_jobs_root=Path(current_directory_name)
+            current_job_identifier='2026-11-18_12-00-00-aaaaaaaa'
+            current_job_path=current_jobs_root/current_job_identifier
+            current_job_path.mkdir()
+            current_log_bytes=b'A'*1000+b'B'*16000
+            (current_job_path/'worker.log').write_bytes(current_log_bytes)
+            current_handler_value=self.make_http_handler('/image-generation/jobs/'+current_job_identifier+'/worker.log')
+            with patch.object(current_manager_value,'job_storage_root',current_jobs_root):
+                current_manager_value.handle_image_request(current_handler_value)
+            self.assertEqual(current_handler_value.status,200)
+            self.assertEqual(current_handler_value.wfile.getvalue(),current_log_bytes)
+
+    def test_active_reports_queued_record_without_worker_process(self):
+        current_manager_value=ImageGenerationManager()
+        current_job_identifier='2026-11-18_12-00-00-aaaaaaaa'
+        current_handler_value=self.make_http_handler('/image-generation/active')
+        with patch.object(current_manager_value,'list_generation_history',return_value=[{'id':current_job_identifier,'status':{'status':'queued'}}]):
+            current_manager_value.handle_image_request(current_handler_value)
+        self.assertEqual(current_handler_value.status,200)
+        self.assertEqual(json.loads(current_handler_value.wfile.getvalue()),{'running':True,'id':current_job_identifier})
+
     def test_running_image_generation_does_not_block_queue_submission(self):
         class ActiveTestImageManager(ImageGenerationManager):
             def select_generation_runner(self, saved_request_record=None):

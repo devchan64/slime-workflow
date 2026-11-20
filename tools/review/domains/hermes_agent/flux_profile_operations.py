@@ -3,7 +3,7 @@ import os
 from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
-from tools.review.domains.hermes_agent.failure_observer import observe_hermes_failure_reason
+from tools.review.domains.hermes_agent.failure_observer import observe_hermes_generator_failure
 from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
 
 
@@ -53,7 +53,7 @@ def read_hermes_flux_profile_status(current_request_identifier,current_profile_n
     current_result_record=inspect_hermes_flux_result(current_profile_name,current_receipt_value['job_id'],current_job_value)
     current_result_path=current_result_record['image']
     current_result_status=current_result_record['status']
-    return {'receipt':current_receipt_value,'job':{'status':current_status_value,'image':current_result_path,'result_status':current_result_status,'note':'상세 로그와 다른 결과는 해당 생성기 화면에서 확인하세요. 생성 이미지는 자동으로 에셋에 등록되지 않습니다.', **observe_hermes_failure_reason(current_status_value,current_job_value.get('error'))}}
+    return {'receipt':current_receipt_value,'job':{'status':current_status_value,'image':current_result_path,'result_status':current_result_status,'note':'상세 로그와 다른 결과는 해당 생성기 화면에서 확인하세요. 생성 이미지는 자동으로 에셋에 등록되지 않습니다.', **observe_hermes_generator_failure(current_status_value,current_job_value.get('error'))}}
 
 
 def list_hermes_flux_profile_receipts(current_profile_name):
@@ -67,6 +67,7 @@ def cancel_hermes_flux_profile(current_request_identifier,current_profile_name,c
     if current_receipt_value.get('state')!='accepted' or current_receipt_value.get('job_id')!=current_job_identifier:
         raise ValueError('접수 기록과 확인한 생성기 작업 ID가 일치하지 않습니다.')
     current_cancel_value=call_hermes_flux_profile(current_profile_name,'cancel',{'id':current_job_identifier})
-    if not isinstance(current_cancel_value,dict) or current_cancel_value.get('cancel_requested') is not True:
+    if (not isinstance(current_cancel_value,dict) or current_cancel_value.get('cancel_requested') is not True
+            or ('id' in current_cancel_value and current_cancel_value['id']!=current_job_identifier)):
         raise ValueError('중지 응답 형식 오류')
     return {'job_id':current_job_identifier,'cancel_requested':True,'status':current_cancel_value.get('status','unknown')}

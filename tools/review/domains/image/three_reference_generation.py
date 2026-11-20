@@ -6,6 +6,8 @@ import base64
 import binascii
 import hashlib
 import io
+import os
+import stat
 from PIL import Image
 
 REFERENCE_IMAGE_LIMIT = 3_000_000
@@ -111,22 +113,45 @@ def verify_reference_snapshots(current_job_root, current_request_record):
     current_reference_names = current_request_record.get('references')
     if not isinstance(current_reference_names, list):
         raise ValueError('참조 실행 기록의 references는 목록이어야 합니다.')
+    reference_snapshot_records = current_request_record.get('reference_snapshots')
+    if 'reference_snapshots' in current_request_record:
+        if not isinstance(reference_snapshot_records, list) or len(reference_snapshot_records) != len(current_reference_names):
+            raise ValueError('참조 사본 메타데이터 목록 오류')
     for current_reference_index, current_reference_name in enumerate(current_reference_names, 1):
         if current_reference_name != f'reference-{current_reference_index}.png':
             raise ValueError('참조 사본 경로 또는 순서 오류')
         current_reference_path = Path(current_job_root) / current_reference_name
-        if current_reference_path.is_symlink():
-            raise ValueError('참조 사본 심볼릭 링크는 허용하지 않습니다.')
-    # 구형 이력도 경로를 검사하며, 사본 메타데이터가 있으면 무결성을 추가 검사한다.
-    if 'reference_snapshots' not in current_request_record:
-        return
-    reference_snapshot_records=current_request_record['reference_snapshots']
-    if [record['path'] for record in reference_snapshot_records]!=current_request_record['references']:
-        raise ValueError('참조 사본 순서 불일치')
-    for reference_image_index,reference_snapshot_record in enumerate(reference_snapshot_records,1):
-        reference_snapshot_path=Path(current_job_root)/f'reference-{reference_image_index}.png'
-        if reference_snapshot_record['path']!=reference_snapshot_path.name or reference_snapshot_record['order']!=reference_image_index or reference_snapshot_path.is_symlink():
-            raise ValueError('참조 사본 경로 또는 순서 오류')
-        reference_snapshot_bytes=reference_snapshot_path.read_bytes()
-        if len(reference_snapshot_bytes)!=reference_snapshot_record['bytes'] or hashlib.sha256(reference_snapshot_bytes).hexdigest()!=reference_snapshot_record['sha256']:
-            raise ValueError('참조 사본 무결성 오류')
+        current_snapshot_record = None if reference_snapshot_records is None else reference_snapshot_records[current_reference_index-1]
+        if reference_snapshot_records is not None:
+            if (not isinstance(current_snapshot_record, dict)
+                    or current_snapshot_record.get('path') != current_reference_name
+                    or type(current_snapshot_record.get('order')) is not int
+                    or current_snapshot_record['order'] != current_reference_index
+                    or type(current_snapshot_record.get('bytes')) is not int
+                    or current_snapshot_record['bytes'] < 0
+                    or not isinstance(current_snapshot_record.get('sha256'), str)):
+                raise ValueError('참조 사본 메타데이터 오류')
+        try:
+            current_file_descriptor = os.open(current_reference_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            with os.fdopen(current_file_descriptor, 'rb') as current_file_stream:
+                initial_file_stat = os.fstat(current_file_stream.fileno())
+                if not stat.S_ISREG(initial_file_stat.st_mode):
+                    raise ValueError('참조 사본 일반 파일을 확인할 수 없습니다.')
+                current_hash_object = hashlib.sha256()
+                for current_file_chunk in iter(lambda: current_file_stream.read(1024 * 1024), b''):
+                    current_hash_object.update(current_file_chunk)
+                final_file_stat = os.fstat(current_file_stream.fileno())
+                current_path_stat = os.stat(current_reference_path, follow_symlinks=False)
+                def resume_file_identity(current_stat_record):
+                    return (current_stat_record.st_dev, current_stat_record.st_ino, current_stat_record.st_size,
+                            current_stat_record.st_mtime_ns, current_stat_record.st_ctime_ns)
+                if (resume_file_identity(initial_file_stat) != resume_file_identity(final_file_stat)
+                        or resume_file_identity(final_file_stat) != resume_file_identity(current_path_stat)):
+                    raise ValueError('참조 사본이 검사 중 변경됐습니다.')
+                if current_snapshot_record is not None and (final_file_stat.st_size != current_snapshot_record['bytes']
+                        or current_hash_object.hexdigest() != current_snapshot_record['sha256']):
+                    raise ValueError('참조 사본 무결성 오류')
+        except OSError as current_file_error:
+            if current_reference_path.is_symlink():
+                raise ValueError('참조 사본 심볼릭 링크는 허용하지 않습니다.') from current_file_error
+            raise ValueError('참조 사본 일반 파일을 확인할 수 없습니다.') from current_file_error

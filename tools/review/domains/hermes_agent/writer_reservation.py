@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists
 
 
 @contextmanager
@@ -101,7 +101,7 @@ def recover_writer_reservation_once(current_request_identifier,current_job_ident
     current_worker_descriptor=None
     with current_store_value.hold_delegation_storage_lock():
         current_receipt_path=current_store_value.resolve_delegation_record_path(current_request_identifier)
-        if current_receipt_path.exists():
+        if check_delegation_record_exists(current_receipt_path):
             current_receipt_value=json.loads(current_receipt_path.read_text())
             current_result_value=inspect_writer_recovery_receipt(current_receipt_value,current_request_identifier)
             if (current_receipt_value.get('job_id'),current_receipt_value.get('preview_sha256'))!=(current_job_identifier,current_preview_digest):raise ValueError('같은 접수 ID를 다른 예약에 사용할 수 없습니다.')
@@ -145,5 +145,5 @@ def read_writer_recovery_receipt(current_request_identifier):
     current_store_value=HermesDelegationStore()
     with current_store_value.hold_delegation_storage_lock():
         current_receipt_path=current_store_value.resolve_delegation_record_path(current_request_identifier)
-        if not current_receipt_path.exists():return {'state':'not_found'}
+        if not check_delegation_record_exists(current_receipt_path):return {'state':'not_found'}
         return inspect_writer_recovery_receipt(json.loads(current_receipt_path.read_text()),current_request_identifier)

@@ -44,26 +44,47 @@ class FluxTranslationQueueMixin:
         if (current_request_record.get('translation_source_ko') or current_request_record.get('building_design_ko')) and not current_request_record.get('translated_design'):
             from tools.review.common.generation_records import write_record_atomically
             write_record_atomically(current_job_root/'status.json', {'status':'queued','stage':'translation','message':'번역 대기열 등록 중'})
-            return subprocess.Popen([str(self.select_generation_python(current_request_record)),str(WORKFLOW_ROOT_PATH/'generators/image/run_flux_translation_pipeline.py'),'--job-dir',str(current_job_root)],stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True,cwd=WORKFLOW_ROOT_PATH)
+            try:
+                return subprocess.Popen([str(self.select_generation_python(current_request_record)),str(WORKFLOW_ROOT_PATH/'generators/image/run_flux_translation_pipeline.py'),'--job-dir',str(current_job_root)],stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True,cwd=WORKFLOW_ROOT_PATH)
+            except (OSError,ValueError):
+                write_record_atomically(current_job_root/'status.json',{'status':'failed','stage':'translation','error':'번역 연결 작업자를 시작하지 못했습니다. 실행 환경과 로그를 확인하세요.'})
+                raise
         return super().launch_generation_worker(current_job_root,current_request_record,current_log_handle)
 
     def resume_generation_job(self, selected_job_directory, saved_request_record, legacy_command_record):
         if (saved_request_record.get('translation_source_ko') or saved_request_record.get('building_design_ko')) and not saved_request_record.get('translated_design'):
             import fcntl
+            import os
             from tools.review.common.generation_records import write_record_atomically
-            with (selected_job_directory/'resume.lock').open('a') as current_resume_handle:
+            from tools.review.common.gpu_job_queue import open_gpu_resume_lock, open_gpu_resume_log
+            with open_gpu_resume_lock(selected_job_directory) as current_resume_handle:
+                fcntl.flock(current_resume_handle,fcntl.LOCK_EX)
                 current_status_record=json.loads((selected_job_directory/'status.json').read_text())
                 if current_status_record.get('status') not in ('failed','cancelled','paused'):
                     raise ValueError('실패·취소·일시정지된 작업만 재개할 수 있습니다.')
-                with (selected_job_directory/'building-pipeline.lock').open('a') as current_pipeline_handle:
+                current_request_path=selected_job_directory/'request.json'
+                if current_request_path.is_symlink():raise ValueError('저장된 재개 요청 경로가 올바르지 않습니다.')
+                current_request_bytes=current_request_path.read_bytes()
+                current_locked_request=json.loads(current_request_bytes)
+                if json.dumps(current_locked_request,sort_keys=True,allow_nan=False,separators=(',',':'))!=json.dumps(saved_request_record,sort_keys=True,allow_nan=False,separators=(',',':')):
+                    raise ValueError('재개 요청이 변경되었습니다. 다시 확인하세요.')
+                self.validate_generation_resume(selected_job_directory)
+                if current_request_path.is_symlink() or current_request_path.read_bytes()!=current_request_bytes:
+                    raise ValueError('재개 요청이 검증 중 변경되었습니다. 다시 확인하세요.')
+                current_pipeline_descriptor=os.open(selected_job_directory/'building-pipeline.lock',os.O_CREAT|os.O_WRONLY|os.O_APPEND|os.O_NOFOLLOW,0o666)
+                with os.fdopen(current_pipeline_descriptor,'a') as current_pipeline_handle:
                     try:
                         fcntl.flock(current_pipeline_handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
                     except BlockingIOError as current_lock_error:
                         raise ValueError('이전 번역 연결 작업이 종료되는 중입니다.') from current_lock_error
-                (selected_job_directory/'cancel.request').unlink(missing_ok=True)
-                write_record_atomically(selected_job_directory/'status.json', {'status':'queued','stage':'translation','message':'번역 대기열 재개 중'})
-                with (selected_job_directory/'worker.log').open('a') as current_log_handle:
-                    self.launch_generation_worker(selected_job_directory,saved_request_record,current_log_handle)
+                with open_gpu_resume_log(selected_job_directory) as current_log_handle:
+                    (selected_job_directory/'cancel.request').unlink(missing_ok=True)
+                    write_record_atomically(selected_job_directory/'status.json', {'status':'queued','stage':'translation','message':'번역 대기열 재개 중'})
+                    try:
+                        self.launch_generation_worker(selected_job_directory,saved_request_record,current_log_handle)
+                    except (OSError,ValueError):
+                        write_record_atomically(selected_job_directory/'status.json',{'status':'failed','stage':'translation','error':'번역 연결 작업자를 시작하지 못했습니다. 실행 환경과 로그를 확인하세요.'})
+                        raise
             return {'id':selected_job_directory.name,'status':'queued'}
         return super().resume_generation_job(selected_job_directory,saved_request_record,legacy_command_record)
 

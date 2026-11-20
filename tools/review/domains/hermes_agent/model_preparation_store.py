@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from tools.review.common.generation_records import write_record_atomically
 from tools.review.common.model_management_catalog import MODEL_PREPARATION_SERVICES
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, HERMES_DELEGATION_JOB_PATTERN
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_delegation_record_paths, check_delegation_record_exists, HERMES_DELEGATION_JOB_PATTERN
 
 
 class HermesModelPreparationStore(HermesDelegationStore):
@@ -44,7 +44,7 @@ class HermesModelPreparationStore(HermesDelegationStore):
         self.validate_model_service_name(model_service_name)
         with self.hold_delegation_storage_lock():
             current_record_path = self.resolve_delegation_record_path(request_identifier_value)
-            if not current_record_path.exists():
+            if not check_delegation_record_exists(current_record_path):
                 return {'state': 'not_found', 'request_id':request_identifier_value, 'service':model_service_name}
             current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
             return self.inspect_model_preparation_record(request_identifier_value, model_service_name, current_record_value)
@@ -53,7 +53,7 @@ class HermesModelPreparationStore(HermesDelegationStore):
         """재시작 후에도 최근 모델 준비 접수 ID를 찾는다."""
         with self.hold_delegation_storage_lock():
             current_records_list = []
-            for current_record_path in self.delegation_storage_root.glob('*.json'):
+            for current_record_path in list_delegation_record_paths(self.delegation_storage_root):
                 if current_record_path.is_symlink() or not current_record_path.is_file():
                     continue
                 try:
@@ -84,7 +84,7 @@ class HermesModelPreparationStore(HermesDelegationStore):
             raise ValueError('모델 준비 검증과 접수 함수가 필요합니다.')
         with self.hold_delegation_storage_lock():
             current_record_path = self.resolve_delegation_record_path(request_identifier_value)
-            if current_record_path.exists():
+            if check_delegation_record_exists(current_record_path):
                 current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
                 current_result_value = self.inspect_model_preparation_record(request_identifier_value, model_service_name, current_record_value)
                 return {**current_result_value, 'duplicate': True}

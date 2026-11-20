@@ -362,3 +362,73 @@ def parse_hermes_capture_proposal(current_answer_text):
     current_service_name=current_proposal_value['service']
     current_capture_settings=normalize_capture_delegation_request(current_service_name,current_proposal_value['settings'])
     return {'service':current_service_name,'settings':current_capture_settings}
+
+
+HERMES_MODEL_PREPARATION_PROPOSAL_START = 'HERMES_MODEL_PREPARATION_PROPOSAL'
+HERMES_MODEL_PREPARATION_PROPOSAL_END = 'END_HERMES_MODEL_PREPARATION_PROPOSAL'
+
+
+def parse_hermes_model_preparation_proposal(current_answer_text):
+    """미신뢰 답변에서 모델 서비스 한 개만 추출하며 준비를 실행하지 않는다."""
+    from tools.review.common.management_gateway import parse_management_request_json
+    from tools.review.common.model_management_catalog import MODEL_PREPARATION_SERVICES
+    if not isinstance(current_answer_text,str) or len(current_answer_text)>8000 or current_answer_text.count(HERMES_MODEL_PREPARATION_PROPOSAL_START)!=2 or current_answer_text.count(HERMES_MODEL_PREPARATION_PROPOSAL_END)!=1:
+        raise ValueError('모델 준비 제안 블록이 하나 필요합니다.')
+    current_match_value=re.search(r'(?m)^HERMES_MODEL_PREPARATION_PROPOSAL[ \t]*\n([\s\S]*?)\nEND_HERMES_MODEL_PREPARATION_PROPOSAL[ \t]*$',current_answer_text)
+    if current_match_value is None or len(current_match_value.group(1))>500:
+        raise ValueError('모델 준비 제안 형식 오류')
+    current_proposal_record=parse_management_request_json(current_match_value.group(1))
+    if not isinstance(current_proposal_record,dict) or set(current_proposal_record)!={'service'} or not isinstance(current_proposal_record['service'],str) or current_proposal_record['service'] not in {current_service_name for _,current_service_name in MODEL_PREPARATION_SERVICES}:
+        raise ValueError('모델 준비 서비스 오류')
+    return current_proposal_record
+
+
+HERMES_KIMODO_RESUME_PROPOSAL_START = 'HERMES_KIMODO_RESUME_PROPOSAL'
+HERMES_KIMODO_RESUME_PROPOSAL_END = 'END_HERMES_KIMODO_RESUME_PROPOSAL'
+
+
+def parse_hermes_kimodo_resume_proposal(current_answer_text):
+    """미신뢰 답변에서 확인한 Kimodo 작업과 검토값만 읽는다."""
+    from tools.review.common.management_gateway import parse_management_request_json
+    from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+    if not isinstance(current_answer_text,str) or len(current_answer_text)>8000 or current_answer_text.count(HERMES_KIMODO_RESUME_PROPOSAL_START)!=2 or current_answer_text.count(HERMES_KIMODO_RESUME_PROPOSAL_END)!=1:
+        raise ValueError('Kimodo 재개 제안 블록이 하나 필요합니다.')
+    current_match_value=re.search(r'(?m)^HERMES_KIMODO_RESUME_PROPOSAL[ \t]*\n([\s\S]*?)\nEND_HERMES_KIMODO_RESUME_PROPOSAL[ \t]*$',current_answer_text)
+    if current_match_value is None or len(current_match_value.group(1))>500:raise ValueError('Kimodo 재개 제안 형식 오류')
+    current_proposal_record=parse_management_request_json(current_match_value.group(1))
+    if not isinstance(current_proposal_record,dict) or set(current_proposal_record)!={'job_id','expected_resume_fingerprint'} or not validate_service_job_identifier('kimodo',current_proposal_record['job_id']) or not isinstance(current_proposal_record['expected_resume_fingerprint'],str) or not re.fullmatch(r'[a-f0-9]{64}',current_proposal_record['expected_resume_fingerprint']):raise ValueError('Kimodo 재개 제안 대상 오류')
+    return current_proposal_record
+
+
+HERMES_FLUX_RESUME_PROPOSAL_START = 'HERMES_FLUX_RESUME_PROPOSAL'
+HERMES_FLUX_RESUME_PROPOSAL_END = 'END_HERMES_FLUX_RESUME_PROPOSAL'
+
+
+def parse_hermes_flux_resume_proposal(current_answer_text):
+    """대화 답변에서 FLUX 작업과 예비 검토값만 읽는다."""
+    from tools.review.common.management_gateway import parse_management_request_json
+    from tools.review.domains.hermes_agent.flux_resume_operations import validate_flux_resume_target
+    if not isinstance(current_answer_text,str) or len(current_answer_text)>8000 or current_answer_text.count(HERMES_FLUX_RESUME_PROPOSAL_START)!=2 or current_answer_text.count(HERMES_FLUX_RESUME_PROPOSAL_END)!=1:
+        raise ValueError('FLUX 재개 제안 블록이 하나 필요합니다.')
+    current_match_value=re.search(r'(?m)^HERMES_FLUX_RESUME_PROPOSAL[ \t]*\n([\s\S]*?)\nEND_HERMES_FLUX_RESUME_PROPOSAL[ \t]*$',current_answer_text)
+    if current_match_value is None or len(current_match_value.group(1))>500:raise ValueError('FLUX 재개 제안 형식 오류')
+    current_proposal_record=parse_management_request_json(current_match_value.group(1))
+    if not isinstance(current_proposal_record,dict) or set(current_proposal_record)!={'service','job_id','expected_resume_fingerprint'}:raise ValueError('FLUX 재개 제안 대상 오류')
+    validate_flux_resume_target(current_proposal_record['service'],current_proposal_record['job_id'],current_proposal_record['expected_resume_fingerprint'])
+    if not isinstance(current_proposal_record['expected_resume_fingerprint'],str):raise ValueError('FLUX 재개 제안 확인값 오류')
+    return current_proposal_record
+
+
+def parse_hermes_video_resume_proposal(current_answer_text):
+    """완료된 대화에서 영상 재개 대상과 검토 지문만 추출한다."""
+    from tools.review.common.management_gateway import parse_management_request_json
+    from tools.review.domains.hermes_agent.video_resume_operations import validate_video_resume_target
+    if not isinstance(current_answer_text,str) or len(current_answer_text)>8000 or current_answer_text.count('HERMES_VIDEO_RESUME_PROPOSAL')!=2 or current_answer_text.count('END_HERMES_VIDEO_RESUME_PROPOSAL')!=1:
+        raise ValueError('영상 재개 제안 블록이 하나 필요합니다.')
+    current_match_value=re.search(r'(?m)^HERMES_VIDEO_RESUME_PROPOSAL[ \t]*\n([\s\S]*?)\nEND_HERMES_VIDEO_RESUME_PROPOSAL[ \t]*$',current_answer_text)
+    if current_match_value is None or len(current_match_value.group(1))>500:raise ValueError('영상 재개 제안 형식 오류')
+    current_proposal_record=parse_management_request_json(current_match_value.group(1))
+    if not isinstance(current_proposal_record,dict) or set(current_proposal_record)!={'service','job_id','expected_resume_fingerprint'}:raise ValueError('영상 재개 제안 대상 오류')
+    validate_video_resume_target(current_proposal_record['service'],current_proposal_record['job_id'],current_proposal_record['expected_resume_fingerprint'])
+    if not isinstance(current_proposal_record['expected_resume_fingerprint'],str):raise ValueError('영상 재개 제안 확인값 오류')
+    return current_proposal_record

@@ -140,6 +140,135 @@ class FluxImageGenerationManager(FluxTranslationQueueMixin, ImageGenerationManag
             current_status_record['seamless_method']=current_request_record.get('seamless_method','edge-blend')
         return current_status_record
 
+    def inspect_flux_resume_availability(self):
+        """공유 FLUX 모델 준비 기록의 충돌 여부만 확인한다."""
+        from tools.review.common.model_prepare_process import inspect_registered_preparation
+        try:
+            current_preparation_state=inspect_registered_preparation(WORKFLOW_ROOT_PATH,'flux-image')
+        except (OSError,ValueError,TypeError):return 'unknown'
+        if current_preparation_state=='running':return 'download_running'
+        return 'available' if current_preparation_state in ('idle','completed','failed') else 'unknown'
+
+    def fingerprint_generation_resume_inputs(self, current_job_directory):
+        """재개 검토에 사용할 요청·상태·참조와 실행 기록의 지문을 반환한다."""
+        from tools.review.domains.image.flux_resume_fingerprint import fingerprint_flux_resume_inputs
+        return fingerprint_flux_resume_inputs(current_job_directory,self.current_profile_name)
+
+    def preview_generation_resume(self, current_job_directory):
+        """공용 잠금 아래 원 서비스 검증과 재개 입력 지문을 확인한다."""
+        import fcntl
+        import os
+        import re
+        import stat
+        from contextlib import ExitStack
+        from tools.review.common.gpu_job_queue import open_gpu_resume_lock
+        current_job_directory=Path(current_job_directory)
+        if (not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_job_directory.name)
+                or current_job_directory.is_symlink() or current_job_directory.parent.resolve()!=Path(self.job_storage_root).resolve()):
+            raise ValueError('FLUX 재개 작업 경로 오류')
+        if not current_job_directory.is_dir():raise ValueError('FLUX 재개 작업이 없습니다.')
+        with ExitStack() as current_lock_resources:
+            current_resume_handle=current_lock_resources.enter_context(open_gpu_resume_lock(current_job_directory))
+            fcntl.flock(current_resume_handle,fcntl.LOCK_EX)
+            for current_lock_name in ('execution.lock','building-pipeline.lock'):
+                try:
+                    current_lock_descriptor=os.open(current_job_directory/current_lock_name,os.O_WRONLY|os.O_CREAT|os.O_APPEND|os.O_NOFOLLOW|os.O_NONBLOCK,0o666)
+                    current_lock_handle=current_lock_resources.enter_context(os.fdopen(current_lock_descriptor,'a'))
+                    if not stat.S_ISREG(os.fstat(current_lock_handle.fileno()).st_mode):raise ValueError('FLUX 실행 잠금은 일반 파일이어야 합니다.')
+                    fcntl.flock(current_lock_handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                except BlockingIOError as current_lock_error:
+                    raise ValueError('이전 FLUX 실행이 종료되지 않았습니다.') from current_lock_error
+                except OSError as current_lock_error:
+                    raise ValueError('FLUX 실행 잠금을 확인할 수 없습니다.') from current_lock_error
+            current_initial_value=self.fingerprint_generation_resume_inputs(current_job_directory)
+            current_request_value=json.loads((current_job_directory/'request.json').read_text())
+            self.validate_generation_runtime(current_request_value)
+            self.validate_generation_resume(current_job_directory)
+            current_final_value=self.fingerprint_generation_resume_inputs(current_job_directory)
+            if current_initial_value!=current_final_value:raise ValueError('FLUX 재개 검토 중 입력이 변경됐습니다.')
+            return {'service':self.current_profile_name,'id':current_job_directory.name,'status':current_final_value['status'],'expected_resume_fingerprint':current_final_value['fingerprint'],'resume_availability':self.inspect_flux_resume_availability(),'note':'저장 요청·참조와 실행 기록 및 모델 준비 충돌을 검토한 시점의 결과입니다. 실제 접수·GPU 가용성은 별도입니다.'}
+
+    def resume_reviewed_generation_job(self,current_job_directory,current_expected_fingerprint):
+        """모델 준비 충돌을 막는 동안 검토 지문을 재확인하고 접수한다."""
+        from tools.review.common.model_prepare_process import hold_registered_preparation_guard
+        if self.inspect_flux_resume_availability()!='available':raise ValueError('FLUX 모델 준비 충돌 상태를 확인할 수 없거나 준비 중입니다.')
+        with hold_registered_preparation_guard(WORKFLOW_ROOT_PATH,'flux-image'):
+            return self.resume_reviewed_generation_guarded(current_job_directory,current_expected_fingerprint)
+
+    def resume_reviewed_generation_guarded(self,current_job_directory,current_expected_fingerprint):
+        """모델 준비 잠금을 잡은 상태에서 저장 요청과 참조를 재검증한다."""
+        import fcntl
+        import os
+        import re
+        import stat
+        from tools.review.common.gpu_job_queue import resume_gpu_generation
+        current_job_directory=Path(current_job_directory)
+        if (not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_job_directory.name)
+                or current_job_directory.is_symlink() or not current_job_directory.is_dir() or current_job_directory.parent.resolve()!=Path(self.job_storage_root).resolve()):
+            raise ValueError('FLUX 재개 작업 경로 오류')
+        if not isinstance(current_expected_fingerprint,str) or not re.fullmatch(r'[a-f0-9]{64}',current_expected_fingerprint):raise ValueError('FLUX 재개 확인값 오류')
+        current_initial_fingerprint=self.fingerprint_generation_resume_inputs(current_job_directory)
+        if current_initial_fingerprint['fingerprint']!=current_expected_fingerprint:raise ValueError('검토한 FLUX 재개 입력이 변경됐습니다.')
+        current_request_value=json.loads((current_job_directory/'request.json').read_text())
+        if (current_request_value.get('translation_source_ko') or current_request_value.get('building_design_ko')) and not current_request_value.get('translated_design'):
+            return self.resume_reviewed_untranslated_generation(current_job_directory,current_request_value,current_expected_fingerprint)
+        current_expected_command=[str(self.select_generation_python(current_request_value)),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(current_request_value)),'--job-dir',str(current_job_directory)]
+        current_expected_service=self.select_generation_service(current_request_value)
+        def validate_locked_flux_resume(current_locked_directory):
+            try:
+                current_pipeline_descriptor=os.open(current_locked_directory/'building-pipeline.lock',os.O_WRONLY|os.O_CREAT|os.O_APPEND|os.O_NOFOLLOW|os.O_NONBLOCK,0o666)
+                with os.fdopen(current_pipeline_descriptor,'a') as current_pipeline_handle:
+                    if not stat.S_ISREG(os.fstat(current_pipeline_handle.fileno()).st_mode):raise ValueError('번역 잠금 파일 오류')
+                    try:fcntl.flock(current_pipeline_handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                    except BlockingIOError as current_lock_error:raise ValueError('이전 번역 작업이 종료되지 않았습니다.') from current_lock_error
+                    if self.fingerprint_generation_resume_inputs(current_locked_directory)['fingerprint']!=current_expected_fingerprint:raise ValueError('검토한 FLUX 재개 입력이 변경됐습니다.')
+                    current_locked_request=json.loads((current_locked_directory/'request.json').read_text())
+                    current_locked_command=[str(self.select_generation_python(current_locked_request)),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(current_locked_request)),'--job-dir',str(current_locked_directory)]
+                    if current_locked_command!=current_expected_command or self.select_generation_service(current_locked_request)!=current_expected_service:raise ValueError('검토한 FLUX 실행 명령이 변경됐습니다.')
+                    self.validate_generation_runtime(current_locked_request)
+                    self.validate_generation_resume(current_locked_directory)
+                    if self.fingerprint_generation_resume_inputs(current_locked_directory)['fingerprint']!=current_expected_fingerprint:raise ValueError('FLUX 재개 검증 중 입력이 변경됐습니다.')
+            except OSError as current_lock_error:
+                raise ValueError('FLUX 번역 잠금을 확인할 수 없습니다.') from current_lock_error
+        current_legacy_record={'command':current_expected_command,'service':current_expected_service}
+        return resume_gpu_generation(current_job_directory,legacy_command_record=current_legacy_record,expected_resume_service=current_expected_service,expected_resume_command=current_expected_command,resume_locked_preflight_callback=validate_locked_flux_resume)
+
+    def resume_reviewed_untranslated_generation(self,current_job_directory,current_request_value,current_expected_fingerprint):
+        """번역 전 FLUX 작업의 입력을 잠금 안에서 재검증한 뒤 연결 작업자를 시작한다."""
+        import fcntl
+        import os
+        import stat
+        from contextlib import ExitStack
+        from tools.review.common.generation_records import write_record_atomically
+        from tools.review.common.gpu_job_queue import open_gpu_resume_lock,open_gpu_resume_log
+        with open_gpu_resume_lock(current_job_directory) as current_resume_handle:
+            fcntl.flock(current_resume_handle,fcntl.LOCK_EX)
+            with ExitStack() as current_lock_resources:
+                for current_lock_name in ('execution.lock','building-pipeline.lock'):
+                    try:
+                        current_lock_descriptor=os.open(current_job_directory/current_lock_name,os.O_WRONLY|os.O_CREAT|os.O_APPEND|os.O_NOFOLLOW|os.O_NONBLOCK,0o666)
+                        current_lock_handle=current_lock_resources.enter_context(os.fdopen(current_lock_descriptor,'a'))
+                        if not stat.S_ISREG(os.fstat(current_lock_handle.fileno()).st_mode):raise ValueError('FLUX 실행 잠금 파일 오류')
+                        fcntl.flock(current_lock_handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                    except BlockingIOError as current_lock_error:
+                        raise ValueError('이전 FLUX 실행이 종료되지 않았습니다.') from current_lock_error
+                    except OSError as current_lock_error:
+                        raise ValueError('FLUX 실행 잠금을 확인할 수 없습니다.') from current_lock_error
+                if self.fingerprint_generation_resume_inputs(current_job_directory)['fingerprint']!=current_expected_fingerprint:raise ValueError('검토한 FLUX 재개 입력이 변경됐습니다.')
+                current_locked_request=json.loads((current_job_directory/'request.json').read_text())
+                self.validate_generation_runtime(current_locked_request)
+                self.validate_generation_resume(current_job_directory)
+                if self.fingerprint_generation_resume_inputs(current_job_directory)['fingerprint']!=current_expected_fingerprint:raise ValueError('FLUX 재개 검증 중 입력이 변경됐습니다.')
+                current_request_value=current_locked_request
+            with open_gpu_resume_log(current_job_directory) as current_log_handle:
+                (current_job_directory/'cancel.request').unlink(missing_ok=True)
+                write_record_atomically(current_job_directory/'status.json',{'status':'queued','stage':'translation','message':'번역 대기열 재개 중'})
+                try:self.launch_generation_worker(current_job_directory,current_request_value,current_log_handle)
+                except (OSError,ValueError):
+                    write_record_atomically(current_job_directory/'status.json',{'status':'failed','stage':'translation','error':'번역 연결 작업자를 시작하지 못했습니다. 실행 환경과 로그를 확인하세요.'})
+                    raise
+        return {'id':current_job_directory.name,'status':'queued'}
+
     def validate_generation_resume(self, selected_job_directory):
         current_request_record = json.loads((selected_job_directory/'request.json').read_text())
         if self.current_profile_name == 'flux-seamless' and current_request_record.get('seamless_method','edge-blend') not in FLUX_SEAMLESS_METHOD_VALUES:

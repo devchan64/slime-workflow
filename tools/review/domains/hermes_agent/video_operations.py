@@ -5,7 +5,7 @@ import re
 from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
-from tools.review.domains.hermes_agent.failure_observer import observe_hermes_failure_reason
+from tools.review.domains.hermes_agent.failure_observer import observe_hermes_generator_failure
 
 from tools.review.common.source_history_catalog import SOURCE_HISTORY_VIDEO_SERVICES
 HERMES_VIDEO_SERVICES = SOURCE_HISTORY_VIDEO_SERVICES
@@ -74,7 +74,7 @@ def read_hermes_video_status(current_request_identifier,current_service_name):
     current_result_count=sum(current_value is not None for current_value in current_result_paths.values())
     current_result_status=('available' if current_result_count==3 else 'partial' if current_result_count else 'unavailable') if current_status_value=='completed' else 'not_ready'
     current_output_value={'status':current_status_value,**current_result_paths,'result_status':current_result_status}
-    current_output_value.update(observe_hermes_failure_reason(current_status_value,current_job_value.get('error')))
+    current_output_value.update(observe_hermes_generator_failure(current_status_value,current_job_value.get('error')))
     current_output_value['note']='상태 조회가 중단 작업 복구를 수행할 수 있습니다. 결과와 상세 로그는 해당 생성기에서 확인하세요.'
     return {'receipt':current_receipt_value,'job':current_output_value}
 
@@ -90,6 +90,7 @@ def cancel_hermes_video_request(current_request_identifier,current_service_name,
     if current_receipt_value.get('state')!='accepted' or current_receipt_value.get('job_id')!=current_job_identifier:
         raise ValueError('접수 기록과 확인한 영상 작업 ID가 일치하지 않습니다.')
     current_cancel_value=call_hermes_video_service(current_service_name,'cancel',{'id':current_job_identifier})
-    if not isinstance(current_cancel_value,dict) or current_cancel_value.get('cancel_requested') is not True:
+    if (not isinstance(current_cancel_value,dict) or current_cancel_value.get('cancel_requested') is not True
+            or ('id' in current_cancel_value and current_cancel_value['id']!=current_job_identifier)):
         raise ValueError('영상 중지 응답 형식 오류')
     return {'job_id':current_job_identifier,'cancel_requested':True,'status':current_cancel_value.get('status','unknown')}

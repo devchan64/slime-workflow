@@ -4,6 +4,8 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import stat
+from contextlib import contextmanager
 
 from tools.review.common.generation_records import write_record_atomically
 
@@ -55,8 +57,54 @@ def resolve_model_preparation_root(current_working_root, current_profile_name):
     return Path(current_working_root)/'.local/model-preparation'/current_profile_name
 
 
+@contextmanager
+def hold_registered_preparation_guard(current_working_root,current_profile_name):
+    """모델 준비 시작과 짧은 임계 구간이 겹치지 않도록 공용 잠금을 잡는다."""
+    current_state_root=resolve_model_preparation_root(current_working_root,current_profile_name)
+    if current_state_root.is_symlink():raise ValueError('모델 준비 경로에 심볼릭 링크를 사용할 수 없습니다.')
+    current_state_root.mkdir(parents=True,exist_ok=True)
+    try:current_lock_descriptor=os.open(current_state_root/'worker.lock',os.O_WRONLY|os.O_CREAT|os.O_APPEND|os.O_NOFOLLOW|os.O_NONBLOCK,0o666)
+    except OSError as current_lock_error:raise ValueError('모델 준비 잠금을 확인할 수 없습니다.') from current_lock_error
+    with os.fdopen(current_lock_descriptor,'a') as current_lock_handle:
+        if not stat.S_ISREG(os.fstat(current_lock_handle.fileno()).st_mode):raise ValueError('모델 준비 잠금은 일반 파일이어야 합니다.')
+        try:fcntl.flock(current_lock_handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError as current_lock_error:raise ValueError('모델 준비가 진행 중입니다.') from current_lock_error
+        yield
+
+
 def inspect_registered_preparation(current_working_root, current_profile_name):
     return inspect_detached_preparation(resolve_model_preparation_root(current_working_root, current_profile_name))
+
+
+def inspect_registered_preparation_strict(current_working_root, current_profile_name):
+    """준비 상태 기록의 손상·접근 실패를 유휴 상태와 구별한다."""
+    current_state_root = resolve_model_preparation_root(current_working_root, current_profile_name)
+    if current_state_root.is_symlink():
+        raise ValueError('모델 준비 경로에 심볼릭 링크를 사용할 수 없습니다.')
+    current_state_root.mkdir(parents=True, exist_ok=True)
+    current_lock_descriptor = os.open(current_state_root/'worker.lock', os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW | os.O_NONBLOCK, 0o666)
+    with os.fdopen(current_lock_descriptor, 'a') as current_lock_handle:
+        if not stat.S_ISREG(os.fstat(current_lock_handle.fileno()).st_mode):
+            raise ValueError('모델 준비 잠금은 일반 파일이어야 합니다.')
+        try:
+            fcntl.flock(current_lock_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return 'running'
+        try:
+            try:
+                current_status_descriptor = os.open(current_state_root/'status.json', os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            except FileNotFoundError:
+                return 'idle'
+            with os.fdopen(current_status_descriptor, 'rb') as current_status_stream:
+                current_status_stat = os.fstat(current_status_stream.fileno())
+                if not stat.S_ISREG(current_status_stat.st_mode) or current_status_stat.st_size > 65536:
+                    raise ValueError('모델 준비 상태 파일 오류')
+                current_status_record = json.load(current_status_stream)
+            if not isinstance(current_status_record, dict) or current_status_record.get('status') not in ('idle','failed','completed','running'):
+                raise ValueError('모델 준비 상태 기록 오류')
+            return 'failed' if current_status_record['status'] == 'running' else current_status_record['status']
+        finally:
+            fcntl.flock(current_lock_handle, fcntl.LOCK_UN)
 
 
 def start_registered_preparation(current_working_root, current_profile_name):

@@ -35,7 +35,9 @@ UniqueContentConfigLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAP
 
 def read_content_launch_environment(current_config_path):
     current_config_record = yaml.load(Path(current_config_path).read_text(), Loader=UniqueContentConfigLoader)
-    if not isinstance(current_config_record, dict) or set(current_config_record) not in (set(CONTENT_CONFIG_ENVIRONMENT_FIELDS), set(CONTENT_CONFIG_ENVIRONMENT_FIELDS)-{'secretFile'}):
+    if (not isinstance(current_config_record, dict)
+            or not {'serviceOrigin', 'assetRoot', 'gatewayOrigin'} <= set(current_config_record)
+            or set(current_config_record) - set(CONTENT_CONFIG_ENVIRONMENT_FIELDS)):
         raise ValueError('콘텐츠 연결 설정 필드: ' + ', '.join(CONTENT_CONFIG_ENVIRONMENT_FIELDS))
     if any(not isinstance(current_field_value, str) or not current_field_value.strip() for current_field_value in current_config_record.values()):
         raise ValueError('콘텐츠 연결 설정 값은 비어 있지 않은 문자열이어야 합니다.')
@@ -48,7 +50,7 @@ def read_content_launch_environment(current_config_path):
     validate_gateway_address(current_config_record['gatewayOrigin'])
     if 'secretFile' not in current_config_record and current_origin_parts.hostname not in ('localhost','127.0.0.1','::1'):
         raise ValueError('원격 콘텐츠 API에는 secretFile이 필요합니다.')
-    for current_path_field in ('assetRoot', 'snapshotRoot', *(('secretFile',) if 'secretFile' in current_config_record else ())):
+    for current_path_field in ('assetRoot', *(current_optional_field for current_optional_field in ('snapshotRoot', 'secretFile') if current_optional_field in current_config_record)):
         if not Path(current_config_record[current_path_field]).is_absolute():
             raise ValueError('콘텐츠 연결 경로는 절대 경로여야 합니다: ' + current_path_field)
     if 'secretFile' in current_config_record and not Path(current_config_record['secretFile']).is_file():

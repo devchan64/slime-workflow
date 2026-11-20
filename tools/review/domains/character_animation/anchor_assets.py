@@ -2,16 +2,15 @@
 from pathlib import Path
 from hashlib import sha256
 import json
-import os
 import yaml
 from tools.review.common.map_tile_assets import load_registered_tiles, UniqueAssetYamlLoader
-from tools.review.domains.character_animation.sprite_sheet_editor import SPRITE_SHEET_UPDATE_LOCK
+from tools.review.domains.character_animation.sprite_sheet_editor import hold_sprite_asset_update_lock, write_sprite_asset_transaction
 
 
 def apply_registered_anchor_document(current_document_record, current_history_directory):
     """원본 일치 검사 후 좌표를 반영하며 실패하면 파일을 복원한다."""
-    with SPRITE_SHEET_UPDATE_LOCK:
-        current_asset_root,current_asset_records=load_registered_tiles()
+    with hold_sprite_asset_update_lock() as current_asset_root:
+        current_asset_root,current_asset_records=load_registered_tiles(current_asset_root)
         current_lock_path=current_asset_root.parent/'slime-frontend/sprite-assets.lock.yaml'
         current_lock_document=yaml.load(current_lock_path.read_text(),Loader=UniqueAssetYamlLoader)
         current_source_record=current_document_record['source']
@@ -59,14 +58,7 @@ def apply_registered_anchor_document(current_document_record, current_history_di
         current_backup_directory.mkdir()
         (current_backup_directory/'paths.json').write_text(json.dumps([str(current_file_path) for current_file_path in current_previous_files]))
         for current_file_index,current_file_bytes in enumerate(current_previous_files.values()):(current_backup_directory/str(current_file_index)).write_bytes(current_file_bytes)
-        try:
-            for current_file_path,current_file_bytes in current_pending_files.items():
-                current_temporary_path=current_file_path.with_name(current_file_path.name+'.anchor-update')
-                current_temporary_path.write_bytes(current_file_bytes)
-                os.replace(current_temporary_path,current_file_path)
-        except Exception:
-            for current_file_path,current_file_bytes in current_previous_files.items():current_file_path.write_bytes(current_file_bytes)
-            raise
+        write_sprite_asset_transaction(current_pending_files,current_previous_files,current_transaction_marker=current_asset_root/'.local/content-ledger/sprite-update-pending.json',current_backup_root=current_backup_directory)
         return {'version':current_next_version,'path':current_relative_path,'sha256':current_metadata_digest}
 
 

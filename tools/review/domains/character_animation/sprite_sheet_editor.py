@@ -316,8 +316,8 @@ def update_registered_sprite_sheet(current_request_record):
     from tools.review.common.map_tile_assets import load_registered_tiles, UniqueAssetYamlLoader
     if not isinstance(current_request_record,dict) or set(current_request_record) not in ({'path','metadataSha256','payload','confirm'},{'path','metadataSha256','payload','confirm','bodyReference'}) or current_request_record['confirm'] is not True:
         raise ValueError('대상·좌표맵 해시·편집 입력·확인이 필요합니다.')
-    with SPRITE_SHEET_UPDATE_LOCK:
-        current_asset_root,current_asset_records=load_registered_tiles()
+    with hold_sprite_asset_update_lock() as current_asset_root:
+        current_asset_root,current_asset_records=load_registered_tiles(current_asset_root)
         current_asset_path=current_request_record['path']
         current_verified_image=execute_sprite_asset_command('sheet-image',{'path':current_asset_path})
         if current_verified_image['image']!=current_request_record['payload']['image']:raise ValueError('원본이 변경되었거나 선택한 에셋과 편집 이미지가 다릅니다. 다시 불러오세요.')
@@ -390,16 +390,19 @@ def update_registered_sprite_sheet(current_request_record):
         for current_file_path,current_file_bytes in current_pending_files.items():
             current_relative_path=current_file_path.relative_to(current_asset_root).as_posix()
             current_new_hash=sha256(current_file_bytes).hexdigest()
-            for current_registry_entry in current_registry_document['assets']:
-                if current_registry_entry['path']==current_relative_path:
-                    current_registry_entry['sha256']=current_new_hash
-                    current_registry_entry['version']+='-edit-'+current_export_record['id']
-                    if 'width' in current_registry_entry:current_registry_entry['width']=current_export_record['coordinates']['sheet']['width']
-                    if 'height' in current_registry_entry:current_registry_entry['height']=current_export_record['coordinates']['sheet']['height']
-            for current_lock_entry in current_lock_document['files']:
-                if current_lock_entry['source_path']==current_relative_path:
-                    if current_lock_entry['sha256']!=current_asset_records[current_relative_path]['sha256']:raise ValueError('소비자 잠금 해시가 등록부와 다릅니다.')
-                    current_lock_entry['sha256']=current_new_hash
+            current_matching_registry=[current_entry for current_entry in current_registry_document['assets'] if current_entry['path']==current_relative_path]
+            current_matching_locks=[current_entry for current_entry in current_lock_document['files'] if current_entry['source_path']==current_relative_path]
+            if len(current_matching_registry)!=1 or len(current_matching_locks)!=1:
+                raise ValueError('변경할 에셋의 등록부와 소비자 잠금 항목이 각각 하나여야 합니다.')
+            current_registry_entry=current_matching_registry[0]
+            current_lock_entry=current_matching_locks[0]
+            if current_registry_entry['sha256']!=current_asset_records[current_relative_path]['sha256'] or current_lock_entry['sha256']!=current_asset_records[current_relative_path]['sha256']:
+                raise ValueError('소비자 잠금 해시가 등록부와 다릅니다.')
+            current_registry_entry['sha256']=current_new_hash
+            current_registry_entry['version']+='-edit-'+current_export_record['id']
+            if 'width' in current_registry_entry:current_registry_entry['width']=current_export_record['coordinates']['sheet']['width']
+            if 'height' in current_registry_entry:current_registry_entry['height']=current_export_record['coordinates']['sheet']['height']
+            current_lock_entry['sha256']=current_new_hash
         current_pending_files[current_registry_path]=yaml.safe_dump(current_registry_document,allow_unicode=True,sort_keys=False).encode()
         current_pending_files[current_lock_path]=yaml.safe_dump(current_lock_document,allow_unicode=True,sort_keys=False).encode()
         current_previous_files={current_file_path:current_file_path.read_bytes() for current_file_path in current_pending_files}
@@ -407,13 +410,83 @@ def update_registered_sprite_sheet(current_request_record):
         current_backup_root.mkdir()
         for current_file_index,(current_file_path,current_file_bytes) in enumerate(current_previous_files.items()):(current_backup_root/str(current_file_index)).write_bytes(current_file_bytes)
         write_record_atomically(current_backup_root/'paths.json',[str(current_file_path) for current_file_path in current_previous_files])
-        try:
-            for current_file_path,current_file_bytes in current_pending_files.items():current_file_path.write_bytes(current_file_bytes)
-        except Exception:
-            for current_file_path,current_file_bytes in current_previous_files.items():current_file_path.write_bytes(current_file_bytes)
-            raise
+        write_sprite_asset_transaction(current_pending_files,current_previous_files,current_transaction_marker=current_asset_root/'.local/content-ledger/sprite-update-pending.json',current_backup_root=current_backup_root)
         return {'id':current_export_record['id'],'path':current_asset_path,'metadata':current_metadata_paths[0]}
 
 
 import threading
 SPRITE_SHEET_UPDATE_LOCK = threading.RLock()
+
+
+def check_sprite_transaction_presence(current_path_value):
+    """실제 부재만 False로 처리하고 접근 오류는 전달한다."""
+    try:
+        current_path_value.lstat()
+    except FileNotFoundError:
+        return False
+    return True
+
+
+def write_sprite_asset_transaction(current_pending_files,current_previous_files,*,current_transaction_marker=None,current_backup_root=None):
+    """각 파일을 교체하고 실패하면 이미 교체한 모든 파일의 복원을 시도한다."""
+    import os
+    if set(current_pending_files)!=set(current_previous_files):raise ValueError('에셋 갱신 백업 대상 오류')
+    current_updated_paths=[]
+    if current_transaction_marker is not None:
+        if current_backup_root is None or check_sprite_transaction_presence(current_transaction_marker):
+            raise ValueError('이전 스프라이트 저장 상태를 확인해야 합니다.')
+        current_marker_record={'version':1,'backup_root':str(current_backup_root),'files':[{'path':str(current_file_path),'before_sha256':sha256(current_previous_files[current_file_path]).hexdigest(),'after_sha256':sha256(current_file_bytes).hexdigest(),'backup_index':current_file_index} for current_file_index,(current_file_path,current_file_bytes) in enumerate(current_pending_files.items())]}
+        write_record_atomically(current_transaction_marker,current_marker_record)
+    def replace_sprite_asset_file(current_file_path,current_file_bytes):
+        current_temporary_path=current_file_path.with_name('.'+current_file_path.name+'.sprite-'+uuid4().hex+'.tmp')
+        try:
+            with current_temporary_path.open('xb') as current_temporary_handle:
+                os.fchmod(current_temporary_handle.fileno(),current_file_path.stat().st_mode & 0o7777)
+                current_temporary_handle.write(current_file_bytes)
+            os.replace(current_temporary_path,current_file_path)
+        finally:
+            current_temporary_path.unlink(missing_ok=True)
+    try:
+        for current_file_path,current_file_bytes in current_pending_files.items():
+            replace_sprite_asset_file(current_file_path,current_file_bytes)
+            current_updated_paths.append(current_file_path)
+    except Exception as current_write_error:
+        current_rollback_failures=[]
+        for current_file_path in reversed(current_updated_paths):
+            try:replace_sprite_asset_file(current_file_path,current_previous_files[current_file_path])
+            except Exception:current_rollback_failures.append(current_file_path.name)
+        if current_rollback_failures:
+            raise RuntimeError('스프라이트 저장 실패 후 일부 파일 복원 실패: '+', '.join(current_rollback_failures)) from current_write_error
+        if current_transaction_marker is not None:current_transaction_marker.unlink()
+        raise
+    if current_transaction_marker is not None:current_transaction_marker.unlink()
+
+
+def hold_sprite_asset_update_lock():
+    """등록 스프라이트 변경을 같은 에셋 저장소의 프로세스 사이에서 직렬화한다."""
+    from contextlib import contextmanager
+    import fcntl
+    import os
+    from tools.review.common.map_tile_assets import DEFAULT_ASSET_REPOSITORY
+    @contextmanager
+    def acquire_sprite_update_lock():
+        current_asset_root=Path(os.environ.get('SLIME_ASSETS_ROOT',str(DEFAULT_ASSET_REPOSITORY))).resolve()
+        if not current_asset_root.is_dir():raise ValueError('에셋 저장소가 없습니다.')
+        current_local_root=current_asset_root/'.local'
+        current_ledger_root=current_local_root/'content-ledger'
+        with SPRITE_SHEET_UPDATE_LOCK:
+            for current_directory_path in (current_local_root,current_ledger_root):
+                if current_directory_path.is_symlink():raise ValueError('에셋 잠금 경로가 심볼릭 링크입니다.')
+                current_directory_path.mkdir(exist_ok=True)
+                if not current_directory_path.is_dir() or current_directory_path.is_symlink():raise ValueError('에셋 잠금 경로 오류')
+            current_lock_path=current_ledger_root/'sprite-asset-update.lock'
+            current_lock_descriptor=os.open(current_lock_path,os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
+            try:
+                fcntl.flock(current_lock_descriptor,fcntl.LOCK_EX)
+                current_pending_path=current_ledger_root/'sprite-update-pending.json'
+                if check_sprite_transaction_presence(current_pending_path):
+                    raise ValueError('완료되지 않은 스프라이트 저장이 있습니다. 원본·등록부·잠금과 백업을 확인하세요.')
+                yield current_asset_root
+            finally:
+                os.close(current_lock_descriptor)
+    return acquire_sprite_update_lock()

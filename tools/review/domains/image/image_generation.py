@@ -13,7 +13,7 @@ import uuid
 import os
 import signal
 import shutil
-from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup, read_cleanup_confirmation
+from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup, hold_cleanup_preview_guard, read_cleanup_confirmation
 from tools.review.common.generation_records import load_generation_history_records, write_record_atomically
 from tools.review.domains.image.image_runtime import validate_image_runtime
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
@@ -182,8 +182,11 @@ class ImageGenerationManager:
         return [current_job_path for current_job_path in self.job_storage_root.iterdir() if re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-(?:[a-f0-9]{8}|prepare)', current_job_path.name)] if self.job_storage_root.exists() else []
 
     def preview_generation_cleanup(self):
-        with self.current_request_lock, MANAGER_HISTORY_LOCK:
-            return describe_generation_cleanup(self.job_storage_root, self.list_cleanup_targets())
+        with hold_cleanup_preview_guard(self.job_storage_root):
+            with self.current_request_lock:
+                with MANAGER_HISTORY_LOCK:
+                    current_cleanup_targets=self.list_cleanup_targets()
+                return describe_generation_cleanup(self.job_storage_root,current_cleanup_targets)
 
     def clear_image_generation_files(self,current_expected_jobs=None):
         """목록에서 제외한 작업도 포함해 생성기 실제 파일을 정리한다."""
@@ -236,7 +239,7 @@ class ImageGenerationManager:
                 if current_http_handler.headers.get('Origin') != expected_origin_value:
                     raise ValueError('동일 출처 요청만 허용합니다.')
                 history_delete_match=re.fullmatch(re.escape(self.route_prefix_value)+r'/history/([0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8})/delete',current_url_path)
-                if (current_url_path not in (self.route_prefix_value+'/jobs',self.route_prefix_value+'/history/reset',self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume',self.route_prefix_value+'/pause',self.route_prefix_value+'/history/observe') and history_delete_match is None) or current_http_handler.headers.get('Content-Type','').split(';')[0] != 'application/json':
+                if (current_url_path not in (self.route_prefix_value+'/jobs',self.route_prefix_value+'/history/reset',self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume',self.route_prefix_value+'/resume/preview',self.route_prefix_value+'/resume/reviewed',self.route_prefix_value+'/pause',self.route_prefix_value+'/history/observe') and history_delete_match is None) or current_http_handler.headers.get('Content-Type','').split(';')[0] != 'application/json':
                     raise ValueError('요청 경로 또는 형식 오류')
                 current_body_length = int(current_http_handler.headers.get('Content-Length','0'))
                 if not 1 <= current_body_length <= (getattr(self, 'reference_request_limit', 12_100_000) if self.three_reference_mode or getattr(self,'reference_upload_enabled',False) else IMAGE_REQUEST_LIMIT):
@@ -246,6 +249,22 @@ class ImageGenerationManager:
                     from tools.review.common.generation_records import observe_generation_history_records
                     with MANAGER_HISTORY_LOCK:
                         send_response_data(200,observe_generation_history_records(self.history_storage_path(),self.job_storage_root,current_request_record))
+                    return True
+                if current_url_path==self.route_prefix_value+'/resume/reviewed':
+                    if not callable(getattr(self,'resume_reviewed_generation_job',None)):
+                        raise ValueError('이 생성기는 검토 기반 재개를 지원하지 않습니다.')
+                    if (not isinstance(current_request_record,dict) or set(current_request_record)!={'id','expected_resume_fingerprint'}
+                            or not isinstance(current_request_record['id'],str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_request_record['id'])
+                            or not isinstance(current_request_record['expected_resume_fingerprint'],str) or not re.fullmatch(r'[a-f0-9]{64}',current_request_record['expected_resume_fingerprint'])):
+                        raise ValueError('재개 작업 ID 또는 확인값 오류')
+                    send_response_data(200,self.resume_reviewed_generation_job(self.job_storage_root/current_request_record['id'],current_request_record['expected_resume_fingerprint']))
+                    return True
+                if current_url_path==self.route_prefix_value+'/resume/preview':
+                    if not callable(getattr(self,'preview_generation_resume',None)):
+                        raise ValueError('이 생성기는 재개 예비 검토를 지원하지 않습니다.')
+                    if not isinstance(current_request_record,dict) or set(current_request_record)!={'id'} or not isinstance(current_request_record['id'],str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_request_record['id']):
+                        raise ValueError('재개 검토 작업 ID 오류')
+                    send_response_data(200,self.preview_generation_resume(self.job_storage_root/current_request_record['id']))
                     return True
                 if current_url_path in (self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume',self.route_prefix_value+'/pause'):
                     if not isinstance(current_request_record,dict) or set(current_request_record)!={'id'} or not re.fullmatch(r'[0-9a-f_-]+',current_request_record['id']):

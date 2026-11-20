@@ -114,5 +114,8 @@ class FluxExpressionGenerationTests(unittest.TestCase):
             with patch.dict('os.environ',{'SLIME_MANAGEMENT_MENU_SOURCE':str(current_source_path)}):
                 current_page_value,_=build_management_blocks('flux-expression-generator',8770,current_source_path)
         self.assertGreater(len(current_page_value.blocks),0)
+        current_config_record=current_page_value.get_config_file()
+        self.assertTrue(any(current_component.get('props',{}).get('value')=='전달된 작업을 이력에서 찾기' for current_component in current_config_record['components']))
+        self.assertTrue(any("searchParams.get('job')" in str(current_dependency.get('js','')) for current_dependency in current_config_record['dependencies']))
         current_page_module = importlib.import_module('generators.flux-expression.page.interface')
         self.assertEqual(current_page_module.load_default_face_reference().size, Image.open('baseline/player/default/default-face-front-v1.png').size)

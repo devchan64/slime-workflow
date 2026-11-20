@@ -23,9 +23,10 @@ MANAGEMENT_SERVICE_COMMANDS = {'qwen-21-circular': ('history-delete', 'resume', 
 
 
 MANAGEMENT_SERVICE_ROUTES['model-downloads']='/model-downloads'
-MANAGEMENT_SERVICE_COMMANDS['model-downloads']=('download-status','download-inventory')
+MANAGEMENT_SERVICE_COMMANDS['model-downloads']=('download-status','download-inventory','download-observe')
 MANAGEMENT_SERVICE_ROUTES['hermes-model'] = '/hermes-model'
 MANAGEMENT_SERVICE_COMMANDS['hermes-model'] = ('model-status', 'prepare')
+MANAGEMENT_COMMAND_ROUTES['download-observe']=('GET','/observe')
 MANAGEMENT_COMMAND_ROUTES['download-status']=('GET','/status')
 MANAGEMENT_COMMAND_ROUTES['download-inventory']=('GET','/inventory')
 
@@ -56,13 +57,20 @@ MANAGEMENT_COMMAND_ROUTES['sheet-gif'] = ('POST', '/sheet/gif')
 MANAGEMENT_SERVICE_COMMANDS['character-animation'] += ('sheet-auto','sheet-export','sheet-gif','sheet-search','sheet-image','sheet-update')
 MANAGEMENT_COMMAND_ROUTES.update({'sheet-update':('POST','/sheet/update'),'sheet-search':('POST','/sheet/search'),'sheet-image':('POST','/sheet/image')})
 
-WRITER_PAYLOAD_COMMAND_NAMES = ('writer-index-status', 'writer-detail', 'writer-submit', 'writer-apply', 'writer-history', 'writer-history-observe', 'writer-delete', 'writer-cancel')
+WRITER_PAYLOAD_COMMAND_NAMES = ('writer-index-status', 'writer-search-paths', 'writer-material-page', 'writer-detail', 'writer-submit', 'writer-apply', 'writer-history', 'writer-history-observe', 'writer-delete', 'writer-cancel')
 TRANSLATION_PAYLOAD_COMMAND_NAMES = ('translation-submit', 'translation-status', 'translation-cancel', 'translation-history', 'translation-rag')
-HERMES_PAYLOAD_COMMAND_NAMES = ('hermes-generator-reservation-recover', 'hermes-generator-reservation-receipt', 'hermes-generator-reservation-inspect', 'hermes-submit', 'hermes-detail', 'hermes-history', 'hermes-diff', 'hermes-cancel', 'hermes-session-create', 'hermes-session-read', 'hermes-session-list', 'hermes-session-submit', 'hermes-session-view', 'hermes-management-status', 'hermes-priority-preview', 'hermes-priority-submit', 'hermes-priority-receipt', 'hermes-service-receipt', 'hermes-capture-status', 'hermes-capture-proposal', 'hermes-expression-catalog', 'hermes-model-inventory', 'hermes-content-database-status', 'hermes-kimodo-build-status', 'hermes-model-readiness', 'hermes-model-prepare', 'hermes-model-prepare-status', 'hermes-model-prepare-history', 'hermes-billboard-catalog', 'hermes-billboard-proposal', 'hermes-billboard-load', 'hermes-billboard-preview', 'hermes-billboard-save', 'hermes-billboard-receipt', 'hermes-building-catalog', 'hermes-building-preview', 'hermes-building-save', 'hermes-building-receipt', 'hermes-sprite-clip-playback', 'hermes-sprite-playback', 'hermes-sprite-proposal', 'hermes-sprite-preview', 'hermes-sprite-save', 'hermes-sprite-receipt', 'hermes-sprite-catalog', 'hermes-sprite-detail', 'hermes-effect-catalog', 'hermes-effect-detail', 'hermes-effect-proposal', 'hermes-effect-preview', 'hermes-effect-save', 'hermes-effect-receipt', 'hermes-effect-register-preview', 'hermes-effect-register', 'hermes-effect-register-receipt', 'hermes-waypoint-preview', 'hermes-waypoint-replace', 'hermes-waypoint-receipt', 'hermes-world-map', 'hermes-field-load', 'hermes-field-region', 'hermes-field-preview', 'hermes-field-save', 'hermes-field-receipt', 'hermes-field-history', 'hermes-city-load', 'hermes-city-preview', 'hermes-city-save', 'hermes-city-receipt', 'hermes-city-history', 'hermes-service-registration', 'hermes-delegate-writer', 'hermes-writer-proposal', 'hermes-writer-status', 'hermes-writer-history', 'hermes-writer-cancel', 'hermes-writer-reservation-preview', 'hermes-writer-reservation-recover', 'hermes-writer-reservation-receipt', 'hermes-writer-apply', 'hermes-writer-apply-status', 'hermes-writer-apply-history', 'hermes-delegate-translation', 'hermes-translation-proposal', 'hermes-translation-status', 'hermes-translation-history', 'hermes-translation-cancel', 'hermes-delegate-video', 'hermes-video-proposal', 'hermes-video-status', 'hermes-video-history', 'hermes-video-cancel', 'hermes-delegate-audio', 'hermes-audio-proposal', 'hermes-audio-status', 'hermes-audio-history', 'hermes-audio-source-history', 'hermes-generator-source-history', 'hermes-audio-cancel', 'hermes-delegate-flux-profile', 'hermes-flux-profile-status', 'hermes-flux-profile-history', 'hermes-flux-profile-cancel', 'hermes-delegate-flux-image', 'hermes-flux-delegation-history', 'hermes-flux-delegation-status', 'hermes-flux-delegation-cancel', 'hermes-delegate-kimodo', 'hermes-kimodo-proposal', 'hermes-kimodo-keyframes', 'hermes-kimodo-keyframe-preview', 'hermes-kimodo-keyframe-validate', 'hermes-flux-proposal', 'hermes-field-proposal', 'hermes-delegation-status', 'hermes-delegation-cancel', 'hermes-delegation-job-status', 'hermes-delegation-history', 'hermes-capabilities')
+HERMES_PAYLOAD_COMMAND_NAMES = ('hermes-generator-reservation-recover', 'hermes-generator-reservation-receipt', 'hermes-generator-reservation-inspect', 'hermes-submit', 'hermes-detail', 'hermes-history', 'hermes-diff', 'hermes-cancel', 'hermes-session-create', 'hermes-session-read', 'hermes-session-list', 'hermes-session-submit', 'hermes-session-view', 'hermes-management-status', 'hermes-priority-preview', 'hermes-priority-submit', 'hermes-priority-receipt', 'hermes-service-receipt', 'hermes-capture-status', 'hermes-capture-proposal', 'hermes-expression-catalog', 'hermes-model-inventory', 'hermes-model-download-status', 'hermes-content-database-status', 'hermes-kimodo-build-status', 'hermes-model-readiness', 'hermes-model-prepare', 'hermes-model-prepare-status', 'hermes-model-prepare-history', 'hermes-billboard-catalog', 'hermes-billboard-proposal', 'hermes-billboard-load', 'hermes-billboard-preview', 'hermes-billboard-save', 'hermes-billboard-receipt', 'hermes-building-catalog', 'hermes-building-preview', 'hermes-building-save', 'hermes-building-receipt', 'hermes-sprite-pending-status', 'hermes-sprite-clip-playback', 'hermes-sprite-playback', 'hermes-sprite-proposal', 'hermes-sprite-preview', 'hermes-sprite-save', 'hermes-sprite-receipt', 'hermes-sprite-catalog', 'hermes-sprite-detail', 'hermes-effect-catalog', 'hermes-effect-detail', 'hermes-effect-proposal', 'hermes-effect-preview', 'hermes-effect-save', 'hermes-effect-receipt', 'hermes-effect-register-preview', 'hermes-effect-register', 'hermes-effect-register-receipt', 'hermes-waypoint-preview', 'hermes-waypoint-replace', 'hermes-waypoint-receipt', 'hermes-world-map', 'hermes-field-load', 'hermes-field-region', 'hermes-field-preview', 'hermes-field-save', 'hermes-field-receipt', 'hermes-field-history', 'hermes-city-load', 'hermes-city-preview', 'hermes-city-save', 'hermes-city-receipt', 'hermes-city-history', 'hermes-service-registration', 'hermes-delegate-writer', 'hermes-writer-proposal', 'hermes-writer-index-status', 'hermes-writer-search-paths', 'hermes-writer-status', 'hermes-writer-history', 'hermes-writer-cancel', 'hermes-writer-reservation-preview', 'hermes-writer-reservation-recover', 'hermes-writer-reservation-receipt', 'hermes-writer-apply', 'hermes-writer-apply-status', 'hermes-writer-apply-history', 'hermes-delegate-translation', 'hermes-translation-proposal', 'hermes-translation-evidence', 'hermes-translation-status', 'hermes-translation-history', 'hermes-translation-cancel', 'hermes-delegate-video', 'hermes-video-proposal', 'hermes-video-status', 'hermes-video-history', 'hermes-video-cancel', 'hermes-delegate-audio', 'hermes-audio-proposal', 'hermes-audio-status', 'hermes-audio-history', 'hermes-audio-source-history', 'hermes-generator-source-history', 'hermes-audio-cancel', 'hermes-delegate-flux-profile', 'hermes-flux-profile-status', 'hermes-flux-profile-history', 'hermes-flux-profile-cancel', 'hermes-delegate-flux-image', 'hermes-flux-delegation-history', 'hermes-flux-delegation-status', 'hermes-flux-delegation-cancel', 'hermes-delegate-kimodo', 'hermes-kimodo-proposal', 'hermes-kimodo-keyframes', 'hermes-kimodo-keyframe-preview', 'hermes-kimodo-keyframe-validate', 'hermes-flux-proposal', 'hermes-field-proposal', 'hermes-delegation-status', 'hermes-delegation-cancel', 'hermes-delegation-job-status', 'hermes-delegation-history', 'hermes-capabilities')
+HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-writer-job-search-paths','hermes-writer-job-review','hermes-writer-job-material',)
+HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-city-source',)
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-city-proposal','hermes-building-proposal')
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-audio-resume-preview','hermes-audio-resume-submit','hermes-audio-resume-receipt')
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-translation-resume-preview','hermes-translation-resume-submit','hermes-translation-resume-receipt')
 MANAGEMENT_SERVICE_ROUTES['hermes-agent'] = '/hermes-agent'
+HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-model-preparation-proposal',)
+HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-kimodo-resume-preview','hermes-kimodo-resume-submit','hermes-kimodo-resume-receipt','hermes-kimodo-resume-proposal')
+HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-cleanup-preview',)
+HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-video-resume-preview','hermes-video-resume-submit','hermes-video-resume-receipt','hermes-video-resume-proposal')
+HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-flux-resume-preview','hermes-flux-resume-submit','hermes-flux-resume-receipt','hermes-flux-resume-proposal')
 MANAGEMENT_SERVICE_COMMANDS['hermes-agent'] = HERMES_PAYLOAD_COMMAND_NAMES
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name: ('POST', '/' + current_command_name) for current_command_name in HERMES_PAYLOAD_COMMAND_NAMES})
 MANAGEMENT_SERVICE_ROUTES['prompt-translation'] = '/prompt-translation'
@@ -70,7 +78,7 @@ MANAGEMENT_SERVICE_COMMANDS['prompt-translation'] = (*TRANSLATION_PAYLOAD_COMMAN
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name: ('POST', '/' + current_command_name) for current_command_name in TRANSLATION_PAYLOAD_COMMAND_NAMES})
 MANAGEMENT_SERVICE_ROUTES['writer-agent'] = '/writer-agent'
 MANAGEMENT_SERVICE_COMMANDS['writer-agent'] = ('writer-state', 'writer-token', 'model-status', 'prepare', *WRITER_PAYLOAD_COMMAND_NAMES)
-MANAGEMENT_COMMAND_ROUTES.update({'writer-index-status': ('POST', '/api/index-status'), 'writer-state': ('GET', '/api/state'), 'writer-token': ('GET', '/api/token'), 'writer-detail': ('POST', '/api/detail'), 'writer-submit': ('POST', '/api/jobs'), 'writer-apply': ('POST', '/api/apply'), 'writer-history': ('POST', '/api/history'), 'writer-history-observe': ('POST', '/api/history/observe'), 'writer-delete': ('POST', '/api/history/delete'), 'writer-cancel': ('POST', '/api/cancel')})
+MANAGEMENT_COMMAND_ROUTES.update({'writer-index-status': ('POST', '/api/index-status'), 'writer-state': ('GET', '/api/state'), 'writer-token': ('GET', '/api/token'), 'writer-search-paths': ('POST', '/api/search-paths'), 'writer-material-page': ('POST', '/api/material-page'), 'writer-detail': ('POST', '/api/detail'), 'writer-submit': ('POST', '/api/jobs'), 'writer-apply': ('POST', '/api/apply'), 'writer-history': ('POST', '/api/history'), 'writer-history-observe': ('POST', '/api/history/observe'), 'writer-delete': ('POST', '/api/history/delete'), 'writer-cancel': ('POST', '/api/cancel')})
 
 
 MANAGEMENT_SERVICE_ROUTES['map-assets']='/map-assets'
@@ -117,8 +125,14 @@ for current_service_name in ('music-heartmula', 'sfx-dasheng-audiogen'):
     MANAGEMENT_SERVICE_COMMANDS[current_service_name] += ('download-model', 'download-model-status')
 MANAGEMENT_COMMAND_ROUTES.update({'download-model': ('POST', '/model-download'), 'download-model-status': ('GET', '/model-download')})
 
+MANAGEMENT_COMMAND_ROUTES['resume-reviewed'] = ('POST', '/resume/reviewed')
+MANAGEMENT_SERVICE_COMMANDS['kimodo'] += ('resume-reviewed',)
+for current_video_service in ('dwpose','wan22-animate2','wan22-vace'):
+    MANAGEMENT_SERVICE_COMMANDS[current_video_service] += ('resume-reviewed',)
+for current_flux_profile in FLUX_IMAGE_PROFILE_RECORDS:
+    MANAGEMENT_SERVICE_COMMANDS[current_flux_profile] += ('resume-reviewed',)
 MANAGEMENT_COMMAND_ROUTES['resume-preview'] = ('POST', '/resume/preview')
-for current_service_name in ('music-heartmula','sfx-dasheng-audiogen','prompt-translation'):
+for current_service_name in ('music-heartmula','sfx-dasheng-audiogen','prompt-translation','kimodo','dwpose','wan22-animate2','wan22-vace',*FLUX_IMAGE_PROFILE_RECORDS):
     MANAGEMENT_SERVICE_COMMANDS[current_service_name] += ('resume-preview',)
 
 MANAGEMENT_COMMAND_ROUTES['history-observe'] = ('POST', '/history/observe')
@@ -141,6 +155,8 @@ for current_service_name in SOURCE_HISTORY_GENERATOR_SERVICES:
 
 def inspect_management_policy_rejection(service_command_name, operation_command_name):
     """게이트웨이의 명시적 차단 사유만 반환하며 서비스의 실행 가능성을 판정하지 않는다."""
+    if service_command_name=='map-assets' and operation_command_name=='database-restore':
+        return '폐기된 파일 스냅샷 복구는 지원하지 않습니다. 에셋 원본과 현재 콘텐츠 DB 상태를 확인하세요.'
     if service_command_name in RETIRED_AUDIO_SERVICE_NAMES and operation_command_name == 'prepare':
         return '폐기된 음악 생성기는 모델 준비를 지원하지 않습니다. 기존 이력은 조회할 수 있습니다.'
     if service_command_name == 'expression-lora' and operation_command_name == 'prepare':
@@ -182,7 +198,7 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('Kimodo 기록 관측은 입력을 받지 않습니다.')
     if operation_command_name in ('migraphx-build', 'migraphx-build-status', 'migraphx-build-observe') and command_payload_value:
         raise ValueError('MIGraphX 빌드 명령은 입력 필드를 받지 않습니다.')
-    if operation_command_name in ('history-reset-preview','writer-state','writer-token','download-status','download-inventory','download-model','download-model-status') and command_payload_value:
+    if operation_command_name in ('history-reset-preview','writer-state','writer-token','download-status','download-inventory','download-observe','download-model','download-model-status') and command_payload_value:
         raise ValueError('초기화 미리보기는 입력 필드를 받지 않습니다.')
     if service_command_name == 'expression-lora' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('표정 LoRA 준비에는 action=prepare만 허용합니다.')
@@ -311,7 +327,7 @@ for current_flux_profile, current_flux_values in FLUX_IMAGE_PROFILE_RECORDS.item
     MANAGEMENT_COMMAND_DESCRIPTIONS[current_flux_profile] = 'FLUX 3 ' + current_flux_values[0] + ' 이미지 생성'
 MANAGEMENT_COMMAND_DESCRIPTIONS['writer-agent']='작가 문서 학습·제안·조회·해시 확인 적용 · --payload-file · 기존 문서/기록 경로 유지'
 MANAGEMENT_COMMAND_DESCRIPTIONS['prompt-translation']='한국어 프롬프트 번역 · 요청·상태·취소·이력 --payload-file'
-MANAGEMENT_COMMAND_DESCRIPTIONS['map-assets']='맵 PNG 축소·투명 여백 크롭(asset-crop-preview / asset-crop)·빌보드 속성·야외·도시 맵 편집 · map-edit-load / map-edit-preview / map-edit-save / city-edit-load / city-edit-preview / city-edit-save / asset-list(category: vegetation·herbaceous·large-trees·rocks-minerals·props) / asset-preview / asset-save / asset-retire-preview / asset-retire / building-list / building-save / building-register / building-retire / database-seed / database-status / database-sync / database-restore --payload-file'
+MANAGEMENT_COMMAND_DESCRIPTIONS['map-assets']='맵 PNG 축소·투명 여백 크롭(asset-crop-preview / asset-crop)·빌보드 속성·야외·도시 맵 편집 · map-edit-load / map-edit-preview / map-edit-save / city-edit-load / city-edit-preview / city-edit-save / asset-list(category: vegetation·herbaceous·large-trees·rocks-minerals·props) / asset-preview / asset-save / asset-retire-preview / asset-retire / building-list / building-save / building-register / building-retire / database-seed / database-status / database-sync / database-restore(폐기) --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['map-review']='전체 맵 헤드리스 Chrome PNG 캡처 · --payload-file 설정'
 MANAGEMENT_COMMAND_DESCRIPTIONS['character-review']='캐릭터 검수 렌더링 PNG 캡처 · --payload-file 설정'
 MANAGEMENT_COMMAND_DESCRIPTIONS['billboard-generator'] = 'Qwen 가이드 빌보드 생성 · 독립 대기열·이력'
@@ -371,6 +387,11 @@ def execute_management_command(service_command_name, operation_command_name, com
             if operation_command_name == 'download-inventory':
                 from tools.review.common.model_file_inventory import list_model_inventory_files
                 return send_management_json_response(gateway_request_handler, 200, {'models': list_model_inventory_files()})
+            if operation_command_name == 'download-observe':
+                from tools.review.common.model_download_records import observe_model_download_records
+                current_issue_counts={'unavailable_count':0}
+                current_observed_records=observe_model_download_records(current_issue_counts=current_issue_counts)
+                return send_management_json_response(gateway_request_handler, 200, {'records':current_observed_records,**current_issue_counts})
             from tools.review.common.model_download_records import list_model_download_records
             return send_management_json_response(gateway_request_handler, 200, {'records': list_model_download_records()})
         if service_command_name == 'expression-lora':
@@ -408,10 +429,18 @@ def execute_management_command(service_command_name, operation_command_name, com
             from tools.review.common.model_prepare_process import inspect_registered_preparation, start_registered_preparation
             from tools.review.common.management_transport import send_management_json_response
             current_profile_name = AUDIO_DOWNLOAD_PROFILES[service_command_name]
-            current_preparation_status = inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY, current_profile_name)
-            current_models_ready = inspect_audio_download_files(service_command_name)
-            if operation_command_name == 'download-model' and current_preparation_status != 'running' and not current_models_ready:
-                current_preparation_status = start_registered_preparation(WORKFLOW_ROOT_DIRECTORY, current_profile_name)['preparation_status']
+            if operation_command_name == 'download-model':
+                from tools.review.domains.music.generation import MusicGenerationManager
+                current_music_manager = MusicGenerationManager(service_command_name)
+                with current_music_manager.hold_music_lock():
+                    current_preparation_status = inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY, current_profile_name)
+                    current_models_ready = inspect_audio_download_files(service_command_name)
+                    if current_preparation_status != 'running' and not current_models_ready:
+                        current_music_manager.ensure_no_active_music_preparation(current_check_all_actions=True)
+                        current_preparation_status = start_registered_preparation(WORKFLOW_ROOT_DIRECTORY, current_profile_name)['preparation_status']
+            else:
+                current_preparation_status = inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY, current_profile_name)
+                current_models_ready = inspect_audio_download_files(service_command_name)
             current_status_message = '모델 파일 다운로드 완료 · 실행 환경과 GPU 검증은 별도 준비' if current_models_ready else '모델 파일 다운로드 필요 · 실행 환경은 별도 준비'
             if current_preparation_status == 'running':
                 current_status_message = '모델 파일 다운로드 중 · 실행 환경과 GPU 검증은 별도 준비'
@@ -438,6 +467,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     command_subparser_group=command_argument_parser.add_subparsers(dest='command',required=True)
     for operation_command_name in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
+        if operation_command_name == 'resume-reviewed':
+            operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='검토한 작업 ID와 두 확인값 JSON')
         if operation_command_name == 'keyframe-save':
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='생성 ID·시도 ID·원본 프레임 번호·태그 JSON')
         if operation_command_name == 'keyframe-preview':
@@ -459,7 +490,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             operation_argument_parser.add_argument('id')
             if operation_command_name=='sprite-history-delete':operation_argument_parser.add_argument('--revision',required=True)
             if operation_command_name=='sprite-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
-        if operation_command_name in ('status','logs','cancel','resume','pause','history-delete','prioritize'):
+        if operation_command_name in ('status','logs','cancel','resume','resume-preview','pause','history-delete','prioritize'):
             operation_argument_parser.add_argument('id')
         if operation_command_name in ('generate','export-vnccs'):
             operation_argument_parser.add_argument('--detach',action='store_true',help='작업 ID 출력 후 반환')
@@ -566,7 +597,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             raise ValueError('관리도구 주소는 http://127.0.0.1:포트 또는 http://localhost:포트 형식이어야 합니다.')
     operation_command_name=command_argument_values.command
     command_payload_value={}
-    if operation_command_name == 'keyframe-save':
+    if operation_command_name in ('keyframe-save','resume-reviewed'):
         command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
     if operation_command_name in ('keyframe-replace','keyframe-retire'):
         command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
@@ -746,7 +777,7 @@ def call_management_api(server_base_address, request_route_path, request_body_va
     if command_envelope_parts is None:raise ValueError('지원하지 않는 관리 명령 경로')
     service_command_name,operation_command_name,command_payload_value=command_envelope_parts
     if service_command_name=='writer-agent' and operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES:
-        current_token_command='writer-token' if operation_command_name in ('writer-history-observe','writer-cancel') else 'writer-state'
+        current_token_command='writer-token' if operation_command_name in ('writer-history-observe','writer-cancel','writer-material-page') else 'writer-state'
         current_writer_state=execute_management_command('writer-agent',current_token_command,{},server_base_address)
         request_header_values['X-Writer-Token']=current_writer_state['csrf_token']
     request_route_path='/management/command'

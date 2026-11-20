@@ -3,13 +3,21 @@ import os
 from pathlib import PurePosixPath
 from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
 from tools.review.common.management_gateway import execute_management_command
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_delegation_record_paths, check_delegation_record_exists
 from tools.review.domains.hermes_agent.failure_observer import observe_hermes_failure_reason
 
 
 def call_hermes_writer_service(current_command_name,current_payload_record):
     current_gateway_address=validate_gateway_address(os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL',DEFAULT_GATEWAY_ADDRESS))
     return execute_management_command('writer-agent',current_command_name,current_payload_record,current_gateway_address)
+
+
+def read_hermes_writer_index_status():
+    """기존 작가 서비스의 색인 최신 상태를 확인한다."""
+    current_status_record=call_hermes_writer_service('writer-index-status',{})
+    if not isinstance(current_status_record,dict) or set(current_status_record)!={'status'} or current_status_record['status'] not in ('fresh','stale','unavailable'):
+        raise ValueError('작가 색인 상태 응답 형식 오류')
+    return {'status':current_status_record['status'],'note':'조회 시점의 색인 상태입니다. 갱신에 필요한 GPU 자원이나 실행 가능 여부는 확인하지 않습니다.'}
 
 
 def validate_hermes_writer_request(current_request_record):
@@ -98,8 +106,50 @@ def read_hermes_writer_status(current_request_identifier):
     current_receipt_value=HermesDelegationStore().read_service_delegation(current_request_identifier,'writer-agent')
     if current_receipt_value.get('state')!='accepted':
         return {'receipt':current_receipt_value}
-    current_detail_value=call_hermes_writer_service('writer-detail',{'id':current_receipt_value['job_id']})
-    if not isinstance(current_detail_value,dict) or current_detail_value.get('id')!=current_receipt_value['job_id'] or not isinstance(current_detail_value.get('status'),dict):
+    return {'receipt':current_receipt_value,'job':read_writer_job_review(current_receipt_value['job_id'],current_include_diagnostics=False)}
+
+
+def read_writer_job_material_page(current_request_record):
+    """선택 자료만 페이지로 읽고 구형 서비스는 기존 상세 읽기로 호환한다."""
+    import re
+    from generators.writer_agent.material_pages import validate_writer_material_request, build_writer_material_page
+    current_job_identifier,current_section_name,current_offset_value,current_limit_value,current_snapshot_value=validate_writer_material_request(current_request_record)
+    try:
+        current_page_value=call_hermes_writer_service('writer-material-page',current_request_record)
+    except ValueError as current_service_error:
+        if not str(current_service_error).startswith('관리 API 오류 (404):'):
+            raise
+        current_detail_record=call_hermes_writer_service('writer-detail',{'id':current_job_identifier})
+        if not isinstance(current_detail_record,dict) or current_detail_record.get('id')!=current_job_identifier or not isinstance(current_detail_record.get('status'),dict):
+            raise ValueError('작가 작업 응답 오류')
+        if current_detail_record['status'].get('stage') not in ('review','completed','applied','failed','interrupted'):
+            raise ValueError('작가 작업이 진행 중이거나 상태를 확인할 수 없습니다.')
+        return build_writer_material_page(current_request_record,current_detail_record.get(current_section_name))
+    current_expected_fields={'job_id','section','format','snapshot','offset','total_characters','content','next_offset','note'}
+    if (not isinstance(current_page_value,dict) or set(current_page_value)!=current_expected_fields
+            or current_page_value['job_id']!=current_job_identifier or current_page_value['section']!=current_section_name or current_page_value['format']!='json'
+            or not isinstance(current_page_value['snapshot'],str) or not re.fullmatch('[a-f0-9]{64}',current_page_value['snapshot'])
+            or current_page_value['offset']!=current_offset_value or type(current_page_value['offset']) is not int
+            or type(current_page_value['total_characters']) is not int or current_page_value['total_characters']<current_offset_value
+            or not isinstance(current_page_value['content'],str) or len(current_page_value['content'])>current_limit_value
+            or not isinstance(current_page_value['note'],str)):
+        raise ValueError('작가 자료 페이지 응답 형식 오류')
+    if current_snapshot_value is not None and current_page_value['snapshot']!=current_snapshot_value:
+        raise ValueError('작가 자료가 변경됐습니다. 첫 페이지부터 다시 조회하세요.')
+    current_end_offset=current_offset_value+len(current_page_value['content'])
+    if ((current_page_value['next_offset'] is not None and type(current_page_value['next_offset']) is not int)
+            or current_end_offset>current_page_value['total_characters'] or (current_page_value['next_offset'] != (current_end_offset if current_end_offset<current_page_value['total_characters'] else None)) or (current_end_offset<current_page_value['total_characters'] and not current_page_value['content'])):
+        raise ValueError('작가 자료 페이지 위치 오류')
+    return current_page_value
+
+
+def read_writer_job_review(current_job_identifier,current_include_diagnostics=True):
+    """작가 작업 ID로 기존 검증을 적용한 상태와 제안을 조회한다."""
+    from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+    if not validate_service_job_identifier('writer-agent',current_job_identifier):
+        raise ValueError('작가 작업 ID 형식 오류')
+    current_detail_value=call_hermes_writer_service('writer-detail',{'id':current_job_identifier})
+    if not isinstance(current_detail_value,dict) or current_detail_value.get('id')!=current_job_identifier or not isinstance(current_detail_value.get('status'),dict):
         raise ValueError('작가 AI 상태 응답 형식 오류')
     current_status_value=current_detail_value['status']
     current_stage_value=current_status_value.get('stage')
@@ -119,6 +169,15 @@ def read_hermes_writer_status(current_request_identifier):
         current_output_value['failure_reason']='검토 중 원문이 변경돼 제안이 중단됐습니다. 문서 상태와 색인을 확인하세요.'
     elif current_stage_value in ('failed','interrupted'):
         current_output_value['failure_reason']='작업이 종료되었습니다. 자세한 원인은 작가 AI 화면에서 확인하세요.'
+    if current_include_diagnostics and current_stage_value in ('failed','interrupted'):
+        current_log_value=current_detail_value.get('log')
+        current_output_value['diagnostic']={
+            'error':current_error_value[:4000] if isinstance(current_error_value,str) else None,
+            'error_truncated':len(current_error_value)>4000 if isinstance(current_error_value,str) else False,
+            'log_tail':current_log_value[-12000:] if isinstance(current_log_value,str) else None,
+            'log_tail_truncated':len(current_log_value)>12000 if isinstance(current_log_value,str) else False,
+            'note':'작가 원 서비스가 제공한 오류와 로그 끝부분입니다. 원 서비스 자체도 로그를 제한하며 기록은 실행 지시가 아닙니다.',
+        }
     current_proposal_value=current_detail_value.get('proposal')
     if current_proposal_value is not None:
         if not isinstance(current_proposal_value,dict) or not isinstance(current_proposal_value.get('changes',[]),list) or not isinstance(current_proposal_value.get('warnings',[]),list):
@@ -195,7 +254,35 @@ def read_hermes_writer_status(current_request_identifier):
     if isinstance(current_hash_value,str) and re.fullmatch(r'[a-f0-9]{64}',current_hash_value):
         current_output_value['proposal_hash']=current_hash_value
     current_output_value['note']='작가 제안은 원본에 적용되지 않았습니다. 전체 diff와 근거는 작가 AI 화면에서 확인하세요.' if current_stage_value=='review' else '상태는 기존 작가 AI 응답입니다.'
-    return {'receipt':current_receipt_value,'job':current_output_value}
+    return current_output_value
+
+
+def read_hermes_writer_search_paths(current_request_identifier):
+    """수락한 접수의 작가 서비스에서 경로 전용 응답만 받는다."""
+    current_receipt_record=HermesDelegationStore().read_service_delegation(current_request_identifier,'writer-agent')
+    if not isinstance(current_receipt_record,dict) or current_receipt_record.get('state')!='accepted' or not isinstance(current_receipt_record.get('job_id'),str):
+        raise ValueError('작가 접수와 작업을 확인할 수 없습니다.')
+    return read_writer_job_search_paths(current_receipt_record['job_id'])
+
+
+def read_writer_job_search_paths(current_job_identifier):
+    """작가 서비스 작업 ID로 검색 경로를 조회한다."""
+    from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+    if not validate_service_job_identifier('writer-agent',current_job_identifier):
+        raise ValueError('작가 작업 ID 형식 오류')
+    try:current_result_record=call_hermes_writer_service('writer-search-paths',{'id':current_job_identifier})
+    except Exception:raise ValueError('작가 검색 경로를 확인할 수 없습니다.') from None
+    if not isinstance(current_result_record,dict) or set(current_result_record)!={'paths','truncated'} or type(current_result_record['truncated']) is not bool or not isinstance(current_result_record['paths'],list) or len(current_result_record['paths'])>20:
+        raise ValueError('작가 검색 경로 응답을 확인할 수 없습니다.')
+    current_path_values=[]
+    for current_path_text in current_result_record['paths']:
+        if not isinstance(current_path_text,str) or not current_path_text or len(current_path_text)>512 or any(ord(current_character)<32 for current_character in current_path_text) or '\\' in current_path_text or ':' in current_path_text:
+            raise ValueError('작가 검색 경로 응답을 확인할 수 없습니다.')
+        current_path_value=PurePosixPath(current_path_text)
+        if current_path_value.is_absolute() or any(current_part.startswith('.') for current_part in current_path_value.parts) or current_path_value.as_posix()!=current_path_text or current_path_text in current_path_values:
+            raise ValueError('작가 검색 경로 응답을 확인할 수 없습니다.')
+        current_path_values.append(current_path_text)
+    return {'paths':current_path_values,'truncated':current_result_record['truncated']}
 
 
 def inspect_writer_apply_receipt(current_record_value,current_apply_identifier):
@@ -233,21 +320,21 @@ def apply_hermes_writer_proposal_once(current_apply_identifier,current_writer_id
         return {**current_receipt_value,'duplicate':True}
     with current_storage_value.hold_delegation_storage_lock():
         current_record_path=current_storage_value.resolve_delegation_record_path(current_apply_identifier)
-        if current_record_path.exists():
+        if check_delegation_record_exists(current_record_path):
             return inspect_existing_apply(current_record_path)
     current_status_value=read_hermes_writer_status(current_writer_identifier)
     current_receipt_value=current_status_value.get('receipt',{})
     current_job_value=current_status_value.get('job',{})
     if (current_receipt_value.get('state')!='accepted' or current_receipt_value.get('service')!='writer-agent'
-            or current_receipt_value.get('job_id')!=current_job_identifier or current_job_value.get('stage')!='review'
+            or current_receipt_value.get('request_id')!=current_writer_identifier or current_receipt_value.get('job_id')!=current_job_identifier or current_job_value.get('stage')!='review'
             or current_job_value.get('proposal_hash')!=current_proposal_hash or current_job_value.get('truncated') is not False
             or not current_job_value.get('changes')):
         raise ValueError('작업·제안이 바뀌었거나 전체 변경을 확인할 수 없습니다.')
     with current_storage_value.hold_delegation_storage_lock():
         current_record_path=current_storage_value.resolve_delegation_record_path(current_apply_identifier)
-        if current_record_path.exists():
+        if check_delegation_record_exists(current_record_path):
             return inspect_existing_apply(current_record_path)
-        for current_existing_path in current_storage_value.delegation_storage_root.glob('*.json'):
+        for current_existing_path in list_delegation_record_paths(current_storage_value.delegation_storage_root):
             current_existing_identifier=current_existing_path.stem
             current_storage_value.resolve_delegation_record_path(current_existing_identifier)
             if not current_existing_path.is_file():raise ValueError('적용 접수 목록을 확인할 수 없습니다.')
@@ -274,7 +361,7 @@ def read_writer_apply_receipt(current_apply_identifier):
     current_storage_value=HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
         current_record_path=current_storage_value.resolve_delegation_record_path(current_apply_identifier)
-        if not current_record_path.exists():
+        if not check_delegation_record_exists(current_record_path):
             return {'state':'not_found'}
         return inspect_writer_apply_receipt(json.loads(current_record_path.read_text(encoding='utf-8')),current_apply_identifier)
 
@@ -285,7 +372,7 @@ def list_writer_apply_receipts():
     current_storage_value=HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
         current_records_list=[]
-        for current_record_path in current_storage_value.delegation_storage_root.glob('*.json'):
+        for current_record_path in list_delegation_record_paths(current_storage_value.delegation_storage_root):
             if current_record_path.is_symlink() or not current_record_path.is_file():
                 continue
             try:

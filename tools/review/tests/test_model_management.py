@@ -100,13 +100,90 @@ class ModelManagementTest(unittest.TestCase):
             with self.subTest(service=current_service):
                 current_gateway_value = ManagementCommandGateway({current_service: Mock()})
                 current_handler_value = GatewayContractTest().create_request_handler('/management/command', {'service': current_service, 'command': 'download-model', 'payload': {}})
-                with patch('tools.review.common.audio_model_download.inspect_audio_download_files', return_value=False), \
+                with patch('tools.review.domains.music.generation.MusicGenerationManager') as current_manager_mock, \
+                     patch('tools.review.common.audio_model_download.inspect_audio_download_files', return_value=False), \
                      patch('tools.review.common.model_prepare_process.inspect_registered_preparation', return_value='idle'), \
                      patch('tools.review.common.model_prepare_process.start_registered_preparation', return_value={'preparation_status': 'running'}) as current_start_mock:
                     self.assertTrue(current_gateway_value.handle(current_handler_value))
                 self.assertEqual(current_handler_value.responses, [200])
                 self.assertEqual(json.loads(current_handler_value.wfile.getvalue())['preparation_status'], 'running')
                 self.assertEqual(current_start_mock.call_args.args[1], current_profile)
+
+    def test_audio_download_rejects_active_gpu_jobs_without_starting_download(self):
+        import json
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.domains.music.generation import MusicGenerationManager
+        from tools.review.tests.test_management_gateway import GatewayContractTest
+        for current_service_name in ('music-heartmula','sfx-dasheng-audiogen'):
+            for current_action_name in ('generate','prepare'):
+                for current_status_name in ('queued','running','paused'):
+                    with self.subTest(current_service_name=current_service_name,current_action_name=current_action_name,current_status_name=current_status_name), TemporaryDirectory() as current_directory_name:
+                        current_root_path=Path(current_directory_name)
+                        current_manager_value=MusicGenerationManager(current_service_name)
+                        current_manager_value.job_storage_root=current_root_path/'jobs'
+                        current_manager_value.history_storage_root=current_root_path/'history'
+                        current_job_root=current_manager_value.job_storage_root/'2026-11-20_00-00-00-12345678'
+                        current_job_root.mkdir(parents=True)
+                        (current_job_root/'request.json').write_text(json.dumps({'action':current_action_name}))
+                        (current_job_root/'status.json').write_text(json.dumps({'status':current_status_name}))
+                        (current_job_root/'.history-deleted').touch()
+                        current_gateway_value=ManagementCommandGateway({current_service_name:current_manager_value.handle_music_request})
+                        current_handler_value=GatewayContractTest().create_request_handler('/management/command',{'service':current_service_name,'command':'download-model','payload':{}})
+                        with patch('tools.review.domains.music.generation.MusicGenerationManager',return_value=current_manager_value), patch('tools.review.common.audio_model_download.inspect_audio_download_files',return_value=False), patch('tools.review.common.model_prepare_process.inspect_registered_preparation',return_value='idle'), patch('tools.review.common.model_prepare_process.start_registered_preparation') as current_start_mock:
+                            current_gateway_value.handle(current_handler_value)
+                        self.assertEqual(current_handler_value.responses,[400])
+                        current_start_mock.assert_not_called()
+                        self.assertTrue(current_job_root.is_dir())
+
+    def test_audio_download_and_gpu_preparation_share_submission_lock(self):
+        import threading
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.domains.music.generation import MusicGenerationManager
+        from tools.review.tests.test_management_gateway import GatewayContractTest
+        with TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_manager_value=MusicGenerationManager('music-heartmula')
+            current_manager_value.job_storage_root=current_root_path/'jobs'
+            current_manager_value.history_storage_root=current_root_path/'history'
+            current_manager_value.runtime_python_path=current_root_path/'python'
+            current_manager_value.runtime_python_path.touch()
+            current_gateway_value=ManagementCommandGateway({'music-heartmula':current_manager_value.handle_music_request})
+            current_handler_value=GatewayContractTest().create_request_handler('/management/command',{'service':'music-heartmula','command':'download-model','payload':{}})
+            current_start_entered=threading.Event()
+            current_start_release=threading.Event()
+            current_download_started=threading.Event()
+            current_prepare_errors=[]
+            def start_mock_download(*current_arguments):
+                current_start_entered.set()
+                if not current_start_release.wait(3):raise RuntimeError('동시성 시험 시간 초과')
+                current_download_started.set()
+                return {'preparation_status':'running'}
+            def inspect_mock_download(*current_arguments):
+                return 'running' if current_download_started.is_set() else 'idle'
+            def submit_mock_preparation():
+                try:current_manager_value.create_music_job({'action':'prepare'})
+                except Exception as current_submit_error:current_prepare_errors.append(str(current_submit_error))
+            with patch('tools.review.domains.music.generation.MusicGenerationManager',return_value=current_manager_value), patch('tools.review.common.audio_model_download.inspect_audio_download_files',return_value=False), patch('tools.review.common.model_prepare_process.inspect_registered_preparation',side_effect=inspect_mock_download), patch('tools.review.common.model_prepare_process.start_registered_preparation',side_effect=start_mock_download), patch('tools.review.domains.music.generation.launch_gpu_process') as current_launch_mock:
+                current_download_thread=threading.Thread(target=current_gateway_value.handle,args=(current_handler_value,))
+                current_download_thread.start()
+                self.assertTrue(current_start_entered.wait(3))
+                current_prepare_thread=threading.Thread(target=submit_mock_preparation)
+                current_prepare_thread.start()
+                current_start_release.set()
+                current_download_thread.join(timeout=5)
+                current_prepare_thread.join(timeout=5)
+                self.assertFalse(current_download_thread.is_alive())
+                self.assertFalse(current_prepare_thread.is_alive())
+                self.assertEqual(current_handler_value.responses,[200])
+                self.assertEqual(len(current_prepare_errors),1)
+                self.assertIn('다운로드가 진행 중',current_prepare_errors[0])
+                current_launch_mock.assert_not_called()
 
     def test_audio_file_download_uses_fixed_sources_and_detects_changes(self):
         from pathlib import Path
@@ -179,9 +256,14 @@ class ModelManagementTest(unittest.TestCase):
             current_root = Path(current_directory_name)
             current_python_path = current_root/'python'
             current_python_path.touch()
+            current_jobs_root=current_root/'jobs'
+            current_job_root=current_jobs_root/'2026-11-20_00-00-00-12345678'
+            current_job_root.mkdir(parents=True)
+            (current_job_root/'request.json').write_text('{"action":"prepare"}')
+            (current_job_root/'status.json').write_text('{"status":"queued"}')
             with patch.object(current_manager_value, 'runtime_python_path', current_python_path), \
                  patch.object(current_manager_value, 'history_storage_root', current_root/'history'), \
-                 patch.object(current_manager_value, 'list_music_history', return_value=[{'request': {'action': 'prepare'}, 'status': {'status': 'queued'}}]), \
+                 patch.object(current_manager_value, 'job_storage_root', current_jobs_root), \
                  patch('tools.review.common.model_prepare_process.inspect_registered_preparation', return_value='idle'), \
                  patch('tools.review.domains.music.generation.launch_gpu_process') as current_launch_mock:
                 with self.assertRaisesRegex(ValueError, '이미'):
@@ -738,6 +820,38 @@ class HuggingFaceRecoveryRetryTest(unittest.TestCase):
             current_server_thread.join()
 
 class CurrentDownloadStatusTest(unittest.TestCase):
+    def test_observe_counts_invalid_records_without_deleting_them(self):
+        import json
+        from pathlib import Path
+        import tempfile
+        from tools.review.common.model_download_records import observe_model_download_records
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            (current_root_path/'bad.json').write_text('{')
+            (current_root_path/'missing-pid.json').write_text(json.dumps({'model':'org/model','status':'running'}))
+            (current_root_path/'unknown.json').write_text(json.dumps({'model':'org/model','status':'unknown'}))
+            current_issue_counts={'unavailable_count':0}
+            self.assertEqual(observe_model_download_records(current_root_path,current_issue_counts=current_issue_counts),[])
+            self.assertEqual(current_issue_counts['unavailable_count'],3)
+            self.assertEqual(len(list(current_root_path.glob('*.json'))),3)
+
+    def test_observe_preserves_old_records_and_reports_interruption(self):
+        import json
+        from pathlib import Path
+        import tempfile
+        from unittest.mock import patch
+        from tools.review.common.model_download_records import observe_model_download_records
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_record_values=(('old.json',{'model':'org/model','status':'failed','updated_at':'2026-01-01'}),('new.json',{'model':'org/model','status':'completed','updated_at':'2026-01-02'}),('active.json',{'model':'other/model','status':'running','pid':123456,'updated_at':'2026-01-03'}))
+            for current_file_name,current_record_value in current_record_values:
+                (current_root_path/current_file_name).write_text(json.dumps(current_record_value))
+            with patch('tools.review.common.model_download_records.os.kill',side_effect=ProcessLookupError):
+                current_result_values=observe_model_download_records(current_root_path)
+            self.assertEqual({current_value['status'] for current_value in current_result_values},{'completed','interrupted'})
+            for current_file_name,current_record_value in current_record_values:
+                self.assertEqual(json.loads((current_root_path/current_file_name).read_text()),current_record_value)
+
     def test_retains_active_and_only_latest_result_per_model(self):
         import json
         import os

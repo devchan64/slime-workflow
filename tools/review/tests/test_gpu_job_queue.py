@@ -7,6 +7,118 @@ from unittest.mock import patch, Mock
 from tools.review.common import gpu_job_queue as queue_module
 
 class GpuJobQueueTests(unittest.TestCase):
+    def test_resume_extra_validation_runs_under_locks_and_preserves_failed_job(self):
+        import fcntl
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_path=Path(current_directory_name)/'job'
+            current_job_path.mkdir()
+            (current_job_path/'request.json').write_text('{}')
+            (current_job_path/'status.json').write_text('{"status":"failed"}')
+            (current_job_path/'gpu-command.json').write_text(json.dumps({'command':['worker'],'service':'image'}))
+            (current_job_path/'cancel.request').touch()
+            current_fingerprint_value=queue_module.fingerprint_resume_job_records(current_job_path)
+            def reject_current_resume(current_observed_path):
+                self.assertEqual(current_observed_path,current_job_path)
+                for current_lock_name in ('resume.lock','execution.lock'):
+                    with (current_job_path/current_lock_name).open('a') as current_lock_stream:
+                        with self.assertRaises(BlockingIOError):fcntl.flock(current_lock_stream,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                raise ValueError('키프레임 변경')
+            with patch.object(queue_module,'launch_gpu_process') as current_launch_mock:
+                with self.assertRaisesRegex(ValueError,'키프레임 변경'):
+                    queue_module.resume_gpu_generation(current_job_path,expected_resume_fingerprint=current_fingerprint_value,expected_resume_service='image',expected_resume_command=['worker'],resume_validation_callback=reject_current_resume)
+                self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'failed')
+                self.assertTrue((current_job_path/'cancel.request').exists())
+                current_launch_mock.assert_not_called()
+                with self.assertRaises(ValueError):queue_module.resume_gpu_generation(current_job_path,resume_validation_callback=reject_current_resume)
+
+    def test_resume_and_cancel_reject_symlink_lock_without_touching_target(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_job_path=current_root_path/'job'
+            current_job_path.mkdir()
+            current_target_path=current_root_path/'target'
+            current_target_path.write_text('unchanged')
+            (current_job_path/'resume.lock').symlink_to(current_target_path)
+            for current_operation in (queue_module.resume_gpu_generation,queue_module.cancel_gpu_generation):
+                with self.subTest(current_operation=current_operation.__name__),self.assertRaisesRegex(ValueError,'심볼릭 링크'):
+                    current_operation(current_job_path)
+            self.assertEqual(current_target_path.read_text(),'unchanged')
+            self.assertFalse((current_job_path/'status.json').exists())
+
+    def test_priority_access_error_is_not_treated_as_absent(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_queue_path=Path(current_directory_name)
+            current_priority_path=current_queue_path/'priority-order'
+            current_priority_path.write_text('{"ticket.json":-1}')
+            current_read_text=Path.read_text
+            def reject_priority_read(current_path_value,*current_arguments,**current_keywords):
+                if current_path_value==current_priority_path:raise PermissionError('unreadable')
+                return current_read_text(current_path_value,*current_arguments,**current_keywords)
+            with patch.object(queue_module,'GPU_QUEUE_DIRECTORY',current_queue_path),patch.object(Path,'exists',return_value=False),patch.object(Path,'read_text',autospec=True,side_effect=reject_priority_read),patch.object(queue_module,'write_record_atomically') as current_write_mock:
+                with self.assertRaises(PermissionError):queue_module.read_priority_tickets()
+                with self.assertRaises(PermissionError):queue_module.prioritize_waiting_generation('job-1')
+                self.assertIsNone(queue_module.select_runnable_ticket(1024,'vram'))
+                current_write_mock.assert_not_called()
+            self.assertEqual(current_priority_path.read_text(),'{"ticket.json":-1}')
+            current_priority_path.unlink()
+            with patch.object(queue_module,'GPU_QUEUE_DIRECTORY',current_queue_path):
+                self.assertEqual(queue_module.read_gpu_priority_order(),{})
+            with patch.object(queue_module,'GPU_QUEUE_DIRECTORY',current_queue_path/'not-yet-created'):
+                self.assertEqual(queue_module.read_priority_tickets(),[])
+                self.assertEqual(queue_module.list_waiting_gpu_jobs(include_source_identity=True),{'jobs':[]})
+
+    def test_missing_job_record_does_not_hide_unreadable_ticket(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_job_path=current_root_path/'job-1'
+            current_job_path.mkdir()
+            current_ticket_path=current_root_path/'ticket.json'
+            current_ticket_path.write_text(json.dumps({'pid':123,'path':str(current_job_path)}))
+            with patch.object(queue_module,'read_priority_tickets',return_value=[current_ticket_path]),patch.object(queue_module.os,'kill'),patch.object(queue_module,'fingerprint_gpu_queue_ticket',return_value='a'*64),patch.object(Path,'exists',return_value=False),patch.object(Path,'lstat',side_effect=PermissionError('unreadable')):
+                self.assertIsNone(queue_module.select_runnable_ticket(1024,'vram'))
+                with self.assertRaises(PermissionError):queue_module.list_waiting_gpu_jobs(include_source_identity=True)
+            current_ticket_path.unlink()
+            with patch.object(queue_module,'read_priority_tickets',return_value=[current_ticket_path]),patch.object(queue_module,'fingerprint_gpu_queue_ticket',return_value='a'*64):
+                self.assertIsNone(queue_module.select_runnable_ticket(1024,'vram'))
+                self.assertEqual(queue_module.list_waiting_gpu_jobs(include_source_identity=True),{'jobs':[]})
+
+    def test_waiting_control_error_or_pause_cannot_start_or_prioritize(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_job_path=current_root_path/'job-1'
+            current_job_path.mkdir()
+            (current_job_path/'status.json').write_text('{"status":"queued"}')
+            (current_job_path/'gpu-command.json').write_text(json.dumps({'service':'image','command':['python','worker.py']}))
+            current_ticket_path=current_root_path/'ticket.json'
+            current_ticket_path.write_text(json.dumps({'pid':123,'path':str(current_job_path)}))
+            current_lstat_method=Path.lstat
+            def reject_cancel_stat(current_path_value,*current_arguments,**current_keywords):
+                if current_path_value==current_job_path/'cancel.request':raise PermissionError('unreadable')
+                return current_lstat_method(current_path_value,*current_arguments,**current_keywords)
+            with patch.object(queue_module,'GPU_QUEUE_DIRECTORY',current_root_path),patch.object(queue_module,'read_priority_tickets',return_value=[current_ticket_path]),patch.object(queue_module.os,'kill'),patch.object(Path,'exists',return_value=False),patch.object(Path,'lstat',autospec=True,side_effect=reject_cancel_stat),patch.object(queue_module,'write_record_atomically') as current_write_mock:
+                self.assertIsNone(queue_module.select_runnable_ticket(1024,'vram'))
+                with self.assertRaises(PermissionError):queue_module.prioritize_waiting_generation('job-1')
+                current_write_mock.assert_not_called()
+            (current_job_path/'pause.request').touch()
+            with patch.object(queue_module,'read_priority_tickets',return_value=[current_ticket_path]),patch.object(queue_module.os,'kill'):
+                self.assertIsNone(queue_module.select_runnable_ticket(1024,'vram'))
+
+    def test_cancel_request_preserves_queued_state_and_cancels_paused_record(self):
+        for current_status_value in ('queued','running','paused'):
+            with self.subTest(status=current_status_value),tempfile.TemporaryDirectory() as current_directory_name:
+                current_job_path=Path(current_directory_name)
+                (current_job_path/'status.json').write_text(json.dumps({'status':current_status_value}))
+                with patch.object(queue_module.os,'kill') as current_kill_mock,patch.object(queue_module.os,'killpg') as current_group_mock:
+                    current_result_value=queue_module.cancel_gpu_generation(current_job_path)
+                self.assertTrue(current_result_value['cancel_requested'])
+                self.assertTrue((current_job_path/'cancel.request').is_file())
+                current_saved_status=json.loads((current_job_path/'status.json').read_text())['status']
+                self.assertEqual(current_saved_status,'cancelled' if current_status_value=='paused' else current_status_value)
+                current_kill_mock.assert_not_called()
+                current_group_mock.assert_not_called()
+                if current_status_value=='paused':
+                    with self.assertRaises(ValueError):queue_module.cancel_gpu_generation(current_job_path)
+
     def test_shared_environment_preparation_waits_for_other_jobs_and_blocks_new_work(self):
         with tempfile.TemporaryDirectory() as current_temp_directory:
             current_root_path = Path(current_temp_directory)
@@ -166,6 +278,22 @@ class GpuJobQueueTests(unittest.TestCase):
         self.assertEqual(current_observations,[True])
         self.assertTrue(current_reservation_path.exists())
         self.assertIsNone(current_child_process.poll())
+
+    def test_unreadable_reservation_directory_blocks_worker_launch(self):
+        current_active_root=queue_module.GPU_QUEUE_DIRECTORY/'active'
+        current_iterdir_method=Path.iterdir
+        current_observations=[]
+        def reject_active_listing(current_path_value,*current_arguments,**current_keywords):
+            if current_path_value==current_active_root:raise PermissionError('unreadable')
+            return current_iterdir_method(current_path_value,*current_arguments,**current_keywords)
+        def cancel_after_observation(current_wait_seconds):
+            self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'queued')
+            current_launch_mock.assert_not_called()
+            current_observations.append(True)
+            queue_module.cancel_gpu_generation(self.current_job_path)
+        with patch.object(Path,'iterdir',autospec=True,side_effect=reject_active_listing),patch.object(queue_module,'read_gpu_memory',return_value=(24000,20000)),patch.object(queue_module.time,'sleep',side_effect=cancel_after_observation),patch.object(queue_module.subprocess,'Popen') as current_launch_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+        self.assertEqual(current_observations,[True])
 
     def test_unreadable_reservation_identity_does_not_fail_or_release_other_job(self):
         import os
@@ -622,6 +750,79 @@ class GpuJobQueueTests(unittest.TestCase):
             self.assertEqual(queue_module.resume_gpu_generation(self.current_job_path, legacy_command_record)['status'], 'queued')
             self.assertEqual(json.loads(current_command_path.read_text()), legacy_command_record)
             current_launch_mock.assert_called_once()
+
+    def test_resume_locked_preflight_rejection_preserves_records(self):
+        import fcntl
+        current_status_record={'status':'failed','error':'old error'}
+        (self.current_job_path/'status.json').write_text(json.dumps(current_status_record))
+        (self.current_job_path/'cancel.request').write_text('original')
+        def reject_reviewed_preflight(current_job_directory):
+            with (current_job_directory/'execution.lock').open('a') as current_other_lock:
+                with self.assertRaises(BlockingIOError):fcntl.flock(current_other_lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            raise ValueError('검토 지문이 변경됐습니다')
+        with patch.object(queue_module,'launch_gpu_process') as current_launch_mock:
+            with self.assertRaisesRegex(ValueError,'검토 지문'):
+                queue_module.resume_gpu_generation(self.current_job_path,resume_locked_preflight_callback=reject_reviewed_preflight)
+            current_launch_mock.assert_not_called()
+        self.assertEqual(json.loads((self.current_job_path/'status.json').read_text()),current_status_record)
+        self.assertEqual((self.current_job_path/'cancel.request').read_text(),'original')
+        with self.assertRaises(ValueError):queue_module.resume_gpu_generation(self.current_job_path,resume_locked_preflight_callback='invalid')
+
+    def test_resume_log_open_failure_preserves_terminal_status(self):
+        current_status_record={'status':'failed','error':'original failure'}
+        (self.current_job_path/'status.json').write_text(json.dumps(current_status_record))
+        (self.current_job_path/'worker.log').mkdir()
+        for current_marker_name in ('cancel.request','pause.request','stage-pause.json'):
+            (self.current_job_path/current_marker_name).write_text('unchanged')
+        with patch.object(queue_module,'launch_gpu_process') as current_launch_mock:
+            with self.assertRaises(OSError):queue_module.resume_gpu_generation(self.current_job_path)
+            current_launch_mock.assert_not_called()
+        self.assertEqual(json.loads((self.current_job_path/'status.json').read_text()),current_status_record)
+        for current_marker_name in ('cancel.request','pause.request','stage-pause.json'):
+            self.assertEqual((self.current_job_path/current_marker_name).read_text(),'unchanged')
+
+    def test_resume_rejects_log_symlink_and_fifo_without_mutation(self):
+        import os
+        current_status_record={'status':'failed','error':'original failure'}
+        (self.current_job_path/'status.json').write_text(json.dumps(current_status_record))
+        current_log_path=self.current_job_path/'worker.log'
+        current_marker_path=self.current_job_path/'cancel.request'
+        current_marker_path.write_text('unchanged')
+        current_external_path=Path(self.temporary_job_root.name)/'external.log'
+        current_external_path.write_text('untouched')
+        for current_log_kind in ('symlink','fifo'):
+            with self.subTest(kind=current_log_kind):
+                if current_log_kind=='symlink':current_log_path.symlink_to(current_external_path)
+                else:os.mkfifo(current_log_path)
+                with patch.object(queue_module,'launch_gpu_process') as current_launch_mock:
+                    with self.assertRaises((OSError,ValueError)):queue_module.resume_gpu_generation(self.current_job_path)
+                    current_launch_mock.assert_not_called()
+                self.assertEqual(json.loads((self.current_job_path/'status.json').read_text()),current_status_record)
+                self.assertEqual(current_marker_path.read_text(),'unchanged')
+                self.assertEqual(current_external_path.read_text(),'untouched')
+                current_log_path.unlink()
+
+    def test_resume_prelaunch_error_does_not_leave_queued_status(self):
+        (self.current_job_path/'status.json').write_text('{"status":"failed"}')
+        with patch.object(queue_module,'launch_gpu_process',side_effect=OSError('command record write failed')) as current_launch_mock:
+            with self.assertRaisesRegex(OSError,'command record write failed'):
+                queue_module.resume_gpu_generation(self.current_job_path)
+        current_launch_mock.assert_called_once()
+        current_status_record=json.loads((self.current_job_path/'status.json').read_text())
+        self.assertEqual(current_status_record['status'],'failed')
+        self.assertIn('command record write failed',current_status_record['error'])
+
+    def test_resume_command_record_write_failure_never_spawns(self):
+        (self.current_job_path/'status.json').write_text('{"status":"failed"}')
+        current_original_write=queue_module.write_record_atomically
+        def reject_command_write(current_record_path,current_record_value):
+            if Path(current_record_path).name=='gpu-command.json':raise OSError('command write failed')
+            return current_original_write(current_record_path,current_record_value)
+        with patch.object(queue_module,'write_record_atomically',side_effect=reject_command_write),patch.object(queue_module.subprocess,'Popen') as current_spawn_mock:
+            with self.assertRaisesRegex(OSError,'command write failed'):
+                queue_module.resume_gpu_generation(self.current_job_path)
+            current_spawn_mock.assert_not_called()
+        self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'failed')
 
     def test_invalid_resume_command_preserves_status_and_markers(self):
         current_invalid_records = [[], {}, {'command': ['worker']},

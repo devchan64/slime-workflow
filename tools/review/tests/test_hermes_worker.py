@@ -87,6 +87,52 @@ class HermesWorkerTests(unittest.TestCase):
                         self.assertIn('error',current_response_value)
                         current_status_mock.assert_not_called()
 
+    def test_kimodo_resume_bridge_only_allows_valid_preview_identifier(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        current_valid_identifier='2026-11-20_00-00-00-12345678'
+        current_cases=((('kimodo-resume-preview '+current_valid_identifier+'\n').encode(),True),(b'kimodo-resume-preview ../invalid\n',False),(('kimodo-resume-preview '+current_valid_identifier+'\nresume\n').encode(),False))
+        for current_request_bytes,current_allowed_value in current_cases:
+            with self.subTest(current_request_bytes=current_request_bytes):
+                current_client_socket,current_server_socket=socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                with patch('tools.review.domains.hermes_agent.kimodo_resume_operations.preview_hermes_kimodo_resume',return_value={'service':'kimodo','job_id':current_valid_identifier}) as current_preview_mock,patch('tools.review.domains.hermes_agent.kimodo_resume_operations.submit_hermes_kimodo_resume_once') as current_submit_mock:
+                    current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                    current_thread_handle.start()
+                    current_client_socket.sendall(current_request_bytes)
+                    current_response_record=json.loads(current_client_socket.makefile('rb').readline())
+                    current_thread_handle.join(timeout=3)
+                    self.assertFalse(current_thread_handle.is_alive())
+                    if current_allowed_value:
+                        self.assertEqual(current_response_record['job_id'],current_valid_identifier)
+                        current_preview_mock.assert_called_once_with(current_valid_identifier)
+                    else:
+                        self.assertIn('error',current_response_record)
+                        current_preview_mock.assert_not_called()
+                    current_submit_mock.assert_not_called()
+
+    def test_sandbox_flux_resume_preview_forwards_fixed_json(self):
+        import json
+        from tools.review.domains.hermes_agent.management_status_client import read_sandbox_management_status
+        current_request_text=json.dumps({'service':'flux-character','job_id':'2026-11-20_00-00-00-12345678'})
+        with patch('tools.review.domains.hermes_agent.management_status_client.socket.socket') as current_socket_factory:
+            current_socket_value=current_socket_factory.return_value.__enter__.return_value
+            current_socket_value.recv.return_value=b'{"service":"flux-character"}\n'
+            self.assertEqual(read_sandbox_management_status('flux-resume-preview',current_request_text),{'service':'flux-character'})
+            current_socket_value.sendall.assert_called_once_with(('flux-resume-preview '+current_request_text+'\n').encode())
+        with self.assertRaises(ValueError):read_sandbox_management_status('flux-resume-preview','{}\nexecute')
+
+    def test_sandbox_kimodo_resume_preview_validates_job_id(self):
+        from tools.review.domains.hermes_agent.management_status_client import read_sandbox_management_status
+        current_job_identifier='2026-11-20_00-00-00-12345678'
+        with patch('tools.review.domains.hermes_agent.management_status_client.socket.socket') as current_socket_factory:
+            current_socket_value=current_socket_factory.return_value.__enter__.return_value
+            current_socket_value.recv.return_value=b'{"service":"kimodo"}\n'
+            self.assertEqual(read_sandbox_management_status('kimodo-resume-preview',current_job_identifier),{'service':'kimodo'})
+            current_socket_value.sendall.assert_called_once_with(('kimodo-resume-preview '+current_job_identifier+'\n').encode())
+        with self.assertRaises(ValueError):read_sandbox_management_status('kimodo-resume-preview','../invalid')
+
     def test_city_map_bridge_reads_only_valid_city_identifier(self):
         import socket
         import threading
@@ -243,6 +289,92 @@ class HermesWorkerTests(unittest.TestCase):
                 if current_allowed_value:self.assertEqual(current_response_value,current_catalog_value)
                 else:self.assertIn('error',current_response_value)
 
+    def test_translation_evidence_bridge_passes_bounded_data_and_rejects_wrong_fields(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge, translation_operations
+        current_source_text='나무'*1800
+        current_response_record={'candidates':[{'path':'world/tree.md','heading':'나무','text':'문서 근거','matched_terms':['나무']}],'note':'문서 근거'}
+        with patch.object(translation_operations,'search_hermes_translation_evidence',return_value=current_response_record) as current_search_mock:
+            for current_request_value,current_expected_success in (({'text':current_source_text},True),({'text':'나무','action':'run'},False)):
+                current_client_socket,current_server_socket=socket.socketpair()
+                current_thread_value=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                current_thread_value.start()
+                with current_client_socket:
+                    current_client_socket.sendall(('translation-evidence '+json.dumps(current_request_value,ensure_ascii=False)+'\n').encode('utf-8'))
+                    current_actual_value=json.loads(current_client_socket.makefile('rb').readline())
+                current_thread_value.join(timeout=5)
+                self.assertFalse(current_thread_value.is_alive())
+                if current_expected_success:self.assertEqual(current_actual_value,current_response_record)
+                else:self.assertIn('error',current_actual_value)
+            current_search_mock.assert_called_once_with(current_source_text)
+
+    def test_model_download_status_crosses_observer_socket(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge, management_observer
+        current_status_record={'records':[{'model':'org/model','status':'running','bytes':4,'total_bytes':10}],'truncated':False}
+        with patch.object(management_observer,'read_hermes_model_download_status',return_value=current_status_record) as current_status_mock:
+            current_client_socket,current_server_socket=socket.socketpair()
+            current_thread_value=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+            current_thread_value.start()
+            with current_client_socket:
+                current_client_socket.sendall(b'model-download-status\n')
+                current_response_value=json.loads(current_client_socket.makefile('rb').readline())
+            current_thread_value.join(timeout=5)
+            self.assertEqual(current_response_value,current_status_record)
+            current_status_mock.assert_called_once_with()
+
+    def test_writer_index_status_crosses_observer_socket(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge, writer_operations
+        current_status_record={'status':'stale','note':'조회 시점'}
+        with patch.object(writer_operations,'read_hermes_writer_index_status',return_value=current_status_record) as current_status_mock:
+            current_client_socket,current_server_socket=socket.socketpair()
+            current_thread_value=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+            current_thread_value.start()
+            with current_client_socket:
+                current_client_socket.sendall(b'writer-index-status\n')
+                current_response_value=json.loads(current_client_socket.makefile('rb').readline())
+            current_thread_value.join(timeout=5)
+            self.assertEqual(current_response_value,current_status_record)
+            current_status_mock.assert_called_once_with()
+
+    def test_translation_evidence_bridge_enforces_request_limit(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge, translation_operations
+        current_request_bytes=b'translation-evidence '+b'x'*(management_bridge.HERMES_OBSERVER_MAX_REQUEST-19)+b'\n'
+        self.assertGreater(len(current_request_bytes),management_bridge.HERMES_OBSERVER_MAX_REQUEST)
+        with patch.object(translation_operations,'search_hermes_translation_evidence') as current_search_mock:
+            current_client_socket,current_server_socket=socket.socketpair()
+            current_thread_value=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+            current_thread_value.start()
+            with current_client_socket:
+                current_client_socket.sendall(current_request_bytes)
+                current_response_value=json.loads(current_client_socket.makefile('rb').readline())
+            current_thread_value.join(timeout=5)
+            self.assertIn('error',current_response_value)
+            current_search_mock.assert_not_called()
+
+    def test_translation_evidence_bridge_reports_stale_index_without_leaking_errors(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge, translation_operations
+        current_error_cases=(('관리 API 오류: 문서 추가·수정·삭제 이후 색인이 오래되었습니다. 학습 갱신이 필요합니다.','작가 색인이 오래되어'),('unexpected private /path','검색 원문과 작가 색인'))
+        for current_error_text,current_expected_text in current_error_cases:
+            with self.subTest(current_error_text=current_error_text), patch.object(translation_operations,'search_hermes_translation_evidence',side_effect=ValueError(current_error_text)):
+                current_client_socket,current_server_socket=socket.socketpair()
+                current_thread_value=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                current_thread_value.start()
+                with current_client_socket:
+                    current_client_socket.sendall(b'translation-evidence {"text":"tree"}\n')
+                    current_response_value=json.loads(current_client_socket.makefile('rb').readline())
+                current_thread_value.join(timeout=5)
+                self.assertIn(current_expected_text,current_response_value['error'])
+                self.assertNotIn('/path',current_response_value['error'])
+
     def test_capability_search_from_real_isolated_client(self):
         import shutil
         import socket
@@ -305,6 +437,16 @@ class HermesWorkerTests(unittest.TestCase):
                 current_server_thread.join(timeout=2)
                 self.assertFalse(current_server_thread.is_alive())
                 self.assertEqual(current_capture_mock.call_count,1)
+            with patch('tools.review.domains.hermes_agent.writer_operations.read_hermes_writer_search_paths',return_value={'paths':['world/town.md'],'truncated':False}) as current_writer_paths_mock:
+                current_server_thread=threading.Thread(target=serve_one_connection,daemon=True)
+                current_server_thread.start()
+                current_sandbox_arguments[-2:]=['writer-search-paths','{\"request_id\":\"request_123\"}']
+                current_sandbox_result=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=12)
+                self.assertEqual(current_sandbox_result.returncode,0,current_sandbox_result.stderr)
+                self.assertEqual(json.loads(current_sandbox_result.stdout),{'paths':['world/town.md'],'truncated':False})
+                current_server_thread.join(timeout=2)
+                self.assertFalse(current_server_thread.is_alive())
+                current_writer_paths_mock.assert_called_once_with('request_123')
 
     def test_service_registration_search_pages_and_rejects_bad_input(self):
         import socket
@@ -622,6 +764,9 @@ class HermesWorkerTests(unittest.TestCase):
             self.assertIn('HERMES_WRITER_PROPOSAL',current_query_text)
             self.assertIn('END_HERMES_WRITER_PROPOSAL',current_query_text)
             self.assertIn('사용자가 입력과 GPU 접수를 확인하기 전에는',current_query_text)
+            self.assertIn('DB 모드에서는 신규 저장이 중단',current_query_text)
+            self.assertIn('도시 맵 신규 저장은 에셋 원본',current_query_text)
+            self.assertIn('writer-job-search-paths',current_query_text)
 
     def test_verification_control_hashes_detect_changes_and_symlinks(self):
         with tempfile.TemporaryDirectory() as hermes_temporary_root:

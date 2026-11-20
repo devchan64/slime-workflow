@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 from tools.review.common.generation_records import write_record_atomically
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
 from tools.review.common.management_transport import validate_management_http_request, send_management_json_response
-from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup, read_cleanup_confirmation
+from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup, hold_cleanup_preview_guard, read_cleanup_confirmation
 from generators.prompt_translation.terms import validate_translation_glossary, load_approved_translation_terms
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
@@ -80,6 +80,10 @@ class TranslationServiceManager:
             yield
 
     def execute_translation_command(self, translation_command_name, translation_payload_record):
+        if translation_command_name == 'history-reset-preview':
+            with hold_cleanup_preview_guard(self.job_storage_root):
+                with self.hold_translation_service_lock():
+                    return self.execute_locked_translation_command(translation_command_name, translation_payload_record)
         with self.hold_translation_service_lock():
             return self.execute_locked_translation_command(translation_command_name, translation_payload_record)
 

@@ -4,7 +4,7 @@ import re
 from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
-from tools.review.domains.hermes_agent.failure_observer import observe_hermes_failure_reason
+from tools.review.domains.hermes_agent.failure_observer import observe_hermes_generator_failure
 
 HERMES_AUDIO_SERVICES = ('music-heartmula','sfx-dasheng-audiogen')
 
@@ -50,7 +50,7 @@ def read_hermes_audio_status(current_request_identifier,current_service_name):
     current_audio_path=validate_hermes_audio_result_path(current_service_name,current_receipt_value['job_id'],{**current_job_value,'status':current_status_value})
     current_result_status='available' if current_audio_path else 'unavailable' if current_status_value=='completed' else 'not_ready'
     return {'receipt':current_receipt_value,'job':{'status':current_status_value,'audio':current_audio_path,'result_status':current_result_status,
-        'note':'완료 결과와 상세 로그·분리 음원은 해당 생성기 이력에서 확인하세요. 생성 결과는 자동으로 에셋에 등록되지 않습니다.', **observe_hermes_failure_reason(current_status_value,current_job_value.get('error'))}}
+        'note':'완료 결과와 상세 로그·분리 음원은 해당 생성기 이력에서 확인하세요. 생성 결과는 자동으로 에셋에 등록되지 않습니다.', **observe_hermes_generator_failure(current_status_value,current_job_value.get('error'))}}
 
 
 def list_hermes_audio_receipts(current_service_name):
@@ -64,7 +64,8 @@ def cancel_hermes_audio_request(current_request_identifier,current_service_name,
     if current_receipt_value.get('state')!='accepted' or current_receipt_value.get('job_id')!=current_job_identifier:
         raise ValueError('접수 기록과 확인한 오디오 작업 ID가 일치하지 않습니다.')
     current_cancel_value=call_hermes_audio_service(current_service_name,'cancel',{'id':current_job_identifier})
-    if not isinstance(current_cancel_value,dict) or current_cancel_value.get('cancel_requested') is not True:
+    if (not isinstance(current_cancel_value,dict) or current_cancel_value.get('cancel_requested') is not True
+            or ('id' in current_cancel_value and current_cancel_value['id']!=current_job_identifier)):
         raise ValueError('오디오 중지 응답 형식 오류')
     return {'job_id':current_job_identifier,'cancel_requested':True,'status':current_cancel_value.get('status','unknown')}
 

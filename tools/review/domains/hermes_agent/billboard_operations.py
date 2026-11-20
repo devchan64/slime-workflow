@@ -4,7 +4,7 @@ import json
 import re
 
 from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists
 from tools.review.domains.hermes_agent.field_map_operations import call_field_map_editor, HERMES_FIELD_TOKEN_PATTERN
 from tools.review.domains.map_assets.editor import EDITOR_MUTABLE_FIELDS, hash_billboard_review_result
 
@@ -86,7 +86,7 @@ def inspect_billboard_edit_receipt(current_receipt_record,current_request_identi
     current_target_identifiers=current_receipt_record.get('textures')
     if current_target_identifiers is not None and (not isinstance(current_target_identifiers,list) or not 1<=len(current_target_identifiers)<=20 or any(not isinstance(current_identifier,str) or not BILLBOARD_IDENTIFIER_PATTERN.fullmatch(current_identifier) for current_identifier in current_target_identifiers) or len(set(current_target_identifiers))!=len(current_target_identifiers)):
         raise ValueError('빌보드 접수 대상 오류')
-    return {'request_id':current_request_identifier,'state':current_state_value,'saved':current_receipt_record.get('saved'),**({'textures':current_target_identifiers} if current_target_identifiers is not None else {})}
+    return {'request_id':current_request_identifier,'state':current_state_value,'saved':current_receipt_record.get('saved'),**({'textures':current_target_identifiers} if current_target_identifiers is not None else {}),**({'ledger_status_at_save':'pending'} if current_state_value=='completed' and current_receipt_record.get('saved') is True and current_receipt_record.get('ledger_status_at_save')=='pending' else {})}
 
 
 def save_hermes_billboard_edit_once(current_request_identifier,current_draft_record,current_preview_token,current_review_digest):
@@ -96,7 +96,7 @@ def save_hermes_billboard_edit_once(current_request_identifier,current_draft_rec
     current_storage_value=HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
-        if current_receipt_path.exists():
+        if check_delegation_record_exists(current_receipt_path):
             current_receipt_record=json.loads(current_receipt_path.read_text(encoding='utf-8'))
             current_result_record=inspect_billboard_edit_receipt(current_receipt_record,current_request_identifier)
             if current_receipt_record.get('token')!=current_preview_token or current_receipt_record.get('review_sha256')!=current_review_digest:
@@ -112,6 +112,8 @@ def save_hermes_billboard_edit_once(current_request_identifier,current_draft_rec
             raise ValueError('빌보드 저장 결과 확인 필요. 자동 재접수하지 않습니다.')
         if json.loads(current_receipt_path.read_text(encoding='utf-8'))!=current_receipt_record:raise ValueError('저장 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재저장하지 마세요.')
         current_receipt_record.update(state='completed',saved=current_save_record['saved'])
+        if current_save_record['saved'] is True and current_save_record.get('snapshot')=='pending':
+            current_receipt_record['ledger_status_at_save']='pending'
         write_record_atomically(current_receipt_path,current_receipt_record)
         return {**inspect_billboard_edit_receipt(current_receipt_record,current_request_identifier),'duplicate':False}
 
@@ -120,6 +122,6 @@ def read_hermes_billboard_edit_receipt(current_request_identifier):
     current_storage_value=HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
-        if not current_receipt_path.exists():
+        if not check_delegation_record_exists(current_receipt_path):
             return {'state':'not_found'}
         return inspect_billboard_edit_receipt(json.loads(current_receipt_path.read_text(encoding='utf-8')),current_request_identifier)

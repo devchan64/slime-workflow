@@ -24,7 +24,44 @@ class HermesAudioOperationsTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 audio_operations.validate_hermes_audio_service('music-magenta')
 
+    def test_audio_resume_preview_passes_verified_availability_and_marks_old_server_unknown(self):
+        from tools.review.domains.hermes_agent import audio_resume_operations
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_preview_record={'id':current_job_identifier,'service':'music-heartmula','status':'failed','expected_resume_fingerprint':'a'*64}
+        with patch.object(audio_resume_operations,'call_hermes_audio_service',return_value=current_preview_record):
+            self.assertEqual(audio_resume_operations.preview_hermes_audio_resume('music-heartmula',current_job_identifier)['resume_availability'],'unknown')
+            current_preview_record['resume_availability']='download_running'
+            self.assertEqual(audio_resume_operations.preview_hermes_audio_resume('music-heartmula',current_job_identifier)['resume_availability'],'download_running')
+            current_preview_record['resume_availability']='invalid'
+            with self.assertRaises(ValueError):audio_resume_operations.preview_hermes_audio_resume('music-heartmula',current_job_identifier)
+
+    def test_audio_resume_preflight_rejects_conflicts_without_receipt_or_dispatch(self):
+        from tools.review.domains.hermes_agent import audio_resume_operations
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_fingerprint_value='a'*64
+        with TemporaryDirectory() as current_directory_name,patch.object(audio_resume_operations,'AUDIO_RESUME_RECEIPT_ROOT',Path(current_directory_name)),patch.object(audio_resume_operations,'call_hermes_audio_service') as current_service_mock:
+            for current_availability_value in ('download_running','other_preparation','unknown'):
+                current_service_mock.return_value={'id':current_job_identifier,'service':'music-heartmula','status':'failed','expected_resume_fingerprint':current_fingerprint_value,'resume_availability':current_availability_value}
+                with self.subTest(current_availability_value=current_availability_value):
+                    current_result_value=audio_resume_operations.submit_hermes_audio_resume_once('resume_preflight_123','music-heartmula',current_job_identifier,current_fingerprint_value)
+                    self.assertEqual(current_result_value['state'],'blocked')
+                    self.assertEqual(current_result_value['reason'],'unavailable' if current_availability_value=='unknown' else current_availability_value)
+                self.assertEqual(audio_resume_operations.read_hermes_audio_resume_receipt('resume_preflight_123')['state'],'not_found')
+            self.assertTrue(all(current_call.args[1]=='resume-preview' for current_call in current_service_mock.call_args_list))
+
+    def test_audio_resume_preflight_blocks_changed_record_without_receipt(self):
+        from tools.review.domains.hermes_agent import audio_resume_operations
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_preview_record={'id':current_job_identifier,'service':'music-heartmula','status':'failed','expected_resume_fingerprint':'b'*64,'resume_availability':'available'}
+        with TemporaryDirectory() as current_directory_name,patch.object(audio_resume_operations,'AUDIO_RESUME_RECEIPT_ROOT',Path(current_directory_name)),patch.object(audio_resume_operations,'call_hermes_audio_service',return_value=current_preview_record) as current_gateway_mock:
+            current_result_value=audio_resume_operations.submit_hermes_audio_resume_once('resume_changed_123','music-heartmula',current_job_identifier,'a'*64)
+            self.assertEqual((current_result_value['state'],current_result_value['reason']),('blocked','fingerprint_changed'))
+            self.assertEqual(audio_resume_operations.read_hermes_audio_resume_receipt('resume_changed_123')['state'],'not_found')
+            self.assertEqual(current_gateway_mock.call_count,1)
+            self.assertEqual(current_gateway_mock.call_args.args[1],'resume-preview')
+
     def test_audio_resume_receipts_prevent_duplicate_and_preserve_unknown(self):
+        self.enterContext(patch('tools.review.domains.hermes_agent.audio_resume_operations.validate_current_audio_resume_preflight',return_value=None))
         from pathlib import Path
         from tools.review.domains.hermes_agent import audio_resume_operations
         current_job_identifier='2026-11-18_00-00-00-12345678'
@@ -44,6 +81,7 @@ class HermesAudioOperationsTests(unittest.TestCase):
             self.assertEqual(current_gateway_mock.call_count,3)
 
     def test_audio_resume_concurrent_same_request_dispatches_once(self):
+        self.enterContext(patch('tools.review.domains.hermes_agent.audio_resume_operations.validate_current_audio_resume_preflight',return_value=None))
         from concurrent.futures import ThreadPoolExecutor
         from pathlib import Path
         import threading
@@ -62,6 +100,7 @@ class HermesAudioOperationsTests(unittest.TestCase):
             current_service_mock.assert_called_once()
 
     def test_audio_resume_unverified_response_is_not_resent(self):
+        self.enterContext(patch('tools.review.domains.hermes_agent.audio_resume_operations.validate_current_audio_resume_preflight',return_value=None))
         from pathlib import Path
         from tools.review.domains.hermes_agent import audio_resume_operations
         current_job_identifier='2026-11-18_00-00-00-12345678'
@@ -141,6 +180,7 @@ except ValueError as error:
             self.assertEqual((current_root_path/'calls').read_text().count('called'),1)
 
     def test_audio_resume_rejects_same_target_under_different_request_id(self):
+        self.enterContext(patch('tools.review.domains.hermes_agent.audio_resume_operations.validate_current_audio_resume_preflight',return_value=None))
         from pathlib import Path
         from tools.review.domains.hermes_agent import audio_resume_operations
         current_job_identifier='2026-11-18_00-00-00-12345678'

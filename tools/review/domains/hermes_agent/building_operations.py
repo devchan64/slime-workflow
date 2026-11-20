@@ -4,7 +4,7 @@ import json
 import re
 
 from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists
 from tools.review.domains.hermes_agent.field_map_operations import call_field_map_editor
 from tools.review.domains.map_assets.building_editor import validate_building_editor_anchor
 
@@ -46,7 +46,11 @@ def inspect_hermes_building_receipt(current_receipt_record,current_request_ident
     current_texture_value=current_receipt_record.get('texture')
     if current_texture_value is not None and (not isinstance(current_texture_value,str) or not re.fullmatch(r'(?:town-[a-z0-9-]+-v[1-9][0-9]*|ward-tower-v1)',current_texture_value)):
         raise ValueError('건물 앵커 접수 대상 오류')
-    return {'request_id':current_request_identifier,'state':'unknown' if current_receipt_record['state']=='dispatching' else 'completed','saved':current_receipt_record.get('saved'),**({'texture':current_texture_value} if current_texture_value is not None else {})}
+    current_result_record={'request_id':current_request_identifier,'state':'unknown' if current_receipt_record['state']=='dispatching' else 'completed','saved':current_receipt_record.get('saved'),**({'texture':current_texture_value} if current_texture_value is not None else {})}
+    current_generation_value=current_receipt_record.get('generation')
+    if type(current_generation_value) is int and current_generation_value>=1 and current_receipt_record.get('ledger_status_at_save')=='pending':
+        current_result_record.update(generation=current_generation_value,ledger_status_at_save='pending')
+    return current_result_record
 
 
 def save_hermes_building_anchor(current_request_identifier,current_draft_record,current_review_digest):
@@ -55,7 +59,7 @@ def save_hermes_building_anchor(current_request_identifier,current_draft_record,
     current_storage_value=HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
-        if current_receipt_path.exists():
+        if check_delegation_record_exists(current_receipt_path):
             current_receipt_record=json.loads(current_receipt_path.read_text())
             current_result_record=inspect_hermes_building_receipt(current_receipt_record,current_request_identifier)
             if current_receipt_record.get('draft_sha256')!=current_draft_digest or current_receipt_record.get('review_sha256')!=current_review_digest:raise ValueError('같은 접수 ID를 다른 요청에 사용할 수 없습니다.')
@@ -65,10 +69,13 @@ def save_hermes_building_anchor(current_request_identifier,current_draft_record,
         current_receipt_record={'version':11,'id':current_request_identifier,'state':'dispatching','draft_sha256':current_draft_digest,'review_sha256':current_review_digest,'texture':current_draft_record['texture']}
         write_record_atomically(current_receipt_path,current_receipt_record)
         current_save_record=call_field_map_editor('building-save',current_draft_record)
-        if not isinstance(current_save_record,dict) or current_save_record.get('saved') is not True:
+        if (not isinstance(current_save_record,dict) or current_save_record.get('saved') is not True
+                or ('asset' in current_save_record and current_save_record['asset']!=current_draft_record['texture'])):
             raise ValueError('건물 저장 결과 확인 필요. 자동 재접수하지 않습니다.')
         if json.loads(current_receipt_path.read_text(encoding='utf-8'))!=current_receipt_record:raise ValueError('저장 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재저장하지 마세요.')
         current_receipt_record.update(state='completed',saved=True)
+        if type(current_save_record.get('generation')) is int and current_save_record['generation']>=1 and current_save_record.get('snapshot')=='pending':
+            current_receipt_record.update(generation=current_save_record['generation'],ledger_status_at_save='pending')
         write_record_atomically(current_receipt_path,current_receipt_record)
         return {**inspect_hermes_building_receipt(current_receipt_record,current_request_identifier),'duplicate':False}
 
@@ -77,5 +84,5 @@ def read_hermes_building_receipt(current_request_identifier):
     current_storage_value=HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
-        if not current_receipt_path.exists():return {'state':'not_found'}
+        if not check_delegation_record_exists(current_receipt_path):return {'state':'not_found'}
         return inspect_hermes_building_receipt(json.loads(current_receipt_path.read_text()),current_request_identifier)

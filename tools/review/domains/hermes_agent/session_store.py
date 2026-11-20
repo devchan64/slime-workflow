@@ -60,7 +60,11 @@ class HermesSessionStore:
             current_created_timestamp = datetime.now(timezone.utc).isoformat()
             current_session_record = {'version': 1, 'id': current_session_identifier, 'created_at': current_created_timestamp, 'updated_at': current_created_timestamp, 'messages': []}
             current_record_path = self.resolve_session_record_path(current_session_identifier)
-            if current_record_path.exists():
+            try:
+                current_record_path.lstat()
+            except FileNotFoundError:
+                pass
+            else:
                 return self.read_session_record_locked(current_session_identifier)
             write_record_atomically(current_record_path, current_session_record)
             return current_session_record

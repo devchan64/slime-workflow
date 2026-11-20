@@ -35,6 +35,22 @@ class GpuStatusTests(unittest.TestCase):
         self.assertEqual(status_record['processes'][0]['vram_memory_mib'], 12)
         self.assertEqual([process_record['memory_mib'] for process_record in status_record['processes']], [512, 768])
 
+    def test_hermes_capacity_uses_queue_device_instead_of_gpu_sum(self):
+        from tools.review.domains.hermes_agent.management_observer import read_hermes_memory_capacity
+        def build_device_memory(current_total_value,current_free_value):
+            return {'mem_usage':{'total_gtt':{'value':1000},'used_gtt':{'value':100},'free_gtt':{'value':900},'total_vram':{'value':current_total_value},'used_vram':{'value':current_total_value-current_free_value},'free_vram':{'value':current_free_value}}}
+        current_process_result=subprocess.CompletedProcess(args=[],returncode=0,stdout='[]',stderr='')
+        current_metric_result=subprocess.CompletedProcess(args=[],returncode=0,stdout=json.dumps({'gpu_data':[build_device_memory(48000,4000),build_device_memory(48000,44000)]}),stderr='')
+        with patch.object(gpu_status.subprocess,'run',side_effect=[current_process_result,current_metric_result]),patch('tools.review.common.gpu_job_queue.read_host_available_memory',return_value=100000),patch('tools.review.common.gpu_memory_history.estimate_required_memory',return_value={'required_memory_mib':32000}):
+            gpu_status._status_cache=(0,{})
+            current_status_value=gpu_status.read_gpu_status()
+            current_capacity_value=read_hermes_memory_capacity(current_status_value)
+        self.assertEqual(current_status_value['gpu_count'],2)
+        self.assertEqual(current_status_value['vram_free_mib'],48000)
+        self.assertEqual(current_capacity_value['gpu_free_mib'],4000)
+        self.assertFalse(current_capacity_value['capacity_sufficient'])
+        self.assertEqual(read_hermes_memory_capacity({'status':'idle','gtt_total_mib':1000,'gtt_free_mib':900,'vram_total_mib':96000,'vram_free_mib':48000}),{'status':'unavailable'})
+
     def test_kimodo_child_stage_is_not_momask_generation(self):
         with patch.object(gpu_status.Path,'read_bytes',return_value=b'python\0generators/momask/templates/run_stage.py\0generators/kimodo/anny_stage.py\0'),patch.object(gpu_status.Path,'read_text',return_value='PPid:\t1\n'):
             current_process_record=gpu_status.identify_gpu_command(123)

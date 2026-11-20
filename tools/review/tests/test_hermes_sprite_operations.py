@@ -46,6 +46,281 @@ class HermesSpriteOperationsTests(unittest.TestCase):
             raise ValueError('unexpected command')
         current_editor_patch=patch.object(sprite_operations,'call_hermes_sprite_editor',side_effect=execute_test_editor);current_editor_patch.start();self.addCleanup(current_editor_patch.stop)
 
+    def test_registered_sprite_update_restores_originals_on_metadata_replace_error(self):
+        import os
+        current_update_payload,_=sprite_operations.prepare_hermes_sprite_anchor_edit(self.current_draft_record)
+        current_paths_value=(self.current_image_path,self.current_metadata_path,self.current_asset_root/'asset-registry.yaml',self.current_frontend_root/'sprite-assets.lock.yaml')
+        current_previous_files={current_file_path:current_file_path.read_bytes() for current_file_path in current_paths_value}
+        current_original_replace=os.replace
+        def fail_metadata_replace(current_source_path,current_target_path):
+            if Path(current_target_path)==self.current_metadata_path:raise OSError('모의 좌표맵 교체 실패')
+            return current_original_replace(current_source_path,current_target_path)
+        with patch('os.replace',side_effect=fail_metadata_replace):
+            with self.assertRaisesRegex(OSError,'모의 좌표맵 교체 실패'):
+                sprite_sheet_editor.update_registered_sprite_sheet(current_update_payload)
+        for current_file_path,current_file_bytes in current_previous_files.items():self.assertEqual(current_file_path.read_bytes(),current_file_bytes)
+
+    def test_sprite_transaction_restores_all_changed_files_after_write_error(self):
+        import os
+        current_paths_value=[self.current_root_path/('file'+str(current_index_value)) for current_index_value in range(4)]
+        for current_index_value,current_file_path in enumerate(current_paths_value):
+            current_file_path.write_bytes(('old'+str(current_index_value)).encode())
+        current_previous_files={current_file_path:current_file_path.read_bytes() for current_file_path in current_paths_value}
+        current_pending_files={current_file_path:b'updated' for current_file_path in current_paths_value}
+        current_original_replace=os.replace
+        def replace_with_write_failure(current_source_path,current_target_path):
+            if Path(current_target_path)==current_paths_value[3]:raise OSError('모의 교체 실패')
+            return current_original_replace(current_source_path,current_target_path)
+        with patch('os.replace',side_effect=replace_with_write_failure):
+            with self.assertRaisesRegex(OSError,'모의 교체 실패'):
+                sprite_sheet_editor.write_sprite_asset_transaction(current_pending_files,current_previous_files)
+        for current_file_path,current_file_bytes in current_previous_files.items():self.assertEqual(current_file_path.read_bytes(),current_file_bytes)
+        self.assertEqual(list(self.current_root_path.glob('.*.sprite-*.tmp')),[])
+
+    def test_sprite_transaction_continues_restoring_after_one_rollback_failure(self):
+        import os
+        current_paths_value=[self.current_root_path/('file'+str(current_index_value)) for current_index_value in range(4)]
+        for current_file_path in current_paths_value:current_file_path.write_bytes(b'old')
+        current_previous_files={current_file_path:b'old' for current_file_path in current_paths_value}
+        current_pending_files={current_file_path:b'updated' for current_file_path in current_paths_value}
+        current_original_replace=os.replace
+        current_target_counts={current_file_path:0 for current_file_path in current_paths_value}
+        def replace_with_rollback_failure(current_source_path,current_target_path):
+            current_target_path=Path(current_target_path)
+            current_target_counts[current_target_path]+=1
+            if current_target_path==current_paths_value[3] or (current_target_path==current_paths_value[2] and current_target_counts[current_target_path]==2):raise OSError('모의 교체 실패')
+            return current_original_replace(current_source_path,current_target_path)
+        with patch('os.replace',side_effect=replace_with_rollback_failure):
+            with self.assertRaisesRegex(RuntimeError,'일부 파일 복원 실패'):
+                sprite_sheet_editor.write_sprite_asset_transaction(current_pending_files,current_previous_files)
+        self.assertEqual(current_paths_value[0].read_bytes(),b'old')
+        self.assertEqual(current_paths_value[1].read_bytes(),b'old')
+        self.assertEqual(current_paths_value[2].read_bytes(),b'updated')
+        self.assertEqual(current_paths_value[3].read_bytes(),b'old')
+        self.assertEqual(list(self.current_root_path.glob('.*.sprite-*.tmp')),[])
+
+    def test_sprite_pending_observer_compares_backup_and_hides_local_paths(self):
+        from tools.review.domains.hermes_agent.sprite_pending_observer import inspect_hermes_sprite_pending_status
+        self.assertEqual(inspect_hermes_sprite_pending_status()['state'],'clear')
+        with sprite_sheet_editor.hold_sprite_asset_update_lock():
+            self.assertEqual(inspect_hermes_sprite_pending_status()['state'],'busy')
+        current_before_bytes=self.current_image_path.read_bytes()
+        current_lock_path=self.current_frontend_root/'sprite-assets.lock.yaml'
+        current_lock_value=yaml.safe_load(current_lock_path.read_text())
+        current_lock_path.write_text(yaml.safe_dump({'schema_version':1,'repository':'slime-assets','files':current_lock_value['files']}))
+        current_backup_root=self.current_root_path/'jobs'/'sample'/'before'
+        current_backup_root.mkdir(parents=True)
+        (current_backup_root/'0').write_bytes(current_before_bytes)
+        (current_backup_root/'paths.json').write_text(json.dumps([str(self.current_image_path)]))
+        current_marker_path=self.current_asset_root/'.local/content-ledger/sprite-update-pending.json'
+        current_marker_value={'version':1,'backup_root':str(current_backup_root),'files':[{'path':str(self.current_image_path),'before_sha256':hashlib.sha256(current_before_bytes).hexdigest(),'after_sha256':hashlib.sha256(b'future').hexdigest(),'backup_index':0}]}
+        current_marker_path.write_text(json.dumps(current_marker_value))
+        current_marker_bytes=current_marker_path.read_bytes()
+        current_result_value=inspect_hermes_sprite_pending_status()
+        self.assertEqual(current_result_value['state'],'pending')
+        self.assertEqual(current_result_value['backup_manifest'],'valid')
+        self.assertEqual(current_result_value['files'],[{'path':self.current_image_path.relative_to(self.current_asset_root).as_posix(),'current':'before','backup':'valid','registry_lock':'matched'}])
+        (current_backup_root/'paths.json').write_text(json.dumps(['/unexpected/path']))
+        current_mismatch_value=inspect_hermes_sprite_pending_status()
+        self.assertEqual(current_mismatch_value['backup_manifest'],'invalid')
+        self.assertEqual(current_mismatch_value['files'][0]['backup'],'unavailable')
+        (current_backup_root/'paths.json').write_text(json.dumps([str(self.current_image_path)]))
+        self.assertNotIn(str(self.current_root_path),str(current_result_value))
+        self.assertEqual(current_marker_path.read_bytes(),current_marker_bytes)
+        current_marker_value['files'][0]['after_sha256']=current_marker_value['files'][0]['before_sha256']
+        current_marker_path.write_text(json.dumps(current_marker_value))
+        self.assertEqual(inspect_hermes_sprite_pending_status()['files'][0]['current'],'unchanged')
+        current_marker_value['files'][0]['after_sha256']=hashlib.sha256(b'future').hexdigest()
+        current_marker_path.write_text(json.dumps(current_marker_value))
+        self.current_image_path.write_bytes(b'future')
+        (current_backup_root/'0').write_bytes(b'bad backup')
+        current_result_value=inspect_hermes_sprite_pending_status()
+        self.assertEqual(current_result_value['files'][0]['current'],'after')
+        self.assertEqual(current_result_value['files'][0]['backup'],'invalid')
+        self.assertEqual(current_result_value['files'][0]['registry_lock'],'mismatch')
+        current_lock_path.write_text('invalid: [')
+        self.assertEqual(inspect_hermes_sprite_pending_status()['files'][0]['registry_lock'],'unavailable')
+        current_marker_value['files'][0]['path']='/etc/passwd'
+        current_marker_path.write_text(json.dumps(current_marker_value))
+        self.assertEqual(inspect_hermes_sprite_pending_status()['state'],'unavailable')
+
+    def test_unreadable_sprite_marker_blocks_observation_and_write(self):
+        from tools.review.domains.hermes_agent.sprite_pending_observer import inspect_hermes_sprite_pending_status
+        with sprite_sheet_editor.hold_sprite_asset_update_lock():pass
+        current_marker_path=self.current_asset_root/'.local/content-ledger/sprite-update-pending.json'
+        current_original_bytes=self.current_image_path.read_bytes()
+        current_lstat_method=Path.lstat
+        current_exists_method=Path.exists
+        def reject_marker_stat(current_path_value,*current_arguments,**current_keywords):
+            if current_path_value==current_marker_path:raise PermissionError('unreadable')
+            return current_lstat_method(current_path_value,*current_arguments,**current_keywords)
+        def hide_marker_exists(current_path_value,*current_arguments,**current_keywords):
+            if current_path_value==current_marker_path:return False
+            return current_exists_method(current_path_value,*current_arguments,**current_keywords)
+        with patch.object(Path,'exists',autospec=True,side_effect=hide_marker_exists),patch.object(Path,'lstat',autospec=True,side_effect=reject_marker_stat):
+            self.assertEqual(inspect_hermes_sprite_pending_status()['state'],'unavailable')
+            with self.assertRaises(PermissionError):
+                with sprite_sheet_editor.hold_sprite_asset_update_lock():pass
+            with self.assertRaises(PermissionError):
+                sprite_sheet_editor.write_sprite_asset_transaction({self.current_image_path:b'changed'},{self.current_image_path:current_original_bytes},current_transaction_marker=current_marker_path,current_backup_root=self.current_root_path/'backup')
+        self.assertEqual(self.current_image_path.read_bytes(),current_original_bytes)
+
+    def test_sprite_pending_hash_rejects_file_modified_during_read(self):
+        import os
+        from tools.review.domains.hermes_agent.sprite_pending_observer import read_sprite_pending_file_hash
+        current_test_path=self.current_root_path/'changed-file'
+        current_test_path.write_bytes(b'original')
+        current_original_fstat=os.fstat
+        current_fstat_calls=[]
+        def change_after_first_stat(current_descriptor_value):
+            current_stat_value=current_original_fstat(current_descriptor_value)
+            current_fstat_calls.append(True)
+            if len(current_fstat_calls)==1:current_test_path.write_bytes(b'changed content')
+            return current_stat_value
+        with patch('os.fstat',side_effect=change_after_first_stat):
+            with self.assertRaisesRegex(ValueError,'변경되었습니다'):
+                read_sprite_pending_file_hash(current_test_path)
+
+    def test_sprite_pending_observer_rejects_invalid_ledger_and_marker(self):
+        from tools.review.domains.hermes_agent.sprite_pending_observer import inspect_hermes_sprite_pending_status
+        current_local_path=self.current_asset_root/'.local'
+        current_local_path.mkdir()
+        (current_local_path/'content-ledger').write_text('not a directory')
+        self.assertEqual(inspect_hermes_sprite_pending_status()['state'],'unavailable')
+        (current_local_path/'content-ledger').unlink()
+        with sprite_sheet_editor.hold_sprite_asset_update_lock():pass
+        current_marker_path=current_local_path/'content-ledger/sprite-update-pending.json'
+        current_marker_path.write_text('{')
+        self.assertEqual(inspect_hermes_sprite_pending_status()['state'],'unavailable')
+        self.assertTrue(current_marker_path.is_file())
+
+    def test_sprite_interrupted_process_leaves_marker_and_blocks_next_writer(self):
+        import subprocess
+        import sys
+        current_first_path=self.current_asset_root/'first.bin'
+        current_second_path=self.current_asset_root/'second.bin'
+        current_first_path.write_bytes(b'old first')
+        current_second_path.write_bytes(b'old second')
+        current_backup_root=self.current_root_path/'backup'
+        current_backup_root.mkdir()
+        (current_backup_root/'0').write_bytes(b'old first')
+        (current_backup_root/'1').write_bytes(b'old second')
+        current_child_code="""
+import os
+from pathlib import Path
+from tools.review.domains.character_animation.sprite_sheet_editor import hold_sprite_asset_update_lock,write_sprite_asset_transaction
+current_root_path=Path(os.environ['SLIME_ASSETS_ROOT'])
+current_first_path=current_root_path/'first.bin'
+current_second_path=current_root_path/'second.bin'
+current_original_replace=os.replace
+def stop_after_first_replace(current_source_path,current_target_path):
+    current_original_replace(current_source_path,current_target_path)
+    if Path(current_target_path)==current_first_path:os._exit(37)
+os.replace=stop_after_first_replace
+with hold_sprite_asset_update_lock():
+    write_sprite_asset_transaction({current_first_path:b'new first',current_second_path:b'new second'},{current_first_path:b'old first',current_second_path:b'old second'},current_transaction_marker=current_root_path/'.local/content-ledger/sprite-update-pending.json',current_backup_root=Path(os.environ['TEST_SPRITE_BACKUP_ROOT']))
+"""
+        current_environment_values=dict(os.environ,SLIME_ASSETS_ROOT=str(self.current_asset_root),TEST_SPRITE_BACKUP_ROOT=str(current_backup_root),PYTHONPATH=str(Path(__file__).resolve().parents[3]))
+        current_child_process=subprocess.run([sys.executable,'-c',current_child_code],env=current_environment_values,capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_child_process.returncode,37,current_child_process.stderr)
+        self.assertEqual(current_first_path.read_bytes(),b'new first')
+        self.assertEqual(current_second_path.read_bytes(),b'old second')
+        current_marker_path=self.current_asset_root/'.local/content-ledger/sprite-update-pending.json'
+        current_marker_value=json.loads(current_marker_path.read_text())
+        self.assertEqual(current_marker_value['backup_root'],str(current_backup_root))
+        self.assertEqual(current_marker_value['files'][0]['before_sha256'],hashlib.sha256(b'old first').hexdigest())
+        with self.assertRaisesRegex(ValueError,'완료되지 않은 스프라이트 저장'):
+            with sprite_sheet_editor.hold_sprite_asset_update_lock():pass
+        self.assertTrue(current_marker_path.is_file())
+
+    def test_sprite_failed_write_with_successful_rollback_clears_marker(self):
+        import os
+        current_first_path=self.current_asset_root/'first.bin'
+        current_second_path=self.current_asset_root/'second.bin'
+        current_first_path.write_bytes(b'old first')
+        current_second_path.write_bytes(b'old second')
+        current_backup_root=self.current_root_path/'backup'
+        current_backup_root.mkdir()
+        current_original_replace=os.replace
+        def fail_second_replace(current_source_path,current_target_path):
+            if Path(current_target_path)==current_second_path:raise OSError('모의 오류')
+            return current_original_replace(current_source_path,current_target_path)
+        with sprite_sheet_editor.hold_sprite_asset_update_lock():
+            current_marker_path=self.current_asset_root/'.local/content-ledger/sprite-update-pending.json'
+            with patch('os.replace',side_effect=fail_second_replace),self.assertRaisesRegex(OSError,'모의 오류'):
+                sprite_sheet_editor.write_sprite_asset_transaction({current_first_path:b'new first',current_second_path:b'new second'},{current_first_path:b'old first',current_second_path:b'old second'},current_transaction_marker=current_marker_path,current_backup_root=current_backup_root)
+            self.assertFalse(current_marker_path.exists())
+        self.assertEqual(current_first_path.read_bytes(),b'old first')
+        self.assertEqual(current_second_path.read_bytes(),b'old second')
+
+    def test_sprite_asset_lock_serializes_separate_processes(self):
+        import select
+        import subprocess
+        import sys
+        current_child_code="""
+from tools.review.domains.character_animation.sprite_sheet_editor import hold_sprite_asset_update_lock
+print('ready',flush=True)
+with hold_sprite_asset_update_lock():
+    print('acquired',flush=True)
+"""
+        current_environment_values=dict(os.environ,SLIME_ASSETS_ROOT=str(self.current_asset_root),PYTHONPATH=str(Path(__file__).resolve().parents[3]))
+        with sprite_sheet_editor.hold_sprite_asset_update_lock():
+            current_child_process=subprocess.Popen([sys.executable,'-u','-c',current_child_code],env=current_environment_values,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+            try:
+                self.assertEqual(current_child_process.stdout.readline().strip(),'ready')
+                current_readable_streams,_,_=select.select([current_child_process.stdout],[],[],0.25)
+                self.assertEqual(current_readable_streams,[],'다른 프로세스가 잠금 해제 전에 진입했습니다.')
+            except BaseException:
+                current_child_process.kill()
+                current_child_process.communicate(timeout=5)
+                raise
+        current_output_text,current_error_text=current_child_process.communicate(timeout=5)
+        self.assertEqual(current_child_process.returncode,0,current_error_text)
+        self.assertEqual(current_output_text.strip(),'acquired')
+
+    def test_sprite_asset_lock_rejects_symlinked_ledger(self):
+        current_local_root=self.current_asset_root/'.local'
+        current_local_root.mkdir()
+        (current_local_root/'content-ledger').symlink_to(self.current_root_path,target_is_directory=True)
+        with self.assertRaisesRegex(ValueError,'심볼릭 링크'):
+            with sprite_sheet_editor.hold_sprite_asset_update_lock():pass
+        self.assertFalse((self.current_root_path/'sprite-asset-update.lock').exists())
+
+    def test_registered_sprite_update_rejects_missing_or_duplicate_consumer_lock(self):
+        current_update_payload,_=sprite_operations.prepare_hermes_sprite_anchor_edit(self.current_draft_record)
+        current_registry_path=self.current_asset_root/'asset-registry.yaml'
+        current_lock_path=self.current_frontend_root/'sprite-assets.lock.yaml'
+        current_lock_record=yaml.safe_load(current_lock_path.read_text())
+        current_original_files={current_path:current_path.read_bytes() for current_path in (self.current_image_path,self.current_metadata_path,current_registry_path)}
+        for current_target_path in (self.current_image_path,self.current_metadata_path):
+            current_relative_path=current_target_path.relative_to(self.current_asset_root).as_posix()
+            for current_test_case in ('missing','duplicate'):
+                with self.subTest(current_relative_path=current_relative_path,current_test_case=current_test_case):
+                    current_entries=[dict(current_item) for current_item in current_lock_record['files']]
+                    if current_test_case=='missing':current_entries=[current_item for current_item in current_entries if current_item['source_path']!=current_relative_path]
+                    else:current_entries.append(dict(next(current_item for current_item in current_entries if current_item['source_path']==current_relative_path)))
+                    current_lock_path.write_text(yaml.safe_dump({'files':current_entries}))
+                    current_before_lock=current_lock_path.read_bytes()
+                    with self.assertRaisesRegex(ValueError,'각각 하나'):
+                        sprite_sheet_editor.update_registered_sprite_sheet(current_update_payload)
+                    for current_file_path,current_file_bytes in current_original_files.items():self.assertEqual(current_file_path.read_bytes(),current_file_bytes)
+                    self.assertEqual(current_lock_path.read_bytes(),current_before_lock)
+
+    def test_sprite_preflight_blocks_without_receipt_and_allows_retry_after_clear(self):
+        current_preview_record=sprite_operations.preview_hermes_sprite_anchor_edit(self.current_draft_record)
+        current_save_args=('sprite_blocked_123',self.current_draft_record,current_preview_record['token'],current_preview_record['review_sha256'])
+        current_original_paths=(self.current_image_path,self.current_metadata_path,self.current_asset_root/'asset-registry.yaml',self.current_frontend_root/'sprite-assets.lock.yaml')
+        current_original_files={current_path:current_path.read_bytes() for current_path in current_original_paths}
+        for current_state_name in ('pending','busy','unavailable'):
+            with self.subTest(current_state_name=current_state_name),patch('tools.review.domains.hermes_agent.sprite_pending_observer.inspect_hermes_sprite_pending_status',return_value={'state':current_state_name,'files':[]}):
+                current_result_value=sprite_operations.save_hermes_sprite_anchor_once(*current_save_args)
+                self.assertEqual((current_result_value['state'],current_result_value['reason']),('blocked',current_state_name))
+                self.assertFalse(current_result_value['saved'])
+                self.assertEqual(sprite_operations.read_hermes_sprite_anchor_receipt('sprite_blocked_123')['state'],'not_found')
+                for current_file_path,current_file_bytes in current_original_files.items():self.assertEqual(current_file_path.read_bytes(),current_file_bytes)
+        with patch('tools.review.domains.hermes_agent.sprite_pending_observer.inspect_hermes_sprite_pending_status',return_value={'state':'clear','files':[]}):
+            self.assertTrue(sprite_operations.save_hermes_sprite_anchor_once(*current_save_args)['saved'])
+
     def test_preview_and_save_update_registry_and_lock_once(self):
         current_preview_record=sprite_operations.preview_hermes_sprite_anchor_edit(self.current_draft_record)
         from tools.review.ui.gradio.hermes_agent_app import format_conversation_sprite_changes

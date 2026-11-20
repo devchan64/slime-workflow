@@ -68,8 +68,8 @@ def save_map_sprite_anchor(current_request_payload):
     current_pending_files={current_properties_path:current_map_bytes}
     for current_metadata_path in (current_registry_path,current_backend_lock):
         current_metadata_text=current_metadata_path.read_text()
-        if current_properties_provenance['sha256'] not in current_metadata_text:raise ValueError('공통 속성 등록부·잠금 불일치')
-        current_pending_files[current_metadata_path]=current_metadata_text.replace(current_properties_provenance['sha256'],current_map_hash).encode()
+        from tools.review.domains.map_assets.map_editor import update_registered_map_hashes
+        current_pending_files[current_metadata_path]=update_registered_map_hashes(current_metadata_text,{current_properties_relative:(current_properties_provenance['sha256'],current_map_hash)}).encode()
     current_previous_files={current_file_path:current_file_path.read_bytes() for current_file_path in current_pending_files}
     try:
         for current_file_path,current_file_bytes in current_pending_files.items():current_file_path.write_bytes(current_file_bytes)

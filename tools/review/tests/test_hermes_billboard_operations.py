@@ -72,6 +72,20 @@ class HermesBillboardOperationTests(unittest.TestCase):
             self.assertEqual(sum(current_call.args[0]=='asset-save-reviewed' for current_call in current_editor_mock.call_args_list),1)
             self.assertEqual(billboard_operations.read_hermes_billboard_edit_receipt('request_123')['state'],'completed')
 
+    def test_database_ledger_status_survives_receipt_and_duplicate(self):
+        from tools.review.ui.gradio.hermes_agent_app import format_billboard_saved_status
+        def execute_test_editor(current_command_name,current_payload_record):
+            return {'saved':True,'snapshot':'pending'} if current_command_name=='asset-save-reviewed' else self.current_preview_record
+        with patch.object(billboard_operations,'call_field_map_editor',side_effect=execute_test_editor):
+            current_review_record=billboard_operations.preview_hermes_billboard_edit(self.current_draft_record)
+            current_save_args=('request_123',self.current_draft_record,self.current_token_value,current_review_record['review_sha256'])
+            current_saved_record=billboard_operations.save_hermes_billboard_edit_once(*current_save_args)
+            self.assertEqual(current_saved_record['ledger_status_at_save'],'pending')
+            self.assertEqual(billboard_operations.read_hermes_billboard_edit_receipt('request_123')['ledger_status_at_save'],'pending')
+            self.assertEqual(billboard_operations.save_hermes_billboard_edit_once(*current_save_args)['ledger_status_at_save'],'pending')
+            self.assertIn('저장 당시 원장 반영 대기',format_billboard_saved_status(current_saved_record))
+            self.assertNotIn('DB 저장',format_billboard_saved_status({'saved':True}))
+
     def test_changed_receipt_after_save_is_preserved_and_not_retried(self):
         import json
         current_record_path=self.current_store_value.resolve_delegation_record_path('request_123')

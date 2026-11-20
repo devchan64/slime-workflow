@@ -95,8 +95,11 @@ class HermesFluxProfileOperationsTests(unittest.TestCase):
                     for current_response_value in ({},{'cancel_requested':False},{'cancel_requested':'true'}):
                         current_gateway_mock.return_value=current_response_value
                         with self.assertRaises(ValueError):getattr(current_module_value,current_function_name)(*current_arguments)
-                    current_gateway_mock.return_value={'status':'running','cancel_requested':True}
-                    self.assertTrue(getattr(current_module_value,current_function_name)(*current_arguments)['cancel_requested'])
+                    current_gateway_mock.return_value={'status':'running','cancel_requested':True,'id':'2026-11-18_00-00-00-ffffffff'}
+                    with self.assertRaises(ValueError):getattr(current_module_value,current_function_name)(*current_arguments)
+                    for current_response_value in ({'status':'running','cancel_requested':True},{'status':'running','cancel_requested':True,'id':current_job_identifier}):
+                        current_gateway_mock.return_value=current_response_value
+                        self.assertTrue(getattr(current_module_value,current_function_name)(*current_arguments)['cancel_requested'])
 
     def test_cancel_rejects_other_service_and_job_before_dispatch(self):
         from tools.review.domains.hermes_agent import audio_operations,video_operations,translation_operations

@@ -70,13 +70,16 @@ def read_hermes_memory_capacity(current_gpu_values):
     try:
         if current_gpu_values.get('status') not in ('idle', 'busy'):
             raise ValueError('GPU 정보 없음')
-        current_gtt_total = current_gpu_values.get('gtt_total_mib')
-        current_vram_total = current_gpu_values.get('vram_total_mib')
+        current_device_memory=current_gpu_values.get('queue_device_memory')
+        if not isinstance(current_device_memory,dict):raise ValueError('대기열 장치 메모리 정보 없음')
+        current_gtt_total = current_device_memory.get('gtt_total_mib')
+        current_vram_total = current_device_memory.get('vram_total_mib')
         if any(type(current_value) is not int or current_value < 0 for current_value in (current_gtt_total, current_vram_total)):
             raise ValueError('GPU 메모리 영역 정보 오류')
         current_memory_domain = 'vram' if current_vram_total > current_gtt_total else 'gtt'
-        current_gpu_free = current_gpu_values.get(current_memory_domain + '_free_mib')
-        if type(current_gpu_free) is not int or current_gpu_free < 0:
+        current_gpu_free = current_device_memory.get(current_memory_domain + '_free_mib')
+        current_gpu_total=current_device_memory.get(current_memory_domain+'_total_mib')
+        if type(current_gpu_free) is not int or current_gpu_total<=0 or not 0<=current_gpu_free<=current_gpu_total:
             raise ValueError('GPU 여유 메모리 정보 오류')
         current_host_available = read_host_available_memory()
         if type(current_host_available) is not int or current_host_available < 0:
@@ -89,7 +92,7 @@ def read_hermes_memory_capacity(current_gpu_values):
             raise ValueError('예약량 정보 오류')
         current_host_reserve = HOST_MEMORY_RESERVE_KIB // 1024
         current_pool_available = calculate_gpu_pool_capacity(current_memory_domain,current_gpu_free,current_host_available)
-        return {'status': 'available', 'domain': current_memory_domain, 'gpu_free_mib': current_gpu_free, 'host_available_mib': current_host_available, 'host_reserve_mib': current_host_reserve, 'required_mib': current_required_memory, 'pool_available_mib': current_pool_available, 'capacity_sufficient': current_pool_available >= current_required_memory, 'detail': '관측 당시 메모리만 비교하며 다른 예약과 작업 순서는 반영하지 않습니다.'}
+        return {'status': 'available', 'domain': current_memory_domain, 'gpu_free_mib': current_gpu_free, 'host_available_mib': current_host_available, 'host_reserve_mib': current_host_reserve, 'required_mib': current_required_memory, 'pool_available_mib': current_pool_available, 'capacity_sufficient': current_pool_available >= current_required_memory, 'detail': '관측 당시 메모리만 비교하며 다른 예약과 작업 순서는 반영하지 않습니다. 첫 번째 GPU의 수치를 사용하며 실제 실행 가능 여부를 보장하지 않습니다.'}
     except (OSError, ValueError, TypeError, KeyError):
         return {'status': 'unavailable'}
 
@@ -195,6 +198,11 @@ def read_hermes_management_snapshot():
             for current_memory_field in ('gtt_total_mib', 'gtt_free_mib', 'vram_total_mib', 'vram_free_mib'):
                 current_memory_value = current_gpu_record.get(current_memory_field)
                 current_gpu_values[current_memory_field] = current_memory_value if type(current_memory_value) is int and current_memory_value >= 0 else None
+            current_queue_device=current_gpu_record.get('queue_device_memory')
+            if isinstance(current_queue_device,dict):
+                current_gpu_values['queue_device_memory']={current_field_name:current_queue_device.get(current_field_name) if type(current_queue_device.get(current_field_name)) is int and current_queue_device[current_field_name]>=0 else None for current_field_name in ('gtt_total_mib','gtt_free_mib','vram_total_mib','vram_free_mib')}
+            current_device_count=current_gpu_record.get('gpu_count')
+            current_gpu_values['gpu_count']=current_device_count if type(current_device_count) is int and current_device_count>0 else None
             current_process_records = current_gpu_record.get('processes')
             current_gpu_values['process_count'] = len(current_process_records) if isinstance(current_process_records, list) else None
     except (OSError, ValueError, TypeError, KeyError):
@@ -239,9 +247,37 @@ def read_hermes_management_snapshot():
         current_model_values = {'status': 'unavailable'}
 
     return {'queried_at': datetime.now(timezone.utc).isoformat(),
-            'detail': '조회 시각이며 GPU 관측값은 공용 상태 조회의 짧은 캐시를 사용할 수 있습니다. 최근 작업 조회는 로컬 잠금을 만듭니다. 대기 티켓의 실행기 신원은 조회 시점의 부팅 식별값과 PID 시작 식별값으로 확인하며 값이 빠진 티켓은 미확인입니다. Kimodo 활성 상태는 기록 기준이며 실제 프로세스 생존을 보증하지 않습니다.',
+            'detail': '조회 시각이며 GPU 관측값은 공용 상태 조회의 짧은 캐시를 사용할 수 있습니다. 최근 작업 조회는 로컬 잠금을 만듭니다. 대기 티켓의 실행기 신원은 조회 시점의 부팅 식별값과 PID 시작 식별값으로 확인하며 값이 빠진 티켓은 미확인입니다. GPU idle은 관측된 프로세스가 없다는 뜻이며 실제 사용 가능을 보증하지 않습니다. 여러 GPU의 메모리 값은 합계일 수 있습니다. Kimodo 활성 상태는 기록 기준이며 실제 프로세스 생존을 보증하지 않습니다.',
             'model': current_model_values, 'gpu': current_gpu_values, 'memory_capacity': read_hermes_memory_capacity(current_gpu_values), 'queue': current_queue_values, 'reservations': read_hermes_gpu_reservation_snapshot(),
             'generators': read_hermes_generator_snapshot(), 'recent_hermes_jobs': read_hermes_recent_job_snapshot()}
+
+
+def read_hermes_model_download_status():
+    """기록을 정리하지 않고 모델 다운로드 진행 상태만 조회한다."""
+    import os
+    import re
+    from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
+    from tools.review.common.management_gateway import execute_management_command
+    current_gateway_address=validate_gateway_address(os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL',DEFAULT_GATEWAY_ADDRESS))
+    current_response_record=execute_management_command('model-downloads','download-observe',{},current_gateway_address)
+    if not isinstance(current_response_record,dict) or not isinstance(current_response_record.get('records'),list):raise ValueError('모델 다운로드 상태 형식 오류')
+    current_unavailable_count=current_response_record.get('unavailable_count')
+    if type(current_unavailable_count) is not int or current_unavailable_count<0:raise ValueError('모델 다운로드 확인 불가 건수 오류')
+    current_safe_records=[]
+    current_records_value=current_response_record['records']
+    for current_record_value in current_records_value[:100]:
+        if not isinstance(current_record_value,dict):raise ValueError('모델 다운로드 기록 오류')
+        current_model_name=current_record_value.get('model')
+        current_status_name=current_record_value.get('status')
+        if not isinstance(current_model_name,str) or len(current_model_name)>256 or not re.fullmatch(r'[A-Za-z0-9_.\-/]+',current_model_name) or current_model_name.startswith('/') or '..' in current_model_name.split('/') or current_status_name not in ('running','completed','failed','interrupted'):
+            raise ValueError('모델 다운로드 식별 또는 상태 오류')
+        current_safe_record={'model':current_model_name,'status':current_status_name}
+        for current_field_name in ('bytes','total_bytes'):
+            current_field_value=current_record_value.get(current_field_name)
+            if current_field_value is not None and (type(current_field_value) is not int or current_field_value<0):raise ValueError('모델 다운로드 크기 오류')
+            current_safe_record[current_field_name]=current_field_value
+        current_safe_records.append(current_safe_record)
+    return {'records':current_safe_records,'unavailable_count':current_unavailable_count,'truncated':len(current_records_value)>100,'note':'관리도구에 기록된 진행 작업과 모델별 최근 종료 기록입니다. 확인 불가 건수에 손상되거나 읽을 수 없는 기록이 포함됩니다. PID 재사용과 외부 다운로드는 확인되지 않으며 완료는 파일 전체 해시나 실행 준비를 보증하지 않습니다.'}
 
 
 def read_hermes_model_inventory():
@@ -307,7 +343,9 @@ def read_hermes_model_readiness(current_service_name):
         current_preparation_state = current_status_record.get('preparation_status')
         if current_preparation_state not in ('idle','running','completed','failed'):
             current_preparation_state = 'unknown'
-        return {'status':'available', 'service':current_service_name, 'queried_at':datetime.now(timezone.utc).isoformat(), 'ready':current_status_record['ready'], 'artifacts_ready':current_artifacts_ready, 'generation_ready':current_generation_ready, 'preparation_status':current_preparation_state, 'download':current_download_value, 'prepare_allowed':current_prepare_allowed, 'note':'서비스의 관측 결과이며 실행 권한, GPU 실행과 전체 해시 검증을 보증하지 않습니다. 상태 조회가 로컬 잠금 파일을 만들 수 있습니다.'}
+        current_readiness_note='서비스의 관측 결과이며 실행 권한, GPU 실행과 전체 해시 검증을 보증하지 않습니다. 상태 조회가 로컬 잠금 파일을 만들 수 있습니다.'
+        if current_service_name=='flux-image':current_readiness_note+=' FLUX generation_ready는 모델 파일 크기 기준이며 한국어 번역 준비나 GPU 생성 검증을 뜻하지 않습니다.'
+        return {'status':'available', 'service':current_service_name, 'queried_at':datetime.now(timezone.utc).isoformat(), 'ready':current_status_record['ready'], 'artifacts_ready':current_artifacts_ready, 'generation_ready':current_generation_ready, 'preparation_status':current_preparation_state, 'download':current_download_value, 'prepare_allowed':current_prepare_allowed, 'note':current_readiness_note}
     except (OSError, ValueError, TypeError, KeyError):
         return {'status':'unavailable','service':current_service_name,'queried_at':datetime.now(timezone.utc).isoformat(),'download':current_download_value,'note':'모델 상태를 확인할 수 없습니다.'}
 
@@ -323,6 +361,9 @@ def read_hermes_content_database_status():
     current_query_time = datetime.now(timezone.utc).isoformat()
     current_asset_root = Path(os.environ.get('SLIME_ASSETS_ROOT', DEFAULT_ASSET_REPOSITORY))
     current_map_sources = inspect_hermes_map_sources(current_asset_root, current_asset_root.parent / 'slime-backend/map-data.lock.yaml')
+    from tools.review.domains.hermes_agent.map_pending_observer import inspect_hermes_map_pending_status
+    current_map_save = inspect_hermes_map_pending_status()
+    current_map_mode = 'database' if os.environ.get('SLIME_CONTENT_STORAGE')=='database' else 'files'
     try:
         current_gateway_address = validate_gateway_address(os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL', DEFAULT_GATEWAY_ADDRESS))
         current_status_record = execute_management_command('map-assets', 'database-status', {}, current_gateway_address)
@@ -350,11 +391,13 @@ def read_hermes_content_database_status():
                 raise ValueError('원장 반영 상태 오류')
             current_latest_value = {'state':current_latest_state, 'generation':current_latest_generation, 'lease_expired':current_lease_expired}
         return {'status':'available', 'queried_at':current_query_time, 'generation':current_generation_value,
-                'ledger_generation':current_snapshot_value, 'pending':current_pending_value, 'latest':current_latest_value, 'map_sources':current_map_sources,
+                'ledger_generation':current_snapshot_value, 'pending':current_pending_value, 'latest':current_latest_value, 'map_sources':current_map_sources, 'map_save':current_map_save, 'local_map_mode':current_map_mode,
                 'note':'콘텐츠 DB 응답의 snapshotGeneration은 원장 반영 계약 이름입니다. 파일 스냅샷 보관을 뜻하지 않습니다. 맵 원본 비교는 별도 조회 시점 기준이며 DB 또는 실행 중인 백엔드 반영을 확인하지 않습니다.'}
-    except (OSError, RuntimeError, ValueError, TypeError, KeyError):
-        return {'status':'unavailable', 'queried_at':current_query_time, 'map_sources':current_map_sources,
-                'note':'콘텐츠 DB 상태를 확인할 수 없습니다. 서비스 연결과 인증을 확인하세요.'}
+    except (OSError, RuntimeError, ValueError, TypeError, KeyError) as current_status_error:
+        current_reason_code = 'service_origin' if 'SLIME_CONTENT_SERVICE_ORIGIN에 콘텐츠 API origin을 지정하세요.' in str(current_status_error) else 'unknown'
+        current_status_note = ('게이트웨이의 콘텐츠 서비스 주소 설정을 확인하세요.' if current_reason_code == 'service_origin' else '콘텐츠 DB 상태를 확인할 수 없습니다. 서비스 연결과 인증을 확인하세요.')
+        return {'status':'unavailable', 'queried_at':current_query_time, 'map_sources':current_map_sources, 'map_save':current_map_save, 'local_map_mode':current_map_mode,
+                'failure_reason':current_reason_code, 'note':current_status_note}
 
 
 def read_hermes_kimodo_build_status():

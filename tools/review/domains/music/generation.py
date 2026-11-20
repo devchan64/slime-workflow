@@ -1,6 +1,6 @@
 """음악생성 공용 작업 서비스: GUI·CLI는 같은 이력과 GPU 대기열을 사용한다."""
-from contextlib import contextmanager
-from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup, read_cleanup_confirmation
+from contextlib import contextmanager, nullcontext
+from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup, hold_cleanup_preview_guard, read_cleanup_confirmation
 from datetime import datetime
 import fcntl
 import json
@@ -61,10 +61,7 @@ class MusicGenerationManager:
                 if inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY, AUDIO_DOWNLOAD_PROFILES[self.current_service_name]) == 'running':
                     raise ValueError('모델 파일 다운로드가 진행 중입니다. 완료 후 다시 요청하세요.')
             if current_request_record['action'] == 'prepare':
-                for current_history_record in self.list_music_history():
-                    if (current_history_record.get('request', {}).get('action') == 'prepare'
-                            and current_history_record.get('status', {}).get('status') in ('queued', 'running')):
-                        raise ValueError('모델 준비가 이미 대기 중이거나 실행 중입니다.')
+                self.ensure_no_active_music_preparation()
             current_created_time = datetime.now(ZoneInfo('Asia/Seoul'))
             current_job_identifier = current_created_time.strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
             current_job_root = self.job_storage_root/current_job_identifier
@@ -76,6 +73,33 @@ class MusicGenerationManager:
                 launch_gpu_process(self.build_music_worker_command(current_job_root),current_job_root,self.current_service_name,
                     stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True,cwd=WORKFLOW_ROOT_DIRECTORY)
         return {'id':current_job_identifier,'status':'queued'}
+
+    def ensure_no_active_music_preparation(self, *, current_check_all_actions=False, current_excluded_job_identifier=None):
+        """표시 이력과 관계없이 준비 작업의 원본 상태를 검사한다. 서비스 잠금 안에서 호출한다."""
+        try:
+            current_job_roots=list(self.job_storage_root.iterdir())
+        except FileNotFoundError:
+            return
+        for current_job_root in current_job_roots:
+            if not re.fullmatch(MUSIC_IDENTIFIER_PATTERN,current_job_root.name):continue
+            if current_job_root.name==current_excluded_job_identifier:continue
+            if current_job_root.is_symlink() or not current_job_root.is_dir():
+                raise ValueError('모델 준비 작업 기록을 확인할 수 없습니다.')
+            try:
+                current_request_path=current_job_root/'request.json'
+                current_status_path=current_job_root/'status.json'
+                if current_request_path.is_symlink() or current_status_path.is_symlink():raise ValueError('작업 기록 경로 오류')
+                current_request_record=read_music_record(current_request_path)
+                current_status_record=read_music_record(current_status_path)
+                if not isinstance(current_request_record,dict) or current_request_record.get('action') not in ('prepare','generate') or not isinstance(current_status_record,dict) or current_status_record.get('status') not in ('queued','running','completed','failed','cancelled','canceled','paused'):
+                    raise ValueError('작업 기록 형식 오류')
+            except (OSError,ValueError,TypeError,KeyError) as current_record_error:
+                raise ValueError('모델 준비 작업 기록을 확인할 수 없습니다.') from current_record_error
+            if current_status_record['status'] in ('queued','running','paused'):
+                if current_check_all_actions:
+                    raise ValueError('음악 또는 효과음 작업이 대기 중이거나 실행 중입니다. 모델 다운로드 전에 작업을 확인하세요.')
+                if current_request_record['action']=='prepare':
+                    raise ValueError('모델 준비가 이미 대기 중이거나 실행 중입니다.')
 
     def read_music_status(self,current_job_root,current_include_logs=True):
         current_status_record = read_music_record(current_job_root/'status.json')
@@ -176,13 +200,15 @@ class MusicGenerationManager:
             return {'id':current_active_record['id'] if current_active_record else None}
         if current_command_name in ('history-reset','history-reset-preview'):
             current_expected_jobs=read_cleanup_confirmation(current_payload_record) if current_command_name=='history-reset' else None
-            with self.hold_music_lock():
-                current_job_targets = [current_job_path for current_job_path in self.job_storage_root.iterdir() if re.fullmatch(MUSIC_IDENTIFIER_PATTERN,current_job_path.name)] if self.job_storage_root.exists() else []
-                if current_command_name=='history-reset-preview':
-                    current_preview_record = describe_generation_cleanup(self.job_storage_root,current_job_targets)
-                    current_preview_record['scope'] = self.current_profile_record['label']+' · '+current_preview_record['scope']
-                    return current_preview_record
-                return delete_generation_job_files(self.job_storage_root,current_job_targets,self.history_storage_root.glob('*.json'),current_expected_jobs)
+            current_preview_guard = hold_cleanup_preview_guard(self.job_storage_root) if current_command_name=='history-reset-preview' else nullcontext()
+            with current_preview_guard:
+                with self.hold_music_lock():
+                    current_job_targets = [current_job_path for current_job_path in self.job_storage_root.iterdir() if re.fullmatch(MUSIC_IDENTIFIER_PATTERN,current_job_path.name)] if self.job_storage_root.exists() else []
+                    if current_command_name=='history-reset-preview':
+                        current_preview_record = describe_generation_cleanup(self.job_storage_root,current_job_targets)
+                        current_preview_record['scope'] = self.current_profile_record['label']+' · '+current_preview_record['scope']
+                        return current_preview_record
+                    return delete_generation_job_files(self.job_storage_root,current_job_targets,self.history_storage_root.glob('*.json'),current_expected_jobs)
         current_job_root = self.resolve_music_job(current_payload_record['id'])
         if current_command_name=='status':
             return self.read_music_status(current_job_root)
@@ -196,9 +222,30 @@ class MusicGenerationManager:
             if current_command_name=='resume-preview':
                 from tools.review.common.gpu_job_queue import preview_gpu_resume_records
                 current_preview_record=preview_gpu_resume_records(current_job_root,self.current_service_name,self.build_music_worker_command(current_job_root),lambda current_request_value:verify_music_request(self.current_service_name,current_request_value))
-                return {'id':current_job_root.name,'service':self.current_service_name,**current_preview_record,'note':'검토 시점의 기록입니다. 실제 재개나 GPU 사용 가능 여부를 보장하지 않습니다.'}
+                current_resume_availability='available'
+                if self.current_service_name in ('music-heartmula','sfx-dasheng-audiogen'):
+                    try:
+                        from tools.review.common.audio_model_download import AUDIO_DOWNLOAD_PROFILES
+                        from tools.review.common.model_prepare_process import inspect_registered_preparation
+                        if inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY,AUDIO_DOWNLOAD_PROFILES[self.current_service_name])=='running':
+                            current_resume_availability='download_running'
+                        elif read_music_record(current_job_root/'request.json').get('action')=='prepare':
+                            self.ensure_no_active_music_preparation(current_excluded_job_identifier=current_job_root.name)
+                    except ValueError as current_availability_error:
+                        current_resume_availability='other_preparation' if str(current_availability_error)=='모델 준비가 이미 대기 중이거나 실행 중입니다.' else 'unknown'
+                    except (OSError,TypeError,KeyError):
+                        current_resume_availability='unknown'
+                return {'id':current_job_root.name,'service':self.current_service_name,**current_preview_record,'resume_availability':current_resume_availability,'note':'검토 시점의 기록입니다. 실제 재개나 GPU 사용 가능 여부를 보장하지 않습니다.'}
             if current_command_name=='resume':
-                verify_music_request(self.current_service_name,read_music_record(current_job_root/'request.json'))
+                if self.current_service_name in ('music-heartmula','sfx-dasheng-audiogen'):
+                    from tools.review.common.audio_model_download import AUDIO_DOWNLOAD_PROFILES
+                    from tools.review.common.model_prepare_process import inspect_registered_preparation
+                    if inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY,AUDIO_DOWNLOAD_PROFILES[self.current_service_name])=='running':
+                        raise ValueError('모델 파일 다운로드가 진행 중입니다. 완료 후 다시 요청하세요.')
+                current_resume_request=read_music_record(current_job_root/'request.json')
+                verify_music_request(self.current_service_name,current_resume_request)
+                if current_resume_request.get('action')=='prepare':
+                    self.ensure_no_active_music_preparation(current_excluded_job_identifier=current_job_root.name)
                 if 'expected_resume_fingerprint' in current_payload_record:
                     current_expected_fingerprint=current_payload_record['expected_resume_fingerprint']
                     if not isinstance(current_expected_fingerprint,str) or not re.fullmatch(r'[a-f0-9]{64}',current_expected_fingerprint):

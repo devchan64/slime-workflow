@@ -9,6 +9,29 @@ from generators.image import flux_model_prepare
 
 
 class FluxModelPrepareTests(unittest.TestCase):
+    def test_preparation_guard_blocks_new_preparation_until_release(self):
+        from tools.review.common.model_prepare_process import hold_registered_preparation_guard,start_registered_preparation
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            with hold_registered_preparation_guard(current_directory_name,'flux-image'):
+                with patch('tools.review.common.model_prepare_process.subprocess.Popen') as current_spawn_mock:
+                    current_result_value=start_registered_preparation(current_directory_name,'flux-image')
+                    self.assertEqual(current_result_value['preparation_status'],'running')
+                    current_spawn_mock.assert_not_called()
+                with self.assertRaisesRegex(ValueError,'모델 준비가 진행 중'):
+                    with hold_registered_preparation_guard(current_directory_name,'flux-image'):pass
+            with hold_registered_preparation_guard(current_directory_name,'flux-image'):pass
+            with self.assertRaisesRegex(OSError,'inner failure'):
+                with hold_registered_preparation_guard(current_directory_name,'flux-image'):
+                    raise OSError('inner failure')
+            current_lock_path=Path(current_directory_name)/'.local/model-preparation/flux-image/worker.lock'
+            current_lock_path.unlink()
+            current_outside_path=Path(current_directory_name)/'outside'
+            current_outside_path.write_text('unchanged')
+            current_lock_path.symlink_to(current_outside_path)
+            with self.assertRaises(ValueError):
+                with hold_registered_preparation_guard(current_directory_name,'flux-image'):pass
+            self.assertEqual(current_outside_path.read_text(),'unchanged')
+
     def setUp(self):
         self.current_temp_directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.current_temp_directory.cleanup)

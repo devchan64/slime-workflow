@@ -148,6 +148,30 @@ class MusicGenerationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'해시'):
                 verify_music_request(current_service_name,current_request_record)
 
+    def test_damaged_music_job_blocks_preparation_before_gpu_queue(self):
+        self.current_music_service.current_service_name='music-heartmula'
+        current_job_root=self.create_test_job('completed')
+        (current_job_root/'status.json').write_text('{')
+        with patch('tools.review.common.model_prepare_process.inspect_registered_preparation',return_value='idle'):
+            with self.assertRaisesRegex(ValueError,'작업 기록을 확인할 수 없습니다'):
+                self.current_music_service.create_music_job({'action':'prepare'})
+        self.current_launcher_mock.assert_not_called()
+
+    def test_hidden_active_preparation_blocks_duplicate_before_gpu_queue(self):
+        for current_service_name in ('music-heartmula','sfx-dasheng-audiogen'):
+            for current_status_name in ('queued','running','paused'):
+                with self.subTest(current_service_name=current_service_name,current_status_name=current_status_name):
+                    self.current_music_service.current_service_name=current_service_name
+                    current_job_root=self.create_test_job(current_status_name)
+                    write_record_atomically(current_job_root/'request.json',build_music_request(current_service_name,{'action':'prepare'}))
+                    (current_job_root/'.history-deleted').touch()
+                    with patch('tools.review.common.model_prepare_process.inspect_registered_preparation',return_value='idle'):
+                        with self.assertRaisesRegex(ValueError,'이미 대기 중이거나 실행 중'):
+                            self.current_music_service.create_music_job({'action':'prepare'})
+                    self.current_launcher_mock.assert_not_called()
+                    import shutil
+                    shutil.rmtree(current_job_root)
+
     def test_invalid_input_rejected_before_queue(self):
         for current_invalid_payload in ({'prompt':''},{'prompt':'x','seed':True},{'prompt':'x','seed':1.5},{'prompt':'x','duration_seconds':float('nan')},{'prompt':'x','duration_seconds':121},{'prompt':'x','loop_request':'yes'},{'prompt':'x','model_id':'other'},{'action':'prepare','prompt':'x'}):
             with self.subTest(payload=current_invalid_payload), self.assertRaises(ValueError):
@@ -189,11 +213,56 @@ class MusicGenerationTests(unittest.TestCase):
             self.current_music_service.execute_music_command('cancel',{'id':current_job_root.name})
             current_cancel_mock.assert_called_once_with(current_job_root)
 
+    def test_resume_rejects_active_model_download_without_dispatch(self):
+        current_job_root=self.create_test_job('failed')
+        for current_service_name in ('music-heartmula','sfx-dasheng-audiogen'):
+            self.current_music_service.current_service_name=current_service_name
+            for current_resume_payload in ({'id':current_job_root.name},{'id':current_job_root.name,'expected_resume_fingerprint':'a'*64}):
+                with self.subTest(current_service_name=current_service_name,current_resume_payload=current_resume_payload), patch('tools.review.common.model_prepare_process.inspect_registered_preparation',return_value='running'), patch('tools.review.domains.music.generation.resume_gpu_generation') as current_resume_mock:
+                    with self.assertRaisesRegex(ValueError,'다운로드가 진행 중'):
+                        self.current_music_service.execute_music_command('resume',current_resume_payload)
+                    current_resume_mock.assert_not_called()
+
+    def test_music_preparation_check_does_not_treat_access_error_as_empty(self):
+        with patch.object(Path,'exists',return_value=False),patch.object(Path,'iterdir',side_effect=PermissionError('unreadable')):
+            with self.assertRaises(PermissionError):
+                self.current_music_service.ensure_no_active_music_preparation()
+        with patch.object(Path,'iterdir',side_effect=FileNotFoundError('missing')):
+            self.current_music_service.ensure_no_active_music_preparation()
+
+    def test_unreadable_job_store_blocks_preparation_and_resume_review(self):
+        self.current_music_service.current_service_name='music-heartmula'
+        current_job_root=self.create_test_job('failed')
+        write_record_atomically(current_job_root/'request.json',build_music_request('music-heartmula',{'action':'prepare'}))
+        current_preview_record={'status':'failed','expected_resume_fingerprint':'a'*64}
+        with patch.object(Path,'iterdir',side_effect=PermissionError('unreadable')),patch('tools.review.common.model_prepare_process.inspect_registered_preparation',return_value='idle'),patch('tools.review.common.gpu_job_queue.preview_gpu_resume_records',return_value=current_preview_record),patch('tools.review.domains.music.generation.launch_gpu_process') as current_launch_mock,patch('tools.review.domains.music.generation.resume_gpu_generation') as current_resume_mock:
+            current_preview_value=self.current_music_service.execute_music_command('resume-preview',{'id':current_job_root.name})
+            self.assertEqual(current_preview_value['resume_availability'],'unknown')
+            with self.assertRaises(PermissionError):
+                self.current_music_service.create_music_job({'action':'prepare'})
+            current_launch_mock.assert_not_called()
+            current_resume_mock.assert_not_called()
+
+    def test_prepare_resume_excludes_itself_and_checks_other_hidden_preparation(self):
+        self.current_music_service.current_service_name='music-heartmula'
+        current_job_root=self.create_test_job('paused')
+        write_record_atomically(current_job_root/'request.json',build_music_request('music-heartmula',{'action':'prepare'}))
+        with patch('tools.review.common.model_prepare_process.inspect_registered_preparation',return_value='idle'), patch('tools.review.domains.music.generation.resume_gpu_generation',return_value={'status':'queued'}) as current_resume_mock:
+            self.assertEqual(self.current_music_service.execute_music_command('resume',{'id':current_job_root.name})['status'],'queued')
+            current_resume_mock.assert_called_once_with(current_job_root)
+            current_resume_mock.reset_mock()
+            current_other_root=self.create_test_job('queued')
+            write_record_atomically(current_other_root/'request.json',build_music_request('music-heartmula',{'action':'prepare'}))
+            (current_other_root/'.history-deleted').touch()
+            with self.assertRaisesRegex(ValueError,'이미 대기 중이거나 실행 중'):
+                self.current_music_service.execute_music_command('resume',{'id':current_job_root.name})
+            current_resume_mock.assert_not_called()
+
     def test_music_resume_forwards_valid_fingerprint_without_weakening_legacy(self):
         current_job_root=self.create_test_job('failed')
         self.current_music_service.current_service_name='music-heartmula'
         current_review_fingerprint='a'*64
-        with patch('tools.review.domains.music.generation.verify_music_request'),patch('tools.review.domains.music.generation.resume_gpu_generation',return_value={'status':'queued'}) as current_resume_mock:
+        with patch('tools.review.common.model_prepare_process.inspect_registered_preparation',return_value='idle'),patch('tools.review.domains.music.generation.verify_music_request'),patch('tools.review.domains.music.generation.resume_gpu_generation',return_value={'status':'queued'}) as current_resume_mock:
             self.current_music_service.execute_music_command('resume',{'id':current_job_root.name,'expected_resume_fingerprint':current_review_fingerprint})
             current_resume_mock.assert_called_once_with(current_job_root,expected_resume_fingerprint=current_review_fingerprint,expected_resume_service='music-heartmula',expected_resume_command=self.current_music_service.build_music_worker_command(current_job_root))
             current_resume_mock.reset_mock()
@@ -204,6 +273,36 @@ class MusicGenerationTests(unittest.TestCase):
                 with self.subTest(current_invalid_value=current_invalid_value),self.assertRaises(ValueError):
                     self.current_music_service.execute_music_command('resume',{'id':current_job_root.name,'expected_resume_fingerprint':current_invalid_value})
                 current_resume_mock.assert_not_called()
+
+    def test_resume_preview_reports_current_download_and_other_preparation(self):
+        self.current_music_service.current_service_name='music-heartmula'
+        current_job_root=self.create_test_job('failed')
+        write_record_atomically(current_job_root/'request.json',build_music_request('music-heartmula',{'action':'prepare'}))
+        current_mock_preview={'status':'failed','expected_resume_fingerprint':'a'*64}
+        with patch('tools.review.common.gpu_job_queue.preview_gpu_resume_records',return_value=current_mock_preview), patch('tools.review.common.model_prepare_process.inspect_registered_preparation',return_value='running'), patch('tools.review.domains.music.generation.resume_gpu_generation') as current_resume_mock:
+            self.assertEqual(self.current_music_service.execute_music_command('resume-preview',{'id':current_job_root.name})['resume_availability'],'download_running')
+            current_resume_mock.assert_not_called()
+        current_other_root=self.create_test_job('queued')
+        write_record_atomically(current_other_root/'request.json',build_music_request('music-heartmula',{'action':'prepare'}))
+        with patch('tools.review.common.gpu_job_queue.preview_gpu_resume_records',return_value=current_mock_preview), patch('tools.review.common.model_prepare_process.inspect_registered_preparation',return_value='idle'):
+            self.assertEqual(self.current_music_service.execute_music_command('resume-preview',{'id':current_job_root.name})['resume_availability'],'other_preparation')
+
+    def test_resume_blocks_when_download_lock_cannot_be_inspected(self):
+        from tempfile import TemporaryDirectory
+        from tools.review.domains.hermes_agent import audio_resume_operations
+        self.current_music_service.current_service_name='music-heartmula'
+        current_job_root=self.create_test_job('failed')
+        current_mock_preview={'status':'failed','expected_resume_fingerprint':'a'*64}
+        def route_current_audio_command(current_service_name,current_command_name,current_payload_record):
+            self.assertEqual(current_service_name,'music-heartmula')
+            return self.current_music_service.execute_music_command(current_command_name,current_payload_record)
+        with TemporaryDirectory() as current_directory_name,patch.object(audio_resume_operations,'AUDIO_RESUME_RECEIPT_ROOT',Path(current_directory_name)),patch.object(audio_resume_operations,'call_hermes_audio_service',side_effect=route_current_audio_command),patch('tools.review.common.gpu_job_queue.preview_gpu_resume_records',return_value=current_mock_preview),patch('tools.review.common.model_prepare_process.inspect_registered_preparation',side_effect=PermissionError('lock unavailable')),patch('tools.review.domains.music.generation.resume_gpu_generation') as current_resume_mock:
+            current_preview_value=audio_resume_operations.preview_hermes_audio_resume('music-heartmula',current_job_root.name)
+            self.assertEqual(current_preview_value['resume_availability'],'unknown')
+            current_receipt_value=audio_resume_operations.submit_hermes_audio_resume_once('resume_lock_error_123','music-heartmula',current_job_root.name,'a'*64)
+            self.assertEqual((current_receipt_value['state'],current_receipt_value['reason']),('blocked','unavailable'))
+            self.assertEqual(audio_resume_operations.read_hermes_audio_resume_receipt('resume_lock_error_123'),{'state':'not_found','request_id':'resume_lock_error_123'})
+            current_resume_mock.assert_not_called()
 
     def test_music_resume_preview_rechecks_records_without_dispatch(self):
         from tools.review.common.management_gateway import identify_management_command
@@ -287,6 +386,46 @@ class MusicGenerationTests(unittest.TestCase):
             execute_gateway_arguments('music-minimax',['generate','--prompt','soft flute','--max-new-tokens','750','--duration-seconds','30','--detach'])
         with self.assertRaisesRegex(ValueError,'폐기'):
             self.current_music_service.execute_music_command('generate',{'prompt':'soft flute','max_new_tokens':751})
+
+    def test_music_source_logs_return_only_last_16000_bytes(self):
+        current_job_root=self.create_test_job('completed')
+        (current_job_root/'worker.log').write_bytes(b'A'*1000+b'B'*16000)
+        current_log_record=self.current_music_service.execute_music_command('logs',{'id':current_job_root.name})
+        self.assertEqual(current_log_record['log'],'B'*16000)
+        self.current_launcher_mock.assert_not_called()
+
+    def test_gateway_preserves_service_specific_log_scope(self):
+        import threading
+        from http.server import ThreadingHTTPServer
+        from tools.review.common.management_gateway import execute_management_command
+        from tools.review.domains.image.image_generation import ImageGenerationManager
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_music_job=self.create_test_job('completed')
+        current_log_bytes=b'A'*1000+b'B'*16000
+        (current_music_job/'worker.log').write_bytes(current_log_bytes)
+        current_image_manager=ImageGenerationManager()
+        current_image_manager.route_prefix_value='/flux-image-generator'
+        current_image_manager.job_storage_root=self.current_test_root/'image-jobs'
+        current_image_job=current_image_manager.job_storage_root/current_music_job.name
+        current_image_job.mkdir(parents=True)
+        (current_image_job/'worker.log').write_bytes(current_log_bytes)
+        (current_image_job/'status.json').write_text('{"status":"completed"}')
+        current_gateway_value=ManagementCommandGateway({'music-minimax':self.current_music_service.handle_music_request,'flux-image':current_image_manager.handle_image_request})
+        current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+        current_server_value.emit_gateway_trace=lambda *current_values:None
+        current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+        current_thread_value.start()
+        try:
+            current_gateway_origin='http://127.0.0.1:'+str(current_server_value.server_port)
+            self.assertEqual(execute_management_command('music-minimax','logs',{'id':current_music_job.name},current_gateway_origin),'B'*16000)
+            self.assertEqual(execute_management_command('flux-image','logs',{'id':current_image_job.name},current_gateway_origin),current_log_bytes.decode())
+            current_image_status=execute_management_command('flux-image','status',{'id':current_image_job.name},current_gateway_origin)
+            self.assertEqual(current_image_status['log'],'B'*12000)
+            self.current_launcher_mock.assert_not_called()
+        finally:
+            current_server_value.shutdown()
+            current_server_value.server_close()
+            current_thread_value.join(timeout=5)
 
     def test_gateway_envelope_and_http_security(self):
         current_gateway_manager = ManagementCommandGateway({'music-minimax':self.current_music_service.handle_music_request})

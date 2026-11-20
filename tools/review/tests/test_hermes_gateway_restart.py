@@ -251,6 +251,60 @@ class HermesGatewayRestartTests(unittest.TestCase):
                 current_thread.join(timeout=5)
                 current_server.server_close()
 
+    def test_coding_cancel_identity_through_isolated_gateway(self):
+        from tools.review.common.management_gateway import execute_management_command
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_job_identifier='2026-11-18_00-00-00-12345678'
+            current_manager_value=HermesServiceManager(current_root_path/'jobs',current_root_path/'sessions')
+            current_job_path=current_manager_value.hermes_storage_root/current_job_identifier
+            current_job_path.mkdir(parents=True)
+            current_gateway_value=ManagementCommandGateway({'hermes-agent':current_manager_value.handle_hermes_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            try:
+                with patch('tools.review.domains.hermes_agent.service.cancel_gpu_generation',return_value={'status':'queued','cancel_requested':True}) as current_cancel_mock:
+                    current_response_record=execute_management_command('hermes-agent','hermes-cancel',{'id':current_job_identifier},'http://127.0.0.1:'+str(current_server_value.server_port))
+                    self.assertEqual(current_response_record,{'id':current_job_identifier,'status':'queued','cancel_requested':True})
+                    current_cancel_mock.assert_called_once_with(current_job_path)
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
+    def test_writer_search_paths_through_isolated_gateway(self):
+        import os
+        from generators.writer_agent.management import WriterAgentManager
+        from tools.review.common.management_gateway import execute_management_command
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_document_root=current_root_path/'documents'
+            (current_document_root/'world').mkdir(parents=True)
+            (current_document_root/'world'/'town.md').write_text('fixture private body')
+            (current_document_root/'escape').symlink_to('/tmp')
+            current_job_identifier='20261118-120000-12345678'
+            current_writer_manager=WriterAgentManager(current_root_path/'unused.yaml')
+            current_hermes_manager=HermesServiceManager(current_root_path/'jobs',current_root_path/'sessions')
+            current_detail_record={'id':current_job_identifier,'status':{'stage':'review'},'search':{'prompt':'fixture private prompt','results':[{'path':'world/town.md','text':'fixture private body'},{'path':'/private/secret'},{'path':'escape/nope'}]}}
+            current_gateway_value=ManagementCommandGateway({'hermes-agent':current_hermes_manager.handle_hermes_request,'writer-agent':current_writer_manager.handle_writer_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            current_gateway_origin='http://127.0.0.1:'+str(current_server_value.server_port)
+            try:
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}),patch.object(current_writer_manager,'read_writer_detail',return_value=current_detail_record),patch('generators.writer_agent.management.load_workspace_config',return_value={'document_root':str(current_document_root),'state_root':str(current_root_path/'state'),'excluded_roots':[]}),patch('tools.review.domains.hermes_agent.writer_operations.HermesDelegationStore') as current_store_mock:
+                    current_store_mock.return_value.read_service_delegation.return_value={'state':'accepted','job_id':current_job_identifier}
+                    current_result_value=execute_management_command('hermes-agent','hermes-writer-search-paths',{'request_id':'fixture_request'},current_gateway_origin)
+                    self.assertEqual(current_result_value,{'paths':['world/town.md'],'truncated':True})
+                    self.assertNotIn('fixture private',str(current_result_value))
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
     def test_writer_source_history_through_isolated_http_gateway(self):
         import os
         from generators.writer_agent.documents import save_yaml_document

@@ -109,6 +109,60 @@ class TranslationServiceTests(unittest.TestCase):
         self.assertEqual(resolve_translation_target_code('zh-CN'), 'zh-Hans')
         self.assertEqual(resolve_translation_target_code('en'), 'en')
 
+    def test_gateway_logs_return_only_last_16000_bytes(self):
+        import threading
+        from http.server import ThreadingHTTPServer
+        from tools.review.common.management_gateway import ManagementCommandGateway, execute_management_command
+        from tools.review.gateway_server import create_gateway_request_handler
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_manager_value=service.TranslationServiceManager()
+            current_manager_value.job_storage_root=Path(current_directory_name)/'jobs'
+            current_job_identifier='2026-11-18_12-00-00-aaaaaaaa'
+            current_job_path=current_manager_value.job_storage_root/current_job_identifier
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'request.json').write_text(json.dumps({'text':'fixture','target_language':'en','glossary':[]}))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            (current_job_path/'worker.log').write_bytes(b'A'*1000+b'B'*16000)
+            current_gateway_value=ManagementCommandGateway({'prompt-translation':current_manager_value.handle_translation_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            try:
+                current_gateway_origin='http://127.0.0.1:'+str(current_server_value.server_port)
+                current_log_result=execute_management_command('prompt-translation','logs',{'id':current_job_identifier},current_gateway_origin)
+                self.assertEqual(current_log_result,'B'*16000)
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
+    def test_linked_history_selects_real_translation_record(self):
+        from tools.review.ui.gradio.prompt_translation_app import build_translation_interface
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            current_manager_value=service.TranslationServiceManager()
+            current_manager_value.job_storage_root=Path(current_temp_directory)/'jobs'
+            current_job_identifier='2026-11-15_12-00-00-12345678'
+            current_job_path=current_manager_value.job_storage_root/current_job_identifier
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'request.json').write_text(json.dumps({'text':'나무','target_language':'en','glossary':[]}))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'completed'}))
+            (current_job_path/'result.json').write_text(json.dumps({'text':'tree'}))
+            current_command_names=[]
+            def execute_temporary_translation(current_service_name,current_command_name,current_payload_record):
+                self.assertEqual(current_service_name,'prompt-translation')
+                current_command_names.append(current_command_name)
+                return current_manager_value.execute_translation_command(current_command_name,current_payload_record)
+            with patch('tools.review.ui.gradio.prompt_translation_app.execute_remote_management_command',side_effect=execute_temporary_translation):
+                current_interface_value=build_translation_interface()
+                current_link_callbacks=[current_dependency.fn for current_dependency in current_interface_value.fns.values() if getattr(current_dependency.fn,'__name__','')=='open_linked_generation_history']
+                self.assertEqual(len(current_link_callbacks),1)
+                current_updates=current_link_callbacks[0](current_job_identifier,4)
+            self.assertEqual(current_updates[0]['value'],current_job_identifier)
+            self.assertIn('작업을 선택했습니다',current_updates[-1])
+            self.assertEqual(current_command_names,['history','history'])
+            self.assertTrue((current_job_path/'result.json').is_file())
+
     def test_gateway_round_trip(self):
         for translation_command_name, translation_payload_record in [('translation-submit', {'text': '나무', 'target_language': 'en'}), ('translation-status', {'id': '2026-11-15_12-00-00-12345678'}), ('translation-history', {})]:
             translation_method_value, translation_route_value = resolve_management_command('prompt-translation', translation_command_name, translation_payload_record)
@@ -189,6 +243,9 @@ class TranslationModelManagementTests(unittest.TestCase):
         from tools.review.ui.gradio.prompt_translation_app import build_translation_interface
         from tools.review.ui.gradio.management_menu_app import build_management_menu_interface
         translation_interface_value, _ = build_management_menu_interface([], 8770, build_translation_interface())
+        translation_config_value=translation_interface_value.get_config_file()
+        self.assertTrue(any(current_component.get('props',{}).get('value')=='전달된 작업을 이력에서 찾기' for current_component in translation_config_value['components']))
+        self.assertTrue(any("searchParams.get('job')" in str(current_dependency.get('js','')) for current_dependency in translation_config_value['dependencies']))
         translation_configuration_value = translation_interface_value.get_config_file()
         self.assertTrue(translation_configuration_value['connect_heartbeat'])
         self.assertTrue(any(current_component.get('props', {}).get('link') == '/management/?tool=model-management&category=model-management' for current_component in translation_configuration_value['components']))

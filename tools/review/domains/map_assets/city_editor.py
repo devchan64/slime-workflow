@@ -12,6 +12,29 @@ from tools.review.common.sprite_display_properties import validate_sprite_displa
 CITY_EDITOR_STORAGE_ROOT = Path(__file__).resolve().parents[4] / '.tmp/city-layout-editor'
 
 
+def read_validated_city_editor_sources(current_database_bundle,current_document_path):
+    """DB 문서와 일치하는 등록 도시 원본·공용 속성을 읽는다."""
+    import yaml
+    from tools.review.common.map_asset_sources import UniqueMapSourceLoader, validate_review_bundle_map_sources
+    from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_asset
+    validate_review_bundle_map_sources(current_database_bundle)
+    current_asset_root,current_asset_records=load_registered_tiles()
+    current_source_documents=[]
+    for current_relative_path in (current_document_path,'sprite-display-properties.yaml'):
+        current_source_path,current_source_record=resolve_registered_asset('assets/maps/'+current_relative_path,current_asset_root,current_asset_records,'assets/maps')
+        current_source_bytes=current_source_path.read_bytes()
+        if hashlib.sha256(current_source_bytes).hexdigest()!=current_source_record['sha256']:
+            raise ValueError('도시 맵 편집 원본이 읽는 중 변경되었습니다.')
+        current_source_document=yaml.load(current_source_bytes,Loader=UniqueMapSourceLoader)
+        current_source_json=json.dumps(current_source_document,sort_keys=True,ensure_ascii=False,allow_nan=False,separators=(',',':'))
+        current_database_json=json.dumps(current_database_bundle['documents'][current_relative_path],sort_keys=True,ensure_ascii=False,allow_nan=False,separators=(',',':'))
+        if current_source_json!=current_database_json:
+            raise ValueError('도시 DB 문서가 에셋 원본과 다릅니다: '+current_relative_path)
+        current_source_documents.append(current_source_document)
+    validate_review_bundle_map_sources(current_database_bundle)
+    return current_source_documents[0],current_source_documents[1]['data']
+
+
 def read_city_editor_snapshot(current_request_payload):
     if os.environ.get('SLIME_CONTENT_STORAGE') != 'database':
         raise ValueError('도시맵 편집에는 콘텐츠 DB가 필요합니다.')
@@ -24,10 +47,10 @@ def read_city_editor_snapshot(current_request_payload):
     current_database_bundle = execute_content_api_request('GET', '/internal/v1/content/review-bundle?' + urlencode({'map': current_city_identifier}))
     if current_document_path not in current_database_bundle['documents']:
         raise ValueError('등록되지 않은 도시맵입니다.')
+    current_source_document,current_source_properties=read_validated_city_editor_sources(current_database_bundle,current_document_path)
     return {'map': current_city_identifier, 'generation': current_database_bundle['generation'],
             'revision': current_database_bundle['revisions'][current_document_path],
-            'document': current_database_bundle['documents'][current_document_path],
-            'properties': current_database_bundle['documents']['sprite-display-properties.yaml']['data']}
+            'document': current_source_document, 'properties': current_source_properties}
 
 
 def load_city_editor_document(current_request_payload):
@@ -58,10 +81,4 @@ def save_city_editor_changes(current_request_payload):
     current_preview_token = hashlib.sha256(json.dumps(current_validation_payload, sort_keys=True, ensure_ascii=False, allow_nan=False).encode()).hexdigest()
     if current_request_payload['token'] != current_preview_token or not (CITY_EDITOR_STORAGE_ROOT / (current_preview_token + '.json')).is_file():
         raise ValueError('변경 내용을 먼저 검증하세요.')
-    current_original_record = read_city_editor_snapshot({'map': current_request_payload['map']})
-    if (current_original_record['generation'], current_original_record['revision']) != (current_request_payload['generation'], current_request_payload['revision']):
-        raise ValueError('도시 원장이 변경되었습니다. 다시 불러오세요.')
-    validate_content_city_document(validate_sprite_display_properties(current_original_record['properties']), current_request_payload['document'])
-    current_database_payload = {'requestId': 'city-editor:' + current_preview_token, 'expectedGeneration': current_request_payload['generation'],
-        'documents': [{'path': 'city_layouts/' + current_request_payload['map'] + '.yaml', 'revision': current_request_payload['revision'], 'document': current_request_payload['document']}]}
-    return execute_content_api_request('POST', '/internal/v1/content/map-changes', current_database_payload)
+    raise ValueError('도시 맵 저장은 원본·등록부·백엔드 잠금의 동기 저장이 구현될 때까지 중단됩니다.')

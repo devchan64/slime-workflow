@@ -122,7 +122,7 @@ def build_translation_interface():
             restore_translation_inputs, [translation_source_control, translation_target_control, translation_glossary_control],
             result_renderer_callback=render_translation_result,
             result_component_factory=lambda: gr.Textbox(label='번역 결과 · 수정 후 복사 가능 · 아래 점검 내용은 참고용', lines=10, interactive=True),
-            allow_individual_delete=True, show_thumbnail_column=False, observed_job_control=translation_job_state)
+            allow_individual_delete=True, show_thumbnail_column=False, observed_job_control=translation_job_state, history_deep_link_interface=translation_interface_blocks)
         translation_interface_blocks.load(lambda: translation_history_callback(1), outputs=translation_history_outputs)
         translation_job_state.change(lambda: translation_history_callback(1), outputs=translation_history_outputs, queue=False)
     return translation_interface_blocks

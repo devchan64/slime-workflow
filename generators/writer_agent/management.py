@@ -52,12 +52,15 @@ class WriterAgentManager:
             except sqlite3.Error:
                 pass
         current_state_values.update({'document_root':current_config_values['document_root'],'state_root':current_config_values['state_root'],'index_path':str(current_index_path),'trained':current_index_ready})
-        for current_job_root in sorted((Path(current_config_values['state_root'])/'jobs').glob('*'),reverse=True)[:40]:
+        for current_job_root in sorted((Path(current_config_values['state_root'])/'jobs').glob('*'),reverse=True):
+            if len(current_state_values['jobs'])>=40 and current_state_values['active_job']:break
             if not current_job_root.is_dir() or current_job_root.is_symlink() or not (current_job_root/'status.yaml').is_file():continue
             current_status_values=read_yaml_document(current_job_root/'status.yaml')
             current_status_values=self.resolve_observed_status(current_status_values,current_job_root)
-            if current_status_values['stage'] in ACTIVE_JOB_STAGES:current_state_values['active_job']=current_job_root.name
-            current_state_values['jobs'].append(current_status_values)
+            if current_status_values['stage'] in ACTIVE_JOB_STAGES and not current_state_values['active_job']:
+                current_state_values['active_job']=current_job_root.name
+            if len(current_state_values['jobs'])<40:
+                current_state_values['jobs'].append(current_status_values)
         return current_state_values
 
     def resolve_observed_status(self,current_status_values,current_job_root=None):
@@ -152,8 +155,8 @@ class WriterAgentManager:
         """공용 대기열 작업은 게이트웨이 종료 후에도 계속 실행한다."""
         return
 
-    def read_writer_detail(self,current_job_identifier):
-        current_config_values=load_workspace_config(self.workspace_config_path)
+    def read_writer_detail(self,current_job_identifier,current_config_values=None):
+        if current_config_values is None:current_config_values=load_workspace_config(self.workspace_config_path)
         current_job_root=resolve_job_directory(current_config_values,current_job_identifier)
         if not current_job_root.is_dir():raise ValueError('작업이 없습니다.')
         current_result_values={'id':current_job_identifier,'job_path':str(current_job_root),'status':self.resolve_observed_status(read_yaml_document(current_job_root/'status.yaml'),current_job_root),'request':read_yaml_document(current_job_root/'request.yaml')}
@@ -170,6 +173,58 @@ class WriterAgentManager:
                 current_result_values['log']=current_log_stream.read().decode(errors='replace')
         else:current_result_values['log']=''
         return current_result_values
+
+    def read_writer_material_page(self,current_request_record):
+        """선택한 작업 자료 한 종류만 읽어 페이지를 만든다."""
+        from .material_pages import validate_writer_material_request, build_writer_material_page
+        current_job_identifier,current_section_name,_,_,_=validate_writer_material_request(current_request_record)
+        current_config_values=load_workspace_config(self.workspace_config_path)
+        current_job_root=resolve_job_directory(current_config_values,current_job_identifier)
+        if not current_job_root.is_dir():raise ValueError('작업이 없습니다.')
+        current_status_value=self.resolve_observed_status(read_yaml_document(current_job_root/'status.yaml'),current_job_root)
+        if current_status_value.get('stage') not in ('review','completed','applied','failed','interrupted'):
+            raise ValueError('작가 작업이 진행 중이거나 상태를 확인할 수 없습니다.')
+        current_material_path=current_job_root/(current_section_name+'.yaml')
+        if not current_material_path.is_file() or current_material_path.is_symlink():raise ValueError('해당 작가 자료가 없습니다.')
+        current_material_value=read_yaml_document(current_material_path)
+        return build_writer_material_page(current_request_record,current_material_value)
+
+    def read_writer_search_paths(self,current_job_identifier):
+        """설정된 문서 루트 안의 검색 근거 경로만 반환한다."""
+        from .documents import is_path_within, resolve_document_path
+        current_initial_config=load_workspace_config(self.workspace_config_path)
+        current_detail_record=self.read_writer_detail(current_job_identifier,current_initial_config)
+        if not isinstance(current_detail_record.get('status'),dict) or current_detail_record['status'].get('stage') not in ('review','completed','applied','failed','interrupted'):
+            raise ValueError('종료되거나 검토 중인 작가 검색 기록만 조회할 수 있습니다.')
+        current_search_record=current_detail_record.get('search')
+        if not isinstance(current_search_record,dict) or not isinstance(current_search_record.get('results'),list):
+            raise ValueError('작가 검색 결과를 확인할 수 없습니다.')
+        current_workspace_config=load_workspace_config(self.workspace_config_path)
+        if current_workspace_config!=current_initial_config:raise ValueError('조회 중 작가 작업 공간 설정이 변경되었습니다.')
+        current_document_root=Path(current_workspace_config['document_root'])
+        current_state_root=Path(current_workspace_config['state_root']).resolve()
+        current_evidence_records=current_search_record['results']
+        current_truncated_flag=len(current_evidence_records)>20
+        current_path_values=[]
+        for current_evidence_record in current_evidence_records[:20]:
+            if not isinstance(current_evidence_record,dict):
+                current_truncated_flag=True
+                continue
+            current_chunk_records=[current_evidence_record]
+            for current_chunk_record in current_chunk_records:
+                current_path_text=current_chunk_record.get('path') if isinstance(current_chunk_record,dict) else None
+                if not isinstance(current_path_text,str) or not current_path_text or len(current_path_text)>512 or any(ord(current_character)<32 for current_character in current_path_text) or ':' in current_path_text or Path(current_path_text).as_posix()!=current_path_text:
+                    current_truncated_flag=True
+                    continue
+                try:
+                    current_document_path=resolve_document_path(current_document_root,current_path_text)
+                    if current_document_path.suffix not in ('.md','.yaml','.yml') or current_document_path.resolve().is_relative_to(current_state_root) or is_path_within(current_path_text,current_workspace_config['excluded_roots']) or not current_document_path.is_file():raise ValueError('검색 대상 문서가 아닙니다.')
+                except (ValueError,OSError):
+                    current_truncated_flag=True
+                    continue
+                if current_path_text not in current_path_values:current_path_values.append(current_path_text)
+        if load_workspace_config(self.workspace_config_path)!=current_initial_config:raise ValueError('조회 중 작가 작업 공간 설정이 변경되었습니다.')
+        return {'paths':current_path_values,'truncated':current_truncated_flag}
 
     def search_writer_history(self,current_query_text):
         if not isinstance(current_query_text,str) or len(current_query_text)>200:raise ValueError('검색어는 200자 이하의 문자열이어야 합니다.')
@@ -239,8 +294,21 @@ class WriterAgentManager:
         with self.request_lock_handle, (Path(current_config_values['state_root'])/'submission.lock').open('a') as current_submission_lock, lock_workspace_state(current_config_values):
             fcntl.flock(current_submission_lock,fcntl.LOCK_EX)
             if not current_job_root.is_dir():raise ValueError('작업이 없습니다.')
-            current_status_values=self.resolve_observed_status(read_yaml_document(current_job_root/'status.yaml'),current_job_root)
+            current_recorded_status=read_yaml_document(current_job_root/'status.yaml')
+            if not isinstance(current_recorded_status,dict) or current_recorded_status.get('id')!=current_job_identifier or current_recorded_status.get('stage') not in ACTIVE_JOB_STAGES|{'review','completed','applied','failed','interrupted'}:
+                raise ValueError('작가 작업 상태를 확인할 수 없어 삭제할 수 없습니다.')
+            current_status_values=self.resolve_observed_status(current_recorded_status,current_job_root)
             if current_status_values['stage'] in ACTIVE_JOB_STAGES:raise ValueError('대기 또는 실행 중인 작업은 삭제할 수 없습니다.')
+            current_queue_path=current_job_root/'status.json'
+            if current_queue_path.is_symlink():raise ValueError('작가 대기열 상태를 확인할 수 없어 삭제할 수 없습니다.')
+            if current_queue_path.exists():
+                try:
+                    current_queue_record=json.loads(current_queue_path.read_text())
+                    current_queue_status=current_queue_record['status']
+                    if current_queue_status not in ('completed','failed','cancelled','canceled'):
+                        raise ValueError('작가 대기열 작업 종료를 확인할 수 없어 삭제할 수 없습니다.')
+                except (OSError,TypeError,KeyError,json.JSONDecodeError) as current_queue_error:
+                    raise ValueError('작가 대기열 상태를 확인할 수 없어 삭제할 수 없습니다.') from current_queue_error
             current_application_path=current_job_root/'application.yaml'
             if current_application_path.exists() and read_yaml_document(current_application_path).get('status') in ('applying','rollback_conflict'):
                 raise ValueError('원본 적용 복구가 필요한 기록은 삭제할 수 없습니다.')
@@ -300,6 +368,11 @@ class WriterAgentManager:
                 except (OSError,sqlite3.Error,TypeError,KeyError):
                     current_index_status='unavailable'
                 send_writer_response(200,{'status':current_index_status})
+            elif current_route_path==WRITER_ROUTE_PREFIX+'/api/material-page':
+                send_writer_response(200,self.read_writer_material_page(current_request_values))
+            elif current_route_path==WRITER_ROUTE_PREFIX+'/api/search-paths':
+                if not isinstance(current_request_values,dict) or set(current_request_values)!={'id'}:raise ValueError('작업 조회 필드 오류')
+                send_writer_response(200,self.read_writer_search_paths(current_request_values['id']))
             elif current_route_path==WRITER_ROUTE_PREFIX+'/api/detail':
                 if not isinstance(current_request_values,dict) or set(current_request_values)!={'id'}:raise ValueError('작업 조회 필드 오류')
                 send_writer_response(200,self.read_writer_detail(current_request_values['id']))

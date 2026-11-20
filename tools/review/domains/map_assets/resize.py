@@ -6,6 +6,7 @@ import json
 import os
 import re
 import uuid
+import yaml
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -14,6 +15,46 @@ from tools.review.common.map_tile_assets import load_registered_tiles, resolve_r
 
 RESIZE_ALLOWED_SIZES = (64, 128, 256, 384, 512)
 RESIZE_STORAGE_DIRECTORY = Path(__file__).resolve().parents[4] / '.tmp/map-asset-resize'
+
+
+def update_image_consumer_hashes(current_lock_text,current_source_path,current_before_hash,current_after_hash):
+    """같은 원본을 참조하는 잠금만 갱신하고 다른 원본의 동일 해시는 보존한다."""
+    if any(isinstance(current_event_value,yaml.AliasEvent) for current_event_value in yaml.parse(current_lock_text,Loader=yaml.SafeLoader)):
+        raise ValueError('이미지 잠금의 YAML 별칭은 지원하지 않습니다.')
+    current_root_node=yaml.compose(current_lock_text,Loader=yaml.SafeLoader)
+    if not isinstance(current_root_node,yaml.MappingNode):raise ValueError('이미지 잠금 형식 오류')
+    current_root_fields={}
+    for current_key_node,current_value_node in current_root_node.value:
+        if not isinstance(current_key_node,yaml.ScalarNode) or current_key_node.value in current_root_fields:raise ValueError('이미지 잠금 중복 키 오류')
+        current_root_fields[current_key_node.value]=current_value_node
+    if set(current_root_fields)!={'schema_version','repository','files'} or not isinstance(current_root_fields['schema_version'],yaml.ScalarNode) or current_root_fields['schema_version'].tag!='tag:yaml.org,2002:int' or current_root_fields['schema_version'].value!='1' or not isinstance(current_root_fields['repository'],yaml.ScalarNode) or current_root_fields['repository'].tag!='tag:yaml.org,2002:str' or current_root_fields['repository'].value!='slime-assets':
+        raise ValueError('이미지 잠금 스키마 오류')
+    current_entries_node=current_root_fields.get('files')
+    if not isinstance(current_entries_node,yaml.SequenceNode):raise ValueError('이미지 잠금 목록 오류')
+    current_replacements=[]
+    current_logical_paths=set()
+    for current_entry_node in current_entries_node.value:
+        if not isinstance(current_entry_node,yaml.MappingNode):raise ValueError('이미지 잠금 항목 오류')
+        current_entry_fields={}
+        for current_key_node,current_value_node in current_entry_node.value:
+            if not isinstance(current_key_node,yaml.ScalarNode) or current_key_node.value in current_entry_fields:raise ValueError('이미지 잠금 중복 필드 오류')
+            current_entry_fields[current_key_node.value]=current_value_node
+        if set(current_entry_fields)!={'path','source_path','sha256'}:raise ValueError('이미지 잠금 항목 필드 오류')
+        current_path_node=current_entry_fields['path']
+        current_source_node=current_entry_fields['source_path']
+        current_hash_node=current_entry_fields['sha256']
+        if any(not isinstance(current_node_value,yaml.ScalarNode) or current_node_value.tag!='tag:yaml.org,2002:str' for current_node_value in (current_path_node,current_source_node,current_hash_node)):raise ValueError('이미지 잠금 값 형식 오류')
+        for current_path_text in (current_path_node.value,current_source_node.value):
+            if not current_path_text.startswith('assets/') or Path(current_path_text).as_posix()!=current_path_text or any(current_component in ('','.','..') for current_component in current_path_text.split('/')) or any(ord(current_character)<32 for current_character in current_path_text) or '\\' in current_path_text or ':' in current_path_text:raise ValueError('이미지 잠금 경로 오류')
+        if not re.fullmatch(r'[a-f0-9]{64}',current_hash_node.value):raise ValueError('이미지 잠금 해시 형식 오류')
+        if current_path_node.value in current_logical_paths:raise ValueError('이미지 잠금 경로 중복')
+        current_logical_paths.add(current_path_node.value)
+        if current_source_node.value!=current_source_path:continue
+        if current_hash_node.value!=current_before_hash:raise ValueError('이미지 소비자 잠금 해시 불일치')
+        current_replacements.append((current_hash_node.start_mark.index,current_hash_node.end_mark.index))
+    for current_start_index,current_end_index in sorted(current_replacements,reverse=True):
+        current_lock_text=current_lock_text[:current_start_index]+current_after_hash+current_lock_text[current_end_index:]
+    return current_lock_text
 
 
 def resize_registered_image(current_request_payload):
@@ -72,8 +113,9 @@ def resize_registered_image(current_request_payload):
         for current_lock_name in ('map-assets.lock.yaml', 'sprite-assets.lock.yaml'):
             current_lock_path = current_frontend_root / current_lock_name
             current_lock_text = current_lock_path.read_text()
-            if current_image_provenance['sha256'] in current_lock_text:
-                current_pending_files[current_lock_path] = current_lock_text.replace(current_image_provenance['sha256'], current_output_hash).encode()
+            current_updated_lock=update_image_consumer_hashes(current_lock_text,selected_asset_path,current_image_provenance['sha256'],current_output_hash)
+            if current_updated_lock!=current_lock_text:
+                current_pending_files[current_lock_path]=current_updated_lock.encode()
         current_history_path = RESIZE_STORAGE_DIRECTORY / uuid.uuid4().hex
         current_history_path.mkdir()
         current_original_files = {current_file_path: current_file_path.read_bytes() for current_file_path in current_pending_files}

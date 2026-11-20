@@ -74,17 +74,27 @@ class HermesBuildingOperationsTests(unittest.TestCase):
         current_draft['properties']['anchorY']=float('nan')
         with self.assertRaises(ValueError):parse_hermes_building_proposal('HERMES_BUILDING_PROPOSAL\n'+json.dumps(current_draft)+'\nEND_HERMES_BUILDING_PROPOSAL')
 
+    def test_saved_building_status_describes_historical_ledger_state(current_test_case):
+        from tools.review.ui.gradio.hermes_agent_app import format_building_anchor_saved_status
+        current_message=format_building_anchor_saved_status({'generation':4,'ledger_status_at_save':'pending'})
+        current_test_case.assertIn('저장 당시 원장 반영 대기',current_message)
+        current_test_case.assertIn('DB 세대 4',current_message)
+        current_test_case.assertIn('현재 원장 동기화',current_message)
+        current_test_case.assertNotIn('반영 대기',format_building_anchor_saved_status({}))
+
     def test_review_save_duplicate_and_response_loss(self):
         current_draft_value={'texture':'town-test-v1','generation':3,'expected':{'anchorX':0.5,'anchorY':1},'properties':{'anchorX':0.6,'anchorY':1}}
         current_catalog_value={'generation':3,'assets':[{'texture':'town-test-v1','properties':current_draft_value['expected'],'maps':[{'map':'test-city'}],'image':'/private'}]}
         with TemporaryDirectory() as current_directory_name, patch.object(building_operations,'HermesDelegationStore',return_value=HermesDelegationStore(Path(current_directory_name))), patch.object(building_operations,'call_field_map_editor') as current_gateway_mock:
-            current_gateway_mock.side_effect=lambda current_command_name,current_payload_value: current_catalog_value if current_command_name=='building-list' else {'saved':True}
+            current_gateway_mock.side_effect=lambda current_command_name,current_payload_value: current_catalog_value if current_command_name=='building-list' else {'saved':True,'generation':4,'snapshot':'pending'}
             current_preview_value=building_operations.preview_hermes_building_anchor(current_draft_value)
             self.assertEqual(current_preview_value['maps'],['test-city'])
             self.assertNotIn('/private',str(current_preview_value))
             current_saved_value=building_operations.save_hermes_building_anchor('building_123',current_draft_value,current_preview_value['review_sha256'])
             self.assertEqual(current_saved_value['state'],'completed')
             self.assertEqual(current_saved_value['texture'],'town-test-v1')
+            self.assertEqual((current_saved_value['generation'],current_saved_value['ledger_status_at_save']),(4,'pending'))
+            self.assertEqual(building_operations.read_hermes_building_receipt('building_123')['generation'],4)
             self.assertEqual(building_operations.read_hermes_building_receipt('building_123')['texture'],'town-test-v1')
             self.assertTrue(building_operations.save_hermes_building_anchor('building_123',current_draft_value,current_preview_value['review_sha256'])['duplicate'])
             self.assertEqual(sum(current_call.args[0]=='building-save' for current_call in current_gateway_mock.call_args_list),1)
@@ -92,6 +102,18 @@ class HermesBuildingOperationsTests(unittest.TestCase):
             with self.assertRaises(OSError):building_operations.save_hermes_building_anchor('building_456',current_draft_value,current_preview_value['review_sha256'])
             self.assertEqual(building_operations.read_hermes_building_receipt('building_456')['state'],'unknown')
             self.assertEqual(building_operations.save_hermes_building_anchor('building_456',current_draft_value,current_preview_value['review_sha256'])['state'],'unknown')
+
+    def test_mismatched_building_response_remains_unknown(current_test_case):
+        current_draft={'texture':'town-test-v1','generation':3,'expected':{'anchorX':0.5,'anchorY':1},'properties':{'anchorX':0.6,'anchorY':1}}
+        current_catalog={'generation':3,'assets':[{'texture':'town-test-v1','properties':current_draft['expected'],'maps':[]}]}
+        with TemporaryDirectory() as current_directory,patch.object(building_operations,'HermesDelegationStore',return_value=HermesDelegationStore(Path(current_directory))),patch.object(building_operations,'call_field_map_editor') as current_editor:
+            current_editor.side_effect=lambda current_command,current_payload:current_catalog if current_command=='building-list' else {'saved':True,'asset':'town-other-v1','generation':4,'snapshot':'pending'}
+            current_review=building_operations.preview_hermes_building_anchor(current_draft)
+            with current_test_case.assertRaisesRegex(ValueError,'결과 확인 필요'):
+                building_operations.save_hermes_building_anchor('building_wrong_123',current_draft,current_review['review_sha256'])
+            current_test_case.assertEqual(building_operations.read_hermes_building_receipt('building_wrong_123')['state'],'unknown')
+            current_test_case.assertEqual(building_operations.save_hermes_building_anchor('building_wrong_123',current_draft,current_review['review_sha256'])['state'],'unknown')
+            current_test_case.assertEqual(sum(item.args[0]=='building-save' for item in current_editor.call_args_list),1)
 
     def test_changed_receipt_after_building_save_is_not_overwritten(self):
         import json

@@ -9,6 +9,68 @@ from tools.review.domains.hermes_agent.delegation_store import HermesDelegationS
 
 
 class HermesDelegationTests(unittest.TestCase):
+    def test_kimodo_resume_proposal_requires_single_valid_target(self):
+        import json
+        from tools.review.domains.hermes_agent.delegation_proposal import parse_hermes_kimodo_resume_proposal
+        current_proposal_value={'job_id':'2026-11-20_00-00-00-12345678','expected_resume_fingerprint':'a'*64}
+        current_answer_text='HERMES_KIMODO_RESUME_PROPOSAL\n'+json.dumps(current_proposal_value)+'\nEND_HERMES_KIMODO_RESUME_PROPOSAL'
+        self.assertEqual(parse_hermes_kimodo_resume_proposal(current_answer_text),current_proposal_value)
+        for current_bad_value in ({**current_proposal_value,'job_id':'../outside'},{**current_proposal_value,'expected_resume_fingerprint':'bad'},{**current_proposal_value,'extra':True}):
+            with self.subTest(current_bad_value=current_bad_value),self.assertRaises(ValueError):parse_hermes_kimodo_resume_proposal('HERMES_KIMODO_RESUME_PROPOSAL\n'+json.dumps(current_bad_value)+'\nEND_HERMES_KIMODO_RESUME_PROPOSAL')
+        with self.assertRaises(ValueError):parse_hermes_kimodo_resume_proposal(current_answer_text+'\n'+current_answer_text)
+
+    def test_model_preparation_proposal_accepts_only_one_registered_service(self):
+        from tools.review.domains.hermes_agent.delegation_proposal import parse_hermes_model_preparation_proposal
+        current_answer_text='제안입니다.\nHERMES_MODEL_PREPARATION_PROPOSAL\n{"service":"flux-image"}\nEND_HERMES_MODEL_PREPARATION_PROPOSAL'
+        self.assertEqual(parse_hermes_model_preparation_proposal(current_answer_text),{'service':'flux-image'})
+        for current_bad_text in (current_answer_text+'\n'+current_answer_text,current_answer_text.replace('flux-image','unknown-service'),current_answer_text.replace('{"service":"flux-image"}','{"service":"flux-image","request_id":"invented"}'),current_answer_text.replace('{"service":"flux-image"}','{"service":"flux-image","service":"kimodo"}')):
+            with self.subTest(current_bad_text=current_bad_text),self.assertRaises(ValueError):parse_hermes_model_preparation_proposal(current_bad_text)
+
+    def test_unreadable_receipt_never_dispatches_or_reports_absent(self):
+        from tools.review.domains.hermes_agent import audio_resume_operations, field_map_operations
+        current_identifier='receipt_error_123'
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_draft={'map':'sample','revision':'revision','cells':[],'objects':[]}
+        current_token=field_map_operations.validate_field_map_draft(current_draft)
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_record_path=current_root_path/(current_identifier+'.json')
+            current_record_path.write_text('{"existing":true}')
+            current_store_value=HermesDelegationStore(current_root_path)
+            current_lstat_method=Path.lstat
+            def reject_receipt_stat(current_path_value,*current_arguments,**current_keywords):
+                if current_path_value==current_record_path:raise PermissionError('unreadable')
+                return current_lstat_method(current_path_value,*current_arguments,**current_keywords)
+            current_submit_mock=Mock()
+            with patch.object(Path,'exists',return_value=False),patch.object(Path,'lstat',autospec=True,side_effect=reject_receipt_stat),patch.object(audio_resume_operations,'AUDIO_RESUME_RECEIPT_ROOT',current_root_path),patch.object(audio_resume_operations,'call_hermes_audio_service') as current_audio_mock,patch.object(field_map_operations,'HermesDelegationStore',return_value=current_store_value),patch.object(field_map_operations,'call_field_map_editor') as current_map_mock:
+                with self.assertRaises(PermissionError):current_store_value.read_delegation_status(current_identifier)
+                with self.assertRaises(PermissionError):current_store_value.execute_delegation_once(current_identifier,{},current_submit_mock)
+                with self.assertRaises(PermissionError):current_store_value.read_service_delegation(current_identifier,'writer-agent')
+                with self.assertRaises(PermissionError):current_store_value.execute_service_delegation_once(current_identifier,'writer-agent',{},current_submit_mock,lambda current_request_value:None)
+                with self.assertRaises(PermissionError):audio_resume_operations.read_hermes_audio_resume_receipt(current_identifier)
+                with self.assertRaises(PermissionError):audio_resume_operations.submit_hermes_audio_resume_once(current_identifier,'music-heartmula',current_job_identifier,'a'*64)
+                with self.assertRaises(PermissionError):field_map_operations.save_hermes_field_map_once(current_identifier,current_draft,current_token)
+                current_submit_mock.assert_not_called()
+                current_audio_mock.assert_not_called()
+                current_map_mock.assert_not_called()
+            self.assertEqual(current_record_path.read_text(),'{"existing":true}')
+
+    def test_unreadable_receipt_list_blocks_resume_and_priority(self):
+        from tools.review.domains.hermes_agent import audio_resume_operations, priority_operations
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_iterdir_method=Path.iterdir
+            def reject_receipt_listing(current_path_value,*current_arguments,**current_keywords):
+                if current_path_value==current_root_path:raise PermissionError('unreadable')
+                return current_iterdir_method(current_path_value,*current_arguments,**current_keywords)
+            with patch.object(Path,'iterdir',autospec=True,side_effect=reject_receipt_listing),patch.object(audio_resume_operations,'AUDIO_RESUME_RECEIPT_ROOT',current_root_path),patch.object(priority_operations,'PRIORITY_RECEIPT_ROOT',current_root_path),patch.object(audio_resume_operations,'call_hermes_audio_service') as current_audio_mock,patch('tools.review.common.gpu_job_queue.prioritize_waiting_generation') as current_priority_mock:
+                with self.assertRaises(PermissionError):audio_resume_operations.submit_hermes_audio_resume_once('resume_error_123','music-heartmula',current_job_identifier,'a'*64)
+                with self.assertRaises(PermissionError):priority_operations.submit_hermes_priority_once('priority_error_123','kimodo',current_job_identifier,'b'*64)
+                current_audio_mock.assert_not_called()
+                current_priority_mock.assert_not_called()
+            self.assertEqual(list(current_root_path.glob('*.json')),[])
+
     def test_keyframe_delegation_preserves_input_and_rejects_id_reuse(self):
         import json
         from tools.review.domains.hermes_agent.service import HermesServiceManager
@@ -413,6 +475,7 @@ class HermesDelegationTests(unittest.TestCase):
                 current_store_value.execute_delegation_once('request_123456', {}, Mock(return_value={'id':'2026-11-18_00-00-00-12345678'}))
                 current_result_value = current_service_value.execute_hermes_command('hermes-delegation-job-status', {'request_id':'request_123456'})
                 self.assertEqual(current_result_value['job']['status'], 'completed')
+                self.assertEqual((current_result_value['receipt']['request_id'],current_result_value['receipt']['service']),('request_123456','kimodo'))
                 self.assertEqual(current_gateway_mock.call_args.args[:3], ('kimodo', 'status', {'id':'2026-11-18_00-00-00-12345678'}))
                 current_gateway_mock.return_value={'id':'2026-11-18_00-00-00-ffffffff','status':'completed'}
                 with self.assertRaises(ValueError):
@@ -463,6 +526,11 @@ HermesDelegationStore(sys.argv[1]).execute_delegation_once('crash_request_123', 
                 with self.assertRaises(ValueError):
                     current_service_value.execute_hermes_command('hermes-delegation-cancel', {'request_id':'request_654321', 'job_id':'2026-11-18_00-00-00-12345678'})
                 current_gateway_mock.assert_not_called()
+                current_gateway_mock.return_value={'status':'running','cancel_requested':True,'id':'2026-11-18_00-00-01-12345678'}
+                with self.assertRaises(ValueError):
+                    current_service_value.execute_hermes_command('hermes-delegation-cancel', {'request_id':'request_123456', 'job_id':'2026-11-18_00-00-00-12345678'})
+                current_gateway_mock.reset_mock()
+                current_gateway_mock.return_value={'status':'running','cancel_requested':True}
                 current_cancel_result = current_service_value.execute_hermes_command('hermes-delegation-cancel', {'request_id':'request_123456', 'job_id':'2026-11-18_00-00-00-12345678'})
                 self.assertTrue(current_cancel_result['cancel_requested'])
                 self.assertEqual(current_cancel_result['status'], 'running')
@@ -663,6 +731,9 @@ HermesDelegationStore(root/'records').execute_service_delegation_once('same_requ
                 with self.assertRaises(ValueError):
                     current_service_value.execute_hermes_command('hermes-flux-delegation-cancel', {'request_id':'flux_request_123','job_id':'2026-11-18_00-00-01-12345678'})
                 current_gateway_mock.assert_called_once()
+                current_gateway_mock.return_value = {'status':'running', 'cancel_requested':True,'id':'2026-11-18_00-00-01-12345678'}
+                with self.assertRaises(ValueError):
+                    current_service_value.execute_hermes_command('hermes-flux-delegation-cancel', {'request_id':'flux_request_123','job_id':current_job_id})
                 current_gateway_mock.return_value = {'status':'running', 'cancel_requested':True}
                 self.assertTrue(current_service_value.execute_hermes_command('hermes-flux-delegation-cancel', {'request_id':'flux_request_123','job_id':current_job_id})['cancel_requested'])
                 self.assertEqual(current_gateway_mock.call_args.args[:3], ('flux-image','cancel', {'id':current_job_id}))

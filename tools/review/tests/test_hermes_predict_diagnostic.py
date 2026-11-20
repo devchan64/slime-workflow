@@ -31,6 +31,43 @@ class HermesPredictDiagnosticTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(current_events, [])
 
 
+class HermesPredictMarkerTests(unittest.TestCase):
+    def test_marker_is_opt_in_short_lived_and_rejects_symlinks(self):
+        import os
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from tools.review.common.management_asgi import is_hermes_predict_diagnostic_enabled
+        with tempfile.TemporaryDirectory() as current_directory_name,patch.dict(os.environ,{'SLIME_HERMES_PREDICT_DIAGNOSTIC':'0'}):
+            current_root_path=Path(current_directory_name)
+            current_marker_path=current_root_path/'.tmp'/'hermes-predict-diagnostic'
+            current_marker_path.parent.mkdir()
+            self.assertFalse(is_hermes_predict_diagnostic_enabled(current_root_path))
+            current_marker_path.touch()
+            self.assertTrue(is_hermes_predict_diagnostic_enabled(current_root_path))
+            with patch('time.time',return_value=current_marker_path.stat().st_mtime+61):
+                self.assertFalse(is_hermes_predict_diagnostic_enabled(current_root_path))
+            current_marker_path.unlink()
+            current_marker_path.symlink_to(current_root_path)
+            self.assertFalse(is_hermes_predict_diagnostic_enabled(current_root_path))
+
+
+class HermesPredictEventLookupTests(unittest.TestCase):
+    def test_event_lookup_returns_only_safe_metadata(self):
+        from tools.review.maintenance.describe_hermes_predict_event import describe_hermes_predict_event
+        current_config_record={'components':[{'id':12,'type':'timer','props':{'value':'private'}}],'dependencies':[{'id':3,'api_name':'refresh_2','targets':[[12,'tick']],'inputs':[1]}]}
+        current_result_value=describe_hermes_predict_event(current_config_record,3)
+        self.assertEqual(current_result_value['targets'],[{'component_id':12,'component_type':'timer','event':'tick'}])
+        self.assertNotIn('private',str(current_result_value))
+        current_config_record['dependencies'].append({'id':5,'api_name':'after_load','targets':[[None,'then']]})
+        self.assertEqual(describe_hermes_predict_event(current_config_record,5)['targets'],[{'component_id':None,'component_type':'chain','event':'then'}])
+        current_config_record['dependencies'].append({'id':6,'api_name':'bad','targets':[[None,'click']]})
+        with self.assertRaises(ValueError):describe_hermes_predict_event(current_config_record,6)
+        with self.assertRaises(ValueError):describe_hermes_predict_event(current_config_record,4)
+        current_config_record['dependencies'].append(current_config_record['dependencies'][0])
+        with self.assertRaises(ValueError):describe_hermes_predict_event(current_config_record,3)
+
+
 class HermesPredictRouteTests(unittest.TestCase):
     def test_diagnostic_is_opt_in_and_does_not_log_input(self):
         import os

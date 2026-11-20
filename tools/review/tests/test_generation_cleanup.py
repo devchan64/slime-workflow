@@ -9,6 +9,23 @@ from tools.review.domains.wan_fun.generation import FunControlGenerationManager
 
 
 class GenerationCleanupTests(unittest.TestCase):
+    def test_preview_rejects_special_execution_lock_without_blocking(self):
+        import os
+        from tools.review.common.generation_cleanup import describe_generation_cleanup
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_storage_root=Path(current_directory_name)
+            current_job_path=current_storage_root/'job'
+            current_job_path.mkdir()
+            (current_job_path/'status.json').write_text('{"status":"completed"}')
+            current_lock_path=current_job_path/'execution.lock'
+            os.mkfifo(current_lock_path)
+            with self.assertRaisesRegex(ValueError,'일반 파일'):
+                describe_generation_cleanup(current_storage_root,[current_job_path])
+            current_lock_path.unlink()
+            current_lock_path.symlink_to(current_storage_root/'missing')
+            with self.assertRaises(ValueError):
+                describe_generation_cleanup(current_storage_root,[current_job_path])
+
     def test_selected_files_and_size_with_external_preservation(self):
         with tempfile.TemporaryDirectory() as current_temp_root:
             current_storage_root=Path(current_temp_root)/'jobs'

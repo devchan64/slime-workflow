@@ -27,6 +27,13 @@ class HermesCaptureCommandTests(unittest.TestCase):
         self.assertIn('ash-edge',current_display_value)
         self.assertIn('실행은 지원하지 않습니다',current_display_value)
         self.assertIn('맵 등록 여부는 별도 확인이 필요합니다',current_display_value)
+        self.assertIn('도구 탐색에서 맵 검수 화면을 열어',current_display_value)
+        self.assertIn('GPU를 사용할 수 있습니다',current_display_value)
+        current_character_answer='HERMES_CAPTURE_PROPOSAL\n{"service":"character-review","settings":{}}\nEND_HERMES_CAPTURE_PROPOSAL'
+        current_character_display=format_hermes_conversation_answer(current_character_answer)
+        self.assertIn('캐릭터 표현 검수 화면은 폐기',current_character_display)
+        self.assertIn('현재 대기 항목에서 확인된 캡처 접수만 상태를 조회',current_character_display)
+        self.assertIn('그 밖의 기록과 결과는 기존 원 서비스에서 확인',current_character_display)
         self.assertNotIn('HERMES_CAPTURE_PROPOSAL',current_display_value)
         self.assertEqual(format_hermes_conversation_answer(current_answer_text,True),current_answer_text)
 

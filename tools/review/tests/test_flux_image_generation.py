@@ -1,5 +1,6 @@
 """용도별 FLUX 입력, 페이지와 이력 복원 계약."""
 import base64
+import contextlib
 import io
 import tempfile
 import unittest
@@ -274,6 +275,409 @@ class FluxBuildingGuideGalleryTests(unittest.TestCase):
             self.assertEqual(current_restored_values[0],'A small cottage.')
             self.assertEqual(current_restored_values[-1],'파란 지붕')
             self.assertNotIn('Blue roof.',current_restored_values[0])
+
+    def test_parallel_untranslated_resume_starts_only_once(self):
+        import json
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        from unittest.mock import patch
+        current_manager=FluxImageGenerationManager('flux-seamless')
+        current_request_record={'translation_source_ko':'검증용','translation_base_prompt':'test'}
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_job_path=Path(current_directory_name)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            (current_job_path/'request.json').write_text(json.dumps(current_request_record))
+            current_launch_entered=threading.Event()
+            current_launch_release=threading.Event()
+            current_second_started=threading.Event()
+            def launch_mocked_worker(*current_arguments):
+                current_launch_entered.set()
+                if not current_launch_release.wait(5):raise RuntimeError('모의 실행 동기화 실패')
+            def resume_second_request():
+                current_second_started.set()
+                return current_manager.resume_generation_job(current_job_path,current_request_record,None)
+            with patch.object(current_manager,'validate_generation_resume'),patch.object(current_manager,'launch_generation_worker',side_effect=launch_mocked_worker) as current_launch_mock,ThreadPoolExecutor(max_workers=2) as current_executor:
+                current_first_future=current_executor.submit(current_manager.resume_generation_job,current_job_path,current_request_record,None)
+                self.assertTrue(current_launch_entered.wait(5))
+                current_second_future=current_executor.submit(resume_second_request)
+                self.assertTrue(current_second_started.wait(5))
+                current_launch_release.set()
+                self.assertEqual(current_first_future.result(timeout=5)['status'],'queued')
+                with self.assertRaisesRegex(ValueError,'실패·취소·일시정지'):
+                    current_second_future.result(timeout=5)
+                self.assertEqual(current_launch_mock.call_count,1)
+
+    def test_untranslated_resume_waits_for_shared_resume_lock(self):
+        import fcntl
+        import json
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        from unittest.mock import patch
+        from tools.review.common import gpu_job_queue
+        current_manager=FluxImageGenerationManager('flux-seamless')
+        current_request_record={'translation_source_ko':'검증용','translation_base_prompt':'test'}
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_job_path=Path(current_directory_name)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            (current_job_path/'request.json').write_text(json.dumps(current_request_record))
+            current_open_called=threading.Event()
+            current_launch_called=threading.Event()
+            current_original_open=gpu_job_queue.open_gpu_resume_lock
+            def observe_resume_lock_open(current_directory_value):
+                current_handle_value=current_original_open(current_directory_value)
+                current_open_called.set()
+                return current_handle_value
+            with current_original_open(current_job_path) as current_held_lock:
+                fcntl.flock(current_held_lock,fcntl.LOCK_EX)
+                with patch.object(current_manager,'validate_generation_resume'),patch.object(gpu_job_queue,'open_gpu_resume_lock',side_effect=observe_resume_lock_open),patch.object(
+                        current_manager,'launch_generation_worker',side_effect=lambda *current_values:current_launch_called.set()),ThreadPoolExecutor(max_workers=1) as current_executor:
+                    current_resume_future=current_executor.submit(current_manager.resume_generation_job,current_job_path,current_request_record,None)
+                    self.assertTrue(current_open_called.wait(5))
+                    self.assertFalse(current_launch_called.wait(.25))
+                    self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'failed')
+                    fcntl.flock(current_held_lock,fcntl.LOCK_UN)
+                    self.assertEqual(current_resume_future.result(timeout=5)['status'],'queued')
+                    self.assertTrue(current_launch_called.is_set())
+
+    def test_untranslated_resume_rejects_symlinked_pipeline_lock(self):
+        import json
+        from unittest.mock import patch
+        current_manager=FluxImageGenerationManager('flux-seamless')
+        current_request_record={'translation_source_ko':'검증용','translation_base_prompt':'test'}
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_job_path=Path(current_directory_name)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            (current_job_path/'request.json').write_text(json.dumps(current_request_record))
+            (current_job_path/'building-pipeline.lock').symlink_to(current_job_path/'outside')
+            with patch.object(current_manager,'validate_generation_resume'),patch.object(current_manager,'launch_generation_worker') as current_launch_mock:
+                with self.assertRaises(OSError):
+                    current_manager.resume_generation_job(current_job_path,current_request_record,None)
+                current_launch_mock.assert_not_called()
+                self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'failed')
+
+    def test_untranslated_resume_rejects_changed_request_before_launch(self):
+        import json
+        from unittest.mock import patch
+        current_manager=FluxImageGenerationManager('flux-seamless')
+        current_request_record={'translation_source_ko':'검증용','translation_base_prompt':'test'}
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_job_path=Path(current_directory_name)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            (current_job_path/'request.json').write_text(json.dumps({**current_request_record,'translation_source_ko':'변경됨'}))
+            with patch.object(current_manager,'validate_generation_resume') as current_validation_mock,patch.object(current_manager,'launch_generation_worker') as current_launch_mock:
+                with self.assertRaisesRegex(ValueError,'요청이 변경'):
+                    current_manager.resume_generation_job(current_job_path,current_request_record,None)
+                current_validation_mock.assert_not_called()
+                current_launch_mock.assert_not_called()
+                self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'failed')
+
+    def test_untranslated_resume_rejects_request_changed_during_validation(self):
+        import json
+        from unittest.mock import patch
+        current_manager=FluxImageGenerationManager('flux-seamless')
+        current_request_record={'translation_source_ko':'검증용','translation_base_prompt':'test'}
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_job_path=Path(current_directory_name)
+            current_request_path=current_job_path/'request.json'
+            current_request_path.write_text(json.dumps(current_request_record))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            def mutate_request_during_validation(current_job_directory):
+                current_request_path.write_text(json.dumps({**current_request_record,'translation_source_ko':'변경됨'}))
+            with patch.object(current_manager,'validate_generation_resume',side_effect=mutate_request_during_validation),patch.object(current_manager,'launch_generation_worker') as current_launch_mock:
+                with self.assertRaisesRegex(ValueError,'검증 중 변경'):
+                    current_manager.resume_generation_job(current_job_path,current_request_record,None)
+                current_launch_mock.assert_not_called()
+                self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'failed')
+
+    def test_reviewed_flux_resume_rechecks_reference_before_mock_launch(self):
+        import json
+        from unittest.mock import patch
+        current_manager=FluxImageGenerationManager('flux-character')
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_manager.job_storage_root=current_root_path
+            current_job_path=current_root_path/'2026-11-20_10-00-00-abcdef12'
+            current_job_path.mkdir()
+            current_request_value={'profile':'flux-character','references':['reference-1.png']}
+            (current_job_path/'request.json').write_text(json.dumps(current_request_value))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            current_reference_path=current_job_path/'reference-1.png'
+            current_reference_path.write_bytes(b'original')
+            current_fingerprint_value=current_manager.fingerprint_generation_resume_inputs(current_job_path)['fingerprint']
+            with patch.object(current_manager,'inspect_flux_resume_availability',return_value='available'),patch('tools.review.common.model_prepare_process.hold_registered_preparation_guard',return_value=contextlib.nullcontext()),patch.object(current_manager,'validate_generation_runtime'),patch.object(current_manager,'validate_generation_resume'),patch('tools.review.common.gpu_job_queue.launch_gpu_process') as current_launch_mock:
+                current_reference_path.write_bytes(b'changed')
+                with self.assertRaisesRegex(ValueError,'변경'):
+                    current_manager.resume_reviewed_generation_job(current_job_path,current_fingerprint_value)
+                current_launch_mock.assert_not_called()
+                current_reference_path.write_bytes(b'original')
+                current_fingerprint_value=current_manager.fingerprint_generation_resume_inputs(current_job_path)['fingerprint']
+                current_result_value=current_manager.resume_reviewed_generation_job(current_job_path,current_fingerprint_value)
+                self.assertEqual(current_result_value['status'],'queued')
+                current_launch_mock.assert_called_once()
+
+    def test_reviewed_flux_resume_rejects_changes_during_locked_validation(self):
+        import json
+        from unittest.mock import patch
+        current_manager=FluxImageGenerationManager('flux-character')
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_manager.job_storage_root=current_root_path
+            current_job_path=current_root_path/'2026-11-20_10-00-00-abcdef12'
+            current_job_path.mkdir()
+            (current_job_path/'request.json').write_text(json.dumps({'profile':'flux-character','references':['reference-1.png']}))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            current_reference_path=current_job_path/'reference-1.png'
+            current_reference_path.write_bytes(b'original')
+            current_fingerprint_value=current_manager.fingerprint_generation_resume_inputs(current_job_path)['fingerprint']
+            with patch.object(current_manager,'inspect_flux_resume_availability',return_value='available'),patch('tools.review.common.model_prepare_process.hold_registered_preparation_guard',return_value=contextlib.nullcontext()),patch.object(current_manager,'validate_generation_runtime'),patch.object(current_manager,'validate_generation_resume',side_effect=lambda _:current_reference_path.write_bytes(b'changed')),patch('tools.review.common.gpu_job_queue.launch_gpu_process') as current_launch_mock:
+                with self.assertRaisesRegex(ValueError,'검증 중 입력이 변경'):
+                    current_manager.resume_reviewed_generation_job(current_job_path,current_fingerprint_value)
+                current_launch_mock.assert_not_called()
+                self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'failed')
+
+    def test_reviewed_flux_resume_holds_model_guard_until_worker_launch(self):
+        import json
+        from unittest.mock import patch
+        from tools.review.common.model_prepare_process import start_registered_preparation
+        current_manager=FluxImageGenerationManager('flux-character')
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_manager.job_storage_root=current_root_path
+            current_job_path=current_root_path/'2026-11-20_10-00-00-abcdef12'
+            current_job_path.mkdir()
+            (current_job_path/'request.json').write_text(json.dumps({'profile':'flux-character','references':[]}))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            current_fingerprint_value=current_manager.fingerprint_generation_resume_inputs(current_job_path)['fingerprint']
+            def verify_preparation_guard(*current_arguments,**current_options):
+                self.assertEqual(start_registered_preparation(current_root_path,'flux-image')['preparation_status'],'running')
+            with patch('tools.review.common.model_prepare_process.resolve_model_preparation_root',return_value=current_root_path/'model-prep'),patch.object(current_manager,'inspect_flux_resume_availability',return_value='available'),patch.object(current_manager,'validate_generation_runtime'),patch.object(current_manager,'validate_generation_resume'),patch('tools.review.common.gpu_job_queue.launch_gpu_process',side_effect=verify_preparation_guard) as current_launch_mock,patch('tools.review.common.model_prepare_process.subprocess.Popen') as current_prepare_mock:
+                self.assertEqual(current_manager.resume_reviewed_generation_job(current_job_path,current_fingerprint_value)['status'],'queued')
+                current_launch_mock.assert_called_once()
+                current_prepare_mock.assert_not_called()
+
+    def test_reviewed_flux_resume_blocks_model_preparation(self):
+        import json
+        from unittest.mock import patch
+        current_manager=FluxImageGenerationManager('flux-character')
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_manager.job_storage_root=current_root_path
+            for current_translation_value in (False,True):
+                with self.subTest(untranslated=current_translation_value):
+                    current_job_path=current_root_path/('2026-11-20_10-00-0'+str(int(current_translation_value))+'-abcdef12')
+                    current_job_path.mkdir()
+                    current_request_value={'profile':'flux-character','references':[]}
+                    if current_translation_value:current_request_value['translation_source_ko']='검증'
+                    (current_job_path/'request.json').write_text(json.dumps(current_request_value))
+                    (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+                    current_fingerprint_value=current_manager.fingerprint_generation_resume_inputs(current_job_path)['fingerprint']
+                    with patch.object(current_manager,'validate_generation_runtime'),patch.object(current_manager,'validate_generation_resume'),patch.object(current_manager,'inspect_flux_resume_availability',return_value='download_running'),patch.object(current_manager,'launch_generation_worker') as current_worker_mock,patch('tools.review.common.gpu_job_queue.launch_gpu_process') as current_queue_mock:
+                        with self.assertRaisesRegex(ValueError,'모델 준비 충돌'):
+                            current_manager.resume_reviewed_generation_job(current_job_path,current_fingerprint_value)
+                        current_worker_mock.assert_not_called()
+                        current_queue_mock.assert_not_called()
+                        self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'failed')
+
+    def test_reviewed_flux_resume_rechecks_unfinished_translation(self):
+        import json
+        from unittest.mock import patch
+        current_manager=FluxImageGenerationManager('flux-character')
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_manager.job_storage_root=current_root_path
+            current_job_path=current_root_path/'2026-11-20_10-00-00-abcdef12'
+            current_job_path.mkdir()
+            (current_job_path/'request.json').write_text(json.dumps({'profile':'flux-character','references':['reference-1.png'],'translation_source_ko':'검증'}))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            current_reference_path=current_job_path/'reference-1.png'
+            current_reference_path.write_bytes(b'original')
+            current_fingerprint_value=current_manager.fingerprint_generation_resume_inputs(current_job_path)['fingerprint']
+            with patch.object(current_manager,'inspect_flux_resume_availability',return_value='available'),patch('tools.review.common.model_prepare_process.hold_registered_preparation_guard',return_value=contextlib.nullcontext()),patch.object(current_manager,'validate_generation_runtime'),patch.object(current_manager,'validate_generation_resume',side_effect=lambda _:current_reference_path.write_bytes(b'changed')),patch.object(current_manager,'launch_generation_worker') as current_launch_mock:
+                with self.assertRaisesRegex(ValueError,'검증 중 입력이 변경'):
+                    current_manager.resume_reviewed_generation_job(current_job_path,current_fingerprint_value)
+                current_launch_mock.assert_not_called()
+                self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'failed')
+            current_reference_path.write_bytes(b'original')
+            current_fingerprint_value=current_manager.fingerprint_generation_resume_inputs(current_job_path)['fingerprint']
+            with patch.object(current_manager,'inspect_flux_resume_availability',return_value='available'),patch('tools.review.common.model_prepare_process.hold_registered_preparation_guard',return_value=contextlib.nullcontext()),patch.object(current_manager,'validate_generation_runtime'),patch.object(current_manager,'validate_generation_resume'),patch.object(current_manager,'launch_generation_worker') as current_launch_mock:
+                current_result_value=current_manager.resume_reviewed_generation_job(current_job_path,current_fingerprint_value)
+                self.assertEqual(current_result_value['status'],'queued')
+                current_launch_mock.assert_called_once()
+                self.assertEqual(json.loads((current_job_path/'status.json').read_text())['stage'],'translation')
+
+    def test_flux_reviewed_resume_http_requires_exact_target_and_fingerprint(self):
+        import json
+        from unittest.mock import patch
+        from tools.review.tests.test_image_generation import ImageGenerationTests
+        from tools.review.common.management_gateway import resolve_management_command
+        current_manager=FluxImageGenerationManager('flux-character')
+        current_job_identifier='2026-11-20_10-00-00-abcdef12'
+        current_request_value={'id':current_job_identifier,'expected_resume_fingerprint':'a'*64}
+        self.assertEqual(resolve_management_command('flux-character','resume-reviewed',current_request_value)[:2],('POST','/flux-character-generator/resume/reviewed'))
+        for current_payload_value,current_success_value in ((current_request_value,True),({**current_request_value,'extra':True},False),({**current_request_value,'expected_resume_fingerprint':'bad'},False),({'id':'../bad','expected_resume_fingerprint':'a'*64},False)):
+            with self.subTest(payload=current_payload_value):
+                current_handler_value=ImageGenerationTests().make_http_handler(current_manager.route_prefix_value+'/resume/reviewed','POST')
+                current_request_bytes=json.dumps(current_payload_value).encode()
+                current_handler_value.rfile=io.BytesIO(current_request_bytes)
+                current_handler_value.headers['Content-Length']=str(len(current_request_bytes))
+                with patch.object(current_manager,'resume_reviewed_generation_job',return_value={'id':current_job_identifier,'status':'queued'}) as current_resume_mock:
+                    self.assertTrue(current_manager.handle_image_request(current_handler_value))
+                    if current_success_value:
+                        self.assertEqual(current_handler_value.status,200)
+                        current_resume_mock.assert_called_once_with(current_manager.job_storage_root/current_job_identifier,'a'*64)
+                    else:
+                        self.assertEqual(current_handler_value.status,400)
+                        current_resume_mock.assert_not_called()
+
+    def test_flux_resume_preview_gateway_route_and_http_contract(self):
+        import json
+        from unittest.mock import patch
+        from tools.review.tests.test_image_generation import ImageGenerationTests
+        from tools.review.common.management_gateway import resolve_management_command
+        current_manager=FluxImageGenerationManager('flux-character')
+        current_job_identifier='2026-11-20_10-00-00-abcdef12'
+        current_expected_value={'service':'flux-character','id':current_job_identifier,'status':'failed','expected_resume_fingerprint':'a'*64}
+        self.assertEqual(resolve_management_command('flux-character','resume-preview',{'id':current_job_identifier})[:2],('POST','/flux-character-generator/resume/preview'))
+        current_test_helper=ImageGenerationTests()
+        current_handler_value=current_test_helper.make_http_handler(current_manager.route_prefix_value+'/resume/preview','POST')
+        current_request_bytes=json.dumps({'id':current_job_identifier}).encode()
+        current_handler_value.rfile=io.BytesIO(current_request_bytes)
+        current_handler_value.headers['Content-Length']=str(len(current_request_bytes))
+        with patch.object(current_manager,'preview_generation_resume',return_value=current_expected_value) as current_preview_mock,patch.object(current_manager,'resume_generation_job') as current_submit_mock:
+            self.assertTrue(current_manager.handle_image_request(current_handler_value))
+            self.assertEqual(current_handler_value.status,200)
+            self.assertEqual(json.loads(current_handler_value.wfile.getvalue()),current_expected_value)
+            current_preview_mock.assert_called_once_with(current_manager.job_storage_root/current_job_identifier)
+            current_submit_mock.assert_not_called()
+
+    def test_flux_resume_preview_checks_locks_and_mutation_without_launch(self):
+        import fcntl
+        import json
+        from unittest.mock import patch
+        current_manager=FluxImageGenerationManager('flux-character')
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_manager.job_storage_root=current_root_path
+            current_job_path=current_root_path/'2026-11-20_10-00-00-abcdef12'
+            with self.assertRaisesRegex(ValueError,'작업이 없습니다'):
+                current_manager.preview_generation_resume(current_job_path)
+            self.assertFalse(current_job_path.exists())
+            current_job_path.mkdir()
+            (current_job_path/'request.json').write_text(json.dumps({'profile':'flux-character','references':['reference-1.png']}))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            current_reference_path=current_job_path/'reference-1.png'
+            current_reference_path.write_bytes(b'original')
+            with patch.object(current_manager,'validate_generation_runtime') as current_runtime_mock,patch.object(current_manager,'validate_generation_resume') as current_validation_mock,patch.object(current_manager,'launch_generation_worker') as current_launch_mock:
+                current_review_value=current_manager.preview_generation_resume(current_job_path)
+                self.assertEqual(current_review_value['service'],'flux-character')
+                self.assertEqual(current_review_value['status'],'failed')
+                self.assertEqual(len(current_review_value['expected_resume_fingerprint']),64)
+                current_runtime_mock.assert_called_once()
+                current_validation_mock.assert_called_once()
+                current_launch_mock.assert_not_called()
+                with (current_job_path/'execution.lock').open('a') as current_external_lock:
+                    fcntl.flock(current_external_lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                    with self.assertRaisesRegex(ValueError,'이전 FLUX 실행'):
+                        current_manager.preview_generation_resume(current_job_path)
+                current_validation_mock.side_effect=lambda _:current_reference_path.write_bytes(b'changed')
+                with self.assertRaisesRegex(ValueError,'검토 중 입력이 변경'):
+                    current_manager.preview_generation_resume(current_job_path)
+                current_launch_mock.assert_not_called()
+
+    def test_flux_resume_fingerprint_covers_records_and_reference_bytes(self):
+        import json
+        import os
+        current_manager=FluxImageGenerationManager('flux-character')
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_job_path=Path(current_directory_name)
+            (current_job_path/'request.json').write_text(json.dumps({'profile':'flux-character','references':['reference-1.png']}))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            current_reference_path=current_job_path/'reference-1.png'
+            current_reference_path.write_bytes(b'first')
+            current_first_value=current_manager.fingerprint_generation_resume_inputs(current_job_path)
+            self.assertEqual(current_first_value['status'],'failed')
+            self.assertEqual(len(current_first_value['fingerprint']),64)
+            current_reference_path.write_bytes(b'second')
+            current_second_value=current_manager.fingerprint_generation_resume_inputs(current_job_path)
+            self.assertNotEqual(current_first_value['fingerprint'],current_second_value['fingerprint'])
+            (current_job_path/'translation-pipeline.json').write_text('{}')
+            self.assertNotEqual(current_second_value['fingerprint'],current_manager.fingerprint_generation_resume_inputs(current_job_path)['fingerprint'])
+            current_reference_path.unlink()
+            os.mkfifo(current_reference_path)
+            with self.assertRaises(ValueError):current_manager.fingerprint_generation_resume_inputs(current_job_path)
+            current_reference_path.unlink()
+            current_reference_path.symlink_to(current_job_path/'request.json')
+            with self.assertRaises(ValueError):current_manager.fingerprint_generation_resume_inputs(current_job_path)
+
+    def test_flux_resume_rejects_missing_legacy_reference(self):
+        import json
+        current_manager=FluxImageGenerationManager('flux-character')
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_job_path=Path(current_directory_name)
+            (current_job_path/'request.json').write_text(json.dumps({'references':['reference-1.png']}))
+            with self.assertRaisesRegex(ValueError,'참조 사본 일반 파일'):
+                current_manager.validate_generation_resume(current_job_path)
+
+    def test_untranslated_resume_rejects_unsafe_log_without_changing_state(self):
+        import json
+        import os
+        from unittest.mock import patch
+        current_manager=FluxImageGenerationManager('flux-seamless')
+        current_request_record={'translation_source_ko':'검증용','translation_base_prompt':'test'}
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_job_path=Path(current_directory_name)
+            (current_job_path/'request.json').write_text(json.dumps(current_request_record))
+            current_status_record={'status':'failed','error':'기존 실패'}
+            (current_job_path/'status.json').write_text(json.dumps(current_status_record))
+            (current_job_path/'cancel.request').write_text('기존 취소')
+            current_outside_path=current_job_path/'outside.log'
+            current_outside_path.write_text('변경 없음')
+            current_log_path=current_job_path/'worker.log'
+            for current_log_kind in ('symlink','fifo'):
+                with self.subTest(kind=current_log_kind):
+                    if current_log_kind=='symlink':current_log_path.symlink_to(current_outside_path.resolve())
+                    else:os.mkfifo(current_log_path)
+                    with patch.object(current_manager,'validate_generation_resume'),patch.object(current_manager,'launch_generation_worker') as current_launch_mock:
+                        with self.assertRaises((OSError,ValueError)):
+                            current_manager.resume_generation_job(current_job_path,current_request_record,None)
+                        current_launch_mock.assert_not_called()
+                    self.assertEqual(json.loads((current_job_path/'status.json').read_text()),current_status_record)
+                    self.assertEqual((current_job_path/'cancel.request').read_text(),'기존 취소')
+                    self.assertEqual(current_outside_path.read_text(),'변경 없음')
+                    current_log_path.unlink()
+
+    def test_untranslated_resume_launch_failure_records_failed_state(self):
+        import json
+        from unittest.mock import patch
+        current_manager=FluxImageGenerationManager('flux-seamless')
+        current_request_record={'translation_source_ko':'검증용','translation_base_prompt':'test'}
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_job_path=Path(current_directory_name)
+            (current_job_path/'request.json').write_text(json.dumps(current_request_record))
+            (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+            for current_start_error in (OSError('모의 시작 실패'),ValueError('모의 인자 오류')):
+                (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
+                with self.subTest(error=type(current_start_error).__name__),patch.object(current_manager,'validate_generation_resume'),patch.object(current_manager,'launch_generation_worker',side_effect=current_start_error):
+                    with self.assertRaises(type(current_start_error)):
+                        current_manager.resume_generation_job(current_job_path,current_request_record,None)
+                current_status_record=json.loads((current_job_path/'status.json').read_text())
+                self.assertEqual(current_status_record['status'],'failed')
+                self.assertEqual(current_status_record['stage'],'translation')
+                self.assertIn('시작하지 못했습니다',current_status_record['error'])
+
+    def test_initial_translation_launch_failure_records_failed_state(self):
+        import json
+        from unittest.mock import patch
+        current_manager=FluxImageGenerationManager('flux-seamless')
+        current_request_record={'translation_source_ko':'검증용'}
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_job_path=Path(current_directory_name)
+            with (current_job_path/'worker.log').open('w') as current_log_handle,patch('tools.review.domains.image.flux_translation_queue.subprocess.Popen',side_effect=OSError('모의 시작 실패')):
+                with self.assertRaises(OSError):
+                    current_manager.launch_generation_worker(current_job_path,current_request_record,current_log_handle)
+            current_status_record=json.loads((current_job_path/'status.json').read_text())
+            self.assertEqual(current_status_record['status'],'failed')
+            self.assertEqual(current_status_record['stage'],'translation')
 
     def test_untranslated_job_resume_requeues_translation(self):
         import json

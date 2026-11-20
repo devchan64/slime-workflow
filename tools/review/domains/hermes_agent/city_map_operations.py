@@ -4,7 +4,7 @@ import hashlib
 import json
 
 from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_delegation_record_paths, check_delegation_record_exists
 from tools.review.domains.hermes_agent.field_map_operations import call_field_map_editor, HERMES_FIELD_MAP_PATTERN, HERMES_FIELD_TOKEN_PATTERN, HERMES_FIELD_MAX_BYTES
 
 
@@ -22,6 +22,16 @@ def validate_hermes_city_draft(current_draft_record):
     if len(current_serialized_bytes)>HERMES_FIELD_MAX_BYTES:
         raise ValueError('도시 맵 초안 크기 초과')
     return hashlib.sha256(current_serialized_bytes).hexdigest()
+
+
+def read_hermes_city_source(current_map_identifier):
+    """DB 연결 없이 검증된 도시 맵 에셋 원본을 읽는다."""
+    import os
+    from pathlib import Path
+    from tools.review.common.map_tile_assets import DEFAULT_ASSET_REPOSITORY
+    from tools.review.domains.map_assets.source_consistency import read_registered_city_source
+    current_asset_root=Path(os.environ.get('SLIME_ASSETS_ROOT',DEFAULT_ASSET_REPOSITORY))
+    return read_registered_city_source(current_asset_root,current_asset_root.parent/'slime-backend/map-data.lock.yaml',current_map_identifier)
 
 
 def load_hermes_city_map(current_map_identifier):
@@ -42,7 +52,22 @@ def preview_hermes_city_map(current_draft_record):
     for current_count_name in ('columns','rows','buildings','objects'):
         if type(current_preview_value.get(current_count_name)) is not int or current_preview_value[current_count_name]<0:
             raise ValueError('도시 맵 미리보기 수량 오류')
-    return {key:current_preview_value[key] for key in ('token','cityId','changed','columns','rows','buildings','objects')}
+    current_alignment_record={'status':'unavailable','note':'도시 DB 문서와 에셋 원본의 일치를 확인할 수 없습니다.'}
+    try:
+        import os
+        from pathlib import Path
+        from tools.review.common.map_tile_assets import DEFAULT_ASSET_REPOSITORY
+        from tools.review.domains.map_assets.source_consistency import inspect_city_source_alignment
+        current_database_record=load_hermes_city_map(current_draft_record['map'])
+        if (current_database_record['generation'],current_database_record['revision'])==(current_draft_record['generation'],current_draft_record['revision']):
+            current_asset_root=Path(os.environ.get('SLIME_ASSETS_ROOT',DEFAULT_ASSET_REPOSITORY)).resolve()
+            current_alignment_record=inspect_city_source_alignment(current_asset_root,current_asset_root.parent/'slime-backend/map-data.lock.yaml',current_draft_record['map'],current_database_record['document'])
+            current_final_database=load_hermes_city_map(current_draft_record['map'])
+            if (current_final_database['generation'],current_final_database['revision'])!=(current_database_record['generation'],current_database_record['revision']):
+                current_alignment_record={'status':'unavailable','note':'도시 DB 문서가 비교 중 변경되어 확인할 수 없습니다.'}
+    except (OSError,ValueError,TypeError,KeyError):
+        pass
+    return {**{key:current_preview_value[key] for key in ('token','cityId','changed','columns','rows','buildings','objects')},'save_available':False,'source_alignment':current_alignment_record}
 
 
 def inspect_hermes_city_receipt(current_record_value,current_request_identifier):
@@ -64,34 +89,20 @@ def save_hermes_city_map_once(current_request_identifier,current_draft_record,cu
     current_storage_value = HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
         current_record_path = current_storage_value.resolve_delegation_record_path(current_request_identifier)
-        if current_record_path.exists():
+        if check_delegation_record_exists(current_record_path):
             current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
             current_receipt_value = inspect_hermes_city_receipt(current_record_value,current_request_identifier)
             if current_record_value['token'] != current_preview_token or current_receipt_value['map'] != current_draft_record['map']:
                 raise ValueError('같은 접수 ID를 다른 요청에 사용할 수 없습니다.')
             return {**current_receipt_value,'duplicate':True}
-        current_preview_value = preview_hermes_city_map(current_draft_record)
-        current_record_value = {'version':5,'id':current_request_identifier,'token':current_preview_token,'map':current_draft_record['map'],'state':'dispatching'}
-        if not current_preview_value['changed']:
-            current_record_value.update(state='completed',saved=False)
-            write_record_atomically(current_record_path,current_record_value)
-            return {**inspect_hermes_city_receipt(current_record_value,current_request_identifier),'duplicate':False}
-        write_record_atomically(current_record_path,current_record_value)
-        current_response_value = call_field_map_editor('city-edit-save',{**current_draft_record,'token':current_preview_token})
-        if not isinstance(current_response_value,dict) or type(current_response_value.get('saved')) is not bool:
-            raise ValueError('도시 맵 저장 결과 확인 필요. 자동 재접수하지 않습니다.')
-        if json.loads(current_record_path.read_text(encoding='utf-8')) != current_record_value:
-            raise ValueError('저장 중 접수 기록이 변경됐습니다. 맵 원본과 이력을 확인하고 자동 재저장하지 마세요.')
-        current_record_value.update(state='completed',saved=current_response_value['saved'])
-        write_record_atomically(current_record_path,current_record_value)
-        return {**inspect_hermes_city_receipt(current_record_value,current_request_identifier),'duplicate':False}
+        raise ValueError('도시 맵 원본·등록부·소비자 잠금의 동기 저장이 지원될 때까지 신규 저장을 사용할 수 없습니다.')
 
 
 def read_hermes_city_receipt(current_request_identifier):
     current_storage_value = HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
         current_record_path = current_storage_value.resolve_delegation_record_path(current_request_identifier)
-        if not current_record_path.exists():
+        if not check_delegation_record_exists(current_record_path):
             return {'state':'not_found'}
         return inspect_hermes_city_receipt(json.loads(current_record_path.read_text(encoding='utf-8')),current_request_identifier)
 
@@ -100,7 +111,7 @@ def list_hermes_city_receipts():
     current_storage_value = HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
         current_records_list = []
-        for current_record_path in current_storage_value.delegation_storage_root.glob('*.json'):
+        for current_record_path in list_delegation_record_paths(current_storage_value.delegation_storage_root):
             if current_record_path.is_symlink() or not current_record_path.is_file():
                 continue
             try:

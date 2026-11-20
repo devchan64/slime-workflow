@@ -66,12 +66,14 @@ class HermesEffectOperationTests(unittest.TestCase):
         current_conflict_patch.start();self.addCleanup(current_conflict_patch.stop)
 
     def test_preview_and_duplicate_save_preserve_connection(self):
-        with patch.object(effect_operations,'read_hermes_effect_detail',return_value=self.current_detail_record), patch.object(effect_operations,'call_hermes_effect_editor',return_value={'saved':True,'revision':'b'*64}) as current_editor_mock:
+        with patch.object(effect_operations,'read_hermes_effect_detail',return_value=self.current_detail_record), patch.object(effect_operations,'call_hermes_effect_editor',return_value={'saved':True,'revision':'b'*64,'generation':4,'snapshot':'pending'}) as current_editor_mock:
             current_preview_record=effect_operations.preview_hermes_effect_edit(self.current_draft_record)
             self.assertEqual(current_preview_record['after']['texture'],'fireflies')
             current_save_args=('effect_request_123',self.current_draft_record,self.current_preview_token)
             self.assertTrue(effect_operations.save_hermes_effect_edit_once(*current_save_args)['saved'])
             self.assertEqual(effect_operations.read_hermes_effect_edit_receipt('effect_request_123')['effect_id'],self.current_draft_record['id'])
+            current_receipt=effect_operations.read_hermes_effect_edit_receipt('effect_request_123')
+            self.assertEqual((current_receipt['generation'],current_receipt['ledger_status_at_save']),(4,'pending'))
             self.assertTrue(effect_operations.save_hermes_effect_edit_once(*current_save_args)['duplicate'])
             self.assertEqual(current_editor_mock.call_count,1)
             current_payload_record=current_editor_mock.call_args.args[1]

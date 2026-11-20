@@ -36,6 +36,16 @@ class ContentLaunchConfigurationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, '중복'):
                 read_content_launch_environment(current_config_path)
 
+    def test_connection_accepts_omitted_legacy_snapshot_root(current_test_case):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_config_path = Path(current_directory_name) / 'connection.yaml'
+            current_config_path.write_text(yaml.safe_dump({
+                'serviceOrigin': 'http://127.0.0.1:18083', 'assetRoot': current_directory_name,
+                'gatewayOrigin': 'http://127.0.0.1:8771'}))
+            current_loaded_values = read_content_launch_environment(current_config_path)
+            current_test_case.assertEqual(current_loaded_values['SLIME_ASSETS_ROOT'], current_directory_name)
+            current_test_case.assertEqual(current_loaded_values['SLIME_CONTENT_SNAPSHOT_ROOT'], '')
+
     def test_default_connection_loaded_on_restart(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_directory_path = Path(current_directory_name)

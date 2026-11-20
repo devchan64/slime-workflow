@@ -236,10 +236,11 @@ def build_block_map_review(output_directory_path, character_review_only=False):
 
 
 def build_registered_map_review(map_identifier_value, current_validate_placement=True):
-    from tools.review.common.map_asset_sources import load_registered_map_review, load_review_map_identifiers
+    from tools.review.common.map_asset_sources import load_registered_map_review
     current_map_record = load_registered_map_review(map_identifier_value)
-    current_city_identifiers, _ = load_review_map_identifiers()
-    if current_validate_placement and map_identifier_value not in current_city_identifiers:
+    current_safe_town=current_map_record.get('safeTown')
+    if type(current_safe_town) is not bool:raise ValueError('검수 맵의 도시 구분이 올바르지 않습니다.')
+    if current_validate_placement and not current_safe_town:
         from tools.review.domains.map_assets.placement import validate_scenery_object_collisions, validate_registered_scenery_images
         validate_scenery_object_collisions(current_map_record.get('objects', []), current_map_record['spriteProperties'], current_map_record['elevations'])
         from tools.review.common.game_render_metrics import load_adopted_render_options
@@ -248,5 +249,5 @@ def build_registered_map_review(map_identifier_value, current_validate_placement
         current_tile_width = current_render_options['tileWidth']
         current_tile_height = current_render_options['tileHeight']
         validate_registered_scenery_images(current_map_record.get('objects', []), current_map_record['spriteProperties'], current_tile_width, current_tile_height, current_map_record['elevations'], current_billboard_scale, current_map_record.get('imageManifest'))
-    current_map_record['reviewLabel'] = '도시맵 검수' if map_identifier_value in current_city_identifiers else '필드맵 검수'
+    current_map_record['reviewLabel'] = '도시맵 검수' if current_safe_town else '필드맵 검수'
     return current_map_record

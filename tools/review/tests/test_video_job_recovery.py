@@ -18,6 +18,17 @@ class VideoJobRecoveryTests(unittest.TestCase):
         (self.current_job_directory / 'execution.lock').touch()
         (self.current_job_directory / 'gpu-command.json').write_text(json.dumps({'command':['python','/worker.py','--job-dir',str(self.current_job_directory)],'service':'image'}))
 
+    def test_recovery_rejects_symlinked_resume_lock(self):
+        current_target_path=self.current_job_directory/'unrelated-file'
+        current_target_path.write_text('변경 금지')
+        (self.current_job_directory/'resume.lock').symlink_to(current_target_path)
+        with patch('tools.review.common.video_job_recovery.has_live_video_worker') as current_worker_mock:
+            with self.assertRaisesRegex(ValueError,'심볼릭 링크'):
+                recover_interrupted_video_job(self.current_job_directory)
+            current_worker_mock.assert_not_called()
+        self.assertEqual(current_target_path.read_text(),'변경 금지')
+        self.assertEqual(json.loads((self.current_job_directory/'status.json').read_text())['status'],'running')
+
     def test_interrupted_worker_becomes_failed(self):
         with patch('tools.review.common.video_job_recovery.has_live_video_worker', return_value=False):
             recover_interrupted_video_job(self.current_job_directory)
@@ -51,6 +62,28 @@ class VideoJobRecoveryTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 recover_interrupted_video_job(self.current_job_directory)
         self.assertEqual(json.loads((self.current_job_directory / 'status.json').read_text())['status'], 'running')
+
+    def test_original_history_can_recover_while_observer_only_reads(self):
+        from tools.review.common.generation_records import observe_generation_history_records
+        from tools.review.common.reference_video_generation import ReferenceVideoGenerationManager
+        current_root_path=Path(self.current_temporary_directory.name)
+        current_jobs_root=current_root_path/'jobs'
+        current_history_root=current_root_path/'history'
+        current_history_root.mkdir()
+        current_job_path=current_jobs_root/'2026-11-18_12-00-00-aaaaaaaa'
+        current_job_path.mkdir(parents=True)
+        (current_job_path/'request.json').write_text('{}')
+        (current_job_path/'status.json').write_text('{"status":"running"}')
+        (current_job_path/'execution.lock').touch()
+        (current_job_path/'gpu-command.json').write_text(json.dumps({'command':['worker'],'service':'dwpose'}))
+        current_manager_value=ReferenceVideoGenerationManager('/dwpose',current_jobs_root,'worker',lambda value:value,lambda:None)
+        with patch.object(current_manager_value,'history_storage_path',return_value=current_history_root),patch('tools.review.common.video_job_recovery.has_live_video_worker',return_value=False):
+            current_observed_record=observe_generation_history_records(current_history_root,current_jobs_root,{})
+            self.assertEqual(current_observed_record['records'][0]['recorded_status'],'running')
+            self.assertEqual(json.loads((current_job_path/'status.json').read_text())['status'],'running')
+            current_original_history=current_manager_value.list_generation_history()
+            self.assertEqual(current_original_history[0]['status']['status'],'failed')
+            self.assertTrue(json.loads((current_job_path/'status.json').read_text())['recovered_interrupted'])
 
     def test_recovered_metrics_show_failure_without_live_estimate(self):
         current_status_record = {'recovered_interrupted':True, 'metrics':{'status':'running','estimate':{'remaining':12,'completion':'later','estimated_progress':30}}, 'worker_metrics':{'status':'running'}, 'estimate':{'remaining':12}}

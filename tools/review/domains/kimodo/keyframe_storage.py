@@ -148,6 +148,47 @@ def snapshot_kimodo_keyframes(current_job_root, current_keyframe_placements, *, 
     return current_snapshot_records
 
 
+def fingerprint_kimodo_job_keyframes(current_job_root,current_request_record):
+    """작업의 키프레임을 링크 추종 없이 열어 내용과 식별자를 해시한다."""
+    import os
+    import stat
+    from contextlib import ExitStack
+    if not isinstance(current_request_record,dict):raise ValueError('키프레임 요청 형식 오류')
+    current_placement_values=current_request_record.get('keyframes')
+    if current_placement_values is None:return None
+    current_valid_placements=validate_kimodo_keyframe_placements(current_placement_values,current_request_record.get('frames'))
+    current_hash_value=hashlib.sha256()
+    current_directory_flags=os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW
+    try:
+        with ExitStack() as current_open_resources:
+            current_job_descriptor=os.open(current_job_root,current_directory_flags)
+            current_open_resources.callback(os.close,current_job_descriptor)
+            current_root_descriptor=os.open('keyframes',current_directory_flags,dir_fd=current_job_descriptor)
+            current_open_resources.callback(os.close,current_root_descriptor)
+            for current_keyframe_identifier in sorted({current_item['id'] for current_item in current_valid_placements}):
+                with ExitStack() as current_keyframe_resources:
+                    current_keyframe_descriptor=os.open(current_keyframe_identifier,current_directory_flags,dir_fd=current_root_descriptor)
+                    current_keyframe_resources.callback(os.close,current_keyframe_descriptor)
+                    for current_file_name in ('record.json','motion.npz','skeleton.json','preview.png'):
+                        current_file_descriptor=os.open(current_file_name,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK,dir_fd=current_keyframe_descriptor)
+                        with os.fdopen(current_file_descriptor,'rb') as current_file_stream:
+                            current_before_stat=os.fstat(current_file_stream.fileno())
+                            if not stat.S_ISREG(current_before_stat.st_mode):raise ValueError('작업 키프레임 파일 오류')
+                            current_file_hash=hashlib.sha256()
+                            for current_file_chunk in iter(lambda:current_file_stream.read(1048576),b''):
+                                current_file_hash.update(current_file_chunk)
+                            current_after_stat=os.fstat(current_file_stream.fileno())
+                            current_path_stat=os.stat(current_file_name,dir_fd=current_keyframe_descriptor,follow_symlinks=False)
+                            current_stat_fields=lambda current_stat_value:(current_stat_value.st_dev,current_stat_value.st_ino,current_stat_value.st_size,current_stat_value.st_mtime_ns,current_stat_value.st_ctime_ns)
+                            if current_stat_fields(current_before_stat)!=current_stat_fields(current_after_stat) or current_stat_fields(current_after_stat)!=current_stat_fields(current_path_stat):
+                                raise ValueError('검토 중 키프레임 파일이 변경됐습니다.')
+                        current_hash_value.update((current_keyframe_identifier+'/'+current_file_name+'\0').encode('ascii'))
+                        current_hash_value.update(current_file_hash.digest())
+    except OSError as current_file_error:
+        raise ValueError('작업 키프레임 파일을 확인할 수 없습니다.') from current_file_error
+    return current_hash_value.hexdigest()
+
+
 def validate_kimodo_job_keyframe_snapshots(current_job_root, current_request_record):
     """재개와 추론 전에 작업별 입력 사본과 출처를 확인한다."""
     current_placements = validate_kimodo_keyframe_placements(current_request_record['keyframes'], current_request_record['frames'])

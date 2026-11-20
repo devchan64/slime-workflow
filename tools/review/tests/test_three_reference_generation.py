@@ -19,7 +19,11 @@ class ThreeReferenceGenerationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_job_root = Path(current_directory_name)
             verify_reference_snapshots(current_job_root, {'references': []})
+            with self.assertRaisesRegex(ValueError,'일반 파일'):
+                verify_reference_snapshots(current_job_root, {'references': ['reference-1.png']})
+            (current_job_root/'reference-1.png').write_bytes(b'legacy image')
             verify_reference_snapshots(current_job_root, {'references': ['reference-1.png']})
+            (current_job_root/'reference-1.png').unlink()
             for current_reference_names in (None, '../outside.png', ['../outside.png'], ['/tmp/outside.png'], ['reference-2.png'], [None]):
                 with self.subTest(references=current_reference_names):
                     with self.assertRaises(ValueError):

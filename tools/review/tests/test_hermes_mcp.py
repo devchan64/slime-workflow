@@ -34,6 +34,16 @@ with patch.dict(sys.modules, {'mcp':fake_mcp_module, 'mcp.server':fake_mcp_serve
 
 
 class HermesMcpTests(unittest.TestCase):
+    def test_city_source_mcp_rejects_mismatched_identity_and_hash(self):
+        current_document_value={'managementId':'config.city-layouts.stonewarm','data':{'cityId':'stonewarm'}}
+        current_response_value={'map':'stonewarm','document':current_document_value,'source_sha256':'a'*64}
+        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value=current_response_value) as current_gateway_mock:
+            self.assertEqual(hermes_module_value.read_hermes_city_source('stonewarm'),current_response_value)
+            current_gateway_mock.assert_called_once_with('hermes-city-source',{'map':'stonewarm'})
+        for current_bad_response in ({**current_response_value,'source_sha256':'invalid'}, {**current_response_value,'map':'other'}, {**current_response_value,'document':{'managementId':'config.city-layouts.other','data':{'cityId':'stonewarm'}}}, {**current_response_value,'document':{'managementId':'config.city-layouts.stonewarm','data':{'cityId':'other'}}}):
+            with self.subTest(current_bad_response=current_bad_response), patch.object(hermes_module_value,'run_hermes_mcp_command',return_value=current_bad_response):
+                with self.assertRaises(ValueError):hermes_module_value.read_hermes_city_source('stonewarm')
+
     def test_server_instructions_distinguish_isolation_and_live_delegation(self):
         current_instructions_text=hermes_module_value.hermes_mcp_server.test_instructions
         self.assertIn('관리도구 사본',current_instructions_text)
@@ -56,7 +66,7 @@ class HermesMcpTests(unittest.TestCase):
             current_gateway_mock.assert_called_once_with('hermes-generator-reservation-receipt',{'request_id':'recovery_123'})
 
     def test_writer_cancel_forwards_both_identifiers(self):
-        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value={}) as current_gateway_mock:
+        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value={'job_id':'20261118-120000-12345678','cancel_requested':True}) as current_gateway_mock:
             hermes_module_value.cancel_hermes_writer('request_123','20261118-120000-12345678')
             current_gateway_mock.assert_called_once_with('hermes-writer-cancel',{'request_id':'request_123','job_id':'20261118-120000-12345678'})
             self.assertTrue(hermes_module_value.cancel_hermes_writer.test_annotations['destructive_hint'])
@@ -130,6 +140,42 @@ class HermesMcpTests(unittest.TestCase):
                 self.assertFalse(getattr(hermes_module_value,current_tool_name).test_annotations['read_only_hint'])
         self.assertTrue(hermes_module_value.list_hermes_management_capabilities.test_annotations['read_only_hint'])
 
+    def test_coding_cancel_requires_matching_response_identity(self):
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with patch.object(hermes_module_value,'call_hermes_management_gateway') as current_gateway_mock:
+            for current_bad_response in ({'id':'other','cancel_requested':True,'status':'running'},{'cancel_requested':True,'status':'running'},{'id':current_job_identifier,'cancel_requested':False,'status':'running'}):
+                current_gateway_mock.return_value=current_bad_response
+                with self.subTest(current_bad_response=current_bad_response),self.assertRaises(ValueError):hermes_module_value.cancel_hermes_coding_task(current_job_identifier)
+            current_gateway_mock.return_value={'id':current_job_identifier,'cancel_requested':True,'status':'queued'}
+            self.assertEqual(hermes_module_value.cancel_hermes_coding_task(current_job_identifier),current_gateway_mock.return_value)
+
+    def test_cancel_error_never_retries_and_guides_status_check(self):
+        current_cases=(
+            ('cancel_hermes_video',('request_123','dwpose','job-1')),
+            ('cancel_hermes_audio',('request_123','music-heartmula','job-1')),
+            ('cancel_hermes_flux_profile',('request_123','flux-image','job-1')),
+            ('cancel_hermes_translation',('request_123','job-1')),
+            ('cancel_hermes_writer',('request_123','job-1')),
+            ('cancel_hermes_kimodo_delegation',('request_123','job-1')),
+            ('cancel_hermes_flux_delegation',('request_123','job-1')),
+        )
+        for current_tool_name,current_tool_arguments in current_cases:
+            with self.subTest(tool=current_tool_name),patch.object(hermes_module_value,'run_hermes_mcp_command',side_effect=OSError('response lost')) as current_gateway_mock:
+                with self.assertRaisesRegex(Exception,'실제 상태를 확인하고 자동으로 다시 요청하지 마세요'):
+                    getattr(hermes_module_value,current_tool_name)(*current_tool_arguments)
+                current_gateway_mock.assert_called_once()
+
+    def test_cancel_response_requires_job_and_acknowledgement(self):
+        current_request_value={'request_id':'request_123','job_id':'job-1'}
+        with patch.object(hermes_module_value,'run_hermes_mcp_command') as current_gateway_mock:
+            for current_bad_response in ({},{'job_id':'other','cancel_requested':True},{'job_id':'job-1','cancel_requested':False},None):
+                with self.subTest(response=current_bad_response):
+                    current_gateway_mock.return_value=current_bad_response
+                    with self.assertRaisesRegex(Exception,'실제 상태를 확인'):
+                        hermes_module_value.execute_hermes_cancellation_command('hermes-video-cancel',current_request_value)
+            current_gateway_mock.return_value={'job_id':'job-1','cancel_requested':True,'status':'running'}
+            self.assertEqual(hermes_module_value.execute_hermes_cancellation_command('hermes-video-cancel',current_request_value),current_gateway_mock.return_value)
+
     def test_cancellation_tools_do_not_promise_repeatable_success(self):
         for current_tool_name in ('cancel_hermes_video','cancel_hermes_audio','cancel_hermes_flux_profile','cancel_hermes_translation','cancel_hermes_flux_delegation','cancel_hermes_kimodo_delegation'):
             with self.subTest(tool=current_tool_name):
@@ -165,6 +211,26 @@ class HermesMcpTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, '형식'):
                 hermes_module_value.read_hermes_gpu_queue_status()
 
+    def test_writer_search_paths_mcp_forwards_only_request_id(self):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={'paths':['world/town.md'],'truncated':False}) as current_gateway_mock:
+            current_response_value=hermes_module_value.read_hermes_writer_search_paths('request_123')
+            self.assertEqual(current_response_value,{'paths':['world/town.md'],'truncated':False})
+            current_gateway_mock.assert_called_once_with('hermes-writer-search-paths',{'request_id':'request_123'})
+            for current_bad_response in ({'paths':['../secret'],'truncated':False},{'paths':['/secret'],'truncated':False},{'paths':['a'],'truncated':False,'text':'private'}):
+                current_gateway_mock.return_value=current_bad_response
+                with self.subTest(current_bad_response=current_bad_response),self.assertRaises(ValueError):hermes_module_value.read_hermes_writer_search_paths('request_123')
+            current_gateway_mock.side_effect=ValueError('/private/secret')
+            with self.assertRaises(ValueError) as current_error:hermes_module_value.read_hermes_writer_search_paths('request_123')
+            self.assertNotIn('/private/secret',str(current_error.exception))
+
+    def test_direct_writer_job_search_mcp(current_test_case):
+        with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={'paths':['world/town.md'],'truncated':False}) as current_gateway_mock:
+            current_test_case.assertEqual(hermes_module_value.read_hermes_writer_job_search_paths('20261120-120000-abcdef12'), {'paths':['world/town.md'],'truncated':False})
+            current_gateway_mock.assert_called_once_with('hermes-writer-job-search-paths',{'job_id':'20261120-120000-abcdef12'})
+            current_gateway_mock.return_value={'paths':['../secret'],'truncated':False}
+            with current_test_case.assertRaises(ValueError):
+                hermes_module_value.read_hermes_writer_job_search_paths('20261120-120000-abcdef12')
+
     def test_capability_catalog_uses_shared_gateway(self):
         with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={'records':[],'unlisted_commands':['hermes-new-command']}) as current_gateway_mock:
             current_catalog_value=hermes_module_value.list_hermes_management_capabilities()
@@ -185,7 +251,7 @@ class HermesMcpTests(unittest.TestCase):
             for current_node_value in ast.walk(current_function_node):
                 if not isinstance(current_node_value,ast.Call) or not isinstance(current_node_value.func,ast.Name):
                     continue
-                if current_node_value.func.id not in ('run_hermes_mcp_command','call_hermes_management_gateway'):
+                if current_node_value.func.id not in ('run_hermes_mcp_command','call_hermes_management_gateway','execute_hermes_cancellation_command'):
                     continue
                 if not current_node_value.args or not isinstance(current_node_value.args[0],ast.Constant):
                     continue
@@ -230,6 +296,7 @@ class HermesMcpTests(unittest.TestCase):
             current_gateway_mock.assert_called_with('hermes-delegate-flux-image', {'request_id':'request_123', 'request':{'prompt':'x'}})
             hermes_module_value.read_hermes_flux_delegation('request_123')
             current_gateway_mock.assert_called_with('hermes-flux-delegation-status', {'request_id':'request_123'})
+            current_gateway_mock.return_value={'job_id':'job-1','cancel_requested':True}
             hermes_module_value.cancel_hermes_flux_delegation('request_123', 'job-1')
             current_gateway_mock.assert_called_with('hermes-flux-delegation-cancel', {'request_id':'request_123', 'job_id':'job-1'})
 
@@ -265,8 +332,21 @@ class HermesMcpTests(unittest.TestCase):
             current_gateway_mock.assert_called_with('hermes-video-status',{'request_id':'video_request_123','service':'dwpose'})
             hermes_module_value.list_hermes_video_receipts('dwpose')
             current_gateway_mock.assert_called_with('hermes-video-history',{'service':'dwpose'})
+            current_gateway_mock.return_value={'job_id':'job-1','cancel_requested':True}
             hermes_module_value.cancel_hermes_video('video_request_123','dwpose','job-1')
             current_gateway_mock.assert_called_with('hermes-video-cancel',{'request_id':'video_request_123','service':'dwpose','job_id':'job-1'})
+
+    def test_capture_mcp_reads_preserve_service_and_request_identifiers(self):
+        with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={'status':'unknown'}) as current_gateway_mock:
+            self.assertEqual(hermes_module_value.read_hermes_capture_proposal('source_job'), {'status':'unknown'})
+            current_gateway_mock.assert_called_with('hermes-capture-proposal', {'id':'source_job'})
+            self.assertEqual(hermes_module_value.read_hermes_capture_status('request_123', 'map-review'), {'status':'unknown'})
+            current_gateway_mock.assert_called_with('hermes-capture-status', {'request_id':'request_123', 'service':'map-review'})
+            self.assertEqual(current_gateway_mock.call_count, 2)
+        for current_tool_function in (hermes_module_value.read_hermes_capture_proposal, hermes_module_value.read_hermes_capture_status):
+            self.assertFalse(current_tool_function.test_annotations['read_only_hint'])
+            self.assertTrue(current_tool_function.test_annotations['idempotent_hint'])
+            self.assertIn('캡처 실행은 지원하지 않는다', current_tool_function.__doc__)
 
     def test_resume_mcp_tools_use_fixed_commands_and_exact_payloads(self):
         current_job_identifier='2026-11-18_00-00-00-12345678'
@@ -316,6 +396,7 @@ class HermesMcpTests(unittest.TestCase):
             current_gateway_mock.assert_called_with('hermes-audio-status',{'request_id':'audio_request_123','service':'sfx-dasheng-audiogen'})
             hermes_module_value.list_hermes_audio_receipts('sfx-dasheng-audiogen')
             current_gateway_mock.assert_called_with('hermes-audio-history',{'service':'sfx-dasheng-audiogen'})
+            current_gateway_mock.return_value={'job_id':'job-1','cancel_requested':True}
             hermes_module_value.cancel_hermes_audio('audio_request_123','sfx-dasheng-audiogen','job-1')
             current_gateway_mock.assert_called_with('hermes-audio-cancel',{'request_id':'audio_request_123','service':'sfx-dasheng-audiogen','job_id':'job-1'})
 
@@ -327,6 +408,7 @@ class HermesMcpTests(unittest.TestCase):
             current_gateway_mock.assert_called_with('hermes-flux-profile-status',{'request_id':'profile_request_123','service':'flux-building'})
             hermes_module_value.list_hermes_flux_profile_receipts('flux-building')
             current_gateway_mock.assert_called_with('hermes-flux-profile-history',{'service':'flux-building'})
+            current_gateway_mock.return_value={'job_id':'job-1','cancel_requested':True}
             hermes_module_value.cancel_hermes_flux_profile('profile_request_123','flux-building','job-1')
             current_gateway_mock.assert_called_with('hermes-flux-profile-cancel',{'request_id':'profile_request_123','service':'flux-building','job_id':'job-1'})
 
@@ -361,6 +443,7 @@ class HermesMcpTests(unittest.TestCase):
             current_gateway_mock.assert_called_with('hermes-translation-status',{'request_id':'translation_123'})
             hermes_module_value.list_hermes_translation_receipts()
             current_gateway_mock.assert_called_with('hermes-translation-history',{})
+            current_gateway_mock.return_value={'job_id':'job-1','cancel_requested':True}
             hermes_module_value.cancel_hermes_translation('translation_123','job-1')
             current_gateway_mock.assert_called_with('hermes-translation-cancel',{'request_id':'translation_123','job_id':'job-1'})
 
@@ -369,7 +452,14 @@ class HermesMcpTests(unittest.TestCase):
             hermes_module_value.read_hermes_field_map_proposal('job-1')
         current_gateway_mock.assert_called_once_with('hermes-field-proposal',{'id':'job-1'})
 
+    def test_writer_material_mcp_preserves_paging_identity(self):
+        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value={'content':'{}'}) as current_command_mock:
+            hermes_module_value.read_hermes_writer_job_material('20261115-114927-8d274ccd','search',10,50,'a'*64)
+        current_command_mock.assert_called_once_with('hermes-writer-job-material',{'job_id':'20261115-114927-8d274ccd','section':'search','offset':10,'limit':50,'snapshot':'a'*64})
+
     def test_field_region_mcp_preserves_revision_and_bounds(self):
+        self.assertTrue(hermes_module_value.read_hermes_field_region.test_annotations['read_only_hint'])
+        self.assertIn('편집 리비전이 아니다',hermes_module_value.read_hermes_field_region.__doc__)
         with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:
             hermes_module_value.read_hermes_field_region('sample',2,3,4,5,6,7,'revision')
         current_gateway_mock.assert_called_once_with('hermes-field-region',{'map':'sample','column':2,'row':3,'width':4,'height':5,'offset':6,'limit':7,'revision':'revision'})
@@ -428,7 +518,7 @@ class HermesMcpTests(unittest.TestCase):
         current_gateway_mock.assert_called_once_with('hermes-delegation-job-status', {'request_id':'request_123456'})
 
     def test_cancel_forwards_confirmed_request_and_job(self):
-        with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={'cancel_requested':True}) as current_gateway_mock:
+        with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={'job_id':'job-1','cancel_requested':True}) as current_gateway_mock:
             hermes_module_value.cancel_hermes_kimodo_delegation('request_123456', 'job-1')
         current_gateway_mock.assert_called_once_with('hermes-delegation-cancel', {'request_id':'request_123456', 'job_id':'job-1'})
 

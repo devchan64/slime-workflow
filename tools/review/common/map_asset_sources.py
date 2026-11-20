@@ -1,13 +1,14 @@
 """에셋 저장소의 맵 YAML을 요청마다 검증해 검수 화면 데이터로 해석한다."""
 from pathlib import Path
+from contextlib import contextmanager
 from contextvars import ContextVar
-from copy import deepcopy
 import os
 import hashlib
 import json
 from urllib.parse import urlencode
 
 CURRENT_REVIEW_DATABASE_BUNDLE = ContextVar('review_database_bundle',default=None)
+CURRENT_REVIEW_ASSET_SOURCE = ContextVar('review_asset_source',default=False)
 import yaml
 from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_asset
 
@@ -57,18 +58,22 @@ class UniqueMapSourceLoader(yaml.SafeLoader):
 
 def read_registered_map_data(relative_source_path, source_provenance_records, current_source_catalog=None):
     asset_root_directory, registered_asset_records = load_registered_tiles() if current_source_catalog is None else current_source_catalog
-    if os.environ.get('SLIME_CONTENT_STORAGE')=='database':
+    current_asset_only=CURRENT_REVIEW_ASSET_SOURCE.get()
+    current_database_bundle=None if current_asset_only else CURRENT_REVIEW_DATABASE_BUNDLE.get()
+    if os.environ.get('SLIME_CONTENT_STORAGE')=='database' and current_database_bundle is None and not current_asset_only:
         from tools.review.domains.map_assets.database_client import execute_content_api_request
-        current_database_bundle=CURRENT_REVIEW_DATABASE_BUNDLE.get()
-        if current_database_bundle is None:
-            current_source_document=execute_content_api_request('GET','/internal/v1/content/map-document?'+urlencode({'path':relative_source_path}))
-        else:
-            current_source_document=deepcopy(current_database_bundle['documents'][relative_source_path])
+        current_source_document=execute_content_api_request('GET','/internal/v1/content/map-document?'+urlencode({'path':relative_source_path}))
         current_source_record={'managementId':current_source_document['managementId'],'path':'assets/maps/'+relative_source_path,'source':'assets/maps/'+relative_source_path,
             'version':'database','sha256':hashlib.sha256(json.dumps(current_source_document,sort_keys=True).encode()).hexdigest()}
     else:
         current_source_path,current_source_record = resolve_registered_asset('assets/maps/'+relative_source_path,asset_root_directory,registered_asset_records,'assets/maps')
         current_source_document = yaml.load(current_source_path.read_text(),Loader=UniqueMapSourceLoader)
+        if current_database_bundle is not None:
+            current_database_document=current_database_bundle['documents'][relative_source_path]
+            current_source_json=json.dumps(current_source_document,sort_keys=True,ensure_ascii=False,allow_nan=False,separators=(',',':'))
+            current_database_json=json.dumps(current_database_document,sort_keys=True,ensure_ascii=False,allow_nan=False,separators=(',',':'))
+            if current_source_json!=current_database_json:
+                raise ValueError('DB 맵 검수 문서가 에셋 원본과 다릅니다: '+relative_source_path)
     if not isinstance(current_source_document,dict) or set(current_source_document)!={'managementId','data'} or current_source_document['managementId']!=current_source_record['managementId'] or not isinstance(current_source_document['data'],dict):
         raise ValueError('맵 원본 관리 ID·자료형 오류: '+relative_source_path)
     source_provenance_records.append(current_source_record)
@@ -92,18 +97,8 @@ def load_review_map_identifiers(current_source_catalog=None):
     return current_city_identifiers, (*current_city_identifiers, *current_field_identifiers)
 
 
-def load_review_map_menu():
-    """시작 메뉴에는 인덱스·이름만 읽고 맵 본문은 선택 시 검증한다."""
-    if os.environ.get('SLIME_CONTENT_STORAGE')=='database':
-        from tools.review.domains.map_assets.database_client import execute_content_api_request
-        current_bundle_record=execute_content_api_request('GET','/internal/v1/content/review-bundle')
-        current_document_records=current_bundle_record['documents']
-        current_city_names=tuple(current_document_records['city_layouts/index.yaml']['data']['includes']['layouts'])
-        current_field_names=tuple(current_document_records['field_tiles/index.yaml']['data']['includes']['maps'])
-        if set(current_city_names)&set(current_field_names):raise ValueError('도시와 필드의 맵 ID가 중복되었습니다.')
-        return [{'id':current_map_name,'name':current_document_records['map_names/'+current_map_name+'.yaml']['data']['ko'],
-            'kind':'town' if current_map_name in current_city_names else 'field','path':'/management/map-assets/maps/'+current_map_name}
-            for current_map_name in (*current_city_names,*current_field_names)]
+def build_registered_map_menu():
+    """등록된 인덱스와 이름만 읽고 맵 본문은 불러오지 않는다."""
     current_source_catalog=load_registered_tiles()
     current_city_names,current_map_names=load_review_map_identifiers(current_source_catalog)
     return [{'id':current_map_name,'name':read_registered_map_data('map_names/'+current_map_name+'.yaml',[],current_source_catalog)['ko'],
@@ -111,22 +106,60 @@ def load_review_map_menu():
         for current_map_name in current_map_names]
 
 
-def load_registered_map_review(map_identifier_value):
-    if os.environ.get('SLIME_CONTENT_STORAGE')!='database':
-        return build_registered_map_review(map_identifier_value)
-    from tools.review.domains.map_assets.database_client import execute_content_api_request
-    current_database_bundle=execute_content_api_request('GET','/internal/v1/content/review-bundle?'+urlencode({'map':map_identifier_value}))
-    current_context_token=CURRENT_REVIEW_DATABASE_BUNDLE.set(current_database_bundle)
+@contextmanager
+def open_registered_map_source_snapshot():
+    """에셋 등록부와 맵 잠금이 같은 조회 동안 바뀌지 않았는지 확인한다."""
+    from tools.review.domains.map_assets.source_consistency import inspect_hermes_map_sources
+    current_assets_root,_=load_registered_tiles()
+    current_registry_path=current_assets_root/'asset-registry.yaml'
+    current_backend_lock=current_assets_root.parent/'slime-backend/map-data.lock.yaml'
+    if inspect_hermes_map_sources(current_assets_root,current_backend_lock).get('status')!='matched':
+        raise ValueError('맵 원본·등록부·백엔드 잠금의 일치를 확인할 수 없습니다.')
+    current_metadata_bytes=(current_registry_path.read_bytes(),current_backend_lock.read_bytes())
+    current_context_token=CURRENT_REVIEW_ASSET_SOURCE.set(True)
     try:
-        current_review_record=build_registered_map_review(map_identifier_value)
-        current_review_record['contentGeneration']=current_database_bundle['generation']
-        current_review_record['effectProfiles']=current_database_bundle['effectProfiles']
-        current_review_record['imageManifest']={current_texture_key:{**current_image_record,
-            'url':'/management/map-assets/database-images/'+current_image_record['sha256']}
-            for current_texture_key,current_image_record in current_database_bundle['imageManifest'].items()}
-        return current_review_record
+        yield
+        if (inspect_hermes_map_sources(current_assets_root,current_backend_lock).get('status')!='matched'
+                or (current_registry_path.read_bytes(),current_backend_lock.read_bytes())!=current_metadata_bytes):
+            raise ValueError('맵 원본·등록부·백엔드 잠금이 조회 중 변경되었습니다.')
     finally:
-        CURRENT_REVIEW_DATABASE_BUNDLE.reset(current_context_token)
+        CURRENT_REVIEW_ASSET_SOURCE.reset(current_context_token)
+
+
+def load_review_map_menu():
+    """등록된 인덱스·이름을 DB 연결 없이 읽는다."""
+    with open_registered_map_source_snapshot():
+        return build_registered_map_menu()
+
+
+def validate_review_bundle_map_sources(current_database_bundle):
+    """DB 검수 문서를 등록 원본과 비교해 다른 맵을 같은 화면에 표시하지 않는다."""
+    from tools.review.domains.map_assets.source_consistency import inspect_hermes_map_sources
+    current_asset_root,current_asset_records=load_registered_tiles()
+    current_backend_lock=current_asset_root.parent/'slime-backend/map-data.lock.yaml'
+    current_document_records=current_database_bundle.get('documents') if isinstance(current_database_bundle,dict) else None
+    if not isinstance(current_document_records,dict) or not current_document_records:
+        raise ValueError('맵 검수 DB 문서가 없습니다.')
+    if inspect_hermes_map_sources(current_asset_root,current_backend_lock).get('status')!='matched':
+        raise ValueError('맵 원본·등록부·백엔드 잠금의 일치를 확인할 수 없습니다.')
+    for current_relative_name,current_database_document in current_document_records.items():
+        if not isinstance(current_relative_name,str):raise ValueError('맵 검수 문서 경로 오류')
+        current_source_path,current_source_record=resolve_registered_asset('assets/maps/'+current_relative_name,current_asset_root,current_asset_records,'assets/maps')
+        current_source_document=yaml.load(current_source_path.read_bytes(),Loader=UniqueMapSourceLoader)
+        if not isinstance(current_source_document,dict) or set(current_source_document)!={'managementId','data'} or current_source_document['managementId']!=current_source_record['managementId']:
+            raise ValueError('등록된 맵 원본의 관리 ID 오류')
+        current_source_json=json.dumps(current_source_document,sort_keys=True,ensure_ascii=False,allow_nan=False,separators=(',',':'))
+        current_database_json=json.dumps(current_database_document,sort_keys=True,ensure_ascii=False,allow_nan=False,separators=(',',':'))
+        if current_source_json!=current_database_json:
+            raise ValueError('DB 맵 검수 문서가 에셋 원본과 다릅니다: '+current_relative_name)
+    if inspect_hermes_map_sources(current_asset_root,current_backend_lock).get('status')!='matched':
+        raise ValueError('맵 원본·등록부·백엔드 잠금이 검수 중 변경되었습니다.')
+
+
+def load_registered_map_review(map_identifier_value):
+    """검수 데이터와 이미지 참조는 등록 에셋 원본을 사용한다."""
+    with open_registered_map_source_snapshot():
+        return build_registered_map_review(map_identifier_value)
 
 
 def build_registered_map_review(map_identifier_value):

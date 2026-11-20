@@ -113,7 +113,8 @@ def validate_registered_scenery_images(current_object_records, current_property_
     current_texture_paths = {}
     current_database_images = {}
     for current_asset_path, current_asset_record in (current_source_catalog[1].items() if current_source_catalog else ()):
-        if current_asset_record['managementId'].startswith('image.scenery.'):
+        if (current_asset_record.get('source', {}).get('lifecycle_status') != 'retired'
+                and (current_asset_record['managementId'].startswith('image.scenery.') or current_asset_path.startswith('assets/billboards/'))):
             current_texture_name = Path(current_asset_path).stem
             if current_texture_name in current_texture_paths:
                 raise ValueError('지형지물 텍스처 ID 중복: ' + current_texture_name)

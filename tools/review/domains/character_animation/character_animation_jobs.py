@@ -187,6 +187,9 @@ def execute_animation_command(operation_command_name,command_payload_value):
         if not active_record_path.exists(): return {'running':False}
         active_record_value = json.loads(active_record_path.read_text())
         return {**active_record_value,'running':read_generation_status(active_record_value['id'])['status']=='running'}
+    if operation_command_name=='history-observe':
+        from tools.review.common.generation_records import observe_generation_history_records
+        return observe_generation_history_records(GENERATION_HISTORY_DIRECTORY,GENERATION_ROOT_DIRECTORY,command_payload_value,nested_index_only=True)
     if operation_command_name=='history':
         history_record_values = []
         for history_record_path in sorted(GENERATION_HISTORY_DIRECTORY.glob('*.json'),reverse=True):

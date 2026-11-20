@@ -35,6 +35,58 @@ class HermesMapSourceObserverTests(unittest.TestCase):
                 with patch.object(Path,'read_bytes',mutate_metadata_after_read):
                     self.assertEqual(inspect_hermes_map_sources(current_root,current_lock_path)['status'],'unavailable')
 
+    def test_city_source_alignment_compares_registered_original_to_database_document(self):
+        from tools.review.domains.map_assets.source_consistency import inspect_city_source_alignment
+        with TemporaryDirectory() as current_directory_name:
+            current_asset_root=Path(current_directory_name)
+            current_source_path=current_asset_root/'assets/maps/city_layouts/example.yaml'
+            current_source_path.parent.mkdir(parents=True)
+            current_document_record={'managementId':'config.city-layouts.example','data':{'cityId':'example','version':1}}
+            current_source_path.write_text(yaml.safe_dump(current_document_record))
+            current_hash_value=hashlib.sha256(current_source_path.read_bytes()).hexdigest()
+            current_relative_path='assets/maps/city_layouts/example.yaml'
+            (current_asset_root/'asset-registry.yaml').write_text(yaml.safe_dump({'schema_version':1,'assets':[{'managementId':'config.city-layouts.example','version':'1','path':current_relative_path,'sha256':current_hash_value,'source':{}}]}))
+            current_lock_path=current_asset_root/'map-data.lock.yaml'
+            current_lock_path.write_text(yaml.safe_dump({'schema_version':1,'repository':'slime-assets','files':[{'path':current_relative_path,'sha256':current_hash_value}]}))
+            self.assertEqual(inspect_city_source_alignment(current_asset_root,current_lock_path,'example',current_document_record)['status'],'matched')
+            from tools.review.domains.map_assets.source_consistency import read_registered_city_source
+            current_source_value=read_registered_city_source(current_asset_root,current_lock_path,'example')
+            self.assertEqual(current_source_value['document'],current_document_record)
+            self.assertEqual(current_source_value['source_sha256'],current_hash_value)
+            self.assertNotIn(str(current_asset_root),str(current_source_value))
+            with self.assertRaises(ValueError):read_registered_city_source(current_asset_root,current_lock_path,'../secret')
+            current_boolean_record={'managementId':'config.city-layouts.example','data':{'cityId':'example','version':True}}
+            self.assertEqual(inspect_city_source_alignment(current_asset_root,current_lock_path,'example',current_boolean_record)['status'],'mismatch')
+            current_invalid_record={'managementId':'config.city-layouts.example','data':{'cityId':'example',1:'invalid-key'}}
+            self.assertEqual(inspect_city_source_alignment(current_asset_root,current_lock_path,'example',current_invalid_record)['status'],'unavailable')
+            current_cyclic_record={'managementId':'config.city-layouts.example','data':{'cityId':'example'}}
+            current_cyclic_record['data']['cycle']=current_cyclic_record
+            self.assertEqual(inspect_city_source_alignment(current_asset_root,current_lock_path,'example',current_cyclic_record)['status'],'unavailable')
+            self.assertEqual(inspect_city_source_alignment(current_asset_root,current_lock_path,'example',{'different':True})['status'],'mismatch')
+            current_source_path.write_text('data: {}\n')
+            self.assertEqual(inspect_city_source_alignment(current_asset_root,current_lock_path,'example',current_document_record)['status'],'unavailable')
+            with self.assertRaises(ValueError):read_registered_city_source(current_asset_root,current_lock_path,'example')
+
+    def test_field_alignment_compares_both_documents_and_detects_invalid_registry(current_test_case):
+        from tools.review.domains.map_assets.source_consistency import inspect_field_source_alignment
+        with TemporaryDirectory() as current_directory_name:
+            current_root=Path(current_directory_name)
+            current_paths=['assets/maps/field_tiles/example.yaml','assets/maps/terrain/maps/example.yaml']
+            current_values=[{'rows':['KK']},{'columns':2,'blocked':[]}]
+            current_entries=[]
+            for current_index,(current_path,current_data) in enumerate(zip(current_paths,current_values)):
+                current_file=current_root/current_path
+                current_file.parent.mkdir(parents=True,exist_ok=True)
+                current_file.write_text(yaml.safe_dump({'data':current_data}))
+                current_entries.append({'managementId':'field-example-'+str(current_index),'version':'1','path':current_path,'sha256':hashlib.sha256(current_file.read_bytes()).hexdigest(),'source':{}})
+            (current_root/'asset-registry.yaml').write_text(yaml.safe_dump({'schema_version':1,'assets':current_entries}))
+            current_lock=current_root/'map-data.lock.yaml'
+            current_lock.write_text(yaml.safe_dump({'schema_version':1,'repository':'slime-assets','files':[{'path':item['path'],'sha256':item['sha256']} for item in current_entries]}))
+            current_test_case.assertEqual(inspect_field_source_alignment(current_root,current_lock,'example',*current_values)['status'],'matched')
+            current_test_case.assertEqual(inspect_field_source_alignment(current_root,current_lock,'example',current_values[0],{'columns':3,'blocked':[]})['status'],'mismatch')
+            (current_root/current_paths[0]).write_text('data: {}')
+            current_test_case.assertEqual(inspect_field_source_alignment(current_root,current_lock,'example',*current_values)['status'],'unavailable')
+
     def test_map_sources_distinguish_match_mismatch_and_unavailable(self):
         with TemporaryDirectory() as current_temporary_directory:
             current_root = Path(current_temporary_directory)

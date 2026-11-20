@@ -58,7 +58,7 @@ def load_generation_history_records(history_directory_path, generation_jobs_dire
 
 
 
-def observe_generation_history_records(history_directory_path, generation_jobs_directory, current_page_request):
+def observe_generation_history_records(history_directory_path, generation_jobs_directory, current_page_request, nested_index_only=False):
     """숨김 이력 정책을 유지하고 복구·로그 없이 작업 ID와 기록 상태만 페이지로 읽는다."""
     import hashlib
     import re
@@ -95,6 +95,8 @@ def observe_generation_history_records(history_directory_path, generation_jobs_d
             current_created_value=current_history_record.get('created_at',current_job_identifier)
             if not isinstance(current_job_identifier,str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}',current_job_identifier) or not isinstance(current_created_value,str):
                 raise ValueError('이력 색인 필드 오류')
+            if nested_index_only and (not re.fullmatch(current_identifier_pattern,current_job_identifier) or current_history_path.name!=current_job_identifier+'.json'):
+                raise ValueError('중첩 이력 ID 또는 색인 경로 오류')
             if current_job_identifier in current_duplicate_identifiers:
                 continue
             if current_job_identifier in current_history_order:
@@ -110,7 +112,7 @@ def observe_generation_history_records(history_directory_path, generation_jobs_d
                 current_index_statuses[current_job_identifier]=current_index_status['status']
         except (OSError,ValueError,TypeError,AttributeError):
             current_unavailable_count+=1
-    if generation_jobs_directory.is_dir():
+    if not nested_index_only and generation_jobs_directory.is_dir():
         for current_job_path in generation_jobs_directory.iterdir():
             current_job_identifier=current_job_path.name
             if current_job_identifier in current_duplicate_identifiers:
@@ -124,8 +126,15 @@ def observe_generation_history_records(history_directory_path, generation_jobs_d
             if not current_request_path.is_file() or not current_status_path.is_file() or current_request_path.stat().st_mtime<=current_reset_timestamp:
                 continue
             if current_job_identifier not in current_history_order:
-                current_history_order[current_job_identifier]=datetime.strptime(current_job_identifier[:19],'%Y-%m-%d_%H-%M-%S').replace(tzinfo=ZoneInfo('Asia/Seoul')).isoformat()
-    current_identifiers=sorted((current_job_identifier for current_job_identifier in current_history_order if not (generation_jobs_directory/current_job_identifier/'.history-deleted').exists() and not (history_directory_path is not None and (history_directory_path/'deleted'/current_job_identifier).exists())),key=lambda current_job_identifier:current_history_order[current_job_identifier],reverse=True)
+                try:
+                    current_created_time=datetime.strptime(current_job_identifier[:19],'%Y-%m-%d_%H-%M-%S').replace(tzinfo=ZoneInfo('Asia/Seoul')).isoformat()
+                except ValueError:
+                    current_unavailable_count+=1
+                    continue
+                current_history_order[current_job_identifier]=current_created_time
+    def resolve_observed_job_directory(current_job_identifier):
+        return generation_jobs_directory/current_job_identifier[:19]/current_job_identifier if nested_index_only else generation_jobs_directory/current_job_identifier
+    current_identifiers=sorted((current_job_identifier for current_job_identifier in current_history_order if not (resolve_observed_job_directory(current_job_identifier)/'.history-deleted').exists() and not (history_directory_path is not None and (history_directory_path/'deleted'/current_job_identifier).exists())),key=lambda current_job_identifier:(current_history_order[current_job_identifier],current_job_identifier),reverse=True)
     if current_query_text:current_identifiers=[current_identifier for current_identifier in current_identifiers if current_query_text in current_identifier.casefold()]
     current_snapshot_payload={'ids':current_identifiers,'unavailable_count':current_unavailable_count}
     if current_query_text:current_snapshot_payload['query']=current_query_text
@@ -134,9 +143,9 @@ def observe_generation_history_records(history_directory_path, generation_jobs_d
         raise ValueError('이력이 변경되었습니다. 첫 페이지부터 다시 조회하세요.')
     current_output_records=[]
     for current_job_identifier in current_identifiers[current_offset_value:current_offset_value+current_limit_value]:
-        current_status_path=generation_jobs_directory/current_job_identifier/'status.json'
+        current_status_path=resolve_observed_job_directory(current_job_identifier)/'status.json'
         try:
-            if current_status_path.is_symlink() or current_status_path.parent.is_symlink():
+            if current_status_path.is_symlink() or current_status_path.parent.is_symlink() or (nested_index_only and current_status_path.parent.parent.is_symlink()):
                 raise ValueError('이력 상태 경로 오류')
             current_status_record=json.loads(current_status_path.read_text())
             if not isinstance(current_status_record,dict) or ('id' in current_status_record and current_status_record['id']!=current_job_identifier):

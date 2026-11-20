@@ -14,7 +14,7 @@ class CityEditorTests(unittest.TestCase):
         self.bundle = {'generation':5,'revisions':{'city_layouts/stonewarm.yaml':2},'documents':{'city_layouts/stonewarm.yaml':copy.deepcopy(self.document),'sprite-display-properties.yaml':{'data':self.properties}}}
         self.payload = {'map':'stonewarm','generation':5,'revision':2,'document':copy.deepcopy(self.document)}
         self.temporary = tempfile.TemporaryDirectory();self.addCleanup(self.temporary.cleanup)
-        for current_patch in [patch.dict(os.environ,{'SLIME_CONTENT_STORAGE':'database'}),patch.object(city_editor,'CITY_EDITOR_STORAGE_ROOT',Path(self.temporary.name)),patch.object(city_editor,'execute_content_api_request',side_effect=self.mock_api)]:
+        for current_patch in [patch.dict(os.environ,{'SLIME_CONTENT_STORAGE':'database'}),patch.object(city_editor,'CITY_EDITOR_STORAGE_ROOT',Path(self.temporary.name)),patch.object(city_editor,'execute_content_api_request',side_effect=self.mock_api),patch.object(city_editor,'read_validated_city_editor_sources',side_effect=lambda current_bundle_value,current_document_name:(copy.deepcopy(current_bundle_value['documents'][current_document_name]),copy.deepcopy(current_bundle_value['documents']['sprite-display-properties.yaml']['data'])))]:
             current_patch.start();self.addCleanup(current_patch.stop)
         self.saved=[]
     def mock_api(self,current_method,current_route,current_payload=None):
@@ -44,31 +44,23 @@ class CityEditorTests(unittest.TestCase):
                 current_loaded_value = execute_management_command('hermes-agent','hermes-city-load',{'map':'stonewarm'},current_address_value)
                 self.assertEqual(current_loaded_value,self.payload)
                 current_noop_preview = execute_management_command('hermes-agent','hermes-city-preview',{'draft':self.payload},current_address_value)
-                current_noop_request = {'request_id':'city_noop_123','draft':self.payload,'token':current_noop_preview['token']}
-                self.assertFalse(execute_management_command('hermes-agent','hermes-city-save',current_noop_request,current_address_value)['saved'])
+                current_request_value = {'request_id':'city_noop_123','draft':self.payload,'token':current_noop_preview['token']}
+                with self.assertRaises(ValueError):
+                    execute_management_command('hermes-agent','hermes-city-save',current_request_value,current_address_value)
+                self.assertEqual(execute_management_command('hermes-agent','hermes-city-receipt',{'request_id':'city_noop_123'},current_address_value)['state'],'not_found')
                 self.assertEqual(self.saved,[])
-                self.payload['document']['data']['version']=2
-                current_preview_value = execute_management_command('hermes-agent','hermes-city-preview',{'draft':self.payload},current_address_value)
-                current_request_value = {'request_id':'city_save_123','draft':self.payload,'token':current_preview_value['token']}
-                self.assertTrue(execute_management_command('hermes-agent','hermes-city-save',current_request_value,current_address_value)['saved'])
-                self.assertTrue(execute_management_command('hermes-agent','hermes-city-save',current_request_value,current_address_value)['duplicate'])
-                self.assertEqual(len(self.saved),1)
-                self.assertEqual(self.saved[0]['expectedGeneration'],5)
-                self.assertEqual(self.saved[0]['documents'][0]['document'],self.payload['document'])
-                self.assertEqual(execute_management_command('hermes-agent','hermes-city-receipt',{'request_id':'city_save_123'},current_address_value)['state'],'completed')
-                self.assertEqual(len(execute_management_command('hermes-agent','hermes-city-history',{},current_address_value)['records']),2)
         finally:
             current_server_value.shutdown()
             current_thread_value.join(timeout=5)
             current_server_value.server_close()
 
-    def test_preview_and_save_use_same_document(self):
+    def test_preview_succeeds_but_direct_city_save_is_blocked(self):
         self.payload['document']['data']['version']=2
         current_preview=city_editor.preview_city_editor_changes(self.payload)
         self.assertTrue(current_preview['changed'])
-        self.assertTrue(city_editor.save_city_editor_changes({**self.payload,'token':current_preview['token']})['saved'])
-        self.assertEqual(self.saved[0]['documents'][0]['document'],self.payload['document'])
-        self.assertEqual(self.saved[0]['expectedGeneration'],5)
+        with self.assertRaisesRegex(ValueError,'동기 저장이 구현될 때까지 중단'):
+            city_editor.save_city_editor_changes({**self.payload,'token':current_preview['token']})
+        self.assertEqual(self.saved,[])
     def test_invalid_stale_and_changed_drafts_rejected(self):
         with self.assertRaisesRegex(ValueError,'변경되었습니다'):city_editor.preview_city_editor_changes({**self.payload,'revision':1})
         current_invalid=copy.deepcopy(self.payload);current_invalid['document']['data']['buildings'][0]['entrance']['column']=4
@@ -79,7 +71,7 @@ class CityEditorTests(unittest.TestCase):
     def test_change_after_preview_is_rejected(self):
         current_preview=city_editor.preview_city_editor_changes(self.payload)
         self.bundle['generation']+=1
-        with self.assertRaisesRegex(ValueError,'변경되었습니다'):city_editor.save_city_editor_changes({**self.payload,'token':current_preview['token']})
+        with self.assertRaisesRegex(ValueError,'동기 저장이 구현될 때까지 중단'):city_editor.save_city_editor_changes({**self.payload,'token':current_preview['token']})
         self.assertFalse(self.saved)
 
 if __name__ == '__main__':unittest.main()

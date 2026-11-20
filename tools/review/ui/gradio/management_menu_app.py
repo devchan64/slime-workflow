@@ -296,6 +296,7 @@ def create_initial_selection_script(page_record_values):
         const currentUrlValue=new URL(window.location.href);
         if(currentUrlValue.pathname.replace(/\/$/,'')==='/management/frame/hermes-agent')return ['', 'all', 'hermes-agent'];
         if(currentUrlValue.pathname.replace(/\/$/,'')==='/management/frame/operations-history')return ['', 'all', 'operations-history'];
+        if(currentUrlValue.pathname.replace(/\/$/,'')==='/management/frame/hermes-direct')return ['', 'all', 'hermes-direct'];
         if(['field-map-review','town-map-review'].includes(currentUrlValue.searchParams.get('category'))){{currentUrlValue.searchParams.set('category','map-review');window.history.replaceState(window.history.state,'',currentUrlValue.href);}}
         if({json.dumps(LEGACY_SOUND_CATEGORY_NAMES)}.includes(currentUrlValue.searchParams.get('category'))){{currentUrlValue.searchParams.set('category','sound-management');window.history.replaceState(window.history.state,'',currentUrlValue.href);}}
         const requestedPageIdentifier=currentUrlValue.searchParams.get('review')||currentUrlValue.searchParams.get('tool');
@@ -305,7 +306,8 @@ def create_initial_selection_script(page_record_values):
         if(resolvedPageIdentifier&&!pageRecords.some(record=>record.id===resolvedPageIdentifier)){{
             return [currentUrlValue.searchParams.get('search')||'',currentUrlValue.searchParams.get('category')||'all',resolvedPageIdentifier];
         }}
-        const selectedPageRecord=pageRecords.find(record=>record.id===resolvedPageIdentifier)||pageRecords.find(record=>record.path===currentUrlValue.pathname)||pageRecords.find(record=>{{if(!record.nativePath)return false;const currentTargetUrl=new URL(record.nativePath,currentUrlValue);return currentTargetUrl.pathname===currentUrlValue.pathname&&Array.from(currentTargetUrl.searchParams).every(([currentParameterName,currentParameterValue])=>currentUrlValue.searchParams.get(currentParameterName)===currentParameterValue);}})||pageRecords[0];
+        const currentMapPage=currentUrlValue.pathname.replace(/\/$/,'')==='/management/frame/map-review'?pageRecords.find(record=>record.nativePath&&new URL(record.nativePath,currentUrlValue).pathname.replace(/\/$/,'')==='/management/frame/map-review'):null;
+        const selectedPageRecord=pageRecords.find(record=>record.id===resolvedPageIdentifier)||pageRecords.find(record=>record.path===currentUrlValue.pathname)||currentMapPage||pageRecords.find(record=>{{if(!record.nativePath)return false;const currentTargetUrl=new URL(record.nativePath,currentUrlValue);return currentTargetUrl.pathname===currentUrlValue.pathname&&Array.from(currentTargetUrl.searchParams).every(([currentParameterName,currentParameterValue])=>currentUrlValue.searchParams.get(currentParameterName)===currentParameterValue);}})||pageRecords[0];
         if(selectedPageRecord?.nativePath){{
             const currentTargetUrl=new URL(selectedPageRecord.nativePath,currentUrlValue);
             if(currentUrlValue.pathname!==currentTargetUrl.pathname){{
@@ -389,9 +391,9 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
             page_select_value=gr.Dropdown(choices=create_tool_choice_values(page_record_values),value=initial_page_identifier,label='도구 목록',elem_id='management-tool-list')
         with gr.Row(elem_id='management-header'):
             gr.Markdown('## SLIME 관리도구',scale=3)
-            gr.HTML('<a href="/management/frame/hermes-agent/" target="_self">운영 대화로 돌아가기</a>', scale=1)
-            gr.HTML('<a href="/management/frame/operations-history/" target="_blank" rel="noopener">운영 이력</a>', scale=1)
-        with gr.Accordion('GPU 프로세스 정보',open=False,elem_id='management-gpu-floating'):
+            gr.HTML('<a href="/management/frame/hermes-agent/" target="_self">운영 대화로 돌아가기</a>', scale=1, elem_id='management-return-conversation')
+            gr.HTML('<a href="/management/frame/operations-history/" target="_blank" rel="noopener">운영 이력</a>', scale=1, elem_id='management-open-history')
+        with gr.Accordion('GPU 프로세스 정보',open=False,elem_id='management-gpu-floating') as current_gpu_panel:
             # GPU 표시 상태는 페이지 내부에서만 사용한다. gr.State는 각 탭에
             # 상시 heartbeat 연결을 만들어 브라우저의 연결 한도를 점유한다.
             gpu_status_value=gr.JSON(value={},visible=False)
@@ -437,6 +439,8 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
         def initialize_menu_selection(current_search_text,current_category_name,current_page_identifier):
             if current_page_identifier == 'operations-history':
                 return ['', 'all', gr.update(choices=create_tool_choice_values(page_record_values),value=None), f'**{len(page_record_values)}개** 도구 · 전체 {len(page_record_values)}개', '운영 이력 · 지시와 GPU 대기 기록', gr.skip() if current_inline_mode else '']
+            if current_page_identifier == 'hermes-direct':
+                return ['', 'all', gr.update(choices=create_tool_choice_values(page_record_values),value=None), f'**{len(page_record_values)}개** 도구 · 전체 {len(page_record_values)}개', '직접 조회와 작업', gr.skip() if current_inline_mode else '']
             if current_page_identifier == 'hermes-agent':
                 return ['', 'all', gr.update(choices=create_tool_choice_values(page_record_values),value=None), f'**{len(page_record_values)}개** 도구 · 전체 {len(page_record_values)}개', '운영 대화 · 관리 작업의 시작과 진행', gr.skip() if current_inline_mode else '']
             if current_page_identifier == 'building-generator':
@@ -455,8 +459,13 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
             return [current_search_text,current_category_name,*current_selection_updates]
         interface_blocks_value.load(initialize_menu_selection,current_navigation_inputs,[search_text_value,category_select_value,page_select_value,tool_count_value,selected_page_status_value,page_preview_value],js=initial_selection_script,queue=False,preprocess=False,show_progress='hidden')
         interface_blocks_value.load(fn=None,js=create_sidebar_responsive_script(current_inline_mode))
+        interface_blocks_value.load(fn=None,js="()=>{let tabSession=null;let recentSession=null;try{tabSession=sessionStorage.getItem('slime-management-session');}catch(e){}try{recentSession=localStorage.getItem('slime-management-session');}catch(e){}const currentUrl=new URL(window.location.href);const linkedSession=currentUrl.searchParams.get('session');const selectedSession=/^[a-f0-9]{32}$/.test(linkedSession || '')?linkedSession:/^[a-f0-9]{32}$/.test(tabSession || '')?tabSession:recentSession;const returnLink=document.querySelector('#management-return-conversation a');if(/^[a-f0-9]{32}$/.test(selectedSession || '')){if(returnLink)returnLink.setAttribute('href','/management/frame/hermes-agent/?session='+selectedSession);const historyLink=document.querySelector('#management-open-history a');if(historyLink)historyLink.setAttribute('href','/management/frame/operations-history/?session='+selectedSession);}}")
         interface_blocks_value.load(read_gpu_status,outputs=gpu_status_value,queue=False)
-        if hasattr(gr,'Timer'):gr.Timer(MANAGEMENT_GPU_REFRESH_SECONDS).tick(read_gpu_status,outputs=gpu_status_value,show_progress='hidden',queue=False)
+        if hasattr(gr,'Timer'):
+            current_gpu_refresh_timer=gr.Timer(MANAGEMENT_GPU_REFRESH_SECONDS,active=False)
+            current_gpu_refresh_timer.tick(read_gpu_status,outputs=gpu_status_value,show_progress='hidden',queue=False)
+            current_gpu_panel.expand(lambda: gr.update(active=True),outputs=current_gpu_refresh_timer,queue=False).then(read_gpu_status,outputs=gpu_status_value,queue=False)
+            current_gpu_panel.collapse(lambda: gr.update(active=False),outputs=current_gpu_refresh_timer,queue=False)
     return interface_blocks_value,initial_selection_script
 
 if __name__=='__main__':

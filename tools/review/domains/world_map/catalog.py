@@ -9,6 +9,13 @@ WORLD_THUMBNAIL_CATALOG_PATH = 'assets/ui/world-map/thumbnails.yaml'
 
 
 def load_world_review_catalog():
+    """DB 설정과 무관하게 등록된 월드맵 원본을 일관되게 조회한다."""
+    from tools.review.common.map_asset_sources import open_registered_map_source_snapshot
+    with open_registered_map_source_snapshot():
+        return build_world_asset_catalog()
+
+
+def build_world_asset_catalog():
     current_source_catalog = load_registered_tiles()
     current_assets_root,current_asset_records = current_source_catalog
     current_provenance_records = []

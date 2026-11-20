@@ -34,15 +34,20 @@ class MusicRegressionResult(unittest.TextTestResult):
     """비동기 테스트가 멈춰도 원인·실패를 저장하고 종료한다."""
     def startTest(self,current_test_case):
         super().startTest(current_test_case)
+        current_test_method=getattr(current_test_case,current_test_case._testMethodName)
+        current_timeout_seconds=getattr(current_test_method,'regression_timeout_seconds',30)
+        if type(current_timeout_seconds) is not int or not 1<=current_timeout_seconds<=600:
+            raise ValueError('회귀 검사 제한 시간은 1~600초 정수여야 합니다.')
+        self.current_timeout_seconds=current_timeout_seconds
         signal.signal(signal.SIGALRM,self.raise_test_timeout)
-        signal.alarm(30)
+        signal.alarm(current_timeout_seconds)
 
     def stopTest(self,current_test_case):
         signal.alarm(0)
         super().stopTest(current_test_case)
 
     def raise_test_timeout(self,current_signal_number,current_stack_frame):
-        raise TimeoutError('회귀 테스트 30초 제한 초과')
+        raise TimeoutError(f'회귀 테스트 {self.current_timeout_seconds}초 제한 초과')
 
 
 def execute_regression_worker(current_test_modules, current_report_area, current_result_root):

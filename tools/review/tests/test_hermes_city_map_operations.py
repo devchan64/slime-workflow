@@ -90,31 +90,73 @@ class HermesCityMapOperationsTests(unittest.TestCase):
         current_proposal['changes'].append({'path':['data','buildings'],'before':[],'after':[]})
         with self.assertRaises(ValueError):parse_hermes_city_proposal('HERMES_CITY_PROPOSAL\n'+json.dumps(current_proposal)+'\nEND_HERMES_CITY_PROPOSAL')
 
-    def test_unknown_response_is_not_retried_and_can_be_recovered(self):
-        current_draft_value = {'map':'stonewarm','generation':5,'revision':2,'document':{'name':'한글'}}
-        current_token_value = city_map_operations.validate_hermes_city_draft(current_draft_value)
-        def execute_city_command(current_command_name,current_payload_value):
-            if current_command_name == 'city-edit-preview':
-                return {'token':current_token_value,'changed':True,'cityId':'stonewarm','columns':5,'rows':5,'buildings':1,'objects':0}
-            raise OSError('lost response')
-        with TemporaryDirectory() as current_root_name, patch.object(city_map_operations,'HermesDelegationStore',return_value=HermesDelegationStore(Path(current_root_name))), patch.object(city_map_operations,'call_field_map_editor',side_effect=execute_city_command) as current_gateway_mock:
-            with self.assertRaises(OSError):
-                city_map_operations.save_hermes_city_map_once('city_unknown_123',current_draft_value,current_token_value)
-            self.assertEqual(city_map_operations.read_hermes_city_receipt('city_unknown_123')['state'],'unknown')
-            self.assertEqual(city_map_operations.list_hermes_city_receipts()['records'][0]['state'],'unknown')
-            self.assertTrue(city_map_operations.save_hermes_city_map_once('city_unknown_123',current_draft_value,current_token_value)['duplicate'])
-            self.assertEqual(current_gateway_mock.call_count,2)
-            current_other_draft = {**current_draft_value,'revision':3}
-            with self.assertRaises(ValueError):
-                city_map_operations.save_hermes_city_map_once('city_unknown_123',current_other_draft,city_map_operations.validate_hermes_city_draft(current_other_draft))
-            self.assertEqual(HermesDelegationStore(Path(current_root_name)).list_delegation_receipts()['records'],[])
+    def test_conversation_city_preview_never_enables_save(self):
+        import gradio as gr
+        from tools.review.ui.gradio import hermes_agent_app
+        current_draft_text='{"map":"stonewarm","generation":5,"revision":2,"document":{}}'
+        current_review_record={'request_id':'request','draft':{},'token':'a'*64}
+        with patch.object(hermes_agent_app,'find_conversation_session_job'), patch.object(hermes_agent_app,'execute_remote_management_command',return_value={'state':'not_found'}), patch.object(hermes_agent_app,'load_conversation_city_proposal',return_value=(current_draft_text,[])), patch.object(hermes_agent_app,'review_hermes_city_map_draft',return_value=(current_review_record,'신규 저장 중단',{})):
+            current_card_record,current_preview_text,_,current_status_text=hermes_agent_app.prepare_conversation_edit_review('a'*32,'job-1','city')
+            self.assertFalse(current_card_record['ready'])
+            self.assertIn('신규 저장 중단',current_status_text)
+            with self.assertRaises(gr.Error):
+                hermes_agent_app.submit_conversation_edit_review(current_card_record,'a'*32,'job-1','city')
+
+    def test_city_preview_reports_saving_unavailable(self):
+        current_draft_record={'map':'stonewarm','generation':5,'revision':2,'document':{}}
+        current_token_value=city_map_operations.validate_hermes_city_draft(current_draft_record)
+        current_preview_record={'token':current_token_value,'cityId':'stonewarm','changed':True,'columns':5,'rows':5,'buildings':1,'objects':0}
+        with patch.object(city_map_operations,'call_field_map_editor',return_value=current_preview_record):
+            self.assertIs(city_map_operations.preview_hermes_city_map(current_draft_record)['save_available'],False)
+
+    def test_city_preview_compares_current_database_document_with_registered_source(self):
+        current_draft_record={'map':'stonewarm','generation':5,'revision':2,'document':{'edited':True}}
+        current_database_record={**current_draft_record,'document':{'original':True}}
+        current_token_value=city_map_operations.validate_hermes_city_draft(current_draft_record)
+        current_preview_record={'token':current_token_value,'cityId':'stonewarm','changed':True,'columns':5,'rows':5,'buildings':1,'objects':0}
+        with patch.object(city_map_operations,'call_field_map_editor',return_value=current_preview_record),patch.object(city_map_operations,'load_hermes_city_map',return_value=current_database_record),patch('tools.review.domains.map_assets.source_consistency.inspect_city_source_alignment',return_value={'status':'matched','note':'fixture'}) as current_alignment_mock:
+            current_result_record=city_map_operations.preview_hermes_city_map(current_draft_record)
+            self.assertEqual(current_result_record['source_alignment']['status'],'matched')
+            self.assertEqual(current_alignment_mock.call_args.args[3],{'original':True})
+            current_database_record['revision']=3
+            current_alignment_mock.reset_mock()
+            self.assertEqual(city_map_operations.preview_hermes_city_map(current_draft_record)['source_alignment']['status'],'unavailable')
+            current_alignment_mock.assert_not_called()
+
+    def test_city_preview_reports_unavailable_when_database_changes_during_comparison(self):
+        current_draft_record={'map':'stonewarm','generation':5,'revision':2,'document':{}}
+        current_token_value=city_map_operations.validate_hermes_city_draft(current_draft_record)
+        current_preview_record={'token':current_token_value,'cityId':'stonewarm','changed':True,'columns':5,'rows':5,'buildings':1,'objects':0}
+        current_initial_record={**current_draft_record,'document':{'original':True}}
+        current_changed_record={**current_initial_record,'revision':3}
+        with patch.object(city_map_operations,'call_field_map_editor',return_value=current_preview_record),patch.object(city_map_operations,'load_hermes_city_map',side_effect=[current_initial_record,current_changed_record]),patch('tools.review.domains.map_assets.source_consistency.inspect_city_source_alignment',return_value={'status':'matched','note':'fixture'}):
+            self.assertEqual(city_map_operations.preview_hermes_city_map(current_draft_record)['source_alignment']['status'],'unavailable')
+
+    def test_city_save_blocks_new_dispatch_and_preserves_old_receipts(self):
+        import json
+        current_draft_value={'map':'stonewarm','generation':5,'revision':2,'document':{'name':'한글'}}
+        current_token_value=city_map_operations.validate_hermes_city_draft(current_draft_value)
+        with TemporaryDirectory() as current_root_name:
+            current_store_value=HermesDelegationStore(Path(current_root_name))
+            with patch.object(city_map_operations,'HermesDelegationStore',return_value=current_store_value), patch.object(city_map_operations,'call_field_map_editor') as current_gateway_mock:
+                with self.assertRaisesRegex(ValueError,'신규 저장'):
+                    city_map_operations.save_hermes_city_map_once('city_unknown_123',current_draft_value,current_token_value)
+                self.assertEqual(city_map_operations.read_hermes_city_receipt('city_unknown_123')['state'],'not_found')
+                current_record_path=current_store_value.resolve_delegation_record_path('city_unknown_123')
+                current_record_path.write_text(json.dumps({'version':5,'id':'city_unknown_123','token':current_token_value,'map':'stonewarm','state':'dispatching'}))
+                self.assertEqual(city_map_operations.read_hermes_city_receipt('city_unknown_123')['state'],'unknown')
+                self.assertTrue(city_map_operations.save_hermes_city_map_once('city_unknown_123',current_draft_value,current_token_value)['duplicate'])
+                current_gateway_mock.assert_not_called()
+                current_other_draft={**current_draft_value,'revision':3}
+                with self.assertRaises(ValueError):
+                    city_map_operations.save_hermes_city_map_once('city_unknown_123',current_other_draft,city_map_operations.validate_hermes_city_draft(current_other_draft))
 
     def test_map_save_does_not_overwrite_changed_receipt_or_retry(self):
         import json
         from tools.review.domains.hermes_agent import field_map_operations
         current_city_draft={'map':'stonewarm','generation':5,'revision':2,'document':{'name':'한글'}}
         current_field_draft={'map':'moss-clearing','revision':'old','cells':[],'objects':[]}
-        current_cases=((city_map_operations,'city',current_city_draft,city_map_operations.validate_hermes_city_draft(current_city_draft)),(field_map_operations,'field',current_field_draft,field_map_operations.validate_field_map_draft(current_field_draft)))
+        current_cases=((field_map_operations,'field',current_field_draft,field_map_operations.validate_field_map_draft(current_field_draft)),)
         for current_module_value,current_kind_name,current_draft_value,current_token_value in current_cases:
             with self.subTest(kind=current_kind_name),TemporaryDirectory() as current_root_name:
                 current_store_value=HermesDelegationStore(Path(current_root_name))
@@ -124,7 +166,7 @@ class HermesCityMapOperationsTests(unittest.TestCase):
                 def current_editor_response(current_command_name,current_payload_value):
                     current_calls.append(current_command_name)
                     if current_command_name=='city-edit-preview':return {'token':current_token_value,'changed':True,'cityId':'stonewarm','columns':5,'rows':5,'buildings':1,'objects':0}
-                    if current_command_name=='map-edit-preview':return {'token':current_token_value,'changed':True,'reachable':12,'objects':0,'cells':0}
+                    if current_command_name=='map-edit-preview':return {'token':current_token_value,'changed':True,'reachable':12,'objects':0,'cells':0,'save_available':True}
                     current_changed_record=json.loads(current_record_path.read_text())
                     current_changed_record['external_change']='preserve'
                     current_record_path.write_text(json.dumps(current_changed_record))

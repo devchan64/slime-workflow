@@ -21,6 +21,11 @@ def inspect_dwpose_runtime_status():
 
 
 class DwposeGenerationManager(ReferenceVideoGenerationManager):
+    def validate_generation_resume(self, selected_job_directory, recover_interrupted_value=True):
+        saved_request_record = super().validate_generation_resume(selected_job_directory, recover_interrupted_value=recover_interrupted_value)
+        if len(saved_request_record['references']) != 1:
+            raise ValueError('DWPose 재개에는 참조 이미지 1장이 필요합니다.')
+
     def __init__(self):
         super().__init__('/dwpose', DWPOSE_JOB_STORAGE, 'generators/dwpose/rocm_worker.py', validate_dwpose_request, validate_fun_pose_assets, inspect_dwpose_runtime_status)
 
