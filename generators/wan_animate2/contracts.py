@@ -15,6 +15,7 @@ ANIMATE_MODEL_IDENTIFIER = 'Wan-AI/Wan2.2-Animate-2-14B-Diffusers'
 ANIMATE_MODEL_REVISION = '7d48412d7b903ff3a89f4f5a960d99e1899605a1'
 ANIMATE_RUNTIME_REVISION = '8c54b38fea3d624d23d0e43c0c96037f080a79f9'
 ANIMATE_MAXIMUM_BYTES = 32 * 1024 * 1024
+ANIMATE_OUTPUT_FRAME_RATE = 16
 
 
 def inspect_animate_assets():
@@ -87,8 +88,8 @@ def validate_animate_request(current_request_record):
         try:
             current_video_rate=current_video_capture.get(cv2.CAP_PROP_FPS)
             current_video_count=current_video_capture.get(cv2.CAP_PROP_FRAME_COUNT)
-            if not current_video_capture.isOpened() or not 1<=current_video_rate<=120 or int(current_video_count/current_video_rate*24)<current_request_record['frames']:
-                raise ValueError('영상 디코딩 실패 또는 24fps 기준 입력 길이 부족')
+            if not current_video_capture.isOpened() or not 1<=current_video_rate<=120 or int(current_video_count/current_video_rate*ANIMATE_OUTPUT_FRAME_RATE)<current_request_record['frames']:
+                raise ValueError('영상 디코딩 실패 또는 16fps 기준 입력 길이 부족')
         finally:
             current_video_capture.release()
     return dict(current_request_record)

@@ -52,14 +52,14 @@ def build_animate_interface(current_server_address,current_command_callback=None
         current_model_ready, current_model_events = build_model_download_controls(current_interface_blocks, current_execute_command, model_service_name='wan22-animate2')
         with gr.Row():
             with gr.Column():
-                gr.Markdown('### 1. 입력 준비\n캐릭터 PNG 1장(832×480)과 SOMA 인체 렌더 또는 RGB 동작 MP4를 넣으세요. 입력 시간 기준 24fps로 샘플링하며, 부족한 구간을 임의 반복하지 않습니다.')
+                gr.Markdown('### 1. 입력 준비\n캐릭터 PNG 1장(832×480)과 SOMA 인체 렌더 또는 RGB 동작 MP4를 넣으세요. 입력 시간 기준 16fps로 샘플링하며, 부족한 구간을 임의 반복하지 않습니다.')
                 _,current_reference_controls=build_reference_image_inputs(reference_slot_count=1,reference_slot_labels=['캐릭터 외형 참조 · 832×480'])
                 current_reference_control=current_reference_controls[0]
                 current_motion_control=gr.Video(sources=['upload'],label='RGB 동작 MP4 · SOMA 렌더 품질은 실험 대상')
                 current_prompt_control=gr.Textbox(label='캐릭터 외형·배경 설명',lines=3,info='참조의 외형과 배경을 기술하세요. 동작은 입력 영상이 제공합니다. 자동 문구 추가 없음.')
                 current_prompt_summary=gr.Markdown('원문 0단어 · 최종 0단어')
                 current_prompt_control.change(lambda current_prompt_text:f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어 · 원문 그대로 전달',current_prompt_control,current_prompt_summary,queue=False)
-                current_frame_control=gr.Number(value=21,precision=0,minimum=5,maximum=81,step=4,label='실험 프레임 · 24fps · 4n+1')
+                current_frame_control=gr.Number(value=21,precision=0,minimum=5,maximum=81,step=4,label='실험 프레임 · 16fps · 4n+1')
                 current_steps_control=gr.Number(value=40,precision=0,minimum=2,maximum=50,label='스텝 · 공식 Base 기본 40')
                 current_seed_control=build_generation_seed(default_seed_value=42)
                 gr.Markdown('고정: 공식 Base BF16 · 공식 스케줄러/CFG · AMD ROCm GPU 연산 · 가중치 CPU 오프로드 없음. 실행 안정성과 캐릭터 비율 보존은 별도 검증이 필요합니다.')

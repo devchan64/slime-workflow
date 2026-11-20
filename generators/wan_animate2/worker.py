@@ -12,7 +12,7 @@ configure_animate_memory_allocator(os.environ)
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
-from generators.wan_animate2.contracts import ANIMATE_JOB_STORAGE, ANIMATE_MODEL_DIRECTORY, ANIMATE_MODEL_IDENTIFIER, ANIMATE_MODEL_REVISION, ANIMATE_RUNTIME_DIRECTORY, ANIMATE_RUNTIME_REVISION, validate_animate_assets
+from generators.wan_animate2.contracts import ANIMATE_JOB_STORAGE, ANIMATE_MODEL_DIRECTORY, ANIMATE_MODEL_IDENTIFIER, ANIMATE_MODEL_REVISION, ANIMATE_RUNTIME_DIRECTORY, ANIMATE_RUNTIME_REVISION, ANIMATE_OUTPUT_FRAME_RATE, validate_animate_assets
 from generators.common.reference_video_worker import run_reference_video_worker, save_video_outputs
 
 
@@ -90,9 +90,9 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
         current_component_model.to('cuda')
     current_source_frames,current_source_rate=load_video(str(current_video_path),return_fps=True)
     current_frame_count=current_request_record['frames']
-    current_frame_indices=np.round(np.arange(current_frame_count)*current_source_rate/24).astype(int)
+    current_frame_indices=np.round(np.arange(current_frame_count)*current_source_rate/ANIMATE_OUTPUT_FRAME_RATE).astype(int)
     if current_frame_indices[-1]>=len(current_source_frames):
-        raise ValueError('24fps 기준 동작 영상 길이 부족')
+        raise ValueError('16fps 기준 동작 영상 길이 부족')
     current_driving_frames=[current_source_frames[int(current_frame_index)] for current_frame_index in current_frame_indices]
     current_metrics_recorder.update_generation_stage('inference')
     current_scheduler_step=current_pipeline_model.scheduler.step
@@ -111,15 +111,15 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
         current_metrics_recorder.record_generation_step(current_completed_steps[0])
         return current_step_result
     current_pipeline_model.scheduler.step=record_scheduler_step
-    current_output_videos=current_pipeline_model(image=load_image(str(current_job_root/current_request_record['references'][0])),driving_video=current_driving_frames,driving_video_fps=24,prompt=current_request_record['prompt'],height=480,width=832,segment_frame_length=current_frame_count,num_inference_steps=current_request_record['steps'],generator=torch.Generator(device='cuda').manual_seed(current_request_record['seed']),output='videos')
+    current_output_videos=current_pipeline_model(image=load_image(str(current_job_root/current_request_record['references'][0])),driving_video=current_driving_frames,driving_video_fps=ANIMATE_OUTPUT_FRAME_RATE,fps=ANIMATE_OUTPUT_FRAME_RATE,prompt=current_request_record['prompt'],height=480,width=832,segment_frame_length=current_frame_count,num_inference_steps=current_request_record['steps'],generator=torch.Generator(device='cuda').manual_seed(current_request_record['seed']),output='videos')
     current_frame_arrays=validate_animate_output_frames(np.asarray(current_output_videos[0]),np)
     if current_frame_arrays.dtype!=np.uint8:
         current_frame_arrays=np.rint(np.clip(current_frame_arrays,0,1)*255).astype(np.uint8)
     if len(current_frame_arrays)!=current_frame_count:
         raise ValueError(f'공식 출력 프레임 불일치: {len(current_frame_arrays)} / {current_frame_count}')
     current_metrics_recorder.update_generation_stage('postprocess')
-    current_output_hashes=save_video_outputs(current_attempt_root,current_frame_arrays,24)
-    return {'attempt':current_attempt_root.name,'frames':current_frame_count,'fps':24,'output_sha256':current_output_hashes,'model_id':ANIMATE_MODEL_IDENTIFIER,'model_revision':ANIMATE_MODEL_REVISION,'runtime_revision':ANIMATE_RUNTIME_REVISION,'prompt_words':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'attention_execution':'inductor-fullgraph-isolated','vae_attention_backend':'math','reference_kv_offload':None,'compute_backend':'rocm','weight_offload':None,'cuda_allocator':'expandable_segments:False','quality_status':'사용자 검수 대기'}
+    current_output_hashes=save_video_outputs(current_attempt_root,current_frame_arrays,ANIMATE_OUTPUT_FRAME_RATE)
+    return {'attempt':current_attempt_root.name,'frames':current_frame_count,'fps':ANIMATE_OUTPUT_FRAME_RATE,'output_sha256':current_output_hashes,'model_id':ANIMATE_MODEL_IDENTIFIER,'model_revision':ANIMATE_MODEL_REVISION,'runtime_revision':ANIMATE_RUNTIME_REVISION,'prompt_words':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'attention_execution':'inductor-fullgraph-isolated','vae_attention_backend':'math','reference_kv_offload':None,'compute_backend':'rocm','weight_offload':None,'cuda_allocator':'expandable_segments:False','quality_status':'사용자 검수 대기'}
 
 if __name__=='__main__':
     run_reference_video_worker(ANIMATE_JOB_STORAGE,Path(__file__),validate_animate_assets,execute_animate_inference)
