@@ -180,7 +180,14 @@ def list_hermes_session_choices(hermes_selected_identifier=None):
         raise gr.Error('세션 목록 조회 실패: ' + str(hermes_request_error)) from hermes_request_error
 
 
-def review_translation_image_workflow(current_session_identifier, current_source_text, current_image_width, current_image_height, image_revision_prompt=""):
+def import_workflow_translation_proposal(current_session_identifier, current_source_job_identifier):
+    find_conversation_session_job(current_session_identifier, current_source_job_identifier)
+    proposal_input_record = read_matching_hermes_edit_proposal(current_source_job_identifier, "hermes-translation-proposal")
+    translation_glossary_text = "\n".join(item["source"] + " => " + item["target"] for item in proposal_input_record["glossary"])
+    return proposal_input_record["text"], proposal_input_record["target_language"], translation_glossary_text
+
+
+def review_translation_image_workflow(current_session_identifier, current_source_text, current_image_width, current_image_height, image_revision_prompt="", translation_target_language="en", translation_glossary_text=""):
     from tools.review.domains.hermes_agent.workflow_catalog import create_workflow_step_draft
     if not re.fullmatch(r"[a-f0-9]{32}", current_session_identifier or ""):
         raise gr.Error("먼저 대화 세션을 선택하세요.")
@@ -189,7 +196,12 @@ def review_translation_image_workflow(current_session_identifier, current_source
     for current_size_value in (current_image_width, current_image_height):
         if current_size_value not in range(256, 1665, 16):
             raise gr.Error("이미지 크기는 256~1664 범위에서 16의 배수로 입력하세요.")
-    translation_step_record = create_workflow_step_draft("translate", "prompt-translation", {"text": current_source_text})
+    from tools.review.ui.gradio.prompt_translation_app import parse_translation_glossary
+    from tools.review.domains.translation.service import validate_translation_submission
+    translation_input_record = {"text": current_source_text, "target_language": translation_target_language,
+                                "glossary": parse_translation_glossary(translation_glossary_text)}
+    validate_translation_submission(translation_input_record)
+    translation_step_record = create_workflow_step_draft("translate", "prompt-translation", translation_input_record)
     image_step_record = create_workflow_step_draft("image", "flux-image",
         {"width": int(current_image_width), "height": int(current_image_height)})
     image_step_record["bindings"]["prompt"] = {"from_step": "translate", "output": "text"}
@@ -207,9 +219,10 @@ def review_translation_image_workflow(current_session_identifier, current_source
 
 
 def submit_translation_image_workflow(current_review_record, current_session_identifier, current_source_text,
-                                      current_image_width, current_image_height, image_revision_prompt=""):
+                                      current_image_width, current_image_height, image_revision_prompt="", translation_target_language="en", translation_glossary_text=""):
     current_expected_record, _, _ = review_translation_image_workflow(
-        current_session_identifier, current_source_text, current_image_width, current_image_height, image_revision_prompt)
+        current_session_identifier, current_source_text, current_image_width, current_image_height, image_revision_prompt,
+        translation_target_language, translation_glossary_text)
     if (not current_review_record or current_review_record["session_id"] != current_session_identifier
             or current_review_record["steps"] != current_expected_record["steps"]):
         raise gr.Error("현재 입력으로 워크플로우를 다시 검토하세요.")
@@ -4799,8 +4812,13 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     workflow_image_width = gr.Number(label="이미지 너비", value=512, precision=0)
                     workflow_image_height = gr.Number(label="이미지 높이", value=512, precision=0)
                     workflow_revision_prompt = gr.Textbox(label="첫 이미지를 참조한 수정 요청 (선택)", lines=2)
+                    workflow_target_language = gr.Dropdown([("영어", "en"), ("중국어 간체", "zh-CN")], value="en", label="번역 언어")
+                    workflow_glossary_text = gr.Textbox(label="번역 용어 (원문 => 번역어, 한 줄에 하나)", lines=2)
+                    workflow_import_button = gr.Button("선택한 대화의 번역 제안 가져오기")
+                    workflow_import_button.click(import_workflow_translation_proposal, [hermes_session_control, hermes_session_job_selection],
+                        [hermes_session_prompt, workflow_target_language, workflow_glossary_text], queue=False)
                     workflow_input_components = [hermes_session_control, hermes_session_prompt,
-                                                 workflow_image_width, workflow_image_height, workflow_revision_prompt]
+                                                 workflow_image_width, workflow_image_height, workflow_revision_prompt, workflow_target_language, workflow_glossary_text]
                     workflow_review_button = gr.Button("요청 입력으로 단계 검토")
                     workflow_definition_preview = gr.JSON(label="단계별 입력과 결과 연결")
                     workflow_run_identifier = gr.Textbox(label="실행 ID")
