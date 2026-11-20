@@ -31,7 +31,12 @@ def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_co
                     or not current_receipt_record.get("job_id")):
                 workflow_run_store.record_source_observation(current_step_record["request_id"], "unknown")
                 continue
-            observed_job_state = (current_status_record.get("job") or {}).get("status")
+            observed_job_record = current_status_record.get("job")
+            if (not isinstance(observed_job_record, dict) or
+                    ("id" in observed_job_record and observed_job_record["id"] != current_receipt_record["job_id"])):
+                workflow_run_store.record_source_observation(current_step_record["request_id"], "unknown")
+                continue
+            observed_job_state = observed_job_record.get("status")
             if observed_job_state not in ("queued", "running", "paused", "failed", "cancelled", "canceled", "completed"):
                 observed_job_state = "unknown"
             workflow_run_store.record_source_observation(current_step_record["request_id"], observed_job_state,

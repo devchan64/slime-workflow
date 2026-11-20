@@ -13,6 +13,40 @@ from tools.review.domains.hermes_agent.workflow_run_store import WorkflowRunStor
 
 
 class HermesWorkflowChainTests(unittest.TestCase):
+    def test_flux_cancel_checks_source_identity_and_observes_terminal_after_response_loss(self):
+        with tempfile.TemporaryDirectory() as temporary_root_name:
+            workflow_database_path = Path(temporary_root_name) / "workflow.sqlite3"
+            workflow_run_store = WorkflowRunStore(workflow_database_path)
+            image_step_record = create_workflow_step_draft("image", "flux-image", {"prompt": "forest"})
+            workflow_run_store.register_workflow_run("run", "session", [image_step_record])
+            current_request_identifier = workflow_run_store.claim_ready_step("run", "image")["request_id"]
+            workflow_run_store.request_workflow_cancellation("run", "session")
+            source_job_record = {"id": "other", "status": "cancelled"}
+            cancellation_request_records = []
+
+            def simulate_flux_command(current_command_name, current_payload_record):
+                if current_command_name == "hermes-flux-delegation-status":
+                    self.assertEqual(current_payload_record, {"request_id": current_request_identifier})
+                    return {"receipt": {"state": "accepted", "service": "flux-image", "job_id": "job",
+                                        "request_id": current_request_identifier}, "job": source_job_record}
+                self.assertEqual(current_command_name, "hermes-flux-delegation-cancel")
+                cancellation_request_records.append(current_payload_record)
+                raise OSError("취소 응답 유실")
+
+            advance_workflow_run(workflow_run_store, "run", simulate_flux_command)
+            current_step_record = workflow_run_store.list_run_step_records("run")[0]
+            self.assertEqual((current_step_record["state"], current_step_record["source_state"]), ("submitting", "unknown"))
+            source_job_record.update(id="job", status="running")
+            advance_workflow_run(workflow_run_store, "run", simulate_flux_command)
+            workflow_run_store = WorkflowRunStore(workflow_database_path)
+            advance_workflow_run(workflow_run_store, "run", simulate_flux_command)
+            current_step_record = workflow_run_store.list_run_step_records("run")[0]
+            self.assertEqual((current_step_record["state"], current_step_record["cancel_delivery"]), ("submitting", "unconfirmed"))
+            source_job_record["status"] = "cancelled"
+            advance_workflow_run(workflow_run_store, "run", simulate_flux_command)
+            self.assertEqual(workflow_run_store.list_run_step_records("run")[0]["state"], "cancelled")
+            self.assertEqual(cancellation_request_records, [{"request_id": current_request_identifier, "job_id": "job"}])
+
     def test_restarted_chain_uses_pinned_image_after_source_removal(self):
         with tempfile.TemporaryDirectory() as temporary_root_name:
             temporary_root_path = Path(temporary_root_name)
