@@ -1105,6 +1105,32 @@ asyncio.run(inspect_writer_pages())
                 current_server.server_close()
                 current_server_thread.join(timeout=5)
 
+    def test_current_mcp_advertises_recent_tools_as_read_only_where_applicable(self):
+        import os
+        current_repository_root=Path(__file__).resolve().parents[3]
+        current_runtime_python=current_repository_root/'.local/hermes-mcp/bin/python'
+        if not current_runtime_python.is_file():self.skipTest('Hermes MCP 런타임이 설치되지 않았습니다.')
+        current_client_script=r"""
+import asyncio,os,sys
+from mcp import ClientSession,StdioServerParameters
+from mcp.client.stdio import stdio_client
+async def inspect_recent_tools():
+ current_parameters=StdioServerParameters(command=sys.executable,args=['tools/review/domains/hermes_agent/mcp_server.py'],cwd=os.getcwd(),env=dict(os.environ))
+ async with stdio_client(current_parameters) as (current_input,current_output):
+  async with ClientSession(current_input,current_output) as current_session:
+   await current_session.initialize()
+   current_tools={item.name:item for item in (await current_session.list_tools()).tools}
+   current_required={'read_hermes_character_source_status','read_hermes_image_source_status','read_hermes_flux_source_status','read_hermes_video_source_status','read_hermes_video_resume_proposal','preview_hermes_video_resume','submit_hermes_video_resume','read_hermes_video_resume_receipt','read_hermes_flux_resume_proposal','read_hermes_audio_source_status','preview_hermes_cleanup','read_hermes_map_database_receipt'}
+   current_missing=current_required-current_tools.keys()
+   if current_missing:raise RuntimeError('MCP 도구 누락: '+str(sorted(current_missing)))
+   for current_name in ('read_hermes_character_source_status','read_hermes_image_source_status','read_hermes_flux_source_status','read_hermes_video_source_status','read_hermes_audio_source_status','read_hermes_map_database_receipt'):
+    if current_tools[current_name].annotations is None or current_tools[current_name].annotations.read_only_hint is not True:raise RuntimeError('읽기 도구 표기 오류: '+current_name)
+asyncio.run(inspect_recent_tools())
+"""
+        current_environment=dict(os.environ,PYTHONPATH=str(current_repository_root),CUDA_VISIBLE_DEVICES='',HIP_VISIBLE_DEVICES='',ROCR_VISIBLE_DEVICES='')
+        current_process_value=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment,capture_output=True,text=True,timeout=30)
+        self.assertEqual(current_process_value.returncode,0,current_process_value.stderr[-4000:])
+
     def test_audio_source_status_crosses_real_stdio_and_gateway(self):
         import tempfile
         import threading
@@ -1207,6 +1233,234 @@ asyncio.run(inspect_video_source())
                 with patch.object(video_operations,'make_hermes_video_manager',return_value=SimpleNamespace(job_storage_root=current_video_root)),patch('tools.review.common.video_job_recovery.recover_interrupted_video_job') as current_recovery_mock:
                     current_process_value=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment,capture_output=True,text=True,timeout=30)
                     self.assertEqual(current_process_value.returncode,0,current_process_value.stderr[-4000:])
+                    current_recovery_mock.assert_not_called()
+                    self.assertEqual(json.loads((current_job_path/'status.json').read_text()),{'status':'running'})
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
+    def test_kimodo_source_status_crosses_real_stdio_without_recovery(self):
+        import json
+        import tempfile
+        import threading
+        from http.server import ThreadingHTTPServer
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.domains.hermes_agent import video_operations
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_repository_root=Path(__file__).resolve().parents[3]
+        current_runtime_python=current_repository_root/'.local/hermes-mcp/bin/python'
+        if not current_runtime_python.is_file():self.skipTest('Hermes MCP 런타임이 설치되지 않았습니다.')
+        current_client_script=r"""
+import asyncio,json,os,sys
+from mcp import ClientSession,StdioServerParameters
+from mcp.client.stdio import stdio_client
+async def inspect_video_source():
+ current_parameters=StdioServerParameters(command=sys.executable,args=['tools/review/domains/hermes_agent/mcp_server.py'],cwd=os.getcwd(),env=dict(os.environ))
+ async with stdio_client(current_parameters) as (current_input,current_output):
+  async with ClientSession(current_input,current_output) as current_session:
+   await current_session.initialize()
+   if 'read_hermes_video_source_status' not in {item.name for item in (await current_session.list_tools()).tools}:raise RuntimeError('영상 도구 누락')
+   current_request={'video_service_name':'kimodo','job_identifier_value':'2026-11-18_00-00-00-12345678'}
+   current_result=await current_session.call_tool('read_hermes_video_source_status',current_request)
+   if current_result.is_error:raise RuntimeError(str(current_result.content))
+   current_value=current_result.structured_content or json.loads(current_result.content[0].text)
+   if current_value['job']['status']!='running' or current_value['job']['result_status']!='not_ready':raise RuntimeError('영상 상태 오류')
+   current_request['job_identifier_value']='../invalid'
+   if not (await current_session.call_tool('read_hermes_video_source_status',current_request)).is_error:raise RuntimeError('잘못된 ID 허용')
+asyncio.run(inspect_video_source())
+"""
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_video_root=current_root_path/'video'
+            current_job_path=current_video_root/'2026-11-18_00-00-00-12345678'
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'running'}))
+            current_manager_value=HermesServiceManager(current_root_path/'jobs',current_root_path/'sessions')
+            current_gateway_value=ManagementCommandGateway({'hermes-agent':current_manager_value.handle_hermes_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            current_environment=dict(os.environ,SLIME_MANAGEMENT_GATEWAY_URL='http://127.0.0.1:'+str(current_server_value.server_port),PYTHONPATH=str(current_repository_root),CUDA_VISIBLE_DEVICES='',HIP_VISIBLE_DEVICES='',ROCR_VISIBLE_DEVICES='')
+            try:
+                with patch.object(video_operations,'make_hermes_video_source_manager',return_value=SimpleNamespace(job_storage_root=current_video_root)),patch('tools.review.common.video_job_recovery.recover_interrupted_video_job') as current_recovery_mock:
+                    current_process_value=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment,capture_output=True,text=True,timeout=30)
+                    self.assertEqual(current_process_value.returncode,0,current_process_value.stderr[-4000:])
+                    current_recovery_mock.assert_not_called()
+                    self.assertEqual(json.loads((current_job_path/'status.json').read_text()),{'status':'running'})
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
+    def test_flux_source_status_crosses_real_stdio_without_recovery(self):
+        import json
+        import tempfile
+        import threading
+        from http.server import ThreadingHTTPServer
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.domains.image import flux_image_generation
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_repository_root=Path(__file__).resolve().parents[3]
+        current_runtime_python=current_repository_root/'.local/hermes-mcp/bin/python'
+        if not current_runtime_python.is_file():self.skipTest('Hermes MCP 런타임이 설치되지 않았습니다.')
+        current_client_script=r"""
+import asyncio,json,os,sys
+from mcp import ClientSession,StdioServerParameters
+from mcp.client.stdio import stdio_client
+async def inspect_flux_source():
+ current_parameters=StdioServerParameters(command=sys.executable,args=['tools/review/domains/hermes_agent/mcp_server.py'],cwd=os.getcwd(),env=dict(os.environ))
+ async with stdio_client(current_parameters) as (current_input,current_output):
+  async with ClientSession(current_input,current_output) as current_session:
+   await current_session.initialize()
+   if 'read_hermes_flux_source_status' not in {item.name for item in (await current_session.list_tools()).tools}:raise RuntimeError('FLUX 도구 누락')
+   current_request={'flux_service_name':'flux-building','job_identifier_value':'2026-11-18_00-00-00-12345678'}
+   current_result=await current_session.call_tool('read_hermes_flux_source_status',current_request)
+   if current_result.is_error:raise RuntimeError(str(current_result.content))
+   current_value=current_result.structured_content or json.loads(current_result.content[0].text)
+   if current_value['job']['status']!='running' or current_value['job']['result_status']!='not_ready':raise RuntimeError('FLUX 상태 오류')
+   current_request['job_identifier_value']='../invalid'
+   if not (await current_session.call_tool('read_hermes_flux_source_status',current_request)).is_error:raise RuntimeError('잘못된 ID 허용')
+asyncio.run(inspect_flux_source())
+"""
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_video_root=current_root_path/'video'
+            current_job_path=current_video_root/'2026-11-18_00-00-00-12345678'
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'running'}))
+            current_manager_value=HermesServiceManager(current_root_path/'jobs',current_root_path/'sessions')
+            current_gateway_value=ManagementCommandGateway({'hermes-agent':current_manager_value.handle_hermes_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            current_environment=dict(os.environ,SLIME_MANAGEMENT_GATEWAY_URL='http://127.0.0.1:'+str(current_server_value.server_port),PYTHONPATH=str(current_repository_root),CUDA_VISIBLE_DEVICES='',HIP_VISIBLE_DEVICES='',ROCR_VISIBLE_DEVICES='')
+            try:
+                with patch.object(flux_image_generation,'FluxImageGenerationManager',return_value=SimpleNamespace(job_storage_root=current_video_root)),patch('tools.review.common.video_job_recovery.recover_interrupted_video_job') as current_recovery_mock:
+                    current_process_value=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment,capture_output=True,text=True,timeout=30)
+                    self.assertEqual(current_process_value.returncode,0,current_process_value.stderr[-4000:])
+                    current_recovery_mock.assert_not_called()
+                    self.assertEqual(json.loads((current_job_path/'status.json').read_text()),{'status':'running'})
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
+    def test_image_source_status_crosses_real_stdio_without_recovery(self):
+        import json
+        import tempfile
+        import threading
+        from http.server import ThreadingHTTPServer
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.domains.hermes_agent import image_source_operations
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_repository_root=Path(__file__).resolve().parents[3]
+        current_runtime_python=current_repository_root/'.local/hermes-mcp/bin/python'
+        if not current_runtime_python.is_file():self.skipTest('Hermes MCP 런타임이 설치되지 않았습니다.')
+        current_client_script=r"""
+import asyncio,json,os,sys
+from mcp import ClientSession,StdioServerParameters
+from mcp.client.stdio import stdio_client
+async def inspect_flux_source():
+ current_parameters=StdioServerParameters(command=sys.executable,args=['tools/review/domains/hermes_agent/mcp_server.py'],cwd=os.getcwd(),env=dict(os.environ))
+ async with stdio_client(current_parameters) as (current_input,current_output):
+  async with ClientSession(current_input,current_output) as current_session:
+   await current_session.initialize()
+   if 'read_hermes_image_source_status' not in {item.name for item in (await current_session.list_tools()).tools}:raise RuntimeError('FLUX 도구 누락')
+   current_request={'image_service_name':'building-generator','job_identifier_value':'2026-11-18_00-00-00-12345678'}
+   current_result=await current_session.call_tool('read_hermes_image_source_status',current_request)
+   if current_result.is_error:raise RuntimeError(str(current_result.content))
+   current_value=current_result.structured_content or json.loads(current_result.content[0].text)
+   if current_value['job']['status']!='running' or current_value['job']['result_status']!='not_ready':raise RuntimeError('FLUX 상태 오류')
+   current_request['job_identifier_value']='../invalid'
+   if not (await current_session.call_tool('read_hermes_image_source_status',current_request)).is_error:raise RuntimeError('잘못된 ID 허용')
+asyncio.run(inspect_flux_source())
+"""
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_video_root=current_root_path/'video'
+            current_job_path=current_video_root/'2026-11-18_00-00-00-12345678'
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'running'}))
+            current_manager_value=HermesServiceManager(current_root_path/'jobs',current_root_path/'sessions')
+            current_gateway_value=ManagementCommandGateway({'hermes-agent':current_manager_value.handle_hermes_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            current_environment=dict(os.environ,SLIME_MANAGEMENT_GATEWAY_URL='http://127.0.0.1:'+str(current_server_value.server_port),PYTHONPATH=str(current_repository_root),CUDA_VISIBLE_DEVICES='',HIP_VISIBLE_DEVICES='',ROCR_VISIBLE_DEVICES='')
+            try:
+                with patch.object(image_source_operations,'make_image_source_manager',return_value=SimpleNamespace(job_storage_root=current_video_root)),patch('tools.review.common.video_job_recovery.recover_interrupted_video_job') as current_recovery_mock:
+                    current_process_value=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment,capture_output=True,text=True,timeout=30)
+                    self.assertEqual(current_process_value.returncode,0,current_process_value.stderr[-4000:])
+                    current_recovery_mock.assert_not_called()
+                    self.assertEqual(json.loads((current_job_path/'status.json').read_text()),{'status':'running'})
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
+    def test_character_source_status_crosses_real_stdio_without_recovery(self):
+        import json
+        import tempfile
+        import threading
+        from http.server import ThreadingHTTPServer
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.domains.character_animation import character_animation_jobs
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_repository_root=Path(__file__).resolve().parents[3]
+        current_runtime_python=current_repository_root/'.local/hermes-mcp/bin/python'
+        if not current_runtime_python.is_file():self.skipTest('Hermes MCP 런타임이 설치되지 않았습니다.')
+        current_client_script=r"""
+import asyncio,json,os,sys
+from mcp import ClientSession,StdioServerParameters
+from mcp.client.stdio import stdio_client
+async def inspect_flux_source():
+ current_parameters=StdioServerParameters(command=sys.executable,args=['tools/review/domains/hermes_agent/mcp_server.py'],cwd=os.getcwd(),env=dict(os.environ))
+ async with stdio_client(current_parameters) as (current_input,current_output):
+  async with ClientSession(current_input,current_output) as current_session:
+   await current_session.initialize()
+   if 'read_hermes_character_source_status' not in {item.name for item in (await current_session.list_tools()).tools}:raise RuntimeError('FLUX 도구 누락')
+   current_request={'job_identifier_value':'2026-11-18_00-00-00-12345678'}
+   current_result=await current_session.call_tool('read_hermes_character_source_status',current_request)
+   if current_result.is_error:raise RuntimeError(str(current_result.content))
+   current_value=current_result.structured_content or json.loads(current_result.content[0].text)
+   if current_value['job']['status']!='running' or current_value['job']['result_status']!='not_ready':raise RuntimeError('FLUX 상태 오류')
+   current_request['job_identifier_value']='../invalid'
+   if not (await current_session.call_tool('read_hermes_character_source_status',current_request)).is_error:raise RuntimeError('잘못된 ID 허용')
+asyncio.run(inspect_flux_source())
+"""
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_video_root=current_root_path/'video'
+            current_job_path=current_video_root/'2026-11-18_00-00-00'/'2026-11-18_00-00-00-12345678'
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'status.json').write_text(json.dumps({'status':'running'}))
+            current_manager_value=HermesServiceManager(current_root_path/'jobs',current_root_path/'sessions')
+            current_gateway_value=ManagementCommandGateway({'hermes-agent':current_manager_value.handle_hermes_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            current_environment=dict(os.environ,SLIME_MANAGEMENT_GATEWAY_URL='http://127.0.0.1:'+str(current_server_value.server_port),PYTHONPATH=str(current_repository_root),CUDA_VISIBLE_DEVICES='',HIP_VISIBLE_DEVICES='',ROCR_VISIBLE_DEVICES='')
+            try:
+                with patch.object(character_animation_jobs,'GENERATION_ROOT_DIRECTORY',current_video_root),patch('tools.review.common.video_job_recovery.recover_interrupted_video_job') as current_recovery_mock:
+                    current_process_value=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment,capture_output=True,text=True,timeout=30)
+                    self.assertEqual(current_process_value.returncode,0,current_process_value.stderr)
                     current_recovery_mock.assert_not_called()
                     self.assertEqual(json.loads((current_job_path/'status.json').read_text()),{'status':'running'})
             finally:

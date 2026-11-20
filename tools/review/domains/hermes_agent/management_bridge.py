@@ -186,6 +186,33 @@ def handle_hermes_observer_connection(current_client_socket):
                     current_response_record=inspect_generator_reservation_identity(current_inspection_request['service'],current_inspection_request['job_id'])
                 except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
                     current_response_record={'error':'예약 신원 조회 실패: 서비스와 작업 ID를 확인하세요.'}
+            elif current_request_bytes.startswith(b'character-source-status ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.character_source_operations import read_character_source_job
+                    current_character_request=parse_management_request_json(current_request_bytes[len(b'character-source-status '):-1].decode('utf-8'))
+                    if not isinstance(current_character_request,dict) or set(current_character_request)!={'job_id'}:raise ValueError('캐릭터 원본 작업 입력 오류')
+                    current_response_record={'service':'character-animation','job_id':current_character_request['job_id'],'job':read_character_source_job(current_character_request['job_id'])}
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'캐릭터 원본 상태 조회 실패: 작업 ID를 확인하세요.'}
+            elif current_request_bytes.startswith(b'image-source-status ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.image_source_operations import read_hermes_image_source_job
+                    current_image_request=parse_management_request_json(current_request_bytes[len(b'image-source-status '):-1].decode('utf-8'))
+                    if not isinstance(current_image_request,dict) or set(current_image_request)!={'service','job_id'}:raise ValueError('이미지 원본 작업 입력 오류')
+                    current_response_record={'service':current_image_request['service'],'job_id':current_image_request['job_id'],'job':read_hermes_image_source_job(current_image_request['service'],current_image_request['job_id'])}
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'이미지 원본 상태 조회 실패: 서비스와 작업 ID를 확인하세요.'}
+            elif current_request_bytes.startswith(b'flux-source-status ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.flux_profile_operations import read_hermes_flux_source_job
+                    current_flux_request=parse_management_request_json(current_request_bytes[len(b'flux-source-status '):-1].decode('utf-8'))
+                    if not isinstance(current_flux_request,dict) or set(current_flux_request)!={'service','job_id'}:raise ValueError('FLUX 원본 작업 입력 오류')
+                    current_response_record={'service':current_flux_request['service'],'job_id':current_flux_request['job_id'],'job':read_hermes_flux_source_job(current_flux_request['service'],current_flux_request['job_id'])}
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'FLUX 원본 상태 조회 실패: 서비스와 작업 ID를 확인하세요.'}
             elif current_request_bytes.startswith(b'video-source-status ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
                 try:
                     from tools.review.common.management_gateway import parse_management_request_json

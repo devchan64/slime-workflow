@@ -188,8 +188,38 @@ def delegate_hermes_video(request_identifier_value: str, video_service_name: str
 
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_character_source_status(job_identifier_value: str) -> dict:
+    """폐기된 캐릭터 작업의 기록과 마지막 완료 프레임 파일을 확인한다."""
+    from tools.review.domains.hermes_agent.character_source_operations import validate_character_source_response
+    current_response_value=run_hermes_mcp_command('hermes-character-source-status',{'job_id':job_identifier_value})
+    try:validate_character_source_response(job_identifier_value,current_response_value)
+    except (ValueError,TypeError,KeyError):raise ToolError('캐릭터 원본 상태 응답을 확인할 수 없습니다.') from None
+    return current_response_value
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_image_source_status(image_service_name: str, job_identifier_value: str) -> dict:
+    """기존 이미지 작업 기록과 조회 시점의 결과 파일 존재를 복구 없이 확인한다."""
+    from tools.review.domains.hermes_agent.image_source_operations import validate_hermes_image_source_response
+    current_response_value=run_hermes_mcp_command('hermes-image-source-status',{'service':image_service_name,'job_id':job_identifier_value})
+    try:validate_hermes_image_source_response(image_service_name,job_identifier_value,current_response_value)
+    except (ValueError,TypeError,KeyError):raise ToolError('이미지 원본 상태 응답을 확인할 수 없습니다.') from None
+    return current_response_value
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_flux_source_status(flux_service_name: str, job_identifier_value: str) -> dict:
+    """FLUX 원본 기록과 조회 시점의 이미지 파일 존재를 복구 없이 확인한다."""
+    from tools.review.domains.hermes_agent.flux_profile_operations import validate_hermes_flux_source_response
+    current_response_value=run_hermes_mcp_command('hermes-flux-source-status',{'service':flux_service_name,'job_id':job_identifier_value})
+    try:validate_hermes_flux_source_response(flux_service_name,job_identifier_value,current_response_value)
+    except (ValueError,TypeError,KeyError):raise ToolError('FLUX 원본 상태 응답을 확인할 수 없습니다.') from None
+    return current_response_value
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def read_hermes_video_source_status(video_service_name: str, job_identifier_value: str) -> dict:
-    """영상 원본 기록과 결과 파일 존재를 복구 없이 조회한다. 실제 재생·프로세스 생존은 별도다."""
+    """Kimodo·영상 원본 기록과 결과 세 파일 존재를 복구 없이 조회한다. 참조 분석 전용 결과·실제 재생·프로세스 생존은 별도다."""
     from tools.review.domains.hermes_agent.video_operations import validate_hermes_video_source_response
     current_response_value=run_hermes_mcp_command('hermes-video-source-status',{'service':video_service_name,'job_id':job_identifier_value})
     try:validate_hermes_video_source_response(video_service_name,job_identifier_value,current_response_value)
@@ -373,7 +403,7 @@ def delegate_hermes_audio(request_identifier_value: str, audio_service_name: str
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def read_hermes_audio_status(request_identifier_value: str, audio_service_name: str) -> dict:
-    """오디오 작업 상태와 검증된 동일 출처 결과 경로를 조회한다. 결과 경로는 형식만 확인하며 파일 존재나 재생 가능성은 확인하지 않는다."""
+    """오디오 작업 상태·결과 경로와 별도 파일 존재 관측을 조회한다. 파일 관측은 미확인일 수 있으며 재생 가능성은 별도다."""
     return run_hermes_mcp_command('hermes-audio-status',{'request_id':request_identifier_value,'service':audio_service_name})
 
 
@@ -385,7 +415,7 @@ def list_hermes_audio_receipts(audio_service_name: str) -> dict:
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def read_hermes_audio_source_status(audio_service_name: str, job_identifier_value: str) -> dict:
-    """원 서비스 작업 ID의 상태·동일 출처 결과 경로를 조회한다. 실제 생존·파일 존재는 별도다."""
+    """원 서비스 작업 ID의 상태·결과 경로와 별도 파일 존재 관측을 조회한다. 파일 관측은 미확인일 수 있으며 재생·프로세스 생존은 별도다."""
     from tools.review.domains.hermes_agent.audio_operations import validate_hermes_audio_source_response
     current_response_value=run_hermes_mcp_command('hermes-audio-source-status',{'service':audio_service_name,'job_id':job_identifier_value})
     try:
@@ -690,6 +720,16 @@ def list_hermes_kimodo_keyframes(query_value: str = '', offset_value: int = 0, l
 def validate_hermes_kimodo_keyframes(keyframe_placements_value: list[dict], frame_count_value: int) -> dict:
     """키프레임 원본과 골격 구조를 검증한다. 접수 시 다시 검증한다."""
     return run_hermes_mcp_command('hermes-kimodo-keyframe-validate',{'keyframes':keyframe_placements_value,'frames':frame_count_value})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def inspect_hermes_kimodo_source_frame(job_identifier_value: str, attempt_identifier_value: str, frame_number_value: int) -> dict:
+    """완료된 현재 시도의 프레임 이미지 경로와 해시를 검토한다. 저장은 하지 않는다."""
+    from tools.review.domains.hermes_agent.kimodo_frame_observer import validate_kimodo_source_frame_response
+    current_response_value=run_hermes_mcp_command('hermes-kimodo-source-frame',{'job_id':job_identifier_value,'attempt_id':attempt_identifier_value,'frame':frame_number_value})
+    try:validate_kimodo_source_frame_response(job_identifier_value,attempt_identifier_value,frame_number_value,current_response_value)
+    except (ValueError,TypeError,KeyError):raise ToolError('Kimodo 프레임 응답을 확인할 수 없습니다.') from None
+    return current_response_value
 
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))

@@ -250,6 +250,24 @@ class HermesMcpTests(unittest.TestCase):
                 current_opener_mock.return_value.open.return_value=io.BytesIO(json.dumps(current_gpu_value).encode())
                 self.assertEqual(hermes_module_value.read_hermes_gpu_queue_status()['gpu_status'],current_gpu_value)
 
+    def test_flux_source_status_mcp_validates_gateway_response(self):
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_response_value={'service':'flux-building','job_id':current_job_identifier,'job':{'status':'completed','image':'/flux-building-generator/jobs/'+current_job_identifier+'/result.png','result_status':'available'}}
+        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value=current_response_value) as current_gateway_mock:
+            self.assertEqual(hermes_module_value.read_hermes_flux_source_status('flux-building',current_job_identifier),current_response_value)
+            current_gateway_mock.assert_called_once_with('hermes-flux-source-status',{'service':'flux-building','job_id':current_job_identifier})
+            current_gateway_mock.return_value={**current_response_value,'job':{**current_response_value['job'],'image':'/private/secret'}}
+            with self.assertRaises(ValueError):hermes_module_value.read_hermes_flux_source_status('flux-building',current_job_identifier)
+
+    def test_image_source_status_mcp_validates_gateway_response(self):
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_response_value={'service':'building-generator','job_id':current_job_identifier,'job':{'source_service':'billboard-generator','status':'completed','image':'/billboard-generator/jobs/'+current_job_identifier+'/result.png','result_status':'available'}}
+        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value=current_response_value) as current_gateway_mock:
+            self.assertEqual(hermes_module_value.read_hermes_image_source_status('building-generator',current_job_identifier),current_response_value)
+            current_gateway_mock.assert_called_once_with('hermes-image-source-status',{'service':'building-generator','job_id':current_job_identifier})
+            current_gateway_mock.return_value={**current_response_value,'job':{**current_response_value['job'],'image':'/private/secret'}}
+            with self.assertRaises(ValueError):hermes_module_value.read_hermes_image_source_status('building-generator',current_job_identifier)
+
     def test_audio_source_status_mcp_forwards_service_and_job(self):
         current_job_identifier='2026-11-18_00-00-00-12345678'
         current_response_value={'service':'music-heartmula','job_id':current_job_identifier,'job':{'status':'queued','audio':None,'result_status':'not_ready'}}

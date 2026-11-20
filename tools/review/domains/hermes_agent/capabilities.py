@@ -24,7 +24,7 @@ HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-generator-reservation-receipt','label':'생성기 GPU 예약 정리 접수 확인','required':['request_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'generator_reservation_receipt','note':'응답 유실 시 확인하며 확인 불가 접수를 재실행하지 않는다.'},
     {'command':'hermes-generator-reservation-inspect','label':'생성기 GPU 예약 신원 조회','required':['service','job_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'generator_reservation_identity','note':'유일한 예약과 원 서비스·작업자 리더를 비파괴 조회한다. 그룹 전체·별도 그룹과 예약 해제는 확인하지 않는다.'},
     {'command':'hermes-generator-source-history','label':'생성·번역 원본 이력','required':['service'],'optional':['offset','limit','snapshot','query'],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'generator_source_history','note':'기록 상태만 읽는다. 건물 호환 경로는 빌보드 이력을 공유한다. 중단 작업 복구를 실행하지 않으며 실제 생존과 결과는 별도 확인한다.'},
-    {'command':'hermes-audio-source-status','label':'음악·효과음 원본 작업 상태','required':['service','job_id'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'audio_source_job_status','note':'직접 시작한 작업도 ID로 조회한다. 경로 형식만 확인하며 결과 존재·재생이나 프로세스 생존을 보증하지 않는다.'},
+    {'command':'hermes-audio-source-status','label':'음악·효과음 원본 작업 상태','required':['service','job_id'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'audio_source_job_status','note':'직접 시작한 작업을 ID로 조회한다. 파일 관측은 존재·확인 불가를 구분하며 재생·품질이나 프로세스 생존은 별도다.'},
     {'command':'hermes-audio-source-history','label':'음악·효과음 원본 이력','required':['service'],'optional':['offset','limit','snapshot','query'],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'audio_source_history','note':'Hermes 접수 이외의 원본 이력도 기록 상태만 읽는다. 실제 작업 생존과 결과는 별도다.'},
     {'command':'hermes-kimodo-build-status','label':'Kimodo MIGraphX 빌드 기록','required':[],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'kimodo_build_status','note':'최근 빌드 기록만 읽는다. 캐시 유효성과 작업 생존은 별도 확인한다.'},
     {'command':'hermes-capabilities','label':'Hermes 기능 목록','required':[],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'capability_catalog','note':'게이트웨이 등록과 목록의 차이를 함께 표시한다.'},
@@ -39,7 +39,7 @@ HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-delegation-history','label':'Kimodo 위임 접수 이력','required':[],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'receipt_history','note':'Kimodo 위임 접수 기록만 확인한다.'},
     {'command':'hermes-video-proposal','label':'동작·영상 위임 제안 읽기','required':['id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'untrusted_video_proposal','note':'서비스·모드·지시만 읽는다. 사용자가 첨부하고 기존 검증을 완료해야 한다.'},
     {'command':'hermes-delegate-video','label':'동작·영상 작업 위임','required':['request_id','service','request'],'optional':[],'effect':'enqueue','gpu':'queued','retry':'request_id_or_unknown','interfaces':['gui','mcp'],'result':'video_receipt','note':'DWPose와 Wan 3개 생성기의 입력·첨부 검증과 공용 GPU 대기열을 사용한다.'},
-    {'command':'hermes-video-source-status','label':'동작·영상 원본 작업 상태','required':['service','job_id'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'video_source_job_status','note':'중단 작업을 복구하지 않고 기록과 결과 파일 존재만 확인한다. 파일 내용·재생과 프로세스 생존은 별도다.'},
+    {'command':'hermes-video-source-status','label':'동작·영상 원본 작업 상태','required':['service','job_id'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'video_source_job_status','note':'Kimodo·DWPose·Wan의 중단 작업을 복구하지 않고 기록과 결과 세 파일 존재만 확인한다. 참조 분석 전용 결과와 재생·품질은 원 서비스에서 확인한다.'},
     {'command':'hermes-video-status','label':'동작·영상 작업 상태','required':['request_id','service'],'optional':[],'effect':'recovery_possible','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'video_status','note':'중단 작업 복구가 따를 수 있으며 검증된 동일 출처 결과만 반환한다.'},
     {'command':'hermes-video-history','label':'동작·영상 접수 이력','required':['service'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'video_receipts','note':'선택 서비스의 Hermes 접수만 표시한다.'},
     {'command':'hermes-video-cancel','label':'동작·영상 작업 중지','required':['request_id','service','job_id'],'optional':[],'effect':'cancel_request','gpu':'none','retry':'check_status','interfaces':['gui','mcp'],'result':'video_cancel','note':'접수 기록과 일치하는 작업만 중지 요청한다.'},
@@ -50,6 +50,9 @@ HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-audio-status','label':'음악·효과음 작업 상태','required':['request_id','service'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'audio_status','note':'검증된 동일 출처 결과 경로만 반환한다.'},
     {'command':'hermes-audio-history','label':'음악·효과음 접수 이력','required':['service'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'audio_receipts','note':'선택한 서비스의 Hermes 접수만 표시한다.'},
     {'command':'hermes-audio-cancel','label':'음악·효과음 작업 중지','required':['request_id','service','job_id'],'optional':[],'effect':'cancel_request','gpu':'none','retry':'check_status','interfaces':['gui','mcp'],'result':'audio_cancel','note':'접수 기록과 일치하는 작업만 중지 요청한다.'},
+    {'command':'hermes-character-source-status','label':'과거 캐릭터 작업 상태','required':['job_id'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'character_source_job_status','note':'폐기된 생성기의 기록과 마지막 완료 프레임 파일만 확인한다. 전체 결과·품질은 별도다.'},
+    {'command':'hermes-image-source-status','label':'기존 이미지 원본 작업 상태','required':['service','job_id'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'image_source_job_status','note':'기존 Qwen·타일 원본의 기록과 조회 시점 결과 파일 존재를 복구 없이 확인한다. 건물은 빌보드 이력을 공유한다.'},
+    {'command':'hermes-flux-source-status','label':'FLUX 원본 작업 상태','required':['service','job_id'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'flux_source_job_status','note':'복구 없이 기록과 조회 시점의 이미지 파일 존재를 확인한다. 이미지 내용과 프로세스 생존은 별도다.'},
     {'command':'hermes-delegate-flux-profile','label':'FLUX 프로필 생성 위임','required':['request_id','service','request'],'optional':[],'effect':'enqueue','gpu':'queued','retry':'request_id_or_unknown','interfaces':['gui','mcp'],'result':'flux_profile_receipt','note':'8개 이미지 프로필과 별도 표정 생성기의 참조·크기 검증과 GPU 대기열을 사용한다.'},
     {'command':'hermes-flux-profile-status','label':'FLUX 프로필 작업 상태','required':['request_id','service'],'optional':[],'effect':'recovery_possible','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'flux_profile_status','note':'해당 생성기의 작업 복구 동작이 따를 수 있다.'},
     {'command':'hermes-flux-profile-history','label':'FLUX 프로필 접수 이력','required':['service'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'flux_profile_history','note':'서비스가 일치하는 Hermes 접수만 표시한다.'},
@@ -146,6 +149,7 @@ HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-management-status', 'label':'관리 상태 조회', 'required':[], 'optional':[], 'effect':'local_bookkeeping', 'gpu':'none', 'retry':'safe', 'interfaces':['gui','mcp','isolated_fixed_bridge'], 'result':'model_gpu_queue_and_recent_jobs', 'note':'최근 작업 조회에 로컬 잠금이 따른다. Kimodo 활성 상태는 기록 기준이며 GPU 관측은 캐시될 수 있다.'},
     {'command':'hermes-session-submit', 'label':'대화·격리 작업 접수', 'required':['session_id','request_id','prompt'], 'optional':['verification_modules'], 'effect':'enqueue', 'gpu':'exclusive', 'retry':'request_id', 'interfaces':['gui','mcp'], 'result':'hermes_job_id', 'note':'동일 ID와 입력의 재접수만 허용한다. 배타 예약은 관리도구 대기열에만 적용되며 외부 GPU 작업과 성능 경합이 가능하다.'},
     {'command':'hermes-kimodo-keyframe-validate','label':'Kimodo 키프레임 배치 검증','required':['keyframes','frames'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'kimodo_keyframe_validation','note':'원본과 골격 구조를 검증한다. 접수 시 다시 검증한다.'},
+    {'command':'hermes-kimodo-source-frame','label':'Kimodo 원본 프레임 검토','required':['job_id','attempt_id','frame'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'kimodo_source_frame','note':'완료된 현재 시도의 프레임 PNG 시그니처와 해시를 확인한다. 모션·골격 및 저장 가능성은 검증하지 않는다.'},
     {'command':'hermes-kimodo-keyframe-preview','label':'Kimodo 키프레임 검증 미리보기','required':['keyframe_id'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'kimodo_keyframe_preview','note':'기존 서비스의 모션·골격·이미지 해시 검증을 사용한다.'},
     {'command':'hermes-kimodo-keyframes','label':'Kimodo 키프레임 목록','required':[],'optional':['query','offset','limit','snapshot'],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'kimodo_keyframe_catalog','note':'기록의 ID·태그·원본 프레임만 제공한다. 다음 페이지에 snapshot을 전달하면 목록 변경을 감지한다. 확인값 없는 이전 페이지는 변경 여부를 확인할 수 없다. 해시와 실제 동작은 Kimodo에서 확인한다.'},
     {'command':'hermes-kimodo-proposal', 'label':'Kimodo 제안 읽기', 'required':['id'], 'optional':[], 'effect':'local_bookkeeping', 'gpu':'none', 'retry':'safe', 'interfaces':['gui','mcp'], 'result':'validated_untrusted_proposal', 'note':'제안은 실행되지 않는다.'},
@@ -193,6 +197,8 @@ HERMES_FIELD_SCHEMAS = {
     'prompt': {'type':'string', 'minLength':1, 'maxLength':8000, 'pattern':r'\S'},
     'verification_modules': {'type':'array', 'items':{'type':'string'}, 'maxItems':5, 'uniqueItems':True, 'note':'공용 회귀 모듈 허용 목록'},
     'id': {'type':'string', 'pattern':'^\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}-[a-f0-9]{8}$'},
+    'attempt_id': {'type':'string','pattern':'^[a-f0-9]{32}$'},
+    'frame': {'type':'integer','minimum':1,'maximum':1000},
     'job_id': {'type':'string', 'pattern':'^\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}-[a-f0-9]{8}$'},
     'offset': {'type':'integer', 'minimum':0},
     'limit': {'type':'integer', 'minimum':1, 'maximum':262144},
@@ -316,9 +322,15 @@ def list_hermes_capability_catalog():
         if current_command_name == 'hermes-audio-source-history':
             from generators.music.service_constants import AUDIO_SERVICE_NAMES
             current_payload_schema['properties']['service'] = {'type':'string','enum':list(AUDIO_SERVICE_NAMES)}
+        if current_command_name == 'hermes-video-source-status':
+            from tools.review.domains.hermes_agent.video_operations import HERMES_VIDEO_SOURCE_SERVICES
+            current_payload_schema['properties']['service'] = {'type':'string','enum':list(HERMES_VIDEO_SOURCE_SERVICES)}
+        if current_command_name == 'hermes-image-source-status':
+            from tools.review.domains.hermes_agent.image_source_operations import IMAGE_SOURCE_SERVICES
+            current_payload_schema['properties']['service'] = {'type':'string','enum':list(IMAGE_SOURCE_SERVICES)}
         if current_command_name == 'hermes-delegate-audio':
             current_payload_schema['properties']['request'] = {'type':'object','validation':'generators.music.contracts.validate_music_request'}
-        if 'service' in current_field_names and (current_command_name.startswith('hermes-flux-profile-') or current_command_name == 'hermes-delegate-flux-profile'):
+        if 'service' in current_field_names and (current_command_name.startswith('hermes-flux-profile-') or current_command_name in ('hermes-delegate-flux-profile','hermes-flux-source-status')):
             from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
             current_payload_schema['properties']['service'] = {'type':'string','enum':[*FLUX_IMAGE_PROFILE_RECORDS,'flux-expression']}
         if current_command_name == 'hermes-delegate-flux-profile':
@@ -528,11 +540,11 @@ def list_management_service_registration():
         elif current_service_name in HERMES_VIDEO_SERVICES:
             current_hermes_links=['hermes-video-proposal','hermes-delegate-video','hermes-video-source-status','hermes-video-status','hermes-video-history','hermes-video-cancel']
         elif current_service_name in FLUX_IMAGE_PROFILE_RECORDS or current_service_name=='flux-expression':
-            current_hermes_links=['hermes-delegate-flux-profile','hermes-flux-profile-status','hermes-flux-profile-history','hermes-flux-profile-cancel','hermes-service-receipt']
+            current_hermes_links=['hermes-delegate-flux-profile','hermes-flux-source-status','hermes-flux-profile-status','hermes-flux-profile-history','hermes-flux-profile-cancel','hermes-service-receipt']
             if current_service_name!='flux-image':current_hermes_links.append('hermes-flux-proposal')
             if current_service_name=='flux-expression':current_hermes_links.append('hermes-expression-catalog')
         elif current_service_name=='kimodo':
-            current_hermes_links=['hermes-kimodo-resume-proposal','hermes-kimodo-resume-preview','hermes-kimodo-resume-submit','hermes-kimodo-resume-receipt','hermes-kimodo-proposal','hermes-kimodo-build-status','hermes-delegate-kimodo','hermes-delegation-status','hermes-delegation-job-status','hermes-delegation-history','hermes-delegation-cancel','hermes-kimodo-keyframes','hermes-kimodo-keyframe-preview','hermes-kimodo-keyframe-validate']
+            current_hermes_links=['hermes-video-source-status','hermes-kimodo-source-frame','hermes-kimodo-resume-proposal','hermes-kimodo-resume-preview','hermes-kimodo-resume-submit','hermes-kimodo-resume-receipt','hermes-kimodo-proposal','hermes-kimodo-build-status','hermes-delegate-kimodo','hermes-delegation-status','hermes-delegation-job-status','hermes-delegation-history','hermes-delegation-cancel','hermes-kimodo-keyframes','hermes-kimodo-keyframe-preview','hermes-kimodo-keyframe-validate']
         elif current_service_name=='hermes-agent':
             current_hermes_links=['hermes-capabilities','hermes-service-registration','hermes-session-list','hermes-session-read','hermes-session-view','hermes-history','hermes-detail']
         elif current_service_name=='writer-agent':
@@ -543,7 +555,7 @@ def list_management_service_registration():
         elif current_service_name=='map-assets':
             current_hermes_links=['hermes-content-database-status','hermes-map-database-receipt','hermes-building-catalog','hermes-building-preview','hermes-building-save','hermes-building-receipt','hermes-billboard-catalog','hermes-billboard-load','hermes-billboard-preview','hermes-billboard-save','hermes-effect-catalog','hermes-effect-detail','hermes-effect-preview','hermes-effect-save','hermes-effect-register-preview','hermes-effect-register','hermes-waypoint-preview','hermes-waypoint-replace','hermes-field-load','hermes-field-region','hermes-field-preview','hermes-field-save','hermes-city-source','hermes-city-load','hermes-city-preview','hermes-city-save']
         elif current_service_name=='character-animation':
-            current_hermes_links=['hermes-sprite-pending-status','hermes-sprite-catalog','hermes-sprite-detail','hermes-sprite-preview','hermes-sprite-save','hermes-sprite-playback','hermes-sprite-clip-playback']
+            current_hermes_links=['hermes-character-source-status','hermes-sprite-pending-status','hermes-sprite-catalog','hermes-sprite-detail','hermes-sprite-preview','hermes-sprite-save','hermes-sprite-playback','hermes-sprite-clip-playback']
         elif current_service_name=='model-downloads':
             current_hermes_links=['hermes-model-inventory','hermes-model-download-status']
         if current_service_name in ('dwpose','wan22-animate2','wan22-vace','wan22-fun-control'):
@@ -555,6 +567,8 @@ def list_management_service_registration():
             current_hermes_links.append('hermes-service-receipt')
         if 'prioritize' in current_command_names and not current_priority_reason and not any(item['command']=='prioritize' for item in current_blocked_commands):
             current_hermes_links.extend(['hermes-priority-preview','hermes-priority-submit','hermes-priority-receipt'])
+        from tools.review.domains.hermes_agent.image_source_operations import IMAGE_SOURCE_SERVICES
+        if current_service_name in IMAGE_SOURCE_SERVICES:current_hermes_links.append('hermes-image-source-status')
         if current_service_name in (*SOURCE_HISTORY_AUDIO_SERVICES,*HERMES_VIDEO_SERVICES,*FLUX_IMAGE_PROFILE_RECORDS,'flux-expression','kimodo','prompt-translation','qwen-21','qwen-21-circular','mannequin-generator','prop-generator','vegetation-generator','expression','seamless-tile','floor-tile','billboard-generator','building-generator'):
             current_hermes_links.extend(['hermes-generator-reservation-inspect','hermes-generator-reservation-recover','hermes-generator-reservation-receipt'])
         if 'history-reset-preview' in current_command_names and not any(current_block_record['command']=='history-reset-preview' for current_block_record in (*current_blocked_commands,*current_owner_blocks)):

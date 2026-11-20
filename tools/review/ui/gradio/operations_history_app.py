@@ -1142,11 +1142,13 @@ def select_operations_source_job(current_service_name,current_page_state,current
 
 def update_operations_media_source_button(current_service_name,current_job_identifier,current_page_state,current_source_rows):
     from tools.review.domains.hermes_agent.audio_operations import HERMES_AUDIO_SERVICES
-    from tools.review.domains.hermes_agent.video_operations import HERMES_VIDEO_SERVICES
+    from tools.review.domains.hermes_agent.video_operations import HERMES_VIDEO_SOURCE_SERVICES
+    from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
+    from tools.review.domains.hermes_agent.image_source_operations import IMAGE_SOURCE_SERVICES
     from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
     current_matching_rows=[current_row for current_row in current_source_rows if isinstance(current_row,(list,tuple)) and len(current_row)==5 and current_row[0]==current_job_identifier] if isinstance(current_source_rows,list) else []
-    current_ready_value=current_service_name in (*HERMES_AUDIO_SERVICES,*HERMES_VIDEO_SERVICES) and validate_service_job_identifier(current_service_name,current_job_identifier) and isinstance(current_page_state,dict) and current_page_state.get('service')==current_service_name and len(current_matching_rows)==1
-    return gr.update(interactive=current_ready_value,value='선택한 원본 작업 상태 확인' if current_ready_value else '음악·효과음·영상 원본 작업을 선택하세요')
+    current_ready_value=current_service_name in (*HERMES_AUDIO_SERVICES,*HERMES_VIDEO_SOURCE_SERVICES,*FLUX_IMAGE_PROFILE_RECORDS,'flux-expression',*IMAGE_SOURCE_SERVICES,'character-animation') and validate_service_job_identifier(current_service_name,current_job_identifier) and isinstance(current_page_state,dict) and current_page_state.get('service')==current_service_name and len(current_matching_rows)==1
+    return gr.update(interactive=current_ready_value,value='선택한 원본 작업 상태 확인' if current_ready_value else '이미지·음악·효과음·영상 원본 작업을 선택하세요')
 
 
 def collect_operations_media_source_status(current_service_name,current_job_identifier,current_page_state,current_source_rows,current_request_token):
@@ -1154,22 +1156,39 @@ def collect_operations_media_source_status(current_service_name,current_job_iden
     current_identity_value=[current_service_name,current_job_identifier,current_page_state,current_source_rows]
     try:
         from tools.review.domains.hermes_agent.audio_operations import HERMES_AUDIO_SERVICES,validate_hermes_audio_source_response
-        from tools.review.domains.hermes_agent.video_operations import HERMES_VIDEO_SERVICES,validate_hermes_video_source_response
-        if current_service_name not in (*HERMES_AUDIO_SERVICES,*HERMES_VIDEO_SERVICES) or not isinstance(current_page_state,dict) or current_page_state.get('service')!=current_service_name or not isinstance(current_source_rows,list):raise ValueError('오디오 원본 이력 선택 오류')
+        from tools.review.domains.hermes_agent.video_operations import HERMES_VIDEO_SOURCE_SERVICES,validate_hermes_video_source_response
+        from tools.review.domains.hermes_agent.flux_profile_operations import validate_hermes_flux_source_response
+        from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
+        from tools.review.domains.hermes_agent.image_source_operations import IMAGE_SOURCE_SERVICES,validate_hermes_image_source_response
+        from tools.review.domains.hermes_agent.character_source_operations import validate_character_source_response
+        if current_service_name not in (*HERMES_AUDIO_SERVICES,*HERMES_VIDEO_SOURCE_SERVICES,*FLUX_IMAGE_PROFILE_RECORDS,'flux-expression',*IMAGE_SOURCE_SERVICES,'character-animation') or not isinstance(current_page_state,dict) or current_page_state.get('service')!=current_service_name or not isinstance(current_source_rows,list):raise ValueError('오디오 원본 이력 선택 오류')
         current_matching_rows=[current_row for current_row in current_source_rows if isinstance(current_row,(list,tuple)) and len(current_row)==5 and current_row[0]==current_job_identifier]
         if len(current_matching_rows)!=1:raise ValueError('원본 작업 선택 오류')
         current_is_audio=current_service_name in HERMES_AUDIO_SERVICES
-        current_command_name='hermes-audio-source-status' if current_is_audio else 'hermes-video-source-status'
-        current_response_value=execute_remote_management_command('hermes-agent',current_command_name,{'service':current_service_name,'job_id':current_job_identifier})
-        current_job_record=(validate_hermes_audio_source_response if current_is_audio else validate_hermes_video_source_response)(current_service_name,current_job_identifier,current_response_value)
-        current_media_path=current_job_record.get('audio' if current_is_audio else 'video')
+        current_is_flux=current_service_name in (*FLUX_IMAGE_PROFILE_RECORDS,'flux-expression')
+        current_is_image=current_service_name in IMAGE_SOURCE_SERVICES
+        current_is_character=current_service_name=='character-animation'
+        current_command_name='hermes-audio-source-status' if current_is_audio else 'hermes-flux-source-status' if current_is_flux else 'hermes-image-source-status' if current_is_image else 'hermes-character-source-status' if current_is_character else 'hermes-video-source-status'
+        current_payload_record={'job_id':current_job_identifier} if current_is_character else {'service':current_service_name,'job_id':current_job_identifier}
+        current_response_value=execute_remote_management_command('hermes-agent',current_command_name,current_payload_record)
+        current_job_record=validate_character_source_response(current_job_identifier,current_response_value) if current_is_character else (validate_hermes_audio_source_response if current_is_audio else validate_hermes_flux_source_response if current_is_flux else validate_hermes_image_source_response if current_is_image else validate_hermes_video_source_response)(current_service_name,current_job_identifier,current_response_value)
+        current_media_path=current_job_record.get('audio' if current_is_audio else 'image' if current_is_flux or current_is_image or current_is_character else 'video')
+        current_audio_file_observation=current_job_record.get('file_observation','unknown') if current_is_audio else None
+        if current_audio_file_observation=='unavailable':current_media_path=None
         current_status_labels={'queued':'대기 기록','running':'실행 기록','completed':'완료 기록','failed':'실패 기록','cancelled':'취소 기록','canceled':'취소 기록','paused':'일시정지 기록','unknown':'확인 불가'}
         current_result_labels={'available':'결과 경로 확인','unavailable':'결과 경로 확인 불가','not_ready':'결과 준비 전'}
-        current_notice_text='기록 상태: '+current_status_labels[current_job_record['status']]+' · '+current_result_labels[current_job_record['result_status']]+' · '+(current_media_path or '결과 경로 없음')+' · 파일 내용·재생과 프로세스 생존은 별도 확인' + (' · 파일 존재도 별도 확인' if current_is_audio else ' · 파일 존재는 조회 시점 기준')
+        current_path_notice='음원 파일 확인 불가' if current_is_audio and current_audio_file_observation=='unavailable' else current_media_path or '결과 경로 없음'
+        current_notice_text='기록 상태: '+current_status_labels[current_job_record['status']]+' · '+current_result_labels[current_job_record['result_status']]+' · '+current_path_notice+' · 파일 내용·재생과 프로세스 생존은 별도 확인' + (' · 파일 존재도 별도 확인' if current_is_audio and current_audio_file_observation!='present' else '' if current_is_audio else ' · 파일 존재는 조회 시점 기준')
+        if current_is_audio and current_audio_file_observation=='present':current_notice_text+=' · 음원 파일 존재는 조회 시점 기준'
+        elif current_is_audio and current_audio_file_observation=='unavailable':current_notice_text+=' · 음원 파일을 확인할 수 없어 링크를 표시하지 않습니다'
         if current_media_path:
-            current_notice_text+='  \n['+('음원 열기' if current_is_audio else '영상 열기')+']('+current_media_path+')'
-            if not current_is_audio:
+            current_notice_text+='  \n['+('음원 열기' if current_is_audio else '완료 프레임 열기' if current_is_character else '이미지 열기' if current_is_flux or current_is_image else '영상 열기')+']('+current_media_path+')'
+            if not current_is_audio and not current_is_flux and not current_is_image and not current_is_character:
                 current_notice_text+=' · [첫 프레임 열기]('+current_job_record['image']+') · [프레임 ZIP 받기]('+current_job_record['download']+')'
+        if current_service_name=='kimodo':current_notice_text+=' · 참조 분석 전용 결과는 원 도구에서 확인'
+        if current_is_character:current_notice_text+=' · 마지막 완료 프레임만 확인하며 전체 결과는 별도 확인'
+        if current_is_image and current_job_record['source_service']!=current_service_name:
+            current_notice_text+=' · 원본 서비스: '+current_job_record['source_service']+' (공유 이력)'
         if current_job_record['status']=='failed':
             current_failure_labels={'host_memory_guard':'시스템 메모리 보호로 중단됨','host_memory_monitor_failed':'시스템 메모리 감시 실패','gpu_out_of_memory':'GPU 메모리 부족','unclassified_failure':'원인을 확인하지 못함'}
             current_failure_label=current_failure_labels.get(current_job_record.get('failure_code'),'원인을 확인하지 못함')
@@ -1181,6 +1200,38 @@ def collect_operations_media_source_status(current_service_name,current_job_iden
 
 def render_operations_media_source_status(current_service_name,current_job_identifier,current_page_state,current_source_rows,current_request_token,current_result_record):
     if not isinstance(current_result_record,dict) or current_result_record.get('token')!=current_request_token or current_result_record.get('identity')!=[current_service_name,current_job_identifier,current_page_state,current_source_rows]:return gr.skip()
+    return current_result_record['notice']
+
+
+def update_operations_kimodo_frame_button(current_service_name,current_job_identifier,current_page_state,current_source_rows):
+    current_media_update=update_operations_media_source_button(current_service_name,current_job_identifier,current_page_state,current_source_rows)
+    return gr.update(interactive=current_service_name=='kimodo' and current_media_update.get('interactive') is True)
+
+
+def collect_operations_kimodo_frame(current_service_name,current_job_identifier,current_page_state,current_source_rows,current_frame_number,current_request_token):
+    """선택된 원본의 현재 시도를 재확인한 뒤 지정 프레임을 검토한다."""
+    from copy import deepcopy
+    from tools.review.domains.hermes_agent.video_operations import validate_hermes_video_source_response
+    from tools.review.domains.hermes_agent.kimodo_frame_observer import validate_kimodo_source_frame_response
+    current_identity_value=deepcopy([current_service_name,current_job_identifier,current_page_state,current_source_rows,current_frame_number])
+    try:
+        if update_operations_kimodo_frame_button(current_service_name,current_job_identifier,current_page_state,current_source_rows).get('interactive') is not True or type(current_frame_number) is not int or not 1<=current_frame_number<=1000:raise ValueError('Kimodo 작업 또는 프레임 선택 오류')
+        current_source_response=execute_remote_management_command('hermes-agent','hermes-video-source-status',{'service':'kimodo','job_id':current_job_identifier})
+        current_source_record=validate_hermes_video_source_response('kimodo',current_job_identifier,current_source_response)
+        if current_source_record['status']!='completed' or current_source_record['result_status']!='available':raise ValueError('Kimodo 결과 확인 불가')
+        current_video_match=re.fullmatch('/kimodo/jobs/'+re.escape(current_job_identifier)+r'/attempts/([a-f0-9]{32})/preview\.mp4',current_source_record['video'])
+        if not current_video_match:raise ValueError('Kimodo 실행 시도 오류')
+        current_attempt_identifier=current_video_match[1]
+        current_frame_response=execute_remote_management_command('hermes-agent','hermes-kimodo-source-frame',{'job_id':current_job_identifier,'attempt_id':current_attempt_identifier,'frame':current_frame_number})
+        current_frame_record=validate_kimodo_source_frame_response(current_job_identifier,current_attempt_identifier,current_frame_number,current_frame_response)
+        current_notice_text='프레임 '+str(current_frame_number)+' / '+str(current_frame_record['frame_count'])+' · SHA-256 `'+current_frame_record['image_sha256']+'`  \n[원본 프레임 열기]('+current_frame_record['image']+')  \nPNG 시그니처와 해시만 확인했습니다. 이미지 내용·모션·골격과 저장 가능성은 별도입니다.'
+    except (OSError,ValueError,KeyError,TypeError,RuntimeError):
+        current_notice_text='프레임을 확인할 수 없습니다. 완료된 Kimodo 결과와 프레임 번호를 확인하세요.'
+    return {'identity':current_identity_value,'token':current_request_token,'notice':current_notice_text}
+
+
+def render_operations_kimodo_frame(current_service_name,current_job_identifier,current_page_state,current_source_rows,current_frame_number,current_request_token,current_result_record):
+    if not isinstance(current_result_record,dict) or current_result_record.get('token')!=current_request_token or current_result_record.get('identity')!=[current_service_name,current_job_identifier,current_page_state,current_source_rows,current_frame_number]:return gr.skip()
     return current_result_record['notice']
 
 
@@ -1740,6 +1791,23 @@ def build_operations_history_interface():
             current_media_source_button.click(create_cleanup_preview_token,outputs=current_media_source_token,queue=False).then(collect_operations_media_source_status,[current_source_service,current_source_selected_id,current_source_state,current_source_table,current_media_source_token],current_media_source_result,queue=False,trigger_mode='multiple').then(render_operations_media_source_status,[current_source_service,current_source_selected_id,current_source_state,current_source_table,current_media_source_token,current_media_source_result],current_media_source_notice,queue=False)
             for current_media_source_input in (current_source_service,current_source_selected_id,current_source_table):
                 current_media_source_input.change(lambda:(create_cleanup_preview_token(),''),outputs=[current_media_source_token,current_media_source_notice],queue=False).then(update_operations_media_source_button,[current_source_service,current_source_selected_id,current_source_state,current_source_table],current_media_source_button,queue=False)
+            with gr.Group(visible=True) as current_kimodo_frame_group:
+                gr.Markdown('### Kimodo 원본 프레임 검토\n완료된 Kimodo 작업을 선택하고 프레임 번호를 확인하세요. 영상·첫 프레임·ZIP이 모두 확인된 현재 시도만 조회합니다. 키프레임 저장은 지원하지 않습니다.')
+                current_kimodo_frame_number=gr.Number(label='프레임 번호 · 1부터',value=1,minimum=1,maximum=1000,precision=0)
+                current_kimodo_frame_button=gr.Button('선택한 Kimodo 프레임 확인',interactive=False)
+                current_kimodo_frame_notice=gr.Markdown('Kimodo 원본 작업을 선택하세요.')
+                current_kimodo_frame_token=gr.State(None)
+                current_kimodo_frame_result=gr.State(None)
+                current_kimodo_frame_inputs=[current_source_service,current_source_selected_id,current_source_state,current_source_table,current_kimodo_frame_number]
+                current_kimodo_frame_button.click(create_cleanup_preview_token,outputs=current_kimodo_frame_token,queue=False).then(collect_operations_kimodo_frame,[*current_kimodo_frame_inputs,current_kimodo_frame_token],current_kimodo_frame_result,queue=False,trigger_mode='multiple').then(render_operations_kimodo_frame,[*current_kimodo_frame_inputs,current_kimodo_frame_token,current_kimodo_frame_result],current_kimodo_frame_notice,queue=False)
+                for current_frame_selection in (current_source_service,current_source_selected_id,current_source_table,current_source_state,current_kimodo_frame_number):
+                    current_frame_selection.change(lambda:(create_cleanup_preview_token(),'선택 또는 프레임이 바뀌었습니다. 다시 확인하세요.'),outputs=[current_kimodo_frame_token,current_kimodo_frame_notice],queue=False).then(update_operations_kimodo_frame_button,[current_source_service,current_source_selected_id,current_source_state,current_source_table],current_kimodo_frame_button,queue=False)
+                for current_frame_navigation in (current_source_refresh,current_source_previous,current_source_next):
+                    current_frame_navigation.click(lambda:(create_cleanup_preview_token(),'원본 이력을 다시 조회한 뒤 프레임을 확인하세요.'),outputs=[current_kimodo_frame_token,current_kimodo_frame_notice],queue=False)
+                current_source_table.select(lambda:(create_cleanup_preview_token(),'선택한 작업의 프레임을 확인하세요.'),outputs=[current_kimodo_frame_token,current_kimodo_frame_notice],queue=False)
+                current_source_search.input(lambda:(create_cleanup_preview_token(),'검색 조건이 바뀌었습니다. 다시 조회하세요.'),outputs=[current_kimodo_frame_token,current_kimodo_frame_notice],queue=False)
+                current_kimodo_frame_number.input(lambda:(create_cleanup_preview_token(),'프레임 번호가 바뀌었습니다. 다시 확인하세요.'),outputs=[current_kimodo_frame_token,current_kimodo_frame_notice],queue=False)
+                current_source_service.change(lambda current_service_value:gr.update(visible=current_service_value=='kimodo'),inputs=current_source_service,outputs=current_kimodo_frame_group,queue=False)
             gr.Markdown('### 생성·번역 작업 재개\nFLUX·Kimodo·음악·효과음·번역 원본 이력에서 실패·취소·일시정지된 작업을 선택하고 대상을 확인하세요.')
             current_audio_resume_record=gr.State(None)
             current_audio_resume_status=gr.Markdown('원본 작업을 선택하세요.')

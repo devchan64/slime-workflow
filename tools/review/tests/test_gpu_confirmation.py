@@ -24,6 +24,43 @@ class GpuConfirmationTests(unittest.TestCase):
         self.assertFalse(current_readiness_callback({'inputs': ('saved',), 'consumed': False}, True)['interactive'])
         current_generation_mock.assert_not_called()
 
+    def test_confirmation_observation_reports_unknown_and_discards_old_result(self):
+        import subprocess
+        from tools.review.common.gradio_gpu_confirmation import build_gpu_confirmation_observation_script
+        current_script_value=build_gpu_confirmation_observation_script('test-group','test-status')
+        current_harness_code=r"""
+const assert=require('node:assert/strict');
+const currentStatus={dataset:{},textContent:''};
+global.document={getElementById:id=>id==='test-status'?currentStatus:{scrollIntoView:()=>{}}};
+global.requestAnimationFrame=fn=>fn();let currentNextToken=0;global.crypto={randomUUID:()=>String(++currentNextToken)};
+const currentAction=SCRIPT;
+(async()=>{
+ global.fetch=async()=>({ok:true,json:async()=>({jobs:[],gpu_status:{status:'idle',processes:[]}})});
+ await currentAction();assert.match(currentStatus.textContent,/GPU 프로세스 관측 없음.*대기 작업 0건/);
+ global.fetch=async()=>({ok:true,json:async()=>({jobs:[{service:'kimodo',id:'job'}],gpu_status:{status:'busy',processes:[{pid:1}]}})});
+ await currentAction();assert.match(currentStatus.textContent,/GPU 프로세스 1개 관측.*대기 작업 1건/);
+ for(const currentBadRecord of [{jobs:[],gpu_status:{status:'unavailable',processes:[]}},{jobs:[],gpu_status:{status:'idle',processes:[{}]}},{jobs:[{}],gpu_status:{status:'idle',processes:[]}}]){
+  global.fetch=async()=>({ok:true,json:async()=>currentBadRecord});await currentAction();assert.match(currentStatus.textContent,/상태 확인 불가/);
+ }
+ global.fetch=async()=>({ok:false});await currentAction();assert.match(currentStatus.textContent,/상태 확인 불가/);
+ let currentReleaseOld;global.fetch=()=>new Promise(resolve=>{currentReleaseOld=resolve});const currentOldRequest=currentAction();
+ global.fetch=async()=>({ok:true,json:async()=>({jobs:[],gpu_status:{status:'idle',processes:[]}})});await currentAction();
+ currentReleaseOld({ok:true,json:async()=>({jobs:[{service:'kimodo',id:'job'}],gpu_status:{status:'busy',processes:[{pid:1}]}})});await currentOldRequest;
+ assert.match(currentStatus.textContent,/GPU 프로세스 관측 없음/);
+})().catch(error=>{console.error(error);process.exitCode=1});
+""".replace('SCRIPT',current_script_value)
+        current_result_value=subprocess.run(['node','-e',current_harness_code],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_result_value.returncode,0,current_result_value.stderr)
+
+    def test_confirmation_explains_external_gpu_overlap(self):
+        with gr.Blocks() as current_interface:
+            bind_gpu_generation_confirmation(gr.Button('생성'), Mock(), gr.Textbox(), gr.Textbox())
+        current_markdown_values=[current_component.get('props',{}).get('value','') for current_component in current_interface.config['components'] if current_component.get('type')=='markdown']
+        current_notice_text=' '.join(current_value for current_value in current_markdown_values if isinstance(current_value,str))
+        self.assertIn('GPU 사용 중에도',current_notice_text)
+        self.assertIn('외부 GPU 작업',current_notice_text)
+        self.assertNotIn('GPU가 사용 중이면 대기',current_notice_text)
+
     def test_confirmation_and_cancel_preserve_generation_boundary(self):
         generation_callback_mock = Mock(return_value='accepted')
         with gr.Blocks() as interface_blocks_value:

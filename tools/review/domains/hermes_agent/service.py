@@ -382,6 +382,10 @@ class HermesServiceManager:
         if hermes_command_name=='hermes-kimodo-keyframe-validate':
             from tools.review.domains.hermes_agent.keyframe_observer import validate_hermes_kimodo_keyframe_batch
             return validate_hermes_kimodo_keyframe_batch(hermes_payload_record)
+        if hermes_command_name=='hermes-kimodo-source-frame':
+            if set(hermes_payload_record)!={'job_id','attempt_id','frame'}:raise ValueError('Kimodo 작업·시도·프레임이 필요합니다.')
+            from tools.review.domains.hermes_agent.kimodo_frame_observer import inspect_kimodo_source_frame
+            return inspect_kimodo_source_frame(hermes_payload_record['job_id'],hermes_payload_record['attempt_id'],hermes_payload_record['frame'])
         if hermes_command_name=='hermes-kimodo-keyframe-preview':
             from tools.review.domains.hermes_agent.keyframe_observer import read_hermes_kimodo_keyframe_preview
             if set(hermes_payload_record)!={'keyframe_id'}:
@@ -720,6 +724,18 @@ class HermesServiceManager:
             if set(hermes_payload_record) != {'request_id','job_id'}:
                 raise ValueError('번역 접수 ID와 확인한 작업 ID가 필요합니다.')
             return cancel_hermes_translation_request(hermes_payload_record['request_id'],hermes_payload_record['job_id'])
+        if hermes_command_name=='hermes-character-source-status':
+            if set(hermes_payload_record)!={'job_id'}:raise ValueError('캐릭터 원본 작업 ID가 필요합니다.')
+            from tools.review.domains.hermes_agent.character_source_operations import read_character_source_job
+            return {'service':'character-animation','job_id':hermes_payload_record['job_id'],'job':read_character_source_job(hermes_payload_record['job_id'])}
+        if hermes_command_name=='hermes-image-source-status':
+            if set(hermes_payload_record)!={'service','job_id'}:raise ValueError('이미지 서비스와 원본 작업 ID가 필요합니다.')
+            from tools.review.domains.hermes_agent.image_source_operations import read_hermes_image_source_job
+            return {'service':hermes_payload_record['service'],'job_id':hermes_payload_record['job_id'],'job':read_hermes_image_source_job(hermes_payload_record['service'],hermes_payload_record['job_id'])}
+        if hermes_command_name=='hermes-flux-source-status':
+            if set(hermes_payload_record)!={'service','job_id'}:raise ValueError('FLUX 서비스와 원본 작업 ID가 필요합니다.')
+            from tools.review.domains.hermes_agent.flux_profile_operations import read_hermes_flux_source_job
+            return {'service':hermes_payload_record['service'],'job_id':hermes_payload_record['job_id'],'job':read_hermes_flux_source_job(hermes_payload_record['service'],hermes_payload_record['job_id'])}
         if hermes_command_name=='hermes-video-source-status':
             if set(hermes_payload_record)!={'service','job_id'}:raise ValueError('영상 서비스와 원본 작업 ID가 필요합니다.')
             from tools.review.domains.hermes_agent.video_operations import read_hermes_video_source_job

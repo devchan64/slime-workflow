@@ -592,6 +592,122 @@ class HermesWorkerTests(unittest.TestCase):
                 self.assertEqual(json.loads(current_process_value.stdout)['job']['status'],'queued')
                 current_service_mock.assert_called_once_with('wan22-vace',current_job_identifier)
 
+    def test_kimodo_source_status_from_real_isolated_client(self):
+        import shutil
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge,management_status_client,video_operations
+        current_bwrap_path=shutil.which('bwrap')
+        if current_bwrap_path is None:self.skipTest('bubblewrap이 없습니다.')
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with tempfile.TemporaryDirectory() as current_socket_directory,socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as current_listener_socket:
+            current_socket_path=Path(current_socket_directory)/'observer.sock'
+            current_listener_socket.bind(str(current_socket_path))
+            current_listener_socket.listen(1)
+            current_listener_socket.settimeout(10)
+            def serve_one_video_connection():
+                try:
+                    current_client_socket,_=current_listener_socket.accept()
+                    management_bridge.handle_hermes_observer_connection(current_client_socket)
+                except TimeoutError:
+                    pass
+            current_thread_value=threading.Thread(target=serve_one_video_connection,daemon=True)
+            with patch.object(video_operations,'read_hermes_video_source_job',return_value={'status':'queued','result_status':'not_ready'}) as current_service_mock:
+                current_thread_value.start()
+                current_sandbox_arguments=[current_bwrap_path,'--die-with-parent','--unshare-all','--clearenv','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--dir','/control','--ro-bind',str(current_socket_path),'/control/management-status.sock','--ro-bind',str(Path(management_status_client.__file__)),'/control/management-status.py','--proc','/proc','--dev','/dev','--','/usr/bin/python3','/control/management-status.py','video-source-status',json.dumps({'service':'kimodo','job_id':current_job_identifier})]
+                current_process_value=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=15)
+                current_thread_value.join(timeout=5)
+                self.assertEqual(current_process_value.returncode,0,current_process_value.stderr)
+                self.assertEqual(json.loads(current_process_value.stdout)['job']['status'],'queued')
+                current_service_mock.assert_called_once_with('kimodo',current_job_identifier)
+
+    def test_flux_source_status_from_real_isolated_client(self):
+        import shutil
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge,management_status_client,flux_profile_operations
+        current_bwrap_path=shutil.which('bwrap')
+        if current_bwrap_path is None:self.skipTest('bubblewrap이 없습니다.')
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with tempfile.TemporaryDirectory() as current_socket_directory,socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as current_listener_socket:
+            current_socket_path=Path(current_socket_directory)/'observer.sock'
+            current_listener_socket.bind(str(current_socket_path))
+            current_listener_socket.listen(1)
+            current_listener_socket.settimeout(10)
+            def serve_one_flux_connection():
+                try:
+                    current_client_socket,_=current_listener_socket.accept()
+                    management_bridge.handle_hermes_observer_connection(current_client_socket)
+                except TimeoutError:
+                    pass
+            current_thread_value=threading.Thread(target=serve_one_flux_connection,daemon=True)
+            with patch.object(flux_profile_operations,'read_hermes_flux_source_job',return_value={'status':'queued','result_status':'not_ready'}) as current_service_mock:
+                current_thread_value.start()
+                current_sandbox_arguments=[current_bwrap_path,'--die-with-parent','--unshare-all','--clearenv','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--dir','/control','--ro-bind',str(current_socket_path),'/control/management-status.sock','--ro-bind',str(Path(management_status_client.__file__)),'/control/management-status.py','--proc','/proc','--dev','/dev','--','/usr/bin/python3','/control/management-status.py','flux-source-status',json.dumps({'service':'flux-building','job_id':current_job_identifier})]
+                current_process_value=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=15)
+                current_thread_value.join(timeout=5)
+                self.assertEqual(current_process_value.returncode,0,current_process_value.stderr)
+                self.assertEqual(json.loads(current_process_value.stdout)['job']['status'],'queued')
+                current_service_mock.assert_called_once_with('flux-building',current_job_identifier)
+
+    def test_image_source_status_from_real_isolated_client(self):
+        import shutil
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge,management_status_client,image_source_operations
+        current_bwrap_path=shutil.which('bwrap')
+        if current_bwrap_path is None:self.skipTest('bubblewrap이 없습니다.')
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with tempfile.TemporaryDirectory() as current_socket_directory,socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as current_listener_socket:
+            current_socket_path=Path(current_socket_directory)/'observer.sock'
+            current_listener_socket.bind(str(current_socket_path))
+            current_listener_socket.listen(1)
+            current_listener_socket.settimeout(10)
+            def serve_one_flux_connection():
+                try:
+                    current_client_socket,_=current_listener_socket.accept()
+                    management_bridge.handle_hermes_observer_connection(current_client_socket)
+                except TimeoutError:
+                    pass
+            current_thread_value=threading.Thread(target=serve_one_flux_connection,daemon=True)
+            with patch.object(image_source_operations,'read_hermes_image_source_job',return_value={'status':'queued','result_status':'not_ready'}) as current_service_mock:
+                current_thread_value.start()
+                current_sandbox_arguments=[current_bwrap_path,'--die-with-parent','--unshare-all','--clearenv','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--dir','/control','--ro-bind',str(current_socket_path),'/control/management-status.sock','--ro-bind',str(Path(management_status_client.__file__)),'/control/management-status.py','--proc','/proc','--dev','/dev','--','/usr/bin/python3','/control/management-status.py','image-source-status',json.dumps({'service':'building-generator','job_id':current_job_identifier})]
+                current_process_value=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=15)
+                current_thread_value.join(timeout=5)
+                self.assertEqual(current_process_value.returncode,0,current_process_value.stderr)
+                self.assertEqual(json.loads(current_process_value.stdout)['job']['status'],'queued')
+                current_service_mock.assert_called_once_with('building-generator',current_job_identifier)
+
+    def test_character_source_status_from_real_isolated_client(self):
+        import shutil
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge,management_status_client,character_source_operations
+        current_bwrap_path=shutil.which('bwrap')
+        if current_bwrap_path is None:self.skipTest('bubblewrap이 없습니다.')
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with tempfile.TemporaryDirectory() as current_socket_directory,socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as current_listener_socket:
+            current_socket_path=Path(current_socket_directory)/'observer.sock'
+            current_listener_socket.bind(str(current_socket_path))
+            current_listener_socket.listen(1)
+            current_listener_socket.settimeout(10)
+            def serve_one_flux_connection():
+                try:
+                    current_client_socket,_=current_listener_socket.accept()
+                    management_bridge.handle_hermes_observer_connection(current_client_socket)
+                except TimeoutError:
+                    pass
+            current_thread_value=threading.Thread(target=serve_one_flux_connection,daemon=True)
+            with patch.object(character_source_operations,'read_character_source_job',return_value={'status':'queued','result_status':'not_ready'}) as current_service_mock:
+                current_thread_value.start()
+                current_sandbox_arguments=[current_bwrap_path,'--die-with-parent','--unshare-all','--clearenv','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--dir','/control','--ro-bind',str(current_socket_path),'/control/management-status.sock','--ro-bind',str(Path(management_status_client.__file__)),'/control/management-status.py','--proc','/proc','--dev','/dev','--','/usr/bin/python3','/control/management-status.py','character-source-status',json.dumps({'job_id':current_job_identifier})]
+                current_process_value=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=15)
+                current_thread_value.join(timeout=5)
+                self.assertEqual(current_process_value.returncode,0,current_process_value.stderr)
+                self.assertEqual(json.loads(current_process_value.stdout)['job']['status'],'queued')
+                current_service_mock.assert_called_once_with(current_job_identifier)
+
     def test_capability_search_from_real_isolated_client(self):
         import shutil
         import socket

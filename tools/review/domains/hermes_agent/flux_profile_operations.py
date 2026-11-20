@@ -79,6 +79,22 @@ def read_hermes_flux_source_job(current_profile_name,current_job_identifier):
     return {'status':current_status_value,'image':current_image_url,'result_status':'available' if current_image_url else 'unavailable' if current_status_value=='completed' else 'not_ready','note':'기록과 조회 시점의 파일 존재만 확인합니다. 이미지 내용·품질과 프로세스 생존은 별도 확인하세요.',**observe_hermes_generator_failure(current_status_value,current_status_record.get('error'))}
 
 
+def validate_hermes_flux_source_response(current_service_name,current_job_identifier,current_response_value):
+    """응답의 작업 식별자와 동일 서비스의 결과 경로만 허용한다."""
+    from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+    validate_hermes_flux_profile(current_service_name)
+    if not validate_service_job_identifier(current_service_name,current_job_identifier):raise ValueError('FLUX 원본 작업 ID 오류')
+    if not isinstance(current_response_value,dict) or current_response_value.get('service')!=current_service_name or current_response_value.get('job_id')!=current_job_identifier or not isinstance(current_response_value.get('job'),dict):raise ValueError('FLUX 원본 상태 응답 불일치')
+    current_job_record=current_response_value['job']
+    if current_job_record.get('status') not in ('queued','running','completed','failed','cancelled','canceled','paused','unknown'):raise ValueError('FLUX 상태 오류')
+    current_expected_path='/'+current_service_name+'-generator/jobs/'+current_job_identifier+'/result.png'
+    current_image_path=current_job_record.get('image')
+    if current_image_path is not None and (current_job_record['status']!='completed' or current_image_path!=current_expected_path):raise ValueError('FLUX 결과 경로 오류')
+    current_expected_status=('available' if current_image_path else 'unavailable') if current_job_record['status']=='completed' else 'not_ready'
+    if current_job_record.get('result_status')!=current_expected_status:raise ValueError('FLUX 결과 상태 오류')
+    return current_job_record
+
+
 def list_hermes_flux_profile_receipts(current_profile_name):
     validate_hermes_flux_profile(current_profile_name)
     return HermesDelegationStore().list_service_delegations(current_profile_name)

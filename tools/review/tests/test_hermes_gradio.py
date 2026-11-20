@@ -131,6 +131,46 @@ class HermesGradioTests(unittest.TestCase):
         self.assertIn('접수 기록을 조회',current_render_values[7])
         self.assertTrue(current_render_values[9]['interactive'])
 
+    def test_attachment_status_rejects_late_selection_and_reopened_request(self):
+        current_session_identifier='a'*32
+        current_job_identifier='job-a'
+        current_source_record={'session_id':current_session_identifier,'source_job_id':current_job_identifier,'request_id':'request_123','proposal':{'service':'flux-building'}}
+        for current_kind_name,current_callback_name in (('image','read_conversation_flux_reference'),('video','read_conversation_video_receipt')):
+            with self.subTest(kind=current_kind_name),patch.object(hermes_agent_app,current_callback_name,return_value='이전 결과') as current_read_mock:
+                current_result_record=hermes_agent_app.collect_attachment_status_result(current_source_record,current_session_identifier,current_job_identifier,current_kind_name,'old-token')
+                current_read_mock.assert_called_once_with(current_source_record,current_session_identifier,current_job_identifier)
+                self.assertEqual(hermes_agent_app.render_attachment_status_result(current_source_record,current_session_identifier,current_job_identifier,current_kind_name,'old-token',current_result_record),'이전 결과')
+                for current_source_value,current_session_value,current_job_value,current_token_value in ((current_source_record,'b'*32,current_job_identifier,'old-token'),(current_source_record,current_session_identifier,'other-job','old-token'),({**current_source_record,'request_id':'other'},current_session_identifier,current_job_identifier,'old-token'),(current_source_record,current_session_identifier,current_job_identifier,'new-token')):
+                    self.assertEqual(hermes_agent_app.render_attachment_status_result(current_source_value,current_session_value,current_job_value,current_kind_name,current_token_value,current_result_record),gr.skip())
+            with patch.object(hermes_agent_app,current_callback_name,side_effect=ValueError('private detail')):
+                current_failed_record=hermes_agent_app.collect_attachment_status_result(current_source_record,current_session_identifier,current_job_identifier,current_kind_name,'token')
+                self.assertIn('확인 불가',current_failed_record['notice'])
+                self.assertNotIn('private detail',current_failed_record['notice'])
+
+    def test_conversation_status_discards_response_after_selection_or_request_changes(self):
+        import threading
+        current_card_record={'session_id':'a'*32,'source_job_id':'job-a','kind':'flux','service':'flux-building','review':{'request_id':'request_123'}}
+        current_started_event=threading.Event()
+        current_release_event=threading.Event()
+        current_collected_records=[]
+        def read_delayed_status(*current_values):
+            current_started_event.set()
+            if not current_release_event.wait(3):raise RuntimeError('test timeout')
+            return '이전 작업 이미지 결과'
+        with patch.object(hermes_agent_app,'refresh_conversation_service_status',side_effect=read_delayed_status):
+            current_thread_value=threading.Thread(target=lambda:current_collected_records.append(hermes_agent_app.collect_conversation_status_result(current_card_record,'a'*32,'job-a','flux','token-old')))
+            current_thread_value.start()
+            self.assertTrue(current_started_event.wait(3))
+            current_release_event.set()
+            current_thread_value.join(timeout=3)
+        self.assertFalse(current_thread_value.is_alive())
+        current_result_record=current_collected_records[0]
+        self.assertEqual(hermes_agent_app.render_conversation_status_result(current_card_record,'a'*32,'job-a','flux','token-old',current_result_record),'이전 작업 이미지 결과')
+        for current_card_value,current_session_value,current_job_value,current_kind_value,current_token_value in ((current_card_record,'b'*32,'job-a','flux','token-old'),(current_card_record,'a'*32,'job-b','flux','token-old'),(current_card_record,'a'*32,'job-a','video','token-old'),({**current_card_record,'review':{'request_id':'other'}},'a'*32,'job-a','flux','token-old'),(current_card_record,'a'*32,'job-a','flux','token-new')):
+            with self.subTest(session=current_session_value,job=current_job_value,kind=current_kind_value,token=current_token_value):
+                self.assertEqual(hermes_agent_app.render_conversation_status_result(current_card_value,current_session_value,current_job_value,current_kind_value,current_token_value,current_result_record),gr.skip())
+        self.assertNotEqual(hermes_agent_app.create_conversation_status_token(),hermes_agent_app.create_conversation_status_token())
+
     def test_operations_receipt_result_rejects_late_session_or_page(self):
         from tools.review.ui.gradio import operations_history_app
         current_session_identifier='a'*32
@@ -200,6 +240,97 @@ class HermesGradioTests(unittest.TestCase):
             current_identifier_value,current_notice_text=hermes_agent_app.read_hermes_flux_receipt('request_123')
         self.assertEqual(current_identifier_value,current_job_identifier)
         self.assertIn('상세 로그를 확인하세요',current_notice_text)
+
+    def test_conversation_kimodo_frame_checks_receipt_source_and_stale_selection(self):
+        current_session_identifier='a'*32
+        current_source_identifier='source-job'
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_attempt_identifier='a'*32
+        current_card_record={'session_id':current_session_identifier,'source_job_id':current_source_identifier,'kind':'kimodo','review':{'request_id':'request_123'}}
+        current_base_path='/kimodo/jobs/'+current_job_identifier+'/attempts/'+current_attempt_identifier+'/'
+        current_receipt_record={'state':'accepted','request_id':'request_123','service':'kimodo','job_id':current_job_identifier}
+        current_source_value={'service':'kimodo','job_id':current_job_identifier,'job':{'status':'completed','result_status':'available','video':current_base_path+'preview.mp4','image':current_base_path+'output-000.png','download':current_base_path+'frames.zip'}}
+        current_frame_value={'job_id':current_job_identifier,'attempt_id':current_attempt_identifier,'frame':1,'frame_count':2,'fps':30,'image':current_base_path+'output-000.png','image_sha256':'b'*64}
+        def current_gateway_response(current_service,current_command,current_payload):
+            if current_command=='hermes-delegation-status':return current_receipt_record
+            if current_command=='hermes-video-source-status':return current_source_value
+            if current_command=='hermes-kimodo-source-frame':return current_frame_value
+            raise AssertionError(current_command)
+        with patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway_response) as current_gateway_mock:
+            self.assertTrue(hermes_agent_app.update_conversation_kimodo_frame_button(current_card_record,current_session_identifier,current_source_identifier,'kimodo')['interactive'])
+            current_result_value=hermes_agent_app.collect_conversation_kimodo_frame(current_card_record,current_session_identifier,current_source_identifier,'kimodo',1,'token-old')
+            self.assertIn('[원본 프레임 열기]('+current_base_path+'output-000.png)',current_result_value['notice'])
+            current_gateway_mock.assert_any_call('hermes-agent','hermes-kimodo-source-frame',{'job_id':current_job_identifier,'attempt_id':current_attempt_identifier,'frame':1})
+            self.assertEqual(hermes_agent_app.render_conversation_kimodo_frame(current_card_record,current_session_identifier,current_source_identifier,'kimodo',1,'token-old',current_result_value),current_result_value['notice'])
+            for current_session_value,current_frame_number,current_token_value in (('b'*32,1,'token-old'),(current_session_identifier,2,'token-old'),(current_session_identifier,1,'token-new')):
+                self.assertEqual(hermes_agent_app.render_conversation_kimodo_frame(current_card_record,current_session_value,current_source_identifier,'kimodo',current_frame_number,current_token_value,current_result_value),gr.skip())
+            current_gateway_mock.reset_mock()
+            self.assertIn('확인할 수 없습니다',hermes_agent_app.collect_conversation_kimodo_frame(current_card_record,'b'*32,current_source_identifier,'kimodo',1,'token')['notice'])
+            current_gateway_mock.assert_not_called()
+            current_receipt_record['service']='wrong'
+            self.assertIn('확인할 수 없습니다',hermes_agent_app.collect_conversation_kimodo_frame(current_card_record,current_session_identifier,current_source_identifier,'kimodo',1,'token')['notice'])
+            self.assertEqual(current_gateway_mock.call_count,1)
+            current_receipt_record['service']='kimodo'
+            current_frame_value['image']='/private/secret'
+            self.assertIn('확인할 수 없습니다',hermes_agent_app.collect_conversation_kimodo_frame(current_card_record,current_session_identifier,current_source_identifier,'kimodo',1,'token')['notice'])
+
+    def test_operations_kimodo_frame_checks_current_attempt_and_stale_selection(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_attempt_identifier='a'*32
+        current_page_value={'service':'kimodo','snapshot':'a'*64,'offset':0}
+        current_rows_value=[[current_job_identifier,'완료','원본','조회 불가','조회 불가']]
+        current_base_path='/kimodo/jobs/'+current_job_identifier+'/attempts/'+current_attempt_identifier+'/'
+        current_source_value={'service':'kimodo','job_id':current_job_identifier,'job':{'status':'completed','result_status':'available','video':current_base_path+'preview.mp4','image':current_base_path+'output-000.png','download':current_base_path+'frames.zip'}}
+        current_frame_value={'job_id':current_job_identifier,'attempt_id':current_attempt_identifier,'frame':1,'frame_count':2,'fps':30,'image':current_base_path+'output-000.png','image_sha256':'b'*64}
+        def current_gateway_response(current_service,current_command,current_payload):
+            if current_command=='hermes-video-source-status':return current_source_value
+            if current_command=='hermes-kimodo-source-frame':return current_frame_value
+            raise AssertionError(current_command)
+        with patch.object(operations_history_app,'execute_remote_management_command',side_effect=current_gateway_response) as current_gateway_mock:
+            self.assertTrue(operations_history_app.update_operations_kimodo_frame_button('kimodo',current_job_identifier,current_page_value,current_rows_value)['interactive'])
+            current_result_value=operations_history_app.collect_operations_kimodo_frame('kimodo',current_job_identifier,current_page_value,current_rows_value,1,'token-old')
+            self.assertIn('[원본 프레임 열기]('+current_base_path+'output-000.png)',current_result_value['notice'])
+            self.assertIn('b'*64,current_result_value['notice'])
+            current_gateway_mock.assert_any_call('hermes-agent','hermes-kimodo-source-frame',{'job_id':current_job_identifier,'attempt_id':current_attempt_identifier,'frame':1})
+            self.assertEqual(operations_history_app.render_operations_kimodo_frame('kimodo',current_job_identifier,current_page_value,current_rows_value,1,'token-old',current_result_value),current_result_value['notice'])
+            for current_job_value,current_frame_number,current_token_value in (('other',1,'token-old'),(current_job_identifier,2,'token-old'),(current_job_identifier,1,'token-new')):
+                self.assertEqual(operations_history_app.render_operations_kimodo_frame('kimodo',current_job_value,current_page_value,current_rows_value,current_frame_number,current_token_value,current_result_value),gr.skip())
+            current_gateway_mock.reset_mock()
+            self.assertIn('확인할 수 없습니다',operations_history_app.collect_operations_kimodo_frame('kimodo',current_job_identifier,current_page_value,current_rows_value*2,1,'token')['notice'])
+            current_gateway_mock.assert_not_called()
+            current_frame_value['image']='/private/secret'
+            self.assertIn('확인할 수 없습니다',operations_history_app.collect_operations_kimodo_frame('kimodo',current_job_identifier,current_page_value,current_rows_value,1,'token')['notice'])
+
+    def test_kimodo_conversation_checks_fresh_source_before_result_links(self):
+        current_session_identifier='a'*32
+        current_source_identifier='2026-11-20_00-00-00-12345678'
+        current_job_identifier='2026-11-20_01-00-00-87654321'
+        current_card_record={'session_id':current_session_identifier,'source_job_id':current_source_identifier,'kind':'kimodo','service':'kimodo','review':{'request_id':'request_123'}}
+        current_receipt_record={'state':'accepted','request_id':'request_123','service':'kimodo','job_id':current_job_identifier}
+        current_base_path='/kimodo/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/'
+        current_paths_record={'video':current_base_path+'preview.mp4','image':current_base_path+'output-000.png','download':current_base_path+'frames.zip'}
+        current_empty_paths={current_field_name:None for current_field_name in current_paths_record}
+        for current_source_job,current_expected_text,current_link_expected in (
+            ({'status':'completed',**current_paths_record,'result_status':'available'},'파일 존재는 조회 시점 기준',True),
+            ({'status':'completed',**current_empty_paths,'result_status':'unavailable'},'참조 분석 전용 결과',False),
+            ({'status':'running',**current_empty_paths,'result_status':'not_ready'},'원본 작업 상태가 변경',False),
+            ({'status':'completed',**{**current_paths_record,'video':'/private/secret'},'result_status':'available'},'원본 결과 확인 불가',False),
+        ):
+            with self.subTest(job=current_source_job):
+                def current_gateway_response(current_service,current_command,current_payload):
+                    if current_command=='hermes-delegation-job-status':return {'receipt':current_receipt_record,'job':{'status':'completed'}}
+                    if current_command=='hermes-video-source-status':return {'service':'kimodo','job_id':current_job_identifier,'job':current_source_job}
+                    raise AssertionError(current_command)
+                with patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway_response) as current_gateway_mock:
+                    current_notice_text=hermes_agent_app.read_conversation_kimodo_result(current_card_record,current_session_identifier,current_source_identifier)
+                self.assertIn(current_expected_text,current_notice_text)
+                self.assertEqual('[생성 영상]('+current_paths_record['video']+')' in current_notice_text,current_link_expected)
+                current_gateway_mock.assert_any_call('hermes-agent','hermes-video-source-status',{'service':'kimodo','job_id':current_job_identifier})
+        current_receipt_record['job_id']='../wrong'
+        with patch.object(hermes_agent_app,'execute_remote_management_command',return_value={'receipt':current_receipt_record,'job':{'status':'completed'}}) as current_gateway_mock:
+            with self.assertRaises(gr.Error):hermes_agent_app.read_conversation_kimodo_result(current_card_record,current_session_identifier,current_source_identifier)
+            self.assertEqual(current_gateway_mock.call_count,1)
 
     def test_kimodo_conversation_shows_unclassified_failure_guidance(self):
         current_session_identifier='a'*32
@@ -1484,6 +1615,93 @@ class HermesGradioTests(unittest.TestCase):
             hermes_agent_app.submit_confirmed_conversation_edit(current_card_record,current_changed_card,'a'*32,'job-a','effect')
         current_gateway_mock.assert_not_called()
 
+    def test_audio_file_observation_controls_conversation_and_history_links(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_session_identifier='a'*32
+        current_source_identifier='source-job'
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_service_name='music-heartmula'
+        current_audio_path='/music-heartmula/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/music.wav'
+        current_card_record={'session_id':current_session_identifier,'source_job_id':current_source_identifier,'kind':'audio','service':current_service_name,'review':{'request_id':'request_123'}}
+        current_receipt_record={'state':'accepted','request_id':'request_123','service':current_service_name,'job_id':current_job_identifier}
+        current_page_value={'service':current_service_name,'snapshot':'a'*64,'offset':0}
+        current_rows_value=[[current_job_identifier,'완료','원본','조회 불가','조회 불가']]
+        for current_file_state,current_link_expected,current_expected_text in (('present',True,'파일 존재는 조회 시점 기준'),('unavailable',False,'파일을 확인할 수 없어'),('unknown',True,'파일 존재도 별도 확인')):
+            with self.subTest(observation=current_file_state):
+                current_job_record={'status':'completed','audio':current_audio_path,'result_status':'available','file_observation':current_file_state}
+                def current_gateway_response(current_service,current_command,current_payload):
+                    if current_command=='hermes-audio-status':return {'receipt':current_receipt_record,'job':current_job_record}
+                    if current_command=='hermes-audio-source-status':return {'service':current_service_name,'job_id':current_job_identifier,'job':current_job_record}
+                    raise AssertionError(current_command)
+                with patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway_response),patch.object(operations_history_app,'execute_remote_management_command',side_effect=current_gateway_response):
+                    _,current_conversation_text=hermes_agent_app.read_conversation_service_status(current_card_record,current_session_identifier,current_source_identifier,'audio')
+                    _,current_detail_text=hermes_agent_app.read_hermes_audio_result('request_123',current_service_name)
+                    current_history_text=operations_history_app.collect_operations_media_source_status(current_service_name,current_job_identifier,current_page_value,current_rows_value,'token')['notice']
+                self.assertIn(current_expected_text,current_history_text)
+                self.assertEqual('[생성 음원 듣기]('+current_audio_path+')' in current_conversation_text,current_link_expected)
+                self.assertEqual('[생성 음원 듣기]('+current_audio_path+')' in current_detail_text,current_link_expected)
+                self.assertEqual('[음원 열기]('+current_audio_path+')' in current_history_text,current_link_expected)
+
+    def test_conversation_video_completed_checks_fresh_source_before_links(self):
+        current_session_identifier='a'*32
+        current_source_identifier='source-job'
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_request_identifier='request_123'
+        current_service_name='wan22-vace'
+        current_base_path='/wan22-vace/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/'
+        current_media_paths={'video':current_base_path+'preview.mp4','image':current_base_path+'output-000.png','download':current_base_path+'frames.zip'}
+        current_empty_paths={current_field_name:None for current_field_name in current_media_paths}
+        current_card_record={'session_id':current_session_identifier,'source_job_id':current_source_identifier,'kind':'video','service':current_service_name,'review':{'request_id':current_request_identifier}}
+        current_receipt_record={'state':'accepted','request_id':current_request_identifier,'service':current_service_name,'job_id':current_job_identifier}
+        current_old_status={'receipt':current_receipt_record,'job':{'status':'completed',**current_media_paths}}
+        for current_source_job,current_expected_text,current_link_expected in (
+            ({'status':'completed',**current_media_paths,'result_status':'available'},'파일 존재는 조회 시점 기준',True),
+            ({'status':'completed',**current_empty_paths,'result_status':'unavailable'},'결과 파일 경로를 확인할 수 없습니다',False),
+            ({'status':'running',**current_empty_paths,'result_status':'not_ready'},'원본 작업 상태가 변경',False),
+        ):
+            with self.subTest(job=current_source_job):
+                current_response_value={'service':current_service_name,'job_id':current_job_identifier,'job':current_source_job}
+                def current_gateway_response(current_service,current_command,current_payload):
+                    if current_command=='hermes-video-status':return current_old_status
+                    if current_command=='hermes-video-source-status':return current_response_value
+                    raise AssertionError(current_command)
+                with patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway_response):
+                    _,current_notice_text=hermes_agent_app.read_conversation_service_status(current_card_record,current_session_identifier,current_source_identifier,'video')
+                    _,current_detail_text=hermes_agent_app.read_hermes_video_result(current_request_identifier,current_service_name,current_session_identifier)
+                self.assertIn(current_expected_text,current_notice_text)
+                self.assertEqual(current_media_paths['video'] in current_notice_text,current_link_expected)
+                self.assertEqual(current_media_paths['video'] in current_detail_text,current_link_expected)
+                if current_link_expected:self.assertNotIn('파일 존재와 재생 여부는 원 도구',current_notice_text)
+
+    def test_conversation_flux_completed_checks_fresh_source_before_link(self):
+        current_session_identifier='a'*32
+        current_source_identifier='source-job'
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_request_identifier='request_123'
+        current_service_name='flux-building'
+        current_image_path='/flux-building-generator/jobs/'+current_job_identifier+'/result.png'
+        current_card_record={'session_id':current_session_identifier,'source_job_id':current_source_identifier,'kind':'flux','service':current_service_name,'review':{'request_id':current_request_identifier}}
+        current_receipt_record={'state':'accepted','request_id':current_request_identifier,'service':current_service_name,'job_id':current_job_identifier}
+        current_old_status={'receipt':current_receipt_record,'job':{'status':'completed','image':current_image_path}}
+        for current_source_job,current_expected_text,current_link_expected in (
+            ({'status':'completed','image':current_image_path,'result_status':'available'},'파일 존재는 조회 시점 기준',True),
+            ({'status':'completed','image':None,'result_status':'unavailable'},'이미지 파일을 확인할 수 없습니다',False),
+            ({'status':'running','image':None,'result_status':'not_ready'},'원본 작업 상태가 변경',False),
+        ):
+            with self.subTest(job=current_source_job):
+                current_response_value={'service':current_service_name,'job_id':current_job_identifier,'job':current_source_job}
+                def current_gateway_response(current_service,current_command,current_payload):
+                    if current_command=='hermes-flux-profile-status':return current_old_status
+                    if current_command=='hermes-flux-source-status':return current_response_value
+                    raise AssertionError(current_command)
+                with patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway_response):
+                    _,current_notice_text=hermes_agent_app.read_conversation_service_status(current_card_record,current_session_identifier,current_source_identifier,'flux')
+                    _,current_reference_text=hermes_agent_app.read_hermes_flux_profile_result(current_request_identifier,current_service_name,current_session_identifier)
+                self.assertIn(current_expected_text,current_notice_text)
+                self.assertEqual('[생성 이미지 보기]('+current_image_path+')' in current_notice_text,current_link_expected)
+                self.assertEqual('[생성 이미지 보기]('+current_image_path+')' in current_reference_text,current_link_expected)
+                if current_link_expected:self.assertNotIn('파일 존재와 재생 여부는 원 도구',current_notice_text)
+
     @patch('tools.review.ui.gradio.hermes_agent_app.execute_remote_management_command')
     def test_conversation_completed_results_show_missing_paths(self,current_unused_mock):
         current_session_identifier='a'*32
@@ -2611,6 +2829,39 @@ class HermesGradioTests(unittest.TestCase):
         current_gateway_mock.assert_not_called()
 
     @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
+    def test_flux_source_status_checks_selection_path_and_stale_result(self,current_gateway_mock):
+        from tools.review.ui.gradio import operations_history_app
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_page_value={'service':'flux-building','snapshot':'a'*64,'offset':0}
+        current_rows_value=[[current_job_identifier,'완료','원본','조회 불가','조회 불가']]
+        current_image_path='/flux-building-generator/jobs/'+current_job_identifier+'/result.png'
+        current_gateway_mock.return_value={'service':'flux-building','job_id':current_job_identifier,'job':{'status':'completed','image':current_image_path,'result_status':'available'}}
+        self.assertTrue(operations_history_app.update_operations_media_source_button('flux-building',current_job_identifier,current_page_value,current_rows_value)['interactive'])
+        current_result_value=operations_history_app.collect_operations_media_source_status('flux-building',current_job_identifier,current_page_value,current_rows_value,'token-1')
+        self.assertIn('[이미지 열기]('+current_image_path+')',current_result_value['notice'])
+        current_gateway_mock.assert_called_once_with('hermes-agent','hermes-flux-source-status',{'service':'flux-building','job_id':current_job_identifier})
+        self.assertEqual(operations_history_app.render_operations_media_source_status('flux-building','other',current_page_value,current_rows_value,'token-1',current_result_value),gr.skip())
+        current_gateway_mock.return_value['job']['image']='/private/secret'
+        self.assertIn('확인할 수 없습니다',operations_history_app.collect_operations_media_source_status('flux-building',current_job_identifier,current_page_value,current_rows_value,'token-1')['notice'])
+
+    @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
+    def test_archived_image_source_status_preserves_shared_owner(self,current_gateway_mock):
+        from tools.review.ui.gradio import operations_history_app
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_page_value={'service':'building-generator','snapshot':'a'*64,'offset':0}
+        current_rows_value=[[current_job_identifier,'완료','원본','조회 불가','조회 불가']]
+        current_image_path='/billboard-generator/jobs/'+current_job_identifier+'/result.png'
+        current_gateway_mock.return_value={'service':'building-generator','job_id':current_job_identifier,'job':{'source_service':'billboard-generator','status':'completed','image':current_image_path,'result_status':'available'}}
+        self.assertTrue(operations_history_app.update_operations_media_source_button('building-generator',current_job_identifier,current_page_value,current_rows_value)['interactive'])
+        current_result_value=operations_history_app.collect_operations_media_source_status('building-generator',current_job_identifier,current_page_value,current_rows_value,'token-1')
+        self.assertIn('[이미지 열기]('+current_image_path+')',current_result_value['notice'])
+        self.assertIn('원본 서비스: billboard-generator (공유 이력)',current_result_value['notice'])
+        current_gateway_mock.assert_called_once_with('hermes-agent','hermes-image-source-status',{'service':'building-generator','job_id':current_job_identifier})
+        self.assertEqual(operations_history_app.render_operations_media_source_status('building-generator','other',current_page_value,current_rows_value,'token-1',current_result_value),gr.skip())
+        current_gateway_mock.return_value['job']['image']='/private/secret'
+        self.assertIn('확인할 수 없습니다',operations_history_app.collect_operations_media_source_status('building-generator',current_job_identifier,current_page_value,current_rows_value,'token-1')['notice'])
+
+    @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
     def test_video_source_status_uses_same_selection_and_ignores_stale_response(self,current_gateway_mock):
         from tools.review.ui.gradio import operations_history_app
         current_job_identifier='2026-11-18_00-00-00-12345678'
@@ -2628,6 +2879,26 @@ class HermesGradioTests(unittest.TestCase):
         self.assertEqual(operations_history_app.render_operations_media_source_status('wan22-vace','other',current_page_value,current_rows_value,'token-1',current_result_value),gr.skip())
         current_gateway_mock.return_value['job']['video']='/private/secret'
         self.assertIn('확인할 수 없습니다',operations_history_app.collect_operations_media_source_status('wan22-vace',current_job_identifier,current_page_value,current_rows_value,'token-1')['notice'])
+
+    @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
+    def test_kimodo_source_status_uses_video_result_and_discloses_analysis_limit(self,current_gateway_mock):
+        from tools.review.ui.gradio import operations_history_app
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_page_value={'service':'kimodo','snapshot':'a'*64,'offset':0}
+        current_rows_value=[[current_job_identifier,'완료','원본','조회 불가','조회 불가']]
+        current_base_path='/kimodo/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/'
+        current_gateway_mock.return_value={'service':'kimodo','job_id':current_job_identifier,'job':{'status':'completed','video':current_base_path+'preview.mp4','image':current_base_path+'output-000.png','download':current_base_path+'frames.zip','result_status':'available'}}
+        self.assertTrue(operations_history_app.update_operations_media_source_button('kimodo',current_job_identifier,current_page_value,current_rows_value)['interactive'])
+        current_result_value=operations_history_app.collect_operations_media_source_status('kimodo',current_job_identifier,current_page_value,current_rows_value,'token-1')
+        self.assertIn(current_base_path+'preview.mp4',current_result_value['notice'])
+        self.assertIn('파일 존재는 조회 시점 기준',current_result_value['notice'])
+        self.assertIn('참조 분석 전용 결과는 원 도구에서 확인',current_result_value['notice'])
+        self.assertIn('[영상 열기]('+current_base_path+'preview.mp4)',current_result_value['notice'])
+        self.assertIn('[프레임 ZIP 받기]('+current_base_path+'frames.zip)',current_result_value['notice'])
+        current_gateway_mock.assert_called_once_with('hermes-agent','hermes-video-source-status',{'service':'kimodo','job_id':current_job_identifier})
+        self.assertEqual(operations_history_app.render_operations_media_source_status('kimodo','other',current_page_value,current_rows_value,'token-1',current_result_value),gr.skip())
+        current_gateway_mock.return_value['job']['video']='/private/secret'
+        self.assertIn('확인할 수 없습니다',operations_history_app.collect_operations_media_source_status('kimodo',current_job_identifier,current_page_value,current_rows_value,'token-1')['notice'])
 
     @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
     def test_source_history_preserves_reservation_when_queue_is_malformed(self,current_gateway_mock):

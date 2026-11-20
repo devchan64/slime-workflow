@@ -46,7 +46,7 @@ class HermesVideoOperationsTests(unittest.TestCase):
     def test_video_source_observation_uses_each_actual_manager_storage(self):
         import json
         current_job_identifier='2026-11-18_00-00-00-12345678'
-        current_service_settings=(('dwpose','tools.review.domains.dwpose.generation.DWPOSE_JOB_STORAGE'),('wan22-animate2','tools.review.domains.wan_animate2.generation.ANIMATE_JOB_STORAGE'),('wan22-vace','tools.review.domains.wan_vace.generation.VACE_JOB_STORAGE'),('wan22-fun-control','tools.review.domains.wan_fun.generation.FUN_JOB_STORAGE'))
+        current_service_settings=(('dwpose','tools.review.domains.dwpose.generation.DWPOSE_JOB_STORAGE'),('wan22-animate2','tools.review.domains.wan_animate2.generation.ANIMATE_JOB_STORAGE'),('wan22-vace','tools.review.domains.wan_vace.generation.VACE_JOB_STORAGE'),('wan22-fun-control','tools.review.domains.wan_fun.generation.FUN_JOB_STORAGE'),('kimodo','tools.review.domains.kimodo.generation.KIMODO_JOB_STORAGE'))
         with TemporaryDirectory() as current_directory_name:
             current_root_path=Path(current_directory_name)
             for current_service_name,current_storage_setting in current_service_settings:
@@ -67,6 +67,80 @@ class HermesVideoOperationsTests(unittest.TestCase):
                         (current_attempt_root/'preview.mp4').symlink_to(current_attempt_root/'output-000.png')
                         self.assertEqual(video_operations.read_hermes_video_source_job(current_service_name,current_job_identifier)['result_status'],'unavailable')
                         self.assertEqual(json.loads((current_job_root/'status.json').read_text()),{'status':'completed'})
+
+    def test_source_observation_rejects_changed_result_attempt(self):
+        import json
+        from types import SimpleNamespace
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_job_root=current_root_path/current_job_identifier
+            current_attempt_root=current_job_root/'attempts'/('a'*32)
+            current_attempt_root.mkdir(parents=True)
+            (current_job_root/'status.json').write_text(json.dumps({'status':'completed'}))
+            (current_job_root/'result.json').write_text(json.dumps({'attempt':'a'*32}))
+            for current_file_name in ('preview.mp4','output-000.png','frames.zip'):(current_attempt_root/current_file_name).write_bytes(b'fixture')
+            current_status_record={'status':'completed'}
+            with patch.object(video_operations,'make_hermes_video_source_manager',return_value=SimpleNamespace(job_storage_root=current_root_path)),patch('tools.review.domains.hermes_agent.delegation_store.read_bounded_delegation_record',side_effect=[current_status_record,{'attempt':'a'*32},current_status_record,{'attempt':'b'*32}]):
+                with self.assertRaisesRegex(ValueError,'결과가 조회 중 변경'):video_operations.read_hermes_video_source_job('kimodo',current_job_identifier)
+
+    def test_kimodo_source_links_reach_runtime_and_actual_file_handler(self):
+        import json
+        import threading
+        from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+        from urllib.request import Request,urlopen
+        from tools.review.common.management_gateway import MANAGEMENT_SERVICE_ROUTES,execute_management_command
+        from tools.review.common.management_runtime import ManagementServiceRuntime,bind_stored_management_service
+        from tools.review.common.management_transport import proxy_management_request
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.domains.kimodo.generation import KimodoGenerationManager
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_kimodo_manager=KimodoGenerationManager()
+            current_kimodo_manager.job_storage_root=current_root_path/'kimodo'
+            current_job_root=current_kimodo_manager.job_storage_root/current_job_identifier
+            current_attempt_root=current_job_root/'attempts'/('a'*32)
+            current_attempt_root.mkdir(parents=True)
+            (current_job_root/'status.json').write_text(json.dumps({'status':'completed'}))
+            (current_job_root/'result.json').write_text(json.dumps({'attempt':'a'*32}))
+            for current_file_name in ('preview.mp4','output-000.png','frames.zip'):(current_attempt_root/current_file_name).write_bytes(b'fixture-'+current_file_name.encode())
+            current_hermes_manager=HermesServiceManager(current_root_path/'hermes',current_root_path/'sessions')
+            current_bindings_map={current_name:bind_stored_management_service(lambda current_request:False,current_root_path) for current_name in MANAGEMENT_SERVICE_ROUTES}
+            current_bindings_map['hermes-agent']=bind_stored_management_service(current_hermes_manager.handle_hermes_request,current_root_path/'hermes')
+            current_bindings_map['kimodo']=bind_stored_management_service(current_kimodo_manager.handle_image_request,current_kimodo_manager.job_storage_root)
+            current_runtime_value=ManagementServiceRuntime(current_bindings_map,lambda current_request:False,lambda:None)
+            current_gateway_server=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_runtime_value.dispatch_runtime_request))
+            current_gateway_server.emit_gateway_trace=lambda *current_values:None
+            current_gateway_thread=threading.Thread(target=current_gateway_server.serve_forever,daemon=True)
+            current_gateway_thread.start()
+            current_gateway_url='http://127.0.0.1:'+str(current_gateway_server.server_port)
+            class TestProxyHandler(BaseHTTPRequestHandler):
+                def do_GET(self):
+                    if not proxy_management_request(self,current_gateway_url):self.send_error(404)
+                def log_message(self,*current_values):pass
+            current_proxy_server=ThreadingHTTPServer(('127.0.0.1',0),TestProxyHandler)
+            current_proxy_thread=threading.Thread(target=current_proxy_server.serve_forever,daemon=True)
+            current_proxy_thread.start()
+            current_proxy_url='http://127.0.0.1:'+str(current_proxy_server.server_port)
+            try:
+                with patch.object(video_operations,'make_hermes_video_source_manager',return_value=current_kimodo_manager),patch('tools.review.common.video_job_recovery.recover_interrupted_video_job') as current_recovery_mock:
+                    current_response_value=execute_management_command('hermes-agent','hermes-video-source-status',{'service':'kimodo','job_id':current_job_identifier},current_gateway_url)
+                    current_job_record=video_operations.validate_hermes_video_source_response('kimodo',current_job_identifier,current_response_value)
+                    for current_field_name,current_file_name in (('video','preview.mp4'),('image','output-000.png'),('download','frames.zip')):
+                        with urlopen(current_proxy_url+current_job_record[current_field_name],timeout=5) as current_http_response:self.assertEqual(current_http_response.read(),b'fixture-'+current_file_name.encode())
+                    with urlopen(Request(current_proxy_url+current_job_record['video'],headers={'Range':'bytes=0-3'}),timeout=5) as current_range_response:self.assertEqual((current_range_response.status,current_range_response.read()),(206,b'fixt'))
+                    current_recovery_mock.assert_not_called()
+                    self.assertEqual(json.loads((current_job_root/'status.json').read_text()),{'status':'completed'})
+            finally:
+                current_proxy_server.shutdown();current_proxy_server.server_close();current_proxy_thread.join(timeout=5)
+                current_gateway_server.shutdown();current_gateway_server.server_close();current_gateway_thread.join(timeout=5)
+
+    def test_kimodo_source_does_not_expand_video_delegation_contract(self):
+        self.assertIn('kimodo',video_operations.HERMES_VIDEO_SOURCE_SERVICES)
+        self.assertNotIn('kimodo',video_operations.HERMES_VIDEO_SERVICES)
+        with self.assertRaises(ValueError):video_operations.validate_hermes_video_service('kimodo')
 
     def test_video_source_observation_never_recovers_and_checks_result_files(self):
         import json

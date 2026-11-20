@@ -16,7 +16,7 @@ def read_sandbox_management_status(current_request_kind='gpu-queue', current_ser
         if not isinstance(current_service_name,str) or len(current_service_name.encode('utf-8'))>4000 or '\n' in current_service_name:
             raise ValueError('맵 DB 접수 입력 형식 오류')
         current_request_kind += ' ' + current_service_name
-    elif current_request_kind in ('expression-catalog', 'billboard-catalog', 'building-catalog', 'field-region', 'effect-catalog', 'sprite-catalog', 'sprite-detail', 'capabilities', 'service-registration', 'source-history', 'audio-source-status', 'video-source-status', 'reservation-inspect', 'capture-status', 'writer-search-paths', 'writer-job-search-paths', 'writer-job-review', 'writer-job-material', 'capture-map-check', 'flux-resume-preview', 'video-resume-preview', 'cleanup-preview') and current_service_name is not None:
+    elif current_request_kind in ('expression-catalog', 'billboard-catalog', 'building-catalog', 'field-region', 'effect-catalog', 'sprite-catalog', 'sprite-detail', 'capabilities', 'service-registration', 'source-history', 'audio-source-status', 'video-source-status', 'flux-source-status', 'image-source-status', 'character-source-status', 'reservation-inspect', 'capture-status', 'writer-search-paths', 'writer-job-search-paths', 'writer-job-review', 'writer-job-material', 'capture-map-check', 'flux-resume-preview', 'video-resume-preview', 'cleanup-preview') and current_service_name is not None:
         if not isinstance(current_service_name, str) or len(current_service_name.encode('utf-8')) > 800 or '\n' in current_service_name:
             raise ValueError('빌보드 검색 입력 형식 오류')
         current_request_kind += ' ' + current_service_name
@@ -65,14 +65,14 @@ def read_sandbox_management_status(current_request_kind='gpu-queue', current_ser
             current_allowed_errors += ('도시 원본 조회 실패: 맵 ID와 등록 원본을 확인하세요.', '도시 맵 조회 실패: 맵 ID와 콘텐츠 DB 상태를 확인하세요.', '조회 응답 크기 제한 초과: 원 도구에서 확인하세요.')
             current_allowed_errors += ('작가 작업 조회 실패: 작업 ID와 원 서비스를 확인하세요.', '작가 검색 경로 조회 실패: 접수 ID를 확인하세요.', '작가 검색 경로 조회 실패: 작업 ID와 검색 기록을 확인하세요.', '작가 자료 조회 실패: 작업 ID·자료 종류·페이지 지문을 확인하세요.', '작가 색인 상태 조회 실패: 작가 서비스를 확인하세요.', '모델 다운로드 상태 조회 실패', '번역 근거 조회 실패: 검색 원문과 작가 색인 상태를 확인하세요.', '번역 근거 조회 실패: 작가 색인이 오래되어 갱신이 필요합니다.', '번역 근거 조회 실패: 작가 색인이 준비되지 않았습니다.')
             current_allowed_errors += ('오디오 원본 상태 조회 실패: 서비스와 작업 ID를 확인하세요.',)
-            current_allowed_errors += ('영상 원본 상태 조회 실패: 서비스와 작업 ID를 확인하세요.',)
+            current_allowed_errors += ('영상 원본 상태 조회 실패: 서비스와 작업 ID를 확인하세요.', 'FLUX 원본 상태 조회 실패: 서비스와 작업 ID를 확인하세요.', '이미지 원본 상태 조회 실패: 서비스와 작업 ID를 확인하세요.', '캐릭터 원본 상태 조회 실패: 작업 ID를 확인하세요.')
             current_error_message = current_response_record['error']
             raise ValueError(current_error_message if current_error_message in current_allowed_errors else '관리 상태 조회가 거절됐습니다.')
         return current_response_record
 
 
 if __name__ == '__main__':
-    if not (len(sys.argv) == 1 or (len(sys.argv) == 2 and sys.argv[1] in ('model-inventory', 'model-download-status', 'service-registration', 'capabilities', 'world-map', 'content-database-status', 'kimodo-build-status', 'writer-index-status', 'sprite-pending-status')) or (len(sys.argv) == 3 and sys.argv[1] in ('model-readiness', 'expression-catalog', 'billboard-catalog', 'building-catalog', 'field-region', 'city-map', 'city-source', 'kimodo-resume-preview', 'flux-resume-preview', 'video-resume-preview', 'cleanup-preview', 'world-map', 'effect-catalog', 'effect-detail', 'sprite-catalog', 'sprite-detail', 'capabilities', 'service-registration', 'source-history', 'audio-source-status', 'video-source-status', 'reservation-inspect', 'capture-status', 'writer-search-paths', 'writer-job-search-paths', 'writer-job-review', 'writer-job-material', 'map-database-receipt', 'capture-map-check', 'translation-evidence'))):
+    if not (len(sys.argv) == 1 or (len(sys.argv) == 2 and sys.argv[1] in ('model-inventory', 'model-download-status', 'service-registration', 'capabilities', 'world-map', 'content-database-status', 'kimodo-build-status', 'writer-index-status', 'sprite-pending-status')) or (len(sys.argv) == 3 and sys.argv[1] in ('model-readiness', 'expression-catalog', 'billboard-catalog', 'building-catalog', 'field-region', 'city-map', 'city-source', 'kimodo-resume-preview', 'flux-resume-preview', 'video-resume-preview', 'cleanup-preview', 'world-map', 'effect-catalog', 'effect-detail', 'sprite-catalog', 'sprite-detail', 'capabilities', 'service-registration', 'source-history', 'audio-source-status', 'video-source-status', 'flux-source-status', 'image-source-status', 'character-source-status', 'reservation-inspect', 'capture-status', 'writer-search-paths', 'writer-job-search-paths', 'writer-job-review', 'writer-job-material', 'map-database-receipt', 'capture-map-check', 'translation-evidence'))):
         sys.exit('지원하지 않는 관리 조회입니다.')
     try:
         print(json.dumps(read_sandbox_management_status(sys.argv[1] if len(sys.argv) > 1 else 'gpu-queue', sys.argv[2] if len(sys.argv) == 3 else None), ensure_ascii=False))

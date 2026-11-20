@@ -11,6 +11,15 @@ from tools.review.common.management_gateway import resolve_management_command, i
 
 
 class HermesServiceTests(unittest.TestCase):
+    def test_flux_source_command_requires_exact_payload(self):
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_job_record={'status':'queued','image':None,'result_status':'not_ready'}
+        with patch('tools.review.domains.hermes_agent.flux_profile_operations.read_hermes_flux_source_job',return_value=current_job_record) as current_reader_mock:
+            current_result_value=self.hermes_service_manager.execute_hermes_command('hermes-flux-source-status',{'service':'flux-building','job_id':current_job_identifier})
+            self.assertEqual(current_result_value,{'service':'flux-building','job_id':current_job_identifier,'job':current_job_record})
+            current_reader_mock.assert_called_once_with('flux-building',current_job_identifier)
+            with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-flux-source-status',{'service':'flux-building','job_id':current_job_identifier,'extra':True})
+
     def test_kimodo_resume_preflight_blocks_preparation_without_receipt(self):
         from tools.review.domains.hermes_agent import kimodo_resume_operations
         current_job_identifier='2026-11-20_00-00-00-12345678'

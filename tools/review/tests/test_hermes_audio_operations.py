@@ -307,6 +307,92 @@ except ValueError as error:
                 current_proxy_server.shutdown();current_proxy_server.server_close();current_proxy_thread.join(timeout=5)
                 current_gateway_server.shutdown();current_gateway_server.server_close();current_gateway_thread.join(timeout=5)
 
+    def test_audio_file_observation_crosses_actual_runtime_and_proxy(self):
+        import json
+        import os
+        import threading
+        from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+        from urllib.request import Request,urlopen
+        from tools.review.common.management_gateway import MANAGEMENT_SERVICE_ROUTES,execute_management_command
+        from tools.review.common.management_runtime import ManagementServiceRuntime,bind_stored_management_service
+        from tools.review.common.management_transport import proxy_management_request
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.domains.music.generation import MusicGenerationManager
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_managers_map={current_service_name:MusicGenerationManager(current_service_name) for current_service_name in ('music-heartmula','sfx-dasheng-audiogen')}
+            for current_service_name,current_manager_value in current_managers_map.items():
+                current_manager_value.job_storage_root=current_root_path/current_service_name
+                current_job_root=current_manager_value.job_storage_root/current_job_identifier
+                current_attempt_root=current_job_root/'attempts'/('a'*32)
+                current_attempt_root.mkdir(parents=True)
+                (current_job_root/'status.json').write_text(json.dumps({'status':'completed'}))
+                (current_job_root/'result.json').write_text(json.dumps({'format':'wav','attempt':'a'*32}))
+                (current_attempt_root/current_manager_value.audio_output_filename).write_bytes(b'fixture-audio')
+            current_hermes_manager=HermesServiceManager(current_root_path/'hermes',current_root_path/'sessions')
+            current_bindings_map={current_name:bind_stored_management_service(lambda current_request:False,current_root_path) for current_name in MANAGEMENT_SERVICE_ROUTES}
+            for current_service_name,current_manager_value in current_managers_map.items():current_bindings_map[current_service_name]=bind_stored_management_service(current_manager_value.handle_music_request,current_manager_value.job_storage_root)
+            current_bindings_map['hermes-agent']=bind_stored_management_service(current_hermes_manager.handle_hermes_request,current_root_path/'hermes')
+            current_runtime_value=ManagementServiceRuntime(current_bindings_map,lambda current_request:False,lambda:None)
+            current_gateway_server=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_runtime_value.dispatch_runtime_request))
+            current_gateway_server.emit_gateway_trace=lambda *current_values:None
+            current_gateway_thread=threading.Thread(target=current_gateway_server.serve_forever,daemon=True)
+            current_gateway_thread.start()
+            current_gateway_url='http://127.0.0.1:'+str(current_gateway_server.server_port)
+            class TestProxyHandler(BaseHTTPRequestHandler):
+                def do_GET(self):
+                    if not proxy_management_request(self,current_gateway_url):self.send_error(404)
+                def log_message(self,*current_values):pass
+            current_proxy_server=ThreadingHTTPServer(('127.0.0.1',0),TestProxyHandler)
+            current_proxy_thread=threading.Thread(target=current_proxy_server.serve_forever,daemon=True)
+            current_proxy_thread.start()
+            current_proxy_url='http://127.0.0.1:'+str(current_proxy_server.server_port)
+            try:
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_url}),patch('tools.review.domains.music.generation.MusicGenerationManager',side_effect=lambda current_name:current_managers_map[current_name]):
+                    for current_service_name,current_manager_value in current_managers_map.items():
+                        with self.subTest(service=current_service_name):
+                            current_payload_record={'service':current_service_name,'job_id':current_job_identifier}
+                            current_response_value=execute_management_command('hermes-agent','hermes-audio-source-status',current_payload_record,current_gateway_url)
+                            current_job_record=audio_operations.validate_hermes_audio_source_response(current_service_name,current_job_identifier,current_response_value)
+                            self.assertEqual(current_job_record['file_observation'],'present')
+                            with urlopen(Request(current_proxy_url+current_job_record['audio'],headers={'Range':'bytes=0-3'}),timeout=5) as current_http_response:self.assertEqual((current_http_response.status,current_http_response.read()),(206,b'fixt'))
+                            (current_manager_value.job_storage_root/current_job_identifier/'attempts'/('a'*32)/current_manager_value.audio_output_filename).unlink()
+                            current_missing_value=execute_management_command('hermes-agent','hermes-audio-source-status',current_payload_record,current_gateway_url)
+                            self.assertEqual(current_missing_value['job']['file_observation'],'unavailable')
+                            self.assertEqual(current_missing_value['job']['audio'],current_job_record['audio'])
+            finally:
+                current_proxy_server.shutdown();current_proxy_server.server_close();current_proxy_thread.join(timeout=5)
+                current_gateway_server.shutdown();current_gateway_server.server_close();current_gateway_thread.join(timeout=5)
+
+    def test_audio_file_observation_checks_records_and_file_without_mutation(self):
+        import json
+        from types import SimpleNamespace
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        for current_service_name,current_file_name in (('music-heartmula','music.wav'),('sfx-dasheng-audiogen','sound.wav')):
+            with self.subTest(service=current_service_name),TemporaryDirectory() as current_directory_name:
+                current_root_path=Path(current_directory_name)
+                current_job_path=current_root_path/current_job_identifier
+                current_attempt_path=current_job_path/'attempts'/('a'*32)
+                current_attempt_path.mkdir(parents=True)
+                current_status_record={'status':'completed'}
+                current_result_record={'format':'wav','attempt':'a'*32}
+                (current_job_path/'status.json').write_text(json.dumps(current_status_record))
+                (current_job_path/'result.json').write_text(json.dumps(current_result_record))
+                current_audio_file=current_attempt_path/current_file_name
+                current_audio_file.write_bytes(b'fixture')
+                current_audio_path='/'+current_service_name+'/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/'+current_file_name
+                with patch('tools.review.domains.music.generation.MusicGenerationManager',return_value=SimpleNamespace(job_storage_root=current_root_path)):
+                    self.assertEqual(audio_operations.observe_hermes_audio_file(current_service_name,current_job_identifier,current_audio_path),'present')
+                    current_audio_file.unlink()
+                    self.assertEqual(audio_operations.observe_hermes_audio_file(current_service_name,current_job_identifier,current_audio_path),'unavailable')
+                    current_audio_file.symlink_to(current_job_path/'status.json')
+                    self.assertEqual(audio_operations.observe_hermes_audio_file(current_service_name,current_job_identifier,current_audio_path),'unavailable')
+                    with patch('tools.review.domains.hermes_agent.delegation_store.read_bounded_delegation_record',side_effect=[current_status_record,current_result_record,current_status_record,{'format':'wav','attempt':'b'*32}]):
+                        self.assertEqual(audio_operations.observe_hermes_audio_file(current_service_name,current_job_identifier,current_audio_path),'unknown')
+                    self.assertEqual(json.loads((current_job_path/'status.json').read_text()),current_status_record)
+
     def test_source_audio_status_checks_service_job_and_result(self):
         current_job_identifier='2026-11-18_00-00-00-12345678'
         current_result_path='/music-heartmula/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/music.wav'

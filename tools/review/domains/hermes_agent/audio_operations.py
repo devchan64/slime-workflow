@@ -45,6 +45,32 @@ def read_hermes_audio_status(current_request_identifier,current_service_name):
     return {'receipt':current_receipt_value,'job':read_hermes_audio_source_job(current_service_name,current_receipt_value['job_id'])}
 
 
+def observe_hermes_audio_file(current_service_name,current_job_identifier,current_audio_path):
+    """원본 상태·시도와 파일 존재를 읽되 원 서비스 응답과 일치하지 않으면 미확인이다."""
+    from pathlib import Path
+    from tools.review.domains.hermes_agent.delegation_store import read_bounded_delegation_record
+    from tools.review.domains.music.generation import MusicGenerationManager
+    try:
+        current_path_match=re.fullmatch('/'+re.escape(current_service_name)+'/jobs/'+re.escape(current_job_identifier)+r'/attempts/([a-f0-9]{32})/(music\.wav|sound\.wav)',current_audio_path)
+        if not current_path_match:return 'unknown'
+        current_storage_root=Path(MusicGenerationManager(current_service_name).job_storage_root)
+        current_job_root=current_storage_root/current_job_identifier
+        if current_storage_root.is_symlink() or not current_storage_root.is_dir() or current_job_root.is_symlink() or not current_job_root.is_dir() or current_job_root.resolve().parent!=current_storage_root.resolve():return 'unknown'
+        current_status_path=current_job_root/'status.json'
+        current_result_path=current_job_root/'result.json'
+        current_status_record=read_bounded_delegation_record(current_status_path)
+        current_result_record=read_bounded_delegation_record(current_result_path)
+        if not isinstance(current_status_record,dict) or current_status_record.get('status')!='completed' or not isinstance(current_result_record,dict) or current_result_record.get('format')!='wav' or current_result_record.get('attempt')!=current_path_match[1]:return 'unknown'
+        current_attempts_root=current_job_root/'attempts'
+        current_attempt_root=current_attempts_root/current_path_match[1]
+        current_audio_file=current_attempt_root/current_path_match[2]
+        current_present_value=(not current_attempts_root.is_symlink() and current_attempts_root.is_dir() and not current_attempt_root.is_symlink() and current_attempt_root.is_dir() and current_attempt_root.resolve().parent==current_attempts_root.resolve() and not current_audio_file.is_symlink() and current_audio_file.is_file())
+        if read_bounded_delegation_record(current_status_path)!=current_status_record or read_bounded_delegation_record(current_result_path)!=current_result_record:return 'unknown'
+        return 'present' if current_present_value else 'unavailable'
+    except (OSError,ValueError,TypeError,KeyError):
+        return 'unknown'
+
+
 def read_hermes_audio_source_job(current_service_name,current_job_identifier):
     """원 서비스 작업 ID를 검증하고 상태와 동일 출처 결과 경로만 반환한다."""
     from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
@@ -60,7 +86,8 @@ def read_hermes_audio_source_job(current_service_name,current_job_identifier):
     from tools.review.domains.hermes_agent.media_result_paths import validate_hermes_audio_result_path
     current_audio_path=validate_hermes_audio_result_path(current_service_name,current_job_identifier,{**current_job_value,'status':current_status_value})
     current_result_status='available' if current_audio_path else 'unavailable' if current_status_value=='completed' else 'not_ready'
-    return {'status':current_status_value,'audio':current_audio_path,'result_status':current_result_status,
+    current_file_observation=observe_hermes_audio_file(current_service_name,current_job_identifier,current_audio_path) if current_audio_path else 'not_ready'
+    return {'status':current_status_value,'audio':current_audio_path,'result_status':current_result_status,'file_observation':current_file_observation,
         'note':'완료 결과와 상세 로그·분리 음원은 해당 생성기 이력에서 확인하세요. 생성 결과는 자동으로 에셋에 등록되지 않습니다.', **observe_hermes_generator_failure(current_status_value,current_job_value.get('error'))}
 
 
@@ -76,6 +103,8 @@ def validate_hermes_audio_source_response(current_service_name,current_job_ident
     current_audio_path=validate_hermes_audio_result_path(current_service_name,current_job_identifier,current_job_record)
     current_expected_result='available' if current_audio_path else 'unavailable' if current_job_record['status']=='completed' else 'not_ready'
     if (current_job_record.get('audio') is not None and current_audio_path is None) or current_job_record['result_status']!=current_expected_result:raise ValueError('오디오 결과 경로 오류')
+    current_file_observation=current_job_record.get('file_observation','unknown')
+    if current_file_observation not in ('present','unavailable','unknown','not_ready') or (current_file_observation in ('present','unavailable') and not current_audio_path) or (current_audio_path and current_file_observation=='not_ready'):raise ValueError('오디오 파일 관측 오류')
     return current_job_record
 
 
