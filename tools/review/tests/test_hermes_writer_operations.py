@@ -48,6 +48,40 @@ class HermesWriterOperationsTests(unittest.TestCase):
             current_server.server_close()
             current_thread.join(timeout=5)
 
+    def test_writer_material_busy_propagates_through_gateway_without_fallback(self):
+        import json
+        import os
+        import threading
+        from http.server import ThreadingHTTPServer
+        from generators.writer_agent import management
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.gateway_server import create_gateway_request_handler
+        with TemporaryDirectory() as current_temporary_root:
+            current_state_root=Path(current_temporary_root)
+            current_job_identifier='20261115-114927-8d274ccd'
+            current_job_root=current_state_root/'jobs'/current_job_identifier
+            current_job_root.mkdir(parents=True)
+            (current_job_root/'status.yaml').write_text('id: '+current_job_identifier+'\nstage: completed\n')
+            (current_job_root/'search.yaml').write_text('results: []\n')
+            current_writer_manager=management.WriterAgentManager(current_state_root/'workspace.yaml')
+            current_gateway=ManagementCommandGateway({'writer-agent':current_writer_manager.handle_writer_request})
+            current_server=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway.handle))
+            current_server.emit_gateway_trace=lambda *current_values:None
+            current_thread=threading.Thread(target=current_server.serve_forever,daemon=True)
+            current_thread.start()
+            try:
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':'http://127.0.0.1:'+str(current_server.server_port)}), patch.object(management,'load_workspace_config',return_value={'state_root':str(current_state_root)}), patch.object(current_writer_manager,'read_writer_detail',side_effect=AssertionError('전체 자료 조회 금지')) as current_detail_mock:
+                    with management.hold_writer_material_guard(current_state_root/'busy-one'), management.hold_writer_material_guard(current_state_root/'busy-two'):
+                        with self.assertRaisesRegex(ValueError,'조회 한도'):
+                            writer_operations.read_writer_job_material_page({'job_id':current_job_identifier,'section':'search'})
+                    current_page_value=writer_operations.read_writer_job_material_page({'job_id':current_job_identifier,'section':'search'})
+                    self.assertEqual(json.loads(current_page_value['content']),{'results':[]})
+                    current_detail_mock.assert_not_called()
+            finally:
+                current_server.shutdown()
+                current_server.server_close()
+                current_thread.join(timeout=5)
+
     def test_writer_material_prefers_page_api_and_rejects_bad_response(self):
         from generators.writer_agent.material_pages import build_writer_material_page
         from tools.review.domains.hermes_agent import writer_operations

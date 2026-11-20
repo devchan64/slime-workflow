@@ -66,6 +66,24 @@ class GatewayContractTest(unittest.TestCase):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             execute_gateway_cli(['model', 'status', 'qwen-2511'])
 
+    def test_help_describes_retired_services_consistently_with_policy(self):
+        from tools.review.common.management_gateway import ARCHIVED_QWEN_IMAGE_SERVICES, inspect_management_policy_rejection
+        with contextlib.redirect_stdout(io.StringIO()) as current_help_output:
+            self.assertEqual(execute_gateway_cli(['help']),0)
+        current_help_lines=current_help_output.getvalue().splitlines()
+        for current_service_name in ARCHIVED_QWEN_IMAGE_SERVICES:
+            current_matching_lines=[current_line for current_line in current_help_lines if current_line.strip().startswith(current_service_name+':')]
+            self.assertEqual(len(current_matching_lines),1)
+            self.assertIn('아카이브',current_matching_lines[0])
+            for current_command_name in ('generate','resume','prepare'):
+                self.assertIsNotNone(inspect_management_policy_rejection(current_service_name,current_command_name))
+        current_qwen_line=next(current_line for current_line in current_help_lines if current_line.strip().startswith('qwen-2511:'))
+        self.assertIn('폐기',current_qwen_line)
+        self.assertIsNotNone(inspect_management_policy_rejection('qwen-2511','status'))
+        current_lora_line=next(current_line for current_line in current_help_lines if current_line.strip().startswith('expression-lora:'))
+        self.assertIn('다운로드 중단',current_lora_line)
+        self.assertIsNotNone(inspect_management_policy_rejection('expression-lora','prepare'))
+
     def test_gateway_health_identifies_current_launch(self):
         import os
         import threading

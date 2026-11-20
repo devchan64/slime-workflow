@@ -174,6 +174,27 @@ class MapReviewSourceAlignmentTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'에셋 원본과 다릅니다'):
                 read_map_editor_source_data(current_asset_root,current_relative_path)
 
+    def test_real_city_preview_plan_reads_registered_files_without_writing(self):
+        import copy
+        import hashlib
+        from tools.review.domains.map_assets import city_editor
+        current_asset_root=Path(__file__).resolve().parents[4]/'slime-assets'
+        current_source_path=current_asset_root/'assets/maps/city_layouts/stonewarm.yaml'
+        current_registry_path=current_asset_root/'asset-registry.yaml'
+        current_backend_path=current_asset_root.parent/'slime-backend/map-data.lock.yaml'
+        current_file_hashes={current_path:hashlib.sha256(current_path.read_bytes()).hexdigest() for current_path in (current_source_path,current_registry_path,current_backend_path)}
+        current_document_value=yaml.safe_load(current_source_path.read_bytes())
+        current_snapshot_record={'map':'stonewarm','generation':7,'revision':2,'document':current_document_value,'properties':{}}
+        current_changed_document=copy.deepcopy(current_document_value)
+        current_changed_document['data']['safeTown']=not current_document_value['data']['safeTown']
+        with patch.dict('os.environ',{'SLIME_ASSETS_ROOT':str(current_asset_root)}),patch.object(city_editor,'read_city_editor_snapshot',return_value=current_snapshot_record):
+            current_plan_summary=city_editor.inspect_city_source_plan(current_snapshot_record,current_changed_document,'a'*64)
+        self.assertEqual(current_plan_summary['status'],'available')
+        self.assertEqual(current_plan_summary['before_sha256'],current_file_hashes[current_source_path])
+        self.assertNotEqual(current_plan_summary['after_sha256'],current_plan_summary['before_sha256'])
+        for current_path,current_expected_hash in current_file_hashes.items():
+            self.assertEqual(hashlib.sha256(current_path.read_bytes()).hexdigest(),current_expected_hash)
+
     def test_map_update_plan_preserves_files_and_checks_both_manifests(self):
         import hashlib
         from tools.review.domains.map_assets.map_editor import prepare_registered_map_update_files

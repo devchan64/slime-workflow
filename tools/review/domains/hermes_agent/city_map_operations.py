@@ -67,7 +67,16 @@ def preview_hermes_city_map(current_draft_record):
                 current_alignment_record={'status':'unavailable','note':'도시 DB 문서가 비교 중 변경되어 확인할 수 없습니다.'}
     except (OSError,ValueError,TypeError,KeyError):
         pass
-    return {**{key:current_preview_value[key] for key in ('token','cityId','changed','columns','rows','buildings','objects')},'save_available':False,'source_alignment':current_alignment_record}
+    import re
+    current_source_plan=current_preview_value.get('source_plan',{'status':'unavailable'})
+    if not isinstance(current_source_plan,dict) or current_source_plan.get('status') not in ('available','unavailable'):
+        raise ValueError('도시 원본 변경 계획 응답 오류')
+    if current_source_plan['status']=='available':
+        if set(current_source_plan)!={'status','before_sha256','after_sha256'} or any(not isinstance(current_source_plan[current_hash_name],str) or not re.fullmatch(r'[a-f0-9]{64}',current_source_plan[current_hash_name]) for current_hash_name in ('before_sha256','after_sha256')):
+            raise ValueError('도시 원본 변경 계획 해시 오류')
+    elif set(current_source_plan)!={'status'}:
+        raise ValueError('도시 원본 변경 계획 응답 오류')
+    return {**{key:current_preview_value[key] for key in ('token','cityId','changed','columns','rows','buildings','objects')},'save_available':False,'source_alignment':current_alignment_record,'source_plan':current_source_plan}
 
 
 def inspect_hermes_city_receipt(current_record_value,current_request_identifier):

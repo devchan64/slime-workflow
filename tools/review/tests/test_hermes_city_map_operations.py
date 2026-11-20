@@ -102,12 +102,37 @@ class HermesCityMapOperationsTests(unittest.TestCase):
             with self.assertRaises(gr.Error):
                 hermes_agent_app.submit_conversation_edit_review(current_card_record,'a'*32,'job-1','city')
 
+    def test_conversation_city_review_displays_plan_without_enabling_save(self):
+        from tools.review.ui.gradio import hermes_agent_app
+        current_draft_text='{"map":"stonewarm","generation":5,"revision":2,"document":{}}'
+        def read_test_gateway(current_service_name,current_command_name,current_payload_record):
+            if current_command_name=='hermes-city-receipt':return {'state':'not_found'}
+            if current_command_name=='hermes-city-preview':return {'token':'a'*64,'changed':True,'buildings':1,'objects':0,'source_plan':{'status':'available','before_sha256':'b'*64,'after_sha256':'c'*64},'source_alignment':{'status':'matched'},'save_available':False}
+            raise AssertionError('예상하지 못한 관리 명령')
+        with patch.object(hermes_agent_app,'find_conversation_session_job'),patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=read_test_gateway),patch.object(hermes_agent_app,'load_conversation_city_proposal',return_value=(current_draft_text,[])):
+            current_card_record,current_preview_text,_,current_status_text=hermes_agent_app.prepare_conversation_edit_review('a'*32,'job-1','city')
+        self.assertIn('원본 변경 계획: 해시 계산됨',current_preview_text)
+        self.assertIn('저장 또는 복구 준비 완료를 뜻하지 않습니다',current_preview_text)
+        self.assertIn('신규 저장 중단',current_status_text)
+        self.assertFalse(current_card_record['ready'])
+
     def test_city_preview_reports_saving_unavailable(self):
         current_draft_record={'map':'stonewarm','generation':5,'revision':2,'document':{}}
         current_token_value=city_map_operations.validate_hermes_city_draft(current_draft_record)
         current_preview_record={'token':current_token_value,'cityId':'stonewarm','changed':True,'columns':5,'rows':5,'buildings':1,'objects':0}
         with patch.object(city_map_operations,'call_field_map_editor',return_value=current_preview_record):
             self.assertIs(city_map_operations.preview_hermes_city_map(current_draft_record)['save_available'],False)
+
+    def test_city_preview_exposes_only_validated_source_plan_hashes(self):
+        current_draft_record={'map':'stonewarm','generation':5,'revision':2,'document':{}}
+        current_token_value=city_map_operations.validate_hermes_city_draft(current_draft_record)
+        current_preview_record={'token':current_token_value,'cityId':'stonewarm','changed':True,'columns':5,'rows':5,'buildings':1,'objects':0,'source_plan':{'status':'available','before_sha256':'a'*64,'after_sha256':'b'*64}}
+        with patch.object(city_map_operations,'call_field_map_editor',return_value=current_preview_record),patch.object(city_map_operations,'load_hermes_city_map',side_effect=ValueError('fixture')):
+            current_result_record=city_map_operations.preview_hermes_city_map(current_draft_record)
+            self.assertEqual(current_result_record['source_plan'],current_preview_record['source_plan'])
+            self.assertIs(current_result_record['save_available'],False)
+            current_preview_record['source_plan']={'status':'available','before_sha256':'invalid','after_sha256':'b'*64}
+            with self.assertRaisesRegex(ValueError,'계획 해시 오류'):city_map_operations.preview_hermes_city_map(current_draft_record)
 
     def test_city_preview_compares_current_database_document_with_registered_source(self):
         current_draft_record={'map':'stonewarm','generation':5,'revision':2,'document':{'edited':True}}

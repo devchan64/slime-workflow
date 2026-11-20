@@ -2,7 +2,7 @@
 import json
 import os
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlencode
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError, URLError
 
@@ -48,7 +48,38 @@ def execute_content_api_request(current_http_method,current_relative_route,curre
             raise ValueError('콘텐츠 API 응답은 객체여야 합니다.')
         return current_response_record
     except HTTPError as current_http_error:
-        current_error_body=current_http_error.read(4096).decode('utf-8',errors='replace')
+        with current_http_error:
+            current_error_bytes=current_http_error.read(4097)
+        current_error_body=current_error_bytes[:4096].decode('utf-8',errors='replace')
+        if len(current_error_bytes)>4096:current_error_body+=' [오류 응답 일부만 표시]'
         raise ValueError(f'콘텐츠 API 오류 ({current_http_error.code}): {current_error_body}') from current_http_error
     except URLError as current_transport_error:
         raise RuntimeError(f'콘텐츠 API 연결 실패: {current_service_origin} · {current_transport_error.reason}. 콘텐츠 API를 먼저 실행하고 연결 설정(serviceOrigin)을 확인한 뒤 관리도구를 다시 시작하세요.') from current_transport_error
+
+
+def read_content_map_change_receipt(current_request_payload):
+    """저장 요청을 재전송하지 않고 같은 입력의 DB 접수 기록만 확인한다."""
+    import hashlib
+    if not isinstance(current_request_payload,dict) or set(current_request_payload)!={'requestId','expectedGeneration','documents'}:
+        raise ValueError('맵 변경 원본 요청이 필요합니다.')
+    current_request_identifier=current_request_payload['requestId']
+    if not isinstance(current_request_identifier,str) or not 1<=len(current_request_identifier)<=180 or type(current_request_payload['expectedGeneration']) is not int or not isinstance(current_request_payload['documents'],list) or not 1<=len(current_request_payload['documents'])<=10:
+        raise ValueError('맵 변경 요청 형식 오류')
+    try:
+        current_request_bytes=json.dumps(current_request_payload,sort_keys=True,ensure_ascii=False,allow_nan=False).encode()
+    except (ValueError,TypeError) as current_serialization_error:
+        raise ValueError('맵 변경 요청 직렬화 오류') from current_serialization_error
+    current_request_hash=hashlib.sha256(current_request_bytes).hexdigest()
+    return read_content_map_receipt_by_hash(current_request_identifier,current_request_hash)
+
+
+def read_content_map_receipt_by_hash(current_request_identifier,current_request_hash):
+    """보관한 요청 ID·해시로 DB 기록만 읽는다. 저장이나 재접수는 하지 않는다."""
+    import re
+    if not isinstance(current_request_identifier,str) or not 1<=len(current_request_identifier)<=180 or not isinstance(current_request_hash,str) or not re.fullmatch('[a-f0-9]{64}',current_request_hash):
+        raise ValueError('맵 변경 접수 ID 또는 요청 해시 오류')
+    current_query_text=urlencode({'requestId':current_request_identifier,'requestSha256':current_request_hash})
+    current_receipt_record=execute_content_api_request('GET','/internal/v1/content/map-change-receipt?'+current_query_text)
+    if not isinstance(current_receipt_record,dict) or set(current_receipt_record)!={'state'} or current_receipt_record['state'] not in ('matched','mismatch','not_found'):
+        raise ValueError('맵 변경 접수 응답 오류')
+    return {'state':current_receipt_record['state'],'request_sha256':current_request_hash,'note':'DB 접수 조회 시점의 결과입니다. not_found는 진행 중인 커밋의 부재나 파일 동기화를 보장하지 않습니다.'}

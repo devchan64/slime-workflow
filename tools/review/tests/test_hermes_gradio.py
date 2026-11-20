@@ -1201,6 +1201,26 @@ class HermesGradioTests(unittest.TestCase):
             with self.subTest(current_invalid_value=current_invalid_value):
                 self.assertIn('href="/management/frame/hermes-direct/"', hermes_agent_app.build_conversation_direct_link(current_invalid_value))
 
+    def test_operations_map_database_receipt_is_read_only_and_rejects_stale_results(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_request_hash='a'*64
+        for current_state_name,current_expected_text in (('matched','동기화는 별도로'),('mismatch','재접수하지'),('not_found','진행 중인 커밋')):
+            with self.subTest(state=current_state_name),patch.object(operations_history_app,'execute_remote_management_command',return_value={'state':current_state_name,'request_sha256':current_request_hash}) as current_command_mock:
+                current_result_record=operations_history_app.collect_operations_map_database_receipt('db-id',current_request_hash,'token')
+                self.assertIn(current_expected_text,current_result_record['notice'])
+                self.assertEqual(operations_history_app.render_operations_map_database_receipt('db-id',current_request_hash,'token',current_result_record),current_result_record['notice'])
+                self.assertEqual(operations_history_app.render_operations_map_database_receipt('db-id',current_request_hash,'new-token',current_result_record),gr.skip())
+                self.assertEqual(operations_history_app.render_operations_map_database_receipt('other',current_request_hash,'token',current_result_record),gr.skip())
+                current_command_mock.assert_called_once_with('hermes-agent','hermes-map-database-receipt',{'database_request_id':'db-id','request_sha256':current_request_hash})
+        with patch.object(operations_history_app,'execute_remote_management_command',return_value={'state':'matched','request_sha256':'b'*64}):
+            self.assertIn('확인할 수 없습니다',operations_history_app.collect_operations_map_database_receipt('db-id',current_request_hash,'token')['notice'])
+        with patch.object(operations_history_app,'execute_remote_management_command',side_effect=ValueError('콘텐츠 API 오류 (404): 지원하지 않는 경로')):
+            current_failure_record=operations_history_app.collect_operations_map_database_receipt('db-id',current_request_hash,'token')
+            self.assertIn('확인할 수 없습니다',current_failure_record['notice'])
+            self.assertNotIn('DB 접수가 없습니다',current_failure_record['notice'])
+        current_blocks_value=build_async_test_interface(operations_history_app.build_operations_history_interface)
+        self.assertIn('DB 요청 ID',[getattr(current_component_value,'label',None) for current_component_value in current_blocks_value.blocks.values()])
+
     def test_management_page_composes_with_menu(self):
         with tempfile.TemporaryDirectory() as hermes_temporary_root:
             hermes_source_path = Path(hermes_temporary_root) / 'manager.json'
@@ -1876,24 +1896,47 @@ class HermesGradioTests(unittest.TestCase):
         self.assertIsNone(current_result)
         self.assertIn('다시 접수하지 않습니다',current_notice)
 
-    @patch('tools.review.ui.gradio.hermes_agent_app.read_conversation_writer_details')
     @patch('tools.review.ui.gradio.hermes_agent_app.execute_remote_management_command')
-    def test_conversation_writer_material_binds_job_and_snapshot(self,current_gateway_mock,current_detail_mock):
-        current_detail_mock.return_value=({'작업 ID':'20261115-114927-8d274ccd'},'조회')
-        current_gateway_mock.return_value={'job_id':'20261115-114927-8d274ccd','section':'search','offset':0,'snapshot':'a'*64,'total_characters':6,'content':'abc','next_offset':3}
-        current_text,current_state,current_next,current_notice=hermes_agent_app.read_conversation_writer_material_page({},'session','job','writer','search',None,False)
+    def test_conversation_writer_material_binds_job_and_snapshot(self,current_gateway_mock):
+        current_writer_job='20261115-114927-8d274ccd'
+        current_card={'session_id':'session','source_job_id':'job','kind':'writer','review':{'request_id':'chat_request'}}
+        current_receipt={'state':'accepted','request_id':'chat_request','service':'writer-agent','job_id':current_writer_job}
+        current_page={'job_id':current_writer_job,'section':'search','offset':0,'snapshot':'a'*64,'total_characters':6,'content':'abc','next_offset':3}
+        def read_test_gateway(current_service,current_command,current_payload):
+            if current_command=='hermes-service-receipt':return current_receipt
+            self.assertEqual(current_command,'hermes-writer-job-material')
+            return current_page
+        current_gateway_mock.side_effect=read_test_gateway
+        current_text,current_state,current_next,current_notice=hermes_agent_app.read_conversation_writer_material_page(current_card,'session','job','writer','search',None,False)
         self.assertEqual(current_text,'abc')
         self.assertTrue(current_next['interactive'])
         self.assertIn('다음 부분',current_notice)
-        current_gateway_mock.return_value.update(offset=3,content='def',next_offset=None)
-        current_text,current_state,current_next,_=hermes_agent_app.read_conversation_writer_material_page({},'session','job','writer','search',current_state,True)
+        current_page.update(offset=3,content='def',next_offset=None)
+        current_text,current_state,current_next,_=hermes_agent_app.read_conversation_writer_material_page(current_card,'session','job','writer','search',current_state,True)
         self.assertEqual(current_text,'def')
         self.assertFalse(current_next['interactive'])
         with self.assertRaises(gr.Error):
-            hermes_agent_app.read_conversation_writer_material_page({},'other','job','writer','search',current_state,True)
-        current_gateway_mock.return_value.update(offset=0,content='a',next_offset=True)
+            hermes_agent_app.read_conversation_writer_material_page(current_card,'other','job','writer','search',current_state,True)
+        current_page.update(offset=0,content='a',next_offset=True)
         with self.assertRaises(gr.Error):
-            hermes_agent_app.read_conversation_writer_material_page({},'session','job','writer','search',None,False)
+            hermes_agent_app.read_conversation_writer_material_page(current_card,'session','job','writer','search',None,False)
+        current_receipt['service']='other'
+        with self.assertRaises(gr.Error):
+            hermes_agent_app.read_conversation_writer_material_page(current_card,'session','job','writer','search',None,False)
+        self.assertNotIn('hermes-writer-status',[current_call.args[1] for current_call in current_gateway_mock.call_args_list])
+
+    def test_conversation_writer_material_discards_late_results(self):
+        current_result_values=('내용',{'next_offset':None},gr.update(interactive=False),'완료')
+        current_result_record={'selection':['session','job','writer','search','request-a'],'token':'old','result':current_result_values}
+        current_card_record={'review':{'request_id':'request-a'}}
+        self.assertEqual(hermes_agent_app.render_conversation_writer_material(current_card_record,'session','job','writer','search','old',current_result_record),current_result_values)
+        for current_arguments in (('session','job','writer','search','new'),('session','job','writer','proposal','old'),('other','job','writer','search','old')):
+            self.assertEqual(hermes_agent_app.render_conversation_writer_material(current_card_record,*current_arguments,current_result_record),(gr.skip(),)*4)
+        self.assertEqual(hermes_agent_app.render_conversation_writer_material({'review':{'request_id':'request-b'}},'session','job','writer','search','old',current_result_record),(gr.skip(),)*4)
+        with patch.object(hermes_agent_app,'read_conversation_writer_material_page',side_effect=ValueError('조회 한도')):
+            current_failure_record=hermes_agent_app.collect_conversation_writer_material({},'session','job','writer','search',None,'new',False)
+        self.assertIn('조회 한도',current_failure_record['result'][3])
+        self.assertEqual(current_failure_record['result'][:3],(gr.skip(),)*3)
 
     def test_conversation_writer_results_show_readable_changes_and_limits(self):
         from tools.review.ui.gradio import hermes_agent_app
@@ -4339,9 +4382,18 @@ class HermesGradioTests(unittest.TestCase):
         current_review_value, current_summary_value, current_group_value = hermes_agent_app.review_hermes_city_map_draft(current_draft_text,'city_request_123')
         self.assertTrue(current_group_value['visible'])
         self.assertIn('DB 세대: 5',current_summary_value)
+        self.assertIn('원본 변경 계획: 확인 불가',current_summary_value)
+        current_gateway_mock.return_value['source_plan']={'status':'available','before_sha256':'b'*64,'after_sha256':'c'*64}
+        _,current_available_summary,_=hermes_agent_app.review_hermes_city_map_draft(current_draft_text,'city_request_123')
+        self.assertIn('원본 변경 계획: 해시 계산됨',current_available_summary)
+        self.assertIn('변경 전 SHA-256: '+'b'*64,current_available_summary)
+        self.assertIn('변경 후 SHA-256: '+'c'*64,current_available_summary)
+        self.assertIn('확인 불가',hermes_agent_app.format_city_source_plan_notice({'status':'available','before_sha256':'bad','after_sha256':'c'*64}))
+        self.assertIn('저장 또는 복구 준비 완료를 뜻하지 않습니다',current_available_summary)
+        current_gateway_mock.reset_mock()
         with self.assertRaises(gr.Error):
             hermes_agent_app.save_hermes_city_map_draft(current_review_value,current_draft_text.replace('stonewarm','iseulon'),'city_request_123')
-        self.assertEqual(current_gateway_mock.call_count,1)
+        self.assertEqual(current_gateway_mock.call_count,0)
         current_gateway_mock.return_value={'state':'completed','saved':False,'request_id':'city_request_123','map':'stonewarm'}
         self.assertIn('DB에 저장되지 않음',hermes_agent_app.save_hermes_city_map_draft(current_review_value,current_draft_text,'city_request_123')[2])
         current_gateway_mock.return_value={'state':'completed','saved':True,'request_id':'city_request_123','map':'stonewarm'}

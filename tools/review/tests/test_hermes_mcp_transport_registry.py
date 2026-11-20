@@ -25,7 +25,7 @@ async def inspect_fresh_mcp_registry():
             await current_client_session.initialize()
             current_tool_response=await current_client_session.list_tools()
             current_tool_names={current_tool_value.name for current_tool_value in current_tool_response.tools}
-            current_required_names={'preview_hermes_cleanup','read_hermes_video_resume_proposal','preview_hermes_video_resume','submit_hermes_video_resume','read_hermes_video_resume_receipt','read_hermes_writer_job_material','read_hermes_sprite_pending_status','read_hermes_model_download_status','read_hermes_writer_index_status','search_hermes_translation_evidence','read_hermes_writer_search_paths','read_hermes_writer_job_search_paths','preview_hermes_translation_resume','submit_hermes_translation_resume','read_hermes_translation_resume_receipt','preview_hermes_audio_resume','submit_hermes_audio_resume','read_hermes_audio_resume_receipt','read_hermes_capture_proposal','read_hermes_capture_status'}
+            current_required_names={'read_hermes_map_database_receipt','preview_hermes_cleanup','read_hermes_video_resume_proposal','preview_hermes_video_resume','submit_hermes_video_resume','read_hermes_video_resume_receipt','read_hermes_writer_job_material','read_hermes_sprite_pending_status','read_hermes_model_download_status','read_hermes_writer_index_status','search_hermes_translation_evidence','read_hermes_writer_search_paths','read_hermes_writer_job_search_paths','preview_hermes_translation_resume','submit_hermes_translation_resume','read_hermes_translation_resume_receipt','preview_hermes_audio_resume','submit_hermes_audio_resume','read_hermes_audio_resume_receipt','read_hermes_capture_proposal','read_hermes_capture_status'}
             current_missing_names=current_required_names-current_tool_names
             if current_missing_names:raise RuntimeError('MCP 도구 누락: '+', '.join(sorted(current_missing_names)))
 asyncio.run(inspect_fresh_mcp_registry())
@@ -35,6 +35,108 @@ asyncio.run(inspect_fresh_mcp_registry())
         current_test_process=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment_values,capture_output=True,text=True,timeout=30)
         self.assertEqual(current_test_process.returncode,0,current_test_process.stderr[-4000:])
 
+
+    def test_map_receipt_crosses_stdio_and_gateway_without_writes(current_test_case):
+        import tempfile
+        import threading
+        from http.server import ThreadingHTTPServer
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_repository_root=Path(__file__).resolve().parents[3]
+        current_runtime_python=current_repository_root/'.local/hermes-mcp/bin/python'
+        if not current_runtime_python.is_file():current_test_case.skipTest('Hermes MCP 런타임이 설치되지 않았습니다.')
+        current_client_script=r"""
+import asyncio,json,os,sys
+from mcp import ClientSession,StdioServerParameters
+from mcp.client.stdio import stdio_client
+async def inspect_map_receipt_transport():
+    current_parameters=StdioServerParameters(command=sys.executable,args=['tools/review/domains/hermes_agent/mcp_server.py'],cwd=os.getcwd(),env=dict(os.environ))
+    async with stdio_client(current_parameters) as (current_reader,current_writer):
+        async with ClientSession(current_reader,current_writer) as current_session:
+            await current_session.initialize()
+            current_result=await current_session.call_tool('read_hermes_map_database_receipt',{'database_request_identifier':'db id & x','request_sha256_value':'a'*64})
+            if current_result.is_error:raise RuntimeError(str(current_result))
+            current_value=current_result.structured_content or json.loads(current_result.content[0].text)
+            if current_value.get('state')!='not_found' or current_value.get('request_sha256')!='a'*64 or '보장하지 않습니다' not in current_value.get('note',''):raise RuntimeError(str(current_value))
+asyncio.run(inspect_map_receipt_transport())
+"""
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_manager_value=HermesServiceManager(current_root_path/'jobs',current_root_path/'sessions')
+            current_gateway_value=ManagementCommandGateway({'hermes-agent':current_manager_value.handle_hermes_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            current_environment_values=dict(os.environ,SLIME_MANAGEMENT_GATEWAY_URL='http://127.0.0.1:'+str(current_server_value.server_port),PYTHONPATH=str(current_repository_root))
+            try:
+                with patch('tools.review.domains.map_assets.database_client.execute_content_api_request',return_value={'state':'not_found'}) as current_content_mock:
+                    current_process_value=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment_values,capture_output=True,text=True,timeout=30)
+                    current_test_case.assertEqual(current_process_value.returncode,0,current_process_value.stderr[-4000:])
+                    current_content_mock.assert_called_once()
+                    current_test_case.assertEqual(current_content_mock.call_args.args[0],'GET')
+                    current_test_case.assertIn('requestId=db+id+%26+x',current_content_mock.call_args.args[1])
+                    current_content_mock.side_effect=ValueError('콘텐츠 API 오류 (404): 지원하지 않는 경로')
+                    current_error_script=current_client_script.replace("if current_result.is_error:raise RuntimeError(str(current_result))","if not current_result.is_error:raise RuntimeError('404가 접수 결과로 표시됨')\n            return")
+                    current_error_process=subprocess.run([str(current_runtime_python),'-c',current_error_script],cwd=current_repository_root,env=current_environment_values,capture_output=True,text=True,timeout=30)
+                    current_test_case.assertEqual(current_error_process.returncode,0,current_error_process.stderr[-4000:])
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
+    def test_capture_proposal_registration_crosses_stdio_and_gateway(current_test_case):
+        import tempfile
+        import threading
+        from http.server import ThreadingHTTPServer
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_repository_root=Path(__file__).resolve().parents[3]
+        current_runtime_python=current_repository_root/'.local/hermes-mcp/bin/python'
+        if not current_runtime_python.is_file():current_test_case.skipTest('Hermes MCP 런타임이 설치되지 않았습니다.')
+        current_client_script=r"""
+import asyncio,json,os,sys
+from mcp import ClientSession,StdioServerParameters
+from mcp.client.stdio import stdio_client
+async def verify_capture_proposal():
+    current_parameters=StdioServerParameters(command=sys.executable,args=['tools/review/domains/hermes_agent/mcp_server.py'],cwd=os.getcwd(),env=dict(os.environ))
+    async with stdio_client(current_parameters) as (current_reader,current_writer):
+        async with ClientSession(current_reader,current_writer) as current_session:
+            await current_session.initialize()
+            current_result=await current_session.call_tool('read_hermes_capture_proposal',{'hermes_job_identifier':'2026-11-20_00-00-00-12345678'})
+            if current_result.is_error:raise RuntimeError(str(current_result))
+            current_value=current_result.structured_content or json.loads(current_result.content[0].text)
+            if current_value.get('map_registration')!={'status':'registered','map':'stonewarm'}:raise RuntimeError(str(current_value))
+            if current_value.get('proposal',{}).get('settings',{}).get('map')!='stonewarm':raise RuntimeError(str(current_value))
+asyncio.run(verify_capture_proposal())
+"""
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_manager_value=HermesServiceManager(current_root_path/'jobs',current_root_path/'sessions')
+            current_job_record={'status':{'status':'completed'},'final_response':'HERMES_CAPTURE_PROPOSAL\n{"service":"map-review","settings":{"map":"stonewarm"}}\nEND_HERMES_CAPTURE_PROPOSAL','final_response_truncated':False}
+            current_gateway_value=ManagementCommandGateway({'hermes-agent':current_manager_value.handle_hermes_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            current_environment_values=dict(os.environ,SLIME_MANAGEMENT_GATEWAY_URL='http://127.0.0.1:'+str(current_server_value.server_port),PYTHONPATH=str(current_repository_root))
+            try:
+                from tools.review.common.map_asset_sources import load_review_map_menu
+                with patch.object(current_manager_value,'resolve_hermes_job_path',return_value=current_root_path),patch.object(current_manager_value,'read_hermes_job_record',return_value=current_job_record),patch('tools.review.common.map_asset_sources.load_review_map_menu',return_value=[{'id':'stonewarm'}]) as current_menu_mock,patch('tools.review.domains.map_review.capture.capture_map_review',side_effect=AssertionError('캡처 금지')) as current_capture_mock:
+                    current_process_value=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment_values,capture_output=True,text=True,timeout=30)
+                    current_test_case.assertEqual(current_process_value.returncode,0,current_process_value.stderr[-4000:])
+                    current_menu_mock.side_effect=load_review_map_menu
+                    current_process_value=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment_values,capture_output=True,text=True,timeout=30)
+                    current_test_case.assertEqual(current_process_value.returncode,0,current_process_value.stderr[-4000:])
+                    current_capture_mock.assert_not_called()
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
 
     def test_model_prepare_block_crosses_stdio_and_temporary_gateway(self):
         import tempfile

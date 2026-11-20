@@ -16,6 +16,16 @@ def require_map_observer_presence(current_path_value):
     return True
 
 
+def read_bounded_map_pending_bytes(current_file_path):
+    """표식과 목록은 열기 이후 크기가 바뀌어도 상한까지만 읽는다."""
+    current_descriptor_value=os.open(current_file_path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+    with os.fdopen(current_descriptor_value,'rb') as current_file_handle:
+        current_file_bytes=current_file_handle.read(131073)
+    if len(current_file_bytes)>131072:
+        raise ValueError('맵 저장 표식 크기 초과')
+    return current_file_bytes
+
+
 def inspect_hermes_map_pending_status():
     from tools.review.common.map_tile_assets import DEFAULT_ASSET_REPOSITORY
     from tools.review.domains.hermes_agent.sprite_pending_observer import read_sprite_pending_file_hash
@@ -37,7 +47,7 @@ def inspect_hermes_map_pending_status():
             except BlockingIOError:return {'state':'busy','note':'야외 맵 저장 잠금이 사용 중입니다.'}
             if not require_map_observer_presence(current_marker_path):return {'state':'clear','note':current_note_text}
             current_marker_hash=read_sprite_pending_file_hash(current_marker_path)
-            current_marker_bytes=current_marker_path.read_bytes()
+            current_marker_bytes=read_bounded_map_pending_bytes(current_marker_path)
             if len(current_marker_bytes)>131072 or hashlib.sha256(current_marker_bytes).hexdigest()!=current_marker_hash:raise ValueError('표시 오류')
             current_marker_record=json.loads(current_marker_bytes)
             if not isinstance(current_marker_record,dict) or type(current_marker_record.get('version')) is not int or current_marker_record['version'] not in (1,2) or set(current_marker_record)!=({'version','map','backup','before_sha256'} if current_marker_record['version']==1 else {'version','map','backup','before_sha256','after_sha256'}) or not isinstance(current_marker_record['map'],str) or not re.fullmatch(r'[a-z0-9][a-z0-9-]{0,95}',current_marker_record['map']) or not isinstance(current_marker_record['backup'],str) or not re.fullmatch(r'[a-f0-9]{64}-backup',current_marker_record['backup']) or not isinstance(current_marker_record['before_sha256'],list) or not 1<=len(current_marker_record['before_sha256'])<=128 or any(not isinstance(current_hash_value,str) or not re.fullmatch(r'[a-f0-9]{64}',current_hash_value) for current_hash_value in current_marker_record['before_sha256']):raise ValueError('표시 형식 오류')
@@ -47,7 +57,7 @@ def inspect_hermes_map_pending_status():
             if current_backup_path.is_symlink() or not current_backup_path.is_dir():raise ValueError('백업 경로 오류')
             current_manifest_path=current_backup_path/'paths.json'
             current_manifest_hash=read_sprite_pending_file_hash(current_manifest_path)
-            current_manifest_bytes=current_manifest_path.read_bytes()
+            current_manifest_bytes=read_bounded_map_pending_bytes(current_manifest_path)
             if len(current_manifest_bytes)>131072 or hashlib.sha256(current_manifest_bytes).hexdigest()!=current_manifest_hash:raise ValueError('백업 목록 오류')
             current_manifest_records=json.loads(current_manifest_bytes)
             if not isinstance(current_manifest_records,list) or len(current_manifest_records)!=len(current_marker_record['before_sha256']) or any(not isinstance(current_path_text,str) for current_path_text in current_manifest_records):raise ValueError('백업 목록 형식 오류')

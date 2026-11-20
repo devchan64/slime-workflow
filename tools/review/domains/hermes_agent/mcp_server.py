@@ -946,7 +946,7 @@ def read_hermes_model_preparation_receipt(request_identifier_value: str, model_s
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def read_hermes_capture_proposal(hermes_job_identifier: str) -> dict:
-    """완료된 대화의 캡처 제안을 읽고 검증한다. 캡처 실행은 지원하지 않는다."""
+    """완료된 대화의 캡처 제안과 맵 등록 여부를 읽는다. 등록 상태는 실행 가능성을 뜻하지 않으며 캡처 실행은 지원하지 않는다."""
     return run_hermes_mcp_command('hermes-capture-proposal', {'id':hermes_job_identifier})
 
 
@@ -966,6 +966,12 @@ def read_hermes_kimodo_build_status() -> dict:
 def read_hermes_model_readiness(model_service_name: str) -> dict:
     """서비스 판정과 별도 파일·다운로드 상태를 조회한다. 누락은 확인 불가이며 로컬 잠금이 생길 수 있다."""
     return run_hermes_mcp_command('hermes-model-readiness', {'service':model_service_name})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_map_database_receipt(database_request_identifier: str, request_sha256_value: str) -> dict:
+    """DB 접수의 ID·요청 해시 일치만 확인한다. not_found도 재접수 안전을 보장하지 않으며 파일 동기화는 별도다."""
+    return run_hermes_mcp_command('hermes-map-database-receipt',{'database_request_id':database_request_identifier,'request_sha256':request_sha256_value})
 
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))

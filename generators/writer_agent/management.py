@@ -1,6 +1,6 @@
 """로컬 관리도구의 작가 에이전트 요청·작업·변경 미리보기 API."""
 from pathlib import Path
-from contextlib import closing
+from contextlib import closing, contextmanager
 from urllib.parse import urlsplit,parse_qs
 import json
 import fcntl
@@ -11,18 +11,40 @@ import subprocess
 import sys
 import threading
 import uuid
+import weakref
 from .documents import (DEFAULT_WORKSPACE_CONFIG,WORKFLOW_REPOSITORY_ROOT,load_workspace_config,read_yaml_document,save_yaml_document,parse_unique_json,calculate_content_hash,lock_workspace_state)
 from .jobs import JOB_IDENTIFIER_PATTERN,create_writer_job,resolve_job_directory,update_job_status,read_process_identity
 from .agent import apply_reviewed_proposal
 from . import prepare
 from tools.review.common.model_prepare_process import inspect_detached_preparation, start_detached_preparation
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation
-from tools.review.common.generation_records import write_record_atomically
+from tools.review.common.generation_records import write_record_atomically, hold_history_observation_guard
 
 WRITER_ROUTE_PREFIX='/writer-agent'
 MAXIMUM_REQUEST_BYTES=32000
 MAXIMUM_LOG_BYTES=48000
 ACTIVE_JOB_STAGES={'queued','indexing','searching','reasoning','preparing'}
+
+WRITER_MATERIAL_LOCK_REGISTRY = weakref.WeakValueDictionary()
+WRITER_MATERIAL_REGISTRY_GUARD = threading.Lock()
+WRITER_MATERIAL_READ_CAPACITY = threading.BoundedSemaphore(2)
+
+@contextmanager
+def hold_writer_material_guard(current_material_path):
+    current_material_key=str(Path(current_material_path).absolute())
+    with WRITER_MATERIAL_REGISTRY_GUARD:
+        current_material_lock=WRITER_MATERIAL_LOCK_REGISTRY.setdefault(current_material_key,threading.Lock())
+    if not current_material_lock.acquire(blocking=False):
+        raise ValueError('이 작가 자료의 조회가 이미 진행 중입니다.')
+    current_capacity_acquired=WRITER_MATERIAL_READ_CAPACITY.acquire(blocking=False)
+    if not current_capacity_acquired:
+        current_material_lock.release()
+        raise ValueError('동시 작가 자료 조회 한도에 도달했습니다. 잠시 후 다시 조회하세요.')
+    try:
+        yield
+    finally:
+        WRITER_MATERIAL_READ_CAPACITY.release()
+        current_material_lock.release()
 
 class WriterAgentManager:
     def __init__(self,current_config_path=DEFAULT_WORKSPACE_CONFIG):
@@ -181,13 +203,14 @@ class WriterAgentManager:
         current_config_values=load_workspace_config(self.workspace_config_path)
         current_job_root=resolve_job_directory(current_config_values,current_job_identifier)
         if not current_job_root.is_dir():raise ValueError('작업이 없습니다.')
-        current_status_value=self.resolve_observed_status(read_yaml_document(current_job_root/'status.yaml'),current_job_root)
-        if current_status_value.get('stage') not in ('review','completed','applied','failed','interrupted'):
-            raise ValueError('작가 작업이 진행 중이거나 상태를 확인할 수 없습니다.')
         current_material_path=current_job_root/(current_section_name+'.yaml')
-        if not current_material_path.is_file() or current_material_path.is_symlink():raise ValueError('해당 작가 자료가 없습니다.')
-        current_material_value=read_yaml_document(current_material_path)
-        return build_writer_material_page(current_request_record,current_material_value)
+        with hold_writer_material_guard(current_material_path):
+            current_status_value=self.resolve_observed_status(read_yaml_document(current_job_root/'status.yaml'),current_job_root)
+            if current_status_value.get('stage') not in ('review','completed','applied','failed','interrupted'):
+                raise ValueError('작가 작업이 진행 중이거나 상태를 확인할 수 없습니다.')
+            if not current_material_path.is_file() or current_material_path.is_symlink():raise ValueError('해당 작가 자료가 없습니다.')
+            current_material_value=read_yaml_document(current_material_path)
+            return build_writer_material_page(current_request_record,current_material_value)
 
     def read_writer_search_paths(self,current_job_identifier):
         """설정된 문서 루트 안의 검색 근거 경로만 반환한다."""
@@ -264,29 +287,30 @@ class WriterAgentManager:
             raise ValueError('후속 페이지에는 스냅샷이 필요합니다.')
         current_config_values=load_workspace_config(self.workspace_config_path)
         current_job_root=Path(current_config_values['state_root'])/'jobs'
-        current_job_paths=sorted((current_path_value for current_path_value in current_job_root.glob('*') if JOB_IDENTIFIER_PATTERN.fullmatch(current_path_value.name) and not current_path_value.is_symlink() and current_path_value.is_dir()),reverse=True)
-        if current_query_text:current_job_paths=[current_path_value for current_path_value in current_job_paths if current_query_text in current_path_value.name.casefold()]
-        current_job_identifiers=[current_path_value.name for current_path_value in current_job_paths]
-        current_snapshot_payload={'ids':current_job_identifiers,'query':current_query_text} if current_query_text else current_job_identifiers
-        current_snapshot_hash=hashlib.sha256(json.dumps(current_snapshot_payload,sort_keys=True,separators=(',',':')).encode()).hexdigest()
-        if current_snapshot_value is not None and current_snapshot_value!=current_snapshot_hash:
-            raise ValueError('작가 이력이 변경되었습니다. 첫 페이지부터 다시 조회하세요.')
-        current_output_records=[]
-        for current_job_path in current_job_paths[current_offset_value:current_offset_value+current_limit_value]:
-            current_stage_value='unknown'
-            try:
-                current_status_path=current_job_path/'status.yaml'
-                if current_status_path.is_symlink():raise ValueError('상태 경로 오류')
-                current_status_value=read_yaml_document(current_status_path)
-                if not isinstance(current_status_value,dict) or current_status_value.get('id')!=current_job_path.name:
-                    raise ValueError('상태 ID 오류')
-                if current_status_value.get('stage') in ('queued','preparing','indexing','searching','reasoning','review','completed','applied','failed','interrupted'):
-                    current_stage_value=current_status_value['stage']
-            except (OSError,ValueError,TypeError,KeyError,yaml.YAMLError):
-                pass
-            current_output_records.append({'id':current_job_path.name,'recorded_status':current_stage_value,'status_source':'job' if current_stage_value!='unknown' else 'unavailable'})
-        current_next_offset=current_offset_value+len(current_output_records)
-        return {'records':current_output_records,'total':len(current_job_identifiers),'offset':current_offset_value,'next_offset':current_next_offset if current_next_offset<len(current_job_identifiers) else None,'snapshot':current_snapshot_hash,'unavailable_count':0,'note':'기록 단계이며 실제 작업 생존·원본 적용 여부는 별도 확인해야 합니다.'}
+        with hold_history_observation_guard(current_job_root):
+            current_job_paths=sorted((current_path_value for current_path_value in current_job_root.glob('*') if JOB_IDENTIFIER_PATTERN.fullmatch(current_path_value.name) and not current_path_value.is_symlink() and current_path_value.is_dir()),reverse=True)
+            if current_query_text:current_job_paths=[current_path_value for current_path_value in current_job_paths if current_query_text in current_path_value.name.casefold()]
+            current_job_identifiers=[current_path_value.name for current_path_value in current_job_paths]
+            current_snapshot_payload={'ids':current_job_identifiers,'query':current_query_text} if current_query_text else current_job_identifiers
+            current_snapshot_hash=hashlib.sha256(json.dumps(current_snapshot_payload,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+            if current_snapshot_value is not None and current_snapshot_value!=current_snapshot_hash:
+                raise ValueError('작가 이력이 변경되었습니다. 첫 페이지부터 다시 조회하세요.')
+            current_output_records=[]
+            for current_job_path in current_job_paths[current_offset_value:current_offset_value+current_limit_value]:
+                current_stage_value='unknown'
+                try:
+                    current_status_path=current_job_path/'status.yaml'
+                    if current_status_path.is_symlink():raise ValueError('상태 경로 오류')
+                    current_status_value=read_yaml_document(current_status_path)
+                    if not isinstance(current_status_value,dict) or current_status_value.get('id')!=current_job_path.name:
+                        raise ValueError('상태 ID 오류')
+                    if current_status_value.get('stage') in ('queued','preparing','indexing','searching','reasoning','review','completed','applied','failed','interrupted'):
+                        current_stage_value=current_status_value['stage']
+                except (OSError,ValueError,TypeError,KeyError,yaml.YAMLError):
+                    pass
+                current_output_records.append({'id':current_job_path.name,'recorded_status':current_stage_value,'status_source':'job' if current_stage_value!='unknown' else 'unavailable'})
+            current_next_offset=current_offset_value+len(current_output_records)
+            return {'records':current_output_records,'total':len(current_job_identifiers),'offset':current_offset_value,'next_offset':current_next_offset if current_next_offset<len(current_job_identifiers) else None,'snapshot':current_snapshot_hash,'unavailable_count':0,'note':'기록 단계이며 실제 작업 생존·원본 적용 여부는 별도 확인해야 합니다.'}
 
     def delete_writer_history(self,current_job_identifier):
         current_config_values=load_workspace_config(self.workspace_config_path)

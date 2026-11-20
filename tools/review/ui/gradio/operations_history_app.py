@@ -1449,6 +1449,28 @@ def select_operations_history_job(current_history_rows,current_select_event:gr.S
     return current_job_identifier,current_status_text,current_original_prompt,current_answer_text,current_diff_text,current_log_text,current_result_record
 
 
+def collect_operations_map_database_receipt(current_request_identifier,current_request_hash,current_request_token):
+    """보관된 ID와 해시로 DB 접수만 읽고 화면 반영용 신원을 묶는다."""
+    try:
+        current_result_record=execute_remote_management_command('hermes-agent','hermes-map-database-receipt',{'database_request_id':current_request_identifier,'request_sha256':current_request_hash})
+        if not isinstance(current_result_record,dict) or current_result_record.get('request_sha256')!=current_request_hash:
+            raise ValueError('접수 응답 불일치')
+        current_state_name=current_result_record.get('state')
+        current_messages={'matched':'DB 접수의 요청 해시가 일치합니다. 파일 원본·등록부·잠금의 동기화는 별도로 확인하세요.','mismatch':'같은 ID의 DB 접수와 요청 해시가 다릅니다. 재접수하지 말고 원래 입력과 접수 기록을 확인하세요.','not_found':'조회 시점에 DB 접수가 없습니다. 진행 중인 커밋을 배제하지 않으므로 재접수하지 말고 상태를 확인하세요.'}
+        if current_state_name not in current_messages:raise ValueError('접수 상태 오류')
+        current_notice_text=current_messages[current_state_name]
+    except (OSError,ValueError,KeyError,TypeError,RuntimeError):
+        current_notice_text='DB 접수를 확인할 수 없습니다. ID·해시와 에셋 서비스 연결을 확인하고 재접수하지 마세요.'
+    return {'identity':[current_request_identifier,current_request_hash],'token':current_request_token,'notice':current_notice_text}
+
+
+def render_operations_map_database_receipt(current_request_identifier,current_request_hash,current_request_token,current_result_record):
+    """입력이나 요청이 바뀌었다면 늦은 응답을 표시하지 않는다."""
+    if not isinstance(current_result_record,dict) or current_result_record.get('identity')!=[current_request_identifier,current_request_hash] or current_result_record.get('token')!=current_request_token or not isinstance(current_result_record.get('notice'),str):
+        return gr.skip()
+    return current_result_record['notice']
+
+
 def build_operations_history_interface():
     with gr.Blocks(title='운영 이력') as current_history_interface:
         gr.Markdown('## 운영 이력\n운영 대화의 지시와 Hermes 작업을 찾아 확인합니다. 생성기 원본 이력은 서비스별 기록으로 확인하며 상세 결과는 각 도구에서 확인하세요.')
@@ -1457,6 +1479,18 @@ def build_operations_history_interface():
             current_status_filter=gr.Dropdown(label='기록 상태',choices=[('전체','전체'),*((current_label,current_name) for current_name,current_label in OPERATIONS_HISTORY_STATUS_LABELS.items())],value='전체')
             current_refresh_button=gr.Button('이력과 대기열 새로고침')
         current_summary_status=gr.Markdown('이력을 확인하고 있습니다.')
+        with gr.Accordion('맵 DB 변경 접수 확인',open=False):
+            gr.Markdown('별도로 보관한 DB 요청 ID와 원본 요청 SHA-256으로 접수 일치만 조회합니다. 파일 동기화나 재접수 가능 여부는 확인하지 않습니다.')
+            with gr.Row():
+                current_map_database_id=gr.Textbox(label='DB 요청 ID',max_lines=1)
+                current_map_database_hash=gr.Textbox(label='원본 요청 SHA-256',max_lines=1)
+                current_map_database_button=gr.Button('DB 접수 확인')
+            current_map_database_status=gr.Markdown('보관한 요청 ID와 해시를 입력하세요.')
+            current_map_database_token=gr.State(None)
+            current_map_database_result=gr.State(None)
+            current_map_database_button.click(create_cleanup_preview_token,outputs=current_map_database_token,queue=False).then(collect_operations_map_database_receipt,[current_map_database_id,current_map_database_hash,current_map_database_token],current_map_database_result,queue=False,trigger_mode='multiple').then(render_operations_map_database_receipt,[current_map_database_id,current_map_database_hash,current_map_database_token,current_map_database_result],current_map_database_status,queue=False)
+            for current_map_database_input in (current_map_database_id,current_map_database_hash):
+                current_map_database_input.change(lambda:(create_cleanup_preview_token(),'입력이 바뀌었습니다. 다시 확인하세요.'),outputs=[current_map_database_token,current_map_database_status],queue=False)
         with gr.Accordion('대화 세션',open=True):
             current_session_dropdown=gr.Dropdown(label='세션 선택',choices=[])
             current_initial_session_state=gr.Textbox(value='',visible=False)

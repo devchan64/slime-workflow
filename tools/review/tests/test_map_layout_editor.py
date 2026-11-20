@@ -150,6 +150,23 @@ class MapLayoutEditorTests(unittest.TestCase):
             map_editor.save_map_editor_changes(current_request)
         current_test_case.assertTrue(current_marker.is_file())
 
+    def test_pending_observer_rejects_marker_that_grows_after_hash(self):
+        from tools.review.domains.hermes_agent import map_pending_observer
+        from tools.review.domains.hermes_agent import sprite_pending_observer
+        current_marker_path=map_editor.MAP_EDITOR_STORAGE_ROOT/'map-save-pending.json'
+        current_marker_path.parent.mkdir(parents=True,exist_ok=True)
+        (current_marker_path.parent/'save.lock').touch()
+        current_marker_path.write_bytes(b'{}')
+        current_real_hash=sprite_pending_observer.read_sprite_pending_file_hash
+        def grow_after_hash(current_file_path):
+            current_hash_value=current_real_hash(current_file_path)
+            if current_file_path==current_marker_path:current_file_path.write_bytes(b'x'*131073)
+            return current_hash_value
+        with patch.object(sprite_pending_observer,'read_sprite_pending_file_hash',side_effect=grow_after_hash):
+            self.assertEqual(map_pending_observer.inspect_hermes_map_pending_status()['state'],'unavailable')
+        with self.assertRaisesRegex(ValueError,'크기 초과'):
+            map_pending_observer.read_bounded_map_pending_bytes(current_marker_path)
+
     def test_unreadable_pending_marker_blocks_preview_and_save(self):
         current_marker_path=map_editor.MAP_EDITOR_STORAGE_ROOT/'map-save-pending.json'
         current_original_bytes={current_path:current_path.read_bytes() for current_path in self.current_source_paths+self.current_metadata_paths}

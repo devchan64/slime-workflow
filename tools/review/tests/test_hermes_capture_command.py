@@ -57,6 +57,76 @@ class HermesCaptureCommandTests(unittest.TestCase):
                 current_job_record['status']['status']='running'
                 with self.assertRaises(ValueError):current_manager_value.execute_hermes_command('hermes-capture-proposal',{'id':'job-1'})
 
+    def test_capture_map_registration_distinguishes_missing_and_unavailable(self):
+        from tools.review.domains.hermes_agent.capture_delegation import inspect_capture_map_registration
+        current_proposal_record={'service':'map-review','settings':{'map':'test-map'}}
+        for current_menu_records,current_expected_state in (([{'id':'test-map'}],'registered'),([{'id':'other'}],'not_registered'),([{'id':'test-map'},{'id':'test-map'}],'unavailable'),([{}],'unavailable')):
+            with self.subTest(state=current_expected_state),patch('tools.review.common.map_asset_sources.load_review_map_menu',return_value=current_menu_records),patch('tools.review.domains.map_review.capture.capture_map_review',side_effect=AssertionError('캡처 금지')):
+                self.assertEqual(inspect_capture_map_registration(current_proposal_record),{'status':current_expected_state,'map':'test-map'})
+        with patch('tools.review.common.map_asset_sources.load_review_map_menu',side_effect=OSError('private path')):
+            self.assertEqual(inspect_capture_map_registration(current_proposal_record),{'status':'unavailable','map':'test-map'})
+        self.assertEqual(inspect_capture_map_registration({'service':'character-review','settings':{}}),{'status':'not_applicable'})
+        import yaml
+        with patch('tools.review.common.map_asset_sources.load_review_map_menu',side_effect=yaml.YAMLError('손상된 원본')):
+            self.assertEqual(inspect_capture_map_registration(current_proposal_record),{'status':'unavailable','map':'test-map'})
+
+    def test_capture_map_registration_rejects_overlapping_scans(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Event
+        from tools.review.domains.hermes_agent.capture_delegation import inspect_capture_map_registration
+        current_entered_event=Event()
+        current_release_event=Event()
+        def hold_test_map_menu():
+            current_entered_event.set()
+            if not current_release_event.wait(5):raise RuntimeError('모의 조회 시간 초과')
+            return [{'id':'test-map'}]
+        current_proposal_record={'service':'map-review','settings':{'map':'test-map'}}
+        with patch('tools.review.common.map_asset_sources.load_review_map_menu',side_effect=hold_test_map_menu) as current_menu_mock,ThreadPoolExecutor(max_workers=1) as current_executor:
+            current_first_result=current_executor.submit(inspect_capture_map_registration,current_proposal_record)
+            try:
+                self.assertTrue(current_entered_event.wait(5))
+                self.assertEqual(inspect_capture_map_registration(current_proposal_record),{'status':'unavailable','map':'test-map'})
+                self.assertEqual(current_menu_mock.call_count,1)
+            finally:
+                current_release_event.set()
+            self.assertEqual(current_first_result.result(timeout=5)['status'],'registered')
+            self.assertEqual(inspect_capture_map_registration(current_proposal_record)['status'],'registered')
+
+    def test_conversation_capture_review_is_read_only_and_checks_job_identity(self):
+        from tools.review.ui.gradio import hermes_agent_app
+        from tools.review.domains.hermes_agent.delegation_proposal import parse_hermes_capture_proposal
+        current_answer_text='HERMES_CAPTURE_PROPOSAL\n{"service":"map-review","settings":{"map":"test-map"}}\nEND_HERMES_CAPTURE_PROPOSAL'
+        current_proposal_value=parse_hermes_capture_proposal(current_answer_text)
+        current_job_record={'job':{'final_response':current_answer_text,'final_response_truncated':False}}
+        current_response_record={'job_id':'job-1','proposal':current_proposal_value,'map_registration':{'status':'registered','map':'test-map'}}
+        with patch.object(hermes_agent_app,'find_conversation_session_job',return_value=current_job_record),patch.object(hermes_agent_app,'execute_remote_management_command',return_value=current_response_record) as current_gateway_mock:
+            current_route_values=hermes_agent_app.route_conversation_proposal('session-1','job-1')
+            self.assertEqual(current_route_values[-2]['area'],'capture')
+            current_route_record=current_route_values[-2]
+            current_output_values=hermes_agent_app.open_routed_conversation_proposal(current_route_record,'session-1','job-1')
+            self.assertIn('확인하고 있습니다',current_output_values[-1])
+            current_result_record=hermes_agent_app.collect_routed_capture_review(current_route_record,'session-1','job-1')
+            current_notice_text=hermes_agent_app.render_routed_capture_review(current_route_record,'session-1','job-1',current_result_record)
+            self.assertIn('등록된 맵',current_notice_text)
+            self.assertIn('캡처 실행은 지원하지 않으며',current_notice_text)
+            current_session_identifier='a'*32
+            current_link_notice=hermes_agent_app.read_conversation_capture_review(current_session_identifier,'job-1')
+            self.assertIn('/management/frame/map-review/?map=test-map&townPage=1&session='+current_session_identifier,current_link_notice)
+            current_gateway_mock.assert_called_with('hermes-agent','hermes-capture-proposal',{'id':'job-1'})
+            import gradio as gr
+            self.assertEqual(hermes_agent_app.render_routed_capture_review(None,'session-1','job-1',current_result_record),gr.skip())
+            self.assertEqual(hermes_agent_app.render_routed_capture_review({**current_route_record,'nonce':'new'},'session-1','job-1',current_result_record),gr.skip())
+            self.assertEqual(hermes_agent_app.render_routed_capture_review(current_route_record,'session-1','other-job',current_result_record),gr.skip())
+            for current_state_name,current_expected_text in (('not_registered','등록 맵 목록에 없음'),('unavailable','등록 여부 확인 불가')):
+                current_response_record['map_registration']={'status':current_state_name,'map':'test-map'}
+                current_result_record=hermes_agent_app.collect_routed_capture_review(current_route_record,'session-1','job-1')
+                self.assertIn(current_expected_text,current_result_record['notice'])
+                self.assertNotIn('/management/frame/map-review/',current_result_record['notice'])
+                self.assertIn('캡처 실행은 지원하지 않으며',current_result_record['notice'])
+            current_response_record['map_registration']={'status':'registered','map':'other'}
+            current_result_record=hermes_agent_app.collect_routed_capture_review(current_route_record,'session-1','job-1')
+            self.assertIn('확인하지 못했습니다',current_result_record['notice'])
+
     def test_mcp_capture_proposal_uses_fixed_command(self):
         with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:
             hermes_module_value.read_hermes_capture_proposal('job-1')
@@ -90,6 +160,36 @@ class HermesCaptureCommandTests(unittest.TestCase):
             self.assertEqual(current_response_value['receipt']['job_id'],current_job_identifier)
             self.assertEqual(current_response_value['job'],{'status':'queued','result_available':False})
             self.assertNotIn(str(current_root_path),json.dumps(current_response_value))
+
+    def test_sandbox_capture_map_check_only_reads_valid_map(self):
+        import json
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        current_request_values=((b'capture-map-check {"map":"test-map"}\n',True),(b'capture-map-check {"map":"../bad"}\n',False),(b'capture-map-check {"map":"test-map","action":"capture"}\n',False),(b'capture-map-check {"map":"one","map":"two"}\n',False))
+        for current_request_bytes,current_allowed_value in current_request_values:
+            with self.subTest(request=current_request_bytes),patch('tools.review.common.map_asset_sources.load_review_map_menu',return_value=[{'id':'test-map'}]) as current_menu_mock,patch('tools.review.domains.map_review.capture.capture_map_review',side_effect=AssertionError('캡처 금지')) as current_capture_mock:
+                current_client_socket,current_server_socket=socket.socketpair()
+                current_thread_value=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                current_thread_value.start()
+                with current_client_socket:
+                    current_client_socket.sendall(current_request_bytes)
+                    current_response_value=json.loads(current_client_socket.makefile('rb').readline())
+                current_thread_value.join(timeout=3)
+                self.assertFalse(current_thread_value.is_alive())
+                self.assertIn('status' if current_allowed_value else 'error',current_response_value)
+                self.assertEqual(current_menu_mock.call_count,int(current_allowed_value))
+                current_capture_mock.assert_not_called()
+
+    def test_sandbox_capture_map_client_sends_fixed_request(self):
+        from tools.review.domains.hermes_agent.management_status_client import read_sandbox_management_status
+        with patch('tools.review.domains.hermes_agent.management_status_client.socket.socket') as current_socket_factory:
+            current_socket_value=current_socket_factory.return_value.__enter__.return_value
+            current_socket_value.recv.return_value=b'{"status":"registered","map":"test-map"}\n'
+            current_result_value=read_sandbox_management_status('capture-map-check','{"map":"test-map"}')
+            self.assertEqual(current_result_value['status'],'registered')
+            current_socket_value.sendall.assert_called_once_with(b'capture-map-check {"map":"test-map"}\n')
+        with self.assertRaises(ValueError):read_sandbox_management_status('capture-map-check','{}\nrun shell')
 
     def test_sandbox_bridge_allows_only_capture_status_contract(self):
         import json

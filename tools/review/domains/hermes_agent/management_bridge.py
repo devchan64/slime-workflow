@@ -36,6 +36,26 @@ def handle_hermes_observer_connection(current_client_socket):
                     current_response_record=read_hermes_writer_index_status()
                 except (OSError,RuntimeError,ValueError,TypeError,KeyError):
                     current_response_record={'error':'작가 색인 상태 조회 실패: 작가 서비스를 확인하세요.'}
+            elif current_request_bytes.startswith(b'capture-map-check ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.capture_delegation import inspect_capture_map_registration
+                    current_capture_request=parse_management_request_json(current_request_bytes[len(b'capture-map-check '):-1].decode('utf-8'))
+                    if not isinstance(current_capture_request,dict) or set(current_capture_request)!={'map'}:
+                        raise ValueError('맵 확인 입력 오류')
+                    current_response_record=inspect_capture_map_registration({'service':'map-review','settings':current_capture_request})
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'캡처 맵 등록 조회 실패: 맵 ID와 등록 원본을 확인하세요.'}
+            elif current_request_bytes.startswith(b'map-database-receipt ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.map_assets.database_client import read_content_map_receipt_by_hash
+                    current_receipt_request=parse_management_request_json(current_request_bytes[len(b'map-database-receipt '):-1].decode('utf-8'))
+                    if not isinstance(current_receipt_request,dict) or set(current_receipt_request)!={'database_request_id','request_sha256'}:
+                        raise ValueError('맵 DB 접수 입력 오류')
+                    current_response_record=read_content_map_receipt_by_hash(current_receipt_request['database_request_id'],current_receipt_request['request_sha256'])
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'맵 DB 접수 조회 실패: 요청 ID·해시와 에셋 서비스를 확인하세요.'}
             elif current_request_bytes == b'content-database-status\n':
                 current_response_record = read_hermes_content_database_status()
             elif current_request_bytes == b'kimodo-build-status\n':

@@ -266,6 +266,44 @@ class HermesWorkerTests(unittest.TestCase):
                     self.assertEqual(current_history_mock.call_count,int(current_allowed_value))
                     self.assertIn('records' if current_allowed_value else 'error',current_response_value)
 
+    def test_map_database_receipt_sandbox_client_sends_fixed_request(self):
+        from tools.review.domains.hermes_agent.management_status_client import read_sandbox_management_status
+        current_request_text=json.dumps({'database_request_id':'test','request_sha256':'a'*64})
+        with patch('tools.review.domains.hermes_agent.management_status_client.socket.socket') as current_socket_factory:
+            current_socket_value=current_socket_factory.return_value.__enter__.return_value
+            current_socket_value.recv.return_value=b'{"state":"not_found"}\n'
+            self.assertEqual(read_sandbox_management_status('map-database-receipt',current_request_text),{'state':'not_found'})
+            current_socket_value.sendall.assert_called_once_with(('map-database-receipt '+current_request_text+'\n').encode())
+        with self.assertRaises(ValueError):read_sandbox_management_status('map-database-receipt','{}\nrun shell')
+
+    def test_map_database_receipt_bridge_rejects_extra_and_invalid_inputs(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        current_valid_hash='a'*64
+        current_request_values=[({'database_request_id':'db-1','request_sha256':current_valid_hash},True),({'database_request_id':'db-1','request_sha256':'bad'},False),({'database_request_id':'db-1','request_sha256':current_valid_hash,'action':'save'},False)]
+        for current_payload_value,current_allowed_value in current_request_values:
+            with self.subTest(payload=current_payload_value):
+                current_client_socket,current_server_socket=socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                with patch('tools.review.domains.map_assets.database_client.execute_content_api_request',return_value={'state':'matched'}) as current_http_mock:
+                    current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                    current_thread_handle.start()
+                    current_client_socket.sendall(('map-database-receipt '+json.dumps(current_payload_value)+'\n').encode())
+                    current_response_value=json.loads(current_client_socket.makefile('rb').readline())
+                    current_thread_handle.join(timeout=3)
+                    self.assertFalse(current_thread_handle.is_alive())
+                    self.assertEqual(current_http_mock.call_count,int(current_allowed_value))
+                    self.assertIn('state' if current_allowed_value else 'error',current_response_value)
+                    if current_allowed_value:self.assertEqual(current_http_mock.call_args.args[0],'GET')
+        current_client_socket,current_server_socket=socket.socketpair()
+        self.addCleanup(current_client_socket.close)
+        current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+        current_thread_handle.start()
+        current_client_socket.sendall(('map-database-receipt {"database_request_id":"x","database_request_id":"y","request_sha256":"'+current_valid_hash+'"}\n').encode())
+        self.assertIn('error',json.loads(current_client_socket.makefile('rb').readline()))
+        current_thread_handle.join(timeout=3)
+
     def test_reservation_inspection_bridge_is_fixed_and_read_only(self):
         import socket
         import threading
@@ -467,6 +505,33 @@ class HermesWorkerTests(unittest.TestCase):
             self.assertEqual(current_sandbox_record['next_offset'],2)
             self.assertTrue(all('flux' in str(current_record).lower() for current_record in current_sandbox_record['records']))
             current_server_thread.join(timeout=2)
+            self.assertFalse(current_server_thread.is_alive())
+            with patch('tools.review.domains.map_assets.database_client.execute_content_api_request',return_value={'state':'matched'}) as current_content_mock:
+                current_server_thread=threading.Thread(target=serve_one_connection,daemon=True)
+                current_server_thread.start()
+                current_sandbox_arguments[-2:]=['map-database-receipt',json.dumps({'database_request_id':'fixture-id','request_sha256':'a'*64})]
+                current_sandbox_result=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=12)
+                self.assertEqual(current_sandbox_result.returncode,0,current_sandbox_result.stderr)
+                self.assertEqual(json.loads(current_sandbox_result.stdout)['state'],'matched')
+                self.assertEqual(current_content_mock.call_args.args[0],'GET')
+                current_server_thread.join(timeout=2)
+                self.assertFalse(current_server_thread.is_alive())
+            with patch('tools.review.common.map_asset_sources.load_review_map_menu',return_value=[{'id':'test-map'}]):
+                current_server_thread=threading.Thread(target=serve_one_connection,daemon=True)
+                current_server_thread.start()
+                current_sandbox_arguments[-2:]=['capture-map-check','{"map":"test-map"}']
+                current_sandbox_result=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=12)
+                self.assertEqual(current_sandbox_result.returncode,0,current_sandbox_result.stderr)
+                self.assertEqual(json.loads(current_sandbox_result.stdout),{'status':'registered','map':'test-map'})
+                current_server_thread.join(timeout=2)
+                self.assertFalse(current_server_thread.is_alive())
+            current_server_thread=threading.Thread(target=serve_one_connection,daemon=True)
+            current_server_thread.start()
+            current_sandbox_arguments[-2:]=['capture-map-check','{"map":"stonewarm"}']
+            current_sandbox_result=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=15)
+            self.assertEqual(current_sandbox_result.returncode,0,current_sandbox_result.stderr)
+            self.assertEqual(json.loads(current_sandbox_result.stdout),{'status':'registered','map':'stonewarm'})
+            current_server_thread.join(timeout=3)
             self.assertFalse(current_server_thread.is_alive())
             current_server_thread=threading.Thread(target=serve_one_connection,daemon=True)
             current_server_thread.start()

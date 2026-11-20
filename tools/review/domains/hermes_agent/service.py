@@ -312,7 +312,9 @@ class HermesServiceManager:
             if current_job_record['status'].get('status') != 'completed' or current_job_record.get('final_response_truncated'):
                 raise ValueError('완료되고 잘리지 않은 Hermes 답변이 필요합니다.')
             from tools.review.domains.hermes_agent.delegation_proposal import parse_hermes_capture_proposal
-            return {'job_id':hermes_payload_record['id'],'proposal':parse_hermes_capture_proposal(current_job_record.get('final_response'))}
+            from tools.review.domains.hermes_agent.capture_delegation import inspect_capture_map_registration
+            current_capture_proposal=parse_hermes_capture_proposal(current_job_record.get('final_response'))
+            return {'job_id':hermes_payload_record['id'],'proposal':current_capture_proposal,'map_registration':inspect_capture_map_registration(current_capture_proposal)}
         if hermes_command_name == 'hermes-capture-status':
             if set(hermes_payload_record) != {'request_id','service'}:
                 raise ValueError('캡처 접수 ID와 서비스가 필요합니다.')
@@ -539,6 +541,11 @@ class HermesServiceManager:
                 raise ValueError('모델 서비스 식별자만 전달하세요.')
             from tools.review.domains.hermes_agent.management_observer import read_hermes_model_readiness
             return read_hermes_model_readiness(hermes_payload_record['service'])
+        if hermes_command_name == 'hermes-map-database-receipt':
+            if set(hermes_payload_record)!={'database_request_id','request_sha256'}:
+                raise ValueError('DB 맵 변경 요청 ID와 원본 요청 해시가 필요합니다.')
+            from tools.review.domains.map_assets.database_client import read_content_map_receipt_by_hash
+            return read_content_map_receipt_by_hash(hermes_payload_record['database_request_id'],hermes_payload_record['request_sha256'])
         if hermes_command_name == 'hermes-content-database-status':
             if hermes_payload_record:
                 raise ValueError('콘텐츠 DB 상태 조회에는 입력을 전달할 수 없습니다.')

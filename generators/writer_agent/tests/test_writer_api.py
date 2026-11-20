@@ -128,6 +128,52 @@ class WriterApiContracts(TestCase):
         save_yaml_document(current_job_root/'status.yaml',{'id':current_job_identifier,'stage':'review'})
         with self.assertRaisesRegex(ValueError,'작가 작업만'):current_manager_value.request_writer_cancellation(current_job_identifier)
 
+    def test_writer_material_global_capacity_recovers_after_error(self):
+        from generators.writer_agent.management import hold_writer_material_guard
+        current_test_root=Path(self.temporary_root_handle.name)
+        with hold_writer_material_guard(current_test_root/'first.yaml'), hold_writer_material_guard(current_test_root/'second.yaml'):
+            with self.assertRaisesRegex(ValueError,'조회 한도'):
+                with hold_writer_material_guard(current_test_root/'third.yaml'):
+                    self.fail('용량 초과 조회가 허용되었습니다.')
+        with self.assertRaisesRegex(RuntimeError,'가상 실패'):
+            with hold_writer_material_guard(current_test_root/'third.yaml'):
+                raise RuntimeError('가상 실패')
+        with hold_writer_material_guard(current_test_root/'third.yaml'):
+            pass
+
+    def test_writer_material_concurrent_reads_are_limited_per_section(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Event
+        from generators.writer_agent import management
+        current_state_root=Path(self.temporary_root_handle.name)
+        current_job_identifier='20261118-120000-12345678'
+        current_job_root=current_state_root/'jobs'/current_job_identifier
+        current_job_root.mkdir(parents=True)
+        for current_file_name in ('status.yaml','search.yaml','proposal.yaml'):
+            (current_job_root/current_file_name).write_text('{}')
+        current_entered_event=Event()
+        current_release_event=Event()
+        def read_test_document(current_file_path):
+            if current_file_path.name=='status.yaml':return {'id':current_job_identifier,'stage':'completed'}
+            if current_file_path.name=='search.yaml':
+                current_entered_event.set()
+                if not current_release_event.wait(5):raise RuntimeError('테스트 조회 대기 시간 초과')
+            return {'results':[]}
+        current_search_request={'job_id':current_job_identifier,'section':'search','limit':1000}
+        current_proposal_request={'job_id':current_job_identifier,'section':'proposal','limit':1000}
+        current_other_manager=WriterAgentManager(current_state_root/'other.yaml')
+        with patch.object(management,'load_workspace_config',return_value={'state_root':str(current_state_root)}), patch.object(management,'read_yaml_document',side_effect=read_test_document), ThreadPoolExecutor(max_workers=1) as current_test_executor:
+            current_first_result=current_test_executor.submit(self.writer_manager_service.read_writer_material_page,current_search_request)
+            try:
+                self.assertTrue(current_entered_event.wait(5))
+                with self.assertRaisesRegex(ValueError,'이미 진행 중'):
+                    current_other_manager.read_writer_material_page(current_search_request)
+                self.assertEqual(current_other_manager.read_writer_material_page(current_proposal_request)['section'],'proposal')
+            finally:
+                current_release_event.set()
+            self.assertEqual(current_first_result.result(timeout=5)['section'],'search')
+            self.assertEqual(current_other_manager.read_writer_material_page(current_search_request)['section'],'search')
+
     def test_passive_writer_history_uses_recorded_stage_without_prompt(self):
         from generators.writer_agent.documents import save_yaml_document
         current_test_root=Path(self.temporary_root_handle.name)
@@ -145,6 +191,11 @@ class WriterApiContracts(TestCase):
         self.assertEqual(current_result_value['records'],[{'id':current_job_root.name,'recorded_status':'reasoning','status_source':'job'}])
         self.assertNotIn('private',str(current_result_value))
         self.assertNotIn('secret',str(current_result_value))
+        from tools.review.common.generation_records import hold_history_observation_guard
+        with hold_history_observation_guard(current_test_root/'state'/'jobs'):
+            with self.assertRaisesRegex(ValueError,'이미 진행 중'):
+                current_manager.observe_writer_history({})
+        self.assertEqual(current_manager.observe_writer_history({})['total'],1)
         current_searched_value=current_manager.observe_writer_history({'query':'12345678'})
         self.assertEqual(current_searched_value['total'],1)
         self.assertEqual(current_manager.observe_writer_history({'query':'87654321'})['total'],0)
@@ -153,6 +204,32 @@ class WriterApiContracts(TestCase):
         (current_job_root/'status.yaml').write_text('invalid: [')
         self.assertEqual(current_manager.observe_writer_history({})['records'][0]['recorded_status'],'unknown')
         with self.assertRaises(ValueError):current_manager.observe_writer_history({'offset':1})
+
+    def test_writer_history_concurrent_observation_rejects_same_storage(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Event
+        from generators.writer_agent import management
+        current_state_root=Path(self.temporary_root_handle.name)
+        current_job_root=current_state_root/'jobs'/'20261118-120000-12345678'
+        current_job_root.mkdir(parents=True)
+        (current_job_root/'status.yaml').write_text('stage: completed\n')
+        current_entered_event=Event()
+        current_release_event=Event()
+        def hold_status_read(current_status_path):
+            current_entered_event.set()
+            if not current_release_event.wait(5):raise RuntimeError('테스트 조회 대기 시간 초과')
+            return {'id':current_job_root.name,'stage':'completed'}
+        current_other_manager=WriterAgentManager(current_state_root/'other.yaml')
+        with patch.object(management,'load_workspace_config',return_value={'state_root':str(current_state_root)}), patch.object(management,'read_yaml_document',side_effect=hold_status_read), ThreadPoolExecutor(max_workers=1) as current_test_executor:
+            current_first_result=current_test_executor.submit(self.writer_manager_service.observe_writer_history,{})
+            try:
+                self.assertTrue(current_entered_event.wait(5))
+                with self.assertRaisesRegex(ValueError,'이미 진행 중'):
+                    current_other_manager.observe_writer_history({})
+            finally:
+                current_release_event.set()
+            self.assertEqual(current_first_result.result(timeout=5)['total'],1)
+            self.assertEqual(current_other_manager.observe_writer_history({})['total'],1)
 
     def test_writer_history_delete_rejects_unknown_or_active_queue_records(self):
         from generators.writer_agent.documents import save_yaml_document,load_workspace_config

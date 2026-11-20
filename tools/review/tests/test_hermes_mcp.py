@@ -533,6 +533,12 @@ class HermesMcpTests(unittest.TestCase):
             hermes_module_value.save_hermes_field_map('field_request_123',current_draft_value,'a'*64)
             current_gateway_mock.assert_called_with('hermes-field-save',{'request_id':'field_request_123','draft':current_draft_value,'token':'a'*64})
 
+    def test_map_database_receipt_is_read_only_and_preserves_hash(self):
+        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value={'state':'not_found'}) as current_command_mock:
+            self.assertEqual(hermes_module_value.read_hermes_map_database_receipt('database id','a'*64)['state'],'not_found')
+        current_command_mock.assert_called_once_with('hermes-map-database-receipt',{'database_request_id':'database id','request_sha256':'a'*64})
+        self.assertTrue(hermes_module_value.read_hermes_map_database_receipt.test_annotations['read_only_hint'])
+
     def test_content_database_status_uses_fixed_gateway(self):
         with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={'status':'unavailable'}) as current_gateway_mock:
             self.assertEqual(hermes_module_value.read_hermes_content_database_status()['status'], 'unavailable')
