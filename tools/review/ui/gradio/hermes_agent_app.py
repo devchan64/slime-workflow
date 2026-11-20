@@ -190,6 +190,7 @@ def review_conversation_workflow_definition(current_session_identifier, workflow
     if not isinstance(current_proposal_record, dict) or set(current_proposal_record) != {"steps"} or not isinstance(current_proposal_record["steps"], list):
         raise gr.Error("steps 목록을 확인하세요.")
     normalized_step_records = []
+    step_input_sources = {}
     for current_step_record in current_proposal_record["steps"]:
         if not isinstance(current_step_record, dict) or set(current_step_record) - {"id", "generator", "inputs", "bindings"}:
             raise gr.Error("단계 정의를 확인하세요.")
@@ -202,8 +203,13 @@ def review_conversation_workflow_definition(current_session_identifier, workflow
             normalized_step_record["inputs"].pop(current_field_name, None)
         normalized_step_record["bindings"] = bound_input_record
         normalized_step_records.append(normalized_step_record)
+        step_input_sources[normalized_step_record["id"]] = {
+            name: "초안 지정값" if name in fixed_input_record else "생성기 기본값"
+            for name in normalized_step_record["inputs"]
+        } | {name: "선행 단계 결과" for name in bound_input_record}
     compile_workflow_dependencies(normalized_step_records, read_workflow_generator_catalog())
-    return {"session_id": current_session_identifier, "run_id": uuid.uuid4().hex, "steps": normalized_step_records}
+    return {"session_id": current_session_identifier, "run_id": uuid.uuid4().hex, "steps": normalized_step_records,
+            "input_sources": step_input_sources}
 
 
 def load_session_workflow_draft(current_session_identifier):
@@ -238,9 +244,10 @@ def load_conversation_workflow_definition(current_session_identifier, current_so
 
 def submit_conversation_workflow_definition(current_review_record, current_session_identifier, workflow_definition_text):
     expected_review_record = review_conversation_workflow_definition(current_session_identifier, workflow_definition_text)
-    if not current_review_record or any(current_review_record[key] != expected_review_record[key] for key in ("session_id", "steps")):
+    if not current_review_record or any(current_review_record[key] != expected_review_record[key] for key in ("session_id", "steps", "input_sources")):
         raise gr.Error("편집한 단계를 다시 검토하세요.")
-    return execute_remote_management_command("hermes-agent", "hermes-workflow-register", current_review_record)
+    registration_payload = {key: current_review_record[key] for key in ("session_id", "run_id", "steps")}
+    return execute_remote_management_command("hermes-agent", "hermes-workflow-register", registration_payload)
 
 
 def import_workflow_translation_proposal(current_session_identifier, current_source_job_identifier):
@@ -4955,7 +4962,7 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     workflow_graph_state = gr.State(None)
                     workflow_graph_preview = gr.JSON(label="기본값을 포함한 실행 계획")
                     workflow_graph_event = workflow_graph_review.click(review_conversation_workflow_definition, [hermes_session_control, workflow_definition_text], workflow_graph_state, queue=False)
-                    workflow_graph_event.success(lambda record: (record["steps"], record["run_id"]), workflow_graph_state, [workflow_graph_preview, workflow_run_identifier], queue=False)
+                    workflow_graph_event.success(lambda record: ([step | {"입력 출처": record["input_sources"][step["id"]]} for step in record["steps"]], record["run_id"]), workflow_graph_state, [workflow_graph_preview, workflow_run_identifier], queue=False)
                     workflow_graph_submit = gr.Button("검토한 워크플로우 등록")
                     workflow_graph_inputs = [workflow_graph_state, hermes_session_control, workflow_definition_text]
                     bind_gpu_generation_confirmation(workflow_graph_submit, submit_conversation_workflow_definition, workflow_graph_inputs, [workflow_run_display],
