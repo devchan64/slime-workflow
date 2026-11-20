@@ -516,6 +516,49 @@ class ManagementLauncherTests(unittest.TestCase):
             self.assertIn('UV_PROJECT_ENVIRONMENT=' + str(current_runtime_path / '.venv'), current_sync_command)
             self.assertEqual(current_sync_command[current_sync_command.index(str(current_uv_path)) + 1], 'sync')
 
+    def test_missing_codex_path_prints_safe_existing_and_add_commands(self):
+        import shlex
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_root_path=Path(current_temporary_directory)/'workflow space'
+            current_executable_path=Path(current_temporary_directory)/'Codex App'/'codex'
+            current_executable_path.parent.mkdir(parents=True)
+            current_executable_path.write_text('fixture')
+            current_executable_path.chmod(0o755)
+            current_output_stream=io.StringIO()
+            with patch.dict(os.environ,{'CODEX_CLI_PATH':str(current_executable_path)},clear=True),patch.object(management_launcher,'WORKFLOW_ROOT_DIRECTORY',current_root_path),patch.object(management_launcher.shutil,'which',return_value=None),contextlib.redirect_stdout(current_output_stream):
+                management_launcher.print_hermes_codex_cli_guidance()
+            current_output_lines=current_output_stream.getvalue().splitlines()
+            current_commands=[shlex.split(current_line_value.strip()) for current_line_value in current_output_lines if current_line_value.startswith('  ')]
+            self.assertEqual(current_commands[0],[str(current_executable_path),'mcp','get','slime-hermes'])
+            self.assertEqual(current_commands[1],[str(current_executable_path),'mcp','add','slime-hermes','--',str(current_root_path/'.local/hermes-mcp/bin/python'),str(current_root_path/'tools/review/domains/hermes_agent/mcp_server.py')])
+            self.assertIn('등록되지 않은 경우에만',current_output_stream.getvalue())
+
+    def test_missing_codex_without_app_shows_install_guidance(self):
+        current_output_stream=io.StringIO()
+        with patch.dict(os.environ,{},clear=True),patch.object(management_launcher.shutil,'which',return_value=None),patch.object(Path,'is_file',return_value=False),contextlib.redirect_stdout(current_output_stream):
+            management_launcher.print_hermes_codex_cli_guidance()
+        self.assertIn('찾지 못했습니다',current_output_stream.getvalue())
+        self.assertIn('https://developers.openai.com/codex/mcp',current_output_stream.getvalue())
+
+    def test_available_codex_path_needs_no_fallback_guidance(self):
+        current_output_stream=io.StringIO()
+        with patch.object(management_launcher.shutil,'which',return_value='/usr/bin/codex'),contextlib.redirect_stdout(current_output_stream):
+            management_launcher.print_hermes_codex_cli_guidance()
+        self.assertEqual(current_output_stream.getvalue(),'')
+
+    def test_hermes_mcp_setup_guidance_only_after_success(self):
+        with patch.object(management_launcher,'ManagementLaunchLogger'),patch.object(management_launcher,'prepare_management_environments') as current_prepare_mock,patch.object(management_launcher,'print_hermes_codex_cli_guidance') as current_guidance_mock,patch('tools.review.common.management_setup_plan.print_management_setup_plan'):
+            self.assertEqual(management_launcher.run_management_launcher(['setup','--scope','hermes-mcp']),0)
+            current_guidance_mock.assert_called_once_with()
+            current_guidance_mock.reset_mock()
+            self.assertEqual(management_launcher.run_management_launcher(['setup','--scope','hermes-mcp','--plan']),0)
+            self.assertEqual(management_launcher.run_management_launcher(['setup','--scope','renderer']),0)
+            current_guidance_mock.assert_not_called()
+            current_prepare_mock.side_effect=ValueError('준비 실패')
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(management_launcher.run_management_launcher(['setup','--scope','hermes-mcp']),1)
+            current_guidance_mock.assert_not_called()
+
     def test_incomplete_mcp_environment_is_not_modified(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             current_root_path = Path(temporary_directory_name)

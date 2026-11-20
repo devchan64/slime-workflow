@@ -1,6 +1,8 @@
 """관리 환경 준비·GUI·게이트웨이 스크립트의 얇은 실행 진입점."""
 import argparse
 import os
+import shlex
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -39,6 +41,25 @@ def build_management_launch_command(launcher_mode_name, forwarded_argument_value
             if not (management_environment_path/'bin/python').is_file():
                 raise ValueError(f'Gradio 환경이 없습니다: {management_environment_path}. scripts/setup_management.sh를 먼저 실행하세요.')
     return selected_command_values + list(forwarded_argument_values)
+
+
+def print_hermes_codex_cli_guidance():
+    """PATH에서 Codex를 찾지 못할 때 실행 가능한 경로와 등록 명령을 안내한다."""
+    if shutil.which('codex'):
+        return
+    current_candidate_values=[os.environ.get('CODEX_CLI_PATH'),'/usr/lib/chatgpt/resources/codex','/opt/ChatGPT/resources/codex']
+    current_executable_path=next((Path(current_candidate_value) for current_candidate_value in current_candidate_values if current_candidate_value and Path(current_candidate_value).is_absolute() and Path(current_candidate_value).is_file() and os.access(current_candidate_value,os.X_OK)),None)
+    if current_executable_path is None:
+        print('Codex CLI를 PATH 또는 알려진 앱 경로에서 찾지 못했습니다. Codex CLI 설치 또는 앱 설치 경로를 확인한 뒤 MCP 등록을 진행하세요.',flush=True)
+        print('Codex MCP 안내: https://developers.openai.com/codex/mcp',flush=True)
+        return
+    current_executable_text=shlex.quote(str(current_executable_path))
+    current_python_text=shlex.quote(str(WORKFLOW_ROOT_DIRECTORY/'.local/hermes-mcp/bin/python'))
+    current_server_text=shlex.quote(str(WORKFLOW_ROOT_DIRECTORY/'tools/review/domains/hermes_agent/mcp_server.py'))
+    print('Codex CLI가 PATH에 없어 앱의 실행 파일을 찾았습니다: '+str(current_executable_path),flush=True)
+    print('먼저 등록 여부를 확인하세요:\n  '+current_executable_text+' mcp get slime-hermes',flush=True)
+    print('등록되지 않은 경우에만 실행하세요:\n  '+current_executable_text+' mcp add slime-hermes -- '+current_python_text+' '+current_server_text,flush=True)
+    print('이미 등록되어 있다면 다시 추가하지 않아도 됩니다. 새 도구는 MCP 연결을 다시 열고 확인하세요.',flush=True)
 
 
 def run_management_launcher(command_argument_values=None):
@@ -103,6 +124,8 @@ def run_management_launcher(command_argument_values=None):
         launcher_trace_logger.emit_launch_trace('start', f'root={WORKFLOW_ROOT_DIRECTORY} log={launcher_trace_logger.output_log_path}')
         if launcher_argument_values.mode == 'setup':
             prepare_management_environments(launcher_trace_logger, selected_setup_scope)
+            if selected_setup_scope == 'hermes-mcp':
+                print_hermes_codex_cli_guidance()
         else:
             from tools.review.common.content_launch_config import apply_content_launch_configuration
             apply_content_launch_configuration()

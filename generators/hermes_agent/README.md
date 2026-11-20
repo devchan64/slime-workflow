@@ -80,6 +80,8 @@ Codex MCP의 `read_hermes_writer_search_paths`는 수락한 작가 접수 ID를 
 
 ## Codex MCP 연결
 
+`setup --scope hermes-mcp`가 성공한 뒤 `codex`가 PATH에 없으면 `CODEX_CLI_PATH`와 알려진 Codex 앱 실행 경로를 확인해 등록 확인·추가 명령을 안내한다. 명령은 자동 실행하지 않으며 이미 등록된 서버는 다시 추가하지 않는다. 실행 파일을 찾지 못하면 Codex 설치·경로 확인을 안내한다.
+
 [Codex MCP 안내](https://developers.openai.com/codex/mcp)의 로컬 stdio 구성을 사용한다. 서버는 `.local/hermes-mcp/bin/python`으로 `tools/review/domains/hermes_agent/mcp_server.py`를 실행한다. 저장소 루트에서 실행하면 다음 명령이 현재 경로를 절대 경로로 등록한다. 이미 같은 이름이 등록되어 있으면 기존 설정을 먼저 확인한다.
 
 ```bash
