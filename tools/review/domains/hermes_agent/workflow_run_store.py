@@ -32,6 +32,26 @@ def block_waiting_dependents(current_database_connection, workflow_run_identifie
          for (blocked_step_identifier,) in blocked_step_records])
 
 
+def read_step_records_locked(current_database_connection, workflow_run_identifier):
+    current_database_connection.row_factory = sqlite3.Row
+    return [dict(current_step_row) for current_step_row in current_database_connection.execute(
+        """SELECT step.step_id, step.category, step.state, step.request_id,
+                  contract.generator, contract.generator_version, contract.template_version,
+                  blocked.source_step AS blocking_step, blocked.reason AS block_reason
+           FROM workflow_step AS step LEFT JOIN workflow_step_contract AS contract USING(run_id, step_id)
+           LEFT JOIN workflow_block_reason AS blocked USING(run_id, step_id)
+           WHERE step.run_id=? ORDER BY step.rowid""",
+        (workflow_run_identifier,))]
+
+
+def read_result_records_locked(current_database_connection, workflow_run_identifier):
+    current_result_rows = current_database_connection.execute(
+        "SELECT step_id, job_id, outputs FROM workflow_result WHERE run_id=? ORDER BY rowid",
+        (workflow_run_identifier,))
+    return [{"step_id": step_id, "job_id": job_id, "outputs": json.loads(outputs)}
+            for step_id, job_id, outputs in current_result_rows]
+
+
 class WorkflowRunStore:
     def __init__(self, workflow_database_path):
         self.workflow_database_path = workflow_database_path
@@ -153,15 +173,7 @@ class WorkflowRunStore:
 
     def list_run_step_records(self, workflow_run_identifier):
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
-            current_database_connection.row_factory = sqlite3.Row
-            return [dict(current_step_row) for current_step_row in current_database_connection.execute(
-                """SELECT step.step_id, step.category, step.state, step.request_id,
-                          contract.generator, contract.generator_version, contract.template_version,
-                          blocked.source_step AS blocking_step, blocked.reason AS block_reason
-                   FROM workflow_step AS step LEFT JOIN workflow_step_contract AS contract USING(run_id, step_id)
-                   LEFT JOIN workflow_block_reason AS blocked USING(run_id, step_id)
-                   WHERE step.run_id=? ORDER BY step.rowid""",
-                (workflow_run_identifier,))]
+            return read_step_records_locked(current_database_connection, workflow_run_identifier)
 
     def record_flux_completion(self, workflow_run_identifier, current_step_identifier, current_status_record):
         from .flux_profile_operations import inspect_hermes_flux_result
@@ -204,11 +216,7 @@ class WorkflowRunStore:
 
     def read_run_results(self, workflow_run_identifier):
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
-            current_result_rows = current_database_connection.execute(
-                "SELECT step_id, job_id, outputs FROM workflow_result WHERE run_id=? ORDER BY rowid",
-                (workflow_run_identifier,))
-            return [{"step_id": step_id, "job_id": job_id, "outputs": json.loads(outputs)}
-                    for step_id, job_id, outputs in current_result_rows]
+            return read_result_records_locked(current_database_connection, workflow_run_identifier)
 
     def close_unsuccessful_step(self, workflow_run_identifier, current_step_record, terminal_state_name):
         if terminal_state_name not in ("failed", "cancelled"):
@@ -231,14 +239,15 @@ class WorkflowRunStore:
 
     def read_session_run_view(self, workflow_run_identifier, conversation_session_identifier):
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
+            current_database_connection.execute("BEGIN")
             current_session_match = current_database_connection.execute(
                 "SELECT 1 FROM workflow_run WHERE run_id=? AND session_id=?",
                 (workflow_run_identifier, conversation_session_identifier)).fetchone()
-        if current_session_match is None:
-            raise ValueError("이 세션에서 해당 실행을 찾을 수 없습니다.")
-        return {"run_id": workflow_run_identifier, "steps": self.list_run_step_records(workflow_run_identifier),
-                "results": self.read_run_results(workflow_run_identifier),
-                "queried_at": datetime.now(timezone.utc).isoformat()}
+            if current_session_match is None:
+                raise ValueError("이 세션에서 해당 실행을 찾을 수 없습니다.")
+            return {"run_id": workflow_run_identifier, "steps": read_step_records_locked(current_database_connection, workflow_run_identifier),
+                    "results": read_result_records_locked(current_database_connection, workflow_run_identifier),
+                    "queried_at": datetime.now(timezone.utc).isoformat()}
 
     def find_session_workflow_steps(self, conversation_session_identifier, current_category_name, current_state_name):
         if current_category_name not in ("", "translation", "image"):
