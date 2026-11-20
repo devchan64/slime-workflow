@@ -215,9 +215,13 @@ def load_session_workflow_draft(current_session_identifier):
 def save_session_workflow_draft(current_session_identifier, workflow_definition_text, reviewed_draft_record):
     if reviewed_draft_record and reviewed_draft_record["session_id"] != current_session_identifier:
         raise gr.Error("현재 세션의 초안을 다시 불러오세요.")
-    return execute_remote_management_command("hermes-agent", "hermes-workflow-draft-save", {
-        "session_id": current_session_identifier, "definition_text": workflow_definition_text,
-        "revision": reviewed_draft_record["revision"] if reviewed_draft_record else ""})
+    try:
+        saved_draft_record = execute_remote_management_command("hermes-agent", "hermes-workflow-draft-save", {
+            "session_id": current_session_identifier, "definition_text": workflow_definition_text,
+            "revision": reviewed_draft_record["revision"] if reviewed_draft_record else ""})
+    except (ValueError, RuntimeError, OSError):
+        return reviewed_draft_record, "저장을 확인할 수 없습니다. 편집 내용을 보관한 뒤 최신 초안을 불러와 비교하세요."
+    return saved_draft_record, "이 대화에 초안을 저장했습니다."
 
 
 def load_conversation_workflow_definition(current_session_identifier, current_source_job_identifier):
@@ -4940,11 +4944,13 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     workflow_definition_text = gr.Textbox(label="생성기 입력과 단계 연결 (JSON)", lines=8)
                     workflow_load_proposal.click(load_conversation_workflow_definition, [hermes_session_control, hermes_session_job_selection], workflow_definition_text, queue=False)
                     workflow_draft_revision = gr.State(None)
-                    gr.Button("저장된 초안 불러오기").click(load_session_workflow_draft, hermes_session_control,
+                    workflow_draft_notice = gr.Markdown()
+                    draft_load_event = gr.Button("저장된 초안 불러오기").click(load_session_workflow_draft, hermes_session_control,
                         [workflow_definition_text, workflow_draft_revision], queue=False)
+                    draft_load_event.success(lambda: "저장된 초안을 조회했습니다.", outputs=workflow_draft_notice, queue=False)
                     gr.Button("이 대화에 초안 저장").click(save_session_workflow_draft,
-                        [hermes_session_control, workflow_definition_text, workflow_draft_revision], workflow_draft_revision, queue=False)
-                    hermes_session_control.change(lambda: ("", None), outputs=[workflow_definition_text, workflow_draft_revision], queue=False)
+                        [hermes_session_control, workflow_definition_text, workflow_draft_revision], [workflow_draft_revision, workflow_draft_notice], queue=False)
+                    hermes_session_control.change(lambda: ("", None, ""), outputs=[workflow_definition_text, workflow_draft_revision, workflow_draft_notice], queue=False)
                     workflow_graph_review = gr.Button("입력과 연결 검토")
                     workflow_graph_state = gr.State(None)
                     workflow_graph_preview = gr.JSON(label="기본값을 포함한 실행 계획")
