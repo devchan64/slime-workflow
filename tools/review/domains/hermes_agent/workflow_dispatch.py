@@ -24,11 +24,12 @@ def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_co
             except (ValueError, OSError, RuntimeError):
                 workflow_run_store.record_source_observation(current_step_record["request_id"], "unknown")
                 continue
-            current_receipt_record = current_status_record.get("receipt") or {}
-            if (current_receipt_record.get("state") != "accepted"
+            current_receipt_record = current_status_record.get("receipt") if isinstance(current_status_record, dict) else None
+            if (not isinstance(current_receipt_record, dict) or current_receipt_record.get("state") != "accepted"
                     or current_receipt_record.get("service") != expected_service_name
                     or current_receipt_record.get("request_id") != current_step_record["request_id"]
-                    or not current_receipt_record.get("job_id")):
+                    or not isinstance(current_receipt_record.get("job_id"), str) or not current_receipt_record["job_id"]
+                    or current_step_record.get("source_job_id") not in (None, current_receipt_record["job_id"])):
                 workflow_run_store.record_source_observation(current_step_record["request_id"], "unknown")
                 continue
             observed_job_record = current_status_record.get("job")
@@ -73,4 +74,7 @@ def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_co
         if claimed_step_record is not None:
             current_command_name = {"translation": "hermes-delegate-translation",
                                     "image": "hermes-delegate-flux-image"}[current_step_record["category"]]
-            gateway_command_handler(current_command_name, claimed_step_record)
+            try:
+                gateway_command_handler(current_command_name, claimed_step_record)
+            except (ValueError, OSError, RuntimeError):
+                workflow_run_store.record_source_observation(claimed_step_record["request_id"], "unknown")
