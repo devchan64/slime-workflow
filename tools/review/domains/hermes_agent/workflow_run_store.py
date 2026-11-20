@@ -16,15 +16,19 @@ def encode_workflow_record(current_record_value):
                       separators=(",", ":"))
 
 
-def block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier):
-    current_database_connection.execute(
+def block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier, source_step_identifier, block_reason_text):
+    blocked_step_records = current_database_connection.execute(
         """WITH RECURSIVE affected(step_id) AS (
                SELECT ? UNION SELECT child.step_id FROM workflow_step AS child,
                    json_each(child.dependencies) AS parent JOIN affected ON parent.value=affected.step_id
                    WHERE child.run_id=?
            ) UPDATE workflow_step SET state='blocked'
-             WHERE run_id=? AND state='waiting' AND step_id IN (SELECT step_id FROM affected)""",
-        (current_step_identifier, workflow_run_identifier, workflow_run_identifier))
+             WHERE run_id=? AND state='waiting' AND step_id IN (SELECT step_id FROM affected) RETURNING step_id""",
+        (current_step_identifier, workflow_run_identifier, workflow_run_identifier)).fetchall()
+    current_database_connection.executemany(
+        "INSERT INTO workflow_block_reason VALUES (?, ?, ?, ?)",
+        [(workflow_run_identifier, blocked_step_identifier, source_step_identifier, block_reason_text)
+         for (blocked_step_identifier,) in blocked_step_records])
 
 
 class WorkflowRunStore:
@@ -42,6 +46,10 @@ class WorkflowRunStore:
                     run_id TEXT NOT NULL, step_id TEXT NOT NULL, generator TEXT NOT NULL,
                     generator_version INTEGER NOT NULL, template_version INTEGER NOT NULL,
                     PRIMARY KEY(run_id, step_id)
+                );
+                CREATE TABLE IF NOT EXISTS workflow_block_reason (
+                    run_id TEXT NOT NULL, step_id TEXT NOT NULL, source_step TEXT NOT NULL,
+                    reason TEXT NOT NULL, PRIMARY KEY(run_id, step_id)
                 );
                 CREATE TABLE IF NOT EXISTS workflow_result (
                     run_id TEXT NOT NULL, step_id TEXT NOT NULL, job_id TEXT NOT NULL,
@@ -104,14 +112,16 @@ class WorkflowRunStore:
                 source_output_name = source_binding_record["output"]
                 source_output_values = json.loads(source_result_row[0])
                 if source_output_name not in source_output_values:
-                    block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier)
+                    block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier,
+                        source_binding_record["from_step"], "선행 작업의 출력 항목이 없습니다.")
                     return None
                 bound_output_value = source_output_values[source_output_name]
                 if source_output_name == "images":
                     stored_image_row = current_database_connection.execute(
                         "SELECT content FROM workflow_png WHERE digest=?", (bound_output_value["sha256"],)).fetchone()
                     if not stored_image_row or hashlib.sha256(stored_image_row[0]).hexdigest() != bound_output_value["sha256"]:
-                        block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier)
+                        block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier,
+                            source_binding_record["from_step"], "보존된 PNG의 SHA-256이 일치하지 않습니다." if stored_image_row else "보존된 PNG가 없습니다.")
                         return None
                     bound_output_value = [base64.b64encode(stored_image_row[0]).decode("ascii")]
                 resolved_input_record[target_field_name] = bound_output_value
@@ -145,8 +155,10 @@ class WorkflowRunStore:
             current_database_connection.row_factory = sqlite3.Row
             return [dict(current_step_row) for current_step_row in current_database_connection.execute(
                 """SELECT step.step_id, step.category, step.state, step.request_id,
-                          contract.generator, contract.generator_version, contract.template_version
+                          contract.generator, contract.generator_version, contract.template_version,
+                          blocked.source_step AS blocking_step, blocked.reason AS block_reason
                    FROM workflow_step AS step LEFT JOIN workflow_step_contract AS contract USING(run_id, step_id)
+                   LEFT JOIN workflow_block_reason AS blocked USING(run_id, step_id)
                    WHERE step.run_id=? ORDER BY step.rowid""",
                 (workflow_run_identifier,))]
 
@@ -206,7 +218,8 @@ class WorkflowRunStore:
                    AND state='submitting'""", (terminal_state_name, workflow_run_identifier,
                    current_step_record["step_id"], current_step_record["request_id"])).rowcount
             if changed_step_count:
-                block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_record["step_id"])
+                block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_record["step_id"],
+                    current_step_record["step_id"], "선행 작업이 취소되었습니다." if terminal_state_name == "cancelled" else "선행 작업이 실패했습니다.")
 
     def list_active_run_identifiers(self):
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
