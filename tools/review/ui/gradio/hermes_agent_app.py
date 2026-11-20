@@ -180,6 +180,98 @@ def list_hermes_session_choices(hermes_selected_identifier=None):
         raise gr.Error('세션 목록 조회 실패: ' + str(hermes_request_error)) from hermes_request_error
 
 
+def review_translation_image_workflow(current_session_identifier, current_source_text, current_image_width, current_image_height, image_revision_prompt=""):
+    from tools.review.domains.hermes_agent.workflow_catalog import create_workflow_step_draft
+    if not re.fullmatch(r"[a-f0-9]{32}", current_session_identifier or ""):
+        raise gr.Error("먼저 대화 세션을 선택하세요.")
+    if not current_source_text or not current_source_text.strip() or len(current_source_text) > 6000:
+        raise gr.Error("번역할 원문을 1~6000자로 입력하세요.")
+    for current_size_value in (current_image_width, current_image_height):
+        if current_size_value not in range(256, 1665, 16):
+            raise gr.Error("이미지 크기는 256~1664 범위에서 16의 배수로 입력하세요.")
+    translation_step_record = create_workflow_step_draft("translate", "prompt-translation", {"text": current_source_text})
+    image_step_record = create_workflow_step_draft("image", "flux-image",
+        {"width": int(current_image_width), "height": int(current_image_height)})
+    image_step_record["bindings"]["prompt"] = {"from_step": "translate", "output": "text"}
+    workflow_request_record = {"session_id": current_session_identifier, "run_id": uuid.uuid4().hex,
+                               "steps": [translation_step_record, image_step_record]}
+    if image_revision_prompt and image_revision_prompt.strip():
+        if len(image_revision_prompt) > 8000:
+            raise gr.Error("이미지 수정 요청은 8000자 이하로 입력하세요.")
+        revision_step_record = create_workflow_step_draft("revise", "flux-image",
+            {"prompt": image_revision_prompt.strip(), "width": int(current_image_width), "height": int(current_image_height)})
+        del revision_step_record["inputs"]["images"]
+        revision_step_record["bindings"]["images"] = {"from_step": "image", "output": "images"}
+        workflow_request_record["steps"].append(revision_step_record)
+    return workflow_request_record, workflow_request_record["steps"], workflow_request_record["run_id"]
+
+
+def submit_translation_image_workflow(current_review_record, current_session_identifier, current_source_text,
+                                      current_image_width, current_image_height, image_revision_prompt=""):
+    current_expected_record, _, _ = review_translation_image_workflow(
+        current_session_identifier, current_source_text, current_image_width, current_image_height, image_revision_prompt)
+    if (not current_review_record or current_review_record["session_id"] != current_session_identifier
+            or current_review_record["steps"] != current_expected_record["steps"]):
+        raise gr.Error("현재 입력으로 워크플로우를 다시 검토하세요.")
+    return execute_remote_management_command("hermes-agent", "hermes-workflow-register", current_review_record)
+
+
+def resolve_workflow_priority_target(current_session_identifier, workflow_run_identifier, workflow_step_identifier):
+    current_run_view = read_conversation_workflow_result(current_session_identifier, workflow_run_identifier)
+    for current_step_record in current_run_view["steps"]:
+        if current_step_record["step_id"] == workflow_step_identifier and current_step_record["state"] == "submitting":
+            current_service_name = {"translation": "prompt-translation", "image": "flux-image"}[current_step_record["category"]]
+            current_receipt_request = {"request_id": current_step_record["request_id"], "service": current_service_name}
+            current_receipt_record = execute_remote_management_command("hermes-agent", "hermes-service-receipt", current_receipt_request)
+            if (all(current_receipt_record.get(key) == value for key, value in current_receipt_request.items())
+                    and current_receipt_record.get("state") == "accepted" and current_receipt_record.get("job_id")):
+                return {"service": current_service_name, "id": current_receipt_record["job_id"]}
+    raise gr.Error("접수된 단계의 서비스 작업 ID를 확인할 수 없습니다.")
+
+
+def review_workflow_step_priority(current_session_identifier, workflow_run_identifier, workflow_step_identifier):
+    from .operations_history_app import prepare_operations_priority_request
+    current_target_record = resolve_workflow_priority_target(current_session_identifier, workflow_run_identifier, workflow_step_identifier)
+    current_request_record, current_notice_text, _, current_button_update = prepare_operations_priority_request(current_target_record)
+    return current_request_record, current_notice_text, current_button_update
+
+
+def submit_workflow_step_priority(current_request_record, current_session_identifier, workflow_run_identifier, workflow_step_identifier):
+    from .operations_history_app import submit_operations_priority_request
+    current_target_record = resolve_workflow_priority_target(current_session_identifier, workflow_run_identifier, workflow_step_identifier)
+    return submit_operations_priority_request(current_request_record, current_target_record)
+
+
+def list_conversation_workflow_steps(current_session_identifier, current_category_name, current_state_name):
+    return execute_remote_management_command("hermes-agent", "hermes-workflow-list",
+        {"session_id": current_session_identifier, "category": current_category_name, "state": current_state_name})
+
+
+def display_conversation_workflow_results(current_session_identifier, workflow_run_identifier):
+    from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+    current_run_view = read_conversation_workflow_result(current_session_identifier, workflow_run_identifier)
+    translated_result_values = []
+    image_result_links = []
+    for current_result_record in current_run_view["results"]:
+        current_output_record = current_result_record["outputs"]
+        if "text" in current_output_record:
+            translated_result_values.append(current_output_record["text"])
+        if "preview" in current_output_record:
+            current_job_identifier = current_result_record["job_id"]
+            if not validate_service_job_identifier("flux-image", current_job_identifier):
+                raise gr.Error("이미지 작업 ID를 확인할 수 없습니다.")
+            expected_result_path = f"/flux-image-generator/jobs/{current_job_identifier}/result.png"
+            if current_output_record["preview"] != expected_result_path:
+                raise gr.Error("이미지 결과 경로가 작업과 일치하지 않습니다.")
+            image_result_links.append(f"[생성 이미지 {len(image_result_links) + 1} 열기]({expected_result_path})")
+    return current_run_view, "\n\n".join(translated_result_values), "\n\n".join(image_result_links)
+
+
+def read_conversation_workflow_result(current_session_identifier, workflow_run_identifier):
+    return execute_remote_management_command("hermes-agent", "hermes-workflow-view",
+        {"session_id": current_session_identifier, "run_id": workflow_run_identifier})
+
+
 def create_hermes_session_from_draft(hermes_draft_identifier):
     """응답 유실 시 같은 초안 ID로 세션 생성을 다시 확인한다."""
     try:
@@ -4702,6 +4794,56 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     hermes_session_send = gr.Button('요청 검토', variant='primary', interactive=False)
                     hermes_session_refresh = gr.Button('대화 상태 새로고침')
                     hermes_session_recover = gr.Button('미확인 요청 복원')
+                with gr.Accordion("번역 후 이미지 생성", open=False):
+                    workflow_review_state = gr.State(None)
+                    workflow_image_width = gr.Number(label="이미지 너비", value=512, precision=0)
+                    workflow_image_height = gr.Number(label="이미지 높이", value=512, precision=0)
+                    workflow_revision_prompt = gr.Textbox(label="첫 이미지를 참조한 수정 요청 (선택)", lines=2)
+                    workflow_input_components = [hermes_session_control, hermes_session_prompt,
+                                                 workflow_image_width, workflow_image_height, workflow_revision_prompt]
+                    workflow_review_button = gr.Button("요청 입력으로 단계 검토")
+                    workflow_definition_preview = gr.JSON(label="단계별 입력과 결과 연결")
+                    workflow_run_identifier = gr.Textbox(label="실행 ID")
+                    workflow_submit_button = gr.Button("검토한 단계 대기열에 등록")
+                    workflow_result_button = gr.Button("실행 상태와 결과 조회")
+                    workflow_run_display = gr.JSON(label="워크플로우 실행 결과")
+                    workflow_review_event = workflow_review_button.click(review_translation_image_workflow,
+                        workflow_input_components, [workflow_review_state, workflow_definition_preview, workflow_run_identifier], queue=False)
+                    workflow_submission_inputs = [workflow_review_state, *workflow_input_components]
+                    bind_gpu_generation_confirmation(workflow_submit_button, submit_translation_image_workflow,
+                        workflow_submission_inputs, [workflow_run_display],
+                        generation_readiness_callback=lambda current_review_value: bool(current_review_value),
+                        generation_readiness_inputs=[workflow_review_state], generation_readiness_events=[workflow_review_event],
+                        generation_confirmation_validator=match_hermes_confirmation_inputs,
+                        generation_confirmation_inputs=workflow_submission_inputs)
+                    workflow_translation_output = gr.Textbox(label="완료된 번역문", interactive=False)
+                    workflow_image_links = gr.Markdown()
+                    workflow_display_outputs = [workflow_run_display, workflow_translation_output, workflow_image_links]
+                    workflow_result_button.click(display_conversation_workflow_results,
+                        [hermes_session_control, workflow_run_identifier], workflow_display_outputs, queue=False)
+                    for workflow_context_input in (hermes_session_control, workflow_run_identifier):
+                        workflow_context_input.change(lambda: (None, "", ""), outputs=workflow_display_outputs, queue=False)
+                with gr.Accordion("이 대화의 워크플로우 작업 찾기", open=False):
+                    workflow_category_filter = gr.Dropdown([("전체", ""), ("번역", "translation"), ("이미지", "image")], value="", label="카테고리")
+                    workflow_state_filter = gr.Dropdown([("전체", ""), ("선행 작업 대기", "waiting"), ("접수 준비", "ready"),
+                        ("접수·결과 확인 중", "submitting"), ("완료", "completed"), ("실패", "failed"),
+                        ("취소", "cancelled"), ("차단", "blocked")], value="", label="단계 상태")
+                    workflow_search_button = gr.Button("작업 찾기")
+                    workflow_search_results = gr.JSON(label="최근 일치 작업과 실행 ID")
+                    workflow_search_button.click(list_conversation_workflow_steps,
+                        [hermes_session_control, workflow_category_filter, workflow_state_filter], workflow_search_results, queue=False)
+                    hermes_session_control.change(lambda: None, outputs=workflow_search_results, queue=False)
+                    workflow_step_identifier = gr.Textbox(label="우선 실행할 단계 ID")
+                    workflow_priority_review = gr.Button("대기 순번과 대상 검토")
+                    workflow_priority_record = gr.State(None)
+                    workflow_priority_notice = gr.Markdown()
+                    workflow_priority_submit = gr.Button("검토한 작업 우선 실행", visible=False)
+                    workflow_target_inputs = [hermes_session_control, workflow_run_identifier, workflow_step_identifier]
+                    workflow_priority_outputs = [workflow_priority_record, workflow_priority_notice, workflow_priority_submit]
+                    workflow_priority_review.click(review_workflow_step_priority, workflow_target_inputs, workflow_priority_outputs, queue=False)
+                    workflow_priority_submit.click(submit_workflow_step_priority, [workflow_priority_record, *workflow_target_inputs], workflow_priority_outputs, queue=False)
+                    for workflow_target_input in workflow_target_inputs:
+                        workflow_target_input.change(lambda: (None, "", gr.update(visible=False)), outputs=workflow_priority_outputs, queue=False)
                 hermes_session_verification = gr.Textbox(label='세션 작업 검증 모듈 · 선택', lines=2, placeholder='tools.review.tests.test_hermes_service')
                 hermes_session_job = gr.Textbox(label='세션 작업 ID', interactive=False)
                 hermes_session_submit_status = gr.Markdown('세션과 메시지를 선택하세요.')

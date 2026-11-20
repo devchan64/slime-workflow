@@ -120,6 +120,9 @@ def run_management_gateway(server_port_number, writer_workspace_config=None):
         with ThreadingHTTPServer((GATEWAY_SERVER_HOST, server_port_number), create_gateway_request_handler(management_service_runtime.dispatch_runtime_request)) as gateway_http_server:
             gateway_http_server.emit_gateway_trace = emit_gateway_trace
             emit_gateway_trace('start', f'http://{GATEWAY_SERVER_HOST}:{server_port_number} pid={os.getpid()} log={gateway_log_path}')
+            from tools.review.domains.hermes_agent.workflow_scheduler import start_gateway_workflow_scheduler
+            workflow_scheduler_thread = start_gateway_workflow_scheduler(
+                WORKFLOW_ROOT_DIRECTORY, server_port_number, gateway_stop_event)
             gateway_heartbeat_thread = threading.Thread(target=emit_gateway_heartbeat, daemon=True)
             gateway_heartbeat_thread.start()
             try:
@@ -129,6 +132,7 @@ def run_management_gateway(server_port_number, writer_workspace_config=None):
             finally:
                 gateway_stop_event.set()
                 gateway_heartbeat_thread.join(timeout=1)
+                workflow_scheduler_thread.join(timeout=2)
     except Exception:
         emit_gateway_trace('failure', traceback.format_exc())
         print('\n'.join(gateway_log_path.read_text().splitlines()[-20:]), flush=True)

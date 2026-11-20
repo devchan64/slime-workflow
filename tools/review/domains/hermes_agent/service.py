@@ -317,6 +317,9 @@ class HermesServiceManager:
     def execute_hermes_command(self, hermes_command_name, hermes_payload_record):
         if not isinstance(hermes_payload_record, dict):
             raise ValueError('입력은 객체여야 합니다.')
+        if hermes_command_name in ("hermes-workflow-list", "hermes-workflow-catalog", "hermes-workflow-register", "hermes-workflow-view"):
+            from .workflow_commands import execute_workflow_command
+            return execute_workflow_command(WORKFLOW_ROOT_DIRECTORY, hermes_command_name, hermes_payload_record)
         if hermes_command_name=='hermes-anchor-history-observe':
             from tools.review.domains.hermes_agent.anchor_history_observer import read_hermes_anchor_history
             return read_hermes_anchor_history(hermes_payload_record)
