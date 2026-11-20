@@ -212,6 +212,23 @@ def review_conversation_workflow_definition(current_session_identifier, workflow
             "input_sources": step_input_sources}
 
 
+def prepare_workflow_revision_message(current_session_identifier, workflow_definition_text, current_request_text):
+    if not re.fullmatch(r"[a-f0-9]{32}", current_session_identifier or ""):
+        raise gr.Error("대화 세션을 선택하세요.")
+    if not workflow_definition_text or not workflow_definition_text.strip():
+        raise gr.Error("먼저 수정할 초안을 입력하거나 불러오세요.")
+    if not current_request_text or not current_request_text.strip():
+        raise gr.Error("대화의 요청 입력에 변경할 내용을 작성하세요.")
+    revision_message_prefix = "[워크플로우 초안 수정 요청]\n"
+    draft_section_marker = "\n\n[현재 편집 중인 초안]\n"
+    if current_request_text.startswith(revision_message_prefix):
+        current_request_text = current_request_text[len(revision_message_prefix):].partition(draft_section_marker)[0]
+    prepared_request_text = revision_message_prefix + current_request_text + draft_section_marker + workflow_definition_text
+    if len(prepared_request_text) > 8000:
+        raise gr.Error("수정 요청과 초안을 합쳐 8000자 이내로 줄이세요.")
+    return prepared_request_text
+
+
 def load_session_workflow_draft(current_session_identifier):
     stored_draft_record = execute_remote_management_command("hermes-agent", "hermes-workflow-draft-read",
                                                            {"session_id": current_session_identifier})
@@ -4950,6 +4967,8 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     workflow_load_proposal = gr.Button("선택한 답변에서 단계 가져오기")
                     workflow_definition_text = gr.Textbox(label="생성기 입력과 단계 연결 (JSON)", lines=8)
                     workflow_load_proposal.click(load_conversation_workflow_definition, [hermes_session_control, hermes_session_job_selection], workflow_definition_text, queue=False)
+                    gr.Button("요청 입력에 현재 초안 첨부").click(prepare_workflow_revision_message,
+                        [hermes_session_control, workflow_definition_text, hermes_session_prompt], hermes_session_prompt, queue=False)
                     workflow_draft_revision = gr.State(None)
                     workflow_draft_notice = gr.Markdown()
                     draft_load_event = gr.Button("저장된 초안 불러오기").click(load_session_workflow_draft, hermes_session_control,
