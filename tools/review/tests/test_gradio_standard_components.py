@@ -43,6 +43,19 @@ class GradioStandardComponentTests(unittest.TestCase):
         self.assertTrue(current_summary_text.startswith('시드 202'))
         self.assertIn('방향 front_right_30',current_summary_text)
 
+    def test_wan_history_cards_identify_selected_model(self):
+        current_history_records = [
+            {'id': 'wan-small', 'status': 'completed', 'request': {'model_profile': 'wan21-1.3b', 'tag': 'wan22-fun-control', 'seed': 137}},
+            {'id': 'wan-large', 'status': 'failed', 'request': {'model_profile': 'wan22-14b', 'seed': 137}},
+            {'id': 'wan-legacy', 'status': 'completed', 'request': {'tag': 'wan22-fun-control'}},
+            {'id': 'other', 'status': 'completed', 'request': {'tag': 'other'}},
+        ]
+        current_history_rows = build_history_table_rows(current_history_records)
+        self.assertTrue(current_history_rows[0][2].startswith('모델 Wan 2.1 1.3B'))
+        self.assertTrue(current_history_rows[1][2].startswith('모델 Wan 2.2 A14B'))
+        self.assertTrue(current_history_rows[2][2].startswith('모델 Wan 2.2 A14B'))
+        self.assertNotIn('모델 Wan', current_history_rows[3][2])
+
     def test_history_selection_uses_card_gallery_and_shared_state(self):
         with gr.Blocks() as current_interface_blocks:
             _,current_history_outputs=build_generation_history_view(lambda *_:{'records':[]},'http://localhost','검수용')
