@@ -44,8 +44,6 @@ class WorkflowRunStore:
             """)
 
     def register_workflow_run(self, workflow_run_identifier, conversation_session_identifier, workflow_step_records):
-        current_generator_catalog = read_workflow_generator_catalog()
-        current_dependency_records = compile_workflow_dependencies(workflow_step_records, current_generator_catalog)
         encoded_workflow_definition = encode_workflow_record(workflow_step_records)
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
             current_database_connection.execute("BEGIN IMMEDIATE")
@@ -56,6 +54,8 @@ class WorkflowRunStore:
                 if existing_run_record != (conversation_session_identifier, encoded_workflow_definition):
                     raise ValueError("같은 실행 ID에 다른 세션 또는 정의가 있습니다.")
                 return
+            current_generator_catalog = read_workflow_generator_catalog()
+            current_dependency_records = compile_workflow_dependencies(workflow_step_records, current_generator_catalog)
             current_database_connection.execute("INSERT INTO workflow_run VALUES (?, ?, ?)",
                 (workflow_run_identifier, conversation_session_identifier, encoded_workflow_definition))
             for current_step_record in workflow_step_records:
