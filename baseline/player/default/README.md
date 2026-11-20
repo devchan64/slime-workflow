@@ -1,6 +1,6 @@
 # 기본 캐릭터 기준 자료
 
-- [휴식 16프레임 v2](default-rest-front-right-16frames-v2.png) · [기록](default-rest-front-right-16frames-v2.yaml) · [프레임·앵커](default-rest-front-right-16frames-v2.coordinates.json): 보정 시안을 공통 앵커로 정렬한 기본복장 기준. 접지와 동작 연결은 추가 검수가 필요하다. 이전 v1은 Git 이력에서 확인할 수 있다.
+- [휴식 16프레임 v3](default-rest-front-right-16frames-v3.png) · [기록](default-rest-front-right-16frames-v3.yaml): 8방향 시트를 외형 기준으로 보정한 사용자 지정 베이스라인. 프레임 좌표·앵커, 접지와 동작 연결은 추가 검수가 필요하다.
 - [전신 8방향 시트](default-eight-directions-v1.png) · [생성 기록](default-eight-directions-v1.yaml): 사용자 지정 기본 자료. 아래 행 두 번째의 방향과 참조 대비 신체 비율은 추가 검수가 필요하다.
 - [한손 브로드소드 전투 기본자세 · 오른쪽 측면 480p](480p/default-broadsword-combat-right-480p-v1.png) · [생성 기록](480p/default-broadsword-combat-right-480p-v1.yaml): 기본복장 참조, 상단 20% 여백. 자세와 비율의 정밀 검수는 필요하다.
 - [한손 브로드소드와 버클러 전투 기본자세 · 오른쪽 측면 480p](480p/default-broadsword-buckler-combat-right-480p-v1.png) · [생성 기록](480p/default-broadsword-buckler-combat-right-480p-v1.yaml): 기존 전투 자세에 작은 버클러를 추가하고 상단에 20% 여백을 적용했다. 자세와 비율의 정밀 검수는 필요하다.
