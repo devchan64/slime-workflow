@@ -139,7 +139,9 @@ def read_hermes_gpu_reservation_snapshot(current_queue_root=None):
                     raise ValueError('예약 필드 형식 오류')
                 current_job_path = current_reservation_record.get('path')
                 current_job_identifier = Path(current_job_path).name if isinstance(current_job_path, str) else None
-                if not isinstance(current_job_identifier, str) or not re.fullmatch(r'(?:\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}|\d{8}-\d{6})-[a-f0-9]{8}', current_job_identifier):
+                current_standard_identifier = isinstance(current_job_identifier, str) and re.fullmatch(r'(?:\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}|\d{8}-\d{6})-[a-f0-9]{8}', current_job_identifier)
+                current_legacy_preparation_identifier = current_service_name == 'wan-fun-prepare' and isinstance(current_job_identifier, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-prepare', current_job_identifier)
+                if not current_standard_identifier and not current_legacy_preparation_identifier:
                     current_job_identifier = None
                 current_cleanup_flag=current_reservation_record.get('cleanup_unverified',False)
                 if type(current_cleanup_flag) is not bool:raise ValueError('예약 정리 상태 오류')

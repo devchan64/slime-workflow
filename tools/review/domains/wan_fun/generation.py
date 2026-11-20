@@ -4,6 +4,8 @@ from tools.review.domains.image.image_generation import ImageGenerationManager
 from generators.wan_fun.contracts import reject_retired_rgb_input, FUN_JOB_STORAGE, FUN_PYTHON_EXECUTABLE, validate_fun_request, validate_fun_assets, inspect_fun_assets
 
 class FunControlGenerationManager(ReferenceVideoGenerationManager):
+    observe_legacy_prepare_history = True
+
     def __init__(self):
         super().__init__('/wan22-fun-control', FUN_JOB_STORAGE, 'generators/wan_fun/worker.py', validate_fun_request, validate_fun_assets, inspect_fun_assets)
         import threading

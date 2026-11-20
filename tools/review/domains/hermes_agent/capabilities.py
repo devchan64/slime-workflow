@@ -496,6 +496,8 @@ def list_management_service_registration():
         for current_unlinked_command in ('resume','history-delete','history-reset','writer-delete'):
             if current_unlinked_command in current_command_names and not (current_unlinked_command=='resume' and current_service_name in ('music-heartmula','sfx-dasheng-audiogen','prompt-translation','kimodo')):
                 current_unlinked_note='Hermes에서는 이 명령을 직접 실행할 수 없습니다. 원 서비스의 정책과 대상을 확인하세요.'
+                if current_unlinked_command=='resume' and (current_service_name in HERMES_VIDEO_SERVICES or current_service_name in FLUX_IMAGE_PROFILE_RECORDS):
+                    current_unlinked_note+=' 저장 입력을 확인하는 별도 재개 검토와 확인 후 접수는 Hermes에서 지원합니다.'
                 if current_service_name=='writer-agent' and current_unlinked_command=='writer-delete':
                     current_unlinked_note='Hermes에서는 이 명령을 직접 실행할 수 없습니다. 원 서비스는 작업과 대기열 종료 상태 및 실행 잠금을 확인하고 기록을 휴지통으로 이동합니다. 원본 적용 복구 중인 기록은 삭제할 수 없습니다.'
                 current_limit_records.append({'command':current_unlinked_command,'note':current_unlinked_note})

@@ -8,6 +8,130 @@ from tools.review.common.generation_records import observe_generation_history_re
 
 
 class GenerationRecordsObserveTests(unittest.TestCase):
+    def test_other_services_reject_duplicate_history_before_scan(current_test_case):
+        from unittest.mock import patch
+        from tools.review.common import generation_records
+        from tools.review.domains.music.generation import MusicGenerationManager
+        from tools.review.domains.translation.service import TranslationServiceManager
+        from tools.review.domains.character_animation import character_animation_jobs
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_root_path=Path(current_temporary_directory)
+            current_music_manager=MusicGenerationManager('music-heartmula')
+            current_music_manager.job_storage_root=current_root_path/'music'
+            current_music_manager.history_storage_root=current_root_path/'music-history'
+            current_translation_manager=TranslationServiceManager()
+            current_translation_manager.job_storage_root=current_root_path/'translation'
+            current_animation_root=current_root_path/'animation'
+            current_service_calls=((current_music_manager.job_storage_root,lambda:current_music_manager.execute_music_command('history-observe',{})),(current_translation_manager.job_storage_root,lambda:current_translation_manager.execute_translation_command('history-observe',{})),(current_animation_root,lambda:character_animation_jobs.execute_animation_command('history-observe',{})))
+            with patch.object(character_animation_jobs,'GENERATION_ROOT_DIRECTORY',current_animation_root),patch.object(generation_records,'observe_generation_history_records') as current_reader_mock:
+                for current_storage_root,current_service_call in current_service_calls:
+                    with current_test_case.subTest(storage=current_storage_root.name),generation_records.hold_history_observation_guard(current_storage_root):
+                        with current_test_case.assertRaisesRegex(ValueError,'이미 진행 중'):current_service_call()
+                current_reader_mock.assert_not_called()
+            current_test_case.assertFalse(current_music_manager.history_storage_root.exists())
+            current_test_case.assertFalse(current_translation_manager.job_storage_root.exists())
+
+    def test_source_history_rejects_concurrent_scan_of_same_storage(current_test_case):
+        import io
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        from unittest.mock import patch
+        from tools.review.common import generation_records
+        from tools.review.domains.wan_fun.generation import FunControlGenerationManager
+        class HistoryRequestHandler:
+            path='/wan22-fun-control/history/observe'
+            command='POST'
+            headers={'Origin':'http://localhost','Content-Type':'application/json','Content-Length':'2'}
+            def __init__(self):
+                self.rfile=io.BytesIO(b'{}')
+                self.wfile=io.BytesIO()
+                self.status_code=None
+            def send_response(self,current_status_code):self.status_code=current_status_code
+            def send_header(self,current_header_name,current_header_value):pass
+            def end_headers(self):pass
+        current_entered_event=threading.Event()
+        current_release_event=threading.Event()
+        def current_observation_reader(*current_arguments,**current_options):
+            current_entered_event.set()
+            if not current_release_event.wait(5):raise RuntimeError('시험 동기화 실패')
+            return {'records':[]}
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_first_manager=FunControlGenerationManager()
+            current_second_manager=FunControlGenerationManager()
+            current_first_manager.job_storage_root=Path(current_temporary_directory)/'jobs'
+            current_second_manager.job_storage_root=current_first_manager.job_storage_root
+            current_first_handler=HistoryRequestHandler()
+            current_second_handler=HistoryRequestHandler()
+            with patch('tools.review.common.management_environment.validate_loopback_request_host',return_value='http://localhost'),patch.object(generation_records,'observe_generation_history_records',side_effect=current_observation_reader) as current_reader_mock:
+                with ThreadPoolExecutor(max_workers=2) as current_executor_value:
+                    current_pending_future=current_executor_value.submit(current_first_manager.handle_image_request,current_first_handler)
+                    try:
+                        current_test_case.assertTrue(current_entered_event.wait(3))
+                        current_test_case.assertTrue(current_second_manager.handle_image_request(current_second_handler))
+                        current_test_case.assertEqual(current_second_handler.status_code,400)
+                        current_test_case.assertIn('이미 진행 중',current_second_handler.wfile.getvalue().decode())
+                    finally:
+                        current_release_event.set()
+                    current_test_case.assertTrue(current_pending_future.result(timeout=5))
+                current_test_case.assertEqual(current_first_handler.status_code,200)
+                current_test_case.assertEqual(current_reader_mock.call_count,1)
+                current_third_handler=HistoryRequestHandler()
+                current_test_case.assertTrue(current_second_manager.handle_image_request(current_third_handler))
+                current_test_case.assertEqual(current_third_handler.status_code,200)
+
+    def test_wan_fun_http_history_observes_legacy_prepare(current_test_case):
+        import io
+        from unittest.mock import patch
+        from tools.review.domains.wan_fun.generation import FunControlGenerationManager
+        from tools.review.domains.hermes_agent.audio_operations import sanitize_hermes_source_history
+        class HistoryRequestHandler:
+            path='/wan22-fun-control/history/observe'
+            command='POST'
+            headers={'Origin':'http://localhost','Content-Type':'application/json','Content-Length':'2'}
+            def __init__(self):
+                self.rfile=io.BytesIO(b'{}')
+                self.wfile=io.BytesIO()
+                self.status_code=None
+            def send_response(self,current_status_code):self.status_code=current_status_code
+            def send_header(self,current_header_name,current_header_value):pass
+            def end_headers(self):pass
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_jobs_root=Path(current_temporary_directory)/'jobs'
+            current_job_identifier='2026-11-20_20-02-00-prepare'
+            current_job_directory=current_jobs_root/current_job_identifier
+            current_job_directory.mkdir(parents=True)
+            (current_job_directory/'request.json').write_text('{"action":"prepare"}')
+            (current_job_directory/'status.json').write_text('{"status":"queued"}')
+            current_manager_value=FunControlGenerationManager()
+            current_manager_value.job_storage_root=current_jobs_root
+            current_request_handler=HistoryRequestHandler()
+            with patch.object(current_manager_value,'history_storage_path',return_value=None),patch('tools.review.common.management_environment.validate_loopback_request_host',return_value='http://localhost'):
+                current_test_case.assertTrue(current_manager_value.handle_image_request(current_request_handler))
+            current_test_case.assertEqual(current_request_handler.status_code,200)
+            current_response_value=json.loads(current_request_handler.wfile.getvalue())
+            current_validated_value=sanitize_hermes_source_history('wan22-fun-control',{},current_response_value)
+            current_test_case.assertEqual(current_validated_value['records'],[{'id':current_job_identifier,'recorded_status':'queued','status_source':'job'}])
+
+    def test_legacy_prepare_directory_is_only_observed_when_enabled(current_test_case):
+        from tools.review.domains.wan_fun.generation import FunControlGenerationManager
+        from tools.review.domains.image.image_generation import ImageGenerationManager
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_jobs_root=Path(current_temporary_directory)/'jobs'
+            current_job_identifier='2026-11-20_20-02-00-prepare'
+            current_job_directory=current_jobs_root/current_job_identifier
+            current_job_directory.mkdir(parents=True)
+            (current_job_directory/'request.json').write_text('{"action":"prepare"}')
+            (current_job_directory/'status.json').write_text('{"status":"queued"}')
+            current_default_page=observe_generation_history_records(None,current_jobs_root,{})
+            current_test_case.assertEqual(current_default_page['records'],[])
+            current_enabled_page=observe_generation_history_records(None,current_jobs_root,{'query':'prepare'},include_legacy_preparation=FunControlGenerationManager.observe_legacy_prepare_history)
+            current_test_case.assertEqual(current_enabled_page['records'],[{'id':current_job_identifier,'recorded_status':'queued','status_source':'job'}])
+            current_test_case.assertFalse(getattr(ImageGenerationManager(),'observe_legacy_prepare_history',False))
+            (current_job_directory/'.history-deleted').touch()
+            with current_test_case.assertRaises(ValueError):
+                observe_generation_history_records(None,current_jobs_root,{'query':'prepare','snapshot':current_enabled_page['snapshot']},include_legacy_preparation=True)
+            current_test_case.assertEqual(observe_generation_history_records(None,current_jobs_root,{},include_legacy_preparation=True)['records'],[])
+
     def test_nested_animation_history_preserves_index_only_and_reports_bad_records(current_test_case):
         with tempfile.TemporaryDirectory() as current_temp_name:
             current_root_path=Path(current_temp_name)

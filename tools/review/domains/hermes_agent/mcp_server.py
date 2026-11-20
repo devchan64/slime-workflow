@@ -33,11 +33,15 @@ def call_hermes_management_gateway(hermes_command_name, hermes_payload_record):
         with hermes_http_opener.open(hermes_http_request, timeout=30) as hermes_http_response:
             hermes_response_bytes = hermes_http_response.read(2_000_001)
     except urllib.error.HTTPError as hermes_http_error:
-        hermes_error_bytes = hermes_http_error.read(16_000)
-        try:
-            hermes_error_message = json.loads(hermes_error_bytes).get('error', '관리 게이트웨이 요청 실패')
-        except (ValueError, AttributeError):
-            hermes_error_message = '관리 게이트웨이 요청 실패'
+        with hermes_http_error:
+            hermes_error_bytes = hermes_http_error.read(16_001)
+        if len(hermes_error_bytes) > 16_000:
+            hermes_error_message = '관리 게이트웨이 오류 응답이 너무 큽니다. 원 서비스에서 확인하세요.'
+        else:
+            try:
+                hermes_error_message = json.loads(hermes_error_bytes).get('error', '관리 게이트웨이 요청 실패')
+            except (ValueError, AttributeError):
+                hermes_error_message = '관리 게이트웨이 요청 실패'
         raise ValueError(f'{hermes_http_error.code}: {hermes_error_message}') from hermes_http_error
     if len(hermes_response_bytes) > 2_000_000:
         raise ValueError('관리 게이트웨이 응답이 너무 큽니다.')
@@ -372,6 +376,8 @@ def list_hermes_audio_receipts(audio_service_name: str) -> dict:
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def list_hermes_audio_source_history(audio_service_name: str, offset_value: int = 0, limit_value: int = 10, snapshot_value: str | None = None, query_text: str = '') -> dict:
     """기존 오디오 생성기의 원본 이력과 기록 상태를 조회한다. 후속 페이지에는 snapshot이 필요하다."""
+    from tools.review.domains.hermes_agent.audio_operations import validate_hermes_source_history_request
+    validate_hermes_source_history_request({'offset':offset_value,'limit':limit_value,'snapshot':snapshot_value,'query':query_text})
     current_request_value={'service':audio_service_name,'offset':offset_value,'limit':limit_value}
     if query_text:current_request_value['query']=query_text
     if snapshot_value is not None:
@@ -387,7 +393,9 @@ def preview_hermes_cleanup(generator_service_name: str) -> dict:
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def list_hermes_generator_source_history(generator_service_name: str, offset_value: int = 0, limit_value: int = 10, snapshot_value: str | None = None, query_text: str = '') -> dict:
-    """지원 생성기·번역·작가의 원본 이력과 기록 상태를 복구 없이 조회한다."""
+    """생성기·번역·작가 이력을 조회한다. 후속 페이지에는 같은 검색어와 snapshot이 필요하다."""
+    from tools.review.domains.hermes_agent.audio_operations import validate_hermes_source_history_request
+    validate_hermes_source_history_request({'offset':offset_value,'limit':limit_value,'snapshot':snapshot_value,'query':query_text})
     current_request_value={'service':generator_service_name,'offset':offset_value,'limit':limit_value}
     if query_text:current_request_value['query']=query_text
     if snapshot_value is not None:

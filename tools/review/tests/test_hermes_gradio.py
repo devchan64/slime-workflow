@@ -9,7 +9,142 @@ from tools.review.common.management_asgi import build_management_blocks
 from pathlib import Path
 
 
+def build_async_test_interface(current_interface_builder, *current_interface_arguments, **current_interface_options):
+    """운영 서버처럼 실행 중인 루프에서 화면 빌더를 호출한다."""
+    import asyncio
+    async def construct_async_test_interface():
+        return current_interface_builder(*current_interface_arguments, **current_interface_options)
+    return asyncio.run(construct_async_test_interface())
+
+
+def build_hermes_test_interface(*current_interface_arguments, **current_interface_options):
+    """ASGI와 같이 실행 중인 루프에서 Gradio 테스트 화면을 구성한다."""
+    import asyncio
+    async def construct_hermes_test_interface():
+        return hermes_agent_app.build_hermes_agent_interface(*current_interface_arguments, **current_interface_options)
+    return asyncio.run(construct_hermes_test_interface())
+
+
 class HermesGradioTests(unittest.TestCase):
+    def test_wan_fun_prepare_selection_requires_verified_source(self):
+        from types import SimpleNamespace
+        from tools.review.ui.gradio import operations_history_app
+        current_job_identifier='2026-11-20_20-02-00-abcdef12'
+        current_queue_rows=[['1','wan-fun-prepare',current_job_identifier,'wan22-fun-control']]
+        current_target_value,_,current_button_value=operations_history_app.select_operations_priority_target(current_queue_rows,SimpleNamespace(index=0))
+        self.assertEqual(current_target_value,{'service':'wan22-fun-control','id':current_job_identifier})
+        self.assertTrue(current_button_value['interactive'])
+        current_queue_rows[0][3]='미확인'
+        self.assertIsNone(operations_history_app.select_operations_priority_target(current_queue_rows,SimpleNamespace(index=0))[0])
+        current_reservation_rows=[['정리 확인 필요','wan-fun-prepare','2026-11-20_20-02-00-prepare','6144','미제공','wan22-fun-control']]
+        current_target_value,current_button_value,_=operations_history_app.select_operations_reservation_inspection(current_reservation_rows,SimpleNamespace(index=0))
+        self.assertEqual(current_target_value,{'service':'wan22-fun-control','job_id':'2026-11-20_20-02-00-prepare'})
+        self.assertTrue(current_button_value['interactive'])
+        current_reservation_rows[0][5]='미확인'
+        self.assertIsNone(operations_history_app.select_operations_reservation_inspection(current_reservation_rows,SimpleNamespace(index=0))[0])
+        current_queue_rows[0][2]='2026-11-20_20-02-00-prepare'
+        current_queue_rows[0][3]='wan22-fun-control'
+        current_target_value,_,current_button_value=operations_history_app.select_operations_priority_target(current_queue_rows,SimpleNamespace(index=0))
+        self.assertIsNone(current_target_value)
+        self.assertFalse(current_button_value['interactive'])
+
+    def test_wan_fun_prepare_source_history_connects_queue_and_reservation(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_job_identifier='2026-11-20_20-02-00-prepare'
+        current_source_record={'service':'wan22-fun-control','source_service':'wan22-fun-control','records':[{'id':current_job_identifier,'recorded_status':'queued','status_source':'job'}],'total':1,'offset':0,'next_offset':None,'snapshot':'a'*64,'unavailable_count':0}
+        current_management_record={'queried_at':'time','queue':{'status':'available','jobs':[{'service':'wan-fun-prepare','id':current_job_identifier,'source_service':'wan22-fun-control'}]},'reservations':{'status':'available','records':[{'state':'recorded','service':'wan-fun-prepare','job_id':current_job_identifier,'source_service':'wan22-fun-control','required_memory_mib':6144}],'truncated':False}}
+        def current_gateway_response(current_service_name,current_command_name,current_payload_record):
+            if current_command_name=='hermes-generator-source-history':return current_source_record
+            if current_command_name=='hermes-management-status':return current_management_record
+            raise AssertionError(current_command_name)
+        with patch.object(operations_history_app,'execute_remote_management_command',side_effect=current_gateway_response):
+            current_rows_value,current_notice_text,_,_,_=operations_history_app.read_operations_source_history('wan22-fun-control')
+        self.assertEqual(current_rows_value[0][0],current_job_identifier)
+        self.assertIn('준비: 대기 기록 확인 · 원 서비스 확인',current_rows_value[0][3])
+        self.assertIn('준비: 예약 기록 확인 · 원 서비스 확인',current_rows_value[0][4])
+        self.assertIn('GPU 대기 관측',current_notice_text)
+
+    def test_wan_fun_prepare_history_checks_source_and_shows_both_queues(self):
+        from collections import Counter
+        from tools.review.common.gpu_job_queue import identify_dedicated_gpu_reservation_source
+        from tools.review.ui.gradio import operations_history_app
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_workflow_root=Path(current_temporary_directory)
+            current_job_directory=current_workflow_root/'.tmp'/'test'/'wan22-fun-control'/'prepare-123'
+            current_job_directory.mkdir(parents=True)
+            self.assertEqual(identify_dedicated_gpu_reservation_source(str(current_job_directory),'wan-fun-prepare',current_workflow_root),'wan22-fun-control')
+            self.assertIsNone(identify_dedicated_gpu_reservation_source(str(current_workflow_root/'other'/'prepare-123'),'wan-fun-prepare',current_workflow_root))
+        self.assertEqual(operations_history_app.read_operations_verified_source('wan-fun-prepare','wan22-fun-control'),'wan22-fun-control')
+        self.assertIsNone(operations_history_app.read_operations_verified_source('wan-fun-prepare','other'))
+        current_queue_counts=Counter({('wan-fun-prepare','prepare-123'):1})
+        current_source_counts=Counter({('wan-fun-prepare','wan22-fun-control','prepare-123'):1})
+        current_queue_label=operations_history_app.label_operations_verified_dedicated_queue(current_queue_counts,current_source_counts,'wan-fun','wan22-fun-control','prepare-123')
+        self.assertIn('준비: 대기 기록 확인 · 원 서비스 확인',current_queue_label)
+        current_reservation_index={('wan-fun-prepare','prepare-123'):['recorded'],('source','wan-fun-prepare','wan22-fun-control','prepare-123'):['recorded']}
+        current_reservation_label=operations_history_app.label_operations_verified_dedicated_reservation(current_reservation_index,False,'wan-fun','wan22-fun-control','prepare-123')
+        self.assertIn('준비: 예약 기록 확인 · 원 서비스 확인',current_reservation_label)
+        current_unverified_label=operations_history_app.label_operations_verified_dedicated_queue(current_queue_counts,Counter(),'wan-fun','wan22-fun-control','prepare-123')
+        self.assertIn('소유 확인 필요',current_unverified_label)
+
+    def test_operations_session_navigation_disables_all_page_buttons(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_interface_value=build_async_test_interface(operations_history_app.build_operations_history_interface)
+        current_config_value=current_interface_value.get_config_file()
+        current_component_labels={current_component['id']:current_component.get('props',{}).get('value') for current_component in current_config_value['components']}
+        for current_button_label in ('세션 지시 조회','이전 지시','최근 지시 쪽'):
+            current_matching_events=[current_event for current_event in current_config_value['dependencies'] if any(current_component_labels.get(current_target[0])==current_button_label and current_target[1]=='click' for current_target in current_event['targets']) and len(current_event['outputs'])==6]
+            self.assertEqual(len(current_matching_events),1)
+            current_updates=current_interface_value.fns[current_matching_events[0]['id']].fn()
+            self.assertEqual([current_update.get('interactive') for current_update in current_updates[2:5]],[False,False,False])
+
+    def test_operations_instruction_collection_accepts_overlapping_selection(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_interface_value=build_async_test_interface(operations_history_app.build_operations_history_interface)
+        current_config_value=current_interface_value.get_config_file()
+        current_matching_events=[current_event for current_event in current_config_value['dependencies'] if current_interface_value.fns[current_event['id']].fn is operations_history_app.collect_operations_instruction_selection]
+        self.assertEqual(len(current_matching_events),1)
+        self.assertEqual(current_matching_events[0]['trigger_mode'],'multiple')
+
+    def test_operations_instruction_rejects_late_session_page_or_selection(self):
+        from types import SimpleNamespace
+        from tools.review.ui.gradio import operations_history_app
+        current_session_identifier='a'*32
+        current_page_state={'session_id':current_session_identifier,'offset':0,'snapshot':'a'*64}
+        current_token_value,current_selection_record,_,_=operations_history_app.prepare_operations_instruction_selection(current_session_identifier,[['time','old','job','완료','']],current_page_state,SimpleNamespace(index=0))
+        with patch.object(operations_history_app,'select_operations_session_instruction',return_value=('old-link','old-instruction')):
+            current_result_record=operations_history_app.collect_operations_instruction_selection(current_selection_record)
+        self.assertEqual(operations_history_app.render_operations_instruction_selection('b'*32,current_page_state,current_token_value,current_result_record),(gr.skip(),gr.skip()))
+        self.assertEqual(operations_history_app.render_operations_instruction_selection(current_session_identifier,{**current_page_state,'offset':20},current_token_value,current_result_record),(gr.skip(),gr.skip()))
+        self.assertEqual(operations_history_app.render_operations_instruction_selection(current_session_identifier,current_page_state,'new-token',current_result_record),(gr.skip(),gr.skip()))
+        self.assertEqual(operations_history_app.render_operations_instruction_selection(current_session_identifier,current_page_state,current_token_value,current_result_record),('old-link','old-instruction'))
+
+    def test_operations_session_page_rejects_late_session_or_request(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_session_identifier='a'*32
+        current_page_result={'session_id':current_session_identifier,'token':'old-token','result':([['old']], '확인', 'old-link', None, gr.update(interactive=False), gr.update(interactive=False))}
+        current_skip_values=(gr.skip(),)*10
+        self.assertEqual(operations_history_app.render_operations_session_page('b'*32,'old-token',current_page_result),current_skip_values)
+        self.assertEqual(operations_history_app.render_operations_session_page(current_session_identifier,'new-token',current_page_result),current_skip_values)
+        current_render_values=operations_history_app.render_operations_session_page(current_session_identifier,'old-token',current_page_result)
+        self.assertEqual(current_render_values[0],[['old']])
+        self.assertEqual(current_render_values[6],[])
+        self.assertIn('접수 기록을 조회',current_render_values[7])
+        self.assertTrue(current_render_values[9]['interactive'])
+
+    def test_operations_receipt_result_rejects_late_session_or_page(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_session_identifier='a'*32
+        current_page_state={'session_id':current_session_identifier,'offset':0,'snapshot':'a'*64}
+        current_result_record={'session_id':current_session_identifier,'page':current_page_state,'token':'old-token','rows':[['job']],'notice':'확인'}
+        current_skip_values=(gr.skip(),gr.skip(),gr.skip(),gr.skip())
+        self.assertEqual(operations_history_app.render_operations_page_receipts('b'*32,current_page_state,'old-token',current_result_record),current_skip_values)
+        self.assertEqual(operations_history_app.render_operations_page_receipts(current_session_identifier,{**current_page_state,'offset':20},'old-token',current_result_record),current_skip_values)
+        self.assertEqual(operations_history_app.render_operations_page_receipts(current_session_identifier,current_page_state,'new-token',current_result_record),current_skip_values)
+        self.assertEqual(operations_history_app.render_operations_page_receipts(current_session_identifier,current_page_state,'old-token',current_result_record),([['job']],'확인','',gr.update(interactive=True)))
+        with patch.object(operations_history_app,'read_operations_current_page_receipts',return_value=([],'조회 실패')):
+            current_collected_record=operations_history_app.collect_operations_page_receipts(current_session_identifier,current_page_state,'new-token')
+        self.assertEqual(operations_history_app.render_operations_page_receipts(current_session_identifier,current_page_state,'new-token',current_collected_record),([],'조회 실패','',gr.update(interactive=True)))
+
     def test_cleanup_preview_rejects_late_other_service_result(self):
         from tools.review.ui.gradio import operations_history_app
         current_preview_record={'service':'dwpose','token':'old-token','message':'이전 서비스 조회 결과'}
@@ -36,6 +171,27 @@ class HermesGradioTests(unittest.TestCase):
                 self.assertIn(current_expected_link,current_result_text)
                 self.assertIn('job='+current_job_identifier,current_expected_link)
                 self.assertIn('session='+current_session_identifier,current_expected_link)
+
+    def test_result_views_reject_unrecognized_receipt_state(self):
+        current_result_readers=[
+            (hermes_agent_app.read_hermes_writer_result,('request_123',),'writer-agent'),
+            (hermes_agent_app.read_hermes_translation_result,('request_123',),'prompt-translation'),
+            (hermes_agent_app.read_hermes_video_result,('request_123','wan22-vace'),'wan22-vace'),
+            (hermes_agent_app.read_hermes_audio_result,('request_123','music-heartmula'),'music-heartmula'),
+            (hermes_agent_app.read_hermes_flux_profile_result,('request_123','flux-building'),'flux-building'),
+            (hermes_agent_app.read_hermes_flux_receipt,('request_123',),'flux-image'),
+        ]
+        for current_reader_value,current_reader_arguments,current_service_name in current_result_readers:
+            current_receipt_record={'request_id':'request_123','service':current_service_name,'state':'unexpected','job_id':'2026-11-18_00-00-00-12345678'}
+            with self.subTest(service=current_service_name), patch.object(hermes_agent_app,'execute_remote_management_command',return_value={'receipt':current_receipt_record,'job':{'status':'completed'}}):
+                with self.assertRaises(gr.Error):current_reader_value(*current_reader_arguments)
+
+    def test_flux_receipt_rejects_wrong_unknown_or_missing_identity(self):
+        for current_receipt_record in ({'state':'unknown','request_id':'wrong','service':'flux-image'}, {'state':'not_found','request_id':'request_123','service':'other'}, {'state':'unexpected','request_id':'request_123','service':'flux-image'}, None):
+            with self.subTest(receipt=current_receipt_record), patch.object(hermes_agent_app,'execute_remote_management_command',return_value={'receipt':current_receipt_record}):
+                with self.assertRaises(gr.Error):hermes_agent_app.read_hermes_flux_receipt('request_123')
+        with patch.object(hermes_agent_app,'execute_remote_management_command',return_value={'receipt':{'state':'unknown','request_id':'request_123','service':'flux-image'}}):
+            self.assertIn('접수 여부 확인 필요',hermes_agent_app.read_hermes_flux_receipt('request_123')[1])
 
     def test_flux_receipt_displays_unclassified_failure(self):
         current_job_identifier='2026-11-20_01-00-00-87654321'
@@ -292,8 +448,8 @@ class HermesGradioTests(unittest.TestCase):
         current_request_identifier='kimodo_resume_'+hashlib.sha256(('kimodo\0'+current_target_job+'\0'+current_fingerprint).encode()).hexdigest()
         current_receipt={'request_id':current_request_identifier,'service':'kimodo','job_id':current_target_job,'expected_resume_fingerprint':current_fingerprint,'state':'accepted'}
         def kimodo_history_gateway(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'messages':[{'job_id':current_source_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_KIMODO_RESUME_PROPOSAL'}}],'truncated':False}
-            if current_command_name=='hermes-kimodo-resume-proposal':return {'job_id':current_source_job,'proposal':{'job_id':current_target_job,'expected_resume_fingerprint':current_fingerprint}}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'messages':[{'job_id':current_source_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_KIMODO_RESUME_PROPOSAL'}}],'truncated':False}
+            if current_command_name=='hermes-kimodo-resume-proposal':return {'id':'a'*32,'job_id':current_source_job,'proposal':{'job_id':current_target_job,'expected_resume_fingerprint':current_fingerprint}}
             if current_command_name=='hermes-kimodo-resume-receipt':return current_receipt
             if current_command_name=='hermes-management-status':return {'queue':{'status':'available','jobs':[]},'reservations':{'status':'available','records':[],'truncated':False}}
             raise AssertionError(current_command_name)
@@ -314,8 +470,8 @@ class HermesGradioTests(unittest.TestCase):
         current_request_identifier='flux_resume_'+hashlib.sha256(('flux-character\0'+current_target_job+'\0'+current_fingerprint).encode()).hexdigest()
         current_receipt={'request_id':current_request_identifier,'service':'flux-character','job_id':current_target_job,'expected_resume_fingerprint':current_fingerprint,'state':'accepted'}
         def flux_history_gateway(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'messages':[{'job_id':current_source_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_FLUX_RESUME_PROPOSAL'}}],'truncated':False}
-            if current_command_name=='hermes-flux-resume-proposal':return {'job_id':current_source_job,'proposal':{'service':'flux-character','job_id':current_target_job,'expected_resume_fingerprint':current_fingerprint}}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'messages':[{'job_id':current_source_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_FLUX_RESUME_PROPOSAL'}}],'truncated':False}
+            if current_command_name=='hermes-flux-resume-proposal':return {'id':'a'*32,'job_id':current_source_job,'proposal':{'service':'flux-character','job_id':current_target_job,'expected_resume_fingerprint':current_fingerprint}}
             if current_command_name=='hermes-flux-resume-receipt':return current_receipt
             if current_command_name=='hermes-management-status':return {'queue':{'status':'available','jobs':[{'service':'flux-image','source_service':'flux-character','id':current_target_job}]},'reservations':{'status':'available','records':[],'truncated':False}}
             raise AssertionError(current_command_name)
@@ -338,8 +494,8 @@ class HermesGradioTests(unittest.TestCase):
         current_proposal_value={'service':'wan22-vace','job_id':current_target_job,'expected_resume_fingerprint':current_fingerprint}
         current_receipt_value={'request_id':current_request_identifier,**current_proposal_value,'state':'accepted'}
         def video_history_gateway(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'messages':[{'job_id':current_source_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_VIDEO_RESUME_PROPOSAL'}}],'truncated':False}
-            if current_command_name=='hermes-video-resume-proposal':return {'job_id':current_source_job,'proposal':current_proposal_value}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'messages':[{'job_id':current_source_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_VIDEO_RESUME_PROPOSAL'}}],'truncated':False}
+            if current_command_name=='hermes-video-resume-proposal':return {'id':'a'*32,'job_id':current_source_job,'proposal':current_proposal_value}
             if current_command_name=='hermes-video-resume-receipt':return current_receipt_value
             if current_command_name=='hermes-management-status':return {'queue':{'status':'available','jobs':[{'service':'image','source_service':'wan22-vace','id':current_target_job}]},'reservations':{'status':'available','records':[],'truncated':False}}
             raise AssertionError(current_command_name)
@@ -558,8 +714,8 @@ class HermesGradioTests(unittest.TestCase):
         current_request_identifier='chat_'+hashlib.sha256((current_session_identifier+':'+current_job_identifier+':model_preparation').encode()).hexdigest()
         current_receipt_record={'service':'flux-image','request_id':current_request_identifier,'state':'accepted'}
         def model_history_gateway(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'messages':[{'job_id':current_job_identifier,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_MODEL_PREPARATION_PROPOSAL'}}],'truncated':False}
-            if current_command_name=='hermes-model-preparation-proposal':return {'job_id':current_job_identifier,'proposal':{'service':'flux-image'}}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'messages':[{'job_id':current_job_identifier,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_MODEL_PREPARATION_PROPOSAL'}}],'truncated':False}
+            if current_command_name=='hermes-model-preparation-proposal':return {'id':'a'*32,'job_id':current_job_identifier,'proposal':{'service':'flux-image'}}
             if current_command_name=='hermes-model-prepare-status':return current_receipt_record
             raise AssertionError(current_command_name)
         with patch.object(operations_history_app,'execute_remote_management_command',side_effect=model_history_gateway) as current_gateway_mock:
@@ -579,8 +735,8 @@ class HermesGradioTests(unittest.TestCase):
         current_target_job='2026-11-20_01-00-00-87654321'
         current_request_identifier='chat_'+hashlib.sha256((current_session_identifier+':'+current_source_job+':model_preparation').encode()).hexdigest()
         def model_queue_gateway(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'messages':[{'job_id':current_source_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_MODEL_PREPARATION_PROPOSAL'}}],'truncated':False}
-            if current_command_name=='hermes-model-preparation-proposal':return {'job_id':current_source_job,'proposal':{'service':'flux-image'}}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'messages':[{'job_id':current_source_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_MODEL_PREPARATION_PROPOSAL'}}],'truncated':False}
+            if current_command_name=='hermes-model-preparation-proposal':return {'id':'a'*32,'job_id':current_source_job,'proposal':{'service':'flux-image'}}
             if current_command_name=='hermes-model-prepare-status':return {'service':'flux-image','request_id':current_request_identifier,'state':'accepted','job_id':current_target_job}
             if current_command_name=='hermes-management-status':return {'queue':{'status':'available','jobs':[]},'reservations':{'status':'available','records':[],'truncated':False},'queried_at':'mock'}
             raise AssertionError(current_command_name)
@@ -775,7 +931,7 @@ class HermesGradioTests(unittest.TestCase):
             current_gateway_mock.assert_called_once_with('hermes-agent','hermes-translation-evidence',{'text':'나무'})
 
     def test_change_event_outputs_have_no_static_cycles(self):
-        current_interface_value=hermes_agent_app.build_hermes_agent_interface()
+        current_interface_value=build_hermes_test_interface()
         current_graph_value={}
         for current_dependency_value in current_interface_value.config['dependencies']:
             for current_target_value in current_dependency_value.get('targets',[]):
@@ -831,7 +987,7 @@ class HermesGradioTests(unittest.TestCase):
         self.assertTrue(current_button_value['interactive'])
 
     def test_writer_request_events_and_history_clear_confirmation(self):
-        current_blocks_value=hermes_agent_app.build_hermes_agent_interface(include_advanced_controls=True)
+        current_blocks_value=build_hermes_test_interface(include_advanced_controls=True)
         current_config_value=current_blocks_value.get_config_file()
         current_components={current_component['id']:current_component.get('props',{}).get('label') or current_component.get('props',{}).get('value') for current_component in current_config_value['components']}
         current_request_ids={current_identifier for current_identifier,current_label in current_components.items() if current_label=='작가 AI 위임 접수 ID'}
@@ -853,11 +1009,11 @@ class HermesGradioTests(unittest.TestCase):
         self.assertFalse(current_result_values[7]['visible'])
 
     def test_session_selection_clears_service_and_writer_review_together(self):
-        current_blocks_value=hermes_agent_app.build_hermes_agent_interface(include_advanced_controls=False)
+        current_blocks_value=build_hermes_test_interface(include_advanced_controls=False)
         current_config_value=current_blocks_value.get_config_file()
         current_component_labels={current_component['id']:current_component.get('props',{}).get('label') for current_component in current_config_value['components']}
         for current_label_value in ('세션','세션 작업 선택'):
-            current_matching_events=[current_event for current_event in current_config_value['dependencies'] if any(current_component_labels.get(current_target[0])==current_label_value and current_target[1]=='change' for current_target in current_event['targets']) and len(current_event['outputs'])==17]
+            current_matching_events=[current_event for current_event in current_config_value['dependencies'] if any(current_component_labels.get(current_target[0])==current_label_value and current_target[1]=='change' for current_target in current_event['targets']) and current_blocks_value.fns[current_event['id']].fn is hermes_agent_app.reset_conversation_context_state]
             self.assertEqual(len(current_matching_events),1)
             current_result_values=current_blocks_value.fns[current_matching_events[0]['id']].fn()
             self.assertIsNone(current_result_values[0])
@@ -907,7 +1063,7 @@ class HermesGradioTests(unittest.TestCase):
                 self.assertIn('확인하지 못했습니다',current_result_values[-2])
 
     def test_attachment_open_events_clear_review_and_submission_control(self):
-        current_blocks_value=hermes_agent_app.build_hermes_agent_interface(include_advanced_controls=False)
+        current_blocks_value=build_hermes_test_interface(include_advanced_controls=False)
         current_open_events={getattr(current_event_value.fn,'__name__',''):current_event_value for current_event_value in current_blocks_value.fns.values()}
         for current_function_name,current_expected_count,current_button_label,current_review_index in (
             ('open_conversation_flux_reference_safely',7,'이미지 작업 대기열에 추가',3),
@@ -925,8 +1081,8 @@ class HermesGradioTests(unittest.TestCase):
         current_session_identifier='a'*32
         current_source_job='2026-11-18_11-00-00-12345678'
         def current_gateway_response(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'truncated':False,'messages':[{'job_id':current_source_job,'job':{'status':{'status':'completed'}}}]}
-            if current_command_name=='hermes-video-proposal':return {'job_id':current_payload_record['id'],'proposal':{'service':'wan22-fun-control','mode':'pose','prompt':'walk'}}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source_job,'job':{'status':{'status':'completed'}}}]}
+            if current_command_name=='hermes-video-proposal':return {'id':'a'*32,'job_id':current_payload_record['id'],'proposal':{'service':'wan22-fun-control','mode':'pose','prompt':'walk'}}
             if current_command_name=='hermes-service-receipt':return {'state':'accepted','request_id':current_payload_record['request_id'],'service':'wan22-vace','job_id':'2026-11-18_12-00-00-12345678'}
             raise AssertionError(current_command_name)
         current_gateway_mock.side_effect=current_gateway_response
@@ -978,8 +1134,8 @@ class HermesGradioTests(unittest.TestCase):
         current_session_identifier='a'*32
         current_source_job='2026-11-18_11-00-00-12345678'
         def current_gateway_response(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'truncated':False,'messages':[{'job_id':current_source_job,'job':{'status':{'status':'completed'}}}]}
-            if current_command_name=='hermes-flux-proposal':return {'job_id':current_payload_record['id'],'proposal':{'service':'flux-image','prompt':'test','width':512,'height':512,'seed':42}}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source_job,'job':{'status':{'status':'completed'}}}]}
+            if current_command_name=='hermes-flux-proposal':return {'id':'a'*32,'job_id':current_payload_record['id'],'proposal':{'service':'flux-image','prompt':'test','width':512,'height':512,'seed':42}}
             if current_command_name=='hermes-service-receipt':return {'state':'accepted','request_id':current_payload_record['request_id'],'service':'flux-building','job_id':'2026-11-18_12-00-00-12345678'}
             if current_command_name=='hermes-flux-delegation-status':return {'receipt':{'state':'accepted','service':'flux-building','job_id':'2026-11-18_12-00-00-12345678'},'job':{'status':'completed'}}
             raise AssertionError(current_command_name)
@@ -1053,14 +1209,14 @@ class HermesGradioTests(unittest.TestCase):
             self.assertIn('hermes-agent', [hermes_page_record['id'] for hermes_page_record in hermes_page_records])
             self.assertEqual(next(current_page_record['label'] for current_page_record in hermes_page_records if current_page_record['id'] == 'hermes-agent'), '운영 대화')
             with patch.dict('os.environ', {'SLIME_MANAGEMENT_MENU_SOURCE': str(Path(hermes_temporary_root) / 'missing.json')}):
-                hermes_interface_blocks, hermes_mount_options = build_management_blocks('hermes-agent', 8770, hermes_source_path)
+                hermes_interface_blocks, hermes_mount_options = build_async_test_interface(build_management_blocks, 'hermes-agent', 8770, hermes_source_path)
             hermes_component_labels = [getattr(hermes_component_value, 'label', None) for hermes_component_value in hermes_interface_blocks.blocks.values()]
             self.assertNotIn('작업 지시', hermes_component_labels)
             self.assertIn('요청 입력', hermes_component_labels)
             self.assertIn('대화', hermes_component_labels)
             self.assertNotIn('검토용 변경 diff', hermes_component_labels)
             with patch('tools.review.ui.gradio.hermes_agent_app.execute_remote_management_command'):
-                current_direct_blocks,_=build_management_blocks('hermes-direct',8770,hermes_source_path)
+                current_direct_blocks,_=build_async_test_interface(build_management_blocks,'hermes-direct',8770,hermes_source_path)
             current_direct_labels=[getattr(current_component_value,'label',None) for current_component_value in current_direct_blocks.blocks.values()]
             self.assertIn('작업 지시',current_direct_labels)
             self.assertIn('검토용 변경 diff',current_direct_labels)
@@ -1092,7 +1248,7 @@ class HermesGradioTests(unittest.TestCase):
         current_receipt_state = {'state':'not_found'}
         def current_gateway_result(current_service_name, current_command_name, current_payload_value):
             if current_command_name == 'hermes-session-view':
-                return {'truncated':False,'messages':[{'job_id':current_source_job_identifier, 'job':{'status':{'status':'completed'}}}]}
+                return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source_job_identifier, 'job':{'status':{'status':'completed'}}}]}
             if current_command_name == 'hermes-kimodo-proposal':
                 return {'job_id':current_source_job_identifier,'proposal':current_proposal_record}
             if current_command_name == 'hermes-delegation-status':
@@ -1141,7 +1297,7 @@ class HermesGradioTests(unittest.TestCase):
         current_proposal_record = {'prompt':'천천히 걷기', 'frames':90, 'steps':100, 'seed':42}
         def current_gateway_result(current_service_name,current_command_name,current_payload_value):
             if current_command_name == 'hermes-session-view':
-                return {'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
+                return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
             if current_command_name == 'hermes-kimodo-proposal':return {'job_id':current_source_job_identifier,'proposal':current_proposal_record}
             if current_command_name == 'hermes-delegation-status':return {'state':'unknown'}
             if current_command_name == 'hermes-delegation-job-status':return {'receipt':{'state':'unknown'}}
@@ -1234,8 +1390,8 @@ class HermesGradioTests(unittest.TestCase):
         current_receipt_record={'state':'not_found'}
         current_proposal_record={'text':'안녕하세요','target_language':'English','glossary':[]}
         def current_gateway_response(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
-            if current_command_name=='hermes-translation-proposal':return {'job_id':current_payload_record['id'],'proposal':current_proposal_record}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
+            if current_command_name=='hermes-translation-proposal':return {'id':'a'*32,'job_id':current_payload_record['id'],'proposal':current_proposal_record}
             if current_command_name=='hermes-service-receipt':return {'request_id':current_payload_record['request_id'],'service':'prompt-translation',**current_receipt_record}
             if current_command_name=='hermes-translation-status':return {'receipt':{'request_id':current_payload_record['request_id'],'service':'prompt-translation',**current_receipt_record},'job':{'status':'completed','result':'Hello'}}
             if current_command_name=='hermes-delegate-translation':
@@ -1441,8 +1597,8 @@ class HermesGradioTests(unittest.TestCase):
         current_session_identifier='a'*32
         current_source_job_identifier='2026-11-18_00-24-38-0f938e1b'
         def current_gateway_response(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
-            if current_command_name=='hermes-effect-receipt':return {'state':'unknown'}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
+            if current_command_name=='hermes-effect-receipt':return {'id':'a'*32,'state':'unknown'}
             raise AssertionError(current_command_name)
         current_gateway_mock.side_effect=current_gateway_response
         current_card_record,_,_,current_status_text=hermes_agent_app.prepare_conversation_edit_review(current_session_identifier,current_source_job_identifier,'effect')
@@ -1459,8 +1615,8 @@ class HermesGradioTests(unittest.TestCase):
         current_calls=[]
         def current_gateway_response(current_service_name,current_command_name,current_payload_record):
             current_calls.append(current_command_name)
-            if current_command_name=='hermes-session-view':return {'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
-            if current_command_name in ('hermes-flux-proposal','hermes-audio-proposal'):return {'job_id':current_payload_record['id'],'proposal':current_proposals[current_command_name.split('-')[1]]}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
+            if current_command_name in ('hermes-flux-proposal','hermes-audio-proposal'):return {'id':'a'*32,'job_id':current_payload_record['id'],'proposal':current_proposals[current_command_name.split('-')[1]]}
             if current_command_name=='hermes-service-receipt':return {'state':'not_found','request_id':current_payload_record['request_id'],'service':current_payload_record['service']}
             if current_command_name in ('hermes-flux-delegation-status','hermes-audio-status'):return {'receipt':{'state':'not_found','request_id':current_payload_record['request_id'],'service':'flux-image' if current_command_name=='hermes-flux-delegation-status' else current_payload_record['service']}}
             raise AssertionError(current_command_name)
@@ -1481,8 +1637,8 @@ class HermesGradioTests(unittest.TestCase):
         current_draft_record={'id':'effect-a','revision':'a'*64,'target':[0,0,4,4],'alpha':1,'frames':[[0,0,4,4]]}
         current_receipt_record={'state':'not_found'}
         def current_gateway_response(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
-            if current_command_name=='hermes-effect-receipt':return {**current_receipt_record,**({'request_id':current_payload_record['request_id']} if current_receipt_record['state']=='completed' else {})}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
+            if current_command_name=='hermes-effect-receipt':return {'id':'a'*32,**current_receipt_record,**({'request_id':current_payload_record['request_id']} if current_receipt_record['state']=='completed' else {})}
             if current_command_name=='hermes-effect-save':
                 current_receipt_record.update(state='completed',saved=True)
                 return {'state':'completed','saved':True}
@@ -1509,8 +1665,8 @@ class HermesGradioTests(unittest.TestCase):
         current_source_job_identifier='2026-11-18_00-24-38-0f938e1b'
         current_proposal_record={'service':'wan22-vace','mode':'text','prompt':'햇살이 비치는 마을'}
         def current_gateway_response(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
-            if current_command_name=='hermes-video-proposal':return {'job_id':current_payload_record['id'],'proposal':current_proposal_record.copy()}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
+            if current_command_name=='hermes-video-proposal':return {'id':'a'*32,'job_id':current_payload_record['id'],'proposal':current_proposal_record.copy()}
             if current_command_name=='hermes-service-receipt':return {'state':'not_found','request_id':current_payload_record['request_id'],'service':current_payload_record['service']}
             if current_command_name=='hermes-video-status':return {'receipt':{'state':'not_found','request_id':current_payload_record['request_id'],'service':current_payload_record['service']}}
             raise AssertionError(current_command_name)
@@ -1595,8 +1751,8 @@ class HermesGradioTests(unittest.TestCase):
         current_proposal_record={'service':'dwpose','mode':'image','prompt':''}
         current_receipt_record={'state':'not_found'}
         def current_gateway_response(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
-            if current_command_name=='hermes-video-proposal':return {'job_id':current_payload_record['id'],'proposal':current_proposal_record.copy()}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
+            if current_command_name=='hermes-video-proposal':return {'id':'a'*32,'job_id':current_payload_record['id'],'proposal':current_proposal_record.copy()}
             if current_command_name=='hermes-service-receipt':return {'request_id':current_payload_record['request_id'],'service':'dwpose',**current_receipt_record}
             if current_command_name=='hermes-video-status':return {'receipt':{'request_id':current_payload_record['request_id'],'service':'dwpose',**current_receipt_record},'job':{'status':'completed','result_status':'unavailable'}}
             if current_command_name=='hermes-delegate-video':
@@ -1630,8 +1786,8 @@ class HermesGradioTests(unittest.TestCase):
         current_proposal_record={'service':'wan22-fun-control','mode':'pose_video','prompt':'걷는 사람'}
         current_receipt_record={'state':'not_found'}
         def current_gateway_response(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
-            if current_command_name=='hermes-video-proposal':return {'job_id':current_payload_record['id'],'proposal':current_proposal_record.copy()}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source_job_identifier,'job':{'status':{'status':'completed'}}}]}
+            if current_command_name=='hermes-video-proposal':return {'id':'a'*32,'job_id':current_payload_record['id'],'proposal':current_proposal_record.copy()}
             if current_command_name=='hermes-service-receipt':return {'request_id':current_payload_record['request_id'],'service':current_payload_record['service'],**current_receipt_record}
             if current_command_name=='hermes-video-status':return {'receipt':{'request_id':current_payload_record['request_id'],'service':current_payload_record['service'],**current_receipt_record}}
             raise AssertionError(current_command_name)
@@ -1651,8 +1807,8 @@ class HermesGradioTests(unittest.TestCase):
         current_job_identifier='2026-11-18_00-24-38-0f938e1b'
         current_receipt={'state':'not_found'}
         def current_gateway_response(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'truncated':False,'messages':[{'job_id':current_job_identifier,'job':{'status':{'status':'completed'}}}]}
-            if current_command_name=='hermes-writer-proposal':return {'job_id':current_payload_record['id'],'proposal':{'mode':'write','prompt':'마을 설명'}}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_job_identifier,'job':{'status':{'status':'completed'}}}]}
+            if current_command_name=='hermes-writer-proposal':return {'id':'a'*32,'job_id':current_payload_record['id'],'proposal':{'mode':'write','prompt':'마을 설명'}}
             if current_command_name=='hermes-service-receipt':return {'request_id':current_payload_record['request_id'],'service':'writer-agent',**current_receipt}
             if current_command_name=='hermes-writer-status':return {'receipt':{'request_id':current_payload_record['request_id'],'service':'writer-agent',**current_receipt},'job':{'stage':'review'}}
             if current_command_name=='hermes-delegate-writer':
@@ -1894,7 +2050,7 @@ class HermesGradioTests(unittest.TestCase):
         self.assertIn('선택',current_result[1])
         self.assertEqual(current_result[2:6],('','','',''))
         self.assertIsNone(current_result[6])
-        current_blocks=operations_history_app.build_operations_history_interface()
+        current_blocks=build_async_test_interface(operations_history_app.build_operations_history_interface)
         current_resets=[item for item in current_blocks.fns.values() if getattr(item.fn,'__name__',None)=='reset_operations_history_detail']
         self.assertEqual(len(current_resets),6)
         self.assertTrue(all(len(item.outputs)==7 for item in current_resets))
@@ -2023,7 +2179,7 @@ class HermesGradioTests(unittest.TestCase):
     @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
     def test_operations_session_links_only_valid_session(self,current_gateway_mock):
         from tools.review.ui.gradio import operations_history_app
-        current_gateway_mock.return_value={'messages':[{'text':'기존 지시','job_id':None,'job':None}],'truncated':False}
+        current_gateway_mock.return_value={'id':'a'*32,'messages':[{'text':'기존 지시','job_id':None,'job':None}],'truncated':False}
         current_rows,current_notice,current_link=operations_history_app.read_operations_session_history('a'*32)
         self.assertIn('접수 확인 필요',current_rows[0])
         self.assertIn('session='+'a'*32,current_link)
@@ -2038,8 +2194,8 @@ class HermesGradioTests(unittest.TestCase):
         current_job_identifier='job-video'
         current_request_identifier='chat_'+hashlib.sha256((current_session_identifier+':'+current_job_identifier+':video').encode()).hexdigest()
         def current_gateway_response(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'messages':[{'job_id':current_job_identifier,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_VIDEO_PROPOSAL'}}], 'truncated':True}
-            if current_command_name=='hermes-video-proposal':return {'job_id':current_job_identifier,'proposal':{'service':'wan22-vace'}}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'messages':[{'job_id':current_job_identifier,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_VIDEO_PROPOSAL'}}], 'truncated':True}
+            if current_command_name=='hermes-video-proposal':return {'id':'a'*32,'job_id':current_job_identifier,'proposal':{'service':'wan22-vace'}}
             if current_command_name=='hermes-video-history':return {'records':[{'request_id':current_request_identifier,'service':'wan22-vace','state':'accepted','job_id':'video-job'}],'truncated':False}
             if current_command_name=='hermes-management-status':return {'queue':{'status':'available','jobs':[{'service':'wan22-vace','id':'video-job'}]},'reservations':{'status':'available','records':[],'truncated':False},'queried_at':'mock'}
             raise AssertionError(current_command_name)
@@ -2062,7 +2218,7 @@ class HermesGradioTests(unittest.TestCase):
         for current_unique,current_truncated in ((False,False),(None,True)):
             with self.subTest(unique=current_unique,truncated=current_truncated):
                 current_message['session_job_unique']=current_unique
-                current_gateway_mock.return_value={'messages':[current_message],'truncated':current_truncated}
+                current_gateway_mock.return_value={'id':'a'*32,'messages':[current_message],'truncated':current_truncated}
                 current_rows,current_notice=operations_history_app.read_operations_session_receipts('a'*32)
                 self.assertEqual(current_rows,[])
                 self.assertIn('확인하지 못한 메시지',current_notice)
@@ -2077,8 +2233,8 @@ class HermesGradioTests(unittest.TestCase):
         current_job='job-flux'
         current_request='chat_'+hashlib.sha256((current_session+':'+current_job+':flux').encode()).hexdigest()
         def respond_history_gateway(current_service,current_command,current_payload):
-            if current_command=='hermes-session-view':return {'messages':[{'job_id':current_job,'job':{'status':{'status':'completed'},'final_response':'HERMES_FLUX_PROPOSAL'}}],'truncated':False}
-            if current_command=='hermes-flux-proposal':return {'job_id':current_job,'proposal':{'service':'flux-prop'}}
+            if current_command=='hermes-session-view':return {'id':'a'*32,'messages':[{'job_id':current_job,'job':{'status':{'status':'completed'},'final_response':'HERMES_FLUX_PROPOSAL'}}],'truncated':False}
+            if current_command=='hermes-flux-proposal':return {'id':'a'*32,'job_id':current_job,'proposal':{'service':'flux-prop'}}
             if current_command=='hermes-flux-profile-history':
                 self.assertEqual(current_payload,{'service':'flux-prop'})
                 return {'records':[{'request_id':current_request,'service':'flux-prop','state':'accepted','job_id':'2026-11-18_00-00-00-12345678'}],'truncated':False}
@@ -2093,8 +2249,8 @@ class HermesGradioTests(unittest.TestCase):
     def test_operations_session_receipt_gpu_observations_are_independent(self,current_gateway_mock):
         from tools.review.ui.gradio import operations_history_app
         def current_gateway_response(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'messages':[{'job_id':'job-a','job':{'status':{'status':'completed'},'final_response':'HERMES_KIMODO_PROPOSAL'}}]}
-            if current_command_name=='hermes-kimodo-proposal':return {'job_id':'job-a','proposal':{}}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'messages':[{'job_id':'job-a','job':{'status':{'status':'completed'},'final_response':'HERMES_KIMODO_PROPOSAL'}}]}
+            if current_command_name=='hermes-kimodo-proposal':return {'id':'a'*32,'job_id':'job-a','proposal':{}}
             if current_command_name=='hermes-delegation-status':return {'state':'accepted','request_id':current_payload_record['request_id'],'service':'kimodo','job_id':'target-a'}
             if current_command_name=='hermes-management-status':return {'queue':{'status':'unavailable'},'reservations':{'status':'available','records':[{'state':'recorded','service':'kimodo','job_id':'target-a','required_memory_mib':50}],'truncated':False},'queried_at':'mock'}
             raise AssertionError(current_command_name)
@@ -2110,6 +2266,27 @@ class HermesGradioTests(unittest.TestCase):
         self.assertEqual(operations_history_app.read_operations_session_receipts('a'*32)[0][0][5],'다른 GPU 서비스 동일 ID · 소유 확인 필요')
 
     @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
+    def test_operations_receipts_clear_rows_on_session_validation_failure(self,current_gateway_mock):
+        from tools.review.ui.gradio import operations_history_app
+        current_page_state={'session_id':'a'*32,'offset':0,'snapshot':'a'*64}
+        for current_session_value,current_response_value in (('bad',{}),('a'*32,{'id':'a'*32,'offset':0,'snapshot':'a'*64,'messages':None})):
+            current_gateway_mock.return_value=current_response_value
+            current_rows_value,current_notice_text=operations_history_app.read_operations_current_page_receipts(current_session_value,current_page_state)
+            self.assertEqual(current_rows_value,[])
+            self.assertIn('다시 조회',current_notice_text)
+
+    @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
+    def test_operations_receipts_reject_missing_or_wrong_session_identity(self,current_gateway_mock):
+        from tools.review.ui.gradio import operations_history_app
+        for current_session_value in (None,'b'*32):
+            current_session_record={'messages':[{'job_id':'job-1','job':{'status':{'status':'completed'},'final_response':'HERMES_VIDEO_PROPOSAL'}}]}
+            if current_session_value is not None:current_session_record['id']=current_session_value
+            current_gateway_mock.reset_mock()
+            current_gateway_mock.return_value=current_session_record
+            with self.assertRaises(ValueError):operations_history_app.read_operations_session_receipts('a'*32)
+            current_gateway_mock.assert_called_once_with('hermes-agent','hermes-session-view',{'session_id':'a'*32})
+
+    @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
     def test_operations_wan_fun_uses_verified_queue_service(self,current_gateway_mock):
         import hashlib
         from tools.review.ui.gradio import operations_history_app
@@ -2117,14 +2294,17 @@ class HermesGradioTests(unittest.TestCase):
         current_job='job-video'
         current_request='chat_'+hashlib.sha256((current_session+':'+current_job+':video').encode()).hexdigest()
         def current_gateway_response(current_service,current_command,current_payload):
-            if current_command=='hermes-session-view':return {'messages':[{'job_id':current_job,'job':{'status':{'status':'completed'},'final_response':'HERMES_VIDEO_PROPOSAL'}}]}
-            if current_command=='hermes-video-proposal':return {'job_id':current_job,'proposal':{'service':'wan22-fun-control'}}
+            if current_command=='hermes-session-view':return {'id':'a'*32,'messages':[{'job_id':current_job,'job':{'status':{'status':'completed'},'final_response':'HERMES_VIDEO_PROPOSAL'}}]}
+            if current_command=='hermes-video-proposal':return {'id':'a'*32,'job_id':current_job,'proposal':{'service':'wan22-fun-control'}}
             if current_command=='hermes-video-history':return {'records':[{'request_id':current_request,'service':'wan22-fun-control','state':'accepted','job_id':'video-job'}],'truncated':False}
             if current_command=='hermes-management-status':return {'queue':{'status':'available','jobs':[{'service':'wan-fun','id':'video-job'}]},'reservations':{'status':'available','records':[{'state':'recorded','service':'wan-fun','job_id':'video-job','required_memory_mib':10}],'truncated':False}}
             raise AssertionError(current_command)
         current_gateway_mock.side_effect=current_gateway_response
         current_row=operations_history_app.read_operations_session_receipts(current_session)[0][0]
-        self.assertEqual(current_row[5:7],['대기 기록 · 원 서비스 확인 필요','예약 기록 · 원 서비스 확인 필요'])
+        self.assertIn('생성: 공용 wan-fun 대기열 · 소유 확인 필요',current_row[5])
+        self.assertIn('생성: 공용 wan-fun 예약 · 소유 확인 필요',current_row[6])
+        self.assertIn('준비:',current_row[5])
+        self.assertIn('준비:',current_row[6])
         def current_verified_response(current_service,current_command,current_payload):
             current_result=current_gateway_response(current_service,current_command,current_payload)
             if current_command=='hermes-management-status':
@@ -2133,7 +2313,10 @@ class HermesGradioTests(unittest.TestCase):
             return current_result
         current_gateway_mock.side_effect=current_verified_response
         current_row=operations_history_app.read_operations_session_receipts(current_session)[0][0]
-        self.assertEqual(current_row[5:7],['대기 기록 확인 · 원 서비스 확인','예약 기록 확인 · 원 서비스 확인'])
+        self.assertIn('생성: 대기 기록 확인 · 원 서비스 확인',current_row[5])
+        self.assertIn('생성: 예약 기록 확인 · 원 서비스 확인',current_row[6])
+        self.assertIn('준비:',current_row[5])
+        self.assertIn('준비:',current_row[6])
         self.assertIsNone(operations_history_app.resolve_operations_queue_identity('kimodo'))
         self.assertIsNone(operations_history_app.resolve_operations_queue_identity('flux-image'))
         self.assertIsNone(operations_history_app.resolve_operations_queue_identity('flux-building'))
@@ -2310,7 +2493,7 @@ class HermesGradioTests(unittest.TestCase):
             current_store.execute_delegation_once(current_request,{},lambda current_request_value:{'id':current_target_job})
             def respond_isolated_gateway(current_service,current_command,current_payload):
                 if current_command=='hermes-session-view':return {'id':current_session,'truncated':False,'messages':[{'job_id':current_source_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_KIMODO_PROPOSAL'}}]}
-                if current_command=='hermes-kimodo-proposal':return {'job_id':current_source_job,'proposal':{}}
+                if current_command=='hermes-kimodo-proposal':return {'id':'a'*32,'job_id':current_source_job,'proposal':{}}
                 if current_command=='hermes-delegation-status':return {**current_store.read_delegation_status(current_payload['request_id']),'request_id':current_payload['request_id'],'service':'kimodo'}
                 if current_command=='hermes-management-status':return {'queue':{'status':'available',**gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True)},'reservations':{'status':'available','records':[],'truncated':False}}
                 raise AssertionError(current_command)
@@ -2345,8 +2528,8 @@ class HermesGradioTests(unittest.TestCase):
         from tools.review.ui.gradio import operations_history_app
         current_tickets=[{'service':'image','id':'target-a','source_service':'kimodo'}]
         def current_gateway_response(current_service,current_command,current_payload):
-            if current_command=='hermes-session-view':return {'messages':[{'job_id':'job-a','job':{'status':{'status':'completed'},'final_response':'HERMES_KIMODO_PROPOSAL'}}]}
-            if current_command=='hermes-kimodo-proposal':return {'job_id':'job-a','proposal':{}}
+            if current_command=='hermes-session-view':return {'id':'a'*32,'messages':[{'job_id':'job-a','job':{'status':{'status':'completed'},'final_response':'HERMES_KIMODO_PROPOSAL'}}]}
+            if current_command=='hermes-kimodo-proposal':return {'id':'a'*32,'job_id':'job-a','proposal':{}}
             if current_command=='hermes-delegation-status':return {'state':'accepted','request_id':current_payload['request_id'],'service':'kimodo','job_id':'target-a'}
             if current_command=='hermes-management-status':return {'queue':{'status':'available','jobs':current_tickets},'reservations':{'status':'available','records':[],'truncated':False}}
             raise AssertionError(current_command)
@@ -2381,7 +2564,7 @@ class HermesGradioTests(unittest.TestCase):
     def test_flux_reference_composed_confirmation_rejects_changed_image_and_cancels(self):
         from PIL import Image
         from tools.review.ui.gradio import hermes_agent_app
-        current_blocks=hermes_agent_app.build_hermes_agent_interface(include_advanced_controls=False)
+        current_blocks=build_hermes_test_interface(include_advanced_controls=False)
         def current_callback_name(current_function):
             current_closure=dict(zip(current_function.__code__.co_freevars,(item.cell_contents for item in current_function.__closure__ or ())))
             return getattr(current_closure.get('generation_callback_value'),'__name__',None)
@@ -2413,7 +2596,7 @@ class HermesGradioTests(unittest.TestCase):
 
     def test_uncertain_conversation_confirmation_leaves_queue_button_disabled(self):
         from tools.review.ui.gradio import hermes_agent_app
-        current_blocks=hermes_agent_app.build_hermes_agent_interface(include_advanced_controls=False)
+        current_blocks=build_hermes_test_interface(include_advanced_controls=False)
         def current_callback_name(current_function):
             current_closure=dict(zip(current_function.__code__.co_freevars,(item.cell_contents for item in current_function.__closure__ or ())))
             return getattr(current_closure.get('generation_callback_value'),'__name__',None)
@@ -2498,7 +2681,7 @@ class HermesGradioTests(unittest.TestCase):
 
     def test_edit_review_and_automatic_routing_reset_before_reloading(self):
         from tools.review.ui.gradio import hermes_agent_app
-        current_blocks = hermes_agent_app.build_hermes_agent_interface(include_advanced_controls=False)
+        current_blocks = build_hermes_test_interface(include_advanced_controls=False)
         current_by_name = {}
         for current_identifier, current_event in current_blocks.fns.items():
             current_name = getattr(current_event.fn, '__name__', '')
@@ -2563,8 +2746,8 @@ class HermesGradioTests(unittest.TestCase):
         current_calls=[]
         def current_gateway(service,command,payload):
             current_calls.append(command)
-            if command=='hermes-session-view':return {'truncated':False,'messages':[{'job_id':current_source,'session_job_unique':True,'job':{'status':{'status':'completed'}}}]}
-            if command=='hermes-flux-proposal':return {'job_id':payload['id'],'proposal':current_proposal.copy()}
+            if command=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source,'session_job_unique':True,'job':{'status':{'status':'completed'}}}]}
+            if command=='hermes-flux-proposal':return {'id':'a'*32,'job_id':payload['id'],'proposal':current_proposal.copy()}
             if command=='hermes-service-receipt':return {'service':payload['service'],**current_receipt,'request_id':payload['request_id']}
             if command=='hermes-flux-profile-status':return {'receipt':current_receipt.copy(),'job':{'status':'queued'}}
             if command=='hermes-delegate-flux-profile':
@@ -2597,8 +2780,8 @@ class HermesGradioTests(unittest.TestCase):
         current_source='2026-11-18_00-00-00-12345678'
         current_receipt_calls=[]
         def current_gateway(service,command,payload):
-            if command=='hermes-session-view':return {'truncated':False,'messages':[{'job_id':current_source,'session_job_unique':True,'job':{'status':{'status':'completed'}}}]}
-            if command=='hermes-flux-proposal':return {'job_id':payload['id'],'proposal':{'service':'flux-expression','prompt':'joy','width':512,'height':512,'seed':42}}
+            if command=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source,'session_job_unique':True,'job':{'status':{'status':'completed'}}}]}
+            if command=='hermes-flux-proposal':return {'id':'a'*32,'job_id':payload['id'],'proposal':{'service':'flux-expression','prompt':'joy','width':512,'height':512,'seed':42}}
             if command=='hermes-service-receipt':
                 current_receipt_calls.append(payload['request_id'])
                 return {'state':'not_found','service':payload['service'],'request_id':payload['request_id'] if len(current_receipt_calls)==2 else 'another_request'}
@@ -2629,8 +2812,8 @@ class HermesGradioTests(unittest.TestCase):
         current_calls=[]
         def current_gateway(service,command,payload):
             current_calls.append(command)
-            if command=='hermes-session-view':return {'truncated':False,'messages':[{'job_id':current_source,'session_job_unique':True,'job':{'status':{'status':'completed'}}}]}
-            if command=='hermes-flux-proposal':return {'job_id':payload['id'],'proposal':{'service':'flux-building','prompt':'house','width':512,'height':512,'seed':42}}
+            if command=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source,'session_job_unique':True,'job':{'status':{'status':'completed'}}}]}
+            if command=='hermes-flux-proposal':return {'id':'a'*32,'job_id':payload['id'],'proposal':{'service':'flux-building','prompt':'house','width':512,'height':512,'seed':42}}
             if command=='hermes-service-receipt':return {'service':payload['service'],**current_receipt,'request_id':payload['request_id']}
             if command=='hermes-delegate-flux-profile':
                 current_receipt.update(state='accepted',service='flux-building',job_id=current_job)
@@ -2681,8 +2864,8 @@ class HermesGradioTests(unittest.TestCase):
         current_calls=[]
         def current_gateway(service,command,payload):
             current_calls.append(command)
-            if command=='hermes-session-view':return {'truncated':False,'messages':[{'job_id':current_source,'session_job_unique':True,'job':{'status':{'status':'completed'}}}]}
-            if command=='hermes-flux-proposal':return {'job_id':payload['id'],'proposal':current_proposal.copy()}
+            if command=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source,'session_job_unique':True,'job':{'status':{'status':'completed'}}}]}
+            if command=='hermes-flux-proposal':return {'id':'a'*32,'job_id':payload['id'],'proposal':current_proposal.copy()}
             if command=='hermes-service-receipt':return {'service':payload['service'],**current_receipt,'request_id':payload['request_id']}
             if command=='hermes-flux-profile-status':return {'receipt':current_receipt.copy(),'job':{'status':'queued'}}
             if command=='hermes-delegate-flux-profile':
@@ -2717,8 +2900,8 @@ class HermesGradioTests(unittest.TestCase):
         current_calls=[]
         def current_gateway(service,command,payload):
             current_calls.append(command)
-            if command=='hermes-session-view':return {'truncated':False,'messages':[{'job_id':current_source,'session_job_unique':True,'job':{'status':{'status':'completed'}}}]}
-            if command=='hermes-flux-proposal':return {'job_id':payload['id'],'proposal':current_proposal.copy()}
+            if command=='hermes-session-view':return {'id':'a'*32,'truncated':False,'messages':[{'job_id':current_source,'session_job_unique':True,'job':{'status':{'status':'completed'}}}]}
+            if command=='hermes-flux-proposal':return {'id':'a'*32,'job_id':payload['id'],'proposal':current_proposal.copy()}
             if command=='hermes-service-receipt':return {'request_id':payload['request_id'],'service':'flux-prop',**current_receipt}
             if command=='hermes-flux-profile-status':return {'receipt':{'request_id':payload['request_id'],'service':'flux-prop',**current_receipt},'job':{'status':'completed','image':'/flux-prop-generator/jobs/'+current_job+'/result.png'}}
             if command=='hermes-delegate-flux-profile':
@@ -2768,6 +2951,16 @@ class HermesGradioTests(unittest.TestCase):
             return current_response
         with patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_duplicate):
             with self.assertRaises(gr.Error):hermes_agent_app.select_older_conversation_job(current_session,current_job)
+
+    def test_older_conversation_selection_requires_first_page_session_identity(self):
+        current_session_identifier='a'*32
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_message_record={'job_id':current_job_identifier,'job':{'status':{'status':'completed'}}}
+        for current_session_value in (None,'b'*32):
+            current_response_record={'messages':[current_message_record],'truncated':False}
+            if current_session_value is not None:current_response_record['id']=current_session_value
+            with self.subTest(session=current_session_value),patch.object(hermes_agent_app,'execute_remote_management_command',return_value=current_response_record):
+                with self.assertRaises(gr.Error):hermes_agent_app.find_conversation_session_job(current_session_identifier,current_job_identifier)
 
     def test_conversation_proposals_refuse_cross_page_duplicate_or_unknown(self):
         from tools.review.ui.gradio import hermes_agent_app
@@ -2958,7 +3151,7 @@ class HermesGradioTests(unittest.TestCase):
         self.assertIn('처음부터', current_reset_values[24])
 
     def test_conversation_context_reset_is_bound_to_session_and_job(self):
-        current_interface_value = hermes_agent_app.build_hermes_agent_interface(False)
+        current_interface_value = build_hermes_test_interface(False)
         current_reset_events = [current_event for current_event in current_interface_value.fns.values() if getattr(current_event.fn, '__name__', '') == 'reset_conversation_context_state']
         self.assertEqual(len(current_reset_events), 2)
         current_target_labels = set()
@@ -2972,7 +3165,7 @@ class HermesGradioTests(unittest.TestCase):
         self.assertEqual(current_target_labels, {'세션', '세션 작업 선택'})
 
     def test_conversation_timer_starts_disabled_with_ten_second_interval(self):
-        current_interface_value = hermes_agent_app.build_hermes_agent_interface(False)
+        current_interface_value = build_hermes_test_interface(False)
         current_timer_values = [current_component for current_component in current_interface_value.blocks.values() if current_component.__class__.__name__ == 'Timer']
         self.assertEqual(len(current_timer_values), 1)
         current_timer_value = current_timer_values[0]
@@ -2980,6 +3173,26 @@ class HermesGradioTests(unittest.TestCase):
         self.assertFalse(current_timer_value.active)
         current_tick_events = [current_event for current_event in current_interface_value.config['dependencies'] if (current_timer_value._id, 'tick') in [tuple(current_target) for current_target in current_event['targets']]]
         self.assertEqual(len(current_tick_events), 1)
+
+    @patch('tools.review.ui.gradio.hermes_agent_app.execute_remote_management_command')
+    def test_session_timer_tracks_any_active_job_without_restarting_idle(self,current_gateway_mock):
+        current_session_identifier='a'*32
+        current_job_values=[{'text':'요청','job_id':f'2026-11-18_00-00-0{current_index}-12345678','job':{'status':{'status':current_status_name}}} for current_index,current_status_name in enumerate(('completed','queued','failed'))]
+        current_gateway_mock.return_value={'id':current_session_identifier,'message_count':3,'queried_at':'now','messages':current_job_values}
+        current_conversation,_,current_timer,_=hermes_agent_app.read_hermes_session_conversation(current_session_identifier)
+        self.assertEqual(len(current_conversation),6)
+        self.assertTrue(current_timer['active'])
+        current_job_values[1]['job']['status']['status']='completed'
+        _,_,current_timer,_=hermes_agent_app.read_hermes_session_conversation(current_session_identifier)
+        self.assertFalse(current_timer['active'])
+        current_job_values[1]['job']['status']['status']='unknown'
+        _,_,current_timer,_=hermes_agent_app.read_hermes_session_conversation(current_session_identifier)
+        self.assertFalse(current_timer['active'])
+        current_gateway_mock.side_effect=OSError('offline')
+        _,current_notice,current_timer,_=hermes_agent_app.read_hermes_session_conversation(current_session_identifier)
+        self.assertFalse(current_timer['active'])
+        self.assertIn('세션 조회 실패',current_notice)
+        self.assertEqual(current_gateway_mock.call_count,4)
 
     @patch('tools.review.ui.gradio.hermes_agent_app.execute_remote_management_command')
     def test_session_poll_stops_after_work_finishes(self,current_gateway_mock):
@@ -3106,7 +3319,7 @@ class HermesGradioTests(unittest.TestCase):
         def current_gateway(service,command,payload):
             current_commands.append(command)
             if command=='hermes-session-view':return {'id':current_session,'offset':20,'snapshot':'b'*64,'messages':[{'session_job_unique':True,'job_id':current_job,'job':{'status':{'status':'completed'},'final_response':'HERMES_VIDEO_PROPOSAL'}}]}
-            if command=='hermes-video-proposal':return {'job_id':current_job,'proposal':{'service':'wan22-vace'}}
+            if command=='hermes-video-proposal':return {'id':'a'*32,'job_id':current_job,'proposal':{'service':'wan22-vace'}}
             if command=='hermes-service-receipt':
                 self.assertEqual(payload,{'request_id':current_request,'service':'wan22-vace'})
                 return {'request_id':current_request,'state':'accepted','service':'wan22-vace','job_id':'target-old'}
@@ -3134,7 +3347,7 @@ class HermesGradioTests(unittest.TestCase):
         def current_gateway(service,command,payload):
             current_calls.append((command,payload))
             if command=='hermes-session-view':return {'id':current_session,'offset':20,'snapshot':'b'*64,'messages':[{'session_job_unique':True,'job_id':current_job,'job':{'status':{'status':'completed'},'final_response':'HERMES_KIMODO_PROPOSAL'}}]}
-            if command=='hermes-kimodo-proposal':return {'job_id':current_job,'proposal':{}}
+            if command=='hermes-kimodo-proposal':return {'id':'a'*32,'job_id':current_job,'proposal':{}}
             if command=='hermes-delegation-status':return {'state':'not_found'}
             raise AssertionError(command)
         with patch.object(operations_history_app,'execute_remote_management_command',side_effect=current_gateway):
@@ -3160,6 +3373,48 @@ class HermesGradioTests(unittest.TestCase):
             current_mock.assert_called_once()
             del current_message['session_job_unique']
             self.assertEqual(operations_history_app.read_operations_current_page_receipts(current_session,current_page)[0],[])
+
+    def test_queue_refresh_invalidates_priority_review(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_interface_value=build_async_test_interface(operations_history_app.build_operations_history_interface)
+        current_config_value=current_interface_value.get_config_file()
+        current_component_labels={current_component['id']:current_component.get('props',{}).get('label') for current_component in current_config_value['components']}
+        current_events=[current_event for current_event in current_config_value['dependencies'] if len(current_event['outputs'])==6 and any(current_component_labels.get(current_target[0])=='현재 대기 기록' and current_target[1]=='change' for current_target in current_event['targets'])]
+        self.assertEqual(len(current_events),1)
+        current_values=current_interface_value.fns[current_events[0]['id']].fn()
+        self.assertIsNone(current_values[1])
+        self.assertIsNone(current_values[2])
+        self.assertFalse(current_values[4]['interactive'])
+        self.assertFalse(current_values[5]['visible'])
+
+    def test_new_gpu_review_clears_previous_confirmation(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_priority_values=operations_history_app.start_operations_priority_review()
+        current_reservation_values=operations_history_app.start_operations_reservation_review()
+        for current_review_values in (current_priority_values,current_reservation_values):
+            self.assertEqual(len(current_review_values[0]),32)
+            self.assertFalse(current_review_values[1]['interactive'])
+            self.assertIsNone(current_review_values[2])
+            self.assertFalse(current_review_values[3]['visible'])
+        self.assertFalse(current_reservation_values[4])
+        current_interface_value=build_async_test_interface(operations_history_app.build_operations_history_interface)
+        current_config_value=current_interface_value.get_config_file()
+        for current_start_function,current_expected_count in ((operations_history_app.start_operations_priority_review,4),(operations_history_app.start_operations_reservation_review,5)):
+            current_events=[current_event for current_event in current_config_value['dependencies'] if current_interface_value.fns[current_event['id']].fn is current_start_function]
+            self.assertEqual(len(current_events),1)
+            self.assertEqual(len(current_events[0]['outputs']),current_expected_count)
+
+    def test_priority_review_rejects_late_target_or_token(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_target_record={'service':'kimodo','id':'2026-11-18_00-00-00-12345678'}
+        current_result_values=({'request_id':'priority_test'},'검토','priority_test',gr.update(visible=True))
+        with patch.object(operations_history_app,'prepare_operations_priority_request',return_value=current_result_values):
+            current_review_record=operations_history_app.collect_operations_priority_review(current_target_record,'old-token')
+        self.assertEqual(operations_history_app.render_operations_priority_review({'service':'kimodo','id':'other'},'old-token',current_review_record),(gr.skip(),)*5)
+        self.assertEqual(operations_history_app.render_operations_priority_review(current_target_record,'new-token',current_review_record),(gr.skip(),)*5)
+        current_render_values=operations_history_app.render_operations_priority_review(current_target_record,'old-token',current_review_record)
+        self.assertTrue(current_render_values[3]['visible'])
+        self.assertTrue(current_render_values[4]['interactive'])
 
     def test_operations_priority_confirmation_and_receipt_recovery(self):
         from tools.review.ui.gradio import operations_history_app
@@ -3255,6 +3510,19 @@ class HermesGradioTests(unittest.TestCase):
         self.assertIn('확인할 수 없습니다',operations_history_app.inspect_operations_reservation_target(current_target))
         current_rows[0][5]='미확인'
         self.assertIsNone(operations_history_app.select_operations_reservation_inspection(current_rows,SimpleNamespace(index=0))[0])
+
+    def test_reservation_review_rejects_late_target_or_token(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_target_record={'service':'kimodo','job_id':'job-1'}
+        current_result_values=({'service':'kimodo','job_id':'job-1'},'검토','recovery_id',gr.update(visible=True),False)
+        with patch.object(operations_history_app,'prepare_operations_reservation_recovery',return_value=current_result_values):
+            current_review_record=operations_history_app.collect_operations_reservation_recovery(current_target_record,'old-token')
+        self.assertEqual(operations_history_app.render_operations_reservation_recovery({'service':'kimodo','job_id':'job-2'},'old-token',current_review_record),(gr.skip(),)*6)
+        self.assertEqual(operations_history_app.render_operations_reservation_recovery(current_target_record,'new-token',current_review_record),(gr.skip(),)*6)
+        current_render_values=operations_history_app.render_operations_reservation_recovery(current_target_record,'old-token',current_review_record)
+        self.assertTrue(current_render_values[3]['visible'])
+        self.assertFalse(current_render_values[4])
+        self.assertTrue(current_render_values[5]['interactive'])
 
     @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
     def test_reservation_recovery_requires_confirmation_and_no_automatic_retry(self,current_gateway_mock):
@@ -3360,8 +3628,8 @@ class HermesGradioTests(unittest.TestCase):
         current_apply='chat_apply_'+hashlib.sha256(current_seed.encode()).hexdigest()
         current_apply_receipt={'state':'completed','request_id':current_apply,'writer_request_id':current_request,'job_id':'writer-job'}
         def current_gateway_response(current_service,current_command,current_payload):
-            if current_command=='hermes-session-view':return {'messages':[{'job_id':current_job,'job':{'status':{'status':'completed'},'final_response':'HERMES_WRITER_PROPOSAL'}}]}
-            if current_command=='hermes-writer-proposal':return {'job_id':current_job,'proposal':{'mode':'write','prompt':'test'}}
+            if current_command=='hermes-session-view':return {'id':'a'*32,'messages':[{'job_id':current_job,'job':{'status':{'status':'completed'},'final_response':'HERMES_WRITER_PROPOSAL'}}]}
+            if current_command=='hermes-writer-proposal':return {'id':'a'*32,'job_id':current_job,'proposal':{'mode':'write','prompt':'test'}}
             if current_command=='hermes-writer-history':return {'records':[{'request_id':current_request,'service':'writer-agent','state':'accepted','job_id':'writer-job'}],'truncated':False}
             if current_command=='hermes-management-status':return {'queue':{'status':'available','jobs':[{'service':'writer-agent','id':'writer-job'}]},'reservations':{'status':'available','records':[],'truncated':False},'queried_at':'mock'}
             if current_command=='hermes-writer-apply-status':return current_apply_receipt.copy()
@@ -3381,8 +3649,8 @@ class HermesGradioTests(unittest.TestCase):
     def test_operations_session_receipt_reports_unsaved_edit(self,current_gateway_mock):
         from tools.review.ui.gradio import operations_history_app
         def current_gateway_response(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-session-view':return {'messages':[{'job_id':'job-field','job':{'status':{'status':'completed'},'final_response':'HERMES_FIELD_PROPOSAL'}}]}
-            if current_command_name=='hermes-field-proposal':return {'job_id':'job-field','proposal':{'map':'moss-clearing'}}
+            if current_command_name=='hermes-session-view':return {'id':'a'*32,'messages':[{'job_id':'job-field','job':{'status':{'status':'completed'},'final_response':'HERMES_FIELD_PROPOSAL'}}]}
+            if current_command_name=='hermes-field-proposal':return {'id':'a'*32,'job_id':'job-field','proposal':{'map':'moss-clearing'}}
             if current_command_name=='hermes-field-receipt':return {'state':'completed','saved':False,'request_id':current_payload_record['request_id'],'map':'moss-clearing'}
             raise AssertionError(current_command_name)
         current_gateway_mock.side_effect=current_gateway_response
@@ -3398,12 +3666,12 @@ class HermesGradioTests(unittest.TestCase):
     def test_operations_session_receipt_rejects_duplicate_or_truncated_proposals(self,current_gateway_mock):
         from tools.review.ui.gradio import operations_history_app
         current_message={'job_id':'job-a','job':{'status':{'status':'completed'},'final_response':'HERMES_KIMODO_PROPOSAL','final_response_truncated':True}}
-        current_gateway_mock.return_value={'messages':[current_message]}
+        current_gateway_mock.return_value={'id':'a'*32,'messages':[current_message]}
         current_rows,current_notice=operations_history_app.read_operations_session_receipts('a'*32)
         self.assertEqual(current_rows,[])
         self.assertIn('확인하지 못한 메시지',current_notice)
         current_message['job']['final_response_truncated']=False
-        current_gateway_mock.return_value={'messages':[current_message,current_message]}
+        current_gateway_mock.return_value={'id':'a'*32,'messages':[current_message,current_message]}
         self.assertEqual(operations_history_app.read_operations_session_receipts('a'*32)[0],[])
         self.assertTrue(all(item.args[1]=='hermes-session-view' for item in current_gateway_mock.call_args_list))
 
@@ -3478,7 +3746,7 @@ class HermesGradioTests(unittest.TestCase):
 
     def test_trans_resume_confirmation_rejects_changed_history_page(self):
         from tools.review.ui.gradio import operations_history_app
-        current_blocks_value=operations_history_app.build_operations_history_interface()
+        current_blocks_value=build_async_test_interface(operations_history_app.build_operations_history_interface)
         current_prepare_values=[item.fn for item in current_blocks_value.fns.values() if item.fn and item.fn.__name__=='prepare_generation_confirmation']
         current_confirm_values=[item.fn for item in current_blocks_value.fns.values() if item.fn and item.fn.__name__=='execute_confirmed_generation']
         self.assertEqual(len(current_prepare_values),1)
@@ -4852,18 +5120,39 @@ class HermesGradioTests(unittest.TestCase):
         self.assertIn('확인 필요',current_status)
 
     @patch('tools.review.ui.gradio.hermes_agent_app.execute_remote_management_command')
+    def test_source_history_accepts_canonical_owner_and_audio_service(self,current_gateway_mock):
+        current_base_record={'records':[{'id':'job-1','recorded_status':'queued','status_source':'job'}],'total':1,'offset':0,'next_offset':None,'snapshot':'a'*64,'unavailable_count':0}
+        for current_service_name,current_command_name,current_source_service in (('building-generator','hermes-generator-source-history','billboard-generator'),('music-heartmula','hermes-audio-source-history','music-heartmula')):
+            with self.subTest(service=current_service_name):
+                current_gateway_mock.return_value={**current_base_record,'service':current_service_name,'source_service':current_source_service}
+                current_rows_value,current_notice_text,current_page_state,_=hermes_agent_app.read_hermes_source_history_page(current_service_name,current_command_name)
+                self.assertEqual(current_rows_value[0][0],'job-1')
+                self.assertEqual(current_page_state['service'],current_service_name)
+                if current_service_name=='building-generator':self.assertIn('billboard-generator',current_notice_text)
+                current_gateway_mock.return_value['source_service']='unexpected'
+                self.assertEqual(hermes_agent_app.read_hermes_source_history_page(current_service_name,current_command_name)[0],[])
+
+    @patch('tools.review.ui.gradio.hermes_agent_app.execute_remote_management_command')
     def test_source_history_pages_keep_service_and_snapshot(self,current_gateway_mock):
-        current_gateway_mock.return_value={'records':[{'id':'2026-11-18_00-00-00-12345678','recorded_status':'running','status_source':'job'}],'total':2,'offset':0,'next_offset':1,'snapshot':'a'*64,'unavailable_count':2}
+        current_gateway_mock.return_value={'service':'flux-image','records':[{'id':f'2026-11-18_00-00-{current_index:02d}-12345678','recorded_status':'running','status_source':'job'} for current_index in range(30)],'total':31,'offset':0,'next_offset':30,'snapshot':'a'*64,'unavailable_count':2}
         current_rows_value,current_status_value,current_page_state,current_next_update=hermes_agent_app.read_hermes_generator_source_rows('flux-image')
         self.assertEqual(current_rows_value[0][1],'running')
         self.assertTrue(current_next_update['interactive'])
-        self.assertIn('1–1',current_status_value)
+        self.assertIn('1–30',current_status_value)
         self.assertIn('확인 불가 이력 2건',current_status_value)
-        current_gateway_mock.return_value={'records':[{'id':'2026-11-18_00-00-01-12345678','recorded_status':'completed','status_source':'job'}],'total':2,'offset':1,'next_offset':None,'snapshot':'a'*64,'unavailable_count':0}
+        current_gateway_mock.return_value={'service':'flux-image','records':[{'id':'2026-11-18_00-00-30-12345678','recorded_status':'completed','status_source':'job'}],'total':31,'offset':30,'next_offset':None,'snapshot':'a'*64,'unavailable_count':0}
         _,current_status_value,_,current_next_update=hermes_agent_app.read_next_hermes_generator_source_rows('flux-image',current_page_state)
-        current_gateway_mock.assert_called_with('hermes-agent','hermes-generator-source-history',{'service':'flux-image','limit':30,'offset':1,'snapshot':'a'*64})
-        self.assertIn('2–2',current_status_value)
+        current_gateway_mock.assert_called_with('hermes-agent','hermes-generator-source-history',{'service':'flux-image','limit':30,'offset':30,'snapshot':'a'*64})
+        self.assertIn('31–31',current_status_value)
         self.assertFalse(current_next_update['interactive'])
+        for current_changed_fields in ({'service':'kimodo'},{'snapshot':'b'*64},{'offset':29},{'source_service':'kimodo'}):
+            current_original_record=current_gateway_mock.return_value.copy()
+            current_gateway_mock.return_value.update(current_changed_fields)
+            current_rows_value,current_error_value,current_cleared_state,current_next_update=hermes_agent_app.read_next_hermes_generator_source_rows('flux-image',current_page_state)
+            self.assertEqual(current_rows_value,[])
+            self.assertIsNone(current_cleared_state)
+            self.assertFalse(current_next_update['interactive'])
+            current_gateway_mock.return_value=current_original_record
         current_gateway_mock.reset_mock()
         _,current_error_value,current_cleared_state,current_next_update=hermes_agent_app.read_next_hermes_generator_source_rows('kimodo',current_page_state)
         self.assertIn('처음부터',current_error_value)
@@ -5032,7 +5321,7 @@ class OperationsSourceDeepLinkTests(unittest.TestCase):
     def test_operations_session_change_updates_return_link(self):
         import subprocess
         from tools.review.ui.gradio import operations_history_app
-        current_interface_value=operations_history_app.build_operations_history_interface()
+        current_interface_value=build_async_test_interface(operations_history_app.build_operations_history_interface)
         current_scripts=[str(current_dependency.get('js','')) for current_dependency in current_interface_value.get_config_file()['dependencies']]
         current_script_text=next(current_script for current_script in current_scripts if "management-return-conversation a" in current_script and 'sessionId' in current_script)
         current_runner_text="""
@@ -5047,7 +5336,7 @@ apply('bad'); if(href!='/management/frame/hermes-agent/')throw Error(href);
 
     def test_session_change_clears_source_link(self):
         from tools.review.ui.gradio import operations_history_app
-        current_interface_value=operations_history_app.build_operations_history_interface()
+        current_interface_value=build_async_test_interface(operations_history_app.build_operations_history_interface)
         current_config_value=current_interface_value.get_config_file()
         current_source_bindings=[current_binding for current_binding in current_interface_value.fns.values() if getattr(current_binding.fn,'__name__','')=='select_operations_source_job']
         self.assertEqual(len(current_source_bindings),1)

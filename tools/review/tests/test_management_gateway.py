@@ -12,6 +12,21 @@ from tools.review.common.management_gateway import ManagementCommandGateway, res
 
 
 class GatewayContractTest(unittest.TestCase):
+    def test_http_error_response_is_closed_and_bounded(self):
+        from unittest.mock import patch
+        from urllib.error import HTTPError
+        from tools.review.common.management_gateway import call_management_api
+        for current_response_bytes,current_expected_text in ((b'{"error":"rejected"}','rejected'),(b'x'*17000,'오류 응답 일부만 표시'),(b'[]','[]')):
+            with self.subTest(response=current_response_bytes[:20]):
+                current_error_stream=io.BytesIO(current_response_bytes)
+                current_http_error=HTTPError('http://127.0.0.1',400,'Bad Request',{},current_error_stream)
+                with patch('urllib.request.urlopen',side_effect=current_http_error):
+                    with self.assertRaises(ValueError) as current_exception_context:
+                        call_management_api('http://127.0.0.1:8771','/wan22-fun-control/jobs',{'action':'prepare'})
+                self.assertIn(current_expected_text,str(current_exception_context.exception))
+                self.assertLess(len(str(current_exception_context.exception)),16200)
+                self.assertTrue(current_error_stream.closed)
+
     def test_model_cli_reuses_registered_service_operations(self):
         with contextlib.redirect_stdout(io.StringIO()) as model_list_stream:
             self.assertEqual(execute_gateway_cli(['model', 'list']), 0)

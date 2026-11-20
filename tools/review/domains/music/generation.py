@@ -189,9 +189,10 @@ class MusicGenerationManager:
             except (OSError,ValueError,KeyError) as current_prepare_error:
                 return {'ready':False,'can_prepare':current_download_available,'message':str(current_prepare_error),'model_id':self.current_profile_record['model_id']}
         if current_command_name=='history-observe':
-            from tools.review.common.generation_records import observe_generation_history_records
-            with self.hold_music_lock():
-                return observe_generation_history_records(self.history_storage_root,self.job_storage_root,current_payload_record)
+            from tools.review.common.generation_records import hold_history_observation_guard, observe_generation_history_records
+            with hold_history_observation_guard(self.job_storage_root):
+                with self.hold_music_lock():
+                    return observe_generation_history_records(self.history_storage_root,self.job_storage_root,current_payload_record)
         if current_command_name in ('history','active'):
             current_history_records = self.list_music_history()
             if current_command_name=='history':

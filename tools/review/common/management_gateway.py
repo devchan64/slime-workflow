@@ -795,11 +795,17 @@ def call_management_api(server_base_address, request_route_path, request_body_va
             response_body_text = management_response_handle.read().decode()
         return json.loads(response_body_text) if expect_json_response else response_body_text
     except urllib.error.HTTPError as management_http_error:
-        response_error_text = management_http_error.read().decode(errors='replace')
-        try:
-            response_error_text=json.loads(response_error_text).get('error',response_error_text)
-        except ValueError:
-            pass
+        with management_http_error:
+            current_error_bytes = management_http_error.read(16001)
+        current_error_truncated = len(current_error_bytes) > 16000
+        response_error_text = current_error_bytes[:16000].decode(errors='replace')
+        if not current_error_truncated:
+            try:
+                current_error_document = json.loads(response_error_text)
+                if isinstance(current_error_document,dict):response_error_text=current_error_document.get('error',response_error_text)
+            except ValueError:
+                pass
+        if current_error_truncated:response_error_text += ' … (오류 응답 일부만 표시)'
         raise ValueError(f'관리 API 오류 ({management_http_error.code}): {response_error_text}') from None
     except (urllib.error.URLError, TimeoutError, ConnectionError) as management_connection_error:
         current_failure_reason = getattr(management_connection_error, 'reason', management_connection_error)

@@ -10,6 +10,28 @@ from tools.review.common.management_gateway import resolve_management_command
 
 
 class QueuePriorityContractTests(unittest.TestCase):
+    def test_wan_fun_prepare_priority_preview_requires_verified_owner(self):
+        from tools.review.domains.hermes_agent.priority_observer import preview_hermes_queue_priority
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_workflow_root=Path(current_temporary_directory)
+            current_queue_root=current_workflow_root/'.tmp'/'gpu-queue'
+            current_queue_root.mkdir(parents=True)
+            current_job_directory=current_workflow_root/'.tmp'/'test'/'wan22-fun-control'/'2026-11-20_20-02-00-abcdef12'
+            current_job_directory.mkdir(parents=True)
+            (current_job_directory/'status.json').write_text(json.dumps({'status':'queued'}))
+            (current_job_directory/'gpu-command.json').write_text(json.dumps({'service':'wan-fun-prepare'}))
+            (current_queue_root/'ticket.json').write_text(json.dumps({'pid':os.getpid(),'path':str(current_job_directory)}))
+            with patch.object(gpu_job_queue,'WORKFLOW_ROOT_DIRECTORY',current_workflow_root),patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_root):
+                current_queue_jobs=gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True)['jobs']
+                self.assertEqual(current_queue_jobs[0]['source_service'],'wan22-fun-control')
+                current_snapshot_record={'queue':{'status':'available','jobs':current_queue_jobs}}
+                with patch('tools.review.domains.hermes_agent.management_observer.read_hermes_management_snapshot',return_value=current_snapshot_record):
+                    self.assertEqual(preview_hermes_queue_priority('wan22-fun-control',current_job_directory.name)['job_id'],current_job_directory.name)
+                    current_queue_jobs[0].pop('source_service')
+                    with self.assertRaises(ValueError):preview_hermes_queue_priority('wan22-fun-control',current_job_directory.name)
+                self.assertFalse((current_queue_root/'priority-order').exists())
+        with self.assertRaises(ValueError):resolve_management_command('wan22-fun-control','prioritize',{'id':'2026-11-20_20-02-00-prepare'})
+
     def test_priority_order_and_running_rejection(self):
         with tempfile.TemporaryDirectory() as current_temp_directory:
             current_queue_directory = Path(current_temp_directory) / 'queue'

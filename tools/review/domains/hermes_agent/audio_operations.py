@@ -1,6 +1,8 @@
 """기존 음악·효과음 생성기의 GPU 작업을 안전하게 위임한다."""
 import os
 import re
+import threading
+from contextlib import contextmanager
 from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
@@ -71,18 +73,58 @@ def cancel_hermes_audio_request(current_request_identifier,current_service_name,
 
 
 
+SOURCE_HISTORY_LOCK_GUARD = threading.Lock()
+SOURCE_HISTORY_SERVICE_LOCKS = {}
+
+
+@contextmanager
+def hold_hermes_source_history_guard(current_service_name):
+    """같은 원본의 동시 이력 순회를 한 프로세스에서 거부한다."""
+    from tools.review.common.source_history_catalog import SOURCE_HISTORY_SERVICE_ALIASES
+    current_source_service=SOURCE_HISTORY_SERVICE_ALIASES.get(current_service_name,current_service_name)
+    with SOURCE_HISTORY_LOCK_GUARD:
+        current_source_lock=SOURCE_HISTORY_SERVICE_LOCKS.setdefault(current_source_service,threading.Lock())
+    if not current_source_lock.acquire(blocking=False):
+        raise ValueError('해당 원본 이력을 조회 중입니다. 완료 후 다시 조회하세요.')
+    try:
+        yield
+    finally:
+        current_source_lock.release()
+
+
+def validate_hermes_source_history_request(current_page_request):
+    """원 서비스 호출 전에 공통 이력 페이지 입력을 검증한다."""
+    if not isinstance(current_page_request,dict) or set(current_page_request)-{'offset','limit','snapshot','query'}:
+        raise ValueError('생성기 이력 페이지 입력 오류')
+    current_offset_value=current_page_request.get('offset',0)
+    current_limit_value=current_page_request.get('limit',10)
+    current_snapshot_value=current_page_request.get('snapshot')
+    current_query_value=current_page_request.get('query','')
+    if type(current_offset_value) is not int or current_offset_value<0 or type(current_limit_value) is not int or not 1<=current_limit_value<=30:
+        raise ValueError('생성기 이력 페이지 범위 오류')
+    if not isinstance(current_query_value,str) or len(current_query_value)>80 or (current_query_value and not re.fullmatch(r'[A-Za-z0-9_-]+',current_query_value)):
+        raise ValueError('생성기 이력 검색어 오류')
+    if current_snapshot_value is not None and (not isinstance(current_snapshot_value,str) or not re.fullmatch(r'[a-f0-9]{64}',current_snapshot_value)):
+        raise ValueError('생성기 이력 스냅샷 오류')
+    if current_offset_value>0 and current_snapshot_value is None:
+        raise ValueError('후속 페이지에는 스냅샷이 필요합니다.')
+
+
 def read_hermes_audio_source_history(current_service_name,current_page_request):
     """기존 서비스의 기록 상태만 읽는다. 접수 ID나 입력·로그를 만들지 않는다."""
     from tools.review.common.source_history_catalog import SOURCE_HISTORY_AUDIO_SERVICES
     if not isinstance(current_service_name,str) or current_service_name not in SOURCE_HISTORY_AUDIO_SERVICES:
         raise ValueError('지원하는 오디오 이력 서비스가 아닙니다.')
+    validate_hermes_source_history_request(current_page_request)
     current_gateway_address=validate_gateway_address(os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL',DEFAULT_GATEWAY_ADDRESS))
-    current_result_value=execute_management_command(current_service_name,'history-observe',current_page_request,current_gateway_address)
-    return sanitize_hermes_source_history(current_service_name,current_page_request,current_result_value)
+    with hold_hermes_source_history_guard(current_service_name):
+        current_result_value=execute_management_command(current_service_name,'history-observe',current_page_request,current_gateway_address)
+        return sanitize_hermes_source_history(current_service_name,current_page_request,current_result_value)
 
 
 def sanitize_hermes_source_history(current_service_name,current_page_request,current_result_value):
     """기존 서비스 응답에서 ID·기록 상태와 페이지 정보만 허용한다."""
+    validate_hermes_source_history_request(current_page_request)
     if not isinstance(current_result_value,dict) or not isinstance(current_result_value.get('records'),list):
         raise ValueError('오디오 원본 이력 응답 오류')
     current_query_text=current_page_request.get('query','')
@@ -107,8 +149,9 @@ def sanitize_hermes_source_history(current_service_name,current_page_request,cur
     current_request_limit=current_page_request.get('limit',10)
     current_request_snapshot=current_page_request.get('snapshot')
     if (type(current_request_offset) is not int or current_request_offset<0 or type(current_request_limit) is not int or not 1<=current_request_limit<=30
-            or type(current_unavailable_count) is not int or current_unavailable_count<0 or type(current_total_value) is not int or current_total_value<0 or type(current_offset_value) is not int or current_offset_value!=current_request_offset
+            or type(current_unavailable_count) is not int or current_unavailable_count<0 or type(current_total_value) is not int or current_total_value<0 or type(current_offset_value) is not int or current_offset_value!=current_request_offset or current_offset_value>current_total_value
             or not isinstance(current_snapshot_value,str) or not re.fullmatch(r'[a-f0-9]{64}',current_snapshot_value)
+            or (current_request_offset>0 and current_request_snapshot is None)
             or (current_request_snapshot is not None and current_snapshot_value!=current_request_snapshot)):
         raise ValueError('생성기 이력 페이지 오류')
     current_expected_count=min(current_request_limit,max(0,current_total_value-current_offset_value))
@@ -125,10 +168,12 @@ def read_hermes_generator_source_history(current_service_name,current_page_reque
     from tools.review.common.source_history_catalog import SOURCE_HISTORY_GENERATOR_SERVICES,SOURCE_HISTORY_SERVICE_ALIASES
     if not isinstance(current_service_name,str) or current_service_name not in SOURCE_HISTORY_GENERATOR_SERVICES:
         raise ValueError('지원하는 이미지·영상 생성기가 아닙니다.')
+    validate_hermes_source_history_request(current_page_request)
     current_gateway_address=validate_gateway_address(os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL',DEFAULT_GATEWAY_ADDRESS))
     current_command_name='writer-history-observe' if current_service_name=='writer-agent' else 'history-observe'
-    current_result_value=execute_management_command(current_service_name,current_command_name,current_page_request,current_gateway_address)
-    current_sanitized_value=sanitize_hermes_source_history(current_service_name,current_page_request,current_result_value)
+    with hold_hermes_source_history_guard(current_service_name):
+        current_result_value=execute_management_command(current_service_name,current_command_name,current_page_request,current_gateway_address)
+        current_sanitized_value=sanitize_hermes_source_history(current_service_name,current_page_request,current_result_value)
     current_sanitized_value['source_service']=SOURCE_HISTORY_SERVICE_ALIASES.get(current_service_name,current_service_name)
     if current_service_name=='building-generator':
         current_sanitized_value['note']+=' 건물 생성기는 빌보드 생성기 이력을 공유하는 호환 경로입니다.'

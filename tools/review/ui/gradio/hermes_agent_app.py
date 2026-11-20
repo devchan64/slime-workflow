@@ -382,7 +382,7 @@ def find_conversation_session_job(current_session_identifier,current_job_identif
     for current_page_number in range(10):
         current_session_record=execute_remote_management_command('hermes-agent','hermes-session-view',current_payload_record)
         if not isinstance(current_session_record,dict) or not isinstance(current_session_record.get('messages'),list):raise gr.Error('세션 이력을 확인할 수 없습니다.')
-        if current_session_record.get('id',current_session_identifier)!=current_session_identifier:raise gr.Error('세션이 일치하지 않습니다.')
+        if current_session_record.get('id')!=current_session_identifier:raise gr.Error('세션이 일치하지 않거나 확인되지 않습니다.')
         if current_page_number and (current_session_record.get('id')!=current_session_identifier or current_session_record.get('offset')!=current_payload_record['offset'] or current_session_record.get('snapshot')!=current_snapshot_value):
             raise gr.Error('세션 이력이 변경됐습니다. 다시 조회하세요.')
         current_matches=[item for item in current_session_record['messages'] if isinstance(item,dict) and item.get('job_id')==current_job_identifier]
@@ -2793,7 +2793,8 @@ def submit_hermes_writer_reviewed(current_review_value,current_mode_value,curren
 
 def validate_hermes_result_identity(current_receipt_record,current_request_identifier,current_service_identifier):
     """결과 조회 응답의 명시적인 접수·서비스 불일치를 거절한다."""
-    if not isinstance(current_receipt_record,dict):raise gr.Error('접수 상태를 확인할 수 없습니다.')
+    if not isinstance(current_receipt_record,dict) or current_receipt_record.get('state') not in ('accepted','unknown','not_found'):
+        raise gr.Error('접수 상태를 확인할 수 없습니다. 원 서비스 이력을 확인하세요.')
     if current_receipt_record.get('request_id') not in (None,current_request_identifier) or current_receipt_record.get('service') not in (None,current_service_identifier):
         raise gr.Error('접수 ID 또는 서비스가 일치하지 않습니다. 원 서비스 이력을 확인하세요.')
     if current_receipt_record.get('state')=='accepted':
@@ -3277,6 +3278,16 @@ def read_hermes_source_history_page(current_service_name,current_command_name,cu
                 raise ValueError('서비스가 바뀌었거나 다음 페이지가 없습니다. 처음부터 조회하세요.')
             current_request_value.update(offset=current_page_state['next_offset'],snapshot=current_page_state['snapshot'])
         current_result_value=execute_remote_management_command('hermes-agent',current_command_name,current_request_value)
+        from tools.review.domains.hermes_agent.audio_operations import sanitize_hermes_source_history
+        from tools.review.common.source_history_catalog import SOURCE_HISTORY_SERVICE_ALIASES
+        if not isinstance(current_result_value,dict) or current_result_value.get('service')!=current_service_name:
+            raise ValueError('원본 이력 서비스 불일치')
+        current_source_service=SOURCE_HISTORY_SERVICE_ALIASES.get(current_service_name,current_service_name)
+        if current_result_value.get('source_service',current_source_service)!=current_source_service:
+            raise ValueError('원본 이력 소유 서비스 불일치')
+        current_safe_result=sanitize_hermes_source_history(current_service_name,{current_key:current_value for current_key,current_value in current_request_value.items() if current_key!='service'},current_result_value)
+        current_safe_result['source_service']=current_source_service
+        current_result_value=current_safe_result
         current_source_labels={'job':'작업 상태 파일','index':'이전 색인','unavailable':'확인 불가'}
         current_rows_value=[[current_record['id'],current_record['recorded_status'],current_source_labels[current_record['status_source']]] for current_record in current_result_value['records']]
         current_next_offset=current_result_value['next_offset']
@@ -3581,6 +3592,7 @@ def read_hermes_flux_receipt(current_request_identifier):
     from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
     current_result_record = execute_remote_management_command('hermes-agent','hermes-flux-delegation-status',{'request_id':current_request_identifier})
     current_receipt_record = current_result_record['receipt']
+    validate_hermes_result_identity(current_receipt_record,current_request_identifier,'flux-image')
     if current_receipt_record.get('state') == 'accepted':
         if current_receipt_record.get('request_id')!=current_request_identifier or current_receipt_record.get('service')!='flux-image' or not validate_service_job_identifier('flux-image',current_receipt_record.get('job_id')):
             raise gr.Error('접수 서비스 또는 작업 ID를 확인할 수 없습니다. 원 서비스의 이력을 확인하세요.')

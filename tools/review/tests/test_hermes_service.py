@@ -914,6 +914,34 @@ class HermesServiceTests(unittest.TestCase):
         current_kimodo_notes=[item['note'] for item in current_services_by_name['wan22-vace']['conditional_limitations'] if item['command']=='resume']
         self.assertTrue(any('model_profile' in item for item in current_kimodo_notes))
 
+    def test_registration_report_contains_current_services_and_links(self):
+        from tools.review.maintenance.report_hermes_service_registration import render_hermes_registration_report
+        from tools.review.domains.hermes_agent.capabilities import list_management_service_registration
+        current_report_text=render_hermes_registration_report('test-time')
+        current_service_records=list_management_service_registration()['services']
+        self.assertIn('생성 시각(UTC): test-time',current_report_text)
+        self.assertEqual(current_report_text.count('\n## '),len(current_service_records))
+        for current_service_record in current_service_records:
+            current_service_section=current_report_text.split('\n## '+current_service_record['service']+'\n',1)[1].split('\n## ',1)[0]
+            for current_command_name in current_service_record['commands']:
+                self.assertIn('`'+current_command_name+'`',current_service_section)
+            for current_link_name in current_service_record['hermes_links']:
+                self.assertIn('`'+current_link_name+'`',current_service_section)
+        self.assertIn('실행 권한·가용성·GPU 시험',current_report_text)
+
+    def test_video_and_flux_resume_registration_explains_reviewed_alternative(self):
+        from tools.review.domains.hermes_agent.video_operations import HERMES_VIDEO_SERVICES
+        from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
+        current_catalog_record=self.hermes_service_manager.execute_hermes_command('hermes-service-registration',{})
+        current_services_by_name={current_record['service']:current_record for current_record in current_catalog_record['services']}
+        for current_service_name in (*HERMES_VIDEO_SERVICES,*FLUX_IMAGE_PROFILE_RECORDS):
+            with self.subTest(service=current_service_name):
+                current_service_record=current_services_by_name[current_service_name]
+                current_resume_notes=[current_item['note'] for current_item in current_service_record['conditional_limitations'] if current_item['command']=='resume']
+                self.assertTrue(any('별도 재개 검토' in current_note and '확인 후 접수' in current_note for current_note in current_resume_notes))
+                current_prefix_value='hermes-video-resume' if current_service_name in HERMES_VIDEO_SERVICES else 'hermes-flux-resume'
+                self.assertTrue({current_prefix_value+'-preview',current_prefix_value+'-submit',current_prefix_value+'-receipt'} <= set(current_service_record['hermes_links']))
+
     def test_review_capture_limitations_are_discoverable_without_execution(self):
         current_catalog_record=self.hermes_service_manager.execute_hermes_command('hermes-service-registration',{})
         current_services_by_name={current_record['service']:current_record for current_record in current_catalog_record['services']}
@@ -1097,6 +1125,47 @@ class HermesServiceTests(unittest.TestCase):
             (current_active_path/'image.json').write_text(json.dumps({'service':'image','pid':os.getpid(),'pid_start_token':'0','required_memory_mib':1024}))
             current_result_value=read_hermes_gpu_reservation_snapshot(current_directory_name)
             self.assertEqual(current_result_value['records'][0]['state'],'cleanup_unverified')
+
+    def test_wan_fun_prepare_reservation_rejects_other_source_and_duplicate(self):
+        from tools.review.common import gpu_job_queue
+        from tools.review.domains.hermes_agent.reservation_observer import find_generator_reservation_record
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_workflow_root=Path(current_temporary_directory)
+            current_job_identifier='2026-11-20_20-02-00-prepare'
+            current_job_directory=current_workflow_root/'.tmp'/'test'/'wan22-fun-control'/current_job_identifier
+            current_job_directory.mkdir(parents=True)
+            current_active_directory=current_workflow_root/'active'
+            current_active_directory.mkdir()
+            current_reservation_record={'service':'wan-fun-prepare','path':str(current_job_directory),'required_memory_mib':6144}
+            (current_active_directory/'one.json').write_text(json.dumps(current_reservation_record))
+            with patch.object(gpu_job_queue,'WORKFLOW_ROOT_DIRECTORY',current_workflow_root):
+                self.assertEqual(find_generator_reservation_record(current_active_directory,'wan22-fun-control',current_job_identifier)[2],6144)
+                with self.assertRaises(ValueError):find_generator_reservation_record(current_active_directory,'kimodo',current_job_identifier)
+                (current_active_directory/'two.json').write_text(json.dumps(current_reservation_record))
+                with self.assertRaises(ValueError):find_generator_reservation_record(current_active_directory,'wan22-fun-control',current_job_identifier)
+            self.assertEqual(len(list(current_active_directory.glob('*.json'))),2)
+
+    def test_wan_fun_legacy_prepare_reservation_preserves_verified_identity(self):
+        from tools.review.domains.hermes_agent.management_observer import read_hermes_gpu_reservation_snapshot
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_workflow_root=Path(current_temporary_directory)
+            current_job_identifier='2026-11-20_20-02-00-prepare'
+            current_job_directory=current_workflow_root/'.tmp'/'test'/'wan22-fun-control'/current_job_identifier
+            current_job_directory.mkdir(parents=True)
+            current_queue_directory=current_workflow_root/'queue'
+            (current_queue_directory/'active').mkdir(parents=True)
+            current_reservation_path=current_queue_directory/'active'/'prepare.json'
+            current_reservation_record={'service':'wan-fun-prepare','path':str(current_job_directory),'required_memory_mib':6144,'cleanup_unverified':True}
+            current_reservation_path.write_text(json.dumps(current_reservation_record))
+            with patch('tools.review.common.gpu_job_queue.WORKFLOW_ROOT_DIRECTORY',current_workflow_root):
+                current_snapshot_value=read_hermes_gpu_reservation_snapshot(current_queue_directory)
+            current_record_value=current_snapshot_value['records'][0]
+            self.assertEqual(current_record_value['job_id'],current_job_identifier)
+            self.assertEqual(current_record_value['source_service'],'wan22-fun-control')
+            self.assertNotIn(str(current_workflow_root),str(current_snapshot_value))
+            current_reservation_record['service']='other-service'
+            current_reservation_path.write_text(json.dumps(current_reservation_record))
+            self.assertIsNone(read_hermes_gpu_reservation_snapshot(current_queue_directory)['records'][0]['job_id'])
 
     def test_unverified_writer_cleanup_reservation_is_visible(self):
         from tools.review.domains.hermes_agent.management_observer import read_hermes_gpu_reservation_snapshot
@@ -1519,6 +1588,18 @@ class HermesServiceTests(unittest.TestCase):
         self.assertIn({'type':'null'},current_schema_value['properties']['snapshot']['anyOf'])
         self.assertEqual(current_schema_value['properties']['snapshot']['anyOf'][0]['pattern'],'^[a-f0-9]{64}$')
         self.assertIn('건물 목록',current_schema_value['properties']['snapshot']['anyOf'][0]['note'])
+
+    def test_source_history_schema_requires_snapshot_for_later_page(self):
+        from jsonschema import Draft202012Validator
+        current_catalog_value=self.hermes_service_manager.execute_hermes_command('hermes-capabilities',{})
+        for current_command_name,current_service_name in (('hermes-audio-source-history','music-heartmula'),('hermes-generator-source-history','wan22-fun-control')):
+            current_schema_value=next(current_record['payload_schema'] for current_record in current_catalog_value['records'] if current_record['command']==current_command_name)
+            current_validator_value=Draft202012Validator(current_schema_value)
+            self.assertTrue(current_validator_value.is_valid({'service':current_service_name,'offset':0}))
+            self.assertFalse(current_validator_value.is_valid({'service':current_service_name,'offset':1}))
+            self.assertFalse(current_validator_value.is_valid({'service':current_service_name,'offset':1,'snapshot':None}))
+            self.assertTrue(current_validator_value.is_valid({'service':current_service_name,'offset':1,'snapshot':'a'*64,'query':'job-1'}))
+            self.assertFalse(current_validator_value.is_valid({'service':current_service_name,'query':'bad query'}))
 
     def test_source_history_catalog_matches_routes_and_capabilities(self):
         from tools.review.common.source_history_catalog import SOURCE_HISTORY_GENERATOR_SERVICES,SOURCE_HISTORY_AUDIO_SERVICES

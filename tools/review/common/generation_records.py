@@ -1,6 +1,27 @@
 """도메인 공용 생성 기록의 원자적 저장."""
 import json
+import threading
 import uuid
+from contextlib import contextmanager
+from pathlib import Path
+
+HISTORY_OBSERVATION_LOCK_GUARD = threading.Lock()
+HISTORY_OBSERVATION_STORAGE_LOCKS = {}
+
+
+@contextmanager
+def hold_history_observation_guard(current_storage_root):
+    """같은 저장소의 중복 관측이 공유 이력 잠금 앞에 쌓이지 않게 한다."""
+    current_storage_key=str(Path(current_storage_root).absolute())
+    with HISTORY_OBSERVATION_LOCK_GUARD:
+        current_storage_lock=HISTORY_OBSERVATION_STORAGE_LOCKS.setdefault(current_storage_key,threading.Lock())
+    if not current_storage_lock.acquire(blocking=False):
+        raise ValueError('이 작업 저장소의 이력 조회가 이미 진행 중입니다.')
+    try:
+        yield
+    finally:
+        current_storage_lock.release()
+
 
 def validate_history_tag(history_tag_value):
     if not isinstance(history_tag_value,str):raise ValueError('생성 이력 태그는 문자열이어야 합니다.')
@@ -58,7 +79,7 @@ def load_generation_history_records(history_directory_path, generation_jobs_dire
 
 
 
-def observe_generation_history_records(history_directory_path, generation_jobs_directory, current_page_request, nested_index_only=False):
+def observe_generation_history_records(history_directory_path, generation_jobs_directory, current_page_request, nested_index_only=False, include_legacy_preparation=False):
     """숨김 이력 정책을 유지하고 복구·로그 없이 작업 ID와 기록 상태만 페이지로 읽는다."""
     import hashlib
     import re
@@ -80,6 +101,7 @@ def observe_generation_history_records(history_directory_path, generation_jobs_d
     from datetime import datetime
     from zoneinfo import ZoneInfo
     current_identifier_pattern=r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}'
+    current_directory_pattern=r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-(?:[a-f0-9]{8}|prepare)' if include_legacy_preparation else current_identifier_pattern
     current_reset_path=history_directory_path/'.reset-marker' if history_directory_path is not None else None
     current_reset_timestamp=current_reset_path.stat().st_mtime if current_reset_path is not None and current_reset_path.is_file() else 0
     current_history_order={}
@@ -117,7 +139,7 @@ def observe_generation_history_records(history_directory_path, generation_jobs_d
             current_job_identifier=current_job_path.name
             if current_job_identifier in current_duplicate_identifiers:
                 continue
-            if not re.fullmatch(current_identifier_pattern,current_job_identifier):
+            if not re.fullmatch(current_directory_pattern,current_job_identifier):
                 continue
             if current_job_path.is_symlink():
                 raise ValueError('생성 작업 경로는 심볼릭 링크일 수 없습니다.')

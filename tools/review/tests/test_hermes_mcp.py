@@ -34,6 +34,27 @@ with patch.dict(sys.modules, {'mcp':fake_mcp_module, 'mcp.server':fake_mcp_serve
 
 
 class HermesMcpTests(unittest.TestCase):
+    def test_gateway_http_error_stream_is_closed(self):
+        import urllib.error
+        from types import SimpleNamespace
+        current_error_stream=io.BytesIO(b'{"error":"rejected"}')
+        current_http_error=hermes_module_value.urllib.error.HTTPError('http://127.0.0.1',400,'Bad Request',{},current_error_stream)
+        current_http_opener=SimpleNamespace(open=lambda *current_args,**current_kwargs: (_ for _ in ()).throw(current_http_error))
+        with patch.object(hermes_module_value.urllib.request,'build_opener',return_value=current_http_opener):
+            with self.assertRaisesRegex(ValueError,'400: rejected'):
+                hermes_module_value.call_hermes_management_gateway('hermes-capabilities',{})
+        self.assertTrue(current_error_stream.closed)
+
+    def test_gateway_oversized_http_error_is_bounded(self):
+        from types import SimpleNamespace
+        current_error_stream=io.BytesIO(b'x'*17000)
+        current_http_error=hermes_module_value.urllib.error.HTTPError('http://127.0.0.1',400,'Bad Request',{},current_error_stream)
+        current_http_opener=SimpleNamespace(open=lambda *current_args,**current_kwargs: (_ for _ in ()).throw(current_http_error))
+        with patch.object(hermes_module_value.urllib.request,'build_opener',return_value=current_http_opener):
+            with self.assertRaisesRegex(ValueError,'오류 응답이 너무 큽니다'):
+                hermes_module_value.call_hermes_management_gateway('hermes-capabilities',{})
+        self.assertTrue(current_error_stream.closed)
+
     def test_city_source_mcp_rejects_mismatched_identity_and_hash(self):
         current_document_value={'managementId':'config.city-layouts.stonewarm','data':{'cityId':'stonewarm'}}
         current_response_value={'map':'stonewarm','document':current_document_value,'source_sha256':'a'*64}
@@ -269,6 +290,14 @@ class HermesMcpTests(unittest.TestCase):
         with patch.object(hermes_module_value, 'call_hermes_management_gateway', return_value={'services':[],'next_offset':None}) as current_gateway_mock:
             self.assertIsNone(hermes_module_value.search_hermes_management_services('음악',5,5)['next_offset'])
         current_gateway_mock.assert_called_once_with('hermes-service-registration', {'query':'음악','offset':5,'limit':5})
+
+    def test_source_history_rejects_invalid_page_before_gateway(self):
+        current_invalid_arguments=[{'offset_value':1},{'limit_value':31},{'query_text':'bad query'},{'snapshot_value':'bad'},{'query_text':None}]
+        for current_reader_value,current_service_name in ((hermes_module_value.list_hermes_generator_source_history,'wan22-fun-control'),(hermes_module_value.list_hermes_audio_source_history,'music-heartmula')):
+            for current_argument_values in current_invalid_arguments:
+                with self.subTest(service=current_service_name,arguments=current_argument_values),patch.object(hermes_module_value,'run_hermes_mcp_command') as current_gateway_mock:
+                    with self.assertRaises(ValueError):current_reader_value(current_service_name,**current_argument_values)
+                    current_gateway_mock.assert_not_called()
 
     def test_generator_source_history_uses_shared_gateway(self):
         with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={'records':[]}) as current_gateway_mock:

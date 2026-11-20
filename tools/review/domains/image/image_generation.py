@@ -255,9 +255,11 @@ class ImageGenerationManager:
                     raise ValueError('요청 크기 오류')
                 current_request_record = json.loads(current_http_handler.rfile.read(current_body_length),object_pairs_hook=parse_unique_request)
                 if current_url_path == self.route_prefix_value+'/history/observe':
-                    from tools.review.common.generation_records import observe_generation_history_records
-                    with MANAGER_HISTORY_LOCK:
-                        send_response_data(200,observe_generation_history_records(self.history_storage_path(),self.job_storage_root,current_request_record))
+                    from tools.review.common.generation_records import hold_history_observation_guard, observe_generation_history_records
+                    with hold_history_observation_guard(self.job_storage_root):
+                        with MANAGER_HISTORY_LOCK:
+                            current_history_observation=observe_generation_history_records(self.history_storage_path(),self.job_storage_root,current_request_record,include_legacy_preparation=getattr(self,'observe_legacy_prepare_history',False))
+                    send_response_data(200,current_history_observation)
                     return True
                 if current_url_path==self.route_prefix_value+'/resume/reviewed':
                     if not callable(getattr(self,'resume_reviewed_generation_job',None)):

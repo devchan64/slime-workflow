@@ -36,7 +36,7 @@ def read_operations_verified_source(current_service_name,current_source_value):
     if current_service_name=='flux-image' and isinstance(current_source_value,str) and current_source_value in FLUX_IMAGE_PROFILE_RECORDS:return current_source_value
     from tools.review.common.gpu_job_queue import is_dedicated_gpu_source_verifiable
     if is_dedicated_gpu_source_verifiable(current_service_name):
-        current_expected_source='wan22-fun-control' if current_service_name=='wan-fun' else current_service_name
+        current_expected_source='wan22-fun-control' if current_service_name in ('wan-fun','wan-fun-prepare') else current_service_name
         if current_source_value==current_expected_source:return current_expected_source
     return None
 
@@ -143,12 +143,18 @@ def label_operations_shared_reservation_record(current_reservation_index,current
 def label_operations_verified_dedicated_queue(current_queue_counts,current_source_counts,current_queue_service,current_source_service,current_job_identifier):
     """경로로 확인된 독립 서비스 대기 기록만 원본 작업에 연결한다."""
     current_result_label=label_operations_shared_queue_record(current_queue_counts,current_source_counts,current_queue_service,current_source_service,current_job_identifier)
+    if current_queue_service=='wan-fun' and current_source_service=='wan22-fun-control':
+        current_prepare_label=label_operations_shared_queue_record(current_queue_counts,current_source_counts,'wan-fun-prepare',current_source_service,current_job_identifier)
+        return '생성: '+current_result_label+' / 준비: '+current_prepare_label
     return current_result_label.replace('공용 '+current_queue_service+' 대기열 · 소유 확인 필요','대기 기록 · 원 서비스 확인 필요')
 
 
 def label_operations_verified_dedicated_reservation(current_reservation_index,current_unmatched_record,current_queue_service,current_source_service,current_job_identifier):
     """경로로 확인된 독립 서비스 예약만 원본 작업에 연결한다."""
     current_result_label=label_operations_shared_reservation_record(current_reservation_index,current_unmatched_record,current_queue_service,current_source_service,current_job_identifier)
+    if current_queue_service=='wan-fun' and current_source_service=='wan22-fun-control':
+        current_prepare_label=label_operations_shared_reservation_record(current_reservation_index,current_unmatched_record,'wan-fun-prepare',current_source_service,current_job_identifier)
+        return '생성: '+current_result_label+' / 준비: '+current_prepare_label
     return current_result_label.replace('공용 '+current_queue_service+' 예약 · 소유 확인 필요','예약 기록 · 원 서비스 확인 필요')
 
 
@@ -408,6 +414,8 @@ def read_operations_session_history(current_session_identifier):
     if not isinstance(current_session_identifier,str) or not re.fullmatch(r'[a-f0-9]{32}',current_session_identifier):
         raise gr.Error('조회할 세션을 선택하세요.')
     current_session_record=execute_remote_management_command('hermes-agent','hermes-session-view',{'session_id':current_session_identifier})
+    if not isinstance(current_session_record,dict) or current_session_record.get('id')!=current_session_identifier:
+        raise gr.Error('세션을 확인할 수 없습니다.')
     current_message_records=current_session_record.get('messages')
     if not isinstance(current_message_records,list):raise gr.Error('세션 메시지를 확인할 수 없습니다.')
     current_message_rows=[]
@@ -474,6 +482,26 @@ def read_newer_operations_session_history(current_session_identifier,current_pag
     return read_operations_session_history_page(current_session_identifier,{**current_page_state,'offset':max(0,current_page_state['offset']-20)})
 
 
+def collect_operations_session_page(current_session_identifier,current_page_state,current_request_token,current_direction_name):
+    """지시 페이지와 요청 식별값을 묶어 늦은 결과를 구분한다."""
+    current_readers={'first':lambda:read_operations_session_history_page(current_session_identifier),'older':lambda:read_next_operations_session_history(current_session_identifier,current_page_state),'newer':lambda:read_newer_operations_session_history(current_session_identifier,current_page_state)}
+    try:
+        current_result_values=current_readers[current_direction_name]()
+    except (gr.Error,OSError,ValueError,KeyError,TypeError,RuntimeError,AttributeError):
+        current_result_values=([],'세션 이력을 확인할 수 없습니다. 처음부터 다시 조회하세요.','',None,gr.update(interactive=False),gr.update(interactive=False))
+    return {'session_id':current_session_identifier,'token':current_request_token,'result':current_result_values}
+
+
+def render_operations_session_page(current_session_identifier,current_request_token,current_result_record):
+    """요청 후 세션이나 조회가 바뀌면 화면을 갱신하지 않는다."""
+    if not isinstance(current_result_record,dict) or (current_result_record.get('session_id'),current_result_record.get('token'))!=(current_session_identifier,current_request_token):
+        return (gr.skip(),)*10
+    current_result_values=current_result_record.get('result')
+    if not isinstance(current_result_values,(list,tuple)) or len(current_result_values)!=6:
+        return (gr.skip(),)*10
+    return (*current_result_values,[],'표시된 지시의 접수 기록을 조회하세요.','',gr.update(interactive=True))
+
+
 def select_operations_session_job_link(current_session_identifier,current_history_rows,current_select_event:gr.SelectData):
     """선택 행에서 안전한 세션·작업 ID만 대화 링크로 만든다."""
     if not isinstance(current_session_identifier,str) or not re.fullmatch(r'[a-f0-9]{32}',current_session_identifier):raise gr.Error('세션을 다시 선택하세요.')
@@ -519,6 +547,30 @@ def select_operations_session_instruction(current_session_identifier,current_his
         return '', '지시를 확인할 수 없습니다. 세션 지시를 다시 조회하세요.'
 
 
+def prepare_operations_instruction_selection(current_session_identifier,current_history_rows,current_page_state,current_select_event:gr.SelectData):
+    """선택 순간의 세션·페이지·행과 새 식별값을 고정한다."""
+    current_request_token=create_cleanup_preview_token()
+    current_selected_index=current_select_event.index
+    if isinstance(current_selected_index,(tuple,list)):current_selected_index=current_selected_index[0] if current_selected_index else None
+    return current_request_token,{'session_id':current_session_identifier,'page':current_page_state,'rows':current_history_rows,'index':current_selected_index,'token':current_request_token},'', '지시를 확인하고 있습니다.'
+
+
+def collect_operations_instruction_selection(current_selection_record):
+    """고정된 행의 원문을 원본 세션에서 다시 확인한다."""
+    from types import SimpleNamespace
+    if not isinstance(current_selection_record,dict):return None
+    current_link_value,current_text_value=select_operations_session_instruction(current_selection_record.get('session_id'),current_selection_record.get('rows'),current_selection_record.get('page'),SimpleNamespace(index=current_selection_record.get('index')))
+    return {**current_selection_record,'link':current_link_value,'text':current_text_value}
+
+
+def render_operations_instruction_selection(current_session_identifier,current_page_state,current_request_token,current_result_record):
+    """요청 후 세션·페이지·선택이 변경된 원문은 표시하지 않는다."""
+    if not isinstance(current_result_record,dict) or (current_result_record.get('session_id'),current_result_record.get('page'),current_result_record.get('token'))!=(current_session_identifier,current_page_state,current_request_token):
+        return gr.skip(),gr.skip()
+    if not isinstance(current_result_record.get('link'),str) or not isinstance(current_result_record.get('text'),str):return gr.skip(),gr.skip()
+    return current_result_record['link'],current_result_record['text']
+
+
 def read_operations_session_receipts(current_session_identifier,current_page_state=None):
     """대화 카드의 접수 ID 규칙과 영수증을 비교하며 작업을 실행하지 않는다."""
     import hashlib
@@ -530,8 +582,8 @@ def read_operations_session_receipts(current_session_identifier,current_page_sta
             raise ValueError('현재 세션 지시 페이지를 다시 조회하세요.')
         current_request_payload.update(offset=current_page_state['offset'],snapshot=current_page_state['snapshot'])
     current_session_record = execute_remote_management_command('hermes-agent', 'hermes-session-view', current_request_payload)
-    if not isinstance(current_session_record,dict) or (current_session_record.get('id') is not None and current_session_record['id']!=current_session_identifier):
-        raise ValueError('세션이 일치하지 않습니다.')
+    if not isinstance(current_session_record,dict) or current_session_record.get('id')!=current_session_identifier:
+        raise ValueError('세션이 일치하지 않거나 확인되지 않습니다.')
     if current_page_state is None and 'offset' in current_session_record and (type(current_session_record['offset']) is not int or current_session_record['offset']!=0):
         raise ValueError('첫 세션 지시 페이지가 아닙니다.')
     if current_page_state is not None and (current_session_record.get('id')!=current_session_identifier or current_session_record.get('offset')!=current_page_state['offset'] or current_session_record.get('snapshot')!=current_page_state['snapshot']):
@@ -797,8 +849,23 @@ def read_operations_current_page_receipts(current_session_identifier,current_pag
         return [],'먼저 세션 지시를 조회하세요. 구버전 게이트웨이는 페이지 연결을 지원하지 않습니다.'
     try:
         return read_operations_session_receipts(current_session_identifier,current_page_state)
-    except (OSError,ValueError,KeyError,TypeError,AttributeError,RuntimeError):
+    except (gr.Error,OSError,ValueError,KeyError,TypeError,AttributeError,RuntimeError):
         return [],'세션 이력이나 접수 기록을 확인할 수 없거나 변경됐습니다. 세션 지시를 처음부터 다시 조회하세요.'
+
+
+def collect_operations_page_receipts(current_session_identifier,current_page_state,current_request_token):
+    """지시 페이지와 조회 식별값을 결과에 고정한다."""
+    current_rows_value,current_notice_text=read_operations_current_page_receipts(current_session_identifier,current_page_state)
+    return {'session_id':current_session_identifier,'page':current_page_state,'token':current_request_token,'rows':current_rows_value,'notice':current_notice_text}
+
+
+def render_operations_page_receipts(current_session_identifier,current_page_state,current_request_token,current_result_record):
+    """현재 선택과 요청이 일치하지 않는 늦은 결과는 표시하지 않는다."""
+    if not isinstance(current_result_record,dict) or (current_result_record.get('session_id'),current_result_record.get('page'),current_result_record.get('token'))!=(current_session_identifier,current_page_state,current_request_token):
+        return gr.skip(),gr.skip(),gr.skip(),gr.skip()
+    if not isinstance(current_result_record.get('rows'),list) or not isinstance(current_result_record.get('notice'),str):
+        return gr.skip(),gr.skip(),gr.skip(),gr.skip()
+    return current_result_record['rows'],current_result_record['notice'],'',gr.update(interactive=True)
 
 
 def read_operations_cleanup_preview(current_service_name):
@@ -1153,6 +1220,25 @@ def prepare_operations_reservation_recovery(current_reservation_target):
         return None,'검토 또는 접수 상태를 확인하지 못했습니다. 프로세스와 예약은 변경하지 않았습니다.','',gr.update(visible=False),False
 
 
+def start_operations_reservation_review():
+    """새 예약 검토 전 이전 요청·확인 상태를 즉시 지운다."""
+    return create_cleanup_preview_token(),gr.update(interactive=False),None,gr.update(visible=False),False
+
+
+def collect_operations_reservation_recovery(current_reservation_target,current_request_token):
+    """검토 대상과 요청 식별값을 묶어 늦은 응답을 구분한다."""
+    return {'target':current_reservation_target,'token':current_request_token,'result':prepare_operations_reservation_recovery(current_reservation_target)}
+
+
+def render_operations_reservation_recovery(current_reservation_target,current_request_token,current_result_record):
+    """예약 선택 또는 요청이 바뀐 결과는 확인 창에 표시하지 않는다."""
+    if not isinstance(current_result_record,dict) or (current_result_record.get('target'),current_result_record.get('token'))!=(current_reservation_target,current_request_token):
+        return (gr.skip(),)*6
+    current_result_values=current_result_record.get('result')
+    if not isinstance(current_result_values,(list,tuple)) or len(current_result_values)!=5:return (gr.skip(),)*6
+    return (*current_result_values,gr.update(interactive=True))
+
+
 def submit_operations_reservation_recovery(current_request_record,current_reservation_target,current_outside_checked):
     """확인한 대상만 접수하며 응답이 불확실하면 자동 재시도하지 않는다."""
     if not isinstance(current_request_record,dict) or not isinstance(current_reservation_target,dict) or (current_request_record.get('service'),current_request_record.get('job_id'))!=(current_reservation_target.get('service'),current_reservation_target.get('job_id')):
@@ -1297,6 +1383,24 @@ def prepare_operations_priority_request(current_priority_target):
         return None,'대상 또는 접수 기록을 확인할 수 없습니다. 원 서비스와 대기열을 확인하세요. 순서는 변경하지 않았습니다.','',gr.update(visible=False)
 
 
+def start_operations_priority_review():
+    """새 우선 실행 검토 전 이전 요청과 확인 창을 지운다."""
+    return create_cleanup_preview_token(),gr.update(interactive=False),None,gr.update(visible=False)
+
+
+def collect_operations_priority_review(current_priority_target,current_request_token):
+    """우선 실행 검토 결과와 선택·요청 식별값을 함께 보관한다."""
+    return {'target':current_priority_target,'token':current_request_token,'result':prepare_operations_priority_request(current_priority_target)}
+
+
+def render_operations_priority_review(current_priority_target,current_request_token,current_result_record):
+    """대기 행이나 요청이 바뀌었다면 이전 확인 창을 표시하지 않는다."""
+    if not isinstance(current_result_record,dict) or (current_result_record.get('target'),current_result_record.get('token'))!=(current_priority_target,current_request_token):return (gr.skip(),)*5
+    current_result_values=current_result_record.get('result')
+    if not isinstance(current_result_values,(tuple,list)) or len(current_result_values)!=4:return (gr.skip(),)*5
+    return (*current_result_values,gr.update(interactive=True))
+
+
 def submit_operations_priority_request(current_request_record,current_priority_target):
     """사용자가 검토한 요청을 한 번 접수하고 결과 불명을 보수적으로 표시한다."""
     if not isinstance(current_request_record,dict) or not isinstance(current_priority_target,dict) or (current_request_record.get('service'),current_request_record.get('id'))!=(current_priority_target.get('service'),current_priority_target.get('id')):
@@ -1358,6 +1462,8 @@ def build_operations_history_interface():
             current_initial_session_state=gr.Textbox(value='',visible=False)
             current_session_notice=gr.Markdown()
             current_session_page=gr.State(None)
+            current_session_query_token=gr.State(None)
+            current_session_query_result=gr.State(None)
             with gr.Row():
                 current_session_button=gr.Button('세션 지시 조회')
                 current_session_older=gr.Button('이전 지시',interactive=False)
@@ -1367,13 +1473,16 @@ def build_operations_history_interface():
             current_session_link=gr.HTML()
             current_session_page_outputs=[current_session_rows,current_session_detail_status,current_session_link,current_session_page,current_session_older,current_session_newer]
             current_instruction_text=gr.Textbox(label='선택한 지시 원문',interactive=False,lines=4)
-            current_session_rows.select(select_operations_session_instruction,[current_session_dropdown,current_session_rows,current_session_page],[current_session_link,current_instruction_text],queue=False)
-            current_session_dropdown.change(lambda:'',outputs=[current_instruction_text],queue=False)
+            current_instruction_token=gr.State(None)
+            current_instruction_selection=gr.State(None)
+            current_instruction_result=gr.State(None)
+            current_session_rows.select(prepare_operations_instruction_selection,[current_session_dropdown,current_session_rows,current_session_page],[current_instruction_token,current_instruction_selection,current_session_link,current_instruction_text],queue=False).then(collect_operations_instruction_selection,[current_instruction_selection],[current_instruction_result],queue=False,trigger_mode='multiple').then(render_operations_instruction_selection,[current_session_dropdown,current_session_page,current_instruction_token,current_instruction_result],[current_session_link,current_instruction_text],queue=False)
+            current_session_dropdown.change(lambda:(create_cleanup_preview_token(),''),outputs=[current_instruction_token,current_instruction_text],queue=False)
             current_session_dropdown.change(fn=None,inputs=[current_session_dropdown],js="(sessionId)=>{const returnLink=document.querySelector('#management-return-conversation a');if(returnLink)returnLink.setAttribute('href','/management/frame/hermes-agent/'+(/^[a-f0-9]{32}$/.test(sessionId || '')?'?session='+sessionId:''));return sessionId;}",queue=False)
-            current_session_button.click(lambda:'',outputs=[current_instruction_text],queue=False)
-            current_session_older.click(lambda:'',outputs=[current_instruction_text],queue=False)
-            current_session_newer.click(lambda:'',outputs=[current_instruction_text],queue=False)
-            current_session_dropdown.change(lambda:([],'세션을 선택하고 조회하세요.','',None,gr.update(interactive=False),gr.update(interactive=False)),outputs=current_session_page_outputs,queue=False)
+            current_session_button.click(lambda:(create_cleanup_preview_token(),''),outputs=[current_instruction_token,current_instruction_text],queue=False)
+            current_session_older.click(lambda:(create_cleanup_preview_token(),''),outputs=[current_instruction_token,current_instruction_text],queue=False)
+            current_session_newer.click(lambda:(create_cleanup_preview_token(),''),outputs=[current_instruction_token,current_instruction_text],queue=False)
+            current_session_dropdown.change(lambda:(create_cleanup_preview_token(),[],'세션을 선택하고 조회하세요.','',None,gr.update(interactive=False),gr.update(interactive=False),gr.update(interactive=True)),outputs=[current_session_query_token,*current_session_page_outputs,current_session_button],queue=False)
             with gr.Accordion('이전 세션 찾기',open=False):
                 gr.Markdown('최근 100개보다 오래된 세션도 조회합니다. 지시 내용이나 세션 ID로 검색할 수 있습니다.')
                 current_old_session_query=gr.Textbox(label='지시·세션 ID 검색',placeholder='기억나는 지시나 세션 ID · 선택')
@@ -1395,12 +1504,13 @@ def build_operations_history_interface():
             current_receipt_notice=gr.Markdown('세션을 선택하고 조회하세요.')
             gr.Markdown('접수 행을 선택하면 해당 도구의 이력을 열 수 있습니다.')
             current_receipt_link=gr.HTML()
+            current_receipt_token=gr.State(None)
+            current_receipt_result=gr.State(None)
             current_receipt_table.select(select_operations_receipt_service,[current_receipt_table,current_session_dropdown],[current_receipt_link],queue=False)
-            current_receipt_button.click(read_operations_current_page_receipts,[current_session_dropdown,current_session_page],[current_receipt_table,current_receipt_notice],queue=False).then(lambda:'',outputs=[current_receipt_link],queue=False)
-            current_session_button.click(read_operations_session_history_page,[current_session_dropdown],current_session_page_outputs,queue=False).then(lambda:([],'표시된 지시의 접수 기록을 조회하세요.',''),outputs=[current_receipt_table,current_receipt_notice,current_receipt_link],queue=False)
-            current_session_older.click(read_next_operations_session_history,[current_session_dropdown,current_session_page],current_session_page_outputs,queue=False).then(lambda:([],'표시된 지시의 접수 기록을 조회하세요.',''),outputs=[current_receipt_table,current_receipt_notice,current_receipt_link],queue=False)
-            current_session_newer.click(read_newer_operations_session_history,[current_session_dropdown,current_session_page],current_session_page_outputs,queue=False).then(lambda:([],'표시된 지시의 접수 기록을 조회하세요.',''),outputs=[current_receipt_table,current_receipt_notice,current_receipt_link],queue=False)
-            current_session_dropdown.change(lambda:([],'세션을 선택하고 조회하세요.',''),outputs=[current_receipt_table,current_receipt_notice,current_receipt_link],queue=False)
+            current_receipt_button.click(lambda:(create_cleanup_preview_token(),gr.update(interactive=False)),outputs=[current_receipt_token,current_receipt_button],queue=False).then(collect_operations_page_receipts,[current_session_dropdown,current_session_page,current_receipt_token],[current_receipt_result],queue=False).then(render_operations_page_receipts,[current_session_dropdown,current_session_page,current_receipt_token,current_receipt_result],[current_receipt_table,current_receipt_notice,current_receipt_link,current_receipt_button],queue=False)
+            for current_page_button,current_page_direction in ((current_session_button,'first'),(current_session_older,'older'),(current_session_newer,'newer')):
+                current_page_button.click(lambda:(create_cleanup_preview_token(),create_cleanup_preview_token(),gr.update(interactive=False),gr.update(interactive=False),gr.update(interactive=False),gr.update(interactive=True)),outputs=[current_session_query_token,current_receipt_token,current_session_button,current_session_older,current_session_newer,current_receipt_button],queue=False).then(lambda current_session,current_page,current_token,current_direction=current_page_direction:collect_operations_session_page(current_session,current_page,current_token,current_direction),[current_session_dropdown,current_session_page,current_session_query_token],[current_session_query_result],queue=False).then(render_operations_session_page,[current_session_dropdown,current_session_query_token,current_session_query_result],[*current_session_page_outputs,current_receipt_table,current_receipt_notice,current_receipt_link,current_session_button],queue=False)
+            current_session_dropdown.change(lambda:(create_cleanup_preview_token(),[],'세션을 선택하고 조회하세요.','',gr.update(interactive=True)),outputs=[current_receipt_token,current_receipt_table,current_receipt_notice,current_receipt_link,current_receipt_button],queue=False)
         with gr.Accordion('Hermes 작업 이력',open=True):
             current_history_notice=gr.Markdown()
             current_history_table=gr.Dataframe(headers=['작업 ID','기록 상태','GPU 대기 관측','지시 요약','GPU 예약 관측'],datatype=['str']*5,interactive=False,type='array',label='Hermes 작업')
@@ -1488,6 +1598,8 @@ def build_operations_history_interface():
             gr.Markdown('대기 행을 선택하고 현재 상태를 검토한 뒤 우선 실행을 요청할 수 있습니다.')
             current_priority_target=gr.State(None)
             current_priority_request=gr.State(None)
+            current_priority_review_token=gr.State(None)
+            current_priority_review_result=gr.State(None)
             current_priority_status=gr.Markdown('대기 행을 선택하세요.')
             current_priority_preview=gr.Button('우선 실행 대상 확인',interactive=False)
             with gr.Group(visible=False) as current_priority_confirmation:
@@ -1498,8 +1610,9 @@ def build_operations_history_interface():
             current_priority_receipt_id=gr.Textbox(label='우선 실행 접수 ID · 결과 확인용',placeholder='접수 ID를 보관하거나 입력하세요')
             current_priority_receipt_button=gr.Button('우선 실행 접수 결과 조회')
             current_priority_receipt_notice=gr.Markdown()
-            current_queue_table.select(select_operations_priority_target,[current_queue_table],[current_priority_target,current_priority_status,current_priority_preview],queue=False).then(lambda:(None,gr.update(visible=False)),outputs=[current_priority_request,current_priority_confirmation],queue=False)
-            current_priority_preview.click(prepare_operations_priority_request,[current_priority_target],[current_priority_request,current_priority_status,current_priority_receipt_id,current_priority_confirmation],queue=False)
+            current_queue_table.select(select_operations_priority_target,[current_queue_table],[current_priority_target,current_priority_status,current_priority_preview],queue=False).then(lambda:(create_cleanup_preview_token(),None,gr.update(visible=False)),outputs=[current_priority_review_token,current_priority_request,current_priority_confirmation],queue=False)
+            current_queue_table.change(lambda:(create_cleanup_preview_token(),None,None,'대기 행을 다시 선택하세요.',gr.update(interactive=False),gr.update(visible=False)),outputs=[current_priority_review_token,current_priority_target,current_priority_request,current_priority_status,current_priority_preview,current_priority_confirmation],queue=False)
+            current_priority_preview.click(start_operations_priority_review,outputs=[current_priority_review_token,current_priority_preview,current_priority_request,current_priority_confirmation],queue=False).then(collect_operations_priority_review,[current_priority_target,current_priority_review_token],[current_priority_review_result],queue=False,trigger_mode='multiple').then(render_operations_priority_review,[current_priority_target,current_priority_review_token,current_priority_review_result],[current_priority_request,current_priority_status,current_priority_receipt_id,current_priority_confirmation,current_priority_preview],queue=False)
             current_priority_confirm.click(submit_operations_priority_request,[current_priority_request,current_priority_target],[current_priority_request,current_priority_status,current_priority_confirmation],queue=False)
             current_priority_cancel.click(lambda:(None,'우선 실행 요청을 취소했습니다. 순서는 변경하지 않았습니다.',gr.update(visible=False)),outputs=[current_priority_request,current_priority_status,current_priority_confirmation],queue=False)
             current_priority_receipt_button.click(read_operations_priority_request,[current_priority_receipt_id],[current_priority_receipt_notice],queue=False)
@@ -1511,6 +1624,8 @@ def build_operations_history_interface():
             current_reservation_inspect_button=gr.Button('선택한 생성기 예약 신원 확인',interactive=False)
             current_reservation_inspect_notice=gr.Markdown('예약 신원 조회는 프로세스를 종료하거나 예약을 해제하지 않습니다.')
             current_reservation_request=gr.State(None)
+            current_reservation_review_token=gr.State(None)
+            current_reservation_review_result=gr.State(None)
             current_reservation_recovery_button=gr.Button('선택한 예약 정리 검토')
             current_reservation_recovery_notice=gr.Markdown('예약을 선택하고 정리 가능 여부를 검토하세요.')
             with gr.Group(visible=False) as current_reservation_confirmation:
@@ -1528,12 +1643,12 @@ def build_operations_history_interface():
             current_reservation_table.select(select_operations_reservation_inspection,[current_reservation_table],[current_reservation_target,current_reservation_inspect_button,current_reservation_inspect_notice],queue=False)
             current_reservation_inspect_button.click(inspect_operations_reservation_target,[current_reservation_target],[current_reservation_inspect_notice],queue=False)
             current_reservation_table.change(lambda:(None,gr.update(interactive=False),'예약 행을 다시 선택하세요.'),outputs=[current_reservation_target,current_reservation_inspect_button,current_reservation_inspect_notice],queue=False)
-            current_reservation_recovery_button.click(prepare_operations_reservation_recovery,[current_reservation_target],[current_reservation_request,current_reservation_recovery_notice,current_reservation_receipt_id,current_reservation_confirmation,current_reservation_outside_checked],queue=False)
+            current_reservation_recovery_button.click(start_operations_reservation_review,outputs=[current_reservation_review_token,current_reservation_recovery_button,current_reservation_request,current_reservation_confirmation,current_reservation_outside_checked],queue=False).then(collect_operations_reservation_recovery,[current_reservation_target,current_reservation_review_token],[current_reservation_review_result],queue=False,trigger_mode='multiple').then(render_operations_reservation_recovery,[current_reservation_target,current_reservation_review_token,current_reservation_review_result],[current_reservation_request,current_reservation_recovery_notice,current_reservation_receipt_id,current_reservation_confirmation,current_reservation_outside_checked,current_reservation_recovery_button],queue=False)
             current_reservation_confirm.click(submit_operations_reservation_recovery,[current_reservation_request,current_reservation_target,current_reservation_outside_checked],[current_reservation_request,current_reservation_recovery_notice,current_reservation_confirmation],queue=False)
             current_reservation_cancel.click(lambda:(None,'예약 정리 요청을 취소했습니다.',gr.update(visible=False),False),outputs=[current_reservation_request,current_reservation_recovery_notice,current_reservation_confirmation,current_reservation_outside_checked],queue=False)
             current_reservation_receipt_button.click(read_operations_reservation_recovery_receipt,[current_reservation_receipt_id],[current_reservation_receipt_notice],queue=False)
-            current_reservation_table.select(lambda:(None,gr.update(visible=False),False),outputs=[current_reservation_request,current_reservation_confirmation,current_reservation_outside_checked],queue=False)
-            current_reservation_table.change(lambda:(None,gr.update(visible=False),False),outputs=[current_reservation_request,current_reservation_confirmation,current_reservation_outside_checked],queue=False)
+            current_reservation_table.select(lambda:(create_cleanup_preview_token(),None,gr.update(visible=False),False,gr.update(interactive=True)),outputs=[current_reservation_review_token,current_reservation_request,current_reservation_confirmation,current_reservation_outside_checked,current_reservation_recovery_button],queue=False)
+            current_reservation_table.change(lambda:(create_cleanup_preview_token(),None,gr.update(visible=False),False,gr.update(interactive=True)),outputs=[current_reservation_review_token,current_reservation_request,current_reservation_confirmation,current_reservation_outside_checked,current_reservation_recovery_button],queue=False)
 
         current_overview_outputs=[current_session_dropdown,current_session_notice,current_history_table,current_history_notice,current_queue_table,current_queue_notice,current_summary_status,current_reservation_table,current_reservation_notice]
         current_refresh_button.click(read_operations_history_overview,[current_search_input,current_status_filter,current_session_dropdown],current_overview_outputs,queue=False).then(lambda:(None,'대기 행을 선택하세요.',gr.update(interactive=False),None,gr.update(visible=False)),outputs=[current_priority_target,current_priority_status,current_priority_preview,current_priority_request,current_priority_confirmation],queue=False).then(reset_operations_history_detail,outputs=current_history_detail_outputs,queue=False)

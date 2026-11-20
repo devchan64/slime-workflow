@@ -1123,5 +1123,125 @@ asyncio.run(inspect_cleanup_transport())
                 current_server_thread.join(timeout=5)
 
 
+    def test_legacy_wan_fun_source_history_crosses_stdio_and_gateway(self):
+        import json
+        import tempfile
+        import threading
+        from http.server import ThreadingHTTPServer
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.domains.wan_fun.generation import FunControlGenerationManager
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_repository_root=Path(__file__).resolve().parents[3]
+        current_runtime_python=current_repository_root/'.local/hermes-mcp/bin/python'
+        if not current_runtime_python.is_file():self.skipTest('Hermes MCP 런타임이 설치되지 않았습니다.')
+        current_client_script=r"""
+import asyncio,json,os,sys
+from mcp import ClientSession,StdioServerParameters
+from mcp.client.stdio import stdio_client
+async def inspect_wan_fun_history():
+    current_parameters=StdioServerParameters(command=sys.executable,args=['tools/review/domains/hermes_agent/mcp_server.py'],cwd=os.getcwd(),env=dict(os.environ))
+    async with stdio_client(current_parameters) as (current_read_stream,current_write_stream):
+        async with ClientSession(current_read_stream,current_write_stream) as current_session:
+            await current_session.initialize()
+            current_result=await current_session.call_tool('list_hermes_generator_source_history',{'generator_service_name':'wan22-fun-control'})
+            if current_result.is_error:raise RuntimeError(str(current_result.content))
+            current_record=current_result.structured_content or json.loads(current_result.content[0].text)
+            current_expected={'id':'2026-11-20_20-02-00-prepare','recorded_status':'queued','status_source':'job'}
+            if current_record.get('service')!='wan22-fun-control' or current_record.get('records')!=[current_expected]:raise RuntimeError(str(current_record))
+            if 'private-secret' in json.dumps(current_record):raise RuntimeError('경로 노출')
+            print('legacy_fun_history_transport=ok')
+asyncio.run(inspect_wan_fun_history())
+"""
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_manager_instance=FunControlGenerationManager()
+            current_manager_instance.job_storage_root=current_root_path/'private-secret'
+            current_job_path=current_manager_instance.job_storage_root/'2026-11-20_20-02-00-prepare'
+            current_job_path.mkdir(parents=True)
+            (current_job_path/'request.json').write_text('{"action":"prepare"}')
+            (current_job_path/'status.json').write_text('{"status":"queued"}')
+            current_hermes_manager=HermesServiceManager(current_root_path/'hermes-jobs',current_root_path/'sessions')
+            current_gateway=ManagementCommandGateway({'hermes-agent':current_hermes_manager.handle_hermes_request,'wan22-fun-control':current_manager_instance.handle_image_request})
+            current_server=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway.handle))
+            current_server.emit_gateway_trace=lambda *current_values:None
+            current_server_thread=threading.Thread(target=current_server.serve_forever,daemon=True)
+            current_server_thread.start()
+            current_gateway_url='http://127.0.0.1:'+str(current_server.server_port)
+            current_environment=dict(os.environ,SLIME_MANAGEMENT_GATEWAY_URL=current_gateway_url,PYTHONPATH=str(current_repository_root),CUDA_VISIBLE_DEVICES='',HIP_VISIBLE_DEVICES='',ROCR_VISIBLE_DEVICES='')
+            try:
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_url}),patch.object(current_manager_instance,'history_storage_path',return_value=None):
+                    current_process=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment,capture_output=True,text=True,timeout=30)
+                self.assertEqual(current_process.returncode,0,current_process.stderr[-3000:])
+                self.assertIn('legacy_fun_history_transport=ok',current_process.stdout)
+                self.assertEqual((current_job_path/'status.json').read_text(),'{"status":"queued"}')
+            finally:
+                current_server.shutdown()
+                current_server.server_close()
+                current_server_thread.join(timeout=5)
+
+
+    def test_legacy_fun_prepare_reservation_crosses_mcp_without_mutation(self):
+        import json
+        import tempfile
+        import threading
+        from http.server import ThreadingHTTPServer
+        from unittest.mock import patch
+        from tools.review.common import gpu_job_queue, gpu_status
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.domains.hermes_agent import management_observer
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_repository_root=Path(__file__).resolve().parents[3]
+        current_runtime_python=current_repository_root/'.local/hermes-mcp/bin/python'
+        if not current_runtime_python.is_file():self.skipTest('Hermes MCP 런타임이 설치되지 않았습니다.')
+        current_client_script=r"""
+import asyncio,json,os,sys
+from mcp import ClientSession,StdioServerParameters
+from mcp.client.stdio import stdio_client
+async def inspect_reservation_transport():
+    current_parameters=StdioServerParameters(command=sys.executable,args=['tools/review/domains/hermes_agent/mcp_server.py'],cwd=os.getcwd(),env=dict(os.environ))
+    async with stdio_client(current_parameters) as (current_read_stream,current_write_stream):
+        async with ClientSession(current_read_stream,current_write_stream) as current_session:
+            await current_session.initialize()
+            current_result=await current_session.call_tool('read_hermes_management_status',{})
+            if current_result.is_error:raise RuntimeError(str(current_result.content))
+            current_record=current_result.structured_content or json.loads(current_result.content[0].text)
+            current_reservations=current_record['reservations']['records']
+            if len(current_reservations)!=1 or current_reservations[0].get('job_id')!='2026-11-20_20-02-00-prepare' or current_reservations[0].get('source_service')!='wan22-fun-control' or current_reservations[0].get('state')!='cleanup_unverified':raise RuntimeError(str(current_reservations))
+            if 'private-secret' in json.dumps(current_record):raise RuntimeError('경로 노출')
+            print('legacy_fun_reservation_transport=ok')
+asyncio.run(inspect_reservation_transport())
+"""
+        with tempfile.TemporaryDirectory(prefix='private-secret-') as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_job_path=current_root_path/'.tmp'/'test'/'wan22-fun-control'/'2026-11-20_20-02-00-prepare'
+            current_job_path.mkdir(parents=True)
+            current_queue_root=current_root_path/'queue'
+            (current_queue_root/'active').mkdir(parents=True)
+            current_reservation_path=current_queue_root/'active'/'entry.json'
+            current_reservation_path.write_text(json.dumps({'service':'wan-fun-prepare','path':str(current_job_path),'required_memory_mib':6144,'cleanup_unverified':True}))
+            current_before_bytes=current_reservation_path.read_bytes()
+            current_hermes_manager=HermesServiceManager(current_root_path/'hermes-jobs',current_root_path/'sessions')
+            current_gateway=ManagementCommandGateway({'hermes-agent':current_hermes_manager.handle_hermes_request})
+            current_server=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway.handle))
+            current_server.emit_gateway_trace=lambda *current_values:None
+            current_server_thread=threading.Thread(target=current_server.serve_forever,daemon=True)
+            current_server_thread.start()
+            current_gateway_url='http://127.0.0.1:'+str(current_server.server_port)
+            current_environment=dict(os.environ,SLIME_MANAGEMENT_GATEWAY_URL=current_gateway_url,PYTHONPATH=str(current_repository_root),CUDA_VISIBLE_DEVICES='',HIP_VISIBLE_DEVICES='',ROCR_VISIBLE_DEVICES='')
+            try:
+                with patch.object(gpu_job_queue,'WORKFLOW_ROOT_DIRECTORY',current_root_path),patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_root),patch.object(gpu_job_queue,'list_waiting_gpu_jobs',return_value={'jobs':[]}),patch.object(gpu_status,'read_gpu_status',return_value={'status':'unavailable'}),patch.object(management_observer,'inspect_hermes_model_status',return_value={}),patch.object(management_observer,'read_hermes_generator_snapshot',return_value={}),patch.object(management_observer,'read_hermes_recent_job_snapshot',return_value={}):
+                    current_process=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment,capture_output=True,text=True,timeout=30)
+                self.assertEqual(current_process.returncode,0,current_process.stderr[-3000:])
+                self.assertIn('legacy_fun_reservation_transport=ok',current_process.stdout)
+                self.assertEqual(current_reservation_path.read_bytes(),current_before_bytes)
+            finally:
+                current_server.shutdown()
+                current_server.server_close()
+                current_server_thread.join(timeout=5)
+
+
 if __name__=='__main__':
     unittest.main()

@@ -895,7 +895,7 @@ def identify_gpu_queue_source(current_job_path,current_queue_service,current_wor
 def is_dedicated_gpu_source_verifiable(current_queue_service):
     """원 서비스 작업 루트를 지정해 검증할 수 있는 대기열 서비스다."""
     from generators.music.service_constants import AUDIO_SERVICE_NAMES
-    return current_queue_service in (*AUDIO_SERVICE_NAMES,'prompt-translation','wan-fun','flux-expression','review-capture')
+    return current_queue_service in (*AUDIO_SERVICE_NAMES,'prompt-translation','wan-fun','wan-fun-prepare','flux-expression','review-capture')
 
 
 def identify_dedicated_gpu_reservation_source(current_job_path,current_queue_service,current_workflow_root=None):
@@ -903,7 +903,7 @@ def identify_dedicated_gpu_reservation_source(current_job_path,current_queue_ser
     import re
     from generators.music.service_constants import AUDIO_SERVICE_NAMES
     current_source_directories={current_audio_name:current_audio_name for current_audio_name in AUDIO_SERVICE_NAMES}
-    current_source_directories.update({'prompt-translation':'prompt-translation','wan-fun':'wan22-fun-control','flux-expression':'flux-expression-generator','review-capture':'review-capture'})
+    current_source_directories.update({'prompt-translation':'prompt-translation','wan-fun':'wan22-fun-control','wan-fun-prepare':'wan22-fun-control','flux-expression':'flux-expression-generator','review-capture':'review-capture'})
     current_directory_name=current_source_directories.get(current_queue_service)
     if current_directory_name is None or not isinstance(current_job_path,str):return None
     current_root_path=Path(current_workflow_root or WORKFLOW_ROOT_DIRECTORY)
@@ -917,7 +917,7 @@ def identify_dedicated_gpu_reservation_source(current_job_path,current_queue_ser
         for current_path_part in (current_root_path,current_temporary_root,current_base_root,current_service_root,current_expected_path):
             if current_path_part.is_symlink() or not current_path_part.is_dir():return None
         if current_path_value!=current_expected_path or current_path_value.resolve()!=current_expected_path.resolve():return None
-        return 'wan22-fun-control' if current_queue_service=='wan-fun' else current_queue_service
+        return 'wan22-fun-control' if current_queue_service in ('wan-fun','wan-fun-prepare') else current_queue_service
     except (OSError,ValueError,RuntimeError):
         return None
 

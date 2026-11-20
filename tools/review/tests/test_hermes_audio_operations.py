@@ -219,6 +219,48 @@ except ValueError as error:
             self.assertTrue(audio_operations.submit_hermes_audio_request('audio_unknown_123','sfx-dasheng-audiogen',{'prompt':'water','seed':42})['duplicate'])
             current_gateway_mock.assert_called_once()
 
+    def test_concurrent_source_history_rejects_same_owner_without_blocking_others(self):
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        current_entered_event=threading.Event()
+        current_release_event=threading.Event()
+        current_empty_result={'records':[],'total':0,'offset':0,'next_offset':None,'snapshot':'a'*64,'unavailable_count':0}
+        def current_source_response(current_service_name,current_command_name,current_request_value,current_gateway_address):
+            if current_service_name=='building-generator':
+                current_entered_event.set()
+                if not current_release_event.wait(5):raise RuntimeError('시험 동기화 실패')
+            return current_empty_result
+        with patch.object(audio_operations,'execute_management_command',side_effect=current_source_response) as current_gateway_mock:
+            with ThreadPoolExecutor(max_workers=2) as current_executor_value:
+                current_pending_future=current_executor_value.submit(audio_operations.read_hermes_generator_source_history,'building-generator',{})
+                try:
+                    self.assertTrue(current_entered_event.wait(3))
+                    with self.assertRaisesRegex(ValueError,'조회 중'):audio_operations.read_hermes_generator_source_history('billboard-generator',{})
+                    self.assertEqual(audio_operations.read_hermes_audio_source_history('music-heartmula',{})['total'],0)
+                finally:
+                    current_release_event.set()
+                self.assertEqual(current_pending_future.result(timeout=5)['source_service'],'billboard-generator')
+            self.assertEqual(current_gateway_mock.call_count,2)
+            self.assertEqual(audio_operations.read_hermes_generator_source_history('billboard-generator',{})['total'],0)
+
+    def test_invalid_history_request_does_not_call_source_service(self):
+        current_invalid_requests=[{'offset':1},{'offset':True},{'limit':31},{'snapshot':'bad'},{'query':'bad query'},{'extra':1}]
+        for current_reader_value,current_service_name in ((audio_operations.read_hermes_audio_source_history,'music-heartmula'),(audio_operations.read_hermes_generator_source_history,'wan22-fun-control')):
+            for current_request_value in current_invalid_requests:
+                with self.subTest(service=current_service_name,request=current_request_value),patch.object(audio_operations,'execute_management_command') as current_gateway_mock:
+                    with self.assertRaises(ValueError):current_reader_value(current_service_name,current_request_value)
+                    current_gateway_mock.assert_not_called()
+
+    def test_source_history_rejects_out_of_range_and_missing_snapshot(self):
+        from tools.review.domains.hermes_agent.audio_operations import sanitize_hermes_source_history
+        current_empty_record={'records':[],'total':2,'offset':3,'next_offset':None,'snapshot':'a'*64,'unavailable_count':0}
+        with self.assertRaises(ValueError):
+            sanitize_hermes_source_history('music-heartmula',{'offset':3,'limit':1,'snapshot':'a'*64},current_empty_record)
+        current_last_record={'records':[],'total':2,'offset':2,'next_offset':None,'snapshot':'a'*64,'unavailable_count':0}
+        with self.assertRaises(ValueError):
+            sanitize_hermes_source_history('music-heartmula',{'offset':2,'limit':1},current_last_record)
+        self.assertEqual(sanitize_hermes_source_history('music-heartmula',{'offset':2,'limit':1,'snapshot':'a'*64},current_last_record)['records'],[])
+
     def test_source_history_rejects_incomplete_or_mismatched_pages(self):
         from tools.review.domains.hermes_agent.audio_operations import sanitize_hermes_source_history
         current_request_value={'offset':1,'limit':1,'snapshot':'a'*64}

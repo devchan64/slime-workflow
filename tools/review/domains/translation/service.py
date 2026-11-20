@@ -80,6 +80,11 @@ class TranslationServiceManager:
             yield
 
     def execute_translation_command(self, translation_command_name, translation_payload_record):
+        if translation_command_name == 'history-observe':
+            from tools.review.common.generation_records import hold_history_observation_guard
+            with hold_history_observation_guard(self.job_storage_root):
+                with self.hold_translation_service_lock():
+                    return self.execute_locked_translation_command(translation_command_name, translation_payload_record)
         if translation_command_name == 'history-reset-preview':
             with hold_cleanup_preview_guard(self.job_storage_root):
                 with self.hold_translation_service_lock():
