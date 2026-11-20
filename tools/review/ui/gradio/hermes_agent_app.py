@@ -180,6 +180,51 @@ def list_hermes_session_choices(hermes_selected_identifier=None):
         raise gr.Error('세션 목록 조회 실패: ' + str(hermes_request_error)) from hermes_request_error
 
 
+def review_conversation_workflow_definition(current_session_identifier, workflow_definition_text):
+    from tools.review.common.management_gateway import parse_management_request_json
+    from tools.review.domains.hermes_agent.workflow_catalog import create_workflow_step_draft, read_workflow_generator_catalog
+    from tools.review.domains.hermes_agent.workflow_definition import compile_workflow_dependencies
+    if not re.fullmatch(r"[a-f0-9]{32}", current_session_identifier or ""):
+        raise gr.Error("대화 세션을 선택하세요.")
+    current_proposal_record = parse_management_request_json(workflow_definition_text)
+    if not isinstance(current_proposal_record, dict) or set(current_proposal_record) != {"steps"} or not isinstance(current_proposal_record["steps"], list):
+        raise gr.Error("steps 목록을 확인하세요.")
+    normalized_step_records = []
+    for current_step_record in current_proposal_record["steps"]:
+        if not isinstance(current_step_record, dict) or set(current_step_record) - {"id", "generator", "inputs", "bindings"}:
+            raise gr.Error("단계 정의를 확인하세요.")
+        fixed_input_record = current_step_record.get("inputs", {})
+        bound_input_record = current_step_record.get("bindings", {})
+        if not isinstance(fixed_input_record, dict) or not isinstance(bound_input_record, dict) or fixed_input_record.keys() & bound_input_record.keys():
+            raise gr.Error("단계 입력과 연결을 확인하세요.")
+        normalized_step_record = create_workflow_step_draft(current_step_record.get("id"), current_step_record.get("generator"), fixed_input_record)
+        for current_field_name in bound_input_record:
+            normalized_step_record["inputs"].pop(current_field_name, None)
+        normalized_step_record["bindings"] = bound_input_record
+        normalized_step_records.append(normalized_step_record)
+    compile_workflow_dependencies(normalized_step_records, read_workflow_generator_catalog())
+    return {"session_id": current_session_identifier, "run_id": uuid.uuid4().hex, "steps": normalized_step_records}
+
+
+def load_conversation_workflow_definition(current_session_identifier, current_source_job_identifier):
+    current_session_match = find_conversation_session_job(current_session_identifier, current_source_job_identifier)
+    current_job_record = current_session_match["job"]
+    current_answer_text = current_job_record.get("final_response")
+    if current_job_record.get("final_response_truncated") is not False or not isinstance(current_answer_text, str):
+        raise gr.Error("완료된 대화 답변 전체가 필요합니다.")
+    proposal_block_values = re.findall(r"(?ms)^HERMES_WORKFLOW_PROPOSAL[ \t]*\n(.*?)\nEND_HERMES_WORKFLOW_PROPOSAL[ \t]*$", current_answer_text)
+    if len(proposal_block_values) != 1:
+        raise gr.Error("선택한 답변에서 워크플로우 제안 한 개를 확인하세요.")
+    return proposal_block_values[0]
+
+
+def submit_conversation_workflow_definition(current_review_record, current_session_identifier, workflow_definition_text):
+    expected_review_record = review_conversation_workflow_definition(current_session_identifier, workflow_definition_text)
+    if not current_review_record or any(current_review_record[key] != expected_review_record[key] for key in ("session_id", "steps")):
+        raise gr.Error("편집한 단계를 다시 검토하세요.")
+    return execute_remote_management_command("hermes-agent", "hermes-workflow-register", current_review_record)
+
+
 def import_workflow_translation_proposal(current_session_identifier, current_source_job_identifier):
     find_conversation_session_job(current_session_identifier, current_source_job_identifier)
     proposal_input_record = read_matching_hermes_edit_proposal(current_source_job_identifier, "hermes-translation-proposal")
@@ -4841,6 +4886,21 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                         [hermes_session_control, workflow_run_identifier], workflow_display_outputs, queue=False)
                     for workflow_context_input in (hermes_session_control, workflow_run_identifier):
                         workflow_context_input.change(lambda: (None, "", ""), outputs=workflow_display_outputs, queue=False)
+                with gr.Accordion("대화에서 설계한 워크플로우", open=False):
+                    workflow_load_proposal = gr.Button("선택한 답변에서 단계 가져오기")
+                    workflow_definition_text = gr.Textbox(label="생성기 입력과 단계 연결 (JSON)", lines=8)
+                    workflow_load_proposal.click(load_conversation_workflow_definition, [hermes_session_control, hermes_session_job_selection], workflow_definition_text, queue=False)
+                    workflow_graph_review = gr.Button("입력과 연결 검토")
+                    workflow_graph_state = gr.State(None)
+                    workflow_graph_preview = gr.JSON(label="기본값을 포함한 실행 계획")
+                    workflow_graph_event = workflow_graph_review.click(review_conversation_workflow_definition, [hermes_session_control, workflow_definition_text], workflow_graph_state, queue=False)
+                    workflow_graph_event.success(lambda record: (record["steps"], record["run_id"]), workflow_graph_state, [workflow_graph_preview, workflow_run_identifier], queue=False)
+                    workflow_graph_submit = gr.Button("검토한 워크플로우 등록")
+                    workflow_graph_inputs = [workflow_graph_state, hermes_session_control, workflow_definition_text]
+                    bind_gpu_generation_confirmation(workflow_graph_submit, submit_conversation_workflow_definition, workflow_graph_inputs, [workflow_run_display],
+                        generation_readiness_callback=lambda record: bool(record), generation_readiness_inputs=[workflow_graph_state],
+                        generation_readiness_events=[workflow_graph_event], generation_confirmation_validator=match_hermes_confirmation_inputs,
+                        generation_confirmation_inputs=workflow_graph_inputs)
                 with gr.Accordion("이 대화의 워크플로우 작업 찾기", open=False):
                     workflow_category_filter = gr.Dropdown([("전체", ""), ("번역", "translation"), ("이미지", "image")], value="", label="카테고리")
                     workflow_state_filter = gr.Dropdown([("전체", ""), ("선행 작업 대기", "waiting"), ("접수 준비", "ready"),
