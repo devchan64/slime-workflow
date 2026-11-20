@@ -15,7 +15,7 @@ def execute_workflow_command(workflow_root_directory, current_command_name, curr
         required_field_names = {"session_id", "category", "state"}
     elif current_command_name == "hermes-workflow-register":
         required_field_names.add("steps")
-    elif current_command_name != "hermes-workflow-view":
+    elif current_command_name not in ("hermes-workflow-view", "hermes-workflow-cancel"):
         raise ValueError("지원하지 않는 워크플로우 명령입니다.")
     if current_payload_record.keys() != required_field_names:
         raise ValueError("워크플로우 명령 필드를 확인하세요.")
@@ -34,4 +34,6 @@ def execute_workflow_command(workflow_root_directory, current_command_name, curr
     if current_command_name == "hermes-workflow-register":
         workflow_run_store.register_workflow_run(workflow_run_identifier, conversation_session_identifier,
                                                  current_payload_record["steps"])
+    if current_command_name == "hermes-workflow-cancel":
+        workflow_run_store.request_workflow_cancellation(workflow_run_identifier, conversation_session_identifier)
     return workflow_run_store.read_session_run_view(workflow_run_identifier, conversation_session_identifier)

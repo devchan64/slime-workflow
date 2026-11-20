@@ -325,6 +325,11 @@ def display_conversation_workflow_results(current_session_identifier, workflow_r
     return current_run_view, "\n\n".join(translated_result_values), "\n\n".join(image_result_links)
 
 
+def cancel_conversation_workflow_run(current_session_identifier, workflow_run_identifier):
+    return execute_remote_management_command("hermes-agent", "hermes-workflow-cancel",
+        {"session_id": current_session_identifier, "run_id": workflow_run_identifier})
+
+
 def read_conversation_workflow_result(current_session_identifier, workflow_run_identifier):
     return execute_remote_management_command("hermes-agent", "hermes-workflow-view",
         {"session_id": current_session_identifier, "run_id": workflow_run_identifier})
@@ -4907,6 +4912,9 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                         ("접수·결과 확인 중", "submitting"), ("생성기 대기", "queued"), ("생성기 실행 중", "running"),
                         ("생성기 일시정지", "paused"), ("생성기 상태 확인 불가", "unknown"), ("완료", "completed"), ("실패", "failed"),
                         ("취소", "cancelled"), ("차단", "blocked")], value="", label="단계 상태")
+                    workflow_cancel_button = gr.Button("지정한 실행 ID의 워크플로우 취소 요청")
+                    workflow_cancel_button.click(cancel_conversation_workflow_run,
+                        [hermes_session_control, workflow_run_identifier], workflow_run_display, queue=False)
                     workflow_search_button = gr.Button("작업 찾기")
                     workflow_search_results = gr.JSON(label="최근 일치 작업과 실행 ID")
                     workflow_search_button.click(list_conversation_workflow_steps,

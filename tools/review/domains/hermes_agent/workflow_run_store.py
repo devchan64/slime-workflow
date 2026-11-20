@@ -37,8 +37,9 @@ def read_step_records_locked(current_database_connection, workflow_run_identifie
     return [dict(current_step_row) for current_step_row in current_database_connection.execute(
         """SELECT step.step_id, step.category, step.state, step.request_id,
                   contract.generator, contract.generator_version, contract.template_version,
-                  blocked.source_step AS blocking_step, blocked.reason AS block_reason, observed.source_state, observed.observed_at, observed.source_job_id
+                  blocked.source_step AS blocking_step, blocked.reason AS block_reason, cancellation.delivery AS cancel_delivery, observed.source_state, observed.observed_at, observed.source_job_id
            FROM workflow_step AS step LEFT JOIN workflow_step_contract AS contract USING(run_id, step_id)
+           LEFT JOIN workflow_cancel_request AS cancellation USING(request_id)
            LEFT JOIN workflow_block_reason AS blocked USING(run_id, step_id)
            LEFT JOIN workflow_observation AS observed USING(request_id)
            WHERE step.run_id=? ORDER BY step.rowid""",
@@ -68,6 +69,9 @@ class WorkflowRunStore:
                 );
                 CREATE TABLE IF NOT EXISTS workflow_observation (
                     request_id TEXT PRIMARY KEY, source_state TEXT NOT NULL, observed_at TEXT NOT NULL, source_job_id TEXT
+                );
+                CREATE TABLE IF NOT EXISTS workflow_cancel_request (
+                    request_id TEXT PRIMARY KEY, delivery TEXT NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS workflow_png (
                     digest TEXT PRIMARY KEY, content BLOB NOT NULL
@@ -283,6 +287,33 @@ class WorkflowRunStore:
                    ON CONFLICT(request_id) DO UPDATE SET source_state=excluded.source_state,
                    observed_at=excluded.observed_at, source_job_id=COALESCE(excluded.source_job_id, source_job_id)""",
                 (observed_source_state, datetime.now(timezone.utc).isoformat(), source_job_identifier, current_request_identifier))
+
+    def request_workflow_cancellation(self, workflow_run_identifier, conversation_session_identifier):
+        with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
+            current_database_connection.execute("BEGIN IMMEDIATE")
+            if not current_database_connection.execute(
+                    "SELECT 1 FROM workflow_run WHERE run_id=? AND session_id=?",
+                    (workflow_run_identifier, conversation_session_identifier)).fetchone():
+                raise ValueError("이 세션에서 해당 실행을 찾을 수 없습니다.")
+            current_database_connection.execute(
+                "UPDATE workflow_step SET state='cancelled' WHERE run_id=? AND state IN ('ready','waiting')",
+                (workflow_run_identifier,))
+            current_database_connection.execute(
+                """INSERT OR IGNORE INTO workflow_cancel_request
+                   SELECT request_id, 'pending' FROM workflow_step WHERE run_id=? AND state='submitting'""",
+                (workflow_run_identifier,))
+
+    def claim_pending_cancellation(self, current_request_identifier):
+        with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
+            return current_database_connection.execute(
+                "UPDATE workflow_cancel_request SET delivery='unconfirmed' WHERE request_id=? AND delivery='pending'",
+                (current_request_identifier,)).rowcount == 1
+
+    def acknowledge_cancel_delivery(self, current_request_identifier):
+        with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
+            current_database_connection.execute(
+                "UPDATE workflow_cancel_request SET delivery='acknowledged' WHERE request_id=? AND delivery='unconfirmed'",
+                (current_request_identifier,))
 
     def list_active_run_identifiers(self):
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
