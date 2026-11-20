@@ -31,6 +31,8 @@ HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-capabilities','label':'Hermes 기능 목록','required':[],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'capability_catalog','note':'게이트웨이 등록과 목록의 차이를 함께 표시한다.'},
     {'command': 'hermes-workflow-catalog', 'label': '워크플로우 생성기 계약', 'required': [], 'optional': [], 'effect': 'read', 'gpu': 'none', 'retry': 'safe', 'interfaces': [], 'result': 'workflow_catalog', 'note': '지원하는 생성기의 입력과 출력을 조회한다.'},
     {'command': 'hermes-workflow-register', 'label': '워크플로우 실행 등록', 'required': ['session_id', 'run_id', 'steps'], 'optional': [], 'effect': 'enqueue', 'gpu': 'queued', 'retry': 'request_id', 'interfaces': ['gui'], 'result': 'workflow_register', 'note': '검토한 실행 ID와 단계 정의를 고정하고 준비된 단계를 GPU 대기열에 접수한다.'},
+    {'command': 'hermes-workflow-draft-read', 'label': '대화별 워크플로우 초안 조회', 'required': ['session_id'], 'optional': [], 'effect': 'read', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_draft', 'note': '세션의 편집 내용과 리비전을 읽는다.'},
+    {'command': 'hermes-workflow-draft-save', 'label': '대화별 워크플로우 초안 저장', 'required': ['session_id', 'revision', 'definition_text'], 'optional': [], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_draft', 'note': '같은 리비전의 편집 내용을 실행 전 초안에 저장한다.'},
     {'command': 'hermes-workflow-retry', 'label': '실패 단계 재시도', 'required': ['session_id', 'run_id', 'step_id', 'source_request'], 'optional': [], 'effect': 'enqueue', 'gpu': 'queued', 'retry': 'request_id', 'interfaces': ['gui'], 'result': 'workflow_view', 'note': '선택한 원 시도의 입력으로 단일 단계 실행을 등록한다.'},
     {'command': 'hermes-workflow-select', 'label': '후속 입력 결과 선택', 'required': ['session_id', 'run_id', 'step_id', 'input_field', 'source_request', 'digest'], 'optional': [], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_view', 'note': '검토한 생산 시도와 결과 해시를 단계 입력에 고정한다.'},
     {'command': 'hermes-workflow-cancel', 'label': '워크플로우 취소 요청', 'required': ['session_id', 'run_id'], 'optional': [], 'effect': 'cancel_request', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_view', 'note': '미접수 단계를 중단하고 접수된 작업은 원 서비스에 취소를 요청한다.'},
@@ -174,6 +176,7 @@ HERMES_CAPABILITY_RECORDS = (
 
 
 HERMES_FIELD_SCHEMAS = {
+    'definition_text': {'type':'string','maxLength':500000},
     'search_filters': {'type':'object','properties':{name: {'type':'string'} for name in
                        ('generator','run_id','job_id','created_from','created_through')},'additionalProperties':False},
     'step_id': {'type':'string','minLength':1},

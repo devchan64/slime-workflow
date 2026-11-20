@@ -17,6 +17,10 @@ def execute_workflow_command(workflow_root_directory, current_command_name, curr
             required_field_names.add("search_filters")
             if not isinstance(current_payload_record["search_filters"], dict):
                 raise ValueError("검색 조건은 객체여야 합니다.")
+    elif current_command_name == "hermes-workflow-draft-read":
+        required_field_names = {"session_id"}
+    elif current_command_name == "hermes-workflow-draft-save":
+        required_field_names = {"session_id", "revision", "definition_text"}
     elif current_command_name == "hermes-workflow-retry":
         required_field_names.update({"step_id", "source_request"})
     elif current_command_name == "hermes-workflow-select":
@@ -37,6 +41,11 @@ def execute_workflow_command(workflow_root_directory, current_command_name, curr
     if current_command_name == "hermes-workflow-list":
         return workflow_run_store.find_session_workflow_steps(current_payload_record["session_id"],
             current_payload_record["category"], current_payload_record["state"], current_payload_record.get("search_filters"))
+    if current_command_name == "hermes-workflow-draft-read":
+        return workflow_run_store.read_session_draft(current_payload_record["session_id"])
+    if current_command_name == "hermes-workflow-draft-save":
+        return workflow_run_store.save_session_draft(current_payload_record["session_id"], current_payload_record["revision"],
+                                                    current_payload_record["definition_text"])
     workflow_run_identifier = current_payload_record["run_id"]
     conversation_session_identifier = current_payload_record["session_id"]
     if current_command_name == "hermes-workflow-register":

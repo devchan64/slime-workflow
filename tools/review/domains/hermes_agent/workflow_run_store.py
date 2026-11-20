@@ -65,6 +65,9 @@ class WorkflowRunStore:
         self.workflow_database_path = workflow_database_path
         with closing(sqlite3.connect(workflow_database_path)) as current_database_connection:
             current_database_connection.executescript("""
+                CREATE TABLE IF NOT EXISTS workflow_draft (
+                    session_id TEXT PRIMARY KEY, revision TEXT NOT NULL, definition_text TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS workflow_run (
                     run_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, definition TEXT NOT NULL
                 );
@@ -119,6 +122,34 @@ class WorkflowRunStore:
                     ON CONFLICT(request_id) DO UPDATE SET updated_at=CURRENT_TIMESTAMP;
                 END;
             """)
+
+    def read_session_draft(self, conversation_session_identifier):
+        with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
+            stored_draft_record = current_database_connection.execute(
+                "SELECT revision, definition_text FROM workflow_draft WHERE session_id=?", (conversation_session_identifier,)).fetchone()
+        current_revision_value, current_definition_text = stored_draft_record or ("", "")
+        return {"session_id": conversation_session_identifier, "revision": current_revision_value,
+                "definition_text": current_definition_text}
+
+    def save_session_draft(self, conversation_session_identifier, expected_revision_value, current_definition_text):
+        if (not isinstance(current_definition_text, str) or len(current_definition_text.encode("utf-8")) > 500000
+                or not isinstance(expected_revision_value, str)):
+            raise ValueError("초안 형식 또는 크기를 확인하세요.")
+        with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
+            current_database_connection.execute("BEGIN IMMEDIATE")
+            stored_draft_record = current_database_connection.execute(
+                "SELECT revision, definition_text FROM workflow_draft WHERE session_id=?", (conversation_session_identifier,)).fetchone()
+            if stored_draft_record and stored_draft_record[1] == current_definition_text:
+                current_revision_value = stored_draft_record[0]
+            else:
+                if expected_revision_value != (stored_draft_record[0] if stored_draft_record else ""):
+                    raise ValueError("다른 편집 내용이 저장되었습니다. 최신 초안을 불러와 변경 사항을 확인하세요.")
+                current_revision_value = uuid.uuid4().hex
+                current_database_connection.execute(
+                    """INSERT INTO workflow_draft VALUES (?, ?, ?) ON CONFLICT(session_id)
+                       DO UPDATE SET revision=excluded.revision, definition_text=excluded.definition_text""",
+                    (conversation_session_identifier, current_revision_value, current_definition_text))
+            return {"session_id": conversation_session_identifier, "revision": current_revision_value}
 
     def register_workflow_run(self, workflow_run_identifier, conversation_session_identifier, workflow_step_records):
         encoded_workflow_definition = encode_workflow_record(workflow_step_records)
