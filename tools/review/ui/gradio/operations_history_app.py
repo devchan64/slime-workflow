@@ -1652,7 +1652,7 @@ def render_operations_map_database_receipt(current_request_identifier,current_re
     return current_result_record['notice']
 
 
-OPERATIONS_SESSION_NAVIGATION_JS = """(sessionId)=>{const validSession=/^[a-f0-9]{32}$/.test(sessionId || '');const returnLink=document.querySelector('#management-return-conversation a');if(returnLink)returnLink.setAttribute('href','/management/frame/hermes-agent/'+(validSession?'?session='+sessionId:''));if(validSession){try{sessionStorage.setItem('slime-management-session',sessionId);}catch(e){}try{localStorage.setItem('slime-management-session',sessionId);}catch(e){}}return sessionId;}"""
+OPERATIONS_SESSION_NAVIGATION_JS = """(sessionId)=>{const validSession=/^[a-f0-9]{32}$/.test(sessionId || '');if(validSession){const returnLink=document.querySelector('#management-return-conversation a');if(returnLink)returnLink.setAttribute('href','/management/frame/hermes-agent/?session='+sessionId);try{sessionStorage.setItem('slime-management-session',sessionId);}catch(e){}try{localStorage.setItem('slime-management-session',sessionId);}catch(e){}}return sessionId;}"""
 
 
 def build_operations_history_interface():

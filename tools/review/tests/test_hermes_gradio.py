@@ -6278,7 +6278,7 @@ const vm=require('vm');const fn=process.argv[1],valid='b'.repeat(32),values={},l
 const context={sessionStorage:{setItem:(key,value)=>values['tab:'+key]=value},localStorage:{setItem:(key,value)=>values['recent:'+key]=value},document:{querySelector:()=>({setAttribute:(_key,value)=>links.href=value})}};
 const action=vm.runInNewContext('('+fn+')',context);action(valid);
 if(values['tab:slime-management-session']!==valid||values['recent:slime-management-session']!==valid||links.href!=='/management/frame/hermes-agent/?session='+valid)throw new Error('valid session not propagated');
-action('invalid');if(values['tab:slime-management-session']!==valid||links.href!=='/management/frame/hermes-agent/')throw new Error('invalid session persisted');
+action('invalid');action(null);if(values['tab:slime-management-session']!==valid||values['recent:slime-management-session']!==valid||links.href!=='/management/frame/hermes-agent/?session='+valid)throw new Error('invalid selection changed session');
 """
         current_result_value=subprocess.run(['node','-e',current_runner_text,OPERATIONS_SESSION_NAVIGATION_JS],capture_output=True,text=True,timeout=10)
         self.assertEqual(current_result_value.returncode,0,current_result_value.stderr)
@@ -6310,7 +6310,7 @@ const vm=require('vm'), fn=process.argv[1], a='a'.repeat(32); let href='';
 const ctx={document:{querySelector:()=>({setAttribute:(_,v)=>{href=v;}})}};
 const apply=vm.runInNewContext('('+fn+')',ctx);
 apply(a); if(href!='/management/frame/hermes-agent/?session='+a)throw Error(href);
-apply('bad'); if(href!='/management/frame/hermes-agent/')throw Error(href);
+apply('bad'); apply(null); if(href!='/management/frame/hermes-agent/?session='+a)throw Error(href);
 """
         current_result_value=subprocess.run(['node','-e',current_runner_text,current_script_text],capture_output=True,text=True,timeout=10)
         self.assertEqual(current_result_value.returncode,0,current_result_value.stderr)
