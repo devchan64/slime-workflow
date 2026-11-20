@@ -9,7 +9,8 @@ def bind_translation_prompt_input(translation_status_record, expected_job_identi
         raise ValueError("번역 작업 식별자가 일치하지 않습니다.")
     if receipt_status_record.get("state") != "accepted" or source_job_record.get("status") != "completed":
         raise ValueError("번역 완료 확인이 필요합니다.")
-    translated_prompt_text = (source_job_record.get("result") or {}).get("text")
+    source_result_record = source_job_record.get("result")
+    translated_prompt_text = source_result_record.get("text") if isinstance(source_result_record, dict) else None
     if not isinstance(translated_prompt_text, str) or not translated_prompt_text.strip():
         raise ValueError("연결할 번역 결과가 없습니다.")
     if "prompt" in consumer_request_record:

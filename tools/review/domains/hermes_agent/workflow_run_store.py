@@ -313,8 +313,11 @@ class WorkflowRunStore:
             pinned_image_bytes = current_image_stream.read(REFERENCE_IMAGE_LIMIT + 1)
         stored_output_record = {"preview": current_result_record["image"]}
         if len(pinned_image_bytes) <= REFERENCE_IMAGE_LIMIT:
-            with Image.open(BytesIO(pinned_image_bytes), formats=["PNG"]) as verified_image_file:
-                verified_image_file.verify()
+            try:
+                with Image.open(BytesIO(pinned_image_bytes), formats=["PNG"]) as verified_image_file:
+                    verified_image_file.verify()
+            except (OSError, SyntaxError, Image.DecompressionBombError) as invalid_image_error:
+                raise ValueError("생성 결과가 유효한 PNG가 아닙니다.") from invalid_image_error
             stored_output_record["images"] = {"sha256": hashlib.sha256(pinned_image_bytes).hexdigest(),
                                               "size": len(pinned_image_bytes), "media_type": "image/png"}
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
@@ -336,6 +339,19 @@ class WorkflowRunStore:
     def read_run_results(self, workflow_run_identifier):
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
             return read_result_records_locked(current_database_connection, workflow_run_identifier)
+
+    def block_unusable_result(self, workflow_run_identifier, current_step_record, result_failure_reason):
+        current_step_identifier = current_step_record["step_id"]
+        with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
+            changed_step_count = current_database_connection.execute(
+                """UPDATE workflow_step SET state='blocked' WHERE run_id=? AND step_id=?
+                   AND request_id=? AND state='submitting'""",
+                (workflow_run_identifier, current_step_identifier, current_step_record["request_id"])).rowcount
+            if changed_step_count:
+                current_database_connection.execute("INSERT INTO workflow_block_reason VALUES (?, ?, ?, ?)",
+                    (workflow_run_identifier, current_step_identifier, current_step_identifier, result_failure_reason))
+                block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier,
+                                         current_step_identifier, result_failure_reason)
 
     def close_unsuccessful_step(self, workflow_run_identifier, current_step_record, terminal_state_name):
         if terminal_state_name not in ("failed", "cancelled"):

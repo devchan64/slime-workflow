@@ -56,12 +56,18 @@ def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_co
                 terminal_state_name = "failed" if observed_job_state == "failed" else "cancelled"
                 workflow_run_store.close_unsuccessful_step(workflow_run_identifier, current_step_record, terminal_state_name)
             elif observed_job_state == "completed":
-                if translation_step_selected:
-                    workflow_run_store.record_translation_completion(workflow_run_identifier, current_step_identifier,
-                        current_receipt_record["job_id"], current_status_record)
-                else:
-                    workflow_run_store.record_flux_completion(workflow_run_identifier, current_step_identifier,
-                                                              current_status_record)
+                try:
+                    if translation_step_selected:
+                        workflow_run_store.record_translation_completion(workflow_run_identifier, current_step_identifier,
+                            current_receipt_record["job_id"], current_status_record)
+                    else:
+                        workflow_run_store.record_flux_completion(workflow_run_identifier, current_step_identifier,
+                                                                  current_status_record)
+                except (ValueError, FileNotFoundError):
+                    workflow_run_store.block_unusable_result(workflow_run_identifier, current_step_record,
+                        "완료 결과가 없거나 형식 검증에 실패했습니다. 원 서비스의 결과를 확인하세요.")
+                except OSError:
+                    workflow_run_store.record_source_observation(current_step_record["request_id"], "unknown")
             continue
         claimed_step_record = workflow_run_store.claim_ready_step(workflow_run_identifier, current_step_identifier)
         if claimed_step_record is not None:
