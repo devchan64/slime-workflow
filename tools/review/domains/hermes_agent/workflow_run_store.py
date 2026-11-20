@@ -37,9 +37,10 @@ def read_step_records_locked(current_database_connection, workflow_run_identifie
     return [dict(current_step_row) for current_step_row in current_database_connection.execute(
         """SELECT step.step_id, step.category, step.state, step.request_id,
                   contract.generator, contract.generator_version, contract.template_version,
-                  blocked.source_step AS blocking_step, blocked.reason AS block_reason
+                  blocked.source_step AS blocking_step, blocked.reason AS block_reason, observed.source_state, observed.observed_at, observed.source_job_id
            FROM workflow_step AS step LEFT JOIN workflow_step_contract AS contract USING(run_id, step_id)
            LEFT JOIN workflow_block_reason AS blocked USING(run_id, step_id)
+           LEFT JOIN workflow_observation AS observed USING(request_id)
            WHERE step.run_id=? ORDER BY step.rowid""",
         (workflow_run_identifier,))]
 
@@ -59,6 +60,9 @@ class WorkflowRunStore:
             current_database_connection.executescript("""
                 CREATE TABLE IF NOT EXISTS workflow_run (
                     run_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, definition TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS workflow_observation (
+                    request_id TEXT PRIMARY KEY, source_state TEXT NOT NULL, observed_at TEXT NOT NULL, source_job_id TEXT
                 );
                 CREATE TABLE IF NOT EXISTS workflow_png (
                     digest TEXT PRIMARY KEY, content BLOB NOT NULL
@@ -229,6 +233,15 @@ class WorkflowRunStore:
             if changed_step_count:
                 block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_record["step_id"],
                     current_step_record["step_id"], "선행 작업이 취소되었습니다." if terminal_state_name == "cancelled" else "선행 작업이 실패했습니다.")
+
+    def record_source_observation(self, current_request_identifier, observed_source_state, source_job_identifier=None):
+        with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
+            current_database_connection.execute(
+                """INSERT INTO workflow_observation(request_id,source_state,observed_at,source_job_id)
+                   SELECT request_id, ?, ?, ? FROM workflow_step WHERE request_id=? AND state='submitting'
+                   ON CONFLICT(request_id) DO UPDATE SET source_state=excluded.source_state,
+                   observed_at=excluded.observed_at, source_job_id=COALESCE(excluded.source_job_id, source_job_id)""",
+                (observed_source_state, datetime.now(timezone.utc).isoformat(), source_job_identifier, current_request_identifier))
 
     def list_active_run_identifiers(self):
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:

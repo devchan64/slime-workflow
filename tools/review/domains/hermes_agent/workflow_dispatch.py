@@ -18,15 +18,24 @@ def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_co
             translation_step_selected = current_step_record["category"] == "translation"
             expected_service_name = "prompt-translation" if translation_step_selected else "flux-image"
             status_command_name = "hermes-translation-status" if translation_step_selected else "hermes-flux-delegation-status"
-            current_status_record = gateway_command_handler(status_command_name, {
-                "request_id": current_step_record["request_id"]})
+            try:
+                current_status_record = gateway_command_handler(status_command_name, {
+                    "request_id": current_step_record["request_id"]})
+            except (ValueError, OSError, RuntimeError):
+                workflow_run_store.record_source_observation(current_step_record["request_id"], "unknown")
+                continue
             current_receipt_record = current_status_record.get("receipt") or {}
             if (current_receipt_record.get("state") != "accepted"
                     or current_receipt_record.get("service") != expected_service_name
                     or current_receipt_record.get("request_id") != current_step_record["request_id"]
                     or not current_receipt_record.get("job_id")):
+                workflow_run_store.record_source_observation(current_step_record["request_id"], "unknown")
                 continue
             observed_job_state = (current_status_record.get("job") or {}).get("status")
+            if observed_job_state not in ("queued", "running", "paused", "failed", "cancelled", "canceled", "completed"):
+                observed_job_state = "unknown"
+            workflow_run_store.record_source_observation(current_step_record["request_id"], observed_job_state,
+                                                        current_receipt_record["job_id"])
             if observed_job_state in ("failed", "cancelled", "canceled"):
                 terminal_state_name = "failed" if observed_job_state == "failed" else "cancelled"
                 workflow_run_store.close_unsuccessful_step(workflow_run_identifier, current_step_record, terminal_state_name)
