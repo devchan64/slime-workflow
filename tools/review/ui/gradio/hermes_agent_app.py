@@ -4913,8 +4913,10 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     workflow_display_outputs = [workflow_run_display, workflow_translation_output, workflow_image_links]
                     workflow_result_button.click(display_conversation_workflow_results,
                         [hermes_session_control, workflow_run_identifier], workflow_display_outputs, queue=False)
-                    for workflow_context_input in (hermes_session_control, workflow_run_identifier):
-                        workflow_context_input.change(lambda: (None, "", ""), outputs=workflow_display_outputs, queue=False)
+                    hermes_session_control.change(lambda: (None, "", ""), outputs=workflow_display_outputs, queue=False)
+                    workflow_run_identifier.change(
+                        lambda run_id, view: (view if view and view.get("run_id") == run_id else None, "", ""),
+                        [workflow_run_identifier, workflow_run_display], workflow_display_outputs, queue=False)
                 with gr.Accordion("대화에서 설계한 워크플로우", open=False):
                     workflow_load_proposal = gr.Button("선택한 답변에서 단계 가져오기")
                     workflow_definition_text = gr.Textbox(label="생성기 입력과 단계 연결 (JSON)", lines=8)
