@@ -100,7 +100,7 @@ class FluxImageGenerationTests(unittest.TestCase):
                 current_manager_value.validate_generation_resume(current_job_path)
                 with patch('tools.review.ui.shared.flux_image_page.WORKFLOW_ROOT_DIRECTORY',current_workspace_root):
                     current_restored_value=restore_flux_image_inputs({'id':current_identifier_value,'request':current_saved_value},'flux-seamless')
-                self.assertEqual(len(current_restored_value),8)
+                self.assertEqual(len(current_restored_value),9)
                 self.assertEqual(current_restored_value[0],'grass')
 
     def test_transparent_reference_is_composited_on_white(self):
@@ -162,10 +162,30 @@ class FluxImageGenerationTests(unittest.TestCase):
                 self.assertEqual(current_restored_values[0],'A tree')
                 self.assertEqual(current_restored_values[1].size,(16,16))
                 self.assertIsNone(current_restored_values[2])
-                self.assertEqual(current_restored_values[3:],(768,512,42,'',''))
+                self.assertEqual(current_restored_values[3:],(768,512,16,42,'',''))
                 (current_job_root/'reference-1.png').write_bytes(b'changed')
                 with self.assertRaises(Exception):
                     restore_flux_image_inputs({'id':current_job_identifier,'request':current_saved_record},current_profile_name)
+
+    def test_character_step_range_and_history_restore(self):
+        current_image_buffer=io.BytesIO()
+        Image.new('RGB',(16,16),'white').save(current_image_buffer,format='PNG')
+        current_manager_value=FluxImageGenerationManager('flux-character')
+        current_request_value={'action':'generate','prompt':'A character','images':[base64.b64encode(current_image_buffer.getvalue()).decode()],'width':768,'height':512,'steps':32,'seed':42}
+        current_valid_record=current_manager_value.validate_generation_request(current_request_value)
+        self.assertEqual(current_valid_record['steps'],32)
+        for current_step_value in (0,51,True,1.5):
+            with self.assertRaises(ValueError):
+                current_manager_value.validate_generation_request({**current_request_value,'steps':current_step_value})
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_job_identifier='2026-11-20_12-00-00-a1b2c3d4'
+            current_job_root=Path(current_directory_name)/'.tmp/test/flux-character-generator'/current_job_identifier
+            current_job_root.mkdir(parents=True)
+            current_saved_record=save_three_reference_inputs(current_job_root,current_valid_record)
+            from unittest.mock import patch
+            with patch('tools.review.ui.shared.flux_image_page.WORKFLOW_ROOT_DIRECTORY',Path(current_directory_name)):
+                current_restored_values=restore_flux_image_inputs({'id':current_job_identifier,'request':current_saved_record},'flux-character')
+            self.assertEqual(current_restored_values[5],32)
 class FluxBuildingGuideGalleryTests(unittest.TestCase):
     def test_korean_translation_request_across_image_profiles(self):
         current_image_buffer=io.BytesIO()

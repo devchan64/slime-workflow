@@ -369,7 +369,8 @@ def list_management_service_registration():
         if current_service_name in FLUX_IMAGE_PROFILE_RECORDS and current_service_name!='flux-seamless' and 'generate' in current_command_names:
             current_minimum_references=FLUX_IMAGE_PROFILE_RECORDS[current_service_name][4]
             current_reference_note='첫 참조 이미지가 필요하며 최대 2장' if current_minimum_references else '참조 이미지는 최대 2장'
-            current_limit_records.append({'command':'generate','note':current_reference_note+'이고 16스텝만 허용한다.'})
+            current_step_note='이고 1~50스텝을 허용한다.' if current_service_name=='flux-character' else '이고 16스텝만 허용한다.'
+            current_limit_records.append({'command':'generate','note':current_reference_note+current_step_note})
         if current_service_name=='flux-expression' and 'generate' in current_command_names:
             current_limit_records.append({'command':'generate','note':'등록된 표정과 얼굴 참조 이미지 1장이 필요하며 16스텝만 허용한다.'})
         current_hermes_links=[]

@@ -27,13 +27,14 @@ def restore_flux_image_inputs(current_history_record, current_profile_name):
     current_final_prompt,_ = compose_common_style_prompt(current_user_prompt)
     if current_request_record.get('prompt') != current_final_prompt or current_request_record.get('prompt_sha256') != hashlib.sha256(current_final_prompt.encode()).hexdigest():
         raise gr.Error('저장된 프롬프트가 현재 화풍과 다르거나 변조되어 복원할 수 없습니다.')
-    if current_request_record.get('steps') != 16 or type(current_request_record.get('seed')) is not int or not 0 <= current_request_record['seed'] <= 4294967295:
+    current_allowed_steps = range(1, 51) if current_profile_name == 'flux-character' else (16,)
+    if type(current_request_record.get('steps')) is not int or current_request_record['steps'] not in current_allowed_steps or type(current_request_record.get('seed')) is not int or not 0 <= current_request_record['seed'] <= 4294967295:
         raise gr.Error('저장된 스텝 또는 시드가 올바르지 않습니다.')
     if any(type(current_request_record.get(name)) is not int or not 256 <= current_request_record[name] <= 1664 or current_request_record[name] % 16 for name in ('width','height')):
         raise gr.Error('저장된 출력 크기가 올바르지 않습니다.')
     current_restored_values = restore_reference_inputs(current_history_record, WORKFLOW_ROOT_DIRECTORY/'.tmp/test'/(current_profile_name+'-generator'),reference_slot_limit=2)
     current_input_prompt=current_request_record.get('building_design_ko',current_user_prompt) if current_profile_name=='flux-building' else current_request_record.get('translation_base_prompt',current_user_prompt)
-    current_output_values=(current_input_prompt,current_restored_values[6],current_restored_values[7],current_restored_values[2],current_restored_values[3],current_restored_values[5],current_restored_values[1])
+    current_output_values=(current_input_prompt,current_restored_values[6],current_restored_values[7],current_restored_values[2],current_restored_values[3],current_request_record['steps'],current_restored_values[5],current_restored_values[1])
     if current_profile_name == 'flux-seamless':
         current_saved_method=current_request_record.get('seamless_method','edge-blend')
         if current_saved_method not in ('global-periodic-v1','circular-vae-v2','circular-vae','edge-blend'): raise gr.Error('저장된 심리스 처리 방식이 올바르지 않습니다.')
@@ -149,7 +150,10 @@ def build_flux_image_page(current_profile_name, current_server_address, current_
                 current_width_value,current_height_value=(1024,1024) if current_preset_identifier=='face' else (768,1152)
                 return current_prompt_text,current_first_image,current_second_image,current_width_value,current_height_value
             current_preset_button.click(apply_mannequin_stage,current_preset_control,[current_prompt_control,current_first_reference,current_second_reference,current_width_control,current_height_control],queue=False)
-        gr.Markdown('16단계 · 공용 화풍 v1.5.0 · 프롬프트 확장기, 마스크와 VAE 타일링 사용 안 함 · 예상 시간 계산 중')
+        current_step_control=gr.Number(value=16,minimum=1 if current_profile_name=='flux-character' else 16,maximum=50 if current_profile_name=='flux-character' else 16,precision=0,label='생성 스텝',interactive=current_profile_name=='flux-character')
+        if current_profile_name == 'flux-character':
+            gr.Markdown('스텝은 1~50에서 선택합니다. 50은 이 생성기의 운영상 상한이며 모델의 최대 스텝이나 최적값을 뜻하지 않습니다.')
+        gr.Markdown('공용 화풍 v1.5.0 · 프롬프트 확장기, 마스크와 VAE 타일링 사용 안 함 · 16 이외 스텝의 품질은 별도 검수 · 예상 시간 계산 중')
         current_seed_control=build_generation_seed()
         current_tag_control=gr.Textbox(label='이력 태그 (선택)')
         current_start_button=gr.Button('대기열에 추가',interactive=False,variant='primary')
@@ -159,7 +163,7 @@ def build_flux_image_page(current_profile_name, current_server_address, current_
         current_status_control=gr.Markdown('결과와 작업 상태는 아래 생성 이력에서 확인하세요.')
         def check_flux_image_readiness(current_prompt_text,current_first_image,current_korean_value=''):
             return bool(((current_prompt_text and current_prompt_text.strip()) or (current_korean_value and current_korean_value.strip())) and (not current_minimum_references or current_first_image is not None))
-        def start_flux_image_generation(current_prompt_text,current_first_image,current_second_image,current_width_value,current_height_value,current_seed_value,current_tag_value,current_korean_value=''):
+        def start_flux_image_generation(current_prompt_text,current_first_image,current_second_image,current_width_value,current_height_value,current_step_value,current_seed_value,current_tag_value,current_korean_value=''):
             if current_profile_name == 'flux-seamless' and (current_first_image is not None or current_second_image is not None or current_width_value != 512 or current_height_value != 512):
                 raise gr.Error('새 심리스 작업은 512×512와 참조 이미지 없음만 지원합니다. 이전 이력은 원래 방식으로 재개할 수 있습니다.')
             if current_second_image is not None and current_first_image is None: raise gr.Error('두 번째 참조는 첫 참조와 함께 사용하세요.')
@@ -167,14 +171,14 @@ def build_flux_image_page(current_profile_name, current_server_address, current_
             for current_image_value in (current_first_image,current_second_image):
                 if current_image_value is not None:
                     current_image_buffer=io.BytesIO(); current_image_value.save(current_image_buffer,format='PNG'); current_image_values.append(base64.b64encode(current_image_buffer.getvalue()).decode())
-            current_payload_record={'action':'generate','prompt':current_prompt_text or '','images':current_image_values,'width':int(current_width_value),'height':int(current_height_value),'steps':16,'seed':int(current_seed_value),'tag':current_tag_value or ''}
+            current_payload_record={'action':'generate','prompt':current_prompt_text or '','images':current_image_values,'width':int(current_width_value),'height':int(current_height_value),'steps':int(current_step_value),'seed':int(current_seed_value),'tag':current_tag_value or ''}
             if current_profile_name == 'flux-building' and re.search('[가-힣]',current_prompt_text):
                 current_payload_record['building_design_ko']=current_prompt_text
             elif current_profile_name != 'flux-building' and current_korean_value and current_korean_value.strip():
                 current_payload_record['translation_source_ko']=current_korean_value.strip()
             current_result_record=execute_profile_command('generate',current_payload_record)
             return current_result_record['id'],'대기열에 등록했습니다. 생성 이력을 새로고침해 확인하세요.'
-        current_input_controls=[current_prompt_control,current_first_reference,current_second_reference,current_width_control,current_height_control,current_seed_control,current_tag_control]+([current_korean_control] if current_profile_name!='flux-building' else [])
+        current_input_controls=[current_prompt_control,current_first_reference,current_second_reference,current_width_control,current_height_control,current_step_control,current_seed_control,current_tag_control]+([current_korean_control] if current_profile_name!='flux-building' else [])
         current_readiness_inputs=[current_prompt_control,current_first_reference]+([current_korean_control] if current_profile_name!='flux-building' else [])
         bind_gpu_generation_confirmation(current_start_button,start_flux_image_generation,current_input_controls,[current_job_control,current_status_control],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=check_flux_image_readiness,generation_readiness_inputs=current_readiness_inputs)
         build_generation_history_view(execute_profile_command,current_server_address,'이 생성기의 FLUX 이력과 결과를 삭제합니다.',restore_input_callback=lambda current_history_record:restore_flux_image_inputs(current_history_record,current_profile_name),restore_output_components=current_input_controls,result_renderer_callback=render_flux_seamless_comparison if current_profile_name=='flux-seamless' else None,record_folder_route='/'+current_profile_name+'-generator',allow_individual_delete=True,observed_job_control=current_job_control,history_deep_link_interface=current_page_blocks)
