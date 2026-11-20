@@ -265,16 +265,18 @@ class WorkflowRunStore:
     def find_session_workflow_steps(self, conversation_session_identifier, current_category_name, current_state_name):
         if current_category_name not in ("", "translation", "image"):
             raise ValueError("지원하지 않는 생성기 카테고리입니다.")
-        if current_state_name not in ("", "ready", "waiting", "submitting", "completed", "failed", "cancelled", "blocked"):
+        if current_state_name not in ("", "ready", "waiting", "submitting", "completed", "failed", "cancelled", "blocked", "queued", "running", "paused", "unknown"):
             raise ValueError("지원하지 않는 단계 상태입니다.")
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
             current_database_connection.row_factory = sqlite3.Row
             matching_step_records = current_database_connection.execute(
-                """SELECT step.run_id, step.step_id, step.category, step.state
+                """SELECT step.run_id, step.step_id, step.category, step.state, observation.source_state, observation.observed_at
                    FROM workflow_step AS step JOIN workflow_run AS run USING(run_id)
-                   WHERE run.session_id=? AND (?='' OR step.category=?) AND (?='' OR step.state=?)
+                   LEFT JOIN workflow_observation AS observation USING(request_id)
+                   WHERE run.session_id=? AND (?='' OR step.category=?)
+                     AND (?='' OR step.state=? OR (step.state='submitting' AND observation.source_state=?))
                    ORDER BY step.rowid DESC LIMIT 101""",
                 (conversation_session_identifier, current_category_name, current_category_name,
-                 current_state_name, current_state_name)).fetchall()
+                 current_state_name, current_state_name, current_state_name)).fetchall()
         return {"steps": [dict(current_step_record) for current_step_record in matching_step_records[:100]],
                 "truncated": len(matching_step_records) > 100, "queried_at": datetime.now(timezone.utc).isoformat()}

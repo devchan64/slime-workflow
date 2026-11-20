@@ -4904,7 +4904,8 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                 with gr.Accordion("이 대화의 워크플로우 작업 찾기", open=False):
                     workflow_category_filter = gr.Dropdown([("전체", ""), ("번역", "translation"), ("이미지", "image")], value="", label="카테고리")
                     workflow_state_filter = gr.Dropdown([("전체", ""), ("선행 작업 대기", "waiting"), ("접수 준비", "ready"),
-                        ("접수·결과 확인 중", "submitting"), ("완료", "completed"), ("실패", "failed"),
+                        ("접수·결과 확인 중", "submitting"), ("생성기 대기", "queued"), ("생성기 실행 중", "running"),
+                        ("생성기 일시정지", "paused"), ("생성기 상태 확인 불가", "unknown"), ("완료", "completed"), ("실패", "failed"),
                         ("취소", "cancelled"), ("차단", "blocked")], value="", label="단계 상태")
                     workflow_search_button = gr.Button("작업 찾기")
                     workflow_search_results = gr.JSON(label="최근 일치 작업과 실행 ID")

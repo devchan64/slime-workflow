@@ -173,7 +173,7 @@ HERMES_CAPABILITY_RECORDS = (
 HERMES_FIELD_SCHEMAS = {
     'run_id': {'type':'string','pattern':'^[a-f0-9]{32}$'},
     'steps': {'type':'array','minItems':1,'items':{'type':'object','required':['id','generator']}},
-    'state': {'type':'string','enum':['','ready','waiting','submitting','completed','failed','cancelled','blocked']},
+    'state': {'type':'string','enum':['','ready','waiting','submitting','completed','failed','cancelled','blocked','queued','running','paused','unknown']},
     'animation_id': {'type':'string','pattern':'^[A-Za-z0-9._-]{1,160}$'},
     'animation_version': {'type':'string','pattern':'^[A-Za-z0-9._-]{1,160}$'},
     'text': {'type':'string','minLength':1,'maxLength':6000},
