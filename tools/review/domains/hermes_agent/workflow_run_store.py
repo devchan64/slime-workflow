@@ -47,10 +47,15 @@ def read_step_records_locked(current_database_connection, workflow_run_identifie
 
 def read_result_records_locked(current_database_connection, workflow_run_identifier):
     current_result_rows = current_database_connection.execute(
-        "SELECT step_id, job_id, outputs FROM workflow_result WHERE run_id=? ORDER BY rowid",
+        """SELECT result.step_id, result.job_id, result.outputs, step.request_id, meta.output_name,
+                  meta.media_type, meta.digest, meta.byte_size, meta.recorded_at
+           FROM workflow_result AS result JOIN workflow_step AS step USING(run_id, step_id)
+           LEFT JOIN workflow_output_metadata AS meta USING(run_id, step_id)
+           WHERE result.run_id=? ORDER BY result.rowid""",
         (workflow_run_identifier,))
-    return [{"step_id": step_id, "job_id": job_id, "outputs": json.loads(outputs)}
-            for step_id, job_id, outputs in current_result_rows]
+    return [{"step_id": step_id, "job_id": job_id, "outputs": json.loads(outputs), "attempt_id": request_id,
+             "output_metadata": {"name": name, "media_type": media, "sha256": digest, "bytes": size, "recorded_at": stamp} if name else None}
+            for step_id, job_id, outputs, request_id, name, media, digest, size, stamp in current_result_rows]
 
 
 class WorkflowRunStore:
@@ -75,6 +80,11 @@ class WorkflowRunStore:
                 CREATE TABLE IF NOT EXISTS workflow_block_reason (
                     run_id TEXT NOT NULL, step_id TEXT NOT NULL, source_step TEXT NOT NULL,
                     reason TEXT NOT NULL, PRIMARY KEY(run_id, step_id)
+                );
+                CREATE TABLE IF NOT EXISTS workflow_output_metadata (
+                    run_id TEXT NOT NULL, step_id TEXT NOT NULL, output_name TEXT NOT NULL,
+                    media_type TEXT NOT NULL, digest TEXT NOT NULL, byte_size INTEGER NOT NULL,
+                    recorded_at TEXT NOT NULL, PRIMARY KEY(run_id,step_id)
                 );
                 CREATE TABLE IF NOT EXISTS workflow_result (
                     run_id TEXT NOT NULL, step_id TEXT NOT NULL, job_id TEXT NOT NULL,
@@ -171,6 +181,10 @@ class WorkflowRunStore:
                  translation_status_record["receipt"].get("request_id"))).fetchone()
             if not completed_step_record:
                 raise ValueError("번역 시도와 접수 기록이 일치하지 않습니다.")
+            current_database_connection.execute("INSERT INTO workflow_output_metadata VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (workflow_run_identifier, current_step_identifier, "text", "text/plain; charset=utf-8",
+                 pinned_translation_record["source"]["sha256"], len(pinned_translation_record["request"]["prompt"].encode("utf-8")),
+                 datetime.now(timezone.utc).isoformat()))
             current_database_connection.execute("INSERT INTO workflow_result VALUES (?, ?, ?, ?)",
                 (workflow_run_identifier, current_step_identifier, expected_job_identifier,
                  encode_workflow_record({"text": pinned_translation_record["request"]["prompt"]})))
@@ -212,6 +226,9 @@ class WorkflowRunStore:
                 (workflow_run_identifier, current_step_identifier, current_receipt_record["request_id"])).fetchone()
             if completed_step_record:
                 if "images" in stored_output_record:
+                    current_database_connection.execute("INSERT INTO workflow_output_metadata VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (workflow_run_identifier, current_step_identifier, "images", "image/png",
+                         stored_output_record["images"]["sha256"], len(pinned_image_bytes), datetime.now(timezone.utc).isoformat()))
                     current_database_connection.execute("INSERT OR IGNORE INTO workflow_png VALUES (?, ?)",
                         (stored_output_record["images"]["sha256"], pinned_image_bytes))
                 current_database_connection.execute("INSERT INTO workflow_result VALUES (?, ?, ?, ?)",
