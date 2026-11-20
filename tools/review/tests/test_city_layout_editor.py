@@ -73,6 +73,12 @@ class CityEditorTests(unittest.TestCase):
         current_new_document=copy.deepcopy(self.document)
         current_new_document['data']['version']=2
         current_plan_value=city_editor.prepare_city_source_update_plan(current_asset_root,self.payload,current_new_document,'city-db-request',current_source_bytes,[current_registry_path,current_backend_path])
+        from tools.review.domains.map_assets.map_recovery_assessment import assess_map_plan_evidence
+        current_receipt_record={'state':'matched','request_sha256':current_plan_value['request_sha256']}
+        current_mixed_files={**current_source_bytes,current_source_path:current_plan_value['pending_files'][current_source_path]}
+        current_assessment_record=assess_map_plan_evidence(current_plan_value,current_source_bytes,current_mixed_files,current_receipt_record)
+        self.assertEqual(current_assessment_record['state'],'files_incomplete')
+        self.assertEqual(assess_map_plan_evidence(current_plan_value,current_source_bytes,current_plan_value['pending_files'],current_receipt_record)['state'],'files_match_receipt')
         current_database_request=current_plan_value['database_request']
         current_test_hash=hashlib.sha256(json.dumps(current_database_request,sort_keys=True,ensure_ascii=False,allow_nan=False).encode()).hexdigest()
         self.assertEqual(current_plan_value['request_sha256'],current_test_hash)

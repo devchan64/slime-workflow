@@ -379,6 +379,17 @@ class HermesServiceTests(unittest.TestCase):
         self.assertEqual(hermes_observation_record['gpu']['status'], 'unavailable')
         self.assertEqual(hermes_observation_record['queue']['status'], 'unavailable')
 
+    def test_management_observation_rejects_inconsistent_gpu_without_hiding_queue(self):
+        from tools.review.domains.hermes_agent import management_observer
+        current_bad_records=({'status':'idle','processes':[{'pid':1}]},{'status':'busy','processes':[]},{'status':'idle','processes':None},{'status':'busy','processes':[None]})
+        with patch('tools.review.common.gpu_job_queue.list_waiting_gpu_jobs',return_value={'jobs':[{'id':'job-1','service':'image'}]}),patch.object(management_observer,'inspect_hermes_model_status',return_value={}),patch.object(management_observer,'read_hermes_generator_snapshot',return_value={}),patch.object(management_observer,'read_hermes_gpu_reservation_snapshot',return_value={}),patch.object(management_observer,'read_hermes_recent_job_snapshot',return_value={}):
+            for current_gpu_record in current_bad_records:
+                with self.subTest(gpu=current_gpu_record),patch('tools.review.common.gpu_status.read_gpu_status',return_value=current_gpu_record):
+                    current_result_value=management_observer.read_hermes_management_snapshot()
+                    self.assertEqual(current_result_value['gpu'],{'status':'unavailable'})
+                    self.assertEqual(current_result_value['queue']['jobs'][0]['id'],'job-1')
+                    self.assertEqual(current_result_value['memory_capacity']['status'],'unavailable')
+
     def test_management_queue_source_preserves_only_allowlisted_identity(self):
         from tools.review.domains.hermes_agent.management_observer import read_hermes_management_snapshot
         current_jobs=[{'id':'job-1','service':'image','source_service':'kimodo','path':'/private/job'},{'id':'job-2','service':'image','source_service':'unknown-service','path':'/private/other'}]
@@ -820,6 +831,27 @@ class HermesServiceTests(unittest.TestCase):
             with patch('os.scandir', side_effect=PermissionError('denied')):
                 self.assertEqual(read_hermes_gpu_reservation_snapshot(current_root_path)['status'], 'unavailable')
 
+    def test_service_lock_rejects_special_and_symbolic_files(self):
+        import os
+        current_job_root = self.hermes_service_manager.hermes_storage_root
+        current_job_root.mkdir(parents=True, exist_ok=True)
+        current_lock_path = current_job_root / '.service.lock'
+        current_target_path = current_job_root / 'other-file'
+        current_target_path.write_text('unchanged')
+        current_lock_path.symlink_to(current_target_path)
+        with self.assertRaises(OSError):
+            with self.hermes_service_manager.hold_hermes_service_lock():
+                self.fail('symbolic lock accepted')
+        self.assertEqual(current_target_path.read_text(), 'unchanged')
+        current_lock_path.unlink()
+        os.mkfifo(current_lock_path)
+        with self.assertRaises((OSError, ValueError)):
+            with self.hermes_service_manager.hold_hermes_service_lock():
+                self.fail('FIFO lock accepted')
+        current_lock_path.unlink()
+        with self.hermes_service_manager.hold_hermes_service_lock():
+            self.assertTrue(current_lock_path.is_file())
+
     def test_recent_job_observation_filters_fields_and_handles_missing_status(self):
         from tools.review.domains.hermes_agent.management_observer import read_hermes_recent_job_snapshot
         current_job_root = self.hermes_service_manager.hermes_storage_root
@@ -840,6 +872,22 @@ class HermesServiceTests(unittest.TestCase):
         self.assertNotIn(str(current_job_root), str(current_result_value))
         with patch.object(self.hermes_service_manager, 'list_hermes_job_paths', side_effect=OSError('unavailable')):
             self.assertEqual(read_hermes_recent_job_snapshot(self.hermes_service_manager)['status'], 'unavailable')
+
+    def test_recent_job_observation_limits_directory_entries_without_changing_history(self):
+        from tools.review.domains.hermes_agent.management_observer import read_hermes_recent_job_snapshot
+        current_job_root = self.hermes_service_manager.hermes_storage_root
+        current_job_root.mkdir(parents=True, exist_ok=True)
+        for current_index in range(2):
+            current_job_path = current_job_root / ('2026-11-18_00-00-0' + str(current_index) + '-12345678')
+            current_job_path.mkdir()
+            (current_job_path / 'status.json').write_text('{"status":"completed"}')
+        with patch('tools.review.domains.hermes_agent.service.HERMES_JOB_OBSERVATION_MAXIMUM_ENTRIES', 3):
+            current_result_value = read_hermes_recent_job_snapshot(self.hermes_service_manager)
+            self.assertEqual(current_result_value['status'], 'available')
+            self.assertEqual([current_job_record['id'] for current_job_record in current_result_value['jobs']], [current_job_path.name for current_job_path in self.hermes_service_manager.list_hermes_job_paths()])
+            (current_job_root / 'unrelated-entry').write_text('')
+            self.assertEqual(read_hermes_recent_job_snapshot(self.hermes_service_manager), {'status': 'unavailable', 'jobs': [], 'truncated': False})
+            self.assertEqual(len(self.hermes_service_manager.list_hermes_job_paths()), 2)
 
     def test_recent_job_observation_handles_oversized_and_fifo_status(self):
         import os
@@ -1623,6 +1671,24 @@ class HermesServiceTests(unittest.TestCase):
         self.assertFalse(current_field_validator.is_valid({'map':'forest','offset':1}))
         self.assertFalse(current_field_validator.is_valid({'map':'forest','offset':1,'revision':None}))
         self.assertTrue(current_field_validator.is_valid({'map':'forest','offset':1,'revision':'asset:abc'}))
+
+    def test_writer_material_schema_matches_pagination_validation(self):
+        from jsonschema import Draft202012Validator
+        from generators.writer_agent.material_pages import validate_writer_material_request
+        current_catalog_value=self.hermes_service_manager.execute_hermes_command('hermes-capabilities', {})
+        current_schema_value=next(current_record['payload_schema'] for current_record in current_catalog_value['records'] if current_record['command']=='hermes-writer-job-material')
+        current_schema_validator=Draft202012Validator(current_schema_value)
+        current_base_request={'job_id':'20261115-114927-8d274ccd','section':'search'}
+        for current_fields_value,current_expected_validity in (({},True),({'snapshot':None},True),({'offset':1},False),({'offset':1,'snapshot':None},False),({'offset':1,'snapshot':'a'*64},True),({'snapshot':'bad'},False)):
+            with self.subTest(fields=current_fields_value):
+                current_request_value={**current_base_request,**current_fields_value}
+                self.assertEqual(current_schema_validator.is_valid(current_request_value),current_expected_validity)
+                try:
+                    validate_writer_material_request(current_request_value)
+                    current_runtime_validity=True
+                except ValueError:
+                    current_runtime_validity=False
+                self.assertEqual(current_runtime_validity,current_expected_validity)
 
     def test_building_anchor_capability_describes_strict_draft(self):
         from jsonschema import Draft202012Validator

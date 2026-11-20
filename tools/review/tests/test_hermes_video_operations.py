@@ -25,6 +25,77 @@ class HermesVideoOperationsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             video_operations.validate_hermes_video_request('wan22-fun-control',{'action':'prepare'})
 
+    def test_video_source_observation_rejects_status_change_and_special_file(self):
+        import os
+        from types import SimpleNamespace
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with TemporaryDirectory() as current_directory_name:
+            current_storage_root=Path(current_directory_name)
+            current_job_root=current_storage_root/current_job_identifier
+            current_job_root.mkdir()
+            current_status_path=current_job_root/'status.json'
+            current_manager_value=SimpleNamespace(job_storage_root=current_storage_root)
+            with patch.object(video_operations,'make_hermes_video_manager',return_value=current_manager_value):
+                os.mkfifo(current_status_path)
+                with self.assertRaises(ValueError):video_operations.read_hermes_video_source_job('dwpose',current_job_identifier)
+                current_status_path.unlink()
+                current_status_path.write_text('{"status":"running"}')
+                with patch('tools.review.domains.hermes_agent.delegation_store.read_bounded_delegation_record',side_effect=[{'status':'running'},{'status':'completed'}]):
+                    with self.assertRaisesRegex(ValueError,'조회 중 변경'):video_operations.read_hermes_video_source_job('dwpose',current_job_identifier)
+
+    def test_video_source_observation_uses_each_actual_manager_storage(self):
+        import json
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_service_settings=(('dwpose','tools.review.domains.dwpose.generation.DWPOSE_JOB_STORAGE'),('wan22-animate2','tools.review.domains.wan_animate2.generation.ANIMATE_JOB_STORAGE'),('wan22-vace','tools.review.domains.wan_vace.generation.VACE_JOB_STORAGE'),('wan22-fun-control','tools.review.domains.wan_fun.generation.FUN_JOB_STORAGE'))
+        with TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            for current_service_name,current_storage_setting in current_service_settings:
+                with self.subTest(service=current_service_name):
+                    current_storage_root=current_root_path/current_service_name
+                    current_job_root=current_storage_root/current_job_identifier
+                    current_attempt_root=current_job_root/'attempts'/('a'*32)
+                    current_attempt_root.mkdir(parents=True)
+                    (current_job_root/'status.json').write_text(json.dumps({'status':'completed'}))
+                    (current_job_root/'result.json').write_text(json.dumps({'attempt':'a'*32}))
+                    for current_file_name in ('preview.mp4','output-000.png','frames.zip'):(current_attempt_root/current_file_name).write_bytes(b'mock')
+                    with patch(current_storage_setting,current_storage_root),patch('tools.review.common.video_job_recovery.recover_interrupted_video_job') as current_recovery_mock:
+                        current_result_value=video_operations.read_hermes_video_source_job(current_service_name,current_job_identifier)
+                        self.assertEqual(current_result_value['result_status'],'available')
+                        self.assertEqual(current_result_value['video'],'/'+current_service_name+'/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/preview.mp4')
+                        current_recovery_mock.assert_not_called()
+                        (current_attempt_root/'preview.mp4').unlink()
+                        (current_attempt_root/'preview.mp4').symlink_to(current_attempt_root/'output-000.png')
+                        self.assertEqual(video_operations.read_hermes_video_source_job(current_service_name,current_job_identifier)['result_status'],'unavailable')
+                        self.assertEqual(json.loads((current_job_root/'status.json').read_text()),{'status':'completed'})
+
+    def test_video_source_observation_never_recovers_and_checks_result_files(self):
+        import json
+        from types import SimpleNamespace
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_job_path=current_root_path/current_job_identifier
+            current_job_path.mkdir()
+            current_status_path=current_job_path/'status.json'
+            current_status_path.write_text(json.dumps({'status':'running'}))
+            current_manager_value=SimpleNamespace(job_storage_root=current_root_path)
+            with patch.object(video_operations,'make_hermes_video_manager',return_value=current_manager_value),patch('tools.review.common.video_job_recovery.recover_interrupted_video_job') as current_recovery_mock,patch.object(video_operations,'call_hermes_video_service') as current_gateway_mock:
+                self.assertEqual(video_operations.read_hermes_video_source_job('wan22-vace',current_job_identifier)['status'],'running')
+                current_status_path.write_text(json.dumps({'status':'completed'}))
+                (current_job_path/'result.json').write_text(json.dumps({'attempt':'a'*32}))
+                current_attempt_path=current_job_path/'attempts'/('a'*32)
+                current_attempt_path.mkdir(parents=True)
+                for current_file_name in ('preview.mp4','output-000.png','frames.zip'):(current_attempt_path/current_file_name).write_bytes(b'mock')
+                current_result_value=video_operations.read_hermes_video_source_job('wan22-vace',current_job_identifier)
+                self.assertEqual(current_result_value['result_status'],'available')
+                self.assertTrue(current_result_value['video'].endswith('/preview.mp4'))
+                (current_attempt_path/'frames.zip').unlink()
+                self.assertEqual(video_operations.read_hermes_video_source_job('wan22-vace',current_job_identifier)['result_status'],'unavailable')
+                self.assertEqual(json.loads(current_status_path.read_text()),{'status':'completed'})
+                current_recovery_mock.assert_not_called()
+                current_gateway_mock.assert_not_called()
+                with self.assertRaises(ValueError):video_operations.read_hermes_video_source_job('wan22-vace','../invalid')
+
     def test_video_paths_are_same_service_job_and_attempt(self):
         current_job_identifier='2026-11-18_00-00-00-12345678'
         current_good_path='/wan22-vace/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/preview.mp4'

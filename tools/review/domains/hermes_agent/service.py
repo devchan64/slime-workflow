@@ -5,9 +5,11 @@ from datetime import datetime, timezone
 import fcntl
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import threading
@@ -24,6 +26,7 @@ from tools.review.domains.hermes_agent.verification import validate_hermes_verif
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 HERMES_JOB_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/test/hermes-agent/jobs'
 HERMES_JOB_PATTERN = re.compile(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}')
+HERMES_JOB_OBSERVATION_MAXIMUM_ENTRIES = 5000
 HERMES_REQUEST_PATTERN = re.compile(r'[A-Za-z0-9_-]{8,80}')
 
 
@@ -137,9 +140,13 @@ class HermesServiceManager:
     @contextmanager
     def hold_hermes_service_lock(self):
         self.hermes_storage_root.mkdir(parents=True, exist_ok=True)
-        with self.hermes_thread_lock, (self.hermes_storage_root / '.service.lock').open('a') as hermes_lock_stream:
-            fcntl.flock(hermes_lock_stream, fcntl.LOCK_EX)
-            yield
+        with self.hermes_thread_lock:
+            hermes_lock_descriptor = os.open(self.hermes_storage_root / '.service.lock', os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW | os.O_NONBLOCK, 0o666)
+            with os.fdopen(hermes_lock_descriptor, 'a') as hermes_lock_stream:
+                if not stat.S_ISREG(os.fstat(hermes_lock_stream.fileno()).st_mode):
+                    raise ValueError('Hermes 서비스 잠금 파일 형식 오류')
+                fcntl.flock(hermes_lock_stream, fcntl.LOCK_EX)
+                yield
 
     def resolve_hermes_job_path(self, hermes_job_identifier):
         if not isinstance(hermes_job_identifier, str) or not HERMES_JOB_PATTERN.fullmatch(hermes_job_identifier):
@@ -149,7 +156,16 @@ class HermesServiceManager:
             raise ValueError('Hermes 작업을 찾을 수 없습니다.')
         return hermes_job_path
 
-    def list_hermes_job_paths(self):
+    def list_hermes_job_paths(self, observation_limits=False):
+        if observation_limits:
+            hermes_observation_paths = []
+            with os.scandir(self.hermes_storage_root) as hermes_directory_entries:
+                for hermes_entry_count, hermes_directory_entry in enumerate(hermes_directory_entries, 1):
+                    if hermes_entry_count > HERMES_JOB_OBSERVATION_MAXIMUM_ENTRIES:
+                        raise ValueError('Hermes 작업 목록 관측 한도 초과')
+                    if HERMES_JOB_PATTERN.fullmatch(hermes_directory_entry.name) and hermes_directory_entry.is_dir(follow_symlinks=False):
+                        hermes_observation_paths.append(self.hermes_storage_root / hermes_directory_entry.name)
+            return sorted(hermes_observation_paths, reverse=True)
         return [hermes_job_path for hermes_job_path in sorted(self.hermes_storage_root.iterdir(), reverse=True) if HERMES_JOB_PATTERN.fullmatch(hermes_job_path.name) and hermes_job_path.is_dir() and not hermes_job_path.is_symlink()]
 
     def read_hermes_job_record(self, hermes_job_path):
@@ -704,6 +720,10 @@ class HermesServiceManager:
             if set(hermes_payload_record) != {'request_id','job_id'}:
                 raise ValueError('번역 접수 ID와 확인한 작업 ID가 필요합니다.')
             return cancel_hermes_translation_request(hermes_payload_record['request_id'],hermes_payload_record['job_id'])
+        if hermes_command_name=='hermes-video-source-status':
+            if set(hermes_payload_record)!={'service','job_id'}:raise ValueError('영상 서비스와 원본 작업 ID가 필요합니다.')
+            from tools.review.domains.hermes_agent.video_operations import read_hermes_video_source_job
+            return {'service':hermes_payload_record['service'],'job_id':hermes_payload_record['job_id'],'job':read_hermes_video_source_job(hermes_payload_record['service'],hermes_payload_record['job_id'])}
         if hermes_command_name in ('hermes-delegate-video','hermes-video-status','hermes-video-history','hermes-video-cancel'):
             from tools.review.domains.hermes_agent.video_operations import submit_hermes_video_request, read_hermes_video_status, list_hermes_video_receipts, cancel_hermes_video_request
             if hermes_command_name=='hermes-video-history':
@@ -730,6 +750,11 @@ class HermesServiceManager:
                 raise ValueError('생성기 서비스와 이력 페이지 입력을 확인하세요.')
             from tools.review.domains.hermes_agent.audio_operations import read_hermes_generator_source_history
             return read_hermes_generator_source_history(hermes_payload_record['service'],{key:value for key,value in hermes_payload_record.items() if key!='service'})
+        if hermes_command_name=='hermes-audio-source-status':
+            if set(hermes_payload_record)!={'service','job_id'}:
+                raise ValueError('오디오 서비스와 원본 작업 ID가 필요합니다.')
+            from tools.review.domains.hermes_agent.audio_operations import read_hermes_audio_source_job
+            return {'service':hermes_payload_record['service'],'job_id':hermes_payload_record['job_id'],'job':read_hermes_audio_source_job(hermes_payload_record['service'],hermes_payload_record['job_id'])}
         if hermes_command_name=='hermes-audio-source-history':
             if 'service' not in hermes_payload_record or set(hermes_payload_record)-{'service','offset','limit','snapshot','query'}:
                 raise ValueError('오디오 서비스와 이력 페이지 입력을 확인하세요.')

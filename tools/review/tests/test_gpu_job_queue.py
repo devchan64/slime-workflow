@@ -562,6 +562,18 @@ class GpuJobQueueTests(unittest.TestCase):
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
             current_guard_mock.assert_called_once_with(current_worker_mock)
 
+    def test_unavailable_gpu_memory_never_launches_worker(self):
+        for current_memory_values in ((OSError('GPU 조회 실패'),), ((24000, 20000), OSError('GPU 재조회 실패'))):
+            with self.subTest(observations=current_memory_values):
+                (self.current_job_path/'status.json').write_text('{"status":"queued"}')
+                with patch.object(queue_module,'read_gpu_memory',side_effect=current_memory_values),patch.object(queue_module.subprocess,'Popen') as current_worker_mock:
+                    self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),1)
+                    current_worker_mock.assert_not_called()
+                current_status_value=json.loads((self.current_job_path/'status.json').read_text())
+                self.assertEqual(current_status_value['status'],'failed')
+                self.assertIn('GPU',current_status_value['error'])
+                self.assertEqual(list((queue_module.GPU_QUEUE_DIRECTORY/'active').glob('*.json')),[])
+
     def test_insufficient_total_memory_fails_explicitly(self):
         with patch.object(queue_module,'read_gpu_memory',return_value=(1000,1000)),patch.object(queue_module.subprocess,'Popen') as worker_launch_mock:
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),1)

@@ -2307,6 +2307,13 @@ class HermesGradioTests(unittest.TestCase):
             return current_result
         current_gateway_mock.side_effect=current_mismatch_response
         self.assertEqual(operations_history_app.read_operations_session_receipts('a'*32)[0][0][5],'다른 GPU 서비스 동일 ID · 소유 확인 필요')
+        def current_invalid_queue_response(current_service_name,current_command_name,current_payload_record):
+            current_result=current_gateway_response(current_service_name,current_command_name,current_payload_record)
+            if current_command_name=='hermes-management-status':current_result['queue']=None
+            return current_result
+        current_gateway_mock.side_effect=current_invalid_queue_response
+        current_rows,_=operations_history_app.read_operations_session_receipts('a'*32)
+        self.assertEqual(current_rows[0][5:7],['조회 불가','다른 GPU 서비스 동일 ID · 소유 확인 필요'])
 
     @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
     def test_operations_receipts_clear_rows_on_session_validation_failure(self,current_gateway_mock):
@@ -2565,6 +2572,76 @@ class HermesGradioTests(unittest.TestCase):
             self.assertEqual(current_extended['jobs'][0]['source_service'],'kimodo')
             self.assertEqual(len(current_extended['jobs'][0]['ticket_revision']),64)
             self.assertNotIn(str(current_root),str(current_extended))
+
+    def test_audio_source_button_requires_unique_audio_selection(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_page_value={'service':'music-heartmula','snapshot':'a'*64,'offset':0}
+        current_rows_value=[[current_job_identifier,'완료','원본','조회 불가','조회 불가']]
+        self.assertTrue(operations_history_app.update_operations_media_source_button('music-heartmula',current_job_identifier,current_page_value,current_rows_value)['interactive'])
+        for current_service_value,current_id_value,current_page_record,current_rows_record in (('kimodo',current_job_identifier,current_page_value,current_rows_value),('music-heartmula','',current_page_value,current_rows_value),('music-heartmula',current_job_identifier,None,current_rows_value),('music-heartmula',current_job_identifier,current_page_value,current_rows_value*2)):
+            self.assertFalse(operations_history_app.update_operations_media_source_button(current_service_value,current_id_value,current_page_record,current_rows_record)['interactive'])
+
+    @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
+    def test_audio_source_status_checks_selection_and_discards_stale_response(self,current_gateway_mock):
+        from tools.review.ui.gradio import operations_history_app
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_page_value={'service':'music-heartmula','snapshot':'a'*64,'offset':0}
+        current_rows_value=[[current_job_identifier,'완료','작업 상태 파일','조회 불가','조회 불가']]
+        current_audio_path='/music-heartmula/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/music.wav'
+        current_gateway_mock.return_value={'service':'music-heartmula','job_id':current_job_identifier,'job':{'status':'completed','audio':current_audio_path,'result_status':'available'}}
+        current_result_value=operations_history_app.collect_operations_media_source_status('music-heartmula',current_job_identifier,current_page_value,current_rows_value,'token-1')
+        self.assertIn(current_audio_path,operations_history_app.render_operations_media_source_status('music-heartmula',current_job_identifier,current_page_value,current_rows_value,'token-1',current_result_value))
+        self.assertIn('완료 기록 · 결과 경로 확인',current_result_value['notice'])
+        self.assertIn('[음원 열기]('+current_audio_path+')',current_result_value['notice'])
+        self.assertIn('파일 내용·재생과 프로세스 생존은 별도 확인',current_result_value['notice'])
+        self.assertEqual(operations_history_app.render_operations_media_source_status('music-heartmula','other',current_page_value,current_rows_value,'token-1',current_result_value),gr.skip())
+        self.assertEqual(operations_history_app.render_operations_media_source_status('music-heartmula',current_job_identifier,current_page_value,current_rows_value,'token-2',current_result_value),gr.skip())
+        for current_failure_code,current_expected_text in (('gpu_out_of_memory','GPU 메모리 부족'),('host_memory_guard','시스템 메모리 보호로 중단됨'),('host_memory_monitor_failed','시스템 메모리 감시 실패'),('unclassified_failure','원인을 확인하지 못함'),('unexpected','원인을 확인하지 못함')):
+            current_gateway_mock.return_value['job']={'status':'failed','audio':None,'result_status':'not_ready','failure_code':current_failure_code,'failure_reason':'/private/secret'}
+            current_failed_notice=operations_history_app.collect_operations_media_source_status('music-heartmula',current_job_identifier,current_page_value,current_rows_value,'token-1')['notice']
+            self.assertIn(current_expected_text,current_failed_notice)
+            self.assertNotIn('/private/secret',current_failed_notice)
+        current_gateway_mock.return_value['job']={'status':'queued','audio':None,'result_status':'unavailable'}
+        self.assertIn('확인할 수 없습니다',operations_history_app.collect_operations_media_source_status('music-heartmula',current_job_identifier,current_page_value,current_rows_value,'token-1')['notice'])
+        current_gateway_mock.return_value['job_id']='different'
+        self.assertIn('확인할 수 없습니다',operations_history_app.collect_operations_media_source_status('music-heartmula',current_job_identifier,current_page_value,current_rows_value,'token-1')['notice'])
+        current_gateway_mock.reset_mock()
+        operations_history_app.collect_operations_media_source_status('music-heartmula',current_job_identifier,current_page_value,current_rows_value*2,'token-1')
+        current_gateway_mock.assert_not_called()
+
+    @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
+    def test_video_source_status_uses_same_selection_and_ignores_stale_response(self,current_gateway_mock):
+        from tools.review.ui.gradio import operations_history_app
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_page_value={'service':'wan22-vace','snapshot':'a'*64,'offset':0}
+        current_rows_value=[[current_job_identifier,'완료','원본','조회 불가','조회 불가']]
+        current_base_path='/wan22-vace/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/'
+        current_gateway_mock.return_value={'service':'wan22-vace','job_id':current_job_identifier,'job':{'status':'completed','video':current_base_path+'preview.mp4','image':current_base_path+'output-000.png','download':current_base_path+'frames.zip','result_status':'available'}}
+        self.assertTrue(operations_history_app.update_operations_media_source_button('wan22-vace',current_job_identifier,current_page_value,current_rows_value)['interactive'])
+        current_result_value=operations_history_app.collect_operations_media_source_status('wan22-vace',current_job_identifier,current_page_value,current_rows_value,'token-1')
+        self.assertIn(current_base_path+'preview.mp4',current_result_value['notice'])
+        self.assertIn('파일 존재는 조회 시점 기준',current_result_value['notice'])
+        self.assertIn('[영상 열기]('+current_base_path+'preview.mp4)',current_result_value['notice'])
+        self.assertIn('[프레임 ZIP 받기]('+current_base_path+'frames.zip)',current_result_value['notice'])
+        current_gateway_mock.assert_called_once_with('hermes-agent','hermes-video-source-status',{'service':'wan22-vace','job_id':current_job_identifier})
+        self.assertEqual(operations_history_app.render_operations_media_source_status('wan22-vace','other',current_page_value,current_rows_value,'token-1',current_result_value),gr.skip())
+        current_gateway_mock.return_value['job']['video']='/private/secret'
+        self.assertIn('확인할 수 없습니다',operations_history_app.collect_operations_media_source_status('wan22-vace',current_job_identifier,current_page_value,current_rows_value,'token-1')['notice'])
+
+    @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
+    def test_source_history_preserves_reservation_when_queue_is_malformed(self,current_gateway_mock):
+        from tools.review.ui.gradio import operations_history_app
+        def current_gateway_response(current_service_name,current_command_name,current_payload_record):
+            if current_command_name=='hermes-audio-source-history':return {'service':'music-heartmula','source_service':'music-heartmula','records':[{'id':'job-1','recorded_status':'queued','status_source':'job'}],'total':1,'offset':0,'next_offset':None,'snapshot':'a'*64,'unavailable_count':0}
+            if current_command_name=='hermes-management-status':return {'queue':None,'reservations':{'status':'available','records':[{'state':'recorded','service':'music-heartmula','source_service':'music-heartmula','job_id':'job-1','required_memory_mib':50}],'truncated':False},'queried_at':'mock'}
+            raise AssertionError(current_command_name)
+        current_gateway_mock.side_effect=current_gateway_response
+        current_rows_value,_,current_page_value,_,_=operations_history_app.read_operations_source_history('music-heartmula')
+        self.assertEqual(current_rows_value[0][0],'job-1')
+        self.assertEqual(current_rows_value[0][3],'조회 불가')
+        self.assertIn('예약 기록 확인',current_rows_value[0][4])
+        self.assertEqual(current_page_value['service'],'music-heartmula')
 
     @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
     def test_operations_shared_queue_requires_verified_unique_source(self,current_gateway_mock):
@@ -3631,6 +3708,15 @@ class HermesGradioTests(unittest.TestCase):
         current_rows[0][2]='<script>'
         self.assertNotIn('<script>',operations_history_app.select_operations_reservation_target(current_rows,SimpleNamespace(index=0)))
 
+    def test_reservation_match_also_reports_other_service_same_job_id(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_reservation_index={('writer-agent','job-1'):['recorded'],('other-service','job-1'):['recorded']}
+        self.assertEqual(operations_history_app.label_operations_reservation_record(current_reservation_index,False,'writer-agent','job-1'),'예약 기록 확인 · 다른 서비스 동일 ID')
+        current_reservation_index={('image','job-1'):['recorded'],('source','image','kimodo','job-1'):['recorded'],('other-service','job-1'):['recorded']}
+        self.assertEqual(operations_history_app.label_operations_shared_reservation_record(current_reservation_index,True,'image','kimodo','job-1'),'예약 기록 확인 · 원 서비스 확인 · 다른 서비스 동일 ID · 미확인 기록 포함')
+        current_reservation_index[('source','image','kimodo','job-1')]=['cleanup_unverified']
+        self.assertEqual(operations_history_app.label_operations_shared_reservation_record(current_reservation_index,False,'image','kimodo','job-1'),'정리 확인 필요 · 다른 서비스 동일 ID')
+
     def test_dedicated_queue_and_reservation_do_not_merge_different_services(self):
         from tools.review.ui.gradio import operations_history_app
         current_queue={('other-service','job-1'):1}
@@ -3697,6 +3783,27 @@ class HermesGradioTests(unittest.TestCase):
         current_apply_receipt['state']='unknown'
         self.assertEqual(operations_history_app.read_operations_session_receipts(current_session)[0][0][7],'적용 확인 필요')
         self.assertNotIn('hermes-writer-apply',[item.args[1] for item in current_gateway_mock.call_args_list])
+
+    @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
+    def test_operations_edit_receipts_require_matching_request_and_expected_state(self,current_gateway_mock):
+        from tools.review.ui.gradio import operations_history_app
+        for current_kind_value,current_proposal_value,current_target_field,current_target_value in (
+            ('building',{'texture':'town-test-v1'},'texture','town-test-v1'),
+            ('billboard',{'changes':[{'texture':'tree-test'}]},'textures',['tree-test']),
+            ('sprite',{'path':'assets/characters/default/sheet.png'},'path','assets/characters/default/sheet.png'),
+            ('effect',{'id':'effect-test'},'effect_id','effect-test'),
+        ):
+            with self.subTest(kind=current_kind_value):
+                current_receipt_value={'state':'unknown','request_id':'different-request',current_target_field:current_target_value}
+                def current_gateway_response(current_service_name,current_command_name,current_payload_record):
+                    if current_command_name=='hermes-session-view':return {'id':'a'*32,'messages':[{'job_id':'job-test','job':{'status':{'status':'completed'},'final_response':'HERMES_'+current_kind_value.upper()+'_PROPOSAL'}}]}
+                    if current_command_name=='hermes-'+current_kind_value+'-proposal':return {'job_id':'job-test','proposal':current_proposal_value}
+                    if current_command_name=='hermes-'+current_kind_value+'-receipt':return current_receipt_value
+                    raise AssertionError(current_command_name)
+                current_gateway_mock.side_effect=current_gateway_response
+                self.assertEqual(operations_history_app.read_operations_session_receipts('a'*32)[0][0][3],'제안 또는 접수 조회 불가')
+                current_receipt_value['state']='accepted'
+                self.assertEqual(operations_history_app.read_operations_session_receipts('a'*32)[0][0][3],'제안 또는 접수 조회 불가')
 
     @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
     def test_operations_session_receipt_reports_unsaved_edit(self,current_gateway_mock):
@@ -5063,6 +5170,32 @@ class HermesGradioTests(unittest.TestCase):
             current_summary_text=hermes_agent_app.read_hermes_management_summary()
             self.assertIn('메모리: 조회 불가',current_summary_text)
             self.assertNotIn('관측치상 메모리 기준 충족',current_summary_text)
+            current_snapshot_value['memory_capacity']['capacity_sufficient']=True
+            current_snapshot_value['memory_capacity']['pool_available_mib']=1000
+            self.assertIn('메모리: 조회 불가',hermes_agent_app.read_hermes_management_summary())
+            current_snapshot_value['memory_capacity']['pool_available_mib']=40000
+            current_snapshot_value['gpu']['status']='unavailable'
+            self.assertIn('메모리: 조회 불가',hermes_agent_app.read_hermes_management_summary())
+            current_snapshot_value['gpu']['status']='idle'
+            current_snapshot_value['memory_capacity']['required_mib']=0
+            self.assertIn('메모리: 조회 불가',hermes_agent_app.read_hermes_management_summary())
+
+    @patch('tools.review.ui.gradio.hermes_agent_app.execute_remote_management_command')
+    def test_management_summary_keeps_valid_observations_when_one_is_malformed(self,current_gateway_mock):
+        current_snapshot_value={'model':{'status':'available','message':'모델 확인'},'gpu':{'status':'busy'},'queue':None,'reservations':{'status':'available','records':[],'truncated':False},'recent_hermes_jobs':{'status':'available','jobs':[],'truncated':False},'generators':{'kimodo':{'model':{'status':'available','ready':'false'},'active':{'status':'available','running':None}}},'queried_at':'now'}
+        current_gateway_mock.return_value=current_snapshot_value
+        current_summary_text=hermes_agent_app.read_hermes_management_summary()
+        self.assertIn('대기: 조회 불가',current_summary_text)
+        self.assertIn('GPU 예약 기록: 0건',current_summary_text)
+        self.assertIn('Hermes 모델: 모델 확인',current_summary_text)
+        self.assertIn('Kimodo: 조회 불가 · 조회 불가',current_summary_text)
+        self.assertNotIn('준비됨',current_summary_text)
+        current_snapshot_value['queue']={'status':'available','jobs':None}
+        current_snapshot_value['reservations']={'status':'available','records':[None]}
+        current_summary_text=hermes_agent_app.read_hermes_management_summary()
+        self.assertIn('대기: 조회 불가',current_summary_text)
+        self.assertIn('GPU 예약 기록: 조회 불가',current_summary_text)
+        self.assertIn('Hermes 모델: 모델 확인',current_summary_text)
 
     @patch('tools.review.ui.gradio.hermes_agent_app.execute_remote_management_command')
     def test_management_summary_distinguishes_unavailable(self, current_gateway_mock):

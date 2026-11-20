@@ -187,6 +187,16 @@ def delegate_hermes_video(request_identifier_value: str, video_service_name: str
     return run_hermes_mcp_command('hermes-delegate-video',{'request_id':request_identifier_value,'service':video_service_name,'request':request_record_value})
 
 
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_video_source_status(video_service_name: str, job_identifier_value: str) -> dict:
+    """영상 원본 기록과 결과 파일 존재를 복구 없이 조회한다. 실제 재생·프로세스 생존은 별도다."""
+    from tools.review.domains.hermes_agent.video_operations import validate_hermes_video_source_response
+    current_response_value=run_hermes_mcp_command('hermes-video-source-status',{'service':video_service_name,'job_id':job_identifier_value})
+    try:validate_hermes_video_source_response(video_service_name,job_identifier_value,current_response_value)
+    except (ValueError,TypeError,KeyError):raise ToolError('영상 원본 상태 응답을 확인할 수 없습니다.') from None
+    return current_response_value
+
+
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def read_hermes_video_status(request_identifier_value: str, video_service_name: str) -> dict:
     """동작·영상 상태와 검증된 결과 경로를 조회한다. 결과 경로는 형식만 확인하며 파일 존재나 재생 가능성은 확인하지 않는다. 중단 작업 기록의 복구가 따를 수 있으므로 접수 여부만 확인하려면 접수 전용 조회를 사용한다."""
@@ -371,6 +381,18 @@ def read_hermes_audio_status(request_identifier_value: str, audio_service_name: 
 def list_hermes_audio_receipts(audio_service_name: str) -> dict:
     """오디오 서비스별 Hermes 접수 이력을 조회한다."""
     return run_hermes_mcp_command('hermes-audio-history',{'service':audio_service_name})
+
+
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def read_hermes_audio_source_status(audio_service_name: str, job_identifier_value: str) -> dict:
+    """원 서비스 작업 ID의 상태·동일 출처 결과 경로를 조회한다. 실제 생존·파일 존재는 별도다."""
+    from tools.review.domains.hermes_agent.audio_operations import validate_hermes_audio_source_response
+    current_response_value=run_hermes_mcp_command('hermes-audio-source-status',{'service':audio_service_name,'job_id':job_identifier_value})
+    try:
+        validate_hermes_audio_source_response(audio_service_name,job_identifier_value,current_response_value)
+    except (ValueError,TypeError,KeyError):
+        raise ToolError('오디오 원본 상태 응답을 확인할 수 없습니다.') from None
+    return current_response_value
 
 
 @hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
@@ -1089,8 +1111,10 @@ def read_hermes_gpu_queue_status() -> dict:
         if len(hermes_response_bytes) > 2_000_000:
             raise ValueError('관리 게이트웨이 응답이 너무 큽니다.')
         hermes_gpu_record = json.loads(hermes_response_bytes)
-        if not isinstance(hermes_gpu_record, dict):
+        if not isinstance(hermes_gpu_record, dict) or hermes_gpu_record.get('status') not in ('idle','busy','unavailable') or not isinstance(hermes_gpu_record.get('processes'),list) or any(not isinstance(current_process_record,dict) for current_process_record in hermes_gpu_record['processes']):
             raise ValueError('GPU 상태 응답 형식이 올바르지 않습니다.')
+        if hermes_gpu_record['status'] in ('idle','busy') and (hermes_gpu_record['status']=='busy') != bool(hermes_gpu_record['processes']):
+            raise ValueError('GPU 상태와 프로세스 목록이 일치하지 않습니다.')
         return {'queried_at': datetime.now(timezone.utc).isoformat(), 'detail': 'GPU 측정은 공용 상태 조회의 짧은 캐시를 사용할 수 있습니다. 대기열 관측은 로컬 잠금을 만들 수 있습니다.', 'jobs': [{'id':current_job_record['id'],'service':current_job_record['service']} for current_job_record in hermes_job_records], 'gpu_status': hermes_gpu_record}
     except (OSError, ValueError, TypeError) as hermes_gateway_error:
         raise ToolError('GPU 대기열 조회 실패: ' + str(hermes_gateway_error)) from hermes_gateway_error

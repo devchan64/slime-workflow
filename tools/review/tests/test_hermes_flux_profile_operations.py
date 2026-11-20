@@ -9,6 +9,28 @@ from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
 
 
 class HermesFluxProfileOperationsTests(unittest.TestCase):
+    def test_flux_source_observation_reads_only_selected_profile_storage(self):
+        import json
+        from types import SimpleNamespace
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_job_path=current_root_path/current_job_identifier
+            current_job_path.mkdir()
+            (current_job_path/'status.json').write_text(json.dumps({'status':'completed'}))
+            current_result_path=current_job_path/'result.png'
+            current_result_path.write_bytes(b'not-an-image')
+            with patch('tools.review.domains.image.flux_image_generation.FluxImageGenerationManager',return_value=SimpleNamespace(job_storage_root=current_root_path)),patch.object(flux_profile_operations,'call_hermes_flux_profile') as current_gateway_mock:
+                current_result_value=flux_profile_operations.read_hermes_flux_source_job('flux-building',current_job_identifier)
+                self.assertEqual(current_result_value['image'],'/flux-building-generator/jobs/'+current_job_identifier+'/result.png')
+                self.assertEqual(current_result_value['result_status'],'available')
+                current_result_path.unlink()
+                current_result_path.symlink_to(current_job_path/'status.json')
+                self.assertEqual(flux_profile_operations.read_hermes_flux_source_job('flux-building',current_job_identifier)['result_status'],'unavailable')
+                self.assertEqual(json.loads((current_job_path/'status.json').read_text()),{'status':'completed'})
+                current_gateway_mock.assert_not_called()
+                with self.assertRaises(ValueError):flux_profile_operations.read_hermes_flux_source_job('flux-building','../invalid')
+
     def test_every_profile_delegates_to_own_service_and_isolates_receipts(self):
         current_job_identifier='2026-11-18_00-00-00-12345678'
         with TemporaryDirectory() as current_root_name, patch.object(flux_profile_operations,'HermesDelegationStore',return_value=HermesDelegationStore(Path(current_root_name))), patch('tools.review.domains.image.flux_image_generation.FluxImageGenerationManager.validate_generation_request') as current_validate_mock, patch.object(flux_profile_operations,'call_hermes_flux_profile',return_value={'id':current_job_identifier}) as current_gateway_mock:

@@ -42,17 +42,41 @@ def read_hermes_audio_status(current_request_identifier,current_service_name):
     current_receipt_value=HermesDelegationStore().read_service_delegation(current_request_identifier,current_service_name)
     if current_receipt_value.get('state')!='accepted':
         return {'receipt':current_receipt_value}
-    current_job_value=call_hermes_audio_service(current_service_name,'status',{'id':current_receipt_value['job_id']})
-    if not isinstance(current_job_value,dict) or current_job_value.get('id')!=current_receipt_value['job_id']:
+    return {'receipt':current_receipt_value,'job':read_hermes_audio_source_job(current_service_name,current_receipt_value['job_id'])}
+
+
+def read_hermes_audio_source_job(current_service_name,current_job_identifier):
+    """원 서비스 작업 ID를 검증하고 상태와 동일 출처 결과 경로만 반환한다."""
+    from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+    validate_hermes_audio_service(current_service_name)
+    if not validate_service_job_identifier(current_service_name,current_job_identifier):
+        raise ValueError('음악 또는 효과음 작업 ID 형식 오류')
+    current_job_value=call_hermes_audio_service(current_service_name,'status',{'id':current_job_identifier})
+    if not isinstance(current_job_value,dict) or current_job_value.get('id')!=current_job_identifier:
         raise ValueError('오디오 작업 상태 응답 형식 오류')
     current_status_value=current_job_value.get('status')
     if current_status_value not in ('queued','running','completed','failed','cancelled','canceled','paused','unknown'):
         current_status_value='unknown'
     from tools.review.domains.hermes_agent.media_result_paths import validate_hermes_audio_result_path
-    current_audio_path=validate_hermes_audio_result_path(current_service_name,current_receipt_value['job_id'],{**current_job_value,'status':current_status_value})
+    current_audio_path=validate_hermes_audio_result_path(current_service_name,current_job_identifier,{**current_job_value,'status':current_status_value})
     current_result_status='available' if current_audio_path else 'unavailable' if current_status_value=='completed' else 'not_ready'
-    return {'receipt':current_receipt_value,'job':{'status':current_status_value,'audio':current_audio_path,'result_status':current_result_status,
-        'note':'완료 결과와 상세 로그·분리 음원은 해당 생성기 이력에서 확인하세요. 생성 결과는 자동으로 에셋에 등록되지 않습니다.', **observe_hermes_generator_failure(current_status_value,current_job_value.get('error'))}}
+    return {'status':current_status_value,'audio':current_audio_path,'result_status':current_result_status,
+        'note':'완료 결과와 상세 로그·분리 음원은 해당 생성기 이력에서 확인하세요. 생성 결과는 자동으로 에셋에 등록되지 않습니다.', **observe_hermes_generator_failure(current_status_value,current_job_value.get('error'))}
+
+
+def validate_hermes_audio_source_response(current_service_name,current_job_identifier,current_response_value):
+    """서비스·작업 ID와 상태별 결과 경로의 일관성을 검사한다."""
+    from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+    from tools.review.domains.hermes_agent.media_result_paths import validate_hermes_audio_result_path
+    validate_hermes_audio_service(current_service_name)
+    if not validate_service_job_identifier(current_service_name,current_job_identifier):raise ValueError('오디오 작업 ID 형식 오류')
+    if not isinstance(current_response_value,dict) or current_response_value.get('service')!=current_service_name or current_response_value.get('job_id')!=current_job_identifier or not isinstance(current_response_value.get('job'),dict):raise ValueError('오디오 상태 응답 불일치')
+    current_job_record=current_response_value['job']
+    if current_job_record.get('status') not in ('queued','running','completed','failed','cancelled','canceled','paused','unknown') or current_job_record.get('result_status') not in ('available','unavailable','not_ready'):raise ValueError('오디오 상태 형식 오류')
+    current_audio_path=validate_hermes_audio_result_path(current_service_name,current_job_identifier,current_job_record)
+    current_expected_result='available' if current_audio_path else 'unavailable' if current_job_record['status']=='completed' else 'not_ready'
+    if (current_job_record.get('audio') is not None and current_audio_path is None) or current_job_record['result_status']!=current_expected_result:raise ValueError('오디오 결과 경로 오류')
+    return current_job_record
 
 
 def list_hermes_audio_receipts(current_service_name):

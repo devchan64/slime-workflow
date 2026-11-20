@@ -101,6 +101,8 @@ def label_operations_reservation_record(current_reservation_index,current_unmatc
     if len(current_matches)>1:return '연결 불확실 · 중복 예약'
     if len(current_matches)==1:
         current_label_value='정리 확인 필요' if current_matches[0]=='cleanup_unverified' else '예약 기록 확인'
+        if any(isinstance(current_key,tuple) and len(current_key)==2 and current_key[1]==current_job_identifier and current_key[0]!=current_service_name and current_values for current_key,current_values in current_reservation_index.items()):
+            current_label_value+=' · 다른 서비스 동일 ID'
         return current_label_value+(' · 미확인 기록 포함' if current_unmatched_record else '')
     if any(isinstance(current_key,tuple) and len(current_key)==2 and current_key[1]==current_job_identifier and current_key[0]!=current_service_name and current_values for current_key,current_values in current_reservation_index.items()):
         return '다른 GPU 서비스 동일 ID · 소유 확인 필요'+(' · 미확인 기록 포함' if current_unmatched_record else '')
@@ -136,6 +138,8 @@ def label_operations_shared_reservation_record(current_reservation_index,current
         return '미확인 예약 포함' if current_unmatched_record else '일치 예약 기록 없음 · 상태 별도 확인'
     if len(current_pool_values)==1 and len(current_source_values)==1:
         current_label='정리 확인 필요' if current_source_values[0]=='cleanup_unverified' else '예약 기록 확인 · 원 서비스 확인'
+        if any(isinstance(current_key,tuple) and len(current_key)==2 and current_key[1]==current_job_identifier and current_key[0]!=current_pool_name and current_values for current_key,current_values in current_reservation_index.items()):
+            current_label+=' · 다른 서비스 동일 ID'
         return current_label+current_uncertainty_suffix
     return '공용 '+current_pool_name+' 예약 · 소유 확인 필요'+current_uncertainty_suffix
 
@@ -215,7 +219,7 @@ def read_operations_history_overview(current_search_text='', current_status_filt
     try:
         current_management_record=execute_remote_management_command('hermes-agent','hermes-management-status',{})
         current_queue_record=current_management_record['queue']
-        if current_queue_record.get('status')!='available' or not isinstance(current_queue_record.get('jobs'),list):
+        if not isinstance(current_queue_record,dict) or current_queue_record.get('status')!='available' or not isinstance(current_queue_record.get('jobs'),list):
             raise ValueError('대기열 조회 불가')
         current_queue_records=current_queue_record['jobs']
         if any(not isinstance(item,dict) or not isinstance(item.get('service'),str) or not isinstance(item.get('id'),str) for item in current_queue_records):
@@ -293,7 +297,7 @@ def read_operations_job_history_page(current_search_text,current_status_filter,c
         try:
             current_management=execute_remote_management_command('hermes-agent','hermes-management-status',{})
             current_queue=current_management['queue']
-            if current_queue.get('status')!='available' or not isinstance(current_queue.get('jobs'),list) or any(not isinstance(item,dict) or not isinstance(item.get('service'),str) or not isinstance(item.get('id'),str) for item in current_queue['jobs']):raise ValueError('대기열 오류')
+            if not isinstance(current_queue,dict) or current_queue.get('status')!='available' or not isinstance(current_queue.get('jobs'),list) or any(not isinstance(item,dict) or not isinstance(item.get('service'),str) or not isinstance(item.get('id'),str) for item in current_queue['jobs']):raise ValueError('대기열 오류')
             current_counts=Counter((item['service'],item['id']) for item in current_queue['jobs'])
         except (OSError,ValueError,KeyError,TypeError,RuntimeError):
             current_counts=None
@@ -677,8 +681,11 @@ def read_operations_session_receipts(current_session_identifier,current_page_sta
                 elif current_kind in ('kimodo', 'field', 'city', 'effect', 'billboard', 'building', 'sprite'):
                     current_command = 'hermes-delegation-status' if current_kind == 'kimodo' else 'hermes-' + current_kind + '-receipt'
                     current_receipt = execute_remote_management_command('hermes-agent', current_command, {'request_id': current_request_id})
-                    if not isinstance(current_receipt, dict) or current_receipt.get('state') not in ('not_found', 'accepted', 'unknown', 'completed'):
+                    current_allowed_states = ('not_found', 'accepted', 'unknown') if current_kind == 'kimodo' else ('not_found', 'unknown', 'completed')
+                    if not isinstance(current_receipt, dict) or current_receipt.get('state') not in current_allowed_states:
                         raise ValueError('접수 확인 불가')
+                    if current_kind != 'kimodo' and current_receipt['state'] != 'not_found' and current_receipt.get('request_id') != current_request_id:
+                        raise ValueError('편집 접수 ID 불일치')
                     if current_kind=='kimodo' and (current_receipt.get('request_id')!=current_request_id or current_receipt.get('service')!='kimodo'):
                         raise ValueError('Kimodo 접수 ID 또는 서비스 불일치')
                     if current_kind in ('city','field') and current_receipt['state'] in ('unknown','completed') and (current_receipt.get('request_id')!=current_request_id or current_receipt.get('map')!=current_proposal['proposal'].get('map') or not isinstance(current_receipt.get('map'),str)):
@@ -765,7 +772,7 @@ def read_operations_session_receipts(current_session_identifier,current_page_sta
         try:
             current_management_record = execute_remote_management_command('hermes-agent', 'hermes-management-status', {})
             current_queue_record = current_management_record['queue']
-            if current_queue_record.get('status') != 'available' or not isinstance(current_queue_record.get('jobs'), list):
+            if not isinstance(current_queue_record, dict) or current_queue_record.get('status') != 'available' or not isinstance(current_queue_record.get('jobs'), list):
                 raise ValueError('대기열 조회 불가')
             current_queue_jobs = current_queue_record['jobs']
             if any(not isinstance(item, dict) or not isinstance(item.get('service'), str) or not isinstance(item.get('id'), str) for item in current_queue_jobs):
@@ -1063,7 +1070,7 @@ def read_operations_source_history(current_service_name,current_page_state=None,
     try:
         current_management_record=execute_remote_management_command('hermes-agent','hermes-management-status',{})
         current_queue_record=current_management_record['queue']
-        if current_queue_record.get('status')!='available' or not isinstance(current_queue_record.get('jobs'),list):raise ValueError('대기열 조회 불가')
+        if not isinstance(current_queue_record,dict) or current_queue_record.get('status')!='available' or not isinstance(current_queue_record.get('jobs'),list):raise ValueError('대기열 조회 불가')
         current_queue_values=current_queue_record['jobs']
         if any(not isinstance(item,dict) or not isinstance(item.get('id'),str) or not isinstance(item.get('service'),str) for item in current_queue_values):raise ValueError('대기열 형식 오류')
         current_queue_counts=Counter((item['service'],item['id']) for item in current_queue_values)
@@ -1131,6 +1138,50 @@ def select_operations_source_job(current_service_name,current_page_state,current
     current_link=render_operations_source_link(current_owner_service,current_row[0],current_session_identifier)
     current_notice='원본 서비스: '+html.escape(current_owner_service)+' · '+('도구에서 전달된 작업 찾기 버튼을 눌러 확인하세요. 상태 조회는 중단된 기록을 복구할 수 있습니다.' if '?job=' in current_link else '선택한 작업 ID를 확인하세요. 이 화면은 작업을 자동 선택하지 않습니다.')
     return current_row[0],current_link+'<p>'+current_notice+'</p>'
+
+
+def update_operations_media_source_button(current_service_name,current_job_identifier,current_page_state,current_source_rows):
+    from tools.review.domains.hermes_agent.audio_operations import HERMES_AUDIO_SERVICES
+    from tools.review.domains.hermes_agent.video_operations import HERMES_VIDEO_SERVICES
+    from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+    current_matching_rows=[current_row for current_row in current_source_rows if isinstance(current_row,(list,tuple)) and len(current_row)==5 and current_row[0]==current_job_identifier] if isinstance(current_source_rows,list) else []
+    current_ready_value=current_service_name in (*HERMES_AUDIO_SERVICES,*HERMES_VIDEO_SERVICES) and validate_service_job_identifier(current_service_name,current_job_identifier) and isinstance(current_page_state,dict) and current_page_state.get('service')==current_service_name and len(current_matching_rows)==1
+    return gr.update(interactive=current_ready_value,value='선택한 원본 작업 상태 확인' if current_ready_value else '음악·효과음·영상 원본 작업을 선택하세요')
+
+
+def collect_operations_media_source_status(current_service_name,current_job_identifier,current_page_state,current_source_rows,current_request_token):
+    """표시 중인 원본 행과 일치할 때만 음성·영상 작업을 조회한다."""
+    current_identity_value=[current_service_name,current_job_identifier,current_page_state,current_source_rows]
+    try:
+        from tools.review.domains.hermes_agent.audio_operations import HERMES_AUDIO_SERVICES,validate_hermes_audio_source_response
+        from tools.review.domains.hermes_agent.video_operations import HERMES_VIDEO_SERVICES,validate_hermes_video_source_response
+        if current_service_name not in (*HERMES_AUDIO_SERVICES,*HERMES_VIDEO_SERVICES) or not isinstance(current_page_state,dict) or current_page_state.get('service')!=current_service_name or not isinstance(current_source_rows,list):raise ValueError('오디오 원본 이력 선택 오류')
+        current_matching_rows=[current_row for current_row in current_source_rows if isinstance(current_row,(list,tuple)) and len(current_row)==5 and current_row[0]==current_job_identifier]
+        if len(current_matching_rows)!=1:raise ValueError('원본 작업 선택 오류')
+        current_is_audio=current_service_name in HERMES_AUDIO_SERVICES
+        current_command_name='hermes-audio-source-status' if current_is_audio else 'hermes-video-source-status'
+        current_response_value=execute_remote_management_command('hermes-agent',current_command_name,{'service':current_service_name,'job_id':current_job_identifier})
+        current_job_record=(validate_hermes_audio_source_response if current_is_audio else validate_hermes_video_source_response)(current_service_name,current_job_identifier,current_response_value)
+        current_media_path=current_job_record.get('audio' if current_is_audio else 'video')
+        current_status_labels={'queued':'대기 기록','running':'실행 기록','completed':'완료 기록','failed':'실패 기록','cancelled':'취소 기록','canceled':'취소 기록','paused':'일시정지 기록','unknown':'확인 불가'}
+        current_result_labels={'available':'결과 경로 확인','unavailable':'결과 경로 확인 불가','not_ready':'결과 준비 전'}
+        current_notice_text='기록 상태: '+current_status_labels[current_job_record['status']]+' · '+current_result_labels[current_job_record['result_status']]+' · '+(current_media_path or '결과 경로 없음')+' · 파일 내용·재생과 프로세스 생존은 별도 확인' + (' · 파일 존재도 별도 확인' if current_is_audio else ' · 파일 존재는 조회 시점 기준')
+        if current_media_path:
+            current_notice_text+='  \n['+('음원 열기' if current_is_audio else '영상 열기')+']('+current_media_path+')'
+            if not current_is_audio:
+                current_notice_text+=' · [첫 프레임 열기]('+current_job_record['image']+') · [프레임 ZIP 받기]('+current_job_record['download']+')'
+        if current_job_record['status']=='failed':
+            current_failure_labels={'host_memory_guard':'시스템 메모리 보호로 중단됨','host_memory_monitor_failed':'시스템 메모리 감시 실패','gpu_out_of_memory':'GPU 메모리 부족','unclassified_failure':'원인을 확인하지 못함'}
+            current_failure_label=current_failure_labels.get(current_job_record.get('failure_code'),'원인을 확인하지 못함')
+            current_notice_text+=' · '+current_failure_label+' · 원 서비스의 상태와 상세 로그를 확인하세요.'
+    except (OSError,ValueError,KeyError,TypeError,RuntimeError):
+        current_notice_text='원본 작업 상태를 확인할 수 없습니다. 서비스와 선택한 작업을 다시 확인하세요.'
+    return {'identity':current_identity_value,'token':current_request_token,'notice':current_notice_text}
+
+
+def render_operations_media_source_status(current_service_name,current_job_identifier,current_page_state,current_source_rows,current_request_token,current_result_record):
+    if not isinstance(current_result_record,dict) or current_result_record.get('token')!=current_request_token or current_result_record.get('identity')!=[current_service_name,current_job_identifier,current_page_state,current_source_rows]:return gr.skip()
+    return current_result_record['notice']
 
 
 def select_operations_receipt_service(current_receipt_rows, current_select_event:gr.SelectData,current_session_identifier=None):
@@ -1682,6 +1733,13 @@ def build_operations_history_interface():
             current_source_search.input(lambda:([],'검색 조건이 바뀌었습니다. 원본 이력을 조회하세요.',None,gr.update(interactive=False),'',gr.update(interactive=False)),outputs=current_source_outputs,queue=False).then(lambda:'',outputs=current_source_selected_id,queue=False)
             current_source_table.select(select_operations_source_job,[current_source_service,current_source_state,current_source_table,current_session_dropdown],[current_source_selected_id,current_source_link],queue=False)
             current_session_dropdown.change(lambda:'',outputs=current_source_link,queue=False)
+            current_media_source_button=gr.Button('음악·효과음·영상 원본 작업을 선택하세요',interactive=False)
+            current_media_source_notice=gr.Markdown('선택한 원본 작업 상태를 확인하세요.')
+            current_media_source_token=gr.State(None)
+            current_media_source_result=gr.State(None)
+            current_media_source_button.click(create_cleanup_preview_token,outputs=current_media_source_token,queue=False).then(collect_operations_media_source_status,[current_source_service,current_source_selected_id,current_source_state,current_source_table,current_media_source_token],current_media_source_result,queue=False,trigger_mode='multiple').then(render_operations_media_source_status,[current_source_service,current_source_selected_id,current_source_state,current_source_table,current_media_source_token,current_media_source_result],current_media_source_notice,queue=False)
+            for current_media_source_input in (current_source_service,current_source_selected_id,current_source_table):
+                current_media_source_input.change(lambda:(create_cleanup_preview_token(),''),outputs=[current_media_source_token,current_media_source_notice],queue=False).then(update_operations_media_source_button,[current_source_service,current_source_selected_id,current_source_state,current_source_table],current_media_source_button,queue=False)
             gr.Markdown('### 생성·번역 작업 재개\nFLUX·Kimodo·음악·효과음·번역 원본 이력에서 실패·취소·일시정지된 작업을 선택하고 대상을 확인하세요.')
             current_audio_resume_record=gr.State(None)
             current_audio_resume_status=gr.Markdown('원본 작업을 선택하세요.')

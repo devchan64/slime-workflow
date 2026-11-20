@@ -79,6 +79,58 @@ def read_hermes_video_status(current_request_identifier,current_service_name):
     return {'receipt':current_receipt_value,'job':current_output_value}
 
 
+def read_hermes_video_source_job(current_service_name,current_job_identifier):
+    """원본 상태·결과 파일만 관측하며 중단 작업 복구를 실행하지 않는다."""
+    from pathlib import Path
+    from tools.review.domains.hermes_agent.delegation_store import read_bounded_delegation_record,validate_service_job_identifier
+    validate_hermes_video_service(current_service_name)
+    if not validate_service_job_identifier(current_service_name,current_job_identifier):raise ValueError('영상 원본 작업 ID 형식 오류')
+    current_manager_value=make_hermes_video_manager(current_service_name)
+    current_storage_root=Path(current_manager_value.job_storage_root)
+    current_job_root=current_storage_root/current_job_identifier
+    if current_storage_root.is_symlink() or not current_storage_root.is_dir() or current_job_root.is_symlink() or not current_job_root.is_dir() or current_job_root.resolve().parent!=current_storage_root.resolve():raise ValueError('영상 원본 작업 경로 오류')
+    current_status_path=current_job_root/'status.json'
+    current_status_record=read_bounded_delegation_record(current_status_path)
+    if not isinstance(current_status_record,dict):raise ValueError('영상 원본 상태 형식 오류')
+    current_status_value=current_status_record.get('status')
+    if current_status_value not in ('queued','running','completed','failed','cancelled','canceled','paused','unknown'):current_status_value='unknown'
+    current_result_paths={'video':None,'image':None,'download':None}
+    if current_status_value=='completed':
+        try:
+            current_result_record=read_bounded_delegation_record(current_job_root/'result.json')
+            current_attempt_identifier=current_result_record.get('attempt') if isinstance(current_result_record,dict) else None
+            if not isinstance(current_attempt_identifier,str) or not re.fullmatch(r'[a-f0-9]{32}',current_attempt_identifier):raise ValueError('영상 실행 시도 오류')
+            current_attempts_root=current_job_root/'attempts'
+            current_attempt_root=current_attempts_root/current_attempt_identifier
+            if current_attempts_root.is_symlink() or current_attempt_root.is_symlink() or not current_attempt_root.is_dir() or current_attempt_root.resolve().parent!=current_attempts_root.resolve():raise ValueError('영상 결과 폴더 오류')
+            for current_result_name in ('preview.mp4','output-000.png','frames.zip'):
+                current_result_path=current_attempt_root/current_result_name
+                if current_result_path.is_symlink() or not current_result_path.is_file():raise ValueError('영상 결과 파일 오류')
+            current_result_base='/'+current_service_name+'/jobs/'+current_job_identifier+'/attempts/'+current_attempt_identifier+'/'
+            current_result_paths={'video':current_result_base+'preview.mp4','image':current_result_base+'output-000.png','download':current_result_base+'frames.zip'}
+        except (OSError,ValueError,TypeError,KeyError):
+            pass
+    if read_bounded_delegation_record(current_status_path)!=current_status_record:raise ValueError('영상 상태가 조회 중 변경되었습니다.')
+    current_result_status=('available' if all(current_result_paths.values()) else 'unavailable') if current_status_value=='completed' else 'not_ready'
+    return {'status':current_status_value,**current_result_paths,'result_status':current_result_status,'note':'기록만 조회하며 중단 상태 복구는 하지 않습니다. 파일 존재는 조회 시점 기준이며 내용·재생과 프로세스 생존은 별도 확인하세요.',**observe_hermes_generator_failure(current_status_value,current_status_record.get('error'))}
+
+
+def validate_hermes_video_source_response(current_service_name,current_job_identifier,current_response_value):
+    """원본 영상 응답의 서비스·작업·상태와 결과 경로를 검사한다."""
+    from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+    from tools.review.domains.hermes_agent.media_result_paths import validate_hermes_video_result_paths
+    validate_hermes_video_service(current_service_name)
+    if not validate_service_job_identifier(current_service_name,current_job_identifier):raise ValueError('영상 원본 작업 ID 오류')
+    if not isinstance(current_response_value,dict) or current_response_value.get('service')!=current_service_name or current_response_value.get('job_id')!=current_job_identifier or not isinstance(current_response_value.get('job'),dict):raise ValueError('영상 원본 상태 응답 불일치')
+    current_job_record=current_response_value['job']
+    if current_job_record.get('status') not in ('queued','running','completed','failed','cancelled','canceled','paused','unknown'):raise ValueError('영상 상태 오류')
+    current_result_paths=validate_hermes_video_result_paths(current_service_name,current_job_identifier,current_job_record)
+    if any(current_job_record.get(current_field_name)!=current_result_paths[current_field_name] for current_field_name in current_result_paths):raise ValueError('영상 결과 경로 오류')
+    current_expected_status=('available' if all(current_result_paths.values()) else 'unavailable') if current_job_record['status']=='completed' else 'not_ready'
+    if current_job_record.get('result_status')!=current_expected_status:raise ValueError('영상 결과 상태 오류')
+    return current_job_record
+
+
 def list_hermes_video_receipts(current_service_name):
     validate_hermes_video_service(current_service_name)
     return HermesDelegationStore().list_service_delegations(current_service_name)

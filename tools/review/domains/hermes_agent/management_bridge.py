@@ -186,6 +186,24 @@ def handle_hermes_observer_connection(current_client_socket):
                     current_response_record=inspect_generator_reservation_identity(current_inspection_request['service'],current_inspection_request['job_id'])
                 except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
                     current_response_record={'error':'예약 신원 조회 실패: 서비스와 작업 ID를 확인하세요.'}
+            elif current_request_bytes.startswith(b'video-source-status ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.video_operations import read_hermes_video_source_job
+                    current_video_request=parse_management_request_json(current_request_bytes[len(b'video-source-status '):-1].decode('utf-8'))
+                    if not isinstance(current_video_request,dict) or set(current_video_request)!={'service','job_id'}:raise ValueError('영상 원본 작업 입력 오류')
+                    current_response_record={'service':current_video_request['service'],'job_id':current_video_request['job_id'],'job':read_hermes_video_source_job(current_video_request['service'],current_video_request['job_id'])}
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'영상 원본 상태 조회 실패: 서비스와 작업 ID를 확인하세요.'}
+            elif current_request_bytes.startswith(b'audio-source-status ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
+                try:
+                    from tools.review.common.management_gateway import parse_management_request_json
+                    from tools.review.domains.hermes_agent.audio_operations import read_hermes_audio_source_job
+                    current_audio_request=parse_management_request_json(current_request_bytes[len(b'audio-source-status '):-1].decode('utf-8'))
+                    if not isinstance(current_audio_request,dict) or set(current_audio_request)!={'service','job_id'}:raise ValueError('오디오 원본 작업 입력 오류')
+                    current_response_record={'service':current_audio_request['service'],'job_id':current_audio_request['job_id'],'job':read_hermes_audio_source_job(current_audio_request['service'],current_audio_request['job_id'])}
+                except (OSError,RuntimeError,ValueError,TypeError,KeyError,UnicodeDecodeError):
+                    current_response_record={'error':'오디오 원본 상태 조회 실패: 서비스와 작업 ID를 확인하세요.'}
             elif current_request_bytes.startswith(b'source-history ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n')==1:
                 try:
                     from tools.review.common.management_gateway import parse_management_request_json

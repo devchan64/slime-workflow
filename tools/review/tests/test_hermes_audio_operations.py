@@ -191,6 +191,136 @@ except ValueError as error:
             self.assertEqual(audio_resume_operations.read_hermes_audio_resume_receipt('resume_original_123')['state'],'unknown')
             current_service_mock.assert_called_once()
 
+    def test_source_audio_status_through_hermes_command(self):
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_payload_value={'service':'music-heartmula','job_id':current_job_identifier}
+        with patch.object(audio_operations,'call_hermes_audio_service',return_value={'id':current_job_identifier,'status':'queued'}) as current_service_mock:
+            current_result_value=HermesServiceManager().execute_hermes_command('hermes-audio-source-status',current_payload_value)
+            self.assertEqual((current_result_value['service'],current_result_value['job_id'],current_result_value['job']['status']),('music-heartmula',current_job_identifier,'queued'))
+            with self.assertRaises(ValueError):HermesServiceManager().execute_hermes_command('hermes-audio-source-status',{**current_payload_value,'extra':True})
+            current_service_mock.assert_called_once()
+
+    def test_source_audio_status_reads_actual_service_records_over_gateway(self):
+        import json
+        import os
+        import threading
+        from http.server import ThreadingHTTPServer
+        from tools.review.common.management_gateway import ManagementCommandGateway,execute_management_command
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.domains.music.generation import MusicGenerationManager
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_handlers_value={}
+            for current_service_name in ('music-heartmula','sfx-dasheng-audiogen'):
+                current_manager_value=MusicGenerationManager(current_service_name)
+                current_manager_value.job_storage_root=current_root_path/current_service_name/'jobs'
+                current_manager_value.history_storage_root=current_root_path/current_service_name/'history'
+                current_job_path=current_manager_value.job_storage_root/current_job_identifier
+                current_job_path.mkdir(parents=True)
+                (current_job_path/'status.json').write_text(json.dumps({'status':'completed'}))
+                (current_job_path/'result.json').write_text(json.dumps({'format':'wav','attempt':'a'*32}))
+                current_handlers_value[current_service_name]=current_manager_value.handle_music_request
+            current_hermes_manager=HermesServiceManager(current_root_path/'hermes-jobs',current_root_path/'sessions')
+            current_handlers_value['hermes-agent']=current_hermes_manager.handle_hermes_request
+            current_gateway_value=ManagementCommandGateway(current_handlers_value)
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_server_thread=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_server_thread.start()
+            current_gateway_url='http://127.0.0.1:'+str(current_server_value.server_port)
+            try:
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_url}):
+                    for current_service_name,current_file_name in (('music-heartmula','music.wav'),('sfx-dasheng-audiogen','sound.wav')):
+                        current_result_value=execute_management_command('hermes-agent','hermes-audio-source-status',{'service':current_service_name,'job_id':current_job_identifier},current_gateway_url)
+                        self.assertEqual(current_result_value['job']['status'],'completed')
+                        self.assertEqual(current_result_value['job']['result_status'],'available')
+                        self.assertEqual(current_result_value['job']['audio'],'/'+current_service_name+'/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/'+current_file_name)
+                        self.assertNotIn(str(current_root_path),str(current_result_value))
+                        self.assertFalse((current_root_path/current_service_name/'history').exists())
+                        current_job_path=current_root_path/current_service_name/'jobs'/current_job_identifier
+                        self.assertEqual(json.loads((current_job_path/'status.json').read_text()),{'status':'completed'})
+                        self.assertEqual(json.loads((current_job_path/'result.json').read_text()),{'format':'wav','attempt':'a'*32})
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_server_thread.join(timeout=5)
+
+    def test_media_result_links_cross_runtime_proxy_to_actual_service_files(self):
+        import json
+        import threading
+        from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+        from urllib.request import Request,urlopen
+        from tools.review.common.management_gateway import ManagementCommandGateway,execute_management_command
+        from tools.review.common.management_transport import proxy_management_request
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.domains.hermes_agent import video_operations
+        from tools.review.domains.music.generation import MusicGenerationManager
+        from tools.review.domains.wan_vace.generation import VaceVideoGenerationManager
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_audio_manager=MusicGenerationManager('music-heartmula')
+            current_audio_manager.job_storage_root=current_root_path/'music'
+            current_video_manager=VaceVideoGenerationManager()
+            current_video_manager.job_storage_root=current_root_path/'video'
+            for current_storage_root,current_file_names in ((current_audio_manager.job_storage_root,('music.wav',)),(current_video_manager.job_storage_root,('preview.mp4','output-000.png','frames.zip'))):
+                current_job_root=current_storage_root/current_job_identifier
+                current_attempt_root=current_job_root/'attempts'/('a'*32)
+                current_attempt_root.mkdir(parents=True)
+                (current_job_root/'status.json').write_text(json.dumps({'status':'completed'}))
+                (current_job_root/'result.json').write_text(json.dumps({'format':'wav','attempt':'a'*32}))
+                for current_file_name in current_file_names:(current_attempt_root/current_file_name).write_bytes(b'fixture-'+current_file_name.encode())
+            current_hermes_manager=HermesServiceManager(current_root_path/'hermes',current_root_path/'sessions')
+            current_gateway_value=ManagementCommandGateway({'hermes-agent':current_hermes_manager.handle_hermes_request,'music-heartmula':current_audio_manager.handle_music_request})
+            def dispatch_test_runtime(current_http_handler):
+                if current_http_handler.path.startswith('/music-heartmula/jobs/'):return current_audio_manager.handle_music_request(current_http_handler)
+                if current_http_handler.path.startswith('/wan22-vace/jobs/'):return current_video_manager.handle_image_request(current_http_handler)
+                return current_gateway_value.handle(current_http_handler)
+            current_gateway_server=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(dispatch_test_runtime))
+            current_gateway_server.emit_gateway_trace=lambda *current_values:None
+            current_gateway_thread=threading.Thread(target=current_gateway_server.serve_forever,daemon=True)
+            current_gateway_thread.start()
+            current_gateway_url='http://127.0.0.1:'+str(current_gateway_server.server_port)
+            class TestProxyHandler(BaseHTTPRequestHandler):
+                def do_GET(self):
+                    if not proxy_management_request(self,current_gateway_url):self.send_error(404)
+                def log_message(self,*current_values):pass
+            current_proxy_server=ThreadingHTTPServer(('127.0.0.1',0),TestProxyHandler)
+            current_proxy_thread=threading.Thread(target=current_proxy_server.serve_forever,daemon=True)
+            current_proxy_thread.start()
+            current_proxy_url='http://127.0.0.1:'+str(current_proxy_server.server_port)
+            try:
+                with patch.dict('os.environ',{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_url}),patch.object(video_operations,'make_hermes_video_manager',return_value=current_video_manager):
+                    for current_service_name,current_field_name,current_expected_name in (('music-heartmula','audio','music.wav'),('wan22-vace','video','preview.mp4'),('wan22-vace','image','output-000.png'),('wan22-vace','download','frames.zip')):
+                        current_result_value=execute_management_command('hermes-agent','hermes-'+('audio' if current_service_name=='music-heartmula' else 'video')+'-source-status',{'service':current_service_name,'job_id':current_job_identifier},current_gateway_url)
+                        current_link_value=current_result_value['job'][current_field_name]
+                        with urlopen(current_proxy_url+current_link_value,timeout=5) as current_response_value:
+                            self.assertEqual(current_response_value.read(),b'fixture-'+current_expected_name.encode())
+                    current_audio_link='/music-heartmula/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/music.wav'
+                    with urlopen(Request(current_proxy_url+current_audio_link,headers={'Range':'bytes=0-3'}),timeout=5) as current_range_response:
+                        self.assertEqual((current_range_response.status,current_range_response.read()),(206,b'fixt'))
+            finally:
+                current_proxy_server.shutdown();current_proxy_server.server_close();current_proxy_thread.join(timeout=5)
+                current_gateway_server.shutdown();current_gateway_server.server_close();current_gateway_thread.join(timeout=5)
+
+    def test_source_audio_status_checks_service_job_and_result(self):
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_result_path='/music-heartmula/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/music.wav'
+        current_source_record={'id':current_job_identifier,'status':'completed','audio':current_result_path}
+        with patch.object(audio_operations,'call_hermes_audio_service',return_value=current_source_record) as current_service_mock:
+            current_result_value=audio_operations.read_hermes_audio_source_job('music-heartmula',current_job_identifier)
+            self.assertEqual(current_result_value['audio'],current_result_path)
+            current_service_mock.assert_called_once_with('music-heartmula','status',{'id':current_job_identifier})
+            with self.assertRaises(ValueError):audio_operations.read_hermes_audio_source_job('music-heartmula','../invalid')
+            with self.assertRaises(ValueError):audio_operations.read_hermes_audio_source_job('music-magenta',current_job_identifier)
+            current_source_record['id']='other-job'
+            with self.assertRaises(ValueError):audio_operations.read_hermes_audio_source_job('music-heartmula',current_job_identifier)
+            self.assertEqual(current_service_mock.call_count,2)
+
     def test_audio_paths_are_same_service_job_and_attempt(self):
         current_job_identifier='2026-11-18_00-00-00-12345678'
         current_good_path='/music-heartmula/jobs/'+current_job_identifier+'/attempts/'+'a'*32+'/music.wav'

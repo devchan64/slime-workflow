@@ -56,6 +56,29 @@ def read_hermes_flux_profile_status(current_request_identifier,current_profile_n
     return {'receipt':current_receipt_value,'job':{'status':current_status_value,'image':current_result_path,'result_status':current_result_status,'note':'상세 로그와 다른 결과는 해당 생성기 화면에서 확인하세요. 생성 이미지는 자동으로 에셋에 등록되지 않습니다.', **observe_hermes_generator_failure(current_status_value,current_job_value.get('error'))}}
 
 
+def read_hermes_flux_source_job(current_profile_name,current_job_identifier):
+    """직접 시작한 FLUX 작업의 기록과 결과 이미지 존재를 읽는다."""
+    from pathlib import Path
+    from tools.review.domains.hermes_agent.delegation_store import read_bounded_delegation_record,validate_service_job_identifier
+    from tools.review.domains.image.flux_image_generation import FluxImageGenerationManager
+    from tools.review.domains.image.flux_expression_generation import FluxExpressionGenerationManager
+    validate_hermes_flux_profile(current_profile_name)
+    if not validate_service_job_identifier(current_profile_name,current_job_identifier):raise ValueError('FLUX 원본 작업 ID 오류')
+    current_manager_value=FluxExpressionGenerationManager() if current_profile_name=='flux-expression' else FluxImageGenerationManager(current_profile_name)
+    current_storage_root=Path(current_manager_value.job_storage_root)
+    current_job_root=current_storage_root/current_job_identifier
+    if current_storage_root.is_symlink() or not current_storage_root.is_dir() or current_job_root.is_symlink() or not current_job_root.is_dir() or current_job_root.resolve().parent!=current_storage_root.resolve():raise ValueError('FLUX 원본 작업 경로 오류')
+    current_status_path=current_job_root/'status.json'
+    current_status_record=read_bounded_delegation_record(current_status_path)
+    if not isinstance(current_status_record,dict):raise ValueError('FLUX 원본 상태 형식 오류')
+    current_status_value=current_status_record.get('status')
+    if current_status_value not in ('queued','running','completed','failed','cancelled','canceled','paused','unknown'):current_status_value='unknown'
+    current_image_path=current_job_root/'result.png'
+    current_image_url='/'+current_profile_name+'-generator/jobs/'+current_job_identifier+'/result.png' if current_status_value=='completed' and not current_image_path.is_symlink() and current_image_path.is_file() else None
+    if read_bounded_delegation_record(current_status_path)!=current_status_record:raise ValueError('FLUX 상태가 조회 중 변경되었습니다.')
+    return {'status':current_status_value,'image':current_image_url,'result_status':'available' if current_image_url else 'unavailable' if current_status_value=='completed' else 'not_ready','note':'기록과 조회 시점의 파일 존재만 확인합니다. 이미지 내용·품질과 프로세스 생존은 별도 확인하세요.',**observe_hermes_generator_failure(current_status_value,current_status_record.get('error'))}
+
+
 def list_hermes_flux_profile_receipts(current_profile_name):
     validate_hermes_flux_profile(current_profile_name)
     return HermesDelegationStore().list_service_delegations(current_profile_name)

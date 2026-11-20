@@ -177,7 +177,7 @@ def read_hermes_recent_job_snapshot(current_service_manager=None):
     try:
         current_service_manager = current_service_manager or HermesServiceManager()
         with current_service_manager.hold_hermes_service_lock():
-            current_job_paths = current_service_manager.list_hermes_job_paths()
+            current_job_paths = current_service_manager.list_hermes_job_paths(observation_limits=True)
             current_job_values = []
             for current_job_path in current_job_paths[:10]:
                 current_status_path = current_job_path / 'status.json'
@@ -207,6 +207,9 @@ def read_hermes_management_snapshot():
             raise ValueError('GPU 상태 형식 오류')
         current_gpu_values = {'status': current_gpu_record['status']}
         if current_gpu_record['status'] in ('idle', 'busy'):
+            current_process_records = current_gpu_record.get('processes')
+            if not isinstance(current_process_records, list) or any(not isinstance(current_process_record, dict) for current_process_record in current_process_records) or (current_gpu_record['status'] == 'busy') != bool(current_process_records):
+                raise ValueError('GPU 상태와 프로세스 목록 불일치')
             for current_memory_field in ('gtt_total_mib', 'gtt_free_mib', 'vram_total_mib', 'vram_free_mib'):
                 current_memory_value = current_gpu_record.get(current_memory_field)
                 current_gpu_values[current_memory_field] = current_memory_value if type(current_memory_value) is int and current_memory_value >= 0 else None

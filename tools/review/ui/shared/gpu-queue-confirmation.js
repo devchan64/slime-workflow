@@ -3,8 +3,9 @@ async function confirmGpuQueueStart() {
  const queueResponseValue=await fetch('/management/gpu-queue',{cache:'no-store'});
  if(!queueResponseValue.ok)throw new Error('GPU 대기열을 확인하지 못했습니다. 잠시 후 다시 시도하세요.');
  const queueRecordValue=await queueResponseValue.json();
- const pendingJobValues=Array.isArray(queueRecordValue.jobs)?queueRecordValue.jobs:[];
- const activeGpuProcessValues=queueRecordValue.gpu_status?.status==='busy'&&Array.isArray(queueRecordValue.gpu_status.processes)?queueRecordValue.gpu_status.processes:[];
+ if(!queueRecordValue||!Array.isArray(queueRecordValue.jobs)||queueRecordValue.jobs.some(currentJobRecord=>!currentJobRecord||typeof currentJobRecord.service!=='string'||typeof currentJobRecord.id!=='string')||!['idle','busy'].includes(queueRecordValue.gpu_status?.status)||!Array.isArray(queueRecordValue.gpu_status.processes)||queueRecordValue.gpu_status.processes.some(currentProcessRecord=>!currentProcessRecord||typeof currentProcessRecord!=='object')||(queueRecordValue.gpu_status.status==='busy')!==(queueRecordValue.gpu_status.processes.length>0))throw new Error('GPU 대기열 또는 GPU 상태를 확인하지 못했습니다. 잠시 후 다시 시도하세요.');
+ const pendingJobValues=queueRecordValue.jobs;
+ const activeGpuProcessValues=queueRecordValue.gpu_status.processes;
  if(!pendingJobValues.length&&!activeGpuProcessValues.length)return true;
  return await new Promise(resolveConfirmation=>{
   const dialogOwnerDocument=window.top.document;

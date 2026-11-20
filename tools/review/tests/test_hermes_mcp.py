@@ -239,6 +239,27 @@ class HermesMcpTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, '형식'):
                 hermes_module_value.read_hermes_gpu_queue_status()
 
+    def test_gpu_queue_status_rejects_malformed_gpu_observations(self):
+        current_queue_record={'queue':{'status':'available','jobs':[]}}
+        for current_gpu_value in ({},{'status':'idle','processes':[{}]},{'status':'busy','processes':[]},{'status':'busy','processes':[None]},{'status':'unknown','processes':[]}):
+            with self.subTest(gpu=current_gpu_value),patch.object(hermes_module_value,'run_hermes_mcp_command',return_value=current_queue_record),patch.object(hermes_module_value.urllib.request,'build_opener') as current_opener_mock:
+                current_opener_mock.return_value.open.return_value=io.BytesIO(json.dumps(current_gpu_value).encode())
+                with self.assertRaises(ValueError):hermes_module_value.read_hermes_gpu_queue_status()
+        for current_gpu_value in ({'status':'idle','processes':[]},{'status':'busy','processes':[{'pid':1}]},{'status':'unavailable','processes':[]}):
+            with self.subTest(gpu=current_gpu_value),patch.object(hermes_module_value,'run_hermes_mcp_command',return_value=current_queue_record),patch.object(hermes_module_value.urllib.request,'build_opener') as current_opener_mock:
+                current_opener_mock.return_value.open.return_value=io.BytesIO(json.dumps(current_gpu_value).encode())
+                self.assertEqual(hermes_module_value.read_hermes_gpu_queue_status()['gpu_status'],current_gpu_value)
+
+    def test_audio_source_status_mcp_forwards_service_and_job(self):
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        current_response_value={'service':'music-heartmula','job_id':current_job_identifier,'job':{'status':'queued','audio':None,'result_status':'not_ready'}}
+        with patch.object(hermes_module_value,'run_hermes_mcp_command',return_value=current_response_value) as current_gateway_mock:
+            self.assertEqual(hermes_module_value.read_hermes_audio_source_status('music-heartmula',current_job_identifier)['job']['status'],'queued')
+            current_gateway_mock.assert_called_once_with('hermes-audio-source-status',{'service':'music-heartmula','job_id':current_job_identifier})
+            for current_changed_value in ({**current_response_value,'job_id':'other'}, {**current_response_value,'job':{'status':'queued','audio':None,'result_status':'available'}}, {**current_response_value,'job':{'status':'completed','audio':'/private/secret','result_status':'available'}}):
+                current_gateway_mock.return_value=current_changed_value
+                with self.assertRaises(ValueError):hermes_module_value.read_hermes_audio_source_status('music-heartmula',current_job_identifier)
+
     def test_writer_search_paths_mcp_forwards_only_request_id(self):
         with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={'paths':['world/town.md'],'truncated':False}) as current_gateway_mock:
             current_response_value=hermes_module_value.read_hermes_writer_search_paths('request_123')

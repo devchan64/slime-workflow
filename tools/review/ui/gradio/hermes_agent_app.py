@@ -2825,19 +2825,27 @@ def read_hermes_management_summary():
     """공용 관측을 표시하며 조회 실패를 준비 또는 유휴로 오인하지 않는다."""
     try:
         current_snapshot_record = execute_remote_management_command('hermes-agent', 'hermes-management-status', {})
-        current_model_record = current_snapshot_record['model']
-        current_gpu_record = current_snapshot_record['gpu']
-        current_queue_record = current_snapshot_record['queue']
-        current_capacity_record = current_snapshot_record.get('memory_capacity', {})
-        current_reservation_record = current_snapshot_record.get('reservations', {})
-        current_recent_jobs = current_snapshot_record.get('recent_hermes_jobs', {})
-        current_generator_record = current_snapshot_record.get('generators', {}).get('kimodo', {})
-        current_generator_model = current_generator_record.get('model', {})
-        current_generator_active = current_generator_record.get('active', {})
-        current_model_text = current_model_record.get('message', '조회 불가') if current_model_record.get('status') == 'available' else '조회 불가'
+        if not isinstance(current_snapshot_record, dict):
+            raise ValueError('관리 상태 응답 형식 오류')
+        def read_status_record(current_parent_record, current_field_name):
+            current_field_value = current_parent_record.get(current_field_name)
+            return current_field_value if isinstance(current_field_value, dict) else {}
+        current_model_record = read_status_record(current_snapshot_record, 'model')
+        current_gpu_record = read_status_record(current_snapshot_record, 'gpu')
+        current_queue_record = read_status_record(current_snapshot_record, 'queue')
+        current_capacity_record = read_status_record(current_snapshot_record, 'memory_capacity')
+        current_reservation_record = read_status_record(current_snapshot_record, 'reservations')
+        current_recent_jobs = read_status_record(current_snapshot_record, 'recent_hermes_jobs')
+        current_generator_record = read_status_record(read_status_record(current_snapshot_record, 'generators'), 'kimodo')
+        current_generator_model = read_status_record(current_generator_record, 'model')
+        current_generator_active = read_status_record(current_generator_record, 'active')
+        if not isinstance(current_queue_record.get('jobs'), list): current_queue_record = {}
+        if not isinstance(current_reservation_record.get('records'), list) or any(not isinstance(current_record, dict) for current_record in current_reservation_record.get('records', [])): current_reservation_record = {}
+        if not isinstance(current_recent_jobs.get('jobs'), list): current_recent_jobs = {}
+        current_model_text = current_model_record['message'] if current_model_record.get('status') == 'available' and isinstance(current_model_record.get('message'), str) else '조회 불가'
         current_queue_text = str(len(current_queue_record['jobs'])) + '건' if current_queue_record.get('status') == 'available' else '조회 불가'
-        current_generator_text = ('준비됨' if current_generator_model.get('ready') else '준비 필요') if current_generator_model.get('status') == 'available' else '조회 불가'
-        if current_generator_active.get('status')=='available':
+        current_generator_text = ('준비됨' if current_generator_model['ready'] else '준비 필요') if current_generator_model.get('status') == 'available' and type(current_generator_model.get('ready')) is bool else '조회 불가'
+        if current_generator_active.get('status')=='available' and type(current_generator_active.get('running')) is bool and type(current_generator_active.get('count')) is int and type(current_generator_active.get('unknown_count')) is int and current_generator_active['count'] >= 0 and current_generator_active['unknown_count'] >= 0 and current_generator_active['running'] == (current_generator_active['count'] > 0):
             current_active_text=('기록상 대기·실행 '+str(current_generator_active.get('count'))+'건 · 최근 '+str(current_generator_active.get('id'))) if current_generator_active.get('running') else '확인된 대기·실행 기록 없음'
             if current_generator_active.get('unknown_count',0):
                 current_active_text+=' · 상태 확인 불가 '+str(current_generator_active['unknown_count'])+'건'
@@ -2845,12 +2853,15 @@ def read_hermes_management_summary():
             current_active_text='조회 불가'
         current_capacity_text='조회 불가'
         if (current_capacity_record.get('status')=='available' and current_capacity_record.get('domain') in ('vram','gtt')
+                and current_gpu_record.get('status') in ('idle','busy')
                 and type(current_capacity_record.get('capacity_sufficient')) is bool
-                and all(type(current_capacity_record.get(current_field_name)) is int and current_capacity_record[current_field_name]>=0 for current_field_name in ('pool_available_mib','required_mib','host_available_mib'))):
+                and all(type(current_capacity_record.get(current_field_name)) is int and current_capacity_record[current_field_name]>=0 for current_field_name in ('pool_available_mib','required_mib','host_available_mib'))
+                and current_capacity_record['required_mib']>0
+                and current_capacity_record['capacity_sufficient']==(current_capacity_record['pool_available_mib']>=current_capacity_record['required_mib'])):
             current_capacity_text=(current_capacity_record['domain'].upper()+' 여유 '+str(current_capacity_record['pool_available_mib'])+' / 필요 '+str(current_capacity_record['required_mib'])+' MiB · 호스트 여유 '+str(current_capacity_record['host_available_mib'])+' MiB · '+('관측치상 메모리 기준 충족' if current_capacity_record['capacity_sufficient'] else '관측치상 메모리 부족')+' · 실제 실행 가능 여부 별도')
         current_reservation_text = (str(len(current_reservation_record.get('records', []))) + '건' + (' 이상' if current_reservation_record.get('truncated') else '') + (' · 확인 불가 기록 포함' if any(current_record.get('state') == 'unknown' for current_record in current_reservation_record.get('records', [])) else '') + (' · 종료 확인이 필요한 예약 포함' if any(current_record.get('state') == 'cleanup_unverified' for current_record in current_reservation_record.get('records', [])) else '') + (' · 작가 작업자 리더 생존 확인' if any(current_record.get('state') == 'cleanup_unverified' and current_record.get('worker_leader') == 'verified_running' for current_record in current_reservation_record.get('records', [])) else '')) if current_reservation_record.get('status') == 'available' else '조회 불가'
         current_jobs_text = (str(len(current_recent_jobs.get('jobs', []))) + '건' + (' (최근 10건)' if current_recent_jobs.get('truncated') else '')) if current_recent_jobs.get('status') == 'available' else '조회 불가'
-        return 'GPU 예약 기록: ' + current_reservation_text + ' · 최근 Hermes 작업: ' + current_jobs_text + ' · 메모리: ' + current_capacity_text + ' (다른 예약·순서 제외) · Kimodo: ' + current_generator_text + ' · ' + current_active_text + ' · Hermes 모델: ' + current_model_text + ' · GPU: ' + str(current_gpu_record.get('status', 'unavailable')) + ' · 대기: ' + current_queue_text + ' · 확인: ' + current_snapshot_record['queried_at'] + ' (GPU 측정은 짧게 캐시될 수 있음)'
+        return 'GPU 예약 기록: ' + current_reservation_text + ' · 최근 Hermes 작업: ' + current_jobs_text + ' · 메모리: ' + current_capacity_text + ' (다른 예약·순서 제외) · Kimodo: ' + current_generator_text + ' · ' + current_active_text + ' · Hermes 모델: ' + current_model_text + ' · GPU: ' + str(current_gpu_record.get('status', 'unavailable')) + ' · 대기: ' + current_queue_text + ' · 확인: ' + str(current_snapshot_record.get('queried_at') or '조회 시각 확인 불가') + ' (GPU 측정은 짧게 캐시될 수 있음)'
     except Exception as current_status_error:
         return '관리 상태 조회 실패 · ' + str(current_status_error)
 

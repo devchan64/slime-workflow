@@ -31,7 +31,8 @@ try{
  const currentQueueResponse=await fetch('/management/gpu-queue',{cache:'no-store'});
  if(!currentQueueResponse.ok)throw Error('GPU 대기열을 확인하지 못했습니다. 잠시 후 다시 시도하세요.');
  const currentQueueRecord=await currentQueueResponse.json();
- const currentNeedsConfirmation=(Array.isArray(currentQueueRecord.jobs)&&currentQueueRecord.jobs.length>0)||(currentQueueRecord.gpu_status?.status==='busy'&&Array.isArray(currentQueueRecord.gpu_status.processes)&&currentQueueRecord.gpu_status.processes.length>0);
+ if(!currentQueueRecord||!Array.isArray(currentQueueRecord.jobs)||currentQueueRecord.jobs.some(currentJobRecord=>!currentJobRecord||typeof currentJobRecord.service!=='string'||typeof currentJobRecord.id!=='string')||!['idle','busy'].includes(currentQueueRecord.gpu_status?.status)||!Array.isArray(currentQueueRecord.gpu_status.processes)||currentQueueRecord.gpu_status.processes.some(currentProcessRecord=>!currentProcessRecord||typeof currentProcessRecord!=='object')||(currentQueueRecord.gpu_status.status==='busy')!==(currentQueueRecord.gpu_status.processes.length>0))throw Error('GPU 대기열 또는 GPU 상태를 확인하지 못했습니다. 잠시 후 다시 시도하세요.');
+ const currentNeedsConfirmation=currentQueueRecord.jobs.length>0||currentQueueRecord.gpu_status.status==='busy';
  if(!currentNeedsConfirmation){const currentOutputs=await currentExecuteAction(currentSnapshotValue);return [...currentOutputs,{__type__:'update',visible:false},null,{__type__:'update',interactive:true}];}
  currentReceiptStore.set(currentReceiptToken,currentSnapshotValue);
  currentKeepReceipt=true;

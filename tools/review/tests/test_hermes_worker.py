@@ -110,6 +110,23 @@ class HermesWorkerTests(unittest.TestCase):
             self.assertIsNone(current_sandbox_record['test_env'])
             self.assertFalse(current_sandbox_record['host_home_visible'])
 
+    def test_audio_source_status_fixed_bridge_validates_input(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge,audio_operations
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        for current_payload_value,current_expected_key in (({'service':'music-heartmula','job_id':current_job_identifier},'job'),({'service':'music-heartmula','job_id':current_job_identifier,'extra':1},'error')):
+            with self.subTest(payload=current_payload_value):
+                current_client_socket,current_server_socket=socket.socketpair()
+                with current_client_socket,patch.object(audio_operations,'read_hermes_audio_source_job',return_value={'status':'queued'}) as current_reader_mock:
+                    current_thread_value=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                    current_thread_value.start()
+                    current_client_socket.sendall(b'audio-source-status '+json.dumps(current_payload_value).encode()+b'\n')
+                    current_response_value=json.loads(current_client_socket.makefile('rb').readline())
+                    current_thread_value.join(timeout=3)
+                    self.assertIn(current_expected_key,current_response_value)
+                    self.assertEqual(current_reader_mock.call_count,1 if current_expected_key=='job' else 0)
+
     def test_observer_bridge_accepts_only_fixed_read_request(self):
         import socket
         import threading
@@ -516,6 +533,64 @@ class HermesWorkerTests(unittest.TestCase):
                 current_thread_value.join(timeout=5)
                 self.assertIn(current_expected_text,current_response_value['error'])
                 self.assertNotIn('/path',current_response_value['error'])
+
+    def test_audio_source_status_from_real_isolated_client(self):
+        import shutil
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge,management_status_client,audio_operations
+        current_bwrap_path=shutil.which('bwrap')
+        if current_bwrap_path is None:self.skipTest('bubblewrap이 없습니다.')
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with tempfile.TemporaryDirectory() as current_socket_directory,socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as current_listener_socket:
+            current_socket_path=Path(current_socket_directory)/'observer.sock'
+            current_listener_socket.bind(str(current_socket_path))
+            current_listener_socket.listen(1)
+            current_listener_socket.settimeout(10)
+            def serve_one_audio_connection():
+                try:
+                    current_client_socket,_=current_listener_socket.accept()
+                    management_bridge.handle_hermes_observer_connection(current_client_socket)
+                except TimeoutError:
+                    pass
+            current_thread_value=threading.Thread(target=serve_one_audio_connection,daemon=True)
+            with patch.object(audio_operations,'call_hermes_audio_service',return_value={'id':current_job_identifier,'status':'queued'}) as current_service_mock:
+                current_thread_value.start()
+                current_sandbox_arguments=[current_bwrap_path,'--die-with-parent','--unshare-all','--clearenv','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--dir','/control','--ro-bind',str(current_socket_path),'/control/management-status.sock','--ro-bind',str(Path(management_status_client.__file__)),'/control/management-status.py','--proc','/proc','--dev','/dev','--','/usr/bin/python3','/control/management-status.py','audio-source-status',json.dumps({'service':'music-heartmula','job_id':current_job_identifier})]
+                current_process_value=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=15)
+                current_thread_value.join(timeout=5)
+                self.assertEqual(current_process_value.returncode,0,current_process_value.stderr)
+                self.assertEqual(json.loads(current_process_value.stdout)['job']['status'],'queued')
+                current_service_mock.assert_called_once_with('music-heartmula','status',{'id':current_job_identifier})
+
+    def test_video_source_status_from_real_isolated_client(self):
+        import shutil
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge,management_status_client,video_operations
+        current_bwrap_path=shutil.which('bwrap')
+        if current_bwrap_path is None:self.skipTest('bubblewrap이 없습니다.')
+        current_job_identifier='2026-11-18_00-00-00-12345678'
+        with tempfile.TemporaryDirectory() as current_socket_directory,socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as current_listener_socket:
+            current_socket_path=Path(current_socket_directory)/'observer.sock'
+            current_listener_socket.bind(str(current_socket_path))
+            current_listener_socket.listen(1)
+            current_listener_socket.settimeout(10)
+            def serve_one_video_connection():
+                try:
+                    current_client_socket,_=current_listener_socket.accept()
+                    management_bridge.handle_hermes_observer_connection(current_client_socket)
+                except TimeoutError:
+                    pass
+            current_thread_value=threading.Thread(target=serve_one_video_connection,daemon=True)
+            with patch.object(video_operations,'read_hermes_video_source_job',return_value={'status':'queued','result_status':'not_ready'}) as current_service_mock:
+                current_thread_value.start()
+                current_sandbox_arguments=[current_bwrap_path,'--die-with-parent','--unshare-all','--clearenv','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--dir','/control','--ro-bind',str(current_socket_path),'/control/management-status.sock','--ro-bind',str(Path(management_status_client.__file__)),'/control/management-status.py','--proc','/proc','--dev','/dev','--','/usr/bin/python3','/control/management-status.py','video-source-status',json.dumps({'service':'wan22-vace','job_id':current_job_identifier})]
+                current_process_value=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=15)
+                current_thread_value.join(timeout=5)
+                self.assertEqual(current_process_value.returncode,0,current_process_value.stderr)
+                self.assertEqual(json.loads(current_process_value.stdout)['job']['status'],'queued')
+                current_service_mock.assert_called_once_with('wan22-vace',current_job_identifier)
 
     def test_capability_search_from_real_isolated_client(self):
         import shutil
