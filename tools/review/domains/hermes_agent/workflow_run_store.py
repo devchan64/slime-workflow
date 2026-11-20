@@ -27,6 +27,11 @@ class WorkflowRunStore:
                 CREATE TABLE IF NOT EXISTS workflow_png (
                     digest TEXT PRIMARY KEY, content BLOB NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS workflow_step_contract (
+                    run_id TEXT NOT NULL, step_id TEXT NOT NULL, generator TEXT NOT NULL,
+                    generator_version INTEGER NOT NULL, template_version INTEGER NOT NULL,
+                    PRIMARY KEY(run_id, step_id)
+                );
                 CREATE TABLE IF NOT EXISTS workflow_result (
                     run_id TEXT NOT NULL, step_id TEXT NOT NULL, job_id TEXT NOT NULL,
                     outputs TEXT NOT NULL, PRIMARY KEY(run_id, step_id)
@@ -56,6 +61,11 @@ class WorkflowRunStore:
             for current_step_record in workflow_step_records:
                 current_step_identifier = current_step_record["id"]
                 current_step_dependencies = current_dependency_records[current_step_identifier]
+                current_generator_name = current_step_record["generator"]
+                current_generator_contract = current_generator_catalog[current_generator_name]
+                current_database_connection.execute("INSERT INTO workflow_step_contract VALUES (?, ?, ?, ?, ?)",
+                    (workflow_run_identifier, current_step_identifier, current_generator_name,
+                     current_generator_contract["version"], current_generator_contract["template_version"]))
                 current_database_connection.execute(
                     "INSERT INTO workflow_step VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)",
                     (workflow_run_identifier, current_step_identifier,
@@ -123,7 +133,10 @@ class WorkflowRunStore:
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
             current_database_connection.row_factory = sqlite3.Row
             return [dict(current_step_row) for current_step_row in current_database_connection.execute(
-                "SELECT step_id, category, state, request_id FROM workflow_step WHERE run_id=? ORDER BY rowid",
+                """SELECT step.step_id, step.category, step.state, step.request_id,
+                          contract.generator, contract.generator_version, contract.template_version
+                   FROM workflow_step AS step LEFT JOIN workflow_step_contract AS contract USING(run_id, step_id)
+                   WHERE step.run_id=? ORDER BY step.rowid""",
                 (workflow_run_identifier,))]
 
     def record_flux_completion(self, workflow_run_identifier, current_step_identifier, current_status_record):
