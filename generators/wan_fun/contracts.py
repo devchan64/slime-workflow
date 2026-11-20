@@ -69,13 +69,15 @@ def validate_fun_request(current_request_record):
     optional_field_names = {'pose_include_hands', 'pose_include_face'} if current_video_input else set()
     if current_pose_input:
         optional_field_names.update(('pose_encode_full_temporal', 'use_regular_vae'))
-    optional_field_names.update(('input_mode', 'end_image_same_as_start'))
+    optional_field_names.update(('input_mode', 'end_image_same_as_start', 'model_profile'))
     if not isinstance(current_request_record, dict) or not required_field_names <= set(current_request_record) or set(current_request_record) - required_field_names - optional_field_names:
         raise ValueError('Fun Control 요청 필드가 맞지 않습니다.')
     current_input_mode = current_request_record.get('input_mode', 'controlled')
     if current_input_mode != 'controlled':
         raise ValueError('지원하지 않는 입력 모드입니다.')
-    for current_option_name in optional_field_names - {'input_mode', 'start_image', 'end_image'}:
+    if current_request_record.get('model_profile', 'wan22-14b') not in ('wan22-14b', 'wan21-1.3b'):
+        raise ValueError('지원하지 않는 Fun Control 모델입니다.')
+    for current_option_name in optional_field_names - {'input_mode', 'start_image', 'end_image', 'model_profile'}:
         if type(current_request_record.get(current_option_name, False)) is not bool:
             raise ValueError(f'{current_option_name}: bool 값이 필요합니다.')
     if current_request_record.get('use_regular_vae', True) is not True or current_request_record.get('pose_encode_full_temporal', False):
@@ -115,5 +117,6 @@ def validate_fun_request(current_request_record):
             raise ValueError('처리된 포즈 MP4만 단독 입력하세요.')
         from generators.wan_fun.video_input import validate_processed_pose_video
         validate_processed_pose_video(current_request_record['pose_video'],current_request_record['frames'])
-    current_pose_options = {current_option_name: current_request_record.get(current_option_name, current_option_name == 'use_regular_vae') for current_option_name in optional_field_names - {'input_mode', 'start_image', 'end_image'}}
-    return {**current_request_record, **current_pose_options, 'prompt': current_request_record['prompt'].strip(), 'tag': 'wan22-fun-control'}
+    current_pose_options = {current_option_name: current_request_record.get(current_option_name, current_option_name == 'use_regular_vae') for current_option_name in optional_field_names - {'input_mode', 'start_image', 'end_image', 'model_profile'}}
+    current_model_tag = 'wan21-fun-1.3b' if current_request_record.get('model_profile') == 'wan21-1.3b' else 'wan22-fun-control'
+    return {**current_request_record, **current_pose_options, 'prompt': current_request_record['prompt'].strip(), 'tag': current_model_tag}

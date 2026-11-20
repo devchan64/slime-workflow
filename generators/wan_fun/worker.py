@@ -23,6 +23,10 @@ from tools.review.common.generation_records import write_record_atomically
 
 def execute_fun_inference(current_job_root, current_attempt_root, current_request_record, current_metrics_recorder):
     reject_retired_rgb_input(current_request_record)
+    current_model_profile = current_request_record.get('model_profile', 'wan22-14b')
+    if current_model_profile not in ('wan22-14b', 'wan21-1.3b'):
+        raise ValueError('지원하지 않는 Fun Control 모델입니다.')
+    current_is_wan13 = current_model_profile == 'wan21-1.3b'
     current_control_paths = [current_job_root/current_reference_name for current_reference_name in current_request_record['references']]
     if current_request_record.get('pose_video_file'):
         from generators.wan_fun.video_input import decode_processed_pose_video
@@ -65,6 +69,10 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
         install_fun_attention_profile(current_attempt_root, comfy.ops)
     from comfy_extras.nodes_wan import Wan22FunControlToVideo
     from comfy_extras.nodes_model_advanced import ModelSamplingSD3
+    if current_is_wan13:
+        from generators.wan_fun.wan13_model_assets import WAN13_MODEL_DIRECTORY, WAN13_REVISION_HASH, WAN13_REPOSITORY_NAME, WAN13_CLIP_REPOSITORY_NAME, WAN13_CLIP_REVISION_HASH, WAN13_MODEL_FILES
+        folder_paths.add_model_folder_path('diffusion_models', str(WAN13_MODEL_DIRECTORY))
+        folder_paths.add_model_folder_path('clip_vision', str(WAN13_MODEL_DIRECTORY / 'split_files/clip_vision'))
     def resolve_encoder_cuda():
         return torch.device('cuda:0')
     comfy.model_management.text_encoder_device = resolve_encoder_cuda
@@ -99,7 +107,8 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
         'gpu_architecture': getattr(current_gpu_properties, 'gcnArchName', None),
         'allocator_configuration_environment': os.environ.get('PYTORCH_ALLOC_CONF'),
         'allocator_backend': torch.cuda.memory.get_allocator_backend(),
-        'model_revision': FUN_MODEL_REVISION, 'requested_model_dtype': 'bfloat16',
+        'model_revision': WAN13_REVISION_HASH if current_is_wan13 else FUN_MODEL_REVISION, 'requested_model_dtype': 'bfloat16',
+        'reference_encoder': {'repository': WAN13_CLIP_REPOSITORY_NAME, 'revision': WAN13_CLIP_REVISION_HASH, 'sha256': WAN13_MODEL_FILES['split_files/clip_vision/clip_vision_h.safetensors'][1]} if current_is_wan13 else None,
         'text_encoder_checkpoint': 'umt5_xxl_fp16.safetensors', 'vae_dtype': str(current_vae_model.vae_dtype),
         'vae_attention_functions': describe_fun_vae_attention(current_vae_model),
         'selected_gpu_kernel': '미확인',
@@ -115,6 +124,18 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     for current_reference_name in current_control_paths:
         with Image.open(current_reference_name) as current_image_file:
             current_image_tensors.append(torch.from_numpy(np.asarray(current_image_file.convert('RGB'), dtype=np.float32) / 255.0))
+    if current_is_wan13:
+        import node_helpers
+        current_clip_model = nodes.CLIPVisionLoader().load_clip('clip_vision_h.safetensors')[0]
+        if current_clip_model.patcher.load_device.type != 'cuda' or current_clip_model.patcher.offload_device.type != 'cuda':
+            raise RuntimeError('참조 이미지 인코더는 GPU 전용이어야 합니다.')
+        current_clip_output = nodes.CLIPVisionEncode().encode(current_clip_model, current_image_tensors[0].unsqueeze(0), 'center')[0]
+        positive_condition_data = node_helpers.conditioning_set_values(positive_condition_data, {'clip_vision_output': current_clip_output})
+        negative_condition_data = node_helpers.conditioning_set_values(negative_condition_data, {'clip_vision_output': current_clip_output})
+        comfy.model_management.unload_all_models()
+        del current_clip_model
+        gc.collect()
+        comfy.model_management.soft_empty_cache()
     current_encode_diagnostic = guard_fun_vae_attention(current_vae_model, current_attempt_root, torch, 'encode') if os.environ.get('SLIME_FUN_VAE_ATTENTION_DIAGNOSTIC') == '1' else nullcontext()
     with torch.inference_mode(), guard_fun_vae_method(current_vae_model, current_attempt_root, torch, 'encode'), current_encode_diagnostic:
         current_condition_output = Wan22FunControlToVideo.execute(positive_condition_data, negative_condition_data, current_vae_model, 832, 480, current_request_record['frames'], 1, ref_image=current_image_tensors[0].unsqueeze(0), control_video=torch.stack(current_image_tensors[1:]))
@@ -139,7 +160,7 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     comfy.model_management.soft_empty_cache()
     current_step_total = current_request_record['steps']
     current_switch_step = max(1, min(current_step_total - 1, round(current_step_total * current_request_record['switch_ratio'])))
-    write_record_atomically(current_attempt_root / 'conditioning.json', {'input_mode': current_request_record.get('input_mode', 'controlled'), 'control_video_present': True, 'control_type': current_request_record['control_type'], 'reference_mode': 'reference_latents', 'face_video': False, 'switch_step': current_switch_step, 'sampler': 'euler', 'scheduler': 'simple', 'model_revision': FUN_MODEL_REVISION, 'tiled_vae': False})
+    write_record_atomically(current_attempt_root / 'conditioning.json', {'input_mode': current_request_record.get('input_mode', 'controlled'), 'control_video_present': True, 'control_type': current_request_record['control_type'], 'reference_mode': 'reference_latents+clip_vision' if current_is_wan13 else 'reference_latents', 'face_video': False, 'switch_step': None if current_is_wan13 else current_switch_step, 'sampler': 'euler', 'scheduler': 'simple', 'model_revision': WAN13_REVISION_HASH if current_is_wan13 else FUN_MODEL_REVISION, 'tiled_vae': False})
     current_latent_tensor = current_latent_record['samples']
     current_noise_tensor = comfy.sample.prepare_noise(current_latent_tensor, current_request_record['seed'])
     current_condition_tensors = dict((
@@ -149,15 +170,18 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
             ('control_latent', current_condition_metadata['concat_latent_image']),
             ('initial_noise', current_noise_tensor),
         ))
+    if current_is_wan13:
+        current_condition_tensors['clip_vision'] = current_clip_output.penultimate_hidden_states
     current_condition_fingerprints = {current_tensor_name: fingerprint_fun_tensor(torch, current_tensor_value) for current_tensor_name, current_tensor_value in current_condition_tensors.items()}
     write_record_atomically(current_attempt_root / 'conditioning-fingerprints.json', current_condition_fingerprints)
     current_invalid_conditions = [current_tensor_name for current_tensor_name, current_fingerprint_record in current_condition_fingerprints.items() if not current_fingerprint_record['finite']]
     if current_invalid_conditions:
         record_fun_tensor_failure(torch, current_attempt_root, 'conditioning-before-sampling', {current_name: current_condition_tensors[current_name] for current_name in current_invalid_conditions})
         raise ValueError('추론 입력 조건에 NaN 또는 무한대가 있습니다: ' + ', '.join(current_invalid_conditions))
-    for current_model_stage, current_start_step, current_end_step in [('high', 0, current_switch_step), ('low', current_switch_step, current_step_total)]:
+    current_sampling_stages = [('wan13', 0, current_step_total)] if current_is_wan13 else [('high', 0, current_switch_step), ('low', current_switch_step, current_step_total)]
+    for current_model_stage, current_start_step, current_end_step in current_sampling_stages:
         current_metrics_recorder.update_generation_stage('load')
-        current_model_relative = Path(FUN_MODEL_FILES[current_model_stage][0]).name
+        current_model_relative = 'diffusion_pytorch_model.safetensors' if current_is_wan13 else Path(FUN_MODEL_FILES[current_model_stage][0]).name
         from generators.wan_fun.gpu_direct_loader import load_fun_gpu_unet
         current_diffusion_model = load_fun_gpu_unet(torch, folder_paths, comfy.sd, comfy.utils, comfy.supported_models, current_model_relative)
         if current_diffusion_model.load_device.type != 'cuda' or current_diffusion_model.offload_device.type != 'cuda':
@@ -209,8 +233,19 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     comfy.model_management.unload_all_models()
     del current_vae_model
     gc.collect()
-    return {'attempt': current_attempt_root.name, 'frames': len(current_frame_arrays), 'fps': 16, 'output_sha256': current_output_hashes, 'model_id': FUN_MODEL_IDENTIFIER, 'model_revision': FUN_MODEL_REVISION, 'prompt_words': len(current_request_record['prompt'].split()), 'prompt_sha256': hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(), 'quality_status': '사용자 검수 대기'}
+    return {'attempt': current_attempt_root.name, 'frames': len(current_frame_arrays), 'fps': 16, 'output_sha256': current_output_hashes, 'model_id': WAN13_REPOSITORY_NAME if current_is_wan13 else FUN_MODEL_IDENTIFIER, 'model_revision': WAN13_REVISION_HASH if current_is_wan13 else FUN_MODEL_REVISION, 'prompt_words': len(current_request_record['prompt'].split()), 'prompt_sha256': hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(), 'quality_status': '사용자 검수 대기'}
+
+
+def validate_current_fun_job_assets():
+    import json
+    current_job_directory = Path(sys.argv[sys.argv.index('--job-dir') + 1])
+    current_job_request = json.loads((current_job_directory / 'request.json').read_text())
+    if current_job_request.get('model_profile') == 'wan21-1.3b':
+        from generators.wan_fun.wan13_model_assets import validate_wan13_generation_assets
+        validate_wan13_generation_assets()
+    else:
+        validate_fun_assets()
 
 
 if __name__ == '__main__':
-    run_reference_video_worker(FUN_JOB_STORAGE, Path(__file__), validate_fun_assets, execute_fun_inference)
+    run_reference_video_worker(FUN_JOB_STORAGE, Path(__file__), validate_current_fun_job_assets, execute_fun_inference)

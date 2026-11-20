@@ -1,5 +1,6 @@
 """공용 GPU 대기열에서 Fun Control 모델을 준비한다."""
 import argparse
+import json
 import signal
 import sys
 import traceback
@@ -25,7 +26,12 @@ def run_fun_prepare_worker():
     signal.signal(signal.SIGTERM, handle_prepare_signal)
     signal.signal(signal.SIGINT, handle_prepare_signal)
     try:
-        setup_fun_rocm_environment()
+        current_request_record = json.loads((current_job_directory / 'request.json').read_text())
+        if current_request_record.get('model_profile') == 'wan21-1.3b':
+            from generators.wan_fun.wan13_model_assets import download_wan13_model_files
+            download_wan13_model_files()
+        else:
+            setup_fun_rocm_environment()
         write_record_atomically(current_job_directory / 'result.json', {'prepared': True})
         write_record_atomically(current_job_directory / 'status.json', {'status': 'completed', 'message': '모델 준비 완료'})
     except BaseException as current_prepare_error:

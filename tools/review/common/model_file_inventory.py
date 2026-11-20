@@ -16,6 +16,7 @@ def resolve_model_inventory_paths():
     from generators.music.contracts import resolve_music_paths
     from generators.wan_animate2.contracts import ANIMATE_MODEL_DIRECTORY
     from generators.wan_fun.contracts import FUN_MODEL_FILES, FUN_WORKSPACE_ROOT
+    from generators.wan_fun.wan13_model_assets import WAN13_MODEL_DIRECTORY
     from generators.wan_vace.contracts import VACE_MODEL_FILES, VACE_WORKSPACE_ROOT
     from generators.writer_agent.prepare import MODEL_DOWNLOAD_ROOT
     from tools.review.domains.translation.service import TRANSLATION_MODEL_ROOT
@@ -28,6 +29,7 @@ def resolve_model_inventory_paths():
         'dwpose': [FUN_POSE_MODEL_DIRECTORY],
         'wan22-animate2': [ANIMATE_MODEL_DIRECTORY],
         'wan22-fun-control': [*(FUN_WORKSPACE_ROOT / current_file_record[0] for current_file_record in FUN_MODEL_FILES.values()), FUN_POSE_MODEL_DIRECTORY],
+        'wan21-fun-1.3b': [WAN13_MODEL_DIRECTORY],
         'wan22-vace': [VACE_WORKSPACE_ROOT / current_file_record[0] for current_file_record in VACE_MODEL_FILES.values()],
         'music-heartmula': [resolve_music_paths('music-heartmula')[1]],
         'sfx-dasheng-audiogen': [resolve_music_paths('sfx-dasheng-audiogen')[1]],

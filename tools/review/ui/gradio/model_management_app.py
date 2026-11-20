@@ -73,7 +73,8 @@ def execute_model_preparation_command(current_service_name, current_command_name
                                  'message': current_file_status['message'] + ' · ' + current_result_record['message']}
     current_history_record = execute_remote_management_command(current_service_name, 'history', {})
     current_prepare_records = [current_job_record for current_job_record in current_history_record.get('records', [])
-                               if current_job_record.get('request', {}).get('action') == 'prepare']
+                               if current_job_record.get('request', {}).get('action') == 'prepare'
+                               and (current_service_name != 'wan22-fun-control' or current_job_record.get('request', {}).get('model_profile', 'wan22-14b') == 'wan22-14b')]
     current_active_records = [current_job_record for current_job_record in current_prepare_records
                               if current_job_record.get('status', {}).get('status') in ('queued', 'running')]
     current_selected_record = (current_active_records or current_prepare_records or [None])[0]
@@ -87,6 +88,24 @@ def execute_model_preparation_command(current_service_name, current_command_name
             # 파일은 남아 있어도 ROCm 설치·검증이 실패했을 수 있으므로 재시도를 허용한다.
             current_result_record['ready'] = False
     return current_result_record
+
+
+def execute_wan13_model_command(current_command_name, current_payload_record):
+    """1.3B 다운로드는 기존 Fun Control 준비 대기열을 공유한다."""
+    if current_command_name == 'prepare':
+        return execute_remote_management_command('wan22-fun-control', 'prepare', {'action': 'prepare', 'model_profile': 'wan21-1.3b'})
+    if current_command_name != 'model-status':
+        raise ValueError('지원하지 않는 1.3B 모델 명령입니다.')
+    from generators.wan_fun.wan13_model_assets import inspect_wan13_model_files
+    current_file_record = inspect_wan13_model_files()
+    current_history_record = execute_remote_management_command('wan22-fun-control', 'history', {})
+    current_active_records = [current_job_record for current_job_record in current_history_record.get('records', [])
+                              if current_job_record.get('request', {}).get('action') == 'prepare'
+                              and current_job_record.get('status', {}).get('status') in ('queued', 'running')]
+    current_prepare_state = current_active_records[0]['status']['status'] if current_active_records else 'idle'
+    return {'ready': current_file_record['ready'], 'preparation_status': current_prepare_state,
+            'message': '1.3B 모델·참조 인코더 해시 검증 완료' if current_file_record['ready'] else '1.3B 모델·참조 인코더 준비 필요',
+            'can_prepare': not bool(current_active_records)}
 
 
 def read_model_observation_status(current_service_name, current_execute_command=execute_remote_management_command):
@@ -166,6 +185,8 @@ def build_model_management_interface():
             with gr.Group():
                 gr.Markdown(f'### {current_label_name}')
                 if current_service_name in current_preparation_names:
+                    if current_service_name == 'wan22-fun-control':
+                        gr.Markdown('**Wan 2.2 Fun Control 14B**')
                     if current_service_name == 'flux-image':
                         gr.Markdown('공식 고정 리비전 약 20.32GB를 검증합니다. [모델 사용 조건](https://huggingface.co/black-forest-labs/flux-3-image-klein)을 확인하고 Hugging Face 접근 권한과 로그인을 준비하세요. 기존 파일은 덮어쓰지 않습니다.')
                     if current_service_name == 'prompt-translation':
@@ -173,6 +194,13 @@ def build_model_management_interface():
                     def execute_model_command(current_command_name, current_payload_record, service_name_value=current_service_name):
                         return execute_model_preparation_command(service_name_value, current_command_name, current_payload_record)
                     build_model_download_controls(current_interface_blocks, execute_model_command, model_service_name=current_service_name, shared_refresh_records=current_shared_refresh_records, shared_progress_outputs=current_shared_progress_outputs)
+                    if current_service_name == 'wan22-fun-control':
+                        gr.Markdown('**Wan 2.1 Fun Control 1.3B** · 모델과 참조 이미지 인코더를 준비합니다. 공용 텍스트 인코더와 VAE는 14B 준비 환경을 사용합니다.')
+                        build_model_download_controls(current_interface_blocks, execute_wan13_model_command, model_service_name='wan21-fun-1.3b', shared_refresh_records=current_shared_refresh_records, shared_progress_outputs=current_shared_progress_outputs)
+                        current_inventory_outputs.append(gr.Markdown('1.3B 저장 파일 확인 중'))
+                        with gr.Accordion('1.3B 저장 모델 파일 보기', open=False):
+                            current_inventory_outputs.append(gr.Markdown('파일 목록 확인 중'))
+                            current_inventory_services.append('wan21-fun-1.3b')
                     if current_service_name == 'kimodo':
                         build_migraphx_build_controls(current_interface_blocks)
                 else:

@@ -100,7 +100,7 @@ def load_fun_selected_example(current_example_identifier):
     current_validation_record['images'] = [base64.b64encode(current_reference_path.read_bytes()).decode()]
     current_validation_record['pose_video'] = base64.b64encode(current_video_path.read_bytes()).decode()
     validate_fun_request(current_validation_record)
-    return (str(current_reference_path), str(current_video_path), None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'pose-video', False, False, None, None, False)
+    return (str(current_reference_path), str(current_video_path), None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'pose-video', False, False, None, None, False, 'wan22-14b')
 
 
 def render_fun_video_result(current_job_identifier, current_status_record, current_server_address):
@@ -122,7 +122,7 @@ def encode_fun_image(current_image_object, current_padding_color):
     return base64.b64encode(current_image_buffer.getvalue()).decode()
 
 
-def build_fun_payload(current_reference_path, current_video_path, current_frame_paths, current_control_type, current_prompt_text, current_negative_text, current_frame_count, current_seed_value, current_steps_value, current_shift_value, current_guidance_value, current_switch_ratio, current_input_mode="preprocessed", current_include_hands=False, current_include_face=False, current_start_path=None, current_end_path=None, current_same_endpoint=False):
+def build_fun_payload(current_reference_path, current_video_path, current_frame_paths, current_control_type, current_prompt_text, current_negative_text, current_frame_count, current_seed_value, current_steps_value, current_shift_value, current_guidance_value, current_switch_ratio, current_input_mode="preprocessed", current_include_hands=False, current_include_face=False, current_start_path=None, current_end_path=None, current_same_endpoint=False, current_model_profile='wan22-14b'):
     reject_retired_rgb_input({'input_mode': current_input_mode})
     if current_start_path or current_end_path or current_same_endpoint:
         raise ValueError('시작·종료 이미지 자체 확장은 폐기되었습니다.')
@@ -140,6 +140,7 @@ def build_fun_payload(current_reference_path, current_video_path, current_frame_
         current_encoded_images = [encode_fun_image(current_reference_image, 'white')]
     if current_input_mode == 'pose-video':
         current_payload_record = {'action':'generate','prompt':current_prompt_text,'negative_prompt':current_negative_text,'images':current_encoded_images,'control_type':'pose','width':832,'height':480,'frames':current_frame_count,'seed':int(current_seed_value),'steps':int(current_steps_value),'flow_shift':current_shift_value,'guidance_scale':current_guidance_value,'switch_ratio':current_switch_ratio,'pose_video':base64.b64encode(Path(current_video_path).read_bytes()).decode()}
+        current_payload_record['model_profile'] = current_model_profile
         validate_fun_request(current_payload_record)
         return current_payload_record
     if current_input_mode == 'soma-video':
@@ -172,6 +173,7 @@ def build_fun_payload(current_reference_path, current_video_path, current_frame_
     if current_input_mode == 'soma-video':
         current_payload_record.update(pose_include_hands=current_include_hands, pose_include_face=current_include_face)
         current_payload_record['driving_video'] = base64.b64encode(Path(current_video_path).read_bytes()).decode()
+    current_payload_record['model_profile'] = current_model_profile
     validate_fun_request(current_payload_record)
     return current_payload_record
 
@@ -191,7 +193,7 @@ def restore_fun_inputs(current_history_record):
         if current_reference_path.parent != current_job_directory or not current_reference_path.is_file():
             raise ValueError('이력 입력 사본 누락 또는 경로 오류')
         current_reference_paths.append(str(current_reference_path))
-    return (current_reference_paths[0], str(current_job_directory/'pose-input.mp4'), current_reference_paths[1:] or None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'pose-video', current_request_record.get('pose_include_hands', bool(current_request_record.get('driving_video_file'))), current_request_record.get('pose_include_face', bool(current_request_record.get('driving_video_file'))), str(current_job_directory/'start-image.png') if current_request_record.get('start_image_file') else None, str(current_job_directory/'end-image.png') if current_request_record.get('end_image_file') else None, current_request_record.get('end_image_same_as_start', False), current_job_identifier)
+    return (current_reference_paths[0], str(current_job_directory/'pose-input.mp4'), current_reference_paths[1:] or None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'pose-video', current_request_record.get('pose_include_hands', bool(current_request_record.get('driving_video_file'))), current_request_record.get('pose_include_face', bool(current_request_record.get('driving_video_file'))), str(current_job_directory/'start-image.png') if current_request_record.get('start_image_file') else None, str(current_job_directory/'end-image.png') if current_request_record.get('end_image_file') else None, current_request_record.get('end_image_same_as_start', False), current_request_record.get('model_profile', 'wan22-14b'), current_job_identifier)
 
 
 def describe_fun_step_split(current_steps_value, current_switch_ratio):
@@ -202,11 +204,17 @@ def describe_fun_step_split(current_steps_value, current_switch_ratio):
     return f'실제 배분: 고노이즈 {current_high_steps}스텝 + 저노이즈 {current_total_steps-current_high_steps}스텝 · 시간값 기준 전환이 아닌 스텝 비율입니다.'
 
 
+def describe_fun_model_steps(current_model_profile, current_steps_value, current_switch_ratio):
+    if current_model_profile == 'wan21-1.3b':
+        return f'1.3B 단일 모델: {current_steps_value}스텝 · 고·저노이즈 전환 없음'
+    return describe_fun_step_split(current_steps_value, current_switch_ratio)
+
+
 def build_fun_interface(current_server_address, current_command_callback=None):
     current_execute_command = current_command_callback or execute_fun_command
-    with gr.Blocks(title='Wan2.2 Fun Control 생성기') as current_interface_blocks:
+    with gr.Blocks(title='Wan Fun Control 생성기') as current_interface_blocks:
         build_generator_changelog(current_interface_blocks, 'wan22-fun-control-generator')
-        gr.Markdown('## Wan2.2 Fun Control A14B 실험 생성기\n포즈 영상과 참조 이미지로 애니메이션을 생성합니다. VideoX-Fun DWPose 추출과 관절 길이 보정은 Kimodo 생성기에서 수행합니다.')
+        gr.Markdown('## Wan Fun Control 실험 생성기\n포즈 영상과 참조 이미지로 애니메이션을 생성합니다. VideoX-Fun DWPose 추출과 관절 길이 보정은 Kimodo 생성기에서 수행합니다.')
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
         from tools.review.common.gradio_model_download import build_model_progress_display
         build_model_progress_display(current_interface_blocks, 'wan22-fun-control')
@@ -271,6 +279,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             gr.Markdown('**적용 예:** 기존 109프레임 앞에 첫 포즈 4장을 추가하면 113프레임입니다. 원래 첫 프레임까지 같은 포즈가 5프레임 연속이며, 추가 시간은 16fps 기준 0.25초입니다. 준비 구간을 포함한 출력 프레임 수를 지정하세요. 출력은 4n+1, 최대 129프레임이며 입력 영상은 그 길이 이상이어야 합니다. 이 안내가 영상을 자동으로 수정하지는 않습니다.')
             gr.Markdown('**검수:** 처음 1~5프레임과 동작 시작 이후의 선명도·잔상·캐릭터 크기를 비교하세요. 필요한 경우 생성 후 준비 구간을 잘라 사용할 수 있지만, 제거할 길이는 결과를 보고 결정하세요.')
         gr.Markdown('### 2. 동작과 생성 설정')
+        current_profile_control = gr.Radio(choices=[('Wan 2.2 A14B', 'wan22-14b'), ('Wan 2.1 1.3B', 'wan21-1.3b')], value='wan22-14b', label='생성 모델', info='1.3B는 모델 관리에서 가중치와 참조 인코더를 준비하세요.')
         current_prompt_control = gr.Textbox(label='장면·동작 프롬프트', lines=3)
         current_prompt_summary = gr.Markdown('원문 0단어 · 최종 0단어 · 추가 문구 없음')
         current_prompt_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어 · 추가 문구 없음', current_prompt_control, current_prompt_summary, queue=False)
@@ -295,25 +304,25 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         current_seed_control = build_generation_seed(default_seed_value=FUN_DEFAULT_SETTINGS['seed'])
         with gr.Group():
             gr.Markdown('### 고급 설정')
-            gr.Markdown('고정: 고·저노이즈 BF16 · Euler/simple · AMD ROCm 연산 · 가속 LoRA 없음.')
+            gr.Markdown('고정: BF16 · Euler/simple · AMD ROCm 연산 · 가속 LoRA 없음. 14B는 고·저노이즈 모델을 나누어 사용하고 1.3B는 단일 모델을 사용합니다.')
             current_shift_control = gr.Number(value=FUN_DEFAULT_SETTINGS['flow_shift'], minimum=0.1, maximum=20, label='Flow shift · 노이즈 시간 배분', info='기본 5. 높이면 같은 스텝 위치의 노이즈 수준이 높아집니다. CFG와 독립적으로 입력합니다. 동작 속도나 참조 강도가 아닙니다.')
             current_guidance_control = gr.Number(value=FUN_DEFAULT_SETTINGS['guidance_scale'], minimum=1, maximum=10, label='CFG 강도 · 조건 유도', info='기본 6. 조건부·무조건부 예측 차이에 적용하는 배율입니다. Flow shift나 참조 이미지 전용 강도가 아닙니다.')
-            current_switch_control = gr.Number(value=FUN_DEFAULT_SETTINGS['switch_ratio'], minimum=0.1, maximum=0.9, label='고노이즈 스텝 비율 · 0.1~0.9', info='기본 0.5. 전체 스텝의 앞부분은 고노이즈 모델, 나머지는 저노이즈 모델을 사용합니다.')
+            current_switch_control = gr.Number(value=FUN_DEFAULT_SETTINGS['switch_ratio'], minimum=0.1, maximum=0.9, label='고노이즈 스텝 비율 · 14B 전용 · 0.1~0.9', info='14B에서 전체 스텝의 앞부분은 고노이즈 모델, 나머지는 저노이즈 모델을 사용합니다. 1.3B에는 적용하지 않습니다.')
             gr.Markdown('VAE 고정: 일반 인코딩·디코딩. 타일 처리와 OOM 자동 대체는 사용하지 않습니다. 이전 타일 이력을 불러와 새로 생성해도 일반 VAE를 사용합니다.')
             current_split_summary = gr.Markdown(describe_fun_step_split(FUN_DEFAULT_SETTINGS['steps'], FUN_DEFAULT_SETTINGS['switch_ratio']))
-            current_steps_control.change(describe_fun_step_split, [current_steps_control,current_switch_control], current_split_summary, queue=False)
-            current_switch_control.change(describe_fun_step_split, [current_steps_control,current_switch_control], current_split_summary, queue=False)
-            gr.Markdown('범위는 이 페이지의 실험 허용 범위입니다. [모델카드](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control) · [공식 ComfyUI 안내](https://docs.comfy.org/tutorials/video/wan/wan2-2-fun-control).')
-        current_input_controls = [current_reference_control,current_video_control,current_frames_control,current_type_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_switch_control,current_mode_control,current_hands_control,current_face_control,current_start_control,current_end_control,current_same_control]
+            for current_split_control in (current_profile_control, current_steps_control, current_switch_control):
+                current_split_control.change(describe_fun_model_steps, [current_profile_control,current_steps_control,current_switch_control], current_split_summary, queue=False)
+            gr.Markdown('범위는 이 페이지의 실험 허용 범위입니다. [14B 모델카드](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control) · [1.3B 모델카드](https://huggingface.co/alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control) · [공식 ComfyUI 안내](https://docs.comfy.org/tutorials/video/wan/wan2-2-fun-control).')
+        current_input_controls = [current_reference_control,current_video_control,current_frames_control,current_type_control,current_prompt_control,current_negative_control,current_count_control,current_seed_control,current_steps_control,current_shift_control,current_guidance_control,current_switch_control,current_mode_control,current_hands_control,current_face_control,current_start_control,current_end_control,current_same_control,current_profile_control]
         current_example_button.click(lambda current_example_identifier: (current_example_identifier, gr.update(visible=True)),current_example_selector,[current_pending_example,current_example_confirmation],queue=False)
         current_example_cancel.click(lambda: gr.update(visible=False),outputs=current_example_confirmation,queue=False)
         current_example_confirm.click(lambda current_example_identifier: (*load_fun_selected_example(current_example_identifier),gr.update(visible=False)),inputs=current_pending_example,outputs=[*current_input_controls,current_example_confirmation],queue=False)
         gr.Markdown('### 3. 실행 조건 확인')
         current_request_summary = gr.Markdown()
-        def describe_current_fun_settings(current_mode_value,current_frame_value,current_steps_value,current_seed_value,current_shift_value,current_cfg_value,current_ratio_value):
+        def describe_current_fun_settings(current_mode_value,current_frame_value,current_steps_value,current_seed_value,current_shift_value,current_cfg_value,current_ratio_value,current_profile_value):
             current_duration_text = f'{current_frame_value / 16:.3f}초' if isinstance(current_frame_value, (int, float)) else '미정'
-            return f"입력: 처리된 포즈 영상 · 출력 {current_frame_value}프레임 · 16fps · {current_duration_text} · 스텝 {current_steps_value} · 시드 {current_seed_value} · Flow shift {current_shift_value} · CFG {current_cfg_value}\n\n{describe_fun_step_split(current_steps_value,current_ratio_value)}"
-        current_summary_inputs=[current_mode_control,current_count_control,current_steps_control,current_seed_control,current_shift_control,current_guidance_control,current_switch_control]
+            return f"모델: {current_profile_value} · 입력: 처리된 포즈 영상 · 출력 {current_frame_value}프레임 · 16fps · {current_duration_text} · 스텝 {current_steps_value} · 시드 {current_seed_value} · Flow shift {current_shift_value} · CFG {current_cfg_value}\n\n{describe_fun_model_steps(current_profile_value,current_steps_value,current_ratio_value)}"
+        current_summary_inputs=[current_mode_control,current_count_control,current_steps_control,current_seed_control,current_shift_control,current_guidance_control,current_switch_control,current_profile_control]
         for current_summary_control in current_summary_inputs:
             current_summary_control.change(describe_current_fun_settings,current_summary_inputs,current_request_summary,queue=False)
         current_interface_blocks.load(describe_current_fun_settings,current_summary_inputs,current_request_summary)

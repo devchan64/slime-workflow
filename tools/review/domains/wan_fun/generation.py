@@ -124,6 +124,8 @@ class FunControlGenerationManager(ReferenceVideoGenerationManager):
     def validate_generation_request(self, current_request_record):
         if current_request_record == {'action': 'prepare'}:
             return {'action': 'prepare', 'images': []}
+        if current_request_record == {'action': 'prepare', 'model_profile': 'wan21-1.3b'}:
+            return {'action': 'prepare', 'model_profile': 'wan21-1.3b', 'images': []}
         return super().validate_generation_request(current_request_record)
 
     def ensure_generation_request_available(self, current_request_record):
@@ -196,6 +198,19 @@ class FunControlGenerationManager(ReferenceVideoGenerationManager):
                     if current_job_path.is_symlink() or not current_job_path.is_dir():
                         raise ValueError('준비 작업 디렉터리 오류')
                     current_request_record = read_bounded_preparation_record(current_job_path/'request.json')
+                    if current_request_record.get('action') is None:
+                        # 구형 생성 기록은 action이 없을 수 있다. 종료 상태와 실제 생성 작업자 명령이
+                        # 모두 확인된 경우에만 준비 작업이 아닌 것으로 분류한다.
+                        from tools.review.domains.image.image_generation import WORKFLOW_ROOT_PATH
+                        current_legacy_status = read_bounded_preparation_record(current_job_path/'status.json')
+                        current_legacy_command = read_bounded_preparation_record(current_job_path/'gpu-command.json')
+                        current_expected_command = [str(self.select_generation_python(current_request_record)), str(WORKFLOW_ROOT_PATH/self.select_generation_runner(current_request_record)), '--job-dir', str(current_job_path)]
+                        if (current_legacy_status.get('status') not in ('completed', 'failed', 'cancelled', 'canceled')
+                                or current_legacy_command != {'command': current_expected_command, 'service': 'wan-fun'}
+                                or not isinstance(current_request_record.get('references'), list)
+                                or not isinstance(current_request_record.get('frames'), int)):
+                            raise ValueError('구형 생성 기록의 종류를 확인할 수 없습니다.')
+                        continue
                     if current_request_record.get('action') not in ('generate','prepare'):
                         raise ValueError('작업 종류 확인 불가')
                     if current_request_record['action'] != 'prepare':
@@ -213,7 +228,11 @@ class FunControlGenerationManager(ReferenceVideoGenerationManager):
     def validate_generation_runtime(self, saved_request_record=None):
         if saved_request_record and saved_request_record.get('action') == 'prepare':
             return
-        super().validate_generation_runtime(saved_request_record)
+        if saved_request_record and saved_request_record.get('model_profile') == 'wan21-1.3b':
+            from generators.wan_fun.wan13_model_assets import validate_wan13_generation_assets
+            validate_wan13_generation_assets()
+        else:
+            super().validate_generation_runtime(saved_request_record)
         if saved_request_record and ('driving_video' in saved_request_record or 'driving_video_file' in saved_request_record):
             from generators.wan_fun.pose_preprocess import validate_fun_pose_assets
             validate_fun_pose_assets()

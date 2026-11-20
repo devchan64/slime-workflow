@@ -209,8 +209,8 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('표정 LoRA 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'prop-generator' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
-    if service_command_name == 'wan22-fun-control' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
-        raise ValueError('Fun Control 모델 준비에는 action=prepare만 허용합니다.')
+    if service_command_name == 'wan22-fun-control' and operation_command_name == 'prepare' and command_payload_value not in ({'action': 'prepare'}, {'action': 'prepare', 'model_profile': 'wan21-1.3b'}):
+        raise ValueError('Fun Control 준비 프로필이 올바르지 않습니다.')
     if service_command_name in ('wan22-vace', 'writer-agent', 'prompt-translation', 'hermes-model', 'dwpose') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('모델 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'hermes-model' and operation_command_name == 'model-status' and command_payload_value:

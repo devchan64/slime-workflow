@@ -29,7 +29,7 @@ class ModelManagementTest(unittest.TestCase):
         with patch.object(model_management_app, 'execute_remote_management_command', return_value=current_status_records) as current_gateway_mock:
             current_rendered_values = current_progress_callbacks[0].fn()
         current_gateway_mock.assert_called_once_with('model-downloads', 'download-status', {})
-        self.assertEqual(len(current_rendered_values), len(model_management_app.MODEL_PREPARATION_SERVICES))
+        self.assertEqual(len(current_rendered_values), len(model_management_app.MODEL_PREPARATION_SERVICES) + 1)
         self.assertTrue(any('Qwen/Qwen-Image-2.1' in current_value for current_value in current_rendered_values))
         current_individual_progress = [current_binding for current_binding in current_interface.fns.values()
                                        if current_binding.fn and current_binding.fn.__name__ == 'refresh_model_progress_status']
