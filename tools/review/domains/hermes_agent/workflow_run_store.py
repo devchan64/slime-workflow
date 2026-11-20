@@ -161,9 +161,17 @@ class WorkflowRunStore:
                             source_binding_record["from_step"], "번역문 검증 기록이 없거나 저장된 내용과 일치하지 않습니다.")
                         return None
                 if source_output_name == "images":
+                    if (not isinstance(bound_output_value, dict) or not source_result_row[1]
+                            or bound_output_value.get("sha256") != source_result_row[1]
+                            or bound_output_value.get("size") != source_result_row[2]
+                            or bound_output_value.get("media_type") != "image/png"):
+                        block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier,
+                            source_binding_record["from_step"], "PNG 참조가 생산 단계의 출력 기록과 일치하지 않습니다.")
+                        return None
                     stored_image_row = current_database_connection.execute(
                         "SELECT content FROM workflow_png WHERE digest=?", (bound_output_value["sha256"],)).fetchone()
-                    if not stored_image_row or hashlib.sha256(stored_image_row[0]).hexdigest() != bound_output_value["sha256"]:
+                    if (not stored_image_row or len(stored_image_row[0]) != source_result_row[2]
+                            or hashlib.sha256(stored_image_row[0]).hexdigest() != source_result_row[1]):
                         block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier,
                             source_binding_record["from_step"], "보존된 PNG의 SHA-256이 일치하지 않습니다." if stored_image_row else "보존된 PNG가 없습니다.")
                         return None
