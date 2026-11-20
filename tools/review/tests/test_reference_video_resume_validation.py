@@ -219,14 +219,16 @@ class VideoAttachmentResumeTests(unittest.TestCase):
             current_image_path.write_bytes(b'original')
             current_manager_instance = ReferenceVideoGenerationManager('/dwpose', current_storage_path, 'unused', Mock(), Mock())
             expected_fingerprint_value = current_manager_instance.preview_generation_resume(current_job_path)['expected_resume_fingerprint']
-            with patch.object(model_prepare_process, 'hold_registered_preparation_guard', return_value=nullcontext()), patch.object(gpu_job_queue, 'launch_gpu_process') as current_launch_mock:
+            with patch.object(current_manager_instance, 'inspect_video_resume_availability', return_value='available'), patch.object(model_prepare_process, 'hold_registered_preparation_guard', return_value=nullcontext()), patch.object(gpu_job_queue, 'launch_gpu_process') as current_launch_mock:
                 current_image_path.write_bytes(b'changed')
                 with self.assertRaises(ValueError):
                     current_manager_instance.resume_reviewed_generation_job(current_job_path, expected_fingerprint_value)
                 current_launch_mock.assert_not_called()
                 current_image_path.write_bytes(b'original')
                 (current_job_path / 'gpu-command.json').write_text(json.dumps({'command': ['wrong'], 'service': 'image'}))
-                current_bad_fingerprint = current_manager_instance.preview_generation_resume(current_job_path)['expected_resume_fingerprint']
+                with self.assertRaisesRegex(ValueError,'실행 명령'):
+                    current_manager_instance.preview_generation_resume(current_job_path)
+                current_bad_fingerprint = current_manager_instance.fingerprint_generation_resume_inputs(current_job_path)['fingerprint']
                 with self.assertRaises(ValueError):
                     current_manager_instance.resume_reviewed_generation_job(current_job_path, current_bad_fingerprint)
                 current_launch_mock.assert_not_called()
@@ -471,3 +473,81 @@ class VideoAttachmentResumeTests(unittest.TestCase):
                     with hold_cleanup_preview_guard(current_manager_instance.job_storage_root):
                         with self.assertRaisesRegex(ValueError,'이미 진행 중'):
                             current_execute_method('history-reset-preview',{})
+
+    def test_video_preview_checks_present_command_and_legacy_absence(self):
+        from tools.review.domains.image.image_generation import WORKFLOW_ROOT_PATH
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_storage_path=Path(current_directory_name)
+            current_job_path=current_storage_path/'2026-11-20_20-00-00-1234abcd'
+            current_job_path.mkdir()
+            current_request_record={'references':['reference-1.png']}
+            (current_job_path/'request.json').write_text(json.dumps(current_request_record))
+            (current_job_path/'status.json').write_text('{"status":"failed"}')
+            (current_job_path/'reference-1.png').write_bytes(b'image')
+            current_manager_instance=ReferenceVideoGenerationManager('/dwpose',current_storage_path,'unused',Mock(),Mock())
+            current_command_path=current_job_path/'gpu-command.json'
+            current_command_values=[str(current_manager_instance.select_generation_python(current_request_record)),str(WORKFLOW_ROOT_PATH/'unused'),'--job-dir',str(current_job_path)]
+            current_command_path.write_text(json.dumps({'service':'image','command':current_command_values}))
+            self.assertEqual(current_manager_instance.preview_generation_resume(current_job_path)['status'],'failed')
+            current_command_path.write_text(json.dumps({'service':'other','command':current_command_values}))
+            with self.assertRaisesRegex(ValueError,'실행 명령'):
+                current_manager_instance.preview_generation_resume(current_job_path)
+            current_command_path.write_bytes(b' ' * (1048576+1))
+            with self.assertRaisesRegex(ValueError,'실행 명령 기록'):
+                current_manager_instance.preview_generation_resume(current_job_path)
+            current_command_path.unlink()
+            self.assertEqual(current_manager_instance.preview_generation_resume(current_job_path)['status'],'failed')
+
+
+    def test_reviewed_video_resume_rejects_unknown_preparation_before_queue(self):
+        from tools.review.common import gpu_job_queue
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_storage_root=Path(current_directory_name)
+            current_job_path=current_storage_root/'2026-11-20_20-00-00-1234abcd'
+            current_job_path.mkdir()
+            current_manager_instance=ReferenceVideoGenerationManager('/dwpose',current_storage_root,'unused',Mock(),Mock())
+            for current_availability_value in ('unknown','download_running'):
+                with self.subTest(availability=current_availability_value),patch.object(current_manager_instance,'inspect_video_resume_availability',return_value=current_availability_value),patch.object(gpu_job_queue,'resume_gpu_generation') as current_resume_mock:
+                    with self.assertRaisesRegex(ValueError,'모델 준비'):
+                        current_manager_instance.resume_reviewed_generation_job(current_job_path,'a'*64)
+                    current_resume_mock.assert_not_called()
+
+    def test_video_resume_rejects_preparation_started_after_availability_check(self):
+        import fcntl
+        from tools.review.common import gpu_job_queue,model_prepare_process
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_storage_root=Path(current_directory_name)
+            current_job_path=current_storage_root/'2026-11-20_20-00-00-1234abcd'
+            current_job_path.mkdir()
+            (current_job_path/'request.json').write_text(json.dumps({'references':['reference-1.png']}))
+            (current_job_path/'status.json').write_text('{"status":"failed"}')
+            (current_job_path/'reference-1.png').write_bytes(b'image')
+            current_manager_instance=ReferenceVideoGenerationManager('/dwpose',current_storage_root,'unused',Mock(),Mock())
+            current_fingerprint_value=current_manager_instance.fingerprint_generation_resume_inputs(current_job_path)['fingerprint']
+            current_prepare_root=current_storage_root/'prepare'
+            current_prepare_root.mkdir()
+            with (current_prepare_root/'worker.lock').open('a') as current_lock_handle:
+                fcntl.flock(current_lock_handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                with patch.object(current_manager_instance,'inspect_video_resume_availability',return_value='available'),patch.object(model_prepare_process,'resolve_model_preparation_root',return_value=current_prepare_root),patch.object(gpu_job_queue,'resume_gpu_generation') as current_resume_mock:
+                    with self.assertRaisesRegex(ValueError,'모델 준비가 진행 중'):
+                        current_manager_instance.resume_reviewed_generation_job(current_job_path,current_fingerprint_value)
+                    current_resume_mock.assert_not_called()
+
+    def test_video_resume_preparation_race_preserves_unknown_receipt(self):
+        from tools.review.domains.hermes_agent import video_resume_operations as video_operations
+        current_job_identifier='2026-11-20_20-00-00-1234abcd'
+        current_commands_seen=[]
+        def simulate_preparation_race(current_service_name,current_command_name,current_payload_record):
+            current_commands_seen.append(current_command_name)
+            if current_command_name=='resume-preview':
+                return {'service':current_service_name,'id':current_job_identifier,'status':'failed','expected_resume_fingerprint':'a'*64,'resume_availability':'available'}
+            raise ValueError('모델 준비가 진행 중입니다.')
+        with tempfile.TemporaryDirectory() as current_directory_name,patch.object(video_operations,'VIDEO_RESUME_RECEIPT_ROOT',Path(current_directory_name)),patch.object(video_operations,'execute_remote_management_command',side_effect=simulate_preparation_race):
+            with self.assertRaises(ValueError):
+                video_operations.submit_hermes_video_resume_once('video_request_1','dwpose',current_job_identifier,'a'*64)
+            self.assertEqual(video_operations.read_hermes_video_resume_receipt('video_request_1')['state'],'unknown')
+            current_repeated_record=video_operations.submit_hermes_video_resume_once('video_request_1','dwpose',current_job_identifier,'a'*64)
+            self.assertEqual((current_repeated_record['state'],current_repeated_record['duplicate']),('unknown',True))
+            with self.assertRaises(ValueError):
+                video_operations.submit_hermes_video_resume_once('video_request_2','dwpose',current_job_identifier,'a'*64)
+            self.assertEqual(current_commands_seen,['resume-preview','resume-reviewed'])

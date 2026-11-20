@@ -22,7 +22,7 @@ class HermesGradioTests(unittest.TestCase):
         current_session_identifier='a'*32
         current_source_identifier='2026-11-20_00-00-00-12345678'
         current_job_identifier='2026-11-20_01-00-00-87654321'
-        for current_kind_name,current_service_name in (('audio','music-heartmula'),('video','dwpose'),('flux','flux-character'),('flux','flux-image')):
+        for current_kind_name,current_service_name,current_page_name in (('audio','music-heartmula','music-heartmula'),('video','dwpose','dwpose-generator'),('flux','flux-character','flux-character-generator'),('flux','flux-image','flux-image-generator')):
             with self.subTest(kind=current_kind_name,service=current_service_name):
                 current_card_record={'session_id':current_session_identifier,'source_job_id':current_source_identifier,'kind':current_kind_name,'service':current_service_name,'review':{'request_id':'request_123'}}
                 current_status_record={'receipt':{'state':'accepted','request_id':'request_123','service':current_service_name,'job_id':current_job_identifier},'job':{'status':'failed','failure_code':'unclassified_failure','failure_reason':'실패 원인을 확인하지 못했습니다. 원 서비스의 작업 상태와 상세 로그를 확인하세요.'}}
@@ -32,6 +32,10 @@ class HermesGradioTests(unittest.TestCase):
                 self.assertIn('실패 원인을 확인하지 못했습니다',current_result_text)
                 self.assertIn('상세 로그',current_result_text)
                 self.assertNotIn('GPU 메모리 부족',current_result_text)
+                current_expected_link='/management/frame/'+current_page_name+'/?job='+current_job_identifier+'&session='+current_session_identifier
+                self.assertIn(current_expected_link,current_result_text)
+                self.assertIn('job='+current_job_identifier,current_expected_link)
+                self.assertIn('session='+current_session_identifier,current_expected_link)
 
     def test_flux_receipt_displays_unclassified_failure(self):
         current_job_identifier='2026-11-20_01-00-00-87654321'
@@ -64,6 +68,58 @@ class HermesGradioTests(unittest.TestCase):
             self.assertIn('확인하지 못했습니다',operations_history_app.read_operations_cleanup_preview('wan22-vace'))
         with patch.object(operations_history_app,'execute_remote_management_command',return_value={**current_summary_record,'status_counts':{'failed':3}}):
             self.assertIn('확인하지 못했습니다',operations_history_app.read_operations_cleanup_preview('dwpose'))
+
+    def test_video_resume_rechecks_preparation_before_submit(self):
+        current_session_identifier='a'*32
+        current_source_job='2026-11-20_00-00-00-12345678'
+        current_target_job='2026-11-20_01-00-00-87654321'
+        current_proposal_record={'service':'wan22-vace','job_id':current_target_job,'expected_resume_fingerprint':'b'*64}
+        current_preparation_state={'value':'available'}
+        current_command_values=[]
+        def simulate_video_gateway(current_service_name,current_command_name,current_payload_record):
+            current_command_values.append(current_command_name)
+            if current_command_name=='hermes-video-resume-proposal':return {'job_id':current_source_job,'proposal':current_proposal_record}
+            if current_command_name=='hermes-video-resume-receipt':return {'request_id':current_payload_record['request_id'],'state':'not_found'}
+            if current_command_name=='hermes-video-resume-preview':return {**current_proposal_record,'status':'failed','resume_availability':current_preparation_state['value']}
+            raise AssertionError('접수되면 안 됩니다: '+current_command_name)
+        with patch.object(hermes_agent_app,'find_conversation_session_job',return_value={}),patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=simulate_video_gateway):
+            current_card_record,_,_=hermes_agent_app.prepare_conversation_service_review(current_session_identifier,current_source_job,'video_resume')
+            self.assertTrue(current_card_record['ready'])
+            current_preparation_state['value']='download_running'
+            current_fresh_record,current_status_text=hermes_agent_app.submit_conversation_service_review(current_card_record,current_session_identifier,current_source_job,'video_resume')
+            self.assertFalse(current_fresh_record['ready'])
+            self.assertIn('모델 준비가 진행 중',current_status_text)
+            self.assertNotIn('hermes-video-resume-submit',current_command_values)
+
+    def test_video_resume_unknown_receipt_is_consistent_across_views(self):
+        import hashlib
+        from tools.review.ui.gradio import operations_history_app
+        current_session_identifier='a'*32
+        current_source_job='2026-11-20_00-00-00-12345678'
+        current_target_job='2026-11-20_01-00-00-87654321'
+        current_fingerprint_value='b'*64
+        current_request_identifier='video_resume_'+hashlib.sha256(('dwpose\0'+current_target_job+'\0'+current_fingerprint_value).encode()).hexdigest()
+        current_proposal_record={'service':'dwpose','job_id':current_target_job,'expected_resume_fingerprint':current_fingerprint_value}
+        current_receipt_record={'request_id':current_request_identifier,**current_proposal_record,'state':'unknown'}
+        def simulate_video_gateway(current_service_name,current_command_name,current_payload_record):
+            if current_command_name=='hermes-video-resume-proposal':return {'job_id':current_source_job,'proposal':current_proposal_record}
+            if current_command_name=='hermes-video-resume-receipt':return current_receipt_record
+            raise AssertionError('조회 중 예상하지 않은 명령: '+current_command_name)
+        with patch.object(hermes_agent_app,'find_conversation_session_job',return_value={}),patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=simulate_video_gateway),patch.object(operations_history_app,'execute_remote_management_command',side_effect=simulate_video_gateway):
+            current_card_record,current_preview_text,current_notice_text=hermes_agent_app.prepare_conversation_service_review(current_session_identifier,current_source_job,'video_resume')
+            self.assertFalse(current_card_record['ready'])
+            self.assertIn(current_request_identifier,current_preview_text)
+            self.assertIn('자동 재접수하지 않습니다',current_notice_text)
+            current_state_value,current_status_text=hermes_agent_app.read_conversation_service_status(current_card_record,current_session_identifier,current_source_job,'video_resume')
+            self.assertEqual(current_state_value,'unknown')
+            self.assertIn('자동 재접수하지 않습니다',current_status_text)
+            current_history_text=operations_history_app.read_operations_audio_resume_receipt(current_request_identifier,'dwpose')
+            self.assertIn(current_target_job,current_history_text)
+            self.assertIn('자동 재요청하지 마세요',current_history_text)
+            current_receipt_record['job_id']='2026-11-20_01-00-00-aaaaaaaa'
+            with self.assertRaises(gr.Error):
+                hermes_agent_app.read_conversation_service_status(current_card_record,current_session_identifier,current_source_job,'video_resume')
+            self.assertIn('확인할 수 없습니다',operations_history_app.read_operations_audio_resume_receipt(current_request_identifier,'dwpose'))
 
     def test_conversation_video_resume_routes_reviews_and_checks_receipt(self):
         import json

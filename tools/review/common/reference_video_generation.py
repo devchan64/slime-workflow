@@ -73,6 +73,21 @@ class ReferenceVideoGenerationManager(ImageGenerationManager):
       raise ValueError('이전 영상 실행이 종료되지 않았습니다.') from current_lock_error
      initial_fingerprint_value=self.fingerprint_generation_resume_inputs(selected_job_directory)
      saved_request_record=json.loads((selected_job_directory/'request.json').read_text())
+     from tools.review.domains.image.image_generation import WORKFLOW_ROOT_PATH
+     current_command_path=selected_job_directory/'gpu-command.json'
+     try:
+      current_command_descriptor=os.open(current_command_path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+     except FileNotFoundError:
+      current_command_descriptor=None
+     if current_command_descriptor is not None:
+      with os.fdopen(current_command_descriptor,'rb') as current_command_stream:
+       current_command_stat=os.fstat(current_command_stream.fileno())
+       if not stat.S_ISREG(current_command_stat.st_mode) or current_command_stat.st_size>1048576:
+        raise ValueError('영상 재개 실행 명령 기록 오류')
+       current_command_record=json.loads(current_command_stream.read(1048577))
+      current_expected_command=[str(self.select_generation_python(saved_request_record)),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(saved_request_record)),'--job-dir',str(selected_job_directory)]
+      if current_command_record!={'command':current_expected_command,'service':self.select_generation_service(saved_request_record)}:
+       raise ValueError('영상 재개 실행 명령이 원 서비스와 일치하지 않습니다.')
      self.validate_generation_runtime(saved_request_record)
      self.validate_generation_resume(selected_job_directory,recover_interrupted_value=False)
      final_fingerprint_value=self.fingerprint_generation_resume_inputs(selected_job_directory)
@@ -97,6 +112,8 @@ class ReferenceVideoGenerationManager(ImageGenerationManager):
    raise ValueError('영상 재개 작업 경로 오류')
   if not isinstance(expected_fingerprint_value,str) or not re.fullmatch(r'[a-f0-9]{64}',expected_fingerprint_value):
    raise ValueError('영상 재개 확인값 오류')
+  if self.inspect_video_resume_availability()!='available':
+   raise ValueError('영상 모델 준비가 진행 중이거나 준비 상태를 확인할 수 없습니다.')
   if self.fingerprint_generation_resume_inputs(selected_job_directory)['fingerprint']!=expected_fingerprint_value:
    raise ValueError('검토한 영상 재개 입력이 변경됐습니다.')
   saved_request_record=json.loads((selected_job_directory/'request.json').read_text())

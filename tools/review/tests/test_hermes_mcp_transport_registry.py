@@ -893,21 +893,25 @@ async def inspect_video_preview_transport():
     async with stdio_client(current_parameters) as (current_read_stream,current_write_stream):
         async with ClientSession(current_read_stream,current_write_stream) as current_session:
             await current_session.initialize()
+            current_bad_result=await current_session.call_tool('preview_hermes_video_resume',{'service_name':'dwpose','job_identifier_value':'2026-11-20_00-00-00-abcdef12'})
+            if not current_bad_result.is_error:raise RuntimeError('변조된 영상 명령을 검토에서 거부하지 않았습니다.')
+            from pathlib import Path
+            Path(os.environ['TEST_VIDEO_COMMAND_PATH']).write_text(os.environ['TEST_VIDEO_VALID_COMMAND'])
             current_result=await current_session.call_tool('preview_hermes_video_resume',{'service_name':'dwpose','job_identifier_value':'2026-11-20_00-00-00-abcdef12'})
             if current_result.is_error:raise RuntimeError(str(current_result.content))
             current_preview_value=current_result.structured_content or json.loads(current_result.content[0].text)
-            if current_preview_value['service']!='dwpose' or current_preview_value['status']!='failed' or len(current_preview_value['expected_resume_fingerprint'])!=64:raise RuntimeError('FLUX 검토 응답 오류')
+            if current_preview_value['service']!='dwpose' or current_preview_value['status']!='failed' or len(current_preview_value['expected_resume_fingerprint'])!=64:raise RuntimeError('영상 검토 응답 오류')
             current_request_value={'request_identifier_value':'video_transport_test_123','service_name':'dwpose','job_identifier_value':'2026-11-20_00-00-00-abcdef12','expected_resume_fingerprint':current_preview_value['expected_resume_fingerprint']}
             current_submit_value=await current_session.call_tool('submit_hermes_video_resume',current_request_value)
-            if current_submit_value.is_error:raise RuntimeError('FLUX 접수 실패: '+str(current_submit_value.content))
+            if current_submit_value.is_error:raise RuntimeError('영상 접수 실패: '+str(current_submit_value.content))
             current_submit_record=current_submit_value.structured_content or json.loads(current_submit_value.content[0].text)
-            if current_submit_record.get('state')!='accepted' or current_submit_record.get('duplicate') is not False:raise RuntimeError('FLUX 접수 확인 오류')
+            if current_submit_record.get('state')!='accepted' or current_submit_record.get('duplicate') is not False:raise RuntimeError('영상 접수 확인 오류')
             current_duplicate_value=await current_session.call_tool('submit_hermes_video_resume',current_request_value)
             current_duplicate_record=current_duplicate_value.structured_content or json.loads(current_duplicate_value.content[0].text)
-            if current_duplicate_value.is_error or current_duplicate_record.get('duplicate') is not True:raise RuntimeError('FLUX 중복 방지 오류')
+            if current_duplicate_value.is_error or current_duplicate_record.get('duplicate') is not True:raise RuntimeError('영상 중복 방지 오류')
             current_receipt_value=await current_session.call_tool('read_hermes_video_resume_receipt',{'request_identifier_value':'video_transport_test_123'})
             current_receipt_record=current_receipt_value.structured_content or json.loads(current_receipt_value.content[0].text)
-            if current_receipt_value.is_error or current_receipt_record.get('state')!='accepted':raise RuntimeError('FLUX 접수 조회 오류')
+            if current_receipt_value.is_error or current_receipt_record.get('state')!='accepted':raise RuntimeError('영상 접수 조회 오류')
             print('video_preview_transport=ok')
 asyncio.run(inspect_video_preview_transport())
 """
@@ -921,13 +925,17 @@ asyncio.run(inspect_video_preview_transport())
             (current_job_path/'request.json').write_text(json.dumps({'references':['reference-1.png']}))
             (current_job_path/'status.json').write_text(json.dumps({'status':'failed'}))
             (current_job_path/'reference-1.png').write_bytes(b'temporary reference')
+            current_command_path=current_job_path/'gpu-command.json'
+            current_command_path.write_text(json.dumps({'service':'image','command':['tampered']}))
+            from tools.review.domains.image.image_generation import WORKFLOW_ROOT_PATH
+            current_expected_command={'service':current_flux_manager.select_generation_service(), 'command':[str(current_flux_manager.select_generation_python()),str(WORKFLOW_ROOT_PATH/current_flux_manager.select_generation_runner()),'--job-dir',str(current_job_path)]}
             current_gateway=ManagementCommandGateway({'hermes-agent':current_hermes_manager.handle_hermes_request,'dwpose':current_flux_manager.handle_image_request})
             current_server=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway.handle))
             current_server.emit_gateway_trace=lambda *current_values:None
             current_server_thread=threading.Thread(target=current_server.serve_forever,daemon=True)
             current_server_thread.start()
             current_gateway_url='http://127.0.0.1:'+str(current_server.server_port)
-            current_environment=dict(os.environ,SLIME_MANAGEMENT_GATEWAY_URL=current_gateway_url,PYTHONPATH=str(current_repository_root))
+            current_environment=dict(os.environ,SLIME_MANAGEMENT_GATEWAY_URL=current_gateway_url,PYTHONPATH=str(current_repository_root),TEST_VIDEO_COMMAND_PATH=str(current_command_path),TEST_VIDEO_VALID_COMMAND=json.dumps(current_expected_command))
             try:
                 with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_url}),patch.object(video_resume_operations,'VIDEO_RESUME_RECEIPT_ROOT',current_root_path/'flux-receipts'),patch('tools.review.common.model_prepare_process.resolve_model_preparation_root',return_value=current_root_path/'model-prep'),patch.object(current_flux_manager,'inspect_video_resume_availability',return_value='available'),patch.object(current_flux_manager,'validate_generation_runtime'),patch.object(current_flux_manager,'validate_generation_resume'),patch.object(current_flux_manager,'resume_generation_job') as current_resume_mock,patch('tools.review.common.gpu_job_queue.launch_gpu_process') as current_launch_mock:
                     current_process=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment,capture_output=True,text=True,timeout=30)
