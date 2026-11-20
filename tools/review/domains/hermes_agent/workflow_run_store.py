@@ -6,7 +6,7 @@ import json
 import sqlite3
 import uuid
 from contextlib import closing
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from .workflow_catalog import read_workflow_generator_catalog
 from .workflow_definition import compile_workflow_dependencies, validate_fixed_workflow_input
@@ -36,9 +36,10 @@ def read_step_records_locked(current_database_connection, workflow_run_identifie
     current_database_connection.row_factory = sqlite3.Row
     return [dict(current_step_row) for current_step_row in current_database_connection.execute(
         """SELECT step.step_id, step.category, step.state, step.request_id,
-                  contract.generator, contract.generator_version, contract.template_version,
+                  timing.created_at, timing.updated_at, contract.generator, contract.generator_version, contract.template_version,
                   blocked.source_step AS blocking_step, blocked.reason AS block_reason, cancellation.delivery AS cancel_delivery, observed.source_state, observed.observed_at, observed.source_job_id
            FROM workflow_step AS step LEFT JOIN workflow_step_contract AS contract USING(run_id, step_id)
+           LEFT JOIN workflow_step_time AS timing USING(request_id)
            LEFT JOIN workflow_cancel_request AS cancellation USING(request_id)
            LEFT JOIN workflow_block_reason AS blocked USING(run_id, step_id)
            LEFT JOIN workflow_observation AS observed USING(request_id)
@@ -107,6 +108,16 @@ class WorkflowRunStore:
                     dependencies TEXT NOT NULL, state TEXT NOT NULL, request_id TEXT NOT NULL UNIQUE,
                     request_body TEXT, request_digest TEXT, PRIMARY KEY(run_id, step_id)
                 );
+                CREATE TABLE IF NOT EXISTS workflow_step_time (
+                    request_id TEXT PRIMARY KEY, created_at TEXT, updated_at TEXT NOT NULL
+                );
+                CREATE TRIGGER IF NOT EXISTS workflow_step_created AFTER INSERT ON workflow_step BEGIN
+                    INSERT INTO workflow_step_time VALUES (NEW.request_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+                END;
+                CREATE TRIGGER IF NOT EXISTS workflow_step_updated AFTER UPDATE OF state ON workflow_step BEGIN
+                    INSERT INTO workflow_step_time VALUES (NEW.request_id, NULL, CURRENT_TIMESTAMP)
+                    ON CONFLICT(request_id) DO UPDATE SET updated_at=CURRENT_TIMESTAMP;
+                END;
             """)
 
     def register_workflow_run(self, workflow_run_identifier, conversation_session_identifier, workflow_step_records):
@@ -421,7 +432,19 @@ class WorkflowRunStore:
                     "results": read_result_records_locked(current_database_connection, workflow_run_identifier),
                     "queried_at": datetime.now(timezone.utc).isoformat()}
 
-    def find_session_workflow_steps(self, conversation_session_identifier, current_category_name, current_state_name):
+    def find_session_workflow_steps(self, conversation_session_identifier, current_category_name, current_state_name, search_filters=None):
+        search_filters = {} if search_filters is None else search_filters
+        allowed_filter_fields = {"generator", "run_id", "job_id", "created_from", "created_through"}
+        if (not isinstance(search_filters, dict) or search_filters.keys() - allowed_filter_fields
+                or any(not isinstance(value, str) for value in search_filters.values())):
+            raise ValueError("작업 검색 필드를 확인하세요.")
+        query_filter_values = dict.fromkeys(allowed_filter_fields, "") | search_filters
+        for date_field_name in ("created_from", "created_through"):
+            date_filter_text = query_filter_values[date_field_name]
+            if date_filter_text and date.fromisoformat(date_filter_text).isoformat() != date_filter_text:
+                raise ValueError("검색 날짜는 YYYY-MM-DD 형식입니다.")
+        if query_filter_values["created_through"] and query_filter_values["created_from"] > query_filter_values["created_through"]:
+            raise ValueError("검색 시작일이 종료일보다 늦습니다.")
         if current_category_name not in ("", "translation", "image"):
             raise ValueError("지원하지 않는 생성기 카테고리입니다.")
         if current_state_name not in ("", "ready", "waiting", "awaiting_choice", "submitting", "completed", "failed", "cancelled", "blocked", "queued", "running", "paused", "unknown"):
@@ -429,13 +452,20 @@ class WorkflowRunStore:
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
             current_database_connection.row_factory = sqlite3.Row
             matching_step_records = current_database_connection.execute(
-                """SELECT step.run_id, step.step_id, step.category, step.state, observation.source_state, observation.observed_at
+                """SELECT step.run_id, step.step_id, step.category, step.state, contract.generator, step.request_id,
+                          observation.source_job_id, timing.created_at, timing.updated_at, observation.source_state, observation.observed_at
                    FROM workflow_step AS step JOIN workflow_run AS run USING(run_id)
+                   LEFT JOIN workflow_step_contract AS contract USING(run_id, step_id)
+                   LEFT JOIN workflow_step_time AS timing USING(request_id)
                    LEFT JOIN workflow_observation AS observation USING(request_id)
-                   WHERE run.session_id=? AND (?='' OR step.category=?)
-                     AND (?='' OR step.state=? OR (step.state='submitting' AND observation.source_state=?))
+                   WHERE run.session_id=:session AND (:category='' OR step.category=:category)
+                     AND (:state='' OR step.state=:state OR (step.state='submitting' AND observation.source_state=:state))
+                     AND (:generator='' OR contract.generator=:generator)
+                     AND (:run_id='' OR step.run_id=:run_id)
+                     AND (:job_id='' OR step.request_id=:job_id OR observation.source_job_id=:job_id OR step.step_id=:job_id)
+                     AND (:created_from='' OR date(timing.created_at)>=:created_from)
+                     AND (:created_through='' OR date(timing.created_at)<=:created_through)
                    ORDER BY step.rowid DESC LIMIT 101""",
-                (conversation_session_identifier, current_category_name, current_category_name,
-                 current_state_name, current_state_name, current_state_name)).fetchall()
+                query_filter_values | {"session": conversation_session_identifier, "category": current_category_name, "state": current_state_name}).fetchall()
         return {"steps": [dict(current_step_record) for current_step_record in matching_step_records[:100]],
                 "truncated": len(matching_step_records) > 100, "queried_at": datetime.now(timezone.utc).isoformat()}

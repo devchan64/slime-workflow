@@ -35,7 +35,7 @@ HERMES_CAPABILITY_RECORDS = (
     {'command': 'hermes-workflow-select', 'label': '후속 입력 결과 선택', 'required': ['session_id', 'run_id', 'step_id', 'input_field', 'source_request', 'digest'], 'optional': [], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_view', 'note': '검토한 생산 시도와 결과 해시를 단계 입력에 고정한다.'},
     {'command': 'hermes-workflow-cancel', 'label': '워크플로우 취소 요청', 'required': ['session_id', 'run_id'], 'optional': [], 'effect': 'cancel_request', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_view', 'note': '미접수 단계를 중단하고 접수된 작업은 원 서비스에 취소를 요청한다.'},
     {'command': 'hermes-workflow-view', 'label': '워크플로우 결과 조회', 'required': ['session_id', 'run_id'], 'optional': [], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_view', 'note': '세션에 속한 실행 단계와 결과를 조회한다.'},
-    {'command': 'hermes-workflow-list', 'label': '워크플로우 작업 찾기', 'required': ['session_id', 'category', 'state'], 'optional': [], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_list', 'note': '세션별 단계 목록을 카테고리와 상태로 검색한다.'},
+    {'command': 'hermes-workflow-list', 'label': '워크플로우 작업 찾기', 'required': ['session_id', 'category', 'state'], 'optional': ['search_filters'], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_list', 'note': '세션별 단계 목록을 카테고리와 상태로 검색한다.'},
     {'command':'hermes-session-create','label':'대화 세션 생성','required':['session_id'],'optional':[],'effect':'write','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'session','note':'같은 세션 ID로 재시도할 수 있다.'},
     {'command':'hermes-session-read','label':'대화 세션 기록 조회','required':['session_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'session','note':'저장된 세션 기록을 읽는다.'},
     {'command':'hermes-session-list','label':'대화 세션 목록','required':[],'optional':['offset','limit','snapshot','query'],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'session_list','note':'최근 세션과 잘림 여부를 반환한다.'},
@@ -174,6 +174,8 @@ HERMES_CAPABILITY_RECORDS = (
 
 
 HERMES_FIELD_SCHEMAS = {
+    'search_filters': {'type':'object','properties':{name: {'type':'string'} for name in
+                       ('generator','run_id','job_id','created_from','created_through')},'additionalProperties':False},
     'step_id': {'type':'string','minLength':1},
     'input_field': {'type':'string','minLength':1},
     'source_request': {'type':'string','pattern':'^[a-f0-9]{32}$'},

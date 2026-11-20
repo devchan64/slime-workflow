@@ -300,9 +300,13 @@ def submit_workflow_step_priority(current_request_record, current_session_identi
     return submit_operations_priority_request(current_request_record, current_target_record)
 
 
-def list_conversation_workflow_steps(current_session_identifier, current_category_name, current_state_name):
+def list_conversation_workflow_steps(current_session_identifier, current_category_name, current_state_name,
+                                     generator_name_filter="", workflow_run_filter="", workflow_job_filter="",
+                                     creation_start_date="", creation_end_date=""):
     return execute_remote_management_command("hermes-agent", "hermes-workflow-list",
-        {"session_id": current_session_identifier, "category": current_category_name, "state": current_state_name})
+        {"session_id": current_session_identifier, "category": current_category_name, "state": current_state_name,
+         "search_filters": {"generator": generator_name_filter, "run_id": workflow_run_filter, "job_id": workflow_job_filter,
+                            "created_from": creation_start_date, "created_through": creation_end_date}})
 
 
 def display_conversation_workflow_results(current_session_identifier, workflow_run_identifier):
@@ -4952,10 +4956,17 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     workflow_cancel_button = gr.Button("지정한 실행 ID의 워크플로우 취소 요청")
                     workflow_cancel_button.click(cancel_conversation_workflow_run,
                         [hermes_session_control, workflow_run_identifier], workflow_run_display, queue=False)
+                    with gr.Accordion("작업 상세 검색", open=False):
+                        workflow_generator_filter = gr.Dropdown([("전체", ""), ("번역", "prompt-translation"), ("FLUX 이미지", "flux-image")], value="", label="생성기")
+                        workflow_run_filter = gr.Textbox(label="검색할 실행 ID")
+                        workflow_job_filter = gr.Textbox(label="단계·요청·원 서비스 작업 ID")
+                        workflow_start_filter = gr.Textbox(label="생성 시작일 (UTC, YYYY-MM-DD)")
+                        workflow_end_filter = gr.Textbox(label="생성 종료일 (UTC, YYYY-MM-DD)")
                     workflow_search_button = gr.Button("작업 찾기")
                     workflow_search_results = gr.JSON(label="최근 일치 작업과 실행 ID")
                     workflow_search_button.click(list_conversation_workflow_steps,
-                        [hermes_session_control, workflow_category_filter, workflow_state_filter], workflow_search_results, queue=False)
+                        [hermes_session_control, workflow_category_filter, workflow_state_filter, workflow_generator_filter,
+                         workflow_run_filter, workflow_job_filter, workflow_start_filter, workflow_end_filter], workflow_search_results, queue=False)
                     hermes_session_control.change(lambda: None, outputs=workflow_search_results, queue=False)
                     workflow_step_identifier = gr.Textbox(label="우선 실행할 단계 ID")
                     workflow_priority_review = gr.Button("대기 순번과 대상 검토")
