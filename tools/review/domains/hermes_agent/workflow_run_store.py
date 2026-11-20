@@ -140,7 +140,9 @@ class WorkflowRunStore:
             resolved_input_record = dict(current_step_definition.get("inputs", {}))
             for target_field_name, source_binding_record in current_step_definition.get("bindings", {}).items():
                 source_result_row = current_database_connection.execute(
-                    "SELECT outputs FROM workflow_result WHERE run_id=? AND step_id=?",
+                    """SELECT outputs, meta.digest, meta.byte_size FROM workflow_result
+                       LEFT JOIN workflow_output_metadata AS meta USING(run_id, step_id)
+                       WHERE run_id=? AND step_id=?""",
                     (workflow_run_identifier, source_binding_record["from_step"])).fetchone()
                 if source_result_row is None:
                     return None
@@ -151,6 +153,13 @@ class WorkflowRunStore:
                         source_binding_record["from_step"], "선행 작업의 출력 항목이 없습니다.")
                     return None
                 bound_output_value = source_output_values[source_output_name]
+                if source_output_name == "text":
+                    translated_text_bytes = bound_output_value.encode("utf-8") if isinstance(bound_output_value, str) else None
+                    if (translated_text_bytes is None or source_result_row[1] != hashlib.sha256(translated_text_bytes).hexdigest()
+                            or source_result_row[2] != len(translated_text_bytes)):
+                        block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier,
+                            source_binding_record["from_step"], "번역문 검증 기록이 없거나 저장된 내용과 일치하지 않습니다.")
+                        return None
                 if source_output_name == "images":
                     stored_image_row = current_database_connection.execute(
                         "SELECT content FROM workflow_png WHERE digest=?", (bound_output_value["sha256"],)).fetchone()
