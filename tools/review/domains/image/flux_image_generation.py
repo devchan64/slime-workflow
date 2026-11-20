@@ -122,7 +122,8 @@ class FluxImageGenerationManager(FluxTranslationQueueMixin, ImageGenerationManag
         if isinstance(request_record_value,dict) and isinstance(request_record_value.get('images'),list):
             request_record_value = {**request_record_value,'images':[base64.b64encode(decode_reference_image(current_image_text,composite_transparent_background=True)).decode() for current_image_text in request_record_value['images']]}
         current_allowed_steps = range(1, 51) if self.current_profile_name == 'flux-character' else (16,)
-        current_request_record = validate_three_reference_request(request_record_value, allowed_inference_steps=current_allowed_steps, maximum_reference_count=2, minimum_output_size=256)
+        current_maximum_size = 2048 if self.current_profile_name == 'flux-character' else 1664
+        current_request_record = validate_three_reference_request(request_record_value, allowed_inference_steps=current_allowed_steps, maximum_reference_count=2, minimum_output_size=256, maximum_output_size=current_maximum_size)
         if current_translation_source is not None:
             current_request_record['prompt']=current_translation_base.strip()
         if self.current_profile_name == 'flux-seamless' and (current_request_record['width'] != 512 or current_request_record['height'] != 512 or current_request_record['images']):
@@ -180,7 +181,8 @@ class FluxImageGenerationManager(FluxTranslationQueueMixin, ImageGenerationManag
         current_allowed_steps = range(1, 51) if self.current_profile_name == 'flux-character' else (16,)
         if type(current_request_record.get('steps')) is not int or current_request_record['steps'] not in current_allowed_steps or type(current_request_record.get('seed')) is not int or not 0 <= current_request_record['seed'] <= 4294967295:
             raise ValueError('저장된 스텝 또는 시드가 올바르지 않습니다.')
-        if any(type(current_request_record.get(name)) is not int or not 256 <= current_request_record[name] <= 1664 or current_request_record[name] % 16 for name in ('width','height')):
+        current_maximum_size = 2048 if self.current_profile_name == 'flux-character' else 1664
+        if any(type(current_request_record.get(name)) is not int or not 256 <= current_request_record[name] <= current_maximum_size or current_request_record[name] % 16 for name in ('width','height')):
             raise ValueError('저장된 출력 크기가 올바르지 않습니다.')
         if (current_request_record.get('building_design_ko') or current_request_record.get('translation_source_ko')) and not (selected_job_directory/'gpu-command.json').exists():
             return

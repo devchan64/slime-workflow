@@ -186,6 +186,27 @@ class FluxImageGenerationTests(unittest.TestCase):
             with patch('tools.review.ui.shared.flux_image_page.WORKFLOW_ROOT_DIRECTORY',Path(current_directory_name)):
                 current_restored_values=restore_flux_image_inputs({'id':current_job_identifier,'request':current_saved_record},'flux-character')
             self.assertEqual(current_restored_values[5],32)
+
+    def test_character_output_size_limit_and_history_restore(self):
+        current_image_buffer=io.BytesIO()
+        Image.new('RGB',(16,16),'white').save(current_image_buffer,format='PNG')
+        current_request_value={'action':'generate','prompt':'A character','images':[base64.b64encode(current_image_buffer.getvalue()).decode()],'width':2048,'height':2048,'steps':16,'seed':42}
+        current_manager_value=FluxImageGenerationManager('flux-character')
+        current_valid_record=current_manager_value.validate_generation_request(current_request_value)
+        for current_invalid_width in (2064,2047,True):
+            with self.assertRaises(ValueError):
+                current_manager_value.validate_generation_request({**current_request_value,'width':current_invalid_width})
+        with self.assertRaises(ValueError):
+            FluxImageGenerationManager('flux-image').validate_generation_request(current_request_value)
+        with tempfile.TemporaryDirectory(dir=Path('.tmp/test')) as current_directory_name:
+            current_job_identifier='2026-11-20_12-00-00-a1b2c3d4'
+            current_job_root=Path(current_directory_name)/'.tmp/test/flux-character-generator'/current_job_identifier
+            current_job_root.mkdir(parents=True)
+            current_saved_record=save_three_reference_inputs(current_job_root,current_valid_record)
+            from unittest.mock import patch
+            with patch('tools.review.ui.shared.flux_image_page.WORKFLOW_ROOT_DIRECTORY',Path(current_directory_name)):
+                current_restored_values=restore_flux_image_inputs({'id':current_job_identifier,'request':current_saved_record},'flux-character')
+            self.assertEqual(current_restored_values[3:5],(2048,2048))
 class FluxBuildingGuideGalleryTests(unittest.TestCase):
     def test_korean_translation_request_across_image_profiles(self):
         current_image_buffer=io.BytesIO()

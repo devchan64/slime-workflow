@@ -30,7 +30,8 @@ def restore_flux_image_inputs(current_history_record, current_profile_name):
     current_allowed_steps = range(1, 51) if current_profile_name == 'flux-character' else (16,)
     if type(current_request_record.get('steps')) is not int or current_request_record['steps'] not in current_allowed_steps or type(current_request_record.get('seed')) is not int or not 0 <= current_request_record['seed'] <= 4294967295:
         raise gr.Error('저장된 스텝 또는 시드가 올바르지 않습니다.')
-    if any(type(current_request_record.get(name)) is not int or not 256 <= current_request_record[name] <= 1664 or current_request_record[name] % 16 for name in ('width','height')):
+    current_maximum_size = 2048 if current_profile_name == 'flux-character' else 1664
+    if any(type(current_request_record.get(name)) is not int or not 256 <= current_request_record[name] <= current_maximum_size or current_request_record[name] % 16 for name in ('width','height')):
         raise gr.Error('저장된 출력 크기가 올바르지 않습니다.')
     current_restored_values = restore_reference_inputs(current_history_record, WORKFLOW_ROOT_DIRECTORY/'.tmp/test'/(current_profile_name+'-generator'),reference_slot_limit=2)
     current_input_prompt=current_request_record.get('building_design_ko',current_user_prompt) if current_profile_name=='flux-building' else current_request_record.get('translation_base_prompt',current_user_prompt)
@@ -141,9 +142,12 @@ def build_flux_image_page(current_profile_name, current_server_address, current_
             current_guide_button.click(apply_billboard_reference,[current_guide_control,current_subject_control],[current_first_reference,current_prompt_control],queue=False)
         if current_profile_name == 'flux-building':
             current_building_button.click(apply_selected_building_guide,current_building_control,current_first_reference,queue=False)
+        current_maximum_size=2048 if current_profile_name=='flux-character' else 1664
         with gr.Row():
-            current_width_control=gr.Number(value=current_default_width,minimum=256,maximum=1664,precision=0,label='너비')
-            current_height_control=gr.Number(value=current_default_height,minimum=256,maximum=1664,precision=0,label='높이')
+            current_width_control=gr.Number(value=current_default_width,minimum=256,maximum=current_maximum_size,precision=0,label='너비')
+            current_height_control=gr.Number(value=current_default_height,minimum=256,maximum=current_maximum_size,precision=0,label='높이')
+        if current_profile_name=='flux-character':
+            gr.Markdown('출력 크기는 가로·세로 각각 256~2048px의 16 배수입니다. 1664px 초과 크기는 이 장비에서 실제 생성·메모리 사용량을 아직 검증하지 않았습니다.')
         if current_profile_name == 'flux-mannequin':
             def apply_mannequin_stage(current_preset_identifier):
                 current_prompt_text,current_first_image,current_second_image=current_mannequin_module.load_mannequin_preset(current_preset_identifier)
