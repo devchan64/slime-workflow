@@ -29,6 +29,10 @@ HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-audio-source-history','label':'음악·효과음 원본 이력','required':['service'],'optional':['offset','limit','snapshot','query'],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'audio_source_history','note':'Hermes 접수 이외의 원본 이력도 기록 상태만 읽는다. 실제 작업 생존과 결과는 별도다.'},
     {'command':'hermes-kimodo-build-status','label':'Kimodo MIGraphX 빌드 기록','required':[],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'kimodo_build_status','note':'최근 빌드 기록만 읽는다. 캐시 유효성과 작업 생존은 별도 확인한다.'},
     {'command':'hermes-capabilities','label':'Hermes 기능 목록','required':[],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'capability_catalog','note':'게이트웨이 등록과 목록의 차이를 함께 표시한다.'},
+    {'command': 'hermes-workflow-catalog', 'label': '워크플로우 생성기 계약', 'required': [], 'optional': [], 'effect': 'read', 'gpu': 'none', 'retry': 'safe', 'interfaces': [], 'result': 'workflow_catalog', 'note': '지원하는 생성기의 입력과 출력을 조회한다.'},
+    {'command': 'hermes-workflow-register', 'label': '워크플로우 실행 등록', 'required': ['session_id', 'run_id', 'steps'], 'optional': [], 'effect': 'enqueue', 'gpu': 'queued', 'retry': 'request_id', 'interfaces': ['gui'], 'result': 'workflow_register', 'note': '검토한 실행 ID와 단계 정의를 고정하고 준비된 단계를 GPU 대기열에 접수한다.'},
+    {'command': 'hermes-workflow-view', 'label': '워크플로우 결과 조회', 'required': ['session_id', 'run_id'], 'optional': [], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_view', 'note': '세션에 속한 실행 단계와 결과를 조회한다.'},
+    {'command': 'hermes-workflow-list', 'label': '워크플로우 작업 찾기', 'required': ['session_id', 'category', 'state'], 'optional': [], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_list', 'note': '세션별 단계 목록을 카테고리와 상태로 검색한다.'},
     {'command':'hermes-session-create','label':'대화 세션 생성','required':['session_id'],'optional':[],'effect':'write','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'session','note':'같은 세션 ID로 재시도할 수 있다.'},
     {'command':'hermes-session-read','label':'대화 세션 기록 조회','required':['session_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'session','note':'저장된 세션 기록을 읽는다.'},
     {'command':'hermes-session-list','label':'대화 세션 목록','required':[],'optional':['offset','limit','snapshot','query'],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'session_list','note':'최근 세션과 잘림 여부를 반환한다.'},
@@ -167,6 +171,9 @@ HERMES_CAPABILITY_RECORDS = (
 
 
 HERMES_FIELD_SCHEMAS = {
+    'run_id': {'type':'string','pattern':'^[a-f0-9]{32}$'},
+    'steps': {'type':'array','minItems':1,'items':{'type':'object','required':['id','generator']}},
+    'state': {'type':'string','enum':['','ready','waiting','submitting','completed','failed','cancelled','blocked']},
     'animation_id': {'type':'string','pattern':'^[A-Za-z0-9._-]{1,160}$'},
     'animation_version': {'type':'string','pattern':'^[A-Za-z0-9._-]{1,160}$'},
     'text': {'type':'string','minLength':1,'maxLength':6000},
@@ -231,6 +238,8 @@ def list_hermes_capability_catalog():
         current_method_value, current_route_suffix = MANAGEMENT_COMMAND_ROUTES[current_command_name]
         current_field_names = current_capability_record['required'] + current_capability_record['optional']
         current_payload_schema = {'type':'object', 'required':current_capability_record['required'], 'properties':{current_field_name:HERMES_FIELD_SCHEMAS[current_field_name] for current_field_name in current_field_names}, 'additionalProperties':False}
+        if current_command_name == 'hermes-workflow-list':
+            current_payload_schema['properties']['category'] = {'type':'string','enum':['','translation','image']}
         if current_command_name == 'hermes-kimodo-keyframe-validate':
             from tools.review.domains.kimodo.keyframe_storage import KIMODO_KEYFRAME_LIMIT
             current_payload_schema['properties']['keyframes'] = {'type':'array','minItems':1,'maxItems':KIMODO_KEYFRAME_LIMIT,'items':{'type':'object','required':['id','frame'],'properties':{'id':{'type':'string','pattern':'^[a-f0-9]{32}$'},'frame':{'type':'integer','minimum':1}},'additionalProperties':False},'note':'출력 프레임은 frames 이하이며 서로 중복될 수 없다.'}
