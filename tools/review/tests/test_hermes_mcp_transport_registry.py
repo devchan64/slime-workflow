@@ -36,6 +36,49 @@ asyncio.run(inspect_fresh_mcp_registry())
         self.assertEqual(current_test_process.returncode,0,current_test_process.stderr[-4000:])
 
 
+    def test_bounded_queue_failure_crosses_stdio_without_gpu_status(current_test_case):
+        import tempfile
+        import threading
+        from http.server import ThreadingHTTPServer
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.review.domains.hermes_agent.service import HermesServiceManager
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_repository_root=Path(__file__).resolve().parents[3]
+        current_runtime_python=current_repository_root/'.local/hermes-mcp/bin/python'
+        if not current_runtime_python.is_file():current_test_case.skipTest('Hermes MCP 런타임이 설치되지 않았습니다.')
+        current_client_script=r"""
+import asyncio,os,sys
+from mcp import ClientSession,StdioServerParameters
+from mcp.client.stdio import stdio_client
+async def inspect_queue_failure():
+    current_parameters=StdioServerParameters(command=sys.executable,args=['tools/review/domains/hermes_agent/mcp_server.py'],cwd=os.getcwd(),env=dict(os.environ))
+    async with stdio_client(current_parameters) as (current_reader,current_writer):
+        async with ClientSession(current_reader,current_writer) as current_session:
+            await current_session.initialize()
+            current_result=await current_session.call_tool('read_hermes_gpu_queue_status',{})
+            if not current_result.is_error or '대기열을 확인할 수 없습니다' not in str(current_result.content):raise RuntimeError(str(current_result))
+asyncio.run(inspect_queue_failure())
+"""
+        with tempfile.TemporaryDirectory() as current_root_name:
+            current_manager_value=HermesServiceManager(Path(current_root_name)/'jobs',Path(current_root_name)/'sessions')
+            current_gateway_value=ManagementCommandGateway({'hermes-agent':current_manager_value.handle_hermes_request})
+            current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
+            current_server_value.emit_gateway_trace=lambda *current_values:None
+            current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+            current_thread_value.start()
+            current_environment_values=dict(os.environ,SLIME_MANAGEMENT_GATEWAY_URL='http://127.0.0.1:'+str(current_server_value.server_port),PYTHONPATH=str(current_repository_root))
+            try:
+                with patch('tools.review.domains.hermes_agent.management_observer.read_hermes_management_snapshot',return_value={'queue':{'status':'unavailable','jobs':[]}}) as current_snapshot_mock,patch('tools.review.common.gpu_status.read_gpu_status',side_effect=AssertionError('GPU 조회 금지')) as current_gpu_mock:
+                    current_process_value=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment_values,capture_output=True,text=True,timeout=30)
+                    current_test_case.assertEqual(current_process_value.returncode,0,current_process_value.stderr[-4000:])
+                    current_snapshot_mock.assert_called_once()
+                    current_gpu_mock.assert_not_called()
+            finally:
+                current_server_value.shutdown()
+                current_server_value.server_close()
+                current_thread_value.join(timeout=5)
+
     def test_map_receipt_crosses_stdio_and_gateway_without_writes(current_test_case):
         import tempfile
         import threading

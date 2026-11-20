@@ -114,6 +114,7 @@ def read_hermes_gpu_reservation_snapshot(current_queue_root=None):
     import stat
     from pathlib import Path
     from tools.review.common.gpu_job_queue import GPU_QUEUE_DIRECTORY, is_gpu_queue_executor_alive, open_verified_hermes_process_group, identify_gpu_queue_source, identify_dedicated_gpu_reservation_source, is_dedicated_gpu_source_verifiable
+    from tools.review.domains.hermes_agent.delegation_store import read_bounded_delegation_record
     try:
         current_queue_root = Path(current_queue_root) if current_queue_root is not None else GPU_QUEUE_DIRECTORY
         current_active_root = current_queue_root / 'active'
@@ -132,7 +133,7 @@ def read_hermes_gpu_reservation_snapshot(current_queue_root=None):
             try:
                 if current_record_path.is_symlink() or not current_record_path.is_file():
                     raise ValueError('예약 기록 형식 오류')
-                current_reservation_record = json.loads(current_record_path.read_text())
+                current_reservation_record = read_bounded_delegation_record(current_record_path)
                 current_service_name = current_reservation_record['service']
                 current_memory_value = current_reservation_record['required_memory_mib']
                 if not isinstance(current_service_name, str) or not re.fullmatch(r'[a-z0-9-]{1,64}', current_service_name) or type(current_memory_value) is not int or current_memory_value < 0:
@@ -171,7 +172,7 @@ def read_hermes_gpu_reservation_snapshot(current_queue_root=None):
 
 def read_hermes_recent_job_snapshot(current_service_manager=None):
     """기존 작업의 ID와 상태만 조회하고 지시·경로·로그는 반환하지 않는다."""
-    import json
+    from tools.review.domains.hermes_agent.delegation_store import read_bounded_delegation_record
     from tools.review.domains.hermes_agent.service import HermesServiceManager
     try:
         current_service_manager = current_service_manager or HermesServiceManager()
@@ -183,7 +184,7 @@ def read_hermes_recent_job_snapshot(current_service_manager=None):
                 try:
                     if current_status_path.is_symlink() or not current_status_path.is_file():
                         raise ValueError('작업 상태 파일 없음')
-                    current_status_record = json.loads(current_status_path.read_text())
+                    current_status_record = read_bounded_delegation_record(current_status_path)
                     current_status_name = current_status_record['status']
                     if current_status_name not in ('queued', 'running', 'completed', 'failed', 'cancelled'):
                         raise ValueError('작업 상태 형식 오류')
@@ -220,7 +221,7 @@ def read_hermes_management_snapshot():
         current_gpu_values = {'status': 'unavailable'}
 
     try:
-        current_queue_record = list_waiting_gpu_jobs(include_source_identity=True)
+        current_queue_record = list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)
         current_waiting_jobs = current_queue_record['jobs']
         if not isinstance(current_waiting_jobs, list):
             raise ValueError('GPU 대기열 형식 오류')

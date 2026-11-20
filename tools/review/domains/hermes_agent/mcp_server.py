@@ -1070,21 +1070,28 @@ def read_hermes_management_status() -> dict:
     return run_hermes_mcp_command('hermes-management-status', {})
 
 
-@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+@hermes_mcp_server.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def read_hermes_gpu_queue_status() -> dict:
-    """기존 게이트웨이의 GPU 상태와 대기 작업을 조회한다. 조회만 하며 GPU 측정은 짧게 캐시될 수 있다."""
+    """제한된 대기열 관측과 기존 GPU 상태 형식을 반환한다. 관측 과정에서 로컬 잠금을 만들 수 있다."""
     try:
         hermes_gateway_address = validate_gateway_address(os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL', DEFAULT_GATEWAY_ADDRESS))
-        hermes_http_request = urllib.request.Request(hermes_gateway_address + '/management/gpu-queue', headers={'Origin': hermes_gateway_address}, method='GET')
+        hermes_management_record=run_hermes_mcp_command('hermes-management-status',{})
+        hermes_queue_record=hermes_management_record.get('queue') if isinstance(hermes_management_record,dict) else None
+        if not isinstance(hermes_queue_record,dict) or hermes_queue_record.get('status')!='available' or not isinstance(hermes_queue_record.get('jobs'),list):
+            raise ValueError('GPU 대기열을 확인할 수 없습니다.')
+        hermes_job_records=hermes_queue_record['jobs']
+        if any(not isinstance(current_job_record,dict) or not isinstance(current_job_record.get('id'),str) or not isinstance(current_job_record.get('service'),str) for current_job_record in hermes_job_records):
+            raise ValueError('GPU 대기열 응답 형식이 올바르지 않습니다.')
+        hermes_http_request = urllib.request.Request(hermes_gateway_address + '/management/gpu-status', headers={'Origin':hermes_gateway_address}, method='GET')
         hermes_http_opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), RejectHermesGatewayRedirect())
         with hermes_http_opener.open(hermes_http_request, timeout=30) as hermes_http_response:
             hermes_response_bytes = hermes_http_response.read(2_000_001)
         if len(hermes_response_bytes) > 2_000_000:
             raise ValueError('관리 게이트웨이 응답이 너무 큽니다.')
-        hermes_status_record = json.loads(hermes_response_bytes)
-        if not isinstance(hermes_status_record, dict) or not isinstance(hermes_status_record.get('jobs'), list) or not isinstance(hermes_status_record.get('gpu_status'), dict):
+        hermes_gpu_record = json.loads(hermes_response_bytes)
+        if not isinstance(hermes_gpu_record, dict):
             raise ValueError('GPU 상태 응답 형식이 올바르지 않습니다.')
-        return {'queried_at': datetime.now(timezone.utc).isoformat(), 'detail': 'GPU 측정은 공용 상태 조회의 짧은 캐시를 사용할 수 있습니다.', 'jobs': hermes_status_record['jobs'], 'gpu_status': hermes_status_record['gpu_status']}
+        return {'queried_at': datetime.now(timezone.utc).isoformat(), 'detail': 'GPU 측정은 공용 상태 조회의 짧은 캐시를 사용할 수 있습니다. 대기열 관측은 로컬 잠금을 만들 수 있습니다.', 'jobs': [{'id':current_job_record['id'],'service':current_job_record['service']} for current_job_record in hermes_job_records], 'gpu_status': hermes_gpu_record}
     except (OSError, ValueError, TypeError) as hermes_gateway_error:
         raise ToolError('GPU 대기열 조회 실패: ' + str(hermes_gateway_error)) from hermes_gateway_error
 

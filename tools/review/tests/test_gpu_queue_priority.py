@@ -32,6 +32,96 @@ class QueuePriorityContractTests(unittest.TestCase):
                 self.assertFalse((current_queue_root/'priority-order').exists())
         with self.assertRaises(ValueError):resolve_management_command('wan22-fun-control','prioritize',{'id':'2026-11-20_20-02-00-prepare'})
 
+    def test_bounded_observation_matches_queue_and_fails_closed(self):
+        with tempfile.TemporaryDirectory() as current_temp_name:
+            current_root_path=Path(current_temp_name)
+            current_queue_path=current_root_path/'.tmp'/'gpu-queue'
+            current_queue_path.mkdir(parents=True)
+            current_job_path=current_root_path/'.tmp'/'test'/'kimodo'/'2026-11-20_00-00-00-12345678'
+            current_job_path.mkdir(parents=True)
+            current_status_path=current_job_path/'status.json'
+            current_command_path=current_job_path/'gpu-command.json'
+            current_status_path.write_text(json.dumps({'status':'queued'}))
+            current_command_path.write_text(json.dumps({'service':'kimodo'}))
+            (current_queue_path/'ticket.json').write_text(json.dumps({'pid':os.getpid(),'path':str(current_job_path)}))
+            with patch.object(gpu_job_queue,'WORKFLOW_ROOT_DIRECTORY',current_root_path),patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_path):
+                current_unlimited_result=gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True)
+                self.assertEqual(gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True),current_unlimited_result)
+                with patch.object(gpu_job_queue,'GPU_OBSERVATION_MAXIMUM_BYTES',32):
+                    current_status_path.write_text(json.dumps({'status':'queued','padding':'x'*64}))
+                    with self.assertRaises(ValueError):gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)
+                    self.assertEqual(len(gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True)['jobs']),1)
+                    current_status_path.write_text(json.dumps({'status':'queued'}))
+                    current_command_path.write_text(json.dumps({'service':'kimodo','padding':'x'*64}))
+                    with self.assertRaises(ValueError):gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)
+                with patch.object(gpu_job_queue,'GPU_OBSERVATION_MAXIMUM_FILES',1):
+                    (current_queue_path/'other.json').write_text('{}')
+                    with self.assertRaises(ValueError):gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)
+
+    def test_bounded_queue_observation_rejects_missing_live_job_metadata(self):
+        with tempfile.TemporaryDirectory() as current_root_name:
+            current_root_path=Path(current_root_name)
+            current_queue_path=current_root_path/'queue'
+            current_queue_path.mkdir()
+            current_job_path=current_root_path/'job'
+            current_job_path.mkdir()
+            (current_queue_path/'ticket.json').write_text(json.dumps({'pid':os.getpid(),'path':str(current_job_path)}))
+            with patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_path):
+                self.assertEqual(gpu_job_queue.list_waiting_gpu_jobs(),{'jobs':[]})
+                with self.assertRaises(ValueError):gpu_job_queue.list_waiting_gpu_jobs(observation_limits=True)
+
+    def test_bounded_observation_preserves_multiple_job_order_and_identity(self):
+        with tempfile.TemporaryDirectory() as current_root_name:
+            current_root_path=Path(current_root_name)
+            current_queue_path=current_root_path/'.tmp'/'gpu-queue'
+            current_queue_path.mkdir(parents=True)
+            current_job_cases=(('a.json','2026-11-20_00-00-00-12345678','kimodo'),('b.json','2026-11-20_00-00-01-12345678','kimodo'),('c.json','2026-11-20_00-00-02-12345678','kimodo'))
+            for current_ticket_name,current_job_name,current_service_name in current_job_cases:
+                current_job_path=current_root_path/'.tmp'/'test'/'kimodo'/current_job_name
+                current_job_path.mkdir(parents=True)
+                (current_job_path/'status.json').write_text(json.dumps({'status':'queued'}))
+                (current_job_path/'gpu-command.json').write_text(json.dumps({'service':current_service_name}))
+                (current_queue_path/current_ticket_name).write_text(json.dumps({'pid':os.getpid(),'path':str(current_job_path)}))
+            (current_queue_path/'priority-order').write_text(json.dumps({'c.json':-1,'a.json':1}))
+            with patch.object(gpu_job_queue,'WORKFLOW_ROOT_DIRECTORY',current_root_path),patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_path):
+                current_existing_jobs=gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True)['jobs']
+                current_bounded_jobs=gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)['jobs']
+                self.assertEqual(current_bounded_jobs,current_existing_jobs)
+                self.assertEqual([current_job_record['id'] for current_job_record in current_bounded_jobs],[current_job_cases[2][1],current_job_cases[1][1],current_job_cases[0][1]])
+                self.assertTrue(all(current_job_record['service']=='kimodo' and current_job_record['executor_identity']=='unverified' for current_job_record in current_bounded_jobs))
+
+    def test_bounded_observation_rejects_unsafe_queue_files(self):
+        from tools.review.domains.hermes_agent.management_observer import read_hermes_management_snapshot
+        with tempfile.TemporaryDirectory() as current_temp_name:
+            current_queue_path=Path(current_temp_name)/'queue'
+            current_queue_path.mkdir()
+            current_priority_path=current_queue_path/'priority-order'
+            current_priority_path.write_text(json.dumps({'padding':'x'*64}))
+            with patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_path),patch.object(gpu_job_queue,'GPU_OBSERVATION_MAXIMUM_BYTES',32):
+                with self.assertRaises(ValueError):gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)
+                with patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}):
+                    self.assertEqual(read_hermes_management_snapshot()['queue']['status'],'unavailable')
+                current_priority_path.unlink()
+                os.mkfifo(current_priority_path)
+                with self.assertRaises(ValueError):gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)
+                current_priority_path.unlink()
+                (current_queue_path/'a.txt').touch()
+                (current_queue_path/'b.txt').touch()
+                with patch.object(gpu_job_queue,'GPU_OBSERVATION_MAXIMUM_ENTRIES',1):
+                    with self.assertRaises(ValueError):gpu_job_queue.list_waiting_gpu_jobs(include_source_identity=True,observation_limits=True)
+
+    def test_priority_preview_rejects_unavailable_bounded_queue(self):
+        from tools.review.domains.hermes_agent import management_observer
+        from tools.review.domains.hermes_agent.priority_observer import preview_hermes_queue_priority
+        with tempfile.TemporaryDirectory() as current_temp_name:
+            current_queue_path=Path(current_temp_name)/'queue'
+            current_queue_path.mkdir()
+            (current_queue_path/'priority-order').write_text(json.dumps({'padding':'x'*64}))
+            with patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_path),patch.object(gpu_job_queue,'GPU_OBSERVATION_MAXIMUM_BYTES',32),patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}),patch.object(management_observer,'inspect_hermes_model_status',return_value={}),patch.object(management_observer,'read_hermes_gpu_reservation_snapshot',return_value={'status':'unavailable'}),patch.object(management_observer,'read_hermes_generator_snapshot',return_value={}),patch.object(management_observer,'read_hermes_recent_job_snapshot',return_value={}):
+                with self.assertRaisesRegex(ValueError,'GPU 대기열을 확인할 수 없습니다'):
+                    preview_hermes_queue_priority('kimodo','2026-11-20_00-00-00-12345678')
+                self.assertFalse((current_queue_path/'execution.lock').exists())
+
     def test_priority_order_and_running_rejection(self):
         with tempfile.TemporaryDirectory() as current_temp_directory:
             current_queue_directory = Path(current_temp_directory) / 'queue'
@@ -304,6 +394,16 @@ class QueuePriorityContractTests(unittest.TestCase):
             self.assertEqual(priority_operations.read_hermes_priority_receipt('request_bool')['state'],'unknown')
             self.assertTrue(priority_operations.submit_hermes_priority_once('request_bool','kimodo',current_job,'a'*64)['duplicate'])
             current_mock.assert_called_once()
+
+    def test_oversized_priority_receipt_blocks_reordering(self):
+        from tools.review.domains.hermes_agent import priority_operations
+        from tools.review.domains.hermes_agent.delegation_store import HERMES_DELEGATION_RECORD_MAXIMUM_BYTES
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_receipt_root=Path(current_directory_name)
+            (current_receipt_root/'request_prior.json').write_bytes(b'x'*(HERMES_DELEGATION_RECORD_MAXIMUM_BYTES+1))
+            with patch.object(priority_operations,'PRIORITY_RECEIPT_ROOT',current_receipt_root),patch('tools.review.common.gpu_job_queue.prioritize_waiting_generation') as current_submit_mock:
+                with self.assertRaises(ValueError):priority_operations.submit_hermes_priority_once('request_new','kimodo','2026-11-20_00-00-00-12345678','a'*64)
+                current_submit_mock.assert_not_called()
 
     def test_hermes_priority_receipt_is_idempotent_and_recovers_unknown(self):
         from concurrent.futures import ThreadPoolExecutor

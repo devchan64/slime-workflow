@@ -7,7 +7,7 @@ import re
 from tools.review.common.generation_records import write_record_atomically
 from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
 from tools.review.common.management_gateway import execute_management_command
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_delegation_record_paths, check_delegation_record_exists
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_delegation_record_paths, check_delegation_record_exists, read_bounded_delegation_record
 
 HERMES_FIELD_MAP_PATTERN = re.compile(r'[a-z0-9][a-z0-9-]{0,95}')
 HERMES_FIELD_TOKEN_PATTERN = re.compile(r'[a-f0-9]{64}')
@@ -92,7 +92,7 @@ def save_hermes_field_map_once(current_request_identifier, current_draft_record,
     with current_storage_value.hold_delegation_storage_lock():
         current_record_path = current_storage_value.resolve_delegation_record_path(current_request_identifier)
         if check_delegation_record_exists(current_record_path):
-            current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
+            current_record_value = read_bounded_delegation_record(current_record_path)
             if not isinstance(current_record_value,dict) or current_record_value.get('version') != 4 or current_record_value.get('id') != current_request_identifier or current_record_value.get('token') != current_preview_token or current_record_value.get('map') != current_draft_record['map']:
                 raise ValueError('같은 접수 ID를 다른 요청에 사용할 수 없습니다.')
             if current_record_value.get('state') == 'dispatching':
@@ -112,7 +112,7 @@ def save_hermes_field_map_once(current_request_identifier, current_draft_record,
         current_result_value = call_field_map_editor('map-edit-save', {**current_draft_record,'token':current_preview_token})
         if not isinstance(current_result_value,dict) or type(current_result_value.get('saved')) is not bool:
             raise ValueError('맵 저장 결과 확인 필요. 자동 재접수하지 않습니다.')
-        if json.loads(current_record_path.read_text(encoding='utf-8')) != current_record_value:
+        if read_bounded_delegation_record(current_record_path) != current_record_value:
             raise ValueError('저장 중 접수 기록이 변경됐습니다. 맵 원본과 이력을 확인하고 자동 재저장하지 마세요.')
         current_record_value.update(state='completed',saved=current_result_value['saved'])
         write_record_atomically(current_record_path,current_record_value)
@@ -141,7 +141,7 @@ def read_hermes_field_receipt(current_request_identifier):
         current_record_path = current_storage_value.resolve_delegation_record_path(current_request_identifier)
         if not check_delegation_record_exists(current_record_path):
             return {'state':'not_found'}
-        return inspect_hermes_field_receipt(json.loads(current_record_path.read_text(encoding='utf-8')),current_request_identifier)
+        return inspect_hermes_field_receipt(read_bounded_delegation_record(current_record_path),current_request_identifier)
 
 
 def list_hermes_field_receipts():
@@ -155,7 +155,7 @@ def list_hermes_field_receipts():
             try:
                 current_request_identifier = current_record_path.stem
                 current_storage_value.resolve_delegation_record_path(current_request_identifier)
-                current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
+                current_record_value = read_bounded_delegation_record(current_record_path)
                 if not isinstance(current_record_value,dict) or current_record_value.get('version') != 4:
                     continue
                 current_receipt_value = inspect_hermes_field_receipt(current_record_value,current_request_identifier)

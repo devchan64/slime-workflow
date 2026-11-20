@@ -1,10 +1,9 @@
 """GPU 우선 실행 접수를 중복 방지하고 결과를 보존한다."""
-import json
 import re
 from pathlib import Path
 
 from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_delegation_record_paths, check_delegation_record_exists
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_delegation_record_paths, check_delegation_record_exists, read_bounded_delegation_record
 
 PRIORITY_RECEIPT_ROOT=Path(__file__).resolve().parents[4]/'.local/hermes-agent/priority-receipts'
 
@@ -27,7 +26,7 @@ def read_hermes_priority_receipt(current_request_identifier):
     with current_storage.hold_delegation_storage_lock():
         current_path=current_storage.resolve_delegation_record_path(current_request_identifier)
         if not check_delegation_record_exists(current_path):return {'state':'not_found'}
-        return inspect_hermes_priority_receipt(json.loads(current_path.read_text(encoding='utf-8')),current_request_identifier)
+        return inspect_hermes_priority_receipt(read_bounded_delegation_record(current_path),current_request_identifier)
 
 
 def submit_hermes_priority_once(current_request_identifier,current_service_name,current_job_identifier,current_ticket_revision):
@@ -41,7 +40,7 @@ def submit_hermes_priority_once(current_request_identifier,current_service_name,
     with current_storage.hold_delegation_storage_lock():
         current_path=current_storage.resolve_delegation_record_path(current_request_identifier)
         if check_delegation_record_exists(current_path):
-            current_receipt=inspect_hermes_priority_receipt(json.loads(current_path.read_text(encoding='utf-8')),current_request_identifier)
+            current_receipt=inspect_hermes_priority_receipt(read_bounded_delegation_record(current_path),current_request_identifier)
             if (current_receipt['service'],current_receipt['job_id'],current_receipt['ticket_revision'])!=(current_service_name,current_job_identifier,current_ticket_revision):
                 raise ValueError('같은 접수 ID를 다른 대기 작업이나 티켓에 사용할 수 없습니다.')
             return {**current_receipt,'duplicate':True}
@@ -49,7 +48,7 @@ def submit_hermes_priority_once(current_request_identifier,current_service_name,
             current_existing_identifier=current_existing_path.stem
             current_storage.resolve_delegation_record_path(current_existing_identifier)
             if not current_existing_path.is_file():raise ValueError('우선 실행 접수 목록을 확인할 수 없습니다.')
-            current_existing_receipt=inspect_hermes_priority_receipt(json.loads(current_existing_path.read_text(encoding='utf-8')),current_existing_identifier)
+            current_existing_receipt=inspect_hermes_priority_receipt(read_bounded_delegation_record(current_existing_path),current_existing_identifier)
             if (current_existing_receipt['service'],current_existing_receipt['job_id'],current_existing_receipt['ticket_revision'])==(current_service_name,current_job_identifier,current_ticket_revision):
                 raise ValueError('같은 대기 티켓의 기존 우선 실행 접수가 있습니다. 접수와 대기열을 확인하세요.')
         current_record={'version':1,'id':current_request_identifier,'service':current_service_name,'job_id':current_job_identifier,'ticket_revision':current_ticket_revision,'state':'dispatching'}
@@ -57,7 +56,7 @@ def submit_hermes_priority_once(current_request_identifier,current_service_name,
         current_response=prioritize_waiting_generation(current_job_identifier,current_service_name,current_ticket_revision)
         if not isinstance(current_response,dict) or current_response.get('id')!=current_job_identifier or current_response.get('status')!='queued' or type(current_response.get('queue_position')) is not int or current_response.get('queue_position')!=1:
             raise ValueError('우선 실행 결과를 확인할 수 없습니다. 자동 재요청하지 마세요.')
-        if json.loads(current_path.read_text(encoding='utf-8'))!=current_record:
+        if read_bounded_delegation_record(current_path)!=current_record:
             raise ValueError('우선 실행 접수 기록이 변경됐습니다. 접수와 대기열을 확인하세요.')
         current_record['state']='completed'
         write_record_atomically(current_path,current_record)

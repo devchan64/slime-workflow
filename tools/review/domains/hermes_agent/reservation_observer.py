@@ -4,6 +4,7 @@ import json
 import os
 import re
 from pathlib import Path
+from tools.review.domains.hermes_agent.delegation_store import read_bounded_delegation_record
 
 
 def find_generator_reservation_record(current_active_root,current_service_name,current_job_identifier):
@@ -19,7 +20,7 @@ def find_generator_reservation_record(current_active_root,current_service_name,c
     current_matching_records=[]
     for current_record_path in current_active_root.glob('*.json'):
         if current_record_path.is_symlink() or not current_record_path.is_file():raise ValueError('GPU 예약 기록을 확인할 수 없습니다.')
-        try:current_record_value=json.loads(current_record_path.read_text())
+        try:current_record_value=read_bounded_delegation_record(current_record_path)
         except (OSError,ValueError,TypeError) as current_read_error:raise ValueError('GPU 예약 기록을 확인할 수 없습니다.') from current_read_error
         if not isinstance(current_record_value,dict) or not isinstance(current_record_value.get('path'),str) or not isinstance(current_record_value.get('service'),str):
             raise ValueError('GPU 예약 식별 정보를 확인할 수 없습니다.')

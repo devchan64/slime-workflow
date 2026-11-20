@@ -3,7 +3,7 @@ import os
 from pathlib import PurePosixPath
 from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
 from tools.review.common.management_gateway import execute_management_command
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_delegation_record_paths, check_delegation_record_exists
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_delegation_record_paths, check_delegation_record_exists, read_bounded_delegation_record
 from tools.review.domains.hermes_agent.failure_observer import observe_hermes_failure_reason
 
 
@@ -302,7 +302,6 @@ def inspect_writer_apply_receipt(current_record_value,current_apply_identifier):
 
 def apply_hermes_writer_proposal_once(current_apply_identifier,current_writer_identifier,current_job_identifier,current_proposal_hash):
     """확인된 전체 diff의 해시만 적용하며 결과 유실 시 재적용하지 않는다."""
-    import json
     import re
     from tools.review.common.generation_records import write_record_atomically
     from tools.review.domains.hermes_agent.delegation_store import HERMES_DELEGATION_ID_PATTERN, validate_service_job_identifier
@@ -312,8 +311,7 @@ def apply_hermes_writer_proposal_once(current_apply_identifier,current_writer_id
         raise ValueError('작가 작업 ID 또는 제안 해시 형식 오류')
     current_storage_value=HermesDelegationStore()
     def inspect_existing_apply(current_record_path):
-        import json
-        current_record_value=json.loads(current_record_path.read_text(encoding='utf-8'))
+        current_record_value=read_bounded_delegation_record(current_record_path)
         current_receipt_value=inspect_writer_apply_receipt(current_record_value,current_apply_identifier)
         if (current_receipt_value['writer_request_id'],current_receipt_value['job_id'],current_receipt_value['proposal_hash'])!=(current_writer_identifier,current_job_identifier,current_proposal_hash):
             raise ValueError('같은 적용 접수 ID를 다른 제안에 사용할 수 없습니다.')
@@ -338,7 +336,7 @@ def apply_hermes_writer_proposal_once(current_apply_identifier,current_writer_id
             current_existing_identifier=current_existing_path.stem
             current_storage_value.resolve_delegation_record_path(current_existing_identifier)
             if not current_existing_path.is_file():raise ValueError('적용 접수 목록을 확인할 수 없습니다.')
-            current_existing_record=json.loads(current_existing_path.read_text(encoding='utf-8'))
+            current_existing_record=read_bounded_delegation_record(current_existing_path)
             if not isinstance(current_existing_record,dict):raise ValueError('적용 접수 목록을 확인할 수 없습니다.')
             if current_existing_record.get('version')!=6:continue
             current_existing_receipt=inspect_writer_apply_receipt(current_existing_record,current_existing_identifier)
@@ -349,7 +347,7 @@ def apply_hermes_writer_proposal_once(current_apply_identifier,current_writer_id
         current_result_value=call_hermes_writer_service('writer-apply',{'id':current_job_identifier,'proposal_hash':current_proposal_hash})
         if not isinstance(current_result_value,dict) or current_result_value.get('status')!='applied':
             raise ValueError('작가 적용 결과 확인 필요. 자동 재적용하지 않습니다.')
-        if json.loads(current_record_path.read_text(encoding='utf-8'))!=current_record_value:
+        if read_bounded_delegation_record(current_record_path)!=current_record_value:
             raise ValueError('적용 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재적용하지 마세요.')
         current_record_value['state']='completed'
         write_record_atomically(current_record_path,current_record_value)
@@ -357,17 +355,15 @@ def apply_hermes_writer_proposal_once(current_apply_identifier,current_writer_id
 
 
 def read_writer_apply_receipt(current_apply_identifier):
-    import json
     current_storage_value=HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
         current_record_path=current_storage_value.resolve_delegation_record_path(current_apply_identifier)
         if not check_delegation_record_exists(current_record_path):
             return {'state':'not_found'}
-        return inspect_writer_apply_receipt(json.loads(current_record_path.read_text(encoding='utf-8')),current_apply_identifier)
+        return inspect_writer_apply_receipt(read_bounded_delegation_record(current_record_path),current_apply_identifier)
 
 
 def list_writer_apply_receipts():
-    import json
     from datetime import datetime, timezone
     current_storage_value=HermesDelegationStore()
     with current_storage_value.hold_delegation_storage_lock():
@@ -378,7 +374,7 @@ def list_writer_apply_receipts():
             try:
                 current_apply_identifier=current_record_path.stem
                 current_storage_value.resolve_delegation_record_path(current_apply_identifier)
-                current_record_value=json.loads(current_record_path.read_text(encoding='utf-8'))
+                current_record_value=read_bounded_delegation_record(current_record_path)
                 if not isinstance(current_record_value,dict) or current_record_value.get('version')!=6:
                     continue
                 current_receipt_value=inspect_writer_apply_receipt(current_record_value,current_apply_identifier)

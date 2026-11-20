@@ -50,6 +50,18 @@ class HermesServiceTests(unittest.TestCase):
             self.assertEqual(kimodo_resume_operations.submit_hermes_kimodo_resume_once('request_123',current_job_identifier,'a'*64)['state'],'unknown')
             current_submit_mock.assert_called_once()
 
+    def test_oversized_resume_receipt_blocks_other_dispatch(self):
+        from tools.review.domains.hermes_agent.delegation_store import HERMES_DELEGATION_RECORD_MAXIMUM_BYTES
+        from tools.review.domains.hermes_agent.resume_receipt_store import submit_resume_receipt_once
+        from tools.review.domains.hermes_agent.kimodo_resume_operations import validate_kimodo_resume_target
+        current_receipt_root=Path(self.hermes_temporary_root.name)/'oversized-receipts'
+        current_receipt_root.mkdir()
+        (current_receipt_root/'request_prior.json').write_bytes(b'x'*(HERMES_DELEGATION_RECORD_MAXIMUM_BYTES+1))
+        current_calls_list=[]
+        with self.assertRaises(ValueError):
+            submit_resume_receipt_once(current_receipt_root,'request_new','kimodo','2026-11-20_00-00-00-12345678','a'*64,validate_kimodo_resume_target,lambda *args:current_calls_list.append(args))
+        self.assertEqual(current_calls_list,[])
+
     def test_resume_unknown_blocks_changed_fingerprint_for_same_job(self):
         from tools.review.domains.hermes_agent.resume_receipt_store import submit_resume_receipt_once
         from tools.review.domains.hermes_agent.kimodo_resume_operations import validate_kimodo_resume_target
@@ -372,7 +384,7 @@ class HermesServiceTests(unittest.TestCase):
         current_jobs=[{'id':'job-1','service':'image','source_service':'kimodo','path':'/private/job'},{'id':'job-2','service':'image','source_service':'unknown-service','path':'/private/other'}]
         with patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}),patch('tools.review.common.gpu_job_queue.list_waiting_gpu_jobs',return_value={'jobs':current_jobs}) as current_queue_mock:
             current_snapshot=read_hermes_management_snapshot()
-        current_queue_mock.assert_called_once_with(include_source_identity=True)
+        current_queue_mock.assert_called_once_with(include_source_identity=True,observation_limits=True)
         self.assertEqual(current_snapshot['queue']['jobs'],[{'id':'job-1','service':'image','source_service':'kimodo','executor_identity':'unverified'},{'id':'job-2','service':'image','executor_identity':'unverified'}])
         self.assertNotIn('/private/',str(current_snapshot))
 
@@ -829,6 +841,22 @@ class HermesServiceTests(unittest.TestCase):
         with patch.object(self.hermes_service_manager, 'list_hermes_job_paths', side_effect=OSError('unavailable')):
             self.assertEqual(read_hermes_recent_job_snapshot(self.hermes_service_manager)['status'], 'unavailable')
 
+    def test_recent_job_observation_handles_oversized_and_fifo_status(self):
+        import os
+        from tools.review.domains.hermes_agent.delegation_store import HERMES_DELEGATION_RECORD_MAXIMUM_BYTES
+        from tools.review.domains.hermes_agent.management_observer import read_hermes_recent_job_snapshot
+        current_job_root=self.hermes_service_manager.hermes_storage_root
+        current_job_root.mkdir(parents=True,exist_ok=True)
+        for current_index,current_file_kind in enumerate(('oversized','fifo')):
+            current_job_path=current_job_root/('2026-11-18_00-00-0'+str(current_index)+'-12345678')
+            current_job_path.mkdir()
+            current_status_path=current_job_path/'status.json'
+            if current_file_kind=='oversized':current_status_path.write_bytes(b'x'*(HERMES_DELEGATION_RECORD_MAXIMUM_BYTES+1))
+            else:os.mkfifo(current_status_path)
+        current_result_value=read_hermes_recent_job_snapshot(self.hermes_service_manager)
+        self.assertEqual(current_result_value['status'],'available')
+        self.assertEqual([current_job_record['status'] for current_job_record in current_result_value['jobs']],['unknown','unknown'])
+
     def test_writer_reservation_preview_rejects_unverified_or_ambiguous_targets(self):
         import os
         from tools.review.common import gpu_job_queue
@@ -1034,6 +1062,16 @@ class HermesServiceTests(unittest.TestCase):
                 current_limit_names={current_record['command'] for current_record in current_service_record['conditional_limitations']}
                 self.assertTrue({'active','history','logs'}<=current_limit_names)
 
+    def test_retired_resume_limitation_mentions_gateway_block(self):
+        current_catalog_record=self.hermes_service_manager.execute_hermes_command('hermes-service-registration',{})
+        current_services_by_name={current_service_record['service']:current_service_record for current_service_record in current_catalog_record['services']}
+        for current_service_name in ('floor-tile','seamless-tile'):
+            with self.subTest(service=current_service_name):
+                current_service_record=current_services_by_name[current_service_name]
+                self.assertIn('resume',{current_block_record['command'] for current_block_record in current_service_record['gateway_blocked']})
+                current_resume_note=next(current_limit_record['note'] for current_limit_record in current_service_record['conditional_limitations'] if current_limit_record['command']=='resume')
+                self.assertIn('게이트웨이에서도 차단',current_resume_note)
+
     def test_legacy_cancellation_is_described_as_request_not_gpu_termination(self):
         current_service_catalog=self.hermes_service_manager.execute_hermes_command('hermes-service-registration',{})
         current_service_records={current_record['service']:current_record for current_record in current_service_catalog['services']}
@@ -1166,6 +1204,21 @@ class HermesServiceTests(unittest.TestCase):
             current_reservation_record['service']='other-service'
             current_reservation_path.write_text(json.dumps(current_reservation_record))
             self.assertIsNone(read_hermes_gpu_reservation_snapshot(current_queue_directory)['records'][0]['job_id'])
+
+    def test_oversized_reservation_is_unknown_and_blocks_identity(self):
+        from tools.review.domains.hermes_agent.delegation_store import HERMES_DELEGATION_RECORD_MAXIMUM_BYTES
+        from tools.review.domains.hermes_agent.management_observer import read_hermes_gpu_reservation_snapshot
+        from tools.review.domains.hermes_agent.reservation_observer import find_generator_reservation_record
+        from tools.review.domains.hermes_agent.writer_reservation import find_writer_reservation_record
+        with tempfile.TemporaryDirectory() as current_root_name:
+            current_root_path=Path(current_root_name)
+            current_active_path=current_root_path/'active'
+            current_active_path.mkdir()
+            (current_active_path/'large.json').write_bytes(b'x'*(HERMES_DELEGATION_RECORD_MAXIMUM_BYTES+1))
+            current_snapshot_record=read_hermes_gpu_reservation_snapshot(current_root_path)
+            self.assertEqual(current_snapshot_record['records'][0]['state'],'unknown')
+            with self.assertRaises(ValueError):find_generator_reservation_record(current_active_path,'kimodo','job-1')
+            with self.assertRaises(ValueError):find_writer_reservation_record(current_active_path,'20261118-120000-12345678')
 
     def test_unverified_writer_cleanup_reservation_is_visible(self):
         from tools.review.domains.hermes_agent.management_observer import read_hermes_gpu_reservation_snapshot

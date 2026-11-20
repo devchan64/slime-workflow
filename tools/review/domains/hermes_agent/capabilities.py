@@ -503,6 +503,10 @@ def list_management_service_registration():
                     current_unlinked_note+=' 저장 입력을 확인하는 별도 재개 검토와 확인 후 접수는 Hermes에서 지원합니다.'
                 if current_service_name=='writer-agent' and current_unlinked_command=='writer-delete':
                     current_unlinked_note='Hermes에서는 이 명령을 직접 실행할 수 없습니다. 원 서비스는 작업과 대기열 종료 상태 및 실행 잠금을 확인하고 기록을 휴지통으로 이동합니다. 원본 적용 복구 중인 기록은 삭제할 수 없습니다.'
+                if any(current_block_record['command']==current_unlinked_command for current_block_record in current_blocked_commands):
+                    current_unlinked_note+=' 관리 게이트웨이에서도 차단됩니다.'
+                if any(current_block_record['command']==current_unlinked_command for current_block_record in current_owner_blocks):
+                    current_unlinked_note+=' 원 서비스에서도 차단됩니다.'
                 current_limit_records.append({'command':current_unlinked_command,'note':current_unlinked_note})
         if current_service_name in ('billboard-generator','building-generator'):
             current_limit_records.append({'command':'history-observe','note':'통합 빌보드 작업 경로는 빌보드 서비스로 확인하며 건물 호환 요청인지 구분하지 못한다. 과거 건물 전용 경로는 건물 서비스로 확인한다. 경로가 다른 예약은 직접 확인한다.'})

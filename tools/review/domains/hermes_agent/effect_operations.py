@@ -6,8 +6,17 @@ import re
 import uuid
 
 from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists, read_bounded_delegation_record, HERMES_DELEGATION_RECORD_MAXIMUM_BYTES
 from tools.review.domains.hermes_agent.effect_observer import EFFECT_IDENTIFIER_PATTERN, call_hermes_effect_editor, read_hermes_effect_detail
+
+
+def write_bounded_effect_receipt(current_receipt_path,current_receipt_record):
+    """접수 전에 완료 기록에 필요한 여유를 포함해 크기를 제한한다."""
+    current_record_bytes=(json.dumps(current_receipt_record,ensure_ascii=False)+'\n').encode('utf-8')
+    current_maximum_bytes=HERMES_DELEGATION_RECORD_MAXIMUM_BYTES-(16384 if current_receipt_record.get('state')=='dispatching' else 0)
+    if len(current_record_bytes)>current_maximum_bytes:
+        raise ValueError('이펙트 접수 기록 크기 초과')
+    write_record_atomically(current_receipt_path,current_receipt_record)
 
 
 def validate_hermes_effect_edit(current_draft_record):
@@ -72,23 +81,23 @@ def save_hermes_effect_edit_once(current_request_identifier,current_draft_record
     with current_storage_value.hold_delegation_storage_lock():
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
         if check_delegation_record_exists(current_receipt_path):
-            current_receipt_record=json.loads(current_receipt_path.read_text(encoding='utf-8'))
+            current_receipt_record=read_bounded_delegation_record(current_receipt_path)
             current_result_record=inspect_hermes_effect_receipt(current_receipt_record,current_request_identifier)
             if current_receipt_record.get('token')!=current_preview_token:
                 raise ValueError('같은 접수 ID를 다른 변경에 사용할 수 없습니다.')
             return {**current_result_record,'duplicate':True}
         current_preview_record=preview_hermes_effect_edit(current_draft_record)
         current_receipt_record={'version':8,'id':current_request_identifier,'token':current_preview_token,'state':'dispatching','effect_id':current_draft_record['id']}
-        write_record_atomically(current_receipt_path,current_receipt_record)
+        write_bounded_effect_receipt(current_receipt_path,current_receipt_record)
         current_database_request_id=str(uuid.uuid5(uuid.NAMESPACE_URL,'slime-hermes-effect:'+current_request_identifier))
         current_save_record=call_hermes_effect_editor('effect-save',{'id':current_draft_record['id'],'expectedRevision':current_draft_record['revision'],'requestId':current_database_request_id,'alignment':current_preview_record['after']})
         if not isinstance(current_save_record,dict) or current_save_record.get('saved') is not True or not isinstance(current_save_record.get('revision'),str) or not re.fullmatch(r'[a-f0-9]{64}',current_save_record['revision']):
             raise ValueError('이펙트 저장 결과 확인 필요. 자동 재접수하지 않습니다.')
-        if json.loads(current_receipt_path.read_text(encoding='utf-8'))!=current_receipt_record:raise ValueError('저장 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재저장하지 마세요.')
+        if read_bounded_delegation_record(current_receipt_path)!=current_receipt_record:raise ValueError('저장 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재저장하지 마세요.')
         current_receipt_record.update(state='completed',saved=True,revision=current_save_record['revision'])
         if type(current_save_record.get('generation')) is int and current_save_record['generation']>=1 and current_save_record.get('snapshot')=='pending':
             current_receipt_record.update(generation=current_save_record['generation'],ledger_status_at_save='pending')
-        write_record_atomically(current_receipt_path,current_receipt_record)
+        write_bounded_effect_receipt(current_receipt_path,current_receipt_record)
         return {**inspect_hermes_effect_receipt(current_receipt_record,current_request_identifier),'duplicate':False}
 
 
@@ -98,7 +107,7 @@ def read_hermes_effect_edit_receipt(current_request_identifier):
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
         if not check_delegation_record_exists(current_receipt_path):
             return {'state':'not_found'}
-        return inspect_hermes_effect_receipt(json.loads(current_receipt_path.read_text(encoding='utf-8')),current_request_identifier)
+        return inspect_hermes_effect_receipt(read_bounded_delegation_record(current_receipt_path),current_request_identifier)
 
 
 def validate_hermes_waypoint_asset_files(current_source_paths,current_sources_value,current_expected_frames):
@@ -178,7 +187,7 @@ def replace_hermes_waypoint_once(current_request_identifier,current_draft_record
     with current_storage_value.hold_delegation_storage_lock():
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
         if check_delegation_record_exists(current_receipt_path):
-            current_receipt_value=json.loads(current_receipt_path.read_text(encoding='utf-8'))
+            current_receipt_value=read_bounded_delegation_record(current_receipt_path)
             if not isinstance(current_receipt_value,dict) or current_receipt_value.get('version')!=9 or current_receipt_value.get('id')!=current_request_identifier or current_receipt_value.get('review_sha256')!=current_review_hash or current_receipt_value.get('draft')!=current_draft_record:
                 raise ValueError('기존 접수 기록과 교체 입력이 일치하지 않습니다.')
             if current_receipt_value.get('state')=='dispatching':
@@ -190,14 +199,14 @@ def replace_hermes_waypoint_once(current_request_identifier,current_draft_record
         if current_review_value['review_sha256']!=current_review_hash:
             raise ValueError('원본 또는 검토 내용이 변경됐습니다. 다시 검토하세요.')
         current_receipt_value={'version':9,'id':current_request_identifier,'review_sha256':current_review_hash,'draft':current_draft_record,'state':'dispatching'}
-        write_record_atomically(current_receipt_path,current_receipt_value)
+        write_bounded_effect_receipt(current_receipt_path,current_receipt_value)
         current_database_request=str(uuid.uuid5(uuid.NAMESPACE_URL,'slime-hermes-effect-replace:'+current_request_identifier))
         current_result_value=call_hermes_effect_editor('effect-replace',{'id':current_draft_record['id'],'expectedRevision':current_draft_record['revision'],'requestId':current_database_request,'effect':current_draft_record['effect']})
         if not isinstance(current_result_value,dict) or current_result_value.get('saved') is not True or current_result_value.get('id')!=current_draft_record['effect']['id'] or current_result_value.get('replaced')!=current_draft_record['id'] or type(current_result_value.get('generation')) is not int or current_result_value['generation']<1 or current_result_value.get('snapshot')!='pending':
             raise ValueError('교체 결과 확인 필요. 자동 재접수하지 않습니다.')
-        if json.loads(current_receipt_path.read_text(encoding='utf-8'))!=current_receipt_value:raise ValueError('저장 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재저장하지 마세요.')
+        if read_bounded_delegation_record(current_receipt_path)!=current_receipt_value:raise ValueError('저장 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재저장하지 마세요.')
         current_receipt_value.update(state='completed',result_id=current_result_value['id'],generation=current_result_value['generation'],ledger_status_at_save='pending')
-        write_record_atomically(current_receipt_path,current_receipt_value)
+        write_bounded_effect_receipt(current_receipt_path,current_receipt_value)
         return {'request_id':current_request_identifier,'state':'completed','id':current_result_value['id'],'generation':current_result_value['generation'],'ledger_status_at_save':'pending','duplicate':False}
 
 
@@ -207,7 +216,7 @@ def read_hermes_waypoint_replacement_receipt(current_request_identifier):
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
         if not check_delegation_record_exists(current_receipt_path):
             return {'state':'not_found'}
-        current_receipt_value=json.loads(current_receipt_path.read_text(encoding='utf-8'))
+        current_receipt_value=read_bounded_delegation_record(current_receipt_path)
         if not isinstance(current_receipt_value,dict) or current_receipt_value.get('version')!=9 or current_receipt_value.get('id')!=current_request_identifier:
             raise ValueError('이펙트 교체 접수 기록 오류')
         if current_receipt_value.get('state')=='dispatching':
@@ -305,7 +314,7 @@ def register_hermes_effect_once(current_request_identifier,current_effect_record
     with current_storage_value.hold_delegation_storage_lock():
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
         if check_delegation_record_exists(current_receipt_path):
-            current_receipt_value=json.loads(current_receipt_path.read_text(encoding='utf-8'))
+            current_receipt_value=read_bounded_delegation_record(current_receipt_path)
             if not isinstance(current_receipt_value,dict) or current_receipt_value.get('version')!=10 or current_receipt_value.get('id')!=current_request_identifier or current_receipt_value.get('review_sha256')!=current_review_hash or current_receipt_value.get('effect')!=current_effect_record:
                 raise ValueError('기존 접수 기록과 등록 입력이 일치하지 않습니다.')
             if current_receipt_value.get('state')=='dispatching':
@@ -317,7 +326,7 @@ def register_hermes_effect_once(current_request_identifier,current_effect_record
         if current_review_value['review_sha256']!=current_review_hash:
             raise ValueError('등록 원본 또는 검토 내용이 변경됐습니다.')
         current_receipt_value={'version':10,'id':current_request_identifier,'review_sha256':current_review_hash,'effect':current_effect_record,'state':'dispatching'}
-        write_record_atomically(current_receipt_path,current_receipt_value)
+        write_bounded_effect_receipt(current_receipt_path,current_receipt_value)
         if 'alignment' in current_effect_record:
             current_target_revision=current_review_value['linked_billboard']['revision'] if current_review_value['linked_billboard'] else None
             current_result_value=call_hermes_effect_editor('effect-register-reviewed',{'effect':current_effect_record,'target_revision':current_target_revision})
@@ -325,9 +334,9 @@ def register_hermes_effect_once(current_request_identifier,current_effect_record
             current_result_value=call_hermes_effect_editor('effect-register',current_effect_record)
         if not isinstance(current_result_value,dict) or current_result_value.get('created') is not True or current_result_value.get('id')!=current_effect_record['id'] or type(current_result_value.get('generation')) is not int or current_result_value['generation']<1 or current_result_value.get('snapshot')!='pending':
             raise ValueError('등록 결과 확인 필요. 자동 재접수하지 않습니다.')
-        if json.loads(current_receipt_path.read_text(encoding='utf-8'))!=current_receipt_value:raise ValueError('저장 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재저장하지 마세요.')
+        if read_bounded_delegation_record(current_receipt_path)!=current_receipt_value:raise ValueError('저장 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재저장하지 마세요.')
         current_receipt_value.update(state='completed',result_id=current_result_value['id'],generation=current_result_value['generation'])
-        write_record_atomically(current_receipt_path,current_receipt_value)
+        write_bounded_effect_receipt(current_receipt_path,current_receipt_value)
         return {'request_id':current_request_identifier,'state':'completed','id':current_result_value['id'],'generation':current_result_value['generation'],'duplicate':False}
 
 
@@ -337,7 +346,7 @@ def read_hermes_effect_registration_receipt(current_request_identifier):
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
         if not check_delegation_record_exists(current_receipt_path):
             return {'state':'not_found'}
-        current_receipt_value=json.loads(current_receipt_path.read_text(encoding='utf-8'))
+        current_receipt_value=read_bounded_delegation_record(current_receipt_path)
         if not isinstance(current_receipt_value,dict) or current_receipt_value.get('version')!=10 or current_receipt_value.get('id')!=current_request_identifier:
             raise ValueError('이펙트 등록 접수 기록 오류')
         if current_receipt_value.get('state')=='dispatching':

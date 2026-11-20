@@ -523,6 +523,16 @@ class HermesWriterOperationsTests(unittest.TestCase):
             self.assertIn('원문이 변경',current_result_value['job']['failure_reason'])
             self.assertNotIn('/private',str(current_result_value))
 
+    def test_oversized_writer_apply_receipt_blocks_reapplication(self):
+        from tools.review.domains.hermes_agent.delegation_store import HERMES_DELEGATION_RECORD_MAXIMUM_BYTES
+        with TemporaryDirectory() as current_root_name:
+            current_root_path=Path(current_root_name)
+            (current_root_path/'apply_request_123.json').write_bytes(b'x'*(HERMES_DELEGATION_RECORD_MAXIMUM_BYTES+1))
+            with patch.object(writer_operations,'HermesDelegationStore',return_value=HermesDelegationStore(current_root_path)),patch.object(writer_operations,'call_hermes_writer_service') as current_writer_mock:
+                with self.assertRaises(ValueError):
+                    writer_operations.apply_hermes_writer_proposal_once('apply_request_123','writer_request_123','20261118-120000-12345678','a'*64)
+                current_writer_mock.assert_not_called()
+
     def test_apply_approved_proposal_once_and_recover(self):
         from concurrent.futures import ThreadPoolExecutor
         current_job_identifier='20261118-120000-12345678'

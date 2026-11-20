@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 import fcntl
 import hashlib
 import json
+import os
+import stat
 from pathlib import Path
 import re
 import threading
@@ -15,6 +17,21 @@ HERMES_DELEGATION_ID_PATTERN = re.compile(r'[A-Za-z0-9_-]{8,80}')
 HERMES_DELEGATION_JOB_PATTERN = re.compile(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}')
 HERMES_DELEGATION_SERVICE_PATTERN = re.compile(r'[a-z0-9]+(?:-[a-z0-9]+)*')
 HERMES_DELEGATION_THREAD_LOCK = threading.RLock()
+
+
+HERMES_DELEGATION_RECORD_MAXIMUM_BYTES = 1048576
+
+
+def read_bounded_delegation_record(current_record_path):
+    """접수 기록은 일반 파일만 제한된 크기로 읽고 오류를 숨기지 않는다."""
+    current_descriptor_value=os.open(current_record_path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+    with os.fdopen(current_descriptor_value,'rb') as current_file_handle:
+        if not stat.S_ISREG(os.fstat(current_file_handle.fileno()).st_mode):
+            raise ValueError('위임 기록 파일 형식 오류')
+        current_record_bytes=current_file_handle.read(HERMES_DELEGATION_RECORD_MAXIMUM_BYTES+1)
+    if len(current_record_bytes)>HERMES_DELEGATION_RECORD_MAXIMUM_BYTES:
+        raise ValueError('위임 기록 크기 초과')
+    return json.loads(current_record_bytes)
 
 
 def list_delegation_record_paths(current_storage_path):
@@ -63,9 +80,13 @@ class HermesDelegationStore:
         current_lock_path = self.delegation_storage_root / '.delegations.lock'
         if current_lock_path.is_symlink():
             raise ValueError('위임 잠금 경로에 심볼릭 링크를 사용할 수 없습니다.')
-        with HERMES_DELEGATION_THREAD_LOCK, current_lock_path.open('a') as current_lock_stream:
-            fcntl.flock(current_lock_stream, fcntl.LOCK_EX)
-            yield
+        with HERMES_DELEGATION_THREAD_LOCK:
+            current_lock_descriptor=os.open(current_lock_path,os.O_WRONLY|os.O_APPEND|os.O_CREAT|os.O_NOFOLLOW|os.O_NONBLOCK,0o666)
+            with os.fdopen(current_lock_descriptor,'a') as current_lock_stream:
+                if not stat.S_ISREG(os.fstat(current_lock_stream.fileno()).st_mode):
+                    raise ValueError('위임 잠금 파일 형식 오류')
+                fcntl.flock(current_lock_stream, fcntl.LOCK_EX)
+                yield
 
     def resolve_delegation_record_path(self, delegation_identifier_value):
         if not isinstance(delegation_identifier_value, str) or not HERMES_DELEGATION_ID_PATTERN.fullmatch(delegation_identifier_value):
@@ -81,7 +102,7 @@ class HermesDelegationStore:
             current_record_path = self.resolve_delegation_record_path(delegation_identifier_value)
             if not check_delegation_record_exists(current_record_path):
                 return {'state': 'not_found'}
-            current_saved_record = json.loads(current_record_path.read_text(encoding='utf-8'))
+            current_saved_record = read_bounded_delegation_record(current_record_path)
             if not isinstance(current_saved_record, dict) or current_saved_record.get('version') != 1 or current_saved_record.get('id') != delegation_identifier_value or current_saved_record.get('state') not in ('dispatching', 'accepted'):
                 raise ValueError('위임 기록 형식 오류')
             if current_saved_record['state'] == 'dispatching':
@@ -100,7 +121,7 @@ class HermesDelegationStore:
                     continue
                 try:
                     current_updated_time = current_record_path.stat().st_mtime
-                    current_saved_record = json.loads(current_record_path.read_text(encoding='utf-8'))
+                    current_saved_record = read_bounded_delegation_record(current_record_path)
                     # 기존 Kimodo 화면에는 다른 서비스의 접수 기록을 노출하지 않는다.
                     if isinstance(current_saved_record, dict) and current_saved_record.get('version') in (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12):
                         continue
@@ -132,7 +153,7 @@ class HermesDelegationStore:
         with self.hold_delegation_storage_lock():
             current_record_path = self.resolve_delegation_record_path(delegation_identifier_value)
             if check_delegation_record_exists(current_record_path):
-                current_saved_record = json.loads(current_record_path.read_text(encoding='utf-8'))
+                current_saved_record = read_bounded_delegation_record(current_record_path)
                 if not isinstance(current_saved_record, dict) or current_saved_record.get('version') != 1 or current_saved_record.get('id') != delegation_identifier_value or current_saved_record.get('state') not in ('dispatching', 'accepted'):
                     raise ValueError('위임 기록 형식 오류')
                 if current_saved_record.get('request_sha256') != current_request_digest:
@@ -149,7 +170,7 @@ class HermesDelegationStore:
             current_response_record = delegation_submit_callback(delegation_request_record)
             if not isinstance(current_response_record, dict) or not isinstance(current_response_record.get('id'), str) or not HERMES_DELEGATION_JOB_PATTERN.fullmatch(current_response_record['id']):
                 raise ValueError('접수 응답의 작업 ID를 확인할 수 없습니다. 자동 재접수하지 않습니다.')
-            if json.loads(current_record_path.read_text(encoding='utf-8')) != current_saved_record:
+            if read_bounded_delegation_record(current_record_path) != current_saved_record:
                 raise ValueError('접수 중 기록이 변경됐습니다. 원 서비스와 접수 기록을 확인하고 자동 재접수하지 마세요.')
             current_saved_record.update(state='accepted', job_id=current_response_record['id'])
             write_record_atomically(current_record_path, current_saved_record)
@@ -163,7 +184,7 @@ class HermesDelegationStore:
             current_record_path = self.resolve_delegation_record_path(delegation_identifier_value)
             if not check_delegation_record_exists(current_record_path):
                 return {'state':'not_found','request_id':delegation_identifier_value,'service':expected_service_name}
-            current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
+            current_record_value = read_bounded_delegation_record(current_record_path)
             if not isinstance(current_record_value, dict) or current_record_value.get('version') != 2 or current_record_value.get('id') != delegation_identifier_value or current_record_value.get('service') != expected_service_name or current_record_value.get('state') not in ('dispatching', 'accepted'):
                 raise ValueError('위임 서비스 또는 기록이 일치하지 않습니다.')
             if current_record_value['state'] == 'dispatching':
@@ -184,7 +205,7 @@ class HermesDelegationStore:
                 if current_record_path.is_symlink() or not current_record_path.is_file() or not HERMES_DELEGATION_ID_PATTERN.fullmatch(current_record_id):
                     continue
                 try:
-                    current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
+                    current_record_value = read_bounded_delegation_record(current_record_path)
                     if not isinstance(current_record_value, dict) or current_record_value.get('version') != 2 or current_record_value.get('service') != expected_service_name:
                         continue
                     if current_record_value.get('id') != current_record_id:
@@ -215,7 +236,7 @@ class HermesDelegationStore:
         with self.hold_delegation_storage_lock():
             current_record_path = self.resolve_delegation_record_path(delegation_identifier_value)
             if check_delegation_record_exists(current_record_path):
-                current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
+                current_record_value = read_bounded_delegation_record(current_record_path)
                 if not isinstance(current_record_value, dict) or current_record_value.get('version') != 2 or current_record_value.get('id') != delegation_identifier_value or current_record_value.get('service') != delegation_service_name or current_record_value.get('request_sha256') != current_request_digest:
                     raise ValueError('같은 위임 식별자를 다른 서비스나 입력에 사용할 수 없습니다.')
                 if current_record_value.get('state') == 'dispatching':
@@ -231,7 +252,7 @@ class HermesDelegationStore:
             current_job_identifier = current_response_record.get('id') if isinstance(current_response_record, dict) else None
             if not validate_service_job_identifier(delegation_service_name, current_job_identifier):
                 raise ValueError('접수 응답의 작업 ID를 확인할 수 없습니다. 자동 재접수하지 않습니다.')
-            if json.loads(current_record_path.read_text(encoding='utf-8')) != current_record_value:
+            if read_bounded_delegation_record(current_record_path) != current_record_value:
                 raise ValueError('접수 중 기록이 변경됐습니다. 원 서비스와 접수 기록을 확인하고 자동 재접수하지 마세요.')
             current_record_value.update(state='accepted', job_id=current_job_identifier)
             write_record_atomically(current_record_path, current_record_value)

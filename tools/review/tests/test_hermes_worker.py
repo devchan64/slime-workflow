@@ -266,6 +266,18 @@ class HermesWorkerTests(unittest.TestCase):
                     self.assertEqual(current_history_mock.call_count,int(current_allowed_value))
                     self.assertIn('records' if current_allowed_value else 'error',current_response_value)
 
+    def test_sandbox_client_preserves_fixed_resume_and_cleanup_errors(self):
+        import re
+        from tools.review.domains.hermes_agent.management_status_client import read_sandbox_management_status
+        current_error_cases=(('video-resume-preview','{}','영상 재개 검토 실패: 작업과 원 서비스 상태를 확인하세요.'),('cleanup-preview','kimodo','정리 미리보기를 확인할 수 없습니다. 원 서비스 상태를 확인하세요.'),('cleanup-preview','kimodo','/private/path'))
+        for current_request_kind,current_request_input,current_error_text in current_error_cases:
+            with self.subTest(request=current_request_kind,error=current_error_text),patch('tools.review.domains.hermes_agent.management_status_client.socket.socket') as current_socket_factory:
+                current_socket_value=current_socket_factory.return_value.__enter__.return_value
+                current_socket_value.recv.return_value=(json.dumps({'error':current_error_text},ensure_ascii=False)+'\n').encode()
+                current_expected_text='관리 상태 조회가 거절됐습니다.' if current_error_text=='/private/path' else current_error_text
+                with self.assertRaisesRegex(ValueError,re.escape(current_expected_text)):
+                    read_sandbox_management_status(current_request_kind,current_request_input)
+
     def test_map_database_receipt_sandbox_client_sends_fixed_request(self):
         from tools.review.domains.hermes_agent.management_status_client import read_sandbox_management_status
         current_request_text=json.dumps({'database_request_id':'test','request_sha256':'a'*64})
@@ -274,6 +286,12 @@ class HermesWorkerTests(unittest.TestCase):
             current_socket_value.recv.return_value=b'{"state":"not_found"}\n'
             self.assertEqual(read_sandbox_management_status('map-database-receipt',current_request_text),{'state':'not_found'})
             current_socket_value.sendall.assert_called_once_with(('map-database-receipt '+current_request_text+'\n').encode())
+        current_long_request=json.dumps({'database_request_id':'😀'*180,'request_sha256':'a'*64})
+        with patch('tools.review.domains.hermes_agent.management_status_client.socket.socket') as current_socket_factory:
+            current_socket_value=current_socket_factory.return_value.__enter__.return_value
+            current_socket_value.recv.return_value=b'{"state":"not_found"}\n'
+            self.assertEqual(read_sandbox_management_status('map-database-receipt',current_long_request),{'state':'not_found'})
+        with self.assertRaises(ValueError):read_sandbox_management_status('map-database-receipt','x'*4001)
         with self.assertRaises(ValueError):read_sandbox_management_status('map-database-receipt','{}\nrun shell')
 
     def test_map_database_receipt_bridge_rejects_extra_and_invalid_inputs(self):
@@ -281,7 +299,7 @@ class HermesWorkerTests(unittest.TestCase):
         import threading
         from tools.review.domains.hermes_agent import management_bridge
         current_valid_hash='a'*64
-        current_request_values=[({'database_request_id':'db-1','request_sha256':current_valid_hash},True),({'database_request_id':'db-1','request_sha256':'bad'},False),({'database_request_id':'db-1','request_sha256':current_valid_hash,'action':'save'},False)]
+        current_request_values=[({'database_request_id':'😀'*180,'request_sha256':current_valid_hash},True),({'database_request_id':'😀'*181,'request_sha256':current_valid_hash},False),({'database_request_id':'db-1','request_sha256':current_valid_hash},True),({'database_request_id':'db-1','request_sha256':'bad'},False),({'database_request_id':'db-1','request_sha256':current_valid_hash,'action':'save'},False)]
         for current_payload_value,current_allowed_value in current_request_values:
             with self.subTest(payload=current_payload_value):
                 current_client_socket,current_server_socket=socket.socketpair()
@@ -303,6 +321,29 @@ class HermesWorkerTests(unittest.TestCase):
         current_client_socket.sendall(('map-database-receipt {"database_request_id":"x","database_request_id":"y","request_sha256":"'+current_valid_hash+'"}\n').encode())
         self.assertIn('error',json.loads(current_client_socket.makefile('rb').readline()))
         current_thread_handle.join(timeout=3)
+
+    def test_map_database_receipt_bridge_bounds_do_not_extend_other_requests(self):
+        import socket
+        import threading
+        from tools.review.domains.hermes_agent import management_bridge
+        current_json_bytes=json.dumps({'database_request_id':'db-1','request_sha256':'a'*64}).encode()
+        current_map_prefix=b'map-database-receipt '
+        current_valid_bytes=current_map_prefix+current_json_bytes+b' '*(4095-len(current_map_prefix)-len(current_json_bytes))+b'\n'
+        current_oversized_bytes=current_valid_bytes[:-1]+b' '+b'\n'
+        current_other_bytes=b'capture-map-check '+b' '*1050+b'{}\n'
+        for current_request_bytes,current_expected_calls in ((current_valid_bytes,1),(current_oversized_bytes,0),(current_other_bytes,0)):
+            with self.subTest(size=len(current_request_bytes),prefix=current_request_bytes[:20]):
+                current_client_socket,current_server_socket=socket.socketpair()
+                self.addCleanup(current_client_socket.close)
+                with patch('tools.review.domains.map_assets.database_client.execute_content_api_request',return_value={'state':'matched'}) as current_http_mock:
+                    current_thread_handle=threading.Thread(target=management_bridge.handle_hermes_observer_connection,args=(current_server_socket,))
+                    current_thread_handle.start()
+                    current_client_socket.sendall(current_request_bytes)
+                    current_response_value=json.loads(current_client_socket.makefile('rb').readline())
+                    current_thread_handle.join(timeout=3)
+                    self.assertFalse(current_thread_handle.is_alive())
+                    self.assertEqual(current_http_mock.call_count,current_expected_calls)
+                    self.assertIn('state' if current_expected_calls else 'error',current_response_value)
 
     def test_reservation_inspection_bridge_is_fixed_and_read_only(self):
         import socket

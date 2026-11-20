@@ -38,7 +38,11 @@ def create_gateway_request_handler(dispatch_runtime_request):
                 response_record_values = read_gpu_status()
                 if request_route_path == '/management/gpu-queue':
                     from tools.review.common.gpu_job_queue import list_waiting_gpu_jobs
-                    response_record_values = list_waiting_gpu_jobs() | {'gpu_status': response_record_values}
+                    try:
+                        response_record_values = list_waiting_gpu_jobs(observation_limits=True) | {'gpu_status': response_record_values}
+                    except (OSError,ValueError,TypeError,KeyError):
+                        send_management_json_response(self, 503, {'error':'GPU 대기열을 확인할 수 없습니다.'})
+                        return
                 send_management_json_response(self, 200, response_record_values)
                 return
             if not dispatch_runtime_request(self):

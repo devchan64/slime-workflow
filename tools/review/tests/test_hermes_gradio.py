@@ -3546,6 +3546,7 @@ class HermesGradioTests(unittest.TestCase):
         self.assertTrue(current_button['interactive'])
         current_gateway_mock.return_value={'service':'kimodo','job_id':'job-12','executor':'not_observed','worker_leader':'verified_running','required_memory_mib':1024}
         current_message=operations_history_app.inspect_operations_reservation_target(current_target)
+        self.assertIn('대상: kimodo · job-12',current_message)
         self.assertIn('일치 실행기 미관측',current_message)
         self.assertIn('그룹 전체·별도 그룹의 종료를 보증하지 않습니다',current_message)
         current_gateway_mock.assert_called_once_with('hermes-agent','hermes-generator-reservation-inspect',current_target)
@@ -3553,6 +3554,15 @@ class HermesGradioTests(unittest.TestCase):
         self.assertIn('확인할 수 없습니다',operations_history_app.inspect_operations_reservation_target(current_target))
         current_rows[0][5]='미확인'
         self.assertIsNone(operations_history_app.select_operations_reservation_inspection(current_rows,SimpleNamespace(index=0))[0])
+
+    def test_reservation_inspection_discards_late_target_or_request(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_target_record={'service':'kimodo','job_id':'job-1'}
+        with patch.object(operations_history_app,'inspect_operations_reservation_target',return_value='첫 예약'):
+            current_result_record=operations_history_app.collect_operations_reservation_inspection(current_target_record,'token-1')
+        self.assertEqual(operations_history_app.render_operations_reservation_inspection(current_target_record,'token-1',current_result_record),'첫 예약')
+        self.assertEqual(operations_history_app.render_operations_reservation_inspection({'service':'kimodo','job_id':'job-2'},'token-1',current_result_record),gr.skip())
+        self.assertEqual(operations_history_app.render_operations_reservation_inspection(current_target_record,'token-2',current_result_record),gr.skip())
 
     def test_reservation_review_rejects_late_target_or_token(self):
         from tools.review.ui.gradio import operations_history_app
@@ -3718,6 +3728,22 @@ class HermesGradioTests(unittest.TestCase):
         self.assertEqual(operations_history_app.read_operations_session_receipts('a'*32)[0],[])
         self.assertTrue(all(item.args[1]=='hermes-session-view' for item in current_gateway_mock.call_args_list))
 
+    def test_operations_resume_review_discards_changed_selection_and_request(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_page_record={'service':'kimodo','snapshot':'a'*64}
+        current_source_rows=[['job-a','failed','job','none','none']]
+        with patch.object(operations_history_app,'prepare_operations_audio_resume',return_value=({'ready':True},'ready','receipt')):
+            current_review_record=operations_history_app.collect_operations_resume_review('kimodo','job-a',current_page_record,current_source_rows,'token-a')
+        self.assertEqual(operations_history_app.render_operations_resume_review('kimodo','job-a',current_page_record,current_source_rows,'token-a',current_review_record),({'ready':True},'ready','receipt'))
+        with patch.object(operations_history_app,'prepare_operations_audio_resume',return_value=(None,'검토 보류','')):
+            current_blocked_record=operations_history_app.collect_operations_resume_review('kimodo','job-a',current_page_record,current_source_rows,'token-a')
+        self.assertEqual(operations_history_app.render_operations_resume_review('kimodo','job-a',current_page_record,current_source_rows,'token-a',current_blocked_record),(None,'검토 보류',gr.skip()))
+        current_skip_values=(gr.skip(),gr.skip(),gr.skip())
+        self.assertEqual(operations_history_app.render_operations_resume_review('kimodo','job-b',current_page_record,current_source_rows,'token-a',current_review_record),current_skip_values)
+        self.assertEqual(operations_history_app.render_operations_resume_review('kimodo','job-a',current_page_record,current_source_rows,'token-b',current_review_record),current_skip_values)
+        current_source_rows.append(['job-b','failed','job','none','none'])
+        self.assertEqual(operations_history_app.render_operations_resume_review('kimodo','job-a',current_page_record,current_source_rows,'token-a',current_review_record),current_skip_values)
+
     def test_audio_resume_review_requires_selected_row_and_tracks_receipt(self):
         from tools.review.ui.gradio import operations_history_app
         current_job_identifier='2026-11-18_00-00-00-12345678'
@@ -3808,6 +3834,45 @@ class HermesGradioTests(unittest.TestCase):
             with self.assertRaises(gr.Error):
                 list(current_confirm_values[0](current_pending_value,current_request_value,'prompt-translation',current_job_identifier,current_page_value,[]))
             current_gateway_mock.assert_not_called()
+
+    def test_operations_resume_receipt_rejects_incompatible_service_prefix(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_request_identifier='kimodo_resume_'+'a'*64
+        with patch.object(operations_history_app,'execute_remote_management_command') as current_gateway_mock:
+            current_notice_text=operations_history_app.read_operations_audio_resume_receipt(current_request_identifier,'music-heartmula')
+            self.assertIn('접수 ID 종류와 선택한 서비스가 다릅니다',current_notice_text)
+            current_gateway_mock.assert_not_called()
+
+    def test_operations_resume_receipt_prefixes_preserve_same_kind_services(self):
+        from tools.review.ui.gradio import operations_history_app
+        current_service_cases=(('kimodo_resume_','kimodo','hermes-kimodo-resume-receipt'),('trans_resume_','prompt-translation','hermes-translation-resume-receipt'),('audio_resume_','music-heartmula','hermes-audio-resume-receipt'),('audio_resume_','sfx-dasheng-audiogen','hermes-audio-resume-receipt'),('video_resume_','wan22-vace','hermes-video-resume-receipt'),('video_resume_','dwpose','hermes-video-resume-receipt'),('flux_resume_','flux-image','hermes-flux-resume-receipt'))
+        for current_prefix_value,current_service_name,current_expected_command in current_service_cases:
+            current_identifier_value=current_prefix_value+'a'*64
+            with self.subTest(service=current_service_name),patch.object(operations_history_app,'execute_remote_management_command',return_value={'request_id':current_identifier_value,'state':'not_found'}) as current_gateway_mock:
+                self.assertIn('접수 기록이 없습니다',operations_history_app.read_operations_audio_resume_receipt(current_identifier_value,current_service_name))
+                current_gateway_mock.assert_called_once_with('hermes-agent',current_expected_command,{'request_id':current_identifier_value})
+
+    def test_operations_capture_status_discards_changed_selection_and_queue(self):
+        from types import SimpleNamespace
+        from tools.review.ui.gradio import operations_history_app
+        current_queue_rows=[['1','review-capture','job-1','review-capture','맵 · request-123']]
+        current_target_record,_=operations_history_app.select_operations_capture_target(current_queue_rows,SimpleNamespace(index=(0,0)))
+        with patch.object(operations_history_app,'read_operations_selected_capture_status',return_value='첫 캡처'):
+            current_result_record=operations_history_app.collect_operations_capture_status(current_target_record)
+        self.assertEqual(operations_history_app.render_operations_capture_status(current_queue_rows,current_target_record,current_result_record),'첫 캡처')
+        current_new_target,_=operations_history_app.select_operations_capture_target(current_queue_rows,SimpleNamespace(index=0))
+        self.assertEqual(operations_history_app.render_operations_capture_status(current_queue_rows,current_new_target,current_result_record),gr.skip())
+        current_queue_rows.append(['2','kimodo','job-2','kimodo','—'])
+        self.assertEqual(operations_history_app.render_operations_capture_status(current_queue_rows,current_target_record,current_result_record),gr.skip())
+
+    def test_operations_resume_receipt_discards_stale_result(self):
+        from tools.review.ui.gradio import operations_history_app
+        with patch.object(operations_history_app,'read_operations_audio_resume_receipt',return_value='기존 접수'):
+            current_result_record=operations_history_app.collect_operations_resume_receipt('receipt-1','kimodo','token-1')
+        self.assertEqual(operations_history_app.render_operations_resume_receipt('receipt-1','kimodo','token-1',current_result_record),'기존 접수')
+        self.assertEqual(operations_history_app.render_operations_resume_receipt('receipt-2','kimodo','token-1',current_result_record),gr.skip())
+        self.assertEqual(operations_history_app.render_operations_resume_receipt('receipt-1','flux-image','token-1',current_result_record),gr.skip())
+        self.assertEqual(operations_history_app.render_operations_resume_receipt('receipt-1','kimodo','token-2',current_result_record),gr.skip())
 
     def test_audio_resume_receipt_display_rejects_mismatched_target(self):
         import hashlib

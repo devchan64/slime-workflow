@@ -105,6 +105,29 @@ class GatewayContractTest(unittest.TestCase):
                 current_gateway_thread.join(timeout=5)
                 current_gateway_server.server_close()
 
+    def test_gpu_queue_observation_failure_returns_explicit_503(self):
+        import threading
+        from http.server import ThreadingHTTPServer
+        from urllib.error import HTTPError
+        from urllib.request import urlopen
+        from tools.review.gateway_server import create_gateway_request_handler
+        current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(lambda current_handler:False))
+        current_server_value.emit_gateway_trace=lambda *current_values:None
+        current_thread_value=threading.Thread(target=current_server_value.serve_forever,daemon=True)
+        current_thread_value.start()
+        try:
+            with patch('tools.review.common.gpu_status.read_gpu_status',return_value={'status':'unavailable'}),patch('tools.review.common.gpu_job_queue.list_waiting_gpu_jobs',side_effect=ValueError('private path')) as current_queue_mock:
+                with self.assertRaises(HTTPError) as current_error:
+                    urlopen(f'http://127.0.0.1:{current_server_value.server_port}/management/gpu-queue',timeout=5)
+                with current_error.exception as current_error_response:
+                    self.assertEqual(current_error_response.code,503)
+                    self.assertEqual(json.loads(current_error_response.read()),{'error':'GPU 대기열을 확인할 수 없습니다.'})
+                current_queue_mock.assert_called_once_with(observation_limits=True)
+        finally:
+            current_server_value.shutdown()
+            current_thread_value.join(timeout=5)
+            current_server_value.server_close()
+
     def test_loopback_hosts_require_matching_origin(self):
         from tools.review.common.management_environment import validate_gateway_address
         from tools.review.common.management_transport import validate_management_http_request

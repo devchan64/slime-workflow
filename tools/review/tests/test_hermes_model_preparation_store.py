@@ -9,6 +9,16 @@ from tools.review.domains.hermes_agent.model_preparation_store import HermesMode
 
 
 class HermesModelPreparationStoreTest(unittest.TestCase):
+    def test_oversized_preparation_receipt_blocks_new_dispatch(self):
+        from tools.review.domains.hermes_agent.delegation_store import HERMES_DELEGATION_RECORD_MAXIMUM_BYTES
+        with TemporaryDirectory() as current_root_name:
+            current_store_value=HermesModelPreparationStore(current_root_name)
+            (Path(current_root_name)/'request_123.json').write_bytes(b'x'*(HERMES_DELEGATION_RECORD_MAXIMUM_BYTES+1))
+            current_calls_list=[]
+            with self.assertRaises(ValueError):
+                current_store_value.execute_model_preparation_once('request_123','flux-image',lambda current_service:None,lambda current_service:current_calls_list.append(current_service))
+            self.assertEqual(current_calls_list,[])
+
     def test_duplicate_and_cross_service_are_rejected_or_reused(self):
         with TemporaryDirectory() as temporary_root_path:
             current_store_value = HermesModelPreparationStore(temporary_root_path)

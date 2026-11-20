@@ -1,10 +1,9 @@
 """모델 준비 요청의 중복 접수와 불확실한 응답을 보존한다."""
-import json
 from datetime import datetime, timezone
 
 from tools.review.common.generation_records import write_record_atomically
 from tools.review.common.model_management_catalog import MODEL_PREPARATION_SERVICES
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_delegation_record_paths, check_delegation_record_exists, HERMES_DELEGATION_JOB_PATTERN
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_delegation_record_paths, check_delegation_record_exists, HERMES_DELEGATION_JOB_PATTERN, read_bounded_delegation_record
 
 
 class HermesModelPreparationStore(HermesDelegationStore):
@@ -46,7 +45,7 @@ class HermesModelPreparationStore(HermesDelegationStore):
             current_record_path = self.resolve_delegation_record_path(request_identifier_value)
             if not check_delegation_record_exists(current_record_path):
                 return {'state': 'not_found', 'request_id':request_identifier_value, 'service':model_service_name}
-            current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
+            current_record_value = read_bounded_delegation_record(current_record_path)
             return self.inspect_model_preparation_record(request_identifier_value, model_service_name, current_record_value)
 
     def list_model_preparation_receipts(self):
@@ -59,7 +58,7 @@ class HermesModelPreparationStore(HermesDelegationStore):
                 try:
                     current_request_identifier = current_record_path.stem
                     self.resolve_delegation_record_path(current_request_identifier)
-                    current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
+                    current_record_value = read_bounded_delegation_record(current_record_path)
                     if not isinstance(current_record_value, dict) or current_record_value.get('version') != 3:
                         continue
                     current_service_name = current_record_value.get('service')
@@ -85,7 +84,7 @@ class HermesModelPreparationStore(HermesDelegationStore):
         with self.hold_delegation_storage_lock():
             current_record_path = self.resolve_delegation_record_path(request_identifier_value)
             if check_delegation_record_exists(current_record_path):
-                current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
+                current_record_value = read_bounded_delegation_record(current_record_path)
                 current_result_value = self.inspect_model_preparation_record(request_identifier_value, model_service_name, current_record_value)
                 return {**current_result_value, 'duplicate': True}
             preparation_validate_callback(model_service_name)
@@ -93,7 +92,7 @@ class HermesModelPreparationStore(HermesDelegationStore):
                                     'service': model_service_name, 'state': 'dispatching'}
             write_record_atomically(current_record_path, current_record_value)
             current_response_value = preparation_submit_callback(model_service_name)
-            if json.loads(current_record_path.read_text(encoding='utf-8'))!=current_record_value:
+            if read_bounded_delegation_record(current_record_path)!=current_record_value:
                 raise ValueError('모델 준비 중 접수 기록이 변경됐습니다. 기존 상태를 확인하고 자동 재접수하지 마세요.')
             current_status_value = current_response_value.get('preparation_status') if isinstance(current_response_value, dict) else None
             current_job_value = current_response_value.get('id') if isinstance(current_response_value, dict) else None

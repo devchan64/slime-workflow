@@ -12,6 +12,40 @@ from tools.review.common.gpu_job_queue import stop_hermes_worker_process_group, 
 
 
 class HermesProcessCleanupTests(unittest.TestCase):
+    def test_gpu_reservation_lock_rejects_fifo_and_symlink(self):
+        from tools.review.common import gpu_job_queue
+        from tools.review.domains.hermes_agent.writer_reservation import hold_writer_reservation_queue_lock
+        with tempfile.TemporaryDirectory() as current_root_name:
+            current_root_path=Path(current_root_name)
+            (current_root_path/'active').mkdir()
+            current_lock_path=current_root_path/'execution.lock'
+            with patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_root_path):
+                os.mkfifo(current_lock_path)
+                with self.assertRaises((OSError,ValueError)):
+                    with hold_writer_reservation_queue_lock():self.fail('FIFO 잠금을 허용했습니다.')
+                current_lock_path.unlink()
+                (current_root_path/'target').write_text('')
+                current_lock_path.symlink_to(current_root_path/'target')
+                with self.assertRaises((OSError,ValueError)):
+                    with hold_writer_reservation_queue_lock():self.fail('심볼릭 링크 잠금을 허용했습니다.')
+                current_lock_path.unlink()
+                with hold_writer_reservation_queue_lock() as current_active_root:
+                    self.assertEqual(current_active_root,current_root_path/'active')
+
+    def test_oversized_recovery_receipts_never_stop_process(self):
+        from tools.review.domains.hermes_agent import generator_reservation_recovery,writer_reservation
+        from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore,HERMES_DELEGATION_RECORD_MAXIMUM_BYTES
+        with tempfile.TemporaryDirectory() as current_root_name:
+            current_root_path=Path(current_root_name)
+            (current_root_path/'request_123.json').write_bytes(b'x'*(HERMES_DELEGATION_RECORD_MAXIMUM_BYTES+1))
+            current_store_value=HermesDelegationStore(current_root_path)
+            with patch('tools.review.common.gpu_job_queue.stop_hermes_worker_process_group') as current_stop_mock:
+                with patch.object(generator_reservation_recovery,'HermesDelegationStore',return_value=current_store_value):
+                    with self.assertRaises(ValueError):generator_reservation_recovery.recover_generator_reservation_once('request_123','kimodo','job-1','a'*64,True)
+                with patch.object(writer_reservation,'HermesDelegationStore',return_value=current_store_value):
+                    with self.assertRaises(ValueError):writer_reservation.recover_writer_reservation_once('request_123','job-1','a'*64,True)
+                current_stop_mock.assert_not_called()
+
     def test_generator_recovery_receipt_rejects_damaged_identity(self):
         from tools.review.domains.hermes_agent.generator_reservation_recovery import inspect_generator_recovery_receipt
         current_receipt={'version':13,'id':'recovery_request_123','service':'music-heartmula','job_id':'job_123','review_sha256':'a'*64,'state':'completed'}

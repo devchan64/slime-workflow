@@ -213,22 +213,29 @@ class HermesMcpTests(unittest.TestCase):
         self.assertEqual(json.loads(hermes_request_object.data), {'service':'hermes-agent', 'command':'hermes-submit', 'payload':{'request_id':'same-request-1234', 'prompt':'작업'}})
         self.assertEqual(hermes_request_object.full_url, 'http://127.0.0.1:8771/management/command')
 
-    def test_gpu_queue_status_uses_read_only_loopback_endpoint(self):
-        hermes_response_file = io.BytesIO(b'{"jobs":[],"gpu_status":{"status":"unavailable","processes":[]}}')
-        with patch.dict('os.environ', {'SLIME_MANAGEMENT_GATEWAY_URL':'http://127.0.0.1:8771'}), patch.object(hermes_module_value.urllib.request, 'build_opener') as hermes_opener_mock:
+    def test_gpu_queue_status_uses_bounded_snapshot_and_gpu_status(self):
+        hermes_response_file = io.BytesIO(b'{"status":"unavailable","processes":[]}')
+        current_queue_record={'queue':{'status':'available','jobs':[{'id':'job-1','service':'kimodo','source_service':'kimodo'}]}}
+        with patch.dict('os.environ', {'SLIME_MANAGEMENT_GATEWAY_URL':'http://127.0.0.1:8771'}), patch.object(hermes_module_value,'run_hermes_mcp_command',return_value=current_queue_record) as current_snapshot_mock, patch.object(hermes_module_value.urllib.request, 'build_opener') as hermes_opener_mock:
             hermes_opener_mock.return_value.open.return_value = hermes_response_file
             hermes_status_record = hermes_module_value.read_hermes_gpu_queue_status()
             hermes_request_object = hermes_opener_mock.return_value.open.call_args.args[0]
+        current_snapshot_mock.assert_called_once_with('hermes-management-status',{})
         self.assertEqual(hermes_request_object.get_method(), 'GET')
-        self.assertEqual(hermes_request_object.full_url, 'http://127.0.0.1:8771/management/gpu-queue')
+        self.assertEqual(hermes_request_object.full_url, 'http://127.0.0.1:8771/management/gpu-status')
+        self.assertEqual(hermes_status_record['jobs'],[{'id':'job-1','service':'kimodo'}])
         self.assertEqual(hermes_status_record['gpu_status']['status'], 'unavailable')
         self.assertIn('queried_at', hermes_status_record)
 
     def test_gpu_queue_status_rejects_non_loopback_and_invalid_response(self):
         with patch.dict('os.environ', {'SLIME_MANAGEMENT_GATEWAY_URL':'http://example.com:8771'}), self.assertRaises(ValueError):
             hermes_module_value.read_hermes_gpu_queue_status()
-        with patch.dict('os.environ', {'SLIME_MANAGEMENT_GATEWAY_URL':'http://127.0.0.1:8771'}), patch.object(hermes_module_value.urllib.request, 'build_opener') as hermes_opener_mock:
-            hermes_opener_mock.return_value.open.return_value = io.BytesIO(b'{"jobs":{}}')
+        for current_queue_record in ({'queue':{'status':'unavailable','jobs':[]}},{'queue':{'status':'available','jobs':[{'id':'job-1'}]}},{}):
+            with self.subTest(queue=current_queue_record),patch.object(hermes_module_value,'run_hermes_mcp_command',return_value=current_queue_record),patch.object(hermes_module_value.urllib.request,'build_opener') as current_opener_mock:
+                with self.assertRaises(ValueError):hermes_module_value.read_hermes_gpu_queue_status()
+                current_opener_mock.assert_not_called()
+        with patch.dict('os.environ', {'SLIME_MANAGEMENT_GATEWAY_URL':'http://127.0.0.1:8771'}),patch.object(hermes_module_value,'run_hermes_mcp_command',return_value={'queue':{'status':'available','jobs':[]}}),patch.object(hermes_module_value.urllib.request, 'build_opener') as hermes_opener_mock:
+            hermes_opener_mock.return_value.open.return_value = io.BytesIO(b'[]')
             with self.assertRaisesRegex(ValueError, '형식'):
                 hermes_module_value.read_hermes_gpu_queue_status()
 

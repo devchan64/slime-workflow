@@ -4,7 +4,7 @@ import hashlib
 import json
 
 from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_delegation_record_paths, check_delegation_record_exists
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, list_delegation_record_paths, check_delegation_record_exists, read_bounded_delegation_record
 from tools.review.domains.hermes_agent.field_map_operations import call_field_map_editor, HERMES_FIELD_MAP_PATTERN, HERMES_FIELD_TOKEN_PATTERN, HERMES_FIELD_MAX_BYTES
 
 
@@ -99,7 +99,7 @@ def save_hermes_city_map_once(current_request_identifier,current_draft_record,cu
     with current_storage_value.hold_delegation_storage_lock():
         current_record_path = current_storage_value.resolve_delegation_record_path(current_request_identifier)
         if check_delegation_record_exists(current_record_path):
-            current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
+            current_record_value = read_bounded_delegation_record(current_record_path)
             current_receipt_value = inspect_hermes_city_receipt(current_record_value,current_request_identifier)
             if current_record_value['token'] != current_preview_token or current_receipt_value['map'] != current_draft_record['map']:
                 raise ValueError('같은 접수 ID를 다른 요청에 사용할 수 없습니다.')
@@ -113,7 +113,7 @@ def read_hermes_city_receipt(current_request_identifier):
         current_record_path = current_storage_value.resolve_delegation_record_path(current_request_identifier)
         if not check_delegation_record_exists(current_record_path):
             return {'state':'not_found'}
-        return inspect_hermes_city_receipt(json.loads(current_record_path.read_text(encoding='utf-8')),current_request_identifier)
+        return inspect_hermes_city_receipt(read_bounded_delegation_record(current_record_path),current_request_identifier)
 
 
 def list_hermes_city_receipts():
@@ -126,7 +126,7 @@ def list_hermes_city_receipts():
             try:
                 current_request_identifier = current_record_path.stem
                 current_storage_value.resolve_delegation_record_path(current_request_identifier)
-                current_record_value = json.loads(current_record_path.read_text(encoding='utf-8'))
+                current_record_value = read_bounded_delegation_record(current_record_path)
                 if not isinstance(current_record_value,dict) or current_record_value.get('version') != 5:
                     continue
                 current_receipt_value = inspect_hermes_city_receipt(current_record_value,current_request_identifier)

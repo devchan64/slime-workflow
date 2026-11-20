@@ -23,7 +23,7 @@ def handle_hermes_observer_connection(current_client_socket):
                 if not current_next_bytes:
                     break
                 current_request_bytes += current_next_bytes
-            if len(current_request_bytes)>HERMES_OBSERVER_MAX_REQUEST or (len(current_request_bytes)>1024 and not current_request_bytes.startswith(b'translation-evidence ')):
+            if len(current_request_bytes)>HERMES_OBSERVER_MAX_REQUEST or (len(current_request_bytes)>1024 and not current_request_bytes.startswith(b'translation-evidence ') and not (current_request_bytes.startswith(b'map-database-receipt ') and len(current_request_bytes)<=4096)):
                 current_response_record={'error':'지원하지 않는 조회 요청'}
             elif current_request_bytes == HERMES_OBSERVER_REQUEST:
                 current_response_record = read_hermes_management_snapshot()

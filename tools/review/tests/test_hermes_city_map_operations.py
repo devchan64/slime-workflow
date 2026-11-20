@@ -9,6 +9,17 @@ from tools.review.domains.hermes_agent import city_map_operations
 
 
 class HermesCityMapOperationsTests(unittest.TestCase):
+    def test_oversized_map_receipt_is_not_reported_as_missing(self):
+        from tools.review.domains.hermes_agent import field_map_operations
+        from tools.review.domains.hermes_agent.delegation_store import HERMES_DELEGATION_RECORD_MAXIMUM_BYTES
+        with TemporaryDirectory() as current_root_name:
+            current_root_path=Path(current_root_name)
+            current_store_value=HermesDelegationStore(current_root_path)
+            (current_root_path/'request_123.json').write_bytes(b'x'*(HERMES_DELEGATION_RECORD_MAXIMUM_BYTES+1))
+            for current_module,current_reader in ((city_map_operations,city_map_operations.read_hermes_city_receipt),(field_map_operations,field_map_operations.read_hermes_field_receipt)):
+                with self.subTest(module=current_module.__name__),patch.object(current_module,'HermesDelegationStore',return_value=current_store_value):
+                    with self.assertRaises(ValueError):current_reader('request_123')
+
     def test_city_change_summary_keeps_all_before_and_after_values(self):
         from tools.review.ui.gradio.hermes_agent_app import format_conversation_city_changes
         current_changes_value=[{'path':['data','buildings',0,'name'],'before':'기존','after':'새 이름'},{'path':['data','objects',2,'visible'],'before':True,'after':False}]

@@ -83,6 +83,21 @@ class HermesCaptureStatusTests(unittest.TestCase):
             (current_job_path/'gpu-command.json').write_text('[]')
             self.assertEqual(current_reader()['job']['status'],'unknown')
 
+    def test_capture_record_reader_rejects_oversized_and_nonregular_files(self):
+        import os
+        from tools.review.domains.hermes_agent.capture_status import CAPTURE_RECORD_MAXIMUM_BYTES,read_bounded_capture_record
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_record_path=current_root_path/'record.json'
+            current_record_path.write_bytes(b'a'*(CAPTURE_RECORD_MAXIMUM_BYTES+1))
+            with self.assertRaises(ValueError):read_bounded_capture_record(current_record_path)
+            current_record_path.unlink()
+            os.mkfifo(current_record_path)
+            with self.assertRaises(ValueError):read_bounded_capture_record(current_record_path)
+            current_record_path.unlink()
+            current_record_path.symlink_to(current_root_path/'other')
+            with self.assertRaises(OSError):read_bounded_capture_record(current_record_path)
+
     def test_missing_receipt_never_reads_job(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_root_path=Path(current_directory_name)

@@ -4,7 +4,7 @@ import json
 import re
 
 from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists, read_bounded_delegation_record
 from tools.review.domains.hermes_agent.field_map_operations import call_field_map_editor, HERMES_FIELD_TOKEN_PATTERN
 from tools.review.domains.map_assets.editor import EDITOR_MUTABLE_FIELDS, hash_billboard_review_result
 
@@ -97,7 +97,7 @@ def save_hermes_billboard_edit_once(current_request_identifier,current_draft_rec
     with current_storage_value.hold_delegation_storage_lock():
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
         if check_delegation_record_exists(current_receipt_path):
-            current_receipt_record=json.loads(current_receipt_path.read_text(encoding='utf-8'))
+            current_receipt_record=read_bounded_delegation_record(current_receipt_path)
             current_result_record=inspect_billboard_edit_receipt(current_receipt_record,current_request_identifier)
             if current_receipt_record.get('token')!=current_preview_token or current_receipt_record.get('review_sha256')!=current_review_digest:
                 raise ValueError('같은 접수 ID를 다른 요청에 사용할 수 없습니다.')
@@ -110,7 +110,7 @@ def save_hermes_billboard_edit_once(current_request_identifier,current_draft_rec
         current_save_record=call_field_map_editor('asset-save-reviewed',{**current_draft_record,'token':current_preview_token,'review_sha256':current_review_digest})
         if not isinstance(current_save_record,dict) or type(current_save_record.get('saved')) is not bool:
             raise ValueError('빌보드 저장 결과 확인 필요. 자동 재접수하지 않습니다.')
-        if json.loads(current_receipt_path.read_text(encoding='utf-8'))!=current_receipt_record:raise ValueError('저장 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재저장하지 마세요.')
+        if read_bounded_delegation_record(current_receipt_path)!=current_receipt_record:raise ValueError('저장 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재저장하지 마세요.')
         current_receipt_record.update(state='completed',saved=current_save_record['saved'])
         if current_save_record['saved'] is True and current_save_record.get('snapshot')=='pending':
             current_receipt_record['ledger_status_at_save']='pending'
@@ -124,4 +124,4 @@ def read_hermes_billboard_edit_receipt(current_request_identifier):
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
         if not check_delegation_record_exists(current_receipt_path):
             return {'state':'not_found'}
-        return inspect_billboard_edit_receipt(json.loads(current_receipt_path.read_text(encoding='utf-8')),current_request_identifier)
+        return inspect_billboard_edit_receipt(read_bounded_delegation_record(current_receipt_path),current_request_identifier)

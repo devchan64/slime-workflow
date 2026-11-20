@@ -256,12 +256,30 @@ def list_gpu_queue_record_paths(current_directory_path):
     return [current_record_path for current_record_path in current_directory_path.iterdir() if current_record_path.name.endswith('.json')]
 
 
-def read_gpu_priority_order():
+GPU_OBSERVATION_MAXIMUM_FILES = 1000
+GPU_OBSERVATION_MAXIMUM_ENTRIES = 5000
+GPU_OBSERVATION_MAXIMUM_BYTES = 1048576
+
+
+def read_bounded_gpu_observation_bytes(current_observation_path,current_maximum_bytes):
+    """관측 전용: 일반 파일을 제한해 읽고 조회 중 변경을 거부한다."""
+    current_descriptor_value=os.open(current_observation_path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+    with os.fdopen(current_descriptor_value,'rb') as current_file_handle:
+        current_before_stat=os.fstat(current_file_handle.fileno())
+        if not stat.S_ISREG(current_before_stat.st_mode):raise ValueError('GPU 관측 파일 형식 오류')
+        current_file_bytes=current_file_handle.read(current_maximum_bytes+1)
+        current_after_stat=os.fstat(current_file_handle.fileno())
+    if len(current_file_bytes)>current_maximum_bytes or (current_before_stat.st_dev,current_before_stat.st_ino,current_before_stat.st_size,current_before_stat.st_mtime_ns)!=(current_after_stat.st_dev,current_after_stat.st_ino,current_after_stat.st_size,current_after_stat.st_mtime_ns):
+        raise ValueError('GPU 관측 파일 크기 또는 변경 오류')
+    return current_file_bytes,current_after_stat
+
+
+def read_gpu_priority_order(observation_limits=False):
     """기록이 없는 경우만 기본 순서를 사용하고 읽기 실패는 전달한다."""
     current_priority_path = GPU_QUEUE_DIRECTORY / 'priority-order'
     if current_priority_path.is_symlink():raise ValueError('GPU 우선순위 기록 경로 오류')
     try:
-        current_priority_values=json.loads(current_priority_path.read_text())
+        current_priority_values=json.loads(read_bounded_gpu_observation_bytes(current_priority_path,GPU_OBSERVATION_MAXIMUM_BYTES)[0]) if observation_limits else json.loads(current_priority_path.read_text())
     except FileNotFoundError:
         current_priority_values={}
     if not isinstance(current_priority_values,dict) or any(not isinstance(current_key,str) or type(current_value) is not int for current_key,current_value in current_priority_values.items()):
@@ -269,11 +287,20 @@ def read_gpu_priority_order():
     return current_priority_values
 
 
-def read_priority_tickets():
+def read_priority_tickets(observation_limits=False):
     """티켓 경로는 유지하고 영속 우선순위로 정렬한다."""
-    current_priority_values=read_gpu_priority_order()
+    current_priority_values=read_gpu_priority_order(observation_limits=True) if observation_limits else read_gpu_priority_order()
     try:
-        current_ticket_paths=list_gpu_queue_record_paths(GPU_QUEUE_DIRECTORY)
+        if observation_limits:
+            current_ticket_paths=[]
+            with os.scandir(GPU_QUEUE_DIRECTORY) as current_directory_entries:
+                for current_entry_count,current_directory_entry in enumerate(current_directory_entries,start=1):
+                    if current_entry_count>GPU_OBSERVATION_MAXIMUM_ENTRIES:raise ValueError('GPU 대기 경로 항목 수 초과')
+                    if current_directory_entry.name.endswith('.json'):
+                        current_ticket_paths.append(GPU_QUEUE_DIRECTORY/current_directory_entry.name)
+                        if len(current_ticket_paths)>GPU_OBSERVATION_MAXIMUM_FILES:raise ValueError('GPU 대기 기록 수 초과')
+        else:
+            current_ticket_paths=list_gpu_queue_record_paths(GPU_QUEUE_DIRECTORY)
     except FileNotFoundError:
         return []
     return sorted(current_ticket_paths, key=lambda current_ticket_path: (current_priority_values.get(current_ticket_path.name, 0), current_ticket_path.name))
@@ -316,15 +343,19 @@ def inspect_gpu_ticket_executor_identity(current_ticket_record):
     return 'verified'
 
 
-def fingerprint_gpu_queue_ticket(current_ticket_path):
+def fingerprint_gpu_queue_ticket(current_ticket_path,observation_limits=False):
     """티켓 교체를 감지할 불투명 식별자를 만들며 경로 원문은 반환하지 않는다."""
     current_ticket_path=Path(current_ticket_path)
     if current_ticket_path.is_symlink() or not current_ticket_path.is_file():
         raise ValueError('대기 티켓을 확인할 수 없습니다.')
-    with current_ticket_path.open('rb') as current_ticket_stream:
-        current_before_stat=os.fstat(current_ticket_stream.fileno())
-        current_ticket_bytes=current_ticket_stream.read(65537)
-        current_after_stat=os.fstat(current_ticket_stream.fileno())
+    if observation_limits:
+        current_ticket_bytes,current_after_stat=read_bounded_gpu_observation_bytes(current_ticket_path,65536)
+        current_before_stat=current_after_stat
+    else:
+        with current_ticket_path.open('rb') as current_ticket_stream:
+            current_before_stat=os.fstat(current_ticket_stream.fileno())
+            current_ticket_bytes=current_ticket_stream.read(65537)
+            current_after_stat=os.fstat(current_ticket_stream.fileno())
     if len(current_ticket_bytes)>65536 or (current_before_stat.st_dev,current_before_stat.st_ino,current_before_stat.st_size,current_before_stat.st_mtime_ns)!=(current_after_stat.st_dev,current_after_stat.st_ino,current_after_stat.st_size,current_after_stat.st_mtime_ns):
         raise ValueError('대기 티켓이 변경됐거나 크기가 너무 큽니다.')
     current_identity_text=f'{current_ticket_path.name}:{current_after_stat.st_dev}:{current_after_stat.st_ino}:{current_after_stat.st_size}:{current_after_stat.st_mtime_ns}:'
@@ -922,26 +953,26 @@ def identify_dedicated_gpu_reservation_source(current_job_path,current_queue_ser
         return None
 
 
-def list_waiting_gpu_jobs(include_source_identity=False):
+def list_waiting_gpu_jobs(include_source_identity=False,observation_limits=False):
     """살아 있는 대기 실행기의 작업 목록만 읽는다."""
     waiting_job_records=[]
-    for waiting_ticket_path in read_priority_tickets():
+    for waiting_ticket_path in (read_priority_tickets(observation_limits=True) if observation_limits else read_priority_tickets()):
         try:
-            current_before_revision=fingerprint_gpu_queue_ticket(waiting_ticket_path) if include_source_identity else None
-            waiting_ticket_record=json.loads(waiting_ticket_path.read_text())
-            current_ticket_pid=validate_gpu_ticket_process_identifier(waiting_ticket_record) if include_source_identity else waiting_ticket_record['pid']
+            current_before_revision=(fingerprint_gpu_queue_ticket(waiting_ticket_path,observation_limits=True) if observation_limits else fingerprint_gpu_queue_ticket(waiting_ticket_path)) if include_source_identity else None
+            waiting_ticket_record=json.loads(read_bounded_gpu_observation_bytes(waiting_ticket_path,65536)[0]) if observation_limits else json.loads(waiting_ticket_path.read_text())
+            current_ticket_pid=validate_gpu_ticket_process_identifier(waiting_ticket_record) if include_source_identity or observation_limits else waiting_ticket_record['pid']
             os.kill(current_ticket_pid,0)
             waiting_job_directory=Path(waiting_ticket_record['path'])
-            waiting_status_record=json.loads((waiting_job_directory/'status.json').read_text())
-            if include_source_identity and (not isinstance(waiting_status_record,dict) or waiting_status_record.get('status') not in ('queued','running','completed','failed','cancelled','canceled','paused')):
+            waiting_status_record=json.loads(read_bounded_gpu_observation_bytes(waiting_job_directory/'status.json',GPU_OBSERVATION_MAXIMUM_BYTES)[0]) if observation_limits else json.loads((waiting_job_directory/'status.json').read_text())
+            if (include_source_identity or observation_limits) and (not isinstance(waiting_status_record,dict) or waiting_status_record.get('status') not in ('queued','running','completed','failed','cancelled','canceled','paused')):
                 raise ValueError('대기 티켓의 작업 상태를 확인할 수 없습니다.')
             if waiting_status_record['status']!='queued':continue
-            waiting_command_record=json.loads((waiting_job_directory/'gpu-command.json').read_text())
+            waiting_command_record=json.loads(read_bounded_gpu_observation_bytes(waiting_job_directory/'gpu-command.json',GPU_OBSERVATION_MAXIMUM_BYTES)[0]) if observation_limits else json.loads((waiting_job_directory/'gpu-command.json').read_text())
             if not waiting_job_directory.resolve().is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp') and waiting_command_record.get('service') != 'writer-agent':continue
             waiting_job_record={'id':waiting_job_directory.name,'service':waiting_command_record['service']}
             if include_source_identity:
                 waiting_job_record['executor_identity']=inspect_gpu_ticket_executor_identity(waiting_ticket_record)
-                current_after_revision=fingerprint_gpu_queue_ticket(waiting_ticket_path)
+                current_after_revision=fingerprint_gpu_queue_ticket(waiting_ticket_path,observation_limits=True) if observation_limits else fingerprint_gpu_queue_ticket(waiting_ticket_path)
                 if current_before_revision!=current_after_revision:
                     raise ValueError('대기 티켓이 조회 중 변경됐습니다.')
                 waiting_job_record['ticket_revision']=current_after_revision
@@ -952,7 +983,7 @@ def list_waiting_gpu_jobs(include_source_identity=False):
                     waiting_job_record['source_service']=current_source_service
             waiting_job_records.append(waiting_job_record)
         except FileNotFoundError:
-            if not include_source_identity:
+            if not include_source_identity and not observation_limits:
                 continue
             try:
                 waiting_ticket_path.lstat()

@@ -8,6 +8,18 @@ from tools.review.domains.hermes_agent.delegation_store import HermesDelegationS
 
 
 class HermesEffectOperationTests(unittest.TestCase):
+    def test_oversized_effect_receipt_blocks_external_registration(self):
+        from tools.review.domains.hermes_agent.delegation_store import HERMES_DELEGATION_RECORD_MAXIMUM_BYTES
+        with tempfile.TemporaryDirectory() as current_root_name:
+            current_root_path=Path(current_root_name)
+            current_store_value=HermesDelegationStore(current_root_path)
+            current_effect_value={'id':'effect-test','name':'x'*HERMES_DELEGATION_RECORD_MAXIMUM_BYTES}
+            with patch.object(effect_operations,'HermesDelegationStore',return_value=current_store_value),patch.object(effect_operations,'preview_hermes_effect_registration',return_value={'review_sha256':'a'*64}),patch.object(effect_operations,'call_hermes_effect_editor') as current_gateway_mock:
+                with self.assertRaisesRegex(ValueError,'접수 기록 크기 초과'):
+                    effect_operations.register_hermes_effect_once('request_123',current_effect_value,'a'*64)
+                current_gateway_mock.assert_not_called()
+                self.assertFalse((current_root_path/'request_123.json').exists())
+
     def test_effect_receipt_target_matches_and_legacy_is_distinct(self):
         from tools.review.domains.hermes_agent.effect_operations import inspect_hermes_effect_receipt
         current_record={'version':8,'id':'effect_request_123','state':'dispatching','effect_id':'fire'}

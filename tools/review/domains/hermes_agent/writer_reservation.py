@@ -5,10 +5,11 @@ import hashlib
 import json
 import os
 import re
+import stat
 from pathlib import Path
 
 from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists, read_bounded_delegation_record
 
 
 @contextmanager
@@ -19,7 +20,10 @@ def hold_writer_reservation_queue_lock():
     current_lock_path=current_queue_root/'execution.lock'
     if current_queue_root.is_symlink() or current_active_root.is_symlink() or not current_active_root.is_dir() or current_lock_path.is_symlink():
         raise ValueError('GPU 예약 목록 또는 잠금을 확인할 수 없습니다.')
-    with current_lock_path.open('a') as current_lock_stream:
+    current_lock_descriptor=os.open(current_lock_path,os.O_WRONLY|os.O_APPEND|os.O_CREAT|os.O_NOFOLLOW|os.O_NONBLOCK,0o666)
+    with os.fdopen(current_lock_descriptor,'a') as current_lock_stream:
+        if not stat.S_ISREG(os.fstat(current_lock_stream.fileno()).st_mode):
+            raise ValueError('GPU 예약 잠금 파일 형식 오류')
         fcntl.flock(current_lock_stream,fcntl.LOCK_EX)
         yield current_active_root
 
@@ -30,7 +34,7 @@ def find_writer_reservation_record(current_active_root,current_job_identifier):
     current_matches_list=[]
     for current_record_path in current_active_root.glob('*.json'):
         if current_record_path.is_symlink() or not current_record_path.is_file():raise ValueError('GPU 예약 기록을 확인할 수 없습니다.')
-        try:current_record_value=json.loads(current_record_path.read_text())
+        try:current_record_value=read_bounded_delegation_record(current_record_path)
         except (OSError,ValueError,TypeError) as current_record_error:raise ValueError('GPU 예약 기록을 확인할 수 없습니다.') from current_record_error
         if not isinstance(current_record_value,dict) or not isinstance(current_record_value.get('path'),str) or not isinstance(current_record_value.get('service'),str):raise ValueError('GPU 예약 식별 정보를 확인할 수 없습니다.')
         if Path(current_record_value['path']).name==current_job_identifier:
@@ -102,7 +106,7 @@ def recover_writer_reservation_once(current_request_identifier,current_job_ident
     with current_store_value.hold_delegation_storage_lock():
         current_receipt_path=current_store_value.resolve_delegation_record_path(current_request_identifier)
         if check_delegation_record_exists(current_receipt_path):
-            current_receipt_value=json.loads(current_receipt_path.read_text())
+            current_receipt_value=read_bounded_delegation_record(current_receipt_path)
             current_result_value=inspect_writer_recovery_receipt(current_receipt_value,current_request_identifier)
             if (current_receipt_value.get('job_id'),current_receipt_value.get('preview_sha256'))!=(current_job_identifier,current_preview_digest):raise ValueError('같은 접수 ID를 다른 예약에 사용할 수 없습니다.')
             return {**current_result_value,'duplicate':True}
@@ -132,7 +136,7 @@ def recover_writer_reservation_once(current_request_identifier,current_job_ident
             raise ValueError('실행기 상태가 변경됐습니다. 예약을 유지합니다.')
         current_current_path.unlink()
     with current_store_value.hold_delegation_storage_lock():
-        current_receipt_value=json.loads(current_receipt_path.read_text())
+        current_receipt_value=read_bounded_delegation_record(current_receipt_path)
         current_expected_value={'version':12,'id':current_request_identifier,'job_id':current_job_identifier,'preview_sha256':current_preview_digest,'state':'dispatching'}
         if current_receipt_value!=current_expected_value or type(current_receipt_value.get('version')) is not int:
             raise ValueError('정리 접수 기록이 변경됐습니다. 결과를 확인하세요.')
@@ -146,4 +150,4 @@ def read_writer_recovery_receipt(current_request_identifier):
     with current_store_value.hold_delegation_storage_lock():
         current_receipt_path=current_store_value.resolve_delegation_record_path(current_request_identifier)
         if not check_delegation_record_exists(current_receipt_path):return {'state':'not_found'}
-        return inspect_writer_recovery_receipt(json.loads(current_receipt_path.read_text()),current_request_identifier)
+        return inspect_writer_recovery_receipt(read_bounded_delegation_record(current_receipt_path),current_request_identifier)

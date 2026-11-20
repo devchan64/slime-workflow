@@ -964,6 +964,38 @@ def submit_operations_audio_resume(current_request_record,current_service_name,c
     return None,'접수 결과를 확인할 수 없습니다. 같은 접수 ID와 원 서비스 상태를 확인하고 다시 요청하지 마세요.'
 
 
+def collect_operations_resume_review(current_service_name,current_job_identifier,current_page_state,current_source_rows,current_request_token):
+    """조회 당시 선택과 요청을 함께 보관해 늦은 결과를 구분한다."""
+    import copy
+    current_identity_values=copy.deepcopy([current_service_name,current_job_identifier,current_page_state,current_source_rows])
+    current_review_values=prepare_operations_audio_resume(current_service_name,current_job_identifier,current_page_state,current_source_rows)
+    return {'identity':current_identity_values,'token':current_request_token,'review':current_review_values}
+
+
+def render_operations_resume_review(current_service_name,current_job_identifier,current_page_state,current_source_rows,current_request_token,current_result_record):
+    """선택이나 요청이 바뀐 후 완료된 검토는 표시하지 않는다."""
+    if (not isinstance(current_result_record,dict) or current_result_record.get('token')!=current_request_token
+            or current_result_record.get('identity')!=[current_service_name,current_job_identifier,current_page_state,current_source_rows]
+            or not isinstance(current_result_record.get('review'),(tuple,list)) or len(current_result_record['review'])!=3):
+        return gr.skip(),gr.skip(),gr.skip()
+    current_review_record,current_notice_text,current_receipt_identifier=current_result_record['review']
+    return current_review_record,current_notice_text,current_receipt_identifier if current_receipt_identifier else gr.skip()
+
+
+def collect_operations_resume_receipt(current_request_identifier,current_selected_service,current_request_token):
+    """접수 조회 결과에 요청 당시의 ID와 서비스를 묶는다."""
+    return {'identity':[current_request_identifier,current_selected_service],'token':current_request_token,
+        'notice':read_operations_audio_resume_receipt(current_request_identifier,current_selected_service)}
+
+
+def render_operations_resume_receipt(current_request_identifier,current_selected_service,current_request_token,current_result_record):
+    """현재 입력과 요청에 해당하지 않는 늦은 접수 응답은 버린다."""
+    if (not isinstance(current_result_record,dict) or current_result_record.get('identity')!=[current_request_identifier,current_selected_service]
+            or current_result_record.get('token')!=current_request_token or not isinstance(current_result_record.get('notice'),str)):
+        return gr.skip()
+    return current_result_record['notice']
+
+
 def read_operations_audio_resume_receipt(current_request_identifier,current_selected_service=None):
     try:
         if not isinstance(current_request_identifier,str) or not re.fullmatch(r'[A-Za-z0-9_-]{8,80}',current_request_identifier):raise ValueError('접수 ID 오류')
@@ -971,11 +1003,14 @@ def read_operations_audio_resume_receipt(current_request_identifier,current_sele
         current_service_commands={'prompt-translation':'hermes-translation-resume-receipt','kimodo':'hermes-kimodo-resume-receipt','music-heartmula':'hermes-audio-resume-receipt','sfx-dasheng-audiogen':'hermes-audio-resume-receipt'}
         current_service_commands.update({current_video_service:'hermes-video-resume-receipt' for current_video_service in ('dwpose','wan22-animate2','wan22-vace','wan22-fun-control')})
         current_service_commands.update({current_flux_service:'hermes-flux-resume-receipt' for current_flux_service in FLUX_IMAGE_PROFILE_RECORDS})
+        current_prefix_commands={'trans_resume_':'hermes-translation-resume-receipt','kimodo_resume_':'hermes-kimodo-resume-receipt','audio_resume_':'hermes-audio-resume-receipt','flux_resume_':'hermes-flux-resume-receipt','video_resume_':'hermes-video-resume-receipt'}
         if current_selected_service is not None:
             if current_selected_service not in current_service_commands:raise ValueError('서비스 선택 오류')
             current_receipt_command=current_service_commands[current_selected_service]
+            if current_generated_match and current_prefix_commands[current_generated_match.group(1)]!=current_receipt_command:
+                return '접수 ID 종류와 선택한 서비스가 다릅니다. 원래 서비스를 선택하고 다시 조회하세요.'
         elif current_generated_match:
-            current_receipt_command={'trans_resume_':'hermes-translation-resume-receipt','kimodo_resume_':'hermes-kimodo-resume-receipt','audio_resume_':'hermes-audio-resume-receipt','flux_resume_':'hermes-flux-resume-receipt','video_resume_':'hermes-video-resume-receipt'}[current_generated_match.group(1)]
+            current_receipt_command=current_prefix_commands[current_generated_match.group(1)]
         else:raise ValueError('서비스 선택 오류')
         current_receipt_value=execute_remote_management_command('hermes-agent',current_receipt_command,{'request_id':current_request_identifier})
         if not isinstance(current_receipt_value,dict) or current_receipt_value.get('request_id')!=current_request_identifier:raise ValueError('접수 오류')
@@ -1185,7 +1220,10 @@ def select_operations_reservation_inspection(current_reservation_rows,current_se
 
 def inspect_operations_reservation_target(current_inspection_target):
     """서버가 전체 예약의 유일성과 서비스·리더 신원을 다시 확인한다."""
-    if not isinstance(current_inspection_target,dict) or set(current_inspection_target)!={'service','job_id'}:return '확인할 예약을 먼저 선택하세요.'
+    if (not isinstance(current_inspection_target,dict) or set(current_inspection_target)!={'service','job_id'}
+            or not isinstance(current_inspection_target['service'],str) or not re.fullmatch(r'[a-z0-9-]{1,80}',current_inspection_target['service'])
+            or not isinstance(current_inspection_target['job_id'],str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}',current_inspection_target['job_id'])):
+        return '확인할 예약을 먼저 선택하세요.'
     try:
         current_result=execute_remote_management_command('hermes-agent','hermes-generator-reservation-inspect',current_inspection_target)
         if not isinstance(current_result,dict) or (current_result.get('service'),current_result.get('job_id'))!=(current_inspection_target['service'],current_inspection_target['job_id']):raise ValueError('예약 대상 불일치')
@@ -1194,7 +1232,7 @@ def inspect_operations_reservation_target(current_inspection_target):
         current_memory=current_result.get('required_memory_mib')
         if current_executor is None or current_leader is None or type(current_memory) is not int or current_memory<0:raise ValueError('예약 응답 오류')
         current_review_notice=' 정리 검토에서 현재 상태를 다시 확인할 수 있습니다.' if current_result.get('review_ready') is True else ''
-        return '실행기: '+current_executor+' · 작업자 리더: '+current_leader+' · 예약: '+str(current_memory)+' MiB. 조회만 수행했습니다. 실행기 미관측이나 리더 확인은 그룹 전체·별도 그룹의 종료를 보증하지 않습니다.'+current_review_notice
+        return '대상: '+current_inspection_target['service']+' · '+current_inspection_target['job_id']+' · 실행기: '+current_executor+' · 작업자 리더: '+current_leader+' · 예약: '+str(current_memory)+' MiB. 조회만 수행했습니다. 실행기 미관측이나 리더 확인은 그룹 전체·별도 그룹의 종료를 보증하지 않습니다.'+current_review_notice
     except (OSError,ValueError,KeyError,TypeError,RuntimeError):
         return '예약 신원을 확인할 수 없습니다. 원 서비스와 GPU 프로세스를 확인하세요. 예약이나 프로세스는 변경하지 않았습니다.'
 
@@ -1223,6 +1261,21 @@ def prepare_operations_reservation_recovery(current_reservation_target):
 def start_operations_reservation_review():
     """새 예약 검토 전 이전 요청·확인 상태를 즉시 지운다."""
     return create_cleanup_preview_token(),gr.update(interactive=False),None,gr.update(visible=False),False
+
+
+def collect_operations_reservation_inspection(current_reservation_target,current_request_token):
+    """예약 신원 조회 결과를 대상과 요청에 묶는다."""
+    import copy
+    current_target_value=copy.deepcopy(current_reservation_target)
+    return {'target':current_target_value,'token':current_request_token,'notice':inspect_operations_reservation_target(current_target_value)}
+
+
+def render_operations_reservation_inspection(current_reservation_target,current_request_token,current_result_record):
+    """선택이나 요청이 바뀐 예약의 늦은 신원 응답은 버린다."""
+    if (not isinstance(current_result_record,dict) or current_result_record.get('target')!=current_reservation_target
+            or current_result_record.get('token')!=current_request_token or not isinstance(current_result_record.get('notice'),str)):
+        return gr.skip()
+    return current_result_record['notice']
 
 
 def collect_operations_reservation_recovery(current_reservation_target,current_request_token):
@@ -1303,6 +1356,32 @@ def read_operations_selected_capture_status(current_queue_rows,current_select_ev
         return current_capture_label+' 캡처 · '+current_status_label+current_result_notice+' · 접수 '+current_request_identifier+' · 작업 '+current_row_value[2]+' · 조회 시점 기준'
     except (OSError,ValueError,TypeError,KeyError,RuntimeError):
         return '캡처 상태 조회에 실패했습니다. 다시 조회하세요.'
+
+
+def select_operations_capture_target(current_queue_rows,current_select_event:gr.SelectData):
+    """선택 시점의 대기 행과 요청 식별자를 고정한다."""
+    import copy
+    current_selected_index=current_select_event.index
+    if isinstance(current_selected_index,(tuple,list)):
+        current_selected_index=current_selected_index[0] if current_selected_index else None
+    return {'index':current_selected_index,'rows':copy.deepcopy(current_queue_rows),'token':create_cleanup_preview_token()},'선택한 대기 기록을 확인하고 있습니다.'
+
+
+def collect_operations_capture_status(current_target_record):
+    """선택 당시 행을 사용해 캡처 상태를 조회한다."""
+    from types import SimpleNamespace
+    if not isinstance(current_target_record,dict):return None
+    current_notice_text=read_operations_selected_capture_status(current_target_record.get('rows'),SimpleNamespace(index=current_target_record.get('index')))
+    return {'target':current_target_record,'notice':current_notice_text}
+
+
+def render_operations_capture_status(current_queue_rows,current_target_record,current_result_record):
+    """행 또는 선택이 바뀌면 이전 캡처 상태를 표시하지 않는다."""
+    if (not isinstance(current_target_record,dict) or not isinstance(current_result_record,dict)
+            or current_result_record.get('target')!=current_target_record or current_target_record.get('rows')!=current_queue_rows
+            or not isinstance(current_result_record.get('notice'),str)):
+        return gr.skip()
+    return current_result_record['notice']
 
 
 def select_operations_priority_target(current_queue_rows,current_select_event:gr.SelectData):
@@ -1611,23 +1690,39 @@ def build_operations_history_interface():
             current_audio_resume_identifier=gr.Textbox(label='재개 접수 ID · 선택한 서비스에서 결과 확인')
             current_audio_resume_receipt_button=gr.Button('재개 접수 확인')
             current_audio_resume_receipt_notice=gr.Markdown()
-            current_audio_resume_event=current_audio_resume_preview.click(prepare_operations_audio_resume,[current_source_service,current_source_selected_id,current_source_state,current_source_table],[current_audio_resume_record,current_audio_resume_status,current_audio_resume_identifier],queue=False)
+            current_audio_resume_token=gr.State(None)
+            current_audio_resume_result=gr.State(None)
+            def start_operations_resume_review():
+                return create_cleanup_preview_token(),None,'재개 대상을 확인하고 있습니다.',gr.update(interactive=False)
+            current_audio_resume_event=current_audio_resume_preview.click(start_operations_resume_review,outputs=[current_audio_resume_token,current_audio_resume_record,current_audio_resume_status,current_audio_resume_submit],queue=False).then(collect_operations_resume_review,[current_source_service,current_source_selected_id,current_source_state,current_source_table,current_audio_resume_token],current_audio_resume_result,queue=False,trigger_mode='multiple').then(render_operations_resume_review,[current_source_service,current_source_selected_id,current_source_state,current_source_table,current_audio_resume_token,current_audio_resume_result],[current_audio_resume_record,current_audio_resume_status,current_audio_resume_identifier],queue=False)
             from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
             from tools.review.ui.gradio.hermes_agent_app import match_hermes_confirmation_inputs
             bind_gpu_generation_confirmation(current_audio_resume_submit,submit_operations_audio_resume,[current_audio_resume_record,current_source_service,current_source_selected_id,current_source_state,current_source_table],[current_audio_resume_record,current_audio_resume_status],generation_readiness_callback=lambda current_record_value:bool(current_record_value),generation_readiness_inputs=[current_audio_resume_record],generation_readiness_events=[current_audio_resume_event],generation_confirmation_validator=match_hermes_confirmation_inputs,generation_confirmation_inputs=[current_audio_resume_record,current_source_service,current_source_selected_id,current_source_state,current_source_table])
-            current_audio_resume_receipt_button.click(read_operations_audio_resume_receipt,[current_audio_resume_identifier,current_source_service],[current_audio_resume_receipt_notice],queue=False)
+            current_audio_receipt_token=gr.State(None)
+            current_audio_receipt_result=gr.State(None)
+            current_audio_resume_receipt_button.click(create_cleanup_preview_token,outputs=current_audio_receipt_token,queue=False).then(collect_operations_resume_receipt,[current_audio_resume_identifier,current_source_service,current_audio_receipt_token],current_audio_receipt_result,queue=False,trigger_mode='multiple').then(render_operations_resume_receipt,[current_audio_resume_identifier,current_source_service,current_audio_receipt_token,current_audio_receipt_result],current_audio_resume_receipt_notice,queue=False)
+            def reset_operations_resume_receipt():
+                return create_cleanup_preview_token(),'접수 ID 또는 서비스가 바뀌었습니다. 다시 조회하세요.'
+            for current_receipt_control in (current_audio_resume_identifier,current_source_service):
+                current_receipt_control.change(reset_operations_resume_receipt,outputs=[current_audio_receipt_token,current_audio_resume_receipt_notice],queue=False)
+            current_audio_resume_identifier.input(reset_operations_resume_receipt,outputs=[current_audio_receipt_token,current_audio_resume_receipt_notice],queue=False)
+            def reset_operations_resume_review():
+                return None,'선택이나 검색 조건이 바뀌었습니다. 대상을 다시 검토하세요. 접수 ID 입력값은 유지되므로 조회할 서비스를 확인하세요.',create_cleanup_preview_token(),gr.update(interactive=False)
+            current_resume_reset_outputs=[current_audio_resume_record,current_audio_resume_status,current_audio_resume_token,current_audio_resume_submit]
             for current_audio_resume_control in (current_source_service,current_source_selected_id):
-                current_audio_resume_control.change(lambda:None,outputs=current_audio_resume_record,queue=False)
+                current_audio_resume_control.change(reset_operations_resume_review,outputs=current_resume_reset_outputs,queue=False)
             for current_audio_resume_button in (current_source_refresh,current_source_previous,current_source_next):
-                current_audio_resume_button.click(lambda:None,outputs=current_audio_resume_record,queue=False)
-            current_source_search.input(lambda:None,outputs=current_audio_resume_record,queue=False)
-            current_source_table.select(lambda:None,outputs=current_audio_resume_record,queue=False)
+                current_audio_resume_button.click(reset_operations_resume_review,outputs=current_resume_reset_outputs,queue=False)
+            current_source_search.input(reset_operations_resume_review,outputs=current_resume_reset_outputs,queue=False)
+            current_source_table.select(reset_operations_resume_review,outputs=current_resume_reset_outputs,queue=False)
         with gr.Accordion('GPU 대기열 관측',open=True):
             current_queue_notice=gr.Markdown()
             current_queue_table=gr.Dataframe(headers=['관측 순번','GPU 서비스','작업 ID','확인된 원 서비스','캡처 접수 ID'],datatype=['str']*5,interactive=False,type='array',label='현재 대기 기록')
             current_capture_queue_notice=gr.Markdown('캡처 대기 기록을 선택하면 접수 상태를 확인합니다.')
-            current_queue_table.select(read_operations_selected_capture_status,[current_queue_table],current_capture_queue_notice,queue=False)
-            current_queue_table.change(lambda:'캡처 대기 기록을 선택하면 접수 상태를 확인합니다.',outputs=current_capture_queue_notice,queue=False)
+            current_capture_target=gr.State(None)
+            current_capture_result=gr.State(None)
+            current_queue_table.select(select_operations_capture_target,[current_queue_table],[current_capture_target,current_capture_queue_notice],queue=False).then(collect_operations_capture_status,[current_capture_target],current_capture_result,queue=False,trigger_mode='multiple').then(render_operations_capture_status,[current_queue_table,current_capture_target,current_capture_result],current_capture_queue_notice,queue=False)
+            current_queue_table.change(lambda:(None,'캡처 대기 기록을 선택하면 접수 상태를 확인합니다.'),outputs=[current_capture_target,current_capture_queue_notice],queue=False)
             gr.Markdown('대기열은 실행 중 작업이나 전체 이력이 아닙니다. 예약과 GPU 프로세스는 상단의 GPU 정보에서 별도로 확인하세요.')
             gr.Markdown('대기 행을 선택하고 현재 상태를 검토한 뒤 우선 실행을 요청할 수 있습니다.')
             current_priority_target=gr.State(None)
@@ -1675,7 +1770,11 @@ def build_operations_history_interface():
             current_reservation_table.select(select_operations_reservation_target,[current_reservation_table],[current_reservation_link],queue=False)
             current_reservation_table.change(lambda:'',outputs=current_reservation_link,queue=False)
             current_reservation_table.select(select_operations_reservation_inspection,[current_reservation_table],[current_reservation_target,current_reservation_inspect_button,current_reservation_inspect_notice],queue=False)
-            current_reservation_inspect_button.click(inspect_operations_reservation_target,[current_reservation_target],[current_reservation_inspect_notice],queue=False)
+            current_reservation_inspect_token=gr.State(None)
+            current_reservation_inspect_result=gr.State(None)
+            current_reservation_inspect_button.click(create_cleanup_preview_token,outputs=current_reservation_inspect_token,queue=False).then(collect_operations_reservation_inspection,[current_reservation_target,current_reservation_inspect_token],current_reservation_inspect_result,queue=False,trigger_mode='multiple').then(render_operations_reservation_inspection,[current_reservation_target,current_reservation_inspect_token,current_reservation_inspect_result],current_reservation_inspect_notice,queue=False)
+            current_reservation_table.select(create_cleanup_preview_token,outputs=current_reservation_inspect_token,queue=False)
+            current_reservation_table.change(create_cleanup_preview_token,outputs=current_reservation_inspect_token,queue=False)
             current_reservation_table.change(lambda:(None,gr.update(interactive=False),'예약 행을 다시 선택하세요.'),outputs=[current_reservation_target,current_reservation_inspect_button,current_reservation_inspect_notice],queue=False)
             current_reservation_recovery_button.click(start_operations_reservation_review,outputs=[current_reservation_review_token,current_reservation_recovery_button,current_reservation_request,current_reservation_confirmation,current_reservation_outside_checked],queue=False).then(collect_operations_reservation_recovery,[current_reservation_target,current_reservation_review_token],[current_reservation_review_result],queue=False,trigger_mode='multiple').then(render_operations_reservation_recovery,[current_reservation_target,current_reservation_review_token,current_reservation_review_result],[current_reservation_request,current_reservation_recovery_notice,current_reservation_receipt_id,current_reservation_confirmation,current_reservation_outside_checked,current_reservation_recovery_button],queue=False)
             current_reservation_confirm.click(submit_operations_reservation_recovery,[current_reservation_request,current_reservation_target,current_reservation_outside_checked],[current_reservation_request,current_reservation_recovery_notice,current_reservation_confirmation],queue=False)

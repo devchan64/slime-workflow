@@ -5,7 +5,7 @@ import json
 import math
 import re
 from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists, read_bounded_delegation_record
 from tools.review.domains.hermes_agent.sprite_observer import validate_hermes_sprite_path, call_hermes_sprite_editor
 
 
@@ -183,7 +183,7 @@ def save_hermes_sprite_anchor_once(current_request_identifier,current_draft_reco
     with current_storage_value.hold_delegation_storage_lock():
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
         if check_delegation_record_exists(current_receipt_path):
-            current_receipt_record=json.loads(current_receipt_path.read_text(encoding='utf-8'))
+            current_receipt_record=read_bounded_delegation_record(current_receipt_path)
             current_result_record=inspect_hermes_sprite_receipt(current_receipt_record,current_request_identifier)
             if current_receipt_record.get('token')!=current_preview_token or current_receipt_record.get('review_sha256')!=current_review_digest:raise ValueError('같은 접수 ID를 다른 요청에 사용할 수 없습니다.')
             return {**current_result_record,'duplicate':True}
@@ -199,7 +199,7 @@ def save_hermes_sprite_anchor_once(current_request_identifier,current_draft_reco
         write_record_atomically(current_receipt_path,current_receipt_record)
         current_save_record=call_hermes_sprite_editor('sheet-update',current_update_payload)
         if not isinstance(current_save_record,dict) or current_save_record.get('path')!=current_draft_record['path'] or not isinstance(current_save_record.get('id'),str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_save_record['id']):raise ValueError('시트 저장 결과 확인 필요. 자동 재접수하지 않습니다.')
-        if json.loads(current_receipt_path.read_text(encoding='utf-8'))!=current_receipt_record:raise ValueError('저장 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재저장하지 마세요.')
+        if read_bounded_delegation_record(current_receipt_path)!=current_receipt_record:raise ValueError('저장 중 접수 기록이 변경됐습니다. 원본과 이력을 확인하고 자동 재저장하지 마세요.')
         current_receipt_record.update(state='completed',saved=True,job_id=current_save_record['id'])
         write_record_atomically(current_receipt_path,current_receipt_record)
         return {**inspect_hermes_sprite_receipt(current_receipt_record,current_request_identifier),'duplicate':False}
@@ -210,4 +210,4 @@ def read_hermes_sprite_anchor_receipt(current_request_identifier):
     with current_storage_value.hold_delegation_storage_lock():
         current_receipt_path=current_storage_value.resolve_delegation_record_path(current_request_identifier)
         if not check_delegation_record_exists(current_receipt_path):return {'state':'not_found'}
-        return inspect_hermes_sprite_receipt(json.loads(current_receipt_path.read_text(encoding='utf-8')),current_request_identifier)
+        return inspect_hermes_sprite_receipt(read_bounded_delegation_record(current_receipt_path),current_request_identifier)

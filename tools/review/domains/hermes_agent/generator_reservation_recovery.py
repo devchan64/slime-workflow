@@ -1,10 +1,9 @@
 """생성기 GPU 예약의 조건부 정리와 중복 방지 접수."""
-import json
 import os
 import re
 
 from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists
+from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists, read_bounded_delegation_record
 from tools.review.domains.hermes_agent.reservation_observer import find_generator_reservation_record, inspect_generator_reservation_record
 from tools.review.domains.hermes_agent.writer_reservation import hold_writer_reservation_queue_lock, is_writer_executor_definitely_absent
 
@@ -32,7 +31,7 @@ def recover_generator_reservation_once(current_request_identifier,current_servic
     with current_store_value.hold_delegation_storage_lock():
         current_receipt_path=current_store_value.resolve_delegation_record_path(current_request_identifier)
         if check_delegation_record_exists(current_receipt_path):
-            current_receipt_record=json.loads(current_receipt_path.read_text())
+            current_receipt_record=read_bounded_delegation_record(current_receipt_path)
             current_result_record=inspect_generator_recovery_receipt(current_receipt_record,current_request_identifier)
             if (current_receipt_record.get('service'),current_receipt_record.get('job_id'),current_receipt_record.get('review_sha256'))!=(current_service_name,current_job_identifier,current_review_digest):raise ValueError('같은 접수 ID를 다른 예약에 사용할 수 없습니다.')
             return {**current_result_record,'duplicate':True}
@@ -60,7 +59,7 @@ def recover_generator_reservation_once(current_request_identifier,current_servic
         if not is_writer_executor_definitely_absent(current_record_value['pid']):raise ValueError('실행기 부재를 확인할 수 없습니다. 예약을 유지합니다.')
         current_current_path.unlink()
     with current_store_value.hold_delegation_storage_lock():
-        current_receipt_record=json.loads(current_receipt_path.read_text())
+        current_receipt_record=read_bounded_delegation_record(current_receipt_path)
         current_expected_record={'version':13,'id':current_request_identifier,'service':current_service_name,'job_id':current_job_identifier,'review_sha256':current_review_digest,'state':'dispatching'}
         if current_receipt_record!=current_expected_record:raise ValueError('정리 접수 기록이 변경됐습니다. 결과를 확인하세요.')
         current_receipt_record['state']='completed'
@@ -73,4 +72,4 @@ def read_generator_recovery_receipt(current_request_identifier):
     with current_store_value.hold_delegation_storage_lock():
         current_receipt_path=current_store_value.resolve_delegation_record_path(current_request_identifier)
         if not check_delegation_record_exists(current_receipt_path):return {'state':'not_found'}
-        return inspect_generator_recovery_receipt(json.loads(current_receipt_path.read_text()),current_request_identifier)
+        return inspect_generator_recovery_receipt(read_bounded_delegation_record(current_receipt_path),current_request_identifier)
