@@ -1,5 +1,7 @@
 import React,{useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
+import GeneratorHistory from "./GeneratorHistory.jsx";
+import HistoryCleanup from "./HistoryCleanup.jsx";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
@@ -49,6 +51,28 @@ export default function VacePage(){
     }
     load();return ()=>{active=false;};
   },[revision]);
+  const [historyRevision,refreshHistory]=useState(0);
+  const [notice,setNotice]=useState("");
+  async function readJob(id){
+    const prefix="/management/assistant/vace-input/"+encodeURIComponent(id)+"/";
+    const response=await fetch(prefix+"request",{cache:"no-store"});
+    if(!response.ok)throw new Error("저장된 입력 사본을 확인할 수 없습니다.");
+    const record=await response.json();
+    const restored={};
+    for(const key of record.attachments){
+      const attachment=await fetch(prefix+key,{cache:"no-store"});
+      if(!attachment.ok)throw new Error("첨부 사본을 읽을 수 없습니다.");
+      const blob=await attachment.blob();
+      restored[key]=new File([blob],key+(key==="reference"?".png":".mp4"),{type:blob.type});
+    }
+    return {...record,files:restored};
+  }
+  function restore(request,record){
+    setValues({...request});setFiles(record.files);setJob(record.id);setPending(null);
+    setNotice(record.id+" 입력을 복원했습니다.");
+    refreshHistory(n=>n+1);
+  }
+  function cleaned(message){setJob("");setNotice(message);refreshHistory(n=>n+1);}
   function field(key,value){setValues(old=>({...old,[key]:value}));}
   const attachments=videoFields[values?.mode] || [];
   async function review(event){
@@ -79,8 +103,8 @@ export default function VacePage(){
       <p style={{whiteSpace:"pre-line"}}>{template.modes.find(m=>m.id===values.mode)?.help.replaceAll("**","")}</p>
       {Object.entries({reference:"참조 또는 첫 프레임 이미지",...labels}).map(([key,label])=>{
         const visible=key==="reference"?values.mode!=="text":attachments.includes(key);
-        return <div key={key} hidden={!visible}><label>{label}<input type="file" accept={key==="reference"?"image/*":"video/mp4"} required={visible} disabled={!visible}
-          onChange={e=>setFiles({...files,[key]:e.target.files[0]})}/></label></div>;
+        return <div key={key} hidden={!visible}><label>{label}<input key={historyRevision} type="file" accept={key==="reference"?"image/*":"video/mp4"} required={visible && !files[key]} disabled={!visible}
+          onChange={e=>setFiles({...files,[key]:e.target.files[0]})}/>{files[key]?.name}</label></div>;
       })}
       {["prompt","negative_prompt"].map(key=>{
         const words=values[key].trim().split(/\s+/).filter(Boolean).length;
@@ -93,6 +117,10 @@ export default function VacePage(){
     </fieldset></form>}
     {pending && <section><GpuQueueSummary/><p>{pending.mode} · {pending.frames}프레임 · 시드 {pending.seed}</p>
       <button onClick={()=>setPending(null)}>취소</button><button onClick={submit}>확인 후 대기열에 추가</button></section>}
-    {job && <MediaJobResult key={job} service={service} id={job}/>}
+    <fieldset disabled={busy || !!pending}><GeneratorHistory key={historyRevision} service={service} readJob={readJob} openResult={setJob} restore={restore}/></fieldset>
+    {notice && <p role="status">{notice}</p>}
+    {job ? <MediaJobResult key={job} service={service} id={job}>
+      {record=><HistoryCleanup key={record?.status} service={service} job={job} state={record?.status} onDeleted={cleaned}/>}
+    </MediaJobResult> : <HistoryCleanup service={service} onDeleted={cleaned}/>}
   </article>;
 }

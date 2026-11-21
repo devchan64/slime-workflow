@@ -653,6 +653,39 @@ def build_management_application(current_handler_class, current_root_path, curre
         prefix = "/management/assistant/animate-input/" + job
         return {"id":job, "request":fields, "reference":prefix+"/reference", "motion":prefix+"/motion"}
 
+    @current_root_application.get('/management/assistant/vace-input/{job}/{part}')
+    def vace_input(job: str, part: str):
+        from generators.wan_vace.contracts import VACE_JOB_STORAGE, VACE_DEFAULT_SETTINGS
+        from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+        if not validate_service_job_identifier('wan22-vace', job):
+            return Response(status_code=404)
+        directory = VACE_JOB_STORAGE / job
+        metadata = directory / 'request.json'
+        if directory.is_symlink() or metadata.is_symlink() or not metadata.is_file():
+            return Response(status_code=404)
+        try:
+            request = json.loads(metadata.read_bytes())
+            fields = {key:request[key] for key in (*VACE_DEFAULT_SETTINGS, 'prompt', 'negative_prompt')}
+            mode = fields['mode']
+            names = {} if mode == 'text' else {'reference':'reference-1.png'}
+            if mode == 'pose':
+                names['pose_video'] = 'pose-video.mp4'
+            if mode in ('video_edit','video_condition'):
+                names['edit_video'] = 'edit-video.mp4'
+            if mode == 'video_edit':
+                names['edit_mask'] = 'edit-mask.mp4'
+            if request['references'] != ([names['reference']] if 'reference' in names else []):
+                raise ValueError('참조 사본 불일치')
+        except (ValueError, OSError, TypeError, KeyError):
+            return Response(status_code=422)
+        if any((directory/name).is_symlink() or not (directory/name).is_file() for name in names.values()):
+            return Response(status_code=404)
+        if part == 'request':
+            return {'id':job, 'request':fields, 'attachments':list(names)}
+        if part not in names:
+            return Response(status_code=404)
+        return FileResponse(directory/names[part], media_type='image/png' if part=='reference' else 'video/mp4')
+
     @current_root_application.get('/management/assistant/vace-template')
     def vace_template():
         from generators.wan_vace.contracts import VACE_DEFAULT_SETTINGS, VACE_MAXIMUM_SEED_VALUE
