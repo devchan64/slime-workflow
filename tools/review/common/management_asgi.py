@@ -973,6 +973,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/wan22-vace-generator/')
     @current_root_application.get('/management/frame/wan22-fun-control-generator')
     @current_root_application.get('/management/frame/wan22-fun-control-generator/')
+    @current_root_application.get('/management/assistant/field-map/')
     @current_root_application.get('/management/assistant/town-map/')
     @current_root_application.get('/management/assistant/battlefield/')
     @current_root_application.get('/management/assistant/fun-control/')
