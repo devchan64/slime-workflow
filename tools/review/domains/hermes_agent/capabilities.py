@@ -32,6 +32,9 @@ HERMES_CAPABILITY_RECORDS = (
     {'command': 'hermes-workflow-catalog', 'label': '워크플로우 생성기 계약', 'required': [], 'optional': [], 'effect': 'read', 'gpu': 'none', 'retry': 'safe', 'interfaces': [], 'result': 'workflow_catalog', 'note': '지원하는 생성기의 입력과 출력을 조회한다.'},
     {'command': 'hermes-workflow-register', 'label': '워크플로우 실행 등록', 'required': ['session_id', 'run_id', 'steps'], 'optional': [], 'effect': 'enqueue', 'gpu': 'queued', 'retry': 'request_id', 'interfaces': ['gui'], 'result': 'workflow_register', 'note': '검토한 실행 ID와 단계 정의를 고정하고 준비된 단계를 GPU 대기열에 접수한다.'},
     {'command': 'hermes-workflow-draft-read', 'label': '대화별 워크플로우 초안 조회', 'required': ['session_id'], 'optional': [], 'effect': 'read', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_draft', 'note': '세션의 편집 내용과 리비전을 읽는다.'},
+    {'command': 'hermes-form-list', 'label': '세션 폼 목록', 'required': ['session_id'], 'optional': [], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'session_form', 'note': '대화 세션별 입력 폼과 버전 이력 관리'},
+    {'command': 'hermes-form-read', 'label': '폼 버전 불러오기', 'required': ['session_id', 'form_id', 'form_version'], 'optional': [], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'session_form', 'note': '대화 세션별 입력 폼과 버전 이력 관리'},
+    {'command': 'hermes-form-save', 'label': '폼 버전 저장', 'required': ['session_id', 'form_id', 'form_version', 'form_name', 'definition_text'], 'optional': ['copied_from'], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'session_form', 'note': '대화 세션별 입력 폼과 버전 이력 관리'},
     {'command': 'hermes-workflow-draft-save', 'label': '대화별 워크플로우 초안 저장', 'required': ['session_id', 'revision', 'definition_text'], 'optional': [], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_draft', 'note': '같은 리비전의 편집 내용을 실행 전 초안에 저장한다.'},
     {'command': 'hermes-workflow-retry', 'label': '실패 단계 재시도', 'required': ['session_id', 'run_id', 'step_id', 'source_request'], 'optional': [], 'effect': 'enqueue', 'gpu': 'queued', 'retry': 'request_id', 'interfaces': ['gui'], 'result': 'workflow_view', 'note': '선택한 원 시도의 입력으로 단일 단계 실행을 등록한다.'},
     {'command': 'hermes-workflow-image-preview', 'label': '보존된 이미지 미리보기', 'required': ['session_id', 'run_id', 'step_id'], 'optional': [], 'effect': 'read', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_image_preview', 'note': '세션별 실행에 보존한 PNG를 검증하고 축소해 표시한다.'},
@@ -178,6 +181,10 @@ HERMES_CAPABILITY_RECORDS = (
 
 
 HERMES_FIELD_SCHEMAS = {
+    'form_id': {'type':'string','pattern':'^[a-f0-9]{32}$'},
+    'form_version': {'type':'integer','minimum':0},
+    'form_name': {'type':'string','minLength':1,'maxLength':120},
+    'copied_from': {'type':'object','required':['form_id','form_version'],'properties':{'form_id':{'type':'string','pattern':'^[a-f0-9]{32}$'},'form_version':{'type':'integer','minimum':1}},'additionalProperties':False},
     'definition_text': {'type':'string','maxLength':500000},
     'search_filters': {'type':'object','properties':{name: {'type':'string'} for name in
                        ('generator','run_id','job_id','created_from','created_through')},'additionalProperties':False},

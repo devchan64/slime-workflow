@@ -376,6 +376,54 @@ def switch_workflow_draft_session(current_session_identifier, previous_session_i
     return current_session_identifier, "", None, ""
 
 
+def build_session_form_library(session, definition_editor):
+    with gr.Accordion("이 대화의 입력 폼 목록", open=False):
+        versions = gr.Dropdown(label="저장된 폼과 버전", choices=[], interactive=True)
+        name = gr.Textbox(label="폼 이름")
+        loaded = gr.State(None)
+        notice = gr.Markdown()
+
+        def list_versions(session_id):
+            library = execute_remote_management_command("hermes-agent", "hermes-form-list", {"session_id": session_id})
+            choices = [(f"{entry['name']} · v{entry['version']} · {form_id[:8]}", f"{form_id}/{entry['version']}")
+                       for form_id, entries in library["forms"].items() for entry in reversed(entries)]
+            return gr.update(choices=choices, value=None)
+
+        def load_version(session_id, selection):
+            if not selection:
+                raise gr.Error("불러올 폼 버전을 선택하세요.")
+            form_id, version = selection.split("/")
+            ref = {"session_id": session_id, "form_id": form_id, "form_version": int(version)}
+            record = execute_remote_management_command("hermes-agent", "hermes-form-read", ref)
+            return record["definition_text"], record["entry"]["name"], ref, "선택한 버전을 편집 초안에 불러왔습니다."
+
+        def save_version(session_id, title, definition, reference, copy_version=False):
+            if reference and reference["session_id"] != session_id:
+                raise gr.Error("현재 세션의 폼을 다시 선택하세요.")
+            if copy_version and not reference:
+                raise gr.Error("먼저 복사할 폼 버전을 불러오세요.")
+            payload = {"session_id": session_id, "form_name": title, "definition_text": definition}
+            if copy_version or not reference:
+                payload.update(form_id=uuid.uuid4().hex, form_version=0)
+                if copy_version:
+                    payload["copied_from"] = {key: reference[key] for key in ("form_id", "form_version")}
+            else:
+                payload.update(reference)
+            saved = execute_remote_management_command("hermes-agent", "hermes-form-save", payload)
+            version = saved["entry"]["version"]
+            current = {"session_id": session_id, "form_id": saved["form_id"], "form_version": version}
+            return current, f"{saved['entry']['name']} · v{version} 저장됨"
+
+        gr.Button("폼 목록 조회").click(list_versions, session, versions, queue=False)
+        gr.Button("선택한 버전으로 초안 교체").click(load_version, [session, versions],
+            [definition_editor, name, loaded, notice], queue=False)
+        inputs = [session, name, definition_editor, loaded]
+        for label, callback in (("현재 입력을 버전으로 저장", save_version),
+                                ("별도 폼으로 복사", lambda s, n, d, r: save_version(s, n, d, r, True))):
+            gr.Button(label).click(callback, inputs, [loaded, notice], queue=False).success(list_versions, session, versions, queue=False)
+        session.change(lambda: (gr.update(choices=[], value=None), "", None, ""), outputs=[versions, name, loaded, notice], queue=False)
+
+
 def load_session_workflow_draft(current_session_identifier):
     stored_draft_record = execute_remote_management_command("hermes-agent", "hermes-workflow-draft-read",
                                                            {"session_id": current_session_identifier})
@@ -5284,6 +5332,7 @@ def build_hermes_agent_interface(include_advanced_controls=True, current_source_
                     workflow_load_proposal.click(load_conversation_workflow_definition, [hermes_session_control, hermes_session_job_selection], workflow_definition_text, queue=False)
                     gr.Button("요청 입력에 현재 초안 첨부").click(prepare_workflow_revision_message,
                         [hermes_session_control, workflow_definition_text, hermes_session_prompt], hermes_session_prompt, queue=False)
+                    build_session_form_library(hermes_session_control, workflow_definition_text)
                     workflow_draft_revision = gr.State(None)
                     workflow_draft_notice = gr.Markdown()
                     draft_load_event = gr.Button("저장된 초안 불러오기").click(load_session_workflow_draft, hermes_session_control,

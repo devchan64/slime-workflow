@@ -7,6 +7,19 @@ from .workflow_run_store import WorkflowRunStore
 
 
 def execute_workflow_command(workflow_root_directory, current_command_name, current_payload_record):
+    if current_command_name in ("hermes-form-list", "hermes-form-read", "hermes-form-save"):
+        from .form_library import execute_form_library
+        operation = current_command_name.removeprefix("hermes-form-")
+        fields = {"session_id"}
+        if operation != "list":
+            fields.update(("form_id", "form_version"))
+        if operation == "save":
+            fields.update(("form_name", "definition_text"))
+            if "copied_from" in current_payload_record:
+                fields.add("copied_from")
+        if fields != current_payload_record.keys():
+            raise ValueError("폼 목록 명령 필드를 확인하세요.")
+        return execute_form_library(workflow_root_directory / ".local" / "hermes-workflows", operation, current_payload_record)
     if current_command_name == "hermes-workflow-catalog":
         if current_payload_record:
             raise ValueError("카탈로그 조회에는 입력이 필요하지 않습니다.")
