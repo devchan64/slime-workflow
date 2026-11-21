@@ -90,7 +90,7 @@ export default function KimodoGeneration({session}){
         <button onClick={()=>{setPlacement(null);setReview(null);setPlacing(false);}}>배치 해제</button></>}
       {placing && <><label>키프레임 검색 <input value={search} onChange={e=>setSearch(e.target.value)}/></label>
         <KeyframeCatalog query={search} initialFrames={inputs.frames} initialRows={placement?.placements || []}
-          apply={(frames,result)=>{setPlacement(result);setInputs({...inputs,frames,post_processing:true});setReview(null);setPlacing(false);}}/></>}
+          apply={(frames,result)=>{setPlacement(result);setInputs({...inputs,frames,post_processing:true,remove_horizontal_motion:false});setReview(null);setPlacing(false);}}/></>}
     </fieldset>}
     {inputs && <form onSubmit={e=>{e.preventDefault();perform(inspect);}}><fieldset disabled={busy}>
       <label>동작 설명 <textarea required maxLength={2000} value={inputs.prompt} onChange={e=>edit("prompt",e.target.value)}/></label>
@@ -127,7 +127,8 @@ export default function KimodoGeneration({session}){
           onChange={e=>edit("openpose_scale_percent",e.target.value)}/></label>
         {[["post_processing","공식 후처리"],["remove_horizontal_motion","수평 이동 제거"],["pose_include_hands","손 포즈 포함"],
           ["pose_include_face","얼굴 포즈 포함"]].map(([field,label])=>
-          <label key={field}><input type="checkbox" checked={inputs[field]} onChange={e=>edit(field,e.target.checked)}/>{label}</label>)}
+          <label key={field}><input type="checkbox" disabled={Boolean(placement) && ["post_processing","remove_horizontal_motion"].includes(field)} checked={inputs[field]} onChange={e=>edit(field,e.target.checked)}/>{label}</label>)}
+        {placement && <p>키프레임 좌표를 유지하기 위해 공식 후처리를 켜고 수평 이동 제거를 끕니다.</p>}
       </details>
       <button>생성 요청 검토</button>
     </fieldset></form>}
