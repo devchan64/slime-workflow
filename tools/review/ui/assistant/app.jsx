@@ -4,6 +4,7 @@ import DwposePage from "./DwposePage.jsx";
 import AnimateMockPage from "./AnimateMockPage.jsx";
 import MockProgress from "./MockProgress.jsx";
 import SourceHistory from "./SourceHistory.jsx";
+import ExpressionCatalog from "./ExpressionCatalog.jsx";
 import AnchorHistory from "./AnchorHistory.jsx";
 import ServiceRegistry from "./ServiceRegistry.jsx";
 import OperationsJobs from "./OperationsJobs.jsx";
@@ -181,6 +182,7 @@ function App() {
   const [showForms,setShowForms]=useState(false);
   const [showGpu,setShowGpu]=useState(false);
   const [searchMode,setSearchMode]=useState(()=>query().get("panel")==="jobs"?"jobs":"tools");
+  const appendSelection=(label,id)=>{edit([draft,label+" "+id].filter(Boolean).join("\n"));setShowTools(false);text.current.focus();};
   function chooseTool(label,identifier) {
     edit([draft,"사용할 도구: "+label+" ("+identifier+")\n"].filter(Boolean).join("\n"));
     setShowTools(false);
@@ -223,12 +225,14 @@ function App() {
       <input ref={toolSearch} aria-label="도구 검색" maxLength={100} placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>
       <button aria-expanded={searchMode==="capabilities"} onClick={()=>setSearchMode(searchMode==="capabilities"?"tools":"capabilities")}>관리 기능 검색</button>
       <button aria-expanded={searchMode==="anchors"} onClick={()=>setSearchMode(searchMode==="anchors"?"tools":"anchors")}>앵커 검수 이력</button>
+      <button aria-expanded={searchMode==="expressions"} onClick={()=>setSearchMode(searchMode==="expressions"?"tools":"expressions")}>표정 프리셋</button>
+      {searchMode==="expressions" && <ExpressionCatalog key={search} query={search} choose={appendSelection}/>}
       {searchMode==="anchors" && <AnchorHistory/>}
       <button aria-expanded={searchMode==="services"} onClick={()=>setSearchMode(searchMode==="services"?"tools":"services")}>서비스 등록 목록</button>
       <button aria-expanded={searchMode==="history"} onClick={()=>setSearchMode(searchMode==="history"?"tools":"history")}>생성 이력</button>
       <button aria-expanded={searchMode==="jobs"} onClick={()=>setSearchMode(searchMode==="jobs"?"tools":"jobs")}>운영 작업 이력</button>
       {searchMode==="jobs" && <OperationsJobs key={session+":"+(query().get("job") || "")} session={session} linkedJob={query().get("panel")==="jobs"?query().get("job"):null}/>}
-      {searchMode==="history" && <SourceHistory session={session} choose={(label,id)=>{edit([draft,label+" "+id].filter(Boolean).join("\n"));setShowTools(false);text.current.focus();}}/>}
+      {searchMode==="history" && <SourceHistory session={session} choose={appendSelection}/>}
       {searchMode==="services" && <ServiceRegistry key={search} query={search}/>}
       {searchMode==="capabilities" && <CapabilitySearch search={search} choose={chooseTool}/>}
       {searchMode==="tools" && <label>도구 분류 <select value={category} onChange={e=>changeCategory(e.target.value)}>
