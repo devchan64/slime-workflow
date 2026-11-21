@@ -35,3 +35,6 @@ article {position:relative;}
 }
 
 .tool-panel-heading {position:sticky;top:-1rem;z-index:1;display:flex;align-items:center;justify-content:space-between;background:#202326;padding-block:.35rem}
+
+#gpu-panel summary {cursor:pointer;padding-block:.25rem;color:inherit;overflow-wrap:anywhere}
+#gpu-panel details > :not(summary) {margin-inline-start:.7rem;padding-inline-start:.55rem;border-inline-start:1px solid #484d50;overflow-wrap:anywhere}

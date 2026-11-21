@@ -30,20 +30,27 @@ export default function GpuPanel() {
     try {await navigator.clipboard.writeText(id);setCopyNotice("복사됨 · " + id);}
     catch {setCopyNotice("작업 ID를 선택해 복사하세요.");}
   }
+  const processes = status?.processes || [];
+  const domains = ["vram","gtt"].filter(domain=>status?.[domain+"_total_mib"] != null);
   return <section id="gpu-panel" className="floating-panel" aria-label="GPU 프로세스 정보">
     <h2>GPU 프로세스 정보</h2>
     {error && <p role="alert">{error}</p>}
     {!status && !error && <p>조회 중…</p>}
     {status && <>
       <p>{{busy:"GPU 사용 중",idle:"실행 중인 GPU 작업 없음"}[status.status] || "GPU 상태 확인 불가"}</p>
-      {["vram","gtt"].filter(domain=>status[domain+"_total_mib"] != null).map(domain=>
-        <p key={domain}>{domain.toUpperCase()} · 사용 {memory(status[domain+"_used_mib"])} · 여유 {memory(status[domain+"_free_mib"])} · 총 {memory(status[domain+"_total_mib"])}</p>)}
-      {(status.processes || []).map((process,index)=><section key={process.pid ?? index}>
-        <strong>{process.command || "외부 GPU 작업"} · PID {process.pid ?? "?"}</strong>
-        {process.gpu_parent_pid && <p>부모 PID {process.gpu_parent_pid}</p>}
-        <p>VRAM {memory(process.vram_memory_mib)} · GTT {memory(process.gtt_memory_mib)}</p>
-        {process.id && <p><code>{process.id}</code> <button onClick={()=>copy(process.id)}>작업 ID 복사</button></p>}
-      </section>)}
+      <details><summary>메모리</summary>
+        {domains.length===0 && <p>측정된 메모리 정보 없음</p>}
+        {domains.map(domain=><p key={domain}>{domain.toUpperCase()} · 사용 {memory(status[domain+"_used_mib"])} · 여유 {memory(status[domain+"_free_mib"])} · 총 {memory(status[domain+"_total_mib"])}</p>)}
+      </details>
+      <details><summary>프로세스 · {processes.length}개</summary>
+        {processes.length===0 && <p>조회된 프로세스 없음</p>}
+        {processes.map((process,index)=><details key={process.pid ?? process.id ?? index}>
+          <summary>{process.command || "외부 GPU 작업"} · PID {process.pid ?? "?"}</summary>
+          {process.gpu_parent_pid && <p>부모 PID {process.gpu_parent_pid}</p>}
+          <p>VRAM {memory(process.vram_memory_mib)} · GTT {memory(process.gtt_memory_mib)}</p>
+          {process.id && <p><code>{process.id}</code> <button onClick={()=>copy(process.id)}>작업 ID 복사</button></p>}
+        </details>)}
+      </details>
       <p role="status">{copyNotice}</p>
     </>}
   </section>;
