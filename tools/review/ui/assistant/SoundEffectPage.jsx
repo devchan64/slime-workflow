@@ -1,3 +1,4 @@
+import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import HistoryCleanup from "./HistoryCleanup.jsx";
 import React,{useEffect,useRef,useState} from "react";
@@ -28,6 +29,11 @@ export default function SoundEffectPage(){
   }
   useEffect(()=>{
     const controller=new AbortController();
+    if(!new URLSearchParams(location.search).get("job")){
+      managementCommand(service,"active",{}).then(result=>{
+        if(!controller.signal.aborted && result.id)setJob(current=>current || result.id);
+      }).catch(error=>{if(!controller.signal.aborted)setNotice("진행 작업 조회 실패 · "+error.message);});
+    }
     fetch(formPath,{signal:controller.signal}).then(response=>{
       if(!response.ok)throw new Error("기본 입력을 불러올 수 없습니다.");
       return response.json();
@@ -75,7 +81,10 @@ export default function SoundEffectPage(){
       <button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button></section>}
     {notice && <p role="status">{notice}</p>}
     {job ? <MediaJobResult key={job} kind="audio" service={service} id={job}>
-      {record=><HistoryCleanup key={record?.status || ""} service={service} job={job} state={record?.status} onDeleted={cleaned}/>}
+      {(record,refresh)=><React.Fragment key={record?.status || ""}>
+        {record && <GeneratorJobControls service={service} id={job} state={record.status} refresh={refresh}/>}
+        <HistoryCleanup service={service} job={job} state={record?.status} onDeleted={cleaned}/>
+      </React.Fragment>}
     </MediaJobResult> : <HistoryCleanup service={service} onDeleted={cleaned}/>}
   </article>;
 }

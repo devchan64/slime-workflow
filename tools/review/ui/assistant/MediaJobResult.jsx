@@ -34,7 +34,7 @@ export default function MediaJobResult({service,id,kind="video",children}) {
       </>}
       {(job.result_status==="unavailable" || job.file_observation==="unavailable") && <p>완료 기록의 결과 파일을 확인할 수 없습니다.</p>}
     </> : !error && <p>결과 조회 중…</p>}
-    {children?.(job)}
+    {children?.(job,()=>refresh(value=>value+1))}
     <button onClick={()=>refresh(value=>value+1)}>결과 새로고침</button>
   </section>;
 }

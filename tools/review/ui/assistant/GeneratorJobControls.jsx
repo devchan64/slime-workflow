@@ -17,6 +17,10 @@ export default function GeneratorJobControls({service,id,state,refresh}) {
     if(checked.id!==id || checked.service!==service || checked.status!==state ||
         !/^[a-f0-9]{64}$/.test(checked.expected_resume_fingerprint))
       throw new Error("검토한 작업과 상태가 일치하지 않습니다. 상태를 갱신하세요.");
+    if(checked.resume_availability && checked.resume_availability!=="available"){
+      const reasons={download_running:"모델 다운로드가 진행 중입니다.",other_preparation:"다른 모델 준비 작업이 진행 중입니다."};
+      throw new Error(reasons[checked.resume_availability] || "재개 가능 상태를 확인할 수 없습니다.");
+    }
     setReview({command:"resume",payload:{id,expected_resume_fingerprint:checked.expected_resume_fingerprint}});
   }
   async function confirm() {
