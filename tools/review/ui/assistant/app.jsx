@@ -239,7 +239,7 @@ function App() {
       {searchMode==="expressions" && <ExpressionCatalog key={search} query={search} choose={appendSelection}/>}
       {searchMode==="anchors" && <AnchorHistory/>}
       <button aria-expanded={searchMode==="keyframes"} onClick={()=>setSearchMode(searchMode==="keyframes"?"tools":"keyframes")}>Kimodo 키프레임</button>
-      {searchMode==="keyframes" && <KeyframeCatalog key={search} query={search} choose={appendSelection}/>}
+      {searchMode==="keyframes" && <KeyframeCatalog query={search} choose={appendSelection}/>}
       <button aria-expanded={searchMode==="content"} onClick={()=>setSearchMode(searchMode==="content"?"tools":"content")}>콘텐츠 DB 상태</button>
       {searchMode==="content" && <ContentDatabaseStatus/>}
       <button aria-expanded={searchMode==="services"} onClick={()=>setSearchMode(searchMode==="services"?"tools":"services")}>서비스 등록 목록</button>
