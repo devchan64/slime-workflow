@@ -80,6 +80,14 @@ GUI와 CLI는 공용 명령 게이트웨이, 작업 서비스, GPU 대기열과 
 
 `management` 준비는 모델·GPU 런타임이나 프론트엔드를 설치하지 않는다. GUI 전체와 개별 생성기의 사용 가능 여부는 따로 확인해야 한다. 기존 `setup_management.sh`와 인자 없는 `workflow.sh setup`은 호환을 위해 이전처럼 이미지 환경·관리 환경·렌더러를 함께 준비한다. `image`는 Linux x86_64 Python 3.14, gfx1151과 ROCm 등 기존 제한을 적용하며 FLUX 및 기존 이미지 API import를 확인한다. 실행 중단된 생성기의 지원을 의미하지 않는다. 모델 명령은 기존 서비스의 `prepare` 또는 `download-model`을 호출하며 서비스에 따라 준비 범위가 다르다. 목록은 등록된 명령을 표시할 뿐 실제 사용 가능성을 보장하지 않는다. `prepare: null`과 Qwen 전용 `qwen_archived` 표기를 확인하고, 다른 서비스의 중단·제한과 모델 상태·실행 환경 준비는 해당 안내에서 확인한다. Hermes 실행에는 별도의 모델과 작가 AI ROCm 서버 준비도 필요하다. 생성기별 모델 준비는 기존 모델 관리·해당 사용 안내를 따른다. `gui`와 `gateway` 명령도 새 진입점에서 사용할 수 있으며 기존 스크립트와 서비스 수명은 유지된다. `--module`과 명시적 `--all`도 기존 검사 실행기에 전달된다.
 
+## Docker 전체 회귀
+
+저장소 루트에서 `./scripts/workflow.sh test --all`을 실행하면 전체 회귀 작업을 접수하고 JSON으로 `run_id`와 `report_path`를 즉시 반환한다. Docker 이미지 준비와 테스트는 호출 터미널과 독립적으로 실행된다. 첫 이미지 준비에는 Docker 데몬과 패키지 레지스트리 연결이 필요하다.
+
+`./scripts/workflow.sh test result <run_id>`로 상태를 확인한다. `queued`와 `running`은 진행 중, `passed`와 `failed`는 테스트 완료, `error`는 실행 또는 집계 오류다. 완료된 작업을 조회하면 테스트 종료 코드를 반환한다. 실행별 `.tmp/test/docker-audit/<run_id>/`에 최종 보고서와 Docker 로그를 보존하고, 테스트가 집계되면 `artifacts/`에 JUnit, 상세 로그, 요약과 종료 코드를 남긴다.
+
+작업자는 인접한 네 저장소에서 Git 추적 파일과 ignore 대상이 아닌 신규 파일의 작업 사본을 만들고 컨테이너에서 검사한다. 모델 캐시와 호스트 가상환경은 복사하지 않는다. 선별 검사는 기존 `test --module`과 `test --group`을 사용한다.
+
 ## 주요 기능
 
 - **이미지**: [FLUX 이미지 생성기](docs/flux-image-generators.md)는 일반 이미지, 캐릭터, 마네킨, 빌보드, 소품, 식생, 건물, 심리스 타일과 표정 작업을 다룬다. 생성 결과의 품질과 반복 경계는 직접 검수한다.

@@ -12,7 +12,7 @@ MANAGEMENT_AUDIT_MODULES = tuple('workflow.tests.' + current_module_name for cur
     'test_reference_restore', 'test_reference_video_resume_validation', 'test_dwpose_generation', 'test_video_job_recovery', 'test_kimodo_generation', 'test_kimodo_dwpose', 'test_kimodo_migraphx_build', 'test_kimodo_readiness', 'test_hymotion_retirement',
     'test_content_launch_config', 'test_gateway_existing_process', 'test_gateway_trace', 'test_gateway_watch',
     'test_review_startup', 'test_review_startup_menu', 'test_review_watch', 'test_management_menu_offline',
-    'test_regression_runner', 'test_management_browser_scripts', 'test_landmarks_retirement', 'test_host_memory_guard',
+    'test_regression_runner', 'test_docker_audit', 'test_management_browser_scripts', 'test_landmarks_retirement', 'test_host_memory_guard',
     'test_gpu_confirmation', 'test_browser_gpu_confirmation', 'test_history_thumbnail_loading',
     'test_generation_status_display', 'test_generation_status_lookup', 'test_generation_estimates',
     'test_generation_cleanup', 'test_queue_generation_telemetry', 'test_generation_history', 'test_gpu_queue_priority',
@@ -37,7 +37,7 @@ MANAGEMENT_AUDIT_GROUPS = {
 
 
 def run_management_audit_cli(audit_argument_values=None):
-    current_argument_parser = argparse.ArgumentParser(description=__doc__)
+    current_argument_parser = argparse.ArgumentParser(description=__doc__, epilog='workflow.sh test --all은 Docker 작업을 접수합니다. workflow.sh test result RUN_ID로 결과를 조회하세요.')
     current_scope_group = current_argument_parser.add_mutually_exclusive_group(required=True)
     current_scope_group.add_argument('--module', action='append', metavar='MODULE', help='등록된 테스트 모듈. 여러 모듈은 반복 지정하며 --list-all로 확인합니다.')
     current_scope_group.add_argument('--group', choices=tuple(MANAGEMENT_AUDIT_GROUPS), help='등록된 영역 검사')

@@ -111,6 +111,14 @@ def run_management_launcher(command_argument_values=None):
         current_script_path = WORKFLOW_ROOT_DIRECTORY / LAUNCHER_MODE_SCRIPT_PATHS[launcher_argument_values.mode]
         return subprocess.run([sys.executable, '-I', '-S', '-B', str(current_script_path), *launcher_argument_values.arguments], check=False).returncode
     if launcher_argument_values.mode == 'test':
+        if launcher_argument_values.arguments == ['--all']:
+            from workflow.tests.docker_audit import submit
+            return submit()
+        if launcher_argument_values.arguments[:1] == ['result']:
+            if len(launcher_argument_values.arguments) != 2:
+                launcher_argument_parser.error('workflow test result RUN_ID')
+            from workflow.tests.docker_audit import result
+            return result(launcher_argument_values.arguments[1])
         if (launcher_argument_values.arguments in (['-h'], ['--help'], ['--list-all']) or
                 len(launcher_argument_values.arguments) == 2 and launcher_argument_values.arguments[0] == '--list-group'):
             from workflow.tests.run_management_audit import run_management_audit_cli
