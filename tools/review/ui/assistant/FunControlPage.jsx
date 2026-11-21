@@ -50,6 +50,19 @@ export default function FunControlPage(){
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
   }
+  const settings=[
+    ["frames","프레임 수",5,template?.maximum_frames,4],
+    ["steps","스텝",2,100,1],
+    ["seed","시드",0,template?.maximum_seed,1],
+    ["flow_shift","Flow shift",0.1,20,"any"],
+    ["guidance_scale","Guidance scale",1,10,"any"],
+    ["switch_ratio","모델 전환 비율",0.1,0.9,"any"],
+  ];
+  function review(event){
+    event.preventDefault();
+    const values=Object.fromEntries(settings.map(([key])=>[key,Number(request[key])]));
+    setPending({...request,...values});
+  }
   return <article><h1>Wan Fun Control 영상 생성</h1><GeneratorChangelog generator="wan22-fun-control-generator"/>
     <fieldset disabled={busy || !!pending}><legend>제작 예제</legend>
       <label>예제 선택<select value={selected} onChange={event=>select(event.target.value)}>
@@ -57,16 +70,20 @@ export default function FunControlPage(){
       <button disabled={!selected} onClick={load}>선택한 예제로 입력 교체</button>
     </fieldset>
     {error && <p role="alert">{error}</p>}
-    {request && <fieldset disabled={busy || !!pending}><legend>생성 입력</legend>
+    {request && <form onSubmit={review}><fieldset disabled={busy || !!pending}><legend>생성 입력</legend>
       <label>외형 참조 이미지<input type="file" accept="image/*" onChange={event=>attach(event.target.files[0],"images")}/></label>
       <label>입력 포즈 영상<input type="file" accept="video/mp4" onChange={event=>attach(event.target.files[0],"pose_video")}/></label>
       {request.images[0] && <img alt="외형 참조 이미지" style={{maxWidth:"100%"}} src={"data:image/png;base64,"+request.images[0]}/>}
       {request.pose_video && <video controls loop playsInline preload="metadata" aria-label="입력 포즈 영상" src={"data:video/mp4;base64,"+request.pose_video}/>}
       {["prompt","negative_prompt"].map(field=><label key={field}>{field==="prompt"?"동작 프롬프트":"부정 프롬프트"}
         <textarea value={request[field]} onChange={event=>setRequest({...request,[field]:event.target.value})}/></label>)}
-      <p>{request.frames}프레임 · 16fps · {request.steps}스텝 · 시드 {request.seed}</p>
-      <button disabled={!request.prompt.trim() || !request.images[0] || !request.pose_video} onClick={()=>setPending(request)}>대기열에 추가</button>
-    </fieldset>}
+      <label>모델<select value={request.model_profile || "wan22-14b"} onChange={event=>setRequest({...request,model_profile:event.target.value})}>
+        {template.models?.map(model=><option key={model.id} value={model.id}>{model.label}</option>)}</select></label>
+      {settings.map(([key,label,min,max,step])=><label key={key}>{label}
+        <input required type="number" min={min} max={max} step={step} value={request[key]}
+          onChange={event=>setRequest({...request,[key]:event.target.value})}/></label>)}
+      <button disabled={!request.prompt.trim() || !request.images[0] || !request.pose_video} type="submit">대기열에 추가</button>
+    </fieldset></form>}
     {pending && <section aria-label="생성 요청 확인"><GpuQueueSummary/>
       <p>{pending.frames}프레임 · {pending.steps}스텝 · 시드 {pending.seed}</p><p>{pending.prompt}</p>
       <button disabled={busy} onClick={()=>setPending(null)}>취소</button>
