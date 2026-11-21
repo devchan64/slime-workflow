@@ -200,6 +200,67 @@ def append_generator_step_template(workflow_definition_text, selected_generator_
     return json.dumps(current_definition_record, ensure_ascii=False, indent=2)
 
 
+def workflow_link_options(definition_text):
+    from graphlib import CycleError, TopologicalSorter
+    from tools.review.common.management_gateway import parse_management_request_json
+    from tools.review.domains.hermes_agent.workflow_catalog import read_workflow_generator_catalog
+
+    definition = parse_management_request_json(definition_text)
+    if not isinstance(definition, dict) or not isinstance(definition.get("steps"), list):
+        raise ValueError("단계 목록을 확인하세요.")
+    catalog = read_workflow_generator_catalog()
+    steps = {}
+    dependencies = {}
+    for step in definition["steps"]:
+        if not isinstance(step, dict) or not isinstance(step.get("id"), str) or not step["id"].strip():
+            raise ValueError("각 단계에 ID를 입력하세요.")
+        identifier = step["id"]
+        if (identifier in steps or not isinstance(step.get("generator"), str) or step["generator"] not in catalog
+                or not isinstance(step.get("bindings", {}), dict) or not isinstance(step.get("inputs", {}), dict)):
+            raise ValueError("단계 ID, 생성기, 입력과 연결을 확인하세요.")
+        steps[identifier] = step
+        dependencies[identifier] = {}
+        for name, binding in step.get("bindings", {}).items():
+            if not isinstance(binding, dict) or not isinstance(binding.get("from_step"), str):
+                raise ValueError("기존 단계 연결을 확인하세요.")
+            dependencies[identifier][name] = binding["from_step"]
+
+    options = []
+    for target, target_step in steps.items():
+        for field, spec in catalog[target_step["generator"]]["inputs"].items():
+            for source, source_step in steps.items():
+                if source == target:
+                    continue
+                for output, result in catalog[source_step["generator"]]["outputs"].items():
+                    if spec["type"] != result["type"]:
+                        continue
+                    graph = {key: set(values.values()) for key, values in dependencies.items()}
+                    graph[target] = set((dependencies[target] | {field: source}).values())
+                    try:
+                        tuple(TopologicalSorter(graph).static_order())
+                    except CycleError:
+                        continue
+                    label = f"{source} · {result.get('label', output)} → {target} · {spec.get('label', field)}"
+                    options.append((label, json.dumps([source, output, target, field], ensure_ascii=False)))
+    return definition, options
+
+
+def apply_workflow_link(definition_text, reviewed_text, selected_link, user_choice):
+    if definition_text != reviewed_text:
+        raise gr.Error("초안이 변경되었습니다. 연결 가능한 항목을 다시 조회하세요.")
+    definition, options = workflow_link_options(definition_text)
+    if selected_link not in {value for _, value in options}:
+        raise gr.Error("연결할 출력과 입력을 선택하세요.")
+    source, output, target, field = json.loads(selected_link)
+    step = next(record for record in definition["steps"] if record["id"] == target)
+    step.get("inputs", {}).pop(field, None)
+    binding = {"from_step": source, "output": output}
+    if user_choice:
+        binding["selection"] = "user_choice"
+    step.setdefault("bindings", {})[field] = binding
+    return json.dumps(definition, ensure_ascii=False, indent=2)
+
+
 def render_generator_input_form(field_contracts):
     """생성기 계약의 입력 순서대로 편집 컨트롤을 만든다."""
     controls = {}
@@ -5185,6 +5246,23 @@ def build_hermes_agent_interface(include_advanced_controls=True, current_source_
                             gr.Button("초안에 단계 추가").click(append_from_form,
                                 [workflow_definition_text, workflow_template_step, *controls.values()],
                                 workflow_definition_text, queue=False)
+                    with gr.Accordion("단계 결과를 다음 입력에 연결", open=False):
+                        workflow_link_snapshot = gr.State(None)
+                        workflow_link_selector = gr.Dropdown(label="생산 단계 출력 → 대상 단계 입력", choices=[], interactive=True)
+                        workflow_link_confirmation = gr.Checkbox(label="결과를 직접 선택한 뒤 후속 단계 실행")
+                        def load_workflow_link_options(definition_text):
+                            try:
+                                _, options = workflow_link_options(definition_text)
+                            except ValueError as error:
+                                raise gr.Error("초안의 단계를 확인하세요. " + str(error)) from error
+                            return gr.update(choices=options, value=None), definition_text, (
+                                "연결하면 대상 입력의 기존 값이나 연결이 교체됩니다." if options else "연결 가능한 출력과 입력이 없습니다.")
+                        workflow_link_notice = gr.Markdown()
+                        gr.Button("연결 가능한 항목 조회").click(load_workflow_link_options, workflow_definition_text,
+                            [workflow_link_selector, workflow_link_snapshot, workflow_link_notice], queue=False)
+                        gr.Button("선택한 연결을 초안에 적용").click(apply_workflow_link,
+                            [workflow_definition_text, workflow_link_snapshot, workflow_link_selector, workflow_link_confirmation],
+                            workflow_definition_text, queue=False)
                     workflow_load_proposal.click(load_conversation_workflow_definition, [hermes_session_control, hermes_session_job_selection], workflow_definition_text, queue=False)
                     gr.Button("요청 입력에 현재 초안 첨부").click(prepare_workflow_revision_message,
                         [hermes_session_control, workflow_definition_text, hermes_session_prompt], hermes_session_prompt, queue=False)
