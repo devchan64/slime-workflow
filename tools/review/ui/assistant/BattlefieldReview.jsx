@@ -25,7 +25,7 @@ export default function BattlefieldReview(){
       const module=await import(new URL(path,base).href);
       if(abort.signal.aborted)return;
       const query=new URLSearchParams(location.search);
-      controller.current=module.mountReviewPage(host.current,{locale:query.get("locale") || "ko",field:query.get("field") || "meadow-crossroads",overview:query.has("overview")});
+      controller.current=module.mountReviewPage(host.current,{locale:query.get("locale") || "ko",field:query.get("field") || "all",overview:query.has("overview")});
       const refresh=()=>setState(controller.current.readState());
       refresh();timer=setInterval(refresh,1000);
     }
