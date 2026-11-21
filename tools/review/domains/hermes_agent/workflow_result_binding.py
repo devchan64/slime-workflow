@@ -1,5 +1,7 @@
 """완료된 번역 시도의 텍스트를 후속 생성 요청에 고정한다."""
 from hashlib import sha256
+from io import BytesIO
+import wave
 
 
 def bind_translation_prompt_input(translation_status_record, expected_job_identifier, consumer_request_record):
@@ -25,3 +27,20 @@ def bind_translation_prompt_input(translation_status_record, expected_job_identi
             "sha256": sha256(translated_prompt_text.encode("utf-8")).hexdigest(),
         },
     }
+
+
+def validate_workflow_effect_audio(audio_content_bytes, source_result_record, expected_attempt_identifier):
+    """Dasheng 결과 원장의 시도·파일 지문과 실제 모노 PCM16 프레임을 대조한다."""
+    if (source_result_record.get("attempt") != expected_attempt_identifier or source_result_record.get("format") != "wav"
+            or source_result_record.get("output_sha256") != sha256(audio_content_bytes).hexdigest()):
+        raise ValueError("효과음 생성 시도 또는 WAV 해시가 일치하지 않습니다.")
+    try:
+        with wave.open(BytesIO(audio_content_bytes), "rb") as current_audio_stream:
+            audio_frame_count = current_audio_stream.getnframes()
+            if (current_audio_stream.getnchannels() != 1 or current_audio_stream.getsampwidth() != 2
+                    or current_audio_stream.getframerate() != 16000 or current_audio_stream.getcomptype() != "NONE"
+                    or source_result_record.get("channels") != 1 or source_result_record.get("sample_rate") != 16000
+                    or audio_frame_count < 1 or len(current_audio_stream.readframes(audio_frame_count)) != audio_frame_count * 2):
+                raise ValueError("효과음 결과는 16 kHz 모노 PCM16 WAV여야 합니다.")
+    except (EOFError, wave.Error) as invalid_audio_error:
+        raise ValueError("효과음 WAV 헤더 또는 데이터가 손상되었습니다.") from invalid_audio_error
