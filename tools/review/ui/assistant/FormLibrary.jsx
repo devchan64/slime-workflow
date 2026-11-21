@@ -8,6 +8,22 @@ export default function FormLibrary({session, call, addToMessage}) {
   const [definition, setDefinition] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [review, setReview] = useState(null);
+  function editDefinition(value) {
+    setDefinition(value);
+    setReview(null);
+  }
+  async function reviewWorkflow() {
+    setReview(null);
+    const checked = await call("workflow-review", {session_id: session, definition_text: definition});
+    setReview(checked);
+  }
+  async function registerWorkflow() {
+    const {session_id, run_id, steps} = review;
+    await call("workflow-register", {session_id, run_id, steps});
+    setNotice("대기열에 등록했습니다. 실행 ID " + run_id);
+    setReview(null);
+  }
   const pendingSave = useRef(null);
   const versions = Object.entries(forms).flatMap(([form_id, entries]) =>
     entries.slice().reverse().map(entry => ({
@@ -34,7 +50,7 @@ export default function FormLibrary({session, call, addToMessage}) {
   async function load() {
     const {form_id, form_version} = versions.find(version => version.key === selection);
     const result = await call("form-read", {session_id: session, form_id, form_version});
-    setDefinition(result.definition_text);
+    editDefinition(result.definition_text);
     setName(result.entry.name);
     setReference({form_id, form_version});
     pendingSave.current = null;
@@ -69,10 +85,19 @@ export default function FormLibrary({session, call, addToMessage}) {
       <button onClick={() => run(refresh)}>목록 갱신</button>
       <button disabled={!selection} onClick={() => run(load)}>선택한 버전으로 초안 교체</button>
       <label>폼 이름 <input value={name} onChange={event => setName(event.target.value)}/></label>
-      <label>워크플로우 정의 JSON <textarea value={definition} onChange={event => setDefinition(event.target.value)}/></label>
+      <label>워크플로우 정의 JSON <textarea value={definition} onChange={event => editDefinition(event.target.value)}/></label>
       <button disabled={!name.trim() || !definition.trim()} onClick={() => run(() => save(false))}>버전 저장</button>
       <button disabled={!reference || !name.trim() || !definition.trim()} onClick={() => run(() => save(true))}>별도 폼으로 복사</button>
       <button disabled={!definition.trim()} onClick={() => addToMessage(definition)}>대화 입력에 추가</button>
+      <button disabled={!definition.trim()} onClick={() => run(reviewWorkflow)}>단계와 결과 연결 검토</button>
+      {review && <section aria-label="워크플로우 등록 검토">
+        <ol>{review.steps.map(step => <li key={step.id}>
+          <strong>{step.id} · {step.generator}</strong>
+          <pre>{JSON.stringify({inputs:step.inputs, bindings:step.bindings}, null, 2)}</pre>
+        </li>)}</ol>
+        <button onClick={() => run(registerWorkflow)}>검토한 단계 대기열 등록</button>
+        <button onClick={() => setReview(null)}>등록 취소</button>
+      </section>}
     </fieldset>
     <p role="status">{notice}</p>
   </section>;

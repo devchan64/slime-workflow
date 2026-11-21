@@ -7,6 +7,13 @@ from .workflow_run_store import WorkflowRunStore
 
 
 def execute_workflow_command(workflow_root_directory, current_command_name, current_payload_record):
+    if current_command_name == "hermes-workflow-review":
+        from .workflow_review import review_conversation_workflow_definition
+        if set(current_payload_record) != {"session_id", "definition_text"} or not all(
+                isinstance(value, str) for value in current_payload_record.values()):
+            raise ValueError("세션 ID와 워크플로우 정의를 문자열로 입력하세요.")
+        return review_conversation_workflow_definition(current_payload_record["session_id"],
+                                                      current_payload_record["definition_text"])
     if current_command_name in ("hermes-form-list", "hermes-form-read", "hermes-form-save"):
         from .form_library import execute_form_library
         operation = current_command_name.removeprefix("hermes-form-")
