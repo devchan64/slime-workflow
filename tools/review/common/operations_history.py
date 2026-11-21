@@ -1,6 +1,7 @@
 """운영 작업 이력과 GPU 관측 기록의 조회 및 연결."""
 from collections import Counter
 import re
+import hashlib
 
 def resolve_operations_queue_identity(current_service_name):
     """검증된 전용 대기열 이름을 반환하고 공용 image 소유권은 추정하지 않는다."""
@@ -239,3 +240,36 @@ def summarize_operations_queue_snapshot(current_management_record):
         current_queue_counts=None
         current_queue_notice='GPU 대기열 조회 불가 · 대기열이 비었다는 뜻이 아닙니다.'
     return current_queue_rows, current_queue_counts, current_queue_notice
+
+
+def prepare_operations_priority_request(current_priority_target, command):
+    """대기 티켓과 기존 접수를 확인하여 명시적인 사용자 검토를 준비한다."""
+    try:
+        if not isinstance(current_priority_target,dict) or set(current_priority_target)!={'service','id'}:
+            raise ValueError('대상 오류')
+        current_preview_record=command('hermes-agent','hermes-priority-preview',current_priority_target)
+        if not isinstance(current_preview_record,dict) or (current_preview_record.get('service'),current_preview_record.get('job_id'))!=(current_priority_target['service'],current_priority_target['id']):
+            raise ValueError('대상 불일치')
+        current_ticket_revision=current_preview_record.get('ticket_revision')
+        current_queue_position=current_preview_record.get('queue_position')
+        current_queue_count=current_preview_record.get('queue_count')
+        current_identity_label={'verified':'부팅·시작 식별값 일치','unverified':'미확인'}.get(current_preview_record.get('executor_identity','unverified'))
+        if current_identity_label is None:raise ValueError('실행기 신원 오류')
+        if not isinstance(current_ticket_revision,str) or not re.fullmatch(r'[a-f0-9]{64}',current_ticket_revision) or type(current_queue_position) is not int or type(current_queue_count) is not int or not 1<=current_queue_position<=current_queue_count:
+            raise ValueError('대기 정보 오류')
+        current_request_digest=hashlib.sha256((current_priority_target['service']+'\0'+current_priority_target['id']+'\0'+current_ticket_revision).encode()).hexdigest()
+        current_request_identifier='priority_'+current_request_digest
+        current_request_record={'request_id':current_request_identifier,'service':current_priority_target['service'],'id':current_priority_target['id'],'ticket_revision':current_ticket_revision}
+        current_receipt_record=command('hermes-agent','hermes-priority-receipt',{'request_id':current_request_identifier})
+        if not isinstance(current_receipt_record,dict):raise ValueError('접수 기록 오류')
+        if current_receipt_record.get('state')!='not_found':
+            current_expected_record=(current_request_identifier,current_priority_target['service'],current_priority_target['id'],current_ticket_revision)
+            if (current_receipt_record.get('request_id'),current_receipt_record.get('service'),current_receipt_record.get('job_id'),current_receipt_record.get('ticket_revision'))!=current_expected_record or current_receipt_record.get('state') not in ('completed','unknown'):
+                raise ValueError('접수 대상 오류')
+            current_receipt_state=current_receipt_record['state']
+            current_receipt_notice='이전에 순서 변경이 접수되었습니다. 현재 순번이나 작업 완료를 뜻하지 않습니다.' if current_receipt_state=='completed' else '이전 요청의 결과를 확인할 수 없습니다. 재요청하지 말고 원 서비스와 대기열을 확인하세요.'
+            return None,current_receipt_notice,current_request_identifier
+        current_review_notice='검토 대상: '+current_priority_target['service']+' · '+current_priority_target['id']+' · 관측 순번 '+str(current_queue_position)+' / '+str(current_queue_count)+' · 실행기 신원: '+current_identity_label+' · 확인 '+str(current_preview_record.get('observed_at') or '미제공')+'. 식별값이 빠진 티켓은 실행기 신원을 확인할 수 없습니다. 확인하면 다른 대기 작업보다 앞서도록 순서를 변경합니다. 실행 중인 GPU 작업은 선점하지 않습니다.'
+        return current_request_record,current_review_notice,current_request_identifier
+    except (OSError,ValueError,KeyError,TypeError,RuntimeError):
+        return None,'대상 또는 접수 기록을 확인할 수 없습니다. 원 서비스와 대기열을 확인하세요. 순서는 변경하지 않았습니다.',''
