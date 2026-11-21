@@ -65,8 +65,11 @@ export default function MediaJobResult({service,id,kind="video",children}) {
       </section>}
       {kind==="video" && job.result_status==="available" && <>
         {service==="dwpose" ? <img src={job.image} alt="DWPose 추출 결과" style={{maxWidth:"100%"}}/> :
-          <video controls preload="metadata" src={job.video} poster={job.image} style={{maxWidth:"100%"}}/>}
-        <a href={job.download} download>{service==="dwpose"?"포즈 PNG·좌표 YAML 다운로드":"결과 ZIP 다운로드"}</a>
+          <>
+            <video controls loop playsInline preload="metadata" src={job.video} poster={job.image} style={{maxWidth:"100%"}}/>
+            <a href={job.video} target="_blank" rel="noopener">MP4 열기</a>
+          </>}
+        <a href={job.download} download>{service==="dwpose"?"포즈 PNG·좌표 YAML 다운로드":"PNG 프레임 ZIP 다운로드"}</a>
       </>}
       {(job.result_status==="unavailable" || job.file_observation==="unavailable") && <p>완료 기록의 결과 파일을 확인할 수 없습니다.</p>}
     </> : !error && <p>결과 조회 중…</p>}
