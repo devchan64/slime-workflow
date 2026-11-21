@@ -136,6 +136,28 @@ function Alignment({detail}){
     <AlignmentPreview detail={detail} values={values}/><button>정렬 저장</button></fieldset>{message && <p role="status">{message}</p>}</form>;
 }
 
+function SnapshotStatus(){
+  const [message,setMessage]=useState("");
+  useEffect(()=>{
+    let active=true,timer;
+    async function refresh(){
+      try{
+        const {generation,snapshotGeneration,pending,latestSnapshot}=await managementCommand("map-assets","database-status",{});
+        const failed=latestSnapshot?.state==="failed" || latestSnapshot?.leaseExpired;
+        const state=pending?(failed?"재시도 필요":"대기"):"완료";
+        const parts=[`에셋 원장 동기화 ${state}`,`DB ${generation} / 파일 ${snapshotGeneration}`];
+        if(pending && failed)parts.push(latestSnapshot.error || "작업자 응답 기한 만료");
+        if(latestSnapshot?.finishedAt)parts.push("최근 처리 "+latestSnapshot.finishedAt);
+        if(active)setMessage(parts.join(" · "));
+      }catch(error){if(active)setMessage("에셋 원장 상태 조회 실패 · "+error.message);}
+      if(active)timer=setTimeout(refresh,5000);
+    }
+    refresh();
+    return ()=>{active=false;clearTimeout(timer);};
+  },[]);
+  return <p role="status">{message}</p>;
+}
+
 export default function EffectEditor(){
   const [notice,setNotice]=useState("");
   const [effects,setEffects]=useState([]),[selected,select]=useState(""),[detail,setDetail]=useState(null);
@@ -167,5 +189,6 @@ export default function EffectEditor(){
       {detail.hostImage && <img src={detail.hostImage} alt="빌보드 원본" style={{maxWidth:"100%"}}/>}
       {detail.document.renderer==="waypoint-animation"?<><WaypointPreview detail={detail}/><WaypointReplacement detail={detail} onSaved={id=>{setNotice("웨이포인트 교체 완료 · "+id);select(id);reload(n=>n+1);}}/></>:<Alignment detail={detail}/>}
     </section>}
+    <SnapshotStatus/>
   </article>;
 }

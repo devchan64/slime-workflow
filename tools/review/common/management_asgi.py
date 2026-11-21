@@ -17,7 +17,6 @@ from starlette.responses import Response, RedirectResponse, JSONResponse
 MANAGEMENT_INTERFACE_BUILDERS = {
     'hermes-direct': ('hermes_agent_app', 'build_hermes_direct_interface', 'none'),
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
-    'effect-editor': ('effect_editor_app', 'build_effect_editor_interface', 'port'),
     'asset-editor': ('asset_editor_app', 'build_asset_editor_interface', 'port'),
     'sprite-sheet-editor': ('sprite_sheet_editor_app', 'build_sprite_sheet_editor_interface', 'port'),
 }
@@ -996,6 +995,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/wan22-fun-control-generator/')
     @current_root_application.get('/management/frame/building-editor')
     @current_root_application.get('/management/frame/building-editor/')
+    @current_root_application.get('/management/frame/effect-editor')
+    @current_root_application.get('/management/frame/effect-editor/')
     @current_root_application.get('/management/assistant/effects/')
     @current_root_application.get('/management/assistant/buildings/')
     @current_root_application.get('/management/assistant/field-map/')
