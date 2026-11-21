@@ -1,3 +1,4 @@
+import FormLibrary from "./FormLibrary.jsx";
 import React, {useEffect, useRef, useState} from "react";
 import {createRoot} from "react-dom/client";
 import {AssistantRuntimeProvider, ThreadPrimitive, MessagePrimitive, useAuiState, useExternalStoreRuntime} from "@assistant-ui/react";
@@ -97,13 +98,16 @@ function App() {
       setRefresh(n=>n+1);
     }catch(e){setError(e.message)}
   }
+  const [showForms,setShowForms]=useState(false);
   const chosen=query().get("tool");
   return <main><aside><h2>대화 세션</h2><button disabled={busy} onClick={()=>{select("");setArchived(false);}}>새 대화</button><button onClick={()=>setArchived(!archived)}>{archived?"대화 목록":"보관함"}</button>
     {sessions.map(s=><div className="session" key={s.id}><button disabled={busy} aria-current={s.id===session?"page":undefined} onClick={()=>archived?lifecycle(s,"restore"):select(s.id)}>{s.title || s.id}</button>
     <button disabled={busy} onClick={()=>lifecycle(s,archived?"delete":"archive")}>{archived?"삭제":"보관"}</button></div>)}</aside>
     <article><header><h1>{view.title || "헤르메스와 대화"}</h1><button onClick={()=>setShowTools(!showTools)}>도구 탐색</button>
+    {session&&<button aria-expanded={showForms} onClick={()=>setShowForms(!showForms)}>입력 폼</button>}
     {session&&<button onClick={async()=>{try{const result=await call("workflow-list",{session_id:session,category:"",state:""});if(query().get("session")===session)setQueue(result.steps)}catch(e){setError(e.message)}}}>대기열</button>}</header>
     {showTools&&<section className="panel"><input aria-label="도구 검색" placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>{tools.filter(t=>(t.label+t.id+t.description).toLowerCase().includes(search.toLowerCase())).map(t=><button key={t.id} onClick={()=>{edit((draft?draft+"\n":"")+"사용할 도구: "+t.label+" ("+t.id+")\n");setShowTools(false);text.current.focus()}}>{t.label}</button>)}</section>}
+    {session && <div hidden={!showForms}>{<FormLibrary key={session} session={session} call={call} addToMessage={value=>edit([draft,value].filter(Boolean).join("\n"))}/>}</div>}
     {queue&&<section className="panel"><button onClick={()=>setQueue(null)}>대기열 닫기</button>{queue.length?queue.map(s=><p key={s.request_id}>{s.generator} · {s.step_id} · {s.state}</p>):<p>이 세션의 작업이 없습니다.</p>}</section>}
     <Conversation key={session} view={view}/>{error&&<p role="alert">{error}</p>}
     <form onSubmit={e=>{e.preventDefault();send()}}>{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
