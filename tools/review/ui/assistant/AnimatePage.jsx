@@ -18,14 +18,15 @@ export default function AnimatePage(){
   const [job,setJob]=useState(query.get("job") || "");
   const [saved,setSaved]=useState(null);
   const [revision,refresh]=useState(0);
+  const [historyRevision,refreshHistory]=useState(0);
   const [notice,setNotice]=useState("");
-  function cleaned(message){setSaved(null);setJob("");refresh(n=>n+1);setNotice(message);}
+  function cleaned(message){setSaved(null);setJob("");refresh(n=>n+1);refreshHistory(n=>n+1);setNotice(message);}
   return <article><a href={"/management/assistant/"+(query.has("session")?"?"+new URLSearchParams({session:query.get("session")}):"")}>헤르메스 대화</a>
     <h1>Wan Animate-2 캐릭터 동작 전사</h1>
     <p>시스템 RAM과 GPU 메모리 부족으로 신규 생성과 재개를 보류합니다. 기존 작업의 참조와 결과 영상을 검수할 수 있습니다.</p>
     <GeneratorChangelog generator="wan22-animate2-generator"/><ModelReadiness service={service} manage/><DownloadProgress service={service}/>
     <AnimateInputs key={revision} saved={saved}/>
-    <GeneratorHistory key={job+"-history-"+(saved?.id || "")} service={service} readJob={readJob}
+    <GeneratorHistory key={historyRevision} openResult={setJob} service={service} readJob={readJob}
       restore={(request,record)=>{setSaved(record);setJob(record.id);refresh(n=>n+1);}}/>
     {job && <MediaJobResult key={job} service={service} id={job}>
       {record=><HistoryCleanup key={record?.status} service={service} job={job} state={record?.status} onDeleted={cleaned}/>}
