@@ -1173,28 +1173,8 @@ def read_operations_selected_capture_status(current_queue_rows,current_select_ev
     if type(current_selected_index) is not int or not isinstance(current_queue_rows,list) or not 0<=current_selected_index<len(current_queue_rows):
         return '대기 행을 다시 선택하세요.'
     current_row_value=current_queue_rows[current_selected_index]
-    if not isinstance(current_row_value,(list,tuple)) or len(current_row_value)!=5 or not all(isinstance(current_item_value,str) for current_item_value in current_row_value):
-        return '대기 기록을 확인할 수 없습니다.'
-    if current_row_value[1]!='review-capture' or current_row_value[3]!='review-capture':
-        return '캡처 대기 기록을 선택하면 접수 상태를 확인합니다.'
-    current_capture_label,current_separator_value,current_request_identifier=current_row_value[4].partition(' · ')
-    current_service_name={'맵':'map-review','캐릭터':'character-review'}.get(current_capture_label)
-    if not current_separator_value or current_service_name is None or not re.fullmatch(r'[A-Za-z0-9_-]{8,80}',current_request_identifier):
-        return '캡처 접수 신원을 확인할 수 없습니다.'
-    try:
-        current_result_value=execute_remote_management_command('hermes-agent','hermes-capture-status',{'request_id':current_request_identifier,'service':current_service_name})
-        current_receipt_value=current_result_value.get('receipt') if isinstance(current_result_value,dict) else None
-        current_job_value=current_result_value.get('job') if isinstance(current_result_value,dict) else None
-        if not isinstance(current_receipt_value,dict) or current_receipt_value.get('state')!='accepted' or current_receipt_value.get('request_id')!=current_request_identifier or current_receipt_value.get('service')!=current_service_name or current_receipt_value.get('job_id')!=current_row_value[2] or not isinstance(current_job_value,dict):
-            return '선택한 대기 기록과 접수 상태가 일치하지 않습니다. 다시 조회하세요.'
-        current_status_name=current_job_value.get('status')
-        current_status_label={'queued':'대기','running':'실행 중','completed':'완료','failed':'실패','cancelled':'취소','unknown':'확인 불가'}.get(current_status_name)
-        if current_status_label is None or type(current_job_value.get('result_available')) is not bool:
-            return '캡처 상태를 확인할 수 없습니다. 다시 조회하세요.'
-        current_result_notice=' · 결과 확인 가능' if current_job_value['result_available'] else ''
-        return current_capture_label+' 캡처 · '+current_status_label+current_result_notice+' · 접수 '+current_request_identifier+' · 작업 '+current_row_value[2]+' · 조회 시점 기준'
-    except (OSError,ValueError,TypeError,KeyError,RuntimeError):
-        return '캡처 상태 조회에 실패했습니다. 다시 조회하세요.'
+    from tools.review.common.operations_history import read_operations_capture_status
+    return read_operations_capture_status(current_row_value, execute_remote_management_command)
 
 
 def select_operations_capture_target(current_queue_rows,current_select_event:gr.SelectData):

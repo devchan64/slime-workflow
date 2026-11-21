@@ -77,6 +77,17 @@ export default function OperationsJobs(){
     }catch(problem){setInspection(problem.message);}
     finally{setBusy(false);}
   }
+  const [capture,setCapture]=useState("");
+  async function inspectCapture(row){
+    setBusy(true);setCapture("");
+    try{
+      const response=await fetch("/management/assistant/operations-capture-status",{method:"POST",
+        headers:{"Content-Type":"application/json"},body:JSON.stringify({row})});
+      if(!response.ok)throw new Error("캡처 접수 상태를 조회할 수 없습니다.");
+      setCapture((await response.json()).notice);
+    }catch(problem){setCapture(problem.message);}
+    finally{setBusy(false);}
+  }
   function gpuTable(table){
     if(table.inspection_targets)return {...table,columns:[...table.columns,"예약 조회"],rows:table.rows.map((row,index)=>{
       const target=table.inspection_targets[index];
@@ -85,11 +96,16 @@ export default function OperationsJobs(){
     if(table.title!=="GPU 대기열")return table;
     return {...table,columns:[...table.columns,"우선순위"],rows:table.rows.map(row=>{
       const source=row[3];
-      return [...row,source==="미확인" ? "원 서비스 미확인" :
+      const cells=[...row];
+      if(row[1]==="review-capture" && source==="review-capture" && row[4]!=="미확인"){
+        cells[4]=<button onClick={()=>inspectCapture(row)}>{row[4]} · 상태 조회</button>;
+      }
+      return [...cells,source==="미확인" ? "원 서비스 미확인" :
         <button onClick={()=>reviewPriority(source,row[2])}>우선 실행 검토</button>];
     })};
   }
   async function loadGpu(){
+    setCapture("");
     setRecovery(null);setOutsideChecked(false);
     setInspection("");
     setBusy(true);setGpuError("");setPriority(null);
@@ -164,6 +180,7 @@ export default function OperationsJobs(){
     {gpuError && <p role="alert">{gpuError}</p>}
     {gpu?.map(table=>table.available ? <ResultTable key={table.title} table={gpuTable(table)}/> :
       <p role="status" key={table.title}>{table.summary}</p>)}
+    {capture && <p role="status">{capture}</p>}
     {inspection && <p role="status">{inspection}</p>}
     {priority && <section><p role="status">{priority.notice}</p>{priority.identifier && <code>{priority.identifier}</code>}
       {priority.request && <><button onClick={()=>setPriority(null)}>취소</button>

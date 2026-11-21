@@ -706,6 +706,12 @@ def build_management_application(current_handler_class, current_root_path, curre
         from tools.review.common.operations_history import inspect_operations_reservation_target
         return {'notice': inspect_operations_reservation_target(target, execute_remote_management_command)}
 
+    @current_root_application.post('/management/assistant/operations-capture-status')
+    def operations_capture_status(payload: dict):
+        from tools.review.common.management_client import execute_remote_management_command
+        from tools.review.common.operations_history import read_operations_capture_status
+        return {'notice': read_operations_capture_status(payload.get('row'), execute_remote_management_command)}
+
     @current_root_application.get('/management/assistant/operations-gpu')
     def operations_gpu():
         from tools.review.common.management_client import execute_remote_management_command
