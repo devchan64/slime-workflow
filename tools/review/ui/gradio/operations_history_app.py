@@ -1330,7 +1330,7 @@ def inspect_operations_reservation_target(current_inspection_target):
         current_result=execute_remote_management_command('hermes-agent','hermes-generator-reservation-inspect',current_inspection_target)
         if not isinstance(current_result,dict) or (current_result.get('service'),current_result.get('job_id'))!=(current_inspection_target['service'],current_inspection_target['job_id']):raise ValueError('예약 대상 불일치')
         current_executor={'observed':'신원 일치로 관측','not_observed':'일치 실행기 미관측','unverified':'확인 불가'}.get(current_result.get('executor'))
-        current_leader={'verified_running':'신원 일치로 관측','unverified':'확인 불가'}.get(current_result.get('worker_leader'))
+        current_leader={'verified_running':'신원 일치로 관측','group_absent':'기록된 그룹 미관측','unverified':'확인 불가'}.get(current_result.get('worker_leader'))
         current_memory=current_result.get('required_memory_mib')
         if current_executor is None or current_leader is None or type(current_memory) is not int or current_memory<0:raise ValueError('예약 응답 오류')
         current_review_notice=' 정리 검토에서 현재 상태를 다시 확인할 수 있습니다.' if current_result.get('review_ready') is True else ''
@@ -1355,7 +1355,8 @@ def prepare_operations_reservation_recovery(current_reservation_target):
         if not isinstance(current_receipt_record,dict) or current_receipt_record.get('state')!='not_found':
             return None,'이미 접수되었거나 접수 상태를 확인할 수 없습니다. 접수 결과를 조회하고 재실행하지 마세요.',current_request_identifier,gr.update(visible=False),False
         current_request_record={'request_id':current_request_identifier,**current_reservation_target,'review_sha256':current_review_digest}
-        return current_request_record,'검토 대상: '+current_reservation_target['service']+' · '+current_reservation_target['job_id']+'. 확인하면 해당 작업자 그룹을 강제 종료하고 예약을 해제합니다.',current_request_identifier,gr.update(visible=True),False
+        current_action_notice='기록된 작업자 그룹은 관측되지 않았으며 예약만 해제합니다.' if current_result_record.get('worker_leader')=='group_absent' else '해당 작업자 그룹을 강제 종료하고 예약을 해제합니다.'
+        return current_request_record,'검토 대상: '+current_reservation_target['service']+' · '+current_reservation_target['job_id']+'. 확인하면 '+current_action_notice,current_request_identifier,gr.update(visible=True),False
     except (OSError,ValueError,KeyError,TypeError,RuntimeError):
         return None,'검토 또는 접수 상태를 확인하지 못했습니다. 프로세스와 예약은 변경하지 않았습니다.','',gr.update(visible=False),False
 
@@ -1887,7 +1888,7 @@ def build_operations_history_interface():
             current_reservation_recovery_button=gr.Button('선택한 예약 정리 검토')
             current_reservation_recovery_notice=gr.Markdown('예약을 선택하고 정리 가능 여부를 검토하세요.')
             with gr.Group(visible=False) as current_reservation_confirmation:
-                gr.Markdown('확인하면 선택된 작업자 그룹을 강제 종료하고 GPU 예약을 해제합니다. 별도 그룹의 GPU 프로세스는 종료하거나 확인하지 않습니다.')
+                gr.Markdown('확인하면 위 검토 내용대로 예약을 정리합니다. 별도 그룹의 GPU 프로세스는 종료하거나 확인하지 않습니다.')
                 current_reservation_outside_checked=gr.Checkbox(label='별도 그룹의 GPU 프로세스를 직접 확인했습니다',value=False)
                 with gr.Row():
                     current_reservation_confirm=gr.Button('확인하고 예약 정리',variant='primary')

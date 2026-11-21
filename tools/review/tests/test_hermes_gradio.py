@@ -4261,6 +4261,20 @@ class HermesGradioTests(unittest.TestCase):
         self.assertFalse(current_group['visible'])
 
     @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
+    def test_absent_generator_group_recovery_explains_no_process_termination(self,current_gateway_mock):
+        from tools.review.ui.gradio import operations_history_app
+        current_target_record={'service':'wan22-fun-control','job_id':'job-12'}
+        current_inspection_record={**current_target_record,'executor':'not_observed','worker_leader':'group_absent',
+            'required_memory_mib':1024,'review_ready':True,'review_sha256':'a'*64}
+        current_gateway_mock.return_value=current_inspection_record
+        self.assertIn('그룹 미관측',operations_history_app.inspect_operations_reservation_target(current_target_record))
+        current_gateway_mock.side_effect=[current_inspection_record,{'state':'not_found'}]
+        _,current_notice,_,current_group,_=operations_history_app.prepare_operations_reservation_recovery(current_target_record)
+        self.assertTrue(current_group['visible'])
+        self.assertIn('예약만 해제',current_notice)
+        self.assertNotIn('강제 종료',current_notice)
+
+    @patch('tools.review.ui.gradio.operations_history_app.execute_remote_management_command')
     def test_reservation_recovery_receipt_identifies_valid_target(self,current_gateway_mock):
         from tools.review.ui.gradio import operations_history_app
         current_request_id='recovery_'+'a'*64

@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import re
+import uuid
 from pathlib import Path
 from tools.review.domains.hermes_agent.delegation_store import read_bounded_delegation_record
 
@@ -37,6 +38,35 @@ def find_generator_reservation_record(current_active_root,current_service_name,c
     return current_record_path,current_record_value,current_memory_value
 
 
+def is_generator_process_group_absent(current_record_value):
+    """현재 부팅의 완전한 신원이 있고 PID와 그룹이 모두 없을 때만 부재로 판정한다."""
+    current_group_id=current_record_value.get('worker_pgid')
+    current_start_token=current_record_value.get('worker_start_token')
+    current_worker_token=current_record_value.get('worker_process_token')
+    current_boot_id=current_record_value.get('boot_id')
+    if (type(current_group_id) is not int or not 1<current_group_id<=2147483647
+            or not isinstance(current_start_token,str) or not current_start_token.isascii() or not current_start_token.isdigit()
+            or not isinstance(current_worker_token,str) or not re.fullmatch(r'[a-f0-9]{32}',current_worker_token)
+            or not isinstance(current_boot_id,str)):
+        return False
+    try:
+        if str(uuid.UUID(current_boot_id))!=current_boot_id or Path('/proc/sys/kernel/random/boot_id').read_text().strip()!=current_boot_id:
+            return False
+        try:
+            os.kill(current_group_id,0)
+        except ProcessLookupError:
+            pass
+        else:
+            return False
+        try:
+            os.killpg(current_group_id,0)
+        except ProcessLookupError:
+            return True
+    except (OSError,ValueError,AttributeError):
+        return False
+    return False
+
+
 def inspect_generator_reservation_record(current_record_path,current_record_value,current_memory_value,current_service_name,current_job_identifier):
     """잠금 안에서 신원과 검토 해시를 확인하고 열린 pidfd를 반환한다."""
     from tools.review.common import gpu_job_queue as current_queue_module
@@ -56,8 +86,8 @@ def inspect_generator_reservation_record(current_record_path,current_record_valu
             except ValueError:
                 pass
     current_worker_descriptor=current_queue_module.open_verified_hermes_process_group(current_record_value)
-    current_worker_state='verified_running' if current_worker_descriptor is not None else 'unverified'
-    current_review_ready=(current_executor_state=='not_observed' and current_worker_state=='verified_running' and current_record_value.get('recovery_in_progress') is None)
+    current_worker_state='verified_running' if current_worker_descriptor is not None else ('group_absent' if is_generator_process_group_absent(current_record_value) else 'unverified')
+    current_review_ready=(current_executor_state=='not_observed' and current_worker_state in ('verified_running','group_absent') and current_record_value.get('recovery_in_progress') is None)
     try:
         current_review_digest=None
         if current_review_ready:

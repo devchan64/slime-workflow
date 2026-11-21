@@ -4,7 +4,7 @@ import re
 
 from tools.review.common.generation_records import write_record_atomically
 from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore, check_delegation_record_exists, read_bounded_delegation_record
-from tools.review.domains.hermes_agent.reservation_observer import find_generator_reservation_record, inspect_generator_reservation_record
+from tools.review.domains.hermes_agent.reservation_observer import find_generator_reservation_record, inspect_generator_reservation_record, is_generator_process_group_absent
 from tools.review.domains.hermes_agent.writer_reservation import hold_writer_reservation_queue_lock, is_writer_executor_definitely_absent
 
 
@@ -47,16 +47,18 @@ def recover_generator_reservation_once(current_request_identifier,current_servic
                 current_marked_record={**current_record_value,'cleanup_unverified':True,'recovery_in_progress':current_request_identifier}
                 write_record_atomically(current_record_path,current_marked_record)
             except BaseException:
-                os.close(current_worker_descriptor)
+                if current_worker_descriptor is not None:os.close(current_worker_descriptor)
                 raise
-    try:
-        current_queue_module.stop_hermes_worker_process_group(current_record_value['worker_pgid'],current_worker_descriptor)
-    finally:
-        os.close(current_worker_descriptor)
+    if current_worker_descriptor is not None:
+        try:
+            current_queue_module.stop_hermes_worker_process_group(current_record_value['worker_pgid'],current_worker_descriptor)
+        finally:
+            os.close(current_worker_descriptor)
     with hold_writer_reservation_queue_lock() as current_active_root:
         current_current_path,current_current_record,_=find_generator_reservation_record(current_active_root,current_service_name,current_job_identifier)
         if current_current_path!=current_record_path or current_current_record!=current_marked_record:raise ValueError('정리 중 예약이 변경됐습니다. 결과를 확인하세요.')
         if not is_writer_executor_definitely_absent(current_record_value['pid']):raise ValueError('실행기 부재를 확인할 수 없습니다. 예약을 유지합니다.')
+        if current_worker_descriptor is None and not is_generator_process_group_absent(current_record_value):raise ValueError('작업자 그룹 부재를 확인할 수 없습니다. 예약을 유지합니다.')
         current_current_path.unlink()
     with current_store_value.hold_delegation_storage_lock():
         current_receipt_record=read_bounded_delegation_record(current_receipt_path)

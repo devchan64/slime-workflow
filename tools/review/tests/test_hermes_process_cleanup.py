@@ -238,6 +238,49 @@ class HermesProcessCleanupTests(unittest.TestCase):
                             inspect_generator_reservation_identity(current_other_service,'job_123')
                         self.assertEqual(json.loads(current_record_path.read_text()),current_record_value)
 
+    def test_absent_generator_group_requires_review_and_rechecks_before_release(self):
+        from tools.review.common import gpu_job_queue
+        from tools.review.domains.hermes_agent import generator_reservation_recovery, reservation_observer
+        from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+        with tempfile.TemporaryDirectory() as current_temp_name:
+            current_root_path=Path(current_temp_name)
+            current_queue_root=current_root_path/'queue'
+            current_active_root=current_queue_root/'active'
+            current_active_root.mkdir(parents=True)
+            current_job_path=current_root_path/'.tmp/test/wan22-fun-control/job_123'
+            current_job_path.mkdir(parents=True)
+            current_group_id=2147483646
+            current_reservation={'service':'wan-fun','path':str(current_job_path),'pid':2147483645,'pid_start_token':'123',
+                'boot_id':Path('/proc/sys/kernel/random/boot_id').read_text().strip(),'required_memory_mib':1000,
+                'worker_pgid':current_group_id,'worker_start_token':'123','worker_process_token':'a'*32}
+            current_record_path=current_active_root/'reservation.json'
+            current_record_path.write_text(json.dumps(current_reservation))
+            current_store_value=HermesDelegationStore(current_root_path/'receipts')
+            with patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_root), patch.object(gpu_job_queue,'WORKFLOW_ROOT_DIRECTORY',current_root_path), patch.object(generator_reservation_recovery,'HermesDelegationStore',return_value=current_store_value), patch.object(gpu_job_queue,'stop_hermes_worker_process_group') as current_stop_mock:
+                current_review=reservation_observer.inspect_generator_reservation_identity('wan22-fun-control','job_123')
+                self.assertTrue(current_review['review_ready'])
+                self.assertEqual(current_review['worker_leader'],'group_absent')
+                with self.assertRaisesRegex(ValueError,'별도 그룹'):
+                    generator_reservation_recovery.recover_generator_reservation_once('recovery_no_check','wan22-fun-control','job_123',current_review['review_sha256'],False)
+                self.assertTrue(current_record_path.exists())
+                with patch.object(generator_reservation_recovery,'is_generator_process_group_absent',return_value=False):
+                    with self.assertRaisesRegex(ValueError,'그룹 부재'):
+                        generator_reservation_recovery.recover_generator_reservation_once('recovery_race','wan22-fun-control','job_123',current_review['review_sha256'],True)
+                self.assertTrue(current_record_path.exists())
+                current_record_path.write_text(json.dumps(current_reservation))
+                current_result=generator_reservation_recovery.recover_generator_reservation_once('recovery_success','wan22-fun-control','job_123',current_review['review_sha256'],True)
+                self.assertEqual(current_result['state'],'completed')
+                self.assertFalse(current_record_path.exists())
+                current_stop_mock.assert_not_called()
+
+    def test_absent_group_fails_closed_on_bad_identity_or_live_group(self):
+        from tools.review.domains.hermes_agent.reservation_observer import is_generator_process_group_absent
+        current_record={'worker_pgid':os.getpgrp(),'worker_start_token':'123','worker_process_token':'a'*32,
+                        'boot_id':Path('/proc/sys/kernel/random/boot_id').read_text().strip()}
+        self.assertFalse(is_generator_process_group_absent(current_record))
+        for current_change in ({'worker_pgid':2147483646,'boot_id':'bad'}, {'worker_pgid':2147483646,'worker_process_token':'bad'}, {'worker_pgid':2147483646,'worker_start_token':'bad'}):
+            self.assertFalse(is_generator_process_group_absent({**current_record,**current_change}))
+
     def test_generator_recovery_rechecks_review_and_preserves_unrelated_process(self):
         from tools.review.common import gpu_job_queue
         from tools.review.domains.hermes_agent import generator_reservation_recovery
