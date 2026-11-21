@@ -293,7 +293,7 @@ def inspect_management_environment(include_model_inventory=False, include_depend
     current_checks_record = {
         'python': {'status': 'available', 'version': sys.version.split()[0]},
         'management_python': {**inspect_management_python(current_runtime_path, ('yaml', 'jsonschema')), 'next': './scripts/workflow.sh setup --scope management'},
-        'gradio_python': inspect_management_python(current_gradio_path, ('gradio', 'psutil')),
+        'gradio_python': inspect_management_python(current_gradio_path, ('fastapi', 'uvicorn', 'psutil')),
         'image_worker_python': inspect_image_worker_environment(include_dependency_check),
         'frontend_source': {'status': 'present' if (current_frontend_path / 'packages/field-renderer/package.json').is_file() else 'missing', 'path': str(current_frontend_path)},
         'bubblewrap': {'status': 'present' if shutil.which('bwrap') else 'missing', 'optional_for': 'hermes'},

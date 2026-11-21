@@ -197,7 +197,7 @@ class ManagementLauncherTests(unittest.TestCase):
         self.assertTrue(any(str(management_setup.IMAGE_REQUIREMENTS_PATH) in current_command and str(management_setup.IMAGE_CONSTRAINTS_PATH) in current_command for current_command in current_image_commands))
         self.assertTrue(any('QwenImage21Pipeline' in ' '.join(current_command) for current_command in current_image_commands))
         self.assertTrue(any('ModularPipeline' in ' '.join(current_command) and '_get_qkv_projections' in ' '.join(current_command) for current_command in current_image_commands))
-        self.assertTrue(any(str(management_setup.WORKFLOW_ROOT_DIRECTORY / 'tools/review/ui/gradio/requirements.txt') in current_command for current_command in current_shared_commands))
+        self.assertTrue(any(str(management_setup.WORKFLOW_ROOT_DIRECTORY / 'tools/review/requirements.txt') in current_command for current_command in current_shared_commands))
         self.assertFalse(any(management_setup.IMAGE_ROCM_INDEX_URL in current_command for current_command in current_shared_commands))
         self.assertIn(['npm', '--prefix', str(current_frontend_path), 'run', 'build:field-renderer'], command_argument_records)
 
@@ -213,7 +213,7 @@ class ManagementLauncherTests(unittest.TestCase):
                     patch.object(management_setup, 'run_logged_management_command') as run_command_mock:
                 management_launcher.prepare_management_environments(None)
         command_argument_records = [current_call_value.args[0] for current_call_value in run_command_mock.call_args_list]
-        current_gui_install = next(current_command for current_command in command_argument_records if str(management_setup.WORKFLOW_ROOT_DIRECTORY / 'tools/review/ui/gradio/requirements.txt') in current_command)
+        current_gui_install = next(current_command for current_command in command_argument_records if str(management_setup.WORKFLOW_ROOT_DIRECTORY / 'tools/review/requirements.txt') in current_command)
         self.assertIn(str(management_setup.IMAGE_CONSTRAINTS_PATH), current_gui_install)
         self.assertEqual(sum('venv' in current_command for current_command in command_argument_records), 1)
 

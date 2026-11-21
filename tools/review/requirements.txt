@@ -1,0 +1,8 @@
+# 관리 HTTP 서버, 작업 조회 및 모델 준비
+-r ../../requirements.txt
+fastapi==0.162.7
+uvicorn==0.54.0
+huggingface_hub==2.4.0
+imageio-ffmpeg>=0.6
+psutil>=5.9
+uv==0.13.8

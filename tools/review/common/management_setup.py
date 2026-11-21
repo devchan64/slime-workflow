@@ -16,7 +16,7 @@ IMAGE_CONSTRAINTS_PATH = WORKFLOW_ROOT_DIRECTORY / 'generators/image/constraints
 IMAGE_REQUIREMENTS_PATH = WORKFLOW_ROOT_DIRECTORY / 'generators/image/requirements-runtime.txt'
 
 MANAGEMENT_ENVIRONMENT_RECORDS = (
-    ('VIRTUAL_ENVIRONMENT_PATH', '.venv', 'tools/review/ui/gradio/requirements.txt'),
+    ('VIRTUAL_ENVIRONMENT_PATH', '.venv', 'tools/review/requirements.txt'),
 )
 
 
@@ -148,7 +148,7 @@ def prepare_selected_management_environment(launcher_trace_logger, selected_setu
         current_shared_path = resolve_management_environment('VIRTUAL_ENVIRONMENT_PATH', '.venv')
         current_gradio_path = resolve_management_environment('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH', '.venv')
         if current_shared_path != current_gradio_path:
-            current_environment_records.append(('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH', '.venv', 'tools/review/ui/gradio/requirements.txt'))
+            current_environment_records.append(('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH', '.venv', 'tools/review/requirements.txt'))
     current_prepared_paths = set()
     # 이미지 작업자는 고정된 .venv를 사용한다. GUI 경로 설정과 구분한다.
     if selected_setup_scope == "legacy":
