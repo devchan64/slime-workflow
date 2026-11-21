@@ -68,7 +68,7 @@ export default function KeyframeCatalog({query,choose}){
     <SearchResults key={query} query={query} choose={choose} disabled={busy || rows.length>=20}
       add={id=>edit([...rows,{id,frame:""}])}/>
     {rows.length>0 && <form onSubmit={validate}><fieldset disabled={busy}><legend>출력 프레임 배치</legend>
-      <label>총 출력 프레임 수<input type="number" required min="1" value={frames}
+      <label>총 출력 프레임 수 (30~300)<input type="number" required min="30" max="300" value={frames}
         onChange={e=>{setFrames(e.target.value);setReview(null);setError("");}}/></label>
       {rows.map((row,index)=><div key={index}><label>{row.id} · 출력 프레임
         <input type="number" required min="1" max={frames || undefined} value={row.frame}
@@ -77,6 +77,8 @@ export default function KeyframeCatalog({query,choose}){
       <button>원본과 배치 검증</button>
       {error && <p role="alert">{error}</p>}
       {review && <><p role="status">{review.placements.length}개 배치 검증 완료 · {review.note}</p>
+        <ResultTable table={{title:"검증된 키프레임 배치",columns:["출력 프레임","키프레임 ID"],
+          rows:review.placements.map(row=>[row.frame,row.id])}}/>
         <button type="button" onClick={()=>choose("Kimodo 키프레임 배치",JSON.stringify({frames:Number(frames),keyframes:review.placements}))}>검증한 배치를 대화 입력에 추가</button></>}
     </fieldset></form>}
   </>;
