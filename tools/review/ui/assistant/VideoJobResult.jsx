@@ -1,7 +1,7 @@
 import React, {useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 
-export default function VideoJobResult({service,id}) {
+export default function VideoJobResult({service,id,children}) {
   const [job,setJob]=useState(null);
   const [error,setError]=useState("");
   const [revision,refresh]=useState(0);
@@ -30,6 +30,7 @@ export default function VideoJobResult({service,id}) {
       </>}
       {job.result_status==="unavailable" && <p>완료 기록의 결과 파일을 확인할 수 없습니다.</p>}
     </> : !error && <p>결과 조회 중…</p>}
+    {children?.(job)}
     <button onClick={()=>refresh(value=>value+1)}>결과 새로고침</button>
   </section>;
 }
