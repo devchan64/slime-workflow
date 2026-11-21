@@ -11,7 +11,7 @@ const states = {
 };
 const initial = {category:"", state:"", generator:"", run_id:"", job_id:"", created_from:"", created_through:""};
 
-export default function QueuePanel({session, call, initialRun=""}) {
+export default function QueuePanel({session, call, editNextStep, initialRun=""}) {
   const [selectedRun,setSelectedRun] = useState(initialRun);
   const [draft, setDraft] = useState({...initial,run_id:initialRun});
   const [filters, setFilters] = useState({...initial,run_id:initialRun});
@@ -58,6 +58,6 @@ export default function QueuePanel({session, call, initialRun=""}) {
         <QueuePriority step={step} call={call}/>
       ])
     }}/>}
-    {selectedRun && <WorkflowResults key={selectedRun} session={session} run={selectedRun} openRun={setSelectedRun} call={call} close={()=>setSelectedRun("")}/>}
+    {selectedRun && <WorkflowResults editNextStep={editNextStep} key={selectedRun} session={session} run={selectedRun} openRun={setSelectedRun} call={call} close={()=>setSelectedRun("")}/>}
   </section>;
 }

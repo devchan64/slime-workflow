@@ -341,13 +341,14 @@ function App() {
         </div>)}
     </section>}
     {session && <div hidden={!showForms}>{<FormLibrary key={session} proposalStep={proposalStep?.session===session ? proposalStep : null} session={session} messages={view.messages || []} call={call} openRun={run=>{setShowForms(false);setQueue({run});}} addToMessage={value=>{edit([draft,value].filter(Boolean).join("\n"));setShowForms(false);text.current?.focus();}}/>}</div>}
-    {queue && session && <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} call={call}/>}
+    {queue && session && <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} call={call} editNextStep={step=>{setProposalStep({...step,session});setQueue(null);setShowForms(true);}}/>}
     {(view.next_offset != null || historyPage) && <nav aria-label="대화 이력 페이지">
       {view.next_offset != null && <button onClick={()=>changeHistory({offset:view.next_offset,snapshot:view.snapshot})}>이전 메시지 보기</button>}
       {historyPage && <button onClick={()=>changeHistory(null)}>최신 대화로 돌아가기</button>}
     </nav>}
     <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>{setProposalStep({session,inputs});setShowForms(true);}}}><Conversation key={session} view={view}/></ProposalActions.Provider>{error&&<p role="alert">{error}</p>}
     <form onSubmit={e=>{e.preventDefault();send()}}>{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
+    {session && <button type="button" aria-expanded={Boolean(queue)} onClick={()=>{setShowForms(false);setQueue(queue ? null : {run:""});}}>작업 결과</button>}
     <button type="button" ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowGpu(false);if(showTools)closeTools();else setShowTools(true)}}>도구 탐색</button>
     <textarea ref={text} aria-label="메시지" placeholder="헤르메스에게 메시지 보내기" value={draft} disabled={busy} onChange={e=>edit(e.target.value)} title="Enter로 보내기 · Shift+Enter로 줄바꿈" onKeyDown={event=>{
       if(event.key!=="Enter" || event.shiftKey || event.altKey || event.nativeEvent.isComposing || event.nativeEvent.keyCode===229)return;

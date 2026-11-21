@@ -29,11 +29,11 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
   const editor=useRef(null);
   useEffect(()=>{
     if(!proposalStep)return;
-    setGenerator("kimodo");
+    setGenerator(proposalStep.generator || "kimodo");
     setInputs(proposalStep.inputs);
     setLinks({});
     setName("");
-    setNotice("제안을 불러왔습니다. 단계 이름을 입력하고 워크플로우에 추가하세요.");
+    setNotice(proposalStep.source ? proposalStep.source+" 결과를 입력에 채웠습니다. 단계 이름을 입력하세요." : "제안을 불러왔습니다. 단계 이름을 입력하고 워크플로우에 추가하세요.");
     editor.current.open=true;
     editor.current.scrollIntoView({block:"nearest"});
   },[proposalStep]);

@@ -44,7 +44,14 @@ function KimodoMotion({result}) {
   </section>;
 }
 
-export default function WorkflowResults({session, run, call, close, openRun}) {
+export default function WorkflowResults({session, run, call, close, openRun, editNextStep}) {
+  const [catalog,setCatalog] = useState({});
+  useEffect(()=>{
+    let active=true;
+    call("workflow-catalog").then(data=>{if(active)setCatalog(data.generators);})
+      .catch(problem=>{if(active)setError(problem.message);});
+    return ()=>{active=false;};
+  },[call]);
   const [view,setView] = useState(null);
   const [error,setError] = useState("");
   const [busy,setBusy] = useState(false);
@@ -138,11 +145,24 @@ export default function WorkflowResults({session, run, call, close, openRun}) {
           <KimodoMotion result={result}/>}
         {(result.outputs.audio || result.outputs.preview) &&
           <MediaPreview audio={Boolean(result.outputs.audio)} {...{result,session,run,call}}/>}
+        {view.choices.filter(choice=>choice.source_request===result.attempt_id && choice.digest===result.output_metadata?.sha256).map(choice=>{
+          const binding=view.steps.find(step=>step.step_id===choice.step_id)?.bindings?.[choice.input_field];
+          return <p key={choice.step_id+"/"+choice.input_field}>
+            {result.step_id}.{binding?.output} → {choice.step_id}.{choice.input_field}{" "}
+            {choice.selected ? "연결됨" : <button disabled={busy} onClick={()=>select(choice)}>이 결과를 다음 입력에 연결</button>}
+          </p>;
+        })}
+        {editNextStep && typeof result.outputs.text==="string" && <label>새 작업의 입력으로 사용
+          <select value="" onChange={event=>{
+            const [generator,field]=JSON.parse(event.target.value);
+            editNextStep({generator,inputs:{[field]:result.outputs.text},source:result.job_id});
+          }}>
+            <option value="">생성기와 입력 선택</option>
+            {Object.entries(catalog).flatMap(([generator,spec])=>Object.entries(spec.inputs)
+              .filter(([,input])=>input.type==="text" && !input.choices && (!input.max_length || Array.from(result.outputs.text).length<=input.max_length))
+              .map(([field,input])=><option key={generator+"/"+field} value={JSON.stringify([generator,field])}>{spec.label} · {input.label || field}</option>))}
+          </select></label>}
       </section>)}
-      {view.choices.filter(choice=>!choice.selected).map(choice=>
-        <button key={choice.step_id+"/"+choice.input_field} disabled={busy} onClick={()=>select(choice)}>
-          {choice.step_id}.{choice.input_field}에 검토한 결과 전달
-        </button>)}
     </>}
   </section>;
 }
