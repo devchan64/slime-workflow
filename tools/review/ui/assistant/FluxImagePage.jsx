@@ -26,6 +26,8 @@ export default function FluxImagePage(){
   const [files,setFiles]=useState([]),[review,setReview]=useState(null);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
   const [job,setJob]=useState(query.get("job") || "");
+  const [guideQuery,setGuideQuery]=useState(""),[guidePage,setGuidePage]=useState(0),[pageSize,setPageSize]=useState(8);
+  const [building,setBuilding]=useState("");
   const [stage,setStage]=useState("");
   const [layout,setLayout]=useState(""),[subject,setSubject]=useState("");
   const sending=useRef(false);
@@ -58,6 +60,20 @@ export default function FluxImagePage(){
     setJob(record.id);setNotice("선택한 이력의 입력과 참조 이미지를 불러왔습니다.");
   }
   function edit(key,value){setForm(current=>({...current,[key]:value}));}
+  const terms=guideQuery.toLowerCase().trim().split(/\s+/);
+  const buildings=(profile?.buildings || []).filter(item=>terms.every(term=>
+    [item.id,item.label,item.roof,item.entrance].join(" ").toLowerCase().includes(term)));
+  function guideUrl(id){return "/management/assistant/flux-building-guide/"+encodeURIComponent(id);}
+  async function applyBuilding(){
+    setBusy(true);setNotice("");
+    try{
+      const response=await fetch(guideUrl(building));
+      if(!response.ok)throw new Error("건물 가이드를 불러올 수 없습니다.");
+      const file=new File([await response.blob()],building+".png",{type:"image/png"});
+      setFiles(current=>[file,...current.slice(1)]);fileInput.current.value="";
+    }catch(error){setNotice(error.message);}
+    finally{setBusy(false);}
+  }
   async function applyStage(){
     setBusy(true);setNotice("");
     try{
@@ -110,6 +126,16 @@ export default function FluxImagePage(){
     {profile && <p>{profile.description}</p>}
     {!profile && notice && <button onClick={()=>setAttempt(current=>current+1)}>기본 입력 다시 불러오기</button>}
     <form onSubmit={preview}><fieldset disabled={!profile || busy || Boolean(review)}>
+      {profile?.buildings && <section><h2>건물 배치 가이드</h2>
+        <label>규격·층수·지붕·입구 검색 <input value={guideQuery} onChange={e=>{setGuideQuery(e.target.value);setGuidePage(0);setBuilding("");}}/></label>
+        <label>페이지당 가이드 <select value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setGuidePage(0);setBuilding("");}}>{[4,8,16,32].map(size=><option key={size}>{size}</option>)}</select></label>
+        <p>검색 결과 {buildings.length}건</p>
+        {buildings.slice(guidePage*pageSize,(guidePage+1)*pageSize).map(item=><button type="button" key={item.id} aria-pressed={building===item.id} onClick={()=>setBuilding(item.id)}>
+          <img width="110" loading="lazy" src={guideUrl(item.id)+"?thumbnail=true"} alt=""/>{item.label} · {item.id}</button>)}
+        <button type="button" disabled={!guidePage} onClick={()=>{setGuidePage(guidePage-1);setBuilding("");}}>이전</button>
+        <button type="button" disabled={(guidePage+1)*pageSize>=buildings.length} onClick={()=>{setGuidePage(guidePage+1);setBuilding("");}}>다음</button>
+        <button type="button" disabled={!building} onClick={applyBuilding}>선택한 가이드를 첫 참조에 적용</button>
+      </section>}
       {profile?.stages && <>
         <label>마네킨 제작 단계 <select value={stage} onChange={e=>setStage(e.target.value)}>{profile.stages.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
         <button type="button" onClick={applyStage}>선택한 단계와 프롬프트 예시 불러오기</button>
@@ -119,8 +145,8 @@ export default function FluxImagePage(){
         <label>생성 대상 <input value={subject} onChange={e=>setSubject(e.target.value)}/></label>
         <button type="button" disabled={!subject.trim()} onClick={applyGuide}>선택한 가이드와 프롬프트 적용</button>
       </>}
-      <label>프롬프트 <textarea value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/></label>
-      <label>번역할 한국어 설명 <textarea value={form.translation_source_ko} onChange={e=>edit("translation_source_ko",e.target.value)}/></label>
+      <label>{service==="flux-building"?"건물 디자인 (한국어)":"프롬프트"} <textarea value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/></label>
+      {service!=="flux-building" && <label>번역할 한국어 설명 <textarea value={form.translation_source_ko} onChange={e=>edit("translation_source_ko",e.target.value)}/></label>}
       <label>참조 PNG (최대 2장) <input ref={fileInput} type="file" multiple accept="image/png" onChange={e=>setFiles(Array.from(e.target.files))}/></label>
       {files.map((file,index)=><p key={index}>참조 {index+1} · {file.name}</p>)}
       {[["width","너비"],["height","높이"]].map(([key,label])=><label key={key}>{label} <input type="number" required min="256" max="1664" step="16" value={form[key]} onChange={e=>edit(key,e.target.value)}/></label>)}
