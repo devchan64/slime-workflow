@@ -373,9 +373,10 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/history-services')
     def history_services():
         from tools.review.common.management_catalog import REACT_REVIEW_PATHS
-        from tools.review.common.source_history_catalog import SOURCE_HISTORY_AUDIO_SERVICES, SOURCE_HISTORY_GENERATOR_SERVICES
+        from tools.review.common.source_history_catalog import SOURCE_HISTORY_AUDIO_SERVICES, SOURCE_HISTORY_GENERATOR_SERVICES, SOURCE_HISTORY_VIDEO_SERVICES
         return [
             {'service': service, 'command': 'hermes-audio-source-history' if service in SOURCE_HISTORY_AUDIO_SERVICES else 'hermes-generator-source-history'}
+            | {'video_result': service in SOURCE_HISTORY_VIDEO_SERVICES}
             | ({'result_path': REACT_REVIEW_PATHS[service]} if service == 'prompt-translation' else {})
             for service in sorted(set(SOURCE_HISTORY_GENERATOR_SERVICES) | set(SOURCE_HISTORY_AUDIO_SERVICES))
         ]
