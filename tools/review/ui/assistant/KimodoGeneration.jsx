@@ -4,6 +4,7 @@ import {managementCommand} from "./managementCommand.js";
 
 export default function KimodoGeneration({session}){
   const [directions,setDirections]=useState({});
+  const [segments,setSegments]=useState("");
   const key="kimodo-generation-receipt-"+session;
   const [inputs,setInputs]=useState(null),[review,setReview]=useState(null),[busy,setBusy]=useState(false);
   const [receipt,setReceipt]=useState(()=>sessionStorage.getItem(key) || ""),[notice,setNotice]=useState("");
@@ -25,8 +26,15 @@ export default function KimodoGeneration({session}){
   }
   async function inspect(){
     setReview(null);
+    const request={...inputs,frames:Number(inputs.frames),steps:Number(inputs.steps),seed:Number(inputs.seed),
+      guidance_scale:Number(inputs.guidance_scale),openpose_scale_percent:Number(inputs.openpose_scale_percent)};
+    if(segments.trim()){
+      const counts=segments.trim().split(/\s+/);
+      if(counts.some(value=>!/^\d+$/.test(value)))throw new Error("구간 프레임 수는 공백으로 구분한 정수로 입력하세요.");
+      request.segment_frames=counts.map(Number);
+    }
     const response=await fetch("/management/assistant/kimodo-generation-review",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({...inputs,frames:Number(inputs.frames),steps:Number(inputs.steps),seed:Number(inputs.seed),guidance_scale:Number(inputs.guidance_scale),openpose_scale_percent:Number(inputs.openpose_scale_percent)})});
+      body:JSON.stringify(request)});
     const result=await response.json();
     if(!response.ok)throw new Error(result.detail || "생성 입력을 확인하세요.");
     const model=await fetch("/management/assistant/model-readiness/kimodo",{cache:"no-store"});
@@ -48,6 +56,9 @@ export default function KimodoGeneration({session}){
       {[["frames","프레임 수",30,300],["steps","생성 단계",2,100],["seed","시드",0,2147483647]].map(([field,label,min,max])=>
         <label key={field}>{label} <input type="number" required min={min} max={max} value={inputs[field]} onChange={e=>edit(field,e.target.value)}/></label>)}
       <details><summary>모션 및 포즈 출력 설정</summary>
+        <label>구간별 프레임 수 <input value={segments} placeholder="예: 45 45"
+          onChange={e=>{setSegments(e.target.value);setReview(null);}}/></label>
+        <p>순차 생성은 동작 설명을 줄마다 하나씩 입력하세요. 각 구간은 16프레임 이상이며 합계는 전체 프레임 수와 같아야 합니다.</p>
         <fieldset><legend>카메라 방향</legend>{Object.entries(directions).map(([id,direction])=>
           <label key={id}><input type="checkbox" checked={inputs.directions.includes(id)}
             onChange={e=>edit("directions",e.target.checked?[...inputs.directions,id]:inputs.directions.filter(item=>item!==id))}/>
