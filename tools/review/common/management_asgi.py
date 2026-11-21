@@ -19,7 +19,6 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'hermes-direct': ('hermes_agent_app', 'build_hermes_direct_interface', 'none'),
     'mock-dwpose-validation': ('mock_progress_validation_app', 'build_mock_dwpose_interface', 'url'),
     'mock-animate-validation': ('mock_progress_validation_app', 'build_mock_animate_interface', 'url'),
-    'mock-progress-validation': ('mock_progress_validation_app', 'build_mock_progress_validation_interface', 'url'),
     'dwpose-generator': ('dwpose_app', 'build_dwpose_interface', 'url'),
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
     'wan22-vace-generator': ('wan_vace_app', 'build_vace_interface', 'url'),
@@ -346,6 +345,31 @@ def build_management_application(current_handler_class, current_root_path, curre
         current_response_value = await asyncio.to_thread(execute_legacy_request, current_handler_class, current_root_path, current_request_scope, bytes(current_request_body))
         await current_response_value(current_request_scope, current_receive_call, current_send_call)
 
+    from time import monotonic
+    from uuid import uuid4
+    mock_jobs = {}
+
+    @current_root_application.post('/management/assistant/mock-jobs')
+    async def start_mock_job():
+        identifier = 'mock-' + uuid4().hex
+        mock_jobs[identifier] = monotonic()
+        return {'id': identifier}
+
+    @current_root_application.get('/management/assistant/mock-jobs')
+    async def read_mock_jobs():
+        now = monotonic()
+        rows = []
+        for identifier, started in reversed(mock_jobs.items()):
+            elapsed = now - started
+            if elapsed < 5:
+                state, message = 'queued', '모의 대기열'
+            elif elapsed < 15:
+                state, message = 'running', '모의 실행 · 1 / 2'
+            else:
+                state, message = 'completed', '모의 결과 표시 완료'
+            rows.append({'id': identifier, 'status': state, 'message': message})
+        return rows
+
     @current_root_application.get('/management/assistant/history-services')
     def history_services():
         from tools.review.common.management_catalog import REACT_REVIEW_PATHS
@@ -381,6 +405,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/prompt-translation/')
     @current_root_application.get('/management/frame/model-management')
     @current_root_application.get('/management/frame/model-management/')
+    @current_root_application.get('/management/frame/mock-progress-validation')
+    @current_root_application.get('/management/frame/mock-progress-validation/')
     @current_root_application.get('/management/assistant/models/')
     @current_root_application.get('/management/assistant/translation/')
     @current_root_application.get('/management/frame/world-map')

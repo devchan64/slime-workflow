@@ -1,3 +1,4 @@
+import MockProgress from "./MockProgress.jsx";
 import SourceHistory from "./SourceHistory.jsx";
 import ServiceRegistry from "./ServiceRegistry.jsx";
 import CapabilitySearch from "./CapabilitySearch.jsx";
@@ -179,6 +180,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/frame/mock-progress-validation": MockProgress,
   "/management/assistant/models": ModelPage,
   "/management/frame/model-management": ModelPage,
   "/management/frame/world-map": WorldMap,
