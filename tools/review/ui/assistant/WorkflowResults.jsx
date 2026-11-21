@@ -1,3 +1,4 @@
+import {managementCommand} from "./managementCommand.js";
 import TranslationResult from "./TranslationResult.jsx";
 import React, {useEffect, useState} from "react";
 
@@ -19,6 +20,28 @@ function MediaPreview({audio, result, session, run, call}) {
     <img style={{maxWidth:"100%"}} src={source} alt={result.step_id + " 생성 결과"}/>;
   return <><button disabled={busy} onClick={load}>{audio ? "효과음 듣기" : "이미지 보기"}</button>
     {error && <p role="alert">{error}</p>}</>;
+}
+
+function KimodoMotion({result}) {
+  const [video,setVideo]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState("");
+  async function load(){
+    setBusy(true);setError("");
+    try{
+      const job=await managementCommand("kimodo","status",{id:result.job_id});
+      const directory="/kimodo/jobs/"+result.job_id+"/attempts/"+job.attempt+"/";
+      if(job.status!=="completed" || !/^[a-f0-9]{32}$/.test(job.attempt) ||
+         result.outputs.preview!==directory+"output-000.png" || job.video!==directory+"preview.mp4")
+        throw new Error("보관한 프레임과 같은 실행 시도의 영상을 확인할 수 없습니다.");
+      setVideo(job.video);
+    }catch(problem){setError(problem.message);}
+    finally{setBusy(false);}
+  }
+  return <section aria-label="Kimodo 모션 결과">
+    {video ? <video controls preload="metadata" src={video} style={{maxWidth:"100%"}}
+      onError={()=>{setVideo("");setError("원본 모션 영상을 불러올 수 없습니다.");}}/> :
+      <button disabled={busy} onClick={load}>원본 모션 영상 보기</button>}
+    {error && <p role="alert">{error}</p>}
+  </section>;
 }
 
 export default function WorkflowResults({session, run, call, close, openRun}) {
@@ -105,6 +128,8 @@ export default function WorkflowResults({session, run, call, close, openRun}) {
       {view.results.map(result => <section key={result.attempt_id}><h4>{result.step_id} · {result.job_id}</h4>
         {typeof result.outputs.text === "string" && (view.steps.some(step=>step.step_id===result.step_id && step.generator==="prompt-translation")
           ? <TranslationResult job={result.job_id} text={result.outputs.text}/> : <pre>{result.outputs.text}</pre>)}
+        {view.steps.some(step=>step.step_id===result.step_id && step.generator==="kimodo") &&
+          <KimodoMotion result={result}/>}
         {(result.outputs.audio || result.outputs.preview) &&
           <MediaPreview audio={Boolean(result.outputs.audio)} {...{result,session,run,call}}/>}
       </section>)}
