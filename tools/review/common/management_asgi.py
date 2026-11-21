@@ -369,6 +369,24 @@ def build_management_application(current_handler_class, current_root_path, curre
             rows.append({'id': identifier, 'status': state, 'message': message})
         return rows
 
+    @current_root_application.get('/management/assistant/sfx-input')
+    def sound_effect_defaults():
+        from generators.music.contracts import load_music_defaults
+        defaults = load_music_defaults('sfx-dasheng-audiogen')
+        return {key: defaults[key] for key in ('prompt', 'seed', 'loop_request')} | {'tag': ''}
+
+    @current_root_application.post('/management/assistant/sfx-input')
+    def sound_effect_preview(payload: dict):
+        from generators.music.contracts import build_music_request
+        from fastapi import HTTPException
+        if payload.get('action') != 'generate':
+            raise HTTPException(422, '효과음 생성 입력을 확인하세요.')
+        try:
+            request = build_music_request('sfx-dasheng-audiogen', payload)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        return {'final_prompt': request['final_prompt']}
+
     @current_root_application.get('/management/assistant/dwpose-input/{job}')
     def dwpose_input(job: str):
         from generators.dwpose.contracts import DWPOSE_JOB_STORAGE
@@ -416,9 +434,10 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/tools')
     def assistant_tools():
         from tools.review.common.management_catalog import REACT_REVIEW_PATHS, load_manager_page_records
+        tool_paths = {**REACT_REVIEW_PATHS, 'sfx-dasheng-audiogen': '/management/assistant/sound-effect/'}
         return [
             {key: record[key] for key in ('id', 'label', 'category', 'description')}
-            | {'review_path': REACT_REVIEW_PATHS.get(record['id'])}
+            | {'review_path': tool_paths.get(record['id'])}
             for record in load_manager_page_records(current_source_path)
             if record['id'] != 'hermes-agent'
         ]
@@ -435,6 +454,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/models/')
     @current_root_application.get('/management/frame/dwpose-generator')
     @current_root_application.get('/management/frame/dwpose-generator/')
+    @current_root_application.get('/management/assistant/sound-effect/')
     @current_root_application.get('/management/assistant/dwpose/')
     @current_root_application.get('/management/assistant/translation/')
     @current_root_application.get('/management/frame/world-map')
