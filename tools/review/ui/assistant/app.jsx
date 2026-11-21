@@ -109,6 +109,17 @@ function initialToolCategory(){
   const category=query().get("category") || "all";
   return ({"music-generation":"sound-management","sound-effects":"sound-management","town-map-review":"map-review","field-map-review":"map-review",animation:"animation-tool"})[category] || category;
 }
+function readPendingSubmission(raw,session){
+  if(raw===null)return null;
+  try{
+    const item=JSON.parse(raw);
+    if(typeof item?.prompt==="string" && item.prompt.trim() &&
+       typeof item.session_id==="string" && /^[a-f0-9]{32}$/.test(item.session_id) &&
+       (!session || item.session_id===session) && typeof item.request_id==="string" && /^[a-f0-9]{32}$/.test(item.request_id))
+      return {session_id:item.session_id,request_id:item.request_id,prompt:item.prompt};
+  }catch{}
+  return null;
+}
 function App() {
   const [session,setSession]=useState(query().get("session") || "");
   const [sessions,setSessions]=useState([]), [view,setView]=useState({}), [tools,setTools]=useState([]);
@@ -175,9 +186,10 @@ function App() {
   function edit(v){setDraft(v);sessionStorage.setItem("hermes-draft-"+session,v)}
   const pendingKey = "hermes-pending-" + session;
   const pendingText = sessionStorage.getItem(pendingKey);
-  const pending = pendingText ? JSON.parse(pendingText) : null;
+  const pending = readPendingSubmission(pendingText,session);
+  const invalidPending = pendingText!==null && !pending;
   async function send(retry=false){
-    if(sending.current || (!retry && !draft.trim()))return;
+    if(invalidPending || sending.current || (!retry && !draft.trim()))return;
     if(pending && pending.prompt!==draft && !retry)return;
     const item = pending || {session_id:session || id(), request_id:id(), prompt:draft};
     sessionStorage.setItem(pendingKey, JSON.stringify(item));
@@ -299,9 +311,11 @@ function App() {
     <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>{setProposalStep({session,inputs});setShowForms(true);}}}><Conversation key={session} view={view}/></ProposalActions.Provider>{error&&<p role="alert">{error}</p>}
     <form onSubmit={e=>{e.preventDefault();send()}}>{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
     <textarea ref={text} aria-label="메시지" placeholder="헤르메스에게 메시지 보내기" value={draft} disabled={busy} onChange={e=>edit(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){e.preventDefault();send()}}}/>
+    {invalidPending && <div role="alert">이 탭의 접수 기록을 읽을 수 없습니다. 대화 이력에서 이전 요청의 접수 여부를 확인하세요.
+      <button type="button" onClick={()=>{sessionStorage.removeItem(pendingKey);setRefresh(n=>n+1);}}>탭의 손상된 접수 기록 지우기</button></div>}
     {pending && pending.prompt!==draft && <details><summary>접수 확인이 필요한 이전 요청</summary>
       <pre>{pending.prompt}</pre><button type="button" disabled={busy} onClick={()=>send(true)}>이전 요청 접수 다시 확인</button></details>}
-    <button disabled={busy||!draft.trim()||Boolean(pending && pending.prompt!==draft)}>{busy?"접수 중":pending && pending.prompt===draft?"같은 요청 다시 보내기":"보내기"}</button></form></article></main>
+    <button disabled={busy||invalidPending||!draft.trim()||Boolean(pending && pending.prompt!==draft)}>{busy?"접수 중":pending && pending.prompt===draft?"같은 요청 다시 보내기":"보내기"}</button></form></article></main>
 }
 const pages = {
   "/management/frame/kimodo-generator": KimodoPage,
