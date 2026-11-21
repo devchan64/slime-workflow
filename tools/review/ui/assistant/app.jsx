@@ -1,3 +1,4 @@
+import KimodoPage from "./KimodoPage.jsx";
 import KimodoProposal from "./KimodoProposal.jsx";
 import BillboardCatalog from "./BillboardCatalog.jsx";
 import SpriteSheetEditor from "./SpriteSheetEditor.jsx";
@@ -282,6 +283,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/assistant/kimodo": KimodoPage,
   "/management/frame/effect-editor": EffectEditor,
   "/management/frame/sprite-sheet-editor": SpriteSheetEditor,
   "/management/assistant/sprite-sheets": SpriteSheetEditor,

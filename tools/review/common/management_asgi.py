@@ -1041,6 +1041,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/town-map/')
     @current_root_application.get('/management/assistant/battlefield/')
     @current_root_application.get('/management/assistant/fun-control/')
+    @current_root_application.get('/management/assistant/kimodo/')
     @current_root_application.get('/management/assistant/vace/')
     @current_root_application.get('/management/assistant/dwpose/')
     @current_root_application.get('/management/assistant/translation/')

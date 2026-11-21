@@ -6,7 +6,7 @@ import React, {useEffect, useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 
-function HistoryPage({source, choose, session}) {
+export function HistoryPage({source, choose, session}) {
   const [selectedJob,selectJob]=useState("");
   const [query,setQuery]=useState("");
   const [page,setPage]=useState(null);
