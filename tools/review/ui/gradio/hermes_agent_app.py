@@ -385,7 +385,9 @@ def resolve_workflow_priority_target(current_session_identifier, workflow_run_id
     current_run_view = read_conversation_workflow_result(current_session_identifier, workflow_run_identifier)
     for current_step_record in current_run_view["steps"]:
         if current_step_record["step_id"] == workflow_step_identifier and current_step_record["state"] == "submitting":
-            current_service_name = {"translation": "prompt-translation", "image": "flux-image"}[current_step_record["category"]]
+            current_service_name = current_step_record["generator"]
+            if current_service_name not in ("prompt-translation", "flux-image"):
+                break
             current_receipt_request = {"request_id": current_step_record["request_id"], "service": current_service_name}
             current_receipt_record = execute_remote_management_command("hermes-agent", "hermes-service-receipt", current_receipt_request)
             if (all(current_receipt_record.get(key) == value for key, value in current_receipt_request.items())

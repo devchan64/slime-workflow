@@ -12,11 +12,16 @@ def call_workflow_management_command(current_command_name, current_payload_recor
 
 
 def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_command_handler=call_workflow_management_command):
+    generator_submit_commands = {"prompt-translation": "hermes-delegate-translation",
+                                 "flux-image": "hermes-delegate-flux-image"}
     for current_step_record in workflow_run_store.list_run_step_records(workflow_run_identifier):
         current_step_identifier = current_step_record["step_id"]
         if current_step_record["state"] == "submitting":
-            translation_step_selected = current_step_record["category"] == "translation"
-            expected_service_name = "prompt-translation" if translation_step_selected else "flux-image"
+            expected_service_name = current_step_record["generator"]
+            if expected_service_name not in generator_submit_commands:
+                workflow_run_store.record_source_observation(current_step_record["request_id"], "unknown")
+                continue
+            translation_step_selected = expected_service_name == "prompt-translation"
             status_command_name = "hermes-translation-status" if translation_step_selected else "hermes-flux-delegation-status"
             try:
                 current_status_record = gateway_command_handler(status_command_name, {
@@ -72,8 +77,11 @@ def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_co
             continue
         claimed_step_record = workflow_run_store.claim_ready_step(workflow_run_identifier, current_step_identifier)
         if claimed_step_record is not None:
-            current_command_name = {"translation": "hermes-delegate-translation",
-                                    "image": "hermes-delegate-flux-image"}[current_step_record["category"]]
+            current_command_name = generator_submit_commands.get(current_step_record["generator"])
+            if current_command_name is None:
+                workflow_run_store.block_unusable_result(workflow_run_identifier, current_step_record,
+                    "등록된 생성기의 실행 어댑터가 없습니다.")
+                continue
             try:
                 gateway_command_handler(current_command_name, claimed_step_record)
             except (ValueError, OSError, RuntimeError):
