@@ -543,8 +543,8 @@ if __name__ == '__main__':
     if parsed_argument_values.watch:
         run_review_watch_mode(parsed_argument_values)
     else:
-        from tools.review.common.management_environment import resolve_gradio_environment
-        current_management_python = resolve_gradio_environment()/'bin/python'
+        from tools.review.common.management_environment import resolve_management_ui_environment
+        current_management_python = resolve_management_ui_environment()/'bin/python'
         if Path(sys.prefix) != current_management_python.parent.parent:
             os.execv(str(current_management_python), [str(current_management_python), *sys.argv])
         run_review_server(parsed_argument_values)

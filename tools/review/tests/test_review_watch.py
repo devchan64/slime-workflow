@@ -12,7 +12,7 @@ class ReviewWatchTests(unittest.TestCase):
     def test_changed_files_include_additions_and_deletions(self):
         self.assertEqual(serve.collect_changed_review_paths((('a',1,2),('b',1,2)),(('a',2,2),('c',1,2))),['a','b','c'])
 
-    def test_only_gradio_python_changes_reuse_preparation(self):
+    def test_only_management_ui_python_changes_reuse_preparation(self):
         current_workflow_root=Path(serve.__file__).resolve().parents[2]
         current_safe_paths=[str(current_workflow_root/'tools/review/ui/gradio/asset_editor_app.py'),str(current_workflow_root/'tools/review/common/gradio_asset_editor.py')]
         self.assertTrue(serve.can_reuse_review_directory(current_safe_paths))

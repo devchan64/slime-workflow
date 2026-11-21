@@ -8,7 +8,7 @@ import subprocess
 import sys
 from urllib.request import ProxyHandler, build_opener
 
-from tools.review.common.management_environment import WORKFLOW_ROOT_DIRECTORY, resolve_management_environment, resolve_gradio_environment
+from tools.review.common.management_environment import WORKFLOW_ROOT_DIRECTORY, resolve_management_environment, resolve_management_ui_environment
 
 
 def inspect_management_python(environment_directory_path, required_module_names):
@@ -229,7 +229,7 @@ def inspect_gpu_queue_reservations():
 
 def attach_environment_recovery_guidance(current_checks_record):
     """진단 결과에 실제 지원하는 선택 준비 명령과 보존 조건을 덧붙인다."""
-    current_setup_scopes = {'gradio_python': 'management', 'frontend_source': 'renderer',
+    current_setup_scopes = {'management_ui_python': 'management', 'frontend_source': 'renderer',
         'hermes_mcp': 'hermes-mcp', 'writer_server': 'writer-runtime', 'kimodo_python': 'kimodo-runtime',
         'wan_fun_python': 'wan-fun-runtime', 'heartmula_python': 'heartmula-runtime', 'sfx_python': 'sfx-runtime'}
     for current_check_name, current_scope_name in current_setup_scopes.items():
@@ -275,7 +275,7 @@ def inspect_management_environment(include_model_inventory=False, include_depend
     from tools.review.common.hermes_model_download import HERMES_MODEL_DIRECTORY, HERMES_MODEL_FILENAME, inspect_hermes_model_files
     from tools.review.domains.hermes_agent.runtime_integrity import verify_hermes_runtime_integrity
     current_runtime_path = resolve_management_environment('VIRTUAL_ENVIRONMENT_PATH', '.venv')
-    current_gradio_path = resolve_gradio_environment()
+    current_ui_path = resolve_management_ui_environment()
     current_frontend_path = Path(os.environ.get('FRONTEND_REPOSITORY_PATH', WORKFLOW_ROOT_DIRECTORY.parent / 'slime-frontend')).expanduser()
     current_hermes_path = WORKFLOW_ROOT_DIRECTORY / '.local/hermes-agent-runtime'
     current_model_path = HERMES_MODEL_DIRECTORY / HERMES_MODEL_FILENAME
@@ -293,7 +293,7 @@ def inspect_management_environment(include_model_inventory=False, include_depend
     current_checks_record = {
         'python': {'status': 'available', 'version': sys.version.split()[0]},
         'management_python': {**inspect_management_python(current_runtime_path, ('yaml', 'jsonschema')), 'next': './scripts/workflow.sh setup --scope management'},
-        'gradio_python': inspect_management_python(current_gradio_path, ('fastapi', 'uvicorn', 'psutil')),
+        'management_ui_python': inspect_management_python(current_ui_path, ('fastapi', 'uvicorn', 'psutil')),
         'image_worker_python': inspect_image_worker_environment(include_dependency_check),
         'frontend_source': {'status': 'present' if (current_frontend_path / 'packages/field-renderer/package.json').is_file() else 'missing', 'path': str(current_frontend_path)},
         'bubblewrap': {'status': 'present' if shutil.which('bwrap') else 'missing', 'optional_for': 'hermes'},
@@ -335,6 +335,6 @@ def inspect_management_environment(include_model_inventory=False, include_depend
     if include_model_inventory:
         current_checks_record['model_inventory'] = inspect_registered_model_inventory(current_runtime_path / 'bin/python')
     print(json.dumps(current_checks_record, ensure_ascii=False, indent=2))
-    current_core_ready = current_checks_record['management_python']['status'] == 'present' and current_checks_record['gradio_python']['status'] == 'present'
+    current_core_ready = current_checks_record['management_python']['status'] == 'present' and current_checks_record['management_ui_python']['status'] == 'present'
     current_inventory_ready = not include_model_inventory or current_checks_record['model_inventory']['status'] == 'file_inventory'
     return 0 if current_core_ready and current_inventory_ready else 1

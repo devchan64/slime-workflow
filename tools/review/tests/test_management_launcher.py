@@ -285,7 +285,7 @@ class ManagementLauncherTests(unittest.TestCase):
 
     def test_diagnostics_guidance_preserves_existing_generator_environments(self):
         from tools.review.common.management_diagnostics import attach_environment_recovery_guidance
-        current_check_names = ('gradio_python', 'frontend_source', 'hermes_mcp', 'writer_server',
+        current_check_names = ('management_ui_python', 'frontend_source', 'hermes_mcp', 'writer_server',
                                'kimodo_python', 'wan_fun_python', 'heartmula_python', 'sfx_python', 'hermes_model')
         current_check_records = {current_check_name: {'status': 'unknown'} for current_check_name in current_check_names}
         attach_environment_recovery_guidance(current_check_records)
@@ -895,11 +895,11 @@ class ManagementLauncherTests(unittest.TestCase):
                 run_command_mock.assert_not_called()
             self.assertEqual(current_user_file.read_text(), 'preserve')
 
-    def test_gradio_uses_shared_environment_and_allows_explicit_override(self):
+    def test_management_ui_uses_shared_environment_and_allows_explicit_override(self):
         with patch.dict(os.environ, {'VIRTUAL_ENVIRONMENT_PATH': '.tmp/shared'}, clear=True):
-            self.assertEqual(management_launcher.resolve_gradio_environment(), management_launcher.WORKFLOW_ROOT_DIRECTORY/'.tmp/shared')
+            self.assertEqual(management_launcher.resolve_management_ui_environment(), management_launcher.WORKFLOW_ROOT_DIRECTORY/'.tmp/shared')
             with patch.dict(os.environ, {'MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH': '.tmp/ui'}):
-                self.assertEqual(management_launcher.resolve_gradio_environment(), management_launcher.WORKFLOW_ROOT_DIRECTORY/'.tmp/ui')
+                self.assertEqual(management_launcher.resolve_management_ui_environment(), management_launcher.WORKFLOW_ROOT_DIRECTORY/'.tmp/ui')
 
     def test_failure_preserves_output_and_exact_exit_code(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name, patch.object(management_process, 'WORKFLOW_ROOT_DIRECTORY', Path(temporary_directory_name)), contextlib.redirect_stdout(io.StringIO()):

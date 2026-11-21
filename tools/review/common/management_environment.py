@@ -25,7 +25,7 @@ def resolve_management_environment(environment_variable_name, default_directory_
     return selected_directory_path.absolute()
 
 
-def resolve_gradio_environment():
+def resolve_management_ui_environment():
     """기본 런타임을 공유하고 명시적인 기존 UI 경로 설정은 존중한다."""
     if 'MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH' in os.environ:
         return resolve_management_environment('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH', '.venv')

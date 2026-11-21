@@ -7,7 +7,7 @@ import fcntl
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from tools.review.common.management_environment import WORKFLOW_ROOT_DIRECTORY, resolve_management_environment, resolve_gradio_environment
+from tools.review.common.management_environment import WORKFLOW_ROOT_DIRECTORY, resolve_management_environment, resolve_management_ui_environment
 from tools.review.common.management_process import run_logged_management_command
 
 IMAGE_ROCM_INDEX_URL = 'https://stable.repo.amd.com/rocm/whl-next/'
@@ -103,10 +103,10 @@ def hold_shared_environment_reservation():
 
 def prepare_management_environments(launcher_trace_logger, selected_setup_scope="legacy"):
     current_shared_path = resolve_management_environment('VIRTUAL_ENVIRONMENT_PATH', '.venv')
-    current_gradio_path = resolve_gradio_environment()
+    current_ui_path = resolve_management_ui_environment()
     current_shared_image_path = IMAGE_ENVIRONMENT_PATH.resolve()
     current_modifies_shared_path = (selected_setup_scope in ('legacy', 'image', 'wan-fun-runtime', 'sfx-runtime', 'kimodo-runtime', 'heartmula-runtime', 'writer-runtime') or
-        selected_setup_scope == 'management' and (current_shared_path.resolve() == current_shared_image_path or current_gradio_path.resolve() == current_shared_image_path))
+        selected_setup_scope == 'management' and (current_shared_path.resolve() == current_shared_image_path or current_ui_path.resolve() == current_shared_image_path))
     if current_modifies_shared_path:
         with hold_shared_environment_reservation():
             return prepare_selected_management_environment(launcher_trace_logger, selected_setup_scope)
@@ -146,8 +146,8 @@ def prepare_selected_management_environment(launcher_trace_logger, selected_setu
     current_environment_records = list(MANAGEMENT_ENVIRONMENT_RECORDS)
     if 'MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH' in os.environ:
         current_shared_path = resolve_management_environment('VIRTUAL_ENVIRONMENT_PATH', '.venv')
-        current_gradio_path = resolve_management_environment('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH', '.venv')
-        if current_shared_path != current_gradio_path:
+        current_ui_path = resolve_management_environment('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH', '.venv')
+        if current_shared_path != current_ui_path:
             current_environment_records.append(('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH', '.venv', 'tools/review/requirements.txt'))
     current_prepared_paths = set()
     # 이미지 작업자는 고정된 .venv를 사용한다. GUI 경로 설정과 구분한다.

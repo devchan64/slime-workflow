@@ -3,16 +3,16 @@ import json
 import os
 from pathlib import Path
 import shutil
-from tools.review.common.management_environment import WORKFLOW_ROOT_DIRECTORY, resolve_management_environment, resolve_gradio_environment
+from tools.review.common.management_environment import WORKFLOW_ROOT_DIRECTORY, resolve_management_environment, resolve_management_ui_environment
 
 
 def describe_management_setup(selected_setup_scope):
     current_management_path = resolve_management_environment('VIRTUAL_ENVIRONMENT_PATH', '.venv')
-    current_gradio_path = resolve_gradio_environment()
+    current_ui_path = resolve_management_ui_environment()
     current_frontend_path = Path(os.environ.get('FRONTEND_REPOSITORY_PATH', WORKFLOW_ROOT_DIRECTORY.parent / 'slime-frontend')).expanduser().resolve()
     current_renderer_paths = [str(current_frontend_path / '.tmp/field-renderer'), 'tools/review/ui/map/vendor/field-renderer']
     current_scope_records = {
-        'management': ([str(current_management_path), str(current_gradio_path)], '관리 Python 패키지', '없음'),
+        'management': ([str(current_management_path), str(current_ui_path)], '관리 Python 패키지', '없음'),
         'image': (['.venv'], 'AMD ROCm 및 이미지 Python 패키지와 고정 소스', '없음'),
         'renderer': (current_renderer_paths, '없음; 기존 Node 의존성 사용', '없음'),
         'wan-fun-runtime': (['.local/venvs/wan-fun-rocm'], 'AMD ROCm 및 Wan Fun Python 패키지', '없음'),
@@ -22,7 +22,7 @@ def describe_management_setup(selected_setup_scope):
         'writer-runtime': (['.local/writer-agent', '.model/writer-agent', '.local/model-preparation/writer-model'], 'llama.cpp 고정 소스와 작가 Python 패키지', '작가 생성 모델과 임베딩 모델 두 개 (기존 파일 검증 후 재사용)'),
         'hermes-runtime': (['.local/hermes-agent-runtime'], '고정 Hermes 소스와 잠금 Python 패키지', '없음'),
         'hermes-mcp': (['.local/hermes-mcp'], 'MCP 잠금 Python 패키지', '없음'),
-        'legacy': ([str(current_management_path), str(current_gradio_path), '.venv', *current_renderer_paths], '관리 및 이미지 Python 패키지와 고정 소스', '없음'),
+        'legacy': ([str(current_management_path), str(current_ui_path), '.venv', *current_renderer_paths], '관리 및 이미지 Python 패키지와 고정 소스', '없음'),
     }
     current_target_paths, current_download_description, current_model_description = current_scope_records[selected_setup_scope]
     current_missing_requirements = []
