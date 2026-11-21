@@ -50,9 +50,15 @@ def load_hermes_billboard_edit(current_asset_identifier):
         raise ValueError('등록된 빌보드를 하나 찾지 못했습니다.')
     current_revision_value=current_catalog_record.get('revision')
     current_property_values=current_match_records[0].get('properties')
+    initial = ('properties' in current_match_records[0] and current_property_values is None
+               and current_catalog_record.get('storage') != 'database')
+    if initial:
+        current_property_values = dict(anchorX=0, anchorY=0, groundFootprintColumns=1, groundFootprintRows=1,
+                                      displayHeight=128, shadowOffsetColumn=0, shadowOffsetRow=0,
+                                      shadowScaleX=1, shadowScaleY=1, billboardBlocksMovement=False)
     if not isinstance(current_revision_value,str) or len(current_revision_value)>100000 or not isinstance(current_property_values,dict):
         raise ValueError('빌보드 속성 또는 revision을 확인할 수 없습니다.')
-    return {'texture':current_asset_identifier,'revision':current_revision_value,'properties':current_property_values}
+    return {'texture':current_asset_identifier,'revision':current_revision_value,'properties':current_property_values,**({'initial':True} if initial else {})}
 
 
 def preview_hermes_billboard_edit(current_draft_record):

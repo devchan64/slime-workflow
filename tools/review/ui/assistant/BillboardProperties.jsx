@@ -24,7 +24,7 @@ export default function BillboardProperties({texture}){
   async function preview(event){
     event.preventDefault();setBusy(true);setNotice("");setReview(null);
     try{
-      const values={};
+      const values=source.initial?{...source.properties}:{};
       for(const [key,raw] of Object.entries(edits)){
         const value=key==="billboardPlacementAnchor" || key==="billboardBlocksMovement"?raw:Number(raw);
         if(value!==source.properties[key])values[key]=value;
@@ -48,11 +48,13 @@ export default function BillboardProperties({texture}){
     finally{setBusy(false);}
   }
   const properties=source?{...source.properties,...edits}:{};
+  const automaticPlacement=source?.initial || ["tile-intersection","tile-bottom-center"].includes(properties.billboardAnchorMode);
   return <section><button disabled={busy} onClick={load}>공용 속성 불러오기</button>
     {source && <form onSubmit={preview}><fieldset disabled={busy}><legend>빌보드 공용 속성</legend>
+      {source.initial && <p>최초 설정 초안 · 기본 점유 1×1, 표시 높이 128px입니다. 원본을 확인한 뒤 검토하세요.</p>}
       {Object.keys(labels).filter(key=>!key.startsWith("billboard")).map(key=><label key={key}>{labels[key]}
         <input type="number" step="any" required={key in edits} value={properties[key] ?? ""} onChange={e=>edit(key,e.target.value)}/></label>)}
-      <label>배치 기준<select value={properties.billboardPlacementAnchor ?? ""} onChange={e=>edit("billboardPlacementAnchor",e.target.value)}>
+      <label>배치 기준<select disabled={automaticPlacement} value={automaticPlacement?(Number(properties.anchorY)<0.5?"top":"bottom"):(properties.billboardPlacementAnchor ?? "")} onChange={e=>edit("billboardPlacementAnchor",e.target.value)}>
         <option value="" disabled>미지정</option><option value="top">위쪽</option><option value="bottom">아래쪽</option></select></label>
       <label><input type="checkbox" checked={properties.billboardBlocksMovement ?? false} onChange={e=>edit("billboardBlocksMovement",e.target.checked)}/>통행 차단</label>
       <button>변경 검토</button>

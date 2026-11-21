@@ -9,6 +9,14 @@ from tools.review.domains.hermes_agent.delegation_store import HermesDelegationS
 
 
 class HermesBillboardOperationTests(unittest.TestCase):
+    def test_unconfigured_file_asset_previews_all_initial_properties(self):
+        catalog={'revision':'abc','assets':[{'texture':'grass-v1','properties':None}]}
+        with patch.object(billboard_operations,'call_field_map_editor',return_value=catalog):
+            source=billboard_operations.load_hermes_billboard_edit('grass-v1')
+        self.assertTrue(source['initial'])
+        self.assertEqual(source['properties']['displayHeight'],128)
+        self.assertEqual(set(source['properties']),billboard_operations.EDITOR_MUTABLE_FIELDS-{'billboardPlacementAnchor'})
+
     def test_change_summary_shows_values_maps_and_warnings(self):
         from tools.review.ui.gradio.hermes_agent_app import format_conversation_billboard_changes
         current_preview_value={'changes':[{'texture':'tree-v1','before':{'displayHeight':520,'anchorY':1},'after':{'displayHeight':500,'anchorY':1}}],'maps':['assets/maps/field_tiles/meadow.yaml'],'map_warnings':[{'map':'assets/maps/field_tiles/meadow.yaml','message':'접지 확인'}],'note':'맵은 다시 확인'}
