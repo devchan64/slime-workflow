@@ -674,6 +674,18 @@ def build_management_application(current_handler_class, current_root_path, curre
         rows, summary = format_capability_table(catalog)
         return {'rows': rows, 'summary': summary}
 
+    @current_root_application.post('/management/assistant/operations-jobs')
+    def operations_jobs(payload: dict):
+        from fastapi import HTTPException
+        from tools.review.common.operations_history import read_operations_job_history_page, OPERATIONS_HISTORY_STATUS_LABELS
+        from tools.review.common.management_client import execute_remote_management_command
+        query = payload.get('query', '')
+        if not isinstance(query, str):
+            raise HTTPException(422, '검색어를 확인하세요.')
+        rows, summary, page = read_operations_job_history_page(query, payload.get('status', '전체'), payload.get('page'),
+            payload.get('direction', 'first'), command=execute_remote_management_command)
+        return dict(rows=rows, summary=summary, page=page, statuses=OPERATIONS_HISTORY_STATUS_LABELS)
+
     @current_root_application.get('/management/assistant/tools')
     def assistant_tools():
         from tools.review.common.management_catalog import CATEGORY_LABEL_VALUES, resolve_management_page_path, load_manager_page_records
