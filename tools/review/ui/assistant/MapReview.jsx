@@ -7,17 +7,29 @@ export default function MapReview(){
   const title=field?"야외필드":"도시맵";
   const [cell,setCell]=useState(null),[reading,setReading]=useState(false);
   const [source,setSource]=useState(null),[draft,setDraft]=useState(null),[preview,setPreview]=useState(null);
+  const [past,setPast]=useState([]),[future,setFuture]=useState([]);
   function editCell(key,value){
     setCell({...cell,[key]:value});setPreview(null);
   }
   async function previewCell(event){
-    event.preventDefault();setReading(true);setPreview(null);
+    event.preventDefault();
     const {column,row,tile,height,blocked}=cell;
     const cells=draft.cells.filter(item=>item.column!==column || item.row!==row);
     const next={...draft,cells:[...cells,{column,row,tile,height:Number(height),blocked}]};
+    await applyDraft(next,"edit");
+  }
+  async function applyDraft(next,action){
+    setReading(true);setPreview(null);
     try{
       const result=await managementCommand("map-assets","map-edit-preview",next);
       await window.mapReviewApplyDraft(result.render);
+      if(action==="undo"){
+        setPast(past.slice(0,-1));setFuture([...future,draft]);setCell(null);
+      }else if(action==="redo"){
+        setFuture(future.slice(0,-1));setPast([...past,draft]);setCell(null);
+      }else{
+        setPast([...past,draft]);setFuture([]);
+      }
       setDraft(next);setPreview(result);
       setFeedback("검증 완료 · 변경 셀 "+result.cells+"개 · 도달 가능 "+result.reachable+"칸");
     }catch(error){setFeedback(error.message);}
@@ -29,7 +41,7 @@ export default function MapReview(){
     try{
       const result=await managementCommand("map-assets","map-edit-save",{...draft,token:preview.token});
       if(result.map!==draft.map || result.saved!==true)throw new Error("저장 결과를 확인할 수 없습니다.");
-      setCell(null);setSource(null);setDraft(null);setFeedback(result.map+" 저장 완료");
+      setPast([]);setFuture([]);setCell(null);setSource(null);setDraft(null);setFeedback(result.map+" 저장 완료");
     }catch(error){setFeedback(error.message+" · 저장 상태를 확인하세요.");}
     finally{setReading(false);}
   }
@@ -96,6 +108,11 @@ export default function MapReview(){
         <label>높이<input type="number" required min="0" max="20" step="1" value={cell.height} onChange={e=>editCell("height",e.target.value)}/></label>
         <label><input type="checkbox" checked={cell.blocked} onChange={e=>editCell("blocked",e.target.checked)}/>이동 금지</label>
         <button>초안 검증 및 미리보기</button></form>}
+      {draft && <div>
+        <button disabled={!past.length} onClick={()=>applyDraft(past[past.length-1],"undo")}>한 단계 되돌리기</button>
+        <button disabled={!future.length} onClick={()=>applyDraft(future[future.length-1],"redo")}>한 단계 다시 실행</button>
+        <span>편집 이력 {past.length} / {past.length+future.length}단계</span>
+      </div>}
       {preview && <button disabled={!preview.changed || !preview.save_available || !preview.token} onClick={save}>검증된 초안 저장</button>}
     </fieldset>}
     <canvas id="map" width="768" height="576" tabIndex="0" aria-label={title+" · 방향키로 이동"} style={{width:"100%",aspectRatio:"4/3",touchAction:"none"}}/>
