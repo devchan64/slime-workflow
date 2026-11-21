@@ -1,3 +1,4 @@
+import DwposePage from "./DwposePage.jsx";
 import MockProgress from "./MockProgress.jsx";
 import SourceHistory from "./SourceHistory.jsx";
 import ServiceRegistry from "./ServiceRegistry.jsx";
@@ -180,6 +181,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/assistant/dwpose": DwposePage,
   "/management/frame/mock-progress-validation": MockProgress,
   "/management/assistant/models": ModelPage,
   "/management/frame/model-management": ModelPage,

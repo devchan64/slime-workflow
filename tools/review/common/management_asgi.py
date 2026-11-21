@@ -392,9 +392,10 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/tools')
     def assistant_tools():
         from tools.review.common.management_catalog import REACT_REVIEW_PATHS, load_manager_page_records
+        paths = {**REACT_REVIEW_PATHS, 'dwpose-generator': '/management/assistant/dwpose/'}
         return [
             {key: record[key] for key in ('id', 'label', 'category', 'description')}
-            | {'review_path': REACT_REVIEW_PATHS.get(record['id'])}
+            | {'review_path': paths.get(record['id'])}
             for record in load_manager_page_records(current_source_path)
             if record['id'] != 'hermes-agent'
         ]
@@ -409,6 +410,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/mock-progress-validation')
     @current_root_application.get('/management/frame/mock-progress-validation/')
     @current_root_application.get('/management/assistant/models/')
+    @current_root_application.get('/management/assistant/dwpose/')
     @current_root_application.get('/management/assistant/translation/')
     @current_root_application.get('/management/frame/world-map')
     @current_root_application.get('/management/frame/world-map/')

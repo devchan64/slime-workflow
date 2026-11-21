@@ -1,3 +1,4 @@
+import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import HistoryCleanup from "./HistoryCleanup.jsx";
 import {JobPriority} from "./QueuePriority.jsx";
 import GeneratorJobControls from "./GeneratorJobControls.jsx";
@@ -17,7 +18,7 @@ export default function TranslationPage() {
   const [text,setText]=useState(""),[language,setLanguage]=useState("en"),[terms,setTerms]=useState("");
   const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[notice,setNotice]=useState("");
   const [job,setJob]=useState(query.get("job") || ""),[record,setRecord]=useState(null);
-  const [revision,setRevision]=useState(0),[gpu,setGpu]=useState("");
+  const [revision,setRevision]=useState(0);
   const [historyRevision,setHistoryRevision]=useState(0);
   const sending=useRef(false);
   useEffect(()=>{document.title="프롬프트 번역";},[]);
@@ -35,18 +36,6 @@ export default function TranslationPage() {
     }
     read();return()=>{active=false;clearTimeout(timer);};
   },[job,revision]);
-  useEffect(()=>{
-    if(!pending)return;
-    const controller=new AbortController();
-    setGpu("GPU 대기열 조회 중…");
-    fetch("/management/gpu-queue",{signal:controller.signal,cache:"no-store"}).then(async response=>{
-      if(!response.ok)throw new Error();
-      const data=await response.json();
-      if(!Array.isArray(data.jobs)||!["idle","busy"].includes(data.gpu_status?.status))throw new Error();
-      if(!controller.signal.aborted)setGpu((data.gpu_status.status==="busy"?"GPU 사용 중":"GPU 유휴")+" · 대기 작업 "+data.jobs.length+"건"+(data.truncated?" 이상":""));
-    }).catch(()=>{if(!controller.signal.aborted)setGpu("GPU 상태 확인 불가");});
-    return ()=>controller.abort();
-  },[pending]);
   function review(){
     try{
       const glossary=terms.split(/\r?\n/).filter(line=>line.trim()).map(line=>{
@@ -85,7 +74,7 @@ export default function TranslationPage() {
     </fieldset>
     <HistoryCleanup key={job+"/"+(record?.status?.status || "")} service={service} job={job} state={record?.status?.status}
       onDeleted={message=>{setJob("");setRecord(null);setNotice(message);setHistoryRevision(v=>v+1);}}/>
-    {pending && <section><p>{gpu}</p><p>{pending.text} · {pending.target_language}</p>
+    {pending && <section><GpuQueueSummary/><p>{pending.text} · {pending.target_language}</p>
       <button disabled={busy} onClick={()=>setPending(null)}>추가하지 않기</button><button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button>
     </section>}
     <p role="status">{notice}</p>
