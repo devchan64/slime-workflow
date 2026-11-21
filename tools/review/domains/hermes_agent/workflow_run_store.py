@@ -50,14 +50,18 @@ def read_step_records_locked(current_database_connection, workflow_run_identifie
 def read_result_records_locked(current_database_connection, workflow_run_identifier):
     current_result_rows = current_database_connection.execute(
         """SELECT result.step_id, result.job_id, result.outputs, step.request_id, meta.output_name,
-                  meta.media_type, meta.digest, meta.byte_size, meta.recorded_at
+                  meta.media_type, meta.digest, meta.byte_size, meta.recorded_at,
+                  json_remove(step.request_body, '$.images'), json_array_length(step.request_body, '$.images'),
+                  step.request_digest
            FROM workflow_result AS result JOIN workflow_step AS step USING(run_id, step_id)
            LEFT JOIN workflow_output_metadata AS meta USING(run_id, step_id)
            WHERE result.run_id=? ORDER BY result.rowid""",
         (workflow_run_identifier,))
     return [{"step_id": step_id, "job_id": job_id, "outputs": json.loads(outputs), "attempt_id": request_id,
+             "input_settings": json.loads(settings) if settings is not None else None,
+             "reference_image_count": reference_count, "input_sha256": input_digest,
              "output_metadata": {"name": name, "media_type": media, "sha256": digest, "bytes": size, "recorded_at": stamp} if name else None}
-            for step_id, job_id, outputs, request_id, name, media, digest, size, stamp in current_result_rows]
+            for step_id, job_id, outputs, request_id, name, media, digest, size, stamp, settings, reference_count, input_digest in current_result_rows]
 
 
 class WorkflowRunStore:

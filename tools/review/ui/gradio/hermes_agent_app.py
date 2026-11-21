@@ -381,9 +381,18 @@ def preview_pinned_workflow_image(current_session_identifier, workflow_run_ident
 def display_conversation_workflow_results(current_session_identifier, workflow_run_identifier):
     from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
     current_run_view = read_conversation_workflow_result(current_session_identifier, workflow_run_identifier)
+    from html import escape
+    from .operations_history_app import render_operations_source_link
+    generator_by_step = {step["step_id"]: step["generator"] for step in current_run_view["steps"]}
+    source_history_links = []
     translated_result_values = []
     image_result_links = []
     for current_result_record in current_run_view["results"]:
+        current_step_identifier = current_result_record["step_id"]
+        current_service_name = generator_by_step.get(current_step_identifier)
+        if current_service_name and validate_service_job_identifier(current_service_name, current_result_record["job_id"]):
+            source_job_link = render_operations_source_link(current_service_name, current_result_record["job_id"], current_session_identifier)
+            source_history_links.append(f"<p>{escape(current_step_identifier)} · {source_job_link}</p>")
         current_output_record = current_result_record["outputs"]
         if "text" in current_output_record:
             translated_result_values.append(current_output_record["text"])
@@ -395,7 +404,7 @@ def display_conversation_workflow_results(current_session_identifier, workflow_r
             if current_output_record["preview"] != expected_result_path:
                 raise gr.Error("이미지 결과 경로가 작업과 일치하지 않습니다.")
             image_result_links.append(f"[생성 이미지 {len(image_result_links) + 1} 열기]({expected_result_path})")
-    return current_run_view, "\n\n".join(translated_result_values), "\n\n".join(image_result_links)
+    return current_run_view, "\n\n".join(translated_result_values), "\n\n".join(image_result_links), "".join(source_history_links)
 
 
 def select_conversation_workflow_output(current_session_identifier, workflow_run_identifier, reviewed_run_record,
@@ -4990,12 +4999,13 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     workflow_preview_button.click(preview_pinned_workflow_image, workflow_preview_inputs, workflow_preview_image, queue=False)
                     for preview_input_component in workflow_preview_inputs:
                         preview_input_component.change(lambda: None, outputs=workflow_preview_image, queue=False)
-                    workflow_display_outputs = [workflow_run_display, workflow_translation_output, workflow_image_links]
+                    workflow_history_links = gr.HTML()
+                    workflow_display_outputs = [workflow_run_display, workflow_translation_output, workflow_image_links, workflow_history_links]
                     workflow_result_button.click(display_conversation_workflow_results,
                         [hermes_session_control, workflow_run_identifier], workflow_display_outputs, queue=False)
-                    hermes_session_control.change(lambda: (None, "", ""), outputs=workflow_display_outputs, queue=False)
+                    hermes_session_control.change(lambda: (None, "", "", ""), outputs=workflow_display_outputs, queue=False)
                     workflow_run_identifier.change(
-                        lambda run_id, view: (view if view and view.get("run_id") == run_id else None, "", ""),
+                        lambda run_id, view: (view if view and view.get("run_id") == run_id else None, "", "", ""),
                         [workflow_run_identifier, workflow_run_display], workflow_display_outputs, queue=False)
                 with gr.Accordion("대화에서 설계한 워크플로우", open=False):
                     workflow_load_proposal = gr.Button("선택한 답변에서 단계 가져오기")
