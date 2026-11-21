@@ -140,7 +140,7 @@ function App() {
     <article><header><h1>{view.title || "헤르메스와 대화"}</h1><button aria-expanded={showTools} onClick={()=>{setShowGpu(false);setShowTools(!showTools)}}>도구 탐색</button>
     <button aria-expanded={showGpu} onClick={()=>{setShowTools(false);setShowGpu(!showGpu)}}>GPU 프로세스 정보</button>
     {session&&<button aria-expanded={showForms} onClick={()=>setShowForms(!showForms)}>입력 폼</button>}
-    {session&&<button aria-expanded={Boolean(queue)} onClick={()=>setQueue(!queue)}>대기열</button>}</header>
+    {session&&<button aria-expanded={Boolean(queue)} onClick={()=>setQueue(queue ? null : {run:""})}>대기열</button>}</header>
     {showGpu && <GpuPanel/>}
     {showTools && <section className="floating-panel" aria-label="도구 탐색">
       <input aria-label="도구 검색" placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>
@@ -153,8 +153,8 @@ function App() {
           {tool.review_path && <a href={tool.review_path+(session?"?"+new URLSearchParams({session}):"")}>검수 화면 열기</a>}
         </div>)}
     </section>}
-    {session && <div hidden={!showForms}>{<FormLibrary key={session} session={session} messages={view.messages || []} call={call} addToMessage={value=>edit([draft,value].filter(Boolean).join("\n"))}/>}</div>}
-    {queue && session && <QueuePanel key={session} session={session} call={call}/>}
+    {session && <div hidden={!showForms}>{<FormLibrary key={session} session={session} messages={view.messages || []} call={call} openRun={run=>{setShowForms(false);setQueue({run});}} addToMessage={value=>edit([draft,value].filter(Boolean).join("\n"))}/>}</div>}
+    {queue && session && <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} call={call}/>}
     {(view.next_offset != null || historyPage) && <nav aria-label="대화 이력 페이지">
       {view.next_offset != null && <button onClick={()=>changeHistory({offset:view.next_offset,snapshot:view.snapshot})}>이전 메시지 보기</button>}
       {historyPage && <button onClick={()=>changeHistory(null)}>최신 대화로 돌아가기</button>}

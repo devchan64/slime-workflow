@@ -10,10 +10,10 @@ const states = {
 };
 const initial = {category:"", state:"", generator:"", run_id:"", job_id:"", created_from:"", created_through:""};
 
-export default function QueuePanel({session, call}) {
-  const [selectedRun,setSelectedRun] = useState("");
-  const [draft, setDraft] = useState(initial);
-  const [filters, setFilters] = useState(initial);
+export default function QueuePanel({session, call, initialRun=""}) {
+  const [selectedRun,setSelectedRun] = useState(initialRun);
+  const [draft, setDraft] = useState({...initial,run_id:initialRun});
+  const [filters, setFilters] = useState({...initial,run_id:initialRun});
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   useEffect(() => {

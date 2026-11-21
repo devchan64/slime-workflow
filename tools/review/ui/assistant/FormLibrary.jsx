@@ -1,10 +1,11 @@
 import StepBuilder from "./StepBuilder.jsx";
 import React, {useEffect, useRef, useState} from "react";
 
-export default function FormLibrary({session, messages, call, addToMessage}) {
+export default function FormLibrary({session, messages, call, addToMessage, openRun}) {
   const [proposalId,setProposalId] = useState("");
   const proposals = messages.filter(message=>message.session_job_unique && message.job?.workflow_proposal);
   const selectedProposal = proposals.find(message=>message.job_id===proposalId);
+  const [registeredRun,setRegisteredRun] = useState("");
   const [forms, setForms] = useState({});
   const [selection, setSelection] = useState("");
   const [reference, setReference] = useState(null);
@@ -54,7 +55,9 @@ export default function FormLibrary({session, messages, call, addToMessage}) {
   }
   async function registerWorkflow() {
     const {session_id, run_id, steps} = review;
-    await call("workflow-register", {session_id, run_id, steps});
+    const result = await call("workflow-register", {session_id, run_id, steps});
+    if (result.run_id !== run_id) throw new Error("등록 응답의 실행 ID를 확인하세요.");
+    setRegisteredRun(run_id);
     setNotice("대기열에 등록했습니다. 실행 ID " + run_id);
     setReview(null);
   }
@@ -151,5 +154,6 @@ export default function FormLibrary({session, messages, call, addToMessage}) {
       </section>}
     </fieldset>
     <p role="status">{notice}</p>
+    {registeredRun && <button onClick={()=>openRun(registeredRun)}>마지막 등록 실행 보기</button>}
   </section>;
 }
