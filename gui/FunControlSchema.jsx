@@ -21,12 +21,12 @@ const catalog=defineCatalog(schema,{components:{
 }});
 const {registry}=defineRegistry(catalog,{components:{
   Group:({children})=><>{children}</>,
-  Section:({props,children})=><fieldset className="fun-field-group"><legend>{props.label}</legend>{children}</fieldset>,
+  Section:({props,children})=><fieldset className="fun-field-group"><legend>{props.label}</legend>{props.label==="첨부"?<div className="fun-attachments">{children}</div>:children}</fieldset>,
   Advanced:({children})=><details className="fun-advanced"><summary>고급 설정</summary>{children}</details>,
-  Attachment:({props})=>{const c=useContext(Context),{field,label,accept}=props;return <><label>{label}<input type="file" accept={accept} onChange={e=>c.attach(e.target.files[0],field)}/></label>
-    {field==="images" && c.request.images[0] && <img alt="외형 참조 이미지" style={{maxWidth:"100%"}} src={"data:image/png;base64,"+c.request.images[0]}/>}
-    {field==="pose_video" && c.request.pose_video && <video controls loop playsInline preload="metadata" aria-label="입력 포즈 영상" src={"data:video/mp4;base64,"+c.request.pose_video}/>}
-    {field==="pose_video" && c.videoInfo && <div><p>{c.videoInfo.summary}</p><button type="button" onClick={()=>c.setRequest({...c.request,frames:c.frameLimit})}>입력 영상의 최대 프레임 적용</button></div>}</>},
+  Attachment:({props})=>{const c=useContext(Context),{field,label,accept}=props;return <div className="fun-attachment"><label>{label}<input type="file" accept={accept} onChange={e=>c.attach(e.target.files[0],field)}/></label>
+    {field==="images" && c.request.images[0] && <img className="fun-attachment-preview" alt="외형 참조 이미지" src={"data:image/png;base64,"+c.request.images[0]}/>}
+    {field==="pose_video" && c.request.pose_video && <video className="fun-attachment-preview" controls loop playsInline preload="metadata" aria-label="입력 포즈 영상" src={"data:video/mp4;base64,"+c.request.pose_video}/>}
+    {field==="pose_video" && c.videoInfo && <div><p>{c.videoInfo.summary}</p><button type="button" onClick={()=>c.setRequest({...c.request,frames:c.frameLimit})}>입력 영상의 최대 프레임 적용</button></div>}</div>},
   Prompt:({props})=>{const c=useContext(Context);return <label>{props.label}<textarea maxLength={8000} value={c.request[props.field]} onChange={e=>c.setRequest({...c.request,[props.field]:e.target.value})}/></label>},
   Model:()=>{const c=useContext(Context);return <label>모델<select value={c.request.model_profile || "wan22-14b"} onChange={e=>c.setRequest({...c.request,model_profile:e.target.value})}>{c.template.models?.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}</select></label>},
   Frames:()=>{const c=useContext(Context);return <fieldset><legend>출력 프레임 빠른 선택</legend>{[21,41,81,129].filter(n=>n<=c.frameLimit).map(n=><button key={n} type="button" aria-pressed={Number(c.request.frames)===n} onClick={()=>c.setRequest({...c.request,frames:n})}>{n}프레임</button>)}</fieldset>},

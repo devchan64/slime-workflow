@@ -136,8 +136,8 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     const values=Object.fromEntries(settings.map(([key])=>[key,Number(request[key])]));
     setPending({...request,...values});
   }
-  return <article className={embedded?"fun-embedded":undefined}>{!embedded && <a href={"/management/frame/hermes-agent/"+(new URLSearchParams(location.search).get("session")?"?"+new URLSearchParams({session:new URLSearchParams(location.search).get("session")}):"")}>헤르메스 대화로 돌아가기</a>}{!embedded && <><h1>Wan Fun Control 영상 생성</h1><GeneratorChangelog generator="wan22-fun-control-generator"/></>}
-    <fieldset className="fun-source" disabled={busy || !!pending}><legend>원본 작업</legend>
+  return <article className={"fun-control-page"+(embedded?" fun-embedded":"")}>{!embedded && <a href={"/management/frame/hermes-agent/"+(new URLSearchParams(location.search).get("session")?"?"+new URLSearchParams({session:new URLSearchParams(location.search).get("session")}):"")}>헤르메스 대화로 돌아가기</a>}{!embedded && <><h1>Wan Fun Control 영상 생성</h1><GeneratorChangelog generator="wan22-fun-control-generator"/></>}
+    <fieldset className="fun-source" disabled={busy || !!pending || !template}><legend>원본 작업</legend>
       <p>{sourceJob ? "불러온 작업 · "+sourceJob : "선택된 원본 작업이 없습니다."}</p>
       <GeneratorHistory key={historyRevision} service={service} readJob={readJob} restore={restore} openResult={setJob}/>
       {job && <button disabled={!template} onClick={()=>load(true)}>작업 {job} 입력으로 교체</button>}

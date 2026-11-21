@@ -146,3 +146,14 @@ article {position:relative;}
 .fun-advanced > summary {cursor:pointer;font-weight:600;color:inherit}
 .fun-advanced label {display:grid;gap:.3rem;margin-block:.65rem}
 .fun-advanced input {max-width:100%}
+.fun-control-page > .fun-source {width:min(100%,60rem);align-self:center}
+.fun-control-page .fun-field-group > label {display:grid;gap:.3rem;margin:.65rem 0}
+.fun-control-page .fun-field-group :is(input,select,textarea,video,img) {max-width:100%}
+.fun-control-page .fun-field-group textarea {width:100%}
+.fun-control-page .fun-field-group > :is(img,video) {display:block;margin:.5rem 0}
+.fun-attachments {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;align-items:start}
+.fun-attachment {min-width:0;display:grid;gap:.5rem;align-content:start}
+.fun-attachment > label {display:grid;grid-template-rows:2.6em auto;gap:.3rem;min-width:0}
+.fun-attachment input {width:100%;min-width:0}
+.fun-attachment-preview {display:block;width:100%;aspect-ratio:832 / 480;object-fit:contain;background:#10121a;border-radius:.5rem}
+@media(max-width:400px){.fun-attachments {grid-template-columns:1fr}}
