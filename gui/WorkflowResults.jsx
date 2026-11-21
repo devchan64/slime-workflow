@@ -1,4 +1,5 @@
 import KimodoMedia from "./KimodoMedia.jsx";
+import JobIdentifier from "./JobIdentifier.jsx";
 import {managementCommand} from "./managementCommand.js";
 import TranslationResult from "./TranslationResult.jsx";
 import React, {useEffect, useState} from "react";
@@ -146,7 +147,7 @@ export default function WorkflowResults({session, run, call, close, openRun, edi
           <button onClick={()=>openRun(link.retry_run)}>재시도 실행 보기</button>}
       </p>)}
       {view.results.length===0 && <p>아직 기록된 결과가 없습니다.</p>}
-      {view.results.map(result => <section className="workflow-output" key={result.attempt_id}><h4>{result.step_id}</h4><p className="workflow-output-id">작업 ID · <code>{result.job_id}</code></p>
+      {view.results.map(result => <section className="workflow-output" key={result.attempt_id}><h4>{result.step_id}</h4><JobIdentifier id={result.job_id} compact/>
         {typeof result.outputs.text === "string" && (view.steps.some(step=>step.step_id===result.step_id && step.generator==="prompt-translation")
           ? <TranslationResult job={result.job_id} text={result.outputs.text}/> : <pre>{result.outputs.text}</pre>)}
         {view.steps.some(step=>step.step_id===result.step_id && step.generator==="kimodo") &&

@@ -42,7 +42,17 @@ def read_worker_group_rss_kib(current_worker_identifier):
         except (FileNotFoundError,ProcessLookupError):
             continue
         except (IndexError,ValueError) as current_parse_error:
-            raise ValueError('작업 프로세스 그룹 메모리 확인 실패') from current_parse_error
+            # A child can exit between reading stat and status, losing VmRSS when it
+            # becomes a zombie. Ignore it only after independently confirming that.
+            try:
+                current_status_text = (current_stat_path.parent/'status').read_text()
+                current_is_zombie = any(line.split()[:2] in (['State:', 'Z'], ['State:', 'X']) for line in current_status_text.splitlines())
+                current_same_group = os.getpgid(current_process_identifier) == current_worker_identifier
+            except (FileNotFoundError, ProcessLookupError):
+                continue
+            if not current_same_group or (current_is_zombie and current_process_identifier != current_worker_identifier):
+                continue
+            raise ValueError(f'작업 프로세스 그룹 메모리 확인 실패 (PID {current_process_identifier}): {current_parse_error}') from current_parse_error
     if not current_found_leader:
         raise ValueError('작업 프로세스 그룹 리더를 확인할 수 없습니다.')
     return current_total_rss

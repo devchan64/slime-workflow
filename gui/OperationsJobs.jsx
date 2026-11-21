@@ -1,10 +1,11 @@
 import React,{useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
+import JobIdentifier from "./JobIdentifier.jsx";
 
 import MapDatabaseReceipt from "./MapDatabaseReceipt.jsx";
 
-export default function OperationsJobs({session,linkedJob}){
+export default function OperationsJobs({session,linkedJob,linkedStatus}){
   const storageKey="hermes-operations-search-"+(session || "");
   const [query,setQuery]=useState(()=>sessionStorage.getItem(storageKey) || "");
   const [status,setStatus]=useState(()=>sessionStorage.getItem(storageKey+"-status") || "전체");
@@ -121,7 +122,7 @@ export default function OperationsJobs({session,linkedJob}){
     }catch(problem){setGpu(null);setGpuError(problem.message);}
     finally{setBusy(false);}
   }
-  const [detail,setDetail]=useState(null);
+  const [detail,setDetail]=useState(null),[detailCheckedAt,setDetailCheckedAt]=useState(null);
   const [diffPage,setDiffPage]=useState(null);
   async function readDiff(cursor){
     setBusy(true);setError("");
@@ -140,13 +141,16 @@ export default function OperationsJobs({session,linkedJob}){
     try{
       const record=await managementCommand("hermes-agent","hermes-detail",{id});
       if(record.id!==id || typeof record.status?.status!=="string")throw new Error("선택한 작업의 상세를 확인할 수 없습니다.");
-      setDetail(record);
+      setDetail(record);setDetailCheckedAt(new Date());
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
   }
   useEffect(()=>{
     if(linkedJob && /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(linkedJob))inspectJob(linkedJob);
   },[linkedJob]);
+  useEffect(()=>{
+    if(linkedJob && linkedStatus && detail?.id===linkedJob && detail.status.status!==linkedStatus && !busy)inspectJob(linkedJob);
+  },[linkedJob,linkedStatus]);
   async function load(direction){
     setDetail(null);
     setBusy(true);setError("");
@@ -168,11 +172,12 @@ export default function OperationsJobs({session,linkedJob}){
       {Object.entries(result?.statuses || {}).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
     <button onClick={()=>load("first")}>작업 조회</button>
     {error && <p role="alert">{error}</p>}
-    {result && <><ResultTable table={{title:"운영 작업",summary:result.summary,columns:["작업 ID","상태","GPU 대기","지시문","GPU 예약"],rows:result.rows.map(([id,...cells])=>[<button onClick={()=>inspectJob(id)}>{id}</button>,...cells])}}/>
+    {result && <><ResultTable table={{title:"운영 작업",summary:result.summary,columns:["작업 ID","상태","GPU 대기","지시문","GPU 예약"],rows:result.rows.map(([id,...cells])=>[<><JobIdentifier id={id} compact/><button type="button" onClick={()=>inspectJob(id)}>상세 보기</button></>,...cells])}}/>
       <button disabled={!same || !page.offset} onClick={()=>load("newer")}>이전 페이지</button>
       <button disabled={!same || page.next_offset==null} onClick={()=>load("older")}>다음 페이지</button></>}
     {detail && <section aria-label="운영 작업 상세"><h3>{detail.id}</h3>
       <p>{detail.status.status}{detail.status.queue_position ? " · 대기 순서 "+detail.status.queue_position : ""} {detail.status.message} {detail.status.error}</p>
+      {detailCheckedAt && <p>조회 시각 · {detailCheckedAt.toLocaleString("ko-KR")}</p>}
       <h4>작업 지시</h4><pre>{detail.request?.prompt || "기록된 지시가 없습니다."}</pre>
       <h4>최종 응답</h4><pre>{detail.final_response || "기록된 최종 응답이 없습니다."}</pre>
       {detail.final_response_truncated && <p>응답 일부만 표시했습니다.</p>}

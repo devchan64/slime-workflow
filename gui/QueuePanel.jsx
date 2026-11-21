@@ -2,6 +2,7 @@ import WorkflowResults from "./WorkflowResults.jsx";
 import QueuePriority from "./QueuePriority.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
 import React, {useEffect, useRef, useState} from "react";
+import JobIdentifier from "./JobIdentifier.jsx";
 
 const categories = {translation:"번역", image:"이미지", audio:"오디오", motion:"모션"};
 const states = {
@@ -56,12 +57,12 @@ export default function QueuePanel({session, call, editNextStep, openMessage, in
       <div className="session-job-list">
         {result.steps.map(step=><article className="session-job" key={"workflow:"+step.request_id}>
           <div className="session-job-heading"><strong>{step.generator}</strong><span>{states[step.source_state] || states[step.state] || step.state}</span></div>
-          <p>{step.step_id} · {step.source_job_id || "작업 ID 확인 중"}</p><small>관측 · {step.observed_at ? displayTime(step.observed_at) : "관측 전"}</small>
+          <p>{step.step_id}</p>{step.source_job_id ? <JobIdentifier id={step.source_job_id} compact/> : <p>작업 ID 확인 중</p>}<small>관측 · {step.observed_at ? displayTime(step.observed_at) : "관측 전"}</small>
           <div className="session-job-actions"><button type="button" aria-label={step.run_id+" 결과 조회"} onClick={()=>{setSelectedDirect("");setSelectedRun(step.run_id);}}>상태·결과 보기</button>{step.state==="submitting" && step.source_state==="queued" && <QueuePriority step={step} call={call}/>}</div>
         </article>)}
         {(result.direct_jobs || []).map(step=><article className="session-job" key={"form:"+step.form_id}>
           <div className="session-job-heading"><strong>{step.generator} · 직접 접수</strong><span>{states[step.state] || step.state}</span></div>
-          <p>{step.source_job_id || "접수 확인 필요"}</p><small>관측 · {displayTime(step.observed_at)}</small>
+          {step.source_job_id ? <JobIdentifier id={step.source_job_id} compact/> : <p>접수 확인 필요</p>}<small>관측 · {displayTime(step.observed_at)}</small>
           {step.source_job_id && <div className="session-job-actions"><button type="button" aria-label={step.source_job_id+" 결과 조회"} onClick={()=>{setSelectedRun("");setSelectedDirect(step.source_job_id);}}>상태·결과 보기</button>{openMessage && Number.isInteger(step.message_offset) && step.message_snapshot && <button type="button" onClick={()=>openMessage(step)}>관련 대화 보기</button>}</div>}
         </article>)}
       </div>

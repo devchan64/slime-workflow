@@ -1,4 +1,5 @@
 import React, {useEffect, useState} from "react";
+import JobIdentifier from "./JobIdentifier.jsx";
 
 function memory(value) {
   return Number.isInteger(value) && value >= 0 ? value.toLocaleString() + " MiB" : "미측정";
@@ -7,7 +8,6 @@ function memory(value) {
 export default function GpuPanel({embedded=false}) {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
-  const [copyNotice,setCopyNotice] = useState("");
   useEffect(() => {
     const controller = new AbortController();
     let timer;
@@ -26,10 +26,6 @@ export default function GpuPanel({embedded=false}) {
     refresh();
     return () => {controller.abort();clearTimeout(timer);};
   }, []);
-  async function copy(id) {
-    try {await navigator.clipboard.writeText(id);setCopyNotice("복사됨 · " + id);}
-    catch {setCopyNotice("작업 ID를 선택해 복사하세요.");}
-  }
   const processes = status?.processes || [];
   const domains = ["vram","gtt"].filter(domain=>status?.[domain+"_total_mib"] != null);
   return <section id="gpu-panel" className={embedded?"gpu-panel-content":"floating-panel"} aria-label="GPU 프로세스 정보">
@@ -48,10 +44,9 @@ export default function GpuPanel({embedded=false}) {
           <summary>{process.command || "외부 GPU 작업"} · PID {process.pid ?? "?"}</summary>
           {process.gpu_parent_pid && <p>부모 PID {process.gpu_parent_pid}</p>}
           <p>VRAM {memory(process.vram_memory_mib)} · GTT {memory(process.gtt_memory_mib)}</p>
-          {process.id && <p><code>{process.id}</code> <button onClick={()=>copy(process.id)}>작업 ID 복사</button></p>}
+          {process.id && <JobIdentifier id={process.id} compact/>}
         </details>)}
       </details>
-      <p role="status">{copyNotice}</p>
     </>}
   </section>;
 }

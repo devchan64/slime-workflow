@@ -1,4 +1,5 @@
 import React, {useEffect,useRef,useState} from "react";
+import JobIdentifier from "./JobIdentifier.jsx";
 import {managementCommand} from "./managementCommand.js";
 
 const activeStages=new Set(["queued","preparing","indexing","searching","reasoning"]);
@@ -64,7 +65,7 @@ export default function WriterResult({id,onDeleted}) {
       setDetail(null);refresh(value=>value+1);
     } finally {setBusy(false);}
   }
-  return <section aria-label="작가 작업 결과"><h3>{id}</h3>
+  return <section aria-label="작가 작업 결과"><h3>작업 결과</h3><JobIdentifier id={id}/>
     <button disabled={busy} onClick={()=>{setConfirmed(false);refresh(value=>value+1);}}>결과 새로고침</button>
     <label><input type="checkbox" defaultChecked onChange={event=>{followLog.current=event.target.checked;}}/>실행 로그 자동 갱신</label>
     {notice && <p role="status">{notice}</p>}

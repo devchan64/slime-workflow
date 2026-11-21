@@ -16,6 +16,11 @@ def parse_hermes_kimodo_proposal(current_answer_text):
     if current_block_match is None or len(current_block_match.group(1)) > 4000:
         raise ValueError('Kimodo 제안 형식 또는 크기 오류')
     current_proposal_record = parse_management_request_json(current_block_match.group(1))
+    if isinstance(current_proposal_record, dict) and set(current_proposal_record) == {'example_id'}:
+        from generators.kimodo.form_inputs import load_kimodo_examples
+        if not isinstance(current_proposal_record['example_id'], str) or current_proposal_record['example_id'] not in load_kimodo_examples():
+            raise ValueError('등록된 Kimodo 예제 ID가 필요합니다.')
+        return current_proposal_record
     validate_kimodo_proposal_inputs(current_proposal_record)
     return current_proposal_record
 

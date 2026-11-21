@@ -1,8 +1,10 @@
 import React,{useState} from "react";
 import {managementCommand} from "./managementCommand.js";
+import KimodoGeneration from "./KimodoGeneration.jsx";
 
-export default function KimodoProposal({job,append,openStep}){
+export default function KimodoProposal({job,session,append,openStep}){
   const [proposal,setProposal]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
+  const [exampleOpen,setExampleOpen]=useState(false),[exampleMounted,setExampleMounted]=useState(false);
   async function load(){
     setBusy(true);setError("");
     try{
@@ -14,6 +16,11 @@ export default function KimodoProposal({job,append,openStep}){
   }
   if(!proposal)return <section><button type="button" disabled={busy} onClick={load}>Kimodo 생성 제안 검토</button>
     {error && <p role="alert">{error}</p>}</section>;
+  if(proposal.example_id)return <section className="conversation-kimodo-proposal" aria-label="Kimodo 예제 제안">
+    <p>등록된 예제 {proposal.example_id}의 설정과 참조 이미지를 생성 폼에서 불러옵니다. 아직 접수되지 않았습니다.</p>
+    <button type="button" aria-expanded={exampleOpen} onClick={()=>{setExampleMounted(true);setExampleOpen(value=>!value);}}>{exampleOpen?"예제 생성 폼 접기":"예제 생성 폼 검토"}</button>
+    {exampleMounted && <div className="conversation-kimodo-form" hidden={!exampleOpen}><KimodoGeneration session={session} receiptScope={job} initialInputs={proposal}/></div>}
+  </section>;
   async function addRequest(event){
     const workflow=event.nativeEvent.submitter?.value==="workflow";
     event.preventDefault();setBusy(true);setError("");
@@ -34,7 +41,7 @@ export default function KimodoProposal({job,append,openStep}){
       <label key={key}>{label} <input type="number" required min={min} max={max} value={proposal[key]}
         onChange={e=>setProposal({...proposal,[key]:e.target.value})}/></label>)}
     <button disabled={!proposal.prompt.trim()}>편집한 요청을 대화 입력에 추가</button>
-    <button value="workflow" disabled={!proposal.prompt.trim()}>워크플로우 단계로 편집</button>
+    <button value="workflow" disabled={!proposal.prompt.trim()}>생성 폼에서 검토</button>
     {error && <p role="alert">{error}</p>}
   </fieldset></form>;
 }

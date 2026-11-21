@@ -1,4 +1,5 @@
 import JobStatus from "./JobStatus.jsx";
+import JobIdentifier from "./JobIdentifier.jsx";
 import React, {useEffect,useId,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import SelectedHistoryDeletion from "./SelectedHistoryDeletion.jsx";
@@ -109,8 +110,9 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
         {page.records.length===0 && <p>조회된 이력이 없습니다. 검색 조건을 바꾸거나 새 작업을 생성하세요.</p>}
         <div className="generator-history-list">{page.records.map(record=><div className="generator-history-item" key={record.id}>
           <button type="button" className="generator-history-select" aria-pressed={selected?.id===record.id} onClick={()=>{if(selected?.id!==record.id)setExpanded(null);setSelected(record);setJob(null);setError("");}}>
-            <HistoryImage key={record.id} service={service} record={record} summary={summaries[record.id]} unavailable={Boolean(summaryNotice)}/><span className="history-card-content"><span className="history-card-heading"><JobStatus state={record.recorded_status}/>{recordedTime(record.id) && <span>{recordedTime(record.id)}</span>}</span>{historyInputSummary(summaries[record.id]).length>0 && <span className="history-card-summary">{historyInputSummary(summaries[record.id]).join(" · ")}</span>}<span className="history-card-id">{record.id}</span></span>
+            <HistoryImage key={record.id} service={service} record={record} summary={summaries[record.id]} unavailable={Boolean(summaryNotice)}/><span className="history-card-content"><span className="history-card-heading"><JobStatus state={record.recorded_status}/>{recordedTime(record.id) && <span>{recordedTime(record.id)}</span>}</span>{historyInputSummary(summaries[record.id]).length>0 && <span className="history-card-summary">{historyInputSummary(summaries[record.id]).join(" · ")}</span>}</span>
           </button>
+          <JobIdentifier id={record.id} compact/>
           {selected?.id===record.id && <section className="generator-history-selection" aria-label={"선택 이력 · "+record.id}>
             <div className="generator-history-actions">
               {renderResult && <button type="button" className="history-action-result" aria-expanded={expanded===record.id}

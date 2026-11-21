@@ -99,6 +99,16 @@ class HermesDelegationTests(unittest.TestCase):
             with self.subTest(answer=current_invalid_text), self.assertRaises(ValueError):
                 parse_hermes_kimodo_proposal(current_invalid_text)
 
+    def test_kimodo_example_proposal_requires_registered_example(self):
+        import json
+        from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_kimodo_proposal
+        def answer(value):
+            return 'HERMES_KIMODO_PROPOSAL\n'+json.dumps(value)+'\nEND_HERMES_KIMODO_PROPOSAL'
+        self.assertEqual(parse_hermes_kimodo_proposal(answer({'example_id':'male_floor_rest_cycle'})), {'example_id':'male_floor_rest_cycle'})
+        for value in ({'example_id':'../invalid'}, {'example_id':'male_floor_rest_cycle','frames':160}, {'example_id':None}):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                parse_hermes_kimodo_proposal(answer(value))
+
     def test_flux_proposal_rejects_extra_duplicate_and_invalid_inputs(self):
         from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_flux_proposal
         current_answer = '제안입니다.\nHERMES_FLUX_PROPOSAL\n{"prompt":"blue sky","width":512,"height":512,"seed":42}\nEND_HERMES_FLUX_PROPOSAL'

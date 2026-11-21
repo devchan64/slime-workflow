@@ -1,4 +1,5 @@
 import HistoryCleanup from "./HistoryCleanup.jsx";
+import JobIdentifier from "./JobIdentifier.jsx";
 import KimodoFrames from "./KimodoFrames.jsx";
 import WriterActions from "./WriterActions.jsx";
 import WriterResult from "./WriterResult.jsx";
@@ -42,7 +43,7 @@ export function HistoryPage({source, choose, session, initialJob=""}) {
         summary:"전체 "+page.total+"건 · 조회 "+page.records.length+"건 · 확인 불가 "+page.unavailable_count+"건",
         columns:["작업 ID","기록 상태",...(hasResult?["결과"]:[])],
         rows:page.records.map(record=>[
-          <button title="작업을 대화 입력에 추가" onClick={()=>choose(source.service+" 작업",record.id)}>{record.id}</button>,
+          <><JobIdentifier id={record.id} compact/><button type="button" title="작업을 대화 입력에 추가" onClick={()=>choose(source.service+" 작업",record.id)}>대화에 추가</button></>,
           record.recorded_status,
           ...(hasResult ? [<>
             {kimodo && <a href={"/management/assistant/kimodo/?"+new URLSearchParams({restore:record.id,...(session?{session}:{})})}>입력 재사용</a>}

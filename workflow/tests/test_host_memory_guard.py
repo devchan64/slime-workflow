@@ -117,6 +117,17 @@ class HostMemoryGuardTests(unittest.TestCase):
             with patch.object(guard_module,'Path',side_effect=lambda current_path_value:current_proc_root if str(current_path_value)=='/proc' else Path(current_path_value)),patch.object(guard_module.os,'getpgid',return_value=1234):
                 with self.assertRaises(ValueError):guard_module.read_worker_group_rss_kib(1234)
 
+    def test_child_becoming_zombie_after_stat_is_ignored(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            for pid in (1234,1235):
+                (root/str(pid)).mkdir()
+                (root/str(pid)/'stat').write_text(f'{pid} (worker) S 1 1234 0')
+            (root/'1234'/'status').write_text('State: S (sleeping)\nVmRSS: 1000 kB\n')
+            (root/'1235'/'status').write_text('State: Z (zombie)\n')
+            with patch.object(guard_module,'Path',side_effect=lambda p:root if str(p)=='/proc' else Path(p)), patch.object(guard_module.os,'getpgid',return_value=1234):
+                self.assertEqual(guard_module.read_worker_group_rss_kib(1234),1000)
+
     def test_group_rss_protects_against_child_memory_pressure(self):
         current_worker_mock=Mock(pid=1234)
         current_worker_mock.poll.return_value=None
