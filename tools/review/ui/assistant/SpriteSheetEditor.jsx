@@ -9,6 +9,7 @@ function FrameEditor({image,frames}){
   const [rows,setRows]=useState(()=>frames.map(({rect,anchor})=>({...rect,anchorX:anchor.x,anchorY:anchor.y})));
   const [columns,setColumns]=useState(4),[busy,setBusy]=useState(false);
   const [result,setResult]=useState(null),[error,setError]=useState("");
+  const [first,setFirst]=useState(1),[last,setLast]=useState(rows.length),[fps,setFps]=useState(6);
   function update(index,field,value){
     setRows(rows.map((row,i)=>i===index?{...row,[field]:value}:row));
     setResult(null);setError("");
@@ -16,11 +17,18 @@ function FrameEditor({image,frames}){
   async function exportSheet(event){
     event.preventDefault();setBusy(true);setResult(null);setError("");
     try{
-      const record=await managementCommand("character-animation","sheet-export",{
-        image,columns:Number(columns),frames:rows.map(row=>Object.fromEntries(fields.map(key=>[key,Number(row[key])]))),
-        sourceFrames:frames.map(({rect})=>[rect.x,rect.y,rect.width,rect.height])
-      });
-      if(!record.id || !record.image || !record.coordinates)throw new Error("내보낸 시트와 좌표맵을 확인할 수 없습니다.");
+      const gif=event.nativeEvent.submitter?.value==="gif";
+      const start=gif?Number(first)-1:0,end=gif?Number(last):rows.length;
+      if(!Number.isInteger(start)||!Number.isInteger(end)||start<0||end<=start||end>rows.length){
+        throw new Error("GIF 시작·끝 프레임은 시트 범위 안의 정수여야 합니다.");
+      }
+      const payload={image,columns:gif?4:Number(columns),
+        frames:rows.slice(start,end).map(row=>Object.fromEntries(fields.map(key=>[key,Number(row[key])]))),
+        sourceFrames:frames.slice(start,end).map(({rect})=>[rect.x,rect.y,rect.width,rect.height])
+      };
+      if(gif)payload.fps=Number(fps);
+      const record=await managementCommand("character-animation",gif?"sheet-gif":"sheet-export",payload);
+      if(!record.id || (gif?!record.gif:!record.image || !record.coordinates))throw new Error("내보내기 결과를 확인할 수 없습니다.");
       setResult(record);
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
@@ -31,11 +39,19 @@ function FrameEditor({image,frames}){
         required step={j<4?1:"any"} value={row[field]} onChange={e=>update(i,field,e.target.value)}/>)])}}/>
     <label>출력 열 수<input type="number" min="1" max="128" required value={columns}
       onChange={e=>{setColumns(e.target.value);setResult(null);}}/></label>
-    <button>시트와 좌표맵 내보내기</button></fieldset>
+    <button>시트와 좌표맵 내보내기</button>
+    <fieldset onChange={()=>{setResult(null);setError("");}}><legend>GIF 내보내기</legend>
+      <label>시작 프레임<input type="number" value={first} onChange={e=>setFirst(e.target.value)}/></label>
+      <label>끝 프레임<input type="number" value={last} onChange={e=>setLast(e.target.value)}/></label>
+      <label>재생 속도 (FPS)<select value={fps} onChange={e=>setFps(e.target.value)}>
+        {[4,6,8,12,16,24,30].map(rate=><option key={rate}>{rate}</option>)}</select></label>
+      <button value="gif">선택 범위 GIF 내보내기</button>
+    </fieldset></fieldset>
     {error && <p role="alert">{error}</p>}
     {result && <section><p role="status">내보내기 완료 · {result.id}</p>
-      <a href={"data:image/png;base64,"+result.image} download="sprite-sheet.png">시트 PNG 다운로드</a>{" · "}
-      <a href={"data:application/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(result.coordinates,null,2))} download="coordinates.json">좌표맵 JSON 다운로드</a>
+      {result.gif?<><p>{result.frameCount}프레임 · 프레임당 {result.durationMs}ms</p>
+        <a download="preview.gif" href={"data:image/gif;base64,"+result.gif}>GIF 다운로드</a></>:<><a href={"data:image/png;base64,"+result.image} download="sprite-sheet.png">시트 PNG 다운로드</a>{" · "}
+      <a href={"data:application/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(result.coordinates,null,2))} download="coordinates.json">좌표맵 JSON 다운로드</a></>}
     </section>}
   </form>;
 }
