@@ -532,7 +532,8 @@ class WorkflowRunStore:
                    LEFT JOIN workflow_step_time AS timing USING(request_id)
                    LEFT JOIN workflow_observation AS observation USING(request_id)
                    WHERE run.session_id=:session AND (:category='' OR step.category=:category)
-                     AND (:state='' OR step.state=:state OR (step.state='submitting' AND observation.source_state=:state))
+                     AND (:state='' OR step.state=:state OR (step.state='submitting'
+                          AND :state IN ('queued','running','paused','unknown') AND observation.source_state=:state))
                      AND (:generator='' OR contract.generator=:generator)
                      AND (:run_id='' OR step.run_id=:run_id)
                      AND (:job_id='' OR step.request_id=:job_id OR observation.source_job_id=:job_id OR step.step_id=:job_id)
