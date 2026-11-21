@@ -694,19 +694,30 @@ def build_management_application(current_handler_class, current_root_path, curre
         return [{key: example[key] for key in ("id", "label", "prompt")}
                 for example in load_kimodo_examples().values()]
 
-    @current_root_application.get('/management/assistant/kimodo-prompt-examples/{identifier}')
-    def kimodo_prompt_example(identifier: str):
+    @current_root_application.get('/management/assistant/kimodo-reference-examples')
+    def kimodo_reference_examples():
+        from generators.kimodo.form_inputs import load_proportion_examples
+        return [{"id": key, "label": example["label"]} for key, example in load_proportion_examples().items()]
+
+    @current_root_application.get('/management/assistant/kimodo-reference-examples/{identifier}')
+    def kimodo_reference_example(identifier: str):
         import base64
         from fastapi import HTTPException
-        from generators.kimodo.form_inputs import load_kimodo_examples, load_proportion_examples
+        from generators.kimodo.form_inputs import load_proportion_examples
+        example = load_proportion_examples().get(identifier)
+        if example is None:
+            raise HTTPException(404, "신체 비율 예시를 찾을 수 없습니다.")
+        return [{"name": Path(filename).name, "data": base64.b64encode(Path(filename).read_bytes()).decode("ascii")}
+                for filename in example["images"]]
+
+    @current_root_application.get('/management/assistant/kimodo-prompt-examples/{identifier}')
+    def kimodo_prompt_example(identifier: str):
+        from fastapi import HTTPException
+        from generators.kimodo.form_inputs import load_kimodo_examples
         example = load_kimodo_examples().get(identifier)
         if example is None:
             raise HTTPException(404, "동작 예시를 찾을 수 없습니다.")
-        references = []
-        if example.get("reference_example"):
-            for filename in load_proportion_examples()[example["reference_example"]]["images"]:
-                path = Path(filename)
-                references.append({"name": path.name, "data": base64.b64encode(path.read_bytes()).decode("ascii")})
+        references = kimodo_reference_example(example["reference_example"]) if example.get("reference_example") else []
         return {**example, "references": references}
 
     @current_root_application.post('/management/assistant/kimodo-proposal-review')

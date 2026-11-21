@@ -5,9 +5,15 @@ import readReference from "./readReference.js";
 import KimodoPromptExamples from "./KimodoPromptExamples.jsx";
 import {managementCommand} from "./managementCommand.js";
 
+function decodeReferences(rows){
+  return rows.map(({name,data})=>new File([Uint8Array.from(atob(data),c=>c.charCodeAt(0))],name,{type:"image/png"}));
+}
+
 export default function KimodoGeneration({session,restoreJob}){
   const [directions,setDirections]=useState({});
   const [jointEdits,setJointEdits]=useState([]);
+  const [referenceExamples,setReferenceExamples]=useState(null);
+  const [attachmentRevision,setAttachmentRevision]=useState(0);
   const [references,setReferences]=useState([]);
   const [bundle,setBundle]=useState(null),[calibration,setCalibration]=useState(null),[hip,setHip]=useState(false);
   const [angles,setAngles]=useState("");
@@ -23,7 +29,7 @@ export default function KimodoGeneration({session,restoreJob}){
       if(!response.ok)throw new Error(restoreJob?"이전 작업의 입력을 불러올 수 없습니다.":"생성 기본값을 조회할 수 없습니다.");
       const defaults=await response.json();
       if(restoreJob){
-        const files=defaults.references.map(({name,data})=>new File([Uint8Array.from(atob(data),c=>c.charCodeAt(0))],name,{type:"image/png"}));
+        const files=decodeReferences(defaults.references);
         const attachment=field=>defaults.attachments[field]?new File([defaults.attachments[field]],field+".json",{type:"application/json"}):null;
         let restoredPlacement=null;
         if(defaults.rows.length){
@@ -48,6 +54,17 @@ export default function KimodoGeneration({session,restoreJob}){
     setBusy(true);setNotice("");
     try{await action();}catch(error){setNotice(error.message);}finally{setBusy(false);}
   }
+  function replaceReferences(files){
+    setReferences(files);setJointEdits([]);setAngles("");setBundle(null);setCalibration(null);setHip(false);setReview(null);
+    setAttachmentRevision(value=>value+1);
+  }
+  async function loadReferences(identifier){
+    const response=await fetch("/management/assistant/kimodo-reference-examples"+(identifier?"/"+encodeURIComponent(identifier):""));
+    if(!response.ok)throw new Error("신체 비율 예시를 불러올 수 없습니다.");
+    const data=await response.json();
+    if(identifier)replaceReferences(decodeReferences(data));
+    else setReferenceExamples(data);
+  }
   async function applyExample(identifier){
     const response=await fetch("/management/assistant/kimodo-prompt-examples/"+encodeURIComponent(identifier));
     if(!response.ok)throw new Error("동작 예시 설정을 불러올 수 없습니다.");
@@ -55,10 +72,9 @@ export default function KimodoGeneration({session,restoreJob}){
     const {keyframes,segment_frames,camera_elevation_degrees=0,...settings}=example.settings || {};
     const positions=keyframes?.length?await managementCommand("hermes-agent","hermes-kimodo-keyframe-validate",
       {frames:example.frames,keyframes}):null;
-    const files=example.references.map(({name,data})=>new File([Uint8Array.from(atob(data),c=>c.charCodeAt(0))],name,{type:"image/png"}));
+    const files=decodeReferences(example.references);
     setInputs(previous=>({...previous,...settings,prompt:example.prompt,frames:example.frames,camera_elevation_degrees}));
-    setPlacement(positions);setPlacing(false);setReferences(files);setJointEdits([]);setSegments((segment_frames || []).join(" "));
-    setAngles("");setBundle(null);setCalibration(null);setHip(false);setReview(null);
+    setPlacement(positions);setPlacing(false);replaceReferences(files);setSegments((segment_frames || []).join(" "));
     setNotice(example.label+" 설정을 적용했습니다.");
   }
   async function inspect(){
@@ -128,9 +144,12 @@ export default function KimodoGeneration({session,restoreJob}){
       <KimodoPromptExamples apply={prompt=>edit("prompt",prompt)} applySettings={id=>perform(()=>applyExample(id))}/>
       {[["frames","프레임 수",30,300],["steps","생성 단계",2,100],["seed","시드",0,2147483647]].map(([field,label,min,max])=>
         <label key={field}>{label} <input type="number" required min={min} max={max} value={inputs[field]} onChange={e=>edit(field,e.target.value)}/></label>)}
-      <label>신체 비율 참조 PNG (최대 8장) <input type="file" accept="image/png" multiple
-        onChange={e=>{setReferences(Array.from(e.target.files));setJointEdits([]);setReview(null);}}/></label>
-      {references.length>0 && <p>참조 이미지 · {references.map(file=>file.name).join(", ")} <button type="button" onClick={()=>{setReferences([]);setJointEdits([]);setReview(null);}}>참조 해제</button></p>}
+      {referenceExamples===null ? <button type="button" onClick={()=>perform(()=>loadReferences())}>신체 비율 예시 조회</button> :
+        referenceExamples.map(example=><button type="button" key={example.id} onClick={()=>perform(()=>loadReferences(example.id))}>
+          {example.label} 참조 적용</button>)}
+      <label>신체 비율 참조 PNG (최대 8장) <input key={attachmentRevision} type="file" accept="image/png" multiple
+        onChange={e=>{replaceReferences(Array.from(e.target.files));}}/></label>
+      {references.length>0 && <p>참조 이미지 · {references.map(file=>file.name).join(", ")} <button type="button" onClick={()=>{replaceReferences([]);}}>참조 해제</button></p>}
       {jointEdits.length>0 && <ResultTable table={{
         title:"참조 관절 수정",columns:["참조 이미지","인물","관절","원본 좌표","수정 X","수정 Y","작업"],
         rows:jointEdits.map((row,index)=>[
@@ -150,11 +169,11 @@ export default function KimodoGeneration({session,restoreJob}){
         <label>검출 관측 순서의 카메라 각도 8개 (도) <input value={angles} placeholder="45 0 135 90 225 315 180 270"
           onChange={e=>{setAngles(e.target.value);setReview(null);}}/></label>
         <p>참조 이미지에서 검출된 관측 순서대로 각도를 입력하세요. 각도와 검수 골격을 모두 비우면 2D 보정을 사용합니다.</p>
-        <label>검수 3D 골격 묶음 JSON <input type="file" accept=".json,application/json"
+        <label>검수 3D 골격 묶음 JSON <input key={attachmentRevision} type="file" accept=".json,application/json"
           onChange={e=>{setBundle(e.target.files[0] || null);if(!e.target.files.length){setCalibration(null);setHip(false);}setReview(null);}}/></label>
         {bundle && <fieldset><legend>검수 골격 적용</legend>
           <label><input type="checkbox" checked={hip} onChange={e=>{setHip(e.target.checked);setReview(null);}}/>3D 투영 골반 적용</label>
-          <label>얼굴 앵커 교정 JSON <input type="file" accept=".json,application/json"
+          <label>얼굴 앵커 교정 JSON <input key={attachmentRevision} type="file" accept=".json,application/json"
             onChange={e=>{setCalibration(e.target.files[0] || null);setReview(null);}}/></label>
         </fieldset>}
       </details>
