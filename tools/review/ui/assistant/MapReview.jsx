@@ -6,17 +6,49 @@ export default function MapReview(){
   const field=location.pathname.replace(/\/$/,"").endsWith("/field-map");
   const title=field?"야외필드":"도시맵";
   const [cell,setCell]=useState(null),[reading,setReading]=useState(false);
+  const [source,setSource]=useState(null),[draft,setDraft]=useState(null),[preview,setPreview]=useState(null);
+  function editCell(key,value){
+    setCell({...cell,[key]:value});setPreview(null);
+  }
+  async function previewCell(event){
+    event.preventDefault();setReading(true);setPreview(null);
+    const {column,row,tile,height,blocked}=cell;
+    const cells=draft.cells.filter(item=>item.column!==column || item.row!==row);
+    const next={...draft,cells:[...cells,{column,row,tile,height:Number(height),blocked}]};
+    try{
+      const result=await managementCommand("map-assets","map-edit-preview",next);
+      await window.mapReviewApplyDraft(result.render);
+      setDraft(next);setPreview(result);
+      setFeedback("검증 완료 · 변경 셀 "+result.cells+"개 · 도달 가능 "+result.reachable+"칸");
+    }catch(error){setFeedback(error.message);}
+    finally{setReading(false);}
+  }
+  async function save(){
+    if(!preview?.changed || !preview.save_available || !preview.token)return;
+    setReading(true);setPreview(null);
+    try{
+      const result=await managementCommand("map-assets","map-edit-save",{...draft,token:preview.token});
+      if(result.map!==draft.map || result.saved!==true)throw new Error("저장 결과를 확인할 수 없습니다.");
+      setCell(null);setSource(null);setDraft(null);setFeedback(result.map+" 저장 완료");
+    }catch(error){setFeedback(error.message+" · 저장 상태를 확인하세요.");}
+    finally{setReading(false);}
+  }
   async function inspectCell(){
     const selected=window.mapReviewSelectedCell;
     if(!selected){setFeedback("지도에서 셀을 선택하세요.");return;}
     setReading(true);setCell(null);
     try{
       const map=window.mapReviewControlOptions().selected;
-      const snapshot=await managementCommand("map-assets","map-edit-load",{map});
+      const snapshot=source || await managementCommand("map-assets","map-edit-load",{map});
+      setSource(snapshot);
+      if(!draft)setDraft({map,revision:snapshot.revision,cells:[],
+        objects:snapshot.tiles.objects.filter(item=>item.kind==="decoration"),
+        ...(snapshot.terrain.terrainEffects?{terrainEffects:snapshot.terrain.terrainEffects}:{})});
       const {column,row}=selected;
       const tile=snapshot.tiles.rows[row][column];
-      setCell({column,row,tile:snapshot.codes[tile] || tile,height:snapshot.terrain.elevations[row][column],
+      setCell({column,row,tile,height:snapshot.terrain.elevations[row][column],
         blocked:snapshot.terrain.blocked.some(([x,y])=>x===column && y===row),
+        ...draft?.cells.find(item=>item.column===column && item.row===row),
         objects:snapshot.tiles.objects.filter(item=>item.position?.column===column && item.position?.row===row).map(item=>item.id)});
       setFeedback("");
     }catch(error){setFeedback(error.message);}
@@ -58,7 +90,13 @@ export default function MapReview(){
     {field && <fieldset disabled={!ready || reading}><legend>셀 검수</legend>
       <label><input type="checkbox" onChange={event=>{window.mapReviewEditingEnabled=event.target.checked;window.mapReviewSelectedCell=null;setCell(null);}}/>캐릭터 이동 대신 셀 선택</label>
       <button onClick={inspectCell}>선택 셀 속성 조회</button>
-      {cell && <p>열 {cell.column} · 행 {cell.row} · {cell.tile} · 높이 {cell.height} · {cell.blocked?"이동 금지":"이동 가능"} · 배치물 {cell.objects.join(", ") || "없음"}</p>}
+      {cell && <form onSubmit={previewCell}><p>열 {cell.column} · 행 {cell.row} · {cell.tile} · 높이 {cell.height} · {cell.blocked?"이동 금지":"이동 가능"} · 배치물 {cell.objects.join(", ") || "없음"}</p>
+        <label>지형<select value={cell.tile} onChange={e=>editCell("tile",e.target.value)}>
+          {Object.entries(source.codes).map(([code,name])=><option key={code} value={code}>{name} · {code}</option>)}</select></label>
+        <label>높이<input type="number" required min="0" max="20" step="1" value={cell.height} onChange={e=>editCell("height",e.target.value)}/></label>
+        <label><input type="checkbox" checked={cell.blocked} onChange={e=>editCell("blocked",e.target.checked)}/>이동 금지</label>
+        <button>초안 검증 및 미리보기</button></form>}
+      {preview && <button disabled={!preview.changed || !preview.save_available || !preview.token} onClick={save}>검증된 초안 저장</button>}
     </fieldset>}
     <canvas id="map" width="768" height="576" tabIndex="0" aria-label={title+" · 방향키로 이동"} style={{width:"100%",aspectRatio:"4/3",touchAction:"none"}}/>
     {[["tile","지형 타일"],["building","건물 스프라이트"],["billboard","빌보드"],["structure","결계·경비 구조물"]].map(([id,label])=>
