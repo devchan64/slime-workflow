@@ -15,7 +15,6 @@ from fastapi import FastAPI, Request
 from starlette.responses import Response, RedirectResponse, JSONResponse
 
 MANAGEMENT_INTERFACE_BUILDERS = {
-    'hermes-direct': ('hermes_agent_app', 'build_hermes_direct_interface', 'none'),
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
 }
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
@@ -229,6 +228,18 @@ def build_management_application(current_handler_class, current_root_path, curre
             query = current_request_scope.get('query_string', b'').decode()
             target = '/management/assistant/' + surface + '/' + ('?' + query if query else '')
             return await RedirectResponse(target)(current_request_scope, current_receive_call, current_send_call)
+        direct_path = '/management/frame/hermes-direct'
+        if (current_request_path.rstrip('/') == direct_path or
+                (current_request_path.rstrip('/') == '/management' and
+                 (current_query_values.get('review') or current_query_values.get('tool')) == ['hermes-direct'])):
+            if current_request_scope['method'] not in ('GET', 'HEAD'):
+                return await Response(status_code=405)(current_request_scope, current_receive_call, current_send_call)
+            from urllib.parse import urlencode
+            parameters = {key: values[0] for key, values in current_query_values.items() if key in ('job', 'session', 'search')}
+            parameters['panel'] = 'jobs' if 'job' in parameters else 'capabilities'
+            return await RedirectResponse('/management/frame/hermes-agent/?' + urlencode(parameters))(current_request_scope, current_receive_call, current_send_call)
+        if current_request_path.startswith(direct_path + '/'):
+            return await Response(status_code=404)(current_request_scope, current_receive_call, current_send_call)
         history_path = '/management/frame/operations-history'
         if current_request_scope.get('method') in ('GET', 'HEAD') and (
             current_request_path.rstrip('/') == history_path or

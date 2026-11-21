@@ -93,7 +93,7 @@ function initialToolCategory(){
 function App() {
   const [session,setSession]=useState(query().get("session") || "");
   const [sessions,setSessions]=useState([]), [view,setView]=useState({}), [tools,setTools]=useState([]);
-  const [draft,setDraft]=useState(""),[search,setSearch]=useState(()=>query().get("search") || ""),[showTools,setShowTools]=useState(()=>query().has("category") || query().has("search") || query().get("panel")==="jobs");
+  const [draft,setDraft]=useState(""),[search,setSearch]=useState(()=>query().get("search") || ""),[showTools,setShowTools]=useState(()=>query().has("category") || query().has("search") || ["jobs","capabilities"].includes(query().get("panel")));
   const [category,setCategory]=useState(initialToolCategory);
   const [archived,setArchived]=useState(false),[error,setError]=useState(""),[busy,setBusy]=useState(false);
   const [sessionQuery,setSessionQuery]=useState("");
@@ -118,7 +118,7 @@ function App() {
     if(next)url.searchParams.set("session",next);else url.searchParams.delete("session");
     history.pushState(null,"",url);setSession(next);setView({});setHistoryPage(null);setQueue(null);setError("");
   }
-  useEffect(()=>{const cb=()=>{setSearchMode(query().get("panel")==="jobs"?"jobs":"tools");setCategory(initialToolCategory());setSearch(query().get("search") || "");setShowTools(query().has("category") || query().has("search") || query().get("panel")==="jobs");setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
+  useEffect(()=>{const cb=()=>{setSearchMode(["jobs","capabilities"].includes(query().get("panel"))?query().get("panel"):"tools");setCategory(initialToolCategory());setSearch(query().get("search") || "");setShowTools(query().has("category") || query().has("search") || ["jobs","capabilities"].includes(query().get("panel")));setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
   useEffect(()=>{let active=true;fetch(base+"tools").then(r=>r.json()).then(v=>{if(active)setTools(v)}).catch(e=>{if(active)setError(e.message)});
     return()=>{active=false};},[]);
   useEffect(()=>{
@@ -199,7 +199,7 @@ function App() {
   const [proposalStep,setProposalStep]=useState(null);
   const [showForms,setShowForms]=useState(false);
   const [showGpu,setShowGpu]=useState(false);
-  const [searchMode,setSearchMode]=useState(()=>query().get("panel")==="jobs"?"jobs":"tools");
+  const [searchMode,setSearchMode]=useState(()=>["jobs","capabilities"].includes(query().get("panel"))?query().get("panel"):"tools");
   const appendSelection=(label,id)=>{edit([draft,label+" "+id].filter(Boolean).join("\n"));setShowTools(false);text.current.focus();};
   function chooseTool(label,identifier) {
     edit([draft,"사용할 도구: "+label+" ("+identifier+")\n"].filter(Boolean).join("\n"));
