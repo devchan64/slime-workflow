@@ -35,9 +35,9 @@ function SearchResults({query,choose,add,disabled}){
     {error && <p role="alert">{error} <button onClick={()=>setCursor({})}>다시 조회</button></p>}
     {!error && !page && <p role="status">키프레임 조회 중…</p>}
     {page && <><ResultTable table={{title:"등록 키프레임",summary:"검색 결과 "+page.total+"개",
-      columns:["ID","태그","원본 프레임","대화"],rows:page.items.map(row=>[
+      columns:["ID","태그","원본 프레임",choose?"대화":"배치"],rows:page.items.map(row=>[
         <button onClick={()=>select(row.id)}>{row.id}</button>,row.tag,row.source_frame,
-        <><button onClick={()=>choose("Kimodo 키프레임",row.id)}>입력에 추가</button>
+        <>{choose && <button onClick={()=>choose("Kimodo 키프레임",row.id)}>입력에 추가</button>}
           <button disabled={disabled} onClick={()=>add(row.id)}>배치에 추가</button></>])}}/>
       {cursor.offset>0 && <button onClick={()=>setCursor({offset:Math.max(0,cursor.offset-20),snapshot:page.snapshot})}>이전 키프레임</button>}
       {page.next_offset!=null && <button onClick={()=>setCursor({offset:page.next_offset,snapshot:page.snapshot})}>다음 키프레임</button>}
@@ -45,8 +45,8 @@ function SearchResults({query,choose,add,disabled}){
   </section>;
 }
 
-export default function KeyframeCatalog({query,choose}){
-  const [rows,setRows]=useState([]),[frames,setFrames]=useState("");
+export default function KeyframeCatalog({query,choose,apply,initialFrames="",initialRows=[]}){
+  const [rows,setRows]=useState(initialRows),[frames,setFrames]=useState(initialFrames);
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[review,setReview]=useState(null);
   function edit(next){
     setRows(next);setReview(null);setError("");
@@ -79,7 +79,9 @@ export default function KeyframeCatalog({query,choose}){
       {review && <><p role="status">{review.placements.length}개 배치 검증 완료 · {review.note}</p>
         <ResultTable table={{title:"검증된 키프레임 배치",columns:["출력 프레임","키프레임 ID"],
           rows:review.placements.map(row=>[row.frame,row.id])}}/>
-        <button type="button" onClick={()=>choose("Kimodo 키프레임 배치",JSON.stringify({frames:Number(frames),keyframes:review.placements}))}>검증한 배치를 대화 입력에 추가</button></>}
+        <button type="button" onClick={()=>apply ? apply(Number(frames),review) :
+          choose("Kimodo 키프레임 배치",JSON.stringify({frames:Number(frames),keyframes:review.placements}))}>
+          {apply?"생성 폼에 배치 적용":"검증한 배치를 대화 입력에 추가"}</button></>}
     </fieldset></form>}
   </>;
 }

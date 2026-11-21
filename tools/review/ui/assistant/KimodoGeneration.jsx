@@ -1,4 +1,5 @@
 import React,{useEffect,useState} from "react";
+import KeyframeCatalog from "./KeyframeCatalog.jsx";
 import readReference from "./readReference.js";
 import KimodoPromptExamples from "./KimodoPromptExamples.jsx";
 import {managementCommand} from "./managementCommand.js";
@@ -8,6 +9,8 @@ export default function KimodoGeneration({session}){
   const [references,setReferences]=useState([]);
   const [bundle,setBundle]=useState(null),[calibration,setCalibration]=useState(null),[hip,setHip]=useState(false);
   const [angles,setAngles]=useState("");
+  const [placing,setPlacing]=useState(false),[search,setSearch]=useState("");
+  const [placement,setPlacement]=useState(null);
   const [segments,setSegments]=useState("");
   const key="kimodo-generation-receipt-"+session;
   const [inputs,setInputs]=useState(null),[review,setReview]=useState(null),[busy,setBusy]=useState(false);
@@ -32,6 +35,10 @@ export default function KimodoGeneration({session}){
     setReview(null);
     const request={...inputs,frames:Number(inputs.frames),steps:Number(inputs.steps),seed:Number(inputs.seed),
       guidance_scale:Number(inputs.guidance_scale),openpose_scale_percent:Number(inputs.openpose_scale_percent)};
+    if(placement){
+      request.keyframes=placement.placements;
+      request.keyframe_source_hashes=Object.fromEntries(placement.sources.map(source=>[source.id,source.source_sha256]));
+    }
     if(references.length){
       if(references.length>8)throw new Error("참조 이미지는 최대 8장입니다.");
       if(references.some(file=>file.size>3000000))throw new Error("참조 PNG는 파일당 3 MB까지 첨부할 수 있습니다.");
@@ -77,6 +84,14 @@ export default function KimodoGeneration({session}){
     setNotice(result.state==="accepted"?"GPU 대기열에 등록했습니다. 작업 "+result.job_id:"접수 상태를 조회하세요.");
   }
   return <section aria-label="Kimodo 모션 생성"><h2>모션 생성</h2>
+    {inputs && <fieldset disabled={busy}><legend>키프레임 배치</legend>
+      <button aria-expanded={placing} onClick={()=>setPlacing(!placing)}>{placing?"배치 편집 닫기":"키프레임 배치 편집"}</button>
+      {placement && <><p>{placement.placements.map(item=>item.frame+"프레임 · "+item.id).join(", ")}</p>
+        <button onClick={()=>{setPlacement(null);setReview(null);setPlacing(false);}}>배치 해제</button></>}
+      {placing && <><label>키프레임 검색 <input value={search} onChange={e=>setSearch(e.target.value)}/></label>
+        <KeyframeCatalog query={search} initialFrames={inputs.frames} initialRows={placement?.placements || []}
+          apply={(frames,result)=>{setPlacement(result);setInputs({...inputs,frames,post_processing:true});setReview(null);setPlacing(false);}}/></>}
+    </fieldset>}
     {inputs && <form onSubmit={e=>{e.preventDefault();perform(inspect);}}><fieldset disabled={busy}>
       <label>동작 설명 <textarea required maxLength={2000} value={inputs.prompt} onChange={e=>edit("prompt",e.target.value)}/></label>
       <KimodoPromptExamples apply={prompt=>edit("prompt",prompt)}/>
