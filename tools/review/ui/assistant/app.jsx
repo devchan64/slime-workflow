@@ -1,3 +1,4 @@
+import SpriteSheetEditor from "./SpriteSheetEditor.jsx";
 import KeyframeCatalog from "./KeyframeCatalog.jsx";
 import ContentDatabaseStatus from "./ContentDatabaseStatus.jsx";
 import EffectEditor from "./EffectEditor.jsx";
@@ -274,6 +275,7 @@ function App() {
 }
 const pages = {
   "/management/frame/effect-editor": EffectEditor,
+  "/management/assistant/sprite-sheets": SpriteSheetEditor,
   "/management/assistant/effects": EffectEditor,
   "/management/frame/building-editor": BuildingEditor,
   "/management/assistant/buildings": BuildingEditor,
