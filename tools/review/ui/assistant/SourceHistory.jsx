@@ -1,3 +1,4 @@
+import WriterActions from "./WriterActions.jsx";
 import WriterResult from "./WriterResult.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
 import React, {useEffect, useState} from "react";
@@ -24,6 +25,8 @@ function HistoryPage({source, choose, session}) {
     finally {setBusy(false);}
   }
   return <fieldset disabled={busy}>
+    {writer && <WriterActions onAccepted={id=>{selectJob(id);setNotice(id+" 작가 작업을 접수했습니다.");}}/>}
+      {selectedJob && writer && <WriterResult key={selectedJob} id={selectedJob} onDeleted={id=>{setNotice(id+" 실행 기록을 휴지통으로 옮겼습니다.");load(0);}}/>}
     <label>작업 ID 검색 <input maxLength={80} value={query} onChange={event=>{selectJob("");setQuery(event.target.value);setPage(null);setError("");}}/></label>
     <button onClick={()=>load(0)}>{busy?"조회 중…":"이력 조회"}</button>
     {error && <p role="alert">{error}</p>}
@@ -41,7 +44,7 @@ function HistoryPage({source, choose, session}) {
           ] : mediaKind || writer ? [<button onClick={()=>selectJob(record.id)}>결과 보기</button>] : []),
         ]),
       }}/>
-      {selectedJob && writer && <WriterResult key={selectedJob} id={selectedJob} onDeleted={id=>{setNotice(id+" 실행 기록을 휴지통으로 옮겼습니다.");load(0);}}/>}
+
       {selectedJob && mediaKind && <MediaJobResult kind={mediaKind} key={selectedJob} service={source.service} id={selectedJob}>
         {job=>job?.status==="completed" && job.result_status==="available" && job.file_observation!=="unavailable" &&
           <button onClick={()=>choose(source.service+" 생성 결과",selectedJob)}>이 결과를 대화 입력에 추가</button>}
