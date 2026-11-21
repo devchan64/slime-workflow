@@ -1,3 +1,5 @@
+import GeneratorHistory from "./GeneratorHistory.jsx";
+import HistoryCleanup from "./HistoryCleanup.jsx";
 import React,{useEffect,useRef,useState} from "react";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
@@ -13,7 +15,17 @@ export default function SoundEffectPage(){
   const [form,setForm]=useState(null),[review,setReview]=useState(null);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
   const [job,setJob]=useState(query.get("job") || "");
+  const [historyRevision,setHistoryRevision]=useState(0);
   const submitting=useRef(false);
+  async function readJob(id){
+    const response=await fetch(formPath+"/"+encodeURIComponent(id),{cache:"no-store"});
+    const result=await response.json();
+    if(!response.ok)throw new Error(result.detail || "저장된 입력을 확인할 수 없습니다.");
+    return result;
+  }
+  function cleaned(message){
+    setJob("");setNotice(message);setHistoryRevision(value=>value+1);
+  }
   useEffect(()=>{
     const controller=new AbortController();
     fetch(formPath,{signal:controller.signal}).then(response=>{
@@ -46,6 +58,11 @@ export default function SoundEffectPage(){
   }
   return <article><a href={"/management/assistant/"+(query.has("session")?"?"+new URLSearchParams({session:query.get("session")}):"")}>헤르메스 대화</a>
     <h1>Dasheng 효과음 생성</h1><ModelReadiness service={service}/><GeneratorChangelog generator={service}/>
+    <fieldset disabled={busy || Boolean(review) || !form}>
+      <GeneratorHistory key={historyRevision} service={service} readJob={readJob} restore={input=>{
+        setForm(input);setNotice("저장된 효과음 입력을 불러왔습니다.");
+      }} inspectResult={record=>setJob(record.id)}/>
+    </fieldset>
     {form && <form onSubmit={preview}><fieldset disabled={busy || Boolean(review)}>
       <label>효과음 설명 <textarea required maxLength={4000} value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/></label>
       <label>시드 <input type="number" required min="0" max="4294967295" step="1" value={form.seed} onChange={e=>edit("seed",e.target.value)}/></label>
@@ -57,6 +74,8 @@ export default function SoundEffectPage(){
       <button disabled={busy} onClick={()=>setReview(null)}>입력 수정</button>
       <button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button></section>}
     {notice && <p role="status">{notice}</p>}
-    {job && <MediaJobResult key={job} kind="audio" service={service} id={job}/>}
+    {job ? <MediaJobResult key={job} kind="audio" service={service} id={job}>
+      {record=><HistoryCleanup key={record?.status || ""} service={service} job={job} state={record?.status} onDeleted={cleaned}/>}
+    </MediaJobResult> : <HistoryCleanup service={service} onDeleted={cleaned}/>}
   </article>;
 }

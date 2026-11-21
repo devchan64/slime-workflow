@@ -375,6 +375,29 @@ def build_management_application(current_handler_class, current_root_path, curre
         defaults = load_music_defaults('sfx-dasheng-audiogen')
         return {key: defaults[key] for key in ('prompt', 'seed', 'loop_request')} | {'tag': ''}
 
+    @current_root_application.get('/management/assistant/sfx-input/{job}')
+    def sound_effect_saved_input(job: str):
+        from fastapi import HTTPException
+        from generators.music.contracts import read_music_record, validate_music_request
+        from tools.review.domains.music.generation import MusicGenerationManager
+        service = 'sfx-dasheng-audiogen'
+        try:
+            directory = MusicGenerationManager(service).resolve_music_job(job)
+        except ValueError as error:
+            raise HTTPException(404, '효과음 작업을 찾을 수 없습니다.') from error
+        path = directory / 'request.json'
+        if path.is_symlink() or not path.is_file():
+            raise HTTPException(404, '저장된 입력을 찾을 수 없습니다.')
+        try:
+            saved = read_music_record(path)
+            if saved['action'] != 'generate':
+                raise ValueError('모델 준비 작업에는 생성 입력이 없습니다.')
+            fields = ('prompt', 'duration_seconds', 'seed', 'loop_request', 'tag')
+            inputs = validate_music_request(service, {key: saved[key] for key in fields})
+        except (KeyError, TypeError, ValueError, OSError) as error:
+            raise HTTPException(422, '저장된 효과음 생성 입력을 확인하세요.') from error
+        return {'id': job, 'request': {key: inputs[key] for key in ('prompt', 'seed', 'loop_request', 'tag')}}
+
     @current_root_application.post('/management/assistant/sfx-input')
     def sound_effect_preview(payload: dict):
         from generators.music.contracts import build_music_request
