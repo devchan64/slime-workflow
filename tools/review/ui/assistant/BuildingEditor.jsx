@@ -42,6 +42,42 @@ function BuildingProperties({building,generation,busy,setBusy,onSaved}){
   </fieldset></form>;
 }
 
+async function buildingCommand(action,payload){
+  const bytes=new TextEncoder().encode(JSON.stringify(payload));
+  const digest=new Uint8Array(await crypto.subtle.digest("SHA-256",bytes));
+  const requestId="building-"+action+"-"+Array.from(digest,b=>b.toString(16).padStart(2,"0")).join("");
+  return managementCommand("map-assets","building-"+action,{...payload,requestId});
+}
+
+function BuildingRegistration({generation,busy,setBusy,onRegistered}){
+  const [error,setError]=useState("");
+  async function submit(event){
+    event.preventDefault();
+    const form=event.currentTarget,fields=new FormData(form),file=fields.get("image");
+    if(busy)return;
+    setBusy(true);setError("");
+    try{
+      if(!file.size || file.size>16*1024*1024)throw new Error("16MiB 이하의 PNG를 선택하세요.");
+      const imageBase64=await new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onload=()=>resolve(reader.result.split(",")[1]);
+        reader.onerror=()=>reject(new Error("이미지를 읽을 수 없습니다."));
+        reader.readAsDataURL(file);
+      });
+      const texture=fields.get("texture").trim();
+      await buildingCommand("register",{texture,generation,imageBase64,properties:{anchorX:Number(fields.get("x")),anchorY:Number(fields.get("y"))}});
+      onRegistered(texture);
+    }catch(problem){setError(problem.message);}
+    finally{setBusy(false);}
+  }
+  return <details><summary>건물 등록</summary><form onSubmit={submit}><fieldset disabled={busy}>
+    <label>건물 ID<input name="texture" required pattern="town-[a-z0-9\x2d]+-v[1-9][0-9]*" placeholder="town-iseulon-house-v1"/></label>
+    <label>투명 PNG<input name="image" required type="file" accept="image/png"/></label>
+    {[["x","앵커 X",0.5],["y","앵커 Y",1]].map(([name,label,value])=><label key={name}>{label}<input name={name} type="number" required min="0" max="16" step="any" defaultValue={value}/></label>)}
+    <button>건물 등록</button>{error && <p role="alert">{error}</p>}
+  </fieldset></form></details>;
+}
+
 export default function BuildingEditor(){
   const [catalog,setCatalog]=useState(null),[selected,setSelected]=useState("");
   const [error,setError]=useState(""),[revision,reload]=useState(0);
@@ -58,12 +94,25 @@ export default function BuildingEditor(){
     return ()=>{active=false;};
   },[revision]);
   const building=catalog?.assets.find(item=>item.texture===selected);
+  async function retire(){
+    if(busy || !building || building.texture==="ward-tower-v1" || building.maps.length)return;
+    if(!window.confirm(building.texture+"을 건물 목록과 공용 속성에서 삭제할까요? 이미지 원본과 등록 이력은 보존됩니다."))return;
+    setBusy(true);setError("");
+    try{
+      await buildingCommand("retire",{texture:building.texture,generation:catalog.generation});
+      setNotice(building.texture+" 삭제 완료");reload(value=>value+1);
+    }catch(problem){setError(problem.message);}
+    finally{setBusy(false);}
+  }
   const image=id=>"/management/assistant/building-image/"+encodeURIComponent(id);
   return <article><h1>건물 에셋 관리</h1>
     <button disabled={busy} onClick={()=>reload(value=>value+1)}>건물 목록 다시 읽기</button>
     {notice && <p role="status">{notice}</p>}
     {error && <p role="alert">{error}</p>}
     {catalog ? <><p>건물 {catalog.assets.length}종 · DB 세대 {catalog.generation}</p>
+      <BuildingRegistration generation={catalog.generation} busy={busy} setBusy={setBusy} onRegistered={id=>{
+        setNotice(id+" 등록 완료");setSelected(id);reload(value=>value+1);
+      }}/>
       <div aria-label="건물 목록">{catalog.assets.map(item=><button key={item.texture} disabled={busy} aria-pressed={item.texture===selected} onClick={()=>setSelected(item.texture)}>
         <img loading="lazy" src={image(item.texture)} width="64" height="64" style={{objectFit:"contain"}} alt=""/>{item.texture}</button>)}</div>
     </> : !error && <p role="status">건물 목록을 읽고 있습니다.</p>}
@@ -73,6 +122,7 @@ export default function BuildingEditor(){
       <BuildingProperties key={building.texture} building={building} generation={catalog.generation} busy={busy} setBusy={setBusy}
         onSaved={id=>{setNotice(id+" 표시 속성을 저장했습니다.");reload(value=>value+1);}}/>
       <h3>사용 맵</h3>{building.maps.length ? <ul>{building.maps.map((usage,i)=><li key={i}>{usage.map} · {usage.name} · {usage.width}×{usage.height} · {usage.facing}</li>)}</ul> : <p>사용 맵 없음</p>}
+      <button disabled={busy || building.texture==="ward-tower-v1" || !!building.maps.length} onClick={retire}>선택 건물 삭제</button>
     </section>}
   </article>;
 }
