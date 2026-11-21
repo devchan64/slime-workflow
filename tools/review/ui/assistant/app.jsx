@@ -1,3 +1,4 @@
+import TranslationPage from "./TranslationPage.jsx";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 import WorldMap from "./WorldMap.jsx";
@@ -164,4 +165,4 @@ function App() {
     <textarea ref={text} aria-label="메시지" placeholder="헤르메스에게 메시지 보내기" value={draft} disabled={busy} onChange={e=>edit(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){e.preventDefault();send()}}}/>
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
-createRoot(document.getElementById("root")).render(location.pathname.replace(/\/$/,"")==="/management/frame/world-map" ? <WorldMap/> : <App/>);
+createRoot(document.getElementById("root")).render(location.pathname.replace(/\/$/,"")==="/management/frame/world-map" ? <WorldMap/> : location.pathname.replace(/\/$/,"")==="/management/assistant/translation" ? <TranslationPage/> : <App/>);

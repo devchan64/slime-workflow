@@ -364,6 +364,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     from starlette.responses import FileResponse
     assistant_root = Path(__file__).resolve().parents[1] / 'ui' / 'assistant'
 
+    @current_root_application.get('/management/assistant/translation/')
     @current_root_application.get('/management/frame/world-map')
     @current_root_application.get('/management/frame/world-map/')
     @current_root_application.get('/management/assistant/')

@@ -1,7 +1,7 @@
 import React, {useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 
-export default function GeneratorHistory({service, statusCommand, restore}) {
+export default function GeneratorHistory({service, statusCommand, restore, inspectResult}) {
   const [page,setPage]=useState(null);
   const [query,setQuery]=useState("");
   const [filter,setFilter]=useState("");
@@ -24,6 +24,7 @@ export default function GeneratorHistory({service, statusCommand, restore}) {
     const result=await managementCommand(service,statusCommand,{id});
     if(result.id!==id || !result.request)throw new Error("작업 입력을 확인할 수 없습니다.");
     setJob(result);
+    inspectResult?.(result);
   }
   return <details><summary>생성 이력에서 입력 불러오기</summary>
     <fieldset disabled={busy}><label>작업 ID 검색 <input value={query} maxLength={80} onChange={e=>setQuery(e.target.value)}/></label>
