@@ -5,14 +5,15 @@ import ResultTable from "./ResultTable.jsx";
 const fields=["x","y","width","height","anchorX","anchorY"];
 const labels=["X","Y","너비","높이","앵커 X","앵커 Y"];
 
-function FrameEditor({image,frames,initialColumns=4,bounds}){
+function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
   const [rows,setRows]=useState(()=>frames.map(({rect,anchor})=>({...rect,anchorX:anchor.x,anchorY:anchor.y})));
   const [columns,setColumns]=useState(initialColumns),[busy,setBusy]=useState(false);
   const [result,setResult]=useState(null),[error,setError]=useState("");
   const [first,setFirst]=useState(1),[last,setLast]=useState(rows.length),[fps,setFps]=useState(6);
+  const [review,setReview]=useState(null);
   function update(index,field,value){
     setRows(rows.map((row,i)=>i===index?{...row,[field]:value}:row));
-    setResult(null);setError("");
+    setReview(null);setResult(null);setError("");
   }
   async function exportSheet(event){
     event.preventDefault();setBusy(true);setResult(null);setError("");
@@ -26,6 +27,16 @@ function FrameEditor({image,frames,initialColumns=4,bounds}){
         frames:rows.slice(start,end).map(row=>Object.fromEntries(fields.map(key=>[key,Number(row[key])]))),
         sourceFrames:bounds?bounds.slice(start,end):frames.slice(start,end).map(({rect})=>[rect.x,rect.y,rect.width,rect.height])
       };
+      if(event.nativeEvent.submitter?.value==="review"){
+        const registered=original.animation?.frames;
+        const count=registered?.length || original.layout?.frame_count || original.layout?.columns*original.layout?.rows;
+        if(count!==payload.frames.length)throw new Error("원본 갱신은 기존 프레임 수를 유지해야 합니다.");
+        const changed=registered?registered.filter(({rect,anchor},i)=>{
+          const next=payload.frames[i];
+          return ["x","y","width","height"].some(key=>rect[key]!==next[key]) || anchor.x!==next.anchorX || anchor.y!==next.anchorY;
+        }).length:count;
+        setReview({payload,changed});return;
+      }
       if(gif)payload.fps=Number(fps);
       const record=await managementCommand("character-animation",gif?"sheet-gif":"sheet-export",payload);
       if(!record.id || (gif?!record.gif:!record.image || !record.coordinates))throw new Error("내보내기 결과를 확인할 수 없습니다.");
@@ -33,13 +44,29 @@ function FrameEditor({image,frames,initialColumns=4,bounds}){
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
   }
+  async function save(){
+    setBusy(true);setError("");
+    try{
+      const request={path:original.path,metadataSha256:original.metadataSha256,payload:review.payload,confirm:true};
+      if(original.source==="baseline")request.source="baseline";
+      const record=await managementCommand("character-animation","sheet-update",request);
+      if(!record.id || record.path!==original.path)throw new Error("원본 갱신 결과를 확인할 수 없습니다.");
+      onSaved(record);
+    }catch(problem){setError(problem.message);}
+    finally{setBusy(false);setReview(null);}
+  }
   return <form onSubmit={exportSheet}><fieldset disabled={busy}><legend>크롭과 앵커 편집</legend>
     <ResultTable table={{title:"등록 프레임 좌표",summary:frames.length+"프레임",columns:["프레임",...labels],
       rows:rows.map((row,i)=>[i+1,...fields.map((field,j)=><input aria-label={(i+1)+"번 "+labels[j]} type="number"
         required step={j<4?1:"any"} value={row[field]} onChange={e=>update(i,field,e.target.value)}/>)])}}/>
     <label>출력 열 수<input type="number" min="1" max="128" required value={columns}
-      onChange={e=>{setColumns(e.target.value);setResult(null);}}/></label>
+      onChange={e=>{setColumns(e.target.value);setReview(null);setResult(null);}}/></label>
     <button>시트와 좌표맵 내보내기</button>
+    {original?.metadataSha256 && <button value="review">원본 갱신 검토</button>}
+    {review && <section><h3>{original.path}</h3><p>좌표 변경 {review.changed} / {rows.length}프레임 · 출력 {columns}열</p>
+      <p>{original.source==="baseline"?"베이스라인 이미지·좌표맵·YAML":"등록 이미지·좌표맵·등록부와 잠금 해시"}를 갱신합니다.</p>
+      <button type="button" onClick={save}>확인 후 원본 갱신</button>
+      <button type="button" onClick={()=>setReview(null)}>취소</button></section>}
     <fieldset onChange={()=>{setResult(null);setError("");}}><legend>GIF 내보내기</legend>
       <label>시작 프레임<input type="number" value={first} onChange={e=>setFirst(e.target.value)}/></label>
       <label>끝 프레임<input type="number" value={last} onChange={e=>setLast(e.target.value)}/></label>
@@ -64,7 +91,7 @@ function gridEdges(size,count){
   });
 }
 
-function GridEditor({detail,size}){
+function GridEditor({detail,size,onSaved}){
   const [columns,setColumns]=useState(detail.layout?.columns ?? 4),[rows,setRows]=useState(detail.layout?.rows ?? 2);
   const [grid,setGrid]=useState(null),[error,setError]=useState("");
   function split(event){
@@ -88,22 +115,24 @@ function GridEditor({detail,size}){
     <label>원본 행<input type="number" min="1" max="128" required value={rows} onChange={e=>setRows(e.target.value)}/></label>
     <button disabled={!size}>프레임 나누기</button>
     {error && <p role="alert">{error}</p>}</fieldset></form>
-    {grid && <FrameEditor key={grid.key} frames={grid.frames} image={detail.image}/>}</>;
+    {grid && <FrameEditor key={grid.key} frames={grid.frames} image={detail.image} original={detail} onSaved={onSaved}/>}</>;
 }
 
 function Sheet({path,source}){
+  const [saved,setSaved]=useState(null);
   const [detail,setDetail]=useState(null),[error,setError]=useState("");
   useEffect(()=>{
     let active=true;
     managementCommand("character-animation","sheet-image",{path,source}).then(record=>{
       if(record.path!==path || !record.image)throw new Error("선택한 시트 원본을 확인할 수 없습니다.");
-      if(active)setDetail(record);
+      if(active)setDetail({...record,source});
     }).catch(problem=>{if(active)setError(problem.message);});
     return ()=>{active=false;};
-  },[path,source]);
-  if(error)return <p role="alert">{error}</p>;
-  if(!detail)return <p role="status">원본 시트를 불러오는 중…</p>;
-  return <SheetView path={path} detail={detail}/>;
+  },[path,source,saved]);
+  return <>{saved && <p role="status">원본 갱신 완료 · {saved.path} · 기록 {saved.id}</p>}
+    {error?<p role="alert">{error}</p>:detail?<SheetView path={path} detail={detail} onSaved={record=>{
+      setDetail(null);setSaved(record);
+    }}/>:<p role="status">원본 시트를 불러오는 중…</p>}</>;
 }
 
 function AutoCrop({image,size,onApply}){
@@ -133,7 +162,7 @@ function AutoCrop({image,size,onApply}){
   </details>;
 }
 
-function SheetView({path,detail}){
+function SheetView({path,detail,onSaved}){
   const [size,setSize]=useState(null);
   const [detected,setDetected]=useState(null),[revision,setRevision]=useState(0);
   const frames=detected?.frames || detail.animation?.frames;
@@ -144,7 +173,7 @@ function SheetView({path,detail}){
   return <section><h2>{path}</h2><img src={"data:image/png;base64,"+detail.image} onLoad={e=>setSize({width:e.target.naturalWidth,height:e.target.naturalHeight})} alt="원본 스프라이트 시트" style={{maxWidth:"100%"}}/>
     {detail.layout && <p>{detail.layout.columns}열 × {detail.layout.rows}행</p>}
     <AutoCrop image={detail.image} size={size} onApply={apply}/>
-    {frames?.length>0?<FrameEditor key={revision} frames={frames} image={detail.image} initialColumns={detected?.columns} bounds={detected?.bounds}/>:<GridEditor detail={detail} size={size}/>}
+    {frames?.length>0?<FrameEditor key={revision} frames={frames} image={detail.image} initialColumns={detected?.columns} bounds={detected?.bounds} original={detail} onSaved={onSaved}/>:<GridEditor detail={detail} size={size} onSaved={onSaved}/>}
   </section>;
 }
 
