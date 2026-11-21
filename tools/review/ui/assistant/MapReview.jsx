@@ -15,10 +15,33 @@ export default function MapReview(){
   const [brush,setBrush]=useState("pan"),[strokeCount,setStrokeCount]=useState(0);
   const [storageNotice,setStorageNotice]=useState("");
   const [recovery,setRecovery]=useState(null);
-  function downloadRecovery(){
-    const url=URL.createObjectURL(new Blob([recovery.raw],{type:"application/json"}));
-    const link=document.createElement("a");link.href=url;link.download=recovery.map+"-draft.json";
+  function downloadDraft(map,text){
+    const url=URL.createObjectURL(new Blob([text],{type:"application/json"}));
+    const link=document.createElement("a");link.href=url;link.download=map+"-draft.json";
     link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  async function importDraft(file){
+    if(!file)return;
+    setReading(true);
+    try{
+      const record=JSON.parse(await file.text());
+      const next=record.version===1?record.state?.draft:record;
+      if(next?.map!==draft.map || next.revision!==draft.revision)throw new Error("현재 지도와 원본 리비전이 일치하는 초안을 선택하세요.");
+      await applyDraft(next,"import");
+    }catch(error){setFeedback(error.message);}
+    finally{setReading(false);}
+  }
+  async function discardDraft(){
+    if(!window.confirm("현재 지도의 미저장 초안과 편집 이력을 버릴까요?"))return;
+    setReading(true);
+    try{
+      const fresh=await managementCommand("map-assets","map-edit-load",{map:draft.map});
+      await window.mapReviewApplyDraft(fresh.render);
+      sessionStorage.removeItem(storageKey(draft.map));
+      setCell(null);setSource(null);setDraft(null);setPreview(null);
+      setPast([]);setFuture([]);setBrush("pan");setStorageNotice("");setFeedback("지도 원본을 다시 불러왔습니다.");
+    }catch(error){setFeedback(error.message);}
+    finally{setReading(false);}
   }
   function discardRecovery(){
     try{
@@ -76,6 +99,7 @@ export default function MapReview(){
         setFuture(future.slice(0,-1));setPast([...past,draft]);setCell(null);
       }else{
         setPast([...past,draft]);setFuture([]);
+        if(action==="import")setCell(null);
       }
       setDraft(next);setPreview(result);
       setFeedback("검증 완료 · 변경 셀 "+result.cells+"개 · 도달 가능 "+result.reachable+"칸");
@@ -229,9 +253,16 @@ export default function MapReview(){
         <label><input type="checkbox" checked={cell.blocked} onChange={e=>editCell("blocked",e.target.checked)}/>이동 금지</label>
         <button>초안 검증 및 미리보기</button></form>}
       {recovery && <section aria-label="임시본 복구"><p>복원하지 못한 임시본을 파일로 보관하거나 삭제할 수 있습니다.</p>
-        <button onClick={downloadRecovery}>임시본 JSON 다운로드</button>
+        <button onClick={()=>downloadDraft(recovery.map,recovery.raw)}>임시본 JSON 다운로드</button>
         <button onClick={()=>{if(window.confirm("이 탭에 보관한 "+recovery.map+" 임시본을 삭제할까요?"))discardRecovery();}}>임시본 삭제</button>
       </section>}
+      {draft && <details><summary>초안 보관 및 복원</summary>
+        <button onClick={()=>downloadDraft(draft.map,JSON.stringify(draft,null,2))}>초안 JSON 다운로드</button>
+        <label>초안 JSON 불러오기<input type="file" accept=".json,application/json" onChange={event=>{
+          const file=event.target.files[0];event.target.value="";importDraft(file);
+        }}/></label>
+        <button onClick={discardDraft}>초안 버리고 원본 다시 읽기</button>
+      </details>}
       {storageNotice && <p role="status">{storageNotice}</p>}
       {draft && <label>지도 드래그 도구<select value={brush} disabled={!editing} onChange={e=>setBrush(e.target.value)}>
         <option value="pan">이동·셀 선택</option><option value="floor" disabled={!source?.blocked_tile_codes}>바닥 칠하기</option><option value="wall" disabled={!source?.wall_tiles?.length}>벽면 칠하기</option><option value="raise">높이 올리기</option><option value="lower">높이 내리기</option><option value="place">빌보드 배치</option><option value="delete">빌보드 삭제</option>
