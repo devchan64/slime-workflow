@@ -72,16 +72,23 @@ export default function FunControlPage(){
     {error && <p role="alert">{error}</p>}
     {request && <form onSubmit={review}><fieldset disabled={busy || !!pending}><legend>생성 입력</legend>
       <label>외형 참조 이미지<input type="file" accept="image/*" onChange={event=>attach(event.target.files[0],"images")}/></label>
-      <label>입력 포즈 영상<input type="file" accept="video/mp4" onChange={event=>attach(event.target.files[0],"pose_video")}/></label>
+      <label>처리된 포즈 MP4 · 832×480 · 16fps<input type="file" accept="video/mp4" onChange={event=>attach(event.target.files[0],"pose_video")}/></label>
       {request.images[0] && <img alt="외형 참조 이미지" style={{maxWidth:"100%"}} src={"data:image/png;base64,"+request.images[0]}/>}
       {request.pose_video && <video controls loop playsInline preload="metadata" aria-label="입력 포즈 영상" src={"data:video/mp4;base64,"+request.pose_video}/>}
       {["prompt","negative_prompt"].map(field=><label key={field}>{field==="prompt"?"동작 프롬프트":"부정 프롬프트"}
-        <textarea value={request[field]} onChange={event=>setRequest({...request,[field]:event.target.value})}/></label>)}
+        <textarea maxLength={8000} value={request[field]} onChange={event=>setRequest({...request,[field]:event.target.value})}/></label>)}
       <label>모델<select value={request.model_profile || "wan22-14b"} onChange={event=>setRequest({...request,model_profile:event.target.value})}>
         {template.models?.map(model=><option key={model.id} value={model.id}>{model.label}</option>)}</select></label>
+      <fieldset><legend>출력 프레임 빠른 선택</legend>
+        {[21,41,81,129].filter(count=>count<=template.maximum_frames).map(count=>
+          <button key={count} type="button" aria-pressed={Number(request.frames)===count}
+            onClick={()=>setRequest({...request,frames:count})}>{count}프레임</button>)}
+      </fieldset>
       {settings.map(([key,label,min,max,step])=><label key={key}>{label}
         <input required type="number" min={min} max={max} step={step} value={request[key]}
           onChange={event=>setRequest({...request,[key]:event.target.value})}/></label>)}
+      {Number(request.frames)>=5 && Number(request.frames)<=template.maximum_frames && Number(request.frames)%4===1 &&
+        <p>출력 길이 {(Number(request.frames)/16).toFixed(2)}초 · 16fps</p>}
       <button disabled={!request.prompt.trim() || !request.images[0] || !request.pose_video} type="submit">대기열에 추가</button>
     </fieldset></form>}
     {pending && <section aria-label="생성 요청 확인"><GpuQueueSummary/>
