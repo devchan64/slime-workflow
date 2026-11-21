@@ -32,7 +32,6 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'asset-editor': ('asset_editor_app', 'build_asset_editor_interface', 'port'),
     'building-editor': ('building_editor_panel', 'build_building_editor_interface', 'port'),
     'writer-agent': ('writer_agent_app', 'build_writer_agent_interface', 'port'),
-    'prompt-translation': ('prompt_translation_app', 'build_translation_interface', 'none'),
     'sprite-sheet-editor': ('sprite_sheet_editor_app', 'build_sprite_sheet_editor_interface', 'port'),
 }
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
@@ -364,6 +363,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     from starlette.responses import FileResponse
     assistant_root = Path(__file__).resolve().parents[1] / 'ui' / 'assistant'
 
+    @current_root_application.get('/management/frame/prompt-translation')
+    @current_root_application.get('/management/frame/prompt-translation/')
     @current_root_application.get('/management/assistant/translation/')
     @current_root_application.get('/management/frame/world-map')
     @current_root_application.get('/management/frame/world-map/')

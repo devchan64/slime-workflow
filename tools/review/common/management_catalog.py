@@ -14,7 +14,7 @@ NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {'flux-express
 NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {'hermes-agent'}
 NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {current_flux_profile+'-generator' for current_flux_profile in ('flux-image','flux-character','flux-mannequin','flux-billboard','flux-prop','flux-vegetation','flux-building','flux-seamless')}
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
-REACT_REVIEW_PATHS = {"world-map": "/management/frame/world-map/"}
+REACT_REVIEW_PATHS = {"world-map": "/management/frame/world-map/", "prompt-translation": "/management/frame/prompt-translation/"}
 DEFAULT_PAGE_RECORDS=(
     *({'id':name+'-generator','label':'FLUX 3 '+label+' 생성기','path':'/management/frame/'+name+'-generator/','category':'image-generation','uiMode':'gradio','description':'공용 화풍 · FLUX 이력 및 입력 복원'} for name,label in (('flux-image','일반 이미지'),('flux-character','캐릭터'),('flux-mannequin','마네킨'),('flux-billboard','빌보드 가이드'),('flux-prop','소품'),('flux-vegetation','식생'),('flux-building','건물'),('flux-seamless','심리스 타일'))),
     {'id':'flux-expression-generator','label':'FLUX 3 표정 생성기','path':'/management/frame/flux-expression-generator/','category':'image-generation','uiMode':'gradio','description':'얼굴 참조 1장 · 표정 프리셋 · 이력 입력 복원'},
@@ -44,7 +44,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'공용 화풍 v1.5.0 기본 적용 · 투명 배경·참조 이미지 선택'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
     {'id':'hermes-agent','label':'운영 대화','path':'/management/frame/hermes-agent/','category':'writer-agent','uiMode':'gradio','description':'대화로 관리 상태 확인과 작업 요청'},
-    {'id':'prompt-translation','label':'프롬프트 번역','path':'/management/frame/prompt-translation/','category':'writer-agent','uiMode':'gradio','description':'한국어 → 영어·중국어 · 기능 준비 중'},
+    {'id':'prompt-translation','label':'프롬프트 번역','path':REACT_REVIEW_PATHS['prompt-translation'],'category':'writer-agent','uiMode':'react','description':'한국어 프롬프트 번역 · 작업 이력과 결과 검토'},
     {'id':'expression-generator','label':'Qwen 2.1 표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · AU 표정 39종 · 참조 1~3장'},
 )
 
