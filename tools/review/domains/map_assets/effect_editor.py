@@ -2,6 +2,9 @@
 import base64
 import hashlib
 import json
+from pathlib import Path
+
+import yaml
 from urllib.parse import quote
 from tools.review.domains.map_assets.database_client import execute_content_api_request
 from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_asset
@@ -112,6 +115,8 @@ def execute_effect_editor_command(current_command_name,current_request_payload):
         current_animation_metadata=json.loads(current_metadata_path.read_text())
         if len(current_animation_metadata.get('frames',[])) != current_effect_record['frames']:
             raise ValueError('웨이포인트 애니메이션 프레임 수 오류')
-    return {'animationMetadata':current_animation_metadata,'document':current_effect_record,'revision':hashlib.sha256(json.dumps(current_effect_record,sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest(),
+    manifest_path=Path(__file__).resolve().parents[2]/'ui/map/vendor/field-renderer/manifest.yaml'
+    version=yaml.safe_load(manifest_path.read_text())['version']
+    return {'rendererModule':f'/isloon-map-review/vendor/field-renderer/{version}/field-renderer.mjs','animationMetadata':current_animation_metadata,'document':current_effect_record,'revision':hashlib.sha256(json.dumps(current_effect_record,sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest(),
         'sheetImage':'data:image/png;base64,'+base64.b64encode(current_image_path.read_bytes()).decode(),
         'hostImage':('data:image/png;base64,'+base64.b64encode(current_billboard_bytes).decode()) if current_billboard_bytes is not None else None}

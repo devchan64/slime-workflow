@@ -1,6 +1,31 @@
 import React,{useEffect,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 
+import {drawAlignment} from "./drawAlignment.js";
+
+function AlignmentPreview({detail,values}){
+  const canvas=useRef(null);
+  const [play,setPlay]=useState(true),[frame,setFrame]=useState(0),[host,setHost]=useState(true),[guides,setGuides]=useState(true);
+  const [status,setStatus]=useState("");
+  useEffect(()=>{
+    const element=canvas.current;
+    let active=true;
+    drawAlignment(element,detail,values,play,frame,host,guides)
+      .then(message=>{if(active)setStatus(message);})
+      .catch(error=>{if(active)setStatus(error.message);});
+    return ()=>{active=false;element.effectPreviewRevision++;};
+  },[detail,values,play,frame,host,guides]);
+  return <fieldset><legend>정렬 미리보기</legend>
+    <label><input type="checkbox" checked={play} onChange={e=>setPlay(e.target.checked)}/>애니메이션 재생</label>
+    <label>정지 프레임<input type="range" min="0" max={values.frames.length-1} value={frame} disabled={play}
+      onChange={e=>setFrame(Number(e.target.value))}/></label>
+    {detail.hostImage && <label><input type="checkbox" checked={host} onChange={e=>setHost(e.target.checked)}/>빌보드 표시</label>}
+    <label><input type="checkbox" checked={guides} onChange={e=>setGuides(e.target.checked)}/>영역 가이드</label>
+    <canvas ref={canvas} width="640" height="640" style={{width:"100%",maxWidth:640}} aria-label="정렬 미리보기"/>
+    <p role="status">{status}</p>
+  </fieldset>;
+}
+
 const sides=["왼쪽","위쪽","오른쪽","아래쪽"];
 
 function WaypointPreview({detail}){
@@ -108,7 +133,7 @@ function Alignment({detail}){
     <fieldset><legend>대상 영역</legend>{rectangle("target")}</fieldset>
     <label>불투명도<input type="number" min="0" max="1" step="any" required value={values.alpha} onChange={e=>setValues({...values,alpha:e.target.value})}/></label>
     {values.frames.map((_,index)=><fieldset key={index}><legend>{index+1}번 프레임</legend>{rectangle("frames",index)}</fieldset>)}
-    <button>정렬 저장</button></fieldset>{message && <p role="status">{message}</p>}</form>;
+    <AlignmentPreview detail={detail} values={values}/><button>정렬 저장</button></fieldset>{message && <p role="status">{message}</p>}</form>;
 }
 
 export default function EffectEditor(){
