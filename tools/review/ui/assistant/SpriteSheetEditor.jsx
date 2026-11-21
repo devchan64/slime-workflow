@@ -315,15 +315,34 @@ function LocalSheet(){
   </details>;
 }
 
+function linkedSheet(){
+  const params=new URLSearchParams(location.search);
+  const path=params.get("sprite_path") || "",action=params.get("action") || "";
+  const source=params.get("sprite_source") ?? "assets";
+  if((path || action) && !["assets","baseline"].includes(source))return {error:"지원하지 않는 링크 원본입니다."};
+  if(path)return {source,path};
+  if(!action)return {};
+  if(!action.startsWith("asset:") || action.length===6)return {error:"지원하지 않는 애니메이션 링크입니다."};
+  return {source:"assets",animation:action.slice(6)};
+}
+
 export default function SpriteSheetEditor(){
-  const [source,setSource]=useState("assets"),[query,setQuery]=useState("");
-  const [request,setRequest]=useState(null),[items,setItems]=useState(null),[selected,select]=useState("");
-  const [error,setError]=useState("");
+  const [link]=useState(linkedSheet);
+  const [source,setSource]=useState(link.source || "assets"),[query,setQuery]=useState(link.animation || "");
+  const [request,setRequest]=useState(link.animation?{source:"assets",query:link.animation,linked:true}:null);
+  const [items,setItems]=useState(null),[selected,select]=useState(link.path || "");
+  const [error,setError]=useState(link.error || "");
   useEffect(()=>{
     if(!request)return;
     let active=true;
-    managementCommand("character-animation","sheet-search",request).then(result=>{
-      if(active)setItems(result.items);
+    managementCommand("character-animation","sheet-search",{source:request.source,query:request.query}).then(result=>{
+      if(!active)return;
+      setItems(result.items);
+      if(request.linked){
+        const matches=result.items.filter(item=>item.animationIds?.includes(request.query));
+        if(matches.length===1)select(matches[0].path);
+        else setError("동작 ID에 연결된 시트가 없거나 여러 개입니다. 검색 결과에서 원본을 선택하세요.");
+      }
     }).catch(problem=>{if(active)setError(problem.message);});
     return ()=>{active=false;};
   },[request]);
