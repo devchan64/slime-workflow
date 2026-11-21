@@ -13,7 +13,6 @@ from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from starlette.responses import Response, RedirectResponse, JSONResponse
-import gradio as gr
 
 MANAGEMENT_INTERFACE_BUILDERS = {
     'operations-history': ('operations_history_app', 'build_operations_history_interface', 'none'),
@@ -41,8 +40,23 @@ GENERATOR_PAGE_PACKAGES['flux-expression-generator'] = 'flux-expression'
 GENERATOR_PAGE_PACKAGES['hermes-agent'] = 'hermes_agent'
 for current_flux_profile in ('flux-image','flux-character','flux-mannequin','flux-billboard','flux-prop','flux-vegetation','flux-building','flux-seamless'):
     GENERATOR_PAGE_PACKAGES[current_flux_profile+'-generator'] = current_flux_profile
-# 기존 소비자는 옵션 등록부를 읽는다. 원본 설정은 각 생성기 페이지가 소유한다.
-QWEN_INTERFACE_OPTIONS = {current_identifier: importlib.import_module(f'generators.{GENERATOR_PAGE_PACKAGES[current_identifier]}.page.interface').GENERATOR_PAGE_OPTIONS for current_identifier in ('mannequin-generator', 'character-generator', 'qwen-21-generator', 'qwen-21-circular-generator', 'expression-generator', 'vegetation-generator', 'prop-generator', 'billboard-generator', 'building-generator')}
+def __getattr__(name):
+    """이전 Qwen 옵션 조회자가 접근할 때만 해당 화면 모듈을 읽는다."""
+    if name != 'QWEN_INTERFACE_OPTIONS':
+        raise AttributeError(name)
+    identifiers = (
+        'mannequin-generator', 'character-generator', 'qwen-21-generator',
+        'qwen-21-circular-generator', 'expression-generator', 'vegetation-generator',
+        'prop-generator', 'billboard-generator', 'building-generator',
+    )
+    options = {
+        identifier: importlib.import_module(
+            f'generators.{GENERATOR_PAGE_PACKAGES[identifier]}.page.interface'
+        ).GENERATOR_PAGE_OPTIONS
+        for identifier in identifiers
+    }
+    globals()[name] = options
+    return options
 
 
 def build_management_blocks(current_tool_name, current_review_port, current_source_path):
@@ -309,6 +323,7 @@ def build_management_application(current_handler_class, current_root_path, curre
                 if current_tool_name not in current_mounted_apps:
                     try:
                         current_interface_blocks, current_mount_options = build_management_blocks(current_tool_name, current_review_port, current_source_path)
+                        import gradio as gr
                         current_tool_application = gr.mount_gradio_app(FastAPI(), current_interface_blocks.queue(), path=current_mount_path, root_path=current_mount_path, **current_mount_options)
                         await current_lifespan_stack.enter_async_context(current_tool_application.router.lifespan_context(current_tool_application))
                         current_mounted_apps[current_tool_name] = current_tool_application
