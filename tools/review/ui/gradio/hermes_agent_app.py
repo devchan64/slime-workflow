@@ -180,6 +180,19 @@ def list_hermes_session_choices(hermes_selected_identifier=None):
         raise gr.Error('세션 목록 조회 실패: ' + str(hermes_request_error)) from hermes_request_error
 
 
+def switch_conversation_composer(selected_session, previous_session, drafts, current_prompt):
+    if selected_session == previous_session:
+        return gr.skip(), gr.skip(), gr.skip()
+    drafts = dict(drafts or {})
+    if previous_session:
+        if current_prompt:
+            drafts[previous_session] = current_prompt
+        else:
+            drafts.pop(previous_session, None)
+    restored_prompt = drafts.pop(selected_session, '') if previous_session else drafts.pop(selected_session, current_prompt or '')
+    return selected_session, drafts, restored_prompt
+
+
 def append_generator_step_template(workflow_definition_text, selected_generator_name, new_step_identifier, supplied_inputs=None):
     from tools.review.common.management_gateway import parse_management_request_json
     from tools.review.domains.hermes_agent.workflow_catalog import create_workflow_step_draft, read_workflow_generator_catalog
@@ -4832,7 +4845,6 @@ def build_hermes_agent_interface(include_advanced_controls=True, current_source_
         if not include_advanced_controls:
             gr.Markdown('## 운영 대화\nHermes에게 관리 상태 확인과 작업을 요청하세요. 실행된 작업과 세부 입력은 해당 도구에서 확인하거나 직접 조작할 수 있습니다.\n\n대화 요청은 GPU를 사용할 수 있습니다. 대기열의 배타 예약은 관리도구 작업에 적용되며 외부 GPU 작업과의 성능 간섭을 막지는 못합니다. 다른 작업 중에는 GPU 상태를 확인하세요.')
             from tools.review.ui.gradio.management_menu_app import build_conversation_tool_explorer
-            build_conversation_tool_explorer(current_source_path)
         gr.Markdown('화면을 열거나 관리 상태를 새로고침하면 amd-smi로 GPU 프로세스와 메모리를 조회합니다. GPU 생성이나 추론은 시작하지 않으며 조회 결과는 잠시 캐시될 수 있습니다.')
         hermes_management_summary = gr.Markdown('관리 상태를 확인하고 있습니다.')
         hermes_management_refresh = gr.Button('관리 상태 새로고침')
@@ -4872,6 +4884,17 @@ def build_hermes_agent_interface(include_advanced_controls=True, current_source_
                 hermes_session_list_status = gr.Markdown('세션 목록을 확인하고 있습니다.')
                 hermes_session_conversation = gr.Chatbot(label='대화', value=[], height=420, placeholder='새 세션을 만들거나 기존 세션을 선택한 뒤 요청을 입력하세요.', render_markdown=False, allow_file_downloads=False)
                 hermes_session_status = gr.Markdown('세션을 선택하거나 새로 만드세요.')
+                with gr.Row():
+                    hermes_session_prompt = gr.Textbox(elem_id='hermes-request-input', label='요청 입력', lines=3, max_lines=10, placeholder='무엇을 확인하거나 처리할까요?')
+                    hermes_session_send = gr.Button('요청 검토', variant='primary', interactive=False)
+                    hermes_session_refresh = gr.Button('대화 상태 새로고침')
+                    hermes_session_recover = gr.Button('미확인 요청 복원')
+                build_conversation_tool_explorer(hermes_session_prompt, hermes_session_control, current_source_path)
+                composer_session = gr.State(None)
+                composer_drafts = gr.State({})
+                hermes_session_control.change(switch_conversation_composer,
+                    [hermes_session_control, composer_session, composer_drafts, hermes_session_prompt],
+                    [composer_session, composer_drafts, hermes_session_prompt], queue=False)
                 with gr.Row():
                     hermes_session_job_selection = gr.Dropdown(label='세션 작업 선택', choices=[], interactive=True)
                     if include_advanced_controls:
@@ -5136,11 +5159,6 @@ def build_hermes_agent_interface(include_advanced_controls=True, current_source_
                     current_route_selection.change(lambda:None,outputs=hermes_proposal_route_state,queue=False)
                     current_route_selection.change(reset_conversation_context_state,outputs=[hermes_conversation_kimodo_card,hermes_conversation_kimodo_preview,hermes_conversation_kimodo_status,hermes_conversation_kimodo_submit,hermes_conversation_writer_detail,hermes_conversation_writer_detail_status,hermes_conversation_writer_checked,hermes_conversation_writer_apply_record,hermes_conversation_writer_apply_confirm,hermes_conversation_writer_apply_status,hermes_conversation_edit_card,hermes_conversation_edit_preview,hermes_conversation_edit_image,hermes_conversation_edit_status,hermes_conversation_edit_confirm,hermes_conversation_edit_review,hermes_proposal_route_status,hermes_history_link_display,hermes_conversation_model_confirmation,hermes_conversation_model_confirm_group,hermes_conversation_model_prepare,*hermes_writer_material_outputs],queue=False)
                 hermes_session_timer = gr.Timer(value=10, active=False)
-                with gr.Row():
-                    hermes_session_prompt = gr.Textbox(label='요청 입력', lines=3, max_lines=10, placeholder='무엇을 확인하거나 처리할까요?')
-                    hermes_session_send = gr.Button('요청 검토', variant='primary', interactive=False)
-                    hermes_session_refresh = gr.Button('대화 상태 새로고침')
-                    hermes_session_recover = gr.Button('미확인 요청 복원')
                 with gr.Accordion("번역 후 이미지 생성", open=False):
                     workflow_review_state = gr.State(None)
                     from tools.review.domains.hermes_agent.workflow_catalog import read_workflow_generator_catalog

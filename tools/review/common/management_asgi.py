@@ -52,6 +52,22 @@ def build_management_blocks(current_tool_name, current_review_port, current_sour
     current_server_address = f'http://127.0.0.1:{current_review_port}'
     from tools.review.serve import REVIEW_LIVE_RELOAD_SCRIPT
     current_mount_options = {'allowed_paths': [], 'ssr_mode': False, 'head': REVIEW_LIVE_RELOAD_SCRIPT.decode(), 'css': '#management-sidebar.open{left:0!important;transform:none!important;transition:none!important}#management-gpu-floating{position:fixed;right:12px;bottom:12px;z-index:50;width:min(12rem,calc(100vw - 24px));max-height:45dvh;overflow-x:hidden;overflow-y:auto}#management-gpu-floating:has(>button.open){width:min(27rem,calc(100vw - 24px))}#management-gpu-floating .gr-accordion{min-width:0!important;overflow-x:hidden}#management-gpu-floating .gr-accordion>button{min-width:0;width:100%;white-space:normal;text-align:left}#management-gpu-floating .gr-accordion>button>span:first-child{min-width:0;overflow-wrap:anywhere}#management-gpu-floating .gr-accordion>button>span:last-child{flex-shrink:0;align-self:center;min-width:1.25rem;text-align:center}#management-gpu-floating [data-testid="markdown"]{overflow-wrap:anywhere}'}
+    if current_tool_name == 'hermes-agent':
+        current_mount_options['css'] += """
+        #hermes-tool-explorer {
+            position: fixed; left: 12px; bottom: 12px; z-index: 50;
+            width: min(12rem, calc(100vw - 24px)); max-height: 45dvh;
+            overflow: auto; overscroll-behavior: contain;
+        }
+        #hermes-tool-explorer:has(> button.open) { width: min(27rem, calc(100vw - 24px)); }
+        #hermes-tool-explorer > button { position: sticky; top: 0; z-index: 1; }
+        @media (max-width: 920px) {
+            #hermes-tool-explorer { top: 12px; bottom: auto; }
+            #hermes-tool-explorer:has(> button.open), #management-gpu-floating:has(> button.open) {
+                width: min(27rem, calc(100% - 24px));
+            }
+        }
+        """
     if current_tool_name == 'management':
         return build_management_menu_interface(load_manager_page_records(current_source_path), current_review_port)[0], current_mount_options
     if current_tool_name in GENERATOR_PAGE_PACKAGES:

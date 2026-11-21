@@ -233,26 +233,45 @@ def serialize_manager_navigation(page_record_values):
     return json.dumps([{**current_page_record,'nativePath':resolve_management_page_path(current_page_record)} for current_page_record in page_record_values],ensure_ascii=False).replace('<','\\u003c')
 
 
-def build_conversation_tool_explorer(current_source_path=None):
-    """운영 대화 안에서 등록된 도구를 검색하고 열 수 있게 한다."""
+def build_conversation_tool_explorer(conversation_prompt, session_control, current_source_path=None):
+    """선택한 생성기를 작성 중인 대화 요청에 포함한다."""
     current_source_path = Path(current_source_path or os.environ.get('SLIME_MANAGEMENT_MENU_SOURCE', str(DEFAULT_MANAGER_SOURCE_PATH)))
-    current_page_records = load_manager_page_records(current_source_path)
-    current_page_records = [record for record in current_page_records if record['id'] != 'hermes-agent']
+    records = [record for record in load_manager_page_records(current_source_path)
+               if record['id'].endswith('-generator') or record['id'] in
+               ('prompt-translation', 'writer-agent', 'sfx-dasheng-audiogen', 'music-heartmula')]
+    by_id = {record['id']: record for record in records}
 
-    def render_matching_tools(search_text, category):
-        matches = filter_manager_page_records(current_page_records, search_text or '', category)
-        links = []
-        for record in matches:
-            path = resolve_management_page_path(record) or record['path']
-            links.append(f'<li><a href="{html.escape(path, quote=True)}" target="_blank" rel="noopener">{html.escape(record["label"])}</a></li>')
-        return '<ul>' + ''.join(links) + '</ul>' if links else '검색 조건에 맞는 도구가 없습니다.'
+    def matching_generator_choices(query):
+        matches = filter_manager_page_records(records, query or '', 'all')
+        return [(record['label'], record['id']) for record in matches]
+
+    def search_generators(query):
+        choices = matching_generator_choices(query)
+        return gr.update(choices=choices, value=choices[0][1] if len(choices) == 1 else None)
+
+    def attach_generator(session_id, identifier, draft):
+        if not session_id:
+            raise gr.Error("먼저 대화 세션을 선택하거나 새로 만드세요.")
+        record = by_id.get(identifier)
+        if record is None:
+            raise gr.Error('대화에 사용할 생성기를 선택하세요.')
+        context = f"사용할 생성기: {record['label']} ({identifier})"
+        draft = draft or ''
+        if context in draft.splitlines():
+            return draft
+        return draft + ('\n' if draft and not draft.endswith('\n') else '') + context + '\n'
 
     with gr.Accordion('도구 탐색', open=False, elem_id='hermes-tool-explorer'):
-        search_input = gr.Textbox(label='도구 검색', placeholder='이름, ID, 기능')
-        category_input = gr.Dropdown(label='분류', choices=[(label, key) for key, label in CATEGORY_LABEL_VALUES.items()], value='all')
-        tool_links = gr.HTML(render_matching_tools('', 'all'))
-        for control in (search_input, category_input):
-            control.input(render_matching_tools, [search_input, category_input], tool_links, queue=False)
+        query = gr.Textbox(label='생성기 검색', placeholder='이름, ID, 기능')
+        selection = gr.Dropdown(label='대화에 사용할 생성기', choices=matching_generator_choices(''), value=None, interactive=True)
+        query.input(search_generators, query, selection, queue=False, trigger_mode='always_last')
+        session_control.change(lambda: ("", search_generators("")), outputs=[query, selection], queue=False)
+        attach_event = gr.Button('현재 요청에 추가').click(attach_generator, [session_control, selection, conversation_prompt], conversation_prompt, queue=False)
+        attach_event.success(fn=None, js="""() => {
+            document.querySelector('#hermes-tool-explorer > button.open')?.click();
+            const input = document.querySelector('#hermes-request-input textarea');
+            if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+        }""", queue=False)
 
 
 def compose_management_interface(current_tool_interface,current_review_port,current_source_path=None):
