@@ -46,13 +46,14 @@ export default function FunControlPage(){
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
   }
-  async function load(){
+  async function load(restore=false){
     setBusy(true);setError("");
     try{
-      const response=await fetch("/management/assistant/fun-example/"+encodeURIComponent(selected));
-      if(!response.ok)throw new Error("예제 첨부 파일을 불러올 수 없습니다.");
+      const id=restore?job:selected;
+      const response=await fetch("/management/assistant/"+(restore?"fun-input/":"fun-example/")+encodeURIComponent(id));
+      if(!response.ok)throw new Error(restore?"이 작업의 입력 사본을 복원할 수 없습니다.":"예제 첨부 파일을 불러올 수 없습니다.");
       const example=await response.json();
-      if(example.id!==selected)throw new Error("선택한 예제와 응답이 일치하지 않습니다.");
+      if(example.id!==id)throw new Error("선택한 예제와 응답이 일치하지 않습니다.");
       setVideoInfo(example.video);
       setRequest(example.request);
     }catch(problem){setError(problem.message);}
@@ -76,7 +77,8 @@ export default function FunControlPage(){
     <fieldset disabled={busy || !!pending}><legend>제작 예제</legend>
       <label>예제 선택<select value={selected} onChange={event=>select(event.target.value)}>
         {template?.examples.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-      <button disabled={!selected} onClick={load}>선택한 예제로 입력 교체</button>
+      <button disabled={!selected} onClick={()=>load()}>선택한 예제로 입력 교체</button>
+      {job && <button disabled={!template} onClick={()=>load(true)}>작업 {job} 입력으로 교체</button>}
     </fieldset>
     {error && <p role="alert">{error}</p>}
     {request && <form onSubmit={review}><fieldset disabled={busy || !!pending}><legend>생성 입력</legend>

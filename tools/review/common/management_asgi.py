@@ -718,6 +718,46 @@ def build_management_application(current_handler_class, current_root_path, curre
             maximum, summary = await asyncio.to_thread(inspect_fun_pose_video, video.name)
         return JSONResponse({'maximum_frames': maximum, 'summary': summary}, status_code=200 if maximum else 422)
 
+    @current_root_application.get('/management/assistant/fun-input/{job}')
+    def fun_saved_input(job: str):
+        import base64
+        import hashlib
+        from generators.wan_fun.contracts import validate_fun_request, reject_retired_rgb_input
+        from generators.wan_fun.video_input import inspect_fun_pose_video
+        from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+        from tools.review.domains.hermes_agent.video_operations import make_hermes_video_source_manager
+        if not validate_service_job_identifier('wan22-fun-control', job):
+            return Response(status_code=404)
+        root = Path(make_hermes_video_source_manager('wan22-fun-control').job_storage_root)
+        directory = root / job
+        metadata = directory / 'request.json'
+        if root.is_symlink() or directory.is_symlink() or metadata.is_symlink() or not metadata.is_file():
+            return Response(status_code=404)
+        try:
+            saved = json.loads(metadata.read_text())
+            reject_retired_rgb_input(saved)
+            if saved.get('pose_video_file') != 'pose-input.mp4' or saved.get('references') != ['reference-1.png']:
+                raise ValueError('처리된 포즈 MP4와 참조 이미지가 있는 작업만 복원할 수 있습니다.')
+            video = directory / 'pose-input.mp4'
+            image = directory / 'reference-1.png'
+            if video.is_symlink() or image.is_symlink():
+                raise ValueError('입력 사본 경로 오류')
+            data = video.read_bytes()
+            if saved.get('pose_video_sha256') and hashlib.sha256(data).hexdigest() != saved['pose_video_sha256']:
+                raise ValueError('입력 포즈 영상 사본이 변경되었습니다.')
+            fields = ('action', 'prompt', 'negative_prompt', 'control_type', 'width', 'height',
+                      'frames', 'steps', 'seed', 'flow_shift', 'guidance_scale', 'switch_ratio')
+            draft = {key: saved[key] for key in fields}
+            draft.update(model_profile=saved.get('model_profile', 'wan22-14b'),
+                         images=[base64.b64encode(image.read_bytes()).decode()],
+                         pose_video=base64.b64encode(data).decode())
+            validate_fun_request(draft)
+            maximum, summary = inspect_fun_pose_video(video)
+        except (OSError, KeyError, TypeError, ValueError):
+            return JSONResponse({'detail': '저장된 참조 이미지 또는 포즈 영상으로 입력을 복원할 수 없습니다.'}, status_code=422)
+        return JSONResponse({'id': job, 'request': draft, 'video': {'maximum_frames': maximum, 'summary': summary}},
+                            headers={'Cache-Control': 'no-store'})
+
     @current_root_application.get('/management/assistant/fun-pose/{job}')
     def fun_pose_input(job: str):
         from tools.review.domains.hermes_agent.video_operations import make_hermes_video_source_manager
