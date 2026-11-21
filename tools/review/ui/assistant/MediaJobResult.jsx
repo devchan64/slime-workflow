@@ -24,8 +24,12 @@ export default function MediaJobResult({service,id,kind="video",children}) {
     {job ? <>
       <p role="status">{job.status} · {job.note}</p>
       {kind==="audio" && job.result_status==="available" && job.file_observation!=="unavailable" && <div>
-        <audio controls preload="metadata" src={job.audio} aria-label="생성 오디오"/>
-        <a href={job.audio} download>오디오 다운로드</a>
+        {(job.tracks || [{label:"생성 오디오",wav:job.audio}]).map(track=><section key={track.wav}>
+          <strong>{track.label}</strong>
+          <audio controls preload="metadata" src={track.wav} aria-label={track.label}/>
+          <a href={track.wav} download>{track.label} WAV 다운로드</a>
+          {track.mp3 && <a href={track.mp3} download>{track.label} MP3 다운로드</a>}
+        </section>)}
       </div>}
       {kind==="video" && job.result_status==="available" && <>
         {service==="dwpose" ? <img src={job.image} alt="DWPose 추출 결과" style={{maxWidth:"100%"}}/> :

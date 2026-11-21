@@ -51,7 +51,8 @@ def observe_hermes_audio_file(current_service_name,current_job_identifier,curren
     from tools.review.domains.hermes_agent.delegation_store import read_bounded_delegation_record
     from tools.review.domains.music.generation import MusicGenerationManager
     try:
-        current_path_match=re.fullmatch('/'+re.escape(current_service_name)+'/jobs/'+re.escape(current_job_identifier)+r'/attempts/([a-f0-9]{32})/(music\.wav|sound\.wav)',current_audio_path)
+        filenames = r'(music\.wav|mr\.wav|vocals\.wav|music\.mp3|mr\.mp3|vocals\.mp3)' if current_service_name == 'music-heartmula' else r'(sound\.wav)'
+        current_path_match=re.fullmatch('/'+re.escape(current_service_name)+'/jobs/'+re.escape(current_job_identifier)+r'/attempts/([a-f0-9]{32})/'+filenames,current_audio_path)
         if not current_path_match:return 'unknown'
         current_storage_root=Path(MusicGenerationManager(current_service_name).job_storage_root)
         current_job_root=current_storage_root/current_job_identifier
@@ -89,7 +90,23 @@ def read_hermes_audio_source_job(current_service_name,current_job_identifier):
     current_audio_path=validate_hermes_audio_result_path(current_service_name,current_job_identifier,{**current_job_value,'status':current_status_value})
     current_result_status='available' if current_audio_path else 'unavailable' if current_status_value=='completed' else 'not_ready'
     current_file_observation=observe_hermes_audio_file(current_service_name,current_job_identifier,current_audio_path) if current_audio_path else 'not_ready'
-    return {'status':current_status_value,'audio':current_audio_path,'result_status':current_result_status,'file_observation':current_file_observation,
+    tracks = []
+    stems = current_job_value.get('audio_stems')
+    if current_service_name == 'music-heartmula' and current_audio_path and isinstance(stems, dict) and stems:
+        base = current_audio_path.rsplit('/', 1)[0]
+        result = current_job_value.get('result') or {}
+        mp3_outputs = result.get('mp3_outputs') or {}
+        for name, label in (('music', '원곡'), ('mr', 'MR'), ('vocals', '분리 보컬')):
+            wav = f'{base}/{name}.wav'
+            if name != 'music' and (stems.get(name) != wav or observe_hermes_audio_file(current_service_name,current_job_identifier,wav) != 'present'):
+                continue
+            track = {'label': label, 'wav': wav}
+            mp3 = f'{base}/{name}.mp3'
+            metadata = mp3_outputs.get(name) if isinstance(mp3_outputs, dict) else None
+            if isinstance(metadata, dict) and metadata.get('filename') == name+'.mp3' and observe_hermes_audio_file(current_service_name,current_job_identifier,mp3) == 'present':
+                track['mp3'] = mp3
+            tracks.append(track)
+    return {'status':current_status_value,'audio':current_audio_path,'result_status':current_result_status,'file_observation':current_file_observation, **({'tracks':tracks} if tracks else {}),
         'note':'완료 결과와 상세 로그·분리 음원은 해당 생성기 이력에서 확인하세요. 생성 결과는 자동으로 에셋에 등록되지 않습니다.', **observe_hermes_generator_failure(current_status_value,current_job_value.get('error'))}
 
 
