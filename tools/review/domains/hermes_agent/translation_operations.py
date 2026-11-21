@@ -60,7 +60,7 @@ def read_hermes_translation_status(current_request_identifier):
     current_status_value=current_job_value['status'].get('status')
     if current_status_value not in ('queued','running','completed','failed','cancelled','canceled','paused','unknown'):
         current_status_value='unknown'
-    current_output_value={'status':current_status_value,'result':None, **observe_hermes_failure_reason(current_status_value,current_job_value['status'].get('error'))}
+    current_output_value={'id':current_job_value['id'],'status':current_status_value,'result':None, **observe_hermes_failure_reason(current_status_value,current_job_value['status'].get('error'))}
     if current_status_value=='completed':
         current_result_value=current_job_value.get('result')
         if not isinstance(current_result_value,dict) or not isinstance(current_result_value.get('text'),str) or len(current_result_value['text'])>12000:

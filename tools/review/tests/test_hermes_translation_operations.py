@@ -83,6 +83,7 @@ class HermesTranslationOperationsTests(unittest.TestCase):
             self.assertTrue(translation_operations.submit_hermes_translation_request('translation_123',current_request_value)['duplicate'])
             current_validator_mock.assert_called_once()
             current_result_value=translation_operations.read_hermes_translation_status('translation_123')
+            self.assertEqual(current_result_value['job']['id'],current_job_identifier)
             self.assertEqual(current_result_value['job']['result']['text'],'tree')
             self.assertNotIn('private',str(current_result_value))
             self.assertEqual(current_result_value['job']['result']['quality_checks'][0]['target'],'검토 미완료')
