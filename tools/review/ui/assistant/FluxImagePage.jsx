@@ -1,7 +1,7 @@
 import React,{useRef,useState} from "react";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
-import MediaJobResult from "./MediaJobResult.jsx";
+import GeneratorJobResult from "./GeneratorJobResult.jsx";
 import {managementCommand} from "./managementCommand.js";
 
 function readReference(file){
@@ -63,6 +63,6 @@ export default function FluxImagePage(){
       <GpuQueueSummary/><button disabled={busy} onClick={()=>setReview(null)}>입력 수정</button>
       <button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button></section>}
     {notice && <p role="status">{notice}</p>}
-    {job && <MediaJobResult key={job} kind="flux" service="flux-image" id={job}/>}
+    <GeneratorJobResult job={job} kind="flux" service="flux-image" onDeleted={message=>{setJob("");setNotice(message);}}/>
   </article>;
 }

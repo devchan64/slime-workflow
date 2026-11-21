@@ -1,11 +1,9 @@
+import GeneratorJobResult from "./GeneratorJobResult.jsx";
 import MusicExamples from "./MusicExamples.jsx";
 import DownloadProgress from "./DownloadProgress.jsx";
-import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
-import HistoryCleanup from "./HistoryCleanup.jsx";
 import React,{useEffect,useRef,useState} from "react";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
-import MediaJobResult from "./MediaJobResult.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import {managementCommand} from "./managementCommand.js";
@@ -109,11 +107,6 @@ function AudioGeneratorPage({music=false}){
       <button disabled={busy} onClick={()=>setReview(null)}>입력 수정</button>
       <button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button></section>}
     {notice && <p role="status">{notice}</p>}
-    {job ? <MediaJobResult key={job} kind="audio" service={service} id={job}>
-      {(record,refresh)=><React.Fragment key={record?.status || ""}>
-        {record && <GeneratorJobControls service={service} id={job} state={record.status} refresh={refresh}/>}
-        <HistoryCleanup service={service} job={job} state={record?.status} onDeleted={cleaned}/>
-      </React.Fragment>}
-    </MediaJobResult> : <HistoryCleanup service={service} onDeleted={cleaned}/>}
+    <GeneratorJobResult job={job} service={service} kind="audio" onDeleted={cleaned}/>
   </article>;
 }
