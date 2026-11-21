@@ -9,6 +9,8 @@ export default function MapReview(){
   const [source,setSource]=useState(null),[draft,setDraft]=useState(null),[preview,setPreview]=useState(null);
   const [past,setPast]=useState([]),[future,setFuture]=useState([]);
   const [texture,setTexture]=useState(""),[objectId,setObjectId]=useState("");
+  const [editing,setEditing]=useState(false);
+  const [brush,setBrush]=useState("pan"),[strokeCount,setStrokeCount]=useState(0);
   const [storageNotice,setStorageNotice]=useState("");
   const [recovery,setRecovery]=useState(null);
   function downloadRecovery(){
@@ -136,6 +138,40 @@ export default function MapReview(){
     }).catch(error=>{if(active)setFeedback(error.message);});
     return ()=>{active=false;};
   },[]);
+  useEffect(()=>{
+    if(!field || !ready)return;
+    const receive=()=>setStrokeCount(value=>value+1);
+    window.addEventListener("map-editor-brush",receive);
+    return ()=>window.removeEventListener("map-editor-brush",receive);
+  },[field,ready]);
+  useEffect(()=>{
+    if(!field || !ready)return;
+    window.mapReviewBrushTool=draft?brush:"pan";
+  },[field,ready,brush,draft]);
+  useEffect(()=>{
+    const queue=window.mapReviewBrushQueue;
+    if(reading || !draft || !queue?.length)return;
+    const stroke=queue.shift();
+    try{
+      const cells=new Map(draft.cells.map(item=>[[item.column,item.row].join(","),item]));
+      for(const {column,row,tool} of stroke){
+        if(tool!=="raise" && tool!=="lower")throw new Error("지원하지 않는 높이 브러시입니다.");
+        const key=[column,row].join(",");
+        const current=cells.get(key) || {column,row,tile:source.tiles.rows[row][column],
+          height:source.terrain.elevations[row][column],
+          blocked:source.terrain.blocked.some(([x,y])=>x===column && y===row)};
+        const height=current.height+(tool==="raise"?1:-1);
+        if(height<0 || height>20)throw new Error("높이는 0~20 범위입니다.");
+        cells.set(key,{...current,height});
+      }
+      setCell(null);
+      applyDraft({...draft,cells:[...cells.values()]},"edit").finally(()=>{
+        window.mapReviewBrushBusy=false;window.mapReviewFlushBrushQueue?.();
+      });
+    }catch(error){
+      setFeedback(error.message);window.mapReviewBrushBusy=false;window.mapReviewFlushBrushQueue?.();
+    }
+  },[strokeCount,reading,draft]);
   const destination=kind=>{
     const url=new URL(location.href);
     url.pathname="/management/frame/map-review/";
@@ -159,7 +195,7 @@ export default function MapReview(){
     </fieldset>
     <p role="status" id="status">지도를 불러오는 중입니다.</p>{feedback && <p role="status">{feedback}</p>}
     {field && <fieldset disabled={!ready || reading}><legend>셀 검수</legend>
-      <label><input type="checkbox" onChange={event=>{window.mapReviewEditingEnabled=event.target.checked;window.mapReviewSelectedCell=null;setCell(null);}}/>캐릭터 이동 대신 셀 선택</label>
+      <label><input type="checkbox" onChange={event=>{window.mapReviewEditingEnabled=event.target.checked;setEditing(event.target.checked);setBrush("pan");window.mapReviewSelectedCell=null;setCell(null);}}/>캐릭터 이동 대신 셀 선택</label>
       <button onClick={inspectCell}>선택 셀 속성 조회</button>
       {cell && <form onSubmit={previewCell}><p>열 {cell.column} · 행 {cell.row} · {cell.tile} · 높이 {cell.height} · {cell.blocked?"이동 금지":"이동 가능"} · 배치물 {placed.filter(atCell).map(item=>item.id).join(", ") || "없음"}</p>
         <label>지형<select value={cell.tile} onChange={e=>editCell("tile",e.target.value)}>
@@ -172,6 +208,9 @@ export default function MapReview(){
         <button onClick={()=>{if(window.confirm("이 탭에 보관한 "+recovery.map+" 임시본을 삭제할까요?"))discardRecovery();}}>임시본 삭제</button>
       </section>}
       {storageNotice && <p role="status">{storageNotice}</p>}
+      {draft && <label>지도 드래그 도구<select value={brush} disabled={!editing} onChange={e=>setBrush(e.target.value)}>
+        <option value="pan">이동·셀 선택</option><option value="raise">높이 올리기</option><option value="lower">높이 내리기</option>
+      </select></label>}
       {draft && <fieldset><legend>빌보드 배치</legend>
         <label>추가할 에셋<select value={texture} onChange={e=>setTexture(e.target.value)}>
           <option value="">에셋 선택</option>{(source.textures || []).map(key=><option key={key}>{key}</option>)}</select></label>
