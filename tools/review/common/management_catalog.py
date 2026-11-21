@@ -106,11 +106,11 @@ def create_tool_choice_values(page_record_values):
         for current_page_record in page_record_values
     ]
 
-def design_system_document_path(page_path):
-    """게시한 디자인 시스템 번들의 독립 검수 문서 경로를 반환한다."""
+def game_review_document_path(page_path):
+    """게시한 게임 UI 번들의 독립 검수 문서 경로를 반환한다."""
     import re
     path = '/' + page_path.lstrip('/')
-    return path if re.fullmatch(r'/ui-[a-f0-9]{16}/review/design-system\.html', path) else None
+    return path if re.fullmatch(r'/ui-[a-f0-9]{16}/review/(?:design-system|battlefield-preview)\.html', path) else None
 
 
 def resolve_management_page_path(current_page_record):
@@ -118,7 +118,7 @@ def resolve_management_page_path(current_page_record):
     if current_page_record['id'] in REACT_REVIEW_PATHS:
         return REACT_REVIEW_PATHS[current_page_record['id']]
     if current_page_record.get('uiMode')=='gradio-static':
-        document = design_system_document_path(current_page_record['path'])
+        document = game_review_document_path(current_page_record['path'])
         if document:
             return document
         return f'{MANAGEMENT_FRAME_PATH_PREFIX}static-review/?review={quote(current_page_record["id"],safe="")}'
