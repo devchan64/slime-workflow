@@ -2,9 +2,20 @@
 from copy import deepcopy
 
 
+WORKFLOW_GENERATOR_COMMANDS = {
+    "prompt-translation": {
+        "submit": "hermes-delegate-translation", "status": "hermes-translation-status", "cancel": "hermes-translation-cancel",
+    },
+    "flux-image": {
+        "submit": "hermes-delegate-flux-image", "status": "hermes-flux-delegation-status", "cancel": "hermes-flux-delegation-cancel",
+    },
+}
+
+
 def read_workflow_generator_catalog():
     return {
         "prompt-translation": {
+            "commands": dict(WORKFLOW_GENERATOR_COMMANDS["prompt-translation"]),
             "category": "translation", "version": 1, "template_version": 1,
             "label": "프롬프트 번역",
             "inputs": {
@@ -16,6 +27,7 @@ def read_workflow_generator_catalog():
             "outputs": {"text": {"type": "text", "label": "번역 결과", "media_type": "text/plain; charset=utf-8"}},
         },
         "flux-image": {
+            "commands": dict(WORKFLOW_GENERATOR_COMMANDS["flux-image"]),
             "category": "image", "version": 1, "template_version": 1, "label": "FLUX 이미지",
             "inputs": {
                 "action": {"type": "text", "required": True, "choices": ["generate"], "default": "generate"},

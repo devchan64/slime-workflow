@@ -1,5 +1,6 @@
 """준비된 단계를 기존 생성기 접수 명령으로 보내고 번역 완료를 관측한다."""
 import os
+from .workflow_catalog import WORKFLOW_GENERATOR_COMMANDS
 from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
 from tools.review.common.management_gateway import execute_management_command
 
@@ -12,17 +13,16 @@ def call_workflow_management_command(current_command_name, current_payload_recor
 
 
 def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_command_handler=call_workflow_management_command):
-    generator_submit_commands = {"prompt-translation": "hermes-delegate-translation",
-                                 "flux-image": "hermes-delegate-flux-image"}
     for current_step_record in workflow_run_store.list_run_step_records(workflow_run_identifier):
         current_step_identifier = current_step_record["step_id"]
+        current_generator_commands = WORKFLOW_GENERATOR_COMMANDS.get(current_step_record["generator"])
         if current_step_record["state"] == "submitting":
             expected_service_name = current_step_record["generator"]
-            if expected_service_name not in generator_submit_commands:
+            if current_generator_commands is None:
                 workflow_run_store.record_source_observation(current_step_record["request_id"], "unknown")
                 continue
             translation_step_selected = expected_service_name == "prompt-translation"
-            status_command_name = "hermes-translation-status" if translation_step_selected else "hermes-flux-delegation-status"
+            status_command_name = current_generator_commands["status"]
             try:
                 current_status_record = gateway_command_handler(status_command_name, {
                     "request_id": current_step_record["request_id"]})
@@ -49,7 +49,7 @@ def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_co
                                                         current_receipt_record["job_id"])
             if (observed_job_state in ("queued", "running", "paused") and current_step_record["cancel_delivery"] == "pending"
                     and workflow_run_store.claim_pending_cancellation(current_step_record["request_id"])):
-                cancel_command_name = "hermes-translation-cancel" if translation_step_selected else "hermes-flux-delegation-cancel"
+                cancel_command_name = current_generator_commands["cancel"]
                 try:
                     cancel_response_record = gateway_command_handler(cancel_command_name, {
                         "request_id": current_step_record["request_id"], "job_id": current_receipt_record["job_id"]})
@@ -77,12 +77,11 @@ def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_co
             continue
         claimed_step_record = workflow_run_store.claim_ready_step(workflow_run_identifier, current_step_identifier)
         if claimed_step_record is not None:
-            current_command_name = generator_submit_commands.get(current_step_record["generator"])
-            if current_command_name is None:
+            if current_generator_commands is None:
                 workflow_run_store.block_unusable_result(workflow_run_identifier, current_step_record,
                     "등록된 생성기의 실행 어댑터가 없습니다.")
                 continue
             try:
-                gateway_command_handler(current_command_name, claimed_step_record)
+                gateway_command_handler(current_generator_commands["submit"], claimed_step_record)
             except (ValueError, OSError, RuntimeError):
                 workflow_run_store.record_source_observation(claimed_step_record["request_id"], "unknown")
