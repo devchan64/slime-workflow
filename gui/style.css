@@ -48,3 +48,7 @@ article {position:relative;}
   .hermes-chat article > form > button[type=submit] {margin-inline-start:auto}
   .hermes-chat .floating-panel {bottom:9rem}
 }
+
+.tool-match {padding-block:.45rem;border-bottom:1px solid #383c40}
+.tool-match strong {display:block;overflow-wrap:anywhere}
+.tool-match a {display:inline-block;margin-inline:.4rem}

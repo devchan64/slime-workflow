@@ -27,17 +27,21 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
     return () => { active = false; };
   }, [call]);
   const editor=useRef(null);
+  const stepName=useRef(null);
   useEffect(()=>{
     if(!proposalStep)return;
     setGenerator(proposalStep.generator || "kimodo");
     setInputs(proposalStep.inputs);
     setLinks({});
     setName("");
-    setNotice(proposalStep.source ? proposalStep.source+" 결과를 입력에 채웠습니다. 단계 이름을 입력하세요." : "제안을 불러왔습니다. 단계 이름을 입력하고 워크플로우에 추가하세요.");
+    setNotice(proposalStep.source ? proposalStep.source+" 결과를 입력에 채웠습니다. 단계 이름을 입력하세요." : "단계 이름과 입력값을 확인한 뒤 워크플로우에 추가하세요.");
     editor.current.open=true;
     editor.current.scrollIntoView({block:"nearest"});
   },[proposalStep]);
   const template = catalog[generator];
+  useEffect(()=>{
+    if(proposalStep && template && generator===(proposalStep.generator || "kimodo"))stepName.current?.focus();
+  },[proposalStep,template,generator]);
   let steps = [], invalid = "";
   try { steps = readSteps(definition); } catch (error) { invalid = error.message; }
   function choose(key) {
@@ -101,7 +105,7 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
       {Object.entries(catalog).map(([key,spec]) => <option key={key} value={key}>{spec.label}</option>)}
     </select></label>
     {generator && !template && Object.keys(catalog).length>0 && <p role="alert">현재 관리 서버의 생성기 목록에서 {generator} 템플릿을 찾을 수 없습니다.</p>}
-    {template && <><label>단계 이름 <input value={name} onChange={event => setName(event.target.value)}/></label>
+    {template && <><label>단계 이름 <input ref={stepName} value={name} onChange={event => setName(event.target.value)}/></label>
       {Object.entries(template.inputs).map(([field,spec]) => {
         if (spec.choices?.length===1 && spec.choices[0]===spec.default) return null;
         const sources = steps.flatMap(step => Object.entries(catalog[step?.generator]?.outputs || {})

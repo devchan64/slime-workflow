@@ -248,6 +248,13 @@ function App() {
   const [showGpu,setShowGpu]=useState(false);
   const [searchMode,setSearchMode]=useState(()=>["jobs","capabilities"].includes(query().get("panel"))?query().get("panel"):"tools");
   const appendSelection=(label,id)=>{edit([draft,label+" "+id].filter(Boolean).join("\n"));closeTools(text);};
+  function openStep(step) {
+    if(showTools)closeTools();
+    setShowGpu(false);
+    setQueue(null);
+    setProposalStep({...step,session});
+    setShowForms(true);
+  }
   function chooseTool(label,identifier) {
     edit([draft,"사용할 도구: "+label+" ("+identifier+")\n"].filter(Boolean).join("\n"));
     closeTools(text);
@@ -333,20 +340,23 @@ function App() {
         {category!=="all" && !categories.has(category) && <option value={category}>{category}</option>}
         {Array.from(categories,([id,label])=><option key={id} value={id}>{label || id}</option>)}
       </select></label>}
-      {searchMode==="tools" && <p role="status">검색 결과 {matchedTools.length}건</p>}
+      {searchMode==="tools" && <p role="status">검색 결과 {matchedTools.length}건{!matchedTools.length && " · 검색어나 도구 분류를 바꿔 보세요."}</p>}
       {searchMode==="tools" && matchedTools.map(tool=>
-        <div key={tool.id}>
-          <button onClick={()=>chooseTool(tool.label,tool.id)}>{tool.label}</button>
+        <div className="tool-match" key={tool.id}>
+          <strong>{tool.label}</strong>
+          <button aria-label={tool.label+" 대화에 추가"} onClick={()=>chooseTool(tool.label,tool.id)}>대화에 추가</button>
+          {session && tool.workflow_generator && <button aria-label={tool.label+" 입력 폼 편집"}
+            onClick={()=>openStep({generator:tool.workflow_generator,inputs:{}})}>입력 폼 편집</button>}
           {tool.review_path && <a href={reviewLink(tool.review_path)}>화면 열기</a>}
         </div>)}
     </section>}
     {session && <div hidden={!showForms}>{<FormLibrary key={session} proposalStep={proposalStep?.session===session ? proposalStep : null} session={session} messages={view.messages || []} call={call} openRun={run=>{setShowForms(false);setQueue({run});}} addToMessage={value=>{edit([draft,value].filter(Boolean).join("\n"));setShowForms(false);text.current?.focus();}}/>}</div>}
-    {queue && session && <QueuePanel key={session+queue.run+Boolean(queue.results)} resultsOnly={queue.results} session={session} initialRun={queue.run} call={call} editNextStep={step=>{setProposalStep({...step,session});setQueue(null);setShowForms(true);}}/>}
+    {queue && session && <QueuePanel key={session+queue.run+Boolean(queue.results)} resultsOnly={queue.results} session={session} initialRun={queue.run} call={call} editNextStep={openStep}/>}
     {(view.next_offset != null || historyPage) && <nav aria-label="대화 이력 페이지">
       {view.next_offset != null && <button onClick={()=>changeHistory({offset:view.next_offset,snapshot:view.snapshot})}>이전 메시지 보기</button>}
       {historyPage && <button onClick={()=>changeHistory(null)}>최신 대화로 돌아가기</button>}
     </nav>}
-    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>{setProposalStep({session,inputs});setShowForms(true);}}}><Conversation key={session} view={view}/></ProposalActions.Provider>{error&&<p role="alert">{error}</p>}
+    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openStep({generator:"kimodo",inputs})}}><Conversation key={session} view={view}/></ProposalActions.Provider>{error&&<p role="alert">{error}</p>}
     <form onSubmit={e=>{e.preventDefault();send()}}>{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
     {session && <button type="button" aria-expanded={Boolean(queue?.results)} onClick={()=>{setShowForms(false);setQueue(queue?.results ? null : {run:"",results:true});}}>작업 결과</button>}
     <button type="button" ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowGpu(false);if(showTools)closeTools();else setShowTools(true)}}>도구 탐색</button>

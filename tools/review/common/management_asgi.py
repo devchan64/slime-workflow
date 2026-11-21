@@ -996,10 +996,13 @@ def build_management_application(current_handler_class, current_root_path, curre
 
     @current_root_application.get('/management/assistant/tools')
     def assistant_tools():
+        from tools.review.domains.hermes_agent.workflow_catalog import WORKFLOW_GENERATOR_COMMANDS
+        generator_pages = {name: name for name in WORKFLOW_GENERATOR_COMMANDS}
+        generator_pages.update({name + '-generator': name for name in WORKFLOW_GENERATOR_COMMANDS})
         from tools.review.common.management_catalog import CATEGORY_LABEL_VALUES, resolve_management_page_path, load_manager_page_records
         return [
             {key: record[key] for key in ('id', 'label', 'category', 'description')}
-            | {'review_path': resolve_management_page_path(record), 'category_label': CATEGORY_LABEL_VALUES.get(record['category'], record['category'])}
+            | {'workflow_generator': generator_pages.get(record['id']), 'review_path': resolve_management_page_path(record), 'category_label': CATEGORY_LABEL_VALUES.get(record['category'], record['category'])}
             for record in load_manager_page_records(current_source_path)
             if record['id'] != 'hermes-agent'
         ]
