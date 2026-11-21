@@ -385,6 +385,16 @@ def display_conversation_workflow_results(current_session_identifier, workflow_r
     from .operations_history_app import render_operations_source_link
     generator_by_step = {step["step_id"]: step["generator"] for step in current_run_view["steps"]}
     source_history_links = []
+    for workflow_step_record in current_run_view["steps"]:
+        if workflow_step_record.get("state") == "blocked":
+            blocked_step_label = escape(workflow_step_record["step_id"])
+            source_step_label = escape(workflow_step_record.get("blocking_step") or workflow_step_record["step_id"])
+            blocked_reason_text = escape(workflow_step_record.get("block_reason") or "결과를 연결할 수 없습니다.")
+            source_history_links.append(
+                f"<p><strong>{blocked_step_label} 단계 차단</strong> · {blocked_reason_text} "
+                f"원인 단계({source_step_label})의 상태와 출력을 확인하세요. "
+                "필요한 입력이나 연결을 수정한 뒤 영향을 받는 단계를 새 실행으로 검토해 등록하세요.</p>"
+            )
     translated_result_values = []
     image_result_links = []
     for current_result_record in current_run_view["results"]:
