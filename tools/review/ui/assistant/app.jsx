@@ -158,7 +158,7 @@ function App() {
       <button aria-expanded={searchMode==="capabilities"} onClick={()=>setSearchMode(searchMode==="capabilities"?"tools":"capabilities")}>관리 기능 검색</button>
       <button aria-expanded={searchMode==="services"} onClick={()=>setSearchMode(searchMode==="services"?"tools":"services")}>서비스 등록 목록</button>
       <button aria-expanded={searchMode==="history"} onClick={()=>setSearchMode(searchMode==="history"?"tools":"history")}>생성 이력</button>
-      {searchMode==="history" && <SourceHistory choose={(label,id)=>{edit([draft,label+" "+id].filter(Boolean).join("\n"));setShowTools(false);text.current.focus();}}/>}
+      {searchMode==="history" && <SourceHistory session={session} choose={(label,id)=>{edit([draft,label+" "+id].filter(Boolean).join("\n"));setShowTools(false);text.current.focus();}}/>}
       {searchMode==="services" && <ServiceRegistry key={search} query={search}/>}
       {searchMode==="capabilities" && <CapabilitySearch search={search} choose={chooseTool}/>}
       {searchMode==="tools" && tools.filter(tool=>(tool.label+tool.id+tool.description).toLowerCase().includes(search.toLowerCase())).map(tool=>

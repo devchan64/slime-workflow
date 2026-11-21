@@ -2,7 +2,7 @@ import React, {useEffect, useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 
-function HistoryPage({source, choose}) {
+function HistoryPage({source, choose, session}) {
   const [query,setQuery]=useState("");
   const [page,setPage]=useState(null);
   const [busy,setBusy]=useState(false);
@@ -25,10 +25,13 @@ function HistoryPage({source, choose}) {
       <ResultTable table={{
         title:source.service+" 생성 이력",
         summary:"전체 "+page.total+"건 · 조회 "+page.records.length+"건 · 확인 불가 "+page.unavailable_count+"건",
-        columns:["작업 ID","기록 상태"],
+        columns:["작업 ID","기록 상태",...(source.result_path?["결과"]:[])],
         rows:page.records.map(record=>[
           <button title="작업을 대화 입력에 추가" onClick={()=>choose(source.service+" 작업",record.id)}>{record.id}</button>,
           record.recorded_status,
+          ...(source.result_path ? [
+            <a href={source.result_path+"?"+new URLSearchParams({job:record.id,...(session?{session}:{})})}>작업 열기</a>,
+          ] : []),
         ]),
       }}/>
       <p>{page.note}</p>
@@ -38,7 +41,7 @@ function HistoryPage({source, choose}) {
   </fieldset>;
 }
 
-export default function SourceHistory({choose}) {
+export default function SourceHistory({choose, session}) {
   const [sources,setSources]=useState([]);
   const [selected,select]=useState("");
   const [error,setError]=useState("");
@@ -56,6 +59,6 @@ export default function SourceHistory({choose}) {
       {sources.map(row=><option key={row.service}>{row.service}</option>)}
     </select></label>
     {error && <p role="alert">{error}</p>}
-    {source && <HistoryPage key={selected} source={source} choose={choose}/>}
+    {source && <HistoryPage key={selected} source={source} session={session} choose={choose}/>}
   </section>;
 }
