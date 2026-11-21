@@ -584,6 +584,12 @@ def build_management_application(current_handler_class, current_root_path, curre
             raise HTTPException(422, str(error)) from error
         return {'prompt': request['prompt'], 'translation': request.get('translation_source_ko') or request.get('building_design_ko')}
 
+    @current_root_application.get('/management/assistant/kimodo-prompt-examples')
+    def kimodo_prompt_examples():
+        from generators.kimodo.form_inputs import load_kimodo_examples
+        return [{key: example[key] for key in ("id", "label", "prompt")}
+                for example in load_kimodo_examples().values()]
+
     @current_root_application.post('/management/assistant/kimodo-proposal-review')
     def review_kimodo_proposal(inputs: dict):
         from fastapi import HTTPException

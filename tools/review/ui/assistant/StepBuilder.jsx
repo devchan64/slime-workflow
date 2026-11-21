@@ -1,3 +1,4 @@
+import KimodoPromptExamples from "./KimodoPromptExamples.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import TranslationEvidence from "./TranslationEvidence.jsx";
@@ -105,6 +106,7 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
             {sources.map(source => <option key={source.value} value={source.value}>{source.label}</option>)}</select>}
         </div>;
       })}
+      {generator==="kimodo" && !links.prompt && <KimodoPromptExamples apply={prompt=>setInputs({...inputs,prompt})}/>}
       {generator==="prompt-translation" && <GeneratorHistory service={generator} statusCommand="translation-status" restore={request=>{
         setInputs({text:request.text,target_language:request.target_language,
           glossary:(request.glossary || []).map(term=>term.source+" => "+term.target).join("\n")});
