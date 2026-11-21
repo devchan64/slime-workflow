@@ -44,32 +44,51 @@ function App() {
   const [draft,setDraft]=useState(""),[search,setSearch]=useState(""),[showTools,setShowTools]=useState(false);
   const [archived,setArchived]=useState(false),[error,setError]=useState(""),[busy,setBusy]=useState(false);
   const [queue,setQueue]=useState(null),[refresh,setRefresh]=useState(0);
-  const pending=useRef(null), sending=useRef(false),text=useRef(null);
+  const sending=useRef(false),text=useRef(null);
   function select(next) {
     const url=new URL(location.href);
     if(next)url.searchParams.set("session",next);else url.searchParams.delete("session");
-    history.pushState(null,"",url);setSession(next);setView({});setQueue(null);setError("");pending.current=null;
+    history.pushState(null,"",url);setSession(next);setView({});setQueue(null);setError("");
   }
-  useEffect(()=>{const cb=()=>{setSession(query().get("session")||"");setView({});setQueue(null);pending.current=null;};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
+  useEffect(()=>{const cb=()=>{setSession(query().get("session")||"");setView({});setQueue(null);};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
   useEffect(()=>{let active=true;fetch(base+"tools").then(r=>r.json()).then(v=>{if(active)setTools(v)}).catch(e=>{if(active)setError(e.message)});
     return()=>{active=false};},[]);
   useEffect(()=>{let active=true;call(archived?"session-archived":"session-list").then(v=>{if(active)setSessions(v.sessions)}).catch(e=>{if(active)setError(e.message)});return()=>{active=false};},[archived,refresh]);
   useEffect(()=>{let active=true,timer;setDraft(sessionStorage.getItem("hermes-draft-"+session) || "");
-    async function poll(){try{const v=await call("session-view",{session_id:session});if(active)setView(v)}catch(e){if(active)setError(e.message)}finally{if(active)timer=setTimeout(poll,3000)}}
+    async function poll(){try{const v=await call("session-view",{session_id:session});if(active && v.id===session)setView(v)}catch(e){if(active)setError(e.message)}finally{if(active)timer=setTimeout(poll,3000)}}
     if(session)poll();return()=>{active=false;clearTimeout(timer)};},[session]);
   function edit(v){setDraft(v);sessionStorage.setItem("hermes-draft-"+session,v)}
   async function send(){
     if(!draft.trim()||sending.current)return;
     if(!window.confirm("이 요청을 헤르메스 작업 대기열에 등록할까요?"))return;
-    const item=pending.current || {session_id:session||id(),request_id:id(),prompt:draft};
-    if(item.prompt!==draft){setError("미확인 요청이 있습니다. 이전 입력으로 접수를 확인하세요.");return;}
-    pending.current=item;sending.current=true;setBusy(true);setError("");
-    try{
-      if(!session)await call("session-create",{session_id:item.session_id});
-      await call("session-submit",item);
-      edit("");select(item.session_id);setArchived(false);setRefresh(n=>n+1);
-      setView(await call("session-view",{session_id:item.session_id}));
-    }catch(e){setError(e.message)}finally{sending.current=false;setBusy(false)}
+    const pendingKey = "hermes-pending-" + session;
+    const saved = sessionStorage.getItem(pendingKey);
+    const item = saved ? JSON.parse(saved) : {session_id:session || id(), request_id:id(), prompt:draft};
+    if (item.prompt !== draft) {
+      setError("접수 결과를 확인하려면 이전 입력으로 다시 보내세요.");
+      return;
+    }
+    sessionStorage.setItem(pendingKey, JSON.stringify(item));
+    sending.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      if (!session) await call("session-create", {session_id:item.session_id});
+      await call("session-submit", item);
+      sessionStorage.removeItem(pendingKey);
+      sessionStorage.removeItem("hermes-draft-" + session);
+      if ((query().get("session") || "") === session) {
+        setDraft("");
+        if (session !== item.session_id) select(item.session_id);
+        setArchived(false);
+      }
+      setRefresh(n => n + 1);
+    } catch (e) {
+      if ((query().get("session") || "") === session) setError(e.message);
+    } finally {
+      sending.current = false;
+      setBusy(false);
+    }
   }
   async function lifecycle(record,action){
     if(action==="delete"&&!window.confirm(record.title+" 대화 기록을 영구 삭제할까요?"))return;
@@ -83,7 +102,7 @@ function App() {
     {sessions.map(s=><div className="session" key={s.id}><button disabled={busy} aria-current={s.id===session?"page":undefined} onClick={()=>archived?lifecycle(s,"restore"):select(s.id)}>{s.title || s.id}</button>
     <button disabled={busy} onClick={()=>lifecycle(s,archived?"delete":"archive")}>{archived?"삭제":"보관"}</button></div>)}</aside>
     <article><header><h1>{view.title || "헤르메스와 대화"}</h1><button onClick={()=>setShowTools(!showTools)}>도구 탐색</button>
-    {session&&<button onClick={async()=>{try{setQueue((await call("workflow-list",{session_id:session,category:"",state:""})).steps)}catch(e){setError(e.message)}}}>대기열</button>}</header>
+    {session&&<button onClick={async()=>{try{const result=await call("workflow-list",{session_id:session,category:"",state:""});if(query().get("session")===session)setQueue(result.steps)}catch(e){setError(e.message)}}}>대기열</button>}</header>
     {showTools&&<section className="panel"><input aria-label="도구 검색" placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>{tools.filter(t=>(t.label+t.id+t.description).toLowerCase().includes(search.toLowerCase())).map(t=><button key={t.id} onClick={()=>{edit((draft?draft+"\n":"")+"사용할 도구: "+t.label+" ("+t.id+")\n");setShowTools(false);text.current.focus()}}>{t.label}</button>)}</section>}
     {queue&&<section className="panel"><button onClick={()=>setQueue(null)}>대기열 닫기</button>{queue.length?queue.map(s=><p key={s.request_id}>{s.generator} · {s.step_id} · {s.state}</p>):<p>이 세션의 작업이 없습니다.</p>}</section>}
     <Conversation key={session} view={view}/>{error&&<p role="alert">{error}</p>}
