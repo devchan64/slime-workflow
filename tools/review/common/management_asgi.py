@@ -724,6 +724,17 @@ def build_management_application(current_handler_class, current_root_path, curre
                  inspection_targets=[reservation_inspection_target(reservations, i)[0] for i in range(len(reservations))]),
         ]
 
+    @current_root_application.post('/management/assistant/operations-diff')
+    def operations_diff(payload: dict):
+        from fastapi import HTTPException
+        from tools.review.common.management_client import execute_remote_management_command
+        from tools.review.common.operations_history import read_hermes_diff_page
+        try:
+            text, notice, cursor = read_hermes_diff_page(payload.get('id'), payload.get('cursor'), command=execute_remote_management_command)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        return dict(text=text, notice=notice, cursor=cursor)
+
     @current_root_application.post('/management/assistant/operations-jobs')
     def operations_jobs(payload: dict):
         from fastapi import HTTPException

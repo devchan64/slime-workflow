@@ -101,7 +101,20 @@ export default function OperationsJobs(){
     finally{setBusy(false);}
   }
   const [detail,setDetail]=useState(null);
+  const [diffPage,setDiffPage]=useState(null);
+  async function readDiff(cursor){
+    setBusy(true);setError("");
+    try{
+      const response=await fetch("/management/assistant/operations-diff",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({id:detail.id,cursor})});
+      const page=await response.json();
+      if(!response.ok || page.cursor?.job_id!==detail.id)throw new Error(page.detail || "변경 내역을 확인할 수 없습니다.");
+      setDiffPage(page);
+    }catch(problem){setError(problem.message);setDiffPage(null);}
+    finally{setBusy(false);}
+  }
   async function inspectJob(id){
+    setDiffPage(null);
     setBusy(true);setError("");setDetail(null);
     try{
       const record=await managementCommand("hermes-agent","hermes-detail",{id});
@@ -138,7 +151,11 @@ export default function OperationsJobs(){
       <h4>최종 응답</h4><pre>{detail.final_response || "기록된 최종 응답이 없습니다."}</pre>
       {detail.final_response_truncated && <p>응답 일부만 표시했습니다.</p>}
       {detail.result?.verification && <p>독립 검증 · {detail.result.verification.status}</p>}
-      <details><summary>변경 내역</summary>{detail.diff_truncated && <p>변경 내역 일부만 표시했습니다.</p>}<pre>{detail.diff || "기록된 변경이 없습니다."}</pre></details>
+      <details><summary>변경 내역</summary>{detail.diff_truncated && <p>변경 내역 일부만 표시했습니다.</p>}<pre>{diffPage?.text ?? (detail.diff || "기록된 변경이 없습니다.")}</pre>
+        {detail.diff_truncated && <><button onClick={()=>readDiff(null)}>처음 부분부터 조회</button>
+          {diffPage && <p>{diffPage.notice}</p>}
+          {diffPage?.cursor.next_offset!=null && <button onClick={()=>readDiff(diffPage.cursor)}>다음 부분 조회</button>}</>}
+      </details>
       <details><summary>작업 로그</summary><pre>{detail.log || "기록된 로그가 없습니다."}</pre></details>
       {detail.result && <details><summary>결과 기록</summary><pre>{JSON.stringify(detail.result,null,2)}</pre></details>}
       <button onClick={()=>inspectJob(detail.id)}>상세 새로고침</button>

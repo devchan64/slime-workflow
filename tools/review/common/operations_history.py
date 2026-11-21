@@ -1,6 +1,8 @@
 """운영 작업 이력과 GPU 관측 기록의 조회 및 연결."""
 from collections import Counter
 import re
+import base64
+import binascii
 import hashlib
 
 def resolve_operations_queue_identity(current_service_name):
@@ -366,3 +368,49 @@ def read_operations_reservation_recovery_receipt(current_request_identifier, com
         return current_target_text+('정리 완료. 원 서비스와 GPU 상태를 확인하세요.' if current_receipt_record['state']=='completed' else '정리 결과 확인 필요. 재실행하지 말고 원 서비스와 GPU 프로세스를 확인하세요.')
     except (OSError,ValueError,KeyError,TypeError,RuntimeError):
         return '접수 결과를 확인할 수 없습니다. 재실행하지 말고 원 서비스와 GPU 프로세스를 확인하세요.'
+
+
+def read_hermes_diff_page(current_job_identifier, current_cursor_record=None, *, command):
+    """완료된 작업의 diff를 바이트 경계에서 이어 읽는다."""
+    if not isinstance(current_job_identifier, str) or not current_job_identifier:
+        raise ValueError('먼저 작업을 선택하세요.')
+    if current_cursor_record is None:
+        current_offset_value = 0
+        current_expected_size = None
+    elif not isinstance(current_cursor_record, dict) or current_cursor_record.get('job_id') != current_job_identifier:
+        raise ValueError('작업이 변경됐습니다. 처음 부분부터 다시 보세요.')
+    else:
+        current_offset_value = current_cursor_record.get('next_offset')
+        current_expected_size = current_cursor_record.get('size_bytes')
+        if current_offset_value is None:
+            raise ValueError('마지막 부분까지 표시했습니다.')
+        if type(current_offset_value) is not int or current_offset_value < 0 or type(current_expected_size) is not int:
+            raise ValueError('diff 위치를 확인할 수 없습니다. 처음부터 다시 보세요.')
+    try:
+        current_chunk_record = command('hermes-agent', 'hermes-diff', {'id': current_job_identifier, 'offset': current_offset_value, 'limit': 65536})
+        current_total_bytes = current_chunk_record['size_bytes']
+        if current_chunk_record.get('id') != current_job_identifier or current_chunk_record.get('offset') != current_offset_value or type(current_total_bytes) is not int or current_total_bytes < current_offset_value or (current_expected_size is not None and current_total_bytes != current_expected_size):
+            raise ValueError('diff 크기 또는 응답 위치가 변경됐습니다. 처음부터 다시 보세요.')
+        current_chunk_bytes = base64.b64decode(current_chunk_record['data_base64'], validate=True)
+        if len(current_chunk_bytes) > 65536 or current_offset_value + len(current_chunk_bytes) > current_total_bytes or (not current_chunk_bytes and current_offset_value < current_total_bytes):
+            raise ValueError('diff 응답 크기 오류')
+        current_expected_next = current_offset_value + len(current_chunk_bytes)
+        if current_chunk_record.get('next_offset') != (current_expected_next if current_expected_next < current_total_bytes else None):
+            raise ValueError('diff 응답 이어보기 위치 오류')
+        current_decode_warning = ''
+        try:
+            current_page_text = current_chunk_bytes.decode('utf-8')
+        except UnicodeDecodeError as current_decode_error:
+            if current_decode_error.reason == 'unexpected end of data' and current_decode_error.start > 0 and current_expected_next < current_total_bytes:
+                current_chunk_bytes = current_chunk_bytes[:current_decode_error.start]
+                current_page_text = current_chunk_bytes.decode('utf-8')
+            else:
+                current_page_text = current_chunk_bytes.decode('utf-8', errors='backslashreplace')
+                current_decode_warning = ' · UTF-8이 아닌 바이트는 이스케이프 표시; 원본 바이트는 MCP에서 확인'
+        current_end_offset = current_offset_value + len(current_chunk_bytes)
+        current_next_offset = current_end_offset if current_end_offset < current_total_bytes else None
+        current_cursor_value = {'job_id': current_job_identifier, 'next_offset': current_next_offset, 'size_bytes': current_total_bytes}
+        current_page_message = f'바이트 {current_offset_value}~{current_end_offset} / {current_total_bytes}' + (' · 마지막 부분' if current_next_offset is None else ' · 다음 부분이 있습니다') + current_decode_warning
+        return current_page_text, current_page_message, current_cursor_value
+    except (KeyError, ValueError, TypeError, binascii.Error) as current_diff_error:
+        raise ValueError('전체 diff 조회 실패: ' + str(current_diff_error)) from current_diff_error
