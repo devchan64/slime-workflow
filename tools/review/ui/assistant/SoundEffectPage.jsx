@@ -1,3 +1,4 @@
+import MusicExamples from "./MusicExamples.jsx";
 import DownloadProgress from "./DownloadProgress.jsx";
 import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
@@ -78,6 +79,7 @@ function AudioGeneratorPage({music=false}){
       <button disabled={busy || Boolean(review)} onClick={()=>setReview({payload:{action:"prepare"}})}>모델 준비 요청 검토</button>
     </details><ModelReadiness service={service}/><GeneratorChangelog generator={service}/>
     <fieldset disabled={busy || Boolean(review) || !form}>
+      {music && <MusicExamples apply={request=>setForm(current=>({...current,...request}))}/> }
       <GeneratorHistory key={historyRevision} service={service} readJob={readJob} restore={input=>{
         setForm(input);setNotice("저장된 생성 입력을 불러왔습니다.");
       }} inspectResult={record=>setJob(record.id)}/>

@@ -369,6 +369,11 @@ def build_management_application(current_handler_class, current_root_path, curre
             rows.append({'id': identifier, 'status': state, 'message': message})
         return rows
 
+    @current_root_application.get('/management/assistant/heartmula-examples')
+    def heartmula_examples():
+        from generators.music.examples import load_music_examples
+        return load_music_examples('music-heartmula')
+
     def register_audio_input_routes(prefix, service):
         music = service == 'music-heartmula'
 
