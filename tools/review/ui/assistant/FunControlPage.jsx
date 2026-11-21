@@ -1,4 +1,5 @@
 import React,{useEffect,useRef,useState} from "react";
+import {referencePng,videoData} from "./videoInputs.js";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
@@ -25,10 +26,19 @@ export default function FunControlPage(){
     fetch("/management/assistant/fun-template",{signal:controller.signal}).then(async response=>{
       if(!response.ok)throw new Error("예제 목록 조회 실패");
       const data=await response.json();
-      if(!controller.signal.aborted){setTemplate(data);select(data.examples[0]?.id || "");}
+      if(!controller.signal.aborted){setTemplate(data);setRequest({...data.defaults,action:"generate",control_type:"pose",width:832,height:480,images:[],pose_video:"",prompt:"",negative_prompt:""});select(data.examples[0]?.id || "");}
     }).catch(problem=>{if(!controller.signal.aborted)setError(problem.message);});
     return ()=>controller.abort();
   },[]);
+  async function attach(file,field){
+    if(!file)return;
+    setBusy(true);setError("");
+    try{
+      const value=field==="images"?[await referencePng(file)]:await videoData(file);
+      setRequest(current=>({...current,[field]:value}));
+    }catch(problem){setError(problem.message);}
+    finally{setBusy(false);}
+  }
   async function load(){
     setBusy(true);setError("");
     try{
@@ -48,12 +58,14 @@ export default function FunControlPage(){
     </fieldset>
     {error && <p role="alert">{error}</p>}
     {request && <fieldset disabled={busy || !!pending}><legend>생성 입력</legend>
-      <img alt="외형 참조 이미지" style={{maxWidth:"100%"}} src={"data:image/png;base64,"+request.images[0]}/>
-      <video controls loop playsInline preload="metadata" aria-label="입력 포즈 영상" src={"data:video/mp4;base64,"+request.pose_video}/>
+      <label>외형 참조 이미지<input type="file" accept="image/*" onChange={event=>attach(event.target.files[0],"images")}/></label>
+      <label>입력 포즈 영상<input type="file" accept="video/mp4" onChange={event=>attach(event.target.files[0],"pose_video")}/></label>
+      {request.images[0] && <img alt="외형 참조 이미지" style={{maxWidth:"100%"}} src={"data:image/png;base64,"+request.images[0]}/>}
+      {request.pose_video && <video controls loop playsInline preload="metadata" aria-label="입력 포즈 영상" src={"data:video/mp4;base64,"+request.pose_video}/>}
       {["prompt","negative_prompt"].map(field=><label key={field}>{field==="prompt"?"동작 프롬프트":"부정 프롬프트"}
         <textarea value={request[field]} onChange={event=>setRequest({...request,[field]:event.target.value})}/></label>)}
       <p>{request.frames}프레임 · 16fps · {request.steps}스텝 · 시드 {request.seed}</p>
-      <button disabled={!request.prompt.trim()} onClick={()=>setPending(request)}>대기열에 추가</button>
+      <button disabled={!request.prompt.trim() || !request.images[0] || !request.pose_video} onClick={()=>setPending(request)}>대기열에 추가</button>
     </fieldset>}
     {pending && <section aria-label="생성 요청 확인"><GpuQueueSummary/>
       <p>{pending.frames}프레임 · {pending.steps}스텝 · 시드 {pending.seed}</p><p>{pending.prompt}</p>
