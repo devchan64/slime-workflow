@@ -5,6 +5,10 @@ import ResultTable from "./ResultTable.jsx";
 
 const categories={vegetation:"식생",herbaceous:"초본","large-trees":"대형 나무","rocks-minerals":"바위·광물",props:"소품"};
 
+function imageUrl(id){
+  return "/management/map-assets/billboards/"+encodeURIComponent(id)+".png";
+}
+
 export default function BillboardCatalog({choose}){
   const [query,setQuery]=useState(""),[category,setCategory]=useState("");
   const [request,setRequest]=useState({offset:0,limit:10}),[page,setPage]=useState(null);
@@ -29,10 +33,13 @@ export default function BillboardCatalog({choose}){
     {error && <p role="alert">{error}</p>}
     {!page && !error && <p role="status">카탈로그 조회 중…</p>}
     {page && <><ResultTable table={{title:"검색 결과",summary:page.total+"종",columns:["이름","에셋 ID","분류"],
-      rows:page.items.map(asset=>[<button onClick={()=>select(asset)}>{asset.name}</button>,asset.id,categories[asset.category]])}}/>
+      rows:page.items.map(asset=>[<button onClick={()=>select(asset)}><img loading="lazy" decoding="async" src={imageUrl(asset.id)} alt=""
+          width="64" height="64" style={{objectFit:"contain",verticalAlign:"middle"}}/> {asset.name}</button>,asset.id,categories[asset.category]])}}/>
       {page.offset>0 && <button onClick={()=>setRequest({...request,offset:Math.max(0,page.offset-page.limit)})}>이전 페이지</button>}
       {page.next_offset!=null && <button onClick={()=>setRequest({...request,offset:page.next_offset})}>다음 페이지</button>}</>}
-    {selected && <section><h3>{selected.name}</h3><p>{selected.modeling.purpose}</p><p>{selected.modeling.composition}</p>
+    {selected && <section><h3>{selected.name}</h3>
+      <img src={imageUrl(selected.id)} alt={selected.name+" 원본"} style={{maxWidth:"100%",maxHeight:420,objectFit:"contain"}}/>
+      <p>{selected.modeling.purpose}</p><p>{selected.modeling.composition}</p>
       <ResultTable table={{title:"사용 맵",summary:selected.maps_truncated?"처음 20개 맵":selected.maps.length+"개 맵",
         columns:["맵","원본 경로","사용 횟수"],rows:selected.maps.map(map=>[map.map,map.source_path,map.occurrences ?? "미확인"])}}/>
       <BillboardProperties key={selected.id} texture={selected.id}/>
