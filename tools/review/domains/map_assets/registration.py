@@ -6,7 +6,7 @@ from tools.review.common.map_tile_assets import load_registered_tiles
 from tools.review.domains.map_assets.database_client import execute_content_api_request
 
 
-def register_billboard_asset(current_request_payload):
+def validate_billboard_registration(current_request_payload):
     if not isinstance(current_request_payload, dict) or set(current_request_payload) != {'requestId', 'expectedGeneration', 'asset'}:
         raise ValueError('requestId·expectedGeneration·asset이 필요합니다.')
     current_asset_record = current_request_payload['asset']
@@ -25,4 +25,8 @@ def register_billboard_asset(current_request_payload):
     with Image.open(current_image_path) as current_image_value:
         if current_image_value.size != (current_image_record['width'], current_image_record['height']) or 'A' not in current_image_value.getbands():
             raise ValueError('투명 PNG 원본 크기 오류')
+
+
+def register_billboard_asset(current_request_payload):
+    validate_billboard_registration(current_request_payload)
     return execute_content_api_request('POST', '/internal/v1/content/billboards', current_request_payload)

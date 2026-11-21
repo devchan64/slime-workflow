@@ -695,6 +695,22 @@ def build_management_application(current_handler_class, current_root_path, curre
             return Response(status_code=404)
         return FileResponse(directory/names[part], media_type='image/png' if part=='reference' else 'video/mp4')
 
+    @current_root_application.post('/management/assistant/billboard-registration-review')
+    async def billboard_registration_review(request: Request):
+        from tools.review.common.management_gateway import parse_management_request_json
+        from tools.review.domains.map_assets.registration import validate_billboard_registration
+        content = bytearray()
+        async for chunk in request.stream():
+            if len(content) + len(chunk) > 2_000_000:
+                return JSONResponse({'error': '등록 요청 JSON은 2MB 이하여야 합니다.'}, status_code=413)
+            content.extend(chunk)
+        try:
+            payload = parse_management_request_json(content.decode('utf-8'))
+            await asyncio.to_thread(validate_billboard_registration, payload)
+        except (ValueError, KeyError, TypeError, OSError) as error:
+            return JSONResponse({'error': str(error)}, status_code=422)
+        return JSONResponse(payload)
+
     @current_root_application.get('/management/assistant/building-image/{texture}')
     def building_image(texture: str):
         import re

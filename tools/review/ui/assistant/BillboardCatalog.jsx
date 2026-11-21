@@ -1,3 +1,4 @@
+import BillboardRegistration from "./BillboardRegistration.jsx";
 import BillboardProperties from "./BillboardProperties.jsx";
 import React,{useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
@@ -27,6 +28,7 @@ export default function BillboardCatalog({choose}){
     setRequest({offset:0,limit:10,query,...(category?{category}:{})});
   }
   return <section><h2>공용 빌보드 에셋</h2>
+    <BillboardRegistration onSaved={()=>setRequest({...request,offset:0})}/>
     <form onSubmit={search}><label>분류<select value={category} onChange={e=>setCategory(e.target.value)}>
       <option value="">전체</option>{Object.entries(categories).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
       <label>이름·ID·모델링 설명<input maxLength={100} value={query} onChange={e=>setQuery(e.target.value)}/></label>
