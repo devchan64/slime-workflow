@@ -76,6 +76,12 @@ function App() {
   const [draft,setDraft]=useState(""),[search,setSearch]=useState(()=>query().get("search") || ""),[showTools,setShowTools]=useState(()=>query().has("category") || query().has("search") || query().get("panel")==="jobs");
   const [category,setCategory]=useState(initialToolCategory);
   const [archived,setArchived]=useState(false),[error,setError]=useState(""),[busy,setBusy]=useState(false);
+  const [sessionQuery,setSessionQuery]=useState("");
+  const [listRequest,setListRequest]=useState({offset:0,query:""}),[listPage,setListPage]=useState(null);
+  const [listError,setListError]=useState("");
+  function resetSessionList(){
+    setSessionQuery("");setListRequest({offset:0,query:""});
+  }
   const [queue,setQueue]=useState(null),[refresh,setRefresh]=useState(0);
   const [historyPage,setHistoryPage]=useState(null);
   const sending=useRef(false),text=useRef(null);
@@ -95,7 +101,16 @@ function App() {
   useEffect(()=>{const cb=()=>{setSearchMode(query().get("panel")==="jobs"?"jobs":"tools");setCategory(initialToolCategory());setSearch(query().get("search") || "");setShowTools(query().has("category") || query().has("search") || query().get("panel")==="jobs");setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
   useEffect(()=>{let active=true;fetch(base+"tools").then(r=>r.json()).then(v=>{if(active)setTools(v)}).catch(e=>{if(active)setError(e.message)});
     return()=>{active=false};},[]);
-  useEffect(()=>{let active=true;call(archived?"session-archived":"session-list").then(v=>{if(active)setSessions(v.sessions)}).catch(e=>{if(active)setError(e.message)});return()=>{active=false};},[archived,refresh]);
+  useEffect(()=>{
+    let active=true;
+    setListPage(null);setSessions([]);setListError("");
+    call(archived?"session-archived":"session-list",{...listRequest,limit:30}).then(page=>{
+      if(!active)return;
+      if(!Array.isArray(page.sessions) || (listRequest.snapshot && page.snapshot!==listRequest.snapshot))throw new Error("세션 목록이 변경되었습니다. 다시 검색하세요.");
+      setSessions(page.sessions);setListPage(page);
+    }).catch(problem=>{if(active)setListError(problem.message);});
+    return ()=>{active=false;};
+  },[archived,listRequest,refresh]);
   useEffect(()=>{setDraft(sessionStorage.getItem("hermes-draft-"+session) || "");},[session]);
   useEffect(()=>{
     let active=true,timer;
@@ -144,7 +159,7 @@ function App() {
         if (session !== item.session_id) select(item.session_id);
         setArchived(false);
       }
-      setRefresh(n => n + 1);
+      setListRequest(current=>({offset:0,query:current.query}));setRefresh(n => n + 1);
     } catch (e) {
       if ((query().get("session") || "") === session) setError(e.message);
     } finally {
@@ -156,7 +171,7 @@ function App() {
     if(action==="delete"&&!window.confirm(record.title+" 대화 기록을 영구 삭제할까요?"))return;
     try{await call("session-"+action,{session_id:record.id,expected_update:record.updated_at});
       if(action==="restore"){setArchived(false);select(record.id)}else if(record.id===session)select("");
-      setRefresh(n=>n+1);
+      setListRequest(current=>({offset:0,query:current.query}));setRefresh(n=>n+1);
     }catch(e){setError(e.message)}
   }
   const [showForms,setShowForms]=useState(false);
@@ -182,9 +197,19 @@ function App() {
   const matchedTools=tools.filter(tool=>(category==="all" || tool.category===category) &&
     terms.every(term=>[tool.label,tool.id,tool.description].join(" ").toLowerCase().includes(term)));
   const chosen=query().get("tool");
-  return <main><aside><h2>대화 세션</h2><button disabled={busy} onClick={()=>{select("");setArchived(false);}}>새 대화</button><button onClick={()=>setArchived(!archived)}>{archived?"대화 목록":"보관함"}</button>
+  return <main><aside><h2>대화 세션</h2><button disabled={busy} onClick={()=>{select("");setArchived(false);resetSessionList();}}>새 대화</button><button onClick={()=>{resetSessionList();setArchived(!archived);}}>{archived?"대화 목록":"보관함"}</button>
+    <form onSubmit={e=>{e.preventDefault();setListRequest({offset:0,query:sessionQuery.trim()});}}>
+      <label>세션 검색 <input maxLength={100} placeholder="제목·메시지·세션 ID" value={sessionQuery} onChange={e=>setSessionQuery(e.target.value)}/></label>
+      <button>검색</button>
+    </form>
+    {listError && <p role="alert">{listError}</p>}
+    {listPage && Number.isInteger(listPage.total) && <p>검색 결과 {listPage.total}개{listPage.unreadable_count>0 && " · 읽을 수 없는 세션 "+listPage.unreadable_count+"개 제외"}</p>}
     {sessions.map(s=><div className="session" key={s.id}><button disabled={busy} aria-current={s.id===session?"page":undefined} onClick={()=>archived?lifecycle(s,"restore"):select(s.id)}>{s.title || s.id}</button>
-    <button disabled={busy} onClick={()=>lifecycle(s,archived?"delete":"archive")}>{archived?"삭제":"보관"}</button></div>)}</aside>
+    <button disabled={busy} onClick={()=>lifecycle(s,archived?"delete":"archive")}>{archived?"삭제":"보관"}</button></div>)}
+    {listPage && (listRequest.offset>0 || listPage.next_offset!=null) && <nav aria-label="세션 목록 페이지">
+      <button disabled={!listRequest.offset} onClick={()=>setListRequest({...listRequest,offset:Math.max(0,listRequest.offset-30),snapshot:listPage.snapshot})}>이전</button>
+      <button disabled={listPage.next_offset==null} onClick={()=>setListRequest({...listRequest,offset:listPage.next_offset,snapshot:listPage.snapshot})}>다음</button>
+    </nav>}</aside>
     <article><header><h1>{view.title || "헤르메스와 대화"}</h1><button ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowGpu(false);setShowTools(!showTools)}}>도구 탐색</button>
     <button aria-expanded={showGpu} onClick={()=>{setShowTools(false);setShowGpu(!showGpu)}}>GPU 프로세스 정보</button>
     {session&&<button aria-expanded={showForms} onClick={()=>setShowForms(!showForms)}>입력 폼</button>}
