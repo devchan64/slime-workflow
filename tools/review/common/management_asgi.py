@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from starlette.responses import Response, RedirectResponse, JSONResponse
 
 MANAGEMENT_INTERFACE_BUILDERS = {
@@ -33,8 +33,7 @@ MANAGEMENT_INTERFACE_BUILDERS = {
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
 GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator', 'writer-agent': 'writer_agent'}
 GENERATOR_PAGE_PACKAGES['flux-expression-generator'] = 'flux-expression'
-for current_flux_profile in ('flux-character','flux-seamless'):
-    GENERATOR_PAGE_PACKAGES[current_flux_profile+'-generator'] = current_flux_profile
+GENERATOR_PAGE_PACKAGES['flux-seamless-generator'] = 'flux-seamless'
 def __getattr__(name):
     """이전 Qwen 옵션 조회자가 접근할 때만 해당 화면 모듈을 읽는다."""
     if name != 'QWEN_INTERFACE_OPTIONS':
@@ -370,7 +369,7 @@ def build_management_application(current_handler_class, current_root_path, curre
 
     def require_flux_page(service):
         from fastapi import HTTPException
-        if service not in ('flux-image', 'flux-prop', 'flux-vegetation', 'flux-billboard', 'flux-mannequin', 'flux-building'):
+        if service not in ('flux-image', 'flux-prop', 'flux-vegetation', 'flux-billboard', 'flux-mannequin', 'flux-building', 'flux-character'):
             raise HTTPException(404, '등록되지 않은 생성기 화면입니다.')
 
     @current_root_application.get('/management/assistant/flux-defaults/{service}')
@@ -386,9 +385,12 @@ def build_management_application(current_handler_class, current_root_path, curre
         if service == 'flux-billboard':
             from tools.review.domains.image.billboard_guide_prompt import BILLBOARD_LAYOUT_PROFILES, BILLBOARD_DEFAULT_SUBJECT
             guide = dict(layouts=BILLBOARD_LAYOUT_PROFILES, subject=BILLBOARD_DEFAULT_SUBJECT)
+        if service == 'flux-character':
+            body = importlib.import_module('generators.character-generator.body_references')
+            guide = dict(guides=body.load_body_reference_catalog(), rolePrompt=body.BODY_REFERENCE_ROLE_PROMPT)
         if service == 'flux-building':
             from tools.review.domains.image.building_prompt import BUILDING_STRUCTURE_RECORDS, describe_building_structure_label
-            guide = {'buildings': [dict(id=name, label=describe_building_structure_label(name),
+            guide = {'guides': [dict(id=name, label=describe_building_structure_label(name),
                                        roof=row['roof'], entrance=row['entrance'])
                                    for name, row in BUILDING_STRUCTURE_RECORDS.items()]}
         if service == 'flux-mannequin':
@@ -397,12 +399,16 @@ def build_management_application(current_handler_class, current_root_path, curre
         return dict(**guide, label=label, description=description, width=width, height=height, prompt=prompt, minimum=minimum)
 
     @current_root_application.get('/management/assistant/flux-building-guide/{name}')
-    def flux_building_guide(name: str, thumbnail: bool = False):
+    @current_root_application.get('/management/assistant/flux-character-guide/{name}')
+    def flux_reference_guide(request: Request, name: str, thumbnail: bool = False):
         from fastapi import HTTPException
         from PIL import Image
         from tools.review.domains.image.building_prompt import load_building_layout_preset
         try:
-            with load_building_layout_preset(name) as image, io.BytesIO() as output:
+            load = load_building_layout_preset
+            if request.url.path.startswith('/management/assistant/flux-character-guide/'):
+                load = importlib.import_module('generators.character-generator.body_references').load_body_reference_image
+            with load(name) as image, io.BytesIO() as output:
                 if thumbnail:
                     image.thumbnail((320, 320), Image.Resampling.LANCZOS)
                 image.save(output, format='PNG')
@@ -463,7 +469,7 @@ def build_management_application(current_handler_class, current_root_path, curre
         try:
             record = {'id': job, 'request': json.loads(path.read_text())}
             restored = restore_flux_image_inputs(record, service, root)
-            prompt, first, second, width, height, _, seed, tag = restored[:8]
+            prompt, first, second, width, height, steps, seed, tag = restored[:8]
             translation = restored[8] if service != 'flux-building' else ''
             if not isinstance(prompt, str) or not isinstance(translation, str):
                 raise ValueError('저장된 번역 입력을 확인하세요.')
@@ -476,7 +482,7 @@ def build_management_application(current_handler_class, current_root_path, curre
         except (ValueError, OSError) as error:
             raise HTTPException(422, str(error)) from error
         return {'id': job, 'request': dict(prompt=prompt, width=width, height=height, seed=seed, tag=tag,
-                                           translation_source_ko=translation), 'images': images}
+                                           translation_source_ko=translation, steps=steps), 'images': images}
 
     @current_root_application.post('/management/assistant/flux-image-preview')
     def flux_image_preview(payload: dict, service: str = "flux-image"):
@@ -620,6 +626,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen/')
     @current_root_application.get('/management/frame/music-heartmula')
     @current_root_application.get('/management/frame/music-heartmula/')
+    @current_root_application.get('/management/frame/flux-character-generator')
+    @current_root_application.get('/management/frame/flux-character-generator/')
     @current_root_application.get('/management/frame/flux-building-generator')
     @current_root_application.get('/management/frame/flux-building-generator/')
     @current_root_application.get('/management/frame/flux-mannequin-generator')
