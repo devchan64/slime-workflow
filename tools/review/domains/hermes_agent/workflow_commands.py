@@ -1,4 +1,5 @@
 """대화 세션별 워크플로우의 관리 게이트웨이 명령."""
+import base64
 import re
 
 from .workflow_catalog import read_workflow_generator_catalog
@@ -23,7 +24,7 @@ def execute_workflow_command(workflow_root_directory, current_command_name, curr
         required_field_names = {"session_id", "revision", "definition_text"}
     elif current_command_name == "hermes-workflow-retry":
         required_field_names.update({"step_id", "source_request"})
-    elif current_command_name == "hermes-workflow-image-preview":
+    elif current_command_name in ("hermes-workflow-image-preview", "hermes-workflow-audio-preview"):
         required_field_names.add("step_id")
     elif current_command_name == "hermes-workflow-select":
         required_field_names.update({"step_id", "input_field", "source_request", "digest"})
@@ -53,6 +54,10 @@ def execute_workflow_command(workflow_root_directory, current_command_name, curr
     if current_command_name == "hermes-workflow-register":
         workflow_run_store.register_workflow_run(workflow_run_identifier, conversation_session_identifier,
                                                  current_payload_record["steps"])
+    if current_command_name == "hermes-workflow-audio-preview":
+        audio_content_bytes = workflow_run_store.read_pinned_effect_audio(
+            workflow_run_identifier, conversation_session_identifier, current_payload_record["step_id"])
+        return {"wav": base64.b64encode(audio_content_bytes).decode("ascii")}
     if current_command_name == "hermes-workflow-image-preview":
         return workflow_run_store.read_pinned_image_preview(workflow_run_identifier, conversation_session_identifier, current_payload_record["step_id"])
     if current_command_name == "hermes-workflow-select":

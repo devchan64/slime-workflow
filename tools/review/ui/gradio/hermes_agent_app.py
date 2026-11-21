@@ -428,12 +428,19 @@ def preview_pinned_workflow_image(current_session_identifier, workflow_run_ident
         return preview_image_value.copy()
 
 
+def collect_workflow_audio_preview(current_session_identifier, workflow_run_identifier, current_step_identifier):
+    selected_preview_key = (current_session_identifier, workflow_run_identifier, current_step_identifier)
+    audio_result_record = execute_remote_management_command("hermes-agent", "hermes-workflow-audio-preview", {
+        "session_id": current_session_identifier, "run_id": workflow_run_identifier, "step_id": current_step_identifier})
+    return selected_preview_key, base64.b64decode(audio_result_record["wav"], validate=True)
+
+
 def collect_workflow_image_preview(current_session_identifier, workflow_run_identifier, current_step_identifier):
     selected_preview_key = (current_session_identifier, workflow_run_identifier, current_step_identifier)
     return selected_preview_key, preview_pinned_workflow_image(*selected_preview_key)
 
 
-def render_workflow_image_preview(current_session_identifier, workflow_run_identifier, current_step_identifier, collected_preview_result):
+def render_workflow_media_preview(current_session_identifier, workflow_run_identifier, current_step_identifier, collected_preview_result):
     if collected_preview_result and collected_preview_result[0] == (current_session_identifier, workflow_run_identifier, current_step_identifier):
         return collected_preview_result[1]
     return gr.skip()
@@ -5093,9 +5100,18 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     workflow_preview_inputs = [hermes_session_control, workflow_run_identifier, workflow_preview_step]
                     workflow_preview_result = gr.State(None)
                     workflow_preview_button.click(collect_workflow_image_preview, workflow_preview_inputs, workflow_preview_result, queue=False).success(
-                        render_workflow_image_preview, [*workflow_preview_inputs, workflow_preview_result], workflow_preview_image, queue=False)
+                        render_workflow_media_preview, [*workflow_preview_inputs, workflow_preview_result], workflow_preview_image, queue=False)
                     for preview_input_component in workflow_preview_inputs:
                         preview_input_component.change(lambda: None, outputs=workflow_preview_image, queue=False)
+                    workflow_audio_step = gr.Textbox(label="재생할 효과음 단계 ID")
+                    workflow_audio_button = gr.Button("보존된 효과음 듣기")
+                    workflow_audio_output = gr.Audio(label="단계 결과 효과음", interactive=False, format="wav")
+                    workflow_audio_result = gr.State(None)
+                    workflow_audio_inputs = [hermes_session_control, workflow_run_identifier, workflow_audio_step]
+                    workflow_audio_button.click(collect_workflow_audio_preview, workflow_audio_inputs, workflow_audio_result, queue=False).success(
+                        render_workflow_media_preview, [*workflow_audio_inputs, workflow_audio_result], workflow_audio_output, queue=False)
+                    for audio_input_component in workflow_audio_inputs:
+                        audio_input_component.change(lambda: None, outputs=workflow_audio_output, queue=False)
                     workflow_history_links = gr.HTML()
                     workflow_display_outputs = [workflow_run_display, workflow_translation_output, workflow_image_links, workflow_history_links]
                     workflow_result_button.click(display_conversation_workflow_results,
