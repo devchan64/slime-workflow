@@ -1,5 +1,4 @@
 import React, {useEffect, useState} from "react";
-import {useLiveRefresh,LiveRefreshControl} from "./LiveRefresh.jsx";
 
 function memory(value) {
   return Number.isInteger(value) && value >= 0 ? value.toLocaleString() + " MiB" : "미측정";
@@ -9,10 +8,9 @@ export default function GpuPanel() {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
   const [copyNotice,setCopyNotice] = useState("");
-  const [revision,setRevision]=useState(0);
-  const live=useLiveRefresh(()=>setRevision(value=>value+1));
   useEffect(() => {
     const controller = new AbortController();
+    let timer;
     async function refresh() {
       try {
         const response = await fetch("/management/gpu-status", {cache:"no-store",signal:controller.signal});
@@ -21,20 +19,21 @@ export default function GpuPanel() {
         if (!controller.signal.aborted) {setStatus(next);setError("");}
       } catch (problem) {
         if (!controller.signal.aborted) {setStatus(null);setError(problem.message);}
+      } finally {
+        if (!controller.signal.aborted) timer = setTimeout(refresh,30000);
       }
     }
     refresh();
-    return () => {controller.abort();};
-  }, [revision]);
+    return () => {controller.abort();clearTimeout(timer);};
+  }, []);
   async function copy(id) {
     try {await navigator.clipboard.writeText(id);setCopyNotice("복사됨 · " + id);}
     catch {setCopyNotice("작업 ID를 선택해 복사하세요.");}
   }
   const processes = status?.processes || [];
   const domains = ["vram","gtt"].filter(domain=>status?.[domain+"_total_mib"] != null);
-  return <section ref={live.ref} id="gpu-panel" className="floating-panel" aria-label="GPU 프로세스 정보">
+  return <section id="gpu-panel" className="floating-panel" aria-label="GPU 프로세스 정보">
     <h2>GPU 프로세스 정보</h2>
-    <LiveRefreshControl live={live} label="GPU 정보 자동 갱신"/><button type="button" onClick={()=>setRevision(value=>value+1)}>GPU 정보 새로고침</button>
     {error && <p role="alert">{error}</p>}
     {!status && !error && <p>조회 중…</p>}
     {status && <>

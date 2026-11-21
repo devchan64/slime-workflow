@@ -27,6 +27,13 @@ article {position:relative;}
 .chat-actions summary {padding:.55rem .8rem;border:1px solid #484d50;border-radius:.5rem}
 .chat-actions > div {position:absolute;z-index:5;right:0;width:max-content;display:grid;gap:.3rem;padding:.5rem;background:#202326;border:1px solid #484d50;border-radius:.5rem}
 .hermes-chat .session-queue {max-height:19dvh}
+.hermes-chat .conversation-queue {background:var(--surface);border:1px solid var(--line);border-radius:.8rem;white-space:normal;min-width:0}
+.hermes-chat .conversation-queue .panel {max-height:none;overflow-x:auto;border:0;padding:.2rem 0}
+.hermes-chat .conversation-queue .session-queue table {min-width:58rem}
+.hermes-chat .conversation-queue .session-queue :is(th,td) {white-space:nowrap;overflow-wrap:normal}
+.hermes-chat .viewport .conversation-queue h2 {font-size:1rem;text-align:start;margin:.4rem 0}
+.hermes-chat .conversation-queue .session-queue form {padding:.4rem 0}
+.hermes-chat .conversation-queue .session-queue form label {display:inline-flex;flex-wrap:wrap;gap:.35rem;margin:.2rem .5rem .2rem 0}
 .hermes-chat .floating-panel {top:auto;bottom:6rem}
 @media(max-width:700px){
   .hermes-chat article > header {flex-wrap:nowrap}

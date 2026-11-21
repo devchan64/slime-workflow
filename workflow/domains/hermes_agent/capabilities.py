@@ -51,7 +51,7 @@ HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-session-create','label':'대화 세션 생성','required':['session_id'],'optional':[],'effect':'write','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'session','note':'같은 세션 ID로 재시도할 수 있다.'},
     {'command':'hermes-session-read','label':'대화 세션 기록 조회','required':['session_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'session','note':'저장된 세션 기록을 읽는다.'},
     {'command':'hermes-session-list','label':'대화 세션 목록','required':[],'optional':['offset','limit','snapshot','query'],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'session_list','note':'최근 세션과 잘림 여부를 반환한다.'},
-    {'command':'hermes-session-view','label':'대화 및 작업 상태 조회','required':['session_id'],'optional':['offset','snapshot'],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'session_view','note':'최근 메시지와 연결된 작업 상태를 제공한다.'},
+    {'command':'hermes-session-view','label':'대화 및 작업 상태 조회','required':['session_id'],'optional':['offset','limit','snapshot'],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'session_view','note':'최근 메시지와 연결된 작업 상태를 제공한다.'},
     {'command':'hermes-submit','label':'운영·격리 작업 접수','required':['request_id','prompt'],'optional':['verification_modules'],'effect':'enqueue','gpu':'exclusive','retry':'request_id','interfaces':['gui','mcp'],'result':'hermes_job_id','note':'운영 조회·제안과 격리 코드 작업을 처리한다. 코드 변경은 격리 사본에 남으며 동일 접수 ID와 입력은 기존 작업을 반환한다. 배타 예약은 관리도구 대기열에만 적용되며 외부 GPU 작업과 성능 경합이 가능하다.'},
     {'command':'hermes-detail','label':'격리 작업 상세 조회','required':['id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'hermes_job_detail','note':'상태와 답변·diff·검증 결과를 반환한다.'},
     {'command':'hermes-history','label':'격리 작업 이력 조회','required':[],'optional':['offset','limit','snapshot','query','status'],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'hermes_history','note':'빈 입력은 기존 최근 100건이며 전체 이력의 검색·상태 필터와 최대 30건 페이지를 지원한다. 다음 페이지는 동일 조건과 목록 확인값이 필요하다. 작업 상태는 조회 시점의 값이다.'},
@@ -300,6 +300,8 @@ def list_hermes_capability_catalog():
             current_payload_schema['properties']['snapshot'] = {'anyOf':[{'type':'string','pattern':'^[a-f0-9]{64}$','note':'후속 건물 목록 페이지에 첫 조회에서 받은 값'},{'type':'null'}]}
         if current_command_name in ('hermes-sprite-detail','hermes-audio-source-history','hermes-generator-source-history','hermes-session-view','hermes-expression-catalog','hermes-history','hermes-anchor-history-observe'):
             current_payload_schema['allOf'] = [{'if':{'required':['offset'],'properties':{'offset':{'minimum':1}}},'then':{'required':['snapshot'],'properties':{'snapshot':HERMES_FIELD_SCHEMAS['snapshot']}}}]
+        if current_command_name == 'hermes-session-view':
+            current_payload_schema['properties']['limit'] = {'type':'integer','minimum':1,'maximum':20}
         if current_command_name in ('hermes-session-list', 'hermes-session-archived'):
             current_payload_schema['properties']['limit'] = {'type':'integer','minimum':1,'maximum':30}
             current_payload_schema['properties']['query'] = {'type':'string','maxLength':100,'pattern':r'^[^\x00-\x1f]*$','note':'세션 ID 또는 사용자 지시의 일부; 지시 원문은 목록에 포함되지 않는다.'}

@@ -2,7 +2,6 @@ import KimodoMedia from "./KimodoMedia.jsx";
 import {managementCommand} from "./managementCommand.js";
 import TranslationResult from "./TranslationResult.jsx";
 import React, {useEffect, useState} from "react";
-import {useLiveRefresh,LiveRefreshControl} from "./LiveRefresh.jsx";
 
 function MediaPreview({audio, result, session, run, call}) {
   const [source,setSource] = useState("");
@@ -58,7 +57,6 @@ export default function WorkflowResults({session, run, call, close, openRun, edi
   const [busy,setBusy] = useState(false);
   const [confirmCancel,setConfirmCancel] = useState(false);
   const [revision,setRevision] = useState(0);
-  const live=useLiveRefresh(()=>setRevision(value=>value+1),!busy && !confirmCancel && (!view || view.steps.some(step=>["ready","waiting","submitting","queued","running","unknown"].includes(step.state))));
   useEffect(() => {
     let active = true;
     setBusy(true); setError("");
@@ -68,6 +66,12 @@ export default function WorkflowResults({session, run, call, close, openRun, edi
       .finally(() => { if (active) setBusy(false); });
     return () => {active=false;};
   }, [session,run,call,revision]);
+  useEffect(() => {
+    if (busy || error || confirmCancel || !view?.steps.some(step =>
+      ["ready","waiting","submitting"].includes(step.state))) return;
+    const timer = setTimeout(() => setRevision(value => value+1), 3000);
+    return () => clearTimeout(timer);
+  }, [view,busy,error,confirmCancel]);
   const [connectionNotice,setConnectionNotice]=useState("");
   async function select(choice) {
     setBusy(true); setError("");
@@ -109,7 +113,7 @@ export default function WorkflowResults({session, run, call, close, openRun, edi
     } catch (problem) {setError(problem.message);}
     finally {setBusy(false);}
   }
-  return <section ref={live.ref} aria-label="워크플로우 결과"><LiveRefreshControl live={live} label="워크플로우 자동 갱신"/>
+  return <section aria-label="워크플로우 결과">
     <h3 tabIndex={-1}>워크플로우 결과</h3><code>{run}</code>
     <button disabled={busy} onClick={()=>{setConfirmCancel(false);setRevision(value=>value+1);}}>결과 갱신</button>
     <button onClick={close}>결과 닫기</button>

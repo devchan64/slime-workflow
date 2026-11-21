@@ -2112,6 +2112,13 @@ class HermesServiceTests(unittest.TestCase):
         for current_index in range(45):
             current_store.append_session_request(current_session,'request_%04d'%current_index,'지시 %d'%current_index)
         current_first=self.hermes_service_manager.execute_hermes_command('hermes-session-view',{'session_id':current_session})
+        current_small=self.hermes_service_manager.execute_hermes_command('hermes-session-view',{'session_id':current_session,'limit':6})
+        self.assertEqual([item['text'] for item in current_small['messages']],['지시 %d'%item for item in range(39,45)])
+        self.assertEqual(current_small['next_offset'],6)
+        current_small_older=self.hermes_service_manager.execute_hermes_command('hermes-session-view',{'session_id':current_session,'limit':6,'offset':6,'snapshot':current_small['snapshot']})
+        self.assertEqual([item['text'] for item in current_small_older['messages']],['지시 %d'%item for item in range(33,39)])
+        for invalid_limit in (0,21,True):
+            with self.assertRaises(ValueError):self.hermes_service_manager.execute_hermes_command('hermes-session-view',{'session_id':current_session,'limit':invalid_limit})
         self.assertEqual([item['text'] for item in current_first['messages']],['지시 %d'%item for item in range(25,45)])
         self.assertTrue(current_first['messages'][0]['created_at'])
         self.assertEqual(current_first['next_offset'],20)

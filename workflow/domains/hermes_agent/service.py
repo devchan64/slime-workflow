@@ -364,12 +364,15 @@ class HermesServiceManager:
 
     def read_hermes_session_view_locked(self, hermes_payload_record):
         """세션과 작업의 최근 상태를 한 응답으로 제공한다."""
-        if set(hermes_payload_record)-{'session_id','offset','snapshot'} or 'session_id' not in hermes_payload_record:
+        if set(hermes_payload_record)-{'session_id','offset','limit','snapshot'} or 'session_id' not in hermes_payload_record:
             raise ValueError('세션 ID와 이력 페이지 정보만 전달하세요.')
         from workflow.domains.hermes_agent.session_store import HermesSessionStore
         hermes_session_store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
         hermes_session_record = hermes_session_store.read_session_record(hermes_payload_record['session_id'])
         current_offset_value=hermes_payload_record.get('offset',0)
+        current_limit_value=hermes_payload_record.get('limit',20)
+        if type(current_limit_value) is not int or not 1 <= current_limit_value <= 20:
+            raise ValueError('세션 이력 페이지 크기는 1~20이어야 합니다.')
         current_snapshot_value=hashlib.sha256(json.dumps(hermes_session_record['messages'],sort_keys=True,ensure_ascii=False,separators=(',',':')).encode('utf-8')).hexdigest()
         if type(current_offset_value) is not int or current_offset_value<0 or current_offset_value>len(hermes_session_record['messages']):
             raise ValueError('세션 이력 위치 오류')
@@ -382,7 +385,7 @@ class HermesServiceManager:
             raise ValueError('세션 작업 연결 형식 오류')
         current_session_job_counts=Counter(item['job_id'] for item in hermes_session_record['messages'] if isinstance(item.get('job_id'),str))
         current_end_index=len(hermes_session_record['messages'])-current_offset_value
-        current_start_index=max(0,current_end_index-20)
+        current_start_index=max(0,current_end_index-current_limit_value)
         hermes_view_messages = []
         prior_sources = set()
         def collect_source(message):

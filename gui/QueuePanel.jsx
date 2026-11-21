@@ -1,8 +1,7 @@
 import WorkflowResults from "./WorkflowResults.jsx";
 import ResultTable from "./ResultTable.jsx";
 import QueuePriority from "./QueuePriority.jsx";
-import React, {useCallback, useEffect, useRef, useState} from "react";
-import {useLiveRefresh,LiveRefreshControl} from "./LiveRefresh.jsx";
+import React, {useEffect, useRef, useState} from "react";
 
 const categories = {translation:"번역", image:"이미지", audio:"오디오", motion:"모션"};
 const states = {
@@ -27,18 +26,16 @@ export default function QueuePanel({session, call, editNextStep, resultsOnly=fal
   const [filters, setFilters] = useState({...initial,state:resultsOnly?"completed":"",run_id:initialRun});
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
-  const [revision,setRevision]=useState(0);
-  const live=useLiveRefresh(()=>setRevision(value=>value+1),!selectedRun);
-  const setResultsPanel=useCallback(node=>{resultsPanel.current=node;live.ref(node);},[live.ref]);
   useEffect(() => {
     let active = true;
     const {category, state, ...search_filters} = filters;
+    setResult(null);
     setError("");
     call("workflow-list", {session_id:session, category, state, search_filters})
       .then(data => { if (active) setResult(data); })
       .catch(problem => { if (active) setError(problem.message); });
     return () => { active = false; };
-  }, [session, filters, call,revision]);
+  }, [session, filters, call]);
 
   function field(name) {
     return {value:draft[name], onChange:event => setDraft({...draft, [name]:event.target.value})};
@@ -49,11 +46,10 @@ export default function QueuePanel({session, call, editNextStep, resultsOnly=fal
       if(!runs.has(step.run_id))runs.set(step.run_id,[]);
       runs.get(step.run_id).push(step);
     }
-    return <section ref={setResultsPanel} className="panel session-results" aria-label="작업 결과">
+    return <section ref={resultsPanel} className="panel session-results" aria-label="작업 결과">
       {selectedRun ? <WorkflowResults key={selectedRun} session={session} run={selectedRun} call={call}
         openRun={setSelectedRun} editNextStep={editNextStep} close={()=>setSelectedRun("")}/> : <>
         <h2>작업 결과</h2>
-        <LiveRefreshControl live={live} label="작업 목록 자동 갱신"/>
         <button onClick={()=>setFilters({...filters})}>목록 갱신</button>
         {error && <p role="alert">{error}</p>}
         {!result && !error && <p role="status">조회 중…</p>}
@@ -66,8 +62,7 @@ export default function QueuePanel({session, call, editNextStep, resultsOnly=fal
       </>}
     </section>;
   }
-  return <section ref={live.ref} className="panel session-queue" aria-label="세션 대기열">
-    <LiveRefreshControl live={live} label="대기열 자동 갱신"/>
+  return <section className="panel session-queue" aria-label="세션 대기열">
     <form onSubmit={event => {event.preventDefault(); setSelectedRun(""); setFilters({...draft});}} style={{display:"block"}}>
       <label>카테고리 <select {...field("category")}><option value="">전체</option>
         {Object.entries(categories).map(([key,label]) => <option key={key} value={key}>{label}</option>)}
