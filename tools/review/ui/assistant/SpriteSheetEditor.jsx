@@ -12,6 +12,18 @@ function SpritePreview({rows,image,bounds,fps,original,onEdit}){
   const canvas=useRef(null);
   const [mode,setMode]=useState("크롭"),[target,setTarget]=useState("현재 프레임"),[selection,setSelection]=useState([]);
   const [notice,setNotice]=useState(""),[revision,refresh]=useState(0);
+  function togglePlayback(){
+    if(playing)setFrame((canvas.current?.spriteEditorState?.displayedIndex ?? frame-1)+1);
+    setPlaying(!playing);
+  }
+  function selectClip(id){
+    const animation=original.animation;
+    const selected=animation.clips.find(item=>item.clipId===id);
+    const first=animation.frames.findIndex(item=>item.frameId===selected?.frames?.[0]?.frameId);
+    setClip(id);setPlaying(false);
+    if(!id)setFrame(1);
+    else if(first>=0)setFrame(first+1);
+  }
   function apply(operation){
     const data=rows.map(row=>fields.map(field=>row[field]));
     const [updated,message]=applySpriteCanvas(data,target,selection,operation,canvas.current);
@@ -29,7 +41,7 @@ function SpritePreview({rows,image,bounds,fps,original,onEdit}){
   },[image,rows,frame,playing,shadow,bounds,fps,baseline,onion,clip,original,mode,revision]);
   return <fieldset><legend>프레임 재생 미리보기</legend>
     <canvas ref={canvas} width="640" height="640" aria-label="크롭과 앵커 미리보기" style={{width:"100%",maxWidth:640,touchAction:"none"}}/>
-    <button type="button" onClick={()=>setPlaying(!playing)}>{playing?"정지":"재생"}</button>
+    <button type="button" onClick={togglePlayback}>{playing?"정지":"재생"}</button>
     <fieldset disabled={playing}><legend>캔버스 편집</legend>
       <label>편집 도구<select value={mode} onChange={e=>setMode(e.target.value)}>
         <option>크롭</option><option>배치 앵커</option></select></label>
@@ -45,7 +57,7 @@ function SpritePreview({rows,image,bounds,fps,original,onEdit}){
     </fieldset>
     <label>정지 프레임 {frame}<input type="range" min="1" max={rows.length} disabled={playing} value={frame}
       onChange={e=>setFrame(Number(e.target.value))}/></label>
-    {original?.animation?.clips?.length>0 && <label>검수 동작<select value={clip} onChange={e=>setClip(e.target.value)}>
+    {original?.animation?.clips?.length>0 && <label>검수 동작<select value={clip} onChange={e=>selectClip(e.target.value)}>
       <option value="">전체 시트</option>{original.animation.clips.map(item=><option key={item.clipId} value={item.clipId}>{item.action} · {item.direction}</option>)}</select></label>}
     <label><input type="checkbox" checked={shadow} onChange={e=>setShadow(e.target.checked)}/>바닥 그림자</label>
     <label><input type="checkbox" checked={baseline} onChange={e=>setBaseline(e.target.checked)}/>앵커 기준선</label>
