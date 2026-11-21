@@ -1,3 +1,4 @@
+import HistoryCleanup from "./HistoryCleanup.jsx";
 import KimodoFrames from "./KimodoFrames.jsx";
 import WriterActions from "./WriterActions.jsx";
 import WriterResult from "./WriterResult.jsx";
@@ -6,8 +7,8 @@ import React, {useEffect, useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 
-export function HistoryPage({source, choose, session}) {
-  const [selectedJob,selectJob]=useState("");
+export function HistoryPage({source, choose, session, initialJob=""}) {
+  const [selectedJob,selectJob]=useState(initialJob);
   const [query,setQuery]=useState("");
   const [page,setPage]=useState(null);
   const [busy,setBusy]=useState(false);
@@ -27,6 +28,7 @@ export function HistoryPage({source, choose, session}) {
     } catch(problem) {setError(problem.message);setPage(null);}
     finally {setBusy(false);}
   }
+  function cleaned(message){setNotice(message);load(0);}
   return <fieldset disabled={busy}>
     {writer && <WriterActions onAccepted={id=>{selectJob(id);setNotice(id+" 작가 작업을 접수했습니다.");}}/>}
       {selectedJob && writer && <WriterResult key={selectedJob} id={selectedJob} onDeleted={id=>{setNotice(id+" 실행 기록을 휴지통으로 옮겼습니다.");load(0);}}/>}
@@ -50,7 +52,6 @@ export function HistoryPage({source, choose, session}) {
         ]),
       }}/>
 
-      {selectedJob && kimodo && <KimodoFrames key={selectedJob} id={selectedJob} choose={choose}/>}
       {selectedJob && mediaKind && <MediaJobResult kind={mediaKind} key={selectedJob} service={source.service} id={selectedJob}>
         {job=>job?.status==="completed" && job.result_status==="available" && job.file_observation!=="unavailable" &&
           <button onClick={()=>choose(source.service+" 생성 결과",selectedJob)}>이 결과를 대화 입력에 추가</button>}
@@ -59,6 +60,8 @@ export function HistoryPage({source, choose, session}) {
       {page.offset>0 && <button onClick={()=>load(Math.max(0,page.offset-10),page.snapshot)}>이전 이력</button>}
       {page.next_offset!=null && <button onClick={()=>load(page.next_offset,page.snapshot)}>다음 이력</button>}
     </>}
+    {kimodo && (selectedJob ? <KimodoFrames key={selectedJob} id={selectedJob} choose={choose} onDeleted={cleaned}/> :
+      <HistoryCleanup service="kimodo" onDeleted={cleaned}/>)}
   </fieldset>;
 }
 

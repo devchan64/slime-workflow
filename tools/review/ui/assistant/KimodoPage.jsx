@@ -7,7 +7,8 @@ import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import {HistoryPage} from "./SourceHistory.jsx";
 
 export default function KimodoPage(){
-  const session=new URLSearchParams(location.search).get("session") || "";
+  const params=new URLSearchParams(location.search);
+  const session=params.get("session") || "";
   const conversation="/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"");
   function choose(label,value){
     const key="hermes-draft-"+session;
@@ -21,6 +22,6 @@ export default function KimodoPage(){
     <KimodoGeneration session={session}/>
     <KimodoMultiviewReport/>
     <h2>생성 이력</h2>
-    <HistoryPage source={{service:"kimodo",command:"hermes-generator-source-history"}} session={session} choose={choose}/>
+    <HistoryPage initialJob={params.get("job") || ""} source={{service:"kimodo",command:"hermes-generator-source-history"}} session={session} choose={choose}/>
   </article></main>;
 }
