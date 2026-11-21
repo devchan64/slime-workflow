@@ -1,3 +1,4 @@
+import KimodoProposal from "./KimodoProposal.jsx";
 import BillboardCatalog from "./BillboardCatalog.jsx";
 import SpriteSheetEditor from "./SpriteSheetEditor.jsx";
 import KeyframeCatalog from "./KeyframeCatalog.jsx";
@@ -54,7 +55,7 @@ function messagesFrom(view) {
     const showAnswer = !table || (answer !== activity.source_history_summary && !activity.history_table_is_answer);
     return [{id:key+"-user",role:"user",content:m.text},
       {id:key+"-answer",role:"assistant",content:showAnswer ? answer : "",metadata:{custom:{
-        status:job.status?.status || "접수 확인 중",session:view.id,job:m.job_id,activity,table}}}];
+        status:job.status?.status || "접수 확인 중",session:view.id,job:m.job_id,kimodoProposal:job.status?.status==="completed" && !job.final_response_truncated && answer.includes("HERMES_KIMODO_PROPOSAL"),activity,table}}}];
   });
 }
 function jobLink(id,session){
@@ -62,11 +63,14 @@ function jobLink(id,session){
   if(session)params.set("session",session);
   return "/management/frame/hermes-agent/?"+params;
 }
+const AppendToDraft=React.createContext(null);
 function Message() {
+  const append=React.useContext(AppendToDraft);
   const message=useAuiState(s=>s.message);
   const meta=message.metadata?.custom || {};
   return <MessagePrimitive.Root className={"message "+message.role}>
     <b>{message.role==="user"?"나":"헤르메스"}</b><MessagePrimitive.Parts/>
+    {meta.kimodoProposal && meta.job && <KimodoProposal key={meta.job} job={meta.job} append={append}/>}
     {meta.table && <ResultTable table={meta.table}/>}
     {!meta.table && meta.activity?.source_history_summary && <pre>{meta.activity.source_history_summary}</pre>}
     {meta.activity?.events?.length>0 && <details><summary>도구 사용 내역</summary>{meta.activity.events.map((e,i)=><p key={i}>{e.name} · {e.target || e.result}</p>)}</details>}
@@ -271,7 +275,7 @@ function App() {
       {view.next_offset != null && <button onClick={()=>changeHistory({offset:view.next_offset,snapshot:view.snapshot})}>이전 메시지 보기</button>}
       {historyPage && <button onClick={()=>changeHistory(null)}>최신 대화로 돌아가기</button>}
     </nav>}
-    <Conversation key={session} view={view}/>{error&&<p role="alert">{error}</p>}
+    <AppendToDraft.Provider value={appendSelection}><Conversation key={session} view={view}/></AppendToDraft.Provider>{error&&<p role="alert">{error}</p>}
     <form onSubmit={e=>{e.preventDefault();send()}}>{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
     <textarea ref={text} aria-label="메시지" placeholder="헤르메스에게 메시지 보내기" value={draft} disabled={busy} onChange={e=>edit(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){e.preventDefault();send()}}}/>
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
