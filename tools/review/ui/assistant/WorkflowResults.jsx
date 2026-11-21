@@ -24,6 +24,7 @@ export default function WorkflowResults({session, run, call, close, openRun}) {
   const [view,setView] = useState(null);
   const [error,setError] = useState("");
   const [busy,setBusy] = useState(false);
+  const [confirmCancel,setConfirmCancel] = useState(false);
   const [revision,setRevision] = useState(0);
   useEffect(() => {
     let active = true;
@@ -57,13 +58,36 @@ export default function WorkflowResults({session, run, call, close, openRun}) {
     } catch (problem) {setError(problem.message);}
     finally {setBusy(false);}
   }
+  const activeSteps = view?.steps.filter(step =>
+    ["ready","waiting","awaiting_choice","submitting"].includes(step.state) && !step.cancel_delivery) || [];
+  async function cancelRun() {
+    setConfirmCancel(false);
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await call("workflow-cancel",{session_id:session,run_id:run});
+      if (updated.run_id !== run) throw new Error("실행 ID가 일치하지 않습니다.");
+      setView(updated);
+    } catch (problem) {setError(problem.message);}
+    finally {setBusy(false);}
+  }
   return <section aria-label="워크플로우 결과">
     <h3>워크플로우 결과</h3><code>{run}</code>
-    <button disabled={busy} onClick={()=>setRevision(value=>value+1)}>결과 갱신</button>
+    <button disabled={busy} onClick={()=>{setConfirmCancel(false);setRevision(value=>value+1);}}>결과 갱신</button>
     <button onClick={close}>결과 닫기</button>
     {error && <p role="alert">{error}</p>}
     {view && <>
+      {activeSteps.length>0 && (confirmCancel ?
+        <section aria-label="실행 취소 확인">
+          <p>실행 {run}의 대기 단계를 취소하고 접수 중인 단계에 중지를 요청합니다.</p>
+          <p>{activeSteps.map(step=>step.step_id).join(", ")}</p>
+          <button disabled={busy} onClick={cancelRun}>이 실행 취소 확정</button>
+          <button onClick={()=>setConfirmCancel(false)}>실행 유지</button>
+        </section> :
+        <button disabled={busy} onClick={()=>setConfirmCancel(true)}>워크플로우 취소 검토</button>)}
       {view.steps.map(step => <div key={step.step_id}>
+        <p>{step.step_id} · {step.state}{step.cancel_delivery && " · 중지 요청 " +
+          ({pending:"전달 대기",unconfirmed:"전달 확인 중",acknowledged:"전달됨"}[step.cancel_delivery] || step.cancel_delivery)}</p>
         {Object.entries(step.bindings || {}).map(([input,source])=><p key={input}>
           {source.from_step}.{source.output} → {step.step_id}.{input}</p>)}
         {["failed","cancelled"].includes(step.state) &&
