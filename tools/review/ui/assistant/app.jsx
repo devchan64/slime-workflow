@@ -182,6 +182,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/frame/sfx-dasheng-audiogen": SoundEffectPage,
   "/management/assistant/sound-effect": SoundEffectPage,
   "/management/assistant/dwpose": DwposePage,
   "/management/frame/dwpose-generator": DwposePage,

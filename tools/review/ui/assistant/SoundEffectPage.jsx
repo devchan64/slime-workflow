@@ -1,3 +1,4 @@
+import DownloadProgress from "./DownloadProgress.jsx";
 import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import HistoryCleanup from "./HistoryCleanup.jsx";
@@ -56,14 +57,19 @@ export default function SoundEffectPage(){
     if(!review || submitting.current)return;
     submitting.current=true;setBusy(true);
     try{
-      const result=await managementCommand(service,"generate",review.payload);
+      const result=await managementCommand(service,review.payload.action,review.payload);
       if(!result.id)throw new Error("작업 ID를 확인할 수 없습니다.");
-      setJob(result.id);setNotice("효과음을 공용 GPU 대기열에 등록했습니다.");
+      setJob(result.id);setNotice(review.payload.action==="prepare"?"모델 준비를 대기열에 등록했습니다.":"효과음을 공용 GPU 대기열에 등록했습니다.");
     }catch(error){setNotice(error.message+" · 생성 이력에서 접수 여부를 확인하세요.");}
     finally{submitting.current=false;setBusy(false);setReview(null);}
   }
   return <article><a href={"/management/assistant/"+(query.has("session")?"?"+new URLSearchParams({session:query.get("session")}):"")}>헤르메스 대화</a>
-    <h1>Dasheng 효과음 생성</h1><ModelReadiness service={service}/><GeneratorChangelog generator={service}/>
+    <h1>Dasheng 효과음 생성</h1>
+    <p>16kHz WAV · 길이 자동 예측 · <a href="https://huggingface.co/mispeech/Dasheng-AudioGen">Dasheng-AudioGen 모델과 Apache-2.0 라이선스</a></p>
+    <details><summary>모델 다운로드·준비</summary>
+      <DownloadProgress service={service}/>
+      <button disabled={busy || Boolean(review)} onClick={()=>setReview({payload:{action:"prepare"}})}>모델 준비 요청 검토</button>
+    </details><ModelReadiness service={service}/><GeneratorChangelog generator={service}/>
     <fieldset disabled={busy || Boolean(review) || !form}>
       <GeneratorHistory key={historyRevision} service={service} readJob={readJob} restore={input=>{
         setForm(input);setNotice("저장된 효과음 입력을 불러왔습니다.");
@@ -76,7 +82,7 @@ export default function SoundEffectPage(){
       <label>이력 태그 <input value={form.tag} onChange={e=>edit("tag",e.target.value)}/></label>
       <button>생성 요청 검토</button>
     </fieldset></form>}
-    {review && <section><h2>최종 모델 입력</h2><p>{review.prompt}</p><GpuQueueSummary/>
+    {review && <section><h2>{review.payload.action==="prepare"?"모델 다운로드·준비":"최종 모델 입력"}</h2>{review.prompt && <p>{review.prompt}</p>}<GpuQueueSummary/>
       <button disabled={busy} onClick={()=>setReview(null)}>입력 수정</button>
       <button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button></section>}
     {notice && <p role="status">{notice}</p>}
