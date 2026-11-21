@@ -589,6 +589,25 @@ def build_management_application(current_handler_class, current_root_path, curre
         from generators.kimodo.contracts import KIMODO_DEFAULT_SETTINGS
         return {key: KIMODO_DEFAULT_SETTINGS[key] for key in ("prompt", "frames", "steps", "seed")}
 
+    @current_root_application.get('/management/assistant/kimodo-generation-template')
+    def kimodo_generation_template():
+        from generators.kimodo.contracts import KIMODO_DEFAULT_SETTINGS, KIMODO_DIRECTION_RECORDS
+        inputs = {key: value for key, value in KIMODO_DEFAULT_SETTINGS.items() if key != "schema_version"}
+        return {"inputs": {**inputs, "camera_elevation_degrees": 0}, "directions": KIMODO_DIRECTION_RECORDS}
+
+    @current_root_application.post('/management/assistant/kimodo-generation-review')
+    def review_kimodo_generation(inputs: dict):
+        from fastapi import HTTPException
+        from generators.kimodo.contracts import validate_kimodo_request
+        if inputs.keys() != kimodo_generation_template()["inputs"].keys():
+            raise HTTPException(422, "생성 폼의 입력 항목을 확인하세요.")
+        request = {**inputs, "action": "generate"}
+        try:
+            validate_kimodo_request(request)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        return {"request": request}
+
     @current_root_application.get('/management/assistant/kimodo-prompt-examples')
     def kimodo_prompt_examples():
         from generators.kimodo.form_inputs import load_kimodo_examples

@@ -3,15 +3,16 @@ import KimodoPromptExamples from "./KimodoPromptExamples.jsx";
 import {managementCommand} from "./managementCommand.js";
 
 export default function KimodoGeneration({session}){
+  const [directions,setDirections]=useState({});
   const key="kimodo-generation-receipt-"+session;
   const [inputs,setInputs]=useState(null),[review,setReview]=useState(null),[busy,setBusy]=useState(false);
   const [receipt,setReceipt]=useState(()=>sessionStorage.getItem(key) || ""),[notice,setNotice]=useState("");
   useEffect(()=>{
     const controller=new AbortController();
-    fetch("/management/assistant/kimodo-defaults",{signal:controller.signal}).then(async response=>{
+    fetch("/management/assistant/kimodo-generation-template",{signal:controller.signal}).then(async response=>{
       if(!response.ok)throw new Error("생성 기본값을 조회할 수 없습니다.");
       const defaults=await response.json();
-      if(!controller.signal.aborted)setInputs(defaults);
+      if(!controller.signal.aborted){setInputs(defaults.inputs);setDirections(defaults.directions);}
     }).catch(error=>{if(!controller.signal.aborted)setNotice(error.message);});
     return ()=>controller.abort();
   },[]);
@@ -24,8 +25,8 @@ export default function KimodoGeneration({session}){
   }
   async function inspect(){
     setReview(null);
-    const response=await fetch("/management/assistant/kimodo-proposal-review",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({...inputs,frames:Number(inputs.frames),steps:Number(inputs.steps),seed:Number(inputs.seed)})});
+    const response=await fetch("/management/assistant/kimodo-generation-review",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({...inputs,frames:Number(inputs.frames),steps:Number(inputs.steps),seed:Number(inputs.seed),guidance_scale:Number(inputs.guidance_scale),openpose_scale_percent:Number(inputs.openpose_scale_percent)})});
     const result=await response.json();
     if(!response.ok)throw new Error(result.detail || "생성 입력을 확인하세요.");
     const model=await fetch("/management/assistant/model-readiness/kimodo",{cache:"no-store"});
@@ -46,6 +47,21 @@ export default function KimodoGeneration({session}){
       <KimodoPromptExamples apply={prompt=>edit("prompt",prompt)}/>
       {[["frames","프레임 수",30,300],["steps","생성 단계",2,100],["seed","시드",0,2147483647]].map(([field,label,min,max])=>
         <label key={field}>{label} <input type="number" required min={min} max={max} value={inputs[field]} onChange={e=>edit(field,e.target.value)}/></label>)}
+      <details><summary>모션 및 포즈 출력 설정</summary>
+        <fieldset><legend>카메라 방향</legend>{Object.entries(directions).map(([id,direction])=>
+          <label key={id}><input type="checkbox" checked={inputs.directions.includes(id)}
+            onChange={e=>edit("directions",e.target.checked?[...inputs.directions,id]:inputs.directions.filter(item=>item!==id))}/>
+            {direction.label} ({direction.angle}°)</label>)}</fieldset>
+        <label>카메라 고도 <select value={inputs.camera_elevation_degrees} onChange={e=>edit("camera_elevation_degrees",Number(e.target.value))}>
+          {[0,15,30].map(value=><option key={value} value={value}>{value}°</option>)}</select></label>
+        <label>텍스트 CFG <input type="number" required min="0" max="10" step="any" value={inputs.guidance_scale}
+          onChange={e=>edit("guidance_scale",e.target.value)}/></label>
+        <label>OpenPose 출력 크기 (%) <input type="number" required min="10" max="100" step="0.5" value={inputs.openpose_scale_percent}
+          onChange={e=>edit("openpose_scale_percent",e.target.value)}/></label>
+        {[["post_processing","공식 후처리"],["remove_horizontal_motion","수평 이동 제거"],["pose_include_hands","손 포즈 포함"],
+          ["pose_include_face","얼굴 포즈 포함"]].map(([field,label])=>
+          <label key={field}><input type="checkbox" checked={inputs[field]} onChange={e=>edit(field,e.target.checked)}/>{label}</label>)}
+      </details>
       <button>생성 요청 검토</button>
     </fieldset></form>}
     {review && <section><pre>{JSON.stringify(review,null,2)}</pre>
