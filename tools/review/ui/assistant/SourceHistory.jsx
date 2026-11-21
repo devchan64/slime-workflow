@@ -39,9 +39,10 @@ function HistoryPage({source, choose, session}) {
         rows:page.records.map(record=>[
           <button title="작업을 대화 입력에 추가" onClick={()=>choose(source.service+" 작업",record.id)}>{record.id}</button>,
           record.recorded_status,
-          ...(source.result_path ? [
-            <a href={source.result_path+"?"+new URLSearchParams({job:record.id,...(session?{session}:{})})}>작업 열기</a>,
-          ] : mediaKind || writer ? [<button onClick={()=>selectJob(record.id)}>결과 보기</button>] : []),
+          ...(source.result_path || mediaKind || writer ? [<>
+            {(mediaKind || writer) && <button onClick={()=>selectJob(record.id)}>결과 보기</button>}
+            {source.result_path && <a href={source.result_path+"?"+new URLSearchParams({job:record.id,...(session?{session}:{})})}>작업 열기</a>}
+          </>] : []),
         ]),
       }}/>
 
