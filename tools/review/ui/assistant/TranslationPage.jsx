@@ -1,3 +1,4 @@
+import HistoryCleanup from "./HistoryCleanup.jsx";
 import {JobPriority} from "./QueuePriority.jsx";
 import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
@@ -17,6 +18,7 @@ export default function TranslationPage() {
   const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[notice,setNotice]=useState("");
   const [job,setJob]=useState(query.get("job") || ""),[record,setRecord]=useState(null);
   const [revision,setRevision]=useState(0),[gpu,setGpu]=useState("");
+  const [historyRevision,setHistoryRevision]=useState(0);
   const sending=useRef(false);
   useEffect(()=>{document.title="프롬프트 번역";},[]);
   useEffect(()=>{
@@ -78,9 +80,11 @@ export default function TranslationPage() {
       <label>확인할 용어 <textarea placeholder="원문 => 번역어" value={terms} onChange={e=>setTerms(e.target.value)}/></label>
       <p>원문 {text.trim().split(/\s+/).filter(Boolean).length}단어 · 최종 입력 {text.trim().split(/\s+/).filter(Boolean).length}단어</p>
       <TranslationEvidence key={text} source={text} call={callHermes}/>
-      <GeneratorHistory service={service} statusCommand="translation-status" restore={restore} inspectResult={item=>{setJob(item.id);setRecord(item);}}/>
+      <GeneratorHistory key={historyRevision} service={service} statusCommand="translation-status" restore={restore} inspectResult={item=>{setJob(item.id);setRecord(item);}}/>
       <button disabled={!text.trim()} onClick={review}>번역 대기열에 추가</button>
     </fieldset>
+    <HistoryCleanup key={job+"/"+(record?.status?.status || "")} service={service} job={job} state={record?.status?.status}
+      onDeleted={message=>{setJob("");setRecord(null);setNotice(message);setHistoryRevision(v=>v+1);}}/>
     {pending && <section><p>{gpu}</p><p>{pending.text} · {pending.target_language}</p>
       <button disabled={busy} onClick={()=>setPending(null)}>추가하지 않기</button><button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button>
     </section>}
