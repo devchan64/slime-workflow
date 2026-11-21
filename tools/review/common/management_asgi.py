@@ -33,7 +33,6 @@ MANAGEMENT_INTERFACE_BUILDERS = {
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
 GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator', 'writer-agent': 'writer_agent'}
 GENERATOR_PAGE_PACKAGES['flux-expression-generator'] = 'flux-expression'
-GENERATOR_PAGE_PACKAGES['flux-seamless-generator'] = 'flux-seamless'
 def __getattr__(name):
     """이전 Qwen 옵션 조회자가 접근할 때만 해당 화면 모듈을 읽는다."""
     if name != 'QWEN_INTERFACE_OPTIONS':
@@ -369,7 +368,7 @@ def build_management_application(current_handler_class, current_root_path, curre
 
     def require_flux_page(service):
         from fastapi import HTTPException
-        if service not in ('flux-image', 'flux-prop', 'flux-vegetation', 'flux-billboard', 'flux-mannequin', 'flux-building', 'flux-character'):
+        if service not in ('flux-image', 'flux-prop', 'flux-vegetation', 'flux-billboard', 'flux-mannequin', 'flux-building', 'flux-character', 'flux-seamless'):
             raise HTTPException(404, '등록되지 않은 생성기 화면입니다.')
 
     @current_root_application.get('/management/assistant/flux-defaults/{service}')
@@ -377,7 +376,7 @@ def build_management_application(current_handler_class, current_root_path, curre
         from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
         require_flux_page(service)
         label, description, width, height, minimum = FLUX_IMAGE_PROFILE_RECORDS[service]
-        prompt = ''
+        prompt = 'Top-down repeatable ground texture with even lighting. Material: ' if service == 'flux-seamless' else ''
         if service in ('flux-prop', 'flux-vegetation'):
             source = service.removeprefix('flux-') + '-qwen-prompt.txt'
             prompt = (Path(__file__).resolve().parents[3] / 'generators/image/config' / source).read_text().strip().replace('transparent background', 'plain background')
@@ -447,6 +446,28 @@ def build_management_application(current_handler_class, current_root_path, curre
                 return {'prompt': prompt, 'image': base64.b64encode(output.getvalue()).decode('ascii')}
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
+
+    @current_root_application.get('/management/assistant/flux-seamless-comparison/{job}')
+    def flux_seamless_comparison(job: str):
+        from fastapi import HTTPException
+        from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+        from tools.review.domains.image.flux_image_generation import FluxImageGenerationManager
+        if not validate_service_job_identifier('flux-seamless', job):
+            raise HTTPException(404, '생성 ID를 확인하세요.')
+        directory = FluxImageGenerationManager('flux-seamless').job_storage_root / job
+        metadata = directory / 'request.json'
+        if directory.is_symlink() or metadata.is_symlink() or not metadata.is_file():
+            raise HTTPException(404, '저장된 요청을 찾을 수 없습니다.')
+        method = json.loads(metadata.read_text()).get('seamless_method', 'edge-blend')
+        files = [('3×3 반복 검수', 'tiled-preview.png')]
+        if method in ('edge-blend', 'circular-vae'):
+            files.insert(0, ('일반 VAE 생성 원본', 'raw-result.png'))
+        if method == 'circular-vae':
+            files.append(('동일 잠재값 · 경계 보간 3×3', 'blend-preview.png'))
+        return {'method': method, 'images': [
+            {'label': label, 'url': f'/flux-seamless-generator/jobs/{job}/{name}'}
+            for label, name in files if (directory / name).is_file() and not (directory / name).is_symlink()
+        ]}
 
     @current_root_application.get('/management/assistant/flux-image-input/{job}')
     def flux_image_saved_input(job: str, service: str = "flux-image"):
@@ -626,6 +647,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen/')
     @current_root_application.get('/management/frame/music-heartmula')
     @current_root_application.get('/management/frame/music-heartmula/')
+    @current_root_application.get('/management/frame/flux-seamless-generator')
+    @current_root_application.get('/management/frame/flux-seamless-generator/')
     @current_root_application.get('/management/frame/flux-character-generator')
     @current_root_application.get('/management/frame/flux-character-generator/')
     @current_root_application.get('/management/frame/flux-building-generator')

@@ -183,6 +183,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/frame/flux-seamless-generator": FluxImagePage,
   "/management/frame/flux-character-generator": FluxImagePage,
   "/management/frame/flux-building-generator": FluxImagePage,
   "/management/frame/flux-mannequin-generator": FluxImagePage,

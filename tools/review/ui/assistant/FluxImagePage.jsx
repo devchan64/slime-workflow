@@ -21,6 +21,7 @@ function pngFile(encoded,name){
 export default function FluxImagePage(){
   const service=location.pathname.match(/\/management\/frame\/(flux-[a-z]+)-generator/)?.[1] || "flux-image";
   const [profile,setProfile]=useState(null),[attempt,setAttempt]=useState(0);
+  const seamless=service==="flux-seamless";
   const query=new URLSearchParams(location.search);
   const [form,setForm]=useState({prompt:"",translation_source_ko:"",width:768,height:768,steps:16,seed:10107,tag:""});
   const [files,setFiles]=useState([]),[review,setReview]=useState(null);
@@ -56,8 +57,8 @@ export default function FluxImagePage(){
     return {id:record.id,request:record.request,files};
   }
   function restore(input,record){
-    setForm(input);setFiles(record.files);fileInput.current.value="";
-    setJob(record.id);setNotice("선택한 이력의 입력과 참조 이미지를 불러왔습니다.");
+    setForm(seamless?{...input,width:512,height:512}:input);setFiles(seamless?[]:record.files);if(fileInput.current)fileInput.current.value="";
+    setJob(record.id);setNotice(seamless?"프롬프트와 시드를 복원했습니다. 새 타일은 512×512 무참조로 생성합니다.":"선택한 이력의 입력과 참조 이미지를 불러왔습니다.");
   }
   function edit(key,value){setForm(current=>({...current,[key]:value}));}
   const terms=guideQuery.toLowerCase().trim().split(/\s+/);
@@ -149,9 +150,9 @@ export default function FluxImagePage(){
       </>}
       <label>{service==="flux-building"?"건물 디자인 (한국어)":"프롬프트"} <textarea value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/></label>
       {service!=="flux-building" && <label>번역할 한국어 설명 <textarea value={form.translation_source_ko} onChange={e=>edit("translation_source_ko",e.target.value)}/></label>}
-      <label>참조 PNG (최대 2장) <input ref={fileInput} type="file" multiple accept="image/png" onChange={e=>setFiles(Array.from(e.target.files))}/></label>
+      {!seamless && <label>참조 PNG (최대 2장) <input ref={fileInput} type="file" multiple accept="image/png" onChange={e=>setFiles(Array.from(e.target.files))}/></label>}
       {files.map((file,index)=><p key={index}>참조 {index+1} · {file.name}</p>)}
-      {[["width","너비"],["height","높이"]].map(([key,label])=><label key={key}>{label} <input type="number" required min="256" max={service==="flux-character"?2048:1664} step="16" value={form[key]} onChange={e=>edit(key,e.target.value)}/></label>)}
+      {[["width","너비"],["height","높이"]].map(([key,label])=><label key={key}>{label} <input type="number" readOnly={seamless} required min="256" max={service==="flux-character"?2048:1664} step="16" value={form[key]} onChange={e=>edit(key,e.target.value)}/></label>)}
       {service==="flux-character" && <label>생성 스텝 <input type="number" required min="1" max="50" value={form.steps} onChange={e=>edit("steps",e.target.value)}/></label>}
       <label>시드 <input type="number" required min="0" max="4294967295" value={form.seed} onChange={e=>edit("seed",e.target.value)}/></label>
       <button type="button" onClick={()=>edit("seed",crypto.getRandomValues(new Uint32Array(1))[0])}>랜덤 시드</button>

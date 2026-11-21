@@ -8,6 +8,26 @@ const statusCommands={
   image:"hermes-image-source-status",
 };
 
+function SeamlessComparison({id}){
+  const [result,setResult]=useState(null),[error,setError]=useState("");
+  useEffect(()=>{
+    const controller=new AbortController();
+    async function load(){
+      try{
+        const response=await fetch("/management/assistant/flux-seamless-comparison/"+encodeURIComponent(id),{signal:controller.signal});
+        if(!response.ok)throw new Error("타일 비교 결과를 불러올 수 없습니다.");
+        setResult(await response.json());
+      }catch(problem){if(!controller.signal.aborted)setError(problem.message);}
+    }
+    load();return ()=>controller.abort();
+  },[id]);
+  if(error)return <p role="alert">{error}</p>;
+  return result && <section><p>타일 생성 방식 · {result.method}</p>
+    {result.images.map(item=><figure key={item.url}><figcaption>{item.label}</figcaption><img loading="lazy" src={item.url} alt={item.label} style={{maxWidth:"100%"}}/></figure>)}
+    {!result.images.length && <p>저장된 비교 이미지가 없습니다.</p>}
+  </section>;
+}
+
 export default function MediaJobResult({service,id,kind="video",children}) {
   const [job,setJob]=useState(null);
   const [error,setError]=useState("");
@@ -40,6 +60,7 @@ export default function MediaJobResult({service,id,kind="video",children}) {
       </div>}
       {["flux","image"].includes(kind) && job.result_status==="available" && <section>
         <img src={job.image} alt={service+" 생성 결과"} style={{maxWidth:"100%"}}/>
+        {service==="flux-seamless" && <SeamlessComparison key={id+":"+revision} id={id}/>}
         <a href={job.image} download>결과 PNG 다운로드</a>
       </section>}
       {kind==="video" && job.result_status==="available" && <>
