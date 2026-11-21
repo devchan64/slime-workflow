@@ -352,5 +352,28 @@ def build_management_application(current_handler_class, current_root_path, curre
         current_response_value = await asyncio.to_thread(execute_legacy_request, current_handler_class, current_root_path, current_request_scope, bytes(current_request_body))
         await current_response_value(current_request_scope, current_receive_call, current_send_call)
 
+    @current_root_application.get('/management/assistant/tools')
+    def assistant_tools():
+        from tools.review.ui.gradio.management_menu_app import load_manager_page_records
+        return [
+            {key: record[key] for key in ('id', 'label', 'category', 'description')}
+            for record in load_manager_page_records(current_source_path)
+            if record['id'] != 'hermes-agent'
+        ]
+
+    from starlette.responses import FileResponse
+    assistant_root = Path(__file__).resolve().parents[1] / 'ui' / 'assistant'
+
+    @current_root_application.get('/management/assistant/')
+    def assistant_page():
+        return FileResponse(assistant_root / 'index.html', headers={'Cache-Control': 'no-cache'})
+
+    @current_root_application.get('/management/assistant/{asset}')
+    def assistant_asset(asset: str):
+        files = {'app.js': 'dist/app.js', 'app.js.LEGAL.txt': 'dist/app.js.LEGAL.txt', 'style.css': 'style.css'}
+        if asset not in files:
+            return Response(status_code=404)
+        return FileResponse(assistant_root / files[asset], headers={'Cache-Control': 'no-cache'})
+
     current_root_application.mount('/', dispatch_management_request)
     return current_root_application
