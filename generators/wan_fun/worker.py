@@ -248,4 +248,5 @@ def validate_current_fun_job_assets():
 
 
 if __name__ == '__main__':
-    run_reference_video_worker(FUN_JOB_STORAGE, Path(__file__), validate_current_fun_job_assets, execute_fun_inference)
+    from generators.wan_fun.progress_otel import FunProgressRecorder
+    run_reference_video_worker(FUN_JOB_STORAGE, Path(__file__), validate_current_fun_job_assets, execute_fun_inference, recorder_class=FunProgressRecorder)

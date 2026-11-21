@@ -2,6 +2,7 @@
 import json
 import os
 import re
+from datetime import datetime, timezone
 from workflow.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
 from workflow.common.management_gateway import execute_management_command
 from workflow.domains.hermes_agent.delegation_store import HermesDelegationStore
@@ -93,6 +94,39 @@ def make_hermes_video_source_manager(current_service_name):
     return make_hermes_video_manager(current_service_name)
 
 
+def read_fun_progress_event(job_root, job_id, status_record):
+    """현재 시도의 OTel 관측만 읽는다. 오래된 시도나 손상된 기록은 표시하지 않는다."""
+    from workflow.domains.hermes_agent.delegation_store import read_bounded_delegation_record
+    try:
+        if status_record.get('status') not in ('running', 'completed', 'failed', 'cancelled', 'canceled'):
+            return None
+        pointer = read_bounded_delegation_record(job_root / 'current-attempt.json')
+        attempt = pointer['id']
+        if not isinstance(attempt, str) or not re.fullmatch(r'[a-f0-9]{32}', attempt):
+            return None
+        attempts = job_root / 'attempts'
+        root = attempts / attempt
+        if attempts.is_symlink() or root.is_symlink() or not root.is_dir() or root.resolve().parent != attempts.resolve():
+            return None
+        event = read_bounded_delegation_record(root / 'otel-progress.json')
+        if not isinstance(event, dict) or event.get('generation.job.id') != job_id or event.get('generation.attempt.id') != attempt or event.get('event.name') != 'generation.progress':
+            return None
+        if status_record.get('status') == 'running':
+            started = datetime.fromisoformat(event['generation.started_at'])
+            if started.tzinfo is None or started.timestamp() < (job_root / 'status.json').stat().st_mtime:
+                return None
+        elif status_record.get('attempt') != attempt:
+            return None
+        step, total = event.get('generation.step'), event.get('generation.step.total')
+        if type(step) is not int or type(total) is not int or not 0 <= step <= total or total <= 0:
+            return None
+        if not isinstance(event.get('generation.stage'), str) or not isinstance(event.get('generation.updated_at'), str):
+            return None
+        return event
+    except (OSError, ValueError, KeyError, TypeError, OverflowError):
+        return None
+
+
 def read_hermes_video_source_job(current_service_name,current_job_identifier):
     """원본 상태·결과 파일만 관측하며 중단 작업 복구를 실행하지 않는다."""
     from pathlib import Path
@@ -128,7 +162,11 @@ def read_hermes_video_source_job(current_service_name,current_job_identifier):
     if read_bounded_delegation_record(current_status_path)!=current_status_record:raise ValueError('영상 상태가 조회 중 변경되었습니다.')
     if all(current_result_paths.values()) and read_bounded_delegation_record(current_job_root/'result.json')!=current_result_record:raise ValueError('영상 결과가 조회 중 변경되었습니다.')
     current_result_status=('available' if all(current_result_paths.values()) else 'unavailable') if current_status_value=='completed' else 'not_ready'
-    return {'status':current_status_value,**current_result_paths,'result_status':current_result_status,'note':'기록만 조회하며 중단 상태 복구는 하지 않습니다. 파일 존재는 조회 시점 기준이며 내용·재생과 프로세스 생존은 별도 확인하세요.',**observe_hermes_generator_failure(current_status_value,current_status_record.get('error'))}
+    current_output = {'status':current_status_value,**current_result_paths,'result_status':current_result_status,'note':'기록만 조회하며 중단 상태 복구는 하지 않습니다. 파일 존재는 조회 시점 기준이며 내용·재생과 프로세스 생존은 별도 확인하세요.',**observe_hermes_generator_failure(current_status_value,current_status_record.get('error'))}
+    if current_service_name == 'wan22-fun-control':
+        current_output['progress_event'] = read_fun_progress_event(current_job_root,current_job_identifier,current_status_record)
+        current_output['queried_at'] = datetime.now(timezone.utc).isoformat()
+    return current_output
 
 
 def validate_hermes_video_source_response(current_service_name,current_job_identifier,current_response_value):

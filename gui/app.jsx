@@ -79,8 +79,8 @@ function Message() {
   const path=paths[meta.activity?.source_history_page?.service];
   const table=meta.table && path ? {...meta.table,rows:meta.table.rows.map(([job,...cells])=>[
     <a href={path+"?"+new URLSearchParams({job,session:meta.session})}>{job}</a>,...cells])} : meta.table;
-  return <MessagePrimitive.Root className={"message "+message.role}>
-    <b>{message.role==="user"?"나":"헤르메스"}</b><MessagePrimitive.Parts/>
+  return <MessagePrimitive.Root className={"message "+message.role+(meta.formId?" message-form":"")}>
+    <b>{meta.formId?"생성 폼":message.role==="user"?"나":"헤르메스"}</b><MessagePrimitive.Parts/>
     {meta.formId && <ConversationVideoForm session={meta.session} formId={meta.formId} open={actions.openVideoForm} reuse={actions.openJobForm}/>}
     {meta.seedProposal && <section aria-label="시드 변경 생성 제안">{meta.seedProposal.reason ? <p>{meta.seedProposal.reason}</p> : <><p>원본 {meta.seedProposal.job_id}의 입력을 불러와 {meta.seedProposal.seed == null ? "다른 시드" : "시드 "+meta.seedProposal.seed}로 검토합니다. 생성은 확인 후 접수됩니다.</p><button type="button" onClick={()=>actions.openSeedForm(meta.seedProposal)}>생성 폼 검토</button></>}</section>}
     {meta.kimodoProposal && meta.job && <KimodoProposal key={meta.job} job={meta.job} append={actions.append} openStep={actions.openStep}/>}
@@ -127,6 +127,15 @@ function readPendingSubmission(raw,session){
   }catch{}
   return null;
 }
+function SidePanel({title,subtitle,onClose,onKeyDown,children}) {
+  const body=useRef(null);
+  useEffect(()=>{if(body.current)body.current.scrollTop=0;},[title]);
+  return <section className="fun-drawer" aria-label={title} onKeyDown={onKeyDown}>
+    <header className="fun-drawer-header"><div><strong>{title}</strong><small>{subtitle}</small></div>
+      <button type="button" aria-label={title+" 닫기"} onClick={onClose}>닫기</button></header>
+    <div className="fun-drawer-body" ref={body}>{children}</div>
+  </section>;
+}
 function App() {
   const [showFunControl,setShowFunControl]=useState(false);
   const [videoFormId,setVideoFormId]=useState("");
@@ -147,8 +156,8 @@ function App() {
   const [queue,setQueue]=useState(null),[refresh,setRefresh]=useState(0);
   const [historyPage,setHistoryPage]=useState(null);
   const sending=useRef(false),text=useRef(null);
-  const toolToggle=useRef(null),toolSearch=useRef(null);
-  useEffect(()=>{if(showTools)toolSearch.current?.focus();},[showTools]);
+  const toolToggle=useRef(null),toolSearch=useRef(null),funToggle=useRef(null);
+  useEffect(()=>{if(showTools)toolSearch.current?.focus({preventScroll:true});},[showTools]);
   function closeTools(focusTarget=toolToggle) {
     const url=new URL(location.href);
     if(url.searchParams.get("panel")==="jobs")url.searchParams.delete("job");
@@ -164,6 +173,7 @@ function App() {
       event.preventDefault();closeTools();
     }
   }
+  function closeFun(){setShowFunControl(false);funToggle.current?.focus();}
   function select(next) {
     const url=new URL(location.href);
     if(next!==session){setShowFunControl(false);setSeedProposal(null);setVideoFormId("");}
@@ -296,7 +306,7 @@ function App() {
     setSidebarWidth(Math.max(200,Math.min(600,Math.floor(window.innerWidth*0.48),Math.round(width))));
   }
   useEffect(()=>{localStorage.setItem("hermes-session-width",String(sidebarWidth));},[sidebarWidth]);
-  return <main className={"hermes-chat"+(folded?" sessions-folded":"")+(showFunControl?" fun-panel-open":"")} style={{"--sessions-width":sidebarWidth+"px"}}>
+  return <main className={"hermes-chat"+(folded?" sessions-folded":"")+(showFunControl || showTools?" fun-panel-open":"")} style={{"--sessions-width":sidebarWidth+"px"}}>
     <aside id="hermes-session-list" hidden={folded}><h2>대화 세션</h2><button disabled={busy} onClick={()=>{select("");setArchived(false);resetSessionList();}}>새 대화</button><button disabled={busy} onClick={()=>{resetSessionList();setArchived(!archived);}}>{archived?"대화 목록":"보관함"}</button>
     <form onSubmit={e=>{e.preventDefault();setListRequest({offset:0,query:sessionQuery.trim()});}}>
       <label>세션 검색 <input maxLength={100} placeholder="제목·메시지·세션 ID" value={sessionQuery} onChange={e=>setSessionQuery(e.target.value)}/></label>
@@ -327,8 +337,29 @@ function App() {
     {session&&<button aria-expanded={showForms} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowForms(!showForms);}}>입력 폼</button>}
     {session&&<button aria-expanded={Boolean(queue && !queue.results)} onClick={()=>{setShowForms(false);setQueue(queue && !queue.results ? null : {run:""});}}>대기열</button>}</div></details></header>
     {showGpu && <GpuPanel/>}
-    {showTools && <section className="floating-panel" aria-label="도구 탐색" onKeyDown={handleToolKeys}>
-      <div className="tool-panel-heading"><strong>도구 탐색</strong><button type="button" aria-label="도구 탐색 닫기" onClick={()=>closeTools()}>닫기</button></div>
+    {session && <div className="form-sheet" hidden={!showForms}><div className="tool-panel-heading"><strong>입력 폼 편집</strong><button onClick={()=>{setShowForms(false);text.current?.focus();}}>닫기</button></div>{<FormLibrary key={session} proposalStep={proposalStep?.session===session ? proposalStep : null} session={session} messages={view.messages || []} call={call} openRun={run=>{setShowForms(false);setQueue({run});}} addToMessage={value=>{edit([draft,value].filter(Boolean).join("\n"));setShowForms(false);text.current?.focus();}}/>}</div>}
+    {queue && session && <QueuePanel key={session+queue.run+Boolean(queue.results)} resultsOnly={queue.results} session={session} initialRun={queue.run} call={call} editNextStep={openStep}/>}
+    {(view.next_offset != null || historyPage) && <nav aria-label="대화 이력 페이지">
+      {view.next_offset != null && <button onClick={()=>changeHistory({offset:view.next_offset,snapshot:view.snapshot})}>이전 메시지 보기</button>}
+      {historyPage && <button onClick={()=>changeHistory(null)}>최신 대화로 돌아가기</button>}
+    </nav>}
+    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openStep({generator:"kimodo",inputs}),openVideoForm:formId=>{if(showTools)closeTools();setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view}/></ProposalActions.Provider>{error&&<p role="alert">{error}</p>}
+    <form onSubmit={e=>{e.preventDefault();send()}}>{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
+    {session && <button type="button" aria-expanded={Boolean(queue?.results)} onClick={()=>{setShowForms(false);setQueue(queue?.results ? null : {run:"",results:true});}}>작업 결과</button>}
+    {session && <button type="button" ref={funToggle} aria-expanded={showFunControl && !showTools} onClick={()=>{if(showTools){closeTools();if(!showFunControl){setSeedProposal(null);setVideoFormId("");setShowFunControl(true);}}else{setSeedProposal(null);setVideoFormId("");setShowFunControl(value=>!value);}}}>Wan Fun Control 생성 폼</button>}
+    <button type="button" ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowForms(false);setShowGpu(false);if(showTools)closeTools();else setShowTools(true)}}>도구 탐색</button>
+    <textarea ref={text} aria-label="메시지" placeholder="헤르메스에게 메시지 보내기" value={draft} disabled={busy} onChange={e=>edit(e.target.value)} title="Enter로 보내기 · Shift+Enter로 줄바꿈" onKeyDown={event=>{
+      if(event.key!=="Enter" || event.shiftKey || event.altKey || event.nativeEvent.isComposing || event.nativeEvent.keyCode===229)return;
+      event.preventDefault();
+      if(!event.repeat)event.currentTarget.form.querySelector('button[type="submit"]').click();
+    }}/>
+    {invalidPending && <div role="alert">이 탭의 접수 기록을 읽을 수 없습니다. 대화 이력에서 이전 요청의 접수 여부를 확인하세요.
+      <button type="button" onClick={()=>{sessionStorage.removeItem(pendingKey);setRefresh(n=>n+1);}}>탭의 손상된 접수 기록 지우기</button></div>}
+    {pending && pending.prompt!==draft && <details><summary>접수 확인이 필요한 이전 요청</summary>
+      <pre>{pending.prompt}</pre><button type="button" disabled={busy} onClick={()=>send(true)}>이전 요청 접수 다시 확인</button></details>}
+    <button type="submit" disabled={busy||invalidPending||!draft.trim()||Boolean(pending && pending.prompt!==draft)}>{busy?"접수 중":pending && pending.prompt===draft?"같은 요청 다시 보내기":"보내기"}</button></form></article>
+    {(showFunControl || showTools) && <SidePanel title={showTools?"도구 탐색":"Wan Fun Control"} subtitle={showTools?"도구와 관리 기능 찾기":"생성 입력 검토"} onClose={showTools?()=>closeTools():closeFun} onKeyDown={showTools?handleToolKeys:event=>{if(event.key==="Escape" && !event.nativeEvent.isComposing){event.preventDefault();closeFun();}}}>
+    {showTools && <div className="tool-drawer-content">
       <label className="search-scope">탐색 대상 <select value={searchMode} onChange={e=>setSearchMode(e.target.value)}>
         {Object.entries({tools:"도구",capabilities:"관리 기능 검색",anchors:"앵커 검수 이력",expressions:"표정 프리셋",billboards:"빌보드 에셋",keyframes:"Kimodo 키프레임",content:"콘텐츠 DB 상태",services:"서비스 등록 목록",history:"생성 이력",jobs:"운영 작업 이력"}).map(([key,label])=><option key={key} value={key}>{label}</option>)}
       </select></label>
@@ -361,29 +392,9 @@ function App() {
           </Command.Group>)}
         </Command.List>
       </Command>}
-    </section>}
-    {session && <div className="form-sheet" hidden={!showForms}><div className="tool-panel-heading"><strong>입력 폼 편집</strong><button onClick={()=>{setShowForms(false);text.current?.focus();}}>닫기</button></div>{<FormLibrary key={session} proposalStep={proposalStep?.session===session ? proposalStep : null} session={session} messages={view.messages || []} call={call} openRun={run=>{setShowForms(false);setQueue({run});}} addToMessage={value=>{edit([draft,value].filter(Boolean).join("\n"));setShowForms(false);text.current?.focus();}}/>}</div>}
-    {queue && session && <QueuePanel key={session+queue.run+Boolean(queue.results)} resultsOnly={queue.results} session={session} initialRun={queue.run} call={call} editNextStep={openStep}/>}
-    {(view.next_offset != null || historyPage) && <nav aria-label="대화 이력 페이지">
-      {view.next_offset != null && <button onClick={()=>changeHistory({offset:view.next_offset,snapshot:view.snapshot})}>이전 메시지 보기</button>}
-      {historyPage && <button onClick={()=>changeHistory(null)}>최신 대화로 돌아가기</button>}
-    </nav>}
-    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openStep({generator:"kimodo",inputs}),openVideoForm:formId=>{setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view}/></ProposalActions.Provider>{error&&<p role="alert">{error}</p>}
-    <form onSubmit={e=>{e.preventDefault();send()}}>{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
-    {session && <button type="button" aria-expanded={Boolean(queue?.results)} onClick={()=>{setShowForms(false);setQueue(queue?.results ? null : {run:"",results:true});}}>작업 결과</button>}
-    {session && <button type="button" aria-expanded={showFunControl} onClick={()=>{setSeedProposal(null);setVideoFormId("");setShowFunControl(value=>!value);}}>Wan Fun Control 생성 폼</button>}
-    <button type="button" ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowForms(false);setShowGpu(false);if(showTools)closeTools();else setShowTools(true)}}>도구 탐색</button>
-    <textarea ref={text} aria-label="메시지" placeholder="헤르메스에게 메시지 보내기" value={draft} disabled={busy} onChange={e=>edit(e.target.value)} title="Enter로 보내기 · Shift+Enter로 줄바꿈" onKeyDown={event=>{
-      if(event.key!=="Enter" || event.shiftKey || event.altKey || event.nativeEvent.isComposing || event.nativeEvent.keyCode===229)return;
-      event.preventDefault();
-      if(!event.repeat)event.currentTarget.form.querySelector('button[type="submit"]').click();
-    }}/>
-    {invalidPending && <div role="alert">이 탭의 접수 기록을 읽을 수 없습니다. 대화 이력에서 이전 요청의 접수 여부를 확인하세요.
-      <button type="button" onClick={()=>{sessionStorage.removeItem(pendingKey);setRefresh(n=>n+1);}}>탭의 손상된 접수 기록 지우기</button></div>}
-    {pending && pending.prompt!==draft && <details><summary>접수 확인이 필요한 이전 요청</summary>
-      <pre>{pending.prompt}</pre><button type="button" disabled={busy} onClick={()=>send(true)}>이전 요청 접수 다시 확인</button></details>}
-    <button type="submit" disabled={busy||invalidPending||!draft.trim()||Boolean(pending && pending.prompt!==draft)}>{busy?"접수 중":pending && pending.prompt===draft?"같은 요청 다시 보내기":"보내기"}</button></form></article>
-    {showFunControl && <section className="fun-drawer" aria-label="Wan Fun Control 대화 입력"><header className="fun-drawer-header"><div><strong>Wan Fun Control</strong><small>생성 입력 검토</small></div><button type="button" onClick={()=>setShowFunControl(false)}>닫기</button></header><div className="fun-drawer-body"><FunControlPage key={session+videoFormId+videoFormRevision} embedded session={session} restoreFormId={videoFormId} seedProposal={seedProposal} onSaved={()=>setRefresh(n=>n+1)}/></div></section>}
+    </div>}
+      {showFunControl && <div hidden={showTools}><FunControlPage key={session+videoFormId+videoFormRevision} embedded session={session} restoreFormId={videoFormId} seedProposal={seedProposal} onSaved={()=>setRefresh(n=>n+1)}/></div>}
+    </SidePanel>}
     </main>
 }
 const pages = {

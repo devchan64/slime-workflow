@@ -1,5 +1,6 @@
 import React, {useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
+import GenerationProgress from "./GenerationProgress.jsx";
 
 const statusCommands={
   audio:"hermes-audio-source-status",
@@ -53,15 +54,16 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
     }catch(problem){setFolderNotice(problem.message);}
   }
   useEffect(()=>{
-    let active=true,timer;
+    let active=true,timer,lastActive=false;
     async function read() {
       try {
         const response=await managementCommand("hermes-agent",statusCommands[kind],{service,job_id:id});
         if(!active)return;
         if(response.service!==service || response.job_id!==id || !response.job)throw new Error("작업 결과가 요청과 일치하지 않습니다.");
         setJob(response.job);setError("");
-        if(["queued","running"].includes(response.job.status))timer=setTimeout(read,5000);
-      }catch(problem){if(active){setError(problem.message);setJob(null);}}
+        lastActive=["queued","running"].includes(response.job.status);
+        if(lastActive)timer=setTimeout(read,5000);
+      }catch(problem){if(active){setError(problem.message);if(lastActive)timer=setTimeout(read,5000);else setJob(null);}}
     }
     read();
     return ()=>{active=false;clearTimeout(timer);};
@@ -70,6 +72,7 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
     {error && <p role="alert">{error}</p>}
     {job ? <>
       <p className="media-result-note" role="status">{job.note}</p>
+      {service==="wan22-fun-control" && <GenerationProgress job={job}/>}
       {kind==="audio" && job.result_status==="available" && job.file_observation!=="unavailable" && <div>
         {(job.tracks || [{label:"생성 오디오",wav:job.audio}]).map(track=><section key={track.wav}>
           <strong>{track.label}</strong>

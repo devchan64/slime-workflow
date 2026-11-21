@@ -80,6 +80,8 @@ def setup_fun_rocm_environment(prepare_model_assets=True):
                 raise ValueError('기존 ROCm 환경이 불완전하거나 비어 있지 않습니다. 자동으로 덮어쓰지 않습니다.')
             run_logged_management_command([sys.executable, '-m', 'venv', str(FUN_ENVIRONMENT_DIRECTORY)], current_trace_logger)
         current_python_path = str(FUN_PYTHON_EXECUTABLE)
+        run_logged_management_command([current_python_path, '-m', 'pip', 'install', '--target', str(FUN_WORKSPACE_DIRECTORY / '.local/otel/wan-fun'),
+            '-r', str(Path(__file__).with_name('otel-requirements.txt'))], current_trace_logger)
         current_package_versions = read_fun_rocm_constraints()
         run_logged_management_command([current_python_path, '-c', build_fun_package_preflight()], current_trace_logger)
         run_logged_management_command([current_python_path, '-m', 'pip', 'install', '-c', str(FUN_ROCM_CONSTRAINTS_PATH), '-c', str(FUN_MIGRAPHX_CONSTRAINTS_PATH), '--index-url', FUN_PYTORCH_INDEX,
