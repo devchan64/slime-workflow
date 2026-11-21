@@ -31,7 +31,6 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'effect-editor': ('effect_editor_app', 'build_effect_editor_interface', 'port'),
     'asset-editor': ('asset_editor_app', 'build_asset_editor_interface', 'port'),
     'building-editor': ('building_editor_panel', 'build_building_editor_interface', 'port'),
-    'world-map': ('world_map_app', 'build_world_review_interface', 'port'),
     'writer-agent': ('writer_agent_app', 'build_writer_agent_interface', 'port'),
     'prompt-translation': ('prompt_translation_app', 'build_translation_interface', 'none'),
     'sprite-sheet-editor': ('sprite_sheet_editor_app', 'build_sprite_sheet_editor_interface', 'port'),
@@ -364,6 +363,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     from starlette.responses import FileResponse
     assistant_root = Path(__file__).resolve().parents[1] / 'ui' / 'assistant'
 
+    @current_root_application.get('/management/frame/world-map')
+    @current_root_application.get('/management/frame/world-map/')
     @current_root_application.get('/management/assistant/')
     def assistant_page():
         return FileResponse(assistant_root / 'index.html', headers={'Cache-Control': 'no-cache'})
