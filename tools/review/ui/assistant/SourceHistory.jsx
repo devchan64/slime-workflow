@@ -1,4 +1,4 @@
-import VideoJobResult from "./VideoJobResult.jsx";
+import MediaJobResult from "./MediaJobResult.jsx";
 import React, {useEffect, useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
@@ -9,6 +9,7 @@ function HistoryPage({source, choose, session}) {
   const [page,setPage]=useState(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
+  const mediaKind=source.command==="hermes-audio-source-history" ? "audio" : source.video_result ? "video" : null;
   async function load(offset,snapshot) {
     setBusy(true);selectJob("");
     setError("");
@@ -27,16 +28,16 @@ function HistoryPage({source, choose, session}) {
       <ResultTable table={{
         title:source.service+" 생성 이력",
         summary:"전체 "+page.total+"건 · 조회 "+page.records.length+"건 · 확인 불가 "+page.unavailable_count+"건",
-        columns:["작업 ID","기록 상태",...(source.result_path || source.video_result?["결과"]:[])],
+        columns:["작업 ID","기록 상태",...(source.result_path || mediaKind?["결과"]:[])],
         rows:page.records.map(record=>[
           <button title="작업을 대화 입력에 추가" onClick={()=>choose(source.service+" 작업",record.id)}>{record.id}</button>,
           record.recorded_status,
           ...(source.result_path ? [
             <a href={source.result_path+"?"+new URLSearchParams({job:record.id,...(session?{session}:{})})}>작업 열기</a>,
-          ] : source.video_result ? [<button onClick={()=>selectJob(record.id)}>결과 보기</button>] : []),
+          ] : mediaKind ? [<button onClick={()=>selectJob(record.id)}>결과 보기</button>] : []),
         ]),
       }}/>
-      {selectedJob && <VideoJobResult key={selectedJob} service={source.service} id={selectedJob}/>}
+      {selectedJob && <MediaJobResult kind={mediaKind} key={selectedJob} service={source.service} id={selectedJob}/>}
       <p>{page.note}</p>
       {page.offset>0 && <button onClick={()=>load(Math.max(0,page.offset-10),page.snapshot)}>이전 이력</button>}
       {page.next_offset!=null && <button onClick={()=>load(page.next_offset,page.snapshot)}>다음 이력</button>}

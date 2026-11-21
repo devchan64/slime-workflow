@@ -4,7 +4,7 @@ import React, {useRef,useState} from "react";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
-import VideoJobResult from "./VideoJobResult.jsx";
+import MediaJobResult from "./MediaJobResult.jsx";
 import {managementCommand} from "./managementCommand.js";
 
 async function pngData(file) {
@@ -82,8 +82,8 @@ export default function DwposePage() {
       <button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button>
     </section>}
     {notice && <p role="status">{notice}</p>}
-    {job ? <VideoJobResult key={job} service="dwpose" id={job}>
+    {job ? <MediaJobResult key={job} service="dwpose" id={job}>
       {record=><HistoryCleanup key={record?.status || ""} service="dwpose" job={job} state={record?.status} onDeleted={cleaned}/>}
-    </VideoJobResult> : <HistoryCleanup service="dwpose" onDeleted={cleaned}/>}
+    </MediaJobResult> : <HistoryCleanup service="dwpose" onDeleted={cleaned}/>}
   </article>;
 }
