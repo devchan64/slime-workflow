@@ -22,6 +22,19 @@ def calculate_file_sha256(translation_file_path):
     return translation_digest_value.hexdigest()
 
 
+def resolve_translation_snapshot(model_root_directory, translation_manifest_record):
+    revision_directory_name = translation_manifest_record["revision"]
+    if not isinstance(revision_directory_name, str) or not re.fullmatch(r"[0-9a-f]{40}", revision_directory_name):
+        raise ValueError("번역 모델 리비전 형식 오류")
+    recorded_snapshot_path = Path(translation_manifest_record["snapshot"])
+    legacy_snapshot_suffix = (".model", "prompt-translation", revision_directory_name)
+    if (recorded_snapshot_path != Path(revision_directory_name)
+            and recorded_snapshot_path != model_root_directory / revision_directory_name
+            and not (recorded_snapshot_path.is_absolute() and recorded_snapshot_path.parts[-3:] == legacy_snapshot_suffix)):
+        raise ValueError("번역 모델 스냅샷 경로 오류")
+    return model_root_directory / revision_directory_name
+
+
 def prepare_translation_model(translation_revision_value=TRANSLATION_MODEL_REVISION):
     if not re.fullmatch(r'[0-9a-f]{40}', translation_revision_value):
         raise ValueError('Hugging Face의 40자리 커밋 리비전을 지정하세요.')
@@ -36,7 +49,7 @@ def prepare_translation_model(translation_revision_value=TRANSLATION_MODEL_REVIS
     if not any(current_name.endswith('.safetensors') for current_name in translation_file_records):
         raise ValueError('모델 가중치를 찾을 수 없습니다.')
     TRANSLATION_MODEL_ROOT.mkdir(parents=True, exist_ok=True)
-    write_record_atomically(TRANSLATION_MODEL_ROOT / 'manifest.json', {'model_id': 'google/translategemma-4b-it', 'revision': translation_revision_value, 'snapshot': str(translation_snapshot_path), 'files': translation_file_records})
+    write_record_atomically(TRANSLATION_MODEL_ROOT / 'manifest.json', {'model_id': 'google/translategemma-4b-it', 'revision': translation_revision_value, 'snapshot': translation_revision_value, 'files': translation_file_records})
 
 
 def inspect_translation_model_files():
@@ -44,7 +57,7 @@ def inspect_translation_model_files():
         translation_manifest_record = json.loads((TRANSLATION_MODEL_ROOT / 'manifest.json').read_text(encoding='utf-8'))
         translation_snapshot_path = TRANSLATION_MODEL_ROOT / TRANSLATION_MODEL_REVISION
         translation_file_records = translation_manifest_record['files']
-        if translation_manifest_record['model_id'] != 'google/translategemma-4b-it' or translation_manifest_record['revision'] != TRANSLATION_MODEL_REVISION or Path(translation_manifest_record['snapshot']) != translation_snapshot_path or not isinstance(translation_file_records, dict):
+        if translation_manifest_record['model_id'] != 'google/translategemma-4b-it' or translation_manifest_record['revision'] != TRANSLATION_MODEL_REVISION or resolve_translation_snapshot(TRANSLATION_MODEL_ROOT, translation_manifest_record) != translation_snapshot_path or not isinstance(translation_file_records, dict):
             return False
         if not {'config.json', 'tokenizer.json', 'chat_template.jinja', 'model.safetensors.index.json'}.issubset(translation_file_records):
             return False

@@ -9,7 +9,7 @@ import traceback
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
-from generators.prompt_translation.prepare import calculate_file_sha256
+from generators.prompt_translation.prepare import calculate_file_sha256, resolve_translation_snapshot
 from generators.prompt_translation.terms import compare_translation_terms
 from generators.prompt_translation.quality_checks import inspect_translation_quality
 from generators.prompt_translation.semantic_review import find_negated_source_clauses
@@ -29,7 +29,7 @@ def execute_translation_worker(translation_job_path):
         translation_manifest_record = json.loads((TRANSLATION_MODEL_ROOT / 'manifest.json').read_text(encoding='utf-8'))
         if translation_manifest_record['model_id'] != 'google/translategemma-4b-it':
             raise ValueError('번역 모델 ID 오류')
-        translation_snapshot_path = Path(translation_manifest_record['snapshot'])
+        translation_snapshot_path = resolve_translation_snapshot(TRANSLATION_MODEL_ROOT, translation_manifest_record)
         for translation_relative_path, translation_expected_hash in translation_manifest_record['files'].items():
             translation_file_path = translation_snapshot_path / translation_relative_path
             if Path(translation_relative_path).is_absolute() or '..' in Path(translation_relative_path).parts or calculate_file_sha256(translation_file_path) != translation_expected_hash:
