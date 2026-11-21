@@ -26,7 +26,7 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
     setJob(result);
     inspectResult?.(result);
   }
-  return <details><summary>생성 이력에서 입력 불러오기</summary>
+  return <details><summary>{restore?"생성 이력에서 입력 불러오기":"보관된 이력과 입력 조회"}</summary>
     <fieldset disabled={busy}><label>작업 ID 검색 <input value={query} maxLength={80} onChange={e=>setQuery(e.target.value)}/></label>
       <button onClick={()=>load(()=>list(0,query.trim()))}>이력 조회</button>
       {page && <>
@@ -38,7 +38,7 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
         <button disabled={page.next_offset==null} onClick={()=>load(()=>list(page.next_offset,filter))}>다음 이력 페이지</button>
       </>}
       {job && <section><strong>{job.id}</strong><pre>{JSON.stringify(job.request,null,2)}</pre>
-        <button onClick={()=>restore(job.request,job)}>이 작업의 입력으로 교체</button></section>}
+        {restore && <button onClick={()=>restore(job.request,job)}>이 작업의 입력으로 교체</button>}</section>}
     </fieldset>
     {error && <p role="alert">{error}</p>}
   </details>;

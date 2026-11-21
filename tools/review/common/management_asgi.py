@@ -196,7 +196,7 @@ def build_management_application(current_handler_class, current_root_path, curre
             yield
 
     current_root_application = FastAPI(lifespan=manage_application_lifespan)
-    current_supported_tools = {*GENERATOR_PAGE_PACKAGES, *MANAGEMENT_INTERFACE_BUILDERS}
+    current_supported_tools = set(MANAGEMENT_INTERFACE_BUILDERS)
 
     async def dispatch_management_request(current_request_scope, current_receive_call, current_send_call):
         current_request_path = current_request_scope['path']
@@ -228,6 +228,23 @@ def build_management_application(current_handler_class, current_root_path, curre
             query = current_request_scope.get('query_string', b'').decode()
             target = '/management/assistant/' + surface + '/' + ('?' + query if query else '')
             return await RedirectResponse(target)(current_request_scope, current_receive_call, current_send_call)
+        # Archived Qwen pages share read-only history, including the character and building aliases.
+        archive_services = {**{name: name for name in GENERATOR_PAGE_PACKAGES},
+                            'character-generator': 'qwen-21', 'building-generator': 'billboard-generator',
+                            'expression-generator': 'expression', 'qwen-21-generator': 'qwen-21',
+                            'qwen-21-circular-generator': 'qwen-21-circular'}
+        path = current_request_path.rstrip('/')
+        if path == '/management':
+            page = (current_query_values.get('review') or current_query_values.get('tool') or [''])[0]
+        else:
+            page = path.removeprefix('/management/frame/') if path.startswith('/management/frame/') else LEGACY_MANAGEMENT_PATHS.get(path + '/', path.lstrip('/'))
+        if page in archive_services and current_request_scope['method'] in ('GET', 'HEAD'):
+            from urllib.parse import urlencode
+            parameters = {key: values[0] for key, values in current_query_values.items() if key in ('session', 'job')}
+            parameters['service'] = archive_services[page]
+            return await RedirectResponse('/management/assistant/qwen-archive/?' + urlencode(parameters))(current_request_scope, current_receive_call, current_send_call)
+        if current_request_path.startswith('/management/frame/') and current_request_path.split('/')[3] in archive_services:
+            return await Response(status_code=404)(current_request_scope, current_receive_call, current_send_call)
         direct_path = '/management/frame/hermes-direct'
         if (current_request_path.rstrip('/') == direct_path or
                 (current_request_path.rstrip('/') == '/management' and
@@ -1183,6 +1200,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/town-map/')
     @current_root_application.get('/management/assistant/battlefield/')
     @current_root_application.get('/management/assistant/fun-control/')
+    @current_root_application.get('/management/assistant/qwen-archive/')
     @current_root_application.get('/management/assistant/kimodo/')
     @current_root_application.get('/management/assistant/vace/')
     @current_root_application.get('/management/assistant/dwpose/')
