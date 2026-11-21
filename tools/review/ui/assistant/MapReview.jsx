@@ -10,6 +10,21 @@ export default function MapReview(){
   const [past,setPast]=useState([]),[future,setFuture]=useState([]);
   const [texture,setTexture]=useState(""),[objectId,setObjectId]=useState("");
   const [storageNotice,setStorageNotice]=useState("");
+  const [recovery,setRecovery]=useState(null);
+  function downloadRecovery(){
+    const url=URL.createObjectURL(new Blob([recovery.raw],{type:"application/json"}));
+    const link=document.createElement("a");link.href=url;link.download=recovery.map+"-draft.json";
+    link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  function discardRecovery(){
+    try{
+      if(sessionStorage.getItem(storageKey(recovery.map))!==recovery.raw){
+        setFeedback("임시본이 변경되었습니다. 셀을 다시 조회하세요.");return;
+      }
+      sessionStorage.removeItem(storageKey(recovery.map));setRecovery(null);
+      setFeedback("임시본을 삭제했습니다. 셀을 다시 조회해 현재 원본으로 시작하세요.");
+    }catch(error){setFeedback(error.message);}
+  }
   const storageKey=map=>"slime-map-editor-draft-v1:"+map;
   useEffect(()=>{
     if(!draft || (!past.length && !future.length))return;
@@ -83,15 +98,19 @@ export default function MapReview(){
       setSource(snapshot);
       let current=draft;
       if(!current){
-        const raw=sessionStorage.getItem(storageKey(map));
+        let raw;
+        try{raw=sessionStorage.getItem(storageKey(map));}
+        catch(error){setStorageNotice("탭 임시저장을 사용할 수 없습니다. "+error.message);}
+        setRecovery(null);
         if(raw){
+          setRecovery({map,raw});
           const saved=JSON.parse(raw),state=saved.state;
           if(saved.version!==1 || !Array.isArray(state?.history) || !Array.isArray(state.future) ||
             ![state.draft,...state.history,...state.future].every(item=>item?.map===map && item.revision===snapshot.revision &&
               Array.isArray(item.cells) && Array.isArray(item.objects)))throw new Error("원본 리비전 또는 임시본 형식이 달라 복원할 수 없습니다.");
           const checked=await managementCommand("map-assets","map-edit-preview",state.draft);
           await window.mapReviewApplyDraft(checked.render);
-          current=state.draft;setPast(state.history);setFuture(state.future);setPreview(checked);
+          setRecovery(null);current=state.draft;setPast(state.history);setFuture(state.future);setPreview(checked);
         }else current={map,revision:snapshot.revision,cells:[],
         objects:snapshot.tiles.objects.filter(item=>item.kind==="decoration"),
         ...(snapshot.terrain.terrainEffects?{terrainEffects:snapshot.terrain.terrainEffects}:{})};
@@ -148,6 +167,10 @@ export default function MapReview(){
         <label>높이<input type="number" required min="0" max="20" step="1" value={cell.height} onChange={e=>editCell("height",e.target.value)}/></label>
         <label><input type="checkbox" checked={cell.blocked} onChange={e=>editCell("blocked",e.target.checked)}/>이동 금지</label>
         <button>초안 검증 및 미리보기</button></form>}
+      {recovery && <section aria-label="임시본 복구"><p>복원하지 못한 임시본을 파일로 보관하거나 삭제할 수 있습니다.</p>
+        <button onClick={downloadRecovery}>임시본 JSON 다운로드</button>
+        <button onClick={()=>{if(window.confirm("이 탭에 보관한 "+recovery.map+" 임시본을 삭제할까요?"))discardRecovery();}}>임시본 삭제</button>
+      </section>}
       {storageNotice && <p role="status">{storageNotice}</p>}
       {draft && <fieldset><legend>빌보드 배치</legend>
         <label>추가할 에셋<select value={texture} onChange={e=>setTexture(e.target.value)}>
