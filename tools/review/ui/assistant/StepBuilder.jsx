@@ -89,6 +89,7 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
     {generator && !template && Object.keys(catalog).length>0 && <p role="alert">현재 관리 서버의 생성기 목록에서 {generator} 템플릿을 찾을 수 없습니다.</p>}
     {template && <><label>단계 이름 <input value={name} onChange={event => setName(event.target.value)}/></label>
       {Object.entries(template.inputs).map(([field,spec]) => {
+        if (spec.choices?.length===1 && spec.choices[0]===spec.default) return null;
         const sources = steps.flatMap(step => Object.entries(catalog[step?.generator]?.outputs || {})
           .filter(([,output]) => output.type === spec.type)
           .map(([key,output]) => ({value:JSON.stringify([step.id,key]),label:step.id+" · "+output.label})));
