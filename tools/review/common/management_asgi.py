@@ -368,6 +368,18 @@ def build_management_application(current_handler_class, current_root_path, curre
             rows.append({'id': identifier, 'status': state, 'message': message})
         return rows
 
+    @current_root_application.post('/management/assistant/flux-image-preview')
+    def flux_image_preview(payload: dict):
+        from fastapi import HTTPException
+        from tools.review.domains.image.flux_image_generation import FluxImageGenerationManager
+        if payload.get('action') != 'generate':
+            raise HTTPException(422, '이미지 생성 입력을 확인하세요.')
+        try:
+            request = FluxImageGenerationManager('flux-image').validate_generation_request(payload)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        return {'prompt': request['prompt'], 'translation': request.get('translation_source_ko')}
+
     @current_root_application.get('/management/assistant/heartmula-examples')
     def heartmula_examples():
         from generators.music.examples import load_music_examples
@@ -474,9 +486,10 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/tools')
     def assistant_tools():
         from tools.review.common.management_catalog import REACT_REVIEW_PATHS, load_manager_page_records
+        paths = {**REACT_REVIEW_PATHS, 'flux-image-generator': '/management/assistant/flux-image/'}
         return [
             {key: record[key] for key in ('id', 'label', 'category', 'description')}
-            | {'review_path': REACT_REVIEW_PATHS.get(record['id'])}
+            | {'review_path': paths.get(record['id'])}
             for record in load_manager_page_records(current_source_path)
             if record['id'] != 'hermes-agent'
         ]
@@ -497,6 +510,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen/')
     @current_root_application.get('/management/frame/music-heartmula')
     @current_root_application.get('/management/frame/music-heartmula/')
+    @current_root_application.get('/management/assistant/flux-image/')
     @current_root_application.get('/management/assistant/heartmula/')
     @current_root_application.get('/management/assistant/sound-effect/')
     @current_root_application.get('/management/assistant/dwpose/')

@@ -1,3 +1,4 @@
+import FluxImagePage from "./FluxImagePage.jsx";
 import SoundEffectPage, {HeartmulaPage} from "./SoundEffectPage.jsx";
 import DwposePage from "./DwposePage.jsx";
 import MockProgress from "./MockProgress.jsx";
@@ -182,6 +183,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/assistant/flux-image": FluxImagePage,
   "/management/frame/music-heartmula": HeartmulaPage,
   "/management/assistant/heartmula": HeartmulaPage,
   "/management/frame/sfx-dasheng-audiogen": SoundEffectPage,
