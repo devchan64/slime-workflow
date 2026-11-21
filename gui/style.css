@@ -21,3 +21,15 @@ article {position:relative;}
   .session-divider {display:block;cursor:col-resize;touch-action:none;background:linear-gradient(to right,transparent 3px,#484d50 3px,#484d50 5px,transparent 5px);}
   .session-divider:hover,.session-divider:focus-visible {background:#527b70;}
 }
+
+.hermes-chat .chat-actions {position:relative;margin:0;font-size:1rem;color:inherit}
+.chat-actions summary,.session-queue summary {cursor:pointer}
+.chat-actions summary {padding:.55rem .8rem;border:1px solid #484d50;border-radius:.5rem}
+.chat-actions > div {position:absolute;z-index:5;right:0;width:max-content;display:grid;gap:.3rem;padding:.5rem;background:#202326;border:1px solid #484d50;border-radius:.5rem}
+.hermes-chat .session-queue {max-height:19dvh}
+.hermes-chat .floating-panel {top:auto;bottom:6rem}
+@media(max-width:700px){
+  .hermes-chat article > header {flex-wrap:nowrap}
+  .hermes-chat article > header h1 {flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hermes-chat article > form > button {flex-shrink:0}
+}

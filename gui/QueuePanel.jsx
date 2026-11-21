@@ -31,7 +31,7 @@ export default function QueuePanel({session, call, initialRun=""}) {
   function field(name) {
     return {value:draft[name], onChange:event => setDraft({...draft, [name]:event.target.value})};
   }
-  return <section className="panel" aria-label="세션 대기열">
+  return <section className="panel session-queue" aria-label="세션 대기열">
     <form onSubmit={event => {event.preventDefault(); setSelectedRun(""); setFilters({...draft});}} style={{display:"block"}}>
       <label>카테고리 <select {...field("category")}><option value="">전체</option>
         {Object.entries(categories).map(([key,label]) => <option key={key} value={key}>{label}</option>)}
@@ -39,8 +39,8 @@ export default function QueuePanel({session, call, initialRun=""}) {
       <label>상태 <select {...field("state")}><option value="">전체</option>
         {Object.entries(states).map(([key,label]) => <option key={key} value={key}>{label}</option>)}
       </select></label>
-      {Object.entries({generator:"생성기",run_id:"워크플로우 실행 ID",job_id:"단계 또는 작업 ID",created_from:"시작일",created_through:"종료일"}).map(([key,label]) =>
-        <label key={key}>{label} <input type={key.startsWith("created_")?"date":"text"} {...field(key)}/></label>)}
+      <details><summary>상세 필터</summary>{Object.entries({generator:"생성기",run_id:"워크플로우 실행 ID",job_id:"단계 또는 작업 ID",created_from:"시작일",created_through:"종료일"}).map(([key,label]) =>
+        <label key={key}>{label} <input type={key.startsWith("created_")?"date":"text"} {...field(key)}/></label>)}</details>
       <button>대기열 조회</button>
     </form>
     {error && <p role="alert">{error}</p>}
