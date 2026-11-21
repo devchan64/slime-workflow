@@ -59,6 +59,12 @@ export default function WorkflowResults({session, run, call, close, openRun}) {
       .finally(() => { if (active) setBusy(false); });
     return () => {active=false;};
   }, [session,run,call,revision]);
+  useEffect(() => {
+    if (busy || error || confirmCancel || !view?.steps.some(step =>
+      ["ready","submitting"].includes(step.state))) return;
+    const timer = setTimeout(() => setRevision(value => value+1), 3000);
+    return () => clearTimeout(timer);
+  }, [view,busy,error,confirmCancel]);
   async function select(choice) {
     setBusy(true); setError("");
     try {
