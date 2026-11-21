@@ -180,6 +180,26 @@ def list_hermes_session_choices(hermes_selected_identifier=None):
         raise gr.Error('세션 목록 조회 실패: ' + str(hermes_request_error)) from hermes_request_error
 
 
+def append_generator_step_template(workflow_definition_text, selected_generator_name, new_step_identifier):
+    from tools.review.common.management_gateway import parse_management_request_json
+    from tools.review.domains.hermes_agent.workflow_catalog import create_workflow_step_draft, read_workflow_generator_catalog
+    current_definition_record = (parse_management_request_json(workflow_definition_text)
+                                 if (workflow_definition_text or "").strip() else {"steps": []})
+    if (not isinstance(current_definition_record, dict) or set(current_definition_record) != {"steps"}
+            or not isinstance(current_definition_record["steps"], list)):
+        raise gr.Error("기존 초안의 steps 목록을 확인하세요.")
+    if not isinstance(new_step_identifier, str) or not new_step_identifier.strip():
+        raise gr.Error("추가할 단계 ID를 입력하세요.")
+    if any(isinstance(step, dict) and step.get("id") == new_step_identifier for step in current_definition_record["steps"]):
+        raise gr.Error("이미 사용 중인 단계 ID입니다.")
+    current_step_template = create_workflow_step_draft(new_step_identifier, selected_generator_name, {})
+    for input_field_name, input_field_contract in read_workflow_generator_catalog()[selected_generator_name]["inputs"].items():
+        if input_field_contract["required"] and input_field_name not in current_step_template["inputs"]:
+            current_step_template["inputs"][input_field_name] = None
+    current_definition_record["steps"].append(current_step_template)
+    return json.dumps(current_definition_record, ensure_ascii=False, indent=2)
+
+
 def review_conversation_workflow_definition(current_session_identifier, workflow_definition_text):
     from tools.review.common.management_gateway import parse_management_request_json
     from tools.review.domains.hermes_agent.workflow_catalog import create_workflow_step_draft, read_workflow_generator_catalog
@@ -5058,6 +5078,13 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                             outputs=workflow_catalog_display, queue=False)
                     workflow_load_proposal = gr.Button("선택한 답변에서 단계 가져오기")
                     workflow_definition_text = gr.Textbox(label="생성기 입력과 단계 연결 (JSON)", lines=8)
+                    with gr.Accordion("생성기 입력 템플릿으로 단계 추가", open=False):
+                        workflow_template_generator = gr.Dropdown(
+                            choices=[(contract["label"], name) for name, contract in read_workflow_generator_catalog().items()],
+                            label="추가할 생성기")
+                        workflow_template_step = gr.Textbox(label="추가할 단계 ID")
+                        gr.Button("초안에 단계 추가").click(append_generator_step_template,
+                            [workflow_definition_text, workflow_template_generator, workflow_template_step], workflow_definition_text, queue=False)
                     workflow_load_proposal.click(load_conversation_workflow_definition, [hermes_session_control, hermes_session_job_selection], workflow_definition_text, queue=False)
                     gr.Button("요청 입력에 현재 초안 첨부").click(prepare_workflow_revision_message,
                         [hermes_session_control, workflow_definition_text, hermes_session_prompt], hermes_session_prompt, queue=False)
