@@ -1,5 +1,6 @@
 import React, {useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
+import ModelInventory from "./ModelInventory.jsx";
 
 export default function ModelReadiness({service}) {
   const [revision,setRevision]=useState(0);
@@ -26,6 +27,7 @@ export default function ModelReadiness({service}) {
     <p role="status">{error ? "모델 상태 조회 실패 · "+error : status ?
       ((status.generation_ready ?? status.ready)?"생성 준비 완료":"모델 준비 필요")+" · "+status.message : "모델 상태 확인 중…"}</p>
     <button onClick={()=>setRevision(value=>value+1)}>모델 준비 상태 확인</button>
+    <ModelInventory service={service}/>
     <a href="/management/?tool=model-management&category=model-management">모델 관리로 이동</a>
   </section>;
 }
