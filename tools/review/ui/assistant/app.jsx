@@ -183,6 +183,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/frame/flux-image-generator": FluxImagePage,
   "/management/assistant/flux-image": FluxImagePage,
   "/management/frame/music-heartmula": HeartmulaPage,
   "/management/assistant/heartmula": HeartmulaPage,

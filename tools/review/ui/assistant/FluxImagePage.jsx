@@ -72,6 +72,7 @@ export default function FluxImagePage(){
       {files.map((file,index)=><p key={index}>참조 {index+1} · {file.name}</p>)}
       {[["width","너비"],["height","높이"]].map(([key,label])=><label key={key}>{label} <input type="number" required min="256" max="1664" step="16" value={form[key]} onChange={e=>edit(key,e.target.value)}/></label>)}
       <label>시드 <input type="number" required min="0" max="4294967295" value={form.seed} onChange={e=>edit("seed",e.target.value)}/></label>
+      <button type="button" onClick={()=>edit("seed",crypto.getRandomValues(new Uint32Array(1))[0])}>랜덤 시드</button>
       <label>이력 태그 <input value={form.tag} onChange={e=>edit("tag",e.target.value)}/></label>
       <button disabled={!form.prompt.trim() && !form.translation_source_ko.trim()}>생성 요청 검토</button>
     </fieldset></form>

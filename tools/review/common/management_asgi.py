@@ -33,7 +33,7 @@ MANAGEMENT_INTERFACE_BUILDERS = {
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
 GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator', 'writer-agent': 'writer_agent'}
 GENERATOR_PAGE_PACKAGES['flux-expression-generator'] = 'flux-expression'
-for current_flux_profile in ('flux-image','flux-character','flux-mannequin','flux-billboard','flux-prop','flux-vegetation','flux-building','flux-seamless'):
+for current_flux_profile in ('flux-character','flux-mannequin','flux-billboard','flux-prop','flux-vegetation','flux-building','flux-seamless'):
     GENERATOR_PAGE_PACKAGES[current_flux_profile+'-generator'] = current_flux_profile
 def __getattr__(name):
     """이전 Qwen 옵션 조회자가 접근할 때만 해당 화면 모듈을 읽는다."""
@@ -519,10 +519,9 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/tools')
     def assistant_tools():
         from tools.review.common.management_catalog import REACT_REVIEW_PATHS, load_manager_page_records
-        paths = {**REACT_REVIEW_PATHS, 'flux-image-generator': '/management/assistant/flux-image/'}
         return [
             {key: record[key] for key in ('id', 'label', 'category', 'description')}
-            | {'review_path': paths.get(record['id'])}
+            | {'review_path': REACT_REVIEW_PATHS.get(record['id'])}
             for record in load_manager_page_records(current_source_path)
             if record['id'] != 'hermes-agent'
         ]
@@ -543,6 +542,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen/')
     @current_root_application.get('/management/frame/music-heartmula')
     @current_root_application.get('/management/frame/music-heartmula/')
+    @current_root_application.get('/management/frame/flux-image-generator')
+    @current_root_application.get('/management/frame/flux-image-generator/')
     @current_root_application.get('/management/assistant/flux-image/')
     @current_root_application.get('/management/assistant/heartmula/')
     @current_root_application.get('/management/assistant/sound-effect/')
