@@ -89,7 +89,7 @@ def read_hermes_final_response(hermes_job_path):
             return hermes_answer_text[:8000], len(hermes_answer_text) > 8000
     return None, False
 
-def summarize_source_history(output):
+def parse_source_history_page(output):
     try:
         page = json.loads(output)
     except (TypeError, ValueError):
@@ -99,14 +99,24 @@ def summarize_source_history(output):
     service = page.get('source_service')
     if not isinstance(service, str) or not re.fullmatch(r'[a-z0-9-]{1,80}', service):
         return None
-    lines = [f'{service} 생성 이력 · 총 {page["total"]}건 · 조회된 {len(page["records"])}건']
+    rows = []
     labels = {'completed':'완료', 'running':'실행 중', 'queued':'대기 중', 'failed':'실패', 'cancelled':'취소'}
     for row in page['records']:
         if not isinstance(row, dict) or not isinstance(row.get('id'), str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,160}', row['id']):
             return None
         state = row.get('recorded_status')
-        lines.append(f"- `{row['id']}` · {labels.get(state, '기타') if isinstance(state, str) else '미확인'}")
-    return '\n'.join(lines)
+        rows.append({"id": row["id"], "status": labels.get(state, "기타") if isinstance(state, str) else "미확인"})
+    return {"service": service, "total": page["total"], "rows": rows}
+
+
+def source_history_summary(page):
+    lines = [f'{page["service"]} 생성 이력 · 총 {page["total"]}건 · 조회된 {len(page["rows"])}건']
+    return "\n".join([*lines, *(f"- `{row['id']}` · {row['status']}" for row in page["rows"])])
+
+
+def summarize_source_history(output):
+    page = parse_source_history_page(output)
+    return source_history_summary(page) if page else None
 
 
 def read_hermes_tool_activity(hermes_job_path):
@@ -120,7 +130,7 @@ def read_hermes_tool_activity(hermes_job_path):
         current_event_lines = current_event_stream.read().decode(errors='replace').splitlines()
     current_tool_events = []
     history_calls = set()
-    history_summary = None
+    history_page = None
     for current_event_line in current_event_lines:
         try:
             current_event_record = json.loads(current_event_line)
@@ -158,11 +168,11 @@ def read_hermes_tool_activity(hermes_job_path):
             else:
                 current_event_value['result'] = 'recorded'
             if isinstance(current_call_identifier, str) and current_call_identifier in history_calls and current_event_value['result'] == 'success':
-                summary = summarize_source_history(current_parsed_output.get('output'))
-                if summary:
-                    history_summary = summary
+                page = parse_source_history_page(current_parsed_output.get('output'))
+                if page is not None:
+                    history_page = page
         current_tool_events.append(current_event_value)
-    return {**({'source_history_summary': history_summary} if history_summary else {}), 'events': current_tool_events[-8:], 'truncated': current_file_size > 128000 or len(current_tool_events) > 8}
+    return {**({'source_history_summary': source_history_summary(history_page), 'source_history_page': history_page} if history_page else {}), 'events': current_tool_events[-8:], 'truncated': current_file_size > 128000 or len(current_tool_events) > 8}
 
 
 

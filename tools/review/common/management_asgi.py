@@ -54,6 +54,12 @@ def build_management_blocks(current_tool_name, current_review_port, current_sour
     current_mount_options = {'allowed_paths': [], 'ssr_mode': False, 'head': REVIEW_LIVE_RELOAD_SCRIPT.decode(), 'css': '#management-sidebar.open{left:0!important;transform:none!important;transition:none!important}#management-gpu-floating{position:fixed;right:12px;bottom:12px;z-index:50;width:min(12rem,calc(100vw - 24px));max-height:45dvh;overflow-x:hidden;overflow-y:auto}#management-gpu-floating:has(>button.open){width:min(27rem,calc(100vw - 24px))}#management-gpu-floating .gr-accordion{min-width:0!important;overflow-x:hidden}#management-gpu-floating .gr-accordion>button{min-width:0;width:100%;white-space:normal;text-align:left}#management-gpu-floating .gr-accordion>button>span:first-child{min-width:0;overflow-wrap:anywhere}#management-gpu-floating .gr-accordion>button>span:last-child{flex-shrink:0;align-self:center;min-width:1.25rem;text-align:center}#management-gpu-floating [data-testid="markdown"]{overflow-wrap:anywhere}'}
     if current_tool_name == 'hermes-agent':
         current_mount_options['css'] += """
+        .hermes-result-table { overflow-x: auto; padding: .5rem; }
+        .hermes-result-table table { border-collapse: collapse; margin-top: .5rem; width: 100%; }
+        .hermes-result-table th, .hermes-result-table td {
+            padding: .35rem .65rem; border-bottom: 1px solid var(--border-color-primary); text-align: left;
+        }
+        .hermes-result-table td:first-child { font-family: monospace; overflow-wrap: anywhere; }
         #hermes-tool-explorer {
             position: fixed; left: 12px; bottom: 12px; z-index: 50;
             width: min(12rem, calc(100vw - 24px)); max-height: 45dvh;
