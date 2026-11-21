@@ -225,8 +225,9 @@ def build_management_application(current_handler_class, current_root_path, curre
         current_query_values = parse_qs(current_request_scope.get('query_string', b'').decode())
         if (current_request_scope.get('method') in ('GET', 'HEAD')
                 and current_request_path.rstrip('/') == '/management/frame/map-review'
-                and current_query_values.get('mapKind') == ['battle']):
-            return await RedirectResponse('/management/assistant/battlefield/?' + current_request_scope['query_string'].decode())(current_request_scope, current_receive_call, current_send_call)
+                and current_query_values.get('mapKind') in (['battle'], ['town'])):
+            surface = 'battlefield' if current_query_values['mapKind'] == ['battle'] else 'town-map'
+            return await RedirectResponse('/management/assistant/' + surface + '/?' + current_request_scope['query_string'].decode())(current_request_scope, current_receive_call, current_send_call)
         history_path = '/management/frame/operations-history'
         if current_request_scope.get('method') in ('GET', 'HEAD') and (
             current_request_path.rstrip('/') == history_path or
@@ -972,6 +973,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/wan22-vace-generator/')
     @current_root_application.get('/management/frame/wan22-fun-control-generator')
     @current_root_application.get('/management/frame/wan22-fun-control-generator/')
+    @current_root_application.get('/management/assistant/town-map/')
     @current_root_application.get('/management/assistant/battlefield/')
     @current_root_application.get('/management/assistant/fun-control/')
     @current_root_application.get('/management/assistant/vace/')
