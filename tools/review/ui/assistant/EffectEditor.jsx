@@ -1,7 +1,51 @@
-import React,{useEffect,useState} from "react";
+import React,{useEffect,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 
 const sides=["왼쪽","위쪽","오른쪽","아래쪽"];
+
+function WaypointPreview({detail}){
+  const canvas=useRef(null);
+  const [playing,setPlaying]=useState(true),[frame,setFrame]=useState(0),[guides,setGuides]=useState(true);
+  const [error,setError]=useState("");
+  const frames=detail.animationMetadata?.frames;
+  useEffect(()=>{
+    if(!frames?.length || frames.length!==detail.document.frames)return;
+    const sheet=new Image(),ctx=canvas.current.getContext("2d");
+    let active=true,request;
+    setError("");
+    sheet.onload=()=>{
+      const start=performance.now();
+      function draw(time){
+        if(!active)return;
+        const index=playing?Math.floor((time-start)*6/1000)%frames.length:frame;
+        const {rect,anchor}=frames[index];
+        const left=320-anchor.x*420/rect.width,top=440-anchor.y*420/rect.height;
+        ctx.fillStyle="#182329";ctx.fillRect(0,0,640,640);
+        ctx.drawImage(sheet,rect.x,rect.y,rect.width,rect.height,left,top,420,420);
+        if(guides){
+          ctx.strokeStyle="#ff70be";ctx.strokeRect(left,top,420,420);
+          ctx.strokeStyle="#ff4545";ctx.beginPath();ctx.moveTo(310,440);ctx.lineTo(330,440);
+          ctx.moveTo(320,430);ctx.lineTo(320,450);ctx.stroke();
+        }
+        ctx.fillStyle="white";ctx.fillText(`프레임 ${index+1}/${frames.length}`,16,24);
+        if(playing)request=requestAnimationFrame(draw);
+      }
+      draw(start);
+    };
+    sheet.onerror=()=>{if(active)setError("웨이포인트 시트를 읽지 못했습니다.");};
+    sheet.src=detail.sheetImage;
+    return ()=>{active=false;cancelAnimationFrame(request);};
+  },[detail,frames,playing,frame,guides]);
+  if(!frames?.length || frames.length!==detail.document.frames)return <p role="alert">프레임 정보를 확인할 수 없습니다.</p>;
+  return <fieldset><legend>웨이포인트 미리보기</legend>
+    <label><input type="checkbox" checked={playing} onChange={e=>setPlaying(e.target.checked)}/>재생</label>
+    <label>프레임<input type="range" min="0" max={frames.length-1} value={frame} disabled={playing}
+      onChange={e=>setFrame(Number(e.target.value))}/></label>
+    <label><input type="checkbox" checked={guides} onChange={e=>setGuides(e.target.checked)}/>영역과 앵커 표시</label>
+    <canvas ref={canvas} width="640" height="640" style={{width:"100%",maxWidth:640}} aria-label="웨이포인트 애니메이션"/>
+    {error && <p role="alert">{error}</p>}
+  </fieldset>;
+}
 
 function Alignment({detail}){
   const [values,setValues]=useState(detail.document.alignment);
@@ -59,7 +103,7 @@ export default function EffectEditor(){
     {detail && <section><h2>{detail.document.name}</h2><p>{detail.document.renderer} · {detail.document.frames}프레임</p>
       <img src={detail.sheetImage} alt="이펙트 시트 원본" style={{maxWidth:"100%"}}/>
       {detail.hostImage && <img src={detail.hostImage} alt="빌보드 원본" style={{maxWidth:"100%"}}/>}
-      {detail.document.renderer!=="waypoint-animation" && <Alignment detail={detail}/>}
+      {detail.document.renderer==="waypoint-animation"?<WaypointPreview detail={detail}/>:<Alignment detail={detail}/>}
     </section>}
   </article>;
 }
