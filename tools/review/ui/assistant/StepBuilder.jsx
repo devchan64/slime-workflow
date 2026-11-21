@@ -1,3 +1,4 @@
+import TranslationEvidence from "./TranslationEvidence.jsx";
 import React, {useEffect, useState} from "react";
 
 function readSteps(definition) {
@@ -52,7 +53,13 @@ export default function StepBuilder({call, definition, onChange}) {
           const number = Number(raw);
           if (!Number.isSafeInteger(number)) throw new Error(field + "에 정수를 입력하세요.");
           values[field] = number;
-        } else if (["png_list","glossary"].includes(spec.type)) values[field] = JSON.parse(raw);
+        } else if (spec.type === "glossary") {
+          values[field] = raw.split(/\r?\n/).filter(line => line.trim()).map(line => {
+            const terms = line.split("=>").map(term => term.trim());
+            if (terms.length !== 2 || terms.some(term => !term)) throw new Error("용어마다 원문 => 번역어 한 쌍을 입력하세요.");
+            return {source:terms[0], target:terms[1]};
+          });
+        } else if (spec.type === "png_list") values[field] = JSON.parse(raw);
         else values[field] = raw;
       }
       const step = {id, generator, generator_version:template.version, template_version:template.template_version, inputs:values, bindings};
@@ -75,6 +82,7 @@ export default function StepBuilder({call, definition, onChange}) {
         const props = {value, onChange:event => setInputs({...inputs,[field]:event.target.value})};
         return <div key={field}><label>{spec.label || field} {links[field] ? null : spec.choices ?
           <select {...props}>{spec.choices.map(choice => <option key={choice}>{choice}</option>)}</select> :
+          spec.type==="glossary" ? <textarea {...props} placeholder="한 줄에 하나씩 원문 => 번역어"/> :
           <input {...props} type={spec.type==="integer"?"number":"text"} title={spec.help}
             min={spec.min} max={spec.max} step={spec.step} maxLength={spec.max_length}/>}</label>
           {field==="seed" && !links[field] && <button onClick={()=>setInputs({...inputs,seed:String(crypto.getRandomValues(new Uint32Array(1))[0])})}>랜덤 시드</button>}
@@ -83,6 +91,8 @@ export default function StepBuilder({call, definition, onChange}) {
             {sources.map(source => <option key={source.value} value={source.value}>{source.label}</option>)}</select>}
         </div>;
       })}
+      {generator==="prompt-translation" && !links.text &&
+        <TranslationEvidence key={inputs.text || ""} source={inputs.text || ""} call={call}/>}
       <button disabled={Boolean(invalid)} onClick={append}>편집 중인 정의에 단계 추가</button>
     </>}
     {(notice || invalid) && <p role="status">{notice || invalid}</p>}
