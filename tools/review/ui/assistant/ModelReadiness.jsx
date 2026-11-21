@@ -28,6 +28,7 @@ export default function ModelReadiness({service}) {
       ((status.generation_ready ?? status.ready)?"생성 준비 완료":"모델 준비 필요")+" · "+status.message : "모델 상태 확인 중…"}</p>
     <button onClick={()=>setRevision(value=>value+1)}>모델 준비 상태 확인</button>
     <ModelInventory service={service}/>
+    {location.pathname.replace(/\/$/,"") !== "/management/assistant/models" && <a href="/management/assistant/models/">모델별 상태 조회</a>}
     <a href="/management/?tool=model-management&category=model-management">모델 관리로 이동</a>
   </section>;
 }

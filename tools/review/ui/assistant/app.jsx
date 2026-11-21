@@ -1,3 +1,4 @@
+import ModelPage from "./ModelPage.jsx";
 import TranslationPage from "./TranslationPage.jsx";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
@@ -166,6 +167,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/assistant/models": ModelPage,
   "/management/frame/world-map": WorldMap,
   "/management/frame/prompt-translation": TranslationPage,
   "/management/assistant/translation": TranslationPage,

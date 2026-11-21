@@ -380,6 +380,7 @@ def build_management_application(current_handler_class, current_root_path, curre
 
     @current_root_application.get('/management/frame/prompt-translation')
     @current_root_application.get('/management/frame/prompt-translation/')
+    @current_root_application.get('/management/assistant/models/')
     @current_root_application.get('/management/assistant/translation/')
     @current_root_application.get('/management/frame/world-map')
     @current_root_application.get('/management/frame/world-map/')
@@ -393,6 +394,14 @@ def build_management_application(current_handler_class, current_root_path, curre
         if generator not in GENERATOR_CHANGELOG_PATHS:
             return Response(status_code=404)
         return read_changelog_page(generator, page)
+
+    @current_root_application.get('/management/assistant/model-services')
+    def model_services():
+        from tools.review.common.model_management_catalog import MODEL_PREPARATION_SERVICES
+        return [
+            {'label': label, 'id': service}
+            for label, service in sorted(MODEL_PREPARATION_SERVICES, key=lambda item: item[0].casefold())
+        ]
 
     @current_root_application.get('/management/assistant/{asset}')
     def assistant_asset(asset: str):
