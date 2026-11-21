@@ -1,4 +1,5 @@
 import React,{useEffect,useState} from "react";
+import ResultTable from "./ResultTable.jsx";
 import KeyframeCatalog from "./KeyframeCatalog.jsx";
 import readReference from "./readReference.js";
 import KimodoPromptExamples from "./KimodoPromptExamples.jsx";
@@ -6,7 +7,7 @@ import {managementCommand} from "./managementCommand.js";
 
 export default function KimodoGeneration({session,restoreJob}){
   const [directions,setDirections]=useState({});
-  const [jointEdits,setJointEdits]=useState(null);
+  const [jointEdits,setJointEdits]=useState([]);
   const [references,setReferences]=useState([]);
   const [bundle,setBundle]=useState(null),[calibration,setCalibration]=useState(null),[hip,setHip]=useState(false);
   const [angles,setAngles]=useState("");
@@ -33,7 +34,7 @@ export default function KimodoGeneration({session,restoreJob}){
         if(controller.signal.aborted)return;
         setPlacement(restoredPlacement);setReferences(files);setSegments(defaults.segments.join(" "));setAngles(defaults.angles.join(" "));
         setBundle(attachment("proportion_reviewed_multiview"));setCalibration(attachment("proportion_face_anchor_calibration"));
-        setHip(defaults.hip);setJointEdits(defaults.attachments.proportion_joint_edits || null);
+        setHip(defaults.hip);setJointEdits(JSON.parse(defaults.attachments.proportion_joint_edits || "[]"));
         setNotice(restoreJob+" 입력을 불러왔습니다.");
       }
       if(!controller.signal.aborted){setInputs(defaults.inputs);setDirections(defaults.directions);}
@@ -51,7 +52,7 @@ export default function KimodoGeneration({session,restoreJob}){
     setReview(null);
     const request={...inputs,frames:Number(inputs.frames),steps:Number(inputs.steps),seed:Number(inputs.seed),
       guidance_scale:Number(inputs.guidance_scale),openpose_scale_percent:Number(inputs.openpose_scale_percent)};
-    if(jointEdits)request.proportion_joint_edits=jointEdits;
+    if(jointEdits.length)request.proportion_joint_edits=jointEdits;
     if(placement){
       request.keyframes=placement.placements;
       request.keyframe_source_hashes=Object.fromEntries(placement.sources.map(source=>[source.id,source.source_sha256]));
@@ -115,8 +116,23 @@ export default function KimodoGeneration({session,restoreJob}){
       {[["frames","프레임 수",30,300],["steps","생성 단계",2,100],["seed","시드",0,2147483647]].map(([field,label,min,max])=>
         <label key={field}>{label} <input type="number" required min={min} max={max} value={inputs[field]} onChange={e=>edit(field,e.target.value)}/></label>)}
       <label>신체 비율 참조 PNG (최대 8장) <input type="file" accept="image/png" multiple
-        onChange={e=>{setReferences(Array.from(e.target.files));setJointEdits(null);setReview(null);}}/></label>
-      {references.length>0 && <p>참조 이미지 · {references.map(file=>file.name).join(", ")} <button type="button" onClick={()=>{setReferences([]);setJointEdits(null);setReview(null);}}>참조 해제</button></p>}
+        onChange={e=>{setReferences(Array.from(e.target.files));setJointEdits([]);setReview(null);}}/></label>
+      {references.length>0 && <p>참조 이미지 · {references.map(file=>file.name).join(", ")} <button type="button" onClick={()=>{setReferences([]);setJointEdits([]);setReview(null);}}>참조 해제</button></p>}
+      {jointEdits.length>0 && <ResultTable table={{
+        title:"참조 관절 수정",columns:["참조 이미지","인물","관절","원본 좌표","수정 X","수정 Y","작업"],
+        rows:jointEdits.map((row,index)=>[
+          references[row.image-1]?.name,row.person,row.joint,row.original.join(", "),
+          ...row.edited.map((coordinate,axis)=><input type="number" required step="any"
+            aria-label={row.image+"번 이미지 "+row.person+"번 인물 "+row.joint+"번 관절 "+(axis===0?"X":"Y")}
+            value={coordinate} onChange={event=>{
+              const value=event.target.value===""?"":Number(event.target.value);
+              setJointEdits(previous=>previous.map((item,i)=>i===index?
+                {...item,edited:item.edited.map((old,j)=>axis===j?value:old)}:item));
+              setReview(null);
+            }}/>),
+          <button type="button" onClick={()=>{setJointEdits(previous=>previous.filter((_,i)=>i!==index));setReview(null);}}>수정 해제</button>
+        ])
+      }}/>}
       <details><summary>다중 시점 신체 비율</summary>
         <label>검출 관측 순서의 카메라 각도 8개 (도) <input value={angles} placeholder="45 0 135 90 225 315 180 270"
           onChange={e=>{setAngles(e.target.value);setReview(null);}}/></label>
