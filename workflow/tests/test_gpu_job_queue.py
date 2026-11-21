@@ -151,6 +151,39 @@ class GpuJobQueueTests(unittest.TestCase):
                 self.assertIsNone(queue_module.select_runnable_ticket(100,'vram',['kimodo-cache-check']))
                 current_ticket_mock.assert_not_called()
 
+    def test_hermes_parallel_only_distinct_known_sessions_with_capacity(self):
+        import os
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            job = root / 'job'; job.mkdir()
+            (job / 'gpu-command.json').write_text(json.dumps({'command':['python','worker.py'],'service':'hermes-agent'}))
+            request = job / 'request.json'
+            request.write_text(json.dumps({'context':{'session_id':'b'*32}}))
+            ticket = root / 'ticket.json'; ticket.write_text(json.dumps({'pid':os.getpid(),'path':str(job)}))
+            with patch.object(queue_module,'read_priority_tickets',return_value=[ticket]), patch.object(queue_module,'estimate_required_memory',return_value={'required_memory_mib':16}):
+                self.assertEqual(queue_module.select_runnable_ticket(16,'vram',['hermes-agent'],['a'*32]),ticket)
+                self.assertIsNone(queue_module.select_runnable_ticket(15,'vram',['hermes-agent'],['a'*32]))
+                self.assertIsNone(queue_module.select_runnable_ticket(100,'vram',['hermes-agent'],['b'*32]))
+                self.assertIsNone(queue_module.select_runnable_ticket(100,'vram',['hermes-agent','hermes-agent'],['a'*32,'c'*32]))
+                self.assertIsNone(queue_module.select_runnable_ticket(100,'vram',['hermes-agent'],[None]))
+                self.assertIsNone(queue_module.select_runnable_ticket(100,'vram',['hermes-agent','image'],['a'*32]))
+                self.assertIsNone(queue_module.select_runnable_ticket(100,'vram',['management-setup'],[]))
+                request.write_text(json.dumps({'context':{'session_id':'invalid'}}))
+                self.assertIsNone(queue_module.select_runnable_ticket(100,'vram',['hermes-agent'],['a'*32]))
+
+    def test_waiting_same_session_does_not_block_other_session(self):
+        import os
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); tickets=[]
+            for index, session in enumerate(('a'*32, 'b'*32)):
+                job=root / str(index);job.mkdir()
+                (job/'gpu-command.json').write_text(json.dumps({'command':['python','worker.py'],'service':'hermes-agent'}))
+                (job/'request.json').write_text(json.dumps({'context':{'session_id':session}}))
+                ticket=root / f'{index}.json';ticket.write_text(json.dumps({'pid':os.getpid(),'path':str(job)}));tickets.append(ticket)
+            with patch.object(queue_module,'read_priority_tickets',return_value=tickets), patch.object(queue_module,'estimate_required_memory',return_value={'required_memory_mib':16}):
+                self.assertEqual(queue_module.select_runnable_ticket(16,'vram',['hermes-agent'],['a'*32]),tickets[1])
+                self.assertEqual(queue_module.select_runnable_ticket(16,'vram',[],[]),tickets[0])
+
     def test_hermes_queue_is_exclusive_with_active_work(self):
         with tempfile.TemporaryDirectory() as current_temp_directory:
             current_root_path = Path(current_temp_directory)

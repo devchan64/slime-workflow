@@ -438,9 +438,26 @@ def is_hermes_status_query(waiting_job_directory):
         return False
 
 
-def select_runnable_ticket(available_memory_mib, current_memory_domain=None, active_service_names=()):
+def read_hermes_queue_session(job_directory):
+    """검증할 수 없는 세션은 병렬 허용 근거로 사용하지 않는다."""
+    import re
+    try:
+        path = Path(job_directory) / 'request.json'
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 1_048_576:
+            return None
+        request = json.loads(path.read_text(encoding='utf-8'))
+        context = request.get('context') if isinstance(request, dict) else None
+        session = context.get('session_id') if isinstance(context, dict) else None
+        return session if isinstance(session, str) and re.fullmatch(r'[a-f0-9]{32}', session) else None
+    except (OSError, ValueError, TypeError):
+        return None
+
+
+def select_runnable_ticket(available_memory_mib, current_memory_domain=None, active_service_names=(), active_hermes_sessions=None):
     """잠금 안에서 접수 순서대로 확인해 메모리가 맞는 첫 작업을 선택한다."""
-    if GPU_EXCLUSIVE_SERVICES.intersection(active_service_names) or 'unreadable' in active_service_names:
+    if (GPU_EXCLUSIVE_SERVICES - {'hermes-agent'}).intersection(active_service_names) or 'unreadable' in active_service_names:
+        return None
+    if 'hermes-agent' in active_service_names and active_hermes_sessions is None:
         return None
     try:
         current_waiting_tickets=read_priority_tickets()
@@ -473,8 +490,20 @@ def select_runnable_ticket(available_memory_mib, current_memory_domain=None, act
             return None
         if not isinstance(waiting_command_record,dict) or not isinstance(waiting_command_record.get('service'),str) or waiting_command_record['service'] not in GPU_MEMORY_REQUIREMENTS or not isinstance(waiting_command_record.get('command'),list):
             return None
-        if waiting_command_record['service'] in GPU_EXCLUSIVE_SERVICES and active_service_names:
-            if waiting_command_record['service'] != 'hermes-agent' or not is_hermes_status_query(waiting_job_directory):
+        waiting_service = waiting_command_record['service']
+        active_hermes_count = active_service_names.count('hermes-agent')
+        if active_hermes_count:
+            # Hermes 실행 중에는 다른 GPU 생성은 시작하지 않는다.
+            if waiting_service != 'hermes-agent':
+                continue
+            waiting_session = read_hermes_queue_session(waiting_job_directory)
+            if (active_hermes_sessions is None or len(active_hermes_sessions) != active_hermes_count
+                    or None in active_hermes_sessions or waiting_session is None
+                    or waiting_session in active_hermes_sessions or active_hermes_count >= 2
+                    or any(service != 'hermes-agent' for service in active_service_names)):
+                continue
+        elif waiting_service in GPU_EXCLUSIVE_SERVICES and active_service_names:
+            if waiting_service != 'hermes-agent' or not is_hermes_status_query(waiting_job_directory):
                 continue
         waiting_memory_estimate = estimate_required_memory(
             waiting_command_record['service'], GPU_MEMORY_REQUIREMENTS[waiting_command_record['service']],
@@ -674,6 +703,7 @@ def execute_locked_generation(generation_job_path):
                 execution_lock_acquired = False
                 available_memory_value = 0
                 reserved_memory_value = 0
+                wait_message = 'GPU 대기열 예약을 확인하는 중입니다.'
                 try:
                     fcntl.flock(gpu_execution_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
                     execution_lock_acquired = True
@@ -682,6 +712,7 @@ def execute_locked_generation(generation_job_path):
                 if execution_lock_acquired:
                     try:
                         active_service_names = []
+                        active_hermes_sessions = []
                         try:
                             current_reservation_paths=list_gpu_queue_record_paths(active_reservation_directory)
                         except OSError:
@@ -727,7 +758,10 @@ def execute_locked_generation(generation_job_path):
                                     continue
                             else:
                                 reservation_command_record = {}
-                            active_service_names.append(reservation_record.get('service') or reservation_command_record.get('service') or 'unknown')
+                            reservation_service = reservation_record.get('service') or reservation_command_record.get('service') or 'unknown'
+                            active_service_names.append(reservation_service)
+                            if reservation_service == 'hermes-agent':
+                                active_hermes_sessions.append(read_hermes_queue_session(reservation_job_directory) if reservation_job_directory else None)
                             # 실측 여유에는 이미 사용 중인 메모리가 반영되어 있다.
                             try:
                                 measured_reservation_mib = read_worker_memory(reservation_record['pid'], current_memory_domain=current_memory_domain)
@@ -739,7 +773,24 @@ def execute_locked_generation(generation_job_path):
                         host_available_memory = read_host_available_memory()
                         current_pool_available = calculate_gpu_pool_capacity(current_memory_domain,memory_free_value,host_available_memory)
                         available_memory_value = max(0, current_pool_available-reserved_memory_value)
-                        if select_runnable_ticket(available_memory_value, current_memory_domain, active_service_names) == queue_ticket_path:
+                        wait_message = 'GPU 또는 시스템 메모리 여유 또는 실행 가능한 앞선 작업 대기'
+                        if 'unreadable' in active_service_names:
+                            wait_message = '실행 중인 GPU 예약을 확인할 수 없어 대기 중입니다.'
+                        elif (GPU_EXCLUSIVE_SERVICES - {'hermes-agent'}).intersection(active_service_names):
+                            wait_message = 'GPU 독점 작업이 종료되기를 기다리는 중입니다.'
+                        elif generation_command_record['service'] == 'hermes-agent' and 'hermes-agent' in active_service_names:
+                            this_session = read_hermes_queue_session(generation_job_path)
+                            if this_session is None or None in active_hermes_sessions:
+                                wait_message = '실행 중인 Hermes 작업의 세션을 확인할 수 없어 대기 중입니다.'
+                            elif this_session in active_hermes_sessions:
+                                wait_message = '같은 대화 세션의 앞선 Hermes 작업이 끝나기를 기다리는 중입니다.'
+                            elif len(active_hermes_sessions) >= 2:
+                                wait_message = 'Hermes 동시 실행 한도(2개)에 도달해 대기 중입니다.'
+                            elif available_memory_value < required_memory_value:
+                                wait_message = 'GPU 또는 시스템 메모리 여유가 부족해 대기 중입니다.'
+                        elif available_memory_value < required_memory_value:
+                            wait_message = 'GPU 또는 시스템 메모리 여유가 부족해 대기 중입니다.'
+                        if select_runnable_ticket(available_memory_value, current_memory_domain, active_service_names, active_hermes_sessions) == queue_ticket_path:
                             current_queue_stat = Path(f'/proc/{os.getpid()}/stat').read_text().rpartition(') ')[2].split()
                             current_reservation_record={'pid':os.getpid(), 'pid_start_token':current_queue_stat[19], 'path':str(generation_job_path), 'service':generation_command_record['service'], 'required_memory_mib':required_memory_value}
                             if 'boot_id' in current_ticket_record:current_reservation_record['boot_id']=current_ticket_record['boot_id']
@@ -748,7 +799,7 @@ def execute_locked_generation(generation_job_path):
                             break
                     finally:
                         fcntl.flock(gpu_execution_handle, fcntl.LOCK_UN)
-                queue_status_record = {'status':'queued', 'queue_position':queue_position_value, 'memory_domain':current_memory_domain, 'free_memory_mib':memory_free_value, 'host_available_memory_mib':read_host_available_memory(), 'required_memory_mib':required_memory_value, 'reserved_memory_mib':reserved_memory_value, 'available_memory_mib':available_memory_value, 'memory_estimate':memory_estimate_record, 'message':'GPU 또는 시스템 메모리 여유 또는 실행 가능한 앞선 작업 대기'}
+                queue_status_record = {'status':'queued', 'queue_position':queue_position_value, 'memory_domain':current_memory_domain, 'free_memory_mib':memory_free_value, 'host_available_memory_mib':read_host_available_memory(), 'required_memory_mib':required_memory_value, 'reserved_memory_mib':reserved_memory_value, 'available_memory_mib':available_memory_value, 'memory_estimate':memory_estimate_record, 'message':wait_message}
                 write_record_atomically(generation_job_path/'status.json', queue_status_record)
                 print(f'{time.strftime("%Y-%m-%dT%H:%M:%S")}/gpu-queue/wait {queue_status_record}', flush=True)
                 time.sleep(GPU_POLL_INTERVAL)

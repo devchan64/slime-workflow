@@ -62,7 +62,7 @@ function messagesFrom(view) {
     const showAnswer = !table || (answer !== activity.source_history_summary && !activity.history_table_is_answer);
     return [{id:key+"-user",role:"user",content:m.text},
       {id:key+"-answer",role:"assistant",content:showAnswer ? answer : "",metadata:{custom:{
-        status:job.status?.status || "접수 확인 중",session:view.id,job:m.job_id,seedProposal:m.seed_form_proposal,kimodoProposal:job.status?.status==="completed" && !job.final_response_truncated && answer.includes("HERMES_KIMODO_PROPOSAL"),activity,table}}}];
+        status:job.status?.status || "접수 확인 중",queueMessage:job.status?.status==="queued" && typeof job.status.message==="string" ? job.status.message : "",session:view.id,job:m.job_id,seedProposal:m.seed_form_proposal,kimodoProposal:job.status?.status==="completed" && !job.final_response_truncated && answer.includes("HERMES_KIMODO_PROPOSAL"),activity,table}}}];
   });
 }
 function jobLink(id,session){
@@ -91,6 +91,7 @@ function Message() {
     {!meta.table && meta.activity?.source_history_summary && <pre>{meta.activity.source_history_summary}</pre>}
     {meta.activity?.events?.length>0 && <details><summary>도구 사용 내역</summary>{meta.activity.events.map((e,i)=><p key={i}>{e.name} · {e.target || e.result}</p>)}</details>}
     {meta.status==="failed" && !message.content?.some(part=>part.type==="text" && part.text?.trim()) && <p role="status">응답 생성에 실패했습니다. 작업 상세에서 원인을 확인해 주세요.</p>}
+    {meta.queueMessage && <p role="status">{meta.queueMessage}</p>}
     {meta.status && <small>{statusLabels[meta.status] || meta.status} {meta.job && <> · <a href={jobLink(meta.job,meta.session)}>{meta.job}</a></>}</small>}
   </MessagePrimitive.Root>;
 }
