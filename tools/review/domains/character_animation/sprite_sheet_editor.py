@@ -167,7 +167,7 @@ def execute_baseline_sheet_command(current_command_name,current_payload_record):
         current_coordinate_record=json.loads(current_coordinate_path.read_text())
         if current_coordinate_record.get('sha256')!=sha256(current_image_bytes).hexdigest():
             raise ValueError('베이스라인 이미지와 좌표맵 해시 불일치')
-    return {'path':current_payload_record['path'],'image':base64.b64encode(current_image_bytes).decode(),'animation':current_coordinate_record,'layout':current_layout_record,'metadataSha256':sha256(current_image_path.with_suffix('.yaml').read_bytes()+(current_coordinate_path.read_bytes() if current_coordinate_name else b'')).hexdigest()}
+    return {'imageSha256':sha256(current_image_bytes).hexdigest(),'path':current_payload_record['path'],'image':base64.b64encode(current_image_bytes).decode(),'animation':current_coordinate_record,'layout':current_layout_record,'metadataSha256':sha256(current_image_path.with_suffix('.yaml').read_bytes()+(current_coordinate_path.read_bytes() if current_coordinate_name else b'')).hexdigest()}
 
 
 def select_sprite_texture_frames(current_animation_record,current_image_name):
@@ -249,7 +249,7 @@ def execute_sprite_asset_command(current_command_name,current_payload_record):
                 current_runtime_dimensions['bodyReference']=current_body_reference
         for current_dimension_value in (current_runtime_dimensions[current_dimension_name] for current_dimension_name in ('referenceBodyHeight','gameBodyHeight') if current_dimension_name in current_runtime_dimensions):
             if type(current_dimension_value) not in (int,float) or not math.isfinite(current_dimension_value) or current_dimension_value<=0:raise ValueError('게임 신체 높이는 유한한 양수여야 합니다.')
-    return {'image':base64.b64encode(current_image_bytes).decode(),'path':current_asset_path,'metadataSha256':current_metadata_matches[0]['sha256'] if len(current_metadata_matches)==1 else None,'animation':current_animation_record,'runtimeDimensions':current_runtime_dimensions}
+    return {'imageSha256':current_sprite_records[current_asset_path]['sha256'],'image':base64.b64encode(current_image_bytes).decode(),'path':current_asset_path,'metadataSha256':current_metadata_matches[0]['sha256'] if len(current_metadata_matches)==1 else None,'animation':current_animation_record,'runtimeDimensions':current_runtime_dimensions}
 
 
 def update_baseline_sprite_sheet(current_request_record):

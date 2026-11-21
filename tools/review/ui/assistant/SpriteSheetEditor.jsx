@@ -1,3 +1,4 @@
+import SpriteAnchorRestore from "./SpriteAnchorRestore.jsx";
 import React,{useEffect,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
@@ -9,7 +10,7 @@ import renderSpritePreview from "./renderSpritePreview.mjs";
 const fields=["x","y","width","height","anchorX","anchorY"];
 const labels=["X","Y","너비","높이","앵커 X","앵커 Y"];
 
-function SpritePreview({rows,image,bounds,fps,original,onEdit,canvas,onReferenceEdit}){
+function SpritePreview({rows,image,bounds,fps,original,onEdit,canvas,onReferenceEdit,restoredFeet}){
   const [gameSize,setGameSize]=useState(false),[guide,setGuide]=useState(true),[feet,setFeet]=useState(false);
   const [referenceHeight,setReferenceHeight]=useState(original?.runtimeDimensions?.referenceBodyHeight ?? original?.animation?.referenceBodyHeight ?? "");
   const [gameHeight,setGameHeight]=useState(original?.runtimeDimensions?.gameBodyHeight ?? original?.animation?.gameBodyHeight ?? "");
@@ -40,10 +41,10 @@ function SpritePreview({rows,image,bounds,fps,original,onEdit,canvas,onReference
   useEffect(()=>{
     const el=canvas.current;
     const message=renderSpritePreview("data:image/png;base64,"+image,rows.map(row=>fields.map(field=>row[field])),frame,
-      playing,shadow,mode,bounds,fps,baseline,onion,clip,original || {},gameSize,referenceHeight,gameHeight,feet,{},guide,el);
+      playing,shadow,mode,bounds,fps,baseline,onion,clip,original || {},gameSize,referenceHeight,gameHeight,feet,restoredFeet,guide,el);
     setPreviewStatus(message);
     return ()=>{el.spritePreviewRevision++;};
-  },[image,rows,frame,playing,shadow,bounds,fps,baseline,onion,clip,original,mode,revision,gameSize,referenceHeight,gameHeight,feet,guide]);
+  },[image,rows,frame,playing,shadow,bounds,fps,baseline,onion,clip,original,mode,revision,gameSize,referenceHeight,gameHeight,feet,restoredFeet,guide]);
   return <fieldset><legend>프레임 재생 미리보기</legend>
     <canvas ref={canvas} onPointerUp={()=>{if(mode==="머리 기준")onReferenceEdit();}} width="640" height="640" aria-label="크롭과 앵커 미리보기" style={{width:"100%",maxWidth:640,touchAction:"none"}}/>
     <p role="status">{previewStatus}</p>
@@ -103,7 +104,7 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
   const [columns,setColumns]=useState(initialColumns),[busy,setBusy]=useState(false);
   const [result,setResult]=useState(null),[error,setError]=useState("");
   const [first,setFirst]=useState(1),[last,setLast]=useState(rows.length),[fps,setFps]=useState(6);
-  const [review,setReview]=useState(null);
+  const [review,setReview]=useState(null),[restoredFeet,setRestoredFeet]=useState({});
   const canvas=useRef(null);
   function readBodyReference(){
     if(original?.source!=="assets")return null;
@@ -166,7 +167,9 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
       rows:rows.map((row,i)=>[i+1,...fields.map((field,j)=><input aria-label={(i+1)+"번 "+labels[j]} type="number"
         required step={j<4?1:"any"} value={row[field]} onChange={e=>update(i,field,e.target.value)}/>)])}}/>
     <BulkEdit rows={rows} onEdit={editRows}/>
-    <SpritePreview canvas={canvas} onReferenceEdit={()=>setReview(null)} onEdit={editRows} rows={rows} image={image} bounds={bounds} fps={fps} original={original}/>
+    {original?.animation?.animationId && original.animation.version && <SpriteAnchorRestore original={original} rows={rows}
+      onRestore={snapshot=>{editRows(snapshot.rows);setRestoredFeet(snapshot.feet);}}/>}
+    <SpritePreview restoredFeet={restoredFeet} canvas={canvas} onReferenceEdit={()=>setReview(null)} onEdit={editRows} rows={rows} image={image} bounds={bounds} fps={fps} original={original}/>
     <label>출력 열 수<input type="number" min="1" max="128" required value={columns}
       onChange={e=>{setColumns(e.target.value);setReview(null);setResult(null);}}/></label>
     <button>시트와 좌표맵 내보내기</button>
