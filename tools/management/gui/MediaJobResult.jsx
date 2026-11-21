@@ -39,10 +39,19 @@ function SavedPoseVideo({id}) {
   </details>;
 }
 
-export default function MediaJobResult({service,id,kind="video",children}) {
+export default function MediaJobResult({service,id,kind="video",children,folderLink=false}) {
   const [job,setJob]=useState(null);
   const [error,setError]=useState("");
   const [revision,refresh]=useState(0);
+  const [folderNotice,setFolderNotice]=useState("");
+  async function openFolder(){
+    try{
+      const response=await fetch("/management/record-folder/open",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({route:"/"+service,id})});
+      const result=await response.json();
+      if(!response.ok)throw new Error(result.error || "폴더를 열 수 없습니다.");
+      setFolderNotice(result.message);
+    }catch(problem){setFolderNotice(problem.message);}
+  }
   useEffect(()=>{
     let active=true,timer;
     async function read() {
@@ -81,7 +90,8 @@ export default function MediaJobResult({service,id,kind="video",children}) {
             <a href={job.video} target="_blank" rel="noopener">MP4 열기</a>
           </>}
         {service==="wan22-fun-control" && <SavedPoseVideo key={id} id={id}/>}
-        <a href={job.download} download>{service==="dwpose"?"포즈 PNG·좌표 YAML 다운로드":"PNG 프레임 ZIP 다운로드"}</a>
+        {folderLink ? <><button type="button" onClick={openFolder}>결과 기록 폴더 열기</button><span role="status">{folderNotice}</span></> :
+          <a href={job.download} download>{service==="dwpose"?"포즈 PNG·좌표 YAML 다운로드":"PNG 프레임 ZIP 다운로드"}</a>}
       </>}
       {(job.result_status==="unavailable" || job.file_observation==="unavailable") && <p>완료 기록의 결과 파일을 확인할 수 없습니다.</p>}
     </> : !error && <p>결과 조회 중…</p>}

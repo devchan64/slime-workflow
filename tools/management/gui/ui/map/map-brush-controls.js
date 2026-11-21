@@ -1,4 +1,3 @@
-// 포인터 스트로크는 브라우저에서 모으고 완료된 작업만 Gradio 초안으로 전달한다.
 export function installMapBrushControls(currentMapCanvas,currentResolveTarget){
  let currentStrokeEvents=null;
  let currentStrokeVisited=new Set();

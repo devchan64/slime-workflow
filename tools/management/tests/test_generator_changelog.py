@@ -3,10 +3,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.management.common.gradio_generator_changelog import (
+from tools.management.common.generator_changelog import (
     GENERATOR_CHANGELOG_PATHS,
     read_generator_changelog,
-    paginate_changelog, changelog_page,
+    paginate_changelog, read_changelog_page,
 )
 
 
@@ -48,18 +48,14 @@ class GeneratorChangelogTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             read_generator_changelog('../../AGENTS.md')
 
-    def test_composed_generator_pages_show_their_changelog(self):
-        from tools.management.common.management_asgi import GENERATOR_PAGE_PACKAGES, build_management_blocks
-        current_changelog_names = {
-            'qwen-21-generator': 'qwen-21',
-            'qwen-21-circular-generator': 'qwen-21-circular',
-            'expression-generator': 'expression',
-            'building-generator': 'billboard-generator',
-        }
-        for current_tool_name in GENERATOR_PAGE_PACKAGES:
-            with self.subTest(generator=current_tool_name):
-                with patch('tools.management.ui.gradio.management_menu_app.load_manager_page_records', return_value=[]):
-                    current_blocks, _ = build_management_blocks(current_tool_name, 8770, Path('/tmp/slime-test-no-menu.json'))
-                current_expected_text = changelog_page(current_changelog_names.get(current_tool_name, current_tool_name))[0]
-                current_components = current_blocks.config['components']
-                self.assertTrue(any(current_component.get('props', {}).get('value') == current_expected_text.strip() for current_component in current_components))
+    def test_archive_services_expose_their_changelog_page(self):
+        from tools.management.common.management_asgi import GENERATOR_PAGE_PACKAGES
+        aliases = {'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular',
+                   'character-generator': 'qwen-21', 'expression-generator': 'expression',
+                   'building-generator': 'billboard-generator'}
+        for name in GENERATOR_PAGE_PACKAGES:
+            service = aliases.get(name, name)
+            with self.subTest(service=service):
+                date, content = paginate_changelog(GENERATOR_CHANGELOG_PATHS[service].read_text())[0]
+                page = read_changelog_page(service)
+                self.assertEqual((page['date'], page['content']), (date, content))

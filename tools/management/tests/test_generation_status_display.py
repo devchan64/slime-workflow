@@ -54,7 +54,7 @@ class GenerationStatusDisplayTests(unittest.TestCase):
                     self.assertEqual(current_response_headers['Content-Type'], 'video/mp4')
 
     def test_video_result_preserves_browser_origin(self):
-        from tools.management.common.gradio_video_results import render_video_generation_result
+        from tools.management.common.video_results import render_video_generation_result
         current_result_markup = render_video_generation_result('job-a', {
             'video': '/wan22-fun-control/jobs/job-a/preview.mp4',
             'download': '/wan22-fun-control/jobs/job-a/frames.zip',
@@ -96,7 +96,7 @@ class GenerationStatusDisplayTests(unittest.TestCase):
                         self.assertEqual(current_response_headers['Content-Range'], 'bytes 0-4/10')
 
     def test_video_duration_rejects_empty_and_invalid_frame_counts(self):
-        from tools.management.common.gradio_video_results import describe_video_frame_duration
+        from tools.management.common.video_results import describe_video_frame_duration
         for current_frame_count in (None, '', True, 0, 2, 162, 5.5, float('nan'), float('inf')):
             with self.subTest(frames=current_frame_count):
                 self.assertIn('입력하세요', describe_video_frame_duration(current_frame_count))
@@ -126,8 +126,8 @@ class GenerationStatusDisplayTests(unittest.TestCase):
             self.assertNotIn('현재 0 MiB',current_display_text)
 
     def test_missing_media_result_matches_terminal_status(self):
-        from tools.management.common.gradio_audio_results import render_audio_generation_result
-        from tools.management.common.gradio_video_results import render_video_generation_result
+        from tools.management.common.audio_results import render_audio_generation_result
+        from tools.management.common.video_results import render_video_generation_result
         for current_renderer_function in (render_audio_generation_result,render_video_generation_result):
             for current_status_name in ('completed','failed','cancelled','interrupted'):
                 with self.subTest(renderer=current_renderer_function.__name__,status=current_status_name):
@@ -152,8 +152,8 @@ class GenerationStatusDisplayTests(unittest.TestCase):
         self.assertNotIn('작업자 마지막 관측', describe_generation_status(current_status_record))
 
     def test_audio_and_video_share_missing_memory_and_failure_display(self):
-        from tools.management.common.gradio_audio_results import describe_audio_generation_status
-        from tools.management.common.gradio_video_results import describe_video_generation_status
+        from tools.management.common.audio_results import describe_audio_generation_status
+        from tools.management.common.video_results import describe_video_generation_status
         current_status_record={'status':'failed','error':'작업 실패','progress':{'total':40},'metrics':{'step':12,'gpu_observations':{'gpu':{'process_current_mib':None,'process_peak_mib':250,'scope':'자식 포함'}}}}
         for current_display_function in (describe_audio_generation_status,describe_video_generation_status):
             current_display_text=current_display_function(current_status_record)
@@ -215,7 +215,7 @@ class GenerationStatusDisplayTests(unittest.TestCase):
         self.assertNotIn('단계: worker',current_status_text)
 
     def test_video_current_worker_inference_keeps_overall_estimate(self):
-        from tools.management.common.gradio_video_results import describe_video_generation_status
+        from tools.management.common.video_results import describe_video_generation_status
         from tools.management.common.queue_generation_telemetry import merge_generation_worker_metrics
         current_queue_metrics = {'started_at':'2026-10-15T12:00:00+09:00', 'estimate':{'remaining':23,'scope':'전체 작업'}, 'inference_estimate':{'remaining':None}}
         current_worker_metrics = {'started_at':'2026-10-15T12:00:01+09:00', 'estimate':{}, 'inference_estimate':{'remaining':7,'scope':'추론 종료까지', 'sample_count':5}}

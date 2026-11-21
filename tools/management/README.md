@@ -1,6 +1,5 @@
 # 관리도구 소스 구조
 
-> Gradio는 폐기되었다. 아래의 Gradio 관련 기술과 전환 기록은 과거 이력이며 현재 UI의 구현 기준이 아니다. 남은 코드와 문서의 정리는 진행 중이다.
 
 관리도구의 실행 진입점과 화면 URL은 유지하며, 구현을 도메인별로 관리한다.
 
@@ -39,7 +38,6 @@ tools/manager.py                  통합 CLI 진입점
      image/                      Qwen 이미지 API·참조 입력 검증
    gui/ui/                       (`ui/`는 호환 연결)
      shared/                     공용 스타일·이력·진행·영역 이동
-     gradio/                     Kimodo·Qwen 등 현행 생성 화면
      anny/                       속성 화면·3D 뷰어
      image/                      텍스트·참조 이미지 생성 화면
      map/                        지도·타일 검수 템플릿
@@ -51,7 +49,6 @@ tools/manager.py                  통합 CLI 진입점
 ## 의존성과 확장
 
 - 독립 게이트웨이의 `management_runtime.py`가 각 도메인을 연결한다. `ManagementServiceBinding` 한 항목에서 HTTP 처리·기록 루트·기록 경로 해석기를 정의하고 명령·파일 조회·폴더 열기에 같은 연결을 사용한다. 서비스 이름·URL은 `management_gateway.py`의 등록부를 따르며 연결 누락·알 수 없는 서비스는 시작 시 거절한다. GUI 서버는 작업 서비스를 생성하지 않는다. 신규 구현은 `domains/<domain>/`에 추가한다.
-- Gradio는 환경 경로를 `management_environment.py`에서만 가져온다. 설치·프로세스 실행기를 환경 설정 의존성으로 가져오지 않는다. `management_launcher.py`는 스크립트 인자를 전달하며 서비스 명령의 별도 CLI를 만들지 않는다.
 - 도메인 공통 기능은 `common/`, 공통 화면 자원은 `ui/shared/`에 둔다. 다른 생성기의 작업 모듈에서 공용 함수를 가져오지 않는다.
 - UI 파일은 `resolve_review_ui_asset()`으로 조회한다. 파일명은 레지스트리에 명시하며 사용자 입력 경로를 파일 시스템 경로로 직접 사용하지 않는다.
 - 빌드 스크립트와 서버의 위치는 실행 계약이므로 유지한다. 서비스 실행 경로와 모델 실행 코드는 구분하며, 모델 실행기는 기존 `generators/` 도메인에 둔다.
@@ -107,7 +104,6 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 | 기능 | 관리 위치 |
 | --- | --- |
-| 맵·건물 선택, 시점 버튼, 표시 옵션, 준비·실패 안내 | `ui/gradio/map_review_app.py` |
 | 화면 맞춤, 고정 시점, 확대·축소, 포인터·키보드 이동, 적용 원본 목록 | `ui/map/block-map-review.js` |
 | Phaser 연결, 카메라 갱신, 마을·필드 입력 연결, 렌더러 수명 정리 | `ui/map/field-map-view.js` |
 | 타일·건물 선택과 실제 그리기 규칙 | 프론트엔드 소유 `@slime/field-renderer`의 채택 배포본 |
@@ -170,22 +166,16 @@ MoMask 작업 서비스와 루트 호환 모듈은 제거했다. 이전 HTTP 주
 
 ### Wan2.1 VACE 영상 생성
 
-`domains/vace/generation.py`는 R2V 작업 서비스를, `generators/vace/`는 고정 1.3B 로컬 모델 추론과 입력 계약을 관리한다. 애니메이션 도구 메뉴의 Gradio 클라이언트는 공용 `wan21-vace` 게이트웨이를 사용한다. 첫 프레임·비디오·마스크 입력 없이 참조 한 장만 받는다. `common/generation_telemetry.py`는 작업자 heartbeat·ETA·장치별 메모리 관측을 기록하고 기존 GPU 대기열이 실행 수명을 관리한다. 상세 CLI와 보존 정책은 [관리도구 클라이언트 가이드](../../workflows/management-clients.md#wan21-vace-r2v-영상-생성기)를 따른다.
 
-## Gradio iframe 단계별 제거
 
 관리 화면의 내부 미리보기부터 외곽 탐색 순으로 iframe 의존성을 제거한다. 전환 단위는 해당 UI·회귀검사·문서를 함께 검증하고 각각 커밋한다. 기존 화면 URL과 GUI·CLI → 공용 게이트웨이 → 작업 서비스·기록 저장소 계약은 유지한다.
 
 - 운영 대화의 플로팅 패널 **도구 탐색**에서 생성기·검수·편집·모델 관리 등 등록된 도구를 이름·분류·ID·기능으로 검색한다. **현재 요청에 추가**를 누르면 작성 중인 내용에 선택한 도구 이름과 ID가 추가되고 입력란으로 돌아간다. 작업 내용을 이어서 작성한 뒤 **요청 검토**로 진행한다.
-- 독립 검수 허브: `ui/asset_review/frame-manager.html`은 이전 `preview.html#항목ID`를 공용 Gradio 메뉴로 연결하는 호환 문서다. 검색·분류·동작 매개변수를 보존하며 iframe 보관·중복 메뉴 구현은 제거했다. `serve.py`는 과거 허브의 원본을 변경하지 않고 현재 연결문을 제공한다. 걷기 비교는 기존 독립 HTML 링크로, 걷기·스탠딩 앵커는 Gradio 편집기로 연다.
-- 현행 관리 UI의 iframe 의존성 제거와 모든 독립 HTML의 Gradio 재작성은 구분한다. 과거 산출물의 일괄 재작성·운영 GPU 작업 접수는 포함하지 않는다. 현황과 실제 브라우저 검증 범위는 [UI 가이드의 iframe 전환 기록](../../workflows/management-ui.md#gradio-iframe-전환-기록)을 따른다.
 
-앵커 검수 전환의 데이터 경계는 `common/animation_review_payload.py`에서 관리한다. 새 게시 문서의 `anchor-review-data` JSON 블록을 명시적인 버전·필드로 읽으며 실행 JavaScript에서 상수를 추출하지 않는다. 기존 편집기도 같은 JSON을 사용한다. `ui/gradio/anchor_native_preview.py`와 `ui/shared/animation-anchor-editor/native-loader.js`는 이 JSON과 Git의 공용 편집 코드를 Gradio 내부 캔버스에 연결한다. 앵커 내부 iframe·부모 창 전달은 제거했다. DOM 조회·요청·재생 수명은 해당 캔버스에 한정하며 동작 전환 때 정리한다. 게임 디자인·전장은 게시 번들의 컴포넌트 모듈을 직접 마운트한다. 이전 형식의 게시 HTML은 기존 게시기로 다시 생성해야 하며 손상된 데이터는 iframe으로 우회하지 않는다.
 
 
 공용 메뉴의 직접 경로는 `resolve_management_page_path()`가 계산한다. `compose_management_interface()`는 기존 도구 Blocks를 공용 메뉴에 렌더링하며 이벤트·게이트웨이·기록 계약은 도구가 유지한다. 관리 서버는 선택한 게시 목록을 `SLIME_MANAGEMENT_MENU_SOURCE`로 자식 GUI 서버에 전달하고 변경 감지에도 포함한다. 직접 실행의 기본 게시 목록은 `.tmp/manager-current/manager-source.json`이며 파일이 없거나 손상되면 실패한다. 지도별 `map`·`townPage`와 도구 `tool`은 직접 URL에서 보존한다. 외곽 iframe 생성·자식 문서 CSS 주입·높이 동기화는 제거했다.
 
-음악생성의 작업 서비스는 `domains/music/generation.py`, 고정 모델 어댑터·준비·기본값은 `generators/music/`, 공용 Gradio 화면은 `ui/gradio/music_app.py`에서 관리한다. 공용 메뉴에는 `sound-management` 분류로 MiniMax-Music3를 연결한다. [음악생성 사용법](../../generators/music/README.md)을 참고한다.
 
 ### VACE 메모리 운용
 
@@ -196,7 +186,6 @@ VACE 공용 작업자는 CUDA 초기화 전에 `expandable_segments:True`를 적
 가벼운 수정은 영향받는 모듈만 지정한다. 문서만 수정하면 형식·링크·diff 확인으로 충분하며, UI 변경은 해당 흐름의 브라우저 검증을 함께 수행한다. 전체 전수 검사 중에도 매 변경마다 전체 회귀를 반복하지 않는다.
 
 ```bash
-.venv/bin/python tools/management/tests/run_management_audit.py --module tools.management.tests.test_writer_agent_gradio
 ```
 
 여러 모듈은 `--module`을 반복한다. 광범위한 공용 계약 변경 등 전체 검사가 필요한 이유가 있을 때만 `--all`을 사용한다. 인자가 없거나 `--module`과 `--all`을 함께 지정하면 실행 전에 거절한다. 로그·종료 코드·최종 요약은 기존 공용 회귀 실행기가 보존한다. 통과 후 새 변경이나 실패 근거 없이 같은 검사를 반복하지 않는다.
@@ -213,16 +202,13 @@ ASSET_LEDGER_SOURCE_ROOT=../slime-assets ASSET_LEDGER_EXPORT_FILE="$fixture_dire
 
 ### 검수 서버 단일 진입점
 
-검수 GUI는 8770만 지원한다(`--port 8770`). 별도 검수 포트와 임시 게시 서버는 사용하지 않는다. 캐릭터 PNG 캡처도 `/management/capture/`에서 활성 작업의 토큰으로 보호된 파일과 결과를 전달하며 종료 후 접근을 닫는다. 캡처 실행에는 8770이 필요하다. 8771은 작업 명령 게이트웨이이며, Gradio 내부 포트는 8770의 프록시 대상이다. 이들은 독립 검수 서버 폐기 대상이 아니다.
 
 
 ### Dasheng-AudioGen 효과음
 
-효과음 생성은 `sfx-dasheng-audiogen` 서비스와 `ui/gradio/sfx_dasheng_app.py` 진입점을 사용한다. `domains/music/generation.py`·`generators/music/worker.py`의 공용 오디오 작업 수명과 `ui/gradio/music_app.py`의 이력·입력 화면을 재사용한다. 효과음 고정 설정·추론·설치는 `generators/sound_effects/`에서 소유한다. [효과음 사용법](../../generators/sound_effects/README.md)을 참고한다.
 
 ### 맵 통합 검수와 선택 리소스
 
-`맵 통합 검수`에서 야외필드·도시맵·전투필드를 선택한다. 기존 맵 URL은 유지하며 야외·마을은 맵 선택과 불러오기를 제공하고, 전투필드는 기존 게임 검수 컴포넌트를 같은 Gradio 페이지에 직접 마운트한다. iframe을 사용하지 않는다.
 
 리소스 계획·이미지 중복 제거·제한 병렬 로딩·취소는 프론트엔드 `@slime/field-renderer`의 `map-resource-plan.ts`와 `map-resource-loader.mjs`가 소유한다. 관리도구는 등록 카탈로그의 URL·해시를 연결하고 선택 맵의 타일·오브젝트 로드 수를 표시한다. 지형 전체 카탈로그를 조회하더라도 전체 이미지를 다운로드하지 않는다. 캐릭터 표현 비교는 선택 가능한 세 종류 바닥만 준비한다. 전투필드는 선택한 전장 하나의 리소스만 준비한다. 전체 비교는 제공하지 않으며 전장 변경 시 이전 장면을 해제한다.
 
@@ -249,9 +235,7 @@ ASSET_LEDGER_SOURCE_ROOT=../slime-assets ASSET_LEDGER_EXPORT_FILE="$fixture_dire
 
 ### 전투필드 개별 검수 (2026-10-19)
 
-맵 통합 검수의 전투필드는 개별 선택만 제공한다. 기본 Gradio `Row`·`Column`에 선택·상태와 검수 화면을 배치하며, 좁은 화면에서는 세로로 접힌다. 로딩 전 비활성 사유와 시작 방법을 안내한다. 기존 `field=all` 링크는 첫 개별 전장으로 전환하고 URL도 실제 선택으로 변경한다. 전장 변경은 이전 장면·타이머를 해제한 뒤 한 장면만 생성한다. 캔버스 내부 카메라 조작은 기존 브라우저 컴포넌트를 유지한다.
 
-번들 `ui-9fb87cfec694f158`을 게시했다. 실제 맵 검수 페이지에서 전체 비교 항목 제거, 이전 링크의 세 갈래 길목 단일 표시, 이슬 연못 전환 및 렌더 완료를 확인했다. 390px 화면에서 캔버스 1개·문서 폭과 스크롤 폭 375px 일치·세로 배치 및 콘솔 경고·오류 없음을 확인했다. 관련 Gradio 검사 30개, 프론트엔드 검사 10개·타입·번역 검사와 검수 빌드가 통과했다. 기존 UI 검사는 맵 로더와 무관한 에셋 편집 입력을 제외하고 명시적 불러오기·초기 로딩 두 이벤트의 출력 일치를 검사하도록 정정했다. 증거와 게시 전 목록은 `.tmp/test/battlefield-single-review/2026-10-19_09-39-00/`에 보관한다.
 
 2026-10-19 공용 전투필드 카탈로그 전환: 서버는 에셋 원본 `terrain/index.yaml`의 `battlefields` 전체에서 이벤트 전용 전장을 제외한 공용 목록을 일반 조우에 사용한다. 맵별 `<map>-encounter` 합성 선택은 제거했으며 기존 전장 ID와 개별 검수 UI는 유지한다. 검수 exporter도 서버의 같은 공용 목록을 읽는다. 시작점 검증은 게임이 제공하는 v2 이동 규칙과 일치시켜 `old-orchard` 연결성 오류를 해소했다. 최신 검수 fixture 재생성은 별도 몬스터 배치 설정의 `boar-ridge/boar-ridge-wild` 리스폰 중심 좌표 오류로 중단되어 기존 게시 데이터는 유지했다. 새 공용 목록의 브라우저 검수 완료를 뜻하지 않는다.
 
@@ -259,13 +243,9 @@ ASSET_LEDGER_SOURCE_ROOT=../slime-assets ASSET_LEDGER_EXPORT_FILE="$fixture_dire
 
 검수 번들 `ui-eb0fc574141ba893`을 맵 통합 검수에 게시했다. Chrome에서 지형별 목록, 초원 렌더 완료, 산악·구릉의 엇갈린 우회로로 개별 전환·렌더 완료와 콘솔 경고·오류 없음을 확인했다. 모든 전장의 브라우저 시각 검수를 완료한 것은 아니다. 서버 지형·배치 검사 105개와 격리 실제 전투 생성·준비·재조회 검사 1개, 프론트엔드 검사 42개·타입·번역 및 검수 빌드가 통과했다. 증거는 `.tmp/test/terrain-battlefield-review/2026-10-19_10-12-30/`에 보관한다.
 
-2026-10-19 전투필드 기본 스타일 정렬: 검수 컴포넌트의 게임 CSS·전장 전용 CSS 주입과 커스텀 패널·색상·테두리·중복 제목을 제거했다. 확대·축소·시점 복귀는 공용 브라우저 명령 빌더의 기본 Gradio 버튼으로 옮기고 준비 전 비활성 사유를 안내한다. 캔버스에는 WebGL 렌더 크기를 위한 4:3 종횡비·상대 위치·넘침 방지만 남긴다. 게임 장면 자체의 타일·캐릭터·전투 표시는 검수 대상이므로 유지한다.
 
-게시 번들 `ui-4291d67f62bf384c`에서 Gradio 직접 합성 화면의 로딩 전 비활성·로딩 후 활성, 카메라 명령 3종, 전장 내부 스타일 태그/스타일시트 0개·HTML 버튼 0개·캔버스 1개를 확인했다. 390px 화면에서 가로 넘침 없이 표준 컨트롤이 접히며 콘솔 경고·오류는 없었다. 관련 Gradio 검사 30개와 프론트 검사 10개·타입·번역 및 빌드가 통과했다. 화면은 `.tmp/test/battlefield-standard-style/2026-10-19_10-18-00/`에 보관한다.
 
-전투필드의 기본 Gradio 체크박스 `스폰지역 보기`는 기본적으로 꺼져 있으며 전장 로딩 후 사용할 수 있다. 켜면 `allySpawns`의 유저 시작 후보를 청록색, `enemySpawns`의 몬스터 시작 후보를 주황색으로 표시한다. 실제 참가자 위치가 아닌 전체 후보 타일이며 공용 장면의 고도·투영·깊이 규칙을 사용한다. 표시 변경은 전투 데이터·랜덤 배치를 바꾸지 않고 전장 전환 시 체크 상태를 유지한다.
 
-스폰지역 표시 검증: 번들 `ui-b092b3e5df38eca9`을 게시하고 실제 Gradio 문서에서 로딩 전 비활성, 켜기·끄기, 초원에서 산악 전장으로 전환 시 체크 유지와 고도에 맞춘 양 진영 표시를 확인했다. 콘솔 오류·경고 없음, 관련 Gradio 30개·프론트 6개 및 타입·번역·빌드 검사 통과. 증거는 `.tmp/test/battlefield-spawn-regions/2026-10-19_10-23-15/`에 보관한다.
 
 스폰지역 2열 조정: 기본 전장 30개의 시작 후보를 유저 열 1~2, 몬스터 열 9~10(0부터 시작하는 좌표), 행 3~6으로 통일했다. 진영별 후보는 2열×4행=8칸이며 후보 수 안에서 참가 인원만큼 중복 없이 추첨한다. 등록 버전 `terrain-encounters-v2`와 SHA-256 및 서버 잠금 목록을 함께 갱신했다. 배치·실제 전투 검사 72개가 통과했다. 기존 이벤트 전장은 별도 고정 지형 계약을 유지한다.
 
@@ -277,7 +257,6 @@ ASSET_LEDGER_SOURCE_ROOT=../slime-assets ASSET_LEDGER_EXPORT_FILE="$fixture_dire
 
 ### 월드맵 검수
 
-`/management/frame/world-map/?tool=world-map&category=map-review`는 공용 메뉴와 직접 합성한 Gradio 화면이다. 맵 선택·원본 다시 불러오기·확대·축소·전체 보기, 선택 썸네일 256px와 출발·도착 웨이포인트를 제공한다. 그래프는 스크롤로 이동하고 노드를 누르면 해당 맵을 선택한다. iframe은 사용하지 않는다.
 
 표시 좌표와 썸네일 관리 ID는 등록 원본 `assets/maps/world-map.yaml`, 이미지 경로·버전·해시는 `assets/ui/world-map/thumbnails.yaml`에 둔다. 이름은 `map_names`, 실제 이동 연결은 기존 `city_layouts`·`field_waypoints` 원본을 사용하며 연결 목록을 별도로 저장하지 않는다. 표시 좌표는 맵 내부 타일 좌표나 실제 거리를 의미하지 않는다.
 
@@ -285,7 +264,6 @@ ASSET_LEDGER_SOURCE_ROOT=../slime-assets ASSET_LEDGER_EXPORT_FILE="$fixture_dire
 
 월드맵 화면 연결 과정에서 공용 검수 기동을 막던 애니메이션 시간 검증도 보정했다. 6fps의 `167·166·167ms`처럼 정수 반올림으로 생기는 최대 1ms 차이를 허용하고 원본 클립·개별 프레임의 `durationMs`는 보존한다. 요약 FPS에는 전체 클립의 평균 프레임 시간을 사용한다. 1ms를 넘는 서로 다른 시간 간격은 기존처럼 거절한다.
 
-2026-10-19 월드맵 연결 검증: 에셋 31개·연결 33개와 서버 v2/관리 응답의 노드·웨이포인트 일치를 확인했다. 실제 8770 Gradio 문서에서 노드 선택·전체 보기·256px 상세·iframe 0개를 확인했고 390px 화면은 문서 폭/스크롤 폭 375px로 일치했다. 게임 실제 컴포넌트는 서버 생성 응답을 사용하는 격리 화면에서 31개 이미지 로딩·확대·연결 맵 이동을 검증했다. 증거는 `.tmp/world-map-resume/`에 보관한다.
 
 관리 관련 검사 28개·검수 빌더 검사 17개와 월드맵 순수 계약 검사가 통과했다. 프론트엔드 월드맵 4개·썸네일 모듈 검사는 통과했으나 확장한 기존 에셋 모듈 검사에는 폐기된 `farm-embankment-v1.png` 기대값 실패가 남았다. Vite 정적 번들은 생성됐지만 정식 `npm run build`는 기존 이미지 목록의 폐기 건물 타일 등 누락 참조로 중단됐다. 전체 서버 API 검사는 기존 `cinder-path/cinder-path-wild` 리스폰 중심 오류로 앱 로딩이 막혔다. 운영 기동·배포·전체 회귀 통과를 의미하지 않는다.
 
@@ -303,7 +281,6 @@ ASSET_LEDGER_SOURCE_ROOT=../slime-assets ASSET_LEDGER_EXPORT_FILE="$fixture_dire
 
 빌보드 고도 검수는 선언 점유 셀 외에 렌더러 기준 교차점과 수동 앵커가 적용된 이미지 아랫변 중심을 확인한다. 셀 중심 좌표계의 반정수 경계에서는 양쪽 셀, 교차점에서는 맞닿는 네 셀의 고도가 기준 점유와 같아야 한다. 이 지지 셀은 충돌 점유를 확장하지 않는다. 무관한 주변 한 칸 전체를 검사하는 방식은 사용하지 않는다. 지지 지면을 명시하는 별도 데이터가 없는 현행 계약에서는 경계의 고도가 다르면 저장·로드 검수에서 거절한다.
 
-맵 검수의 야외필드 편집 패널은 `common/gradio_map_editor.py`, 원본 검증·저장은 `domains/map_assets/map_editor.py`가 담당한다. 브라우저는 기존 셀 선택과 공용 렌더러에 초안을 전달하며 렌더 규칙을 복제하지 않는다. GUI·CLI는 `map-assets map-edit-load / map-edit-preview / map-edit-save`를 공유한다. 도시·전투필드는 기존 검수만 제공한다.
 
 ## GUI 워치 재시작 최적화
 
@@ -315,9 +292,7 @@ Hermes 화면에서 `predict` 요청이 반복될 때는 GUI를 다음 진단 �
 SLIME_HERMES_PREDICT_DIAGNOSTIC=1 ./scripts/run_management_gui.sh --watch
 ```
 
-진단은 기본적으로 꺼져 있으며 Hermes 화면의 `POST .../gradio_api/run/predict` 요청에 한해 `Hermes predict event=번호`를 기록한다. 대화와 입력 데이터는 출력하지 않는다. 이벤트 번호는 같은 GUI 인스턴스의 `/management/frame/hermes-agent/config`에 있는 `dependencies` 항목의 `id`와 비교한다. 본문이 64 KiB를 넘거나 JSON 또는 이벤트 번호가 유효하지 않으면 번호를 기록하지 않는다. 진단을 끄려면 환경 변수를 제거하고 GUI를 다시 실행한다. 서버 재시작으로 접수 응답이 끊겼다면 자동 재전송하지 말고 접수 기록을 먼저 확인한다.
 
-`ui/gradio/*.py`와 공용 `gradio_*.py`만 변경되면 같은 워치 세션에서 준비 완료된 검수 폴더를 재사용한다. 프론트엔드 전체 해시 검사와 검수 산출물 생성을 생략하지만 Gradio 프로세스의 기존 소스 지문 검사는 유지한다. 빌드 코드·렌더러·기타 입력 변경, 준비 실패, 워치 최초 실행에는 전체 준비 절차를 수행한다. 프론트엔드 `src`, `review`, `scripts`, 패키지 파일 변경도 감지한다. 맵·에셋 원본은 기존 요청별 검증 경로를 유지한다.
 
 로그의 `watch`에서 변경 파일과 재사용 여부, `prepare`에서 준비 방식과 소요 시간, `ready`에서 서버 준비 시간을 확인한다. 공식 실행기는 `.tmp/management-launcher-logs/`에 로그를 보존한다. 이 최적화는 전체 GUI 재시작을 화면별 재시작이나 무중단 전환으로 바꾸지는 않는다. 워치 구현 자체를 수정한 경우 실행기를 한 번 다시 시작해야 새 감시 로직이 적용된다.
 

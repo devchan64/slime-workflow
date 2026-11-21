@@ -1151,7 +1151,10 @@ class HermesWorkerTests(unittest.TestCase):
             hermes_agent_mock = Mock()
             hermes_agent_mock.wait.return_value = 0
             def create_mock_workspace(source_repository_path, snapshot_workspace_path):
-                snapshot_workspace_path.mkdir()
+                skill = Path('tools/management/domains/hermes_agent/skills/generation-result-lookup/SKILL.md')
+                destination = snapshot_workspace_path / skill
+                destination.parent.mkdir(parents=True)
+                destination.write_bytes((Path(__file__).resolve().parents[3] / skill).read_bytes())
                 return {'baseline_commit':'a' * 40}
             hermes_previous_directory = os.getcwd()
             try:
@@ -1203,7 +1206,10 @@ class HermesWorkerTests(unittest.TestCase):
             hermes_agent_mock.wait.return_value = 0
             hermes_baseline_record = {'baseline_commit':'a' * 40}
             def create_mock_workspace(source_repository_path, snapshot_workspace_path):
-                snapshot_workspace_path.mkdir()
+                skill = Path('tools/management/domains/hermes_agent/skills/generation-result-lookup/SKILL.md')
+                destination = snapshot_workspace_path / skill
+                destination.parent.mkdir(parents=True)
+                destination.write_bytes((Path(__file__).resolve().parents[3] / skill).read_bytes())
                 return hermes_baseline_record
             def fail_mock_verification(*verification_argument_values):
                 hermes_server_mock.terminate.assert_called_once()
@@ -1287,7 +1293,10 @@ class HermesWorkerTests(unittest.TestCase):
             hermes_baseline_record = {'baseline_commit':'a' * 40}
             hermes_server_mock = Mock()
             def create_mock_workspace(source_repository_path, snapshot_workspace_path):
-                snapshot_workspace_path.mkdir()
+                skill = Path('tools/management/domains/hermes_agent/skills/generation-result-lookup/SKILL.md')
+                destination = snapshot_workspace_path / skill
+                destination.parent.mkdir(parents=True)
+                destination.write_bytes((Path(__file__).resolve().parents[3] / skill).read_bytes())
                 return hermes_baseline_record
             with patch.object(hermes_worker_module, 'RUNTIME_INSTALL_ROOT', hermes_runtime_path), patch.object(hermes_worker_module, 'HERMES_RUNTIME_DIRECTORY', hermes_agent_path), patch.object(hermes_worker_module, 'wait_hermes_gpu_reservation'), patch.object(hermes_worker_module, 'verify_hermes_model_integrity'), patch.object(hermes_worker_module, 'verify_hermes_runtime_integrity'), patch.object(hermes_worker_module, 'calculate_file_digest', return_value='digest'), patch.object(hermes_worker_module, 'copy_snapshot_source_files', side_effect=create_mock_workspace), patch.object(hermes_worker_module, 'collect_snapshot_change_diff', return_value=b'partial diff'), patch.object(hermes_worker_module.subprocess, 'Popen', return_value=hermes_server_mock), patch.object(hermes_worker_module, 'wait_worker_model_ready', side_effect=KeyboardInterrupt):
                 with self.assertRaises(KeyboardInterrupt):

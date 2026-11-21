@@ -36,7 +36,7 @@ class ModelManagementTest(unittest.TestCase):
         self.assertEqual(current_individual_progress, [])
 
     def test_four_models_have_preparation_controls(self):
-        from tools.management.ui.gradio.model_management_app import MODEL_PREPARATION_SERVICES
+        from tools.management.common.model_management_catalog import MODEL_PREPARATION_SERVICES
         current_services = {current_service for _, current_service in MODEL_PREPARATION_SERVICES}
         self.assertTrue({'music-heartmula', 'sfx-dasheng-audiogen', 'wan22-vace', 'writer-agent'} <= current_services)
 
@@ -411,7 +411,7 @@ class ModelManagementTest(unittest.TestCase):
     def test_flux_model_is_available_for_inventory_observation(self):
         from tools.management.common.model_file_inventory import resolve_model_inventory_paths
         from tools.management.domains.image.flux_expression_generation import FLUX_MODEL_ROOT_DIRECTORY
-        from tools.management.ui.gradio.model_management_app import MODEL_PREPARATION_SERVICES
+        from tools.management.common.model_management_catalog import MODEL_PREPARATION_SERVICES
         self.assertEqual(resolve_model_inventory_paths()['flux-image'], [FLUX_MODEL_ROOT_DIRECTORY])
         self.assertIn(('FLUX 3 Image Klein', 'flux-image'), MODEL_PREPARATION_SERVICES)
 
@@ -892,7 +892,7 @@ class CurrentDownloadStatusTest(unittest.TestCase):
             self.assertEqual(len(list(current_root_path.glob('done*.json'))), MODEL_DOWNLOAD_RECENT_LIMIT)
 
     def test_each_model_shows_own_progress_and_recent_result(self):
-        from tools.management.common.gradio_model_download import format_model_download_status
+        from tools.management.common.model_download_progress import format_model_download_status
         current_status_values = [
             {'model': 'Qwen/Qwen-Image-2.1', 'status': 'running', 'stage': '다운로드', 'bytes': 50, 'total_bytes': 100},
             {'model': 'nvidia/Kimodo', 'status': 'failed', 'stage': '다운로드', 'bytes': 0, 'total_bytes': None},
@@ -907,7 +907,7 @@ class CurrentDownloadStatusTest(unittest.TestCase):
         self.assertNotIn('Qwen/Qwen-Image-2.1/old', current_status_text)
 
     def test_existing_partial_verification_is_distinct_from_download(self):
-        from tools.management.common.gradio_model_download import format_model_download_status
+        from tools.management.common.model_download_progress import format_model_download_status
         current_status_values = [{'model': 'Qwen/Qwen-Image-2.1/shard', 'status': 'running',
                                   'stage': '기존 부분 파일 검증', 'bytes': 40, 'total_bytes': 200,
                                   'existing_bytes': 100, 'resumed_bytes': 20}]
@@ -917,7 +917,7 @@ class CurrentDownloadStatusTest(unittest.TestCase):
         self.assertIn('시작 시 검증 지점 20바이트', current_status_text)
 
     def test_completed_aggregate_does_not_claim_zero_percent(self):
-        from tools.management.common.gradio_model_download import format_model_download_status
+        from tools.management.common.model_download_progress import format_model_download_status
         current_status_values = [{'model': 'wan22-vace', 'status': 'completed',
                                   'stage': 'download-tokenizer', 'bytes': 0, 'total_bytes': 4548313}]
         current_status_text = format_model_download_status(current_status_values, 'wan22-vace')
@@ -926,7 +926,7 @@ class CurrentDownloadStatusTest(unittest.TestCase):
         self.assertNotIn('이어받은 바이트 확인 불가', current_status_text)
 
     def test_completed_preparation_has_no_stale_transfer_progress(self):
-        from tools.management.common.gradio_model_download import format_model_download_status
+        from tools.management.common.model_download_progress import format_model_download_status
         current_status_values = [{'model': 'wan22-vace', 'status': 'completed',
                                   'stage': '준비 완료', 'bytes': 0, 'total_bytes': None}]
         current_status_text = format_model_download_status(current_status_values, 'wan22-vace')

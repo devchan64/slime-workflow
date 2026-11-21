@@ -4,7 +4,7 @@ import tempfile
 from unittest.mock import patch
 
 from tools.management.ui.gradio import hermes_agent_app
-from tools.management.ui.gradio.management_menu_app import load_manager_page_records
+from tools.management.common.management_catalog import load_manager_page_records
 from tools.management.common.management_asgi import build_management_blocks
 from pathlib import Path
 
@@ -1519,7 +1519,7 @@ class HermesGradioTests(unittest.TestCase):
         from tools.management.common.source_history_catalog import SOURCE_HISTORY_VIDEO_SERVICES
         from tools.management.domains.hermes_agent.audio_operations import HERMES_AUDIO_SERVICES
         from tools.management.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
-        from tools.management.ui.gradio.management_menu_app import NATIVE_MANAGEMENT_APPLICATIONS
+        from tools.management.common.management_catalog import NATIVE_MANAGEMENT_APPLICATIONS
         current_service_names={'kimodo',*SOURCE_HISTORY_VIDEO_SERVICES,*HERMES_AUDIO_SERVICES,*FLUX_IMAGE_PROFILE_RECORDS,'flux-expression','prompt-translation','writer-agent'}
         current_session_identifier='a'*32
         for current_service_name in sorted(current_service_names):
@@ -3006,7 +3006,7 @@ class HermesGradioTests(unittest.TestCase):
                 current_qwen_job.mkdir(parents=True)
                 self.assertEqual(identify_gpu_queue_source(current_qwen_job,'image',current_root),current_service_name)
                 self.assertIsNone(identify_gpu_queue_source(current_qwen_job,'flux-image',current_root))
-                from tools.management.ui.gradio.operations_history_app import read_operations_verified_source
+                from tools.management.common.operations_history import read_operations_verified_source
                 self.assertEqual(read_operations_verified_source('image',current_service_name),current_service_name)
             current_nested_root=current_root/'.tmp/test/qwen-image-2512'
             current_nested_root.rename(current_root/'.tmp/test/actual-nested')

@@ -576,7 +576,7 @@ class MusicGenerationTests(unittest.TestCase):
 
     def test_gui_two_models_have_shared_actions(self):
         from tools.management.ui.gradio.music_app import build_music_interface
-        from tools.management.ui.gradio.management_menu_app import DEFAULT_PAGE_RECORDS, NATIVE_MANAGEMENT_APPLICATIONS
+        from tools.management.common.management_catalog import DEFAULT_PAGE_RECORDS, NATIVE_MANAGEMENT_APPLICATIONS
         for current_service_name in ('music-heartmula','sfx-dasheng-audiogen'):
             current_interface_blocks = build_music_interface(current_service_name,'http://127.0.0.1:9999')
             current_component_values = [current_component['props'].get('value') for current_component in current_interface_blocks.config['components']]

@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from tools.management.ui.gradio.management_menu_app import load_manager_page_records
+from tools.management.common.management_catalog import load_manager_page_records
 
 class ManagementMenuOfflineTests(unittest.TestCase):
     def test_map_menu_preserves_registered_categories_without_network(self):

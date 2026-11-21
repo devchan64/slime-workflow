@@ -10,18 +10,17 @@ from tools.management.common.management_gateway import MANAGEMENT_SERVICE_COMMAN
 
 class OutfitRetirementTests(unittest.TestCase):
     def test_retired_commands_and_mode(self):
-        from tools.management.ui.gradio.qwen_2511_app import build_qwen_2511_interface
+        from tools.management.common.management_catalog import REACT_REVIEW_PATHS
         self.assertNotIn('outfit-transfer', MANAGEMENT_SERVICE_COMMANDS)
         for current_command_name in ('generate', 'resume', 'history', 'history-reset'):
             with self.assertRaisesRegex(ValueError, '폐기'):
                 resolve_management_command('outfit-transfer', current_command_name, {})
-        with self.assertRaisesRegex(ValueError, '폐기'):
-            build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, outfit_transfer_enabled=True)
+        self.assertNotIn('outfit-transfer-generator', REACT_REVIEW_PATHS)
 
     def test_retired_routes(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_root_path = Path(current_directory_name)
-            with patch('tools.management.common.management_asgi.build_management_blocks') as current_builder_mock:
+            with patch('tools.management.common.management_asgi.execute_legacy_request') as current_builder_mock:
                 current_application_value = build_management_application(SimpleHTTPRequestHandler, current_root_path, current_root_path / 'missing.json', 8770, [])
                 with TestClient(current_application_value) as current_test_client:
                     for current_request_path in ('/outfit-transfer/', '/outfit-transfer/jobs', '/management/frame/outfit-transfer-generator/', '/management/?tool=outfit-transfer-generator'):

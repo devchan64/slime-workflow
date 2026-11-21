@@ -11,7 +11,7 @@ class AnyPoseRetirementTests(unittest.TestCase):
         import json
         import tempfile
         from pathlib import Path
-        from tools.management.ui.gradio.management_menu_app import load_manager_page_records
+        from tools.management.common.management_catalog import load_manager_page_records
         from tools.management.build_animation_tools import build_animation_tools
         self.assertNotIn('character-animation', [current_record['id'] for current_record in build_animation_tools(None)])
         with tempfile.TemporaryDirectory() as current_temporary_directory:

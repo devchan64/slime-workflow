@@ -1,4 +1,5 @@
 import React, {useState} from "react";
+import {formatCleanupResult} from "./formatCleanupResult.mjs";
 import {managementCommand} from "./managementCommand.js";
 
 export default function HistoryCleanup({service,job,state,onDeleted}) {
@@ -30,7 +31,7 @@ export default function HistoryCleanup({service,job,state,onDeleted}) {
       if(target.id!==job || !eligible)throw new Error("선택 작업의 상태가 변경되었습니다.");
       result=await managementCommand(service,"history-delete",{id:target.id});
     }
-    onDeleted("작업 "+result.deleted_jobs+"건 삭제 · "+result.deleted_bytes.toLocaleString()+"바이트 정리");
+    onDeleted(formatCleanupResult(result));
   }
   return <details><summary>생성 이력 정리</summary>
     <fieldset disabled={busy}>

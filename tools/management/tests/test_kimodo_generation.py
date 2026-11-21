@@ -764,8 +764,12 @@ class KimodoGenerationContractTests(unittest.TestCase):
                 self.assertFalse(current_service_instance.preview_generation_cleanup()['can_reset'])
 
     def test_partial_cleanup_result_reports_preserved_count(self):
-        from tools.management.common.gradio_history import format_cleanup_result
-        current_result_text=format_cleanup_result({'deleted_jobs':2,'deleted_bytes':4096,'skipped_jobs':[{'path':'active','status':'running'}]})
+        import subprocess
+        gui = Path(__file__).resolve().parents[1] / 'gui'
+        program = """import {formatCleanupResult} from './formatCleanupResult.mjs';
+        console.log(formatCleanupResult({deleted_jobs:2, deleted_bytes:4096, skipped_jobs:[{status:'running'}]}));"""
+        current_result_text = subprocess.check_output(['node','--input-type=module','-e',program], cwd=gui, text=True)
+        self.assertIn('4,096바이트', current_result_text)
         self.assertIn('작업 2건 삭제',current_result_text)
         self.assertIn('삭제 제외 1건 보존',current_result_text)
 
@@ -773,7 +777,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
         from tools.management.ui.gradio.kimodo_app import apply_kimodo_example,describe_kimodo_duration,load_kimodo_examples
         current_example_records=load_kimodo_examples()
         self.assertEqual(set(current_example_records),{'male_runway_in_place','relaxed_shoulder_width_standing','male_floor_rest_cycle','boxing_jab_straight_combination'})
-        from tools.management.ui.gradio.kimodo_app import build_kimodo_payload
+        from tools.management.generators.kimodo.form_inputs import build_kimodo_payload
         current_standing_payload = build_kimodo_payload(*apply_kimodo_example('relaxed_shoulder_width_standing'))
         self.assertEqual(current_standing_payload['frames'],180)
         self.assertEqual(current_standing_payload['seed'],516925645)
@@ -794,7 +798,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
         self.assertFalse(current_standing_request['pose_include_hands'])
         self.assertFalse(current_standing_request['pose_include_face'])
         self.assertTrue(current_standing_values[9])
-        from tools.management.ui.gradio.kimodo_app import load_proportion_examples
+        from tools.management.generators.kimodo.form_inputs import load_proportion_examples
         self.assertEqual(Path(load_proportion_examples()['character_eight_directions']['images'][0]),(Path(__file__).resolve().parents[3]/'baseline/player/default/default-eight-directions-v1.png').resolve())
         self.assertEqual(hashlib.sha256(Path(current_standing_values[10][0]).read_bytes()).digest(),hashlib.sha256(Path(load_proportion_examples()['character_eight_directions']['images'][0]).read_bytes()).digest())
         current_combination_values = apply_complete_kimodo_example('boxing_jab_straight_combination')

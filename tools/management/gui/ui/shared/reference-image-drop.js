@@ -1,5 +1,3 @@
-// Gradio가 이미지 교체 중 await 후에도 파일을 읽도록 drop 시점에 보존한다.
-// 업로드·검증·change 처리는 Gradio에 맡기고 별도 업로드를 실행하지 않는다.
 if (!document.referenceImageDropCaptureInstalled) {
     document.addEventListener('drop', function preserveReferenceDropFiles(currentDropEvent) {
         const currentDropTarget = currentDropEvent.target;

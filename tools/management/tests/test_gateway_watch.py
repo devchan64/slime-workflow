@@ -106,7 +106,7 @@ class GatewayWatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             source_root_directory = Path(temporary_directory_name)
             initial_snapshot_values = gateway_watch.snapshot_gateway_watch_paths([source_root_directory])
-            for ignored_relative_path in ('ui/app.py', '.tmp/job/status.json', '__pycache__/worker.py', 'tests/test_worker.py', 'gradio_process.py', 'management_launcher.py', 'manager.html'):
+            for ignored_relative_path in ('ui/app.py', '.tmp/job/status.json', '__pycache__/worker.py', 'tests/test_worker.py', 'management_launcher.py', 'manager.html'):
                 ignored_source_path = source_root_directory/ignored_relative_path
                 ignored_source_path.parent.mkdir(parents=True, exist_ok=True)
                 ignored_source_path.write_text('ignored')

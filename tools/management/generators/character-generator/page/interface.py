@@ -3,7 +3,6 @@ from pathlib import Path
 
 import yaml
 
-from tools.management.ui.shared.qwen_generator_page import build_qwen_2511_interface
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[5]
 STYLE_PROMPT_PATH = WORKFLOW_ROOT_DIRECTORY / 'prompts/common/art-style-v1.5.0.yaml'
@@ -19,10 +18,3 @@ def load_character_default_prompt():
     if current_style_record.get('prompt_id') != 'slime_common_art_style' or current_style_record.get('version') != '1.5.0' or not isinstance(current_style_record.get('prompt'), str):
         raise ValueError('공용 화풍 v1.5.0 원문을 확인하세요.')
     return CHARACTER_PROMPT_PREFIX + '\n\n' + current_style_record['prompt']
-
-
-GENERATOR_PAGE_OPTIONS = {'qwen21_mode_enabled': True, 'character_mode_enabled': True}
-
-
-def build_generator_page(current_server_address, current_review_port):
-    return build_qwen_2511_interface(current_server_address, **GENERATOR_PAGE_OPTIONS)

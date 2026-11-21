@@ -1,7 +1,10 @@
 import React,{useState} from "react";
+import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
 import {managementCommand} from "./managementCommand.js";
+
+import {readArchiveJob} from "./readArchiveJob.mjs";
 
 function ArchiveDetail({service,id}){
   const [log,setLog]=useState(null),[error,setError]=useState("");
@@ -21,11 +24,11 @@ export default function QwenArchive(){
   const service=params.get("service"),session=params.get("session");
   const [id,select]=useState(params.get("job") || "");
   async function readJob(job){
-    const history=await managementCommand(service,"history",{});
-    return history.records.find(record=>record.id===job) || {};
+    return readArchiveJob(managementCommand,service,job);
   }
   return <main><article><a href={"/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화로 돌아가기</a>
     <h1>Qwen 이미지 생성 이력</h1><p>{service} · 보관된 작업</p>
+    <GeneratorChangelog generator={service}/>
     <GeneratorHistory service={service} readJob={readJob} inspectResult={record=>select(record.id)} openResult={select}/>
     {id && <ArchiveDetail key={id} service={service} id={id}/>}
   </article></main>;

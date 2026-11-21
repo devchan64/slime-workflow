@@ -18,7 +18,7 @@ class AnnyRetirementTests(unittest.TestCase):
                 resolve_management_command('anny',current_command_name,{})
 
     def test_previous_routes_return_gone_without_build(self):
-        with tempfile.TemporaryDirectory() as current_temp_name, patch('tools.management.common.management_asgi.build_management_blocks') as current_builder_mock:
+        with tempfile.TemporaryDirectory() as current_temp_name, patch('tools.management.common.management_asgi.execute_legacy_request') as current_builder_mock:
             current_root_path=Path(current_temp_name)
             current_app_value=build_management_application(SimpleHTTPRequestHandler,current_root_path,current_root_path/'missing.json',8770,[])
             async def verify_retired_routes():
@@ -35,7 +35,7 @@ class AnnyRetirementTests(unittest.TestCase):
             current_builder_mock.assert_not_called()
 
     def test_stale_menu_and_shared_viewer(self):
-        from tools.management.ui.gradio.management_menu_app import load_manager_page_records
+        from tools.management.common.management_catalog import load_manager_page_records
         with tempfile.TemporaryDirectory() as current_temp_name:
             current_menu_path=Path(current_temp_name)/'menu.json'
             current_menu_path.write_text(json.dumps({'pages':[{'id':'anny-attribute-renderer','label':'폐기','path':'/anny-attributes/','category':'animation-tool','description':'폐기'}]}))

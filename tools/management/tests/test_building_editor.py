@@ -7,7 +7,7 @@ from tools.management.common.management_gateway import resolve_management_comman
 
 class BuildingEditorTest(unittest.TestCase):
     def test_building_editor_is_separate_map_review_page(self):
-        from tools.management.ui.gradio.management_menu_app import DEFAULT_PAGE_RECORDS, NATIVE_MANAGEMENT_APPLICATIONS, resolve_management_page_path
+        from tools.management.common.management_catalog import DEFAULT_PAGE_RECORDS, NATIVE_MANAGEMENT_APPLICATIONS, resolve_management_page_path
         from tools.management.common.management_asgi import MANAGEMENT_INTERFACE_BUILDERS
         current_records=[row for row in DEFAULT_PAGE_RECORDS if row['id']=='building-editor']
         self.assertEqual(len(current_records),1)

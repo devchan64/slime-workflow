@@ -49,7 +49,7 @@ class MoMaskRetirementTests(unittest.TestCase):
 
     def test_menu_excludes_legacy_records(self):
         from tools.management.build_animation_tools import build_animation_tools
-        from tools.management.ui.gradio.management_menu_app import load_manager_page_records
+        from tools.management.common.management_catalog import load_manager_page_records
         self.assertNotIn('momask-generator', [current_record['id'] for current_record in build_animation_tools(None)])
         with tempfile.TemporaryDirectory() as current_temporary_directory:
             current_menu_path = Path(current_temporary_directory) / 'menu.json'

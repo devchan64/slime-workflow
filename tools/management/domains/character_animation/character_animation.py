@@ -19,7 +19,7 @@ class CharacterAnimationManager:
         if not request_route_path.startswith('/character-animation/'):return False
         try:
             if current_http_handler.command=='GET' and request_route_path=='/character-animation/':
-                response_payload_bytes=json.dumps({'error':'이전 관리 화면은 폐기되었습니다. /management/에서 Gradio 화면을 여세요.'},ensure_ascii=False).encode()
+                response_payload_bytes=json.dumps({'error':'이전 관리 화면은 폐기되었습니다. /management/에서 관리 화면을 여세요.'},ensure_ascii=False).encode()
                 current_http_handler.send_response(410);current_http_handler.send_header('Content-Type','application/json; charset=utf-8');current_http_handler.send_header('Content-Length',str(len(response_payload_bytes)));current_http_handler.end_headers();current_http_handler.wfile.write(response_payload_bytes);return True
             elif (command_route_record:=identify_management_command(current_http_handler.path,current_http_handler.command)):
                 command_payload_value=json.loads(current_http_handler.rfile.read(int(current_http_handler.headers['Content-Length']))) if current_http_handler.command=='POST' else command_route_record[2]

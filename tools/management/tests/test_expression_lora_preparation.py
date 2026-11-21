@@ -11,7 +11,7 @@ from tools.management.domains.image import expression_generation
 
 class ExpressionLoraPreparationTests(unittest.TestCase):
     def test_gateway_and_model_catalog_contract(self):
-        from tools.management.ui.gradio.model_management_app import MODEL_PREPARATION_SERVICES
+        from tools.management.common.model_management_catalog import MODEL_PREPARATION_SERVICES
         self.assertIn(('Qwen 2.1 표정 LoRA', 'expression-lora'), MODEL_PREPARATION_SERVICES)
         with self.assertRaisesRegex(ValueError, '라이선스'):
             resolve_management_command('expression-lora', 'prepare', {'action': 'prepare'})

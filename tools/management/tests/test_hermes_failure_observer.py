@@ -55,11 +55,11 @@ class HermesFailureObserverTests(unittest.TestCase):
                 self.assertNotIn('메모리 부족',current_result_value['job']['failure_reason'])
 
     def test_audio_translation_writer_expose_guard_classification(self):
-        current_receipt_value={'state':'accepted','job_id':'job123'}
+        current_receipt_value={'state':'accepted','job_id':'2026-11-20_20-00-00-12345678'}
         current_guard_error='시스템 RAM 보호: /private/secret'
         for current_module_value,current_service_name,current_response_value,current_reader_value in (
-            (audio_operations,'call_hermes_audio_service',{'id':'job123','status':'failed','error':current_guard_error},lambda:audio_operations.read_hermes_audio_status('request_123','music-heartmula')),
-            (translation_operations,'call_hermes_translation_service',{'id':'job123','status':{'status':'failed','error':current_guard_error}},lambda:translation_operations.read_hermes_translation_status('request_123')),
+            (audio_operations,'call_hermes_audio_service',{'id':'2026-11-20_20-00-00-12345678','status':'failed','error':current_guard_error},lambda:audio_operations.read_hermes_audio_status('request_123','music-heartmula')),
+            (translation_operations,'call_hermes_translation_service',{'id':'2026-11-20_20-00-00-12345678','status':{'status':'failed','error':current_guard_error}},lambda:translation_operations.read_hermes_translation_status('request_123')),
             (writer_operations,'call_hermes_writer_service',{'id':'20261115-114927-8d274ccd','status':{'stage':'failed','error':current_guard_error}},lambda:writer_operations.read_hermes_writer_status('request_123')),
         ):
             with self.subTest(service=current_service_name), patch.object(current_module_value,'HermesDelegationStore') as current_store_mock, patch.object(current_module_value,current_service_name,return_value=current_response_value):
@@ -71,12 +71,12 @@ class HermesFailureObserverTests(unittest.TestCase):
     def test_audio_translation_writer_report_gpu_memory_failure(self):
         current_error_value='CUDA out of memory. /private/secret'
         for current_module_value,current_service_name,current_response_value,current_reader_value in (
-            (audio_operations,'call_hermes_audio_service',{'id':'job123','status':'failed','error':current_error_value},lambda:audio_operations.read_hermes_audio_status('request_123','music-heartmula')),
-            (translation_operations,'call_hermes_translation_service',{'id':'job123','status':{'status':'failed','error':current_error_value}},lambda:translation_operations.read_hermes_translation_status('request_123')),
+            (audio_operations,'call_hermes_audio_service',{'id':'2026-11-20_20-00-00-12345678','status':'failed','error':current_error_value},lambda:audio_operations.read_hermes_audio_status('request_123','music-heartmula')),
+            (translation_operations,'call_hermes_translation_service',{'id':'2026-11-20_20-00-00-12345678','status':{'status':'failed','error':current_error_value}},lambda:translation_operations.read_hermes_translation_status('request_123')),
             (writer_operations,'call_hermes_writer_service',{'id':'20261115-114927-8d274ccd','status':{'stage':'failed','error':current_error_value}},lambda:writer_operations.read_hermes_writer_status('request_123')),
         ):
             with self.subTest(service=current_service_name),patch.object(current_module_value,'HermesDelegationStore') as current_store_mock,patch.object(current_module_value,current_service_name,return_value=current_response_value):
-                current_store_mock.return_value.read_service_delegation.return_value={'state':'accepted','job_id':'20261115-114927-8d274ccd' if current_module_value is writer_operations else 'job123'}
+                current_store_mock.return_value.read_service_delegation.return_value={'state':'accepted','job_id':'20261115-114927-8d274ccd' if current_module_value is writer_operations else '2026-11-20_20-00-00-12345678'}
                 current_result_value=current_reader_value()
                 self.assertEqual(current_result_value['job']['failure_code'],'gpu_out_of_memory')
                 self.assertNotIn('private',str(current_result_value))
@@ -89,13 +89,13 @@ class HermesGuardSourceIntegrationTests(unittest.TestCase):
         from tempfile import TemporaryDirectory
         from tools.management.domains.music.generation import MusicGenerationManager
         with TemporaryDirectory() as current_directory_name:
-            current_job_root=Path(current_directory_name)/'job123'
+            current_job_root=Path(current_directory_name)/'2026-11-20_20-00-00-12345678'
             current_attempt_root=current_job_root/'attempts'/('a'*32)
             current_attempt_root.mkdir(parents=True)
             (current_job_root/'current-attempt.json').write_text(json.dumps({'id':'a'*32}))
             (current_attempt_root/'error.json').write_text(json.dumps({'error':'worker error'}))
             current_manager_value=MusicGenerationManager('music-heartmula')
-            current_receipt_value={'state':'accepted','job_id':'job123'}
+            current_receipt_value={'state':'accepted','job_id':'2026-11-20_20-00-00-12345678'}
             for current_queue_error,current_expected_error in (('시스템 RAM 보호: /private/secret','시스템 RAM 보호: /private/secret'),('other queue error','worker error')):
                 (current_job_root/'status.json').write_text(json.dumps({'status':'failed','error':current_queue_error}))
                 current_source_value=current_manager_value.read_music_status(current_job_root,False)

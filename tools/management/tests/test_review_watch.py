@@ -12,12 +12,12 @@ class ReviewWatchTests(unittest.TestCase):
     def test_changed_files_include_additions_and_deletions(self):
         self.assertEqual(serve.collect_changed_review_paths((('a',1,2),('b',1,2)),(('a',2,2),('c',1,2))),['a','b','c'])
 
-    def test_retired_gradio_changes_do_not_reuse_preparation(self):
-        current_workflow_root=Path(serve.__file__).resolve().parents[3]
-        current_safe_paths=[str(current_workflow_root/'tools/management/ui/gradio/asset_editor_app.py'),str(current_workflow_root/'tools/management/common/gradio_asset_editor.py')]
-        self.assertFalse(serve.can_reuse_review_directory(current_safe_paths))
-        for current_unsafe_path in ('tools/management/serve.py','tools/management/build_map_review.py','tools/management/ui/map/map.js','tools/management/domains/map_assets/editor.py','tools/management/ui/gradio/theme.css'):
-            self.assertFalse(serve.can_reuse_review_directory(current_safe_paths+[str(current_workflow_root/current_unsafe_path)]))
+    def test_backend_changes_require_preparation(self):
+        root = Path(serve.__file__).resolve().parents[3]
+        for name in ('tools/management/gui/serve.py', 'tools/management/build_map_review.py',
+                     'tools/management/ui/map/map.js', 'tools/management/domains/map_assets/editor.py'):
+            with self.subTest(path=name):
+                self.assertFalse(serve.can_reuse_review_directory([str(root / name)]))
         self.assertFalse(serve.can_reuse_review_directory([]))
 
     def test_assistant_bundle_and_catalog_reuse_prepared_directory(self):

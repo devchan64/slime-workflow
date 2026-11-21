@@ -31,7 +31,7 @@ test('기존 이미지 교체: 이벤트 종료와 비동기 갱신 후에도 �
     const currentDropEvent = {target: new ReferenceDropTarget(true), dataTransfer: originalDropTransfer};
     registeredDropHandlers[0][1](currentDropEvent);
     originalDropTransfer.files = []; // 네이티브 drop 종료 후 보호 모드
-    await Promise.resolve(); // Gradio 기존 이미지 초기화와 화면 갱신
+    await Promise.resolve(); // 기존 이미지 초기화와 화면 갱신
     assert.equal(currentDropEvent.dataTransfer.files.length, 1);
     assert.equal(currentDropEvent.dataTransfer.files[0], uploadedReferenceFile);
     assert.equal(registeredDropHandlers[0][2].capture, true);

@@ -59,7 +59,7 @@ class MannequinGeneratorTests(unittest.TestCase):
 
     def test_page_integrates_with_management_menu(self):
         from tools.management.common.management_asgi import build_management_blocks
-        from tools.management.ui.gradio.management_menu_app import DEFAULT_PAGE_RECORDS, resolve_management_page_path
+        from tools.management.common.management_catalog import DEFAULT_PAGE_RECORDS, resolve_management_page_path
         from unittest.mock import patch
         from pathlib import Path
         current_record = next(current_item for current_item in DEFAULT_PAGE_RECORDS if current_item['id'] == 'mannequin-generator')

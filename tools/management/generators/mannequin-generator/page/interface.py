@@ -33,11 +33,3 @@ def preview_mannequin_preset(current_preset_identifier):
     current_label_text, current_first_name, current_second_name, current_prompt_value = MANNEQUIN_PRESET_RECORDS[current_preset_identifier]
     current_description_text = f'참조 1: `{current_first_name}`' + (f' · 참조 2: `{current_second_name}`' if current_second_name else '')
     return current_description_text, current_first_image, current_second_image
-
-
-GENERATOR_PAGE_OPTIONS = {'qwen21_mode_enabled': True, 'mannequin_mode_enabled': True}
-
-
-def build_generator_page(current_server_address, current_review_port):
-    from tools.management.ui.shared.qwen_generator_page import build_qwen_2511_interface
-    return build_qwen_2511_interface(current_server_address, **GENERATOR_PAGE_OPTIONS)

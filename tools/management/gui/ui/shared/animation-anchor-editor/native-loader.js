@@ -30,7 +30,6 @@ async function mountNativeAnchorReview(currentContainerElement,currentPageLocati
   if(currentRuntimeDisposed)return;
   currentEditorRoot.innerHTML=currentAnchorMarkup;
   const currentPayloadElement=document.createElement('script');currentPayloadElement.id='anchor-review-data';currentPayloadElement.type='application/json';currentPayloadElement.textContent=currentPayloadBlocks[0].textContent;currentEditorRoot.append(currentPayloadElement);
-  // 기능용 캔버스 배치만 지정한다. 설정·이력·확인은 바깥 Gradio를 사용한다.
   const currentCanvasStage=currentEditorRoot.querySelector('.anchor-stage');currentCanvasStage.style.position='relative';
   const currentReviewCanvas=currentEditorRoot.querySelector('#reviewCanvas');currentReviewCanvas.style.width='100%';currentReviewCanvas.style.height='auto';currentReviewCanvas.style.display='block';
   const currentRigContainer=currentEditorRoot.querySelector('.rig-mini-map');Object.assign(currentRigContainer.style,{position:'absolute',left:'0',top:'0',width:'120px',height:'120px'});

@@ -187,10 +187,10 @@ class FrontendReviewTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, '중복'):
                 load_animation_labels(self.frontend_asset_root)
 
-    def test_manager_source_includes_all_default_gradio_tools(self):
+    def test_manager_source_includes_default_management_tools(self):
         default_tool_identifier_values={current_page_record['id'] for current_page_record in DEFAULT_MANAGEMENT_TOOL_PAGE_RECORDS}
         self.assertEqual(default_tool_identifier_values,{'expression-generator','writer-agent'})
-        self.assertTrue(all(current_page_record['uiMode']=='gradio' for current_page_record in DEFAULT_MANAGEMENT_TOOL_PAGE_RECORDS))
+        self.assertTrue(all(current_page_record['uiMode'] in ('react', 'archive') for current_page_record in DEFAULT_MANAGEMENT_TOOL_PAGE_RECORDS))
 
     def test_repository_option_calls_snapshot_builder(self):
         parsed_argument_values = parse_review_arguments(['--frontend-repo', str(self.frontend_asset_root)])

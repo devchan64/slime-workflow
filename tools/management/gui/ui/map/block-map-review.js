@@ -456,7 +456,6 @@ function centerCharacterView(){
  currentOffsetY=currentMapCanvas.clientHeight/2-(currentCharacterPoint.y-reviewCharacterRecord.displayHeight/2)*currentScaleValue;
  renderBlockMap();
 }
-// 기본 HTML과 Gradio가 동일한 브라우저 카메라 명령을 사용한다.
 const currentCameraActions={
  'fit':()=>renderBlockMap(true),
  'zoom-in':()=>changeMapZoom(MAP_ZOOM_FACTOR),

@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from tools.management.common.management_asgi import build_management_application
 from tools.management.common.management_gateway import resolve_management_command
-from tools.management.ui.gradio.management_menu_app import load_manager_page_records
+from tools.management.common.management_catalog import load_manager_page_records
 
 
 class CharacterReviewRetirementTests(unittest.TestCase):
@@ -19,7 +19,7 @@ class CharacterReviewRetirementTests(unittest.TestCase):
             current_source_path = current_root_path / 'menu.json'
             current_source_path.write_text(json.dumps({'pages': [{'id': 'character-review', 'label': '검수', 'path': '/management/frame/character-review/', 'category': 'character-render-review', 'description': '검수'}]}))
             self.assertNotIn('character-review', [current_page_record['id'] for current_page_record in load_manager_page_records(current_source_path)])
-            with patch('tools.management.common.management_asgi.build_management_blocks') as current_builder_mock:
+            with patch('tools.management.common.management_asgi.execute_legacy_request') as current_builder_mock:
                 current_application_value = build_management_application(SimpleHTTPRequestHandler, current_root_path, current_source_path, 8770, [])
                 async def check_retired_request(current_request_path, current_query_bytes=b''):
                     current_response_events = []

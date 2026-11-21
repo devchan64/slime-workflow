@@ -2,7 +2,7 @@
 import unittest
 from pathlib import Path
 from tools.management.common.management_gateway import resolve_management_command, MANAGEMENT_SERVICE_COMMANDS
-from tools.management.ui.gradio.management_menu_app import NATIVE_MANAGEMENT_APPLICATIONS
+from tools.management.common.management_catalog import NATIVE_MANAGEMENT_APPLICATIONS
 
 class WanAnimateRetirementTests(unittest.TestCase):
     def test_retired_service_and_ui(self):
@@ -12,7 +12,8 @@ class WanAnimateRetirementTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'폐기'):
                 resolve_management_command('wan22-animate',current_command_name,{})
         self.assertFalse(Path('generators/wan_animate').exists())
-        self.assertFalse(Path('tools/management/ui/gradio/wan_animate_app.py').exists())
+        from tools.management.common.management_catalog import REACT_REVIEW_PATHS
+        self.assertNotIn('wan22-animate-generator', REACT_REVIEW_PATHS)
 
     def test_shared_validation_preserved(self):
         from generators.common.onnx_model_validation import validate_external_tensor_files

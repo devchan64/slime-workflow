@@ -65,7 +65,7 @@ if(links['#management-return-conversation a']!=='/management/frame/hermes-agent/
         import json
         import tempfile
         from pathlib import Path
-        from tools.management.ui.gradio.management_menu_app import load_manager_page_records, ARCHIVED_IMAGE_PAGE_IDENTIFIERS, CATEGORY_LABEL_VALUES
+        from tools.management.common.management_catalog import load_manager_page_records, ARCHIVED_IMAGE_PAGE_IDENTIFIERS, CATEGORY_LABEL_VALUES
         with tempfile.TemporaryDirectory() as current_temporary_directory:
             current_source_path = Path(current_temporary_directory) / 'source.json'
             current_source_path.write_text(json.dumps({'pages': [{'id':'mannequin-generator','label':'기존 마네킨','path':'/mannequin-generator/','category':'image-generation','description':'기존 설명'}]}))
@@ -77,7 +77,7 @@ if(links['#management-return-conversation a']!=='/management/frame/hermes-agent/
         import json
         import tempfile
         from pathlib import Path
-        from tools.management.ui.gradio.management_menu_app import load_manager_page_records
+        from tools.management.common.management_catalog import load_manager_page_records
         current_page_records=[{'id':f'animation-{current_sprite_number}','label':f'스프라이트 {current_sprite_number}','path':f'/animation-{current_sprite_number}/anchors.html','category':'animation','description':'등록 원본'} for current_sprite_number in (1,17)]
         with tempfile.TemporaryDirectory() as current_temporary_directory:
             current_source_path=Path(current_temporary_directory)/'pages.json'
@@ -91,7 +91,7 @@ if(links['#management-return-conversation a']!=='/management/frame/hermes-agent/
         import json
         import tempfile
         from pathlib import Path
-        from tools.management.ui.gradio.management_menu_app import load_manager_page_records
+        from tools.management.common.management_catalog import load_manager_page_records
         current_valid_page = {'id':'audit-page','label':'검증','path':'/audit/','category':'animation-tool','description':'검증 페이지'}
         current_invalid_sources = [(None, '원본은 객체'), ([], '원본은 객체'), ('pages', '원본은 객체'), (12, '원본은 객체'), ({'pages':{}}, '목록 형식')]
         current_invalid_sources += [({'pages':[{**current_valid_page,current_field_name:None}]}, current_field_name) for current_field_name in current_valid_page]
@@ -110,7 +110,7 @@ if(links['#management-return-conversation a']!=='/management/frame/hermes-agent/
         import json
         import tempfile
         from pathlib import Path
-        from tools.management.ui.gradio.management_menu_app import load_manager_page_records
+        from tools.management.common.management_catalog import load_manager_page_records
         with tempfile.TemporaryDirectory() as current_temporary_directory:
             current_source_path = Path(current_temporary_directory)/'pages.json'
             for current_invalid_record in (None, 12, 'page', []):
@@ -123,7 +123,7 @@ if(links['#management-return-conversation a']!=='/management/frame/hermes-agent/
         import json
         import tempfile
         from pathlib import Path
-        from tools.management.ui.gradio.management_menu_app import load_manager_page_records
+        from tools.management.common.management_catalog import load_manager_page_records
         with tempfile.TemporaryDirectory() as current_temporary_directory:
             current_source_path = Path(current_temporary_directory) / 'pages.json'
             current_source_path.write_text(json.dumps({'pages': [{'id': 'pose-transfer-generator', 'label': '포즈 변환 생성기 · Alpha Ver.', 'path': '/pose-transfer/', 'category': 'animation-tool', 'description': 'Alpha Ver.'}]}))
@@ -147,12 +147,12 @@ if(links['#management-return-conversation a']!=='/management/frame/hermes-agent/
         self.assertNotIn('iframe',current_preview_markup)
 
     def test_map_route_preserves_shared_application_and_query(self):
-        from tools.management.ui.gradio.management_menu_app import resolve_management_page_path
+        from tools.management.common.management_catalog import resolve_management_page_path
         current_page_record={'id':'map-review-meadow','uiMode':'gradio','frameIdentifier':'map-review','frameQuery':'map=meadow&townPage=1'}
         self.assertEqual(resolve_management_page_path(current_page_record),'/management/frame/map-review/?map=meadow&townPage=1')
 
     def test_static_review_uses_gradio_component_path(self):
-        static_review_records=[{'id':'walk-review','label':'걷기 검수','path':'walk/anchors.html','category':'animation','uiMode':'gradio-static','description':'앵커'}]
+        static_review_records=[{'id':'walk-review','label':'걷기 검수','path':'walk/anchors.html','category':'animation','uiMode':'static','description':'앵커'}]
 
         preview_html_text=create_page_preview_html('walk-review',static_review_records,8770)
 
@@ -284,7 +284,7 @@ class ManagementNativeNavigationTests(unittest.TestCase):
 
     def test_native_navigation_preserves_filters_and_does_not_reload_current_tool(self):
         import subprocess
-        current_page_records=[{'id':'anchor-a','label':'앵커 A','path':'/a/anchors.html','category':'animation','description':'검수','uiMode':'gradio-static'}, {'id':'anchor-b','label':'앵커 B','path':'/b/anchors.html','category':'animation','description':'검수','uiMode':'gradio-static'}, {'id':'image','label':'이미지','path':'/image','category':'image-generation','description':'생성','uiMode':'gradio'}]
+        current_page_records=[{'id':'anchor-a','label':'앵커 A','path':'/a/anchors.html','category':'animation','description':'검수','uiMode':'static'}, {'id':'anchor-b','label':'앵커 B','path':'/b/anchors.html','category':'animation','description':'검수','uiMode':'static'}, {'id':'image','label':'이미지','path':'/image','category':'image-generation','description':'생성','uiMode':'gradio'}]
         current_navigation_source=create_menu_navigation_script(current_page_records,'pushState',True)
         current_filter_source=create_menu_navigation_script(current_page_records,'replaceState',True)
         current_script_source="""

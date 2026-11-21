@@ -229,8 +229,8 @@ class TranslationModelManagementTests(unittest.TestCase):
     def test_fixed_revision_preparation_and_model_management_registration(self):
         from generators.prompt_translation.prepare import TRANSLATION_MODEL_REVISION
         from tools.management.common.model_prepare_worker import MODEL_PREPARATION_PROFILES
-        from tools.management.ui.gradio.model_management_app import MODEL_PREPARATION_SERVICES
-        from tools.management.common.gradio_model_download import MODEL_DOWNLOAD_PREFIXES
+        from tools.management.common.model_management_catalog import MODEL_PREPARATION_SERVICES
+        from tools.management.common.model_download_progress import MODEL_DOWNLOAD_PREFIXES
         self.assertEqual(len(TRANSLATION_MODEL_REVISION), 40)
         self.assertIn('prompt-translation-model', MODEL_PREPARATION_PROFILES)
         self.assertIn(('TranslateGemma 4B', 'prompt-translation'), MODEL_PREPARATION_SERVICES)

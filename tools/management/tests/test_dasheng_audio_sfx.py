@@ -148,7 +148,7 @@ class DashengAudioEffectsTests(unittest.TestCase):
         self.assertNotIn(b'protected', current_http_handler.wfile.getvalue())
 
     def test_menu_composes_effects_and_keeps_retired_music_hidden(self):
-        from tools.management.ui.gradio.management_menu_app import load_manager_page_records, resolve_management_page_path
+        from tools.management.common.management_catalog import load_manager_page_records, resolve_management_page_path
         current_menu_path = self.current_test_root/'menu.json'
         current_menu_path.write_text(json.dumps({'pages':[{'id':'sfx-stable-audio','label':'폐기','path':'/management/frame/sfx-stable-audio/','category':'sound-management','description':'폐기'}]}))
         current_page_records = load_manager_page_records(current_menu_path)

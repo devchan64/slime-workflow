@@ -35,6 +35,76 @@ class HermesSessionStore:
         self.session_storage_root = Path(session_storage_root)
         self.session_thread_lock = threading.RLock()
 
+    def _form_path(self, session_id, form_id):
+        self.resolve_session_record_path(session_id)
+        if not isinstance(form_id, str) or not re.fullmatch(r'[a-f0-9]{32}', form_id):
+            raise ValueError('폼 식별자 형식 오류')
+        directory = self.session_storage_root / 'form-snapshots'
+        if directory.is_symlink():
+            raise ValueError('폼 저장 경로에 심볼릭 링크를 사용할 수 없습니다.')
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / (session_id + '-' + form_id + '.json')
+        if path.is_symlink():
+            raise ValueError('폼 저장본은 심볼릭 링크일 수 없습니다.')
+        return path
+
+    def save_video_form(self, session_id, form_id, request, video_info):
+        if not isinstance(request, dict) or not isinstance(video_info, (dict, type(None))):
+            raise ValueError('폼 입력 형식 오류')
+        if (not isinstance(request.get('images'), list) or len(request['images']) > 1
+                or any(not isinstance(value, str) for value in request['images'])
+                or not isinstance(request.get('pose_video'), str)
+                or any(not isinstance(request.get(key), str) or len(request[key]) > 8000 for key in ('prompt', 'negative_prompt'))
+                or any(type(request.get(key)) not in (int, float) for key in ('frames','steps','seed','flow_shift','guidance_scale','switch_ratio'))):
+            raise ValueError('폼 필드 형식 오류')
+        snapshot = {'request': request, 'video_info': video_info}
+        raw = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
+        if len(raw) > 39000000:
+            raise ValueError('폼 첨부를 포함해 39MB 이하여야 합니다.')
+        digest = hashlib.sha256(raw).hexdigest()
+        with self.hold_session_storage_lock():
+            session = self.read_session_record_locked(session_id)
+            path = self._form_path(session_id, form_id)
+            previous = next((m for m in session['messages'] if m.get('form_id') == form_id), None)
+            if previous:
+                if previous.get('form_sha256') != digest:
+                    raise ValueError('같은 폼 ID를 다른 입력에 사용할 수 없습니다.')
+                if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+                    raise ValueError('저장된 폼을 확인할 수 없습니다.')
+                return {'form_id': form_id, 'duplicate': True}
+            if len(session['messages']) >= HERMES_SESSION_MAX_MESSAGES:
+                raise ValueError('세션 메시지 한도에 도달했습니다.')
+            # A deterministic snapshot can be safely rewritten after an interrupted append.
+            if path.exists() and hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+                raise ValueError('동일 폼 ID의 저장본이 다릅니다.')
+            if not path.exists():
+                import os, tempfile
+                fd, temp = tempfile.mkstemp(dir=path.parent, prefix='.form-')
+                try:
+                    with os.fdopen(fd, 'wb') as stream:
+                        stream.write(raw); stream.flush(); os.fsync(stream.fileno())
+                    os.replace(temp, path)
+                finally:
+                    if os.path.exists(temp): os.unlink(temp)
+            now = datetime.now(timezone.utc).isoformat()
+            if not session['messages']:
+                session['title'] = 'Wan Fun Control 생성 폼'
+            session['messages'].append({'id':form_id, 'role':'user', 'text':'Wan Fun Control 생성 폼', 'created_at':now, 'job_id':None, 'form_id':form_id, 'form_sha256':digest})
+            session['updated_at'] = now
+            write_record_atomically(self.resolve_session_record_path(session_id), session)
+            return {'form_id': form_id, 'duplicate': False}
+
+    def read_video_form(self, session_id, form_id):
+        with self.hold_session_storage_lock():
+            session = self.read_session_record_locked(session_id)
+            message = next((m for m in session['messages'] if m.get('form_id') == form_id), None)
+            if not message: raise ValueError('이 대화에서 폼을 찾을 수 없습니다.')
+            path = self._form_path(session_id, form_id)
+            if not path.is_file() or path.stat().st_size > 39000000: raise ValueError('폼 저장본을 읽을 수 없습니다.')
+            raw = path.read_bytes()
+            if hashlib.sha256(raw).hexdigest() != message.get('form_sha256'): raise ValueError('폼 저장본이 변경됐습니다.')
+            return json.loads(raw)
+
     @contextmanager
     def hold_session_storage_lock(self):
         if self.session_storage_root.is_symlink():
@@ -98,10 +168,13 @@ class HermesSessionStore:
             record = self.read_session_record_locked(session_id, archived=operation != "archive")
             if record["updated_at"] != expected_update:
                 raise ValueError("세션이 변경되었습니다. 목록을 다시 조회하세요.")
-            if any(message.get("job_id") is None for message in record["messages"]):
+            if any(message.get("job_id") is None and not message.get("form_id") for message in record["messages"]):
                 raise ValueError("접수 확인 중인 메시지가 있습니다. 세션에서 접수 결과를 먼저 확인하세요.")
             if operation == "delete":
                 archive.unlink()
+                for message in record['messages']:
+                    if message.get('form_id'):
+                        self._form_path(session_id, message['form_id']).unlink(missing_ok=True)
             elif operation in ("archive", "restore"):
                 source, destination = (active, archive) if operation == "archive" else (archive, active)
                 if destination.exists() or destination.is_symlink():

@@ -55,3 +55,22 @@ def describe_generation_status(current_status_record, include_generation_estimat
     if current_status_record.get('error'):
         current_status_text += '\n\n실패 원인: ' + str(current_status_record['error'])
     return current_status_text
+
+HISTORY_PROGRESS_STAGE_LABELS={'paused':'검수 대기', 'queued':'GPU 대기 중','starting':'생성 준비 중','load':'모델 로딩 중','inference':'추론 중','saving':'결과 저장 중','completed':'완료','failed':'실패'}
+HISTORY_PROGRESS_STAGE_LABELS.update({'loading':'모델 로딩 중','download-model':'모델 다운로드 중','postprocess':'후처리 중','cancelled':'중지됨'})
+
+
+
+def format_history_progress(current_progress_record):
+    """로그에서 확인 가능한 진행 정보만 카드용 문구로 만든다."""
+    if not isinstance(current_progress_record,dict):
+        return ''
+    current_stage_value=current_progress_record.get('stage','starting')
+    current_label_value=HISTORY_PROGRESS_STAGE_LABELS.get(current_stage_value,current_stage_value)
+    current_percent_value=current_progress_record.get('percent')
+    current_completed_value=current_progress_record.get('completed_frames',current_progress_record.get('step'))
+    current_total_value=current_progress_record.get('total_frames',current_progress_record.get('total'))
+    if isinstance(current_percent_value,(int,float)) and current_total_value:
+        return f'{current_label_value} {current_percent_value:g}% · {current_completed_value}/{current_total_value}'+current_progress_record.get('unit','프레임 저장' if 'completed_frames' in current_progress_record else '스텝')
+    current_queue_position=current_progress_record.get('queue_position')
+    return current_label_value+(f' · 대기 순서 {current_queue_position}' if current_queue_position else '')

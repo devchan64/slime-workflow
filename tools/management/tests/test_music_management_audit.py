@@ -12,7 +12,7 @@ from tools.management.domains.music.generation import MusicGenerationManager
 
 class MusicManagementAuditTests(unittest.TestCase):
     def test_retired_model_cannot_return_from_cached_menu(self):
-        from tools.management.ui.gradio.management_menu_app import load_manager_page_records
+        from tools.management.common.management_catalog import load_manager_page_records
         self.assertEqual(MUSIC_SERVICE_NAMES,('music-minimax','music-magenta','music-heartmula'))
         self.assertNotIn('music-stable-audio',MANAGEMENT_SERVICE_COMMANDS)
         self.assertNotIn('music-ace-step',MANAGEMENT_SERVICE_COMMANDS)
@@ -125,7 +125,7 @@ class MusicManagementAuditTests(unittest.TestCase):
                 self.assertTrue(current_update_values[-1].active)
 
     def test_both_services_keep_attempt_telemetry_across_terminal_and_resume_states(self):
-        from tools.management.common.gradio_audio_results import describe_audio_generation_status
+        from tools.management.common.audio_results import describe_audio_generation_status
         for current_service_name in MUSIC_SERVICE_NAMES:
             with self.subTest(service=current_service_name), tempfile.TemporaryDirectory() as current_temp_directory:
                 current_music_service = MusicGenerationManager(current_service_name)

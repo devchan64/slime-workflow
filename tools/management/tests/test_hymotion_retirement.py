@@ -23,7 +23,7 @@ class HymotionRetirementTests(unittest.TestCase):
     def test_retired_urls_never_build_interface(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_root_path = Path(current_directory_name)
-            with patch('tools.management.common.management_asgi.build_management_blocks') as current_builder_mock:
+            with patch('tools.management.common.management_asgi.execute_legacy_request') as current_builder_mock:
                 current_application_value = build_management_application(SimpleHTTPRequestHandler, current_root_path, current_root_path/'missing.json', 8770, [])
                 with TestClient(current_application_value) as current_test_client:
                     for current_request_path in ('/hy-motion-generator/', '/hy-motion-generator/jobs', '/management/frame/hy-motion-generator/', '/management/?tool=hy-motion-generator'):
@@ -32,7 +32,7 @@ class HymotionRetirementTests(unittest.TestCase):
                 current_builder_mock.assert_not_called()
 
     def test_stale_catalog_excludes_retired_page(self):
-        from tools.management.ui.gradio.management_menu_app import load_manager_page_records
+        from tools.management.common.management_catalog import load_manager_page_records
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_source_path = Path(current_directory_name)/'menu.json'
             current_source_path.write_text(json.dumps({'pages':[{'id':'hy-motion-generator','label':'HY-Motion','path':'/hy-motion-generator/','category':'animation-tool','description':'폐기 대상'}]}))

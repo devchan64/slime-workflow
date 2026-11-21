@@ -143,15 +143,15 @@ class ManagementLauncherTests(unittest.TestCase):
         self.assertEqual(selected_command_values[-4:], ['--root', '/tmp/review folder', '--port', '9891'])
         self.assertNotIn('pip', selected_command_values)
 
-    def test_gateway_does_not_require_frontend_or_gradio(self):
-        with patch.dict(os.environ, {'FRONTEND_REPOSITORY_PATH': '/missing/frontend', 'MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH': '/missing/gradio', 'MANAGEMENT_GATEWAY_PORT': '9892'}):
+    def test_gateway_does_not_require_gui_environment(self):
+        with patch.dict(os.environ, {'FRONTEND_REPOSITORY_PATH': '/missing/frontend', 'MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH': '/missing/gui-environment', 'MANAGEMENT_GATEWAY_PORT': '9892'}):
             selected_command_values = management_launcher.build_management_launch_command('gateway', ['--writer-agent-config', '/tmp/config with spaces.yaml'])
         self.assertIn('9892', selected_command_values)
         self.assertEqual(selected_command_values[-1], '/tmp/config with spaces.yaml')
 
     def test_snapshot_worker_uses_independent_launcher_without_gui_ports(self):
         with patch.dict(os.environ,{'MANAGEMENT_GATEWAY_PORT':'9892','REVIEW_SERVER_PORT':'9890',
-                'FRONTEND_REPOSITORY_PATH':'/missing/frontend','MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH':'/missing/gradio'}):
+                'FRONTEND_REPOSITORY_PATH':'/missing/frontend','MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH':'/missing/gui-environment'}):
             current_launch_command=management_launcher.build_management_launch_command('snapshot',['--server','http://127.0.0.1:9892','--once'])
         self.assertTrue(current_launch_command[1].endswith('maintenance/content_snapshot_worker.py'))
         self.assertEqual(current_launch_command[2:],['--server','http://127.0.0.1:9892','--once'])
@@ -921,8 +921,8 @@ class ManagementLauncherTests(unittest.TestCase):
             finally:
                 launcher_trace_logger.close_launch_log()
 
-    def test_gradio_configuration_does_not_import_process_launcher(self):
-        subprocess.run([sys.executable, '-c', "import sys; import tools.management.common.gradio_process; assert 'tools.management.common.management_launcher' not in sys.modules; assert 'tools.management.common.management_process' not in sys.modules; assert 'tools.management.common.management_setup' not in sys.modules"], check=True)
+    def test_gui_server_does_not_import_process_launcher(self):
+        subprocess.run([sys.executable, '-c', "import sys; import tools.management.gui.serve; assert 'tools.management.common.management_launcher' not in sys.modules; assert 'tools.management.common.management_process' not in sys.modules; assert 'tools.management.common.management_setup' not in sys.modules"], check=True)
 
     @unittest.skipUnless(sys.platform == 'linux', 'Linux 프로세스 상태 검사')
     def test_stubborn_child_is_stopped_but_unrelated_session_survives(self):

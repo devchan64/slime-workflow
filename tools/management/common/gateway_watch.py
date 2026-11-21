@@ -38,7 +38,7 @@ def snapshot_gateway_watch_paths(watched_source_paths):
         else:
             selected_source_files = [watched_source_path]
         for selected_source_path in selected_source_files:
-            if selected_source_path.suffix not in GATEWAY_WATCH_SOURCE_SUFFIXES or selected_source_path.name.startswith(('.', 'gradio_')) or selected_source_path.name in GATEWAY_WATCH_IGNORED_MODULES:
+            if selected_source_path.suffix not in GATEWAY_WATCH_SOURCE_SUFFIXES or selected_source_path.name.startswith('.') or selected_source_path.name in GATEWAY_WATCH_IGNORED_MODULES:
                 continue
             try:
                 selected_source_stat = selected_source_path.stat()

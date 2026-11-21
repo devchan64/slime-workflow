@@ -357,7 +357,6 @@ window.anchorReviewCoordinates=(currentActionName,currentInputValues)=>{
  const currentSelectedPoint=pointChoiceElement.value==='anchor'?currentFrameRecord.anchor:(usesFootCentersOnly?currentFrameRecord.contacts:currentFrameRecord.endpoints)[Number(pointChoiceElement.value)];
  return {x:currentSelectedPoint.x,y:currentSelectedPoint.y,scale:1,message:`${currentFrameRecord.frameId} · X ${currentSelectedPoint.x} / Y ${currentSelectedPoint.y}`};
 };
-// 공용 Gradio 탐색기와 독립 검수 화면이 같은 브라우저 재생 상태를 사용한다.
 window.anchorReviewPlayback=currentActionName=>{
  if(currentImageLoadFailure)throw Error(currentImageLoadFailure);
  if(!currentImageLoadComplete)throw Error('앵커 이미지를 불러오는 중입니다.');
@@ -383,7 +382,7 @@ window.anchorReviewFrameRate=currentFrameRateValue=>{
  animationStartedTime=performance.now()-Number(frameChoiceElement.value)*currentPreviewFrameDurationMs;
  return `${currentFrameRateValue} FPS · 검수 속도만 변경됨`;
 };
-if(window.anchorReviewNativeMode||(window.parent!==window&&new URLSearchParams(window.location?.search).get('embedded')==='gradio-static')){
+if(window.anchorReviewNativeMode||(window.parent!==window&&new URLSearchParams(window.location?.search).get('embedded')==='static')){
  if(!window.anchorReviewNativeMode){
  for(const currentStyleElement of document.querySelectorAll('style'))currentStyleElement.disabled=true;
  const currentCanvasStyles=document.querySelector('#anchor-canvas-layout');currentCanvasStyles.disabled=false;currentCanvasStyles.media='all';
@@ -418,7 +417,7 @@ async function requestAnchorHistoryCommand(commandNameValue,payloadRecordValue){
  if(!responseRecordValue.ok)throw new Error(responsePayloadValue.error||'좌표 이력 요청 실패');
  return responsePayloadValue;
 }
-const currentEmbeddedReviewMode=Boolean(window.anchorReviewNativeMode)||(window.parent!==window&&new URLSearchParams(window.location?.search).get('embedded')==='gradio-static');
+const currentEmbeddedReviewMode=Boolean(window.anchorReviewNativeMode)||(window.parent!==window&&new URLSearchParams(window.location?.search).get('embedded')==='static');
 window.anchorReviewResetTarget=()=>reviewAnimationIdentity+' · '+reviewAnimationVersion;
 window.anchorReviewHistory=async(currentActionName,currentSelectedId,currentConfirmedTarget)=>{
  if(!['list','inspect','result','restore','reset'].includes(currentActionName))throw Error('지원하지 않는 좌표 이력 명령입니다.');

@@ -213,42 +213,36 @@ class HermesMcpTests(unittest.TestCase):
         self.assertEqual(json.loads(hermes_request_object.data), {'service':'hermes-agent', 'command':'hermes-submit', 'payload':{'request_id':'same-request-1234', 'prompt':'작업'}})
         self.assertEqual(hermes_request_object.full_url, 'http://127.0.0.1:8771/management/command')
 
+    def read_test_queue(self, record):
+        with patch.dict('os.environ', {'SLIME_MANAGEMENT_GATEWAY_URL':'http://127.0.0.1:8771'}), patch.object(hermes_module_value.urllib.request, 'build_opener') as opener:
+            opener.return_value.open.return_value = io.BytesIO(json.dumps(record).encode())
+            result = hermes_module_value.read_hermes_gpu_queue_status()
+            request = opener.return_value.open.call_args.args[0]
+            self.assertEqual(request.get_method(), 'GET')
+            self.assertEqual(request.full_url, 'http://127.0.0.1:8771/management/hermes-gpu-queue')
+            return result
+
     def test_gpu_queue_status_uses_bounded_snapshot_and_gpu_status(self):
-        hermes_response_file = io.BytesIO(b'{"status":"unavailable","processes":[]}')
-        current_queue_record={'queue':{'status':'available','jobs':[{'id':'job-1','service':'kimodo','source_service':'kimodo'}]}}
-        with patch.dict('os.environ', {'SLIME_MANAGEMENT_GATEWAY_URL':'http://127.0.0.1:8771'}), patch.object(hermes_module_value,'run_hermes_mcp_command',return_value=current_queue_record) as current_snapshot_mock, patch.object(hermes_module_value.urllib.request, 'build_opener') as hermes_opener_mock:
-            hermes_opener_mock.return_value.open.return_value = hermes_response_file
-            hermes_status_record = hermes_module_value.read_hermes_gpu_queue_status()
-            hermes_request_object = hermes_opener_mock.return_value.open.call_args.args[0]
-        current_snapshot_mock.assert_called_once_with('hermes-management-status',{})
-        self.assertEqual(hermes_request_object.get_method(), 'GET')
-        self.assertEqual(hermes_request_object.full_url, 'http://127.0.0.1:8771/management/gpu-status')
-        self.assertEqual(hermes_status_record['jobs'],[{'id':'job-1','service':'kimodo'}])
-        self.assertEqual(hermes_status_record['gpu_status']['status'], 'unavailable')
-        self.assertIn('queried_at', hermes_status_record)
+        jobs = [{'id':'job-1','service':'kimodo','source_service':'kimodo'}]
+        for gpu in ({'status':'idle','processes':[]},{'status':'busy','processes':[{'pid':1}]},{'status':'unavailable','processes':[]}):
+            result = self.read_test_queue({'jobs':jobs,'gpu_status':gpu})
+            self.assertEqual(result['jobs'], [{'id':'job-1','service':'kimodo'}])
+            self.assertEqual(result['gpu_status'], gpu)
+            self.assertIn('queried_at', result)
 
     def test_gpu_queue_status_rejects_non_loopback_and_invalid_response(self):
-        with patch.dict('os.environ', {'SLIME_MANAGEMENT_GATEWAY_URL':'http://example.com:8771'}), self.assertRaises(ValueError):
-            hermes_module_value.read_hermes_gpu_queue_status()
-        for current_queue_record in ({'queue':{'status':'unavailable','jobs':[]}},{'queue':{'status':'available','jobs':[{'id':'job-1'}]}},{}):
-            with self.subTest(queue=current_queue_record),patch.object(hermes_module_value,'run_hermes_mcp_command',return_value=current_queue_record),patch.object(hermes_module_value.urllib.request,'build_opener') as current_opener_mock:
-                with self.assertRaises(ValueError):hermes_module_value.read_hermes_gpu_queue_status()
-                current_opener_mock.assert_not_called()
-        with patch.dict('os.environ', {'SLIME_MANAGEMENT_GATEWAY_URL':'http://127.0.0.1:8771'}),patch.object(hermes_module_value,'run_hermes_mcp_command',return_value={'queue':{'status':'available','jobs':[]}}),patch.object(hermes_module_value.urllib.request, 'build_opener') as hermes_opener_mock:
-            hermes_opener_mock.return_value.open.return_value = io.BytesIO(b'[]')
-            with self.assertRaisesRegex(ValueError, '형식'):
+        with patch.dict('os.environ', {'SLIME_MANAGEMENT_GATEWAY_URL':'http://example.com:8771'}), patch.object(hermes_module_value.urllib.request, 'build_opener') as opener:
+            with self.assertRaises(ValueError):
                 hermes_module_value.read_hermes_gpu_queue_status()
+            opener.assert_not_called()
+        for record in ([], {}, {'jobs':None}, {'jobs':[{'id':'job-1'}],'gpu_status':{'status':'idle','processes':[]}}):
+            with self.subTest(record=record), self.assertRaises(ValueError):
+                self.read_test_queue(record)
 
     def test_gpu_queue_status_rejects_malformed_gpu_observations(self):
-        current_queue_record={'queue':{'status':'available','jobs':[]}}
-        for current_gpu_value in ({},{'status':'idle','processes':[{}]},{'status':'busy','processes':[]},{'status':'busy','processes':[None]},{'status':'unknown','processes':[]}):
-            with self.subTest(gpu=current_gpu_value),patch.object(hermes_module_value,'run_hermes_mcp_command',return_value=current_queue_record),patch.object(hermes_module_value.urllib.request,'build_opener') as current_opener_mock:
-                current_opener_mock.return_value.open.return_value=io.BytesIO(json.dumps(current_gpu_value).encode())
-                with self.assertRaises(ValueError):hermes_module_value.read_hermes_gpu_queue_status()
-        for current_gpu_value in ({'status':'idle','processes':[]},{'status':'busy','processes':[{'pid':1}]},{'status':'unavailable','processes':[]}):
-            with self.subTest(gpu=current_gpu_value),patch.object(hermes_module_value,'run_hermes_mcp_command',return_value=current_queue_record),patch.object(hermes_module_value.urllib.request,'build_opener') as current_opener_mock:
-                current_opener_mock.return_value.open.return_value=io.BytesIO(json.dumps(current_gpu_value).encode())
-                self.assertEqual(hermes_module_value.read_hermes_gpu_queue_status()['gpu_status'],current_gpu_value)
+        for gpu in ({},{'status':'idle','processes':[{}]},{'status':'busy','processes':[]},{'status':'busy','processes':[None]},{'status':'unknown','processes':[]}):
+            with self.subTest(gpu=gpu), self.assertRaises(ValueError):
+                self.read_test_queue({'jobs':[],'gpu_status':gpu})
 
     def test_flux_source_status_mcp_validates_gateway_response(self):
         current_job_identifier='2026-11-18_00-00-00-12345678'

@@ -1950,6 +1950,26 @@ class HermesServiceTests(unittest.TestCase):
             self.assertEqual(len(current_activity_record['events']), 8)
             self.assertTrue(current_activity_record['truncated'])
 
+    def test_video_viewer_requires_matching_successful_tool_result(self):
+        from tools.management.domains.hermes_agent.service import read_hermes_tool_activity
+        service, job = 'wan22-fun-control', '2026-11-21_10-21-48-00e8c029'
+        base = f'/{service}/jobs/{job}/attempts/' + 'a' * 32 + '/'
+        request = {'service':service, 'job_id':job}
+        result = {'service':service, 'job_id':job, 'job':{'status':'completed', 'result_status':'available', 'video':base+'preview.mp4', 'image':base+'output-000.png', 'download':base+'frames.zip'}}
+        events = [{'type':'tool_use','name':'terminal','tool_call_id':'a','input':{'command':"/runtime/.venv/bin/python /control/management-status.py video-source-status '"+json.dumps(request)+"'"}},
+                  {'type':'tool_result','name':'terminal','tool_call_id':'a','output':json.dumps({'exit_code':0,'output':json.dumps(result)})}]
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / 'hermes-events.jsonl'
+            def read():
+                path.write_text('\n'.join(json.dumps(event) for event in events))
+                return read_hermes_tool_activity(Path(root))
+            self.assertEqual(read()['video_source'], request)
+            result['job']['video'] = 'https://example.com/video.mp4'
+            events[1]['output'] = json.dumps({'exit_code':0,'output':json.dumps(result)})
+            self.assertNotIn('video_source', read())
+            events[1]['tool_call_id'] = 'other'
+            self.assertNotIn('video_source', read())
+
     def test_hermes_model_readiness_does_not_claim_ready_during_preparation(self):
         from tools.management.domains.hermes_agent.management_observer import inspect_hermes_model_status
         with patch('tools.management.domains.hermes_agent.service.validate_hermes_runtime_ready'):

@@ -378,7 +378,7 @@ class ImageGenerationManager:
                 else:
                     send_response_data(200, {'ready': False, 'message': '폐기된 이미지 생성기입니다.'})
             elif current_url_path in (self.route_prefix_value,self.route_prefix_value+'/'):
-                send_response_data(410,{'error':'이전 관리 화면은 폐기되었습니다. /management/에서 Gradio 화면을 여세요.'})
+                send_response_data(410,{'error':'이전 관리 화면은 폐기되었습니다. /management/에서 관리 화면을 여세요.'})
             else:
                 current_path_match = re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/([0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8})(/baseline.png|/baseline-preview.png|/split-preview.png|/sample-grid.png|/repair-mask.png|/repair-composite.png|/repair-input.png|/grid-input.png|/grid-edited.png|/tiled-preview.png|/raw-result.png|/blend-result.png|/blend-preview.png|/result.png|/single-tile.png|/square-crop.png|/center-tile.png|/quadrilateral.png|/border-crop.png|/worker.log|/reference-(?:[1-9]|10)\.png)?',current_url_path)
                 if not current_path_match:

@@ -14,16 +14,8 @@ class CharacterGeneratorTest(unittest.TestCase):
         self.assertLessEqual(len(current_prompt_text.split()), 99)
         self.assertNotIn('five-head-tall', current_prompt_text)
 
-    def test_management_page_builds(self):
-        from tools.management.common.management_asgi import QWEN_INTERFACE_OPTIONS
-        from tools.management.ui.shared.qwen_generator_page import build_qwen_2511_interface
-        current_page_blocks = build_qwen_2511_interface('http://127.0.0.1:8770', **QWEN_INTERFACE_OPTIONS['character-generator'])
-        self.assertEqual(current_page_blocks.title, 'Qwen 2.1 캐릭터 이미지 생성기')
-        current_buttons = [current_component for current_component in current_page_blocks.blocks.values() if getattr(current_component, 'value', None) == '생성 불가 · 아카이브']
-        self.assertEqual(len(current_buttons), 1)
-        self.assertFalse(current_buttons[0].interactive)
-        self.assertTrue(any('기존 이력과 결과' in str(getattr(current_component, 'value', '')) for current_component in current_page_blocks.blocks.values()))
+    def test_character_page_resolves_to_archive(self):
+        from tools.management.common.management_catalog import resolve_management_page_path
+        row = {'id': 'character-generator', 'uiMode': 'archive'}
+        self.assertEqual(resolve_management_page_path(row), '/management/frame/character-generator/')
 
-
-if __name__ == '__main__':
-    unittest.main()

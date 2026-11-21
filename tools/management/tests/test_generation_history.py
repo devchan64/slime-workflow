@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from tools.management.common.gradio_history import format_history_progress, format_generation_status
+from tools.management.common.generation_status_display import format_history_progress, format_generation_status
 from tools.management.domains.image.image_generation import ImageGenerationManager, summarize_generation_progress
 from tools.management.tests import test_image_generation
 

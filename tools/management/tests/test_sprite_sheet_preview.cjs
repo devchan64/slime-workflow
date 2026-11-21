@@ -62,7 +62,7 @@ renderCurrentPreview('image',currentFrameRows,1,false,false,'크롭',null,6,fals
 currentAssertModule.strictEqual(currentImageCalls.length,2);
 currentAssertModule.strictEqual(currentImageCalls[1][2],330);
 console.log('동작별 이전 프레임 순서와 경계 검증');
-const selectCurrentClip=eval(currentFileSystem.readFileSync('tools/management/ui/gradio/sprite_sheet_clip_select.js','utf8'));
+const selectCurrentClip=eval(currentFileSystem.readFileSync('tools/management/ui/character_animation/sprite_sheet_clip_select.js','utf8'));
 currentAssertModule.deepStrictEqual(selectCurrentClip('exit.left',currentClipSource,1),[false,2]);
 currentAssertModule.deepStrictEqual(selectCurrentClip('',currentClipSource,2),[false,1]);
 currentAssertModule.deepStrictEqual(selectCurrentClip('missing',currentClipSource,2),[false,2]);

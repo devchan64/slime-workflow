@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from generators.music.heartmula.separation import prepare_separation_model, DEMUCS_CHECKPOINT_NAME
 from tools.management.domains.music.generation import MusicGenerationManager
-from tools.management.common.gradio_audio_results import render_audio_generation_result
+from tools.management.common.audio_results import render_audio_generation_result
 
 
 class HeartmulaSeparationTests(unittest.TestCase):

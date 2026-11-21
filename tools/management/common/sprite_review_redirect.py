@@ -20,6 +20,6 @@ def resolve_sprite_review_redirect(current_request_path,current_query_values,cur
         current_target_values['action']=current_action_identifier
     else:
         current_description_parts=current_selected_page.get('description','').split(' · ')
-        if len(current_description_parts)>=3 and current_description_parts[0]=='Gradio':
+        if len(current_description_parts)>=3 and current_description_parts[2].endswith('.animation.json'):
             current_target_values['action']='asset:'+current_description_parts[1]
     return '/management/frame/sprite-sheet-editor/?'+urlencode(current_target_values)

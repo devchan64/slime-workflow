@@ -15,7 +15,7 @@ def load_static_review_paths(source_file_path):
     for current_page_record in current_page_records:
         if not isinstance(current_page_record, dict):
             raise ValueError('정적 검수 페이지 항목은 객체여야 합니다.')
-        if current_page_record.get('uiMode')!='gradio-static':continue
+        if current_page_record.get('uiMode') not in ('static', 'gradio-static'):continue
         current_identifier_value=current_page_record.get('id')
         current_path_value=current_page_record.get('path')
         if not isinstance(current_identifier_value,str) or not current_identifier_value or not isinstance(current_path_value,str) or not current_path_value:

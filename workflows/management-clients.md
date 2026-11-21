@@ -52,7 +52,6 @@ CLI는 `python tools/manager.py command prompt-translation translation-submit --
 
 ## MoMask 포즈 생성기 폐기
 
-2026-10-09 MoMask 생성 도구·Gradio 화면·메뉴를 폐기했다. GUI 과거 주소와 API는 HTTP 410으로 종료하며 통합 CLI의 MoMask 명령도 폐기 오류를 반환한다. 직접 생성·작업 재개 진입점도 차단한다. `.tmp/momask-generator/`의 과거 작업·렌더 결과·로그·이력은 사용자 지시로 삭제했다. 앞서 삭제한 모델 가중치를 자동 복원하지 않는다.
 
 HY-Motion이 사용하는 리타기팅·스키닝·Blender 단계 실행 코드는 유지한다. `assets/`의 등록 모션·피팅·리그와 다른 생성기의 결과·기록은 삭제하지 않는다. 현행 모션 실행은 `hy-motion`을 사용하며 구형 실행 예시는 이 안내에서 제거했다.
 
@@ -92,8 +91,6 @@ HY-Motion 신규 `generate`는 ANNY 리그 변환·스킨 충돌 기반 회전 �
 관리도구는 GUI 서버, 명령 게이트웨이·작업 서비스, 별도 GPU 대기·실행 프로세스로 나눈다. GUI와 CLI는 같은 HTTP 명령 계약을 사용한다.
 
 ```text
-Gradio GUI → GUI 서버(8770)의 API 중계 ─┐
-Gradio Python 콜백 → HTTP 클라이언트 ───┼→ 게이트웨이(8771) → 작업 서비스 → GPU 대기·실행기
 통합 CLI → HTTP 클라이언트 ────────────┘                         └→ 기존 공용 기록 저장소
 ```
 
@@ -106,7 +103,6 @@ Gradio Python 콜백 → HTTP 클라이언트 ───┼→ 게이트웨이(87
 # 터미널 1: 게이트웨이·작업 서비스 (GUI 없이 CLI 사용 가능)
 ./scripts/run_management_gateway.sh
 
-# 터미널 2: GUI·정적 검수·Gradio (GUI 코드 변경만 자동 재시작)
 ./scripts/run_management_gui.sh --watch
 
 # 터미널 3: 같은 게이트웨이에 작업 접수
@@ -115,7 +111,6 @@ Gradio Python 콜백 → HTTP 클라이언트 ───┼→ 게이트웨이(87
 - 기본 주소는 GUI `http://127.0.0.1:8770`, 게이트웨이 `http://127.0.0.1:8771`이다. GUI 포트와 게이트웨이 포트를 같게 지정할 수 없다.
 - GUI와 게이트웨이는 `localhost`와 `127.0.0.1` 접속을 모두 허용한다. POST 요청의 Origin은 접속한 Host 및 포트와 일치해야 하므로 두 이름을 섞어 사용하지 않는다.
 - 게이트웨이 포트를 바꾸면 `scripts/run_management_gateway.sh --port 9871`, GUI `scripts/run_management_gui.sh --gateway-url http://127.0.0.1:9871`, CLI `<서비스> --server-url http://127.0.0.1:9871 <명령>`을 사용한다. GUI·CLI 기본 접속 주소는 `SLIME_MANAGEMENT_GATEWAY_URL`로 지정할 수도 있다.
-- 기존 브라우저 명령·결과·로그 URL은 GUI 서버가 중계한다. GUI 종료 중에도 CLI는 게이트웨이로 직접 접수·조회·취소·재개할 수 있다. Gradio Python 콜백은 공용 HTTP 클라이언트를 사용하며 로컬 서비스로 우회하지 않는다.
 - `GET /management/health`는 게이트웨이 역할·PID·응답 상태를 반환한다. GUI 주소에서도 같은 경로로 중계 상태를 확인할 수 있다. GPU 가용성은 별도 상태 조회로 확인한다.
 - GUI `--watch`는 게이트웨이·작업 서비스 코드를 감시하지 않는다. `scripts/run_management_gateway.sh --watch` 또는 `python3 tools/management/gateway_server.py --watch`로 실행하면 게이트웨이 코드 변경도 해당 프로세스만 자동 재시작한다. 일반 실행에서는 명시적으로 재시작한다. 기존 GPU 대기·실행기는 별도 프로세스와 기록을 유지한다. 접수 중 연결이 끊기면 자동 재전송하지 않으므로 이력을 확인한 뒤 다시 요청한다.
 - `--writer-agent-config`는 `gateway_server.py`의 옵션으로 이동했다. 작가 작업은 공용 GPU 대기열에서 실행하며 게이트웨이와 GUI 재시작 후에도 유지된다.
@@ -123,7 +118,6 @@ Gradio Python 콜백 → HTTP 클라이언트 ───┼→ 게이트웨이(87
 
 ### 게이트웨이 변경 감시
 
-`--watch`는 `gateway_server.py`, `tools/management/common/`, `tools/management/domains/`, `generators/writer_agent/`의 Python·YAML·JSON과 지정한 작가 작업 공간 YAML을 감시한다. 파일 추가·수정·삭제를 감지하며 0.5초 동안 변경이 없으면 이전 게이트웨이 종료를 기다린 뒤 같은 포트·작가 설정으로 새 프로세스를 시작한다. GUI·Gradio 모듈·테스트·숨김 폴더·생성 기록은 감시하지 않는다. 감시기와 실행기 자체(`gateway_watch.py`, `management_launcher.py`, `management_process.py`, `management_setup.py`) 변경은 watch 명령을 다시 시작해야 반영된다.
 
 명령 등록·작업 서비스와 요청·이력 경로는 그대로 유지한다. 작가 작업을 포함한 별도 세션의 GPU 대기·실행기는 재시작하지 않는다. 재시작 중 짧은 API 연결 중단이 있으며 접수 응답이 끊긴 경우 자동 재전송하지 말고 이력을 먼저 확인한다.
 
@@ -134,13 +128,10 @@ Gradio Python 콜백 → HTTP 클라이언트 ───┼→ 게이트웨이(87
 | 스크립트 | 역할 |
 | --- | --- |
 | `scripts/setup_management.sh` | `.venv` 준비와 공용 의존성 설치 |
-| `scripts/run_management_gateway.sh` | 독립 게이트웨이 시작; `--watch` 지원; 프론트엔드·Gradio 환경 불필요 |
 | `scripts/run_management_gui.sh` | GUI 시작; `--watch`, `--root`, `--frontend-repo` 등 기존 옵션 전달 |
 | `scripts/watch_review_server.sh` | `run_management_gui.sh --watch` 호환 연결 |
 
-공용 진입점은 `tools/management/common/management_launcher.py`다. 환경·접속 설정은 `management_environment.py`, 명시적 설치는 `management_setup.py`, 로그·heartbeat·프로세스 그룹 수명은 `management_process.py`가 맡는다. Gradio는 환경 설정 모듈만 참조한다. 서버 실행 시 패키지를 설치하거나 환경을 자동 복구하지 않는다. 환경이 없으면 준비 명령을 안내하고 즉시 실패한다. `setup`은 서버가 실행 중이지 않을 때 최초 준비 또는 의존성 갱신 목적으로 명시적으로 실행한다.
 
-`VIRTUAL_ENVIRONMENT_PATH`는 서버와 Gradio의 공용 Python 환경을 지정한다. `MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH`는 별도 Gradio 환경이 필요한 경우에만 명시적으로 지정한다. GPU 모델 실행기의 기존 환경 정책은 별개다. 상대 경로와 전달한 상대 파일 인자는 저장소 루트를 기준으로 한다. `REVIEW_SERVER_PORT`·`MANAGEMENT_GATEWAY_PORT`는 각 서버 포트이며 명시적인 `--port`가 우선한다. `FRONTEND_REPOSITORY_PATH`는 GUI 기본 프론트엔드 경로로만 사용하고 `--root`·`--walking`·`--frontend-repo`를 지정하면 적용하지 않는다. 게이트웨이 포트를 바꿔도 GUI·CLI 목적지는 자동 변경하지 않으므로 `--gateway-url`·`--server-url` 또는 `SLIME_MANAGEMENT_GATEWAY_URL`도 설정한다.
 
 시작·명령·출력·5초 heartbeat와 실패 traceback은 `.tmp/management-launcher-logs/`에 누적한다. 실패 시 명령과 최근 로그를 출력하고 종료 코드를 반환한다. `Ctrl+C` 또는 SIGTERM은 해당 실행기가 시작한 서버 프로세스 그룹에만 전달한다. GUI와 게이트웨이는 별도 그룹이며 독립 세션으로 시작한 GPU 작업·대기열은 정리 대상이 아니다. 부모 종료 뒤 같은 그룹에 남아 SIGTERM을 무시하는 자식은 강제 종료한다. 다른 실행기가 시작한 그룹과 독립 세션은 건드리지 않는다. 검증이나 재시작을 위해 기존 서버의 포트 점유 프로세스를 강제로 종료하지 않는다.
 
@@ -240,11 +231,9 @@ python3 tools/manager.py character-animation sprite-save asset:character.default
 
 MoMask의 얼굴 포인트·커스텀 포즈·렌더 재개와 AnyPose 애니메이션의 생성 배속·해상도·강도 설정은 폐기된 생성 화면의 기능이다. 현행 명령으로 안내하지 않는다. HY-Motion의 렌더 프레임 스텝·투영·OpenPose 출력과 VNCCS의 단일 이미지 입력은 각 도구 안내를 따른다.
 
-현행 Gradio UI는 `.venv`에서 실행하며 설정·이력·로그·브라우저 재생을 공용 컴포넌트로 구성한다. 설치는 `scripts/setup_management.sh`, GUI 로그는 `.tmp/manager-current/gradio.log`를 사용한다. 폐기된 MoMask 화면을 UI 전환·검증 대상으로 다시 실행하지 않는다.
 
 ### 로컬 GPU 대기·중지·재개
 
-공용 Gradio 생성이력에서 재개 확인은 선택 이력의 행동 버튼 바로 아래에 표시한다. `확인 후 대기열에 추가`로 접수하며 `추가하지 않기`는 접수하지 않는다. CLI·서비스 재개 계약은 변경하지 않는다. 배치 및 검증 범위는 [생성 이력 재개 확인 위치](management-ui.md#생성-이력-재개-확인-위치)를 따른다.
 
 - HY-Motion, VNCCS 포즈 변환, Qwen 이미지 및 ANNY 작업은 공용 `gpu_job_queue.py` 실행기를 사용한다. 클라이언트 연결과 무관한 별도 프로세스가 `.tmp/gpu-queue/`의 접수 순서와 실행 잠금을 관리한다.
 - GPU 0의 여유 메모리를 2초마다 조회한다. 초기 입장 기준은 HY-Motion 7000 MiB, 이미지 작업 6144 MiB, ANNY 2048 MiB이다. 실제 예약량은 서비스·실행 프로필과 관측 이력을 함께 확인한다. 이는 실측 최대치가 아닌 보수적 실행 입장 기준이며 실제 모델의 최대 사용량을 보장하지 않는다. 기준은 공용 `GPU_MEMORY_REQUIREMENTS`에서 조정한다. 유효 실측 이력이 있으면 최근 20회 중 성공한 작업의 최고 사용량을 예약한다. 현재 여유량에서 실행 중 작업의 미사용 예약분을 뺀 값으로 입장을 판단하며, 고정 안전 여유분은 추가 차감하지 않는다. Qwen 2.1도 해상도·스텝·참조 수와 심리스 파이프라인 버전별로 실측 이력을 분리한다. 공용 대기열은 예약량이 들어가는 작업을 허용하고 각 작업자의 실행 잠금도 유지한다.
@@ -488,12 +477,10 @@ python3 tools/manager.py command character-review capture --payload-file /tmp/ch
 
 동기 재생·프레임 번호 이동·원본/합성/분리 보기·겹쳐보기 위치와 배율은 브라우저의 해당 재생기에만 적용한다. 결과 탭과 이력 재생기는 서로의 프레임·위치를 바꾸지 않으며 이미지 원본을 저장하거나 덮어쓰지 않는다. 조회한 결과를 바꾸면 기존 재생·요청을 폐기하고 새 결과를 준비한다. 단일 프레임 결과는 재생 대신 비교 안내를 제공한다. 외곽 메뉴와 앵커 래퍼는 직접 합성으로 전환했으며 전장도 번들 v2의 직접 마운트로 전환했다.
 
-앵커 검수 게시 데이터는 `anchor-review-data` JSON 블록으로 분리했다. 이는 브라우저 표시 입력이며 새 게이트웨이 서비스나 CLI 명령을 추가하지 않는다. `character-animation`의 `anchor-save`·`anchor-history`·`anchor-load`·`anchor-history-reset`과 저장 문서의 원본 식별자·버전은 유지한다. 앵커 내부 iframe은 제거하고 공용 캔버스 편집기를 Gradio 문서에 연결했다. 동작 변경 시 브라우저 URL의 `action`과 동작별 초안은 유지하고 이전 요청·재생을 정리한다. 이력 초기화는 대상 동작·버전을 고정한 Gradio 인라인 확인을 거치며 취소·확인 대상 변경·중복 접수는 실행하지 않는다. 모달 확인창은 사용하지 않는다.
 
 이전 형식의 앵커 게시 HTML은 새 템플릿으로 재게시해야 한다. JSON 데이터가 없거나 잘못되면 원인을 표시하고 중단하며 실행 스크립트를 읽어 복구하지 않는다. 재게시 대상은 파생 표시 문서이며 저장 좌표·누적 이력·등록 이미지의 재작성과 구분한다. 외곽 메뉴는 직접 합성으로 전환했다. 전장도 번들 v2로 재게시해 직접 마운트한다.
 
 
-정적 검수(`gradio-static`)는 메뉴 Sidebar와 해당 Blocks를 한 문서에서 실행한다. `/?tool=<ID>`는 `/management/frame/static-review/?review=<ID>&tool=<ID>`로 연결되며 이 호환 URL의 `frame` 이름은 iframe 사용을 뜻하지 않는다. 검색·분류는 `search`·`category`, 앵커 동작은 `action`으로 유지한다. 같은 도구의 필터 변경은 편집 화면을 다시 로드하지 않고 도구 이동은 브라우저 탐색을 사용하므로 뒤로/앞으로 이동할 수 있다. 현행 생성·맵·편집 도구도 같은 공용 메뉴 합성을 사용한다. 디자인 시스템과 전장은 번들 모듈을 직접 마운트한다. 브라우저 탐색은 작업 서비스의 취소·재개 명령을 호출하지 않는다.
 
 
 Phantom·HY-Motion·Qwen 계열·ANNY·작가·맵·스프라이트 v2의 GUI 진입점은 공용 메뉴와 한 문서에서 실행된다. 공용 메뉴는 화면만 구성하며 `generate`·`cancel`·`resume`·이력 삭제 등 작업 명령을 대신 실행하지 않는다. 다른 도구로 이동하면 새 GUI 문서를 열고, 같은 도구의 검색·분류 갱신은 입력·재생 화면을 유지한다. 이전 `/management/frame/...` 주소는 호환 주소로 계속 사용한다. 원본 경로로 접속해도 해당 도구를 선택하며, 맵별 주소는 `frameIdentifier`·`frameQuery` 등록을 같은 경로 계산에서 해석한다. 도구 전환 시 다른 도구의 `action`·`map` 등 전용 매개변수를 가져가지 않는다.
@@ -502,14 +489,11 @@ Phantom·HY-Motion·Qwen 계열·ANNY·작가·맵·스프라이트 v2의 GUI �
 디자인 시스템 검수의 번들 v2는 `componentModules`에 페이지 ID와 JS 모듈 경로를 선언한다. 가져오기에서 페이지 등록·JS 파일 존재·경로·해시를 검증하고, GUI는 게시 사본의 `mountReviewPage(host, {locale}) → {dispose()}` 계약을 사용한다. 게임 토큰과 컴포넌트 CSS는 Shadow DOM 내부에만 적용한다. 화면 이탈은 요청 중단·컴포넌트 해제를 수행하며 게이트웨이에 작업 명령을 보내지 않는다. v1 가져오기는 이전 번들 검증용으로 유지하지만 디자인 시스템·전장 직접 표시는 v2 재게시가 필요하며 이전 HTML 실행으로 복구하지 않는다.
 
 
-전장 모듈은 `readState()`와 `selectField(id)`를 추가로 제공하며 기존 Gradio 선택·렌더 상태 컨트롤이 같은 인스턴스를 사용한다. 선택은 브라우저 URL의 `field`에 보존한다. 미등록 전장은 기존 상태를 변경하기 전에 거절한다. 전체/단일 전장 전환은 이전 타이머·Preact 패널·Phaser 게임을 해제하고, 준비 중인 과거 응답은 새 화면에 적용하지 않는다. 게임 패널의 행동 확인은 검수용 상태 메시지만 갱신하고 실제 전투·게이트웨이 명령을 보내지 않는다.
 
-독립 허브의 `preview.html#항목ID`도 공용 메뉴로 연결한다. `serve.py --root <게시 폴더>`는 `manager-source.json`이 있는 루트의 `preview.html`을 현재 호환 문서로 제공하며 과거 파일은 수정하지 않는다. 새 허브를 게시하면 같은 연결문을 저장한다. 걷기 비교는 독립 문서 링크로 유지하며 앵커 여부는 게시 항목의 `anchorEditor`를 사용하므로 `standing/preview.html`도 기존 주소에서 Gradio 편집기로 열린다. 메뉴의 절대 경로와 게시 목록의 상대 경로는 같은 경로로 비교한다. 이 변경은 조회·탐색에 한정하며 게이트웨이 명령·저장 경로를 추가하거나 변경하지 않는다.
 
 
 ## 음악생성
 
-`music-minimax`를 공용 게이트웨이에 등록한다. GUI는 **소리 관리** 분류의 MiniMax Gradio 화면이며, `generate/prepare/model-status/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset` 명령을 공유한다. `generate` 입력은 `prompt`, `duration_seconds`, `seed`, `loop_request`, `tag`다. 모델·파일 경로를 클라이언트가 지정하지 않는다.
 
 각 서비스는 `/music-…/jobs`, `/music-…/history` 호환 경로를 유지한다. 최종 WAV 조회는 `/music-…/jobs/<id>/attempts/<attempt>/music.wav`다. 모델 준비·실행 환경·저장소·재개·라이선스·8GB 검증 범위는 [음악생성 사용법](../generators/music/README.md)을 따른다. 외부 클라우드 API나 배포 리소스는 추가하지 않는다.
 
@@ -526,7 +510,6 @@ Kimodo는 사용자의 요청에 따라 초기화 시 실행·대기 중이거�
 ```bash
 ```
 
-이미지 공통 서비스, VACE·Phantom, 음악, HY-Motion 및 ANNY에 적용한다. ANNY의 별도 브라우저 이력도 작업 수를 사전 조회한다. 공용 Gradio 이력은 `삭제 대상 확인 → 작업 수·복구 불가 확인 → 전체 삭제` 순서이며, 확인 뒤 목록·상태가 변경되면 다시 확인하도록 거절한다. 취소는 파일을 삭제하지 않는다.
 
 ### ANNY 속성 렌더러 폐기
 
@@ -534,7 +517,6 @@ Kimodo는 사용자의 요청에 따라 초기화 시 실행·대기 중이거�
 
 ### 작가 문서 작업 공용 명령
 
-작가 Gradio 화면과 CLI는 `writer-agent` 서비스의 `writer-state`, `writer-detail`, `writer-submit`, `writer-apply`를 사용한다. 기존 `/writer-agent/api/` 호환 경로와 문서·색인·작업 기록 경로는 유지한다. 공용 클라이언트가 같은 게이트웨이에서 작가 세션 토큰을 조회해 전달하며 Host·Origin·JSON 크기·세션 토큰 검사를 유지한다.
 
 ```bash
 python3 tools/manager.py command writer-agent writer-state
@@ -547,7 +529,6 @@ python3 tools/manager.py command writer-agent writer-detail --payload-file /abso
 
 ## 효과음 생성
 
-`sfx-dasheng-audiogen` 서비스는 Dasheng-AudioGen을 고정 사용한다. 공용 음악 작업 서비스·GPU 대기열·Gradio 이력을 재사용하며 음악용 `music-stable-audio` 폐기는 유지한다. `generate/prepare/model-status/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset-preview/history-reset`을 제공한다. 입력은 `prompt`, `seed`, `loop_request`, `tag`다. 길이는 모델이 자동 예측하며 숫자 duration_seconds는 거절한다. 16kHz mono WAV로 저장하며 최종 프롬프트에 `<|caption|>`를 붙인다. 기존 `sfx-stable-audio`는 폐기하고 이전 기록·캐시는 보존한다. [효과음 사용법](../generators/sound_effects/README.md)에 설치·모델 접근·기록 경로를 정리했다.
 
 ### 맵 원본 크기 검수
 
@@ -617,7 +598,6 @@ Qwen 2.1 실행 환경 복구 시 `.venv`의 Python 버전과 GPU 접근 권한�
 
 ### 공용 빌보드 에셋 편집
 
-`/management/frame/asset-editor/?tool=asset-editor&category=map-review`에서 전체 빌보드의 표시 높이·점유 열/행·타일 기준 앵커를 편집한다. `billboardAnchorMode: tile-bottom-center`에서 `anchorX/Y`는 투명 여백을 포함한 이미지 사각형 아랫변 중앙의 타일 좌표다. (0.5, 0.5)는 중앙이며 타일 외부 좌표를 보존하기 위해 -16~16을 허용한다. top/bottom은 Y와 0.5를 비교한 읽기 전용 판정으로 공용 원본에 저장하지 않는다. 이미지 원점은 (0.5, 1)로 고정한다. 건물의 이미지 내부 앵커와 구버전 계약은 별도로 유지한다. 맵 검수와 공용 Gradio 속성 입력·썸네일·점유 타일 미리보기를 공유한다. 야외 80×40/0.5배와 마을·전투 160×80/1배를 비교할 수 있다. 별도 프레임 메타데이터가 있는 원본은 시트 표시임을 안내하며 개별 프레임 접지 검수가 필요하다.
 
 - `map-assets asset-list`: 입력 `{}`. `revision`, `assets`를 반환한다.
 - `map-assets asset-preview`: `{"revision":"목록 revision","changes":[{"texture":"에셋 ID","values":{"displayHeight":150}}]}`. 공용 규격과 사용 맵의 점유 충돌·고도를 검증하고 변경 전후와 `token`을 반환한다.
@@ -629,7 +609,6 @@ Qwen 2.1 실행 환경 복구 시 `.venv`의 Python 버전과 GPU 접근 권한�
 
 ### 빌보드 폐기
 
-공용 에셋 편집기의 `선택 빌보드 폐기`는 Gradio 인라인 확인·취소 영역으로 대상을 확인한다. CLI도 `map-assets asset-retire-preview --payload-file`에 `{revision, texture}`를 전달한 뒤 반환된 `token`을 포함하여 `asset-retire`를 호출한다. `revision`은 `asset-list` 응답을 사용한다. 확인 후 선택 대상이나 원본이 변경되면 다시 확인해야 한다.
 
 폐기는 이미지 삭제가 아니라 `assets/retired/billboards/` 이동이다. 등록부 출처·해시를 보존하고 활성 카탈로그·공용 속성·맵 객체·프론트엔드 목록·소비자 잠금을 함께 갱신한다. 실패 시 원복한다. 프레임 메타데이터가 있는 빌보드는 별도 검수가 필요하므로 UI 폐기를 거절한다. 취소는 아무것도 변경하지 않는다.
 
@@ -673,7 +652,6 @@ CLI는 `--lyrics` 또는 `--lyrics-file`을 지원합니다. 예제 조건은 `-
 #### 맵 검수 화면의 작업 순서
 
 1. 맵 종류와 맵을 고른 뒤 맵 불러오기를 실행합니다. 전체 보기·확대/축소·표시 옵션으로 통행과 배치를 검수합니다.
-2. 작업 모드는 미리보기로 시작합니다. 편집을 선택하면 맵 오른쪽에 속성 패널이 나타납니다. 좁은 화면에서는 기본 Gradio 레이아웃에 따라 아래로 배치됩니다. 모드 전환은 초안을 초기화하지 않습니다.
 3. 맵에서 타일을 클릭해 선택 셀 가져오기를 누르거나, 열·행을 입력해 좌표의 셀 읽기를 누릅니다. 원본은 자동 준비됩니다.
 4. 지형, 빌보드 삭제, 추가, 이동 탭에서 작업합니다. 이동 대상 ID와 목적지 좌표는 별도로 지정합니다. 타일 삭제는 해당 좌표가 배치 기준점인 빌보드 전체, ID 삭제는 선택한 한 개에 적용합니다.
 5. 작업과 되돌리기는 자동 검증·미리보기를 수행합니다. 검증 실패 시 초안은 유지하고 마지막 정상 미리보기를 표시합니다. 변경 요약에서 추가·이동·삭제 수와 삭제 ID를 확인합니다.
@@ -701,7 +679,6 @@ CLI는 `--lyrics` 또는 `--lyrics-file`을 지원합니다. 예제 조건은 `-
 - 바닥·옆면 페인팅 도구에서 해당 선택기를 열어 이름/ID 검색과 5열·1행 배치와 5개씩 페이지 이동을 사용한다. 바닥 썸네일은 공용 렌더러의 재질 매핑을 사용하며 옆면은 등록된 벽 타일로 제한한다.
 - 상세 패널의 셀 바닥·추가할 빌보드·배치된 빌보드도 같은 선택기를 사용한다. 배치된 목록에는 현재 초안에 남아 있는 대상과 좌표를 표시한다.
 - 썸네일 클릭은 선택값만 바꾸고 선택기를 닫는다. 닫기나 검색은 맵을 변경하지 않는다.
-- Gradio 6.28에는 모달 컨테이너가 없어 표준 Group 기반 인라인 선택 영역을 사용한다. 화면 위에 뜨는 모달로 구현된 것은 아니다.
 
 ### 가이드 기반 빌보드 생성
 
@@ -716,7 +693,6 @@ CLI는 `--lyrics` 또는 `--lyrics-file`을 지원합니다. 예제 조건은 `-
 
 ### 빌보드 투명 여백 크롭
 
-에셋 편집기의 `투명 여백 크롭 → 크롭 범위 확인 → 확인 · 크롭 저장`을 사용한다. 확인은 모달이 아닌 표준 Gradio 인라인 영역이며 취소는 원본을 변경하지 않는다. 저장되지 않은 속성은 먼저 반영하고 에셋을 다시 선택한다.
 
 GUI와 CLI는 `map-assets asset-crop-preview` 및 `map-assets asset-crop`에 `--payload-file`을 전달하는 동일 계약을 사용한다. 확인 요청은 `{revision, texture}`, 저장은 여기에 확인 응답의 `token`을 추가한다. revision은 `asset-list`에서 조회한다. 알파값 5 이하(0~255)를 외곽 여백으로 판단하고 알파값 6 이상 픽셀의 경계로 크롭한다. 경계 안의 원본 픽셀은 변경하지 않는다. 임계값은 확인 토큰과 결과 이력에 포함한다. 여백이 없으면 무저장, 알파값 6 이상 픽셀 없음·프레임 시트·하단 교차점 외 앵커는 거절한다. 표시 높이와 앵커를 함께 보정해 화면상의 크기·위치를 유지하며 점유·그림자는 유지한다. 등록부·잠금·카탈로그를 함께 갱신하고 실패하면 복구한다. 원본과 속성 백업은 `.tmp/map-asset-crop/<작업 ID>/`에 보존한다.
 
@@ -765,7 +741,6 @@ GUI 결과 조회와 CLI `status`의 `audio_stems`로 MR·보컬을 조회합니
 
 ### 관리 UI 단일 포트 실행
 
-관리 GUI는 `8770`의 ASGI 서버 한 개에서 Gradio 화면을 경로별로 연결합니다. `serve.py`는 `.venv`에서 실행하며, 처음 접근한 화면만 구성하고 같은 서버 수명 안에서 큐·스트리밍을 유지합니다. 도구별 TCP 포트와 Gradio 자식 서버는 실행하지 않습니다. 별도 GPU 작업 서비스와 공용 게이트웨이 `8771`의 실행·기록 계약은 유지합니다. 기존 정적 파일·명령 중계 핸들러는 서버 내부 어댑터로 호출합니다. 워치 재시작 시 화면 상태는 다시 연결되며 생성 작업은 별도 작업 서비스에서 계속됩니다.
 
 ### 그림자 중심 좌표와 수동 초기화
 
@@ -814,7 +789,6 @@ DB 모드의 `asset-retire-preview / asset-retire`는 확인한 세대와 에셋
 
 DB 모드의 빌보드 크롭·축소는 `assets/billboards/versions/<SHA-256>.png`에 새 이미지를 먼저 게시한 뒤 이미지 참조와 공용 속성을 같은 DB revision으로 저장합니다. 이전 이미지를 덮어쓰지 않으며 DB 오류 시 새 파일을 보존하여 같은 요청 재시도에 사용합니다. 크롭은 표시 위치 보정값을 함께 저장하고 축소는 기존 표시 속성을 유지합니다. 빌보드 DB 축소 payload는 `texture`, `revision`(목록의 revision 문자열), `size`입니다. 일반 타일·건물의 기존 `path`, `sha256`, `size` 계약과 구분합니다. 로컬 이미지 조회는 콘텐츠 API의 해시 검증 경로를 사용합니다. 배포 CDN에는 DB 참조 변경 전에 해당 이미지 파일을 먼저 게시해야 합니다.
 
-2026-10-25 격리 통합 검증: 별도 PostgreSQL DB에 267종 빌보드·211개 맵 문서를 시드하고, 공용 명령 게이트웨이 HTTP를 통해 속성 저장·동일 요청 재시도·목록 재조회를 검증했습니다. 공용 메뉴와 에셋 편집기를 합성한 Gradio 화면에서 두 차례 연속 저장 후 revision 3과 입력값 유지, 정상 미리보기를 확인했습니다. 독립 스냅샷 실행기의 `--once` 실행 후 DB 세대·완료 세대·파일 manifest가 모두 5이며 브라우저 저장값이 복구 입력에도 동일함을 확인했습니다. 검증용 DB·서버·비밀 파일은 종료 시 정리했습니다. 운영 서버 전환 및 이미지 배포 검증 완료를 의미하지 않습니다.
 
 
 콘텐츠 스냅샷 작업자는 공용 실행기로도 독립 실행할 수 있습니다.
@@ -858,7 +832,6 @@ SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml python3 tools/management/com
 | 요구사항 | 구현·검증 근거 |
 | --- | --- |
 | 맵·빌보드 DB 원본 | 콘텐츠 스키마의 맵 문서·격자·배치 테이블과 에셋별 공용 속성 테이블. 로컬 DB에 빌보드 267종·맵 문서 211개·건물 속성 39종 적재 |
-| GUI·CLI 즉시 저장 | 공용 `map-assets` 게이트웨이에서 내부 v1 API 호출. 격리된 실제 Gradio 화면의 연속 저장·revision 증가·재조회 확인 |
 | 이미지 파일 유지 | DB에는 경로·SHA-256·버전·규격을 보관. 크롭·축소는 에셋 저장소에 불변 이미지 게시 후 DB 참조 갱신 |
 | 공용 속성 단일 정의 | 에셋 ID별 공용 속성을 조회 시 적용. 맵 배치의 공용 속성 중복 필드는 검증에서 거절 |
 | 충돌·멱등성 | PostgreSQL 회귀검사에서 revision·세대 충돌, 동일 요청 재시도, 같은 ID의 다른 요청 거절, 트랜잭션 롤백 검증 |
@@ -958,7 +931,6 @@ GUI와 CLI는 `map-assets effect-list`, `effect-load`, `effect-save`를 공유�
 
 2026-10-27 검증: Q4 두 파일의 크기·SHA-256 검증과 외형 참조 1장·5프레임·2스텝 최소 실행(`2026-10-27_14-06-00-f0daf50e`)이 완료됐다. 약 116초, 작업 프로세스 VRAM 관측 피크 7,264MiB이며 출력 5프레임·832×480·16fps와 브라우저 MP4 readyState 4를 확인했다. 이는 보행 품질·81프레임 실행·T2V/I2V GPU 실행 성공을 의미하지 않는다. 세 입력 모드의 조건 텐서·참조 슬롯 제거·제작자 Flow 경계는 모델 추론 없는 계약 검사 3건으로 확인했다.
 
-관리도구 계약 검사 54건 통과. 추가 공용 확인·이력·우선순위·측정 검사에서는 62건 통과, 수정하지 않은 `test_gradio_history.test_refresh_accepts_stale_radio_value_and_clears_removed_selection`이 30초 제한을 초과했다. 해당 모듈 단독 실행도 30건 통과·동일 1건 시간 초과로 남아 전체 회귀 통과로 표시하지 않는다. 실제 8770 화면에서는 모드 선택·단어 수·고급 설정·인라인 확인 취소·이력 선택·실행 상태·완료 영상 로딩을 확인했다. 390px에서는 기존 공용 탐색 메뉴가 폼을 좁히는 표시 문제가 있어 좁은 화면 사용성 검증은 완료로 보지 않는다. 화면 증거는 `.tmp/test/wan22-vace-ui/2026-10-27_14-06-00/page.png`에 보관한다.
 
 2026-10-27 UMT5 비양자화 전환: 원본 BF16 인코더·토크나이저 해시 검증 완료. 양성 프롬프트와 빈 부정 프롬프트를 인코딩해 각각 24개 블록의 CUDA 실행과 유한한 `[1,512,4096]` 임베딩을 확인했다. 약 9.5초, 작업 프로세스 VRAM 관측 피크 6,948MiB(5초 샘플링)이며 인코더 단독 검사다. 이후 BF16 인코더를 사용한 전체 영상 생성도 완료했다. 81프레임·2스텝은 약 6분 45초, 61프레임·30스텝은 약 50분 44초이며 후자의 작업 프로세스 VRAM 관측 피크는 6,948MiB다. 이는 실행 검증이며 보행 품질이나 Q4 인코더 대비 품질 향상을 보장하지 않는다. 가중치 이름 변환의 텐서 보존·미지원 키 거절을 포함한 샘플링 계약 검사 4건이 통과했다.
 

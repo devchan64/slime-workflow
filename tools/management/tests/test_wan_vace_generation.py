@@ -78,7 +78,7 @@ class VaceVideoContractTests(unittest.TestCase):
             with self.assertRaises(ValueError):locate_expert_switch(current_sigma_values)
 
     def test_gui_payload_supports_pil_and_does_not_leak_tag(self):
-        from tools.management.ui.gradio.wan_vace_app import build_vace_payload
+        from tools.management.generators.wan_vace.page.inputs import build_vace_payload
         current_reference_image = Image.new('RGBA',(400,600),(255,0,0,128))
         current_common_values = ['walk','',21,42,50,12,5,1]
         current_request_record = build_vace_payload('reference',current_reference_image,*current_common_values)

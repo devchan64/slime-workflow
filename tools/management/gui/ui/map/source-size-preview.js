@@ -47,7 +47,7 @@ export function installSourceSizePreview(currentTextureRecords,currentSelectedGa
    currentSourceEntries.push({key:currentStructureKey,path:currentStructureImage.src,name:currentStructureImage.parentElement.textContent,category:'structures',size:currentStructureImage.naturalWidth?`${currentStructureImage.naturalWidth} × ${currentStructureImage.naturalHeight}`:'확인 필요'});
   }
   currentUnifiedEntries=currentSourceEntries.filter(currentSourceEntry=>(currentSourceCategory==='all'||currentSourceEntry.category===currentSourceCategory)&&currentSourceEntry.name.toLowerCase().includes(currentSearchText.trim().toLowerCase()));
-  return [currentUnifiedEntries.map(currentSourceEntry=>({image:{path:currentSourceEntry.path,url:currentSourceEntry.path,meta:{_type:'gradio.FileData'}},caption:`${currentSourceEntry.name} · ${currentCategoryLabels[currentSourceEntry.category]} · ${currentSourceEntry.size} px`})), '', ''];
+  return [currentUnifiedEntries.map(currentSourceEntry=>({image:{path:currentSourceEntry.path,url:currentSourceEntry.path},caption:`${currentSourceEntry.name} · ${currentCategoryLabels[currentSourceEntry.category]} · ${currentSourceEntry.size} px`})), '', ''];
  };
  window.mapSourceUnifiedSelect=currentSelectedIndex=>{
   const currentSelectedEntry=currentUnifiedEntries[currentSelectedIndex];

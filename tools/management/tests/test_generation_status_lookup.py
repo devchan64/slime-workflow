@@ -69,7 +69,7 @@ class GenerationStatusLookupTests(unittest.TestCase):
         self.assertTrue(current_output_values[1])
         self.assertFalse(current_output_values[2]['interactive'])
 
-    def test_direct_qwen_entrypoints_initialize_repository_imports(self):
+    def test_direct_gui_entrypoint_initializes_repository_imports(self):
         import os
         from pathlib import Path
         import subprocess
@@ -77,8 +77,8 @@ class GenerationStatusLookupTests(unittest.TestCase):
         current_repository_root=Path(__file__).resolve().parents[3]
         current_process_environment=dict(os.environ)
         current_process_environment.pop('PYTHONPATH',None)
-        for current_script_name in ('qwen_2511_app.py',):
+        for current_script_name in ('serve.py',):
             with self.subTest(script=current_script_name):
-                current_process_result=subprocess.run([sys.executable,str(current_repository_root/'tools/management/ui/gradio'/current_script_name),'--help'],cwd='/tmp',env=current_process_environment,capture_output=True,text=True,timeout=15)
+                current_process_result=subprocess.run([sys.executable,str(current_repository_root/'tools/management/gui'/current_script_name),'--help'],cwd='/tmp',env=current_process_environment,capture_output=True,text=True,timeout=15)
                 self.assertEqual(current_process_result.returncode,0,current_process_result.stderr)
-                self.assertIn('--review-port',current_process_result.stdout)
+                self.assertIn('--port',current_process_result.stdout)

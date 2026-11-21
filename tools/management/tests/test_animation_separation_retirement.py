@@ -9,7 +9,7 @@ from pathlib import Path
 import httpx
 from tools.management.common.management_asgi import build_management_application
 from tools.management.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS, resolve_management_command
-from tools.management.ui.gradio.management_menu_app import load_manager_page_records
+from tools.management.common.management_catalog import load_manager_page_records
 from tools.management.build_animation_tools import build_animation_tools
 
 

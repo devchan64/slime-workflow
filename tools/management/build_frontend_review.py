@@ -25,8 +25,8 @@ REVIEW_DIRECTION_NAMES = ('down_left', 'down_right', 'up_left', 'up_right')
 REVIEW_IMAGE_SUFFIXES = {'.png', '.jpg', '.jpeg', '.webp'}
 REVIEW_HEARTBEAT_SECONDS = 5
 DEFAULT_MANAGEMENT_TOOL_PAGE_RECORDS = (
-    {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','anchorEditor':False,'category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
-    {'id':'expression-generator','label':'Qwen 2.1 표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · AU 표정 39종 · 참조 1~3장'},
+    {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','anchorEditor':False,'category':'writer-agent','uiMode':'react','description':'React · 문서 학습 · 아이디어 작성 · 실행 기록'},
+    {'id':'expression-generator','label':'Qwen 2.1 표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'react','description':'Qwen 2.1 · AU 표정 39종 · 참조 1~3장'},
 )
 
 
@@ -351,7 +351,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             (destination_asset_directory/'anchors.html').write_text(rendered_page_text)
             sprite_asset_records.append({'id':'asset:'+animation_identifier_text,'label':review_source_metadata['displayNameKo']+' v'+review_source_metadata['animationVersion'],'fps':1000/review_source_metadata['frameDurationMs'],'frames':[{**frame_record_value,'url':'/'+page_identifier_text+'/'+frame_record_value['image']} for frame_record_value in review_frame_records],'source':review_source_metadata})
             relative_metadata_path = animation_metadata_path.relative_to(frontend_repository_path).as_posix()
-            manager_page_records.append({'id': page_identifier_text, 'label': review_source_metadata['displayNameKo']+' · v'+review_source_metadata['animationVersion'], 'path': page_identifier_text+'/anchors.html', 'anchorEditor': True, 'category': 'animation-tool', 'uiMode':'gradio-static', 'description':'Gradio · '+animation_identifier_text+' · '+relative_metadata_path})
+            manager_page_records.append({'id': page_identifier_text, 'label': review_source_metadata['displayNameKo']+' · v'+review_source_metadata['animationVersion'], 'path': page_identifier_text+'/anchors.html', 'anchorEditor': True, 'category': 'animation-tool', 'uiMode':'static', 'description':'React · '+animation_identifier_text+' · '+relative_metadata_path})
             discovered_source_records.append({'metadata': relative_metadata_path, 'displayNameKo': review_source_metadata['displayNameKo'], 'sha256': metadata_provenance_record['sha256'], 'sheets': review_source_metadata['sheets'], 'provenance': review_source_metadata['provenance']})
             completed_asset_count[0] += 1
             emit_review_trace('asset', relative_metadata_path)
@@ -366,7 +366,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
                     current_rendered_page = anchor_template_text.replace('__FRAME_RECORDS__', json.dumps(current_action_record['frames'], ensure_ascii=False).replace('<', '\\u003c')).replace('__SOURCE_METADATA__', json.dumps(current_source_metadata, ensure_ascii=False).replace('<', '\\u003c'))
                     (output_review_directory/current_page_identifier/'anchors.html').write_text(current_rendered_page)
                 manager_page_records = [current_page_record for current_page_record in manager_page_records if current_page_record['id'] not in character_page_identifiers[1:]]
-                next(current_page_record for current_page_record in manager_page_records if current_page_record['id']==character_page_identifiers[0]).update(label=character_display_name+' · 애니메이션 통합 검수', description='Gradio · 대기·휴식·걷기 · 방향 선택 · 동작별 좌표 편집·에셋 직접 적용')
+                next(current_page_record for current_page_record in manager_page_records if current_page_record['id']==character_page_identifiers[0]).update(label=character_display_name+' · 애니메이션 통합 검수', description='React · 대기·휴식·걷기 · 방향 선택 · 동작별 좌표 편집·에셋 직접 적용')
         (output_review_directory/'sprite-assets.json').write_text(json.dumps({'assets':sprite_asset_records},ensure_ascii=False))
         if __package__:
             from .build_map_review import build_map_review
@@ -380,7 +380,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             current_map_identifier=current_map_record['id']
             current_review_category = 'town-map-review' if current_map_identifier in current_city_identifiers else 'field-map-review'
             current_review_label = '도시맵 검수' if current_map_identifier in current_city_identifiers else '필드맵 검수'
-            manager_page_records.append({'id': f'map-review-{current_map_identifier}', 'label': current_map_record['name']+' · '+current_review_label, 'path': map_review_relative_path+f'?map={current_map_identifier}&townPage=1', 'anchorEditor': False, 'category': current_review_category, 'uiMode':'gradio', 'frameIdentifier':'map-review', 'frameQuery':f'map={current_map_identifier}&townPage=1', 'description': 'Gradio · '+current_map_record['name']+' 전용 검수 · 타일 연결 · 건물 충돌 검수'})
+            manager_page_records.append({'id': f'map-review-{current_map_identifier}', 'label': current_map_record['name']+' · '+current_review_label, 'path': map_review_relative_path+f'?map={current_map_identifier}&townPage=1', 'anchorEditor': False, 'category': current_review_category, 'uiMode':'react', 'frameIdentifier':'map-review', 'frameQuery':f'map={current_map_identifier}&townPage=1', 'description': 'React · '+current_map_record['name']+' 전용 검수 · 타일 연결 · 건물 충돌 검수'})
         emit_review_trace('tile-map-review', str(isloon_review_directory.relative_to(WORKFLOW_REPO_ROOT)))
         if __package__:
             from .build_animation_tools import build_animation_tools

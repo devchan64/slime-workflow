@@ -117,12 +117,12 @@ def resolve_management_page_path(current_page_record):
     """공용 메뉴·직접 진입이 같은 도구 주소와 맵 매개변수를 사용한다."""
     if current_page_record['id'] in REACT_REVIEW_PATHS:
         return REACT_REVIEW_PATHS[current_page_record['id']]
-    if current_page_record.get('uiMode')=='gradio-static':
+    if current_page_record.get('uiMode') in ('static', 'gradio-static'):
         document = game_review_document_path(current_page_record['path'])
         if document:
             return document
         return f'{MANAGEMENT_FRAME_PATH_PREFIX}static-review/?review={quote(current_page_record["id"],safe="")}'
-    if current_page_record.get('uiMode') in ('archive', 'gradio'):
+    if current_page_record.get('uiMode') in ('archive', 'react', 'gradio'):
         current_application_name=current_page_record.get('frameIdentifier') or MANAGEMENT_FRAME_IDENTIFIER_VALUES.get(current_page_record['id'],current_page_record['id'])
         if current_application_name in NATIVE_MANAGEMENT_APPLICATIONS:
             current_query_suffix=current_page_record.get('frameQuery')

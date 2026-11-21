@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 const currentEditorSource=readFileSync(new URL('../ui/shared/animation-anchor-editor/editor.js',import.meta.url),'utf8');
 const currentFrameRecords=[0,1,2].map(currentFrameIndex=>({frameId:`down.${currentFrameIndex}`,rect:{width:32,height:32},anchor:{x:10,y:10},contacts:[{x:10,y:10}],endpoints:[]}));
 const currentTestContext=vm.createContext({reviewFrameRecords:currentFrameRecords,selectCurrentFrame:()=>currentFrameRecords[0],pointChoiceElement:{value:'anchor'},usesFootCentersOnly:true,copyFrameCoordinates:currentFrameRecord=>structuredClone({anchor:currentFrameRecord.anchor,contacts:currentFrameRecord.contacts,endpoints:currentFrameRecord.endpoints}),restoreFrameCoordinates:(currentFrameRecord,currentCoordinates)=>Object.assign(currentFrameRecord,structuredClone(currentCoordinates)),coordinateUndoHistory:[],coordinateRedoHistory:[],refreshCoordinateStatus(){},pauseFramePlayback(){},verifyAnchorImageReadiness:()=>true,document:{querySelector:()=>({textContent:''})},window:{}});
-vm.runInContext(currentEditorSource.slice(currentEditorSource.indexOf('window.anchorReviewCoordinates='),currentEditorSource.indexOf('// 공용 Gradio 탐색기')),currentTestContext);
+vm.runInContext(currentEditorSource.slice(currentEditorSource.indexOf('window.anchorReviewCoordinates='),currentEditorSource.indexOf('window.anchorReviewPlayback=')),currentTestContext);
 currentTestContext.window.anchorReviewCoordinates('right',{scope:'all'});
 assert.deepEqual(currentFrameRecords.map(currentFrameRecord=>currentFrameRecord.anchor.x),[11,11,11]);
 assert.equal(currentTestContext.coordinateUndoHistory.length,1);

@@ -3,7 +3,6 @@ watch('value', () => {
         currentRadioInput.checked = currentRadioInput.hasAttribute('checked');
     });
 });
-// Gradio HTML의 기본 click 처리 전에 선택 ID를 명시적으로 전달한다.
 element.addEventListener('click', currentClickEvent => {
     const currentRadioInput = currentClickEvent.target.closest('input[type=radio]');
     if (!currentRadioInput || !element.contains(currentRadioInput)) return;

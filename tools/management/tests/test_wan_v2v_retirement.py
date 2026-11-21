@@ -3,7 +3,7 @@ import unittest
 
 from tools.management.common.management_asgi import MANAGEMENT_INTERFACE_BUILDERS
 from tools.management.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS, MANAGEMENT_SERVICE_ROUTES
-from tools.management.ui.gradio.management_menu_app import NATIVE_MANAGEMENT_APPLICATIONS
+from tools.management.common.management_catalog import NATIVE_MANAGEMENT_APPLICATIONS
 
 
 class RetiredVideoGeneratorTests(unittest.TestCase):

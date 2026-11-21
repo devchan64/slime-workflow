@@ -197,7 +197,7 @@ assert.deepEqual(failedValues[0],{__type__:'update'});
 
 
     def test_invalid_static_manifest_fails_before_mapping(self):
-        current_page_record={'id':'walk-review','path':'animation/anchors.html','uiMode':'gradio-static'}
+        current_page_record={'id':'walk-review','path':'animation/anchors.html','uiMode':'static'}
         for current_source_record in ([], {'pages':{}}, {'pages':[None]}, {'pages':[current_page_record,current_page_record]}, {'pages':[{**current_page_record,'path':'animation/image.png'}]}):
             with self.subTest(source=current_source_record), tempfile.TemporaryDirectory() as current_directory_name:
                 current_source_path=Path(current_directory_name)/'manager-source.json'
@@ -211,7 +211,7 @@ assert.deepEqual(failedValues[0],{__type__:'update'});
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             source_file_path=Path(temporary_directory_name)/'manager-source.json'
             source_file_path.write_text(json.dumps({'pages':[
-                {'id':'walk-review','path':'animation/anchors.html','uiMode':'gradio-static'},
+                {'id':'walk-review','path':'animation/anchors.html','uiMode':'static'},
                 {'id':'momask','path':'/momask-generator/','uiMode':'gradio'},
             ]}),encoding='utf-8')
 
@@ -237,7 +237,7 @@ assert.deepEqual(failedValues[0],{__type__:'update'});
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             source_file_path=Path(temporary_directory_name)/'manager-source.json'
             source_file_path.write_text(json.dumps({'pages':[
-                {'id':'walk-review','path':'animation/anchors.html','uiMode':'gradio-static'},
+                {'id':'walk-review','path':'animation/anchors.html','uiMode':'static'},
                 {'id':'momask','path':'/momask-generator/','uiMode':'gradio'},
             ]}),encoding='utf-8')
 
@@ -270,7 +270,7 @@ global.window={location:{search:'?review=toString'}};
 
         self.assertIn('staticReviewPaths',loader_script_value)
         self.assertIn('selectedReviewPath',loader_script_value)
-        self.assertIn("searchParams.set('embedded','gradio-static')",loader_script_value)
+        self.assertIn("searchParams.set('embedded','static')",loader_script_value)
         self.assertNotIn('window.fetch=',loader_script_value)
         self.assertNotIn('document.head.append',loader_script_value)
         self.assertNotIn("document.createElement('iframe')",loader_script_value)
@@ -287,7 +287,7 @@ global.window={location:{search:'?review=toString'}};
         self.assertIn('aria-busy="true"',str(interface_blocks_value.get_config_file()))
 
     def test_game_mount_disposes_once_and_ignores_detached_request(self):
-        current_loader_source=(Path(__file__).parents[1]/'ui/gradio/game_native_loader.js').read_text()
+        current_loader_source=(Path(__file__).parents[1]/'ui/game/game_native_loader.js').read_text()
         current_script_source="""
 const assert=require('node:assert/strict'),vm=require('node:vm');
 const currentManifestRecord={schemaVersion:2,kind:'slime-ui-review',pages:[{id:'design-system',path:'review/design-system.html'}],componentModules:{'design-system':'assets/native.js'},files:[{path:'assets/native.js',sha256:'a'.repeat(64)}]};

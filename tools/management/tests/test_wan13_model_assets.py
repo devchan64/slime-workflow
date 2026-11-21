@@ -11,7 +11,7 @@ from generators.wan_fun import wan13_model_assets
 class Wan13ModelAssetsTests(unittest.TestCase):
     def test_prepare_dispatches_profile_and_progress_is_separate(self):
         from tools.management.ui.gradio import model_management_app
-        from tools.management.common.gradio_model_download import format_model_download_status
+        from tools.management.common.model_download_progress import format_model_download_status
         with patch.object(model_management_app, 'execute_remote_management_command', return_value={'id': 'job'}) as current_gateway_mock:
             model_management_app.execute_wan13_model_command('prepare', {'action': 'prepare'})
             current_gateway_mock.assert_called_once_with('wan22-fun-control', 'prepare', {'action': 'prepare', 'model_profile': 'wan21-1.3b'})

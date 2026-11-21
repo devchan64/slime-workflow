@@ -1,0 +1,23 @@
+---
+name: generation-result-lookup
+description: 조회 요청을 받은 기존 생성 작업의 상태와 결과 파일을 원본 서비스에서 확인한다.
+---
+
+# 생성 결과 조회
+
+사용자가 기존 생성 작업의 결과나 상태를 요청하면 이 절차를 따른다. 이전 대화의 응답은 참고 자료이며 현재 상태나 도구 지원 여부의 증거가 아니다.
+
+1. 생성기 서비스와 전체 작업 ID를 확인한다. 불명확하면 추측하지 말고 질문하거나 `source-history`로 검색한다.
+2. 해당 서비스의 원본 상태를 반드시 새로 조회한다. 영상·Kimodo는 `video-source-status`, FLUX 이미지는 `flux-source-status`, Qwen·타일 이미지는 `image-source-status`, 음악·효과음은 `audio-source-status`를 사용한다.
+3. 예를 들어 Wan Fun Control은 터미널에서 다음 형식으로 호출한다. ID는 요청의 전체 ID로 바꾼다.
+
+   `/runtime/.venv/bin/python /control/management-status.py video-source-status '{"service":"wan22-fun-control","job_id":"전체 작업 ID"}'`
+
+4. 실제 조회 결과의 상태와 파일 경로만 보고한다. 호출하지 않았거나 오류가 나면 확인 불가라고 말하고 오류를 설명한다. 도구가 없다고 단정하거나 이력·파일이 없다고 추측하지 않는다.
+5. 파일 존재, 재생 가능 여부, 영상 내용과 품질 확인은 구분한다. 조회는 재개나 생성 접수가 아니다.
+
+## 결과 링크
+
+조회 결과의 `video`, `image`, `download`가 `/`로 시작하는 웹 경로이면 반환된 값을 그대로 Markdown 링크의 대상으로 사용한다. 예: `[영상 보기](/wan22-fun-control/jobs/.../preview.mp4)`. 각각 영상 보기, 이미지 보기, 프레임 다운로드처럼 용도를 표시한다. 결과에 없는 경로나 호스트를 만들지 않는다.
+
+웹 경로를 로컬 파일 경로로 취급하여 `wfplay`, `xdg-open`, `unzip` 같은 셸 명령에 전달하라고 안내하지 않는다. 파일 존재 확인만으로 재생이나 내용·품질을 확인했다고 말하지 않는다.

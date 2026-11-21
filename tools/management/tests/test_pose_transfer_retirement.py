@@ -21,7 +21,7 @@ class PoseTransferRetirementTests(unittest.TestCase):
     def test_previous_routes_return_gone(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_root_path=Path(current_directory_name)
-            with patch('tools.management.common.management_asgi.build_management_blocks') as current_builder_mock:
+            with patch('tools.management.common.management_asgi.execute_legacy_request') as current_builder_mock:
                 current_application_value=build_management_application(SimpleHTTPRequestHandler,current_root_path,current_root_path/'missing.json',8770,[])
                 with TestClient(current_application_value) as current_test_client:
                     for current_request_path in ('/pose-transfer/','/pose-transfer/jobs','/management/frame/pose-transfer-generator/','/management/?tool=pose-transfer-generator'):
@@ -30,21 +30,20 @@ class PoseTransferRetirementTests(unittest.TestCase):
                 current_builder_mock.assert_not_called()
 
     def test_stale_menu_and_shared_interfaces(self):
-        from tools.management.ui.gradio.management_menu_app import load_manager_page_records
-        from tools.management.ui.gradio.qwen_2511_app import build_qwen_2511_interface
+        from tools.management.common.management_catalog import load_manager_page_records
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_source_path=Path(current_directory_name)/'menu.json'
             current_source_path.write_text(json.dumps({'pages':[{'id':'pose-transfer-generator','label':'포즈 변환','path':'/pose-transfer/','category':'animation-tool','description':'폐기'}]}))
             current_page_records=load_manager_page_records(current_source_path)
             self.assertNotIn('pose-transfer-generator',[current_page_record['id'] for current_page_record in current_page_records])
-        with self.assertRaisesRegex(ValueError,'폐기'):
-            build_qwen_2511_interface('http://127.0.0.1:8770',qwen21_mode_enabled=True,pose_transfer_enabled=True)
-        for current_mode_options in ({'qwen21_mode_enabled':True},):
-            current_interface_blocks=build_qwen_2511_interface('http://127.0.0.1:8770',**current_mode_options)
-            self.assertGreater(len(current_interface_blocks.fns),0)
+            app = build_management_application(SimpleHTTPRequestHandler, Path(current_directory_name), current_source_path, 8770, [])
+            with TestClient(app) as client:
+                response = client.get('/image-generation-21/', follow_redirects=False)
+                self.assertEqual(response.status_code, 307)
+                self.assertEqual(response.headers['location'], '/management/assistant/qwen-archive/?service=qwen-21')
 
     def test_retired_source_removed(self):
         current_repository_root=Path(__file__).resolve().parents[3]
-        for current_relative_path in ('generators/image/vnccs_runtime.py','generators/image/vnccs_profile.py','tools/management/domains/image/pose_transfer_generation.py','tools/management/ui/gradio/pose_transfer_app.py'):
+        for current_relative_path in ('generators/image/vnccs_runtime.py','generators/image/vnccs_profile.py','tools/management/domains/image/pose_transfer_generation.py'):
             self.assertFalse((current_repository_root/current_relative_path).exists())
         self.assertFalse((current_repository_root/'assets/motion-sheet').exists())

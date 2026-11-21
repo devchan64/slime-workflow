@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import stat
 import subprocess
@@ -131,6 +132,8 @@ def read_hermes_tool_activity(hermes_job_path):
     current_tool_events = []
     history_calls = set()
     history_page = None
+    video_calls = {}
+    video_source = None
     for current_event_line in current_event_lines:
         try:
             current_event_record = json.loads(current_event_line)
@@ -153,6 +156,15 @@ def read_hermes_tool_activity(hermes_job_path):
                     current_event_value['target'] = current_target_value[:200]
                     if current_call_identifier and isinstance(current_call_identifier, str) and current_target_value.startswith('/runtime/.venv/bin/python /control/management-status.py source-history '):
                         history_calls.add(current_call_identifier)
+                    if isinstance(current_call_identifier, str) and current_call_identifier and current_tool_name == 'terminal':
+                        try:
+                            parts = shlex.split(current_target_value)
+                            if len(parts) == 4 and parts[:3] == ['/runtime/.venv/bin/python', '/control/management-status.py', 'video-source-status']:
+                                request = json.loads(parts[3])
+                                if isinstance(request, dict) and set(request) == {'service', 'job_id'}:
+                                    video_calls[current_call_identifier] = request
+                        except (ValueError, TypeError):
+                            pass
         else:
             current_error_flag = current_event_record.get('is_error')
             current_output_value = current_event_record.get('output')
@@ -171,9 +183,34 @@ def read_hermes_tool_activity(hermes_job_path):
                 page = parse_source_history_page(current_parsed_output.get('output'))
                 if page is not None:
                     history_page = page
+            if isinstance(current_call_identifier, str) and current_call_identifier in video_calls and current_event_value['result'] == 'success':
+                try:
+                    from tools.management.domains.hermes_agent.video_operations import validate_hermes_video_source_response
+                    request = video_calls[current_call_identifier]
+                    response = json.loads(current_parsed_output['output'])
+                    validate_hermes_video_source_response(request['service'], request['job_id'], response)
+                    video_source = {'service': request['service'], 'job_id': request['job_id']}
+                except (ValueError, TypeError, KeyError):
+                    pass
         current_tool_events.append(current_event_value)
-    return {**({'source_history_summary': source_history_summary(history_page), 'source_history_page': history_page} if history_page else {}), 'events': current_tool_events[-8:], 'truncated': current_file_size > 128000 or len(current_tool_events) > 8}
+    return {**({'source_history_summary': source_history_summary(history_page), 'source_history_page': history_page} if history_page else {}), **({'video_source': video_source} if video_source else {}), 'events': current_tool_events[-8:], 'truncated': current_file_size > 128000 or len(current_tool_events) > 8}
 
+
+
+def seed_form_proposal(text, prior_sources):
+    """시드 변경 요청을 사용자 지정 또는 확인된 원본에만 연결한다."""
+    if not isinstance(text, str) or not re.search(r'(시드|seed)', text, re.I) or not re.search(r'(다른|대른|새|변경|바꿔|바꾸|다시|재생성|생성|different|new|change)', text, re.I):
+        return None
+    ids = set(re.findall(r'(?<![0-9A-Za-z_-])\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}(?![0-9A-Za-z_-])', text))
+    if len(ids) > 1:
+        return {'reason':'원본 작업이 여러 개입니다. 사용할 작업 ID를 하나 지정하세요.'}
+    if ids: source = next(iter(ids))
+    elif len(prior_sources) == 1: source = next(iter(prior_sources))
+    else: return {'reason':'원본 작업을 확실히 선택할 수 없습니다. Wan Fun Control 작업 ID를 지정하세요.'}
+    matches = re.findall(r'(?:시드|seed)\s*(?:값\s*)?(?:를|는|을|은)?\s*(?:=|:|로)?\s*([-+]?\d+(?:\.\d+)?)', text, re.I)
+    if len(matches) > 1 or (matches and (not matches[0].isdigit() or int(matches[0]) > 2147483647)):
+        return {'reason':'시드는 0부터 2147483647 사이의 값 하나를 지정하세요.'}
+    return {'job_id':source, 'seed':int(matches[0]) if matches else None}
 
 
 class HermesServiceManager:
@@ -295,6 +332,9 @@ class HermesServiceManager:
         hermes_context_truncated = False
         if hermes_previous_message is None:
             for current_message_record in hermes_session_record['messages']:
+                if current_message_record.get('form_id'):
+                    hermes_context_lines.append('사용자: Wan Fun Control 생성 폼을 저장했습니다.')
+                    continue
                 current_job_identifier = current_message_record.get('job_id')
                 if not current_job_identifier:
                     raise ValueError('이전 메시지의 접수 상태가 확인되지 않았습니다. 같은 식별자로 먼저 재시도하세요.')
@@ -344,8 +384,29 @@ class HermesServiceManager:
         current_end_index=len(hermes_session_record['messages'])-current_offset_value
         current_start_index=max(0,current_end_index-20)
         hermes_view_messages = []
+        prior_sources = set()
+        def collect_source(message):
+            if message.get('job_id'):
+                try:
+                    source = read_hermes_tool_activity(self.resolve_hermes_job_path(message['job_id'])).get('video_source')
+                    if source and source.get('service') == 'wan22-fun-control': prior_sources.add(source['job_id'])
+                except (OSError, ValueError, TypeError, KeyError): pass
+            form_id = message.get('form_id')
+            if isinstance(form_id, str) and re.fullmatch(r'[a-f0-9]{32}', form_id):
+                try:
+                    from tools.management.domains.hermes_agent.delegation_store import HermesDelegationStore
+                    receipt_id = 'vf_' + hashlib.sha256((hermes_session_record['id'] + ':' + form_id).encode()).hexdigest()
+                    receipt = HermesDelegationStore().read_service_delegation(receipt_id, 'wan22-fun-control')
+                    if receipt.get('state') == 'accepted': prior_sources.add(receipt['job_id'])
+                except (OSError, ValueError, TypeError, KeyError): pass
+        for earlier in hermes_session_record['messages'][:current_start_index]:
+            collect_source(earlier)
         for current_message_record in hermes_session_record['messages'][current_start_index:current_end_index]:
             current_view_record = {'text': current_message_record['text'], 'created_at':current_message_record.get('created_at'), 'job_id': current_message_record.get('job_id'), 'session_job_unique':current_session_job_counts[current_message_record['job_id']]==1 if isinstance(current_message_record.get('job_id'),str) else None, 'context_truncated': current_message_record.get('context_truncated', False), 'job': None}
+            proposal = seed_form_proposal(current_message_record.get('text'), prior_sources)
+            if proposal: current_view_record['seed_form_proposal'] = proposal
+            if current_message_record.get('form_id'):
+                current_view_record['form_id'] = current_message_record['form_id']
             if current_view_record['job_id']:
                 try:
                     current_job_path = self.resolve_hermes_job_path(current_view_record['job_id'])
@@ -376,9 +437,26 @@ class HermesServiceManager:
                 except (OSError, ValueError, TypeError, KeyError):
                     current_view_record['job'] = {'status': {'status':'unavailable', 'message':'작업 상태를 읽을 수 없습니다.'}, 'final_response': None, 'final_response_truncated': False}
             hermes_view_messages.append(current_view_record)
+            collect_source(current_message_record)
         return {'id': hermes_session_record['id'], 'title': hermes_session_record.get('title', '새 대화'), 'message_count': len(hermes_session_record['messages']), 'messages': hermes_view_messages, 'truncated': current_start_index > 0, 'offset':current_offset_value, 'next_offset':current_offset_value+len(hermes_view_messages) if current_start_index>0 else None, 'snapshot':current_snapshot_value, 'queried_at': datetime.now(timezone.utc).isoformat()}
 
     def execute_hermes_command(self, hermes_command_name, hermes_payload_record):
+        if hermes_command_name in ('hermes-video-form-save', 'hermes-video-form-read', 'hermes-video-form-submit', 'hermes-video-form-status'):
+            from tools.management.domains.hermes_agent.session_store import HermesSessionStore
+            store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+            expected = {'session_id', 'form_id', 'request', 'video_info'} if hermes_command_name == 'hermes-video-form-save' else {'session_id', 'form_id'}
+            if set(hermes_payload_record) != expected: raise ValueError('폼 요청 필드 오류')
+            session_id, form_id = hermes_payload_record['session_id'], hermes_payload_record['form_id']
+            if hermes_command_name == 'hermes-video-form-save':
+                return store.save_video_form(session_id, form_id, hermes_payload_record['request'], hermes_payload_record['video_info'])
+            snapshot = store.read_video_form(session_id, form_id)
+            request_id = 'vf_' + hashlib.sha256((session_id + ':' + form_id).encode()).hexdigest()
+            if hermes_command_name == 'hermes-video-form-read': return {'form_id':form_id, **snapshot}
+            if hermes_command_name == 'hermes-video-form-submit':
+                from tools.management.domains.hermes_agent.video_operations import submit_hermes_video_request
+                return submit_hermes_video_request(request_id, 'wan22-fun-control', snapshot['request'])
+            from tools.management.domains.hermes_agent.delegation_store import HermesDelegationStore
+            return HermesDelegationStore().read_service_delegation(request_id, 'wan22-fun-control')
         if not isinstance(hermes_payload_record, dict):
             raise ValueError('입력은 객체여야 합니다.')
         if hermes_command_name in ("hermes-workflow-list", "hermes-workflow-catalog", "hermes-workflow-review", "hermes-workflow-register", "hermes-workflow-view", 'hermes-workflow-cancel', 'hermes-workflow-select', 'hermes-workflow-retry', 'hermes-workflow-draft-read', 'hermes-workflow-draft-save', 'hermes-form-list', 'hermes-form-read', 'hermes-form-save', 'hermes-workflow-image-preview', 'hermes-workflow-audio-preview'):

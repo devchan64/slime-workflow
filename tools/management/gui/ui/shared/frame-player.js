@@ -1,4 +1,3 @@
-// Gradio는 일반 조작부를 담당하고 이 컴포넌트는 이미지 재생만 담당한다.
 let currentFramePayload={}, currentFrameIndex=0, currentPlaybackTimer=null;
 let currentRequestSequence=0, currentDirectionName='', currentPlaybackRate=6;
 let currentLoopBounds=null;

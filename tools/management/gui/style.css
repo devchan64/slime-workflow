@@ -101,9 +101,7 @@ article {position:relative;}
   .hermes-chat .message {padding:.7rem .55rem}
 }
 @media(min-width:701px){
-  .hermes-chat > article > form {flex-wrap:nowrap}
-  .hermes-chat article > form > textarea {order:0;flex:1 1 auto}
-  .hermes-chat .floating-panel {bottom:6rem}
+  .hermes-chat .floating-panel {bottom:8.5rem}
 }
 
 .hermes-chat .search-scope,.hermes-chat .floating-panel > label {display:inline-flex;gap:.4rem;align-items:center;font-size:.85rem;margin:.4rem .75rem .5rem 0}

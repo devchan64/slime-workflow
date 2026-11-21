@@ -47,7 +47,7 @@ class ManagementSinglePortTests(unittest.TestCase):
             current_review_path.write_text('<script id="anchor-review-data" type="application/json">{}</script>')
             current_app_value = build_management_application(SimpleHTTPRequestHandler, current_root_path, current_source_path, 8770, {'/animation-1/anchors.html': 'animation-1'})
             with TestClient(current_app_value) as current_test_client:
-                current_embedded_response = current_test_client.get('/animation-1/anchors.html?embedded=gradio-static')
+                current_embedded_response = current_test_client.get('/animation-1/anchors.html?embedded=static')
                 self.assertEqual(current_embedded_response.status_code, 200)
                 self.assertIn('anchor-review-data', current_embedded_response.text)
                 self.assertEqual(current_test_client.get('/animation-1/anchors.html', follow_redirects=False).headers['location'], '/management/?')
