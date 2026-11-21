@@ -89,6 +89,9 @@ class WorkflowRunStore:
                 CREATE TABLE IF NOT EXISTS workflow_cancel_request (
                     request_id TEXT PRIMARY KEY, delivery TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS workflow_wav (
+                    digest TEXT PRIMARY KEY, content BLOB NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS workflow_png (
                     digest TEXT PRIMARY KEY, content BLOB NOT NULL
                 );
@@ -378,6 +381,47 @@ class WorkflowRunStore:
                 current_database_connection.execute("INSERT INTO workflow_result VALUES (?, ?, ?, ?)",
                     (workflow_run_identifier, current_step_identifier, current_job_identifier,
                      encode_workflow_record(stored_output_record)))
+
+    def record_effect_audio_completion(self, workflow_run_identifier, current_step_identifier, current_status_record):
+        from tools.review.domains.music.generation import MusicGenerationManager
+        from .workflow_result_binding import read_workflow_effect_audio
+        current_receipt_record = current_status_record["receipt"]
+        source_service_name = "sfx-dasheng-audiogen"
+        if current_receipt_record.get("service") != source_service_name or current_receipt_record.get("state") != "accepted":
+            raise ValueError("효과음 접수 기록이 일치하지 않습니다.")
+        source_job_identifier = current_receipt_record["job_id"]
+        audio_content_bytes = read_workflow_effect_audio(MusicGenerationManager(source_service_name).job_storage_root,
+            source_job_identifier, current_status_record["job"])
+        audio_content_digest = hashlib.sha256(audio_content_bytes).hexdigest()
+        audio_result_reference = {"sha256": audio_content_digest, "size": len(audio_content_bytes), "media_type": "audio/wav",
+                                  "attempt": current_status_record["job"]["audio"].split("/")[-2]}
+        with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
+            changed_step_count = current_database_connection.execute(
+                """UPDATE workflow_step SET state='completed' WHERE run_id=? AND step_id=? AND request_id=?
+                   AND state='submitting' AND EXISTS (SELECT 1 FROM workflow_step_contract AS contract
+                   WHERE contract.run_id=workflow_step.run_id AND contract.step_id=workflow_step.step_id AND generator=?)""",
+                (workflow_run_identifier, current_step_identifier, current_receipt_record["request_id"], source_service_name)).rowcount
+            if changed_step_count:
+                current_database_connection.execute("INSERT OR IGNORE INTO workflow_wav VALUES (?,?)", (audio_content_digest, audio_content_bytes))
+                current_database_connection.execute("INSERT INTO workflow_output_metadata VALUES (?,?,?,?,?,?,?)",
+                    (workflow_run_identifier, current_step_identifier, "audio", "audio/wav", audio_content_digest,
+                     len(audio_content_bytes), datetime.now(timezone.utc).isoformat()))
+                current_database_connection.execute("INSERT INTO workflow_result VALUES (?,?,?,?)",
+                    (workflow_run_identifier, current_step_identifier, source_job_identifier, encode_workflow_record({"audio": audio_result_reference})))
+
+    def read_pinned_effect_audio(self, workflow_run_identifier, conversation_session_identifier, current_step_identifier):
+        with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
+            stored_audio_record = current_database_connection.execute(
+                """SELECT wav.content, meta.digest, meta.byte_size FROM workflow_output_metadata AS meta
+                   JOIN workflow_run USING(run_id) JOIN workflow_wav AS wav ON wav.digest=meta.digest
+                   WHERE run_id=? AND session_id=? AND step_id=? AND meta.output_name='audio' AND meta.media_type='audio/wav'""",
+                (workflow_run_identifier, conversation_session_identifier, current_step_identifier)).fetchone()
+        if not stored_audio_record:
+            raise ValueError("이 세션의 단계에서 보존한 효과음이 없습니다.")
+        audio_content_bytes, stored_audio_digest, stored_audio_size = stored_audio_record
+        if len(audio_content_bytes) != stored_audio_size or hashlib.sha256(audio_content_bytes).hexdigest() != stored_audio_digest:
+            raise ValueError("보존된 효과음의 크기 또는 해시가 일치하지 않습니다.")
+        return audio_content_bytes
 
     def read_pinned_image_preview(self, workflow_run_identifier, conversation_session_identifier, current_step_identifier):
         from PIL import Image
