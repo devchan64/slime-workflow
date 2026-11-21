@@ -1,3 +1,4 @@
+import FunControlPage from "./FunControlPage.jsx";
 import VacePage from "./VacePage.jsx";
 import AnimatePage from "./AnimatePage.jsx";
 import WriterPage from "./WriterPage.jsx";
@@ -262,6 +263,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/assistant/fun-control": FunControlPage,
   "/management/frame/wan22-vace-generator": VacePage,
   "/management/assistant/vace": VacePage,
   "/management/frame/wan22-animate2-generator": AnimatePage,

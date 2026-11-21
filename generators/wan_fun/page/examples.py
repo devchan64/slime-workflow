@@ -23,11 +23,10 @@ def load_fun_example_catalog():
     return current_example_mapping
 
 
-def load_fun_selected_example(current_example_identifier):
+def read_fun_example_request(current_example_identifier):
     if current_example_identifier not in load_fun_example_catalog():
         raise ValueError('예제를 선택하세요.')
     current_example_directory = FUN_EXAMPLE_STORAGE_ROOT / current_example_identifier
-    """이력 삭제와 독립된 제작 기준 예제를 입력에만 적용한다."""
     current_example_record = yaml.load((current_example_directory / 'input.yaml').read_text(), Loader=UniqueConfigLoader)
     if not isinstance(current_example_record, dict) or set(current_example_record) != {'source_job', 'request'} or not isinstance(current_example_record['source_job'], str) or not isinstance(current_example_record['request'], dict):
         raise ValueError('Fun Control 예제 필드 오류')
@@ -38,4 +37,12 @@ def load_fun_selected_example(current_example_identifier):
     current_validation_record['images'] = [base64.b64encode(current_reference_path.read_bytes()).decode()]
     current_validation_record['pose_video'] = base64.b64encode(current_video_path.read_bytes()).decode()
     validate_fun_request(current_validation_record)
+    return current_validation_record
+
+
+def load_fun_selected_example(current_example_identifier):
+    current_request_record = read_fun_example_request(current_example_identifier)
+    current_example_directory = FUN_EXAMPLE_STORAGE_ROOT / current_example_identifier
+    current_reference_path = current_example_directory / 'reference-1.png'
+    current_video_path = current_example_directory / 'pose-input.mp4'
     return (str(current_reference_path), str(current_video_path), None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'pose-video', False, False, None, None, False, 'wan22-14b')

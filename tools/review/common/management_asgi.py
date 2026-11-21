@@ -694,6 +694,13 @@ def build_management_application(current_handler_class, current_root_path, curre
                 'models': [{'id': key, 'label': label} for label, key in FUN_MODEL_CHOICES],
                 'examples': [{'id': key, 'label': label} for key, label in load_fun_example_catalog().items()]}
 
+    @current_root_application.get('/management/assistant/fun-example/{identifier}')
+    def fun_example(identifier: str):
+        from generators.wan_fun.page.examples import load_fun_example_catalog, read_fun_example_request
+        if identifier not in load_fun_example_catalog():
+            return Response(status_code=404)
+        return {'id': identifier, 'request': read_fun_example_request(identifier)}
+
     @current_root_application.get('/management/assistant/fun-pose/{job}')
     def fun_pose_input(job: str):
         from tools.review.domains.hermes_agent.video_operations import make_hermes_video_source_manager
@@ -903,6 +910,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/sound-effect/')
     @current_root_application.get('/management/frame/wan22-vace-generator')
     @current_root_application.get('/management/frame/wan22-vace-generator/')
+    @current_root_application.get('/management/assistant/fun-control/')
     @current_root_application.get('/management/assistant/vace/')
     @current_root_application.get('/management/assistant/dwpose/')
     @current_root_application.get('/management/assistant/translation/')
