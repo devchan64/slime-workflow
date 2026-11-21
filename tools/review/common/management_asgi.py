@@ -595,17 +595,64 @@ def build_management_application(current_handler_class, current_root_path, curre
         inputs = {key: value for key, value in KIMODO_DEFAULT_SETTINGS.items() if key != "schema_version"}
         return {"inputs": {**inputs, "camera_elevation_degrees": 0}, "directions": KIMODO_DIRECTION_RECORDS}
 
+    @current_root_application.get('/management/assistant/kimodo-input/{job}')
+    def kimodo_saved_input(job: str):
+        import base64
+        import json
+        from fastapi import HTTPException
+        from generators.kimodo.contracts import KIMODO_JOB_STORAGE
+        from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+        from tools.review.domains.kimodo.keyframe_storage import hash_kimodo_keyframe_source, validate_kimodo_job_keyframe_snapshots
+
+        directory = KIMODO_JOB_STORAGE / job
+        path = directory / "request.json"
+        if not validate_service_job_identifier("kimodo", job) or directory.is_symlink() or path.is_symlink() or not path.is_file():
+            raise HTTPException(404, "저장된 입력을 찾을 수 없습니다.")
+        try:
+            saved = json.loads(path.read_text())
+            template = kimodo_generation_template()
+            inputs = {key: saved.get(key, default) for key, default in template["inputs"].items()}
+            if saved.get("action") == "reference-analysis":
+                inputs.update(prompt="", directions=template["inputs"]["directions"])
+            else:
+                inputs.update(directions=saved.get("directions", ["front_left"]), openpose_scale_percent=saved.get("openpose_scale_percent", 100))
+            references = []
+            for index, name in enumerate(saved.get("references", []), 1):
+                if index > 8 or name != f"reference-{index}.png":
+                    raise ValueError("참조 PNG 기록을 확인하세요.")
+                image = directory / name
+                if image.is_symlink() or not image.is_file() or image.stat().st_size > 3000000:
+                    raise ValueError("참조 PNG 사본을 확인하세요.")
+                references.append({"name": name, "data": base64.b64encode(image.read_bytes()).decode("ascii")})
+            rows = saved.get("keyframes", [])
+            hashes = {}
+            if rows:
+                validate_kimodo_job_keyframe_snapshots(directory, saved)
+                hashes = {row["id"]: hash_kimodo_keyframe_source(row["source"]["files"]) for row in saved["keyframe_snapshots"]}
+            elif saved.get("endpoint_pose_id") == "relaxed-standing-v1":
+                rows = [{"id": "b0000000000000000000000000000004", "frame": frame} for frame in (1, inputs["frames"])]
+            elif saved.get("endpoint_pose_id"):
+                raise ValueError("이전 기준 자세를 확인하세요.")
+            attachments = {field: json.dumps(saved[field], ensure_ascii=False, allow_nan=False)
+                           for field in ("proportion_reviewed_multiview", "proportion_face_anchor_calibration", "proportion_joint_edits")
+                           if saved.get(field)}
+            return {**template, "inputs": inputs, "references": references, "attachments": attachments,
+                    "rows": rows, "hashes": hashes, "segments": saved.get("segment_frames", []),
+                    "angles": saved.get("proportion_multiview_angles", []), "hip": saved.get("proportion_projected_hip", False)}
+        except (KeyError, OSError, ValueError, TypeError) as error:
+            raise HTTPException(422, str(error)) from error
+
     @current_root_application.post('/management/assistant/kimodo-generation-review')
     def review_kimodo_generation(inputs: dict, serialized: bool = False):
         import json
         from fastapi import HTTPException
         from generators.kimodo.contracts import validate_kimodo_request
-        if inputs.keys() - {"keyframes", "keyframe_source_hashes", "segment_frames", "proportion_images", "proportion_multiview_angles",
+        if inputs.keys() - {"proportion_joint_edits", "keyframes", "keyframe_source_hashes", "segment_frames", "proportion_images", "proportion_multiview_angles",
                             "proportion_reviewed_multiview", "proportion_projected_hip", "proportion_face_anchor_calibration"} != kimodo_generation_template()["inputs"].keys():
             raise HTTPException(422, "생성 폼의 입력 항목을 확인하세요.")
         request = {**inputs, "action": "generate"}
         try:
-            for field in ("proportion_reviewed_multiview", "proportion_face_anchor_calibration"):
+            for field in ("proportion_reviewed_multiview", "proportion_face_anchor_calibration", "proportion_joint_edits"):
                 if isinstance(request.get(field), str):
                     request[field] = json.loads(request[field])
             validated = validate_kimodo_request(request)

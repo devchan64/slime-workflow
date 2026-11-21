@@ -19,7 +19,7 @@ export default function KimodoPage(){
     <h1>Kimodo 모션 생성기</h1>
     <GeneratorChangelog generator="kimodo-generator"/>
     <ModelReadiness service="kimodo" manage/><DownloadProgress service="kimodo"/>
-    <KimodoGeneration session={session}/>
+    <KimodoGeneration session={session} restoreJob={params.get("restore") || ""}/>
     <KimodoMultiviewReport/>
     <h2>생성 이력</h2>
     <HistoryPage initialJob={params.get("job") || ""} source={{service:"kimodo",command:"hermes-generator-source-history"}} session={session} choose={choose}/>

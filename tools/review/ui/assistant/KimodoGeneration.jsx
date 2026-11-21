@@ -4,8 +4,9 @@ import readReference from "./readReference.js";
 import KimodoPromptExamples from "./KimodoPromptExamples.jsx";
 import {managementCommand} from "./managementCommand.js";
 
-export default function KimodoGeneration({session}){
+export default function KimodoGeneration({session,restoreJob}){
   const [directions,setDirections]=useState({});
+  const [jointEdits,setJointEdits]=useState(null);
   const [references,setReferences]=useState([]);
   const [bundle,setBundle]=useState(null),[calibration,setCalibration]=useState(null),[hip,setHip]=useState(false);
   const [angles,setAngles]=useState("");
@@ -17,13 +18,28 @@ export default function KimodoGeneration({session}){
   const [receipt,setReceipt]=useState(()=>sessionStorage.getItem(key) || ""),[notice,setNotice]=useState("");
   useEffect(()=>{
     const controller=new AbortController();
-    fetch("/management/assistant/kimodo-generation-template",{signal:controller.signal}).then(async response=>{
-      if(!response.ok)throw new Error("생성 기본값을 조회할 수 없습니다.");
+    fetch(restoreJob?"/management/assistant/kimodo-input/"+encodeURIComponent(restoreJob):"/management/assistant/kimodo-generation-template",{signal:controller.signal}).then(async response=>{
+      if(!response.ok)throw new Error(restoreJob?"이전 작업의 입력을 불러올 수 없습니다.":"생성 기본값을 조회할 수 없습니다.");
       const defaults=await response.json();
+      if(restoreJob){
+        const files=defaults.references.map(({name,data})=>new File([Uint8Array.from(atob(data),c=>c.charCodeAt(0))],name,{type:"image/png"}));
+        const attachment=field=>defaults.attachments[field]?new File([defaults.attachments[field]],field+".json",{type:"application/json"}):null;
+        let restoredPlacement=null;
+        if(defaults.rows.length){
+          restoredPlacement=await managementCommand("hermes-agent","hermes-kimodo-keyframe-validate",{frames:defaults.inputs.frames,keyframes:defaults.rows});
+          if(restoredPlacement.sources.some(source=>defaults.hashes[source.id] && defaults.hashes[source.id]!==source.source_sha256))
+            throw new Error("저장된 키프레임과 현재 원본이 다릅니다.");
+        }
+        if(controller.signal.aborted)return;
+        setPlacement(restoredPlacement);setReferences(files);setSegments(defaults.segments.join(" "));setAngles(defaults.angles.join(" "));
+        setBundle(attachment("proportion_reviewed_multiview"));setCalibration(attachment("proportion_face_anchor_calibration"));
+        setHip(defaults.hip);setJointEdits(defaults.attachments.proportion_joint_edits || null);
+        setNotice(restoreJob+" 입력을 불러왔습니다.");
+      }
       if(!controller.signal.aborted){setInputs(defaults.inputs);setDirections(defaults.directions);}
     }).catch(error=>{if(!controller.signal.aborted)setNotice(error.message);});
     return ()=>controller.abort();
-  },[]);
+  },[restoreJob]);
   function edit(field,value){
     setInputs(previous=>({...previous,[field]:value}));setReview(null);
   }
@@ -35,6 +51,7 @@ export default function KimodoGeneration({session}){
     setReview(null);
     const request={...inputs,frames:Number(inputs.frames),steps:Number(inputs.steps),seed:Number(inputs.seed),
       guidance_scale:Number(inputs.guidance_scale),openpose_scale_percent:Number(inputs.openpose_scale_percent)};
+    if(jointEdits)request.proportion_joint_edits=jointEdits;
     if(placement){
       request.keyframes=placement.placements;
       request.keyframe_source_hashes=Object.fromEntries(placement.sources.map(source=>[source.id,source.source_sha256]));
@@ -98,7 +115,8 @@ export default function KimodoGeneration({session}){
       {[["frames","프레임 수",30,300],["steps","생성 단계",2,100],["seed","시드",0,2147483647]].map(([field,label,min,max])=>
         <label key={field}>{label} <input type="number" required min={min} max={max} value={inputs[field]} onChange={e=>edit(field,e.target.value)}/></label>)}
       <label>신체 비율 참조 PNG (최대 8장) <input type="file" accept="image/png" multiple
-        onChange={e=>{setReferences(Array.from(e.target.files));setReview(null);}}/></label>
+        onChange={e=>{setReferences(Array.from(e.target.files));setJointEdits(null);setReview(null);}}/></label>
+      {references.length>0 && <p>참조 이미지 · {references.map(file=>file.name).join(", ")} <button type="button" onClick={()=>{setReferences([]);setJointEdits(null);setReview(null);}}>참조 해제</button></p>}
       <details><summary>다중 시점 신체 비율</summary>
         <label>검출 관측 순서의 카메라 각도 8개 (도) <input value={angles} placeholder="45 0 135 90 225 315 180 270"
           onChange={e=>{setAngles(e.target.value);setReview(null);}}/></label>
