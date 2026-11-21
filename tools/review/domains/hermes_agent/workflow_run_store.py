@@ -367,6 +367,26 @@ class WorkflowRunStore:
                     (workflow_run_identifier, current_step_identifier, current_job_identifier,
                      encode_workflow_record(stored_output_record)))
 
+    def read_pinned_image_preview(self, workflow_run_identifier, conversation_session_identifier, current_step_identifier):
+        from PIL import Image
+        with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
+            pinned_image_record = current_database_connection.execute(
+                """SELECT png.content, meta.digest, meta.byte_size FROM workflow_output_metadata AS meta
+                   JOIN workflow_run USING(run_id) JOIN workflow_png AS png ON png.digest=meta.digest
+                   WHERE run_id=? AND session_id=? AND step_id=? AND meta.output_name='images' AND meta.media_type='image/png'""",
+                (workflow_run_identifier, conversation_session_identifier, current_step_identifier)).fetchone()
+        if not pinned_image_record:
+            raise ValueError("이 대화의 실행 단계에서 보존한 PNG를 찾을 수 없습니다.")
+        image_content_bytes, expected_image_digest, expected_image_size = pinned_image_record
+        if len(image_content_bytes) != expected_image_size or hashlib.sha256(image_content_bytes).hexdigest() != expected_image_digest:
+            raise ValueError("보존된 이미지의 해시 또는 크기가 일치하지 않습니다.")
+        with Image.open(BytesIO(image_content_bytes), formats=["PNG"]) as stored_image_value:
+            stored_image_value.thumbnail((512, 512))
+            with BytesIO() as preview_image_stream:
+                stored_image_value.convert("RGBA").save(preview_image_stream, format="PNG")
+                return {"preview_png": base64.b64encode(preview_image_stream.getvalue()).decode("ascii"),
+                        "source_sha256": expected_image_digest}
+
     def read_run_results(self, workflow_run_identifier):
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
             return read_result_records_locked(current_database_connection, workflow_run_identifier)

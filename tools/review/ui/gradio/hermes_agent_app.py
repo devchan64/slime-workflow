@@ -362,6 +362,16 @@ def list_conversation_workflow_steps(current_session_identifier, current_categor
                             "created_from": creation_start_date, "created_through": creation_end_date}})
 
 
+def preview_pinned_workflow_image(current_session_identifier, workflow_run_identifier, current_step_identifier):
+    import base64
+    from io import BytesIO
+    from PIL import Image
+    preview_image_record = execute_remote_management_command("hermes-agent", "hermes-workflow-image-preview", {
+        "session_id": current_session_identifier, "run_id": workflow_run_identifier, "step_id": current_step_identifier})
+    with Image.open(BytesIO(base64.b64decode(preview_image_record["preview_png"], validate=True)), formats=["PNG"]) as preview_image_value:
+        return preview_image_value.copy()
+
+
 def display_conversation_workflow_results(current_session_identifier, workflow_run_identifier):
     from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
     current_run_view = read_conversation_workflow_result(current_session_identifier, workflow_run_identifier)
@@ -4967,6 +4977,13 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                         generation_confirmation_inputs=workflow_submission_inputs)
                     workflow_translation_output = gr.Textbox(label="완료된 번역문", interactive=False)
                     workflow_image_links = gr.Markdown()
+                    workflow_preview_step = gr.Textbox(label="미리 볼 이미지 단계 ID")
+                    workflow_preview_button = gr.Button("보존된 이미지 미리보기")
+                    workflow_preview_image = gr.Image(label="단계 결과 이미지", interactive=False, format="png")
+                    workflow_preview_inputs = [hermes_session_control, workflow_run_identifier, workflow_preview_step]
+                    workflow_preview_button.click(preview_pinned_workflow_image, workflow_preview_inputs, workflow_preview_image, queue=False)
+                    for preview_input_component in workflow_preview_inputs:
+                        preview_input_component.change(lambda: None, outputs=workflow_preview_image, queue=False)
                     workflow_display_outputs = [workflow_run_display, workflow_translation_output, workflow_image_links]
                     workflow_result_button.click(display_conversation_workflow_results,
                         [hermes_session_control, workflow_run_identifier], workflow_display_outputs, queue=False)

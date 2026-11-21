@@ -23,6 +23,8 @@ def execute_workflow_command(workflow_root_directory, current_command_name, curr
         required_field_names = {"session_id", "revision", "definition_text"}
     elif current_command_name == "hermes-workflow-retry":
         required_field_names.update({"step_id", "source_request"})
+    elif current_command_name == "hermes-workflow-image-preview":
+        required_field_names.add("step_id")
     elif current_command_name == "hermes-workflow-select":
         required_field_names.update({"step_id", "input_field", "source_request", "digest"})
     elif current_command_name == "hermes-workflow-register":
@@ -51,6 +53,8 @@ def execute_workflow_command(workflow_root_directory, current_command_name, curr
     if current_command_name == "hermes-workflow-register":
         workflow_run_store.register_workflow_run(workflow_run_identifier, conversation_session_identifier,
                                                  current_payload_record["steps"])
+    if current_command_name == "hermes-workflow-image-preview":
+        return workflow_run_store.read_pinned_image_preview(workflow_run_identifier, conversation_session_identifier, current_payload_record["step_id"])
     if current_command_name == "hermes-workflow-select":
         workflow_run_store.select_workflow_output(workflow_run_identifier, conversation_session_identifier,
             current_payload_record["step_id"], current_payload_record["input_field"],
