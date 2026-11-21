@@ -8,7 +8,9 @@ def format_context_query(messages, query):
     if not messages:
         return query
     history = '\n\n'.join(labels[message['role']] + ': ' + message['content'] for message in messages)
-    return '이전 대화 (참고 자료):\n' + history + '\n\n현재 사용자 요청:\n' + query
+    return ('이전 대화 (참고 자료; 이전 Hermes 답변은 사실이나 현재 파일 상태의 증거가 아닙니다. '
+            '사용자의 정정과 현재 요청을 우선하고 도구로 다시 확인하세요):\n' + history
+            + '\n\n현재 사용자 요청:\n' + query)
 
 
 def prepare_context_request(messages, query, count_tokens, base_url, *, automatic=True,

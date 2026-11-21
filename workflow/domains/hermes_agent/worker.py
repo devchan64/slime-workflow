@@ -161,6 +161,23 @@ def stop_hermes_model_process(worker_server_process):
         worker_server_process.wait()
 
 
+def summarize_execution_evidence(event_path, diff_bytes, verification):
+    """실제 이벤트와 결과만 요약한다. 도구 호출은 성공이나 검증을 증명하지 않는다."""
+    count = 0
+    if event_path.is_file() and not event_path.is_symlink():
+        with event_path.open(encoding='utf-8', errors='replace') as stream:
+            for line in stream:
+                try:
+                    event = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(event, dict) and event.get('type') == 'tool_use':
+                    count += 1
+    return {'tool_calls': count, 'workspace_changed': bool(diff_bytes),
+            'independent_verification': verification['status'],
+            'scope': 'isolated_workspace'}
+
+
 def hash_hermes_verification_controls(worker_workspace_path):
     """에이전트가 공용 회귀 실행기를 바꾸면 독립 검증으로 취급하지 않는다."""
     worker_control_hashes = {}
@@ -331,7 +348,8 @@ def execute_hermes_gpu_job(worker_job_directory):
             stop_hermes_model_process(worker_server_process)
             worker_diff_bytes = collect_snapshot_change_diff(worker_workspace_path, worker_baseline_record['baseline_commit'])
             (worker_job_directory / 'change.diff').write_bytes(worker_diff_bytes)
-            write_record_atomically(worker_job_directory / 'result.json', {'agent_exit_code':worker_agent_exit_code, 'gpu_offload':worker_offload_value, 'baseline':worker_baseline_record, 'diff_bytes':len(worker_diff_bytes), 'verification':worker_verification_record, 'partial':worker_agent_exit_code != 0 or worker_verification_record['status'] in ('not_run', 'failed', 'timed_out')})
+            worker_evidence = summarize_execution_evidence(worker_job_directory / 'hermes-events.jsonl', worker_diff_bytes, worker_verification_record)
+            write_record_atomically(worker_job_directory / 'result.json', {'agent_exit_code':worker_agent_exit_code, 'gpu_offload':worker_offload_value, 'baseline':worker_baseline_record, 'diff_bytes':len(worker_diff_bytes), 'verification':worker_verification_record, 'evidence':worker_evidence, 'partial':worker_agent_exit_code != 0 or worker_verification_record['status'] in ('not_run', 'failed', 'timed_out')})
 
 
 def execute_guarded_hermes_gpu_job(worker_job_directory):
@@ -340,7 +358,7 @@ def execute_guarded_hermes_gpu_job(worker_job_directory):
     current_job_directory = Path(worker_job_directory).resolve(strict=True)
     wait_hermes_gpu_reservation(current_job_directory)
     try:
-        with hold_hermes_model_usage_guard(WORKFLOW_ROOT_DIRECTORY):
+        with hold_hermes_model_usage_guard(WORKFLOW_ROOT_DIRECTORY, inference=True):
             return execute_hermes_gpu_job(worker_job_directory)
     except HermesModelUsageBusy:
         write_record_atomically(current_job_directory / 'status.json', {'status':'failed', 'error':'Hermes 모델이 준비 또는 사용 중이어서 작업을 시작하지 못했습니다. 준비와 기존 작업의 종료를 확인한 뒤 새 요청을 검토하세요.'})

@@ -1,7 +1,10 @@
 import unittest
+import json
+import shutil
+import tempfile
 from pathlib import Path
 
-from workflow.domains.hermes_agent.workflow_skills import build_workflow_guidance, select_workflow_skills
+from workflow.domains.hermes_agent.workflow_skills import build_workflow_guidance, select_workflow_skills, load_skill_registry, SKILL_ROOT
 
 
 class WorkflowSkillTests(unittest.TestCase):
@@ -25,6 +28,43 @@ class WorkflowSkillTests(unittest.TestCase):
         self.assertIn('[워크플로우 스킬: history-operations]', guidance)
         self.assertNotIn('[워크플로우 스킬: map-asset-review]', guidance)
         self.assertNotIn('[워크플로우 스킬: generation-result-lookup]', guidance)
+
+    def test_snapshot_registry_controls_selection_and_rejects_invalid_entries(self):
+        source = Path(__file__).resolve().parents[2] / SKILL_ROOT
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            root = workspace / SKILL_ROOT
+            shutil.copytree(source, root)
+            registry_path = root / 'registry.json'
+            registry = json.loads(registry_path.read_text())
+            registry['skills'][0]['terms'].append('새단어')
+            registry_path.write_text(json.dumps(registry, ensure_ascii=False))
+            self.assertEqual(select_workflow_skills('새단어', workspace=workspace), ['generation-result-lookup'])
+            self.assertEqual(select_workflow_skills('새단어'), [])
+            registry['skills'][0]['name'] = '../outside'
+            registry_path.write_text(json.dumps(registry))
+            with self.assertRaises(ValueError):
+                load_skill_registry(workspace)
+
+    def test_duplicate_registration_and_symlink_are_rejected(self):
+        source = Path(__file__).resolve().parents[2] / SKILL_ROOT
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            root = workspace / SKILL_ROOT
+            shutil.copytree(source, root)
+            registry_path = root / 'registry.json'
+            registry = json.loads(registry_path.read_text())
+            registry['skills'].append(registry['skills'][0])
+            registry_path.write_text(json.dumps(registry))
+            with self.assertRaises(ValueError):
+                load_skill_registry(workspace)
+            registry['skills'].pop()
+            registry_path.write_text(json.dumps(registry))
+            skill = root / registry['skills'][0]['name'] / 'SKILL.md'
+            skill.unlink()
+            skill.symlink_to(source / registry['skills'][0]['name'] / 'SKILL.md')
+            with self.assertRaises(ValueError):
+                load_skill_registry(workspace)
 
 
 if __name__ == '__main__':

@@ -22,6 +22,19 @@ class HermesWorkerTests(unittest.TestCase):
         current_root_patch.start()
         self.addCleanup(current_root_patch.stop)
 
+    def test_execution_evidence_distinguishes_claims_from_recorded_actions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            events = Path(directory) / 'events.jsonl'
+            events.write_text('\n'.join([json.dumps({'type': 'result', 'text': '수정과 검증 완료'}), 'bad json']), encoding='utf-8')
+            evidence = hermes_worker_module.summarize_execution_evidence(events, b'', {'status': 'not_requested'})
+            self.assertEqual(evidence, {'tool_calls': 0, 'workspace_changed': False,
+                                        'independent_verification': 'not_requested', 'scope': 'isolated_workspace'})
+            events.write_text(json.dumps({'type': 'tool_use', 'name': 'terminal'}) + '\n', encoding='utf-8')
+            evidence = hermes_worker_module.summarize_execution_evidence(events, b'diff', {'status': 'passed'})
+            self.assertEqual(evidence['tool_calls'], 1)
+            self.assertTrue(evidence['workspace_changed'])
+            self.assertEqual(evidence['independent_verification'], 'passed')
+
     def test_model_use_guard_distinguishes_running_worker_from_preparation(self):
         from workflow.common.model_prepare_process import inspect_registered_preparation, start_registered_preparation, hold_hermes_model_usage_guard
         current_working_root = hermes_worker_module.WORKFLOW_ROOT_DIRECTORY
@@ -60,6 +73,19 @@ class HermesWorkerTests(unittest.TestCase):
         self.assertEqual(current_status_record['status'], 'failed')
         self.assertIn('준비 또는 사용 중', current_status_record['error'])
         self.assertIn('새 요청', current_status_record['error'])
+
+    def test_inference_guards_share_but_block_model_preparation(self):
+        from workflow.common.model_prepare_process import hold_hermes_model_usage_guard, HermesModelUsageBusy
+        root = hermes_worker_module.WORKFLOW_ROOT_DIRECTORY
+        with hold_hermes_model_usage_guard(root, inference=True):
+            with hold_hermes_model_usage_guard(root, inference=True):
+                with self.assertRaises(HermesModelUsageBusy):
+                    with hold_hermes_model_usage_guard(root):
+                        pass
+        with hold_hermes_model_usage_guard(root):
+            with self.assertRaises(HermesModelUsageBusy):
+                with hold_hermes_model_usage_guard(root, inference=True):
+                    pass
 
     def test_model_use_guard_stays_with_detached_preparation_process(self):
         import sys

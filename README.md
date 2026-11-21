@@ -2,7 +2,7 @@
 
 로컬 GPU 기반 이미지·모션·음향 제작과 게임 에셋 검수를 위한 생성기 및 워크플로우다. 생성 결과는 후보이며 검수와 명시적인 채택을 거쳐 에셋 저장소에 등록한다.
 
-관리 GUI 소스는 [gui/](gui)에 있다. [app.jsx](gui/app.jsx)가 헤르메스 대화와 생성기·검수 화면의 진입점이다. GUI를 수정한 뒤 저장소 루트에서 `npm ci --prefix gui`, `npm run build --prefix gui`를 실행하면 관리 서버가 제공하는 번들이 갱신된다.
+관리 GUI 소스는 [gui/](gui)에 있다. [app.jsx](gui/app.jsx)가 헤르메스 대화와 생성기·검수 화면의 진입점이다. `gui/dist/`는 Git에서 관리하지 않는 빌드 산출물이다. 새 저장소를 준비할 때 저장소 루트에서 `npm ci --prefix gui`와 `npm run build --prefix gui`를 실행해야 관리 서버가 제공하는 번들이 생성된다. GUI 소스를 수정한 뒤에는 `npm run build --prefix gui`로 번들을 갱신한다. `./scripts/workflow.sh gui --watch`는 시작할 때 자동으로 빌드한다.
 
 ## 시작하기
 

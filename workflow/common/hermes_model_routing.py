@@ -5,7 +5,7 @@ DEFAULT_MODEL = 'qwen3.5-4b'
 COMPLEX_MODEL = 'qwen3.8-27b'
 MODEL_FLOORS_MIB = {DEFAULT_MODEL: 16384, COMPLEX_MODEL: 32768}
 COMPLEX_TASK = re.compile(
-    r'코드.{0,16}(수정|변경|작성|검토|리뷰)|버그|디버깅|리팩[터토]링|구현|'
+    r'코딩|코드.{0,16}(수정|변경|작성|검토|리뷰)|버그|디버깅|리팩[터토]링|구현|'
     r'(원인|장애|오류|실패|로그)\s*(을|를)?\s*(분석|진단|추적)|'
     r'\b(debug|debugging|implement|refactor|root[ -]cause|fix|patch)\b',
     re.IGNORECASE,

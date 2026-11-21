@@ -1944,7 +1944,12 @@ class HermesServiceTests(unittest.TestCase):
             current_activity_record = read_hermes_tool_activity(current_job_path)
             self.assertEqual(current_activity_record['events'][0]['target'], 'echo test')
             self.assertEqual(current_activity_record['events'][1]['result'], 'error')
-            self.assertNotIn('private full text', str(current_activity_record))
+            self.assertEqual(current_activity_record['events'][1]['output'], 'private full text')
+            current_events[1]['output'] = 'x' * 5000
+            (current_job_path / 'hermes-events.jsonl').write_text('\n'.join(json.dumps(event) for event in current_events))
+            bounded = read_hermes_tool_activity(current_job_path)['events'][1]
+            self.assertEqual(len(bounded['output']), 4000)
+            self.assertTrue(bounded['output_truncated'])
             (current_job_path / 'hermes-events.jsonl').write_text('\n'.join(json.dumps(current_events[0]) for _ in range(12)))
             current_activity_record = read_hermes_tool_activity(current_job_path)
             self.assertEqual(len(current_activity_record['events']), 8)

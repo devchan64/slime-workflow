@@ -112,6 +112,7 @@ def create_management_runtime(writer_workspace_config=None):
     from workflow.domains.hermes_agent.service import HermesServiceManager
     from workflow.common.model_download_records import MODEL_DOWNLOAD_RECORD_ROOT
     writer_agent_service = WriterAgentManager(writer_workspace_config or DEFAULT_WORKSPACE_CONFIG)
+    current_chat_dispatcher_stop = None
     try:
         animate_two_service = AnimateTwoGenerationManager()
         dwpose_generation_service = DwposeGenerationManager()
@@ -169,6 +170,7 @@ def create_management_runtime(writer_workspace_config=None):
         current_translation_service = TranslationServiceManager()
         service_binding_records['prompt-translation'] = bind_stored_management_service(current_translation_service.handle_translation_request, current_translation_service.job_storage_root)
         current_hermes_service = HermesServiceManager()
+        current_chat_dispatcher_stop = current_hermes_service.start_chat_queue_dispatcher()
         service_binding_records['hermes-agent'] = bind_stored_management_service(current_hermes_service.handle_hermes_request, current_hermes_service.hermes_storage_root)
         for current_flux_profile in FLUX_IMAGE_PROFILE_RECORDS:
             current_flux_manager = FluxImageGenerationManager(current_flux_profile)
@@ -176,7 +178,12 @@ def create_management_runtime(writer_workspace_config=None):
         for current_service_name in AUDIO_SERVICE_NAMES:
             current_music_manager = MusicGenerationManager(current_service_name)
             service_binding_records[current_service_name] = bind_stored_management_service(current_music_manager.handle_music_request,current_music_manager.job_storage_root)
-        return ManagementServiceRuntime(service_binding_records, writer_agent_service.handle_writer_request, writer_agent_service.close_writer_worker)
+        def close_services():
+            current_chat_dispatcher_stop.set()
+            writer_agent_service.close_writer_worker()
+        return ManagementServiceRuntime(service_binding_records, writer_agent_service.handle_writer_request, close_services)
     except BaseException:
+        if current_chat_dispatcher_stop is not None:
+            current_chat_dispatcher_stop.set()
         writer_agent_service.close_writer_worker()
         raise

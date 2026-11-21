@@ -97,11 +97,55 @@ function SuggestedVideoResult({suggestion,onReuse}){
 }
 const HistoryRoutes=React.createContext({});
 const ProposalActions=React.createContext(null);
+function ChatQueueItem({item,session,onRefresh}){
+  const [editing,setEditing]=useState(false),[text,setText]=useState(item.prompt),[busy,setBusy]=useState(false),[error,setError]=useState("");
+  async function change(cancel){
+    setBusy(true);setError("");
+    try{await call('chat-queue-update',{session_id:session,request_id:item.request_id,revision:item.revision,...(cancel?{cancel:true}:{prompt:text})});setEditing(false);onRefresh();}
+    catch(problem){setError(problem.message);onRefresh();}finally{setBusy(false);}
+  }
+  return <article className="chat-queued-item"><strong>{item.state==='dispatching'?'실행 준비 중':'대기 중'}</strong>
+    {editing ? <><textarea aria-label="대기 요청 수정" value={text} onChange={event=>setText(event.target.value)}/><button type="button" disabled={busy || !text.trim()} onClick={()=>change(false)}>변경 저장</button><button type="button" onClick={()=>{setText(item.prompt);setEditing(false);}}>편집 취소</button></> : <p>{item.prompt}</p>}
+    {item.state==='queued' && !editing && <><button type="button" disabled={busy} onClick={()=>{setText(item.prompt);setEditing(true);}}>수정</button><button type="button" disabled={busy} onClick={()=>change(true)}>대기 취소</button></>}
+    {error && <p role="alert">{error}</p>}
+  </article>;
+}
+function ChatQueuePanel({session}){
+  const [data,setData]=useState(null),[error,setError]=useState(""),[revision,refresh]=useState(0);
+  useEffect(()=>{let active=true,timer;async function load(){try{const next=await call("session-view",{session_id:session,limit:1});if(next.id!==session || !Array.isArray(next.chat_queue))throw new Error("대기열 응답 오류");if(active){setData({...next,checkedAt:new Date()});setError("");}}catch(problem){if(active)setError(problem.message);}finally{if(active)timer=setTimeout(load,3000);}}load();return()=>{active=false;clearTimeout(timer);};},[session,revision]);
+  return <section className="chat-queue-panel" aria-label="세션 채팅 대기열"><div className="chat-queue-header"><h2>세션 채팅 대기열</h2><button type="button" onClick={()=>refresh(n=>n+1)}>새로고침</button></div>
+    <small>{data?.checkedAt ? "조회 시각 · "+data.checkedAt.toLocaleString("ko-KR")+" · 3초 간격" : "대기열 조회 중"}</small>
+    {error && <p role="alert">대기열을 불러오지 못했습니다. {data && "표시된 내용은 마지막 조회 결과입니다."}</p>}
+    {data && <><h3>현재 요청</h3>{data.chat_active ? <article className="chat-queue-current"><strong>{statusLabels[data.chat_active.status] || "확인 불가"}</strong><p>{data.chat_active.prompt}</p><a href={jobLink(data.chat_active.job_id,session)}>작업 상세 보기</a></article> : <p>실행 중인 채팅 요청이 없습니다.</p>}
+      <h3>대기 중인 요청 · {data.chat_queue.length}</h3>{data.chat_queue.length ? data.chat_queue.map((item,index)=><div key={item.request_id}><small>대기 순서 · {index+1}</small><ChatQueueItem item={item} session={session} onRefresh={()=>refresh(n=>n+1)}/></div>) : <p>대기 중인 요청이 없습니다.</p>}</>}
+  </section>;
+}
 function AssistantText({text}){
   return <div className="assistant-markdown"><Markdown remarkPlugins={[remarkGfm]} skipHtml components={{
     a:({href,children})=>href ? <a href={href} target="_blank" rel="noopener noreferrer">{children}</a> : <>{children}</>,
     img:({alt})=><span>{alt || "이미지"}</span>,
   }}>{text}</Markdown></div>;
+}
+function ActivityEvents({events,truncated,running=false}){
+  const entries=[],calls=new Map();
+  events.forEach((event,index)=>{
+    if(event.type==="tool_use"){
+      const item={start:event,index};entries.push(item);
+      if(event.call_id)calls.set(event.call_id,item);
+    } else if(event.type==="tool_result"){
+      const match=event.call_id && calls.get(event.call_id);
+      if(match && !match.result)match.result=event;
+      else entries.push({result:event,index});
+    }
+  });
+  return <><ol className="hermes-activity-events">{entries.map(({start,result,index})=>{
+    const event=start || result, state=result ? (result.result==="error" ? "failed" : "completed") : running && start?.call_id ? "running" : "unknown";
+    const label={running:"실행 중",completed:"완료",failed:"실패",unknown:"결과 미확인"}[state];
+    return <li key={(event.call_id || "event")+":"+(event.timestamp || index)}><details><summary>
+      <span className={'activity-state '+state}><span className="activity-icon" aria-hidden="true">{state==="running"?"◌":state==="completed"?"✓":state==="failed"?"!":"?"}</span>{label}</span><span>{event.name}</span>{event.timestamp && <time dateTime={event.timestamp}>{new Date(event.timestamp).toLocaleTimeString("ko-KR")}</time>}</summary>
+      <div className="hermes-activity-detail">{start?.target && <><strong>실행 대상</strong><pre>{start.target}</pre></>}{result && <><strong>도구 결과</strong>{typeof result.output==="string" ? <><pre>{result.output || "출력 없음"}</pre>{result.output_truncated && <small>출력의 앞부분만 표시합니다.</small>}</> : <p>상세 출력을 불러오지 못했습니다.</p>}{Number.isInteger(result.duration_ms) && <p>소요 시간 · {(result.duration_ms/1000).toFixed(1)}초</p>}</>}{!result && <p>{state==="running" ? "도구 결과를 기다리는 중입니다." : "기록된 결과가 없습니다."}</p>}{event.call_id && <p>호출 ID · <code>{event.call_id}</code></p>}</div>
+    </details></li>;
+  })}</ol>{truncated && <small>최근 활동만 표시합니다.</small>}</>;
 }
 function Message() {
   const actions=React.useContext(ProposalActions);
@@ -126,7 +170,13 @@ function Message() {
     {meta.videoSuggestion && <SuggestedVideoResult suggestion={meta.videoSuggestion} onReuse={()=>actions.openJobForm(meta.videoSuggestion.job_id)}/>}
     {meta.activity?.video_source && <MediaJobResult kind="video" folderLink service={meta.activity.video_source.service} id={meta.activity.video_source.job_id} onReuse={meta.activity.video_source.service==="wan22-fun-control" ? ()=>actions.openJobForm(meta.activity.video_source.job_id) : undefined}/>}
     {!meta.table && meta.activity?.source_history_summary && <pre>{meta.activity.source_history_summary}</pre>}
-    {meta.activity?.events?.length>0 && <details><summary>도구 사용 내역</summary>{meta.activity.events.map((e,i)=><p key={i}>{e.name} · {e.target || e.result}</p>)}</details>}
+    {meta.status==="running" && <section className="hermes-activity" aria-label="헤르메스 진행 상황" aria-live="polite">
+      <details><summary>진행 상황 · {meta.activity?.events?.length ? "최근 도구 활동 "+meta.activity.events.length+"건" : "도구 활동 대기 중"}</summary>
+      {meta.activity?.events?.length ? <ActivityEvents events={meta.activity.events} truncated={meta.activity.truncated} running/> : <p>아직 관측된 도구 활동이 없습니다. 작업을 진행 중입니다.</p>}
+      <small>진행 중에는 약 3초 간격으로 갱신됩니다.</small>
+      </details>
+    </section>}
+    {meta.status!=="running" && meta.activity?.events?.length>0 && <section className="hermes-activity"><details><summary>도구 사용 내역 · 최근 {meta.activity.events.length}건</summary><ActivityEvents events={meta.activity.events} truncated={meta.activity.truncated}/></details></section>}
     {meta.queueMessage && <p role="status">{meta.queueMessage}</p>}
     {meta.status && <small>{statusLabels[meta.status] || meta.status} {meta.job && <> · <a href={jobLink(meta.job,meta.session)}>{meta.job}</a></>}</small>}
   </MessagePrimitive.Root>;
@@ -217,7 +267,7 @@ function App() {
   const [archived,setArchived]=useState(false),[error,setError]=useState(""),[busy,setBusy]=useState(false);
   const [sessionQuery,setSessionQuery]=useState("");
   const [listRequest,setListRequest]=useState({offset:0,query:""}),[listPage,setListPage]=useState(null);
-  const [listError,setListError]=useState("");
+  const [listError,setListError]=useState(""),[listLoading,setListLoading]=useState(false);
   function resetSessionList(){
     setSessionQuery("");setListRequest({offset:0,query:""});
   }
@@ -258,12 +308,12 @@ function App() {
     return()=>{active=false};},[]);
   useEffect(()=>{
     let active=true;
-    setListPage(null);setSessions([]);setListError("");
+    setListPage(null);setSessions([]);setListError("");setListLoading(true);
     call(archived?"session-archived":"session-list",{...listRequest,limit:30}).then(page=>{
       if(!active)return;
       if(!Array.isArray(page.sessions) || (listRequest.snapshot && page.snapshot!==listRequest.snapshot))throw new Error("세션 목록이 변경되었습니다. 다시 검색하세요.");
       setSessions(page.sessions);setListPage(page);
-    }).catch(problem=>{if(active)setListError(problem.message);});
+    }).catch(problem=>{if(active)setListError(problem.message);}).finally(()=>{if(active)setListLoading(false);});
     return ()=>{active=false;};
   },[archived,listRequest,refresh]);
   useEffect(()=>{setDraft(sessionStorage.getItem("hermes-draft-"+session) || "");},[session]);
@@ -450,19 +500,25 @@ function App() {
   }
   useEffect(()=>{localStorage.setItem("hermes-session-width",String(sidebarWidth));},[sidebarWidth]);
   return <main className={"hermes-chat"+(folded?" sessions-folded":"")+(showFunControl || showKimodo || showTools || showGpu || queue || generatorPanel?" fun-panel-open":"")} style={{"--sessions-width":sidebarWidth+"px","--panel-width":panelActual+"px"}}>
-    <aside id="hermes-session-list" hidden={folded}><h2>대화 세션</h2><button disabled={busy} onClick={()=>{select("");setArchived(false);resetSessionList();}}>새 대화</button><button disabled={busy} onClick={()=>{resetSessionList();setArchived(!archived);}}>{archived?"대화 목록":"보관함"}</button>
-    <form onSubmit={e=>{e.preventDefault();setListRequest({offset:0,query:sessionQuery.trim()});}}>
-      <label>세션 검색 <input maxLength={100} placeholder="제목·메시지·세션 ID" value={sessionQuery} onChange={e=>setSessionQuery(e.target.value)}/></label>
-      <button>검색</button>
-    </form>
-    {listError && <p role="alert">{listError}</p>}
-    {listPage && Number.isInteger(listPage.total) && <p>검색 결과 {listPage.total}개{listPage.unreadable_count>0 && " · 읽을 수 없는 세션 "+listPage.unreadable_count+"개 제외"}</p>}
-    {sessions.map(s=><div className="session" key={s.id}><button disabled={busy} aria-current={s.id===session?"page":undefined} onClick={()=>archived?lifecycle(s,"restore"):select(s.id)}>{archived?"복원 · ":""}{s.title || s.id}</button>
-    <button disabled={busy} onClick={()=>lifecycle(s,archived?"delete":"archive")}>{archived?"삭제":"보관"}</button></div>)}
-    {listPage && (listRequest.offset>0 || listPage.next_offset!=null) && <nav aria-label="세션 목록 페이지">
-      <button disabled={!listRequest.offset} onClick={()=>setListRequest({...listRequest,offset:Math.max(0,listRequest.offset-30),snapshot:listPage.snapshot})}>이전</button>
-      <button disabled={listPage.next_offset==null} onClick={()=>setListRequest({...listRequest,offset:listPage.next_offset,snapshot:listPage.snapshot})}>다음</button>
-    </nav>}</aside>
+    <aside id="hermes-session-list" hidden={folded} aria-label="대화 세션">
+      <div className="session-sidebar-heading"><h2>{archived?"보관된 대화":"대화 세션"}</h2><button type="button" disabled={busy} onClick={()=>{select("");setArchived(false);resetSessionList();}}>+ 새 대화</button></div>
+      <div className="session-sidebar-tabs" role="group" aria-label="대화 목록 선택"><button type="button" disabled={busy} aria-pressed={!archived} onClick={()=>{if(archived){resetSessionList();setArchived(false);}}}>대화 목록</button><button type="button" disabled={busy} aria-pressed={archived} onClick={()=>{if(!archived){resetSessionList();setArchived(true);}}}>보관함</button></div>
+      <form className="session-search" onSubmit={e=>{e.preventDefault();setListRequest({offset:0,query:sessionQuery.trim()});}}>
+        <label>대화 검색 <input maxLength={100} placeholder="제목·메시지·세션 ID" value={sessionQuery} onChange={e=>setSessionQuery(e.target.value)}/></label>
+        <button type="submit">검색</button>
+        {(sessionQuery || listRequest.query) && <button type="button" onClick={resetSessionList}>초기화</button>}
+      </form>
+      {listError && <div role="alert"><p>목록을 불러오지 못했습니다.</p><button type="button" onClick={()=>setRefresh(n=>n+1)}>다시 시도</button></div>}
+      {listLoading && <p role="status">대화 목록을 불러오는 중…</p>}
+      {listPage && Number.isInteger(listPage.total) && <p className="session-list-count">{listRequest.query?"검색 결과":archived?"보관된 대화":"전체 대화"} {listPage.total}개{listPage.unreadable_count>0 && " · 읽을 수 없는 세션 "+listPage.unreadable_count+"개 제외"}</p>}
+      {!listLoading && !listError && listPage && sessions.length===0 && <p className="session-list-empty">{listRequest.query?"검색 결과가 없습니다. 검색어를 바꿔 보세요.":archived?"보관된 대화가 없습니다.":"아직 대화가 없습니다. 새 대화를 시작해 보세요."}</p>}
+      <div className="session-list-items">{sessions.map(s=><div className="session" key={s.id}><button type="button" className="session-select" disabled={busy} aria-current={s.id===session?"page":undefined} onClick={()=>archived?lifecycle(s,"restore"):select(s.id)}><span>{s.title || s.id}</span>{s.updated_at && !Number.isNaN(new Date(s.updated_at).getTime()) && <small>최근 변경 · {new Date(s.updated_at).toLocaleString("ko-KR",{dateStyle:"short",timeStyle:"short"})}</small>}</button>
+        <button type="button" className="session-action" disabled={busy} aria-label={(s.title || s.id)+" "+(archived?"영구 삭제":"보관")} onClick={()=>lifecycle(s,archived?"delete":"archive")}>{archived?"삭제":"보관"}</button></div>)}</div>
+      {listPage && (listRequest.offset>0 || listPage.next_offset!=null) && <nav className="session-list-pagination" aria-label="세션 목록 페이지">
+        <button type="button" disabled={!listRequest.offset} onClick={()=>setListRequest({...listRequest,offset:Math.max(0,listRequest.offset-30),snapshot:listPage.snapshot})}>이전</button>
+        <span>{Math.floor(listRequest.offset/30)+1} 페이지</span>
+        <button type="button" disabled={listPage.next_offset==null} onClick={()=>setListRequest({...listRequest,offset:listPage.next_offset,snapshot:listPage.snapshot})}>다음</button>
+      </nav>}</aside>
     {!folded && <div className="session-divider" role="separator" tabIndex={0} aria-label="세션 목록 너비"
       aria-controls="hermes-session-list" aria-orientation="vertical" aria-valuemin={200} aria-valuemax={Math.min(600,Math.floor(window.innerWidth*0.48))}
       aria-valuenow={Math.min(sidebarWidth,Math.floor(window.innerWidth*0.48))}
@@ -479,6 +535,7 @@ function App() {
 
 
     <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openKimodo(inputs),openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요." : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><button type="button" onClick={()=>retryView(n=>n+1)}>다시 시도</button></div>}{error&&<p role="alert">{error}</p>}
+
     <form onSubmit={e=>{e.preventDefault();send()}}>
     {session && view.context && <details className="composer-context"><summary>대화 문맥{view.context.usage && " · "+(view.context.usage.tokens_after ?? view.context.usage.tokens).toLocaleString()+" 토큰"}{view.context.operation && ["queued","running","unknown"].includes(view.context.operation.status) && " · 정리 진행 중"}</summary><section className="composer-context-panel" aria-label="대화 문맥 정리">
       <label><input type="checkbox" checked={view.context.automatic} disabled={busy} onChange={event=>setAutomaticContext(event.target.checked)}/> 자동 대화 정리</label>{" "}
@@ -492,7 +549,7 @@ function App() {
       {view.context.checkpoint && <details><summary>대화 정리 내용 · {view.context.checkpoint.count}개 지시{view.context.checkpoint.created_at && " · "+view.context.checkpoint.created_at}</summary><pre>{view.context.checkpoint.summary || "정리된 대화에 별도 요약 표시가 없습니다."}</pre></details>}
     </section></details>}
     <button type="button" ref={gpuToggle} aria-expanded={showGpu} onClick={()=>{if(showTools)closeTools();setShowGpu(value=>!value);}}>GPU 프로세스 정보</button>
-    {session&&<button type="button" ref={queueToggle} aria-expanded={Boolean(queue && !showTools && !showGpu)} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(value=>value && !showTools && !showGpu ? null : value || {run:""});}}>작업·대기열</button>}{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
+    {session&&<button type="button" ref={queueToggle} aria-expanded={Boolean(queue && queue.mode!=="chat" && !showTools && !showGpu)} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(value=>value && value.mode!=="chat" && !showTools && !showGpu ? null : {run:""});}}>작업 대기열</button>}{session&&<button type="button" aria-expanded={queue?.mode==="chat" && !showTools && !showGpu} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(value=>value?.mode==="chat" && !showTools && !showGpu ? null : {run:"",mode:"chat"});}}>채팅 대기열{view.chat_queue?.length ? " · "+view.chat_queue.length : ""}</button>}{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
     <button type="button" ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowGpu(false);if(showTools)closeTools();else setShowTools(true)}}>도구 탐색</button>
     <textarea ref={text} aria-label="메시지" placeholder="헤르메스에게 메시지 보내기" value={draft} disabled={busy} onChange={e=>edit(e.target.value)} title="Enter로 보내기 · Shift+Enter로 줄바꿈" onKeyDown={event=>{
       if(event.key!=="Enter" || event.shiftKey || event.altKey || event.nativeEvent.isComposing || event.nativeEvent.keyCode===229)return;
@@ -503,13 +560,13 @@ function App() {
       <button type="button" onClick={()=>{sessionStorage.removeItem(pendingKey);setRefresh(n=>n+1);}}>탭의 손상된 접수 기록 지우기</button></div>}
     {pending && pending.prompt!==draft && <details><summary>접수 확인이 필요한 이전 요청</summary>
       <pre>{pending.prompt}</pre><button type="button" disabled={busy} onClick={()=>send(true)}>이전 요청 접수 다시 확인</button></details>}
-    <button type="submit" title={contextBlocking?"대화 정리의 접수와 종료 상태를 먼저 확인하세요.":undefined} disabled={busy||contextBlocking||invalidPending||!draft.trim()||Boolean(pending && pending.prompt!==draft)}>{busy?"접수 중":pending && pending.prompt===draft?"같은 요청 다시 보내기":"보내기"}</button></form></article>
-    {(showFunControl || showKimodo || showTools || showGpu || queue || generatorPanel || funMounted || kimodoMounted || mountedGenerators.length>0) && <SidePanel hidden={!(showFunControl || showKimodo || showTools || showGpu || queue || generatorPanel)} width={panelActual} minWidth={panelMin} maxWidth={panelMax} onResize={resizePanel} title={showTools?"도구 탐색":showGpu?"GPU 프로세스 정보":queue?"작업·대기열":generatorPanel?generatorPanel.label:showKimodo?"Kimodo 모션 생성":"Wan Fun Control"} subtitle={showTools?"도구와 관리 기능 찾기":showGpu?"GPU 사용 현황":queue?"진행 상태와 결과":"생성 입력 검토"} onClose={showTools?()=>closeTools():showGpu?closeGpu:queue?closeQueue:generatorPanel?closeGenerator:showKimodo?closeKimodo:closeFun} onKeyDown={showTools?handleToolKeys:event=>{if(event.key==="Escape" && !event.nativeEvent.isComposing){event.preventDefault();showGpu?closeGpu():queue?closeQueue():generatorPanel?closeGenerator():showKimodo?closeKimodo():closeFun();}}}>
+    <button type="submit" disabled={busy||invalidPending||!draft.trim()||Boolean(pending && pending.prompt!==draft)}>{busy?"접수 중":pending && pending.prompt===draft?"대기열에 추가":"보내기"}</button></form></article>
+    {(showFunControl || showKimodo || showTools || showGpu || queue || generatorPanel || funMounted || kimodoMounted || mountedGenerators.length>0) && <SidePanel hidden={!(showFunControl || showKimodo || showTools || showGpu || queue || generatorPanel)} width={panelActual} minWidth={panelMin} maxWidth={panelMax} onResize={resizePanel} title={showTools?"도구 탐색":showGpu?"GPU 프로세스 정보":queue?(queue.mode==="chat"?"채팅 대기열":"작업 대기열"):generatorPanel?generatorPanel.label:showKimodo?"Kimodo 모션 생성":"Wan Fun Control"} subtitle={showTools?"도구와 관리 기능 찾기":showGpu?"GPU 사용 현황":queue?(queue.mode==="chat"?"이 세션의 대기 요청":"진행 상태와 결과"):"생성 입력 검토"} onClose={showTools?()=>closeTools():showGpu?closeGpu:queue?closeQueue:generatorPanel?closeGenerator:showKimodo?closeKimodo:closeFun} onKeyDown={showTools?handleToolKeys:event=>{if(event.key==="Escape" && !event.nativeEvent.isComposing){event.preventDefault();showGpu?closeGpu():queue?closeQueue():generatorPanel?closeGenerator():showKimodo?closeKimodo():closeFun();}}}>
     {showTools && <div className="tool-drawer-content">
       <label className="search-scope">탐색 대상 <select value={searchMode} onChange={e=>setSearchMode(e.target.value)}>
         {Object.entries({tools:"도구",capabilities:"관리 기능 검색",anchors:"앵커 검수 이력",expressions:"표정 프리셋",billboards:"빌보드 에셋",keyframes:"Kimodo 키프레임",content:"콘텐츠 DB 상태",services:"서비스 등록 목록",history:"생성 이력",jobs:"운영 작업 이력"}).map(([key,label])=><option key={key} value={key}>{label}</option>)}
       </select></label>
-      {searchMode!=="tools" && <input ref={toolSearch} aria-label="도구 검색" maxLength={100} placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>}
+      {["capabilities","expressions","keyframes","services"].includes(searchMode) && <input ref={toolSearch} aria-label="도구 검색" maxLength={100} placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>}
       {searchMode==="expressions" && <ExpressionCatalog key={search} query={search} choose={appendSelection}/>}
       {searchMode==="anchors" && <AnchorHistory/>}
       {searchMode==="billboards" && <BillboardCatalog choose={appendSelection}/>}
@@ -542,7 +599,8 @@ function App() {
       </Command>}
     </div>}
       {showGpu && !showTools && <GpuPanel embedded/>}
-      {queue && session && !showTools && !showGpu && <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} call={call} openMessage={openQueueMessage}/>}
+      {queue?.mode==="chat" && session && !showTools && !showGpu && <ChatQueuePanel key={session} session={session}/>}
+      {queue && queue.mode!=="chat" && session && !showTools && !showGpu && <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} call={call} openMessage={openQueueMessage}/>}
       {mountedGenerators.map(id=>{const Generator=embeddedGenerators[id];return <div key={id} hidden={showTools || showGpu || Boolean(queue) || generatorPanel?.id!==id} className="embedded-generator"><Generator embedded/></div>;})}
       {kimodoMounted && <div hidden={!showKimodo || showTools || showGpu || Boolean(queue) || Boolean(generatorPanel)} className="embedded-generator"><KimodoPage key={session+":"+kimodoRevision} embedded session={session} initialInputs={kimodoProposal} onChoose={(label,value)=>{edit([draft,label+" "+value].filter(Boolean).join("\n"));text.current?.focus();}}/></div>}
       {funMounted && <div hidden={!showFunControl || showTools || showGpu || Boolean(queue) || showKimodo || Boolean(generatorPanel)}><FunControlPage key={session+videoFormId+videoFormRevision} embedded session={session} restoreFormId={videoFormId} seedProposal={seedProposal} onSaved={()=>setRefresh(n=>n+1)}/></div>}

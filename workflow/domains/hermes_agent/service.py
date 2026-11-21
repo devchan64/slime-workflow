@@ -191,6 +191,14 @@ def read_hermes_tool_activity(hermes_job_path):
                 current_parsed_output = json.loads(current_output_value) if isinstance(current_output_value, str) else None
             except ValueError:
                 current_parsed_output = None
+            # Only the bounded, already recorded tool output is exposed to the session UI.
+            if isinstance(current_output_value, str):
+                display_output = current_parsed_output.get('output') if isinstance(current_parsed_output, dict) and isinstance(current_parsed_output.get('output'), str) else current_output_value
+                current_event_value['output'] = display_output[:4000]
+                current_event_value['output_truncated'] = len(display_output) > 4000
+            current_duration = current_event_record.get('duration_ms')
+            if type(current_duration) is int and 0 <= current_duration <= 86400000:
+                current_event_value['duration_ms'] = current_duration
             current_exit_value = current_parsed_output.get('exit_code') if isinstance(current_parsed_output, dict) else None
             if type(current_exit_value) is int:
                 current_event_value['result'] = 'success' if current_exit_value == 0 and current_error_flag is not True else 'error'
@@ -237,6 +245,53 @@ class HermesServiceManager:
         self.hermes_storage_root = Path(hermes_storage_root)
         self.hermes_session_root = hermes_session_root
         self.hermes_thread_lock = threading.RLock()
+
+    def dispatch_chat_queue(self, session_id):
+        """Advance at most one durable request; the service lock serializes all dispatchers."""
+        from workflow.domains.hermes_agent.session_store import HermesSessionStore
+        from workflow.domains.hermes_agent.chat_queue_store import transition
+        from workflow.domains.hermes_agent.context_checkpoint import build_context_messages
+        store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+        with self.hold_hermes_service_lock():
+            session = store.read_session_record(session_id)
+            row = next((item for item in session.get('chat_queue', []) if item.get('state') in ('queued', 'dispatching')), None)
+            if not row:
+                return None
+            self.ensure_context_operation_finished(session)
+            existing = next((item for item in session['messages'] if item.get('request_id') == row['request_id']), None)
+            if existing is None:
+                # Refuse dispatch until every earlier response is terminal and readable.
+                build_context_messages(session, self.read_context_job)
+            if row['state'] == 'queued':
+                row = transition(store, session_id, row['request_id'], 'queued', 'dispatching')
+            result = self.submit_hermes_session_message_locked({'session_id':session_id, 'request_id':row['request_id'], 'prompt':row['prompt']})
+            transition(store, session_id, row['request_id'], 'dispatching', 'dispatched', result['job_id'])
+            return result
+
+    def start_chat_queue_dispatcher(self):
+        """Recover pending requests on startup and retry while the service is running."""
+        from workflow.domains.hermes_agent.session_store import HERMES_SESSION_ROOT
+        root = Path(self.hermes_session_root) if self.hermes_session_root is not None else HERMES_SESSION_ROOT
+        stop = threading.Event()
+        def run():
+            while not stop.wait(3):
+                try:
+                    paths = list(root.glob('[0-9a-f]' * 32 + '.json')) if root.is_dir() and not root.is_symlink() else []
+                except OSError:
+                    continue
+                for path in paths:
+                    try:
+                        if path.is_symlink():
+                            continue
+                        candidate = json.loads(path.read_text(encoding='utf-8'))
+                        if not any(row.get('state') in ('queued', 'dispatching') for row in candidate.get('chat_queue', [])):
+                            continue
+                        self.dispatch_chat_queue(path.stem)
+                    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+                        # Fail closed: preserve the request for later inspection/retry.
+                        continue
+        threading.Thread(target=run, daemon=True, name='hermes-chat-queue').start()
+        return stop
 
     @contextmanager
     def hold_hermes_service_lock(self):
@@ -1394,7 +1449,33 @@ class HermesServiceManager:
                 from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_kimodo_proposal
                 return {'job_id': hermes_payload_record['id'], 'proposal': parse_hermes_kimodo_proposal(current_job_record.get('final_response'))}
             if hermes_command_name == 'hermes-session-view':
-                return self.read_hermes_session_view_locked(hermes_payload_record)
+                result = self.read_hermes_session_view_locked(hermes_payload_record)
+                from workflow.domains.hermes_agent.session_store import HermesSessionStore
+                store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+                session_record = store.read_session_record(hermes_payload_record['session_id'])
+                result['chat_queue'] = [dict(row) for row in session_record.get('chat_queue', []) if row.get('state') in ('queued','dispatching')]
+                result['chat_active'] = None
+                for message in reversed(session_record.get('messages', [])):
+                    job_id = message.get('job_id')
+                    if not job_id:
+                        continue
+                    try:
+                        path = self.resolve_hermes_job_path(job_id) / 'status.json'
+                        status = json.loads(path.read_text()) if path.is_file() and not path.is_symlink() else {}
+                        state = status.get('status', 'unknown') if isinstance(status, dict) else 'unknown'
+                    except (OSError, ValueError, TypeError):
+                        state = 'unknown'
+                    if state in ('running', 'queued', 'unknown'):
+                        result['chat_active'] = {'job_id': job_id, 'prompt': message.get('text', ''), 'status': state}
+                    break
+                return result
+            if hermes_command_name == 'hermes-chat-queue-update':
+                from workflow.domains.hermes_agent.session_store import HermesSessionStore
+                from workflow.domains.hermes_agent.chat_queue_store import update
+                if set(hermes_payload_record) not in ({'session_id','request_id','revision','prompt'}, {'session_id','request_id','revision','cancel'}):
+                    raise ValueError('대기 요청 수정 형식 오류')
+                store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+                return update(store, **hermes_payload_record)
             if hermes_command_name == 'hermes-session-context-settings':
                 if set(hermes_payload_record) != {'session_id', 'enabled'}:
                     raise ValueError('세션 ID와 자동 정리 설정만 전달하세요.')
@@ -1406,6 +1487,28 @@ class HermesServiceManager:
             if hermes_command_name == 'hermes-submit':
                 return self.submit_hermes_job_locked(hermes_payload_record)
             if hermes_command_name == 'hermes-session-submit':
+                from workflow.domains.hermes_agent.session_store import HermesSessionStore
+                from workflow.domains.hermes_agent.chat_queue_store import enqueue
+                from workflow.domains.hermes_agent.context_checkpoint import build_context_messages
+                if set(hermes_payload_record) == {'session_id','request_id','prompt'}:
+                    store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+                    session = store.read_session_record(hermes_payload_record['session_id'])
+                    duplicate = any(row.get('request_id') == hermes_payload_record['request_id'] for row in session.get('chat_queue', []))
+                    if duplicate:
+                        return {'session_id':hermes_payload_record['session_id'], 'queued':True, **enqueue(store, hermes_payload_record['session_id'], hermes_payload_record['request_id'], hermes_payload_record['prompt'])}
+                    existing = next ( (row for row in session['messages'] if row.get('request_id') == hermes_payload_record['request_id']), None)
+                    if existing is not None:
+                        return self.submit_hermes_session_message_locked(hermes_payload_record)
+                    queued = any(row.get('state') in ('queued','dispatching') for row in session.get('chat_queue', []))
+                    try:
+                        self.ensure_context_operation_finished(session)
+                        build_context_messages(session, self.read_context_job)
+                    except ValueError as error:
+                        if str(error) not in ('이전 작업이 종료된 후 다시 시도하세요.','대화 정리가 종료된 후 다시 시도하세요.','대화 정리의 접수 상태를 먼저 확인하세요.'):
+                            raise
+                        queued = True
+                    if queued:
+                        return {'session_id':hermes_payload_record['session_id'], 'queued':True, **enqueue(store, hermes_payload_record['session_id'], hermes_payload_record['request_id'], hermes_payload_record['prompt'])}
                 return self.submit_hermes_session_message_locked(hermes_payload_record)
             if hermes_command_name == 'hermes-history':
                 if set(hermes_payload_record)-{'offset','limit','snapshot','query','status'}:

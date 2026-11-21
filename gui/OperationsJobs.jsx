@@ -164,7 +164,8 @@ export default function OperationsJobs({session,linkedJob,linkedStatus}){
   }
   const page=result?.page;
   const same=page && page.query===query.trim().toLowerCase() && page.status===status;
-  return <fieldset disabled={busy}><legend>운영 작업 이력</legend>
+  const statusLabels={queued:"대기 중",pending:"대기 중",running:"실행 중",completed:"완료",failed:"실패",cancelled:"취소",canceled:"취소"};
+  return <fieldset className="operations-jobs" disabled={busy}><legend>운영 작업 이력</legend>
     <MapDatabaseReceipt/>
     <label>작업 ID 또는 지시문 <input value={query} onChange={e=>setQuery(e.target.value)}/></label>
     <label>작업 상태 <select value={status} onChange={e=>setStatus(e.target.value)}><option>전체</option>
@@ -175,8 +176,11 @@ export default function OperationsJobs({session,linkedJob,linkedStatus}){
     {result && <><ResultTable table={{title:"운영 작업",summary:result.summary,columns:["작업 ID","상태","GPU 대기","지시문","GPU 예약"],rows:result.rows.map(([id,...cells])=>[<><JobIdentifier id={id} compact/><button type="button" onClick={()=>inspectJob(id)}>상세 보기</button></>,...cells])}}/>
       <button disabled={!same || !page.offset} onClick={()=>load("newer")}>이전 페이지</button>
       <button disabled={!same || page.next_offset==null} onClick={()=>load("older")}>다음 페이지</button></>}
-    {detail && <section aria-label="운영 작업 상세"><h3>{detail.id}</h3>
-      <p>{detail.status.status}{detail.status.queue_position ? " · 대기 순서 "+detail.status.queue_position : ""} {detail.status.message} {detail.status.error}</p>
+    {detail && <section className="operations-job-detail" aria-label="운영 작업 상세"><div className="operations-job-heading"><h3>작업 상세</h3><span className="operations-job-status">{statusLabels[detail.status.status] || detail.status.status}</span></div>
+      <JobIdentifier id={detail.id} compact/>
+      {detail.status.queue_position && <p>대기 순서 · {detail.status.queue_position}</p>}
+      {detail.status.message && <p>{detail.status.message}</p>}
+      {detail.status.error && <p role="alert">{detail.status.error}</p>}
       {detailCheckedAt && <p>조회 시각 · {detailCheckedAt.toLocaleString("ko-KR")}</p>}
       <h4>작업 지시</h4><pre>{detail.request?.prompt || "기록된 지시가 없습니다."}</pre>
       <h4>최종 응답</h4><pre>{detail.final_response || "기록된 최종 응답이 없습니다."}</pre>

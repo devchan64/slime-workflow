@@ -79,8 +79,8 @@ class HermesModelUsageBusy(ValueError):
 
 
 @contextmanager
-def hold_hermes_model_usage_guard(current_working_root):
-    """Hermes 모델 준비와 추론을 별도 잠금으로 상호 배제한다."""
+def hold_hermes_model_usage_guard(current_working_root, *, inference=False):
+    """준비는 배타적이며, 대기열에서 승인된 추론은 서로 공유한다."""
     current_state_root = resolve_model_preparation_root(current_working_root, 'hermes-model')
     if current_state_root.is_symlink():
         raise ValueError('모델 사용 잠금 경로 오류')
@@ -93,7 +93,7 @@ def hold_hermes_model_usage_guard(current_working_root):
         if not stat.S_ISREG(os.fstat(current_lock_handle.fileno()).st_mode):
             raise ValueError('Hermes 모델 사용 잠금은 일반 파일이어야 합니다.')
         try:
-            fcntl.flock(current_lock_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(current_lock_handle, (fcntl.LOCK_SH if inference else fcntl.LOCK_EX) | fcntl.LOCK_NB)
         except BlockingIOError as current_lock_error:
             raise HermesModelUsageBusy('Hermes 모델이 준비 또는 실행 중입니다. 종료 후 다시 시도하세요.') from current_lock_error
         yield current_lock_handle

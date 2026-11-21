@@ -20,6 +20,7 @@ __pycache__/
 
 .venv-management/
 /gui/node_modules/
+/gui/dist/
 
 # 프론트엔드 빌드에서 전달하는 렌더러·엔진 산출물 (manifest만 추적)
 /gui/ui/map/vendor/field-renderer/*.mjs
