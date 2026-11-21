@@ -10,6 +10,7 @@ export default function MapReview(){
   const [past,setPast]=useState([]),[future,setFuture]=useState([]);
   const [texture,setTexture]=useState(""),[objectId,setObjectId]=useState("");
   const [editing,setEditing]=useState(false);
+  const [floor,setFloor]=useState("");
   const [brush,setBrush]=useState("pan"),[strokeCount,setStrokeCount]=useState(0);
   const [storageNotice,setStorageNotice]=useState("");
   const [recovery,setRecovery]=useState(null);
@@ -147,19 +148,25 @@ export default function MapReview(){
   useEffect(()=>{
     if(!field || !ready)return;
     window.mapReviewBrushTool=draft?brush:"pan";
-  },[field,ready,brush,draft]);
+    window.mapReviewBrushTile=floor;
+  },[field,ready,brush,draft,floor]);
   useEffect(()=>{
     const queue=window.mapReviewBrushQueue;
     if(reading || !draft || !queue?.length)return;
     const stroke=queue.shift();
     try{
       const cells=new Map(draft.cells.map(item=>[[item.column,item.row].join(","),item]));
-      for(const {column,row,tool} of stroke){
-        if(tool!=="raise" && tool!=="lower")throw new Error("지원하지 않는 높이 브러시입니다.");
+      for(const {column,row,tool,tile} of stroke){
+        if(!["raise","lower","floor"].includes(tool))throw new Error("지원하지 않는 지도 브러시입니다.");
         const key=[column,row].join(",");
         const current=cells.get(key) || {column,row,tile:source.tiles.rows[row][column],
           height:source.terrain.elevations[row][column],
           blocked:source.terrain.blocked.some(([x,y])=>x===column && y===row)};
+        if(tool==="floor"){
+          if(!Object.hasOwn(source.codes,tile))throw new Error("바닥 브러시용 타일을 선택하세요.");
+          cells.set(key,{...current,tile,blocked:current.blocked || source.blocked_tile_codes.includes(tile)});
+          continue;
+        }
         const height=current.height+(tool==="raise"?1:-1);
         if(height<0 || height>20)throw new Error("높이는 0~20 범위입니다.");
         cells.set(key,{...current,height});
@@ -209,7 +216,10 @@ export default function MapReview(){
       </section>}
       {storageNotice && <p role="status">{storageNotice}</p>}
       {draft && <label>지도 드래그 도구<select value={brush} disabled={!editing} onChange={e=>setBrush(e.target.value)}>
-        <option value="pan">이동·셀 선택</option><option value="raise">높이 올리기</option><option value="lower">높이 내리기</option>
+        <option value="pan">이동·셀 선택</option><option value="floor" disabled={!source?.blocked_tile_codes}>바닥 칠하기</option><option value="raise">높이 올리기</option><option value="lower">높이 내리기</option>
+      </select></label>}
+      {draft && brush==="floor" && <label>브러시 바닥 타일<select value={floor} onChange={e=>setFloor(e.target.value)}>
+        <option value="">타일 선택</option>{Object.entries(source.codes).map(([code,name])=><option key={code} value={code}>{name} · {code}</option>)}
       </select></label>}
       {draft && <fieldset><legend>빌보드 배치</legend>
         <label>추가할 에셋<select value={texture} onChange={e=>setTexture(e.target.value)}>

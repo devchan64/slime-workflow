@@ -80,7 +80,8 @@ def load_map_editor_document(current_request_payload):
     current_asset_root,current_source_paths,current_documents,current_source_bytes,current_revision_hash=read_map_editor_snapshot(current_request_payload['map'])
     current_render_record=load_registered_map_review(current_request_payload['map'])
     current_render_record['terrainCodes']=read_map_editor_source_data(current_asset_root,'field_tiles/codes.yaml')
-    return {'map':current_request_payload['map'],'revision':current_revision_hash,'tiles':current_documents[0]['data'],'terrain':current_documents[1]['data'],'render':current_render_record,'textures':sorted(read_map_editor_billboard_identifiers(current_asset_root)),'codes':current_render_record['terrainCodes']}
+    return {'map':current_request_payload['map'],'revision':current_revision_hash,'tiles':current_documents[0]['data'],'terrain':current_documents[1]['data'],'render':current_render_record,'textures':sorted(read_map_editor_billboard_identifiers(current_asset_root)),'codes':current_render_record['terrainCodes'],
+            'blocked_tile_codes':[code for code,name in current_render_record['terrainCodes'].items() if name in MAP_BLOCKED_TERRAIN_NAMES]}
 
 
 def validate_map_editor_changes(current_request_payload):
