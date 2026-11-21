@@ -619,6 +619,11 @@ def build_management_application(current_handler_class, current_root_path, curre
         import io
         from generators.kimodo.reference_review import render_bound_review_overlay, select_multiview_review_rows
         try:
+            # Preserve Python numeric representations used by the observation digest.
+            import json
+            for key in ("observations", "skeleton", "heldout"):
+                if isinstance(inputs.get(key), str):
+                    inputs[key] = json.loads(inputs[key])
             report = build_multiview_review_report(inputs["observations"], inputs["skeleton"], inputs.get("heldout"))
             preview = {}
             if "image" in inputs:

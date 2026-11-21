@@ -11,7 +11,7 @@ export default function KimodoMultiviewReport(){
     try{
       const inputs={};
       for(const [key,file] of Object.entries(files)){
-        if(file)inputs[key]=key==="image"?await readReference(file):JSON.parse(await file.text());
+        if(file)inputs[key]=key==="image"?await readReference(file):await file.text();
       }
       const response=await fetch("/management/assistant/kimodo-multiview-report",{method:"POST",
         headers:{"Content-Type":"application/json"},body:JSON.stringify(inputs)});
