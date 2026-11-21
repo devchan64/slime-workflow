@@ -596,7 +596,8 @@ def build_management_application(current_handler_class, current_root_path, curre
         return {"inputs": {**inputs, "camera_elevation_degrees": 0}, "directions": KIMODO_DIRECTION_RECORDS}
 
     @current_root_application.post('/management/assistant/kimodo-generation-review')
-    def review_kimodo_generation(inputs: dict):
+    def review_kimodo_generation(inputs: dict, serialized: bool = False):
+        import json
         from fastapi import HTTPException
         from generators.kimodo.contracts import validate_kimodo_request
         if inputs.keys() - {"segment_frames", "proportion_images", "proportion_multiview_angles",
@@ -604,11 +605,16 @@ def build_management_application(current_handler_class, current_root_path, curre
             raise HTTPException(422, "생성 폼의 입력 항목을 확인하세요.")
         request = {**inputs, "action": "generate"}
         try:
+            for field in ("proportion_reviewed_multiview", "proportion_face_anchor_calibration"):
+                if isinstance(request.get(field), str):
+                    request[field] = json.loads(request[field])
             validated = validate_kimodo_request(request)
             if "proportion_images" in request:
                 request["proportion_images"] = validated["images"]
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
+        if serialized:
+            return {"request_json": json.dumps(request, ensure_ascii=False, separators=(",", ":"), allow_nan=False)}
         return {"request": request}
 
     @current_root_application.post('/management/assistant/kimodo-multiview-report')

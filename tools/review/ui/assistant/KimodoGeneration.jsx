@@ -39,11 +39,11 @@ export default function KimodoGeneration({session}){
     }
     if(bundle){
       if(bundle.size>2*1024*1024)throw new Error("검수 골격 묶음은 2 MiB 이하여야 합니다.");
-      request.proportion_reviewed_multiview=JSON.parse(await bundle.text());
+      request.proportion_reviewed_multiview=await bundle.text();
       if(hip)request.proportion_projected_hip=true;
       if(calibration){
         if(calibration.size>65536)throw new Error("얼굴 앵커 교정 파일은 64 KiB 이하여야 합니다.");
-        request.proportion_face_anchor_calibration=JSON.parse(await calibration.text());
+        request.proportion_face_anchor_calibration=await calibration.text();
       }
     }
     if(angles.trim()){
@@ -56,7 +56,7 @@ export default function KimodoGeneration({session}){
       if(counts.some(value=>!/^\d+$/.test(value)))throw new Error("구간 프레임 수는 공백으로 구분한 정수로 입력하세요.");
       request.segment_frames=counts.map(Number);
     }
-    const response=await fetch("/management/assistant/kimodo-generation-review",{method:"POST",headers:{"Content-Type":"application/json"},
+    const response=await fetch("/management/assistant/kimodo-generation-review?serialized=true",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify(request)});
     const result=await response.json();
     if(!response.ok)throw new Error(result.detail || "생성 입력을 확인하세요.");
@@ -64,12 +64,16 @@ export default function KimodoGeneration({session}){
     if(!model.ok)throw new Error("모델 상태를 확인할 수 없습니다.");
     const status=await model.json();
     if(!(status.generation_ready ?? status.ready))throw new Error(status.message || "모델 준비가 필요합니다.");
-    setReview(result.request);
+    setReview(result.request_json);
   }
   async function submit(){
     const id=crypto.randomUUID().replaceAll("-","");
     sessionStorage.setItem(key,id);setReceipt(id);setReview(null);
-    const result=await managementCommand("hermes-agent","hermes-delegate-kimodo",{request_id:id,request:review});
+    // Forward the validated JSON verbatim so integral floats keep their provenance hashes.
+    const response=await fetch("/management/command",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:`{"service":"hermes-agent","command":"hermes-delegate-kimodo","payload":{"request_id":${JSON.stringify(id)},"request":${review}}}`});
+    const result=await response.json();
+    if(!response.ok)throw new Error(result.error || result.detail || "접수 상태를 조회하세요.");
     setNotice(result.state==="accepted"?"GPU 대기열에 등록했습니다. 작업 "+result.job_id:"접수 상태를 조회하세요.");
   }
   return <section aria-label="Kimodo 모션 생성"><h2>모션 생성</h2>
@@ -112,7 +116,7 @@ export default function KimodoGeneration({session}){
       </details>
       <button>생성 요청 검토</button>
     </fieldset></form>}
-    {review && <section><pre>{JSON.stringify(review,(key,value)=>key==="proportion_images"?references.map(file=>file.name):key==="proportion_reviewed_multiview"?bundle.name:key==="proportion_face_anchor_calibration"?calibration.name:value,2)}</pre>
+    {review && <section><pre>{JSON.stringify(JSON.parse(review),(key,value)=>key==="proportion_images"?references.map(file=>file.name):key==="proportion_reviewed_multiview"?bundle.name:key==="proportion_face_anchor_calibration"?calibration.name:value,2)}</pre>
       <button disabled={busy} onClick={()=>perform(submit)}>GPU 대기열에 등록</button>
       <button disabled={busy} onClick={()=>setReview(null)}>취소</button></section>}
     {receipt && <p>최근 접수 ID <code>{receipt}</code> <button disabled={busy} onClick={()=>perform(async()=>{
