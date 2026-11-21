@@ -56,7 +56,43 @@ function FrameEditor({image,frames}){
   </form>;
 }
 
+function gridEdges(size,count){
+  return Array.from({length:count+1},(_,index)=>{
+    const boundary=size*index/count,lower=Math.floor(boundary);
+    // Match the Python editor's round-to-even rule for half-pixel boundaries.
+    return boundary-lower===0.5?lower+(lower%2):Math.round(boundary);
+  });
+}
+
+function GridEditor({detail,size}){
+  const [columns,setColumns]=useState(detail.layout?.columns ?? 4),[rows,setRows]=useState(detail.layout?.rows ?? 2);
+  const [grid,setGrid]=useState(null),[error,setError]=useState("");
+  function split(event){
+    event.preventDefault();
+    const cols=Number(columns),lines=Number(rows);
+    if(!size || cols*lines>128 || cols>size.width || lines>size.height){
+      setError("최대 128프레임이며 각 셀은 최소 1픽셀이어야 합니다.");return;
+    }
+    const xs=gridEdges(size.width,cols),ys=gridEdges(size.height,lines);
+    const frames=[];
+    for(let row=0;row<lines;row++){
+      for(let col=0;col<cols;col++){
+        const width=xs[col+1]-xs[col],height=ys[row+1]-ys[row];
+        frames.push({rect:{x:xs[col],y:ys[row],width,height},anchor:{x:Math.floor(width/2),y:height-1}});
+      }
+    }
+    setGrid({key:cols+"x"+lines,frames});setError("");
+  }
+  return <><form onSubmit={split}><fieldset><legend>원본 시트 분할</legend>
+    <label>원본 열<input type="number" min="1" max="128" required value={columns} onChange={e=>setColumns(e.target.value)}/></label>
+    <label>원본 행<input type="number" min="1" max="128" required value={rows} onChange={e=>setRows(e.target.value)}/></label>
+    <button disabled={!size}>프레임 나누기</button>
+    {error && <p role="alert">{error}</p>}</fieldset></form>
+    {grid && <FrameEditor key={grid.key} frames={grid.frames} image={detail.image}/>}</>;
+}
+
 function Sheet({path,source}){
+  const [size,setSize]=useState(null);
   const [detail,setDetail]=useState(null),[error,setError]=useState("");
   useEffect(()=>{
     let active=true;
@@ -69,9 +105,9 @@ function Sheet({path,source}){
   if(error)return <p role="alert">{error}</p>;
   if(!detail)return <p role="status">원본 시트를 불러오는 중…</p>;
   const frames=detail.animation?.frames;
-  return <section><h2>{path}</h2><img src={"data:image/png;base64,"+detail.image} alt="원본 스프라이트 시트" style={{maxWidth:"100%"}}/>
+  return <section><h2>{path}</h2><img src={"data:image/png;base64,"+detail.image} onLoad={e=>setSize({width:e.target.naturalWidth,height:e.target.naturalHeight})} alt="원본 스프라이트 시트" style={{maxWidth:"100%"}}/>
     {detail.layout && <p>{detail.layout.columns}열 × {detail.layout.rows}행</p>}
-    {frames?.length>0 && <FrameEditor frames={frames} image={detail.image}/>}
+    {frames?.length>0?<FrameEditor frames={frames} image={detail.image}/>:<GridEditor detail={detail} size={size}/>}
   </section>;
 }
 
