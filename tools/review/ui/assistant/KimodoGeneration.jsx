@@ -6,6 +6,7 @@ import {managementCommand} from "./managementCommand.js";
 export default function KimodoGeneration({session}){
   const [directions,setDirections]=useState({});
   const [references,setReferences]=useState([]);
+  const [angles,setAngles]=useState("");
   const [segments,setSegments]=useState("");
   const key="kimodo-generation-receipt-"+session;
   const [inputs,setInputs]=useState(null),[review,setReview]=useState(null),[busy,setBusy]=useState(false);
@@ -34,6 +35,11 @@ export default function KimodoGeneration({session}){
       if(references.length>8)throw new Error("참조 이미지는 최대 8장입니다.");
       if(references.some(file=>file.size>3000000))throw new Error("참조 PNG는 파일당 3 MB까지 첨부할 수 있습니다.");
       request.proportion_images=await Promise.all(references.map(readReference));
+    }
+    if(angles.trim()){
+      const values=angles.trim().split(/\s+/).map(Number);
+      if(values.some(value=>!Number.isFinite(value)))throw new Error("카메라 각도는 공백으로 구분한 숫자로 입력하세요.");
+      request.proportion_multiview_angles=values;
     }
     if(segments.trim()){
       const counts=segments.trim().split(/\s+/);
@@ -64,6 +70,11 @@ export default function KimodoGeneration({session}){
         <label key={field}>{label} <input type="number" required min={min} max={max} value={inputs[field]} onChange={e=>edit(field,e.target.value)}/></label>)}
       <label>신체 비율 참조 PNG (최대 8장) <input type="file" accept="image/png" multiple
         onChange={e=>{setReferences(Array.from(e.target.files));setReview(null);}}/></label>
+      <details><summary>다중 시점 신체 비율</summary>
+        <label>검출 관측 순서의 카메라 각도 8개 (도) <input value={angles} placeholder="45 0 135 90 225 315 180 270"
+          onChange={e=>{setAngles(e.target.value);setReview(null);}}/></label>
+        <p>참조 이미지에서 검출된 관측 순서대로 각도를 입력하세요. 비워 두면 2D 보정을 사용합니다.</p>
+      </details>
       <details><summary>모션 및 포즈 출력 설정</summary>
         <label>구간별 프레임 수 <input value={segments} placeholder="예: 45 45"
           onChange={e=>{setSegments(e.target.value);setReview(null);}}/></label>

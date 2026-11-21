@@ -599,7 +599,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     def review_kimodo_generation(inputs: dict):
         from fastapi import HTTPException
         from generators.kimodo.contracts import validate_kimodo_request
-        if inputs.keys() - {"segment_frames", "proportion_images"} != kimodo_generation_template()["inputs"].keys():
+        if inputs.keys() - {"segment_frames", "proportion_images", "proportion_multiview_angles"} != kimodo_generation_template()["inputs"].keys():
             raise HTTPException(422, "생성 폼의 입력 항목을 확인하세요.")
         request = {**inputs, "action": "generate"}
         try:
