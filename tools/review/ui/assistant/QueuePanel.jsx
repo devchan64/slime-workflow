@@ -1,3 +1,4 @@
+import QueuePriority from "./QueuePriority.jsx";
 import React, {useEffect, useState} from "react";
 
 const categories = {translation:"번역", image:"이미지", audio:"오디오"};
@@ -42,11 +43,11 @@ export default function QueuePanel({session, call}) {
     {error && <p role="alert">{error}</p>}
     {!result && !error && <p role="status">조회 중…</p>}
     {result && <><p>{result.truncated ? "최근 100개 단계 표시" : result.steps.length + "개 단계"}</p>
-      {result.steps.length > 0 && <table><thead><tr><th>생성기</th><th>단계</th><th>상태</th><th>실행 ID</th></tr></thead>
+      {result.steps.length > 0 && <table><thead><tr><th>생성기</th><th>단계</th><th>상태</th><th>실행 ID</th><th>우선순위</th></tr></thead>
         <tbody>{result.steps.map(step => <tr key={step.request_id}>
           <td>{step.generator}</td><td>{step.step_id}</td>
           <td>{states[step.state] || step.state}{step.source_state && " · " + (states[step.source_state] || step.source_state)}</td>
-          <td>{step.run_id}</td></tr>)}</tbody></table>}
+          <td>{step.run_id}</td><td><QueuePriority step={step} call={call}/></td></tr>)}</tbody></table>}
     </>}
   </section>;
 }
