@@ -927,7 +927,8 @@ def select_older_conversation_job(current_session_identifier,current_job_identif
 def build_conversation_direct_link(current_session_identifier):
     """직접 작업 화면으로 현재 세션을 명시적으로 전달한다."""
     current_session_query = '?session=' + current_session_identifier if isinstance(current_session_identifier,str) and re.fullmatch(r'[a-f0-9]{32}',current_session_identifier) else ''
-    return '<a href="/management/frame/hermes-direct/' + current_session_query + '" target="_blank" rel="noopener">직접 조회와 작업 열기</a>'
+    return (f'<a href="/management/assistant/{current_session_query}">새 대화 화면에서 열기</a> · '
+            f'<a href="/management/frame/hermes-direct/{current_session_query}" target="_blank" rel="noopener">직접 조회와 작업 열기</a>')
 
 
 def build_conversation_history_link(current_session_identifier,current_job_identifier):

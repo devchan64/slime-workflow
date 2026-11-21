@@ -1560,9 +1560,12 @@ class HermesGradioTests(unittest.TestCase):
         current_session_identifier = 'a' * 32
         current_link_text = hermes_agent_app.build_conversation_direct_link(current_session_identifier)
         self.assertIn('/management/frame/hermes-direct/?session=' + current_session_identifier, current_link_text)
+        self.assertIn('/management/assistant/?session=' + current_session_identifier, current_link_text)
         for current_invalid_value in (None, '', 'A' * 32, 'a' * 31, 'a' * 32 + '&evil=1'):
             with self.subTest(current_invalid_value=current_invalid_value):
-                self.assertIn('href="/management/frame/hermes-direct/"', hermes_agent_app.build_conversation_direct_link(current_invalid_value))
+                links = hermes_agent_app.build_conversation_direct_link(current_invalid_value)
+                self.assertIn('href="/management/frame/hermes-direct/"', links)
+                self.assertIn('href="/management/assistant/"', links)
 
     def test_operations_map_database_receipt_is_read_only_and_rejects_stale_results(self):
         from tools.review.ui.gradio import operations_history_app
