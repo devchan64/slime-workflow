@@ -60,11 +60,15 @@ function Conversation({view}) {
     <ThreadPrimitive.Messages components={{Message}}/>
   </ThreadPrimitive.Viewport></ThreadPrimitive.Root></AssistantRuntimeProvider>;
 }
+function initialToolCategory(){
+  const category=query().get("category") || "all";
+  return ({"music-generation":"sound-management","sound-effects":"sound-management","town-map-review":"map-review","field-map-review":"map-review",animation:"animation-tool"})[category] || category;
+}
 function App() {
   const [session,setSession]=useState(query().get("session") || "");
   const [sessions,setSessions]=useState([]), [view,setView]=useState({}), [tools,setTools]=useState([]);
-  const [draft,setDraft]=useState(""),[search,setSearch]=useState(""),[showTools,setShowTools]=useState(()=>query().has("category"));
-  const [category,setCategory]=useState(()=>query().get("category") || "all");
+  const [draft,setDraft]=useState(""),[search,setSearch]=useState(()=>query().get("search") || ""),[showTools,setShowTools]=useState(()=>query().has("category") || query().has("search"));
+  const [category,setCategory]=useState(initialToolCategory);
   const [archived,setArchived]=useState(false),[error,setError]=useState(""),[busy,setBusy]=useState(false);
   const [queue,setQueue]=useState(null),[refresh,setRefresh]=useState(0);
   const [historyPage,setHistoryPage]=useState(null);
@@ -81,7 +85,7 @@ function App() {
     if(next)url.searchParams.set("session",next);else url.searchParams.delete("session");
     history.pushState(null,"",url);setSession(next);setView({});setHistoryPage(null);setQueue(null);setError("");
   }
-  useEffect(()=>{const cb=()=>{setCategory(query().get("category") || "all");setShowTools(query().has("category"));setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
+  useEffect(()=>{const cb=()=>{setCategory(initialToolCategory());setSearch(query().get("search") || "");setShowTools(query().has("category") || query().has("search"));setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
   useEffect(()=>{let active=true;fetch(base+"tools").then(r=>r.json()).then(v=>{if(active)setTools(v)}).catch(e=>{if(active)setError(e.message)});
     return()=>{active=false};},[]);
   useEffect(()=>{let active=true;call(archived?"session-archived":"session-list").then(v=>{if(active)setSessions(v.sessions)}).catch(e=>{if(active)setError(e.message)});return()=>{active=false};},[archived,refresh]);

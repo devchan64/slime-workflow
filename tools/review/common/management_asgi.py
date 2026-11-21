@@ -52,12 +52,10 @@ def __getattr__(name):
 
 
 def build_management_blocks(current_tool_name, current_review_port, current_source_path):
-    from tools.review.ui.gradio.management_menu_app import compose_management_interface, build_management_menu_interface, load_manager_page_records
+    from tools.review.ui.gradio.management_menu_app import compose_management_interface, load_manager_page_records
     current_server_address = f'http://127.0.0.1:{current_review_port}'
     from tools.review.serve import REVIEW_LIVE_RELOAD_SCRIPT
     current_mount_options = {'allowed_paths': [], 'ssr_mode': False, 'head': REVIEW_LIVE_RELOAD_SCRIPT.decode(), 'css': '#management-sidebar.open{left:0!important;transform:none!important;transition:none!important}#management-gpu-floating{position:fixed;right:12px;bottom:12px;z-index:50;width:min(12rem,calc(100vw - 24px));max-height:45dvh;overflow-x:hidden;overflow-y:auto}#management-gpu-floating:has(>button.open){width:min(27rem,calc(100vw - 24px))}#management-gpu-floating .gr-accordion{min-width:0!important;overflow-x:hidden}#management-gpu-floating .gr-accordion>button{min-width:0;width:100%;white-space:normal;text-align:left}#management-gpu-floating .gr-accordion>button>span:first-child{min-width:0;overflow-wrap:anywhere}#management-gpu-floating .gr-accordion>button>span:last-child{flex-shrink:0;align-self:center;min-width:1.25rem;text-align:center}#management-gpu-floating [data-testid="markdown"]{overflow-wrap:anywhere}'}
-    if current_tool_name == 'management':
-        return build_management_menu_interface(load_manager_page_records(current_source_path), current_review_port)[0], current_mount_options
     if current_tool_name in GENERATOR_PAGE_PACKAGES:
         current_page_package = GENERATOR_PAGE_PACKAGES[current_tool_name]
         current_page_module = importlib.import_module(f'generators.{current_page_package}.page.interface')
@@ -215,7 +213,7 @@ def build_management_application(current_handler_class, current_root_path, curre
             yield
 
     current_root_application = FastAPI(lifespan=manage_application_lifespan)
-    current_supported_tools = {*GENERATOR_PAGE_PACKAGES, *MANAGEMENT_INTERFACE_BUILDERS, 'management'}
+    current_supported_tools = {*GENERATOR_PAGE_PACKAGES, *MANAGEMENT_INTERFACE_BUILDERS}
 
     async def dispatch_management_request(current_request_scope, current_receive_call, current_send_call):
         current_request_path = current_request_scope['path']
@@ -290,6 +288,25 @@ def build_management_application(current_handler_class, current_root_path, curre
                     query = urlencode({key: values for key, values in parameters.items()
                                        if key in ('locale', 'session', 'field', 'overview')}, doseq=True)
                     return await RedirectResponse(document_path + ('?' + query if query else ''))(current_request_scope, current_receive_call, current_send_call)
+        if current_request_scope.get('method') in ('GET', 'HEAD') and current_request_path.rstrip('/') == '/management':
+            from urllib.parse import urlencode
+            from tools.review.common.management_catalog import LEGACY_PAGE_IDENTIFIER_VALUES, load_manager_page_records, resolve_management_page_path
+            identifier = (current_query_values.get('review') or current_query_values.get('tool') or [''])[0]
+            identifier = LEGACY_PAGE_IDENTIFIER_VALUES.get(identifier, identifier)
+            records = load_manager_page_records(current_source_path, current_animation_catalog=True) if identifier and current_source_path.is_file() else []
+            selected = next((row for row in records if row['id'] == identifier), None)
+            target = resolve_management_page_path(selected) if selected else None
+            if not target and identifier in current_supported_tools:
+                target = '/management/frame/' + identifier + '/'
+            if identifier and not target:
+                return await Response('등록된 관리 도구를 찾을 수 없습니다.', status_code=404)(current_request_scope, current_receive_call, current_send_call)
+            destination = urlsplit(target or '/management/frame/hermes-agent/')
+            parameters = parse_qs(destination.query, keep_blank_values=True)
+            for key, values in current_query_values.items():
+                if key not in ('tool', 'review') and (key != 'category' or not target):
+                    parameters[key] = values
+            query = urlencode(parameters, doseq=True)
+            return await RedirectResponse(destination.path + ('?' + query if query else ''))(current_request_scope, current_receive_call, current_send_call)
         if current_request_path.rstrip('/') == '/management/frame/static-review' or current_request_path.startswith('/management/frame/static-review/'):
             return await Response('등록된 검수 화면을 찾을 수 없습니다.', status_code=404)(current_request_scope, current_receive_call, current_send_call)
         current_tool_name = None
@@ -301,7 +318,7 @@ def build_management_application(current_handler_class, current_root_path, curre
             current_tool_name = current_request_path.split('/')[3]
             current_mount_path = '/management/frame/' + current_tool_name
         elif current_request_path == '/management' or current_request_path.startswith(('/management/config', '/management/gradio_api/', '/management/assets/', '/management/theme', '/management/favicon')) or current_request_path == '/management/':
-            current_tool_name = 'management'
+            return await Response(status_code=404)(current_request_scope,current_receive_call,current_send_call)
         elif current_request_path == '/' and current_source_path.is_file():
             current_query_text = current_request_scope.get('query_string', b'').decode()
             current_redirect_value = RedirectResponse('/management/' + '?' + current_query_text if current_query_text else '/management/frame/hermes-agent/')
