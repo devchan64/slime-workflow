@@ -1,3 +1,4 @@
+import KimodoFrames from "./KimodoFrames.jsx";
 import WriterActions from "./WriterActions.jsx";
 import WriterResult from "./WriterResult.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
@@ -14,6 +15,8 @@ function HistoryPage({source, choose, session}) {
   const [notice,setNotice]=useState("");
   const mediaKind=source.result_kind;
   const writer=source.service==="writer-agent";
+  const kimodo=source.service==="kimodo";
+  const hasResult=source.result_path || mediaKind || writer || kimodo;
   async function load(offset,snapshot) {
     setBusy(true);selectJob("");
     setError("");
@@ -35,17 +38,19 @@ function HistoryPage({source, choose, session}) {
       <ResultTable table={{
         title:source.service+" 생성 이력",
         summary:"전체 "+page.total+"건 · 조회 "+page.records.length+"건 · 확인 불가 "+page.unavailable_count+"건",
-        columns:["작업 ID","기록 상태",...(source.result_path || mediaKind || writer?["결과"]:[])],
+        columns:["작업 ID","기록 상태",...(hasResult?["결과"]:[])],
         rows:page.records.map(record=>[
           <button title="작업을 대화 입력에 추가" onClick={()=>choose(source.service+" 작업",record.id)}>{record.id}</button>,
           record.recorded_status,
-          ...(source.result_path || mediaKind || writer ? [<>
+          ...(hasResult ? [<>
+            {kimodo && record.recorded_status==="completed" && <button onClick={()=>selectJob(record.id)}>원본 프레임 보기</button>}
             {(mediaKind || writer) && <button onClick={()=>selectJob(record.id)}>결과 보기</button>}
             {source.result_path && <a href={source.result_path+"?"+new URLSearchParams({job:record.id,...(session?{session}:{})})}>작업 열기</a>}
           </>] : []),
         ]),
       }}/>
 
+      {selectedJob && kimodo && <KimodoFrames key={selectedJob} id={selectedJob} choose={choose}/>}
       {selectedJob && mediaKind && <MediaJobResult kind={mediaKind} key={selectedJob} service={source.service} id={selectedJob}>
         {job=>job?.status==="completed" && job.result_status==="available" && job.file_observation!=="unavailable" &&
           <button onClick={()=>choose(source.service+" 생성 결과",selectedJob)}>이 결과를 대화 입력에 추가</button>}
