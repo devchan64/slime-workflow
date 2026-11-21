@@ -100,7 +100,18 @@ export default function OperationsJobs(){
     }catch(problem){setGpu(null);setGpuError(problem.message);}
     finally{setBusy(false);}
   }
+  const [detail,setDetail]=useState(null);
+  async function inspectJob(id){
+    setBusy(true);setError("");setDetail(null);
+    try{
+      const record=await managementCommand("hermes-agent","hermes-detail",{id});
+      if(record.id!==id || typeof record.status?.status!=="string")throw new Error("선택한 작업의 상세를 확인할 수 없습니다.");
+      setDetail(record);
+    }catch(problem){setError(problem.message);}
+    finally{setBusy(false);}
+  }
   async function load(direction){
+    setDetail(null);
     setBusy(true);setError("");
     try{
       const response=await fetch("/management/assistant/operations-jobs",{method:"POST",headers:{"Content-Type":"application/json"},
@@ -118,9 +129,20 @@ export default function OperationsJobs(){
       {Object.entries(result?.statuses || {}).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
     <button onClick={()=>load("first")}>작업 조회</button>
     {error && <p role="alert">{error}</p>}
-    {result && <><ResultTable table={{title:"운영 작업",summary:result.summary,columns:["작업 ID","상태","GPU 대기","지시문","GPU 예약"],rows:result.rows}}/>
+    {result && <><ResultTable table={{title:"운영 작업",summary:result.summary,columns:["작업 ID","상태","GPU 대기","지시문","GPU 예약"],rows:result.rows.map(([id,...cells])=>[<button onClick={()=>inspectJob(id)}>{id}</button>,...cells])}}/>
       <button disabled={!same || !page.offset} onClick={()=>load("newer")}>이전 페이지</button>
       <button disabled={!same || page.next_offset==null} onClick={()=>load("older")}>다음 페이지</button></>}
+    {detail && <section aria-label="운영 작업 상세"><h3>{detail.id}</h3>
+      <p>{detail.status.status}{detail.status.queue_position ? " · 대기 순서 "+detail.status.queue_position : ""} {detail.status.message} {detail.status.error}</p>
+      <h4>작업 지시</h4><pre>{detail.request?.prompt || "기록된 지시가 없습니다."}</pre>
+      <h4>최종 응답</h4><pre>{detail.final_response || "기록된 최종 응답이 없습니다."}</pre>
+      {detail.final_response_truncated && <p>응답 일부만 표시했습니다.</p>}
+      {detail.result?.verification && <p>독립 검증 · {detail.result.verification.status}</p>}
+      <details><summary>변경 내역</summary>{detail.diff_truncated && <p>변경 내역 일부만 표시했습니다.</p>}<pre>{detail.diff || "기록된 변경이 없습니다."}</pre></details>
+      <details><summary>작업 로그</summary><pre>{detail.log || "기록된 로그가 없습니다."}</pre></details>
+      {detail.result && <details><summary>결과 기록</summary><pre>{JSON.stringify(detail.result,null,2)}</pre></details>}
+      <button onClick={()=>inspectJob(detail.id)}>상세 새로고침</button>
+    </section>}
     <button onClick={loadGpu}>GPU 대기열·예약 조회</button>
     {gpuError && <p role="alert">{gpuError}</p>}
     {gpu?.map(table=>table.available ? <ResultTable key={table.title} table={gpuTable(table)}/> :
