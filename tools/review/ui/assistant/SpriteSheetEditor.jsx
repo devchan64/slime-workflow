@@ -5,9 +5,9 @@ import ResultTable from "./ResultTable.jsx";
 const fields=["x","y","width","height","anchorX","anchorY"];
 const labels=["X","Y","너비","높이","앵커 X","앵커 Y"];
 
-function FrameEditor({image,frames}){
+function FrameEditor({image,frames,initialColumns=4,bounds}){
   const [rows,setRows]=useState(()=>frames.map(({rect,anchor})=>({...rect,anchorX:anchor.x,anchorY:anchor.y})));
-  const [columns,setColumns]=useState(4),[busy,setBusy]=useState(false);
+  const [columns,setColumns]=useState(initialColumns),[busy,setBusy]=useState(false);
   const [result,setResult]=useState(null),[error,setError]=useState("");
   const [first,setFirst]=useState(1),[last,setLast]=useState(rows.length),[fps,setFps]=useState(6);
   function update(index,field,value){
@@ -24,7 +24,7 @@ function FrameEditor({image,frames}){
       }
       const payload={image,columns:gif?4:Number(columns),
         frames:rows.slice(start,end).map(row=>Object.fromEntries(fields.map(key=>[key,Number(row[key])]))),
-        sourceFrames:frames.slice(start,end).map(({rect})=>[rect.x,rect.y,rect.width,rect.height])
+        sourceFrames:bounds?bounds.slice(start,end):frames.slice(start,end).map(({rect})=>[rect.x,rect.y,rect.width,rect.height])
       };
       if(gif)payload.fps=Number(fps);
       const record=await managementCommand("character-animation",gif?"sheet-gif":"sheet-export",payload);
@@ -106,12 +106,45 @@ function Sheet({path,source}){
   return <SheetView path={path} detail={detail}/>;
 }
 
+function AutoCrop({image,size,onApply}){
+  const [padding,setPadding]=useState(30),[busy,setBusy]=useState(false);
+  const [candidate,setCandidate]=useState(null),[error,setError]=useState("");
+  async function detect(event){
+    event.preventDefault();setBusy(true);setCandidate(null);setError("");
+    try{
+      const result=await managementCommand("character-animation","sheet-auto",{image,padding:Number(padding)});
+      if(!result.frames?.length || result.sourceFrames?.length!==result.frames.length)throw new Error("검출 결과를 확인할 수 없습니다.");
+      setCandidate(result);
+    }catch(problem){setError(problem.message);}
+    finally{setBusy(false);}
+  }
+  return <details><summary>자동 크롭</summary><form onSubmit={detect}><fieldset disabled={busy}>
+    <label>상하좌우 최소 여백 (px)<input type="number" min="0" max="500" required value={padding}
+      onChange={e=>{setPadding(e.target.value);setCandidate(null);setError("");}}/></label>
+    <button disabled={!size}>크롭 후보 검출</button></fieldset></form>
+    {error && <p role="alert">{error}</p>}
+    {candidate && <><svg viewBox={`0 0 ${size.width} ${size.height}`} style={{width:"100%",maxWidth:size.width}} aria-label="크롭 후보 영역">
+      <image href={"data:image/png;base64,"+image} width={size.width} height={size.height}/>
+      {candidate.frames.map(({x,y,width,height},i)=><g key={i}><rect x={x} y={y} width={width} height={height} fill="none" stroke="red" strokeWidth="2"/>
+        <text x={Math.max(0,x)+3} y={Math.max(0,y)+14} fill="red">{i+1}</text></g>)}</svg>
+      <p>{candidate.frames.length}개 후보 · 적용하면 현재 프레임 편집을 교체합니다.</p>
+      <button onClick={()=>{onApply(candidate);setCandidate(null);}}>검출 결과 적용</button>
+      <button onClick={()=>setCandidate(null)}>취소</button></>}
+  </details>;
+}
+
 function SheetView({path,detail}){
   const [size,setSize]=useState(null);
-  const frames=detail.animation?.frames;
+  const [detected,setDetected]=useState(null),[revision,setRevision]=useState(0);
+  const frames=detected?.frames || detail.animation?.frames;
+  function apply(result){
+    const next=result.frames.map(({x,y,width,height,anchorX,anchorY})=>({rect:{x,y,width,height},anchor:{x:anchorX,y:anchorY}}));
+    setDetected({frames:next,columns:result.columns,bounds:result.sourceFrames});setRevision(n=>n+1);
+  }
   return <section><h2>{path}</h2><img src={"data:image/png;base64,"+detail.image} onLoad={e=>setSize({width:e.target.naturalWidth,height:e.target.naturalHeight})} alt="원본 스프라이트 시트" style={{maxWidth:"100%"}}/>
     {detail.layout && <p>{detail.layout.columns}열 × {detail.layout.rows}행</p>}
-    {frames?.length>0?<FrameEditor frames={frames} image={detail.image}/>:<GridEditor detail={detail} size={size}/>}
+    <AutoCrop image={detail.image} size={size} onApply={apply}/>
+    {frames?.length>0?<FrameEditor key={revision} frames={frames} image={detail.image} initialColumns={detected?.columns} bounds={detected?.bounds}/>:<GridEditor detail={detail} size={size}/>}
   </section>;
 }
 
