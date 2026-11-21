@@ -11,7 +11,7 @@ export default function OperationsJobs(){
   async function readReceipt(){
     setBusy(true);setReceiptNotice("");
     try{
-      const response=await fetch("/management/assistant/operations-priority-receipt/"+encodeURIComponent(receiptId.trim()),{cache:"no-store"});
+      const response=await fetch("/management/assistant/operations-"+(receiptId.trim().startsWith("recovery_")?"recovery":"priority")+"-receipt/"+encodeURIComponent(receiptId.trim()),{cache:"no-store"});
       if(!response.ok)throw new Error("접수 기록을 조회할 수 없습니다.");
       setReceiptNotice((await response.json()).notice);
     }catch(problem){setReceiptNotice(problem.message);}
@@ -42,7 +42,32 @@ export default function OperationsJobs(){
     }finally{setBusy(false);}
   }
   const [inspection,setInspection]=useState("");
+  const [recovery,setRecovery]=useState(null),[outsideChecked,setOutsideChecked]=useState(false);
+  async function reviewRecovery(target){
+    setBusy(true);setRecovery(null);setOutsideChecked(false);setInspection("");setReceiptNotice("");
+    try{
+      const response=await fetch("/management/assistant/operations-recovery-review",{method:"POST",
+        headers:{"Content-Type":"application/json"},body:JSON.stringify(target)});
+      if(!response.ok)throw new Error("예약 정리 대상을 확인할 수 없습니다.");
+      const review=await response.json();
+      setRecovery(review);setReceiptId(review.identifier || "");
+    }catch(problem){setInspection(problem.message);}
+    finally{setBusy(false);}
+  }
+  async function recover(){
+    const request=recovery?.request;
+    if(busy || !outsideChecked || !request)return;
+    setBusy(true);setRecovery(null);setOutsideChecked(false);
+    try{
+      const receipt=await managementCommand("hermes-agent","hermes-generator-reservation-recover",{...request,outside_processes_checked:true});
+      if(receipt.state!=="completed" || receipt.request_id!==request.request_id || receipt.service!==request.service ||
+         receipt.job_id!==request.job_id)throw new Error();
+      setInspection("정리 완료 · "+request.service+" · "+request.job_id);
+    }catch{setInspection("정리 결과를 확인하려면 접수 ID로 조회하세요.");}
+    finally{setBusy(false);setReceiptId(request.request_id);}
+  }
   async function inspectReservation(target){
+    setRecovery(null);setOutsideChecked(false);
     setBusy(true);setInspection("");
     try{
       const response=await fetch("/management/assistant/operations-reservation-inspect",{method:"POST",
@@ -55,7 +80,7 @@ export default function OperationsJobs(){
   function gpuTable(table){
     if(table.inspection_targets)return {...table,columns:[...table.columns,"예약 조회"],rows:table.rows.map((row,index)=>{
       const target=table.inspection_targets[index];
-      return [...row,target ? <button onClick={()=>inspectReservation(target)}>예약 신원 확인</button> : "조회 대상 미확인"];
+      return [...row,target ? <><button onClick={()=>inspectReservation(target)}>예약 신원 확인</button><button onClick={()=>reviewRecovery(target)}>예약 정리 검토</button></> : "조회 대상 미확인"];
     })};
     if(table.title!=="GPU 대기열")return table;
     return {...table,columns:[...table.columns,"우선순위"],rows:table.rows.map(row=>{
@@ -65,6 +90,7 @@ export default function OperationsJobs(){
     })};
   }
   async function loadGpu(){
+    setRecovery(null);setOutsideChecked(false);
     setInspection("");
     setBusy(true);setGpuError("");setPriority(null);
     try{
@@ -103,8 +129,11 @@ export default function OperationsJobs(){
     {priority && <section><p role="status">{priority.notice}</p>{priority.identifier && <code>{priority.identifier}</code>}
       {priority.request && <><button onClick={()=>setPriority(null)}>취소</button>
         <button onClick={prioritize}>확인 후 우선순위 변경</button></>}</section>}
-    <label>우선순위 변경 접수 ID <input value={receiptId} onChange={e=>{setReceiptId(e.target.value);setReceiptNotice("");}}/></label>
-    <button disabled={!/^priority_[a-f0-9]{64}$/.test(receiptId.trim())} onClick={readReceipt}>접수 결과 조회</button>
+    {recovery && <section><p role="status">{recovery.notice}</p>
+      {recovery.request && <><label><input type="checkbox" checked={outsideChecked} onChange={e=>setOutsideChecked(e.target.checked)}/>별도 그룹의 GPU 프로세스를 확인했습니다</label>
+        <button onClick={()=>setRecovery(null)}>취소</button><button disabled={!outsideChecked} onClick={recover}>확인 후 예약 정리</button></>}</section>}
+    <label>우선순위 변경·예약 정리 접수 ID <input value={receiptId} onChange={e=>{setReceiptId(e.target.value);setReceiptNotice("");}}/></label>
+    <button disabled={!/^(priority|recovery)_[a-f0-9]{64}$/.test(receiptId.trim())} onClick={readReceipt}>접수 결과 조회</button>
     {receiptNotice && <p role="status">{receiptNotice}</p>}
   </fieldset>;
 }

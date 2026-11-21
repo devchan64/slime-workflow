@@ -687,6 +687,19 @@ def build_management_application(current_handler_class, current_root_path, curre
         request, notice, identifier = prepare_operations_priority_request(target, execute_remote_management_command)
         return dict(request=request, notice=notice, identifier=identifier)
 
+    @current_root_application.post('/management/assistant/operations-recovery-review')
+    def operations_recovery_review(target: dict):
+        from tools.review.common.management_client import execute_remote_management_command
+        from tools.review.common.operations_history import prepare_operations_reservation_recovery
+        request, notice, identifier = prepare_operations_reservation_recovery(target, execute_remote_management_command)
+        return dict(request=request, notice=notice, identifier=identifier)
+
+    @current_root_application.get('/management/assistant/operations-recovery-receipt/{identifier}')
+    def operations_recovery_receipt(identifier: str):
+        from tools.review.common.management_client import execute_remote_management_command
+        from tools.review.common.operations_history import read_operations_reservation_recovery_receipt
+        return {'notice': read_operations_reservation_recovery_receipt(identifier, execute_remote_management_command)}
+
     @current_root_application.post('/management/assistant/operations-reservation-inspect')
     def operations_reservation_inspect(target: dict):
         from tools.review.common.management_client import execute_remote_management_command

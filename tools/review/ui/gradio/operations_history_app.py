@@ -1105,24 +1105,9 @@ def inspect_operations_reservation_target(current_inspection_target):
 
 
 def prepare_operations_reservation_recovery(current_reservation_target):
-    """예약을 다시 조회하고 명시적인 정리 확인을 준비한다."""
-    current_closed=(None,'예약을 다시 선택하고 신원을 확인하세요.','',gr.update(visible=False),False)
-    if not isinstance(current_reservation_target,dict) or set(current_reservation_target)!={'service','job_id'}:return current_closed
-    try:
-        current_result_record=execute_remote_management_command('hermes-agent','hermes-generator-reservation-inspect',current_reservation_target)
-        if not isinstance(current_result_record,dict) or (current_result_record.get('service'),current_result_record.get('job_id'))!=(current_reservation_target['service'],current_reservation_target['job_id']) or current_result_record.get('review_ready') is not True:
-            return None,'예약을 안전하게 정리할 수 있는 상태인지 확인하지 못했습니다. 원 서비스와 GPU 프로세스를 확인하세요.','',gr.update(visible=False),False
-        current_review_digest=current_result_record.get('review_sha256')
-        if not isinstance(current_review_digest,str) or not re.fullmatch(r'[a-f0-9]{64}',current_review_digest):raise ValueError('예약 검토값 오류')
-        current_request_identifier='recovery_'+hashlib.sha256((current_reservation_target['service']+'\0'+current_reservation_target['job_id']+'\0'+current_review_digest).encode()).hexdigest()
-        current_receipt_record=execute_remote_management_command('hermes-agent','hermes-generator-reservation-receipt',{'request_id':current_request_identifier})
-        if not isinstance(current_receipt_record,dict) or current_receipt_record.get('state')!='not_found':
-            return None,'이미 접수되었거나 접수 상태를 확인할 수 없습니다. 접수 결과를 조회하고 재실행하지 마세요.',current_request_identifier,gr.update(visible=False),False
-        current_request_record={'request_id':current_request_identifier,**current_reservation_target,'review_sha256':current_review_digest}
-        current_action_notice='기록된 작업자 그룹은 관측되지 않았으며 예약만 해제합니다.' if current_result_record.get('worker_leader')=='group_absent' else '해당 작업자 그룹을 강제 종료하고 예약을 해제합니다.'
-        return current_request_record,'검토 대상: '+current_reservation_target['service']+' · '+current_reservation_target['job_id']+'. 확인하면 '+current_action_notice,current_request_identifier,gr.update(visible=True),False
-    except (OSError,ValueError,KeyError,TypeError,RuntimeError):
-        return None,'검토 또는 접수 상태를 확인하지 못했습니다. 프로세스와 예약은 변경하지 않았습니다.','',gr.update(visible=False),False
+    from tools.review.common.operations_history import prepare_operations_reservation_recovery as shared
+    request, notice, identifier = shared(current_reservation_target, execute_remote_management_command)
+    return request, notice, identifier, gr.update(visible=request is not None), False
 
 
 def start_operations_reservation_review():
@@ -1176,21 +1161,8 @@ def submit_operations_reservation_recovery(current_request_record,current_reserv
 
 
 def read_operations_reservation_recovery_receipt(current_request_identifier):
-    if not isinstance(current_request_identifier,str) or not re.fullmatch(r'recovery_[a-f0-9]{64}',current_request_identifier):return '유효한 정리 접수 ID를 입력하세요.'
-    try:
-        current_receipt_record=execute_remote_management_command('hermes-agent','hermes-generator-reservation-receipt',{'request_id':current_request_identifier})
-        if not isinstance(current_receipt_record,dict):raise ValueError('접수 응답 오류')
-        if current_receipt_record.get('state')=='not_found':return '접수 기록이 없습니다. 실제 예약과 GPU 프로세스를 확인하세요.'
-        if current_receipt_record.get('request_id')!=current_request_identifier or current_receipt_record.get('state') not in ('completed','unknown'):raise ValueError('접수 응답 오류')
-        current_service_name=current_receipt_record.get('service')
-        current_job_identifier=current_receipt_record.get('job_id')
-        if (not isinstance(current_service_name,str) or current_service_name not in (set(SOURCE_HISTORY_GENERATOR_SERVICES)|set(SOURCE_HISTORY_AUDIO_SERVICES)) - {'writer-agent'}
-                or not isinstance(current_job_identifier,str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}',current_job_identifier)):
-            raise ValueError('정리 대상 확인 불가')
-        current_target_text='대상: '+current_service_name+' · '+current_job_identifier+' · '
-        return current_target_text+('정리 완료. 원 서비스와 GPU 상태를 확인하세요.' if current_receipt_record['state']=='completed' else '정리 결과 확인 필요. 재실행하지 말고 원 서비스와 GPU 프로세스를 확인하세요.')
-    except (OSError,ValueError,KeyError,TypeError,RuntimeError):
-        return '접수 결과를 확인할 수 없습니다. 재실행하지 말고 원 서비스와 GPU 프로세스를 확인하세요.'
+    from tools.review.common.operations_history import read_operations_reservation_recovery_receipt as shared
+    return shared(current_request_identifier, execute_remote_management_command)
 
 
 def read_operations_selected_capture_status(current_queue_rows,current_select_event:gr.SelectData):
