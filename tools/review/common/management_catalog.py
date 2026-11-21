@@ -14,6 +14,7 @@ NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {'flux-express
 NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {'hermes-agent'}
 NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {current_flux_profile+'-generator' for current_flux_profile in ('flux-image','flux-character','flux-mannequin','flux-billboard','flux-prop','flux-vegetation','flux-building','flux-seamless')}
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
+REACT_REVIEW_PATHS = {"world-map": "/management/frame/world-map/"}
 DEFAULT_PAGE_RECORDS=(
     *({'id':name+'-generator','label':'FLUX 3 '+label+' 생성기','path':'/management/frame/'+name+'-generator/','category':'image-generation','uiMode':'gradio','description':'공용 화풍 · FLUX 이력 및 입력 복원'} for name,label in (('flux-image','일반 이미지'),('flux-character','캐릭터'),('flux-mannequin','마네킨'),('flux-billboard','빌보드 가이드'),('flux-prop','소품'),('flux-vegetation','식생'),('flux-building','건물'),('flux-seamless','심리스 타일'))),
     {'id':'flux-expression-generator','label':'FLUX 3 표정 생성기','path':'/management/frame/flux-expression-generator/','category':'image-generation','uiMode':'gradio','description':'얼굴 참조 1장 · 표정 프리셋 · 이력 입력 복원'},
@@ -25,7 +26,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'effect-editor','label':'발광 이펙트 좌표 검수','path':'/management/frame/effect-editor/','category':'map-review','uiMode':'gradio','description':'빌보드 연결 발광·프레임 정렬·DB 저장'},
     {'id':'building-editor','label':'건물 에셋 관리','path':'/management/frame/building-editor/','category':'map-review','uiMode':'gradio','description':'건물 원본·사용 맵·공용 앵커 관리'},
     {'id':'asset-editor','label':'공용 빌보드 에셋 관리','path':'/management/frame/asset-editor/','category':'map-review','uiMode':'gradio','description':'전체 에셋 속성·점유 타일·미리보기·일괄 편집'},
-    {'id':'world-map','label':'월드맵 검수','path':'/management/frame/world-map/','category':'map-review','uiMode':'gradio','description':'전체 맵 썸네일·노드·연결·원본 해시 검증'},
+    {'id':'world-map','label':'월드맵 검수','path':REACT_REVIEW_PATHS['world-map'],'category':'map-review','uiMode':'react','description':'전체 맵 썸네일·노드·연결·원본 해시 검증'},
     {'id': 'sfx-dasheng-audiogen', 'label': 'Dasheng-AudioGen · 효과음', 'path': '/management/frame/sfx-dasheng-audiogen/', 'category': 'sound-management', 'uiMode': 'gradio', 'description': '로컬 ROCm · 길이 자동 예측 · 시드 · 16kHz WAV'},
     {'id': 'music-heartmula', 'label': 'HeartMuLa 3B', 'path': '/management/frame/music-heartmula/', 'category': 'sound-management', 'uiMode': 'gradio', 'description': 'tags·lyrics 입력 · 무보컬 보장 없음'},
     {'id':'kimodo-generator','label':'Kimodo 모션 생성기 · ROCm','path':'/management/frame/kimodo-generator/','category':'animation-tool','uiMode':'gradio','description':'SOMA v1.2 · 텍스트→3D 모션 · 비양자화 BF16 인코더'},
@@ -78,6 +79,8 @@ def load_manager_page_records(source_file_path, current_animation_catalog=False)
             current_page_record={**current_page_record,'category':current_review_category,'label':current_map_name+' · '+('도시맵 검수' if current_review_category=='town-map-review' else '맵 검수')}
         if current_page_record['id'] in page_identifier_values:continue
         if not current_page_record['path'].startswith('/'):current_page_record={**current_page_record,'path':'/'+current_page_record['path']}
+        if current_page_record['id'] in REACT_REVIEW_PATHS:
+            current_page_record = {**current_page_record, 'uiMode':'react', 'path':REACT_REVIEW_PATHS[current_page_record['id']]}
         page_identifier_values.add(current_page_record['id'])
         validated_page_records.append(current_page_record)
     if not current_animation_catalog:
@@ -105,6 +108,8 @@ def create_tool_choice_values(page_record_values):
 
 def resolve_management_page_path(current_page_record):
     """공용 메뉴·직접 진입이 같은 도구 주소와 맵 매개변수를 사용한다."""
+    if current_page_record['id'] in REACT_REVIEW_PATHS:
+        return REACT_REVIEW_PATHS[current_page_record['id']]
     if current_page_record.get('uiMode')=='gradio-static':
         return f'{MANAGEMENT_FRAME_PATH_PREFIX}static-review/?review={quote(current_page_record["id"],safe="")}'
     if current_page_record.get('uiMode')=='gradio':

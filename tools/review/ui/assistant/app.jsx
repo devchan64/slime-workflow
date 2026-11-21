@@ -112,7 +112,17 @@ function App() {
     {session&&<button aria-expanded={showForms} onClick={()=>setShowForms(!showForms)}>입력 폼</button>}
     {session&&<button aria-expanded={Boolean(queue)} onClick={()=>setQueue(!queue)}>대기열</button>}</header>
     {showGpu && <GpuPanel/>}
-    {showTools&&<section className="floating-panel" aria-label="도구 탐색"><input aria-label="도구 검색" placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>{tools.filter(t=>(t.label+t.id+t.description).toLowerCase().includes(search.toLowerCase())).map(t=><button key={t.id} onClick={()=>{edit((draft?draft+"\n":"")+"사용할 도구: "+t.label+" ("+t.id+")\n");setShowTools(false);text.current.focus()}}>{t.label}</button>)}</section>}
+    {showTools && <section className="floating-panel" aria-label="도구 탐색">
+      <input aria-label="도구 검색" placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>
+      {tools.filter(tool=>(tool.label+tool.id+tool.description).toLowerCase().includes(search.toLowerCase())).map(tool=>
+        <div key={tool.id}>
+          <button onClick={()=>{
+            edit([draft,"사용할 도구: "+tool.label+" ("+tool.id+")\n"].filter(Boolean).join("\n"));
+            setShowTools(false);text.current.focus();
+          }}>{tool.label}</button>
+          {tool.review_path && <a href={tool.review_path+(session?"?"+new URLSearchParams({session}):"")}>검수 화면 열기</a>}
+        </div>)}
+    </section>}
     {session && <div hidden={!showForms}>{<FormLibrary key={session} session={session} call={call} addToMessage={value=>edit([draft,value].filter(Boolean).join("\n"))}/>}</div>}
     {queue && session && <QueuePanel key={session} session={session} call={call}/>}
     <Conversation key={session} view={view}/>{error&&<p role="alert">{error}</p>}

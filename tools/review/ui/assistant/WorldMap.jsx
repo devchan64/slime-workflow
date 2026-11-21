@@ -1,6 +1,8 @@
 import React, {useEffect, useRef, useState} from "react";
 
 export default function WorldMap() {
+  const session = new URLSearchParams(location.search).get("session");
+  const conversation = "/management/assistant/" + (session ? "?" + new URLSearchParams({session}) : "");
   const [maps,setMaps]=useState([]);
   const [id,setId]=useState(new URLSearchParams(location.search).get("map"));
   const [error,setError]=useState("");
@@ -31,7 +33,7 @@ export default function WorldMap() {
     const url=new URL(location.href);url.searchParams.set("map",next);history.replaceState(null,"",url);
   }
   return <section style={{padding:"1rem"}}>
-    <a href="/management/assistant/">헤르메스 대화</a><h1>월드맵 검수</h1>
+    <a href={conversation}>헤르메스 대화</a><h1>월드맵 검수</h1>
     <button onClick={()=>setRevision(v=>v+1)}>원본 다시 불러오기</button>
     {error && <p role="alert">{error}</p>}
     {!maps.length && !error && <p>맵 원본 조회 중…</p>}
