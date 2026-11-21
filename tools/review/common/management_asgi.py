@@ -653,6 +653,14 @@ def build_management_application(current_handler_class, current_root_path, curre
         prefix = "/management/assistant/animate-input/" + job
         return {"id":job, "request":fields, "reference":prefix+"/reference", "motion":prefix+"/motion"}
 
+    @current_root_application.get('/management/assistant/vace-template')
+    def vace_template():
+        from generators.wan_vace.contracts import VACE_DEFAULT_SETTINGS, VACE_MAXIMUM_SEED_VALUE
+        from generators.wan_vace.page.inputs import VACE_INPUT_CHOICES, VACE_MODE_HELP_TEXT
+        return {"defaults": VACE_DEFAULT_SETTINGS, "maximum_seed": VACE_MAXIMUM_SEED_VALUE,
+                "modes": [{"id": mode, "label": label, "help": VACE_MODE_HELP_TEXT[mode]}
+                          for label, mode in VACE_INPUT_CHOICES]}
+
     @current_root_application.get('/management/assistant/dwpose-input/{job}')
     def dwpose_input(job: str):
         from generators.dwpose.contracts import DWPOSE_JOB_STORAGE
