@@ -27,9 +27,11 @@ export default function GeneratorChangelog({generator}) {
   return <details onToggle={event=>setOpen(event.currentTarget.open)}><summary>생성기 변경 기록</summary>
     {open && <>
       {error && <p role="alert">{error}</p>}
-      <button disabled={!page || page.index===0} onClick={()=>setIndex(page.index-1)}>이전 페이지</button>
-      <button disabled={!page || page.index+1>=page.count} onClick={()=>setIndex(page.index+1)}>다음 페이지</button>
-      <button onClick={()=>setRevision(value=>value+1)}>새로고침</button>
+      <div className="choice-buttons">
+        <button type="button" disabled={!page || page.index===0} onClick={()=>setIndex(page.index-1)}>이전 페이지</button>
+        <button type="button" disabled={!page || page.index+1>=page.count} onClick={()=>setIndex(page.index+1)}>다음 페이지</button>
+        <button type="button" onClick={()=>setRevision(value=>value+1)}>새로고침</button>
+      </div>
       {page && <><p>{page.date || "날짜 없음"} · {page.index+1} / {page.count}</p><pre>{page.content}</pre></>}
     </>}
   </details>;

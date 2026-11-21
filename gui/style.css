@@ -289,3 +289,7 @@ article {position:relative;}
 }
 .generator-page-tools details[open] > section {display:grid;justify-items:start;gap:.6rem;padding:.75rem;min-width:0}
 .generator-page-tools details[open] > section > details {width:100%;margin:0}
+
+@media (max-width:700px) {
+  .generator-page-header nav a {display:inline-flex;align-items:center;min-height:44px}
+}

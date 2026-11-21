@@ -10,7 +10,7 @@ export default function GeneratorPageHeader({title,description,service,generator
     {!embedded && <nav aria-label="워크플로우 탐색"><a href={conversation}>헤르메스 대화로 돌아가기</a></nav>}
     <div><h1>{title}</h1><p>{description}</p></div>
     <div className="generator-page-tools">
-      <details><summary>모델 상태 · {readiness}</summary><ModelReadiness service={service} onStatus={onStatus}/></details>
+      <details><summary>모델 상태 · {readiness}</summary><ModelReadiness hasStatusSummary service={service} onStatus={onStatus}/></details>
       <GeneratorChangelog generator={generator}/>
     </div>
   </header>;

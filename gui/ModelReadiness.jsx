@@ -2,7 +2,7 @@ import React, {useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ModelInventory from "./ModelInventory.jsx";
 
-export default function ModelReadiness({service, manage=false, onStatus}) {
+export default function ModelReadiness({service, manage=false, hasStatusSummary=false, onStatus}) {
   const [revision,setRevision]=useState(0);
   const [status,setStatus]=useState(null);
   const [error,setError]=useState("");
@@ -45,9 +45,17 @@ export default function ModelReadiness({service, manage=false, onStatus}) {
       setSending(false);
     }
   }
+  let statusText="모델 상태 확인 중…";
+  if(error) statusText="모델 상태 조회 실패 · "+error;
+  else if(status) {
+    const ready=status.generation_ready ?? status.ready;
+    if(hasStatusSummary) {
+      statusText=status.message.replace(/^(?:모델 파일 준비 완료 · |모델 준비 필요: )/,"");
+      if(!ready && status.missing?.length) statusText="준비가 필요한 파일 · "+status.missing.join(", ");
+    } else statusText=(ready?"생성 준비 완료":"모델 준비 필요")+" · "+status.message;
+  }
   return <section aria-label="모델 준비 상태">
-    <p role="status">{error ? "모델 상태 조회 실패 · "+error : status ?
-      ((status.generation_ready ?? status.ready)?"생성 준비 완료":"모델 준비 필요")+" · "+status.message : "모델 상태 확인 중…"}</p>
+    <p role="status">{statusText}</p>
     <button onClick={()=>setRevision(value=>value+1)}>모델 준비 상태 확인</button>
     {manage && <>
       <button disabled={sending || !status?.prepare_request || status.ready || status.can_prepare===false || ["queued","running"].includes(status.preparation_status)} onClick={prepare}>
