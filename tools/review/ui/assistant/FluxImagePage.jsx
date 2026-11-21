@@ -1,5 +1,6 @@
 import React,{useRef,useState} from "react";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
+import GeneratorHistory from "./GeneratorHistory.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import GeneratorJobResult from "./GeneratorJobResult.jsx";
 import {managementCommand} from "./managementCommand.js";
@@ -20,6 +21,22 @@ export default function FluxImagePage(){
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
   const [job,setJob]=useState(query.get("job") || "");
   const sending=useRef(false);
+  const fileInput=useRef(null);
+  const [historyRevision,setHistoryRevision]=useState(0);
+  async function readJob(id){
+    const response=await fetch("/management/assistant/flux-image-input/"+encodeURIComponent(id),{cache:"no-store"});
+    const record=await response.json();
+    if(!response.ok)throw new Error(record.detail || "저장된 입력을 확인할 수 없습니다.");
+    const files=record.images.map((encoded,index)=>{
+      const bytes=Uint8Array.from(atob(encoded),char=>char.charCodeAt(0));
+      return new File([bytes],"reference-"+(index+1)+".png",{type:"image/png"});
+    });
+    return {id:record.id,request:record.request,files};
+  }
+  function restore(input,record){
+    setForm(input);setFiles(record.files);fileInput.current.value="";
+    setJob(record.id);setNotice("선택한 이력의 입력과 참조 이미지를 불러왔습니다.");
+  }
   function edit(key,value){setForm(current=>({...current,[key]:value}));}
   async function preview(event){
     event.preventDefault();setNotice("");setBusy(true);
@@ -51,7 +68,7 @@ export default function FluxImagePage(){
     <form onSubmit={preview}><fieldset disabled={busy || Boolean(review)}>
       <label>프롬프트 <textarea value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/></label>
       <label>번역할 한국어 설명 <textarea value={form.translation_source_ko} onChange={e=>edit("translation_source_ko",e.target.value)}/></label>
-      <label>참조 PNG (최대 2장) <input type="file" multiple accept="image/png" onChange={e=>setFiles(Array.from(e.target.files))}/></label>
+      <label>참조 PNG (최대 2장) <input ref={fileInput} type="file" multiple accept="image/png" onChange={e=>setFiles(Array.from(e.target.files))}/></label>
       {files.map((file,index)=><p key={index}>참조 {index+1} · {file.name}</p>)}
       {[["width","너비"],["height","높이"]].map(([key,label])=><label key={key}>{label} <input type="number" required min="256" max="1664" step="16" value={form[key]} onChange={e=>edit(key,e.target.value)}/></label>)}
       <label>시드 <input type="number" required min="0" max="4294967295" value={form.seed} onChange={e=>edit("seed",e.target.value)}/></label>
@@ -63,6 +80,7 @@ export default function FluxImagePage(){
       <GpuQueueSummary/><button disabled={busy} onClick={()=>setReview(null)}>입력 수정</button>
       <button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button></section>}
     {notice && <p role="status">{notice}</p>}
-    <GeneratorJobResult job={job} kind="flux" service="flux-image" onDeleted={message=>{setJob("");setNotice(message);}}/>
+    {!busy && !review && <GeneratorHistory key={historyRevision} service="flux-image" readJob={readJob} restore={restore} inspectResult={record=>setJob(record.id)}/>}
+    <GeneratorJobResult job={job} kind="flux" service="flux-image" onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/>
   </article>;
 }

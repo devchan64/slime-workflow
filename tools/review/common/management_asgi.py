@@ -368,6 +368,39 @@ def build_management_application(current_handler_class, current_root_path, curre
             rows.append({'id': identifier, 'status': state, 'message': message})
         return rows
 
+    @current_root_application.get('/management/assistant/flux-image-input/{job}')
+    def flux_image_saved_input(job: str):
+        import base64
+        import io
+        import json
+        from fastapi import HTTPException
+        from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+        from tools.review.domains.image.flux_image_generation import FluxImageGenerationManager
+        from tools.review.domains.image.flux_input_restore import restore_flux_image_inputs
+
+        if not validate_service_job_identifier('flux-image', job):
+            raise HTTPException(404, '생성 ID를 확인하세요.')
+        root = FluxImageGenerationManager('flux-image').job_storage_root
+        directory = root / job
+        path = directory / 'request.json'
+        if directory.is_symlink() or path.is_symlink() or not path.is_file():
+            raise HTTPException(404, '저장된 입력을 찾을 수 없습니다.')
+        try:
+            record = {'id': job, 'request': json.loads(path.read_text())}
+            prompt, first, second, width, height, _, seed, tag, translation = restore_flux_image_inputs(record, 'flux-image', root)
+            if not isinstance(prompt, str) or not isinstance(translation, str):
+                raise ValueError('저장된 번역 입력을 확인하세요.')
+            images = []
+            for reference in (first, second):
+                if reference is not None:
+                    with io.BytesIO() as output:
+                        reference.save(output, format='PNG')
+                        images.append(base64.b64encode(output.getvalue()).decode('ascii'))
+        except (ValueError, OSError) as error:
+            raise HTTPException(422, str(error)) from error
+        return {'id': job, 'request': dict(prompt=prompt, width=width, height=height, seed=seed, tag=tag,
+                                           translation_source_ko=translation), 'images': images}
+
     @current_root_application.post('/management/assistant/flux-image-preview')
     def flux_image_preview(payload: dict):
         from fastapi import HTTPException
