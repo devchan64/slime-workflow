@@ -44,3 +44,40 @@ def validate_workflow_effect_audio(audio_content_bytes, source_result_record, ex
                 raise ValueError("효과음 결과는 16 kHz 모노 PCM16 WAV여야 합니다.")
     except (EOFError, wave.Error) as invalid_audio_error:
         raise ValueError("효과음 WAV 헤더 또는 데이터가 손상되었습니다.") from invalid_audio_error
+
+
+def read_workflow_effect_audio(source_storage_root, source_job_identifier, observed_job_record):
+    from .delegation_store import read_bounded_delegation_record, validate_service_job_identifier
+    from .media_result_paths import validate_hermes_audio_result_path
+    import os
+    import stat
+
+    source_service_name = "sfx-dasheng-audiogen"
+    if not validate_service_job_identifier(source_service_name, source_job_identifier):
+        raise ValueError("효과음 원 작업 ID가 잘못되었습니다.")
+    source_audio_path = validate_hermes_audio_result_path(source_service_name, source_job_identifier, observed_job_record)
+    if source_audio_path is None:
+        raise ValueError("완료된 효과음 시도의 결과 경로가 필요합니다.")
+    source_attempt_identifier = source_audio_path.split("/")[-2]
+    source_job_directory = source_storage_root / source_job_identifier
+    local_audio_path = source_job_directory / "attempts" / source_attempt_identifier / "sound.wav"
+    if local_audio_path.resolve(strict=True) != local_audio_path.absolute():
+        raise ValueError("효과음 원본 경로를 확인하세요.")
+    status_record_path = source_job_directory / "status.json"
+    result_record_path = source_job_directory / "result.json"
+    source_status_record = read_bounded_delegation_record(status_record_path)
+    source_result_record = read_bounded_delegation_record(result_record_path)
+    if not isinstance(source_status_record, dict) or source_status_record.get("status") != "completed" or not isinstance(source_result_record, dict):
+        raise ValueError("효과음 원 서비스의 완료 기록이 필요합니다.")
+    with os.fdopen(os.open(local_audio_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as audio_file_handle:
+        if not stat.S_ISREG(os.fstat(audio_file_handle.fileno()).st_mode):
+            raise ValueError("효과음 결과는 일반 파일이어야 합니다.")
+        maximum_audio_bytes = 4 * 1024 * 1024
+        audio_content_bytes = audio_file_handle.read(maximum_audio_bytes + 1)
+    if len(audio_content_bytes) > maximum_audio_bytes:
+        raise ValueError("워크플로우 효과음 보존 한도는 파일당 4 MiB입니다.")
+    validate_workflow_effect_audio(audio_content_bytes, source_result_record, source_attempt_identifier)
+    if (read_bounded_delegation_record(status_record_path) != source_status_record
+            or read_bounded_delegation_record(result_record_path) != source_result_record):
+        raise ValueError("효과음 검증 중 원 서비스의 시도 기록이 변경되었습니다.")
+    return audio_content_bytes
