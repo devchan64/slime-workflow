@@ -76,6 +76,15 @@ export default function FluxImagePage(){
     }catch(error){setNotice(error.message);}
     finally{setBusy(false);}
   }
+  async function defaultFace(){
+    setBusy(true);setNotice("");
+    try{
+      const response=await fetch("/management/assistant/flux-expression-face");
+      if(!response.ok)throw new Error("기본 얼굴 이미지를 불러올 수 없습니다.");
+      setFiles([new File([await response.blob()],"default-face-front-v1.png",{type:"image/png"})]);fileInput.current.value="";
+    }catch(error){setNotice(error.message);}
+    finally{setBusy(false);}
+  }
   async function applyStage(){
     setBusy(true);setNotice("");
     try{
@@ -148,9 +157,13 @@ export default function FluxImagePage(){
         <label>생성 대상 <input value={subject} onChange={e=>setSubject(e.target.value)}/></label>
         <button type="button" disabled={!subject.trim()} onClick={applyGuide}>선택한 가이드와 프롬프트 적용</button>
       </>}
-      <label>{service==="flux-building"?"건물 디자인 (한국어)":"프롬프트"} <textarea value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/></label>
+      {profile?.expressions ? <>
+        <label>표정 <select value={form.prompt} onChange={e=>edit("prompt",e.target.value)}>{profile.expressions.map(item=><option value={item.id} key={item.id}>{item.label}</option>)}</select></label>
+        <p>{profile.expressions.find(item=>item.id===form.prompt)?.text}</p>
+        <button type="button" onClick={defaultFace}>기본 캐릭터 정면 얼굴 불러오기</button>
+      </> : <label>{service==="flux-building"?"건물 디자인 (한국어)":"프롬프트"} <textarea value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/></label>}
       {service!=="flux-building" && <label>번역할 한국어 설명 <textarea value={form.translation_source_ko} onChange={e=>edit("translation_source_ko",e.target.value)}/></label>}
-      {!seamless && <label>참조 PNG (최대 2장) <input ref={fileInput} type="file" multiple accept="image/png" onChange={e=>setFiles(Array.from(e.target.files))}/></label>}
+      {!seamless && <label>{profile?.expressions?"얼굴 참조 PNG (1장)":"참조 PNG (최대 2장)"} <input ref={fileInput} type="file" multiple={!profile?.expressions} accept="image/png" onChange={e=>setFiles(Array.from(e.target.files))}/></label>}
       {files.map((file,index)=><p key={index}>참조 {index+1} · {file.name}</p>)}
       {[["width","너비"],["height","높이"]].map(([key,label])=><label key={key}>{label} <input type="number" readOnly={seamless} required min="256" max={service==="flux-character"?2048:1664} step="16" value={form[key]} onChange={e=>edit(key,e.target.value)}/></label>)}
       {service==="flux-character" && <label>생성 스텝 <input type="number" required min="1" max="50" value={form.steps} onChange={e=>edit("steps",e.target.value)}/></label>}
@@ -159,7 +172,7 @@ export default function FluxImagePage(){
       <label>이력 태그 <input value={form.tag} onChange={e=>edit("tag",e.target.value)}/></label>
       <button disabled={files.length < profile?.minimum || (!form.prompt.trim() && !form.translation_source_ko.trim())}>생성 요청 검토</button>
     </fieldset></form>
-    {review && <section><h2>공용 화풍 적용 프롬프트</h2><pre>{review.result.prompt}</pre>
+    {review && <section><h2>{profile?.expressions?"표정 프롬프트":"공용 화풍 적용 프롬프트"}</h2><pre>{review.result.prompt}</pre>
       {review.result.translation && <p>생성 시 번역할 내용 · {review.result.translation}</p>}
       <GpuQueueSummary/><button disabled={busy} onClick={()=>setReview(null)}>입력 수정</button>
       <button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button></section>}

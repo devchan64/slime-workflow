@@ -32,7 +32,6 @@ MANAGEMENT_INTERFACE_BUILDERS = {
 }
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
 GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator', 'writer-agent': 'writer_agent'}
-GENERATOR_PAGE_PACKAGES['flux-expression-generator'] = 'flux-expression'
 def __getattr__(name):
     """이전 Qwen 옵션 조회자가 접근할 때만 해당 화면 모듈을 읽는다."""
     if name != 'QWEN_INTERFACE_OPTIONS':
@@ -368,13 +367,31 @@ def build_management_application(current_handler_class, current_root_path, curre
 
     def require_flux_page(service):
         from fastapi import HTTPException
-        if service not in ('flux-image', 'flux-prop', 'flux-vegetation', 'flux-billboard', 'flux-mannequin', 'flux-building', 'flux-character', 'flux-seamless'):
+        if service not in ('flux-image', 'flux-prop', 'flux-vegetation', 'flux-billboard', 'flux-mannequin', 'flux-building', 'flux-character', 'flux-seamless', 'flux-expression'):
             raise HTTPException(404, '등록되지 않은 생성기 화면입니다.')
+
+    def flux_page_manager(service):
+        if service == 'flux-expression':
+            from tools.review.domains.image.flux_expression_generation import FluxExpressionGenerationManager
+            return FluxExpressionGenerationManager()
+        from tools.review.domains.image.flux_image_generation import FluxImageGenerationManager
+        return FluxImageGenerationManager(service)
+
+    @current_root_application.get('/management/assistant/flux-expression-face')
+    def flux_expression_face():
+        return FileResponse(Path(__file__).resolve().parents[3] / 'baseline/player/default/default-face-front-v1.png')
 
     @current_root_application.get('/management/assistant/flux-defaults/{service}')
     def flux_page_defaults(service: str):
         from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
         require_flux_page(service)
+        if service == 'flux-expression':
+            from tools.review.domains.image.expression_generation import load_expression_configuration
+            from tools.review.domains.image.flux_expression_generation import FLUX_PROMPT_BASE_TEXT
+            expressions = [dict(id=item['id'], label=item['label_ko'], text=FLUX_PROMPT_BASE_TEXT.format(expression=item['movement_prompt']))
+                           for item in load_expression_configuration()['expressions']]
+            return dict(label='표정', description='얼굴 참조 한 장과 표정을 선택하세요.', width=768, height=512,
+                        minimum=1, prompt=expressions[0]['id'], expressions=expressions)
         label, description, width, height, minimum = FLUX_IMAGE_PROFILE_RECORDS[service]
         prompt = 'Top-down repeatable ground texture with even lighting. Material: ' if service == 'flux-seamless' else ''
         if service in ('flux-prop', 'flux-vegetation'):
@@ -482,16 +499,21 @@ def build_management_application(current_handler_class, current_root_path, curre
 
         if not validate_service_job_identifier(service, job):
             raise HTTPException(404, '생성 ID를 확인하세요.')
-        root = FluxImageGenerationManager(service).job_storage_root
+        root = flux_page_manager(service).job_storage_root
         directory = root / job
         path = directory / 'request.json'
         if directory.is_symlink() or path.is_symlink() or not path.is_file():
             raise HTTPException(404, '저장된 입력을 찾을 수 없습니다.')
         try:
             record = {'id': job, 'request': json.loads(path.read_text())}
-            restored = restore_flux_image_inputs(record, service, root)
-            prompt, first, second, width, height, steps, seed, tag = restored[:8]
-            translation = restored[8] if service != 'flux-building' else ''
+            if service == 'flux-expression':
+                from tools.review.domains.image.flux_expression_generation import restore_flux_expression_inputs
+                first, prompt, width, height, seed, tag, translation = restore_flux_expression_inputs(record, root)
+                second, steps = None, 16
+            else:
+                restored = restore_flux_image_inputs(record, service, root)
+                prompt, first, second, width, height, steps, seed, tag = restored[:8]
+                translation = restored[8] if service != 'flux-building' else ''
             if not isinstance(prompt, str) or not isinstance(translation, str):
                 raise ValueError('저장된 번역 입력을 확인하세요.')
             images = []
@@ -513,7 +535,7 @@ def build_management_application(current_handler_class, current_root_path, curre
         if payload.get('action') != 'generate':
             raise HTTPException(422, '이미지 생성 입력을 확인하세요.')
         try:
-            request = FluxImageGenerationManager(service).validate_generation_request(payload)
+            request = flux_page_manager(service).validate_generation_request(payload)
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
         return {'prompt': request['prompt'], 'translation': request.get('translation_source_ko') or request.get('building_design_ko')}
@@ -647,6 +669,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen/')
     @current_root_application.get('/management/frame/music-heartmula')
     @current_root_application.get('/management/frame/music-heartmula/')
+    @current_root_application.get('/management/frame/flux-expression-generator')
+    @current_root_application.get('/management/frame/flux-expression-generator/')
     @current_root_application.get('/management/frame/flux-seamless-generator')
     @current_root_application.get('/management/frame/flux-seamless-generator/')
     @current_root_application.get('/management/frame/flux-character-generator')

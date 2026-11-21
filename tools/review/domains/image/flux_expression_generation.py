@@ -1,4 +1,5 @@
 """FLUX 표정 작업과 이전 Qwen 이력을 분리한다."""
+from tools.review.common.reference_restore import HistoryInputError, restore_reference_inputs, validate_history_input_settings
 import hashlib
 import json
 import re
@@ -18,6 +19,33 @@ def build_flux_expression_prompt(expression_identifier_value):
     if current_expression_record is None:
         raise ValueError('등록된 표정을 선택하세요.')
     return FLUX_PROMPT_BASE_TEXT.format(expression=current_expression_record['movement_prompt'])
+
+
+def restore_flux_expression_inputs(current_history_record, reference_storage_root=None):
+    current_request_record = validate_history_input_settings(current_history_record)
+    current_expression_identifier = current_request_record.get('expression_id')
+    if not isinstance(current_expression_identifier, str):
+        raise HistoryInputError('저장된 표정 프리셋이 없습니다. 표정을 직접 선택하세요.')
+    try:
+        current_expected_prompt = build_flux_expression_prompt(current_expression_identifier)
+    except ValueError as current_preset_error:
+        raise HistoryInputError('저장된 표정 프리셋을 현재 사용할 수 없습니다.') from current_preset_error
+    current_translated_text=current_request_record.get('translated_design')
+    if isinstance(current_translated_text,str):
+        current_expected_prompt=' '.join((current_expected_prompt,current_translated_text.strip()))
+    if current_request_record.get('prompt') != current_expected_prompt or current_request_record.get('prompt_sha256') != hashlib.sha256(current_expected_prompt.encode()).hexdigest():
+        raise HistoryInputError('저장된 프롬프트가 현재 프리셋과 달라 동일한 입력으로 복원할 수 없습니다.')
+    if current_request_record.get('steps') != 16:
+        raise HistoryInputError('저장된 생성 단계가 현재 설정과 다릅니다.')
+    if any(type(current_request_record.get(name)) is not int or not 256 <= current_request_record[name] <= 1664 or current_request_record[name] % 16 for name in ('width', 'height')):
+        raise HistoryInputError('저장된 출력 크기가 올바르지 않습니다.')
+    if type(current_request_record.get('seed')) is not int or not 0 <= current_request_record['seed'] <= 4294967295:
+        raise HistoryInputError('저장된 시드가 올바르지 않습니다.')
+    current_reference_names = current_request_record.get('references')
+    if not isinstance(current_reference_names, list) or len(current_reference_names) != 1:
+        raise HistoryInputError('얼굴 참조 이미지 1장의 저장 정보가 필요합니다.')
+    restored_reference_values = restore_reference_inputs(current_history_record, reference_storage_root or WORKFLOW_ROOT_PATH / '.tmp/test/flux-expression-generator', reference_slot_limit=1)
+    return (restored_reference_values[6], current_expression_identifier, restored_reference_values[2], restored_reference_values[3], restored_reference_values[5], restored_reference_values[1],current_request_record.get('translation_source_ko',''))
 
 
 class FluxExpressionGenerationManager(FluxTranslationQueueMixin, ImageGenerationManager):

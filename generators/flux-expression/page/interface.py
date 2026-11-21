@@ -1,6 +1,5 @@
 """FLUX 표정 생성기 페이지."""
 import base64
-import hashlib
 import io
 from pathlib import Path
 import gradio as gr
@@ -8,11 +7,11 @@ from PIL import Image
 from tools.review.common.gradio_generator_changelog import build_generator_changelog
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_history import build_generation_history_view
-from tools.review.common.gradio_reference_restore import restore_reference_inputs, validate_history_input_settings
+from tools.review.common.reference_restore import HistoryInputError
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.domains.image.expression_generation import load_expression_configuration
-from tools.review.domains.image.flux_expression_generation import build_flux_expression_prompt
+from tools.review.domains.image.flux_expression_generation import build_flux_expression_prompt, restore_flux_expression_inputs as restore_saved_expression
 
 DEFAULT_FACE_IMAGE_PATH = Path(__file__).resolve().parents[3] / 'baseline/player/default/default-face-front-v1.png'
 
@@ -32,30 +31,10 @@ def describe_flux_expression_prompt(current_expression_identifier):
 
 
 def restore_flux_expression_inputs(current_history_record, reference_storage_root=None):
-    current_request_record = validate_history_input_settings(current_history_record)
-    current_expression_identifier = current_request_record.get('expression_id')
-    if not isinstance(current_expression_identifier, str):
-        raise gr.Error('저장된 표정 프리셋이 없습니다. 표정을 직접 선택하세요.')
     try:
-        current_expected_prompt = build_flux_expression_prompt(current_expression_identifier)
-    except ValueError as current_preset_error:
-        raise gr.Error('저장된 표정 프리셋을 현재 사용할 수 없습니다.') from current_preset_error
-    current_translated_text=current_request_record.get('translated_design')
-    if isinstance(current_translated_text,str):
-        current_expected_prompt=' '.join((current_expected_prompt,current_translated_text.strip()))
-    if current_request_record.get('prompt') != current_expected_prompt or current_request_record.get('prompt_sha256') != hashlib.sha256(current_expected_prompt.encode()).hexdigest():
-        raise gr.Error('저장된 프롬프트가 현재 프리셋과 달라 동일한 입력으로 복원할 수 없습니다.')
-    if current_request_record.get('steps') != 16:
-        raise gr.Error('저장된 생성 단계가 현재 설정과 다릅니다.')
-    if any(type(current_request_record.get(name)) is not int or not 256 <= current_request_record[name] <= 1664 or current_request_record[name] % 16 for name in ('width', 'height')):
-        raise gr.Error('저장된 출력 크기가 올바르지 않습니다.')
-    if type(current_request_record.get('seed')) is not int or not 0 <= current_request_record['seed'] <= 4294967295:
-        raise gr.Error('저장된 시드가 올바르지 않습니다.')
-    current_reference_names = current_request_record.get('references')
-    if not isinstance(current_reference_names, list) or len(current_reference_names) != 1:
-        raise gr.Error('얼굴 참조 이미지 1장의 저장 정보가 필요합니다.')
-    restored_reference_values = restore_reference_inputs(current_history_record, reference_storage_root or Path(__file__).resolve().parents[3] / '.tmp/test/flux-expression-generator', reference_slot_limit=1)
-    return (restored_reference_values[6], current_expression_identifier, restored_reference_values[2], restored_reference_values[3], restored_reference_values[5], restored_reference_values[1],current_request_record.get('translation_source_ko',''))
+        return restore_saved_expression(current_history_record, reference_storage_root)
+    except HistoryInputError as error:
+        raise gr.Error(str(error)) from error
 
 
 def build_generator_page(current_server_address, current_review_port):
