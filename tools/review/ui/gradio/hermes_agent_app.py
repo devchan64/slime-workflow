@@ -445,6 +445,13 @@ def display_conversation_workflow_results(current_session_identifier, workflow_r
     generator_by_step = {step["step_id"]: step["generator"] for step in current_run_view["steps"]}
     source_history_links = []
     for workflow_step_record in current_run_view["steps"]:
+        for target_field_name, source_binding_record in workflow_step_record.get("bindings", {}).items():
+            source_output_label = escape(source_binding_record["from_step"] + "." + source_binding_record["output"])
+            target_input_label = escape(workflow_step_record["step_id"] + "." + target_field_name)
+            selection_mode_label = "사용자 선택 후 전달" if source_binding_record.get("selection") == "user_choice" else "자동 전달"
+            source_history_links.append(
+                f"<p>결과 연결 · <code>{source_output_label}</code> → <code>{target_input_label}</code> ({selection_mode_label})</p>"
+            )
         if workflow_step_record.get("state") == "blocked":
             blocked_step_label = escape(workflow_step_record["step_id"])
             source_step_label = escape(workflow_step_record.get("blocking_step") or workflow_step_record["step_id"])
