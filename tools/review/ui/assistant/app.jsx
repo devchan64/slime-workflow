@@ -266,6 +266,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/frame/building-editor": BuildingEditor,
   "/management/assistant/buildings": BuildingEditor,
   "/management/assistant/field-map": MapReview,
   "/management/assistant/town-map": MapReview,
