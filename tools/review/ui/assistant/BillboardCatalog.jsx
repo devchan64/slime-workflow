@@ -1,3 +1,4 @@
+import BillboardProperties from "./BillboardProperties.jsx";
 import React,{useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
@@ -34,6 +35,7 @@ export default function BillboardCatalog({choose}){
     {selected && <section><h3>{selected.name}</h3><p>{selected.modeling.purpose}</p><p>{selected.modeling.composition}</p>
       <ResultTable table={{title:"사용 맵",summary:selected.maps_truncated?"처음 20개 맵":selected.maps.length+"개 맵",
         columns:["맵","원본 경로","사용 횟수"],rows:selected.maps.map(map=>[map.map,map.source_path,map.occurrences ?? "미확인"])}}/>
+      <BillboardProperties key={selected.id} texture={selected.id}/>
       {choose && <button onClick={()=>choose("빌보드 "+selected.name,selected.id)}>대화 입력에 추가</button>}
     </section>}
   </section>;
