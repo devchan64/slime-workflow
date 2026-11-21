@@ -223,8 +223,18 @@ def review_conversation_workflow_definition(current_session_identifier, workflow
             raise gr.Error(f"{step_position_number}번째 단계의 generator에서 등록된 생성기를 선택하세요.")
         fixed_input_record = current_step_record.get("inputs", {})
         bound_input_record = current_step_record.get("bindings", {})
-        if not isinstance(fixed_input_record, dict) or not isinstance(bound_input_record, dict) or fixed_input_record.keys() & bound_input_record.keys():
-            raise gr.Error("단계 입력과 연결을 확인하세요.")
+        if not isinstance(fixed_input_record, dict) or not isinstance(bound_input_record, dict):
+            raise gr.Error(f"{current_step_identifier} 단계의 inputs와 bindings를 객체로 작성하세요.")
+        duplicate_input_fields = fixed_input_record.keys() & bound_input_record.keys()
+        if duplicate_input_fields:
+            duplicate_field_names = ", ".join(sorted(duplicate_input_fields))
+            raise gr.Error(f"{current_step_identifier} 단계의 {duplicate_field_names}에 값과 연결이 함께 있습니다. "
+                           "선행 결과를 사용하려면 inputs에서 해당 필드를 지우세요.")
+        for input_field_name, input_field_contract in current_generator_catalog[current_generator_name]["inputs"].items():
+            if (input_field_contract["required"] and input_field_name not in bound_input_record
+                    and fixed_input_record.get(input_field_name, input_field_contract.get("default")) is None):
+                raise gr.Error(f"{current_step_identifier} 단계의 inputs.{input_field_name} 값을 입력하세요. "
+                               f"선행 결과를 사용하려면 inputs에서 필드를 지우고 bindings.{input_field_name}에 연결하세요.")
         normalized_step_record = create_workflow_step_draft(current_step_identifier, current_generator_name, fixed_input_record)
         for reviewed_version_field in ("generator_version", "template_version"):
             if reviewed_version_field in current_step_record:
