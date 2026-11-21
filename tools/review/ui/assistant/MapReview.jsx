@@ -9,6 +9,16 @@ export default function MapReview(){
   const [source,setSource]=useState(null),[draft,setDraft]=useState(null),[preview,setPreview]=useState(null);
   const [past,setPast]=useState([]),[future,setFuture]=useState([]);
   const [texture,setTexture]=useState(""),[objectId,setObjectId]=useState("");
+  const [storageNotice,setStorageNotice]=useState("");
+  const storageKey=map=>"slime-map-editor-draft-v1:"+map;
+  useEffect(()=>{
+    if(!draft || (!past.length && !future.length))return;
+    try{
+      sessionStorage.setItem(storageKey(draft.map),JSON.stringify({version:1,savedAt:new Date().toISOString(),
+        state:{snapshot:source,draft,history:past,future}}));
+      setStorageNotice("현재 탭에 초안과 편집 이력을 보관했습니다.");
+    }catch(error){setStorageNotice("탭 임시저장 실패 · "+error.message);}
+  },[draft,past,future,source]);
   const placed=draft?.objects || [];
   const atCell=item=>cell && item.position.column===cell.column && item.position.row===cell.row;
   const selectedObject=placed.find(item=>item.id===objectId);
@@ -57,6 +67,8 @@ export default function MapReview(){
     try{
       const result=await managementCommand("map-assets","map-edit-save",{...draft,token:preview.token});
       if(result.map!==draft.map || result.saved!==true)throw new Error("저장 결과를 확인할 수 없습니다.");
+      try{sessionStorage.removeItem(storageKey(draft.map));setStorageNotice("");}
+      catch(error){setStorageNotice("임시본 정리 실패 · "+error.message);}
       setPast([]);setFuture([]);setCell(null);setSource(null);setDraft(null);setFeedback(result.map+" 저장 완료");
     }catch(error){setFeedback(error.message+" · 저장 상태를 확인하세요.");}
     finally{setReading(false);}
@@ -69,14 +81,27 @@ export default function MapReview(){
       const map=window.mapReviewControlOptions().selected;
       const snapshot=source || await managementCommand("map-assets","map-edit-load",{map});
       setSource(snapshot);
-      if(!draft)setDraft({map,revision:snapshot.revision,cells:[],
+      let current=draft;
+      if(!current){
+        const raw=sessionStorage.getItem(storageKey(map));
+        if(raw){
+          const saved=JSON.parse(raw),state=saved.state;
+          if(saved.version!==1 || !Array.isArray(state?.history) || !Array.isArray(state.future) ||
+            ![state.draft,...state.history,...state.future].every(item=>item?.map===map && item.revision===snapshot.revision &&
+              Array.isArray(item.cells) && Array.isArray(item.objects)))throw new Error("원본 리비전 또는 임시본 형식이 달라 복원할 수 없습니다.");
+          const checked=await managementCommand("map-assets","map-edit-preview",state.draft);
+          await window.mapReviewApplyDraft(checked.render);
+          current=state.draft;setPast(state.history);setFuture(state.future);setPreview(checked);
+        }else current={map,revision:snapshot.revision,cells:[],
         objects:snapshot.tiles.objects.filter(item=>item.kind==="decoration"),
-        ...(snapshot.terrain.terrainEffects?{terrainEffects:snapshot.terrain.terrainEffects}:{})});
+        ...(snapshot.terrain.terrainEffects?{terrainEffects:snapshot.terrain.terrainEffects}:{})};
+        setDraft(current);
+      }
       const {column,row}=selected;
       const tile=snapshot.tiles.rows[row][column];
       setCell({column,row,tile,height:snapshot.terrain.elevations[row][column],
         blocked:snapshot.terrain.blocked.some(([x,y])=>x===column && y===row),
-        ...draft?.cells.find(item=>item.column===column && item.row===row)});
+        ...current.cells.find(item=>item.column===column && item.row===row)});
       setFeedback("");
     }catch(error){setFeedback(error.message);}
     finally{setReading(false);}
@@ -123,6 +148,7 @@ export default function MapReview(){
         <label>높이<input type="number" required min="0" max="20" step="1" value={cell.height} onChange={e=>editCell("height",e.target.value)}/></label>
         <label><input type="checkbox" checked={cell.blocked} onChange={e=>editCell("blocked",e.target.checked)}/>이동 금지</label>
         <button>초안 검증 및 미리보기</button></form>}
+      {storageNotice && <p role="status">{storageNotice}</p>}
       {draft && <fieldset><legend>빌보드 배치</legend>
         <label>추가할 에셋<select value={texture} onChange={e=>setTexture(e.target.value)}>
           <option value="">에셋 선택</option>{(source.textures || []).map(key=><option key={key}>{key}</option>)}</select></label>
