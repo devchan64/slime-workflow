@@ -229,6 +229,12 @@ def prepare_workflow_revision_message(current_session_identifier, workflow_defin
     return prepared_request_text
 
 
+def switch_workflow_draft_session(current_session_identifier, previous_session_identifier):
+    if previous_session_identifier is None or previous_session_identifier == current_session_identifier:
+        return current_session_identifier, gr.skip(), gr.skip(), gr.skip()
+    return current_session_identifier, "", None, ""
+
+
 def load_session_workflow_draft(current_session_identifier):
     stored_draft_record = execute_remote_management_command("hermes-agent", "hermes-workflow-draft-read",
                                                            {"session_id": current_session_identifier})
@@ -5004,7 +5010,11 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     draft_load_event.success(lambda: "저장된 초안을 조회했습니다.", outputs=workflow_draft_notice, queue=False)
                     gr.Button("이 대화에 초안 저장").click(save_session_workflow_draft,
                         [hermes_session_control, workflow_definition_text, workflow_draft_revision], [workflow_draft_revision, workflow_draft_notice], queue=False)
-                    hermes_session_control.change(lambda: ("", None, ""), outputs=[workflow_definition_text, workflow_draft_revision, workflow_draft_notice], queue=False)
+                    workflow_editor_session = gr.State(None)
+                    hermes_session_control.change(switch_workflow_draft_session,
+                        [hermes_session_control, workflow_editor_session],
+                        [workflow_editor_session, workflow_definition_text, workflow_draft_revision, workflow_draft_notice],
+                        queue=False)
                     workflow_graph_review = gr.Button("입력과 연결 검토")
                     workflow_graph_state = gr.State(None)
                     workflow_graph_preview = gr.JSON(label="기본값을 포함한 실행 계획")
