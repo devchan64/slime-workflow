@@ -10,6 +10,10 @@ const labels=["X","Y","너비","높이","앵커 X","앵커 Y"];
 
 function SpritePreview({rows,image,bounds,fps,original,onEdit}){
   const canvas=useRef(null);
+  const [gameSize,setGameSize]=useState(false),[guide,setGuide]=useState(true),[feet,setFeet]=useState(false);
+  const [referenceHeight,setReferenceHeight]=useState(original?.runtimeDimensions?.referenceBodyHeight ?? original?.animation?.referenceBodyHeight ?? "");
+  const [gameHeight,setGameHeight]=useState(original?.runtimeDimensions?.gameBodyHeight ?? original?.animation?.gameBodyHeight ?? "");
+  const [previewStatus,setPreviewStatus]=useState("");
   const [mode,setMode]=useState("크롭"),[target,setTarget]=useState("현재 프레임"),[selection,setSelection]=useState([]);
   const [notice,setNotice]=useState(""),[revision,refresh]=useState(0);
   function togglePlayback(){
@@ -35,12 +39,14 @@ function SpritePreview({rows,image,bounds,fps,original,onEdit}){
   const [shadow,setShadow]=useState(false),[baseline,setBaseline]=useState(true),[onion,setOnion]=useState(false);
   useEffect(()=>{
     const el=canvas.current;
-    renderSpritePreview("data:image/png;base64,"+image,rows.map(row=>fields.map(field=>row[field])),frame,
-      playing,shadow,mode,bounds,fps,baseline,onion,clip,original || {},false,480,80,false,{},false,el);
+    const message=renderSpritePreview("data:image/png;base64,"+image,rows.map(row=>fields.map(field=>row[field])),frame,
+      playing,shadow,mode,bounds,fps,baseline,onion,clip,original || {},gameSize,referenceHeight,gameHeight,feet,{},guide,el);
+    setPreviewStatus(message);
     return ()=>{el.spritePreviewRevision++;};
-  },[image,rows,frame,playing,shadow,bounds,fps,baseline,onion,clip,original,mode,revision]);
+  },[image,rows,frame,playing,shadow,bounds,fps,baseline,onion,clip,original,mode,revision,gameSize,referenceHeight,gameHeight,feet,guide]);
   return <fieldset><legend>프레임 재생 미리보기</legend>
     <canvas ref={canvas} width="640" height="640" aria-label="크롭과 앵커 미리보기" style={{width:"100%",maxWidth:640,touchAction:"none"}}/>
+    <p role="status">{previewStatus}</p>
     <button type="button" onClick={togglePlayback}>{playing?"정지":"재생"}</button>
     <fieldset disabled={playing}><legend>캔버스 편집</legend>
       <label>편집 도구<select value={mode} onChange={e=>setMode(e.target.value)}>
@@ -59,6 +65,13 @@ function SpritePreview({rows,image,bounds,fps,original,onEdit}){
       onChange={e=>setFrame(Number(e.target.value))}/></label>
     {original?.animation?.clips?.length>0 && <label>검수 동작<select value={clip} onChange={e=>selectClip(e.target.value)}>
       <option value="">전체 시트</option>{original.animation.clips.map(item=><option key={item.clipId} value={item.clipId}>{item.action} · {item.direction}</option>)}</select></label>}
+    <details><summary>게임 출력 크기 검수</summary>
+      <label><input type="checkbox" checked={gameSize} onChange={e=>setGameSize(e.target.checked)}/>게임 픽셀 크기로 표시</label>
+      <label>원본 신체 높이 (px)<input inputMode="decimal" value={referenceHeight} onChange={e=>setReferenceHeight(e.target.value)}/></label>
+      <label>게임 출력 신체 높이 (px)<input inputMode="decimal" value={gameHeight} onChange={e=>setGameHeight(e.target.value)}/></label>
+      <label><input type="checkbox" checked={guide} onChange={e=>setGuide(e.target.checked)}/>게임 80px 높이 기준</label>
+      <label><input type="checkbox" checked={feet} onChange={e=>setFeet(e.target.checked)}/>등록된 양발 중심</label>
+    </details>
     <label><input type="checkbox" checked={shadow} onChange={e=>setShadow(e.target.checked)}/>바닥 그림자</label>
     <label><input type="checkbox" checked={baseline} onChange={e=>setBaseline(e.target.checked)}/>앵커 기준선</label>
     <label><input type="checkbox" checked={onion} onChange={e=>setOnion(e.target.checked)}/>이전 프레임 겹쳐보기</label>
