@@ -11,7 +11,7 @@ export default function KimodoFrames({id,choose}) {
   useEffect(()=>{
     let active=true;
     managementCommand("kimodo","status",{id}).then(job=>{
-      if(job.id!==id || job.status!=="completed" || !job.attempt || !Number.isInteger(job.source_frame_count) || job.source_frame_count<1)
+      if(job.image!=="/kimodo/jobs/"+id+"/attempts/"+job.attempt+"/output-000.png" || job.status!=="completed" || !job.attempt || !Number.isInteger(job.source_frame_count) || job.source_frame_count<1)
         throw new Error("완료된 모션의 원본 프레임을 확인할 수 없습니다.");
       if(active)setSource(job);
     }).catch(problem=>{if(active)setError(problem.message);});
