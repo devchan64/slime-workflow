@@ -1,4 +1,4 @@
-import React,{useRef,useState} from "react";
+import React,{useEffect,useRef,useState} from "react";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
@@ -15,6 +15,8 @@ function readReference(file){
 }
 
 export default function FluxImagePage(){
+  const service=location.pathname.match(/\/management\/frame\/(flux-[a-z]+)-generator/)?.[1] || "flux-image";
+  const [profile,setProfile]=useState(null),[attempt,setAttempt]=useState(0);
   const query=new URLSearchParams(location.search);
   const [form,setForm]=useState({prompt:"",translation_source_ko:"",width:768,height:768,seed:10107,tag:""});
   const [files,setFiles]=useState([]),[review,setReview]=useState(null);
@@ -23,8 +25,21 @@ export default function FluxImagePage(){
   const sending=useRef(false);
   const fileInput=useRef(null);
   const [historyRevision,setHistoryRevision]=useState(0);
+  useEffect(()=>{
+    const controller=new AbortController();
+    async function load(){
+      try{
+        const response=await fetch("/management/assistant/flux-defaults/"+service,{signal:controller.signal});
+        if(!response.ok)throw new Error("생성기 기본 입력을 불러올 수 없습니다.");
+        const defaults=await response.json();
+        setForm(current=>({...current,prompt:defaults.prompt,width:defaults.width,height:defaults.height}));
+        setProfile(defaults);setNotice("");
+      }catch(error){if(!controller.signal.aborted)setNotice(error.message);}
+    }
+    load();return ()=>controller.abort();
+  },[service,attempt]);
   async function readJob(id){
-    const response=await fetch("/management/assistant/flux-image-input/"+encodeURIComponent(id),{cache:"no-store"});
+    const response=await fetch("/management/assistant/flux-image-input/"+encodeURIComponent(id)+"?service="+service,{cache:"no-store"});
     const record=await response.json();
     if(!response.ok)throw new Error(record.detail || "저장된 입력을 확인할 수 없습니다.");
     const files=record.images.map((encoded,index)=>{
@@ -46,7 +61,7 @@ export default function FluxImagePage(){
       const payload={...input,width:Number(input.width),height:Number(input.height),seed:Number(input.seed),steps:16,
         images:await Promise.all(files.map(readReference)),action:"generate"};
       if(translation_source_ko.trim())payload.translation_source_ko=translation_source_ko.trim();
-      const response=await fetch("/management/assistant/flux-image-preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      const response=await fetch("/management/assistant/flux-image-preview?service="+service,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const result=await response.json();
       if(!response.ok)throw new Error(result.detail || "입력을 확인하세요.");
       setReview({payload,result});
@@ -57,15 +72,17 @@ export default function FluxImagePage(){
     if(!review || sending.current)return;
     sending.current=true;setBusy(true);
     try{
-      const result=await managementCommand("flux-image","generate",review.payload);
+      const result=await managementCommand(service,"generate",review.payload);
       if(!result.id)throw new Error("작업 ID를 확인할 수 없습니다.");
       setJob(result.id);setNotice("공용 GPU 대기열에 등록했습니다.");
     }catch(problem){setNotice(problem.message+" · 생성 이력에서 접수 여부를 확인하세요.");}
     finally{sending.current=false;setBusy(false);setReview(null);}
   }
   return <article><a href={"/management/assistant/"+(query.has("session")?"?"+new URLSearchParams({session:query.get("session")}):"")}>헤르메스 대화</a>
-    <h1>FLUX 일반 이미지 생성</h1><GeneratorChangelog generator="flux-image-generator"/>
-    <form onSubmit={preview}><fieldset disabled={busy || Boolean(review)}>
+    <h1>FLUX {profile?.label} 생성</h1><GeneratorChangelog generator={service+"-generator"}/>
+    {profile && <p>{profile.description}</p>}
+    {!profile && notice && <button onClick={()=>setAttempt(current=>current+1)}>기본 입력 다시 불러오기</button>}
+    <form onSubmit={preview}><fieldset disabled={!profile || busy || Boolean(review)}>
       <label>프롬프트 <textarea value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/></label>
       <label>번역할 한국어 설명 <textarea value={form.translation_source_ko} onChange={e=>edit("translation_source_ko",e.target.value)}/></label>
       <label>참조 PNG (최대 2장) <input ref={fileInput} type="file" multiple accept="image/png" onChange={e=>setFiles(Array.from(e.target.files))}/></label>
@@ -81,7 +98,7 @@ export default function FluxImagePage(){
       <GpuQueueSummary/><button disabled={busy} onClick={()=>setReview(null)}>입력 수정</button>
       <button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button></section>}
     {notice && <p role="status">{notice}</p>}
-    {!busy && !review && <GeneratorHistory key={historyRevision} service="flux-image" readJob={readJob} restore={restore} inspectResult={record=>setJob(record.id)}/>}
-    <GeneratorJobResult job={job} kind="flux" service="flux-image" onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/>
+    {profile && !busy && !review && <GeneratorHistory key={historyRevision} service={service} readJob={readJob} restore={restore} inspectResult={record=>setJob(record.id)}/>}
+    <GeneratorJobResult job={job} kind="flux" service={service} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/>
   </article>;
 }

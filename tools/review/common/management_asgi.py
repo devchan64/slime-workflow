@@ -33,7 +33,7 @@ MANAGEMENT_INTERFACE_BUILDERS = {
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
 GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator', 'writer-agent': 'writer_agent'}
 GENERATOR_PAGE_PACKAGES['flux-expression-generator'] = 'flux-expression'
-for current_flux_profile in ('flux-character','flux-mannequin','flux-billboard','flux-prop','flux-vegetation','flux-building','flux-seamless'):
+for current_flux_profile in ('flux-character','flux-mannequin','flux-billboard','flux-building','flux-seamless'):
     GENERATOR_PAGE_PACKAGES[current_flux_profile+'-generator'] = current_flux_profile
 def __getattr__(name):
     """이전 Qwen 옵션 조회자가 접근할 때만 해당 화면 모듈을 읽는다."""
@@ -368,8 +368,25 @@ def build_management_application(current_handler_class, current_root_path, curre
             rows.append({'id': identifier, 'status': state, 'message': message})
         return rows
 
+    def require_flux_page(service):
+        from fastapi import HTTPException
+        if service not in ('flux-image', 'flux-prop', 'flux-vegetation'):
+            raise HTTPException(404, '등록되지 않은 생성기 화면입니다.')
+
+    @current_root_application.get('/management/assistant/flux-defaults/{service}')
+    def flux_page_defaults(service: str):
+        from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
+        require_flux_page(service)
+        label, description, width, height, minimum = FLUX_IMAGE_PROFILE_RECORDS[service]
+        prompt = ''
+        if service in ('flux-prop', 'flux-vegetation'):
+            source = service.removeprefix('flux-') + '-qwen-prompt.txt'
+            prompt = (Path(__file__).resolve().parents[3] / 'generators/image/config' / source).read_text().strip().replace('transparent background', 'plain background')
+        return dict(label=label, description=description, width=width, height=height, prompt=prompt, minimum=minimum)
+
     @current_root_application.get('/management/assistant/flux-image-input/{job}')
-    def flux_image_saved_input(job: str):
+    def flux_image_saved_input(job: str, service: str = "flux-image"):
+        require_flux_page(service)
         import base64
         import io
         import json
@@ -378,16 +395,16 @@ def build_management_application(current_handler_class, current_root_path, curre
         from tools.review.domains.image.flux_image_generation import FluxImageGenerationManager
         from tools.review.domains.image.flux_input_restore import restore_flux_image_inputs
 
-        if not validate_service_job_identifier('flux-image', job):
+        if not validate_service_job_identifier(service, job):
             raise HTTPException(404, '생성 ID를 확인하세요.')
-        root = FluxImageGenerationManager('flux-image').job_storage_root
+        root = FluxImageGenerationManager(service).job_storage_root
         directory = root / job
         path = directory / 'request.json'
         if directory.is_symlink() or path.is_symlink() or not path.is_file():
             raise HTTPException(404, '저장된 입력을 찾을 수 없습니다.')
         try:
             record = {'id': job, 'request': json.loads(path.read_text())}
-            prompt, first, second, width, height, _, seed, tag, translation = restore_flux_image_inputs(record, 'flux-image', root)
+            prompt, first, second, width, height, _, seed, tag, translation = restore_flux_image_inputs(record, service, root)
             if not isinstance(prompt, str) or not isinstance(translation, str):
                 raise ValueError('저장된 번역 입력을 확인하세요.')
             images = []
@@ -402,13 +419,14 @@ def build_management_application(current_handler_class, current_root_path, curre
                                            translation_source_ko=translation), 'images': images}
 
     @current_root_application.post('/management/assistant/flux-image-preview')
-    def flux_image_preview(payload: dict):
+    def flux_image_preview(payload: dict, service: str = "flux-image"):
+        require_flux_page(service)
         from fastapi import HTTPException
         from tools.review.domains.image.flux_image_generation import FluxImageGenerationManager
         if payload.get('action') != 'generate':
             raise HTTPException(422, '이미지 생성 입력을 확인하세요.')
         try:
-            request = FluxImageGenerationManager('flux-image').validate_generation_request(payload)
+            request = FluxImageGenerationManager(service).validate_generation_request(payload)
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
         return {'prompt': request['prompt'], 'translation': request.get('translation_source_ko')}
@@ -542,6 +560,10 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen/')
     @current_root_application.get('/management/frame/music-heartmula')
     @current_root_application.get('/management/frame/music-heartmula/')
+    @current_root_application.get('/management/frame/flux-prop-generator')
+    @current_root_application.get('/management/frame/flux-prop-generator/')
+    @current_root_application.get('/management/frame/flux-vegetation-generator')
+    @current_root_application.get('/management/frame/flux-vegetation-generator/')
     @current_root_application.get('/management/frame/flux-image-generator')
     @current_root_application.get('/management/frame/flux-image-generator/')
     @current_root_application.get('/management/assistant/flux-image/')
