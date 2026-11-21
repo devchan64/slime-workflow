@@ -80,7 +80,7 @@ function Message() {
   const table=meta.table && path ? {...meta.table,rows:meta.table.rows.map(([job,...cells])=>[
     <a href={path+"?"+new URLSearchParams({job,session:meta.session})}>{job}</a>,...cells])} : meta.table;
   return <MessagePrimitive.Root className={"message "+message.role+(meta.formId?" message-form":"")}>
-    <b>{meta.formId?"생성 폼":message.role==="user"?"나":"헤르메스"}</b><MessagePrimitive.Parts/>
+    <b>{meta.formId?"생성 작업":message.role==="user"?"나":"헤르메스"}</b><MessagePrimitive.Parts/>
     {meta.formId && <ConversationVideoForm session={meta.session} formId={meta.formId} open={actions.openVideoForm} reuse={actions.openJobForm}/>}
     {meta.seedProposal && <section aria-label="시드 변경 생성 제안">{meta.seedProposal.reason ? <p>{meta.seedProposal.reason}</p> : <><p>원본 {meta.seedProposal.job_id}의 입력을 불러와 {meta.seedProposal.seed == null ? "다른 시드" : "시드 "+meta.seedProposal.seed}로 검토합니다. 생성은 확인 후 접수됩니다.</p><button type="button" onClick={()=>actions.openSeedForm(meta.seedProposal)}>생성 폼 검토</button></>}</section>}
     {meta.kimodoProposal && meta.job && <KimodoProposal key={meta.job} job={meta.job} append={actions.append} openStep={actions.openStep}/>}
