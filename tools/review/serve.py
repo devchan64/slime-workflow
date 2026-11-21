@@ -153,6 +153,7 @@ def parse_review_arguments(command_argument_values=None):
 def collect_review_watch_paths(parsed_argument_values):
     workflow_repo_root = Path(__file__).resolve().parents[2]
     watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review/ui']
+    watch_paths.extend(workflow_repo_root/'gui'/name for name in ('index.html', 'style.css', 'dist'))
     watch_paths.extend(current_page_directory for current_page_directory in (workflow_repo_root/'generators').glob('*/page') if current_page_directory.is_dir())
     watch_paths.extend(current_config_directory for current_config_directory in (workflow_repo_root/'generators').rglob('config') if current_config_directory.is_dir())
     watch_paths.extend(workflow_repo_root/'generators/writer_agent'/current_file_name for current_file_name in ('manager.html','manager.js'))
@@ -194,7 +195,7 @@ def can_reuse_review_directory(current_changed_paths):
     current_workflow_root=Path(__file__).resolve().parents[2]
     current_gradio_root=current_workflow_root/'tools/review/ui/gradio'
     current_common_root=current_workflow_root/'tools/review/common'
-    assistant_root=current_workflow_root/'tools/review/ui/assistant'
+    assistant_root=current_workflow_root/'gui'
     served_assets={assistant_root/name for name in ('index.html','style.css','dist/app.js','dist/app.js.LEGAL.txt')}
     return bool(current_changed_paths) and all(
         Path(current_file_path) in served_assets or

@@ -1,6 +1,6 @@
 const currentAssertModule=require('node:assert/strict');
 const currentFileSystem=require('node:fs');
-const applyCanvasChanges=require('../ui/assistant/applySpriteCanvas.mjs').default;
+const applyCanvasChanges=require('../../../gui/applySpriteCanvas.mjs').default;
 const currentFrameRows=[[0,0,232,359,115,327],[0,359,232,242,115,204]];
 const currentEditorState={signature:JSON.stringify(currentFrameRows),index:0,drafts:{0:[0,0,232,359,120,322]},undo:[]};
 global.document={getElementById:()=>({spriteEditorState:currentEditorState})};

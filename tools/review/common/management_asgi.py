@@ -1005,7 +1005,7 @@ def build_management_application(current_handler_class, current_root_path, curre
         ]
 
     from starlette.responses import FileResponse
-    assistant_root = Path(__file__).resolve().parents[1] / 'ui' / 'assistant'
+    assistant_root = Path(__file__).resolve().parents[3] / 'gui'
 
     @current_root_application.get('/management/frame/prompt-translation')
     @current_root_application.get('/management/frame/prompt-translation/')

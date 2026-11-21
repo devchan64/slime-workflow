@@ -22,7 +22,7 @@ class ReviewWatchTests(unittest.TestCase):
 
     def test_assistant_bundle_and_catalog_reuse_prepared_directory(self):
         root=Path(serve.__file__).resolve().parent
-        changed=[root/'ui/assistant/dist/app.js',root/'ui/assistant/index.html',root/'ui/assistant/style.css',root/'common/management_catalog.py']
+        changed=[root.parents[1]/'gui/dist/app.js',root.parents[1]/'gui/index.html',root.parents[1]/'gui/style.css',root/'common/management_catalog.py']
         self.assertTrue(serve.can_reuse_review_directory(changed))
         self.assertFalse(serve.can_reuse_review_directory([*changed,root/'build_map_review.py']))
 
