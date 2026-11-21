@@ -1,4 +1,4 @@
-import React, {useEffect,useRef,useState} from "react";
+import React, {useEffect,useId,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import SelectedHistoryDeletion from "./SelectedHistoryDeletion.jsx";
 import {requestErrorMessage} from "./requestError.mjs";
@@ -28,7 +28,9 @@ function HistoryThumbnail({src}) {
   return <img className="history-card-image" loading="lazy" decoding="async" src={src} alt="생성 결과 미리보기" onError={()=>setFailed(true)}/>;
 }
 
-export default function GeneratorHistory({service, statusCommand, restore, inspectResult, openResult, readJob, allowPriority=false, onSelectedDeleted}) {
+export default function GeneratorHistory({service, statusCommand, restore, inspectResult, openResult, renderResult, readJob, allowPriority=false, onSelectedDeleted}) {
+  const resultPanelId=useId();
+  const [expanded,setExpanded]=useState(null);
   const [page,setPage]=useState(null);
   const [query,setQuery]=useState("");
   const [filter,setFilter]=useState("");
@@ -66,6 +68,7 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
       const result=await managementCommand(service,"history-observe",payload);
       if(!Array.isArray(result.records))throw new Error("이력 응답을 확인할 수 없습니다.");
       const ids=new Set(result.records.map(record=>record.id));
+      setExpanded(current=>ids.has(current) ? current : null);
       setSelected(current=>current && ids.has(current.id) ? result.records.find(record=>record.id===current.id) : null);
       setJob(current=>current && ids.has(current.id) ? current : null);
       setPage(result);setFilter(search);setPageSize(size);
@@ -74,7 +77,7 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
     }
   }
   function deleted(id,message) {
-    setSelected(null);
+    setExpanded(null);setSelected(null);
     setJob(null);
     setPage(previous=>({...previous,records:previous.records.filter(record=>record.id!==id),total:Math.max(0,previous.total-1)}));
     onSelectedDeleted(id,message);
@@ -93,7 +96,8 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
     const result=await read(id);
     setJob(result);
   }
-  return <details className="generator-history" onToggle={event=>{if(event.currentTarget.open && !page && !error)perform(()=>list(0,query.trim()));}}><summary>생성 이력</summary>
+  return <details className="generator-history" onToggle={event=>{if(!event.currentTarget.open)setExpanded(null);
+    if(event.currentTarget.open && !page && !error)perform(()=>list(0,query.trim()));}}><summary>생성 이력</summary>
     <fieldset disabled={busy}><div className="generator-history-toolbar">
       <label>작업 ID 검색 <input value={query} maxLength={80} onChange={e=>setQuery(e.target.value)}/></label>
       <label>페이지당 이력 <select value={pageSize} onChange={e=>{const size=Number(e.target.value);perform(()=>list(0,query.trim(),size));}}>{[5,10,20,30].map(size=><option key={size} value={size}>{size}건</option>)}</select></label>
@@ -104,15 +108,19 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
         {summaryNotice && <p role="status">{summaryNotice}</p>}
         {page.records.length===0 && <p>조회된 이력이 없습니다. 검색 조건을 바꾸거나 새 작업을 생성하세요.</p>}
         <div className="generator-history-list">{page.records.map(record=><div className="generator-history-item" key={record.id}>
-          <button type="button" className="generator-history-select" aria-pressed={selected?.id===record.id} onClick={()=>{setSelected(record);setJob(null);setError("");}}>
+          <button type="button" className="generator-history-select" aria-pressed={selected?.id===record.id} onClick={()=>{if(selected?.id!==record.id)setExpanded(null);setSelected(record);setJob(null);setError("");}}>
             <HistoryImage key={record.id} service={service} record={record} summary={summaries[record.id]} unavailable={Boolean(summaryNotice)}/><span className="history-card-content"><span className="history-card-heading"><strong>{statusLabels[record.recorded_status] || "확인 필요 · "+record.recorded_status}</strong>{recordedTime(record.id) && <span>{recordedTime(record.id)}</span>}</span>{historyInputSummary(summaries[record.id]).length>0 && <span className="history-card-summary">{historyInputSummary(summaries[record.id]).join(" · ")}</span>}<span className="history-card-id">{record.id}</span></span>
           </button>
           {selected?.id===record.id && <section className="generator-history-selection" aria-label="선택 이력">
             <p className="history-selection-title">선택한 작업 · {record.id}</p>
             <div className="generator-history-actions">
+              {renderResult && <button type="button" className="history-action-result" aria-expanded={expanded===record.id}
+                aria-controls={resultPanelId} onClick={()=>setExpanded(current=>current===record.id ? null : record.id)}>
+                {expanded===record.id ? "결과 접기" : "결과 펼치기"}</button>}
               {(openResult || inspectResult) && <button className="history-action-result" type="button" onClick={()=>perform(()=>showResult(record.id))}>결과 조회</button>}
               {restore && <button className="history-action-input" type="button" onClick={()=>perform(()=>showInput(record.id))}>입력값 불러오기</button>}
             </div>
+            {renderResult && <div id={resultPanelId} hidden={expanded!==record.id} className="history-action-detail">{expanded===record.id && renderResult(record.id)}</div>}
             {onSelectedDeleted && <SelectedHistoryDeletion key={service+"/"+record.id} service={service} id={record.id} allowPriority={allowPriority} onDeleted={deleted}/>}
             {job?.id===record.id && <section className="history-action-detail">{historyInputSummary(job.request).length>0 && <p>저장 입력 · {historyInputSummary(job.request).join(" · ")}</p>}<details><summary>저장된 입력 상세</summary><pre>{JSON.stringify(job.request,null,2)}</pre></details>
               {restore && <button type="button" onClick={()=>restore(job.request,job)}>확인한 입력 적용</button>}

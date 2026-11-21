@@ -3,7 +3,7 @@ import {managementCommand} from "./managementCommand.js";
 import {formatCleanupResult} from "./formatCleanupResult.mjs";
 import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import {JobPriority} from "./QueuePriority.jsx";
-import {LiveRefreshControl,useLiveRefresh} from "./LiveRefresh.jsx";
+import {useLiveRefresh} from "./LiveRefresh.jsx";
 
 const terminalStates=new Set(["completed","failed","cancelled","paused"]);
 function statusCommand(service) {
@@ -31,7 +31,7 @@ export default function SelectedHistoryDeletion({service,id,onDeleted,allowPrior
   const [revision,setRevision]=useState(0);
   const [controlActive,setControlActive]=useState(false),[priorityActive,setPriorityActive]=useState(false);
   const [review,setReview]=useState(false),[ack,setAck]=useState(false),[busy,setBusy]=useState(false);
-  const live=useLiveRefresh(()=>setRevision(value=>value+1),!busy);
+  const live=useLiveRefresh(()=>setRevision(value=>value+1),!busy && ["queued","running"].includes(state));
   useEffect(()=>{
     let active=true;
     mounted.current=true;setError("");
@@ -66,8 +66,8 @@ export default function SelectedHistoryDeletion({service,id,onDeleted,allowPrior
     {allowPriority && <p className="history-action-detail" id="priority-help">{state===null ? "현재 작업 상태를 확인해야 우선 실행을 검토할 수 있습니다." : state==="queued" ? "대기 순서는 검토할 때 다시 확인합니다." : "우선 실행은 대기 중인 작업에서 사용할 수 있습니다."}</p>}
     <button ref={live.ref} className="history-action-delete" type="button" disabled={busy || review || controlActive || priorityActive || !terminalStates.has(state)} aria-describedby="selected-delete-help" onClick={()=>{setReview(true);setAck(false);}}>선택 이력 삭제 검토</button>
     <p className="history-action-detail" id="selected-delete-help">{state===null ? "선택 작업의 상태를 확인할 수 있어야 삭제할 수 있습니다." : terminalStates.has(state) ? "삭제 전에 대상과 범위를 확인합니다." : "종료된 작업만 삭제할 수 있습니다. 종료 후 다시 확인하세요."}</p>
-    <div className="history-action-detail"><LiveRefreshControl live={live} label="선택 작업 상태 자동 갱신"/> <button type="button" disabled={busy} onClick={()=>setRevision(value=>value+1)}>작업 상태 다시 확인</button></div>
-    {error && <p className="history-action-detail" role="alert">{error}</p>}
+    {error && <div className="history-action-detail"><p role="alert">{error}</p>
+      <button type="button" disabled={busy} onClick={()=>setRevision(value=>value+1)}>작업 상태 다시 확인</button></div>}
     {review && <section className="history-action-detail history-confirmation">
       <p>{service} · 선택 작업 {id}</p>
       <p>작업 폴더의 입력 사본·중간 산출물·결과·모든 실행 시도의 요청·상태·로그와 이력 기록을 삭제하며 복구할 수 없습니다. 외부 원본과 등록된 에셋은 보존합니다.</p>

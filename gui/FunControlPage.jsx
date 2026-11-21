@@ -140,6 +140,13 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     const values=Object.fromEntries(settings.map(([key])=>[key,Number(request[key])]));
     setPending({...request,...values});
   }
+  function renderResult(id){
+    return <FunControlResult key={id} job={id} folderLink={embedded}>
+      {(record,reload)=>record && <React.Fragment key={record.status}>
+        <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>
+      </React.Fragment>}
+    </FunControlResult>;
+  }
   return <article className={"fun-control-page"+(embedded?" fun-embedded":"")}>
     <GeneratorPageHeader title="Wan Fun Control 영상 생성"
       description="참조 이미지의 외형과 포즈 영상의 움직임으로 영상을 만듭니다."
@@ -168,13 +175,9 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     {error && <p role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
     <fieldset className="fun-history" aria-label="작업 이력" disabled={busy || !!pending}>
-      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id)setJob("");if(sourceJob===id)setSourceJob("");setNotice(message);}} key={historyRevision} service={service} readJob={readJob} restore={restore} openResult={setJob}/>
+      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id)setJob("");if(sourceJob===id)setSourceJob("");setNotice(message);}} key={historyRevision} service={service} readJob={readJob} restore={restore} renderResult={renderResult}/>
       <HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>
     </fieldset>
-    {job && <FunControlResult key={job} job={job} folderLink={embedded}>
-      {(record,reload)=>record && <React.Fragment key={record.status}>
-        <GeneratorJobControls showActions={false} service={service} id={job} state={record.status} refresh={reload}/>
-      </React.Fragment>}
-    </FunControlResult>}
+    {job && renderResult(job)}
   </article>;
 }
