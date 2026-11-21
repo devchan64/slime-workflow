@@ -1,4 +1,4 @@
-import React,{useState} from "react";
+import React,{useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 
@@ -28,8 +28,11 @@ function MapDatabaseReceipt(){
   </fieldset></details>;
 }
 
-export default function OperationsJobs(){
-  const [query,setQuery]=useState(""),[status,setStatus]=useState("전체");
+export default function OperationsJobs({session,linkedJob}){
+  const storageKey="hermes-operations-search-"+(session || "");
+  const [query,setQuery]=useState(()=>sessionStorage.getItem(storageKey) || "");
+  const [status,setStatus]=useState(()=>sessionStorage.getItem(storageKey+"-status") || "전체");
+  useEffect(()=>{sessionStorage.setItem(storageKey,query);sessionStorage.setItem(storageKey+"-status",status);},[storageKey,query,status]);
   const [result,setResult]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
   const [gpu,setGpu]=useState(null),[gpuError,setGpuError]=useState("");
   const [priority,setPriority]=useState(null);
@@ -165,6 +168,9 @@ export default function OperationsJobs(){
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
   }
+  useEffect(()=>{
+    if(linkedJob && /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(linkedJob))inspectJob(linkedJob);
+  },[linkedJob]);
   async function load(direction){
     setDetail(null);
     setBusy(true);setError("");
@@ -182,6 +188,7 @@ export default function OperationsJobs(){
     <MapDatabaseReceipt/>
     <label>작업 ID 또는 지시문 <input value={query} onChange={e=>setQuery(e.target.value)}/></label>
     <label>작업 상태 <select value={status} onChange={e=>setStatus(e.target.value)}><option>전체</option>
+      {status!=="전체" && !result?.statuses && <option value={status}>{status}</option>}
       {Object.entries(result?.statuses || {}).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
     <button onClick={()=>load("first")}>작업 조회</button>
     {error && <p role="alert">{error}</p>}

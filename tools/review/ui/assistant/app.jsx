@@ -39,8 +39,13 @@ function messagesFrom(view) {
     const showAnswer = !table || (answer !== activity.source_history_summary && !activity.history_table_is_answer);
     return [{id:key+"-user",role:"user",content:m.text},
       {id:key+"-answer",role:"assistant",content:showAnswer ? answer : "",metadata:{custom:{
-        status:job.status?.status || "접수 확인 중",job:m.job_id,activity,table}}}];
+        status:job.status?.status || "접수 확인 중",session:view.id,job:m.job_id,activity,table}}}];
   });
+}
+function jobLink(id,session){
+  const params=new URLSearchParams({panel:"jobs",job:id});
+  if(session)params.set("session",session);
+  return "/management/frame/hermes-agent/?"+params;
 }
 function Message() {
   const message=useAuiState(s=>s.message);
@@ -50,7 +55,7 @@ function Message() {
     {meta.table && <ResultTable table={meta.table}/>}
     {!meta.table && meta.activity?.source_history_summary && <pre>{meta.activity.source_history_summary}</pre>}
     {meta.activity?.events?.length>0 && <details><summary>도구 사용 내역</summary>{meta.activity.events.map((e,i)=><p key={i}>{e.name} · {e.target || e.result}</p>)}</details>}
-    {meta.status && <small>{meta.status} {meta.job && " · "+meta.job}</small>}
+    {meta.status && <small>{meta.status} {meta.job && <> · <a href={jobLink(meta.job,meta.session)}>{meta.job}</a></>}</small>}
   </MessagePrimitive.Root>;
 }
 function Conversation({view}) {
@@ -68,7 +73,7 @@ function initialToolCategory(){
 function App() {
   const [session,setSession]=useState(query().get("session") || "");
   const [sessions,setSessions]=useState([]), [view,setView]=useState({}), [tools,setTools]=useState([]);
-  const [draft,setDraft]=useState(""),[search,setSearch]=useState(()=>query().get("search") || ""),[showTools,setShowTools]=useState(()=>query().has("category") || query().has("search"));
+  const [draft,setDraft]=useState(""),[search,setSearch]=useState(()=>query().get("search") || ""),[showTools,setShowTools]=useState(()=>query().has("category") || query().has("search") || query().get("panel")==="jobs");
   const [category,setCategory]=useState(initialToolCategory);
   const [archived,setArchived]=useState(false),[error,setError]=useState(""),[busy,setBusy]=useState(false);
   const [queue,setQueue]=useState(null),[refresh,setRefresh]=useState(0);
@@ -86,7 +91,7 @@ function App() {
     if(next)url.searchParams.set("session",next);else url.searchParams.delete("session");
     history.pushState(null,"",url);setSession(next);setView({});setHistoryPage(null);setQueue(null);setError("");
   }
-  useEffect(()=>{const cb=()=>{setCategory(initialToolCategory());setSearch(query().get("search") || "");setShowTools(query().has("category") || query().has("search"));setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
+  useEffect(()=>{const cb=()=>{setSearchMode(query().get("panel")==="jobs"?"jobs":"tools");setCategory(initialToolCategory());setSearch(query().get("search") || "");setShowTools(query().has("category") || query().has("search") || query().get("panel")==="jobs");setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
   useEffect(()=>{let active=true;fetch(base+"tools").then(r=>r.json()).then(v=>{if(active)setTools(v)}).catch(e=>{if(active)setError(e.message)});
     return()=>{active=false};},[]);
   useEffect(()=>{let active=true;call(archived?"session-archived":"session-list").then(v=>{if(active)setSessions(v.sessions)}).catch(e=>{if(active)setError(e.message)});return()=>{active=false};},[archived,refresh]);
@@ -155,7 +160,7 @@ function App() {
   }
   const [showForms,setShowForms]=useState(false);
   const [showGpu,setShowGpu]=useState(false);
-  const [searchMode,setSearchMode]=useState("tools");
+  const [searchMode,setSearchMode]=useState(()=>query().get("panel")==="jobs"?"jobs":"tools");
   function chooseTool(label,identifier) {
     edit([draft,"사용할 도구: "+label+" ("+identifier+")\n"].filter(Boolean).join("\n"));
     setShowTools(false);
@@ -190,7 +195,7 @@ function App() {
       <button aria-expanded={searchMode==="services"} onClick={()=>setSearchMode(searchMode==="services"?"tools":"services")}>서비스 등록 목록</button>
       <button aria-expanded={searchMode==="history"} onClick={()=>setSearchMode(searchMode==="history"?"tools":"history")}>생성 이력</button>
       <button aria-expanded={searchMode==="jobs"} onClick={()=>setSearchMode(searchMode==="jobs"?"tools":"jobs")}>운영 작업 이력</button>
-      {searchMode==="jobs" && <OperationsJobs/>}
+      {searchMode==="jobs" && <OperationsJobs key={session+":"+(query().get("job") || "")} session={session} linkedJob={query().get("panel")==="jobs"?query().get("job"):null}/>}
       {searchMode==="history" && <SourceHistory session={session} choose={(label,id)=>{edit([draft,label+" "+id].filter(Boolean).join("\n"));setShowTools(false);text.current.focus();}}/>}
       {searchMode==="services" && <ServiceRegistry key={search} query={search}/>}
       {searchMode==="capabilities" && <CapabilitySearch search={search} choose={chooseTool}/>}
