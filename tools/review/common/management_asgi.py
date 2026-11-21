@@ -281,6 +281,21 @@ def build_management_application(current_handler_class, current_root_path, curre
             current_sprite_redirect=resolve_sprite_review_redirect(current_request_path,current_query_values,json.loads(current_source_path.read_text()).get('pages',[]))
             if current_sprite_redirect:
                 return await RedirectResponse(current_sprite_redirect)(current_request_scope,current_receive_call,current_send_call)
+        if current_request_scope.get('method') in ('GET', 'HEAD'):
+            from tools.review.common.management_catalog import design_system_document_path
+            if current_request_path in current_static_routes and design_system_document_path(current_request_path):
+                document = current_root_path / current_request_path.lstrip('/')
+                if document.is_file():
+                    return await FileResponse(document)(current_request_scope, current_receive_call, current_send_call)
+            if current_request_path.rstrip('/') in ('/management', '/management/frame/static-review'):
+                identifier = (current_query_values.get('review') or current_query_values.get('tool') or [''])[0]
+                document_path = next((path for path, name in current_static_routes.items()
+                                      if name == identifier and design_system_document_path(path)), None) if isinstance(current_static_routes, dict) else None
+                if document_path:
+                    from urllib.parse import urlencode
+                    query = urlencode({key: values for key, values in current_query_values.items()
+                                       if key in ('locale', 'session')}, doseq=True)
+                    return await RedirectResponse(document_path + ('?' + query if query else ''))(current_request_scope, current_receive_call, current_send_call)
         current_tool_name = None
         current_mount_path = '/management'
         if current_request_path in LEGACY_MANAGEMENT_PATHS:
