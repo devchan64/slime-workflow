@@ -1,3 +1,4 @@
+import GpuPanel from "./GpuPanel.jsx";
 import QueuePanel from "./QueuePanel.jsx";
 import FormLibrary from "./FormLibrary.jsx";
 import React, {useEffect, useRef, useState} from "react";
@@ -100,14 +101,17 @@ function App() {
     }catch(e){setError(e.message)}
   }
   const [showForms,setShowForms]=useState(false);
+  const [showGpu,setShowGpu]=useState(false);
   const chosen=query().get("tool");
   return <main><aside><h2>대화 세션</h2><button disabled={busy} onClick={()=>{select("");setArchived(false);}}>새 대화</button><button onClick={()=>setArchived(!archived)}>{archived?"대화 목록":"보관함"}</button>
     {sessions.map(s=><div className="session" key={s.id}><button disabled={busy} aria-current={s.id===session?"page":undefined} onClick={()=>archived?lifecycle(s,"restore"):select(s.id)}>{s.title || s.id}</button>
     <button disabled={busy} onClick={()=>lifecycle(s,archived?"delete":"archive")}>{archived?"삭제":"보관"}</button></div>)}</aside>
-    <article><header><h1>{view.title || "헤르메스와 대화"}</h1><button onClick={()=>setShowTools(!showTools)}>도구 탐색</button>
+    <article><header><h1>{view.title || "헤르메스와 대화"}</h1><button aria-expanded={showTools} onClick={()=>{setShowGpu(false);setShowTools(!showTools)}}>도구 탐색</button>
+    <button aria-expanded={showGpu} onClick={()=>{setShowTools(false);setShowGpu(!showGpu)}}>GPU 프로세스 정보</button>
     {session&&<button aria-expanded={showForms} onClick={()=>setShowForms(!showForms)}>입력 폼</button>}
     {session&&<button aria-expanded={Boolean(queue)} onClick={()=>setQueue(!queue)}>대기열</button>}</header>
-    {showTools&&<section className="panel"><input aria-label="도구 검색" placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>{tools.filter(t=>(t.label+t.id+t.description).toLowerCase().includes(search.toLowerCase())).map(t=><button key={t.id} onClick={()=>{edit((draft?draft+"\n":"")+"사용할 도구: "+t.label+" ("+t.id+")\n");setShowTools(false);text.current.focus()}}>{t.label}</button>)}</section>}
+    {showGpu && <GpuPanel/>}
+    {showTools&&<section className="floating-panel" aria-label="도구 탐색"><input aria-label="도구 검색" placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>{tools.filter(t=>(t.label+t.id+t.description).toLowerCase().includes(search.toLowerCase())).map(t=><button key={t.id} onClick={()=>{edit((draft?draft+"\n":"")+"사용할 도구: "+t.label+" ("+t.id+")\n");setShowTools(false);text.current.focus()}}>{t.label}</button>)}</section>}
     {session && <div hidden={!showForms}>{<FormLibrary key={session} session={session} call={call} addToMessage={value=>edit([draft,value].filter(Boolean).join("\n"))}/>}</div>}
     {queue && session && <QueuePanel key={session} session={session} call={call}/>}
     <Conversation key={session} view={view}/>{error&&<p role="alert">{error}</p>}
