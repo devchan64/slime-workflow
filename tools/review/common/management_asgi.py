@@ -354,7 +354,7 @@ def build_management_application(current_handler_class, current_root_path, curre
 
     @current_root_application.get('/management/assistant/tools')
     def assistant_tools():
-        from tools.review.ui.gradio.management_menu_app import load_manager_page_records
+        from tools.review.common.management_catalog import load_manager_page_records
         return [
             {key: record[key] for key in ('id', 'label', 'category', 'description')}
             for record in load_manager_page_records(current_source_path)
