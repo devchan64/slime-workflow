@@ -2,24 +2,47 @@ import React,{useEffect,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 
+import applySpriteCanvas from "./applySpriteCanvas.mjs";
 import renderSpritePreview from "./renderSpritePreview.mjs";
 
 const fields=["x","y","width","height","anchorX","anchorY"];
 const labels=["X","Y","너비","높이","앵커 X","앵커 Y"];
 
-function SpritePreview({rows,image,bounds,fps,original}){
+function SpritePreview({rows,image,bounds,fps,original,onEdit}){
   const canvas=useRef(null);
+  const [mode,setMode]=useState("크롭"),[target,setTarget]=useState("현재 프레임"),[selection,setSelection]=useState([]);
+  const [notice,setNotice]=useState(""),[revision,refresh]=useState(0);
+  function apply(operation){
+    const data=rows.map(row=>fields.map(field=>row[field]));
+    const [updated,message]=applySpriteCanvas(data,target,selection,operation,canvas.current);
+    if(updated.data)onEdit(updated.data.map(row=>Object.fromEntries(fields.map((field,i)=>[field,row[i]]))));
+    if(operation==="discard")refresh(n=>n+1);
+    setNotice(message);
+  }
   const [frame,setFrame]=useState(1),[playing,setPlaying]=useState(false),[clip,setClip]=useState("");
   const [shadow,setShadow]=useState(false),[baseline,setBaseline]=useState(true),[onion,setOnion]=useState(false);
   useEffect(()=>{
     const el=canvas.current;
     renderSpritePreview("data:image/png;base64,"+image,rows.map(row=>fields.map(field=>row[field])),frame,
-      playing,shadow,"크롭",bounds,fps,baseline,onion,clip,original || {},false,480,80,false,{},false,el);
+      playing,shadow,mode,bounds,fps,baseline,onion,clip,original || {},false,480,80,false,{},false,el);
     return ()=>{el.spritePreviewRevision++;};
-  },[image,rows,frame,playing,shadow,bounds,fps,baseline,onion,clip,original]);
+  },[image,rows,frame,playing,shadow,bounds,fps,baseline,onion,clip,original,mode,revision]);
   return <fieldset><legend>프레임 재생 미리보기</legend>
-    <canvas ref={canvas} width="640" height="640" aria-label="크롭과 앵커 미리보기" style={{width:"100%",maxWidth:640,pointerEvents:"none"}}/>
+    <canvas ref={canvas} width="640" height="640" aria-label="크롭과 앵커 미리보기" style={{width:"100%",maxWidth:640,touchAction:"none"}}/>
     <button type="button" onClick={()=>setPlaying(!playing)}>{playing?"정지":"재생"}</button>
+    <fieldset disabled={playing}><legend>캔버스 편집</legend>
+      <label>편집 도구<select value={mode} onChange={e=>setMode(e.target.value)}>
+        <option>크롭</option><option>배치 앵커</option></select></label>
+      <label>반영 대상<select value={target} onChange={e=>setTarget(e.target.value)}>
+        <option>현재 프레임</option><option>선택 프레임</option><option>전체</option></select></label>
+      {target==="선택 프레임" && <label>대상 프레임<select multiple value={selection}
+        onChange={e=>setSelection(Array.from(e.target.selectedOptions,option=>option.value))}>
+        {rows.map((_,i)=><option key={i} value={i+1}>{i+1}</option>)}</select></label>}
+      <button type="button" onClick={()=>apply("apply")}>캔버스 편집 반영</button>
+      <button type="button" onClick={()=>apply("undo")}>직전 반영 되돌리기</button>
+      <button type="button" onClick={()=>apply("discard")}>드래그 취소</button>
+      {notice && <p role="status">{notice}</p>}
+    </fieldset>
     <label>정지 프레임 {frame}<input type="range" min="1" max={rows.length} disabled={playing} value={frame}
       onChange={e=>setFrame(Number(e.target.value))}/></label>
     {original?.animation?.clips?.length>0 && <label>검수 동작<select value={clip} onChange={e=>setClip(e.target.value)}>
@@ -84,7 +107,7 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
     <ResultTable table={{title:"등록 프레임 좌표",summary:frames.length+"프레임",columns:["프레임",...labels],
       rows:rows.map((row,i)=>[i+1,...fields.map((field,j)=><input aria-label={(i+1)+"번 "+labels[j]} type="number"
         required step={j<4?1:"any"} value={row[field]} onChange={e=>update(i,field,e.target.value)}/>)])}}/>
-    <SpritePreview rows={rows} image={image} bounds={bounds} fps={fps} original={original}/>
+    <SpritePreview onEdit={next=>{setRows(next);setReview(null);setResult(null);setError("");}} rows={rows} image={image} bounds={bounds} fps={fps} original={original}/>
     <label>출력 열 수<input type="number" min="1" max="128" required value={columns}
       onChange={e=>{setColumns(e.target.value);setReview(null);setResult(null);}}/></label>
     <button>시트와 좌표맵 내보내기</button>

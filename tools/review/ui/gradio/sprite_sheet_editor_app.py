@@ -380,7 +380,7 @@ def load_linked_sprite_sheet(request: gr.Request):
 
 def build_sprite_sheet_editor_interface(current_review_port):
     current_preview_script='('+(Path(__file__).parents[1]/'assistant/renderSpritePreview.mjs').read_text().removeprefix('export default ')+')'
-    current_canvas_apply_script=Path(__file__).with_name('sprite_sheet_canvas_apply.js').read_text()
+    current_canvas_apply_script=(Path(__file__).parents[1]/'assistant/applySpriteCanvas.mjs').read_text().removeprefix('export default ')
     current_bulk_script=Path(__file__).with_name('sprite_sheet_bulk_edit.js').read_text()
     current_clip_select_script=Path(__file__).with_name('sprite_sheet_clip_select.js').read_text()
     with gr.Blocks(title='스프라이트 시트 편집기') as current_interface_blocks:

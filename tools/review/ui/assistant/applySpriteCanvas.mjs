@@ -1,5 +1,4 @@
-(currentFrameRows,currentTargetMode,currentSelectedFrames,currentOperation)=>{
- const currentCanvasElement=document.getElementById('sprite-sheet-alignment-preview');
+export default (currentFrameRows,currentTargetMode,currentSelectedFrames,currentOperation,currentCanvasElement=document.getElementById('sprite-sheet-alignment-preview'))=>{
  const currentEditorState=currentCanvasElement?.spriteEditorState;
  try{
   const currentRows=(Array.isArray(currentFrameRows)?currentFrameRows:currentFrameRows?.data)?.map(currentRow=>currentRow.map(Number));
