@@ -1,3 +1,4 @@
+import ModelReadiness from "./ModelReadiness.jsx";
 import React, {useEffect,useRef,useState} from "react";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
@@ -67,7 +68,9 @@ export default function TranslationPage() {
   }
   return <section style={{padding:"1rem",maxWidth:"60rem",margin:"auto"}}>
     <a href={"/management/assistant/"+(query.has("session")?"?"+new URLSearchParams({session:query.get("session")}):"")}>헤르메스 대화</a>
-    <h1>프롬프트 번역</h1><GeneratorChangelog generator={service}/>
+    <h1>프롬프트 번역</h1>
+    <p>TranslateGemma 4B · ROCm BF16 · <a href="https://ai.google.dev/gemma/terms">Gemma 이용약관</a></p>
+    <ModelReadiness service={service}/><GeneratorChangelog generator={service}/>
     <fieldset disabled={Boolean(pending)}><label>한국어 원문 <textarea value={text} onChange={e=>setText(e.target.value)}/></label>
       <label>목표 언어 <select value={language} onChange={e=>setLanguage(e.target.value)}><option value="en">영어</option><option value="zh-CN">중국어 간체</option></select></label>
       <label>확인할 용어 <textarea placeholder="원문 => 번역어" value={terms} onChange={e=>setTerms(e.target.value)}/></label>
