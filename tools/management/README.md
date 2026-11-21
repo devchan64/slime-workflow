@@ -1,14 +1,22 @@
 # 관리도구 소스 구조
 
+> Gradio는 폐기되었다. 아래의 Gradio 관련 기술과 전환 기록은 과거 이력이며 현재 UI의 구현 기준이 아니다. 남은 코드와 문서의 정리는 진행 중이다.
+
 관리도구의 실행 진입점과 화면 URL은 유지하며, 구현을 도메인별로 관리한다.
+
+관리도구의 하위 도메인은 `gui`, `gateway`, `cli`, `mcp`, `generators`, `baseline`이다. `review`는 과거 디자인 검수 기능의 이름이다. GUI·생성기·기준 데이터는 이 디렉터리 아래에 있으며, 저장소 루트의 `gui`, `generators`, `baseline`은 기존 호출과 기록 참조를 위한 심볼릭 링크다. 기존 `serve.py`, `gateway_server.py`, Hermes의 `mcp_server.py`, `tools/manager.py`는 호환 진입점이다. 기존 `domains/`의 서비스 코드는 아직 전부 하위 도메인으로 재분류하지 않았다.
 
 생성기별 페이지와 체인지로그를 함께 관리하는 목표 구조 및 기존 코드의 단계적 이관 기준은 [생성기 구성 가이드](../../workflows/generator-structure.md)를 따른다. 아래 트리는 현재 공용 도메인 구조이며 모든 생성기가 이미 목표 구조로 이관되었다는 뜻은 아니다.
 
 ```text
 tools/manager.py                  통합 CLI 진입점
  tools/management/
-   serve.py                      GUI HTTP 서버·watch·API 중계
-   gateway_server.py             독립 명령 게이트웨이·작업 서비스 서버
+   gui/serve.py                  GUI HTTP 서버·watch·API 중계
+   gateway/server.py             독립 명령 게이트웨이·작업 서비스 서버
+   cli/                          통합 CLI 진입점
+   mcp/                          MCP 어댑터
+   generators/                   생성기 원본
+   baseline/                     기준 데이터
    build_*.py                    검수 산출물 빌드 진입점
    common/
      management_gateway.py       공용 명령 계약·CLI·HTTP 디스패치
@@ -29,7 +37,7 @@ tools/manager.py                  통합 CLI 진입점
      kimodo/                     모션 생성·SOMA 렌더·작업 서비스
      anny/                       체형 속성·미리보기·렌더 API
      image/                      Qwen 이미지 API·참조 입력 검증
-   ui/
+   gui/ui/                       (`ui/`는 호환 연결)
      shared/                     공용 스타일·이력·진행·영역 이동
      gradio/                     Kimodo·Qwen 등 현행 생성 화면
      anny/                       속성 화면·3D 뷰어

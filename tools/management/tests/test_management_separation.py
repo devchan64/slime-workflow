@@ -93,7 +93,7 @@ class ManagementSeparationTests(unittest.TestCase):
     def test_gui_watch_excludes_runtime_implementation(self):
         parsed_argument_values = serve.parse_review_arguments([])
         watched_root_paths = serve.collect_review_watch_paths(parsed_argument_values)
-        runtime_source_paths = [serve.Path(serve.__file__).parent/'gateway_server.py', serve.Path(serve.__file__).parent/'common/management_runtime.py']
+        runtime_source_paths = [serve.Path(serve.__file__).parents[1]/'gateway_server.py', serve.Path(serve.__file__).parents[1]/'common/management_runtime.py']
         for runtime_source_path in runtime_source_paths:
             self.assertFalse(any(runtime_source_path == watched_root_path or runtime_source_path.is_relative_to(watched_root_path) for watched_root_path in watched_root_paths))
 

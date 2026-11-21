@@ -2,6 +2,8 @@
 import json
 import os
 from pathlib import Path
+import re
+import subprocess
 import signal
 import socket
 import sys
@@ -19,8 +21,10 @@ def matches_gateway_script_path(existing_command_bytes, existing_process_path, w
     existing_script_path = Path(os.fsdecode(existing_argument_values[1]))
     if not existing_script_path.is_absolute():
         existing_script_path = (existing_process_path / 'cwd').resolve(strict=True) / existing_script_path
-    expected_script_path = workflow_root_directory / 'tools/management/gateway_server.py'
-    return existing_script_path.resolve() == expected_script_path.resolve()
+    expected_script_paths = (workflow_root_directory / 'tools/review/gateway_server.py',
+                             workflow_root_directory / 'tools/management/gateway_server.py',
+                             workflow_root_directory / 'tools/management/gateway/server.py')
+    return existing_script_path.resolve() in {current_path.resolve() for current_path in expected_script_paths}
 
 
 def confirm_existing_gateway(server_port_number, workflow_root_directory, launcher_trace_logger):
@@ -35,9 +39,29 @@ def confirm_existing_gateway(server_port_number, workflow_root_directory, launch
     if gateway_health_record.get('role') != 'management-gateway' or type(existing_gateway_pid) is not int or existing_gateway_pid <= 1:
         raise ValueError('포트 점유자가 관리 게이트웨이인지 확인할 수 없습니다. 자동 종료하지 않습니다.')
     existing_process_path = Path(f'/proc/{existing_gateway_pid}')
-    existing_command_bytes = (existing_process_path / 'cmdline').read_bytes()
-    if existing_process_path.stat().st_uid != os.getuid() or not matches_gateway_script_path(existing_command_bytes, existing_process_path, workflow_root_directory):
-        raise ValueError('같은 사용자·저장소의 게이트웨이가 아닙니다. 종료하지 않습니다.')
+    try:
+        existing_command_bytes = (existing_process_path / 'cmdline').read_bytes()
+        owned = (existing_process_path.stat().st_uid == os.getuid()
+                 and matches_gateway_script_path(existing_command_bytes, existing_process_path, workflow_root_directory))
+    except (FileNotFoundError, PermissionError, ProcessLookupError):
+        owned = False
+    if not owned:
+        message = f'포트 {server_port_number}의 게이트웨이가 보고한 PID {existing_gateway_pid}의 로컬 소유권을 확인할 수 없습니다.'
+        launcher_trace_logger.emit_launch_trace('existing', message)
+        try:
+            listeners = subprocess.check_output(['ss', '-Hltnp', f'sport = :{server_port_number}'], text=True)
+        except (OSError, subprocess.CalledProcessError):
+            listeners = ''
+        candidates = set(re.findall(r'pid=(\d+)', listeners))
+        if len(candidates) != 1:
+            launcher_trace_logger.emit_launch_trace('keep', f'리스너를 식별할 수 없습니다. 호스트에서 sudo ss -ltnp "sport = :{server_port_number}" 로 확인하세요. 새 실행을 취소합니다.')
+            return False
+        existing_gateway_pid = int(candidates.pop())
+        existing_process_path = Path(f'/proc/{existing_gateway_pid}')
+        existing_command_bytes = (existing_process_path / 'cmdline').read_bytes()
+        if existing_process_path.stat().st_uid != os.getuid() or not matches_gateway_script_path(existing_command_bytes, existing_process_path, workflow_root_directory):
+            launcher_trace_logger.emit_launch_trace('keep', f'포트 리스너 PID {existing_gateway_pid}의 실행 경로 또는 사용자가 다릅니다. 해당 서비스를 관리하는 환경에서 종료하세요.')
+            return False
     launcher_trace_logger.emit_launch_trace('existing', f'port={server_port_number} pid={existing_gateway_pid}')
     if not sys.stdin.isatty():
         raise ValueError('기존 게이트웨이가 실행 중입니다. 대화형 터미널에서 다시 실행해 종료 여부를 선택하세요.')
@@ -51,6 +75,10 @@ def confirm_existing_gateway(server_port_number, workflow_root_directory, launch
             or not matches_gateway_script_path(existing_command_bytes, existing_process_path, workflow_root_directory)):
         raise ValueError('확인 중 기존 프로세스가 변경되었습니다. 다시 실행하세요.')
     os.kill(existing_gateway_pid, signal.SIGTERM)
+    return wait_for_gateway_release(server_port_number, launcher_trace_logger)
+
+
+def wait_for_gateway_release(server_port_number, launcher_trace_logger):
     shutdown_deadline_time = time.monotonic() + GATEWAY_SHUTDOWN_TIMEOUT
     next_heartbeat_time = time.monotonic()
     while time.monotonic() < shutdown_deadline_time:

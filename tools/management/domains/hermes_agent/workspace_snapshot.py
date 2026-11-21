@@ -6,6 +6,12 @@ import stat
 import subprocess
 
 MAXIMUM_SNAPSHOT_BYTES = 2 * 1024 * 1024 * 1024
+COMPATIBILITY_LINKS = {
+    'gui': 'tools/management/gui',
+    'generators': 'tools/management/generators',
+    'baseline': 'tools/management/baseline',
+    'tools/management/ui': 'gui/ui',
+}
 
 
 def run_snapshot_git_command(snapshot_repository_path, snapshot_argument_values):
@@ -27,7 +33,14 @@ def read_snapshot_source_state(source_repository_path, snapshot_relative_name):
     for snapshot_part_value in snapshot_relative_path.parts:
         source_current_path = source_current_path / snapshot_part_value
         if source_current_path.is_symlink():
-            raise ValueError(f'심볼릭 링크는 격리 작업에 포함할 수 없습니다: {snapshot_relative_name}')
+            current_link_name = source_current_path.relative_to(source_repository_path).as_posix()
+            if current_link_name not in COMPATIBILITY_LINKS or os.readlink(source_current_path) != COMPATIBILITY_LINKS[current_link_name]:
+                raise ValueError(f'심볼릭 링크는 격리 작업에 포함할 수 없습니다: {snapshot_relative_name}')
+            if current_link_name != snapshot_relative_name:
+                # 이전 추적 파일은 이동된 원본이 새 경로에서 별도로 복사된다.
+                return source_current_path, None
+            current_link_stat = source_current_path.lstat()
+            return source_current_path, (current_link_stat.st_dev, current_link_stat.st_ino, current_link_stat.st_size, current_link_stat.st_mtime_ns, current_link_stat.st_ctime_ns, current_link_stat.st_mode)
     try:
         source_current_stat = source_current_path.stat()
     except FileNotFoundError:
@@ -40,7 +53,7 @@ def read_snapshot_source_state(source_repository_path, snapshot_relative_name):
 def copy_snapshot_source_files(source_repository_path, snapshot_workspace_path):
     """추적 파일과 무시되지 않은 신규 파일의 현재 내용을 복사한다.
 
-    심볼릭 링크나 특수 파일은 격리 경계를 모호하게 하므로 명시적으로 거부한다.
+    고정된 호환 링크만 링크 자체로 복사하고 그 외 심볼릭 링크와 특수 파일은 거부한다.
     복사 중 바뀐 파일과 목록 변경은 조용히 부분 상태를 만들지 않고 실패한다.
     """
     source_repository_path = Path(source_repository_path).resolve(strict=True)

@@ -26,7 +26,7 @@ class GatewayExistingProcessTests(unittest.TestCase):
             existing_process_path.mkdir()
             (existing_process_path / 'cwd').symlink_to(workflow_root_directory, target_is_directory=True)
             expected_script_path = workflow_root_directory / 'tools/management/gateway_server.py'
-            for current_script_argument in (str(expected_script_path), 'tools/management/gateway_server.py', './tools/management/gateway_server.py'):
+            for current_script_argument in ('tools/review/gateway_server.py', str(expected_script_path), 'tools/management/gateway_server.py', './tools/management/gateway_server.py', 'tools/management/gateway/server.py', str(workflow_root_directory / 'tools/management/gateway/server.py')):
                 current_command_bytes = b'python\0' + current_script_argument.encode() + b'\0'
                 self.assertTrue(matches_gateway_script_path(current_command_bytes, existing_process_path, workflow_root_directory))
             for current_command_bytes in (b'python\0/other/tools/management/gateway_server.py\0', b'python\0-c\0tools/management/gateway_server.py\0', b'python\0other.py\0' + str(expected_script_path).encode()):

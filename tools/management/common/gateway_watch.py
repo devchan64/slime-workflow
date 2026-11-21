@@ -18,7 +18,7 @@ GATEWAY_WATCH_IGNORED_MODULES = frozenset((
 
 def collect_gateway_watch_paths(writer_workspace_config=None):
     return (
-        WORKFLOW_ROOT_DIRECTORY/'tools/management/gateway_server.py',
+        WORKFLOW_ROOT_DIRECTORY/'tools/management/gateway/server.py',
         WORKFLOW_ROOT_DIRECTORY/'tools/management/build_block_map_review.py',
         WORKFLOW_ROOT_DIRECTORY/'tools/management/common',
         WORKFLOW_ROOT_DIRECTORY/'tools/management/domains',
@@ -51,7 +51,7 @@ def snapshot_gateway_watch_paths(watched_source_paths):
 
 
 def run_gateway_watch_mode(server_port_number, writer_workspace_config=None):
-    gateway_command_values = [sys.executable, str(WORKFLOW_ROOT_DIRECTORY/'tools/management/gateway_server.py'), '--port', str(server_port_number)]
+    gateway_command_values = [sys.executable, str(WORKFLOW_ROOT_DIRECTORY/'tools/management/gateway/server.py'), '--port', str(server_port_number)]
     if writer_workspace_config is not None:
         gateway_command_values.extend(['--writer-agent-config', str(Path(writer_workspace_config).absolute())])
     watched_source_paths = collect_gateway_watch_paths(writer_workspace_config)

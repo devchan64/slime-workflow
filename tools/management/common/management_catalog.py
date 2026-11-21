@@ -16,8 +16,8 @@ NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {current_flux_
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 REACT_REVIEW_PATHS = {"kimodo-generator": "/management/frame/kimodo-generator/", "asset-editor": "/management/frame/asset-editor/", "sprite-sheet-editor": "/management/frame/sprite-sheet-editor/", "effect-editor": "/management/frame/effect-editor/", "building-editor": "/management/frame/building-editor/", "map-review": "/management/frame/map-review/", "wan22-fun-control-generator":"/management/frame/wan22-fun-control-generator/", "wan22-vace-generator":"/management/frame/wan22-vace-generator/", "wan22-animate2-generator":"/management/frame/wan22-animate2-generator/", "writer-agent":"/management/frame/writer-agent/", "mock-animate-validation":"/management/frame/mock-animate-validation/", "mock-dwpose-validation":"/management/frame/mock-dwpose-validation/", **{name+"-generator": "/management/frame/"+name+"-generator/" for name in ("flux-prop","flux-vegetation","flux-billboard","flux-mannequin","flux-building","flux-character","flux-seamless","flux-expression")}, "flux-image-generator": "/management/frame/flux-image-generator/", "music-heartmula": "/management/frame/music-heartmula/", "sfx-dasheng-audiogen": "/management/frame/sfx-dasheng-audiogen/", "dwpose-generator": "/management/frame/dwpose-generator/", "mock-progress-validation": "/management/frame/mock-progress-validation/", "hermes-agent": "/management/frame/hermes-agent/", "model-management": "/management/frame/model-management/", "world-map": "/management/frame/world-map/", "prompt-translation": "/management/frame/prompt-translation/"}
 DEFAULT_PAGE_RECORDS=(
-    *({'id':name+'-generator','label':'FLUX 3 '+label+' 생성기','path':'/management/frame/'+name+'-generator/','category':'image-generation','uiMode':'react' if name+'-generator' in REACT_REVIEW_PATHS else 'gradio','description':'공용 화풍 · FLUX 이력 및 입력 복원'} for name,label in (('flux-image','일반 이미지'),('flux-character','캐릭터'),('flux-mannequin','마네킨'),('flux-billboard','빌보드 가이드'),('flux-prop','소품'),('flux-vegetation','식생'),('flux-building','건물'),('flux-seamless','심리스 타일'))),
-    {'id':'flux-expression-generator','label':'FLUX 3 표정 생성기','path':'/management/frame/flux-expression-generator/','category':'image-generation','uiMode':'gradio','description':'얼굴 참조 1장 · 표정 프리셋 · 이력 입력 복원'},
+    *({'id':name+'-generator','label':'FLUX 3 '+label+' 생성기','path':'/management/frame/'+name+'-generator/','category':'image-generation','uiMode':'react','description':'공용 화풍 · FLUX 이력 및 입력 복원'} for name,label in (('flux-image','일반 이미지'),('flux-character','캐릭터'),('flux-mannequin','마네킨'),('flux-billboard','빌보드 가이드'),('flux-prop','소품'),('flux-vegetation','식생'),('flux-building','건물'),('flux-seamless','심리스 타일'))),
+    {'id':'flux-expression-generator','label':'FLUX 3 표정 생성기','path':'/management/frame/flux-expression-generator/','category':'image-generation','uiMode':'react','description':'얼굴 참조 1장 · 표정 프리셋 · 이력 입력 복원'},
     {'id':'mock-dwpose-validation','label':'DWPose 격리 모의 검증','path':'/management/frame/mock-dwpose-validation/','category':'model-management','uiMode':'react','description':'실제 화면과 격리 모의 작업'},
     {'id':'mock-animate-validation','label':'Animate-2 격리 모의 검증','path':'/management/frame/mock-animate-validation/','category':'model-management','uiMode':'react','description':'실제 화면과 격리 모의 작업'},
     {'id':'mock-progress-validation','label':'모의 진행 상태 검증','path':REACT_REVIEW_PATHS['mock-progress-validation'],'category':'model-management','uiMode':'react','description':'실제 작업과 분리된 상태 갱신 검증'},
@@ -34,18 +34,18 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'wan22-animate2-generator','label':'Wan Animate-2 캐릭터 동작 전사','path':'/management/frame/wan22-animate2-generator/','category':'animation-tool','uiMode':'react','description':'RGB 동작 영상 + 캐릭터 참조 · 일관성 실험'},
     {'id':'dwpose-generator','label':'DWPose 이미지 추출','path':REACT_REVIEW_PATHS['dwpose-generator'],'category':'animation-tool','uiMode':'react','description':'단일 PNG · 포즈와 좌표 추출 · ROCm 대기열'},
     {'id':'wan22-fun-control-generator','label':'Wan Fun Control 영상 생성기','path':'/management/frame/wan22-fun-control-generator/','category':'animation-tool','uiMode':'react','description':'2.2 A14B·2.1 1.3B · 외형 참조+제어 영상'},
-    {'id':'qwen-21-circular-generator','label':'Qwen 2.1 순환 VAE 생성기','path':'/image-generation-21-circular/','category':'image-generation','uiMode':'gradio','description':'XY 순환 디코더 · 3×3 반복 검수'},
-    {'id':'vegetation-generator','label':'Qwen 2.1 빌보드 자연물타입 생성기','path':'/vegetation-generator/','category':'image-generation','uiMode':'gradio','description':'자연물 빌보드 기본 문구 · 레이아웃·외형 참조 · 전용 대기열·이력'},
-    {'id':'billboard-generator','label':'Qwen2.1 빌보드 가이드참조 생성기','path':'/billboard-generator/','category':'image-generation','uiMode':'gradio','description':'높은형·중간형·바닥형 점유 가이드 · 80% 채움 · 벽면 밀착·낮은 판형 · 빌보드 독립 대기열·이력'},
-    {'id':'prop-generator','label':'Qwen 2.1 빌보드 소품타입 생성기','path':'/prop-generator/','category':'image-generation','uiMode':'gradio','description':'소품 직교투영 기본 문구 · 레이아웃·자재 참조 · 전용 대기열·이력'},
-    {'id':'building-generator','label':'Qwen 2.1 건물 생성기','path':'/building-generator/','category':'image-generation','uiMode':'gradio','description':'직교투영 기본 문구 · 레이아웃 이미지 선택 · 전용 대기열·이력'},
-    {'id':'mannequin-generator','label':'Qwen 2.1 마네킨 생성기','path':'/mannequin-generator/','category':'image-generation','uiMode':'gradio','description':'관절 신체·피부·기본복·얼굴 기준 후보 생성 · 마네킨 전용 이력'},
-    {'id':'character-generator','label':'Qwen 2.1 캐릭터 이미지 생성기','path':'/character-generator/','category':'image-generation','uiMode':'gradio','description':'공용 화풍 v1.5.0 원문 · 캐릭터 외관 예시 · Qwen 이력 공유'},
-    {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'공용 화풍 v1.5.0 기본 적용 · 투명 배경·참조 이미지 선택'},
+    {'id':'qwen-21-circular-generator','label':'Qwen 2.1 순환 VAE 생성기','path':'/image-generation-21-circular/','category':'image-generation','uiMode':'archive','description':'XY 순환 디코더 · 3×3 반복 검수'},
+    {'id':'vegetation-generator','label':'Qwen 2.1 빌보드 자연물타입 생성기','path':'/vegetation-generator/','category':'image-generation','uiMode':'archive','description':'자연물 빌보드 기본 문구 · 레이아웃·외형 참조 · 전용 대기열·이력'},
+    {'id':'billboard-generator','label':'Qwen2.1 빌보드 가이드참조 생성기','path':'/billboard-generator/','category':'image-generation','uiMode':'archive','description':'높은형·중간형·바닥형 점유 가이드 · 80% 채움 · 벽면 밀착·낮은 판형 · 빌보드 독립 대기열·이력'},
+    {'id':'prop-generator','label':'Qwen 2.1 빌보드 소품타입 생성기','path':'/prop-generator/','category':'image-generation','uiMode':'archive','description':'소품 직교투영 기본 문구 · 레이아웃·자재 참조 · 전용 대기열·이력'},
+    {'id':'building-generator','label':'Qwen 2.1 건물 생성기','path':'/building-generator/','category':'image-generation','uiMode':'archive','description':'직교투영 기본 문구 · 레이아웃 이미지 선택 · 전용 대기열·이력'},
+    {'id':'mannequin-generator','label':'Qwen 2.1 마네킨 생성기','path':'/mannequin-generator/','category':'image-generation','uiMode':'archive','description':'관절 신체·피부·기본복·얼굴 기준 후보 생성 · 마네킨 전용 이력'},
+    {'id':'character-generator','label':'Qwen 2.1 캐릭터 이미지 생성기','path':'/character-generator/','category':'image-generation','uiMode':'archive','description':'공용 화풍 v1.5.0 원문 · 캐릭터 외관 예시 · Qwen 이력 공유'},
+    {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'archive','description':'공용 화풍 v1.5.0 기본 적용 · 투명 배경·참조 이미지 선택'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':REACT_REVIEW_PATHS['writer-agent'],'category':'writer-agent','uiMode':'react','description':' 문서 학습 · 아이디어 작성 · 실행 기록'},
     {'id':'hermes-agent','label':'운영 대화','path':REACT_REVIEW_PATHS['hermes-agent'],'category':'writer-agent','uiMode':'react','description':'대화로 관리 상태 확인과 작업 요청'},
     {'id':'prompt-translation','label':'프롬프트 번역','path':REACT_REVIEW_PATHS['prompt-translation'],'category':'writer-agent','uiMode':'react','description':'한국어 프롬프트 번역 · 작업 이력과 결과 검토'},
-    {'id':'expression-generator','label':'Qwen 2.1 표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · AU 표정 39종 · 참조 1~3장'},
+    {'id':'expression-generator','label':'Qwen 2.1 표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'archive','description':'Qwen 2.1 · AU 표정 39종 · 참조 1~3장'},
 )
 
 def load_manager_page_records(source_file_path, current_animation_catalog=False):
@@ -122,7 +122,7 @@ def resolve_management_page_path(current_page_record):
         if document:
             return document
         return f'{MANAGEMENT_FRAME_PATH_PREFIX}static-review/?review={quote(current_page_record["id"],safe="")}'
-    if current_page_record.get('uiMode')=='gradio':
+    if current_page_record.get('uiMode') in ('archive', 'gradio'):
         current_application_name=current_page_record.get('frameIdentifier') or MANAGEMENT_FRAME_IDENTIFIER_VALUES.get(current_page_record['id'],current_page_record['id'])
         if current_application_name in NATIVE_MANAGEMENT_APPLICATIONS:
             current_query_suffix=current_page_record.get('frameQuery')

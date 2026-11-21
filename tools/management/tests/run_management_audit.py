@@ -14,7 +14,7 @@ MANAGEMENT_AUDIT_MODULES = tuple('tools.management.tests.' + current_module_name
     'test_review_startup', 'test_review_startup_menu', 'test_review_watch', 'test_management_menu_offline', 'test_gradio_error_trace',
     'test_regression_runner', 'test_management_browser_scripts', 'test_landmarks_retirement', 'test_host_memory_guard',
     'test_gpu_confirmation', 'test_gradio_button_guidance', 'test_browser_gpu_confirmation', 'test_gradio_history', 'test_gradio_history_inputs', 'test_history_thumbnail_loading',
-    'test_gradio_proxy_response', 'test_gradio_standard_components', 'test_generation_status_display', 'test_generation_status_lookup', 'test_generation_estimates',
+    'test_gradio_standard_components', 'test_generation_status_display', 'test_generation_status_lookup', 'test_generation_estimates',
     'test_generation_cleanup', 'test_queue_generation_telemetry', 'test_generation_history', 'test_gpu_queue_priority',
     'test_gpu_job_queue', 'test_kimodo_cache_queue_integration', 'test_gpu_memory_history', 'test_gpu_status', 'test_anny_retirement',
     'test_anchor_history', 'test_anchor_asset_update', 'test_history_preservation', 'test_gradio_process', 'test_management_single_port', 'test_management_heartbeat_bridge', 'test_review_server_takeover',

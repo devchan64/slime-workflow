@@ -547,7 +547,7 @@ class ManagementLauncherTests(unittest.TestCase):
             current_output_lines=current_output_stream.getvalue().splitlines()
             current_commands=[shlex.split(current_line_value.strip()) for current_line_value in current_output_lines if current_line_value.startswith('  ')]
             self.assertEqual(current_commands[0],[str(current_executable_path),'mcp','get','slime-hermes'])
-            self.assertEqual(current_commands[1],[str(current_executable_path),'mcp','add','slime-hermes','--',str(current_root_path/'.local/hermes-mcp/bin/python'),str(current_root_path/'tools/management/domains/hermes_agent/mcp_server.py')])
+            self.assertEqual(current_commands[1],[str(current_executable_path),'mcp','add','slime-hermes','--',str(current_root_path/'.local/hermes-mcp/bin/python'),str(current_root_path/'tools/management/mcp/hermes_server.py')])
             self.assertIn('등록되지 않은 경우에만',current_output_stream.getvalue())
 
     def test_missing_codex_without_app_shows_install_guidance(self):

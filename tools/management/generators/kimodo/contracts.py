@@ -1,0 +1,297 @@
+"""Kimodo의 고정 모델·입력·준비 상태 계약."""
+import base64
+import hashlib
+import json
+import math
+import re
+import subprocess
+from pathlib import Path
+import yaml
+from generators.kimodo.ollama_encoder import OLLAMA_ENCODER_SHA256
+
+KIMODO_WORKSPACE_ROOT = Path(__file__).resolve().parents[4]
+KIMODO_MODEL_ROOT = KIMODO_WORKSPACE_ROOT / '.model/kimodo'
+KIMODO_SOURCE_ROOT = KIMODO_WORKSPACE_ROOT / '.local/kimodo/upstream'
+KIMODO_JOB_STORAGE = KIMODO_WORKSPACE_ROOT / '.tmp/test/kimodo'
+KIMODO_ENVIRONMENT_PYTHON = KIMODO_WORKSPACE_ROOT / '.local/venvs/kimodo-rocm/bin/python'
+KIMODO_CONFIG_ROOT = Path(__file__).parent / 'config'
+KIMODO_MAXIMUM_SEED_VALUE = 2147483647
+
+class UniqueConfigLoader(yaml.SafeLoader):
+    """중복 설정 키를 거절한다."""
+
+def construct_unique_mapping(current_yaml_loader, current_yaml_node, current_deep_value=False):
+    current_mapping_result = {}
+    for current_key_node, current_value_node in current_yaml_node.value:
+        current_key_value = current_yaml_loader.construct_object(current_key_node, deep=current_deep_value)
+        if current_key_value in current_mapping_result:
+            raise ValueError(f'중복 설정 키: {current_key_value}')
+        current_mapping_result[current_key_value] = current_yaml_loader.construct_object(current_value_node, deep=current_deep_value)
+    return current_mapping_result
+
+UniqueConfigLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, construct_unique_mapping)
+KIMODO_ASSET_CONFIG = yaml.load((KIMODO_CONFIG_ROOT / 'assets.yaml').read_text(), Loader=UniqueConfigLoader)
+KIMODO_DEFAULT_SETTINGS = yaml.load((KIMODO_CONFIG_ROOT / 'defaults.yaml').read_text(), Loader=UniqueConfigLoader)
+if not isinstance(KIMODO_ASSET_CONFIG,dict) or set(KIMODO_ASSET_CONFIG) != {'source_revision','models'} or not re.fullmatch(r'[a-f0-9]{40}',KIMODO_ASSET_CONFIG['source_revision']):
+    raise ValueError('Kimodo 자료 설정 계약 오류')
+if not isinstance(KIMODO_ASSET_CONFIG['models'],list) or len(KIMODO_ASSET_CONFIG['models']) != 3:
+    raise ValueError('Kimodo 모델 구성은 모션·MNTP·supervised여야 합니다.')
+for current_asset_record in KIMODO_ASSET_CONFIG['models']:
+    if not isinstance(current_asset_record,dict) or set(current_asset_record) != {'role','repository','revision','files'} or not re.fullmatch(r'[a-f0-9]{40}',current_asset_record['revision']):
+        raise ValueError('Kimodo 모델 리비전 설정 오류')
+    if not isinstance(current_asset_record['repository'],str) or not isinstance(current_asset_record['files'],list) or not current_asset_record['files']:
+        raise ValueError('Kimodo 저장소·파일 목록 설정 오류')
+    current_seen_paths = set()
+    for current_file_record in current_asset_record['files']:
+        if not isinstance(current_file_record,dict) or set(current_file_record) != {'path','size','sha256'}:
+            raise ValueError('Kimodo 자료 파일 설정 오류')
+        current_file_name = current_file_record['path']
+        if not isinstance(current_file_name,str) or Path(current_file_name).is_absolute() or '..' in Path(current_file_name).parts or current_file_name in current_seen_paths:
+            raise ValueError('Kimodo 자료 경로 오류')
+        current_seen_paths.add(current_file_name)
+        if type(current_file_record['size']) is not int or current_file_record['size'] <= 0 or (current_file_record['sha256'] is not None and not re.fullmatch(r'[a-f0-9]{64}',current_file_record['sha256'])):
+            raise ValueError('Kimodo 자료 크기·해시 설정 오류')
+if {current_asset_record['role'] for current_asset_record in KIMODO_ASSET_CONFIG['models']} != {'motion','encoder-mntp','encoder-supervised'}:
+    raise ValueError('Kimodo 모델 역할 설정 오류')
+if set(KIMODO_DEFAULT_SETTINGS) != {'schema_version','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing','directions','remove_horizontal_motion','openpose_scale_percent','pose_include_hands','pose_include_face'} or KIMODO_DEFAULT_SETTINGS['schema_version'] != 1:
+    raise ValueError('Kimodo 기본 설정 계약 오류')
+
+
+KIMODO_DIRECTION_CONFIG = yaml.load((KIMODO_CONFIG_ROOT/'output-directions.yaml').read_text(),Loader=UniqueConfigLoader)
+if not isinstance(KIMODO_DIRECTION_CONFIG,dict) or set(KIMODO_DIRECTION_CONFIG)!={'schema_version','directions'} or KIMODO_DIRECTION_CONFIG['schema_version']!=1:
+    raise ValueError('출력 방향 설정 계약 오류')
+KIMODO_DIRECTION_RECORDS = KIMODO_DIRECTION_CONFIG['directions']
+if not isinstance(KIMODO_DIRECTION_RECORDS,dict) or set(KIMODO_DIRECTION_RECORDS)!={'front','front_left_30','front_left','left','back_left','back','back_right','right','front_right_75','front_right_60','front_right','front_right_30','front_right_15'}:
+    raise ValueError('출력 방향 목록 오류')
+for current_direction_record in KIMODO_DIRECTION_RECORDS.values():
+    if not isinstance(current_direction_record,dict) or set(current_direction_record)!={'label','angle'} or not isinstance(current_direction_record['label'],str) or not current_direction_record['label'] or type(current_direction_record['angle']) is not int or not -180<=current_direction_record['angle']<=180:
+        raise ValueError('출력 방향 라벨·각도 오류')
+
+
+def validate_kimodo_directions(current_direction_names):
+    if not isinstance(current_direction_names,list) or not current_direction_names or any(not isinstance(current_direction_name,str) or current_direction_name not in KIMODO_DIRECTION_RECORDS for current_direction_name in current_direction_names) or len(set(current_direction_names))!=len(current_direction_names):
+        raise ValueError('출력 방향을 중복 없이 한 개 이상 선택하세요.')
+    return list(current_direction_names)
+
+validate_kimodo_directions(KIMODO_DEFAULT_SETTINGS['directions'])
+
+
+def validate_kimodo_request(current_request_record):
+    current_required_fields = {'action','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'}
+    if not isinstance(current_request_record, dict) or not current_required_fields <= set(current_request_record) or set(current_request_record) - current_required_fields - {'endpoint_pose_id','keyframes','keyframe_source_hashes','segment_frames','directions','remove_horizontal_motion','proportion_images','proportion_joint_edits','proportion_multiview_angles','proportion_reviewed_multiview','proportion_projected_hip','proportion_face_anchor_calibration','openpose_scale_percent','pose_include_hands','pose_include_face','camera_elevation_degrees'}:
+        raise ValueError('Kimodo 요청 필드 오류')
+    current_elevation_angle = current_request_record.get('camera_elevation_degrees',0)
+    if type(current_elevation_angle) is not int or current_elevation_angle not in (0,15,30):
+        raise ValueError('카메라 고도는 0·15·30도 중 하나여야 합니다.')
+    if current_request_record.get('endpoint_pose_id') is not None:
+        from generators.kimodo.pose_library import load_soma_pose_arrays
+        current_pose_identifier = current_request_record['endpoint_pose_id']
+        if not isinstance(current_pose_identifier,str):
+            raise ValueError('SOMA 기준 자세 ID는 문자열이어야 합니다.')
+        current_pose_record,_ = load_soma_pose_arrays(current_pose_identifier)
+        if not current_request_record['post_processing'] or current_request_record['heading_degrees'] != current_pose_record['heading_degrees']:
+            raise ValueError('SOMA 양 끝 자세 적용은 공식 후처리와 기준 자세의 초기 방향이 필요합니다.')
+        if current_request_record.get('keyframes') is not None:
+            raise ValueError('이전 양 끝 자세와 키프레임을 함께 지정할 수 없습니다.')
+        current_request_record={**current_request_record,'keyframes':[{'id':'b0000000000000000000000000000004','frame':1},{'id':'b0000000000000000000000000000004','frame':current_request_record['frames']}]}
+        current_request_record.pop('endpoint_pose_id')
+    if current_request_record['action'] != 'generate':
+        raise ValueError('generate 명령만 지원합니다.')
+    current_prompt_text = current_request_record['prompt']
+    if not isinstance(current_prompt_text, str) or not current_prompt_text.strip() or len(current_prompt_text) > 2000 or len(current_prompt_text.split()) > 100:
+        raise ValueError('프롬프트는 1~100단어, 2000자 이내로 입력하세요.')
+    if not any(current_character_value.isalnum() for current_character_value in current_prompt_text):
+        raise ValueError('프롬프트에 문자 또는 숫자가 필요합니다.')
+    for current_field_name, current_minimum_value, current_maximum_value in [('frames',30,300),('steps',2,100),('seed',0,KIMODO_MAXIMUM_SEED_VALUE)]:
+        current_field_value = current_request_record[current_field_name]
+        if type(current_field_value) is not int or not current_minimum_value <= current_field_value <= current_maximum_value:
+            raise ValueError(f'{current_field_name}: {current_minimum_value}~{current_maximum_value} 정수 필요')
+    if 'keyframes' in current_request_record:
+        if current_request_record.get('endpoint_pose_id'):
+            raise ValueError('키프레임 배치와 양 끝 기준 자세는 동시에 사용할 수 없습니다.')
+        if current_request_record.get('post_processing') is not True:
+            raise ValueError('키프레임 자세 적용에는 공식 후처리를 켜야 합니다.')
+        if current_request_record.get('remove_horizontal_motion',False):
+            raise ValueError('키프레임 좌표를 유지하려면 수평 이동 제거를 꺼야 합니다.')
+        from tools.management.domains.kimodo.keyframe_storage import validate_kimodo_keyframe_placements
+        current_keyframe_placements = validate_kimodo_keyframe_placements(current_request_record['keyframes'], current_request_record['frames'])
+        current_request_record = {**current_request_record, 'keyframes': current_keyframe_placements}
+    if 'keyframe_source_hashes' in current_request_record:
+        current_expected_hashes=current_request_record['keyframe_source_hashes']
+        if 'keyframes' not in current_request_record or not isinstance(current_expected_hashes,dict) or set(current_expected_hashes)!={current_placement['id'] for current_placement in current_request_record['keyframes']} or any(not isinstance(current_hash_value,str) or not re.fullmatch(r'[a-f0-9]{64}',current_hash_value) for current_hash_value in current_expected_hashes.values()):raise ValueError('키프레임 원본 확인값 오류')
+    from generators.kimodo.motion_sequence import resolve_motion_segments
+    resolve_motion_segments(current_prompt_text,current_request_record['frames'],current_request_record.get('segment_frames'))
+    for current_field_name, current_minimum_value, current_maximum_value in [('guidance_scale',0,10),('heading_degrees',-180,180)]:
+        current_field_value = current_request_record[current_field_name]
+        if type(current_field_value) not in (float,int) or not math.isfinite(current_field_value) or not current_minimum_value <= current_field_value <= current_maximum_value:
+            raise ValueError(f'{current_field_name}: 범위 오류')
+    if type(current_request_record['post_processing']) is not bool:
+        raise ValueError('후처리 여부는 참/거짓이어야 합니다.')
+    if type(current_request_record.get('remove_horizontal_motion',False)) is not bool:
+        raise ValueError('수평 이동 제거 여부는 참/거짓이어야 합니다.')
+    for current_option_name in ('pose_include_hands','pose_include_face'):
+        if type(current_request_record.get(current_option_name,False)) is not bool:
+            raise ValueError(f'{current_option_name}: bool 필요')
+    current_scale_percent=current_request_record.get('openpose_scale_percent',KIMODO_DEFAULT_SETTINGS['openpose_scale_percent'])
+    if type(current_scale_percent) not in (int,float) or not math.isfinite(current_scale_percent) or not 10<=current_scale_percent<=100:
+        raise ValueError('OpenPose 크기 비율은 10~100% 숫자여야 합니다.')
+    current_reference_images=current_request_record.get('proportion_images',[])
+    if not isinstance(current_reference_images,list) or len(current_reference_images)>8:
+        raise ValueError('신체 비율 참조 이미지는 선택 입력이며 최대 8장입니다.')
+    if 'proportion_multiview_angles' in current_request_record:
+        current_multiview_angles=current_request_record['proportion_multiview_angles']
+        if not current_reference_images or not isinstance(current_multiview_angles,list) or len(current_multiview_angles)!=8 or any(type(current_angle_value) not in (int,float) or not math.isfinite(current_angle_value) or not -360<=current_angle_value<=360 for current_angle_value in current_multiview_angles):
+            raise ValueError('다중 시점 시험에는 참조와 유한한 카메라 각도 8개가 필요합니다.')
+        if len({round(current_angle_value%360,6) for current_angle_value in current_multiview_angles})!=8:
+            raise ValueError('다중 시점 카메라 각도 8개가 서로 달라야 합니다.')
+    from tools.management.domains.image.three_reference_generation import decode_reference_image
+    from PIL import Image
+    import io
+    current_normalized_images=[]
+    current_reference_hashes=set()
+    for current_reference_value in current_reference_images:
+        current_image_bytes=decode_reference_image(current_reference_value,composite_transparent_background=True)
+        current_normalized_images.append(base64.b64encode(current_image_bytes).decode())
+        current_reference_hash=hashlib.sha256(current_image_bytes).hexdigest()
+        if current_reference_hash in current_reference_hashes:
+            raise ValueError('같은 참조 이미지는 중복 입력할 수 없습니다.')
+        current_reference_hashes.add(current_reference_hash)
+        if len(current_image_bytes)>8*1024*1024:
+            raise ValueError('참조 이미지는 각 8MiB 이하여야 합니다.')
+        with Image.open(io.BytesIO(current_image_bytes)) as current_image_value:
+            if max(current_image_value.size)>4096 or min(current_image_value.size)<64:
+                raise ValueError('참조 이미지 크기는 각 변 64~4096이어야 합니다.')
+    current_edit_records=current_request_record.get('proportion_joint_edits',[])
+    if not isinstance(current_edit_records,list) or len(current_edit_records)>144:
+        raise ValueError('참조 관절 수정 목록 형식 오류')
+    current_seen_edits=set()
+    for current_edit_record in current_edit_records:
+        if not isinstance(current_edit_record,dict) or set(current_edit_record)!={'image','person','image_sha256','joint','original','edited'}:
+            raise ValueError('참조 관절 수정 필드 오류')
+        current_image_index=current_edit_record['image']
+        current_person_index=current_edit_record['person']
+        current_joint_index=current_edit_record['joint']
+        if type(current_image_index) is not int or not 1<=current_image_index<=len(current_normalized_images) or type(current_person_index) is not int or current_person_index<1 or type(current_joint_index) is not int or not 0<=current_joint_index<18:
+            raise ValueError('참조 관절 수정 대상 오류')
+        if current_edit_record['image_sha256']!=hashlib.sha256(base64.b64decode(current_normalized_images[current_image_index-1])).hexdigest():
+            raise ValueError('관절 수정 대상 참조 이미지가 다릅니다.')
+        current_edit_key=(current_image_index,current_person_index,current_joint_index)
+        if current_edit_key in current_seen_edits:
+            raise ValueError('참조 관절 수정 대상이 중복되었습니다.')
+        current_seen_edits.add(current_edit_key)
+        for current_coordinate_name in ('original','edited'):
+            current_coordinates=current_edit_record[current_coordinate_name]
+            if not isinstance(current_coordinates,list) or len(current_coordinates)!=2 or any(type(current_coordinate_value) not in (int,float) or not math.isfinite(current_coordinate_value) for current_coordinate_value in current_coordinates):
+                raise ValueError('참조 관절 수정 좌표 형식 오류')
+    if type(current_request_record.get('proportion_projected_hip',False)) is not bool:
+        raise ValueError('3D 투영 골반 시험 여부는 참/거짓이어야 합니다.')
+    if current_request_record.get('proportion_projected_hip',False) and 'proportion_reviewed_multiview' not in current_request_record:
+        raise ValueError('3D 투영 골반 시험에는 검수 3D 골격이 필요합니다.')
+    if 'proportion_face_anchor_calibration' in current_request_record:
+        if 'proportion_reviewed_multiview' not in current_request_record:
+            raise ValueError('얼굴 앵커 시험에는 검수 3D 골격이 필요합니다.')
+        from generators.kimodo.multiview_face_anchor_experiment import validate_face_calibration_format
+        validate_face_calibration_format(current_request_record['proportion_face_anchor_calibration'],current_require_source=True)
+    if 'proportion_reviewed_multiview' in current_request_record:
+        if not current_normalized_images:
+            raise ValueError('검수 3D 스켈레톤에는 일치하는 참조 이미지가 필요합니다.')
+        if current_edit_records or 'proportion_multiview_angles' in current_request_record:
+            raise ValueError('검수 3D 스켈레톤은 관절 수정 또는 새 다중 시점 추정과 동시에 사용할 수 없습니다.')
+        from generators.kimodo.multiview_reviewed_bundle import validate_reviewed_multiview_bundle
+        current_ordered_hashes=[hashlib.sha256(base64.b64decode(current_encoded_image)).hexdigest() for current_encoded_image in current_normalized_images]
+        validate_reviewed_multiview_bundle(current_request_record['proportion_reviewed_multiview'],current_ordered_hashes)
+    return {**{current_field_name:current_field_value for current_field_name,current_field_value in current_request_record.items() if current_field_name!='proportion_images'}, 'camera_elevation_degrees':current_elevation_angle, 'pose_include_hands':current_request_record.get('pose_include_hands',False),'pose_include_face':current_request_record.get('pose_include_face',False),'openpose_scale_percent':current_scale_percent, 'remove_horizontal_motion':current_request_record.get('remove_horizontal_motion',False), 'directions':validate_kimodo_directions(current_request_record.get('directions',['front_left'])), 'prompt':current_prompt_text.strip(), 'images':current_normalized_images, 'width':512, 'height':512, 'tag':'kimodo'}
+
+
+def read_converted_encoder_files(current_verify_hashes=False):
+    current_encoder_root = KIMODO_MODEL_ROOT/'encoder-base-ollama'
+    current_encoder_record = json.loads((current_encoder_root/'conversion.json').read_text())
+    if current_encoder_record['source_sha256'] != OLLAMA_ENCODER_SHA256:
+        raise ValueError('Ollama 원본 모델 해시 불일치')
+    current_encoder_index = json.loads((current_encoder_root/'model.safetensors.index.json').read_text())
+    current_shard_names = set(current_encoder_index['weight_map'].values())
+    current_file_records = current_encoder_record['files']
+    if not current_shard_names or set(current_file_records) != current_shard_names | {'config.json', 'model.safetensors.index.json'}:
+        raise ValueError('Ollama 변환 파일 목록 불일치')
+    for current_file_name, current_file_record in current_file_records.items():
+        current_file_path = current_encoder_root/current_file_name
+        if not current_file_path.resolve().is_relative_to(current_encoder_root.resolve()) or current_file_path.stat().st_size != current_file_record['size']:
+            raise ValueError('Ollama 변환 파일 크기 또는 경로 불일치')
+        if current_verify_hashes:
+            with current_file_path.open('rb') as current_file_stream:
+                if hashlib.file_digest(current_file_stream, 'sha256').hexdigest() != current_file_record['sha256']:
+                    raise ValueError(f'Ollama 변환 파일 해시 불일치: {current_file_name}')
+
+
+def inspect_motion_correction_runtime():
+    """Kimodo 전용 Python에서 공식 후처리 네이티브 확장을 실제로 로드한다."""
+    if not KIMODO_ENVIRONMENT_PYTHON.is_file():
+        return False
+    current_import_command = ('import importlib.util; import motion_correction._motion_correction; '
+                              'assert importlib.util.find_spec("motion_correction.motion_postprocess") is not None')
+    try:
+        current_import_result = subprocess.run([str(KIMODO_ENVIRONMENT_PYTHON), '-c', current_import_command],
+                                               capture_output=True, text=True, timeout=15, check=False)
+        return current_import_result.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def inspect_kimodo_assets():
+    current_missing_paths = []
+    if not inspect_motion_correction_runtime():
+        current_missing_paths.append('공식 후처리 motion_correction 실행 환경')
+    try:
+        read_converted_encoder_files()
+    except (OSError, ValueError, TypeError, KeyError):
+        current_missing_paths.append('Ollama FP16 인코더 변환 파일')
+    for current_asset_record in KIMODO_ASSET_CONFIG['models']:
+        for current_file_record in current_asset_record['files']:
+            current_file_path = KIMODO_MODEL_ROOT / current_asset_record['role'] / current_file_record['path']
+            if not current_file_path.is_file() or current_file_path.stat().st_size != current_file_record['size']:
+                current_missing_paths.append(str(current_file_path))
+    current_revision_path = KIMODO_SOURCE_ROOT.parent / 'PINNED_REVISION'
+    if not current_revision_path.is_file() or current_revision_path.read_text().strip() != KIMODO_ASSET_CONFIG['source_revision']:
+        current_missing_paths.append(str(current_revision_path))
+    for current_required_path in (KIMODO_ENVIRONMENT_PYTHON, KIMODO_MODEL_ROOT/'prepared.json'):
+        if not current_required_path.is_file():
+            current_missing_paths.append(str(current_required_path))
+    current_prepared_path = KIMODO_MODEL_ROOT/'prepared.json'
+    if current_prepared_path.is_file():
+        try:
+            current_prepared_record = json.loads(current_prepared_path.read_text())
+            if current_prepared_record.get('source_revision') != KIMODO_ASSET_CONFIG['source_revision'] or current_prepared_record.get('models') != KIMODO_ASSET_CONFIG['models']:
+                current_missing_paths.append('준비 기록의 모델 리비전 불일치')
+        except (ValueError,AttributeError):
+            current_missing_paths.append('준비 기록 형식 오류')
+    return {'ready':not current_missing_paths,'missing':current_missing_paths,'message':'Kimodo SOMA v1.2 · 비양자화 인코더·공식 후처리 준비 완료 · 실행·품질은 별도 검수' if not current_missing_paths else '준비 필요: '+', '.join(current_missing_paths[:3])}
+
+
+def validate_kimodo_assets():
+    current_asset_status = inspect_kimodo_assets()
+    if not current_asset_status['ready']:
+        raise ValueError(current_asset_status['message'])
+
+
+def verify_kimodo_weights():
+    validate_kimodo_assets()
+    read_converted_encoder_files(current_verify_hashes=True)
+    for current_asset_record in KIMODO_ASSET_CONFIG['models']:
+        for current_file_record in current_asset_record['files']:
+            if current_file_record['sha256']:
+                current_file_path = KIMODO_MODEL_ROOT/current_asset_record['role']/current_file_record['path']
+                with current_file_path.open('rb') as current_file_stream:
+                    if hashlib.file_digest(current_file_stream,'sha256').hexdigest() != current_file_record['sha256']:
+                        raise ValueError(f'모델 해시 불일치: {current_file_path}')
+
+
+def normalize_kimodo_prompt(current_prompt_text):
+    """고정 공식 소스의 문장 정규화를 UI와 실행기가 공유한다."""
+    import importlib.util
+    current_source_path = KIMODO_SOURCE_ROOT/'kimodo/sanitize.py'
+    current_module_spec = importlib.util.spec_from_file_location('kimodo_prompt_sanitizer',current_source_path)
+    current_module_value = importlib.util.module_from_spec(current_module_spec)
+    current_module_spec.loader.exec_module(current_module_value)
+    if not any(current_character_value.isalnum() for current_character_value in current_prompt_text):
+        raise ValueError('프롬프트에 문자 또는 숫자가 필요합니다.')
+    return current_module_value.sanitize_text(current_prompt_text)

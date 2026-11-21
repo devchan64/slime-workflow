@@ -38,11 +38,14 @@ class ReviewTakeoverTests(unittest.TestCase):
                 release_review_server_port(8770, Path('/workspace/serve.py'))
         current_listener_mock.kill.assert_not_called()
 
-    def test_owned_listener_is_stopped(self):
+    @patch('sys.stdin.isatty', return_value=True)
+    @patch('builtins.input', return_value='y')
+    def test_owned_listener_is_stopped(self, prompt, isatty):
         current_process_mock = Mock(pid=123)
         current_process_mock.parent.return_value = None
         with patch('tools.management.common.review_server_takeover.psutil.Process', return_value=current_process_mock), patch('tools.management.common.review_server_takeover.matches_review_server', return_value=True), patch('tools.management.common.review_server_takeover.psutil.net_connections', return_value=[SimpleNamespace(pid=123, status='LISTEN', laddr=SimpleNamespace(port=8770))]), patch('tools.management.common.review_server_takeover.psutil.wait_procs', return_value=([], [])):
             release_review_server_port(8770, Path('/workspace/serve.py'))
+        prompt.assert_called_once()
         current_process_mock.send_signal.assert_called_once()
 
     def test_python_option_preserves_owned_script_identity(self):

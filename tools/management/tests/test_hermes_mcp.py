@@ -26,7 +26,7 @@ fake_mcp_types = types.ModuleType('mcp.types')
 fake_mcp_server.MCPServer = FakeHermesMcpServer
 fake_mcp_exceptions.ToolError = ValueError
 fake_mcp_types.ToolAnnotations = lambda **annotation_keyword_values: annotation_keyword_values
-hermes_module_path = Path(__file__).resolve().parents[1] / 'domains/hermes_agent/mcp_server.py'
+hermes_module_path = Path(__file__).resolve().parents[1] / 'mcp/hermes_server.py'
 hermes_module_spec = importlib.util.spec_from_file_location('hermes_mcp_test_module', hermes_module_path)
 hermes_module_value = importlib.util.module_from_spec(hermes_module_spec)
 with patch.dict(sys.modules, {'mcp':fake_mcp_module, 'mcp.server':fake_mcp_server, 'mcp.server.mcpserver':fake_mcp_internal, 'mcp.server.mcpserver.exceptions':fake_mcp_exceptions, 'mcp.types':fake_mcp_types}):

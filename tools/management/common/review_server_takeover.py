@@ -51,6 +51,13 @@ def release_review_server_port(current_port_number, current_script_path):
         if current_owner_process and matches_review_server(current_owner_process, current_script_path) and '--watch' in current_owner_process.cmdline():
             current_stop_processes[current_owner_process.pid] = current_owner_process
         current_stop_processes[current_listener_pid] = current_listener_process
+    if current_stop_processes:
+        if not sys.stdin.isatty():
+            raise RuntimeError('기존 GUI가 실행 중입니다. 대화형 터미널에서 종료 여부를 선택하세요.')
+        targets = ', '.join(str(pid) for pid in current_stop_processes)
+        answer = input(f'기존 GUI 서버 및 해당 감시자(PID {targets}, 포트 {current_port_number})를 종료하고 다시 시작할까요? [y/N] ')
+        if answer.strip().lower() not in ('y', 'yes'):
+            raise RuntimeError('기존 GUI를 유지하여 새 실행을 취소했습니다.')
     # 감시자를 먼저 멈춰 서버 자동 재생성을 차단한다. 게이트웨이·GPU 작업은 건드리지 않는다.
     for current_stop_process in current_stop_processes.values():
         try:

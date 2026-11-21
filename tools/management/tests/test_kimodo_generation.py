@@ -795,7 +795,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
         self.assertFalse(current_standing_request['pose_include_face'])
         self.assertTrue(current_standing_values[9])
         from tools.management.ui.gradio.kimodo_app import load_proportion_examples
-        self.assertEqual(Path(load_proportion_examples()['character_eight_directions']['images'][0]),Path(__file__).resolve().parents[3]/'baseline/player/default/default-eight-directions-v1.png')
+        self.assertEqual(Path(load_proportion_examples()['character_eight_directions']['images'][0]),(Path(__file__).resolve().parents[3]/'baseline/player/default/default-eight-directions-v1.png').resolve())
         self.assertEqual(hashlib.sha256(Path(current_standing_values[10][0]).read_bytes()).digest(),hashlib.sha256(Path(load_proportion_examples()['character_eight_directions']['images'][0]).read_bytes()).digest())
         current_combination_values = apply_complete_kimodo_example('boxing_jab_straight_combination')
         current_combination_request = build_kimodo_payload(*current_combination_values)

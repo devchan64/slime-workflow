@@ -2,6 +2,7 @@
 import argparse
 import contextlib
 import io
+import runpy
 from pathlib import Path
 import unittest
 import tempfile
@@ -11,6 +12,17 @@ from tools.management import serve
 
 
 class ReviewStartupTests(unittest.TestCase):
+    def test_direct_script_preparation_imports_builders(self):
+        script_globals = runpy.run_path(str(Path(serve.__file__).resolve()), run_name='gui_direct_test')
+        arguments = script_globals['parse_review_arguments'](['--frontend-repo', '/tmp/slime-frontend'])
+        with patch('tools.management.build_frontend_review.build_frontend_review', return_value=Path('/tmp/generated-review')) as build_mock:
+            arguments.ui_bundle = Path('/tmp/test-ui-bundle')
+            self.assertEqual(script_globals['prepare_review_directory'](arguments), Path('/tmp/generated-review'))
+            build_mock.assert_called_once_with(Path('/tmp/slime-frontend'), ui_bundle_directory=Path('/tmp/test-ui-bundle'))
+        arguments = script_globals['parse_review_arguments'](['--walking', '.tmp/walk', '--standing', '.tmp/stand'])
+        with patch('tools.management.build_frame_manager.build_frame_manager', return_value=Path('/tmp/generated-review')):
+            self.assertEqual(script_globals['prepare_review_directory'](arguments), Path('/tmp/generated-review'))
+
     def test_legacy_hub_serves_current_navigation_without_rewriting_snapshot(self):
         with tempfile.TemporaryDirectory() as temporary_directory_path:
             current_review_root = Path(temporary_directory_path)
@@ -34,14 +46,14 @@ class ReviewStartupTests(unittest.TestCase):
     def test_generator_settings_are_watched(self):
         parsed_argument_values = serve.parse_review_arguments([])
         watched_root_paths = serve.collect_review_watch_paths(parsed_argument_values)
-        repository_root_path = Path(serve.__file__).resolve().parents[2]
+        repository_root_path = Path(serve.__file__).resolve().parents[3]
         for generator_relative_path in ('generators/momask/config/standing-loops-v1.json', 'generators/terrain/config/tile_map.yaml'):
             self.assertTrue(any((repository_root_path/generator_relative_path).is_relative_to(current_root_path) for current_root_path in watched_root_paths))
 
     def test_map_validation_sources_are_watched(self):
         parsed_argument_values = serve.parse_review_arguments([])
         watched_root_paths = serve.collect_review_watch_paths(parsed_argument_values)
-        repository_root_path = Path(serve.__file__).resolve().parents[2]
+        repository_root_path = Path(serve.__file__).resolve().parents[3]
         for source_relative_path in ('domains/map_assets/placement.py', 'common/map_asset_http.py', 'common/map_tile_assets.py', 'common/sprite_display_properties.py', 'common/game_render_metrics.py'):
             current_source_path = repository_root_path/'tools/management'/source_relative_path
             self.assertTrue(current_source_path.is_file())
@@ -74,7 +86,7 @@ class ReviewStartupTests(unittest.TestCase):
 
     def test_default_repository_and_port(self):
         parsed_argument_values = serve.parse_review_arguments([])
-        self.assertEqual(parsed_argument_values.frontend_repo, Path(serve.__file__).resolve().parents[3]/'slime-frontend')
+        self.assertEqual(parsed_argument_values.frontend_repo, Path(serve.__file__).resolve().parents[4]/'slime-frontend')
         self.assertEqual(parsed_argument_values.port, 8770)
         self.assertEqual(parsed_argument_values.entry, 'preview.html')
 

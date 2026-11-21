@@ -46,6 +46,19 @@ class WorkspaceSnapshotTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '심볼릭 링크'):
             snapshot_module_value.copy_snapshot_source_files(self.source_repository_path, self.snapshot_repository_path)
 
+    def test_snapshot_preserves_only_the_fixed_compatibility_link(self):
+        target = self.source_repository_path / 'tools/management/generators'
+        target.mkdir(parents=True)
+        (target / 'source.py').write_text('value = 1\n')
+        (self.source_repository_path / 'generators').symlink_to('tools/management/generators')
+        snapshot_module_value.copy_snapshot_source_files(self.source_repository_path, self.snapshot_repository_path)
+        self.assertTrue((self.snapshot_repository_path / 'generators').is_symlink())
+        self.assertEqual((self.snapshot_repository_path / 'generators/source.py').read_text(), 'value = 1\n')
+        (self.source_repository_path / 'generators').unlink()
+        (self.source_repository_path / 'generators').symlink_to('/tmp')
+        with self.assertRaisesRegex(ValueError, '심볼릭 링크'):
+            snapshot_module_value.copy_snapshot_source_files(self.source_repository_path, self.temporary_root_path / 'other')
+
     def test_snapshot_rejects_a_previously_copied_file_changed_later(self):
         snapshot_original_copy = snapshot_module_value.shutil.copy2
         def copy_and_modify_source(source_current_path, snapshot_current_path, **copy_keyword_values):

@@ -15,8 +15,8 @@ from tools.management.common.management_process import ManagementLaunchLogger, r
 from tools.management.common.management_setup import prepare_management_environments
 
 LAUNCHER_MODE_SCRIPT_PATHS = {
-    'gui': 'tools/management/serve.py',
-    'gateway': 'tools/management/gateway_server.py',
+    'gui': 'tools/management/gui/serve.py',
+    'gateway': 'tools/management/gateway/server.py',
     'snapshot': 'tools/management/maintenance/content_snapshot_worker.py',
 }
 
@@ -55,7 +55,7 @@ def print_hermes_codex_cli_guidance():
         return
     current_executable_text=shlex.quote(str(current_executable_path))
     current_python_text=shlex.quote(str(WORKFLOW_ROOT_DIRECTORY/'.local/hermes-mcp/bin/python'))
-    current_server_text=shlex.quote(str(WORKFLOW_ROOT_DIRECTORY/'tools/management/domains/hermes_agent/mcp_server.py'))
+    current_server_text=shlex.quote(str(WORKFLOW_ROOT_DIRECTORY/'tools/management/mcp/hermes_server.py'))
     print('Codex CLI가 PATH에 없어 앱의 실행 파일을 찾았습니다: '+str(current_executable_path),flush=True)
     print('먼저 등록 여부를 확인하세요:\n  '+current_executable_text+' mcp get slime-hermes',flush=True)
     print('등록되지 않은 경우에만 실행하세요:\n  '+current_executable_text+' mcp add slime-hermes -- '+current_python_text+' '+current_server_text,flush=True)
@@ -143,7 +143,7 @@ def run_management_launcher(command_argument_values=None):
             apply_content_launch_configuration()
             selected_command_values = build_management_launch_command(launcher_argument_values.mode, launcher_argument_values.arguments)
             if launcher_argument_values.mode == 'gateway' and not any(current_argument_text in ('-h', '--help') for current_argument_text in launcher_argument_values.arguments):
-                from tools.management.gateway_server import parse_gateway_arguments
+                from tools.management.gateway.server import parse_gateway_arguments
                 from tools.management.common.gateway_existing_process import confirm_existing_gateway
                 gateway_launch_options = parse_gateway_arguments(selected_command_values[2:])
                 if not confirm_existing_gateway(gateway_launch_options.port, WORKFLOW_ROOT_DIRECTORY, launcher_trace_logger):
