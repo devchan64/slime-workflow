@@ -36,7 +36,6 @@ LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image
 MUSIC_INTERFACE_SERVICES = ('music-heartmula', 'sfx-dasheng-audiogen')
 GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator', 'music-heartmula': 'music-heartmula', 'sfx-dasheng-audiogen': 'sfx-dasheng-audiogen', 'writer-agent': 'writer_agent'}
 GENERATOR_PAGE_PACKAGES['flux-expression-generator'] = 'flux-expression'
-GENERATOR_PAGE_PACKAGES['hermes-agent'] = 'hermes_agent'
 for current_flux_profile in ('flux-image','flux-character','flux-mannequin','flux-billboard','flux-prop','flux-vegetation','flux-building','flux-seamless'):
     GENERATOR_PAGE_PACKAGES[current_flux_profile+'-generator'] = current_flux_profile
 def __getattr__(name):
@@ -63,35 +62,12 @@ def build_management_blocks(current_tool_name, current_review_port, current_sour
     current_server_address = f'http://127.0.0.1:{current_review_port}'
     from tools.review.serve import REVIEW_LIVE_RELOAD_SCRIPT
     current_mount_options = {'allowed_paths': [], 'ssr_mode': False, 'head': REVIEW_LIVE_RELOAD_SCRIPT.decode(), 'css': '#management-sidebar.open{left:0!important;transform:none!important;transition:none!important}#management-gpu-floating{position:fixed;right:12px;bottom:12px;z-index:50;width:min(12rem,calc(100vw - 24px));max-height:45dvh;overflow-x:hidden;overflow-y:auto}#management-gpu-floating:has(>button.open){width:min(27rem,calc(100vw - 24px))}#management-gpu-floating .gr-accordion{min-width:0!important;overflow-x:hidden}#management-gpu-floating .gr-accordion>button{min-width:0;width:100%;white-space:normal;text-align:left}#management-gpu-floating .gr-accordion>button>span:first-child{min-width:0;overflow-wrap:anywhere}#management-gpu-floating .gr-accordion>button>span:last-child{flex-shrink:0;align-self:center;min-width:1.25rem;text-align:center}#management-gpu-floating [data-testid="markdown"]{overflow-wrap:anywhere}'}
-    if current_tool_name == 'hermes-agent':
-        current_mount_options['css'] += """
-        .hermes-result-table { overflow-x: auto; padding: .5rem; }
-        .hermes-result-table table { border-collapse: collapse; margin-top: .5rem; width: 100%; }
-        .hermes-result-table th, .hermes-result-table td {
-            padding: .35rem .65rem; border-bottom: 1px solid var(--border-color-primary); text-align: left;
-        }
-        .hermes-result-table td:first-child { font-family: monospace; overflow-wrap: anywhere; }
-        #hermes-tool-explorer {
-            position: fixed; left: 12px; bottom: 12px; z-index: 50;
-            width: min(12rem, calc(100vw - 24px)); max-height: 45dvh;
-            overflow: auto; overscroll-behavior: contain;
-        }
-        #hermes-tool-explorer:has(> button.open) { width: min(27rem, calc(100vw - 24px)); }
-        #hermes-tool-explorer > button { position: sticky; top: 0; z-index: 1; }
-        @media (max-width: 920px) {
-            #hermes-tool-explorer { top: 12px; bottom: auto; }
-            #hermes-tool-explorer:has(> button.open), #management-gpu-floating:has(> button.open) {
-                width: min(27rem, calc(100% - 24px));
-            }
-        }
-        """
     if current_tool_name == 'management':
         return build_management_menu_interface(load_manager_page_records(current_source_path), current_review_port)[0], current_mount_options
     if current_tool_name in GENERATOR_PAGE_PACKAGES:
         current_page_package = GENERATOR_PAGE_PACKAGES[current_tool_name]
         current_page_module = importlib.import_module(f'generators.{current_page_package}.page.interface')
-        page_options = {"current_source_path": current_source_path} if current_tool_name == "hermes-agent" else {}
-        current_interface_blocks = current_page_module.build_generator_page(current_server_address, current_review_port, **page_options)
+        current_interface_blocks = current_page_module.build_generator_page(current_server_address, current_review_port)
     elif current_tool_name == 'static-review':
         from tools.review.ui.gradio.static_review_app import load_static_review_paths, build_static_review_interface, create_static_review_loader
         current_static_paths = load_static_review_paths(current_source_path)
@@ -358,8 +334,6 @@ def build_management_application(current_handler_class, current_root_path, curre
                         current_message = dict(current_message, body=current_body_bytes)
                     await current_send_call(current_message)
                 return await current_mounted_apps[current_tool_name](current_request_scope, current_receive_call, send_document_with_heartbeat_bridge)
-            if current_tool_name == 'hermes-agent' and current_request_scope.get('method') == 'POST' and current_request_path.endswith('/gradio_api/run/predict') and is_hermes_predict_diagnostic_enabled(Path(__file__).resolve().parents[3]):
-                current_receive_call = wrap_predict_diagnostic_receiver(current_receive_call, lambda current_event_identifier: logging.warning('Hermes predict event=%d', current_event_identifier))
             return await current_mounted_apps[current_tool_name](current_request_scope, current_receive_call, current_send_call)
         current_request_body = bytearray()
         while True:
@@ -393,6 +367,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/translation/')
     @current_root_application.get('/management/frame/world-map')
     @current_root_application.get('/management/frame/world-map/')
+    @current_root_application.get('/management/frame/hermes-agent')
+    @current_root_application.get('/management/frame/hermes-agent/')
     @current_root_application.get('/management/assistant/')
     def assistant_page():
         return FileResponse(assistant_root / 'index.html', headers={'Cache-Control': 'no-cache'})
