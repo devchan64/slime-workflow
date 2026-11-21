@@ -7,8 +7,7 @@ import numpy as np
 from PIL import Image, ImageOps
 import gradio as gr
 from tools.review.common.gradio_generator_changelog import build_generator_changelog
-import yaml
-from tools.review.common.strict_yaml import UniqueConfigLoader
+from generators.wan_fun.page.examples import FUN_MODEL_CHOICES, load_fun_example_catalog, load_fun_selected_example
 from generators.wan_fun.contracts import reject_retired_rgb_input, FUN_JOB_STORAGE, FUN_DEFAULT_SETTINGS, FUN_MAX_FRAME_COUNT, FUN_MAX_SEED_VALUE, validate_fun_request
 from generators.wan_fun.video_input import FUN_VIDEO_MAXIMUM_BYTES
 from tools.review.common.management_client import execute_remote_management_command
@@ -21,7 +20,6 @@ from tools.review.common.gradio_video_results import describe_video_generation_s
 from tools.review.common.generation_status_lookup import read_existing_generation_status
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 
-FUN_EXAMPLE_STORAGE_ROOT = Path(__file__).resolve().parents[3] / 'generators/wan_fun/examples'
 
 
 def inspect_fun_pose_video(current_video_path):
@@ -68,39 +66,6 @@ def describe_fun_input_readiness(current_reference_path, current_video_path, cur
     elif not isinstance(current_frame_count, (int, float)) or isinstance(current_frame_count, bool) or not float(current_frame_count).is_integer() or not 5 <= current_frame_count <= current_recommended_count or (int(current_frame_count) - 1) % 4:
         current_missing_items.append(f'출력 프레임은 5~{current_recommended_count}의 4n+1로 선택하세요.')
     return not current_missing_items, ' '.join(current_missing_items) if current_missing_items else '입력 조건 확인 완료. 대기열 등록을 진행하세요.'
-
-
-def load_fun_example_catalog():
-    current_catalog_record = yaml.load((FUN_EXAMPLE_STORAGE_ROOT / 'index.yaml').read_text(), Loader=UniqueConfigLoader)
-    if not isinstance(current_catalog_record, dict) or set(current_catalog_record) != {'schema_version', 'examples'} or current_catalog_record['schema_version'] != 1 or not isinstance(current_catalog_record['examples'], list):
-        raise ValueError('예제 목록 계약 오류')
-    current_example_mapping = {}
-    for current_example_record in current_catalog_record['examples']:
-        if not isinstance(current_example_record, dict) or set(current_example_record) != {'id', 'label'} or any(not isinstance(current_example_record[current_field_name], str) or not current_example_record[current_field_name].strip() for current_field_name in ('id', 'label')):
-            raise ValueError('예제 목록 필드 오류')
-        current_example_identifier = current_example_record['id']
-        if current_example_identifier in current_example_mapping or Path(current_example_identifier).name != current_example_identifier or current_example_identifier in ('.', '..'):
-            raise ValueError('예제 ID 중복 또는 경로 오류')
-        current_example_mapping[current_example_identifier] = current_example_record['label']
-    return current_example_mapping
-
-
-def load_fun_selected_example(current_example_identifier):
-    if current_example_identifier not in load_fun_example_catalog():
-        raise ValueError('예제를 선택하세요.')
-    current_example_directory = FUN_EXAMPLE_STORAGE_ROOT / current_example_identifier
-    """이력 삭제와 독립된 제작 기준 예제를 입력에만 적용한다."""
-    current_example_record = yaml.load((current_example_directory / 'input.yaml').read_text(), Loader=UniqueConfigLoader)
-    if not isinstance(current_example_record, dict) or set(current_example_record) != {'source_job', 'request'} or not isinstance(current_example_record['source_job'], str) or not isinstance(current_example_record['request'], dict):
-        raise ValueError('Fun Control 예제 필드 오류')
-    current_request_record = current_example_record['request']
-    current_reference_path = current_example_directory / 'reference-1.png'
-    current_video_path = current_example_directory / 'pose-input.mp4'
-    current_validation_record = dict(current_request_record)
-    current_validation_record['images'] = [base64.b64encode(current_reference_path.read_bytes()).decode()]
-    current_validation_record['pose_video'] = base64.b64encode(current_video_path.read_bytes()).decode()
-    validate_fun_request(current_validation_record)
-    return (str(current_reference_path), str(current_video_path), None, current_request_record['control_type'], current_request_record['prompt'], current_request_record['negative_prompt'], current_request_record['frames'], current_request_record['seed'], current_request_record['steps'], current_request_record['flow_shift'], current_request_record['guidance_scale'], current_request_record['switch_ratio'], 'pose-video', False, False, None, None, False, 'wan22-14b')
 
 
 def render_fun_video_result(current_job_identifier, current_status_record, current_server_address):
@@ -281,7 +246,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
             gr.Markdown('**적용 예:** 기존 109프레임 앞에 첫 포즈 4장을 추가하면 113프레임입니다. 원래 첫 프레임까지 같은 포즈가 5프레임 연속이며, 추가 시간은 16fps 기준 0.25초입니다. 준비 구간을 포함한 출력 프레임 수를 지정하세요. 출력은 4n+1, 최대 129프레임이며 입력 영상은 그 길이 이상이어야 합니다. 이 안내가 영상을 자동으로 수정하지는 않습니다.')
             gr.Markdown('**검수:** 처음 1~5프레임과 동작 시작 이후의 선명도·잔상·캐릭터 크기를 비교하세요. 필요한 경우 생성 후 준비 구간을 잘라 사용할 수 있지만, 제거할 길이는 결과를 보고 결정하세요.')
         gr.Markdown('### 2. 동작과 생성 설정')
-        current_profile_control = gr.Radio(choices=[('Wan 2.2 A14B', 'wan22-14b'), ('Wan 2.1 1.3B', 'wan21-1.3b')], value='wan22-14b', label='생성 모델', info='1.3B는 모델 관리에서 가중치와 참조 인코더를 준비하세요.')
+        current_profile_control = gr.Radio(choices=FUN_MODEL_CHOICES, value='wan22-14b', label='생성 모델', info='1.3B는 모델 관리에서 가중치와 참조 인코더를 준비하세요.')
         current_prompt_control = gr.Textbox(label='장면·동작 프롬프트', lines=3)
         current_prompt_summary = gr.Markdown('원문 0단어 · 최종 0단어 · 추가 문구 없음')
         current_prompt_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어 · 추가 문구 없음', current_prompt_control, current_prompt_summary, queue=False)

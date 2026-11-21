@@ -685,6 +685,15 @@ def build_management_application(current_handler_class, current_root_path, curre
             return Response(status_code=404)
         return FileResponse(directory/names[part], media_type='image/png' if part=='reference' else 'video/mp4')
 
+    @current_root_application.get('/management/assistant/fun-template')
+    def fun_template():
+        from generators.wan_fun.contracts import FUN_DEFAULT_SETTINGS, FUN_MAX_FRAME_COUNT, FUN_MAX_SEED_VALUE
+        from generators.wan_fun.page.examples import FUN_MODEL_CHOICES, load_fun_example_catalog
+        return {'defaults': dict(FUN_DEFAULT_SETTINGS, model_profile='wan22-14b'),
+                'maximum_frames': FUN_MAX_FRAME_COUNT, 'maximum_seed': FUN_MAX_SEED_VALUE,
+                'models': [{'id': key, 'label': label} for label, key in FUN_MODEL_CHOICES],
+                'examples': [{'id': key, 'label': label} for key, label in load_fun_example_catalog().items()]}
+
     @current_root_application.get('/management/assistant/fun-pose/{job}')
     def fun_pose_input(job: str):
         from tools.review.domains.hermes_agent.video_operations import make_hermes_video_source_manager
