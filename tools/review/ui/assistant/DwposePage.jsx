@@ -1,3 +1,4 @@
+import MockProgress,{jobsPath} from "./MockProgress.jsx";
 import HistoryCleanup from "./HistoryCleanup.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import React, {useRef,useState} from "react";
@@ -22,7 +23,7 @@ async function pngData(file) {
   });
 }
 
-export default function DwposePage() {
+export default function DwposePage({mock=false}) {
   const query=new URLSearchParams(location.search);
   const [file,setFile]=useState(null),[hands,setHands]=useState(false),[face,setFace]=useState(false);
   const [pending,setPending]=useState(null),[busy,setBusy]=useState(false);
@@ -59,30 +60,35 @@ export default function DwposePage() {
     if(!pending || sending.current)return;
     sending.current=true;setBusy(true);
     try {
-      const result=await managementCommand("dwpose","generate",pending);
+      let result;
+      if(mock){
+        const response=await fetch(jobsPath+"?scope=dwpose",{method:"POST"});
+        if(!response.ok)throw new Error("모의 작업 등록 실패");
+        result=await response.json();
+      }else result=await managementCommand("dwpose","generate",pending);
       if(!result.id)throw new Error("작업 ID를 확인할 수 없습니다.");
-      setJob(result.id);setNotice("공용 GPU 대기열에 등록했습니다.");
+      setJob(result.id);setNotice(mock?"격리 모의 작업을 등록했습니다.":"공용 GPU 대기열에 등록했습니다.");
     }catch(problem){setNotice(problem.message+" · 이력에서 접수 여부를 확인하세요.");}
     finally{setPending(null);sending.current=false;setBusy(false);}
   }
   return <article>
     <a href={"/management/assistant/"+(query.has("session")?"?"+new URLSearchParams({session:query.get("session")}):"")}>헤르메스 대화</a>
     <h1>DWPose 이미지 추출</h1>
-    <ModelReadiness service="dwpose"/><GeneratorChangelog generator="dwpose-generator"/>
+    {mock ? <p>격리 모의 검증 · 메모리에서 작업 상태를 확인합니다.</p> : <><ModelReadiness service="dwpose"/><GeneratorChangelog generator="dwpose-generator"/></>}
     <fieldset disabled={busy || Boolean(pending)}>
       <label>입력 PNG · 832×480 <input ref={fileInput} type="file" accept="image/png" onChange={event=>setFile(event.target.files[0] || null)}/></label>
       {file && <p>선택된 입력 · {file.name}</p>}
-      <GeneratorHistory key={historyRevision} service="dwpose" readJob={readJob} restore={restore} inspectResult={record=>setJob(record.id)}/>
+      {!mock && <GeneratorHistory key={historyRevision} service="dwpose" readJob={readJob} restore={restore} inspectResult={record=>setJob(record.id)}/>}
       <label><input type="checkbox" checked={hands} onChange={event=>setHands(event.target.checked)}/>손 상세 표시</label>
       <label><input type="checkbox" checked={face} onChange={event=>setFace(event.target.checked)}/>얼굴 상세 표시</label>
       <button disabled={!file} onClick={review}>대기열에 추가</button>
     </fieldset>
-    {pending && <section><GpuQueueSummary/><p>{file.name} · 손 상세 {hands?"포함":"제외"} · 얼굴 상세 {face?"포함":"제외"}</p>
+    {pending && <section>{!mock && <GpuQueueSummary/>}<p>{file.name} · 손 상세 {hands?"포함":"제외"} · 얼굴 상세 {face?"포함":"제외"}</p>
       <button disabled={busy} onClick={()=>setPending(null)}>추가하지 않기</button>
       <button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button>
     </section>}
     {notice && <p role="status">{notice}</p>}
-    {job ? <MediaJobResult key={job} service="dwpose" id={job}>
+    {mock ? <MockProgress key={job} scope="dwpose" initialJob={job}/> : job ? <MediaJobResult key={job} service="dwpose" id={job}>
       {record=><HistoryCleanup key={record?.status || ""} service="dwpose" job={job} state={record?.status} onDeleted={cleaned}/>}
     </MediaJobResult> : <HistoryCleanup service="dwpose" onDeleted={cleaned}/>}
   </article>;

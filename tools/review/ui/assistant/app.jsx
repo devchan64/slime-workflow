@@ -267,6 +267,7 @@ const pages = {
   "/management/assistant/sound-effect": SoundEffectPage,
   "/management/assistant/dwpose": DwposePage,
   "/management/frame/dwpose-generator": DwposePage,
+  "/management/frame/mock-dwpose-validation": ()=> <DwposePage mock/>,
   "/management/frame/mock-progress-validation": MockProgress,
   "/management/assistant/models": ModelPage,
   "/management/frame/model-management": ModelPage,

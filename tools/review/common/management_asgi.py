@@ -16,7 +16,6 @@ from starlette.responses import Response, RedirectResponse, JSONResponse
 
 MANAGEMENT_INTERFACE_BUILDERS = {
     'hermes-direct': ('hermes_agent_app', 'build_hermes_direct_interface', 'none'),
-    'mock-dwpose-validation': ('mock_progress_validation_app', 'build_mock_dwpose_interface', 'url'),
     'mock-animate-validation': ('mock_progress_validation_app', 'build_mock_animate_interface', 'url'),
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
     'wan22-vace-generator': ('wan_vace_app', 'build_vace_interface', 'url'),
@@ -385,23 +384,24 @@ def build_management_application(current_handler_class, current_root_path, curre
 
     from time import monotonic
     from uuid import uuid4
-    mock_jobs = {}
+    from typing import Literal
+    mock_jobs = {"progress": {}, "dwpose": {}}
 
     @current_root_application.post('/management/assistant/mock-jobs')
-    async def start_mock_job():
+    async def start_mock_job(scope: Literal["progress", "dwpose"] = "progress"):
         identifier = 'mock-' + uuid4().hex
-        mock_jobs[identifier] = monotonic()
+        mock_jobs[scope][identifier] = monotonic()
         return {'id': identifier}
 
     @current_root_application.get('/management/assistant/mock-jobs')
-    async def read_mock_jobs():
+    async def read_mock_jobs(scope: Literal["progress", "dwpose"] = "progress"):
         now = monotonic()
         rows = []
-        for identifier, started in reversed(mock_jobs.items()):
+        for identifier, started in reversed(mock_jobs[scope].items()):
             elapsed = now - started
-            if elapsed < 5:
+            if elapsed < (7 if scope == "dwpose" else 5):
                 state, message = 'queued', '모의 대기열'
-            elif elapsed < 15:
+            elif elapsed < (18 if scope == "dwpose" else 15):
                 state, message = 'running', '모의 실행 · 1 / 2'
             else:
                 state, message = 'completed', '모의 결과 표시 완료'
@@ -782,6 +782,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/prompt-translation/')
     @current_root_application.get('/management/frame/model-management')
     @current_root_application.get('/management/frame/model-management/')
+    @current_root_application.get('/management/frame/mock-dwpose-validation')
+    @current_root_application.get('/management/frame/mock-dwpose-validation/')
     @current_root_application.get('/management/frame/mock-progress-validation')
     @current_root_application.get('/management/frame/mock-progress-validation/')
     @current_root_application.get('/management/assistant/models/')
