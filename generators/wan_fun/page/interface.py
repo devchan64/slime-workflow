@@ -9,7 +9,7 @@ import gradio as gr
 from tools.review.common.gradio_generator_changelog import build_generator_changelog
 import yaml
 from tools.review.common.strict_yaml import UniqueConfigLoader
-from generators.wan_fun.contracts import reject_retired_rgb_input, FUN_JOB_STORAGE, FUN_DEFAULT_SETTINGS, FUN_MAX_FRAME_COUNT, validate_fun_request
+from generators.wan_fun.contracts import reject_retired_rgb_input, FUN_JOB_STORAGE, FUN_DEFAULT_SETTINGS, FUN_MAX_FRAME_COUNT, FUN_MAX_SEED_VALUE, validate_fun_request
 from generators.wan_fun.video_input import FUN_VIDEO_MAXIMUM_BYTES
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
@@ -131,6 +131,8 @@ def build_fun_payload(current_reference_path, current_video_path, current_frame_
     for current_integer_value in (current_frame_count, current_seed_value, current_steps_value):
         if isinstance(current_integer_value, bool) or not isinstance(current_integer_value, (int, float)) or not float(current_integer_value).is_integer():
             raise ValueError('프레임·시드·스텝은 정수여야 합니다.')
+    if not 0 <= int(current_seed_value) <= FUN_MAX_SEED_VALUE:
+        raise ValueError(f'시드는 0~{FUN_MAX_SEED_VALUE:,} 범위의 정수여야 합니다.')
     current_frame_count = int(current_frame_count)
     if not 5 <= current_frame_count <= FUN_MAX_FRAME_COUNT or (current_frame_count-1) % 4:
         raise ValueError(f'프레임 수는 5~{FUN_MAX_FRAME_COUNT} 범위의 4n+1입니다.')
@@ -301,7 +303,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         current_frame_presets = gr.Radio(choices=[21,41,81,129],value=None,label='프레임 빠른 선택 · 직접 입력도 가능')
         current_count_control.change(lambda current_frame_value: gr.update(value=current_frame_value if current_frame_value in (21,41,81,129) else None),current_count_control,current_frame_presets,queue=False)
         current_frame_presets.input(lambda current_frame_value: current_frame_value,current_frame_presets,current_count_control,queue=False)
-        current_seed_control = build_generation_seed(default_seed_value=FUN_DEFAULT_SETTINGS['seed'])
+        current_seed_control = build_generation_seed(default_seed_value=FUN_DEFAULT_SETTINGS['seed'], maximum_seed_value=FUN_MAX_SEED_VALUE)
         with gr.Group():
             gr.Markdown('### 고급 설정')
             gr.Markdown('고정: BF16 · Euler/simple · AMD ROCm 연산 · 가속 LoRA 없음. 14B는 고·저노이즈 모델을 나누어 사용하고 1.3B는 단일 모델을 사용합니다.')

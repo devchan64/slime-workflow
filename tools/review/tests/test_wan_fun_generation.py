@@ -350,6 +350,29 @@ class FunGenerationContractTests(unittest.TestCase):
             with self.subTest(field=current_field_name), self.assertRaises(ValueError):
                 validate_fun_request({**self.current_request_record, current_field_name: current_field_value})
 
+    def test_seed_bounds_match_generator_and_ui(self):
+        import gradio as gr
+        from generators.wan_fun.contracts import FUN_MAX_SEED_VALUE
+        from generators.wan_fun.page.interface import build_fun_payload
+        from tools.review.common.gradio_seed import build_generation_seed
+        for current_seed_value in (0, FUN_MAX_SEED_VALUE):
+            self.assertEqual(validate_fun_request({**self.current_request_record,'seed':current_seed_value})['seed'],current_seed_value)
+        for current_seed_value in (-1, FUN_MAX_SEED_VALUE + 1):
+            with self.subTest(seed=current_seed_value):
+                with self.assertRaises(ValueError):
+                    validate_fun_request({**self.current_request_record,'seed':current_seed_value})
+                with self.assertRaisesRegex(ValueError,'시드는'):
+                    build_fun_payload('reference.png',None,['control.png'],'pose','stand','',5,current_seed_value,20,5,6,0.5)
+        with gr.Blocks() as current_interface_blocks:
+            current_seed_control=build_generation_seed(42, maximum_seed_value=FUN_MAX_SEED_VALUE)
+        self.assertEqual(current_seed_control.maximum,FUN_MAX_SEED_VALUE)
+        with self.assertRaises(gr.Error):
+            current_seed_control.preprocess(FUN_MAX_SEED_VALUE + 1)
+        current_seed_callback=next(current_function for current_function in current_interface_blocks.fns.values() if current_function.fn.__name__=='generate_bounded_seed_value')
+        with patch('tools.review.common.gradio_seed.secrets.randbelow',return_value=FUN_MAX_SEED_VALUE) as current_random_mock:
+            self.assertEqual(current_seed_callback.fn(),FUN_MAX_SEED_VALUE)
+            current_random_mock.assert_called_once_with(FUN_MAX_SEED_VALUE + 1)
+
     def test_ui_rejects_short_or_duplicate_control(self):
         from tools.review.ui.gradio.wan_fun_app import build_fun_payload
         with tempfile.TemporaryDirectory() as current_temp_directory:
