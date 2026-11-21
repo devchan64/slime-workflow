@@ -1,5 +1,8 @@
 import React,{useEffect,useRef,useState} from "react";
 import {referencePng,videoData} from "./videoInputs.js";
+import GeneratorHistory from "./GeneratorHistory.jsx";
+import GeneratorJobControls from "./GeneratorJobControls.jsx";
+import HistoryCleanup from "./HistoryCleanup.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
@@ -11,6 +14,21 @@ export default function FunControlPage(){
   const [request,setRequest]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
   const [pending,setPending]=useState(null),[job,setJob]=useState(new URLSearchParams(location.search).get("job") || "");
   const [videoInfo,setVideoInfo]=useState(null);
+  const [historyRevision,refreshHistory]=useState(0);
+  const [notice,setNotice]=useState("");
+  const service="wan22-fun-control";
+  async function readJob(id){
+    const response=await fetch("/management/assistant/fun-input/"+encodeURIComponent(id),{cache:"no-store"});
+    if(!response.ok)throw new Error("이 작업의 입력 사본을 복원할 수 없습니다.");
+    const record=await response.json();
+    const {images,pose_video,...settings}=record.request;
+    return {...record,request:settings,attachments:{images,pose_video}};
+  }
+  function restore(settings,record){
+    setRequest({...settings,...record.attachments});setVideoInfo(record.video);setJob(record.id);
+    setNotice(record.id+" 입력을 복원했습니다.");refreshHistory(n=>n+1);
+  }
+  function cleaned(message){setJob("");setNotice(message);refreshHistory(n=>n+1);}
   const sending=useRef(false);
   async function submit(){
     if(!pending || sending.current)return;
@@ -73,7 +91,7 @@ export default function FunControlPage(){
     const values=Object.fromEntries(settings.map(([key])=>[key,Number(request[key])]));
     setPending({...request,...values});
   }
-  return <article><h1>Wan Fun Control 영상 생성</h1><GeneratorChangelog generator="wan22-fun-control-generator"/>
+  return <article><a href={"/management/frame/hermes-agent/"+(new URLSearchParams(location.search).get("session")?"?"+new URLSearchParams({session:new URLSearchParams(location.search).get("session")}):"")}>헤르메스 대화로 돌아가기</a><h1>Wan Fun Control 영상 생성</h1><GeneratorChangelog generator="wan22-fun-control-generator"/>
     <fieldset disabled={busy || !!pending}><legend>제작 예제</legend>
       <label>예제 선택<select value={selected} onChange={event=>select(event.target.value)}>
         {template?.examples.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
@@ -109,6 +127,15 @@ export default function FunControlPage(){
       <button disabled={busy} onClick={()=>setPending(null)}>취소</button>
       <button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button>
     </section>}
-    {job && <MediaJobResult key={job} service="wan22-fun-control" id={job}/>}
+    <a href="/management/frame/model-management/">모델 상태 확인 및 준비</a>
+    <fieldset disabled={busy || !!pending || !template}><GeneratorHistory key={historyRevision} service={service}
+      readJob={readJob} restore={restore} openResult={setJob}/></fieldset>
+    {notice && <p role="status">{notice}</p>}
+    {job ? <MediaJobResult key={job} service={service} id={job}>
+      {(record,reload)=>record && <React.Fragment key={record.status}>
+        <GeneratorJobControls service={service} id={job} state={record.status} refresh={reload}/>
+        <HistoryCleanup service={service} job={job} state={record.status} onDeleted={cleaned}/>
+      </React.Fragment>}
+    </MediaJobResult> : <HistoryCleanup service={service} onDeleted={cleaned}/>}
   </article>;
 }

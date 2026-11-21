@@ -17,7 +17,6 @@ from starlette.responses import Response, RedirectResponse, JSONResponse
 MANAGEMENT_INTERFACE_BUILDERS = {
     'hermes-direct': ('hermes_agent_app', 'build_hermes_direct_interface', 'none'),
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
-    'wan22-fun-control-generator': ('wan_fun_app', 'build_fun_interface', 'url'),
     'map-review': ('map_review_app', 'build_map_review_interface', 'port'),
     'effect-editor': ('effect_editor_app', 'build_effect_editor_interface', 'port'),
     'asset-editor': ('asset_editor_app', 'build_asset_editor_interface', 'port'),
@@ -967,6 +966,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/sound-effect/')
     @current_root_application.get('/management/frame/wan22-vace-generator')
     @current_root_application.get('/management/frame/wan22-vace-generator/')
+    @current_root_application.get('/management/frame/wan22-fun-control-generator')
+    @current_root_application.get('/management/frame/wan22-fun-control-generator/')
     @current_root_application.get('/management/assistant/fun-control/')
     @current_root_application.get('/management/assistant/vace/')
     @current_root_application.get('/management/assistant/dwpose/')
