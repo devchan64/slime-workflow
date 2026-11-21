@@ -288,3 +288,41 @@ def read_operations_priority_request(current_request_identifier, command):
         return current_target_label+' · 결과 확인 필요. 자동 재요청하지 말고 원 서비스와 대기열을 확인하세요.'
     except (OSError,ValueError,KeyError,TypeError,RuntimeError):
         return '접수 기록을 확인할 수 없습니다. 접수 ID와 원 서비스 상태를 확인하세요.'
+
+
+def reservation_inspection_target(current_reservation_rows,current_index):
+    """표시된 행에서 확인 가능한 생성기 예약의 비파괴 조회 대상을 고른다."""
+    if isinstance(current_index,(tuple,list)):current_index=current_index[0] if current_index else None
+    if type(current_index) is not int or not isinstance(current_reservation_rows,list) or not 0<=current_index<len(current_reservation_rows):
+        return None,'예약 행을 다시 선택하세요.'
+    current_row=current_reservation_rows[current_index]
+    if not isinstance(current_row,(list,tuple)) or len(current_row)!=6 or not all(isinstance(current_value,str) for current_value in current_row):
+        return None,'예약 기록을 확인할 수 없습니다.'
+    current_state,current_pool,current_job,_,_,current_source=current_row
+    from tools.review.common.gpu_job_queue import is_dedicated_gpu_source_verifiable
+    current_owner=read_operations_verified_source(current_pool,current_source) if current_pool in ('image','flux-image') or is_dedicated_gpu_source_verifiable(current_pool) else current_pool
+    from tools.review.common.source_history_catalog import SOURCE_HISTORY_GENERATOR_SERVICES,SOURCE_HISTORY_AUDIO_SERVICES
+    if current_state not in ('예약 기록','정리 확인 필요') or current_owner not in (*SOURCE_HISTORY_GENERATOR_SERVICES,*SOURCE_HISTORY_AUDIO_SERVICES) or current_owner=='writer-agent' or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}',current_job):
+        return None,'확인 가능한 생성기 예약을 선택하세요. 작가 예약은 운영 대화의 작가 예약 검토를 이용하세요.'
+    if sum(isinstance(current_other,(list,tuple)) and len(current_other)==6 and current_other[1]==current_pool and current_other[2]==current_job for current_other in current_reservation_rows)!=1:
+        return None,'표시된 예약이 중복되어 조회 대상을 선택할 수 없습니다.'
+    return {'service':current_owner,'job_id':current_job},'선택한 예약을 확인할 수 있습니다. 조회만 하며 예약이나 프로세스는 변경하지 않습니다.'
+
+
+def inspect_operations_reservation_target(current_inspection_target,command):
+    """서버가 전체 예약의 유일성과 서비스·리더 신원을 다시 확인한다."""
+    if (not isinstance(current_inspection_target,dict) or set(current_inspection_target)!={'service','job_id'}
+            or not isinstance(current_inspection_target['service'],str) or not re.fullmatch(r'[a-z0-9-]{1,80}',current_inspection_target['service'])
+            or not isinstance(current_inspection_target['job_id'],str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}',current_inspection_target['job_id'])):
+        return '확인할 예약을 먼저 선택하세요.'
+    try:
+        current_result=command('hermes-agent','hermes-generator-reservation-inspect',current_inspection_target)
+        if not isinstance(current_result,dict) or (current_result.get('service'),current_result.get('job_id'))!=(current_inspection_target['service'],current_inspection_target['job_id']):raise ValueError('예약 대상 불일치')
+        current_executor={'observed':'신원 일치로 관측','not_observed':'일치 실행기 미관측','unverified':'확인 불가'}.get(current_result.get('executor'))
+        current_leader={'verified_running':'신원 일치로 관측','group_absent':'기록된 그룹 미관측','unverified':'확인 불가'}.get(current_result.get('worker_leader'))
+        current_memory=current_result.get('required_memory_mib')
+        if current_executor is None or current_leader is None or type(current_memory) is not int or current_memory<0:raise ValueError('예약 응답 오류')
+        current_review_notice=' 정리 검토에서 현재 상태를 다시 확인할 수 있습니다.' if current_result.get('review_ready') is True else ''
+        return '대상: '+current_inspection_target['service']+' · '+current_inspection_target['job_id']+' · 실행기: '+current_executor+' · 작업자 리더: '+current_leader+' · 예약: '+str(current_memory)+' MiB. 조회만 수행했습니다. 실행기 미관측이나 리더 확인은 그룹 전체·별도 그룹의 종료를 보증하지 않습니다.'+current_review_notice
+    except (OSError,ValueError,KeyError,TypeError,RuntimeError):
+        return '예약 신원을 확인할 수 없습니다. 원 서비스와 GPU 프로세스를 확인하세요. 예약이나 프로세스는 변경하지 않았습니다.'

@@ -41,7 +41,22 @@ export default function OperationsJobs(){
       setPriority({notice:"접수 결과를 확인할 수 없습니다. 접수 ID로 운영 이력을 확인하세요.",identifier:request.request_id});
     }finally{setBusy(false);}
   }
+  const [inspection,setInspection]=useState("");
+  async function inspectReservation(target){
+    setBusy(true);setInspection("");
+    try{
+      const response=await fetch("/management/assistant/operations-reservation-inspect",{method:"POST",
+        headers:{"Content-Type":"application/json"},body:JSON.stringify(target)});
+      if(!response.ok)throw new Error("예약 신원을 조회할 수 없습니다.");
+      setInspection((await response.json()).notice);
+    }catch(problem){setInspection(problem.message);}
+    finally{setBusy(false);}
+  }
   function gpuTable(table){
+    if(table.inspection_targets)return {...table,columns:[...table.columns,"예약 조회"],rows:table.rows.map((row,index)=>{
+      const target=table.inspection_targets[index];
+      return [...row,target ? <button onClick={()=>inspectReservation(target)}>예약 신원 확인</button> : "조회 대상 미확인"];
+    })};
     if(table.title!=="GPU 대기열")return table;
     return {...table,columns:[...table.columns,"우선순위"],rows:table.rows.map(row=>{
       const source=row[3];
@@ -50,6 +65,7 @@ export default function OperationsJobs(){
     })};
   }
   async function loadGpu(){
+    setInspection("");
     setBusy(true);setGpuError("");setPriority(null);
     try{
       const response=await fetch("/management/assistant/operations-gpu",{cache:"no-store"});
@@ -83,6 +99,7 @@ export default function OperationsJobs(){
     {gpuError && <p role="alert">{gpuError}</p>}
     {gpu?.map(table=>table.available ? <ResultTable key={table.title} table={gpuTable(table)}/> :
       <p role="status" key={table.title}>{table.summary}</p>)}
+    {inspection && <p role="status">{inspection}</p>}
     {priority && <section><p role="status">{priority.notice}</p>{priority.identifier && <code>{priority.identifier}</code>}
       {priority.request && <><button onClick={()=>setPriority(null)}>취소</button>
         <button onClick={prioritize}>확인 후 우선순위 변경</button></>}</section>}

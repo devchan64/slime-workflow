@@ -687,10 +687,16 @@ def build_management_application(current_handler_class, current_root_path, curre
         request, notice, identifier = prepare_operations_priority_request(target, execute_remote_management_command)
         return dict(request=request, notice=notice, identifier=identifier)
 
+    @current_root_application.post('/management/assistant/operations-reservation-inspect')
+    def operations_reservation_inspect(target: dict):
+        from tools.review.common.management_client import execute_remote_management_command
+        from tools.review.common.operations_history import inspect_operations_reservation_target
+        return {'notice': inspect_operations_reservation_target(target, execute_remote_management_command)}
+
     @current_root_application.get('/management/assistant/operations-gpu')
     def operations_gpu():
         from tools.review.common.management_client import execute_remote_management_command
-        from tools.review.common.operations_history import summarize_operations_queue_snapshot, summarize_operations_reservation_snapshot
+        from tools.review.common.operations_history import summarize_operations_queue_snapshot, summarize_operations_reservation_snapshot, reservation_inspection_target
         try:
             snapshot = execute_remote_management_command('hermes-agent', 'hermes-management-status', {})
         except (OSError, RuntimeError, ValueError):
@@ -701,7 +707,8 @@ def build_management_application(current_handler_class, current_root_path, curre
             dict(title='GPU 대기열', columns=['순서', '대기열', '작업 ID', '원 서비스', '캡처 접수 ID'],
                  rows=jobs, summary=queue_notice, available=counts is not None),
             dict(title='GPU 예약', columns=['상태', '서비스', '작업 ID', '메모리(MiB)', '리더 상태', '원 서비스'],
-                 rows=reservations, summary=reservation_notice, available=index is not None),
+                 rows=reservations, summary=reservation_notice, available=index is not None,
+                 inspection_targets=[reservation_inspection_target(reservations, i)[0] for i in range(len(reservations))]),
         ]
 
     @current_root_application.post('/management/assistant/operations-jobs')
