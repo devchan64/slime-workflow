@@ -1,7 +1,7 @@
 import React,{useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 
-export default function KimodoProposal({job,append}){
+export default function KimodoProposal({job,append,openStep}){
   const [proposal,setProposal]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
   async function load(){
     setBusy(true);setError("");
@@ -15,6 +15,7 @@ export default function KimodoProposal({job,append}){
   if(!proposal)return <section><button type="button" disabled={busy} onClick={load}>Kimodo 생성 제안 검토</button>
     {error && <p role="alert">{error}</p>}</section>;
   async function addRequest(event){
+    const workflow=event.nativeEvent.submitter?.value==="workflow";
     event.preventDefault();setBusy(true);setError("");
     try{
       const inputs={...proposal,frames:Number(proposal.frames),steps:Number(proposal.steps),seed:Number(proposal.seed)};
@@ -22,7 +23,8 @@ export default function KimodoProposal({job,append}){
         headers:{"Content-Type":"application/json"},body:JSON.stringify(inputs)});
       const result=await response.json();
       if(!response.ok)throw new Error(result.detail || "생성 요청을 확인하세요.");
-      append("Kimodo 생성 요청",JSON.stringify(result.request));
+      if(workflow)openStep(inputs);
+      else append("Kimodo 생성 요청",JSON.stringify(result.request));
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
   }
@@ -32,6 +34,7 @@ export default function KimodoProposal({job,append}){
       <label key={key}>{label} <input type="number" required min={min} max={max} value={proposal[key]}
         onChange={e=>setProposal({...proposal,[key]:e.target.value})}/></label>)}
     <button disabled={!proposal.prompt.trim()}>편집한 요청을 대화 입력에 추가</button>
+    <button value="workflow" disabled={!proposal.prompt.trim()}>워크플로우 단계로 편집</button>
     {error && <p role="alert">{error}</p>}
   </fieldset></form>;
 }

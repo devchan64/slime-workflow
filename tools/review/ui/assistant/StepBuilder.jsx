@@ -1,7 +1,7 @@
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import TranslationEvidence from "./TranslationEvidence.jsx";
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 
 function readSteps(definition) {
   if (!definition.trim()) return [];
@@ -12,7 +12,7 @@ function readSteps(definition) {
   return parsed.steps;
 }
 
-export default function StepBuilder({call, definition, onChange}) {
+export default function StepBuilder({call, definition, onChange, proposalStep}) {
   const [catalog, setCatalog] = useState({});
   const [generator, setGenerator] = useState("");
   const [name, setName] = useState("");
@@ -25,6 +25,17 @@ export default function StepBuilder({call, definition, onChange}) {
       .catch(error => {if (active) setNotice(error.message);});
     return () => { active = false; };
   }, [call]);
+  const editor=useRef(null);
+  useEffect(()=>{
+    if(!proposalStep)return;
+    setGenerator("kimodo");
+    setInputs(proposalStep.inputs);
+    setLinks({});
+    setName("");
+    setNotice("제안을 불러왔습니다. 단계 이름을 입력하고 워크플로우에 추가하세요.");
+    editor.current.open=true;
+    editor.current.scrollIntoView({block:"nearest"});
+  },[proposalStep]);
   const template = catalog[generator];
   let steps = [], invalid = "";
   try { steps = readSteps(definition); } catch (error) { invalid = error.message; }
@@ -69,11 +80,12 @@ export default function StepBuilder({call, definition, onChange}) {
       setName(""); choose("");
     } catch (error) { setNotice(error.message); }
   }
-  return <details><summary>생성기 단계 추가</summary>
+  return <details ref={editor}><summary>생성기 단계 추가</summary>
     <label>생성기 <select value={generator} onChange={event => choose(event.target.value)}>
       <option value="">생성기 선택</option>
       {Object.entries(catalog).map(([key,spec]) => <option key={key} value={key}>{spec.label}</option>)}
     </select></label>
+    {generator && !template && Object.keys(catalog).length>0 && <p role="alert">현재 관리 서버의 생성기 목록에서 {generator} 템플릿을 찾을 수 없습니다.</p>}
     {template && <><label>단계 이름 <input value={name} onChange={event => setName(event.target.value)}/></label>
       {Object.entries(template.inputs).map(([field,spec]) => {
         const sources = steps.flatMap(step => Object.entries(catalog[step?.generator]?.outputs || {})

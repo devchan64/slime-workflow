@@ -63,14 +63,14 @@ function jobLink(id,session){
   if(session)params.set("session",session);
   return "/management/frame/hermes-agent/?"+params;
 }
-const AppendToDraft=React.createContext(null);
+const ProposalActions=React.createContext(null);
 function Message() {
-  const append=React.useContext(AppendToDraft);
+  const actions=React.useContext(ProposalActions);
   const message=useAuiState(s=>s.message);
   const meta=message.metadata?.custom || {};
   return <MessagePrimitive.Root className={"message "+message.role}>
     <b>{message.role==="user"?"나":"헤르메스"}</b><MessagePrimitive.Parts/>
-    {meta.kimodoProposal && meta.job && <KimodoProposal key={meta.job} job={meta.job} append={append}/>}
+    {meta.kimodoProposal && meta.job && <KimodoProposal key={meta.job} job={meta.job} append={actions.append} openStep={actions.openStep}/>}
     {meta.table && <ResultTable table={meta.table}/>}
     {!meta.table && meta.activity?.source_history_summary && <pre>{meta.activity.source_history_summary}</pre>}
     {meta.activity?.events?.length>0 && <details><summary>도구 사용 내역</summary>{meta.activity.events.map((e,i)=><p key={i}>{e.name} · {e.target || e.result}</p>)}</details>}
@@ -195,6 +195,7 @@ function App() {
       setListRequest(current=>({offset:0,query:current.query}));setRefresh(n=>n+1);
     }catch(e){setError(e.message)}finally{setBusy(false);}
   }
+  const [proposalStep,setProposalStep]=useState(null);
   const [showForms,setShowForms]=useState(false);
   const [showGpu,setShowGpu]=useState(false);
   const [searchMode,setSearchMode]=useState(()=>query().get("panel")==="jobs"?"jobs":"tools");
@@ -269,13 +270,13 @@ function App() {
           {tool.review_path && <a href={reviewLink(tool.review_path)}>화면 열기</a>}
         </div>)}
     </section>}
-    {session && <div hidden={!showForms}>{<FormLibrary key={session} session={session} messages={view.messages || []} call={call} openRun={run=>{setShowForms(false);setQueue({run});}} addToMessage={value=>edit([draft,value].filter(Boolean).join("\n"))}/>}</div>}
+    {session && <div hidden={!showForms}>{<FormLibrary key={session} proposalStep={proposalStep?.session===session ? proposalStep : null} session={session} messages={view.messages || []} call={call} openRun={run=>{setShowForms(false);setQueue({run});}} addToMessage={value=>edit([draft,value].filter(Boolean).join("\n"))}/>}</div>}
     {queue && session && <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} call={call}/>}
     {(view.next_offset != null || historyPage) && <nav aria-label="대화 이력 페이지">
       {view.next_offset != null && <button onClick={()=>changeHistory({offset:view.next_offset,snapshot:view.snapshot})}>이전 메시지 보기</button>}
       {historyPage && <button onClick={()=>changeHistory(null)}>최신 대화로 돌아가기</button>}
     </nav>}
-    <AppendToDraft.Provider value={appendSelection}><Conversation key={session} view={view}/></AppendToDraft.Provider>{error&&<p role="alert">{error}</p>}
+    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>{setProposalStep({session,inputs});setShowForms(true);}}}><Conversation key={session} view={view}/></ProposalActions.Provider>{error&&<p role="alert">{error}</p>}
     <form onSubmit={e=>{e.preventDefault();send()}}>{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
     <textarea ref={text} aria-label="메시지" placeholder="헤르메스에게 메시지 보내기" value={draft} disabled={busy} onChange={e=>edit(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){e.preventDefault();send()}}}/>
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>

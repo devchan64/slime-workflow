@@ -2,7 +2,7 @@ import ResultTable from "./ResultTable.jsx";
 import StepBuilder from "./StepBuilder.jsx";
 import React, {useEffect, useRef, useState} from "react";
 
-export default function FormLibrary({session, messages, call, addToMessage, openRun}) {
+export default function FormLibrary({session, proposalStep, messages, call, addToMessage, openRun}) {
   const [proposalId,setProposalId] = useState("");
   const proposals = messages.filter(message=>message.session_job_unique && message.job?.workflow_proposal);
   const selectedProposal = proposals.find(message=>message.job_id===proposalId);
@@ -134,7 +134,7 @@ export default function FormLibrary({session, messages, call, addToMessage, open
       <button onClick={() => run(refresh)}>목록 갱신</button>
       <button disabled={!selection} onClick={() => run(load)}>선택한 버전으로 초안 교체</button>
       <label>폼 이름 <input value={name} onChange={event => setName(event.target.value)}/></label>
-      <StepBuilder call={call} definition={definition} onChange={editDefinition}/>
+      <StepBuilder proposalStep={proposalStep} call={call} definition={definition} onChange={editDefinition}/>
       <label>워크플로우 정의 JSON <textarea value={definition} onChange={event => editDefinition(event.target.value)}/></label>
       <button disabled={draftRevision===null} onClick={()=>run(saveDraft)}>세션 초안 저장</button>
       <button onClick={()=>run(async()=>{
