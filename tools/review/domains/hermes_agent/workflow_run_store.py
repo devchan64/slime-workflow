@@ -498,7 +498,9 @@ class WorkflowRunStore:
                            JOIN workflow_step AS step ON step.request_id=retry.source_request WHERE step.run_id=? OR retry.retry_run=?""",
                         (workflow_run_identifier, workflow_run_identifier))],
                     "choices": [dict(current_choice_row) for current_choice_row in current_database_connection.execute(
-                        "SELECT step_id, input_field, source_request, digest, selected FROM workflow_choice WHERE run_id=? ORDER BY rowid",
+                        """SELECT step_id, input_field, source_request, digest, selected FROM workflow_choice AS choice
+                           JOIN workflow_step USING(run_id, step_id)
+                           WHERE run_id=? AND (selected=1 OR state='awaiting_choice') ORDER BY choice.rowid""",
                         (workflow_run_identifier,))],
                     "results": read_result_records_locked(current_database_connection, workflow_run_identifier),
                     "queried_at": datetime.now(timezone.utc).isoformat()}
