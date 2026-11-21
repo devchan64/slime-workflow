@@ -17,7 +17,6 @@ from starlette.responses import Response, RedirectResponse, JSONResponse
 MANAGEMENT_INTERFACE_BUILDERS = {
     'hermes-direct': ('hermes_agent_app', 'build_hermes_direct_interface', 'none'),
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
-    'map-review': ('map_review_app', 'build_map_review_interface', 'port'),
     'effect-editor': ('effect_editor_app', 'build_effect_editor_interface', 'port'),
     'asset-editor': ('asset_editor_app', 'build_asset_editor_interface', 'port'),
     'building-editor': ('building_editor_panel', 'build_building_editor_interface', 'port'),
@@ -224,10 +223,20 @@ def build_management_application(current_handler_class, current_root_path, curre
             return await bridge_gradio_heartbeat(current_application, current_request_scope, current_receive_call, current_send_call)
         current_query_values = parse_qs(current_request_scope.get('query_string', b'').decode())
         if (current_request_scope.get('method') in ('GET', 'HEAD')
-                and current_request_path.rstrip('/') == '/management/frame/map-review'
-                and current_query_values.get('mapKind') in (['battle'], ['town'])):
-            surface = 'battlefield' if current_query_values['mapKind'] == ['battle'] else 'town-map'
-            return await RedirectResponse('/management/assistant/' + surface + '/?' + current_request_scope['query_string'].decode())(current_request_scope, current_receive_call, current_send_call)
+                and current_request_path.rstrip('/') == '/management/frame/map-review'):
+            kind = current_query_values.get('mapKind', [None])[0]
+            if kind is None and current_query_values.get('map'):
+                index = current_root_path / 'isloon-map-review' / 'block-map-index.json'
+                if index.is_file():
+                    import json
+                    records = json.loads(index.read_text(encoding='utf-8'))
+                    kind = next((row['kind'] for row in records if row['id'] == current_query_values['map'][0]), None)
+            surface = {'battle': 'battlefield', 'town': 'town-map', 'field': 'field-map'}.get(kind or 'field')
+            if surface is None:
+                return await Response('지원하지 않는 지도 종류입니다.', status_code=400)(current_request_scope, current_receive_call, current_send_call)
+            query = current_request_scope.get('query_string', b'').decode()
+            target = '/management/assistant/' + surface + '/' + ('?' + query if query else '')
+            return await RedirectResponse(target)(current_request_scope, current_receive_call, current_send_call)
         history_path = '/management/frame/operations-history'
         if current_request_scope.get('method') in ('GET', 'HEAD') and (
             current_request_path.rstrip('/') == history_path or
