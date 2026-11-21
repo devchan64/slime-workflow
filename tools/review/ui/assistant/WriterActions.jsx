@@ -1,19 +1,22 @@
 import React, {useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 
-export default function WriterActions({onAccepted}) {
+export default function WriterActions({onAccepted,onWorkspace}) {
   const [workspace,setWorkspace]=useState(null);
   const [revision,refresh]=useState(0);
   const [prompt,setPrompt]=useState("");
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   useEffect(()=>{
-    let active=true;
+    let active=true,timer;
+    function read(){
     managementCommand("writer-agent","writer-state").then(record=>{
-      if(active)setWorkspace(record);
+      if(active){setWorkspace(record);onWorkspace?.(record.jobs || []);if(record.active_job)timer=setTimeout(read,3000); }
     }).catch(problem=>{if(active)setError(problem.message);});
-    return ()=>{active=false;};
-  },[revision]);
+    }
+    read();
+    return ()=>{active=false;clearTimeout(timer);};
+  },[revision,onWorkspace]);
   function reload() {
     setWorkspace(null);
     refresh(value=>value+1);
@@ -33,6 +36,7 @@ export default function WriterActions({onAccepted}) {
   const trained=learn && workspace.trained;
   return <fieldset disabled={busy}><legend>작가 작업 요청</legend>
     <button onClick={()=>{setError("");reload();}}>준비 상태 새로고침</button>
+    {workspace?.configured && <details><summary>문서·색인·기록 경로</summary><pre>{[workspace.document_root,workspace.index_path,workspace.state_root].join("\n")}</pre></details>}
     {workspace && <p role="status">{workspace.active_job?"진행 중인 작업 "+workspace.active_job:
       !workspace.configured?"먼저 문서 폴더를 연결하세요.":!workspace.ready?"실행 환경을 준비하세요.":
       !workspace.trained?"문서를 학습해 검색 색인을 만드세요.":"작성과 중복 검토를 요청할 수 있습니다."}</p>}

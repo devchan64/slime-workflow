@@ -24,11 +24,10 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'effect-editor': ('effect_editor_app', 'build_effect_editor_interface', 'port'),
     'asset-editor': ('asset_editor_app', 'build_asset_editor_interface', 'port'),
     'building-editor': ('building_editor_panel', 'build_building_editor_interface', 'port'),
-    'writer-agent': ('writer_agent_app', 'build_writer_agent_interface', 'port'),
     'sprite-sheet-editor': ('sprite_sheet_editor_app', 'build_sprite_sheet_editor_interface', 'port'),
 }
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
-GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator', 'writer-agent': 'writer_agent'}
+GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator'}
 def __getattr__(name):
     """이전 Qwen 옵션 조회자가 접근할 때만 해당 화면 모듈을 읽는다."""
     if name != 'QWEN_INTERFACE_OPTIONS':
@@ -788,6 +787,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/mock-progress-validation')
     @current_root_application.get('/management/frame/mock-progress-validation/')
     @current_root_application.get('/management/assistant/models/')
+    @current_root_application.get('/management/frame/writer-agent')
+    @current_root_application.get('/management/frame/writer-agent/')
     @current_root_application.get('/management/frame/dwpose-generator')
     @current_root_application.get('/management/frame/dwpose-generator/')
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen')
