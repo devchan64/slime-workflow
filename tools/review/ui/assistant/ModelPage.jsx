@@ -72,7 +72,10 @@ export default function ModelPage() {
     <label>모델 <select value={service} onChange={event => select(event.target.value)}>
       {models.map(model => <option key={model.id} value={model.id}>{model.label}</option>)}
     </select></label>
-    {service && <ModelReadiness key={service} service={service}/>}
+    {service === "flux-image" && <p>약 20.32GB · <a href="https://huggingface.co/black-forest-labs/flux-3-image-klein">FLUX 접근 조건</a>을 확인하고 Hugging Face에 로그인하세요.</p>}
+    {service === "prompt-translation" && <p><a href="https://huggingface.co/google/translategemma-4b-it">Gemma 접근 조건</a>에 동의하고 Hugging Face에 로그인하세요.</p>}
+    {service === "wan21-fun-1.3b" && <p>공용 텍스트 인코더와 VAE는 14B 준비 환경을 사용합니다.</p>}
+    {service && <ModelReadiness key={service} service={service} manage/>}
     {service && <DownloadProgress key={"progress-" + service} service={service}/>}
     {service === "kimodo" && <KimodoBuild/>}
   </article>;

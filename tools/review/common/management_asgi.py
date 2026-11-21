@@ -405,12 +405,29 @@ def build_management_application(current_handler_class, current_root_path, curre
         lines = format_model_download_status(records, service).splitlines()
         return {'lines': [line.removeprefix('- ') for line in lines]}
 
+    @current_root_application.get('/management/assistant/model-readiness/{service}')
+    def model_readiness(service: str):
+        from tools.review.common.management_client import execute_remote_management_command
+        from tools.review.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS, inspect_registered_model_operation
+        from tools.review.common.model_management_catalog import MODEL_PREPARATION_SERVICES
+        from tools.review.common.model_preparation_controls import execute_model_preparation_command, execute_wan13_model_command
+        if service == 'wan21-fun-1.3b':
+            status = execute_wan13_model_command('model-status', {}, execute_remote_management_command)
+            request = {'service':'wan22-fun-control', 'command':'prepare', 'payload':{'action':'prepare', 'model_profile':'wan21-1.3b'}}
+        elif service in {identifier for _, identifier in MODEL_PREPARATION_SERVICES}:
+            status = execute_model_preparation_command(service, 'model-status', {}, execute_remote_management_command)
+            command = inspect_registered_model_operation(service, MANAGEMENT_SERVICE_COMMANDS.get(service, ()), 'prepare')
+            request = {'service':service, 'command':command, 'payload':{'action':'prepare'} if command == 'prepare' else {}} if command else None
+        else:
+            return Response(status_code=404)
+        return {**status, 'prepare_request':request}
+
     @current_root_application.get('/management/assistant/model-services')
     def model_services():
         from tools.review.common.model_management_catalog import MODEL_PREPARATION_SERVICES
         return [
             {'label': label, 'id': service}
-            for label, service in sorted(MODEL_PREPARATION_SERVICES, key=lambda item: item[0].casefold())
+            for label, service in sorted((*MODEL_PREPARATION_SERVICES, ('Wan 2.1 Fun Control 1.3B', 'wan21-fun-1.3b')), key=lambda item: item[0].casefold())
         ]
 
     @current_root_application.get('/management/assistant/{asset}')
