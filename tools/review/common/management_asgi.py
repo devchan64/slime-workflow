@@ -346,6 +346,14 @@ def build_management_application(current_handler_class, current_root_path, curre
         current_response_value = await asyncio.to_thread(execute_legacy_request, current_handler_class, current_root_path, current_request_scope, bytes(current_request_body))
         await current_response_value(current_request_scope, current_receive_call, current_send_call)
 
+    @current_root_application.get('/management/assistant/history-services')
+    def history_services():
+        from tools.review.common.source_history_catalog import SOURCE_HISTORY_AUDIO_SERVICES, SOURCE_HISTORY_GENERATOR_SERVICES
+        return [
+            {'service': service, 'command': 'hermes-audio-source-history' if service in SOURCE_HISTORY_AUDIO_SERVICES else 'hermes-generator-source-history'}
+            for service in sorted(set(SOURCE_HISTORY_GENERATOR_SERVICES) | set(SOURCE_HISTORY_AUDIO_SERVICES))
+        ]
+
     @current_root_application.get('/management/assistant/capabilities')
     def assistant_capabilities():
         from tools.review.common.management_client import execute_remote_management_command
