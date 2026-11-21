@@ -1,3 +1,4 @@
+import KimodoGeneration from "./KimodoGeneration.jsx";
 import React from "react";
 import ModelReadiness from "./ModelReadiness.jsx";
 import DownloadProgress from "./DownloadProgress.jsx";
@@ -16,6 +17,7 @@ export default function KimodoPage(){
     <h1>Kimodo 모션 생성기</h1>
     <GeneratorChangelog generator="kimodo-generator"/>
     <ModelReadiness service="kimodo" manage/><DownloadProgress service="kimodo"/>
+    <KimodoGeneration session={session}/>
     <h2>생성 이력</h2>
     <HistoryPage source={{service:"kimodo",command:"hermes-generator-source-history"}} session={session} choose={choose}/>
   </article></main>;

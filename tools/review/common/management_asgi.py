@@ -584,6 +584,11 @@ def build_management_application(current_handler_class, current_root_path, curre
             raise HTTPException(422, str(error)) from error
         return {'prompt': request['prompt'], 'translation': request.get('translation_source_ko') or request.get('building_design_ko')}
 
+    @current_root_application.get('/management/assistant/kimodo-defaults')
+    def kimodo_defaults():
+        from generators.kimodo.contracts import KIMODO_DEFAULT_SETTINGS
+        return {key: KIMODO_DEFAULT_SETTINGS[key] for key in ("prompt", "frames", "steps", "seed")}
+
     @current_root_application.get('/management/assistant/kimodo-prompt-examples')
     def kimodo_prompt_examples():
         from generators.kimodo.form_inputs import load_kimodo_examples
