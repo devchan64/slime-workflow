@@ -28,6 +28,17 @@ function SeamlessComparison({id}){
   </section>;
 }
 
+function SavedPoseVideo({id}) {
+  const [open,setOpen]=useState(false);
+  const [failed,setFailed]=useState(false);
+  return <details onToggle={event=>{setOpen(event.currentTarget.open);setFailed(false);}}>
+    <summary>입력 포즈 영상과 비교</summary>
+    {open && (failed ? <p role="status">이 작업의 포즈 MP4를 재생할 수 없습니다.</p> :
+      <video aria-label="입력 포즈 영상" controls loop playsInline preload="metadata"
+        src={"/management/assistant/fun-pose/"+encodeURIComponent(id)} onError={()=>setFailed(true)} style={{maxWidth:"100%"}}/>)}
+  </details>;
+}
+
 export default function MediaJobResult({service,id,kind="video",children}) {
   const [job,setJob]=useState(null);
   const [error,setError]=useState("");
@@ -69,6 +80,7 @@ export default function MediaJobResult({service,id,kind="video",children}) {
             <video controls loop playsInline preload="metadata" src={job.video} poster={job.image} style={{maxWidth:"100%"}}/>
             <a href={job.video} target="_blank" rel="noopener">MP4 열기</a>
           </>}
+        {service==="wan22-fun-control" && <SavedPoseVideo key={id} id={id}/>}
         <a href={job.download} download>{service==="dwpose"?"포즈 PNG·좌표 YAML 다운로드":"PNG 프레임 ZIP 다운로드"}</a>
       </>}
       {(job.result_status==="unavailable" || job.file_observation==="unavailable") && <p>완료 기록의 결과 파일을 확인할 수 없습니다.</p>}

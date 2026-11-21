@@ -685,6 +685,19 @@ def build_management_application(current_handler_class, current_root_path, curre
             return Response(status_code=404)
         return FileResponse(directory/names[part], media_type='image/png' if part=='reference' else 'video/mp4')
 
+    @current_root_application.get('/management/assistant/fun-pose/{job}')
+    def fun_pose_input(job: str):
+        from tools.review.domains.hermes_agent.video_operations import make_hermes_video_source_manager
+        from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+        if not validate_service_job_identifier('wan22-fun-control', job):
+            return Response(status_code=404)
+        root = Path(make_hermes_video_source_manager('wan22-fun-control').job_storage_root)
+        directory = root / job
+        path = directory / 'pose-input.mp4'
+        if root.is_symlink() or directory.is_symlink() or path.is_symlink() or not path.is_file():
+            return Response(status_code=404)
+        return FileResponse(path, media_type='video/mp4', headers={'Cache-Control':'no-store'})
+
     @current_root_application.get('/management/assistant/vace-template')
     def vace_template():
         from generators.wan_vace.contracts import VACE_DEFAULT_SETTINGS, VACE_MAXIMUM_SEED_VALUE
