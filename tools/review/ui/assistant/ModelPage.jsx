@@ -61,7 +61,8 @@ export default function ModelPage() {
         if (!response.ok) throw new Error("모델 목록을 조회할 수 없습니다.");
         const items = await response.json();
         setModels(items);
-        select(items[0]?.id || "");
+        const requested = new URLSearchParams(location.search).get("model");
+        select(items.some(model => model.id === requested) ? requested : items[0]?.id || "");
       } catch (problem) {setError(problem.message);}
     }
     load();

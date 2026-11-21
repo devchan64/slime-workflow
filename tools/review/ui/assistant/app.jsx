@@ -168,6 +168,7 @@ function App() {
 }
 const pages = {
   "/management/assistant/models": ModelPage,
+  "/management/frame/model-management": ModelPage,
   "/management/frame/world-map": WorldMap,
   "/management/frame/prompt-translation": TranslationPage,
   "/management/assistant/translation": TranslationPage,

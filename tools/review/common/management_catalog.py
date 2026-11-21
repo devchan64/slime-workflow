@@ -14,14 +14,14 @@ NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {'flux-express
 NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {'hermes-agent'}
 NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {current_flux_profile+'-generator' for current_flux_profile in ('flux-image','flux-character','flux-mannequin','flux-billboard','flux-prop','flux-vegetation','flux-building','flux-seamless')}
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
-REACT_REVIEW_PATHS = {"world-map": "/management/frame/world-map/", "prompt-translation": "/management/frame/prompt-translation/"}
+REACT_REVIEW_PATHS = {"model-management": "/management/frame/model-management/", "world-map": "/management/frame/world-map/", "prompt-translation": "/management/frame/prompt-translation/"}
 DEFAULT_PAGE_RECORDS=(
     *({'id':name+'-generator','label':'FLUX 3 '+label+' 생성기','path':'/management/frame/'+name+'-generator/','category':'image-generation','uiMode':'gradio','description':'공용 화풍 · FLUX 이력 및 입력 복원'} for name,label in (('flux-image','일반 이미지'),('flux-character','캐릭터'),('flux-mannequin','마네킨'),('flux-billboard','빌보드 가이드'),('flux-prop','소품'),('flux-vegetation','식생'),('flux-building','건물'),('flux-seamless','심리스 타일'))),
     {'id':'flux-expression-generator','label':'FLUX 3 표정 생성기','path':'/management/frame/flux-expression-generator/','category':'image-generation','uiMode':'gradio','description':'얼굴 참조 1장 · 표정 프리셋 · 이력 입력 복원'},
     {'id':'mock-dwpose-validation','label':'DWPose 격리 모의 검증','path':'/management/frame/mock-dwpose-validation/','category':'model-management','uiMode':'gradio','description':'실제 화면과 격리 모의 작업'},
     {'id':'mock-animate-validation','label':'Animate-2 격리 모의 검증','path':'/management/frame/mock-animate-validation/','category':'model-management','uiMode':'gradio','description':'실제 화면과 격리 모의 작업'},
     {'id':'mock-progress-validation','label':'모의 진행 상태 검증','path':'/management/frame/mock-progress-validation/','category':'model-management','uiMode':'gradio','description':'실제 작업과 분리된 상태 갱신 검증'},
-    {'id':'model-management','label':'모델 다운로드·빌드 상태','path':'/management/frame/model-management/','category':'model-management','uiMode':'gradio','description':'생성기 모델 다운로드와 GPU 빌드 상태'},
+    {'id':'model-management','label':'모델 다운로드·빌드 상태','path':REACT_REVIEW_PATHS['model-management'],'category':'model-management','uiMode':'react','description':'생성기 모델 다운로드와 GPU 빌드 상태'},
     {'id':'sprite-sheet-editor','label':'스프라이트 시트 편집기','path':'/management/frame/sprite-sheet-editor/','category':'animation-tool','uiMode':'gradio','description':'프레임 크롭 · 앵커 정렬 · 시트와 좌표맵 출력'},
     {'id':'effect-editor','label':'발광 이펙트 좌표 검수','path':'/management/frame/effect-editor/','category':'map-review','uiMode':'gradio','description':'빌보드 연결 발광·프레임 정렬·DB 저장'},
     {'id':'building-editor','label':'건물 에셋 관리','path':'/management/frame/building-editor/','category':'map-review','uiMode':'gradio','description':'건물 원본·사용 맵·공용 앵커 관리'},

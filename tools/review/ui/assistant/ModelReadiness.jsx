@@ -57,7 +57,6 @@ export default function ModelReadiness({service, manage=false}) {
       {notice && <p role="status">{notice}</p>}
     </>}
     <ModelInventory service={service}/>
-    {location.pathname.replace(/\/$/,"") !== "/management/assistant/models" && <a href="/management/assistant/models/">모델별 상태 조회</a>}
-    <a href="/management/?tool=model-management&category=model-management">모델 관리로 이동</a>
+    {!manage && <a href={"/management/frame/model-management/?model="+encodeURIComponent(service)}>모델 관리로 이동</a>}
   </section>;
 }

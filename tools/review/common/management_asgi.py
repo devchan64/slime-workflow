@@ -20,7 +20,6 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'mock-dwpose-validation': ('mock_progress_validation_app', 'build_mock_dwpose_interface', 'url'),
     'mock-animate-validation': ('mock_progress_validation_app', 'build_mock_animate_interface', 'url'),
     'mock-progress-validation': ('mock_progress_validation_app', 'build_mock_progress_validation_interface', 'url'),
-    'model-management': ('model_management_app', 'build_model_management_interface', 'none'),
     'dwpose-generator': ('dwpose_app', 'build_dwpose_interface', 'url'),
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
     'wan22-vace-generator': ('wan_vace_app', 'build_vace_interface', 'url'),
@@ -272,6 +271,14 @@ def build_management_application(current_handler_class, current_root_path, curre
         current_query_values = parse_qs(current_request_scope.get('query_string', b'').decode())
         if current_request_path.rstrip('/') == '/management/frame/character-review' or current_request_path.startswith('/management/frame/character-review/') or 'character-review' in current_query_values.get('tool', []):
             return await Response('캐릭터 표현 검수 페이지는 폐기되었습니다.', status_code=410)(current_request_scope, current_receive_call, current_send_call)
+        if current_request_scope.get('method') == 'GET' and current_request_path.rstrip('/') == '/management':
+            from tools.review.common.management_catalog import REACT_REVIEW_PATHS
+            tool = current_query_values.get('tool', [''])[0]
+            if tool in REACT_REVIEW_PATHS:
+                from urllib.parse import urlencode
+                query = urlencode({key: values for key, values in current_query_values.items() if key not in ('tool', 'category')}, doseq=True)
+                target = REACT_REVIEW_PATHS[tool] + ('?' + query if query else '')
+                return await RedirectResponse(target)(current_request_scope, current_receive_call, current_send_call)
         if current_request_path.rstrip('/') in ('/character-animation/sprite-editor-v2', '/management/frame/sprite-editor-v2') or current_request_path.startswith('/management/frame/sprite-editor-v2/'):
             current_retired_response = Response('스프라이트 정규화 편집기 v2는 폐기되었습니다.', status_code=410)
             return await current_retired_response(current_request_scope, current_receive_call, current_send_call)
@@ -380,6 +387,8 @@ def build_management_application(current_handler_class, current_root_path, curre
 
     @current_root_application.get('/management/frame/prompt-translation')
     @current_root_application.get('/management/frame/prompt-translation/')
+    @current_root_application.get('/management/frame/model-management')
+    @current_root_application.get('/management/frame/model-management/')
     @current_root_application.get('/management/assistant/models/')
     @current_root_application.get('/management/assistant/translation/')
     @current_root_application.get('/management/frame/world-map')
