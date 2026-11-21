@@ -73,7 +73,7 @@ def render_soma_motion(current_attempt_root, current_direction_angles, current_s
     from OpenGL.GL import glGetString, GL_RENDERER
     from kimodo.skeleton import SOMASkeleton77
     from generators.kimodo.contracts import KIMODO_SOURCE_ROOT, KIMODO_ASSET_CONFIG
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
 
     if not getattr(torch.version, 'hip', None) or not torch.cuda.is_available():
         raise RuntimeError('SOMA 스키닝에 CUDA가 필요합니다.')

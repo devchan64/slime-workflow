@@ -9,7 +9,7 @@ OLLAMA_ENCODER_BYTES = 16068890912
 
 
 def download_ollama_encoder(current_blob_path):
-    from tools.review.common.model_http_download import download_verified_curl
+    from tools.management.common.model_http_download import download_verified_curl
     download_verified_curl(
         f'https://registry.ollama.ai/v2/library/llama3/blobs/sha256:{OLLAMA_ENCODER_SHA256}',
         current_blob_path, OLLAMA_ENCODER_SHA256, OLLAMA_ENCODER_BYTES, 'ollama/llama3:8b-instruct-fp16',
@@ -39,7 +39,7 @@ def convert_ollama_encoder(current_blob_path, current_output_root):
 
 
 def publish_converted_encoder(current_blob_path, current_output_root):
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
 
     with TemporaryDirectory(dir=current_output_root.parent) as current_staging_directory:
         current_staging_root = Path(current_staging_directory)/'converted'

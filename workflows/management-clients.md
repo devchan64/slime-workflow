@@ -117,13 +117,13 @@ Gradio Python 콜백 → HTTP 클라이언트 ───┼→ 게이트웨이(87
 - 게이트웨이 포트를 바꾸면 `scripts/run_management_gateway.sh --port 9871`, GUI `scripts/run_management_gui.sh --gateway-url http://127.0.0.1:9871`, CLI `<서비스> --server-url http://127.0.0.1:9871 <명령>`을 사용한다. GUI·CLI 기본 접속 주소는 `SLIME_MANAGEMENT_GATEWAY_URL`로 지정할 수도 있다.
 - 기존 브라우저 명령·결과·로그 URL은 GUI 서버가 중계한다. GUI 종료 중에도 CLI는 게이트웨이로 직접 접수·조회·취소·재개할 수 있다. Gradio Python 콜백은 공용 HTTP 클라이언트를 사용하며 로컬 서비스로 우회하지 않는다.
 - `GET /management/health`는 게이트웨이 역할·PID·응답 상태를 반환한다. GUI 주소에서도 같은 경로로 중계 상태를 확인할 수 있다. GPU 가용성은 별도 상태 조회로 확인한다.
-- GUI `--watch`는 게이트웨이·작업 서비스 코드를 감시하지 않는다. `scripts/run_management_gateway.sh --watch` 또는 `python3 tools/review/gateway_server.py --watch`로 실행하면 게이트웨이 코드 변경도 해당 프로세스만 자동 재시작한다. 일반 실행에서는 명시적으로 재시작한다. 기존 GPU 대기·실행기는 별도 프로세스와 기록을 유지한다. 접수 중 연결이 끊기면 자동 재전송하지 않으므로 이력을 확인한 뒤 다시 요청한다.
+- GUI `--watch`는 게이트웨이·작업 서비스 코드를 감시하지 않는다. `scripts/run_management_gateway.sh --watch` 또는 `python3 tools/management/gateway_server.py --watch`로 실행하면 게이트웨이 코드 변경도 해당 프로세스만 자동 재시작한다. 일반 실행에서는 명시적으로 재시작한다. 기존 GPU 대기·실행기는 별도 프로세스와 기록을 유지한다. 접수 중 연결이 끊기면 자동 재전송하지 않으므로 이력을 확인한 뒤 다시 요청한다.
 - `--writer-agent-config`는 `gateway_server.py`의 옵션으로 이동했다. 작가 작업은 공용 GPU 대기열에서 실행하며 게이트웨이와 GUI 재시작 후에도 유지된다.
 - 게이트웨이 서비스 초기화 실패도 `.tmp/gateway-server-logs/`에 원인과 함께 기록한다. 정상 실행은 같은 경로에 로그를 저장하고 5초 heartbeat를 출력한다. GUI 로그·생성 ID·대기열·요청·결과·이력 경로는 유지한다.
 
 ### 게이트웨이 변경 감시
 
-`--watch`는 `gateway_server.py`, `tools/review/common/`, `tools/review/domains/`, `generators/writer_agent/`의 Python·YAML·JSON과 지정한 작가 작업 공간 YAML을 감시한다. 파일 추가·수정·삭제를 감지하며 0.5초 동안 변경이 없으면 이전 게이트웨이 종료를 기다린 뒤 같은 포트·작가 설정으로 새 프로세스를 시작한다. GUI·Gradio 모듈·테스트·숨김 폴더·생성 기록은 감시하지 않는다. 감시기와 실행기 자체(`gateway_watch.py`, `management_launcher.py`, `management_process.py`, `management_setup.py`) 변경은 watch 명령을 다시 시작해야 반영된다.
+`--watch`는 `gateway_server.py`, `tools/management/common/`, `tools/management/domains/`, `generators/writer_agent/`의 Python·YAML·JSON과 지정한 작가 작업 공간 YAML을 감시한다. 파일 추가·수정·삭제를 감지하며 0.5초 동안 변경이 없으면 이전 게이트웨이 종료를 기다린 뒤 같은 포트·작가 설정으로 새 프로세스를 시작한다. GUI·Gradio 모듈·테스트·숨김 폴더·생성 기록은 감시하지 않는다. 감시기와 실행기 자체(`gateway_watch.py`, `management_launcher.py`, `management_process.py`, `management_setup.py`) 변경은 watch 명령을 다시 시작해야 반영된다.
 
 명령 등록·작업 서비스와 요청·이력 경로는 그대로 유지한다. 작가 작업을 포함한 별도 세션의 GPU 대기·실행기는 재시작하지 않는다. 재시작 중 짧은 API 연결 중단이 있으며 접수 응답이 끊긴 경우 자동 재전송하지 말고 이력을 먼저 확인한다.
 
@@ -138,7 +138,7 @@ Gradio Python 콜백 → HTTP 클라이언트 ───┼→ 게이트웨이(87
 | `scripts/run_management_gui.sh` | GUI 시작; `--watch`, `--root`, `--frontend-repo` 등 기존 옵션 전달 |
 | `scripts/watch_review_server.sh` | `run_management_gui.sh --watch` 호환 연결 |
 
-공용 진입점은 `tools/review/common/management_launcher.py`다. 환경·접속 설정은 `management_environment.py`, 명시적 설치는 `management_setup.py`, 로그·heartbeat·프로세스 그룹 수명은 `management_process.py`가 맡는다. Gradio는 환경 설정 모듈만 참조한다. 서버 실행 시 패키지를 설치하거나 환경을 자동 복구하지 않는다. 환경이 없으면 준비 명령을 안내하고 즉시 실패한다. `setup`은 서버가 실행 중이지 않을 때 최초 준비 또는 의존성 갱신 목적으로 명시적으로 실행한다.
+공용 진입점은 `tools/management/common/management_launcher.py`다. 환경·접속 설정은 `management_environment.py`, 명시적 설치는 `management_setup.py`, 로그·heartbeat·프로세스 그룹 수명은 `management_process.py`가 맡는다. Gradio는 환경 설정 모듈만 참조한다. 서버 실행 시 패키지를 설치하거나 환경을 자동 복구하지 않는다. 환경이 없으면 준비 명령을 안내하고 즉시 실패한다. `setup`은 서버가 실행 중이지 않을 때 최초 준비 또는 의존성 갱신 목적으로 명시적으로 실행한다.
 
 `VIRTUAL_ENVIRONMENT_PATH`는 서버와 Gradio의 공용 Python 환경을 지정한다. `MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH`는 별도 Gradio 환경이 필요한 경우에만 명시적으로 지정한다. GPU 모델 실행기의 기존 환경 정책은 별개다. 상대 경로와 전달한 상대 파일 인자는 저장소 루트를 기준으로 한다. `REVIEW_SERVER_PORT`·`MANAGEMENT_GATEWAY_PORT`는 각 서버 포트이며 명시적인 `--port`가 우선한다. `FRONTEND_REPOSITORY_PATH`는 GUI 기본 프론트엔드 경로로만 사용하고 `--root`·`--walking`·`--frontend-repo`를 지정하면 적용하지 않는다. 게이트웨이 포트를 바꿔도 GUI·CLI 목적지는 자동 변경하지 않으므로 `--gateway-url`·`--server-url` 또는 `SLIME_MANAGEMENT_GATEWAY_URL`도 설정한다.
 
@@ -195,7 +195,7 @@ CLI command → 명령 봉투 ──────┘
 
 ### 단일 실행 구현
 
-`tools/review/momask_commands.py`와 `qwen_commands.py`는 폐기했다. `execute_gateway_arguments`가 등록된 명령의 인자를 해석하고 `execute_management_command`가 로컬 서비스·HTTP 전송·GUI 서비스 어댑터를 선택한다. CLI는 상태·로그 파일을 직접 읽지 않고 명령 서비스를 통해 조회한다. 생성 완료 대기와 Ctrl+C 취소도 생성기별로 중복 구현하지 않는다.
+`tools/management/momask_commands.py`와 `qwen_commands.py`는 폐기했다. `execute_gateway_arguments`가 등록된 명령의 인자를 해석하고 `execute_management_command`가 로컬 서비스·HTTP 전송·GUI 서비스 어댑터를 선택한다. CLI는 상태·로그 파일을 직접 읽지 않고 명령 서비스를 통해 조회한다. 생성 완료 대기와 Ctrl+C 취소도 생성기별로 중복 구현하지 않는다.
 
 HY-Motion과 포즈 변환 CLI는 독립 HTTP 게이트웨이에 연결한다. 서비스 함수의 로컬 호출은 내부 작업 서비스·호환 코드에만 남기며 CLI 기본 경로로 사용하지 않는다.
 
@@ -773,9 +773,9 @@ GUI 결과 조회와 CLI `status`의 `audio_stems`로 MR·보컬을 조회합니
 
 초기화 버튼은 입력과 미리보기만 변경하며 `선택 에셋 변경 반영`으로 저장한다. 배치는 앵커 0/0, 크기는 점유 1×1·표시 높이 128px, 그림자 위치는 열·행 0/0, 그림자 크기는 점유 열·행 배율 1/1이다. 다른 그룹의 값은 유지한다.
 
-기존 버전 1(버전 생략 포함)은 기존 원점과 새 중심의 차이를 이동값에 더해 표시 위치를 보존한다. `PYTHONPATH=. .venv/bin/python tools/review/maintenance/migrate_shadow_centers.py --asset-root /home/cbsim/ws/slime-assets --backup-root .tmp/shadow-center-v2-backup`은 검토만 수행한다. `--apply`는 새 백업 경로에 원본을 보관한 뒤 변환·등록부/잠금/카탈로그 갱신을 수행한다. 버전 2는 다시 변환하지 않으며 지원하지 않는 버전은 거절한다. 앵커·점유·표시 높이·그림자 크기는 유지한다.
+기존 버전 1(버전 생략 포함)은 기존 원점과 새 중심의 차이를 이동값에 더해 표시 위치를 보존한다. `PYTHONPATH=. .venv/bin/python tools/management/maintenance/migrate_shadow_centers.py --asset-root /home/cbsim/ws/slime-assets --backup-root .tmp/shadow-center-v2-backup`은 검토만 수행한다. `--apply`는 새 백업 경로에 원본을 보관한 뒤 변환·등록부/잠금/카탈로그 갱신을 수행한다. 버전 2는 다시 변환하지 않으며 지원하지 않는 버전은 거절한다. 앵커·점유·표시 높이·그림자 크기는 유지한다.
 
-그림자 크기 전환은 `tools/review/maintenance/migrate_shadow_sizes.py`의 `--asset-root`, `--backup-root`, `--apply`로 수행한다. 기본은 검토만 하며, 이전 길이를 점유 열·행 수로 나누고 `shadowSizeVersion: 2`를 기록한다. 재실행은 중복 변환하지 않는다. 배율은 소수점 6자리까지 보존하여 기존 외곽 크기의 반올림 오차를 줄인다. 이동·앵커·점유 값은 바꾸지 않는다. 등록부·잠금·카탈로그를 함께 갱신한다.
+그림자 크기 전환은 `tools/management/maintenance/migrate_shadow_sizes.py`의 `--asset-root`, `--backup-root`, `--apply`로 수행한다. 기본은 검토만 하며, 이전 길이를 점유 열·행 수로 나누고 `shadowSizeVersion: 2`를 기록한다. 재실행은 중복 변환하지 않는다. 배율은 소수점 6자리까지 보존하여 기존 외곽 크기의 반올림 오차를 줄인다. 이동·앵커·점유 값은 바꾸지 않는다. 등록부·잠금·카탈로그를 함께 갱신한다.
 
 기존 빌보드 크기를 공통 기본값으로 통일하려면 위 크기 마이그레이션에 `--reset-sizes`를 명시한다. 모든 등록 빌보드의 점유 배율을 1·1로 설정하므로 기존 표시 크기는 달라진다. 그림자 이동·앵커·점유·표시 높이는 유지한다. 2026-10-25 사용자 요청으로 이 기본값 통일을 수행했다. 이후 개별 편집값을 유지하려면 이 옵션을 다시 실행하지 않는다.
 
@@ -804,7 +804,7 @@ GUI 결과 조회와 CLI `status`의 `audio_stems`로 MR·보컬을 조회합니
 
 게이트웨이는 `SLIME_CONTENT_SERVICE_ORIGIN`, `SLIME_CONTENT_SERVICE_SECRET_FILE`, `SLIME_CONTENT_SNAPSHOT_ROOT`를 사용한다. 비밀값은 환경변수에 넣지 않고 비밀 파일 경로만 지정한다. 신규 개발 편집 연결은 slime-assets의 `asset_service.api:ASSET_INTERNAL_API_APP`을 사용하며 공개 ingress에 노출하지 않는다. 에셋 DB의 별도 마이그레이션과 런타임 역할 준비는 해당 저장소의 database/README.md 및 asset_service/README.md를 따른다. 기존 backend API는 이전 연결의 호환 구현이며 신규 독립 에셋 서비스 실행 대상이 아니다.
 
-주기 실행은 `python tools/review/maintenance/content_snapshot_worker.py --server <관리 게이트웨이 주소> --interval 60`이다. GUI와 독립된 프로세스이며 공용 게이트웨이 명령을 호출한다. `--once`는 같은 경로로 한 번 실행한다. 실행 로그는 `.tmp/content-snapshot-worker/worker.log`에 일별 회전·7일 보관하고 5초 heartbeat를 기록한다. 자동 시작 기능은 없으므로 독립 실행기를 명시적으로 시작한다.
+주기 실행은 `python tools/management/maintenance/content_snapshot_worker.py --server <관리 게이트웨이 주소> --interval 60`이다. GUI와 독립된 프로세스이며 공용 게이트웨이 명령을 호출한다. `--once`는 같은 경로로 한 번 실행한다. 실행 로그는 `.tmp/content-snapshot-worker/worker.log`에 일별 회전·7일 보관하고 5초 heartbeat를 기록한다. 자동 시작 기능은 없으므로 독립 실행기를 명시적으로 시작한다.
 
 스냅샷 복구는 `map-assets database-restore --payload-file <요청 파일>`로 실행합니다. 요청은 `{"snapshotRoot":"/절대/스냅샷/경로"}`입니다. `current.yaml`이 지정한 파일들의 해시·세대·에셋 순서·맵 revision을 검증한 뒤 빈 콘텐츠 DB에만 에셋과 맵을 한 트랜잭션으로 복구합니다. 같은 입력 재시도는 같은 결과를 반환하며 기존 운영 데이터가 있는 DB를 덮어쓰지 않습니다. 복구 후 세대는 원본보다 증가하고 새 스냅샷 게시 대상이 됩니다. 이미지 파일은 복구 명령이 복사하지 않으므로 등록된 이미지 원본을 별도로 보존해야 합니다. 복구 검증은 격리 DB에서 수행하며 실제 서비스 DB에는 복구를 실행하지 않습니다.
 
@@ -820,7 +820,7 @@ DB 모드의 빌보드 크롭·축소는 `assets/billboards/versions/<SHA-256>.p
 콘텐츠 스냅샷 작업자는 공용 실행기로도 독립 실행할 수 있습니다.
 
 ```bash
-python3 tools/review/common/management_launcher.py snapshot --server http://127.0.0.1:8771 --interval 60
+python3 tools/management/common/management_launcher.py snapshot --server http://127.0.0.1:8771 --interval 60
 ```
 
 GUI를 종료해도 이 프로세스는 유지됩니다. 게이트웨이에 연결할 수 없으면 기존 DB·스냅샷을 보존하고 재시도합니다. 재기동 시 마지막 공개 세대와 DB 세대를 비교하여 미반영 변경을 처리합니다. 이 명령을 시작해야 주기 실행되며 GUI 실행만으로 자동 시작하지 않습니다. 게이트웨이에는 `SLIME_CONTENT_STORAGE=database`, `SLIME_CONTENT_SERVICE_ORIGIN`, `SLIME_CONTENT_SERVICE_SECRET_FILE`, `SLIME_CONTENT_SNAPSHOT_ROOT`를 지정합니다. 비밀값 자체를 환경 파일에 넣지 않습니다.
@@ -839,8 +839,8 @@ gatewayOrigin: http://127.0.0.1:8771
 
 ```bash
 SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml ./scripts/run_management_gateway.sh --watch
-SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml python3 tools/review/common/management_launcher.py gui --watch
-SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml python3 tools/review/common/management_launcher.py snapshot --server http://127.0.0.1:8771 --interval 60
+SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml python3 tools/management/common/management_launcher.py gui --watch
+SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml python3 tools/management/common/management_launcher.py snapshot --server http://127.0.0.1:8771 --interval 60
 ```
 
 콘텐츠 API를 먼저 실행하고 세 프로세스에 같은 설정을 사용합니다. 설정 파일은 시작할 때 읽으므로 변경 시 해당 실행기를 재시작합니다. 스냅샷 작업자는 자동 시작되지 않습니다. 최초 `database-seed`는 모든 파일을 검증한 뒤 `/internal/v1/content/seed/bundle` 한 요청으로 빌보드·맵을 같은 DB 트랜잭션에 적재합니다. 맵 적재가 실패하면 빌보드와 영수증도 롤백되며 같은 묶음 재시도는 중복 적재하지 않습니다.

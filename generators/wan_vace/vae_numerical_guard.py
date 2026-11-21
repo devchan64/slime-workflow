@@ -6,7 +6,7 @@ from functools import wraps
 def record_vace_tensor_failure(current_attempt_root, current_stage_name, current_torch_module, current_tensor_values, current_extra_record=None):
     """최초 감지 경계의 텐서와 원래 배치를 작업 시도에 보존한다."""
     from safetensors.torch import save_file
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
     current_tensor_records = {current_name: {'shape': list(current_tensor.shape), 'stride': list(current_tensor.stride()), 'dtype': str(current_tensor.dtype), 'device': str(current_tensor.device)} for current_name, current_tensor in current_tensor_values.items()}
     current_failure_record = {'stage': current_stage_name, 'tensors': current_tensor_records, 'tensor_storage': 'cpu-contiguous', **(current_extra_record or {})}
     write_record_atomically(current_attempt_root / 'numerical-failure.json', current_failure_record)
@@ -17,7 +17,7 @@ def record_vace_tensor_failure(current_attempt_root, current_stage_name, current
 
 def check_vace_boundary_values(current_value_object, current_stage_name, current_attempt_root, current_torch_module, current_input_tensor=None, current_value_path='output'):
     """중첩된 텐서를 검사하고 최초 실패의 메타데이터를 남긴다."""
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
     if isinstance(current_value_object, current_torch_module.Tensor):
         if not current_torch_module.isfinite(current_value_object).all().item():
             current_tensor_values = {'output': current_value_object}

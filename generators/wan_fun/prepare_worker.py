@@ -10,7 +10,7 @@ WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from generators.wan_fun.contracts import FUN_JOB_STORAGE
 from generators.wan_fun.setup_rocm import setup_fun_rocm_environment
-from tools.review.common.generation_records import write_record_atomically
+from tools.management.common.generation_records import write_record_atomically
 
 
 def handle_prepare_signal(current_signal_number, current_stack_frame):

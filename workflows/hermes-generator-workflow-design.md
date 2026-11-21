@@ -135,7 +135,7 @@ Codex·Claude Code처럼 사용자가 대화 기록을 읽은 위치에서 요�
 | 폼 관리 | 메시지 속 폼에서 수정값과 기준 버전을 제출 | 에이전트 제안과 사용자의 수정을 공유 상태로 표현하고 사용자 확인 뒤 재개 | 세션별 폼 ID·불변 버전·복사 출처와 충돌 판정. 브라우저 종료 후 같은 버전을 복원 |
 | 결과 컴포넌트 관리 | 도구 결과 유형에 React 렌더러를 연결 | 도구 호출·결과 이벤트에 React 렌더러를 연결 | 생성 이력 표, 이미지, 오디오의 데이터 계약. 후속 단계 선택 시 생산 시도와 해시를 확인 |
 
-예를 들어 Wan 생성 이력은 두 후보 모두 같은 데이터에서 전체 24건과 이번 조회 4건을 표시할 수 있다. 차이가 커지는 지점은 사용자가 결과를 고르고 자리를 비운 뒤, Codex가 같은 세션에 요청을 추가한 상황이다. 다시 접속한 UI는 서버에서 현재 실행과 폼 버전을 조회하고, 여전히 유효한 선택만 후속 단계 입력으로 제출해야 한다. 이 설계의 기준 구현은 [관리 게이트웨이 클라이언트](../tools/review/common/management_client.py), [워크플로우 조정자](../tools/review/domains/hermes_agent/workflow_scheduler.py), [세션 폼 저장소](../tools/review/domains/hermes_agent/form_library.py)다.
+예를 들어 Wan 생성 이력은 두 후보 모두 같은 데이터에서 전체 24건과 이번 조회 4건을 표시할 수 있다. 차이가 커지는 지점은 사용자가 결과를 고르고 자리를 비운 뒤, Codex가 같은 세션에 요청을 추가한 상황이다. 다시 접속한 UI는 서버에서 현재 실행과 폼 버전을 조회하고, 여전히 유효한 선택만 후속 단계 입력으로 제출해야 한다. 이 설계의 기준 구현은 [관리 게이트웨이 클라이언트](../tools/management/common/management_client.py), [워크플로우 조정자](../tools/management/domains/hermes_agent/workflow_scheduler.py), [세션 폼 저장소](../tools/management/domains/hermes_agent/form_library.py)다.
 
 ### 운영 UI 선정 결정
 
@@ -145,4 +145,4 @@ Gradio 종료 전에는 화면별 조회·생성·편집·검수·저장·취소
 
 ### 관리 서버 신규 설치 검증
 
-관리 서버를 새로 설치할 때 사용하는 의존성 목록은 [관리 서버 requirements.txt](../tools/review/requirements.txt)다. 2026-11-21에 빈 Python 가상환경에 이 목록을 설치하고 `pip check`를 통과했다. 설치 환경에 Gradio가 없는 상태에서 Uvicorn을 임시 로컬 포트에 기동했다. 서버 상태, 도구 카탈로그, 헤르메스 대화, Kimodo 생성 화면, Kimodo 입력 템플릿, React 번들 여섯 경로가 모두 HTTP 200을 반환했다. 게이트웨이 서비스 모듈을 불러오는 것까지 확인했으며, 각 생성기의 GPU 실행 환경은 별도로 준비한다.
+관리 서버를 새로 설치할 때 사용하는 의존성 목록은 [관리 서버 requirements.txt](../tools/management/requirements.txt)다. 2026-11-21에 빈 Python 가상환경에 이 목록을 설치하고 `pip check`를 통과했다. 설치 환경에 Gradio가 없는 상태에서 Uvicorn을 임시 로컬 포트에 기동했다. 서버 상태, 도구 카탈로그, 헤르메스 대화, Kimodo 생성 화면, Kimodo 입력 템플릿, React 번들 여섯 경로가 모두 HTTP 200을 반환했다. 게이트웨이 서비스 모듈을 불러오는 것까지 확인했으며, 각 생성기의 GPU 실행 환경은 별도로 준비한다.

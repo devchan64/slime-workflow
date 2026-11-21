@@ -1,5 +1,5 @@
 """기존 타일 크롭 호출을 유지하는 공용 이미지 라이브러리 호환 연결."""
-from tools.review.common.image_edges import (
+from tools.management.common.image_edges import (
     BLACK_CHANNEL_LIMIT,
     BLACK_BRIGHTNESS_LIMIT,
     BLACK_SATURATION_LIMIT,
@@ -19,7 +19,7 @@ from tools.review.common.image_edges import (
     detect_texture_boundary,
     render_texture_boundary,
 )
-from tools.review.common.image_borders import (
+from tools.management.common.image_borders import (
     crop_traced_tile,
     crop_border_contour,
     crop_inner_border,

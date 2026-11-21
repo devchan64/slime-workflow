@@ -14,11 +14,11 @@ generators/<generator-id>/
   ...                       생성기 전용 실행 코드·설정
 ```
 
-`page/`는 공용 Gradio 컴포넌트를 조합하는 생성기별 화면의 소유 위치다. 공용 UI는 `tools/review/common/` 또는 `tools/review/ui/shared/`에 유지하고, 공용 게이트웨이·작업 서비스와 모델 실행 경계는 [관리도구 소스 구조](../tools/review/README.md) 및 [클라이언트 가이드](management-clients.md)를 따른다. 여러 생성기가 공유하는 실행 코드나 설정을 각 폴더에 복제하지 않는다. 식별자와 Python 패키지 이름이 다르면 README에 대응 관계를 적는다.
+`page/`는 공용 Gradio 컴포넌트를 조합하는 생성기별 화면의 소유 위치다. 공용 UI는 `tools/management/common/` 또는 `tools/management/ui/shared/`에 유지하고, 공용 게이트웨이·작업 서비스와 모델 실행 경계는 [관리도구 소스 구조](../tools/management/README.md) 및 [클라이언트 가이드](management-clients.md)를 따른다. 여러 생성기가 공유하는 실행 코드나 설정을 각 폴더에 복제하지 않는다. 식별자와 Python 패키지 이름이 다르면 README에 대응 관계를 적는다.
 
-기존 생성기는 화면이 `tools/review/ui/gradio/`, 서비스가 `tools/review/domains/`에 분산되어 있고 일부는 하나의 모델 폴더를 공유한다. 위 구조는 목표 구조이며 현재 배치에 대한 설명이 아니다. 기존 생성기를 작업할 때 식별자별 페이지와 `CHANGELOG.md`를 연결하고 단계적으로 이관한다. 이관 시 import 호환, 관리 메뉴·URL, 게이트웨이·CLI 명령, 작업 ID와 기존 기록 경로를 유지하고 실행 중인 작업이나 데이터를 옮기지 않는다. 단순히 빈 폴더를 만들거나 문서만 작성한 것을 이관 완료로 보지 않는다.
+기존 생성기는 화면이 `tools/management/ui/gradio/`, 서비스가 `tools/management/domains/`에 분산되어 있고 일부는 하나의 모델 폴더를 공유한다. 위 구조는 목표 구조이며 현재 배치에 대한 설명이 아니다. 기존 생성기를 작업할 때 식별자별 페이지와 `CHANGELOG.md`를 연결하고 단계적으로 이관한다. 이관 시 import 호환, 관리 메뉴·URL, 게이트웨이·CLI 명령, 작업 ID와 기존 기록 경로를 유지하고 실행 중인 작업이나 데이터를 옮기지 않는다. 단순히 빈 폴더를 만들거나 문서만 작성한 것을 이관 완료로 보지 않는다.
 
-현행 Qwen 이미지 계열과 음악·효과음의 생성기별 설정은 각각의 `page/`에서 관리하며 공용 화면 구성은 `tools/review/ui/shared/qwen_generator_page.py`와 `audio_generator_page.py`에서 재사용한다. 작가 AI 화면은 `generators/writer_agent/page/`가 소유한다. 기존 `ui/gradio/` 경로는 import·직접 실행 호환 연결이다. `building-generator`는 독립 생성기가 아니라 빌보드·건물 통합 화면의 호환 주소이므로 `billboard-generator` 페이지와 변경 기록을 사용한다.
+현행 Qwen 이미지 계열과 음악·효과음의 생성기별 설정은 각각의 `page/`에서 관리하며 공용 화면 구성은 `tools/management/ui/shared/qwen_generator_page.py`와 `audio_generator_page.py`에서 재사용한다. 작가 AI 화면은 `generators/writer_agent/page/`가 소유한다. 기존 `ui/gradio/` 경로는 import·직접 실행 호환 연결이다. `building-generator`는 독립 생성기가 아니라 빌보드·건물 통합 화면의 호환 주소이므로 `billboard-generator` 페이지와 변경 기록을 사용한다.
 
 ## 변경 기록과 페이지 표시
 

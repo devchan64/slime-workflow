@@ -56,7 +56,7 @@ def download_wan13_model_files():
     os.environ['HF_HUB_DISABLE_XET'] = '1'
     import huggingface_hub.constants as current_hub_constants
     current_hub_constants.HF_HUB_DISABLE_XET = True
-    from tools.review.common.model_huggingface_download import tracked_hf_hub_download
+    from tools.management.common.model_huggingface_download import tracked_hf_hub_download
     for current_file_name, (current_file_size, current_file_hash) in WAN13_MODEL_FILES.items():
         current_file_path = WAN13_MODEL_DIRECTORY / current_file_name
         if not verify_wan13_model_file(current_file_path, current_file_size, current_file_hash):

@@ -32,7 +32,7 @@ def verify_full_precision_file(current_expert_name):
 
 
 def download_full_precision_file(current_expert_name):
-    from tools.review.common.model_http_download import download_verified_http
+    from tools.management.common.model_http_download import download_verified_http
     current_expert_path = get_full_precision_path(current_expert_name)
     current_remote_name, expected_file_size, expected_file_hash = VACE_FULL_PRECISION_FILES[current_expert_name]
     current_expert_path.parent.mkdir(parents=True, exist_ok=True)

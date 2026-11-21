@@ -28,7 +28,7 @@ def download_fun_control_models():
     os.environ['HF_HUB_DISABLE_XET'] = '1'
     import huggingface_hub.constants as current_hub_constants
     current_hub_constants.HF_HUB_DISABLE_XET = True
-    from tools.review.common.model_huggingface_download import tracked_hf_hub_download as hf_hub_download
+    from tools.management.common.model_huggingface_download import tracked_hf_hub_download as hf_hub_download
     import torch
     if not torch.version.hip or not torch.cuda.is_available():
         raise RuntimeError('ROCm PyTorch와 접근 가능한 AMD GPU가 필요합니다.')

@@ -16,9 +16,9 @@ from .documents import (DEFAULT_WORKSPACE_CONFIG,WORKFLOW_REPOSITORY_ROOT,load_w
 from .jobs import JOB_IDENTIFIER_PATTERN,create_writer_job,resolve_job_directory,update_job_status,read_process_identity
 from .agent import apply_reviewed_proposal
 from . import prepare
-from tools.review.common.model_prepare_process import inspect_detached_preparation, start_detached_preparation
-from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation
-from tools.review.common.generation_records import write_record_atomically, hold_history_observation_guard
+from tools.management.common.model_prepare_process import inspect_detached_preparation, start_detached_preparation
+from tools.management.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation
+from tools.management.common.generation_records import write_record_atomically, hold_history_observation_guard
 
 WRITER_ROUTE_PREFIX='/writer-agent'
 MAXIMUM_REQUEST_BYTES=32000

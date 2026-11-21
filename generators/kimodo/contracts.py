@@ -113,7 +113,7 @@ def validate_kimodo_request(current_request_record):
             raise ValueError('키프레임 자세 적용에는 공식 후처리를 켜야 합니다.')
         if current_request_record.get('remove_horizontal_motion',False):
             raise ValueError('키프레임 좌표를 유지하려면 수평 이동 제거를 꺼야 합니다.')
-        from tools.review.domains.kimodo.keyframe_storage import validate_kimodo_keyframe_placements
+        from tools.management.domains.kimodo.keyframe_storage import validate_kimodo_keyframe_placements
         current_keyframe_placements = validate_kimodo_keyframe_placements(current_request_record['keyframes'], current_request_record['frames'])
         current_request_record = {**current_request_record, 'keyframes': current_keyframe_placements}
     if 'keyframe_source_hashes' in current_request_record:
@@ -144,7 +144,7 @@ def validate_kimodo_request(current_request_record):
             raise ValueError('다중 시점 시험에는 참조와 유한한 카메라 각도 8개가 필요합니다.')
         if len({round(current_angle_value%360,6) for current_angle_value in current_multiview_angles})!=8:
             raise ValueError('다중 시점 카메라 각도 8개가 서로 달라야 합니다.')
-    from tools.review.domains.image.three_reference_generation import decode_reference_image
+    from tools.management.domains.image.three_reference_generation import decode_reference_image
     from PIL import Image
     import io
     current_normalized_images=[]

@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 if __name__ == '__main__' and not __package__:
     sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
-from tools.review.common.generation_records import write_record_atomically
+from tools.management.common.generation_records import write_record_atomically
 from generators.wan_animate2.contracts import ANIMATE_MODEL_DIRECTORY, ANIMATE_MODEL_IDENTIFIER, ANIMATE_MODEL_REVISION, ANIMATE_RUNTIME_DIRECTORY, ANIMATE_RUNTIME_REVISION
 
 
@@ -20,7 +20,7 @@ def prepare_animate_models():
 
 
 def download_animate_pinned_assets():
-    from tools.review.common.model_huggingface_download import tracked_snapshot_download as snapshot_download
+    from tools.management.common.model_huggingface_download import tracked_snapshot_download as snapshot_download
     current_stop_event=threading.Event()
     def report_prepare_progress():
         while not current_stop_event.wait(5):

@@ -8,9 +8,9 @@ import signal
 import traceback
 import uuid
 import zipfile
-from tools.review.common.generation_records import write_record_atomically
-from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
-from tools.review.domains.image.three_reference_generation import verify_reference_snapshots
+from tools.management.common.generation_records import write_record_atomically
+from tools.management.common.generation_telemetry import GenerationTelemetryRecorder
+from tools.management.domains.image.three_reference_generation import verify_reference_snapshots
 
 
 def handle_video_signal(current_signal_number, current_stack_frame):

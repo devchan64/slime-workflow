@@ -18,7 +18,7 @@ FUN_WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(FUN_WORKSPACE_ROOT))
 from generators.wan_fun.contracts import reject_retired_rgb_input, FUN_JOB_STORAGE, FUN_RUNTIME_DIRECTORY, FUN_MODEL_FILES, FUN_MODEL_IDENTIFIER, FUN_MODEL_REVISION, FUN_PYTHON_EXECUTABLE, validate_fun_assets
 from generators.common.reference_video_worker import run_reference_video_worker, save_video_outputs
-from tools.review.common.generation_records import write_record_atomically
+from tools.management.common.generation_records import write_record_atomically
 
 
 def execute_fun_inference(current_job_root, current_attempt_root, current_request_record, current_metrics_recorder):

@@ -11,7 +11,7 @@ from generators.wan_vace.contracts import VACE_WORKSPACE_ROOT, VACE_MODEL_FILES,
 
 
 def prepare_vace_models():
-    from tools.review.common.model_download_records import track_model_download
+    from tools.management.common.model_download_records import track_model_download
     current_lock_path = VACE_WORKSPACE_ROOT/'.model/wan22-vace/.prepare.lock'
     current_lock_path.parent.mkdir(parents=True, exist_ok=True)
     with current_lock_path.open('a') as current_lock_stream:
@@ -51,7 +51,7 @@ def execute_vace_preparation(current_shared_record):
             current_remote_url = f'https://huggingface.co/{VACE_MODEL_IDENTIFIER}/resolve/{VACE_MODEL_REVISION}/{current_remote_name}'
             if current_model_key in VACE_ENCODER_REMOTE_FILES:
                 current_remote_url = f'https://huggingface.co/{VACE_ENCODER_IDENTIFIER}/resolve/{VACE_ENCODER_REVISION}/{VACE_ENCODER_REMOTE_FILES[current_model_key]}'
-            from tools.review.common.model_http_download import download_verified_http
+            from tools.management.common.model_http_download import download_verified_http
             current_progress_record.update(stage=f'download-{current_model_key}', bytes=0, total_bytes=expected_model_size)
             current_shared_record.update(**current_progress_record)
             download_verified_http(current_remote_url, current_model_path, expected_model_hash, 'wan22-vace/'+current_model_key,
@@ -62,7 +62,7 @@ def execute_vace_preparation(current_shared_record):
             current_shared_record.update(**current_progress_record)
             write_prepare_trace('verified', str(current_model_path))
         from generators.wan_fun.prepare import FUN_SHARED_MODEL_SOURCES
-        from tools.review.common.model_huggingface_download import tracked_hf_hub_download
+        from tools.management.common.model_huggingface_download import tracked_hf_hub_download
         current_repository_name, current_revision_value, current_remote_name, current_expected_hash = FUN_SHARED_MODEL_SOURCES['vae']
         current_vae_path = VACE_WORKSPACE_ROOT / VACE_MODEL_FILES['vae'][0]
         if not current_vae_path.is_file():

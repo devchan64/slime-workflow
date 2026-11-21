@@ -8,7 +8,7 @@ import shutil
 import zipfile
 from generators.kimodo.contracts import KIMODO_MODEL_ROOT, KIMODO_ASSET_CONFIG, normalize_kimodo_prompt
 from generators.common.reference_video_worker import save_video_outputs
-from tools.review.common.generation_records import write_record_atomically
+from tools.management.common.generation_records import write_record_atomically
 
 
 def encode_kimodo_prompt(current_prompt_text, current_attempt_root):
@@ -135,7 +135,7 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     current_endpoint_constraints = prepare_soma_endpoint_constraints(current_request_record,current_attempt_root,current_motion_model.skeleton)
     if current_request_record.get('keyframes'):
         from kimodo.constraints import load_constraints_lst
-        from tools.review.domains.kimodo.keyframe_storage import build_kimodo_keyframe_constraints
+        from tools.management.domains.kimodo.keyframe_storage import build_kimodo_keyframe_constraints
         current_constraint_records = build_kimodo_keyframe_constraints(current_job_root,current_request_record)
         write_record_atomically(current_attempt_root/'keyframe-constraints.json',current_constraint_records)
         current_endpoint_constraints = load_constraints_lst(current_constraint_records,current_motion_model.skeleton,device='cuda')
@@ -162,7 +162,7 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
         current_endpoint_distances = np.linalg.norm(current_joint_positions[-1]-current_joint_positions[0],axis=-1)
         write_record_atomically(current_attempt_root/'endpoint-measurement.json',{'pose_id':current_request_record['endpoint_pose_id'],'unit':'meters','mean_joint_distance':float(current_endpoint_distances.mean()),'maximum_joint_distance':float(current_endpoint_distances.max()),'scope':'생성 SOMA 원본 첫·마지막 프레임 · 렌더 및 포즈 출력 전'})
     if current_request_record.get('keyframes'):
-        from tools.review.domains.kimodo.keyframe_storage import load_kimodo_keyframe_snapshot
+        from tools.management.domains.kimodo.keyframe_storage import load_kimodo_keyframe_snapshot
         current_keyframe_placements = current_request_record['keyframes']
         _,current_first_arrays,_ = load_kimodo_keyframe_snapshot(current_job_root/'keyframes',current_keyframe_placements[0]['id'])
         current_origin_position = current_first_arrays['smooth_root_pos'][0,[0,2]]

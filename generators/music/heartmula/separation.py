@@ -16,7 +16,7 @@ def prepare_separation_model(current_model_root, current_download_requested):
     if not current_checkpoint_path.is_file():
         if not current_download_requested:
             raise FileNotFoundError(f'MR 분리 모델 준비 필요: {current_checkpoint_path}')
-        from tools.review.common.model_http_download import download_verified_http
+        from tools.management.common.model_http_download import download_verified_http
         download_verified_http(DEMUCS_CHECKPOINT_URL, current_checkpoint_path, DEMUCS_CHECKPOINT_SHA256, 'heartmula/demucs')
     current_checkpoint_hash = calculate_music_checksum(current_checkpoint_path)
     if current_checkpoint_hash != DEMUCS_CHECKPOINT_SHA256:

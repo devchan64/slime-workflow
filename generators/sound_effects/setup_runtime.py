@@ -6,8 +6,8 @@ import sys
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
-from tools.review.common.management_process import ManagementLaunchLogger, run_logged_management_command
-from tools.review.common.management_environment import resolve_management_environment
+from tools.management.common.management_process import ManagementLaunchLogger, run_logged_management_command
+from tools.management.common.management_environment import resolve_management_environment
 
 EFFECTS_ROCM_INDEX_URL = 'https://stable.repo.amd.com/rocm/whl-next/'
 EFFECTS_ROCM_CONSTRAINTS_PATH = WORKFLOW_ROOT_DIRECTORY/'generators/wan_fun/rocm-constraints.txt'

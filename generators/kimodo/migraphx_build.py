@@ -72,7 +72,7 @@ def build_pose_execution_cache():
     import onnxruntime as ort
     import onnxruntime_ep_migraphx as current_provider_plugin
     from generators.kimodo.dwpose_runtime import create_fun_pose_detector
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
     current_cache_directories = resolve_pose_cache_directories(torch, ort, current_provider_plugin)
     for current_cache_directory in current_cache_directories.values():
         if current_cache_directory.exists() and not verify_pose_cache_files(current_cache_directory):

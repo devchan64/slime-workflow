@@ -2,7 +2,7 @@
 from contextlib import contextmanager
 from pathlib import Path
 from generators.music import runtime as music_runtime_module
-from tools.review.common.generation_records import write_record_atomically
+from tools.management.common.generation_records import write_record_atomically
 
 
 def generate_structured_minimax(current_request_record,current_model_root,current_attempt_root,current_metrics_recorder):

@@ -1,0 +1,290 @@
+"""음악생성 공용 작업 서비스: GUI·CLI는 같은 이력과 GPU 대기열을 사용한다."""
+from contextlib import contextmanager, nullcontext
+from tools.management.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup, hold_cleanup_preview_guard, read_cleanup_confirmation
+from datetime import datetime
+import fcntl
+import json
+from pathlib import Path
+import re
+import subprocess
+import threading
+from urllib.parse import urlsplit
+import uuid
+from zoneinfo import ZoneInfo
+from generators.music.contracts import WORKFLOW_ROOT_DIRECTORY, MUSIC_IDENTIFIER_PATTERN, RETIRED_AUDIO_SERVICE_NAMES, build_music_request, read_music_record, resolve_music_paths, resolve_music_profile, validate_music_identifier, verify_music_request
+from tools.management.common.generation_records import write_record_atomically, load_generation_history_records
+from tools.management.common.generation_estimates import calculate_generation_estimate
+from tools.management.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
+from tools.management.common.management_transport import validate_management_http_request, send_management_json_response
+
+
+class MusicGenerationManager:
+    def __init__(self,current_service_name):
+        self.current_service_name = current_service_name
+        self.current_profile_record = resolve_music_profile(current_service_name)
+        self.job_storage_root,self.model_storage_root,self.runtime_python_path = resolve_music_paths(current_service_name)
+        self.route_prefix_value = '/'+current_service_name
+        self.audio_output_filename = 'sound.wav' if current_service_name=='sfx-dasheng-audiogen' else 'music.wav'
+        self.history_storage_root = WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current'/current_service_name
+        self.current_request_lock = threading.RLock()
+
+    @contextmanager
+    def hold_music_lock(self):
+        self.history_storage_root.mkdir(parents=True,exist_ok=True)
+        with self.current_request_lock,(self.history_storage_root/'service.lock').open('a') as current_service_lock:
+            fcntl.flock(current_service_lock,fcntl.LOCK_EX)
+            yield
+
+    def resolve_music_job(self,current_identifier_value):
+        validate_music_identifier(current_identifier_value)
+        current_job_root = self.job_storage_root/current_identifier_value
+        if current_job_root.is_symlink() or not current_job_root.is_dir() or current_job_root.resolve().parent != self.job_storage_root.resolve():
+            raise ValueError('음악 작업 경로가 없거나 허용되지 않습니다.')
+        return current_job_root
+
+    def build_music_worker_command(self,current_job_root):
+        """현재 음악 서비스와 작업의 고정 실행 명령을 구성한다."""
+        return [str(self.runtime_python_path),'-u',str(WORKFLOW_ROOT_DIRECTORY/'generators/music/worker.py'),'--service',self.current_service_name,'--job-dir',str(current_job_root)]
+
+    def create_music_job(self,current_payload_record):
+        from generators.music.service_constants import inspect_retired_audio_rejection
+        current_rejection_reason=inspect_retired_audio_rejection(self.current_service_name,'generate')
+        if current_rejection_reason:
+            raise ValueError(current_rejection_reason)
+        current_request_record = build_music_request(self.current_service_name,current_payload_record)
+        if not self.runtime_python_path.is_file():
+            raise FileNotFoundError(f"음악 실행 환경이 없습니다: {self.runtime_python_path}. 해당 생성기 README.md의 설치 절차를 먼저 실행하세요. model_id={self.current_profile_record['model_id']} model_root={self.model_storage_root} model_path={self.model_storage_root}")
+        with self.hold_music_lock():
+            if self.current_service_name in ('music-heartmula', 'sfx-dasheng-audiogen'):
+                from tools.management.common.audio_model_download import AUDIO_DOWNLOAD_PROFILES
+                from tools.management.common.model_prepare_process import inspect_registered_preparation
+                if inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY, AUDIO_DOWNLOAD_PROFILES[self.current_service_name]) == 'running':
+                    raise ValueError('모델 파일 다운로드가 진행 중입니다. 완료 후 다시 요청하세요.')
+            if current_request_record['action'] == 'prepare':
+                self.ensure_no_active_music_preparation()
+            current_created_time = datetime.now(ZoneInfo('Asia/Seoul'))
+            current_job_identifier = current_created_time.strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
+            current_job_root = self.job_storage_root/current_job_identifier
+            current_job_root.mkdir(parents=True)
+            write_record_atomically(current_job_root/'request.json',current_request_record)
+            write_record_atomically(current_job_root/'status.json',{'status':'queued'})
+            write_record_atomically(self.history_storage_root/(current_job_identifier+'.json'),{'id':current_job_identifier,'created_at':current_created_time.isoformat(),'request':current_request_record,'path':str(current_job_root)})
+            with (current_job_root/'worker.log').open('a') as current_log_handle:
+                launch_gpu_process(self.build_music_worker_command(current_job_root),current_job_root,self.current_service_name,
+                    stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True,cwd=WORKFLOW_ROOT_DIRECTORY)
+        return {'id':current_job_identifier,'status':'queued'}
+
+    def ensure_no_active_music_preparation(self, *, current_check_all_actions=False, current_excluded_job_identifier=None):
+        """표시 이력과 관계없이 준비 작업의 원본 상태를 검사한다. 서비스 잠금 안에서 호출한다."""
+        try:
+            current_job_roots=list(self.job_storage_root.iterdir())
+        except FileNotFoundError:
+            return
+        for current_job_root in current_job_roots:
+            if not re.fullmatch(MUSIC_IDENTIFIER_PATTERN,current_job_root.name):continue
+            if current_job_root.name==current_excluded_job_identifier:continue
+            if current_job_root.is_symlink() or not current_job_root.is_dir():
+                raise ValueError('모델 준비 작업 기록을 확인할 수 없습니다.')
+            try:
+                current_request_path=current_job_root/'request.json'
+                current_status_path=current_job_root/'status.json'
+                if current_request_path.is_symlink() or current_status_path.is_symlink():raise ValueError('작업 기록 경로 오류')
+                current_request_record=read_music_record(current_request_path)
+                current_status_record=read_music_record(current_status_path)
+                if not isinstance(current_request_record,dict) or current_request_record.get('action') not in ('prepare','generate') or not isinstance(current_status_record,dict) or current_status_record.get('status') not in ('queued','running','completed','failed','cancelled','canceled','paused'):
+                    raise ValueError('작업 기록 형식 오류')
+            except (OSError,ValueError,TypeError,KeyError) as current_record_error:
+                raise ValueError('모델 준비 작업 기록을 확인할 수 없습니다.') from current_record_error
+            if current_status_record['status'] in ('queued','running','paused'):
+                if current_check_all_actions:
+                    raise ValueError('음악 또는 효과음 작업이 대기 중이거나 실행 중입니다. 모델 다운로드 전에 작업을 확인하세요.')
+                if current_request_record['action']=='prepare':
+                    raise ValueError('모델 준비가 이미 대기 중이거나 실행 중입니다.')
+
+    def read_music_status(self,current_job_root,current_include_logs=True):
+        current_status_record = read_music_record(current_job_root/'status.json')
+        current_status_record['id'] = current_job_root.name
+        current_attempt_path = current_job_root/'current-attempt.json'
+        if current_attempt_path.is_file() and current_status_record['status']!='queued':
+            current_attempt_name = read_music_record(current_attempt_path)['id']
+            if not re.fullmatch('[a-f0-9]{32}',current_attempt_name):
+                raise ValueError('음악 실행 시도 ID 오류')
+            current_attempt_root = current_job_root/'attempts'/current_attempt_name
+            if not current_attempt_root.resolve().is_relative_to(current_job_root.resolve()):
+                raise ValueError('음악 실행 시도 경로 오류')
+            current_metrics_path = current_attempt_root/'metrics.json'
+            if current_metrics_path.is_file():
+                current_metrics_record = read_music_record(current_metrics_path)
+                current_status_record.update(metrics=current_metrics_record,estimate=current_metrics_record['estimate'])
+            current_error_path = current_attempt_root/'error.json'
+            if current_error_path.is_file():
+                current_attempt_error = read_music_record(current_error_path)['error']
+                current_status_error = current_status_record.get('error')
+                if not (current_status_record.get('status') == 'failed' and isinstance(current_status_error,str) and current_status_error.startswith(('시스템 RAM 보호:', '시스템 RAM 감시 실패:'))):
+                    current_status_record['error'] = current_attempt_error
+        if 'estimate' not in current_status_record or current_status_record['status'] not in ('running','queued'):
+            current_status_record['estimate'] = calculate_generation_estimate(current_status_record,[],'동일 모델·길이·GPU의 성공 실행 표본 수집 중','GPU 대기 제외; 모델 준비·추론·저장')
+        current_result_path = current_job_root/'result.json'
+        if current_status_record['status']=='completed' and current_result_path.is_file():
+            current_result_record = read_music_record(current_result_path)
+            current_status_record['result'] = current_result_record
+            if current_result_record.get('format')=='wav':
+                current_status_record['audio'] = f"{self.route_prefix_value}/jobs/{current_job_root.name}/attempts/{current_result_record['attempt']}/{self.audio_output_filename}"
+                if self.current_service_name == 'music-heartmula' and current_result_record.get('separation'):
+                    current_status_record['audio_stems'] = {current_stem_name:current_status_record['audio'].rsplit('/',1)[0]+'/'+current_stem_name+'.wav' for current_stem_name in ('mr','vocals')}
+        if current_include_logs:
+            current_log_path = current_job_root/'worker.log'
+            if current_log_path.is_file():
+                with current_log_path.open('rb') as current_log_handle:
+                    current_log_handle.seek(max(0,current_log_path.stat().st_size-16000))
+                    current_status_record['log'] = current_log_handle.read().decode(errors='replace')
+        return current_status_record
+
+    def list_music_history(self):
+        current_history_records = load_generation_history_records(self.history_storage_root,self.job_storage_root)
+        for current_history_record in current_history_records:
+            current_job_root = self.resolve_music_job(current_history_record['id'])
+            current_history_record.update(status=self.read_music_status(current_job_root),path=str(current_job_root))
+        return current_history_records
+
+    def delete_music_history(self,current_identifier_value):
+        current_job_root = self.resolve_music_job(current_identifier_value)
+        with self.hold_music_lock():
+            current_cleanup_result = delete_generation_job_files(self.job_storage_root,[current_job_root],[self.history_storage_root/(current_identifier_value+'.json')])
+        return {**current_cleanup_result,'deleted':current_identifier_value}
+
+    def execute_music_command(self,current_command_name,current_payload_record):
+        current_allowed_fields = {'generate':{'action','prompt','lyrics','duration_seconds','max_new_tokens','min_duration_seconds','seed','loop_request','tag'},'prepare':{'action'},'status':{'id'},'logs':{'id'},'history':{'page'},'history-observe':{'offset','limit','snapshot','query'},'active':set(),'model-status':set(),'cancel':{'id'},'resume-preview':{'id'},'resume':{'id','expected_resume_fingerprint'},'history-delete':{'id'},'history-reset':{'action','expected_jobs'},'history-reset-preview':set()}
+        if current_command_name not in current_allowed_fields or not isinstance(current_payload_record,dict) or set(current_payload_record)-current_allowed_fields[current_command_name]:
+            raise ValueError('음악 명령·필드 오류')
+        if current_command_name in ('generate','prepare'):
+            return self.create_music_job(current_payload_record)
+        from generators.music.service_constants import inspect_retired_audio_rejection
+        current_rejection_reason=inspect_retired_audio_rejection(self.current_service_name,current_command_name)
+        if current_rejection_reason:
+            raise ValueError(current_rejection_reason)
+        if current_command_name=='model-status':
+            if self.current_service_name in RETIRED_AUDIO_SERVICE_NAMES:
+                return {'ready':False,'message':'폐기된 생성기 · 기존 결과·로그 조회만 지원','model_id':self.current_profile_record['model_id']}
+            from generators.music.runtime import validate_prepared_music
+            if self.current_service_name == 'sfx-dasheng-audiogen':
+                from generators.sound_effects.runtime import validate_effects_model as validate_prepared_music
+            if self.current_service_name == 'music-heartmula':
+                from generators.music.heartmula.runtime import validate_heartmula_artifacts as validate_prepared_music
+            current_download_available = self.runtime_python_path.is_file()
+            try:
+                validate_prepared_music(self.current_service_name)
+                if self.current_service_name == 'music-heartmula':
+                    from generators.music.heartmula.separation import prepare_separation_model
+                    prepare_separation_model(self.model_storage_root,False)
+                    from generators.music.runtime import calculate_music_checksum
+                    current_validation_path = self.model_storage_root/'gpu-validation.json'
+                    current_gpu_verified = False
+                    if current_validation_path.is_file():
+                        current_validation_record = read_music_record(current_validation_path)
+                        current_verified_root = self.resolve_music_job(current_validation_record['generation_id'])
+                        current_gpu_verified = current_validation_record.get('backend') == 'rocm' and current_validation_record.get('status') == 'passed' and current_validation_record.get('runtime_sha256') == calculate_music_checksum(WORKFLOW_ROOT_DIRECTORY/'generators/music/heartmula/runtime.py') and read_music_record(current_verified_root/'status.json').get('status') == 'completed'
+                    return {'ready':current_gpu_verified,'artifacts_ready':True,'can_prepare':current_download_available,'message':'모델 준비·GPU 생성 검증 완료 · BF16 비양자화 생성/FP32 디코더' if current_gpu_verified else '모델 파일 준비 완료 · GPU 생성 검증 대기 중','model_id':self.current_profile_record['model_id']}
+                return {'ready':True,'can_prepare':current_download_available,'message':'모델 준비됨 · VRAM 관측 피크는 실행 이력에서 확인','model_id':self.current_profile_record['model_id']}
+            except (OSError,ValueError,KeyError) as current_prepare_error:
+                return {'ready':False,'can_prepare':current_download_available,'message':str(current_prepare_error),'model_id':self.current_profile_record['model_id']}
+        if current_command_name=='history-observe':
+            from tools.management.common.generation_records import hold_history_observation_guard, observe_generation_history_records
+            with hold_history_observation_guard(self.job_storage_root):
+                with self.hold_music_lock():
+                    return observe_generation_history_records(self.history_storage_root,self.job_storage_root,current_payload_record)
+        if current_command_name in ('history','active'):
+            current_history_records = self.list_music_history()
+            if current_command_name=='history':
+                return {'records':current_history_records}
+            current_active_record = next((current_history_record for current_history_record in current_history_records if current_history_record['status']['status'] in ('running','queued')),None)
+            return {'id':current_active_record['id'] if current_active_record else None}
+        if current_command_name in ('history-reset','history-reset-preview'):
+            current_expected_jobs=read_cleanup_confirmation(current_payload_record) if current_command_name=='history-reset' else None
+            current_preview_guard = hold_cleanup_preview_guard(self.job_storage_root) if current_command_name=='history-reset-preview' else nullcontext()
+            with current_preview_guard:
+                with self.hold_music_lock():
+                    current_job_targets = [current_job_path for current_job_path in self.job_storage_root.iterdir() if re.fullmatch(MUSIC_IDENTIFIER_PATTERN,current_job_path.name)] if self.job_storage_root.exists() else []
+                    if current_command_name=='history-reset-preview':
+                        current_preview_record = describe_generation_cleanup(self.job_storage_root,current_job_targets)
+                        current_preview_record['scope'] = self.current_profile_record['label']+' · '+current_preview_record['scope']
+                        return current_preview_record
+                    return delete_generation_job_files(self.job_storage_root,current_job_targets,self.history_storage_root.glob('*.json'),current_expected_jobs)
+        current_job_root = self.resolve_music_job(current_payload_record['id'])
+        if current_command_name=='status':
+            return self.read_music_status(current_job_root)
+        if current_command_name=='logs':
+            return {'log':self.read_music_status(current_job_root).get('log','')}
+        if current_command_name=='history-delete':
+            return self.delete_music_history(current_job_root.name)
+        with self.hold_music_lock():
+            if (current_job_root/'.history-deleted').exists():
+                raise ValueError('삭제한 이력은 재개·중지할 수 없습니다. 새 작업으로 등록하세요.')
+            if current_command_name=='resume-preview':
+                from tools.management.common.gpu_job_queue import preview_gpu_resume_records
+                current_preview_record=preview_gpu_resume_records(current_job_root,self.current_service_name,self.build_music_worker_command(current_job_root),lambda current_request_value:verify_music_request(self.current_service_name,current_request_value))
+                current_resume_availability='available'
+                if self.current_service_name in ('music-heartmula','sfx-dasheng-audiogen'):
+                    try:
+                        from tools.management.common.audio_model_download import AUDIO_DOWNLOAD_PROFILES
+                        from tools.management.common.model_prepare_process import inspect_registered_preparation
+                        if inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY,AUDIO_DOWNLOAD_PROFILES[self.current_service_name])=='running':
+                            current_resume_availability='download_running'
+                        elif read_music_record(current_job_root/'request.json').get('action')=='prepare':
+                            self.ensure_no_active_music_preparation(current_excluded_job_identifier=current_job_root.name)
+                    except ValueError as current_availability_error:
+                        current_resume_availability='other_preparation' if str(current_availability_error)=='모델 준비가 이미 대기 중이거나 실행 중입니다.' else 'unknown'
+                    except (OSError,TypeError,KeyError):
+                        current_resume_availability='unknown'
+                return {'id':current_job_root.name,'service':self.current_service_name,**current_preview_record,'resume_availability':current_resume_availability,'note':'검토 시점의 기록입니다. 실제 재개나 GPU 사용 가능 여부를 보장하지 않습니다.'}
+            if current_command_name=='resume':
+                if self.current_service_name in ('music-heartmula','sfx-dasheng-audiogen'):
+                    from tools.management.common.audio_model_download import AUDIO_DOWNLOAD_PROFILES
+                    from tools.management.common.model_prepare_process import inspect_registered_preparation
+                    if inspect_registered_preparation(WORKFLOW_ROOT_DIRECTORY,AUDIO_DOWNLOAD_PROFILES[self.current_service_name])=='running':
+                        raise ValueError('모델 파일 다운로드가 진행 중입니다. 완료 후 다시 요청하세요.')
+                current_resume_request=read_music_record(current_job_root/'request.json')
+                verify_music_request(self.current_service_name,current_resume_request)
+                if current_resume_request.get('action')=='prepare':
+                    self.ensure_no_active_music_preparation(current_excluded_job_identifier=current_job_root.name)
+                if 'expected_resume_fingerprint' in current_payload_record:
+                    current_expected_fingerprint=current_payload_record['expected_resume_fingerprint']
+                    if not isinstance(current_expected_fingerprint,str) or not re.fullmatch(r'[a-f0-9]{64}',current_expected_fingerprint):
+                        raise ValueError('재개 기록 확인값 형식 오류')
+                    return resume_gpu_generation(current_job_root,expected_resume_fingerprint=current_expected_fingerprint,expected_resume_service=self.current_service_name,expected_resume_command=self.build_music_worker_command(current_job_root))
+                return resume_gpu_generation(current_job_root)
+            return cancel_gpu_generation(current_job_root)
+
+    def handle_music_request(self,current_http_handler):
+        from tools.management.common.management_gateway import identify_management_command
+        try:
+            validate_management_http_request(current_http_handler)
+            current_url_path = urlsplit(current_http_handler.path).path
+            current_audio_pattern = '((?:music|mr|vocals)\\.(?:wav|mp3))' if self.current_service_name == 'music-heartmula' else '('+re.escape(self.audio_output_filename)+')'
+            current_file_match = re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/('+MUSIC_IDENTIFIER_PATTERN+r')/attempts/([a-f0-9]{32})/'+current_audio_pattern,current_url_path)
+            if current_http_handler.command=='GET' and current_file_match:
+                current_job_root = self.resolve_music_job(current_file_match[1])
+                current_audio_path = current_job_root/'attempts'/current_file_match[2]/current_file_match[3]
+                if not current_audio_path.resolve().is_relative_to(current_job_root.resolve()):
+                    raise ValueError('음악 결과 경로 오류')
+                from tools.management.common.audio_file_response import send_audio_file_response
+                send_audio_file_response(current_http_handler,current_audio_path)
+                return True
+            current_payload_record = getattr(current_http_handler,'management_command_payload',{})
+            current_command_match = identify_management_command(current_http_handler.path,current_http_handler.command,current_payload_record)
+            if current_command_match is None or current_command_match[0] != self.current_service_name:
+                raise ValueError('지원하지 않는 음악 요청 경로')
+            current_response_record = self.execute_music_command(current_command_match[1],current_command_match[2])
+            # 공용 CLI logs는 text/plain 응답 계약을 사용한다.
+            if current_command_match[1]=='logs':
+                current_response_bytes = current_response_record['log'].encode()
+                current_http_handler.send_response(200)
+                current_http_handler.send_header('Content-Type','text/plain; charset=utf-8')
+                current_http_handler.send_header('Content-Length',str(len(current_response_bytes)))
+                current_http_handler.end_headers()
+                current_http_handler.wfile.write(current_response_bytes)
+            else:
+                send_management_json_response(current_http_handler,200,current_response_record)
+        except (OSError,ValueError,KeyError,TypeError) as current_request_error:
+            send_management_json_response(current_http_handler,400,{'error':str(current_request_error)})
+        return True

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from generators.music.contracts import read_music_record, resolve_music_paths, resolve_music_profile
 from generators.music.runtime import attach_cuda_guards, calculate_music_checksum, configure_music_cache
-from tools.review.common.generation_records import write_record_atomically
+from tools.management.common.generation_records import write_record_atomically
 
 DASHENG_MODEL_REVISIONS = (
     ('mispeech/Dasheng-AudioGen','e269f58e700d627b67600cbced86316c6585eae3','model'),
@@ -106,7 +106,7 @@ def prepare_effects_model(current_service_name,current_metrics_recorder,current_
         if (current_model_root/'prepared.json').exists():
             return validate_effects_model(current_service_name)
         current_torch_module = require_effects_cuda()
-        from tools.review.common.model_huggingface_download import tracked_snapshot_download as snapshot_download
+        from tools.management.common.model_huggingface_download import tracked_snapshot_download as snapshot_download
         current_metrics_recorder.update_generation_stage('download')
         current_file_records = []
         for current_repository_name,current_revision_value,current_directory_name in DASHENG_MODEL_REVISIONS:

@@ -31,7 +31,7 @@ def capture_vace_vae_attention(current_phase_name, current_attempt_root, current
         yield
         return
     from safetensors.torch import save_file
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
     current_ops_module = current_torch_module.nn.functional
     current_original_function = current_ops_module.scaled_dot_product_attention
 

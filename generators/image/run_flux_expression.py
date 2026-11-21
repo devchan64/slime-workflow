@@ -7,8 +7,8 @@ import sys
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
-from tools.review.domains.image.flux_expression_generation import FLUX_MODEL_ROOT_DIRECTORY, FLUX_MODEL_REVISION_VALUE
-from tools.review.domains.image.three_reference_generation import verify_reference_snapshots
+from tools.management.domains.image.flux_expression_generation import FLUX_MODEL_ROOT_DIRECTORY, FLUX_MODEL_REVISION_VALUE
+from tools.management.domains.image.three_reference_generation import verify_reference_snapshots
 
 
 def execute_flux_expression_worker():

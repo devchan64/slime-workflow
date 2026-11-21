@@ -6,7 +6,7 @@ def build_prefix_noise_latents(current_pipeline_object, current_request_record, 
     import torch
     from diffusers.utils.torch_utils import randn_tensor
     from safetensors.torch import save_file
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
     if current_request_record['noise_prefix_frames'] != 21 or current_request_record['frames'] != 41 or current_request_record['mode'] != 'pose':
         raise ValueError('21→41 pose 노이즈 통제 실험 요청이 아닙니다.')
     current_vae_config = current_pipeline_object.vae.config

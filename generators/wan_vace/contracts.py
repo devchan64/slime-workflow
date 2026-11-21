@@ -4,7 +4,7 @@ import hashlib
 import io
 import math
 from PIL import Image
-from tools.review.domains.image.three_reference_generation import decode_reference_image
+from tools.management.domains.image.three_reference_generation import decode_reference_image
 
 VACE_WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 VACE_JOB_STORAGE = VACE_WORKSPACE_ROOT / '.tmp/test/wan22-vace'

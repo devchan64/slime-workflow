@@ -3,16 +3,16 @@ import base64
 import io
 from pathlib import Path
 import gradio as gr
-from tools.review.common.gradio_generator_changelog import build_generator_changelog
+from tools.management.common.gradio_generator_changelog import build_generator_changelog
 from generators.wan_animate2.contracts import ANIMATE_JOB_STORAGE, ANIMATE_MAXIMUM_SEED_VALUE, validate_animate_request
-from tools.review.common.management_client import execute_remote_management_command
-from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
-from tools.review.common.gradio_model_download import build_model_download_controls
-from tools.review.common.gradio_seed import build_generation_seed
-from tools.review.common.gradio_reference_images import build_reference_image_inputs
-from tools.review.common.gradio_history import build_generation_history_view
-from tools.review.common.gradio_video_results import describe_video_generation_status, render_video_generation_result
-from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
+from tools.management.common.management_client import execute_remote_management_command
+from tools.management.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
+from tools.management.common.gradio_model_download import build_model_download_controls
+from tools.management.common.gradio_seed import build_generation_seed
+from tools.management.common.gradio_reference_images import build_reference_image_inputs
+from tools.management.common.gradio_history import build_generation_history_view
+from tools.management.common.gradio_video_results import describe_video_generation_status, render_video_generation_result
+from tools.management.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 
 
 def execute_animate_command(current_command_name,current_payload_record):

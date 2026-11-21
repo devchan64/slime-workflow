@@ -2,16 +2,16 @@
 from pathlib import Path
 from generators.wan_vace.page.inputs import VACE_INPUT_CHOICES, VACE_MODE_HELP_TEXT, build_vace_payload
 import gradio as gr
-from tools.review.common.gradio_generator_changelog import build_generator_changelog
+from tools.management.common.gradio_generator_changelog import build_generator_changelog
 from generators.wan_vace.contracts import VACE_DEFAULT_SETTINGS, VACE_JOB_STORAGE, VACE_MAXIMUM_SEED_VALUE
-from tools.review.common.management_client import execute_remote_management_command
-from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
-from tools.review.common.gradio_button_guidance import build_button_guidance
-from tools.review.common.gradio_seed import build_generation_seed
-from tools.review.common.gradio_history import build_generation_history_view
-from tools.review.common.gradio_video_results import render_video_generation_result, describe_video_generation_status, describe_video_frame_duration
-from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
-from tools.review.common.gradio_reference_images import build_reference_image_inputs
+from tools.management.common.management_client import execute_remote_management_command
+from tools.management.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
+from tools.management.common.gradio_button_guidance import build_button_guidance
+from tools.management.common.gradio_seed import build_generation_seed
+from tools.management.common.gradio_history import build_generation_history_view
+from tools.management.common.gradio_video_results import render_video_generation_result, describe_video_generation_status, describe_video_frame_duration
+from tools.management.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
+from tools.management.common.gradio_reference_images import build_reference_image_inputs
 from generators.wan_vace.page.video_preview import prepare_vace_browser_video
 
 def describe_vace_mode(current_input_mode):
@@ -82,7 +82,7 @@ def build_vace_interface(current_server_address, current_command_callback=None):
         gr.Markdown('## Wan2.2 VACE-Fun A14B 생성기\n키모도 DWPose 영상과 캐릭터 참조 이미지로 동작을 따라 생성할 수 있습니다. 텍스트·이미지 생성도 지원합니다. 영상 부분 편집은 원본 MP4·흰색 편집 마스크·외형 참조를 함께 사용하며, 영상 전체 조건은 원본 MP4와 참조를 사용하는 별도 실험입니다.')
         current_model_ready = gr.State(False)
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
-        from tools.review.common.gradio_model_download import build_model_progress_display
+        from tools.management.common.gradio_model_download import build_model_progress_display
         build_model_progress_display(current_interface_blocks, 'wan22-vace')
         current_model_refresh = gr.Button('모델 준비 상태 확인')
         def read_vace_model_status():

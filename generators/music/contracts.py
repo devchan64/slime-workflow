@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 import re
 import yaml
-from tools.review.common.generation_records import validate_history_tag
+from tools.management.common.generation_records import validate_history_tag
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 MUSIC_DEFAULTS_FILE = Path(__file__).with_name('defaults.yaml')

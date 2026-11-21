@@ -1,6 +1,6 @@
 # 공통 에셋 웹 검수
 
-웹 검수 서버는 `tools/review/serve.py`에서 관리한다. 최초 환경 준비는 `scripts/workflow.sh setup --scope management`, 실행은 `scripts/workflow.sh gui`를 사용한다. 생성 명령은 별도 게이트웨이가 필요하며 정적 검수는 GUI만으로 실행할 수 있다. 기존 애니메이션 전용 `generators/animation/serve_asset_review.py`는 이 경로로 이전했다. 생성기는 HTML·이미지·좌표 산출물만 만들고 웹서버 구현을 복제하지 않는다.
+웹 검수 서버는 `tools/management/serve.py`에서 관리한다. 최초 환경 준비는 `scripts/workflow.sh setup --scope management`, 실행은 `scripts/workflow.sh gui`를 사용한다. 생성 명령은 별도 게이트웨이가 필요하며 정적 검수는 GUI만으로 실행할 수 있다. 기존 애니메이션 전용 `generators/animation/serve_asset_review.py`는 이 경로로 이전했다. 생성기는 HTML·이미지·좌표 산출물만 만들고 웹서버 구현을 복제하지 않는다.
 
 ```bash
 # 스탠딩 앵커 검수
@@ -21,7 +21,7 @@
 
 ## 걷기 비교 UI
 
-`python3 tools/review/build_walk_review.py --root .tmp/실행폴더`로 공통 걷기 페이지를 만든다. 입력은 `result.json`의 4방향 outputs와 각 결과 PNG, `rig-방향.png`다. 이후 공통 서버로 연다. 템플릿은 `tools/review/ui/asset_review/walk-sheet.html`에서 관리한다.
+`python3 tools/management/build_walk_review.py --root .tmp/실행폴더`로 공통 걷기 페이지를 만든다. 입력은 `result.json`의 4방향 outputs와 각 결과 PNG, `rig-방향.png`다. 이후 공통 서버로 연다. 템플릿은 `tools/management/ui/asset_review/walk-sheet.html`에서 관리한다.
 
 방향 탭, 8개 프레임 썸네일, 이전·다음, 속도 선택, 캐릭터·리그 동기 비교, 발 확대, 반투명 겹치기를 지원한다. 시작은 좌하 3번 프레임에서 정지하며 방향·프레임 선택 시 정지한다. 방향 전환 시 프레임 번호를 유지한다. 발 확대는 두 이미지의 동일한 셀 하단 영역을 보여준다. 겹치기는 셀 비율을 맞춘 시각 비교이며 관절 정합이나 앵커 보정을 의미하지 않는다.
 
@@ -30,7 +30,7 @@
 스탠딩은 기존 양발 중심/앞뒤 끝점 모드를 유지한다. 걷기 등 생성 시트는 공통 진입점으로 수동 지면 앵커를 편집한다.
 
 ```bash
-python3 tools/review/build_animation_anchors.py --root .tmp/실행폴더 --animation-id character.default.white-shirt.walk --animation-version candidate-2026-09-20
+python3 tools/management/build_animation_anchors.py --root .tmp/실행폴더 --animation-id character.default.white-shirt.walk --animation-version candidate-2026-09-20
 ```
 
 `result.json`의 layout(열·행), frame_duration_ms, 4방향 outputs(image·size)를 읽어 `anchors.html`을 만든다. 같은 서버의 `/anchors.html`에서 열거나 `--entry anchors.html`로 시작한다. 프레임 수는 레이아웃에서 결정하므로 4×2 걷기는 방향당 8개, 총 32개다. 시트 크기가 열·행으로 나누어떨어지지 않으면 경계를 정수 내림 분할하여 443/444px 같은 셀을 명시하며 픽셀을 리사이즈하지 않는다.
@@ -52,7 +52,7 @@ python3 tools/review/build_animation_anchors.py --root .tmp/실행폴더 --anima
 
 걷기 입력은 preview.html과 anchors.html, 스탠딩 입력은 preview.html이 필요하다. 필요한 페이지와 이미지 사본을 새 한국시간 실행 폴더에 모으며 원본 프롬프트와 로그는 복사하지 않는다. 메뉴 경로는 `/#walk-review`, `/#walk-anchors`, `/#standing-anchors`다. 통합 화면은 실행 시점의 스냅샷이며 후속 생성 결과는 명시적으로 다시 묶는다. 원본 실행 정보는 manager-source.json에 기록한다.
 
-화면의 색상·간격·입력·버튼·포커스 스타일은 `tools/review/ui/shared/review-ui.css`에서 관리한다. 각 생성기는 공통 스타일을 HTML에 삽입하므로 결과 페이지를 별도로 열어도 같은 UI를 사용한다. 통합 생성기는 입력 페이지의 좌표·이미지 메타데이터를 현재 템플릿에 적용한다. 기존 입력 파일은 변경하지 않는다. 앵커 편집은 미리보기와 방향·프레임/좌표 조정/저장 패널로 구성하며 좁은 화면에서는 세로로 배치한다.
+화면의 색상·간격·입력·버튼·포커스 스타일은 `tools/management/ui/shared/review-ui.css`에서 관리한다. 각 생성기는 공통 스타일을 HTML에 삽입하므로 결과 페이지를 별도로 열어도 같은 UI를 사용한다. 통합 생성기는 입력 페이지의 좌표·이미지 메타데이터를 현재 템플릿에 적용한다. 기존 입력 파일은 변경하지 않는다. 앵커 편집은 미리보기와 방향·프레임/좌표 조정/저장 패널로 구성하며 좁은 화면에서는 세로로 배치한다.
 
 `serve.py`는 `--walking`과 `--standing`을 함께 받으면 통합 생성기를 호출하고 반환된 폴더를 바로 제공한다. 이 모드에서는 생성 폴더에 `frame-manager.log`와 `review-server.log`를 함께 기록한다. `--root`와 입력 폴더 옵션은 상호 배타적이며 관리도구 생성 모드의 진입 페이지는 `preview.html`로 고정된다. 생성 실패 시 서버를 시작하지 않는다. 생성만 필요한 경우 `build_frame_manager.py`를 직접 사용할 수 있다.
 

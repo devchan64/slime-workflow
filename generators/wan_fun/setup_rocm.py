@@ -6,7 +6,7 @@ import re
 import subprocess
 import sys
 
-from tools.review.common.management_process import ManagementLaunchLogger, run_logged_management_command
+from tools.management.common.management_process import ManagementLaunchLogger, run_logged_management_command
 
 FUN_WORKSPACE_DIRECTORY = Path(__file__).resolve().parents[2]
 FUN_ENVIRONMENT_DIRECTORY = FUN_WORKSPACE_DIRECTORY / '.local/venvs/wan-fun-rocm'

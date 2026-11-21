@@ -1,5 +1,5 @@
 """생성기 전용 화면 설정."""
-from tools.review.ui.shared.qwen_generator_page import build_qwen_2511_interface
+from tools.management.ui.shared.qwen_generator_page import build_qwen_2511_interface
 
 GENERATOR_PAGE_OPTIONS = {'expression_mode_enabled': True}
 

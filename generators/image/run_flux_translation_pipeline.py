@@ -11,9 +11,9 @@ import traceback
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from generators.image.common_art_style import compose_common_style_prompt
-from tools.review.common.generation_records import write_record_atomically
-from tools.review.common.gpu_job_queue import launch_gpu_process
-from tools.review.domains.translation.service import TranslationServiceManager
+from tools.management.common.generation_records import write_record_atomically
+from tools.management.common.gpu_job_queue import launch_gpu_process
+from tools.management.domains.translation.service import TranslationServiceManager
 
 
 def execute_flux_translation_pipeline(building_job_path):

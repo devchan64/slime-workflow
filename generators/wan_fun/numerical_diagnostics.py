@@ -7,7 +7,7 @@ import math
 def record_fun_tensor_failure(current_torch_module, current_attempt_root, current_stage_name, current_tensor_values, current_additional_record=None):
     """실패 경계의 메타데이터와 원본 텐서를 작업 시도에 보존한다."""
     from safetensors.torch import save_file
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
     current_tensor_records = {current_name: {'shape': list(current_tensor.shape), 'stride': list(current_tensor.stride()),
         'dtype': str(current_tensor.dtype), 'device': str(current_tensor.device)} for current_name, current_tensor in current_tensor_values.items()}
     current_failure_record = {'stage': current_stage_name, 'tensors': current_tensor_records, 'tensor_storage': 'cpu-contiguous', **(current_additional_record or {})}
@@ -38,7 +38,7 @@ def guard_fun_vae_method(current_vae_model, current_attempt_root, current_torch_
     """VAE의 정규화 이전 결과를 검사하는 컨텍스트를 반환한다."""
     from contextlib import contextmanager
     from functools import wraps
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
 
     @contextmanager
     def apply_fun_vae_guard():
@@ -100,7 +100,7 @@ def guard_fun_vae_attention(current_vae_model, current_attempt_root, current_tor
     """진단 선택 시 VAE 첫 어텐션의 입력·출력과 SDPA 비교를 기록한다."""
     from contextlib import contextmanager
     from functools import wraps
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
     from safetensors.torch import save_file
     import time
 

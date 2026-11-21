@@ -2,7 +2,7 @@
 import base64
 from pathlib import Path
 import yaml
-from tools.review.common.strict_yaml import UniqueConfigLoader
+from tools.management.common.strict_yaml import UniqueConfigLoader
 from generators.wan_fun.contracts import validate_fun_request
 
 FUN_EXAMPLE_STORAGE_ROOT = Path(__file__).resolve().parents[1] / 'examples'

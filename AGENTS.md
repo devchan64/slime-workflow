@@ -31,7 +31,7 @@
 - Separate environments by stage: `local/dev/prod`.
 - Local default config must never point to production resources.
 ## Management Source Domains
-- 관리도구 소스는 [도메인 구조 가이드](tools/review/README.md)를 따른다. 공용 Python은 `tools/review/common/`, 생성기별 서비스는 `tools/review/domains/`, UI는 `tools/review/ui/`에서 관리한다.
+- 관리도구 소스는 [도메인 구조 가이드](tools/management/README.md)를 따른다. 공용 Python은 `tools/management/common/`, 생성기별 서비스는 `tools/management/domains/`, UI는 `tools/management/ui/`에서 관리한다.
 - 루트의 이전 서비스 파일은 import·직접 실행 호환 연결이다. 신규 기능은 정식 도메인 모듈에 추가하며 URL·CLI·기록 저장 경로를 디렉터리 이동에 맞춰 바꾸지 않는다.
 
 ## Generator Page and Changelog Standard
@@ -39,7 +39,7 @@
 - 생성기별 폴더 구성, 변경 기록 형식, 공용 코드와 기존 경로의 이관·검증 기준은 [생성기 구성 가이드](workflows/generator-structure.md)를 따른다. 기존 생성기도 전환 대상이며 가이드 작성만으로 페이지·체인지로그 구현이 완료된 것으로 간주하지 않는다.
 
 ## Management UI Guide
-- 미전환 독립 HTML의 전역 스타일은 `tools/review/ui/shared/management.css`에서 관리한다. 웹 페이지는 `/management/style.css`를 연결하고, 단독 검수 HTML은 `read_review_shared_styles()`로 삽입한다. 도메인 CSS에는 배치만 추가하며 공용 색상·상태 스타일을 복제하지 않는다.
+- 미전환 독립 HTML의 전역 스타일은 `tools/management/ui/shared/management.css`에서 관리한다. 웹 페이지는 `/management/style.css`를 연결하고, 단독 검수 HTML은 `read_review_shared_styles()`로 삽입한다. 도메인 CSS에는 배치만 추가하며 공용 색상·상태 스타일을 복제하지 않는다.
 - 생성 UI는 [예상 시간 표시 규칙](workflows/management-ui.md#생성-예상-시간-표시-규칙)에 따라 예상 남은 시간·완료 시각과 추정 근거를 표시한다. 근거가 없으면 계산 중임을 안내한다.
 - 프롬프트 원문을 표시할 때는 [단어 수 표시 규칙](workflows/management-ui.md#프롬프트-단어-수-표시-규칙)에 따라 개별·최종 단어 수를 함께 표시한다. 최종 수치는 방향·변수 치환 후 실제 모델 입력을 기준으로 한다.
 - 관리도구 UI를 신규 작성하거나 수정할 때 [관리도구 UI 가이드](workflows/management-ui.md)를 기준으로 한다. 공용 색상·레이아웃, 고정 설정 표시, 생성 버튼 상태, 로그, 누적 이력, 재생 컨트롤과 검증 범위를 다룬다.
@@ -66,7 +66,7 @@
 
 ## Management Client and Gateway Standard
 - 관리도구의 기준 구조는 **GUI·통합 CLI → 공용 명령 게이트웨이 → 작업 서비스 → 공용 기록 저장소**이다. 상세 구현·사용법은 [관리도구 클라이언트 가이드](workflows/management-clients.md)를 따른다.
-- `tools/manager.py`는 CLI 진입점만 담당한다. 서비스·명령 등록, 최상위 `command`·`help`, 실행 디스패치와 HTTP 명령 전송은 `tools/review/common/management_gateway.py`에서 관리한다. 별도 CLI 실행 체계나 중복 서비스 레지스트리를 만들지 않는다.
+- `tools/manager.py`는 CLI 진입점만 담당한다. 서비스·명령 등록, 최상위 `command`·`help`, 실행 디스패치와 HTTP 명령 전송은 `tools/management/common/management_gateway.py`에서 관리한다. 별도 CLI 실행 체계나 중복 서비스 레지스트리를 만들지 않는다.
 - CLI 인자 파싱·파일 입력·진행 대기·취소와 명령 디스패치는 게이트웨이의 공통 구현을 사용한다. 생성기별 독립 CLI 실행 모듈이나 로그/상태 직접 조회 루프를 만들지 않는다. GUI와 CLI 모두 `execute_management_command`로 진입하며 실제 생성·상태 변경·기록 저장은 작업 서비스에 둔다.
 - 웹 페이지는 GUI 클라이언트다. 명령 요청은 게이트웨이를 거쳐 CLI와 같은 작업 서비스를 호출한다. 기존 웹 API 주소는 호환 어댑터로 유지할 수 있으며, 새 통합 HTTP 명령은 `POST /management/command`의 `{service, command, payload}` 계약을 사용한다.
 - 브라우저 요청을 셸 문자열로 변환하거나 요청마다 CLI 프로세스를 실행하지 않는다. 명령 게이트웨이와 서비스 코드를 공유한다. 이미지·프레임·정적 UI 파일 조회는 명령 실행과 구분한다.
@@ -296,7 +296,7 @@
 - 문서·주석·표시 문구만 바꾸면 diff·형식·링크 확인을 기본으로 하고 실행 테스트는 생략할 수 있다. UI 배치·상태 수정은 해당 콜백/컴포넌트 검사와 바뀐 흐름의 브라우저 검증만 수행한다. 생성기 하나의 수정은 해당 생성기와 직접 연결된 계약 검사로 한정한다.
 - 공용 코드 수정도 실제 소비 경로를 기준으로 관련 테스트를 선택한다. 전체 회귀는 광범위한 구조·의존성·공용 계약 변경, 영향 범위가 불명확한 실패, 또는 사용자의 명시적 전체 검사 요청에 근거가 있을 때만 실행한다. 전수 검사 목표가 있다는 이유로 매 수정마다 전체 회귀를 실행하지 않는다.
 - 필요한 검사가 통과하면 새 변경·실패·해결되지 않은 위험이 없는 한 같은 검사를 반복하거나 범위를 확대하지 않는다. 검증을 위해 저위험 구현을 그대로 반복하는 테스트를 추가하지 않는다. 실행한 범위와 생략한 검증의 한계를 정확히 보고한다.
-- 관리도구 회귀 실행기는 `.venv/bin/python tools/review/tests/run_management_audit.py --module tools.review.tests.test_writer_agent_gradio`처럼 필요한 모듈을 지정한다. 여러 모듈은 `--module`을 반복한다. 전체 검사는 이유를 명시하고 `--all`로 요청하며, 인자 없이 전체 검사를 시작하지 않는다.
+- 관리도구 회귀 실행기는 `.venv/bin/python tools/management/tests/run_management_audit.py --module tools.management.tests.test_writer_agent_gradio`처럼 필요한 모듈을 지정한다. 여러 모듈은 `--module`을 반복한다. 전체 검사는 이유를 명시하고 `--all`로 요청하며, 인자 없이 전체 검사를 시작하지 않는다.
 - 기존 회귀 실행기는 성공 시 통과·실패·오류·건너뜀 수, 종료 코드, 소요 시간과 결과 경로만 짧게 출력한다. 성공 로그·경고·개별 테스트 목록은 콘솔에 나열하지 않는다.
 - 실패 시 실패·오류 테스트 식별자와 해당 오류만 제한된 길이로 출력한다. 전체 로그·실행기 오류·heartbeat·JUnit·종료 코드는 파일에 보존한다. 보고서 누락·손상은 집계 불가로 명시하고 원래 종료 코드를 유지한다. 상세 진단은 저장 로그에서 필요한 부분만 읽는다.
 - 회귀검사는 자동화 스크립트를 통해 실행한다. 스크립트가 검사 실행·로그 저장·종료 코드 보존·최종 결과 요약을 담당한다.
@@ -307,7 +307,7 @@
 ## Shared Map Renderer Ownership
 - 모든 검수 화면·캡처는 8770 관리도구의 공용 경로로 통일한다. 명령 게이트웨이와 8770이 소유하는 내부 Gradio 프로세스는 별도 검수 진입점이 아니다. 8788 등 별도 포트의 임시 검수 서버·독립 게시 경로를 만들지 않는다. 8770이 중단되어 있으면 정식 실행 경로를 확인하며 별도 서버로 우회하지 않는다.
 - 마을맵·필드맵 검수는 하나의 공용 기능 체계로 관리한다. 신규 기능·버그 수정 시 양쪽 소비 경로를 확인하고 반복되는 UI·명령·상태 처리·수명 정리를 공용 구현에 반영한다. 페이지별 복사본이나 맵 종류별 동일 기능의 별도 구현을 추가하지 않는다. 종류별 차이는 데이터·옵션·명시적인 어댑터로 한정하고, 공용화할 수 없는 예외는 이유와 소유 위치를 문서화한다.
-- 공용 검수 기능의 소유 파일은 [맵 검수 공용 기능 경계](tools/review/README.md#맵-검수-공용-기능-경계)를 따른다. 마을·필드별 요청이라도 먼저 기존 공용 소비 경로를 확인하고, 옵션·데이터 차이로 처리할 수 있는 기능은 별도 페이지 구현으로 분리하지 않는다.
+- 공용 검수 기능의 소유 파일은 [맵 검수 공용 기능 경계](tools/management/README.md#맵-검수-공용-기능-경계)를 따른다. 마을·필드별 요청이라도 먼저 기존 공용 소비 경로를 확인하고, 옵션·데이터 차이로 처리할 수 있는 기능은 별도 페이지 구현으로 분리하지 않는다.
 - 마을·필드 맵 검수의 반복 기능(화면 맞춤·회전·확대·이동·표시 옵션·상태 갱신)은 공용 검수 UI와 브라우저 어댑터에서 관리한다. 맵별 페이지에 복제하지 않으며 지형·건물별 경계 계산과 렌더러 입력 차이만 분기한다. 공용 기능 변경 시 마을·필드 대표 화면의 해당 동작을 함께 검증한다.
 - 필드·마을 렌더러의 소스 관리 주체는 `slime-frontend`다. 게임과 관리도구는 프론트엔드가 소유한 공용 렌더러를 단일 원본으로 사용한다.
 - 공용 진입점은 `packages/field-renderer/`이며, 이 패키지가 사용하는 `src/game/terrain/`의 구현도 프론트엔드 소유다. 지형·건물·타일 선택·경계선·깊이·투영·렌더링 속성의 수정은 이 원본에서 수행한다. 같은 규칙을 관리도구에 별도로 구현하지 않는다.

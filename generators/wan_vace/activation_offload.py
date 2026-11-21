@@ -24,7 +24,7 @@ VACE_BRANCH_OFFLOAD_REPLACEMENTS = (
 
 def load_branch_offload_model(current_source_root, current_attempt_root):
     """VACE 분기 계산 동안 본체 입력을 CPU에 보관하고 복귀시킨다."""
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
     current_source_text = (current_source_root / 'videox_fun/models/wan_transformer3d_vace.py').read_text()
     current_patched_text = current_source_text
     for current_original_text, current_replacement_text in VACE_BRANCH_OFFLOAD_REPLACEMENTS:
@@ -47,7 +47,7 @@ def load_branch_offload_model(current_source_root, current_attempt_root):
 
 def load_input_offload_pipeline(current_source_root, current_attempt_root):
     """공식 파일을 수정하지 않고 이동문만 포함한 실행 사본을 기록·로딩한다."""
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
     current_source_text = (current_source_root / VACE_PIPELINE_RELATIVE_PATH).read_text()
     if current_source_text.count(VACE_PIPELINE_OFFLOAD_ANCHOR) != 1:
         raise ValueError('공식 VACE 입력 오프로드 위치가 일치하지 않습니다.')

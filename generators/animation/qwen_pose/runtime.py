@@ -8,7 +8,7 @@ import logging
 import subprocess
 import threading
 import time
-from tools.review.common.worker_generation_progress import WorkerGenerationProgress
+from tools.management.common.worker_generation_progress import WorkerGenerationProgress
 
 WORKFLOW_REPO_ROOT = Path(__file__).resolve().parents[3]
 FIXED_MODEL_REVISION = '6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9'

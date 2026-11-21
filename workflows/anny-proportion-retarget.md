@@ -13,7 +13,7 @@
 
 ## 검증과 한계
 
-Blender Python에서 `tools/review/tests/test_body_proportion_retarget.py`와 기존 `test_anny_position_retarget.py`를 실행한다. 상세 로그·종료 코드·JUnit을 저장하는 회귀 실행기를 사용한다.
+Blender Python에서 `tools/management/tests/test_body_proportion_retarget.py`와 기존 `test_anny_position_retarget.py`를 실행한다. 상세 로그·종료 코드·JUnit을 저장하는 회귀 실행기를 사용한다.
 
 `build_surface_partitions`와 `count_surface_intersections`는 지배 가중치로 분류한 팔·손과 몸통·다리 사이의 비인접 삼각형 교차를 검사한다. 교차쌍 수는 깊이·체적 지표가 아니다. 혼합 경계, 완전히 내부에 들어간 표면, 팔끼리 교차는 검사하지 않는다. 정점 수를 유지하면서 토폴로지를 바꾸는 modifier도 지원 대상으로 간주하지 않는다.
 

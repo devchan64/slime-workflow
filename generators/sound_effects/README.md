@@ -35,4 +35,4 @@
 
 ## 검증
 
-공용 자동 회귀 실행기로 `tools.review.tests.test_dasheng_audio_sfx`, `test_music_generation`, `test_music_management_audit`, `test_management_gateway`, `test_management_runtime`을 검사한다. 격리 테스트는 운영 GPU 작업을 생성·취소하지 않는다. 실모델 출력과 실제 8770 화면 검증은 별도로 보고한다.
+공용 자동 회귀 실행기로 `tools.management.tests.test_dasheng_audio_sfx`, `test_music_generation`, `test_music_management_audit`, `test_management_gateway`, `test_management_runtime`을 검사한다. 격리 테스트는 운영 GPU 작업을 생성·취소하지 않는다. 실모델 출력과 실제 8770 화면 검증은 별도로 보고한다.

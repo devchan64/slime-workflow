@@ -57,7 +57,7 @@ python3 -m generators.writer_agent.cli show --job-id YYYYMMDD-HHMMSS-xxxxxxxx
 
 ```bash
 python3 -m unittest discover -s generators/writer_agent/tests -v
-python3 -m unittest discover -s tools/review/tests
-node tools/review/tests/frame_manager_ui.test.mjs
+python3 -m unittest discover -s tools/management/tests
+node tools/management/tests/frame_manager_ui.test.mjs
 node generators/writer_agent/tests/manager_ui.test.mjs
 ```

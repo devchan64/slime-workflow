@@ -13,8 +13,8 @@ from generators.prompt_translation.prepare import calculate_file_sha256, resolve
 from generators.prompt_translation.terms import compare_translation_terms
 from generators.prompt_translation.quality_checks import inspect_translation_quality
 from generators.prompt_translation.semantic_review import find_negated_source_clauses
-from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.translation.service import TRANSLATION_JOB_ROOT, TRANSLATION_MODEL_ROOT, TRANSLATION_JOB_PATTERN
+from tools.management.common.generation_records import write_record_atomically
+from tools.management.domains.translation.service import TRANSLATION_JOB_ROOT, TRANSLATION_MODEL_ROOT, TRANSLATION_JOB_PATTERN
 
 
 def resolve_translation_target_code(translation_target_language):

@@ -6,19 +6,19 @@ import cv2
 import numpy as np
 from PIL import Image, ImageOps
 import gradio as gr
-from tools.review.common.gradio_generator_changelog import build_generator_changelog
+from tools.management.common.gradio_generator_changelog import build_generator_changelog
 from generators.wan_fun.page.examples import FUN_MODEL_CHOICES, load_fun_example_catalog, load_fun_selected_example
 from generators.wan_fun.contracts import reject_retired_rgb_input, FUN_JOB_STORAGE, FUN_DEFAULT_SETTINGS, FUN_MAX_FRAME_COUNT, FUN_MAX_SEED_VALUE, validate_fun_request
 from generators.wan_fun.video_input import inspect_fun_pose_video
-from tools.review.common.management_client import execute_remote_management_command
-from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
-from tools.review.common.gradio_button_guidance import build_button_guidance
-from tools.review.common.gradio_seed import build_generation_seed
-from tools.review.common.gradio_history import build_generation_history_view
-from tools.review.common.gradio_logs import build_execution_logs
-from tools.review.common.gradio_video_results import describe_video_generation_status, render_video_generation_result
-from tools.review.common.generation_status_lookup import read_existing_generation_status
-from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
+from tools.management.common.management_client import execute_remote_management_command
+from tools.management.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
+from tools.management.common.gradio_button_guidance import build_button_guidance
+from tools.management.common.gradio_seed import build_generation_seed
+from tools.management.common.gradio_history import build_generation_history_view
+from tools.management.common.gradio_logs import build_execution_logs
+from tools.management.common.gradio_video_results import describe_video_generation_status, render_video_generation_result
+from tools.management.common.generation_status_lookup import read_existing_generation_status
+from tools.management.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 
 
 
@@ -37,7 +37,7 @@ def describe_fun_input_readiness(current_reference_path, current_video_path, cur
 
 
 def render_fun_video_result(current_job_identifier, current_status_record, current_server_address):
-    from tools.review.common.gradio_video_results import render_condition_video_previews
+    from tools.management.common.gradio_video_results import render_condition_video_previews
     return render_video_generation_result(current_job_identifier, current_status_record, current_server_address)+render_condition_video_previews(current_status_record)
 
 
@@ -151,7 +151,7 @@ def build_fun_interface(current_server_address, current_command_callback=None):
         build_generator_changelog(current_interface_blocks, 'wan22-fun-control-generator')
         gr.Markdown('## Wan Fun Control 실험 생성기\n포즈 영상과 참조 이미지로 애니메이션을 생성합니다. VideoX-Fun DWPose 추출과 관절 길이 보정은 Kimodo 생성기에서 수행합니다.')
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
-        from tools.review.common.gradio_model_download import build_model_progress_display
+        from tools.management.common.gradio_model_download import build_model_progress_display
         build_model_progress_display(current_interface_blocks, 'wan22-fun-control')
         with gr.Row():
             current_model_refresh = gr.Button('상태 확인')

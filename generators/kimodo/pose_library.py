@@ -67,7 +67,7 @@ def build_soma_endpoint_records(current_pose_identifier,current_frame_count):
 
 def prepare_soma_endpoint_constraints(current_request_record,current_attempt_root,current_model_skeleton):
     from kimodo.constraints import load_constraints_lst
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
     current_pose_identifier = current_request_record.get('endpoint_pose_id')
     if not current_pose_identifier:
         return []

@@ -7,7 +7,7 @@ import os
 from pathlib import Path, PurePosixPath
 
 import yaml
-from tools.review.common.strict_yaml import UniqueConfigLoader
+from tools.management.common.strict_yaml import UniqueConfigLoader
 
 FLUX_WORKSPACE_DIRECTORY = Path(__file__).resolve().parents[2]
 FLUX_MODEL_DIRECTORY = FLUX_WORKSPACE_DIRECTORY / '.model/flux-3-image-klein'
@@ -111,7 +111,7 @@ def publish_flux_model_directory(current_stage_path, current_model_path):
 
 def prepare_flux_model_files():
     """기존 모델은 검증만 하고 새 모델은 전용 작업 경로에서 준비한다."""
-    from tools.review.common.model_huggingface_download import tracked_snapshot_download
+    from tools.management.common.model_huggingface_download import tracked_snapshot_download
     current_lock_record = read_flux_model_lock()
     current_model_path = FLUX_MODEL_DIRECTORY
     current_model_parent = current_model_path.parent

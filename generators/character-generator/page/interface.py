@@ -3,7 +3,7 @@ from pathlib import Path
 
 import yaml
 
-from tools.review.ui.shared.qwen_generator_page import build_qwen_2511_interface
+from tools.management.ui.shared.qwen_generator_page import build_qwen_2511_interface
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[3]
 STYLE_PROMPT_PATH = WORKFLOW_ROOT_DIRECTORY / 'prompts/common/art-style-v1.5.0.yaml'

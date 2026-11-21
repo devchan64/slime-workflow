@@ -99,7 +99,7 @@ class WriterApiContracts(TestCase):
 
     def test_writer_cancel_checks_live_queue_and_keeps_documents_untouched(self):
         from generators.writer_agent.documents import save_yaml_document
-        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.management.common.management_gateway import ManagementCommandGateway
         current_test_root=Path(self.temporary_root_handle.name)
         current_docs_root=current_test_root/'docs'
         (current_docs_root/'ideas').mkdir(parents=True)
@@ -191,7 +191,7 @@ class WriterApiContracts(TestCase):
         self.assertEqual(current_result_value['records'],[{'id':current_job_root.name,'recorded_status':'reasoning','status_source':'job'}])
         self.assertNotIn('private',str(current_result_value))
         self.assertNotIn('secret',str(current_result_value))
-        from tools.review.common.generation_records import hold_history_observation_guard
+        from tools.management.common.generation_records import hold_history_observation_guard
         with hold_history_observation_guard(current_test_root/'state'/'jobs'):
             with self.assertRaisesRegex(ValueError,'이미 진행 중'):
                 current_manager.observe_writer_history({})
@@ -315,7 +315,7 @@ class WriterApiContracts(TestCase):
         self.assertFalse(json.loads(current_http_handler.wfile.getvalue())['configured'])
 
     def test_history_observe_requires_same_origin_and_writer_token(self):
-        from tools.review.common.management_gateway import resolve_management_command
+        from tools.management.common.management_gateway import resolve_management_command
         self.assertEqual(resolve_management_command('writer-agent','writer-token',{}),('GET','/writer-agent/api/token'))
         with self.assertRaises(ValueError):
             resolve_management_command('writer-agent','writer-token',{'extra':True})
@@ -365,7 +365,7 @@ class WriterApiContracts(TestCase):
         self.assertFalse(self.writer_manager_service.handle_writer_request(self.build_request_handler('/worldbuilding/api/state')))
 
     def test_gateway_preserves_writer_token_and_payload(self):
-        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.management.common.management_gateway import ManagementCommandGateway
         current_gateway_value=ManagementCommandGateway({'writer-agent':self.writer_manager_service.handle_writer_request})
         for current_token_value,current_expected_status in [('wrong',400),(self.writer_manager_service.csrf_token_value,202)]:
             current_request_handler=self.build_request_handler('/management/command','POST',{'service':'writer-agent','command':'writer-submit','payload':{'mode':'learn','prompt':''}},**{'X-Writer-Token':current_token_value})
@@ -375,7 +375,7 @@ class WriterApiContracts(TestCase):
             self.assertEqual(current_request_handler.status_code,current_expected_status)
 
     def test_gateway_detail_uses_existing_record_reader(self):
-        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.management.common.management_gateway import ManagementCommandGateway
         current_gateway_value=ManagementCommandGateway({'writer-agent':self.writer_manager_service.handle_writer_request})
         current_request_handler=self.build_request_handler('/management/command','POST',{'service':'writer-agent','command':'writer-detail','payload':{'id':'mock-job'}})
         with patch.object(self.writer_manager_service,'read_writer_detail',return_value={'id':'mock-job'}) as current_read_mock:

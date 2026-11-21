@@ -163,10 +163,10 @@ class WriterAgentContracts(TestCase):
         import os
         import threading
         from http.server import ThreadingHTTPServer
-        from tools.review.common.management_gateway import ManagementCommandGateway,execute_management_command
-        from tools.review.gateway_server import create_gateway_request_handler
-        from tools.review.domains.hermes_agent.service import HermesServiceManager
-        from tools.review.domains.hermes_agent.delegation_store import HermesDelegationStore
+        from tools.management.common.management_gateway import ManagementCommandGateway,execute_management_command
+        from tools.management.gateway_server import create_gateway_request_handler
+        from tools.management.domains.hermes_agent.service import HermesServiceManager
+        from tools.management.domains.hermes_agent.delegation_store import HermesDelegationStore
         current_root_path=Path(self.temporary_root_handle.name)
         current_job_identifier=create_writer_job(self.workspace_config_values,{'mode':'write','prompt':'격리 제안'})
         current_job_root=resolve_job_directory(self.workspace_config_values,current_job_identifier)
@@ -184,7 +184,7 @@ class WriterAgentContracts(TestCase):
         current_thread_value.start()
         current_address_value=f'http://127.0.0.1:{current_server_value.server_port}'
         try:
-            with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_address_value}), patch('tools.review.domains.hermes_agent.writer_operations.HermesDelegationStore',return_value=current_store_value):
+            with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_address_value}), patch('tools.management.domains.hermes_agent.writer_operations.HermesDelegationStore',return_value=current_store_value):
                 current_review_value=execute_management_command('hermes-agent','hermes-writer-status',{'request_id':'writer_request_123'},current_address_value)
                 self.assertEqual(current_review_value['job']['stage'],'review')
                 self.assertFalse(current_review_value['job']['truncated'])
@@ -202,7 +202,7 @@ class WriterAgentContracts(TestCase):
             current_server_value.server_close()
 
     def test_shared_gateway_applies_and_reads_same_saved_record(self):
-        from tools.review.common.management_gateway import ManagementCommandGateway
+        from tools.management.common.management_gateway import ManagementCommandGateway
         current_job_identifier=create_writer_job(self.workspace_config_values,{'mode':'write','prompt':'격리 적용'})
         current_job_root=resolve_job_directory(self.workspace_config_values,current_job_identifier)
         save_yaml_document(current_job_root/'proposal.yaml',self.create_test_proposal())

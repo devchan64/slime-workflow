@@ -2,7 +2,7 @@
 import subprocess
 from generators.dwpose.contracts import DWPOSE_WORKSPACE_ROOT, validate_fun_pose_assets
 from generators.wan_fun.contracts import FUN_PYTHON_EXECUTABLE
-from tools.review.common.management_setup import hold_shared_environment_reservation
+from tools.management.common.management_setup import hold_shared_environment_reservation
 
 
 def prepare_dwpose_model_files():

@@ -119,7 +119,7 @@ def download_verified_file(current_download_url, current_target_path, expected_s
             if calculate_file_digest(current_target_path) != expected_sha256_value:
                 raise ValueError(f'기존 파일 해시 불일치: {current_target_path}')
         return
-    from tools.review.common.model_http_download import download_verified_http
+    from tools.management.common.model_http_download import download_verified_http
     emit_runtime_trace('download', f'시작: {current_target_path.name}')
     download_verified_http(current_download_url, current_target_path, expected_sha256_value, 'writer-agent/' + current_target_path.name)
     emit_runtime_trace('download', f'완료: {current_target_path}')
@@ -127,7 +127,7 @@ def download_verified_file(current_download_url, current_target_path, expected_s
 
 def inspect_gpu_environment(minimum_memory_mib=12288):
     """ROCm 장치와 공용 GPU 메모리 측정값을 확인한다."""
-    from tools.review.common.gpu_job_queue import read_gpu_memory, read_gpu_memory_domain, read_host_available_memory
+    from tools.management.common.gpu_job_queue import read_gpu_memory, read_gpu_memory_domain, read_host_available_memory
     current_rocminfo_result = subprocess.run(['rocminfo'], capture_output=True, text=True, check=True, timeout=30)
     if 'gfx1151' not in current_rocminfo_result.stdout:
         raise RuntimeError('지원 대상 gfx1151 ROCm GPU를 확인할 수 없습니다.')
@@ -200,7 +200,7 @@ def inspect_writer_model_files():
 
 def prepare_writer_model_files():
     """작가 문서 작업 공간 없이 고정 모델 파일만 다운로드하고 검증한다."""
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
     RUNTIME_INSTALL_ROOT.mkdir(parents=True, exist_ok=True)
     with lock_gpu_runtime():
         current_file_specs = ((MODEL_DOWNLOAD_URL, MODEL_DOWNLOAD_NAME, MODEL_DOWNLOAD_SHA256),
@@ -236,7 +236,7 @@ def execute_writer_preparation(current_argument_values, current_prepare_callback
     CURRENT_LOG_PATH=current_argument_values.run_dir/'execution.log'
     RUNTIME_INSTALL_ROOT.mkdir(parents=True,exist_ok=True)
     from generators.writer_agent.jobs import update_job_status, read_process_identity
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
     current_preparation_lock = os.fdopen(current_argument_values.lock_fd, 'a') if current_argument_values.lock_fd is not None else contextlib.nullcontext()
     with current_preparation_lock:
         update_job_status(current_argument_values.run_dir,'preparing',process_id=os.getpid(),process_identity=read_process_identity(os.getpid()))

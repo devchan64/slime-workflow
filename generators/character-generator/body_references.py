@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 from PIL import Image
-from tools.review.common.map_tile_assets import UniqueAssetYamlLoader
+from tools.management.common.map_tile_assets import UniqueAssetYamlLoader
 import yaml
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]

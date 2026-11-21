@@ -4,14 +4,14 @@ import io
 from pathlib import Path
 import gradio as gr
 from PIL import Image
-from tools.review.common.gradio_generator_changelog import build_generator_changelog
-from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
-from tools.review.common.gradio_history import build_generation_history_view
-from tools.review.common.reference_restore import HistoryInputError
-from tools.review.common.gradio_seed import build_generation_seed
-from tools.review.common.management_client import execute_remote_management_command
-from tools.review.domains.image.expression_generation import load_expression_configuration
-from tools.review.domains.image.flux_expression_generation import build_flux_expression_prompt, restore_flux_expression_inputs as restore_saved_expression
+from tools.management.common.gradio_generator_changelog import build_generator_changelog
+from tools.management.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
+from tools.management.common.gradio_history import build_generation_history_view
+from tools.management.common.reference_restore import HistoryInputError
+from tools.management.common.gradio_seed import build_generation_seed
+from tools.management.common.management_client import execute_remote_management_command
+from tools.management.domains.image.expression_generation import load_expression_configuration
+from tools.management.domains.image.flux_expression_generation import build_flux_expression_prompt, restore_flux_expression_inputs as restore_saved_expression
 
 DEFAULT_FACE_IMAGE_PATH = Path(__file__).resolve().parents[3] / 'baseline/player/default/default-face-front-v1.png'
 

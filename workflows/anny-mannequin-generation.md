@@ -51,7 +51,7 @@ BVH의 MOTION 프레임을 기준 자세로 사용하지 않는다. 출처는 �
 원본과의 직접 방향 차이와 선언된 전달 목표 오차를 구분한다. 골반처럼 다른 구간이 끝점을 구동하는 경우 끝점 오차와 본 회전 오차를 별도로 검수한다.
 재개는 저장된 리그와 계약을 사용하며 최신 방식으로 다시 표시하지 않는다.
 
-회귀 검증: `.local/blender-runtime/bin/python tools/review/tests/test_anny_position_retarget.py`.
+회귀 검증: `.local/blender-runtime/bin/python tools/management/tests/test_anny_position_retarget.py`.
 기준 방향 180° 통과·반대 방향 이동·빠른 동작·좌표 회전·평행 이동·길이 변경·
 분할 본·프로필 오류·상태 재개를 검증한다. 일반 Python 환경은 Blender 의존
 검사를 skip하므로 실제 검증은 위 명령으로 실행해야 한다.

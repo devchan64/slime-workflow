@@ -4,8 +4,8 @@ import importlib
 import gradio as gr
 from PIL import Image
 
-from tools.review.common.gradio_history_cards import CardGallery
-from tools.review.common.gradio_reference_images import REFERENCE_IMAGE_CARD_HEIGHT
+from tools.management.common.gradio_history_cards import CardGallery
+from tools.management.common.gradio_reference_images import REFERENCE_IMAGE_CARD_HEIGHT
 
 BODY_REFERENCE_PAGE_SIZE = 8
 BODY_REFERENCE_MODULE = importlib.import_module('generators.character-generator.body_references')

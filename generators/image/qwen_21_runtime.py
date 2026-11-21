@@ -5,7 +5,7 @@ import json
 import threading
 from datetime import datetime
 from pathlib import Path
-from tools.review.common.worker_generation_progress import WorkerGenerationProgress
+from tools.management.common.worker_generation_progress import WorkerGenerationProgress
 
 WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[2]
 QWEN_MODEL_IDENTIFIER = 'Qwen/Qwen-Image-2.1'
@@ -63,7 +63,7 @@ def validate_qwen_model_assets():
 def download_qwen_model_assets():
     """공식 비양자화 스냅샷을 기존 로컬 모델 경로에 준비한다."""
     reject_retired_qwen_usage()
-    from tools.review.common.model_huggingface_download import tracked_snapshot_download as snapshot_download
+    from tools.management.common.model_huggingface_download import tracked_snapshot_download as snapshot_download
 
     QWEN_MODEL_DIRECTORY.mkdir(parents=True, exist_ok=True)
     with (QWEN_MODEL_DIRECTORY/'.prepare.lock').open('a') as current_prepare_lock:
@@ -114,7 +114,7 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
         current_pipeline_model.vae.disable_tiling()
         print(f'{datetime.now().isoformat()}/qwen21/vae VAE 인코딩·디코딩 타일링 비활성', flush=True)
         if current_job_root.parent.name == 'expression-generator':
-            from tools.review.domains.image.expression_generation import validate_expression_adapter, expression_adapter_metadata
+            from tools.management.domains.image.expression_generation import validate_expression_adapter, expression_adapter_metadata
             if current_request_record.get('expression_adapter') != expression_adapter_metadata():
                 raise ValueError('표정 LoRA 실행 설정이 일치하지 않습니다.')
             current_adapter_path = validate_expression_adapter()

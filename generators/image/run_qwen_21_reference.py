@@ -18,8 +18,8 @@ def execute_qwen_reference_worker():
     sys.path.insert(0, str(WORKFLOW_ROOT_PATH))
     from generators.image.worker_lock import acquire_worker_lock
     from generators.image.qwen_21_runtime import execute_qwen_reference_generation
-    from tools.review.domains.image.three_reference_generation import validate_three_reference_job_path, verify_reference_snapshots
-    from tools.review.domains.image.seamless_generation import prepare_seamless_reference, finish_seamless_generation
+    from tools.management.domains.image.three_reference_generation import validate_three_reference_job_path, verify_reference_snapshots
+    from tools.management.domains.image.seamless_generation import prepare_seamless_reference, finish_seamless_generation
 
     argument_parser_value = argparse.ArgumentParser(description=__doc__)
     argument_parser_value.add_argument('--job-dir', type=Path, required=True)
@@ -35,10 +35,10 @@ def execute_qwen_reference_worker():
             if current_request_record['seamless_tile'].get('schema_version') not in (2, 3, 4, 6, 7):
                 raise ValueError('Qwen 2.1 심리스 실행 기록 버전 오류')
         elif current_job_root.parent.name == 'expression-generator':
-            from tools.review.domains.image.expression_generation import verify_expression_saved_request
+            from tools.management.domains.image.expression_generation import verify_expression_saved_request
             verify_expression_saved_request(current_job_root, current_request_record)
         else:
-            from tools.review.domains.image.qwen_21_generation import verify_qwen_saved_request
+            from tools.management.domains.image.qwen_21_generation import verify_qwen_saved_request
             verify_qwen_saved_request(current_job_root, current_request_record)
         current_lock_path = WORKFLOW_ROOT_PATH / '.local/image-generation-gpu.lock'
         current_lock_path.parent.mkdir(parents=True, exist_ok=True)
@@ -46,7 +46,7 @@ def execute_qwen_reference_worker():
             acquire_worker_lock(current_lock_handle, 'waiting-gpu')
             current_reference_paths = [current_job_root / current_reference_name for current_reference_name in current_request_record['references']]
             if seamless_generation_enabled and current_request_record['seamless_tile']['schema_version'] in (3,4,6,7):
-                from tools.review.domains.image.seamless_pattern import execute_pattern_pipeline
+                from tools.management.domains.image.seamless_pattern import execute_pattern_pipeline
                 execute_pattern_pipeline(current_job_root,current_request_record,execute_qwen_reference_generation)
             else:
                 if seamless_generation_enabled:

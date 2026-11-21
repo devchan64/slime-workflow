@@ -7,15 +7,15 @@ import sys
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
-from tools.review.domains.image.flux_expression_generation import FLUX_MODEL_ROOT_DIRECTORY, FLUX_MODEL_REVISION_VALUE
-from tools.review.domains.image.three_reference_generation import verify_reference_snapshots
+from tools.management.domains.image.flux_expression_generation import FLUX_MODEL_ROOT_DIRECTORY, FLUX_MODEL_REVISION_VALUE
+from tools.management.domains.image.three_reference_generation import verify_reference_snapshots
 
 
 def execute_flux_image_worker():
     current_parser_value = argparse.ArgumentParser()
     current_parser_value.add_argument('--job-dir', required=True)
     current_job_root = Path(current_parser_value.parse_args().job_dir).resolve()
-    from tools.review.domains.image.flux_image_generation import FLUX_IMAGE_PROFILE_RECORDS
+    from tools.management.domains.image.flux_image_generation import FLUX_IMAGE_PROFILE_RECORDS
     current_profile_name = current_job_root.parent.name.removesuffix('-generator')
     if current_profile_name not in FLUX_IMAGE_PROFILE_RECORDS or current_job_root.parent != (WORKFLOW_ROOT_DIRECTORY/'.tmp/test'/(current_profile_name+'-generator')).resolve():
         raise ValueError('FLUX 이미지 작업 경로가 올바르지 않습니다.')
@@ -98,7 +98,7 @@ def execute_flux_image_worker():
             raise ValueError('전역 주기 디노이저 호출 횟수가 올바르지 않습니다.')
         current_output_image = current_output_value['images'][0]
         if current_profile_name == 'flux-seamless':
-            from tools.review.domains.image.flux_seamless_output import blend_opposite_tile_edges, build_repeated_tile_preview
+            from tools.management.domains.image.flux_seamless_output import blend_opposite_tile_edges, build_repeated_tile_preview
             if current_seamless_method == 'circular-vae':
                 with Image.open(current_job_root/'raw-result.png') as current_raw_image:
                     current_blended_image=blend_opposite_tile_edges(current_raw_image)

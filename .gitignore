@@ -22,5 +22,5 @@ __pycache__/
 /gui/node_modules/
 
 # 프론트엔드 빌드에서 전달하는 렌더러·엔진 산출물 (manifest만 추적)
-/tools/review/ui/map/vendor/field-renderer/*.mjs
-/tools/review/ui/map/vendor/field-renderer/LICENSE.phaser.md
+/tools/management/ui/map/vendor/field-renderer/*.mjs
+/tools/management/ui/map/vendor/field-renderer/LICENSE.phaser.md

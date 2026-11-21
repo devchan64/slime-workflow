@@ -8,8 +8,8 @@ import sys
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
-from tools.review.common.generation_records import write_record_atomically
-from tools.review.domains.translation.service import TRANSLATION_MODEL_ROOT
+from tools.management.common.generation_records import write_record_atomically
+from tools.management.domains.translation.service import TRANSLATION_MODEL_ROOT
 
 TRANSLATION_MODEL_REVISION = '10042cb0e6e7fdce748996a71dc3dc432a4e0c89'
 
@@ -38,7 +38,7 @@ def resolve_translation_snapshot(model_root_directory, translation_manifest_reco
 def prepare_translation_model(translation_revision_value=TRANSLATION_MODEL_REVISION):
     if not re.fullmatch(r'[0-9a-f]{40}', translation_revision_value):
         raise ValueError('Hugging Face의 40자리 커밋 리비전을 지정하세요.')
-    from tools.review.common.model_huggingface_download import tracked_snapshot_download
+    from tools.management.common.model_huggingface_download import tracked_snapshot_download
     translation_snapshot_path = TRANSLATION_MODEL_ROOT / translation_revision_value
     translation_snapshot_path.mkdir(parents=True, exist_ok=True)
     tracked_snapshot_download(repo_id='google/translategemma-4b-it', revision=translation_revision_value, local_dir=str(translation_snapshot_path), allow_patterns=['*.json', '*.jinja', '*.model', '*.safetensors'])

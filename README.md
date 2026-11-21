@@ -85,7 +85,7 @@ GUI와 CLI는 공용 명령 게이트웨이, 작업 서비스, GPU 대기열과 
 - **이미지**: [FLUX 이미지 생성기](workflows/flux-image-generators.md)는 일반 이미지, 캐릭터, 마네킨, 빌보드, 소품, 식생, 건물, 심리스 타일과 표정 작업을 다룬다. 생성 결과의 품질과 반복 경계는 직접 검수한다.
 - **모션**: [Kimodo 사용 설명](generators/kimodo/README.md)은 텍스트 모션 생성과 SOMA 렌더·포즈 출력을 설명한다.
 - **음악·효과음·영상**: `generators/`의 해당 생성기별 README와 관리도구 화면에서 준비 및 실행 조건을 확인한다.
-- **검수·편집**: [공통 검수 절차](workflows/asset-review.md)와 [관리도구 소스 구조](tools/review/README.md)를 참고한다. 맵·타일은 에셋 저장소의 등록 원본을 검증해 직접 읽는다.
+- **검수·편집**: [공통 검수 절차](workflows/asset-review.md)와 [관리도구 소스 구조](tools/management/README.md)를 참고한다. 맵·타일은 에셋 저장소의 등록 원본을 검증해 직접 읽는다.
 - **작가 AI·프롬프트 번역**: [작가 AI 실행 안내](workflows/writer-agent.md)와 [관리도구 클라이언트 가이드](workflows/management-clients.md)를 참고한다. 번역 결과는 의미와 수치를 검토한다.
 
 Qwen 2.1 이미지 계열은 라이선스 사유로 신규 생성·재개와 모델 준비를 중단하고 기존 이력 조회를 보존한다. HY-Motion, VNCCS 포즈 변환과 MoMask 생성은 폐기됐다. 과거 문서와 호환 코드가 있다는 사실이 현행 실행 지원을 뜻하지 않는다. 상세 범위는 [클라이언트 가이드](workflows/management-clients.md)를 확인한다.
@@ -95,7 +95,7 @@ Qwen 2.1 이미지 계열은 라이선스 사유로 신규 생성·재개와 모
 | 경로 | 용도 |
 | --- | --- |
 | `generators/` | 생성기별 구현·설정·사용 설명·변경 기록 |
-| `tools/manager.py`, `tools/review/` | 통합 CLI, 게이트웨이, 관리 UI와 검수 도구 |
+| `tools/manager.py`, `tools/management/` | 통합 CLI, 게이트웨이, 관리 UI와 검수 도구 |
 | `scripts/` | 관리 환경 준비 및 서버 실행 |
 | `workflows/` | 작업 절차, 운영 기준과 검증 기록 |
 | `prompts/` | 사용자 지시로 이전한 제작 프롬프트 |

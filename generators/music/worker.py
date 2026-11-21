@@ -21,8 +21,8 @@ WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from generators.music.contracts import AUDIO_SERVICE_NAMES, RETIRED_AUDIO_SERVICE_NAMES, read_music_record, resolve_music_paths, resolve_music_profile, verify_music_request, validate_music_identifier
 from generators.music.runtime import prepare_music_model, execute_music_inference, calculate_music_checksum
-from tools.review.common.generation_records import write_record_atomically
-from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
+from tools.management.common.generation_records import write_record_atomically
+from tools.management.common.generation_telemetry import GenerationTelemetryRecorder
 
 
 def handle_music_signal(current_signal_number,current_stack_frame):

@@ -9,14 +9,14 @@ import time
 from urllib.parse import urlencode,parse_qs
 
 import gradio as gr
-from tools.review.common.gradio_generator_changelog import build_generator_changelog
+from tools.management.common.gradio_generator_changelog import build_generator_changelog
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[3]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
     sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
-from tools.review.common.gradio_identifiers import build_generation_identifier
-from tools.review.common.management_client import execute_remote_management_command
-from tools.review.common.gradio_logs import create_copyable_log_textbox, build_execution_logs
+from tools.management.common.gradio_identifiers import build_generation_identifier
+from tools.management.common.management_client import execute_remote_management_command
+from tools.management.common.gradio_logs import create_copyable_log_textbox, build_execution_logs
 
 WRITER_REQUEST_TIMEOUT=15
 WRITER_MODE_LABELS={'prepare':'환경 준비','learn':'문서 학습','write':'작성 제안','deduplicate':'중복 검토'}
@@ -69,14 +69,14 @@ def build_writer_agent_interface(review_server_port):
         current_detail_state=gr.State({})
         current_feedback_text=gr.Textbox(label='작업 안내',interactive=False)
         gr.Markdown('### 모델 파일 확인\n모델 파일 준비 상태를 확인합니다. 문서 연결과 ROCm 실행 환경 준비는 별도로 확인합니다.')
-        from tools.review.common.gradio_model_download import build_model_readiness_controls
+        from tools.management.common.gradio_model_download import build_model_readiness_controls
         def execute_writer_model_status(current_command_name, current_payload_record):
             return execute_remote_management_command('writer-agent', current_command_name, current_payload_record)
         build_model_readiness_controls(current_interface_blocks, execute_writer_model_status)
         gr.Markdown('### 1. 문서 학습\n처음에는 **학습 · 색인 갱신**을 눌러 주세요. 문서 원문은 변경하지 않으며, 변경된 문서는 다시 학습해야 검색에 반영됩니다.')
         current_workspace_text=create_copyable_log_textbox(label='문서·색인·기록 경로',interactive=False,lines=3)
         current_readiness_text=gr.Textbox(label='준비 상태',interactive=False)
-        from tools.review.common.gradio_model_download import build_model_progress_display
+        from tools.management.common.gradio_model_download import build_model_progress_display
         build_model_progress_display(current_interface_blocks, 'writer-agent')
         with gr.Row():
             current_prepare_button=gr.Button('환경 준비',interactive=False)
@@ -290,7 +290,7 @@ def build_writer_agent_interface(review_server_port):
     return current_interface_blocks
 
 
-from tools.review.ui.gradio.management_menu_app import compose_management_interface
+from tools.management.ui.gradio.management_menu_app import compose_management_interface
 
 def build_generator_page(current_server_address, current_review_port):
     return build_writer_agent_interface(current_review_port)

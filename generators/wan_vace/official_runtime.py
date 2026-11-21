@@ -61,7 +61,7 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
     from generators.common.reference_video_worker import save_video_outputs
     from generators.wan_fun.attention_optimization import install_fun_attention_optimization
     from generators.wan_fun.attention_profile import install_fun_attention_profile
-    from tools.review.common.generation_records import write_record_atomically
+    from tools.management.common.generation_records import write_record_atomically
     current_contiguous_enabled = install_fun_attention_optimization(torch, torch_functional_module)
     if os.environ.get('SLIME_VACE_ATTENTION_PROFILE', '1') == '1':
         install_fun_attention_profile(current_attempt_root, torch_functional_module, current_call_limit=2)

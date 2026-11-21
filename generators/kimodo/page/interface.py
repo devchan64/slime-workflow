@@ -5,8 +5,8 @@ import base64
 import hashlib
 import tempfile
 from pathlib import Path
-from tools.review.common.gradio_generator_changelog import build_generator_changelog
-from tools.review.common.gradio_input_preview import build_input_preview
+from tools.management.common.gradio_generator_changelog import build_generator_changelog
+from tools.management.common.gradio_input_preview import build_input_preview
 from generators.kimodo.reference_review import (
     load_reference_joint_editor,
     build_reference_joint_edit_payload,
@@ -18,16 +18,16 @@ from generators.kimodo.reference_review import (
 from generators.kimodo.contracts import KIMODO_JOB_STORAGE, KIMODO_MAXIMUM_SEED_VALUE
 from generators.kimodo.contracts import KIMODO_DIRECTION_RECORDS
 from generators.kimodo.form_inputs import build_kimodo_payload, load_kimodo_examples, load_proportion_examples
-from tools.review.common.gradio_identifiers import build_generation_identifier
+from tools.management.common.gradio_identifiers import build_generation_identifier
 from generators.kimodo.contracts import KIMODO_DEFAULT_SETTINGS,normalize_kimodo_prompt,validate_kimodo_request
-from tools.review.common.management_client import execute_remote_management_command
-from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
-from tools.review.common.gradio_button_guidance import build_button_guidance
-from tools.review.common.gradio_model_download import build_model_readiness_controls
-from tools.review.common.gradio_seed import build_generation_seed
-from tools.review.common.gradio_history import build_generation_history_view
-from tools.review.common.gradio_video_results import describe_video_generation_status,render_video_generation_result
-from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
+from tools.management.common.management_client import execute_remote_management_command
+from tools.management.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
+from tools.management.common.gradio_button_guidance import build_button_guidance
+from tools.management.common.gradio_model_download import build_model_readiness_controls
+from tools.management.common.gradio_seed import build_generation_seed
+from tools.management.common.gradio_history import build_generation_history_view
+from tools.management.common.gradio_video_results import describe_video_generation_status,render_video_generation_result
+from tools.management.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 
 
 KIMODO_INPUT_MINIMUM_WIDTH = 320
@@ -103,7 +103,7 @@ def save_multiview_weight_editor(current_editor_rows,current_editor_state,curren
 def load_reviewed_multiview_bundle(current_bundle_path,current_reference_paths):
     """선택한 참조 이미지와 검수 골격의 출처를 확인한다."""
     from generators.kimodo.multiview_reviewed_bundle import REVIEWED_BUNDLE_MAXIMUM_BYTES,validate_reviewed_multiview_bundle
-    from tools.review.domains.image.three_reference_generation import decode_reference_image
+    from tools.management.domains.image.three_reference_generation import decode_reference_image
     if not current_bundle_path or not current_reference_paths:
         raise ValueError('검수 골격 JSON과 참조 이미지를 먼저 선택하세요.')
     current_file_path=Path(current_bundle_path)
@@ -289,7 +289,7 @@ def render_kimodo_result(current_job_identifier,current_status_record,current_se
     if current_status_record.get('reference_analysis_only'):
         return '<p>참조 신체 비율 추출 검증 · 모션 생성 아님. 추출 포즈 '+str(int(current_status_record.get('reference_observation_count',0)))+'개. 영상은 검출 인물별 포즈를 순서대로 보여줍니다. ZIP에 원시 점수·채택 근거·최종 비율을 포함합니다.</p>'+render_video_generation_result(current_job_identifier,current_status_record,current_server_address)
     if current_status_record.get('preprocess_videos'):
-        from tools.review.common.gradio_video_results import render_condition_video_previews
+        from tools.management.common.gradio_video_results import render_condition_video_previews
         current_pose_status_html='<p>직접 포즈: '+('생성 완료' if current_status_record.get('direct_pose_status')=='completed' else '결과 기록 없음')+'</p>'
         if current_status_record.get('dwpose_status')=='warning':
             current_pose_status_html+='<p><strong>DWPose: 생성 오류 · 경고</strong> — '+html.escape(current_status_record.get('dwpose_error','상세 원인은 실행 로그를 확인하세요.'))+'<br>직접 포즈는 사용할 수 있으며 전체 모션 작업은 완료됐습니다.</p>'
@@ -389,7 +389,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
                     current_retire_confirm=gr.Button('폐기 확인',interactive=False)
                     current_retire_cancel=gr.Button('폐기 취소',interactive=False)
             def refresh_retire_choices():
-                from tools.review.domains.kimodo.keyframe_storage import KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS
+                from tools.management.domains.kimodo.keyframe_storage import KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS
                 current_records=current_execute_command('keyframe-list',{})['records']
                 current_choices=[(f"{current_record['tag']} · {current_record['source_job']} · {current_record['source_frame']}프레임 · {current_record['id'][:8]}",current_record['id']) for current_record in current_records if current_record['id'] not in KIMODO_EXAMPLE_KEYFRAME_IDENTIFIERS]
                 return gr.update(choices=current_choices,value=[])
@@ -443,7 +443,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
                 if current_endpoint_identifier:
                     raise gr.Error('키프레임을 추가하려면 양 끝 기준 자세 선택을 해제하세요.')
                 current_new_rows = [*current_rows,[current_identifier,int(current_target_number)]]
-                from tools.review.domains.kimodo.keyframe_storage import validate_kimodo_keyframe_placements
+                from tools.management.domains.kimodo.keyframe_storage import validate_kimodo_keyframe_placements
                 current_validated_rows = validate_kimodo_keyframe_placements([{'id':current_row[0],'frame':current_row[1]} for current_row in current_new_rows],int(current_total_frames))
                 current_new_rows = [[current_item['id'],current_item['frame']] for current_item in current_validated_rows]
                 return current_new_rows,current_new_rows,f'{len(current_new_rows)}개 키프레임 배치됨 · 공식 후처리 켜짐',True
@@ -453,7 +453,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
             def append_keyframe_endpoints(current_rows,current_identifier,current_total_frames):
                 if not current_identifier or type(current_total_frames) not in (int,float) or not float(current_total_frames).is_integer() or current_total_frames < 30:
                     raise gr.Error('키프레임을 선택하고 전체 프레임 수를 30 이상의 정수로 입력하세요.')
-                from tools.review.domains.kimodo.keyframe_storage import validate_kimodo_keyframe_placements
+                from tools.management.domains.kimodo.keyframe_storage import validate_kimodo_keyframe_placements
                 current_proposed_rows=[*current_rows,[current_identifier,1],[current_identifier,int(current_total_frames)]]
                 try:
                     current_placements=validate_kimodo_keyframe_placements([{'id':current_row[0],'frame':current_row[1]} for current_row in current_proposed_rows],int(current_total_frames))
@@ -609,7 +609,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
             current_keyframe_number = gr.Number(label='원본 프레임 번호 · 1부터 시작',value=1,minimum=1,precision=0)
             current_keyframe_source = gr.State(None)
             current_keyframe_load_button = gr.Button('선택 이력 프레임 불러오기')
-            from tools.review.common.gradio_frame_player import build_browser_frame_player
+            from tools.management.common.gradio_frame_player import build_browser_frame_player
             current_keyframe_player = build_browser_frame_player('kimodo-keyframe-player',current_player_visible=True,defer_image_loading=False,current_selected_number_output=current_keyframe_number)
             current_keyframe_tag = gr.Textbox(label='키프레임 태그',max_lines=1,placeholder='예: 복싱 가드')
             current_keyframe_save = gr.Button('키프레임 저장',interactive=False)

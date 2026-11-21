@@ -45,7 +45,7 @@ AI 생성의 주 버튼은 `대기열에 추가`로 통일한다. 클릭 시 공
 - 설정 영역에는 사용자가 선택에 필요한 참조만 표시한다. 포즈 변환에서는 아이덴티티와 포즈 참조의 역할·입력 순서를 명확히 표시하고 같은 미리보기를 중복 배치하지 않는다.
 - 좁은 화면에서는 입력과 검수 영역을 세로로 배치한다. 긴 ID·경로·프롬프트는 줄바꿈하고 페이지 전체의 가로 스크롤을 만들지 않는다.
 - 속성이 많은 편집기는 관련 속성을 그룹화한다. 속성 패널 높이를 미리보기와 맞추고 패널 안에서 스크롤한다. ‘기준값 복원’ 같은 전체 동작은 스크롤 영역 밖에 둔다.
-- 페이지 등록과 메뉴는 기존 관리도구 구성을 따른다. 애니메이션 페이지는 [build_animation_tools.py](../tools/review/build_animation_tools.py)에서 관리한다. 폐기된 페이지의 메뉴나 우회 진입점을 다시 추가하지 않는다.
+- 페이지 등록과 메뉴는 기존 관리도구 구성을 따른다. 애니메이션 페이지는 [build_animation_tools.py](../tools/management/build_animation_tools.py)에서 관리한다. 폐기된 페이지의 메뉴나 우회 진입점을 다시 추가하지 않는다.
 
 공용 빌보드 편집기의 입력 라벨은 속성명만 짧게 표시한다. 좌표 기준·단위·초기화 기본값·자동 맞춤 방식은 배치·크기·그림자를 하나의 그룹으로 묶고 기본 접힘 `배치·크기·그림자 설명` Accordion에 둔다. 비활성 사유와 작업 결과는 접힌 설명 밖에 표시한다.
 
@@ -85,7 +85,7 @@ AI 생성의 주 버튼은 `대기열에 추가`로 통일한다. 클릭 시 공
 
 아래 팔레트·HTML 스타일 지침은 미전환 독립 HTML과 기능용 검수 화면의 기존 계약이다. 전환된 Gradio 입력·설정 영역에는 적용하지 않는다.
 
-[management.css](../tools/review/ui/shared/management.css)의 CSS 변수를 기준으로 사용한다. 페이지별 스타일은 기능에 필요한 배치만 추가하며 공용 색상·버튼·로그·이력 스타일을 복사하지 않는다.
+[management.css](../tools/management/ui/shared/management.css)의 CSS 변수를 기준으로 사용한다. 페이지별 스타일은 기능에 필요한 배치만 추가하며 공용 색상·버튼·로그·이력 스타일을 복사하지 않는다.
 
 관리도구는 시스템의 밝은/어두운 테마와 관계없이 동일한 어두운 팔레트를 사용한다. Gradio 내부 배경·글자·입력·버튼 변수도 공용 CSS에서 연결하며, `color-scheme` 지정만으로 Gradio 테마가 고정된다고 가정하지 않는다.
 
@@ -113,7 +113,7 @@ AI 생성의 주 버튼은 `대기열에 추가`로 통일한다. 클릭 시 공
 
 ### 전역 스타일 적용 계약
 
-- 미전환 독립 HTML의 정식 스타일 원본은 `tools/review/ui/shared/management.css`, 웹 공용 주소는 `/management/style.css`다. 생성기·작가 에이전트는 이 주소를 직접 연결한다.
+- 미전환 독립 HTML의 정식 스타일 원본은 `tools/management/ui/shared/management.css`, 웹 공용 주소는 `/management/style.css`다. 생성기·작가 에이전트는 이 주소를 직접 연결한다.
 - 색상 토큰 → 기본 타이포그래피·입력·버튼 → 패널·로그·상태·이력·탐색 컴포넌트를 전역 CSS에서 관리한다. 페이지별 CSS는 열 개수·미리보기 크기·스크롤 영역 같은 도메인 배치를 맡는다.
 - 주요 버튼에는 `primary`, 위험 동작에는 `danger`, 패널에는 `studio-panel`을 사용한다. 키보드 포커스·hover·disabled·선택 상태도 공용 규칙을 따른다.
 - 폼 컴포넌트 변경 시 밝은·다크 시스템 색상 모드와 데스크톱·좁은 화면에서 `select`의 현재 값·옵션·disabled·focus 대비를 확인한다.
@@ -174,7 +174,7 @@ AI 생성의 주 버튼은 `대기열에 추가`로 통일한다. 클릭 시 공
 
 ## 5. 로그
 
-Gradio 접이식 로그의 기준 구현은 [gradio_logs.py](../tools/review/common/gradio_logs.py)의 `build_execution_logs`와 `bind_execution_log_updates`다. 기존 독립 HTML은 `management_log_viewer.py`를 사용한다.
+Gradio 접이식 로그의 기준 구현은 [gradio_logs.py](../tools/management/common/gradio_logs.py)의 `build_execution_logs`와 `bind_execution_log_updates`다. 기존 독립 HTML은 `management_log_viewer.py`를 사용한다.
 
 - Gradio의 ‘최신 줄 따라가기’ 옵션은 폐기한다. 자동 갱신과 수동 ‘마지막 줄로 이동’을 제공한다.
 - 자동 갱신을 끄면 현재 표시 내용을 유지한다. 갱신 시 강제로 마지막 줄로 이동하지 않는다.
@@ -187,7 +187,7 @@ Gradio 접이식 로그의 기준 구현은 [gradio_logs.py](../tools/review/com
 
 ## 6. 생성 이력
 
-기준 시나리오는 현행 Kimodo의 목록·결과 재생과 Qwen 이미지 생성의 참조 복원·결과 조회다. Gradio 공용 이력 구현은 [gradio_history.py](../tools/review/common/gradio_history.py)이며, 기존 HTML 화면은 [generation-history.js](../tools/review/ui/shared/generation-history.js)를 사용한다.
+기준 시나리오는 현행 Kimodo의 목록·결과 재생과 Qwen 이미지 생성의 참조 복원·결과 조회다. Gradio 공용 이력 구현은 [gradio_history.py](../tools/management/common/gradio_history.py)이며, 기존 HTML 화면은 [generation-history.js](../tools/management/ui/shared/generation-history.js)를 사용한다.
 
 - 선택 전 안내는 한 번만 표시한다. 결과 조회 전에는 빈 결과 공간을 만들지 않으며, 이력 0건은 생성 시작 안내를 표시한다.
 - 이력은 서버에 누적 저장하고 새로고침·서버 재시작 이후 다시 조회한다.
@@ -230,18 +230,18 @@ Gradio 접이식 로그의 기준 구현은 [gradio_logs.py](../tools/review/com
 - 긴 모션은 제한된 수의 프레임을 캐시하고 필요한 프레임을 미리 읽는다. 전체 모션을 무조건 메모리에 적재하지 않는다.
 - 파일 누락·로딩 실패는 검수 영역에 표시한다. 오래된 이미지를 새 결과처럼 표시하지 않는다.
 
-현재 원본 에셋과 생성 결과 재생은 [character_animation_app.py](../tools/review/ui/gradio/character_animation_app.py)의 Gradio 결과 플레이어를 기준으로 한다. 다른 페이지에서 같은 기능이 필요하면 공용 플레이어로 추출해 함께 사용한다.
+현재 원본 에셋과 생성 결과 재생은 [character_animation_app.py](../tools/management/ui/gradio/character_animation_app.py)의 Gradio 결과 플레이어를 기준으로 한다. 다른 페이지에서 같은 기능이 필요하면 공용 플레이어로 추출해 함께 사용한다.
 
 ## 8. 공용 코드와 서비스 연결
 
 | 책임 | 기준 파일 |
 | --- | --- |
-| 색상·기본 레이아웃·입력·버튼 | [management.css](../tools/review/ui/shared/management.css) |
-| 목록·페이지네이션·이력 로그 | [generation-history.js](../tools/review/ui/shared/generation-history.js) |
-| 접이식 로그의 자동 스크롤 | [management_log_viewer.py](../tools/review/common/management_log_viewer.py) |
-| 기존 이미지 생성 진행 UI | [generation-progress.js](../tools/review/ui/shared/generation-progress.js) |
-| GUI·CLI 명령 계약 | [management_gateway.py](../tools/review/common/management_gateway.py) |
-| HTTP 제공·watch | [serve.py](../tools/review/serve.py) |
+| 색상·기본 레이아웃·입력·버튼 | [management.css](../tools/management/ui/shared/management.css) |
+| 목록·페이지네이션·이력 로그 | [generation-history.js](../tools/management/ui/shared/generation-history.js) |
+| 접이식 로그의 자동 스크롤 | [management_log_viewer.py](../tools/management/common/management_log_viewer.py) |
+| 기존 이미지 생성 진행 UI | [generation-progress.js](../tools/management/ui/shared/generation-progress.js) |
+| GUI·CLI 명령 계약 | [management_gateway.py](../tools/management/common/management_gateway.py) |
+| HTTP 제공·watch | [serve.py](../tools/management/serve.py) |
 
 `generation-progress.js`는 기존 이미지 생성기의 DOM·응답 형식에 의존한다. 다른 생성기에 그대로 연결하지 말고 계약을 확인해 필요한 공용 동작을 추출한다. GUI는 공용 게이트웨이로 명령을 전달하고, 파일·이미지 조회는 정적 조회 경로를 사용한다. 별도 웹 전용 실행 서비스나 이력 저장소를 만들지 않는다.
 
@@ -265,7 +265,7 @@ Gradio 접이식 로그의 기준 구현은 [gradio_logs.py](../tools/review/com
 
 ## 공용 작업 영역 탐색
 
-[management-workflow.js](../tools/review/ui/shared/management-workflow.js)는 `data-workflow-label`이 지정된 영역으로 이동하는 공용 메뉴를 만든다. `data-help-title` 영역은 접이식 도움말로 표시한다. 이동은 생성·취소·입력 변경을 실행하지 않는다. 해당 모듈을 소비하는 활성 HTML 화면에서 키보드 포커스와 모션 감소 설정을 반영한다. 공용 이력 UI는 ID·입력 검색과 상태 필터를 제공하고, 필터 변경 시 첫 페이지로 이동한다. 폐기된 MoMask 전용 이력은 통합·검증 대상에서 제외한다.
+[management-workflow.js](../tools/management/ui/shared/management-workflow.js)는 `data-workflow-label`이 지정된 영역으로 이동하는 공용 메뉴를 만든다. `data-help-title` 영역은 접이식 도움말로 표시한다. 이동은 생성·취소·입력 변경을 실행하지 않는다. 해당 모듈을 소비하는 활성 HTML 화면에서 키보드 포커스와 모션 감소 설정을 반영한다. 공용 이력 UI는 ID·입력 검색과 상태 필터를 제공하고, 필터 변경 시 첫 페이지로 이동한다. 폐기된 MoMask 전용 이력은 통합·검증 대상에서 제외한다.
 
 
 
@@ -306,7 +306,7 @@ HY-Motion의 렌더 프레임 스텝·원본 FPS·선택한 원본 프레임 번
 
 ### 전체 도구의 화면 밀도
 
-- 모든 Gradio 진입점은 `tools/review/ui/shared/management-density.css`를 공용으로 적용한다. 개별 도구에 같은 여백 규칙을 복제하지 않는다.
+- 모든 Gradio 진입점은 `tools/management/ui/shared/management-density.css`를 공용으로 적용한다. 개별 도구에 같은 여백 규칙을 복제하지 않는다.
 - 작업 영역은 사용 가능한 화면 폭을 활용하고, 메뉴는 고정 폭과 독립 스크롤을 사용한다. GPU 상태 헤더는 스크롤 중에도 유지한다.
 - 중복 제목과 긴 조작 설명을 줄이되, 필요한 안내는 펼쳐 볼 수 있게 한다. 입력·실행·취소·이력 기능을 공간 확보 목적으로 숨기지 않는다.
 - 이미지 원본 크기와 게임 좌표 배율은 UI 여백 조정과 분리한다. 좁은 화면에서는 열을 세로로 배치하고 가로 넘침을 검수한다.
@@ -359,7 +359,7 @@ HY-Motion의 렌더 프레임 스텝·원본 FPS·선택한 원본 프레임 번
 - 모달에는 GPU 사용 중인 작업과 대기 작업의 종류·ID를 구분해 표시하고, 접수 순서대로 실행 가능 여부를 확인하며 GPU 메모리 여유가 있으면 동시에 실행된다는 설명을 표시한다.
 - `대기열에 추가`를 누른 경우에만 생성·재개 명령을 전달한다. `추가하지 않기` 또는 Esc는 접수하지 않고 닫는다. 기본 포커스는 `추가하지 않기`에 둔다.
 - 대기열 조회 실패 시 자동 실행하지 않고 오류를 안내한다. 모달은 작업 실행 잠금이나 메모리 검사를 대체하지 않으며, 실행 순서는 공용 GPU 작업 서비스가 관리한다.
-- 공용 구현은 [gradio_gpu_confirmation.py](../tools/review/common/gradio_gpu_confirmation.py)와 [gpu-queue-confirmation.js](../tools/review/ui/shared/gpu-queue-confirmation.js)다. Gradio 생성·재개 버튼은 `bind_gpu_generation_confirmation`으로 연결하고 ANNY HTML 화면도 같은 확인 함수를 사용한다.
+- 공용 구현은 [gradio_gpu_confirmation.py](../tools/management/common/gradio_gpu_confirmation.py)와 [gpu-queue-confirmation.js](../tools/management/ui/shared/gpu-queue-confirmation.js)다. Gradio 생성·재개 버튼은 `bind_gpu_generation_confirmation`으로 연결하고 ANNY HTML 화면도 같은 확인 함수를 사용한다.
 
 ### 검증 항목
 
@@ -432,7 +432,7 @@ HY-Motion의 렌더 프레임 스텝·원본 FPS·선택한 원본 프레임 번
 
 ### 공용 참조 이미지 입력
 
-참조 이미지 입력은 `tools/review/common/gradio_reference_images.py`의 `build_reference_image_inputs`를 사용한다. 건물 타일 생성기를 기준으로 최대 3장, 순서 라벨, 업로드·클립보드 아이콘과 한글 버튼, 반응형 배치를 공유한다. 생성기별 표시 조건과 이미지 모드·입력 검증은 유지하며 페이지별 UI를 복제하지 않는다.
+참조 이미지 입력은 `tools/management/common/gradio_reference_images.py`의 `build_reference_image_inputs`를 사용한다. 건물 타일 생성기를 기준으로 최대 3장, 순서 라벨, 업로드·클립보드 아이콘과 한글 버튼, 반응형 배치를 공유한다. 생성기별 표시 조건과 이미지 모드·입력 검증은 유지하며 페이지별 UI를 복제하지 않는다.
 
 ### 스프라이트 정규화 편집기 원본 목록
 
@@ -574,7 +574,7 @@ MoMask와 AnyPose 기반 캐릭터 애니메이션 화면도 폐기했다. 구�
 
 - 복장 분리 iframe의 제목·상태·검수 설명을 Gradio Markdown/Textbox/Accordion으로 옮겨 다크 화면의 검정 글자 문제를 제거했다. 브라우저 전용 상태 갱신은 Python 왕복 없이 수행하며 캔버스 크기를 ResizeObserver로 측정한다. 동일 완료 결과에서 프레임 1/1 상태, 전체 비교 4개 패널과 제목 순서, iframe 높이 340→665px 변경, 콘솔 오류 없음을 확인했다. 구성·JS 구문 검사 통과. `/tmp/separation-native-status.png`. 다중 프레임, 결과 재조회 시 조작값 동기화, 좁은 화면은 아직 검증 대상이다.
 
-- 분리 결과 문서가 교체될 때 보기·X/Y·배율·프레임 입력을 초기 상태로 맞추도록 보강했다. 같은 결과 재조회에서는 편집 보기를 유지한다. `bdf6d656`에서 전체 비교/X=1 변경 후 `be18b6e4`로 조회하여 원본·합성/X=0 동기화를 확인했다. 480px에서 iframe 문서/스크롤 너비 362px 일치, 표준 컨트롤 줄바꿈, 콘솔 오류 없음을 확인했다(`/tmp/separation-responsive-480.png`). 뷰포트 복원 완료. 보존된 schema 2 결과 12건은 모두 단일 프레임이므로 다중 프레임은 격리 Node 검사로 이동·재생·정지·범위 거절·조이패드·초기화 2건을 검증했다(`node tools/review/tests/separation_preview_controls.test.mjs`). 실제 다중 프레임 결과에 대한 브라우저 검증으로 확대 해석하지 않는다.
+- 분리 결과 문서가 교체될 때 보기·X/Y·배율·프레임 입력을 초기 상태로 맞추도록 보강했다. 같은 결과 재조회에서는 편집 보기를 유지한다. `bdf6d656`에서 전체 비교/X=1 변경 후 `be18b6e4`로 조회하여 원본·합성/X=0 동기화를 확인했다. 480px에서 iframe 문서/스크롤 너비 362px 일치, 표준 컨트롤 줄바꿈, 콘솔 오류 없음을 확인했다(`/tmp/separation-responsive-480.png`). 뷰포트 복원 완료. 보존된 schema 2 결과 12건은 모두 단일 프레임이므로 다중 프레임은 격리 Node 검사로 이동·재생·정지·범위 거절·조이패드·초기화 2건을 검증했다(`node tools/management/tests/separation_preview_controls.test.mjs`). 실제 다중 프레임 결과에 대한 브라우저 검증으로 확대 해석하지 않는다.
 
 - 복장 착용·표정·Qwen 2.1 생성기는 동일 공용 Qwen Gradio 구성의 소비 도구임을 확인하고 각각 실제 화면을 순회했다. 복장 이력 12건·Qwen 이력 4건·표정 빈 이력 안내가 정상 로딩되었다. 복장 `2026-10-06_08-45-30-5f6f4fbb`와 Qwen `2026-10-05_20-23-15-5a420cb6` 완료 결과를 조회하여 표준 갤러리 이미지 표시·콘솔 오류 없음을 확인했다. 표정 프리셋·프롬프트·참조 입력의 기본 배치도 확인했다. 임시 화면 `/tmp/<tool-id>-standard.png`. 480px 적용은 Qwen 탭에만 반영되어 iframe 너비/스크롤 362px 일치를 확인했으며, 복장·표정의 좁은 화면은 아직 미검수다. 기존 결과·작업 상태는 변경하지 않았다.
 
@@ -900,7 +900,7 @@ Phantom, HY-Motion, ANNY 기준점·속성, 복장 분리, Qwen 2.1·순환 VAE,
 
 격리 브라우저에서 이전 스탠딩 주소의 Gradio 편집기·2/8 프레임 이동·캔버스 2개·iframe 0개와 걷기 비교의 프레임 이동·우하 방향·재생·정지를 확인했다. 실제 관리 서버에서도 이전 허브 주소가 63개 공용 메뉴와 기본 캐릭터 앵커로 연결되고 iframe 0개임을 확인했다. 관련 Python 52건과 허브 Node 4건이 통과했다. 증거는 `.tmp/test/gradio-hub-native/2026-10-12_01-30-56/`의 `checks-final.log`, `publish-result.json`, `hub-live-desktop.png`다. 운영 생성·취소·저장·삭제와 AWS 인프라·비용은 변경하지 않았다.
 
-현행 `tools/review` 구현에서 iframe·srcdoc·자식 문서 접근을 다시 조사해 실행 코드가 남지 않았음을 확인했다. 복장 분리·앵커·공용 외곽 메뉴·디자인 시스템·전장·독립 허브의 순차 제거 범위는 완료했다. 독립 HTML 전체 재작성, 이전 산출물 일괄 변경, 기존 지도 재질 경고와 기준 체형 자산 누락 해결은 이 완료 범위에 포함하지 않는다. 각 단위의 브라우저·계약 검증과 미실행 운영 작업 범위는 위 기록을 따른다.
+현행 `tools/management` 구현에서 iframe·srcdoc·자식 문서 접근을 다시 조사해 실행 코드가 남지 않았음을 확인했다. 복장 분리·앵커·공용 외곽 메뉴·디자인 시스템·전장·독립 허브의 순차 제거 범위는 완료했다. 독립 HTML 전체 재작성, 이전 산출물 일괄 변경, 기존 지도 재질 경고와 기준 체형 자산 누락 해결은 이 완료 범위에 포함하지 않는다. 각 단위의 브라우저·계약 검증과 미실행 운영 작업 범위는 위 기록을 따른다.
 
 ## 생성 이력 초기화의 디스크 정리 계약
 
@@ -963,6 +963,6 @@ Stable Audio Small SFX의 서비스·메뉴·진입점은 폐기하고 Dasheng-A
 
 생성이력의 `생성 재개` 대기열 확인은 선택 이력 패널 안에서 공용 행동 버튼 바로 아래에 표시한다. 결과·로그 아래나 신규 생성 입력 영역에 표시하지 않는다. Gradio 인라인 확인 영역을 사용하며 확인 대상 입력 보존·취소 시 무실행·중복 접수 방지 정책은 유지한다.
 
-- 적용 범위: `tools/review/common/gradio_history.py`의 공용 생성이력 화면. `bind_gpu_generation_confirmation`에 선택 이력 패널을 확인 영역의 부모로 전달한다. 별도 브라우저 기반 이력 구현까지 적용됐음을 뜻하지 않는다.
+- 적용 범위: `tools/management/common/gradio_history.py`의 공용 생성이력 화면. `bind_gpu_generation_confirmation`에 선택 이력 패널을 확인 영역의 부모로 전달한다. 별도 브라우저 기반 이력 구현까지 적용됐음을 뜻하지 않는다.
 - 사용 순서: 이력 선택 → `생성 재개` → 바로 아래 인라인 확인 → `확인 후 대기열에 추가` 또는 `추가하지 않기`. 모달이 아니며 기존 결과·로그 영역의 위치는 유지한다.
 - 검증 상태 (2026-11-12): 확인 영역이 행동 버튼과 같은 선택 이력 패널에 속하는 구조 테스트 통과. 실제 관리도구 문서의 표시·확인·취소 검증은 미완료이며, 관련 전체 테스트 실행은 완료되지 않아 중단했다. 브라우저 검증 완료로 간주하지 않는다.

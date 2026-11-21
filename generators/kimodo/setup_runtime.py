@@ -14,8 +14,8 @@ from generators.kimodo.prepare import prepare_kimodo_source_repository
 from generators.wan_fun.setup_rocm import (FUN_MIGRAPHX_CONSTRAINTS_PATH, FUN_MIGRAPHX_INDEX,
     FUN_ONNX_INDEX, FUN_PYTORCH_INDEX, FUN_ROCM_CONSTRAINTS_PATH,
     build_fun_gpu_validation, read_fun_rocm_constraints)
-from tools.review.common.management_environment import resolve_management_environment
-from tools.review.common.management_process import ManagementLaunchLogger, run_logged_management_command
+from tools.management.common.management_environment import resolve_management_environment
+from tools.management.common.management_process import ManagementLaunchLogger, run_logged_management_command
 
 
 def prepare_kimodo_runtime_environment():

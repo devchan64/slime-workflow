@@ -4,7 +4,7 @@ import json
 import os
 from generators.music.contracts import resolve_music_paths
 from generators.music.runtime import calculate_music_checksum, require_music_cuda, attach_cuda_guards
-from tools.review.common.generation_records import write_record_atomically
+from tools.management.common.generation_records import write_record_atomically
 
 HEARTMULA_SOURCE_REVISIONS = (
     ('HeartMuLa/HeartMuLaGen','2e18e01702011f4f7dc8642b6260967df62417ea','bundle'),

@@ -9,7 +9,7 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 from generators.kimodo.contracts import KIMODO_ASSET_CONFIG, KIMODO_ENVIRONMENT_PYTHON, read_converted_encoder_files, KIMODO_MODEL_ROOT, KIMODO_SOURCE_ROOT, KIMODO_WORKSPACE_ROOT, inspect_motion_correction_runtime, inspect_kimodo_assets
-from tools.review.common.generation_records import write_record_atomically
+from tools.management.common.generation_records import write_record_atomically
 
 
 def prepare_kimodo_assets():
@@ -30,7 +30,7 @@ def install_kimodo_official_runtime():
     if inspect_motion_correction_runtime():
         return
     prepare_kimodo_source_repository()
-    from tools.review.common.management_setup import hold_shared_environment_reservation
+    from tools.management.common.management_setup import hold_shared_environment_reservation
     with hold_shared_environment_reservation():
         if not inspect_motion_correction_runtime():
             build_kimodo_official_runtime()
@@ -87,7 +87,7 @@ def download_kimodo_pinned_assets():
     current_heartbeat_thread = threading.Thread(target=record_prepare_heartbeat,daemon=True)
     current_heartbeat_thread.start()
     try:
-        from tools.review.common.model_huggingface_download import tracked_hf_hub_download as hf_hub_download
+        from tools.management.common.model_huggingface_download import tracked_hf_hub_download as hf_hub_download
         current_blob_path = KIMODO_MODEL_ROOT/'ollama/llama3-8b-instruct-fp16.gguf'
         try:
             read_converted_encoder_files(current_verify_hashes=True)

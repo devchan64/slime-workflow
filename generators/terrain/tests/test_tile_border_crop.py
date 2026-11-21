@@ -2,7 +2,7 @@
 import unittest
 
 from generators.terrain import tile_border_crop
-from tools.review.common import image_edges, image_borders
+from tools.management.common import image_edges, image_borders
 
 
 class TileBorderCompatibilityTests(unittest.TestCase):

@@ -26,7 +26,7 @@ def verify_official_runtime():
 def prepare_official_runtime():
     current_manifest_record=yaml.safe_load(VACE_OFFICIAL_MANIFEST_PATH.read_text())
     current_revision_text=current_manifest_record['source_revision']
-    from tools.review.common.model_http_download import download_verified_http
+    from tools.management.common.model_http_download import download_verified_http
     current_archive_path = VACE_OFFICIAL_INSTALL_ROOT.parent/'videox-fun-vace-downloads'/(current_revision_text+'.tar.gz')
     download_verified_http(f'https://github.com/aigc-apps/VideoX-Fun/archive/{current_revision_text}.tar.gz', current_archive_path, current_manifest_record['archive_sha256'], 'wan-vace/official-source')
     current_archive_bytes = current_archive_path.read_bytes()

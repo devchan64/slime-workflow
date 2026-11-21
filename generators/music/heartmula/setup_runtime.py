@@ -10,8 +10,8 @@ WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from generators.music.heartmula.runtime import HEARTMULA_LIBRARY_REVISION
 from generators.wan_fun.setup_rocm import FUN_PYTORCH_INDEX, FUN_ROCM_CONSTRAINTS_PATH, read_fun_rocm_constraints
-from tools.review.common.management_environment import resolve_management_environment
-from tools.review.common.management_process import ManagementLaunchLogger, run_logged_management_command
+from tools.management.common.management_environment import resolve_management_environment
+from tools.management.common.management_process import ManagementLaunchLogger, run_logged_management_command
 
 HEARTMULA_RUNTIME_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.venv-music-heartmula'
 HEARTMULA_REQUIREMENTS_PATH = Path(__file__).with_name('requirements-rocm.txt')

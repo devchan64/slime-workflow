@@ -3,13 +3,13 @@ import base64
 import html
 from pathlib import Path
 import gradio as gr
-from tools.review.common.gradio_generator_changelog import build_generator_changelog
+from tools.management.common.gradio_generator_changelog import build_generator_changelog
 from generators.dwpose.contracts import DWPOSE_JOB_STORAGE, validate_dwpose_request
-from tools.review.common.management_client import execute_remote_management_command
-from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
-from tools.review.common.gradio_history import build_generation_history_view
-from tools.review.common.gradio_video_results import describe_video_generation_status
-from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
+from tools.management.common.management_client import execute_remote_management_command
+from tools.management.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
+from tools.management.common.gradio_history import build_generation_history_view
+from tools.management.common.gradio_video_results import describe_video_generation_status
+from tools.management.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 
 
 def execute_dwpose_command(current_command_name, current_payload_record):

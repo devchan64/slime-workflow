@@ -81,7 +81,7 @@ MiniMax에서 위 명령을 사용한다. `prepare`는 작업 ID를 반환하며
 ## 검증
 
 ```bash
-.venv-management/bin/python tools/review/tests/run_music_regression.py
+.venv-management/bin/python tools/management/tests/run_music_regression.py
 ```
 
 자동 실행기가 `.tmp/test/music-regression/<KST 시각>/`에 전체 로그·heartbeat·JUnit·summary·종료 코드를 남긴다. 계약 검증은 모델을 다운로드하거나 실제 GPU 작업을 접수하지 않는다. 실제 음악 품질·8GB 피크 검증은 모델 환경 설치와 다운로드 이후 별도 실행으로 확인해야 한다.

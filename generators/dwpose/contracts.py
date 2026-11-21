@@ -2,7 +2,7 @@
 import io
 from pathlib import Path
 from PIL import Image
-from tools.review.domains.image.three_reference_generation import decode_reference_image
+from tools.management.domains.image.three_reference_generation import decode_reference_image
 from generators.kimodo.dwpose_runtime import validate_fun_pose_assets
 DWPOSE_WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 DWPOSE_JOB_STORAGE = DWPOSE_WORKSPACE_ROOT / '.tmp/test/dwpose'

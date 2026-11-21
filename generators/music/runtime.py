@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 import sys
 from generators.music.contracts import read_music_record, resolve_music_paths, resolve_music_profile
-from tools.review.common.generation_records import write_record_atomically
+from tools.management.common.generation_records import write_record_atomically
 
 MUSIC_RUNTIME_MODULES = {'music-ace-step':'acestep','music-minimax':'diffusers'}
 
@@ -131,7 +131,7 @@ def prepare_music_model(current_service_name,current_metrics_recorder,current_re
         require_music_cuda()
         importlib.import_module(MUSIC_RUNTIME_MODULES[current_service_name])
         from huggingface_hub import HfApi
-        from tools.review.common.model_huggingface_download import tracked_snapshot_download as snapshot_download
+        from tools.management.common.model_huggingface_download import tracked_snapshot_download as snapshot_download
         current_metrics_recorder.update_generation_stage('download')
         current_download_records = []
         current_download_specs = [(current_profile_record['model_id'],current_model_root/('checkpoints' if current_service_name=='music-ace-step' else 'model'))]

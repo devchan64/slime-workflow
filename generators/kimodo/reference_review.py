@@ -7,7 +7,7 @@ from pathlib import Path
 
 def load_reference_joint_editor(current_result_path,current_reference_paths):
     """완료된 참조 분석의 관절 원본과 이미지의 일치를 확인한다."""
-    from tools.review.domains.image.three_reference_generation import decode_reference_image
+    from tools.management.domains.image.three_reference_generation import decode_reference_image
     if not current_result_path or not current_reference_paths:
         raise ValueError('참조 이미지와 검출 결과 JSON을 먼저 선택하세요.')
     current_result_record=json.loads(Path(current_result_path).read_text())
@@ -108,7 +108,7 @@ def calculate_review_source_binding(current_reference_record,current_skeleton_re
 def build_reviewed_bundle_from_review(current_review_record,current_reference_path,current_skeleton_path,current_image_path,current_generation_references):
     """검수한 출처 그대로 생성 참조에 사용할 후보 묶음을 구성한다."""
     from generators.kimodo.multiview_reviewed_bundle import REVIEWED_BUNDLE_SCHEMA_VERSION,validate_reviewed_multiview_bundle
-    from tools.review.domains.image.three_reference_generation import decode_reference_image
+    from tools.management.domains.image.three_reference_generation import decode_reference_image
     if current_review_record is None or not all((current_reference_path,current_skeleton_path,current_image_path,current_generation_references)):
         raise ValueError('8방향 검수 기록을 불러오고 생성 참조 이미지를 선택하세요.')
     current_reference=json.loads(Path(current_reference_path).read_text())
