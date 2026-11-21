@@ -354,7 +354,16 @@ class HermesServiceManager:
                     if not isinstance(current_status_record, dict):
                         raise ValueError('작업 상태 형식 오류')
                     current_final_answer, current_answer_truncated = read_hermes_final_response(current_job_path)
-                    current_view_record['job'] = {'status': current_status_record, 'final_response': current_final_answer, 'final_response_truncated': current_answer_truncated, 'tool_activity': read_hermes_tool_activity(current_job_path)}
+                    from .conversation_results import generation_history_table
+                    activity = read_hermes_tool_activity(current_job_path)
+                    table = generation_history_table(activity)
+                    if table is None and current_final_answer:
+                        table = generation_history_table({"source_history_summary": current_final_answer})
+                        if table is not None:
+                            activity["history_table_is_answer"] = True
+                    if table is not None:
+                        activity["history_table"] = table
+                    current_view_record['job'] = {'status': current_status_record, 'final_response': current_final_answer, 'final_response_truncated': current_answer_truncated, 'tool_activity': activity}
                 except (OSError, ValueError, TypeError, KeyError):
                     current_view_record['job'] = {'status': {'status':'unavailable', 'message':'작업 상태를 읽을 수 없습니다.'}, 'final_response': None, 'final_response_truncated': False}
             hermes_view_messages.append(current_view_record)

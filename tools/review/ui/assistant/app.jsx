@@ -1,3 +1,4 @@
+import ResultTable from "./ResultTable.jsx";
 import WorldMap from "./WorldMap.jsx";
 import GpuPanel from "./GpuPanel.jsx";
 import QueuePanel from "./QueuePanel.jsx";
@@ -20,18 +21,26 @@ function messagesFrom(view) {
   const start = (view.message_count ?? records.length) - (view.offset || 0) - records.length;
   return records.flatMap((m,index) => {
     const job = m.job || {}, key=m.id || m.request_id || (view.id + "-" + (start + index));
+    const activity = job.tool_activity || {};
+    const page = activity.source_history_page;
+    const table = activity.history_table || (page && {
+      title:page.service+" 생성 이력", summary:"전체 "+page.total+"건 · 이번 조회 "+page.rows.length+"건",
+      columns:["작업 ID","상태"], rows:page.rows.map(row=>[row.id,row.status])
+    });
+    const answer = job.final_response || "";
+    const showAnswer = !table || (answer !== activity.source_history_summary && !activity.history_table_is_answer);
     return [{id:key+"-user",role:"user",content:m.text},
-      {id:key+"-answer",role:"assistant",content:job.final_response || "",metadata:{custom:{
-        status:job.status?.status || "접수 확인 중",job:m.job_id,activity:job.tool_activity || {}}}}];
+      {id:key+"-answer",role:"assistant",content:showAnswer ? answer : "",metadata:{custom:{
+        status:job.status?.status || "접수 확인 중",job:m.job_id,activity,table}}}];
   });
 }
 function Message() {
   const message=useAuiState(s=>s.message);
-  const meta=message.metadata?.custom || {}, page=meta.activity?.source_history_page;
+  const meta=message.metadata?.custom || {};
   return <MessagePrimitive.Root className={"message "+message.role}>
     <b>{message.role==="user"?"나":"헤르메스"}</b><MessagePrimitive.Parts/>
-    {page && <section><strong>{page.service} 생성 이력</strong><p>전체 {page.total}건 · 이번 조회 {page.rows.length}건</p><table><thead><tr><th>작업 ID</th><th>상태</th></tr></thead><tbody>{page.rows.map((r,i)=><tr key={i}><td>{r.id}</td><td>{r.status}</td></tr>)}</tbody></table></section>}
-    {!page && meta.activity?.source_history_summary && <pre>{meta.activity.source_history_summary}</pre>}
+    {meta.table && <ResultTable table={meta.table}/>}
+    {!meta.table && meta.activity?.source_history_summary && <pre>{meta.activity.source_history_summary}</pre>}
     {meta.activity?.events?.length>0 && <details><summary>도구 사용 내역</summary>{meta.activity.events.map((e,i)=><p key={i}>{e.name} · {e.target || e.result}</p>)}</details>}
     {meta.status && <small>{meta.status} {meta.job && " · "+meta.job}</small>}
   </MessagePrimitive.Root>;

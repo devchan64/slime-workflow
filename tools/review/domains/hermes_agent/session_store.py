@@ -150,6 +150,10 @@ class HermesSessionStore:
             if (current_offset_value>0 and current_page_request.get('snapshot')!=current_snapshot_value) or ('snapshot' in current_page_request and current_page_request['snapshot']!=current_snapshot_value):
                 raise ValueError('세션 목록이 변경됐습니다. 처음부터 다시 조회하세요.')
             current_page_values=current_matching_summaries[current_offset_value:current_offset_value+current_limit_value]
+            if current_query_value and not archived:
+                # 검색 응답에 첫 요청 원문에서 파생한 제목이 포함되지 않도록 한다.
+                current_page_values = [{key: value for key, value in row.items() if key != "title"}
+                                       for row in current_page_values]
             current_next_offset=current_offset_value+len(current_page_values)
             return {'sessions':current_page_values,'offset':current_offset_value,'next_offset':current_next_offset if current_next_offset<len(current_matching_summaries) else None,'total':len(current_matching_summaries),'snapshot':current_snapshot_value,'unreadable_count':len(current_unreadable_identifiers)}
 
