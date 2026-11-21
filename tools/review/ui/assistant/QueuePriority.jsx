@@ -1,9 +1,6 @@
 import React, {useState} from "react";
 
 export default function QueuePriority({step, call}) {
-  const [review, setReview] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState("");
   const service = step.generator;
   const id = step.source_job_id;
   if (step.state !== "submitting" || step.source_state !== "queued" || !id) return "—";
@@ -16,8 +13,15 @@ export default function QueuePriority({step, call}) {
     }
   }
 
+  return <JobPriority key={service+"/"+id} service={service} id={id} call={call} verifyTarget={verifyTarget}/>;
+}
+
+export function JobPriority({service,id,call,verifyTarget}) {
+  const [review, setReview] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
   async function preview() {
-    await verifyTarget();
+    await verifyTarget?.();
     const ticket = await call("priority-preview", {service,id});
     if (ticket.service !== service || ticket.job_id !== id || !/^[a-f0-9]{64}$/.test(ticket.ticket_revision) ||
         !Number.isInteger(ticket.queue_position) || !Number.isInteger(ticket.queue_count) ||
@@ -29,6 +33,9 @@ export default function QueuePriority({step, call}) {
     const request_id = "priority_" + Array.from(digest, n => n.toString(16).padStart(2,"0")).join("");
     const receipt = await call("priority-receipt",{request_id});
     if (receipt.state !== "not_found") {
+      if (!["completed","unknown"].includes(receipt.state) || receipt.request_id!==request_id ||
+          receipt.service!==service || receipt.job_id!==id || receipt.ticket_revision!==ticket.ticket_revision)
+        throw new Error("기존 접수 기록이 검토 대상과 일치하지 않습니다.");
       setNotice("기존 접수 상태 " + receipt.state + " · " + request_id);
       return;
     }
@@ -38,7 +45,7 @@ export default function QueuePriority({step, call}) {
   async function submit() {
     const {payload} = review;
     setReview(null);
-    await verifyTarget();
+    await verifyTarget?.();
     try {
       const receipt = await call("priority-submit",payload);
       if (receipt.state !== "completed" || receipt.service !== service || receipt.job_id !== id ||
