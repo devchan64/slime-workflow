@@ -222,7 +222,13 @@ function App() {
     if(busy)return;
     if(action==="delete"&&!window.confirm((record.title || record.id)+" 대화 기록을 영구 삭제할까요?"))return;
     setBusy(true);
-    try{await call("session-"+action,{session_id:record.id,expected_update:record.updated_at});
+    try{
+      const receipt=await call("session-"+action,{session_id:record.id,expected_update:record.updated_at});
+      if(receipt.session_id!==record.id || receipt.operation!==action)throw new Error("세션 처리 결과를 확인하세요.");
+      if(action==="delete"){
+        sessionStorage.removeItem("hermes-draft-"+record.id);
+        sessionStorage.removeItem("hermes-pending-"+record.id);
+      }
       if(action==="restore"){setArchived(false);select(record.id)}else if(record.id===session)select("");
       setListRequest(current=>({offset:0,query:current.query}));setRefresh(n=>n+1);
     }catch(e){setError(e.message)}finally{setBusy(false);}
