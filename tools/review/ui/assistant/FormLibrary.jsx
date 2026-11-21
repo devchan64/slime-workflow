@@ -10,9 +10,39 @@ export default function FormLibrary({session, call, addToMessage}) {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [review, setReview] = useState(null);
+  const [draftRevision,setDraftRevision] = useState(null);
+  const edited = useRef(false);
   function editDefinition(value) {
+    edited.current = true;
     setDefinition(value);
     setReview(null);
+  }
+  function restoreDraft(record) {
+    if (record.session_id !== session || typeof record.definition_text !== "string" ||
+        typeof record.revision !== "string") throw new Error("세션 초안 응답을 확인하세요.");
+    setDefinition(record.definition_text);
+    setDraftRevision(record.revision);
+    setReview(null);
+    setReference(null);
+    setSelection("");
+    setName("");
+    edited.current = false;
+  }
+  useEffect(() => {
+    let active = true;
+    call("workflow-draft-read", {session_id:session}).then(record => {
+      if (active && !edited.current) restoreDraft(record);
+    }).catch(error => {if (active) setNotice(error.message);});
+    return () => {active = false;};
+  }, [session,call]);
+  async function saveDraft() {
+    const saved = await call("workflow-draft-save", {
+      session_id:session, revision:draftRevision, definition_text:definition
+    });
+    if (saved.session_id !== session || typeof saved.revision !== "string")
+      throw new Error("초안 저장 결과를 확인하세요.");
+    setDraftRevision(saved.revision);
+    setNotice("이 대화의 초안을 저장했습니다.");
   }
   async function reviewWorkflow() {
     setReview(null);
@@ -88,6 +118,11 @@ export default function FormLibrary({session, call, addToMessage}) {
       <label>폼 이름 <input value={name} onChange={event => setName(event.target.value)}/></label>
       <StepBuilder call={call} definition={definition} onChange={editDefinition}/>
       <label>워크플로우 정의 JSON <textarea value={definition} onChange={event => editDefinition(event.target.value)}/></label>
+      <button disabled={draftRevision===null} onClick={()=>run(saveDraft)}>세션 초안 저장</button>
+      <button onClick={()=>run(async()=>{
+        restoreDraft(await call("workflow-draft-read",{session_id:session}));
+        setNotice("서버에 저장된 초안을 불러왔습니다.");
+      })}>서버 초안으로 편집 내용 교체</button>
       <button disabled={!name.trim() || !definition.trim()} onClick={() => run(() => save(false))}>버전 저장</button>
       <button disabled={!reference || !name.trim() || !definition.trim()} onClick={() => run(() => save(true))}>별도 폼으로 복사</button>
       <button disabled={!definition.trim()} onClick={() => addToMessage(definition)}>대화 입력에 추가</button>
