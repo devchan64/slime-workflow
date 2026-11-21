@@ -243,10 +243,18 @@ def review_conversation_workflow_definition(current_session_identifier, workflow
             normalized_step_record["inputs"].pop(current_field_name, None)
         normalized_step_record["bindings"] = bound_input_record
         normalized_step_records.append(normalized_step_record)
-        step_input_sources[normalized_step_record["id"]] = {
-            name: "초안 지정값" if name in fixed_input_record else "생성기 기본값"
-            for name in normalized_step_record["inputs"]
-        } | {name: "선행 단계 결과" for name in bound_input_record}
+        current_input_sources = {}
+        for input_field_name, current_input_value in normalized_step_record["inputs"].items():
+            input_field_contract = current_generator_catalog[current_generator_name]["inputs"][input_field_name]
+            if input_field_name not in fixed_input_record:
+                input_source_label = "생성기 기본값"
+            elif "default" in input_field_contract and current_input_value == input_field_contract["default"]:
+                input_source_label = "초안에 포함된 생성기 기본값"
+            else:
+                input_source_label = "초안 지정값"
+            current_input_sources[input_field_name] = input_source_label
+        current_input_sources.update(dict.fromkeys(bound_input_record, "선행 단계 결과"))
+        step_input_sources[current_step_identifier] = current_input_sources
     compile_workflow_dependencies(normalized_step_records, current_generator_catalog)
     return {"session_id": current_session_identifier, "run_id": uuid.uuid4().hex, "steps": normalized_step_records,
             "input_sources": step_input_sources}
