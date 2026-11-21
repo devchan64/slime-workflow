@@ -786,7 +786,7 @@ def format_hermes_conversation_answer(current_answer_text, current_answer_trunca
 def read_hermes_session_conversation(hermes_session_identifier, hermes_selected_job=None):
     """메시지와 참조된 기존 작업의 현재 결과를 함께 표시한다."""
     if not hermes_session_identifier:
-        return [], '세션을 선택하거나 새로 만드세요.', gr.update(active=False), gr.update(choices=[], value=None)
+        return [], '', gr.update(active=False), gr.update(choices=[], value=None)
     try:
         hermes_session_record = execute_remote_management_command('hermes-agent', 'hermes-session-view', {'session_id': hermes_session_identifier})
         if not isinstance(hermes_session_record,dict) or hermes_session_record.get('id')!=hermes_session_identifier or not isinstance(hermes_session_record.get('messages'),list):
@@ -3734,6 +3734,19 @@ def submit_hermes_session_request(hermes_session_identifier, hermes_request_iden
         raise gr.Error('메시지 접수 확인 실패: ' + str(hermes_request_error) + ' · 입력과 식별자를 유지한 채 다시 확인하세요.') from hermes_request_error
 
 
+def submit_composed_request(session_id, request_id, prompt, verification, draft_id):
+    if not (prompt or '').strip():
+        raise gr.Error('요청을 입력하세요.')
+    session_update = next_draft = list_status = gr.skip()
+    if not session_id:
+        session_update, next_draft, list_status = create_hermes_session_from_draft(draft_id)
+        session_id = session_update.get('value')
+        if session_id != draft_id:
+            raise gr.Error('새 대화 세션을 확인할 수 없습니다. 같은 요청으로 다시 확인하세요.')
+    receipt = submit_hermes_session_request(session_id, request_id, prompt, verification)
+    return (*receipt, session_update, next_draft, list_status)
+
+
 def read_hermes_management_summary():
     """공용 관측을 표시하며 조회 실패를 준비 또는 유휴로 오인하지 않는다."""
     try:
@@ -4921,8 +4934,7 @@ def build_hermes_agent_interface(include_advanced_controls=True, current_source_
             hermes_interface_blocks.load(list_hermes_session_choices, inputs=[hermes_session_control], outputs=[hermes_session_control, hermes_session_list_status], js="(sessionId)=>{const linkedSession=new URL(window.location.href).searchParams.get('session');let tabSession=null;let recentSession=null;try{tabSession=sessionStorage.getItem('slime-management-session');}catch(e){}try{recentSession=localStorage.getItem('slime-management-session');}catch(e){}return [[linkedSession,tabSession,recentSession,sessionId].find(value=>typeof value==='string'&&/^[a-f0-9]{32}$/.test(value)) || null];}", preprocess=False, queue=False).then(restore_linked_conversation_job,inputs=[hermes_session_control,hermes_older_job_input],outputs=[hermes_session_job_selection,hermes_older_job_status],js="(sessionId,jobId)=>[sessionId,new URL(window.location.href).searchParams.get('job') || '']",preprocess=False,queue=False)
         else:
             with gr.Group():
-                gr.Markdown('### 대화\n관리 상태를 묻거나 필요한 작업을 요청하세요. 예: GPU 대기 상태를 알려줘 · 사용할 빌보드를 찾아줘 · 걷기 동작을 제안해줘. 이전 작업이 끝나면 후속 메시지를 보낼 수 있습니다.')
-                gr.Markdown('Kimodo 생성·재개, 모델 준비, 이미지·번역·오디오·영상·작가 AI 제안은 대화 아래에서 검토하고 실행 상태를 확인할 수 있습니다. 맵·에셋 변경 제안은 별도 검토 영역에서 확인합니다. 첨부가 필요한 이미지와 영상은 각각의 첨부 검토 영역을 사용합니다. 작가 변경은 작가 AI 화면에서 전체 근거를 검토한 뒤 대화에서 적용할 수 있습니다. 코딩 변경은 격리 사본에서 검토합니다.')
+                gr.Markdown('### 대화')
                 with gr.Row():
                     hermes_session_control = gr.Dropdown(label='세션', choices=[], interactive=True)
                     hermes_new_session_button = gr.Button('새 세션')
@@ -4930,13 +4942,15 @@ def build_hermes_agent_interface(include_advanced_controls=True, current_source_
                 hermes_session_draft = gr.State(value=lambda: uuid.uuid4().hex)
                 hermes_session_request = gr.State(value=lambda: uuid.uuid4().hex)
                 hermes_session_list_status = gr.Markdown('세션 목록을 확인하고 있습니다.')
-                hermes_session_conversation = gr.Chatbot(label='대화', value=[], height=420, placeholder='새 세션을 만들거나 기존 세션을 선택한 뒤 요청을 입력하세요.', render_markdown=False, allow_file_downloads=False)
-                hermes_session_status = gr.Markdown('세션을 선택하거나 새로 만드세요.')
+                hermes_session_conversation = gr.Chatbot(label='대화', value=[], height=420, placeholder='무엇을 도와드릴까요? 첫 요청을 보내면 새 대화가 시작됩니다.', render_markdown=False, allow_file_downloads=False)
+                hermes_session_status = gr.Markdown()
                 with gr.Row():
                     hermes_session_prompt = gr.Textbox(elem_id='hermes-request-input', label='요청 입력', lines=3, max_lines=10, placeholder='무엇을 확인하거나 처리할까요?')
                     hermes_session_send = gr.Button('요청 검토', variant='primary', interactive=False)
                     hermes_session_refresh = gr.Button('대화 상태 새로고침')
                     hermes_session_recover = gr.Button('미확인 요청 복원')
+                with gr.Column() as request_confirmation_area:
+                    hermes_session_submit_status = gr.Markdown()
                 build_conversation_tool_explorer(hermes_session_prompt, hermes_session_control, current_source_path)
                 composer_session = gr.State(None)
                 composer_drafts = gr.State({})
@@ -5406,14 +5420,21 @@ def build_hermes_agent_interface(include_advanced_controls=True, current_source_
                         workflow_target_input.change(lambda: (None, "", gr.update(visible=False)), outputs=workflow_priority_outputs, queue=False)
                 hermes_session_verification = gr.Textbox(label='세션 작업 검증 모듈 · 선택', lines=2, placeholder='tools.review.tests.test_hermes_service')
                 hermes_session_job = gr.Textbox(label='세션 작업 ID', interactive=False)
-                hermes_session_submit_status = gr.Markdown('세션과 메시지를 선택하세요.')
                 hermes_new_session_button.click(create_hermes_session_from_draft, [hermes_session_draft], [hermes_session_control, hermes_session_draft, hermes_session_list_status], queue=False)
                 hermes_session_list_button.click(list_hermes_session_choices, [hermes_session_control], [hermes_session_control, hermes_session_list_status], queue=False)
                 hermes_session_control.change(read_hermes_session_conversation, [hermes_session_control, hermes_session_job_selection], [hermes_session_conversation, hermes_session_status, hermes_session_timer, hermes_session_job_selection], queue=False)
                 hermes_session_refresh.click(read_hermes_session_conversation, [hermes_session_control, hermes_session_job_selection], [hermes_session_conversation, hermes_session_status, hermes_session_timer, hermes_session_job_selection], queue=False)
                 hermes_session_timer.tick(read_hermes_session_conversation, [hermes_session_control, hermes_session_job_selection], [hermes_session_conversation, hermes_session_status, hermes_session_timer, hermes_session_job_selection], queue=False)
                 hermes_session_recover.click(recover_hermes_session_request, [hermes_session_control], [hermes_session_request, hermes_session_prompt, hermes_session_verification, hermes_session_submit_status], queue=False)
-                bind_gpu_generation_confirmation(hermes_session_send, submit_hermes_session_request, [hermes_session_control, hermes_session_request, hermes_session_prompt, hermes_session_verification], [hermes_session_job, hermes_session_submit_status, hermes_session_request, hermes_session_timer], generation_readiness_callback=lambda current_session_id, current_message_text: bool(current_session_id and (current_message_text or '').strip()), generation_readiness_inputs=[hermes_session_control, hermes_session_prompt], generation_confirmation_validator=match_hermes_confirmation_inputs, generation_confirmation_inputs=[hermes_session_control, hermes_session_request, hermes_session_prompt, hermes_session_verification])
+                request_inputs = [hermes_session_control, hermes_session_request, hermes_session_prompt,
+                                  hermes_session_verification, hermes_session_draft]
+                bind_gpu_generation_confirmation(hermes_session_send, submit_composed_request, request_inputs,
+                    [hermes_session_job, hermes_session_submit_status, hermes_session_request, hermes_session_timer,
+                     hermes_session_control, hermes_session_draft, hermes_session_list_status],
+                    generation_confirmation_container=request_confirmation_area,
+                    generation_readiness_callback=lambda text: bool((text or '').strip()),
+                    generation_readiness_inputs=[hermes_session_prompt], generation_confirmation_validator=match_hermes_confirmation_inputs,
+                    generation_confirmation_inputs=request_inputs)
                 hermes_session_control.change(fn=None, inputs=[hermes_session_control], js="(sessionId)=>{if(/^[a-f0-9]{32}$/.test(sessionId || '')){const returnLink=document.querySelector('#management-return-conversation a');if(/^[a-f0-9]{32}$/.test(sessionId)){if(returnLink)returnLink.setAttribute('href','/management/frame/hermes-agent/?session='+sessionId);const historyLink=document.querySelector('#management-open-history a');if(historyLink)historyLink.setAttribute('href','/management/frame/operations-history/?session='+sessionId);}try{sessionStorage.setItem('slime-management-session',sessionId);}catch(e){}try{localStorage.setItem('slime-management-session',sessionId);}catch(e){}const currentUrl=new URL(window.location.href);if(currentUrl.searchParams.has('session')){if(currentUrl.searchParams.get('session')!==sessionId)currentUrl.searchParams.delete('job');currentUrl.searchParams.set('session',sessionId);window.history.replaceState(window.history.state,'',currentUrl.href);}} return sessionId;}", queue=False)
                 hermes_interface_blocks.load(fn=None,js="()=>{const sessionId=new URL(window.location.href).searchParams.get('session');const returnLink=document.querySelector('#management-return-conversation a');if(/^[a-f0-9]{32}$/.test(sessionId || '')){if(returnLink)returnLink.setAttribute('href','/management/frame/hermes-agent/?session='+sessionId);const historyLink=document.querySelector('#management-open-history a');if(historyLink)historyLink.setAttribute('href','/management/frame/operations-history/?session='+sessionId);}}")
                 hermes_interface_blocks.load(list_hermes_session_choices, inputs=[hermes_session_control], outputs=[hermes_session_control, hermes_session_list_status], js="(sessionId)=>{const linkedSession=new URL(window.location.href).searchParams.get('session');let tabSession=null;let recentSession=null;try{tabSession=sessionStorage.getItem('slime-management-session');}catch(e){}try{recentSession=localStorage.getItem('slime-management-session');}catch(e){}return [[linkedSession,tabSession,recentSession,sessionId].find(value=>typeof value==='string'&&/^[a-f0-9]{32}$/.test(value)) || null];}", preprocess=False, queue=False).then(restore_linked_conversation_job,inputs=[hermes_session_control,hermes_older_job_input],outputs=[hermes_session_job_selection,hermes_older_job_status],js="(sessionId,jobId)=>[sessionId,new URL(window.location.href).searchParams.get('job') || '']",preprocess=False,queue=False)

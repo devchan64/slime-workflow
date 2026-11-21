@@ -241,8 +241,6 @@ def build_conversation_tool_explorer(conversation_prompt, session_control, curre
     by_id = {record['id']: record for record in records}
 
     def attach_tool(session_id, identifier, draft):
-        if not session_id:
-            raise gr.Error("먼저 대화 세션을 선택하거나 새로 만드세요.")
         record = by_id.get(identifier)
         if record is None:
             raise gr.Error('대화에 사용할 도구를 선택하세요.')
