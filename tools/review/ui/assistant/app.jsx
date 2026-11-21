@@ -1,3 +1,4 @@
+import BattlefieldReview from "./BattlefieldReview.jsx";
 import FunControlPage from "./FunControlPage.jsx";
 import VacePage from "./VacePage.jsx";
 import AnimatePage from "./AnimatePage.jsx";
@@ -263,6 +264,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/assistant/battlefield": BattlefieldReview,
   "/management/frame/wan22-fun-control-generator": FunControlPage,
   "/management/assistant/fun-control": FunControlPage,
   "/management/frame/wan22-vace-generator": VacePage,
