@@ -69,6 +69,13 @@ function App() {
   const [queue,setQueue]=useState(null),[refresh,setRefresh]=useState(0);
   const [historyPage,setHistoryPage]=useState(null);
   const sending=useRef(false),text=useRef(null);
+  const toolToggle=useRef(null),toolSearch=useRef(null);
+  useEffect(()=>{if(showTools)toolSearch.current?.focus();},[showTools]);
+  function handleToolKeys(event){
+    if(event.key==="Escape" && !event.nativeEvent.isComposing){
+      event.preventDefault();setShowTools(false);toolToggle.current?.focus();
+    }
+  }
   function select(next) {
     const url=new URL(location.href);
     if(next)url.searchParams.set("session",next);else url.searchParams.delete("session");
@@ -167,13 +174,13 @@ function App() {
   return <main><aside><h2>대화 세션</h2><button disabled={busy} onClick={()=>{select("");setArchived(false);}}>새 대화</button><button onClick={()=>setArchived(!archived)}>{archived?"대화 목록":"보관함"}</button>
     {sessions.map(s=><div className="session" key={s.id}><button disabled={busy} aria-current={s.id===session?"page":undefined} onClick={()=>archived?lifecycle(s,"restore"):select(s.id)}>{s.title || s.id}</button>
     <button disabled={busy} onClick={()=>lifecycle(s,archived?"delete":"archive")}>{archived?"삭제":"보관"}</button></div>)}</aside>
-    <article><header><h1>{view.title || "헤르메스와 대화"}</h1><button aria-expanded={showTools} onClick={()=>{setShowGpu(false);setShowTools(!showTools)}}>도구 탐색</button>
+    <article><header><h1>{view.title || "헤르메스와 대화"}</h1><button ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowGpu(false);setShowTools(!showTools)}}>도구 탐색</button>
     <button aria-expanded={showGpu} onClick={()=>{setShowTools(false);setShowGpu(!showGpu)}}>GPU 프로세스 정보</button>
     {session&&<button aria-expanded={showForms} onClick={()=>setShowForms(!showForms)}>입력 폼</button>}
     {session&&<button aria-expanded={Boolean(queue)} onClick={()=>setQueue(queue ? null : {run:""})}>대기열</button>}</header>
     {showGpu && <GpuPanel/>}
-    {showTools && <section className="floating-panel" aria-label="도구 탐색">
-      <input aria-label="도구 검색" maxLength={100} placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>
+    {showTools && <section className="floating-panel" aria-label="도구 탐색" onKeyDown={handleToolKeys}>
+      <input ref={toolSearch} aria-label="도구 검색" maxLength={100} placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>
       <button aria-expanded={searchMode==="capabilities"} onClick={()=>setSearchMode(searchMode==="capabilities"?"tools":"capabilities")}>관리 기능 검색</button>
       <button aria-expanded={searchMode==="services"} onClick={()=>setSearchMode(searchMode==="services"?"tools":"services")}>서비스 등록 목록</button>
       <button aria-expanded={searchMode==="history"} onClick={()=>setSearchMode(searchMode==="history"?"tools":"history")}>생성 이력</button>
