@@ -636,6 +636,17 @@ def build_management_application(current_handler_class, current_root_path, curre
                 from PIL import Image
                 raw = base64.b64decode(inputs["image"], validate=True)
                 overlay, _ = render_bound_review_overlay(raw, inputs["skeleton"], report)
+                from generators.kimodo.multiview_reviewed_bundle import REVIEWED_BUNDLE_SCHEMA_VERSION, validate_reviewed_multiview_bundle
+                from tools.review.domains.image.three_reference_generation import decode_reference_image
+                import hashlib
+                candidate = {"schema": REVIEWED_BUNDLE_SCHEMA_VERSION, "reference_observations": inputs["observations"],
+                             "skeleton": inputs["skeleton"]}
+                try:
+                    png = decode_reference_image(inputs["image"], composite_transparent_background=True)
+                    checked = validate_reviewed_multiview_bundle(candidate, [hashlib.sha256(png).hexdigest()])
+                    preview["bundle_json"] = json.dumps(checked, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+                except (KeyError, TypeError, ValueError) as error:
+                    preview["bundle_error"] = str(error)
                 with io.BytesIO() as output:
                     overlay.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
                     overlay.save(output, "PNG")
