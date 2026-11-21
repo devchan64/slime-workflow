@@ -1,3 +1,4 @@
+import EffectEditor from "./EffectEditor.jsx";
 import BuildingEditor from "./BuildingEditor.jsx";
 import MapReview from "./MapReview.jsx";
 import BattlefieldReview from "./BattlefieldReview.jsx";
@@ -266,6 +267,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/assistant/effects": EffectEditor,
   "/management/frame/building-editor": BuildingEditor,
   "/management/assistant/buildings": BuildingEditor,
   "/management/assistant/field-map": MapReview,
