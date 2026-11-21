@@ -65,15 +65,20 @@ function jobLink(id,session){
   if(session)params.set("session",session);
   return "/management/frame/hermes-agent/?"+params;
 }
+const HistoryRoutes=React.createContext({});
 const ProposalActions=React.createContext(null);
 function Message() {
   const actions=React.useContext(ProposalActions);
   const message=useAuiState(s=>s.message);
   const meta=message.metadata?.custom || {};
+  const paths=React.useContext(HistoryRoutes);
+  const path=paths[meta.activity?.source_history_page?.service];
+  const table=meta.table && path ? {...meta.table,rows:meta.table.rows.map(([job,...cells])=>[
+    <a href={path+"?"+new URLSearchParams({job,session:meta.session})}>{job}</a>,...cells])} : meta.table;
   return <MessagePrimitive.Root className={"message "+message.role}>
     <b>{message.role==="user"?"나":"헤르메스"}</b><MessagePrimitive.Parts/>
     {meta.kimodoProposal && meta.job && <KimodoProposal key={meta.job} job={meta.job} append={actions.append} openStep={actions.openStep}/>}
-    {meta.table && <ResultTable table={meta.table}/>}
+    {table && <ResultTable table={table}/>}
     {!meta.table && meta.activity?.source_history_summary && <pre>{meta.activity.source_history_summary}</pre>}
     {meta.activity?.events?.length>0 && <details><summary>도구 사용 내역</summary>{meta.activity.events.map((e,i)=><p key={i}>{e.name} · {e.target || e.result}</p>)}</details>}
     {meta.status && <small>{meta.status} {meta.job && <> · <a href={jobLink(meta.job,meta.session)}>{meta.job}</a></>}</small>}
@@ -81,11 +86,24 @@ function Message() {
 }
 function Conversation({view}) {
   const messages=React.useMemo(()=>messagesFrom(view),[view]);
+  const [routes,setRoutes]=useState({});
+  const hasHistory=messages.some(message=>message.metadata?.custom?.activity?.source_history_page);
+  useEffect(()=>{
+    if(!hasHistory)return;
+    const controller=new AbortController();
+    fetch(base+"history-services",{signal:controller.signal}).then(response=>{
+      if(!response.ok)throw new Error();
+      return response.json();
+    }).then(services=>{
+      if(!controller.signal.aborted)setRoutes(Object.fromEntries(services.filter(row=>row.result_path).map(row=>[row.service,row.result_path])));
+    }).catch(()=>{}); // Keep saved rows readable when the catalog is unavailable.
+    return ()=>controller.abort();
+  },[hasHistory]);
   const runtime=useExternalStoreRuntime({messages,isRunning:false,convertMessage:m=>m});
-  return <AssistantRuntimeProvider runtime={runtime}><ThreadPrimitive.Root className="thread"><ThreadPrimitive.Viewport className="viewport">
+  return <HistoryRoutes.Provider value={routes}><AssistantRuntimeProvider runtime={runtime}><ThreadPrimitive.Root className="thread"><ThreadPrimitive.Viewport className="viewport">
     <ThreadPrimitive.Empty><h2>무엇을 도와드릴까요?</h2></ThreadPrimitive.Empty>
     <ThreadPrimitive.Messages components={{Message}}/>
-  </ThreadPrimitive.Viewport></ThreadPrimitive.Root></AssistantRuntimeProvider>;
+  </ThreadPrimitive.Viewport></ThreadPrimitive.Root></AssistantRuntimeProvider></HistoryRoutes.Provider>;
 }
 function initialToolCategory(){
   const category=query().get("category") || "all";
