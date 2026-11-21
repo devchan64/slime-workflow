@@ -1,6 +1,8 @@
 import React,{useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import GeneratorHistory from "./GeneratorHistory.jsx";
+import DownloadProgress from "./DownloadProgress.jsx";
+import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import HistoryCleanup from "./HistoryCleanup.jsx";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
@@ -94,9 +96,11 @@ export default function VacePage(){
     }catch(problem){setError(problem.message+" · 재접수 전에 생성 이력을 확인하세요.");}
     finally{setBusy(false);}
   }
-  return <article><h1>Wan VACE 영상 생성</h1><GeneratorChangelog generator="wan22-vace-generator"/>
+  const session=new URLSearchParams(location.search).get("session");
+  return <article><a href={"/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화로 돌아가기</a><h1>Wan VACE 영상 생성</h1><GeneratorChangelog generator="wan22-vace-generator"/>
     <button disabled={busy || !!pending} onClick={()=>{setModel(null);refresh(v=>v+1);}}>모델 상태 확인</button>
     <p role="status">{model?.message || "모델 상태 확인 중"}</p>
+    <DownloadProgress service={service}/>
     {error && <p role="alert">{error}</p>}
     {values && <form onSubmit={review}><fieldset disabled={busy || !!pending}><legend>생성 입력</legend>
       <label>생성 모드<select value={values.mode} onChange={e=>field("mode",e.target.value)}>{template.modes.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
@@ -112,15 +116,19 @@ export default function VacePage(){
       })}
       {[["frames","출력 프레임",5,129,4],["steps","스텝",2,100,1],["seed","시드",0,template.maximum_seed,1],["flow_shift","Flow shift",0.1,20,"any"],["guidance_scale","CFG",1,10,"any"],["reference_strength","조건 강도",0.1,2,"any"]].map(([key,label,min,max,step])=>
         <label key={key}>{label}<input type="number" required min={min} max={max} step={step} value={values[key]} onChange={e=>field(key,e.target.value===""?"":Number(e.target.value))}/></label>)}
+      <p>832×480 · 16fps · {Number(values.frames)>0?(Number(values.frames)/16).toFixed(2):"0"}초 · VACE-Fun A14B BF16 · Euler/FlowMatch</p>
       <button type="button" onClick={()=>field("seed",crypto.getRandomValues(new Uint32Array(1))[0] >>> 1)}>랜덤 시드</button>
-      <button disabled={!model?.ready || !values.prompt.trim()}>대기열에 추가</button>
+      <button disabled={!model?.ready || !values.prompt.trim() || (values.mode!=="text" && !files.reference) || attachments.some(key=>!files[key])}>대기열에 추가</button>
     </fieldset></form>}
     {pending && <section><GpuQueueSummary/><p>{pending.mode} · {pending.frames}프레임 · 시드 {pending.seed}</p>
       <button onClick={()=>setPending(null)}>취소</button><button onClick={submit}>확인 후 대기열에 추가</button></section>}
     <fieldset disabled={busy || !!pending}><GeneratorHistory key={historyRevision} service={service} readJob={readJob} openResult={setJob} restore={restore}/></fieldset>
     {notice && <p role="status">{notice}</p>}
     {job ? <MediaJobResult key={job} service={service} id={job}>
-      {record=><HistoryCleanup key={record?.status} service={service} job={job} state={record?.status} onDeleted={cleaned}/>}
+      {(record,reload)=>record && <React.Fragment key={record.status}>
+        <GeneratorJobControls service={service} id={job} state={record.status} refresh={reload}/>
+        <HistoryCleanup service={service} job={job} state={record.status} onDeleted={cleaned}/>
+      </React.Fragment>}
     </MediaJobResult> : <HistoryCleanup service={service} onDeleted={cleaned}/>}
   </article>;
 }

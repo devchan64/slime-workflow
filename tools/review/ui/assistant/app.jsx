@@ -262,6 +262,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/frame/wan22-vace-generator": VacePage,
   "/management/assistant/vace": VacePage,
   "/management/frame/wan22-animate2-generator": AnimatePage,
   "/management/frame/writer-agent": WriterPage,
