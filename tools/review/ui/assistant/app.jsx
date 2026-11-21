@@ -282,6 +282,7 @@ const pages = {
   "/management/assistant/sprite-sheets": SpriteSheetEditor,
   "/management/assistant/effects": EffectEditor,
   "/management/frame/building-editor": BuildingEditor,
+  "/management/frame/asset-editor": BillboardCatalog,
   "/management/assistant/billboards": BillboardCatalog,
   "/management/assistant/buildings": BuildingEditor,
   "/management/assistant/field-map": MapReview,

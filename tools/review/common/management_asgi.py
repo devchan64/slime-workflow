@@ -17,7 +17,6 @@ from starlette.responses import Response, RedirectResponse, JSONResponse
 MANAGEMENT_INTERFACE_BUILDERS = {
     'hermes-direct': ('hermes_agent_app', 'build_hermes_direct_interface', 'none'),
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
-    'asset-editor': ('asset_editor_app', 'build_asset_editor_interface', 'port'),
 }
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
 GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator'}
@@ -57,10 +56,6 @@ def build_management_blocks(current_tool_name, current_review_port, current_sour
             current_interface_blocks = current_builder_value()
         else:
             current_interface_blocks = current_builder_value(current_server_address if current_argument_kind == 'url' else current_review_port)
-        if current_tool_name == 'asset-editor':
-            from tools.review.common.map_tile_assets import load_registered_tiles
-            current_asset_directory = 'billboards'
-            current_mount_options['allowed_paths'] = [str(load_registered_tiles()[0] / 'assets' / current_asset_directory)]
     return compose_management_interface(current_interface_blocks, current_review_port, current_source_path), current_mount_options
 
 
@@ -1023,6 +1018,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/sprite-sheet-editor/')
     @current_root_application.get('/management/assistant/sprite-sheets/')
     @current_root_application.get('/management/assistant/effects/')
+    @current_root_application.get('/management/frame/asset-editor')
+    @current_root_application.get('/management/frame/asset-editor/')
     @current_root_application.get('/management/assistant/billboards/')
     @current_root_application.get('/management/assistant/buildings/')
     @current_root_application.get('/management/assistant/field-map/')

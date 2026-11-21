@@ -1,3 +1,5 @@
+import SnapshotStatus from "./SnapshotStatus.jsx";
+import BillboardLifecycle from "./BillboardLifecycle.jsx";
 import BillboardRegistration from "./BillboardRegistration.jsx";
 import BillboardProperties from "./BillboardProperties.jsx";
 import React,{useEffect,useState} from "react";
@@ -13,6 +15,7 @@ function imageUrl(id){
 export default function BillboardCatalog({choose}){
   const [query,setQuery]=useState(""),[category,setCategory]=useState("");
   const [request,setRequest]=useState({offset:0,limit:10}),[page,setPage]=useState(null);
+  const [notice,setNotice]=useState("");
   const [imageRevision,setImageRevision]=useState(0);
   const [selected,select]=useState(null),[error,setError]=useState("");
   useEffect(()=>{
@@ -33,6 +36,8 @@ export default function BillboardCatalog({choose}){
       <option value="">전체</option>{Object.entries(categories).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
       <label>이름·ID·모델링 설명·사용 맵<input maxLength={100} value={query} onChange={e=>setQuery(e.target.value)}/></label>
       <button>빌보드 검색</button></form>
+    {page?.storage==="database" && <SnapshotStatus/>}
+    {notice && <p role="status">{notice}</p>}
     {error && <p role="alert">{error}</p>}
     {!page && !error && <p role="status">카탈로그 조회 중…</p>}
     {page && <><ResultTable table={{title:"검색 결과",summary:page.total+"종",columns:["이름","에셋 ID","분류"],
@@ -46,6 +51,7 @@ export default function BillboardCatalog({choose}){
       <ResultTable table={{title:"사용 맵",summary:selected.maps_truncated?"처음 20개 맵":selected.maps.length+"개 맵",
         columns:["맵","원본 경로","사용 횟수"],rows:selected.maps.map(map=>[map.map,map.source_path,map.occurrences ?? "미확인"])}}/>
       <BillboardProperties key={selected.id} texture={selected.id} onCrop={()=>setImageRevision(n=>n+1)}/>
+      <BillboardLifecycle key={selected.id} texture={selected.id} onComplete={msg=>{setNotice(msg);setImageRevision(n=>n+1);setRequest({...request,offset:0});}}/>
       {choose && <button onClick={()=>choose("빌보드 "+selected.name,selected.id)}>대화 입력에 추가</button>}
     </section>}
   </section>;
