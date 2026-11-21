@@ -18,7 +18,6 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'hermes-direct': ('hermes_agent_app', 'build_hermes_direct_interface', 'none'),
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
     'asset-editor': ('asset_editor_app', 'build_asset_editor_interface', 'port'),
-    'sprite-sheet-editor': ('sprite_sheet_editor_app', 'build_sprite_sheet_editor_interface', 'port'),
 }
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
 GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator'}
@@ -997,6 +996,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/building-editor/')
     @current_root_application.get('/management/frame/effect-editor')
     @current_root_application.get('/management/frame/effect-editor/')
+    @current_root_application.get('/management/frame/sprite-sheet-editor')
+    @current_root_application.get('/management/frame/sprite-sheet-editor/')
     @current_root_application.get('/management/assistant/sprite-sheets/')
     @current_root_application.get('/management/assistant/effects/')
     @current_root_application.get('/management/assistant/buildings/')

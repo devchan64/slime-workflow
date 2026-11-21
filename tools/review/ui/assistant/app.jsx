@@ -275,6 +275,7 @@ function App() {
 }
 const pages = {
   "/management/frame/effect-editor": EffectEditor,
+  "/management/frame/sprite-sheet-editor": SpriteSheetEditor,
   "/management/assistant/sprite-sheets": SpriteSheetEditor,
   "/management/assistant/effects": EffectEditor,
   "/management/frame/building-editor": BuildingEditor,
