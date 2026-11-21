@@ -1,6 +1,6 @@
 import WorkflowResults from "./WorkflowResults.jsx";
-import ResultTable from "./ResultTable.jsx";
 import QueuePriority from "./QueuePriority.jsx";
+import MediaJobResult from "./MediaJobResult.jsx";
 import React, {useEffect, useRef, useState} from "react";
 
 const categories = {translation:"번역", image:"이미지", audio:"오디오", motion:"모션"};
@@ -10,20 +10,15 @@ const states = {
   completed:"완료", failed:"실패", cancelled:"취소", blocked:"차단", unknown:"확인 중"
 };
 const initial = {category:"", state:"", generator:"", run_id:"", job_id:"", created_from:"", created_through:""};
+function displayTime(value){const date=new Date(value);return value && !Number.isNaN(date.getTime())?date.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false}):"확인 불가";}
 
-export default function QueuePanel({session, call, editNextStep, resultsOnly=false, initialRun=""}) {
+export default function QueuePanel({session, call, editNextStep, initialRun=""}) {
   const [selectedRun,setSelectedRun] = useState(initialRun);
-  const resultsPanel=useRef(null);
-  const previousRun=useRef("");
-  useEffect(()=>{
-    if(!resultsOnly)return;
-    if(selectedRun)resultsPanel.current?.querySelector("h3")?.focus();
-    else if(previousRun.current)Array.from(resultsPanel.current?.querySelectorAll(".result-run") || [])
-      .find(button=>button.dataset.run===previousRun.current)?.focus();
-    previousRun.current=selectedRun;
-  },[selectedRun,resultsOnly]);
-  const [draft, setDraft] = useState({...initial,state:resultsOnly?"completed":"",run_id:initialRun});
-  const [filters, setFilters] = useState({...initial,state:resultsOnly?"completed":"",run_id:initialRun});
+  const [selectedDirect,setSelectedDirect]=useState("");
+  const detail=useRef(null);
+  useEffect(()=>{if(selectedRun || selectedDirect)detail.current?.scrollIntoView({block:"nearest"});},[selectedRun,selectedDirect]);
+  const [draft, setDraft] = useState({...initial,run_id:initialRun});
+  const [filters, setFilters] = useState({...initial,run_id:initialRun});
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -40,30 +35,8 @@ export default function QueuePanel({session, call, editNextStep, resultsOnly=fal
   function field(name) {
     return {value:draft[name], onChange:event => setDraft({...draft, [name]:event.target.value})};
   }
-  if(resultsOnly) {
-    const runs=new Map();
-    for(const step of result?.steps || []) {
-      if(!runs.has(step.run_id))runs.set(step.run_id,[]);
-      runs.get(step.run_id).push(step);
-    }
-    return <section ref={resultsPanel} className="panel session-results" aria-label="작업 결과">
-      {selectedRun ? <WorkflowResults key={selectedRun} session={session} run={selectedRun} call={call}
-        openRun={setSelectedRun} editNextStep={editNextStep} close={()=>setSelectedRun("")}/> : <>
-        <h2>작업 결과</h2>
-        <button onClick={()=>setFilters({...filters})}>목록 갱신</button>
-        {error && <p role="alert">{error}</p>}
-        {!result && !error && <p role="status">조회 중…</p>}
-        {result && !runs.size && <p>이 세션에 완료된 작업이 없습니다.</p>}
-        {result?.truncated && <p>최근 완료 단계 100개에서 조회한 결과입니다.</p>}
-        {Array.from(runs,([id,steps])=><button className="result-run" data-run={id} key={id} onClick={()=>setSelectedRun(id)}>
-          <strong>{steps.map(step=>step.step_id).join(", ")}</strong>
-          <small>{[...new Set(steps.map(step=>step.generator))].join(", ")} · {id}</small>
-        </button>)}
-      </>}
-    </section>;
-  }
   return <section className="panel session-queue" aria-label="세션 대기열">
-    <form onSubmit={event => {event.preventDefault(); setSelectedRun(""); setFilters({...draft});}} style={{display:"block"}}>
+    <form onSubmit={event => {event.preventDefault(); setSelectedRun("");setSelectedDirect(""); setFilters({...draft});}} style={{display:"block"}}>
       <label>카테고리 <select {...field("category")}><option value="">전체</option>
         {Object.entries(categories).map(([key,label]) => <option key={key} value={key}>{label}</option>)}
       </select></label>
@@ -72,23 +45,28 @@ export default function QueuePanel({session, call, editNextStep, resultsOnly=fal
       </select></label>
       <details><summary>상세 필터</summary>{Object.entries({generator:"생성기",run_id:"워크플로우 실행 ID",job_id:"단계 또는 작업 ID",created_from:"시작일",created_through:"종료일"}).map(([key,label]) =>
         <label key={key}>{label} <input type={key.startsWith("created_")?"date":"text"} {...field(key)}/></label>)}</details>
-      <button>대기열 조회</button>
+      <button>작업 조회</button>
     </form>
     {error && <p role="alert">{error}</p>}
     {!result && !error && <p role="status">조회 중…</p>}
-    {result && <ResultTable table={{
-      title:"워크플로우 대기열",
-      summary:(result.truncated?"최근 100개 단계 표시":result.steps.length+"개 단계")+" · 조회 "+result.queried_at,
-      columns:["생성기","단계","원본 작업 ID","상태","원본 관측 시각","실행 ID","우선순위"],
-      rowKeys:result.steps.map(step=>step.request_id),
-      rows:result.steps.map(step=>[
-        step.generator,step.step_id,step.source_job_id || "—",
-        (states[step.state] || step.state)+(step.source_state?" · "+(states[step.source_state] || step.source_state):""),
-        step.observed_at || "관측 전",
-        <button aria-label={step.run_id+" 결과 조회"} onClick={()=>setSelectedRun(step.run_id)}>{step.run_id}</button>,
-        <QueuePriority step={step} call={call}/>
-      ])
-    }}/>}
-    {selectedRun && <WorkflowResults editNextStep={editNextStep} key={selectedRun} session={session} run={selectedRun} openRun={setSelectedRun} call={call} close={()=>setSelectedRun("")}/>}
+    {result && <section aria-label="세션 작업 목록"><p>{result.steps.length+(result.direct_jobs || []).length}개 작업{(result.truncated || result.direct_truncated) && " · 일부 이전 항목 제외"} · 조회 {displayTime(result.queried_at)}</p>
+      <div className="session-job-list">
+        {result.steps.map(step=><article className="session-job" key={"workflow:"+step.request_id}>
+          <div className="session-job-heading"><strong>{step.generator}</strong><span>{states[step.source_state] || states[step.state] || step.state}</span></div>
+          <p>{step.step_id} · {step.source_job_id || "작업 ID 확인 중"}</p><small>관측 · {step.observed_at ? displayTime(step.observed_at) : "관측 전"}</small>
+          <div className="session-job-actions"><button type="button" aria-label={step.run_id+" 결과 조회"} onClick={()=>{setSelectedDirect("");setSelectedRun(step.run_id);}}>상태·결과 보기</button>{step.state==="submitting" && step.source_state==="queued" && <QueuePriority step={step} call={call}/>}</div>
+        </article>)}
+        {(result.direct_jobs || []).map(step=><article className="session-job" key={"form:"+step.form_id}>
+          <div className="session-job-heading"><strong>{step.generator} · 직접 접수</strong><span>{states[step.state] || step.state}</span></div>
+          <p>{step.source_job_id || "접수 확인 필요"}</p><small>관측 · {displayTime(step.observed_at)}</small>
+          {step.source_job_id && <div className="session-job-actions"><button type="button" aria-label={step.source_job_id+" 결과 조회"} onClick={()=>{setSelectedRun("");setSelectedDirect(step.source_job_id);}}>상태·결과 보기</button></div>}
+        </article>)}
+      </div>
+      {!result.steps.length && !(result.direct_jobs || []).length && <p>조건에 맞는 작업이 없습니다.</p>}
+    </section>}
+    {(selectedRun || selectedDirect) && <div ref={detail}>
+      {selectedRun && <WorkflowResults editNextStep={editNextStep} key={selectedRun} session={session} run={selectedRun} openRun={setSelectedRun} call={call} close={()=>setSelectedRun("")}/>}
+      {selectedDirect && <section aria-label="직접 접수 결과"><button type="button" onClick={()=>setSelectedDirect("")}>결과 닫기</button><MediaJobResult key={selectedDirect} service="wan22-fun-control" id={selectedDirect} folderLink/></section>}
+    </div>}
   </section>;
 }

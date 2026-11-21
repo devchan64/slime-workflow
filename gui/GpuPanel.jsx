@@ -4,7 +4,7 @@ function memory(value) {
   return Number.isInteger(value) && value >= 0 ? value.toLocaleString() + " MiB" : "미측정";
 }
 
-export default function GpuPanel() {
+export default function GpuPanel({embedded=false}) {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
   const [copyNotice,setCopyNotice] = useState("");
@@ -32,8 +32,8 @@ export default function GpuPanel() {
   }
   const processes = status?.processes || [];
   const domains = ["vram","gtt"].filter(domain=>status?.[domain+"_total_mib"] != null);
-  return <section id="gpu-panel" className="floating-panel" aria-label="GPU 프로세스 정보">
-    <h2>GPU 프로세스 정보</h2>
+  return <section id="gpu-panel" className={embedded?"gpu-panel-content":"floating-panel"} aria-label="GPU 프로세스 정보">
+    {!embedded && <h2>GPU 프로세스 정보</h2>}
     {error && <p role="alert">{error}</p>}
     {!status && !error && <p>조회 중…</p>}
     {status && <>

@@ -3,6 +3,8 @@ import {managementCommand} from "./managementCommand.js";
 import TranslationResult from "./TranslationResult.jsx";
 import React, {useEffect, useState} from "react";
 
+const stepStates={ready:"접수 준비",waiting:"선행 단계 대기",awaiting_choice:"결과 선택 대기",submitting:"접수 중",queued:"대기 중",running:"실행 중",completed:"완료",failed:"실패",cancelled:"취소",blocked:"차단",unknown:"확인 중",paused:"일시 중지"};
+
 function MediaPreview({audio, result, session, run, call}) {
   const [source,setSource] = useState("");
   const [busy,setBusy] = useState(false);
@@ -113,10 +115,10 @@ export default function WorkflowResults({session, run, call, close, openRun, edi
     } catch (problem) {setError(problem.message);}
     finally {setBusy(false);}
   }
-  return <section aria-label="워크플로우 결과">
-    <h3 tabIndex={-1}>워크플로우 결과</h3><code>{run}</code>
-    <button disabled={busy} onClick={()=>{setConfirmCancel(false);setRevision(value=>value+1);}}>결과 갱신</button>
-    <button onClick={close}>결과 닫기</button>
+  return <section className="workflow-result" aria-label="워크플로우 결과">
+    <header className="workflow-result-header"><div><h3 tabIndex={-1}>워크플로우 결과</h3><p>실행 ID · <code>{run}</code></p></div>
+      <div className="workflow-result-actions"><button disabled={busy} onClick={()=>{setConfirmCancel(false);setRevision(value=>value+1);}}>결과 갱신</button>
+      <button onClick={close}>결과 닫기</button></div></header>
     <p role="status">{connectionNotice}</p>
     {error && <p role="alert">{error}</p>}
     {view && <>
@@ -128,8 +130,8 @@ export default function WorkflowResults({session, run, call, close, openRun, edi
           <button onClick={()=>setConfirmCancel(false)}>실행 유지</button>
         </section> :
         <button disabled={busy} onClick={()=>setConfirmCancel(true)}>워크플로우 취소 검토</button>)}
-      {view.steps.map(step => <div key={step.step_id}>
-        <p>{step.step_id} · {step.state}{step.cancel_delivery && " · 중지 요청 " +
+      {view.steps.map(step => <div className="workflow-step" key={step.step_id}>
+        <p><strong>{step.step_id}</strong> <span className="workflow-step-status">{stepStates[step.state] || step.state}</span>{step.cancel_delivery && " · 중지 요청 " +
           ({pending:"전달 대기",unconfirmed:"전달 확인 중",acknowledged:"전달됨"}[step.cancel_delivery] || step.cancel_delivery)}</p>
         {Object.entries(step.bindings || {}).map(([input,source])=><p key={input}>
           {source.from_step}.{source.output} → {step.step_id}.{input}</p>)}
@@ -144,7 +146,7 @@ export default function WorkflowResults({session, run, call, close, openRun, edi
           <button onClick={()=>openRun(link.retry_run)}>재시도 실행 보기</button>}
       </p>)}
       {view.results.length===0 && <p>아직 기록된 결과가 없습니다.</p>}
-      {view.results.map(result => <section key={result.attempt_id}><h4>{result.step_id} · {result.job_id}</h4>
+      {view.results.map(result => <section className="workflow-output" key={result.attempt_id}><h4>{result.step_id}</h4><p className="workflow-output-id">작업 ID · <code>{result.job_id}</code></p>
         {typeof result.outputs.text === "string" && (view.steps.some(step=>step.step_id===result.step_id && step.generator==="prompt-translation")
           ? <TranslationResult job={result.job_id} text={result.outputs.text}/> : <pre>{result.outputs.text}</pre>)}
         {view.steps.some(step=>step.step_id===result.step_id && step.generator==="kimodo") &&

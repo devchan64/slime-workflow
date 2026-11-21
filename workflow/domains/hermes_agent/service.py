@@ -462,6 +462,11 @@ class HermesServiceManager:
             return HermesDelegationStore().read_service_delegation(request_id, 'wan22-fun-control')
         if not isinstance(hermes_payload_record, dict):
             raise ValueError('입력은 객체여야 합니다.')
+        if hermes_command_name == 'hermes-workflow-list':
+            from .workflow_commands import execute_workflow_command
+            from .session_queue import append_session_video_jobs
+            result = execute_workflow_command(WORKFLOW_ROOT_DIRECTORY, hermes_command_name, hermes_payload_record)
+            return append_session_video_jobs(result, hermes_payload_record, self.hermes_session_root)
         if hermes_command_name in ("hermes-workflow-list", "hermes-workflow-catalog", "hermes-workflow-review", "hermes-workflow-register", "hermes-workflow-view", 'hermes-workflow-cancel', 'hermes-workflow-select', 'hermes-workflow-retry', 'hermes-workflow-draft-read', 'hermes-workflow-draft-save', 'hermes-form-list', 'hermes-form-read', 'hermes-form-save', 'hermes-workflow-image-preview', 'hermes-workflow-audio-preview'):
             from .workflow_commands import execute_workflow_command
             return execute_workflow_command(WORKFLOW_ROOT_DIRECTORY, hermes_command_name, hermes_payload_record)

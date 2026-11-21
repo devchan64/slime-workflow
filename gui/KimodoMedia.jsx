@@ -10,10 +10,10 @@ export default function KimodoMedia({id,job}){
   for(const [label,path] of Object.entries(job.preprocess_videos || {})){
     if(typeof path==="string" && path.startsWith(base) && /^[\w-]+\.mp4$/.test(path.slice(base.length)))videos.push([label,path]);
   }
-  return <section aria-label="Kimodo 결과 파일">
+  return <section className="kimodo-media" aria-label="Kimodo 결과 파일">
     <label>결과 영상 <select value={selected} onChange={e=>{select(e.target.value);setError("");}}>
       {videos.map(([label,path])=><option key={label} value={path}>{label}</option>)}</select></label>
-    <video controls preload="metadata" src={selected} style={{maxWidth:"100%"}} onError={()=>setError("선택한 영상을 불러올 수 없습니다.")}/>
+    <video controls playsInline preload="metadata" src={selected} onError={()=>setError("선택한 영상을 불러올 수 없습니다.")}/>
     {error && <p role="alert">{error}</p>}
     {job.download===base+"frames.zip" && <a href={job.download} download>프레임 ZIP 다운로드</a>}
   </section>;
