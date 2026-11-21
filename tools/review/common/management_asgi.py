@@ -674,6 +674,12 @@ def build_management_application(current_handler_class, current_root_path, curre
         rows, summary = format_capability_table(catalog)
         return {'rows': rows, 'summary': summary}
 
+    @current_root_application.get('/management/assistant/operations-priority-receipt/{identifier}')
+    def operations_priority_receipt(identifier: str):
+        from tools.review.common.management_client import execute_remote_management_command
+        from tools.review.common.operations_history import read_operations_priority_request
+        return {'notice': read_operations_priority_request(identifier, execute_remote_management_command)}
+
     @current_root_application.post('/management/assistant/operations-priority-review')
     def operations_priority_review(target: dict):
         from tools.review.common.management_client import execute_remote_management_command

@@ -7,13 +7,24 @@ export default function OperationsJobs(){
   const [result,setResult]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
   const [gpu,setGpu]=useState(null),[gpuError,setGpuError]=useState("");
   const [priority,setPriority]=useState(null);
+  const [receiptId,setReceiptId]=useState(""),[receiptNotice,setReceiptNotice]=useState("");
+  async function readReceipt(){
+    setBusy(true);setReceiptNotice("");
+    try{
+      const response=await fetch("/management/assistant/operations-priority-receipt/"+encodeURIComponent(receiptId.trim()),{cache:"no-store"});
+      if(!response.ok)throw new Error("접수 기록을 조회할 수 없습니다.");
+      setReceiptNotice((await response.json()).notice);
+    }catch(problem){setReceiptNotice(problem.message);}
+    finally{setBusy(false);}
+  }
   async function reviewPriority(service,id){
     setBusy(true);setPriority(null);setGpuError("");
     try{
       const response=await fetch("/management/assistant/operations-priority-review",{method:"POST",
         headers:{"Content-Type":"application/json"},body:JSON.stringify({service,id})});
       if(!response.ok)throw new Error("대기 작업을 다시 조회하세요.");
-      setPriority(await response.json());
+      const review=await response.json();
+      setPriority(review);setReceiptId(review.identifier || "");setReceiptNotice("");
     }catch(problem){setGpuError(problem.message);}
     finally{setBusy(false);}
   }
@@ -75,5 +86,8 @@ export default function OperationsJobs(){
     {priority && <section><p role="status">{priority.notice}</p>{priority.identifier && <code>{priority.identifier}</code>}
       {priority.request && <><button onClick={()=>setPriority(null)}>취소</button>
         <button onClick={prioritize}>확인 후 우선순위 변경</button></>}</section>}
+    <label>우선순위 변경 접수 ID <input value={receiptId} onChange={e=>{setReceiptId(e.target.value);setReceiptNotice("");}}/></label>
+    <button disabled={!/^priority_[a-f0-9]{64}$/.test(receiptId.trim())} onClick={readReceipt}>접수 결과 조회</button>
+    {receiptNotice && <p role="status">{receiptNotice}</p>}
   </fieldset>;
 }

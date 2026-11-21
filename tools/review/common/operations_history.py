@@ -273,3 +273,18 @@ def prepare_operations_priority_request(current_priority_target, command):
         return current_request_record,current_review_notice,current_request_identifier
     except (OSError,ValueError,KeyError,TypeError,RuntimeError):
         return None,'대상 또는 접수 기록을 확인할 수 없습니다. 원 서비스와 대기열을 확인하세요. 순서는 변경하지 않았습니다.',''
+
+
+def read_operations_priority_request(current_request_identifier, command):
+    """화면을 다시 열어도 접수 ID로 결과를 확인할 수 있다."""
+    try:
+        if not isinstance(current_request_identifier,str) or not re.fullmatch(r'priority_[a-f0-9]{64}',current_request_identifier):raise ValueError('접수 ID 오류')
+        current_receipt_record=command('hermes-agent','hermes-priority-receipt',{'request_id':current_request_identifier})
+        if not isinstance(current_receipt_record,dict):raise ValueError('접수 오류')
+        if current_receipt_record.get('state')=='not_found':return '해당 접수 기록이 없습니다. 요청이 전달되지 않았다는 보장은 아니므로 원 서비스와 대기열을 확인하세요.'
+        if current_receipt_record.get('request_id')!=current_request_identifier or current_receipt_record.get('state') not in ('unknown','completed'):raise ValueError('접수 오류')
+        current_target_label=str(current_receipt_record.get('service','확인 불가'))+' · '+str(current_receipt_record.get('job_id','확인 불가'))
+        if current_receipt_record['state']=='completed':return current_target_label+' · 순서 변경 접수 완료. 현재 순번이나 작업 완료를 뜻하지 않습니다.'
+        return current_target_label+' · 결과 확인 필요. 자동 재요청하지 말고 원 서비스와 대기열을 확인하세요.'
+    except (OSError,ValueError,KeyError,TypeError,RuntimeError):
+        return '접수 기록을 확인할 수 없습니다. 접수 ID와 원 서비스 상태를 확인하세요.'
