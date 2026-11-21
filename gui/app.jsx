@@ -36,6 +36,7 @@ import GpuPanel from "./GpuPanel.jsx";
 import QueuePanel from "./QueuePanel.jsx";
 import FormLibrary from "./FormLibrary.jsx";
 import React, {useEffect, useRef, useState} from "react";
+import {useLiveRefresh,LiveRefreshControl} from "./LiveRefresh.jsx";
 import {createRoot} from "react-dom/client";
 import {AssistantRuntimeProvider, ThreadPrimitive, MessagePrimitive, useAuiState, useExternalStoreRuntime} from "@assistant-ui/react";
 
@@ -91,7 +92,7 @@ function Message() {
     {meta.status && <small>{meta.status} {meta.job && <> · <a href={jobLink(meta.job,meta.session)}>{meta.job}</a></>}</small>}
   </MessagePrimitive.Root>;
 }
-function Conversation({view}) {
+function Conversation({view,liveRef}) {
   const messages=React.useMemo(()=>messagesFrom(view),[view]);
   const [routes,setRoutes]=useState({});
   const hasHistory=messages.some(message=>message.metadata?.custom?.activity?.source_history_page);
@@ -107,7 +108,7 @@ function Conversation({view}) {
     return ()=>controller.abort();
   },[hasHistory]);
   const runtime=useExternalStoreRuntime({messages,isRunning:false,convertMessage:m=>m});
-  return <HistoryRoutes.Provider value={routes}><AssistantRuntimeProvider runtime={runtime}><ThreadPrimitive.Root className="thread"><ThreadPrimitive.Viewport className="viewport">
+  return <HistoryRoutes.Provider value={routes}><AssistantRuntimeProvider runtime={runtime}><ThreadPrimitive.Root ref={liveRef} className="thread"><ThreadPrimitive.Viewport className="viewport">
     <ThreadPrimitive.Empty><h2>무엇을 도와드릴까요?</h2></ThreadPrimitive.Empty>
     <ThreadPrimitive.Messages components={{Message}}/>
   </ThreadPrimitive.Viewport></ThreadPrimitive.Root></AssistantRuntimeProvider></HistoryRoutes.Provider>;
@@ -155,6 +156,8 @@ function App() {
   }
   const [queue,setQueue]=useState(null),[refresh,setRefresh]=useState(0);
   const [historyPage,setHistoryPage]=useState(null);
+  const [sessionRevision,setSessionRevision]=useState(0);
+  const sessionLive=useLiveRefresh(()=>setSessionRevision(value=>value+1),Boolean(session) && !historyPage);
   const sending=useRef(false),text=useRef(null);
   const toolToggle=useRef(null),toolSearch=useRef(null),funToggle=useRef(null);
   useEffect(()=>{if(showTools)toolSearch.current?.focus({preventScroll:true});},[showTools]);
@@ -196,7 +199,7 @@ function App() {
   },[archived,listRequest,refresh]);
   useEffect(()=>{setDraft(sessionStorage.getItem("hermes-draft-"+session) || "");},[session]);
   useEffect(()=>{
-    let active=true,timer;
+    let active=true;
     async function load() {
       try {
         const payload={session_id:session,...(historyPage || {})};
@@ -204,13 +207,11 @@ function App() {
         if(active && next.id===session) setView(next);
       } catch(problem) {
         if(active)setError(problem.message);
-      } finally {
-        if(active && !historyPage)timer=setTimeout(load,3000);
       }
     }
     if(session)load();
-    return ()=>{active=false;clearTimeout(timer);};
-  },[session,historyPage]);
+    return ()=>{active=false;};
+  },[session,historyPage,sessionRevision]);
   function changeHistory(page) {
     setError("");
     setView({});
@@ -243,7 +244,7 @@ function App() {
         if (session !== item.session_id) select(item.session_id);
         setArchived(false);
       }
-      setListRequest(current=>({offset:0,query:current.query}));setRefresh(n => n + 1);
+      setListRequest(current=>({offset:0,query:current.query}));setRefresh(n => n + 1);setSessionRevision(n=>n+1);
     } catch (e) {
       if ((query().get("session") || "") === session) setError(e.message);
     } finally {
@@ -343,8 +344,8 @@ function App() {
       {view.next_offset != null && <button onClick={()=>changeHistory({offset:view.next_offset,snapshot:view.snapshot})}>이전 메시지 보기</button>}
       {historyPage && <button onClick={()=>changeHistory(null)}>최신 대화로 돌아가기</button>}
     </nav>}
-    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openStep({generator:"kimodo",inputs}),openVideoForm:formId=>{if(showTools)closeTools();setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view}/></ProposalActions.Provider>{error&&<p role="alert">{error}</p>}
-    <form onSubmit={e=>{e.preventDefault();send()}}>{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
+    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openStep({generator:"kimodo",inputs}),openVideoForm:formId=>{if(showTools)closeTools();setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} liveRef={sessionLive.ref}/></ProposalActions.Provider>{error&&<p role="alert">{error}</p>}
+    <form onSubmit={e=>{e.preventDefault();send()}}>{session && <><LiveRefreshControl live={sessionLive} label="대화 자동 갱신"/><button type="button" onClick={()=>setSessionRevision(n=>n+1)}>대화 새로고침</button></>} {chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
     {session && <button type="button" aria-expanded={Boolean(queue?.results)} onClick={()=>{setShowForms(false);setQueue(queue?.results ? null : {run:"",results:true});}}>작업 결과</button>}
     {session && <button type="button" ref={funToggle} aria-expanded={showFunControl && !showTools} onClick={()=>{if(showTools){closeTools();if(!showFunControl){setSeedProposal(null);setVideoFormId("");setShowFunControl(true);}}else{setSeedProposal(null);setVideoFormId("");setShowFunControl(value=>!value);}}}>Wan Fun Control 생성 폼</button>}
     <button type="button" ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowForms(false);setShowGpu(false);if(showTools)closeTools();else setShowTools(true)}}>도구 탐색</button>
@@ -393,7 +394,7 @@ function App() {
         </Command.List>
       </Command>}
     </div>}
-      {showFunControl && <div hidden={showTools}><FunControlPage key={session+videoFormId+videoFormRevision} embedded session={session} restoreFormId={videoFormId} seedProposal={seedProposal} onSaved={()=>setRefresh(n=>n+1)}/></div>}
+      {showFunControl && <div hidden={showTools}><FunControlPage key={session+videoFormId+videoFormRevision} embedded session={session} restoreFormId={videoFormId} seedProposal={seedProposal} onSaved={()=>{setRefresh(n=>n+1);setSessionRevision(n=>n+1);}}/></div>}
     </SidePanel>}
     </main>
 }

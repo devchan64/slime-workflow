@@ -1,6 +1,7 @@
 import React, {useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import GenerationProgress from "./GenerationProgress.jsx";
+import {useLiveRefresh,LiveRefreshControl} from "./LiveRefresh.jsx";
 
 const statusCommands={
   audio:"hermes-audio-source-status",
@@ -45,6 +46,7 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
   const [error,setError]=useState("");
   const [revision,refresh]=useState(0);
   const [folderNotice,setFolderNotice]=useState("");
+  const live=useLiveRefresh(()=>refresh(value=>value+1),!job || ["queued","running"].includes(job.status));
   async function openFolder(){
     try{
       const response=await fetch("/management/record-folder/open",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({route:"/"+service,id})});
@@ -54,21 +56,20 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
     }catch(problem){setFolderNotice(problem.message);}
   }
   useEffect(()=>{
-    let active=true,timer,lastActive=false;
+    let active=true;
     async function read() {
       try {
         const response=await managementCommand("hermes-agent",statusCommands[kind],{service,job_id:id});
         if(!active)return;
         if(response.service!==service || response.job_id!==id || !response.job)throw new Error("작업 결과가 요청과 일치하지 않습니다.");
         setJob(response.job);setError("");
-        lastActive=["queued","running"].includes(response.job.status);
-        if(lastActive)timer=setTimeout(read,5000);
-      }catch(problem){if(active){setError(problem.message);if(lastActive)timer=setTimeout(read,5000);else setJob(null);}}
+      }catch(problem){if(active)setError(problem.message);}
     }
     read();
-    return ()=>{active=false;clearTimeout(timer);};
+    return ()=>{active=false;};
   },[service,id,kind,revision]);
-  return <section className="media-result-card" aria-label="작업 결과"><div className="media-result-heading"><div><strong>작업 결과</strong><h3>{id}</h3></div>{job && <span className={'media-result-status status-'+job.status}>{({completed:'완료',running:'실행 중',queued:'대기 중',failed:'실패',cancelled:'취소',canceled:'취소',paused:'중단',unknown:'확인 필요'})[job.status] || job.status}</span>}</div>
+  return <section ref={live.ref} className="media-result-card" aria-label="작업 결과"><div className="media-result-heading"><div><strong>작업 결과</strong><h3>{id}</h3></div>{job && <span className={'media-result-status status-'+job.status}>{({completed:'완료',running:'실행 중',queued:'대기 중',failed:'실패',cancelled:'취소',canceled:'취소',paused:'중단',unknown:'확인 필요'})[job.status] || job.status}</span>}</div>
+    <LiveRefreshControl live={live} label="작업 결과 자동 갱신"/>
     {error && <p role="alert">{error}</p>}
     {job ? <>
       <p className="media-result-note" role="status">{job.note}</p>

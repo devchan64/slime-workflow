@@ -2,7 +2,7 @@
 
 ## 진행 이벤트
 
-새 Wan Fun 실행은 OpenTelemetry SDK로 `generation.progress` 로그를 발생시키고 현재 시도의 최신 이벤트를 `otel-progress.json`에 저장한다. 생성기와 Hermes 대화는 같은 결과 카드를 통해 최대 5초 간격으로 해당 관측을 조회한다. 이전 작업에는 이벤트가 없을 수 있으며, 추정 시간은 추론 종료까지의 범위로 저장·후처리 시간을 포함하지 않는다. 추정에 필요한 스텝 표본이 없으면 예상 시간을 제공하지 않는다.
+새 Wan Fun 실행은 OpenTelemetry SDK로 `generation.progress` 로그를 발생시키고 현재 시도의 최신 이벤트를 `otel-progress.json`에 저장한다. 생성기와 Hermes 대화는 같은 결과 카드가 표시된 동안 기본 30초 간격으로 해당 관측을 조회하며 자동 갱신을 끌 수 있다. 이전 작업에는 이벤트가 없을 수 있으며, 추정 시간은 추론 종료까지의 범위로 저장·후처리 시간을 포함하지 않는다. 추정에 필요한 스텝 표본이 없으면 예상 시간을 제공하지 않는다.
 
 모델 환경 준비 시 `otel-requirements.txt`의 SDK를 별도 경로에 설치한다. OTLP/HTTP 수집기로도 전송하려면 작업자 환경에 `OTEL_EXPORTER_OTLP_ENDPOINT` 또는 `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`를 지정한다. 지정하지 않으면 외부 전송은 하지 않으며 최신 이벤트만 로컬에 보존한다. 프롬프트와 첨부 데이터는 이벤트에 포함하지 않는다.
 
