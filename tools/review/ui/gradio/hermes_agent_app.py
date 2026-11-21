@@ -189,16 +189,23 @@ def review_conversation_workflow_definition(current_session_identifier, workflow
     current_proposal_record = parse_management_request_json(workflow_definition_text)
     if not isinstance(current_proposal_record, dict) or set(current_proposal_record) != {"steps"} or not isinstance(current_proposal_record["steps"], list):
         raise gr.Error("steps 목록을 확인하세요.")
+    current_generator_catalog = read_workflow_generator_catalog()
     normalized_step_records = []
     step_input_sources = {}
-    for current_step_record in current_proposal_record["steps"]:
+    for step_position_number, current_step_record in enumerate(current_proposal_record["steps"], start=1):
         if not isinstance(current_step_record, dict) or set(current_step_record) - {"id", "generator", "inputs", "bindings"}:
-            raise gr.Error("단계 정의를 확인하세요.")
+            raise gr.Error(f"{step_position_number}번째 단계의 정의를 확인하세요.")
+        current_step_identifier = current_step_record.get("id")
+        current_generator_name = current_step_record.get("generator")
+        if not isinstance(current_step_identifier, str) or not current_step_identifier.strip():
+            raise gr.Error(f"{step_position_number}번째 단계의 id에 이름을 입력하세요.")
+        if not isinstance(current_generator_name, str) or current_generator_name not in current_generator_catalog:
+            raise gr.Error(f"{step_position_number}번째 단계의 generator에서 등록된 생성기를 선택하세요.")
         fixed_input_record = current_step_record.get("inputs", {})
         bound_input_record = current_step_record.get("bindings", {})
         if not isinstance(fixed_input_record, dict) or not isinstance(bound_input_record, dict) or fixed_input_record.keys() & bound_input_record.keys():
             raise gr.Error("단계 입력과 연결을 확인하세요.")
-        normalized_step_record = create_workflow_step_draft(current_step_record.get("id"), current_step_record.get("generator"), fixed_input_record)
+        normalized_step_record = create_workflow_step_draft(current_step_identifier, current_generator_name, fixed_input_record)
         for current_field_name in bound_input_record:
             normalized_step_record["inputs"].pop(current_field_name, None)
         normalized_step_record["bindings"] = bound_input_record
@@ -207,7 +214,7 @@ def review_conversation_workflow_definition(current_session_identifier, workflow
             name: "초안 지정값" if name in fixed_input_record else "생성기 기본값"
             for name in normalized_step_record["inputs"]
         } | {name: "선행 단계 결과" for name in bound_input_record}
-    compile_workflow_dependencies(normalized_step_records, read_workflow_generator_catalog())
+    compile_workflow_dependencies(normalized_step_records, current_generator_catalog)
     return {"session_id": current_session_identifier, "run_id": uuid.uuid4().hex, "steps": normalized_step_records,
             "input_sources": step_input_sources}
 
