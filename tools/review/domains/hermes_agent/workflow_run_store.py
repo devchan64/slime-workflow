@@ -24,7 +24,7 @@ def block_waiting_dependents(current_database_connection, workflow_run_identifie
                    json_each(child.dependencies) AS parent JOIN affected ON parent.value=affected.step_id
                    WHERE child.run_id=?
            ) UPDATE workflow_step SET state='blocked'
-             WHERE run_id=? AND state IN ('waiting','awaiting_choice') AND step_id IN (SELECT step_id FROM affected) RETURNING step_id""",
+             WHERE run_id=? AND state IN ('ready','waiting','awaiting_choice') AND step_id IN (SELECT step_id FROM affected) RETURNING step_id""",
         (current_step_identifier, workflow_run_identifier, workflow_run_identifier)).fetchall()
     current_database_connection.executemany(
         "INSERT INTO workflow_block_reason VALUES (?, ?, ?, ?)",
@@ -223,12 +223,20 @@ class WorkflowRunStore:
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
             current_database_connection.execute("BEGIN IMMEDIATE")
             current_step_row = current_database_connection.execute(
-                """SELECT definition, state, request_id FROM workflow_run JOIN workflow_step USING(run_id)
+                """SELECT definition, state, request_id, generator, generator_version, template_version
+                   FROM workflow_run JOIN workflow_step USING(run_id) LEFT JOIN workflow_step_contract USING(run_id,step_id)
                    WHERE run_id=? AND step_id=?""", (workflow_run_identifier, current_step_identifier)).fetchone()
             if not current_step_row or current_step_row[1] not in ("waiting", "ready"):
                 return None
             current_step_definition = next(record for record in json.loads(current_step_row[0])
                                            if record["id"] == current_step_identifier)
+            current_generator_name = current_step_definition["generator"]
+            current_generator_contract = read_workflow_generator_catalog().get(current_generator_name)
+            if (current_generator_contract is None or current_step_row[3:] != (
+                    current_generator_name, current_generator_contract["version"], current_generator_contract["template_version"])):
+                block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier,
+                    current_step_identifier, "등록 당시 생성기 또는 입력 템플릿 버전을 사용할 수 없습니다.")
+                return None
             resolved_input_record = dict(current_step_definition.get("inputs", {}))
             for target_field_name, source_binding_record in current_step_definition.get("bindings", {}).items():
                 source_result_row = current_database_connection.execute(
@@ -269,7 +277,7 @@ class WorkflowRunStore:
                             source_binding_record["from_step"], "보존된 PNG의 SHA-256이 일치하지 않습니다." if stored_image_row else "보존된 PNG가 없습니다.")
                         return None
                     bound_output_value = [base64.b64encode(stored_image_row[0]).decode("ascii")]
-                target_field_contract = read_workflow_generator_catalog()[current_step_definition["generator"]]["inputs"][target_field_name]
+                target_field_contract = current_generator_contract["inputs"][target_field_name]
                 try:
                     validate_fixed_workflow_input(target_field_name, target_field_contract, bound_output_value)
                 except ValueError as invalid_bound_input:
