@@ -233,6 +233,28 @@ def serialize_manager_navigation(page_record_values):
     return json.dumps([{**current_page_record,'nativePath':resolve_management_page_path(current_page_record)} for current_page_record in page_record_values],ensure_ascii=False).replace('<','\\u003c')
 
 
+def build_conversation_tool_explorer(current_source_path=None):
+    """운영 대화 안에서 등록된 도구를 검색하고 열 수 있게 한다."""
+    current_source_path = Path(current_source_path or os.environ.get('SLIME_MANAGEMENT_MENU_SOURCE', str(DEFAULT_MANAGER_SOURCE_PATH)))
+    current_page_records = load_manager_page_records(current_source_path)
+    current_page_records = [record for record in current_page_records if record['id'] != 'hermes-agent']
+
+    def render_matching_tools(search_text, category):
+        matches = filter_manager_page_records(current_page_records, search_text or '', category)
+        links = []
+        for record in matches:
+            path = resolve_management_page_path(record) or record['path']
+            links.append(f'<li><a href="{html.escape(path, quote=True)}" target="_blank" rel="noopener">{html.escape(record["label"])}</a></li>')
+        return '<ul>' + ''.join(links) + '</ul>' if links else '검색 조건에 맞는 도구가 없습니다.'
+
+    with gr.Accordion('도구 탐색', open=False, elem_id='hermes-tool-explorer'):
+        search_input = gr.Textbox(label='도구 검색', placeholder='이름, ID, 기능')
+        category_input = gr.Dropdown(label='분류', choices=[(label, key) for key, label in CATEGORY_LABEL_VALUES.items()], value='all')
+        tool_links = gr.HTML(render_matching_tools('', 'all'))
+        for control in (search_input, category_input):
+            control.input(render_matching_tools, [search_input, category_input], tool_links, queue=False)
+
+
 def compose_management_interface(current_tool_interface,current_review_port,current_source_path=None):
     """도구 이벤트와 공용 메뉴를 한 Blocks 문서로 합성한다."""
     current_manager_source=Path(current_source_path or os.environ.get('SLIME_MANAGEMENT_MENU_SOURCE',str(DEFAULT_MANAGER_SOURCE_PATH)))
@@ -383,12 +405,6 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
     initial_page_identifier=page_record_values[0]['id'] if page_record_values else ''
     initial_selection_script=create_initial_selection_script(page_record_values)
     with gr.Blocks(title='SLIME 관리도구',fill_width=True) as interface_blocks_value:
-        with gr.Sidebar(label='도구 탐색',width=MANAGEMENT_NAVIGATION_WIDTH,open=True,elem_id='management-sidebar'):
-            gr.Markdown('### 도구 탐색')
-            search_text_value=gr.Textbox(label='도구 검색',placeholder='이름, ID, 기능',info='검색 결과에서 도구를 선택하면 해당 주소로 이동합니다.',elem_id='management-tool-search')
-            category_select_value=gr.Dropdown(choices=[(current_label_value,current_name_value) for current_name_value,current_label_value in sorted(CATEGORY_LABEL_VALUES.items(),key=lambda category_entry_value:(category_entry_value[0]!='all',category_entry_value[1]))],value='all',label='분류',elem_id='management-category-filter')
-            tool_count_value=gr.Markdown(f'**{len(page_record_values)}개** 도구',elem_id='management-tool-count')
-            page_select_value=gr.Dropdown(choices=create_tool_choice_values(page_record_values),value=initial_page_identifier,label='도구 목록',elem_id='management-tool-list')
         with gr.Row(elem_id='management-header'):
             gr.Markdown('## SLIME 관리도구',scale=3)
             gr.HTML('<a href="/management/frame/hermes-agent/" target="_self">운영 대화로 돌아가기</a>', scale=1, elem_id='management-return-conversation')
@@ -411,54 +427,60 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
                     gr.Markdown(current_capacity_text)
         with gr.Row(elem_id='management-shell'):
             with gr.Column(scale=3,min_width=280,elem_id='management-workspace'):
-                selected_page_status_value=gr.Markdown(f"**{html.escape(page_record_values[0]['label'])}** · {html.escape(page_record_values[0]['description'])}" if page_record_values else '표시할 관리 화면이 없습니다.')
-                page_preview_value=gr.HTML('' if current_inline_mode else create_page_preview_html(initial_page_identifier,page_record_values,review_server_port),visible=not current_inline_mode)
                 if current_inline_mode:current_inline_interface.render()
-        @trace_management_callback('도구 목록 필터')
-        def update_menu_choices(search_text_value,category_name_value,selected_page_identifier):
-            filtered_page_records=filter_manager_page_records(page_record_values,search_text_value or '',category_name_value)
-            filtered_identifier_values=[current_page_record['id'] for current_page_record in filtered_page_records]
-            retained_identifier_value=selected_page_identifier if selected_page_identifier in filtered_identifier_values else (filtered_identifier_values[0] if filtered_identifier_values else None)
-            selected_status_text,selected_preview_html=(gr.skip(),gr.skip()) if current_inline_mode or retained_identifier_value==selected_page_identifier else select_menu_page(retained_identifier_value)
-            return gr.update(choices=create_tool_choice_values(filtered_page_records),value=retained_identifier_value),f'**{len(filtered_page_records)}개** 도구 · 전체 {len(page_record_values)}개',selected_status_text,selected_preview_html
-        @trace_management_callback('도구 선택')
-        def select_menu_page(selected_page_identifier):
-            selected_page_record=next((current_page_record for current_page_record in page_record_values if current_page_record['id']==selected_page_identifier),None)
-            if selected_page_record is None:return '표시할 관리 화면을 선택하세요.','<div class="menu-empty-state">검색 조건을 바꾸거나 메뉴를 선택하세요.</div>'
-            return f"**{html.escape(selected_page_record['label'])}** · {html.escape(selected_page_record['description'])}",('' if current_inline_mode else create_page_preview_html(selected_page_identifier,page_record_values,review_server_port))
-        for current_filter_component in (search_text_value,category_select_value):current_filter_component.input(update_menu_choices,[search_text_value,category_select_value,page_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value],queue=False,preprocess=False)
-        page_select_value.input(select_menu_page,page_select_value,[selected_page_status_value,page_preview_value],queue=False,preprocess=False)
-        filter_navigation_script=create_menu_navigation_script(page_record_values,'replaceState',current_inline_mode)
-        page_navigation_script=create_menu_navigation_script(page_record_values,'pushState',current_inline_mode)
-        for current_filter_component in (search_text_value,category_select_value):
-            current_filter_component.input(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=filter_navigation_script,queue=False)
-        page_select_value.input(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=page_navigation_script,queue=False)
-        search_text_value.submit(lambda search_text_value,category_name_value: update_menu_choices(search_text_value,category_name_value,None),[search_text_value,category_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value],queue=False,preprocess=False).then(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=page_navigation_script,queue=False)
-        current_navigation_inputs=[search_text_value,category_select_value,page_select_value]
-        @trace_management_callback('메뉴 초기화')
-        def initialize_menu_selection(current_search_text,current_category_name,current_page_identifier):
-            if current_page_identifier == 'operations-history':
-                return ['', 'all', gr.update(choices=create_tool_choice_values(page_record_values),value=None), f'**{len(page_record_values)}개** 도구 · 전체 {len(page_record_values)}개', '운영 이력 · 지시와 GPU 대기 기록', gr.skip() if current_inline_mode else '']
-            if current_page_identifier == 'hermes-direct':
-                return ['', 'all', gr.update(choices=create_tool_choice_values(page_record_values),value=None), f'**{len(page_record_values)}개** 도구 · 전체 {len(page_record_values)}개', '직접 조회와 작업', gr.skip() if current_inline_mode else '']
-            if current_page_identifier == 'hermes-agent':
-                return ['', 'all', gr.update(choices=create_tool_choice_values(page_record_values),value=None), f'**{len(page_record_values)}개** 도구 · 전체 {len(page_record_values)}개', '운영 대화 · 관리 작업의 시작과 진행', gr.skip() if current_inline_mode else '']
-            if current_page_identifier == 'building-generator':
-                current_page_identifier = 'billboard-generator'
-            if current_category_name not in CATEGORY_LABEL_VALUES:current_category_name='all'
-            current_selected_record=next((current_page_record for current_page_record in page_record_values if current_page_record['id']==current_page_identifier),None)
-            if current_selected_record and current_selected_record not in filter_manager_page_records(page_record_values,current_search_text,current_category_name):
-                current_search_text,current_category_name='','all'
-            current_selection_updates=list(update_menu_choices(current_search_text,current_category_name,current_page_identifier))
-            if current_page_identifier and current_selected_record is None:
-                current_selection_updates[0]['value']=None
-                current_selection_updates[2]='등록되지 않은 관리도구 주소입니다. 도구 목록에서 다시 선택하세요.'
-                current_selection_updates[3]='' if not current_inline_mode else gr.skip()
-            else:
-                current_selection_updates[2:4]=select_menu_page(current_selection_updates[0]['value'])
-            return [current_search_text,current_category_name,*current_selection_updates]
-        interface_blocks_value.load(initialize_menu_selection,current_navigation_inputs,[search_text_value,category_select_value,page_select_value,tool_count_value,selected_page_status_value,page_preview_value],js=initial_selection_script,queue=False,preprocess=False,show_progress='hidden')
-        interface_blocks_value.load(fn=None,js=create_sidebar_responsive_script(current_inline_mode))
+                else:
+                    with gr.Column(visible=False):
+                        search_text_value=gr.Textbox(label='도구 검색',placeholder='이름, ID, 기능',info='검색 결과에서 도구를 선택하면 해당 주소로 이동합니다.',elem_id='management-tool-search')
+                        category_select_value=gr.Dropdown(choices=[(current_label_value,current_name_value) for current_name_value,current_label_value in sorted(CATEGORY_LABEL_VALUES.items(),key=lambda category_entry_value:(category_entry_value[0]!='all',category_entry_value[1]))],value='all',label='분류',elem_id='management-category-filter')
+                        tool_count_value=gr.Markdown(f'**{len(page_record_values)}개** 도구',elem_id='management-tool-count')
+                        page_select_value=gr.Dropdown(choices=create_tool_choice_values(page_record_values),value=initial_page_identifier,label='도구 목록',elem_id='management-tool-list')
+                    selected_page_status_value=gr.Markdown(f"**{html.escape(page_record_values[0]['label'])}** · {html.escape(page_record_values[0]['description'])}" if page_record_values else '표시할 관리 화면이 없습니다.')
+                    page_preview_value=gr.HTML('' if current_inline_mode else create_page_preview_html(initial_page_identifier,page_record_values,review_server_port),visible=not current_inline_mode)
+        if not current_inline_mode:
+            @trace_management_callback('도구 목록 필터')
+            def update_menu_choices(search_text_value,category_name_value,selected_page_identifier):
+                filtered_page_records=filter_manager_page_records(page_record_values,search_text_value or '',category_name_value)
+                filtered_identifier_values=[current_page_record['id'] for current_page_record in filtered_page_records]
+                retained_identifier_value=selected_page_identifier if selected_page_identifier in filtered_identifier_values else (filtered_identifier_values[0] if filtered_identifier_values else None)
+                selected_status_text,selected_preview_html=(gr.skip(),gr.skip()) if current_inline_mode or retained_identifier_value==selected_page_identifier else select_menu_page(retained_identifier_value)
+                return gr.update(choices=create_tool_choice_values(filtered_page_records),value=retained_identifier_value),f'**{len(filtered_page_records)}개** 도구 · 전체 {len(page_record_values)}개',selected_status_text,selected_preview_html
+            @trace_management_callback('도구 선택')
+            def select_menu_page(selected_page_identifier):
+                selected_page_record=next((current_page_record for current_page_record in page_record_values if current_page_record['id']==selected_page_identifier),None)
+                if selected_page_record is None:return '표시할 관리 화면을 선택하세요.','<div class="menu-empty-state">검색 조건을 바꾸거나 메뉴를 선택하세요.</div>'
+                return f"**{html.escape(selected_page_record['label'])}** · {html.escape(selected_page_record['description'])}",('' if current_inline_mode else create_page_preview_html(selected_page_identifier,page_record_values,review_server_port))
+            for current_filter_component in (search_text_value,category_select_value):current_filter_component.input(update_menu_choices,[search_text_value,category_select_value,page_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value],queue=False,preprocess=False)
+            page_select_value.input(select_menu_page,page_select_value,[selected_page_status_value,page_preview_value],queue=False,preprocess=False)
+            filter_navigation_script=create_menu_navigation_script(page_record_values,'replaceState',current_inline_mode)
+            page_navigation_script=create_menu_navigation_script(page_record_values,'pushState',current_inline_mode)
+            for current_filter_component in (search_text_value,category_select_value):
+                current_filter_component.input(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=filter_navigation_script,queue=False)
+            page_select_value.input(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=page_navigation_script,queue=False)
+            search_text_value.submit(lambda search_text_value,category_name_value: update_menu_choices(search_text_value,category_name_value,None),[search_text_value,category_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value],queue=False,preprocess=False).then(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=page_navigation_script,queue=False)
+            current_navigation_inputs=[search_text_value,category_select_value,page_select_value]
+            @trace_management_callback('메뉴 초기화')
+            def initialize_menu_selection(current_search_text,current_category_name,current_page_identifier):
+                if current_page_identifier == 'operations-history':
+                    return ['', 'all', gr.update(choices=create_tool_choice_values(page_record_values),value=None), f'**{len(page_record_values)}개** 도구 · 전체 {len(page_record_values)}개', '운영 이력 · 지시와 GPU 대기 기록', gr.skip() if current_inline_mode else '']
+                if current_page_identifier == 'hermes-direct':
+                    return ['', 'all', gr.update(choices=create_tool_choice_values(page_record_values),value=None), f'**{len(page_record_values)}개** 도구 · 전체 {len(page_record_values)}개', '직접 조회와 작업', gr.skip() if current_inline_mode else '']
+                if current_page_identifier == 'hermes-agent':
+                    return ['', 'all', gr.update(choices=create_tool_choice_values(page_record_values),value=None), f'**{len(page_record_values)}개** 도구 · 전체 {len(page_record_values)}개', '운영 대화 · 관리 작업의 시작과 진행', gr.skip() if current_inline_mode else '']
+                if current_page_identifier == 'building-generator':
+                    current_page_identifier = 'billboard-generator'
+                if current_category_name not in CATEGORY_LABEL_VALUES:current_category_name='all'
+                current_selected_record=next((current_page_record for current_page_record in page_record_values if current_page_record['id']==current_page_identifier),None)
+                if current_selected_record and current_selected_record not in filter_manager_page_records(page_record_values,current_search_text,current_category_name):
+                    current_search_text,current_category_name='','all'
+                current_selection_updates=list(update_menu_choices(current_search_text,current_category_name,current_page_identifier))
+                if current_page_identifier and current_selected_record is None:
+                    current_selection_updates[0]['value']=None
+                    current_selection_updates[2]='등록되지 않은 관리도구 주소입니다. 도구 목록에서 다시 선택하세요.'
+                    current_selection_updates[3]='' if not current_inline_mode else gr.skip()
+                else:
+                    current_selection_updates[2:4]=select_menu_page(current_selection_updates[0]['value'])
+                return [current_search_text,current_category_name,*current_selection_updates]
+            interface_blocks_value.load(initialize_menu_selection,current_navigation_inputs,[search_text_value,category_select_value,page_select_value,tool_count_value,selected_page_status_value,page_preview_value],js=initial_selection_script,queue=False,preprocess=False,show_progress='hidden')
         interface_blocks_value.load(fn=None,js="()=>{let tabSession=null;let recentSession=null;try{tabSession=sessionStorage.getItem('slime-management-session');}catch(e){}try{recentSession=localStorage.getItem('slime-management-session');}catch(e){}const currentUrl=new URL(window.location.href);const linkedSession=currentUrl.searchParams.get('session');const selectedSession=/^[a-f0-9]{32}$/.test(linkedSession || '')?linkedSession:/^[a-f0-9]{32}$/.test(tabSession || '')?tabSession:recentSession;const returnLink=document.querySelector('#management-return-conversation a');if(/^[a-f0-9]{32}$/.test(selectedSession || '')){if(returnLink)returnLink.setAttribute('href','/management/frame/hermes-agent/?session='+selectedSession);const historyLink=document.querySelector('#management-open-history a');if(historyLink)historyLink.setAttribute('href','/management/frame/operations-history/?session='+selectedSession);}if(typeof window.addEventListener==='function'&&!window.slimeSessionNavigationListener){window.slimeSessionNavigationListener=true;window.addEventListener('storage',(event)=>{let isTabStorage=false;try{isTabStorage=event.storageArea===sessionStorage;}catch(e){}if(!isTabStorage||event.key!=='slime-management-session'||!/^[a-f0-9]{32}$/.test(event.newValue||''))return;const returnLink=document.querySelector('#management-return-conversation a');const historyLink=document.querySelector('#management-open-history a');if(returnLink)returnLink.setAttribute('href','/management/frame/hermes-agent/?session='+event.newValue);if(historyLink)historyLink.setAttribute('href','/management/frame/operations-history/?session='+event.newValue);});}}")
         interface_blocks_value.load(read_gpu_status,outputs=gpu_status_value,queue=False)
         if hasattr(gr,'Timer'):

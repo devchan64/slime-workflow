@@ -4744,13 +4744,15 @@ def read_hermes_capability_rows(current_search_text=""):
         return [], '기능 목록 조회 실패: ' + str(current_catalog_error)
 
 
-def build_hermes_agent_interface(include_advanced_controls=True):
+def build_hermes_agent_interface(include_advanced_controls=True, current_source_path=None):
     with gr.Blocks(title='직접 조회와 작업' if include_advanced_controls else '운영 대화') as hermes_interface_blocks:
         build_generator_changelog(hermes_interface_blocks, 'hermes-agent')
         if include_advanced_controls:
             gr.HTML('<h2>직접 조회와 작업</h2><p>관리 기능을 직접 확인하거나 실행할 수 있습니다. 아래에서 세션과 작업을 선택하면 관련 제안을 불러올 수 있습니다.</p><p><a href="#hermes-direct-controls">직접 기능으로 이동</a></p>')
         if not include_advanced_controls:
             gr.Markdown('## 운영 대화\nHermes에게 관리 상태 확인과 작업을 요청하세요. 실행된 작업과 세부 입력은 해당 도구에서 확인하거나 직접 조작할 수 있습니다.\n\n대화 요청은 GPU를 사용할 수 있습니다. 대기열의 배타 예약은 관리도구 작업에 적용되며 외부 GPU 작업과의 성능 간섭을 막지는 못합니다. 다른 작업 중에는 GPU 상태를 확인하세요.')
+            from tools.review.ui.gradio.management_menu_app import build_conversation_tool_explorer
+            build_conversation_tool_explorer(current_source_path)
         gr.Markdown('화면을 열거나 관리 상태를 새로고침하면 amd-smi로 GPU 프로세스와 메모리를 조회합니다. GPU 생성이나 추론은 시작하지 않으며 조회 결과는 잠시 캐시될 수 있습니다.')
         hermes_management_summary = gr.Markdown('관리 상태를 확인하고 있습니다.')
         hermes_management_refresh = gr.Button('관리 상태 새로고침')

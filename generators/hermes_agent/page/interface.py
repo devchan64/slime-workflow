@@ -2,5 +2,5 @@
 from tools.review.ui.gradio.hermes_agent_app import build_hermes_agent_interface
 
 
-def build_generator_page(management_server_address, management_review_port):
-    return build_hermes_agent_interface(include_advanced_controls=False)
+def build_generator_page(management_server_address, management_review_port, current_source_path=None):
+    return build_hermes_agent_interface(include_advanced_controls=False, current_source_path=current_source_path)

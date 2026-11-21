@@ -57,7 +57,8 @@ def build_management_blocks(current_tool_name, current_review_port, current_sour
     if current_tool_name in GENERATOR_PAGE_PACKAGES:
         current_page_package = GENERATOR_PAGE_PACKAGES[current_tool_name]
         current_page_module = importlib.import_module(f'generators.{current_page_package}.page.interface')
-        current_interface_blocks = current_page_module.build_generator_page(current_server_address, current_review_port)
+        page_options = {"current_source_path": current_source_path} if current_tool_name == "hermes-agent" else {}
+        current_interface_blocks = current_page_module.build_generator_page(current_server_address, current_review_port, **page_options)
     elif current_tool_name == 'static-review':
         from tools.review.ui.gradio.static_review_app import load_static_review_paths, build_static_review_interface, create_static_review_loader
         current_static_paths = load_static_review_paths(current_source_path)
