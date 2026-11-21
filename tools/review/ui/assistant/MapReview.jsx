@@ -41,12 +41,14 @@ export default function MapReview(){
   const placed=draft?.objects || [];
   const atCell=item=>cell && item.position.column===cell.column && item.position.row===cell.row;
   const selectedObject=placed.find(item=>item.id===objectId);
-  function addObject(){
-    const ids=new Set(placed.map(item=>item.id));
+  function makeBillboard(objects,column,row,textureKey){
+    const ids=new Set(objects.map(item=>item.id));
     let number=1;
     while(ids.has("editor-billboard-"+number))number++;
-    const object={id:"editor-billboard-"+number,kind:"decoration",textureKey:texture,tileAnchor:"center",
-      position:{column:cell.column,row:cell.row}};
+    return {id:"editor-billboard-"+number,kind:"decoration",textureKey,tileAnchor:"center",position:{column,row}};
+  }
+  function addObject(){
+    const object=makeBillboard(placed,cell.column,cell.row,texture);
     applyDraft({...draft,objects:[...placed,object]},"edit");
   }
   function moveObject(){
@@ -149,15 +151,25 @@ export default function MapReview(){
   useEffect(()=>{
     if(!field || !ready)return;
     window.mapReviewBrushTool=draft?brush:"pan";
-    window.mapReviewBrushTile=floor;window.mapReviewBrushWall=wall;
-  },[field,ready,brush,draft,floor,wall]);
+    window.mapReviewBrushTexture=texture;window.mapReviewBrushTile=floor;window.mapReviewBrushWall=wall;
+  },[field,ready,brush,draft,floor,wall,texture]);
   useEffect(()=>{
     const queue=window.mapReviewBrushQueue;
     if(reading || !draft || !queue?.length)return;
     const stroke=queue.shift();
     try{
       const cells=new Map(draft.cells.map(item=>[[item.column,item.row].join(","),item]));
-      for(const {column,row,tool,tile,wall:wallTile} of stroke){
+      let objects=[...draft.objects];
+      for(const {column,row,tool,tile,wall:wallTile,texture:asset,object:id} of stroke){
+        if(tool==="place"){
+          if(!source.textures.includes(asset))throw new Error("배치할 빌보드 에셋을 선택하세요.");
+          objects.push(makeBillboard(objects,column,row,asset));
+          continue;
+        }
+        if(tool==="delete"){
+          objects=objects.filter(item=>item.id!==id);
+          continue;
+        }
         if(!["raise","lower","floor","wall"].includes(tool))throw new Error("지원하지 않는 지도 브러시입니다.");
         const key=[column,row].join(",");
         const current=cells.get(key) || {column,row,tile:source.tiles.rows[row][column],
@@ -178,7 +190,7 @@ export default function MapReview(){
         cells.set(key,{...current,height});
       }
       setCell(null);
-      applyDraft({...draft,cells:[...cells.values()]},"edit").finally(()=>{
+      applyDraft({...draft,objects,cells:[...cells.values()]},"edit").finally(()=>{
         window.mapReviewBrushBusy=false;window.mapReviewFlushBrushQueue?.();
       });
     }catch(error){
@@ -222,7 +234,7 @@ export default function MapReview(){
       </section>}
       {storageNotice && <p role="status">{storageNotice}</p>}
       {draft && <label>지도 드래그 도구<select value={brush} disabled={!editing} onChange={e=>setBrush(e.target.value)}>
-        <option value="pan">이동·셀 선택</option><option value="floor" disabled={!source?.blocked_tile_codes}>바닥 칠하기</option><option value="wall" disabled={!source?.wall_tiles?.length}>벽면 칠하기</option><option value="raise">높이 올리기</option><option value="lower">높이 내리기</option>
+        <option value="pan">이동·셀 선택</option><option value="floor" disabled={!source?.blocked_tile_codes}>바닥 칠하기</option><option value="wall" disabled={!source?.wall_tiles?.length}>벽면 칠하기</option><option value="raise">높이 올리기</option><option value="lower">높이 내리기</option><option value="place">빌보드 배치</option><option value="delete">빌보드 삭제</option>
       </select></label>}
       {draft && brush==="wall" && <label>브러시 벽면 타일<select value={wall} onChange={e=>setWall(e.target.value)}>
         <option value="">타일 선택</option>{source.wall_tiles.map(key=><option key={key}>{key}</option>)}
