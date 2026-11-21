@@ -4,6 +4,8 @@
 
 ## 시작하기
 
+`scripts/` 디렉터리의 공통 진입점은 `./workflow.sh`다. 관리 환경이 준비되어 있으면 이 디렉터리에서 **`./workflow.sh start`** 한 줄로 게이트웨이와 관리 화면을 시작한다. 전체 명령 목록은 `./workflow.sh --help`로 확인한다.
+
 저장소 루트에서 관리 환경을 준비하고 상태를 확인한 뒤 시작한다. 렌더러와 생성기 GPU 환경·모델은 필요한 경우 아래 선택 준비 명령으로 따로 준비한다. 게이트웨이는 GPU에 접근할 수 있는 환경에서 실행한다.
 
 ```bash
@@ -42,7 +44,7 @@ GUI와 CLI는 공용 명령 게이트웨이, 작업 서비스, GPU 대기열과 
 ./scripts/workflow.sh doctor --dependencies       # 생성기별 설치 패키지 의존성 검사
 ./scripts/workflow.sh start                      # 빈 포트에서 게이트웨이·GUI 독립 실행
 ./scripts/workflow.sh setup --scope writer-runtime --plan # 설치 없이 변경 대상·다운로드 확인
-./scripts/workflow.sh setup --scope management  # 관리 Python·Gradio 의존성만 준비
+./scripts/workflow.sh setup --scope management  # 관리 Python·FastAPI 서버 의존성 준비
 ./scripts/workflow.sh setup --scope renderer    # 인접 프론트엔드 렌더러 빌드·설치
 ./scripts/workflow.sh setup --scope image       # FLUX 및 기존 이미지 ROCm 런타임 준비
 ./scripts/workflow.sh setup --scope wan-fun-runtime  # Wan Fun ROCm 환경 준비 (Kimodo가 참조할 수 있음)

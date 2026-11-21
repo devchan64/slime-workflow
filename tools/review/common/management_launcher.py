@@ -63,7 +63,19 @@ def print_hermes_codex_cli_guidance():
 
 
 def run_management_launcher(command_argument_values=None):
-    launcher_argument_parser = argparse.ArgumentParser(description=__doc__)
+    launcher_argument_parser = argparse.ArgumentParser(
+        prog='./workflow.sh', description='SLIME 관리도구 통합 명령',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""scripts 디렉터리에서 실행하는 주요 명령
+
+  ./workflow.sh start                      게이트웨이와 관리 화면 시작
+  ./workflow.sh doctor                     설치 및 서비스 상태 조회
+  ./workflow.sh setup --scope management   관리 Python 환경 준비
+  ./workflow.sh gui --watch                관리 화면 실행 및 변경 감시
+  ./workflow.sh gateway                    게이트웨이 단독 실행
+  ./workflow.sh command kimodo history     Kimodo 생성 이력 조회
+
+개별 명령의 옵션은 ./workflow.sh <명령> --help 로 확인하세요.""")
     launcher_argument_parser.add_argument('mode', choices=('setup', 'gui', 'gateway', 'snapshot', 'doctor', 'test', 'command', 'help', 'start', 'model'))
     launcher_argument_parser.add_argument('arguments', nargs=argparse.REMAINDER)
     launcher_argument_values = launcher_argument_parser.parse_args(command_argument_values)
