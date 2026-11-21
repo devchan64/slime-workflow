@@ -1,3 +1,4 @@
+import ResultTable from "./ResultTable.jsx";
 import StepBuilder from "./StepBuilder.jsx";
 import React, {useEffect, useRef, useState} from "react";
 
@@ -145,6 +146,14 @@ export default function FormLibrary({session, messages, call, addToMessage, open
       <button disabled={!definition.trim()} onClick={() => addToMessage(definition)}>대화 입력에 추가</button>
       <button disabled={!definition.trim()} onClick={() => run(reviewWorkflow)}>단계와 결과 연결 검토</button>
       {review && <section aria-label="워크플로우 등록 검토">
+        {review.steps.some(step=>Object.keys(step.bindings || {}).length>0) &&
+          <ResultTable table={{
+            title:"단계 간 결과 연결",
+            summary:"선행 작업의 출력이 전달될 후속 작업과 입력 항목을 확인하세요.",
+            columns:["선행 작업","출력 항목","후속 작업","입력 항목"],
+            rows:review.steps.flatMap(step=>Object.entries(step.bindings || {}).map(([field,binding])=>
+              [binding.from_step,binding.output,step.id,field]))
+          }}/>}
         <ol>{review.steps.map(step => <li key={step.id}>
           <strong>{step.id} · {step.generator}</strong>
           <pre>{JSON.stringify({inputs:step.inputs, bindings:step.bindings}, null, 2)}</pre>
