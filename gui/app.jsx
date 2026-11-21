@@ -1,3 +1,4 @@
+import {Command} from "cmdk";
 import QwenArchive from "./QwenArchive.jsx";
 import KimodoPage from "./KimodoPage.jsx";
 import KimodoProposal from "./KimodoProposal.jsx";
@@ -124,6 +125,7 @@ function App() {
   const [session,setSession]=useState(query().get("session") || "");
   const [sessions,setSessions]=useState([]), [view,setView]=useState({}), [tools,setTools]=useState([]);
   const [draft,setDraft]=useState(""),[search,setSearch]=useState(()=>query().get("search") || ""),[showTools,setShowTools]=useState(()=>query().has("category") || query().has("search") || ["jobs","capabilities"].includes(query().get("panel")));
+  const [catalogError,setCatalogError]=useState("");
   const [category,setCategory]=useState(initialToolCategory);
   const [archived,setArchived]=useState(false),[error,setError]=useState(""),[busy,setBusy]=useState(false);
   const [sessionQuery,setSessionQuery]=useState("");
@@ -159,7 +161,7 @@ function App() {
     history.pushState(null,"",url);setSession(next);setView({});setHistoryPage(null);setQueue(null);setError("");
   }
   useEffect(()=>{const cb=()=>{setSearchMode(["jobs","capabilities"].includes(query().get("panel"))?query().get("panel"):"tools");setCategory(initialToolCategory());setSearch(query().get("search") || "");setShowTools(query().has("category") || query().has("search") || ["jobs","capabilities"].includes(query().get("panel")));setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
-  useEffect(()=>{let active=true;fetch(base+"tools").then(r=>r.json()).then(v=>{if(active)setTools(v)}).catch(e=>{if(active)setError(e.message)});
+  useEffect(()=>{let active=true;fetch(base+"tools").then(r=>{if(!r.ok)throw new Error("도구 목록을 불러올 수 없습니다.");return r.json();}).then(v=>{if(active)setTools(v)}).catch(e=>{if(active)setCatalogError(e.message)});
     return()=>{active=false};},[]);
   useEffect(()=>{
     let active=true;
@@ -311,26 +313,20 @@ function App() {
       localStorage.setItem("hermes-session-folded",String(!folded));setFolded(!folded);
     }}>{folded?"세션 목록 펼치기":"세션 목록 접기"}</button><h1>{view.title || "헤르메스와 대화"}</h1><details className="chat-actions"><summary>세션 도구</summary><div onClick={e=>{e.currentTarget.parentElement.open=false;}}>
     <button aria-expanded={showGpu} onClick={()=>{if(showTools)closeTools();setShowGpu(!showGpu)}}>GPU 프로세스 정보</button>
-    {session&&<button aria-expanded={showForms} onClick={()=>setShowForms(!showForms)}>입력 폼</button>}
+    {session&&<button aria-expanded={showForms} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowForms(!showForms);}}>입력 폼</button>}
     {session&&<button aria-expanded={Boolean(queue && !queue.results)} onClick={()=>{setShowForms(false);setQueue(queue && !queue.results ? null : {run:""});}}>대기열</button>}</div></details></header>
     {showGpu && <GpuPanel/>}
     {showTools && <section className="floating-panel" aria-label="도구 탐색" onKeyDown={handleToolKeys}>
       <div className="tool-panel-heading"><strong>도구 탐색</strong><button type="button" aria-label="도구 탐색 닫기" onClick={()=>closeTools()}>닫기</button></div>
-      <input ref={toolSearch} aria-label="도구 검색" maxLength={100} placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>
-      <button aria-expanded={searchMode==="capabilities"} onClick={()=>setSearchMode(searchMode==="capabilities"?"tools":"capabilities")}>관리 기능 검색</button>
-      <button aria-expanded={searchMode==="anchors"} onClick={()=>setSearchMode(searchMode==="anchors"?"tools":"anchors")}>앵커 검수 이력</button>
-      <button aria-expanded={searchMode==="expressions"} onClick={()=>setSearchMode(searchMode==="expressions"?"tools":"expressions")}>표정 프리셋</button>
+      <label className="search-scope">탐색 대상 <select value={searchMode} onChange={e=>setSearchMode(e.target.value)}>
+        {Object.entries({tools:"도구",capabilities:"관리 기능 검색",anchors:"앵커 검수 이력",expressions:"표정 프리셋",billboards:"빌보드 에셋",keyframes:"Kimodo 키프레임",content:"콘텐츠 DB 상태",services:"서비스 등록 목록",history:"생성 이력",jobs:"운영 작업 이력"}).map(([key,label])=><option key={key} value={key}>{label}</option>)}
+      </select></label>
+      {searchMode!=="tools" && <input ref={toolSearch} aria-label="도구 검색" maxLength={100} placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>}
       {searchMode==="expressions" && <ExpressionCatalog key={search} query={search} choose={appendSelection}/>}
       {searchMode==="anchors" && <AnchorHistory/>}
-      <button aria-expanded={searchMode==="billboards"} onClick={()=>setSearchMode(searchMode==="billboards"?"tools":"billboards")}>빌보드 에셋</button>
       {searchMode==="billboards" && <BillboardCatalog choose={appendSelection}/>}
-      <button aria-expanded={searchMode==="keyframes"} onClick={()=>setSearchMode(searchMode==="keyframes"?"tools":"keyframes")}>Kimodo 키프레임</button>
       {searchMode==="keyframes" && <KeyframeCatalog query={search} choose={appendSelection}/>}
-      <button aria-expanded={searchMode==="content"} onClick={()=>setSearchMode(searchMode==="content"?"tools":"content")}>콘텐츠 DB 상태</button>
       {searchMode==="content" && <ContentDatabaseStatus/>}
-      <button aria-expanded={searchMode==="services"} onClick={()=>setSearchMode(searchMode==="services"?"tools":"services")}>서비스 등록 목록</button>
-      <button aria-expanded={searchMode==="history"} onClick={()=>setSearchMode(searchMode==="history"?"tools":"history")}>생성 이력</button>
-      <button aria-expanded={searchMode==="jobs"} onClick={()=>setSearchMode(searchMode==="jobs"?"tools":"jobs")}>운영 작업 이력</button>
       {searchMode==="jobs" && <OperationsJobs key={session+":"+(query().get("job") || "")} session={session} linkedJob={query().get("panel")==="jobs"?query().get("job"):null}/>}
       {searchMode==="history" && <SourceHistory session={session} choose={appendSelection}/>}
       {searchMode==="services" && <ServiceRegistry key={search} query={search}/>}
@@ -340,17 +336,22 @@ function App() {
         {category!=="all" && !categories.has(category) && <option value={category}>{category}</option>}
         {Array.from(categories,([id,label])=><option key={id} value={id}>{label || id}</option>)}
       </select></label>}
-      {searchMode==="tools" && <p role="status">검색 결과 {matchedTools.length}건{!matchedTools.length && " · 검색어나 도구 분류를 바꿔 보세요."}</p>}
-      {searchMode==="tools" && matchedTools.map(tool=>
-        <div className="tool-match" key={tool.id}>
-          <strong>{tool.label}</strong>
-          <button aria-label={tool.label+" 대화에 추가"} onClick={()=>chooseTool(tool.label,tool.id)}>대화에 추가</button>
-          {session && tool.workflow_generator && <button aria-label={tool.label+" 입력 폼 편집"}
-            onClick={()=>openStep({generator:tool.workflow_generator,inputs:{}})}>입력 폼 편집</button>}
-          {tool.review_path && <a href={reviewLink(tool.review_path)}>화면 열기</a>}
-        </div>)}
+      {searchMode==="tools" && catalogError && <p role="alert">{catalogError}</p>}
+      {searchMode==="tools" && !catalogError && <p role="status">검색 결과 {matchedTools.length}건{!matchedTools.length && " · 검색어나 도구 분류를 바꿔 보세요."}</p>}
+      {searchMode==="tools" && <Command label="도구 검색" shouldFilter={false} loop onKeyDownCapture={e=>{
+        if(e.key==="Enter" && (e.nativeEvent.isComposing || e.nativeEvent.keyCode===229))e.stopPropagation();
+      }}>
+        <Command.Input ref={toolSearch} aria-label="도구 검색" placeholder="이름·기능 검색" maxLength={100} value={search} onValueChange={setSearch}/>
+        <Command.List label="검색 결과">
+          {matchedTools.map(tool=><Command.Group className="tool-match" key={tool.id} heading={tool.label}>
+            <Command.Item value={tool.id+"/chat"} onSelect={()=>chooseTool(tool.label,tool.id)}>대화에 추가</Command.Item>
+            {session && tool.workflow_generator && <Command.Item value={tool.id+"/form"} onSelect={()=>openStep({generator:tool.workflow_generator,inputs:{}})}>입력 폼 편집</Command.Item>}
+            {tool.review_path && <Command.Item value={tool.id+"/page"} onSelect={()=>location.assign(reviewLink(tool.review_path))}>화면 열기</Command.Item>}
+          </Command.Group>)}
+        </Command.List>
+      </Command>}
     </section>}
-    {session && <div hidden={!showForms}>{<FormLibrary key={session} proposalStep={proposalStep?.session===session ? proposalStep : null} session={session} messages={view.messages || []} call={call} openRun={run=>{setShowForms(false);setQueue({run});}} addToMessage={value=>{edit([draft,value].filter(Boolean).join("\n"));setShowForms(false);text.current?.focus();}}/>}</div>}
+    {session && <div className="form-sheet" hidden={!showForms}><div className="tool-panel-heading"><strong>입력 폼 편집</strong><button onClick={()=>{setShowForms(false);text.current?.focus();}}>닫기</button></div>{<FormLibrary key={session} proposalStep={proposalStep?.session===session ? proposalStep : null} session={session} messages={view.messages || []} call={call} openRun={run=>{setShowForms(false);setQueue({run});}} addToMessage={value=>{edit([draft,value].filter(Boolean).join("\n"));setShowForms(false);text.current?.focus();}}/>}</div>}
     {queue && session && <QueuePanel key={session+queue.run+Boolean(queue.results)} resultsOnly={queue.results} session={session} initialRun={queue.run} call={call} editNextStep={openStep}/>}
     {(view.next_offset != null || historyPage) && <nav aria-label="대화 이력 페이지">
       {view.next_offset != null && <button onClick={()=>changeHistory({offset:view.next_offset,snapshot:view.snapshot})}>이전 메시지 보기</button>}
@@ -359,7 +360,7 @@ function App() {
     <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openStep({generator:"kimodo",inputs})}}><Conversation key={session} view={view}/></ProposalActions.Provider>{error&&<p role="alert">{error}</p>}
     <form onSubmit={e=>{e.preventDefault();send()}}>{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
     {session && <button type="button" aria-expanded={Boolean(queue?.results)} onClick={()=>{setShowForms(false);setQueue(queue?.results ? null : {run:"",results:true});}}>작업 결과</button>}
-    <button type="button" ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowGpu(false);if(showTools)closeTools();else setShowTools(true)}}>도구 탐색</button>
+    <button type="button" ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowForms(false);setShowGpu(false);if(showTools)closeTools();else setShowTools(true)}}>도구 탐색</button>
     <textarea ref={text} aria-label="메시지" placeholder="헤르메스에게 메시지 보내기" value={draft} disabled={busy} onChange={e=>edit(e.target.value)} title="Enter로 보내기 · Shift+Enter로 줄바꿈" onKeyDown={event=>{
       if(event.key!=="Enter" || event.shiftKey || event.altKey || event.nativeEvent.isComposing || event.nativeEvent.keyCode===229)return;
       event.preventDefault();

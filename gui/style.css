@@ -105,3 +105,17 @@ article {position:relative;}
   .hermes-chat article > form > textarea {order:0;flex:1 1 auto}
   .hermes-chat .floating-panel {bottom:6rem}
 }
+
+.hermes-chat .search-scope,.hermes-chat .floating-panel > label {display:inline-flex;gap:.4rem;align-items:center;font-size:.85rem;margin:.4rem .75rem .5rem 0}
+.hermes-chat [cmdk-input] {width:100%;margin:.5rem 0;padding:.75rem}
+.hermes-chat [cmdk-list] {max-height:34dvh;overflow:auto}
+.hermes-chat [cmdk-group-heading] {font-weight:650;padding:.2rem .45rem}
+.hermes-chat [cmdk-item] {display:inline-block;cursor:pointer;padding:.4rem .55rem;margin:.2rem;border-radius:.45rem;font-size:.88rem}
+.hermes-chat [cmdk-item][aria-selected=true] {background:#413c60;color:#fff}
+.hermes-chat .form-sheet {position:absolute;z-index:2;inset:.5rem .5rem 7rem auto;width:min(35rem,calc(100% - 1rem));background:var(--surface);border:1px solid var(--line);border-radius:1rem;overflow:auto;padding:.8rem;box-shadow:0 .6rem 2rem #0006}
+.hermes-chat .form-sheet > .tool-panel-heading {top:-.8rem}
+.hermes-chat .form-sheet .panel {max-height:none;overflow:visible;padding:.5rem;border:0}
+.hermes-chat .form-sheet fieldset {min-width:0;border:1px solid var(--line);border-radius:.6rem;padding:.7rem}
+.hermes-chat .form-sheet label {display:grid;gap:.25rem;margin-block:.55rem;color:var(--muted);font-size:.9rem}
+.hermes-chat .form-sheet :is(input,select,textarea) {max-width:100%;min-width:0;padding:.5rem}
+@media(max-width:700px){.hermes-chat .form-sheet{bottom:8.5rem}}
