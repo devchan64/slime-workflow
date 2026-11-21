@@ -72,8 +72,9 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
     read();
     return ()=>{active=false;};
   },[service,id,kind,revision]);
+  const directFolder=kind==="video" && service==="wan22-fun-control" && job?.result_status==="available";
   return <section ref={!job?live.ref:undefined} className="media-result-card" aria-label="작업 결과"><div className="media-result-heading"><div><strong>작업 결과</strong></div>{job && <JobStatus state={job.status}/>}</div><JobIdentifier id={id}/>
-    <RecordFolder key={service+"/"+id} service={service} id={id}/>
+    {!directFolder && <RecordFolder key={service+"/"+id} service={service} id={id}/>}
     {error && <p role="alert">{error.includes("영상 원본 작업 경로 오류") ? "이 생성기에서 해당 작업을 찾지 못했습니다. 작업 ID와 생성기를 확인해 주세요." : "작업 결과를 불러오지 못했습니다. 연결 상태를 확인하고 결과를 새로고침해 주세요."}{job && " 아래 내용은 마지막으로 조회한 결과입니다."}</p>}
     {job ? <>
       <p className="media-result-note" role="status">{job.note}</p>
@@ -95,10 +96,10 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
         {service==="dwpose" ? <img src={job.image} alt="DWPose 추출 결과" style={{maxWidth:"100%"}}/> :
           <>
             <video aria-label="생성 결과 영상" controls loop playsInline preload="metadata" src={job.video} poster={job.image} style={{maxWidth:"100%"}}/>
-            <a className="media-result-link" href={job.video} target="_blank" rel="noopener">MP4 열기</a>
+            {directFolder ? <RecordFolder key={service+"/"+id} service={service} id={id} direct/> : <a className="media-result-link" href={job.video} target="_blank" rel="noopener">MP4 열기</a>}
           </>}
         {service==="wan22-fun-control" && <SavedPoseVideo key={id} id={id}/>}
-        {!folderLink && <a href={job.download} download>{service==="dwpose"?"포즈 PNG·좌표 YAML 다운로드":"PNG 프레임 ZIP 다운로드"}</a>}
+        {!directFolder && !folderLink && <a href={job.download} download>{service==="dwpose"?"포즈 PNG·좌표 YAML 다운로드":"PNG 프레임 ZIP 다운로드"}</a>}
       </>}
       {(job.result_status==="unavailable" || job.file_observation==="unavailable") && <p>완료 기록의 결과 파일을 확인할 수 없습니다.</p>}
     </> : !error && <p>결과 조회 중…</p>}

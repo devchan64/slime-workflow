@@ -1,7 +1,7 @@
 import React, {useState} from "react";
 import {requestErrorMessage} from "./requestError.mjs";
 
-export default function RecordFolder({service,id}) {
+export default function RecordFolder({service,id,direct=false}) {
   const [path,setPath]=useState("");
   const [notice,setNotice]=useState("");
   const [busy,setBusy]=useState(false);
@@ -19,12 +19,14 @@ export default function RecordFolder({service,id}) {
     try {await navigator.clipboard.writeText(path);setNotice("기록 폴더 경로를 복사했습니다.");}
     catch {setNotice("복사하지 못했습니다. 표시된 경로를 직접 선택해 복사하세요.");}
   }
-  return <details className="record-folder" onToggle={event=>{if(event.currentTarget.open && !path && !busy)request("inspect");}}>
-    <summary>기록 폴더</summary>
+  const openButton=<button type="button" disabled={busy} onClick={()=>request("open")}>{direct ? "결과 폴더 열기" : "기록 폴더 열기"}</button>;
+  const feedback=<p role="status">{busy ? "기록 폴더 확인 중…" : notice}</p>;
+  return <>{direct && openButton}<details className="record-folder" onToggle={event=>{if(event.currentTarget.open && !path && !busy)request("inspect");}}>
+    <summary>{direct ? "폴더 경로 확인" : "기록 폴더"}</summary>
     {path && <label>기록 폴더 경로<input aria-label="기록 폴더 경로" readOnly value={path} onFocus={event=>event.currentTarget.select()}/></label>}
     <div className="choice-buttons"><button type="button" disabled={busy} onClick={()=>request("inspect")}>경로 다시 확인</button>
       <button type="button" disabled={busy || !path} onClick={copy}>경로 복사</button>
-      <button type="button" disabled={busy} onClick={()=>request("open")}>기록 폴더 열기</button></div>
-    <p role="status">{busy ? "기록 폴더 확인 중…" : notice}</p>
-  </details>;
+      {!direct && openButton}</div>
+    {!direct && feedback}
+  </details>{direct && feedback}</>;
 }
