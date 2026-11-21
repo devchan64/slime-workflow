@@ -1,9 +1,34 @@
-import React,{useEffect,useState} from "react";
+import React,{useEffect,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 
+import renderSpritePreview from "./renderSpritePreview.mjs";
+
 const fields=["x","y","width","height","anchorX","anchorY"];
 const labels=["X","Y","너비","높이","앵커 X","앵커 Y"];
+
+function SpritePreview({rows,image,bounds,fps,original}){
+  const canvas=useRef(null);
+  const [frame,setFrame]=useState(1),[playing,setPlaying]=useState(false),[clip,setClip]=useState("");
+  const [shadow,setShadow]=useState(false),[baseline,setBaseline]=useState(true),[onion,setOnion]=useState(false);
+  useEffect(()=>{
+    const el=canvas.current;
+    renderSpritePreview("data:image/png;base64,"+image,rows.map(row=>fields.map(field=>row[field])),frame,
+      playing,shadow,"크롭",bounds,fps,baseline,onion,clip,original || {},false,480,80,false,{},false,el);
+    return ()=>{el.spritePreviewRevision++;};
+  },[image,rows,frame,playing,shadow,bounds,fps,baseline,onion,clip,original]);
+  return <fieldset><legend>프레임 재생 미리보기</legend>
+    <canvas ref={canvas} width="640" height="640" aria-label="크롭과 앵커 미리보기" style={{width:"100%",maxWidth:640,pointerEvents:"none"}}/>
+    <button type="button" onClick={()=>setPlaying(!playing)}>{playing?"정지":"재생"}</button>
+    <label>정지 프레임 {frame}<input type="range" min="1" max={rows.length} disabled={playing} value={frame}
+      onChange={e=>setFrame(Number(e.target.value))}/></label>
+    {original?.animation?.clips?.length>0 && <label>검수 동작<select value={clip} onChange={e=>setClip(e.target.value)}>
+      <option value="">전체 시트</option>{original.animation.clips.map(item=><option key={item.clipId} value={item.clipId}>{item.action} · {item.direction}</option>)}</select></label>}
+    <label><input type="checkbox" checked={shadow} onChange={e=>setShadow(e.target.checked)}/>바닥 그림자</label>
+    <label><input type="checkbox" checked={baseline} onChange={e=>setBaseline(e.target.checked)}/>앵커 기준선</label>
+    <label><input type="checkbox" checked={onion} onChange={e=>setOnion(e.target.checked)}/>이전 프레임 겹쳐보기</label>
+  </fieldset>;
+}
 
 function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
   const [rows,setRows]=useState(()=>frames.map(({rect,anchor})=>({...rect,anchorX:anchor.x,anchorY:anchor.y})));
@@ -59,6 +84,7 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
     <ResultTable table={{title:"등록 프레임 좌표",summary:frames.length+"프레임",columns:["프레임",...labels],
       rows:rows.map((row,i)=>[i+1,...fields.map((field,j)=><input aria-label={(i+1)+"번 "+labels[j]} type="number"
         required step={j<4?1:"any"} value={row[field]} onChange={e=>update(i,field,e.target.value)}/>)])}}/>
+    <SpritePreview rows={rows} image={image} bounds={bounds} fps={fps} original={original}/>
     <label>출력 열 수<input type="number" min="1" max="128" required value={columns}
       onChange={e=>{setColumns(e.target.value);setReview(null);setResult(null);}}/></label>
     <button>시트와 좌표맵 내보내기</button>

@@ -1,5 +1,5 @@
 const currentFileSystem=require('fs'),currentAssertModule=require('assert');
-const renderCurrentPreview=eval(currentFileSystem.readFileSync('tools/review/ui/gradio/sprite_sheet_editor_preview.js','utf8'));
+const renderCurrentPreview=require('../ui/assistant/renderSpritePreview.mjs').default;
 const currentFrameRows=[[0,0,232,330,115,327],[0,330,232,210,115,200]];
 let currentAnchorCalls=[],currentImageCalls=[];
 const currentCanvasContext=new Proxy({arc:(...currentCallArguments)=>currentAnchorCalls.push(currentCallArguments),drawImage:(...currentCallArguments)=>currentImageCalls.push(currentCallArguments)},{get:(currentTargetObject,currentPropertyName)=>currentTargetObject[currentPropertyName]||(()=>{})});

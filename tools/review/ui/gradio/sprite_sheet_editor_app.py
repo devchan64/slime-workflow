@@ -379,7 +379,7 @@ def load_linked_sprite_sheet(request: gr.Request):
 
 
 def build_sprite_sheet_editor_interface(current_review_port):
-    current_preview_script=Path(__file__).with_name('sprite_sheet_editor_preview.js').read_text()
+    current_preview_script='('+(Path(__file__).parents[1]/'assistant/renderSpritePreview.mjs').read_text().removeprefix('export default ')+')'
     current_canvas_apply_script=Path(__file__).with_name('sprite_sheet_canvas_apply.js').read_text()
     current_bulk_script=Path(__file__).with_name('sprite_sheet_bulk_edit.js').read_text()
     current_clip_select_script=Path(__file__).with_name('sprite_sheet_clip_select.js').read_text()

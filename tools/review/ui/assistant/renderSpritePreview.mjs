@@ -1,5 +1,4 @@
-(function renderSpriteSheetPreview(currentImageData,currentFrameRows,currentFrameIndex,currentPlayEnabled,currentShadowEnabled,currentEditMode,currentSourceBounds,currentPlaybackRate=6,currentBaselineEnabled=false,currentOnionEnabled=false,currentPreviewClip='',currentSourceRecord={},currentGameSizeEnabled=false,currentReferenceHeight=480,currentGameBodyHeight=80,currentFeetEnabled=false,currentRestoredFeet={},currentHeightGuideEnabled=false){
- const currentCanvasElement=document.getElementById('sprite-sheet-alignment-preview');
+export default function renderSpriteSheetPreview(currentImageData,currentFrameRows,currentFrameIndex,currentPlayEnabled,currentShadowEnabled,currentEditMode,currentSourceBounds,currentPlaybackRate=6,currentBaselineEnabled=false,currentOnionEnabled=false,currentPreviewClip='',currentSourceRecord={},currentGameSizeEnabled=false,currentReferenceHeight=480,currentGameBodyHeight=80,currentFeetEnabled=false,currentRestoredFeet={},currentHeightGuideEnabled=false,currentCanvasElement=document.getElementById('sprite-sheet-alignment-preview')){
  if(!currentCanvasElement)return '미리보기 캔버스가 없습니다.';
  const currentRows=(Array.isArray(currentFrameRows)?currentFrameRows:currentFrameRows?.data)?.map(currentFrameRow=>currentFrameRow.map(Number));
  const currentCanvasContext=currentCanvasElement.getContext('2d');
@@ -153,7 +152,7 @@
     if(JSON.stringify(currentDraftRow)!==JSON.stringify(currentOriginalRow)){currentEditorState.bodyReference=null;currentCanvasContext.fillStyle='#222';currentCanvasContext.fillText('크롭·배치 앵커를 먼저 반영하세요.',16,60);return;}
     if(!Number.isFinite(currentHeadY)||currentHeadY>=currentOriginalRow[5]){currentEditorState.bodyReference=null;currentCanvasContext.fillStyle='#222';currentCanvasContext.fillText('머리끝을 배치 앵커보다 위에 지정하세요.',16,60);return;}
     currentEditorState.bodyReference={frame:currentSelectedIndex+1,row:[...currentOriginalRow],headY:currentHeadY,floorY:currentOriginalRow[5],height:currentOriginalRow[5]-currentHeadY};
-    renderSpriteSheetPreview(currentImageData,currentFrameRows,currentFrameIndex,currentPlayEnabled,currentShadowEnabled,currentEditMode,currentSourceBounds,currentPlaybackRate,currentBaselineEnabled,currentOnionEnabled,currentPreviewClip,currentSourceRecord,currentGameSizeEnabled,currentReferenceHeight,currentGameBodyHeight,currentFeetEnabled,currentRestoredFeet,currentHeightGuideEnabled);
+    renderSpriteSheetPreview(currentImageData,currentFrameRows,currentFrameIndex,currentPlayEnabled,currentShadowEnabled,currentEditMode,currentSourceBounds,currentPlaybackRate,currentBaselineEnabled,currentOnionEnabled,currentPreviewClip,currentSourceRecord,currentGameSizeEnabled,currentReferenceHeight,currentGameBodyHeight,currentFeetEnabled,currentRestoredFeet,currentHeightGuideEnabled,currentCanvasElement);
    }
   };
   currentCanvasElement.onpointercancel=()=>{if(currentDragBackup)currentDraftRow.splice(0,6,...currentDragBackup);currentDragStart=null;drawCurrentEditorFrame(performance.now());};
@@ -161,4 +160,4 @@
  };
  currentImageElement.src=currentImageData;
  return '크롭: 영역을 드래그 · 앵커: 클릭 또는 드래그 · 적용 전까지 출력에 반영되지 않습니다.';
-})
+}
