@@ -1,4 +1,5 @@
 import WorkflowResults from "./WorkflowResults.jsx";
+import ResultTable from "./ResultTable.jsx";
 import QueuePriority from "./QueuePriority.jsx";
 import React, {useEffect, useState} from "react";
 
@@ -44,13 +45,19 @@ export default function QueuePanel({session, call, initialRun=""}) {
     </form>
     {error && <p role="alert">{error}</p>}
     {!result && !error && <p role="status">조회 중…</p>}
-    {result && <><p>{result.truncated ? "최근 100개 단계 표시" : result.steps.length + "개 단계"}</p>
-      {result.steps.length > 0 && <table><thead><tr><th>생성기</th><th>단계</th><th>상태</th><th>실행 ID</th><th>우선순위</th></tr></thead>
-        <tbody>{result.steps.map(step => <tr key={step.request_id}>
-          <td>{step.generator}</td><td>{step.step_id}</td>
-          <td>{states[step.state] || step.state}{step.source_state && " · " + (states[step.source_state] || step.source_state)}</td>
-          <td><button aria-label={step.run_id + " 결과 조회"} onClick={()=>setSelectedRun(step.run_id)}>{step.run_id}</button></td><td><QueuePriority step={step} call={call}/></td></tr>)}</tbody></table>}
-    </>}
+    {result && <ResultTable table={{
+      title:"워크플로우 대기열",
+      summary:(result.truncated?"최근 100개 단계 표시":result.steps.length+"개 단계")+" · 조회 "+result.queried_at,
+      columns:["생성기","단계","원본 작업 ID","상태","원본 관측 시각","실행 ID","우선순위"],
+      rowKeys:result.steps.map(step=>step.request_id),
+      rows:result.steps.map(step=>[
+        step.generator,step.step_id,step.source_job_id || "—",
+        (states[step.state] || step.state)+(step.source_state?" · "+(states[step.source_state] || step.source_state):""),
+        step.observed_at || "관측 전",
+        <button aria-label={step.run_id+" 결과 조회"} onClick={()=>setSelectedRun(step.run_id)}>{step.run_id}</button>,
+        <QueuePriority step={step} call={call}/>
+      ])
+    }}/>}
     {selectedRun && <WorkflowResults key={selectedRun} session={session} run={selectedRun} openRun={setSelectedRun} call={call} close={()=>setSelectedRun("")}/>}
   </section>;
 }
