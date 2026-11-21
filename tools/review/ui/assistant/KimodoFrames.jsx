@@ -1,3 +1,4 @@
+import KimodoKeyframeSave from "./KimodoKeyframeSave.jsx";
 import React,{useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 
@@ -38,6 +39,7 @@ export default function KimodoFrames({id,choose}) {
     {preview && <figure><img src={preview.image} alt={id+" 원본 "+preview.frame+"프레임"} style={{maxWidth:"100%"}}/>
       <figcaption>{preview.frame} / {preview.frame_count} · {preview.fps} fps</figcaption>
       <button type="button" onClick={()=>choose("Kimodo 원본 프레임",JSON.stringify({job_id:id,attempt_id:source.attempt,frame:preview.frame}))}>이 프레임을 대화 입력에 추가</button>
+      <KimodoKeyframeSave preview={preview} choose={choose}/>
     </figure>}
   </section>;
 }
