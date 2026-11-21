@@ -114,9 +114,11 @@ def render_gpu_process_tree(current_group_record):
         current_rendered_records.add(id(current_record))
         current_role_text = html.escape(str(current_record.get('process_role') or ('부모 프로세스' if current_depth_value == 0 else '자식 프로세스')))
         current_pid_value = current_record.get('pid')
-        current_identifier_text = f" · 작업 {html.escape(str(current_record['id']))}" if current_record.get('id') else ''
         current_memory_parts = [f"{current_domain_name.upper()} {current_record[f'{current_domain_name}_memory_mib']:,} MiB" for current_domain_name in ('vram','gtt') if type(current_record.get(f'{current_domain_name}_memory_mib')) is int and current_record[f'{current_domain_name}_memory_mib'] >= 0]
-        current_tree_lines.append('  ' * current_depth_value + f"- {current_role_text} · PID {current_pid_value if type(current_pid_value) is int else '?'}{current_identifier_text}" + (' · ' + ' · '.join(current_memory_parts) if current_memory_parts else ' · 메모리 미측정'))
+        memory_text = ''
+        if len(current_process_records) > 1:
+            memory_text = ' · ' + (' · '.join(current_memory_parts) or '메모리 미측정')
+        current_tree_lines.append('  ' * current_depth_value + f"- {current_role_text} · PID {current_pid_value if type(current_pid_value) is int else '?'}" + memory_text)
         for current_child_record in current_process_records:
             if current_child_record.get('gpu_parent_pid') == current_pid_value and current_child_record.get('pid') in current_group_pids and current_child_record is not current_record:
                 append_process_branch(current_child_record, current_depth_value+1)
@@ -352,7 +354,7 @@ def create_initial_selection_script(page_record_values):
 
 MANAGEMENT_NAVIGATION_WIDTH = 320
 MANAGEMENT_MOBILE_BREAKPOINT = 768
-MANAGEMENT_GPU_REFRESH_SECONDS = 5
+MANAGEMENT_GPU_REFRESH_SECONDS = 30
 
 
 def create_sidebar_responsive_script(current_inline_mode=False):
@@ -430,6 +432,14 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
                     current_root_identifier = current_group_record['root'].get('pid')
                     with gr.Accordion(format_gpu_group_summary(current_group_record), open=False, key=f'gpu-process-{current_root_identifier}', preserved_by_key=['open']):
                         gr.Markdown(render_gpu_process_tree(current_group_record))
+                        job_ids = dict.fromkeys(process['id'] for process in current_group_record['processes'] if process.get('id'))
+                        for job_id in job_ids:
+                            label = '작업 ID'
+                            if len(job_ids) > 1 or any(not process.get('id') for process in current_group_record['processes']):
+                                pids = ', '.join(str(process['pid']) for process in current_group_record['processes'] if process.get('id') == job_id)
+                                label += f' · PID {pids}'
+                            gr.Textbox(label=label, value=job_id, interactive=False, buttons=['copy'],
+                                       key=f'gpu-job-id-{current_root_identifier}-{job_id}')
                 current_capacity_text = render_gpu_capacity_summary(current_gpu_status)
                 if current_capacity_text:
                     gr.Markdown(current_capacity_text)
