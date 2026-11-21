@@ -235,7 +235,7 @@ export default function MapReview(){
     <h1 id="map-title">{title} 검수</h1>
     <fieldset disabled={!ready}><legend>지도와 시점</legend>
       <label>맵 선택<select id="map-select"/></label><button id="load-map">맵 불러오기</button>
-      <label>건물 선택<select id="building"><option value="">건물 선택</option></select></label>
+      <section hidden={field}><label>건물 선택<select id="building"><option value="">건물 선택</option></select></label></section>
       {[["zoom-out","축소"],["zoom-in","확대"],["actual-size","사람 중심 · 100%"],["fit","전체 보기"]].map(([id,label])=><button key={id} id={id}>{label}</button>)}
       <output id="zoom-level" aria-live="polite"/>
       {[["show-character","기본 캐릭터",true],["show-safe-boundary","결계탑 · 결계 오러",true],["edges","메시 경계",false],["tile-edges","타일 경계",false],["blocked-areas","이동금지 영역",false]].map(([id,label,checked])=>
