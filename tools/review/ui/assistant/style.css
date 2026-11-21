@@ -7,3 +7,17 @@ article {position:relative;}
 .floating-panel button,.floating-panel input {margin:.2rem;}
 .floating-panel section {margin-block:.6rem; overflow-wrap:anywhere;}
 @media(max-width:700px){article > header h1 {flex-basis:100%;}.floating-panel {top:6.5rem;}}
+
+.hermes-chat > aside {min-width:0;}
+.hermes-chat > aside form {padding-inline:0;}
+.hermes-chat > aside form label,.hermes-chat .session button:first-child {min-width:0;overflow-wrap:anywhere;}
+.hermes-chat > aside form input {width:100%;}
+.hermes-chat > aside form button {flex-shrink:0;}
+.session-divider {display:none;}
+@media(min-width:701px){
+  .hermes-chat {grid-template-columns:min(var(--sessions-width),48vw) 8px minmax(0,1fr);}
+  .hermes-chat.sessions-folded {grid-template-columns:minmax(0,1fr);}
+  .hermes-chat > aside {border-right:0;}
+  .session-divider {display:block;cursor:col-resize;touch-action:none;background:linear-gradient(to right,transparent 3px,#484d50 3px,#484d50 5px,transparent 5px);}
+  .session-divider:hover,.session-divider:focus-visible {background:#527b70;}
+}

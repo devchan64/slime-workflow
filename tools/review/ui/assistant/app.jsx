@@ -258,7 +258,17 @@ function App() {
   const matchedTools=tools.filter(tool=>(category==="all" || tool.category===category) &&
     terms.every(term=>[tool.label,tool.id,tool.description].join(" ").toLowerCase().includes(term)));
   const chosen=query().get("tool");
-  return <main><aside><h2>대화 세션</h2><button disabled={busy} onClick={()=>{select("");setArchived(false);resetSessionList();}}>새 대화</button><button disabled={busy} onClick={()=>{resetSessionList();setArchived(!archived);}}>{archived?"대화 목록":"보관함"}</button>
+  const [folded,setFolded]=useState(()=>localStorage.getItem("hermes-session-folded")==="true");
+  const [sidebarWidth,setSidebarWidth]=useState(()=>{
+    const saved=Number(localStorage.getItem("hermes-session-width"));
+    return saved>=200 && saved<=600?saved:288;
+  });
+  function resizeSidebar(width){
+    setSidebarWidth(Math.max(200,Math.min(600,Math.floor(window.innerWidth*0.48),Math.round(width))));
+  }
+  useEffect(()=>{localStorage.setItem("hermes-session-width",String(sidebarWidth));},[sidebarWidth]);
+  return <main className={"hermes-chat"+(folded?" sessions-folded":"")} style={{"--sessions-width":sidebarWidth+"px"}}>
+    <aside id="hermes-session-list" hidden={folded}><h2>대화 세션</h2><button disabled={busy} onClick={()=>{select("");setArchived(false);resetSessionList();}}>새 대화</button><button disabled={busy} onClick={()=>{resetSessionList();setArchived(!archived);}}>{archived?"대화 목록":"보관함"}</button>
     <form onSubmit={e=>{e.preventDefault();setListRequest({offset:0,query:sessionQuery.trim()});}}>
       <label>세션 검색 <input maxLength={100} placeholder="제목·메시지·세션 ID" value={sessionQuery} onChange={e=>setSessionQuery(e.target.value)}/></label>
       <button>검색</button>
@@ -271,7 +281,19 @@ function App() {
       <button disabled={!listRequest.offset} onClick={()=>setListRequest({...listRequest,offset:Math.max(0,listRequest.offset-30),snapshot:listPage.snapshot})}>이전</button>
       <button disabled={listPage.next_offset==null} onClick={()=>setListRequest({...listRequest,offset:listPage.next_offset,snapshot:listPage.snapshot})}>다음</button>
     </nav>}</aside>
-    <article><header><h1>{view.title || "헤르메스와 대화"}</h1><button ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowGpu(false);setShowTools(!showTools)}}>도구 탐색</button>
+    {!folded && <div className="session-divider" role="separator" tabIndex={0} aria-label="세션 목록 너비"
+      aria-controls="hermes-session-list" aria-orientation="vertical" aria-valuemin={200} aria-valuemax={Math.min(600,Math.floor(window.innerWidth*0.48))}
+      aria-valuenow={Math.min(sidebarWidth,Math.floor(window.innerWidth*0.48))}
+      onPointerDown={event=>{if(event.button===0){event.preventDefault();event.currentTarget.focus();event.currentTarget.setPointerCapture(event.pointerId);}}}
+      onPointerMove={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))resizeSidebar(event.clientX-event.currentTarget.parentElement.getBoundingClientRect().left);}}
+      onKeyDown={event=>{
+        const current=event.currentTarget.previousElementSibling.getBoundingClientRect().width;
+        const widths={ArrowLeft:current-16,ArrowRight:current+16,Home:200,End:600};
+        if(Object.hasOwn(widths,event.key)){event.preventDefault();resizeSidebar(widths[event.key]);}
+      }}/>}
+    <article><header><button aria-controls="hermes-session-list" aria-expanded={!folded} onClick={()=>{
+      localStorage.setItem("hermes-session-folded",String(!folded));setFolded(!folded);
+    }}>{folded?"세션 목록 펼치기":"세션 목록 접기"}</button><h1>{view.title || "헤르메스와 대화"}</h1><button ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowGpu(false);setShowTools(!showTools)}}>도구 탐색</button>
     <button aria-expanded={showGpu} onClick={()=>{setShowTools(false);setShowGpu(!showGpu)}}>GPU 프로세스 정보</button>
     {session&&<button aria-expanded={showForms} onClick={()=>setShowForms(!showForms)}>입력 폼</button>}
     {session&&<button aria-expanded={Boolean(queue)} onClick={()=>setQueue(queue ? null : {run:""})}>대기열</button>}</header>
