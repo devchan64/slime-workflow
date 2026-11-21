@@ -487,12 +487,16 @@ class WorkflowRunStore:
     def read_session_run_view(self, workflow_run_identifier, conversation_session_identifier):
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection:
             current_database_connection.execute("BEGIN")
-            current_session_match = current_database_connection.execute(
-                "SELECT 1 FROM workflow_run WHERE run_id=? AND session_id=?",
+            stored_run_definition = current_database_connection.execute(
+                "SELECT definition FROM workflow_run WHERE run_id=? AND session_id=?",
                 (workflow_run_identifier, conversation_session_identifier)).fetchone()
-            if current_session_match is None:
+            if stored_run_definition is None:
                 raise ValueError("이 세션에서 해당 실행을 찾을 수 없습니다.")
-            return {"run_id": workflow_run_identifier, "steps": read_step_records_locked(current_database_connection, workflow_run_identifier),
+            bindings_by_step = {step["id"]: step.get("bindings", {}) for step in json.loads(stored_run_definition[0])}
+            current_step_records = read_step_records_locked(current_database_connection, workflow_run_identifier)
+            for current_step_record in current_step_records:
+                current_step_record["bindings"] = bindings_by_step[current_step_record["step_id"]]
+            return {"run_id": workflow_run_identifier, "steps": current_step_records,
                     "retries": [dict(current_retry_row) for current_retry_row in current_database_connection.execute(
                         """SELECT step.run_id AS source_run, step.step_id, retry.source_request, retry.retry_run FROM workflow_retry AS retry
                            JOIN workflow_step AS step ON step.request_id=retry.source_request WHERE step.run_id=? OR retry.retry_run=?""",
