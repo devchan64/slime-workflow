@@ -21,12 +21,19 @@ export default function GeneratorJobControls({service,id,state,refresh}) {
       const reasons={download_running:"모델 다운로드가 진행 중입니다.",other_preparation:"다른 모델 준비 작업이 진행 중입니다."};
       throw new Error(reasons[checked.resume_availability] || "재개 가능 상태를 확인할 수 없습니다.");
     }
-    setReview({command:"resume",payload:{id,expected_resume_fingerprint:checked.expected_resume_fingerprint}});
+    const payload={id,expected_resume_fingerprint:checked.expected_resume_fingerprint};
+    if(service==="kimodo"){
+      if(checked.keyframe_fingerprint!==null && !/^[a-f0-9]{64}$/.test(checked.keyframe_fingerprint))
+        throw new Error("키프레임 확인값을 확인할 수 없습니다.");
+      if(checked.resume_availability!=="available")throw new Error("재개 가능 상태를 확인할 수 없습니다.");
+      payload.keyframe_fingerprint=checked.keyframe_fingerprint;
+    }
+    setReview({command:"resume",payload});
   }
   async function confirm() {
     const {command,payload}=review;
     setReview(null);
-    await managementCommand(service,command,payload);
+    await managementCommand(service,service==="kimodo" && command==="resume"?"resume-reviewed":command,payload);
     setNotice(command==="resume"?"재개를 접수했습니다.":"중지를 요청했습니다.");
     refresh();
   }

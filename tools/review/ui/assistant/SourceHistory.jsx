@@ -43,7 +43,7 @@ export function HistoryPage({source, choose, session}) {
           <button title="작업을 대화 입력에 추가" onClick={()=>choose(source.service+" 작업",record.id)}>{record.id}</button>,
           record.recorded_status,
           ...(hasResult ? [<>
-            {kimodo && record.recorded_status==="completed" && <button onClick={()=>selectJob(record.id)}>원본 프레임 보기</button>}
+            {kimodo && <button onClick={()=>selectJob(record.id)}>{record.recorded_status==="completed"?"원본 프레임 보기":"작업 상태 보기"}</button>}
             {(mediaKind || writer) && <button onClick={()=>selectJob(record.id)}>결과 보기</button>}
             {source.result_path && <a href={source.result_path+"?"+new URLSearchParams({job:record.id,...(session?{session}:{})})}>작업 열기</a>}
           </>] : []),

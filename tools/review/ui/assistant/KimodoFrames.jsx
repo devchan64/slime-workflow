@@ -1,22 +1,24 @@
+import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import KimodoKeyframeSave from "./KimodoKeyframeSave.jsx";
 import React,{useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 
 export default function KimodoFrames({id,choose}) {
   const [source,setSource]=useState(null);
+  const [revision,refresh]=useState(0);
   const [frame,setFrame]=useState("1");
   const [preview,setPreview]=useState(null);
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
   useEffect(()=>{
-    let active=true;
+    let active=true;setPreview(null);setSource(null);setError("");
     managementCommand("kimodo","status",{id}).then(job=>{
-      if(job.image!=="/kimodo/jobs/"+id+"/attempts/"+job.attempt+"/output-000.png" || job.status!=="completed" || !job.attempt || !Number.isInteger(job.source_frame_count) || job.source_frame_count<1)
+      if(!job.status || (job.status==="completed" && (job.image!=="/kimodo/jobs/"+id+"/attempts/"+job.attempt+"/output-000.png" || !job.attempt || !Number.isInteger(job.source_frame_count) || job.source_frame_count<1)))
         throw new Error("완료된 모션의 원본 프레임을 확인할 수 없습니다.");
       if(active)setSource(job);
     }).catch(problem=>{if(active)setError(problem.message);});
     return ()=>{active=false;};
-  },[id]);
+  },[id,revision]);
   async function inspect(event){
     event.preventDefault();setBusy(true);setError("");setPreview(null);
     try{
@@ -31,7 +33,10 @@ export default function KimodoFrames({id,choose}) {
   }
   return <section aria-label="Kimodo 원본 프레임">
     {error && <p role="alert">{error}</p>}
-    {source && <form onSubmit={inspect}><fieldset disabled={busy}><legend>원본 SOMA 관절 · {source.source_frame_count}프레임</legend>
+    {source && <><p>{id} · {source.status} {source.error}</p>
+      <button onClick={()=>refresh(value=>value+1)}>작업 상태 갱신</button>
+      <GeneratorJobControls service="kimodo" id={id} state={source.status} refresh={()=>refresh(value=>value+1)}/></>}
+    {source?.status==="completed" && <form onSubmit={inspect}><fieldset disabled={busy}><legend>원본 SOMA 관절 · {source.source_frame_count}프레임</legend>
       <label>원본 프레임 번호 <input type="number" min="1" max={source.source_frame_count} required value={frame}
         onChange={event=>{setFrame(event.target.value);setPreview(null);setError("");}}/></label>
       <button>프레임 조회</button>
