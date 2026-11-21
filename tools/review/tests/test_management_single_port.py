@@ -6,7 +6,6 @@ from pathlib import Path
 from http.server import SimpleHTTPRequestHandler
 from unittest.mock import patch
 from fastapi.testclient import TestClient
-import gradio as gr
 from tools.review.common.management_asgi import build_management_application
 
 
@@ -25,7 +24,7 @@ class ManagementSinglePortTests(unittest.TestCase):
             self.assertEqual(current_response_value.headers['cache-control'], 'no-store')
 
     def test_retired_sprite_editor_is_unavailable(self):
-        from tools.review.ui.gradio.management_menu_app import load_manager_page_records
+        from tools.review.common.management_catalog import load_manager_page_records
         from tools.review.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_root_path = Path(current_directory_name)
@@ -53,50 +52,27 @@ class ManagementSinglePortTests(unittest.TestCase):
                 self.assertIn('anchor-review-data', current_embedded_response.text)
                 self.assertEqual(current_test_client.get('/animation-1/anchors.html', follow_redirects=False).headers['location'], '/management/?')
 
-    def test_mounted_queue_and_legacy_file(self):
-        with tempfile.TemporaryDirectory() as current_directory_name:
-            current_root_path = Path(current_directory_name)
-            current_source_path = current_root_path/'source.json'
-            current_source_path.write_text('{}')
-            (current_root_path/'test.txt').write_text('검수 파일')
-            def build_test_interface(current_tool_name, current_review_port, current_source_path):
-                with gr.Blocks() as current_interface_blocks:
-                    current_input_box = gr.Textbox()
-                    current_output_box = gr.Textbox()
-                    from PIL import Image
-                    current_image_path = current_root_path/'reference.png'
-                    Image.new('RGB', (16, 16), 'white').save(current_image_path)
-                    current_image_output = gr.Image(type='filepath')
-                    gr.Button('이미지 복원').click(lambda: str(current_image_path), outputs=current_image_output, api_name='restore_image')
-                    gr.Button('확인').click(lambda current_input_text: current_input_text, current_input_box, current_output_box, api_name='echo')
-                return current_interface_blocks, {'allowed_paths': []}
-            with patch('tools.review.common.management_asgi.build_management_blocks', side_effect=build_test_interface), patch('gradio.Blocks.launch', side_effect=AssertionError('추가 서버 실행 금지')):
-                current_app_value = build_management_application(SimpleHTTPRequestHandler, current_root_path, current_source_path, 8770, [])
-                with TestClient(current_app_value) as current_test_client:
-                    self.assertEqual(current_test_client.get('/test.txt').text, '검수 파일')
-                    self.assertEqual(current_test_client.get('/', follow_redirects=False).headers['location'], '/management/frame/hermes-agent/')
-                    for current_tool_name in ('billboard-generator',):
-                        current_route_prefix = '/management/frame/' + current_tool_name
-                        self.assertEqual(current_test_client.get(current_route_prefix+'/').status_code, 200)
-                        self.assertEqual(current_test_client.get(current_route_prefix+'/config').status_code, 200)
-                        current_result_value = current_test_client.post(current_route_prefix+'/gradio_api/call/echo', json={'data': ['확인']})
-                        self.assertEqual(current_result_value.status_code, 200)
-                        current_event_identifier = current_result_value.json()['event_id']
-                        current_stream_text = current_test_client.get(current_route_prefix+'/gradio_api/call/echo/'+current_event_identifier).text
-                        self.assertIn('event: complete', current_stream_text)
-                        self.assertEqual(json.loads(current_stream_text.split('data: ')[1].strip()), ['확인'])
-                        current_image_response = current_test_client.post(current_route_prefix+'/gradio_api/call/restore_image', json={'data': []})
-                        current_image_event = current_image_response.json()['event_id']
-                        current_image_stream = current_test_client.get(current_route_prefix+'/gradio_api/call/restore_image/'+current_image_event).text
-                        current_image_record = json.loads(current_image_stream.split('data: ')[1].strip())[0]
-                        self.assertIn(current_route_prefix+'/gradio_api/file=', current_image_record['url'])
-                        self.assertEqual(current_test_client.get(current_image_record['url']).status_code, 200)
+    def test_react_pages_share_port_with_legacy_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'source.json'
+            source.write_text('{}')
+            (root / 'test.txt').write_text('검수 파일')
+            app = build_management_application(SimpleHTTPRequestHandler, root, source, 8770, [])
+            with TestClient(app) as client:
+                self.assertEqual(client.get('/test.txt').text, '검수 파일')
+                self.assertEqual(client.get('/', follow_redirects=False).headers['location'], '/management/frame/hermes-agent/')
+                for tool in ('billboard-generator', 'kimodo-generator'):
+                    route = '/management/frame/' + tool
+                    self.assertIn('/management/assistant/app.js', client.get(route + '/').text)
+                    self.assertEqual(client.get(route + '/config').status_code, 404)
+                    self.assertEqual(client.post(route + '/gradio_api/call/echo', json={}).status_code, 404)
+                location = client.get('/management/?tool=kimodo-generator&job=example', follow_redirects=False).headers['location']
+                self.assertEqual(location, '/management/frame/kimodo-generator/?job=example')
 
-    def test_missing_ui_fails_without_static_fallback(self):
-        with tempfile.TemporaryDirectory() as current_directory_name:
-            current_root_path = Path(current_directory_name)
-            with patch('tools.review.common.management_asgi.build_management_blocks', side_effect=ValueError('실험용 초기화 실패')):
-                current_app_value = build_management_application(SimpleHTTPRequestHandler, current_root_path, current_root_path/'missing.json', 8770, [])
-                with TestClient(current_app_value) as current_test_client:
-                    self.assertEqual(current_test_client.get('/management/frame/billboard-generator/').status_code, 503)
-                    self.assertNotEqual(current_test_client.get('/', follow_redirects=False).status_code, 307)
+    def test_unknown_tool_returns_not_found(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            app = build_management_application(SimpleHTTPRequestHandler, root, root/'missing.json', 8770, [])
+            with TestClient(app) as client:
+                self.assertEqual(client.get('/management/?tool=missing').status_code, 404)

@@ -284,6 +284,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/frame/kimodo-generator": KimodoPage,
   "/management/assistant/qwen-archive": QwenArchive,
   "/management/assistant/kimodo": KimodoPage,
   "/management/frame/effect-editor": EffectEditor,

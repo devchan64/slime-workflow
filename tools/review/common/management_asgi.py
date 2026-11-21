@@ -1,6 +1,5 @@
 """추가 TCP 포트 없이 관리 화면과 기존 HTTP 계약을 같은 서버에서 제공한다."""
 import asyncio
-from contextlib import AsyncExitStack, asynccontextmanager
 import importlib
 import io
 import os
@@ -186,17 +185,7 @@ def wrap_predict_diagnostic_receiver(current_receive_call, current_emit_function
 
 def build_management_application(current_handler_class, current_root_path, current_source_path, current_review_port, current_static_routes):
     os.environ['SLIME_MANAGEMENT_MENU_SOURCE'] = str(current_source_path)
-    current_mounted_apps = {}
-    current_mount_lock = asyncio.Lock()
-    current_lifespan_stack = AsyncExitStack()
-
-    @asynccontextmanager
-    async def manage_application_lifespan(current_application_value):
-        async with current_lifespan_stack:
-            yield
-
-    current_root_application = FastAPI(lifespan=manage_application_lifespan)
-    current_supported_tools = set(MANAGEMENT_INTERFACE_BUILDERS)
+    current_root_application = FastAPI()
 
     async def dispatch_management_request(current_request_scope, current_receive_call, current_send_call):
         current_request_path = current_request_scope['path']
@@ -206,12 +195,7 @@ def build_management_application(current_handler_class, current_root_path, curre
                 current_health_record['launch_token'] = os.environ['SLIME_MANAGEMENT_STACK_TOKEN']
             return await JSONResponse(current_health_record, headers={'Cache-Control': 'no-store'})(current_request_scope, current_receive_call, current_send_call)
         if current_request_scope['type'] == 'websocket':
-            current_tool_name = current_request_path.split('/')[3] if current_request_path.startswith('/management/frame/') else 'management'
-            current_application = current_mounted_apps.get(current_tool_name)
-            current_path_parts = current_request_path.split('/gradio_api/heartbeat-ws/')
-            if current_application is None or len(current_path_parts) != 2 or not current_path_parts[1] or '/' in current_path_parts[1]:
-                return await current_send_call({'type': 'websocket.close', 'code': 1008})
-            return await bridge_gradio_heartbeat(current_application, current_request_scope, current_receive_call, current_send_call)
+            return await current_send_call({'type': 'websocket.close', 'code': 1008})
         current_query_values = parse_qs(current_request_scope.get('query_string', b'').decode())
         if (current_request_scope.get('method') in ('GET', 'HEAD')
                 and current_request_path.rstrip('/') == '/management/frame/map-review'):
@@ -336,8 +320,6 @@ def build_management_application(current_handler_class, current_root_path, curre
             records = load_manager_page_records(current_source_path, current_animation_catalog=True) if identifier and current_source_path.is_file() else []
             selected = next((row for row in records if row['id'] == identifier), None)
             target = resolve_management_page_path(selected) if selected else None
-            if not target and identifier in current_supported_tools:
-                target = '/management/frame/' + identifier + '/'
             if identifier and not target:
                 return await Response('등록된 관리 도구를 찾을 수 없습니다.', status_code=404)(current_request_scope, current_receive_call, current_send_call)
             destination = urlsplit(target or '/management/frame/hermes-agent/')
@@ -349,14 +331,11 @@ def build_management_application(current_handler_class, current_root_path, curre
             return await RedirectResponse(destination.path + ('?' + query if query else ''))(current_request_scope, current_receive_call, current_send_call)
         if current_request_path.rstrip('/') == '/management/frame/static-review' or current_request_path.startswith('/management/frame/static-review/'):
             return await Response('등록된 검수 화면을 찾을 수 없습니다.', status_code=404)(current_request_scope, current_receive_call, current_send_call)
-        current_tool_name = None
-        current_mount_path = '/management'
         if current_request_path in LEGACY_MANAGEMENT_PATHS:
             current_redirect_value = RedirectResponse('/management/frame/' + LEGACY_MANAGEMENT_PATHS[current_request_path] + '/?' + current_request_scope.get('query_string', b'').decode())
             return await current_redirect_value(current_request_scope, current_receive_call, current_send_call)
-        if current_request_path.startswith('/management/frame/'):
-            current_tool_name = current_request_path.split('/')[3]
-            current_mount_path = '/management/frame/' + current_tool_name
+        if current_request_path.startswith('/management/frame/kimodo-generator/'):
+            return await Response(status_code=404)(current_request_scope, current_receive_call, current_send_call)
         elif current_request_path == '/management' or current_request_path.startswith(('/management/config', '/management/gradio_api/', '/management/assets/', '/management/theme', '/management/favicon')) or current_request_path == '/management/':
             return await Response(status_code=404)(current_request_scope,current_receive_call,current_send_call)
         elif current_request_path == '/' and current_source_path.is_file():
@@ -366,40 +345,6 @@ def build_management_application(current_handler_class, current_root_path, curre
         elif (current_request_path in current_static_routes and current_query_values.get('embedded') != ['gradio-static']) or current_request_path == '/isloon-map-review/map-review.html':
             current_redirect_value = RedirectResponse('/management/?' + current_request_scope.get('query_string', b'').decode())
             return await current_redirect_value(current_request_scope, current_receive_call, current_send_call)
-        if current_tool_name in current_supported_tools:
-            async with current_mount_lock:
-                if current_tool_name not in current_mounted_apps:
-                    try:
-                        current_interface_blocks, current_mount_options = build_management_blocks(current_tool_name, current_review_port, current_source_path)
-                        import gradio as gr
-                        current_tool_application = gr.mount_gradio_app(FastAPI(), current_interface_blocks.queue(), path=current_mount_path, root_path=current_mount_path, **current_mount_options)
-                        await current_lifespan_stack.enter_async_context(current_tool_application.router.lifespan_context(current_tool_application))
-                        current_mounted_apps[current_tool_name] = current_tool_application
-                    except Exception:
-                        logging.exception('관리 화면 초기화 실패: %s', current_tool_name)
-                        current_failure_response = Response('관리 화면 초기화 실패. 서버 로그를 확인하세요.', status_code=503)
-                        return await current_failure_response(current_request_scope, current_receive_call, current_send_call)
-            current_is_document = current_request_scope.get('method') == 'GET' and current_request_path.rstrip('/') == current_mount_path
-            if current_is_document:
-                current_script_bytes = b'<script>'+Path(__file__).with_name('gradio_heartbeat_bridge.js').read_bytes()+b'</script>'
-                current_start_message = None
-                async def send_document_with_heartbeat_bridge(current_message):
-                    nonlocal current_start_message
-                    if current_message['type'] == 'http.response.start':
-                        current_start_message = current_message
-                        return
-                    if current_message['type'] == 'http.response.body' and current_start_message is not None:
-                        current_body_bytes = current_message.get('body', b'')
-                        current_content_type = dict(current_start_message.get('headers', [])).get(b'content-type', b'')
-                        if b'text/html' in current_content_type and b'<head>' in current_body_bytes:
-                            current_body_bytes = current_body_bytes.replace(b'<head>', b'<head>'+current_script_bytes, 1)
-                            current_start_message['headers'] = [(current_name, str(len(current_body_bytes)).encode() if current_name.lower() == b'content-length' else current_value) for current_name, current_value in current_start_message['headers']]
-                        await current_send_call(current_start_message)
-                        current_start_message = None
-                        current_message = dict(current_message, body=current_body_bytes)
-                    await current_send_call(current_message)
-                return await current_mounted_apps[current_tool_name](current_request_scope, current_receive_call, send_document_with_heartbeat_bridge)
-            return await current_mounted_apps[current_tool_name](current_request_scope, current_receive_call, current_send_call)
         current_request_body = bytearray()
         while True:
             current_request_message = await current_receive_call()
@@ -1201,6 +1146,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/battlefield/')
     @current_root_application.get('/management/assistant/fun-control/')
     @current_root_application.get('/management/assistant/qwen-archive/')
+    @current_root_application.get('/management/frame/kimodo-generator')
+    @current_root_application.get('/management/frame/kimodo-generator/')
     @current_root_application.get('/management/assistant/kimodo/')
     @current_root_application.get('/management/assistant/vace/')
     @current_root_application.get('/management/assistant/dwpose/')
