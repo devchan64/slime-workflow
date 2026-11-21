@@ -1,3 +1,4 @@
+import AnimatePage from "./AnimatePage.jsx";
 import WriterPage from "./WriterPage.jsx";
 import FluxImagePage from "./FluxImagePage.jsx";
 import SoundEffectPage, {HeartmulaPage} from "./SoundEffectPage.jsx";
@@ -260,6 +261,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/frame/wan22-animate2-generator": AnimatePage,
   "/management/frame/writer-agent": WriterPage,
   "/management/frame/flux-expression-generator": FluxImagePage,
   "/management/frame/flux-seamless-generator": FluxImagePage,

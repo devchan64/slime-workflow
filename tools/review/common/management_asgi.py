@@ -18,7 +18,6 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'hermes-direct': ('hermes_agent_app', 'build_hermes_direct_interface', 'none'),
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
     'wan22-vace-generator': ('wan_vace_app', 'build_vace_interface', 'url'),
-    'wan22-animate2-generator': ('wan_animate2_app', 'build_animate_interface', 'url'),
     'wan22-fun-control-generator': ('wan_fun_app', 'build_fun_interface', 'url'),
     'map-review': ('map_review_app', 'build_map_review_interface', 'port'),
     'effect-editor': ('effect_editor_app', 'build_effect_editor_interface', 'port'),
@@ -632,6 +631,28 @@ def build_management_application(current_handler_class, current_root_path, curre
     register_audio_input_routes('/management/assistant/sfx-input', 'sfx-dasheng-audiogen')
     register_audio_input_routes('/management/assistant/heartmula-input', 'music-heartmula')
 
+    @current_root_application.get('/management/assistant/animate-input/{job}/{part}')
+    def animate_input(job: str, part: Literal["request", "reference", "motion"]):
+        from generators.wan_animate2.contracts import ANIMATE_JOB_STORAGE
+        from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+        if not validate_service_job_identifier('wan22-animate2', job):
+            return Response(status_code=404)
+        directory = ANIMATE_JOB_STORAGE / job
+        names = {"request": "request.json", "reference": "reference-1.png", "motion": "driving.mp4"}
+        if directory.is_symlink() or any((directory / name).is_symlink() or not (directory / name).is_file() for name in names.values()):
+            return Response(status_code=404)
+        if part != "request":
+            return FileResponse(directory / names[part], media_type={"reference":"image/png", "motion":"video/mp4"}[part])
+        try:
+            request = json.loads((directory / names[part]).read_bytes())
+            fields = {key:request[key] for key in ("prompt", "frames", "steps", "seed")}
+            if request["references"] != [names["reference"]] or not isinstance(fields["prompt"], str) or any(type(fields[key]) is not int for key in ("frames","steps","seed")):
+                raise ValueError("입력 기록 오류")
+        except (KeyError, TypeError, ValueError, OSError):
+            return Response(status_code=422)
+        prefix = "/management/assistant/animate-input/" + job
+        return {"id":job, "request":fields, "reference":prefix+"/reference", "motion":prefix+"/motion"}
+
     @current_root_application.get('/management/assistant/dwpose-input/{job}')
     def dwpose_input(job: str):
         from generators.dwpose.contracts import DWPOSE_JOB_STORAGE
@@ -789,6 +810,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/models/')
     @current_root_application.get('/management/frame/writer-agent')
     @current_root_application.get('/management/frame/writer-agent/')
+    @current_root_application.get('/management/frame/wan22-animate2-generator')
+    @current_root_application.get('/management/frame/wan22-animate2-generator/')
     @current_root_application.get('/management/frame/dwpose-generator')
     @current_root_application.get('/management/frame/dwpose-generator/')
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen')
