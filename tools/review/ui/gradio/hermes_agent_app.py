@@ -5003,7 +5003,8 @@ def build_hermes_agent_interface(include_advanced_controls=True, current_source_
             with gr.Group():
                 gr.Markdown("## 헤르메스와 대화")
                 hermes_session_conversation = gr.Chatbot(
-                    label="대화", show_label=False, layout="bubble", height="clamp(200px, 42dvh, 560px)",
+                    label="대화", show_label=False, layout="bubble", elem_id="hermes-chat-history",
+                    height="max(220px, calc(100dvh - 16rem))", resizable=True, min_height=180,
                     value=[], placeholder="무엇을 도와드릴까요?", render_markdown=False, allow_file_downloads=False,
                     examples=[{"text": "지금 대기 중인 작업을 보여줘"},
                               {"text": "번역한 문장으로 이미지를 만드는 워크플로우를 설계해 줘"}])
