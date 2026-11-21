@@ -62,13 +62,6 @@ def build_management_blocks(current_tool_name, current_review_port, current_sour
         current_page_package = GENERATOR_PAGE_PACKAGES[current_tool_name]
         current_page_module = importlib.import_module(f'generators.{current_page_package}.page.interface')
         current_interface_blocks = current_page_module.build_generator_page(current_server_address, current_review_port)
-    elif current_tool_name == 'static-review':
-        from tools.review.ui.gradio.static_review_app import load_static_review_paths, build_static_review_interface, create_static_review_loader
-        current_static_paths = load_static_review_paths(current_source_path)
-        current_catalog_records = load_manager_page_records(current_source_path, current_animation_catalog=True)
-        current_anchor_paths = [current_record['path'].split('?')[0] for current_record in current_catalog_records if current_record.get('anchorEditor') and current_record.get('uiMode') == 'gradio-static']
-        current_interface_blocks = build_static_review_interface(current_static_paths, current_anchor_paths, [current_record for current_record in current_catalog_records if current_record.get('registeredAnimation')])
-        current_mount_options['js'] = create_static_review_loader(current_review_port, current_static_paths, current_anchor_paths)
     else:
         current_module_name, current_builder_name, current_argument_kind = MANAGEMENT_INTERFACE_BUILDERS[current_tool_name]
         current_module_value = importlib.import_module('tools.review.ui.gradio.' + current_module_name)
@@ -222,7 +215,7 @@ def build_management_application(current_handler_class, current_root_path, curre
             yield
 
     current_root_application = FastAPI(lifespan=manage_application_lifespan)
-    current_supported_tools = {*GENERATOR_PAGE_PACKAGES, *MANAGEMENT_INTERFACE_BUILDERS, 'management', 'static-review'}
+    current_supported_tools = {*GENERATOR_PAGE_PACKAGES, *MANAGEMENT_INTERFACE_BUILDERS, 'management'}
 
     async def dispatch_management_request(current_request_scope, current_receive_call, current_send_call):
         current_request_path = current_request_scope['path']
@@ -297,6 +290,8 @@ def build_management_application(current_handler_class, current_root_path, curre
                     query = urlencode({key: values for key, values in parameters.items()
                                        if key in ('locale', 'session', 'field', 'overview')}, doseq=True)
                     return await RedirectResponse(document_path + ('?' + query if query else ''))(current_request_scope, current_receive_call, current_send_call)
+        if current_request_path.rstrip('/') == '/management/frame/static-review' or current_request_path.startswith('/management/frame/static-review/'):
+            return await Response('등록된 검수 화면을 찾을 수 없습니다.', status_code=404)(current_request_scope, current_receive_call, current_send_call)
         current_tool_name = None
         current_mount_path = '/management'
         if current_request_path in LEGACY_MANAGEMENT_PATHS:

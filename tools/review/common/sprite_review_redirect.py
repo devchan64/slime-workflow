@@ -12,6 +12,9 @@ def resolve_sprite_review_redirect(current_request_path,current_query_values,cur
         current_selected_page=next((current_page_record for current_page_record in current_animation_pages if '/'+current_page_record['path'].lstrip('/').split('?')[0]==current_request_path),None)
         if current_selected_page is None:return None
     current_target_values={'tool':'sprite-sheet-editor','category':'animation-tool'}
+    session = (current_query_values.get('session') or [''])[0]
+    if session:
+        current_target_values['session'] = session
     current_action_identifier=(current_query_values.get('action') or [''])[0]
     if current_action_identifier.startswith('asset:'):
         current_target_values['action']=current_action_identifier
