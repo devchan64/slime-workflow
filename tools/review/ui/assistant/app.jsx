@@ -168,11 +168,13 @@ function App() {
     }
   }
   async function lifecycle(record,action){
-    if(action==="delete"&&!window.confirm(record.title+" 대화 기록을 영구 삭제할까요?"))return;
+    if(busy)return;
+    if(action==="delete"&&!window.confirm((record.title || record.id)+" 대화 기록을 영구 삭제할까요?"))return;
+    setBusy(true);
     try{await call("session-"+action,{session_id:record.id,expected_update:record.updated_at});
       if(action==="restore"){setArchived(false);select(record.id)}else if(record.id===session)select("");
       setListRequest(current=>({offset:0,query:current.query}));setRefresh(n=>n+1);
-    }catch(e){setError(e.message)}
+    }catch(e){setError(e.message)}finally{setBusy(false);}
   }
   const [showForms,setShowForms]=useState(false);
   const [showGpu,setShowGpu]=useState(false);
@@ -197,14 +199,14 @@ function App() {
   const matchedTools=tools.filter(tool=>(category==="all" || tool.category===category) &&
     terms.every(term=>[tool.label,tool.id,tool.description].join(" ").toLowerCase().includes(term)));
   const chosen=query().get("tool");
-  return <main><aside><h2>대화 세션</h2><button disabled={busy} onClick={()=>{select("");setArchived(false);resetSessionList();}}>새 대화</button><button onClick={()=>{resetSessionList();setArchived(!archived);}}>{archived?"대화 목록":"보관함"}</button>
+  return <main><aside><h2>대화 세션</h2><button disabled={busy} onClick={()=>{select("");setArchived(false);resetSessionList();}}>새 대화</button><button disabled={busy} onClick={()=>{resetSessionList();setArchived(!archived);}}>{archived?"대화 목록":"보관함"}</button>
     <form onSubmit={e=>{e.preventDefault();setListRequest({offset:0,query:sessionQuery.trim()});}}>
       <label>세션 검색 <input maxLength={100} placeholder="제목·메시지·세션 ID" value={sessionQuery} onChange={e=>setSessionQuery(e.target.value)}/></label>
       <button>검색</button>
     </form>
     {listError && <p role="alert">{listError}</p>}
     {listPage && Number.isInteger(listPage.total) && <p>검색 결과 {listPage.total}개{listPage.unreadable_count>0 && " · 읽을 수 없는 세션 "+listPage.unreadable_count+"개 제외"}</p>}
-    {sessions.map(s=><div className="session" key={s.id}><button disabled={busy} aria-current={s.id===session?"page":undefined} onClick={()=>archived?lifecycle(s,"restore"):select(s.id)}>{s.title || s.id}</button>
+    {sessions.map(s=><div className="session" key={s.id}><button disabled={busy} aria-current={s.id===session?"page":undefined} onClick={()=>archived?lifecycle(s,"restore"):select(s.id)}>{archived?"복원 · ":""}{s.title || s.id}</button>
     <button disabled={busy} onClick={()=>lifecycle(s,archived?"delete":"archive")}>{archived?"삭제":"보관"}</button></div>)}
     {listPage && (listRequest.offset>0 || listPage.next_offset!=null) && <nav aria-label="세션 목록 페이지">
       <button disabled={!listRequest.offset} onClick={()=>setListRequest({...listRequest,offset:Math.max(0,listRequest.offset-30),snapshot:listPage.snapshot})}>이전</button>
