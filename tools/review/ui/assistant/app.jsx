@@ -1,3 +1,4 @@
+import CapabilitySearch from "./CapabilitySearch.jsx";
 import ModelPage from "./ModelPage.jsx";
 import TranslationPage from "./TranslationPage.jsx";
 import {managementCommand} from "./managementCommand.js";
@@ -135,6 +136,12 @@ function App() {
   }
   const [showForms,setShowForms]=useState(false);
   const [showGpu,setShowGpu]=useState(false);
+  const [showCapabilities,setShowCapabilities]=useState(false);
+  function chooseTool(label,identifier) {
+    edit([draft,"사용할 도구: "+label+" ("+identifier+")\n"].filter(Boolean).join("\n"));
+    setShowTools(false);
+    text.current.focus();
+  }
   const chosen=query().get("tool");
   return <main><aside><h2>대화 세션</h2><button disabled={busy} onClick={()=>{select("");setArchived(false);}}>새 대화</button><button onClick={()=>setArchived(!archived)}>{archived?"대화 목록":"보관함"}</button>
     {sessions.map(s=><div className="session" key={s.id}><button disabled={busy} aria-current={s.id===session?"page":undefined} onClick={()=>archived?lifecycle(s,"restore"):select(s.id)}>{s.title || s.id}</button>
@@ -146,13 +153,12 @@ function App() {
     {showGpu && <GpuPanel/>}
     {showTools && <section className="floating-panel" aria-label="도구 탐색">
       <input aria-label="도구 검색" placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>
+      <button aria-expanded={showCapabilities} onClick={()=>setShowCapabilities(!showCapabilities)}>관리 기능 검색</button>
+      {showCapabilities && <CapabilitySearch search={search} choose={chooseTool}/>}
       {tools.filter(tool=>(tool.label+tool.id+tool.description).toLowerCase().includes(search.toLowerCase())).map(tool=>
         <div key={tool.id}>
-          <button onClick={()=>{
-            edit([draft,"사용할 도구: "+tool.label+" ("+tool.id+")\n"].filter(Boolean).join("\n"));
-            setShowTools(false);text.current.focus();
-          }}>{tool.label}</button>
-          {tool.review_path && <a href={tool.review_path+(session?"?"+new URLSearchParams({session}):"")}>검수 화면 열기</a>}
+          <button onClick={()=>chooseTool(tool.label,tool.id)}>{tool.label}</button>
+          {tool.review_path && <a href={tool.review_path+(session?"?"+new URLSearchParams({session}):"")}>화면 열기</a>}
         </div>)}
     </section>}
     {session && <div hidden={!showForms}>{<FormLibrary key={session} session={session} messages={view.messages || []} call={call} openRun={run=>{setShowForms(false);setQueue({run});}} addToMessage={value=>edit([draft,value].filter(Boolean).join("\n"))}/>}</div>}

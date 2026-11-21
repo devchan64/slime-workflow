@@ -346,6 +346,14 @@ def build_management_application(current_handler_class, current_root_path, curre
         current_response_value = await asyncio.to_thread(execute_legacy_request, current_handler_class, current_root_path, current_request_scope, bytes(current_request_body))
         await current_response_value(current_request_scope, current_receive_call, current_send_call)
 
+    @current_root_application.get('/management/assistant/capabilities')
+    def assistant_capabilities():
+        from tools.review.common.management_client import execute_remote_management_command
+        from tools.review.common.hermes_capability_table import format_capability_table
+        catalog = execute_remote_management_command('hermes-agent', 'hermes-capabilities', {})
+        rows, summary = format_capability_table(catalog)
+        return {'rows': rows, 'summary': summary}
+
     @current_root_application.get('/management/assistant/tools')
     def assistant_tools():
         from tools.review.common.management_catalog import REACT_REVIEW_PATHS, load_manager_page_records
