@@ -61,6 +61,17 @@ function AudioGeneratorPage({music=false}){
     }catch(error){setNotice(error.message);}
     finally{setBusy(false);}
   }
+  async function reviewPreparation(){
+    setNotice("");setBusy(true);
+    try{
+      if(music){
+        const status=await managementCommand(service,"model-status",{});
+        if(!status.artifacts_ready)throw new Error("모델 관리에서 파일 다운로드를 먼저 완료하세요.");
+      }
+      setReview({payload:{action:"prepare"}});
+    }catch(error){setNotice(error.message);}
+    finally{setBusy(false);}
+  }
   async function submit(){
     if(!review || submitting.current)return;
     submitting.current=true;setBusy(true);
@@ -76,7 +87,7 @@ function AudioGeneratorPage({music=false}){
     {music ? <p>태그는 쉼표로 구분합니다. 원곡을 생성한 뒤 Demucs가 MR과 보컬을 분리합니다.</p> : <p>16kHz WAV · 길이 자동 예측 · <a href="https://huggingface.co/mispeech/Dasheng-AudioGen">Dasheng-AudioGen 모델과 Apache-2.0 라이선스</a></p>}
     <details><summary>모델 다운로드·준비</summary>
       <DownloadProgress service={service}/>
-      <button disabled={busy || Boolean(review)} onClick={()=>setReview({payload:{action:"prepare"}})}>모델 준비 요청 검토</button>
+      <button disabled={busy || Boolean(review)} onClick={reviewPreparation}>모델 준비 요청 검토</button>
     </details><ModelReadiness service={service}/><GeneratorChangelog generator={service}/>
     <fieldset disabled={busy || Boolean(review) || !form}>
       {music && <MusicExamples apply={request=>setForm(current=>({...current,...request}))}/> }

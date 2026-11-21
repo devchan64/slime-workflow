@@ -31,8 +31,7 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'sprite-sheet-editor': ('sprite_sheet_editor_app', 'build_sprite_sheet_editor_interface', 'port'),
 }
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
-MUSIC_INTERFACE_SERVICES = ('music-heartmula',)
-GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator', 'music-heartmula': 'music-heartmula', 'writer-agent': 'writer_agent'}
+GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator', 'writer-agent': 'writer_agent'}
 GENERATOR_PAGE_PACKAGES['flux-expression-generator'] = 'flux-expression'
 for current_flux_profile in ('flux-image','flux-character','flux-mannequin','flux-billboard','flux-prop','flux-vegetation','flux-building','flux-seamless'):
     GENERATOR_PAGE_PACKAGES[current_flux_profile+'-generator'] = current_flux_profile
@@ -226,7 +225,7 @@ def build_management_application(current_handler_class, current_root_path, curre
             yield
 
     current_root_application = FastAPI(lifespan=manage_application_lifespan)
-    current_supported_tools = {*GENERATOR_PAGE_PACKAGES, *MANAGEMENT_INTERFACE_BUILDERS, *MUSIC_INTERFACE_SERVICES, 'management', 'static-review'}
+    current_supported_tools = {*GENERATOR_PAGE_PACKAGES, *MANAGEMENT_INTERFACE_BUILDERS, 'management', 'static-review'}
 
     async def dispatch_management_request(current_request_scope, current_receive_call, current_send_call):
         current_request_path = current_request_scope['path']
@@ -467,10 +466,9 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/tools')
     def assistant_tools():
         from tools.review.common.management_catalog import REACT_REVIEW_PATHS, load_manager_page_records
-        tool_paths = {**REACT_REVIEW_PATHS, 'music-heartmula':'/management/assistant/heartmula/'}
         return [
             {key: record[key] for key in ('id', 'label', 'category', 'description')}
-            | {'review_path': tool_paths.get(record['id'])}
+            | {'review_path': REACT_REVIEW_PATHS.get(record['id'])}
             for record in load_manager_page_records(current_source_path)
             if record['id'] != 'hermes-agent'
         ]
@@ -489,6 +487,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/dwpose-generator/')
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen')
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen/')
+    @current_root_application.get('/management/frame/music-heartmula')
+    @current_root_application.get('/management/frame/music-heartmula/')
     @current_root_application.get('/management/assistant/heartmula/')
     @current_root_application.get('/management/assistant/sound-effect/')
     @current_root_application.get('/management/assistant/dwpose/')
