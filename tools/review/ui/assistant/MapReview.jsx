@@ -8,6 +8,22 @@ export default function MapReview(){
   const [cell,setCell]=useState(null),[reading,setReading]=useState(false);
   const [source,setSource]=useState(null),[draft,setDraft]=useState(null),[preview,setPreview]=useState(null);
   const [past,setPast]=useState([]),[future,setFuture]=useState([]);
+  const [texture,setTexture]=useState(""),[objectId,setObjectId]=useState("");
+  const placed=draft?.objects || [];
+  const atCell=item=>cell && item.position.column===cell.column && item.position.row===cell.row;
+  const selectedObject=placed.find(item=>item.id===objectId);
+  function addObject(){
+    const ids=new Set(placed.map(item=>item.id));
+    let number=1;
+    while(ids.has("editor-billboard-"+number))number++;
+    const object={id:"editor-billboard-"+number,kind:"decoration",textureKey:texture,tileAnchor:"center",
+      position:{column:cell.column,row:cell.row}};
+    applyDraft({...draft,objects:[...placed,object]},"edit");
+  }
+  function moveObject(){
+    const objects=placed.map(item=>item.id===objectId?{...item,position:{column:cell.column,row:cell.row}}:item);
+    applyDraft({...draft,objects},"edit");
+  }
   function editCell(key,value){
     setCell({...cell,[key]:value});setPreview(null);
   }
@@ -60,8 +76,7 @@ export default function MapReview(){
       const tile=snapshot.tiles.rows[row][column];
       setCell({column,row,tile,height:snapshot.terrain.elevations[row][column],
         blocked:snapshot.terrain.blocked.some(([x,y])=>x===column && y===row),
-        ...draft?.cells.find(item=>item.column===column && item.row===row),
-        objects:snapshot.tiles.objects.filter(item=>item.position?.column===column && item.position?.row===row).map(item=>item.id)});
+        ...draft?.cells.find(item=>item.column===column && item.row===row)});
       setFeedback("");
     }catch(error){setFeedback(error.message);}
     finally{setReading(false);}
@@ -102,12 +117,22 @@ export default function MapReview(){
     {field && <fieldset disabled={!ready || reading}><legend>셀 검수</legend>
       <label><input type="checkbox" onChange={event=>{window.mapReviewEditingEnabled=event.target.checked;window.mapReviewSelectedCell=null;setCell(null);}}/>캐릭터 이동 대신 셀 선택</label>
       <button onClick={inspectCell}>선택 셀 속성 조회</button>
-      {cell && <form onSubmit={previewCell}><p>열 {cell.column} · 행 {cell.row} · {cell.tile} · 높이 {cell.height} · {cell.blocked?"이동 금지":"이동 가능"} · 배치물 {cell.objects.join(", ") || "없음"}</p>
+      {cell && <form onSubmit={previewCell}><p>열 {cell.column} · 행 {cell.row} · {cell.tile} · 높이 {cell.height} · {cell.blocked?"이동 금지":"이동 가능"} · 배치물 {placed.filter(atCell).map(item=>item.id).join(", ") || "없음"}</p>
         <label>지형<select value={cell.tile} onChange={e=>editCell("tile",e.target.value)}>
           {Object.entries(source.codes).map(([code,name])=><option key={code} value={code}>{name} · {code}</option>)}</select></label>
         <label>높이<input type="number" required min="0" max="20" step="1" value={cell.height} onChange={e=>editCell("height",e.target.value)}/></label>
         <label><input type="checkbox" checked={cell.blocked} onChange={e=>editCell("blocked",e.target.checked)}/>이동 금지</label>
         <button>초안 검증 및 미리보기</button></form>}
+      {draft && <fieldset><legend>빌보드 배치</legend>
+        <label>추가할 에셋<select value={texture} onChange={e=>setTexture(e.target.value)}>
+          <option value="">에셋 선택</option>{(source.textures || []).map(key=><option key={key}>{key}</option>)}</select></label>
+        <button disabled={!cell || !source.textures?.includes(texture)} onClick={addObject}>선택 셀에 추가</button>
+        <label>배치 ID<select value={selectedObject?.id || ""} onChange={e=>setObjectId(e.target.value)}>
+          <option value="">배치 선택</option>{placed.map(item=><option key={item.id}>{item.id}</option>)}</select></label>
+        <button disabled={!selectedObject || !cell || atCell(selectedObject)} onClick={moveObject}>선택 셀로 이동</button>
+        <button disabled={!selectedObject} onClick={()=>applyDraft({...draft,objects:placed.filter(item=>item.id!==objectId)},"edit")}>선택 배치 삭제</button>
+        <button disabled={!placed.some(atCell)} onClick={()=>applyDraft({...draft,objects:placed.filter(item=>!atCell(item))},"edit")}>선택 셀의 빌보드 모두 삭제</button>
+      </fieldset>}
       {draft && <div>
         <button disabled={!past.length} onClick={()=>applyDraft(past[past.length-1],"undo")}>한 단계 되돌리기</button>
         <button disabled={!future.length} onClick={()=>applyDraft(future[future.length-1],"redo")}>한 단계 다시 실행</button>
