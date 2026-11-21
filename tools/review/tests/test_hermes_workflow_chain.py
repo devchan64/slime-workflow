@@ -1,6 +1,7 @@
 """격리된 서비스 응답으로 재시작과 생성 결과 전달을 검증한다."""
 import base64
 import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,6 +14,40 @@ from tools.review.domains.hermes_agent.workflow_run_store import WorkflowRunStor
 
 
 class HermesWorkflowChainTests(unittest.TestCase):
+    def test_kimodo_first_pose_supplies_flux_after_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            database = root / "workflow.sqlite3"
+            store = WorkflowRunStore(database)
+            motion = create_workflow_step_draft("motion", "kimodo", {"prompt": "Walk forward."})
+            image = create_workflow_step_draft("image", "flux-image", {"prompt": "Walking pose"})
+            del image["inputs"]["images"]
+            image["bindings"]["images"] = {"from_step": "motion", "output": "images"}
+            store.register_workflow_run("run", "session", [motion, image])
+            request = store.claim_ready_step("run", "motion")
+            self.assertEqual(request["request"]["action"], "generate")
+            job = "2026-11-21_01-01-01-00000001"
+            attempt = "a" * 32
+            job_dir = root / job
+            attempt_dir = job_dir / "attempts" / attempt
+            attempt_dir.mkdir(parents=True)
+            frame = attempt_dir / "output-000.png"
+            Image.new("RGB", (32, 32), "green").save(frame)
+            content = frame.read_bytes()
+            result = {"attempt": attempt, "frames": 1, "fps": 30, "frame_sha256": [hashlib.sha256(content).hexdigest()]}
+            (job_dir / "status.json").write_text(json.dumps({"status": "completed"}))
+            for folder in (job_dir, attempt_dir):
+                (folder / "result.json").write_text(json.dumps(result))
+            receipt = {"request_id": request["request_id"], "job_id": job, "state": "accepted", "service": "kimodo"}
+            with patch("tools.review.domains.kimodo.generation.KIMODO_JOB_STORAGE", root):
+                store.record_kimodo_completion("run", "motion", {"receipt": receipt, "job": {"attempt": attempt}})
+            frame.unlink()
+            reopened = WorkflowRunStore(database)
+            next_request = reopened.claim_ready_step("run", "image")
+            self.assertEqual(base64.b64decode(next_request["request"]["images"][0]), content)
+            preview = reopened.read_pinned_image_preview("run", "session", "motion")
+            self.assertEqual(preview["source_sha256"], hashlib.sha256(content).hexdigest())
+
     def test_unusable_flux_output_blocks_revision_and_preserves_independent_branch(self):
         for image_file_condition in ("missing", "corrupt"):
             with self.subTest(condition=image_file_condition), tempfile.TemporaryDirectory() as temporary_root_name:
