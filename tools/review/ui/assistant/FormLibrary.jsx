@@ -22,9 +22,12 @@ export default function FormLibrary({session, proposalStep, messages, call, addT
     setDefinition(value);
     setReview(null);
   }
-  function restoreDraft(record) {
+  function validateDraft(record) {
     if (record.session_id !== session || typeof record.definition_text !== "string" ||
         typeof record.revision !== "string") throw new Error("세션 초안 응답을 확인하세요.");
+  }
+  function restoreDraft(record) {
+    validateDraft(record);
     setDefinition(record.definition_text);
     setDraftRevision(record.revision);
     setReview(null);
@@ -36,7 +39,14 @@ export default function FormLibrary({session, proposalStep, messages, call, addT
   useEffect(() => {
     let active = true;
     call("workflow-draft-read", {session_id:session}).then(record => {
-      if (active && !edited.current) restoreDraft(record);
+      if (!active) return;
+      if (!edited.current) {
+        restoreDraft(record);
+        return;
+      }
+      validateDraft(record);
+      if (!record.definition_text) setDraftRevision(record.revision);
+      else setNotice("저장된 세션 초안이 있습니다. 현재 편집 내용은 버전으로 저장하거나 서버 초안을 불러와 교체할 수 있습니다.");
     }).catch(error => {if (active) setNotice(error.message);});
     return () => {active = false;};
   }, [session,call]);
