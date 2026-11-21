@@ -141,7 +141,16 @@ def execute_hermes_gpu_job(worker_job_directory):
     wait_hermes_gpu_reservation(worker_job_directory)
     worker_request_record = json.loads((worker_job_directory / 'request.json').read_text())
     worker_verification_modules = validate_hermes_verification_modules(worker_request_record.get('verification_modules', []))
-    verify_hermes_model_integrity()
+    from tools.review.common.hermes_model_routing import saved_model_profile, DEFAULT_MODEL
+    profile = saved_model_profile(worker_request_record)
+    if profile == DEFAULT_MODEL:
+        from generators.writer_agent.prepare import MODEL_DOWNLOAD_ROOT, MODEL_DOWNLOAD_NAME, MODEL_DOWNLOAD_SHA256
+        model_path = MODEL_DOWNLOAD_ROOT / MODEL_DOWNLOAD_NAME
+        if model_path.is_symlink() or calculate_file_digest(model_path) != MODEL_DOWNLOAD_SHA256:
+            raise ValueError('Qwen3.5-4B 모델 무결성 확인 실패')
+    else:
+        verify_hermes_model_integrity()
+        model_path = HERMES_MODEL_DIRECTORY / HERMES_MODEL_FILENAME
     worker_manifest_record = json.loads((RUNTIME_INSTALL_ROOT / 'prepared.json').read_text())
     if calculate_file_digest(RUNTIME_SERVER_PATH) != worker_manifest_record['server_binary_sha256']:
         raise RuntimeError('추론 서버 바이너리 SHA-256 불일치')
@@ -197,7 +206,7 @@ def execute_hermes_gpu_job(worker_job_directory):
     with socket.socket() as worker_port_socket:
         worker_port_socket.bind(('127.0.0.1', 0))
         worker_server_port = worker_port_socket.getsockname()[1]
-    worker_server_arguments = [str(RUNTIME_SERVER_PATH), '-m', str(HERMES_MODEL_DIRECTORY / HERMES_MODEL_FILENAME), '--alias', 'hermes-local', '--host', '127.0.0.1', '--port', str(worker_server_port), '-ngl', 'all', '--fit', 'off', '-c', '64000', '-np', '1', '-b', '256', '-ub', '128', '--jinja', '--no-context-shift', '--verbosity', '4']
+    worker_server_arguments = [str(RUNTIME_SERVER_PATH), '-m', str(model_path), '--alias', 'hermes-local', '--host', '127.0.0.1', '--port', str(worker_server_port), '-ngl', 'all', '--fit', 'off', '-c', '64000', '-np', '1', '-b', '256', '-ub', '128', '--jinja', '--no-context-shift', '--verbosity', '4']
     worker_environment_values = dict(os.environ, LD_LIBRARY_PATH=':'.join([str(RUNTIME_SERVER_PATH.parent), *worker_manifest_record['runtime_library_paths']]), HIP_VISIBLE_DEVICES='0')
     worker_log_path = worker_job_directory / 'server.log'
     worker_socket_path = worker_job_directory / 'model-proxy.sock'

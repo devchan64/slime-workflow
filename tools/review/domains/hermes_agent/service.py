@@ -30,8 +30,15 @@ HERMES_JOB_OBSERVATION_MAXIMUM_ENTRIES = 5000
 HERMES_REQUEST_PATTERN = re.compile(r'[A-Za-z0-9_-]{8,80}')
 
 
-def validate_hermes_runtime_ready():
-    if not inspect_hermes_model_files():
+from tools.review.common.hermes_model_routing import COMPLEX_MODEL, route_hermes_request
+
+
+def validate_hermes_runtime_ready(model_profile=COMPLEX_MODEL):
+    if model_profile != COMPLEX_MODEL:
+        from generators.writer_agent.prepare import MODEL_DOWNLOAD_ROOT, MODEL_DOWNLOAD_NAME
+        if not (MODEL_DOWNLOAD_ROOT / MODEL_DOWNLOAD_NAME).is_file():
+            raise ValueError("작가 모델 관리에서 Qwen3.5-4B를 준비하세요.")
+    elif not inspect_hermes_model_files():
         raise ValueError('모델 관리에서 Hermes 모델을 먼저 준비하고 무결성을 확인하세요.')
     from generators.writer_agent.prepare import RUNTIME_SERVER_PATH
     hermes_project_environment = WORKFLOW_ROOT_DIRECTORY / '.venv'
@@ -219,11 +226,12 @@ class HermesServiceManager:
                 if hermes_previous_request.get('prompt') != hermes_prompt_text or hermes_previous_request.get('verification_modules', []) != hermes_verification_modules:
                     raise ValueError('같은 접수 식별자를 다른 지시에 사용할 수 없습니다.')
                 return {'id':hermes_previous_path.name, 'duplicate':True}
-        validate_hermes_runtime_ready()
+        model_profile = route_hermes_request(hermes_payload_record)
+        validate_hermes_runtime_ready(model_profile)
         hermes_job_identifier = datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S') + '-' + uuid.uuid4().hex[:8]
         hermes_job_path = self.hermes_storage_root / hermes_job_identifier
         hermes_job_path.mkdir()
-        write_record_atomically(hermes_job_path / 'request.json', hermes_payload_record)
+        write_record_atomically(hermes_job_path / 'request.json', {**hermes_payload_record, 'model_profile': model_profile})
         with (hermes_job_path / 'worker.log').open('a') as hermes_log_stream:
             launch_gpu_process([sys.executable, str(WORKFLOW_ROOT_DIRECTORY / 'tools/review/domains/hermes_agent/worker.py'), str(hermes_job_path)], hermes_job_path, 'hermes-agent', stdout=hermes_log_stream, stderr=subprocess.STDOUT, start_new_session=True, cwd=WORKFLOW_ROOT_DIRECTORY)
         return {'id':hermes_job_identifier, 'status':'queued', 'duplicate':False}

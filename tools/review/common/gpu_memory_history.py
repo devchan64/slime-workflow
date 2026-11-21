@@ -100,6 +100,9 @@ def estimate_required_memory(service, configured_floor_mib, command_identity_nam
         configured_floor_mib = max(configured_floor_mib, 65536)
     if service == 'image' and isinstance(command_identity_name, str) and command_identity_name.startswith('wan-vace-bf16:'):
         configured_floor_mib = max(configured_floor_mib, 81920)
+    if service == 'hermes-agent' and command_identity_name and command_identity_name.startswith('hermes:'):
+        from tools.review.common.hermes_model_routing import MODEL_FLOORS_MIB
+        configured_floor_mib = MODEL_FLOORS_MIB[command_identity_name.split(':')[1]]
     observations = [record for _,record in load_recent_observations(service, command_identity_name)[:20]]
     summary = summarize_memory_observations(service, observations)
     measured_peak_mib = summary['peak_memory_mib']
@@ -117,6 +120,11 @@ def estimate_required_memory(service, configured_floor_mib, command_identity_nam
 
 def identify_execution_command(command_argument_values, generation_job_directory=None, current_memory_domain=None):
     """이미지는 실행기·해상도·스텝·참조 개수까지 메모리 프로필로 구분한다."""
+    if generation_job_directory is not None and len(command_argument_values) > 1 and Path(command_argument_values[1]).parts[-2:] == ('hermes_agent', 'worker.py'):
+        from tools.review.common.hermes_model_routing import saved_model_profile
+        request = json.loads((Path(generation_job_directory) / 'request.json').read_text())
+        if 'model_profile' in request:
+            return f"hermes:{saved_model_profile(request)}:{current_memory_domain or 'default'}"
     if generation_job_directory is not None and len(command_argument_values)>1 and Path(command_argument_values[1]).parts[-2:] == ('wan_animate2','worker.py'):
         current_request_record = json.loads((Path(generation_job_directory)/'request.json').read_text())
         current_frame_count = current_request_record.get('frames')

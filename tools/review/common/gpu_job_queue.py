@@ -419,6 +419,25 @@ def prioritize_waiting_generation(current_job_identifier,current_expected_servic
         return {'id': current_job_identifier, 'status': 'queued', 'queue_position': 1, 'message': '대기열 맨 앞으로 이동했습니다. 실행 중 작업은 유지하며 GPU 메모리가 확보되면 실행합니다.'}
 
 
+def is_hermes_status_query(waiting_job_directory):
+    """명시적인 단일 조회 지시만 다른 생성 작업과 함께 실행한다."""
+    import re
+    try:
+        request_record = json.loads((waiting_job_directory / 'request.json').read_text())
+        if not isinstance(request_record, dict) or request_record.get('verification_modules') != []:
+            return False
+        prompt = request_record.get('prompt')
+        if not isinstance(prompt, str):
+            return False
+        return re.fullmatch(
+            r'(?:사용할 도구: [^\r\n]+ \([a-z0-9-]+\)\n)?'
+            r'(?:(?:GPU|모델|작업|다운로드|대기열|생성)\s*)?(?:상태|이력|대기열)\s*(?:조회|확인)(?:해\s*줘|해주세요)?[.!?]?',
+            prompt.strip(), re.IGNORECASE,
+        ) is not None
+    except (OSError, ValueError):
+        return False
+
+
 def select_runnable_ticket(available_memory_mib, current_memory_domain=None, active_service_names=()):
     """잠금 안에서 접수 순서대로 확인해 메모리가 맞는 첫 작업을 선택한다."""
     if GPU_EXCLUSIVE_SERVICES.intersection(active_service_names) or 'unreadable' in active_service_names:
@@ -455,7 +474,8 @@ def select_runnable_ticket(available_memory_mib, current_memory_domain=None, act
         if not isinstance(waiting_command_record,dict) or not isinstance(waiting_command_record.get('service'),str) or waiting_command_record['service'] not in GPU_MEMORY_REQUIREMENTS or not isinstance(waiting_command_record.get('command'),list):
             return None
         if waiting_command_record['service'] in GPU_EXCLUSIVE_SERVICES and active_service_names:
-            continue
+            if waiting_command_record['service'] != 'hermes-agent' or not is_hermes_status_query(waiting_job_directory):
+                continue
         waiting_memory_estimate = estimate_required_memory(
             waiting_command_record['service'], GPU_MEMORY_REQUIREMENTS[waiting_command_record['service']],
             identify_execution_command(waiting_command_record['command'], waiting_job_directory, current_memory_domain))
