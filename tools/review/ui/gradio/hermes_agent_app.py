@@ -886,6 +886,8 @@ def read_hermes_session_conversation(hermes_session_identifier, hermes_selected_
                     hermes_conversation_values.append({'role': 'assistant', 'content': '\n'.join(current_activity_lines)})
                 current_final_answer = current_job_record.get('final_response')
                 current_answer_text = format_hermes_conversation_answer(current_final_answer, current_job_record.get('final_response_truncated', False))
+                if not current_final_answer and current_activity_record.get('source_history_summary'):
+                    current_answer_text = current_activity_record['source_history_summary']
                 if current_job_record.get('final_response_truncated'):
                     current_answer_text += '\n[응답 일부만 표시]'
                 current_answer_text += '\n\n작업 ' + current_job_identifier + ' · 상태 ' + current_status_name

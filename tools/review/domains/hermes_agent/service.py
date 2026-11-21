@@ -89,6 +89,26 @@ def read_hermes_final_response(hermes_job_path):
             return hermes_answer_text[:8000], len(hermes_answer_text) > 8000
     return None, False
 
+def summarize_source_history(output):
+    try:
+        page = json.loads(output)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(page, dict) or not isinstance(page.get('records'), list) or type(page.get('total')) is not int:
+        return None
+    service = page.get('source_service')
+    if not isinstance(service, str) or not re.fullmatch(r'[a-z0-9-]{1,80}', service):
+        return None
+    lines = [f'{service} 생성 이력 · 총 {page["total"]}건 · 조회된 {len(page["records"])}건']
+    labels = {'completed':'완료', 'running':'실행 중', 'queued':'대기 중', 'failed':'실패', 'cancelled':'취소'}
+    for row in page['records']:
+        if not isinstance(row, dict) or not isinstance(row.get('id'), str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,160}', row['id']):
+            return None
+        state = row.get('recorded_status')
+        lines.append(f"- `{row['id']}` · {labels.get(state, '기타') if isinstance(state, str) else '미확인'}")
+    return '\n'.join(lines)
+
+
 def read_hermes_tool_activity(hermes_job_path):
     """최근 도구 호출과 결과를 크기 제한하여 시간순으로 제공한다."""
     current_event_path = hermes_job_path / 'hermes-events.jsonl'
@@ -99,6 +119,8 @@ def read_hermes_tool_activity(hermes_job_path):
         current_event_stream.seek(max(0, current_file_size - 128000))
         current_event_lines = current_event_stream.read().decode(errors='replace').splitlines()
     current_tool_events = []
+    history_calls = set()
+    history_summary = None
     for current_event_line in current_event_lines:
         try:
             current_event_record = json.loads(current_event_line)
@@ -119,6 +141,8 @@ def read_hermes_tool_activity(hermes_job_path):
                 current_target_value = current_input_record.get('command') or current_input_record.get('path') or current_input_record.get('file_path')
                 if isinstance(current_target_value, str):
                     current_event_value['target'] = current_target_value[:200]
+                    if current_call_identifier and isinstance(current_call_identifier, str) and current_target_value.startswith('/runtime/.venv/bin/python /control/management-status.py source-history '):
+                        history_calls.add(current_call_identifier)
         else:
             current_error_flag = current_event_record.get('is_error')
             current_output_value = current_event_record.get('output')
@@ -133,8 +157,12 @@ def read_hermes_tool_activity(hermes_job_path):
                 current_event_value['result'] = 'error'
             else:
                 current_event_value['result'] = 'recorded'
+            if isinstance(current_call_identifier, str) and current_call_identifier in history_calls and current_event_value['result'] == 'success':
+                summary = summarize_source_history(current_parsed_output.get('output'))
+                if summary:
+                    history_summary = summary
         current_tool_events.append(current_event_value)
-    return {'events': current_tool_events[-8:], 'truncated': current_file_size > 128000 or len(current_tool_events) > 8}
+    return {**({'source_history_summary': history_summary} if history_summary else {}), 'events': current_tool_events[-8:], 'truncated': current_file_size > 128000 or len(current_tool_events) > 8}
 
 
 
