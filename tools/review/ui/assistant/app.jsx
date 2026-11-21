@@ -1,3 +1,4 @@
+import ServiceRegistry from "./ServiceRegistry.jsx";
 import CapabilitySearch from "./CapabilitySearch.jsx";
 import ModelPage from "./ModelPage.jsx";
 import TranslationPage from "./TranslationPage.jsx";
@@ -136,7 +137,7 @@ function App() {
   }
   const [showForms,setShowForms]=useState(false);
   const [showGpu,setShowGpu]=useState(false);
-  const [showCapabilities,setShowCapabilities]=useState(false);
+  const [searchMode,setSearchMode]=useState("tools");
   function chooseTool(label,identifier) {
     edit([draft,"사용할 도구: "+label+" ("+identifier+")\n"].filter(Boolean).join("\n"));
     setShowTools(false);
@@ -152,10 +153,12 @@ function App() {
     {session&&<button aria-expanded={Boolean(queue)} onClick={()=>setQueue(queue ? null : {run:""})}>대기열</button>}</header>
     {showGpu && <GpuPanel/>}
     {showTools && <section className="floating-panel" aria-label="도구 탐색">
-      <input aria-label="도구 검색" placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>
-      <button aria-expanded={showCapabilities} onClick={()=>setShowCapabilities(!showCapabilities)}>관리 기능 검색</button>
-      {showCapabilities && <CapabilitySearch search={search} choose={chooseTool}/>}
-      {tools.filter(tool=>(tool.label+tool.id+tool.description).toLowerCase().includes(search.toLowerCase())).map(tool=>
+      <input aria-label="도구 검색" maxLength={100} placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>
+      <button aria-expanded={searchMode==="capabilities"} onClick={()=>setSearchMode(searchMode==="capabilities"?"tools":"capabilities")}>관리 기능 검색</button>
+      <button aria-expanded={searchMode==="services"} onClick={()=>setSearchMode(searchMode==="services"?"tools":"services")}>서비스 등록 목록</button>
+      {searchMode==="services" && <ServiceRegistry key={search} query={search}/>}
+      {searchMode==="capabilities" && <CapabilitySearch search={search} choose={chooseTool}/>}
+      {searchMode==="tools" && tools.filter(tool=>(tool.label+tool.id+tool.description).toLowerCase().includes(search.toLowerCase())).map(tool=>
         <div key={tool.id}>
           <button onClick={()=>chooseTool(tool.label,tool.id)}>{tool.label}</button>
           {tool.review_path && <a href={tool.review_path+(session?"?"+new URLSearchParams({session}):"")}>화면 열기</a>}
