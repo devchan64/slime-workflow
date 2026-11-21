@@ -378,6 +378,17 @@ def preview_pinned_workflow_image(current_session_identifier, workflow_run_ident
         return preview_image_value.copy()
 
 
+def collect_workflow_image_preview(current_session_identifier, workflow_run_identifier, current_step_identifier):
+    selected_preview_key = (current_session_identifier, workflow_run_identifier, current_step_identifier)
+    return selected_preview_key, preview_pinned_workflow_image(*selected_preview_key)
+
+
+def render_workflow_image_preview(current_session_identifier, workflow_run_identifier, current_step_identifier, collected_preview_result):
+    if collected_preview_result and collected_preview_result[0] == (current_session_identifier, workflow_run_identifier, current_step_identifier):
+        return collected_preview_result[1]
+    return gr.skip()
+
+
 def display_conversation_workflow_results(current_session_identifier, workflow_run_identifier):
     from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
     current_run_view = read_conversation_workflow_result(current_session_identifier, workflow_run_identifier)
@@ -5016,7 +5027,9 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     workflow_preview_button = gr.Button("보존된 이미지 미리보기")
                     workflow_preview_image = gr.Image(label="단계 결과 이미지", interactive=False, format="png")
                     workflow_preview_inputs = [hermes_session_control, workflow_run_identifier, workflow_preview_step]
-                    workflow_preview_button.click(preview_pinned_workflow_image, workflow_preview_inputs, workflow_preview_image, queue=False)
+                    workflow_preview_result = gr.State(None)
+                    workflow_preview_button.click(collect_workflow_image_preview, workflow_preview_inputs, workflow_preview_result, queue=False).success(
+                        render_workflow_image_preview, [*workflow_preview_inputs, workflow_preview_result], workflow_preview_image, queue=False)
                     for preview_input_component in workflow_preview_inputs:
                         preview_input_component.change(lambda: None, outputs=workflow_preview_image, queue=False)
                     workflow_history_links = gr.HTML()
