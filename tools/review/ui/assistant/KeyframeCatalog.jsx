@@ -67,6 +67,10 @@ export default function KeyframeCatalog({query,choose,apply,initialFrames="",ini
   return <>
     <SearchResults key={query} query={query} choose={choose} disabled={busy || rows.length>=20}
       add={id=>edit([...rows,{id,frame:""}])}/>
+    {apply && <button type="button" disabled={busy || rows.length>0} onClick={()=>{
+      const standingPose="b0000000000000000000000000000004";
+      edit([{id:standingPose,frame:1},{id:standingPose,frame:frames}]);
+    }}>첫 프레임과 마지막 프레임에 기본 서기 자세 배치</button>}
     {rows.length>0 && <form onSubmit={validate}><fieldset disabled={busy}><legend>출력 프레임 배치</legend>
       <label>총 출력 프레임 수 (30~300)<input type="number" required min="30" max="300" value={frames}
         onChange={e=>{setFrames(e.target.value);setReview(null);setError("");}}/></label>
