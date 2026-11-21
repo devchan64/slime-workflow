@@ -24,6 +24,7 @@ from workflow.domains.hermes_agent.runtime_integrity import verify_hermes_runtim
 from workflow.domains.hermes_agent.verification import validate_hermes_verification_modules
 from workflow.domains.hermes_agent.workspace_snapshot import copy_snapshot_source_files, collect_snapshot_change_diff
 from workflow.domains.hermes_agent.management_bridge import serve_hermes_observer_connections
+from workflow.domains.hermes_agent.workflow_skills import build_workflow_guidance
 
 HERMES_RUNTIME_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.local/hermes-agent-runtime'
 HERMES_SANDBOX_CLIENT = Path(__file__).with_name('sandbox_client.py')
@@ -256,8 +257,8 @@ def execute_hermes_gpu_job(worker_job_directory):
     worker_building_guidance = '\n\n[건물 앵커 제안] building-catalog 검색으로 실제 건물 ID, 콘텐츠 generation, display_properties와 사용 맵을 확인하세요. HERMES_BUILDING_PROPOSAL 줄 다음 JSON 객체에 texture, generation, expected, properties를 포함하고 END_HERMES_BUILDING_PROPOSAL 줄로 끝내세요. expected에는 조회한 display_properties 전체를 그대로 넣고 properties에는 그 복사본에서 요청받은 anchorX 또는 anchorY만 변경하세요. 확인되지 않은 값은 추정하지 마세요. 사용자가 변경 전후와 사용 맵을 검토하고 저장을 확인하기 전에는 DB가 바뀌지 않습니다. 건물 이미지나 신규 등록·폐기는 이 제안에서 지원하지 않습니다.'
     worker_capture_guidance = '\n\n[검수 캡처 제안] 맵 캡처 제안 전에 /runtime/.venv/bin/python /control/management-status.py capture-map-check 뒤에 {"map":"맵 ID"} JSON을 전달해 등록 여부를 확인하세요. registered는 목록 조회 시점의 등록만 뜻하고 GPU 실행 가능성은 별도입니다. not_registered 또는 unavailable이면 등록됐다고 주장하지 마세요. 사용자가 맵 또는 캐릭터 검수 캡처를 요청하면 직접 실행하지 마세요. 캡처 실행은 아직 지원하지 않는다고 밝히세요. 확인된 맵 ID가 있을 때 맵 제안은 최종 답변 끝에 HERMES_CAPTURE_PROPOSAL 줄, JSON 객체 {"service":"map-review","settings":{"map":"확인된 맵 ID"}}, END_HERMES_CAPTURE_PROPOSAL 줄을 넣습니다. 캐릭터 제안은 service를 character-review로 하고 settings에 명시적으로 요청받은 설정만 포함합니다. 없는 맵 ID나 설정은 추정하지 마세요.'
     worker_anchor_history_guidance = '\n\n[과거 앵커 이력] 필요할 때 /runtime/.venv/bin/python /control/management-status.py legacy-anchor-history 뒤에 animation_id와 animation_version을 포함한 JSON을 전달합니다. 후속 페이지에는 offset과 snapshot이 필요합니다. 경로 없는 과거 검수 이력이며 현재 등록 앵커나 문서 적용을 증명하지 않습니다.'
-    worker_lookup_skill = (worker_workspace_path / 'workflow/domains/hermes_agent/skills/generation-result-lookup/SKILL.md').read_text(encoding='utf-8')
-    (worker_job_directory / 'query.txt').write_text(worker_request_record['prompt'] + worker_anchor_history_guidance + worker_observer_guidance + worker_proposal_guidance + worker_flux_guidance + worker_field_guidance + worker_billboard_guidance + worker_sprite_guidance + worker_effect_guidance + worker_translation_guidance + worker_audio_guidance + worker_video_guidance + worker_writer_guidance + worker_city_guidance + worker_building_guidance + worker_capture_guidance + '\n\n[생성 결과 조회 스킬]\n' + worker_lookup_skill, encoding='utf-8')
+    worker_workflow_guidance = build_workflow_guidance(worker_workspace_path, worker_request_record['prompt'], worker_request_record.get('context'))
+    (worker_job_directory / 'query.txt').write_text(worker_request_record['prompt'] + worker_anchor_history_guidance + worker_observer_guidance + worker_proposal_guidance + worker_flux_guidance + worker_field_guidance + worker_billboard_guidance + worker_sprite_guidance + worker_effect_guidance + worker_translation_guidance + worker_audio_guidance + worker_video_guidance + worker_writer_guidance + worker_city_guidance + worker_building_guidance + worker_capture_guidance + worker_workflow_guidance, encoding='utf-8')
     with socket.socket() as worker_port_socket:
         worker_port_socket.bind(('127.0.0.1', 0))
         worker_server_port = worker_port_socket.getsockname()[1]

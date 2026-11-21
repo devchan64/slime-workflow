@@ -10,6 +10,15 @@ import urllib.request
 from pathlib import Path
 
 
+CONTEXT_FILE_MAX_CHARS = 40000
+
+
+def configure_sandbox_home(home=Path('/tmp/hermes-home')):
+    """호스트 설정을 상속하지 않고 문맥 준비와 실행에 동일한 한도를 쓴다."""
+    home.mkdir(parents=True, exist_ok=True)
+    (home / 'config.yaml').write_text(f'context_file_max_chars: {CONTEXT_FILE_MAX_CHARS}\n', encoding='utf-8')
+
+
 def relay_sandbox_model_connection(sandbox_client_socket):
     try:
         with sandbox_client_socket, socket.socket(socket.AF_UNIX) as sandbox_server_socket:
@@ -90,6 +99,7 @@ def prepare_sandbox_context(port):
 
 
 def execute_sandbox_hermes_session():
+    configure_sandbox_home()
     with socket.socket() as sandbox_listen_socket:
         sandbox_listen_socket.bind(('127.0.0.1', 0))
         sandbox_listen_socket.listen()
