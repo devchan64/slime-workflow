@@ -711,6 +711,13 @@ def build_management_application(current_handler_class, current_root_path, curre
             return JSONResponse({'error': str(error)}, status_code=422)
         return JSONResponse(payload)
 
+    @current_root_application.get('/management/assistant/field-renderer.mjs')
+    def assistant_field_renderer():
+        import yaml
+        manifest = Path(__file__).resolve().parents[1] / 'ui/map/vendor/field-renderer/manifest.yaml'
+        version = yaml.safe_load(manifest.read_text())['version']
+        return RedirectResponse(f'/isloon-map-review/vendor/field-renderer/{version}/field-renderer.mjs')
+
     @current_root_application.get('/management/assistant/building-image/{texture}')
     def building_image(texture: str):
         import re

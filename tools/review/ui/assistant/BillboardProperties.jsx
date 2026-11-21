@@ -1,3 +1,4 @@
+import BillboardGroundPreview from "./BillboardGroundPreview.jsx";
 import BillboardCrop from "./BillboardCrop.jsx";
 import React,{useState} from "react";
 import {managementCommand} from "./managementCommand.js";
@@ -58,6 +59,7 @@ export default function BillboardProperties({texture,onCrop}){
       <label>배치 기준<select disabled={automaticPlacement} value={automaticPlacement?(Number(properties.anchorY)<0.5?"top":"bottom"):(properties.billboardPlacementAnchor ?? "")} onChange={e=>edit("billboardPlacementAnchor",e.target.value)}>
         <option value="" disabled>미지정</option><option value="top">위쪽</option><option value="bottom">아래쪽</option></select></label>
       <label><input type="checkbox" checked={properties.billboardBlocksMovement ?? false} onChange={e=>edit("billboardBlocksMovement",e.target.checked)}/>통행 차단</label>
+      <BillboardGroundPreview source={source} edits={edits}/>
       <button>변경 검토</button>
       {review && <><ResultTable table={{title:"공용 속성 변경",summary:review.result.note,columns:["속성","기존","변경 후"],
         rows:Object.entries(review.result.changes[0].after).filter(([key,v])=>v!==review.result.changes[0].before[key])
