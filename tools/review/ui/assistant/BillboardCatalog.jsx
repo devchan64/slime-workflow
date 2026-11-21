@@ -31,7 +31,7 @@ export default function BillboardCatalog({choose}){
     <BillboardRegistration onSaved={()=>setRequest({...request,offset:0})}/>
     <form onSubmit={search}><label>분류<select value={category} onChange={e=>setCategory(e.target.value)}>
       <option value="">전체</option>{Object.entries(categories).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
-      <label>이름·ID·모델링 설명<input maxLength={100} value={query} onChange={e=>setQuery(e.target.value)}/></label>
+      <label>이름·ID·모델링 설명·사용 맵<input maxLength={100} value={query} onChange={e=>setQuery(e.target.value)}/></label>
       <button>빌보드 검색</button></form>
     {error && <p role="alert">{error}</p>}
     {!page && !error && <p role="status">카탈로그 조회 중…</p>}

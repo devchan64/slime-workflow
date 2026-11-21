@@ -32,7 +32,7 @@ def read_hermes_billboard_catalog(current_request_record):
     if not isinstance(current_catalog_record,dict) or not isinstance(current_catalog_record.get('assets'),list):
         raise ValueError('빌보드 카탈로그 응답 형식 오류')
     current_asset_values = []
-    current_query_value = current_search_text.strip().casefold()
+    search_terms = current_search_text.casefold().split()
     for current_asset_record in current_catalog_record['assets']:
         if not isinstance(current_asset_record,dict):
             raise ValueError('빌보드 항목 형식 오류')
@@ -53,8 +53,6 @@ def read_hermes_billboard_catalog(current_request_record):
         current_visual_record = current_modeling_record.get('visual_review')
         if isinstance(current_visual_record,dict) and isinstance(current_visual_record.get('status'),str):
             current_text_fields['visual_review_status'] = current_visual_record['status'][:200]
-        if current_query_value and current_query_value not in ' '.join([current_asset_id,current_asset_name,*current_text_fields.values()]).casefold():
-            continue
         current_property_record = current_asset_record.get('properties')
         current_display_values = {}
         if isinstance(current_property_record,dict):
@@ -67,7 +65,7 @@ def read_hermes_billboard_catalog(current_request_record):
         current_map_names = []
         current_map_records = current_asset_record.get('maps')
         if isinstance(current_map_records,list):
-            for current_map_record in current_map_records[:20]:
+            for current_map_record in current_map_records:
                 if not isinstance(current_map_record,dict) or not isinstance(current_map_record.get('path'),str):
                     continue
                 current_map_path = PurePosixPath(current_map_record['path'])
@@ -75,7 +73,12 @@ def read_hermes_billboard_catalog(current_request_record):
                     continue
                 current_map_count = current_map_record.get('texture_key_occurrences')
                 current_map_names.append({'map':current_map_path.stem, 'source_path':current_map_path.as_posix(), 'occurrences':current_map_count if type(current_map_count) is int and current_map_count>=0 else None})
-        current_asset_values.append({'id':current_asset_id,'name':current_asset_name,'category':current_asset_category,'display_properties':current_display_values or None,'modeling':current_text_fields,'modeling_truncated':current_modeling_truncated,'maps':current_map_names,'maps_truncated':isinstance(current_map_records,list) and len(current_map_records)>20})
+        if search_terms:
+            search_text = ' '.join([current_asset_id, current_asset_name, *current_text_fields.values(),
+                                    *(item['source_path'] for item in current_map_names)]).casefold()
+            if not all(term in search_text for term in search_terms):
+                continue
+        current_asset_values.append({'id':current_asset_id,'name':current_asset_name,'category':current_asset_category,'display_properties':current_display_values or None,'modeling':current_text_fields,'modeling_truncated':current_modeling_truncated,'maps':current_map_names[:20],'maps_truncated':len(current_map_names)>20})
     current_total_value = len(current_asset_values)
     import re
     current_revision_value = current_catalog_record.get('revision')

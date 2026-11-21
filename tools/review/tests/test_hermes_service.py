@@ -795,6 +795,13 @@ class HermesServiceTests(unittest.TestCase):
         self.assertNotIn('private',str(current_result))
         self.assertNotIn('secret',str(current_result))
         self.assertEqual(current_gateway_mock.call_args.args[:3],('map-assets','asset-list',{'category':'large-trees'}))
+        many_maps = [{'path':f'assets/maps/field_tiles/region-{i}.yaml'} for i in range(21)]
+        with patch('tools.review.common.management_gateway.execute_management_command',
+                   return_value={'assets':[{**current_asset_record,'maps':many_maps}]}):
+            match = read_hermes_billboard_catalog({'query':'region-20 나무'})
+            self.assertEqual(match['total'],1)
+            self.assertEqual(len(match['items'][0]['maps']),20)
+            self.assertTrue(match['items'][0]['maps_truncated'])
         for current_bad_request in ({'limit':31},{'offset':True},{'query':'line\nbreak'},{'category':'../../x'},{'command':'asset-save'}):
             with self.subTest(request=current_bad_request), self.assertRaises(ValueError):
                 read_hermes_billboard_catalog(current_bad_request)
