@@ -19,7 +19,6 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'hermes-direct': ('hermes_agent_app', 'build_hermes_direct_interface', 'none'),
     'mock-dwpose-validation': ('mock_progress_validation_app', 'build_mock_dwpose_interface', 'url'),
     'mock-animate-validation': ('mock_progress_validation_app', 'build_mock_animate_interface', 'url'),
-    'dwpose-generator': ('dwpose_app', 'build_dwpose_interface', 'url'),
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
     'wan22-vace-generator': ('wan_vace_app', 'build_vace_interface', 'url'),
     'wan22-animate2-generator': ('wan_animate2_app', 'build_animate_interface', 'url'),
@@ -417,10 +416,9 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/tools')
     def assistant_tools():
         from tools.review.common.management_catalog import REACT_REVIEW_PATHS, load_manager_page_records
-        paths = {**REACT_REVIEW_PATHS, 'dwpose-generator': '/management/assistant/dwpose/'}
         return [
             {key: record[key] for key in ('id', 'label', 'category', 'description')}
-            | {'review_path': paths.get(record['id'])}
+            | {'review_path': REACT_REVIEW_PATHS.get(record['id'])}
             for record in load_manager_page_records(current_source_path)
             if record['id'] != 'hermes-agent'
         ]
@@ -435,6 +433,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/mock-progress-validation')
     @current_root_application.get('/management/frame/mock-progress-validation/')
     @current_root_application.get('/management/assistant/models/')
+    @current_root_application.get('/management/frame/dwpose-generator')
+    @current_root_application.get('/management/frame/dwpose-generator/')
     @current_root_application.get('/management/assistant/dwpose/')
     @current_root_application.get('/management/assistant/translation/')
     @current_root_application.get('/management/frame/world-map')
