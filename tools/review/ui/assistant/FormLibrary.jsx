@@ -1,3 +1,4 @@
+import StepBuilder from "./StepBuilder.jsx";
 import React, {useEffect, useRef, useState} from "react";
 
 export default function FormLibrary({session, call, addToMessage}) {
@@ -85,6 +86,7 @@ export default function FormLibrary({session, call, addToMessage}) {
       <button onClick={() => run(refresh)}>목록 갱신</button>
       <button disabled={!selection} onClick={() => run(load)}>선택한 버전으로 초안 교체</button>
       <label>폼 이름 <input value={name} onChange={event => setName(event.target.value)}/></label>
+      <StepBuilder call={call} definition={definition} onChange={editDefinition}/>
       <label>워크플로우 정의 JSON <textarea value={definition} onChange={event => editDefinition(event.target.value)}/></label>
       <button disabled={!name.trim() || !definition.trim()} onClick={() => run(() => save(false))}>버전 저장</button>
       <button disabled={!reference || !name.trim() || !definition.trim()} onClick={() => run(() => save(true))}>별도 폼으로 복사</button>

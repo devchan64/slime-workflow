@@ -1,0 +1,90 @@
+import React, {useEffect, useState} from "react";
+
+function readSteps(definition) {
+  if (!definition.trim()) return [];
+  const parsed = JSON.parse(definition);
+  if (!Array.isArray(parsed?.steps) || Object.keys(parsed).length !== 1 ||
+      parsed.steps.some(step => !step || typeof step.id !== "string" || typeof step.generator !== "string"))
+    throw new Error("현재 정의의 steps 목록을 확인하세요.");
+  return parsed.steps;
+}
+
+export default function StepBuilder({call, definition, onChange}) {
+  const [catalog, setCatalog] = useState({});
+  const [generator, setGenerator] = useState("");
+  const [name, setName] = useState("");
+  const [inputs, setInputs] = useState({});
+  const [links, setLinks] = useState({});
+  const [notice, setNotice] = useState("");
+  useEffect(() => {
+    let active = true;
+    call("workflow-catalog").then(result => {if (active) setCatalog(result.generators);})
+      .catch(error => {if (active) setNotice(error.message);});
+    return () => { active = false; };
+  }, [call]);
+  const template = catalog[generator];
+  let steps = [], invalid = "";
+  try { steps = readSteps(definition); } catch (error) { invalid = error.message; }
+  function choose(key) {
+    setGenerator(key);
+    setInputs({});
+    setLinks({});
+    setNotice("");
+  }
+  function append() {
+    try {
+      const id = name.trim();
+      if (!id || steps.some(step => step.id === id)) throw new Error("고유한 단계 이름을 입력하세요.");
+      const values = {}, bindings = {};
+      for (const [field,spec] of Object.entries(template.inputs)) {
+        if (links[field]) {
+          const [from_step, output] = JSON.parse(links[field]);
+          const source = steps.find(step => step.id === from_step);
+          if (catalog[source?.generator]?.outputs[output]?.type !== spec.type) throw new Error("선행 단계 연결을 다시 선택하세요.");
+          bindings[field] = {from_step, output};
+          continue;
+        }
+        const raw = inputs[field];
+        if (raw === undefined || raw === "") {
+          if (spec.required && spec.default === undefined) throw new Error((spec.label || field) + " 값을 입력하세요.");
+          if (spec.default !== undefined) values[field] = spec.default;
+        } else if (spec.type === "integer") {
+          const number = Number(raw);
+          if (!Number.isSafeInteger(number)) throw new Error(field + "에 정수를 입력하세요.");
+          values[field] = number;
+        } else if (["png_list","glossary"].includes(spec.type)) values[field] = JSON.parse(raw);
+        else values[field] = raw;
+      }
+      const step = {id, generator, generator_version:template.version, template_version:template.template_version, inputs:values, bindings};
+      onChange(JSON.stringify({steps:[...steps,step]},null,2));
+      setName(""); choose("");
+    } catch (error) { setNotice(error.message); }
+  }
+  return <details><summary>생성기 단계 추가</summary>
+    <label>생성기 <select value={generator} onChange={event => choose(event.target.value)}>
+      <option value="">생성기 선택</option>
+      {Object.entries(catalog).map(([key,spec]) => <option key={key} value={key}>{spec.label}</option>)}
+    </select></label>
+    {template && <><label>단계 이름 <input value={name} onChange={event => setName(event.target.value)}/></label>
+      {Object.entries(template.inputs).map(([field,spec]) => {
+        const sources = steps.flatMap(step => Object.entries(catalog[step?.generator]?.outputs || {})
+          .filter(([,output]) => output.type === spec.type)
+          .map(([key,output]) => ({value:JSON.stringify([step.id,key]),label:step.id+" · "+output.label})));
+        const fallback = spec.default ?? "";
+        const value = inputs[field] ?? (Array.isArray(fallback) ? JSON.stringify(fallback) : fallback);
+        const props = {value, onChange:event => setInputs({...inputs,[field]:event.target.value})};
+        return <div key={field}><label>{spec.label || field} {links[field] ? null : spec.choices ?
+          <select {...props}>{spec.choices.map(choice => <option key={choice}>{choice}</option>)}</select> :
+          <input {...props} type={spec.type==="integer"?"number":"text"} title={spec.help}
+            min={spec.min} max={spec.max} step={spec.step} maxLength={spec.max_length}/>}</label>
+          {field==="seed" && !links[field] && <button onClick={()=>setInputs({...inputs,seed:String(crypto.getRandomValues(new Uint32Array(1))[0])})}>랜덤 시드</button>}
+          {sources.length>0 && <select aria-label={(spec.label || field)+" 입력 출처"} value={links[field] || ""}
+            onChange={event => setLinks({...links,[field]:event.target.value})}><option value="">직접 입력</option>
+            {sources.map(source => <option key={source.value} value={source.value}>{source.label}</option>)}</select>}
+        </div>;
+      })}
+      <button disabled={Boolean(invalid)} onClick={append}>편집 중인 정의에 단계 추가</button>
+    </>}
+    {(notice || invalid) && <p role="status">{notice || invalid}</p>}
+  </details>;
+}
