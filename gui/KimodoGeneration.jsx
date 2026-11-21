@@ -1,3 +1,7 @@
+import GenerationReviewActions from "./GenerationReviewActions.jsx";
+import ReferenceImageInput from "./ReferenceImageInput.jsx";
+import PromptWordCount from "./PromptWordCount.jsx";
+import SeedInput from "./SeedInput.jsx";
 import React,{useEffect,useState} from "react";
 import ResultTable from "./ResultTable.jsx";
 import KeyframeCatalog from "./KeyframeCatalog.jsx";
@@ -140,16 +144,21 @@ export default function KimodoGeneration({session,restoreJob}){
           apply={(frames,result)=>{setPlacement(result);setInputs({...inputs,frames,post_processing:true,remove_horizontal_motion:false});setReview(null);setPlacing(false);}}/></>}
     </fieldset>}
     {inputs && <form onSubmit={e=>{e.preventDefault();perform(inspect);}}><fieldset disabled={busy}>
-      <label>동작 설명 <textarea required maxLength={2000} value={inputs.prompt} onChange={e=>edit("prompt",e.target.value)}/></label>
+      <label>동작 설명 <textarea required maxLength={2000} value={inputs.prompt} onChange={e=>edit("prompt",e.target.value)}/><PromptWordCount text={inputs.prompt}/></label>
       <KimodoPromptExamples apply={prompt=>edit("prompt",prompt)} applySettings={id=>perform(()=>applyExample(id))}/>
-      {[["frames","프레임 수",30,300],["steps","생성 단계",2,100],["seed","시드",0,2147483647]].map(([field,label,min,max])=>
+      {[["frames","프레임 수",30,300],["steps","생성 단계",2,100]].map(([field,label,min,max])=>
         <label key={field}>{label} <input type="number" required min={min} max={max} value={inputs[field]} onChange={e=>edit(field,e.target.value)}/></label>)}
+      <SeedInput value={inputs.seed} max={2147483647} onChange={value=>edit("seed",value)}/>
       {referenceExamples===null ? <button type="button" onClick={()=>perform(()=>loadReferences())}>신체 비율 예시 조회</button> :
         referenceExamples.map(example=><button type="button" key={example.id} onClick={()=>perform(()=>loadReferences(example.id))}>
           {example.label} 참조 적용</button>)}
-      <label>신체 비율 참조 PNG (최대 8장) <input key={attachmentRevision} type="file" accept="image/png" multiple
-        onChange={e=>{replaceReferences(Array.from(e.target.files));}}/></label>
-      {references.length>0 && <p>참조 이미지 · {references.map(file=>file.name).join(", ")} <button type="button" onClick={()=>{replaceReferences([]);}}>참조 해제</button></p>}
+      <section aria-label="신체 비율 참조 이미지"><p>신체 비율 참조 PNG · 최대 8장</p>
+        <p>참조를 변경하면 참조 관절 수정과 다중 시점 설정이 초기화됩니다.</p>
+        <div className="reference-image-slots">{Array.from({length:Math.min(8,references.length+1)},(_,index)=><ReferenceImageInput
+          key={index} label={"신체 비율 참조 "+(index+1)} accept="image/png" maxBytes={3000000} source={references[index]} disabled={busy}
+          onChange={file=>{const next=[...references];if(file)next[index]=file;else next.splice(index,1);replaceReferences(next);}}/>)}</div>
+        {references.length>0 && <button type="button" onClick={()=>replaceReferences([])}>참조 전체 해제</button>}
+      </section>
       {jointEdits.length>0 && <ResultTable table={{
         title:"참조 관절 수정",columns:["참조 이미지","인물","관절","원본 좌표","수정 X","수정 Y","작업"],
         rows:jointEdits.map((row,index)=>[
@@ -199,8 +208,7 @@ export default function KimodoGeneration({session,restoreJob}){
       <button>생성 요청 검토</button>
     </fieldset></form>}
     {review && <section><pre>{JSON.stringify(JSON.parse(review),(key,value)=>key==="proportion_images"?references.map(file=>file.name):key==="proportion_reviewed_multiview"?bundle.name:key==="proportion_face_anchor_calibration"?calibration.name:value,2)}</pre>
-      <button disabled={busy} onClick={()=>perform(submit)}>GPU 대기열에 등록</button>
-      <button disabled={busy} onClick={()=>setReview(null)}>취소</button></section>}
+      <GenerationReviewActions busy={busy} onCancel={()=>setReview(null)} onConfirm={()=>perform(submit)}/></section>}
     {receipt && <p>최근 접수 ID <code>{receipt}</code> <button disabled={busy} onClick={()=>perform(async()=>{
       const result=await managementCommand("hermes-agent","hermes-delegation-status",{request_id:receipt});
       setNotice([result.state,result.job_id].filter(Boolean).join(" · "));

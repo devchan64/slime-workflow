@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import React, {useEffect,useState} from "react";
 
 export default function QueuePriority({step, call}) {
   const service = step.generator;
@@ -16,10 +16,11 @@ export default function QueuePriority({step, call}) {
   return <JobPriority key={service+"/"+id} service={service} id={id} call={call} verifyTarget={verifyTarget}/>;
 }
 
-export function JobPriority({service,id,call,verifyTarget}) {
+export function JobPriority({service,id,call,verifyTarget,inline=false,disabled=false,onInteractionChange}) {
   const [review, setReview] = useState(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  useEffect(()=>{onInteractionChange?.(busy || Boolean(review));return ()=>onInteractionChange?.(false);},[busy,review,onInteractionChange]);
   async function preview() {
     await verifyTarget?.();
     const ticket = await call("priority-preview", {service,id});
@@ -66,11 +67,19 @@ export function JobPriority({service,id,call,verifyTarget}) {
     finally { setBusy(false); }
   }
 
+  if(inline) return <>
+    <button className="history-action-priority" type="button" disabled={disabled || busy || Boolean(review)} onClick={()=>run(preview)}>우선 실행 검토</button>
+    {review && <section className="history-action-detail"><p>{id} · 관측 순번 {review.ticket.queue_position} / {review.ticket.queue_count} · 실행기 신원 {review.ticket.executor_identity === "verified" ? "확인" : "미확인"}</p>
+      <button type="button" disabled={disabled || busy} onClick={()=>run(submit)}>대기열 맨 앞으로 이동</button>
+      <button type="button" disabled={disabled || busy} onClick={()=>setReview(null)}>취소</button></section>}
+    {notice && <p className="history-action-detail" role="status">{notice}</p>}
+  </>;
+
   return <>{review ? <>
     <p>{id} · 관측 순번 {review.ticket.queue_position} / {review.ticket.queue_count} · 실행기 신원 {review.ticket.executor_identity === "verified" ? "확인" : "미확인"}</p>
-    <button disabled={busy} onClick={() => run(submit)}>대기열 맨 앞으로 이동</button>
-    <button disabled={busy} onClick={() => setReview(null)}>취소</button>
-  </> : <button disabled={busy} onClick={() => run(preview)}>우선 실행 검토</button>}
+    <button type="button" disabled={busy} onClick={() => run(submit)}>대기열 맨 앞으로 이동</button>
+    <button type="button" disabled={busy} onClick={() => setReview(null)}>취소</button>
+  </> : <button type="button" disabled={busy} onClick={() => run(preview)}>우선 실행 검토</button>}
     <p role="status">{notice}</p>
   </>;
 }

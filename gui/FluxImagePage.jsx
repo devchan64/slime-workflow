@@ -1,7 +1,13 @@
+import GenerationReviewActions from "./GenerationReviewActions.jsx";
+import ActionButton from "./ActionButton.jsx";
+import ReferenceImageInput from "./ReferenceImageInput.jsx";
+import PromptWordCount from "./PromptWordCount.jsx";
+import SeedInput from "./SeedInput.jsx";
 import React,{useEffect,useRef,useState} from "react";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
+import ModelReadiness from "./ModelReadiness.jsx";
 import GeneratorJobResult from "./GeneratorJobResult.jsx";
 import {managementCommand} from "./managementCommand.js";
 
@@ -11,21 +17,20 @@ function pngFile(encoded,name){
   return new File([Uint8Array.from(atob(encoded),char=>char.charCodeAt(0))],name,{type:"image/png"});
 }
 
-export default function FluxImagePage(){
-  const service=location.pathname.match(/\/management\/frame\/(flux-[a-z]+)-generator/)?.[1] || "flux-image";
+export default function FluxImagePage({serviceOverride,embedded=false}={}){
+  const service=serviceOverride || location.pathname.match(/\/management\/frame\/(flux-[a-z]+)-generator/)?.[1] || "flux-image";
   const [profile,setProfile]=useState(null),[attempt,setAttempt]=useState(0);
   const seamless=service==="flux-seamless";
   const query=new URLSearchParams(location.search);
   const [form,setForm]=useState({prompt:"",translation_source_ko:"",width:768,height:768,steps:16,seed:10107,tag:""});
   const [files,setFiles]=useState([]),[review,setReview]=useState(null);
-  const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
-  const [job,setJob]=useState(query.get("job") || "");
+  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[model,setModel]=useState(null);
+  const [job,setJob]=useState(embedded ? "" : query.get("job") || "");
   const [guideQuery,setGuideQuery]=useState(""),[guidePage,setGuidePage]=useState(0),[pageSize,setPageSize]=useState(8);
   const [selectedGuide,setSelectedGuide]=useState("");
   const [stage,setStage]=useState("");
   const [layout,setLayout]=useState(""),[subject,setSubject]=useState("");
   const sending=useRef(false);
-  const fileInput=useRef(null);
   const [historyRevision,setHistoryRevision]=useState(0);
   useEffect(()=>{
     const controller=new AbortController();
@@ -50,7 +55,7 @@ export default function FluxImagePage(){
     return {id:record.id,request:record.request,files};
   }
   function restore(input,record){
-    setForm(seamless?{...input,width:512,height:512}:input);setFiles(seamless?[]:record.files);if(fileInput.current)fileInput.current.value="";
+    setForm(seamless?{...input,width:512,height:512}:input);setFiles(seamless?[]:record.files);
     setJob(record.id);setNotice(seamless?"프롬프트와 시드를 복원했습니다. 새 타일은 512×512 무참조로 생성합니다.":"선택한 이력의 입력과 참조 이미지를 불러왔습니다.");
   }
   function edit(key,value){setForm(current=>({...current,[key]:value}));}
@@ -64,7 +69,7 @@ export default function FluxImagePage(){
       const response=await fetch(guideUrl(selectedGuide));
       if(!response.ok)throw new Error("참조 가이드를 불러올 수 없습니다.");
       const file=new File([await response.blob()],selectedGuide+".png",{type:"image/png"});
-      setFiles(current=>[file,...current.slice(1)]);fileInput.current.value="";
+      setFiles(current=>[file,...current.slice(1)]);
       if(profile.rolePrompt)setForm(current=>({...current,prompt:current.prompt.includes(profile.rolePrompt)?current.prompt:[current.prompt.trim(),profile.rolePrompt].filter(Boolean).join(" ")}));
     }catch(error){setNotice(error.message);}
     finally{setBusy(false);}
@@ -74,7 +79,7 @@ export default function FluxImagePage(){
     try{
       const response=await fetch("/management/assistant/flux-expression-face");
       if(!response.ok)throw new Error("기본 얼굴 이미지를 불러올 수 없습니다.");
-      setFiles([new File([await response.blob()],"default-face-front-v1.png",{type:"image/png"})]);fileInput.current.value="";
+      setFiles([new File([await response.blob()],"default-face-front-v1.png",{type:"image/png"})]);
     }catch(error){setNotice(error.message);}
     finally{setBusy(false);}
   }
@@ -85,7 +90,7 @@ export default function FluxImagePage(){
       if(!response.ok)throw new Error("마네킨 제작 단계의 참조를 불러올 수 없습니다.");
       const {prompt,width,height,images}=await response.json();
       const references=images.map((encoded,index)=>pngFile(encoded,stage+"-"+(index+1)+".png"));
-      setFiles(references);setForm(current=>({...current,prompt,width,height}));fileInput.current.value="";
+      setFiles(references);setForm(current=>({...current,prompt,width,height}));
     }catch(error){setNotice(error.message);}
     finally{setBusy(false);}
   }
@@ -96,7 +101,7 @@ export default function FluxImagePage(){
       if(!response.ok)throw new Error((await response.json()).detail || "가이드를 불러올 수 없습니다.");
       const {prompt,image}=await response.json();
       const guide=pngFile(image,layout+".png");
-      setFiles(current=>[guide,...current.slice(1)]);edit("prompt",prompt);fileInput.current.value="";
+      setFiles(current=>[guide,...current.slice(1)]);edit("prompt",prompt);
     }catch(error){setNotice(error.message);}
     finally{setBusy(false);}
   }
@@ -125,8 +130,8 @@ export default function FluxImagePage(){
     }catch(problem){setNotice(problem.message+" · 생성 이력에서 접수 여부를 확인하세요.");}
     finally{sending.current=false;setBusy(false);setReview(null);}
   }
-  return <article><a href={"/management/assistant/"+(query.has("session")?"?"+new URLSearchParams({session:query.get("session")}):"")}>헤르메스 대화</a>
-    <h1>FLUX {profile?.label} 생성</h1><GeneratorChangelog generator={service+"-generator"}/>
+  return <article className="flux-page"><a href={"/management/assistant/"+(query.has("session")?"?"+new URLSearchParams({session:query.get("session")}):"")}>헤르메스 대화</a>
+    <h1>FLUX {profile?.label} 생성</h1><GeneratorChangelog generator={service+"-generator"}/><ModelReadiness service={service} onStatus={setModel}/>
     {profile && <p>{profile.description}</p>}
     {!profile && notice && <button onClick={()=>setAttempt(current=>current+1)}>기본 입력 다시 불러오기</button>}
     <form onSubmit={preview}><fieldset disabled={!profile || busy || Boolean(review)}>
@@ -152,25 +157,30 @@ export default function FluxImagePage(){
       </>}
       {profile?.expressions ? <>
         <label>표정 <select value={form.prompt} onChange={e=>edit("prompt",e.target.value)}>{profile.expressions.map(item=><option value={item.id} key={item.id}>{item.label}</option>)}</select></label>
-        <p>{profile.expressions.find(item=>item.id===form.prompt)?.text}</p>
+        <p>{profile.expressions.find(item=>item.id===form.prompt)?.text}<PromptWordCount text={profile.expressions.find(item=>item.id===form.prompt)?.text} label="기본 프롬프트"/></p>
         <button type="button" onClick={defaultFace}>기본 캐릭터 정면 얼굴 불러오기</button>
-      </> : <label>{service==="flux-building"?"건물 디자인 (한국어)":"프롬프트"} <textarea value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/></label>}
-      {service!=="flux-building" && <label>번역할 한국어 설명 <textarea value={form.translation_source_ko} onChange={e=>edit("translation_source_ko",e.target.value)}/></label>}
-      {!seamless && <label>{profile?.expressions?"얼굴 참조 PNG (1장)":"참조 PNG (최대 2장)"} <input ref={fileInput} type="file" multiple={!profile?.expressions} accept="image/png" onChange={e=>setFiles(Array.from(e.target.files))}/></label>}
-      {files.map((file,index)=><p key={index}>참조 {index+1} · {file.name}</p>)}
+      </> : <label>{service==="flux-building"?"건물 디자인 (한국어)":"프롬프트"} <textarea value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/><PromptWordCount text={form.prompt}/></label>}
+      {service!=="flux-building" && <label>번역할 한국어 설명 <textarea value={form.translation_source_ko} onChange={e=>edit("translation_source_ko",e.target.value)}/><PromptWordCount text={form.translation_source_ko}/></label>}
+      {!seamless && <section aria-label="참조 이미지"><p>{profile?.expressions?"얼굴 참조 PNG (1장)":"참조 PNG (최대 2장)"}</p><div className="reference-image-slots">
+        {Array.from({length:profile?.expressions?1:2},(_,index)=><ReferenceImageInput key={index} label={profile?.expressions?"얼굴 참조 이미지":"참조 이미지 "+(index+1)}
+          accept="image/png" maxBytes={3000000} source={files[index]} disabled={!profile || busy || Boolean(review) || (index>0 && !files[0])}
+          onChange={file=>setFiles(current=>{const next=[...current];if(file)next[index]=file;else next.splice(index,1);return next;})}/>)}
+      </div>{!profile?.expressions && !files[0] && <p>두 번째 참조를 추가하려면 먼저 첫 번째 참조를 선택하세요.</p>}</section>}
       {[["width","너비"],["height","높이"]].map(([key,label])=><label key={key}>{label} <input type="number" readOnly={seamless} required min="256" max={service==="flux-character"?2048:1664} step="16" value={form[key]} onChange={e=>edit(key,e.target.value)}/></label>)}
       {service==="flux-character" && <label>생성 스텝 <input type="number" required min="1" max="50" value={form.steps} onChange={e=>edit("steps",e.target.value)}/></label>}
-      <label>시드 <input type="number" required min="0" max="4294967295" value={form.seed} onChange={e=>edit("seed",e.target.value)}/></label>
-      <button type="button" onClick={()=>edit("seed",crypto.getRandomValues(new Uint32Array(1))[0])}>랜덤 시드</button>
+      <SeedInput value={form.seed} max={4294967295} onChange={value=>edit("seed",value)}/>
       <label>이력 태그 <input value={form.tag} onChange={e=>edit("tag",e.target.value)}/></label>
-      <button disabled={files.length < profile?.minimum || (!form.prompt.trim() && !form.translation_source_ko.trim())}>생성 요청 검토</button>
+      <ActionButton type="submit" reasons={[
+        !profile && "생성기 설정을 확인 중입니다. 잠시 기다리거나 다시 불러오세요.",
+        profile && files.length < profile.minimum && "필수 참조 이미지를 선택하세요.",
+        !form.prompt.trim() && !form.translation_source_ko.trim() && "프롬프트 또는 번역할 설명을 입력하세요."
+      ]}>생성 요청 검토</ActionButton>
     </fieldset></form>
-    {review && <section><h2>{profile?.expressions?"표정 프롬프트":"공용 화풍 적용 프롬프트"}</h2><pre>{review.result.prompt}</pre>
+    {review && <section><h2>{profile?.expressions?"표정 프롬프트":"공용 화풍 적용 프롬프트"}</h2><pre>{review.result.prompt}</pre><p><PromptWordCount text={review.result.prompt} label={review.result.translation ? "번역 전 프롬프트" : "최종 프롬프트"}/>{review.result.translation && " · 번역 후 최종 단어 수는 생성 시 확정됩니다."}</p>
       {review.result.translation && <p>생성 시 번역할 내용 · {review.result.translation}</p>}
-      <GpuQueueSummary/><button disabled={busy} onClick={()=>setReview(null)}>입력 수정</button>
-      <button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button></section>}
+      <GpuQueueSummary/><GenerationReviewActions busy={busy} onCancel={()=>setReview(null)} onConfirm={submit} disabledReason={!model?.ready ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/></section>}
     {notice && <p role="status">{notice}</p>}
-    {profile && !busy && !review && <GeneratorHistory key={historyRevision} service={service} readJob={readJob} restore={restore} inspectResult={record=>setJob(record.id)}/>}
-    <GeneratorJobResult job={job} kind="flux" service={service} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/>
+    {profile && <fieldset disabled={busy || Boolean(review)}><GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setHistoryRevision(value=>value+1);}} key={historyRevision} service={service} readJob={readJob} restore={restore} inspectResult={record=>setJob(record.id)}/></fieldset>}
+    <GeneratorJobResult selectionControls job={job} kind="flux" service={service} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/>
   </article>;
 }

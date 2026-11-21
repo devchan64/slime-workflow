@@ -1,44 +1,122 @@
-import React, {useState} from "react";
+import React, {useEffect,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
+import SelectedHistoryDeletion from "./SelectedHistoryDeletion.jsx";
+import {requestErrorMessage} from "./requestError.mjs";
+import {historyInputSummary} from "./historyInputSummary.mjs";
 
-export default function GeneratorHistory({service, statusCommand, restore, inspectResult, openResult, readJob}) {
+const statusLabels={queued:"GPU 대기 중",running:"생성 중",completed:"완료",failed:"실패",cancelled:"중지됨",canceled:"중지됨",paused:"중단됨",unknown:"확인 필요"};
+function recordedTime(id) {
+  const match=typeof id==="string" && id.match(/^(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})-/);
+  return match ? `ID 시각 · ${match[1]} ${match[2]}:${match[3]}:${match[4]} (한국 시간)` : "";
+}
+const fluxServices=new Set(["flux-image","flux-character","flux-mannequin","flux-billboard","flux-prop","flux-vegetation","flux-building","flux-seamless","flux-expression"]);
+const videoServices=new Set(["wan22-fun-control","wan22-vace","wan22-animate2","dwpose","kimodo"]);
+function HistoryImage({service,record,summary,unavailable}) {
+
+  const flux=fluxServices.has(service), video=videoServices.has(service);
+  if(!flux && !video)return null;
+  if(!summary)return <span className="history-card-image-placeholder">{unavailable ? "이미지 확인 불가" : "이미지 확인 중"}</span>;
+  const attempt=typeof summary.image_attempt==="string" && /^[a-f0-9]{32}$/.test(summary.image_attempt) ? summary.image_attempt : "";
+  if((flux && !summary.image_available) || (video && !attempt))return <span className="history-card-image-placeholder">{["queued","running"].includes(record.recorded_status) ? "결과 준비 중" : "이미지 없음"}</span>;
+  const src=flux ? `/${service}-generator/jobs/${encodeURIComponent(record.id)}/result.png` : `/${service}/jobs/${encodeURIComponent(record.id)}/attempts/${attempt}/output-000.png`;
+  return <HistoryThumbnail key={src} src={src}/>;
+}
+
+function HistoryThumbnail({src}) {
+  const [failed,setFailed]=useState(false);
+  if(failed)return <span className="history-card-image-placeholder">이미지 확인 불가</span>;
+  return <img className="history-card-image" loading="lazy" decoding="async" src={src} alt="생성 결과 미리보기" onError={()=>setFailed(true)}/>;
+}
+
+export default function GeneratorHistory({service, statusCommand, restore, inspectResult, openResult, readJob, allowPriority=false, onSelectedDeleted}) {
   const [page,setPage]=useState(null);
   const [query,setQuery]=useState("");
   const [filter,setFilter]=useState("");
+  const [pageSize,setPageSize]=useState(10);
+  const [selected,setSelected]=useState(null);
   const [job,setJob]=useState(null);
   const [busy,setBusy]=useState(false);
+  const pending=useRef(false);
   const [error,setError]=useState("");
-  async function load(operation) {
-    setBusy(true); setError(""); setJob(null);
+  const [summaries,setSummaries]=useState({});
+  const [summaryNotice,setSummaryNotice]=useState("");
+  useEffect(()=>{
+    setSummaries({});setSummaryNotice("");
+    if(!page?.records.length)return;
+    const controller=new AbortController();
+    const ids=page.records.map(record=>record.id).filter(id=>/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(id));
+    if(!ids.length)return ()=>controller.abort();
+    fetch("/management/history-summaries",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({service,ids}),signal:controller.signal})
+      .then(response=>{if(!response.ok)throw new Error();return response.json();})
+      .then(result=>{if(!result.summaries || typeof result.summaries!=="object" || Array.isArray(result.summaries))throw new Error();if(!controller.signal.aborted){setSummaries(result.summaries);if(ids.some(id=>!Object.hasOwn(result.summaries,id)))setSummaryNotice("일부 저장 입력 요약을 확인할 수 없습니다. 작업을 선택해 입력을 확인하세요.");}})
+      .catch(()=>{if(!controller.signal.aborted)setSummaryNotice("저장 입력 요약을 불러오지 못했습니다. 이력을 새로고침하거나 작업을 선택해 입력을 확인하세요.");});
+    return ()=>controller.abort();
+  },[page,service]);
+  async function perform(operation) {
+    if(pending.current)return;
+    pending.current=true;setBusy(true); setError("");
     try { await operation(); }
-    catch(problem) { setError(problem.message); }
-    finally { setBusy(false); }
+    catch(problem) { setError(requestErrorMessage(problem)); }
+    finally { pending.current=false;setBusy(false); }
   }
-  async function list(offset, search) {
-    const payload={limit:10,offset,query:search};
+  async function list(offset, search, size=pageSize) {
+    const payload={limit:size,offset,query:search};
     if(offset)payload.snapshot=page.snapshot;
-    const result=await managementCommand(service,"history-observe",payload);
-    setPage(result);setFilter(search);
+    try {
+      const result=await managementCommand(service,"history-observe",payload);
+      if(!Array.isArray(result.records))throw new Error("이력 응답을 확인할 수 없습니다.");
+      const ids=new Set(result.records.map(record=>record.id));
+      setSelected(current=>current && ids.has(current.id) ? result.records.find(record=>record.id===current.id) : null);
+      setJob(current=>current && ids.has(current.id) ? current : null);
+      setPage(result);setFilter(search);setPageSize(size);
+    } catch(problem) {
+      throw new Error(requestErrorMessage(problem)+" · 이전 이력과 선택을 유지합니다. 다시 조회하세요.");
+    }
   }
-  async function inspect(id) {
+  async function read(id) {
     const result=readJob ? await readJob(id) : await managementCommand(service,statusCommand,{id});
     if(result.id!==id || !result.request)throw new Error("작업 입력을 확인할 수 없습니다.");
-    setJob(result);
-    inspectResult?.(result);
+    return result;
   }
-  return <details><summary>{restore?"생성 이력에서 입력 불러오기":"보관된 이력과 입력 조회"}</summary>
-    <fieldset disabled={busy}><label>작업 ID 검색 <input value={query} maxLength={80} onChange={e=>setQuery(e.target.value)}/></label>
-      <button onClick={()=>load(()=>list(0,query.trim()))}>이력 조회</button>
+  async function showResult(id) {
+    if(openResult) openResult(id);
+    else if(inspectResult) inspectResult(await read(id));
+  }
+  async function showInput(id) {
+    const result=await read(id);
+    setJob(result);
+  }
+  return <details className="generator-history" onToggle={event=>{if(event.currentTarget.open && !page && !error)perform(()=>list(0,query.trim()));}}><summary>생성 이력</summary>
+    <fieldset disabled={busy}><div className="generator-history-toolbar">
+      <label>작업 ID 검색 <input value={query} maxLength={80} onChange={e=>setQuery(e.target.value)}/></label>
+      <label>페이지당 이력 <select value={pageSize} onChange={e=>{const size=Number(e.target.value);perform(()=>list(0,query.trim(),size));}}>{[5,10,20,30].map(size=><option key={size} value={size}>{size}건</option>)}</select></label>
+      <button type="button" onClick={()=>perform(()=>list(0,query.trim()))}>{busy?"조회 중…":page?"이력 새로고침":"이력 조회"}</button>
+    </div>
       {page && <>
-        <p>총 {page.total}건 · 이번 조회 {page.records.length}건</p>
-        {page.records.map(record=><React.Fragment key={record.id}><button onClick={()=>load(()=>inspect(record.id))}>
-          {record.id} · {record.recorded_status}
-        </button>{openResult && <button aria-label={record.id+" 결과 보기"} onClick={()=>openResult(record.id)}>결과 보기</button>}</React.Fragment>)}
-        <button disabled={!page.offset} onClick={()=>load(()=>list(Math.max(0,page.offset-10),filter))}>이전 이력 페이지</button>
-        <button disabled={page.next_offset==null} onClick={()=>load(()=>list(page.next_offset,filter))}>다음 이력 페이지</button>
+        <p role="status">총 {page.total}건 · 이번 조회 {page.records.length}건</p>
+        {summaryNotice && <p role="status">{summaryNotice}</p>}
+        {page.records.length===0 && <p>조회된 이력이 없습니다. 검색 조건을 바꾸거나 새 작업을 생성하세요.</p>}
+        <div className="generator-history-list">{page.records.map(record=><div className="generator-history-item" key={record.id}>
+          <button type="button" className="generator-history-select" aria-pressed={selected?.id===record.id} onClick={()=>{setSelected(record);setJob(null);setError("");}}>
+            <HistoryImage key={record.id} service={service} record={record} summary={summaries[record.id]} unavailable={Boolean(summaryNotice)}/><span className="history-card-content"><span className="history-card-heading"><strong>{statusLabels[record.recorded_status] || "확인 필요 · "+record.recorded_status}</strong>{recordedTime(record.id) && <span>{recordedTime(record.id)}</span>}</span>{historyInputSummary(summaries[record.id]).length>0 && <span className="history-card-summary">{historyInputSummary(summaries[record.id]).join(" · ")}</span>}<span className="history-card-id">{record.id}</span></span>
+          </button>
+          {selected?.id===record.id && <section className="generator-history-selection" aria-label="선택 이력">
+            <p className="history-selection-title">선택한 작업 · {record.id}</p>
+            <div className="generator-history-actions">
+              {(openResult || inspectResult) && <button className="history-action-result" type="button" onClick={()=>perform(()=>showResult(record.id))}>결과 조회</button>}
+              {restore && <button className="history-action-input" type="button" onClick={()=>perform(()=>showInput(record.id))}>입력값 불러오기</button>}
+            </div>
+            {onSelectedDeleted && <SelectedHistoryDeletion key={service+"/"+record.id} service={service} id={record.id} allowPriority={allowPriority} onDeleted={(id,message)=>{setPage(null);setSelected(null);setJob(null);onSelectedDeleted(id,message);}}/>}
+            {job?.id===record.id && <section className="history-action-detail">{historyInputSummary(job.request).length>0 && <p>저장 입력 · {historyInputSummary(job.request).join(" · ")}</p>}<details><summary>저장된 입력 상세</summary><pre>{JSON.stringify(job.request,null,2)}</pre></details>
+              {restore && <button type="button" onClick={()=>restore(job.request,job)}>확인한 입력 적용</button>}
+            </section>}
+          </section>}
+        </div>)}</div>
+        <div className="generator-history-pagination">
+          <button type="button" disabled={!page.offset} onClick={()=>perform(()=>list(Math.max(0,page.offset-pageSize),filter))}>이전 이력 페이지</button>
+          <button type="button" disabled={page.next_offset==null} onClick={()=>perform(()=>list(page.next_offset,filter))}>다음 이력 페이지</button>
+        </div>
       </>}
-      {job && <section><strong>{job.id}</strong><pre>{JSON.stringify(job.request,null,2)}</pre>
-        {restore && <button onClick={()=>restore(job.request,job)}>이 작업의 입력으로 교체</button>}</section>}
     </fieldset>
     {error && <p role="alert">{error}</p>}
   </details>;

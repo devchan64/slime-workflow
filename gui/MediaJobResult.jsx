@@ -1,7 +1,10 @@
 import React, {useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import GenerationProgress from "./GenerationProgress.jsx";
+import {validGenerationEstimate} from "./generationEstimate.mjs";
 import {useLiveRefresh} from "./LiveRefresh.jsx";
+import JobIdentifier from "./JobIdentifier.jsx";
+import RecordFolder from "./RecordFolder.jsx";
 
 const statusCommands={
   audio:"hermes-audio-source-status",
@@ -45,16 +48,7 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
   const [job,setJob]=useState(null);
   const [error,setError]=useState("");
   const [revision,refresh]=useState(0);
-  const [folderNotice,setFolderNotice]=useState("");
   const live=useLiveRefresh(()=>refresh(value=>value+1),!job || ["queued","running"].includes(job.status));
-  async function openFolder(){
-    try{
-      const response=await fetch("/management/record-folder/open",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({route:"/"+service,id})});
-      const result=await response.json();
-      if(!response.ok)throw new Error(result.error || "폴더를 열 수 없습니다.");
-      setFolderNotice(result.message);
-    }catch(problem){setFolderNotice(problem.message);}
-  }
   useEffect(()=>{
     let active=true;
     async function read() {
@@ -62,15 +56,24 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
         const response=await managementCommand("hermes-agent",statusCommands[kind],{service,job_id:id});
         if(!active)return;
         if(response.service!==service || response.job_id!==id || !response.job)throw new Error("작업 결과가 요청과 일치하지 않습니다.");
-        setJob(response.job);setError("");
+        let estimate=validGenerationEstimate(response.job.estimate) ? response.job.estimate : null;
+        if(kind==="audio" || kind==="flux"){
+          try {
+            const detail=await managementCommand(service,"status",{id});
+            if((detail.id===id || (kind==="flux" && detail.id===undefined)) && detail.status===response.job.status && validGenerationEstimate(detail.estimate)) estimate=detail.estimate;
+          } catch { /* Keep the observed result even if the optional estimate is unavailable. */ }
+        }
+        if(!active)return;
+        setJob({...response.job,estimate});setError("");
 
       }catch(problem){if(active)setError(problem.message);}
     }
     read();
     return ()=>{active=false;};
   },[service,id,kind,revision]);
-  return <section ref={!job?live.ref:undefined} className="media-result-card" aria-label="작업 결과"><div className="media-result-heading"><div><strong>작업 결과</strong><h3>{id}</h3></div>{job && <span className={'media-result-status status-'+job.status}>{({completed:'완료',running:'실행 중',queued:'대기 중',failed:'실패',cancelled:'취소',canceled:'취소',paused:'중단',unknown:'확인 필요'})[job.status] || job.status}</span>}</div>
-    {error && <p role="alert">작업 결과를 불러오지 못했습니다. 연결 상태를 확인하고 결과를 새로고침해 주세요.{job && " 아래 내용은 마지막으로 조회한 결과입니다."}</p>}
+  return <section ref={!job?live.ref:undefined} className="media-result-card" aria-label="작업 결과"><div className="media-result-heading"><div><strong>작업 결과</strong></div>{job && <span className={'media-result-status status-'+job.status}>{({completed:'완료',running:'실행 중',queued:'대기 중',failed:'실패',cancelled:'취소',canceled:'취소',paused:'중단',unknown:'확인 필요'})[job.status] || job.status}</span>}</div><JobIdentifier id={id}/>
+    <RecordFolder key={service+"/"+id} service={service} id={id}/>
+    {error && <p role="alert">{error.includes("영상 원본 작업 경로 오류") ? "이 생성기에서 해당 작업을 찾지 못했습니다. 작업 ID와 생성기를 확인해 주세요." : "작업 결과를 불러오지 못했습니다. 연결 상태를 확인하고 결과를 새로고침해 주세요."}{job && " 아래 내용은 마지막으로 조회한 결과입니다."}</p>}
     {job ? <>
       <p className="media-result-note" role="status">{job.note}</p>
       {["queued","running"].includes(job.status) ? <GenerationProgress job={job} live={live} supportsProgress={service==="wan22-fun-control"}/> : <details><summary>진행 정보 보기</summary><GenerationProgress job={job} supportsProgress={service==="wan22-fun-control"}/></details>}
@@ -94,8 +97,7 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
             <a className="media-result-link" href={job.video} target="_blank" rel="noopener">MP4 열기</a>
           </>}
         {service==="wan22-fun-control" && <SavedPoseVideo key={id} id={id}/>}
-        {folderLink ? <><button type="button" onClick={openFolder}>결과 기록 폴더 열기</button><span role="status">{folderNotice}</span></> :
-          <a href={job.download} download>{service==="dwpose"?"포즈 PNG·좌표 YAML 다운로드":"PNG 프레임 ZIP 다운로드"}</a>}
+        {!folderLink && <a href={job.download} download>{service==="dwpose"?"포즈 PNG·좌표 YAML 다운로드":"PNG 프레임 ZIP 다운로드"}</a>}
       </>}
       {(job.result_status==="unavailable" || job.file_observation==="unavailable") && <p>완료 기록의 결과 파일을 확인할 수 없습니다.</p>}
     </> : !error && <p>결과 조회 중…</p>}

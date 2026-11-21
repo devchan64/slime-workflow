@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 
 from workflow.common.management_gateway import MANAGEMENT_SERVICE_ROUTES, ManagementCommandGateway
 from workflow.common.record_folders import handle_record_folder_request
+from workflow.common.history_summaries import handle_history_summaries_request
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,8 @@ class ManagementServiceRuntime:
         if self.runtime_closed_flag:
             raise RuntimeError('종료된 관리 서비스에는 요청할 수 없습니다.')
         if current_http_handler.command == 'POST' and handle_record_folder_request(current_http_handler, self.record_folder_routes):
+            return True
+        if current_http_handler.command == 'POST' and handle_history_summaries_request(current_http_handler, self.record_folder_routes):
             return True
         if self.management_command_gateway.handle(current_http_handler):
             return True

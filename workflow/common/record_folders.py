@@ -18,7 +18,8 @@ def resolve_record_folder(folder_service_routes, selected_service_route, selecte
 
 
 def handle_record_folder_request(current_http_handler, folder_service_routes):
-    if urlsplit(current_http_handler.path).path != '/management/record-folder/open':
+    request_path = urlsplit(current_http_handler.path).path
+    if request_path not in ('/management/record-folder/open', '/management/record-folder/inspect'):
         return False
     try:
         from workflow.common.management_environment import validate_loopback_request_host
@@ -31,14 +32,25 @@ def handle_record_folder_request(current_http_handler, folder_service_routes):
         if not 0 < request_content_length <= 1024:
             raise ValueError('요청 크기가 올바르지 않습니다.')
         request_record_values = json.loads(current_http_handler.rfile.read(request_content_length))
-        if not isinstance(request_record_values,dict) or set(request_record_values) != {'route','id'} or not isinstance(request_record_values['route'],str):
+        if not isinstance(request_record_values,dict) or set(request_record_values) not in ({'route','id'}, {'service','id'}):
             raise ValueError('생성기와 기록 ID를 지정하세요.')
-        resolved_record_directory = resolve_record_folder(folder_service_routes,request_record_values['route'],request_record_values['id'])
-        subprocess.run(['xdg-open',str(resolved_record_directory)],check=True,timeout=5,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
-        response_record_values = {'path':str(resolved_record_directory),'message':'파일 관리자에 기록 폴더 열기를 요청했습니다.'}
+        if 'service' in request_record_values:
+            from workflow.common.management_gateway import MANAGEMENT_SERVICE_ROUTES
+            service = request_record_values['service']
+            if not isinstance(service, str) or service not in MANAGEMENT_SERVICE_ROUTES:
+                raise ValueError('지원하지 않는 생성기입니다.')
+            route = MANAGEMENT_SERVICE_ROUTES[service]
+        else:
+            route = request_record_values['route']
+        if not isinstance(route, str):
+            raise ValueError('생성기와 기록 ID를 지정하세요.')
+        resolved_record_directory = resolve_record_folder(folder_service_routes,route,request_record_values['id'])
+        if request_path.endswith('/open'):
+            subprocess.run(['xdg-open',str(resolved_record_directory)],check=True,timeout=5,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+        response_record_values = {'path':str(resolved_record_directory),'message':'파일 관리자에 기록 폴더 열기를 요청했습니다.' if request_path.endswith('/open') else '기록 폴더를 확인했습니다.'}
         response_status_code = 200
     except (ValueError,TypeError,OSError,subprocess.SubprocessError) as request_error_value:
-        response_record_values = {'error':'폴더 열기 실패: '+str(request_error_value)+' 경로를 복사하여 파일 관리자에서 여세요.'}
+        response_record_values = {'error':('폴더 열기 실패: ' if request_path.endswith('/open') else '기록 폴더 조회 실패: ')+str(request_error_value)+( ' 경로를 복사하여 파일 관리자에서 여세요.' if request_path.endswith('/open') else ' 생성기와 작업 상태를 확인하세요.')}
         response_status_code = 400
     response_payload_bytes = json.dumps(response_record_values,ensure_ascii=False).encode()
     current_http_handler.send_response(response_status_code)

@@ -192,3 +192,53 @@ article {position:relative;}
 .session-job-list {display:grid;gap:.6rem;margin:.8rem 0}.session-job {min-width:0;padding:.75rem;border:1px solid var(--line,#484d50);border-radius:.7rem;background:var(--surface,#202331)}
 .session-job-heading {display:flex;justify-content:space-between;align-items:start;gap:.5rem}.session-job-heading strong {min-width:0;overflow-wrap:anywhere}.session-job-heading span {flex-shrink:0;padding:.1rem .5rem;border:1px solid var(--line,#484d50);border-radius:999px;font-size:.75rem}
 .session-job p {margin:.4rem 0;font-size:.85rem;overflow-wrap:anywhere}.session-job small {color:var(--muted,#afbabd);overflow-wrap:anywhere}.session-job-actions {display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem}
+
+/* 생성기 공용 이력: 선택한 카드 안에서 동작하고 좁은 화면에서도 ID를 읽는다. */
+.generator-history, .generator-history fieldset, .generator-history-item {min-width:0}
+.generator-history-toolbar, .generator-history-actions, .generator-history-pagination {display:flex;flex-wrap:wrap;align-items:end;gap:.5rem}
+.generator-history-toolbar label {min-width:0;flex:1 1 12rem}
+.generator-history-toolbar input {max-width:100%}
+.generator-history-list {display:grid;gap:.5rem;margin:.5rem 0}
+.generator-history-item {border:1px solid var(--line, #484d50);border-radius:.5rem;overflow:hidden}
+.generator-history-select {width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:.3rem;text-align:left;border:0;border-radius:0}
+.generator-history-select span {min-width:0;overflow-wrap:anywhere}
+.generator-history-select .history-card-heading {display:flex;flex:1 1 100%;flex-wrap:wrap;justify-content:space-between;gap:.3rem}.generator-history-select :is(.history-card-summary,.history-card-id) {flex:1 1 100%;font-size:.85rem;color:var(--muted,#afbabd)}
+.generator-history-select .history-card-content {display:flex;flex:1 1 12rem;min-width:0;flex-wrap:wrap;gap:.3rem}.history-card-image,.history-card-image-placeholder {flex:0 0 5rem;width:5rem;height:5rem;border-radius:.3rem}.history-card-image {object-fit:contain;background:#10121a}.history-card-image-placeholder {display:grid;place-items:center;text-align:center;font-size:.75rem;color:var(--muted,#afbabd);background:#202428}
+.generator-history-select[aria-pressed="true"] {outline:2px solid var(--accent, #a7c8ff);outline-offset:-2px}
+.generator-history-selection {padding:.65rem;overflow-wrap:anywhere}
+.generator-history-selection pre {max-width:100%;max-height:20rem;overflow:auto;overflow-wrap:anywhere}
+.generator-history-actions {margin-top:.5rem}
+
+/* 공용 빠른 선택 버튼은 줄이 바뀌어도 간격을 유지한다. */
+.choice-buttons {display:flex;flex-wrap:wrap;gap:.5rem}
+
+.seed-input {display:flex;flex-wrap:wrap;align-items:end;gap:.5rem;min-width:0;margin:.5rem 0}.seed-input label {display:grid;gap:.3rem;min-width:0;flex:1 1 10rem}.seed-input input {min-width:0;max-width:100%}
+
+.prompt-word-count {display:block;color:var(--muted, #afbabd);font-size:.8rem;margin-top:.25rem}
+
+.vace-page form > fieldset {min-width:0;width:100%}.vace-page input,.vace-page textarea,.vace-page select {max-width:100%;min-width:0}.vace-page fieldset {overflow-wrap:anywhere}
+
+.flux-page form > fieldset {min-width:0;width:100%;overflow-wrap:anywhere}.flux-page :is(input,textarea,select,button,img) {max-width:100%}.flux-page figure {margin-inline:0;min-width:0}.flux-page figcaption {overflow-wrap:anywhere}.flux-page section > button {overflow-wrap:anywhere}
+
+.reference-image-input {min-width:0;border:1px dashed var(--line,#484d50);border-radius:.6rem;padding:.65rem;display:grid;gap:.5rem}.reference-image-input img {display:block;width:100%;max-height:18rem;object-fit:contain;background:#10121a;border-radius:.4rem}.reference-image-input p {overflow-wrap:anywhere}.reference-image-file {position:relative;display:inline-flex;align-items:center;border:1px solid #484d50;border-radius:.5rem;padding:.55rem .8rem;cursor:pointer}.reference-image-file input {position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}.reference-image-file:focus-within {outline:2px solid var(--accent,#a7c8ff);outline-offset:2px}
+
+.reference-image-slots {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr));gap:.75rem;min-width:0}.reference-image-input small {color:var(--muted,#afbabd)}
+
+.action-button {display:grid;justify-items:start;gap:.35rem;margin:.5rem 0}.action-button p {color:var(--muted,#afbabd);font-size:.85rem;overflow-wrap:anywhere}
+
+/* 선택 행동은 같은 크기로 정렬하고 확인·사유는 바로 아래에 표시한다. */
+.generator-history-selection {display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.5rem}
+.generator-history-selection .generator-history-actions,.generator-history-selection .history-selected-actions,.generator-history-selection .history-job-actions {display:contents}
+.generator-history-selection .history-selection-title {grid-column:1/-1;order:0}
+.generator-history-selection :is(.history-action-result,.history-action-input,.history-action-resume,.history-action-priority,.history-action-stop,.history-action-delete) {min-width:0;width:100%;overflow-wrap:anywhere}
+.history-action-result {order:1}.history-action-input {order:2}.history-action-resume {order:3}.history-action-priority {order:4}.history-action-stop {order:5}.history-action-delete {order:6}
+.generator-history-selection .history-action-detail {grid-column:1/-1;order:10;min-width:0}
+.generator-history-selection .history-action-detail:empty {display:none}
+@media(max-width:700px){.generator-history-selection {grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:400px){.generator-history-selection {grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.animate-inputs {min-width:0;max-width:100%;overflow-wrap:anywhere}
+.animate-inputs :is(input,textarea,video,img) {min-width:0;max-width:100%}
+
+.history-confirmation {display:grid;gap:.5rem;min-width:0;overflow-wrap:anywhere}
+.record-folder {min-width:0;overflow-wrap:anywhere}.record-folder label {display:grid;gap:.3rem;margin:.5rem 0;min-width:0}.record-folder input {width:100%;min-width:0}.record-folder [role=status] {margin:.4rem 0}

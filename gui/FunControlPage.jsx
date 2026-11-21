@@ -1,9 +1,12 @@
+import GenerationReviewActions from "./GenerationReviewActions.jsx";
+import ActionButton from "./ActionButton.jsx";
 import React,{useEffect,useRef,useState} from "react";
 import {referencePng,videoData} from "./videoInputs.js";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import HistoryCleanup from "./HistoryCleanup.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
+import ModelReadiness from "./ModelReadiness.jsx";
 
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import {FunControlFields,FunControlResult} from "./FunControlSchema.jsx";
@@ -136,10 +139,10 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     const values=Object.fromEntries(settings.map(([key])=>[key,Number(request[key])]));
     setPending({...request,...values});
   }
-  return <article className={"fun-control-page"+(embedded?" fun-embedded":"")}>{!embedded && <a href={"/management/frame/hermes-agent/"+(new URLSearchParams(location.search).get("session")?"?"+new URLSearchParams({session:new URLSearchParams(location.search).get("session")}):"")}>헤르메스 대화로 돌아가기</a>}{!embedded && <><h1>Wan Fun Control 영상 생성</h1><GeneratorChangelog generator="wan22-fun-control-generator"/></>}
+  return <article className={"fun-control-page"+(embedded?" fun-embedded":"")}>{!embedded && <a href={"/management/frame/hermes-agent/"+(new URLSearchParams(location.search).get("session")?"?"+new URLSearchParams({session:new URLSearchParams(location.search).get("session")}):"")}>헤르메스 대화로 돌아가기</a>}<><h1>Wan Fun Control 영상 생성</h1><GeneratorChangelog generator="wan22-fun-control-generator"/><ModelReadiness service={service}/></>
     <fieldset className="fun-source" disabled={busy || !!pending || !template}><legend>원본 작업</legend>
       <p>{sourceJob ? "불러온 작업 · "+sourceJob : "선택된 원본 작업이 없습니다."}</p>
-      <GeneratorHistory key={historyRevision} service={service} readJob={readJob} restore={restore} openResult={setJob}/>
+      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} restore={restore} openResult={setJob}/>
       {job && <button disabled={!template} onClick={()=>load(true)}>작업 {job} 입력으로 교체</button>}
       <details><summary>제작 예제 사용</summary><label>예제 선택<select value={selected} onChange={event=>select(event.target.value)}>
         {template?.examples.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
@@ -149,20 +152,24 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     {request && <form onSubmit={review} onInvalid={event=>{const details=event.target.closest("details");if(details)details.open=true;}}><fieldset disabled={busy || !!pending}><legend>생성 입력</legend>
       <FunControlFields request={request} setRequest={setRequest} attach={attach} videoInfo={videoInfo} frameLimit={frameLimit} template={template} sourceSeed={sourceSeed} busy={busy || !!pending}/>
       {embedded && <button type="button" onClick={saveDraft}>폼을 대화에 저장</button>}
-      <button disabled={!request.prompt.trim() || !request.images[0] || !request.pose_video} type="submit">대기열에 추가</button>
+      <ActionButton type="submit" reasons={[
+        !request.prompt.trim() && "동작 프롬프트를 입력하세요.",
+        !request.images[0] && "외형 참조 이미지를 선택하세요.",
+        !request.pose_video && "포즈 영상을 선택하세요."
+      ]}>생성 요청 검토</ActionButton>
     </fieldset></form>}
     {pending && <section aria-label="생성 요청 확인"><GpuQueueSummary/>
-      <p>{pending.frames}프레임 · {pending.steps}스텝 · 시드 {pending.seed}</p><p>{pending.prompt}</p>
-      <button disabled={busy} onClick={()=>setPending(null)}>취소</button>
-      <button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button>
+      <p>외형 참조 이미지 + 포즈 영상 · {pending.frames}프레임 · 16fps · {(pending.frames/16).toFixed(2)}초 · {pending.steps}스텝 · 시드 {pending.seed}</p>
+      <p>{videoInfo?.summary || "입력 영상 정보 확인 중"}</p><p>{pending.prompt}</p>
+      <GenerationReviewActions busy={busy} onCancel={()=>setPending(null)} onConfirm={submit}/>
     </section>}
-    <a href="/management/frame/model-management/">모델 상태 확인 및 준비</a>
+    {embedded && <a href="/management/frame/model-management/">모델 상태 확인 및 준비</a>}
     {notice && <p role="status">{notice}</p>}
     {job ? <FunControlResult key={job} job={job} folderLink={embedded}>
       {(record,reload)=>record && <React.Fragment key={record.status}>
-        <GeneratorJobControls service={service} id={job} state={record.status} refresh={reload}/>
-        <HistoryCleanup service={service} job={job} state={record.status} onDeleted={cleaned}/>
+        <GeneratorJobControls showActions={false} service={service} id={job} state={record.status} refresh={reload}/>
+        <HistoryCleanup allowSelected={false} service={service} job={job} state={record.status} onDeleted={cleaned}/>
       </React.Fragment>}
-    </FunControlResult> : <HistoryCleanup service={service} onDeleted={cleaned}/>}
+    </FunControlResult> : <HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>}
   </article>;
 }

@@ -1,27 +1,47 @@
 import KimodoMultiviewReport from "./KimodoMultiviewReport.jsx";
 import KimodoGeneration from "./KimodoGeneration.jsx";
-import React from "react";
+import React, {useState} from "react";
 import ModelReadiness from "./ModelReadiness.jsx";
 import DownloadProgress from "./DownloadProgress.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
-import {HistoryPage} from "./SourceHistory.jsx";
+import GeneratorHistory from "./GeneratorHistory.jsx";
+import KimodoFrames from "./KimodoFrames.jsx";
+import HistoryCleanup from "./HistoryCleanup.jsx";
 
-export default function KimodoPage(){
+export default function KimodoPage({embedded=false,session:embeddedSession="",initialInputs=null,onChoose}={}){
   const params=new URLSearchParams(location.search);
-  const session=params.get("session") || "";
+  const session=embedded ? embeddedSession : params.get("session") || "";
+  const [selectedJob,setSelectedJob]=useState(embedded ? "" : params.get("job") || "");
+  const [restoreJob,setRestoreJob]=useState(embedded ? "" : params.get("restore") || "");
+  const [historyRevision,setHistoryRevision]=useState(0);
+  const [restoreRevision,setRestoreRevision]=useState(0);
+  const [notice,setNotice]=useState("");
+  async function readJob(id){
+    const response=await fetch("/management/assistant/kimodo-input/"+encodeURIComponent(id),{cache:"no-store"});
+    if(!response.ok)throw new Error("저장된 Kimodo 입력을 확인할 수 없습니다.");
+    const saved=await response.json();
+    if(!saved || !saved.inputs)throw new Error("저장된 Kimodo 입력을 확인할 수 없습니다.");
+    return {id,request:saved.inputs};
+  }
+  function cleaned(message){setSelectedJob("");setNotice(message);setHistoryRevision(value=>value+1);}
   const conversation="/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"");
   function choose(label,value){
+    if(embedded && onChoose){onChoose(label,value);return;}
     const key="hermes-draft-"+session;
     sessionStorage.setItem(key,[sessionStorage.getItem(key),label+" "+value].filter(Boolean).join("\n"));
     location.assign(conversation);
   }
-  return <main><article><a href={conversation}>헤르메스 대화로 돌아가기</a>
+  return <main><article>{!embedded && <a href={conversation}>헤르메스 대화로 돌아가기</a>}
     <h1>Kimodo 모션 생성기</h1>
     <GeneratorChangelog generator="kimodo-generator"/>
     <ModelReadiness service="kimodo" manage/><DownloadProgress service="kimodo"/>
-    <KimodoGeneration session={session} restoreJob={params.get("restore") || ""}/>
+    <KimodoGeneration key={(restoreJob || "new")+"/"+restoreRevision} session={session} restoreJob={restoreJob} initialInputs={restoreJob ? null : initialInputs}/>
     <KimodoMultiviewReport/>
-    <h2>생성 이력</h2>
-    <HistoryPage initialJob={params.get("job") || ""} source={{service:"kimodo",command:"hermes-generator-source-history"}} session={session} choose={choose}/>
+    <GeneratorHistory key={historyRevision} service="kimodo" allowPriority readJob={readJob}
+      openResult={setSelectedJob} restore={(_request,record)=>{setRestoreJob(record.id);setRestoreRevision(value=>value+1);setNotice("");}}
+      onSelectedDeleted={(id,message)=>{if(selectedJob===id)setSelectedJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/>
+    {notice && <p role="status">{notice}</p>}
+    {selectedJob ? <><button type="button" onClick={()=>choose("kimodo 작업",selectedJob)}>선택 작업을 대화 입력에 추가</button><KimodoFrames key={selectedJob} id={selectedJob} choose={choose} onDeleted={cleaned} selectionControls/></> :
+      <HistoryCleanup service="kimodo" allowSelected={false} onDeleted={cleaned}/>}
   </article></main>;
 }

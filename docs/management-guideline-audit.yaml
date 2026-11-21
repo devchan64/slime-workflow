@@ -5401,7 +5401,7 @@ anchor_registered_action_visual_followup:
   safety: '좌표 저장·수정·생성 미실행. 검증 탭과 격리 서버 종료. 운영 원본 및 이력 무변경.'
 
 anchor_playback_speed_browser_followup:
-  requirement: '관리도구 UI 가이드 §7의 4·8·12·16 FPS 선택, 기본 4 FPS, 재생 중 속도 변경과 원본 시간축 보존'
+  requirement: '워크플로우 UI 가이드 §7의 4·8·12·16 FPS 선택, 기본 4 FPS, 재생 중 속도 변경과 원본 시간축 보존'
   implementation: 'ce273f6c 공용 Gradio 속도 선택과 브라우저 프레임 간격 적용. 동작 교체 전 선택 속도를 읽어 새 편집 런타임에 전달하며 제작 원본 메타데이터는 수정하지 않음.'
   focused_tests:
     - '.tmp/test/management-audit/2026-10-16_14-00-58: static_review_gradio 22개 통과'

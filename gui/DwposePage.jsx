@@ -1,11 +1,13 @@
+import GenerationReviewActions from "./GenerationReviewActions.jsx";
+import ActionButton from "./ActionButton.jsx";
+import ReferenceImageInput from "./ReferenceImageInput.jsx";
 import MockProgress,{jobsPath} from "./MockProgress.jsx";
-import HistoryCleanup from "./HistoryCleanup.jsx";
+import GeneratorJobResult from "./GeneratorJobResult.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import React, {useRef,useState} from "react";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
-import MediaJobResult from "./MediaJobResult.jsx";
 import {managementCommand} from "./managementCommand.js";
 
 async function pngData(file) {
@@ -23,11 +25,11 @@ async function pngData(file) {
   });
 }
 
-export default function DwposePage({mock=false}) {
+export default function DwposePage({mock=false,embedded=false}={}) {
   const query=new URLSearchParams(location.search);
   const [file,setFile]=useState(null),[hands,setHands]=useState(false),[face,setFace]=useState(false);
   const [pending,setPending]=useState(null),[busy,setBusy]=useState(false);
-  const [job,setJob]=useState(query.get("job") || ""),[notice,setNotice]=useState("");
+  const [job,setJob]=useState(embedded ? "" : query.get("job") || ""),[notice,setNotice]=useState("");
   const [historyRevision,setHistoryRevision]=useState(0);
   function cleaned(message){
     setJob("");setNotice(message);setHistoryRevision(value=>value+1);
@@ -45,10 +47,8 @@ export default function DwposePage({mock=false}) {
   }
   function restore(request,record){
     setFile(record.file);setHands(request.pose_include_hands);setFace(request.pose_include_face);
-    fileInput.current.value="";
     setJob(record.id);setNotice("저장된 PNG와 포즈 옵션을 불러왔습니다.");
   }
-  const fileInput=useRef(null);
   async function review(){
     setBusy(true);setNotice("");
     try {
@@ -76,20 +76,17 @@ export default function DwposePage({mock=false}) {
     <h1>DWPose 이미지 추출</h1>
     {mock ? <p>격리 모의 검증 · 메모리에서 작업 상태를 확인합니다.</p> : <><ModelReadiness service="dwpose"/><GeneratorChangelog generator="dwpose-generator"/></>}
     <fieldset disabled={busy || Boolean(pending)}>
-      <label>입력 PNG · 832×480 <input ref={fileInput} type="file" accept="image/png" onChange={event=>setFile(event.target.files[0] || null)}/></label>
+      <ReferenceImageInput label="입력 PNG · 832×480" accept="image/png" source={file} validate={pngData} disabled={busy || Boolean(pending)} onChange={setFile}/>
       {file && <p>선택된 입력 · {file.name}</p>}
-      {!mock && <GeneratorHistory key={historyRevision} service="dwpose" readJob={readJob} restore={restore} inspectResult={record=>setJob(record.id)}/>}
+      {!mock && <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service="dwpose" readJob={readJob} restore={restore} inspectResult={record=>setJob(record.id)}/>}
       <label><input type="checkbox" checked={hands} onChange={event=>setHands(event.target.checked)}/>손 상세 표시</label>
       <label><input type="checkbox" checked={face} onChange={event=>setFace(event.target.checked)}/>얼굴 상세 표시</label>
-      <button disabled={!file} onClick={review}>대기열에 추가</button>
+      <ActionButton reasons={[!file && "입력 PNG를 선택하세요."]} onClick={review}>생성 요청 검토</ActionButton>
     </fieldset>
     {pending && <section>{!mock && <GpuQueueSummary/>}<p>{file.name} · 손 상세 {hands?"포함":"제외"} · 얼굴 상세 {face?"포함":"제외"}</p>
-      <button disabled={busy} onClick={()=>setPending(null)}>추가하지 않기</button>
-      <button disabled={busy} onClick={submit}>확인 후 대기열에 추가</button>
+      <GenerationReviewActions busy={busy} onCancel={()=>setPending(null)} onConfirm={submit}/>
     </section>}
     {notice && <p role="status">{notice}</p>}
-    {mock ? <MockProgress key={job} scope="dwpose" initialJob={job}/> : job ? <MediaJobResult key={job} service="dwpose" id={job}>
-      {record=><HistoryCleanup key={record?.status || ""} service="dwpose" job={job} state={record?.status} onDeleted={cleaned}/>}
-    </MediaJobResult> : <HistoryCleanup service="dwpose" onDeleted={cleaned}/>}
+    {mock ? <MockProgress key={job} scope="dwpose" initialJob={job}/> : <GeneratorJobResult selectionControls job={job} service="dwpose" controls={false} onDeleted={cleaned}/>}
   </article>;
 }

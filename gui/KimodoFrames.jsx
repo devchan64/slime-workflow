@@ -1,23 +1,31 @@
 import HistoryCleanup from "./HistoryCleanup.jsx";
+import JobIdentifier from "./JobIdentifier.jsx";
+import RecordFolder from "./RecordFolder.jsx";
+import GenerationProgress from "./GenerationProgress.jsx";
+import {validGenerationEstimate} from "./generationEstimate.mjs";
+import {useLiveRefresh} from "./LiveRefresh.jsx";
 import KimodoMedia from "./KimodoMedia.jsx";
 import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import KimodoKeyframeSave from "./KimodoKeyframeSave.jsx";
 import React,{useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 
-export default function KimodoFrames({id,choose,onDeleted}) {
+export default function KimodoFrames({id,choose,onDeleted,selectionControls=false}) {
   const [source,setSource]=useState(null);
   const [revision,refresh]=useState(0);
   const [frame,setFrame]=useState("1");
   const [preview,setPreview]=useState(null);
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
+  const live=useLiveRefresh(()=>refresh(value=>value+1),!source || ["queued","running"].includes(source.status));
+  useEffect(()=>{setPreview(null);setSource(null);setError("");},[id]);
+  useEffect(()=>{setPreview(null);},[source?.attempt]);
   useEffect(()=>{
-    let active=true;setPreview(null);setSource(null);setError("");
+    let active=true;
     managementCommand("kimodo","status",{id}).then(job=>{
       if(!job.status || (job.status==="completed" && (job.image!=="/kimodo/jobs/"+id+"/attempts/"+job.attempt+"/output-000.png" || !job.attempt || !Number.isInteger(job.source_frame_count) || job.source_frame_count<1)))
         throw new Error("완료된 모션의 원본 프레임을 확인할 수 없습니다.");
-      if(active)setSource(job);
+      if(active){setSource(job);setError("");}
     }).catch(problem=>{if(active)setError(problem.message);});
     return ()=>{active=false;};
   },[id,revision]);
@@ -33,12 +41,15 @@ export default function KimodoFrames({id,choose,onDeleted}) {
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
   }
-  return <section aria-label="Kimodo 원본 프레임">
+  return <section ref={!source ? live.ref : undefined} aria-label="Kimodo 원본 프레임">
+    <JobIdentifier id={id}/>
+    <RecordFolder key={id} service="kimodo" id={id}/>
     {error && <p role="alert">{error}</p>}
-    {source && <><p>{id} · {source.status} {source.error}</p>
+    {source && <><p>{source.status} {source.error}</p>
+      <GenerationProgress job={{...source,estimate:validGenerationEstimate(source.estimate) ? source.estimate : null}} live={live} supportsProgress={false}/>
       <button onClick={()=>refresh(value=>value+1)}>작업 상태 갱신</button>
-      <GeneratorJobControls service="kimodo" id={id} state={source.status} refresh={()=>refresh(value=>value+1)}/></>}
-    <HistoryCleanup key={id+"/"+(source?.status || "")} service="kimodo" job={id} state={source?.status} onDeleted={onDeleted}/>
+      <GeneratorJobControls showActions={!selectionControls} service="kimodo" id={id} state={source.status} refresh={()=>refresh(value=>value+1)}/></>}
+    <HistoryCleanup allowSelected={!selectionControls} key={id+"/"+(source?.status || "")} service="kimodo" job={id} state={source?.status} onDeleted={onDeleted}/>
     {source?.status==="completed" && <KimodoMedia key={source.attempt} id={id} job={source}/>}
     {source?.status==="completed" && <form onSubmit={inspect}><fieldset disabled={busy}><legend>원본 SOMA 관절 · {source.source_frame_count}프레임</legend>
       <label>원본 프레임 번호 <input type="number" min="1" max={source.source_frame_count} required value={frame}

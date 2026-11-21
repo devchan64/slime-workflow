@@ -8,7 +8,7 @@ MAXIMUM_GATEWAY_BODY_BYTES = 40_200_000
 GATEWAY_REQUEST_TIMEOUT_SECONDS = 30
 GATEWAY_CONTROL_ROUTE_PATHS = (
     '/management/command', '/management/gpu-queue', '/management/gpu-status',
-    '/management/record-folder/open', '/management/health',
+    '/management/record-folder/open', '/management/record-folder/inspect', '/management/history-summaries', '/management/health',
 )
 PROXY_REMOVED_HEADER_NAMES = frozenset((
     'host', 'origin', 'connection', 'transfer-encoding', 'content-length',

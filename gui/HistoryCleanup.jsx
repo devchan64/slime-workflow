@@ -2,7 +2,7 @@ import React, {useState} from "react";
 import {formatCleanupResult} from "./formatCleanupResult.mjs";
 import {managementCommand} from "./managementCommand.js";
 
-export default function HistoryCleanup({service,job,state,onDeleted}) {
+export default function HistoryCleanup({service,job,state,onDeleted,allowSelected=true}) {
   const [review,setReview]=useState(null),[ack,setAck]=useState(false);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
   const eligible=["completed","failed","cancelled","paused"].includes(state);
@@ -35,15 +35,16 @@ export default function HistoryCleanup({service,job,state,onDeleted}) {
   }
   return <details><summary>생성 이력 정리</summary>
     <fieldset disabled={busy}>
-      <button disabled={!job || !eligible} onClick={()=>{setAck(false);setReview({id:job});}}>선택 이력 삭제 검토</button>
+      {allowSelected && <button aria-describedby={!job || !eligible ? "history-delete-help" : undefined} disabled={!job || !eligible} onClick={()=>{setAck(false);setReview({id:job});}}>선택 이력 삭제 검토</button>}
+      {allowSelected && (!job || !eligible) && <p id="history-delete-help">{!job ? "삭제하려면 생성 이력에서 작업 결과를 조회하세요." : "종료된 작업만 삭제할 수 있습니다. 실행 또는 대기 중인 작업이 종료된 후 다시 확인하세요."}</p>}
       <button onClick={()=>perform(inspectAll)}>전체 이력 삭제 대상 조회</button>
-      {review && <section>
+      {review && <section className="history-confirmation">
         <p>{review.all ? service+" · 전체 삭제 대상 "+review.preview.job_count+"건" : "선택 작업 · "+review.id}</p>
         <p>{review.all ? review.preview.scope : "작업 폴더의 입력 사본·결과·로그와 실행 기록을 삭제합니다."}</p>
         {review.all && <p>{review.preview.notice} · 삭제 제한 작업 {review.preview.blocked_jobs.length}건</p>}
         <label><input type="checkbox" checked={ack} onChange={e=>setAck(e.target.checked)}/>삭제 후 복구할 수 없음을 확인했습니다.</label>
-        <button onClick={reset}>삭제 취소</button>
-        <button disabled={!ack || (review.all && !review.preview.can_reset)} onClick={()=>perform(confirm)}>확인한 대상 삭제</button>
+        <div className="choice-buttons"><button onClick={reset}>삭제 취소</button>
+        <button disabled={!ack || (review.all && !review.preview.can_reset)} onClick={()=>perform(confirm)}>확인한 대상 삭제</button></div>
       </section>}
     </fieldset><p role="status">{notice}</p>
   </details>;

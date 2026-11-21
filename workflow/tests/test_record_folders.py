@@ -35,3 +35,27 @@ class RecordFolderTests(unittest.TestCase):
             handle_record_folder_request(request_handler_mock,folder_service_routes)
             self.assertEqual(response_status_values[-1],200)
             self.assertEqual(folder_launch_mock.call_args.args[0],['xdg-open',str(record_root_directory)])
+
+    @patch('workflow.common.record_folders.subprocess.run')
+    def test_inspection_validates_origin_and_path_without_opening(self, folder_launch_mock):
+        with tempfile.TemporaryDirectory() as temporary_root_path:
+            root=Path(temporary_root_path); job=root/'valid'; job.mkdir(); (job/'status.json').write_text('{}')
+            routes={'/test':(root,lambda identifier:root/identifier)}
+            body=json.dumps({'route':'/test','id':'valid'}).encode(); statuses=[]
+            handler=SimpleNamespace(path='/management/record-folder/inspect',server=SimpleNamespace(server_port=8770),headers={'Host':'127.0.0.1:8770','Origin':'http://127.0.0.1:8770','Content-Type':'application/json','Content-Length':str(len(body))},rfile=io.BytesIO(body),wfile=io.BytesIO(),send_response=statuses.append,send_header=lambda *args:None,end_headers=lambda:None)
+            self.assertTrue(handle_record_folder_request(handler,routes))
+            self.assertEqual(statuses[-1],200)
+            self.assertEqual(json.loads(handler.wfile.getvalue())['path'],str(job))
+            folder_launch_mock.assert_not_called()
+
+    @patch('workflow.common.record_folders.subprocess.run')
+    def test_inspection_resolves_registered_service_route(self, folder_launch_mock):
+        with tempfile.TemporaryDirectory() as temporary_root_path:
+            root=Path(temporary_root_path); job=root/'valid'; job.mkdir(); (job/'status.json').write_text('{}')
+            routes={'/flux-expression-generator':(root,lambda identifier:root/identifier)}
+            body=json.dumps({'service':'flux-expression','id':'valid'}).encode(); statuses=[]
+            handler=SimpleNamespace(path='/management/record-folder/inspect',server=SimpleNamespace(server_port=8770),headers={'Host':'127.0.0.1:8770','Origin':'http://127.0.0.1:8770','Content-Type':'application/json','Content-Length':str(len(body))},rfile=io.BytesIO(body),wfile=io.BytesIO(),send_response=statuses.append,send_header=lambda *args:None,end_headers=lambda:None)
+            self.assertTrue(handle_record_folder_request(handler,routes))
+            self.assertEqual(statuses[-1],200)
+            self.assertEqual(json.loads(handler.wfile.getvalue())['path'],str(job))
+            folder_launch_mock.assert_not_called()

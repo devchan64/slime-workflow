@@ -1,5 +1,6 @@
 import React, {useEffect,useState} from "react";
 import ResultTable from "./ResultTable.jsx";
+import GenerationProgress from "./GenerationProgress.jsx";
 
 export const jobsPath="/management/assistant/mock-jobs";
 const labels={queued:"대기 중",running:"실행 중",completed:"완료"};
@@ -13,6 +14,7 @@ export default function MockProgress({scope="progress",initialJob=""}) {
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [readError,setReadError]=useState("");
+  const [example,setExample]=useState("queued");
   useEffect(()=>{
     let active=true,timer;
     async function read(){
@@ -47,6 +49,18 @@ export default function MockProgress({scope="progress",initialJob=""}) {
       rows:jobs.slice(page*10,page*10+10).map(row=>[<button onClick={()=>select(row.id)}>{row.id}</button>,labels[row.status]])}}/>
     {page>0 && <button onClick={()=>setPage(page-1)}>이전 페이지</button>}
     {(page+1)*10<jobs.length && <button onClick={()=>setPage(page+1)}>다음 페이지</button>}
+    {scope==="progress" && <details><summary>예상 시간 표시 모의 검증</summary>
+      <p>아래 숫자는 격리된 예시이며 실제 작업이나 GPU 상태가 아닙니다.</p>
+      <label>예시 상태 <select value={example} onChange={event=>setExample(event.target.value)}>
+        <option value="queued">대기 · 표본 없음</option><option value="running">실행 · 표본 있음</option><option value="delayed">실행 · 지연</option><option value="completed">완료</option>
+      </select></label>
+      <GenerationProgress supportsProgress={false} job={{status:example==="delayed" ? "running" : example,estimate:{
+        remaining:example==="running"?75:null,completion:example==="running"?"2026-11-21T12:01:15+09:00":null,
+        total_seconds:example==="running"?180:null,estimated_progress:example==="running"?58.3:null,
+        sample_count:example==="running"?3:0,updated_at:"2026-11-21T12:00:00+09:00",scope:"예시 · GPU 대기 제외",
+        basis:example==="delayed"?"예시 · 지연으로 재계산 중":"예시 표본"
+      }}}/>
+    </details>}
     {scope==="progress" && <a href="/management/assistant/">헤르메스 대화로 이동</a>}
   </section>;
 }

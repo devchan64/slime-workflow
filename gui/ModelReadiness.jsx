@@ -2,7 +2,7 @@ import React, {useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ModelInventory from "./ModelInventory.jsx";
 
-export default function ModelReadiness({service, manage=false}) {
+export default function ModelReadiness({service, manage=false, onStatus}) {
   const [revision,setRevision]=useState(0);
   const [status,setStatus]=useState(null);
   const [error,setError]=useState("");
@@ -10,7 +10,7 @@ export default function ModelReadiness({service, manage=false}) {
   const [notice,setNotice]=useState("");
   useEffect(()=>{
     let active=true,timer;
-    setError("");setStatus(null);
+    setError("");setStatus(null);onStatus?.(null);
     async function read() {
       try {
         let next;
@@ -21,15 +21,15 @@ export default function ModelReadiness({service, manage=false}) {
         } else next=await managementCommand(service,"model-status",{});
         if(!active)return;
         if(typeof next.ready!=="boolean" || typeof next.message!=="string") throw new Error("모델 상태 응답을 확인하세요.");
-        setStatus(next);
+        setStatus(next);onStatus?.(next);
         if(manage || ["queued","running"].includes(next.preparation_status))timer=setTimeout(read,["queued","running"].includes(next.preparation_status)?5000:30000);
       } catch(problem) {
-        if(active){setStatus(null);setError(problem.message);}
+        if(active){setStatus(null);onStatus?.(null);setError(problem.message);}
       }
     }
     read();
     return ()=>{active=false;clearTimeout(timer);};
-  },[service,revision,manage]);
+  },[service,revision,manage,onStatus]);
   async function prepare() {
     setSending(true);
     setNotice("");

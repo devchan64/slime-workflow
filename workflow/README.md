@@ -1,7 +1,7 @@
 # 워크플로우 소스 구조
 
 
-관리도구의 실행 진입점과 화면 URL은 유지하며, 구현을 도메인별로 관리한다.
+워크플로우는 상위 도메인이며 실행 진입점과 기존 화면 URL은 호환성을 위해 유지한다. 구현은 하위 도메인별로 관리한다.
 
 저장소 루트의 `gui/`, `gateway/`, `cli/`, `mcp/`, `generators/`, `baseline/`이 워크플로우의 여섯 하위 도메인이다. 공용 코드와 통합 테스트는 `workflow/`, 운영·설계 문서는 `docs/`에서 관리한다.
 
@@ -53,7 +53,7 @@ gui/ui_assets.py                  UI 파일의 명시적 경로 레지스트리
 - UI 파일은 `resolve_review_ui_asset()`으로 조회한다. 파일명은 레지스트리에 명시하며 사용자 입력 경로를 파일 시스템 경로로 직접 사용하지 않는다.
 - 빌드 스크립트와 서버의 위치는 실행 계약이므로 유지한다. 서비스 실행 경로와 모델 실행 코드는 구분하며, 모델 실행기는 기존 `generators/` 도메인에 둔다.
 - MoMask 도메인·화면은 폐기했다. VNCCS 포즈 변환 생성기·실행기·페이지는 2026-10-29 폐기했다. 구형 AnyPose 생성 명령은 스프라이트·앵커 편집 서비스와 구분해 차단한다.
-- 작가 에이전트는 기존 `generators/writer_agent/` 도메인에 있다. 이번 관리도구 소스 이동에 포함하지 않는다.
+- 작가 에이전트는 기존 `generators/writer_agent/` 도메인에 있다. 이번 워크플로우 소스 이동에 포함하지 않는다.
 
 ## 호환성과 운영
 
@@ -65,7 +65,7 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 ## 도시맵 원장과 검수 사본
 
-맵 배치·통행 원본은 `slime-assets/assets/maps/`이며 등록부 해시를 확인해 직접 읽는다. 관리도구의 `/management/map-assets/maps/<id>`는 요청 시 원본 YAML을 해석하며 맵 JSON 사본을 보관하지 않는다. 타일 이미지도 `/management/map-assets/files/assets/tiles/...`에서 등록된 원본을 직접 제공한다. 백엔드는 같은 맵 원본을 읽어 버전이 있는 게임 API로 제공한다.
+맵 배치·통행 원본은 `slime-assets/assets/maps/`이며 등록부 해시를 확인해 직접 읽는다. 워크플로우의 `/management/map-assets/maps/<id>`는 요청 시 원본 YAML을 해석하며 맵 JSON 사본을 보관하지 않는다. 타일 이미지도 `/management/map-assets/files/assets/tiles/...`에서 등록된 원본을 직접 제공한다. 백엔드는 같은 맵 원본을 읽어 버전이 있는 게임 API로 제공한다.
 
 
 검수 빌드는 게임의 60px 블록을 화면 표현 기준인 80px로만 정규화한다. 원장 배치·층수·블록 계층은 변경하지 않는다.
@@ -90,15 +90,15 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 ### 필드 공용 렌더링 라이브러리
 
-마을·필드 검수는 게임과 같은 `@slime/field-renderer`의 manifest 고정 버전과 Phaser 3.90.0을 사용한다. 원본은 `slime-frontend/packages/field-renderer/`이며 `field-surface` 1.0.5의 좌표 계약을 포함한다. `ui/map/vendor/field-renderer/`의 ES 모듈과 엔진 배포본은 `manifest.yaml`의 SHA-256을 게시 전에 검증한다. 게임의 `npm run build:field-renderer`로 만든 배포본만 명시적으로 전달하며 관리도구가 게임 소스를 런타임에 읽거나 게임 전체를 빌드하지 않는다. 배포 후 수정은 새 버전으로 전달한다.
+마을·필드 검수는 게임과 같은 `@slime/field-renderer`의 manifest 고정 버전과 Phaser 3.90.0을 사용한다. 원본은 `slime-frontend/packages/field-renderer/`이며 `field-surface` 1.0.5의 좌표 계약을 포함한다. `ui/map/vendor/field-renderer/`의 ES 모듈과 엔진 배포본은 `manifest.yaml`의 SHA-256을 게시 전에 검증한다. 게임의 `npm run build:field-renderer`로 만든 배포본만 명시적으로 전달하며 워크플로우가 게임 소스를 런타임에 읽거나 게임 전체를 빌드하지 않는다. 배포 후 수정은 새 버전으로 전달한다.
 
 `field-map-renderer.js`는 공용 면 목록을 이용해 범위·클릭 판정만 수행한다. `field-map-view.js`는 Phaser Scene에 에셋과 표시 설정을 연결한다. 실제 지면·암벽·계단·결계탑·오러는 공용 라이브러리가 그리며 별도 Canvas 필드 그리기는 사용하지 않는다. 원본 속성 기준은 160×80이다. `resolveMapRenderOptions`는 야외·마을·전투 모두 타일 160×80·배율 1을 제공한다. 맵 종류별 축소 렌더링은 사용하지 않는다. 단계당 10px 고도와 16px 외곽 두께는 유지한다. 저장된 표시 높이·앵커·논리 점유 칸 수는 변경하지 않으며 속성 미리보기와 이미지 점유 검수도 같은 렌더 배율을 사용한다. `결계탑 · 결계 오러`와 `메시 경계`로 높이 25px의 외곽 패널·삼각형 분할을 검사한다. 접촉 셀 내부의 오러와 바닥 음영은 생성하지 않는다. 캐릭터 재생·전투 표시는 별도 소비자 구현이다. 마을 건물은 같은 게임 렌더링 함수를 사용한다.
 
-맵·타일은 요청 시 등록 원본을 읽으므로 배치·고도·이미지 변경에 프론트엔드 빌드가 필요하지 않다. 결계탑·오러 스프라이트는 등록부 해시를 검증한 검수 사본과 출처를 게시한다. 라이브러리 또는 검수 어댑터 코드 변경은 관리도구 정적 UI 게시 대상이다. 검증은 프론트엔드 `node scripts/run-regression.mjs --with-checks tests/field-renderer.test.mjs tests/elevation.test.mjs tests/field-surface.test.mjs`와 워크플로우 `workflow.tests.test_map_asset_sources`, `workflow.tests.test_map_render_profiles`를 사용한다.
+맵·타일은 요청 시 등록 원본을 읽으므로 배치·고도·이미지 변경에 프론트엔드 빌드가 필요하지 않다. 결계탑·오러 스프라이트는 등록부 해시를 검증한 검수 사본과 출처를 게시한다. 라이브러리 또는 검수 어댑터 코드 변경은 워크플로우 정적 UI 게시 대상이다. 검증은 프론트엔드 `node scripts/run-regression.mjs --with-checks tests/field-renderer.test.mjs tests/elevation.test.mjs tests/field-surface.test.mjs`와 워크플로우 `workflow.tests.test_map_asset_sources`, `workflow.tests.test_map_render_profiles`를 사용한다.
 
 ### 맵 검수 공용 기능 경계
 
-맵 검수는 8770 관리도구에서 실행한다. 과수원 진입점은 `/management/frame/map-review/?tool=map-review-old-orchard&category=field-map-review&map=old-orchard`다. 별도 8788 임시 서버와 독립 검수 게시본은 폐기했으며, 새 검증도 이 공용 경로를 사용한다.
+맵 검수는 8770 워크플로우에서 실행한다. 과수원 진입점은 `/management/frame/map-review/?tool=map-review-old-orchard&category=field-map-review&map=old-orchard`다. 별도 8788 임시 서버와 독립 검수 게시본은 폐기했으며, 새 검증도 이 공용 경로를 사용한다.
 
 마을과 필드는 같은 검수 화면과 조작 경로를 사용한다. 맵별 페이지는 맵 식별자와 데이터를 선택하며, 반복 기능을 복제하지 않는다.
 
@@ -139,7 +139,7 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 렌더링 속성의 단일 원본은 프론트엔드 `packages/field-renderer/render-constants.mjs`입니다. 크기·해상도·경계선·그림자·결계·계단·깊이·건물 표시값을 이곳에서 조정하고 공용 번들을 갱신합니다. 검수 빌드의 크기 메타데이터도 같은 원본에서 읽습니다. 이전 버전의 배포 파일은 수정하지 않습니다.
 
-필드·마을 렌더러의 소스 관리 주체는 `slime-frontend`입니다. `packages/field-renderer/`와 여기서 내보내는 `src/game/terrain/` 구현이 단일 원본이며, 관리도구의 vendor는 수정하지 않는 버전별 배포 산출물입니다. 타일 선택·경계선·건물 그리기 규칙을 변경할 때 관리도구에서 복제하지 않고 프론트엔드 공용 함수로 통합합니다. 관리도구는 데이터 조회·UI·카메라·선택·캡처와 객체 수명 연결을 담당합니다. 현재 검수 어댑터에 남은 타일 선택 분기와 맵 순회는 소비 연결 코드이며, 렌더링 규칙의 별도 소유권을 의미하지 않습니다.
+필드·마을 렌더러의 소스 관리 주체는 `slime-frontend`입니다. `packages/field-renderer/`와 여기서 내보내는 `src/game/terrain/` 구현이 단일 원본이며, 워크플로우의 vendor는 수정하지 않는 버전별 배포 산출물입니다. 타일 선택·경계선·건물 그리기 규칙을 변경할 때 워크플로우에서 복제하지 않고 프론트엔드 공용 함수로 통합합니다. 워크플로우는 데이터 조회·UI·카메라·선택·캡처와 객체 수명 연결을 담당합니다. 현재 검수 어댑터에 남은 타일 선택 분기와 맵 순회는 소비 연결 코드이며, 렌더링 규칙의 별도 소유권을 의미하지 않습니다.
 
 vendor에는 채택한 최신 렌더러 배포본 하나만 보관합니다. 버전은 `vendor/field-renderer/manifest.yaml`의 `version`만 수정 원본으로 사용하며, 게시기가 JavaScript의 `__FIELD_RENDERER_VERSION__`을 치환하고 버전별 URL로 게시합니다. Phaser와 field-surface를 별도로 중복 보관하지 않습니다. field-surface 구현은 프론트엔드 소유 렌더러 번들에 포함됩니다. 번들 ES 모듈과 Phaser 배포본·라이선스 사본은 Git에서 제외하고, 채택 버전과 해시를 담은 manifest만 추적합니다. 이전 버전은 프론트엔드 원본의 해당 Git 버전에서 재빌드합니다.
 
@@ -181,7 +181,7 @@ MoMask 작업 서비스와 루트 호환 모듈은 제거했다. 이전 HTTP 주
 
 VACE 공용 작업자는 CUDA 초기화 전에 `expandable_segments:True`를 적용하고 기존 allocator의 다른 옵션을 유지한다. `generators/vace/memory.py`의 파이프라인은 모든 비디오·참조 인코딩이 끝난 뒤 VAE 가중치를 CPU 메모리로 옮기고, 디코딩 직전에 CUDA로 복귀시킨다. 텍스트 인코더·Transformer의 기존 그룹 오프로드와 VAE 타일링은 유지하며 모델 연산은 CUDA에서만 수행한다. 실행 시 `memory-policy.json`과 `memory-source.py`, 단계별 메모리 로그를 시도 디렉터리에 보존한다. 이는 긴 영상의 성공이나 품질을 보장하는 설정이 아니며 최종 피크·OOM·완료 결과로 검증한다.
 
-## 변경 범위에 맞춘 관리도구 회귀 검사
+## 변경 범위에 맞춘 워크플로우 회귀 검사
 
 가벼운 수정은 영향받는 모듈만 지정한다. 문서만 수정하면 형식·링크·diff 확인으로 충분하며, UI 변경은 해당 흐름의 브라우저 검증을 함께 수행한다. 전체 전수 검사 중에도 매 변경마다 전체 회귀를 반복하지 않는다.
 
@@ -210,7 +210,7 @@ ASSET_LEDGER_SOURCE_ROOT=../slime-assets ASSET_LEDGER_EXPORT_FILE="$fixture_dire
 ### 맵 통합 검수와 선택 리소스
 
 
-리소스 계획·이미지 중복 제거·제한 병렬 로딩·취소는 프론트엔드 `@slime/field-renderer`의 `map-resource-plan.ts`와 `map-resource-loader.mjs`가 소유한다. 관리도구는 등록 카탈로그의 URL·해시를 연결하고 선택 맵의 타일·오브젝트 로드 수를 표시한다. 지형 전체 카탈로그를 조회하더라도 전체 이미지를 다운로드하지 않는다. 캐릭터 표현 비교는 선택 가능한 세 종류 바닥만 준비한다. 전투필드는 선택한 전장 하나의 리소스만 준비한다. 전체 비교는 제공하지 않으며 전장 변경 시 이전 장면을 해제한다.
+리소스 계획·이미지 중복 제거·제한 병렬 로딩·취소는 프론트엔드 `@slime/field-renderer`의 `map-resource-plan.ts`와 `map-resource-loader.mjs`가 소유한다. 워크플로우는 등록 카탈로그의 URL·해시를 연결하고 선택 맵의 타일·오브젝트 로드 수를 표시한다. 지형 전체 카탈로그를 조회하더라도 전체 이미지를 다운로드하지 않는다. 캐릭터 표현 비교는 선택 가능한 세 종류 바닥만 준비한다. 전투필드는 선택한 전장 하나의 리소스만 준비한다. 전체 비교는 제공하지 않으며 전장 변경 시 이전 장면을 해제한다.
 
 ### 전체 맵 PNG 내보내기
 
@@ -269,7 +269,7 @@ ASSET_LEDGER_SOURCE_ROOT=../slime-assets ASSET_LEDGER_EXPORT_FILE="$fixture_dire
 
 ### 야외필드 장식 접지 검수
 
-개별 야외필드 검수 데이터를 생성할 때 `domains/map_assets/placement.py`로 장식의 공용 점유 크기를 검사한다. 중심 앵커의 짝수 폭은 양쪽 반 칸에 걸쳐 접촉하는 셀을 포함한다. 맵 경계 침범, 접지 영역의 고도 불일치, 다른 장식과의 점유 셀 중첩은 오브젝트 ID·좌표를 포함한 오류로 중단한다. 화면에서 나뭇가지처럼 위쪽 실루엣이 겹치는 것은 이 접지 검사와 구분한다. 전체 선택 목록 구성은 검사를 보류하여 한 맵의 오류가 관리도구 전체 기동을 막지 않으며, 해당 맵을 선택하면 검사를 수행한다. 기존 맵도 선택 시 검사되므로 과거 중첩 배치는 오류로 드러날 수 있다. 도시 건물·경비센터·캐릭터 충돌과 픽셀 단위 실루엣 검사는 이 검사 범위에 포함하지 않는다.
+개별 야외필드 검수 데이터를 생성할 때 `domains/map_assets/placement.py`로 장식의 공용 점유 크기를 검사한다. 중심 앵커의 짝수 폭은 양쪽 반 칸에 걸쳐 접촉하는 셀을 포함한다. 맵 경계 침범, 접지 영역의 고도 불일치, 다른 장식과의 점유 셀 중첩은 오브젝트 ID·좌표를 포함한 오류로 중단한다. 화면에서 나뭇가지처럼 위쪽 실루엣이 겹치는 것은 이 접지 검사와 구분한다. 전체 선택 목록 구성은 검사를 보류하여 한 맵의 오류가 워크플로우 전체 기동을 막지 않으며, 해당 맵을 선택하면 검사를 수행한다. 기존 맵도 선택 시 검사되므로 과거 중첩 배치는 오류로 드러날 수 있다. 도시 건물·경비센터·캐릭터 충돌과 픽셀 단위 실루엣 검사는 이 검사 범위에 포함하지 않는다.
 
 접지 크기의 기준은 공용 속성의 `groundFootprintColumns`·`groundFootprintRows`와 맵의 바닥 타일이다. 야외필드 1×1은 공용 160×80 타일 한 칸이며, 빌보드 표시 높이·이미지 앵커·수관·뿌리 실루엣이 이 점유 크기를 자동으로 확장하지 않는다. 지정된 점유 셀의 경계·겹침·고도 차이는 계속 오류로 처리한다.
 
