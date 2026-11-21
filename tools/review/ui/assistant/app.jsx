@@ -1,3 +1,4 @@
+import ContentDatabaseStatus from "./ContentDatabaseStatus.jsx";
 import EffectEditor from "./EffectEditor.jsx";
 import BuildingEditor from "./BuildingEditor.jsx";
 import MapReview from "./MapReview.jsx";
@@ -236,6 +237,8 @@ function App() {
       <button aria-expanded={searchMode==="expressions"} onClick={()=>setSearchMode(searchMode==="expressions"?"tools":"expressions")}>표정 프리셋</button>
       {searchMode==="expressions" && <ExpressionCatalog key={search} query={search} choose={appendSelection}/>}
       {searchMode==="anchors" && <AnchorHistory/>}
+      <button aria-expanded={searchMode==="content"} onClick={()=>setSearchMode(searchMode==="content"?"tools":"content")}>콘텐츠 DB 상태</button>
+      {searchMode==="content" && <ContentDatabaseStatus/>}
       <button aria-expanded={searchMode==="services"} onClick={()=>setSearchMode(searchMode==="services"?"tools":"services")}>서비스 등록 목록</button>
       <button aria-expanded={searchMode==="history"} onClick={()=>setSearchMode(searchMode==="history"?"tools":"history")}>생성 이력</button>
       <button aria-expanded={searchMode==="jobs"} onClick={()=>setSearchMode(searchMode==="jobs"?"tools":"jobs")}>운영 작업 이력</button>
