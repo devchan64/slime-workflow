@@ -1,7 +1,10 @@
 import StepBuilder from "./StepBuilder.jsx";
 import React, {useEffect, useRef, useState} from "react";
 
-export default function FormLibrary({session, call, addToMessage}) {
+export default function FormLibrary({session, messages, call, addToMessage}) {
+  const [proposalId,setProposalId] = useState("");
+  const proposals = messages.filter(message=>message.session_job_unique && message.job?.workflow_proposal);
+  const selectedProposal = proposals.find(message=>message.job_id===proposalId);
   const [forms, setForms] = useState({});
   const [selection, setSelection] = useState("");
   const [reference, setReference] = useState(null);
@@ -109,6 +112,17 @@ export default function FormLibrary({session, call, addToMessage}) {
 
   return <section className="panel" aria-label="세션 입력 폼">
     <fieldset disabled={busy}><legend>세션 입력 폼</legend>
+      {proposals.length>0 && <section>
+        <label>대화에서 제안된 워크플로우 <select value={selectedProposal ? proposalId : ""} onChange={event=>setProposalId(event.target.value)}>
+          <option value="">답변 선택</option>
+          {proposals.map(message=><option key={message.job_id} value={message.job_id}>{message.text.slice(0,60)} · {message.job_id}</option>)}
+        </select></label>
+        <button disabled={!selectedProposal} onClick={()=>{
+          editDefinition(selectedProposal.job.workflow_proposal);
+          setReference(null);setSelection("");setName("");
+          setNotice("선택한 답변의 제안으로 편집 초안을 교체했습니다.");
+        }}>선택한 제안으로 초안 교체</button>
+      </section>}
       <label>저장된 버전 <select value={selection} onChange={event => setSelection(event.target.value)}>
         <option value="">버전 선택</option>
         {versions.map(version => <option key={version.key} value={version.key}>{version.label}</option>)}

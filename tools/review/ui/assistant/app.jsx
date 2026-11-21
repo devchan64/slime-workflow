@@ -153,7 +153,7 @@ function App() {
           {tool.review_path && <a href={tool.review_path+(session?"?"+new URLSearchParams({session}):"")}>검수 화면 열기</a>}
         </div>)}
     </section>}
-    {session && <div hidden={!showForms}>{<FormLibrary key={session} session={session} call={call} addToMessage={value=>edit([draft,value].filter(Boolean).join("\n"))}/>}</div>}
+    {session && <div hidden={!showForms}>{<FormLibrary key={session} session={session} messages={view.messages || []} call={call} addToMessage={value=>edit([draft,value].filter(Boolean).join("\n"))}/>}</div>}
     {queue && session && <QueuePanel key={session} session={session} call={call}/>}
     {(view.next_offset != null || historyPage) && <nav aria-label="대화 이력 페이지">
       {view.next_offset != null && <button onClick={()=>changeHistory({offset:view.next_offset,snapshot:view.snapshot})}>이전 메시지 보기</button>}

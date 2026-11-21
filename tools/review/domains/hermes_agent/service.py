@@ -364,6 +364,15 @@ class HermesServiceManager:
                     if table is not None:
                         activity["history_table"] = table
                     current_view_record['job'] = {'status': current_status_record, 'final_response': current_final_answer, 'final_response_truncated': current_answer_truncated, 'tool_activity': activity}
+                    if current_final_answer and not current_answer_truncated and (
+                            "HERMES_WORKFLOW_PROPOSAL" in current_final_answer or "```json" in current_final_answer):
+                        from .workflow_review import extract_conversation_workflow_proposal
+                        try:
+                            proposal = extract_conversation_workflow_proposal(current_final_answer)
+                        except ValueError:
+                            pass
+                        else:
+                            current_view_record["job"]["workflow_proposal"] = proposal
                 except (OSError, ValueError, TypeError, KeyError):
                     current_view_record['job'] = {'status': {'status':'unavailable', 'message':'작업 상태를 읽을 수 없습니다.'}, 'final_response': None, 'final_response_truncated': False}
             hermes_view_messages.append(current_view_record)
