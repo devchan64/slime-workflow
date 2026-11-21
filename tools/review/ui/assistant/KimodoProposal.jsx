@@ -14,14 +14,24 @@ export default function KimodoProposal({job,append}){
   }
   if(!proposal)return <section><button type="button" disabled={busy} onClick={load}>Kimodo 생성 제안 검토</button>
     {error && <p role="alert">{error}</p>}</section>;
-  return <form onSubmit={event=>{
-    event.preventDefault();
-    append("Kimodo 생성 요청",JSON.stringify({...proposal,frames:Number(proposal.frames),steps:Number(proposal.steps),seed:Number(proposal.seed)}));
-  }}><fieldset><legend>Kimodo 생성 제안</legend>
-    <label>동작 설명 <textarea required value={proposal.prompt} onChange={e=>setProposal({...proposal,prompt:e.target.value})}/></label>
+  async function addRequest(event){
+    event.preventDefault();setBusy(true);setError("");
+    try{
+      const inputs={...proposal,frames:Number(proposal.frames),steps:Number(proposal.steps),seed:Number(proposal.seed)};
+      const response=await fetch("/management/assistant/kimodo-proposal-review",{method:"POST",
+        headers:{"Content-Type":"application/json"},body:JSON.stringify(inputs)});
+      const result=await response.json();
+      if(!response.ok)throw new Error(result.detail || "생성 요청을 확인하세요.");
+      append("Kimodo 생성 요청",JSON.stringify(result.request));
+    }catch(problem){setError(problem.message);}
+    finally{setBusy(false);}
+  }
+  return <form onSubmit={addRequest}><fieldset disabled={busy}><legend>Kimodo 생성 제안</legend>
+    <label>동작 설명 <textarea required maxLength={2000} value={proposal.prompt} onChange={e=>setProposal({...proposal,prompt:e.target.value})}/></label>
     {[[ "frames","프레임 수",30,300 ],[ "steps","생성 단계",2,100 ],[ "seed","시드",0,2147483647 ]].map(([key,label,min,max])=>
       <label key={key}>{label} <input type="number" required min={min} max={max} value={proposal[key]}
         onChange={e=>setProposal({...proposal,[key]:e.target.value})}/></label>)}
     <button disabled={!proposal.prompt.trim()}>편집한 요청을 대화 입력에 추가</button>
+    {error && <p role="alert">{error}</p>}
   </fieldset></form>;
 }

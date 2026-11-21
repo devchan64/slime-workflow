@@ -584,6 +584,15 @@ def build_management_application(current_handler_class, current_root_path, curre
             raise HTTPException(422, str(error)) from error
         return {'prompt': request['prompt'], 'translation': request.get('translation_source_ko') or request.get('building_design_ko')}
 
+    @current_root_application.post('/management/assistant/kimodo-proposal-review')
+    def review_kimodo_proposal(inputs: dict):
+        from fastapi import HTTPException
+        from tools.review.domains.hermes_agent.delegation_proposal import validate_kimodo_proposal_inputs
+        try:
+            return {"request": validate_kimodo_proposal_inputs(inputs)}
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
     @current_root_application.get('/management/assistant/heartmula-examples')
     def heartmula_examples():
         from generators.music.examples import load_music_examples
