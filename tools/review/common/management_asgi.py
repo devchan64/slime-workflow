@@ -699,7 +699,24 @@ def build_management_application(current_handler_class, current_root_path, curre
         from generators.wan_fun.page.examples import load_fun_example_catalog, read_fun_example_request
         if identifier not in load_fun_example_catalog():
             return Response(status_code=404)
-        return {'id': identifier, 'request': read_fun_example_request(identifier)}
+        from generators.wan_fun.page.examples import FUN_EXAMPLE_STORAGE_ROOT
+        from generators.wan_fun.video_input import inspect_fun_pose_video
+        maximum, summary = inspect_fun_pose_video(FUN_EXAMPLE_STORAGE_ROOT / identifier / 'pose-input.mp4')
+        return {'id': identifier, 'request': read_fun_example_request(identifier),
+                'video': {'maximum_frames': maximum, 'summary': summary}}
+
+    @current_root_application.post('/management/assistant/fun-video-info')
+    async def fun_video_info(request: Request):
+        import tempfile
+        from generators.wan_fun.video_input import FUN_VIDEO_MAXIMUM_BYTES, inspect_fun_pose_video
+        with tempfile.NamedTemporaryFile(suffix='.mp4') as video:
+            async for chunk in request.stream():
+                if video.tell() + len(chunk) > FUN_VIDEO_MAXIMUM_BYTES:
+                    return JSONResponse({'summary': 'MP4 최대 크기는 32MiB입니다.'}, status_code=413)
+                video.write(chunk)
+            video.flush()
+            maximum, summary = await asyncio.to_thread(inspect_fun_pose_video, video.name)
+        return JSONResponse({'maximum_frames': maximum, 'summary': summary}, status_code=200 if maximum else 422)
 
     @current_root_application.get('/management/assistant/fun-pose/{job}')
     def fun_pose_input(job: str):

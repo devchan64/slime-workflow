@@ -1,5 +1,7 @@
 """SOMA 원본 영상의 길이·용량을 접수 전에 검증한다."""
 import base64
+from pathlib import Path
+from generators.wan_fun.contracts import FUN_MAX_FRAME_COUNT
 import tempfile
 import cv2
 
@@ -62,3 +64,35 @@ def decode_processed_pose_video(current_job_root,current_attempt_root,current_re
     finally:
         current_video_capture.release()
     return current_output_paths
+
+
+def inspect_fun_pose_video(current_video_path):
+    """업로드 영상의 조건과 추천 프레임 수를 확인한다."""
+    if not current_video_path:
+        return None, '포즈 MP4를 첨부하세요.'
+    try:
+        current_video_file = Path(current_video_path)
+        if current_video_file.stat().st_size > FUN_VIDEO_MAXIMUM_BYTES:
+            return None, '영상이 32MiB를 초과합니다. 크기를 줄여 다시 첨부하세요.'
+        with current_video_file.open('rb') as current_video_stream:
+            if current_video_stream.read(8)[4:8] != b'ftyp':
+                return None, 'MP4 영상을 첨부하세요.'
+        current_video_capture = cv2.VideoCapture(str(current_video_file))
+        try:
+            if not current_video_capture.isOpened():
+                return None, '영상을 읽을 수 없습니다. MP4를 다시 첨부하세요.'
+            current_frame_rate = current_video_capture.get(cv2.CAP_PROP_FPS)
+            current_frame_count = int(current_video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+            current_frame_width = int(current_video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+            current_frame_height = int(current_video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        finally:
+            current_video_capture.release()
+        current_description_text = f'입력: {current_frame_width}×{current_frame_height} · {current_frame_rate:.2f}fps · {current_frame_count}프레임.'
+        if (current_frame_width, current_frame_height) != (832, 480) or not 15.99 <= current_frame_rate <= 16.01:
+            return None, current_description_text + ' 832×480·16fps로 변환해 다시 첨부하세요.'
+        current_recommended_count = min(FUN_MAX_FRAME_COUNT, 1 + 4 * ((current_frame_count - 1) // 4))
+        if current_recommended_count < 5:
+            return None, current_description_text + ' 최소 5프레임의 영상을 첨부하세요.'
+        return current_recommended_count, current_description_text + f' 사용 가능 · 최대 {current_recommended_count}프레임 선택 가능.'
+    except (OSError, ValueError, OverflowError):
+        return None, '영상 정보를 읽을 수 없습니다. MP4를 다시 첨부하세요.'

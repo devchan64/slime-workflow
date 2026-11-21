@@ -10,6 +10,7 @@ export default function FunControlPage(){
   const [template,setTemplate]=useState(null),[selected,select]=useState("");
   const [request,setRequest]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
   const [pending,setPending]=useState(null),[job,setJob]=useState(new URLSearchParams(location.search).get("job") || "");
+  const [videoInfo,setVideoInfo]=useState(null);
   const sending=useRef(false);
   async function submit(){
     if(!pending || sending.current)return;
@@ -35,6 +36,12 @@ export default function FunControlPage(){
     setBusy(true);setError("");
     try{
       const value=field==="images"?[await referencePng(file)]:await videoData(file);
+      if(field==="pose_video"){
+        const response=await fetch("/management/assistant/fun-video-info",{method:"POST",body:file});
+        const info=await response.json();
+        if(!response.ok)throw new Error(info.summary || "포즈 영상을 확인할 수 없습니다.");
+        setVideoInfo(info);
+      }
       setRequest(current=>({...current,[field]:value}));
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
@@ -46,12 +53,14 @@ export default function FunControlPage(){
       if(!response.ok)throw new Error("예제 첨부 파일을 불러올 수 없습니다.");
       const example=await response.json();
       if(example.id!==selected)throw new Error("선택한 예제와 응답이 일치하지 않습니다.");
+      setVideoInfo(example.video);
       setRequest(example.request);
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
   }
+  const frameLimit=videoInfo?.maximum_frames ?? template?.maximum_frames;
   const settings=[
-    ["frames","프레임 수",5,template?.maximum_frames,4],
+    ["frames","프레임 수",5,frameLimit,4],
     ["steps","스텝",2,100,1],
     ["seed","시드",0,template?.maximum_seed,1],
     ["flow_shift","Flow shift",0.1,20,"any"],
@@ -75,12 +84,14 @@ export default function FunControlPage(){
       <label>처리된 포즈 MP4 · 832×480 · 16fps<input type="file" accept="video/mp4" onChange={event=>attach(event.target.files[0],"pose_video")}/></label>
       {request.images[0] && <img alt="외형 참조 이미지" style={{maxWidth:"100%"}} src={"data:image/png;base64,"+request.images[0]}/>}
       {request.pose_video && <video controls loop playsInline preload="metadata" aria-label="입력 포즈 영상" src={"data:video/mp4;base64,"+request.pose_video}/>}
+      {videoInfo && <div><p>{videoInfo.summary}</p><button type="button"
+        onClick={()=>setRequest({...request,frames:frameLimit})}>입력 영상의 최대 프레임 적용</button></div>}
       {["prompt","negative_prompt"].map(field=><label key={field}>{field==="prompt"?"동작 프롬프트":"부정 프롬프트"}
         <textarea maxLength={8000} value={request[field]} onChange={event=>setRequest({...request,[field]:event.target.value})}/></label>)}
       <label>모델<select value={request.model_profile || "wan22-14b"} onChange={event=>setRequest({...request,model_profile:event.target.value})}>
         {template.models?.map(model=><option key={model.id} value={model.id}>{model.label}</option>)}</select></label>
       <fieldset><legend>출력 프레임 빠른 선택</legend>
-        {[21,41,81,129].filter(count=>count<=template.maximum_frames).map(count=>
+        {[21,41,81,129].filter(count=>count<=frameLimit).map(count=>
           <button key={count} type="button" aria-pressed={Number(request.frames)===count}
             onClick={()=>setRequest({...request,frames:count})}>{count}프레임</button>)}
       </fieldset>
