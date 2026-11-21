@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 
+import editSpriteFrames from "./editSpriteFrames.mjs";
 import applySpriteCanvas from "./applySpriteCanvas.mjs";
 import renderSpritePreview from "./renderSpritePreview.mjs";
 
@@ -78,15 +79,38 @@ function SpritePreview({rows,image,bounds,fps,original,onEdit}){
   </fieldset>;
 }
 
+function BulkEdit({rows,onEdit}){
+  const [target,setTarget]=useState("전체"),[range,setRange]=useState(""),[mode,setMode]=useState("크롭");
+  const [values,setValues]=useState([0,0,0,0,rows[0].anchorX,rows[0].anchorY]),[notice,setNotice]=useState("");
+  const names=["왼쪽 여백","위쪽 여백","오른쪽 여백","아래쪽 여백","공통 앵커 X","공통 앵커 Y"];
+  function apply(){
+    const [result,message]=editSpriteFrames(rows.map(row=>fields.map(field=>row[field])),target,range,mode,
+      ...values.map(value=>value===""?NaN:Number(value)));
+    if(result.data)onEdit(result.data.map(row=>Object.fromEntries(fields.map((field,i)=>[field,row[i]]))));
+    setNotice(message);
+  }
+  return <details><summary>프레임 일괄 편집</summary>
+    <label>적용 대상<select value={target} onChange={e=>setTarget(e.target.value)}><option>전체</option><option>지정 프레임</option></select></label>
+    {target==="지정 프레임" && <label>프레임 번호<input placeholder="1,3-5" value={range} onChange={e=>setRange(e.target.value)}/></label>}
+    <label>편집 종류<select value={mode} onChange={e=>setMode(e.target.value)}><option>크롭</option><option>앵커</option></select></label>
+    {(mode==="크롭"?[0,1,2,3]:[4,5]).map(i=><label key={i}>{names[i]}<input inputMode="decimal" value={values[i]}
+      onChange={e=>setValues(values.map((v,j)=>j===i?e.target.value:v))}/></label>)}
+    <button type="button" onClick={apply}>일괄 적용</button>{notice && <p role="status">{notice}</p>}
+  </details>;
+}
+
 function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
   const [rows,setRows]=useState(()=>frames.map(({rect,anchor})=>({...rect,anchorX:anchor.x,anchorY:anchor.y})));
   const [columns,setColumns]=useState(initialColumns),[busy,setBusy]=useState(false);
   const [result,setResult]=useState(null),[error,setError]=useState("");
   const [first,setFirst]=useState(1),[last,setLast]=useState(rows.length),[fps,setFps]=useState(6);
   const [review,setReview]=useState(null);
-  function update(index,field,value){
-    setRows(rows.map((row,i)=>i===index?{...row,[field]:value}:row));
+  function editRows(next){
+    setRows(next);
     setReview(null);setResult(null);setError("");
+  }
+  function update(index,field,value){
+    editRows(rows.map((row,i)=>i===index?{...row,[field]:value}:row));
   }
   async function exportSheet(event){
     event.preventDefault();setBusy(true);setResult(null);setError("");
@@ -132,7 +156,8 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
     <ResultTable table={{title:"등록 프레임 좌표",summary:frames.length+"프레임",columns:["프레임",...labels],
       rows:rows.map((row,i)=>[i+1,...fields.map((field,j)=><input aria-label={(i+1)+"번 "+labels[j]} type="number"
         required step={j<4?1:"any"} value={row[field]} onChange={e=>update(i,field,e.target.value)}/>)])}}/>
-    <SpritePreview onEdit={next=>{setRows(next);setReview(null);setResult(null);setError("");}} rows={rows} image={image} bounds={bounds} fps={fps} original={original}/>
+    <BulkEdit rows={rows} onEdit={editRows}/>
+    <SpritePreview onEdit={editRows} rows={rows} image={image} bounds={bounds} fps={fps} original={original}/>
     <label>출력 열 수<input type="number" min="1" max="128" required value={columns}
       onChange={e=>{setColumns(e.target.value);setReview(null);setResult(null);}}/></label>
     <button>시트와 좌표맵 내보내기</button>

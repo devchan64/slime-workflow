@@ -1,4 +1,4 @@
-(currentFrameRows,currentTargetMode,currentTargetText,currentEditMode,currentLeftMargin,currentTopMargin,currentRightMargin,currentBottomMargin,currentAnchorX,currentAnchorY)=>{
+export default (currentFrameRows,currentTargetMode,currentTargetText,currentEditMode,currentLeftMargin,currentTopMargin,currentRightMargin,currentBottomMargin,currentAnchorX,currentAnchorY)=>{
  const currentOriginalRows=Array.isArray(currentFrameRows)?currentFrameRows:currentFrameRows?.data;
  try{
   if(!currentOriginalRows?.length)throw Error('시트를 먼저 불러오세요.');
