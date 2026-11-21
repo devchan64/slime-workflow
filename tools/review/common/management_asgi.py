@@ -370,6 +370,13 @@ def build_management_application(current_handler_class, current_root_path, curre
     def assistant_page():
         return FileResponse(assistant_root / 'index.html', headers={'Cache-Control': 'no-cache'})
 
+    @current_root_application.get('/management/assistant/changelog/{generator}')
+    def assistant_changelog(generator: str, page: int = 0):
+        from tools.review.common.generator_changelog import GENERATOR_CHANGELOG_PATHS, read_changelog_page
+        if generator not in GENERATOR_CHANGELOG_PATHS:
+            return Response(status_code=404)
+        return read_changelog_page(generator, page)
+
     @current_root_application.get('/management/assistant/{asset}')
     def assistant_asset(asset: str):
         files = {'app.js': 'dist/app.js', 'app.js.LEGAL.txt': 'dist/app.js.LEGAL.txt', 'style.css': 'style.css'}

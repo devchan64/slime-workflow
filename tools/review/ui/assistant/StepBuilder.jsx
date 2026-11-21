@@ -1,3 +1,4 @@
+import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import TranslationEvidence from "./TranslationEvidence.jsx";
 import React, {useEffect, useState} from "react";
 
@@ -91,6 +92,7 @@ export default function StepBuilder({call, definition, onChange}) {
             {sources.map(source => <option key={source.value} value={source.value}>{source.label}</option>)}</select>}
         </div>;
       })}
+      <GeneratorChangelog key={generator} generator={generator==="flux-image" ? "flux-image-generator" : generator}/>
       {generator==="prompt-translation" && !links.text &&
         <TranslationEvidence key={inputs.text || ""} source={inputs.text || ""} call={call}/>}
       <button disabled={Boolean(invalid)} onClick={append}>편집 중인 정의에 단계 추가</button>
