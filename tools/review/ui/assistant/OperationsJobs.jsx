@@ -4,6 +4,16 @@ import ResultTable from "./ResultTable.jsx";
 export default function OperationsJobs(){
   const [query,setQuery]=useState(""),[status,setStatus]=useState("전체");
   const [result,setResult]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
+  const [gpu,setGpu]=useState(null),[gpuError,setGpuError]=useState("");
+  async function loadGpu(){
+    setBusy(true);setGpuError("");
+    try{
+      const response=await fetch("/management/assistant/operations-gpu",{cache:"no-store"});
+      if(!response.ok)throw new Error("GPU 관측 기록을 불러올 수 없습니다.");
+      setGpu(await response.json());
+    }catch(problem){setGpu(null);setGpuError(problem.message);}
+    finally{setBusy(false);}
+  }
   async function load(direction){
     setBusy(true);setError("");
     try{
@@ -25,5 +35,9 @@ export default function OperationsJobs(){
     {result && <><ResultTable table={{title:"운영 작업",summary:result.summary,columns:["작업 ID","상태","GPU 대기","지시문","GPU 예약"],rows:result.rows}}/>
       <button disabled={!same || !page.offset} onClick={()=>load("newer")}>이전 페이지</button>
       <button disabled={!same || page.next_offset==null} onClick={()=>load("older")}>다음 페이지</button></>}
+    <button onClick={loadGpu}>GPU 대기열·예약 조회</button>
+    {gpuError && <p role="alert">{gpuError}</p>}
+    {gpu?.map(table=>table.available ? <ResultTable key={table.title} table={table}/> :
+      <p role="status" key={table.title}>{table.summary}</p>)}
   </fieldset>;
 }

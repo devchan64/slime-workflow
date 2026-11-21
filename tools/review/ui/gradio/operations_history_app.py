@@ -17,6 +17,7 @@ from tools.review.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
 
 
 from tools.review.common.operations_history import (
+    format_operations_capture_request_id, summarize_operations_queue_snapshot,
     resolve_operations_queue_identity,
     read_operations_verified_source,
     summarize_operations_reservation_snapshot,
@@ -30,18 +31,6 @@ from tools.review.common.operations_history import (
     normalize_hermes_history_status,
     read_operations_job_history_page as read_job_page,
 )
-
-
-def format_operations_capture_request_id(current_job_record):
-    """검증된 캡처 대기 작업의 접수 ID만 표시한다."""
-    if current_job_record.get('service') != 'review-capture':
-        return '—'
-    current_request_identifier=current_job_record.get('request_id')
-    current_capture_service=current_job_record.get('capture_service')
-    if current_job_record.get('source_service') == 'review-capture' and current_capture_service in ('map-review','character-review') and isinstance(current_request_identifier,str) and re.fullmatch(r'[A-Za-z0-9_-]{8,80}',current_request_identifier):
-        current_capture_label='맵' if current_capture_service=='map-review' else '캐릭터'
-        return current_capture_label+' · '+current_request_identifier
-    return '미확인'
 
 
 def validate_operations_history_link(current_job_identifier,current_session_identifier):
@@ -85,19 +74,10 @@ def read_operations_history_overview(current_search_text='', current_status_filt
     current_management_record=None
     try:
         current_management_record=execute_remote_management_command('hermes-agent','hermes-management-status',{})
-        current_queue_record=current_management_record['queue']
-        if not isinstance(current_queue_record,dict) or current_queue_record.get('status')!='available' or not isinstance(current_queue_record.get('jobs'),list):
-            raise ValueError('대기열 조회 불가')
-        current_queue_records=current_queue_record['jobs']
-        if any(not isinstance(item,dict) or not isinstance(item.get('service'),str) or not isinstance(item.get('id'),str) for item in current_queue_records):
-            raise ValueError('대기열 형식 오류')
-        current_queue_rows=[[str(index+1),item['service'],item['id'],read_operations_verified_source(item['service'],item.get('source_service')) or '미확인',format_operations_capture_request_id(item)] for index,item in enumerate(current_queue_records)]
-        current_queue_counts=Counter((item['service'],item['id']) for item in current_queue_records)
-        current_queue_notice='대기 기록 '+str(len(current_queue_rows))+'건 · 식별값이 빠진 티켓은 실행기 신원을 확인할 수 없으며 실행 순서나 완료도 보장하지 않습니다. 관측 '+str(current_management_record.get('queried_at','확인 불가'))
-    except (OSError,ValueError,KeyError,TypeError,RuntimeError):
-        current_queue_rows=[]
-        current_queue_counts=None
-        current_queue_notice='GPU 대기열 조회 불가 · 대기열이 비었다는 뜻이 아닙니다.'
+    except (OSError, ValueError, KeyError, TypeError, RuntimeError):
+        pass
+    current_queue_rows,current_queue_counts,current_queue_notice=summarize_operations_queue_snapshot(current_management_record)
+    if current_queue_counts is None:
         current_errors_list.append('대기열')
     current_reservation_index,current_unmatched_record,current_reservation_rows,current_reservation_notice=summarize_operations_reservation_snapshot(current_management_record)
     if current_reservation_index is None:current_errors_list.append('예약')

@@ -674,6 +674,23 @@ def build_management_application(current_handler_class, current_root_path, curre
         rows, summary = format_capability_table(catalog)
         return {'rows': rows, 'summary': summary}
 
+    @current_root_application.get('/management/assistant/operations-gpu')
+    def operations_gpu():
+        from tools.review.common.management_client import execute_remote_management_command
+        from tools.review.common.operations_history import summarize_operations_queue_snapshot, summarize_operations_reservation_snapshot
+        try:
+            snapshot = execute_remote_management_command('hermes-agent', 'hermes-management-status', {})
+        except (OSError, RuntimeError, ValueError):
+            snapshot = None
+        jobs, counts, queue_notice = summarize_operations_queue_snapshot(snapshot)
+        index, _, reservations, reservation_notice = summarize_operations_reservation_snapshot(snapshot)
+        return [
+            dict(title='GPU 대기열', columns=['순서', '대기열', '작업 ID', '원 서비스', '캡처 접수 ID'],
+                 rows=jobs, summary=queue_notice, available=counts is not None),
+            dict(title='GPU 예약', columns=['상태', '서비스', '작업 ID', '메모리(MiB)', '리더 상태', '원 서비스'],
+                 rows=reservations, summary=reservation_notice, available=index is not None),
+        ]
+
     @current_root_application.post('/management/assistant/operations-jobs')
     def operations_jobs(payload: dict):
         from fastapi import HTTPException
