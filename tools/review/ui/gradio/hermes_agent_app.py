@@ -253,6 +253,17 @@ def load_conversation_workflow_definition(current_session_identifier, current_so
     current_answer_text = current_job_record.get("final_response")
     if current_job_record.get("final_response_truncated") is not False or not isinstance(current_answer_text, str):
         raise gr.Error("완료된 대화 답변 전체가 필요합니다.")
+    return extract_conversation_workflow_proposal(current_answer_text)
+
+
+def extract_conversation_workflow_proposal(current_answer_text):
+    if "HERMES_WORKFLOW_PROPOSAL" not in current_answer_text:
+        fenced_json_blocks = re.findall(r"(?ms)^```json[ \t]*\n(.*?)\n```[ \t]*$", current_answer_text)
+        if len(fenced_json_blocks) == 1:
+            from tools.review.common.management_gateway import parse_management_request_json
+            proposal_definition = parse_management_request_json(fenced_json_blocks[0])
+            if isinstance(proposal_definition, dict) and set(proposal_definition) == {"steps"} and isinstance(proposal_definition["steps"], list):
+                return fenced_json_blocks[0]
     proposal_block_values = re.findall(r"(?ms)^HERMES_WORKFLOW_PROPOSAL[ \t]*\n(.*?)\nEND_HERMES_WORKFLOW_PROPOSAL[ \t]*$", current_answer_text)
     if len(proposal_block_values) != 1:
         raise gr.Error("선택한 답변에서 워크플로우 제안 한 개를 확인하세요.")

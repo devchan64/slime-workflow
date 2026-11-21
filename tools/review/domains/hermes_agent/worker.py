@@ -198,7 +198,7 @@ def execute_hermes_gpu_job(worker_job_directory):
         worker_port_socket.bind(('127.0.0.1', 0))
         worker_server_port = worker_port_socket.getsockname()[1]
     worker_server_arguments = [str(RUNTIME_SERVER_PATH), '-m', str(HERMES_MODEL_DIRECTORY / HERMES_MODEL_FILENAME), '--alias', 'hermes-local', '--host', '127.0.0.1', '--port', str(worker_server_port), '-ngl', 'all', '--fit', 'off', '-c', '64000', '-np', '1', '-b', '256', '-ub', '128', '--jinja', '--no-context-shift', '--verbosity', '4']
-    worker_environment_values = dict(os.environ, LD_LIBRARY_PATH=':'.join(worker_manifest_record['runtime_library_paths']), HIP_VISIBLE_DEVICES='0')
+    worker_environment_values = dict(os.environ, LD_LIBRARY_PATH=':'.join([str(RUNTIME_SERVER_PATH.parent), *worker_manifest_record['runtime_library_paths']]), HIP_VISIBLE_DEVICES='0')
     worker_log_path = worker_job_directory / 'server.log'
     worker_socket_path = worker_job_directory / 'model-proxy.sock'
     worker_offload_value = None
