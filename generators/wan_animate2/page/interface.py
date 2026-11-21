@@ -4,7 +4,7 @@ import io
 from pathlib import Path
 import gradio as gr
 from tools.review.common.gradio_generator_changelog import build_generator_changelog
-from generators.wan_animate2.contracts import ANIMATE_JOB_STORAGE, validate_animate_request
+from generators.wan_animate2.contracts import ANIMATE_JOB_STORAGE, ANIMATE_MAXIMUM_SEED_VALUE, validate_animate_request
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_model_download import build_model_download_controls
@@ -61,7 +61,7 @@ def build_animate_interface(current_server_address,current_command_callback=None
                 current_prompt_control.change(lambda current_prompt_text:f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어 · 원문 그대로 전달',current_prompt_control,current_prompt_summary,queue=False)
                 current_frame_control=gr.Number(value=21,precision=0,minimum=5,maximum=81,step=4,label='실험 프레임 · 16fps · 4n+1')
                 current_steps_control=gr.Number(value=40,precision=0,minimum=2,maximum=50,label='스텝 · 공식 Base 기본 40')
-                current_seed_control=build_generation_seed(default_seed_value=42)
+                current_seed_control=build_generation_seed(default_seed_value=42, maximum_seed_value=ANIMATE_MAXIMUM_SEED_VALUE)
                 gr.Markdown('고정: 공식 Base BF16 · 공식 스케줄러/CFG · AMD ROCm GPU 연산 · 가중치 CPU 오프로드 없음. 실행 안정성과 캐릭터 비율 보존은 별도 검증이 필요합니다.')
                 current_generate_button=gr.Button('대기열에 추가',variant='primary',interactive=False)
                 gr.Markdown('모델 준비와 필수 입력을 갖추면 등록할 수 있습니다. 등록 전 인라인 확인 영역에서 확인·취소합니다.')

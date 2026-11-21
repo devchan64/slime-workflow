@@ -16,6 +16,7 @@ ANIMATE_MODEL_REVISION = '7d48412d7b903ff3a89f4f5a960d99e1899605a1'
 ANIMATE_RUNTIME_REVISION = '8c54b38fea3d624d23d0e43c0c96037f080a79f9'
 ANIMATE_MAXIMUM_BYTES = 32 * 1024 * 1024
 ANIMATE_OUTPUT_FRAME_RATE = 16
+ANIMATE_MAXIMUM_SEED_VALUE = 2147483647
 
 
 def inspect_animate_assets():
@@ -58,7 +59,7 @@ def validate_animate_request(current_request_record):
         raise ValueError('Animate-2 요청 필드 불일치')
     if current_request_record['action']!='generate':
         raise ValueError('generate 요청만 지원합니다.')
-    for current_field_name,current_minimum_value,current_maximum_value in [('frames',5,81),('steps',2,50),('seed',0,2147483647),('width',832,832),('height',480,480)]:
+    for current_field_name,current_minimum_value,current_maximum_value in [('frames',5,81),('steps',2,50),('seed',0,ANIMATE_MAXIMUM_SEED_VALUE),('width',832,832),('height',480,480)]:
         current_field_value=current_request_record[current_field_name]
         if type(current_field_value) is not int or not current_minimum_value<=current_field_value<=current_maximum_value:
             raise ValueError(f'{current_field_name}: 정수 {current_minimum_value}~{current_maximum_value} 필요')

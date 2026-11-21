@@ -37,6 +37,19 @@ class GradioStandardComponentTests(unittest.TestCase):
             self.assertEqual(current_seed_callback.fn(), KIMODO_MAXIMUM_SEED_VALUE)
             current_random_function.assert_called_once_with(KIMODO_MAXIMUM_SEED_VALUE + 1)
 
+    def test_wan_video_pages_use_generator_seed_limits(self):
+        from generators.wan_animate2.contracts import ANIMATE_MAXIMUM_SEED_VALUE
+        from generators.wan_vace.contracts import VACE_MAXIMUM_SEED_VALUE
+        from generators.wan_animate2.page.interface import build_animate_interface
+        from generators.wan_vace.page.interface import build_vace_interface
+        for current_builder,current_maximum in ((build_animate_interface,ANIMATE_MAXIMUM_SEED_VALUE),(build_vace_interface,VACE_MAXIMUM_SEED_VALUE)):
+            with self.subTest(builder=current_builder.__name__):
+                current_interface=current_builder('http://localhost:8770',lambda *_:{})
+                current_seed_controls=[current_block for current_block in current_interface.blocks.values() if isinstance(current_block,gr.Number) and current_block.label=='Seed']
+                self.assertEqual(len(current_seed_controls),1)
+                self.assertEqual(current_seed_controls[0].maximum,current_maximum)
+                with self.assertRaises(gr.Error):current_seed_controls[0].preprocess(current_maximum+1)
+
     def test_history_summary_prioritizes_seed_and_shows_direction(self):
         from tools.review.common.gradio_history import format_history_request_summary
         current_summary_text = format_history_request_summary({'prompt':'A person walks.','seed':202,'directions':['front_right_30']})

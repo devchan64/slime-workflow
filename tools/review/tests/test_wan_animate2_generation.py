@@ -119,6 +119,10 @@ class AnimateTwoContractTests(unittest.TestCase):
             current_video_writer.release()
             current_request_record=dict(action='generate',images=[base64.b64encode(current_image_buffer.getvalue()).decode()],driving_video=base64.b64encode(current_video_path.read_bytes()).decode(),prompt='A male character.',frames=13,steps=40,seed=42,width=832,height=480)
             self.assertEqual(validate_animate_request(current_request_record)['frames'],13)
+            from generators.wan_animate2.contracts import ANIMATE_MAXIMUM_SEED_VALUE
+            self.assertEqual(validate_animate_request(dict(current_request_record,seed=ANIMATE_MAXIMUM_SEED_VALUE))['seed'],ANIMATE_MAXIMUM_SEED_VALUE)
+            with self.assertRaisesRegex(ValueError,'seed'):
+                validate_animate_request(dict(current_request_record,seed=ANIMATE_MAXIMUM_SEED_VALUE+1))
             with self.assertRaisesRegex(ValueError,'길이 부족'):
                 validate_animate_request(dict(current_request_record,frames=17))
             with self.assertRaisesRegex(ValueError,'4n'):

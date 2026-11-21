@@ -6,7 +6,7 @@ from contextlib import nullcontext
 from PIL import Image, ImageOps
 import gradio as gr
 from tools.review.common.gradio_generator_changelog import build_generator_changelog
-from generators.wan_vace.contracts import VACE_DEFAULT_SETTINGS, VACE_JOB_STORAGE, validate_vace_request
+from generators.wan_vace.contracts import VACE_DEFAULT_SETTINGS, VACE_JOB_STORAGE, VACE_MAXIMUM_SEED_VALUE, validate_vace_request
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_button_guidance import build_button_guidance
@@ -176,7 +176,7 @@ def build_vace_interface(current_server_address, current_command_callback=None):
         current_count_control = gr.Number(value=VACE_DEFAULT_SETTINGS['frames'], precision=0, minimum=5, maximum=129, step=4, label='출력 프레임', info='5~129의 4n+1. 81 초과는 장영상 실험 범위입니다. 로컬 기본 21장, 제작자 학습·예제는 81장/16fps. 프레임이 늘면 계산·메모리 요구량이 증가합니다.')
         current_duration_output = gr.Markdown(describe_video_frame_duration(VACE_DEFAULT_SETTINGS['frames']))
         current_count_control.change(describe_video_frame_duration, current_count_control, current_duration_output, queue=False)
-        current_seed_control = build_generation_seed(default_seed_value=VACE_DEFAULT_SETTINGS['seed'])
+        current_seed_control = build_generation_seed(default_seed_value=VACE_DEFAULT_SETTINGS['seed'], maximum_seed_value=VACE_MAXIMUM_SEED_VALUE)
         with gr.Group():
             gr.Markdown('### 고급 설정 · 설정값 안내')
             gr.Markdown('[모델카드](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)는 81프레임·16fps 학습과 포즈 등 제어 입력을 설명합니다. 아래 비교값은 [제작자의 제어 영상 + 참조 이미지 예제](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/examples/wan2.2_vace_fun/predict_v2v_control_ref.py)의 설정이며 모든 입력의 최적값이나 품질을 보장하지 않습니다. 값을 직접 바꾸며, 모드 전환 시 자동 적용하지 않습니다.')

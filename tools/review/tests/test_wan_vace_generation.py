@@ -38,6 +38,13 @@ class VaceVideoContractTests(unittest.TestCase):
             with self.subTest(field=current_field_name),self.assertRaises(ValueError):
                 validate_vace_request({**self.current_request_record,current_field_name:current_field_value})
 
+    def test_seed_generator_boundaries(self):
+        from generators.wan_vace.contracts import VACE_MAXIMUM_SEED_VALUE
+        for current_seed_value in (0,VACE_MAXIMUM_SEED_VALUE):
+            self.assertEqual(validate_vace_request({**self.current_request_record,'seed':current_seed_value})['seed'],current_seed_value)
+        with self.assertRaisesRegex(ValueError,'seed'):
+            validate_vace_request({**self.current_request_record,'seed':VACE_MAXIMUM_SEED_VALUE+1})
+
     def test_retired_q4_jobs_cannot_resume(self):
         from tools.review.domains.wan_vace.generation import VaceVideoGenerationManager
         current_service_instance = VaceVideoGenerationManager()
