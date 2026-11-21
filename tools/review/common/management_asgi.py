@@ -15,7 +15,6 @@ from fastapi import FastAPI, Request
 from starlette.responses import Response, RedirectResponse, JSONResponse
 
 MANAGEMENT_INTERFACE_BUILDERS = {
-    'operations-history': ('operations_history_app', 'build_operations_history_interface', 'none'),
     'hermes-direct': ('hermes_agent_app', 'build_hermes_direct_interface', 'none'),
     'mock-dwpose-validation': ('mock_progress_validation_app', 'build_mock_dwpose_interface', 'url'),
     'mock-animate-validation': ('mock_progress_validation_app', 'build_mock_animate_interface', 'url'),
@@ -230,6 +229,19 @@ def build_management_application(current_handler_class, current_root_path, curre
                 return await current_send_call({'type': 'websocket.close', 'code': 1008})
             return await bridge_gradio_heartbeat(current_application, current_request_scope, current_receive_call, current_send_call)
         current_query_values = parse_qs(current_request_scope.get('query_string', b'').decode())
+        history_path = '/management/frame/operations-history'
+        if current_request_scope.get('method') in ('GET', 'HEAD') and (
+            current_request_path.rstrip('/') == history_path or
+            (current_request_path.rstrip('/') == '/management' and current_query_values.get('tool') == ['operations-history'])
+        ):
+            from urllib.parse import urlencode
+            parameters = {'panel': 'jobs'}
+            for key in ('session', 'job'):
+                if current_query_values.get(key):
+                    parameters[key] = current_query_values[key][0]
+            return await RedirectResponse('/management/frame/hermes-agent/?' + urlencode(parameters))(current_request_scope, current_receive_call, current_send_call)
+        if current_request_path.startswith(history_path + '/'):
+            return await Response(status_code=404)(current_request_scope, current_receive_call, current_send_call)
         if current_request_path.rstrip('/') == '/management/frame/character-review' or current_request_path.startswith('/management/frame/character-review/') or 'character-review' in current_query_values.get('tool', []):
             return await Response('캐릭터 표현 검수 페이지는 폐기되었습니다.', status_code=410)(current_request_scope, current_receive_call, current_send_call)
         if current_request_scope.get('method') == 'GET' and current_request_path.rstrip('/') == '/management':
