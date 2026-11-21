@@ -1,3 +1,4 @@
+import DownloadProgress from "./DownloadProgress.jsx";
 import React, {useEffect, useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ModelReadiness from "./ModelReadiness.jsx";
@@ -72,6 +73,7 @@ export default function ModelPage() {
       {models.map(model => <option key={model.id} value={model.id}>{model.label}</option>)}
     </select></label>
     {service && <ModelReadiness key={service} service={service}/>}
+    {service && <DownloadProgress key={"progress-" + service} service={service}/>}
     {service === "kimodo" && <KimodoBuild/>}
   </article>;
 }

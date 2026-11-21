@@ -395,6 +395,16 @@ def build_management_application(current_handler_class, current_root_path, curre
             return Response(status_code=404)
         return read_changelog_page(generator, page)
 
+    @current_root_application.get('/management/assistant/model-downloads/{service}')
+    def model_download_progress(service: str):
+        from tools.review.common.management_client import execute_remote_management_command
+        from tools.review.common.model_download_progress import MODEL_DOWNLOAD_PREFIXES, format_model_download_status
+        if service not in MODEL_DOWNLOAD_PREFIXES:
+            return Response(status_code=404)
+        records = execute_remote_management_command('model-downloads', 'download-status', {})['records']
+        lines = format_model_download_status(records, service).splitlines()
+        return {'lines': [line.removeprefix('- ') for line in lines]}
+
     @current_root_application.get('/management/assistant/model-services')
     def model_services():
         from tools.review.common.model_management_catalog import MODEL_PREPARATION_SERVICES
