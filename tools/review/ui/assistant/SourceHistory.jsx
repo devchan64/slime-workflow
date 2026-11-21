@@ -9,7 +9,7 @@ function HistoryPage({source, choose, session}) {
   const [page,setPage]=useState(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
-  const mediaKind=source.command==="hermes-audio-source-history" ? "audio" : source.video_result ? "video" : null;
+  const mediaKind=source.result_kind;
   async function load(offset,snapshot) {
     setBusy(true);selectJob("");
     setError("");

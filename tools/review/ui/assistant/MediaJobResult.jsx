@@ -1,6 +1,13 @@
 import React, {useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 
+const statusCommands={
+  audio:"hermes-audio-source-status",
+  video:"hermes-video-source-status",
+  flux:"hermes-flux-source-status",
+  image:"hermes-image-source-status",
+};
+
 export default function MediaJobResult({service,id,kind="video",children}) {
   const [job,setJob]=useState(null);
   const [error,setError]=useState("");
@@ -9,7 +16,7 @@ export default function MediaJobResult({service,id,kind="video",children}) {
     let active=true,timer;
     async function read() {
       try {
-        const response=await managementCommand("hermes-agent",kind==="audio"?"hermes-audio-source-status":"hermes-video-source-status",{service,job_id:id});
+        const response=await managementCommand("hermes-agent",statusCommands[kind],{service,job_id:id});
         if(!active)return;
         if(response.service!==service || response.job_id!==id || !response.job)throw new Error("작업 결과가 요청과 일치하지 않습니다.");
         setJob(response.job);setError("");
@@ -31,6 +38,10 @@ export default function MediaJobResult({service,id,kind="video",children}) {
           {track.mp3 && <a href={track.mp3} download>{track.label} MP3 다운로드</a>}
         </section>)}
       </div>}
+      {["flux","image"].includes(kind) && job.result_status==="available" && <section>
+        <img src={job.image} alt={service+" 생성 결과"} style={{maxWidth:"100%"}}/>
+        <a href={job.image} download>결과 PNG 다운로드</a>
+      </section>}
       {kind==="video" && job.result_status==="available" && <>
         {service==="dwpose" ? <img src={job.image} alt="DWPose 추출 결과" style={{maxWidth:"100%"}}/> :
           <video controls preload="metadata" src={job.video} poster={job.image} style={{maxWidth:"100%"}}/>}
