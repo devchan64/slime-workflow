@@ -6,6 +6,7 @@ from unittest.mock import patch
 from tools.review.common.gradio_generator_changelog import (
     GENERATOR_CHANGELOG_PATHS,
     read_generator_changelog,
+    paginate_changelog, changelog_page,
 )
 
 
@@ -27,6 +28,22 @@ class GeneratorChangelogTests(unittest.TestCase):
                 current_path.write_text('두 번째', encoding='utf-8')
                 self.assertEqual(read_generator_changelog('test-generator'), '두 번째')
 
+    def test_date_pages_group_same_date_and_preserve_undated_documents(self):
+        pages = paginate_changelog('# 제목\n\n## 2026-01-01\n옛 기록\n\n## 2026-02-01 · 첫째\n내용 A\n\n## 2026-02-01 · 둘째\n내용 B')
+        self.assertEqual([page[0] for page in pages], ['2026-02-01', '2026-01-01'])
+        self.assertIn('내용 A', pages[0][1])
+        self.assertIn('내용 B', pages[0][1])
+        self.assertNotIn('옛 기록', pages[0][1])
+        self.assertEqual(paginate_changelog('날짜 없는 기록'), [(None, '날짜 없는 기록')])
+
+    def test_long_undated_and_dated_records_are_bounded(self):
+        text = '# 제목\n\n' + '\n'.join(f'- 미기재 {i}' for i in range(22))
+        text += '\n\n## 2026-01-01\n' + '\n'.join(f'- 날짜 {i}' for i in range(12))
+        pages = paginate_changelog(text)
+        self.assertEqual([date for date, _ in pages], [None, None, None, '2026-01-01', '2026-01-01'])
+        self.assertNotIn('미기재 0', pages[3][1])
+        self.assertIn('날짜 11', pages[4][1])
+
     def test_unregistered_path_is_rejected(self):
         with self.assertRaises(ValueError):
             read_generator_changelog('../../AGENTS.md')
@@ -43,6 +60,6 @@ class GeneratorChangelogTests(unittest.TestCase):
             with self.subTest(generator=current_tool_name):
                 with patch('tools.review.ui.gradio.management_menu_app.load_manager_page_records', return_value=[]):
                     current_blocks, _ = build_management_blocks(current_tool_name, 8770, Path('/tmp/slime-test-no-menu.json'))
-                current_expected_text = read_generator_changelog(current_changelog_names.get(current_tool_name, current_tool_name))
+                current_expected_text = changelog_page(current_changelog_names.get(current_tool_name, current_tool_name))[0]
                 current_components = current_blocks.config['components']
                 self.assertTrue(any(current_component.get('props', {}).get('value') == current_expected_text.strip() for current_component in current_components))

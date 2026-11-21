@@ -1,6 +1,6 @@
 """공용 게이트웨이로 프롬프트 번역을 요청하는 화면."""
 import gradio as gr
-from pathlib import Path
+from tools.review.common.gradio_generator_changelog import build_generator_changelog
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_model_download import build_model_readiness_controls
 from tools.review.common.gradio_history import build_generation_history_view
@@ -76,8 +76,7 @@ def refresh_translation_history():
 
 def build_translation_interface():
     with gr.Blocks(title='프롬프트 번역') as translation_interface_blocks:
-        with gr.Accordion('변경 기록', open=False):
-            gr.Markdown((Path(__file__).resolve().parents[4] / 'generators/prompt_translation/CHANGELOG.md').read_text(encoding='utf-8'))
+        build_generator_changelog(translation_interface_blocks, 'prompt-translation')
         gr.Markdown('## 프롬프트 번역\n한국어 원문을 영어 또는 중국어 간체로 번역합니다. 결과를 확인하고 직접 수정한 뒤 필요한 생성기에 복사하세요. 번역은 생성을 실행하지 않습니다.\n\nTranslateGemma 4B · ROCm BF16 · [Gemma 이용약관](https://ai.google.dev/gemma/terms) · 모델과 실행 환경 준비 필요')
         def execute_translation_model_command(translation_command_name, translation_payload_record):
             return execute_remote_management_command('prompt-translation', translation_command_name, translation_payload_record)
