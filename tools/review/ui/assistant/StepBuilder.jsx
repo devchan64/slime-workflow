@@ -1,3 +1,4 @@
+import GeneratorHistory from "./GeneratorHistory.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import TranslationEvidence from "./TranslationEvidence.jsx";
 import React, {useEffect, useState} from "react";
@@ -92,6 +93,12 @@ export default function StepBuilder({call, definition, onChange}) {
             {sources.map(source => <option key={source.value} value={source.value}>{source.label}</option>)}</select>}
         </div>;
       })}
+      {generator==="prompt-translation" && <GeneratorHistory service={generator} statusCommand="translation-status" restore={request=>{
+        setInputs({text:request.text,target_language:request.target_language,
+          glossary:(request.glossary || []).map(term=>term.source+" => "+term.target).join("\n")});
+        setLinks({});
+        setNotice("번역 작업의 입력을 불러왔습니다.");
+      }}/>}
       <GeneratorChangelog key={generator} generator={generator==="flux-image" ? "flux-image-generator" : generator}/>
       {generator==="prompt-translation" && !links.text &&
         <TranslationEvidence key={inputs.text || ""} source={inputs.text || ""} call={call}/>}
