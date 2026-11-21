@@ -33,3 +33,5 @@ article {position:relative;}
   .hermes-chat article > header h1 {flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hermes-chat article > form > button {flex-shrink:0}
 }
+
+.tool-panel-heading {position:sticky;top:-1rem;z-index:1;display:flex;align-items:center;justify-content:space-between;background:#202326;padding-block:.35rem}
