@@ -35,7 +35,7 @@ def compile_workflow_dependencies(workflow_step_records, generator_contract_reco
     workflow_step_lookup = {}
     for current_step_record in workflow_step_records:
         if (not isinstance(current_step_record, dict) or not {"id", "generator"} <= current_step_record.keys()
-                or current_step_record.keys() - {"id", "generator", "inputs", "bindings"}
+                or current_step_record.keys() - {"id", "generator", "generator_version", "template_version", "inputs", "bindings"}
                 or not isinstance(current_step_record["generator"], str)):
             raise ValueError("단계 정의 필드를 확인하세요.")
         current_step_identifier = current_step_record["id"]
@@ -45,6 +45,12 @@ def compile_workflow_dependencies(workflow_step_records, generator_contract_reco
             raise ValueError("단계 ID가 중복되었습니다.")
         if current_step_record["generator"] not in generator_contract_records:
             raise ValueError("등록되지 않은 생성기입니다.")
+        current_generator_contract = generator_contract_records[current_step_record["generator"]]
+        for step_version_field, catalog_version_field in (("generator_version", "version"), ("template_version", "template_version")):
+            if step_version_field in current_step_record:
+                reviewed_version_value = current_step_record[step_version_field]
+                if type(reviewed_version_value) is not int or reviewed_version_value != current_generator_contract[catalog_version_field]:
+                    raise ValueError(f"{current_step_identifier} 단계의 생성기 또는 템플릿 버전이 변경됐습니다. 다시 검토하세요.")
         workflow_step_lookup[current_step_identifier] = current_step_record
     if not workflow_step_lookup:
         raise ValueError("실행할 단계가 필요합니다.")

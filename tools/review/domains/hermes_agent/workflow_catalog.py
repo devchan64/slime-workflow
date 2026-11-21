@@ -44,4 +44,6 @@ def create_workflow_step_draft(current_step_identifier, current_generator_name, 
         if "default" in current_field_spec
     }
     return {"id": current_step_identifier, "generator": current_generator_name,
+            "generator_version": current_generator_catalog[current_generator_name]["version"],
+            "template_version": current_generator_catalog[current_generator_name]["template_version"],
             "inputs": deepcopy(default_input_values | supplied_input_values), "bindings": {}}
