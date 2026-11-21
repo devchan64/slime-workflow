@@ -38,3 +38,13 @@ article {position:relative;}
 
 #gpu-panel summary {cursor:pointer;padding-block:.25rem;color:inherit;overflow-wrap:anywhere}
 #gpu-panel details > :not(summary) {margin-inline-start:.7rem;padding-inline-start:.55rem;border-inline-start:1px solid #484d50;overflow-wrap:anywhere}
+
+.session-results h2 {display:inline;font-size:1rem;margin-inline-end:.5rem}
+.result-run {display:block;width:100%;text-align:start;overflow-wrap:anywhere}
+.result-run small {display:block}
+@media(max-width:700px){
+  .hermes-chat article > form {flex-wrap:wrap}
+  .hermes-chat article > form > textarea {order:-1;flex-basis:100%}
+  .hermes-chat article > form > button[type=submit] {margin-inline-start:auto}
+  .hermes-chat .floating-panel {bottom:9rem}
+}

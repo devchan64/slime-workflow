@@ -109,7 +109,7 @@ export default function WorkflowResults({session, run, call, close, openRun, edi
     finally {setBusy(false);}
   }
   return <section aria-label="워크플로우 결과">
-    <h3>워크플로우 결과</h3><code>{run}</code>
+    <h3 tabIndex={-1}>워크플로우 결과</h3><code>{run}</code>
     <button disabled={busy} onClick={()=>{setConfirmCancel(false);setRevision(value=>value+1);}}>결과 갱신</button>
     <button onClick={close}>결과 닫기</button>
     {error && <p role="alert">{error}</p>}

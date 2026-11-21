@@ -1,7 +1,7 @@
 import WorkflowResults from "./WorkflowResults.jsx";
 import ResultTable from "./ResultTable.jsx";
 import QueuePriority from "./QueuePriority.jsx";
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 
 const categories = {translation:"번역", image:"이미지", audio:"오디오", motion:"모션"};
 const states = {
@@ -11,10 +11,19 @@ const states = {
 };
 const initial = {category:"", state:"", generator:"", run_id:"", job_id:"", created_from:"", created_through:""};
 
-export default function QueuePanel({session, call, editNextStep, initialRun=""}) {
+export default function QueuePanel({session, call, editNextStep, resultsOnly=false, initialRun=""}) {
   const [selectedRun,setSelectedRun] = useState(initialRun);
-  const [draft, setDraft] = useState({...initial,run_id:initialRun});
-  const [filters, setFilters] = useState({...initial,run_id:initialRun});
+  const resultsPanel=useRef(null);
+  const previousRun=useRef("");
+  useEffect(()=>{
+    if(!resultsOnly)return;
+    if(selectedRun)resultsPanel.current?.querySelector("h3")?.focus();
+    else if(previousRun.current)Array.from(resultsPanel.current?.querySelectorAll(".result-run") || [])
+      .find(button=>button.dataset.run===previousRun.current)?.focus();
+    previousRun.current=selectedRun;
+  },[selectedRun,resultsOnly]);
+  const [draft, setDraft] = useState({...initial,state:resultsOnly?"completed":"",run_id:initialRun});
+  const [filters, setFilters] = useState({...initial,state:resultsOnly?"completed":"",run_id:initialRun});
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -30,6 +39,28 @@ export default function QueuePanel({session, call, editNextStep, initialRun=""})
 
   function field(name) {
     return {value:draft[name], onChange:event => setDraft({...draft, [name]:event.target.value})};
+  }
+  if(resultsOnly) {
+    const runs=new Map();
+    for(const step of result?.steps || []) {
+      if(!runs.has(step.run_id))runs.set(step.run_id,[]);
+      runs.get(step.run_id).push(step);
+    }
+    return <section ref={resultsPanel} className="panel session-results" aria-label="작업 결과">
+      {selectedRun ? <WorkflowResults key={selectedRun} session={session} run={selectedRun} call={call}
+        openRun={setSelectedRun} editNextStep={editNextStep} close={()=>setSelectedRun("")}/> : <>
+        <h2>작업 결과</h2>
+        <button onClick={()=>setFilters({...filters})}>목록 갱신</button>
+        {error && <p role="alert">{error}</p>}
+        {!result && !error && <p role="status">조회 중…</p>}
+        {result && !runs.size && <p>이 세션에 완료된 작업이 없습니다.</p>}
+        {result?.truncated && <p>최근 완료 단계 100개에서 조회한 결과입니다.</p>}
+        {Array.from(runs,([id,steps])=><button className="result-run" data-run={id} key={id} onClick={()=>setSelectedRun(id)}>
+          <strong>{steps.map(step=>step.step_id).join(", ")}</strong>
+          <small>{[...new Set(steps.map(step=>step.generator))].join(", ")} · {id}</small>
+        </button>)}
+      </>}
+    </section>;
   }
   return <section className="panel session-queue" aria-label="세션 대기열">
     <form onSubmit={event => {event.preventDefault(); setSelectedRun(""); setFilters({...draft});}} style={{display:"block"}}>
