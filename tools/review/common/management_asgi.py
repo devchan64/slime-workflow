@@ -847,6 +847,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/flux-image/')
     @current_root_application.get('/management/assistant/heartmula/')
     @current_root_application.get('/management/assistant/sound-effect/')
+    @current_root_application.get('/management/assistant/vace/')
     @current_root_application.get('/management/assistant/dwpose/')
     @current_root_application.get('/management/assistant/translation/')
     @current_root_application.get('/management/frame/world-map')

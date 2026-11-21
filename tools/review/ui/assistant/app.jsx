@@ -1,3 +1,4 @@
+import VacePage from "./VacePage.jsx";
 import AnimatePage from "./AnimatePage.jsx";
 import WriterPage from "./WriterPage.jsx";
 import FluxImagePage from "./FluxImagePage.jsx";
@@ -261,6 +262,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/assistant/vace": VacePage,
   "/management/frame/wan22-animate2-generator": AnimatePage,
   "/management/frame/writer-agent": WriterPage,
   "/management/frame/flux-expression-generator": FluxImagePage,
