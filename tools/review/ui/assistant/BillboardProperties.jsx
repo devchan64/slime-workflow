@@ -1,3 +1,4 @@
+import BillboardCrop from "./BillboardCrop.jsx";
 import React,{useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
@@ -6,7 +7,7 @@ const labels={anchorX:"앵커 X",anchorY:"앵커 Y",displayHeight:"표시 높이
   shadowOffsetColumn:"그림자 열 이동",shadowOffsetRow:"그림자 행 이동",shadowScaleX:"그림자 가로 배율",shadowScaleY:"그림자 세로 배율",
   billboardPlacementAnchor:"배치 기준",billboardBlocksMovement:"통행 차단"};
 
-export default function BillboardProperties({texture}){
+export default function BillboardProperties({texture,onCrop}){
   const [source,setSource]=useState(null),[edits,setEdits]=useState({}),[review,setReview]=useState(null);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
   async function load(){
@@ -65,6 +66,8 @@ export default function BillboardProperties({texture}){
         {review.result.map_warnings.map((w,i)=><p key={i}>{w.map} · {w.message}</p>)}
         <button type="button" onClick={save}>검토한 속성 저장</button><button type="button" onClick={()=>setReview(null)}>취소</button></>}
     </fieldset></form>}
+    {source && !source.initial && !Object.keys(edits).length && <BillboardCrop key={source.revision} source={source} busy={busy} setBusy={setBusy}
+      onSaved={()=>{setSource(null);setReview(null);setNotice("원본 크롭 저장 완료");onCrop();}}/>}
     {notice && <p role="status">{notice}</p>}
   </section>;
 }
