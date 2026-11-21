@@ -1,6 +1,7 @@
 import FluxImagePage from "./FluxImagePage.jsx";
 import SoundEffectPage, {HeartmulaPage} from "./SoundEffectPage.jsx";
 import DwposePage from "./DwposePage.jsx";
+import AnimateMockPage from "./AnimateMockPage.jsx";
 import MockProgress from "./MockProgress.jsx";
 import SourceHistory from "./SourceHistory.jsx";
 import ServiceRegistry from "./ServiceRegistry.jsx";
@@ -267,6 +268,7 @@ const pages = {
   "/management/assistant/sound-effect": SoundEffectPage,
   "/management/assistant/dwpose": DwposePage,
   "/management/frame/dwpose-generator": DwposePage,
+  "/management/frame/mock-animate-validation": AnimateMockPage,
   "/management/frame/mock-dwpose-validation": ()=> <DwposePage mock/>,
   "/management/frame/mock-progress-validation": MockProgress,
   "/management/assistant/models": ModelPage,
