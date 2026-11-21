@@ -20,6 +20,12 @@ class ReviewWatchTests(unittest.TestCase):
             self.assertFalse(serve.can_reuse_review_directory(current_safe_paths+[str(current_workflow_root/current_unsafe_path)]))
         self.assertFalse(serve.can_reuse_review_directory([]))
 
+    def test_assistant_bundle_and_catalog_reuse_prepared_directory(self):
+        root=Path(serve.__file__).resolve().parent
+        changed=[root/'ui/assistant/dist/app.js',root/'ui/assistant/index.html',root/'ui/assistant/style.css',root/'common/management_catalog.py']
+        self.assertTrue(serve.can_reuse_review_directory(changed))
+        self.assertFalse(serve.can_reuse_review_directory([*changed,root/'build_map_review.py']))
+
     def test_burst_waits_until_latest_change_settles(self):
         current_first_snapshot=(('a',1,2),)
         current_last_snapshot=(('a',2,2),)

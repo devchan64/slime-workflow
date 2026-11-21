@@ -161,7 +161,7 @@ def collect_review_watch_paths(parsed_argument_values):
     watch_paths.append(workflow_repo_root/'tools/review/domains/map_assets')
     watch_paths.extend((workflow_repo_root/'tools/review/common').glob('map_*.py'))
     watch_paths.extend(workflow_repo_root/'tools/review/common'/current_file_name for current_file_name in ('sprite_display_properties.py', 'game_render_metrics.py'))
-    watch_paths.extend(workflow_repo_root/'tools/review/common'/current_file_name for current_file_name in ('management_asgi.py','management_client.py','management_transport.py','management_environment.py','gpu_status.py'))
+    watch_paths.extend(workflow_repo_root/'tools/review/common'/current_file_name for current_file_name in ('management_asgi.py','management_catalog.py','management_client.py','management_transport.py','management_environment.py','gpu_status.py'))
     if parsed_argument_values.frontend_repo:
         current_frontend_root=Path(parsed_argument_values.frontend_repo).resolve()
         watch_paths.extend(current_frontend_root/current_relative_path for current_relative_path in ('src','review','package.json','package-lock.json','scripts'))
@@ -194,9 +194,12 @@ def can_reuse_review_directory(current_changed_paths):
     current_workflow_root=Path(__file__).resolve().parents[2]
     current_gradio_root=current_workflow_root/'tools/review/ui/gradio'
     current_common_root=current_workflow_root/'tools/review/common'
+    assistant_root=current_workflow_root/'tools/review/ui/assistant'
+    served_assets={assistant_root/name for name in ('index.html','style.css','dist/app.js','dist/app.js.LEGAL.txt')}
     return bool(current_changed_paths) and all(
+        Path(current_file_path) in served_assets or
         (Path(current_file_path).is_relative_to(current_gradio_root) and Path(current_file_path).suffix=='.py') or
-        (Path(current_file_path).parent==current_common_root and (Path(current_file_path).name.startswith('gradio_') or Path(current_file_path).name=='management_asgi.py') and Path(current_file_path).suffix=='.py')
+        (Path(current_file_path).parent==current_common_root and (Path(current_file_path).name.startswith('gradio_') or Path(current_file_path).name in ('management_asgi.py','management_catalog.py')) and Path(current_file_path).suffix=='.py')
         for current_file_path in current_changed_paths)
 
 
