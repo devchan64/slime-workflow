@@ -1,6 +1,7 @@
 """세션에 저장된 직접 접수의 기록 상태를 워크플로우 목록에 보탠다."""
 from datetime import datetime, timezone
 import hashlib
+import json
 import re
 
 from .delegation_store import HermesDelegationStore
@@ -12,12 +13,14 @@ def append_session_video_jobs(result, payload, session_root=None):
     session_id = payload['session_id']
     store = HermesSessionStore(session_root) if session_root is not None else HermesSessionStore()
     session = store.read_session_record(session_id)
-    forms = [item for item in session['messages'] if item.get('form_id')]
+    messages = session['messages']
+    forms = [(index, item) for index, item in enumerate(messages) if item.get('form_id')]
+    snapshot = hashlib.sha256(json.dumps(messages, sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode('utf-8')).hexdigest()
     receipts = HermesDelegationStore()
     filters = payload.get('search_filters', {})
     known = {row.get('source_job_id') for row in result['steps'] if row.get('source_job_id')}
     rows = []
-    for message in reversed(forms[-100:]):
+    for index, message in reversed(forms[-100:]):
         form_id = message.get('form_id')
         if not isinstance(form_id, str) or not re.fullmatch(r'[a-f0-9]{32}', form_id):
             continue
@@ -54,7 +57,8 @@ def append_session_video_jobs(result, payload, session_root=None):
             continue
         rows.append({'source_kind':'video_form','generator':'wan22-fun-control','category':'motion',
                      'state':state,'source_job_id':job_id,'request_id':request_id,'form_id':form_id,
-                     'created_at':created,'observed_at':observed_at})
+                     'created_at':created,'observed_at':observed_at,
+                     'message_offset':len(messages)-index-1,'message_snapshot':snapshot})
         if job_id: known.add(job_id)
     return {**result, 'direct_jobs':rows, 'direct_truncated':len(forms)>100,
             'queried_at':datetime.now(timezone.utc).isoformat()}

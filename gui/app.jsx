@@ -70,6 +70,7 @@ function jobLink(id,session){
   if(session)params.set("session",session);
   return "/management/frame/hermes-agent/?"+params;
 }
+const statusLabels={completed:"완료",failed:"실패",running:"실행 중",queued:"대기 중",cancelled:"취소",canceled:"취소"};
 const HistoryRoutes=React.createContext({});
 const ProposalActions=React.createContext(null);
 function Message() {
@@ -80,7 +81,7 @@ function Message() {
   const path=paths[meta.activity?.source_history_page?.service];
   const table=meta.table && path ? {...meta.table,rows:meta.table.rows.map(([job,...cells])=>[
     <a href={path+"?"+new URLSearchParams({job,session:meta.session})}>{job}</a>,...cells])} : meta.table;
-  return <MessagePrimitive.Root className={"message "+message.role+(meta.formId?" message-form":"")}>
+  return <MessagePrimitive.Root data-form-id={meta.formId || undefined} tabIndex={meta.formId ? -1 : undefined} className={"message "+message.role+(meta.formId?" message-form":"")}>
     <b>{meta.formId?"생성 작업":message.role==="user"?"나":"헤르메스"}</b><MessagePrimitive.Parts/>
     {meta.formId && <ConversationVideoForm session={meta.session} formId={meta.formId} open={actions.openVideoForm} reuse={actions.openJobForm}/>}
     {meta.seedProposal && <section aria-label="시드 변경 생성 제안">{meta.seedProposal.reason ? <p>{meta.seedProposal.reason}</p> : <><p>원본 {meta.seedProposal.job_id}의 입력을 불러와 {meta.seedProposal.seed == null ? "다른 시드" : "시드 "+meta.seedProposal.seed}로 검토합니다. 생성은 확인 후 접수됩니다.</p><button type="button" onClick={()=>actions.openSeedForm(meta.seedProposal)}>생성 폼 검토</button></>}</section>}
@@ -89,7 +90,8 @@ function Message() {
     {meta.activity?.video_source && <MediaJobResult kind="video" folderLink service={meta.activity.video_source.service} id={meta.activity.video_source.job_id} onReuse={meta.activity.video_source.service==="wan22-fun-control" ? ()=>actions.openJobForm(meta.activity.video_source.job_id) : undefined}/>}
     {!meta.table && meta.activity?.source_history_summary && <pre>{meta.activity.source_history_summary}</pre>}
     {meta.activity?.events?.length>0 && <details><summary>도구 사용 내역</summary>{meta.activity.events.map((e,i)=><p key={i}>{e.name} · {e.target || e.result}</p>)}</details>}
-    {meta.status && <small>{meta.status} {meta.job && <> · <a href={jobLink(meta.job,meta.session)}>{meta.job}</a></>}</small>}
+    {meta.status==="failed" && !message.content?.some(part=>part.type==="text" && part.text?.trim()) && <p role="status">응답 생성에 실패했습니다. 작업 상세에서 원인을 확인해 주세요.</p>}
+    {meta.status && <small>{statusLabels[meta.status] || meta.status} {meta.job && <> · <a href={jobLink(meta.job,meta.session)}>{meta.job}</a></>}</small>}
   </MessagePrimitive.Root>;
 }
 function Conversation({view,historyPage,changeHistory}) {
@@ -116,7 +118,7 @@ function Conversation({view,historyPage,changeHistory}) {
   },[hasHistory]);
   const runtime=useExternalStoreRuntime({messages,isRunning:false,convertMessage:m=>m});
   return <HistoryRoutes.Provider value={routes}><AssistantRuntimeProvider runtime={runtime}><ThreadPrimitive.Root className="thread"><ThreadPrimitive.Viewport ref={viewport} className="viewport">
-    {view.next_offset != null && <nav className="conversation-history-nav" aria-label="이전 대화 페이지"><button type="button" onClick={()=>changeHistory({offset:view.next_offset,snapshot:view.snapshot})}>이전 메시지 보기</button></nav>}
+    {view.next_offset != null && <nav className="conversation-history-nav" aria-label="이전 대화 페이지"><button type="button" onClick={()=>changeHistory({offset:view.next_offset,snapshot:view.snapshot})}>이전 메시지 보기</button><span>이전 메시지 {Math.max(0,(view.message_count || 0)-(view.offset || 0)-(view.messages || []).length)}건</span></nav>}
     <ThreadPrimitive.Empty><h2>무엇을 도와드릴까요?</h2></ThreadPrimitive.Empty>
     <ThreadPrimitive.Messages components={{Message}}/>
     {historyPage && <nav className="conversation-history-nav" aria-label="이후 대화 페이지">
@@ -171,6 +173,10 @@ function App() {
   }
   const [queue,setQueue]=useState(null),[refresh,setRefresh]=useState(0);
   const [historyPage,setHistoryPage]=useState(null);
+  const [viewError,setViewError]=useState("");
+  const [viewLoading,setViewLoading]=useState(false);
+  const [targetForm,setTargetForm]=useState("");
+  const [viewRevision,retryView]=useState(0);
   const sending=useRef(false),text=useRef(null);
   const toolToggle=useRef(null),toolSearch=useRef(null),gpuToggle=useRef(null),queueToggle=useRef(null);
   useEffect(()=>{if(showTools)toolSearch.current?.focus({preventScroll:true});},[showTools]);
@@ -195,9 +201,9 @@ function App() {
     if(next!==session){setShowFunControl(false);setSeedProposal(null);setVideoFormId("");}
     if(next!==session && url.searchParams.get("panel")==="jobs")url.searchParams.delete("job");
     if(next)url.searchParams.set("session",next);else url.searchParams.delete("session");
-    history.pushState(null,"",url);setSession(next);setView({});setHistoryPage(null);setQueue(null);setError("");
+    history.pushState(null,"",url);setSession(next);setView({});setHistoryPage(null);setQueue(null);setError("");setViewError("");setViewLoading(false);setTargetForm("");
   }
-  useEffect(()=>{const cb=()=>{setSearchMode(["jobs","capabilities"].includes(query().get("panel"))?query().get("panel"):"tools");setCategory(initialToolCategory());setSearch(query().get("search") || "");setShowTools(query().has("category") || query().has("search") || ["jobs","capabilities"].includes(query().get("panel")));setShowFunControl(false);setSeedProposal(null);setVideoFormId("");setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
+  useEffect(()=>{const cb=()=>{setSearchMode(["jobs","capabilities"].includes(query().get("panel"))?query().get("panel"):"tools");setCategory(initialToolCategory());setSearch(query().get("search") || "");setShowTools(query().has("category") || query().has("search") || ["jobs","capabilities"].includes(query().get("panel")));setShowFunControl(false);setSeedProposal(null);setVideoFormId("");setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);setError("");setViewError("");setViewLoading(false);setTargetForm("");};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
   useEffect(()=>{let active=true;fetch(base+"tools").then(r=>{if(!r.ok)throw new Error("도구 목록을 불러올 수 없습니다.");return r.json();}).then(v=>{if(active)setTools(v)}).catch(e=>{if(active)setCatalogError(e.message)});
     return()=>{active=false};},[]);
   useEffect(()=>{
@@ -217,20 +223,34 @@ function App() {
       try {
         const payload={session_id:session,limit:CONVERSATION_PAGE_SIZE,...(historyPage || {})};
         const next=await call("session-view",payload);
-        if(active && next.id===session) setView(next);
+        if(next.id!==session)throw new Error("대화 응답이 요청한 세션과 일치하지 않습니다.");
+        if(active) {setView(next);setViewError("");}
       } catch(problem) {
-        if(active)setError(problem.message);
+        if(active)setViewError(problem.message);
       } finally {
-        if(active && !historyPage)timer=setTimeout(load,3000);
+        if(active){setViewLoading(false);if(!historyPage)timer=setTimeout(load,3000);}
       }
     }
     if(session)load();
     return ()=>{active=false;clearTimeout(timer);};
-  },[session,historyPage]);
+  },[session,historyPage,viewRevision]);
+  useEffect(()=>{
+    if(!targetForm || !(view.messages || []).some(message=>message.form_id===targetForm))return;
+    const frame=requestAnimationFrame(()=>{const node=document.querySelector("[data-form-id=\""+targetForm+"\"]");if(node){node.scrollIntoView({block:"center",behavior:"smooth"});node.focus({preventScroll:true});setTargetForm("");}});
+    return ()=>cancelAnimationFrame(frame);
+  },[targetForm,view]);
+  function openQueueMessage(step){
+    if(!/^[a-f0-9]{32}$/.test(step.form_id) || !/^[a-f0-9]{64}$/.test(step.message_snapshot) || !Number.isInteger(step.message_offset) || step.message_offset<0)return;
+    const offset=Math.floor(step.message_offset/CONVERSATION_PAGE_SIZE)*CONVERSATION_PAGE_SIZE;
+    setTargetForm(step.form_id);setQueue(null);
+    if(!(view.messages || []).some(message=>message.form_id===step.form_id))changeHistory(offset ? {offset,snapshot:step.message_snapshot} : null);
+  }
   function changeHistory(page) {
     setError("");
-    setView({});
-    setHistoryPage(page);
+    setViewError("");
+    setViewLoading(true);
+    if(page===historyPage)retryView(n=>n+1);
+    else setHistoryPage(page);
   }
   function edit(v){setDraft(v);sessionStorage.setItem("hermes-draft-"+session,v)}
   const pendingKey = "hermes-pending-" + session;
@@ -357,7 +377,7 @@ function App() {
       localStorage.setItem("hermes-session-folded",String(!folded));setFolded(!folded);
     }}>{folded?"세션 목록 펼치기":"세션 목록 접기"}</button><h1>{view.title || "헤르메스와 대화"}</h1></header>
     {session && <div className="form-sheet" hidden={!showForms}><div className="tool-panel-heading"><strong>입력 폼 편집</strong><button onClick={()=>{setShowForms(false);text.current?.focus();}}>닫기</button></div>{<FormLibrary key={session} proposalStep={proposalStep?.session===session ? proposalStep : null} session={session} messages={view.messages || []} call={call} openRun={run=>{setShowForms(false);setQueue({run});}} addToMessage={value=>{edit([draft,value].filter(Boolean).join("\n"));setShowForms(false);text.current?.focus();}}/>}</div>}
-    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openStep({generator:"kimodo",inputs}),openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={historyPage} changeHistory={changeHistory}/></ProposalActions.Provider>{error&&<p role="alert">{error}</p>}
+    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openStep({generator:"kimodo",inputs}),openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요." : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><button type="button" onClick={()=>retryView(n=>n+1)}>다시 시도</button></div>}{error&&<p role="alert">{error}</p>}
     <form onSubmit={e=>{e.preventDefault();send()}}>
     <button type="button" ref={gpuToggle} aria-expanded={showGpu} onClick={()=>{if(showTools)closeTools();setShowForms(false);setShowGpu(value=>!value);}}>GPU 프로세스 정보</button>
     {session&&<button type="button" ref={queueToggle} aria-expanded={Boolean(queue && !showTools && !showGpu)} onClick={()=>{if(showTools)closeTools();setShowForms(false);setShowGpu(false);setQueue(value=>value && !showTools && !showGpu ? null : value || {run:""});}}>작업·대기열</button>}{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
@@ -409,7 +429,7 @@ function App() {
       </Command>}
     </div>}
       {showGpu && !showTools && <GpuPanel embedded/>}
-      {queue && session && !showTools && !showGpu && <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} call={call} editNextStep={openStep}/>}
+      {queue && session && !showTools && !showGpu && <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} call={call} editNextStep={openStep} openMessage={openQueueMessage}/>}
       {showFunControl && <div hidden={showTools || showGpu || Boolean(queue)}><FunControlPage key={session+videoFormId+videoFormRevision} embedded session={session} restoreFormId={videoFormId} seedProposal={seedProposal} onSaved={()=>setRefresh(n=>n+1)}/></div>}
     </SidePanel>}
     </main>

@@ -12,7 +12,7 @@ const states = {
 const initial = {category:"", state:"", generator:"", run_id:"", job_id:"", created_from:"", created_through:""};
 function displayTime(value){const date=new Date(value);return value && !Number.isNaN(date.getTime())?date.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false}):"확인 불가";}
 
-export default function QueuePanel({session, call, editNextStep, initialRun=""}) {
+export default function QueuePanel({session, call, editNextStep, openMessage, initialRun=""}) {
   const [selectedRun,setSelectedRun] = useState(initialRun);
   const [selectedDirect,setSelectedDirect]=useState("");
   const detail=useRef(null);
@@ -21,16 +21,19 @@ export default function QueuePanel({session, call, editNextStep, initialRun=""})
   const [filters, setFilters] = useState({...initial,run_id:initialRun});
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [loading,setLoading] = useState(true);
+  const [revision,refresh] = useState(0);
   useEffect(() => {
     let active = true;
     const {category, state, ...search_filters} = filters;
-    setResult(null);
     setError("");
+    setLoading(true);
     call("workflow-list", {session_id:session, category, state, search_filters})
-      .then(data => { if (active) setResult(data); })
-      .catch(problem => { if (active) setError(problem.message); });
+      .then(data => { if (!Array.isArray(data?.steps) || (data.direct_jobs != null && !Array.isArray(data.direct_jobs))) throw new Error("작업 목록 응답을 읽을 수 없습니다."); if (active) setResult(data); })
+      .catch(problem => { if (active) setError(problem.message || "조회에 실패했습니다."); })
+      .finally(()=>{if(active)setLoading(false);});
     return () => { active = false; };
-  }, [session, filters, call]);
+  }, [session, filters, call, revision]);
 
   function field(name) {
     return {value:draft[name], onChange:event => setDraft({...draft, [name]:event.target.value})};
@@ -47,8 +50,8 @@ export default function QueuePanel({session, call, editNextStep, initialRun=""})
         <label key={key}>{label} <input type={key.startsWith("created_")?"date":"text"} {...field(key)}/></label>)}</details>
       <button>작업 조회</button>
     </form>
-    {error && <p role="alert">{error}</p>}
-    {!result && !error && <p role="status">조회 중…</p>}
+    {error && <div role="alert"><p>작업 목록을 불러오지 못했습니다. 연결 상태를 확인해 주세요.</p>{result && <p>아래 목록은 마지막으로 조회한 정보입니다.</p>}<button type="button" onClick={()=>refresh(n=>n+1)}>다시 시도</button></div>}
+    {loading && <p role="status">작업 목록 조회 중…{result && " 아래에는 이전 조회 결과가 표시됩니다."}</p>}
     {result && <section aria-label="세션 작업 목록"><p>{result.steps.length+(result.direct_jobs || []).length}개 작업{(result.truncated || result.direct_truncated) && " · 일부 이전 항목 제외"} · 조회 {displayTime(result.queried_at)}</p>
       <div className="session-job-list">
         {result.steps.map(step=><article className="session-job" key={"workflow:"+step.request_id}>
@@ -59,7 +62,7 @@ export default function QueuePanel({session, call, editNextStep, initialRun=""})
         {(result.direct_jobs || []).map(step=><article className="session-job" key={"form:"+step.form_id}>
           <div className="session-job-heading"><strong>{step.generator} · 직접 접수</strong><span>{states[step.state] || step.state}</span></div>
           <p>{step.source_job_id || "접수 확인 필요"}</p><small>관측 · {displayTime(step.observed_at)}</small>
-          {step.source_job_id && <div className="session-job-actions"><button type="button" aria-label={step.source_job_id+" 결과 조회"} onClick={()=>{setSelectedRun("");setSelectedDirect(step.source_job_id);}}>상태·결과 보기</button></div>}
+          {step.source_job_id && <div className="session-job-actions"><button type="button" aria-label={step.source_job_id+" 결과 조회"} onClick={()=>{setSelectedRun("");setSelectedDirect(step.source_job_id);}}>상태·결과 보기</button>{openMessage && Number.isInteger(step.message_offset) && step.message_snapshot && <button type="button" onClick={()=>openMessage(step)}>관련 대화 보기</button>}</div>}
         </article>)}
       </div>
       {!result.steps.length && !(result.direct_jobs || []).length && <p>조건에 맞는 작업이 없습니다.</p>}

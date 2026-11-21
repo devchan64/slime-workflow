@@ -1,4 +1,6 @@
 import unittest
+import hashlib
+import json
 from unittest.mock import patch
 
 from workflow.domains.hermes_agent.session_queue import append_session_video_jobs
@@ -19,6 +21,9 @@ class SessionQueueTests(unittest.TestCase):
             response=append_session_video_jobs(result,payload)
         self.assertEqual([(row['source_job_id'],row['state']) for row in response['direct_jobs']], [('job-live','running'),(None,'unknown')])
         self.assertEqual(response['steps'],result['steps'])
+        self.assertEqual([row['message_offset'] for row in response['direct_jobs']], [0, 2])
+        self.assertEqual(response['direct_jobs'][0]['message_snapshot'], hashlib.sha256(json.dumps(forms,sort_keys=True,ensure_ascii=False,separators=(',',':')).encode('utf-8')).hexdigest())
+        self.assertEqual(response['direct_jobs'][0]['message_snapshot'], response['direct_jobs'][1]['message_snapshot'])
 
     def test_filters_and_failed_status_are_not_reported_as_running(self):
         payload={'session_id':'a'*32,'category':'motion','state':'unknown','search_filters':{}}

@@ -46,7 +46,7 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
   const [error,setError]=useState("");
   const [revision,refresh]=useState(0);
   const [folderNotice,setFolderNotice]=useState("");
-  const live=useLiveRefresh(()=>refresh(value=>value+1),service==="wan22-fun-control" && (!job || ["queued","running"].includes(job.status)));
+  const live=useLiveRefresh(()=>refresh(value=>value+1),!job || ["queued","running"].includes(job.status));
   async function openFolder(){
     try{
       const response=await fetch("/management/record-folder/open",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({route:"/"+service,id})});
@@ -56,25 +56,24 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
     }catch(problem){setFolderNotice(problem.message);}
   }
   useEffect(()=>{
-    let active=true,timer,lastActive=false;
+    let active=true;
     async function read() {
       try {
         const response=await managementCommand("hermes-agent",statusCommands[kind],{service,job_id:id});
         if(!active)return;
         if(response.service!==service || response.job_id!==id || !response.job)throw new Error("작업 결과가 요청과 일치하지 않습니다.");
         setJob(response.job);setError("");
-        lastActive=["queued","running"].includes(response.job.status);
-        if(service!=="wan22-fun-control" && lastActive)timer=setTimeout(read,5000);
-      }catch(problem){if(active){setError(problem.message);if(service!=="wan22-fun-control" && lastActive)timer=setTimeout(read,5000);}}
+
+      }catch(problem){if(active)setError(problem.message);}
     }
     read();
-    return ()=>{active=false;clearTimeout(timer);};
+    return ()=>{active=false;};
   },[service,id,kind,revision]);
-  return <section ref={service==="wan22-fun-control" && !job?live.ref:undefined} className="media-result-card" aria-label="작업 결과"><div className="media-result-heading"><div><strong>작업 결과</strong><h3>{id}</h3></div>{job && <span className={'media-result-status status-'+job.status}>{({completed:'완료',running:'실행 중',queued:'대기 중',failed:'실패',cancelled:'취소',canceled:'취소',paused:'중단',unknown:'확인 필요'})[job.status] || job.status}</span>}</div>
-    {error && <p role="alert">{error}</p>}
+  return <section ref={!job?live.ref:undefined} className="media-result-card" aria-label="작업 결과"><div className="media-result-heading"><div><strong>작업 결과</strong><h3>{id}</h3></div>{job && <span className={'media-result-status status-'+job.status}>{({completed:'완료',running:'실행 중',queued:'대기 중',failed:'실패',cancelled:'취소',canceled:'취소',paused:'중단',unknown:'확인 필요'})[job.status] || job.status}</span>}</div>
+    {error && <p role="alert">작업 결과를 불러오지 못했습니다. 연결 상태를 확인하고 결과를 새로고침해 주세요.{job && " 아래 내용은 마지막으로 조회한 결과입니다."}</p>}
     {job ? <>
       <p className="media-result-note" role="status">{job.note}</p>
-      {service==="wan22-fun-control" && <GenerationProgress job={job} live={live}/>}
+      {["queued","running"].includes(job.status) ? <GenerationProgress job={job} live={live} supportsProgress={service==="wan22-fun-control"}/> : <details><summary>진행 정보 보기</summary><GenerationProgress job={job} supportsProgress={service==="wan22-fun-control"}/></details>}
       {kind==="audio" && job.result_status==="available" && job.file_observation!=="unavailable" && <div>
         {(job.tracks || [{label:"생성 오디오",wav:job.audio}]).map(track=><section key={track.wav}>
           <strong>{track.label}</strong>
@@ -91,7 +90,7 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
       {kind==="video" && job.result_status==="available" && <>
         {service==="dwpose" ? <img src={job.image} alt="DWPose 추출 결과" style={{maxWidth:"100%"}}/> :
           <>
-            <video controls loop playsInline preload="metadata" src={job.video} poster={job.image} style={{maxWidth:"100%"}}/>
+            <video aria-label="생성 결과 영상" controls loop playsInline preload="metadata" src={job.video} poster={job.image} style={{maxWidth:"100%"}}/>
             <a className="media-result-link" href={job.video} target="_blank" rel="noopener">MP4 열기</a>
           </>}
         {service==="wan22-fun-control" && <SavedPoseVideo key={id} id={id}/>}
