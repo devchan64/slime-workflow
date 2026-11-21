@@ -20,7 +20,7 @@ function MediaPreview({audio, result, session, run, call}) {
     {error && <p role="alert">{error}</p>}</>;
 }
 
-export default function WorkflowResults({session, run, call, close}) {
+export default function WorkflowResults({session, run, call, close, openRun}) {
   const [view,setView] = useState(null);
   const [error,setError] = useState("");
   const [busy,setBusy] = useState(false);
@@ -43,6 +43,20 @@ export default function WorkflowResults({session, run, call, close}) {
     } catch (problem) {setError(problem.message);}
     finally {setBusy(false);}
   }
+  async function retry(step) {
+    setBusy(true); setError("");
+    try {
+      const result = await call("workflow-retry", {
+        session_id:session, run_id:run, step_id:step.step_id, source_request:step.request_id
+      });
+      const link = result.retries?.find(item => item.source_request===step.request_id &&
+        item.source_run===run && item.retry_run===result.run_id);
+      if (!link) throw new Error("재시도 연결을 확인할 수 없습니다. 실행 결과를 갱신하세요.");
+      setView(current => ({...current, retries:[...(current.retries || []).filter(item =>
+        item.source_request!==step.request_id),link]}));
+    } catch (problem) {setError(problem.message);}
+    finally {setBusy(false);}
+  }
   return <section aria-label="워크플로우 결과">
     <h3>워크플로우 결과</h3><code>{run}</code>
     <button disabled={busy} onClick={()=>setRevision(value=>value+1)}>결과 갱신</button>
@@ -52,8 +66,16 @@ export default function WorkflowResults({session, run, call, close}) {
       {view.steps.map(step => <div key={step.step_id}>
         {Object.entries(step.bindings || {}).map(([input,source])=><p key={input}>
           {source.from_step}.{source.output} → {step.step_id}.{input}</p>)}
+        {["failed","cancelled"].includes(step.state) &&
+          !view.retries?.some(item=>item.source_request===step.request_id) &&
+          <button disabled={busy} onClick={()=>retry(step)}>{step.step_id} 단계의 저장된 입력으로 재시도</button>}
         {step.state==="blocked" && <p>{step.step_id} · {step.block_reason}</p>}
       </div>)}
+      {view.retries?.map(link=><p key={link.source_request}>{link.step_id} ·
+        {link.retry_run===run ?
+          <button onClick={()=>openRun(link.source_run)}>원래 실행 보기</button> :
+          <button onClick={()=>openRun(link.retry_run)}>재시도 실행 보기</button>}
+      </p>)}
       {view.results.length===0 && <p>아직 기록된 결과가 없습니다.</p>}
       {view.results.map(result => <section key={result.attempt_id}><h4>{result.step_id} · {result.job_id}</h4>
         {typeof result.outputs.text === "string" && <pre>{result.outputs.text}</pre>}

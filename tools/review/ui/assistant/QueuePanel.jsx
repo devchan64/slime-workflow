@@ -51,6 +51,6 @@ export default function QueuePanel({session, call}) {
           <td>{states[step.state] || step.state}{step.source_state && " · " + (states[step.source_state] || step.source_state)}</td>
           <td><button aria-label={step.run_id + " 결과 조회"} onClick={()=>setSelectedRun(step.run_id)}>{step.run_id}</button></td><td><QueuePriority step={step} call={call}/></td></tr>)}</tbody></table>}
     </>}
-    {selectedRun && <WorkflowResults key={selectedRun} session={session} run={selectedRun} call={call} close={()=>setSelectedRun("")}/>}
+    {selectedRun && <WorkflowResults key={selectedRun} session={session} run={selectedRun} openRun={setSelectedRun} call={call} close={()=>setSelectedRun("")}/>}
   </section>;
 }
