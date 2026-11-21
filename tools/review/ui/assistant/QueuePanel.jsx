@@ -1,3 +1,4 @@
+import WorkflowResults from "./WorkflowResults.jsx";
 import QueuePriority from "./QueuePriority.jsx";
 import React, {useEffect, useState} from "react";
 
@@ -10,6 +11,7 @@ const states = {
 const initial = {category:"", state:"", generator:"", run_id:"", job_id:"", created_from:"", created_through:""};
 
 export default function QueuePanel({session, call}) {
+  const [selectedRun,setSelectedRun] = useState("");
   const [draft, setDraft] = useState(initial);
   const [filters, setFilters] = useState(initial);
   const [result, setResult] = useState(null);
@@ -29,7 +31,7 @@ export default function QueuePanel({session, call}) {
     return {value:draft[name], onChange:event => setDraft({...draft, [name]:event.target.value})};
   }
   return <section className="panel" aria-label="세션 대기열">
-    <form onSubmit={event => {event.preventDefault(); setFilters({...draft});}} style={{display:"block"}}>
+    <form onSubmit={event => {event.preventDefault(); setSelectedRun(""); setFilters({...draft});}} style={{display:"block"}}>
       <label>카테고리 <select {...field("category")}><option value="">전체</option>
         {Object.entries(categories).map(([key,label]) => <option key={key} value={key}>{label}</option>)}
       </select></label>
@@ -47,7 +49,8 @@ export default function QueuePanel({session, call}) {
         <tbody>{result.steps.map(step => <tr key={step.request_id}>
           <td>{step.generator}</td><td>{step.step_id}</td>
           <td>{states[step.state] || step.state}{step.source_state && " · " + (states[step.source_state] || step.source_state)}</td>
-          <td>{step.run_id}</td><td><QueuePriority step={step} call={call}/></td></tr>)}</tbody></table>}
+          <td><button aria-label={step.run_id + " 결과 조회"} onClick={()=>setSelectedRun(step.run_id)}>{step.run_id}</button></td><td><QueuePriority step={step} call={call}/></td></tr>)}</tbody></table>}
     </>}
+    {selectedRun && <WorkflowResults key={selectedRun} session={session} run={selectedRun} call={call} close={()=>setSelectedRun("")}/>}
   </section>;
 }
