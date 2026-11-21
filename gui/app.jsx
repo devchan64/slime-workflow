@@ -349,12 +349,16 @@ function App() {
     <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>{setProposalStep({session,inputs});setShowForms(true);}}}><Conversation key={session} view={view}/></ProposalActions.Provider>{error&&<p role="alert">{error}</p>}
     <form onSubmit={e=>{e.preventDefault();send()}}>{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
     <button type="button" ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowGpu(false);if(showTools)closeTools();else setShowTools(true)}}>도구 탐색</button>
-    <textarea ref={text} aria-label="메시지" placeholder="헤르메스에게 메시지 보내기" value={draft} disabled={busy} onChange={e=>edit(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){e.preventDefault();send()}}}/>
+    <textarea ref={text} aria-label="메시지" placeholder="헤르메스에게 메시지 보내기" value={draft} disabled={busy} onChange={e=>edit(e.target.value)} title="Enter로 보내기 · Shift+Enter로 줄바꿈" onKeyDown={event=>{
+      if(event.key!=="Enter" || event.shiftKey || event.altKey || event.nativeEvent.isComposing || event.nativeEvent.keyCode===229)return;
+      event.preventDefault();
+      if(!event.repeat)event.currentTarget.form.querySelector('button[type="submit"]').click();
+    }}/>
     {invalidPending && <div role="alert">이 탭의 접수 기록을 읽을 수 없습니다. 대화 이력에서 이전 요청의 접수 여부를 확인하세요.
       <button type="button" onClick={()=>{sessionStorage.removeItem(pendingKey);setRefresh(n=>n+1);}}>탭의 손상된 접수 기록 지우기</button></div>}
     {pending && pending.prompt!==draft && <details><summary>접수 확인이 필요한 이전 요청</summary>
       <pre>{pending.prompt}</pre><button type="button" disabled={busy} onClick={()=>send(true)}>이전 요청 접수 다시 확인</button></details>}
-    <button disabled={busy||invalidPending||!draft.trim()||Boolean(pending && pending.prompt!==draft)}>{busy?"접수 중":pending && pending.prompt===draft?"같은 요청 다시 보내기":"보내기"}</button></form></article></main>
+    <button type="submit" disabled={busy||invalidPending||!draft.trim()||Boolean(pending && pending.prompt!==draft)}>{busy?"접수 중":pending && pending.prompt===draft?"같은 요청 다시 보내기":"보내기"}</button></form></article></main>
 }
 const pages = {
   "/management/frame/kimodo-generator": KimodoPage,
