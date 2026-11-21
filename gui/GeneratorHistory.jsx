@@ -73,6 +73,13 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
       throw new Error(requestErrorMessage(problem)+" · 이전 이력과 선택을 유지합니다. 다시 조회하세요.");
     }
   }
+  function deleted(id,message) {
+    setSelected(null);
+    setJob(null);
+    setPage(previous=>({...previous,records:previous.records.filter(record=>record.id!==id),total:Math.max(0,previous.total-1)}));
+    onSelectedDeleted(id,message);
+    perform(()=>list(0,filter));
+  }
   async function read(id) {
     const result=readJob ? await readJob(id) : await managementCommand(service,statusCommand,{id});
     if(result.id!==id || !result.request)throw new Error("작업 입력을 확인할 수 없습니다.");
@@ -106,7 +113,7 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
               {(openResult || inspectResult) && <button className="history-action-result" type="button" onClick={()=>perform(()=>showResult(record.id))}>결과 조회</button>}
               {restore && <button className="history-action-input" type="button" onClick={()=>perform(()=>showInput(record.id))}>입력값 불러오기</button>}
             </div>
-            {onSelectedDeleted && <SelectedHistoryDeletion key={service+"/"+record.id} service={service} id={record.id} allowPriority={allowPriority} onDeleted={(id,message)=>{setPage(null);setSelected(null);setJob(null);onSelectedDeleted(id,message);}}/>}
+            {onSelectedDeleted && <SelectedHistoryDeletion key={service+"/"+record.id} service={service} id={record.id} allowPriority={allowPriority} onDeleted={deleted}/>}
             {job?.id===record.id && <section className="history-action-detail">{historyInputSummary(job.request).length>0 && <p>저장 입력 · {historyInputSummary(job.request).join(" · ")}</p>}<details><summary>저장된 입력 상세</summary><pre>{JSON.stringify(job.request,null,2)}</pre></details>
               {restore && <button type="button" onClick={()=>restore(job.request,job)}>확인한 입력 적용</button>}
             </section>}

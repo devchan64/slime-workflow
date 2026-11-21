@@ -164,7 +164,28 @@ article {position:relative;}
 .fun-advanced > summary {cursor:pointer;font-weight:600;color:inherit}
 .fun-advanced label {display:grid;gap:.3rem;margin-block:.65rem}
 .fun-advanced input {max-width:100%}
-.fun-control-page > .fun-source {width:min(100%,60rem);align-self:center}
+.fun-control-page {
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  align-content:start;
+  width:100%;
+  max-width:62rem;
+  margin-inline:auto;
+  padding:clamp(.75rem,2vw,1rem);
+  gap:.75rem;
+}
+.fun-control-page > form {display:block;margin:0;padding:0;max-width:none}
+.fun-control-page > form > fieldset,.fun-control-page > .fun-history {
+  min-width:0;
+  margin:0;
+  padding:clamp(.75rem,2vw,1rem);
+  border:1px solid #484d50;
+  border-radius:.6rem;
+}
+.fun-control-page > details,.fun-history > details {margin:0}
+.fun-control-page :is(.fun-source,.fun-field-group) {margin-inline:0;border:1px solid #484d50;border-radius:.5rem}
+.fun-control-page > section {min-width:0;overflow-wrap:anywhere}
+.fun-control-page .fun-attachments {grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))}
 .fun-control-page .fun-field-group > label {display:grid;gap:.3rem;margin:.65rem 0}
 .fun-control-page .fun-field-group :is(input,select,textarea,video,img) {max-width:100%}
 .fun-control-page .fun-field-group textarea {width:100%}
@@ -242,3 +263,29 @@ article {position:relative;}
 
 .history-confirmation {display:grid;gap:.5rem;min-width:0;overflow-wrap:anywhere}
 .record-folder {min-width:0;overflow-wrap:anywhere}.record-folder label {display:grid;gap:.3rem;margin:.5rem 0;min-width:0}.record-folder input {width:100%;min-width:0}.record-folder [role=status] {margin:.4rem 0}
+
+.fun-control-page .choice-buttons [aria-pressed="true"] {border-color:currentColor;box-shadow:inset 0 0 0 1px currentColor;font-weight:700}
+
+.generator-page-header {
+  display:grid;
+  align-items:start;
+  gap:.875rem;
+  padding:0;
+}
+.generator-page-header nav a {color:inherit;text-underline-offset:.2em}
+.generator-page-header h1 {font-size:clamp(1.35rem,2vw,1.75rem);line-height:1.25}
+.generator-page-header h1 + p {margin-top:.35rem;color:#afbabd}
+.generator-page-tools,.fun-history {display:grid;gap:.5rem;min-width:0}
+.generator-page-tools details,.fun-history details {min-width:0;overflow-wrap:anywhere}
+.generator-page-tools > details,.fun-history > details {margin:0}
+.generator-page-tools summary,.fun-history > details > summary {
+  padding:.65rem .8rem;
+  border:1px solid #484d50;
+  border-radius:.5rem;
+  background:#202326;
+  color:inherit;
+  font-size:.95rem;
+  cursor:pointer;
+}
+.generator-page-tools details[open] > section {display:grid;justify-items:start;gap:.6rem;padding:.75rem;min-width:0}
+.generator-page-tools details[open] > section > details {width:100%;margin:0}
