@@ -2,6 +2,32 @@ import React,{useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 
+function MapDatabaseReceipt(){
+  const [id,setId]=useState(""),[hash,setHash]=useState("");
+  const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
+  async function lookup(){
+    setBusy(true);setNotice("");
+    try{
+      const receipt=await managementCommand("hermes-agent","hermes-map-database-receipt",{database_request_id:id,request_sha256:hash});
+      if(receipt.request_sha256!==hash)throw new Error();
+      const messages=new Map([
+        ["matched","DB 접수의 요청 해시가 일치합니다. 파일 동기화 상태는 별도로 확인하세요."],
+        ["mismatch","보관한 요청 해시와 DB 접수 기록이 다릅니다. 원래 요청을 확인하세요."],
+        ["not_found","조회 시점에 DB 접수 기록이 없습니다. 진행 중인 작업의 상태를 확인하세요."],
+      ]);
+      if(!messages.has(receipt.state))throw new Error();
+      setNotice(messages.get(receipt.state));
+    }catch{setNotice("DB 접수를 확인할 수 없습니다. 요청 ID·해시와 에셋 서비스 연결을 확인하세요.");}
+    finally{setBusy(false);}
+  }
+  return <details><summary>맵 DB 변경 접수 확인</summary><fieldset disabled={busy}>
+    <label>DB 요청 ID <input value={id} onChange={e=>{setId(e.target.value);setNotice("");}}/></label>
+    <label>원본 요청 SHA-256 <input value={hash} onChange={e=>{setHash(e.target.value);setNotice("");}}/></label>
+    <button disabled={!id.trim() || !/^[a-f0-9]{64}$/.test(hash)} onClick={lookup}>DB 접수 확인</button>
+    {notice && <p role="status">{notice}</p>}
+  </fieldset></details>;
+}
+
 export default function OperationsJobs(){
   const [query,setQuery]=useState(""),[status,setStatus]=useState("전체");
   const [result,setResult]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
@@ -153,6 +179,7 @@ export default function OperationsJobs(){
   const page=result?.page;
   const same=page && page.query===query.trim().toLowerCase() && page.status===status;
   return <fieldset disabled={busy}><legend>운영 작업 이력</legend>
+    <MapDatabaseReceipt/>
     <label>작업 ID 또는 지시문 <input value={query} onChange={e=>setQuery(e.target.value)}/></label>
     <label>작업 상태 <select value={status} onChange={e=>setStatus(e.target.value)}><option>전체</option>
       {Object.entries(result?.statuses || {}).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
