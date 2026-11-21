@@ -4959,18 +4959,19 @@ def read_hermes_capability_rows(current_search_text=""):
 
 def build_hermes_agent_interface(include_advanced_controls=True, current_source_path=None):
     with gr.Blocks(title='직접 조회와 작업' if include_advanced_controls else '운영 대화') as hermes_interface_blocks:
-        build_generator_changelog(hermes_interface_blocks, 'hermes-agent')
         if include_advanced_controls:
+            build_generator_changelog(hermes_interface_blocks, 'hermes-agent')
             gr.HTML('<h2>직접 조회와 작업</h2><p>관리 기능을 직접 확인하거나 실행할 수 있습니다. 아래에서 세션과 작업을 선택하면 관련 제안을 불러올 수 있습니다.</p><p><a href="#hermes-direct-controls">직접 기능으로 이동</a></p>')
         if not include_advanced_controls:
-            gr.Markdown('## 운영 대화\nHermes에게 관리 상태 확인과 작업을 요청하세요. 실행된 작업과 세부 입력은 해당 도구에서 확인하거나 직접 조작할 수 있습니다.\n\n대화 요청은 GPU를 사용할 수 있습니다. 대기열의 배타 예약은 관리도구 작업에 적용되며 외부 GPU 작업과의 성능 간섭을 막지는 못합니다. 다른 작업 중에는 GPU 상태를 확인하세요.')
             from tools.review.ui.gradio.management_menu_app import build_conversation_tool_explorer
-        gr.Markdown('화면을 열거나 관리 상태를 새로고침하면 amd-smi로 GPU 프로세스와 메모리를 조회합니다. GPU 생성이나 추론은 시작하지 않으며 조회 결과는 잠시 캐시될 수 있습니다.')
-        hermes_management_summary = gr.Markdown('관리 상태를 확인하고 있습니다.')
-        hermes_management_refresh = gr.Button('관리 상태 새로고침')
-        hermes_management_refresh.click(read_hermes_management_summary, outputs=hermes_management_summary, queue=False)
-        hermes_interface_blocks.load(read_hermes_management_summary, outputs=hermes_management_summary, queue=False)
+        def build_management_status():
+            gr.Markdown('화면을 열거나 관리 상태를 새로고침하면 amd-smi로 GPU 프로세스와 메모리를 조회합니다. GPU 생성이나 추론은 시작하지 않으며 조회 결과는 잠시 캐시될 수 있습니다.')
+            hermes_management_summary = gr.Markdown('관리 상태를 확인하고 있습니다.')
+            hermes_management_refresh = gr.Button('관리 상태 새로고침')
+            hermes_management_refresh.click(read_hermes_management_summary, outputs=hermes_management_summary, queue=False)
+            hermes_interface_blocks.load(read_hermes_management_summary, outputs=hermes_management_summary, queue=False)
         if include_advanced_controls:
+            build_management_status()
             gr.Markdown('### 연결할 대화 작업\n기존 제안을 불러올 때만 세션과 작업을 선택하세요.')
             with gr.Row():
                 hermes_session_control = gr.Dropdown(label='세션', choices=[], interactive=True)
@@ -4993,24 +4994,37 @@ def build_hermes_agent_interface(include_advanced_controls=True, current_source_
             hermes_interface_blocks.load(list_hermes_session_choices, inputs=[hermes_session_control], outputs=[hermes_session_control, hermes_session_list_status], js="(sessionId)=>{const linkedSession=new URL(window.location.href).searchParams.get('session');let tabSession=null;let recentSession=null;try{tabSession=sessionStorage.getItem('slime-management-session');}catch(e){}try{recentSession=localStorage.getItem('slime-management-session');}catch(e){}return [[linkedSession,tabSession,recentSession,sessionId].find(value=>typeof value==='string'&&/^[a-f0-9]{32}$/.test(value)) || null];}", preprocess=False, queue=False).then(restore_linked_conversation_job,inputs=[hermes_session_control,hermes_older_job_input],outputs=[hermes_session_job_selection,hermes_older_job_status],js="(sessionId,jobId)=>[sessionId,new URL(window.location.href).searchParams.get('job') || '']",preprocess=False,queue=False)
         else:
             with gr.Group():
-                gr.Markdown('### 대화')
+                gr.Markdown("## 헤르메스와 대화")
+                hermes_session_conversation = gr.Chatbot(
+                    label="대화", show_label=False, layout="bubble", height="clamp(200px, 42dvh, 560px)",
+                    value=[], placeholder="무엇을 도와드릴까요?", render_markdown=False, allow_file_downloads=False,
+                    examples=[{"text": "지금 대기 중인 작업을 보여줘"},
+                              {"text": "번역한 문장으로 이미지를 만드는 워크플로우를 설계해 줘"}])
                 with gr.Row():
-                    hermes_session_control = gr.Dropdown(label='세션', choices=[], interactive=True)
-                    hermes_new_session_button = gr.Button('새 세션')
-                    hermes_session_list_button = gr.Button('세션 목록 새로고침')
-                hermes_session_draft = gr.State(value=lambda: uuid.uuid4().hex)
-                hermes_session_request = gr.State(value=lambda: uuid.uuid4().hex)
-                hermes_session_list_status = gr.Markdown('세션 목록을 확인하고 있습니다.')
-                build_session_archive_panel(hermes_session_control, hermes_session_list_status)
-                hermes_session_conversation = gr.Chatbot(label='대화', value=[], height=420, placeholder='무엇을 도와드릴까요? 첫 요청을 보내면 새 대화가 시작됩니다.', render_markdown=False, allow_file_downloads=False)
+                    hermes_session_prompt = gr.Textbox(elem_id='hermes-request-input', label='요청 입력', show_label=False,
+                        lines=2, max_lines=8, scale=8, placeholder='헤르메스에게 메시지 보내기')
+                    hermes_session_send = gr.Button('요청 검토', variant='primary', interactive=False, scale=1, min_width=88)
+                def insert_example_request(draft, example: gr.SelectData):
+                    return ((draft.rstrip() + "\n") if draft and draft.strip() else "") + example.value["text"]
+                hermes_session_conversation.example_select(insert_example_request, hermes_session_prompt, hermes_session_prompt, queue=False)
                 hermes_session_status = gr.Markdown()
-                with gr.Row():
-                    hermes_session_prompt = gr.Textbox(elem_id='hermes-request-input', label='요청 입력', lines=3, max_lines=10, placeholder='무엇을 확인하거나 처리할까요?')
-                    hermes_session_send = gr.Button('요청 검토', variant='primary', interactive=False)
-                    hermes_session_refresh = gr.Button('대화 상태 새로고침')
-                    hermes_session_recover = gr.Button('미확인 요청 복원')
                 with gr.Column() as request_confirmation_area:
                     hermes_session_submit_status = gr.Markdown()
+                hermes_session_draft = gr.State(value=lambda: uuid.uuid4().hex)
+                hermes_session_request = gr.State(value=lambda: uuid.uuid4().hex)
+                with gr.Accordion("대화 세션", open=False):
+                    with gr.Row():
+                        hermes_session_control = gr.Dropdown(label='세션', choices=[], interactive=True)
+                        hermes_new_session_button = gr.Button('새 세션')
+                        hermes_session_list_button = gr.Button('세션 목록 새로고침')
+                    hermes_session_list_status = gr.Markdown('세션 목록을 확인하고 있습니다.')
+                    with gr.Row():
+                        hermes_session_refresh = gr.Button('대화 상태 새로고침')
+                        hermes_session_recover = gr.Button('미확인 요청 복원')
+                    build_session_archive_panel(hermes_session_control, hermes_session_list_status)
+                with gr.Accordion("관리 상태와 변경 기록", open=False):
+                    build_management_status()
+                    build_generator_changelog(hermes_interface_blocks, 'hermes-agent')
                 build_conversation_tool_explorer(hermes_session_prompt, hermes_session_control, current_source_path)
                 composer_session = gr.State(None)
                 composer_drafts = gr.State({})
