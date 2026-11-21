@@ -1000,6 +1000,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/sprite-sheet-editor/')
     @current_root_application.get('/management/assistant/sprite-sheets/')
     @current_root_application.get('/management/assistant/effects/')
+    @current_root_application.get('/management/assistant/billboards/')
     @current_root_application.get('/management/assistant/buildings/')
     @current_root_application.get('/management/assistant/field-map/')
     @current_root_application.get('/management/assistant/town-map/')

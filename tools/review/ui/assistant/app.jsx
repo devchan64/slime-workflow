@@ -1,3 +1,4 @@
+import BillboardCatalog from "./BillboardCatalog.jsx";
 import SpriteSheetEditor from "./SpriteSheetEditor.jsx";
 import KeyframeCatalog from "./KeyframeCatalog.jsx";
 import ContentDatabaseStatus from "./ContentDatabaseStatus.jsx";
@@ -239,6 +240,8 @@ function App() {
       <button aria-expanded={searchMode==="expressions"} onClick={()=>setSearchMode(searchMode==="expressions"?"tools":"expressions")}>표정 프리셋</button>
       {searchMode==="expressions" && <ExpressionCatalog key={search} query={search} choose={appendSelection}/>}
       {searchMode==="anchors" && <AnchorHistory/>}
+      <button aria-expanded={searchMode==="billboards"} onClick={()=>setSearchMode(searchMode==="billboards"?"tools":"billboards")}>빌보드 에셋</button>
+      {searchMode==="billboards" && <BillboardCatalog choose={appendSelection}/>}
       <button aria-expanded={searchMode==="keyframes"} onClick={()=>setSearchMode(searchMode==="keyframes"?"tools":"keyframes")}>Kimodo 키프레임</button>
       {searchMode==="keyframes" && <KeyframeCatalog query={search} choose={appendSelection}/>}
       <button aria-expanded={searchMode==="content"} onClick={()=>setSearchMode(searchMode==="content"?"tools":"content")}>콘텐츠 DB 상태</button>
@@ -279,6 +282,7 @@ const pages = {
   "/management/assistant/sprite-sheets": SpriteSheetEditor,
   "/management/assistant/effects": EffectEditor,
   "/management/frame/building-editor": BuildingEditor,
+  "/management/assistant/billboards": BillboardCatalog,
   "/management/assistant/buildings": BuildingEditor,
   "/management/assistant/field-map": MapReview,
   "/management/assistant/town-map": MapReview,
