@@ -1,4 +1,5 @@
-import React,{useEffect,useState} from "react";
+import React,{useEffect,useRef,useState} from "react";
+import {drawBuildingPreview} from "./drawBuildingPreview.js";
 import {managementCommand} from "./managementCommand.js";
 
 const fields=[
@@ -13,6 +14,12 @@ function BuildingProperties({building,generation,busy,setBusy,onSaved}){
   const expected={displayWidthAdjustment:0,displayHeightAdjustment:0,...building.properties};
   const original={shadowShape:"circle",shadowOffsetColumn:0,shadowOffsetRow:0,shadowScaleX:1,shadowScaleY:1,...expected};
   const [values,edit]=useState(original),[error,setError]=useState("");
+  const [placement,selectPlacement]=useState(0);
+  const canvas=useRef(null);
+  useEffect(()=>{
+    const url="/management/assistant/building-image/"+encodeURIComponent(building.texture);
+    return drawBuildingPreview(canvas.current,url,building.maps[placement],values);
+  },[building,placement,values]);
   const changed=Object.entries(original).some(([key,value])=>values[key]!=="" && String(values[key])!==String(value));
   async function save(event){
     event.preventDefault();
@@ -33,6 +40,10 @@ function BuildingProperties({building,generation,busy,setBusy,onSaved}){
     finally{setBusy(false);}
   }
   return <form onSubmit={save}><fieldset disabled={busy}><legend>건물 표시 속성</legend>
+    {building.maps.length>0 && <label>미리보기 맵 배치<select value={placement} onChange={e=>selectPlacement(Number(e.target.value))}>
+      {building.maps.map((item,i)=><option key={i} value={i}>{item.map} · {item.name} · {item.width}×{item.height} · {item.facing}</option>)}</select></label>}
+    <canvas ref={canvas} width="480" height="360" aria-label="건물 타일 배치 미리보기" style={{maxWidth:"100%",height:"auto"}}/>
+    <p>{building.maps.length?"노란 윤곽은 점유 타일, 빨간 십자는 앵커, 점선은 주변 타일입니다.":"등록된 맵 배치가 없어 원본 이미지를 표시합니다."}</p>
     {fields.map(([key,label,min,max,step])=><label key={key}>{label}<input type="number" required min={min} max={max} step={step || "any"} value={values[key]} onChange={e=>edit({...values,[key]:e.target.value})}/></label>)}
     <label>그림자 형태<select value={values.shadowShape} onChange={e=>edit({...values,shadowShape:e.target.value})}>
       <option value="circle">원형</option><option value="rectangle">사각형</option></select></label>
