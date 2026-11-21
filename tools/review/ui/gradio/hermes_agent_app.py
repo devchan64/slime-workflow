@@ -4965,8 +4965,18 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     hermes_session_recover = gr.Button('미확인 요청 복원')
                 with gr.Accordion("번역 후 이미지 생성", open=False):
                     workflow_review_state = gr.State(None)
-                    workflow_image_width = gr.Number(label="이미지 너비", value=512, precision=0)
-                    workflow_image_height = gr.Number(label="이미지 높이", value=512, precision=0)
+                    from tools.review.domains.hermes_agent.workflow_catalog import read_workflow_generator_catalog
+                    workflow_image_fields = read_workflow_generator_catalog()["flux-image"]["inputs"]
+
+                    def build_image_dimension_input(dimension_field_contract, dimension_field_label):
+                        return gr.Number(
+                            label=dimension_field_label, precision=0, value=dimension_field_contract["default"],
+                            minimum=dimension_field_contract["min"], maximum=dimension_field_contract["max"], step=dimension_field_contract["step"],
+                            info=f'{dimension_field_contract["min"]}~{dimension_field_contract["max"]}픽셀, {dimension_field_contract["step"]}픽셀 단위',
+                        )
+
+                    workflow_image_width = build_image_dimension_input(workflow_image_fields["width"], "이미지 너비")
+                    workflow_image_height = build_image_dimension_input(workflow_image_fields["height"], "이미지 높이")
                     workflow_revision_prompt = gr.Textbox(label="첫 이미지를 참조한 수정 요청 (선택)", lines=2)
                     workflow_target_language = gr.Dropdown([("영어", "en"), ("중국어 간체", "zh-CN")], value="en", label="번역 언어")
                     workflow_glossary_text = gr.Textbox(label="번역 용어 (원문 => 번역어, 한 줄에 하나)", lines=2)
