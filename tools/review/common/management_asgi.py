@@ -628,12 +628,23 @@ def build_management_application(current_handler_class, current_root_path, curre
                 with io.BytesIO() as output:
                     overlay.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
                     overlay.save(output, "PNG")
+                    preview["joint_weights"] = inputs["skeleton"]["joint_weight_table"]
                     preview["overlay_png"] = base64.b64encode(output.getvalue()).decode("ascii")
             return {**preview, "views": [{"angle": view["fitted_yaw_degrees"],
                                "rows": select_multiview_review_rows(report, view["observation"])}
                               for view in report["views"]], "limitations": report["limitations"]}
         except (KeyError, IndexError, AttributeError, TypeError, ValueError, OSError) as error:
             raise HTTPException(422, f"검수 입력 오류 · {error}") from error
+
+    @current_root_application.post('/management/assistant/kimodo-joint-weights')
+    def review_kimodo_weights(weights: dict):
+        from fastapi import HTTPException
+        from generators.kimodo.multiview_joint_weights import validate_multiview_joint_weights
+        try:
+            validate_multiview_joint_weights(weights)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+        return weights
 
     @current_root_application.get('/management/assistant/kimodo-prompt-examples')
     def kimodo_prompt_examples():

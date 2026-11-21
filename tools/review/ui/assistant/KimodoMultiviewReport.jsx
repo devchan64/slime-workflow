@@ -1,5 +1,6 @@
 import React,{useState} from "react";
 import readReference from "./readReference.js";
+import KimodoJointWeights from "./KimodoJointWeights.jsx";
 import ResultTable from "./ResultTable.jsx";
 
 export default function KimodoMultiviewReport(){
@@ -35,6 +36,7 @@ export default function KimodoMultiviewReport(){
       {report.overlay_png && <figure><img alt="8방향 관절 검출과 재투영 겹침" style={{maxWidth:"100%"}}
         src={"data:image/png;base64,"+report.overlay_png}/><figcaption>8방향 전체 · 초록색은 검출 관절, 보라색은 3D 재투영 관절</figcaption></figure>}
       <ResultTable table={{title:"방향별 관절 검수",columns:["관절","검출 점수","지정 가중치","적용 가중치","근거","적합 오차 (px)","제외 관측 오차 (px)"],rows:report.views[view].rows}}/>
+      {report.joint_weights && <KimodoJointWeights initial={report.joint_weights} view={view}/>}
       <details><summary>검수 지표 해석</summary><ul>{report.limitations.map(text=><li key={text}>{text}</li>)}</ul></details></>}
   </details>;
 }
