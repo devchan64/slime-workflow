@@ -173,16 +173,13 @@ function App() {
     setHistoryPage(page);
   }
   function edit(v){setDraft(v);sessionStorage.setItem("hermes-draft-"+session,v)}
-  async function send(){
-    if(!draft.trim()||sending.current)return;
-    if(!window.confirm("이 요청을 헤르메스 작업 대기열에 등록할까요?"))return;
-    const pendingKey = "hermes-pending-" + session;
-    const saved = sessionStorage.getItem(pendingKey);
-    const item = saved ? JSON.parse(saved) : {session_id:session || id(), request_id:id(), prompt:draft};
-    if (item.prompt !== draft) {
-      setError("접수 결과를 확인하려면 이전 입력으로 다시 보내세요.");
-      return;
-    }
+  const pendingKey = "hermes-pending-" + session;
+  const pendingText = sessionStorage.getItem(pendingKey);
+  const pending = pendingText ? JSON.parse(pendingText) : null;
+  async function send(retry=false){
+    if(sending.current || (!retry && !draft.trim()))return;
+    if(pending && pending.prompt!==draft && !retry)return;
+    const item = pending || {session_id:session || id(), request_id:id(), prompt:draft};
     sessionStorage.setItem(pendingKey, JSON.stringify(item));
     sending.current = true;
     setBusy(true);
@@ -191,9 +188,12 @@ function App() {
       if (!session) await call("session-create", {session_id:item.session_id});
       await call("session-submit", item);
       sessionStorage.removeItem(pendingKey);
-      sessionStorage.removeItem("hermes-draft-" + session);
+      const currentDraft=sessionStorage.getItem("hermes-draft-"+session) || "";
+      const remaining=currentDraft===item.prompt?"":currentDraft;
+      if(!remaining || session!==item.session_id)sessionStorage.removeItem("hermes-draft-"+session);
+      if(remaining && session!==item.session_id)sessionStorage.setItem("hermes-draft-"+item.session_id,remaining);
       if ((query().get("session") || "") === session) {
-        setDraft("");
+        setDraft(remaining);
         setHistoryPage(null);
         if (session !== item.session_id) select(item.session_id);
         setArchived(false);
@@ -299,7 +299,9 @@ function App() {
     <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>{setProposalStep({session,inputs});setShowForms(true);}}}><Conversation key={session} view={view}/></ProposalActions.Provider>{error&&<p role="alert">{error}</p>}
     <form onSubmit={e=>{e.preventDefault();send()}}>{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
     <textarea ref={text} aria-label="메시지" placeholder="헤르메스에게 메시지 보내기" value={draft} disabled={busy} onChange={e=>edit(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){e.preventDefault();send()}}}/>
-    <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
+    {pending && pending.prompt!==draft && <details><summary>접수 확인이 필요한 이전 요청</summary>
+      <pre>{pending.prompt}</pre><button type="button" disabled={busy} onClick={()=>send(true)}>이전 요청 접수 다시 확인</button></details>}
+    <button disabled={busy||!draft.trim()||Boolean(pending && pending.prompt!==draft)}>{busy?"접수 중":pending && pending.prompt===draft?"같은 요청 다시 보내기":"보내기"}</button></form></article></main>
 }
 const pages = {
   "/management/frame/kimodo-generator": KimodoPage,
