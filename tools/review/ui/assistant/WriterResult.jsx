@@ -1,5 +1,7 @@
-import React, {useEffect,useState} from "react";
+import React, {useEffect,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
+
+const activeStages=new Set(["queued","preparing","indexing","searching","reasoning"]);
 
 export default function WriterResult({id,onDeleted}) {
   const [detail,setDetail]=useState(null);
@@ -9,14 +11,28 @@ export default function WriterResult({id,onDeleted}) {
   const [busy,setBusy]=useState(false);
   const [deleteConfirmed,setDeleteConfirmed]=useState(false);
   const [notice,setNotice]=useState("");
+  const followLog=useRef(true);
   useEffect(()=>{
-    let active=true;
+    let active=true,timer;
     setError("");setDetail(null);setConfirmed(false);setDeleteConfirmed(false);
-    managementCommand("writer-agent","writer-detail",{id}).then(record=>{
-      if(record.id!==id)throw new Error("선택한 작가 작업과 조회 결과가 일치하지 않습니다.");
-      if(active)setDetail(record);
-    }).catch(problem=>{if(active)setError(problem.message);});
-    return ()=>{active=false;};
+    async function read() {
+      try {
+        const record=await managementCommand("writer-agent","writer-detail",{id});
+        if(!active)return;
+        if(record.id!==id || !record.status?.stage)throw new Error("선택한 작가 작업과 조회 결과가 일치하지 않습니다.");
+        const updateLog=followLog.current;
+        setDetail(previous=>previous && !updateLog ? {...record,log:previous.log} : record);
+        setError("");
+        if(activeStages.has(record.status.stage))timer=setTimeout(read,3000);
+      } catch(problem) {
+        if(!active)return;
+        setError(problem.message);
+        setDetail(null);
+        timer=setTimeout(read,3000);
+      }
+    }
+    read();
+    return ()=>{active=false;clearTimeout(timer);};
   },[id,revision]);
   const proposal=detail?.proposal;
   const hash=detail?.status.proposal_hash;
@@ -34,7 +50,7 @@ export default function WriterResult({id,onDeleted}) {
     }
   }
   const canDelete=detail?.id===id && Boolean(detail.status.stage) &&
-    !["queued","preparing","indexing","searching","reasoning"].includes(detail.status.stage);
+    !activeStages.has(detail.status.stage);
   async function trash() {
     if(busy || !canDelete || !deleteConfirmed)return;
     setBusy(true);setDeleteConfirmed(false);setNotice("");
@@ -50,10 +66,11 @@ export default function WriterResult({id,onDeleted}) {
   }
   return <section aria-label="작가 작업 결과"><h3>{id}</h3>
     <button disabled={busy} onClick={()=>{setConfirmed(false);refresh(value=>value+1);}}>결과 새로고침</button>
+    <label><input type="checkbox" defaultChecked onChange={event=>{followLog.current=event.target.checked;}}/>실행 로그 자동 갱신</label>
     {notice && <p role="status">{notice}</p>}
     {error && <p role="alert">{error}</p>}
     {detail && <>
-      <p role="status">{detail.status.stage} · {detail.status.error || detail.status.summary}</p>
+      <p role="status">{detail.status.stage} · {detail.status.error || detail.status.summary || (typeof detail.status.progress==="object" ? JSON.stringify(detail.status.progress) : detail.status.progress)}</p>
       {proposal?.reason && <p>{proposal.reason}</p>}
       {proposal?.changes?.map(change=><details key={change.path}><summary>{change.path}</summary><pre>{change.diff}</pre></details>)}
       {canApply && <fieldset disabled={busy}><legend>원본 문서 적용</legend>
