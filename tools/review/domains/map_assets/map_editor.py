@@ -12,7 +12,7 @@ from collections import deque
 from pathlib import Path
 import yaml
 from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_asset
-from tools.review.common.map_asset_sources import load_registered_map_review, normalize_field_surface_data, MAP_BLOCKED_TERRAIN_NAMES, validate_map_cliff_overrides
+from tools.review.common.map_asset_sources import load_registered_map_review, normalize_field_surface_data, map_wall_tile_records, MAP_BLOCKED_TERRAIN_NAMES, validate_map_cliff_overrides
 from tools.review.common.sprite_display_properties import apply_sprite_display_properties, collect_billboard_blocked_cells
 from tools.review.domains.map_assets.placement import validate_scenery_object_collisions
 from tools.review.maintenance.sync_billboard_catalog import load_unique_yaml_document, build_catalog_reference
@@ -81,6 +81,7 @@ def load_map_editor_document(current_request_payload):
     current_render_record=load_registered_map_review(current_request_payload['map'])
     current_render_record['terrainCodes']=read_map_editor_source_data(current_asset_root,'field_tiles/codes.yaml')
     return {'map':current_request_payload['map'],'revision':current_revision_hash,'tiles':current_documents[0]['data'],'terrain':current_documents[1]['data'],'render':current_render_record,'textures':sorted(read_map_editor_billboard_identifiers(current_asset_root)),'codes':current_render_record['terrainCodes'],
+            'wall_tiles':list(map_wall_tile_records()),
             'blocked_tile_codes':[code for code,name in current_render_record['terrainCodes'].items() if name in MAP_BLOCKED_TERRAIN_NAMES]}
 
 

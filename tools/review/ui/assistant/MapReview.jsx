@@ -10,6 +10,7 @@ export default function MapReview(){
   const [past,setPast]=useState([]),[future,setFuture]=useState([]);
   const [texture,setTexture]=useState(""),[objectId,setObjectId]=useState("");
   const [editing,setEditing]=useState(false);
+  const [wall,setWall]=useState("");
   const [floor,setFloor]=useState("");
   const [brush,setBrush]=useState("pan"),[strokeCount,setStrokeCount]=useState(0);
   const [storageNotice,setStorageNotice]=useState("");
@@ -59,7 +60,7 @@ export default function MapReview(){
     event.preventDefault();
     const {column,row,tile,height,blocked}=cell;
     const cells=draft.cells.filter(item=>item.column!==column || item.row!==row);
-    const next={...draft,cells:[...cells,{column,row,tile,height:Number(height),blocked}]};
+    const next={...draft,cells:[...cells,{column,row,tile,height:Number(height),blocked,...(cell.wall?{wall:cell.wall}:{})}]};
     await applyDraft(next,"edit");
   }
   async function applyDraft(next,action){
@@ -148,20 +149,25 @@ export default function MapReview(){
   useEffect(()=>{
     if(!field || !ready)return;
     window.mapReviewBrushTool=draft?brush:"pan";
-    window.mapReviewBrushTile=floor;
-  },[field,ready,brush,draft,floor]);
+    window.mapReviewBrushTile=floor;window.mapReviewBrushWall=wall;
+  },[field,ready,brush,draft,floor,wall]);
   useEffect(()=>{
     const queue=window.mapReviewBrushQueue;
     if(reading || !draft || !queue?.length)return;
     const stroke=queue.shift();
     try{
       const cells=new Map(draft.cells.map(item=>[[item.column,item.row].join(","),item]));
-      for(const {column,row,tool,tile} of stroke){
-        if(!["raise","lower","floor"].includes(tool))throw new Error("지원하지 않는 지도 브러시입니다.");
+      for(const {column,row,tool,tile,wall:wallTile} of stroke){
+        if(!["raise","lower","floor","wall"].includes(tool))throw new Error("지원하지 않는 지도 브러시입니다.");
         const key=[column,row].join(",");
         const current=cells.get(key) || {column,row,tile:source.tiles.rows[row][column],
           height:source.terrain.elevations[row][column],
           blocked:source.terrain.blocked.some(([x,y])=>x===column && y===row)};
+        if(tool==="wall"){
+          if(!source.wall_tiles?.includes(wallTile))throw new Error("벽면 타일을 선택하세요.");
+          cells.set(key,{...current,wall:wallTile});
+          continue;
+        }
         if(tool==="floor"){
           if(!Object.hasOwn(source.codes,tile))throw new Error("바닥 브러시용 타일을 선택하세요.");
           cells.set(key,{...current,tile,blocked:current.blocked || source.blocked_tile_codes.includes(tile)});
@@ -216,7 +222,10 @@ export default function MapReview(){
       </section>}
       {storageNotice && <p role="status">{storageNotice}</p>}
       {draft && <label>지도 드래그 도구<select value={brush} disabled={!editing} onChange={e=>setBrush(e.target.value)}>
-        <option value="pan">이동·셀 선택</option><option value="floor" disabled={!source?.blocked_tile_codes}>바닥 칠하기</option><option value="raise">높이 올리기</option><option value="lower">높이 내리기</option>
+        <option value="pan">이동·셀 선택</option><option value="floor" disabled={!source?.blocked_tile_codes}>바닥 칠하기</option><option value="wall" disabled={!source?.wall_tiles?.length}>벽면 칠하기</option><option value="raise">높이 올리기</option><option value="lower">높이 내리기</option>
+      </select></label>}
+      {draft && brush==="wall" && <label>브러시 벽면 타일<select value={wall} onChange={e=>setWall(e.target.value)}>
+        <option value="">타일 선택</option>{source.wall_tiles.map(key=><option key={key}>{key}</option>)}
       </select></label>}
       {draft && brush==="floor" && <label>브러시 바닥 타일<select value={floor} onChange={e=>setFloor(e.target.value)}>
         <option value="">타일 선택</option>{Object.entries(source.codes).map(([code,name])=><option key={code} value={code}>{name} · {code}</option>)}

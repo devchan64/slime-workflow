@@ -251,11 +251,15 @@ def build_registered_map_review(map_identifier_value):
 
 
 
-def validate_map_cliff_texture(current_texture_key):
-    """벽면 용도로 등록된 타일만 선택한다."""
+def map_wall_tile_records():
     current_catalog_path = Path(__file__).resolve().parents[1]/'ui/map/config/tile-catalog.yaml'
     current_tile_catalog = yaml.load(current_catalog_path.read_text(), Loader=UniqueMapSourceLoader)
-    current_wall_records = {current_tile_record['id']:current_tile_record for current_tile_record in current_tile_catalog['tiles'] if current_tile_record['category']=='wall'}
+    return {current_tile_record['id']:current_tile_record for current_tile_record in current_tile_catalog['tiles'] if current_tile_record['category']=='wall'}
+
+
+def validate_map_cliff_texture(current_texture_key):
+    """벽면 용도로 등록된 타일만 선택한다."""
+    current_wall_records = map_wall_tile_records()
     if not isinstance(current_texture_key,str) or current_texture_key not in current_wall_records:
         raise ValueError('등록되지 않은 벽면 타일: '+str(current_texture_key))
     from tools.review.common.map_tile_assets import resolve_registered_tile
