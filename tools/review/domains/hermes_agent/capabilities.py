@@ -253,7 +253,9 @@ def list_hermes_capability_catalog():
         current_field_names = current_capability_record['required'] + current_capability_record['optional']
         current_payload_schema = {'type':'object', 'required':current_capability_record['required'], 'properties':{current_field_name:HERMES_FIELD_SCHEMAS[current_field_name] for current_field_name in current_field_names}, 'additionalProperties':False}
         if current_command_name == 'hermes-workflow-list':
-            current_payload_schema['properties']['category'] = {'type':'string','enum':['','translation','image']}
+            from .workflow_catalog import read_workflow_generator_catalog
+            workflow_category_names = sorted({item['category'] for item in read_workflow_generator_catalog().values()})
+            current_payload_schema['properties']['category'] = {'type':'string','enum':['', *workflow_category_names]}
         if current_command_name == 'hermes-kimodo-keyframe-validate':
             from tools.review.domains.kimodo.keyframe_storage import KIMODO_KEYFRAME_LIMIT
             current_payload_schema['properties']['keyframes'] = {'type':'array','minItems':1,'maxItems':KIMODO_KEYFRAME_LIMIT,'items':{'type':'object','required':['id','frame'],'properties':{'id':{'type':'string','pattern':'^[a-f0-9]{32}$'},'frame':{'type':'integer','minimum':1}},'additionalProperties':False},'note':'출력 프레임은 frames 이하이며 서로 중복될 수 없다.'}
