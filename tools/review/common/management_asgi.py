@@ -694,6 +694,21 @@ def build_management_application(current_handler_class, current_root_path, curre
         return [{key: example[key] for key in ("id", "label", "prompt")}
                 for example in load_kimodo_examples().values()]
 
+    @current_root_application.get('/management/assistant/kimodo-prompt-examples/{identifier}')
+    def kimodo_prompt_example(identifier: str):
+        import base64
+        from fastapi import HTTPException
+        from generators.kimodo.form_inputs import load_kimodo_examples, load_proportion_examples
+        example = load_kimodo_examples().get(identifier)
+        if example is None:
+            raise HTTPException(404, "동작 예시를 찾을 수 없습니다.")
+        references = []
+        if example.get("reference_example"):
+            for filename in load_proportion_examples()[example["reference_example"]]["images"]:
+                path = Path(filename)
+                references.append({"name": path.name, "data": base64.b64encode(path.read_bytes()).decode("ascii")})
+        return {**example, "references": references}
+
     @current_root_application.post('/management/assistant/kimodo-proposal-review')
     def review_kimodo_proposal(inputs: dict):
         from fastapi import HTTPException

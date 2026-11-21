@@ -1,6 +1,6 @@
 import React,{useState} from "react";
 
-export default function KimodoPromptExamples({apply}){
+export default function KimodoPromptExamples({apply,applySettings}){
   const [rows,setRows]=useState([]),[id,select]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false);
   async function load(){
     setBusy(true);setError("");
@@ -17,7 +17,8 @@ export default function KimodoPromptExamples({apply}){
     {!rows.length && <button type="button" disabled={busy} onClick={load}>동작 설명 예시 조회</button>}
     {selected && <><label>동작 설명 예시 <select value={id} onChange={e=>select(e.target.value)}>
       {rows.map(row=><option key={row.id} value={row.id}>{row.label}</option>)}</select></label>
-      <pre>{selected.prompt}</pre><button type="button" onClick={()=>apply(selected.prompt)}>동작 설명에 적용</button></>}
+      <pre>{selected.prompt}</pre><button type="button" onClick={()=>apply(selected.prompt)}>동작 설명에 적용</button>
+      {applySettings && <button type="button" onClick={()=>applySettings(selected.id)}>예시 설정과 참조 함께 적용</button>}</>}
     {error && <p role="alert">{error}</p>}
   </section>;
 }

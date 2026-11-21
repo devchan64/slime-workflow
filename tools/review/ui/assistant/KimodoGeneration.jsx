@@ -48,6 +48,19 @@ export default function KimodoGeneration({session,restoreJob}){
     setBusy(true);setNotice("");
     try{await action();}catch(error){setNotice(error.message);}finally{setBusy(false);}
   }
+  async function applyExample(identifier){
+    const response=await fetch("/management/assistant/kimodo-prompt-examples/"+encodeURIComponent(identifier));
+    if(!response.ok)throw new Error("동작 예시 설정을 불러올 수 없습니다.");
+    const example=await response.json();
+    const {keyframes,segment_frames,camera_elevation_degrees=0,...settings}=example.settings || {};
+    const positions=keyframes?.length?await managementCommand("hermes-agent","hermes-kimodo-keyframe-validate",
+      {frames:example.frames,keyframes}):null;
+    const files=example.references.map(({name,data})=>new File([Uint8Array.from(atob(data),c=>c.charCodeAt(0))],name,{type:"image/png"}));
+    setInputs(previous=>({...previous,...settings,prompt:example.prompt,frames:example.frames,camera_elevation_degrees}));
+    setPlacement(positions);setPlacing(false);setReferences(files);setJointEdits([]);setSegments((segment_frames || []).join(" "));
+    setAngles("");setBundle(null);setCalibration(null);setHip(false);setReview(null);
+    setNotice(example.label+" 설정을 적용했습니다.");
+  }
   async function inspect(){
     setReview(null);
     const request={...inputs,frames:Number(inputs.frames),steps:Number(inputs.steps),seed:Number(inputs.seed),
@@ -112,7 +125,7 @@ export default function KimodoGeneration({session,restoreJob}){
     </fieldset>}
     {inputs && <form onSubmit={e=>{e.preventDefault();perform(inspect);}}><fieldset disabled={busy}>
       <label>동작 설명 <textarea required maxLength={2000} value={inputs.prompt} onChange={e=>edit("prompt",e.target.value)}/></label>
-      <KimodoPromptExamples apply={prompt=>edit("prompt",prompt)}/>
+      <KimodoPromptExamples apply={prompt=>edit("prompt",prompt)} applySettings={id=>perform(()=>applyExample(id))}/>
       {[["frames","프레임 수",30,300],["steps","생성 단계",2,100],["seed","시드",0,2147483647]].map(([field,label,min,max])=>
         <label key={field}>{label} <input type="number" required min={min} max={max} value={inputs[field]} onChange={e=>edit(field,e.target.value)}/></label>)}
       <label>신체 비율 참조 PNG (최대 8장) <input type="file" accept="image/png" multiple
