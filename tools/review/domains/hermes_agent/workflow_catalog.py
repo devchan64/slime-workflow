@@ -3,6 +3,7 @@ from copy import deepcopy
 
 
 WORKFLOW_GENERATOR_COMMANDS = {
+    "kimodo": {"submit": "hermes-delegate-kimodo", "status": "hermes-delegation-job-status", "cancel": "hermes-delegation-cancel"},
     "sfx-dasheng-audiogen": {
         "submit": "hermes-delegate-audio", "status": "hermes-audio-status", "cancel": "hermes-audio-cancel",
     },
@@ -16,7 +17,20 @@ WORKFLOW_GENERATOR_COMMANDS = {
 
 
 def read_workflow_generator_catalog():
+    from generators.kimodo.contracts import KIMODO_DEFAULT_SETTINGS, KIMODO_MAXIMUM_SEED_VALUE
     return {
+        "kimodo": {
+            "commands": dict(WORKFLOW_GENERATOR_COMMANDS["kimodo"]),
+            "category": "motion", "version": 1, "template_version": 1, "label": "Kimodo 모션",
+            "inputs": {
+                "prompt": {"type": "text", "required": True, "max_length": 2000, "label": "동작 설명"},
+                **{key: {"type": "integer", "required": True, "min": low, "max": high,
+                         "default": KIMODO_DEFAULT_SETTINGS[key], "label": label}
+                   for key, low, high, label in (("frames", 30, 300, "프레임 수"), ("steps", 2, 100, "생성 단계"),
+                                                 ("seed", 0, KIMODO_MAXIMUM_SEED_VALUE, "시드"))},
+            },
+            "outputs": {"images": {"type": "png_list", "label": "첫 원본 포즈 프레임", "media_type": "image/png"}},
+        },
         "sfx-dasheng-audiogen": {
             "commands": dict(WORKFLOW_GENERATOR_COMMANDS["sfx-dasheng-audiogen"]),
             "category": "audio", "version": 1, "template_version": 1, "label": "Dasheng 효과음",

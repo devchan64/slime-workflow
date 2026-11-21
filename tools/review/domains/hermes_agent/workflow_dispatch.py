@@ -68,6 +68,8 @@ def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_co
                     if translation_step_selected:
                         workflow_run_store.record_translation_completion(workflow_run_identifier, current_step_identifier,
                             current_receipt_record["job_id"], current_status_record)
+                    elif expected_service_name == "kimodo":
+                        workflow_run_store.record_kimodo_completion(workflow_run_identifier, current_step_identifier, current_status_record)
                     elif audio_step_selected:
                         workflow_run_store.record_effect_audio_completion(workflow_run_identifier, current_step_identifier, current_status_record)
                     else:

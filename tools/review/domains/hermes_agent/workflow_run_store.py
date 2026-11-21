@@ -304,6 +304,14 @@ class WorkflowRunStore:
                             "UPDATE workflow_step SET state='awaiting_choice' WHERE run_id=? AND step_id=?", choice_key_fields[:2])
                         return None
                 resolved_input_record[target_field_name] = bound_output_value
+            if current_generator_name == "kimodo":
+                from .delegation_proposal import validate_kimodo_proposal_inputs
+                try:
+                    resolved_input_record = validate_kimodo_proposal_inputs(resolved_input_record)
+                except ValueError as error:
+                    block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier,
+                        current_step_identifier, str(error))
+                    return None
             encoded_request_body = encode_workflow_record(resolved_input_record)
             current_database_connection.execute(
                 """UPDATE workflow_step SET state='submitting', request_body=?, request_digest=?
@@ -357,7 +365,28 @@ class WorkflowRunStore:
             raise ValueError("원본 이미지 경로 오류")
         with image_result_path.open("rb") as current_image_stream:
             pinned_image_bytes = current_image_stream.read(REFERENCE_IMAGE_LIMIT + 1)
-        stored_output_record = {"preview": current_result_record["image"]}
+        self.store_png_completion(workflow_run_identifier, current_step_identifier, current_receipt_record,
+                                  current_result_record["image"], pinned_image_bytes, "image")
+
+    def record_kimodo_completion(self, run_id, step_id, status):
+        from .kimodo_frame_observer import inspect_kimodo_source_frame, read_bounded_kimodo_source_file
+        from tools.review.domains.kimodo.generation import KIMODO_JOB_STORAGE
+        from tools.review.domains.image.three_reference_generation import REFERENCE_IMAGE_LIMIT
+        receipt = status["receipt"]
+        attempt = status["job"].get("attempt")
+        frame = inspect_kimodo_source_frame(receipt["job_id"], attempt, 1)
+        path = KIMODO_JOB_STORAGE / receipt["job_id"] / "attempts" / attempt / "output-000.png"
+        content = read_bounded_kimodo_source_file(path, REFERENCE_IMAGE_LIMIT)
+        if hashlib.sha256(content).hexdigest() != frame["image_sha256"]:
+            raise ValueError("원본 프레임이 변경되었습니다.")
+        self.store_png_completion(run_id, step_id, receipt, frame["image"], content, "motion")
+
+    def store_png_completion(self, workflow_run_identifier, current_step_identifier, current_receipt_record,
+                             preview_path, pinned_image_bytes, category):
+        from PIL import Image
+        from tools.review.domains.image.three_reference_generation import REFERENCE_IMAGE_LIMIT
+        current_job_identifier = current_receipt_record["job_id"]
+        stored_output_record = {"preview": preview_path}
         if len(pinned_image_bytes) <= REFERENCE_IMAGE_LIMIT:
             try:
                 with Image.open(BytesIO(pinned_image_bytes), formats=["PNG"]) as verified_image_file:
@@ -368,9 +397,9 @@ class WorkflowRunStore:
                                               "size": len(pinned_image_bytes), "media_type": "image/png"}
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
             completed_step_record = current_database_connection.execute(
-                """UPDATE workflow_step SET state='completed' WHERE run_id=? AND step_id=? AND category='image'
+                """UPDATE workflow_step SET state='completed' WHERE run_id=? AND step_id=? AND category=?
                    AND state='submitting' AND request_id=? RETURNING step_id""",
-                (workflow_run_identifier, current_step_identifier, current_receipt_record["request_id"])).fetchone()
+                (workflow_run_identifier, current_step_identifier, category, current_receipt_record["request_id"])).fetchone()
             if completed_step_record:
                 if "images" in stored_output_record:
                     current_database_connection.execute("INSERT INTO workflow_output_metadata VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -574,7 +603,7 @@ class WorkflowRunStore:
                 raise ValueError("검색 날짜는 YYYY-MM-DD 형식입니다.")
         if query_filter_values["created_through"] and query_filter_values["created_from"] > query_filter_values["created_through"]:
             raise ValueError("검색 시작일이 종료일보다 늦습니다.")
-        if current_category_name not in ("", "translation", "image", "audio"):
+        if current_category_name not in ("", "translation", "image", "audio", "motion"):
             raise ValueError("지원하지 않는 생성기 카테고리입니다.")
         if current_state_name not in ("", "ready", "waiting", "awaiting_choice", "submitting", "completed", "failed", "cancelled", "blocked", "queued", "running", "paused", "unknown"):
             raise ValueError("지원하지 않는 단계 상태입니다.")

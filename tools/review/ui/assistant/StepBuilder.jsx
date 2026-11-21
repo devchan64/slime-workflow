@@ -87,7 +87,7 @@ export default function StepBuilder({call, definition, onChange}) {
           spec.type==="glossary" ? <textarea {...props} placeholder="한 줄에 하나씩 원문 => 번역어"/> :
           <input {...props} type={spec.type==="integer"?"number":"text"} title={spec.help}
             min={spec.min} max={spec.max} step={spec.step} maxLength={spec.max_length}/>}</label>
-          {field==="seed" && !links[field] && <button onClick={()=>setInputs({...inputs,seed:String(crypto.getRandomValues(new Uint32Array(1))[0])})}>랜덤 시드</button>}
+          {field==="seed" && !links[field] && <button onClick={()=>setInputs({...inputs,seed:String(crypto.getRandomValues(new Uint32Array(1))[0] % (spec.max + 1))})}>랜덤 시드</button>}
           {sources.length>0 && <select aria-label={(spec.label || field)+" 입력 출처"} value={links[field] || ""}
             onChange={event => setLinks({...links,[field]:event.target.value})}><option value="">직접 입력</option>
             {sources.map(source => <option key={source.value} value={source.value}>{source.label}</option>)}</select>}

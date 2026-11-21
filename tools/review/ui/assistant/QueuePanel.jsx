@@ -2,7 +2,7 @@ import WorkflowResults from "./WorkflowResults.jsx";
 import QueuePriority from "./QueuePriority.jsx";
 import React, {useEffect, useState} from "react";
 
-const categories = {translation:"번역", image:"이미지", audio:"오디오"};
+const categories = {translation:"번역", image:"이미지", audio:"오디오", motion:"모션"};
 const states = {
   ready:"접수 준비", waiting:"선행 단계 대기", awaiting_choice:"결과 선택 대기",
   submitting:"접수 중", queued:"실행 대기", running:"실행 중", paused:"일시 중지",
