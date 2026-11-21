@@ -1,4 +1,4 @@
-import SoundEffectPage from "./SoundEffectPage.jsx";
+import SoundEffectPage, {HeartmulaPage} from "./SoundEffectPage.jsx";
 import DwposePage from "./DwposePage.jsx";
 import MockProgress from "./MockProgress.jsx";
 import SourceHistory from "./SourceHistory.jsx";
@@ -182,6 +182,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/assistant/heartmula": HeartmulaPage,
   "/management/frame/sfx-dasheng-audiogen": SoundEffectPage,
   "/management/assistant/sound-effect": SoundEffectPage,
   "/management/assistant/dwpose": DwposePage,

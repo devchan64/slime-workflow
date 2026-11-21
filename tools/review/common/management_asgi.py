@@ -369,46 +369,51 @@ def build_management_application(current_handler_class, current_root_path, curre
             rows.append({'id': identifier, 'status': state, 'message': message})
         return rows
 
-    @current_root_application.get('/management/assistant/sfx-input')
-    def sound_effect_defaults():
-        from generators.music.contracts import load_music_defaults
-        defaults = load_music_defaults('sfx-dasheng-audiogen')
-        return {key: defaults[key] for key in ('prompt', 'seed', 'loop_request')} | {'tag': ''}
+    def register_audio_input_routes(prefix, service):
+        music = service == 'music-heartmula'
 
-    @current_root_application.get('/management/assistant/sfx-input/{job}')
-    def sound_effect_saved_input(job: str):
-        from fastapi import HTTPException
-        from generators.music.contracts import read_music_record, validate_music_request
-        from tools.review.domains.music.generation import MusicGenerationManager
-        service = 'sfx-dasheng-audiogen'
-        try:
-            directory = MusicGenerationManager(service).resolve_music_job(job)
-        except ValueError as error:
-            raise HTTPException(404, '효과음 작업을 찾을 수 없습니다.') from error
-        path = directory / 'request.json'
-        if path.is_symlink() or not path.is_file():
-            raise HTTPException(404, '저장된 입력을 찾을 수 없습니다.')
-        try:
-            saved = read_music_record(path)
-            if saved['action'] != 'generate':
-                raise ValueError('모델 준비 작업에는 생성 입력이 없습니다.')
-            fields = ('prompt', 'duration_seconds', 'seed', 'loop_request', 'tag')
-            inputs = validate_music_request(service, {key: saved[key] for key in fields})
-        except (KeyError, TypeError, ValueError, OSError) as error:
-            raise HTTPException(422, '저장된 효과음 생성 입력을 확인하세요.') from error
-        return {'id': job, 'request': {key: inputs[key] for key in ('prompt', 'seed', 'loop_request', 'tag')}}
+        @current_root_application.get(prefix)
+        def sound_effect_defaults():
+            from generators.music.contracts import load_music_defaults
+            defaults = load_music_defaults(service)
+            return {key: defaults[key] for key in ('prompt', 'seed', 'loop_request')} | {'tag': ''} | (dict(lyrics='', duration_seconds=defaults['duration_seconds']) if music else {})
 
-    @current_root_application.post('/management/assistant/sfx-input')
-    def sound_effect_preview(payload: dict):
-        from generators.music.contracts import build_music_request
-        from fastapi import HTTPException
-        if payload.get('action') != 'generate':
-            raise HTTPException(422, '효과음 생성 입력을 확인하세요.')
-        try:
-            request = build_music_request('sfx-dasheng-audiogen', payload)
-        except ValueError as error:
-            raise HTTPException(422, str(error)) from error
-        return {'final_prompt': request['final_prompt']}
+        @current_root_application.get(prefix + '/{job}')
+        def sound_effect_saved_input(job: str):
+            from fastapi import HTTPException
+            from generators.music.contracts import read_music_record, validate_music_request
+            from tools.review.domains.music.generation import MusicGenerationManager
+            try:
+                directory = MusicGenerationManager(service).resolve_music_job(job)
+            except ValueError as error:
+                raise HTTPException(404, '오디오 작업을 찾을 수 없습니다.') from error
+            path = directory / 'request.json'
+            if path.is_symlink() or not path.is_file():
+                raise HTTPException(404, '저장된 입력을 찾을 수 없습니다.')
+            try:
+                saved = read_music_record(path)
+                if saved['action'] != 'generate':
+                    raise ValueError('모델 준비 작업에는 생성 입력이 없습니다.')
+                fields = ('prompt', 'duration_seconds', 'seed', 'loop_request', 'tag') + (('lyrics',) if music else ())
+                inputs = validate_music_request(service, {key: saved[key] for key in fields})
+            except (KeyError, TypeError, ValueError, OSError) as error:
+                raise HTTPException(422, '저장된 오디오 생성 입력을 확인하세요.') from error
+            return {'id': job, 'request': {key: inputs[key] for key in ('prompt', 'seed', 'loop_request', 'tag') + (('lyrics','duration_seconds') if music else ())}}
+
+        @current_root_application.post(prefix)
+        def sound_effect_preview(payload: dict):
+            from generators.music.contracts import build_music_request
+            from fastapi import HTTPException
+            if payload.get('action') != 'generate':
+                raise HTTPException(422, '오디오 생성 입력을 확인하세요.')
+            try:
+                request = build_music_request(service, payload)
+            except ValueError as error:
+                raise HTTPException(422, str(error)) from error
+            return {'final_prompt': request['final_prompt']}
+
+    register_audio_input_routes('/management/assistant/sfx-input', 'sfx-dasheng-audiogen')
+    register_audio_input_routes('/management/assistant/heartmula-input', 'music-heartmula')
 
     @current_root_application.get('/management/assistant/dwpose-input/{job}')
     def dwpose_input(job: str):
@@ -457,9 +462,10 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/tools')
     def assistant_tools():
         from tools.review.common.management_catalog import REACT_REVIEW_PATHS, load_manager_page_records
+        tool_paths = {**REACT_REVIEW_PATHS, 'music-heartmula':'/management/assistant/heartmula/'}
         return [
             {key: record[key] for key in ('id', 'label', 'category', 'description')}
-            | {'review_path': REACT_REVIEW_PATHS.get(record['id'])}
+            | {'review_path': tool_paths.get(record['id'])}
             for record in load_manager_page_records(current_source_path)
             if record['id'] != 'hermes-agent'
         ]
@@ -478,6 +484,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/dwpose-generator/')
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen')
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen/')
+    @current_root_application.get('/management/assistant/heartmula/')
     @current_root_application.get('/management/assistant/sound-effect/')
     @current_root_application.get('/management/assistant/dwpose/')
     @current_root_application.get('/management/assistant/translation/')
