@@ -1,3 +1,4 @@
+import BuildingEditor from "./BuildingEditor.jsx";
 import MapReview from "./MapReview.jsx";
 import BattlefieldReview from "./BattlefieldReview.jsx";
 import FunControlPage from "./FunControlPage.jsx";
@@ -265,6 +266,7 @@ function App() {
     <button disabled={busy||!draft.trim()}>{busy?"접수 중":"보내기"}</button></form></article></main>
 }
 const pages = {
+  "/management/assistant/buildings": BuildingEditor,
   "/management/assistant/field-map": MapReview,
   "/management/assistant/town-map": MapReview,
   "/management/assistant/battlefield": BattlefieldReview,

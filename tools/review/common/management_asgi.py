@@ -698,6 +698,19 @@ def build_management_application(current_handler_class, current_root_path, curre
             return Response(status_code=404)
         return FileResponse(directory/names[part], media_type='image/png' if part=='reference' else 'video/mp4')
 
+    @current_root_application.get('/management/assistant/building-image/{texture}')
+    def building_image(texture: str):
+        import re
+        from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_asset
+        if not re.fullmatch(r'town-[a-z0-9-]+-v[1-9][0-9]*|ward-tower-v1', texture):
+            return Response(status_code=404)
+        root, records = load_registered_tiles()
+        relative = 'assets/buildings/' + texture + '.png'
+        if relative not in records:
+            return Response(status_code=404)
+        path, _ = resolve_registered_asset(relative, root, records, 'assets/buildings')
+        return FileResponse(path, media_type='image/png')
+
     @current_root_application.get('/management/assistant/fun-template')
     def fun_template():
         from generators.wan_fun.contracts import FUN_DEFAULT_SETTINGS, FUN_MAX_FRAME_COUNT, FUN_MAX_SEED_VALUE
@@ -982,6 +995,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/wan22-vace-generator/')
     @current_root_application.get('/management/frame/wan22-fun-control-generator')
     @current_root_application.get('/management/frame/wan22-fun-control-generator/')
+    @current_root_application.get('/management/assistant/buildings/')
     @current_root_application.get('/management/assistant/field-map/')
     @current_root_application.get('/management/assistant/town-map/')
     @current_root_application.get('/management/assistant/battlefield/')
