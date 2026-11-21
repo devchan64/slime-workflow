@@ -1,9 +1,11 @@
 import React,{useEffect,useState} from "react";
+import readReference from "./readReference.js";
 import KimodoPromptExamples from "./KimodoPromptExamples.jsx";
 import {managementCommand} from "./managementCommand.js";
 
 export default function KimodoGeneration({session}){
   const [directions,setDirections]=useState({});
+  const [references,setReferences]=useState([]);
   const [segments,setSegments]=useState("");
   const key="kimodo-generation-receipt-"+session;
   const [inputs,setInputs]=useState(null),[review,setReview]=useState(null),[busy,setBusy]=useState(false);
@@ -28,6 +30,11 @@ export default function KimodoGeneration({session}){
     setReview(null);
     const request={...inputs,frames:Number(inputs.frames),steps:Number(inputs.steps),seed:Number(inputs.seed),
       guidance_scale:Number(inputs.guidance_scale),openpose_scale_percent:Number(inputs.openpose_scale_percent)};
+    if(references.length){
+      if(references.length>8)throw new Error("참조 이미지는 최대 8장입니다.");
+      if(references.some(file=>file.size>3000000))throw new Error("참조 PNG는 파일당 3 MB까지 첨부할 수 있습니다.");
+      request.proportion_images=await Promise.all(references.map(readReference));
+    }
     if(segments.trim()){
       const counts=segments.trim().split(/\s+/);
       if(counts.some(value=>!/^\d+$/.test(value)))throw new Error("구간 프레임 수는 공백으로 구분한 정수로 입력하세요.");
@@ -55,6 +62,8 @@ export default function KimodoGeneration({session}){
       <KimodoPromptExamples apply={prompt=>edit("prompt",prompt)}/>
       {[["frames","프레임 수",30,300],["steps","생성 단계",2,100],["seed","시드",0,2147483647]].map(([field,label,min,max])=>
         <label key={field}>{label} <input type="number" required min={min} max={max} value={inputs[field]} onChange={e=>edit(field,e.target.value)}/></label>)}
+      <label>신체 비율 참조 PNG (최대 8장) <input type="file" accept="image/png" multiple
+        onChange={e=>{setReferences(Array.from(e.target.files));setReview(null);}}/></label>
       <details><summary>모션 및 포즈 출력 설정</summary>
         <label>구간별 프레임 수 <input value={segments} placeholder="예: 45 45"
           onChange={e=>{setSegments(e.target.value);setReview(null);}}/></label>
@@ -75,7 +84,7 @@ export default function KimodoGeneration({session}){
       </details>
       <button>생성 요청 검토</button>
     </fieldset></form>}
-    {review && <section><pre>{JSON.stringify(review,null,2)}</pre>
+    {review && <section><pre>{JSON.stringify(review,(key,value)=>key==="proportion_images"?references.map(file=>file.name):value,2)}</pre>
       <button disabled={busy} onClick={()=>perform(submit)}>GPU 대기열에 등록</button>
       <button disabled={busy} onClick={()=>setReview(null)}>취소</button></section>}
     {receipt && <p>최근 접수 ID <code>{receipt}</code> <button disabled={busy} onClick={()=>perform(async()=>{

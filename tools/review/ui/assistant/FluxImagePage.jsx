@@ -5,14 +5,7 @@ import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import GeneratorJobResult from "./GeneratorJobResult.jsx";
 import {managementCommand} from "./managementCommand.js";
 
-function readReference(file){
-  return new Promise((resolve,reject)=>{
-    const reader=new FileReader();
-    reader.onload=()=>resolve(reader.result.split(",")[1]);
-    reader.onerror=()=>reject(new Error("참조 파일을 읽을 수 없습니다."));
-    reader.readAsDataURL(file);
-  });
-}
+import readReference from "./readReference.js";
 
 function pngFile(encoded,name){
   return new File([Uint8Array.from(atob(encoded),char=>char.charCodeAt(0))],name,{type:"image/png"});
