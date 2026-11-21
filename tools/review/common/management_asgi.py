@@ -370,6 +370,31 @@ def build_management_application(current_handler_class, current_root_path, curre
             rows.append({'id': identifier, 'status': state, 'message': message})
         return rows
 
+    @current_root_application.get('/management/assistant/dwpose-input/{job}')
+    def dwpose_input(job: str):
+        from generators.dwpose.contracts import DWPOSE_JOB_STORAGE
+        from tools.review.domains.hermes_agent.delegation_store import validate_service_job_identifier
+        if not validate_service_job_identifier('dwpose', job):
+            return Response(status_code=404)
+        directory = DWPOSE_JOB_STORAGE / job
+        metadata = directory / 'request.json'
+        reference = directory / 'reference-1.png'
+        if directory.is_symlink() or any(path.is_symlink() or not path.is_file() for path in (metadata, reference)):
+            return Response(status_code=404)
+        try:
+            request = json.loads(metadata.read_bytes())
+            if not isinstance(request, dict):
+                raise ValueError('작업 요청 형식 오류')
+            options = [request.get(key, False) for key in ('pose_include_hands', 'pose_include_face')]
+            if any(type(value) is not bool for value in options):
+                raise ValueError('포즈 옵션 형식 오류')
+            image = reference.read_bytes()
+        except (ValueError, OSError):
+            return Response(status_code=422)
+        return Response(image, media_type='image/png', headers={
+            'Cache-Control': 'no-store', 'X-Pose-Hands': json.dumps(options[0]), 'X-Pose-Face': json.dumps(options[1]),
+        })
+
     @current_root_application.get('/management/assistant/history-services')
     def history_services():
         from tools.review.common.management_catalog import REACT_REVIEW_PATHS

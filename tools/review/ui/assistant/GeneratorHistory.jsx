@@ -1,7 +1,7 @@
 import React, {useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 
-export default function GeneratorHistory({service, statusCommand, restore, inspectResult}) {
+export default function GeneratorHistory({service, statusCommand, restore, inspectResult, readJob}) {
   const [page,setPage]=useState(null);
   const [query,setQuery]=useState("");
   const [filter,setFilter]=useState("");
@@ -21,7 +21,7 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
     setPage(result);setFilter(search);
   }
   async function inspect(id) {
-    const result=await managementCommand(service,statusCommand,{id});
+    const result=readJob ? await readJob(id) : await managementCommand(service,statusCommand,{id});
     if(result.id!==id || !result.request)throw new Error("작업 입력을 확인할 수 없습니다.");
     setJob(result);
     inspectResult?.(result);
@@ -38,7 +38,7 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
         <button disabled={page.next_offset==null} onClick={()=>load(()=>list(page.next_offset,filter))}>다음 이력 페이지</button>
       </>}
       {job && <section><strong>{job.id}</strong><pre>{JSON.stringify(job.request,null,2)}</pre>
-        <button onClick={()=>restore(job.request)}>이 작업의 입력으로 교체</button></section>}
+        <button onClick={()=>restore(job.request,job)}>이 작업의 입력으로 교체</button></section>}
     </fieldset>
     {error && <p role="alert">{error}</p>}
   </details>;

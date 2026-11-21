@@ -1,3 +1,4 @@
+import GeneratorHistory from "./GeneratorHistory.jsx";
 import React, {useRef,useState} from "react";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
@@ -26,6 +27,22 @@ export default function DwposePage() {
   const [pending,setPending]=useState(null),[busy,setBusy]=useState(false);
   const [job,setJob]=useState(query.get("job") || ""),[notice,setNotice]=useState("");
   const sending=useRef(false);
+  async function readJob(id){
+    const response=await fetch("/management/assistant/dwpose-input/"+encodeURIComponent(id),{cache:"no-store"});
+    if(!response.ok)throw new Error("저장된 DWPose 입력을 불러올 수 없습니다.");
+    const blob=await response.blob();
+    const savedFile=new File([blob],id+"-reference.png",{type:"image/png"});
+    return {id,file:savedFile,request:{
+      pose_include_hands:response.headers.get("X-Pose-Hands")==="true",
+      pose_include_face:response.headers.get("X-Pose-Face")==="true",
+    }};
+  }
+  function restore(request,record){
+    setFile(record.file);setHands(request.pose_include_hands);setFace(request.pose_include_face);
+    fileInput.current.value="";
+    setJob(record.id);setNotice("저장된 PNG와 포즈 옵션을 불러왔습니다.");
+  }
+  const fileInput=useRef(null);
   async function review(){
     setBusy(true);setNotice("");
     try {
@@ -48,7 +65,9 @@ export default function DwposePage() {
     <h1>DWPose 이미지 추출</h1>
     <ModelReadiness service="dwpose"/><GeneratorChangelog generator="dwpose-generator"/>
     <fieldset disabled={busy || Boolean(pending)}>
-      <label>입력 PNG · 832×480 <input type="file" accept="image/png" onChange={event=>setFile(event.target.files[0] || null)}/></label>
+      <label>입력 PNG · 832×480 <input ref={fileInput} type="file" accept="image/png" onChange={event=>setFile(event.target.files[0] || null)}/></label>
+      {file && <p>선택된 입력 · {file.name}</p>}
+      <GeneratorHistory service="dwpose" readJob={readJob} restore={restore}/>
       <label><input type="checkbox" checked={hands} onChange={event=>setHands(event.target.checked)}/>손 상세 표시</label>
       <label><input type="checkbox" checked={face} onChange={event=>setFace(event.target.checked)}/>얼굴 상세 표시</label>
       <button disabled={!file} onClick={review}>대기열에 추가</button>
