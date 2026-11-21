@@ -386,7 +386,7 @@ def resolve_workflow_priority_target(current_session_identifier, workflow_run_id
     for current_step_record in current_run_view["steps"]:
         if current_step_record["step_id"] == workflow_step_identifier and current_step_record["state"] == "submitting":
             current_service_name = current_step_record["generator"]
-            if current_service_name not in ("prompt-translation", "flux-image"):
+            if current_service_name not in ("prompt-translation", "flux-image", "sfx-dasheng-audiogen"):
                 break
             current_receipt_request = {"request_id": current_step_record["request_id"], "service": current_service_name}
             current_receipt_record = execute_remote_management_command("hermes-agent", "hermes-service-receipt", current_receipt_request)
@@ -5146,7 +5146,7 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                         generation_readiness_events=[workflow_graph_event], generation_confirmation_validator=match_hermes_confirmation_inputs,
                         generation_confirmation_inputs=workflow_graph_inputs)
                 with gr.Accordion("이 대화의 워크플로우 작업 찾기", open=False):
-                    workflow_category_filter = gr.Dropdown([("전체", ""), ("번역", "translation"), ("이미지", "image")], value="", label="카테고리")
+                    workflow_category_filter = gr.Dropdown([("전체", ""), ("번역", "translation"), ("이미지", "image"), ("효과음", "audio")], value="", label="카테고리")
                     workflow_state_filter = gr.Dropdown([("전체", ""), ("선행 작업 대기", "waiting"), ("사용자 선택 대기", "awaiting_choice"), ("접수 준비", "ready"),
                         ("접수·결과 확인 중", "submitting"), ("생성기 대기", "queued"), ("생성기 실행 중", "running"),
                         ("생성기 일시정지", "paused"), ("생성기 상태 확인 불가", "unknown"), ("완료", "completed"), ("실패", "failed"),
@@ -5166,7 +5166,7 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                     workflow_cancel_button.click(cancel_conversation_workflow_run,
                         [hermes_session_control, workflow_run_identifier], workflow_run_display, queue=False)
                     with gr.Accordion("작업 상세 검색", open=False):
-                        workflow_generator_filter = gr.Dropdown([("전체", ""), ("번역", "prompt-translation"), ("FLUX 이미지", "flux-image")], value="", label="생성기")
+                        workflow_generator_filter = gr.Dropdown([("전체", ""), ("번역", "prompt-translation"), ("FLUX 이미지", "flux-image"), ("효과음", "sfx-dasheng-audiogen")], value="", label="생성기")
                         workflow_run_filter = gr.Textbox(label="검색할 실행 ID")
                         workflow_job_filter = gr.Textbox(label="단계·요청·원 서비스 작업 ID")
                         workflow_start_filter = gr.Textbox(label="생성 시작일 (UTC, YYYY-MM-DD)")

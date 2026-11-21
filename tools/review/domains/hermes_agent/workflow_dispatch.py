@@ -16,6 +16,8 @@ def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_co
     for current_step_record in workflow_run_store.list_run_step_records(workflow_run_identifier):
         current_step_identifier = current_step_record["step_id"]
         current_generator_commands = WORKFLOW_GENERATOR_COMMANDS.get(current_step_record["generator"])
+        audio_step_selected = current_step_record["generator"] == "sfx-dasheng-audiogen"
+        service_request_fields = {"service": current_step_record["generator"]} if audio_step_selected else {}
         if current_step_record["state"] == "submitting":
             expected_service_name = current_step_record["generator"]
             if current_generator_commands is None:
@@ -25,7 +27,7 @@ def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_co
             status_command_name = current_generator_commands["status"]
             try:
                 current_status_record = gateway_command_handler(status_command_name, {
-                    "request_id": current_step_record["request_id"]})
+                    **service_request_fields, "request_id": current_step_record["request_id"]})
             except (ValueError, OSError, RuntimeError):
                 workflow_run_store.record_source_observation(current_step_record["request_id"], "unknown")
                 continue
@@ -52,7 +54,7 @@ def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_co
                 cancel_command_name = current_generator_commands["cancel"]
                 try:
                     cancel_response_record = gateway_command_handler(cancel_command_name, {
-                        "request_id": current_step_record["request_id"], "job_id": current_receipt_record["job_id"]})
+                        **service_request_fields, "request_id": current_step_record["request_id"], "job_id": current_receipt_record["job_id"]})
                 except (ValueError, OSError, RuntimeError):
                     continue
                 if (isinstance(cancel_response_record, dict) and cancel_response_record.get("cancel_requested") is True
@@ -66,6 +68,8 @@ def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_co
                     if translation_step_selected:
                         workflow_run_store.record_translation_completion(workflow_run_identifier, current_step_identifier,
                             current_receipt_record["job_id"], current_status_record)
+                    elif audio_step_selected:
+                        workflow_run_store.record_effect_audio_completion(workflow_run_identifier, current_step_identifier, current_status_record)
                     else:
                         workflow_run_store.record_flux_completion(workflow_run_identifier, current_step_identifier,
                                                                   current_status_record)
@@ -82,6 +86,6 @@ def advance_workflow_run(workflow_run_store, workflow_run_identifier, gateway_co
                     "등록된 생성기의 실행 어댑터가 없습니다.")
                 continue
             try:
-                gateway_command_handler(current_generator_commands["submit"], claimed_step_record)
+                gateway_command_handler(current_generator_commands["submit"], claimed_step_record | service_request_fields)
             except (ValueError, OSError, RuntimeError):
                 workflow_run_store.record_source_observation(claimed_step_record["request_id"], "unknown")

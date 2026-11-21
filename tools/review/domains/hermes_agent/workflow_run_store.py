@@ -574,7 +574,7 @@ class WorkflowRunStore:
                 raise ValueError("검색 날짜는 YYYY-MM-DD 형식입니다.")
         if query_filter_values["created_through"] and query_filter_values["created_from"] > query_filter_values["created_through"]:
             raise ValueError("검색 시작일이 종료일보다 늦습니다.")
-        if current_category_name not in ("", "translation", "image"):
+        if current_category_name not in ("", "translation", "image", "audio"):
             raise ValueError("지원하지 않는 생성기 카테고리입니다.")
         if current_state_name not in ("", "ready", "waiting", "awaiting_choice", "submitting", "completed", "failed", "cancelled", "blocked", "queued", "running", "paused", "unknown"):
             raise ValueError("지원하지 않는 단계 상태입니다.")

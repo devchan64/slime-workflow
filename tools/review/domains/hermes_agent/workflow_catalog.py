@@ -3,6 +3,9 @@ from copy import deepcopy
 
 
 WORKFLOW_GENERATOR_COMMANDS = {
+    "sfx-dasheng-audiogen": {
+        "submit": "hermes-delegate-audio", "status": "hermes-audio-status", "cancel": "hermes-audio-cancel",
+    },
     "prompt-translation": {
         "submit": "hermes-delegate-translation", "status": "hermes-translation-status", "cancel": "hermes-translation-cancel",
     },
@@ -14,6 +17,15 @@ WORKFLOW_GENERATOR_COMMANDS = {
 
 def read_workflow_generator_catalog():
     return {
+        "sfx-dasheng-audiogen": {
+            "commands": dict(WORKFLOW_GENERATOR_COMMANDS["sfx-dasheng-audiogen"]),
+            "category": "audio", "version": 1, "template_version": 1, "label": "Dasheng 효과음",
+            "inputs": {
+                "prompt": {"type": "text", "required": True, "label": "효과음 설명", "max_length": 4000},
+                "seed": {"type": "integer", "required": True, "min": 0, "max": 4294967295, "default": 42},
+            },
+            "outputs": {"audio": {"type": "wav", "label": "생성 효과음", "media_type": "audio/wav"}},
+        },
         "prompt-translation": {
             "commands": dict(WORKFLOW_GENERATOR_COMMANDS["prompt-translation"]),
             "category": "translation", "version": 1, "template_version": 1,
