@@ -160,7 +160,7 @@ def list_hermes_session_choices(hermes_selected_identifier=None):
     try:
         hermes_list_record = execute_remote_management_command('hermes-agent', 'hermes-session-list', {})
         hermes_session_records = hermes_list_record['sessions']
-        hermes_session_choices = [(current_session_record['updated_at'] + ' · ' + current_session_record['id'][:8] + ' · ' + str(current_session_record['message_count']) + '개 메시지', current_session_record['id']) for current_session_record in hermes_session_records]
+        hermes_session_choices = [(current_session_record.get('title', '새 대화') + ' · ' + current_session_record['updated_at'] + ' · ' + current_session_record['id'][:8] + ' · ' + str(current_session_record['message_count']) + '개 메시지', current_session_record['id']) for current_session_record in hermes_session_records]
         hermes_valid_identifiers = {current_session_record['id'] for current_session_record in hermes_session_records}
         hermes_list_message = '세션 ' + str(len(hermes_session_choices)) + '개' + (' · 최근 100개만 표시' if hermes_list_record.get('truncated') else '')
         current_unreadable_count=hermes_list_record.get('unreadable_count',0)
@@ -170,7 +170,7 @@ def list_hermes_session_choices(hermes_selected_identifier=None):
             try:
                 current_selected_record=execute_remote_management_command('hermes-agent','hermes-session-read',{'session_id':hermes_selected_identifier})
                 if not isinstance(current_selected_record,dict) or current_selected_record.get('id')!=hermes_selected_identifier or not isinstance(current_selected_record.get('updated_at'),str) or not isinstance(current_selected_record.get('messages'),list):raise ValueError('세션 기록 오류')
-                hermes_session_choices.append((current_selected_record['updated_at']+' · '+hermes_selected_identifier[:8]+' · '+str(len(current_selected_record['messages']))+'개 메시지 · 이전 세션',hermes_selected_identifier))
+                hermes_session_choices.append((current_selected_record.get('title', '새 대화')+' · '+current_selected_record['updated_at']+' · '+hermes_selected_identifier[:8]+' · '+str(len(current_selected_record['messages']))+'개 메시지 · 이전 세션',hermes_selected_identifier))
                 hermes_valid_identifiers.add(hermes_selected_identifier)
                 hermes_list_message+=' · 선택한 이전 세션 포함'
             except (OSError,ValueError,KeyError,TypeError,RuntimeError):
@@ -681,7 +681,7 @@ def read_conversation_workflow_result(current_session_identifier, workflow_run_i
 def build_session_archive_panel(session_control, list_status):
     with gr.Accordion("세션 보관함", open=False):
         archived = gr.Dropdown(label="보관된 세션", choices=[], value=None, interactive=True)
-        query = gr.Textbox(label="보관함 검색", placeholder="세션 ID 또는 메시지 내용")
+        query = gr.Textbox(label="보관함 검색", placeholder="제목, 세션 ID 또는 메시지 내용")
         notice = gr.Markdown()
         pending_delete = gr.State(None)
         refresh = gr.Button("보관함 조회")
@@ -693,7 +693,7 @@ def build_session_archive_panel(session_control, list_status):
         def read_archive(text):
             records = execute_remote_management_command("hermes-agent", "hermes-session-archived",
                 {"query": (text or "").strip(), "limit": 30})
-            choices = [(f"{r['updated_at']} · {r['id']} · 메시지 {r['message_count']}개",
+            choices = [(f"{r.get('title', '새 대화')} · {r['updated_at']} · {r['id']} · 메시지 {r['message_count']}개",
                         json.dumps([r['id'], r['updated_at']])) for r in records["sessions"]]
             return gr.update(choices=choices, value=None), "최근 일치 항목 최대 30개입니다. 검색어로 범위를 좁힐 수 있습니다."
 
@@ -896,7 +896,7 @@ def read_hermes_session_conversation(hermes_session_identifier, hermes_selected_
             if current_message_record.get('context_truncated'):
                 current_answer_text += '\n[이 요청에는 이전 문맥 일부만 전달됨]'
             hermes_conversation_values.append({'role': 'assistant', 'content': current_answer_text})
-        hermes_session_message = '세션 ' + hermes_session_identifier + ' · 메시지 ' + str(hermes_session_record['message_count']) + '개 · 확인 ' + hermes_session_record['queried_at']
+        hermes_session_message = (hermes_session_record.get('title') or '세션') + ' · ' + hermes_session_identifier + ' · 메시지 ' + str(hermes_session_record['message_count']) + '개 · 확인 ' + hermes_session_record['queried_at']
         if hermes_session_record.get('truncated'):
             hermes_session_message += ' · 최근 20개만 표시'
         hermes_job_identifiers = [current_job_choice[1] for current_job_choice in hermes_job_choices]
@@ -3803,6 +3803,13 @@ def submit_composed_request(session_id, request_id, prompt, verification, draft_
         if session_id != draft_id:
             raise gr.Error('새 대화 세션을 확인할 수 없습니다. 같은 요청으로 다시 확인하세요.')
     receipt = submit_hermes_session_request(session_id, request_id, prompt, verification)
+    try:
+        refreshed_choices, refreshed_status = list_hermes_session_choices(session_id)
+    except gr.Error:
+        list_status = "목록 새로고침으로 세션 제목을 확인하세요."
+    else:
+        if refreshed_choices.get("value") == session_id:
+            session_update, list_status = refreshed_choices, refreshed_status
     return (*receipt, session_update, next_draft, list_status)
 
 
@@ -5007,7 +5014,7 @@ def build_hermes_agent_interface(include_advanced_controls=True, current_source_
                 def insert_example_request(draft, example: gr.SelectData):
                     return ((draft.rstrip() + "\n") if draft and draft.strip() else "") + example.value["text"]
                 hermes_session_conversation.example_select(insert_example_request, hermes_session_prompt, hermes_session_prompt, queue=False)
-                hermes_session_status = gr.Markdown()
+                hermes_session_status = gr.Textbox(label='현재 대화', interactive=False, container=False, lines=1)
                 with gr.Column() as request_confirmation_area:
                     hermes_session_submit_status = gr.Markdown()
                 hermes_session_draft = gr.State(value=lambda: uuid.uuid4().hex)

@@ -320,7 +320,7 @@ class HermesServiceManager:
                 except (OSError, ValueError, TypeError, KeyError):
                     current_view_record['job'] = {'status': {'status':'unavailable', 'message':'작업 상태를 읽을 수 없습니다.'}, 'final_response': None, 'final_response_truncated': False}
             hermes_view_messages.append(current_view_record)
-        return {'id': hermes_session_record['id'], 'message_count': len(hermes_session_record['messages']), 'messages': hermes_view_messages, 'truncated': current_start_index > 0, 'offset':current_offset_value, 'next_offset':current_offset_value+len(hermes_view_messages) if current_start_index>0 else None, 'snapshot':current_snapshot_value, 'queried_at': datetime.now(timezone.utc).isoformat()}
+        return {'id': hermes_session_record['id'], 'title': hermes_session_record.get('title', '새 대화'), 'message_count': len(hermes_session_record['messages']), 'messages': hermes_view_messages, 'truncated': current_start_index > 0, 'offset':current_offset_value, 'next_offset':current_offset_value+len(hermes_view_messages) if current_start_index>0 else None, 'snapshot':current_snapshot_value, 'queried_at': datetime.now(timezone.utc).isoformat()}
 
     def execute_hermes_command(self, hermes_command_name, hermes_payload_record):
         if not isinstance(hermes_payload_record, dict):

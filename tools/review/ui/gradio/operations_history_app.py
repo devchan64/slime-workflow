@@ -192,7 +192,7 @@ def read_operations_history_overview(current_search_text='', current_status_filt
     try:
         current_session_result=execute_remote_management_command('hermes-agent','hermes-session-list',{})
         current_session_records=current_session_result['sessions']
-        current_session_choices=[(str(item['updated_at'])+' · '+str(item['id'])[:8]+' · '+str(item['message_count'])+'개 메시지',item['id']) for item in current_session_records]
+        current_session_choices=[(item.get('title', '새 대화')+' · '+str(item['updated_at'])+' · '+str(item['id'])[:8]+' · '+str(item['message_count'])+'개 메시지',item['id']) for item in current_session_records]
         current_session_notice='세션 '+str(len(current_session_choices))+'개'+(' · 최근 100개만 표시' if current_session_result.get('truncated') else '')
         current_unreadable_count=current_session_result.get('unreadable_count',0)
         if type(current_unreadable_count) is not int or current_unreadable_count<0:raise ValueError('세션 누락 수 오류')
@@ -408,7 +408,7 @@ def select_operations_older_session(current_session_rows,current_select_event:gr
     for current_entry in current_recent['sessions']:
         if not isinstance(current_entry,dict) or not isinstance(current_entry.get('id'),str) or not re.fullmatch(r'[a-f0-9]{32}',current_entry['id']) or current_entry['id'] in current_ids or not isinstance(current_entry.get('updated_at'),str) or type(current_entry.get('message_count')) is not int:raise gr.Error('최근 세션 목록을 확인할 수 없습니다.')
         current_ids.add(current_entry['id'])
-        current_choices.append((current_entry['updated_at']+' · '+current_entry['id'][:8]+' · '+str(current_entry['message_count'])+'개 메시지',current_entry['id']))
+        current_choices.append((current_entry.get('title', '새 대화')+' · '+current_entry['updated_at']+' · '+current_entry['id'][:8]+' · '+str(current_entry['message_count'])+'개 메시지',current_entry['id']))
     if current_session_id not in current_ids:current_choices.append((current_session['updated_at']+' · '+current_session_id[:8]+' · '+str(len(current_session['messages']))+'개 메시지 · 이전 세션',current_session_id))
     return gr.update(choices=current_choices,value=current_session_id),'이전 세션을 선택했습니다. 세션 지시 조회를 누르세요.'
 

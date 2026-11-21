@@ -18,6 +18,16 @@ HERMES_SESSION_JOB_PATTERN = re.compile(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a
 HERMES_SESSION_MAX_MESSAGES = 200
 
 
+def title_from_first_request(text):
+    lines = [" ".join(line.split()) for line in text.splitlines() if line.strip()]
+    for line in lines:
+        if line.startswith(("사용할 도구:", "사용할 생성기:")):
+            continue
+        subject = re.sub(r"\s*(?:해\s*주세요|해\s*줘|해주세요|해줘)[.!?。]*$", "", line).strip() or line
+        return subject if len(subject) <= 48 else subject[:47].rstrip() + "…"
+    return (lines[0].split(":", 1)[-1].strip()[:48] if lines else "") or "새 대화"
+
+
 class HermesSessionStore:
     """작업 기록은 소유하지 않고 사용자 메시지와 작업 ID만 연결한다."""
 
@@ -54,13 +64,17 @@ class HermesSessionStore:
         current_session_record = json.loads(current_record_path.read_text(encoding='utf-8'))
         if not isinstance(current_session_record, dict) or current_session_record.get('version') != 1 or current_session_record.get('id') != session_identifier_value or not isinstance(current_session_record.get('messages'), list):
             raise ValueError('세션 기록 형식 오류')
+        if not current_session_record.get("title"):
+            first = next((message["text"] for message in current_session_record["messages"]
+                          if isinstance(message, dict) and isinstance(message.get("text"), str) and message["text"].strip()), "")
+            current_session_record["title"] = title_from_first_request(first)
         return current_session_record
 
     def create_session_record(self, session_identifier_value=None):
         with self.hold_session_storage_lock():
             current_session_identifier = session_identifier_value if session_identifier_value is not None else uuid.uuid4().hex
             current_created_timestamp = datetime.now(timezone.utc).isoformat()
-            current_session_record = {'version': 1, 'id': current_session_identifier, 'created_at': current_created_timestamp, 'updated_at': current_created_timestamp, 'messages': []}
+            current_session_record = {'version': 1, 'id': current_session_identifier, 'created_at': current_created_timestamp, 'updated_at': current_created_timestamp, 'messages': [], 'title': '새 대화'}
             current_record_path = self.resolve_session_record_path(current_session_identifier)
             if current_record_path.with_suffix(".archived").exists():
                 raise ValueError("보관된 세션입니다. 먼저 복원하세요.")
@@ -121,8 +135,8 @@ class HermesSessionStore:
                 except (OSError,ValueError,TypeError,UnicodeError):
                     current_unreadable_identifiers.append(current_session_identifier)
                     continue
-                if current_query_value and current_query_value not in current_session_identifier and not any(current_query_value in item['text'].casefold() for item in current_message_records):continue
-                current_session_summaries.append({'id': current_session_identifier, 'created_at': current_session_record['created_at'], 'updated_at': current_session_record['updated_at'], 'message_count': len(current_message_records)})
+                if current_query_value and current_query_value not in current_session_identifier and current_query_value not in current_session_record['title'].casefold() and not any(current_query_value in item['text'].casefold() for item in current_message_records):continue
+                current_session_summaries.append({'id': current_session_identifier, 'title': current_session_record['title'], 'created_at': current_session_record['created_at'], 'updated_at': current_session_record['updated_at'], 'message_count': len(current_message_records)})
             current_unreadable_identifiers.sort()
             current_session_summaries.sort(key=lambda current_session_record: (current_session_record['updated_at'], current_session_record['id']), reverse=True)
             if not current_page_request:
@@ -155,6 +169,8 @@ class HermesSessionStore:
                 raise ValueError('세션 메시지 한도에 도달했습니다. 새 세션을 시작하세요.')
             current_created_timestamp = datetime.now(timezone.utc).isoformat()
             current_message_record = {'id': uuid.uuid4().hex, 'request_id': request_identifier_value, 'role': 'user', 'text': request_message_text, 'created_at': current_created_timestamp, 'job_id': None, 'execution_prompt': execution_prompt_text if execution_prompt_text is not None else request_message_text, 'verification_modules': verification_module_names or [], 'context_truncated': context_truncated}
+            if not current_session_record['messages']:
+                current_session_record['title'] = title_from_first_request(request_message_text)
             current_session_record['messages'].append(current_message_record)
             current_session_record['updated_at'] = current_created_timestamp
             write_record_atomically(self.resolve_session_record_path(session_identifier_value), current_session_record)
