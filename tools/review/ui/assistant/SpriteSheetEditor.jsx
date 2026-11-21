@@ -9,8 +9,7 @@ import renderSpritePreview from "./renderSpritePreview.mjs";
 const fields=["x","y","width","height","anchorX","anchorY"];
 const labels=["X","Y","너비","높이","앵커 X","앵커 Y"];
 
-function SpritePreview({rows,image,bounds,fps,original,onEdit}){
-  const canvas=useRef(null);
+function SpritePreview({rows,image,bounds,fps,original,onEdit,canvas,onReferenceEdit}){
   const [gameSize,setGameSize]=useState(false),[guide,setGuide]=useState(true),[feet,setFeet]=useState(false);
   const [referenceHeight,setReferenceHeight]=useState(original?.runtimeDimensions?.referenceBodyHeight ?? original?.animation?.referenceBodyHeight ?? "");
   const [gameHeight,setGameHeight]=useState(original?.runtimeDimensions?.gameBodyHeight ?? original?.animation?.gameBodyHeight ?? "");
@@ -46,12 +45,12 @@ function SpritePreview({rows,image,bounds,fps,original,onEdit}){
     return ()=>{el.spritePreviewRevision++;};
   },[image,rows,frame,playing,shadow,bounds,fps,baseline,onion,clip,original,mode,revision,gameSize,referenceHeight,gameHeight,feet,guide]);
   return <fieldset><legend>프레임 재생 미리보기</legend>
-    <canvas ref={canvas} width="640" height="640" aria-label="크롭과 앵커 미리보기" style={{width:"100%",maxWidth:640,touchAction:"none"}}/>
+    <canvas ref={canvas} onPointerUp={()=>{if(mode==="머리 기준")onReferenceEdit();}} width="640" height="640" aria-label="크롭과 앵커 미리보기" style={{width:"100%",maxWidth:640,touchAction:"none"}}/>
     <p role="status">{previewStatus}</p>
     <button type="button" onClick={togglePlayback}>{playing?"정지":"재생"}</button>
     <fieldset disabled={playing}><legend>캔버스 편집</legend>
       <label>편집 도구<select value={mode} onChange={e=>setMode(e.target.value)}>
-        <option>크롭</option><option>배치 앵커</option></select></label>
+        <option>크롭</option><option>배치 앵커</option><option>머리 기준</option></select></label>
       <label>반영 대상<select value={target} onChange={e=>setTarget(e.target.value)}>
         <option>현재 프레임</option><option>선택 프레임</option><option>전체</option></select></label>
       {target==="선택 프레임" && <label>대상 프레임<select multiple value={selection}
@@ -105,6 +104,12 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
   const [result,setResult]=useState(null),[error,setError]=useState("");
   const [first,setFirst]=useState(1),[last,setLast]=useState(rows.length),[fps,setFps]=useState(6);
   const [review,setReview]=useState(null);
+  const canvas=useRef(null);
+  function readBodyReference(){
+    if(original?.source!=="assets")return null;
+    const reference=canvas.current?.spriteEditorState?.bodyReference;
+    return reference?{frame:reference.frame,headY:reference.headY}:null;
+  }
   function editRows(next){
     setRows(next);
     setReview(null);setResult(null);setError("");
@@ -132,7 +137,7 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
           const next=payload.frames[i];
           return ["x","y","width","height"].some(key=>rect[key]!==next[key]) || anchor.x!==next.anchorX || anchor.y!==next.anchorY;
         }).length:count;
-        setReview({payload,changed});return;
+        setReview({payload,changed,bodyReference:readBodyReference()});return;
       }
       if(gif)payload.fps=Number(fps);
       const record=await managementCommand("character-animation",gif?"sheet-gif":"sheet-export",payload);
@@ -145,6 +150,10 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
     setBusy(true);setError("");
     try{
       const request={path:original.path,metadataSha256:original.metadataSha256,payload:review.payload,confirm:true};
+      if(JSON.stringify(review.bodyReference)!==JSON.stringify(readBodyReference())){
+        throw new Error("머리 기준이 바뀌었습니다. 원본 갱신 내용을 다시 검토하세요.");
+      }
+      if(review.bodyReference)request.bodyReference=review.bodyReference;
       if(original.source==="baseline")request.source="baseline";
       const record=await managementCommand("character-animation","sheet-update",request);
       if(!record.id || record.path!==original.path)throw new Error("원본 갱신 결과를 확인할 수 없습니다.");
@@ -157,12 +166,13 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
       rows:rows.map((row,i)=>[i+1,...fields.map((field,j)=><input aria-label={(i+1)+"번 "+labels[j]} type="number"
         required step={j<4?1:"any"} value={row[field]} onChange={e=>update(i,field,e.target.value)}/>)])}}/>
     <BulkEdit rows={rows} onEdit={editRows}/>
-    <SpritePreview onEdit={editRows} rows={rows} image={image} bounds={bounds} fps={fps} original={original}/>
+    <SpritePreview canvas={canvas} onReferenceEdit={()=>setReview(null)} onEdit={editRows} rows={rows} image={image} bounds={bounds} fps={fps} original={original}/>
     <label>출력 열 수<input type="number" min="1" max="128" required value={columns}
       onChange={e=>{setColumns(e.target.value);setReview(null);setResult(null);}}/></label>
     <button>시트와 좌표맵 내보내기</button>
     {original?.metadataSha256 && <button value="review">원본 갱신 검토</button>}
     {review && <section><h3>{original.path}</h3><p>좌표 변경 {review.changed} / {rows.length}프레임 · 출력 {columns}열</p>
+      {review.bodyReference && <p>머리 기준 · {review.bodyReference.frame}번 프레임 · Y {review.bodyReference.headY}px</p>}
       <p>{original.source==="baseline"?"베이스라인 이미지·좌표맵·YAML":"등록 이미지·좌표맵·등록부와 잠금 해시"}를 갱신합니다.</p>
       <button type="button" onClick={save}>확인 후 원본 갱신</button>
       <button type="button" onClick={()=>setReview(null)}>취소</button></section>}
