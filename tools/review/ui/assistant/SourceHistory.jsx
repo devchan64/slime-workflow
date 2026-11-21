@@ -37,7 +37,10 @@ function HistoryPage({source, choose, session}) {
           ] : mediaKind ? [<button onClick={()=>selectJob(record.id)}>결과 보기</button>] : []),
         ]),
       }}/>
-      {selectedJob && <MediaJobResult kind={mediaKind} key={selectedJob} service={source.service} id={selectedJob}/>}
+      {selectedJob && <MediaJobResult kind={mediaKind} key={selectedJob} service={source.service} id={selectedJob}>
+        {job=>job?.status==="completed" && job.result_status==="available" && job.file_observation!=="unavailable" &&
+          <button onClick={()=>choose(source.service+" 생성 결과",selectedJob)}>이 결과를 대화 입력에 추가</button>}
+      </MediaJobResult>}
       <p>{page.note}</p>
       {page.offset>0 && <button onClick={()=>load(Math.max(0,page.offset-10),page.snapshot)}>이전 이력</button>}
       {page.next_offset!=null && <button onClick={()=>load(page.next_offset,page.snapshot)}>다음 이력</button>}
