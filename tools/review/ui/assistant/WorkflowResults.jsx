@@ -1,3 +1,4 @@
+import TranslationResult from "./TranslationResult.jsx";
 import React, {useEffect, useState} from "react";
 
 function MediaPreview({audio, result, session, run, call}) {
@@ -102,7 +103,8 @@ export default function WorkflowResults({session, run, call, close, openRun}) {
       </p>)}
       {view.results.length===0 && <p>아직 기록된 결과가 없습니다.</p>}
       {view.results.map(result => <section key={result.attempt_id}><h4>{result.step_id} · {result.job_id}</h4>
-        {typeof result.outputs.text === "string" && <pre>{result.outputs.text}</pre>}
+        {typeof result.outputs.text === "string" && (view.steps.some(step=>step.step_id===result.step_id && step.generator==="prompt-translation")
+          ? <TranslationResult job={result.job_id} text={result.outputs.text}/> : <pre>{result.outputs.text}</pre>)}
         {(result.outputs.audio || result.outputs.preview) &&
           <MediaPreview audio={Boolean(result.outputs.audio)} {...{result,session,run,call}}/>}
       </section>)}

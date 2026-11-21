@@ -1,3 +1,4 @@
+import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 import WorldMap from "./WorldMap.jsx";
 import GpuPanel from "./GpuPanel.jsx";
@@ -10,11 +11,8 @@ import {AssistantRuntimeProvider, ThreadPrimitive, MessagePrimitive, useAuiState
 const base = "/management/assistant/";
 const id = () => crypto.randomUUID().replaceAll("-", "");
 const query = () => new URLSearchParams(location.search);
-async function call(command, payload = {}) {
-  const res = await fetch("/management/command", {method:"POST", headers:{"Content-Type":"application/json"},body:JSON.stringify({service:"hermes-agent",command:"hermes-"+command,payload})});
-  const value = await res.json();
-  if (!res.ok) throw new Error(value.error || value.detail || "요청을 처리할 수 없습니다.");
-  return value;
+function call(command, payload = {}) {
+  return managementCommand("hermes-agent", "hermes-"+command, payload);
 }
 function messagesFrom(view) {
   const records = view.messages || [];
