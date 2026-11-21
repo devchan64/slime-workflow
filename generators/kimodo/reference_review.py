@@ -72,8 +72,7 @@ def select_multiview_review_rows(current_review_record,current_observation_numbe
 
 def load_multiview_review_files(current_reference_path,current_skeleton_path,current_image_path,current_heldout_path,current_observation_number):
     """같은 출처의 관절·3D·이미지만 8방향 겹침 검수로 불러온다."""
-    from PIL import Image
-    from generators.kimodo.multiview_review_report import build_multiview_review_report,render_multiview_review_overlay
+    from generators.kimodo.multiview_review_report import build_multiview_review_report
     if not current_reference_path or not current_skeleton_path or not current_image_path:
         raise ValueError('참조 관절 JSON, 3D 골격 JSON, 참조 이미지를 모두 선택하세요.')
     current_reference=json.loads(Path(current_reference_path).read_text())
@@ -81,16 +80,23 @@ def load_multiview_review_files(current_reference_path,current_skeleton_path,cur
     current_heldout=json.loads(Path(current_heldout_path).read_text()) if current_heldout_path else None
     current_report=build_multiview_review_report(current_reference,current_skeleton,current_heldout)
     current_image_bytes=Path(current_image_path).read_bytes()
-    current_image_hash=hashlib.sha256(current_image_bytes).hexdigest()
-    if current_skeleton.get('reference_image_sha256') != [current_image_hash]:
-        raise ValueError('3D 골격의 참조 이미지 해시가 없거나 일치하지 않습니다.')
-    with Image.open(current_image_path) as current_image:
-        current_preview=render_multiview_review_overlay(current_image,current_report)
+    current_preview,current_image_hash=render_bound_review_overlay(current_image_bytes,current_skeleton,current_report)
     current_report['review_binding_sha256']=calculate_review_source_binding(current_reference,current_skeleton,current_image_hash)
     current_notice='8방향 검수 기록을 불러왔습니다. 초록색: DWPose, 보라색: 3D 재투영. 적합 오차와 제외 관측 오차는 별개입니다.'
     if not current_heldout_path:
         current_notice+=' 제외 관측 기록을 선택하지 않아 미검증으로 표시합니다.'
     return current_report,current_preview,current_notice,select_multiview_review_rows(current_report,current_observation_number)
+
+
+def render_bound_review_overlay(image_bytes, skeleton, report):
+    from io import BytesIO
+    from PIL import Image
+    from generators.kimodo.multiview_review_report import render_multiview_review_overlay
+    digest = hashlib.sha256(image_bytes).hexdigest()
+    if skeleton.get("reference_image_sha256") != [digest]:
+        raise ValueError("3D 골격의 참조 이미지 해시가 없거나 일치하지 않습니다.")
+    with Image.open(BytesIO(image_bytes)) as image:
+        return render_multiview_review_overlay(image, report), digest
 
 
 def calculate_review_source_binding(current_reference_record,current_skeleton_record,current_image_hash):

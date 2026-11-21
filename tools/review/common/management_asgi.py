@@ -615,13 +615,24 @@ def build_management_application(current_handler_class, current_root_path, curre
     def review_kimodo_observations(inputs: dict):
         from fastapi import HTTPException
         from generators.kimodo.multiview_review_report import build_multiview_review_report
-        from generators.kimodo.reference_review import select_multiview_review_rows
+        import base64
+        import io
+        from generators.kimodo.reference_review import render_bound_review_overlay, select_multiview_review_rows
         try:
             report = build_multiview_review_report(inputs["observations"], inputs["skeleton"], inputs.get("heldout"))
-            return {"views": [{"angle": view["fitted_yaw_degrees"],
+            preview = {}
+            if "image" in inputs:
+                from PIL import Image
+                raw = base64.b64decode(inputs["image"], validate=True)
+                overlay, _ = render_bound_review_overlay(raw, inputs["skeleton"], report)
+                with io.BytesIO() as output:
+                    overlay.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+                    overlay.save(output, "PNG")
+                    preview["overlay_png"] = base64.b64encode(output.getvalue()).decode("ascii")
+            return {**preview, "views": [{"angle": view["fitted_yaw_degrees"],
                                "rows": select_multiview_review_rows(report, view["observation"])}
                               for view in report["views"]], "limitations": report["limitations"]}
-        except (KeyError, IndexError, AttributeError, TypeError, ValueError) as error:
+        except (KeyError, IndexError, AttributeError, TypeError, ValueError, OSError) as error:
             raise HTTPException(422, f"검수 입력 오류 · {error}") from error
 
     @current_root_application.get('/management/assistant/kimodo-prompt-examples')
