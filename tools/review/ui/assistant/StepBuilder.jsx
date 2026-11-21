@@ -53,10 +53,10 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
       const values = {}, bindings = {};
       for (const [field,spec] of Object.entries(template.inputs)) {
         if (links[field]) {
-          const [from_step, output] = JSON.parse(links[field]);
+          const [from_step, output, selection] = JSON.parse(links[field]);
           const source = steps.find(step => step.id === from_step);
           if (catalog[source?.generator]?.outputs[output]?.type !== spec.type) throw new Error("선행 단계 연결을 다시 선택하세요.");
-          bindings[field] = {from_step, output};
+          bindings[field] = selection ? {from_step, output, selection} : {from_step, output};
           continue;
         }
         const raw = inputs[field];
@@ -92,6 +92,7 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
         const sources = steps.flatMap(step => Object.entries(catalog[step?.generator]?.outputs || {})
           .filter(([,output]) => output.type === spec.type)
           .map(([key,output]) => ({value:JSON.stringify([step.id,key]),label:step.id+" · "+output.label})));
+        const sourceLink = links[field] ? JSON.parse(links[field]) : [];
         const fallback = spec.default ?? "";
         const value = inputs[field] ?? (Array.isArray(fallback) ? JSON.stringify(fallback) : fallback);
         const props = {value, onChange:event => setInputs({...inputs,[field]:event.target.value})};
@@ -101,9 +102,13 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
           <input {...props} type={spec.type==="integer"?"number":"text"} title={spec.help}
             min={spec.min} max={spec.max} step={spec.step} maxLength={spec.max_length}/>}</label>
           {field==="seed" && !links[field] && <button onClick={()=>setInputs({...inputs,seed:String(crypto.getRandomValues(new Uint32Array(1))[0] % (spec.max + 1))})}>랜덤 시드</button>}
-          {sources.length>0 && <select aria-label={(spec.label || field)+" 입력 출처"} value={links[field] || ""}
+          {sources.length>0 && <select aria-label={(spec.label || field)+" 입력 출처"} value={sourceLink.length ? JSON.stringify(sourceLink.slice(0,2)) : ""}
             onChange={event => setLinks({...links,[field]:event.target.value})}><option value="">직접 입력</option>
             {sources.map(source => <option key={source.value} value={source.value}>{source.label}</option>)}</select>}
+          {sourceLink.length>0 && <label><input type="checkbox" checked={sourceLink[2]==="user_choice"}
+            onChange={event=>setLinks({...links,[field]:JSON.stringify(event.target.checked?
+              [...sourceLink.slice(0,2),"user_choice"]:sourceLink.slice(0,2))})}/>
+            {spec.label || field}에 전달하기 전 결과 확인</label>}
         </div>;
       })}
       {generator==="kimodo" && !links.prompt && <KimodoPromptExamples apply={prompt=>setInputs({...inputs,prompt})}/>}

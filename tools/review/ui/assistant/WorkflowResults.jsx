@@ -61,7 +61,7 @@ export default function WorkflowResults({session, run, call, close, openRun}) {
   }, [session,run,call,revision]);
   useEffect(() => {
     if (busy || error || confirmCancel || !view?.steps.some(step =>
-      ["ready","submitting"].includes(step.state))) return;
+      ["ready","waiting","submitting"].includes(step.state))) return;
     const timer = setTimeout(() => setRevision(value => value+1), 3000);
     return () => clearTimeout(timer);
   }, [view,busy,error,confirmCancel]);

@@ -150,9 +150,9 @@ export default function FormLibrary({session, proposalStep, messages, call, addT
           <ResultTable table={{
             title:"단계 간 결과 연결",
             summary:"선행 작업의 출력이 전달될 후속 작업과 입력 항목을 확인하세요.",
-            columns:["선행 작업","출력 항목","후속 작업","입력 항목"],
+            columns:["선행 작업","출력 항목","후속 작업","입력 항목","전달 방식"],
             rows:review.steps.flatMap(step=>Object.entries(step.bindings || {}).map(([field,binding])=>
-              [binding.from_step,binding.output,step.id,field]))
+              [binding.from_step,binding.output,step.id,field,binding.selection==="user_choice"?"결과 확인 후 전달":"자동 전달"]))
           }}/>}
         <ol>{review.steps.map(step => <li key={step.id}>
           <strong>{step.id} · {step.generator}</strong>
