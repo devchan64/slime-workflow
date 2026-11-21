@@ -444,3 +444,10 @@ article {position:relative;}
 .chat-queue-panel h3 {font-size:.9rem;margin:1rem 0 .5rem}
 .chat-queue-current {padding:.75rem;border:1px solid var(--line);border-radius:.6rem;background:var(--surface)}
 .chat-queue-current p {white-space:pre-wrap;overflow-wrap:anywhere;margin:.5rem 0}
+
+.hermes-activity-wait {padding:.55rem .6rem;border-radius:.4rem;background:var(--canvas);font-size:.85rem}
+
+.chat-queue-actions {display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+.chat-queue-actions button {margin:0;flex:0 0 auto}
+
+.live-instruction-form {margin:.7rem 0;padding:.65rem;border:1px solid var(--line);border-radius:.5rem}.live-instruction-form label {display:block}.live-instruction-form textarea {width:100%;min-height:4rem}.live-instruction-form select {width:auto}.live-instruction-receipts article {padding:.6rem 0;border-bottom:1px solid var(--line)}.live-instruction-receipts p {white-space:pre-wrap;overflow-wrap:anywhere;margin:.3rem 0}.live-instruction-receipts small {color:var(--muted)}

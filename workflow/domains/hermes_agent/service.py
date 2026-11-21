@@ -1448,12 +1448,31 @@ class HermesServiceManager:
                     raise ValueError('최종 답변이 잘려 제안을 확인할 수 없습니다.')
                 from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_kimodo_proposal
                 return {'job_id': hermes_payload_record['id'], 'proposal': parse_hermes_kimodo_proposal(current_job_record.get('final_response'))}
+            if hermes_command_name == 'hermes-live-instruction-recover':
+                from workflow.domains.hermes_agent.session_store import HermesSessionStore
+                from workflow.domains.hermes_agent.chat_queue_store import enqueue
+                if set(hermes_payload_record) != {'session_id', 'request_id'}:
+                    raise ValueError('복구 요청 형식 오류')
+                store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+                record = store.read_session_record(hermes_payload_record['session_id'])
+                row = next((item for item in record.get('live_instructions', []) if item.get('request_id') == hermes_payload_record['request_id']), None)
+                if not row or row.get('state') != 'undelivered':
+                    raise ValueError('미전달이 확인된 지시만 복구할 수 있습니다.')
+                recovery_id = 'recovery_' + hashlib.sha256(row['request_id'].encode()).hexdigest()
+                return enqueue(store, hermes_payload_record['session_id'], recovery_id, row['text'])
+            if hermes_command_name == 'hermes-live-instruction':
+                from workflow.domains.hermes_agent.session_store import HermesSessionStore
+                from workflow.domains.hermes_agent.live_instruction_operations import deliver
+                store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+                return deliver(self, store, hermes_payload_record)
             if hermes_command_name == 'hermes-session-view':
                 result = self.read_hermes_session_view_locked(hermes_payload_record)
                 from workflow.domains.hermes_agent.session_store import HermesSessionStore
                 store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
                 session_record = store.read_session_record(hermes_payload_record['session_id'])
                 result['chat_queue'] = [dict(row) for row in session_record.get('chat_queue', []) if row.get('state') in ('queued','dispatching')]
+                from workflow.domains.hermes_agent.live_instruction_operations import settle
+                result['live_instructions'] = settle(self, store, hermes_payload_record['session_id'], [dict(row) for row in session_record.get('live_instructions', [])][-50:])
                 result['chat_active'] = None
                 for message in reversed(session_record.get('messages', [])):
                     job_id = message.get('job_id')
@@ -1466,7 +1485,14 @@ class HermesServiceManager:
                     except (OSError, ValueError, TypeError):
                         state = 'unknown'
                     if state in ('running', 'queued', 'unknown'):
-                        result['chat_active'] = {'job_id': job_id, 'prompt': message.get('text', ''), 'status': state}
+                        control_ready = False
+                        try:
+                            control_dir = self.resolve_hermes_job_path(job_id) / 'live-control'
+                            endpoint = control_dir / 'agent.sock'
+                            control_ready = not control_dir.is_symlink() and stat.S_ISSOCK(endpoint.lstat().st_mode)
+                        except (OSError, ValueError):
+                            pass
+                        result['chat_active'] = {'job_id': job_id, 'prompt': message.get('text', ''), 'status': state, 'control_ready': control_ready}
                     break
                 return result
             if hermes_command_name == 'hermes-chat-queue-update':

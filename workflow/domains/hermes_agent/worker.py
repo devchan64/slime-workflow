@@ -29,6 +29,10 @@ from workflow.domains.hermes_agent.workflow_skills import build_workflow_guidanc
 HERMES_RUNTIME_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.local/hermes-agent-runtime'
 HERMES_SANDBOX_CLIENT = Path(__file__).with_name('sandbox_client.py')
 HERMES_CONTEXT_RUNTIME = Path(__file__).with_name('context_runtime.py')
+HERMES_LIVE_LAUNCHER = Path(__file__).with_name('live_instruction_launcher.py')
+HERMES_LIVE_RUNTIME = Path(__file__).with_name('live_instruction_runtime.py')
+HERMES_LIVE_SITECUSTOMIZE = Path(__file__).with_name('live_instruction_sitecustomize.py')
+HERMES_LIVE_WORKER_ADAPTER = Path(__file__).with_name('live_instruction_worker_adapter.py')
 HERMES_OBSERVER_CLIENT = Path(__file__).with_name('management_status_client.py')
 
 
@@ -318,6 +322,14 @@ def execute_hermes_gpu_job(worker_job_directory):
                         worker_agent_exit_code = 0
                         worker_event_stream.write(json.dumps({'type': 'result', 'text': '대화 정리 완료' if context_state == 'compressed' else '정리할 대화가 없습니다.'}, ensure_ascii=False) + '\n')
                     else:
+                        live_control_directory = worker_job_directory / 'live-control'
+                        live_control_directory.mkdir(mode=0o700)
+                        boundary = worker_sandbox_arguments.index('--')
+                        worker_sandbox_arguments[boundary:boundary] = ['--bind', str(live_control_directory), '/control/live',
+                            '--ro-bind', str(HERMES_LIVE_LAUNCHER), '/control/live_instruction_launcher.py',
+                            '--ro-bind', str(HERMES_LIVE_RUNTIME), '/control/live_instruction_runtime.py',
+                            '--ro-bind', str(HERMES_LIVE_SITECUSTOMIZE), '/control/sitecustomize.py',
+                            '--ro-bind', str(HERMES_LIVE_WORKER_ADAPTER), '/control/live_instruction_worker_adapter.py']
                         worker_sandbox_process = subprocess.Popen(worker_sandbox_arguments, stdout=worker_event_stream, env=build_hermes_sandbox_environment())
                         try:
                             worker_agent_exit_code = worker_sandbox_process.wait(timeout=1250)

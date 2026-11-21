@@ -105,19 +105,46 @@ function ChatQueueItem({item,session,onRefresh}){
     catch(problem){setError(problem.message);onRefresh();}finally{setBusy(false);}
   }
   return <article className="chat-queued-item"><strong>{item.state==='dispatching'?'실행 준비 중':'대기 중'}</strong>
-    {editing ? <><textarea aria-label="대기 요청 수정" value={text} onChange={event=>setText(event.target.value)}/><button type="button" disabled={busy || !text.trim()} onClick={()=>change(false)}>변경 저장</button><button type="button" onClick={()=>{setText(item.prompt);setEditing(false);}}>편집 취소</button></> : <p>{item.prompt}</p>}
-    {item.state==='queued' && !editing && <><button type="button" disabled={busy} onClick={()=>{setText(item.prompt);setEditing(true);}}>수정</button><button type="button" disabled={busy} onClick={()=>change(true)}>대기 취소</button></>}
+    {editing ? <><textarea aria-label="대기 요청 수정" value={text} onChange={event=>setText(event.target.value)}/><div className="chat-queue-actions"><button type="button" disabled={busy || !text.trim()} onClick={()=>change(false)}>변경 저장</button><button type="button" onClick={()=>{setText(item.prompt);setEditing(false);}}>편집 취소</button></div></> : <p>{item.prompt}</p>}
+    {item.state==='queued' && !editing && <div className="chat-queue-actions"><button type="button" disabled={busy} onClick={()=>{setText(item.prompt);setEditing(true);}}>수정</button><button type="button" disabled={busy} onClick={()=>change(true)}>대기 취소</button></div>}
     {error && <p role="alert">{error}</p>}
   </article>;
 }
+function LiveInstructionForm({session,job,onRefresh}){
+  const [mode,setMode]=useState("steer"),[text,setText]=useState(""),[busy,setBusy]=useState(false),[notice,setNotice]=useState("");
+  const key="hermes-live-pending-"+session+"-"+job;
+  async function send(){
+    const input=text.trim();if(!input || busy)return;
+    let pending;try{pending=JSON.parse(sessionStorage.getItem(key) || "null");}catch{setNotice("이전 접수 기록을 읽을 수 없습니다. 작업 상태를 확인하세요.");return;}
+    if(pending && (pending.text!==input || pending.mode!==mode)){setNotice("이전 지시의 접수 확인이 필요합니다. 같은 내용으로 다시 확인하세요.");return;}
+    pending=pending || {session_id:session,job_id:job,request_id:crypto.randomUUID().replaceAll("-",""),mode,text:input};
+    sessionStorage.setItem(key,JSON.stringify(pending));setBusy(true);setNotice("");
+    try{const row=await call("live-instruction",pending);if(row.request_id!==pending.request_id)throw new Error("접수 응답 불일치");sessionStorage.removeItem(key);setText("");setNotice(row.state==="accepted"?"전달 접수됨 · 반영 여부 확인 중":row.state==="undelivered"?"전달되지 않았습니다. 후속 요청으로 복구할 수 있습니다.":"전달 결과 확인이 필요합니다.");onRefresh();}
+    catch(problem){setNotice("접수 결과를 확인하지 못했습니다. 같은 지시로 다시 확인하세요. "+problem.message);}finally{setBusy(false);}
+  }
+  return <div className="live-instruction-form"><label>실행 중 지시 <textarea aria-label="실행 중 지시" value={text} onChange={event=>setText(event.target.value)} placeholder="추가하거나 수정할 지시를 입력하세요"/></label><div className="chat-queue-actions"><label>전달 방식 <select value={mode} onChange={event=>setMode(event.target.value)}><option value="steer">지시 추가</option><option value="redirect">지시 방향 수정</option></select></label><button type="button" disabled={busy || !text.trim()} onClick={send}>{busy?"확인 중":"지시 전달"}</button></div>{notice && <p role="status">{notice}</p>}</div>;
+}
+function LiveInstructionReceipts({rows,session,onRefresh}){
+  const [notice,setNotice]=useState("");
+  async function recover(row){try{await call("live-instruction-recover",{session_id:session,request_id:row.request_id});setNotice("후속 대기열에 복구했습니다.");onRefresh();}catch(problem){setNotice(problem.message);}}
+  const labels={pending:"접수 중",delivering:"전달 확인 중",accepted:"전달 접수 · 반영 확인 중",applied:"반영 확인",undelivered:"미전달",unknown:"전달 여부 불명"};
+  if(!rows?.length)return null;
+  return <section className="live-instruction-receipts"><h3>실행 중 지시 내역</h3>{rows.slice().reverse().map(row=><article key={row.request_id}><strong>{labels[row.state] || "확인 불가"} · {row.mode==="steer"?"지시 추가":"방향 수정"}</strong><p>{row.text}</p>{row.state==="undelivered" && <button type="button" onClick={()=>recover(row)}>후속 요청으로 복구</button>}{row.state==="unknown" && <small>중복 반영 가능성이 있어 자동 재전달하지 않습니다.</small>}</article>)}{notice && <p role="status">{notice}</p>}</section>;
+}
 function ChatQueuePanel({session}){
-  const [data,setData]=useState(null),[error,setError]=useState(""),[revision,refresh]=useState(0);
+  const [data,setData]=useState(null),[error,setError]=useState(""),[revision,refresh]=useState(0),[stopBusy,setStopBusy]=useState(false),[stopNotice,setStopNotice]=useState("");
+  async function stopCurrent(){
+    const job=data?.chat_active?.job_id;if(!job || stopBusy || !window.confirm("현재 채팅 작업에 중단을 요청할까요? 이미 실행된 도구의 변경은 유지될 수 있습니다."))return;
+    setStopBusy(true);setStopNotice("");
+    try{const response=await call("cancel",{id:job});if(response.id!==job || response.cancel_requested!==true)throw new Error("중단 요청 접수를 확인할 수 없습니다.");setStopNotice("중단을 요청했습니다. 작업 종료 여부를 확인 중입니다.");refresh(n=>n+1);}
+    catch(problem){setStopNotice("중단 요청을 확인하지 못했습니다. 작업 상세에서 상태를 확인하세요. "+problem.message);}finally{setStopBusy(false);}
+  }
   useEffect(()=>{let active=true,timer;async function load(){try{const next=await call("session-view",{session_id:session,limit:1});if(next.id!==session || !Array.isArray(next.chat_queue))throw new Error("대기열 응답 오류");if(active){setData({...next,checkedAt:new Date()});setError("");}}catch(problem){if(active)setError(problem.message);}finally{if(active)timer=setTimeout(load,3000);}}load();return()=>{active=false;clearTimeout(timer);};},[session,revision]);
   return <section className="chat-queue-panel" aria-label="세션 채팅 대기열"><div className="chat-queue-header"><h2>세션 채팅 대기열</h2><button type="button" onClick={()=>refresh(n=>n+1)}>새로고침</button></div>
     <small>{data?.checkedAt ? "조회 시각 · "+data.checkedAt.toLocaleString("ko-KR")+" · 3초 간격" : "대기열 조회 중"}</small>
     {error && <p role="alert">대기열을 불러오지 못했습니다. {data && "표시된 내용은 마지막 조회 결과입니다."}</p>}
-    {data && <><h3>현재 요청</h3>{data.chat_active ? <article className="chat-queue-current"><strong>{statusLabels[data.chat_active.status] || "확인 불가"}</strong><p>{data.chat_active.prompt}</p><a href={jobLink(data.chat_active.job_id,session)}>작업 상세 보기</a></article> : <p>실행 중인 채팅 요청이 없습니다.</p>}
-      <h3>대기 중인 요청 · {data.chat_queue.length}</h3>{data.chat_queue.length ? data.chat_queue.map((item,index)=><div key={item.request_id}><small>대기 순서 · {index+1}</small><ChatQueueItem item={item} session={session} onRefresh={()=>refresh(n=>n+1)}/></div>) : <p>대기 중인 요청이 없습니다.</p>}</>}
+    {data && <><h3>현재 요청</h3>{data.chat_active ? <article className="chat-queue-current"><strong>{statusLabels[data.chat_active.status] || "확인 불가"}</strong><p>{data.chat_active.prompt}</p><a href={jobLink(data.chat_active.job_id,session)}>작업 상세 보기</a>{data.chat_active.status==="running" && (data.chat_active.control_ready ? <LiveInstructionForm key={data.chat_active.job_id} session={session} job={data.chat_active.job_id} onRefresh={()=>refresh(n=>n+1)}/> : <p>실행 중 지시 전달 경로가 준비되지 않았습니다. 준비 중이거나 이전 방식으로 시작된 작업일 수 있습니다.</p>)}{["running","queued"].includes(data.chat_active.status) && <button type="button" disabled={stopBusy} onClick={stopCurrent}>{stopBusy?"중단 요청 중":"지시 중단"}</button>}{stopNotice && <p role="status">{stopNotice}</p>}</article> : <p>실행 중인 채팅 요청이 없습니다.</p>}
+      <LiveInstructionReceipts rows={data.live_instructions} session={session} onRefresh={()=>refresh(n=>n+1)}/><h3>대기 중인 요청 · {data.chat_queue.length}</h3>{data.chat_queue.length ? data.chat_queue.map((item,index)=><div key={item.request_id}><small>대기 순서 · {index+1}</small><ChatQueueItem item={item} session={session} onRefresh={()=>refresh(n=>n+1)}/></div>) : <p>대기 중인 요청이 없습니다.</p>}</>}
   </section>;
 }
 function AssistantText({text}){
@@ -138,6 +165,7 @@ function ActivityEvents({events,truncated,running=false}){
       else entries.push({result:event,index});
     }
   });
+  const activeTool=entries.some(item=>item.start?.call_id && !item.result);
   return <><ol className="hermes-activity-events">{entries.map(({start,result,index})=>{
     const event=start || result, state=result ? (result.result==="error" ? "failed" : "completed") : running && start?.call_id ? "running" : "unknown";
     const label={running:"실행 중",completed:"완료",failed:"실패",unknown:"결과 미확인"}[state];
@@ -145,7 +173,7 @@ function ActivityEvents({events,truncated,running=false}){
       <span className={'activity-state '+state}><span className="activity-icon" aria-hidden="true">{state==="running"?"◌":state==="completed"?"✓":state==="failed"?"!":"?"}</span>{label}</span><span>{event.name}</span>{event.timestamp && <time dateTime={event.timestamp}>{new Date(event.timestamp).toLocaleTimeString("ko-KR")}</time>}</summary>
       <div className="hermes-activity-detail">{start?.target && <><strong>실행 대상</strong><pre>{start.target}</pre></>}{result && <><strong>도구 결과</strong>{typeof result.output==="string" ? <><pre>{result.output || "출력 없음"}</pre>{result.output_truncated && <small>출력의 앞부분만 표시합니다.</small>}</> : <p>상세 출력을 불러오지 못했습니다.</p>}{Number.isInteger(result.duration_ms) && <p>소요 시간 · {(result.duration_ms/1000).toFixed(1)}초</p>}</>}{!result && <p>{state==="running" ? "도구 결과를 기다리는 중입니다." : "기록된 결과가 없습니다."}</p>}{event.call_id && <p>호출 ID · <code>{event.call_id}</code></p>}</div>
     </details></li>;
-  })}</ol>{truncated && <small>최근 활동만 표시합니다.</small>}</>;
+  })}</ol>{running && !activeTool && <p className="hermes-activity-wait" role="status"><span className="activity-state running"><span className="activity-icon" aria-hidden="true">◌</span>기록상 작업 실행 중</span> · 현재 실행 중인 도구 활동은 관측되지 않았습니다. 다음 활동을 기다리는 중입니다.</p>}{truncated && <small>최근 활동만 표시합니다.</small>}</>;
 }
 function Message() {
   const actions=React.useContext(ProposalActions);
@@ -171,7 +199,7 @@ function Message() {
     {meta.activity?.video_source && <MediaJobResult kind="video" folderLink service={meta.activity.video_source.service} id={meta.activity.video_source.job_id} onReuse={meta.activity.video_source.service==="wan22-fun-control" ? ()=>actions.openJobForm(meta.activity.video_source.job_id) : undefined}/>}
     {!meta.table && meta.activity?.source_history_summary && <pre>{meta.activity.source_history_summary}</pre>}
     {meta.status==="running" && <section className="hermes-activity" aria-label="헤르메스 진행 상황" aria-live="polite">
-      <details><summary>진행 상황 · {meta.activity?.events?.length ? "최근 도구 활동 "+meta.activity.events.length+"건" : "도구 활동 대기 중"}</summary>
+      <details><summary>진행 상황 · 기록상 작업 실행 중{meta.activity?.events?.length ? " · 최근 도구 활동 "+meta.activity.events.length+"건" : " · 도구 활동 대기 중"}</summary>
       {meta.activity?.events?.length ? <ActivityEvents events={meta.activity.events} truncated={meta.activity.truncated} running/> : <p>아직 관측된 도구 활동이 없습니다. 작업을 진행 중입니다.</p>}
       <small>진행 중에는 약 3초 간격으로 갱신됩니다.</small>
       </details>

@@ -108,8 +108,8 @@ def execute_sandbox_hermes_session():
         query_path = prepare_sandbox_context(sandbox_listen_port)
         if '--context-only' in sys.argv:
             return 0
-        sandbox_environment_values = {'PATH':'/usr/local/bin:/usr/bin:/bin', 'HOME':'/tmp', 'HERMES_HOME':'/tmp/hermes-home', 'TERMINAL_CWD':'/workspace', 'PYTHONPATH':'/runtime', 'PYTHONUNBUFFERED':'1', 'HERMES_API_TIMEOUT':'300'}
-        sandbox_hermes_arguments = ['/runtime/.venv/bin/python', '-m', 'hermes_cli.main', 'chat', '--oneshot', '--query-file', query_path, '--format', 'stream-json', '--provider', 'custom', '--base-url', f'http://127.0.0.1:{sandbox_listen_port}/v1', '--api-key', 'none', '--model', 'hermes-local', '--max-turns', '20', '--toolsets', 'terminal,file', '--ignore-user-config', '--in', '/workspace', '--source', 'tool']
+        sandbox_environment_values = {'PATH':'/usr/local/bin:/usr/bin:/bin', 'HOME':'/tmp', 'HERMES_HOME':'/tmp/hermes-home', 'TERMINAL_CWD':'/workspace', 'PYTHONPATH':'/control:/runtime', 'PYTHONUNBUFFERED':'1', 'HERMES_API_TIMEOUT':'300'}
+        sandbox_hermes_arguments = ['/runtime/.venv/bin/python', '/control/live_instruction_launcher.py', 'chat', '--oneshot', '--query-file', query_path, '--format', 'stream-json', '--provider', 'custom', '--base-url', f'http://127.0.0.1:{sandbox_listen_port}/v1', '--api-key', 'none', '--model', 'hermes-local', '--max-turns', '20', '--toolsets', 'terminal,file', '--ignore-user-config', '--in', '/workspace', '--source', 'tool']
         return subprocess.run(sandbox_hermes_arguments, env=sandbox_environment_values, cwd='/workspace', timeout=1200).returncode
 
 
