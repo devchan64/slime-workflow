@@ -70,7 +70,7 @@ function jobLink(id,session){
   if(session)params.set("session",session);
   return "/management/frame/hermes-agent/?"+params;
 }
-const statusLabels={completed:"완료",failed:"실패",running:"실행 중",queued:"대기 중",cancelled:"취소",canceled:"취소"};
+const statusLabels={completed:"완료",failed:"실패",running:"실행 중",queued:"대기 중",pending:"접수 확인 중",unknown:"확인 불가",cancelled:"취소",canceled:"취소"};
 const HistoryRoutes=React.createContext({});
 const ProposalActions=React.createContext(null);
 function Message() {
@@ -257,6 +257,7 @@ function App() {
   const pendingText = sessionStorage.getItem(pendingKey);
   const pending = readPendingSubmission(pendingText,session);
   const invalidPending = pendingText!==null && !pending;
+  const contextBlocking=Boolean(view.context?.operation && !["completed","failed","cancelled"].includes(view.context.operation.status));
   async function send(retry=false){
     if(invalidPending || sending.current || (!retry && !draft.trim()))return;
     if(pending && pending.prompt!==draft && !retry)return;
@@ -286,6 +287,28 @@ function App() {
       sending.current = false;
       setBusy(false);
     }
+  }
+  async function setAutomaticContext(enabled){
+    if(!session || busy)return;
+    const selected=session;setBusy(true);setError("");
+    try{await call("session-context-settings",{session_id:selected,enabled});retryView(n=>n+1);}
+    catch(problem){if((query().get("session") || "")===selected)setError(problem.message);}
+    finally{setBusy(false);}
+  }
+  async function compactContext(){
+    if(!session || busy)return;
+    const selected=session, key="hermes-context-pending-"+selected;
+    const operation=view.context?.operation;
+    const requestId=sessionStorage.getItem(key) || (!operation?.job_id && operation?.request_id) || id();
+    setBusy(true);setError("");
+    try{
+      if(typeof window.confirmGpuQueueStart!=="function")throw new Error("GPU 대기열 확인 기능을 불러오지 못했습니다.");
+      if(!await window.confirmGpuQueueStart())return;
+      sessionStorage.setItem(key,requestId);
+      await call("session-context-compress",{session_id:selected,request_id:requestId});
+      sessionStorage.removeItem(key);retryView(n=>n+1);
+    }catch(problem){if((query().get("session") || "")===selected)setError(problem.message);}
+    finally{setBusy(false);}
   }
   async function lifecycle(record,action){
     if(busy)return;
@@ -376,6 +399,17 @@ function App() {
     <article><header><button aria-controls="hermes-session-list" aria-expanded={!folded} onClick={()=>{
       localStorage.setItem("hermes-session-folded",String(!folded));setFolded(!folded);
     }}>{folded?"세션 목록 펼치기":"세션 목록 접기"}</button><h1>{view.title || "헤르메스와 대화"}</h1></header>
+    {session && view.context && <section aria-label="대화 문맥 정리">
+      <label><input type="checkbox" checked={view.context.automatic} disabled={busy} onChange={event=>setAutomaticContext(event.target.checked)}/> 자동 대화 정리</label>{" "}
+      <button type="button" title={!view.message_count?"정리할 대화가 없습니다.":undefined} disabled={busy || !view.message_count || Boolean(view.context.operation?.job_id && ["queued","running","unknown"].includes(view.context.operation.status))} onClick={compactContext}>
+        {view.context.operation && !view.context.operation.job_id ? "정리 접수 다시 확인" : "대화 정리"}</button>
+      {view.context.operation && <small role="status"> 정리 작업: {statusLabels[view.context.operation.status] || view.context.operation.status}{view.context.operation.job_id && <> · <a href={jobLink(view.context.operation.job_id,session)}>작업 상세</a></>}</small>}
+      {view.context.usage && <small> · 최근 입력 추정 {(view.context.usage.tokens_after ?? view.context.usage.tokens).toLocaleString()} 토큰{view.context.usage.threshold && " / 정리 기준 "+view.context.usage.threshold.toLocaleString()} (시스템·도구 지시 포함)</small>}
+      {view.context.usage?.state==="compressed" && <small role="status"> · 대화 정리 완료</small>}
+      {view.context.usage?.state==="compressing" && <small role="status"> · 대화 정리 중</small>}
+      {view.context.usage?.state==="unchanged" && <small role="status"> · 정리할 수 있는 대화 범위가 없습니다.</small>}
+      {view.context.checkpoint && <details><summary>대화 정리 내용 · {view.context.checkpoint.count}개 지시{view.context.checkpoint.created_at && " · "+view.context.checkpoint.created_at}</summary><pre>{view.context.checkpoint.summary || "정리된 대화에 별도 요약 표시가 없습니다."}</pre></details>}
+    </section>}
     {session && <div className="form-sheet" hidden={!showForms}><div className="tool-panel-heading"><strong>입력 폼 편집</strong><button onClick={()=>{setShowForms(false);text.current?.focus();}}>닫기</button></div>{<FormLibrary key={session} proposalStep={proposalStep?.session===session ? proposalStep : null} session={session} messages={view.messages || []} call={call} openRun={run=>{setShowForms(false);setQueue({run});}} addToMessage={value=>{edit([draft,value].filter(Boolean).join("\n"));setShowForms(false);text.current?.focus();}}/>}</div>}
     <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openStep({generator:"kimodo",inputs}),openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요." : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><button type="button" onClick={()=>retryView(n=>n+1)}>다시 시도</button></div>}{error&&<p role="alert">{error}</p>}
     <form onSubmit={e=>{e.preventDefault();send()}}>
@@ -391,7 +425,7 @@ function App() {
       <button type="button" onClick={()=>{sessionStorage.removeItem(pendingKey);setRefresh(n=>n+1);}}>탭의 손상된 접수 기록 지우기</button></div>}
     {pending && pending.prompt!==draft && <details><summary>접수 확인이 필요한 이전 요청</summary>
       <pre>{pending.prompt}</pre><button type="button" disabled={busy} onClick={()=>send(true)}>이전 요청 접수 다시 확인</button></details>}
-    <button type="submit" disabled={busy||invalidPending||!draft.trim()||Boolean(pending && pending.prompt!==draft)}>{busy?"접수 중":pending && pending.prompt===draft?"같은 요청 다시 보내기":"보내기"}</button></form></article>
+    <button type="submit" title={contextBlocking?"대화 정리의 접수와 종료 상태를 먼저 확인하세요.":undefined} disabled={busy||contextBlocking||invalidPending||!draft.trim()||Boolean(pending && pending.prompt!==draft)}>{busy?"접수 중":pending && pending.prompt===draft?"같은 요청 다시 보내기":"보내기"}</button></form></article>
     {(showFunControl || showTools || showGpu || queue) && <SidePanel title={showTools?"도구 탐색":showGpu?"GPU 프로세스 정보":queue?"작업·대기열":"Wan Fun Control"} subtitle={showTools?"도구와 관리 기능 찾기":showGpu?"GPU 사용 현황":queue?"진행 상태와 결과":"생성 입력 검토"} onClose={showTools?()=>closeTools():showGpu?closeGpu:queue?closeQueue:closeFun} onKeyDown={showTools?handleToolKeys:event=>{if(event.key==="Escape" && !event.nativeEvent.isComposing){event.preventDefault();showGpu?closeGpu():queue?closeQueue():closeFun();}}}>
     {showTools && <div className="tool-drawer-content">
       <label className="search-scope">탐색 대상 <select value={searchMode} onChange={e=>setSearchMode(e.target.value)}>

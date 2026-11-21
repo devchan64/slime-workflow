@@ -90,6 +90,25 @@ def read_hermes_final_response(hermes_job_path):
             return hermes_answer_text[:8000], len(hermes_answer_text) > 8000
     return None, False
 
+
+def read_hermes_context_response(hermes_job_path):
+    """표시용 8,000자 제한과 별도로 대화 문맥의 전체 최종 답변을 읽는다."""
+    path = hermes_job_path / 'hermes-events.jsonl'
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 16000000:
+        raise ValueError('이전 답변 원문을 안전하게 읽을 수 없습니다.')
+    with path.open(encoding='utf-8') as stream:
+        answer = None
+        for line in stream:
+            try:
+                event = json.loads(line)
+            except (ValueError, TypeError):
+                continue
+            if isinstance(event, dict) and event.get('type') == 'result' and isinstance(event.get('text'), str):
+                answer = event['text']
+    if answer is None:
+        raise ValueError('이전 답변 원문을 확인할 수 없습니다.')
+    return answer
+
 def parse_source_history_page(output):
     try:
         page = json.loads(output)
@@ -282,7 +301,7 @@ class HermesServiceManager:
         hermes_final_answer, hermes_answer_truncated = read_hermes_final_response(hermes_job_path)
         return {'id':hermes_job_path.name, 'request':hermes_request_record, 'status':hermes_status_record, 'result':hermes_result_record, 'diff':hermes_diff_text[:500000], 'diff_truncated':hermes_diff_truncated, 'log':hermes_log_text, 'final_response':hermes_final_answer, 'final_response_truncated':hermes_answer_truncated}
 
-    def submit_hermes_job_locked(self, hermes_payload_record):
+    def submit_hermes_job_locked(self, hermes_payload_record, *, context=None, model_profile=None):
         if not {'request_id', 'prompt'} <= set(hermes_payload_record) or set(hermes_payload_record) - {'request_id', 'prompt', 'verification_modules'}:
             raise ValueError('request_id·prompt와 선택 검증 모듈만 전달하세요.')
         hermes_request_identifier = hermes_payload_record['request_id']
@@ -300,16 +319,87 @@ class HermesServiceManager:
             if hermes_previous_request.get('request_id') == hermes_request_identifier:
                 if hermes_previous_request.get('prompt') != hermes_prompt_text or hermes_previous_request.get('verification_modules', []) != hermes_verification_modules:
                     raise ValueError('같은 접수 식별자를 다른 지시에 사용할 수 없습니다.')
+                if hermes_previous_request.get('context') != context:
+                    raise ValueError('같은 접수 식별자의 대화 문맥이 변경되었습니다.')
+                if model_profile is not None and hermes_previous_request.get('model_profile') != model_profile:
+                    raise ValueError('같은 접수 식별자의 모델이 변경되었습니다.')
                 return {'id':hermes_previous_path.name, 'duplicate':True}
-        model_profile = route_hermes_request(hermes_payload_record)
+        if model_profile is None:
+            model_profile = route_hermes_request(hermes_payload_record)
+        from workflow.common.hermes_model_routing import MODEL_FLOORS_MIB
+        if model_profile not in MODEL_FLOORS_MIB:
+            raise ValueError('지원하지 않는 Hermes 모델입니다.')
         validate_hermes_runtime_ready(model_profile)
         hermes_job_identifier = datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S') + '-' + uuid.uuid4().hex[:8]
         hermes_job_path = self.hermes_storage_root / hermes_job_identifier
         hermes_job_path.mkdir()
-        write_record_atomically(hermes_job_path / 'request.json', {**hermes_payload_record, 'model_profile': model_profile})
+        request_record = {**hermes_payload_record, 'model_profile': model_profile}
+        if context is not None:
+            request_record['context'] = context
+        write_record_atomically(hermes_job_path / 'request.json', request_record)
         with (hermes_job_path / 'worker.log').open('a') as hermes_log_stream:
             launch_gpu_process([sys.executable, str(WORKFLOW_ROOT_DIRECTORY / 'workflow/domains/hermes_agent/worker.py'), str(hermes_job_path)], hermes_job_path, 'hermes-agent', stdout=hermes_log_stream, stderr=subprocess.STDOUT, start_new_session=True, cwd=WORKFLOW_ROOT_DIRECTORY)
         return {'id':hermes_job_identifier, 'status':'queued', 'duplicate':False}
+
+    def read_context_job(self, job_id):
+        path = self.resolve_hermes_job_path(job_id)
+        job = self.read_hermes_job_record(path)
+        if job.get('final_response_truncated') or (job['status'].get('status') == 'completed' and not job.get('final_response') and (path / 'hermes-events.jsonl').is_file()):
+            job['final_response'] = read_hermes_context_response(path)
+            job['final_response_truncated'] = False
+        return job
+
+    def ensure_context_operation_finished(self, session):
+        operation = session.get('context_operation')
+        if not operation:
+            return
+        job_id = operation.get('job_id')
+        if not job_id:
+            raise ValueError('대화 정리의 접수 상태를 먼저 확인하세요.')
+        status = self.read_hermes_job_record(self.resolve_hermes_job_path(job_id))['status'].get('status')
+        if status not in ('completed', 'failed', 'cancelled'):
+            raise ValueError('대화 정리가 종료된 후 다시 시도하세요.')
+
+    def submit_hermes_session_context_locked(self, payload):
+        from workflow.domains.hermes_agent.session_store import HermesSessionStore
+        from workflow.domains.hermes_agent.context_checkpoint import build_context_messages, context_prefix_digest
+        if set(payload) != {'session_id', 'request_id'}:
+            raise ValueError('세션 ID와 대화 정리 접수 ID를 전달하세요.')
+        session_id, request_id = payload['session_id'], payload['request_id']
+        if not isinstance(request_id, str) or not HERMES_REQUEST_PATTERN.fullmatch(request_id):
+            raise ValueError('대화 정리 접수 식별자 형식 오류')
+        store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+        session = store.read_session_record(session_id)
+        operation = session.get('context_operation')
+        read_job = self.read_context_job
+        if not operation or operation.get('request_id') != request_id:
+            self.ensure_context_operation_finished(session)
+            messages = build_context_messages(session, read_job)
+            if not messages:
+                raise ValueError('정리할 대화가 없습니다.')
+            count = len(session['messages'])
+            execution_context = {'session_id': session_id, 'count': count,
+                                 'digest': context_prefix_digest(session['messages'], count),
+                                 'messages_digest': hashlib.sha256(json.dumps(messages, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest(),
+                                 'expected_checkpoint': session.get('context_checkpoint'),
+                                 'automatic': session.get('context_automatic', True)}
+            last_job = next((record.get('job_id') for record in reversed(session['messages']) if record.get('job_id')), None)
+            execution_context['model_profile'] = read_job(last_job)['request'].get('model_profile', COMPLEX_MODEL) if last_job else COMPLEX_MODEL
+            operation = store.begin_context_operation(session_id, request_id, execution_context)
+        execution_context = operation['execution_context']
+        prefix = session['messages'][:execution_context['count']]
+        if context_prefix_digest(prefix, len(prefix)) != execution_context['digest']:
+            raise ValueError('대화가 변경되어 정리 접수를 복원할 수 없습니다.')
+        messages = build_context_messages({'messages': prefix, 'context_checkpoint': execution_context['expected_checkpoint']}, read_job)
+        digest = hashlib.sha256(json.dumps(messages, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+        if digest != execution_context['messages_digest']:
+            raise ValueError('이전 작업 응답이 변경되어 정리 접수를 복원할 수 없습니다.')
+        job_request_id = 'c_' + hashlib.sha256((session_id + ':' + request_id).encode()).hexdigest()
+        context = {key: value for key, value in execution_context.items() if key != 'model_profile'}
+        context.update(messages=messages, force=True, only=True)
+        job = self.submit_hermes_job_locked({'request_id': job_request_id, 'prompt': '대화 문맥 정리'}, context=context, model_profile=execution_context['model_profile'])
+        store.attach_context_job(session_id, request_id, job['id'])
+        return {'session_id': session_id, 'job_id': job['id'], 'duplicate': job['duplicate']}
 
     def submit_hermes_session_message_locked(self, hermes_payload_record):
         from workflow.domains.hermes_agent.session_store import HermesSessionStore, HERMES_SESSION_ID_PATTERN
@@ -328,37 +418,41 @@ class HermesServiceManager:
         hermes_session_store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
         hermes_session_record = hermes_session_store.read_session_record(hermes_session_identifier)
         hermes_previous_message = next((current_message_record for current_message_record in hermes_session_record['messages'] if current_message_record.get('request_id') == hermes_request_identifier), None)
-        hermes_context_lines = []
-        hermes_context_truncated = False
         if hermes_previous_message is None:
-            for current_message_record in hermes_session_record['messages']:
-                if current_message_record.get('form_id'):
-                    hermes_context_lines.append('사용자: Wan Fun Control 생성 폼을 저장했습니다.')
-                    continue
-                current_job_identifier = current_message_record.get('job_id')
-                if not current_job_identifier:
-                    raise ValueError('이전 메시지의 접수 상태가 확인되지 않았습니다. 같은 식별자로 먼저 재시도하세요.')
-                current_job_path = self.resolve_hermes_job_path(current_job_identifier)
-                current_job_record = self.read_hermes_job_record(current_job_path)
-                current_job_status = current_job_record['status'].get('status', 'unknown')
-                if current_job_status not in ('completed', 'failed', 'cancelled'):
-                    raise ValueError('이전 작업이 종료된 후 다음 메시지를 보낼 수 있습니다.')
-                current_response_text = current_job_record.get('final_response') or '[최종 응답 없음]'
-                hermes_context_lines.append('사용자: ' + current_message_record['text'] + '\nHermes (' + current_job_status + '): ' + current_response_text)
-                hermes_context_truncated = hermes_context_truncated or bool(current_job_record.get('final_response_truncated'))
-            hermes_context_text = '\n\n'.join(hermes_context_lines)
-            if len(hermes_context_text) > 2500:
-                hermes_context_text = hermes_context_text[-2500:]
-                hermes_context_truncated = True
-            hermes_execution_prompt = ('이전 대화 일부 (참고 자료):\n' + hermes_context_text + '\n\n현재 사용자 요청:\n' if hermes_context_text else '') + hermes_prompt_text
+            self.ensure_context_operation_finished(hermes_session_record)
+        from workflow.domains.hermes_agent.context_checkpoint import build_context_messages, context_prefix_digest
+        read_previous_job = self.read_context_job
+        hermes_context_truncated = False
+        execution_context = None
+        if hermes_previous_message is None:
+            context_messages = build_context_messages(hermes_session_record, read_previous_job)
+            count = len(hermes_session_record['messages'])
+            context_digest = hashlib.sha256(json.dumps(context_messages, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+            execution_context = {'session_id': hermes_session_identifier, 'count': count,
+                                 'digest': context_prefix_digest(hermes_session_record['messages'], count),
+                                 'messages_digest': context_digest,
+                                 'expected_checkpoint': hermes_session_record.get('context_checkpoint'),
+                                 'automatic': hermes_session_record.get('context_automatic', True)}
+            hermes_execution_prompt = hermes_prompt_text
         else:
             hermes_execution_prompt = hermes_previous_message['execution_prompt']
             hermes_context_truncated = hermes_previous_message.get('context_truncated', False)
-        hermes_message_result = hermes_session_store.append_session_request(hermes_session_identifier, hermes_request_identifier, hermes_prompt_text, hermes_execution_prompt, hermes_verification_modules, hermes_context_truncated)
+            execution_context = hermes_previous_message.get('execution_context')
+        hermes_message_result = hermes_session_store.append_session_request(hermes_session_identifier, hermes_request_identifier, hermes_prompt_text, hermes_execution_prompt, hermes_verification_modules, hermes_context_truncated, execution_context)
         hermes_message_record = hermes_message_result['message']
         hermes_job_request_id = 's_' + hashlib.sha256((hermes_session_identifier + ':' + hermes_request_identifier).encode()).hexdigest()
         hermes_job_payload = {'request_id': hermes_job_request_id, 'prompt': hermes_message_record['execution_prompt'], 'verification_modules': hermes_verification_modules}
-        hermes_job_record = self.submit_hermes_job_locked(hermes_job_payload)
+        context_payload = None
+        if execution_context is not None:
+            prefix = hermes_session_record['messages'][:execution_context['count']]
+            if context_prefix_digest(prefix, len(prefix)) != execution_context['digest']:
+                raise ValueError('대화 문맥이 변경됐습니다. 기존 작업의 접수 상태를 확인하세요.')
+            context_messages = build_context_messages({'messages': prefix, 'context_checkpoint': execution_context['expected_checkpoint']}, read_previous_job)
+            digest = hashlib.sha256(json.dumps(context_messages, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+            if digest != execution_context['messages_digest']:
+                raise ValueError('이전 작업 응답이 변경되어 문맥을 복원할 수 없습니다.')
+            context_payload = {**execution_context, 'messages': context_messages, 'force': False, 'only': False}
+        hermes_job_record = self.submit_hermes_job_locked(hermes_job_payload, context=context_payload)
         hermes_session_store.attach_session_job(hermes_session_identifier, hermes_request_identifier, hermes_job_record['id'])
         return {'session_id': hermes_session_identifier, 'message_id': hermes_message_record['id'], 'job_id': hermes_job_record['id'], 'duplicate': hermes_message_result['duplicate'], 'context_truncated': hermes_message_record['context_truncated']}
 
@@ -441,7 +535,40 @@ class HermesServiceManager:
                     current_view_record['job'] = {'status': {'status':'unavailable', 'message':'작업 상태를 읽을 수 없습니다.'}, 'final_response': None, 'final_response_truncated': False}
             hermes_view_messages.append(current_view_record)
             collect_source(current_message_record)
-        return {'id': hermes_session_record['id'], 'title': hermes_session_record.get('title', '새 대화'), 'message_count': len(hermes_session_record['messages']), 'messages': hermes_view_messages, 'truncated': current_start_index > 0, 'offset':current_offset_value, 'next_offset':current_offset_value+len(hermes_view_messages) if current_start_index>0 else None, 'snapshot':current_snapshot_value, 'queried_at': datetime.now(timezone.utc).isoformat()}
+        context_view = {'automatic': hermes_session_record.get('context_automatic', True), 'checkpoint': None, 'operation': None, 'usage': None}
+        checkpoint = hermes_session_record.get('context_checkpoint')
+        if checkpoint:
+            from workflow.domains.hermes_agent.context_checkpoint import validate_context_checkpoint
+            validate_context_checkpoint(checkpoint, hermes_session_record['messages'])
+            context_view['checkpoint'] = {'count': checkpoint['count'], 'created_at': checkpoint.get('created_at'),
+                                          'summary': '\n\n'.join(message['content'] for message in checkpoint['messages'] if message.get('_compressed_summary'))}
+        operation = hermes_session_record.get('context_operation')
+        if operation:
+            job_id = operation.get('job_id')
+            context_view['operation'] = {'request_id': operation.get('request_id'), 'job_id': job_id, 'status': 'pending'}
+            if job_id:
+                try:
+                    job = self.read_hermes_job_record(self.resolve_hermes_job_path(job_id))
+                    context_view['operation']['status'] = job['status'].get('status', 'unknown')
+                except (OSError, ValueError, KeyError, TypeError):
+                    context_view['operation']['status'] = 'unknown'
+        latest_job = next((item.get('job_id') for item in reversed(hermes_session_record['messages']) if item.get('job_id')), None)
+        if operation and operation.get('job_id') and operation.get('execution_context', {}).get('count') == len(hermes_session_record['messages']):
+            latest_job = operation['job_id']
+        if latest_job:
+            try:
+                path = self.resolve_hermes_job_path(latest_job) / 'context-status.json'
+                if not path.exists():
+                    job = self.read_hermes_job_record(self.resolve_hermes_job_path(latest_job))
+                    if job['status'].get('status') == 'running':
+                        path = self.resolve_hermes_job_path(latest_job) / 'context-exchange' / 'progress.json'
+                if path.is_file() and not path.is_symlink() and path.stat().st_size <= 4096:
+                    usage = json.loads(path.read_text(encoding='utf-8'))
+                    if isinstance(usage, dict) and type(usage.get('tokens')) is int and usage['tokens'] >= 0 and all(usage.get(key) is None or (type(usage[key]) is int and usage[key] >= 0) for key in ('tokens_after', 'threshold')):
+                        context_view['usage'] = usage
+            except (OSError, ValueError, TypeError):
+                pass
+        return {'id': hermes_session_record['id'], 'title': hermes_session_record.get('title', '새 대화'), 'message_count': len(hermes_session_record['messages']), 'messages': hermes_view_messages, 'truncated': current_start_index > 0, 'offset':current_offset_value, 'next_offset':current_offset_value+len(hermes_view_messages) if current_start_index>0 else None, 'snapshot':current_snapshot_value, 'queried_at': datetime.now(timezone.utc).isoformat(), 'context': context_view}
 
     def execute_hermes_command(self, hermes_command_name, hermes_payload_record):
         if hermes_command_name in ('hermes-video-form-save', 'hermes-video-form-read', 'hermes-video-form-submit', 'hermes-video-form-status'):
@@ -1103,8 +1230,11 @@ class HermesServiceManager:
             if hermes_command_name in ('hermes-session-archive', 'hermes-session-restore', 'hermes-session-delete'):
                 if set(hermes_payload_record) != {'session_id', 'expected_update'}:
                     raise ValueError('세션 ID와 조회 시각을 확인하세요.')
-                return hermes_session_store.change_session_lifecycle(hermes_payload_record['session_id'],
-                    hermes_command_name.removeprefix('hermes-session-'), hermes_payload_record['expected_update'])
+                with self.hold_hermes_service_lock():
+                    if hermes_command_name == 'hermes-session-archive':
+                        self.ensure_context_operation_finished(hermes_session_store.read_session_record(hermes_payload_record['session_id']))
+                    return hermes_session_store.change_session_lifecycle(hermes_payload_record['session_id'],
+                        hermes_command_name.removeprefix('hermes-session-'), hermes_payload_record['expected_update'])
             if hermes_command_name == 'hermes-session-list':
                 return hermes_session_store.list_session_records(hermes_payload_record)
             if set(hermes_payload_record) != {'session_id'}:
@@ -1265,6 +1395,14 @@ class HermesServiceManager:
                 return {'job_id': hermes_payload_record['id'], 'proposal': parse_hermes_kimodo_proposal(current_job_record.get('final_response'))}
             if hermes_command_name == 'hermes-session-view':
                 return self.read_hermes_session_view_locked(hermes_payload_record)
+            if hermes_command_name == 'hermes-session-context-settings':
+                if set(hermes_payload_record) != {'session_id', 'enabled'}:
+                    raise ValueError('세션 ID와 자동 정리 설정만 전달하세요.')
+                from workflow.domains.hermes_agent.session_store import HermesSessionStore
+                store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+                return store.set_context_automatic(hermes_payload_record['session_id'], hermes_payload_record['enabled'])
+            if hermes_command_name == 'hermes-session-context-compress':
+                return self.submit_hermes_session_context_locked(hermes_payload_record)
             if hermes_command_name == 'hermes-submit':
                 return self.submit_hermes_job_locked(hermes_payload_record)
             if hermes_command_name == 'hermes-session-submit':

@@ -1,6 +1,7 @@
 """공용 GPU 예약 내에서 격리된 Hermes 운영·코드 작업을 실행한다."""
 import json
 import hashlib
+from datetime import datetime, timezone
 import os
 from pathlib import Path
 import re
@@ -26,12 +27,64 @@ from workflow.domains.hermes_agent.management_bridge import serve_hermes_observe
 
 HERMES_RUNTIME_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.local/hermes-agent-runtime'
 HERMES_SANDBOX_CLIENT = Path(__file__).with_name('sandbox_client.py')
+HERMES_CONTEXT_RUNTIME = Path(__file__).with_name('context_runtime.py')
 HERMES_OBSERVER_CLIENT = Path(__file__).with_name('management_status_client.py')
 
 
 def build_hermes_sandbox_environment():
     """호스트 인증정보를 PID 네임스페이스 안에 상속하지 않는다."""
     return {'PATH':'/usr/local/bin:/usr/bin:/bin', 'HOME':'/tmp', 'LANG':'C.UTF-8', 'PYTHONSAFEPATH':'1', 'PYTHONDONTWRITEBYTECODE':'1', 'PYTHONUNBUFFERED':'1'}
+
+
+def prepare_worker_context(job_directory, context, sandbox_arguments, event_stream):
+    """모델과 같은 예약에서 압축을 별도 격리 실행하고 확인된 결과만 적용한다."""
+    from workflow.domains.hermes_agent.context_checkpoint import validate_context_checkpoint
+    from workflow.domains.hermes_agent.context_runtime import format_context_query
+    from workflow.domains.hermes_agent.session_store import HermesSessionStore
+    required = {'session_id', 'count', 'digest', 'messages_digest', 'expected_checkpoint', 'automatic', 'messages', 'force', 'only'}
+    if not isinstance(context, dict) or set(context) != required or any(type(context[key]) is not bool for key in ('automatic', 'force', 'only')) or not isinstance(context['messages'], list):
+        raise ValueError('대화 문맥 작업 형식 오류')
+    messages_digest = hashlib.sha256(json.dumps(context['messages'], ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    if messages_digest != context['messages_digest']:
+        raise ValueError('대화 문맥 입력이 변경되었습니다.')
+    exchange = job_directory / 'context-exchange'
+    exchange.mkdir()
+    write_record_atomically(exchange / 'input.json', {'messages': context['messages'], 'automatic': context['automatic'], 'force': context['force']})
+    boundary = sandbox_arguments.index('--')
+    preflight_base = list(sandbox_arguments[:boundary])
+    for index in range(len(preflight_base) - 2):
+        if preflight_base[index] == '--bind' and preflight_base[index + 2] == '/workspace':
+            preflight_base[index] = '--ro-bind'
+            break
+    preflight = (preflight_base + ['--ro-bind', str(HERMES_CONTEXT_RUNTIME), '/control/context_runtime.py',
+                 '--bind', str(exchange), '/control/context'] + sandbox_arguments[boundary:] + ['--context-only'])
+    environment = dict(build_hermes_sandbox_environment(), PYTHONPATH='/runtime', HERMES_HOME='/tmp/hermes-home',
+                       TERMINAL_CWD='/workspace', HERMES_API_TIMEOUT='300')
+    completed = subprocess.run(preflight, stdout=event_stream, stderr=subprocess.STDOUT, env=environment, timeout=1200)
+    if completed.returncode:
+        raise RuntimeError('대화 문맥 준비에 실패했습니다. 기존 대화는 유지됩니다.')
+    result_path = exchange / 'result.json'
+    if result_path.is_symlink() or not result_path.is_file() or result_path.stat().st_size > 16000000:
+        raise RuntimeError('대화 문맥 준비 결과를 확인할 수 없습니다.')
+    result = json.loads(result_path.read_text(encoding='utf-8'))
+    if not isinstance(result, dict) or result.get('state') not in ('disabled', 'not_needed', 'unchanged', 'compressed') or not isinstance(result.get('messages'), list):
+        raise RuntimeError('대화 문맥 준비 결과 형식 오류')
+    query_path = job_directory / 'query.txt'
+    expected_query = format_context_query(result['messages'], query_path.read_text(encoding='utf-8'))
+    if result.get('query') != expected_query:
+        raise RuntimeError('대화 문맥 준비 결과가 입력과 일치하지 않습니다.')
+    if result['state'] == 'compressed':
+        checkpoint = {'count': context['count'], 'digest': context['digest'], 'messages': result['messages'],
+                      'created_at': datetime.now(timezone.utc).isoformat()}
+        store = HermesSessionStore()
+        session = store.read_session_record(context['session_id'])
+        validate_context_checkpoint(checkpoint, session['messages'])
+        store.commit_context_checkpoint(context['session_id'], checkpoint, context['expected_checkpoint'])
+    elif result['messages'] != context['messages']:
+        raise RuntimeError('압축하지 않은 대화 문맥이 변경되었습니다.')
+    query_path.write_text(expected_query, encoding='utf-8')
+    write_record_atomically(job_directory / 'context-status.json', {key: result.get(key) for key in ('state', 'tokens', 'tokens_after', 'threshold')})
+    return result['state']
 
 
 def wait_hermes_gpu_reservation(worker_job_directory):
@@ -229,17 +282,24 @@ def execute_hermes_gpu_job(worker_job_directory):
                 threading.Thread(target=serve_hermes_observer_connections, args=(worker_observer_socket,), daemon=True).start()
                 worker_sandbox_arguments = ['bwrap', '--die-with-parent', '--unshare-all', '--clearenv', '--ro-bind', '/usr', '/usr', '--ro-bind', '/lib', '/lib', '--ro-bind', '/lib64', '/lib64', '--ro-bind', '/bin', '/bin', '--ro-bind', '/etc/ssl', '/etc/ssl', '--size', '2147483648', '--tmpfs', '/tmp', '--dir', '/control', '--ro-bind', str(HERMES_RUNTIME_DIRECTORY), '/runtime', '--bind', str(worker_workspace_path), '/workspace', '--ro-bind', str(worker_workspace_path / '.git'), '/workspace/.git', '--ro-bind', str(worker_project_environment), '/workspace/.venv', '--ro-bind', str(worker_socket_path), '/control/model-proxy.sock', '--ro-bind', str(worker_job_directory / 'management-status.sock'), '/control/management-status.sock', '--ro-bind', str(HERMES_OBSERVER_CLIENT), '/control/management-status.py', '--ro-bind', str(worker_job_directory / 'query.txt'), '/control/query.txt', '--ro-bind', str(HERMES_SANDBOX_CLIENT), '/control/client.py', '--proc', '/proc', '--dev', '/dev', '--', '/runtime/.venv/bin/python', '/control/client.py']
                 with (worker_job_directory / 'hermes-events.jsonl').open('w') as worker_event_stream:
-                    worker_sandbox_process = subprocess.Popen(worker_sandbox_arguments, stdout=worker_event_stream, env=build_hermes_sandbox_environment())
-                    try:
-                        worker_agent_exit_code = worker_sandbox_process.wait(timeout=1250)
-                    except BaseException:
-                        worker_sandbox_process.terminate()
+                    worker_context = worker_request_record.get('context')
+                    if worker_context is not None:
+                        context_state = prepare_worker_context(worker_job_directory, worker_context, worker_sandbox_arguments, worker_event_stream)
+                    if worker_context is not None and worker_context['only']:
+                        worker_agent_exit_code = 0
+                        worker_event_stream.write(json.dumps({'type': 'result', 'text': '대화 정리 완료' if context_state == 'compressed' else '정리할 대화가 없습니다.'}, ensure_ascii=False) + '\n')
+                    else:
+                        worker_sandbox_process = subprocess.Popen(worker_sandbox_arguments, stdout=worker_event_stream, env=build_hermes_sandbox_environment())
                         try:
-                            worker_sandbox_process.wait(timeout=3)
-                        except subprocess.TimeoutExpired:
-                            worker_sandbox_process.kill()
-                            worker_sandbox_process.wait()
-                        raise
+                            worker_agent_exit_code = worker_sandbox_process.wait(timeout=1250)
+                        except BaseException:
+                            worker_sandbox_process.terminate()
+                            try:
+                                worker_sandbox_process.wait(timeout=3)
+                            except subprocess.TimeoutExpired:
+                                worker_sandbox_process.kill()
+                                worker_sandbox_process.wait()
+                            raise
             if worker_agent_exit_code:
                 raise RuntimeError(f'Hermes 작업 실패: 종료 코드 {worker_agent_exit_code}')
             if worker_verification_record['modules']:

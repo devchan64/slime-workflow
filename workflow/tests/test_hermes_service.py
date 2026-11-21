@@ -2172,8 +2172,8 @@ class HermesServiceTests(unittest.TestCase):
         (hermes_first_job_path / 'hermes-events.jsonl').write_text(json.dumps({'type':'result', 'text':'첫 답변'}, ensure_ascii=False))
         hermes_second_result = self.hermes_service_manager.execute_hermes_command('hermes-session-submit', hermes_second_payload)
         hermes_second_request = json.loads((self.hermes_service_manager.hermes_storage_root / hermes_second_result['job_id'] / 'request.json').read_text())
-        self.assertIn('첫 질문', hermes_second_request['prompt'])
-        self.assertIn('첫 답변', hermes_second_request['prompt'])
+        self.assertEqual(hermes_second_request['context']['messages'], [
+            {'role':'user','content':'첫 질문'}, {'role':'assistant','content':'첫 답변'}])
         hermes_view_record = self.hermes_service_manager.execute_hermes_command('hermes-session-view', {'session_id': hermes_session_identifier})
         self.assertEqual(hermes_view_record['messages'][0]['job']['final_response'], '첫 답변')
         self.assertEqual(hermes_view_record['messages'][1]['job']['status']['status'], 'unknown')
@@ -2198,6 +2198,71 @@ class HermesServiceTests(unittest.TestCase):
         hermes_launch_mock.assert_called_once()
         hermes_saved_record = self.hermes_service_manager.execute_hermes_command('hermes-session-read', {'session_id': hermes_session_identifier})
         self.assertEqual(hermes_saved_record['messages'][0]['job_id'], hermes_retry_record['job_id'])
+
+    @patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready')
+    @patch('workflow.domains.hermes_agent.service.launch_gpu_process')
+    def test_manual_context_job_is_idempotent_and_blocks_new_turn_until_terminal(self, launch, ready):
+        session = 'd' * 32
+        self.hermes_service_manager.execute_hermes_command('hermes-session-create', {'session_id': session})
+        first = self.hermes_service_manager.execute_hermes_command('hermes-session-submit',
+                    {'session_id': session, 'request_id': 'request_first', 'prompt': '코드 수정 요청'})
+        path = self.hermes_service_manager.hermes_storage_root / first['job_id']
+        (path / 'status.json').write_text('{"status":"completed"}')
+        (path / 'hermes-events.jsonl').write_text(json.dumps({'type':'result','text':'답변'}, ensure_ascii=False))
+        payload = {'session_id': session, 'request_id': 'compact_request'}
+        result = self.hermes_service_manager.execute_hermes_command('hermes-session-context-compress', payload)
+        retry = self.hermes_service_manager.execute_hermes_command('hermes-session-context-compress', payload)
+        self.assertEqual(result['job_id'], retry['job_id'])
+        self.assertTrue(retry['duplicate'])
+        request = json.loads((self.hermes_service_manager.hermes_storage_root / result['job_id'] / 'request.json').read_text())
+        self.assertTrue(request['context']['force'])
+        self.assertTrue(request['context']['only'])
+        self.assertEqual(request['model_profile'], 'qwen3.8-27b')
+        snapshot = self.hermes_service_manager.execute_hermes_command('hermes-session-read', {'session_id': session})
+        with self.assertRaisesRegex(ValueError, '정리'):
+            self.hermes_service_manager.execute_hermes_command('hermes-session-archive',
+                {'session_id': session, 'expected_update': snapshot['updated_at']})
+        with self.assertRaisesRegex(ValueError, '정리'):
+            self.hermes_service_manager.execute_hermes_command('hermes-session-submit',
+                {'session_id': session, 'request_id': 'request_next', 'prompt': '다음 질문'})
+        (self.hermes_service_manager.hermes_storage_root / result['job_id'] / 'status.json').write_text('{"status":"completed"}')
+        self.hermes_service_manager.execute_hermes_command('hermes-session-submit',
+                {'session_id': session, 'request_id': 'request_next', 'prompt': '다음 질문'})
+        self.assertEqual(launch.call_count, 3)
+
+    @patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready')
+    @patch('workflow.domains.hermes_agent.service.launch_gpu_process')
+    def test_long_prior_answer_is_preserved_in_context(self, launch, ready):
+        session = 'e' * 32
+        self.hermes_service_manager.execute_hermes_command('hermes-session-create', {'session_id': session})
+        first = self.hermes_service_manager.execute_hermes_command('hermes-session-submit',
+                    {'session_id': session, 'request_id': 'request_first', 'prompt': '첫 질문'})
+        path = self.hermes_service_manager.hermes_storage_root / first['job_id']
+        answer = '과거 답변 ' * 20000
+        (path / 'status.json').write_text('{"status":"completed"}')
+        (path / 'hermes-events.jsonl').write_text(json.dumps({'type':'result','text':answer}, ensure_ascii=False))
+        second = self.hermes_service_manager.execute_hermes_command('hermes-session-submit',
+                    {'session_id': session, 'request_id': 'request_second', 'prompt': '후속 질문'})
+        request = json.loads((self.hermes_service_manager.hermes_storage_root / second['job_id'] / 'request.json').read_text())
+        self.assertEqual(request['context']['messages'][-1]['content'], answer)
+        self.assertEqual(request['prompt'], '후속 질문')
+
+    def test_context_settings_round_trip_and_default(self):
+        session = 'f' * 32
+        self.hermes_service_manager.execute_hermes_command('hermes-session-create', {'session_id': session})
+        view = self.hermes_service_manager.execute_hermes_command('hermes-session-view', {'session_id': session})
+        self.assertTrue(view['context']['automatic'])
+        for command, payload in (
+            ('hermes-session-context-settings', {'session_id': session, 'enabled': False}),
+            ('hermes-session-context-compress', {'session_id': session, 'request_id': 'compact_request'}),
+        ):
+            method, route = resolve_management_command('hermes-agent', command, payload)
+            self.assertEqual(identify_management_command(route, method, payload), ('hermes-agent', command, payload))
+        self.hermes_service_manager.execute_hermes_command('hermes-session-context-settings', {'session_id': session, 'enabled': False})
+        view = self.hermes_service_manager.execute_hermes_command('hermes-session-view', {'session_id': session})
+        self.assertFalse(view['context']['automatic'])
+        with self.assertRaises(ValueError):
+            self.hermes_service_manager.execute_hermes_command('hermes-session-context-settings', {'session_id': session, 'enabled': 1})
 
     def test_gateway_command_round_trip(self):
         hermes_payload_record = {'request_id':'test-request-1234', 'prompt':'테스트'}

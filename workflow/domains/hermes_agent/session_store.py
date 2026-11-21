@@ -161,6 +161,62 @@ class HermesSessionStore:
         with self.hold_session_storage_lock():
             return self.read_session_record_locked(session_identifier_value)
 
+    def commit_context_checkpoint(self, session_identifier_value, checkpoint, expected_checkpoint):
+        """압축 중 원문이 바뀌면 결과를 적용하지 않는다. 뒤에 추가된 메시지는 유지한다."""
+        from workflow.domains.hermes_agent.context_checkpoint import validate_context_checkpoint
+        with self.hold_session_storage_lock():
+            session = self.read_session_record_locked(session_identifier_value)
+            validate_context_checkpoint(checkpoint, session['messages'])
+            previous = session.get('context_checkpoint')
+            if previous != expected_checkpoint:
+                raise ValueError('압축 결과가 변경되었습니다. 다시 조회하세요.')
+            if previous and previous.get('count', 0) > checkpoint['count']:
+                raise ValueError('더 새로운 압축 결과가 이미 적용되었습니다.')
+            session['context_checkpoint'] = checkpoint
+            session['updated_at'] = datetime.now(timezone.utc).isoformat()
+            write_record_atomically(self.resolve_session_record_path(session_identifier_value), session)
+            return checkpoint
+
+    def set_context_automatic(self, session_identifier_value, enabled):
+        if type(enabled) is not bool:
+            raise ValueError('자동 대화 정리 설정은 참 또는 거짓이어야 합니다.')
+        with self.hold_session_storage_lock():
+            session = self.read_session_record_locked(session_identifier_value)
+            session['context_automatic'] = enabled
+            session['updated_at'] = datetime.now(timezone.utc).isoformat()
+            write_record_atomically(self.resolve_session_record_path(session_identifier_value), session)
+            return {'session_id': session_identifier_value, 'enabled': enabled}
+
+    def begin_context_operation(self, session_id, request_id, execution_context):
+        if not isinstance(request_id, str) or not HERMES_SESSION_REQUEST_PATTERN.fullmatch(request_id):
+            raise ValueError('대화 정리 접수 식별자 형식 오류')
+        with self.hold_session_storage_lock():
+            session = self.read_session_record_locked(session_id)
+            previous = session.get('context_operation')
+            if previous and previous.get('request_id') == request_id:
+                return previous
+            from workflow.domains.hermes_agent.context_checkpoint import context_prefix_digest
+            if context_prefix_digest(session['messages'], len(session['messages'])) != execution_context['digest'] or session.get('context_checkpoint') != execution_context['expected_checkpoint']:
+                raise ValueError('대화가 변경되었습니다. 다시 정리해 주세요.')
+            operation = {'request_id': request_id, 'job_id': None, 'execution_context': execution_context}
+            session['context_operation'] = operation
+            session['updated_at'] = datetime.now(timezone.utc).isoformat()
+            write_record_atomically(self.resolve_session_record_path(session_id), session)
+            return operation
+
+    def attach_context_job(self, session_id, request_id, job_id):
+        if not isinstance(job_id, str) or not HERMES_SESSION_JOB_PATTERN.fullmatch(job_id):
+            raise ValueError('대화 정리 작업 ID 형식 오류')
+        with self.hold_session_storage_lock():
+            session = self.read_session_record_locked(session_id)
+            operation = session.get('context_operation')
+            if not operation or operation.get('request_id') != request_id or operation.get('job_id') not in (None, job_id):
+                raise ValueError('대화 정리 접수가 변경되었습니다.')
+            operation['job_id'] = job_id
+            session['updated_at'] = datetime.now(timezone.utc).isoformat()
+            write_record_atomically(self.resolve_session_record_path(session_id), session)
+            return operation
+
     def change_session_lifecycle(self, session_id, operation, expected_update):
         with self.hold_session_storage_lock():
             active = self.resolve_session_record_path(session_id)
@@ -230,7 +286,7 @@ class HermesSessionStore:
             current_next_offset=current_offset_value+len(current_page_values)
             return {'sessions':current_page_values,'offset':current_offset_value,'next_offset':current_next_offset if current_next_offset<len(current_matching_summaries) else None,'total':len(current_matching_summaries),'snapshot':current_snapshot_value,'unreadable_count':len(current_unreadable_identifiers)}
 
-    def append_session_request(self, session_identifier_value, request_identifier_value, request_message_text, execution_prompt_text=None, verification_module_names=None, context_truncated=False):
+    def append_session_request(self, session_identifier_value, request_identifier_value, request_message_text, execution_prompt_text=None, verification_module_names=None, context_truncated=False, execution_context=None):
         if not isinstance(request_identifier_value, str) or not HERMES_SESSION_REQUEST_PATTERN.fullmatch(request_identifier_value):
             raise ValueError('접수 식별자 형식 오류')
         if not isinstance(request_message_text, str) or not request_message_text.strip() or len(request_message_text) > 12000:
@@ -246,6 +302,8 @@ class HermesSessionStore:
                 raise ValueError('세션 메시지 한도에 도달했습니다. 새 세션을 시작하세요.')
             current_created_timestamp = datetime.now(timezone.utc).isoformat()
             current_message_record = {'id': uuid.uuid4().hex, 'request_id': request_identifier_value, 'role': 'user', 'text': request_message_text, 'created_at': current_created_timestamp, 'job_id': None, 'execution_prompt': execution_prompt_text if execution_prompt_text is not None else request_message_text, 'verification_modules': verification_module_names or [], 'context_truncated': context_truncated}
+            if execution_context is not None:
+                current_message_record['execution_context'] = execution_context
             if not current_session_record['messages']:
                 current_session_record['title'] = title_from_first_request(request_message_text)
             current_session_record['messages'].append(current_message_record)
