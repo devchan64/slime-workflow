@@ -363,7 +363,8 @@ class ManagementToolExplorerTests(unittest.TestCase):
         from unittest.mock import patch
         from tools.review.ui.gradio import management_menu_app
 
-        test_catalog = [dict(id='example-generator', label='예시', category='image-generation', description='지도', path='/example')]
+        test_catalog = [dict(id='example-generator', label='예시', category='image-generation', description='지도', path='/example'),
+                        dict(id='map-review', label='맵 검수', category='map-review', description='통행 확인', path='/review')]
         with gr.Blocks() as conversation:
             with patch.object(management_menu_app, 'load_manager_page_records', return_value=test_catalog):
                 management_menu_app.build_conversation_tool_explorer(gr.Textbox(), gr.Dropdown())
@@ -371,13 +372,15 @@ class ManagementToolExplorerTests(unittest.TestCase):
         panels = [block for block in shell.blocks.values() if getattr(block, 'elem_id', None) == 'hermes-tool-explorer']
         self.assertEqual(len(panels), 1)
         self.assertFalse(panels[0].open)
-        search = next(fn.fn for fn in conversation.fns.values() if fn.name == 'search_generators')
-        self.assertEqual(search('지도')['value'], 'example-generator')
-        self.assertFalse(search('없는 도구')['choices'])
-        attach = next(fn.fn for fn in conversation.fns.values() if fn.name == 'attach_generator')
+        selector = next(block for block in conversation.blocks.values() if getattr(block, 'label', None) == '도구 검색')
+        self.assertTrue(selector.filterable)
+        self.assertIn('지도', selector.choices[0][0])
+        self.assertIn('map-review', dict(selector.choices).values())
+        attach = next(fn.fn for fn in conversation.fns.values() if fn.name == 'attach_tool')
         draft = attach('a'*32, 'example-generator', '마을을 그려 줘')
-        self.assertEqual(draft, '마을을 그려 줘\n사용할 생성기: 예시 (example-generator)\n')
+        self.assertEqual(draft, '마을을 그려 줘\n사용할 도구: 예시 (example-generator)\n')
         self.assertEqual(attach('a'*32, 'example-generator', draft), draft)
+        self.assertIn('맵 검수 (map-review)', attach('a'*32, 'map-review', draft))
         with gr.Blocks() as other_tool:
             gr.Textbox()
         other_shell, _ = build_management_menu_interface(test_catalog, 8770, other_tool)
