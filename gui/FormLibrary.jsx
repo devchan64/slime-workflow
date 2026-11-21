@@ -9,6 +9,7 @@ export default function FormLibrary({session, proposalStep, messages, call, addT
   const [registeredRun,setRegisteredRun] = useState("");
   const [forms, setForms] = useState({});
   const [selection, setSelection] = useState("");
+  const [copySource,setCopySource] = useState(null);
   const [reference, setReference] = useState(null);
   const [name, setName] = useState("");
   const [definition, setDefinition] = useState("");
@@ -31,7 +32,7 @@ export default function FormLibrary({session, proposalStep, messages, call, addT
     setDefinition(record.definition_text);
     setDraftRevision(record.revision);
     setReview(null);
-    setReference(null);
+    setReference(null);setCopySource(null);
     setSelection("");
     setName("");
     edited.current = false;
@@ -95,17 +96,19 @@ export default function FormLibrary({session, proposalStep, messages, call, addT
     finally { setBusy(false); }
   }
 
-  async function load() {
+  async function load(copy=false) {
     const {form_id, form_version} = versions.find(version => version.key === selection);
     const result = await call("form-read", {session_id: session, form_id, form_version});
     editDefinition(result.definition_text);
-    setName(result.entry.name);
+    setName(copy ? result.entry.name + " 복사본" : result.entry.name);
+    setCopySource(copy ? {form_id, form_version} : null);
     setReference({form_id, form_version});
     pendingSave.current = null;
-    setNotice("선택한 버전을 불러왔습니다.");
+    setNotice(copy ? "복사 초안을 열었습니다. 수정한 뒤 버전을 저장하세요." : "선택한 버전을 불러왔습니다.");
   }
 
-  async function save(copy) {
+  async function save() {
+    const copy = Boolean(copySource);
     const inputs = JSON.stringify([name, definition, reference, copy]);
     if (pendingSave.current?.inputs !== inputs) {
       const target = reference && !copy ? reference : {
@@ -113,10 +116,11 @@ export default function FormLibrary({session, proposalStep, messages, call, addT
       };
       pendingSave.current = {inputs, payload: {
         ...target, session_id: session, form_name: name, definition_text: definition,
-        ...(copy ? {copied_from: reference} : {})
+        ...(copy ? {copied_from: copySource} : {})
       }};
     }
     const result = await call("form-save", pendingSave.current.payload);
+    setCopySource(null);
     setReference({form_id: result.form_id, form_version: result.entry.version});
     setSelection(result.form_id + "/" + result.entry.version);
     pendingSave.current = null;
@@ -133,7 +137,7 @@ export default function FormLibrary({session, proposalStep, messages, call, addT
         </select></label>
         <button disabled={!selectedProposal} onClick={()=>{
           editDefinition(selectedProposal.job.workflow_proposal);
-          setReference(null);setSelection("");setName("");
+          setReference(null);setCopySource(null);setSelection("");setName("");
           setNotice("선택한 답변의 제안으로 편집 초안을 교체했습니다.");
         }}>선택한 제안으로 초안 교체</button>
       </section>}
@@ -142,7 +146,9 @@ export default function FormLibrary({session, proposalStep, messages, call, addT
         {versions.map(version => <option key={version.key} value={version.key}>{version.label}</option>)}
       </select></label>
       <button onClick={() => run(refresh)}>목록 갱신</button>
-      <button disabled={!selection} onClick={() => run(load)}>선택한 버전으로 초안 교체</button>
+      <button disabled={!selection} onClick={() => run(() => load())}>선택한 버전으로 초안 교체</button>
+      <button disabled={!selection} onClick={() => run(() => load(true))}>선택한 버전 복사해 편집</button>
+      {copySource && <p>복사 원본 · {versions.find(v=>v.key===copySource.form_id+"/"+copySource.form_version)?.label || copySource.form_id}</p>}
       <label>폼 이름 <input value={name} onChange={event => setName(event.target.value)}/></label>
       <StepBuilder proposalStep={proposalStep} call={call} definition={definition} onChange={editDefinition}/>
       <label>워크플로우 정의 JSON <textarea value={definition} onChange={event => editDefinition(event.target.value)}/></label>
@@ -151,8 +157,7 @@ export default function FormLibrary({session, proposalStep, messages, call, addT
         restoreDraft(await call("workflow-draft-read",{session_id:session}));
         setNotice("서버에 저장된 초안을 불러왔습니다.");
       })}>서버 초안으로 편집 내용 교체</button>
-      <button disabled={!name.trim() || !definition.trim()} onClick={() => run(() => save(false))}>버전 저장</button>
-      <button disabled={!reference || !name.trim() || !definition.trim()} onClick={() => run(() => save(true))}>별도 폼으로 복사</button>
+      <button disabled={!name.trim() || !definition.trim()} onClick={() => run(save)}>버전 저장</button>
       <button disabled={!definition.trim()} onClick={() => addToMessage(definition)}>대화 입력에 추가</button>
       <button disabled={!definition.trim()} onClick={() => run(reviewWorkflow)}>단계와 결과 연결 검토</button>
       {review && <section aria-label="워크플로우 등록 검토">

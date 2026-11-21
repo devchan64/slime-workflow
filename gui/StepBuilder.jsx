@@ -81,7 +81,21 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
       setName(""); choose("");
     } catch (error) { setNotice(error.message); }
   }
-  return <details ref={editor}><summary>생성기 단계 추가</summary>
+  function editTextInput(index,field,value) {
+    const next = steps.map((step,i)=>i===index ? {...step,inputs:{...step.inputs,[field]:value}} : step);
+    onChange(JSON.stringify({steps:next},null,2));
+  }
+  return <>{steps.map((step,index)=>{
+    const fields=Object.entries(step.inputs || {}).filter(([field,value])=>{
+      const spec=catalog[step.generator]?.inputs?.[field];
+      return spec && typeof value==="string" && !spec.choices && !step.bindings?.[field];
+    });
+    return fields.length>0 && <fieldset key={step.id}><legend>{step.id} · 입력 수정</legend>
+      {fields.map(([field,value])=><label key={field}>{catalog[step.generator].inputs[field].label || field}
+        <textarea value={value} maxLength={catalog[step.generator].inputs[field].max_length}
+          onChange={event=>editTextInput(index,field,event.target.value)}/></label>)}
+    </fieldset>;
+  })}<details ref={editor}><summary>생성기 단계 추가</summary>
     <label>생성기 <select value={generator} onChange={event => choose(event.target.value)}>
       <option value="">생성기 선택</option>
       {Object.entries(catalog).map(([key,spec]) => <option key={key} value={key}>{spec.label}</option>)}
@@ -125,5 +139,5 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
       <button disabled={Boolean(invalid)} onClick={append}>편집 중인 정의에 단계 추가</button>
     </>}
     {(notice || invalid) && <p role="status">{notice || invalid}</p>}
-  </details>;
+  </details></>;
 }
