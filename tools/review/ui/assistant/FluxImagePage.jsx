@@ -14,6 +14,10 @@ function readReference(file){
   });
 }
 
+function pngFile(encoded,name){
+  return new File([Uint8Array.from(atob(encoded),char=>char.charCodeAt(0))],name,{type:"image/png"});
+}
+
 export default function FluxImagePage(){
   const service=location.pathname.match(/\/management\/frame\/(flux-[a-z]+)-generator/)?.[1] || "flux-image";
   const [profile,setProfile]=useState(null),[attempt,setAttempt]=useState(0);
@@ -22,6 +26,7 @@ export default function FluxImagePage(){
   const [files,setFiles]=useState([]),[review,setReview]=useState(null);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
   const [job,setJob]=useState(query.get("job") || "");
+  const [layout,setLayout]=useState(""),[subject,setSubject]=useState("");
   const sending=useRef(false);
   const fileInput=useRef(null);
   const [historyRevision,setHistoryRevision]=useState(0);
@@ -33,6 +38,7 @@ export default function FluxImagePage(){
         if(!response.ok)throw new Error("생성기 기본 입력을 불러올 수 없습니다.");
         const defaults=await response.json();
         setForm(current=>({...current,prompt:defaults.prompt,width:defaults.width,height:defaults.height}));
+        setLayout(defaults.layouts?.[0] || "");setSubject(defaults.subject || "");
         setProfile(defaults);setNotice("");
       }catch(error){if(!controller.signal.aborted)setNotice(error.message);}
     }
@@ -42,10 +48,7 @@ export default function FluxImagePage(){
     const response=await fetch("/management/assistant/flux-image-input/"+encodeURIComponent(id)+"?service="+service,{cache:"no-store"});
     const record=await response.json();
     if(!response.ok)throw new Error(record.detail || "저장된 입력을 확인할 수 없습니다.");
-    const files=record.images.map((encoded,index)=>{
-      const bytes=Uint8Array.from(atob(encoded),char=>char.charCodeAt(0));
-      return new File([bytes],"reference-"+(index+1)+".png",{type:"image/png"});
-    });
+    const files=record.images.map((encoded,index)=>pngFile(encoded,"reference-"+(index+1)+".png"));
     return {id:record.id,request:record.request,files};
   }
   function restore(input,record){
@@ -53,6 +56,17 @@ export default function FluxImagePage(){
     setJob(record.id);setNotice("선택한 이력의 입력과 참조 이미지를 불러왔습니다.");
   }
   function edit(key,value){setForm(current=>({...current,[key]:value}));}
+  async function applyGuide(){
+    setBusy(true);setNotice("");
+    try{
+      const response=await fetch("/management/assistant/flux-billboard-guide",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({layout,subject})});
+      if(!response.ok)throw new Error((await response.json()).detail || "가이드를 불러올 수 없습니다.");
+      const {prompt,image}=await response.json();
+      const guide=pngFile(image,layout+".png");
+      setFiles(current=>[guide,...current.slice(1)]);edit("prompt",prompt);fileInput.current.value="";
+    }catch(error){setNotice(error.message);}
+    finally{setBusy(false);}
+  }
   async function preview(event){
     event.preventDefault();setNotice("");setBusy(true);
     try{
@@ -83,6 +97,11 @@ export default function FluxImagePage(){
     {profile && <p>{profile.description}</p>}
     {!profile && notice && <button onClick={()=>setAttempt(current=>current+1)}>기본 입력 다시 불러오기</button>}
     <form onSubmit={preview}><fieldset disabled={!profile || busy || Boolean(review)}>
+      {profile?.layouts && <>
+        <label>점유 가이드 <select value={layout} onChange={e=>setLayout(e.target.value)}>{profile.layouts.map(value=><option key={value}>{value}</option>)}</select></label>
+        <label>생성 대상 <input value={subject} onChange={e=>setSubject(e.target.value)}/></label>
+        <button type="button" disabled={!subject.trim()} onClick={applyGuide}>선택한 가이드와 프롬프트 적용</button>
+      </>}
       <label>프롬프트 <textarea value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/></label>
       <label>번역할 한국어 설명 <textarea value={form.translation_source_ko} onChange={e=>edit("translation_source_ko",e.target.value)}/></label>
       <label>참조 PNG (최대 2장) <input ref={fileInput} type="file" multiple accept="image/png" onChange={e=>setFiles(Array.from(e.target.files))}/></label>
@@ -91,7 +110,7 @@ export default function FluxImagePage(){
       <label>시드 <input type="number" required min="0" max="4294967295" value={form.seed} onChange={e=>edit("seed",e.target.value)}/></label>
       <button type="button" onClick={()=>edit("seed",crypto.getRandomValues(new Uint32Array(1))[0])}>랜덤 시드</button>
       <label>이력 태그 <input value={form.tag} onChange={e=>edit("tag",e.target.value)}/></label>
-      <button disabled={!form.prompt.trim() && !form.translation_source_ko.trim()}>생성 요청 검토</button>
+      <button disabled={files.length < profile?.minimum || (!form.prompt.trim() && !form.translation_source_ko.trim())}>생성 요청 검토</button>
     </fieldset></form>
     {review && <section><h2>공용 화풍 적용 프롬프트</h2><pre>{review.result.prompt}</pre>
       {review.result.translation && <p>생성 시 번역할 내용 · {review.result.translation}</p>}

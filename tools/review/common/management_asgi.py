@@ -33,7 +33,7 @@ MANAGEMENT_INTERFACE_BUILDERS = {
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
 GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator', 'writer-agent': 'writer_agent'}
 GENERATOR_PAGE_PACKAGES['flux-expression-generator'] = 'flux-expression'
-for current_flux_profile in ('flux-character','flux-mannequin','flux-billboard','flux-building','flux-seamless'):
+for current_flux_profile in ('flux-character','flux-mannequin','flux-building','flux-seamless'):
     GENERATOR_PAGE_PACKAGES[current_flux_profile+'-generator'] = current_flux_profile
 def __getattr__(name):
     """이전 Qwen 옵션 조회자가 접근할 때만 해당 화면 모듈을 읽는다."""
@@ -370,7 +370,7 @@ def build_management_application(current_handler_class, current_root_path, curre
 
     def require_flux_page(service):
         from fastapi import HTTPException
-        if service not in ('flux-image', 'flux-prop', 'flux-vegetation'):
+        if service not in ('flux-image', 'flux-prop', 'flux-vegetation', 'flux-billboard'):
             raise HTTPException(404, '등록되지 않은 생성기 화면입니다.')
 
     @current_root_application.get('/management/assistant/flux-defaults/{service}')
@@ -382,7 +382,26 @@ def build_management_application(current_handler_class, current_root_path, curre
         if service in ('flux-prop', 'flux-vegetation'):
             source = service.removeprefix('flux-') + '-qwen-prompt.txt'
             prompt = (Path(__file__).resolve().parents[3] / 'generators/image/config' / source).read_text().strip().replace('transparent background', 'plain background')
-        return dict(label=label, description=description, width=width, height=height, prompt=prompt, minimum=minimum)
+        guide = {}
+        if service == 'flux-billboard':
+            from tools.review.domains.image.billboard_guide_prompt import BILLBOARD_LAYOUT_PROFILES, BILLBOARD_DEFAULT_SUBJECT
+            guide = dict(layouts=BILLBOARD_LAYOUT_PROFILES, subject=BILLBOARD_DEFAULT_SUBJECT)
+        return dict(**guide, label=label, description=description, width=width, height=height, prompt=prompt, minimum=minimum)
+
+    @current_root_application.post('/management/assistant/flux-billboard-guide')
+    def flux_billboard_guide(payload: dict):
+        import io
+        import base64
+        from fastapi import HTTPException
+        from tools.review.domains.image.billboard_guide_prompt import compose_billboard_guide_prompt, load_billboard_guide_image
+        layout = payload.get('layout')
+        try:
+            prompt = compose_billboard_guide_prompt(layout, payload.get('subject')).replace('transparent background', 'plain background')
+            with load_billboard_guide_image(layout) as image, io.BytesIO() as output:
+                image.save(output, format='PNG')
+                return {'prompt': prompt, 'image': base64.b64encode(output.getvalue()).decode('ascii')}
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
 
     @current_root_application.get('/management/assistant/flux-image-input/{job}')
     def flux_image_saved_input(job: str, service: str = "flux-image"):
@@ -560,6 +579,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen/')
     @current_root_application.get('/management/frame/music-heartmula')
     @current_root_application.get('/management/frame/music-heartmula/')
+    @current_root_application.get('/management/frame/flux-billboard-generator')
+    @current_root_application.get('/management/frame/flux-billboard-generator/')
     @current_root_application.get('/management/frame/flux-prop-generator')
     @current_root_application.get('/management/frame/flux-prop-generator/')
     @current_root_application.get('/management/frame/flux-vegetation-generator')
