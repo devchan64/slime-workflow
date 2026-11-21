@@ -92,7 +92,6 @@ function GridEditor({detail,size}){
 }
 
 function Sheet({path,source}){
-  const [size,setSize]=useState(null);
   const [detail,setDetail]=useState(null),[error,setError]=useState("");
   useEffect(()=>{
     let active=true;
@@ -104,11 +103,55 @@ function Sheet({path,source}){
   },[path,source]);
   if(error)return <p role="alert">{error}</p>;
   if(!detail)return <p role="status">원본 시트를 불러오는 중…</p>;
+  return <SheetView path={path} detail={detail}/>;
+}
+
+function SheetView({path,detail}){
+  const [size,setSize]=useState(null);
   const frames=detail.animation?.frames;
   return <section><h2>{path}</h2><img src={"data:image/png;base64,"+detail.image} onLoad={e=>setSize({width:e.target.naturalWidth,height:e.target.naturalHeight})} alt="원본 스프라이트 시트" style={{maxWidth:"100%"}}/>
     {detail.layout && <p>{detail.layout.columns}열 × {detail.layout.rows}행</p>}
     {frames?.length>0?<FrameEditor frames={frames} image={detail.image}/>:<GridEditor detail={detail} size={size}/>}
   </section>;
+}
+
+async function readLocalSheet(file){
+  if(file.size>8_000_000)throw new Error("PNG 시트는 8MB 이하여야 합니다.");
+  const header=new Uint8Array(await file.slice(0,24).arrayBuffer());
+  if(header.length!==24 || ![137,80,78,71,13,10,26,10].every((v,i)=>header[i]===v)){
+    throw new Error("PNG 시트를 선택하세요.");
+  }
+  const view=new DataView(header.buffer),width=view.getUint32(16),height=view.getUint32(20);
+  if(!width || !height || width*height>16_777_216)throw new Error("1600만 픽셀 이하의 PNG가 필요합니다.");
+  const bitmap=await createImageBitmap(file);
+  bitmap.close();
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve({image:reader.result.split(",")[1],path:file.name});
+    reader.onerror=()=>reject(new Error("PNG 시트를 읽을 수 없습니다."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function LocalSheet(){
+  const [file,setFile]=useState(null),[detail,setDetail]=useState(null);
+  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[revision,setRevision]=useState(0);
+  async function load(){
+    setBusy(true);setError("");
+    try{
+      const result=await readLocalSheet(file);
+      setDetail(result);setRevision(n=>n+1);
+    }catch(problem){setError(problem.message);}
+    finally{setBusy(false);}
+  }
+  return <details><summary>로컬 PNG 편집</summary>
+    <fieldset disabled={busy}><label>시트 PNG<input type="file" accept="image/png" onChange={e=>{
+      setFile(e.target.files[0] || null);setError("");
+    }}/></label>
+    <button disabled={!file} onClick={load}>{detail?"편집 중인 로컬 시트 교체":"로컬 시트 열기"}</button></fieldset>
+    {error && <p role="alert">{error}</p>}
+    {detail && <SheetView key={revision} path={detail.path} detail={detail}/>}
+  </details>;
 }
 
 export default function SpriteSheetEditor(){
@@ -126,7 +169,7 @@ export default function SpriteSheetEditor(){
   function search(nextSource){
     setItems(null);setError("");select("");setRequest({source:nextSource,query});
   }
-  return <article><h1>스프라이트 시트 편집기</h1>
+  return <article><h1>스프라이트 시트 편집기</h1><LocalSheet/>
     <form onSubmit={event=>{event.preventDefault();search(source);}}>
       <label>검색 원본<select value={source} onChange={event=>{setSource(event.target.value);search(event.target.value);}}>
         <option value="assets">에셋 스프라이트</option><option value="baseline">베이스라인 스프라이트</option></select></label>
