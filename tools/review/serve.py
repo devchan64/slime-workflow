@@ -216,6 +216,16 @@ def settle_review_watch_snapshot(current_watch_paths,current_source_snapshot):
 
 
 def run_review_watch_mode(parsed_argument_values):
+    gui_directory = Path(__file__).resolve().parents[2]/'gui'
+    npm_path = shutil.which('npm')
+    if not npm_path:
+        raise RuntimeError('GUI 소스 감시에는 Node.js와 npm이 필요합니다.')
+    if not (gui_directory/'node_modules/.bin/esbuild').is_file():
+        print('GUI 의존성을 설치합니다 (npm ci).', flush=True)
+        subprocess.run([npm_path, 'ci', '--no-audit', '--no-fund'], cwd=gui_directory, check=True)
+    # 시작 시 빌드 실패를 즉시 알리고 이전 번들을 최신 소스로 오인하지 않는다.
+    subprocess.run([npm_path, 'run', 'build'], cwd=gui_directory, check=True)
+    gui_build_process = subprocess.Popen([npm_path, 'run', 'build', '--', '--watch=forever'], cwd=gui_directory, start_new_session=True)
     watch_paths = collect_review_watch_paths(parsed_argument_values)
     previous_watch_snapshot = snapshot_review_watch_paths(watch_paths)
     watch_command_arguments = [current_argument for current_argument in sys.argv[1:] if current_argument != '--watch']
@@ -230,6 +240,8 @@ def run_review_watch_mode(parsed_argument_values):
             try:
                 while review_server_process.poll() is None:
                     time.sleep(REVIEW_WATCH_POLL_SECONDS)
+                    if gui_build_process.poll() is not None:
+                        raise RuntimeError(f'GUI 빌드 감시가 종료되었습니다 (종료 코드 {gui_build_process.returncode}).')
                     current_watch_snapshot = snapshot_review_watch_paths(watch_paths)
                     if current_watch_snapshot != previous_watch_snapshot:
                         current_watch_snapshot=settle_review_watch_snapshot(watch_paths,current_watch_snapshot)
@@ -264,6 +276,9 @@ def run_review_watch_mode(parsed_argument_values):
             review_server_process.wait(timeout=5)
         print(f'{datetime.now().isoformat()}/asset-review-server/stop 감시 종료', flush=True)
     finally:
+        if gui_build_process.poll() is None:
+            os.killpg(gui_build_process.pid, signal.SIGTERM)
+            gui_build_process.wait(timeout=5)
         current_watch_session.cleanup()
 
 

@@ -64,6 +64,8 @@ python3 tools/review/build_animation_anchors.py --root .tmp/실행폴더 --anima
 
 통합 관리도구는 시작할 때 `slime-frontend`의 UI 검수 입력(`src`, `review`, 검수 빌드 스크립트와 패키지 잠금 파일)을 해시로 비교한다. 해시가 같은 `.tmp/ui-review/<한국시간>-<소스해시>/ui-review` 사본이 있으면 `npm run build:review`를 생략하고, 변경되었거나 사본이 없으면 자동 빌드한 뒤 해당 경로로 독립 복사한다. `.tmp/ui-review/latest.json`에는 원본 저장소·소스 해시·빌드 원본·가져온 사본 경로를 기록한다. 따라서 별도 UI 검수 빌드 명령 없이 `./scripts/run_management_gui.sh`만 실행하면 된다.
 
+`./scripts/workflow.sh gui --watch`는 Node.js와 npm이 필요하다. GUI 의존성이 없으면 `gui/`에서 `npm ci`로 설치하고 초기 빌드 후 GUI 소스를 감시해 자동 빌드한다. 빌드된 `gui/dist`가 바뀌면 GUI 서버를 재시작하고 브라우저를 새로고침한다. 빌드 오류는 실행 터미널에 표시되며, 오류가 해결될 때까지 마지막으로 성공한 빌드가 유지된다. 의존성 정의를 변경한 경우 `gui/`에서 `npm ci`를 다시 실행해야 한다.
+
 현재 검수 UI가 지원하는 계약은 네 방향의 순차 프레임 ID, 동일한 방향별 프레임 수·고정 재생 시간, 독립 반복 클립이다. 계약과 다른 입력은 원인을 표시하고 실패한다. 정수 셀 영역과 원본 소수 앵커를 검증·유지한다. 전체 원본 파일을 제공하지 않고 검수용 이미지 사본과 생성 HTML만 워크플로우 실행 폴더에서 제공하므로 프론트엔드 코드를 런타임에 로드하지 않는다. 저장 JSON은 별도 검수 산출물이며 자동 반영하지 않는다. `frontend-review.log`, `review-server.log`, 출처와 해시를 담은 `manager-source.json`이 생성 폴더에 남는다. 에셋 변경 후에는 명령을 다시 실행해 새 스냅샷을 만든다.
 
 ## 검수 대상 검색
