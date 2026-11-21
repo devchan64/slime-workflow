@@ -1,3 +1,4 @@
+import KimodoMedia from "./KimodoMedia.jsx";
 import {managementCommand} from "./managementCommand.js";
 import TranslationResult from "./TranslationResult.jsx";
 import React, {useEffect, useState} from "react";
@@ -32,13 +33,12 @@ function KimodoMotion({result}) {
       if(job.status!=="completed" || !/^[a-f0-9]{32}$/.test(job.attempt) ||
          result.outputs.preview!==directory+"output-000.png" || job.video!==directory+"preview.mp4")
         throw new Error("보관한 프레임과 같은 실행 시도의 영상을 확인할 수 없습니다.");
-      setVideo(job.video);
+      setVideo(job);
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
   }
   return <section aria-label="Kimodo 모션 결과">
-    {video ? <video controls preload="metadata" src={video} style={{maxWidth:"100%"}}
-      onError={()=>{setVideo("");setError("원본 모션 영상을 불러올 수 없습니다.");}}/> :
+    {video ? <KimodoMedia id={result.job_id} job={video}/> :
       <button disabled={busy} onClick={load}>원본 모션 영상 보기</button>}
     {error && <p role="alert">{error}</p>}
   </section>;

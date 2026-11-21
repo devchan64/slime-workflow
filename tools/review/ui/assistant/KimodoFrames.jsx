@@ -1,3 +1,4 @@
+import KimodoMedia from "./KimodoMedia.jsx";
 import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import KimodoKeyframeSave from "./KimodoKeyframeSave.jsx";
 import React,{useEffect,useState} from "react";
@@ -36,6 +37,7 @@ export default function KimodoFrames({id,choose}) {
     {source && <><p>{id} · {source.status} {source.error}</p>
       <button onClick={()=>refresh(value=>value+1)}>작업 상태 갱신</button>
       <GeneratorJobControls service="kimodo" id={id} state={source.status} refresh={()=>refresh(value=>value+1)}/></>}
+    {source?.status==="completed" && <KimodoMedia key={source.attempt} id={id} job={source}/>}
     {source?.status==="completed" && <form onSubmit={inspect}><fieldset disabled={busy}><legend>원본 SOMA 관절 · {source.source_frame_count}프레임</legend>
       <label>원본 프레임 번호 <input type="number" min="1" max={source.source_frame_count} required value={frame}
         onChange={event=>{setFrame(event.target.value);setPreview(null);setError("");}}/></label>
