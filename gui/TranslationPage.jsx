@@ -1,3 +1,4 @@
+import JobStatus from "./JobStatus.jsx";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
 import RecordFolder from "./RecordFolder.jsx";
@@ -86,7 +87,7 @@ export default function TranslationPage({embedded=false}={}) {
     </section>}
     <p role="status">{notice}</p>
     {job && <section ref={!record ? live.ref : undefined}><h2>번역 작업</h2><JobIdentifier id={job}/><RecordFolder key={job} service={service} id={job}/><button onClick={()=>setRevision(v=>v+1)}>상태 갱신</button>
-      {record && <><p>{record.status.status} {record.status.error}</p><GenerationProgress job={{status:record.status.status}} live={live} supportsProgress={false}/></>}
+      {record && <><p><JobStatus state={record.status.status}/> {record.status.error}</p><GenerationProgress job={{status:record.status.status}} live={live} supportsProgress={false}/></>}
       {record?.id===job && <GeneratorJobControls showActions={false} key={job+"/"+record.status.status} service={service} id={job}
         state={record.status.status} refresh={()=>setRevision(value=>value+1)}/>}
       {record?.result && <TranslationResult key={job} job={job} text={record.result.text}/>}

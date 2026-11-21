@@ -1,3 +1,4 @@
+import JobStatus from "./JobStatus.jsx";
 import React, {useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import GenerationProgress from "./GenerationProgress.jsx";
@@ -71,7 +72,7 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
     read();
     return ()=>{active=false;};
   },[service,id,kind,revision]);
-  return <section ref={!job?live.ref:undefined} className="media-result-card" aria-label="작업 결과"><div className="media-result-heading"><div><strong>작업 결과</strong></div>{job && <span className={'media-result-status status-'+job.status}>{({completed:'완료',running:'실행 중',queued:'대기 중',failed:'실패',cancelled:'취소',canceled:'취소',paused:'중단',unknown:'확인 필요'})[job.status] || job.status}</span>}</div><JobIdentifier id={id}/>
+  return <section ref={!job?live.ref:undefined} className="media-result-card" aria-label="작업 결과"><div className="media-result-heading"><div><strong>작업 결과</strong></div>{job && <JobStatus state={job.status}/>}</div><JobIdentifier id={id}/>
     <RecordFolder key={service+"/"+id} service={service} id={id}/>
     {error && <p role="alert">{error.includes("영상 원본 작업 경로 오류") ? "이 생성기에서 해당 작업을 찾지 못했습니다. 작업 ID와 생성기를 확인해 주세요." : "작업 결과를 불러오지 못했습니다. 연결 상태를 확인하고 결과를 새로고침해 주세요."}{job && " 아래 내용은 마지막으로 조회한 결과입니다."}</p>}
     {job ? <>

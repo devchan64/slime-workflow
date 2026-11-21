@@ -1,3 +1,4 @@
+import JobStatus from "./JobStatus.jsx";
 import HistoryCleanup from "./HistoryCleanup.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
 import RecordFolder from "./RecordFolder.jsx";
@@ -45,7 +46,7 @@ export default function KimodoFrames({id,choose,onDeleted,selectionControls=fals
     <JobIdentifier id={id}/>
     <RecordFolder key={id} service="kimodo" id={id}/>
     {error && <p role="alert">{error}</p>}
-    {source && <><p>{source.status} {source.error}</p>
+    {source && <><p><JobStatus state={source.status}/> {source.error}</p>
       <GenerationProgress job={{...source,estimate:validGenerationEstimate(source.estimate) ? source.estimate : null}} live={live} supportsProgress={false}/>
       <button onClick={()=>refresh(value=>value+1)}>작업 상태 갱신</button>
       <GeneratorJobControls showActions={!selectionControls} service="kimodo" id={id} state={source.status} refresh={()=>refresh(value=>value+1)}/></>}

@@ -1,10 +1,10 @@
+import JobStatus from "./JobStatus.jsx";
 import React, {useEffect,useId,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import SelectedHistoryDeletion from "./SelectedHistoryDeletion.jsx";
 import {requestErrorMessage} from "./requestError.mjs";
 import {historyInputSummary} from "./historyInputSummary.mjs";
 
-const statusLabels={queued:"GPU 대기 중",running:"생성 중",completed:"완료",failed:"실패",cancelled:"중지됨",canceled:"중지됨",paused:"중단됨",unknown:"확인 필요"};
 function recordedTime(id) {
   const match=typeof id==="string" && id.match(/^(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})-/);
   return match ? `ID 시각 · ${match[1]} ${match[2]}:${match[3]}:${match[4]} (한국 시간)` : "";
@@ -109,10 +109,9 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
         {page.records.length===0 && <p>조회된 이력이 없습니다. 검색 조건을 바꾸거나 새 작업을 생성하세요.</p>}
         <div className="generator-history-list">{page.records.map(record=><div className="generator-history-item" key={record.id}>
           <button type="button" className="generator-history-select" aria-pressed={selected?.id===record.id} onClick={()=>{if(selected?.id!==record.id)setExpanded(null);setSelected(record);setJob(null);setError("");}}>
-            <HistoryImage key={record.id} service={service} record={record} summary={summaries[record.id]} unavailable={Boolean(summaryNotice)}/><span className="history-card-content"><span className="history-card-heading"><strong>{statusLabels[record.recorded_status] || "확인 필요 · "+record.recorded_status}</strong>{recordedTime(record.id) && <span>{recordedTime(record.id)}</span>}</span>{historyInputSummary(summaries[record.id]).length>0 && <span className="history-card-summary">{historyInputSummary(summaries[record.id]).join(" · ")}</span>}<span className="history-card-id">{record.id}</span></span>
+            <HistoryImage key={record.id} service={service} record={record} summary={summaries[record.id]} unavailable={Boolean(summaryNotice)}/><span className="history-card-content"><span className="history-card-heading"><JobStatus state={record.recorded_status}/>{recordedTime(record.id) && <span>{recordedTime(record.id)}</span>}</span>{historyInputSummary(summaries[record.id]).length>0 && <span className="history-card-summary">{historyInputSummary(summaries[record.id]).join(" · ")}</span>}<span className="history-card-id">{record.id}</span></span>
           </button>
-          {selected?.id===record.id && <section className="generator-history-selection" aria-label="선택 이력">
-            <p className="history-selection-title">선택한 작업 · {record.id}</p>
+          {selected?.id===record.id && <section className="generator-history-selection" aria-label={"선택 이력 · "+record.id}>
             <div className="generator-history-actions">
               {renderResult && <button type="button" className="history-action-result" aria-expanded={expanded===record.id}
                 aria-controls={resultPanelId} onClick={()=>setExpanded(current=>current===record.id ? null : record.id)}>
@@ -120,7 +119,7 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
               {(openResult || inspectResult) && <button className="history-action-result" type="button" onClick={()=>perform(()=>showResult(record.id))}>결과 조회</button>}
               {restore && <button className="history-action-input" type="button" onClick={()=>perform(()=>showInput(record.id))}>입력값 불러오기</button>}
             </div>
-            {renderResult && <div id={resultPanelId} hidden={expanded!==record.id} className="history-action-detail">{expanded===record.id && renderResult(record.id)}</div>}
+            {renderResult && <div id={resultPanelId} hidden={expanded!==record.id} className="history-action-detail history-inline-result">{expanded===record.id && renderResult(record.id)}</div>}
             {onSelectedDeleted && <SelectedHistoryDeletion key={service+"/"+record.id} service={service} id={record.id} allowPriority={allowPriority} onDeleted={deleted}/>}
             {job?.id===record.id && <section className="history-action-detail">{historyInputSummary(job.request).length>0 && <p>저장 입력 · {historyInputSummary(job.request).join(" · ")}</p>}<details><summary>저장된 입력 상세</summary><pre>{JSON.stringify(job.request,null,2)}</pre></details>
               {restore && <button type="button" onClick={()=>restore(job.request,job)}>확인한 입력 적용</button>}
