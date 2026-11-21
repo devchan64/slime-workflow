@@ -26,6 +26,7 @@ export default function FluxImagePage(){
   const [files,setFiles]=useState([]),[review,setReview]=useState(null);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
   const [job,setJob]=useState(query.get("job") || "");
+  const [stage,setStage]=useState("");
   const [layout,setLayout]=useState(""),[subject,setSubject]=useState("");
   const sending=useRef(false);
   const fileInput=useRef(null);
@@ -38,6 +39,7 @@ export default function FluxImagePage(){
         if(!response.ok)throw new Error("생성기 기본 입력을 불러올 수 없습니다.");
         const defaults=await response.json();
         setForm(current=>({...current,prompt:defaults.prompt,width:defaults.width,height:defaults.height}));
+        setStage(defaults.stages?.[0]?.id || "");
         setLayout(defaults.layouts?.[0] || "");setSubject(defaults.subject || "");
         setProfile(defaults);setNotice("");
       }catch(error){if(!controller.signal.aborted)setNotice(error.message);}
@@ -56,6 +58,17 @@ export default function FluxImagePage(){
     setJob(record.id);setNotice("선택한 이력의 입력과 참조 이미지를 불러왔습니다.");
   }
   function edit(key,value){setForm(current=>({...current,[key]:value}));}
+  async function applyStage(){
+    setBusy(true);setNotice("");
+    try{
+      const response=await fetch("/management/assistant/flux-mannequin-stage/"+encodeURIComponent(stage));
+      if(!response.ok)throw new Error("마네킨 제작 단계의 참조를 불러올 수 없습니다.");
+      const {prompt,width,height,images}=await response.json();
+      const references=images.map((encoded,index)=>pngFile(encoded,stage+"-"+(index+1)+".png"));
+      setFiles(references);setForm(current=>({...current,prompt,width,height}));fileInput.current.value="";
+    }catch(error){setNotice(error.message);}
+    finally{setBusy(false);}
+  }
   async function applyGuide(){
     setBusy(true);setNotice("");
     try{
@@ -97,6 +110,10 @@ export default function FluxImagePage(){
     {profile && <p>{profile.description}</p>}
     {!profile && notice && <button onClick={()=>setAttempt(current=>current+1)}>기본 입력 다시 불러오기</button>}
     <form onSubmit={preview}><fieldset disabled={!profile || busy || Boolean(review)}>
+      {profile?.stages && <>
+        <label>마네킨 제작 단계 <select value={stage} onChange={e=>setStage(e.target.value)}>{profile.stages.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+        <button type="button" onClick={applyStage}>선택한 단계와 프롬프트 예시 불러오기</button>
+      </>}
       {profile?.layouts && <>
         <label>점유 가이드 <select value={layout} onChange={e=>setLayout(e.target.value)}>{profile.layouts.map(value=><option key={value}>{value}</option>)}</select></label>
         <label>생성 대상 <input value={subject} onChange={e=>setSubject(e.target.value)}/></label>

@@ -2,7 +2,6 @@
 from pathlib import Path
 
 from PIL import Image
-from tools.review.ui.shared.qwen_generator_page import build_qwen_2511_interface
 
 MANNEQUIN_BASELINE_DIRECTORY = Path(__file__).resolve().parents[3] / 'baseline/mannequin'
 MANNEQUIN_PRESET_RECORDS = {
@@ -40,4 +39,5 @@ GENERATOR_PAGE_OPTIONS = {'qwen21_mode_enabled': True, 'mannequin_mode_enabled':
 
 
 def build_generator_page(current_server_address, current_review_port):
+    from tools.review.ui.shared.qwen_generator_page import build_qwen_2511_interface
     return build_qwen_2511_interface(current_server_address, **GENERATOR_PAGE_OPTIONS)

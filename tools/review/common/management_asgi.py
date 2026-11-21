@@ -33,7 +33,7 @@ MANAGEMENT_INTERFACE_BUILDERS = {
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
 GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator', 'writer-agent': 'writer_agent'}
 GENERATOR_PAGE_PACKAGES['flux-expression-generator'] = 'flux-expression'
-for current_flux_profile in ('flux-character','flux-mannequin','flux-building','flux-seamless'):
+for current_flux_profile in ('flux-character','flux-building','flux-seamless'):
     GENERATOR_PAGE_PACKAGES[current_flux_profile+'-generator'] = current_flux_profile
 def __getattr__(name):
     """이전 Qwen 옵션 조회자가 접근할 때만 해당 화면 모듈을 읽는다."""
@@ -370,7 +370,7 @@ def build_management_application(current_handler_class, current_root_path, curre
 
     def require_flux_page(service):
         from fastapi import HTTPException
-        if service not in ('flux-image', 'flux-prop', 'flux-vegetation', 'flux-billboard'):
+        if service not in ('flux-image', 'flux-prop', 'flux-vegetation', 'flux-billboard', 'flux-mannequin'):
             raise HTTPException(404, '등록되지 않은 생성기 화면입니다.')
 
     @current_root_application.get('/management/assistant/flux-defaults/{service}')
@@ -386,7 +386,27 @@ def build_management_application(current_handler_class, current_root_path, curre
         if service == 'flux-billboard':
             from tools.review.domains.image.billboard_guide_prompt import BILLBOARD_LAYOUT_PROFILES, BILLBOARD_DEFAULT_SUBJECT
             guide = dict(layouts=BILLBOARD_LAYOUT_PROFILES, subject=BILLBOARD_DEFAULT_SUBJECT)
+        if service == 'flux-mannequin':
+            presets = importlib.import_module('generators.mannequin-generator.page.interface').MANNEQUIN_PRESET_RECORDS
+            guide = {'stages': [{'id': key, 'label': row[0]} for key, row in presets.items()]}
         return dict(**guide, label=label, description=description, width=width, height=height, prompt=prompt, minimum=minimum)
+
+    @current_root_application.get('/management/assistant/flux-mannequin-stage/{stage}')
+    def flux_mannequin_stage(stage: str):
+        import base64
+        from fastapi import HTTPException
+        presets = importlib.import_module('generators.mannequin-generator.page.interface')
+        if stage not in presets.MANNEQUIN_PRESET_RECORDS:
+            raise HTTPException(404, '등록되지 않은 마네킨 제작 단계입니다.')
+        prompt, first, second = presets.load_mannequin_preset(stage)
+        images = []
+        for image in (first, second):
+            if image is not None:
+                with image, io.BytesIO() as output:
+                    image.save(output, format='PNG')
+                    images.append(base64.b64encode(output.getvalue()).decode('ascii'))
+        width, height = (1024, 1024) if stage == 'face' else (768, 1152)
+        return dict(prompt=prompt, images=images, width=width, height=height)
 
     @current_root_application.post('/management/assistant/flux-billboard-guide')
     def flux_billboard_guide(payload: dict):
@@ -579,6 +599,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen/')
     @current_root_application.get('/management/frame/music-heartmula')
     @current_root_application.get('/management/frame/music-heartmula/')
+    @current_root_application.get('/management/frame/flux-mannequin-generator')
+    @current_root_application.get('/management/frame/flux-mannequin-generator/')
     @current_root_application.get('/management/frame/flux-billboard-generator')
     @current_root_application.get('/management/frame/flux-billboard-generator/')
     @current_root_application.get('/management/frame/flux-prop-generator')
