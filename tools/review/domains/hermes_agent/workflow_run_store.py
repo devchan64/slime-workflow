@@ -210,15 +210,20 @@ class WorkflowRunStore:
             current_generator_contract = current_generator_catalog.get(generator_name, {})
             if (current_generator_contract.get("version"), current_generator_contract.get("template_version")) != (generator_version, template_version):
                 raise ValueError("원 시도의 생성기 또는 템플릿 버전을 사용할 수 없습니다.")
-            retry_step_definition = [{"id": current_step_identifier, "generator": generator_name, "inputs": json.loads(request_body_text)}]
+            saved_inputs = json.loads(request_body_text)
+            if generator_name == "kimodo":
+                from generators.kimodo.contracts import validate_kimodo_request
+                validate_kimodo_request(saved_inputs)
+                saved_inputs = {field: saved_inputs[field] for field in current_generator_contract["inputs"]}
+            retry_step_definition = [{"id": current_step_identifier, "generator": generator_name, "inputs": saved_inputs}]
             compile_workflow_dependencies(retry_step_definition, current_generator_catalog)
             retry_run_identifier = uuid.uuid4().hex
             current_database_connection.execute("INSERT INTO workflow_run VALUES (?, ?, ?)",
                 (retry_run_identifier, conversation_session_identifier, encode_workflow_record(retry_step_definition)))
             current_database_connection.execute("INSERT INTO workflow_step_contract VALUES (?, ?, ?, ?, ?)",
                 (retry_run_identifier, current_step_identifier, generator_name, generator_version, template_version))
-            current_database_connection.execute("INSERT INTO workflow_step VALUES (?, ?, ?, '[]', 'ready', ?, NULL, NULL)",
-                (retry_run_identifier, current_step_identifier, category_name, uuid.uuid4().hex))
+            current_database_connection.execute("INSERT INTO workflow_step VALUES (?, ?, ?, '[]', 'ready', ?, ?, ?)",
+                (retry_run_identifier, current_step_identifier, category_name, uuid.uuid4().hex, request_body_text, request_digest_text))
             current_database_connection.execute("INSERT INTO workflow_retry VALUES (?, ?)", (source_attempt_identifier, retry_run_identifier))
             return retry_run_identifier
 
@@ -226,7 +231,7 @@ class WorkflowRunStore:
         with closing(sqlite3.connect(self.workflow_database_path)) as current_database_connection, current_database_connection:
             current_database_connection.execute("BEGIN IMMEDIATE")
             current_step_row = current_database_connection.execute(
-                """SELECT definition, state, request_id, generator, generator_version, template_version
+                """SELECT definition, state, request_id, generator, generator_version, template_version, request_body, request_digest
                    FROM workflow_run JOIN workflow_step USING(run_id) LEFT JOIN workflow_step_contract USING(run_id,step_id)
                    WHERE run_id=? AND step_id=?""", (workflow_run_identifier, current_step_identifier)).fetchone()
             if not current_step_row or current_step_row[1] not in ("waiting", "ready"):
@@ -235,7 +240,7 @@ class WorkflowRunStore:
                                            if record["id"] == current_step_identifier)
             current_generator_name = current_step_definition["generator"]
             current_generator_contract = read_workflow_generator_catalog().get(current_generator_name)
-            if (current_generator_contract is None or current_step_row[3:] != (
+            if (current_generator_contract is None or current_step_row[3:6] != (
                     current_generator_name, current_generator_contract["version"], current_generator_contract["template_version"])):
                 block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier,
                     current_step_identifier, "등록 당시 생성기 또는 입력 템플릿 버전을 사용할 수 없습니다.")
@@ -304,7 +309,14 @@ class WorkflowRunStore:
                             "UPDATE workflow_step SET state='awaiting_choice' WHERE run_id=? AND step_id=?", choice_key_fields[:2])
                         return None
                 resolved_input_record[target_field_name] = bound_output_value
-            if current_generator_name == "kimodo":
+            if current_step_row[6] is not None:
+                encoded_request_body = current_step_row[6]
+                if hashlib.sha256(encoded_request_body.encode()).hexdigest() != current_step_row[7]:
+                    block_waiting_dependents(current_database_connection, workflow_run_identifier, current_step_identifier,
+                        current_step_identifier, "재시도 입력의 해시가 일치하지 않습니다.")
+                    return None
+                resolved_input_record = json.loads(encoded_request_body)
+            elif current_generator_name == "kimodo":
                 from .delegation_proposal import validate_kimodo_proposal_inputs
                 try:
                     resolved_input_record = validate_kimodo_proposal_inputs(resolved_input_record)

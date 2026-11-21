@@ -48,6 +48,23 @@ class HermesWorkflowChainTests(unittest.TestCase):
             preview = reopened.read_pinned_image_preview("run", "session", "motion")
             self.assertEqual(preview["source_sha256"], hashlib.sha256(content).hexdigest())
 
+    def test_kimodo_retry_preserves_expanded_generator_request(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "workflow.sqlite3"
+            store = WorkflowRunStore(database)
+            step = create_workflow_step_draft("motion", "kimodo", {"prompt": "Walk forward."})
+            store.register_workflow_run("original", "session", [step])
+            original = store.claim_ready_step("original", "motion")
+            store.close_unsuccessful_step("original", store.list_run_step_records("original")[0], "failed")
+            retry = store.retry_failed_step("original", "session", "motion", original["request_id"])
+            reopened = WorkflowRunStore(database)
+            self.assertEqual(reopened.retry_failed_step("original", "session", "motion", original["request_id"]), retry)
+            with patch("tools.review.domains.hermes_agent.delegation_proposal.validate_kimodo_proposal_inputs",
+                       side_effect=AssertionError("retry must reuse saved settings")):
+                retried = reopened.claim_ready_step(retry, "motion")
+            self.assertEqual(retried["request"], original["request"])
+            self.assertNotEqual(retried["request_id"], original["request_id"])
+
     def test_unusable_flux_output_blocks_revision_and_preserves_independent_branch(self):
         for image_file_condition in ("missing", "corrupt"):
             with self.subTest(condition=image_file_condition), tempfile.TemporaryDirectory() as temporary_root_name:
