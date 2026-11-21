@@ -88,6 +88,7 @@ function App() {
   }
   function select(next) {
     const url=new URL(location.href);
+    if(next!==session && url.searchParams.get("panel")==="jobs")url.searchParams.delete("job");
     if(next)url.searchParams.set("session",next);else url.searchParams.delete("session");
     history.pushState(null,"",url);setSession(next);setView({});setHistoryPage(null);setQueue(null);setError("");
   }
