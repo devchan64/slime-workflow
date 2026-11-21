@@ -1,8 +1,0 @@
-# 공용 환경의 GUI 및 검수 의존성이다.
--r ../../../../requirements.txt
-gradio==6.31.0
-websockets==17.4
-imageio-ffmpeg>=0.6
-
-psutil>=5.9
-uv==0.13.8

@@ -1,6 +1,18 @@
 """생성기 공용 상태 표시. 서비스의 추정·측정 값을 재계산하지 않는다."""
-from tools.review.common.gradio_history import format_generation_status
 from tools.review.common.generation_progress_display import render_generation_estimate
+
+
+HISTORY_STATUS_LABELS={'paused':'검수 대기', 'queued':'GPU 대기 중','running':'생성 중','completed':'완료','cancelled':'중지됨','failed':'실패','missing':'기록 누락','unknown':'상태 미상'}
+
+
+def format_generation_status(current_status_record):
+    """저장된 실패 원인으로 OOM을 구분하되 작업 상태 계약은 유지한다."""
+    current_status_name = current_status_record.get('status', 'unknown') if isinstance(current_status_record, dict) else current_status_record
+    if current_status_name == 'failed' and isinstance(current_status_record, dict):
+        current_error_text = str(current_status_record.get('error', '')).lower()
+        if any(current_marker_text in current_error_text for current_marker_text in ('cuda out of memory', 'cuda error: out of memory', 'torch.outofmemoryerror')):
+            return 'OOM 실패 · GPU 메모리 부족'
+    return HISTORY_STATUS_LABELS.get(current_status_name, current_status_name)
 
 
 def describe_generation_status(current_status_record, include_generation_estimate=True):

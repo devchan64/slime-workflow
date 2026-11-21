@@ -13,50 +13,8 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, Request
 from starlette.responses import Response, RedirectResponse, JSONResponse
 
-MANAGEMENT_INTERFACE_BUILDERS = {
-    'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
-}
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
 GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator'}
-def __getattr__(name):
-    """이전 Qwen 옵션 조회자가 접근할 때만 해당 화면 모듈을 읽는다."""
-    if name != 'QWEN_INTERFACE_OPTIONS':
-        raise AttributeError(name)
-    identifiers = (
-        'mannequin-generator', 'character-generator', 'qwen-21-generator',
-        'qwen-21-circular-generator', 'expression-generator', 'vegetation-generator',
-        'prop-generator', 'billboard-generator', 'building-generator',
-    )
-    options = {
-        identifier: importlib.import_module(
-            f'generators.{GENERATOR_PAGE_PACKAGES[identifier]}.page.interface'
-        ).GENERATOR_PAGE_OPTIONS
-        for identifier in identifiers
-    }
-    globals()[name] = options
-    return options
-
-
-def build_management_blocks(current_tool_name, current_review_port, current_source_path):
-    from tools.review.ui.gradio.management_menu_app import compose_management_interface, load_manager_page_records
-    current_server_address = f'http://127.0.0.1:{current_review_port}'
-    from tools.review.serve import REVIEW_LIVE_RELOAD_SCRIPT
-    current_mount_options = {'allowed_paths': [], 'ssr_mode': False, 'head': REVIEW_LIVE_RELOAD_SCRIPT.decode(), 'css': '#management-sidebar.open{left:0!important;transform:none!important;transition:none!important}#management-gpu-floating{position:fixed;right:12px;bottom:12px;z-index:50;width:min(12rem,calc(100vw - 24px));max-height:45dvh;overflow-x:hidden;overflow-y:auto}#management-gpu-floating:has(>button.open){width:min(27rem,calc(100vw - 24px))}#management-gpu-floating .gr-accordion{min-width:0!important;overflow-x:hidden}#management-gpu-floating .gr-accordion>button{min-width:0;width:100%;white-space:normal;text-align:left}#management-gpu-floating .gr-accordion>button>span:first-child{min-width:0;overflow-wrap:anywhere}#management-gpu-floating .gr-accordion>button>span:last-child{flex-shrink:0;align-self:center;min-width:1.25rem;text-align:center}#management-gpu-floating [data-testid="markdown"]{overflow-wrap:anywhere}'}
-    if current_tool_name in GENERATOR_PAGE_PACKAGES:
-        current_page_package = GENERATOR_PAGE_PACKAGES[current_tool_name]
-        current_page_module = importlib.import_module(f'generators.{current_page_package}.page.interface')
-        current_interface_blocks = current_page_module.build_generator_page(current_server_address, current_review_port)
-    else:
-        current_module_name, current_builder_name, current_argument_kind = MANAGEMENT_INTERFACE_BUILDERS[current_tool_name]
-        current_module_value = importlib.import_module('tools.review.ui.gradio.' + current_module_name)
-        current_builder_value = getattr(current_module_value, current_builder_name)
-        if current_argument_kind == 'none':
-            current_interface_blocks = current_builder_value()
-        else:
-            current_interface_blocks = current_builder_value(current_server_address if current_argument_kind == 'url' else current_review_port)
-    return compose_management_interface(current_interface_blocks, current_review_port, current_source_path), current_mount_options
-
-
 def execute_legacy_request(current_handler_class, current_root_path, current_request_scope, current_request_body):
     """기존 파일·게이트웨이 핸들러를 소켓 없이 호출한다."""
     current_path_bytes = current_request_scope.get('raw_path', current_request_scope['path'].encode())
@@ -80,66 +38,6 @@ def execute_legacy_request(current_handler_class, current_root_path, current_req
     current_response_value = Response(current_response_body, status_code=current_response_status)
     current_response_value.raw_headers = [(current_name.lower(), current_value) for current_name, current_value in current_response_headers if current_name.lower() not in (b'connection', b'transfer-encoding')]
     return current_response_value
-
-
-from starlette.requests import ClientDisconnect
-from uvicorn.protocols.utils import ClientDisconnected
-
-
-async def bridge_gradio_heartbeat(current_application, current_scope, current_receive, current_send):
-    """Gradio의 heartbeat 요청과 종료 처리를 동일 서버의 WebSocket으로 전달한다."""
-    current_headers = dict(current_scope.get('headers', []))
-    current_origin = urlsplit(current_headers.get(b'origin', b'').decode('latin1'))
-    if current_origin.scheme not in ('http', 'https') or current_origin.netloc.lower() != current_headers.get(b'host', b'').decode('latin1').lower():
-        await current_send({'type': 'websocket.close', 'code': 1008})
-        return
-    if (await current_receive())['type'] != 'websocket.connect':
-        return
-    current_http_scope = dict(current_scope, type='http', method='GET', http_version='1.1', scheme='https' if current_scope['scheme'] == 'wss' else 'http')
-    current_http_scope['path'] = current_scope['path'].replace('/gradio_api/heartbeat-ws/', '/gradio_api/heartbeat/', 1)
-    current_http_scope['raw_path'] = current_http_scope['path'].encode()
-    current_disconnected = asyncio.Event()
-    current_first_request = True
-    current_accepted = False
-
-    async def receive_heartbeat_http():
-        nonlocal current_first_request
-        if current_first_request:
-            current_first_request = False
-            return {'type': 'http.request', 'body': b'', 'more_body': False}
-        await current_disconnected.wait()
-        return {'type': 'http.disconnect'}
-
-    async def send_heartbeat_http(current_message):
-        nonlocal current_accepted
-        if current_message['type'] == 'http.response.start':
-            if current_message['status'] != 200:
-                await current_send({'type': 'websocket.close', 'code': 1008})
-                return
-            await current_send({'type': 'websocket.accept'})
-            current_accepted = True
-        elif current_message['type'] == 'http.response.body' and current_accepted:
-            if current_message.get('body'):
-                await current_send({'type': 'websocket.send', 'bytes': current_message['body']})
-            if not current_message.get('more_body', False):
-                await current_send({'type': 'websocket.close', 'code': 1000})
-
-    async def observe_heartbeat_disconnect():
-        while True:
-            current_message = await current_receive()
-            if current_message['type'] == 'websocket.disconnect':
-                current_disconnected.set()
-                return
-
-    current_disconnect_task = asyncio.create_task(observe_heartbeat_disconnect())
-    try:
-        await current_application(current_http_scope, receive_heartbeat_http, send_heartbeat_http)
-    except (ClientDisconnect, ClientDisconnected):
-        current_disconnected.set()
-    finally:
-        current_disconnected.set()
-        current_disconnect_task.cancel()
-        await asyncio.gather(current_disconnect_task, return_exceptions=True)
 
 
 def is_hermes_predict_diagnostic_enabled(current_root_path):
