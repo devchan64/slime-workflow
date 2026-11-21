@@ -1,3 +1,4 @@
+import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
 import React, {useEffect,useRef,useState} from "react";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
@@ -85,6 +86,8 @@ export default function TranslationPage() {
     <p role="status">{notice}</p>
     {job && <section><h2>번역 작업</h2><code>{job}</code> <button onClick={()=>setRevision(v=>v+1)}>상태 갱신</button>
       {record && <p>{record.status.status} {record.status.error}</p>}
+      {record?.id===job && <GeneratorJobControls key={job+"/"+record.status.status} service={service} id={job}
+        state={record.status.status} refresh={()=>setRevision(value=>value+1)}/>}
       {record?.result && <TranslationResult key={job} job={job} text={record.result.text}/>}
     </section>}
   </section>;
