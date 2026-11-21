@@ -678,6 +678,65 @@ def read_conversation_workflow_result(current_session_identifier, workflow_run_i
         {"session_id": current_session_identifier, "run_id": workflow_run_identifier})
 
 
+def build_session_archive_panel(session_control, list_status):
+    with gr.Accordion("세션 보관함", open=False):
+        archived = gr.Dropdown(label="보관된 세션", choices=[], value=None, interactive=True)
+        query = gr.Textbox(label="보관함 검색", placeholder="세션 ID 또는 메시지 내용")
+        notice = gr.Markdown()
+        pending_delete = gr.State(None)
+        refresh = gr.Button("보관함 조회")
+        archive = gr.Button("현재 세션 보관")
+        restore = gr.Button("선택한 세션 복원")
+        delete = gr.Button("대화 기록 삭제 검토")
+        confirm = gr.Button("확인한 대화 기록 영구 삭제", visible=False)
+
+        def read_archive(text):
+            records = execute_remote_management_command("hermes-agent", "hermes-session-archived",
+                {"query": (text or "").strip(), "limit": 30})
+            choices = [(f"{r['updated_at']} · {r['id']} · 메시지 {r['message_count']}개",
+                        json.dumps([r['id'], r['updated_at']])) for r in records["sessions"]]
+            return gr.update(choices=choices, value=None), "최근 일치 항목 최대 30개입니다. 검색어로 범위를 좁힐 수 있습니다."
+
+        def archive_session(session_id):
+            if not session_id:
+                raise gr.Error("보관할 대화 세션을 선택하세요.")
+            record = execute_remote_management_command("hermes-agent", "hermes-session-read", {"session_id":session_id})
+            execute_remote_management_command("hermes-agent", "hermes-session-archive",
+                {"session_id": session_id, "expected_update":record["updated_at"]})
+            return list_hermes_session_choices()
+
+        def change_archived(selection, action):
+            if not selection:
+                raise gr.Error("보관된 세션을 선택하세요.")
+            session_id, updated_at = json.loads(selection)
+            execute_remote_management_command("hermes-agent", "hermes-session-" + action,
+                {"session_id":session_id, "expected_update":updated_at})
+            return session_id
+
+        def review_delete(selection):
+            if not selection:
+                raise gr.Error("삭제할 보관 세션을 선택하세요.")
+            session_id, _ = json.loads(selection)
+            return selection, gr.update(visible=True), f"{session_id}의 대화 메시지와 작업 연결 기록을 영구 삭제합니다. 생성 결과와 실행 이력은 각 서비스에 보존됩니다."
+
+        def delete_reviewed(reviewed, selection):
+            if reviewed != selection or not selection:
+                raise gr.Error("삭제 대상을 다시 확인하세요.")
+            change_archived(selection, "delete")
+            return None, gr.update(visible=False)
+
+        for event in (refresh.click, query.submit):
+            event(read_archive, query, [archived, notice], queue=False)
+        archive.click(archive_session, session_control, [session_control, list_status], queue=False).success(
+            read_archive, query, [archived, notice], queue=False)
+        restore.click(lambda selection: list_hermes_session_choices(change_archived(selection, "restore")),
+            archived, [session_control, list_status], queue=False).success(read_archive, query, [archived, notice], queue=False)
+        delete.click(review_delete, archived, [pending_delete, confirm, notice], queue=False)
+        confirm.click(delete_reviewed, [pending_delete, archived], [pending_delete, confirm], queue=False).success(
+            read_archive, query, [archived, notice], queue=False)
+        archived.change(lambda: (None, gr.update(visible=False)), outputs=[pending_delete, confirm], queue=False)
+
+
 def create_hermes_session_from_draft(hermes_draft_identifier):
     """응답 유실 시 같은 초안 ID로 세션 생성을 다시 확인한다."""
     try:
@@ -4942,6 +5001,7 @@ def build_hermes_agent_interface(include_advanced_controls=True, current_source_
                 hermes_session_draft = gr.State(value=lambda: uuid.uuid4().hex)
                 hermes_session_request = gr.State(value=lambda: uuid.uuid4().hex)
                 hermes_session_list_status = gr.Markdown('세션 목록을 확인하고 있습니다.')
+                build_session_archive_panel(hermes_session_control, hermes_session_list_status)
                 hermes_session_conversation = gr.Chatbot(label='대화', value=[], height=420, placeholder='무엇을 도와드릴까요? 첫 요청을 보내면 새 대화가 시작됩니다.', render_markdown=False, allow_file_downloads=False)
                 hermes_session_status = gr.Markdown()
                 with gr.Row():

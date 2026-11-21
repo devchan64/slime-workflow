@@ -45,9 +45,11 @@ class HermesSessionStore:
             raise ValueError('세션 기록은 심볼릭 링크일 수 없습니다.')
         return current_record_path
 
-    def read_session_record_locked(self, session_identifier_value):
+    def read_session_record_locked(self, session_identifier_value, archived=False):
         current_record_path = self.resolve_session_record_path(session_identifier_value)
-        if not current_record_path.is_file():
+        if archived:
+            current_record_path = current_record_path.with_suffix(".archived")
+        if current_record_path.is_symlink() or not current_record_path.is_file():
             raise ValueError('세션을 찾을 수 없습니다.')
         current_session_record = json.loads(current_record_path.read_text(encoding='utf-8'))
         if not isinstance(current_session_record, dict) or current_session_record.get('version') != 1 or current_session_record.get('id') != session_identifier_value or not isinstance(current_session_record.get('messages'), list):
@@ -60,6 +62,8 @@ class HermesSessionStore:
             current_created_timestamp = datetime.now(timezone.utc).isoformat()
             current_session_record = {'version': 1, 'id': current_session_identifier, 'created_at': current_created_timestamp, 'updated_at': current_created_timestamp, 'messages': []}
             current_record_path = self.resolve_session_record_path(current_session_identifier)
+            if current_record_path.with_suffix(".archived").exists():
+                raise ValueError("보관된 세션입니다. 먼저 복원하세요.")
             try:
                 current_record_path.lstat()
             except FileNotFoundError:
@@ -73,7 +77,29 @@ class HermesSessionStore:
         with self.hold_session_storage_lock():
             return self.read_session_record_locked(session_identifier_value)
 
-    def list_session_records(self, current_page_request=None):
+    def change_session_lifecycle(self, session_id, operation, expected_update):
+        with self.hold_session_storage_lock():
+            active = self.resolve_session_record_path(session_id)
+            archive = active.with_suffix(".archived")
+            record = self.read_session_record_locked(session_id, archived=operation != "archive")
+            if record["updated_at"] != expected_update:
+                raise ValueError("세션이 변경되었습니다. 목록을 다시 조회하세요.")
+            if any(message.get("job_id") is None for message in record["messages"]):
+                raise ValueError("접수 확인 중인 메시지가 있습니다. 세션에서 접수 결과를 먼저 확인하세요.")
+            if operation == "delete":
+                archive.unlink()
+            elif operation in ("archive", "restore"):
+                source, destination = (active, archive) if operation == "archive" else (archive, active)
+                if destination.exists() or destination.is_symlink():
+                    raise ValueError("대상 세션 기록이 이미 있습니다.")
+                record["updated_at"] = datetime.now(timezone.utc).isoformat()
+                write_record_atomically(source, record)
+                source.rename(destination)
+            else:
+                raise ValueError("지원하지 않는 세션 작업입니다.")
+            return {"session_id": session_id, "operation": operation}
+
+    def list_session_records(self, current_page_request=None, archived=False):
         if current_page_request is not None and (not isinstance(current_page_request,dict) or set(current_page_request)-{'offset','limit','snapshot','query'}):
             raise ValueError('세션 목록 조회 필드 오류')
         current_query_value=(current_page_request or {}).get('query','')
@@ -83,12 +109,12 @@ class HermesSessionStore:
         with self.hold_session_storage_lock():
             current_session_summaries = []
             current_unreadable_identifiers = []
-            for current_record_path in self.session_storage_root.glob('*.json'):
+            for current_record_path in self.session_storage_root.glob('*.archived' if archived else '*.json'):
                 current_session_identifier = current_record_path.stem
                 if not HERMES_SESSION_ID_PATTERN.fullmatch(current_session_identifier):
                     continue
                 try:
-                    current_session_record = self.read_session_record_locked(current_session_identifier)
+                    current_session_record = self.read_session_record_locked(current_session_identifier, archived=archived)
                     current_message_records=current_session_record['messages']
                     if not isinstance(current_session_record.get('created_at'),str) or not isinstance(current_session_record.get('updated_at'),str) or any(not isinstance(item,dict) or not isinstance(item.get('text'),str) for item in current_message_records):
                         raise ValueError('세션 지시 기록 오류')

@@ -43,6 +43,10 @@ HERMES_CAPABILITY_RECORDS = (
     {'command': 'hermes-workflow-cancel', 'label': '워크플로우 취소 요청', 'required': ['session_id', 'run_id'], 'optional': [], 'effect': 'cancel_request', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_view', 'note': '미접수 단계를 중단하고 접수된 작업은 원 서비스에 취소를 요청한다.'},
     {'command': 'hermes-workflow-view', 'label': '워크플로우 결과 조회', 'required': ['session_id', 'run_id'], 'optional': [], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_view', 'note': '세션에 속한 실행 단계와 결과를 조회한다.'},
     {'command': 'hermes-workflow-list', 'label': '워크플로우 작업 찾기', 'required': ['session_id', 'category', 'state'], 'optional': ['search_filters'], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'workflow_list', 'note': '세션별 단계 목록을 카테고리와 상태로 검색한다.'},
+    {'command': 'hermes-session-archived', 'label': '보관함 조회', 'required': [], 'optional': ['offset', 'limit', 'snapshot', 'query'], 'effect': 'local_bookkeeping', 'gpu': 'none', 'retry': 'safe', 'interfaces': ['gui'], 'result': 'session_list', 'note': '대화 기록 보관함을 관리한다.'},
+    {'command': 'hermes-session-archive', 'label': '세션 보관', 'required': ['session_id', 'expected_update'], 'optional': [], 'effect': 'write', 'gpu': 'none', 'retry': 'inspect_first', 'interfaces': ['gui'], 'result': 'session_lifecycle', 'note': '대화 기록 보관함을 관리한다.'},
+    {'command': 'hermes-session-restore', 'label': '세션 복원', 'required': ['session_id', 'expected_update'], 'optional': [], 'effect': 'write', 'gpu': 'none', 'retry': 'inspect_first', 'interfaces': ['gui'], 'result': 'session_lifecycle', 'note': '대화 기록 보관함을 관리한다.'},
+    {'command': 'hermes-session-delete', 'label': '보관한 대화 기록 삭제', 'required': ['session_id', 'expected_update'], 'optional': [], 'effect': 'write', 'gpu': 'none', 'retry': 'inspect_first', 'interfaces': ['gui'], 'result': 'session_lifecycle', 'note': '대화 기록 보관함을 관리한다.'},
     {'command':'hermes-session-create','label':'대화 세션 생성','required':['session_id'],'optional':[],'effect':'write','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'session','note':'같은 세션 ID로 재시도할 수 있다.'},
     {'command':'hermes-session-read','label':'대화 세션 기록 조회','required':['session_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'session','note':'저장된 세션 기록을 읽는다.'},
     {'command':'hermes-session-list','label':'대화 세션 목록','required':[],'optional':['offset','limit','snapshot','query'],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'session_list','note':'최근 세션과 잘림 여부를 반환한다.'},
@@ -185,6 +189,7 @@ HERMES_FIELD_SCHEMAS = {
     'form_version': {'type':'integer','minimum':0},
     'form_name': {'type':'string','minLength':1,'maxLength':120},
     'copied_from': {'type':'object','required':['form_id','form_version'],'properties':{'form_id':{'type':'string','pattern':'^[a-f0-9]{32}$'},'form_version':{'type':'integer','minimum':1}},'additionalProperties':False},
+    'expected_update': {'type':'string','minLength':1},
     'definition_text': {'type':'string','maxLength':500000},
     'search_filters': {'type':'object','properties':{name: {'type':'string'} for name in
                        ('generator','run_id','job_id','created_from','created_through')},'additionalProperties':False},
@@ -294,7 +299,7 @@ def list_hermes_capability_catalog():
             current_payload_schema['properties']['snapshot'] = {'anyOf':[{'type':'string','pattern':'^[a-f0-9]{64}$','note':'후속 건물 목록 페이지에 첫 조회에서 받은 값'},{'type':'null'}]}
         if current_command_name in ('hermes-sprite-detail','hermes-audio-source-history','hermes-generator-source-history','hermes-session-view','hermes-expression-catalog','hermes-history','hermes-anchor-history-observe'):
             current_payload_schema['allOf'] = [{'if':{'required':['offset'],'properties':{'offset':{'minimum':1}}},'then':{'required':['snapshot'],'properties':{'snapshot':HERMES_FIELD_SCHEMAS['snapshot']}}}]
-        if current_command_name == 'hermes-session-list':
+        if current_command_name in ('hermes-session-list', 'hermes-session-archived'):
             current_payload_schema['properties']['limit'] = {'type':'integer','minimum':1,'maximum':30}
             current_payload_schema['properties']['query'] = {'type':'string','maxLength':100,'pattern':r'^[^\x00-\x1f]*$','note':'세션 ID 또는 사용자 지시의 일부; 지시 원문은 목록에 포함되지 않는다.'}
             current_payload_schema['properties']['snapshot'] = {'type':'string','pattern':'^[a-f0-9]{64}$'}

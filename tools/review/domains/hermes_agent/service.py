@@ -945,9 +945,16 @@ class HermesServiceManager:
                 raise ValueError('관리 상태 조회에는 입력을 전달할 수 없습니다.')
             from tools.review.domains.hermes_agent.management_observer import read_hermes_management_snapshot
             return read_hermes_management_snapshot()
-        if hermes_command_name in ('hermes-session-create', 'hermes-session-read', 'hermes-session-list'):
+        if hermes_command_name in ('hermes-session-archived', 'hermes-session-archive', 'hermes-session-restore', 'hermes-session-delete', 'hermes-session-create', 'hermes-session-read', 'hermes-session-list'):
             from tools.review.domains.hermes_agent.session_store import HermesSessionStore, HERMES_SESSION_ID_PATTERN
             hermes_session_store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+            if hermes_command_name == 'hermes-session-archived':
+                return hermes_session_store.list_session_records(hermes_payload_record, archived=True)
+            if hermes_command_name in ('hermes-session-archive', 'hermes-session-restore', 'hermes-session-delete'):
+                if set(hermes_payload_record) != {'session_id', 'expected_update'}:
+                    raise ValueError('세션 ID와 조회 시각을 확인하세요.')
+                return hermes_session_store.change_session_lifecycle(hermes_payload_record['session_id'],
+                    hermes_command_name.removeprefix('hermes-session-'), hermes_payload_record['expected_update'])
             if hermes_command_name == 'hermes-session-list':
                 return hermes_session_store.list_session_records(hermes_payload_record)
             if set(hermes_payload_record) != {'session_id'}:
