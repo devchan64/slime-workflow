@@ -27,9 +27,14 @@ export default function CapabilitySearch({search, choose}) {
     {error && <p role="alert">{error}</p>}
     {catalog ? <ResultTable table={{
       title:"관리 기능", summary:rows.length+"개 검색됨 · "+catalog.summary,
-      columns:["기능","명령","연결","입력","영향","GPU","재시도","확인 사항"],
+      columns:["기능","상세 정보"],
       rows:rows.map(([label,command,...fields]) => [
-        <button onClick={() => choose(label,command)}>{label}</button>,command,...fields,
+        <button onClick={() => choose(label,command)}>{label}</button>,
+        <details><summary>{command}</summary><dl>
+          {["연결","입력","영향","GPU","재시도","확인 사항"].map((name,index) =>
+            <React.Fragment key={name}><dt>{name}</dt><dd>{fields[index]}</dd></React.Fragment>
+          )}
+        </dl></details>,
       ]),
     }}/> : !error && <p role="status">관리 기능 조회 중…</p>}
   </>;
