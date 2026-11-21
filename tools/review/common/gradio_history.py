@@ -87,6 +87,11 @@ def format_history_created_time(current_history_record):
 
 def format_history_request_summary(current_request_record):
     summary_text_values=[]
+    current_model_profile = current_request_record.get('model_profile')
+    if current_model_profile == 'wan21-1.3b':
+        summary_text_values.append('모델 Wan 2.1 1.3B')
+    elif current_model_profile == 'wan22-14b' or (current_model_profile is None and current_request_record.get('tag') == 'wan22-fun-control'):
+        summary_text_values.append('모델 Wan 2.2 A14B')
     current_seed_value=current_request_record.get('seed')
     if current_seed_value is not None:
         summary_text_values.append(f'시드 {current_seed_value}')
