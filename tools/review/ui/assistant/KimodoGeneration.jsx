@@ -6,6 +6,7 @@ import {managementCommand} from "./managementCommand.js";
 export default function KimodoGeneration({session}){
   const [directions,setDirections]=useState({});
   const [references,setReferences]=useState([]);
+  const [bundle,setBundle]=useState(null),[calibration,setCalibration]=useState(null),[hip,setHip]=useState(false);
   const [angles,setAngles]=useState("");
   const [segments,setSegments]=useState("");
   const key="kimodo-generation-receipt-"+session;
@@ -35,6 +36,15 @@ export default function KimodoGeneration({session}){
       if(references.length>8)throw new Error("참조 이미지는 최대 8장입니다.");
       if(references.some(file=>file.size>3000000))throw new Error("참조 PNG는 파일당 3 MB까지 첨부할 수 있습니다.");
       request.proportion_images=await Promise.all(references.map(readReference));
+    }
+    if(bundle){
+      if(bundle.size>2*1024*1024)throw new Error("검수 골격 묶음은 2 MiB 이하여야 합니다.");
+      request.proportion_reviewed_multiview=JSON.parse(await bundle.text());
+      if(hip)request.proportion_projected_hip=true;
+      if(calibration){
+        if(calibration.size>65536)throw new Error("얼굴 앵커 교정 파일은 64 KiB 이하여야 합니다.");
+        request.proportion_face_anchor_calibration=JSON.parse(await calibration.text());
+      }
     }
     if(angles.trim()){
       const values=angles.trim().split(/\s+/).map(Number);
@@ -73,7 +83,14 @@ export default function KimodoGeneration({session}){
       <details><summary>다중 시점 신체 비율</summary>
         <label>검출 관측 순서의 카메라 각도 8개 (도) <input value={angles} placeholder="45 0 135 90 225 315 180 270"
           onChange={e=>{setAngles(e.target.value);setReview(null);}}/></label>
-        <p>참조 이미지에서 검출된 관측 순서대로 각도를 입력하세요. 비워 두면 2D 보정을 사용합니다.</p>
+        <p>참조 이미지에서 검출된 관측 순서대로 각도를 입력하세요. 각도와 검수 골격을 모두 비우면 2D 보정을 사용합니다.</p>
+        <label>검수 3D 골격 묶음 JSON <input type="file" accept=".json,application/json"
+          onChange={e=>{setBundle(e.target.files[0] || null);if(!e.target.files.length){setCalibration(null);setHip(false);}setReview(null);}}/></label>
+        {bundle && <fieldset><legend>검수 골격 적용</legend>
+          <label><input type="checkbox" checked={hip} onChange={e=>{setHip(e.target.checked);setReview(null);}}/>3D 투영 골반 적용</label>
+          <label>얼굴 앵커 교정 JSON <input type="file" accept=".json,application/json"
+            onChange={e=>{setCalibration(e.target.files[0] || null);setReview(null);}}/></label>
+        </fieldset>}
       </details>
       <details><summary>모션 및 포즈 출력 설정</summary>
         <label>구간별 프레임 수 <input value={segments} placeholder="예: 45 45"
@@ -95,7 +112,7 @@ export default function KimodoGeneration({session}){
       </details>
       <button>생성 요청 검토</button>
     </fieldset></form>}
-    {review && <section><pre>{JSON.stringify(review,(key,value)=>key==="proportion_images"?references.map(file=>file.name):value,2)}</pre>
+    {review && <section><pre>{JSON.stringify(review,(key,value)=>key==="proportion_images"?references.map(file=>file.name):key==="proportion_reviewed_multiview"?bundle.name:key==="proportion_face_anchor_calibration"?calibration.name:value,2)}</pre>
       <button disabled={busy} onClick={()=>perform(submit)}>GPU 대기열에 등록</button>
       <button disabled={busy} onClick={()=>setReview(null)}>취소</button></section>}
     {receipt && <p>최근 접수 ID <code>{receipt}</code> <button disabled={busy} onClick={()=>perform(async()=>{
