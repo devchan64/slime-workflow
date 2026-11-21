@@ -471,7 +471,7 @@ def display_conversation_workflow_results(current_session_identifier, workflow_r
             source_history_links.append(f"<p>{escape(current_step_identifier)} · {source_job_link}</p>")
         current_output_record = current_result_record["outputs"]
         if "text" in current_output_record:
-            translated_result_values.append(current_output_record["text"])
+            translated_result_values.append((current_step_identifier, current_output_record["text"]))
         if "preview" in current_output_record:
             current_job_identifier = current_result_record["job_id"]
             if not validate_service_job_identifier("flux-image", current_job_identifier):
@@ -480,7 +480,14 @@ def display_conversation_workflow_results(current_session_identifier, workflow_r
             if current_output_record["preview"] != expected_result_path:
                 raise gr.Error("이미지 결과 경로가 작업과 일치하지 않습니다.")
             image_result_links.append(f"[생성 이미지 {len(image_result_links) + 1} 열기]({expected_result_path})")
-    return current_run_view, "\n\n".join(translated_result_values), "\n\n".join(image_result_links), "".join(source_history_links)
+    if len(translated_result_values) == 1:
+        translated_display_text = translated_result_values[0][1]
+    else:
+        translated_display_text = "\n\n".join(
+            f"[{source_step_identifier}.text]\n{translated_output_text}"
+            for source_step_identifier, translated_output_text in translated_result_values
+        )
+    return current_run_view, translated_display_text, "\n\n".join(image_result_links), "".join(source_history_links)
 
 
 def select_conversation_workflow_output(current_session_identifier, workflow_run_identifier, reviewed_run_record,
