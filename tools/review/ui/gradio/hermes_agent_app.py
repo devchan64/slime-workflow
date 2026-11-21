@@ -412,10 +412,14 @@ def submit_workflow_step_priority(current_request_record, current_session_identi
 def list_conversation_workflow_steps(current_session_identifier, current_category_name, current_state_name,
                                      generator_name_filter="", workflow_run_filter="", workflow_job_filter="",
                                      creation_start_date="", creation_end_date=""):
-    return execute_remote_management_command("hermes-agent", "hermes-workflow-list",
+    workflow_search_result = execute_remote_management_command("hermes-agent", "hermes-workflow-list",
         {"session_id": current_session_identifier, "category": current_category_name, "state": current_state_name,
          "search_filters": {"generator": generator_name_filter, "run_id": workflow_run_filter, "job_id": workflow_job_filter,
                             "created_from": creation_start_date, "created_through": creation_end_date}})
+    for current_step_record in workflow_search_result["steps"]:
+        if current_step_record["state"] in ("ready", "waiting", "submitting"):
+            current_step_record["예상 남은 시간"] = "계산 중"
+    return workflow_search_result
 
 
 def preview_pinned_workflow_image(current_session_identifier, workflow_run_identifier, current_step_identifier):
