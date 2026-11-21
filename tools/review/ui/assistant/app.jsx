@@ -16,8 +16,10 @@ async function call(command, payload = {}) {
   return value;
 }
 function messagesFrom(view) {
-  return (view.messages || []).flatMap((m) => {
-    const job = m.job || {}, key=m.id || m.request_id || m.job_id;
+  const records = view.messages || [];
+  const start = (view.message_count ?? records.length) - (view.offset || 0) - records.length;
+  return records.flatMap((m,index) => {
+    const job = m.job || {}, key=m.id || m.request_id || (view.id + "-" + (start + index));
     return [{id:key+"-user",role:"user",content:m.text},
       {id:key+"-answer",role:"assistant",content:job.final_response || "",metadata:{custom:{
         status:job.status?.status || "접수 확인 중",job:m.job_id,activity:job.tool_activity || {}}}}];
@@ -48,19 +50,39 @@ function App() {
   const [draft,setDraft]=useState(""),[search,setSearch]=useState(""),[showTools,setShowTools]=useState(false);
   const [archived,setArchived]=useState(false),[error,setError]=useState(""),[busy,setBusy]=useState(false);
   const [queue,setQueue]=useState(null),[refresh,setRefresh]=useState(0);
+  const [historyPage,setHistoryPage]=useState(null);
   const sending=useRef(false),text=useRef(null);
   function select(next) {
     const url=new URL(location.href);
     if(next)url.searchParams.set("session",next);else url.searchParams.delete("session");
-    history.pushState(null,"",url);setSession(next);setView({});setQueue(null);setError("");
+    history.pushState(null,"",url);setSession(next);setView({});setHistoryPage(null);setQueue(null);setError("");
   }
-  useEffect(()=>{const cb=()=>{setSession(query().get("session")||"");setView({});setQueue(null);};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
+  useEffect(()=>{const cb=()=>{setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
   useEffect(()=>{let active=true;fetch(base+"tools").then(r=>r.json()).then(v=>{if(active)setTools(v)}).catch(e=>{if(active)setError(e.message)});
     return()=>{active=false};},[]);
   useEffect(()=>{let active=true;call(archived?"session-archived":"session-list").then(v=>{if(active)setSessions(v.sessions)}).catch(e=>{if(active)setError(e.message)});return()=>{active=false};},[archived,refresh]);
-  useEffect(()=>{let active=true,timer;setDraft(sessionStorage.getItem("hermes-draft-"+session) || "");
-    async function poll(){try{const v=await call("session-view",{session_id:session});if(active && v.id===session)setView(v)}catch(e){if(active)setError(e.message)}finally{if(active)timer=setTimeout(poll,3000)}}
-    if(session)poll();return()=>{active=false;clearTimeout(timer)};},[session]);
+  useEffect(()=>{setDraft(sessionStorage.getItem("hermes-draft-"+session) || "");},[session]);
+  useEffect(()=>{
+    let active=true,timer;
+    async function load() {
+      try {
+        const payload={session_id:session,...(historyPage || {})};
+        const next=await call("session-view",payload);
+        if(active && next.id===session) setView(next);
+      } catch(problem) {
+        if(active)setError(problem.message);
+      } finally {
+        if(active && !historyPage)timer=setTimeout(load,3000);
+      }
+    }
+    if(session)load();
+    return ()=>{active=false;clearTimeout(timer);};
+  },[session,historyPage]);
+  function changeHistory(page) {
+    setError("");
+    setView({});
+    setHistoryPage(page);
+  }
   function edit(v){setDraft(v);sessionStorage.setItem("hermes-draft-"+session,v)}
   async function send(){
     if(!draft.trim()||sending.current)return;
@@ -83,6 +105,7 @@ function App() {
       sessionStorage.removeItem("hermes-draft-" + session);
       if ((query().get("session") || "") === session) {
         setDraft("");
+        setHistoryPage(null);
         if (session !== item.session_id) select(item.session_id);
         setArchived(false);
       }
@@ -125,6 +148,10 @@ function App() {
     </section>}
     {session && <div hidden={!showForms}>{<FormLibrary key={session} session={session} call={call} addToMessage={value=>edit([draft,value].filter(Boolean).join("\n"))}/>}</div>}
     {queue && session && <QueuePanel key={session} session={session} call={call}/>}
+    {(view.next_offset != null || historyPage) && <nav aria-label="대화 이력 페이지">
+      {view.next_offset != null && <button onClick={()=>changeHistory({offset:view.next_offset,snapshot:view.snapshot})}>이전 메시지 보기</button>}
+      {historyPage && <button onClick={()=>changeHistory(null)}>최신 대화로 돌아가기</button>}
+    </nav>}
     <Conversation key={session} view={view}/>{error&&<p role="alert">{error}</p>}
     <form onSubmit={e=>{e.preventDefault();send()}}>{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
     <textarea ref={text} aria-label="메시지" placeholder="헤르메스에게 메시지 보내기" value={draft} disabled={busy} onChange={e=>edit(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){e.preventDefault();send()}}}/>
