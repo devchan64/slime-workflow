@@ -1,3 +1,4 @@
+import MapDatabaseReceipt from "./MapDatabaseReceipt.jsx";
 import React,{useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
@@ -34,5 +35,6 @@ export default function ContentDatabaseStatus(){
         title:"맵 저장 중단 파일",summary:"현재 파일과 백업 상태",columns:["경로","현재","백업"],
         rows:save.file_details.map(file=>[file.path,file.current,file.backup])}}/>}
     </>:!error && <p role="status">콘텐츠 DB 상태 조회 중…</p>}
+    <MapDatabaseReceipt/>
   </section>;
 }
