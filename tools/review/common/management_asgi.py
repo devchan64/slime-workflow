@@ -611,6 +611,19 @@ def build_management_application(current_handler_class, current_root_path, curre
             raise HTTPException(422, str(error)) from error
         return {"request": request}
 
+    @current_root_application.post('/management/assistant/kimodo-multiview-report')
+    def review_kimodo_observations(inputs: dict):
+        from fastapi import HTTPException
+        from generators.kimodo.multiview_review_report import build_multiview_review_report
+        from generators.kimodo.reference_review import select_multiview_review_rows
+        try:
+            report = build_multiview_review_report(inputs["observations"], inputs["skeleton"], inputs.get("heldout"))
+            return {"views": [{"angle": view["fitted_yaw_degrees"],
+                               "rows": select_multiview_review_rows(report, view["observation"])}
+                              for view in report["views"]], "limitations": report["limitations"]}
+        except (KeyError, IndexError, AttributeError, TypeError, ValueError) as error:
+            raise HTTPException(422, f"검수 입력 오류 · {error}") from error
+
     @current_root_application.get('/management/assistant/kimodo-prompt-examples')
     def kimodo_prompt_examples():
         from generators.kimodo.form_inputs import load_kimodo_examples
