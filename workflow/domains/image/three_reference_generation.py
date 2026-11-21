@@ -1,0 +1,157 @@
+"""Qwen 2511 고정 참조 입력의 검증·작업 저장."""
+import sys
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[3]))
+import base64
+import binascii
+import hashlib
+import io
+import os
+import stat
+from PIL import Image
+
+REFERENCE_IMAGE_LIMIT = 3_000_000
+WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
+ALLOWED_REFERENCE_JOB_ROOTS = (
+    WORKFLOW_ROOT_PATH/'.tmp/test/wan22-vace',
+    WORKFLOW_ROOT_PATH/'.tmp/test/billboard-generator',
+    WORKFLOW_ROOT_PATH/'.tmp/test/prop-generator',
+    WORKFLOW_ROOT_PATH/'.tmp/test/vegetation-generator',
+    WORKFLOW_ROOT_PATH/'.tmp/test/mannequin-generator',
+    WORKFLOW_ROOT_PATH/'.tmp/test/building-generator',
+    WORKFLOW_ROOT_PATH/'.tmp/test/pose-transfer',
+    WORKFLOW_ROOT_PATH/'.tmp/test/qwen-image-21',
+    WORKFLOW_ROOT_PATH/'.tmp/test/qwen-image-21-circular',
+    WORKFLOW_ROOT_PATH/'.tmp/test/seamless-tile-generator',
+    WORKFLOW_ROOT_PATH/'.tmp/test/expression-generator',
+    WORKFLOW_ROOT_PATH/'.tmp/test/qwen-image-2511-three-reference',
+    WORKFLOW_ROOT_PATH/'.tmp/test/qwen-image-2512/tile-map',
+    WORKFLOW_ROOT_PATH/'.tmp/test/qwen-image-2512/floor-tile',
+)
+
+
+def validate_three_reference_job_path(current_job_root):
+    resolved_job_root = Path(current_job_root).resolve()
+    if not any(resolved_job_root.is_relative_to(allowed_job_root) for allowed_job_root in ALLOWED_REFERENCE_JOB_ROOTS):
+        raise ValueError('작업 경로 오류')
+    return resolved_job_root
+
+
+def validate_three_reference_request(current_request_record, allowed_inference_steps=(4, 30), maximum_reference_count=3, minimum_output_size=512, maximum_output_size=1664):
+    if isinstance(current_request_record,dict) and current_request_record.get('action')=='generate':
+        current_request_record=dict(current_request_record)
+        current_request_record.setdefault('seed',10107)
+        if type(current_request_record['seed']) is not int or not 0 <= current_request_record['seed'] <= 4294967295:
+            raise ValueError('seed는 0~4294967295 범위의 정수여야 합니다.')
+    if not isinstance(current_request_record,dict) or set(current_request_record)-{'action','prompt','images','steps','width','height','seed','tag'} or not {'action','prompt','images','steps','width','height','seed'} <= set(current_request_record) or current_request_record['action']!='generate':
+        raise ValueError('3참조 요청 필드 오류')
+    from workflow.common.generation_records import validate_history_tag
+    current_request_record['tag']=validate_history_tag(current_request_record.get('tag',''))
+    if not isinstance(current_request_record['prompt'],str) or not 1<=len(current_request_record['prompt'].strip())<=8000:
+        raise ValueError('프롬프트는 1~8000자여야 합니다.')
+    if not isinstance(current_request_record['images'],list) or not 0 <= len(current_request_record['images']) <= maximum_reference_count:
+        raise ValueError(f'텍스트 생성은 참조 0장, 참조 생성은 1~{maximum_reference_count}장이 필요합니다.')
+    for current_size_key in ('width','height'):
+        current_size_value=current_request_record[current_size_key]
+        if type(current_size_value) is not int or not minimum_output_size <= current_size_value <= maximum_output_size or current_size_value % 16:
+            raise ValueError(f'출력 크기는 {minimum_output_size}~{maximum_output_size} 범위의 16 배수여야 합니다.')
+    if type(current_request_record['steps']) is not int or current_request_record['steps'] not in allowed_inference_steps:
+        raise ValueError(f'허용 생성 스텝: {allowed_inference_steps}')
+    for current_image_text in current_request_record['images']:
+        decode_reference_image(current_image_text)
+    return current_request_record
+
+
+def decode_reference_image(current_image_text, composite_transparent_background=False):
+    if not isinstance(current_image_text,str) or len(current_image_text)>REFERENCE_IMAGE_LIMIT*4//3+4:
+        raise ValueError('참조 이미지 크기 제한 초과')
+    try:
+        current_image_bytes=base64.b64decode(current_image_text,validate=True)
+        with Image.open(io.BytesIO(current_image_bytes)) as current_image_value:
+            if current_image_value.format!='PNG' or current_image_value.mode not in ('RGB','RGBA'):
+                raise ValueError('참조는 RGB/RGBA PNG여야 합니다.')
+            current_image_value.load()
+            if current_image_value.mode=='RGBA' and current_image_value.getextrema()[3]!=(255,255):
+                if not composite_transparent_background:
+                    raise ValueError('투명 이미지는 배경을 합성한 뒤 입력하세요.')
+                reference_background_image = Image.new('RGBA', current_image_value.size, (255, 255, 255, 255))
+                reference_output_buffer = io.BytesIO()
+                Image.alpha_composite(reference_background_image, current_image_value).convert('RGB').save(reference_output_buffer, format='PNG')
+                current_image_bytes = reference_output_buffer.getvalue()
+                if len(current_image_bytes) > REFERENCE_IMAGE_LIMIT:
+                    raise ValueError('배경 합성 후 참조 이미지 크기 제한 초과')
+    except (binascii.Error,OSError) as current_error_value:
+        raise ValueError('참조 PNG를 읽을 수 없습니다.') from current_error_value
+    return current_image_bytes
+
+
+def save_three_reference_inputs(current_job_root,current_request_record):
+    reference_snapshot_records=[]
+    for current_image_index,current_image_text in enumerate(current_request_record['images'],1):
+        reference_snapshot_path=current_job_root/f'reference-{current_image_index}.png'
+        reference_snapshot_bytes=decode_reference_image(current_image_text)
+        with reference_snapshot_path.open('xb') as reference_output_stream:
+            reference_output_stream.write(reference_snapshot_bytes)
+        reference_snapshot_records.append({'path':reference_snapshot_path.name,'sha256':hashlib.sha256(reference_snapshot_bytes).hexdigest(),'bytes':len(reference_snapshot_bytes),'order':current_image_index})
+    # 도메인별 영상 생성기는 프레임 수처럼 공통 이미지 요청에 없는 설정을
+    # 함께 기록한다. images만 작업 폴더의 불변 사본 정보로 치환한다.
+    return {**{current_key_name: current_key_value for current_key_name, current_key_value in current_request_record.items() if current_key_name != 'images'}, 'reference_snapshots':reference_snapshot_records,'references':[f'reference-{current_image_index}.png' for current_image_index in range(1,len(current_request_record['images'])+1)]}
+
+
+def resolve_reference_settings(selected_inference_steps):
+    if type(selected_inference_steps) is not int or selected_inference_steps not in (4,30):
+        raise ValueError('생성 스텝은 4(Lightning) 또는 30(표준)이어야 합니다.')
+    return {'selected_inference_steps':selected_inference_steps,
+            'enable_anypose_adapter':False,
+            'enable_lightning_adapter':False,
+            'enable_standalone_lightning_adapter':selected_inference_steps==4}
+
+
+def verify_reference_snapshots(current_job_root, current_request_record):
+    if not isinstance(current_request_record, dict):
+        raise ValueError('참조 실행 기록은 객체여야 합니다.')
+    current_reference_names = current_request_record.get('references')
+    if not isinstance(current_reference_names, list):
+        raise ValueError('참조 실행 기록의 references는 목록이어야 합니다.')
+    reference_snapshot_records = current_request_record.get('reference_snapshots')
+    if 'reference_snapshots' in current_request_record:
+        if not isinstance(reference_snapshot_records, list) or len(reference_snapshot_records) != len(current_reference_names):
+            raise ValueError('참조 사본 메타데이터 목록 오류')
+    for current_reference_index, current_reference_name in enumerate(current_reference_names, 1):
+        if current_reference_name != f'reference-{current_reference_index}.png':
+            raise ValueError('참조 사본 경로 또는 순서 오류')
+        current_reference_path = Path(current_job_root) / current_reference_name
+        current_snapshot_record = None if reference_snapshot_records is None else reference_snapshot_records[current_reference_index-1]
+        if reference_snapshot_records is not None:
+            if (not isinstance(current_snapshot_record, dict)
+                    or current_snapshot_record.get('path') != current_reference_name
+                    or type(current_snapshot_record.get('order')) is not int
+                    or current_snapshot_record['order'] != current_reference_index
+                    or type(current_snapshot_record.get('bytes')) is not int
+                    or current_snapshot_record['bytes'] < 0
+                    or not isinstance(current_snapshot_record.get('sha256'), str)):
+                raise ValueError('참조 사본 메타데이터 오류')
+        try:
+            current_file_descriptor = os.open(current_reference_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            with os.fdopen(current_file_descriptor, 'rb') as current_file_stream:
+                initial_file_stat = os.fstat(current_file_stream.fileno())
+                if not stat.S_ISREG(initial_file_stat.st_mode):
+                    raise ValueError('참조 사본 일반 파일을 확인할 수 없습니다.')
+                current_hash_object = hashlib.sha256()
+                for current_file_chunk in iter(lambda: current_file_stream.read(1024 * 1024), b''):
+                    current_hash_object.update(current_file_chunk)
+                final_file_stat = os.fstat(current_file_stream.fileno())
+                current_path_stat = os.stat(current_reference_path, follow_symlinks=False)
+                def resume_file_identity(current_stat_record):
+                    return (current_stat_record.st_dev, current_stat_record.st_ino, current_stat_record.st_size,
+                            current_stat_record.st_mtime_ns, current_stat_record.st_ctime_ns)
+                if (resume_file_identity(initial_file_stat) != resume_file_identity(final_file_stat)
+                        or resume_file_identity(final_file_stat) != resume_file_identity(current_path_stat)):
+                    raise ValueError('참조 사본이 검사 중 변경됐습니다.')
+                if current_snapshot_record is not None and (final_file_stat.st_size != current_snapshot_record['bytes']
+                        or current_hash_object.hexdigest() != current_snapshot_record['sha256']):
+                    raise ValueError('참조 사본 무결성 오류')
+        except OSError as current_file_error:
+            if current_reference_path.is_symlink():
+                raise ValueError('참조 사본 심볼릭 링크는 허용하지 않습니다.') from current_file_error
+            raise ValueError('참조 사본 일반 파일을 확인할 수 없습니다.') from current_file_error

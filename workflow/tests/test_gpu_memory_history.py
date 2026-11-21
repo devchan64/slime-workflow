@@ -1,0 +1,163 @@
+import json
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+from workflow.common import gpu_memory_history as memory
+
+class MemoryHistoryTests(unittest.TestCase):
+    def test_animate_short_run_does_not_reduce_long_run_reservation(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_root_path=Path(current_directory_name)
+            current_short_job=current_root_path/'short'
+            current_long_job=current_root_path/'long'
+            current_short_job.mkdir()
+            current_long_job.mkdir()
+            (current_short_job/'request.json').write_text(json.dumps({'frames':5}))
+            (current_long_job/'request.json').write_text(json.dumps({'frames':65}))
+            current_command_values=['python','generators/wan_animate2/worker.py']
+            current_short_profile=memory.identify_execution_command(current_command_values,current_short_job,'vram')
+            current_long_profile=memory.identify_execution_command(current_command_values,current_long_job,'vram')
+            self.assertNotEqual(current_short_profile,current_long_profile)
+            with patch.object(memory,'MEMORY_HISTORY_DIRECTORY',current_root_path/'history'):
+                memory.save_memory_observation('image',current_short_job,57000,2,'completed',command_identity_name=current_short_profile)
+                self.assertEqual(memory.estimate_required_memory('image',6144,current_short_profile)['required_memory_mib'],65536)
+                current_long_estimate=memory.estimate_required_memory('image',6144,current_long_profile)
+                self.assertEqual(current_long_estimate['samples'],0)
+                self.assertEqual(current_long_estimate['required_memory_mib'],65536)
+
+    def test_translation_reserves_verifier_memory_despite_old_history(self):
+        with tempfile.TemporaryDirectory() as current_directory_name, patch.object(memory, 'MEMORY_HISTORY_DIRECTORY', Path(current_directory_name)):
+            memory.save_memory_observation('prompt-translation', 'old', 8500, 2, 'completed', command_identity_name='worker.py')
+            self.assertEqual(memory.estimate_required_memory('prompt-translation', 16384, 'worker.py')['required_memory_mib'], 16384)
+
+    def test_writer_embedding_observation_preserves_generation_floor(self):
+        with tempfile.TemporaryDirectory() as current_directory_name, patch.object(memory,'MEMORY_HISTORY_DIRECTORY',Path(current_directory_name)):
+            memory.save_memory_observation('writer-agent','learn',2048,2,'completed',command_identity_name='generators.writer_agent.jobs')
+            current_estimate_record=memory.estimate_required_memory('writer-agent',16384,'generators.writer_agent.jobs')
+            self.assertEqual(current_estimate_record['observed_peak_mib'],2048)
+            self.assertEqual(current_estimate_record['required_memory_mib'],16384)
+    def test_resident_audio_does_not_reuse_offload_observations(self):
+        with tempfile.TemporaryDirectory() as current_directory_name, patch.object(memory, 'MEMORY_HISTORY_DIRECTORY', Path(current_directory_name)):
+            memory.save_memory_observation('music-heartmula', 'old', 7000, 3, 'completed', command_identity_name='python')
+            current_profile_name = memory.identify_execution_command(['python', '-u', 'generators/music/worker.py', '--service', 'music-heartmula'])
+            current_estimate_record = memory.estimate_required_memory('music-heartmula', 20000, current_profile_name)
+            self.assertEqual(current_estimate_record['samples'], 0)
+            self.assertEqual(current_estimate_record['required_memory_mib'], 20000)
+    def test_wan_profiles_do_not_reuse_short_or_legacy_samples(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_directory_path=Path(current_directory_name)
+            with patch.object(memory,'MEMORY_HISTORY_DIRECTORY',current_directory_path/'history'):
+                memory.save_memory_observation('wan-fun','legacy',384,5,'completed',command_identity_name='worker.py')
+                (current_directory_path/'request.json').write_text(json.dumps({'width':832,'height':480,'frames':113}))
+                current_profile_name=memory.identify_execution_command(['python','generators/wan_fun/worker.py'],current_directory_path)
+                self.assertEqual(current_profile_name,'wan-fun:worker.py:832x480:frames=113')
+                self.assertEqual(memory.estimate_required_memory('wan-fun',30000,current_profile_name)['required_memory_mib'],30000)
+
+    def test_recent_twenty_and_summary_refresh_per_service(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(memory,'MEMORY_HISTORY_DIRECTORY',Path(directory)):
+            for index in range(22):
+                memory.save_memory_observation('momask',f'job-{index}',1000+index,2,'completed')
+            memory.save_memory_observation('anny','another',3000,2,'completed')
+            records=memory.load_recent_observations('momask')
+            self.assertEqual(len(records),20)
+            self.assertEqual(records[-1][1]['job_id'],'job-2')
+            summary=json.loads((Path(directory)/'summary.json').read_text())
+            self.assertEqual(summary['momask']['retained_runs'],20)
+            self.assertEqual(summary['anny']['retained_runs'],1)
+            self.assertEqual(memory.estimate_required_memory('momask',4096)['required_memory_mib'],1021)
+
+    def test_failed_or_unmeasured_samples_do_not_lower_or_inflate_estimate(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(memory,'MEMORY_HISTORY_DIRECTORY',Path(directory)):
+            memory.save_memory_observation('image','good',8000,3,'completed')
+            memory.save_memory_observation('image','failed',30000,3,'failed')
+            memory.save_memory_observation('image','error',40000,3,'completed','query failed')
+            estimate=memory.estimate_required_memory('image',6144)
+            self.assertEqual(estimate['samples'],1)
+            self.assertEqual(estimate['required_memory_mib'],8000)
+
+    def test_command_histories_are_retained_independently(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(memory,'MEMORY_HISTORY_DIRECTORY',Path(directory)):
+            for index in range(22):
+                memory.save_memory_observation('image',f'job-{index}',8000,2,'completed',command_identity_name='first.py')
+            memory.save_memory_observation('image','other',12000,2,'completed',command_identity_name='second.py')
+            self.assertEqual(len(memory.load_recent_observations('image','first.py')),20)
+            self.assertEqual(len(memory.load_recent_observations('image','second.py')),1)
+            self.assertEqual(memory.estimate_required_memory('image',6144,'first.py')['observed_peak_mib'],8000)
+            self.assertEqual(memory.identify_execution_command(['python','/repo/first.py','--job','one']),'first.py')
+
+    def test_image_resolution_steps_and_legacy_request_profiles(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_value:
+            temporary_root_path = Path(temporary_directory_value)
+            with patch.object(memory,'MEMORY_HISTORY_DIRECTORY',temporary_root_path/'history'),patch.object(memory,'IMAGE_HISTORY_ROOT_PATHS',(temporary_root_path,)):
+                for job_identifier_value,width_pixel_value,inference_step_count,measured_peak_value in (('small',1024,4,4500),('large',1280,4,6202),('slow',1024,30,5500)):
+                    generation_job_directory = temporary_root_path/job_identifier_value
+                    generation_job_directory.mkdir()
+                    (generation_job_directory/'request.json').write_text(json.dumps({'width':width_pixel_value,'height':width_pixel_value,'steps':inference_step_count}))
+                    memory.save_memory_observation('image',generation_job_directory,measured_peak_value,3,'completed',command_identity_name='run_qwen_21_reference.py')
+                for job_identifier_value,expected_peak_value in (('small',4500),('large',6202),('slow',5500)):
+                    command_identity_value = memory.build_image_memory_identity('run_qwen_21_reference.py',temporary_root_path/job_identifier_value)
+                    estimated_memory_record = memory.estimate_required_memory('image',6144,command_identity_value)
+                    self.assertEqual(estimated_memory_record['samples'],1)
+                    self.assertEqual(estimated_memory_record['required_memory_mib'],expected_peak_value)
+                unknown_estimate_record = memory.estimate_required_memory('image',6144,'run_qwen_21_reference.py:768x768:steps=30:references=0')
+                self.assertEqual(unknown_estimate_record['samples'],0)
+                self.assertEqual(unknown_estimate_record['method'],'configured-initial-estimate')
+                self.assertEqual(unknown_estimate_record['required_memory_mib'],6144)
+
+    def test_unoffloaded_image_ignores_older_memory_observations(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_value:
+            current_root_path = Path(temporary_directory_value)
+            current_job_path = current_root_path / 'job'
+            current_job_path.mkdir()
+            (current_job_path / 'request.json').write_text(json.dumps({'width':512,'height':512,'steps':40,'references':[]}))
+            with patch.object(memory, 'MEMORY_HISTORY_DIRECTORY', current_root_path / 'history'), patch.object(memory, 'IMAGE_HISTORY_ROOT_PATHS', (current_root_path,)):
+                memory.save_memory_observation('image',current_job_path,6000,3,'completed',command_identity_name='run_qwen_21_reference.py')
+                current_identity_name = memory.identify_execution_command(['python','run_qwen_21_reference.py'], current_job_path)
+                self.assertTrue(current_identity_name.endswith(':offload=none-full-v1'))
+                self.assertEqual(memory.estimate_required_memory('image',6144,current_identity_name)['required_memory_mib'],65536)
+                memory.save_memory_observation('image',current_job_path,37000,3,'completed',command_identity_name=current_identity_name)
+                self.assertEqual(memory.estimate_required_memory('image',6144,current_identity_name)['required_memory_mib'],37000)
+
+    def test_flux_resident_profile_never_reuses_offloaded_memory_or_reduces_floor(self):
+        with tempfile.TemporaryDirectory() as current_temp_root:
+            current_job_path = Path(current_temp_root) / 'job'
+            current_job_path.mkdir()
+            (current_job_path / 'request.json').write_text(json.dumps({'width':512,'height':512,'steps':16,'images':[]}))
+            with patch.object(memory,'MEMORY_HISTORY_DIRECTORY',Path(current_temp_root)/'history'):
+                current_identity_value = memory.identify_execution_command(['python','run_flux_image.py'],current_job_path)
+                self.assertTrue(current_identity_value.endswith(':offload=none-flux-resident-v1'))
+                current_previous_identity = current_identity_value.replace(':offload=none-flux-resident-v1',':offload=model-v1')
+                memory.save_memory_observation('flux-image',current_job_path,12000,3,'completed',command_identity_name=current_previous_identity)
+                self.assertEqual(memory.estimate_required_memory('flux-image',57344,current_identity_value)['samples'],0)
+                memory.save_memory_observation('flux-image',current_job_path,20000,3,'completed',command_identity_name=current_identity_value)
+                self.assertEqual(memory.estimate_required_memory('flux-image',57344,current_identity_value)['required_memory_mib'],57344)
+
+    def test_circular_vae_without_cpu_offload_has_own_reservation(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_path = Path(current_directory_name)
+            (current_job_path / 'request.json').write_text(json.dumps({'width':512,'height':512,'steps':40,'references':[], 'circular_vae':{}}))
+            with patch.object(memory, 'MEMORY_HISTORY_DIRECTORY', current_job_path / 'history'):
+                current_identity_name = memory.identify_execution_command(['python','run_qwen_21_reference.py'], current_job_path)
+                self.assertTrue(current_identity_name.endswith(':offload=none-circular-v1'))
+                self.assertEqual(memory.estimate_required_memory('image',6144,current_identity_name)['required_memory_mib'],65536)
+
+    def test_image_profiles_keep_twenty_samples_independently(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_value,patch.object(memory,'MEMORY_HISTORY_DIRECTORY',Path(temporary_directory_value)):
+            for sample_index_value in range(22):
+                memory.save_memory_observation('image',f'large-{sample_index_value}',6202,2,'completed',command_identity_name='run_qwen_21_reference.py:1280x1280:steps=4:references=0')
+            memory.save_memory_observation('image','small',4500,2,'completed',command_identity_name='run_qwen_21_reference.py:1024x1024:steps=4:references=0')
+            self.assertEqual(len(memory.load_recent_observations('image','run_qwen_21_reference.py:1280x1280:steps=4:references=0')),20)
+            self.assertEqual(len(memory.load_recent_observations('image','run_qwen_21_reference.py:1024x1024:steps=4:references=0')),1)
+
+    def test_qwen21_legacy_profiles_separate_reference_counts(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_value:
+            temporary_root_path = Path(temporary_directory_value)
+            with patch.object(memory,'MEMORY_HISTORY_DIRECTORY',temporary_root_path/'history'), patch.object(memory,'IMAGE_HISTORY_ROOT_PATHS',(temporary_root_path,)):
+                for current_reference_count,current_peak_value in ((1,7538),(2,6600)):
+                    current_job_directory = temporary_root_path/str(current_reference_count)
+                    current_job_directory.mkdir()
+                    (current_job_directory/'request.json').write_text(json.dumps({'width':1024,'height':1024,'steps':40,'references':['image.png']*current_reference_count}))
+                    memory.save_memory_observation('image',current_job_directory,current_peak_value,3,'completed',command_identity_name='run_qwen_21_reference.py')
+                current_command_identity = memory.build_image_memory_identity('run_qwen_21_reference.py',temporary_root_path/'2')
+                self.assertEqual(memory.estimate_required_memory('image',6144,current_command_identity)['required_memory_mib'],6600)

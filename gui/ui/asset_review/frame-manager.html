@@ -1,0 +1,25 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SLIME 관리도구 연결</title><style></style><body><main><h1>SLIME 관리도구</h1><p id="navigationStatus" role="status">관리 메뉴로 연결합니다.</p><a id="managementLink" href="/management/">관리 메뉴 열기</a><noscript><p>항목 선택을 복원하려면 JavaScript를 켜거나 관리 메뉴에서 직접 선택하세요.</p></noscript></main><script>
+const managerPageRecords=[...__MANAGER_PAGES__];
+try{
+ const currentSourceLocation=new URL(location.href);
+ if(!['http:','https:'].includes(currentSourceLocation.protocol))throw Error('이 검수 폴더를 workflow/serve.py --root로 실행한 뒤 서버 주소로 접속하세요.');
+ const currentLegacyIdentifier=decodeURIComponent(currentSourceLocation.hash.slice(1));
+ const currentRequestedIdentifier=currentSourceLocation.searchParams.get('tool')||currentLegacyIdentifier;
+ const currentSelectedIdentifier=currentRequestedIdentifier==='map-reviewdetails'?'map-review':currentRequestedIdentifier;
+ const currentRegisteredIdentifier=({'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'})[currentSelectedIdentifier]||currentSelectedIdentifier;
+ if(currentSelectedIdentifier&&!managerPageRecords.some(currentPageRecord=>[currentSelectedIdentifier,currentRegisteredIdentifier].includes(currentPageRecord.id)))throw Error('게시 목록에 없는 검수 항목입니다. 관리 메뉴에서 항목을 선택하세요.');
+ const currentTargetLocation=new URL('/management/',currentSourceLocation);
+ if(currentSelectedIdentifier)currentTargetLocation.searchParams.set('tool',currentSelectedIdentifier);
+ for(const currentParameterName of ['search','category','action','field','locale','overview']){
+  if(currentSourceLocation.searchParams.has(currentParameterName))currentTargetLocation.searchParams.set(currentParameterName,currentSourceLocation.searchParams.get(currentParameterName));
+ }
+ const currentSavedNavigation=history.state;
+ if(currentSavedNavigation?.pageIdentifier===currentSelectedIdentifier){
+  for(const [currentParameterName,currentSavedValue] of [['search',currentSavedNavigation.searchQueryText],['category',currentSavedNavigation.selectedCategoryName]]){
+   if(!currentTargetLocation.searchParams.has(currentParameterName)&&typeof currentSavedValue==='string'&&currentSavedValue&&currentSavedValue!=='all')currentTargetLocation.searchParams.set(currentParameterName,currentSavedValue);
+  }
+ }
+ document.querySelector('#managementLink').href=currentTargetLocation.href;
+ location.replace(currentTargetLocation.href);
+}catch(currentNavigationError){document.querySelector('#navigationStatus').textContent=currentNavigationError.message;}
+</script></body></html>

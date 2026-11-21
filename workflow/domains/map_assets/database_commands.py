@@ -1,0 +1,25 @@
+"""콘텐츠 DB 시드·스냅샷의 공용 게이트웨이 명령."""
+from pathlib import Path
+from workflow.domains.map_assets.database_client import execute_content_api_request
+from workflow.domains.map_assets.database_seed import build_billboard_database_seed, build_map_database_seed
+from workflow.domains.map_assets.database_snapshot import execute_content_snapshot_cycle
+from workflow.maintenance.sync_billboard_catalog import load_unique_yaml_document
+
+
+def execute_content_database_command(current_command_name,current_request_payload):
+    if current_command_name=='database-restore':
+        raise ValueError('폐기된 파일 스냅샷 복구는 지원하지 않습니다. 에셋 원본과 현재 콘텐츠 DB 상태를 확인하세요.')
+    if current_command_name=='database-seed':
+        if not isinstance(current_request_payload,dict) or set(current_request_payload)!={'assetRoot','publicAssetPrefix'}:
+            raise ValueError('assetRoot·publicAssetPrefix가 필요합니다.')
+        current_seed_bundle=build_billboard_database_seed(current_request_payload['assetRoot'],current_request_payload['publicAssetPrefix'])
+        current_map_bundle=build_map_database_seed(current_request_payload['assetRoot'])
+        return execute_content_api_request('POST','/internal/v1/content/seed/bundle',
+            {'billboards':current_seed_bundle,'maps':current_map_bundle,'effects':load_unique_yaml_document(Path(current_request_payload['assetRoot'])/'assets/sprites/effects/catalog.yaml')['effects']})
+    if current_request_payload!={}:
+        raise ValueError('이 명령은 빈 payload를 사용합니다.')
+    if current_command_name=='database-status':
+        return execute_content_api_request('GET','/internal/v1/content/status')
+    if current_command_name in ('database-sync','database-snapshot'):
+        return execute_content_snapshot_cycle(None)
+    raise ValueError('지원하지 않는 콘텐츠 DB 명령')

@@ -1,0 +1,42 @@
+"""서버·UI·실행기가 공유하는 경로와 로컬 접속 설정. 서비스 실행 의존성이 없다."""
+import os
+from pathlib import Path
+from urllib.parse import urlsplit
+
+WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
+GATEWAY_SERVER_HOST = '127.0.0.1'
+GATEWAY_SERVER_PORT = 8771
+DEFAULT_GATEWAY_ADDRESS = f'http://{GATEWAY_SERVER_HOST}:{GATEWAY_SERVER_PORT}'
+
+
+def validate_loopback_request_host(current_http_handler):
+    """두 로컬 호스트만 허용하고 요청 출처 검증에 사용할 origin을 반환한다."""
+    current_request_host = current_http_handler.headers.get('Host')
+    current_allowed_hosts = tuple(f'{current_host_name}:{current_http_handler.server.server_port}' for current_host_name in ('127.0.0.1', 'localhost'))
+    if current_request_host not in current_allowed_hosts:
+        raise ValueError('허용하지 않는 Host')
+    return f'http://{current_request_host}'
+
+
+def resolve_management_environment(environment_variable_name, default_directory_name):
+    selected_directory_path = Path(os.environ.get(environment_variable_name, str(WORKFLOW_ROOT_DIRECTORY/default_directory_name))).expanduser()
+    if not selected_directory_path.is_absolute():
+        selected_directory_path = WORKFLOW_ROOT_DIRECTORY/selected_directory_path
+    return selected_directory_path.absolute()
+
+
+def resolve_management_ui_environment():
+    """기본 런타임을 공유하고 명시적인 기존 UI 경로 설정은 존중한다."""
+    if 'MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH' in os.environ:
+        return resolve_management_environment('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH', '.venv')
+    return resolve_management_environment('VIRTUAL_ENVIRONMENT_PATH', '.venv')
+
+
+def validate_gateway_address(gateway_base_address):
+    gateway_url_parts = urlsplit(gateway_base_address)
+    if (gateway_url_parts.scheme != 'http' or gateway_url_parts.hostname not in ('127.0.0.1', 'localhost')
+            or gateway_url_parts.username or gateway_url_parts.password
+            or gateway_url_parts.path or gateway_url_parts.query or gateway_url_parts.fragment
+            or gateway_url_parts.port is None or not 1024 <= gateway_url_parts.port <= 65535):
+        raise ValueError('게이트웨이는 http://127.0.0.1 또는 localhost:<1024~65535 포트>로 지정하세요.')
+    return gateway_base_address
