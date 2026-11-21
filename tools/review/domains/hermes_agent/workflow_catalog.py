@@ -13,7 +13,7 @@ def read_workflow_generator_catalog():
                                     "choices": ["en", "zh-CN"], "default": "en"},
                 "glossary": {"type": "glossary", "required": False, "label": "용어 목록"},
             },
-            "outputs": {"text": {"type": "text", "label": "번역 결과"}},
+            "outputs": {"text": {"type": "text", "label": "번역 결과", "media_type": "text/plain; charset=utf-8"}},
         },
         "flux-image": {
             "category": "image", "version": 1, "template_version": 1, "label": "FLUX 이미지",
@@ -26,7 +26,7 @@ def read_workflow_generator_catalog():
                 "steps": {"type": "integer", "required": True, "choices": [16], "default": 16},
                 "seed": {"type": "integer", "required": True, "min": 0, "max": 4294967295, "default": 10107},
             },
-            "outputs": {"images": {"type": "png_list", "label": "생성 이미지"}},
+            "outputs": {"images": {"type": "png_list", "label": "생성 이미지", "media_type": "image/png"}},
         },
     }
 

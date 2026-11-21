@@ -5041,6 +5041,11 @@ def build_hermes_agent_interface(include_advanced_controls=True):
                         lambda run_id, view: (view if view and view.get("run_id") == run_id else None, "", "", ""),
                         [workflow_run_identifier, workflow_run_display], workflow_display_outputs, queue=False)
                 with gr.Accordion("대화에서 설계한 워크플로우", open=False):
+                    with gr.Accordion("생성기 입력 필드와 출력 형식", open=False):
+                        workflow_catalog_display = gr.JSON(label="등록된 생성기의 입력 제약과 출력 이름")
+                        gr.Button("생성기 카탈로그 조회").click(
+                            lambda: execute_remote_management_command("hermes-agent", "hermes-workflow-catalog", {})["generators"],
+                            outputs=workflow_catalog_display, queue=False)
                     workflow_load_proposal = gr.Button("선택한 답변에서 단계 가져오기")
                     workflow_definition_text = gr.Textbox(label="생성기 입력과 단계 연결 (JSON)", lines=8)
                     workflow_load_proposal.click(load_conversation_workflow_definition, [hermes_session_control, hermes_session_job_selection], workflow_definition_text, queue=False)
