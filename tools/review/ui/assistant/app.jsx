@@ -63,7 +63,8 @@ function Conversation({view}) {
 function App() {
   const [session,setSession]=useState(query().get("session") || "");
   const [sessions,setSessions]=useState([]), [view,setView]=useState({}), [tools,setTools]=useState([]);
-  const [draft,setDraft]=useState(""),[search,setSearch]=useState(""),[showTools,setShowTools]=useState(false);
+  const [draft,setDraft]=useState(""),[search,setSearch]=useState(""),[showTools,setShowTools]=useState(()=>query().has("category"));
+  const [category,setCategory]=useState(()=>query().get("category") || "all");
   const [archived,setArchived]=useState(false),[error,setError]=useState(""),[busy,setBusy]=useState(false);
   const [queue,setQueue]=useState(null),[refresh,setRefresh]=useState(0);
   const [historyPage,setHistoryPage]=useState(null);
@@ -73,7 +74,7 @@ function App() {
     if(next)url.searchParams.set("session",next);else url.searchParams.delete("session");
     history.pushState(null,"",url);setSession(next);setView({});setHistoryPage(null);setQueue(null);setError("");
   }
-  useEffect(()=>{const cb=()=>{setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
+  useEffect(()=>{const cb=()=>{setCategory(query().get("category") || "all");setShowTools(query().has("category"));setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
   useEffect(()=>{let active=true;fetch(base+"tools").then(r=>r.json()).then(v=>{if(active)setTools(v)}).catch(e=>{if(active)setError(e.message)});
     return()=>{active=false};},[]);
   useEffect(()=>{let active=true;call(archived?"session-archived":"session-list").then(v=>{if(active)setSessions(v.sessions)}).catch(e=>{if(active)setError(e.message)});return()=>{active=false};},[archived,refresh]);
@@ -153,6 +154,15 @@ function App() {
     if(session)url.searchParams.set("session",session);
     return url.pathname+url.search;
   }
+  function changeCategory(value){
+    const url=new URL(location.href);
+    url.searchParams.set("category",value);
+    history.replaceState(null,"",url);setCategory(value);
+  }
+  const categories=new Map(tools.map(tool=>[tool.category,tool.category_label]));
+  const terms=search.trim().toLowerCase().split(/\s+/);
+  const matchedTools=tools.filter(tool=>(category==="all" || tool.category===category) &&
+    terms.every(term=>[tool.label,tool.id,tool.description].join(" ").toLowerCase().includes(term)));
   const chosen=query().get("tool");
   return <main><aside><h2>대화 세션</h2><button disabled={busy} onClick={()=>{select("");setArchived(false);}}>새 대화</button><button onClick={()=>setArchived(!archived)}>{archived?"대화 목록":"보관함"}</button>
     {sessions.map(s=><div className="session" key={s.id}><button disabled={busy} aria-current={s.id===session?"page":undefined} onClick={()=>archived?lifecycle(s,"restore"):select(s.id)}>{s.title || s.id}</button>
@@ -170,7 +180,13 @@ function App() {
       {searchMode==="history" && <SourceHistory session={session} choose={(label,id)=>{edit([draft,label+" "+id].filter(Boolean).join("\n"));setShowTools(false);text.current.focus();}}/>}
       {searchMode==="services" && <ServiceRegistry key={search} query={search}/>}
       {searchMode==="capabilities" && <CapabilitySearch search={search} choose={chooseTool}/>}
-      {searchMode==="tools" && tools.filter(tool=>(tool.label+tool.id+tool.description).toLowerCase().includes(search.toLowerCase())).map(tool=>
+      {searchMode==="tools" && <label>도구 분류 <select value={category} onChange={e=>changeCategory(e.target.value)}>
+        <option value="all">전체</option>
+        {category!=="all" && !categories.has(category) && <option value={category}>{category}</option>}
+        {Array.from(categories,([id,label])=><option key={id} value={id}>{label || id}</option>)}
+      </select></label>}
+      {searchMode==="tools" && <p role="status">검색 결과 {matchedTools.length}건</p>}
+      {searchMode==="tools" && matchedTools.map(tool=>
         <div key={tool.id}>
           <button onClick={()=>chooseTool(tool.label,tool.id)}>{tool.label}</button>
           {tool.review_path && <a href={reviewLink(tool.review_path)}>화면 열기</a>}

@@ -244,11 +244,12 @@ def build_management_application(current_handler_class, current_root_path, curre
         if current_request_scope.get('method') == 'GET' and current_request_path.rstrip('/') == '/management':
             from tools.review.common.management_catalog import REACT_REVIEW_PATHS
             tool = current_query_values.get('tool', [''])[0]
-            if not tool and set(current_query_values) <= {'session'}:
+            if not tool and set(current_query_values) <= {'session', 'category'}:
                 tool = 'hermes-agent'
             if tool in REACT_REVIEW_PATHS:
                 from urllib.parse import urlencode
-                query = urlencode({key: values for key, values in current_query_values.items() if key not in ('tool', 'category')}, doseq=True)
+                omitted = {'tool'} if tool == 'hermes-agent' else {'tool', 'category'}
+                query = urlencode({key: values for key, values in current_query_values.items() if key not in omitted}, doseq=True)
                 target = REACT_REVIEW_PATHS[tool] + ('?' + query if query else '')
                 return await RedirectResponse(target)(current_request_scope, current_receive_call, current_send_call)
         if current_request_path.rstrip('/') in ('/character-animation/sprite-editor-v2', '/management/frame/sprite-editor-v2') or current_request_path.startswith('/management/frame/sprite-editor-v2/'):
@@ -647,10 +648,10 @@ def build_management_application(current_handler_class, current_root_path, curre
 
     @current_root_application.get('/management/assistant/tools')
     def assistant_tools():
-        from tools.review.common.management_catalog import resolve_management_page_path, load_manager_page_records
+        from tools.review.common.management_catalog import CATEGORY_LABEL_VALUES, resolve_management_page_path, load_manager_page_records
         return [
             {key: record[key] for key in ('id', 'label', 'category', 'description')}
-            | {'review_path': resolve_management_page_path(record)}
+            | {'review_path': resolve_management_page_path(record), 'category_label': CATEGORY_LABEL_VALUES.get(record['category'], record['category'])}
             for record in load_manager_page_records(current_source_path)
             if record['id'] != 'hermes-agent'
         ]
