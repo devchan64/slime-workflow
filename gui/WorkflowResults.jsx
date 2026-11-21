@@ -72,12 +72,17 @@ export default function WorkflowResults({session, run, call, close, openRun, edi
     const timer = setTimeout(() => setRevision(value => value+1), 3000);
     return () => clearTimeout(timer);
   }, [view,busy,error,confirmCancel]);
+  const [connectionNotice,setConnectionNotice]=useState("");
   async function select(choice) {
     setBusy(true); setError("");
     try {
       const {step_id,input_field,source_request,digest} = choice;
       const updated = await call("workflow-select",{session_id:session,run_id:run,step_id,input_field,source_request,digest});
-      if (updated.run_id===run) setView(updated);
+      if(updated.run_id!==run || !updated.choices?.some(item=>item.selected && item.step_id===step_id &&
+          item.input_field===input_field && item.source_request===source_request && item.digest===digest))
+        throw new Error("결과 연결을 확인할 수 없습니다. 결과를 갱신하세요.");
+      setView(updated);
+      setConnectionNotice(step_id+" 단계의 "+input_field+" 입력에 결과를 연결했습니다.");
     } catch (problem) {setError(problem.message);}
     finally {setBusy(false);}
   }
@@ -112,6 +117,7 @@ export default function WorkflowResults({session, run, call, close, openRun, edi
     <h3 tabIndex={-1}>워크플로우 결과</h3><code>{run}</code>
     <button disabled={busy} onClick={()=>{setConfirmCancel(false);setRevision(value=>value+1);}}>결과 갱신</button>
     <button onClick={close}>결과 닫기</button>
+    <p role="status">{connectionNotice}</p>
     {error && <p role="alert">{error}</p>}
     {view && <>
       {activeSteps.length>0 && (confirmCancel ?

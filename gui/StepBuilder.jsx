@@ -2,7 +2,7 @@ import KimodoPromptExamples from "./KimodoPromptExamples.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import TranslationEvidence from "./TranslationEvidence.jsx";
-import React, {useEffect, useRef, useState} from "react";
+import React, {useEffect, useId, useRef, useState} from "react";
 
 function readSteps(definition) {
   if (!definition.trim()) return [];
@@ -26,10 +26,20 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
       .catch(error => {if (active) setNotice(error.message);});
     return () => { active = false; };
   }, [call]);
+  const [issue,setIssue]=useState(null);
+  const errorId=useId();
+  function fieldProps(field) {
+    return {"data-step-field":field, "aria-invalid":issue?.field===field || undefined,
+      "aria-describedby":issue?.field===field ? errorId : undefined};
+  }
+  function fieldError(field) {
+    return issue?.field===field && <p id={errorId} role="alert">{issue.message}</p>;
+  }
   const editor=useRef(null);
   const stepName=useRef(null);
   useEffect(()=>{
     if(!proposalStep)return;
+    setIssue(null);
     setGenerator(proposalStep.generator || "kimodo");
     setInputs(proposalStep.inputs);
     setLinks({});
@@ -45,17 +55,20 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
   let steps = [], invalid = "";
   try { steps = readSteps(definition); } catch (error) { invalid = error.message; }
   function choose(key) {
+    setIssue(null);
     setGenerator(key);
     setInputs({});
     setLinks({});
     setNotice("");
   }
   function append() {
+    let currentField="step-name";
     try {
       const id = name.trim();
       if (!id || steps.some(step => step.id === id)) throw new Error("고유한 단계 이름을 입력하세요.");
       const values = {}, bindings = {};
       for (const [field,spec] of Object.entries(template.inputs)) {
+        currentField=field;
         if (links[field]) {
           const [from_step, output, selection] = JSON.parse(links[field]);
           const source = steps.find(step => step.id === from_step);
@@ -64,12 +77,14 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
           continue;
         }
         const raw = inputs[field];
-        if (raw === undefined || raw === "") {
+        if (raw === undefined || (typeof raw==="string" && !raw.trim())) {
           if (spec.required && spec.default === undefined) throw new Error((spec.label || field) + " 값을 입력하세요.");
           if (spec.default !== undefined) values[field] = spec.default;
         } else if (spec.type === "integer") {
           const number = Number(raw);
           if (!Number.isSafeInteger(number)) throw new Error(field + "에 정수를 입력하세요.");
+          if(number<spec.min || number>spec.max || (spec.step && number % spec.step!==0))
+            throw new Error((spec.label || field)+"의 허용 범위와 간격을 확인하세요.");
           values[field] = number;
         } else if (spec.type === "glossary") {
           values[field] = raw.split(/\r?\n/).filter(line => line.trim()).map(line => {
@@ -83,7 +98,11 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
       const step = {id, generator, generator_version:template.version, template_version:template.template_version, inputs:values, bindings};
       onChange(JSON.stringify({steps:[...steps,step]},null,2));
       setName(""); choose("");
-    } catch (error) { setNotice(error.message); }
+    } catch (error) {
+      setNotice("");
+      setIssue({field:currentField,message:error.message});
+      editor.current.querySelector('[data-step-field="'+CSS.escape(currentField)+'"]')?.focus();
+    }
   }
   function editTextInput(index,field,value) {
     const next = steps.map((step,i)=>i===index ? {...step,inputs:{...step.inputs,[field]:value}} : step);
@@ -99,13 +118,13 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
         <textarea value={value} maxLength={catalog[step.generator].inputs[field].max_length}
           onChange={event=>editTextInput(index,field,event.target.value)}/></label>)}
     </fieldset>;
-  })}<details ref={editor}><summary>생성기 단계 추가</summary>
+  })}<details ref={editor} onChange={event=>{if(event.target.dataset.stepField===issue?.field)setIssue(null);}}><summary>생성기 단계 추가</summary>
     <label>생성기 <select value={generator} onChange={event => choose(event.target.value)}>
       <option value="">생성기 선택</option>
       {Object.entries(catalog).map(([key,spec]) => <option key={key} value={key}>{spec.label}</option>)}
     </select></label>
     {generator && !template && Object.keys(catalog).length>0 && <p role="alert">현재 관리 서버의 생성기 목록에서 {generator} 템플릿을 찾을 수 없습니다.</p>}
-    {template && <><label>단계 이름 <input ref={stepName} value={name} onChange={event => setName(event.target.value)}/></label>
+    {template && <><label>단계 이름 <small>필수</small><input required {...fieldProps("step-name")} ref={stepName} value={name} onChange={event => setName(event.target.value)}/></label>{fieldError("step-name")}
       {Object.entries(template.inputs).map(([field,spec]) => {
         if (spec.choices?.length===1 && spec.choices[0]===spec.default) return null;
         const sources = steps.flatMap(step => Object.entries(catalog[step?.generator]?.outputs || {})
@@ -114,16 +133,17 @@ export default function StepBuilder({call, definition, onChange, proposalStep}) 
         const sourceLink = links[field] ? JSON.parse(links[field]) : [];
         const fallback = spec.default ?? "";
         const value = inputs[field] ?? (Array.isArray(fallback) ? JSON.stringify(fallback) : fallback);
-        const props = {value, onChange:event => setInputs({...inputs,[field]:event.target.value})};
-        return <div key={field}><label>{spec.label || field} {links[field] ? null : spec.choices ?
+        const props = {...fieldProps(field),required:Boolean(spec.required),value, onChange:event => setInputs({...inputs,[field]:event.target.value})};
+        return <div key={field}><label>{spec.label || field} {spec.required && <small>필수</small>}{links[field] ? null : spec.choices ?
           <select {...props}>{spec.choices.map(choice => <option key={choice}>{choice}</option>)}</select> :
           spec.type==="glossary" ? <textarea {...props} placeholder="한 줄에 하나씩 원문 => 번역어"/> :
           <input {...props} type={spec.type==="integer"?"number":"text"} title={spec.help}
             min={spec.min} max={spec.max} step={spec.step} maxLength={spec.max_length}/>}</label>
           {field==="seed" && !links[field] && <button onClick={()=>setInputs({...inputs,seed:String(crypto.getRandomValues(new Uint32Array(1))[0] % (spec.max + 1))})}>랜덤 시드</button>}
-          {sources.length>0 && <select aria-label={(spec.label || field)+" 입력 출처"} value={sourceLink.length ? JSON.stringify(sourceLink.slice(0,2)) : ""}
+          {sources.length>0 && <select {...(links[field]?fieldProps(field):{})} aria-label={(spec.label || field)+" 입력 출처"} value={sourceLink.length ? JSON.stringify(sourceLink.slice(0,2)) : ""}
             onChange={event => setLinks({...links,[field]:event.target.value})}><option value="">직접 입력</option>
             {sources.map(source => <option key={source.value} value={source.value}>{source.label}</option>)}</select>}
+          {fieldError(field)}
           {sourceLink.length>0 && <label><input type="checkbox" checked={sourceLink[2]==="user_choice"}
             onChange={event=>setLinks({...links,[field]:JSON.stringify(event.target.checked?
               [...sourceLink.slice(0,2),"user_choice"]:sourceLink.slice(0,2))})}/>

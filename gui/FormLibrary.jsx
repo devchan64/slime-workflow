@@ -11,6 +11,8 @@ export default function FormLibrary({session, proposalStep, messages, call, addT
   const [selection, setSelection] = useState("");
   const [copySource,setCopySource] = useState(null);
   const [reference, setReference] = useState(null);
+  const nameField=useRef(null);
+  const [nameError,setNameError]=useState(false);
   const [name, setName] = useState("");
   const [definition, setDefinition] = useState("");
   const [notice, setNotice] = useState("");
@@ -149,7 +151,11 @@ export default function FormLibrary({session, proposalStep, messages, call, addT
       <button disabled={!selection} onClick={() => run(() => load())}>선택한 버전으로 초안 교체</button>
       <button disabled={!selection} onClick={() => run(() => load(true))}>선택한 버전 복사해 편집</button>
       {copySource && <p>복사 원본 · {versions.find(v=>v.key===copySource.form_id+"/"+copySource.form_version)?.label || copySource.form_id}</p>}
-      <label>폼 이름 <input value={name} onChange={event => setName(event.target.value)}/></label>
+      <label>폼 이름 · 필수 <input ref={nameField} value={name} required maxLength={120}
+        aria-invalid={nameError && (!name.trim() || name.length>120) || undefined}
+        aria-describedby={nameError && (!name.trim() || name.length>120) ? "form-name-error" : undefined}
+        onChange={event => {setName(event.target.value);setNameError(false);}}/></label>
+      {nameError && (!name.trim() || name.length>120) && <p role="alert" id="form-name-error">폼 이름을 1~120자로 입력하세요.</p>}
       <StepBuilder proposalStep={proposalStep} call={call} definition={definition} onChange={editDefinition}/>
       <label>워크플로우 정의 JSON <textarea value={definition} onChange={event => editDefinition(event.target.value)}/></label>
       <button disabled={draftRevision===null} onClick={()=>run(saveDraft)}>세션 초안 저장</button>
@@ -157,7 +163,7 @@ export default function FormLibrary({session, proposalStep, messages, call, addT
         restoreDraft(await call("workflow-draft-read",{session_id:session}));
         setNotice("서버에 저장된 초안을 불러왔습니다.");
       })}>서버 초안으로 편집 내용 교체</button>
-      <button disabled={!name.trim() || !definition.trim()} onClick={() => run(save)}>버전 저장</button>
+      <button disabled={!definition.trim()} onClick={() => {if(!name.trim() || name.length>120){setNameError(true);nameField.current?.focus();return;}run(save);}}>버전 저장</button>
       <button disabled={!definition.trim()} onClick={() => addToMessage(definition)}>대화 입력에 추가</button>
       <button disabled={!definition.trim()} onClick={() => run(reviewWorkflow)}>단계와 결과 연결 검토</button>
       {review && <section aria-label="워크플로우 등록 검토">
