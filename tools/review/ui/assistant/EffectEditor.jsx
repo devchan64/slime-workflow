@@ -47,6 +47,41 @@ function WaypointPreview({detail}){
   </fieldset>;
 }
 
+function WaypointReplacement({detail,onSaved}){
+  const [source,setSource]=useState(JSON.stringify(detail.document,null,2));
+  const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
+  async function review(){
+    setError("");setBusy(true);setPending(null);
+    try{
+      const draft={id:detail.document.id,revision:detail.revision,effect:JSON.parse(source)};
+      const result=await managementCommand("hermes-agent","hermes-waypoint-preview",{draft});
+      if(!result.review_sha256 || !result.after)throw new Error("교체 검토 결과를 확인할 수 없습니다.");
+      setPending({draft,result,requestId:crypto.randomUUID()});
+    }catch(problem){setError(problem instanceof SyntaxError?"새 이펙트 JSON 형식을 확인하세요.":problem.message);}
+    finally{setBusy(false);}
+  }
+  async function confirm(){
+    setError("");setBusy(true);
+    try{
+      const result=await managementCommand("hermes-agent","hermes-waypoint-replace",{
+        request_id:pending.requestId,draft:pending.draft,review_sha256:pending.result.review_sha256
+      });
+      if(result.state!=="completed" || result.id!==pending.draft.effect.id)throw new Error("교체 결과 확인 필요 · 접수 "+pending.requestId);
+      onSaved(result.id);
+    }catch(problem){setError(problem.message);}
+    finally{setBusy(false);}
+  }
+  return <details><summary>웨이포인트 이펙트 교체</summary><fieldset disabled={busy}>
+    <label>새 이펙트 JSON<textarea rows={10} value={source} onChange={e=>{setSource(e.target.value);setPending(null);setError("");}}/></label>
+    <button onClick={review}>교체 내용 확인</button>
+    {pending && <section><h3>{detail.document.id} → {pending.result.after.id}</h3>
+      <p>이미지 · {pending.result.after.image}</p><p>애니메이션 · {pending.result.after.animation}</p>
+      <p>{pending.result.note}</p><button onClick={confirm}>확인 후 교체</button>
+      <button onClick={()=>setPending(null)}>취소</button></section>}
+    {error && <p role="alert">{error}</p>}
+  </fieldset></details>;
+}
+
 function Alignment({detail}){
   const [values,setValues]=useState(detail.document.alignment);
   const [revision,setRevision]=useState(detail.revision),[busy,setBusy]=useState(false),[message,setMessage]=useState("");
@@ -77,6 +112,7 @@ function Alignment({detail}){
 }
 
 export default function EffectEditor(){
+  const [notice,setNotice]=useState("");
   const [effects,setEffects]=useState([]),[selected,select]=useState(""),[detail,setDetail]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[revision,reload]=useState(0);
   useEffect(()=>{
@@ -100,10 +136,11 @@ export default function EffectEditor(){
       {effects.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select>
     <button onClick={()=>reload(n=>n+1)}>목록 새로고침</button><button disabled={!selected} onClick={load}>선택 이펙트 불러오기</button></fieldset>
     {error && <p role="alert">{error}</p>}
+    {notice && <p role="status">{notice}</p>}
     {detail && <section><h2>{detail.document.name}</h2><p>{detail.document.renderer} · {detail.document.frames}프레임</p>
       <img src={detail.sheetImage} alt="이펙트 시트 원본" style={{maxWidth:"100%"}}/>
       {detail.hostImage && <img src={detail.hostImage} alt="빌보드 원본" style={{maxWidth:"100%"}}/>}
-      {detail.document.renderer==="waypoint-animation"?<WaypointPreview detail={detail}/>:<Alignment detail={detail}/>}
+      {detail.document.renderer==="waypoint-animation"?<><WaypointPreview detail={detail}/><WaypointReplacement detail={detail} onSaved={id=>{setNotice("웨이포인트 교체 완료 · "+id);select(id);reload(n=>n+1);}}/></>:<Alignment detail={detail}/>}
     </section>}
   </article>;
 }
