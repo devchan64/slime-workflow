@@ -28,24 +28,33 @@ import {generationProposalScope,readGenerationProposal,vaceProposalInputs} from 
 
 const service="wan22-vace";
 const videoFields={pose:["pose_video"],video_edit:["edit_video","edit_mask"],video_condition:["edit_video"]};
+const supportedModes=new Set(["pose","reference","first_frame","text","video_edit","video_condition"]);
 const labels={pose_video:"DWPose MP4",edit_video:"원본 MP4",edit_mask:"마스크 MP4"};
 const numericSettings=[["frames","출력 프레임",5,129,4],["steps","스텝",2,100,1],["flow_shift","Flow shift",0.1,20,"any"],["guidance_scale","CFG",1,10,"any"],["reference_strength","조건 강도",0.1,2,"any"]];
 function SavedVaceInputs({id}){
   const [state,setState]=useState({id,loading:true}),[revision,retry]=useState(0);
+  const resultRef=useRef(null),restoreFocus=useRef(false);
   useEffect(()=>{
-    const controller=new AbortController();setState({id,loading:true});
+    if(!restoreFocus.current || state.id!==id || state.loading)return;
+    restoreFocus.current=false;
+    requestAnimationFrame(()=>{if(document.activeElement===document.body && resultRef.current?.isConnected)resultRef.current.focus();});
+  },[state,id]);
+  useEffect(()=>{
+    const controller=new AbortController();let active=true,timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    setState({id,loading:true});
     (async()=>{try{
       const response=await fetch('/management/assistant/vace-input/'+encodeURIComponent(id)+'/request',{cache:'no-store',signal:controller.signal});
       if(!response.ok)throw new Error('저장 입력을 불러오지 못했습니다.');
       const data=await response.json();if(data.id!==id || !data.request || !Array.isArray(data.attachments))throw new Error('저장 입력이 선택한 작업과 일치하지 않습니다.');
       if(!controller.signal.aborted)setState({id,data});
-    }catch(error){if(!controller.signal.aborted)setState({id,error:error.message});}})();
-    return ()=>controller.abort();
+    }catch(error){if(active && (timedOut || !controller.signal.aborted))setState({id,error:timedOut?'저장 입력 조회 시간이 초과됐습니다.':error.message});}finally{clearTimeout(timeout);}})();
+    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[id,revision]);
   if(state.id!==id || state.loading)return <p role="status">저장 입력을 불러오는 중입니다.</p>;
-  if(state.error)return <div role="alert">{state.error} <button type="button" onClick={()=>retry(value=>value+1)}>입력 정보 다시 조회</button></div>;
+  if(state.error)return <div ref={resultRef} tabIndex={-1} role="alert">{state.error} <button type="button" onClick={()=>{restoreFocus.current=true;retry(value=>value+1);}}>입력 정보 다시 조회</button></div>;
   const {request,attachments}=state.data;
-  return <section className="history-action-detail" aria-label="저장된 생성 입력"><strong>저장된 생성 입력</strong><p>{request.frames}프레임 · {request.steps}스텝 · 시드 {request.seed} · 첨부 {attachments.length ? attachments.map(key=>labels[key] || (key==='reference'?'참조 이미지':key)).join(', ') : '없음'}</p><details><summary>저장된 입력 상세</summary><pre>{JSON.stringify(request,null,2)}</pre></details></section>;
+  return <section ref={resultRef} tabIndex={-1} className="history-action-detail" aria-label="저장된 생성 입력"><strong>저장된 생성 입력</strong><p>{request.frames}프레임 · {request.steps}스텝 · 시드 {request.seed} · 첨부 {attachments.length ? attachments.map(key=>labels[key] || (key==='reference'?'참조 이미지':key)).join(', ') : '없음'}</p><details><summary>저장된 입력 상세</summary><pre>{JSON.stringify(request,null,2)}</pre></details></section>;
 }
 export default function VacePage({embedded=false,session:embeddedSession=""}={}){
   const frameErrorId=useId();
@@ -53,6 +62,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const settingErrorId=useId();
   const session=embeddedSession || new URLSearchParams(location.search).get("session") || "";
   const [template,setTemplate]=useState(null),[values,setValues]=useState(null),[templateRevision,retryTemplate]=useState(0);
+  const templateRetryRef=useRef(null),templateRetryFocus=useRef(false);
   const [files,setFiles]=useState({}),[model,setModel]=useState(null),[fileErrors,setFileErrors]=useState({});
   const inputRef=useRef({values,files});inputRef.current={values,files};
   const imageSelectionRevision=useRef(0);
@@ -61,19 +71,28 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const videoControllers=useRef({});
   useEffect(()=>()=>{Object.values(videoControllers.current).forEach(controller=>controller.abort());for(const key of Object.keys(videoSequences.current))videoSequences.current[key]++;},[]);
   const [busy,setBusy]=useState(false),[pending,setPending]=useState(null),[modelError,setModelError]=useState("");
+  const reviewEpoch=useRef(0),interactionRef=useRef({busy,pending});interactionRef.current={busy,pending};
   useEffect(()=>{if(pending)reviewRef.current?.focus();},[pending]);
   const [error,setError]=useState("");
   const [templateError,setTemplateError]=useState("");
   const [job,setJob]=useState(embedded ? "" : new URLSearchParams(location.search).get("job") || "");
   const [sourceJob,setSourceJob]=useState("");
   useEffect(()=>{
-    let active=true;
+    let active=true,timedOut=false;
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     async function load(){
       setTemplateError("");
       try{
-        const response=await fetch("/management/assistant/vace-template");
+        const response=await fetch("/management/assistant/vace-template",{signal:controller.signal});
         if(!response.ok)throw new Error("생성 입력 템플릿 조회 실패");
         const spec=await response.json();
+        if(!spec || !spec.defaults || typeof spec.defaults!=="object" || Array.isArray(spec.defaults) ||
+          !Array.isArray(spec.modes) || !spec.modes.length || spec.modes.some(mode=>!mode || typeof mode.id!=="string" || typeof mode.label!=="string" || typeof mode.help!=="string") ||
+          !spec.modes.some(mode=>mode.id===spec.defaults.mode) || !Number.isFinite(spec.maximum_seed) ||
+          ![spec.defaults.frames,spec.defaults.steps,spec.defaults.seed,spec.defaults.flow_shift,spec.defaults.guidance_scale,spec.defaults.reference_strength].every(Number.isFinite))
+          throw new Error("생성 입력 설정 형식을 확인할 수 없습니다.");
+        clearTimeout(timeout);
         let initial={...spec.defaults,prompt:"",negative_prompt:""};
         if(!embedded){
           try{
@@ -82,16 +101,21 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
           }catch(problem){if(active)setError('대화 제안을 불러오지 못했습니다 · '+requestErrorMessage(problem));}
         }
         if(active){setTemplate(spec);setValues(old=>old ?? initial);}
-      }catch(problem){if(active)setTemplateError(requestErrorMessage(problem));}
+      }catch(problem){if(active)setTemplateError(timedOut ? "생성 입력 조회 시간이 초과됐습니다." : requestErrorMessage(problem));}
+      finally{clearTimeout(timeout);}
     }
-    load();return ()=>{active=false;};
+    load();return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[templateRevision]);
-  useEffect(()=>{if(template && templateRevision>0 && document.activeElement===document.body)formRef.current?.focus();},[template,templateRevision]);
+  useEffect(()=>{
+    if(!templateRetryFocus.current || (!template && !templateError))return;
+    templateRetryFocus.current=false;
+    requestAnimationFrame(()=>{if(document.activeElement===document.body)(template ? formRef.current : templateRetryRef.current)?.focus();});
+  },[template,templateError]);
   const [historyRevision,refreshHistory]=useState(0);
   const [notice,setNotice]=useState("");
   const handoff=useGpuHandoff(session,service,setJob,setError);
   async function readJob(id){
-    const inputAtStart=inputRef.current,selectionAtStart=JSON.stringify(videoSequences.current),imageAtStart=imageSelectionRevision.current;
+    const inputAtStart=inputRef.current,selectionAtStart=JSON.stringify(videoSequences.current),imageAtStart=imageSelectionRevision.current,reviewAtStart=reviewEpoch.current;
     const prefix="/management/assistant/vace-input/"+encodeURIComponent(id)+"/";
     const controller=new AbortController();let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
@@ -99,6 +123,12 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     const response=await fetch(prefix+"request",{cache:"no-store",signal:controller.signal});
     if(!response.ok)throw new Error("저장된 입력 사본을 확인할 수 없습니다.");
     const record=await response.json();
+    const saved=record?.request;
+    if(record?.id!==id || !saved || typeof saved.prompt!=="string" || typeof saved.negative_prompt!=="string" ||
+      !supportedModes.has(saved.mode) || (template && !template.modes.some(mode=>mode.id===saved.mode)) ||
+      ![saved.frames,saved.steps,saved.seed,saved.flow_shift,saved.guidance_scale,saved.reference_strength].every(Number.isFinite) ||
+      !Array.isArray(record.attachments) || record.attachments.some(key=>!["reference","pose_video","edit_video","edit_mask"].includes(key)) || new Set(record.attachments).size!==record.attachments.length)
+      throw new Error("저장된 VACE 입력 형식을 확인할 수 없습니다.");
     const restored={};
     for(const key of record.attachments){
       const attachment=await fetch(prefix+key,{cache:"no-store",signal:controller.signal});
@@ -107,12 +137,13 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       restored[key]=new File([blob],key+(key==="reference"?".png":".mp4"),{type:blob.type});
     }
     const entries=await Promise.all(Object.entries(restored).filter(([key])=>key!=="reference").map(async ([key,file])=>[key,await inspectVideo(file,controller.signal)]));
-    return {...record,files:restored,videoInfo:Object.fromEntries(entries),inputAtStart,selectionAtStart,imageAtStart};
+    return {...record,files:restored,videoInfo:Object.fromEntries(entries),inputAtStart,selectionAtStart,imageAtStart,reviewAtStart};
     }catch(problem){if(timedOut)throw new Error("저장 입력 조회 시간이 초과됐습니다. 다시 확인하세요.");throw problem;}
     finally{clearTimeout(timeout);controller.abort();}
   }
   function restore(request,record){
-    if(record.inputAtStart.values!==inputRef.current.values || record.inputAtStart.files!==inputRef.current.files || record.selectionAtStart!==JSON.stringify(videoSequences.current) || record.imageAtStart!==imageSelectionRevision.current)throw new Error("입력 조회 중 작성 내용이나 첨부가 변경되어 적용하지 않았습니다. 다시 확인하세요.");
+    if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.pending)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
+    if(record.inputAtStart.values!==inputRef.current.values || record.inputAtStart.files!==inputRef.current.files || record.selectionAtStart!==JSON.stringify(videoSequences.current) || record.imageAtStart!==imageSelectionRevision.current)throw new Error("입력 조회 중 작성 내용이나 첨부가 변경되어 적용하지 않았습니다.");
     for(const key of Object.keys(videoSequences.current))videoSequences.current[key]++;
     Object.values(videoControllers.current).forEach(controller=>controller.abort());videoControllers.current={};
     nonLoraSettings.current=null;
@@ -158,6 +189,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     return [key,value==="" || value==null || !Number.isFinite(number) || number<min || number>max || (step===1 && !Number.isInteger(number))];
   }));
   async function review(event){
+    reviewEpoch.current++;
     event.preventDefault();setBusy(true);setError("");
     try{
       const request={...values,action:"generate",width:832,height:480,images:[]};
@@ -194,9 +226,9 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     {error && <p role="alert">{error}</p>}
     {templateError && <p role="alert">{templateError}</p>}
     {!template && !templateError && <p role="status">생성 입력을 불러오는 중입니다.</p>}
-    {!template && templateError && <button type="button" onClick={()=>retryTemplate(value=>value+1)}>생성 입력 다시 불러오기</button>}
+    {!template && templateError && <button ref={templateRetryRef} type="button" onClick={()=>{templateRetryFocus.current=true;retryTemplate(value=>value+1);}}>생성 입력 다시 불러오기</button>}
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service={service} status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
-    {values && <GeneratorSectionCard title="생성 입력" summary={template.modes.find(mode=>mode.id===values.mode)?.label || "설정 확인"} defaultOpen className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending || Boolean(handoff.id)}><legend className="generator-visually-hidden">생성 입력</legend>
+    {template && values && <GeneratorSectionCard title="생성 입력" summary={template.modes.find(mode=>mode.id===values.mode)?.label || "설정 확인"} defaultOpen className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending || Boolean(handoff.id)}><legend className="generator-visually-hidden">생성 입력</legend>
       {sourceJob && <div><p>불러온 원본 작업</p><JobIdentifier id={sourceJob} compact/></div>}
       <div className="vace-input-group"><h2>입력 자료</h2><p className="vace-group-help">생성 방식과 필요한 참조 자료를 선택하세요.</p>
       <label>생성 모드<select value={values.mode} onChange={e=>field("mode",e.target.value)}>{template.modes.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}</select></label>

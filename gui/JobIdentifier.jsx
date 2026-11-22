@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState} from "react";
 
 export default function JobIdentifier({id,compact=false,label="작업 ID"}){
   const [notice,setNotice]=useState("");
-  const valueRef=useRef(null);
+  const valueRef=useRef(null),buttonRef=useRef(null);
   const request=useRef(0),timer=useRef(null);
   const currentId=useRef(id);currentId.current=id;
   useEffect(()=>{request.current++;clearTimeout(timer.current);setNotice("");},[id]);
@@ -14,13 +14,15 @@ export default function JobIdentifier({id,compact=false,label="작업 ID"}){
     catch{
       if(currentId.current!==id || request.current!==sequence)return;
       const value=valueRef.current;
-      value?.focus();
-      if(compact && value){const range=document.createRange();range.selectNodeContents(value);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);}
-      else value?.select();
-      setNotice("ID를 선택했습니다. 복사 단축키를 사용하세요.");
+      if(document.activeElement===document.body || document.activeElement===buttonRef.current){
+        value?.focus();
+        if(compact && value){const range=document.createRange();range.selectNodeContents(value);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);}
+        else value?.select();
+      }
+      setNotice("ID를 선택해 복사 단축키를 사용하세요.");
     }
   }
-  if(compact)return <span className="job-identifier job-identifier-compact"><code ref={valueRef} tabIndex={-1}>{id}</code><button type="button" onClick={copy} aria-label={label+" 복사 · "+id}>복사</button><span role="status">{notice}</span></span>;
+  if(compact)return <span className="job-identifier job-identifier-compact"><code ref={valueRef} tabIndex={-1}>{id}</code><button ref={buttonRef} type="button" onClick={copy} aria-label={label+" 복사 · "+id}>복사</button><span role="status">{notice}</span></span>;
   return <div className="job-identifier"><label>{label}<input ref={valueRef} aria-label={label} type="text" readOnly value={id} onFocus={event=>event.currentTarget.select()}/></label>
-    <button type="button" onClick={copy} aria-label={label+" 복사 · "+id}>ID 복사</button><span role="status">{notice}</span></div>;
+    <button ref={buttonRef} type="button" onClick={copy} aria-label={label+" 복사 · "+id}>ID 복사</button><span role="status">{notice}</span></div>;
 }

@@ -17,6 +17,7 @@ import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import {managementCommand} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
 import {readGenerationProposal,audioProposalInputs} from "./generationProposal.mjs";
 
 export function HeartmulaPage({embedded=false,session=""}={}){return <AudioGeneratorPage music embedded={embedded} session={session}/>;}
@@ -29,8 +30,14 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
   const query=new URLSearchParams(location.search);
   const session=embeddedSession || query.get("session") || "";
   const [form,setForm]=useState(null),[review,setReview]=useState(null);
+  const [inputError,setInputError]=useState(""),[inputRevision,retryInput]=useState(0);
+  const inputRetryRef=useRef(null),inputRetryFocus=useRef(false);
+  const formRef=useRef(form);
+  formRef.current=form;
   const tagCount=form?.prompt?.split(",").filter(tag=>tag.trim()).length || 0;
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[model,setModel]=useState(null);
+  const reviewEpoch=useRef(0),interactionRef=useRef({busy,review});
+  interactionRef.current={busy,review};
   const [job,setJob]=useState(embedded ? "" : query.get("job") || "");
   const [historyRevision,setHistoryRevision]=useState(0);
   const handoff=useGpuHandoff(session,service,setJob,setNotice);
@@ -38,6 +45,11 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
   if(!confirmation.current)confirmation.current=createConfirmationGate();
   const reviewRef=useRef(null),promptRef=useRef(null),prepareRef=useRef(null);
   useEffect(()=>{if(review)reviewRef.current?.focus();},[review]);
+  useEffect(()=>{
+    if(!inputRetryFocus.current || (!form && !inputError))return;
+    inputRetryFocus.current=false;
+    requestAnimationFrame(()=>{if(document.activeElement===document.body)(form ? promptRef.current : inputRetryRef.current)?.focus();});
+  },[form,inputError]);
   function closeReview(){
     const preparing=review?.payload.action==="prepare";
     confirmation.current.cancel();setReview(null);
@@ -45,6 +57,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     requestAnimationFrame(()=> (preparing?prepareRef:promptRef).current?.focus());
   }
   async function readJob(id){
+    const formAtStart=formRef.current,reviewAtStart=reviewEpoch.current;
     const controller=new AbortController();let timedOut=false;
     const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
@@ -55,7 +68,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
       const input=result?.request;
       if(result?.id!==id || !input || typeof input.prompt!=="string" || !Number.isInteger(input.seed) || typeof input.loop_request!=="boolean" || typeof input.tag!=="string" ||
         (music && (typeof input.lyrics!=="string" || !Number.isFinite(input.duration_seconds))))throw new Error("저장된 오디오 입력 형식을 확인할 수 없습니다.");
-      return result;
+      return {...result,formAtStart,reviewAtStart};
     }catch(problem){if(timedOut)throw new Error("저장된 입력 조회 시간이 초과됐습니다.");throw problem;}
     finally{clearTimeout(timer);}
   }
@@ -63,30 +76,41 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     setJob("");setNotice(message);setHistoryRevision(value=>value+1);
   }
   useEffect(()=>{
-    const controller=new AbortController();
+    let active=true;
     if(embedded || !new URLSearchParams(location.search).get("job")){
       managementCommand(service,"active",{}).then(result=>{
-        if(!controller.signal.aborted && result.id)setJob(current=>current || result.id);
-      }).catch(error=>{if(!controller.signal.aborted)setNotice("진행 작업 조회 실패 · "+error.message);});
+        if(active && result.id)setJob(current=>current || result.id);
+      }).catch(error=>{if(active)setNotice("진행 작업 조회 실패 · "+error.message);});
     }
+    return ()=>{active=false;};
+  },[]);
+  useEffect(()=>{
+    const controller=new AbortController();
+    let active=true,timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    setInputError("");
     fetch(formPath,{signal:controller.signal}).then(response=>{
       if(!response.ok)throw new Error("기본 입력을 불러올 수 없습니다.");
       return response.json();
     }).then(async defaults=>{
+      if(!defaults || typeof defaults.prompt!=="string" || !Number.isInteger(defaults.seed) || typeof defaults.loop_request!=="boolean" || typeof defaults.tag!=="string" ||
+        (music && (typeof defaults.lyrics!=="string" || !Number.isFinite(defaults.duration_seconds))))throw new Error("기본 입력 형식을 확인할 수 없습니다.");
+      clearTimeout(timeout);
       const id=query.get('proposal_job');
-      if(!id || embedded){if(!controller.signal.aborted)setForm(defaults);return;}
+      if(!id || embedded){if(!controller.signal.aborted)setForm(current=>current ?? defaults);return;}
       try{
         const offset=query.get('proposal_offset');
         if(!/^\d+$/.test(offset || ''))throw new Error('대화 이력 정보를 확인할 수 없습니다.');
         const proposal=await readGenerationProposal(managementCommand,{session,job:id,snapshot:query.get('proposal_snapshot'),offset:Number(offset),kind:'audio'});
         const inputs=audioProposalInputs(defaults,proposal,service);
-        if(!controller.signal.aborted){setForm(inputs);setNotice('대화 제안 입력을 불러왔습니다. 내용을 검토한 뒤 접수하세요.');}
-      }catch(error){if(!controller.signal.aborted){setForm(defaults);setNotice('대화 제안을 불러오지 못했습니다 · '+error.message);}}
-    }).catch(error=>{if(!controller.signal.aborted)setNotice(error.message);});
-    return ()=>controller.abort();
-  },[]);
+        if(!controller.signal.aborted){setForm(current=>current ?? inputs);setNotice('대화 제안 입력을 불러왔습니다. 내용을 검토한 뒤 접수하세요.');}
+      }catch(error){if(!controller.signal.aborted){setForm(current=>current ?? defaults);setNotice('대화 제안을 불러오지 못했습니다 · '+error.message);}}
+    }).catch(error=>{if(active && (timedOut || !controller.signal.aborted))setInputError(timedOut ? "기본 입력 조회 시간이 초과됐습니다." : requestErrorMessage(error));}).finally(()=>clearTimeout(timeout));
+    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
+  },[inputRevision]);
   function edit(key,value){setForm(current=>({...current,[key]:value}));}
   async function preview(event){
+    reviewEpoch.current++;
     event.preventDefault();setBusy(true);setNotice("");
     try{
       if(music){
@@ -104,6 +128,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     finally{setBusy(false);}
   }
   async function reviewPreparation(){
+    reviewEpoch.current++;
     setNotice("");setBusy(true);
     try{
       if(music){
@@ -133,6 +158,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
       <DownloadProgress service={service}/>
       <button ref={prepareRef} disabled={busy || Boolean(review) || Boolean(handoff.id)} onClick={reviewPreparation}>모델 준비 요청 검토</button>
     </details><ModelReadiness service={service} onStatus={setModel}/><GeneratorChangelog generator={service}/>
+    {!form && (inputError ? <div role="alert">{inputError} <button ref={inputRetryRef} type="button" onClick={()=>{inputRetryFocus.current=true;retryInput(value=>value+1);}}>기본 입력 다시 불러오기</button></div> : <p role="status">기본 입력을 불러오는 중입니다.</p>)}
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service={service} status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
     {music && <fieldset disabled={busy || Boolean(review) || !form}><MusicExamples apply={request=>setForm(current=>({...current,...request}))}/></fieldset>}
     {form && <form onSubmit={preview}><fieldset disabled={busy || Boolean(review) || Boolean(handoff.id)}>
@@ -155,7 +181,9 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
       {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 {music?"음악":"효과음"}을 생성합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
       <GenerationReviewActions busy={busy} onCancel={closeReview} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={review.payload.action==="generate" && !generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/></section>}
     <fieldset className="audio-history-controls" disabled={busy || Boolean(review) || !form}>
-      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={input=>{
+      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={(input,record)=>{
+        if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.review)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
+        if(record.formAtStart!==formRef.current)throw new Error("입력 조회 중 작성 내용이 변경되어 적용하지 않았습니다.");
         setForm(input);setNotice("저장된 생성 입력을 불러왔습니다.");requestAnimationFrame(()=>promptRef.current?.focus());
       }} renderResult={(id,close)=><section aria-label="선택한 오디오 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} service={service} kind="audio" readJob={readJob} onDeleted={cleaned}/></section>}/>
     </fieldset>

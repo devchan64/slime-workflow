@@ -27,7 +27,11 @@ const callHermes=(command,payload)=>managementCommand("hermes-agent","hermes-"+c
 export default function TranslationPage({embedded=false}={}) {
   const query=new URLSearchParams(location.search);
   const [text,setText]=useState(""),[language,setLanguage]=useState("en"),[terms,setTerms]=useState("");
+  const inputRef=useRef({text,language,terms});
+  inputRef.current={text,language,terms};
   const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[model,setModel]=useState(null);
+  const reviewEpoch=useRef(0),reviewRefState=useRef(pending);
+  reviewRefState.current=pending;
   const [modelError,setModelError]=useState("");
   const [termsError,setTermsError]=useState("");
   const termsHelp=useId(),termsErrorId=useId(),termsRef=useRef(null),textRef=useRef(null),reviewRef=useRef(null);
@@ -62,6 +66,7 @@ export default function TranslationPage({embedded=false}={}) {
     read();return()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[job,revision]);
   function review(){
+    reviewEpoch.current++;
     try{
       const glossary=parseTranslationGlossary(terms);
       setPending({text,target_language:language,glossary});setTermsError("");setNotice("");
@@ -77,7 +82,24 @@ export default function TranslationPage({embedded=false}={}) {
     }catch(error){setNotice(requestErrorMessage(error)+" · 이력을 조회해 접수 여부를 확인하세요."+(job ? " 아래 작업은 이전에 선택한 작업입니다." : ""));}
     finally{setPending(null);sending.current=false;setBusy(false);}
   }
-  function restore(input){
+  async function readJob(id){
+    const inputAtStart=inputRef.current,reviewAtStart=reviewEpoch.current;
+    const controller=new AbortController();let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    try{
+      const record=await managementCommand(service,"translation-status",{id},{signal:controller.signal});
+      const input=record?.request;
+      if(record?.id!==id || !input || typeof input.text!=="string" || !["en","zh-CN"].includes(input.target_language) ||
+        (input.glossary!=null && (!Array.isArray(input.glossary) || input.glossary.some(term=>!term || typeof term.source!=="string" || typeof term.target!=="string"))))
+        throw new Error("저장된 번역 입력 형식을 확인할 수 없습니다.");
+      return {...record,inputAtStart,reviewAtStart};
+    }catch(error){if(timedOut)throw new Error("저장 입력 조회 시간이 초과됐습니다. 다시 조회하세요.");throw error;}
+    finally{clearTimeout(timeout);}
+  }
+  function restore(input,record){
+    const before=record.inputAtStart,current=inputRef.current;
+    if(record.reviewAtStart!==reviewEpoch.current || reviewRefState.current)throw new Error("조회 중 번역 요청을 검토해 이력 입력을 적용하지 않았습니다.");
+    if(before.text!==current.text || before.language!==current.language || before.terms!==current.terms)throw new Error("입력 조회 중 작성 내용이 변경되어 적용하지 않았습니다.");
     setText(input.text);setLanguage(input.target_language);
     setTerms((input.glossary||[]).map(term=>term.source+" => "+term.target).join("\n"));setTermsError("");
     setNotice("이력의 번역 입력을 불러왔습니다. 내용을 확인하거나 수정하세요.");
@@ -96,7 +118,7 @@ export default function TranslationPage({embedded=false}={}) {
       {termsError && <p id={termsErrorId} role="alert">{termsError}</p>}
       <p><PromptWordCount text={text} final/></p>
       <TranslationEvidence key={text} source={text} call={callHermes}/>
-      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id){setJob("");setRecord(null);}setNotice(message);setHistoryRevision(v=>v+1);}} key={historyRevision} service={service} statusCommand="translation-status" resultId={job} openResult={id=>{focusResult.current=true;setRecord(null);setJob(id);}} onCloseResult={()=>{setJob("");setRecord(null);}} restore={restore} renderResult={(id,close)=><div ref={resultRef} tabIndex={-1} aria-label="선택한 번역 작업"><button type="button" onClick={close}>결과 닫기</button><SavedGeneratorInputs id={id} service={service} statusCommand="translation-status"/><section ref={!record ? live.ref : undefined}><h2>번역 작업</h2><JobIdentifier id={id}/><RecordFolder key={id} service={service} id={id}/><button onClick={()=>setRevision(v=>v+1)}>상태 갱신</button>
+      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id){setJob("");setRecord(null);}setNotice(message);setHistoryRevision(v=>v+1);}} key={historyRevision} service={service} statusCommand="translation-status" readJob={readJob} resultId={job} openResult={id=>{focusResult.current=true;setRecord(null);setJob(id);}} onCloseResult={()=>{setJob("");setRecord(null);}} restore={restore} renderResult={(id,close)=><div ref={resultRef} tabIndex={-1} aria-label="선택한 번역 작업"><button type="button" onClick={close}>결과 닫기</button><SavedGeneratorInputs id={id} service={service} statusCommand="translation-status"/><section ref={!record ? live.ref : undefined}><h2>번역 작업</h2><JobIdentifier id={id}/><RecordFolder key={id} service={service} id={id}/><button onClick={()=>setRevision(v=>v+1)}>상태 갱신</button>
         {statusCheckedAt && <p>마지막 조회 성공 · <time dateTime={statusCheckedAt.toISOString()}>{statusCheckedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></p>}
         {statusError && <p role="alert">번역 작업 상태를 불러오지 못했습니다. {statusError}{record?.id===id && " 아래 내용은 마지막으로 조회한 결과입니다."}{statusFailedAt && <> 조회 실패 시각 · <time dateTime={statusFailedAt.toISOString()}>{statusFailedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></>}</p>}
         {record?.id===id && <><p><JobStatus state={record.status.status}/> {record.status.error}</p><GenerationProgress job={{status:record.status.status}} live={live} supportsProgress={false}/><GeneratorJobControls showActions={false} key={id+"/"+record.status.status} service={service} id={id} state={record.status.status} refresh={()=>setRevision(value=>value+1)}/>{record.result && <TranslationResult key={id} job={id} text={record.result.text}/>}</>}

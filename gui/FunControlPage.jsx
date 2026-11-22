@@ -33,11 +33,13 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   const [template,setTemplate]=useState(null),[selected,select]=useState("");
   const [templateRetry,retryTemplate]=useState(0);
   const [templateError,setTemplateError]=useState("");
+  const templateRetryRef=useRef(null),templateRetryFocus=useRef(false);
   const [request,setRequest]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
   const requestRef=useRef(request);requestRef.current=request;
   const attachmentRevision=useRef(0);
   const [loadingInput,setLoadingInput]=useState(false);
   const [pending,setPending]=useState(null),[job,setJob]=useState(embedded ? "" : new URLSearchParams(location.search).get("job") || "");
+  const reviewEpoch=useRef(0),interactionRef=useRef({busy,pending});interactionRef.current={busy,pending};
   const [model,setModel]=useState(null);
   const modelReason=(model?.generation_ready ?? model?.ready) ? "" : model ? "모델 준비가 필요합니다. 모델 상태에서 준비 절차를 확인하세요." : "모델 준비 상태를 확인해야 접수할 수 있습니다.";
   const [videoInfo,setVideoInfo]=useState(null);
@@ -51,7 +53,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   const [handoffReview,setHandoffReview]=useState(null),[handoffId,setHandoffId]=useState(()=>handoffKey ? sessionStorage.getItem(handoffKey) || "" : ""),[handoffStatus,setHandoffStatus]=useState(null);
   useEffect(()=>{if(!handoffId)return;let active=true;managementCommand("hermes-agent","hermes-gpu-handoff-status",{session_id:session,request_id:handoffId}).then(value=>{if(active){validateGpuHandoffStatus(value,session,handoffId,service);setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}).catch(problem=>{if(active)setError(problem.message);});return()=>{active=false;};},[]);
   async function readJob(id){
-    const inputAtStart=requestRef.current,attachmentAtStart=attachmentRevision.current;
+    const inputAtStart=requestRef.current,attachmentAtStart=attachmentRevision.current,reviewAtStart=reviewEpoch.current;
     const controller=new AbortController();let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
@@ -60,12 +62,13 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
       let record;try{record=await response.json();}catch(error){if(timedOut)throw error;throw new Error("저장된 입력 형식을 확인할 수 없습니다.");}
       if(!validFunInput(record,id,{saved:true}))throw new Error("저장된 입력 형식을 확인할 수 없습니다.");
       const {images,pose_video,...settings}=record.request;
-      return {...record,request:settings,attachments:{images,pose_video},inputAtStart,attachmentAtStart};
+      return {...record,request:settings,attachments:{images,pose_video},inputAtStart,attachmentAtStart,reviewAtStart};
     }catch(error){if(timedOut)throw new Error("저장 입력 조회 시간이 초과됐습니다. 다시 조회하세요.");throw error;}
     finally{clearTimeout(timeout);}
   }
   function restore(settings,record){
-    if(record.inputAtStart!==requestRef.current || record.attachmentAtStart!==attachmentRevision.current)throw new Error("입력 조회 중 작성 내용이 변경되어 적용하지 않았습니다. 다시 확인하세요.");
+    if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.pending)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
+    if(record.inputAtStart!==requestRef.current || record.attachmentAtStart!==attachmentRevision.current)throw new Error("입력 조회 중 작성 내용이 변경되어 적용하지 않았습니다.");
     setRequest({...settings,...record.attachments});setVideoInfo(record.video);setSourceSeed(Number(settings.seed));setSourceJob(record.id);
     setNotice(record.id+" 입력을 복원했습니다.");requestAnimationFrame(()=>formRef.current?.focus());
   }
@@ -74,7 +77,11 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   const poseInspection=useRef(null),inputLoading=useRef(null);
   useEffect(()=>()=>{poseInspection.current?.abort();inputLoading.current?.abort();},[]);
   useEffect(()=>{if(pending)reviewRef.current?.focus();},[pending]);
-  useEffect(()=>{if(template && templateRetry>0 && document.activeElement===document.body)formRef.current?.focus();},[template,templateRetry]);
+  useEffect(()=>{
+    if(!templateRetryFocus.current || (!template && !templateError))return;
+    templateRetryFocus.current=false;
+    requestAnimationFrame(()=>{if(document.activeElement===document.body)(template ? formRef.current : templateRetryRef.current)?.focus();});
+  },[template,templateError]);
   const saveAttempt=useRef(null);
   async function saveForm(value=request){
     value={...value,...Object.fromEntries(["frames","steps","seed","flow_shift","guidance_scale","switch_ratio"].map(key=>[key,Number(value[key])]))};
@@ -114,10 +121,18 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   }
   useEffect(()=>{
     const controller=new AbortController();
+    let active=true,timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setTemplateError("");
     fetch("/management/assistant/fun-template",{signal:controller.signal}).then(async response=>{
       if(!response.ok)throw new Error("예제 목록 조회 실패");
       const data=await response.json();
+      if(!data || !data.defaults || ![data.defaults.frames,data.defaults.steps,data.defaults.seed,data.defaults.flow_shift,data.defaults.guidance_scale,data.defaults.switch_ratio].every(Number.isFinite) ||
+        !Number.isInteger(data.maximum_frames) || data.maximum_frames<5 || !Number.isInteger(data.maximum_seed) || data.maximum_seed<0 ||
+        !Array.isArray(data.models) || !data.models.length || data.models.some(item=>!item || typeof item.id!=="string" || typeof item.label!=="string") ||
+        !data.models.some(item=>item.id===data.defaults.model_profile) ||
+        !Array.isArray(data.examples) || data.examples.some(item=>!item || typeof item.id!=="string" || typeof item.label!=="string"))throw new Error("생성 입력 설정 형식을 확인할 수 없습니다.");
+      clearTimeout(timeout);
       let initial={...data.defaults,action:"generate",control_type:"pose",width:832,height:480,images:[],pose_video:"",prompt:"",negative_prompt:""};
       if(!embedded){
         try{
@@ -125,9 +140,9 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
           if(scope){initial=funProposalInputs(initial,await readGenerationProposal(managementCommand,scope));if(!controller.signal.aborted)setNotice('대화 제안을 불러왔습니다. 참조 이미지와 처리된 포즈 영상을 선택하세요.');}
         }catch(problem){if(!controller.signal.aborted)setError('대화 제안을 불러오지 못했습니다 · '+problem.message);}
       }
-      if(!controller.signal.aborted){setTemplate(data);setRequest(initial);select(data.examples[0]?.id || "");}
-    }).catch(problem=>{if(!controller.signal.aborted)setTemplateError(requestErrorMessage(problem));});
-    return ()=>controller.abort();
+      if(!controller.signal.aborted){setTemplate(data);setRequest(current=>current ?? initial);select(data.examples[0]?.id || "");}
+    }).catch(problem=>{if(active && (timedOut || !controller.signal.aborted))setTemplateError(timedOut ? "생성 입력 조회 시간이 초과됐습니다." : requestErrorMessage(problem));}).finally(()=>clearTimeout(timeout));
+    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[templateRetry]);
   useEffect(()=>{
     if(!embedded || !session || !restoreFormId || !template)return;
@@ -202,6 +217,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     ["switch_ratio","모델 전환 비율",0.1,0.9,"any"],
   ];
   async function review(event){
+    reviewEpoch.current++;
     event.preventDefault();
     const values=Object.fromEntries(settings.map(([key])=>[key,Number(request[key])]));
     const reviewed={...request,...values};setBusy(true);setError("");setHandoffReview(null);
@@ -232,7 +248,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
       generator="wan22-fun-control-generator" service={service} model={model} onStatus={setModel} embedded={embedded}/>
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service={service} status={handoffStatus} onUpdate={value=>{setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}
       onClose={()=>{sessionStorage.removeItem(handoffKey);setHandoffId("");setHandoffStatus(null);}}/>}
-    {request && <form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review} onInvalid={event=>{const details=event.target.closest("details");if(details)details.open=true;}}><fieldset disabled={busy || !!pending || Boolean(handoffId)}><legend>생성 입력</legend>
+    {template && request && <form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review} onInvalid={event=>{const details=event.target.closest("details");if(details)details.open=true;}}><fieldset disabled={busy || !!pending || Boolean(handoffId)}><legend>생성 입력</legend>
     <fieldset className="fun-source" disabled={busy || !!pending || !template}><legend>원본 작업</legend>
       {loadingInput && <p role="status">입력을 불러오고 있습니다. 현재 입력은 유지됩니다.</p>}
       {sourceJob ? <><p>불러온 원본 작업</p><JobIdentifier id={sourceJob} compact/></> : <p>선택된 원본 작업이 없습니다.</p>}
@@ -260,7 +276,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     {error && <p role="alert">{error}</p>}
     {templateError && <p role="alert">{templateError}</p>}
     {!template && !templateError && <p role="status">생성 입력을 불러오는 중입니다.</p>}
-    {!template && templateError && <button type="button" onClick={()=>retryTemplate(value=>value+1)}>생성 입력 다시 불러오기</button>}
+    {!template && templateError && <button ref={templateRetryRef} type="button" onClick={()=>{templateRetryFocus.current=true;retryTemplate(value=>value+1);}}>생성 입력 다시 불러오기</button>}
     {notice && <p role="status">{notice}</p>}
     <fieldset className="fun-history" aria-label="작업 이력" disabled={busy || !!pending}>
       <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id)setJob("");if(sourceJob===id)setSourceJob("");setNotice(message);}} key={historyRevision} service={service} readJob={readJob} restore={restore} renderResult={renderResult}/>

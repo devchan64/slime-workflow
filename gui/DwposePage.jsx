@@ -34,6 +34,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
   const inputRef=useRef({file,hands,face});inputRef.current={file,hands,face};
   const imageSelectionRevision=useRef(0);
   const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[model,setModel]=useState(null);
+  const reviewEpoch=useRef(0),interactionRef=useRef({busy,pending});interactionRef.current={busy,pending};
   const [job,setJob]=useState(embedded ? "" : query.get("job") || ""),[notice,setNotice]=useState("");
   const [historyRevision,setHistoryRevision]=useState(0);
   const handoff=useGpuHandoff(session,"dwpose",setJob,setNotice);
@@ -49,7 +50,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
   }
   const sending=useRef(false);
   async function readJob(id){
-    const inputAtStart=inputRef.current,imageAtStart=imageSelectionRevision.current;
+    const inputAtStart=inputRef.current,imageAtStart=imageSelectionRevision.current,reviewAtStart=reviewEpoch.current;
     const controller=new AbortController();let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
@@ -57,7 +58,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
     if(!response.ok)throw new Error("저장된 DWPose 입력을 불러올 수 없습니다.");
     const blob=await response.blob();
     const savedFile=new File([blob],id+"-reference.png",{type:"image/png"});
-    return {id,file:savedFile,inputAtStart,imageAtStart,request:{
+    return {id,file:savedFile,inputAtStart,imageAtStart,reviewAtStart,request:{
       pose_include_hands:response.headers.get("X-Pose-Hands")==="true",
       pose_include_face:response.headers.get("X-Pose-Face")==="true",
     }};
@@ -65,13 +66,15 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
     finally{clearTimeout(timeout);}
   }
   function restore(request,record){
+    if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.pending)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
     const current=inputRef.current,previous=record.inputAtStart;
-    if(previous.file!==current.file || previous.hands!==current.hands || previous.face!==current.face || record.imageAtStart!==imageSelectionRevision.current)throw new Error("입력 조회 중 이미지나 옵션이 변경되어 적용하지 않았습니다. 다시 확인하세요.");
+    if(previous.file!==current.file || previous.hands!==current.hands || previous.face!==current.face || record.imageAtStart!==imageSelectionRevision.current)throw new Error("입력 조회 중 이미지나 옵션이 변경되어 적용하지 않았습니다.");
     setFile(record.file);setHands(request.pose_include_hands);setFace(request.pose_include_face);
     setNotice("저장된 PNG와 포즈 옵션을 불러왔습니다.");
     requestAnimationFrame(()=>handsRef.current?.focus());
   }
   async function review(){
+    reviewEpoch.current++;
     setBusy(true);setNotice("");
     try {
       const request={action:"generate",images:[await pngData(file)],pose_include_hands:hands,pose_include_face:face};

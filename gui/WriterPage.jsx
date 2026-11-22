@@ -23,6 +23,7 @@ export default function WriterPage({embedded=false,session:embeddedSession=""}={
   const [searchedQuery,setSearchedQuery]=useState("");
   const [busy,setBusy]=useState(false);
   const [notice,setNotice]=useState("");
+  const [proposalError,setProposalError]=useState("");
   const [proposal,setProposal]=useState(null),[proposalScope,setProposalScope]=useState(null),[proposalLoading,setProposalLoading]=useState(!embedded && params.has('proposal_job'));
   useEffect(()=>{
     if(embedded || !params.has('proposal_job'))return;
@@ -32,7 +33,7 @@ export default function WriterPage({embedded=false,session:embeddedSession=""}={
       const value=await readGenerationProposal(managementCommand,scope);
       if(!['write','deduplicate','learn','prepare'].includes(value.mode))throw new Error('작가 작업 종류를 확인할 수 없습니다.');
       if(active){setProposal(value);setProposalScope({...scope,proposal:value});setNotice('대화 제안 입력을 불러왔습니다. 작업을 확인한 뒤 요청하세요.');}
-    }catch(problem){if(active)setNotice('대화 제안을 불러오지 못했습니다 · '+requestErrorMessage(problem));}
+    }catch(problem){if(active)setProposalError('대화 제안을 불러오지 못했습니다 · '+requestErrorMessage(problem));}
     finally{if(active)setProposalLoading(false);}}
     load();return()=>{active=false;};
   },[]);
@@ -58,6 +59,7 @@ export default function WriterPage({embedded=false,session:embeddedSession=""}={
   return <main className="writer-page-shell"><article className="writer-page"><a href={"/management/frame/hermes-agent/"+(params.has("session")?"?"+new URLSearchParams({session:params.get("session")}):"")}>헤르메스 대화로 돌아가기</a>
     <h1 className={embedded ? "embedded-page-title" : undefined}>작가 AI 에이전트</h1><GeneratorChangelog generator="writer-agent"/>
     {embedded ? <details><summary>모델 준비 및 다운로드</summary><ModelReadiness service="writer-agent"/><DownloadProgress service="writer-agent"/></details> : <><ModelReadiness service="writer-agent"/><DownloadProgress service="writer-agent"/></>}
+    {proposalError && <p role="alert">{proposalError} · 기본 입력으로 계속할 수 있습니다.</p>}
     {proposalLoading ? <p role="status">대화 제안 확인 중…</p> : <WriterActions session={session} proposalScope={proposalScope} initialPrompt={proposal?.prompt || ""} proposedMode={proposal?.mode || ""} onWorkspace={setRecent} onAccepted={id=>{resultTrigger.current=null;select(id);setMatches(null);setNotice(id+" 작업을 접수했습니다.");}}/>}
     <form onSubmit={event=>{event.preventDefault();search();}}><label>이력 검색<input maxLength={200} value={query} disabled={busy} onChange={event=>setQuery(event.target.value)}/></label>
       <button disabled={busy}>{query.trim()?"이력 검색":"전체 이력 검색"}</button></form>

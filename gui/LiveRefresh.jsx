@@ -8,13 +8,14 @@ export function useLiveRefresh(refresh,active=true){
   callback.current=refresh;
   const ref=useCallback(node=>setElement(node),[]);
   useEffect(()=>{
+    setVisible(false);
     if(!element)return;
-    let intersecting=false;
-    const update=()=>setVisible(intersecting && document.visibilityState==="visible");
+    let intersecting=false,active=true;
+    const update=()=>{if(active)setVisible(intersecting && document.visibilityState==="visible");};
     const observer=new IntersectionObserver(entries=>{intersecting=entries[0]?.isIntersecting || false;update();});
     observer.observe(element);
     document.addEventListener("visibilitychange",update);
-    return ()=>{observer.disconnect();document.removeEventListener("visibilitychange",update);};
+    return ()=>{active=false;observer.disconnect();document.removeEventListener("visibilitychange",update);};
   },[element]);
   useEffect(()=>{
     if(!enabled || !visible || !active)return;

@@ -28,6 +28,8 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
   const referenceOrderHelpId=useId();
   const service=serviceOverride || location.pathname.match(/\/management\/frame\/(flux-[a-z]+)-generator/)?.[1] || "flux-image";
   const [profile,setProfile]=useState(null),[attempt,setAttempt]=useState(0);
+  const [profileError,setProfileError]=useState("");
+  const profileRetryRef=useRef(null),profileRetryFocus=useRef(false);
   usePageTitle(profile?.label ? "FLUX 이미지 생성 · "+profile.label : "FLUX 이미지 생성",embedded);
   const seamless=service==="flux-seamless";
   const query=new URLSearchParams(location.search);
@@ -37,9 +39,15 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
   const inputRef=useRef({form,files});inputRef.current={form,files};
   const imageSelectionRevision=useRef(0);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[model,setModel]=useState(null);
+  const reviewEpoch=useRef(0),interactionRef=useRef({busy,review});interactionRef.current={busy,review};
   const [job,setJob]=useState(embedded ? "" : query.get("job") || "");
   const [guideQuery,setGuideQuery]=useState(""),[guidePage,setGuidePage]=useState(0),[pageSize,setPageSize]=useState(8);
   const guideSearchRef=useRef(null),inputFormRef=useRef(null);
+  useEffect(()=>{
+    if(!profileRetryFocus.current || (!profile && !profileError))return;
+    profileRetryFocus.current=false;
+    requestAnimationFrame(()=>{if(document.activeElement===document.body)(profile ? inputFormRef.current : profileRetryRef.current)?.focus();});
+  },[profile,profileError]);
   const [selectedGuide,setSelectedGuide]=useState(""),[guideNotice,setGuideNotice]=useState("");
   useEffect(()=>{setGuideNotice("");},[selectedGuide]);
   const [stage,setStage]=useState("");
@@ -87,21 +95,30 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
   useEffect(()=>{if(handoffId)refreshHandoff(handoffId).catch(()=>setNotice("GPU 양도 상태를 확인할 수 없습니다. 다시 확인하세요."));},[]);
   useEffect(()=>{
     const controller=new AbortController();
+    let active=true,timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     async function load(){
+      setProfileError("");
       try{
         const response=await fetch("/management/assistant/flux-defaults/"+service,{signal:controller.signal});
         if(!response.ok)throw new Error("생성기 기본 입력을 불러올 수 없습니다.");
         const defaults=await response.json();
+        if(!defaults || typeof defaults.label!=="string" || typeof defaults.prompt!=="string" ||
+          ![defaults.width,defaults.height,defaults.minimum].every(Number.isInteger) ||
+          ["guides","stages","expressions"].some(key=>defaults[key]!=null && (!Array.isArray(defaults[key]) || defaults[key].some(item=>!item || typeof item.id!=="string" || typeof item.label!=="string" || (key==="expressions" && typeof item.text!=="string")))) ||
+          (defaults.layouts!=null && (!Array.isArray(defaults.layouts) || defaults.layouts.some(item=>typeof item!=="string"))))throw new Error("생성기 기본 입력 형식을 확인할 수 없습니다.");
+        if(controller.signal.aborted)return;
         setForm(current=>({...current,prompt:defaults.prompt,width:defaults.width,height:defaults.height,...(initialInputs || {})}));
         setStage(defaults.stages?.[0]?.id || "");
         setLayout(defaults.layouts?.[0] || "");setSubject(defaults.subject || "");
-        setProfile(defaults);setNotice("");
-      }catch(error){if(!controller.signal.aborted)setNotice(error.message);}
+        setProfile(defaults);
+      }catch(error){if(active && (timedOut || !controller.signal.aborted))setProfileError(timedOut ? "생성기 기본 입력 조회 시간이 초과됐습니다." : error.message);}
+      finally{clearTimeout(timeout);}
     }
-    load();return ()=>controller.abort();
+    load();return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[service,attempt]);
   async function readJob(id){
-    const inputAtStart=inputRef.current,imageAtStart=imageSelectionRevision.current;
+    const inputAtStart=inputRef.current,imageAtStart=imageSelectionRevision.current,reviewAtStart=reviewEpoch.current;
     const controller=new AbortController();let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
@@ -109,12 +126,13 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
     const record=await response.json();
     if(!response.ok)throw new Error(record.detail || "저장된 입력을 확인할 수 없습니다.");
     const files=record.images.map((encoded,index)=>pngFile(encoded,"reference-"+(index+1)+".png"));
-    return {id:record.id,request:record.request,files,inputAtStart,imageAtStart};
+    return {id:record.id,request:record.request,files,inputAtStart,imageAtStart,reviewAtStart};
     }catch(error){if(timedOut)throw new Error("저장 입력 조회 시간이 초과됐습니다. 다시 조회하세요.");throw error;}
     finally{clearTimeout(timeout);}
   }
   function restore(input,record){
-    if(record.inputAtStart.form!==inputRef.current.form || record.inputAtStart.files!==inputRef.current.files || record.imageAtStart!==imageSelectionRevision.current)throw new Error("입력 조회 중 작성 내용이나 참조 이미지가 변경되어 적용하지 않았습니다. 다시 확인하세요.");
+    if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.review)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
+    if(record.inputAtStart.form!==inputRef.current.form || record.inputAtStart.files!==inputRef.current.files || record.imageAtStart!==imageSelectionRevision.current)throw new Error("입력 조회 중 작성 내용이나 참조 이미지가 변경되어 적용하지 않았습니다.");
     setForm(seamless?{...input,width:512,height:512}:input);setFiles(seamless?[]:record.files);
     setNotice(seamless?"프롬프트와 시드를 복원했습니다. 새 타일은 512×512 무참조로 생성합니다.":"선택한 이력의 입력과 참조 이미지를 불러왔습니다.");
     requestAnimationFrame(()=>inputFormRef.current?.focus());
@@ -170,6 +188,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
     finally{setBusy(false);}
   }
   async function preview(event){
+    reviewEpoch.current++;
     event.preventDefault();setNotice("");setBusy(true);
     try{
       if(receiptScope)await verifyFluxProposal(managementCommand,receiptScope,receiptScope.proposal);
@@ -230,7 +249,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
   return <article className={"flux-page"+(embedded ? "" : " flux-standalone")}><a href={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화</a>
     <h1 className={embedded ? "embedded-page-title" : undefined}>FLUX 이미지 생성 · {profile?.label}</h1><GeneratorChangelog generator={service+"-generator"}/>{embedded ? <details><summary>모델 상태 · {model ? (fluxModelReady(model) ? "준비 완료" : "준비 필요") : "확인 필요"}</summary><ModelReadiness service={service} onStatus={setModel}/></details> : <ModelReadiness service={service} onStatus={setModel}/>}
     {profile && <p>{profile.description}</p>}
-    {!profile && notice && <button onClick={()=>setAttempt(current=>current+1)}>기본 입력 다시 불러오기</button>}
+    {!profile && (profileError ? <div role="alert">{profileError} <button ref={profileRetryRef} type="button" onClick={()=>{profileRetryFocus.current=true;setAttempt(current=>current+1);}}>기본 입력 다시 불러오기</button></div> : <p role="status">기본 입력을 불러오는 중입니다.</p>)}
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service={service} status={handoffStatus} onUpdate={value=>{setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}
       onClose={receiptKey && handoffStatus?.state!=="withdrawn" ? undefined : ()=>{sessionStorage.removeItem(handoffKey);setHandoffId("");setHandoffStatus(null);if(receiptKey){setReceiptState("unknown");setReceiptNotice("이 제안의 양도 요청은 철회됐습니다. 새 작업은 생성기 화면에서 요청하세요.");}}}/>}
     {receiptKey && receiptState!=="editing" && <section aria-label="FLUX 제안 접수 상태"><p>접수 ID · {receiptState==="accepted"?"접수 확인됨":receiptState==="rejected"?"접수 거절됨":receiptState==="checking"?"확인 중":"확인 필요"}</p>{receipt ? <JobIdentifier id={receipt} label="접수 ID" compact/> : <p>확인 불가</p>}{receiptState==="accepted" && receiptJob && <div><p>접수 작업</p><JobIdentifier id={receiptJob} compact/> <button type="button" onClick={()=>setJob(receiptJob)}>이 작업 결과 조회</button></div>}{receiptNotice && <p role="status">{receiptNotice}</p>}<p>같은 제안은 중복 접수를 막기 위해 다시 제출할 수 없습니다. 다른 작업은 생성기 화면에서 새로 요청하세요.</p><button type="button" disabled={busy || receiptState==="checking"} onClick={refreshReceipt}>접수 상태 다시 확인</button></section>}

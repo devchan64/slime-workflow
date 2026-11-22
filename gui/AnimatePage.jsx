@@ -30,6 +30,11 @@ export default function AnimatePage({embedded=false}={}){
   const [job,setJob]=useState(embedded ? "" : query.get("job") || "");
   const [saved,setSaved]=useState(null);
   const inputRef=useRef(null);
+  const inputRevision=useRef(0);
+  async function readHistory(id){
+    const revisionAtStart=inputRevision.current;
+    return {...await readJob(id),revisionAtStart};
+  }
   const [historyRevision,refreshHistory]=useState(0);
   const [notice,setNotice]=useState("");
   function cleaned(message){setSaved(null);setJob("");refreshHistory(n=>n+1);setNotice(message);}
@@ -37,9 +42,9 @@ export default function AnimatePage({embedded=false}={}){
     <h1 className={embedded ? "embedded-page-title" : undefined}>Wan Animate-2 캐릭터 동작 전사</h1>
     <p>시스템 RAM과 GPU 메모리 부족으로 신규 생성과 재개를 보류합니다. 기존 작업의 참조와 결과 영상을 검수할 수 있습니다.</p>
     <GeneratorChangelog generator="wan22-animate2-generator"/><ModelReadiness service={service} manage/><DownloadProgress service={service}/>
-    <section ref={inputRef} tabIndex={-1} aria-label="동작 전사 입력"><AnimateInputs saved={saved}/></section>
-    <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} service={service} readJob={readJob}
-      restore={(request,record)=>{setSaved(record);requestAnimationFrame(()=>inputRef.current?.focus());}}
+    <section ref={inputRef} tabIndex={-1} aria-label="동작 전사 입력" onChangeCapture={()=>{inputRevision.current++;}}><AnimateInputs saved={saved} onSelectionStart={()=>{inputRevision.current++;}}/></section>
+    <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} service={service} readJob={readHistory}
+      restore={(request,record)=>{if(record.revisionAtStart!==inputRevision.current)throw new Error("입력 조회 중 작성 내용이나 첨부가 변경되어 적용하지 않았습니다.");setSaved(record);requestAnimationFrame(()=>inputRef.current?.focus());}}
       renderResult={(id,close)=><section aria-label="선택한 Animate-2 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} service={service} readJob={readJob} controls={false} onDeleted={cleaned}/></section>}/>
     <GeneratorJobResult selectionControls job="" service={service} onDeleted={cleaned}/>
     {notice && <p role="status">{notice}</p>}

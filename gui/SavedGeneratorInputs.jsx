@@ -14,13 +14,15 @@ export default function SavedGeneratorInputs({id,readJob,service,statusCommand})
     requestAnimationFrame(()=>{if(document.activeElement===document.body && resultRef.current?.isConnected)resultRef.current.focus();});
   },[state,id]);
   useEffect(()=>{
-    let active=true;setState({id,loading:true});
+    let active=true,timedOut=false;const controller=new AbortController();
+    const timeout=reader.current ? null : setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    setState({id,loading:true});
     (async()=>{try{
-      const result=reader.current ? await reader.current(id) : await managementCommand(service,statusCommand,{id});
+      const result=reader.current ? await reader.current(id) : await managementCommand(service,statusCommand,{id},{signal:controller.signal});
       if(result?.id!==id || !result.request || typeof result.request!=='object')throw new Error('저장 입력이 선택한 작업과 일치하지 않습니다.');
       if(active)setState({id,request:result.request});
-    }catch(error){if(active)setState({id,error:requestErrorMessage(error)});}})();
-    return ()=>{active=false;};
+    }catch(error){if(active)setState({id,error:timedOut?'조회 시간이 초과됐습니다.':requestErrorMessage(error)});}finally{clearTimeout(timeout);}})();
+    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[id,service,statusCommand,revision]);
   if(state.id!==id || state.loading)return <p role="status">저장 입력을 불러오는 중입니다.</p>;
   if(state.error)return <p ref={resultRef} tabIndex={-1} role="alert">저장 입력 조회 실패 · {state.error} <button type="button" onClick={()=>{restoreFocus.current=true;retry(n=>n+1);}}>입력 정보 다시 조회</button></p>;

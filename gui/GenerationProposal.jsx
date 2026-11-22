@@ -1,4 +1,4 @@
-import React,{useState} from 'react';
+import React,{useRef,useState} from 'react';
 import {managementCommand} from './managementCommand.js';
 import {readGenerationProposal} from './generationProposal.mjs';
 
@@ -19,6 +19,7 @@ export function GenerationProposalReview({kind,proposal,session,job,snapshot,off
 }
 export default function GenerationProposal({session,job,snapshot,offset,kind}){
   const [proposal,setProposal]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  async function inspect(){setBusy(true);setError('');setProposal(null);try{setProposal(await readGenerationProposal(managementCommand,{session,job,snapshot,offset,kind}));}catch(problem){setError(problem.message);}finally{setBusy(false);}}
-  return <section aria-label={names[kind]+' 제안'}><button type="button" disabled={busy} onClick={inspect}>{names[kind]} 제안 확인</button>{error && <p role="alert">{error}</p>}{proposal && <GenerationProposalReview kind={kind} proposal={proposal} session={session} job={job} snapshot={snapshot} offset={offset}/>}</section>;
+  const buttonRef=useRef(null);
+  async function inspect(){setBusy(true);setError('');setProposal(null);try{setProposal(await readGenerationProposal(managementCommand,{session,job,snapshot,offset,kind}));}catch(problem){setError(problem.message);}finally{setBusy(false);requestAnimationFrame(()=>{if(document.activeElement===document.body && buttonRef.current?.isConnected && !buttonRef.current.disabled)buttonRef.current.focus();});}}
+  return <section aria-label={names[kind]+' 제안'}><button ref={buttonRef} type="button" disabled={busy} onClick={inspect}>{names[kind]} 제안 확인</button>{error && <p role="alert">{error}</p>}{proposal && <GenerationProposalReview kind={kind} proposal={proposal} session={session} job={job} snapshot={snapshot} offset={offset}/>}</section>;
 }

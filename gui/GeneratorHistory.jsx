@@ -62,35 +62,41 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
     if(detailsRef.current)detailsRef.current.open=true;
     const visible=page?.records.find(record=>record.id===resultId);
     if(visible){setSelected(visible);setResultLookup({id:resultId});return;}
-    let active=true;
+    let active=true,timedOut=false;
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setResultLookup({id:resultId,loading:true});
     (async()=>{
       try{
         let result;
         for(let attempt=0;attempt<3;attempt++){
-          try{result=await managementCommand(service,'history-observe',{limit:30,offset:0,query:resultId});break;}
-          catch(problem){if(attempt===2 || !requestErrorMessage(problem).includes('이력 조회가 이미 진행 중'))throw problem;await new Promise(resolve=>setTimeout(resolve,1000));if(!active)return;}
+          try{result=await managementCommand(service,'history-observe',{limit:30,offset:0,query:resultId},{signal:controller.signal});break;}
+          catch(problem){if(controller.signal.aborted || attempt===2 || !requestErrorMessage(problem).includes('이력 조회가 이미 진행 중'))throw problem;await new Promise(resolve=>setTimeout(resolve,1000));if(!active)return;}
         }
         if(!validHistoryPage(result,0))throw new Error('이력 응답을 확인할 수 없습니다.');
         if(!active)return;
         const match=result.records.find(record=>record.id===resultId);
         if(!match){setResultLookup({id:resultId,error:'이력에서 해당 작업을 찾지 못했습니다. 작업 결과를 직접 확인합니다.'});return;}
         setPage(result);setQuery(resultId);setFilter(resultId);setSelected(match);setJob(null);setResultLookup({id:resultId});
-      }catch(problem){if(active)setResultLookup({id:resultId,error:'이력 조회 실패 · '+requestErrorMessage(problem)+' · 작업 결과를 직접 확인합니다.'});}
+      }catch(problem){if(active)setResultLookup({id:resultId,error:'이력 조회 실패 · '+(timedOut?'조회 시간이 초과됐습니다.':requestErrorMessage(problem))+' · 작업 결과를 직접 확인합니다.'});}
+      finally{clearTimeout(timeout);}
     })();
-    return ()=>{active=false;};
+    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[resultId,service,lookupRevision]);
   useEffect(()=>{
     setSummaries({});setSummaryNotice("");
     if(!page?.records.length)return;
     const controller=new AbortController();
+    let timedOut=false,active=true;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     const ids=page.records.map(record=>record.id).filter(id=>/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(id));
-    if(!ids.length)return ()=>controller.abort();
+    if(!ids.length){clearTimeout(timeout);return ()=>controller.abort();}
     fetch("/management/history-summaries",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({service,ids}),signal:controller.signal})
       .then(response=>{if(!response.ok)throw new Error();return response.json();})
       .then(result=>{if(!result.summaries || typeof result.summaries!=="object" || Array.isArray(result.summaries))throw new Error();if(!controller.signal.aborted){setSummaries(result.summaries);if(ids.some(id=>!Object.hasOwn(result.summaries,id)))setSummaryNotice("일부 저장 입력 요약을 확인할 수 없습니다. 작업을 선택해 입력을 확인하세요.");}})
-      .catch(()=>{if(!controller.signal.aborted)setSummaryNotice("저장 입력 요약을 불러오지 못했습니다. 이력을 새로고침하거나 작업을 선택해 입력을 확인하세요.");});
-    return ()=>controller.abort();
+      .catch(()=>{if(active && (timedOut || !controller.signal.aborted))setSummaryNotice("저장 입력 요약을 불러오지 못했습니다. 이력을 새로고침하거나 작업을 선택해 입력을 확인하세요.");})
+      .finally(()=>clearTimeout(timeout));
+    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[page,service]);
   async function perform(operation, scope="history") {
     if(pending.current)return;
@@ -112,8 +118,10 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
     if(search && !/^[A-Za-z0-9_-]+$/.test(search))throw new Error("작업 ID 검색에는 영문, 숫자, 하이픈(-), 밑줄(_)만 사용할 수 있습니다.");
     const payload={limit:size,offset,query:search};
     if(offset)payload.snapshot=page.snapshot;
+    const controller=new AbortController();let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try {
-      const result=await managementCommand(service,"history-observe",payload);
+      const result=await managementCommand(service,"history-observe",payload,{signal:controller.signal});
       if(!validHistoryPage(result,offset,payload.snapshot))throw new Error("이력 응답을 확인할 수 없습니다.");
       const ids=new Set(result.records.map(record=>record.id));
       setSelected(current=>{
@@ -123,8 +131,8 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
       setJob(current=>current && ids.has(current.id) ? current : null);
       setPage(result);setFilter(search);setPageSize(size);
     } catch(problem) {
-      throw new Error(requestErrorMessage(problem)+(page ? " · 이전 이력과 선택을 유지합니다." : "")+" 다시 조회하세요.");
-    }
+      throw new Error((timedOut ? "이력 조회 시간이 초과됐습니다." : requestErrorMessage(problem))+(page ? " · 이전 이력과 선택을 유지합니다." : "")+" 다시 조회하세요.");
+    } finally {clearTimeout(timeout);}
   }
   function deleted(id,message) {
     setExpanded(null);setSelected(null);

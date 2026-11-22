@@ -29,7 +29,7 @@ export function KimodoAcceptedResult({id,choose}){
   return <KimodoFrames key={id} id={id} choose={choose} selectionControls/>;
 }
 
-export default function KimodoGeneration({session,restoreJob,restoreRevision=0,initialInputs=null,receiptScope="",proposalScope,choose}){
+export default function KimodoGeneration({session,restoreJob,restoreRevision=0,initialInputs=null,receiptScope="",proposalScope,choose,onInputChange}){
   const [directions,setDirections]=useState({});
   const [jointEdits,setJointEdits]=useState([]);
   const [referenceExamples,setReferenceExamples]=useState(null);
@@ -146,6 +146,7 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
     try{await action();}catch(error){setNotice(requestErrorMessage(error));}finally{busyRef.current=false;setBusy(false);}
   }
   function replaceReferences(files){
+    onInputChange?.();
     setReferences(files);setJointEdits([]);setAngles("");setBundle(null);setCalibration(null);setHip(false);setReview(null);
     setAttachmentRevision(value=>value+1);
   }
@@ -325,8 +326,8 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
       <section aria-label="신체 비율 참조 이미지"><p>신체 비율 참조 PNG · 최대 8장</p>
         <p>참조를 변경하면 참조 관절 수정과 다중 시점 설정이 초기화됩니다.</p>
         <div className="reference-image-slots">{Array.from({length:Math.min(8,references.length+1)},(_,index)=><ReferenceImageInput
-          key={index} label={"신체 비율 참조 "+(index+1)} accept="image/png" maxBytes={3000000} source={references[index]} disabled={busy || loadingTemplate}
-          onChange={file=>{const next=[...references];if(file)next[index]=file;else next.splice(index,1);replaceReferences(next);}}/>)}</div>
+          key={index} label={"신체 비율 참조 "+(index+1)} accept="image/png" maxBytes={3000000} source={references[index]} disabled={busy || loadingTemplate} onSelectionStart={onInputChange}
+          onChange={file=>{onInputChange?.();const next=[...references];if(file)next[index]=file;else next.splice(index,1);replaceReferences(next);}}/>)}</div>
         {references.length>0 && <button type="button" onClick={()=>replaceReferences([])}>참조 전체 해제</button>}
       </section>
       {jointEdits.length>0 && <ResultTable table={{

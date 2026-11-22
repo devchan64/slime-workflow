@@ -12,6 +12,25 @@ test('audio, video and writer proposals are read only from their current session
     await assert.rejects(readGenerationProposal(command,{session,job,snapshot,offset:0,kind}),/확인할 수 없습니다/);
   }
 });
+test('proposal lookup times out during session or proposal retrieval',async(t)=>{
+  t.mock.timers.enable({apis:['setTimeout']});
+  const session='a'.repeat(32),job='2026-11-18_00-00-00-12345678',snapshot='b'.repeat(64);
+  const scope={session,job,snapshot,offset:0,kind:'video'};
+  const page={id:session,offset:0,snapshot,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_VIDEO_PROPOSAL'}}]};
+  for(const blocked of ['hermes-session-view','hermes-video-proposal']){
+    const calls=[];
+    const command=async(_service,name,_payload,{signal})=>{
+      calls.push(name);
+      if(name===blocked)return new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true}));
+      return page;
+    };
+    const result=readGenerationProposal(command,scope);
+    await Promise.resolve();
+    t.mock.timers.tick(30000);
+    await assert.rejects(result,/대화 제안 조회 시간이 초과/);
+    assert.equal(calls.at(-1),blocked);
+  }
+});
 test('VACE proposal transfers only mode and prompt after validating the target',()=>{
   const defaults={mode:'text',prompt:'',steps:16},proposal={service:'wan22-vace',mode:'pose',prompt:'walking',steps:2};
   assert.deepEqual(vaceProposalInputs(defaults,proposal),{mode:'pose',prompt:'walking',steps:16});
