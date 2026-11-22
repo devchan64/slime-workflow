@@ -15,7 +15,7 @@ class QwenArchivePolicyTests(unittest.TestCase):
         for current_service_name in ARCHIVED_QWEN_IMAGE_SERVICES:
             for current_operation_name in ('generate', 'resume', 'prioritize', 'prepare'):
                 with self.subTest(service=current_service_name, operation=current_operation_name):
-                    with self.assertRaisesRegex(ValueError, '아카이브'):
+                    with self.assertRaisesRegex(ValueError, '폐기'):
                         resolve_management_command(current_service_name, current_operation_name, {})
 
     def test_archived_services_keep_history_and_status_access(self):
@@ -50,7 +50,7 @@ class QwenArchivePolicyTests(unittest.TestCase):
             current_handler.end_headers = lambda: None
             current_gateway_value.handle(current_handler)
             self.assertEqual(current_handler.responses, [400])
-            self.assertIn('아카이브', json.loads(current_handler.wfile.getvalue())['error'])
+            self.assertIn('폐기', json.loads(current_handler.wfile.getvalue())['error'])
         self.assertEqual(current_service_calls, [])
 
 

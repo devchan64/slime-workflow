@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
-const editorSourceText=readFileSync(new URL('../ui/shared/animation-anchor-editor/editor.js',import.meta.url),'utf8');
+const editorSourceText=readFileSync(new URL('../../gui/ui/shared/animation-anchor-editor/editor.js',import.meta.url),'utf8');
 const actionReviewRecords=['idle','rest','walk'].map((currentActionName,currentActionIndex)=>({id:'asset:'+currentActionName,source:{animationId:currentActionName,animationVersion:'v1',coordinateMode:'anchor',sheets:[{image:currentActionName+'.png',sha256:currentActionName}],gameRenderMetrics:{tileWidth:80,tileHeight:40,characterHeight:80}},frames:[{frameId:'down_left.0',direction:'down_left',image:currentActionName+'.png',url:`/animation-${currentActionIndex+1}/${currentActionName}.png`,rect:{x:0,y:0,width:384,height:384},anchor:{x:192,y:346},contacts:[{x:192,y:346}],endpoints:[]}]}));
 const draftStorageRecords=new Map();
 function createActionContext(currentActionName){

@@ -70,7 +70,7 @@ class SeamlessPatternTests(unittest.TestCase):
         from workflow.common.management_gateway import execute_gateway_arguments
         from workflow.domains.image.seamless_generation import SeamlessGenerationManager
         with patch('workflow.common.management_gateway.call_management_api',return_value={'id':'test'}) as gateway_call_mock, contextlib.redirect_stdout(io.StringIO()):
-            with self.assertRaisesRegex(ValueError, '아카이브'):
+            with self.assertRaisesRegex(ValueError, '폐기'):
                 execute_gateway_arguments('seamless-tile',['generate','--prompt','낙엽','--detach'])
         gateway_call_mock.assert_not_called()
         with tempfile.TemporaryDirectory() as temporary_directory_name:

@@ -34,5 +34,5 @@ class ArchiveInputTests(unittest.TestCase):
                         ['node', '--input-type=module', '-e', script, json.dumps([service, request])],
                         cwd=gui, text=True)
                     self.assertEqual(json.loads(output), request)
-                    with self.assertRaisesRegex(ValueError, '아카이브'):
+                    with self.assertRaisesRegex(ValueError, '폐기'):
                         resolve_management_command(service, 'generate', request)

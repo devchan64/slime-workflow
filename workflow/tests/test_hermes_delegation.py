@@ -72,12 +72,12 @@ class HermesDelegationTests(unittest.TestCase):
             self.assertEqual(list(current_root_path.glob('*.json')),[])
 
     def test_keyframe_delegation_preserves_input_and_rejects_id_reuse(self):
-        import json
         from workflow.domains.hermes_agent.service import HermesServiceManager
-        from gui.ui.gradio.hermes_agent_app import review_hermes_kimodo_request
-        current_keyframe_text=json.dumps([{'id':'a'*32,'frame':1},{'id':'b'*32,'frame':20}])
-        current_review_value,_,current_status_value=review_hermes_kimodo_request('walk',30,2,42,'keyframe_request_1',current_keyframe_text)
-        self.assertIsNotNone(current_review_value,current_status_value)
+        from generators.kimodo.contracts import KIMODO_DEFAULT_SETTINGS
+        current_request={key:value for key,value in KIMODO_DEFAULT_SETTINGS.items() if key != 'schema_version'}
+        current_request.update(action='generate',prompt='walk',frames=30,steps=2,seed=42,post_processing=True,
+                               keyframes=[{'id':'a'*32,'frame':1},{'id':'b'*32,'frame':20}])
+        current_review_value={'request_id':'keyframe_request_1','request':current_request}
         with tempfile.TemporaryDirectory() as current_temp_name:
             current_root_path=Path(current_temp_name)
             current_store_value=HermesDelegationStore(current_root_path/'receipts')

@@ -3,7 +3,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-const currentTemplateSource=readFileSync(new URL('../ui/asset_review/frame-manager.html',import.meta.url),'utf8');
+const currentTemplateSource=readFileSync(new URL('../../gui/ui/asset_review/frame-manager.html',import.meta.url),'utf8');
 const currentPageRecords=[{id:'walk-review'},{id:'walk-anchors'},{id:'standing-anchors'},{id:'map-review-iseulon'},{id:'animation-1'}];
 function evaluateManagerRedirect(currentSourceHref,currentHistoryState=null){
  const currentElementRecords={'#managementLink':{},'#navigationStatus':{}};

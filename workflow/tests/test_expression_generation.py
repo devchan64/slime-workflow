@@ -69,7 +69,7 @@ class ExpressionGenerationTests(unittest.TestCase):
             management_gateway.execute_gateway_arguments('expression', ['history'])
             self.assertEqual(current_api_mock.call_args.args[1], '/expression-generator/history')
             current_api_mock.reset_mock()
-            with self.assertRaisesRegex(ValueError, '아카이브'):
+            with self.assertRaisesRegex(ValueError, '폐기'):
                 management_gateway.execute_gateway_arguments('expression', ['generate', '--expression', 'joy', '--detach'])
             current_api_mock.assert_not_called()
 
@@ -79,7 +79,7 @@ class ExpressionGenerationTests(unittest.TestCase):
         for current_command_name in ('cancel', 'status', 'logs'):
             current_route_record = management_gateway.resolve_management_command('expression', current_command_name, {'id': '2026-10-01_00-00-00-12345678'})
             self.assertTrue(current_route_record[1].startswith('/expression-generator/'))
-        with self.assertRaisesRegex(ValueError, '아카이브'):
+        with self.assertRaisesRegex(ValueError, '폐기'):
             management_gateway.resolve_management_command('expression', 'resume', {'id': '2026-10-01_00-00-00-12345678'})
 
     def test_gateway_reads_archived_request_and_shared_history(self):

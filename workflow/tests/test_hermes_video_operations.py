@@ -200,23 +200,32 @@ class HermesVideoOperationsTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     video_operations.cancel_hermes_video_request('video_request_123','wan22-vace','2026-11-18_00-00-00-ffffffff')
 
-    def test_attached_video_ui_confirms_real_service_receipt(self):
-        from gui.ui.gradio import hermes_agent_app
-        current_job='2026-11-18_00-00-00-12345678'
-        current_source={'proposal':{'service':'dwpose'},'request_id':'video_request_123'}
-        current_review={'source':current_source,'review':{'request_id':'video_request_123','service':'dwpose','request':{'action':'generate'}}}
-        def current_gateway(current_service,current_command,current_payload):
-            self.assertEqual(current_service,'hermes-agent')
-            if current_command=='hermes-delegate-video':return video_operations.submit_hermes_video_request(current_payload['request_id'],current_payload['service'],current_payload['request'])
-            if current_command=='hermes-video-status':return video_operations.read_hermes_video_status(current_payload['request_id'],current_payload['service'])
-            raise AssertionError(current_command)
-        def current_video_service(current_service,current_command,current_payload):
-            return {'id':current_job} if current_command=='generate' else {'id':current_job,'status':'queued'}
-        with TemporaryDirectory() as current_root, patch.object(video_operations,'HermesDelegationStore',return_value=HermesDelegationStore(Path(current_root))), patch.object(video_operations,'validate_hermes_video_request'), patch.object(video_operations,'call_hermes_video_service',side_effect=current_video_service) as current_video_mock, patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway), patch.object(hermes_agent_app,'review_conversation_video_inputs',return_value=(current_review,'','')):
-            for current_iteration in range(2):
-                _,current_message=hermes_agent_app.submit_conversation_video_inputs(current_review,current_source,'session','job','{}',None,None,None,None,None)
-                self.assertIn('queued',current_message)
-            self.assertEqual(sum(current_call.args[1]=='generate' for current_call in current_video_mock.call_args_list),1)
+    def test_session_video_form_confirms_service_receipt_without_duplicate_dispatch(self):
+        from workflow.domains.hermes_agent.service import HermesServiceManager
+        job = '2026-11-18_00-00-00-12345678'
+        session, form = 'a' * 32, 'b' * 32
+        request = {'images': [], 'pose_video': '', 'prompt': 'test', 'negative_prompt': '',
+                   'frames': 16, 'steps': 4, 'seed': 42, 'flow_shift': 1,
+                   'guidance_scale': 1, 'switch_ratio': 0.5, 'action': 'generate'}
+        with TemporaryDirectory() as root:
+            root = Path(root)
+            store = HermesDelegationStore(root / 'receipts')
+            manager = HermesServiceManager(root / 'jobs', root / 'sessions')
+            manager.execute_hermes_command('hermes-session-create', {'session_id': session})
+            payload = {'session_id': session, 'form_id': form}
+            manager.execute_hermes_command('hermes-video-form-save', {**payload, 'request': request, 'video_info': None})
+            with patch.object(video_operations, 'HermesDelegationStore', return_value=store), \
+                 patch('workflow.domains.hermes_agent.delegation_store.HermesDelegationStore', return_value=store), \
+                 patch.object(video_operations, 'validate_hermes_video_request'), \
+                 patch.object(video_operations, 'call_hermes_video_service', return_value={'id': job}) as dispatch:
+                first = manager.execute_hermes_command('hermes-video-form-submit', payload)
+                second = manager.execute_hermes_command('hermes-video-form-submit', payload)
+                receipt = manager.execute_hermes_command('hermes-video-form-status', payload)
+                self.assertEqual(first['job_id'], job)
+                self.assertEqual(second['job_id'], job)
+                self.assertTrue(second['duplicate'])
+                self.assertEqual(receipt['job_id'], job)
+                dispatch.assert_called_once()
 
     def test_unknown_video_response_is_not_resent(self):
         with TemporaryDirectory() as current_root_name, patch.object(video_operations,'HermesDelegationStore',return_value=HermesDelegationStore(Path(current_root_name))), patch.object(video_operations,'validate_hermes_video_request'), patch.object(video_operations,'call_hermes_video_service',side_effect=OSError('lost')) as current_gateway_mock:

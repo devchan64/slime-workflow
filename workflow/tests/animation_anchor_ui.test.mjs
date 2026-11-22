@@ -120,7 +120,7 @@ await vm.runInContext(`
 console.log('지연 저장·중복 요청 차단·추가 편집 보존·저장 실패 후 재시도 검사 통과');
 
 // 등록 소수 앵커와 두 발 중심·앞뒤 네 점 모드도 원본을 정확하게 복원한다.
-const anchorTemplateSource=readFileSync(new URL('../ui/shared/animation-anchor-editor/editor.js',import.meta.url),'utf8');
+const anchorTemplateSource=readFileSync(new URL('../../gui/ui/shared/animation-anchor-editor/editor.js',import.meta.url),'utf8');
 assert.match(anchorTemplateSource,/resolveReviewAssetUrl\(currentImageFilename\)/);
 for(const coordinateModeValue of ['anchor','foot-centers','endpoints']){
  const sampleContactPoints=coordinateModeValue==='anchor'?[{x:10.25,y:20.75}]:[{x:8,y:20},{x:12,y:20}];

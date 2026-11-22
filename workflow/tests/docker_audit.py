@@ -1,5 +1,6 @@
 """비동기 Docker 전체 회귀 접수와 완료 보고서 조회."""
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -89,6 +90,24 @@ def prepare_workspace(destination):
         subprocess.run(['git', '-C', str(target), 'add', '-A'], check=True)
         subprocess.run(['git', '-C', str(target), '-c', 'user.name=Regression',
                         '-c', 'user.email=test@localhost', 'commit', '-qm', 'Regression snapshot'], check=True)
+
+    # The pinned renderer distribution is gitignored but required by map tests.
+    # Copy only the files named by the tracked manifest, after verifying each hash.
+    import yaml
+    relative = Path('gui/ui/map/vendor/field-renderer')
+    source = ROOT / relative
+    target = destination / 'slime-workflow' / relative
+    manifest = yaml.safe_load((target / 'manifest.yaml').read_text())
+    files = manifest.get('files') if isinstance(manifest, dict) else None
+    if not isinstance(files, dict) or not files:
+        raise ValueError('렌더러 manifest에 파일 목록이 없습니다.')
+    for name, expected in files.items():
+        if not isinstance(name, str) or Path(name).name != name or not isinstance(expected, str) or not re.fullmatch('[a-f0-9]{64}', expected):
+            raise ValueError('렌더러 manifest 파일 또는 해시 형식 오류')
+        path = source / name
+        if path.is_symlink() or not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            raise ValueError(f'렌더러 배포 파일 누락 또는 해시 불일치: {name}')
+        shutil.copy2(path, target / name)
 
 
 def worker(run_id):

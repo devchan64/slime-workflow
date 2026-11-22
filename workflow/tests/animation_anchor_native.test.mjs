@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 
-const currentLoaderSource=fs.readFileSync(new URL('../ui/shared/animation-anchor-editor/native-loader.js',import.meta.url),'utf8');
+const currentLoaderSource=fs.readFileSync(new URL('../../gui/ui/shared/animation-anchor-editor/native-loader.js',import.meta.url),'utf8');
 
 function createNativeFixtureHarness(){
  const currentRuntimeRecords=[],currentObserverRecords=[],currentRequestRecords=[];
