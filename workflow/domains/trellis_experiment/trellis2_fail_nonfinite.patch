@@ -1,0 +1,28 @@
+diff --git a/src/flow_runner.cpp b/src/flow_runner.cpp
+index 45ea313..270ff8c 100644
+--- a/src/flow_runner.cpp
++++ b/src/flow_runner.cpp
+@@ -256,15 +256,18 @@ std::vector<float> sample_flow(const FlowFwd& fwd, std::vector<float> sample,
+                 // all-NaN SLAT. Clamp ratio to a sane band: it sits at ~1.0 for in-distribution
+                 // props (a no-op there), and only bites on the pathological tail. (TRELLIS_NOFIX=1
+                 // restores the raw behaviour for A/B.)
+-                if (!no_fix) { if (!std::isfinite(ratio)) ratio = 1.0f; ratio = fminf(fmaxf(ratio, 0.2f), 5.0f); }
++                if (!std::isfinite(ratio)) throw std::runtime_error("non-finite guidance rescale");
++                if (!no_fix) ratio = fminf(fmaxf(ratio, 0.2f), 5.0f);
+                 float gr = sp.guidance_rescale;
+                 for (size_t k = 0; k < Nst; ++k) { float x0r = x0c[k]*ratio; float x0 = gr*x0r + (1-gr)*x0c[k]; pred[k] = (a*sample[k] - x0) / b; }
+             }
+         }
+-        // Safety net: never integrate a non-finite velocity (one poisoned tap would spread to the
+-        // whole latent on the next attention). A no-op when everything is finite.
+-        if (!no_fix) for (size_t k = 0; k < Nst; ++k) if (!std::isfinite(pred[k])) pred[k] = 0.0f;
+-        for (size_t k = 0; k < Nst; ++k) sample[k] -= (t - tprev) * pred[k];
++        // Fail rather than masking corrupted model output or latent values.
++        for (size_t k = 0; k < Nst; ++k) {
++            if (!std::isfinite(pred[k])) throw std::runtime_error("non-finite flow prediction");
++            sample[k] -= (t - tprev) * pred[k];
++            if (!std::isfinite(sample[k])) throw std::runtime_error("non-finite flow sample");
++        }
+         progress(i + 1);
+         if (dbg_step) { size_t pb, sb; double pm, sm2; fstats(pred, pb, pm); fstats(sample, sb, sm2);
+             if (tty) printf("\n");

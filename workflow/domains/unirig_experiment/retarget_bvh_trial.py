@@ -133,6 +133,10 @@ def main(blend, bvh, output):
                         weapon_faces=quads,colors=colors,tip=np.asarray(tip),grip=np.asarray(grip),hand=np.asarray(hand))
     scene.frame_set(start);bpy.context.view_layer.update();bpy.ops.object.select_all(action='DESELECT')
     obj.select_set(True);target.select_set(True);weapon.select_set(True);bpy.context.view_layer.objects.active=target
+    upright_export=os.environ.get('RETARGET_UPRIGHT')=='1'
+    if upright_export:
+        target.matrix_world=Matrix.Rotation(-math.pi/2,4,'X')@target.matrix_world
+        bpy.context.view_layer.update()
     bpy.ops.wm.save_as_mainfile(filepath=str((output/'retarget.blend').resolve()))
     bpy.ops.export_scene.gltf(filepath=str((output/'retarget.glb').resolve()),export_format='GLB',use_selection=True,
                               export_skins=True,export_animations=True,export_animation_mode='ACTIONS')
@@ -140,6 +144,7 @@ def main(blend, bvh, output):
             'source_up':'Z-up after Blender BVH import','target_up':'Y-down in rig space','translation_scale':translation_scale,
             'source_root_motion':'relative to frame 1','finger_policy':('neutral rest pose' if neutral_hands else 'synthetic fixed 20 degrees on holding hand; source has no finger joints'),
             'hand_policy':('neutral relative to forearm' if neutral_hands else 'source terminal-joint rotation'),
+            'export_upright':upright_export,
             'weapon_bone':'bone_28','weapon_tip':tip,'frames_rotations':samples,'direction_checks':direction_checks,
             'limitations':'Rest-direction aligned rotation transfer with heuristic joint mapping and root scale; no IK, motion correction, hand grasp or official retarget parity.'}
     (output/'retarget.json').write_text(json.dumps(report,indent=2)+'\n')

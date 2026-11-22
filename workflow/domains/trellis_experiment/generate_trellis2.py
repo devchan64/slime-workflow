@@ -65,7 +65,7 @@ def worker(job):
 def main():
     if len(sys.argv)==3 and sys.argv[1]=='--worker':
         worker(Path(sys.argv[2]).resolve(strict=True)); return
-    if len(sys.argv)!=1:
+    if sys.argv[1:] not in ([], ['--foreground']):
         raise ValueError('invalid arguments')
     from workflow.common.gpu_job_queue import launch_gpu_process
     paths = [BINARY, IMAGE] + [MODELS / name for name in MODEL_FILES]
@@ -81,6 +81,8 @@ def main():
         proc = launch_gpu_process([sys.executable, str(Path(__file__).resolve()), '--worker', str(job)],
                                   job, 'trellis-experiment', stdout=log, stderr=log, start_new_session=True)
     print(f'job={job} queue_pid={proc.pid}', flush=True)
+    if sys.argv[1:] == ['--foreground']:
+        raise SystemExit(proc.wait())
 
 
 if __name__=='__main__': main()
