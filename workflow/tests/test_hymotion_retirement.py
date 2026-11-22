@@ -40,11 +40,11 @@ class HymotionRetirementTests(unittest.TestCase):
             self.assertNotIn('hy-motion-generator', [current_page_record['id'] for current_page_record in current_page_records])
             self.assertIn('kimodo-generator', [current_page_record['id'] for current_page_record in current_page_records])
 
-    def test_shared_renderer_and_registered_assets_preserved(self):
+    def test_retired_renderer_removed_and_yaml_loader_preserved(self):
         self.assertFalse((CURRENT_REPOSITORY_ROOT/'generators/hy_motion').exists())
         self.assertFalse((CURRENT_REPOSITORY_ROOT/'workflow/domains/hy_motion').exists())
         for current_relative_path in ('generators/animation/anny_render/vnccs_render.py', 'generators/animation/anny_render/official_shading.py'):
-            self.assertTrue((CURRENT_REPOSITORY_ROOT/current_relative_path).is_file())
+            self.assertFalse((CURRENT_REPOSITORY_ROOT/current_relative_path).exists())
         with self.assertRaisesRegex(ValueError, '중복 YAML'):
             yaml.load('same: 1\nsame: 2', Loader=UniqueConfigLoader)
         self.assertEqual(yaml.load('value: 3', Loader=UniqueConfigLoader), {'value':3})

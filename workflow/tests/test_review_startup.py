@@ -47,7 +47,7 @@ class ReviewStartupTests(unittest.TestCase):
         parsed_argument_values = serve.parse_review_arguments([])
         watched_root_paths = serve.collect_review_watch_paths(parsed_argument_values)
         repository_root_path = Path(serve.__file__).resolve().parents[1]
-        for generator_relative_path in ('generators/momask/config/standing-loops-v1.json', 'generators/terrain/config/tile_map.yaml'):
+        for generator_relative_path in ('generators/terrain/config/tile_map.yaml',):
             self.assertTrue(any((repository_root_path/generator_relative_path).is_relative_to(current_root_path) for current_root_path in watched_root_paths))
 
     def test_map_validation_sources_are_watched(self):

@@ -80,9 +80,9 @@ GUI·CLI → 공용 게이트웨이 → 기존 이미지 작업 서비스·GPU �
 
 ANNY 해부학 기준점 페이지와 `anny-landmarks` 서비스는 폐기했다. 과거 후보 기록과 공용 ANNY 에셋은 보존하며 기존 명령은 거절한다.
 
-HY-Motion Lite 생성·모델 준비·8GB 오프로드·기록 계약은 [HY-Motion 생성기](hy-motion.md)를 따른다. 서비스 이름은 `hy-motion`, GUI는 `/management/frame/hy-motion-generator/`이며 공용 게이트웨이와 GPU 실행기를 사용한다.
+HY-Motion 생성과 모델 준비는 폐기되었다. 현행 모션 생성은 [Kimodo](../generators/kimodo/README.md)를 사용한다.
 
-HY-Motion 신규 `generate`는 ANNY 리그 변환·스킨 충돌 기반 회전 제약·정사영·원근투영·OpenPose를 같은 생성 ID에 자동 저장한다. `export-vnccs`는 기존 모션 재출력용 호환 명령이며 MakeHuman은 폐기됐다. AnyPose LoRA 전용 렌더 옵션은 제공하지 않는다. 입력·저장·후보 품질 한계는 [HY-Motion 안내](hy-motion.md)를 따른다.
+HY-Motion과 ANNY 리그 변환·렌더, `export-vnccs`는 현행 실행 경로가 아니다.
 
 화면 구성·상태·로그·이력·재생 UX 기준은 [워크플로우 UI 가이드](management-ui.md)를 따른다.
 

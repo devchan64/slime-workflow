@@ -145,7 +145,7 @@ vendor에는 채택한 최신 렌더러 배포본 하나만 보관합니다. 버
 
 ### MoMask 도메인 폐기
 
-MoMask 작업 서비스와 루트 호환 모듈은 제거했다. 이전 HTTP 주소는 `common/retired_momask.py`에서 410을 반환하고, 게이트웨이는 모든 MoMask 명령을 거절한다. 작업 저장소 접근·실행 감독 코드는 유지하지 않는다. ANNY 투영점의 OpenPose 변환은 `common/openpose_maps.py`에서 관리하며 기존 `openpose_maps.py` import 경로는 공용 모듈로 연결한다. 생성 산출물과 다른 생성기가 사용하는 제작 템플릿은 이 도메인 폐기 범위에 포함하지 않는다.
+MoMask 작업 서비스와 루트 호환 모듈은 제거했다. 이전 HTTP 주소는 `common/retired_momask.py`에서 410을 반환하고, 게이트웨이는 모든 MoMask 명령을 거절한다. 작업 저장소 접근·실행 감독 코드는 유지하지 않는다. 과거 ANNY 리그 리타깃·렌더·투영 OpenPose 변환 구현도 폐기했다. 현행 Kimodo 참조 얼굴 앵커와 직접 투영을 사용한다.
 
 
 ### 지형 이동 버전 2와 빌보드 시험

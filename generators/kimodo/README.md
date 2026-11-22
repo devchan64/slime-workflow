@@ -58,7 +58,7 @@ Built with Meta Llama 3. 고정 Ollama GGUF를 SHA-256 검증 후 FP16 safetenso
 
 ## 결과
 
-ANNY 리타게팅·Blender 렌더 기능은 폐기했다. 신규 작업은 SOMA 원본 관절 영상과 선택 방향별 BODY_18 몸 포즈를 비교 MP4로 제공한다. `preview.mp4`는 SOMA 정면·측면 원본이며 `comparison.mp4`는 동기 비교 영상이다. ZIP에는 원본 PNG·모션 NPZ·골격·프롬프트·임베딩·비교 영상·`soma-pose.json`을 포함한다. 포즈는 원본 SOMA 위치에서 직접 투영하고 얼굴·손 상세 점은 합성하지 않는다. 기존 이력과 공용 리그 에셋은 보존한다.
+ANNY 리타게팅·Blender 렌더 기능은 폐기했다. 신규 작업은 SOMA 원본 관절 영상과 선택 방향별 BODY_18 몸 포즈를 비교 MP4로 제공한다. `preview.mp4`는 SOMA 정면·측면 원본이며 `comparison.mp4`는 동기 비교 영상이다. ZIP에는 원본 PNG·모션 NPZ·골격·프롬프트·임베딩·비교 영상·`soma-pose.json`을 포함한다. 포즈는 원본 SOMA 위치에서 직접 투영하고 얼굴·손 상세 점은 합성하지 않는다. 기존 이력은 현행 Kimodo 결과와 구분한다.
 
 ### 제자리 보행 보정
 GUI의 `제자리 보행 보정 · 수평 이동 제거` 또는 생성 요청의

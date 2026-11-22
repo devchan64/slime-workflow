@@ -10,17 +10,10 @@ from workflow.common.retired_momask import RetiredMoMaskHandler as MoMaskGenerat
 
 
 class MoMaskRetirementTests(unittest.TestCase):
-    def test_rig_renderer_removed_and_shared_templates_preserved(self):
-        current_repository_root = Path(__file__).resolve().parents[2]
-        for current_removed_path in ('generators/animation/render_momask_rig.py', 'generators/animation/resolve_default_rig.py', 'generators/animation/config/default_walk_rig.yaml', 'generators/momask/render_anny_frames.py', 'generators/momask/templates/render_asset.py'):
-            self.assertFalse((current_repository_root / current_removed_path).exists())
-        for current_shared_path in ('generators/momask/templates/run_stage.py', 'generators/momask/templates/retarget_loop.py', 'generators/animation/anny_render/vnccs_render.py'):
-            self.assertTrue((current_repository_root / current_shared_path).is_file())
-        from generators.momask.run_managed_generation import reject_retired_generation
-        from generators.momask.resume_render import resume_render_frames
-        for current_retired_function, current_argument_values in ((reject_retired_generation, ()), (resume_render_frames, (Path('/unused'),))):
-            with self.assertRaisesRegex(ValueError, '폐기'):
-                current_retired_function(*current_argument_values)
+    def test_retired_rig_implementation_removed(self):
+        root = Path(__file__).resolve().parents[2]
+        for name in ('generators/momask', 'generators/animation/anny_render', 'workflow/common/openpose_maps.py'):
+            self.assertFalse((root / name).exists(), name)
 
     def test_commands_are_rejected_before_storage_access(self):
         for current_command_name in ('generate', 'resume', 'history', 'status', 'history-reset'):
@@ -34,11 +27,6 @@ class MoMaskRetirementTests(unittest.TestCase):
         from workflow.common.retired_momask import reject_retired_record_access
         with self.assertRaisesRegex(ValueError, '폐기'):
             reject_retired_record_access('../unused')
-
-    def test_retired_inference_fails_without_runtime_dependencies(self):
-        from generators.momask.generate_motion import execute_motion_attempt
-        with self.assertRaisesRegex(ValueError, '폐기'):
-            execute_motion_attempt()
 
     def test_legacy_http_returns_gone(self):
         for current_request_path in ('/momask-generator/', '/momask-generator/history', '/momask-generator/jobs'):
@@ -55,4 +43,5 @@ class MoMaskRetirementTests(unittest.TestCase):
             current_menu_path = Path(current_temporary_directory) / 'menu.json'
             current_menu_path.write_text(json.dumps({'pages': [{'id': 'momask-generator', 'label': 'MoMask', 'path': '/momask-generator/', 'category': 'animation-tool', 'description': '과거 도구'}]}))
             self.assertNotIn('momask-generator', [current_record['id'] for current_record in load_manager_page_records(current_menu_path)])
-        self.assertEqual(resolve_management_command('hy-motion', 'history', {})[0], 'GET')
+        with self.assertRaisesRegex(ValueError, '폐기'):
+            resolve_management_command('hy-motion', 'history', {})
