@@ -9,6 +9,8 @@ import readReference from "./readReference.js";
 import KimodoPromptExamples from "./KimodoPromptExamples.jsx";
 import {managementCommand} from "./managementCommand.js";
 import MediaJobResult from "./MediaJobResult.jsx";
+import JobIdentifier from "./JobIdentifier.jsx";
+import {requestErrorMessage} from "./requestError.mjs";
 
 function decodeReferences(rows){
   return rows.map(({name,data})=>new File([Uint8Array.from(atob(data),c=>c.charCodeAt(0))],name,{type:"image/png"}));
@@ -33,6 +35,7 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
   const segmentsValid=segmentCounts.length>=2 && segmentCounts.length<=10 && segmentCounts.every(value=>value>=16 && value<=300) && segmentTotal<=300;
   const key="kimodo-generation-receipt-"+session+(receiptScope?"-proposal-"+receiptScope:"");
   const [inputs,setInputs]=useState(null),[review,setReview]=useState(null),[busy,setBusy]=useState(false);
+  const [sourceJob,setSourceJob]=useState("");
   const busyRef=useRef(false);
   const [receipt,setReceipt]=useState(()=>sessionStorage.getItem(key) || ""),[notice,setNotice]=useState("");
   const [receiptState,setReceiptState]=useState(()=>sessionStorage.getItem(key) ? "checking" : "editing");
@@ -73,7 +76,7 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
         setPlacement(restoredPlacement);setReferences(files);setSegments(defaults.segments.join(" "));setGenerationMode(defaults.segments.length ? "sequence" : "single");setAngles(defaults.angles.join(" "));
         setBundle(attachment("proportion_reviewed_multiview"));setCalibration(attachment("proportion_face_anchor_calibration"));
         setHip(defaults.hip);setJointEdits(JSON.parse(defaults.attachments.proportion_joint_edits || "[]"));
-        setNotice(restoreJob+" 입력을 불러왔습니다.");
+        setSourceJob(restoreJob);setNotice(restoreJob+" 입력을 불러왔습니다.");
       }
       if(!controller.signal.aborted){setInputs(initialInputs ? {...defaults.inputs,...Object.fromEntries(["prompt","frames","steps","seed"].filter(field=>initialInputs[field]!=null).map(field=>[field,initialInputs[field]]))} : defaults.inputs);setDirections(defaults.directions);if(initialInputs?.example_id)await applyExample(initialInputs.example_id,controller.signal);}
     }).catch(error=>{if(!controller.signal.aborted)setNotice(error.message);});
@@ -86,7 +89,7 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
     if(busyRef.current)return;
     busyRef.current=true;
     setBusy(true);setNotice("");
-    try{await action();}catch(error){setNotice(error.message);}finally{busyRef.current=false;setBusy(false);}
+    try{await action();}catch(error){setNotice(requestErrorMessage(error));}finally{busyRef.current=false;setBusy(false);}
   }
   function replaceReferences(files){
     setReferences(files);setJointEdits([]);setAngles("");setBundle(null);setCalibration(null);setHip(false);setReview(null);
@@ -108,6 +111,7 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
       {frames:example.frames,keyframes}):null;
     const files=decodeReferences(example.references);
     if(signal?.aborted)return;
+    setSourceJob("");
     setInputs(previous=>({...previous,...settings,prompt:example.prompt,frames:example.frames,camera_elevation_degrees}));
     setPlacement(positions);setPlacing(false);replaceReferences(files);setSegments((segment_frames || []).join(" "));setGenerationMode(segment_frames?.length ? "sequence" : "single");
     setNotice(example.label+" 설정을 적용했습니다.");
@@ -167,7 +171,9 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
     if(!response.ok || result.state!=="accepted" || !/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(result.job_id || ""))throw new Error("접수 여부를 확인할 수 없습니다. 접수 상태를 조회해 주세요.");
     setJobId(result.job_id);setReceiptState("accepted");setNotice("GPU 대기열에 등록했습니다.");
   }
+  const reviewed=review ? JSON.parse(review) : null;
   return <section aria-label="Kimodo 모션 생성"><h2>모션 생성</h2>
+    {inputs && sourceJob && <div><p>불러온 원본 작업</p><JobIdentifier id={sourceJob} compact/></div>}
     {receiptState!=="editing" && <section className="kimodo-submission-status" aria-label="생성 접수 상태">
       <h3>{receiptState==="accepted"?"생성 요청 접수됨":receiptState==="checking"?"접수 상태 확인 중":"접수 상태 확인 필요"}</h3>
       {receipt && <p>접수 ID <code>{receipt}</code></p>}
@@ -253,7 +259,15 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
       </details>
       <button>생성 요청 검토</button>
     </fieldset></form>}
-    {review && <section><pre>{JSON.stringify(JSON.parse(review),(key,value)=>key==="proportion_images"?references.map(file=>file.name):key==="proportion_reviewed_multiview"?bundle.name:key==="proportion_face_anchor_calibration"?calibration.name:value,2)}</pre>
+    {reviewed && <section className="kimodo-request-review" aria-label="생성 요청 확인">
+      <h3>생성 요청 확인</h3><p>아직 생성이 시작되지 않았습니다. 입력을 확인한 뒤 대기열에 추가하세요.</p>
+      <dl><div><dt>생성 방식</dt><dd>{reviewed.segment_frames?.length ? "순차 생성 · "+reviewed.segment_frames.join(" + ")+"프레임" : "일반 생성"}</dd></div>
+        <div><dt>전체 프레임</dt><dd>{reviewed.frames}프레임</dd></div><div><dt>생성 단계</dt><dd>{reviewed.steps}단계</dd></div><div><dt>시드</dt><dd>{reviewed.seed}</dd></div>
+        <div><dt>출력 방향</dt><dd>{reviewed.directions?.map(id=>directions[id]?.label || id).join(", ") || "없음"}</dd></div>
+        <div><dt>참조 이미지</dt><dd>{references.length ? references.map(file=>file.name).join(", ") : "없음"}</dd></div>
+        {reviewed.keyframes?.length>0 && <div><dt>키프레임</dt><dd>{reviewed.keyframes.length}개</dd></div>}</dl>
+      <h4>동작 설명</h4><p className="kimodo-review-prompt">{reviewed.prompt}</p><PromptWordCount text={reviewed.prompt} label="최종"/>
+      <details><summary>전체 설정 보기</summary><pre>{JSON.stringify(reviewed,(key,value)=>key==="proportion_images"?references.map(file=>file.name):key==="proportion_reviewed_multiview"?bundle?.name || "첨부됨":key==="proportion_face_anchor_calibration"?calibration?.name || "첨부됨":value,2)}</pre></details>
       <GenerationReviewActions busy={busy} onCancel={()=>setReview(null)} onConfirm={()=>perform(submit)}/></section>}
     </div>
     {notice && <p role="status">{notice}</p>}

@@ -10,9 +10,13 @@ import GeneratorPageHeader from "./GeneratorPageHeader.jsx";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import {FunControlFields,FunControlResult} from "./FunControlSchema.jsx";
 import {managementCommand} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
+import JobIdentifier from "./JobIdentifier.jsx";
 
 export default function FunControlPage({embedded=false,session="",restoreFormId="",seedProposal=null,onSaved=()=>{}}){
   const [template,setTemplate]=useState(null),[selected,select]=useState("");
+  const [templateRetry,retryTemplate]=useState(0);
+  const [templateError,setTemplateError]=useState("");
   const [request,setRequest]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
   const [pending,setPending]=useState(null),[job,setJob]=useState(new URLSearchParams(location.search).get("job") || "");
   const [model,setModel]=useState(null);
@@ -32,10 +36,12 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   }
   function restore(settings,record){
     setRequest({...settings,...record.attachments});setVideoInfo(record.video);setSourceSeed(Number(settings.seed));setSourceJob(record.id);setJob(record.id);
-    setNotice(record.id+" 입력을 복원했습니다.");refreshHistory(n=>n+1);
+    setNotice(record.id+" 입력을 복원했습니다.");refreshHistory(n=>n+1);requestAnimationFrame(()=>formRef.current?.focus());
   }
   function cleaned(message){setJob("");setNotice(message);refreshHistory(n=>n+1);}
-  const sending=useRef(false);
+  const sending=useRef(false),formRef=useRef(null),reviewRef=useRef(null);
+  useEffect(()=>{if(pending)reviewRef.current?.focus();},[pending]);
+  useEffect(()=>{if(template && templateRetry>0 && document.activeElement===document.body)formRef.current?.focus();},[template,templateRetry]);
   const saveAttempt=useRef(null);
   async function saveForm(value=request){
     value={...value,...Object.fromEntries(["frames","steps","seed","flow_shift","guidance_scale","switch_ratio"].map(key=>[key,Number(value[key])]))};
@@ -66,13 +72,14 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   }
   useEffect(()=>{
     const controller=new AbortController();
+    setTemplateError("");
     fetch("/management/assistant/fun-template",{signal:controller.signal}).then(async response=>{
       if(!response.ok)throw new Error("예제 목록 조회 실패");
       const data=await response.json();
       if(!controller.signal.aborted){setTemplate(data);setRequest({...data.defaults,action:"generate",control_type:"pose",width:832,height:480,images:[],pose_video:"",prompt:"",negative_prompt:""});select(data.examples[0]?.id || "");}
-    }).catch(problem=>{if(!controller.signal.aborted)setError(problem.message);});
+    }).catch(problem=>{if(!controller.signal.aborted)setTemplateError(requestErrorMessage(problem));});
     return ()=>controller.abort();
-  },[]);
+  },[templateRetry]);
   useEffect(()=>{
     if(!embedded || !session || !restoreFormId || !template)return;
     let active=true;setBusy(true);setError("");
@@ -151,9 +158,9 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     <GeneratorPageHeader title="Wan Fun Control 영상 생성"
       description="참조 이미지의 외형과 포즈 영상의 움직임으로 영상을 만듭니다."
       generator="wan22-fun-control-generator" service={service} model={model} onStatus={setModel} embedded={embedded}/>
-    {request && <form onSubmit={review} onInvalid={event=>{const details=event.target.closest("details");if(details)details.open=true;}}><fieldset disabled={busy || !!pending}><legend>생성 입력</legend>
+    {request && <form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review} onInvalid={event=>{const details=event.target.closest("details");if(details)details.open=true;}}><fieldset disabled={busy || !!pending}><legend>생성 입력</legend>
     <fieldset className="fun-source" disabled={busy || !!pending || !template}><legend>원본 작업</legend>
-      <p>{sourceJob ? "불러온 작업 · "+sourceJob : "선택된 원본 작업이 없습니다."}</p>
+      {sourceJob ? <><p>불러온 원본 작업</p><JobIdentifier id={sourceJob} compact/></> : <p>선택된 원본 작업이 없습니다.</p>}
       {job && <button type="button" disabled={!template} onClick={()=>load(true)}>작업 {job} 입력으로 교체</button>}
       <details><summary>제작 예제 사용</summary><label>예제 선택<select value={selected} onChange={event=>select(event.target.value)}>
         {template?.examples.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
@@ -167,12 +174,17 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
         !request.pose_video && "포즈 영상을 선택하세요."
       ]}>생성 요청 검토</ActionButton>
     </fieldset></form>}
-    {pending && <section aria-label="생성 요청 확인"><GpuQueueSummary/>
+    {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/>
+      <p>모델 · {template?.models?.find(item=>item.id===(pending.model_profile || "wan22-14b"))?.label || pending.model_profile || "wan22-14b"}</p>
       <p>외형 참조 이미지 + 포즈 영상 · {pending.frames}프레임 · 16fps · {(pending.frames/16).toFixed(2)}초 · {pending.steps}스텝 · 시드 {pending.seed}</p>
-      <p>{videoInfo?.summary || "입력 영상 정보 확인 중"}</p><p>{pending.prompt}</p>
-      <GenerationReviewActions disabledReason={modelReason} busy={busy} onCancel={()=>setPending(null)} onConfirm={submit}/>
+      <p>{videoInfo?.summary || "입력 영상 정보 확인 중"}</p><h3>동작 프롬프트</h3><p className="fun-review-prompt">{pending.prompt}</p>
+      <h3>부정 프롬프트</h3><p className="fun-review-prompt">{pending.negative_prompt || "없음"}</p>
+      <GenerationReviewActions disabledReason={modelReason} busy={busy} onCancel={()=>{setPending(null);requestAnimationFrame(()=>formRef.current?.querySelector("textarea")?.focus());}} onConfirm={submit}/>
     </section>}
     {error && <p role="alert">{error}</p>}
+    {templateError && <p role="alert">{templateError}</p>}
+    {!template && !templateError && <p role="status">생성 입력을 불러오는 중입니다.</p>}
+    {!template && templateError && <button type="button" onClick={()=>retryTemplate(value=>value+1)}>생성 입력 다시 불러오기</button>}
     {notice && <p role="status">{notice}</p>}
     <fieldset className="fun-history" aria-label="작업 이력" disabled={busy || !!pending}>
       <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id)setJob("");if(sourceJob===id)setSourceJob("");setNotice(message);}} key={historyRevision} service={service} readJob={readJob} restore={restore} renderResult={renderResult}/>

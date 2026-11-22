@@ -1,6 +1,6 @@
 import KimodoMultiviewReport from "./KimodoMultiviewReport.jsx";
 import KimodoGeneration from "./KimodoGeneration.jsx";
-import React, {useState} from "react";
+import React, {useRef,useState} from "react";
 import ModelReadiness from "./ModelReadiness.jsx";
 import DownloadProgress from "./DownloadProgress.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
@@ -12,6 +12,9 @@ export default function KimodoPage({embedded=false,session:embeddedSession="",in
   const params=new URLSearchParams(location.search);
   const session=embedded ? embeddedSession : params.get("session") || "";
   const [selectedJob,setSelectedJob]=useState(embedded ? "" : params.get("job") || "");
+  const resultRef=useRef(null);
+  const historyRef=useRef(null);
+  const generationRef=useRef(null);
   const [restoreJob,setRestoreJob]=useState(embedded ? "" : params.get("restore") || "");
   const [historyRevision,setHistoryRevision]=useState(0);
   const [restoreRevision,setRestoreRevision]=useState(0);
@@ -35,13 +38,13 @@ export default function KimodoPage({embedded=false,session:embeddedSession="",in
     <h1>Kimodo 모션 생성기</h1>
     <GeneratorChangelog generator="kimodo-generator"/>
     <ModelReadiness service="kimodo" manage/><DownloadProgress service="kimodo"/>
-    <KimodoGeneration key={(restoreJob || "new")+"/"+restoreRevision} session={session} restoreJob={restoreJob} initialInputs={restoreJob ? null : initialInputs}/>
+    <section ref={generationRef} tabIndex={-1} aria-label="Kimodo 생성 입력"><KimodoGeneration key={(restoreJob || "new")+"/"+restoreRevision} session={session} restoreJob={restoreJob} initialInputs={restoreJob ? null : initialInputs}/></section>
     <KimodoMultiviewReport/>
-    <GeneratorHistory key={historyRevision} service="kimodo" allowPriority readJob={readJob}
-      openResult={setSelectedJob} restore={(_request,record)=>{setRestoreJob(record.id);setRestoreRevision(value=>value+1);setNotice("");}}
-      onSelectedDeleted={(id,message)=>{if(selectedJob===id)setSelectedJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/>
+    <div ref={historyRef}><GeneratorHistory key={historyRevision} service="kimodo" allowPriority readJob={readJob}
+      openResult={id=>{setSelectedJob(id);requestAnimationFrame(()=>resultRef.current?.focus());}} restore={(_request,record)=>{setRestoreJob(record.id);setRestoreRevision(value=>value+1);setNotice("");requestAnimationFrame(()=>generationRef.current?.focus());}}
+      onSelectedDeleted={(id,message)=>{if(selectedJob===id)setSelectedJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/></div>
     {notice && <p role="status">{notice}</p>}
-    {selectedJob ? <><button type="button" onClick={()=>choose("kimodo 작업",selectedJob)}>선택 작업을 대화 입력에 추가</button><KimodoFrames key={selectedJob} id={selectedJob} choose={choose} onDeleted={cleaned} selectionControls/></> :
+    {selectedJob ? <section ref={resultRef} tabIndex={-1} aria-label="선택한 Kimodo 작업 결과"><button type="button" onClick={()=>{setSelectedJob("");requestAnimationFrame(()=>{const history=historyRef.current;const target=history?.querySelector('details.generator-history[open] .generator-history-select[aria-pressed="true"]') || history?.querySelector('summary');target?.focus();});}}>결과 닫고 이력으로</button><button type="button" onClick={()=>choose("kimodo 작업",selectedJob)}>선택 작업을 대화 입력에 추가</button><KimodoFrames key={selectedJob} id={selectedJob} choose={choose} onDeleted={cleaned} selectionControls/></section> :
       <HistoryCleanup service="kimodo" allowSelected={false} onDeleted={cleaned}/>}
   </article></main>;
 }

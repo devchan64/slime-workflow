@@ -15,6 +15,8 @@ import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
+import JobIdentifier from "./JobIdentifier.jsx";
+import {requestErrorMessage} from "./requestError.mjs";
 
 const service="wan22-vace";
 const videoFields={pose:["pose_video"],video_edit:["edit_video","edit_mask"],video_condition:["edit_video"]};
@@ -23,23 +25,27 @@ export default function VacePage({embedded=false}={}){
   const [template,setTemplate]=useState(null),[values,setValues]=useState(null),[templateRevision,retryTemplate]=useState(0);
   const [files,setFiles]=useState({}),[model,setModel]=useState(null),[fileErrors,setFileErrors]=useState({});
   const [videoInfo,setVideoInfo]=useState({}),[checking,setChecking]=useState({});
-  const videoSequences=useRef({});
+  const videoSequences=useRef({}),formRef=useRef(null),reviewRef=useRef(null),resultRef=useRef(null),historyRef=useRef(null);
   const [busy,setBusy]=useState(false),[pending,setPending]=useState(null);
+  useEffect(()=>{if(pending)reviewRef.current?.focus();},[pending]);
   const [error,setError]=useState("");
+  const [templateError,setTemplateError]=useState("");
   const [job,setJob]=useState(embedded ? "" : new URLSearchParams(location.search).get("job") || "");
+  const [sourceJob,setSourceJob]=useState("");
   useEffect(()=>{
     let active=true;
     async function load(){
+      setTemplateError("");
       try{
         const response=await fetch("/management/assistant/vace-template");
         if(!response.ok)throw new Error("생성 입력 템플릿 조회 실패");
         const spec=await response.json();
         if(active){setTemplate(spec);setValues(old=>old ?? {...spec.defaults,prompt:"",negative_prompt:""});}
-        if(active)setError("");
-      }catch(problem){if(active)setError(problem.message);}
+      }catch(problem){if(active)setTemplateError(requestErrorMessage(problem));}
     }
     load();return ()=>{active=false;};
   },[templateRevision]);
+  useEffect(()=>{if(template && templateRevision>0 && document.activeElement===document.body)formRef.current?.focus();},[template,templateRevision]);
   const [historyRevision,refreshHistory]=useState(0);
   const [notice,setNotice]=useState("");
   async function readJob(id){
@@ -59,9 +65,9 @@ export default function VacePage({embedded=false}={}){
   }
   function restore(request,record){
     for(const key of Object.keys(videoSequences.current))videoSequences.current[key]++;
-    setChecking({});setValues({...request});setFiles(record.files);setVideoInfo(record.videoInfo);setFileErrors({});setJob(record.id);setPending(null);
+    setChecking({});setValues({...request});setFiles(record.files);setVideoInfo(record.videoInfo);setFileErrors({});setJob(record.id);setSourceJob(record.id);setPending(null);
     setNotice(record.id+" 입력을 복원했습니다.");
-    refreshHistory(n=>n+1);
+    refreshHistory(n=>n+1);requestAnimationFrame(()=>formRef.current?.focus());
   }
   function cleaned(message){setJob("");setNotice(message);refreshHistory(n=>n+1);}
   function field(key,value){setValues(old=>({...old,[key]:value}));}
@@ -112,8 +118,11 @@ export default function VacePage({embedded=false}={}){
     <ModelReadiness service={service} onStatus={setModel}/>
     <DownloadProgress service={service}/>
     {error && <p role="alert">{error}</p>}
-    {!template && error && <button type="button" onClick={()=>retryTemplate(value=>value+1)}>생성 입력 다시 불러오기</button>}
-    {values && <form onSubmit={review}><fieldset disabled={busy || !!pending}><legend>생성 입력</legend>
+    {templateError && <p role="alert">{templateError}</p>}
+    {!template && !templateError && <p role="status">생성 입력을 불러오는 중입니다.</p>}
+    {!template && templateError && <button type="button" onClick={()=>retryTemplate(value=>value+1)}>생성 입력 다시 불러오기</button>}
+    {values && <form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending}><legend>생성 입력</legend>
+      {sourceJob && <div><p>불러온 원본 작업</p><JobIdentifier id={sourceJob} compact/></div>}
       <label>생성 모드<select value={values.mode} onChange={e=>field("mode",e.target.value)}>{template.modes.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
       <p style={{whiteSpace:"pre-line"}}>{template.modes.find(m=>m.id===values.mode)?.help.replaceAll("**","")}</p>
       {Object.entries({reference:"참조 또는 첫 프레임 이미지",...labels}).map(([key,label])=>{
@@ -143,15 +152,20 @@ export default function VacePage({embedded=false}={}){
         invalidFrames && "출력 프레임 수를 입력 영상에 맞게 조정하세요."
       ]}>생성 요청 검토</ActionButton>
     </fieldset></form>}
-    {pending && <section><GpuQueueSummary/><p>{template.modes.find(mode=>mode.id===pending.mode)?.label || pending.mode} · {pending.frames}프레임 · 16fps · {(pending.frames/16).toFixed(2)}초 · 시드 {pending.seed}</p><p>{pending.prompt}</p>{attachments.map(key=><p key={key}>{labels[key]} · {videoInfo[key]?.summary || "영상 정보 확인 불가"}</p>)}{pending.mode==="video_edit" && <p>마스크의 편집·보존 영역은 접수 시 추가 검증합니다.</p>}
-      <GenerationReviewActions busy={busy} onCancel={()=>setPending(null)} onConfirm={submit}/></section>}
-    <fieldset disabled={busy || !!pending}><GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} openResult={setJob} restore={restore}/></fieldset>
+    {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/>
+      <p>{template.modes.find(mode=>mode.id===pending.mode)?.label || pending.mode} · {pending.frames}프레임 · 16fps · {(pending.frames/16).toFixed(2)}초 · {pending.steps}스텝 · 시드 {pending.seed}</p>
+      <p>Flow shift {pending.flow_shift} · CFG {pending.guidance_scale} · 조건 강도 {pending.reference_strength}</p>
+      {pending.mode!=="text" && <p>참조 이미지 · {files.reference?.name || "선택됨"}</p>}
+      {attachments.map(key=><p key={key}>{labels[key]} · {files[key]?.name || "선택됨"} · {videoInfo[key]?.summary || "영상 정보 확인 불가"}</p>)}{pending.mode==="video_edit" && <p>마스크의 편집·보존 영역은 접수 시 추가 검증합니다.</p>}
+      <h3>장면·동작 프롬프트</h3><p className="fun-review-prompt">{pending.prompt}</p><h3>부정 프롬프트</h3><p className="fun-review-prompt">{pending.negative_prompt || "없음"}</p>
+      <GenerationReviewActions busy={busy} onCancel={()=>{setPending(null);requestAnimationFrame(()=>formRef.current?.querySelector("textarea")?.focus());}} onConfirm={submit}/></section>}
+    <fieldset ref={historyRef} disabled={busy || !!pending}><GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(sourceJob===id)setSourceJob("");if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} openResult={id=>{setJob(id);requestAnimationFrame(()=>resultRef.current?.focus());}} restore={restore}/></fieldset>
     {notice && <p role="status">{notice}</p>}
-    {job ? <MediaJobResult key={job} service={service} id={job}>
+    {job ? <section ref={resultRef} tabIndex={-1} aria-label="선택한 VACE 작업 결과"><button type="button" onClick={()=>{setJob("");requestAnimationFrame(()=>{const history=historyRef.current;const target=history?.querySelector('details.generator-history[open] .generator-history-select[aria-pressed="true"]') || history?.querySelector('summary');target?.focus();});}}>결과 닫고 이력으로</button><MediaJobResult key={job} service={service} id={job}>
       {(record,reload)=>record && <React.Fragment key={record.status}>
         <GeneratorJobControls showActions={false} service={service} id={job} state={record.status} refresh={reload}/>
         <HistoryCleanup allowSelected={false} service={service} job={job} state={record.status} onDeleted={cleaned}/>
       </React.Fragment>}
-    </MediaJobResult> : <HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>}
+    </MediaJobResult></section> : <HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>}
   </article>;
 }

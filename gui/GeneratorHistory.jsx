@@ -34,6 +34,7 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
   const [expanded,setExpanded]=useState(null);
   const [page,setPage]=useState(null);
   const [query,setQuery]=useState("");
+  const searchRef=useRef(null);
   const [filter,setFilter]=useState("");
   const [pageSize,setPageSize]=useState(10);
   const [selected,setSelected]=useState(null);
@@ -74,7 +75,7 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
       setJob(current=>current && ids.has(current.id) ? current : null);
       setPage(result);setFilter(search);setPageSize(size);
     } catch(problem) {
-      throw new Error(requestErrorMessage(problem)+" · 이전 이력과 선택을 유지합니다. 다시 조회하세요.");
+      throw new Error(requestErrorMessage(problem)+(page ? " · 이전 이력과 선택을 유지합니다." : "")+" 다시 조회하세요.");
     }
   }
   function deleted(id,message) {
@@ -100,11 +101,13 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
   return <details className="generator-history" onToggle={event=>{if(!event.currentTarget.open)setExpanded(null);
     if(event.currentTarget.open && !page && !error)perform(()=>list(0,query.trim()));}}><summary>생성 이력</summary>
     <fieldset disabled={busy}><div className="generator-history-toolbar">
-      <label>작업 ID 검색 <input value={query} maxLength={80} onChange={e=>setQuery(e.target.value)}/></label>
+      <label>작업 ID 검색 <input ref={searchRef} value={query} maxLength={80} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Enter" && !e.nativeEvent.isComposing){e.preventDefault();perform(()=>list(0,query.trim()));}}}/></label>
       <label>페이지당 이력 <select value={pageSize} onChange={e=>{const size=Number(e.target.value);perform(()=>list(0,query.trim(),size));}}>{[5,10,20,30].map(size=><option key={size} value={size}>{size}건</option>)}</select></label>
-      <button type="button" onClick={()=>perform(()=>list(0,query.trim()))}>{busy?"조회 중…":page?"이력 새로고침":"이력 조회"}</button>
+      <button type="button" onClick={()=>perform(()=>list(0,query.trim()))}>{busy?"조회 중…":page && query.trim()===filter?"이력 새로고침":"이력 조회"}</button>
+      {(query || filter) && <button type="button" onClick={()=>{setQuery("");perform(()=>list(0,"")).then(()=>requestAnimationFrame(()=>{if(document.activeElement===document.body)searchRef.current?.focus();}));}}>검색 초기화</button>}
     </div>
       {page && <>
+        {query.trim()!==filter && <p role="status">검색어가 변경되었습니다. 아래는 이전 조회 결과입니다. 이력 조회를 눌러 적용하세요.</p>}
         <p role="status">총 {page.total}건 · 이번 조회 {page.records.length}건</p>
         {summaryNotice && <p role="status">{summaryNotice}</p>}
         {page.records.length===0 && <p>조회된 이력이 없습니다. 검색 조건을 바꾸거나 새 작업을 생성하세요.</p>}
@@ -128,10 +131,11 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
             </section>}
           </section>}
         </div>)}</div>
-        <div className="generator-history-pagination">
-          <button type="button" disabled={!page.offset} onClick={()=>perform(()=>list(Math.max(0,page.offset-pageSize),filter))}>이전 이력 페이지</button>
-          <button type="button" disabled={page.next_offset==null} onClick={()=>perform(()=>list(page.next_offset,filter))}>다음 이력 페이지</button>
-        </div>
+        <nav className="generator-history-pagination" aria-label="생성 이력 페이지">
+          <button type="button" disabled={query.trim()!==filter || !page.offset} onClick={()=>perform(()=>list(Math.max(0,page.offset-pageSize),filter))}>이전 이력 페이지</button>
+          <span aria-live="polite">{page.records.length ? `${page.offset+1}–${page.offset+page.records.length}` : "0"} / {page.total}건</span>
+          <button type="button" disabled={query.trim()!==filter || page.next_offset==null} onClick={()=>perform(()=>list(page.next_offset,filter))}>다음 이력 페이지</button>
+        </nav>
       </>}
     </fieldset>
     {error && <p role="alert">{error}</p>}

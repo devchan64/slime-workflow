@@ -1,4 +1,4 @@
-import React,{useEffect,useState} from "react";
+import React,{useEffect,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import JobIdentifier from "./JobIdentifier.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
@@ -22,7 +22,13 @@ function matches(row,filters){
 export default function RecentGeneratorJobs({session,filters,revision}){
   const [rows,setRows]=useState([]),[errors,setErrors]=useState([]),[loading,setLoading]=useState(true),[checked,setChecked]=useState(null),[selected,setSelected]=useState(null);
   const [page,setPage]=useState(0),[pageSize,setPageSize]=useState(5);
-  useEffect(()=>setPage(0),[filters]);
+  const resultRef=useRef(null),triggerRef=useRef(null),headingRef=useRef(null);
+  function closeResult(){
+    setSelected(null);
+    requestAnimationFrame(()=>{if(triggerRef.current?.isConnected)triggerRef.current.focus();else headingRef.current?.focus();});
+  }
+  useEffect(()=>{if(selected)resultRef.current?.focus();},[selected]);
+  useEffect(()=>{setPage(0);setSelected(null);},[filters]);
   useEffect(()=>{
     let active=true;
     async function load(){
@@ -54,18 +60,20 @@ export default function RecentGeneratorJobs({session,filters,revision}){
   },[revision]);
   const matching=rows.filter(row=>matches(row,filters)).slice(0,20);
   const currentPage=Math.min(page,Math.max(0,Math.ceil(matching.length/pageSize)-1));
-  return <section aria-label="전체 생성기 최근 작업" className="recent-generator-jobs"><h3>전체 생성기 최근 작업</h3>
+  return <section aria-label="전체 생성기 최근 작업" className="recent-generator-jobs"><h3 ref={headingRef} tabIndex={-1}>전체 생성기 최근 작업</h3>
     <p>세션 외 작업도 포함 · 생성기별 최근 10건 중 최대 20건 · 기록 상태 기준{checked && ' · 조회 '+checked.toLocaleString('ko-KR')}</p>
     {loading && <p role="status">최근 작업 조회 중…</p>}
     {errors.length>0 && <p role="status">일부 이력을 확인하지 못했습니다: {errors.join(', ')}</p>}
-    {!loading && !matching.length && <p>조건에 맞는 최근 작업이 없습니다.</p>}
+    {!loading && !matching.length && <p>{errors.length ? "확인된 이력에는 조건에 맞는 최근 작업이 없습니다. 조회하지 못한 이력은 포함되지 않았습니다." : "조건에 맞는 최근 작업이 없습니다."}</p>}
     <div className="session-job-list">{matching.slice(currentPage*pageSize,(currentPage+1)*pageSize).map(({source,record})=><article className="session-job" key={source.service+'/'+record.id}>
       <div className="session-job-heading"><strong>{source.service}</strong><span>{labels[record.recorded_status] || record.recorded_status}</span></div>
       <JobIdentifier id={record.id} compact/>
-      {(source.result_kind || source.service==='kimodo') && <button type="button" onClick={()=>setSelected({source,id:record.id})}>상태·결과 보기</button>}
-      {source.result_path && <a href={source.result_path+'?'+new URLSearchParams({job:record.id,session})}>생성기에서 열기</a>}
+      <div className="session-job-actions">
+        {(source.result_kind || source.service==='kimodo') && <button type="button" aria-label={record.id+(selected?.source.service===source.service && selected?.id===record.id ? " 결과 닫기" : " 상태·결과 보기")} aria-expanded={selected?.source.service===source.service && selected?.id===record.id} onClick={event=>{if(selected?.source.service===source.service && selected?.id===record.id)closeResult();else{triggerRef.current=event.currentTarget;setSelected({source,id:record.id});}}}>{selected?.source.service===source.service && selected?.id===record.id ? "결과 닫기" : "상태·결과 보기"}</button>}
+        {source.result_path && <a aria-label={record.id+" 생성기에서 열기"} href={source.result_path+'?'+new URLSearchParams({job:record.id,session})}>생성기에서 열기</a>}
+      </div>
     </article>)}</div>
-    {matching.length>0 && <QueuePagination label="전체 생성기 최근 작업 페이지" page={currentPage} size={pageSize} total={matching.length} onPage={setPage} onSize={value=>{setPageSize(value);setPage(0);}}/>}
-    {selected && <section aria-label="최근 작업 결과"><button type="button" onClick={()=>setSelected(null)}>결과 닫기</button><MediaJobResult key={selected.source.service+'/'+selected.id} service={selected.source.service} id={selected.id} kind={selected.source.service==='kimodo'?'video':selected.source.result_kind} folderLink/></section>}
+    {matching.length>0 && <QueuePagination label="전체 생성기 최근 작업 페이지" page={currentPage} size={pageSize} total={matching.length} onPage={value=>{setSelected(null);setPage(value);}} onSize={value=>{setSelected(null);setPageSize(value);setPage(0);}}/>}
+    {selected && <section ref={resultRef} tabIndex={-1} aria-label="최근 작업 결과"><button type="button" onClick={closeResult}>결과 닫기</button><MediaJobResult key={selected.source.service+'/'+selected.id} service={selected.source.service} id={selected.id} kind={selected.source.service==='kimodo'?'video':selected.source.result_kind} folderLink/></section>}
   </section>;
 }
