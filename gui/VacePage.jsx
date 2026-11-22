@@ -9,7 +9,7 @@ import InputVideoPreview from "./InputVideoPreview.jsx";
 import PromptWordCount from "./PromptWordCount.jsx";
 import SeedInput from "./SeedInput.jsx";
 import {referencePng,videoData} from "./videoInputs.js";
-import React,{useEffect,useRef,useState} from "react";
+import React,{useEffect,useId,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import DownloadProgress from "./DownloadProgress.jsx";
@@ -29,6 +29,7 @@ import {generationProposalScope,readGenerationProposal,vaceProposalInputs} from 
 const service="wan22-vace";
 const videoFields={pose:["pose_video"],video_edit:["edit_video","edit_mask"],video_condition:["edit_video"]};
 const labels={pose_video:"DWPose MP4",edit_video:"원본 MP4",edit_mask:"마스크 MP4"};
+const numericSettings=[["frames","출력 프레임",5,129,4],["steps","스텝",2,100,1],["flow_shift","Flow shift",0.1,20,"any"],["guidance_scale","CFG",1,10,"any"],["reference_strength","조건 강도",0.1,2,"any"]];
 function SavedVaceInputs({id}){
   const [state,setState]=useState({id,loading:true}),[revision,retry]=useState(0);
   useEffect(()=>{
@@ -47,6 +48,9 @@ function SavedVaceInputs({id}){
   return <section className="history-action-detail" aria-label="저장된 생성 입력"><strong>저장된 생성 입력</strong><p>{request.frames}프레임 · {request.steps}스텝 · 시드 {request.seed} · 첨부 {attachments.length ? attachments.map(key=>labels[key] || (key==='reference'?'참조 이미지':key)).join(', ') : '없음'}</p><details><summary>저장된 입력 상세</summary><pre>{JSON.stringify(request,null,2)}</pre></details></section>;
 }
 export default function VacePage({embedded=false,session:embeddedSession=""}={}){
+  const frameErrorId=useId();
+  const frameLimitErrorId=useId();
+  const settingErrorId=useId();
   const session=embeddedSession || new URLSearchParams(location.search).get("session") || "";
   const [template,setTemplate]=useState(null),[values,setValues]=useState(null),[templateRevision,retryTemplate]=useState(0);
   const [files,setFiles]=useState({}),[model,setModel]=useState(null),[fileErrors,setFileErrors]=useState({});
@@ -132,6 +136,12 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const frameValue=values?.frames;
   const invalidFrameValue=frameValue==="" || !Number.isInteger(Number(frameValue)) || Number(frameValue)<5 || Number(frameValue)>129 || (Number(frameValue)-5)%4!==0;
   const invalidFrames=frameLimit!==null && Number(values.frames)>frameLimit;
+  const seedValue=values?.seed;
+  const invalidSeed=seedValue==="" || seedValue==null || !Number.isInteger(Number(seedValue)) || Number(seedValue)<0 || Number(seedValue)>template?.maximum_seed;
+  const invalidSettings=Object.fromEntries(numericSettings.slice(1).map(([key,,min,max,step])=>{
+    const value=values?.[key],number=Number(value);
+    return [key,value==="" || value==null || !Number.isFinite(number) || number<min || number>max || (step===1 && !Number.isInteger(number))];
+  }));
   async function review(event){
     event.preventDefault();setBusy(true);setError("");
     try{
@@ -191,16 +201,18 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       })}
       </div><div className="vace-input-group"><h2>생성 설정</h2><p className="vace-group-help">출력 길이와 생성 값을 확인하세요.</p><div className="vace-settings-grid">
       <label>LoRA<select value={values.lora_mode || "none"} onChange={e=>{const mode=e.target.value,previous=values.lora_mode || "none";if(previous==="none" && mode!=="none")nonLoraSettings.current={steps:values.steps,guidance_scale:values.guidance_scale,flow_shift:values.flow_shift};const restored=mode==="none" ? nonLoraSettings.current : null;if(mode==="none")nonLoraSettings.current=null;setValues(old=>({...old,lora_mode:mode,...(mode!=="none"?{steps:4,guidance_scale:1,flow_shift:5}:restored || {})}));}}><option value="none">사용 안 함</option><option value="lightning">Lightning만 · 실험</option><option value="fighting_lightning">격투 + Lightning · 실험</option></select></label>
-      {[["frames","출력 프레임",5,129,4],["steps","스텝",2,100,1],["flow_shift","Flow shift",0.1,20,"any"],["guidance_scale","CFG",1,10,"any"],["reference_strength","조건 강도",0.1,2,"any"]].map(([key,label,min,max,step])=>
-        <label key={key}>{label}<input type="number" required min={min} max={max} step={step} aria-invalid={key==="frames" && invalidFrameValue || undefined} value={values[key]} onChange={e=>field(key,e.target.value===""?"":Number(e.target.value))}/></label>)}
+      {numericSettings.map(([key,label,min,max,step])=>
+        <label key={key}>{label}<input type="number" required min={min} max={max} step={step} aria-invalid={(key==="frames" ? invalidFrameValue || invalidFrames : invalidSettings[key]) || undefined} aria-describedby={key==="frames" ? [invalidFrameValue && frameErrorId,invalidFrames && frameLimitErrorId].filter(Boolean).join(" ") || undefined : invalidSettings[key] ? `${settingErrorId}-${key}` : undefined} value={values[key]} onChange={e=>field(key,e.target.value===""?"":Number(e.target.value))}/>{key==="frames" && invalidFrameValue && <small className="vace-field-error" id={frameErrorId}>5~129 사이에서 4프레임 간격으로 입력하세요. 예: 5, 9, 13.</small>}{invalidSettings[key] && <small className="vace-field-error" id={`${settingErrorId}-${key}`}>{min}~{max}{step===1 ? "의 정수" : " 사이"}로 입력하세요.</small>}</label>)}
       </div>{frameLimit!==null && <p>입력에 사용할 수 있는 최대 출력 길이 {frameLimit}프레임 <button type="button" onClick={()=>field("frames",frameLimit)}>최대 프레임 적용</button></p>}
-      {invalidFrames && <p role="alert">출력 프레임이 입력 영상보다 깁니다. {frameLimit}프레임 이하로 줄이세요.</p>}
+      {invalidFrames && <p id={frameLimitErrorId} role="alert">출력 프레임이 입력 영상보다 깁니다. {frameLimit}프레임 이하로 줄이세요.</p>}
       {["lightning","fighting_lightning"].includes(values.lora_mode) && <p>Lightning은 High·Low 전문가에 적용합니다. {values.lora_mode==="fighting_lightning" && "격투 LoRA는 High 전문가에 적용합니다. "}4스텝·CFG 1·shift 5가 필요하며 동작 품질은 검수해야 합니다. {values.lora_mode==="fighting_lightning" && <><a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-fighting-lora",...(session?{session}:{})})}>격투 LoRA 준비</a> · </>}<a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-vace-lightning",...(session?{session}:{})})}>Lightning 준비</a></p>}
       <p>832×480 · 16fps · {Number(values.frames)>0?(Number(values.frames)/16).toFixed(2):"0"}초 · VACE-Fun A14B BF16 · Euler/FlowMatch</p>
-      <SeedInput value={values.seed} max={template.maximum_seed} onChange={value=>field("seed",value===""?"":Number(value))}/>
+      <SeedInput value={values.seed} max={template.maximum_seed} error={invalidSeed ? `0~${template.maximum_seed}의 정수로 입력하세요.` : ""} onChange={value=>field("seed",value===""?"":Number(value))}/>
       </div><ActionButton type="submit" reasons={[
         !generationReady(model) && "모델 준비 상태를 확인하세요.",
-        invalidFrameValue && "출력 프레임은 5~129 사이에서 4프레임 간격으로 입력하세요. 예: 5, 9, 13.",
+        invalidFrameValue && "출력 프레임의 입력 범위를 확인하세요.",
+        Object.values(invalidSettings).some(Boolean) && "생성 설정의 입력 범위를 확인하세요.",
+        invalidSeed && "시드의 입력 범위를 확인하세요.",
         ["lightning","fighting_lightning"].includes(values.lora_mode) && (values.steps!==4 || values.guidance_scale!==1 || values.flow_shift!==5) && "Lightning에는 4스텝·CFG 1·shift 5가 필요합니다.",
         !values.prompt.trim() && "프롬프트를 입력하세요.",
         values.mode!=="text" && !files.reference && "참조 이미지를 선택하세요.",

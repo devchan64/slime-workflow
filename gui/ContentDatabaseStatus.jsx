@@ -3,17 +3,27 @@ import React,{useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 
+function validContentStatus(result){
+  if(!result || !["available","unavailable"].includes(result.status) || (result.note!=null && typeof result.note!=="string"))return false;
+  if(result.status==="available" && (!Number.isInteger(result.generation) || result.generation<0 || !Number.isInteger(result.ledger_generation) || result.ledger_generation<0 || result.ledger_generation>result.generation || typeof result.pending!=="boolean" || result.pending!==(result.generation>result.ledger_generation) || (result.latest!=null && (typeof result.latest.state!=="string" || typeof result.latest.lease_expired!=="boolean"))))return false;
+  if(result.map_sources?.checked_files!=null && (!Number.isInteger(result.map_sources.checked_files) || !Number.isInteger(result.map_sources.mismatched_files)))return false;
+  if(result.map_save?.file_details!=null && (!Array.isArray(result.map_save.file_details) || result.map_save.file_details.some(file=>!file || ![file.path,file.current,file.backup].every(value=>typeof value==="string"))))return false;
+  return true;
+}
+
 export default function ContentDatabaseStatus(){
   const [record,setRecord]=useState(null),[error,setError]=useState(""),[revision,refresh]=useState(0);
   const [loading,setLoading]=useState(true),[receivedAt,setReceivedAt]=useState(null);
   useEffect(()=>{
     let active=true;
+    const controller=new AbortController();let timedOut=false;
+    const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setLoading(true);setError("");
-    managementCommand("hermes-agent","hermes-content-database-status").then(result=>{
-      if(!result || !["available","unavailable"].includes(result.status))throw new Error("콘텐츠 DB 상태 형식을 확인할 수 없습니다.");
+    managementCommand("hermes-agent","hermes-content-database-status",{},{signal:controller.signal}).then(result=>{
+      if(!validContentStatus(result))throw new Error("콘텐츠 DB 상태 형식을 확인할 수 없습니다.");
       if(active){setRecord(result);setReceivedAt(new Date());}
-    }).catch(problem=>{if(active)setError(problem instanceof TypeError?"콘텐츠 DB 상태에 연결하지 못했습니다. 다시 시도하세요.":problem.message);}).finally(()=>{if(active)setLoading(false);});
-    return ()=>{active=false;};
+    }).catch(problem=>{if(active)setError(timedOut?"콘텐츠 DB 상태 조회 시간이 초과됐습니다. 다시 시도하세요.":problem instanceof TypeError?"콘텐츠 DB 상태에 연결하지 못했습니다. 다시 시도하세요.":problem.message);}).finally(()=>{clearTimeout(timer);if(active)setLoading(false);});
+    return ()=>{active=false;clearTimeout(timer);controller.abort();};
   },[revision]);
   const available=record?.status==="available",sources=record?.map_sources,save=record?.map_save;
   const observedAt=record?.queried_at && !Number.isNaN(Date.parse(record.queried_at)) ? new Date(record.queried_at).toLocaleString("ko-KR") : "확인 불가";

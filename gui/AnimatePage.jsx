@@ -8,9 +8,20 @@ import DownloadProgress from "./DownloadProgress.jsx";
 
 const service="wan22-animate2";
 async function readJob(id){
-  const response=await fetch("/management/assistant/animate-input/"+encodeURIComponent(id)+"/request",{cache:"no-store"});
-  if(!response.ok)throw new Error("저장된 입력을 확인할 수 없습니다.");
-  return response.json();
+  const prefix="/management/assistant/animate-input/"+encodeURIComponent(id);
+  const controller=new AbortController();let timedOut=false;
+  const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+  try{
+    const response=await fetch(prefix+"/request",{cache:"no-store",signal:controller.signal});
+    if(!response.ok)throw new Error("저장된 입력을 확인할 수 없습니다.");
+    let record;
+    try{record=await response.json();}catch{throw new Error("저장된 입력 형식을 확인할 수 없습니다.");}
+    if(!record || record.id!==id || !record.request || typeof record.request.prompt!=="string" ||
+      ![record.request.frames,record.request.steps,record.request.seed].every(Number.isInteger) ||
+      record.reference!==prefix+"/reference" || record.motion!==prefix+"/motion")throw new Error("저장된 입력 형식을 확인할 수 없습니다.");
+    return record;
+  }catch(problem){if(timedOut)throw new Error("저장된 입력 조회 시간이 초과됐습니다.");throw problem;}
+  finally{clearTimeout(timer);}
 }
 export default function AnimatePage({embedded=false}={}){
   const query=new URLSearchParams(location.search);

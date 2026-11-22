@@ -17,12 +17,24 @@ import JobIdentifier from "./JobIdentifier.jsx";
 import {validateGpuHandoffStatus} from "./validateGpuHandoffStatus.mjs";
 import {generationProposalScope,readGenerationProposal,funProposalInputs} from "./generationProposal.mjs";
 
+function validFunInput(record,id,{saved=false}={}){
+  const request=record?.request,video=record?.video;
+  return Boolean(record?.id===id && request && request.action==="generate" && request.control_type==="pose" && request.width===832 && request.height===480 &&
+    typeof request.prompt==="string" && request.prompt.trim() && typeof request.negative_prompt==="string" &&
+    (saved ? ["wan22-14b","wan21-1.3b"].includes(request.model_profile) : request.model_profile==null || ["wan22-14b","wan21-1.3b"].includes(request.model_profile)) &&
+    Number.isInteger(request.frames) && request.frames>=5 && request.frames<=129 && (request.frames-1)%4===0 &&
+    Number.isInteger(request.steps) && request.steps>=2 && request.steps<=100 && Number.isInteger(request.seed) && request.seed>=0 && request.seed<=2147483647 &&
+    Number.isFinite(request.flow_shift) && request.flow_shift>=0.1 && request.flow_shift<=20 && Number.isFinite(request.guidance_scale) && request.guidance_scale>=1 && request.guidance_scale<=10 && Number.isFinite(request.switch_ratio) && request.switch_ratio>=0.1 && request.switch_ratio<=0.9 &&
+    Array.isArray(request.images) && request.images.length===1 && typeof request.images[0]==="string" && request.images[0].length>0 &&
+    typeof request.pose_video==="string" && request.pose_video.length>0 && Number.isInteger(video?.maximum_frames) && video.maximum_frames>=request.frames && typeof video.summary==="string");
+}
+
 export default function FunControlPage({embedded=false,session="",restoreFormId="",seedProposal=null,onSaved=()=>{}}){
   const [template,setTemplate]=useState(null),[selected,select]=useState("");
   const [templateRetry,retryTemplate]=useState(0);
   const [templateError,setTemplateError]=useState("");
   const [request,setRequest]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
-  const [pending,setPending]=useState(null),[job,setJob]=useState(new URLSearchParams(location.search).get("job") || "");
+  const [pending,setPending]=useState(null),[job,setJob]=useState(embedded ? "" : new URLSearchParams(location.search).get("job") || "");
   const [model,setModel]=useState(null);
   const modelReason=(model?.generation_ready ?? model?.ready) ? "" : model ? "모델 준비가 필요합니다. 모델 상태에서 준비 절차를 확인하세요." : "모델 준비 상태를 확인해야 접수할 수 있습니다.";
   const [videoInfo,setVideoInfo]=useState(null);
@@ -38,7 +50,8 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   async function readJob(id){
     const response=await fetch("/management/assistant/fun-input/"+encodeURIComponent(id),{cache:"no-store"});
     if(!response.ok)throw new Error("이 작업의 입력 사본을 복원할 수 없습니다.");
-    const record=await response.json();
+    let record;try{record=await response.json();}catch{throw new Error("저장된 입력 형식을 확인할 수 없습니다.");}
+    if(!validFunInput(record,id,{saved:true}))throw new Error("저장된 입력 형식을 확인할 수 없습니다.");
     const {images,pose_video,...settings}=record.request;
     return {...record,request:settings,attachments:{images,pose_video}};
   }
@@ -152,8 +165,8 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
       const id=restore?job:selected;
       const response=await fetch("/management/assistant/"+(restore?"fun-input/":"fun-example/")+encodeURIComponent(id));
       if(!response.ok)throw new Error(restore?"이 작업의 입력 사본을 복원할 수 없습니다.":"예제 첨부 파일을 불러올 수 없습니다.");
-      const example=await response.json();
-      if(example.id!==id)throw new Error("선택한 예제와 응답이 일치하지 않습니다.");
+      let example;try{example=await response.json();}catch{throw new Error(restore ? "저장된 입력 형식을 확인할 수 없습니다." : "예제 입력 형식을 확인할 수 없습니다.");}
+      if(!validFunInput(example,id,{saved:restore}))throw new Error(restore ? "저장된 입력 형식을 확인할 수 없습니다." : "예제 입력 형식을 확인할 수 없습니다.");
       setVideoInfo(example.video);setSourceSeed(restore ? Number(example.request.seed) : null);setSourceJob(restore ? example.id : "");
       setRequest(example.request);
     }catch(problem){setError(problem.message);}
@@ -202,7 +215,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     {request && <form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review} onInvalid={event=>{const details=event.target.closest("details");if(details)details.open=true;}}><fieldset disabled={busy || !!pending || Boolean(handoffId)}><legend>생성 입력</legend>
     <fieldset className="fun-source" disabled={busy || !!pending || !template}><legend>원본 작업</legend>
       {sourceJob ? <><p>불러온 원본 작업</p><JobIdentifier id={sourceJob} compact/></> : <p>선택된 원본 작업이 없습니다.</p>}
-      {job && <button type="button" disabled={!template} onClick={()=>load(true)}>작업 {job} 입력으로 교체</button>}
+      {job && <div>{sourceJob!==job && <><p>현재 작업</p><JobIdentifier id={job} compact/></>}<button type="button" disabled={!template} onClick={()=>load(true)}>현재 작업 입력으로 교체</button></div>}
       <details><summary>제작 예제 사용</summary><label>예제 선택<select value={selected} onChange={event=>select(event.target.value)}>
         {template?.examples.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
         <button type="button" disabled={!selected} onClick={()=>load()}>선택한 예제로 입력 교체</button></details>

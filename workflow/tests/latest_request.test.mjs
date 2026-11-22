@@ -16,14 +16,18 @@ test('new requests and edits invalidate late responses',()=>{
 });
 
 test('anchor history pages retain the requested offset and snapshot',()=>{
-  const snapshot='a'.repeat(64),payload={offset:1,snapshot};
-  const page={records:[{id:'one'}],offset:1,next_offset:2,snapshot};
+  const snapshot='a'.repeat(64),payload={offset:1,snapshot,limit:20};
+  const page={records:[{id:'one',created_at:'2026-11-22',frames:16}],total:3,offset:1,next_offset:2,snapshot};
   assert.equal(validAnchorHistoryPage(page,payload,true),true);
   assert.equal(validAnchorHistoryPage({...page,snapshot:'b'.repeat(64)},payload,true),false);
   assert.equal(validAnchorHistoryPage({...page,offset:0},payload,true),false);
   assert.equal(validAnchorHistoryPage({...page,next_offset:3},payload,true),false);
   assert.equal(validAnchorHistoryPage({...page,records:[],next_offset:1},payload,true),false);
-  assert.equal(validAnchorHistoryPage({...page,next_offset:null},payload,true),true);
+  assert.equal(validAnchorHistoryPage({...page,next_offset:null,total:2},payload,true),true);
+  assert.equal(validAnchorHistoryPage({...page,total:'3'},payload,true),false);
+  assert.equal(validAnchorHistoryPage({...page,total:1},payload,true),false);
+  assert.equal(validAnchorHistoryPage({...page,records:[null]},payload,true),false);
+  assert.equal(validAnchorHistoryPage({...page,next_offset:null},payload,true),false);
 });
 
 test('anchor history requests retain trimmed filters and pagination snapshot',()=>{

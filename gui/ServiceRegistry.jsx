@@ -15,22 +15,28 @@ export default function ServiceRegistry({query}) {
   useEffect(()=>{if(page && focusNextPage.current){focusNextPage.current=false;listRef.current?.focus({preventScroll:true});listRef.current?.scrollIntoView({block:"start",inline:"nearest"});}},[page]);
   useEffect(() => {
     let active = true;
+    const controller=new AbortController();
+    let timeoutId,timedOut=false;
     setLoading(true);
     setError("");
     const timer = setTimeout(async () => {
+      timeoutId=setTimeout(()=>{timedOut=true;controller.abort();},30000);
       try {
-        const result = await managementCommand("hermes-agent","hermes-service-registration",{query,offset,limit:10});
-        if (!result || !Array.isArray(result.services) || !Number.isInteger(result.total) || result.services.some(row=>!row || typeof row.service!=="string" || ![row.commands,row.gateway_blocked,row.known_service_blocked,row.conditional_limitations,row.hermes_links].every(Array.isArray))) throw new Error("서비스 목록 형식을 확인할 수 없습니다.");
+        const result = await managementCommand("hermes-agent","hermes-service-registration",{query,offset,limit:10},{signal:controller.signal});
+        if (!result || (result.note!=null && typeof result.note!=="string") || !Array.isArray(result.services) || !Number.isInteger(result.total) || result.total<0 || result.offset!==offset || result.services.length>10 || offset+result.services.length>result.total ||
+            (result.next_offset===null ? offset+result.services.length!==result.total : result.next_offset!==offset+result.services.length || result.next_offset>=result.total || !result.services.length) ||
+            result.services.some(row=>!row || typeof row.service!=="string" || ![row.commands,row.hermes_links].every(items=>Array.isArray(items) && items.every(item=>typeof item==="string")) || ![row.gateway_blocked,row.known_service_blocked,row.conditional_limitations].every(items=>Array.isArray(items) && items.every(item=>item && typeof item.command==="string" && typeof (item.reason ?? item.note)==="string")))) throw new Error("서비스 목록 형식을 확인할 수 없습니다.");
         if (active) {setPage(result);setReceivedAt(new Date());}
       } catch (problem) {
-        if (active) {focusNextPage.current=false;setError(problem instanceof TypeError ? "서비스 목록에 연결하지 못했습니다. 다시 시도하세요." : problem.message);}
-      } finally {if(active)setLoading(false);}
+        if (active) {focusNextPage.current=false;setError(timedOut ? "서비스 목록 조회 시간이 초과됐습니다. 다시 시도하세요." : problem instanceof TypeError ? "서비스 목록에 연결하지 못했습니다. 다시 시도하세요." : problem.message);}
+      } finally {clearTimeout(timeoutId);if(active)setLoading(false);}
     }, 200);
-    return () => {active = false; clearTimeout(timer);};
+    return () => {active = false; clearTimeout(timer);clearTimeout(timeoutId);controller.abort();};
   }, [query,offset,revision]);
   return <section aria-label="서비스 등록 목록">
     <button disabled={loading} onClick={() => refresh(value => value+1)}>{loading?"조회 중…":"등록 목록 새로고침"}</button>
     {error && <p role="alert">{error}{page && " · 이전 조회 결과를 유지합니다."}</p>}
+    {error && offset>0 && <button type="button" onClick={()=>{focusNextPage.current=true;setOffset(0);}}>첫 페이지부터 다시 조회</button>}
     {loading && page && <p role="status">새 목록을 조회 중입니다. 아래는 이전 결과입니다.</p>}
     {page ? <>
       <p>화면 수신 시각 · {receivedAt?.toLocaleString("ko-KR")}</p>

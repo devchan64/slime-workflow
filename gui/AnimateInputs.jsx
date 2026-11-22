@@ -1,6 +1,7 @@
 import PromptWordCount from "./PromptWordCount.jsx";
 import SeedInput from "./SeedInput.jsx";
 import ReferenceImageInput from "./ReferenceImageInput.jsx";
+import JobIdentifier from "./JobIdentifier.jsx";
 import React,{useEffect,useRef,useState} from "react";
 
 export default function AnimateInputs({saved}) {
@@ -15,7 +16,7 @@ export default function AnimateInputs({saved}) {
   useEffect(()=>{setPrompt(saved?.request.prompt ?? "");setSeed(saved?.request.seed ?? "42");setReference(saved?.reference ?? null);setFrames(saved?.request.frames ?? 21);setSteps(saved?.request.steps ?? 40);setMotionError(false);setMotionFile(null);if(motionInput.current)motionInput.current.value="";},[saved]);
   return (
     <fieldset className="animate-inputs"><legend>캐릭터 동작 전사 입력</legend>
-      {saved && <section><p>복원한 작업 {saved.id}</p><video key={saved.motion} aria-label="저장된 동작 영상" controls preload="metadata" src={saved.motion} onError={()=>setMotionError(true)}/>
+      {saved && <section><p>복원한 작업</p><JobIdentifier id={saved.id} compact/><video key={saved.motion} aria-label="저장된 동작 영상" controls preload="metadata" src={saved.motion} onError={()=>setMotionError(true)}/>
         {motionError && <p role="status">이 브라우저에서 저장된 동작 영상을 재생할 수 없습니다. 원본 파일을 열어 확인하세요.</p>}
         <a href={saved.motion} target="_blank" rel="noreferrer">동작 영상 원본 열기</a></section>}
       <ReferenceImageInput label="캐릭터 참조 PNG · 832×480" source={reference} onChange={setReference} accept="image/png"/>

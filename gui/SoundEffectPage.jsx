@@ -43,10 +43,19 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     requestAnimationFrame(()=> (preparing?prepareRef:promptRef).current?.focus());
   }
   async function readJob(id){
-    const response=await fetch(formPath+"/"+encodeURIComponent(id),{cache:"no-store"});
-    const result=await response.json();
-    if(!response.ok)throw new Error(result.detail || "저장된 입력을 확인할 수 없습니다.");
-    return result;
+    const controller=new AbortController();let timedOut=false;
+    const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    try{
+      const response=await fetch(formPath+"/"+encodeURIComponent(id),{cache:"no-store",signal:controller.signal});
+      let result;
+      try{result=await response.json();}catch{throw new Error(response.ok ? "저장된 오디오 입력 형식을 확인할 수 없습니다." : "저장된 입력을 확인할 수 없습니다.");}
+      if(!response.ok)throw new Error(typeof result?.detail==="string" ? result.detail : "저장된 입력을 확인할 수 없습니다.");
+      const input=result?.request;
+      if(result?.id!==id || !input || typeof input.prompt!=="string" || !Number.isInteger(input.seed) || typeof input.loop_request!=="boolean" || typeof input.tag!=="string" ||
+        (music && (typeof input.lyrics!=="string" || !Number.isFinite(input.duration_seconds))))throw new Error("저장된 오디오 입력 형식을 확인할 수 없습니다.");
+      return result;
+    }catch(problem){if(timedOut)throw new Error("저장된 입력 조회 시간이 초과됐습니다.");throw problem;}
+    finally{clearTimeout(timer);}
   }
   function cleaned(message){
     setJob("");setNotice(message);setHistoryRevision(value=>value+1);

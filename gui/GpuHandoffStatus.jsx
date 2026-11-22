@@ -1,6 +1,7 @@
 import React,{useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import {validateGpuHandoffStatus} from "./validateGpuHandoffStatus.mjs";
+import JobIdentifier from "./JobIdentifier.jsx";
 
 const labels={approved:"승인됨",waiting_release:"헤르메스 작업 종료 및 모델 해제 대기",submitting:"생성 접수 확인 중",running:"생성 작업 진행 중",reload_queued:"Qwen 3.8 재적재 대기",reloading:"Qwen 3.8 재적재 중",cancel_waiting_release:"중지 후 모델 해제 확인 중",cancel_reload_queued:"중지 후 Qwen 3.8 재적재 대기",cancel_reloading:"중지 후 Qwen 3.8 재적재 중",rejected_reload_queued:"요청 검증 실패 · Qwen 3.8 재적재 대기",rejected_reloading:"요청 검증 실패 · Qwen 3.8 재적재 중",rejected:"요청 검증 실패 · Qwen 3.8 재적재 완료",ready:"Qwen 3.8 재적재 완료",cancelled:"취소 완료",withdrawn:"미접수 요청 철회 완료",needs_attention:"확인 필요",not_found:"접수 여부 확인 필요",checking:"접수 확인 중"};
 const targetLabels={completed:"완료",failed:"실패",cancelled:"취소됨"};
@@ -16,8 +17,8 @@ export default function GpuHandoffStatus({session,id,service,status,onUpdate,onC
   const summary=status?.target_summary;
   const cancelRecovery=status?.reason?.startsWith("취소 후");
   return <section className="kimodo-submission-status" aria-label="GPU 양도 상태"><h3>GPU 양도 상태</h3>
-    <p>접수 ID <code>{id}</code></p><p>{labels[status?.state] || "상태 확인 필요"}</p>
-    {targetLabels[status?.target_status] && <p role={status.target_status==="failed" ? "alert" : undefined}>생성 작업 {targetLabels[status.target_status]}{status.job_id && <> · <code>{status.job_id}</code></>}</p>}
+    <p>접수 ID</p><JobIdentifier id={id} label="접수 ID" compact/><p>{labels[status?.state] || "상태 확인 필요"}</p>
+    {targetLabels[status?.target_status] && <><p role={status.target_status==="failed" ? "alert" : undefined}>생성 작업 {targetLabels[status.target_status]}</p>{status.job_id && <JobIdentifier id={status.job_id} compact/>}</>}
     {status?.reason && <p role="alert">{status.reason}</p>}
     {status?.state==="needs_attention" && recoverable.includes(status.reason) && summary && <>
       <p>기존 요청: {[summary.mode,summary.prompt,summary.frames ? `${summary.frames}프레임` : summary.width && summary.height ? `${summary.width}×${summary.height}` : null,summary.steps != null ? `${summary.steps}단계` : null,summary.seed != null ? `시드 ${summary.seed}` : null].filter(Boolean).join(" · ") || "입력 요약 없음"}</p>

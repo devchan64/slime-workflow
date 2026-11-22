@@ -333,6 +333,7 @@ article {position:relative;}
 .choice-buttons {display:flex;flex-wrap:wrap;gap:.5rem}
 
 .seed-input {display:flex;flex-wrap:wrap;align-items:end;gap:.5rem;min-width:0;margin:.5rem 0}.seed-input label {display:grid;gap:.3rem;min-width:0;flex:1 1 10rem}.seed-input input {min-width:0;max-width:100%}
+.seed-input-error {flex-basis:100%}
 
 .prompt-word-count {display:block;color:var(--muted, #afbabd);font-size:.8rem;margin-top:.25rem}
 
@@ -728,19 +729,24 @@ article {position:relative;}
 .generator-section-navigation > small {flex-basis:100%;color:var(--muted,#afbabd);font-size:.8rem}
 .generator-page-common :is([aria-label="선택한 VACE 작업 결과"],[aria-label="선택한 Kimodo 작업 결과"]) {padding:.8rem;border:1px solid var(--line,#484d50);border-radius:.6rem;min-width:0;overflow-wrap:anywhere}
 
-.anchor-history-search {width:100%;max-width:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
+.anchor-history-search {width:100%;max-width:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,max(12rem,calc((100% - .65rem)/2))),1fr));gap:.65rem}
 .anchor-history-search label {min-width:0;display:grid;gap:.35rem}
 .anchor-history-search input {width:100%;min-width:0;box-sizing:border-box}
 .anchor-history-search button {grid-column:1/-1;justify-self:start;white-space:nowrap}
+.anchor-history-table {max-width:100%;overflow-x:auto}
+.anchor-history-table table {min-width:26rem}
+.operations-gpu-table {max-width:100%;overflow-x:auto}
+.operations-gpu-table table {min-width:40rem}
 
 /* VACE는 입력 자료 → 장면 지시 → 생성 설정으로 나누어 읽는다. */
 .vace-input-group {min-width:0; padding:.9rem 0; border-bottom:1px solid var(--line,#484d50)}
 .vace-input-group:first-of-type {padding-top:.35rem}
 .vace-input-group h2 {font-size:1rem; line-height:1.35; margin:0 0 .2rem}
 .vace-input-group .vace-group-help {font-size:.85rem; color:var(--muted,#afbabd); margin:0 0 .55rem; line-height:1.45}
-.vace-settings-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 .8rem}
-@media (max-width:700px) {.vace-settings-grid {grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:360px) {.vace-settings-grid {grid-template-columns:1fr}}
+.vace-settings-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:0 .8rem}
+.vace-page :is(.vace-settings-grid,.seed-input) [aria-invalid="true"] {border-color:#f6aa95}
+.vace-page :is(.vace-field-error,.seed-input-error) {color:#ffc69e}
+.vace-standalone.generator-page-common form .seed-input label:not(.reference-image-file),.fun-drawer .vace-page .seed-input label {margin-block:0}
 
 .queue-job-times {display:grid;gap:.2rem;margin:.4rem 0}
 .queue-job-times small {overflow-wrap:anywhere}

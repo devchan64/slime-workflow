@@ -4,6 +4,7 @@ import {formatCleanupResult} from "./formatCleanupResult.mjs";
 import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import {JobPriority} from "./QueuePriority.jsx";
 import {useLiveRefresh} from "./LiveRefresh.jsx";
+import JobIdentifier from "./JobIdentifier.jsx";
 
 const terminalStates=new Set(["completed","failed","cancelled","paused"]);
 function statusCommand(service) {
@@ -70,7 +71,7 @@ export default function SelectedHistoryDeletion({service,id,onDeleted,allowPrior
     {error && <div className="history-action-detail"><p role="alert">{error}</p>
       <button type="button" disabled={busy} onClick={event=>{event.currentTarget.closest(".generator-history-item")?.querySelector(".generator-history-select")?.focus();setRevision(value=>value+1);}}>작업 상태 다시 확인</button></div>}
     {review && <section ref={reviewRef} tabIndex={-1} aria-label="선택 이력 삭제 확인" className="history-action-detail history-confirmation">
-      <p>{service} · 선택 작업 {id}</p>
+      <p>{service} · 선택 작업</p><JobIdentifier id={id} compact/>
       <p>작업 폴더의 입력 사본·중간 산출물·결과·모든 실행 시도의 요청·상태·로그와 이력 기록을 삭제하며 복구할 수 없습니다. 외부 원본과 등록된 에셋은 보존합니다.</p>
       <label><input type="checkbox" checked={ack} disabled={busy} onChange={e=>setAck(e.target.checked)}/>삭제 범위와 복구 불가를 확인했습니다.</label>
       <div className="choice-buttons"><button type="button" disabled={busy} onClick={()=>{setReview(false);setAck(false);requestAnimationFrame(()=>deleteButton.current?.focus());}}>삭제 취소</button>
