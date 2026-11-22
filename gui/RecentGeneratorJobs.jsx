@@ -59,7 +59,7 @@ export default function RecentGeneratorJobs({session,filters,filterSummary,revis
           if(!response.ok)throw new Error('생성기 목록 조회 실패');
           return response.json();
         });
-        if(!Array.isArray(sources))throw new Error('생성기 목록 형식 오류');
+        if(!Array.isArray(sources) || sources.some(source=>!source || typeof source.service!=='string' || !source.service || typeof source.command!=='string' || !source.command))throw new Error('생성기 목록 형식 오류');
         const eligible=sources.filter(s=>s && typeof s.service==='string' && ['hermes-generator-source-history','hermes-audio-source-history'].includes(s.command));
         const collected=[],failed=[];let cursor=0,succeeded=0;
         async function worker(){

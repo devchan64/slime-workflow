@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from "react";
 import GpuHandoffStatus from "./GpuHandoffStatus.jsx";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import {validateGpuHandoffStatus} from "./validateGpuHandoffStatus.mjs";
 
 export default function GpuHandoffHistory({session}){
@@ -14,7 +14,7 @@ export default function GpuHandoffHistory({session}){
     const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setBusy(true);setError("");
     try{
-      const result=await managementCommand("hermes-agent","hermes-gpu-handoff-list",{session_id:session},{signal:controller.signal});
+      const result=await untilAborted(managementCommand("hermes-agent","hermes-gpu-handoff-list",{session_id:session},{signal:controller.signal}),controller.signal);
       if(activeRequest.current!==controller || controller.signal.aborted)return;
       if(result.session_id!==session || !Array.isArray(result.handoffs) || result.handoffs.length>20)throw new Error("GPU 양도 이력 응답이 일치하지 않습니다.");
       const seen=new Set();

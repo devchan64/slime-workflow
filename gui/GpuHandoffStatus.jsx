@@ -1,5 +1,5 @@
-import React,{useEffect,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import React,{useEffect,useRef,useState} from "react";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import {validateGpuHandoffStatus} from "./validateGpuHandoffStatus.mjs";
 import JobIdentifier from "./JobIdentifier.jsx";
 
@@ -10,11 +10,19 @@ const recoverable=["헤르메스 종료와 GPU 예약 해제를 확인할 수 �
 export default function GpuHandoffStatus({session,id,service,status,onUpdate,onClose,children}){
   const [busy,setBusy]=useState(false),[error,setError]=useState("");
   const [confirmReload,setConfirmReload]=useState(false);
+  const statusRequest=useRef(null);
+  useEffect(()=>()=>{statusRequest.current?.abort();statusRequest.current=null;},[session,id,service]);
   useEffect(()=>setConfirmReload(false),[session,id,status?.revision]);
   async function perform(action){setBusy(true);setError("");try{await action();}catch(problem){setError(problem.message || "GPU 양도 상태를 확인할 수 없습니다.");}finally{setBusy(false);}}
   async function refresh(){
-    const value=await managementCommand("hermes-agent","hermes-gpu-handoff-status",{session_id:session,request_id:id});
-    onUpdate(validateGpuHandoffStatus(value,session,id,service));
+    const controller=new AbortController();statusRequest.current=controller;
+    const timeout=setTimeout(()=>controller.abort(),30000);
+    try{
+      const value=await untilAborted(managementCommand("hermes-agent","hermes-gpu-handoff-status",{session_id:session,request_id:id},{signal:controller.signal}),controller.signal);
+      if(statusRequest.current===controller)onUpdate(validateGpuHandoffStatus(value,session,id,service));
+    }catch(problem){
+      if(statusRequest.current===controller)throw new Error(problem?.name==="AbortError" ? "GPU 양도 상태 조회 시간이 초과됐습니다. 다시 확인하세요." : problem instanceof TypeError ? "GPU 양도 상태 서버에 연결하지 못했습니다. 다시 확인하세요." : problem.message);
+    }finally{clearTimeout(timeout);if(statusRequest.current===controller)statusRequest.current=null;}
   }
   const summary=status?.target_summary;
   const cancelRecovery=status?.reason?.startsWith("취소 후");

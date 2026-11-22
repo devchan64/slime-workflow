@@ -1,6 +1,6 @@
 import SnapshotStatus from "./SnapshotStatus.jsx";
 import React,{useEffect,useRef,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 
 import {drawAlignment} from "./drawAlignment.js";
 
@@ -73,9 +73,11 @@ function WaypointPreview({detail}){
   </fieldset>;
 }
 
-function WaypointReplacement({detail,onSaved}){
+function WaypointReplacement({detail,onSaved,onDirtyChange,onBusyChange}){
   const [source,setSource]=useState(JSON.stringify(detail.document,null,2));
   const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
+  useEffect(()=>{onDirtyChange(source!==JSON.stringify(detail.document,null,2));},[source,detail,onDirtyChange]);
+  useEffect(()=>{onBusyChange(busy);},[busy,onBusyChange]);
   async function review(){
     setError("");setBusy(true);setPending(null);
     try{
@@ -108,9 +110,12 @@ function WaypointReplacement({detail,onSaved}){
   </fieldset></details>;
 }
 
-function Alignment({detail}){
+function Alignment({detail,onDirtyChange,onBusyChange}){
   const [values,setValues]=useState(detail.document.alignment);
+  const [savedValues,setSavedValues]=useState(detail.document.alignment);
   const [revision,setRevision]=useState(detail.revision),[busy,setBusy]=useState(false),[message,setMessage]=useState("");
+  useEffect(()=>{onDirtyChange(JSON.stringify(values)!==JSON.stringify(savedValues));},[values,savedValues,onDirtyChange]);
+  useEffect(()=>{onBusyChange(busy);},[busy,onBusyChange]);
   function rectangle(key,index){
     const row=key==="target"?values.target:values.frames[index];
     return sides.map((side,i)=><label key={side}>{side}<input type="number" required step="any" value={row[i]}
@@ -126,7 +131,7 @@ function Alignment({detail}){
     try{
       const result=await managementCommand("map-assets","effect-save",{id:detail.document.id,expectedRevision:revision,requestId:crypto.randomUUID(),alignment});
       if(!result.revision)throw new Error("저장된 리비전을 확인할 수 없습니다.");
-      setRevision(result.revision);setValues(alignment);setMessage("이펙트 정렬을 저장했습니다.");
+      setRevision(result.revision);setValues(alignment);setSavedValues(alignment);setMessage("이펙트 정렬을 저장했습니다.");
     }catch(problem){setMessage(problem.message);}
     finally{setBusy(false);}
   }
@@ -141,33 +146,44 @@ export default function EffectEditor(){
   const [notice,setNotice]=useState("");
   const [effects,setEffects]=useState([]),[selected,select]=useState(""),[detail,setDetail]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[revision,reload]=useState(0);
+  const [dirty,setDirty]=useState(false),[editorBusy,setEditorBusy]=useState(false),[editorVersion,setEditorVersion]=useState(0);
+  const detailRequest=useRef(null);
+  useEffect(()=>()=>{const request=detailRequest.current;detailRequest.current=null;request?.abort();},[]);
   useEffect(()=>{
-    let active=true;setBusy(true);setError("");setDetail(null);setEffects([]);
-    managementCommand("map-assets","effect-list",{}).then(result=>{
-      if(active){setEffects(result.effects);select(old=>result.effects.some(e=>e.id===old)?old:result.effects[0]?.id || "");}
-    }).catch(problem=>{if(active)setError(problem.message);}).finally(()=>{if(active)setBusy(false);});
-    return ()=>{active=false;};
+    let active=true;const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),30000);
+    setBusy(true);setError("");
+    untilAborted(managementCommand("map-assets","effect-list",{},{signal:controller.signal}),controller.signal).then(result=>{
+      if(!Array.isArray(result?.effects) || result.effects.some(item=>!item || typeof item.id!=="string" || typeof item.name!=="string"))throw new Error("이펙트 목록 응답을 확인할 수 없습니다.");
+      if(active){setEffects(result.effects);select(old=>old || result.effects[0]?.id || "");}
+    }).catch(problem=>{if(active)setError(problem?.name==="AbortError" ? "이펙트 목록 조회 시간이 초과됐습니다. 목록을 새로고침하세요." : problem instanceof TypeError ? "이펙트 목록 서버에 연결하지 못했습니다. 목록을 새로고침하세요." : problem.message);}).finally(()=>{clearTimeout(timeout);if(active)setBusy(false);});
+    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[revision]);
   async function load(){
     setBusy(true);setError("");setDetail(null);
+    const controller=new AbortController();detailRequest.current=controller;
+    const timeout=setTimeout(()=>controller.abort(),30000);
     try{
-      const result=await managementCommand("map-assets","effect-load",{id:selected});
+      const result=await untilAborted(managementCommand("map-assets","effect-load",{id:selected},{signal:controller.signal}),controller.signal);
       if(result.document?.id!==selected)throw new Error("선택한 이펙트와 응답이 일치하지 않습니다.");
-      setDetail(result);
-    }catch(problem){setError(problem.message);}
-    finally{setBusy(false);}
+      if(detailRequest.current===controller)setDetail(result);
+    }catch(problem){if(detailRequest.current===controller)setError(problem?.name==="AbortError" ? "이펙트 조회 시간이 초과됐습니다. 다시 불러오세요." : problem instanceof TypeError ? "이펙트 서버에 연결하지 못했습니다. 다시 불러오세요." : problem.message);}
+    finally{clearTimeout(timeout);if(detailRequest.current===controller){detailRequest.current=null;setBusy(false);}}
   }
-  return <article className="effect-editor-page"><h1>이펙트 좌표 검수</h1><fieldset className="effect-editor-picker" disabled={busy}><legend>이펙트 선택</legend>
-    <select aria-label="이펙트" value={selected} onChange={e=>{select(e.target.value);setDetail(null);}}>
+  return <article className="effect-editor-page"><h1>이펙트 좌표 검수</h1><fieldset className="effect-editor-picker" disabled={busy || editorBusy}><legend>이펙트 선택</legend>
+    <select aria-label="이펙트" disabled={dirty} value={selected} onChange={e=>{select(e.target.value);setDetail(null);}}>
+      {selected && !effects.some(item=>item.id===selected) && <option value={selected}>{selected} · 현재 목록에 없음</option>}
       {!effects.length && <option value="">{busy ? "목록 조회 중…" : error ? "이펙트 목록 조회 실패" : "선택할 이펙트가 없습니다"}</option>}
       {effects.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select>
-    <button onClick={()=>reload(n=>n+1)}>목록 새로고침</button><button disabled={!effects.some(item=>item.id===selected)} onClick={load}>선택 이펙트 불러오기</button></fieldset>
+    <button onClick={()=>reload(n=>n+1)}>목록 새로고침</button><button disabled={dirty || !effects.some(item=>item.id===selected)} onClick={load}>선택 이펙트 불러오기</button></fieldset>
     {error && <p role="alert">{error}</p>}
+    {error && effects.length>0 && <p role="status">이전 조회의 목록{detail ? "과 열려 있는 상세를" : "을"} 유지합니다.</p>}
+    {selected && !busy && !error && !effects.some(item=>item.id===selected) && <p role="status">선택한 이펙트가 현재 목록에 없습니다. 다른 이펙트를 선택할 수 있습니다.</p>}
     {notice && <p role="status">{notice}</p>}
+    {dirty && <p role="status">저장하지 않은 편집이 있습니다. 다른 이펙트를 선택하려면 저장하거나 편집을 취소하세요. <button type="button" disabled={editorBusy} onClick={()=>{setDirty(false);setEditorVersion(n=>n+1);}}>편집 취소</button></p>}
     {detail && <section><h2>{detail.document.name}</h2><p>{detail.document.renderer} · {detail.document.frames}프레임</p>
       <img src={detail.sheetImage} alt="이펙트 시트 원본" style={{maxWidth:"100%"}}/>
       {detail.hostImage && <img src={detail.hostImage} alt="빌보드 원본" style={{maxWidth:"100%"}}/>}
-      {detail.document.renderer==="waypoint-animation"?<><WaypointPreview detail={detail}/><WaypointReplacement detail={detail} onSaved={id=>{setNotice("웨이포인트 교체 완료 · "+id);select(id);reload(n=>n+1);}}/></>:<Alignment detail={detail}/>}
+      {detail.document.renderer==="waypoint-animation"?<><WaypointPreview detail={detail}/><WaypointReplacement key={editorVersion} detail={detail} onDirtyChange={setDirty} onBusyChange={setEditorBusy} onSaved={id=>{setDirty(false);setEditorBusy(false);setNotice("웨이포인트 교체 완료 · "+id);select(id);setDetail(null);reload(n=>n+1);}}/></>:<Alignment key={editorVersion} detail={detail} onDirtyChange={setDirty} onBusyChange={setEditorBusy}/>}
     </section>}
     <SnapshotStatus/>
   </article>;
