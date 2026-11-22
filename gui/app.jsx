@@ -597,7 +597,8 @@ function App() {
     url.searchParams.set("category",value);
     history.replaceState(null,"",url);setCategory(value);
   }
-  const categories=new Map(tools.map(tool=>[tool.category,tool.category_label]));
+  const toolFieldLabels={"sound-management":"음악·효과음","animation-tool":"모션·포즈·영상·편집","image-generation":"이미지 생성","map-review":"맵·에셋 관리","game-ui":"게임 UI","model-management":"모델 관리","writer-agent":"텍스트·번역"};
+  const categories=new Map(tools.map(tool=>[tool.category,toolFieldLabels[tool.category] || tool.category_label]));
   const terms=search.trim().toLowerCase().split(/\s+/);
   const toolSearchAliases={"kimodo-generator":"키모도 김도", "wan22-fun-control-generator":"완 펀 컨트롤 원 펀 콘트롤"};
   const matchedTools=tools.filter(tool=>(category==="all" || tool.category===category) &&
@@ -698,8 +699,12 @@ function App() {
     {showHandoff && session && <GpuHandoffHistory key={session} session={session}/>}
     {showTools && <div className="tool-drawer-content">
       <label className="search-scope">탐색 대상 <select ref={toolScope} value={searchMode} onChange={e=>setSearchMode(e.target.value)}>
-        {Object.entries({tools:"도구",capabilities:"관리 기능 검색",anchors:"앵커 검수 이력",expressions:"표정 프리셋",billboards:"빌보드 에셋",keyframes:"Kimodo 키프레임",content:"콘텐츠 DB 상태",services:"서비스 등록 목록",history:"생성 이력",jobs:"운영 작업 이력"}).map(([key,label])=><option key={key} value={key}>{label}</option>)}
+        <optgroup label="도구와 기능"><option value="tools">도구 목록</option><option value="capabilities">관리 명령 검색</option></optgroup>
+        <optgroup label="저장된 자료"><option value="expressions">표정 프리셋</option><option value="billboards">빌보드 에셋</option><option value="keyframes">Kimodo 키프레임</option></optgroup>
+        <optgroup label="작업과 검수 이력"><option value="history">생성 이력</option><option value="jobs">운영 작업 이력</option><option value="anchors">앵커 검수 이력</option></optgroup>
+        <optgroup label="시스템 상태"><option value="services">서비스 등록 상태</option><option value="content">콘텐츠 DB 상태</option></optgroup>
       </select></label>
+      <p className="generator-help-text">탐색 대상은 찾을 정보의 종류입니다.{searchMode==="tools" && " 도구 분야는 목록을 작업 영역별로 좁힙니다."}</p>
       {["capabilities","expressions","keyframes","services"].includes(searchMode) && <input ref={toolSearch} aria-label={{capabilities:"관리 기능 검색",expressions:"표정 프리셋 검색",keyframes:"Kimodo 키프레임 검색",services:"서비스 검색"}[searchMode]} maxLength={100} placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>}
       {["capabilities","expressions","keyframes","services"].includes(searchMode) && search && <button type="button" onClick={()=>{setSearch("");requestAnimationFrame(()=>toolSearch.current?.focus());}}>검색어 지우기</button>}
       {searchMode==="expressions" && <ExpressionCatalog key={search} query={search} choose={appendSelection}/>}
@@ -711,7 +716,7 @@ function App() {
       {searchMode==="history" && <SourceHistory session={session} choose={appendSelection}/>}
       {searchMode==="services" && <ServiceRegistry key={search} query={search}/>}
       {searchMode==="capabilities" && <CapabilitySearch search={search} choose={chooseTool}/>}
-      {searchMode==="tools" && <label>도구 분류 <select value={category} onChange={e=>changeCategory(e.target.value)}>
+      {searchMode==="tools" && <label>도구 분야 <select value={category} onChange={e=>changeCategory(e.target.value)}>
         <option value="all">전체</option>
         {category!=="all" && !categories.has(category) && <option value={category}>{category}</option>}
         {Array.from(categories,([id,label])=><option key={id} value={id}>{label || id}</option>)}
@@ -721,7 +726,7 @@ function App() {
         if(e.key==="Enter" && (e.nativeEvent.isComposing || e.nativeEvent.keyCode===229))e.stopPropagation();
       }}>
         <Command.Input ref={toolSearch} aria-label="도구 검색" placeholder="이름·기능 검색" maxLength={100} value={search} onValueChange={setSearch}/>
-        {!catalogError && <p role="status">{catalogLoading ? "도구 목록을 불러오는 중입니다." : tools.length===0 ? "등록된 도구가 없습니다." : <>검색 결과 {matchedTools.length}건{!matchedTools.length && " · 검색어나 도구 분류를 바꿔 보세요."}</>}</p>}
+        {!catalogError && <p role="status">{catalogLoading ? "도구 목록을 불러오는 중입니다." : tools.length===0 ? "등록된 도구가 없습니다." : <>검색 결과 {matchedTools.length}건{!matchedTools.length && " · 검색어나 도구 분야를 바꿔 보세요."}</>}</p>}
         {(search || category!=="all") && <button type="button" onClick={()=>{setSearch("");changeCategory("all");requestAnimationFrame(()=>toolSearch.current?.focus());}}>도구 검색 초기화</button>}
         <Command.List label="검색 결과">
           {matchedTools.map(tool=><Command.Group className="tool-match" key={tool.id} heading={tool.label}>
