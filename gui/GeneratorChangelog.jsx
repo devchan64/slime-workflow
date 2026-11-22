@@ -1,6 +1,7 @@
 import React, {useEffect,useState} from "react";
+import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
 
-export default function GeneratorChangelog({generator}) {
+export default function GeneratorChangelog({generator,card=false}) {
   const [open,setOpen]=useState(false);
   const [index,setIndex]=useState(0);
   const [revision,setRevision]=useState(0);
@@ -24,8 +25,7 @@ export default function GeneratorChangelog({generator}) {
     load();
     return ()=>controller.abort();
   },[open,generator,index,revision]);
-  return <details className="generator-changelog" onToggle={event=>setOpen(event.currentTarget.open)}><summary>생성기 변경 기록</summary>
-    {open && <>
+  const content=<>
       {error && <p role="alert">{error}</p>}
       <div className="choice-buttons">
         <button type="button" disabled={!page || page.index===0} onClick={()=>setIndex(page.index-1)}>이전 페이지</button>
@@ -33,6 +33,7 @@ export default function GeneratorChangelog({generator}) {
         <button type="button" onClick={()=>setRevision(value=>value+1)}>새로고침</button>
       </div>
       {page && <><p>{page.date || "날짜 없음"} · {page.index+1} / {page.count}</p><pre>{page.content}</pre></>}
-    </>}
-  </details>;
+    </>;
+  if(card)return <GeneratorSectionCard title="생성기 변경 기록" summary="업데이트 내역" className="generator-changelog" onOpenChange={setOpen}>{open && content}</GeneratorSectionCard>;
+  return <details className="generator-changelog" onToggle={event=>setOpen(event.currentTarget.open)}><summary>생성기 변경 기록</summary>{open && content}</details>;
 }

@@ -33,13 +33,12 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const [template,setTemplate]=useState(null),[values,setValues]=useState(null),[templateRevision,retryTemplate]=useState(0);
   const [files,setFiles]=useState({}),[model,setModel]=useState(null),[fileErrors,setFileErrors]=useState({});
   const [videoInfo,setVideoInfo]=useState({}),[checking,setChecking]=useState({});
-  const videoSequences=useRef({}),formRef=useRef(null),reviewRef=useRef(null),resultRef=useRef(null),historyRef=useRef(null),sending=useRef(false);
+  const videoSequences=useRef({}),formRef=useRef(null),reviewRef=useRef(null),resultRef=useRef(null),historyRef=useRef(null),sending=useRef(false),focusResult=useRef(false);
   const [busy,setBusy]=useState(false),[pending,setPending]=useState(null),[modelError,setModelError]=useState("");
   useEffect(()=>{if(pending)reviewRef.current?.focus();},[pending]);
   const [error,setError]=useState("");
   const [templateError,setTemplateError]=useState("");
   const [job,setJob]=useState(embedded ? "" : new URLSearchParams(location.search).get("job") || "");
-  const [resultStatus,setResultStatus]=useState(null);
   const [sourceJob,setSourceJob]=useState("");
   useEffect(()=>{
     let active=true;
@@ -87,7 +86,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     refreshHistory(n=>n+1);requestAnimationFrame(()=>formRef.current?.focus());
   }
   function cleaned(message){setJob("");setNotice(message);refreshHistory(n=>n+1);}
-  function openResult(id){setJob(id);requestAnimationFrame(()=>{const target=resultRef.current;const card=target?.closest('details');if(card)card.open=true;target?.focus();});}
+  function openResult(id){focusResult.current=true;if(id===job){const card=historyRef.current?.querySelector('details.generator-history');if(card)card.open=true;resultRef.current?.focus();focusResult.current=false;}else setJob(id);}
   function field(key,value){setValues(old=>({...old,[key]:value}));}
   async function inspectVideo(file){
     const response=await fetch("/management/assistant/fun-video-info",{method:"POST",body:file});
@@ -134,7 +133,13 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     }catch(problem){setError(problem.message+" · 재접수 전에 생성 이력을 확인하세요.");}
     finally{handoff.clearReview();sending.current=false;setBusy(false);}
   }
-  return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}><GeneratorPageIdentity service={service} embedded={embedded} session={session} showReturn/><GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(values)} resultReady={Boolean(job)} openOnNavigate/>
+  return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}><GeneratorPageIdentity service={service} embedded={embedded} session={session} showReturn changelogCard/>
+    <GeneratorSectionCard title="사용 설명" summary="생성 방식과 입력 안내" className="vace-usage-card">
+      <p>참조 이미지, 첫 프레임 또는 제어 영상을 프롬프트와 함께 사용해 영상을 생성합니다. 프롬프트만으로도 생성할 수 있습니다.</p>
+      <ol><li>모델 준비 상태를 확인합니다.</li><li>생성 입력에서 원하는 생성 모드를 선택하고 화면에 표시되는 필수 자료를 첨부합니다.</li><li>장면·동작과 카메라를 입력하고 출력 길이와 설정을 확인합니다.</li><li>생성 요청을 검토해 접수한 후 현재 생성 작업과 이력에서 진행 상황과 결과를 확인합니다.</li></ol>
+      <p>포즈 제어는 DWPose MP4를 사용합니다. 영상 입력은 832×480·16fps, 파일당 32MiB 이하이며 출력 길이는 입력 영상 이내여야 합니다. 모드별 상세 안내와 입력 오류는 생성 입력에 표시됩니다.</p>
+      <p>참조 이미지는 외형 조건이며 동작이나 첫 화면의 일치를 보장하지 않습니다. 첫 프레임 조건도 픽셀의 완전 일치를 보장하지 않습니다. 영상 편집의 흰색 마스크는 재생성, 검정색은 보존 조건이며 마스크 밖도 달라질 수 있습니다.</p>
+    </GeneratorSectionCard><GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(values)} resultReady={Boolean(job)} openOnNavigate/>
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "모델 상태 조회 실패" : !model ? "상태 확인 필요" : (model.generation_ready ?? model.ready) ? "준비 완료" : "준비 필요"} defaultOpen>
       <ModelReadiness service={service} onStatus={setModel} onError={setModelError}/>
       {embedded && (model?.generation_ready ?? model?.ready) && !["queued","running","failed","cancelled","unknown"].includes(model?.preparation_status) ? <details><summary>모델 다운로드 이력</summary><DownloadProgress service={service}/></details> : <DownloadProgress service={service}/>}
@@ -187,13 +192,9 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       <h3>장면·동작 프롬프트</h3><p className="fun-review-prompt">{pending.prompt}</p><h3>부정 프롬프트</h3><p className="fun-review-prompt">{pending.negative_prompt || "없음"}</p>
       {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 영상을 생성합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
       <GenerationReviewActions busy={busy} onCancel={()=>{setPending(null);handoff.clearReview();requestAnimationFrame(()=>formRef.current?.querySelector("textarea")?.focus());}} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/></section>}
-    <fieldset className="vace-history-card" ref={historyRef} disabled={busy || !!pending}><GeneratorHistory card preserveExpandedOnClose allowPriority onSelectedDeleted={(id,message)=>{if(sourceJob===id)setSourceJob("");if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} openResult={openResult} restore={restore}/></fieldset>
+    <fieldset className="vace-history-card" ref={historyRef} disabled={busy || !!pending}><GeneratorHistory card preserveExpandedOnClose allowPriority onSelectedDeleted={(id,message)=>{if(sourceJob===id)setSourceJob("");if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} openResult={openResult} resultId={job} onCloseResult={()=>setJob("")} restore={restore} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>} renderResult={(id,close)=><section ref={node=>{resultRef.current=node;if(node && focusResult.current){focusResult.current=false;requestAnimationFrame(()=>{if(node.isConnected){node.focus();node.scrollIntoView({block:'start'});}});}}} tabIndex={-1} aria-label="선택한 VACE 작업 결과"><button type="button" onClick={close}>결과 닫기</button><MediaJobResult key={id} service={service} id={id} hideProgress>
+      {(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}
+    </MediaJobResult></section>}/></fieldset>
     {notice && <p role="status">{notice}</p>}
-    {job ? <GeneratorSectionCard key={job} title="선택한 작업 결과" summary={`${job} · ${resultStatus?.id!==job ? '상태 확인 중' : resultStatus.error ? '조회 실패' : ({running:'실행 중',queued:'대기 중',completed:'완료',failed:'실패',cancelled:'취소됨'}[resultStatus.status] || '상태 확인 중')}`} defaultOpen><section ref={resultRef} tabIndex={-1} aria-label="선택한 VACE 작업 결과"><button type="button" onClick={()=>{setJob("");requestAnimationFrame(()=>{const history=historyRef.current;const target=history?.querySelector('details.generator-history[open] .generator-history-select[aria-pressed="true"]') || history?.querySelector('summary');target?.focus();});}}>결과 닫고 이력으로</button><MediaJobResult key={job} service={service} id={job} hideProgress onStatusChange={setResultStatus}>
-      {(record,reload)=>record && <React.Fragment key={record.status}>
-        <GeneratorJobControls showActions={false} service={service} id={job} state={record.status} refresh={reload}/>
-        <HistoryCleanup allowSelected={false} service={service} job={job} state={record.status} onDeleted={cleaned}/>
-      </React.Fragment>}
-    </MediaJobResult></section></GeneratorSectionCard> : <HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>}
   </article>;
 }
