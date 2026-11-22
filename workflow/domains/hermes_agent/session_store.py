@@ -134,6 +134,9 @@ class HermesSessionStore:
         current_session_record = json.loads(current_record_path.read_text(encoding='utf-8'))
         if not isinstance(current_session_record, dict) or current_session_record.get('version') != 1 or current_session_record.get('id') != session_identifier_value or not isinstance(current_session_record.get('messages'), list):
             raise ValueError('세션 기록 형식 오류')
+        withdrawn = current_session_record.get('withdrawn_requests', [])
+        if not isinstance(withdrawn, list) or any(not isinstance(item, str) or not HERMES_SESSION_REQUEST_PATTERN.fullmatch(item) for item in withdrawn):
+            raise ValueError('철회 기록 형식 오류')
         if not current_session_record.get("title"):
             first = next((message["text"] for message in current_session_record["messages"]
                           if isinstance(message, dict) and isinstance(message.get("text"), str) and message["text"].strip()), "")
@@ -160,6 +163,26 @@ class HermesSessionStore:
     def read_session_record(self, session_identifier_value):
         with self.hold_session_storage_lock():
             return self.read_session_record_locked(session_identifier_value)
+
+    def withdraw_unsubmitted_request(self, session_id, request_id):
+        """미접수 요청만 철회하고 같은 ID의 늦은 접수를 막는다."""
+        if not isinstance(request_id, str) or not HERMES_SESSION_REQUEST_PATTERN.fullmatch(request_id):
+            raise ValueError('접수 식별자 형식 오류')
+        with self.hold_session_storage_lock():
+            session = self.read_session_record_locked(session_id)
+            queue = session.get('chat_queue', [])
+            withdrawn = session.get('withdrawn_requests', [])
+            if (not isinstance(queue, list) or any(not isinstance(row, dict) for row in queue)
+                    or not isinstance(withdrawn, list) or any(not isinstance(item, str) or not HERMES_SESSION_REQUEST_PATTERN.fullmatch(item) for item in withdrawn)):
+                raise ValueError('요청 기록 형식 오류')
+            if any(row.get('request_id') == request_id for row in session['messages'] + queue):
+                return {'session_id':session_id, 'request_id':request_id, 'state':'accepted'}
+            if request_id not in withdrawn:
+                if len(withdrawn) >= 1000:
+                    raise ValueError('철회 기록 한도에 도달했습니다.')
+                session['withdrawn_requests'] = [*withdrawn, request_id]
+                write_record_atomically(self.resolve_session_record_path(session_id), session)
+            return {'session_id':session_id, 'request_id':request_id, 'state':'withdrawn'}
 
     def commit_context_checkpoint(self, session_identifier_value, checkpoint, expected_checkpoint):
         """압축 중 원문이 바뀌면 결과를 적용하지 않는다. 뒤에 추가된 메시지는 유지한다."""
@@ -293,6 +316,8 @@ class HermesSessionStore:
             raise ValueError('메시지는 1~12000자여야 합니다.')
         with self.hold_session_storage_lock():
             current_session_record = self.read_session_record_locked(session_identifier_value)
+            if request_identifier_value in current_session_record.get('withdrawn_requests', []):
+                raise ValueError('철회된 대화 요청입니다.')
             for current_message_record in current_session_record['messages']:
                 if current_message_record.get('request_id') == request_identifier_value:
                     if current_message_record.get('text') != request_message_text or current_message_record.get('verification_modules', []) != (verification_module_names or []) or current_message_record.get('model_profile') != model_profile:

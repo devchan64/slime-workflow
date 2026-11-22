@@ -24,6 +24,8 @@ def enqueue(store: HermesSessionStore, session_id, request_id, prompt, model_pro
         raise ValueError('지원하지 않는 Hermes 모델입니다.')
     with store.hold_session_storage_lock():
         session = store.read_session_record_locked(session_id)
+        if request_id in session.get('withdrawn_requests', []):
+            raise ValueError('철회된 대화 요청입니다.')
         queue = session.setdefault('chat_queue', [])
         if not isinstance(queue, list) or any(not isinstance(row, dict) for row in queue):
             raise ValueError('대기열 기록 형식 오류')

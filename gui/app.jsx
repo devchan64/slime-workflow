@@ -541,6 +541,22 @@ function App() {
   const pendingText = sessionStorage.getItem(pendingKey);
   const pending = readPendingSubmission(pendingText,session);
   const invalidPending = pendingText!==null && !pending;
+  const [confirmWithdrawal,setConfirmWithdrawal]=useState(false);
+  useEffect(()=>setConfirmWithdrawal(false),[session,pending?.request_id]);
+  async function withdrawPending(){
+    if(!pending || busy)return;
+    setBusy(true);setError("");
+    try{
+      const result=await call("session-withdraw-unsubmitted",{session_id:pending.session_id,request_id:pending.request_id});
+      if(result.session_id!==pending.session_id || result.request_id!==pending.request_id || !["withdrawn","accepted"].includes(result.state))throw new Error("철회 결과를 확인할 수 없습니다.");
+      if(result.state==="accepted")throw new Error("이미 접수된 요청입니다. 대화 이력이나 채팅 대기열에서 확인하세요.");
+      if(sessionStorage.getItem(pendingKey)!==pendingText)throw new Error("접수 기록이 변경됐습니다. 다시 확인하세요.");
+      sessionStorage.removeItem(pendingKey);
+      if(draft===pending.prompt)edit("");
+      setConfirmWithdrawal(false);setRefresh(n=>n+1);
+    }catch(problem){setError(problem.message || "철회 결과를 확인할 수 없습니다.");}
+    finally{setBusy(false);}
+  }
   const contextBlocking=Boolean(view.context?.operation && !["completed","failed","cancelled"].includes(view.context.operation.status));
   const submitDisabledReason = busy ? "요청을 접수하고 있습니다." : invalidPending ? "손상된 접수 기록을 확인하고 지워 주세요." : pending && pending.prompt!==draft ? "이전 요청의 접수 상태를 먼저 확인해 주세요." : !draft.trim() ? "메시지를 입력해 주세요." : "";
   async function send(retry=false){
@@ -759,6 +775,8 @@ function App() {
     {session&&<button type="button" ref={queueToggle} aria-expanded={Boolean(queue && queue.mode!=="chat" && !showTools && !showGpu)} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(value=>value && value.mode!=="chat" && !showTools && !showGpu ? null : {run:""});}}>작업 대기열</button>}{session&&<button type="button" ref={chatQueueToggle} aria-expanded={queue?.mode==="chat" && !showTools && !showGpu} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(value=>value?.mode==="chat" && !showTools && !showGpu ? null : {run:"",mode:"chat"});}}>채팅 대기열{view.chat_queue?.length ? " · "+view.chat_queue.length : ""}</button>}{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
     <button type="button" ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowGpu(false);if(showTools)closeTools();else setShowTools(true)}}>도구 탐색</button>
     {pending && <small>접수 확인 중인 요청의 모델: {pending.model_profile || '자동 선택'}</small>}
+    {pending && !confirmWithdrawal && <button type="button" disabled={busy} onClick={()=>setConfirmWithdrawal(true)}>미접수 요청 철회</button>}
+    {pending && confirmWithdrawal && <div role="group" aria-label="미접수 요청 철회 확인"><p>미접수인 경우에만 철회하며 기존 작업은 중단하지 않습니다. 작성한 이전 요청은 지워집니다.</p><button type="button" disabled={busy} onClick={()=>setConfirmWithdrawal(false)}>취소</button><button type="button" disabled={busy} onClick={withdrawPending}>미접수 확인 후 철회</button></div>}
     <textarea ref={text} aria-label="메시지" aria-describedby={submitDisabledReason ? "composer-submit-reason" : undefined} placeholder="헤르메스에게 메시지 보내기" value={draft} disabled={busy} onChange={e=>edit(e.target.value)} title="Enter로 보내기 · Shift+Enter로 줄바꿈" onKeyDown={event=>{
       if(event.key!=="Enter" || event.shiftKey || event.altKey || event.nativeEvent.isComposing || event.nativeEvent.keyCode===229)return;
       event.preventDefault();

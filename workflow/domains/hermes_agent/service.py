@@ -1709,6 +1709,12 @@ class HermesServiceManager:
                 return self.submit_hermes_session_context_locked(hermes_payload_record)
             if hermes_command_name == 'hermes-submit':
                 return self.submit_hermes_job_locked(hermes_payload_record)
+            if hermes_command_name == 'hermes-session-withdraw-unsubmitted':
+                from workflow.domains.hermes_agent.session_store import HermesSessionStore
+                if set(hermes_payload_record) != {'session_id', 'request_id'}:
+                    raise ValueError('철회할 세션 ID와 요청 ID가 필요합니다.')
+                store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+                return store.withdraw_unsubmitted_request(**hermes_payload_record)
             if hermes_command_name == 'hermes-session-submit':
                 from workflow.domains.hermes_agent.session_store import HermesSessionStore
                 from workflow.domains.hermes_agent.chat_queue_store import enqueue
