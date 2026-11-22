@@ -293,8 +293,8 @@ function Conversation({view,historyPage,changeHistory}) {
   const viewport=useRef(null),returningLatest=useRef(false);
   useEffect(()=>{
     if(!historyPage && returningLatest.current && view.id && view.offset===0){
-      returningLatest.current=false;
-      requestAnimationFrame(()=>{viewport.current?.scrollTo({top:viewport.current.scrollHeight,behavior:"auto"});viewport.current?.focus({preventScroll:true});});
+      const trigger=returningLatest.current;returningLatest.current=false;
+      requestAnimationFrame(()=>{viewport.current?.scrollTo({top:viewport.current.scrollHeight,behavior:"auto"});if(document.activeElement===document.body || document.activeElement===trigger)viewport.current?.focus({preventScroll:true});});
     }
   },[historyPage,view.id,view.offset]);
   const [routes,setRoutes]=useState({});
@@ -317,10 +317,10 @@ function Conversation({view,historyPage,changeHistory}) {
     <ThreadPrimitive.Messages components={{Message}}/>
     {historyPage && <nav className="conversation-history-nav" aria-label="이후 대화 페이지">
       {historyPage.offset>CONVERSATION_PAGE_SIZE && <button type="button" onClick={()=>changeHistory({offset:Math.max(0,historyPage.offset-CONVERSATION_PAGE_SIZE),snapshot:historyPage.snapshot})}>다음 메시지 보기</button>}
-      <button type="button" onClick={()=>{returningLatest.current=true;changeHistory(null);}}>최신 대화로 돌아가기</button>
+      <button type="button" onClick={event=>{returningLatest.current=event.currentTarget;changeHistory(null);}}>최신 대화로 돌아가기</button>
     </nav>}
   </ThreadPrimitive.Viewport>
-    {historyPage ? <button type="button" className="conversation-latest" onClick={()=>{returningLatest.current=true;changeHistory(null);}}>최신 메시지로 ↓</button> :
+    {historyPage ? <button type="button" className="conversation-latest" onClick={event=>{returningLatest.current=event.currentTarget;changeHistory(null);}}>최신 메시지로 ↓</button> :
       <ThreadPrimitive.ScrollToBottom className="conversation-latest" behavior="smooth">최신 메시지로 ↓</ThreadPrimitive.ScrollToBottom>}
   </ThreadPrimitive.Root></AssistantRuntimeProvider></HistoryRoutes.Provider>;
 }

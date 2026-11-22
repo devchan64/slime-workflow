@@ -847,7 +847,7 @@ article {position:relative;}
 .kimodo-input-summary dl > div {display:flex;gap:.35rem;min-width:0;overflow-wrap:anywhere}
 .kimodo-input-summary dt {color:#aeb6ca;flex:none}
 .kimodo-input-summary dd {margin:0;min-width:0}
-.vace-page .active-generator-progress {padding:0;border:0;background:transparent}
+:is(.vace-page,.fun-control-page) .active-generator-progress {padding:0;border:0;background:transparent}
 .vace-page .vace-input-card form > fieldset {padding:0;border:0;margin:0}
 .vace-page .vace-history-card {padding:0;border:0;margin:0;min-width:0}
 .vace-page .generator-history.generator-section-card > fieldset {padding:.8rem;border:0;margin:0;min-width:0}

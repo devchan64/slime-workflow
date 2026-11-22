@@ -8,6 +8,7 @@ import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
 import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import HistoryCleanup from "./HistoryCleanup.jsx";
 import GeneratorPageHeader from "./GeneratorPageHeader.jsx";
+import ActiveGeneratorProgress from "./ActiveGeneratorProgress.jsx";
 
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import {FunControlFields,FunControlResult} from "./FunControlSchema.jsx";
@@ -39,6 +40,8 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   const attachmentRevision=useRef(0);
   const [loadingInput,setLoadingInput]=useState(false);
   const [pending,setPending]=useState(null),[job,setJob]=useState(embedded ? "" : new URLSearchParams(location.search).get("job") || "");
+  const resultRef=useRef(null),focusResult=useRef(false),activeProgressRef=useRef(null);
+  useEffect(()=>{if(focusResult.current && job && resultRef.current){focusResult.current=false;resultRef.current.focus();resultRef.current.scrollIntoView({block:"start"});}},[job]);
   const reviewEpoch=useRef(0),interactionRef=useRef({busy,pending});interactionRef.current={busy,pending};
   const [model,setModel]=useState(null);
   const modelReason=(model?.generation_ready ?? model?.ready) ? "" : model ? "모델 준비가 필요합니다. 모델 상태에서 준비 절차를 확인하세요." : "모델 준비 상태를 확인해야 접수할 수 있습니다.";
@@ -248,6 +251,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
       generator="wan22-fun-control-generator" service={service} model={model} onStatus={setModel} embedded={embedded}/>
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service={service} status={handoffStatus} onUpdate={value=>{setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}
       onClose={()=>{sessionStorage.removeItem(handoffKey);setHandoffId("");setHandoffStatus(null);}}/>}
+    <div ref={activeProgressRef}><ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>{if(id===job){resultRef.current?.focus();resultRef.current?.scrollIntoView({block:"start"});}else{focusResult.current=true;setJob(id);}}}/></div>
     {template && request && <form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review} onInvalid={event=>{const details=event.target.closest("details");if(details)details.open=true;}}><fieldset disabled={busy || !!pending || Boolean(handoffId)}><legend>생성 입력</legend>
     <fieldset className="fun-source" disabled={busy || !!pending || !template}><legend>원본 작업</legend>
       {loadingInput && <p role="status">입력을 불러오고 있습니다. 현재 입력은 유지됩니다.</p>}
@@ -282,6 +286,6 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
       <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id)setJob("");if(sourceJob===id)setSourceJob("");setNotice(message);}} key={historyRevision} service={service} readJob={readJob} restore={restore} renderResult={renderResult}/>
       <HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>
     </fieldset>
-    {job && renderResult(job)}
+    {job && <section ref={resultRef} tabIndex={-1} aria-label="현재 작업 결과"><button type="button" onClick={()=>{const closedId=job;setJob("");requestAnimationFrame(()=>{const row=[...activeProgressRef.current?.querySelectorAll('.active-generator-job') || []].find(item=>item.textContent.includes(closedId));const button=[...row?.querySelectorAll('button') || []].find(item=>item.textContent==='작업 결과 보기');(button || activeProgressRef.current?.querySelector('summary'))?.focus();});}}>결과 닫기</button>{renderResult(job)}</section>}
   </article>;
 }

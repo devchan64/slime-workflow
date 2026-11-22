@@ -42,22 +42,32 @@ export default function RecentGeneratorJobs({session,filters,filterSummary,revis
   useEffect(()=>{setPage(0);setSelected(null);},[filters]);
   useEffect(()=>{
     let active=true;
+    const controllers=new Set();
+    async function boundedRequest(operation){
+      const controller=new AbortController();controllers.add(controller);let timedOut=false;
+      const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+      try{return await operation(controller.signal);}
+      catch(error){if(timedOut)throw new Error('조회 시간이 초과됐습니다.');throw error;}
+      finally{clearTimeout(timeout);controllers.delete(controller);}
+    }
     async function load(){
       setLoading(true);setErrors([]);
       try{
-        const response=await fetch('/management/assistant/history-services',{cache:'no-store'});
-        if(!response.ok)throw new Error('생성기 목록 조회 실패');
-        const sources=await response.json();
+        const sources=await boundedRequest(async signal=>{
+          const response=await fetch('/management/assistant/history-services',{cache:'no-store',signal});
+          if(!response.ok)throw new Error('생성기 목록 조회 실패');
+          return response.json();
+        });
         if(!Array.isArray(sources))throw new Error('생성기 목록 형식 오류');
         const eligible=sources.filter(s=>s && typeof s.service==='string' && ['hermes-generator-source-history','hermes-audio-source-history'].includes(s.command));
         const collected=[],failed=[];let cursor=0,succeeded=0;
         async function worker(){
-          while(cursor<eligible.length){
+          while(active && cursor<eligible.length){
             const source=eligible[cursor++];
             try{
               let page;
               for(let attempt=0;attempt<3;attempt++){
-                try{page=await managementCommand('hermes-agent',source.command,{service:source.service,limit:10});break;}
+                try{page=await boundedRequest(signal=>managementCommand('hermes-agent',source.command,{service:source.service,limit:10},{signal}));break;}
                 catch(error){
                   if(attempt===2 || !(error instanceof Error) || !error.message.includes('해당 원본 이력을 조회 중입니다'))throw error;
                   await new Promise(resolve=>setTimeout(resolve,500));
@@ -76,7 +86,7 @@ export default function RecentGeneratorJobs({session,filters,filterSummary,revis
       }catch(error){if(active){setErrors([{service:'생성기 목록',reason:error instanceof Error ? error.message : '목록을 조회할 수 없습니다.'}]);setListUnavailable(true);}}
       finally{if(active)setLoading(false);}
     }
-    load();return()=>{active=false;};
+    load();return()=>{active=false;controllers.forEach(controller=>controller.abort());};
   },[revision,refreshRevision]);
   const matching=rows.filter(row=>matches(row,filters)).slice(0,20);
   const currentPage=Math.min(page,Math.max(0,Math.ceil(matching.length/pageSize)-1));

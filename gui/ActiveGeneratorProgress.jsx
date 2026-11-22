@@ -21,26 +21,31 @@ export default function ActiveGeneratorProgress({service,revision=0,onOpenResult
       setLoading(true);
       deadline=setTimeout(()=>{controller.abort();if(active){setError('작업 상태 조회 시간이 초과됐습니다. 다시 조회하세요.');setLoading(false);}},25000);
       try{
-        let offset=0,snapshot=null,next=null,rows=[],pages=0,missing=0,uncertain=false;
+        let offset=0,snapshot=null,next=null,rows=[],pages=0,missing=false,uncertain=false;
         do{
           const payload={limit:30,offset};if(snapshot)payload.snapshot=snapshot;
           const page=await managementCommand(service,'history-observe',payload,{signal:controller.signal});
-          if(!Array.isArray(page.records) || typeof page.snapshot!=='string')throw new Error('작업 이력을 확인할 수 없습니다.');
+          if(!Array.isArray(page.records) || typeof page.snapshot!=='string' || (snapshot && page.snapshot!==snapshot) || !Number.isSafeInteger(page.unavailable_count) || page.unavailable_count<0)throw new Error('작업 이력을 확인할 수 없습니다.');
           if(!snapshot)snapshot=page.snapshot;
-          missing=page.unavailable_count || 0;
+          missing ||= (page.unavailable_count || 0)>0;
           uncertain ||= page.records.some(row=>row.status_source!=='job' || row.recorded_status==='unknown');
           rows.push(...page.records.filter(row=>['running','queued'].includes(row.recorded_status) && row.status_source==='job'));
           next=page.next_offset;
           if(next!==null && (!Number.isInteger(next) || next<=offset))throw new Error('이력 페이지 정보를 확인할 수 없습니다.');
           offset=next;pages++;
         }while(next!==null && pages<10);
-        const results=await Promise.all(rows.map(async row=>{
-          try{
-            const response=await managementCommand('hermes-agent','hermes-video-source-status',{service,job_id:row.id},{signal:controller.signal});
-            if(response.service!==service || response.job_id!==row.id || !response.job || !['running','queued','completed','failed','cancelled','canceled','paused'].includes(response.job.status))throw new Error();
-            return {id:row.id,job:response.job};
-          }catch{return {id:row.id,error:true};}
-        }));
+        const results=new Array(rows.length);let cursor=0;
+        async function readStatuses(){
+          while(!controller.signal.aborted && cursor<rows.length){
+            const index=cursor++,row=rows[index];
+            try{
+              const response=await managementCommand('hermes-agent','hermes-video-source-status',{service,job_id:row.id},{signal:controller.signal});
+              if(response.service!==service || response.job_id!==row.id || !response.job || !['running','queued','completed','failed','cancelled','canceled','paused'].includes(response.job.status))throw new Error();
+              results[index]={id:row.id,job:response.job};
+            }catch{results[index]={id:row.id,error:true};}
+          }
+        }
+        await Promise.all(Array.from({length:Math.min(4,rows.length)},()=>readStatuses()));
         if(active && !controller.signal.aborted){setRecords(results.filter(item=>item.error || ['running','queued'].includes(item.job.status)));setTruncated(next!==null || missing>0 || uncertain);setCheckedAt(new Date());setError('');}
       }catch{if(active && !controller.signal.aborted)setError('작업 상태를 확인하지 못했습니다. 다시 조회하세요.');}finally{clearTimeout(deadline);if(active && !controller.signal.aborted)setLoading(false);}
     }
@@ -54,7 +59,7 @@ export default function ActiveGeneratorProgress({service,revision=0,onOpenResult
     <LiveRefreshControl live={live} label="진행 상황 자동 갱신"/>
     {error && <p role="alert">{error}{records && ' 아래는 마지막 조회 결과입니다.'}</p>}
     {truncated && <p role="status">일부 이력을 확인하지 못했습니다. 전체 이력에서 작업을 확인하세요.</p>}
-    {records===null ? !error && <p role="status">작업 상태 확인 중…</p> : records.length===0 ? <p>진행 중인 생성 작업 없음</p> : records.map(item=><div className="active-generator-job" key={item.id}>
+    {records===null ? !error && <p role="status">작업 상태 확인 중…</p> : records.length===0 ? <p>{truncated ? '확인된 이력에 진행 중인 생성 작업이 없습니다.' : '진행 중인 생성 작업 없음'}</p> : records.map(item=><div className="active-generator-job" key={item.id}>
       <div className="active-generator-job-heading"><JobIdentifier id={item.id} compact/>{item.job && <JobStatus state={item.job.status}/>}<button type="button" onClick={()=>onOpenResult(item.id)}>작업 결과 보기</button></div>
       {item.error ? <p role="alert">이 작업의 현재 상태를 확인하지 못했습니다.</p> : <GenerationProgress job={{...item.job,estimate:validGenerationEstimate(item.job.estimate)?item.job.estimate:null}} supportsProgress showQueryTime={false} referenceTime={checkedAt}/>}
     </div>)}

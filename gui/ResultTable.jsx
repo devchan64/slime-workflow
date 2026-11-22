@@ -1,7 +1,7 @@
 import React from "react";
 
 export default function ResultTable({table}) {
-  return <section><strong>{table.title}</strong><p>{table.summary}</p>
+  return <section><strong>{table.title}</strong>{table.summary!=null && table.summary!=="" && <p>{table.summary}</p>}
     <table aria-label={table.title}><thead><tr>
       {table.columns.map(column=><th key={column} scope="col">{column}</th>)}
     </tr></thead><tbody>

@@ -1,13 +1,57 @@
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
-from workflow.domains.hermes_agent.chat_queue_store import enqueue, update
+from workflow.domains.hermes_agent.chat_queue_store import enqueue, transition, update
 from workflow.domains.hermes_agent.session_store import HermesSessionStore
 
 
 class ChatQueueStoreTests(unittest.TestCase):
+    def test_replayed_queue_update_can_change_a_revision_only_once(self):
+        with tempfile.TemporaryDirectory() as root:
+            store = HermesSessionStore(Path(root))
+            session = 'a' * 32
+            store.create_session_record(session)
+            enqueue(store, session, 'request_01', '원래 요청')
+
+            def attempt():
+                try:
+                    return update(store, session, 'request_01', 1, '변경 요청')
+                except ValueError:
+                    return None
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                responses = list(pool.map(lambda _: attempt(), range(2)))
+            self.assertEqual(sum(response is not None for response in responses), 1)
+            row = HermesSessionStore(Path(root)).read_session_record(session)['chat_queue'][0]
+            self.assertEqual((row['revision'], row['prompt'], row['state']), (2, '변경 요청', 'queued'))
+
+            def cancel():
+                try:
+                    return update(store, session, 'request_01', 2, cancel=True)
+                except ValueError:
+                    return None
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                responses = list(pool.map(lambda _: cancel(), range(2)))
+            self.assertEqual(sum(response is not None for response in responses), 1)
+            row = HermesSessionStore(Path(root)).read_session_record(session)['chat_queue'][0]
+            self.assertEqual((row['revision'], row['prompt'], row['state']), (3, '변경 요청', 'cancelled'))
+
+    def test_late_edit_cannot_change_a_request_after_dispatch_claim(self):
+        with tempfile.TemporaryDirectory() as root:
+            store = HermesSessionStore(Path(root))
+            session = 'a' * 32
+            store.create_session_record(session)
+            enqueue(store, session, 'request_01', '원래 요청')
+            transition(store, session, 'request_01', 'queued', 'dispatching')
+            with self.assertRaises(ValueError):
+                update(store, session, 'request_01', 1, '늦게 도착한 변경')
+            row = HermesSessionStore(Path(root)).read_session_record(session)['chat_queue'][0]
+            self.assertEqual((row['revision'], row['prompt'], row['state']), (2, '원래 요청', 'dispatching'))
+
     def test_model_selection_is_preserved_in_queue_and_idempotency(self):
         with tempfile.TemporaryDirectory() as root:
             store = HermesSessionStore(Path(root))
