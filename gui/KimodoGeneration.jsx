@@ -28,7 +28,7 @@ export function KimodoAcceptedResult({id,choose}){
   return <KimodoFrames key={id} id={id} choose={choose} selectionControls/>;
 }
 
-export default function KimodoGeneration({session,restoreJob,initialInputs=null,receiptScope="",proposalScope,choose}){
+export default function KimodoGeneration({session,restoreJob,restoreRevision=0,initialInputs=null,receiptScope="",proposalScope,choose}){
   const [directions,setDirections]=useState({});
   const [jointEdits,setJointEdits]=useState([]);
   const [referenceExamples,setReferenceExamples]=useState(null);
@@ -48,11 +48,13 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
   const key="kimodo-generation-receipt-"+session+(receiptScope?"-proposal-"+receiptScope:"");
   const handoffKey="kimodo-gpu-handoff-"+session+(receiptScope?"-proposal-"+receiptScope:"");
   const [inputs,setInputs]=useState(null),[review,setReview]=useState(null),[busy,setBusy]=useState(false);
+  const [templateRevision,setTemplateRevision]=useState(0),[templateError,setTemplateError]=useState("");
+  const [loadingTemplate,setLoadingTemplate]=useState(true);
   const [reviewing,setReviewing]=useState(false);
   const [loadingReferences,setLoadingReferences]=useState(false);
   const promptSegmentCount=inputs?.prompt?.split(/\r\n|\r|\n/).filter(line=>line.trim()).length || 0;
   const [sourceJob,setSourceJob]=useState("");
-  const busyRef=useRef(false),reviewButtonRef=useRef(null),reviewSectionRef=useRef(null);
+  const busyRef=useRef(false),reviewButtonRef=useRef(null),reviewSectionRef=useRef(null),reviewEpoch=useRef(0),inputEpoch=useRef(0),bundleInputRef=useRef(null),calibrationInputRef=useRef(null);
   const [receipt,setReceipt]=useState(()=>sessionStorage.getItem(key) || ""),[notice,setNotice]=useState("");
   const [receiptState,setReceiptState]=useState(()=>sessionStorage.getItem(key) ? "checking" : "editing");
   const [jobId,setJobId]=useState("");
@@ -95,28 +97,44 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
   },[]);
   useEffect(()=>{
     const controller=new AbortController();
+    let timedOut=false,active=true;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    setTemplateError("");setLoadingTemplate(true);
+    if(restoreJob){reviewEpoch.current++;inputEpoch.current++;setReview(null);setHandoffReview(null);}
     fetch(restoreJob?"/management/assistant/kimodo-input/"+encodeURIComponent(restoreJob):"/management/assistant/kimodo-generation-template",{signal:controller.signal}).then(async response=>{
       if(!response.ok)throw new Error(restoreJob?"이전 작업의 입력을 불러올 수 없습니다.":"생성 기본값을 조회할 수 없습니다.");
       const defaults=await response.json();
+      if(!defaults || !defaults.inputs || typeof defaults.inputs.prompt!=="string" || !Array.isArray(defaults.inputs.directions) || !defaults.directions || typeof defaults.directions!=="object" || Array.isArray(defaults.directions))
+        throw new Error("생성 입력 응답을 확인할 수 없습니다. 다시 불러오세요.");
       if(restoreJob){
-        const files=decodeReferences(defaults.references);
+        if(!Array.isArray(defaults.references) || defaults.references.some(row=>!row || typeof row.name!=="string" || typeof row.data!=="string") ||
+          !defaults.attachments || typeof defaults.attachments!=="object" || Array.isArray(defaults.attachments) ||
+          Object.values(defaults.attachments).some(value=>typeof value!=="string") ||
+          !Array.isArray(defaults.rows) || !defaults.hashes || typeof defaults.hashes!=="object" || Array.isArray(defaults.hashes))
+          throw new Error("저장된 입력을 확인할 수 없습니다. 다시 불러오세요.");
+        let files;
+        try{files=decodeReferences(defaults.references);}catch{throw new Error("저장된 참조 이미지를 확인할 수 없습니다.");}
         const attachment=field=>defaults.attachments[field]?new File([defaults.attachments[field]],field+".json",{type:"application/json"}):null;
+        const restoredBundle=attachment("proportion_reviewed_multiview"),restoredCalibration=attachment("proportion_face_anchor_calibration");
+        let restoredJointEdits;
+        try{restoredJointEdits=JSON.parse(defaults.attachments.proportion_joint_edits || "[]");}catch{throw new Error("저장된 관절 수정 정보를 확인할 수 없습니다.");}
+        if(!Array.isArray(restoredJointEdits) || !Array.isArray(defaults.segments) || !Array.isArray(defaults.angles)) throw new Error("저장된 입력을 확인할 수 없습니다.");
         let restoredPlacement=null;
         if(defaults.rows.length){
-          restoredPlacement=await managementCommand("hermes-agent","hermes-kimodo-keyframe-validate",{frames:defaults.inputs.frames,keyframes:defaults.rows});
+          restoredPlacement=await managementCommand("hermes-agent","hermes-kimodo-keyframe-validate",{frames:defaults.inputs.frames,keyframes:defaults.rows},{signal:controller.signal});
           if(restoredPlacement.sources.some(source=>defaults.hashes[source.id] && defaults.hashes[source.id]!==source.source_sha256))
             throw new Error("저장된 키프레임과 현재 원본이 다릅니다.");
         }
         if(controller.signal.aborted)return;
-        setPlacement(restoredPlacement);setReferences(files);setSegments(defaults.segments.join(" "));setGenerationMode(defaults.segments.length ? "sequence" : "single");setAngles(defaults.angles.join(" "));
-        setBundle(attachment("proportion_reviewed_multiview"));setCalibration(attachment("proportion_face_anchor_calibration"));
-        setHip(defaults.hip);setJointEdits(JSON.parse(defaults.attachments.proportion_joint_edits || "[]"));
-        setSourceJob(restoreJob);setNotice(restoreJob+" 입력을 불러왔습니다.");
+        setPlacement(restoredPlacement);setPlacing(false);setReferences(files);setSegments(defaults.segments.join(" "));setGenerationMode(defaults.segments.length ? "sequence" : "single");setAngles(defaults.angles.join(" "));
+        setBundle(restoredBundle);setCalibration(restoredCalibration);setAttachmentRevision(value=>value+1);
+        setHip(defaults.hip);setJointEdits(restoredJointEdits);
+        setSourceJob(restoreJob);setReview(null);setNotice(restoreJob+" 입력을 불러왔습니다.");
       }
       if(!controller.signal.aborted){setInputs(initialInputs ? {...defaults.inputs,...Object.fromEntries(["prompt","frames","steps","seed"].filter(field=>initialInputs[field]!=null).map(field=>[field,initialInputs[field]]))} : defaults.inputs);setDirections(defaults.directions);if(initialInputs?.example_id)await applyExample(initialInputs.example_id,controller.signal);}
-    }).catch(error=>{if(!controller.signal.aborted)setNotice(error.message);});
-    return ()=>controller.abort();
-  },[restoreJob]);
+    }).catch(error=>{if(active && (!controller.signal.aborted || timedOut)){const message=timedOut ? "생성 입력 조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(error);setTemplateError(message);setNotice(message);}}).finally(()=>{clearTimeout(timeout);if(active)setLoadingTemplate(false);});
+    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
+  },[restoreJob,restoreRevision,templateRevision]);
   function edit(field,value){
     setInputs(previous=>({...previous,[field]:value}));setReview(null);
   }
@@ -131,6 +149,7 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
     setAttachmentRevision(value=>value+1);
   }
   async function loadReferences(identifier){
+    const epoch=inputEpoch.current;
     setLoadingReferences(true);
     try{
       let response;
@@ -138,25 +157,30 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
       catch{throw new Error("신체 비율 예시를 불러올 수 없습니다. 연결 상태를 확인하고 다시 시도하세요.");}
       if(!response.ok)throw new Error("신체 비율 예시를 불러올 수 없습니다.");
       const data=await response.json();
+      if(epoch!==inputEpoch.current)return;
       if(identifier)replaceReferences(decodeReferences(data));
       else setReferenceExamples(data);
-    }finally{setLoadingReferences(false);}
+    }catch(error){if(epoch===inputEpoch.current)throw error;}finally{setLoadingReferences(false);}
   }
   async function applyExample(identifier,signal){
+    const epoch=inputEpoch.current;
+    try{
     const response=await fetch("/management/assistant/kimodo-prompt-examples/"+encodeURIComponent(identifier),{signal});
     if(!response.ok)throw new Error("동작 예시 설정을 불러올 수 없습니다.");
     const example=await response.json();
     const {keyframes,segment_frames,camera_elevation_degrees=0,...settings}=example.settings || {};
     const positions=keyframes?.length?await managementCommand("hermes-agent","hermes-kimodo-keyframe-validate",
-      {frames:example.frames,keyframes}):null;
+      {frames:example.frames,keyframes},{signal}):null;
     const files=decodeReferences(example.references);
-    if(signal?.aborted)return;
+    if(signal?.aborted || epoch!==inputEpoch.current)return;
     setSourceJob("");
     setInputs(previous=>({...previous,...settings,prompt:example.prompt,frames:example.frames,camera_elevation_degrees}));
     setPlacement(positions);setPlacing(false);replaceReferences(files);setSegments((segment_frames || []).join(" "));setGenerationMode(segment_frames?.length ? "sequence" : "single");
     setNotice(example.label+" 설정을 적용했습니다.");
+    }catch(error){if(epoch===inputEpoch.current)throw error;}
   }
   async function inspect(){
+    const epoch=reviewEpoch.current;
     setReview(null);setHandoffReview(null);
     if(proposalScope)await verifyKimodoProposal(managementCommand,proposalScope,proposalScope.proposal);
     const request={...inputs,frames:Number(inputs.frames),steps:Number(inputs.steps),seed:Number(inputs.seed),
@@ -203,6 +227,7 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
     if(!model.ok)throw new Error("모델 상태를 확인할 수 없습니다.");
     const status=await model.json();
     if(!(status.generation_ready ?? status.ready))throw new Error(status.message || "모델 준비가 필요합니다.");
+    let nextHandoff=null;
     if(session){
       const owner=await managementCommand("hermes-agent","hermes-resident-status",{session_id:session});
       if(owner.session_id!==session || !owner.resident)throw new Error("대화 모델 상태를 확인할 수 없습니다.");
@@ -210,10 +235,11 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
         if(owner.resident.state!=="ready")throw new Error("Qwen 3.8 상주 모델 상태를 확인한 뒤 다시 검토하세요.");
         const handoff=await handoffCommand("hermes-gpu-handoff-preview",{session_id:session,resident_id:owner.resident_id},result.request_json);
         if(handoff.session_id!==session || handoff.resident_id!==owner.resident_id || !/^[a-f0-9]{64}$/.test(handoff.review_hash || ""))throw new Error("GPU 양도 검토 결과가 일치하지 않습니다.");
-        setHandoffReview(handoff);
+        nextHandoff=handoff;
       }else if(owner.resident.state!=="not_found")throw new Error("대화 모델 상태를 확인할 수 없습니다.");
     }
-    setReview(result.request_json);
+    if(epoch!==reviewEpoch.current)return;
+    setHandoffReview(nextHandoff);setReview(result.request_json);
   }
   async function submit(){
     if(proposalScope)await verifyKimodoProposal(managementCommand,proposalScope,proposalScope.proposal);
@@ -266,7 +292,9 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
       {receiptState==="accepted" && <button type="button" disabled={busy} onClick={()=>{setReceiptState("editing");setReview(null);setNotice("입력을 다시 사용합니다. 생성 요청을 확인하면 별도의 새 작업이 접수됩니다.");}}>입력 다시 사용</button>}
     </section>}
     <div hidden={receiptState!=="editing"}>
-    {inputs && <fieldset disabled={busy}><legend>키프레임 배치</legend>
+    {loadingTemplate && <p role="status">생성 입력을 불러오는 중…</p>}
+    {templateError && <div role="alert"><p>{templateError}{inputs && " · 기존 입력을 유지합니다."}</p><button type="button" onClick={()=>{setNotice("");setTemplateRevision(value=>value+1);}}>생성 입력 다시 불러오기</button></div>}
+    {inputs && <fieldset disabled={busy || loadingTemplate}><legend>키프레임 배치</legend>
       <button aria-expanded={placing} onClick={()=>setPlacing(!placing)}>{placing?"배치 편집 닫기":"키프레임 배치 편집"}</button>
       {placement && <><p>{placement.placements.map(item=>item.frame+"프레임 · "+item.id).join(", ")}</p>
         <button onClick={()=>{setPlacement(null);setReview(null);setPlacing(false);}}>배치 해제</button></>}
@@ -274,7 +302,7 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
         <KeyframeCatalog query={search} initialFrames={inputs.frames} initialRows={placement?.placements || []}
           apply={(frames,result)=>{setPlacement(result);setInputs({...inputs,frames,post_processing:true,remove_horizontal_motion:false});setReview(null);setPlacing(false);}}/></>}
     </fieldset>}
-    {inputs && <form onChangeCapture={event=>{const target=event.target;const related=target.closest(".kimodo-segment-settings") || target.matches("textarea") || target.name===modeName;setNotice(value=>value.endsWith(" 설정을 적용했습니다.") || (related && ["순차 생성의 구간 프레임 수를 입력하세요.","구간은 2~10개, 각 16~300프레임, 합계는 최대 300프레임으로 입력하세요.","동작 설명의 줄 수와 구간 프레임 수가 같아야 합니다."].includes(value)) ? "" : value);}} onSubmit={e=>{e.preventDefault();perform(async()=>{setReviewing(true);try{await inspect();}catch(error){setTimeout(()=>{if(document.activeElement===document.body && reviewButtonRef.current?.isConnected && !reviewButtonRef.current.disabled)reviewButtonRef.current.focus();},50);throw error;}finally{setReviewing(false);}});}}><fieldset disabled={busy}>
+    {inputs && <form onChangeCapture={event=>{const target=event.target;const related=target.closest(".kimodo-segment-settings") || target.matches("textarea") || target.name===modeName;setNotice(value=>value.endsWith(" 설정을 적용했습니다.") || (related && ["순차 생성의 구간 프레임 수를 입력하세요.","구간은 2~10개, 각 16~300프레임, 합계는 최대 300프레임으로 입력하세요.","동작 설명의 줄 수와 구간 프레임 수가 같아야 합니다."].includes(value)) ? "" : value);}} onSubmit={e=>{e.preventDefault();const epoch=reviewEpoch.current;perform(async()=>{setReviewing(true);try{await inspect();}catch(error){if(epoch!==reviewEpoch.current)return;setTimeout(()=>{if(document.activeElement===document.body && reviewButtonRef.current?.isConnected && !reviewButtonRef.current.disabled)reviewButtonRef.current.focus();},50);throw error;}finally{setReviewing(false);}});}}><fieldset disabled={busy || loadingTemplate}>
       <KimodoInputSummary inputs={inputs} references={references} placement={placement} bundle={bundle} directions={directions} generationMode={generationMode} segmentCount={segmentTokens.length} segmentFrames={segmentCounts} frameInvalid={generationMode==="sequence" && !segmentsValid}/>
       <label>동작 설명 <textarea required maxLength={2000} value={inputs.prompt} aria-describedby={generationMode==="sequence" ? segmentHelp : undefined} aria-invalid={generationMode==="sequence" && segmentsValid && promptSegmentCount!==segmentCounts.length ? true : undefined} onChange={e=>edit("prompt",e.target.value)}/><PromptWordCount text={inputs.prompt}/></label>
       <KimodoPromptExamples apply={prompt=>edit("prompt",prompt)} applySettings={id=>perform(()=>applyExample(id))}/>
@@ -296,7 +324,7 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
       <section aria-label="신체 비율 참조 이미지"><p>신체 비율 참조 PNG · 최대 8장</p>
         <p>참조를 변경하면 참조 관절 수정과 다중 시점 설정이 초기화됩니다.</p>
         <div className="reference-image-slots">{Array.from({length:Math.min(8,references.length+1)},(_,index)=><ReferenceImageInput
-          key={index} label={"신체 비율 참조 "+(index+1)} accept="image/png" maxBytes={3000000} source={references[index]} disabled={busy}
+          key={index} label={"신체 비율 참조 "+(index+1)} accept="image/png" maxBytes={3000000} source={references[index]} disabled={busy || loadingTemplate}
           onChange={file=>{const next=[...references];if(file)next[index]=file;else next.splice(index,1);replaceReferences(next);}}/>)}</div>
         {references.length>0 && <button type="button" onClick={()=>replaceReferences([])}>참조 전체 해제</button>}
       </section>
@@ -319,12 +347,14 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
         <label>검출 관측 순서의 카메라 각도 8개 (도) <input value={angles} placeholder="45 0 135 90 225 315 180 270"
           onChange={e=>{setAngles(e.target.value);setReview(null);}}/></label>
         <p>참조 이미지에서 검출된 관측 순서대로 각도를 입력하세요. 각도와 검수 골격을 모두 비우면 2D 보정을 사용합니다.</p>
-        <label>검수 3D 골격 묶음 JSON <input key={attachmentRevision} type="file" accept=".json,application/json"
+        <label>검수 3D 골격 묶음 JSON <input ref={bundleInputRef} key={attachmentRevision} type="file" accept=".json,application/json"
           onChange={e=>{setBundle(e.target.files[0] || null);if(!e.target.files.length){setCalibration(null);setHip(false);}setReview(null);}}/></label>
+        {bundle && <p>적용된 검수 골격 · {bundle.name} <button type="button" onClick={()=>{setBundle(null);setCalibration(null);setHip(false);setAttachmentRevision(value=>value+1);setReview(null);requestAnimationFrame(()=>bundleInputRef.current?.focus());}}>검수 골격 제거</button></p>}
         {bundle && <fieldset><legend>검수 골격 적용</legend>
           <label><input type="checkbox" checked={hip} onChange={e=>{setHip(e.target.checked);setReview(null);}}/>3D 투영 골반 적용</label>
-          <label>얼굴 앵커 교정 JSON <input key={attachmentRevision} type="file" accept=".json,application/json"
+          <label>얼굴 앵커 교정 JSON <input ref={calibrationInputRef} key={attachmentRevision} type="file" accept=".json,application/json"
             onChange={e=>{setCalibration(e.target.files[0] || null);setReview(null);}}/></label>
+          {calibration && <p>적용된 얼굴 앵커 교정 · {calibration.name} <button type="button" onClick={()=>{setCalibration(null);setAttachmentRevision(value=>value+1);setReview(null);requestAnimationFrame(()=>calibrationInputRef.current?.focus());}}>얼굴 앵커 교정 제거</button></p>}
         </fieldset>}
       </details>
       <details><summary>모션 및 포즈 출력 설정</summary>
@@ -358,6 +388,6 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
       {handoffReview && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 Kimodo를 실행합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
       <GenerationReviewActions busy={busy} disabledReason={handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : ""} onCancel={()=>{setReview(null);setHandoffReview(null);requestAnimationFrame(()=>reviewButtonRef.current?.focus());}} onConfirm={()=>perform(handoffReview ? submitHandoff : submit)} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"}/></section>}
     </div>
-    {notice && <p role="status">{notice}</p>}
+    {notice && !templateError && <p role="status">{notice}</p>}
   </section>;
 }

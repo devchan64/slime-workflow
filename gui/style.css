@@ -467,6 +467,9 @@ article {position:relative;}
 .writer-page table[aria-label="작가 실행 기록"] :is(th,td):nth-child(2),.writer-page table[aria-label="작가 실행 기록"] :is(th,td):nth-child(3) {white-space:nowrap;overflow-wrap:normal}
 .writer-history-table {max-width:100%;overflow-x:auto}
 .writer-history-table table {min-width:34rem}
+.writer-result {min-width:0;overflow-wrap:anywhere}
+.writer-result pre {max-width:100%;max-height:20rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+.writer-result pre:focus-visible {outline:2px solid var(--accent,#a8a5f4);outline-offset:2px}
 .translation-check-table {max-width:100%;overflow-x:auto}
 .translation-check-table table {min-width:34rem}
 .source-history-list .session-job-heading > .job-identifier {flex:1 1 auto;min-width:0;padding:0;border:0}
@@ -554,7 +557,11 @@ article {position:relative;}
 /* 관리 도구의 입력과 작업 상세를 패널 안에서 일관되게 표시합니다. */
 .fun-drawer select { font: inherit; padding: .55rem .7rem; }
 .operations-jobs { min-width: 0; }
-.download-progress li { overflow-wrap: anywhere; }
+.download-progress {margin-top:.9rem;padding-top:.9rem;border-top:1px solid var(--line,#484d50)}
+.download-progress h2 {font-size:1rem;line-height:1.35;margin:0 0 .5rem}
+.download-progress :is(p,li) {font-size:.85rem;line-height:1.5}
+.download-progress p {margin:.35rem 0}
+.download-progress li {overflow-wrap:anywhere}
 .operations-jobs #operations-receipt-hint, .operations-jobs #map-receipt-hash-hint { margin: .4rem 0; color: var(--muted); font-size: .8rem; line-height: 1.45; }
 .operations-job-results { min-width: 0; margin: 1rem 0 .5rem; }
 .operations-job-results h3 { margin: 0; font-size: 1rem; }
@@ -650,7 +657,9 @@ article {position:relative;}
 
 .live-instruction-form {margin:.7rem 0;padding:.65rem;border:1px solid var(--line);border-radius:.5rem}.live-instruction-form label {display:block}.live-instruction-form textarea {width:100%;min-height:4rem}.live-instruction-form select {width:auto}.live-instruction-receipts article {padding:.6rem 0;border-bottom:1px solid var(--line)}.live-instruction-receipts p {white-space:pre-wrap;overflow-wrap:anywhere;margin:.3rem 0}.live-instruction-receipts small {color:var(--muted)}
 .live-instruction-mode-label {display:block;color:var(--muted);font-size:.8rem;margin:.5rem 0 .25rem}
-.live-instruction-form .chat-queue-actions select {min-width:9rem;flex:1}
+.live-instruction-form .chat-queue-actions {flex-wrap:nowrap}
+.live-instruction-form .chat-queue-actions select {min-width:0;flex:1}
+.live-instruction-form .chat-queue-actions :is(select,button) {font-size:.8rem;padding:.45rem .5rem}
 .chat-queue-panel .live-instruction-receipts {margin:1rem 0;font-size:.9rem;color:var(--ink)}
 .live-instruction-receipts > summary {cursor:pointer;padding:.65rem .75rem;border:1px solid var(--line);border-radius:.6rem;background:var(--surface);font-weight:600}
 .live-instruction-receipts article button {width:auto}

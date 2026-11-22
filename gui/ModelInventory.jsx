@@ -32,13 +32,16 @@ function InventoryFiles({service}) {
   const [checkedAt,setCheckedAt]=useState(null),[loading,setLoading]=useState(false);
   useEffect(() => {
     let active = true;
-    let timer;
+    let timer, controller;
     async function read() {
       if(active)setLoading(true);
+      controller = new AbortController();
+      let timedOut = false;
+      const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 30000);
       try {
-        const response = await managementCommand("model-downloads", "download-inventory");
-        const model = response.models?.[service];
-        if (!model || !Array.isArray(model.files) || !Number.isInteger(model.count)) {
+        const response = await managementCommand("model-downloads", "download-inventory", {}, {signal: controller.signal});
+        const model = response?.models?.[service];
+        if (!model || !Array.isArray(model.files) || !Number.isInteger(model.count) || model.count < model.files.length || model.files.some(file => !file || typeof file.path !== "string")) {
           throw new Error("이 모델의 파일 목록을 확인할 수 없습니다.");
         }
         if (active) {
@@ -47,13 +50,14 @@ function InventoryFiles({service}) {
           setError("");
         }
       } catch (problem) {
-        if (active) setError(problem.message);
+        if (active) setError(timedOut ? "파일 목록 조회 시간이 초과됐습니다. 다시 확인하세요." : problem.message);
       } finally {
+        clearTimeout(timeout);
         if (active) {setLoading(false);timer = setTimeout(read, 30000);}
       }
     }
     read();
-    return () => { active = false; clearTimeout(timer); };
+    return () => { active = false; clearTimeout(timer); controller?.abort(); };
   }, [service, revision]);
   return <>
     <button type="button" disabled={loading} onClick={() => refresh(value => value + 1)}>{loading ? "조회 중…" : "파일 목록 새로고침"}</button>

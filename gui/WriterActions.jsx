@@ -7,6 +7,7 @@ import {createConfirmationGate} from "./confirmationGate.mjs";
 import {writerProposalId,readGenerationProposal} from "./generationProposal.mjs";
 import {validateGpuHandoffStatus} from "./validateGpuHandoffStatus.mjs";
 import {requestErrorMessage} from "./requestError.mjs";
+import JobIdentifier from "./JobIdentifier.jsx";
 
 export function WriterUncertainReceipt({onClear}){
   return <section role="status"><p>이전 작가 작업의 접수 여부가 확인되지 않았습니다. 아래 실행 이력에서 해당 작업을 먼저 확인하세요.</p>
@@ -114,9 +115,8 @@ export default function WriterActions({session="",onAccepted,onWorkspace,initial
     {stateError && <p role="alert">작업 준비 상태를 확인하지 못했습니다 · {stateError}{workspace && " · 표시된 상태는 마지막으로 확인한 정보입니다."}</p>}
     {(stateError.includes("문서 폴더") || (workspace && !workspace.configured)) && <p>운영자에게 <code>.local/writer-agent/workspace.yaml</code>의 문서 폴더 설정과 접근 권한 확인을 요청하세요.</p>}
     {workspace?.configured && <details><summary>문서·색인·기록 경로</summary><pre>{[workspace.document_root,workspace.index_path,workspace.state_root].join("\n")}</pre></details>}
-    {workspace && <p role="status">{workspace.active_job?"진행 중인 작업 "+workspace.active_job:
-      !workspace.configured?"먼저 문서 폴더를 연결하세요.":!workspace.ready?"실행 환경을 준비하세요.":
-      !workspace.trained?"문서를 학습해 검색 색인을 만드세요.":"작성과 중복 검토를 요청할 수 있습니다."}</p>}
+    {workspace && (workspace.active_job ? <div role="status"><p>진행 중인 작업</p><JobIdentifier id={workspace.active_job} compact/></div> : <p role="status">{!workspace.configured?"먼저 문서 폴더를 연결하세요.":!workspace.ready?"실행 환경을 준비하세요.":
+      !workspace.trained?"문서를 학습해 검색 색인을 만드세요.":"작성과 중복 검토를 요청할 수 있습니다."}</p>)}
     <div className="writer-action-row"><button disabled={!prepare || Boolean(proposalScope)} onClick={()=>submit("prepare")}>환경 준비</button>
     <button disabled={!learn || Boolean(proposalScope && proposedMode!=='learn')} onClick={()=>submit("learn")}>학습 · 색인 갱신</button></div>
     <label>작성 지시 또는 중복 검토 범위<textarea maxLength={6000} value={prompt} onChange={event=>setPrompt(event.target.value)}/></label>

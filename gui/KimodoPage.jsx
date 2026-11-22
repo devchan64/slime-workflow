@@ -38,7 +38,7 @@ export default function KimodoPage({embedded=false,session:embeddedSession="",in
   }
   return <main className={"single-generator-shell"+(embedded ? "" : " generator-page-standalone-shell")}><article className="single-generator-page generator-page-common"><GeneratorPageIdentity service="kimodo" embedded={embedded} session={session}/><GeneratorSectionNavigation inputRef={generationRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(selectedJob)}/>
     {embedded ? <details><summary>모델 준비 및 다운로드</summary><ModelReadiness service="kimodo" manage/><DownloadProgress service="kimodo"/></details> : <><ModelReadiness service="kimodo" manage/><DownloadProgress service="kimodo"/></>}
-    <section className={embedded ? undefined : "kimodo-standalone-form"} ref={generationRef} tabIndex={-1} aria-label="Kimodo 생성 입력"><KimodoGeneration key={(restoreJob || "new")+"/"+restoreRevision} session={session} restoreJob={restoreJob} initialInputs={restoreJob ? null : initialInputs} choose={choose}/></section>
+    <section className={embedded ? undefined : "kimodo-standalone-form"} ref={generationRef} tabIndex={-1} aria-label="Kimodo 생성 입력"><KimodoGeneration session={session} restoreJob={restoreJob} restoreRevision={restoreRevision} initialInputs={restoreJob ? null : initialInputs} choose={choose}/></section>
     <KimodoMultiviewReport/>
     <div ref={historyRef}><GeneratorHistory key={historyRevision} service="kimodo" allowPriority readJob={readJob} resultId={selectedJob}
       openResult={id=>{focusResult.current=true;setSelectedJob(id);}} onCloseResult={()=>setSelectedJob("")} restore={(_request,record)=>{setRestoreJob(record.id);setRestoreRevision(value=>value+1);setNotice("");requestAnimationFrame(()=>generationRef.current?.focus());}}

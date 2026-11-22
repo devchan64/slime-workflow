@@ -28,6 +28,7 @@ export default function TranslationPage({embedded=false}={}) {
   const query=new URLSearchParams(location.search);
   const [text,setText]=useState(""),[language,setLanguage]=useState("en"),[terms,setTerms]=useState("");
   const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[model,setModel]=useState(null);
+  const [modelError,setModelError]=useState("");
   const [termsError,setTermsError]=useState("");
   const termsHelp=useId(),termsErrorId=useId(),termsRef=useRef(null),textRef=useRef(null),reviewRef=useRef(null);
   const resultRef=useRef(null),focusResult=useRef(false);
@@ -44,18 +45,21 @@ export default function TranslationPage({embedded=false}={}) {
   useEffect(()=>{if(focusResult.current && job && record?.id===job && resultRef.current){focusResult.current=false;if(document.activeElement===document.body){resultRef.current.focus({preventScroll:true});resultRef.current.scrollIntoView({block:"start",inline:"nearest"});}}},[job,record]);
   useEffect(()=>{
     if(!job)return;
-    let active=true;
+    let active=true,timedOut=false;
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     async function read(){
       try{
-        const next=await managementCommand(service,"translation-status",{id:job});
+        const next=await managementCommand(service,"translation-status",{id:job},{signal:controller.signal});
         if(!active)return;
         if(next?.id!==job)throw new Error("작업 ID가 일치하지 않습니다.");
         if(!next.status || typeof next.status!=="object" || typeof next.status.status!=="string")throw new Error("작업 상태 응답을 확인할 수 없습니다.");
         setRecord(next);setStatusCheckedAt(new Date());setStatusError("");
 
-      }catch(error){if(active){setStatusFailedAt(new Date());setStatusError(requestErrorMessage(error));}}
+      }catch(error){if(active){setStatusFailedAt(new Date());setStatusError(timedOut ? "상태 조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(error));}}
+      finally{clearTimeout(timeout);}
     }
-    read();return()=>{active=false;};
+    read();return()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[job,revision]);
   function review(){
     try{
@@ -70,7 +74,7 @@ export default function TranslationPage({embedded=false}={}) {
       const result=await managementCommand(service,"translation-submit",pending);
       if(typeof result?.id!=="string" || !result.id.trim())throw new Error("접수 ID를 확인할 수 없습니다.");
       setRecord(null);setJob(result.id);setNotice("번역 대기열에 등록했습니다.");
-    }catch(error){setNotice(error.message+" · 이력을 조회해 접수 여부를 확인하세요."+(job ? " 아래 작업은 이전에 선택한 작업입니다." : ""));}
+    }catch(error){setNotice(requestErrorMessage(error)+" · 이력을 조회해 접수 여부를 확인하세요."+(job ? " 아래 작업은 이전에 선택한 작업입니다." : ""));}
     finally{setPending(null);sending.current=false;setBusy(false);}
   }
   function restore(input){
@@ -83,7 +87,8 @@ export default function TranslationPage({embedded=false}={}) {
     {!embedded && <a href={"/management/assistant/"+(query.has("session")?"?"+new URLSearchParams({session:query.get("session")}):"")}>헤르메스 대화</a>}
     <h1 className={embedded ? "embedded-page-title" : undefined}>프롬프트 번역</h1>
     <p>TranslateGemma 4B · ROCm BF16 · <a href="https://ai.google.dev/gemma/terms">Gemma 이용약관</a></p>
-    <ModelReadiness service={service} onStatus={setModel}/><GeneratorChangelog generator={service}/>
+    {embedded ? <details><summary>모델 준비 상태 · {modelError ? "조회 실패" : !model ? "확인 중" : generationReady(model) ? "준비됨" : "준비 필요"}</summary><ModelReadiness service={service} onStatus={setModel} onError={setModelError}/></details> : <ModelReadiness service={service} onStatus={setModel}/>}
+    <GeneratorChangelog generator={service}/>
     <fieldset disabled={Boolean(pending)}><label>한국어 원문 <textarea ref={textRef} value={text} onChange={e=>setText(e.target.value)}/></label>
       <label>목표 언어 <select value={language} onChange={e=>setLanguage(e.target.value)}><option value="en">영어</option><option value="zh-CN">중국어 간체</option></select></label>
       <label>확인할 용어 <textarea ref={termsRef} placeholder="원문 => 번역어" aria-describedby={termsError?`${termsHelp} ${termsErrorId}`:termsHelp} aria-invalid={Boolean(termsError)} value={terms} onChange={e=>{setTerms(e.target.value);setTermsError("");}}/></label>

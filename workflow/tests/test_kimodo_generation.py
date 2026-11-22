@@ -823,7 +823,10 @@ class KimodoGenerationContractTests(unittest.TestCase):
               const inputs={seed:202,frames:180,directions:['front_right_30'],camera_elevation_degrees:15,post_processing:true,remove_horizontal_motion:false};
               process.stdout.write(server.renderToStaticMarkup(React.createElement(KimodoInputSummary,{inputs,references:[{name:'body.png'}],placement:{placements:[{}]},bundle:{},directions:{front_right_30:{label:'전방 우측 -30°'}}})));"""
             markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
-        for value in ('시드 202','180프레임','전방 우측 -30°','고도 15°','body.png','키프레임 1개','가중 골격 선택됨','후처리 켜짐','수평 이동 제거 꺼짐'):self.assertIn(value,markup)
+        from html import unescape
+        from re import sub
+        text=' '.join(unescape(sub(r'<[^>]+>', ' ', markup)).split())
+        for value in ('시드 202','180프레임','전방 우측 -30°','고도 15°','body.png','키프레임 1개','가중 골격 선택됨','후처리 켜짐','수평 이동 제거 꺼짐'):self.assertIn(value,text)
 
     def test_accepted_job_uses_kimodo_result_view(self):
         import os,subprocess

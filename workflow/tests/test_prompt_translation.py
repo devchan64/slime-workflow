@@ -150,9 +150,11 @@ class TranslationServiceTests(unittest.TestCase):
             subprocess.run([str(gui/'node_modules/.bin/esbuild'),'TranslationPage.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
             script="""global.location={search:'?job=2026-11-15_12-00-00-12345678',pathname:'/management/frame/prompt-translation/'};
               const React=require('react'),server=require('react-dom/server');const Page=require(process.argv[1]).default;
-              process.stdout.write(server.renderToStaticMarkup(React.createElement(Page)));"""
-            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
-            self.assertIn(job,markup);self.assertIn('번역 작업',markup);self.assertTrue((path/'result.json').is_file())
+              const original=React.createElement;let linkedJob=null;
+              React.createElement=(type,props,...children)=>{if(type?.name==='GeneratorHistory')linkedJob=props.resultId;return original(type,props,...children)};
+              const markup=server.renderToStaticMarkup(React.createElement(Page));process.stdout.write(JSON.stringify({linkedJob,markup}));"""
+            rendered=json.loads(subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')}))
+            self.assertEqual(rendered['linkedJob'],job);self.assertIn('생성 이력',rendered['markup']);self.assertTrue((path/'result.json').is_file())
 
     def test_gateway_round_trip(self):
         for translation_command_name, translation_payload_record in [('translation-submit', {'text': '나무', 'target_language': 'en'}), ('translation-status', {'id': '2026-11-15_12-00-00-12345678'}), ('translation-history', {})]:

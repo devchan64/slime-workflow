@@ -75,7 +75,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
           try{
             const scope=generationProposalScope(location.search,session,'video');
             if(scope){initial=vaceProposalInputs(initial,await readGenerationProposal(managementCommand,scope));if(active)setNotice('대화 제안 입력을 불러왔습니다. 필요한 첨부와 설정을 확인하세요.');}
-          }catch(problem){if(active)setError('대화 제안을 불러오지 못했습니다 · '+problem.message);}
+          }catch(problem){if(active)setError('대화 제안을 불러오지 못했습니다 · '+requestErrorMessage(problem));}
         }
         if(active){setTemplate(spec);setValues(old=>old ?? initial);}
       }catch(problem){if(active)setTemplateError(requestErrorMessage(problem));}
@@ -88,18 +88,23 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const handoff=useGpuHandoff(session,service,setJob,setError);
   async function readJob(id){
     const prefix="/management/assistant/vace-input/"+encodeURIComponent(id)+"/";
-    const response=await fetch(prefix+"request",{cache:"no-store"});
+    const controller=new AbortController();let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    try{
+    const response=await fetch(prefix+"request",{cache:"no-store",signal:controller.signal});
     if(!response.ok)throw new Error("저장된 입력 사본을 확인할 수 없습니다.");
     const record=await response.json();
     const restored={};
     for(const key of record.attachments){
-      const attachment=await fetch(prefix+key,{cache:"no-store"});
+      const attachment=await fetch(prefix+key,{cache:"no-store",signal:controller.signal});
       if(!attachment.ok)throw new Error("첨부 사본을 읽을 수 없습니다.");
       const blob=await attachment.blob();
       restored[key]=new File([blob],key+(key==="reference"?".png":".mp4"),{type:blob.type});
     }
-    const entries=await Promise.all(Object.entries(restored).filter(([key])=>key!=="reference").map(async ([key,file])=>[key,await inspectVideo(file)]));
+    const entries=await Promise.all(Object.entries(restored).filter(([key])=>key!=="reference").map(async ([key,file])=>[key,await inspectVideo(file,controller.signal)]));
     return {...record,files:restored,videoInfo:Object.fromEntries(entries)};
+    }catch(problem){if(timedOut)throw new Error("저장 입력 조회 시간이 초과됐습니다. 다시 확인하세요.");throw problem;}
+    finally{clearTimeout(timeout);controller.abort();}
   }
   function restore(request,record){
     for(const key of Object.keys(videoSequences.current))videoSequences.current[key]++;
@@ -111,8 +116,8 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   function cleaned(message){setJob("");setNotice(message);refreshHistory(n=>n+1);}
   function openResult(id){focusResult.current=true;if(id===job){const card=historyRef.current?.querySelector('details.generator-history');if(card)card.open=true;resultRef.current?.focus();focusResult.current=false;}else setJob(id);}
   function field(key,value){setValues(old=>({...old,[key]:value}));}
-  async function inspectVideo(file){
-    const response=await fetch("/management/assistant/fun-video-info",{method:"POST",body:file});
+  async function inspectVideo(file,signal){
+    const response=await fetch("/management/assistant/fun-video-info",{method:"POST",body:file,signal});
     const info=await response.json();
     if(!response.ok || !Number.isInteger(info.maximum_frames))throw new Error(info.summary || "영상을 확인할 수 없습니다.");
     return info;
@@ -149,7 +154,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       if(values.mode!=="text")request.images.push(await referencePng(files.reference));
       for(const key of attachments)request[key]=await videoData(files[key]);
       await handoff.preview(request);setPending(request);
-    }catch(problem){setError(problem.message);}
+    }catch(problem){setError(requestErrorMessage(problem));}
     finally{setBusy(false);}
   }
   async function submit(){
@@ -161,7 +166,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       const result=await managementCommand(service,"generate",pending);
       if(!result.id)throw new Error("접수 ID를 확인할 수 없습니다.");
       setJob(result.id);
-    }catch(problem){setError(problem.message+" · 재접수 전에 생성 이력을 확인하세요.");}
+    }catch(problem){setError(requestErrorMessage(problem)+" · 재접수 전에 생성 이력을 확인하세요.");}
     finally{handoff.clearReview();sending.current=false;setBusy(false);}
   }
   return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}><GeneratorPageIdentity service={service} embedded={embedded} session={session} showReturn changelogCard/>
