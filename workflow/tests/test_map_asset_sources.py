@@ -105,6 +105,7 @@ class MapAssetSourceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 normalize_field_surface_data(current_map_record)
 
+    @allow_extended_map_regression
     def test_review_has_no_map_or_tile_copies(self):
         with TemporaryDirectory(dir=WORKFLOW_REPOSITORY_ROOT/'.tmp') as temporary_output_path:
             current_output_path = build_block_map_review(Path(temporary_output_path))
@@ -191,6 +192,7 @@ class MapAssetSourceTests(unittest.TestCase):
 
 
 class WorldMapAssetContractTests(unittest.TestCase):
+    @allow_extended_map_regression
     def test_world_catalog_and_thumbnail_http_use_registered_originals(self):
         current_response_bytes,current_content_type = read_map_asset_response('/management/map-assets/world')
         current_world_catalog = json.loads(current_response_bytes)

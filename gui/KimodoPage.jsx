@@ -8,6 +8,7 @@ import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import KimodoFrames from "./KimodoFrames.jsx";
 import HistoryCleanup from "./HistoryCleanup.jsx";
+import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
 
 export default function KimodoPage({embedded=false,session:embeddedSession="",initialInputs=null,onChoose}={}){
   const params=new URLSearchParams(location.search);
@@ -43,7 +44,7 @@ export default function KimodoPage({embedded=false,session:embeddedSession="",in
       openResult={id=>{setSelectedJob(id);requestAnimationFrame(()=>resultRef.current?.focus());}} restore={(_request,record)=>{setRestoreJob(record.id);setRestoreRevision(value=>value+1);setNotice("");requestAnimationFrame(()=>generationRef.current?.focus());}}
       onSelectedDeleted={(id,message)=>{if(selectedJob===id)setSelectedJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/></div>
     {notice && <p role="status">{notice}</p>}
-    {selectedJob ? <section ref={resultRef} tabIndex={-1} aria-label="선택한 Kimodo 작업 결과"><button type="button" onClick={()=>{const closedJob=selectedJob;setSelectedJob("");requestAnimationFrame(()=>{const history=historyRef.current;const items=history?.querySelectorAll('details.generator-history[open] .generator-history-item') || [];const item=Array.from(items).find(element=>element.dataset.historyId===closedJob);const target=item?.querySelector('.generator-history-select') || history?.querySelector('summary');target?.focus();});}}>결과 닫고 이력으로</button><button type="button" onClick={()=>choose("kimodo 작업",selectedJob)}>선택 작업을 대화 입력에 추가</button><KimodoFrames key={selectedJob} id={selectedJob} choose={choose} onDeleted={cleaned} selectionControls/></section> :
+    {selectedJob ? <section ref={resultRef} tabIndex={-1} aria-label="선택한 Kimodo 작업 결과"><button type="button" onClick={()=>{const closedJob=selectedJob;setSelectedJob("");requestAnimationFrame(()=>{const history=historyRef.current;const items=history?.querySelectorAll('details.generator-history[open] .generator-history-item') || [];const item=Array.from(items).find(element=>element.dataset.historyId===closedJob);const target=item?.querySelector('.generator-history-select') || history?.querySelector('summary');target?.focus();});}}>결과 닫고 이력으로</button><button type="button" onClick={()=>choose("kimodo 작업",selectedJob)}>선택 작업을 대화 입력에 추가</button><SavedGeneratorInputs id={selectedJob} service="kimodo" readJob={readJob}/><KimodoFrames key={selectedJob} id={selectedJob} choose={choose} onDeleted={cleaned} selectionControls/></section> :
       <HistoryCleanup service="kimodo" allowSelected={false} onDeleted={cleaned}/>}
   </article></main>;
 }

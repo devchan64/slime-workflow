@@ -126,7 +126,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     <fieldset disabled={busy || Boolean(review) || !form}>
       {music && <MusicExamples apply={request=>setForm(current=>({...current,...request}))}/> }
       <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} externalResultId={job} restore={input=>{
-        setForm(input);setNotice("저장된 생성 입력을 불러왔습니다.");
+        setForm(input);setNotice("저장된 생성 입력을 불러왔습니다.");requestAnimationFrame(()=>promptRef.current?.focus());
       }} inspectResult={record=>setJob(record.id)}/>
     </fieldset>
     {form && <form onSubmit={preview}><fieldset disabled={busy || Boolean(review) || Boolean(handoff.id)}>
@@ -149,6 +149,6 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
       {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 {music?"음악":"효과음"}을 생성합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
       <GenerationReviewActions busy={busy} onCancel={closeReview} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={review.payload.action==="generate" && !generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/></section>}
     {notice && <p role="status">{notice}</p>}
-    <GeneratorJobResult selectionControls job={job} service={service} kind="audio" onDeleted={cleaned}/>
+    <GeneratorJobResult selectionControls job={job} service={service} kind="audio" readJob={readJob} onDeleted={cleaned}/>
   </article>;
 }

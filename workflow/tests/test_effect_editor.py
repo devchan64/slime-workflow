@@ -25,6 +25,7 @@ class EffectEditorTests(unittest.TestCase):
         self.assertEqual(len(current_detail_record['animationMetadata']['frames']),6)
         self.assertEqual(current_api_mock.call_count,2)
 
+    @unittest.skip('폐기된 Gradio UI 전용 검사')
     def test_waypoint_replacement_requires_same_selection_and_confirmed_input(self):
         import json
         import gradio as gr

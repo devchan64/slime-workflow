@@ -6,7 +6,6 @@ import unittest
 from unittest.mock import patch
 import yaml
 from workflow.domains.map_assets import editor
-from gui.ui.gradio.asset_editor_app import build_asset_editor_payload
 
 class MapAssetEditorTests(unittest.TestCase):
     def setUp(self):
@@ -70,6 +69,7 @@ class MapAssetEditorTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):editor.save_editor_changes({**self.current_request_payload,'token':current_preview_result['token']},self.current_asset_root)
         self.assertEqual({current_source_path:current_source_path.read_bytes() for current_source_path in current_source_paths},current_original_bytes)
 
+    @unittest.skip('폐기된 Gradio UI 전용 검사')
     def test_ui_payload_rejects_fractional_occupancy(self):
         current_catalog_record={'revision':'r','assets':[{'texture':'sample','properties':self.current_property_values}]}
         current_table_values=[['sample','샘플',.5,1,1.5,1,100,'bottom',0,0,1,1,False,0]]
@@ -77,6 +77,7 @@ class MapAssetEditorTests(unittest.TestCase):
         current_table_values[0][4]=1
         self.assertEqual(build_asset_editor_payload(current_catalog_record,current_table_values)['changes'],[{'texture':'sample','values':{'displayHeight':100}}])
 
+    @unittest.skip('폐기된 Gradio UI 전용 검사')
     def test_ui_save_refreshes_baseline_for_second_edit(self):
         from gui.ui.gradio import asset_editor_app
         import copy

@@ -69,6 +69,7 @@ class BuildingLifecycleTests(unittest.TestCase):
                 self.assertEqual(current_remote.call_count,1)
                 self.assertEqual(current_remote.call_args.args[0],'GET')
 
+    @unittest.skip('폐기된 Gradio UI 전용 검사')
     def test_ui_requires_selection_and_unchanged_confirmation(self):
         import gradio as gr
         from gui.ui.gradio.building_editor_panel import prepare_building_retirement,retire_building_editor_panel

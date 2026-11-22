@@ -39,6 +39,7 @@ class MapReviewCaptureTest(unittest.TestCase):
                 else:
                     with self.assertRaises(ValueError):save_map_capture_result(current_result_payload,Path(current_directory_name))
 
+    @unittest.skip('폐기된 Gradio UI 전용 검사')
     def test_gui_uses_capture_gateway(self):
         from unittest.mock import patch
         from gui.ui.gradio.map_review_app import capture_map_review_images

@@ -5,6 +5,7 @@ import useGpuHandoff from "./useGpuHandoff.js";
 import ActionButton from "./ActionButton.jsx";
 import {videoFrameLimit} from "./videoFrameLimit.mjs";
 import ReferenceImageInput from "./ReferenceImageInput.jsx";
+import InputVideoPreview from "./InputVideoPreview.jsx";
 import PromptWordCount from "./PromptWordCount.jsx";
 import SeedInput from "./SeedInput.jsx";
 import {referencePng,videoData} from "./videoInputs.js";
@@ -28,6 +29,23 @@ import {generationProposalScope,readGenerationProposal,vaceProposalInputs} from 
 const service="wan22-vace";
 const videoFields={pose:["pose_video"],video_edit:["edit_video","edit_mask"],video_condition:["edit_video"]};
 const labels={pose_video:"DWPose MP4",edit_video:"원본 MP4",edit_mask:"마스크 MP4"};
+function SavedVaceInputs({id}){
+  const [state,setState]=useState({id,loading:true}),[revision,retry]=useState(0);
+  useEffect(()=>{
+    const controller=new AbortController();setState({id,loading:true});
+    (async()=>{try{
+      const response=await fetch('/management/assistant/vace-input/'+encodeURIComponent(id)+'/request',{cache:'no-store',signal:controller.signal});
+      if(!response.ok)throw new Error('저장 입력을 불러오지 못했습니다.');
+      const data=await response.json();if(data.id!==id || !data.request || !Array.isArray(data.attachments))throw new Error('저장 입력이 선택한 작업과 일치하지 않습니다.');
+      if(!controller.signal.aborted)setState({id,data});
+    }catch(error){if(!controller.signal.aborted)setState({id,error:error.message});}})();
+    return ()=>controller.abort();
+  },[id,revision]);
+  if(state.id!==id || state.loading)return <p role="status">저장 입력을 불러오는 중입니다.</p>;
+  if(state.error)return <div role="alert">{state.error} <button type="button" onClick={()=>retry(value=>value+1)}>입력 정보 다시 조회</button></div>;
+  const {request,attachments}=state.data;
+  return <section className="history-action-detail" aria-label="저장된 생성 입력"><strong>저장된 생성 입력</strong><p>{request.frames}프레임 · {request.steps}스텝 · 시드 {request.seed} · 첨부 {attachments.length ? attachments.map(key=>labels[key] || (key==='reference'?'참조 이미지':key)).join(', ') : '없음'}</p><details><summary>저장된 입력 상세</summary><pre>{JSON.stringify(request,null,2)}</pre></details></section>;
+}
 export default function VacePage({embedded=false,session:embeddedSession=""}={}){
   const session=embeddedSession || new URLSearchParams(location.search).get("session") || "";
   const [template,setTemplate]=useState(null),[values,setValues]=useState(null),[templateRevision,retryTemplate]=useState(0);
@@ -83,7 +101,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     for(const key of Object.keys(videoSequences.current))videoSequences.current[key]++;
     setChecking({});setValues({...request});setFiles(record.files);setVideoInfo(record.videoInfo);setFileErrors({});setJob(record.id);setSourceJob(record.id);setPending(null);
     setNotice(record.id+" 입력을 복원했습니다.");
-    refreshHistory(n=>n+1);requestAnimationFrame(()=>formRef.current?.focus());
+    requestAnimationFrame(()=>{const form=formRef.current;const card=form?.closest('details');if(card)card.open=true;form?.focus();form?.scrollIntoView({block:'start'});});
   }
   function cleaned(message){setJob("");setNotice(message);refreshHistory(n=>n+1);}
   function openResult(id){focusResult.current=true;if(id===job){const card=historyRef.current?.querySelector('details.generator-history');if(card)card.open=true;resultRef.current?.focus();focusResult.current=false;}else setJob(id);}
@@ -161,7 +179,8 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
           onChange={e=>{selectVideo(key,e.target.files[0]);e.target.value="";}}/></label><p>MP4 · 파일당 최대 32MiB{files[key] && " · 선택: "+files[key].name}</p>
           {checking[key] && <p role="status">영상 정보 확인 중…</p>}
           {videoInfo[key] && <p>{videoInfo[key].summary}</p>}
-          {fileErrors[key] && <p role="alert">{fileErrors[key]}{files[key] && " 기존 영상은 유지됩니다."}</p>}</div>}</div>;
+          {fileErrors[key] && <p role="alert">{fileErrors[key]}{files[key] && " 기존 영상은 유지됩니다."}</p>}
+          {visible && <InputVideoPreview file={files[key]} label={label}/>}</div>}</div>;
       })}
       </div><div className="vace-input-group"><h2>장면 지시</h2><p className="vace-group-help">인물·동작·카메라를 설명하세요.</p>
       {["prompt","negative_prompt"].map(key=>{
@@ -192,7 +211,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       <h3>장면·동작 프롬프트</h3><p className="fun-review-prompt">{pending.prompt}</p><h3>부정 프롬프트</h3><p className="fun-review-prompt">{pending.negative_prompt || "없음"}</p>
       {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 영상을 생성합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
       <GenerationReviewActions busy={busy} onCancel={()=>{setPending(null);handoff.clearReview();requestAnimationFrame(()=>formRef.current?.querySelector("textarea")?.focus());}} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/></section>}
-    <fieldset className="vace-history-card" ref={historyRef} disabled={busy || !!pending}><GeneratorHistory card allowPriority onSelectedDeleted={(id,message)=>{if(sourceJob===id)setSourceJob("");if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} openResult={openResult} resultId={job} onCloseResult={()=>setJob("")} restore={restore} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>} renderResult={(id,close)=><section ref={node=>{resultRef.current=node;if(node && focusResult.current){focusResult.current=false;requestAnimationFrame(()=>{if(node.isConnected){node.focus();node.scrollIntoView({block:'start'});}});}}} tabIndex={-1} aria-label="선택한 VACE 작업 결과"><button type="button" onClick={close}>결과 닫기</button><MediaJobResult key={id} service={service} id={id} hideProgress>
+    <fieldset className="vace-history-card" ref={historyRef} disabled={busy || !!pending}><GeneratorHistory card directApply allowPriority onSelectedDeleted={(id,message)=>{if(sourceJob===id)setSourceJob("");if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} openResult={openResult} resultId={job} onCloseResult={()=>setJob("")} restore={restore} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>} renderResult={(id,close)=><section ref={node=>{resultRef.current=node;if(node && focusResult.current){focusResult.current=false;requestAnimationFrame(()=>{if(node.isConnected){node.focus();node.scrollIntoView({block:'start'});}});}}} tabIndex={-1} aria-label="선택한 VACE 작업 결과"><button type="button" onClick={close}>결과 닫기</button><SavedVaceInputs key={id} id={id}/><MediaJobResult key={id} service={service} id={id} hideProgress>
       {(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}
     </MediaJobResult></section>}/></fieldset>
     {notice && <p role="status">{notice}</p>}

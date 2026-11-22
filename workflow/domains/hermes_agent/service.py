@@ -681,7 +681,12 @@ class HermesServiceManager:
                 sessions.read_session_record(session_id)
                 validate_hermes_runtime_ready('qwen3.8-27b')
                 from workflow.domains.hermes_agent.resident_queue import ensure_session_resident
-                return ensure_session_resident(session_id, hermes_payload_record['request_id'])
+                from workflow.domains.hermes_agent.resident_preload import locked_policy, save_policy
+                with locked_policy() as policy_root:
+                    result = ensure_session_resident(session_id, hermes_payload_record['request_id'])
+                    if result.get('state') == 'accepted':
+                        save_policy(policy_root, session_id, True)
+                    return result
             if hermes_command_name == 'hermes-resident-release':
                 if set(hermes_payload_record) != {'session_id','resident_id','confirmed'} or hermes_payload_record['confirmed'] is not True:
                     raise ValueError('상주 모델 해제에 대한 명시적 확인이 필요합니다.')
@@ -689,7 +694,12 @@ class HermesServiceManager:
                 sessions.read_session_record(session_id)
                 from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
                 from workflow.domains.hermes_agent.resident_queue import request_resident_release
-                return GpuHandoffStore().run_without_open_session_handoff(session_id, lambda: request_resident_release(hermes_payload_record['resident_id'], session_id))
+                from workflow.domains.hermes_agent.resident_preload import locked_policy, read_policy, save_policy
+                with locked_policy() as policy_root:
+                    policy = read_policy(policy_root)
+                    if policy and policy['session_id'] == session_id:
+                        save_policy(policy_root, session_id, False)
+                    return GpuHandoffStore().run_without_open_session_handoff(session_id, lambda: request_resident_release(hermes_payload_record['resident_id'], session_id))
             if hermes_command_name == 'hermes-resident-status':
                 if set(hermes_payload_record) != {'session_id'}: raise ValueError('대화 세션이 필요합니다.')
                 session_id = hermes_payload_record['session_id']

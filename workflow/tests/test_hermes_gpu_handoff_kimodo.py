@@ -124,7 +124,8 @@ class KimodoHandoffTests(unittest.TestCase):
                 def is_set(self): return stop.is_set()
                 def wait(self, _seconds): stop.set()
             calls = []
-            with patch('workflow.domains.hermes_agent.gpu_handoff_scheduler.advance_gpu_handoff', side_effect=lambda current_store, request_id, adapter: calls.append(request_id)):
+            with patch('workflow.domains.hermes_agent.resident_preload.POLICY_ROOT', Path(root) / 'policy'), \
+                 patch('workflow.domains.hermes_agent.gpu_handoff_scheduler.advance_gpu_handoff', side_effect=lambda current_store, request_id, adapter: calls.append(request_id)):
                 run_gpu_handoff_scheduler(GpuHandoffStore(root), object(), OneCycle())
             self.assertEqual(calls, ['request_123'])
             row = store.read('request_123')
@@ -181,7 +182,8 @@ class KimodoHandoffTests(unittest.TestCase):
         with TemporaryDirectory() as root:
             manager = HermesServiceManager(Path(root) / 'jobs', Path(root) / 'sessions')
             manager.execute_hermes_command('hermes-session-create', {'session_id':SESSION})
-            with patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready') as ready, \
+            with patch('workflow.domains.hermes_agent.resident_preload.POLICY_ROOT', Path(root) / 'policy'), \
+                 patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready') as ready, \
                  patch('workflow.domains.hermes_agent.resident_queue.ensure_session_resident', return_value={'state':'accepted','id':'resident_123'}) as start:
                 self.assertEqual(manager.execute_hermes_command('hermes-resident-start', {'session_id':SESSION,'request_id':'request_123'})['state'], 'accepted')
                 ready.assert_called_once_with('qwen3.8-27b')

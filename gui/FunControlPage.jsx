@@ -4,6 +4,7 @@ import ActionButton from "./ActionButton.jsx";
 import React,{useEffect,useRef,useState} from "react";
 import {referencePng,videoData} from "./videoInputs.js";
 import GeneratorHistory from "./GeneratorHistory.jsx";
+import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
 import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import HistoryCleanup from "./HistoryCleanup.jsx";
 import GeneratorPageHeader from "./GeneratorPageHeader.jsx";
@@ -42,8 +43,8 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     return {...record,request:settings,attachments:{images,pose_video}};
   }
   function restore(settings,record){
-    setRequest({...settings,...record.attachments});setVideoInfo(record.video);setSourceSeed(Number(settings.seed));setSourceJob(record.id);setJob(record.id);
-    setNotice(record.id+" 입력을 복원했습니다.");refreshHistory(n=>n+1);requestAnimationFrame(()=>formRef.current?.focus());
+    setRequest({...settings,...record.attachments});setVideoInfo(record.video);setSourceSeed(Number(settings.seed));setSourceJob(record.id);
+    setNotice(record.id+" 입력을 복원했습니다.");requestAnimationFrame(()=>formRef.current?.focus());
   }
   function cleaned(message){setJob("");setNotice(message);refreshHistory(n=>n+1);}
   const sending=useRef(false),formRef=useRef(null),reviewRef=useRef(null);
@@ -186,11 +187,11 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     }catch(problem){setError(problem.message);}finally{setBusy(false);}
   }
   function renderResult(id){
-    return <FunControlResult key={id} job={id} folderLink={embedded}>
+    return <><SavedGeneratorInputs id={id} service={service} readJob={readJob}/><FunControlResult key={id} job={id} folderLink={embedded}>
       {(record,reload)=>record && <React.Fragment key={record.status}>
         <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>
       </React.Fragment>}
-    </FunControlResult>;
+    </FunControlResult></>;
   }
   return <article className={"fun-control-page"+(embedded?" fun-embedded":"")}>
     <GeneratorPageHeader title="Wan Fun Control 영상 생성"

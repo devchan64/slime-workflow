@@ -47,6 +47,7 @@ export default function KimodoFrames({id,choose,onDeleted,selectionControls=fals
     <RecordFolder key={id} service="kimodo" id={id}/>
     {error && <p role="alert">{error}</p>}
     {source && <><p><JobStatus state={source.status}/> {source.error}</p>
+      {source.status==="missing" && <p role="status">현재 작업 데이터를 찾을 수 없습니다. 이력 색인에는 과거 상태가 남아 있을 수 있으므로 결과와 실제 작업 상태를 확인할 수 없습니다.</p>}
       <GenerationProgress job={{...source,estimate:validGenerationEstimate(source.estimate) ? source.estimate : null}} live={live} supportsProgress={false}/>
       <button onClick={()=>refresh(value=>value+1)}>작업 상태 갱신</button>
       <GeneratorJobControls showActions={!selectionControls} service="kimodo" id={id} state={source.status} refresh={()=>refresh(value=>value+1)}/></>}

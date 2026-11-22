@@ -59,6 +59,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
   function restore(request,record){
     setFile(record.file);setHands(request.pose_include_hands);setFace(request.pose_include_face);
     setJob(record.id);setNotice("저장된 PNG와 포즈 옵션을 불러왔습니다.");
+    requestAnimationFrame(()=>handsRef.current?.focus());
   }
   async function review(){
     setBusy(true);setNotice("");
@@ -96,6 +97,6 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
       <GenerationReviewActions busy={busy} onCancel={closeReview} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/>
     </section>}
     {notice && <p role="status">{notice}</p>}
-    <GeneratorJobResult selectionControls job={job} service="dwpose" controls={false} onDeleted={cleaned}/>
+    <GeneratorJobResult selectionControls job={job} service="dwpose" readJob={readJob} controls={false} onDeleted={cleaned}/>
   </article>;
 }

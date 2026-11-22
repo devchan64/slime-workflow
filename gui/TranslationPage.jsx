@@ -15,6 +15,7 @@ import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import TranslationEvidence from "./TranslationEvidence.jsx";
 import TranslationResult from "./TranslationResult.jsx";
+import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
 import {managementCommand} from "./managementCommand.js";
 import {parseTranslationGlossary} from "./translationGlossary.mjs";
 import {generationReady} from "./generationReady.mjs";
@@ -96,7 +97,7 @@ export default function TranslationPage({embedded=false}={}) {
       <GenerationReviewActions busy={busy} onCancel={()=>{setPending(null);requestAnimationFrame(()=>textRef.current?.focus());}} onConfirm={submit} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/>
     </section>}
     <p role="status">{notice}</p>
-    {job && <div ref={resultRef} tabIndex={-1} aria-label="선택한 번역 작업"><section ref={!record ? live.ref : undefined}><h2>번역 작업</h2><JobIdentifier id={job}/><RecordFolder key={job} service={service} id={job}/><button onClick={()=>setRevision(v=>v+1)}>상태 갱신</button>
+    {job && <div ref={resultRef} tabIndex={-1} aria-label="선택한 번역 작업"><SavedGeneratorInputs id={job} service={service} statusCommand="translation-status"/><section ref={!record ? live.ref : undefined}><h2>번역 작업</h2><JobIdentifier id={job}/><RecordFolder key={job} service={service} id={job}/><button onClick={()=>setRevision(v=>v+1)}>상태 갱신</button>
       {record && <><p><JobStatus state={record.status.status}/> {record.status.error}</p><GenerationProgress job={{status:record.status.status}} live={live} supportsProgress={false}/></>}
       {record?.id===job && <GeneratorJobControls showActions={false} key={job+"/"+record.status.status} service={service} id={job}
         state={record.status.status} refresh={()=>setRevision(value=>value+1)}/>}

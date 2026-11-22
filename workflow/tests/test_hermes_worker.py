@@ -142,7 +142,7 @@ class HermesWorkerTests(unittest.TestCase):
             current_sandbox_arguments = [current_bwrap_path, '--die-with-parent', '--unshare-all', '--clearenv', '--ro-bind', '/usr', '/usr', '--ro-bind', '/lib', '/lib', '--ro-bind', '/lib64', '/lib64', '--tmpfs', '/tmp', '--proc', '/proc', '--dev', '/dev', '--', '/usr/bin/python3', '-c', current_sandbox_code, str(current_listener_port)]
             current_sandbox_environment = dict(os.environ, HERMES_BOUNDARY_TEST_VALUE='not-for-sandbox')
             current_sandbox_result = subprocess.run(current_sandbox_arguments, env=current_sandbox_environment, capture_output=True, text=True, timeout=10)
-            if current_sandbox_result.returncode and ('Operation not permitted' in current_sandbox_result.stderr or 'Creating new namespace failed' in current_sandbox_result.stderr):
+            if current_sandbox_result.returncode and ('Operation not permitted' in current_sandbox_result.stderr or 'Creating new namespace failed' in current_sandbox_result.stderr or 'No permissions to create new namespace' in current_sandbox_result.stderr):
                 self.skipTest('이 환경은 격리 네임스페이스 실행을 허용하지 않습니다.')
             self.assertEqual(current_sandbox_result.returncode, 0, current_sandbox_result.stderr)
             current_sandbox_record = json.loads(current_sandbox_result.stdout)
@@ -599,6 +599,8 @@ class HermesWorkerTests(unittest.TestCase):
                 current_sandbox_arguments=[current_bwrap_path,'--die-with-parent','--unshare-all','--clearenv','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--dir','/control','--ro-bind',str(current_socket_path),'/control/management-status.sock','--ro-bind',str(Path(management_status_client.__file__)),'/control/management-status.py','--proc','/proc','--dev','/dev','--','/usr/bin/python3','/control/management-status.py','audio-source-status',json.dumps({'service':'music-heartmula','job_id':current_job_identifier})]
                 current_process_value=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=15)
                 current_thread_value.join(timeout=5)
+                if current_process_value.returncode and 'No permissions to create new namespace' in current_process_value.stderr:
+                    self.skipTest('이 환경은 격리 네임스페이스 실행을 허용하지 않습니다.')
                 self.assertEqual(current_process_value.returncode,0,current_process_value.stderr)
                 self.assertEqual(json.loads(current_process_value.stdout)['job']['status'],'queued')
                 current_service_mock.assert_called_once_with('music-heartmula','status',{'id':current_job_identifier})
@@ -628,6 +630,8 @@ class HermesWorkerTests(unittest.TestCase):
                 current_sandbox_arguments=[current_bwrap_path,'--die-with-parent','--unshare-all','--clearenv','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--dir','/control','--ro-bind',str(current_socket_path),'/control/management-status.sock','--ro-bind',str(Path(management_status_client.__file__)),'/control/management-status.py','--proc','/proc','--dev','/dev','--','/usr/bin/python3','/control/management-status.py','video-source-status',json.dumps({'service':'wan22-vace','job_id':current_job_identifier})]
                 current_process_value=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=15)
                 current_thread_value.join(timeout=5)
+                if current_process_value.returncode and 'No permissions to create new namespace' in current_process_value.stderr:
+                    self.skipTest('이 환경은 격리 네임스페이스 실행을 허용하지 않습니다.')
                 self.assertEqual(current_process_value.returncode,0,current_process_value.stderr)
                 self.assertEqual(json.loads(current_process_value.stdout)['job']['status'],'queued')
                 current_service_mock.assert_called_once_with('wan22-vace',current_job_identifier)
@@ -657,6 +661,8 @@ class HermesWorkerTests(unittest.TestCase):
                 current_sandbox_arguments=[current_bwrap_path,'--die-with-parent','--unshare-all','--clearenv','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--dir','/control','--ro-bind',str(current_socket_path),'/control/management-status.sock','--ro-bind',str(Path(management_status_client.__file__)),'/control/management-status.py','--proc','/proc','--dev','/dev','--','/usr/bin/python3','/control/management-status.py','video-source-status',json.dumps({'service':'kimodo','job_id':current_job_identifier})]
                 current_process_value=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=15)
                 current_thread_value.join(timeout=5)
+                if current_process_value.returncode and 'No permissions to create new namespace' in current_process_value.stderr:
+                    self.skipTest('이 환경은 격리 네임스페이스 실행을 허용하지 않습니다.')
                 self.assertEqual(current_process_value.returncode,0,current_process_value.stderr)
                 self.assertEqual(json.loads(current_process_value.stdout)['job']['status'],'queued')
                 current_service_mock.assert_called_once_with('kimodo',current_job_identifier)
@@ -686,6 +692,8 @@ class HermesWorkerTests(unittest.TestCase):
                 current_sandbox_arguments=[current_bwrap_path,'--die-with-parent','--unshare-all','--clearenv','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--dir','/control','--ro-bind',str(current_socket_path),'/control/management-status.sock','--ro-bind',str(Path(management_status_client.__file__)),'/control/management-status.py','--proc','/proc','--dev','/dev','--','/usr/bin/python3','/control/management-status.py','flux-source-status',json.dumps({'service':'flux-building','job_id':current_job_identifier})]
                 current_process_value=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=15)
                 current_thread_value.join(timeout=5)
+                if current_process_value.returncode and 'No permissions to create new namespace' in current_process_value.stderr:
+                    self.skipTest('이 환경은 격리 네임스페이스 실행을 허용하지 않습니다.')
                 self.assertEqual(current_process_value.returncode,0,current_process_value.stderr)
                 self.assertEqual(json.loads(current_process_value.stdout)['job']['status'],'queued')
                 current_service_mock.assert_called_once_with('flux-building',current_job_identifier)
@@ -715,6 +723,8 @@ class HermesWorkerTests(unittest.TestCase):
                 current_sandbox_arguments=[current_bwrap_path,'--die-with-parent','--unshare-all','--clearenv','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--dir','/control','--ro-bind',str(current_socket_path),'/control/management-status.sock','--ro-bind',str(Path(management_status_client.__file__)),'/control/management-status.py','--proc','/proc','--dev','/dev','--','/usr/bin/python3','/control/management-status.py','image-source-status',json.dumps({'service':'building-generator','job_id':current_job_identifier})]
                 current_process_value=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=15)
                 current_thread_value.join(timeout=5)
+                if current_process_value.returncode and 'No permissions to create new namespace' in current_process_value.stderr:
+                    self.skipTest('이 환경은 격리 네임스페이스 실행을 허용하지 않습니다.')
                 self.assertEqual(current_process_value.returncode,0,current_process_value.stderr)
                 self.assertEqual(json.loads(current_process_value.stdout)['job']['status'],'queued')
                 current_service_mock.assert_called_once_with('building-generator',current_job_identifier)
@@ -744,6 +754,8 @@ class HermesWorkerTests(unittest.TestCase):
                 current_sandbox_arguments=[current_bwrap_path,'--die-with-parent','--unshare-all','--clearenv','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--dir','/control','--ro-bind',str(current_socket_path),'/control/management-status.sock','--ro-bind',str(Path(management_status_client.__file__)),'/control/management-status.py','--proc','/proc','--dev','/dev','--','/usr/bin/python3','/control/management-status.py','character-source-status',json.dumps({'job_id':current_job_identifier})]
                 current_process_value=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=15)
                 current_thread_value.join(timeout=5)
+                if current_process_value.returncode and 'No permissions to create new namespace' in current_process_value.stderr:
+                    self.skipTest('이 환경은 격리 네임스페이스 실행을 허용하지 않습니다.')
                 self.assertEqual(current_process_value.returncode,0,current_process_value.stderr)
                 self.assertEqual(json.loads(current_process_value.stdout)['job']['status'],'queued')
                 current_service_mock.assert_called_once_with(current_job_identifier)
@@ -770,7 +782,7 @@ class HermesWorkerTests(unittest.TestCase):
             current_server_thread.start()
             current_sandbox_arguments=[current_bwrap_path,'--die-with-parent','--unshare-all','--clearenv','--ro-bind','/usr','/usr','--ro-bind','/lib','/lib','--ro-bind','/lib64','/lib64','--dir','/control','--ro-bind',str(current_socket_path),'/control/management-status.sock','--ro-bind',str(Path(management_status_client.__file__)),'/control/management-status.py','--proc','/proc','--dev','/dev','--','/usr/bin/python3','/control/management-status.py','capabilities','{"query":"FLUX","limit":2}']
             current_sandbox_result=subprocess.run(current_sandbox_arguments,capture_output=True,text=True,timeout=12)
-            if current_sandbox_result.returncode and ('Operation not permitted' in current_sandbox_result.stderr or 'Creating new namespace failed' in current_sandbox_result.stderr):self.skipTest('이 환경은 격리 네임스페이스 실행을 허용하지 않습니다.')
+            if current_sandbox_result.returncode and ('Operation not permitted' in current_sandbox_result.stderr or 'Creating new namespace failed' in current_sandbox_result.stderr or 'No permissions to create new namespace' in current_sandbox_result.stderr):self.skipTest('이 환경은 격리 네임스페이스 실행을 허용하지 않습니다.')
             self.assertEqual(current_sandbox_result.returncode,0,current_sandbox_result.stderr)
             current_sandbox_record=json.loads(current_sandbox_result.stdout)
             self.assertEqual(len(current_sandbox_record['records']),2)

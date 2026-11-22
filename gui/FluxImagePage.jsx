@@ -34,7 +34,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[model,setModel]=useState(null);
   const [job,setJob]=useState(embedded ? "" : query.get("job") || "");
   const [guideQuery,setGuideQuery]=useState(""),[guidePage,setGuidePage]=useState(0),[pageSize,setPageSize]=useState(8);
-  const guideSearchRef=useRef(null);
+  const guideSearchRef=useRef(null),inputFormRef=useRef(null);
   const [selectedGuide,setSelectedGuide]=useState(""),[guideNotice,setGuideNotice]=useState("");
   useEffect(()=>{setGuideNotice("");},[selectedGuide]);
   const [stage,setStage]=useState("");
@@ -105,6 +105,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
   function restore(input,record){
     setForm(seamless?{...input,width:512,height:512}:input);setFiles(seamless?[]:record.files);
     setJob(record.id);setNotice(seamless?"프롬프트와 시드를 복원했습니다. 새 타일은 512×512 무참조로 생성합니다.":"선택한 이력의 입력과 참조 이미지를 불러왔습니다.");
+    requestAnimationFrame(()=>inputFormRef.current?.focus());
   }
   function edit(key,value){setForm(current=>({...current,[key]:value}));}
   const guides=filterFluxGuides(profile?.guides || [],guideQuery);
@@ -217,7 +218,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service={service} status={handoffStatus} onUpdate={value=>{setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}
       onClose={receiptKey && handoffStatus?.state!=="withdrawn" ? undefined : ()=>{sessionStorage.removeItem(handoffKey);setHandoffId("");setHandoffStatus(null);if(receiptKey){setReceiptState("unknown");setReceiptNotice("이 제안의 양도 요청은 철회됐습니다. 새 작업은 생성기 화면에서 요청하세요.");}}}/>}
     {receiptKey && receiptState!=="editing" && <section aria-label="FLUX 제안 접수 상태"><p>접수 ID: {receipt || "확인 불가"} · {receiptState==="accepted"?"접수 확인됨":receiptState==="rejected"?"접수 거절됨":receiptState==="checking"?"확인 중":"확인 필요"}</p>{receiptState==="accepted" && receiptJob && <p>접수 작업: {receiptJob} <button type="button" onClick={()=>setJob(receiptJob)}>이 작업 결과 조회</button></p>}{receiptNotice && <p role="status">{receiptNotice}</p>}<p>같은 제안은 중복 접수를 막기 위해 다시 제출할 수 없습니다. 다른 작업은 생성기 화면에서 새로 요청하세요.</p><button type="button" disabled={busy || receiptState==="checking"} onClick={refreshReceipt}>접수 상태 다시 확인</button></section>}
-    <form onSubmit={preview}><fieldset disabled={!profile || busy || Boolean(review) || Boolean(handoffId) || (receiptKey && receiptState!=="editing")}>
+    <form ref={inputFormRef} tabIndex={-1} aria-label="생성 입력" onSubmit={preview}><fieldset disabled={!profile || busy || Boolean(review) || Boolean(handoffId) || (receiptKey && receiptState!=="editing")}>
       {profile?.guides && <section className="flux-guides"><h2>{profile.rolePrompt?"신체 비율 기준":"건물 배치 가이드"}</h2>
         <div className="flux-guides-toolbar">
         <label>가이드 검색 <input ref={guideSearchRef} value={guideQuery} onChange={e=>{setGuideQuery(e.target.value);setGuidePage(0);setSelectedGuide("");}}/></label>
@@ -276,6 +277,6 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
       <GpuQueueSummary/>{handoffReview && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 {profile?.label || "FLUX"} 생성을 실행합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}<GenerationReviewActions busy={busy} onCancel={()=>{setReview(null);setHandoffReview(null);}} onConfirm={submit} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"} disabledReason={!fluxModelReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : ""}/></section>}
     {notice && <p role="status">{notice}</p>}
     {profile && <fieldset disabled={busy || Boolean(review)}><GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setHistoryRevision(value=>value+1);}} key={historyRevision} service={service} readJob={readJob} externalResultId={job} restore={restore} inspectResult={record=>setJob(record.id)}/></fieldset>}
-    <GeneratorJobResult selectionControls job={job} kind="flux" service={service} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/>
+    <GeneratorJobResult selectionControls job={job} kind="flux" service={service} readJob={readJob} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/>
   </article>;
 }

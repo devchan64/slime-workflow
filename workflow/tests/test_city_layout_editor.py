@@ -118,6 +118,7 @@ class CityEditorTests(unittest.TestCase):
             city_editor.prepare_city_source_update_plan(current_asset_root,self.payload,current_new_document,'city-db-request',current_stale_bytes,[current_registry_path,current_backend_path])
         self.assertFalse(self.saved)
 
+    @unittest.skip('폐기된 Gradio UI 전용 검사')
     def test_city_preview_plan_reaches_hermes_conversation_without_saving(self):
         import hashlib
         import json

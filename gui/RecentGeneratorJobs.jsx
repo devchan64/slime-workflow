@@ -26,7 +26,7 @@ export function RecentJobResult({source,id,choose,onDeleted}){
 
 export default function RecentGeneratorJobs({session,filters,filterSummary,revision,choose}){
   const [rows,setRows]=useState([]),[errors,setErrors]=useState([]),[loading,setLoading]=useState(true),[checked,setChecked]=useState(null),[selected,setSelected]=useState(null);
-  const [listUnavailable,setListUnavailable]=useState(false);
+  const [listUnavailable,setListUnavailable]=useState(false),[errorsOpen,setErrorsOpen]=useState(false);
   const [page,setPage]=useState(0),[pageSize,setPageSize]=useState(5),[refreshRevision,refresh]=useState(0);
   const resultRef=useRef(null),triggerRef=useRef(null),headingRef=useRef(null),refreshRef=useRef(null),restoreRefreshFocus=useRef(false);
   useEffect(()=>{if(!loading && restoreRefreshFocus.current){restoreRefreshFocus.current=false;if(document.activeElement===document.body)refreshRef.current?.focus();}},[loading]);
@@ -59,13 +59,13 @@ export default function RecentGeneratorJobs({session,filters,filterSummary,revis
               if(page.service!==source.service || !Array.isArray(page.records))throw new Error('이력 응답 오류');
               succeeded++;
               for(const record of page.records)if(typeof record.id==='string' && /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(record.id))collected.push({source,record});
-              if(page.unavailable_count)failed.push(source.service+' 일부 기록');
-            }catch{failed.push(source.service);}
+              if(page.unavailable_count)failed.push({service:source.service,reason:`확인할 수 없는 기록 ${page.unavailable_count}건`});
+            }catch(error){failed.push({service:source.service,reason:error instanceof Error ? error.message : '이력을 조회할 수 없습니다.'});}
           }
         }
         await Promise.all(Array.from({length:Math.min(4,eligible.length)},()=>worker()));
         if(active){setErrors(failed);if(eligible.length>0 && succeeded===0){setListUnavailable(true);}else{setRows(collected.sort((a,b)=>b.record.id.localeCompare(a.record.id)));setChecked(new Date());setListUnavailable(false);}}
-      }catch{if(active){setErrors(['생성기 목록']);setListUnavailable(true);}}
+      }catch(error){if(active){setErrors([{service:'생성기 목록',reason:error instanceof Error ? error.message : '목록을 조회할 수 없습니다.'}]);setListUnavailable(true);}}
       finally{if(active)setLoading(false);}
     }
     load();return()=>{active=false;};
@@ -77,7 +77,7 @@ export default function RecentGeneratorJobs({session,filters,filterSummary,revis
     <p>세션 외 작업도 포함 · 생성기별 최근 10건 중 최대 20건 · 기록 상태 기준{checked && ' · 조회 '+checked.toLocaleString('ko-KR')}</p>
     {loading && <p role="status">최근 작업 조회 중…{checked && " 아래에는 이전 조회 결과가 표시됩니다."}</p>}
     {listUnavailable && checked && <p role="status">최근 작업을 조회하지 못해 이전 결과를 표시합니다. 최근 작업 새로고침으로 다시 확인하세요.</p>}
-    {errors.length>0 && <p role="status">일부 이력을 확인하지 못했습니다: {errors.join(', ')}</p>}
+    {errors.length>0 && <div><p role="status">일부 이력을 확인하지 못했습니다 · {errors.length}곳</p><details open={errorsOpen} onToggle={event=>setErrorsOpen(event.currentTarget.open)}><summary>조회 실패 원인과 조치</summary><p>문제를 확인한 뒤 최근 작업을 새로고침하세요.</p><ul>{errors.map(({service,reason})=><li key={service}>{service} · {reason}</li>)}</ul></details></div>}
     {!loading && !matching.length && <p>{errors.length ? "확인된 이력에는 조건에 맞는 최근 작업이 없습니다. 조회하지 못한 이력은 포함되지 않았습니다." : "조건에 맞는 최근 작업이 없습니다."}</p>}
     <div className="session-job-list">{matching.slice(currentPage*pageSize,(currentPage+1)*pageSize).map(({source,record})=><article className="session-job" key={source.service+'/'+record.id}>
       <div className="session-job-heading"><strong>{source.service}</strong><span>{labels[record.recorded_status] || record.recorded_status}</span></div>

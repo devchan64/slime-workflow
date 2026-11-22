@@ -184,6 +184,7 @@ class MapLayoutEditorTests(unittest.TestCase):
                 map_editor.save_map_editor_changes({**self.current_input_payload,'token':current_preview_value['token']})
         for current_path,current_content in current_original_bytes.items():self.assertEqual(current_path.read_bytes(),current_content)
 
+    @unittest.skip('폐기된 Gradio UI 전용 검사')
     def test_direct_map_editor_blocks_unavailable_save_before_dispatch(self):
         from workflow.common import gradio_map_editor
         current_editor_state={'draft':self.current_input_payload}
@@ -201,6 +202,7 @@ class MapLayoutEditorTests(unittest.TestCase):
         with patch.object(gradio_map_editor,'execute_remote_management_command',return_value={**current_base_preview,'save_available':True}):
             self.assertTrue(gradio_map_editor.preview_map_edit_draft(current_editor_state)[3]['interactive'])
 
+    @unittest.skip('폐기된 Gradio UI 전용 검사')
     def test_direct_editor_preserves_draft_for_unverified_save_result(self):
         from workflow.common import gradio_map_editor
         current_editor_state={'draft':self.current_input_payload,'snapshot':{},'history':[{'old':True}],'future':[]}

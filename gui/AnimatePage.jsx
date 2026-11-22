@@ -1,4 +1,4 @@
-import React,{useState} from "react";
+import React,{useRef,useState} from "react";
 import AnimateInputs from "./AnimateInputs.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
@@ -16,6 +16,7 @@ export default function AnimatePage({embedded=false}={}){
   const query=new URLSearchParams(location.search);
   const [job,setJob]=useState(embedded ? "" : query.get("job") || "");
   const [saved,setSaved]=useState(null);
+  const inputRef=useRef(null);
   const [historyRevision,refreshHistory]=useState(0);
   const [notice,setNotice]=useState("");
   function cleaned(message){setSaved(null);setJob("");refreshHistory(n=>n+1);setNotice(message);}
@@ -23,10 +24,10 @@ export default function AnimatePage({embedded=false}={}){
     <h1 className={embedded ? "embedded-page-title" : undefined}>Wan Animate-2 캐릭터 동작 전사</h1>
     <p>시스템 RAM과 GPU 메모리 부족으로 신규 생성과 재개를 보류합니다. 기존 작업의 참조와 결과 영상을 검수할 수 있습니다.</p>
     <GeneratorChangelog generator="wan22-animate2-generator"/><ModelReadiness service={service} manage/><DownloadProgress service={service}/>
-    <AnimateInputs saved={saved}/>
+    <section ref={inputRef} tabIndex={-1} aria-label="동작 전사 입력"><AnimateInputs saved={saved}/></section>
     <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} openResult={setJob} externalResultId={job} service={service} readJob={readJob}
-      restore={(request,record)=>{setSaved(record);setJob(record.id);}}/>
-    <GeneratorJobResult selectionControls job={job} service={service} controls={false} onDeleted={cleaned}/>
+      restore={(request,record)=>{setSaved(record);setJob(record.id);requestAnimationFrame(()=>inputRef.current?.focus());}}/>
+    <GeneratorJobResult selectionControls job={job} service={service} readJob={readJob} controls={false} onDeleted={cleaned}/>
     {notice && <p role="status">{notice}</p>}
   </article>;
 }

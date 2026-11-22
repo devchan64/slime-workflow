@@ -29,13 +29,14 @@ function HistoryThumbnail({src}) {
   return <img className="history-card-image" loading="lazy" decoding="async" src={src} alt="생성 결과 미리보기" onError={()=>setFailed(true)}/>;
 }
 
-export default function GeneratorHistory({service, statusCommand, restore, inspectResult, openResult, renderResult, readJob, allowPriority=false, onSelectedDeleted, card=false, resultId='', externalResultId='', onCloseResult, footer}) {
+export default function GeneratorHistory({service, statusCommand, restore, inspectResult, openResult, renderResult, readJob, allowPriority=false, onSelectedDeleted, card=false, resultId='', externalResultId='', onCloseResult, footer, directApply=true}) {
   const resultPanelId=useId(),searchHelpId=useId(),searchErrorId=useId();
   const detailsRef=useRef(null),selectedRef=useRef(null);
   const [expanded,setExpanded]=useState(null);
   const [page,setPage]=useState(null);
   const [query,setQuery]=useState("");
   const searchRef=useRef(null);
+  const inputReviewRef=useRef(null);
   const [filter,setFilter]=useState("");
   const [pageSize,setPageSize]=useState(10);
   const [selected,setSelected]=useState(null);
@@ -135,6 +136,7 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
   async function showInput(id) {
     const result=await read(id);
     setJob(result);
+    requestAnimationFrame(()=>inputReviewRef.current?.focus());
   }
   return <details ref={detailsRef} className={`generator-history${card ? ' generator-section-card' : ''}`} onToggle={event=>{
     if(event.currentTarget.open && !page && !error && !resultId)perform(()=>list(0,query.trim()));}}><summary>{card ? <span className="generator-section-card-heading" role="heading" aria-level="2">생성 이력</span> : '생성 이력'}</summary>
@@ -166,13 +168,15 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
                 aria-controls={resultPanelId} onClick={()=>setExpanded(current=>current===record.id ? null : record.id)}>
                 {expanded===record.id ? "결과 접기" : "결과 펼치기"}</button>}
               {(openResult || inspectResult) && resultId!==record.id && <button className="history-action-result" type="button" onClick={()=>openResult ? openResult(record.id) : perform(()=>showResult(record.id))}>결과 조회</button>}
-              {restore && <button className="history-action-input" type="button" onClick={()=>perform(()=>showInput(record.id))}>입력값 불러오기</button>}
+              {restore && <button className="history-action-input" type="button" onClick={()=>perform(async()=>{if(directApply){const input=await read(record.id);await restore(input.request,input);}else await showInput(record.id);})}>{directApply ? '입력 적용' : '입력값 불러오기'}</button>}
             </div>
-            {renderResult && <div id={resultPanelId} hidden={openResult ? resultId!==record.id : expanded!==record.id} className="history-action-detail history-inline-result">{(openResult ? resultId===record.id && resultLookup?.id===resultId && !resultLookup.loading && !resultLookup.error : expanded===record.id) && renderResult(record.id,()=>{onCloseResult?.();requestAnimationFrame(()=>selectedRef.current?.focus());})}</div>}
-            {onSelectedDeleted && <SelectedHistoryDeletion key={service+"/"+record.id} service={service} id={record.id} allowPriority={allowPriority} onDeleted={deleted}/>}
-            {job?.id===record.id && <section className="history-action-detail">{historyInputSummary(job.request).length>0 && <p>저장 입력 · {historyInputSummary(job.request).join(" · ")}</p>}<details><summary>저장된 입력 상세</summary><pre>{JSON.stringify(job.request,null,2)}</pre></details>
+            {restore && directApply && <p>입력 적용을 누르면 현재 입력과 첨부가 이 작업의 저장 입력으로 바뀝니다.</p>}
+            {directApply && error && !error.startsWith("작업 ID 검색에는 영문") && <p role="alert">{error} · 현재 입력은 유지됩니다. 확인 후 다시 시도하세요.</p>}
+            {job?.id===record.id && <section ref={inputReviewRef} tabIndex={-1} aria-label="불러온 입력 확인" className="history-action-detail"><strong>불러온 입력 확인</strong>{historyInputSummary(job.request).length>0 && <p>저장 입력 · {historyInputSummary(job.request).join(" · ")}</p>}<details><summary>저장된 입력 상세</summary><pre>{JSON.stringify(job.request,null,2)}</pre></details>
               {restore && <button type="button" onClick={()=>restore(job.request,job)}>확인한 입력 적용</button>}
             </section>}
+            {renderResult && <div id={resultPanelId} hidden={openResult ? resultId!==record.id : expanded!==record.id} className="history-action-detail history-inline-result">{(openResult ? resultId===record.id && resultLookup?.id===resultId && !resultLookup.loading && !resultLookup.error : expanded===record.id) && renderResult(record.id,()=>{onCloseResult?.();requestAnimationFrame(()=>selectedRef.current?.focus());})}</div>}
+            {onSelectedDeleted && <SelectedHistoryDeletion key={service+"/"+record.id} service={service} id={record.id} allowPriority={allowPriority} onDeleted={deleted}/>}
           </section>}
         </div>)}</div>
         <nav className="generator-history-pagination" aria-label="생성 이력 페이지">
@@ -182,6 +186,6 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
         </nav>
       </>}
     </fieldset>
-    {footer && <div className="generator-section-card-body">{footer}</div>}{error && <p id={searchErrorId} role="alert">{error}</p>}
+    {footer && <div className="generator-section-card-body">{footer}</div>}{error && (!directApply || !selected || error.startsWith("작업 ID 검색에는 영문")) && <p id={searchErrorId} role="alert">{error}</p>}
   </details>;
 }

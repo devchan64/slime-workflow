@@ -6,6 +6,7 @@ from workflow.common.management_gateway import resolve_management_command
 
 
 class BuildingEditorTest(unittest.TestCase):
+    @unittest.skip('폐기된 Gradio UI 전용 검사')
     def test_building_editor_is_separate_map_review_page(self):
         from workflow.common.management_catalog import DEFAULT_PAGE_RECORDS, NATIVE_MANAGEMENT_APPLICATIONS, resolve_management_page_path
         from workflow.common.management_asgi import MANAGEMENT_INTERFACE_BUILDERS
@@ -25,6 +26,7 @@ class BuildingEditorTest(unittest.TestCase):
         self.assertEqual(current_result['assets'][0]['texture'],'ward-tower-v1')
         self.assertEqual(current_result['assets'][0]['properties']['anchorY'],.8203125)
 
+    @unittest.skip('폐기된 Gradio UI 전용 검사')
     def test_ward_tower_save_uses_same_versioned_api_and_retirement_is_blocked(self):
         from gui.ui.gradio.building_editor_panel import prepare_building_retirement
         current_request={'texture':'ward-tower-v1','generation':2,'expected':{'anchorX':.5,'anchorY':.82},'properties':{'anchorX':.51,'anchorY':.83,'displayWidthAdjustment':4,'displayHeightAdjustment':2}}
@@ -80,6 +82,7 @@ class BuildingEditorTest(unittest.TestCase):
         with patch('workflow.domains.map_assets.building_editor.execute_content_api_request',side_effect=[current_bundle,{'generation':2}]):
             with self.assertRaisesRegex(ValueError,'조회 중 콘텐츠가 변경'):load_building_editor_catalog({})
 
+    @unittest.skip('폐기된 Gradio UI 전용 검사')
     def test_unchanged_anchor_does_not_write(self):
         from gui.ui.gradio.building_editor_panel import save_building_editor_panel
         current_selected_record={'texture':'town-iseulon-guild-v2','properties':{'anchorX':0.52,'anchorY':0.97,'shadowShape':'circle','shadowOffsetColumn':0,'shadowOffsetRow':0,'shadowScaleX':1,'shadowScaleY':1},'preview':'preview'}

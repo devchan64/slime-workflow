@@ -32,6 +32,7 @@ class CharacterReviewCaptureTest(unittest.TestCase):
         self.assertFalse(current_settings_record['rim'])
         self.assertFalse(current_settings_record['shadow'])
 
+    @unittest.skip('폐기된 Gradio UI 전용 검사')
     def test_gui_capture_uses_configured_remote_gateway(self):
         from unittest.mock import patch
         from gui.ui.gradio.map_review_app import capture_character_review_images
