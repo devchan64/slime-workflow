@@ -12,6 +12,9 @@ function recordedTime(id) {
 }
 const fluxServices=new Set(["flux-image","flux-character","flux-mannequin","flux-billboard","flux-prop","flux-vegetation","flux-building","flux-seamless","flux-expression"]);
 const videoServices=new Set(["wan22-fun-control","wan22-vace","wan22-animate2","dwpose","kimodo"]);
+function validHistoryPage(page,offset,snapshot){
+  return Boolean(page && Array.isArray(page.records) && page.records.every(row=>row && typeof row.id==="string" && typeof row.recorded_status==="string") && Number.isSafeInteger(page.total) && page.total>=0 && page.offset===offset && typeof page.snapshot==="string" && /^[a-f0-9]{64}$/.test(page.snapshot) && (!snapshot || page.snapshot===snapshot) && (page.next_offset===null || Number.isSafeInteger(page.next_offset) && page.next_offset>offset));
+}
 function HistoryImage({service,record,summary,unavailable}) {
 
   const flux=fluxServices.has(service), video=videoServices.has(service);
@@ -68,7 +71,7 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
           try{result=await managementCommand(service,'history-observe',{limit:30,offset:0,query:resultId});break;}
           catch(problem){if(attempt===2 || !requestErrorMessage(problem).includes('이력 조회가 이미 진행 중'))throw problem;await new Promise(resolve=>setTimeout(resolve,1000));if(!active)return;}
         }
-        if(!Array.isArray(result.records))throw new Error('이력 응답을 확인할 수 없습니다.');
+        if(!validHistoryPage(result,0))throw new Error('이력 응답을 확인할 수 없습니다.');
         if(!active)return;
         const match=result.records.find(record=>record.id===resultId);
         if(!match){setResultLookup({id:resultId,error:'이력에서 해당 작업을 찾지 못했습니다. 작업 결과를 직접 확인합니다.'});return;}
@@ -111,7 +114,7 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
     if(offset)payload.snapshot=page.snapshot;
     try {
       const result=await managementCommand(service,"history-observe",payload);
-      if(!Array.isArray(result.records))throw new Error("이력 응답을 확인할 수 없습니다.");
+      if(!validHistoryPage(result,offset,payload.snapshot))throw new Error("이력 응답을 확인할 수 없습니다.");
       const ids=new Set(result.records.map(record=>record.id));
       setSelected(current=>{
         if(current && ids.has(current.id))return result.records.find(record=>record.id===current.id);

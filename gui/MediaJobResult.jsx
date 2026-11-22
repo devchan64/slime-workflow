@@ -66,7 +66,7 @@ function SavedPoseVideo({id,resultVideo,resultPoster}) {
 export function MediaResultError({error,stale}) {
   if(!error)return null;
   const missing=error.includes("영상 원본 작업 경로 오류") || error.includes("음악 작업 경로가 없거나 허용되지 않습니다");
-  return <p role="alert">{missing ? "이 생성기에서 해당 작업을 찾지 못했습니다. 작업 ID와 이력을 확인해 주세요." : "작업 결과를 불러오지 못했습니다. 연결 상태를 확인하고 결과를 새로고침해 주세요."}{stale && " 아래 내용은 마지막으로 조회한 결과입니다."}</p>;
+  return <p role="alert">{missing ? "이 생성기에서 해당 작업을 찾지 못했습니다. 작업 ID와 이력을 확인해 주세요." : error.includes("시간이 초과") ? "작업 결과 조회 시간이 초과됐습니다. 다시 조회해 주세요." : "작업 결과를 불러오지 못했습니다. 연결 상태를 확인하고 결과를 새로고침해 주세요."}{stale && " 아래 내용은 마지막으로 조회한 결과입니다."}</p>;
 }
 
 function AudioTrack({track}) {
@@ -94,32 +94,39 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
   const live=useLiveRefresh(()=>refresh(value=>value+1),liveJobStatus(job));
   useEffect(()=>{setJob(null);setCheckedAt(null);setAttemptedAt(null);setError("");},[service,id,kind]);
   useEffect(()=>{
-    let active=true;
+    let active=true,deadline;const controller=new AbortController();
+    if(document.activeElement===refreshRef.current)restoreRefreshFocus.current=true;
     setLoading(true);
+    deadline=setTimeout(()=>{controller.abort();if(active){setError("작업 결과 조회 시간이 초과됐습니다.");setAttemptedAt(new Date());setLoading(false);}},25000);
     async function read() {
       try {
-        const response=await managementCommand("hermes-agent",statusCommands[kind],kind==="character" ? {job_id:id} : {service,job_id:id});
-        if(!active)return;
-        if(response.service!==service || response.job_id!==id || !response.job)throw new Error("작업 결과가 요청과 일치하지 않습니다.");
+        const response=await managementCommand("hermes-agent",statusCommands[kind],kind==="character" ? {job_id:id} : {service,job_id:id},{signal:controller.signal});
+        if(!active || controller.signal.aborted)return;
+        if(response.service!==service || response.job_id!==id || !response.job || typeof response.job!=="object" || Array.isArray(response.job) || typeof response.job.status!=="string" || !response.job.status.trim() || !["available","unavailable","not_ready","partial"].includes(response.job.result_status))throw new Error("작업 결과가 요청과 일치하지 않습니다.");
         if(kind==="character" && response.job.image!=null){
           const prefix="/character-animation/files/"+id+"/";
           if(!response.job.image.startsWith(prefix) || !/^(down_left|down_right|up_left|up_right)\/frame-[0-9]{4}\/result\.png$/.test(response.job.image.slice(prefix.length)))throw new Error("프레임 경로를 확인할 수 없습니다.");
         }
         let estimate=validGenerationEstimate(response.job.estimate) ? response.job.estimate : null;
-        if(kind==="audio" || kind==="flux"){
-          try {
-            const detail=await managementCommand(service,"status",{id});
-            if((detail.id===id || (kind==="flux" && detail.id===undefined)) && detail.status===response.job.status && validGenerationEstimate(detail.estimate)) estimate=detail.estimate;
-          } catch { /* Keep the observed result even if the optional estimate is unavailable. */ }
-        }
-        if(!active)return;
         setJob({...response.job,estimate});setCheckedAt(new Date());setError("");
+        if(kind==="audio" || kind==="flux"){
+          const optionalController=new AbortController();let optionalDeadline;
+          const abortOptional=()=>optionalController.abort();
+          controller.signal.addEventListener("abort",abortOptional,{once:true});
+          try {
+            const detail=await Promise.race([managementCommand(service,"status",{id},{signal:optionalController.signal}),new Promise(resolve=>{optionalDeadline=setTimeout(()=>{resolve(null);optionalController.abort();},5000);})]);
+            if(detail && (detail.id===id || (kind==="flux" && detail.id===undefined)) && detail.status===response.job.status && validGenerationEstimate(detail.estimate)) estimate=detail.estimate;
+          } catch { /* Keep the observed result even if the optional estimate is unavailable. */ }
+          finally{clearTimeout(optionalDeadline);controller.signal.removeEventListener("abort",abortOptional);}
+        }
+        if(!active || controller.signal.aborted)return;
+        setJob({...response.job,estimate});
 
-      }catch(problem){if(active)setError(problem.message);}
-      finally{if(active){setAttemptedAt(new Date());setLoading(false);}}
+      }catch(problem){if(active && !controller.signal.aborted)setError(problem.message);}
+      finally{clearTimeout(deadline);if(active && !controller.signal.aborted){setAttemptedAt(new Date());setLoading(false);}}
     }
     read();
-    return ()=>{active=false;};
+    return ()=>{active=false;clearTimeout(deadline);controller.abort();};
   },[service,id,kind,revision]);
   const directFolder=kind==="video" && service==="wan22-fun-control" && job?.result_status==="available";
   return <section ref={!job || hideProgress ? live.ref : undefined} className="media-result-card" aria-label="작업 결과"><div className="media-result-heading"><div><strong>작업 결과</strong></div>{job && <JobStatus state={job.status}/>}</div>
@@ -155,6 +162,7 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
         {!directFolder && !folderLink && <a href={job.download} download>{service==="dwpose"?"포즈 PNG·좌표 YAML 다운로드":"PNG 프레임 ZIP 다운로드"}</a>}
       </>}
       {(job.result_status==="unavailable" || job.file_observation==="unavailable") && <p>완료 기록의 결과 파일을 확인할 수 없습니다.</p>}
+      {job.result_status==="partial" && job.file_observation!=="unavailable" && <p role="status">완료 기록의 결과 파일 일부만 확인되었습니다. 기록 폴더에서 결과를 확인하세요.</p>}
     </> : !error && <p>결과 조회 중…</p>}
     {children?.(job,()=>refresh(value=>value+1))}
     <div className="media-result-actions">{onReuse && job && <button type="button" onClick={onReuse}>입력 다시 사용</button>}<button ref={refreshRef} type="button" disabled={loading} onClick={()=>{restoreRefreshFocus.current=true;retryMedia(value=>value+1);refresh(value=>value+1);}}>{loading?"조회 중…":"결과 새로고침"}</button></div>

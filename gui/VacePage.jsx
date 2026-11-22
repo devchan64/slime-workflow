@@ -51,7 +51,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const [template,setTemplate]=useState(null),[values,setValues]=useState(null),[templateRevision,retryTemplate]=useState(0);
   const [files,setFiles]=useState({}),[model,setModel]=useState(null),[fileErrors,setFileErrors]=useState({});
   const [videoInfo,setVideoInfo]=useState({}),[checking,setChecking]=useState({});
-  const videoSequences=useRef({}),formRef=useRef(null),reviewRef=useRef(null),resultRef=useRef(null),historyRef=useRef(null),sending=useRef(false),focusResult=useRef(false);
+  const videoSequences=useRef({}),formRef=useRef(null),reviewRef=useRef(null),resultRef=useRef(null),historyRef=useRef(null),sending=useRef(false),focusResult=useRef(false),nonLoraSettings=useRef(null);
   const [busy,setBusy]=useState(false),[pending,setPending]=useState(null),[modelError,setModelError]=useState("");
   useEffect(()=>{if(pending)reviewRef.current?.focus();},[pending]);
   const [error,setError]=useState("");
@@ -99,6 +99,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   }
   function restore(request,record){
     for(const key of Object.keys(videoSequences.current))videoSequences.current[key]++;
+    nonLoraSettings.current=null;
     setChecking({});setValues({...request});setFiles(record.files);setVideoInfo(record.videoInfo);setFileErrors({});setJob(record.id);setSourceJob(record.id);setPending(null);
     setNotice(record.id+" 입력을 복원했습니다.");
     requestAnimationFrame(()=>{const form=formRef.current;const card=form?.closest('details');if(card)card.open=true;form?.focus();form?.scrollIntoView({block:'start'});});
@@ -128,6 +129,8 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const checkingVideo=attachments.some(key=>checking[key]);
   const missingVideoInfo=attachments.some(key=>files[key] && !videoInfo[key]);
   const frameLimit=videoFrameLimit(attachments,videoInfo);
+  const frameValue=values?.frames;
+  const invalidFrameValue=frameValue==="" || !Number.isInteger(Number(frameValue)) || Number(frameValue)<5 || Number(frameValue)>129 || (Number(frameValue)-5)%4!==0;
   const invalidFrames=frameLimit!==null && Number(values.frames)>frameLimit;
   async function review(event){
     event.preventDefault();setBusy(true);setError("");
@@ -187,16 +190,17 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
         return <label key={key}>{key==="prompt"?"장면·동작 프롬프트":"부정 프롬프트 (선택)"}<textarea maxLength={8000} required={key==="prompt"} value={values[key]} onChange={e=>field(key,e.target.value)}/><PromptWordCount text={values[key]} final/></label>;
       })}
       </div><div className="vace-input-group"><h2>생성 설정</h2><p className="vace-group-help">출력 길이와 생성 값을 확인하세요.</p><div className="vace-settings-grid">
-      <label>LoRA<select value={values.lora_mode || "none"} onChange={e=>{const mode=e.target.value;setValues(old=>({...old,lora_mode:mode,...(mode!=="none"?{steps:4,guidance_scale:1,flow_shift:5}:{})}));}}><option value="none">사용 안 함</option><option value="lightning">Lightning만 · 실험</option><option value="fighting_lightning">격투 + Lightning · 실험</option></select></label>
+      <label>LoRA<select value={values.lora_mode || "none"} onChange={e=>{const mode=e.target.value,previous=values.lora_mode || "none";if(previous==="none" && mode!=="none")nonLoraSettings.current={steps:values.steps,guidance_scale:values.guidance_scale,flow_shift:values.flow_shift};const restored=mode==="none" ? nonLoraSettings.current : null;if(mode==="none")nonLoraSettings.current=null;setValues(old=>({...old,lora_mode:mode,...(mode!=="none"?{steps:4,guidance_scale:1,flow_shift:5}:restored || {})}));}}><option value="none">사용 안 함</option><option value="lightning">Lightning만 · 실험</option><option value="fighting_lightning">격투 + Lightning · 실험</option></select></label>
       {[["frames","출력 프레임",5,129,4],["steps","스텝",2,100,1],["flow_shift","Flow shift",0.1,20,"any"],["guidance_scale","CFG",1,10,"any"],["reference_strength","조건 강도",0.1,2,"any"]].map(([key,label,min,max,step])=>
-        <label key={key}>{label}<input type="number" required min={min} max={max} step={step} value={values[key]} onChange={e=>field(key,e.target.value===""?"":Number(e.target.value))}/></label>)}
+        <label key={key}>{label}<input type="number" required min={min} max={max} step={step} aria-invalid={key==="frames" && invalidFrameValue || undefined} value={values[key]} onChange={e=>field(key,e.target.value===""?"":Number(e.target.value))}/></label>)}
       </div>{frameLimit!==null && <p>입력에 사용할 수 있는 최대 출력 길이 {frameLimit}프레임 <button type="button" onClick={()=>field("frames",frameLimit)}>최대 프레임 적용</button></p>}
       {invalidFrames && <p role="alert">출력 프레임이 입력 영상보다 깁니다. {frameLimit}프레임 이하로 줄이세요.</p>}
-      {["lightning","fighting_lightning"].includes(values.lora_mode) && <p>Lightning은 High·Low 전문가에 적용합니다. {values.lora_mode==="fighting_lightning" && "격투 LoRA는 High 전문가에 적용합니다. "}4스텝·CFG 1·shift 5가 필요하며 동작 품질은 검수해야 합니다. {values.lora_mode==="fighting_lightning" && <><a href="/management/frame/model-management/?model=wan22-fighting-lora">격투 LoRA 준비</a> · </>}<a href="/management/frame/model-management/?model=wan22-vace-lightning">Lightning 준비</a></p>}
+      {["lightning","fighting_lightning"].includes(values.lora_mode) && <p>Lightning은 High·Low 전문가에 적용합니다. {values.lora_mode==="fighting_lightning" && "격투 LoRA는 High 전문가에 적용합니다. "}4스텝·CFG 1·shift 5가 필요하며 동작 품질은 검수해야 합니다. {values.lora_mode==="fighting_lightning" && <><a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-fighting-lora",...(session?{session}:{})})}>격투 LoRA 준비</a> · </>}<a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-vace-lightning",...(session?{session}:{})})}>Lightning 준비</a></p>}
       <p>832×480 · 16fps · {Number(values.frames)>0?(Number(values.frames)/16).toFixed(2):"0"}초 · VACE-Fun A14B BF16 · Euler/FlowMatch</p>
       <SeedInput value={values.seed} max={template.maximum_seed} onChange={value=>field("seed",value===""?"":Number(value))}/>
       </div><ActionButton type="submit" reasons={[
         !generationReady(model) && "모델 준비 상태를 확인하세요.",
+        invalidFrameValue && "출력 프레임은 5~129 사이에서 4프레임 간격으로 입력하세요. 예: 5, 9, 13.",
         ["lightning","fighting_lightning"].includes(values.lora_mode) && (values.steps!==4 || values.guidance_scale!==1 || values.flow_shift!==5) && "Lightning에는 4스텝·CFG 1·shift 5가 필요합니다.",
         !values.prompt.trim() && "프롬프트를 입력하세요.",
         values.mode!=="text" && !files.reference && "참조 이미지를 선택하세요.",

@@ -29,21 +29,23 @@ export default function GpuPanel({embedded=false}) {
   useEffect(()=>{if(!loading && restoreRefreshFocus.current){restoreRefreshFocus.current=false;if(document.activeElement===document.body)refreshRef.current?.focus();}},[loading]);
   useEffect(() => {
     const controller = new AbortController();
+    let active=true,deadline;
     async function refresh() {
       setLoading(true);
       try {
-        const response = await fetch("/management/gpu-status", {cache:"no-store",signal:controller.signal});
-        if (!response.ok) throw new Error("GPU 상태 조회 실패");
-        const next = await response.json();
-        if (!controller.signal.aborted) {setStatus(next);setCheckedAt(new Date());setError("");}
+        const next = await Promise.race([(async()=>{const response=await fetch("/management/gpu-status", {cache:"no-store",signal:controller.signal});if(!response.ok)throw new Error("GPU 상태 조회 실패");return response.json();})(),new Promise((_,reject)=>{deadline=setTimeout(()=>{reject(new Error("GPU 상태 조회 시간이 초과됐습니다. 다시 조회하세요."));controller.abort();},25000);})]);
+        if(!next || typeof next!=="object" || Array.isArray(next) || !["busy","idle","unavailable"].includes(next.status))throw new Error("GPU 상태 응답을 확인할 수 없습니다. 다시 조회하세요.");
+        if(next.status==="unavailable")throw new Error("GPU 상태를 수집할 수 없습니다. 다시 조회하세요.");
+        if(next.processes!=null && (!Array.isArray(next.processes) || next.processes.some(process=>!process || typeof process!=="object" || Array.isArray(process)) || (next.status==="idle" && next.processes.length>0) || (next.status==="busy" && next.processes.length===0)))throw new Error("GPU 상태와 프로세스 목록을 확인할 수 없습니다. 다시 조회하세요.");
+        if (active) {setStatus(next);setCheckedAt(new Date());setError("");}
       } catch (problem) {
-        if (!controller.signal.aborted) setError(problem instanceof TypeError ? "GPU 상태에 연결하지 못했습니다. 다시 조회하세요." : problem.message);
+        if (active) setError(problem instanceof TypeError ? "GPU 상태에 연결하지 못했습니다. 다시 조회하세요." : problem.message);
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        clearTimeout(deadline);if (active) setLoading(false);
       }
     }
     refresh();
-    return () => controller.abort();
+    return () => {active=false;clearTimeout(deadline);controller.abort();};
   }, [revision]);
   const processes = Array.isArray(status?.processes) ? status.processes : null;
   const domains = ["vram","gtt"].filter(domain=>status?.[domain+"_total_mib"] != null);
