@@ -466,6 +466,7 @@ article {position:relative;}
 .fun-drawer .embedded-generator > .writer-page-shell {min-height:0;padding:0}
 .writer-page table[aria-label="작가 실행 기록"] :is(th,td):nth-child(2),.writer-page table[aria-label="작가 실행 기록"] :is(th,td):nth-child(3) {white-space:nowrap;overflow-wrap:normal}
 .writer-history-table {max-width:100%;overflow-x:auto}
+.writer-history-table:focus-visible {outline:2px solid var(--accent,#a8a5f4);outline-offset:2px}
 .writer-history-table table {min-width:34rem}
 .writer-result {min-width:0;overflow-wrap:anywhere}
 .writer-result pre {max-width:100%;max-height:20rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}

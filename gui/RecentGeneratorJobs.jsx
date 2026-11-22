@@ -31,8 +31,9 @@ export default function RecentGeneratorJobs({session,filters,filterSummary,revis
   const resultRef=useRef(null),triggerRef=useRef(null),headingRef=useRef(null),refreshRef=useRef(null),restoreRefreshFocus=useRef(false);
   useEffect(()=>{if(!loading && restoreRefreshFocus.current){restoreRefreshFocus.current=false;if(document.activeElement===document.body)refreshRef.current?.focus();}},[loading]);
   function closeResult(){
+    const previous=document.activeElement;
     setSelected(null);
-    requestAnimationFrame(()=>{if(triggerRef.current?.isConnected)triggerRef.current.focus();else headingRef.current?.focus();});
+    requestAnimationFrame(()=>{if(document.activeElement!==document.body && document.activeElement!==previous)return;if(triggerRef.current?.isConnected)triggerRef.current.focus();else headingRef.current?.focus();});
   }
   useEffect(()=>{
     if(!selected || !resultRef.current)return;
@@ -92,15 +93,16 @@ export default function RecentGeneratorJobs({session,filters,filterSummary,revis
   },[revision,refreshRevision]);
   const matching=rows.filter(row=>matches(row,filters)).slice(0,20);
   const currentPage=Math.min(page,Math.max(0,Math.ceil(matching.length/pageSize)-1));
+  useEffect(()=>{if(page!==currentPage)setPage(currentPage);},[page,currentPage]);
   return <section aria-label="전체 생성기 최근 작업" className="recent-generator-jobs"><div className="recent-jobs-heading"><h3 ref={headingRef} tabIndex={-1}>전체 생성기 최근 작업</h3><button ref={refreshRef} type="button" disabled={loading} onClick={()=>{restoreRefreshFocus.current=true;refresh(value=>value+1);}}>{loading?"조회 중…":"최근 작업 새로고침"}</button></div>
     <p className="queue-filter-summary">적용된 조건 · {filterSummary || "전체"}</p>
     <p>세션 외 작업도 포함 · 생성기별 최근 10건 중 최대 20건 · 기록 상태 기준{checked && ' · 조회 '+checked.toLocaleString('ko-KR')}</p>
     {loading && <p role="status">최근 작업 조회 중…{checked && " 아래에는 이전 조회 결과가 표시됩니다."}</p>}
     {listUnavailable && checked && <p role="status">최근 작업을 조회하지 못해 이전 결과를 표시합니다. 최근 작업 새로고침으로 다시 확인하세요.</p>}
-    {errors.length>0 && <div><p role="status">일부 이력을 확인하지 못했습니다 · {errors.length}곳</p><details open={errorsOpen} onToggle={event=>setErrorsOpen(event.currentTarget.open)}><summary>조회 실패 원인과 조치</summary><p>문제를 확인한 뒤 최근 작업을 새로고침하세요.</p><ul>{errors.map(({service,reason},index)=><li key={service+"/"+index}>{service} · {reason}</li>)}</ul></details></div>}
-    {!loading && !matching.length && <p>{errors.length ? "확인된 이력에는 조건에 맞는 최근 작업이 없습니다. 조회하지 못한 이력은 포함되지 않았습니다." : "조건에 맞는 최근 작업이 없습니다."}</p>}
+    {errors.length>0 && <div>{!(listUnavailable && checked) && <p role="status">{listUnavailable ? "최근 작업을 확인하지 못했습니다" : "일부 이력을 확인하지 못했습니다"} · {errors.length}곳</p>}<details open={errorsOpen} onToggle={event=>setErrorsOpen(event.currentTarget.open)}><summary>조회 실패 원인과 조치</summary><p>문제를 확인한 뒤 최근 작업을 새로고침하세요.</p><ul>{errors.map(({service,reason},index)=><li key={service+"/"+index}>{service} · {reason}{service==='writer-agent' && reason.includes('문서 폴더') && <> 운영자에게 <code>.local/writer-agent/workspace.yaml</code>의 문서 폴더 설정과 접근 권한 확인을 요청하세요.</>}</li>)}</ul></details></div>}
+    {!loading && !matching.length && !listUnavailable && <p>{errors.length ? "확인된 이력에는 조건에 맞는 최근 작업이 없습니다. 조회하지 못한 이력은 포함되지 않았습니다." : "조건에 맞는 최근 작업이 없습니다."}</p>}
     <div className="session-job-list">{matching.slice(currentPage*pageSize,(currentPage+1)*pageSize).map(({source,record})=><article className="session-job" key={source.service+'/'+record.id}>
-      <div className="session-job-heading"><strong>{source.service}</strong><span>{labels[record.recorded_status] || record.recorded_status}</span></div>
+      <div className="session-job-heading"><strong>{source.service}</strong><span>기록 · {labels[record.recorded_status] || record.recorded_status}</span></div>
       <JobIdentifier id={record.id} compact/>
       <div className="session-job-actions">
         {(source.result_kind || source.service==='kimodo') && <button type="button" aria-label={record.id+(selected?.source.service===source.service && selected?.id===record.id ? " 결과 닫기" : " 상태·결과 보기")} aria-expanded={selected?.source.service===source.service && selected?.id===record.id} onClick={event=>{if(selected?.source.service===source.service && selected?.id===record.id)closeResult();else{triggerRef.current=event.currentTarget;setSelected({source,id:record.id});}}}>{selected?.source.service===source.service && selected?.id===record.id ? "결과 닫기" : "상태·결과 보기"}</button>}

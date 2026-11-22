@@ -1,6 +1,6 @@
 import React, {useEffect,useRef,useState} from "react";
 import JobIdentifier from "./JobIdentifier.jsx";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import {writerStageLabel} from "./writerLabels.mjs";
 import {requestErrorMessage} from "./requestError.mjs";
 import {LiveRefreshControl,useLiveRefresh} from "./LiveRefresh.jsx";
@@ -18,7 +18,8 @@ export default function WriterResult({id,onDeleted}) {
   const [busy,setBusy]=useState(false);
   const [deleteConfirmed,setDeleteConfirmed]=useState(false);
   const [notice,setNotice]=useState("");
-  const followLog=useRef(true);
+  const followLog=useRef(true),refreshButton=useRef(null),restoreRefreshFocus=useRef(false);
+  useEffect(()=>{if(!checking && restoreRefreshFocus.current){restoreRefreshFocus.current=false;if(document.activeElement===document.body && !refreshButton.current?.disabled)refreshButton.current?.focus();}},[checking,busy]);
   const live=useLiveRefresh(()=>refresh(value=>value+1),!detail || Boolean(error) || !finishedStages.has(detail.status.stage));
   useEffect(()=>{setError("");setDetail(null);setCheckedAt(null);setConfirmed(false);setDeleteConfirmed(false);},[id]);
   useEffect(()=>{
@@ -29,7 +30,7 @@ export default function WriterResult({id,onDeleted}) {
     async function read() {
       setChecking(true);
       try {
-        const record=await managementCommand("writer-agent","writer-detail",{id},{signal:controller.signal});
+        const record=await untilAborted(managementCommand("writer-agent","writer-detail",{id},{signal:controller.signal}),controller.signal);
         if(!active)return;
         if(!record || record.id!==id || typeof record.status?.stage!=="string" || !record.status.stage.trim() ||
           [record.status.error,record.status.summary,record.status.proposal_hash].some(value=>value!=null && typeof value!=="string") ||
@@ -80,7 +81,7 @@ export default function WriterResult({id,onDeleted}) {
     } finally {setBusy(false);}
   }
   return <section ref={live.ref} className="writer-result" aria-label="작가 작업 결과"><h3>작업 결과</h3><JobIdentifier id={id}/>
-    <button disabled={busy || checking} onClick={()=>{setChecking(true);setConfirmed(false);setDeleteConfirmed(false);refresh(value=>value+1);}}>결과 새로고침</button>
+    <button ref={refreshButton} disabled={busy || checking} onClick={()=>{restoreRefreshFocus.current=document.activeElement===refreshButton.current;setChecking(true);setConfirmed(false);setDeleteConfirmed(false);refresh(value=>value+1);}}>결과 새로고침</button>
     <LiveRefreshControl live={live} label="작업 상태 자동 갱신" inactiveReason="작업 종료로 중지"/>
     <label><input type="checkbox" defaultChecked onChange={event=>{followLog.current=event.target.checked;}}/>조회할 때 실행 로그 갱신</label>
     {notice && <p role="status">{notice}</p>}

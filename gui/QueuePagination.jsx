@@ -5,8 +5,9 @@ export default function QueuePagination({page,size,total,onPage,onSize,label,onP
   const current=Math.min(page,pages-1);
   const previous=useRef(null),next=useRef(null);
   function movePage(target,button,other){
+    const focused=document.activeElement;
     onPage(target);
-    requestAnimationFrame(()=>{if(onPageFocus)onPageFocus();else if(button.current?.disabled)other.current?.focus();});
+    requestAnimationFrame(()=>{if(document.activeElement!==document.body && document.activeElement!==focused)return;if(onPageFocus)onPageFocus();else if(button.current?.disabled)other.current?.focus();});
   }
   return <nav className="queue-pagination" aria-label={label}>
     <label>페이지 크기 <select value={size} onChange={event=>onSize(Number(event.target.value))}><option value={5}>5개</option><option value={10}>10개</option></select></label>

@@ -206,6 +206,6 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
       {job.result_status==="partial" && job.file_observation!=="unavailable" && <p role="status">완료 기록의 결과 파일 일부만 확인되었습니다. 기록 폴더에서 결과를 확인하세요.</p>}
     </> : !error && <p>결과 조회 중…</p>}
     {children?.(job,()=>refresh(value=>value+1))}
-    <div className="media-result-actions">{onReuse && job && <button type="button" onClick={onReuse}>입력 다시 사용</button>}<button ref={refreshRef} type="button" disabled={loading} onClick={()=>{restoreRefreshFocus.current=true;retryMedia(value=>value+1);refresh(value=>value+1);}}>{loading?"조회 중…":"결과 새로고침"}</button></div>
+    <div className="media-result-actions">{onReuse && job && <button type="button" onClick={onReuse}>입력 다시 사용</button>}<button ref={refreshRef} type="button" disabled={loading} onClick={()=>{restoreRefreshFocus.current=true;refresh(value=>value+1);}}>{loading?"조회 중…":"결과 새로고침"}</button></div>
   </section>;
 }

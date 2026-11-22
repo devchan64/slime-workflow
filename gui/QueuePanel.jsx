@@ -7,6 +7,7 @@ import JobIdentifier from "./JobIdentifier.jsx";
 import RecentGeneratorJobs from "./RecentGeneratorJobs.jsx";
 import QueuePagination from "./QueuePagination.jsx";
 import {newestSessionJobs,parseSessionTime} from "./sessionJobOrder.mjs";
+import {untilAborted} from "./managementCommand.js";
 
 const categories = {translation:"번역", image:"이미지", audio:"오디오", motion:"모션"};
 const states = {
@@ -32,15 +33,16 @@ export default function QueuePanel({session, call, editNextStep, openMessage, ch
   const dateErrorId=useId();
   const [selectedRun,setSelectedRun] = useState(initialRun);
   const [selectedDirect,setSelectedDirect]=useState("");
-  const detail=useRef(null),resultTrigger=useRef(null),listHeading=useRef(null);
+  const detail=useRef(null),resultTrigger=useRef(null),listHeading=useRef(null),retryButton=useRef(null),restoreRetryFocus=useRef(false);
   useEffect(()=>{
     if(!(selectedRun || selectedDirect) || !detail.current)return;
     detail.current.focus({preventScroll:true});
     if(resultTrigger.current)detail.current.scrollIntoView({block:"start",inline:"nearest"});
   },[selectedRun,selectedDirect]);
   function closeResult(){
+    const focused=document.activeElement;
     setSelectedRun("");setSelectedDirect("");
-    requestAnimationFrame(()=>resultTrigger.current?.isConnected && resultTrigger.current.focus());
+    requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===focused) && resultTrigger.current?.isConnected)resultTrigger.current.focus();});
   }
   const [draft, setDraft] = useState(()=>!initialRun && filterCache?.current[session]?.draft || {...initial,run_id:initialRun});
   const [filters, setFilters] = useState(()=>!initialRun && filterCache?.current[session]?.filters || {...initial,run_id:initialRun});
@@ -51,22 +53,26 @@ export default function QueuePanel({session, call, editNextStep, openMessage, ch
   const [navigationError,setNavigationError]=useState("");
   const [loading,setLoading] = useState(true);
   const [revision,refresh] = useState(0);
+  useEffect(()=>{if(!loading && restoreRetryFocus.current){restoreRetryFocus.current=false;if(document.activeElement===document.body)(error ? retryButton : listHeading).current?.focus();}},[loading,error]);
   useEffect(() => {
-    let active = true;
+    let active = true, timedOut = false;
+    const controller=new AbortController();
+    const deadline=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     const {category, state, ...search_filters} = filters;
     setError("");
     setNavigationError("");
     setLoading(true);
-    call("workflow-list", {session_id:session, category, state, search_filters})
-      .then(data => { if (!Array.isArray(data?.steps) || (data.direct_jobs != null && !Array.isArray(data.direct_jobs))) throw new Error("작업 목록 응답을 읽을 수 없습니다."); if (active) {setResult(data);setResultFilters(filters);} })
-      .catch(problem => { if (active) setError(problem.message || "조회에 실패했습니다."); })
-      .finally(()=>{if(active)setLoading(false);});
-    return () => { active = false; };
+    untilAborted(call("workflow-list", {session_id:session, category, state, search_filters},{signal:controller.signal}),controller.signal)
+      .then(data => { if (!Array.isArray(data?.steps) || (data.direct_jobs != null && !Array.isArray(data.direct_jobs)) || [...data.steps,...(data.direct_jobs || [])].some(row=>!row || typeof row!=="object" || Array.isArray(row))) throw new Error("작업 목록 응답을 읽을 수 없습니다."); if (active) {setResult(data);setResultFilters(filters);} })
+      .catch(problem => { if (active) setError(timedOut ? "작업 목록 조회 시간이 초과됐습니다." : problem.message || "조회에 실패했습니다."); })
+      .finally(()=>{clearTimeout(deadline);if(active)setLoading(false);});
+    return () => { active = false;clearTimeout(deadline);controller.abort(); };
   }, [session, filters, call, revision]);
 
   useEffect(()=>setPage(0),[filters,session]);
   const jobs=result ? newestSessionJobs([...result.steps.map(step=>({kind:"workflow",step})),...(result.direct_jobs || []).map(step=>({kind:"direct",step}))]) : [];
   const currentPage=Math.min(page,Math.max(0,Math.ceil(jobs.length/pageSize)-1));
+  useEffect(()=>{if(page!==currentPage)setPage(currentPage);},[page,currentPage]);
   const visibleJobs=jobs.slice(currentPage*pageSize,(currentPage+1)*pageSize);
   const filtersChanged=Object.keys(initial).some(key=>draft[key]!==filters[key]);
   function describeFilters(value){return [value.category && "카테고리: "+(categories[value.category] || value.category),value.state && "상태: "+(states[value.state] || value.state),value.generator && "생성기: "+value.generator,value.run_id && "워크플로우 ID: "+value.run_id,value.job_id && "작업 ID: "+value.job_id,value.created_from && "시작일: "+value.created_from,value.created_through && "종료일: "+value.created_through].filter(Boolean).join(" · ") || "전체";}
@@ -91,7 +97,7 @@ export default function QueuePanel({session, call, editNextStep, openMessage, ch
       <button type="button" onClick={()=>refresh(n=>n+1)}>작업 목록 새로고침</button>
     </form>
     {filtersChanged && <p className="queue-filter-notice" role="status">필터가 변경되었습니다. 아래 목록은 이전 조건의 결과입니다. {invalidDateRange ? "날짜 범위를 수정한 뒤 조회하세요." : "두 목록에 적용하려면 작업 조회를 누르세요."}</p>}
-    {error && <div role="alert"><p>{error.includes("세션 이력이") ? "대화 이력이 조회 중 변경되었습니다. 작업 목록을 다시 조회하세요." : "작업 목록을 불러오지 못했습니다. 연결 상태를 확인해 주세요."}</p>{result && <p>아래 목록은 마지막으로 조회한 정보입니다.</p>}<button type="button" onClick={()=>refresh(n=>n+1)}>다시 시도</button></div>}
+    {error && <div role="alert"><p>{error.includes("시간이 초과") ? "작업 목록 조회 시간이 초과됐습니다. 다시 시도하세요." : error.includes("세션 이력이") ? "대화 이력이 조회 중 변경되었습니다. 작업 목록을 다시 조회하세요." : error.includes("응답을 읽을 수 없습니다") ? "작업 목록 응답을 확인할 수 없습니다. 다시 시도하세요." : "작업 목록을 불러오지 못했습니다. 연결 상태를 확인해 주세요."}</p>{result && <p>아래 목록은 마지막으로 조회한 정보입니다.</p>}<button ref={retryButton} type="button" onClick={()=>{restoreRetryFocus.current=document.activeElement===retryButton.current;refresh(n=>n+1);}}>다시 시도</button></div>}
     {navigationError && <p role="alert">{navigationError}</p>}
     {loading && <p role="status">작업 목록 조회 중…{result && " 아래에는 이전 조회 결과가 표시됩니다."}</p>}
     {result && <section aria-label="세션 작업 목록"><h3 ref={listHeading} tabIndex={-1}>이 세션의 작업</h3><p className="queue-filter-summary">적용된 조건 · {resultFilterSummary}</p><p>{result.steps.length+(result.direct_jobs || []).length}개 작업{(result.truncated || result.direct_truncated) && " · 일부 이전 항목 제외"} · 조회 {displayTime(result.queried_at)}</p>{result.flux_proposal_unreadable_count>0 && <p role="status">대화 작업 {result.flux_proposal_unreadable_count}건의 제안을 확인하지 못했습니다. 이 작업들의 FLUX 접수 여부는 목록에서 확인할 수 없습니다.</p>}{result.writer_proposal_unreadable_count>0 && <p role="status">대화 작업 {result.writer_proposal_unreadable_count}건의 작가 제안 접수 여부를 확인하지 못했습니다.</p>}

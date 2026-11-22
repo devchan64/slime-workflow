@@ -1,5 +1,5 @@
 import React, {useEffect,useRef,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import GpuHandoffStatus from "./GpuHandoffStatus.jsx";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
 import useGpuHandoff from "./useGpuHandoff.js";
@@ -50,7 +50,7 @@ export default function WriterActions({session="",onAccepted,onWorkspace,initial
     function read(){
     controller=new AbortController();let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
-    managementCommand("writer-agent","writer-state",{},{signal:controller.signal}).then(record=>{
+    untilAborted(managementCommand("writer-agent","writer-state",{},{signal:controller.signal}),controller.signal).then(record=>{
       if(!record || typeof record.configured!=="boolean" || typeof record.ready!=="boolean" || !Array.isArray(record.jobs) || record.jobs.some(job=>!job || typeof job.id!=="string" || typeof job.mode!=="string" || typeof job.stage!=="string" || [job.summary,job.error].some(value=>value!=null && typeof value!=="string")) || (record.active_job!=null && typeof record.active_job!=="string") || (record.configured && (typeof record.trained!=="boolean" || [record.document_root,record.index_path,record.state_root].some(value=>typeof value!=="string"))))throw new Error("작업 준비 상태 응답 형식을 확인할 수 없습니다.");
       if(active){setStateError("");setWorkspace(record);onWorkspace?.(record.jobs || []);if(record.active_job)timer=setTimeout(read,3000); }
     }).catch(problem=>{if(active)setStateError(timedOut ? "작업 준비 상태 조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem));}).finally(()=>clearTimeout(timeout));
