@@ -66,7 +66,9 @@ def validate_vace_request(current_request_record):
         required_field_names.add('lora_mode')
         if current_request_record['lora_mode'] not in ('none', 'lightning', 'fighting_lightning'):
             raise ValueError('지원하지 않는 LoRA 설정입니다.')
-        if current_request_record['lora_mode'] in ('lightning', 'fighting_lightning') and (current_request_record.get('steps') != 4 or current_request_record.get('guidance_scale') != 1 or current_request_record.get('flow_shift') != 5):
+        if current_request_record['lora_mode'] == 'lightning' and (current_request_record.get('steps') != 4 or current_request_record.get('flow_shift') != 5):
+            raise ValueError('Lightning은 4스텝·shift 5가 필요합니다.')
+        if current_request_record['lora_mode'] == 'fighting_lightning' and (current_request_record.get('steps') != 4 or current_request_record.get('guidance_scale') != 1 or current_request_record.get('flow_shift') != 5):
             raise ValueError('Lightning은 4스텝·CFG 1·shift 5가 필요합니다.')
     if isinstance(current_request_record, dict) and current_request_record.get('mode') == 'video_edit':
         required_field_names |= {'edit_video', 'edit_mask'}

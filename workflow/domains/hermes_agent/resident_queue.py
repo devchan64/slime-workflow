@@ -37,9 +37,13 @@ def _lock(root):
         yield
 
 
-def enqueue_resident_once(request_id, session_id, *, root=RESIDENT_ROOT, launcher=launch_gpu_process, recovered_failure_id=None):
+def enqueue_resident_once(request_id, session_id, *, root=RESIDENT_ROOT, launcher=launch_gpu_process, recovered_failure_id=None, queue_order_ns=None):
     if not isinstance(request_id, str) or not _ID.fullmatch(request_id) or not isinstance(session_id, str) or not _SESSION.fullmatch(session_id):
         raise ValueError('상주 모델 접수 ID 또는 세션 ID 오류')
+    if queue_order_ns is not None:
+        import time
+        if type(queue_order_ns) is not int or not 0 < queue_order_ns <= time.time_ns():
+            raise ValueError('상주 모델 대기 순서 오류')
     root = Path(root)
     with _lock(root):
         directory = root / request_id
@@ -100,6 +104,8 @@ def enqueue_resident_once(request_id, session_id, *, root=RESIDENT_ROOT, launche
         def launch_verified():
             directory.mkdir(mode=0o700)
             request = {'model_profile':'qwen3.8-27b', 'context':{'session_id':session_id}, 'release_token':secrets.token_hex(16)}
+            if queue_order_ns is not None:
+                request['queue_order_ns'] = queue_order_ns
             if recovered_failure_id is not None:
                 request['recovered_failure_id'] = recovered_failure_id
             write_record_atomically(directory / 'request.json', request)
@@ -415,7 +421,7 @@ def ensure_no_other_active_residents(resident_id, *, root=RESIDENT_ROOT):
                 raise ValueError('다른 상주 모델이 대기 또는 실행 중입니다. 해당 작업이 끝난 뒤 다시 검토하세요.')
 
 
-def ensure_session_resident(session_id, request_id, *, root=RESIDENT_ROOT, handoff_store=None, launcher=launch_gpu_process):
+def ensure_session_resident(session_id, request_id, *, root=RESIDENT_ROOT, handoff_store=None, launcher=launch_gpu_process, queue_order_ns=None):
     """사용자가 선택한 3.8 대화의 상주 모델을 한 번만 접수한다."""
     import hashlib
     from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
@@ -426,5 +432,5 @@ def ensure_session_resident(session_id, request_id, *, root=RESIDENT_ROOT, hando
         if existing:
             return {'state':'accepted', 'id':existing, 'duplicate':True}
         resident_id = 'start_' + hashlib.sha256((session_id + ':' + request_id).encode()).hexdigest()
-        return enqueue_resident_once(resident_id, session_id, root=root, launcher=launcher)
+        return enqueue_resident_once(resident_id, session_id, root=root, launcher=launcher, queue_order_ns=queue_order_ns)
     return (handoff_store or GpuHandoffStore()).run_without_open_session_handoff(session_id, ensure, all_sessions=True)

@@ -1,6 +1,7 @@
 """Persist pending chat requests separately from completed conversation turns."""
 from datetime import datetime, timezone
 import re
+import time
 
 from workflow.common.generation_records import write_record_atomically
 from workflow.domains.hermes_agent.session_store import HermesSessionStore
@@ -10,15 +11,17 @@ _MAX_QUEUED = 50
 
 
 def _text(value):
-    if not isinstance(value, str) or not value.strip() or len(value) > 8000:
-        raise ValueError('대기 메시지는 1~8000자여야 합니다.')
+    if not isinstance(value, str) or not value.strip() or len(value) > 12000:
+        raise ValueError('대기 메시지는 1~12000자여야 합니다.')
     return value
 
 
-def enqueue(store: HermesSessionStore, session_id, request_id, prompt, model_profile=None):
+def enqueue(store: HermesSessionStore, session_id, request_id, prompt, model_profile=None, *, require_resident=False):
     if not isinstance(request_id, str) or not _REQUEST_ID.fullmatch(request_id):
         raise ValueError('접수 ID 형식 오류')
     prompt = _text(prompt)
+    if type(require_resident) is not bool:
+        raise ValueError('상주 모델 요청 형식 오류')
     from workflow.common.hermes_model_routing import MODEL_FLOORS_MIB
     if model_profile is not None and (not isinstance(model_profile, str) or model_profile not in MODEL_FLOORS_MIB):
         raise ValueError('지원하지 않는 Hermes 모델입니다.')
@@ -43,6 +46,9 @@ def enqueue(store: HermesSessionStore, session_id, request_id, prompt, model_pro
                'revision':1, 'state':'queued', 'created_at':now}
         if model_profile is not None:
             row['model_profile'] = model_profile
+        if require_resident:
+            row['require_resident'] = True
+            row['queue_order_ns'] = time.time_ns()
         queue.append(row)
         session['updated_at'] = now
         write_record_atomically(store.resolve_session_record_path(session_id), session)

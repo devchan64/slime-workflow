@@ -703,13 +703,33 @@ def execute_queued_generation(generation_job_path):
         return execute_locked_generation(generation_job_path)
 
 
+def queue_ticket_order_ns(generation_job_path, service, now_ns):
+    """대화 접수에서 시작한 상주 모델은 원래 접수 시각을 사용한다."""
+    directory = Path(generation_job_path)
+    resident_root = WORKFLOW_ROOT_DIRECTORY / '.local/hermes-agent/residents'
+    if service != 'hermes-agent' or directory.parent != resident_root:
+        return now_ns
+    request_path = directory / 'request.json'
+    if request_path.is_symlink() or directory.is_symlink():
+        raise ValueError('상주 모델 대기 순서 경로 오류')
+    request = json.loads(request_path.read_text(encoding='utf-8'))
+    if not isinstance(request, dict):
+        raise ValueError('상주 모델 대기 순서 기록 오류')
+    order = request.get('queue_order_ns')
+    if order is None:
+        return now_ns
+    if type(order) is not int or not 0 < order <= now_ns:
+        raise ValueError('상주 모델 대기 순서 오류')
+    return order
+
+
 def execute_locked_generation(generation_job_path):
     generation_job_path = Path(generation_job_path)
     generation_command_record = json.loads((generation_job_path/'gpu-command.json').read_text())
     GPU_QUEUE_DIRECTORY.mkdir(parents=True, exist_ok=True)
     initial_source_revision = calculate_queue_revision()
     inherited_ticket_value = os.environ.pop('SLIME_GPU_QUEUE_TICKET', None)
-    queue_ticket_path = Path(inherited_ticket_value) if inherited_ticket_value else GPU_QUEUE_DIRECTORY/f'{time.time_ns():020d}-{os.getpid()}.json'
+    queue_ticket_path = Path(inherited_ticket_value) if inherited_ticket_value else GPU_QUEUE_DIRECTORY/f'{queue_ticket_order_ns(generation_job_path, generation_command_record.get("service"), time.time_ns()):020d}-{os.getpid()}.json'
     if inherited_ticket_value:
         inherited_ticket_record = json.loads(queue_ticket_path.read_text())
         if (queue_ticket_path.resolve().parent != GPU_QUEUE_DIRECTORY.resolve() or not isinstance(inherited_ticket_record,dict)
@@ -1150,9 +1170,31 @@ def verify_writer_queue_job_path(current_job_path):
     return True
 
 
-def list_waiting_gpu_jobs(include_source_identity=False,observation_limits=False):
+def verify_hermes_resident_queue_job_path(job_path):
+    """허용된 상주 모델 디렉터리와 접수 기록만 공용 관측에 포함한다."""
+    path = Path(job_path)
+    root = WORKFLOW_ROOT_DIRECTORY / '.local/hermes-agent/residents'
+    if (not path.is_absolute() or path.parent != root or root.is_symlink() or path.is_symlink()
+            or not re.fullmatch(r'[A-Za-z0-9_-]{8,80}', path.name) or not path.is_dir()):
+        return False
+    try:
+        if root.resolve(strict=True) != root or path.resolve(strict=True) != path:
+            return False
+        request = json.loads(read_bounded_gpu_observation_bytes(path / 'request.json', 4096)[0])
+        receipt = json.loads(read_bounded_gpu_observation_bytes(path / 'launch.json', 4096)[0])
+        context = request.get('context') if isinstance(request, dict) else None
+        return (request.get('model_profile') == 'qwen3.8-27b' and isinstance(context, dict)
+                and set(context) == {'session_id'} and isinstance(context.get('session_id'), str)
+                and re.fullmatch(r'[a-f0-9]{32}', context['session_id']) is not None
+                and receipt in ({'id':path.name, 'state':'dispatching'}, {'id':path.name, 'state':'accepted'}))
+    except (OSError, ValueError, TypeError, AttributeError):
+        return False
+
+
+def list_waiting_gpu_jobs(include_source_identity=False,observation_limits=False,include_order=False):
     """살아 있는 대기 실행기의 작업 목록만 읽는다."""
     waiting_job_records=[]
+    priority_values = read_gpu_priority_order(observation_limits=observation_limits) if include_order else None
     for waiting_ticket_path in (read_priority_tickets(observation_limits=True) if observation_limits else read_priority_tickets()):
         try:
             current_before_revision=(fingerprint_gpu_queue_ticket(waiting_ticket_path,observation_limits=True) if observation_limits else fingerprint_gpu_queue_ticket(waiting_ticket_path)) if include_source_identity else None
@@ -1172,7 +1214,8 @@ def list_waiting_gpu_jobs(include_source_identity=False,observation_limits=False
                     raise ValueError('대기 실행기의 생존 여부를 확인할 수 없습니다.')
             waiting_job_directory=Path(waiting_ticket_record['path'])
             current_external_job=not waiting_job_directory.resolve().is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp')
-            if observation_limits and current_external_job:
+            current_resident_verified = current_external_job and verify_hermes_resident_queue_job_path(waiting_job_directory)
+            if observation_limits and current_external_job and not current_resident_verified:
                 try:current_writer_verified=verify_writer_queue_job_path(waiting_job_directory)
                 except (OSError,RuntimeError) as current_path_error:raise ValueError('대기 티켓의 작업 경로와 서비스를 확인할 수 없습니다.') from current_path_error
                 if not current_writer_verified:raise ValueError('대기 티켓의 작업 경로와 서비스를 확인할 수 없습니다.')
@@ -1187,10 +1230,23 @@ def list_waiting_gpu_jobs(include_source_identity=False,observation_limits=False
                 try:current_writer_verified=verify_writer_queue_job_path(waiting_job_directory)
                 except (OSError,RuntimeError) as current_path_error:raise ValueError('대기 티켓의 작업 경로와 서비스를 확인할 수 없습니다.') from current_path_error
                 if not current_writer_verified:raise ValueError('대기 티켓의 작업 경로와 서비스를 확인할 수 없습니다.')
-            if current_external_job and waiting_command_record.get('service')!='writer-agent':
+            if current_resident_verified:
+                command = waiting_command_record.get('command')
+                if (waiting_command_record.get('service') != 'hermes-agent' or not isinstance(command, list) or len(command) != 3
+                        or not all(isinstance(part, str) for part in command)
+                        or command[1] != str(WORKFLOW_ROOT_DIRECTORY / 'workflow/domains/hermes_agent/resident_worker.py')
+                        or command[2] != str(waiting_job_directory)):
+                    raise ValueError('상주 모델 대기 명령을 확인할 수 없습니다.')
+            if current_external_job and not current_resident_verified and waiting_command_record.get('service')!='writer-agent':
                 if observation_limits:raise ValueError('대기 티켓의 작업 경로와 서비스를 확인할 수 없습니다.')
                 continue
             waiting_job_record={'id':waiting_job_directory.name,'service':waiting_command_record['service']}
+            if include_order:
+                name_match = re.fullmatch(r'([0-9]{20})-[1-9][0-9]*\.json', waiting_ticket_path.name)
+                if name_match is None or int(name_match.group(1)) <= 0:
+                    raise ValueError('GPU 대기 티켓의 접수 순서를 확인할 수 없습니다.')
+                waiting_job_record['order_ns'] = str(int(name_match.group(1)))
+                waiting_job_record['priority'] = priority_values.get(waiting_ticket_path.name, 0)
             if include_source_identity:
                 waiting_job_record['executor_identity']='unverified' if foreign_live else inspect_gpu_ticket_executor_identity(waiting_ticket_record)
                 current_after_revision=fingerprint_gpu_queue_ticket(waiting_ticket_path,observation_limits=True) if observation_limits else fingerprint_gpu_queue_ticket(waiting_ticket_path)

@@ -53,6 +53,7 @@ import WorldMap from "./WorldMap.jsx";
 import GpuPanel from "./GpuPanel.jsx";
 import GpuHandoffHistory from "./GpuHandoffHistory.jsx";
 import QueuePanel from "./QueuePanel.jsx";
+import UnifiedQueueOverview from "./UnifiedQueueOverview.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
 
 import React, {useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
@@ -140,10 +141,10 @@ function ChatQueueItem({item,onChange,onEditing,disableEdit,savedEdit,unavailabl
   const editButton=useRef(null);
   useEffect(()=>{if(!savedEdit)setEditing(false);},[savedEdit]);
   const editChanged=editing && (item.revision!==editRevision || item.state!=="queued");
-  const textTooLong=Array.from(text || "").length>8000;
+  const textTooLong=Array.from(text || "").length>12000;
   function change(cancel){onChange({request_id:item.request_id,revision:cancel?item.revision:editRevision,...(cancel?{cancel:true}:{prompt:text})});}
   return <article className="chat-queued-item"><strong>{item.state==='departed'?'대기열에서 사라짐':item.state==='dispatching'?'실행 준비 중':'대기 중'}</strong>
-    {editing ? <><textarea autoFocus aria-label="대기 요청 수정" value={text} onChange={event=>{setText(event.target.value);onEditing({...item,revision:editRevision,text:event.target.value});}}/>{editChanged && <><p role="alert">대기 요청이 변경되었거나 대기열에서 사라졌습니다. 작성한 내용을 복사한 뒤 편집을 취소하고 최신 상태를 확인해 주세요.</p><CopyTextButton value={text} label="대기 요청 편집 내용 복사" buttonLabel="편집 내용 복사"/></>}{unavailable && <p role="status">연결이 복구되어 대기열 상태를 확인할 때까지 저장할 수 없습니다.</p>}{textTooLong && <p role="alert">대기 요청은 8,000자까지 저장할 수 있습니다. 초과한 내용을 줄여 주세요.</p>}<div className="chat-queue-actions"><button type="button" disabled={mutationLocked || unavailable || editChanged || textTooLong || !text.trim() || text.trim()===String(item.prompt || "").trim()} onClick={()=>change(false)}>변경 저장</button><button type="button" onClick={()=>{setText(item.prompt);setEditing(false);onEditing(null);requestAnimationFrame(()=>editButton.current?.focus());}}>편집 취소</button></div></> : <ChatQueuePrompt text={item.prompt}/>}
+    {editing ? <><textarea autoFocus aria-label="대기 요청 수정" value={text} onChange={event=>{setText(event.target.value);onEditing({...item,revision:editRevision,text:event.target.value});}}/>{editChanged && <><p role="alert">대기 요청이 변경되었거나 대기열에서 사라졌습니다. 작성한 내용을 복사한 뒤 편집을 취소하고 최신 상태를 확인해 주세요.</p><CopyTextButton value={text} label="대기 요청 편집 내용 복사" buttonLabel="편집 내용 복사"/></>}{unavailable && <p role="status">연결이 복구되어 대기열 상태를 확인할 때까지 저장할 수 없습니다.</p>}{textTooLong && <p role="alert">대기 요청은 12,000자까지 저장할 수 있습니다. 초과한 내용을 줄여 주세요.</p>}<div className="chat-queue-actions"><button type="button" disabled={mutationLocked || unavailable || editChanged || textTooLong || !text.trim() || text.trim()===String(item.prompt || "").trim()} onClick={()=>change(false)}>변경 저장</button><button type="button" onClick={()=>{setText(item.prompt);setEditing(false);onEditing(null);requestAnimationFrame(()=>editButton.current?.focus());}}>편집 취소</button></div></> : <ChatQueuePrompt text={item.prompt}/>}
     {item.state==='queued' && !editing && <div className="chat-queue-actions"><button ref={editButton} type="button" disabled={mutationLocked || disableEdit || unavailable} title={unavailable?"대기열 연결을 확인해 주세요.":disableEdit?"다른 요청의 편집을 먼저 마쳐 주세요.":undefined} onClick={()=>{setText(item.prompt);setEditRevision(item.revision);onEditing({...item,text:item.prompt});setEditing(true);}}>수정</button><button type="button" disabled={mutationLocked || unavailable} title={unavailable?"대기열 연결을 확인해 주세요.":undefined} onClick={()=>change(true)}>대기 취소</button></div>}
   </article>;
 }
@@ -196,7 +197,7 @@ function ChatQueuePanel({session}){
   const [editStorageError,setEditStorageError]=useState(false);
   const editingItemRef=useRef(editingItem);
   const pendingKey="hermes-queue-update-"+session;
-  const [pendingUpdate,setPendingUpdate]=useState(()=>{try{const p=JSON.parse(sessionStorage.getItem(pendingKey));return p?.session_id===session && /^[A-Za-z0-9_-]{8,80}$/.test(p.request_id) && Number.isInteger(p.revision) && p.revision>0 && ((p.cancel===true && p.prompt===undefined) || (p.cancel===undefined && typeof p.prompt==="string" && p.prompt.trim() && Array.from(p.prompt).length<=8000)) ? p : null;}catch{return null;}});
+  const [pendingUpdate,setPendingUpdate]=useState(()=>{try{const p=JSON.parse(sessionStorage.getItem(pendingKey));return p?.session_id===session && /^[A-Za-z0-9_-]{8,80}$/.test(p.request_id) && Number.isInteger(p.revision) && p.revision>0 && ((p.cancel===true && p.prompt===undefined) || (p.cancel===undefined && typeof p.prompt==="string" && p.prompt.trim() && Array.from(p.prompt).length<=12000)) ? p : null;}catch{return null;}});
   const pendingRef=useRef(pendingUpdate),updateController=useRef(null),updateBusyRef=useRef(false),pendingPanelRef=useRef(null),queueRefreshRef=useRef(null);
   const stopControllers=useRef(new Map()),panelMounted=useRef(true);
   const [updateBusy,setUpdateBusy]=useState(false),[updateNotice,setUpdateNotice]=useState("");
@@ -214,7 +215,7 @@ function ChatQueuePanel({session}){
   async function sendUpdate(payload){
     if(updateBusyRef.current)return;
     let p=pendingRef.current;
-    if(!p){if(!payload.cancel && (typeof payload.prompt!=="string" || !payload.prompt.trim() || Array.from(payload.prompt).length>8000)){setUpdateNotice("대기 요청은 1~8,000자여야 합니다.");return;}p={session_id:session,...payload};try{sessionStorage.setItem(pendingKey,JSON.stringify(p));}catch{setUpdateNotice("접수 확인 정보를 보관하지 못해 변경 요청을 보내지 않았습니다.");return;}pendingRef.current=p;setPendingUpdate(p);}
+    if(!p){if(!payload.cancel && (typeof payload.prompt!=="string" || !payload.prompt.trim() || Array.from(payload.prompt).length>12000)){setUpdateNotice("대기 요청은 1~12,000자여야 합니다.");return;}p={session_id:session,...payload};try{sessionStorage.setItem(pendingKey,JSON.stringify(p));}catch{setUpdateNotice("접수 확인 정보를 보관하지 못해 변경 요청을 보내지 않았습니다.");return;}pendingRef.current=p;setPendingUpdate(p);}
     updateBusyRef.current=true;setUpdateBusy(true);setUpdateNotice("");const controller=new AbortController();updateController.current=controller;const timer=setTimeout(()=>controller.abort(),30000);
     try{const row=await callUntilAborted("chat-queue-update",p,controller.signal);if(controller.signal.aborted || !row || row.request_id!==p.request_id || row.revision!==p.revision+1 || (p.cancel ? row.state!=="cancelled" : row.state!=="queued" || row.prompt!==p.prompt))throw new Error("변경 응답 불일치");if(clearPending(p)){if(!p.cancel)rememberEdit(null,{request_id:p.request_id,revision:p.revision,text:p.prompt});setUpdateNotice(p.cancel?"대기 요청을 취소했습니다.":"대기 요청을 수정했습니다.");}else setUpdateNotice("변경 응답을 받았지만 확인 기록을 지우지 못했습니다. 저장소를 확인하세요.");}
     catch{setUpdateNotice("변경 결과를 확인하지 못했습니다. 같은 요청을 다시 확인하거나 현재 상태를 조회하세요.");}finally{clearTimeout(timer);updateController.current=null;updateBusyRef.current=false;setUpdateBusy(false);refresh(n=>n+1);}
@@ -447,7 +448,7 @@ function App() {
     observer.observe(node);
     return()=>observer.disconnect();
   },[draft,session]);
-  const toolToggle=useRef(null),toolSearch=useRef(null),toolScope=useRef(null),gpuToggle=useRef(null),queueToggle=useRef(null),chatQueueToggle=useRef(null),sessionToggle=useRef(null),sessionSearch=useRef(null);
+  const toolToggle=useRef(null),toolSearch=useRef(null),toolScope=useRef(null),gpuToggle=useRef(null),queueToggle=useRef(null),sessionToggle=useRef(null),sessionSearch=useRef(null);
   useEffect(()=>{if(showTools)(toolSearch.current || toolScope.current)?.focus({preventScroll:true});},[showTools]);
   function closeTools(focusTarget=toolToggle) {
     const url=new URL(location.href);
@@ -582,11 +583,7 @@ function App() {
       const item = pending || {session_id:session || id(), request_id:id(), prompt, model_profile:'qwen3.8-27b'};
       sessionStorage.setItem(pendingKey, JSON.stringify(item));
       if (!session) await call("session-create", {session_id:item.session_id});
-      if(item.model_profile==='qwen3.8-27b'){
-        const resident=await call("resident-start",{session_id:item.session_id,request_id:item.request_id});
-        if(resident.state!=='accepted' || !resident.id)throw new Error('Qwen 3.8 상주 모델 접수를 확인할 수 없습니다. 같은 요청의 상태를 확인하세요.');
-      }
-      await call("session-submit", item);
+      await call("session-queue-submit", {...item,model_profile:'qwen3.8-27b'});
       sessionStorage.removeItem(pendingKey);
       const currentDraft=sessionStorage.getItem("hermes-draft-"+session) || "";
       const remaining=currentDraft===item.prompt?"":currentDraft;
@@ -665,7 +662,7 @@ function App() {
   }
   function closeGenerator(){setGeneratorPanel(null);toolToggle.current?.focus();}
   function closeGpu(){setShowGpu(false);gpuToggle.current?.focus();}
-  function closeQueue(){const trigger=queue?.mode==="chat"?chatQueueToggle:queueToggle;setQueue(null);trigger.current?.focus();}
+  function closeQueue(){setQueue(null);queueToggle.current?.focus();}
   function openKimodo(inputs=null) {
     if(showTools)closeTools();
     setShowGpu(false);setQueue(null);setGeneratorPanel(null);setShowFunControl(false);
@@ -772,7 +769,7 @@ function App() {
     {session && <ResidentModelStatus key={session} session={session}/>}
     {session && <button type="button" ref={handoffToggle} aria-controls="hermes-side-panel" aria-expanded={showHandoff} onClick={()=>showHandoff?closeHandoff():openHandoff()}>GPU 양도 이력</button>}
     <button type="button" ref={gpuToggle} aria-expanded={showGpu} onClick={()=>{if(showTools)closeTools();setShowGpu(value=>!value);}}>GPU 프로세스 정보</button>
-    {session&&<button type="button" ref={queueToggle} aria-expanded={Boolean(queue && queue.mode!=="chat" && !showTools && !showGpu)} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(value=>value && value.mode!=="chat" && !showTools && !showGpu ? null : {run:""});}}>작업 대기열</button>}{session&&<button type="button" ref={chatQueueToggle} aria-expanded={queue?.mode==="chat" && !showTools && !showGpu} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(value=>value?.mode==="chat" && !showTools && !showGpu ? null : {run:"",mode:"chat"});}}>채팅 대기열{view.chat_queue?.length ? " · "+view.chat_queue.length : ""}</button>}{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
+    {session&&<button type="button" ref={queueToggle} aria-expanded={Boolean(queue && !showTools && !showGpu)} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(value=>value && !showTools && !showGpu ? null : {run:""});}}>대기열{view.chat_queue?.length ? " · 대화 "+view.chat_queue.length : ""}</button>}{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
     <button type="button" ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowGpu(false);if(showTools)closeTools();else setShowTools(true)}}>도구 탐색</button>
     {pending && <small>접수 확인 중인 요청의 모델: {pending.model_profile || '자동 선택'}</small>}
     {pending && !confirmWithdrawal && <button type="button" disabled={busy} onClick={()=>setConfirmWithdrawal(true)}>미접수 요청 철회</button>}
@@ -789,7 +786,7 @@ function App() {
     {pending && pending.prompt===draft && <small className="composer-reason" role="status">이전 요청의 접수 여부를 같은 요청 ID로 다시 확인합니다.</small>}
     {submitDisabledReason && <small id="composer-submit-reason" className={submitDisabledReason === "메시지를 입력해 주세요." ? "composer-reason-hidden" : "composer-reason"} role="status">{submitDisabledReason}</small>}
     <button type="submit" disabled={Boolean(submitDisabledReason)} title={submitDisabledReason || undefined}>{busy?"접수 중":pending && pending.prompt===draft?"접수 다시 확인":"보내기"}</button></form></article>
-    {(showFunControl || showKimodo || showTools || showGpu || showHandoff || queue || generatorPanel || funMounted || kimodoMounted || mountedGenerators.length>0) && <SidePanel hidden={!panelOpen} width={panelActual} minWidth={panelMin} maxWidth={panelMax} onResize={resizePanel} title={showHandoff?"GPU 양도 이력":showTools?"도구 탐색":showGpu?"GPU 프로세스 정보":queue?(queue.mode==="chat"?"채팅 대기열":"작업 대기열"):generatorPanel?generatorPanel.label:showKimodo?"Kimodo 모션 생성":"Wan Fun Control"} subtitle={showHandoff?"이 대화의 양도와 모델 복구 상태":showTools?"도구와 관리 기능 찾기":showGpu?"GPU 사용 현황":queue?(queue.mode==="chat"?"이 세션의 대기 요청":"진행 상태와 결과"):"생성 입력 검토"} onClose={showHandoff?closeHandoff:showTools?()=>closeTools():showGpu?closeGpu:queue?closeQueue:generatorPanel?closeGenerator:showKimodo?closeKimodo:closeFun} onKeyDown={showTools?handleToolKeys:event=>{if(event.key==="Escape" && !event.nativeEvent.isComposing){event.preventDefault();showHandoff?closeHandoff():showGpu?closeGpu():queue?closeQueue():generatorPanel?closeGenerator():showKimodo?closeKimodo():closeFun();}}}>
+    {(showFunControl || showKimodo || showTools || showGpu || showHandoff || queue || generatorPanel || funMounted || kimodoMounted || mountedGenerators.length>0) && <SidePanel hidden={!panelOpen} width={panelActual} minWidth={panelMin} maxWidth={panelMax} onResize={resizePanel} title={showHandoff?"GPU 양도 이력":showTools?"도구 탐색":showGpu?"GPU 프로세스 정보":queue?"대기열":generatorPanel?generatorPanel.label:showKimodo?"Kimodo 모션 생성":"Wan Fun Control"} subtitle={showHandoff?"이 대화의 양도와 모델 복구 상태":showTools?"도구와 관리 기능 찾기":showGpu?"GPU 사용 현황":queue?"대화 요청과 작업 진행 상태":"생성 입력 검토"} onClose={showHandoff?closeHandoff:showTools?()=>closeTools():showGpu?closeGpu:queue?closeQueue:generatorPanel?closeGenerator:showKimodo?closeKimodo:closeFun} onKeyDown={showTools?handleToolKeys:event=>{if(event.key==="Escape" && !event.nativeEvent.isComposing){event.preventDefault();showHandoff?closeHandoff():showGpu?closeGpu():queue?closeQueue():generatorPanel?closeGenerator():showKimodo?closeKimodo():closeFun();}}}>
     {showHandoff && session && <GpuHandoffHistory key={session} session={session}/>}
     {showTools && <div className="tool-drawer-content">
       <label className="search-scope">탐색 대상 <select ref={toolScope} value={searchMode} onChange={e=>setSearchMode(e.target.value)}>
@@ -835,8 +832,7 @@ function App() {
       </Command>}
     </div>}
       {showGpu && !showTools && <GpuPanel embedded/>}
-      {queue?.mode==="chat" && session && !showTools && !showGpu && <ChatQueuePanel key={session} session={session}/>}
-      {queue && queue.mode!=="chat" && session && !showTools && !showGpu && <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} filterCache={queueFilterCache} call={call} openMessage={openQueueMessage} choose={appendSelection}/>}
+      {queue && session && !showTools && !showGpu && <><UnifiedQueueOverview key={session} session={session} call={call}/><details><summary>대화 요청 상세 및 제어</summary><ChatQueuePanel key={session} session={session}/></details><details open={Boolean(queue.run)}><summary>작업 상세 및 제어</summary><QueuePanel key={session+queue.run} session={session} initialRun={queue.run} filterCache={queueFilterCache} call={call} openMessage={openQueueMessage} choose={appendSelection}/></details></>}
       {mountedGenerators.map(id=>{const Generator=embeddedGenerators[id];return <div key={id} hidden={showTools || showGpu || Boolean(queue) || generatorPanel?.id!==id} className="embedded-generator"><Generator embedded session={session}/></div>;})}
       {kimodoMounted && <div hidden={!showKimodo || showTools || showGpu || Boolean(queue) || Boolean(generatorPanel)} className="embedded-generator"><KimodoPage key={session+":"+kimodoRevision} embedded session={session} initialInputs={kimodoProposal} onChoose={(label,value)=>{edit([draft,label+" "+value].filter(Boolean).join("\n"));text.current?.focus();}}/></div>}
       {funMounted && <div hidden={!showFunControl || showTools || showGpu || Boolean(queue) || showKimodo || Boolean(generatorPanel)}><FunControlPage key={session+videoFormId+videoFormRevision} embedded session={session} restoreFormId={videoFormId} seedProposal={seedProposal} onSaved={()=>setRefresh(n=>n+1)}/></div>}

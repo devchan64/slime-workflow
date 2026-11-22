@@ -180,6 +180,8 @@ HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-priority-preview','label':'GPU 우선 실행 대상 확인','required':['service','id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'priority_preview','note':'원 서비스가 확인된 유일한 대기 티켓을 조회하며 순서는 변경하지 않는다.'},
     {'command':'hermes-management-status', 'label':'관리 상태 조회', 'required':[], 'optional':[], 'effect':'local_bookkeeping', 'gpu':'inspection', 'retry':'safe', 'interfaces':['gui','mcp','isolated_fixed_bridge'], 'result':'model_gpu_queue_and_recent_jobs', 'note':'amd-smi로 GPU 프로세스와 메모리를 조회하며 GPU 생성은 실행하지 않는다. 최근 작업 조회에 로컬 잠금이 따른다. Kimodo 활성 상태는 기록 기준이며 GPU 관측은 캐시될 수 있다.'},
     {'command':'hermes-session-submit', 'label':'대화·격리 작업 접수', 'required':['session_id','request_id','prompt'], 'optional':['verification_modules','model_profile'], 'effect':'enqueue', 'gpu':'exclusive', 'retry':'request_id', 'interfaces':['gui','mcp'], 'result':'hermes_job_id', 'note':'Qwen 3.8을 사용한다. 동일 ID와 입력의 재접수만 허용한다.'},
+    {'command':'hermes-session-queue-submit', 'label':'대화 대기열 접수', 'required':['session_id','request_id','prompt','model_profile'], 'optional':[], 'effect':'enqueue', 'gpu':'queued', 'retry':'request_id', 'interfaces':['gui'], 'result':'chat_queue_receipt', 'note':'모델 준비 전 요청을 저장하고 순서대로 상주 모델 준비 후 실행한다.'},
+    {'command':'hermes-unified-queue-observe', 'label':'공용 대기열 조회', 'required':['session_id'], 'optional':[], 'effect':'local_bookkeeping', 'gpu':'inspection', 'retry':'safe', 'interfaces':['gui'], 'result':'unified_queue', 'note':'대화 요청과 GPU 대기 티켓을 접수 순서로 관측한다.'},
     {'command':'hermes-session-withdraw-unsubmitted', 'label':'미접수 대화 요청 철회', 'required':['session_id','request_id'], 'optional':[], 'effect':'write', 'gpu':'none', 'retry':'request_id', 'interfaces':['gui'], 'result':'withdrawal', 'note':'미접수 요청만 철회하고 같은 ID의 늦은 접수를 차단한다.'},
     {'command':'hermes-kimodo-keyframe-validate','label':'Kimodo 키프레임 배치 검증','required':['keyframes','frames'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'kimodo_keyframe_validation','note':'원본과 골격 구조를 검증한다. 접수 시 다시 검증한다.'},
     {'command':'hermes-kimodo-source-frame','label':'Kimodo 원본 프레임 검토','required':['job_id','attempt_id','frame'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'kimodo_source_frame','note':'완료된 현재 시도의 프레임 PNG 시그니처와 해시를 확인한다. 모션·골격 및 저장 가능성은 검증하지 않는다.'},
@@ -300,6 +302,8 @@ def list_hermes_capability_catalog():
         current_method_value, current_route_suffix = MANAGEMENT_COMMAND_ROUTES[current_command_name]
         current_field_names = current_capability_record['required'] + current_capability_record['optional']
         current_payload_schema = {'type':'object', 'required':current_capability_record['required'], 'properties':{current_field_name:HERMES_FIELD_SCHEMAS[current_field_name] for current_field_name in current_field_names}, 'additionalProperties':False}
+        if current_command_name in ('hermes-session-queue-submit', 'hermes-chat-queue-update'):
+            current_payload_schema['properties']['prompt'] = {**HERMES_FIELD_SCHEMAS['prompt'], 'maxLength':12000}
         if current_command_name == 'hermes-workflow-list':
             from .workflow_catalog import read_workflow_generator_catalog
             workflow_category_names = sorted({item['category'] for item in read_workflow_generator_catalog().values()})

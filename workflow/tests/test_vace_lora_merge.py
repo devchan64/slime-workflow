@@ -22,6 +22,7 @@ class VaceLoraMergeTests(unittest.TestCase):
                 validate_vace_request({**request, field: value})
         lightning_request = {**request, 'lora_mode': 'lightning'}
         self.assertEqual(validate_vace_request(lightning_request)['lora_mode'], 'lightning')
+        self.assertEqual(validate_vace_request({**lightning_request, 'guidance_scale': 2})['guidance_scale'], 2)
         with self.assertRaises(ValueError):
             validate_vace_request({**lightning_request, 'steps': 20})
 

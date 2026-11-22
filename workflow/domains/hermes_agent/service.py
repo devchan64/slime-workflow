@@ -238,11 +238,44 @@ def seed_form_proposal(text, prior_sources):
     return {'job_id':source, 'seed':int(matches[0]) if matches else None}
 
 
+def ordered_pending_chat_sessions(root):
+    """각 세션의 첫 대기 요청을 접수 시각 순으로 정렬한다."""
+    root = Path(root)
+    if root.is_symlink() or not root.is_dir():
+        return []
+    candidates = []
+    for path in root.glob('[0-9a-f]' * 32 + '.json'):
+        try:
+            if path.is_symlink():
+                continue
+            session = json.loads(path.read_text(encoding='utf-8'))
+            queue = session.get('chat_queue', [])
+            if not isinstance(queue, list) or any(not isinstance(row, dict) for row in queue):
+                continue
+            row = next((row for row in queue if row.get('state') in ('queued', 'dispatching')), None)
+            if row is None:
+                continue
+            created = datetime.fromisoformat(row['created_at'])
+            if created.tzinfo is None or created.utcoffset() is None:
+                continue
+            created = created.astimezone(timezone.utc)
+            delta = created - datetime(1970, 1, 1, tzinfo=timezone.utc)
+            fallback_order = (delta.days * 86400 + delta.seconds) * 1_000_000_000 + delta.microseconds * 1000
+            order = row.get('queue_order_ns', fallback_order)
+            if type(order) is not int or order <= 0:
+                continue
+            candidates.append((order, path.stem))
+        except (OSError, ValueError, TypeError, KeyError, AttributeError):
+            continue
+    return [session_id for _, session_id in sorted(candidates)]
+
+
 class HermesServiceManager:
     def __init__(self, hermes_storage_root=HERMES_JOB_DIRECTORY, hermes_session_root=None):
         self.hermes_storage_root = Path(hermes_storage_root)
         self.hermes_session_root = hermes_session_root
         self.hermes_thread_lock = threading.RLock()
+        self.chat_queue_wakeup = threading.Event()
 
     def dispatch_chat_queue(self, session_id):
         """Advance at most one durable request; the service lock serializes all dispatchers."""
@@ -255,6 +288,19 @@ class HermesServiceManager:
             row = next((item for item in session.get('chat_queue', []) if item.get('state') in ('queued', 'dispatching')), None)
             if not row:
                 return None
+            if row.get('require_resident') is True:
+                from workflow.domains.hermes_agent.resident_queue import ensure_session_resident, inspect_resident
+                order = row.get('queue_order_ns')
+                if order is not None and (type(order) is not int or order <= 0):
+                    raise ValueError('대화 요청의 대기 순서를 확인할 수 없습니다.')
+                resident = ensure_session_resident(session_id, row['request_id'], queue_order_ns=order)
+                if resident.get('state') != 'accepted' or not resident.get('id'):
+                    raise ValueError('상주 모델 접수를 확인할 수 없습니다.')
+                resident_state = inspect_resident(resident['id'], session_id).get('state')
+                if resident_state in ('queued', 'running'):
+                    return None
+                if resident_state != 'ready':
+                    raise ValueError('상주 모델 준비 또는 GPU 예약을 확인할 수 없습니다.')
             self.ensure_context_operation_finished(session)
             existing = next((item for item in session['messages'] if item.get('request_id') == row['request_id']), None)
             if existing is None:
@@ -272,19 +318,18 @@ class HermesServiceManager:
         root = Path(self.hermes_session_root) if self.hermes_session_root is not None else HERMES_SESSION_ROOT
         stop = threading.Event()
         def run():
-            while not stop.wait(3):
+            while not stop.is_set():
+                self.chat_queue_wakeup.wait(3)
+                self.chat_queue_wakeup.clear()
+                if stop.is_set():
+                    return
                 try:
-                    paths = list(root.glob('[0-9a-f]' * 32 + '.json')) if root.is_dir() and not root.is_symlink() else []
+                    sessions = ordered_pending_chat_sessions(root)
                 except OSError:
                     continue
-                for path in paths:
+                for session_id in sessions:
                     try:
-                        if path.is_symlink():
-                            continue
-                        candidate = json.loads(path.read_text(encoding='utf-8'))
-                        if not any(row.get('state') in ('queued', 'dispatching') for row in candidate.get('chat_queue', [])):
-                            continue
-                        self.dispatch_chat_queue(path.stem)
+                        self.dispatch_chat_queue(session_id)
                     except (OSError, ValueError, KeyError, TypeError, AttributeError):
                         # Fail closed: preserve the request for later inspection/retry.
                         continue
@@ -1715,6 +1760,28 @@ class HermesServiceManager:
                     raise ValueError('철회할 세션 ID와 요청 ID가 필요합니다.')
                 store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
                 return store.withdraw_unsubmitted_request(**hermes_payload_record)
+            if hermes_command_name == 'hermes-unified-queue-observe':
+                from workflow.domains.hermes_agent.session_store import HermesSessionStore
+                from workflow.domains.hermes_agent.unified_queue import observe_unified_queue
+                if set(hermes_payload_record) != {'session_id'}:
+                    raise ValueError('대화 세션 ID만 전달하세요.')
+                store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+                return observe_unified_queue(store, hermes_payload_record['session_id'])
+            if hermes_command_name == 'hermes-session-queue-submit':
+                from workflow.domains.hermes_agent.session_store import HermesSessionStore
+                from workflow.domains.hermes_agent.chat_queue_store import enqueue
+                if set(hermes_payload_record) != {'session_id', 'request_id', 'prompt', 'model_profile'} or hermes_payload_record['model_profile'] != COMPLEX_MODEL:
+                    raise ValueError('대화 대기 요청 형식 오류')
+                store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+                session = store.read_session_record(hermes_payload_record['session_id'])
+                existing = next((row for row in session['messages'] if row.get('request_id') == hermes_payload_record['request_id']), None)
+                if existing is not None:
+                    if existing.get('text') != hermes_payload_record['prompt'] or existing.get('model_profile') != hermes_payload_record['model_profile']:
+                        raise ValueError('같은 접수 식별자를 다른 메시지에 사용할 수 없습니다.')
+                    return {'session_id':hermes_payload_record['session_id'], 'queued':False, 'duplicate':True}
+                receipt = enqueue(store, **hermes_payload_record, require_resident=True)
+                self.chat_queue_wakeup.set()
+                return {'session_id':hermes_payload_record['session_id'], 'queued':True, **receipt}
             if hermes_command_name == 'hermes-session-submit':
                 from workflow.domains.hermes_agent.session_store import HermesSessionStore
                 from workflow.domains.hermes_agent.chat_queue_store import enqueue
