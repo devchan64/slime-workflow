@@ -6,6 +6,7 @@ import hashlib
 import fcntl
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -318,9 +319,52 @@ def validate_gpu_ticket_process_identifier(current_ticket_record):
     return current_ticket_record['pid']
 
 
+def gpu_ticket_same_pid_namespace(ticket):
+    """다른 PID 네임스페이스 또는 구형 티켓의 PID 부재는 종료 증거가 아니다."""
+    namespace = ticket.get('pid_namespace') if isinstance(ticket, dict) else None
+    if not isinstance(namespace, str) or not re.fullmatch(r'pid:\[\d+\]', namespace):
+        return False
+    try:
+        return os.readlink('/proc/self/ns/pid') == namespace
+    except OSError:
+        return False
+
+
+def gpu_ticket_foreign_pid_namespace(ticket):
+    namespace = ticket.get('pid_namespace') if isinstance(ticket, dict) else None
+    if not isinstance(namespace, str) or not re.fullmatch(r'pid:\[\d+\]', namespace):
+        return False
+    try:
+        return os.readlink('/proc/self/ns/pid') != namespace
+    except OSError:
+        return False
+
+
+def gpu_ticket_execution_lock_held(ticket):
+    """공유 파일 잠금으로 다른 PID 네임스페이스의 실행기 생존을 확인한다."""
+    try:
+        job = Path(ticket['path'])
+        if not job.is_absolute() or job.is_symlink() or not job.is_dir():
+            return False
+        descriptor = os.open(job / 'execution.lock', os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(descriptor, 'r+') as lock:
+            if not stat.S_ISREG(os.fstat(lock.fileno()).st_mode):
+                return False
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return True
+            fcntl.flock(lock, fcntl.LOCK_UN)
+    except (OSError, ValueError, TypeError, KeyError):
+        return False
+    return False
+
+
 def inspect_gpu_ticket_executor_identity(current_ticket_record):
     """시작 식별값이 있는 티켓은 PID 재사용을 거부하고 구버전은 미확인으로 둔다."""
     current_process_identifier=validate_gpu_ticket_process_identifier(current_ticket_record)
+    if 'pid_namespace' in current_ticket_record and not gpu_ticket_same_pid_namespace(current_ticket_record):
+        raise ValueError('GPU 대기 실행기의 PID 네임스페이스를 확인할 수 없습니다.')
     if 'pid_start_token' not in current_ticket_record:
         if 'boot_id' in current_ticket_record:raise ValueError('GPU 대기 실행기 식별 정보 오류')
         return 'unverified'
@@ -478,12 +522,24 @@ def select_runnable_ticket(available_memory_mib, current_memory_domain=None, act
     for waiting_ticket_path in current_waiting_tickets:
         try:
             waiting_ticket_record = json.loads(waiting_ticket_path.read_text())
+            current_ticket_pid = validate_gpu_ticket_process_identifier(waiting_ticket_record)
+            if 'pid_namespace' in waiting_ticket_record and (not isinstance(waiting_ticket_record['pid_namespace'], str) or not re.fullmatch(r'pid:\[\d+\]', waiting_ticket_record['pid_namespace'])):
+                return None
             try:
-                current_ticket_pid=validate_gpu_ticket_process_identifier(waiting_ticket_record)
                 os.kill(current_ticket_pid, 0)
                 inspect_gpu_ticket_executor_identity(waiting_ticket_record)
+            except ProcessLookupError:
+                if gpu_ticket_foreign_pid_namespace(waiting_ticket_record) and gpu_ticket_execution_lock_held(waiting_ticket_record):
+                    pass
+                elif gpu_ticket_same_pid_namespace(waiting_ticket_record):
+                    continue
+                else:
+                    return None
             except ValueError:
-                return None
+                if gpu_ticket_foreign_pid_namespace(waiting_ticket_record) and gpu_ticket_execution_lock_held(waiting_ticket_record):
+                    pass
+                else:
+                    return None
             waiting_job_directory = Path(waiting_ticket_record['path'])
             if is_gpu_control_requested(waiting_job_directory/'cancel.request') or is_gpu_control_requested(waiting_job_directory/'pause.request'):
                 continue
@@ -497,7 +553,9 @@ def select_runnable_ticket(available_memory_mib, current_memory_domain=None, act
                 return None
             return None
         except ProcessLookupError:
-            continue
+            if gpu_ticket_same_pid_namespace(waiting_ticket_record):
+                continue
+            return None
         except (OSError,ValueError,TypeError,KeyError):
             return None
         if not isinstance(waiting_command_record,dict) or not isinstance(waiting_command_record.get('service'),str) or waiting_command_record['service'] not in GPU_MEMORY_REQUIREMENTS or not isinstance(waiting_command_record.get('command'),list):
@@ -653,11 +711,17 @@ def execute_locked_generation(generation_job_path):
     if inherited_ticket_value:
         inherited_ticket_record = json.loads(queue_ticket_path.read_text())
         if (queue_ticket_path.resolve().parent != GPU_QUEUE_DIRECTORY.resolve() or not isinstance(inherited_ticket_record,dict)
-                or set(inherited_ticket_record)-{'pid','path','pid_start_token','boot_id'} or inherited_ticket_record.get('pid')!=os.getpid()
+                or set(inherited_ticket_record)-{'pid','path','pid_start_token','boot_id','pid_namespace'} or inherited_ticket_record.get('pid')!=os.getpid()
                 or inherited_ticket_record.get('path')!=str(generation_job_path)):
             raise ValueError('대기열 갱신 티켓이 현재 작업과 일치하지 않습니다.')
         inspect_gpu_ticket_executor_identity(inherited_ticket_record)
     current_ticket_record={'pid':os.getpid(), 'path':str(generation_job_path)}
+    try:
+        current_namespace = os.readlink('/proc/self/ns/pid')
+        if re.fullmatch(r'pid:\[\d+\]', current_namespace):
+            current_ticket_record['pid_namespace'] = current_namespace
+    except OSError:
+        pass
     try:
         current_ticket_start=Path(f'/proc/{os.getpid()}/stat').read_text().rpartition(') ')[2].split()[19]
         if current_ticket_start.isascii() and current_ticket_start.isdigit():current_ticket_record['pid_start_token']=current_ticket_start
@@ -700,7 +764,9 @@ def execute_locked_generation(generation_job_path):
                     try:
                         current_previous_ticket=json.loads(previous_ticket_path.read_text())
                         os.kill(validate_gpu_ticket_process_identifier(current_previous_ticket),0)
-                    except ProcessLookupError: previous_ticket_path.unlink(missing_ok=True)
+                    except ProcessLookupError:
+                        if gpu_ticket_same_pid_namespace(current_previous_ticket):
+                            previous_ticket_path.unlink(missing_ok=True)
                     except (OSError,ValueError,TypeError,KeyError): pass
                 try:
                     queued_ticket_values = read_priority_tickets()
@@ -1090,7 +1156,18 @@ def list_waiting_gpu_jobs(include_source_identity=False,observation_limits=False
             current_before_revision=(fingerprint_gpu_queue_ticket(waiting_ticket_path,observation_limits=True) if observation_limits else fingerprint_gpu_queue_ticket(waiting_ticket_path)) if include_source_identity else None
             waiting_ticket_record=json.loads(read_bounded_gpu_observation_bytes(waiting_ticket_path,65536)[0]) if observation_limits else json.loads(waiting_ticket_path.read_text())
             current_ticket_pid=validate_gpu_ticket_process_identifier(waiting_ticket_record) if include_source_identity or observation_limits else waiting_ticket_record['pid']
-            os.kill(current_ticket_pid,0)
+            foreign_live=False
+            try:
+                os.kill(current_ticket_pid,0)
+                if 'pid_namespace' in waiting_ticket_record and not gpu_ticket_same_pid_namespace(waiting_ticket_record):
+                    raise ProcessLookupError('다른 PID 네임스페이스')
+            except ProcessLookupError:
+                if gpu_ticket_foreign_pid_namespace(waiting_ticket_record) and gpu_ticket_execution_lock_held(waiting_ticket_record):
+                    foreign_live=True
+                elif gpu_ticket_same_pid_namespace(waiting_ticket_record):
+                    continue
+                else:
+                    raise ValueError('대기 실행기의 생존 여부를 확인할 수 없습니다.')
             waiting_job_directory=Path(waiting_ticket_record['path'])
             current_external_job=not waiting_job_directory.resolve().is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp')
             if observation_limits and current_external_job:
@@ -1113,7 +1190,7 @@ def list_waiting_gpu_jobs(include_source_identity=False,observation_limits=False
                 continue
             waiting_job_record={'id':waiting_job_directory.name,'service':waiting_command_record['service']}
             if include_source_identity:
-                waiting_job_record['executor_identity']=inspect_gpu_ticket_executor_identity(waiting_ticket_record)
+                waiting_job_record['executor_identity']='unverified' if foreign_live else inspect_gpu_ticket_executor_identity(waiting_ticket_record)
                 current_after_revision=fingerprint_gpu_queue_ticket(waiting_ticket_path,observation_limits=True) if observation_limits else fingerprint_gpu_queue_ticket(waiting_ticket_path)
                 if current_before_revision!=current_after_revision:
                     raise ValueError('대기 티켓이 조회 중 변경됐습니다.')
