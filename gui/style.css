@@ -869,3 +869,33 @@ article {position:relative;}
 .anchor-history-pagination span {font-size:.875rem}
 .gpu-queue-summary { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
 .gpu-queue-summary p { margin: 0; }
+/* Hermes conversation composer: shared sizing and responsive action layout. */
+.hermes-chat > article > form {
+  gap:.5rem; padding:.75rem; border-color:#575b72;
+  box-shadow:0 .35rem 1.25rem #0003;
+}
+.hermes-chat > article > form > textarea {
+  min-height:5rem; padding:.75rem; border:1px solid var(--line);
+  border-radius:.7rem; background:var(--canvas); line-height:1.5;
+}
+.hermes-chat > article > form > textarea::placeholder {color:var(--muted);opacity:1}
+.hermes-chat > article > form > button,
+.hermes-chat > article > form > :is(.composer-context,.resident-model-status) > summary {
+  min-height:2.75rem; padding:.6rem .8rem; font-size:.85rem; line-height:1.25;
+}
+.hermes-chat > article > form > :is(.composer-context,.resident-model-status) {font-size:.85rem}
+.hermes-chat > article > form > :is(.composer-context,.resident-model-status) > summary {
+  display:flex; align-items:center; gap:.25rem; color:var(--ink); background:var(--surface);
+}
+.hermes-chat > article > form > :is(.composer-context,.resident-model-status) > summary:hover {background:#303449;border-color:#676c89}
+.hermes-chat > article > form > button[aria-expanded=true] {background:#34314b;border-color:var(--accent)}
+.hermes-chat > article > form > button:disabled,.hermes-chat > article > form > textarea:disabled {cursor:not-allowed;opacity:.6}
+.hermes-chat > article > form > button[type=submit] {min-width:5.25rem}
+.hermes-chat > article > form > :is(small,[role=alert]) {overflow-wrap:anywhere}
+@media(max-width:700px){
+  .hermes-chat > article > form {gap:.4rem;padding:.55rem}
+  .hermes-chat > article > form > textarea {min-height:4.5rem}
+  .hermes-chat > article > form > :is(button,.composer-context,.resident-model-status) {max-width:100%}
+  .hermes-chat > article > form > button,
+.hermes-chat > article > form > :is(.composer-context,.resident-model-status) > summary {white-space:normal;text-align:left}
+}
