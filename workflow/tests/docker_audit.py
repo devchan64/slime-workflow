@@ -13,6 +13,8 @@ import time
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 RUNS = ROOT / '.tmp/test/docker-audit'
 IMAGE_FILES = (
     'requirements.txt', 'workflow/requirements.txt', 'generators/hermes_agent/requirements-mcp.lock',
