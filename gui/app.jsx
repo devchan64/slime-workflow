@@ -330,10 +330,11 @@ function SidePanel({title,subtitle,onClose,onKeyDown,width,minWidth,maxWidth,onR
   useEffect(()=>{if(body.current)body.current.scrollTop=0;},[title]);
   useEffect(()=>{if(!hidden && title!=="도구 탐색")heading.current?.focus();},[title,hidden]);
   return <section id="hermes-side-panel" className="fun-drawer" style={hidden?{display:"none"}:undefined} aria-label={title} onKeyDown={onKeyDown}>
-    <div className="fun-drawer-divider" role="separator" tabIndex={0} aria-label="오른쪽 패널 너비" aria-controls="hermes-side-panel" aria-orientation="vertical" aria-valuemin={minWidth} aria-valuemax={maxWidth} aria-valuenow={width}
+    <div className="fun-drawer-divider" role="separator" tabIndex={0} aria-label="오른쪽 패널 너비" aria-describedby="side-panel-resize-help" title="드래그하거나 좌우 화살표로 너비 조절 · Home 최소 · End 최대" aria-controls="hermes-side-panel" aria-orientation="vertical" aria-valuemin={minWidth} aria-valuemax={maxWidth} aria-valuenow={width}
       onPointerDown={event=>{if(event.button===0){event.preventDefault();event.currentTarget.focus();event.currentTarget.setPointerCapture(event.pointerId);}}}
       onPointerMove={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))onResize(event.currentTarget.parentElement.getBoundingClientRect().right-event.clientX);}}
       onKeyDown={event=>{const sizes={ArrowLeft:width+16,ArrowRight:width-16,Home:minWidth,End:maxWidth};if(Object.hasOwn(sizes,event.key)){event.preventDefault();event.stopPropagation();onResize(sizes[event.key]);}}}/>
+    <span id="side-panel-resize-help" className="generator-visually-hidden">드래그하거나 좌우 화살표로 너비를 조절합니다. Home은 최소, End는 최대 너비입니다.</span>
     <header className="fun-drawer-header"><div ref={heading} tabIndex={-1} aria-label={title}><strong>{title}</strong><small>{subtitle}</small></div>
       <button type="button" aria-label={title+" 닫기"} onClick={onClose}>닫기</button></header>
     <div className="fun-drawer-body" ref={body}>{children}</div>
@@ -645,7 +646,7 @@ function App() {
         <span>{Math.floor(listRequest.offset/30)+1} 페이지</span>
         <button type="button" disabled={listPage.next_offset==null} onClick={()=>{listFocusPending.current=true;setListRequest({...listRequest,offset:listPage.next_offset,snapshot:listPage.snapshot});}}>다음</button>
       </nav>}</aside>
-    {!folded && <div className="session-divider" role="separator" tabIndex={0} aria-label="세션 목록 너비"
+    {!folded && <div className="session-divider" role="separator" tabIndex={0} aria-label="세션 목록 너비" aria-describedby="session-resize-help" title="드래그하거나 좌우 화살표로 너비 조절 · Home 최소 · End 최대"
       aria-controls="hermes-session-list" aria-orientation="vertical" aria-valuemin={200} aria-valuemax={sidebarMax}
       aria-valuenow={sidebarActual}
       onPointerDown={event=>{if(event.button===0){event.preventDefault();event.currentTarget.focus();event.currentTarget.setPointerCapture(event.pointerId);}}}
@@ -654,7 +655,7 @@ function App() {
         const current=event.currentTarget.previousElementSibling.getBoundingClientRect().width;
         const widths={ArrowLeft:current-16,ArrowRight:current+16,Home:200,End:600};
         if(Object.hasOwn(widths,event.key)){event.preventDefault();resizeSidebar(widths[event.key]);}
-      }}/>}
+      }}><span id="session-resize-help" className="generator-visually-hidden">드래그하거나 좌우 화살표로 너비를 조절합니다. Home은 최소, End는 최대 너비입니다.</span></div>}
     <article><header><button ref={sessionToggle} aria-controls="hermes-session-list" aria-expanded={!folded} onClick={()=>{
       localStorage.setItem("hermes-session-folded",String(!folded));setFolded(!folded);
     }}>{folded?"세션 목록 펼치기":"세션 목록 접기"}</button><h1>{view.title || "헤르메스와 대화"}</h1></header>

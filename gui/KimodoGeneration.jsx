@@ -260,7 +260,7 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
         <KeyframeCatalog query={search} initialFrames={inputs.frames} initialRows={placement?.placements || []}
           apply={(frames,result)=>{setPlacement(result);setInputs({...inputs,frames,post_processing:true,remove_horizontal_motion:false});setReview(null);setPlacing(false);}}/></>}
     </fieldset>}
-    {inputs && <form onSubmit={e=>{e.preventDefault();perform(inspect);}}><fieldset disabled={busy}>
+    {inputs && <form onChangeCapture={()=>setNotice(value=>value.endsWith(" 설정을 적용했습니다.")?"":value)} onSubmit={e=>{e.preventDefault();perform(inspect);}}><fieldset disabled={busy}>
       <KimodoInputSummary inputs={inputs} references={references} placement={placement} bundle={bundle} directions={directions}/>
       <label>동작 설명 <textarea required maxLength={2000} value={inputs.prompt} aria-describedby={generationMode==="sequence" ? segmentHelp : undefined} aria-invalid={generationMode==="sequence" && segmentsValid && promptSegmentCount!==segmentCounts.length ? true : undefined} onChange={e=>edit("prompt",e.target.value)}/><PromptWordCount text={inputs.prompt}/></label>
       <KimodoPromptExamples apply={prompt=>edit("prompt",prompt)} applySettings={id=>perform(()=>applyExample(id))}/>
