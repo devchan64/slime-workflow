@@ -1138,4 +1138,4 @@ GUI와 `map-assets building-save`는 `shadowShape`(`circle`/`rectangle`), `shado
 
 ## Hermes 격리 코딩 작업과 MCP
 
-공용 게이트웨이의 `hermes-agent`는 `hermes-submit`, `hermes-detail`, `hermes-history`, `hermes-diff`, `hermes-cancel` 명령을 제공한다. GUI와 MCP가 같은 작업 ID와 기록을 사용하며, 고정된 요청 식별자로 중복 접수를 막는다. 공용 GPU 대기열에서 서로 다른 세션의 Hermes 작업은 메모리 여유가 있으면 최대 두 개까지 병렬 실행하고 같은 세션은 순차 실행한다. 다른 GPU 작업과의 배타 조건은 유지하며 원본 작업 트리에는 자동 적용하지 않는다. 실행환경 준비, 결과·부분 diff, Codex 설정과 현재 검증 범위는 [Hermes 실행 안내](../generators/hermes_agent/README.md)를 따른다.
+공용 게이트웨이의 `hermes-agent`는 `hermes-submit`, `hermes-detail`, `hermes-history`, `hermes-diff`, `hermes-cancel` 명령을 제공한다. GUI와 MCP가 같은 작업 ID와 기록을 사용하며, 고정된 요청 식별자로 중복 접수를 막는다. 공용 GPU 대기열에서 서로 다른 세션의 Hermes 작업은 메모리 여유가 있으면 최대 두 개까지 병렬 실행하고 같은 세션은 순차 실행한다. 다른 GPU 작업은 메모리 예약과 독점 작업 제한을 충족하면 함께 실행하며 원본 작업 트리에는 자동 적용하지 않는다. 실행환경 준비, 결과·부분 diff, Codex 설정과 현재 검증 범위는 [Hermes 실행 안내](../generators/hermes_agent/README.md)를 따른다.

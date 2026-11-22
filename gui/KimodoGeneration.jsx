@@ -173,6 +173,16 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
   }
   const reviewed=review ? JSON.parse(review) : null;
   return <section aria-label="Kimodo 모션 생성"><h2>모션 생성</h2>
+    <details className="kimodo-generation-guide"><summary>모션 생성 사용 안내</summary>
+      <ol>
+        <li>모델 준비 상태를 확인합니다. 예제를 사용하려면 동작 예시에서 선택하고 <strong>예시 불러오기</strong>를 누릅니다.</li>
+        <li>하나의 동작은 <strong>일반 생성</strong>, 여러 동작을 연결하려면 <strong>순차 생성</strong>을 선택합니다. 순차 생성은 동작 설명을 구간마다 한 줄씩 쓰고 구간별 프레임을 공백으로 구분합니다. 2~10구간, 각 16프레임 이상, 합계 300프레임 이하입니다.</li>
+        <li>예를 들어 바닥 휴식 예제는 서서 앉기·앉아 쉬기·다시 서기의 세 구간을 <strong>64 64 64</strong>프레임으로 생성합니다. 30fps 기준 총 약 6.4초이며, 생성 단계 100은 구간마다 적용되어 총 300단계입니다.</li>
+        <li>시드·출력 방향·신체 비율 참조·후처리를 확인하고 <strong>생성 요청 검토</strong>를 누릅니다. 요약을 확인한 후 <strong>확인 후 대기열에 추가</strong>를 누릅니다.</li>
+        <li>완료 후 결과 영상을 재생해 시작·휴식·종료 자세와 전환을 확인합니다. DWPose 경고가 있더라도 원본 모션과 직접 포즈가 생성되면 전체 작업은 완료입니다. 원하는 동작이 아니면 시드 또는 설명을 하나씩 바꿔 비교하세요.</li>
+      </ol>
+      <p>GPU 메모리가 남아도 시스템 메모리 보호, 예약 또는 동시 실행 제한 때문에 대기할 수 있습니다. 접수 상태와 대기 사유를 확인하세요.</p>
+    </details>
     {inputs && sourceJob && <div><p>불러온 원본 작업</p><JobIdentifier id={sourceJob} compact/></div>}
     {receiptState!=="editing" && <section className="kimodo-submission-status" aria-label="생성 접수 상태">
       <h3>{receiptState==="accepted"?"생성 요청 접수됨":receiptState==="checking"?"접수 상태 확인 중":"접수 상태 확인 필요"}</h3>

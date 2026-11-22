@@ -166,7 +166,7 @@ class GpuJobQueueTests(unittest.TestCase):
                 self.assertIsNone(queue_module.select_runnable_ticket(100,'vram',['hermes-agent'],['b'*32]))
                 self.assertIsNone(queue_module.select_runnable_ticket(100,'vram',['hermes-agent','hermes-agent'],['a'*32,'c'*32]))
                 self.assertIsNone(queue_module.select_runnable_ticket(100,'vram',['hermes-agent'],[None]))
-                self.assertIsNone(queue_module.select_runnable_ticket(100,'vram',['hermes-agent','image'],['a'*32]))
+                self.assertEqual(queue_module.select_runnable_ticket(100,'vram',['hermes-agent','image'],['a'*32]),ticket)
                 self.assertIsNone(queue_module.select_runnable_ticket(100,'vram',['management-setup'],[]))
                 request.write_text(json.dumps({'context':{'session_id':'invalid'}}))
                 self.assertIsNone(queue_module.select_runnable_ticket(100,'vram',['hermes-agent'],['a'*32]))
@@ -184,7 +184,7 @@ class GpuJobQueueTests(unittest.TestCase):
                 self.assertEqual(queue_module.select_runnable_ticket(16,'vram',['hermes-agent'],['a'*32]),tickets[1])
                 self.assertEqual(queue_module.select_runnable_ticket(16,'vram',[],[]),tickets[0])
 
-    def test_hermes_queue_is_exclusive_with_active_work(self):
+    def test_hermes_can_run_with_active_work_when_memory_allows(self):
         with tempfile.TemporaryDirectory() as current_temp_directory:
             current_root_path = Path(current_temp_directory)
             current_job_path = current_root_path / 'job'
@@ -194,14 +194,20 @@ class GpuJobQueueTests(unittest.TestCase):
             import os
             current_ticket_path.write_text(json.dumps({'pid': os.getpid(), 'path': str(current_job_path)}))
             with patch.object(queue_module, 'read_priority_tickets', return_value=[current_ticket_path]), patch.object(queue_module, 'estimate_required_memory', return_value={'required_memory_mib': 1}):
-                self.assertIsNone(queue_module.select_runnable_ticket(100, 'vram', ['image']))
+                self.assertEqual(queue_module.select_runnable_ticket(100, 'vram', ['image']), current_ticket_path)
                 self.assertIsNone(queue_module.select_runnable_ticket(100, 'vram', ['hermes-agent']))
                 self.assertEqual(queue_module.select_runnable_ticket(100, 'vram', []), current_ticket_path)
 
-    def test_active_hermes_blocks_other_waiting_work(self):
-        with patch.object(queue_module, 'read_priority_tickets') as current_ticket_mock:
-            self.assertIsNone(queue_module.select_runnable_ticket(100, 'vram', ['hermes-agent']))
-            current_ticket_mock.assert_not_called()
+    def test_active_hermes_allows_other_waiting_work_with_capacity(self):
+        import os
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            job = root / 'job'; job.mkdir()
+            (job / 'gpu-command.json').write_text(json.dumps({'command':['python','worker.py'], 'service':'image'}))
+            ticket = root / 'ticket.json'; ticket.write_text(json.dumps({'pid':os.getpid(), 'path':str(job)}))
+            with patch.object(queue_module, 'read_priority_tickets', return_value=[ticket]), patch.object(queue_module, 'estimate_required_memory', return_value={'required_memory_mib':16}):
+                self.assertEqual(queue_module.select_runnable_ticket(16, 'vram', ['hermes-agent'], ['a'*32]), ticket)
+                self.assertIsNone(queue_module.select_runnable_ticket(15, 'vram', ['hermes-agent'], ['a'*32]))
 
     def setUp(self):
         self.temporary_job_root = tempfile.TemporaryDirectory()
@@ -237,7 +243,7 @@ class GpuJobQueueTests(unittest.TestCase):
         current_memory_query_patch.start()
         self.addCleanup(current_memory_query_patch.stop)
 
-    def test_generator_waits_until_hermes_reservation_released(self):
+    def test_generator_runs_with_hermes_reservation_when_capacity_allows(self):
         import os
         current_active_root = queue_module.GPU_QUEUE_DIRECTORY / 'active'
         current_active_root.mkdir(parents=True)
@@ -245,20 +251,11 @@ class GpuJobQueueTests(unittest.TestCase):
         current_reservation_path.write_text(json.dumps({'pid':os.getpid(), 'service':'hermes-agent', 'required_memory_mib':1}))
         current_worker_mock = Mock(returncode=0)
         current_worker_mock.poll.return_value = 0
-        current_observations = []
-        def release_test_reservation(current_wait_seconds):
-            current_status_record = json.loads((self.current_job_path / 'status.json').read_text())
-            self.assertEqual(current_status_record['status'], 'queued')
-            current_launch_mock.assert_not_called()
-            self.assertTrue(current_reservation_path.exists())
-            current_observations.append('blocked')
-            current_reservation_path.unlink()
-        with patch.object(queue_module, 'read_gpu_memory', return_value=(24000, 20000)), patch.object(queue_module.time, 'sleep', side_effect=release_test_reservation), patch.object(queue_module.subprocess, 'Popen', return_value=current_worker_mock) as current_launch_mock:
+        with patch.object(queue_module, 'read_gpu_memory', return_value=(24000, 20000)), patch.object(queue_module.subprocess, 'Popen', return_value=current_worker_mock) as current_launch_mock:
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path), 0)
-        self.assertEqual(current_observations, ['blocked'])
         current_launch_mock.assert_called_once()
         self.assertEqual(json.loads((self.current_job_path / 'status.json').read_text())['status'], 'completed')
-        self.assertEqual(list(current_active_root.glob('*.json')), [])
+        self.assertTrue(current_reservation_path.exists())
 
     def test_new_other_service_records_verifiable_worker_group(self):
         import os
