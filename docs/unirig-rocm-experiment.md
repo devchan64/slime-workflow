@@ -1,5 +1,7 @@
 # UniRig ROCm 자동 리깅 실험
 
+> **폐기됨 (2026-11-22):** UniRig 신규 리깅 작업과 신규 GPU 양도는 중단했다. 아래 내용은 과거 실험 기록이다. UniRig 전용 모델·실행 환경·작업 결과는 삭제했다.
+
 ## 범위와 환경
 
 입력은 Pixal3D 후보 `.tmp/pixal-experiment/rig-check-87edd/remesh-300k/meshfix/candidate.glb`다. 기존 모델과 프로세스 환경을 보존하고 `.local/unirig-experiment`에 Python 3.11.18, ROCm PyTorch 2.13.0+rocm10.0.0, torchvision 0.28.0+rocm10.0.0 및 UniRig 일반 의존성을 격리했다. AMD Radeon 8060S가 탐지됐다. UniRig 코드는 공식 리비전 `6793c6640ff01c8fb389f3993434124bb43d2933`, 체크포인트는 공식 다운로드 후 SHA-256을 대조한 기존 파일을 사용했다.

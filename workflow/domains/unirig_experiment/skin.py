@@ -49,7 +49,7 @@ def worker(job):
 def main():
     if len(sys.argv)==3 and sys.argv[1]=='--worker':
         worker(Path(sys.argv[2]).resolve(strict=True)); return
-    raise RuntimeError('폐기된 Pixal3D 리그를 입력으로 사용하는 실험입니다. 새 TRELLIS.2 모델용 리깅 입력을 먼저 준비하세요.')
+    raise RuntimeError('UniRig 실험은 폐기되어 새 리깅 작업을 접수할 수 없습니다.')
 
 
 if __name__ == '__main__':

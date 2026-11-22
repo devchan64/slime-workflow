@@ -81,6 +81,8 @@ def calculate_gpu_pool_capacity(current_memory_domain,current_gpu_free_mib,curre
 
 
 def launch_gpu_process(command_argument_values, generation_job_path, generation_service_name, **process_option_values):
+    if generation_service_name == 'unirig-experiment':
+        raise ValueError('UniRig 실험은 폐기되어 새 GPU 작업을 접수할 수 없습니다.')
     generation_job_path = Path(generation_job_path).resolve()
     generation_request_record = {'command': command_argument_values, 'service': generation_service_name}
     write_record_atomically(generation_job_path/'gpu-command.json', generation_request_record)

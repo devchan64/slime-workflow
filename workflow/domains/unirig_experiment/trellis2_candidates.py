@@ -56,25 +56,7 @@ def worker(job):
 
 def main():
     if len(sys.argv)==3 and sys.argv[1]=='--worker': worker(Path(sys.argv[2]).resolve(strict=True));return
-    args=sys.argv[1:]
-    if any(arg not in ('--foreground','--target=3000') for arg in args) or len(args)!=len(set(args)):
-        raise ValueError('invalid arguments')
-    targets=[3000] if '--target=3000' in args else [20000,50000,100000]
-    from workflow.common.gpu_job_queue import launch_gpu_process
-    paths=[MODEL,SKIN,Path(__file__).resolve(),ROOT/'workflow/domains/unirig_experiment/skin_entry.py',
-           ROOT/'workflow/domains/unirig_experiment/rocm_skin_shims.py']
-    for n in targets:
-        source=INPUTS[n];paths += [source,source.with_suffix('')/'raw_data.npz']
-    for path in paths:
-        if not path.is_file(): raise FileNotFoundError(path)
-    job=ROOT/'.tmp/unirig-experiment'/('generate-'+uuid.uuid4().hex);job.mkdir(parents=True)
-    (job/'request.json').write_text(json.dumps({'purpose':'TRELLIS.2 candidate rigging validation',
-        'sha256':{str(p):sha(p) for p in paths},'seed':42,'targets':targets},indent=2)+'\n')
-    with (job/'worker.log').open('w') as log:
-        proc=launch_gpu_process([str(PYTHON),str(Path(__file__).resolve()),'--worker',str(job)],job,
-                                'unirig-experiment',stdout=log,stderr=log,start_new_session=True)
-    print(f'job={job} queue_pid={proc.pid}',flush=True)
-    if '--foreground' in args: raise SystemExit(proc.wait())
+    raise RuntimeError('UniRig 실험은 폐기되어 새 리깅 작업을 접수할 수 없습니다.')
 
 
 if __name__=='__main__': main()
