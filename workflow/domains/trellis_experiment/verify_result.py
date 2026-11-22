@@ -32,12 +32,8 @@ def main(job, masks):
         raise ValueError("메시 크기가 기록과 다릅니다")
     if not np.isfinite(mesh.vertices).all() or mesh.faces.min() < 0 or mesh.faces.max() >= len(mesh.vertices):
         raise ValueError("메시에 비유한 정점 또는 잘못된 면이 있습니다")
-    rig_input = trimesh.load(job / "unirig-input.glb", force="mesh", process=False)
-    if not np.array_equal(mesh.vertices, rig_input.vertices) or not np.array_equal(mesh.faces, rig_input.faces):
-        raise ValueError("GLB가 원본 메시와 다릅니다")
     print(json.dumps({"views": len(views), "mesh_sha256": record["mesh_sha256"],
                       "vertices": len(mesh.vertices), "faces": len(mesh.faces),
-                      "glb_roundtrip_equal": True,
                       "scope": "integrity and finite geometry only; no quality or license approval"}))
 
 

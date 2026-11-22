@@ -8,7 +8,7 @@ import numpy as np
 import pymeshlab
 from scipy.spatial import cKDTree
 import trimesh
-from workflow.domains.unirig_experiment.render_combat import raster
+from workflow.domains.trellis_experiment.raster import raster
 
 
 def silhouettes(mesh, center, scale):

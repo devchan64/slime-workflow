@@ -10,7 +10,6 @@ from workflow.domains.hermes_agent.gpu_handoff_video import VideoHandoffAdapter
 from workflow.domains.hermes_agent.gpu_handoff_audio import AudioHandoffAdapter
 from workflow.domains.hermes_agent.gpu_handoff_writer import WriterHandoffAdapter
 from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
-from workflow.domains.hermes_agent.gpu_handoff_unirig import UniRigHandoffAdapter
 from workflow.domains.hermes_agent.gpu_handoff_trellis2 import Trellis2HandoffAdapter
 
 
@@ -22,7 +21,6 @@ class HandoffServiceAdapter:
         self.video = VideoHandoffAdapter()
         self.audio = AudioHandoffAdapter()
         self.writer = WriterHandoffAdapter()
-        self.unirig = UniRigHandoffAdapter()
         self.trellis2 = Trellis2HandoffAdapter()
 
     def __getattr__(self, name):
@@ -31,8 +29,6 @@ class HandoffServiceAdapter:
         def dispatch(record):
             if record['service'] == 'trellis-experiment':
                 adapter = self.trellis2
-            elif record['service'] == 'unirig-experiment':
-                adapter = self.unirig
             elif record['service'] == 'kimodo':
                 adapter = self.kimodo
             elif record['service'] == 'writer-agent':

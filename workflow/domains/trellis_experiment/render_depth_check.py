@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 import trimesh
-from workflow.domains.unirig_experiment.render_combat import raster
+from workflow.domains.trellis_experiment.raster import raster
 
 
 def main(source, output, colored):
