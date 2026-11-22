@@ -132,6 +132,20 @@ class KimodoHandoffTests(unittest.TestCase):
             store.transition('request_123', row['revision'], 'cancelled')
             self.assertEqual(store.list_active_ids(), [])
 
+    def test_scheduler_prioritizes_active_handoff_over_preload(self):
+        from workflow.domains.hermes_agent.gpu_handoff_scheduler import run_gpu_handoff_scheduler
+        class OneCycle:
+            stopped = False
+            def is_set(self): return self.stopped
+            def wait(self, _seconds): self.stopped = True
+        store = unittest.mock.Mock()
+        store.list_active_ids.return_value = ['request_123']
+        with patch('workflow.domains.hermes_agent.gpu_handoff_scheduler.advance_gpu_handoff') as advance, \
+             patch('workflow.domains.hermes_agent.resident_preload.preload_if_idle') as preload:
+            run_gpu_handoff_scheduler(store, object(), OneCycle())
+        advance.assert_called_once()
+        preload.assert_not_called()
+
     def test_confirmation_binds_session_resident_and_exact_generator_request(self):
         from workflow.domains.hermes_agent.gpu_handoff_operations import preview_kimodo_handoff, approve_kimodo_handoff
         request = {'action':'generate','prompt':'walk','frames':90,'steps':30,'seed':42,

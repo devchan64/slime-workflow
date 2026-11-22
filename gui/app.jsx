@@ -55,7 +55,7 @@ import GpuHandoffHistory from "./GpuHandoffHistory.jsx";
 import QueuePanel from "./QueuePanel.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
 
-import React, {useEffect, useMemo, useRef, useState} from "react";
+import React, {useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {createRoot} from "react-dom/client";
@@ -437,6 +437,16 @@ function App() {
   const [targetProposal,setTargetProposal]=useState("");
   const [viewRevision,retryView]=useState(0);
   const sending=useRef(false),text=useRef(null);
+  useLayoutEffect(()=>{
+    const node=text.current;
+    if(!node)return;
+    const resize=()=>{node.style.height="auto";node.style.height=node.scrollHeight+"px";};
+    resize();
+    let width=node.clientWidth;
+    const observer=new ResizeObserver(()=>{if(node.clientWidth!==width){width=node.clientWidth;resize();}});
+    observer.observe(node);
+    return()=>observer.disconnect();
+  },[draft,session]);
   const toolToggle=useRef(null),toolSearch=useRef(null),toolScope=useRef(null),gpuToggle=useRef(null),queueToggle=useRef(null),chatQueueToggle=useRef(null),sessionToggle=useRef(null),sessionSearch=useRef(null);
   useEffect(()=>{if(showTools)(toolSearch.current || toolScope.current)?.focus({preventScroll:true});},[showTools]);
   function closeTools(focusTarget=toolToggle) {

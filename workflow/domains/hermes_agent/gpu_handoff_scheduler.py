@@ -54,13 +54,6 @@ def run_gpu_handoff_scheduler(store, adapter, stop_event, interval_seconds=5):
     logger = logging.getLogger(__name__)
     next_preload = 0
     while not stop_event.is_set():
-        if time.monotonic() >= next_preload:
-            next_preload = time.monotonic() + 30
-            try:
-                from workflow.domains.hermes_agent.resident_preload import preload_if_idle
-                preload_if_idle()
-            except (OSError, ValueError, RuntimeError) as error:
-                logger.warning('상주 모델 선적재 확인 필요: %s', type(error).__name__)
         try:
             identifiers = store.list_active_ids()
         except (OSError, ValueError) as error:
@@ -74,6 +67,13 @@ def run_gpu_handoff_scheduler(store, adapter, stop_event, interval_seconds=5):
                 advance_gpu_handoff(store, request_id, adapter)
             except (OSError, ValueError, RuntimeError) as error:
                 logger.warning('GPU 양도 진행 확인 필요 (%s, %s)', request_id, type(error).__name__)
+        if not identifiers and time.monotonic() >= next_preload:
+            next_preload = time.monotonic() + 30
+            try:
+                from workflow.domains.hermes_agent.resident_preload import preload_if_idle
+                preload_if_idle()
+            except (OSError, ValueError, RuntimeError) as error:
+                logger.warning('상주 모델 선적재 확인 필요: %s', type(error).__name__)
         stop_event.wait(interval_seconds)
 
 

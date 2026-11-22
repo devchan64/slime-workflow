@@ -875,7 +875,7 @@ article {position:relative;}
   box-shadow:0 .35rem 1.25rem #0003;
 }
 .hermes-chat > article > form > textarea {
-  min-height:5rem; padding:.75rem; border:1px solid var(--line);
+  min-height:5rem; max-height:max(5rem, 40vh); overflow-y:auto; resize:none; padding:.75rem; border:1px solid var(--line);
   border-radius:.7rem; background:var(--canvas); line-height:1.5;
 }
 .hermes-chat > article > form > textarea::placeholder {color:var(--muted);opacity:1}
