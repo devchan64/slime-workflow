@@ -28,7 +28,8 @@ GPU_MEMORY_REQUIREMENTS['writer-agent'] = 32768
 GPU_MEMORY_REQUIREMENTS['hermes-agent'] = 32768
 GPU_MEMORY_REQUIREMENTS['kimodo-cache-check'] = 1024  # 모델 적재 없이 장치와 캐시 식별자만 확인한다.
 GPU_MEMORY_REQUIREMENTS['trellis-experiment'] = 32768  # 실측 전 보수적 예약; 단독 실행으로 다른 작업과 경합하지 않는다.
-GPU_EXCLUSIVE_SERVICES = frozenset(('hermes-agent', 'wan-fun-prepare', 'management-setup', 'kimodo-cache-check', 'trellis-experiment'))
+GPU_MEMORY_REQUIREMENTS['pixal-experiment'] = 65536  # 초기 실측 전 GPU 단독 예약.
+GPU_EXCLUSIVE_SERVICES = frozenset(('hermes-agent', 'wan-fun-prepare', 'management-setup', 'kimodo-cache-check', 'trellis-experiment', 'pixal-experiment'))
 GPU_MEMORY_REQUIREMENTS['prompt-translation'] = 32768  # 번역 후 작가 AI 의미 검토 모델을 순차 사용한다.
 GPU_MEMORY_REQUIREMENTS['flux3-evaluation'] = 36864  # 768×1152 편집 시험에서 관측한 32812 MiB 피크에 여유를 둔다.
 GPU_MEMORY_REQUIREMENTS['flux-expression'] = 45056  # 768×512 표정 작업 관측 피크 39166 MiB에 여유를 둔다.
@@ -467,7 +468,7 @@ def is_kimodo_queue_job(job_directory):
 
 def select_runnable_ticket(available_memory_mib, current_memory_domain=None, active_service_names=(), active_hermes_sessions=None, active_kimodo_count=0):
     """잠금 안에서 접수 순서대로 확인해 메모리가 맞는 첫 작업을 선택한다."""
-    if (GPU_EXCLUSIVE_SERVICES - {'hermes-agent'}).intersection(active_service_names) or 'unreadable' in active_service_names:
+    if (GPU_EXCLUSIVE_SERVICES - {'hermes-agent', 'pixal-experiment'}).intersection(active_service_names) or 'unreadable' in active_service_names:
         return None
     try:
         current_waiting_tickets=read_priority_tickets()
@@ -503,6 +504,11 @@ def select_runnable_ticket(available_memory_mib, current_memory_domain=None, act
         waiting_service = waiting_command_record['service']
         if waiting_service == 'image' and is_kimodo_queue_job(waiting_job_directory) and active_kimodo_count >= KIMODO_MAX_CONCURRENT_JOBS:
             continue
+        # Pixal은 Hermes 상주와 공존하되 다른 GPU 작업과는 단독 실행한다.
+        if 'pixal-experiment' in active_service_names and waiting_service != 'hermes-agent':
+            continue
+        if waiting_service == 'pixal-experiment' and any(name != 'hermes-agent' for name in active_service_names):
+            continue
         active_hermes_count = active_service_names.count('hermes-agent')
         if active_hermes_count and waiting_service == 'hermes-agent':
             waiting_session = read_hermes_queue_session(waiting_job_directory)
@@ -510,7 +516,7 @@ def select_runnable_ticket(available_memory_mib, current_memory_domain=None, act
                     or None in active_hermes_sessions or waiting_session is None
                     or waiting_session in active_hermes_sessions or active_hermes_count >= 2):
                 continue
-        elif waiting_service in GPU_EXCLUSIVE_SERVICES - {'hermes-agent'} and active_service_names:
+        elif waiting_service in GPU_EXCLUSIVE_SERVICES - {'hermes-agent', 'pixal-experiment'} and active_service_names:
             if waiting_service != 'hermes-agent' or not is_hermes_status_query(waiting_job_directory):
                 continue
         waiting_memory_estimate = estimate_required_memory(
@@ -789,7 +795,7 @@ def execute_locked_generation(generation_job_path):
                             wait_message = '실행 중인 GPU 예약을 확인할 수 없어 대기 중입니다.'
                         elif generation_command_record['service'] == 'image' and is_kimodo_queue_job(generation_job_path) and active_kimodo_count >= KIMODO_MAX_CONCURRENT_JOBS:
                             wait_message = 'Kimodo 동시 실행 한도(2개)에 도달해 시스템 메모리 보호를 위해 대기 중입니다.'
-                        elif (GPU_EXCLUSIVE_SERVICES - {'hermes-agent'}).intersection(active_service_names):
+                        elif (GPU_EXCLUSIVE_SERVICES - {'hermes-agent', 'pixal-experiment'}).intersection(active_service_names) or ('pixal-experiment' in active_service_names and generation_command_record['service'] != 'hermes-agent'):
                             wait_message = 'GPU 독점 작업이 종료되기를 기다리는 중입니다.'
                         elif generation_command_record['service'] == 'hermes-agent' and 'hermes-agent' in active_service_names:
                             this_session = read_hermes_queue_session(generation_job_path)

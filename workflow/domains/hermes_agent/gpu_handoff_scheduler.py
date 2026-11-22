@@ -10,6 +10,7 @@ from workflow.domains.hermes_agent.gpu_handoff_video import VideoHandoffAdapter
 from workflow.domains.hermes_agent.gpu_handoff_audio import AudioHandoffAdapter
 from workflow.domains.hermes_agent.gpu_handoff_writer import WriterHandoffAdapter
 from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
+from workflow.domains.hermes_agent.gpu_handoff_pixal import PixalHandoffAdapter
 
 
 class HandoffServiceAdapter:
@@ -20,12 +21,15 @@ class HandoffServiceAdapter:
         self.video = VideoHandoffAdapter()
         self.audio = AudioHandoffAdapter()
         self.writer = WriterHandoffAdapter()
+        self.pixal = PixalHandoffAdapter()
 
     def __getattr__(self, name):
         if name not in ('ensure_release_requested','inspect_release','submit_target','lookup_target','seal_unsubmitted_target','inspect_target','submit_reload','inspect_reload','inspect_failed_reload_cleanup','cancel_target'):
             raise AttributeError(name)
         def dispatch(record):
-            if record['service'] == 'kimodo':
+            if record['service'] == 'pixal-experiment':
+                adapter = self.pixal
+            elif record['service'] == 'kimodo':
                 adapter = self.kimodo
             elif record['service'] == 'writer-agent':
                 adapter = self.writer
