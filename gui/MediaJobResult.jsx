@@ -117,7 +117,7 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
     {loading && job && <p role="status">작업 결과를 다시 조회하고 있습니다.</p>}
     {job ? <>
       <p className="media-result-note" role="status">{job.note}</p>
-      {!hideProgress && (["queued","running"].includes(job.status) ? <GenerationProgress job={job} live={live} supportsProgress={kind==="video"}/> : <details><summary>진행 정보 보기</summary><GenerationProgress job={job} supportsProgress={kind==="video"}/></details>)}
+      {!hideProgress && (["queued","running"].includes(job.status) ? <GenerationProgress job={job} live={live} supportsProgress={kind==="video"} showQueryTime={false} referenceTime={checkedAt}/> : <details><summary>진행 정보 보기</summary><GenerationProgress job={job} supportsProgress={kind==="video"} showQueryTime={false} referenceTime={checkedAt}/></details>)}
       {kind==="audio" && job.result_status==="available" && job.file_observation!=="unavailable" && <div className="media-audio-tracks">
         {(job.tracks || [{label:"생성 오디오",wav:job.audio}]).map(track=><section className="media-audio-track" key={track.wav}>
           <strong>{track.label}</strong>

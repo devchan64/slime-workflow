@@ -49,7 +49,7 @@ export default function ActiveGeneratorProgress({service,revision=0,onOpenResult
     {truncated && <p role="status">일부 이력을 확인하지 못했습니다. 전체 이력에서 작업을 확인하세요.</p>}
     {records===null ? !error && <p role="status">작업 상태 확인 중…</p> : records.length===0 ? <p>진행 중인 생성 작업 없음</p> : records.map(item=><div className="active-generator-job" key={item.id}>
       <div className="active-generator-job-heading"><JobIdentifier id={item.id} compact/>{item.job && <JobStatus state={item.job.status}/>}<button type="button" onClick={()=>onOpenResult(item.id)}>작업 결과 보기</button></div>
-      {item.error ? <p role="alert">이 작업의 현재 상태를 확인하지 못했습니다.</p> : <GenerationProgress job={{...item.job,estimate:validGenerationEstimate(item.job.estimate)?item.job.estimate:null}} supportsProgress showQueryTime={false}/>}
+      {item.error ? <p role="alert">이 작업의 현재 상태를 확인하지 못했습니다.</p> : <GenerationProgress job={{...item.job,estimate:validGenerationEstimate(item.job.estimate)?item.job.estimate:null}} supportsProgress showQueryTime={false} referenceTime={checkedAt}/>}
     </div>)}
     </GeneratorSectionCard>
   </section>;
