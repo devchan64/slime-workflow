@@ -1,5 +1,7 @@
 """모델 서비스별 다운로드 이력과 전송량 표시."""
 MODEL_DOWNLOAD_PREFIXES = {
+    'wan22-fighting-lora': ('wan22-fighting-lora/',),
+    'wan22-vace-lightning': ('wan22-vace-lightning/',),
     'animationgpt': ('animationgpt/',),
     'flux-image': ('black-forest-labs/flux-3-image-klein',),
     'prop-generator': ('Qwen/Qwen-Image-2.1',),
@@ -9,7 +11,7 @@ MODEL_DOWNLOAD_PREFIXES = {
     'wan22-animate2': ('Wan-AI/Wan2.2-Animate-2-14B-Diffusers',),
     'wan22-fun-control': ('Comfy-Org/Wan-2.2', 'Comfy-Org/Wan-2.1/split_files/text_encoders/', 'Comfy-Org/Wan-2.1/split_files/vae/', 'yzd-v/DWPose'),
     'wan21-fun-1.3b': ('alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control', 'Comfy-Org/Wan-2.1/split_files/clip_vision/clip_vision_h.safetensors'),
-    'wan22-vace': ('wan22-vace', 'wan-vace/', 'QuantStack/Wan2.2-VACE', 'alibaba-pai/Wan2.2-VACE', 'Comfy-Org/Wan-2.1/split_files/vae/wan_2.1_vae.safetensors'),
+    'wan22-vace': ('wan22-vace/', 'wan-vace/', 'QuantStack/Wan2.2-VACE', 'alibaba-pai/Wan2.2-VACE', 'Comfy-Org/Wan-2.1/split_files/vae/wan_2.1_vae.safetensors'),
     'music-heartmula': ('HeartMuLa/', 'heartmula/'),
     'sfx-dasheng-audiogen': ('mispeech/Dasheng-AudioGen', 'mispeech/dashengtokenizer', 'google/flan-t5-large'),
     'writer-agent': ('writer-agent/',),
@@ -18,10 +20,13 @@ MODEL_DOWNLOAD_PREFIXES = {
 }
 
 
+def matches_model_download(model_service_name, model_name):
+    return isinstance(model_name, str) and (model_service_name == 'wan22-vace' and model_name == 'wan22-vace' or model_name.startswith(MODEL_DOWNLOAD_PREFIXES[model_service_name]))
+
+
 def format_model_download_status(current_status_values, model_service_name):
-    current_model_prefixes = MODEL_DOWNLOAD_PREFIXES[model_service_name]
     current_matching_values = [current_status_value for current_status_value in current_status_values
-                               if isinstance(current_status_value.get('model'), str) and current_status_value['model'].startswith(current_model_prefixes)]
+                               if matches_model_download(model_service_name, current_status_value.get('model'))]
     current_active_values = [current_status_value for current_status_value in current_matching_values if current_status_value.get('status') == 'running']
     current_recent_values = [current_status_value for current_status_value in current_matching_values if current_status_value.get('status') in ('completed', 'failed', 'interrupted')]
     current_status_labels = {'running': '진행 중', 'completed': '완료', 'failed': '실패', 'interrupted': '중단됨'}

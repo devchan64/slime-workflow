@@ -27,6 +27,14 @@ class VaceVideoGenerationManager(ReferenceVideoGenerationManager):
         if saved_request_record is not None and saved_request_record.get('model_profile') != 'official-bf16-resident-v1':
             raise ValueError('폐기된 Q4 작업은 재개할 수 없습니다. 입력을 불러와 새 작업을 생성하세요.')
         validate_vace_assets()
+        if saved_request_record and saved_request_record.get('lora_mode', 'none') in ('lightning', 'fighting_lightning'):
+            from generators.wan_vace.lightning_lora import inspect_lightning_loras
+            if not inspect_lightning_loras():
+                raise ValueError('Lightning LoRA를 모델 관리에서 준비하세요.')
+            if saved_request_record.get('lora_mode') == 'fighting_lightning':
+                from generators.wan_vace.fighting_lora import inspect_fighting_lora
+                if not inspect_fighting_lora():
+                    raise ValueError('격투 LoRA를 모델 관리에서 준비하세요.')
 
     def inspect_model_download(self):
         current_root_path = Path(__file__).resolve().parents[3]

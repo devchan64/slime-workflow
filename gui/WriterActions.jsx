@@ -6,6 +6,7 @@ import useGpuHandoff from "./useGpuHandoff.js";
 import {createConfirmationGate} from "./confirmationGate.mjs";
 import {writerProposalId,readGenerationProposal} from "./generationProposal.mjs";
 import {validateGpuHandoffStatus} from "./validateGpuHandoffStatus.mjs";
+import {requestErrorMessage} from "./requestError.mjs";
 
 export function WriterUncertainReceipt({onClear}){
   return <section role="status"><p>이전 작가 작업의 접수 여부가 확인되지 않았습니다. 아래 실행 이력에서 해당 작업을 먼저 확인하세요.</p>
@@ -40,7 +41,7 @@ export default function WriterActions({session="",onAccepted,onWorkspace,initial
   useEffect(()=>{
     if(!proposalScope)return;
     let active=true;
-    (async()=>{try{const id=await writerProposalId(session,proposalScope.job);if(!active)return;setProposalId(id);await checkProposalReceipt(id);}catch(problem){if(active){setProposalReceipt('unknown');setError(problem.message);}}})();
+    (async()=>{try{const id=await writerProposalId(session,proposalScope.job);if(!active)return;setProposalId(id);await checkProposalReceipt(id);}catch(problem){if(active){setProposalReceipt('unknown');setError(requestErrorMessage(problem));}}})();
     return()=>{active=false;};
   },[]);
   useEffect(()=>{
@@ -48,7 +49,7 @@ export default function WriterActions({session="",onAccepted,onWorkspace,initial
     function read(){
     managementCommand("writer-agent","writer-state").then(record=>{
       if(active){setStateError("");setWorkspace(record);onWorkspace?.(record.jobs || []);if(record.active_job)timer=setTimeout(read,3000); }
-    }).catch(problem=>{if(active)setStateError(problem.message);});
+    }).catch(problem=>{if(active)setStateError(requestErrorMessage(problem));});
     }
     read();
     return ()=>{active=false;clearTimeout(timer);};
@@ -72,7 +73,7 @@ export default function WriterActions({session="",onAccepted,onWorkspace,initial
         if(await handoff.preview(bound)){setReview({bound,documentRoot:context.document_root,stateRoot:context.state_root,handoff:true,confirmation:confirmation.current.open()});return;}
       }
       setReview({bound:bound || {request:payload},documentRoot:workspace?.document_root,stateRoot:workspace?.state_root,handoff:false,confirmation:confirmation.current.open()});
-    } catch(problem) {setError(problem.message);}
+    } catch(problem) {setError(requestErrorMessage(problem));}
     finally {sending.current=false;reload();setBusy(false);}
   }
   async function confirmHandoff(){
@@ -95,7 +96,7 @@ export default function WriterActions({session="",onAccepted,onWorkspace,initial
         onAccepted(record.id);
       }
     }
-    catch(problem){if(proposalScope)setProposalReceipt('unknown');setError(problem.message+(review.handoff?" · GPU 양도 상태를 확인하세요.":" · 다시 요청하기 전에 실행 이력을 확인하세요."));}
+    catch(problem){if(proposalScope)setProposalReceipt('unknown');setError(requestErrorMessage(problem)+(review.handoff?" · GPU 양도 상태를 확인하세요.":" · 다시 요청하기 전에 실행 이력을 확인하세요."));}
     finally{handoff.clearReview();setReview(null);sending.current=false;setBusy(false);reload();}
   }
   const prepare=Boolean(!stateError && workspace?.configured && !workspace.active_job);
@@ -103,7 +104,7 @@ export default function WriterActions({session="",onAccepted,onWorkspace,initial
   const trained=learn && workspace.trained;
   return <>{handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service="writer-agent" status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
   {uncertain && <WriterUncertainReceipt onClear={()=>{sessionStorage.removeItem(uncertaintyKey);setUncertain(false);}}/>}
-  {proposalScope && proposalReceipt!=='editing' && <section role="status"><p>제안 접수 상태: {proposalReceipt==='checking'?'확인 중':proposalReceipt==='accepted'?'접수 확인됨':'확인 필요'}. 같은 제안은 다시 접수하지 않습니다.</p><button type="button" disabled={!proposalId || busy} onClick={()=>checkProposalReceipt(proposalId).catch(problem=>{setProposalReceipt('unknown');setError(problem.message);})}>접수 상태 다시 확인</button></section>}
+  {proposalScope && proposalReceipt!=='editing' && <section role="status"><p>제안 접수 상태: {proposalReceipt==='checking'?'확인 중':proposalReceipt==='accepted'?'접수 확인됨':'확인 필요'}. 같은 제안은 다시 접수하지 않습니다.</p><button type="button" disabled={!proposalId || busy} onClick={()=>checkProposalReceipt(proposalId).catch(problem=>{setProposalReceipt('unknown');setError(requestErrorMessage(problem));})}>접수 상태 다시 확인</button></section>}
   <fieldset disabled={busy || uncertain || Boolean(review) || Boolean(handoff.id) || Boolean(proposalScope && proposalReceipt!=='editing')}><legend>작가 작업 요청</legend>
     <button onClick={()=>{setError("");reload();}}>준비 상태 새로고침</button>
     {!workspace && !stateError && <p role="status">작업 준비 상태를 확인하고 있습니다.</p>}
@@ -112,12 +113,12 @@ export default function WriterActions({session="",onAccepted,onWorkspace,initial
     {workspace && <p role="status">{workspace.active_job?"진행 중인 작업 "+workspace.active_job:
       !workspace.configured?"먼저 문서 폴더를 연결하세요.":!workspace.ready?"실행 환경을 준비하세요.":
       !workspace.trained?"문서를 학습해 검색 색인을 만드세요.":"작성과 중복 검토를 요청할 수 있습니다."}</p>}
-    <button disabled={!prepare || Boolean(proposalScope)} onClick={()=>submit("prepare")}>환경 준비</button>
-    <button disabled={!learn || Boolean(proposalScope && proposedMode!=='learn')} onClick={()=>submit("learn")}>학습 · 색인 갱신</button>
+    <div className="writer-action-row"><button disabled={!prepare || Boolean(proposalScope)} onClick={()=>submit("prepare")}>환경 준비</button>
+    <button disabled={!learn || Boolean(proposalScope && proposedMode!=='learn')} onClick={()=>submit("learn")}>학습 · 색인 갱신</button></div>
     <label>작성 지시 또는 중복 검토 범위<textarea maxLength={6000} value={prompt} onChange={event=>setPrompt(event.target.value)}/></label>
     {proposedMode && <p>대화에서 제안한 작업: {({write:"작성 제안",deduplicate:"중복 검토",learn:"학습 · 색인 갱신",prepare:"환경 준비"})[proposedMode] || proposedMode}. 내용을 확인하고 해당 버튼을 선택하세요.</p>}
-    <button disabled={!trained || !prompt.trim() || Boolean(proposalScope && proposedMode!=='write')} onClick={()=>submit("write")}>작성 제안 요청</button>
-    <button disabled={!trained || Boolean(proposalScope && proposedMode!=='deduplicate')} onClick={()=>submit("deduplicate")}>중복 검토 요청</button>
+    <div className="writer-action-row"><button disabled={!trained || !prompt.trim() || Boolean(proposalScope && proposedMode!=='write')} onClick={()=>submit("write")}>작성 제안 요청</button>
+    <button disabled={!trained || Boolean(proposalScope && proposedMode!=='deduplicate')} onClick={()=>submit("deduplicate")}>중복 검토 요청</button></div>
     <p>중복 검토 범위를 비우면 전체 색인을 검사합니다.</p>
     {error && <p role="alert">{error}</p>}
   </fieldset>

@@ -1,5 +1,6 @@
 import React, {useEffect,useId,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
 import ModelInventory from "./ModelInventory.jsx";
 
 export function modelPrepareReason(status,error,sending,checking=false) {
@@ -24,7 +25,7 @@ export function ModelReadinessMessage({service,status,error,hasStatusSummary=fal
     if(hasStatusSummary) {
       text=status.message.replace(/^(?:모델 파일 준비 완료 · |모델 준비 필요: )/,"");
       if(!ready && status.missing?.length) text="준비가 필요한 파일 · "+status.missing.join(", ");
-    } else text=(service === "animationgpt" ? (ready?"모델 파일 준비 완료":"모델 파일 준비 필요") : (ready?"생성 준비 완료":"모델 준비 필요"))+" · "+status.message;
+    } else text=(["animationgpt","wan22-fighting-lora","wan22-vace-lightning","writer-agent"].includes(service) ? (ready?"모델 파일 준비 완료":"모델 파일 준비 필요") : (ready?"생성 준비 완료":"모델 준비 필요"))+" · "+status.message;
   }
   return <p role="status">{text}</p>;
 }
@@ -59,7 +60,7 @@ export default function ModelReadiness({service, manage=false, hasStatusSummary=
         const delay=modelReadinessPollDelay(next,manage);
         if(delay!==null)timer=setTimeout(read,delay);
       } catch(problem) {
-        if(active){setStatus(null);onStatus?.(null);setError(problem.message);onError?.(problem.message);}
+        if(active){const message=requestErrorMessage(problem);setStatus(null);onStatus?.(null);setError(message);onError?.(message);}
       } finally {
         if(active)setChecking(false);
       }

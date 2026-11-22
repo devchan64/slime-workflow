@@ -25,13 +25,13 @@ function HistoryImage({service,record,summary,unavailable}) {
 
 function HistoryThumbnail({src}) {
   const [failed,setFailed]=useState(false);
-  if(failed)return <span className="history-card-image-placeholder">이미지 확인 불가</span>;
+  if(failed)return <span className="history-card-image-placeholder">미리보기 실패 · 이력 새로고침</span>;
   return <img className="history-card-image" loading="lazy" decoding="async" src={src} alt="생성 결과 미리보기" onError={()=>setFailed(true)}/>;
 }
 
 export default function GeneratorHistory({service, statusCommand, restore, inspectResult, openResult, renderResult, readJob, allowPriority=false, onSelectedDeleted, card=false, resultId='', externalResultId='', onCloseResult, footer, directApply=true}) {
-  const resultPanelId=useId(),searchHelpId=useId(),searchErrorId=useId();
-  const detailsRef=useRef(null),selectedRef=useRef(null);
+  const resultPanelId=useId(),searchErrorId=useId();
+  const detailsRef=useRef(null),selectedRef=useRef(null),resultPanelRef=useRef(null),focusOpenedResult=useRef(false);
   const [expanded,setExpanded]=useState(null);
   const [page,setPage]=useState(null);
   const [query,setQuery]=useState("");
@@ -41,13 +41,19 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
   const [pageSize,setPageSize]=useState(10);
   const [selected,setSelected]=useState(null);
   const [job,setJob]=useState(null);
-  const [busy,setBusy]=useState(false);
+  const [busy,setBusy]=useState(false),[busyInSelection,setBusyInSelection]=useState(false);
   const pending=useRef(false);
   const [error,setError]=useState("");
+  const [errorScope,setErrorScope]=useState("");
   const [summaries,setSummaries]=useState({});
   const [summaryNotice,setSummaryNotice]=useState("");
   const [resultLookup,setResultLookup]=useState(null);
   const [lookupRevision,retryLookup]=useState(0);
+  useEffect(()=>{
+    if(!focusOpenedResult.current || !resultId || resultLookup?.id!==resultId || resultLookup.loading)return;
+    focusOpenedResult.current=false;
+    requestAnimationFrame(()=>{if(document.activeElement===document.body && resultPanelRef.current?.isConnected)resultPanelRef.current.focus();});
+  },[resultId,resultLookup]);
   useEffect(()=>{
     if(!resultId)return;
     if(detailsRef.current)detailsRef.current.open=true;
@@ -83,20 +89,20 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
       .catch(()=>{if(!controller.signal.aborted)setSummaryNotice("저장 입력 요약을 불러오지 못했습니다. 이력을 새로고침하거나 작업을 선택해 입력을 확인하세요.");});
     return ()=>controller.abort();
   },[page,service]);
-  async function perform(operation) {
+  async function perform(operation, scope="history") {
     if(pending.current)return;
     const focused=detailsRef.current?.contains(document.activeElement) ? document.activeElement : null;
-    pending.current=true;setBusy(true); setError("");
+    pending.current=true;setBusyInSelection(Boolean(focused?.closest('.generator-history-selection')));setBusy(true); setError("");setErrorScope(scope);
     try { await operation(); }
     catch(problem) { setError(requestErrorMessage(problem)); }
     finally {
       pending.current=false;setBusy(false);
-      requestAnimationFrame(()=>{
+      setTimeout(()=>{
         if(!focused?.isConnected || document.activeElement!==document.body)return;
         if(!focused.disabled)focused.focus();
         else if(focused.closest('.generator-history-pagination'))
           (detailsRef.current?.querySelector('.generator-history-pagination button:not(:disabled)') || searchRef.current)?.focus();
-      });
+      },50);
     }
   }
   async function list(offset, search, size=pageSize) {
@@ -140,12 +146,14 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
   }
   return <details ref={detailsRef} className={`generator-history${card ? ' generator-section-card' : ''}`} onToggle={event=>{
     if(event.currentTarget.open && !page && !error && !resultId)perform(()=>list(0,query.trim()));}}><summary>{card ? <span className="generator-section-card-heading" role="heading" aria-level="2">생성 이력</span> : '생성 이력'}</summary>
+    {busy && !busyInSelection && <p role="status">이력 요청을 처리하고 있습니다.</p>}
     <fieldset className={card ? 'generator-section-card-body' : undefined} disabled={busy}><div className="generator-history-toolbar">
-      <label>작업 ID 검색 <input ref={searchRef} value={query} maxLength={80} aria-describedby={error.startsWith("작업 ID 검색에는 영문") ? `${searchHelpId} ${searchErrorId}` : searchHelpId} aria-invalid={error.startsWith("작업 ID 검색에는 영문") || undefined} onChange={e=>{setQuery(e.target.value);setError(value=>value.startsWith("작업 ID 검색에는 영문") ? "" : value);}} onKeyDown={e=>{if(e.key==="Enter" && !e.nativeEvent.isComposing){e.preventDefault();perform(()=>list(0,query.trim()));}}}/><small id={searchHelpId}>ID의 일부를 검색할 수 있습니다. 영문, 숫자, 하이픈(-), 밑줄(_)을 사용하세요.</small></label>
+      <label>작업 ID 검색 <input ref={searchRef} value={query} maxLength={80} placeholder="ID 일부 입력" aria-describedby={error.startsWith("작업 ID 검색에는 영문") ? searchErrorId : undefined} aria-invalid={error.startsWith("작업 ID 검색에는 영문") || undefined} onChange={e=>{setQuery(e.target.value);setError(value=>value.startsWith("작업 ID 검색에는 영문") ? "" : value);}} onKeyDown={e=>{if(e.key==="Enter" && !e.nativeEvent.isComposing){e.preventDefault();perform(()=>list(0,query.trim()));}}}/></label>
       <label>페이지당 이력 <select value={pageSize} onChange={e=>{const size=Number(e.target.value);perform(()=>list(0,query.trim(),size));}}>{[5,10,20,30].map(size=><option key={size} value={size}>{size}건</option>)}</select></label>
       <button type="button" onClick={()=>perform(()=>list(0,query.trim()))}>{busy?"조회 중…":page && query.trim()===filter?"이력 새로고침":"이력 조회"}</button>
       {(query || filter) && <button type="button" onClick={()=>{setQuery("");perform(()=>list(0,"")).then(()=>requestAnimationFrame(()=>{if(document.activeElement===document.body)searchRef.current?.focus();}));}}>검색 초기화</button>}
     </div>
+      {error && (!directApply || !selected || errorScope!=="input") && <p id={searchErrorId} role="alert">{error}</p>}
       {resultId && resultLookup?.id===resultId && resultLookup.loading && <p role="status">선택한 작업을 이력에서 찾고 있습니다.</p>}
       {resultId && resultLookup?.id===resultId && resultLookup.error && <section className="history-action-detail" aria-label="이력 밖 선택 결과"><p role="alert">{resultLookup.error}</p><button type="button" onClick={()=>retryLookup(value=>value+1)}>이력에서 다시 찾기</button>{renderResult?.(resultId,()=>{onCloseResult?.();requestAnimationFrame(()=>detailsRef.current?.querySelector('summary')?.focus());})}</section>}
       {resultId && resultLookup?.id===resultId && !resultLookup.loading && !resultLookup.error && page && !page.records.some(record=>record.id===resultId) && <section className="history-action-detail" aria-label="이력 범위 밖 선택 결과"><p>선택한 작업이 현재 이력 검색 또는 페이지 범위 밖에 있습니다.</p>{renderResult?.(resultId,()=>{onCloseResult?.();requestAnimationFrame(()=>detailsRef.current?.querySelector('summary')?.focus());})}</section>}
@@ -158,8 +166,8 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
         {summaryNotice && <p role="status">{summaryNotice}</p>}
         {page.records.length===0 && <p>조회된 이력이 없습니다. 검색 조건을 바꾸거나 새 작업을 생성하세요.</p>}
         <div className="generator-history-list">{page.records.map(record=><div className="generator-history-item" data-history-id={record.id} key={record.id}>
-          <button type="button" ref={selected?.id===record.id ? selectedRef : undefined} className="generator-history-select" aria-pressed={selected?.id===record.id} onClick={()=>{if(selected?.id!==record.id){setExpanded(null);if(resultId)onCloseResult?.();}setSelected(record);setJob(null);setError(value=>value.startsWith("작업 ID 검색에는 영문") ? value : "");}}>
-            <HistoryImage key={record.id} service={service} record={record} summary={summaries[record.id]} unavailable={Boolean(summaryNotice)}/><span className="history-card-content"><span className="history-card-heading"><JobStatus state={record.recorded_status}/>{recordedTime(record.id) && <span>{recordedTime(record.id)}</span>}</span>{historyInputSummary(summaries[record.id]).length>0 && <span className="history-card-summary">{historyInputSummary(summaries[record.id]).join(" · ")}</span>}</span>
+          <button type="button" ref={selected?.id===record.id ? selectedRef : undefined} className="generator-history-select" aria-pressed={selected?.id===record.id} onClick={()=>{if(selected?.id===record.id)return;setExpanded(null);if(resultId)onCloseResult?.();setSelected(record);setJob(null);if(errorScope==="input")setError("");}}>
+            <HistoryImage key={record.id} service={service} record={record} summary={summaries[record.id]} unavailable={Boolean(summaryNotice)}/><span className="history-card-content"><span className="history-card-heading"><JobStatus state={record.recorded_status}/>{recordedTime(record.id) && <span>{recordedTime(record.id)}</span>}</span>{historyInputSummary(summaries[record.id],service).length>0 && <span className="history-card-summary">{historyInputSummary(summaries[record.id],service).join(" · ")}</span>}</span>
           </button>
           <JobIdentifier id={record.id} compact/>
           {selected?.id===record.id && <section className="generator-history-selection" aria-label={"선택 이력 · "+record.id}>
@@ -167,15 +175,15 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
               {renderResult && !openResult && <button type="button" className="history-action-result" aria-expanded={expanded===record.id}
                 aria-controls={resultPanelId} onClick={()=>setExpanded(current=>current===record.id ? null : record.id)}>
                 {expanded===record.id ? "결과 접기" : "결과 펼치기"}</button>}
-              {(openResult || inspectResult) && resultId!==record.id && <button className="history-action-result" type="button" onClick={()=>openResult ? openResult(record.id) : perform(()=>showResult(record.id))}>결과 조회</button>}
-              {restore && <button className="history-action-input" type="button" onClick={()=>perform(async()=>{if(directApply){const input=await read(record.id);await restore(input.request,input);}else await showInput(record.id);})}>{directApply ? '입력 적용' : '입력값 불러오기'}</button>}
+              {(openResult || inspectResult) && resultId!==record.id && <button className="history-action-result" type="button" aria-controls={renderResult ? resultPanelId : undefined} onClick={()=>{if(openResult){focusOpenedResult.current=true;openResult(record.id);}else perform(()=>showResult(record.id));}}>결과 조회</button>}
+              {restore && <button className="history-action-input" type="button" onClick={()=>perform(async()=>{if(directApply){const input=await read(record.id);await restore(input.request,input);}else await showInput(record.id);},"input")}>{directApply ? '입력 적용' : '입력값 불러오기'}</button>}
             </div>
-            {restore && directApply && <p>입력 적용을 누르면 현재 입력과 첨부가 이 작업의 저장 입력으로 바뀝니다.</p>}
-            {directApply && error && !error.startsWith("작업 ID 검색에는 영문") && <p role="alert">{error} · 현재 입력은 유지됩니다. 확인 후 다시 시도하세요.</p>}
-            {job?.id===record.id && <section ref={inputReviewRef} tabIndex={-1} aria-label="불러온 입력 확인" className="history-action-detail"><strong>불러온 입력 확인</strong>{historyInputSummary(job.request).length>0 && <p>저장 입력 · {historyInputSummary(job.request).join(" · ")}</p>}<details><summary>저장된 입력 상세</summary><pre>{JSON.stringify(job.request,null,2)}</pre></details>
+            {busy && busyInSelection && <p className="history-action-detail" role="status">이력 요청을 처리하고 있습니다.</p>}
+            {directApply && errorScope==="input" && error && <p role="alert">{error} · 현재 입력은 유지됩니다. 확인 후 다시 시도하세요.</p>}
+            {job?.id===record.id && <section ref={inputReviewRef} tabIndex={-1} aria-label="불러온 입력 확인" className="history-action-detail"><strong>불러온 입력 확인</strong>{historyInputSummary(job.request,service).length>0 && <p>저장 입력 · {historyInputSummary(job.request,service).join(" · ")}</p>}<details><summary>저장된 입력 상세</summary><pre>{JSON.stringify(job.request,null,2)}</pre></details>
               {restore && <button type="button" onClick={()=>restore(job.request,job)}>확인한 입력 적용</button>}
             </section>}
-            {renderResult && <div id={resultPanelId} hidden={openResult ? resultId!==record.id : expanded!==record.id} className="history-action-detail history-inline-result">{(openResult ? resultId===record.id && resultLookup?.id===resultId && !resultLookup.loading && !resultLookup.error : expanded===record.id) && renderResult(record.id,()=>{onCloseResult?.();requestAnimationFrame(()=>selectedRef.current?.focus());})}</div>}
+            {renderResult && <div ref={resultId===record.id ? resultPanelRef : undefined} tabIndex={-1} aria-label={"선택 이력의 작업 결과 · "+record.id} id={resultPanelId} hidden={openResult ? resultId!==record.id : expanded!==record.id} className="history-action-detail history-inline-result">{(openResult ? resultId===record.id && resultLookup?.id===resultId && !resultLookup.loading && !resultLookup.error : expanded===record.id) && <>{renderResult(record.id,()=>{onCloseResult?.();requestAnimationFrame(()=>selectedRef.current?.focus());})}<button type="button" onClick={()=>{if(openResult)onCloseResult?.();else setExpanded(null);requestAnimationFrame(()=>{if(openResult)selectedRef.current?.focus();else selectedRef.current?.closest('.generator-history-item')?.querySelector('.history-action-result')?.focus();});}}>결과 {openResult ? "닫기" : "접기"}</button></>}</div>}
             {onSelectedDeleted && <SelectedHistoryDeletion key={service+"/"+record.id} service={service} id={record.id} allowPriority={allowPriority} onDeleted={deleted}/>}
           </section>}
         </div>)}</div>
@@ -186,6 +194,6 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
         </nav>
       </>}
     </fieldset>
-    {footer && <div className="generator-section-card-body">{footer}</div>}{error && (!directApply || !selected || error.startsWith("작업 ID 검색에는 영문")) && <p id={searchErrorId} role="alert">{error}</p>}
+    {footer && <div className="generator-section-card-body">{footer}</div>}
   </details>;
 }

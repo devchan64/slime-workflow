@@ -55,7 +55,15 @@ export default function RecentGeneratorJobs({session,filters,filterSummary,revis
           while(cursor<eligible.length){
             const source=eligible[cursor++];
             try{
-              const page=await managementCommand('hermes-agent',source.command,{service:source.service,limit:10});
+              let page;
+              for(let attempt=0;attempt<3;attempt++){
+                try{page=await managementCommand('hermes-agent',source.command,{service:source.service,limit:10});break;}
+                catch(error){
+                  if(attempt===2 || !(error instanceof Error) || !error.message.includes('해당 원본 이력을 조회 중입니다'))throw error;
+                  await new Promise(resolve=>setTimeout(resolve,500));
+                  if(!active)return;
+                }
+              }
               if(page.service!==source.service || !Array.isArray(page.records))throw new Error('이력 응답 오류');
               succeeded++;
               for(const record of page.records)if(typeof record.id==='string' && /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(record.id))collected.push({source,record});

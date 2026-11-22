@@ -1,8 +1,9 @@
-export async function managementCommand(service, command, payload = {}) {
+export async function managementCommand(service, command, payload = {}, {signal} = {}) {
   const response = await fetch("/management/command", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({service, command, payload})
+    body: JSON.stringify({service, command, payload}),
+    signal
   });
   if(response.ok && command==="logs" && !response.headers.get("content-type")?.includes("application/json"))
     return {log:await response.text()};

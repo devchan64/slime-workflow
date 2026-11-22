@@ -51,7 +51,7 @@ export function HistoryPage({source, choose, session, initialJob=""}) {
   function cleaned(message){setNotice(message);selectJob("");load(0,undefined,false,null,filter);}
   return <fieldset disabled={busy}>
     {writer && <WriterActions onAccepted={id=>{resultTrigger.current=null;selectJob(id);setNotice(id+" 작가 작업을 접수했습니다.");}}/>}
-      {selectedJob && writer && <div ref={resultRef} tabIndex={-1} aria-label="선택한 이력 결과"><button type="button" onClick={closeResult}>결과 닫기</button><WriterResult key={selectedJob} id={selectedJob} onDeleted={id=>{setNotice(id+" 실행 기록을 휴지통으로 옮겼습니다.");selectJob("");load(0,undefined,false,null,filter);}}/></div>}
+      {selectedJob && writer && <div ref={resultRef} tabIndex={-1} aria-label="선택한 이력 결과"><button type="button" onClick={closeResult}>결과 닫기</button><WriterResult key={selectedJob} id={selectedJob} onDeleted={id=>{setNotice(id+" 실행 기록을 휴지통으로 옮겼습니다.");selectJob("");load(0,undefined,false,null,filter);}}/><button type="button" onClick={closeResult}>결과 닫기</button></div>}
     <label>작업 ID 검색 <input ref={searchRef} maxLength={80} value={query} onChange={event=>{request.current.invalidate();setBusy(false);setQuery(event.target.value);setError("");}} onKeyDown={event=>{if(event.key==="Enter" && !event.nativeEvent.isComposing && event.nativeEvent.keyCode!==229){event.preventDefault();load(0,undefined,true,event.currentTarget);}}}/></label>
     <button onClick={event=>load(0,undefined,true,event.currentTarget)}>{busy?"조회 중…":"이력 조회"}</button>
     {query && <button type="button" onClick={()=>{request.current.invalidate();setQuery("");setError("");searchRef.current?.focus();}}>검색어 지우기</button>}
@@ -81,12 +81,12 @@ export function HistoryPage({source, choose, session, initialJob=""}) {
       {selectedJob && mediaKind && <div ref={resultRef} tabIndex={-1} aria-label="선택한 이력 결과"><button type="button" onClick={closeResult}>결과 닫기</button><MediaJobResult kind={mediaKind} key={selectedJob} service={source.service} id={selectedJob}>
         {job=>mediaKind!=="character" && job?.status==="completed" && job.result_status==="available" && job.file_observation!=="unavailable" &&
           <button onClick={()=>choose(source.service+" 생성 결과",selectedJob)}>이 결과를 대화 입력에 추가</button>}
-      </MediaJobResult></div>}
+      </MediaJobResult><button type="button" onClick={closeResult}>결과 닫기</button></div>}
       <p>{page.note}</p>
       {page.offset>0 && <button disabled={query.trim()!==filter} onClick={event=>load(Math.max(0,page.offset-10),page.snapshot,true,event.currentTarget)}>이전 이력</button>}
       {page.next_offset!=null && <button disabled={query.trim()!==filter} onClick={event=>load(page.next_offset,page.snapshot,true,event.currentTarget)}>다음 이력</button>}
     </>}
-    {kimodo && (selectedJob ? <div ref={resultRef} tabIndex={-1} aria-label="선택한 이력 결과"><button type="button" onClick={closeResult}>결과 닫기</button><KimodoFrames key={selectedJob} id={selectedJob} choose={choose} onDeleted={cleaned}/></div> :
+    {kimodo && (selectedJob ? <div ref={resultRef} tabIndex={-1} aria-label="선택한 이력 결과"><button type="button" onClick={closeResult}>결과 닫기</button><KimodoFrames key={selectedJob} id={selectedJob} choose={choose} onDeleted={cleaned}/><button type="button" onClick={closeResult}>결과 닫기</button></div> :
       <HistoryCleanup service="kimodo" onDeleted={cleaned}/>)}
   </fieldset>;
 }

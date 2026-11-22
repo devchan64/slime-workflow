@@ -24,7 +24,7 @@ export default function KimodoMedia({id,job}){
     {job.direct_pose_status && <p>직접 포즈: {job.direct_pose_status==="completed" ? "생성 완료" : "확인 불가"} · SOMA 관절 투영 결과</p>}
     {job.dwpose_status && <p>DWPose: {job.dwpose_status==="completed" ? "생성 완료" : job.dwpose_status==="warning" ? "생성 오류" : "확인 불가"}{typeof job.dwpose_error==="string" && job.dwpose_error && " · "+job.dwpose_error}</p>}
     <p>원본 모션은 동작 확인용입니다. 포즈 영상은 대상 생성기의 프레임 속도를 확인해 사용하세요.</p>
-    {warnings.length>0 && <div role="status"><p>포즈 품질 경고</p><ul>{warnings.map((warning,index)=><li key={index}>{warning}</li>)}</ul></div>}
+    {warnings.length>0 && <div><p role="status">포즈 품질 경고 · {warnings.length}건</p><details><summary>경고 상세 보기</summary><ul>{warnings.map((warning,index)=><li key={index}>{warning}</li>)}</ul></details></div>}
     <FaceDepthSummary summary={job.face_anchor_depth_summary}/>
     <label>결과 영상 <select value={selected} onChange={e=>{select(e.target.value);setError("");}}>
       {videos.map(([label,path])=><option key={label} value={path}>{label}</option>)}</select></label>

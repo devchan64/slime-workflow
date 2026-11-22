@@ -1,6 +1,18 @@
 import React, {useEffect,useRef,useState} from "react";
 import {referenceImageError} from "./referenceImageValidation.mjs";
 
+async function verifyImage(file,accept){
+  if(accept==="image/png"){
+    const signature=new Uint8Array(await file.slice(0,8).arrayBuffer());
+    if(signature.join(",")!=="137,80,78,71,13,10,26,10")throw new Error("PNG 이미지 파일을 선택하세요.");
+  }
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file),image=new Image();
+    const finish=error=>{URL.revokeObjectURL(url);error ? reject(new Error("이미지 파일을 읽을 수 없습니다. 다른 파일을 선택하세요.")) : resolve();};
+    image.onload=()=>finish(false);image.onerror=()=>finish(true);image.src=url;
+  });
+}
+
 export default function ReferenceImageInput({label,source,onChange,accept="image/*",disabled=false,maxBytes=null,validate=null,describedBy}) {
   const input=useRef(null),disabledRef=useRef(disabled),requestRef=useRef(0),restoreFocus=useRef(false);
   disabledRef.current=disabled;
@@ -26,6 +38,7 @@ export default function ReferenceImageInput({label,source,onChange,accept="image
     if(problem){setChecking(false);setError(problem);return;}
     setError("");setChecking(true);
     try {
+      await verifyImage(file,accept);
       if(validate)await validate(file);
       if(sequence===requestRef.current && !disabledRef.current)onChange(file);
     } catch(problem) {if(sequence===requestRef.current)setError(problem.message || "이미지를 확인할 수 없습니다.");}

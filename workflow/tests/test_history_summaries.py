@@ -10,6 +10,14 @@ from workflow.common.history_summaries import handle_history_summaries_request, 
 
 
 class HistorySummariesTests(unittest.TestCase):
+    def test_pose_summary_preserves_only_explicit_boolean_options(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            (root/'request.json').write_text(json.dumps({'pose_include_hands':True,'pose_include_face':False,'prompt':'private'}))
+            self.assertEqual(read_history_summary(root),{'pose_include_hands':True,'pose_include_face':False})
+            (root/'request.json').write_text(json.dumps({'pose_include_hands':'false','pose_include_face':0}))
+            self.assertEqual(read_history_summary(root),{})
+
     def test_audio_summary_endpoint_exposes_only_confirmed_output(self):
         import subprocess
         with tempfile.TemporaryDirectory() as directory:

@@ -9,6 +9,7 @@ import ResultTable from "./ResultTable.jsx";
 import {managementCommand} from "./managementCommand.js";
 import {writerModeLabel,writerStageLabel} from "./writerLabels.mjs";
 import {generationProposalScope,readGenerationProposal} from "./generationProposal.mjs";
+import {requestErrorMessage} from "./requestError.mjs";
 
 export default function WriterPage({embedded=false,session:embeddedSession=""}={}){
   const params=new URLSearchParams(location.search);
@@ -29,7 +30,7 @@ export default function WriterPage({embedded=false,session:embeddedSession=""}={
       const value=await readGenerationProposal(managementCommand,scope);
       if(!['write','deduplicate','learn','prepare'].includes(value.mode))throw new Error('작가 작업 종류를 확인할 수 없습니다.');
       if(active){setProposal(value);setProposalScope({...scope,proposal:value});setNotice('대화 제안 입력을 불러왔습니다. 작업을 확인한 뒤 요청하세요.');}
-    }catch(problem){if(active)setNotice('대화 제안을 불러오지 못했습니다 · '+problem.message);}
+    }catch(problem){if(active)setNotice('대화 제안을 불러오지 못했습니다 · '+requestErrorMessage(problem));}
     finally{if(active)setProposalLoading(false);}}
     load();return()=>{active=false;};
   },[]);
@@ -44,7 +45,7 @@ export default function WriterPage({embedded=false,session:embeddedSession=""}={
       if(!Array.isArray(result.jobs) || result.count!==result.jobs.length)throw new Error("이력 건수를 확인할 수 없습니다.");
       setMatches(result.jobs);setSearchedQuery(query);setNotice("");
       if(result.jobs.filter(job=>job.id===query).length===1)select(query);
-    }catch(problem){setNotice("이력 검색에 실패했습니다 · "+problem.message+(recent ? " · 아래에는 마지막으로 확인한 최근 기록이 표시됩니다." : " · 최근 기록도 확인되지 않았습니다."));setMatches(null);}
+    }catch(problem){setNotice("이력 검색에 실패했습니다 · "+requestErrorMessage(problem)+(recent ? " · 아래에는 마지막으로 확인한 최근 기록이 표시됩니다." : " · 최근 기록도 확인되지 않았습니다."));setMatches(null);}
     finally{setBusy(false);}
   }
   const jobs=matches ?? recent ?? [];

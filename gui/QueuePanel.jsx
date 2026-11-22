@@ -12,7 +12,7 @@ const categories = {translation:"번역", image:"이미지", audio:"오디오", 
 const states = {
   ready:"접수 준비", waiting:"선행 단계 대기", awaiting_choice:"결과 선택 대기",
   submitting:"접수 중", queued:"실행 대기", running:"실행 중", paused:"일시 중지",
-  completed:"완료", failed:"실패", cancelled:"취소", blocked:"차단", unknown:"확인 중"
+  completed:"완료", failed:"실패", cancelled:"취소", blocked:"차단", unknown:"확인 불가"
 };
 const initial = {category:"", state:"", generator:"", run_id:"", job_id:"", created_from:"", created_through:""};
 function displayTime(value){const time=parseSessionTime(value);return Number.isFinite(time)?new Date(time).toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false}):"확인 불가";}

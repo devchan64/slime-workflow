@@ -29,6 +29,10 @@ def read_history_summary(directory):
         value=request.get(key)
         if type(value) is int and 0<=value<=4294967295:
             summary[key]=value
+    for key in ('pose_include_hands','pose_include_face'):
+        value=request.get(key)
+        if type(value) is bool:
+            summary[key]=value
     duration=request.get('duration_seconds')
     if type(duration) in (int,float) and math.isfinite(duration) and 0<duration<=3600:
         summary['duration_seconds']=duration

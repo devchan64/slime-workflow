@@ -3,13 +3,16 @@ import React,{useEffect,useRef,useState} from "react";
 export default function JobIdentifier({id,compact=false,label="작업 ID"}){
   const [notice,setNotice]=useState("");
   const valueRef=useRef(null);
+  const request=useRef(0),timer=useRef(null);
   const currentId=useRef(id);currentId.current=id;
-  useEffect(()=>{setNotice("");},[id]);
+  useEffect(()=>{request.current++;clearTimeout(timer.current);setNotice("");},[id]);
+  useEffect(()=>()=>{request.current++;clearTimeout(timer.current);},[]);
   if(typeof id!=="string" || !id)return null;
   async function copy(){
-    try{await navigator.clipboard.writeText(id);if(currentId.current===id)setNotice(label+"를 복사했습니다.");}
+    const sequence=++request.current;clearTimeout(timer.current);
+    try{await navigator.clipboard.writeText(id);if(currentId.current===id && request.current===sequence){setNotice(label+"를 복사했습니다.");timer.current=setTimeout(()=>setNotice(""),3000);}}
     catch{
-      if(currentId.current!==id)return;
+      if(currentId.current!==id || request.current!==sequence)return;
       const value=valueRef.current;
       value?.focus();
       if(compact && value){const range=document.createRange();range.selectNodeContents(value);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);}

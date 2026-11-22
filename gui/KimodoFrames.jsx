@@ -51,7 +51,7 @@ export default function KimodoFrames({id,choose,onDeleted,selectionControls=fals
       <GenerationProgress job={{...source,estimate:validGenerationEstimate(source.estimate) ? source.estimate : null}} live={live} supportsProgress={false}/>
       <button onClick={()=>refresh(value=>value+1)}>작업 상태 갱신</button>
       <GeneratorJobControls showActions={!selectionControls} service="kimodo" id={id} state={source.status} refresh={()=>refresh(value=>value+1)}/></>}
-    {onDeleted && <HistoryCleanup allowSelected={!selectionControls} key={id+"/"+(source?.status || "")} service="kimodo" job={id} state={source?.status} onDeleted={onDeleted}/>}
+    {onDeleted && !selectionControls && <HistoryCleanup key={id+"/"+(source?.status || "")} service="kimodo" job={id} state={source?.status} onDeleted={onDeleted}/>}
     {source?.status==="completed" && <KimodoMedia key={source.attempt} id={id} job={source}/>}
     {source?.status==="completed" && <form onSubmit={inspect}><fieldset disabled={busy}><legend>원본 SOMA 관절 · {source.source_frame_count}프레임</legend>
       <label>원본 프레임 번호 <input type="number" min="1" max={source.source_frame_count} required value={frame}

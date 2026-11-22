@@ -19,8 +19,8 @@ function decodeReferences(rows){
   return rows.map(({name,data})=>new File([Uint8Array.from(atob(data),c=>c.charCodeAt(0))],name,{type:"image/png"}));
 }
 
-export function KimodoInputSummary({inputs,references,placement,bundle,directions,frameInvalid=false}){
-  const items=[['시드',inputs.seed],['프레임',frameInvalid ? '구간 입력 확인 필요' : `${inputs.frames}프레임`],['방향',(inputs.directions || []).map(id=>directions[id]?.label || id).join(', ') || '없음'],['고도',`${inputs.camera_elevation_degrees}°`],['참조',`${references.length}장${references.length ? ' ('+references.map(file=>file.name).join(', ')+')' : ''}`],['키프레임',`${placement?.placements?.length || 0}개`],['가중 골격',bundle ? '선택됨' : '없음'],['후처리',inputs.post_processing ? '켜짐' : '꺼짐'],['수평 이동 제거',inputs.remove_horizontal_motion ? '켜짐' : '꺼짐']];
+export function KimodoInputSummary({inputs,references,placement,bundle,directions,frameInvalid=false,generationMode="single",segmentCount=0,segmentFrames=[]}){
+  const items=[['생성 방식',generationMode==="sequence" ? `순차 생성${segmentCount ? ` · ${segmentCount}구간` : ''}${!frameInvalid && segmentFrames.length ? ` (${segmentFrames.join(' + ')})` : ''}` : '일반 생성'],['시드',inputs.seed],['프레임',frameInvalid ? '구간 입력 확인 필요' : `${inputs.frames}프레임`],['방향',(inputs.directions || []).map(id=>directions[id]?.label || id).join(', ') || '없음'],['고도',`${inputs.camera_elevation_degrees}°`],['참조',`${references.length}장${references.length ? ' ('+references.map(file=>file.name).join(', ')+')' : ''}`],['키프레임',`${placement?.placements?.length || 0}개`],['가중 골격',bundle ? '선택됨' : '없음'],['후처리',inputs.post_processing ? '켜짐' : '꺼짐'],['수평 이동 제거',inputs.remove_horizontal_motion ? '켜짐' : '꺼짐']];
   return <section className="kimodo-input-summary" aria-label="현재 생성 설정 요약"><strong>현재 생성 설정</strong><dl>{items.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>;
 }
 
@@ -48,9 +48,11 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
   const key="kimodo-generation-receipt-"+session+(receiptScope?"-proposal-"+receiptScope:"");
   const handoffKey="kimodo-gpu-handoff-"+session+(receiptScope?"-proposal-"+receiptScope:"");
   const [inputs,setInputs]=useState(null),[review,setReview]=useState(null),[busy,setBusy]=useState(false);
+  const [reviewing,setReviewing]=useState(false);
+  const [loadingReferences,setLoadingReferences]=useState(false);
   const promptSegmentCount=inputs?.prompt?.split(/\r\n|\r|\n/).filter(line=>line.trim()).length || 0;
   const [sourceJob,setSourceJob]=useState("");
-  const busyRef=useRef(false);
+  const busyRef=useRef(false),reviewButtonRef=useRef(null),reviewSectionRef=useRef(null);
   const [receipt,setReceipt]=useState(()=>sessionStorage.getItem(key) || ""),[notice,setNotice]=useState("");
   const [receiptState,setReceiptState]=useState(()=>sessionStorage.getItem(key) ? "checking" : "editing");
   const [jobId,setJobId]=useState("");
@@ -129,11 +131,16 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
     setAttachmentRevision(value=>value+1);
   }
   async function loadReferences(identifier){
-    const response=await fetch("/management/assistant/kimodo-reference-examples"+(identifier?"/"+encodeURIComponent(identifier):""));
-    if(!response.ok)throw new Error("신체 비율 예시를 불러올 수 없습니다.");
-    const data=await response.json();
-    if(identifier)replaceReferences(decodeReferences(data));
-    else setReferenceExamples(data);
+    setLoadingReferences(true);
+    try{
+      let response;
+      try{response=await fetch("/management/assistant/kimodo-reference-examples"+(identifier?"/"+encodeURIComponent(identifier):""));}
+      catch{throw new Error("신체 비율 예시를 불러올 수 없습니다. 연결 상태를 확인하고 다시 시도하세요.");}
+      if(!response.ok)throw new Error("신체 비율 예시를 불러올 수 없습니다.");
+      const data=await response.json();
+      if(identifier)replaceReferences(decodeReferences(data));
+      else setReferenceExamples(data);
+    }finally{setLoadingReferences(false);}
   }
   async function applyExample(identifier,signal){
     const response=await fetch("/management/assistant/kimodo-prompt-examples/"+encodeURIComponent(identifier),{signal});
@@ -190,7 +197,9 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
       body:JSON.stringify(request)});
     const result=await response.json();
     if(!response.ok)throw new Error(result.detail || "생성 입력을 확인하세요.");
-    const model=await fetch("/management/assistant/model-readiness/kimodo",{cache:"no-store"});
+    let model;
+    try{model=await fetch("/management/assistant/model-readiness/kimodo",{cache:"no-store"});}
+    catch{throw new Error("모델 상태를 확인할 수 없습니다. 연결 상태를 확인하고 생성 요청을 다시 검토하세요.");}
     if(!model.ok)throw new Error("모델 상태를 확인할 수 없습니다.");
     const status=await model.json();
     if(!(status.generation_ready ?? status.ready))throw new Error(status.message || "모델 준비가 필요합니다.");
@@ -229,6 +238,10 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
     setNotice("확인한 GPU 양도 요청을 접수했습니다. 진행 상태를 확인하세요.");
   }
   const reviewed=review ? JSON.parse(review) : null;
+  useEffect(()=>{
+    if(!review)return;
+    requestAnimationFrame(()=>{if(document.activeElement===document.body || document.activeElement===reviewButtonRef.current)reviewSectionRef.current?.focus();});
+  },[review]);
   return <section aria-label="Kimodo 모션 생성"><h2>모션 생성</h2>
     <details className="kimodo-generation-guide"><summary>모션 생성 사용 안내</summary>
       <ol>
@@ -261,8 +274,8 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
         <KeyframeCatalog query={search} initialFrames={inputs.frames} initialRows={placement?.placements || []}
           apply={(frames,result)=>{setPlacement(result);setInputs({...inputs,frames,post_processing:true,remove_horizontal_motion:false});setReview(null);setPlacing(false);}}/></>}
     </fieldset>}
-    {inputs && <form onChangeCapture={event=>{const target=event.target;const related=target.closest(".kimodo-segment-settings") || target.matches("textarea") || target.name===modeName;setNotice(value=>value.endsWith(" 설정을 적용했습니다.") || (related && ["순차 생성의 구간 프레임 수를 입력하세요.","구간은 2~10개, 각 16~300프레임, 합계는 최대 300프레임으로 입력하세요.","동작 설명의 줄 수와 구간 프레임 수가 같아야 합니다."].includes(value)) ? "" : value);}} onSubmit={e=>{e.preventDefault();perform(inspect);}}><fieldset disabled={busy}>
-      <KimodoInputSummary inputs={inputs} references={references} placement={placement} bundle={bundle} directions={directions} frameInvalid={generationMode==="sequence" && !segmentsValid}/>
+    {inputs && <form onChangeCapture={event=>{const target=event.target;const related=target.closest(".kimodo-segment-settings") || target.matches("textarea") || target.name===modeName;setNotice(value=>value.endsWith(" 설정을 적용했습니다.") || (related && ["순차 생성의 구간 프레임 수를 입력하세요.","구간은 2~10개, 각 16~300프레임, 합계는 최대 300프레임으로 입력하세요.","동작 설명의 줄 수와 구간 프레임 수가 같아야 합니다."].includes(value)) ? "" : value);}} onSubmit={e=>{e.preventDefault();perform(async()=>{setReviewing(true);try{await inspect();}catch(error){setTimeout(()=>{if(document.activeElement===document.body && reviewButtonRef.current?.isConnected && !reviewButtonRef.current.disabled)reviewButtonRef.current.focus();},50);throw error;}finally{setReviewing(false);}});}}><fieldset disabled={busy}>
+      <KimodoInputSummary inputs={inputs} references={references} placement={placement} bundle={bundle} directions={directions} generationMode={generationMode} segmentCount={segmentTokens.length} segmentFrames={segmentCounts} frameInvalid={generationMode==="sequence" && !segmentsValid}/>
       <label>동작 설명 <textarea required maxLength={2000} value={inputs.prompt} aria-describedby={generationMode==="sequence" ? segmentHelp : undefined} aria-invalid={generationMode==="sequence" && segmentsValid && promptSegmentCount!==segmentCounts.length ? true : undefined} onChange={e=>edit("prompt",e.target.value)}/><PromptWordCount text={inputs.prompt}/></label>
       <KimodoPromptExamples apply={prompt=>edit("prompt",prompt)} applySettings={id=>perform(()=>applyExample(id))}/>
       <fieldset className="kimodo-mode"><legend>생성 방식</legend><div className="kimodo-mode-options">
@@ -279,6 +292,7 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
       {referenceExamples===null ? <button type="button" onClick={()=>perform(()=>loadReferences())}>신체 비율 예시 조회</button> :
         referenceExamples.map(example=><button type="button" key={example.id} onClick={()=>perform(()=>loadReferences(example.id))}>
           {example.label} 참조 적용</button>)}
+      {loadingReferences && <p role="status">신체 비율 예시를 불러오는 중입니다.</p>}
       <section aria-label="신체 비율 참조 이미지"><p>신체 비율 참조 PNG · 최대 8장</p>
         <p>참조를 변경하면 참조 관절 수정과 다중 시점 설정이 초기화됩니다.</p>
         <div className="reference-image-slots">{Array.from({length:Math.min(8,references.length+1)},(_,index)=><ReferenceImageInput
@@ -329,9 +343,10 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
           <label key={field}><input type="checkbox" disabled={Boolean(placement) && ["post_processing","remove_horizontal_motion"].includes(field)} checked={inputs[field]} onChange={e=>edit(field,e.target.checked)}/>{label}</label>)}
         {placement && <p>키프레임 좌표를 유지하기 위해 공식 후처리를 켜고 수평 이동 제거를 끕니다.</p>}
       </details>
-      <button>생성 요청 검토</button>
+      <button ref={reviewButtonRef} disabled={busy}>{reviewing ? "생성 요청 확인 중…" : "생성 요청 검토"}</button>
+      {reviewing && <p role="status">생성 요청과 모델 상태를 확인하고 있습니다.</p>}
     </fieldset></form>}
-    {reviewed && <section className="kimodo-request-review" aria-label="생성 요청 확인">
+    {reviewed && <section ref={reviewSectionRef} tabIndex={-1} className="kimodo-request-review" aria-label="생성 요청 확인">
       <h3>생성 요청 확인</h3><p>아직 생성이 시작되지 않았습니다. 입력을 확인한 뒤 대기열에 추가하세요.</p>
       <dl><div><dt>생성 방식</dt><dd>{reviewed.segment_frames?.length ? "순차 생성 · "+reviewed.segment_frames.join(" + ")+"프레임" : "일반 생성"}</dd></div>
         <div><dt>전체 프레임</dt><dd>{reviewed.frames}프레임</dd></div><div><dt>생성 단계</dt><dd>{reviewed.steps}단계</dd></div><div><dt>시드</dt><dd>{reviewed.seed}</dd></div>
@@ -341,7 +356,7 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
       <h4>동작 설명</h4><p className="kimodo-review-prompt">{reviewed.prompt}</p><PromptWordCount text={reviewed.prompt} label="최종"/>
       <details><summary>전체 설정 보기</summary><pre>{JSON.stringify(reviewed,(key,value)=>key==="proportion_images"?references.map(file=>file.name):key==="proportion_reviewed_multiview"?bundle?.name || "첨부됨":key==="proportion_face_anchor_calibration"?calibration?.name || "첨부됨":value,2)}</pre></details>
       {handoffReview && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 Kimodo를 실행합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
-      <GenerationReviewActions busy={busy} disabledReason={handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : ""} onCancel={()=>{setReview(null);setHandoffReview(null);}} onConfirm={()=>perform(handoffReview ? submitHandoff : submit)} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"}/></section>}
+      <GenerationReviewActions busy={busy} disabledReason={handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : ""} onCancel={()=>{setReview(null);setHandoffReview(null);requestAnimationFrame(()=>reviewButtonRef.current?.focus());}} onConfirm={()=>perform(handoffReview ? submitHandoff : submit)} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"}/></section>}
     </div>
     {notice && <p role="status">{notice}</p>}
   </section>;

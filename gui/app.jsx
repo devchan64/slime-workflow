@@ -40,6 +40,9 @@ import CapabilitySearch from "./CapabilitySearch.jsx";
 import ModelPage from "./ModelPage.jsx";
 import TranslationPage from "./TranslationPage.jsx";
 import {managementCommand} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
+import ResidentModelStatus from "./ResidentModelStatus.jsx";
+import CopyTextButton from "./CopyTextButton.jsx";
 import ResultTable from "./ResultTable.jsx";
 import WorldMap from "./WorldMap.jsx";
 import GpuPanel from "./GpuPanel.jsx";
@@ -131,7 +134,7 @@ function ChatQueueItem({item,session,onRefresh,onEditing,disableEdit,savedEdit,u
   async function change(cancel){
     setBusy(true);setError("");
     try{await call('chat-queue-update',{session_id:session,request_id:item.request_id,revision:cancel?item.revision:editRevision,...(cancel?{cancel:true}:{prompt:text})});setEditing(false);if(!cancel)onEditing(null,{request_id:item.request_id,revision:editRevision,text});onRefresh();}
-    catch(problem){setError(problem.message);onRefresh();}finally{setBusy(false);}
+    catch(problem){setError(requestErrorMessage(problem));onRefresh();}finally{setBusy(false);}
   }
   return <article className="chat-queued-item"><strong>{item.state==='departed'?'대기열에서 사라짐':item.state==='dispatching'?'실행 준비 중':'대기 중'}</strong>
     {editing ? <><textarea autoFocus aria-label="대기 요청 수정" value={text} disabled={busy} onChange={event=>{setText(event.target.value);onEditing({...item,revision:editRevision,text:event.target.value});}}/>{editChanged && <p role="alert">대기 요청이 변경되었거나 대기열에서 사라졌습니다. 작성한 내용을 복사한 뒤 편집을 취소하고 최신 상태를 확인해 주세요.</p>}{unavailable && <p role="status">연결이 복구되어 대기열 상태를 확인할 때까지 저장할 수 없습니다.</p>}<div className="chat-queue-actions"><button type="button" disabled={busy || unavailable || editChanged || !text.trim() || text.trim()===String(item.prompt || "").trim()} onClick={()=>change(false)}>{busy?"저장 중":"변경 저장"}</button><button type="button" disabled={busy} onClick={()=>{setText(item.prompt);setError("");setEditing(false);onEditing(null);requestAnimationFrame(()=>editButton.current?.focus());}}>편집 취소</button></div></> : <ChatQueuePrompt text={item.prompt}/>}
@@ -152,20 +155,20 @@ function LiveInstructionForm({session,job,onRefresh,unavailable=false}){
     pending=pending || {session_id:session,job_id:job,request_id:crypto.randomUUID().replaceAll("-",""),mode,text:input};
     sessionStorage.setItem(key,JSON.stringify(pending));setPendingReceipt(pending);setBusy(true);setNotice("");
     try{const row=await call("live-instruction",pending);if(row.request_id!==pending.request_id)throw new Error("접수 응답 불일치");let current;try{current=JSON.parse(sessionStorage.getItem(key));}catch{}if(current?.request_id===pending.request_id){sessionStorage.removeItem(key);setPendingReceipt(null);}setText("");setNotice(row.state==="accepted"?"전달 접수됨 · 반영 여부 확인 중":row.state==="undelivered"?"전달되지 않았습니다. 후속 요청으로 복구할 수 있습니다.":"전달 결과 확인이 필요합니다.");onRefresh();}
-    catch(problem){setNotice("접수 결과를 확인하지 못했습니다. 같은 지시로 다시 확인하세요. "+problem.message);}finally{setBusy(false);}
+    catch(problem){setNotice("접수 결과를 확인하지 못했습니다. 같은 지시로 다시 확인하세요. "+requestErrorMessage(problem));}finally{setBusy(false);}
   }
   return <div className="live-instruction-form"><label>실행 중 지시 <textarea aria-label="실행 중 지시" value={text} disabled={busy} onChange={event=>setText(event.target.value)} placeholder="추가하거나 수정할 지시를 입력하세요"/></label><span className="live-instruction-mode-label">전달 방식</span><div className="chat-queue-actions"><select aria-label="전달 방식" value={mode} disabled={busy} onChange={event=>setMode(event.target.value)}><option value="steer">지시 추가</option><option value="redirect">지시 방향 수정</option></select><button type="button" disabled={busy || unavailable || pendingMismatch || !text.trim()} onClick={send}>{busy?"확인 중":pendingReceipt?"접수 다시 확인":"지시 전달"}</button></div>{unavailable && <p role="status">대기열 연결을 확인할 때까지 지시를 전달할 수 없습니다.</p>}{pendingMismatch && <p>접수 확인에는 이전 지시가 필요합니다. <button type="button" disabled={busy} onClick={()=>{setText(pendingReceipt.text);setMode(pendingReceipt.mode);setNotice("이전 지시를 복원했습니다. 접수 여부를 다시 확인해 주세요.");}}>이전 지시 복원</button></p>}{notice && <p role="status">{notice}</p>}</div>;
 }
 function LiveInstructionReceipts({rows,session,onRefresh,unavailable=false}){
   const [notice,setNotice]=useState(""),[busy,setBusy]=useState("");
-  async function recover(row){if(busy || unavailable)return;setBusy(row.request_id);try{const result=await call("live-instruction-recover",{session_id:session,request_id:row.request_id});setNotice(result.duplicate?"이미 후속 요청으로 복구된 지시입니다.":"후속 대기열에 복구했습니다.");onRefresh();}catch(problem){setNotice(problem.message);}finally{setBusy("");}}
+  async function recover(row){if(busy || unavailable)return;setBusy(row.request_id);try{const result=await call("live-instruction-recover",{session_id:session,request_id:row.request_id});setNotice(result.duplicate?"이미 후속 요청으로 복구된 지시입니다.":"후속 대기열에 복구했습니다.");onRefresh();}catch(problem){setNotice(requestErrorMessage(problem));}finally{setBusy("");}}
   const labels={pending:"접수 중",delivering:"전달 확인 중",accepted:"전달 접수 · 반영 확인 중",applied:"반영 확인",undelivered:"미전달",unknown:"전달 여부 불명"};
   if(!rows?.length)return null;
   const needsRecovery=rows.filter(row=>row.state==="undelivered" && !row.recovery).length;
   return <details className="live-instruction-receipts"><summary>실행 중 전달한 지시 내역 · 최근 {rows.length}건{needsRecovery>0 && ` · 미복구 ${needsRecovery}건`}</summary>{rows.slice().reverse().map(row=><article key={row.request_id}><strong>{labels[row.state] || "확인 불가"} · {row.mode==="steer"?"지시 추가":"방향 수정"}</strong><p>{row.text}</p><small>{row.created_at && !Number.isNaN(new Date(row.created_at).getTime()) && <>접수 · {new Date(row.created_at).toLocaleString("ko-KR")} · </>}{row.job_id && <a href={jobLink(row.job_id,session)}>원래 작업 보기</a>}</small>{row.state==="undelivered" && (row.recovery ? <p><small>후속 요청 {row.recovery.state==="cancelled"?"취소됨":row.recovery.state==="dispatched"?"실행 접수됨":"대기열에 등록됨"}{row.recovery.job_id && <> · <a href={jobLink(row.recovery.job_id,session)}>후속 작업 보기</a></>}</small></p> : <button type="button" disabled={Boolean(busy) || unavailable} onClick={()=>recover(row)}>{busy===row.request_id?"복구 중":"후속 요청으로 복구"}</button>)}{row.state==="unknown" && <p><small>중복 반영 가능성이 있어 자동 재전달하지 않습니다.</small></p>}</article>)}{notice && <p role="status">{notice}</p>}</details>;
 }
 function ChatQueuePanel({session}){
-  const [data,setData]=useState(null),[error,setError]=useState(""),[revision,refresh]=useState(0),[stopBusy,setStopBusy]=useState(false),[stopNotice,setStopNotice]=useState("");
+  const [data,setData]=useState(null),[error,setError]=useState(""),[revision,refresh]=useState(0),[stopJobs,setStopJobs]=useState(()=>new Set()),[stopNotices,setStopNotices]=useState({});
   const editKey="hermes-queue-edit-"+session;
   const [editingItem,setEditingItem]=useState(()=>{try{const saved=JSON.parse(sessionStorage.getItem(editKey));return saved && typeof saved.request_id==="string" && typeof saved.text==="string" && Number.isInteger(saved.revision) ? saved : null;}catch{return null;}});
   function rememberEdit(item,expected){
@@ -173,17 +176,17 @@ function ChatQueuePanel({session}){
     setEditingItem(item);if(item)sessionStorage.setItem(editKey,JSON.stringify(item));else sessionStorage.removeItem(editKey);
   }
   async function stopCurrent(){
-    const job=data?.chat_active?.job_id;if(!job || stopBusy || !window.confirm("현재 채팅 작업에 중단을 요청할까요? 이미 실행된 도구의 변경은 유지될 수 있습니다."))return;
-    setStopBusy(true);setStopNotice("");
-    try{const response=await call("cancel",{id:job});if(response.id!==job || response.cancel_requested!==true)throw new Error("중단 요청 접수를 확인할 수 없습니다.");setStopNotice("중단을 요청했습니다. 작업 종료 여부를 확인 중입니다.");refresh(n=>n+1);}
-    catch(problem){setStopNotice("중단 요청을 확인하지 못했습니다. 작업 상세에서 상태를 확인하세요. "+problem.message);}finally{setStopBusy(false);}
+    const job=data?.chat_active?.job_id;if(!job || stopJobs.has(job) || !window.confirm("현재 채팅 작업에 중단을 요청할까요? 이미 실행된 도구의 변경은 유지될 수 있습니다."))return;
+    setStopJobs(previous=>new Set(previous).add(job));setStopNotices(previous=>({...previous,[job]:""}));
+    try{const response=await call("cancel",{id:job});if(response.id!==job || response.cancel_requested!==true)throw new Error("중단 요청 접수를 확인할 수 없습니다.");setStopNotices(previous=>({...previous,[job]:"중단을 요청했습니다. 작업 종료 여부를 확인 중입니다."}));refresh(n=>n+1);}
+    catch(problem){setStopNotices(previous=>({...previous,[job]:"중단 요청을 확인하지 못했습니다. 작업 상세에서 상태를 확인하세요. "+requestErrorMessage(problem)}));}finally{setStopJobs(previous=>{const next=new Set(previous);next.delete(job);return next;});}
   }
   useEffect(()=>{let active=true,timer;async function load(){try{const next=await call("session-view",{session_id:session,limit:1});if(next.id!==session || !Array.isArray(next.chat_queue))throw new Error("대기열 응답 오류");if(active){setData({...next,checkedAt:new Date()});setError("");}}catch(problem){if(active)setError(problem.message);}finally{if(active)timer=setTimeout(load,3000);}}load();return()=>{active=false;clearTimeout(timer);};},[session,revision]);
   return <section className="chat-queue-panel" aria-label="세션 채팅 대기열"><div className="chat-queue-header"><h2>세션 채팅 대기열</h2><button type="button" onClick={()=>refresh(n=>n+1)}>새로고침</button></div>
     <small>{data?.checkedAt ? "조회 시각 · "+data.checkedAt.toLocaleString("ko-KR")+" · 3초 간격" : error ? "대기열 조회 실패" : "대기열 조회 중"}</small>
     {error && <p role="alert">대기열을 불러오지 못했습니다. {data && "표시된 내용은 마지막 조회 결과입니다."}</p>}
     {!data && error && editingItem && <section className="chat-queued-item" aria-label="복원된 대기 요청 편집 내용"><strong>이 탭에 보관된 편집 내용</strong><p>대기열 상태를 확인할 때까지 저장할 수 없습니다. 내용을 복사하거나 연결 후 다시 확인하세요.</p><textarea aria-label="복원된 대기 요청 수정" value={editingItem.text} onChange={event=>rememberEdit({...editingItem,text:event.target.value})}/><button type="button" onClick={()=>rememberEdit(null)}>편집 내용 지우기</button></section>}
-    {data && <><h3>현재 요청</h3>{data.chat_active ? <article className="chat-queue-current"><strong>{statusLabels[data.chat_active.status] || "확인 불가"}</strong><ChatQueuePrompt key={data.chat_active.job_id} text={data.chat_active.prompt}/><a href={jobLink(data.chat_active.job_id,session)}>작업 상세 보기</a>{data.chat_active.status==="running" && (data.chat_active.control_ready ? <LiveInstructionForm key={data.chat_active.job_id} session={session} job={data.chat_active.job_id} unavailable={Boolean(error)} onRefresh={()=>refresh(n=>n+1)}/> : <p>실행 중 지시 전달 경로가 준비되지 않았습니다. 준비 중이거나 이전 방식으로 시작된 작업일 수 있습니다.</p>)}{["running","queued"].includes(data.chat_active.status) && <button type="button" disabled={stopBusy || Boolean(error)} onClick={stopCurrent}>{stopBusy?"중단 요청 중":"지시 중단"}</button>}{stopNotice && <p role="status">{stopNotice}</p>}</article> : <p>실행 중인 채팅 요청이 없습니다.</p>}
+    {data && <><h3>현재 요청</h3>{data.chat_active ? <article className="chat-queue-current"><strong>{statusLabels[data.chat_active.status] || "확인 불가"}</strong><ChatQueuePrompt key={data.chat_active.job_id} text={data.chat_active.prompt}/><JobIdentifier id={data.chat_active.job_id} label="채팅 작업 ID" compact/><a href={jobLink(data.chat_active.job_id,session)}>작업 상세 보기</a>{data.chat_active.status==="running" && (data.chat_active.control_ready ? <LiveInstructionForm key={data.chat_active.job_id} session={session} job={data.chat_active.job_id} unavailable={Boolean(error)} onRefresh={()=>refresh(n=>n+1)}/> : <p>실행 중 지시 전달 경로가 준비되지 않았습니다. 준비 중이거나 이전 방식으로 시작된 작업일 수 있습니다.</p>)}{["running","queued"].includes(data.chat_active.status) && <button type="button" disabled={stopJobs.has(data.chat_active.job_id) || Boolean(error)} onClick={stopCurrent}>{stopJobs.has(data.chat_active.job_id)?"중단 요청 중":"지시 중단"}</button>}{stopNotices[data.chat_active.job_id] && <p role="status">{stopNotices[data.chat_active.job_id]}</p>}</article> : <p>실행 중인 채팅 요청이 없습니다.</p>}
       <h3>대기 중인 요청 · {data.chat_queue.length}</h3>{!data.chat_queue.length && <p>대기 중인 요청이 없습니다. 이 세션에서 요청이 실행되는 동안 새 메시지를 보내면 대기열에 추가되고, 앞선 요청이 끝난 뒤 순서대로 실행됩니다.</p>}{[...data.chat_queue,...(editingItem && !data.chat_queue.some(item=>item.request_id===editingItem.request_id) ? [{...editingItem,state:"departed"}] : [])].map((item,index)=><div key={item.request_id}><small>{item.state==="departed"?"대기열에서 사라진 요청의 편집 내용":"대기 순서 · "+(index+1)}</small><ChatQueueItem item={item} session={session} savedEdit={editingItem?.request_id===item.request_id ? editingItem : null} unavailable={Boolean(error)} disableEdit={Boolean(editingItem && editingItem.request_id!==item.request_id)} onEditing={rememberEdit} onRefresh={()=>refresh(n=>n+1)}/></div>)}<LiveInstructionReceipts rows={data.live_instructions} session={session} unavailable={Boolean(error)} onRefresh={()=>refresh(n=>n+1)}/></>}
   </section>;
 }
@@ -240,6 +243,7 @@ function Message() {
   const actions=React.useContext(ProposalActions);
   const message=useAuiState(s=>s.message);
   const meta=message.metadata?.custom || {};
+  const copyText=(message.content || []).filter(part=>part.type==="text" && typeof part.text==="string").map(part=>part.text).join("\n");
   const paths=React.useContext(HistoryRoutes);
   const path=paths[meta.activity?.source_history_page?.service];
   const table=meta.table && meta.activity?.source_history_page ? {...meta.table,rows:meta.table.rows.map(([job,...cells])=>[
@@ -250,7 +254,7 @@ function Message() {
       <strong>헤르메스 작업 실패</strong>
       <p>요청을 완료하지 못했습니다. {meta.job && "작업 상세에서 원인을 확인하세요. "}생성 요청이었다면 다시 접수하기 전에 작업·대기열과 생성 이력을 확인하세요.</p>
       <div className="assistant-failure-actions"><button type="button" onClick={actions.openQueue}>작업·대기열 확인</button>{meta.kimodoRequest && <button type="button" onClick={()=>actions.openStep()}>Kimodo 생성기 열기</button>}{meta.job && <a href={jobLink(meta.job,meta.session)}>오류 상세 확인</a>}</div>
-      {message.content?.some(part=>part.type==="text" && part.text?.trim()) && <details><summary>헤르메스 응답 원문</summary><MessagePrimitive.Parts components={{Text:AssistantText}}/></details>}
+      {copyText.trim() && <details><summary>헤르메스 응답 원문</summary><MessagePrimitive.Parts components={{Text:AssistantText}}/><CopyTextButton value={copyText} label="헤르메스 응답 원문 복사" buttonLabel="원문 복사"/></details>}
     </section> : <MessagePrimitive.Parts components={message.role==="assistant" ? {Text:AssistantText} : undefined}/>}
     {message.role==="assistant" && ["cancelled","canceled"].includes(meta.status) && !message.content?.some(part=>part.type==="text" && part.text?.trim()) && <p className="assistant-cancelled" role="status">이 요청은 취소되었습니다.</p>}
     {meta.formId && <ConversationVideoForm session={meta.session} formId={meta.formId} open={actions.openVideoForm} reuse={actions.openJobForm}/>}
@@ -271,7 +275,8 @@ function Message() {
     {!meta.table && meta.activity?.source_history_summary && <pre>{meta.activity.source_history_summary}</pre>}
     {(meta.status==="running" || meta.activity?.events?.length>0) && <ActivitySection activity={meta.activity} running={meta.status==="running"}/>}
     {meta.queueMessage && <p role="status">{meta.queueMessage}</p>}
-    {meta.status && <small>{statusLabels[meta.status] || meta.status} {meta.job && <> · <a href={jobLink(meta.job,meta.session)}>{meta.job}</a></>}</small>}
+    {copyText.trim() && !meta.formId && meta.status!=="failed" && <CopyTextButton value={copyText} label={message.role==="user" ? "사용자 메시지 복사" : "헤르메스 메시지 복사"} buttonLabel="메시지 복사"/>}
+    {meta.status && <small>{statusLabels[meta.status] || meta.status} {meta.job && <> · <a href={jobLink(meta.job,meta.session)}>{meta.job}</a> <CopyTextButton value={meta.job} label="헤르메스 작업 ID 복사" buttonLabel="ID 복사"/></>}</small>}
   </MessagePrimitive.Root>;
 }
 function Conversation({view,historyPage,changeHistory}) {
@@ -631,8 +636,9 @@ function App() {
       <div className="session-sidebar-heading"><h2>{archived?"보관된 대화":"대화 세션"}</h2><button type="button" disabled={busy} onClick={()=>{select("");setArchived(false);resetSessionList();if(window.innerWidth<=700)closeMobileSessions();}}>+ 새 대화</button><button type="button" className="session-sidebar-close" onClick={closeMobileSessions}>닫기</button></div>
       <div className="session-sidebar-tabs" role="group" aria-label="대화 목록 선택"><button type="button" disabled={busy} aria-pressed={!archived} onClick={()=>{if(archived){resetSessionList();setArchived(false);}}}>대화 목록</button><button type="button" disabled={busy} aria-pressed={archived} onClick={()=>{if(!archived){resetSessionList();setArchived(true);}}}>보관함</button></div>
       <form className="session-search" onSubmit={e=>{e.preventDefault();setListRequest({offset:0,query:sessionQuery.trim()});}}>
-        <label>대화 검색 <input ref={sessionSearch} maxLength={100} placeholder="제목·메시지·세션 ID" value={sessionQuery} onChange={e=>setSessionQuery(e.target.value)}/></label>
-        <button type="submit">검색</button>
+        <label htmlFor="hermes-session-search">대화 검색</label>
+        <div className="session-search-row"><input id="hermes-session-search" ref={sessionSearch} maxLength={100} placeholder="제목·메시지·세션 ID" value={sessionQuery} onChange={e=>setSessionQuery(e.target.value)}/>
+          <button type="submit">검색</button></div>
         {(sessionQuery || listRequest.query) && <button type="button" onClick={()=>{resetSessionList();sessionSearch.current?.focus();}}>초기화</button>}
       </form>
       {sessionQuery.trim()!==listRequest.query && <p className="session-list-count" role="status">검색어가 변경되었습니다. 검색을 눌러 목록에 적용하세요.</p>}
@@ -666,7 +672,7 @@ function App() {
     <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openKimodo(inputs),openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? (historyPage ? "대화 이력이 변경되었습니다. 최신 대화를 다시 불러온 뒤 이전 메시지를 조회하세요." : "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요.") : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><div className="conversation-error-actions"><button type="button" onClick={()=>{document.querySelector(".thread .viewport")?.focus({preventScroll:true});retryView(n=>n+1);}}>다시 시도</button>{historyPage && <button type="button" onClick={()=>{changeHistory(null);document.querySelector(".thread .viewport")?.focus({preventScroll:true});}}>최신 대화 불러오기</button>}</div></div>}{error&&<p role="alert">{error}</p>}
 
     <form onSubmit={e=>{e.preventDefault();send()}}>
-    {session && view.context && <details className="composer-context"><summary>대화 문맥{view.context.usage && " · "+(view.context.usage.tokens_after ?? view.context.usage.tokens).toLocaleString()+" 토큰"}{view.context.operation && ["queued","running","unknown"].includes(view.context.operation.status) && " · 정리 진행 중"}</summary><section className="composer-context-panel" aria-label="대화 문맥 정리">
+    {session && view.context && <details name="composer-popover" className="composer-context"><summary>대화 문맥{view.context.usage && " · "+(view.context.usage.tokens_after ?? view.context.usage.tokens).toLocaleString()+" 토큰"}{view.context.operation && ["queued","running","unknown"].includes(view.context.operation.status) && " · 정리 진행 중"}</summary><section className="composer-context-panel" aria-label="대화 문맥 정리">
       <p>이전 대화를 요약해 이후 요청의 문맥으로 사용합니다. 대화 기록은 유지됩니다.</p>
       <label><input type="checkbox" checked={view.context.automatic} disabled={busy} onChange={event=>setAutomaticContext(event.target.checked)}/> 자동 대화 정리</label>{" "}
       <button type="button" title={!view.message_count?"정리할 대화가 없습니다.":undefined} disabled={busy || !view.message_count || Boolean(view.context.operation?.job_id && ["queued","running","unknown"].includes(view.context.operation.status))} onClick={compactContext}>
@@ -678,6 +684,7 @@ function App() {
       {view.context.usage?.state==="unchanged" && <small role="status"> · 정리할 수 있는 대화 범위가 없습니다.</small>}
       {view.context.checkpoint && <details><summary>대화 정리 내용 · {view.context.checkpoint.count}개 지시{view.context.checkpoint.created_at && " · "+view.context.checkpoint.created_at}</summary><pre>{view.context.checkpoint.summary || "정리된 대화에 별도 요약 표시가 없습니다."}</pre></details>}
     </section></details>}
+    {session && <ResidentModelStatus key={session} session={session}/>}
     {session && <button type="button" ref={handoffToggle} aria-controls="hermes-side-panel" aria-expanded={showHandoff} onClick={()=>showHandoff?closeHandoff():openHandoff()}>GPU 양도 이력</button>}
     <button type="button" ref={gpuToggle} aria-expanded={showGpu} onClick={()=>{if(showTools)closeTools();setShowGpu(value=>!value);}}>GPU 프로세스 정보</button>
     {session&&<button type="button" ref={queueToggle} aria-expanded={Boolean(queue && queue.mode!=="chat" && !showTools && !showGpu)} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(value=>value && value.mode!=="chat" && !showTools && !showGpu ? null : {run:""});}}>작업 대기열</button>}{session&&<button type="button" ref={chatQueueToggle} aria-expanded={queue?.mode==="chat" && !showTools && !showGpu} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(value=>value?.mode==="chat" && !showTools && !showGpu ? null : {run:"",mode:"chat"});}}>채팅 대기열{view.chat_queue?.length ? " · "+view.chat_queue.length : ""}</button>}{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
@@ -727,7 +734,8 @@ function App() {
       }}>
         <Command.Input ref={toolSearch} aria-label="도구 검색" placeholder="이름·기능 검색" maxLength={100} value={search} onValueChange={setSearch}/>
         {!catalogError && <p role="status">{catalogLoading ? "도구 목록을 불러오는 중입니다." : tools.length===0 ? "등록된 도구가 없습니다." : <>검색 결과 {matchedTools.length}건{!matchedTools.length && " · 검색어나 도구 분야를 바꿔 보세요."}</>}</p>}
-        {(search || category!=="all") && <button type="button" onClick={()=>{setSearch("");changeCategory("all");requestAnimationFrame(()=>toolSearch.current?.focus());}}>도구 검색 초기화</button>}
+        {search && <button type="button" onKeyDown={event=>{if(event.key==="Enter" || event.key===" ")event.stopPropagation();}} onClick={()=>{setSearch("");requestAnimationFrame(()=>toolSearch.current?.focus());}}>검색어 지우기</button>}
+        {category!=="all" && <button type="button" onKeyDown={event=>{if(event.key==="Enter" || event.key===" ")event.stopPropagation();}} onClick={()=>{changeCategory("all");requestAnimationFrame(()=>toolSearch.current?.focus());}}>도구 분야 초기화</button>}
         <Command.List label="검색 결과">
           {matchedTools.map(tool=><Command.Group className="tool-match" key={tool.id} heading={tool.label}>
             <Command.Item aria-label={tool.label+" · 대화에 추가"} value={tool.id+"/chat"} onSelect={()=>chooseTool(tool.label,tool.id)}>대화에 추가</Command.Item>

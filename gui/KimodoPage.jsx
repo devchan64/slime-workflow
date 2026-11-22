@@ -14,7 +14,7 @@ export default function KimodoPage({embedded=false,session:embeddedSession="",in
   const params=new URLSearchParams(location.search);
   const session=embedded ? embeddedSession : params.get("session") || "";
   const [selectedJob,setSelectedJob]=useState(embedded ? "" : params.get("job") || "");
-  const resultRef=useRef(null);
+  const resultRef=useRef(null),focusResult=useRef(false);
   const historyRef=useRef(null);
   const generationRef=useRef(null);
   const [restoreJob,setRestoreJob]=useState(embedded ? "" : params.get("restore") || "");
@@ -40,11 +40,11 @@ export default function KimodoPage({embedded=false,session:embeddedSession="",in
     {embedded ? <details><summary>모델 준비 및 다운로드</summary><ModelReadiness service="kimodo" manage/><DownloadProgress service="kimodo"/></details> : <><ModelReadiness service="kimodo" manage/><DownloadProgress service="kimodo"/></>}
     <section className={embedded ? undefined : "kimodo-standalone-form"} ref={generationRef} tabIndex={-1} aria-label="Kimodo 생성 입력"><KimodoGeneration key={(restoreJob || "new")+"/"+restoreRevision} session={session} restoreJob={restoreJob} initialInputs={restoreJob ? null : initialInputs} choose={choose}/></section>
     <KimodoMultiviewReport/>
-    <div ref={historyRef}><GeneratorHistory key={historyRevision} service="kimodo" allowPriority readJob={readJob} externalResultId={selectedJob}
-      openResult={id=>{setSelectedJob(id);requestAnimationFrame(()=>resultRef.current?.focus());}} restore={(_request,record)=>{setRestoreJob(record.id);setRestoreRevision(value=>value+1);setNotice("");requestAnimationFrame(()=>generationRef.current?.focus());}}
-      onSelectedDeleted={(id,message)=>{if(selectedJob===id)setSelectedJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/></div>
+    <div ref={historyRef}><GeneratorHistory key={historyRevision} service="kimodo" allowPriority readJob={readJob} resultId={selectedJob}
+      openResult={id=>{focusResult.current=true;setSelectedJob(id);}} onCloseResult={()=>setSelectedJob("")} restore={(_request,record)=>{setRestoreJob(record.id);setRestoreRevision(value=>value+1);setNotice("");requestAnimationFrame(()=>generationRef.current?.focus());}}
+      onSelectedDeleted={(id,message)=>{if(selectedJob===id)setSelectedJob("");setNotice(message);setHistoryRevision(value=>value+1);}}
+      renderResult={(id,close)=><section ref={node=>{resultRef.current=node;if(node && focusResult.current){focusResult.current=false;requestAnimationFrame(()=>{if(node.isConnected && document.activeElement===document.body)node.focus();});}}} tabIndex={-1} aria-label="선택한 Kimodo 작업 결과"><button type="button" onClick={close}>결과 닫고 이력으로</button><button type="button" onClick={()=>choose("kimodo 작업",id)}>선택 작업을 대화 입력에 추가</button><SavedGeneratorInputs id={id} service="kimodo" readJob={readJob}/><KimodoFrames key={id} id={id} choose={choose} onDeleted={cleaned} selectionControls/></section>}/></div>
     {notice && <p role="status">{notice}</p>}
-    {selectedJob ? <section ref={resultRef} tabIndex={-1} aria-label="선택한 Kimodo 작업 결과"><button type="button" onClick={()=>{const closedJob=selectedJob;setSelectedJob("");requestAnimationFrame(()=>{const history=historyRef.current;const items=history?.querySelectorAll('details.generator-history[open] .generator-history-item') || [];const item=Array.from(items).find(element=>element.dataset.historyId===closedJob);const target=item?.querySelector('.generator-history-select') || history?.querySelector('summary');target?.focus();});}}>결과 닫고 이력으로</button><button type="button" onClick={()=>choose("kimodo 작업",selectedJob)}>선택 작업을 대화 입력에 추가</button><SavedGeneratorInputs id={selectedJob} service="kimodo" readJob={readJob}/><KimodoFrames key={selectedJob} id={selectedJob} choose={choose} onDeleted={cleaned} selectionControls/></section> :
-      <HistoryCleanup service="kimodo" allowSelected={false} onDeleted={cleaned}/>}
+    <HistoryCleanup service="kimodo" allowSelected={false} onDeleted={cleaned}/>
   </article></main>;
 }

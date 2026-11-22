@@ -187,14 +187,17 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
         return <label key={key}>{key==="prompt"?"장면·동작 프롬프트":"부정 프롬프트 (선택)"}<textarea maxLength={8000} required={key==="prompt"} value={values[key]} onChange={e=>field(key,e.target.value)}/><PromptWordCount text={values[key]} final/></label>;
       })}
       </div><div className="vace-input-group"><h2>생성 설정</h2><p className="vace-group-help">출력 길이와 생성 값을 확인하세요.</p><div className="vace-settings-grid">
+      <label>LoRA<select value={values.lora_mode || "none"} onChange={e=>{const mode=e.target.value;setValues(old=>({...old,lora_mode:mode,...(mode!=="none"?{steps:4,guidance_scale:1,flow_shift:5}:{})}));}}><option value="none">사용 안 함</option><option value="lightning">Lightning만 · 실험</option><option value="fighting_lightning">격투 + Lightning · 실험</option></select></label>
       {[["frames","출력 프레임",5,129,4],["steps","스텝",2,100,1],["flow_shift","Flow shift",0.1,20,"any"],["guidance_scale","CFG",1,10,"any"],["reference_strength","조건 강도",0.1,2,"any"]].map(([key,label,min,max,step])=>
         <label key={key}>{label}<input type="number" required min={min} max={max} step={step} value={values[key]} onChange={e=>field(key,e.target.value===""?"":Number(e.target.value))}/></label>)}
       </div>{frameLimit!==null && <p>입력에 사용할 수 있는 최대 출력 길이 {frameLimit}프레임 <button type="button" onClick={()=>field("frames",frameLimit)}>최대 프레임 적용</button></p>}
       {invalidFrames && <p role="alert">출력 프레임이 입력 영상보다 깁니다. {frameLimit}프레임 이하로 줄이세요.</p>}
+      {["lightning","fighting_lightning"].includes(values.lora_mode) && <p>Lightning은 High·Low 전문가에 적용합니다. {values.lora_mode==="fighting_lightning" && "격투 LoRA는 High 전문가에 적용합니다. "}4스텝·CFG 1·shift 5가 필요하며 동작 품질은 검수해야 합니다. {values.lora_mode==="fighting_lightning" && <><a href="/management/frame/model-management/?model=wan22-fighting-lora">격투 LoRA 준비</a> · </>}<a href="/management/frame/model-management/?model=wan22-vace-lightning">Lightning 준비</a></p>}
       <p>832×480 · 16fps · {Number(values.frames)>0?(Number(values.frames)/16).toFixed(2):"0"}초 · VACE-Fun A14B BF16 · Euler/FlowMatch</p>
       <SeedInput value={values.seed} max={template.maximum_seed} onChange={value=>field("seed",value===""?"":Number(value))}/>
       </div><ActionButton type="submit" reasons={[
         !generationReady(model) && "모델 준비 상태를 확인하세요.",
+        ["lightning","fighting_lightning"].includes(values.lora_mode) && (values.steps!==4 || values.guidance_scale!==1 || values.flow_shift!==5) && "Lightning에는 4스텝·CFG 1·shift 5가 필요합니다.",
         !values.prompt.trim() && "프롬프트를 입력하세요.",
         values.mode!=="text" && !files.reference && "참조 이미지를 선택하세요.",
         attachments.some(key=>!files[key]) && "필수 영상을 선택하세요.",
@@ -206,6 +209,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/>
       <p>{template.modes.find(mode=>mode.id===pending.mode)?.label || pending.mode} · {pending.frames}프레임 · 16fps · {(pending.frames/16).toFixed(2)}초 · {pending.steps}스텝 · 시드 {pending.seed}</p>
       <p>Flow shift {pending.flow_shift} · CFG {pending.guidance_scale} · 조건 강도 {pending.reference_strength}</p>
+      <p>LoRA · {pending.lora_mode === "fighting_lightning" ? "격투 + Lightning" : pending.lora_mode === "lightning" ? "Lightning만" : "사용 안 함"}</p>
       {pending.mode!=="text" && <p>참조 이미지 · {files.reference?.name || "선택됨"}</p>}
       {attachments.map(key=><p key={key}>{labels[key]} · {files[key]?.name || "선택됨"} · {videoInfo[key]?.summary || "영상 정보 확인 불가"}</p>)}{pending.mode==="video_edit" && <p>마스크의 편집·보존 영역은 접수 시 추가 검증합니다.</p>}
       <h3>장면·동작 프롬프트</h3><p className="fun-review-prompt">{pending.prompt}</p><h3>부정 프롬프트</h3><p className="fun-review-prompt">{pending.negative_prompt || "없음"}</p>

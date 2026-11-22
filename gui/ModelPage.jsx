@@ -105,8 +105,10 @@ export default function ModelPage() {
     {missingModel && <p role="status">요청한 모델 ‘{missingModel}’을 목록에서 찾지 못했습니다. 모델을 선택해 주세요.</p>}
     {models.length>0 && <ModelSelect models={models} service={service} onChange={event => {const value=event.target.value;select(value);setMissingModel("");const url=new URL(location.href);url.searchParams.set("model",value);history.replaceState(null,"",url);}}/>}
     {service === "flux-image" && <p>약 20.32GB · <a href="https://huggingface.co/black-forest-labs/flux-3-image-klein">FLUX 접근 조건</a>을 확인하고 Hugging Face에 로그인하세요.</p>}
+    {service === "hermes-model" && <p>아래는 모델 파일과 실행 구성의 준비 상태입니다. 세션별 GPU 로딩 여부는 대화 입력창의 Qwen 3.8 상태에서 확인하세요.</p>}
     {service === "prompt-translation" && <p><a href="https://huggingface.co/google/translategemma-4b-it">Gemma 접근 조건</a>에 동의하고 Hugging Face에 로그인하세요.</p>}
     {service === "animationgpt" && <p>제3자 FP16 변환본과 토크나이저·정규화 파일 약 770MB · <a href="https://huggingface.co/Kijai/AnimationGPT_pruned">출처와 라이선스</a> · 생성기 연결과 무기 출력은 별도입니다.</p>}
+    {service === "wan22-fighting-lora" && <p>High Noise LoRA 약 38MB · <a href="https://www.runninghub.ai/model/public/1984976690503958530">모델 정보</a> · <a href="https://huggingface.co/r4tn4/Bubble/blob/338e12cb179abf0573b61c310db6163018effdde/wan2.2fighting_high_noise.safetensors">다운로드 사본</a> · VACE 생성기 연결과 실제 동작은 별도 검증이 필요합니다.</p>}
     {service === "wan21-fun-1.3b" && <p>공용 텍스트 인코더와 VAE는 14B 준비 환경을 사용합니다.</p>}
     {service && <ModelReadiness key={service} service={service} manage/>}
     {service && <DownloadProgress key={"progress-" + service} service={service}/>}

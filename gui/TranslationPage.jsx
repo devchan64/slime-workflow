@@ -17,6 +17,7 @@ import TranslationEvidence from "./TranslationEvidence.jsx";
 import TranslationResult from "./TranslationResult.jsx";
 import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
 import {managementCommand} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
 import {parseTranslationGlossary} from "./translationGlossary.mjs";
 import {generationReady} from "./generationReady.mjs";
 
@@ -31,13 +32,16 @@ export default function TranslationPage({embedded=false}={}) {
   const termsHelp=useId(),termsErrorId=useId(),termsRef=useRef(null),textRef=useRef(null),reviewRef=useRef(null);
   const resultRef=useRef(null),focusResult=useRef(false);
   const [job,setJob]=useState(embedded ? "" : query.get("job") || ""),[record,setRecord]=useState(null);
+  const [statusError,setStatusError]=useState("");
+  const [statusCheckedAt,setStatusCheckedAt]=useState(null),[statusFailedAt,setStatusFailedAt]=useState(null);
   const [revision,setRevision]=useState(0);
   const [historyRevision,setHistoryRevision]=useState(0);
   const sending=useRef(false);
   const live=useLiveRefresh(()=>setRevision(value=>value+1),Boolean(job) && (!record || ["queued","running"].includes(record.status?.status)));
   useEffect(()=>{if(!embedded)document.title="프롬프트 번역";},[embedded]);
+  useEffect(()=>{setStatusError("");setStatusCheckedAt(null);setStatusFailedAt(null);},[job]);
   useEffect(()=>{if(pending)reviewRef.current?.focus();},[pending]);
-  useEffect(()=>{if(focusResult.current && job && record?.id===job && resultRef.current){focusResult.current=false;resultRef.current.focus({preventScroll:true});resultRef.current.scrollIntoView({block:"start",inline:"nearest"});}},[job,record]);
+  useEffect(()=>{if(focusResult.current && job && record?.id===job && resultRef.current){focusResult.current=false;if(document.activeElement===document.body){resultRef.current.focus({preventScroll:true});resultRef.current.scrollIntoView({block:"start",inline:"nearest"});}}},[job,record]);
   useEffect(()=>{
     if(!job)return;
     let active=true;
@@ -45,10 +49,11 @@ export default function TranslationPage({embedded=false}={}) {
       try{
         const next=await managementCommand(service,"translation-status",{id:job});
         if(!active)return;
-        if(next.id!==job)throw new Error("작업 ID가 일치하지 않습니다.");
-        setRecord(next);
+        if(next?.id!==job)throw new Error("작업 ID가 일치하지 않습니다.");
+        if(!next.status || typeof next.status!=="object" || typeof next.status.status!=="string")throw new Error("작업 상태 응답을 확인할 수 없습니다.");
+        setRecord(next);setStatusCheckedAt(new Date());setStatusError("");
 
-      }catch(error){if(active)setNotice(error.message);}
+      }catch(error){if(active){setStatusFailedAt(new Date());setStatusError(requestErrorMessage(error));}}
     }
     read();return()=>{active=false;};
   },[job,revision]);
@@ -86,7 +91,11 @@ export default function TranslationPage({embedded=false}={}) {
       {termsError && <p id={termsErrorId} role="alert">{termsError}</p>}
       <p><PromptWordCount text={text} final/></p>
       <TranslationEvidence key={text} source={text} call={callHermes}/>
-      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id){setJob("");setRecord(null);}setNotice(message);setHistoryRevision(v=>v+1);}} key={historyRevision} service={service} statusCommand="translation-status" externalResultId={job} restore={restore} inspectResult={item=>{focusResult.current=true;setJob(item.id);setRecord(item);}}/>
+      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id){setJob("");setRecord(null);}setNotice(message);setHistoryRevision(v=>v+1);}} key={historyRevision} service={service} statusCommand="translation-status" resultId={job} openResult={id=>{focusResult.current=true;setRecord(null);setJob(id);}} onCloseResult={()=>{setJob("");setRecord(null);}} restore={restore} renderResult={(id,close)=><div ref={resultRef} tabIndex={-1} aria-label="선택한 번역 작업"><button type="button" onClick={close}>결과 닫기</button><SavedGeneratorInputs id={id} service={service} statusCommand="translation-status"/><section ref={!record ? live.ref : undefined}><h2>번역 작업</h2><JobIdentifier id={id}/><RecordFolder key={id} service={service} id={id}/><button onClick={()=>setRevision(v=>v+1)}>상태 갱신</button>
+        {statusCheckedAt && <p>마지막 조회 성공 · <time dateTime={statusCheckedAt.toISOString()}>{statusCheckedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></p>}
+        {statusError && <p role="alert">번역 작업 상태를 불러오지 못했습니다. {statusError}{record?.id===id && " 아래 내용은 마지막으로 조회한 결과입니다."}{statusFailedAt && <> 조회 실패 시각 · <time dateTime={statusFailedAt.toISOString()}>{statusFailedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></>}</p>}
+        {record?.id===id && <><p><JobStatus state={record.status.status}/> {record.status.error}</p><GenerationProgress job={{status:record.status.status}} live={live} supportsProgress={false}/><GeneratorJobControls showActions={false} key={id+"/"+record.status.status} service={service} id={id} state={record.status.status} refresh={()=>setRevision(value=>value+1)}/>{record.result && <TranslationResult key={id} job={id} text={record.result.text}/>}</>}
+      </section></div>}/>
       <ActionButton reasons={[!text.trim() && "번역할 한국어 원문을 입력하세요."]} onClick={review}>번역 요청 검토</ActionButton>
     </fieldset>
     <HistoryCleanup allowSelected={false} key={job+"/"+(record?.status?.status || "")} service={service} job={job} state={record?.status?.status}
@@ -97,11 +106,5 @@ export default function TranslationPage({embedded=false}={}) {
       <GenerationReviewActions busy={busy} onCancel={()=>{setPending(null);requestAnimationFrame(()=>textRef.current?.focus());}} onConfirm={submit} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/>
     </section>}
     <p role="status">{notice}</p>
-    {job && <div ref={resultRef} tabIndex={-1} aria-label="선택한 번역 작업"><SavedGeneratorInputs id={job} service={service} statusCommand="translation-status"/><section ref={!record ? live.ref : undefined}><h2>번역 작업</h2><JobIdentifier id={job}/><RecordFolder key={job} service={service} id={job}/><button onClick={()=>setRevision(v=>v+1)}>상태 갱신</button>
-      {record && <><p><JobStatus state={record.status.status}/> {record.status.error}</p><GenerationProgress job={{status:record.status.status}} live={live} supportsProgress={false}/></>}
-      {record?.id===job && <GeneratorJobControls showActions={false} key={job+"/"+record.status.status} service={service} id={job}
-        state={record.status.status} refresh={()=>setRevision(value=>value+1)}/>}
-      {record?.result && <TranslationResult key={job} job={job} text={record.result.text}/>}
-    </section></div>}
   </section>;
 }

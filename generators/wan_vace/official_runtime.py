@@ -15,7 +15,29 @@ def build_blank_video_condition(torch, frame_count):
             'mask_video':torch.ones((1, 1, frame_count, 480, 832)) * 255}
 
 
-def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.0, current_attempt_root=None):
+def apply_vace_loras(current_high_model, current_low_model, lora_mode, current_attempt_root):
+    if lora_mode == 'none':
+        return
+    if lora_mode not in ('lightning', 'fighting_lightning'):
+        raise ValueError('지원하지 않는 LoRA 설정입니다.')
+    from generators.wan_vace.lightning_lora import DIRECTORY, FILES, REVISION, inspect_lightning_loras
+    from generators.wan_vace.lora_merge import merge_adapter
+    from workflow.common.generation_records import write_record_atomically
+    if not inspect_lightning_loras():
+        raise ValueError('Lightning LoRA 파일 검증에 실패했습니다. 모델 관리에서 준비하세요.')
+    if lora_mode == 'fighting_lightning':
+        from generators.wan_vace.fighting_lora import PATH as fighting_path, SHA256 as fighting_hash, inspect_fighting_lora
+        if not inspect_fighting_lora():
+            raise ValueError('격투 LoRA 파일 검증에 실패했습니다. 모델 관리에서 준비하세요.')
+    high_count = merge_adapter(current_high_model, DIRECTORY / FILES['high'][0])
+    low_count = merge_adapter(current_low_model, DIRECTORY / FILES['low'][0])
+    record = {'mode': lora_mode, 'strength': 1.0, 'lightning_revision': REVISION, 'lightning_sha256': {name: item[2] for name,item in FILES.items()}, 'high_layers': high_count, 'low_layers': low_count}
+    if lora_mode == 'fighting_lightning':
+        record.update(fighting_sha256=fighting_hash, fighting_high_layers=merge_adapter(current_high_model, fighting_path))
+    write_record_atomically(current_attempt_root / 'lora-merge.json', record)
+
+
+def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.0, current_attempt_root=None, lora_mode='none'):
     # 공식 구현은 문자열 "0"도 참으로 취급한다.
     os.environ.pop('VIDEOX_OFFLOAD_VACE_LATENTS', None)
     from generators.wan_vace.official_prepare import verify_official_runtime
@@ -45,6 +67,7 @@ def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.
     del current_vae_state
     current_low_model = load_full_precision_expert('low', VaceWanTransformer3DModel)
     current_high_model = load_full_precision_expert('high', VaceWanTransformer3DModel)
+    apply_vace_loras(current_high_model, current_low_model, lora_mode, current_attempt_root)
     current_tokenizer_model = AutoTokenizer.from_pretrained(str(VACE_WORKSPACE_ROOT / '.model/wan22-vace/official-tokenizer'), local_files_only=True)
     current_pipeline_object = Wan2_2VaceFunPipeline(tokenizer=current_tokenizer_model, text_encoder=current_text_encoder, vae=current_vae_model, transformer=current_low_model, transformer_2=current_high_model, scheduler=build_vace_scheduler(current_flow_shift))
     current_inference_started = False
@@ -82,6 +105,7 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
         'gpu_runtime_version': torch.version.hip,
         'gpu_device_name': torch.cuda.get_device_name() if torch.cuda.is_available() else None,
         'model_profile': 'official-bf16-resident-v1', 'offload_device': None,
+        'lora_mode': current_request_record.get('lora_mode', 'none'),
         'active_expert_block_offload': False, 'inactive_expert_offload': False,
         'encoded_input_cpu_offload': False, 'branch_activation_cpu_offload': False,
         'rope_query_result_cpu_offload': False, 'vace_latent_offload': False,
@@ -90,10 +114,10 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
         'attention_profile_enabled': os.environ.get('SLIME_VACE_ATTENTION_PROFILE', '1') == '1',
         'vae_sdpa_diagnostic_enabled': os.environ.get('SLIME_VACE_VAE_SDPA_DIAGNOSTIC') == '1',
         'custom_math_patches': 'attention_prefix_frames' in current_request_record,
-        'adapter_source_sha256': {current_source_name: hashlib.sha256((Path(__file__).parent / current_source_name).read_bytes()).hexdigest() for current_source_name in ('official_runtime.py', 'official_full_precision.py', 'sampling.py', 'noise_experiment.py', 'attention_experiment.py', 'numerical_guard.py', 'vae_numerical_guard.py', 'vae_attention_diagnostics.py')},
+        'adapter_source_sha256': {current_source_name: hashlib.sha256((Path(__file__).parent / current_source_name).read_bytes()).hexdigest() for current_source_name in ('official_runtime.py', 'official_full_precision.py', 'sampling.py', 'noise_experiment.py', 'attention_experiment.py', 'numerical_guard.py', 'vae_numerical_guard.py', 'vae_attention_diagnostics.py', 'lora_merge.py', 'lightning_lora.py', 'fighting_lora.py')},
     })
     current_metrics_recorder.update_generation_stage('load')
-    current_pipeline_object = load_official_pipeline(current_metrics_recorder, current_request_record['flow_shift'], current_attempt_root)
+    current_pipeline_object = load_official_pipeline(current_metrics_recorder, current_request_record['flow_shift'], current_attempt_root, current_request_record.get('lora_mode', 'none'))
     from videox_fun.models import wan_transformer3d
     from generators.wan_vace.vae_numerical_guard import record_vace_tensor_failure
     from generators.wan_vace.numerical_guard import install_vace_attention_guard

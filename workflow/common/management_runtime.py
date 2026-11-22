@@ -145,6 +145,8 @@ def create_management_runtime(writer_workspace_config=None):
             'animationgpt': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
             'model-downloads': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
             'expression-lora': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
+            'wan22-fighting-lora': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
+            'wan22-vace-lightning': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
             'writer-agent': ManagementServiceBinding(writer_agent_service.handle_writer_request,writer_agent_service.workspace_config_path.parent,reject_writer_folder_access),
             'wan22-animate2': bind_stored_management_service(animate_two_service.handle_image_request,animate_two_service.job_storage_root),
             'dwpose': bind_stored_management_service(dwpose_generation_service.handle_image_request,dwpose_generation_service.job_storage_root),

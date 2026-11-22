@@ -1,5 +1,11 @@
 # VACE-Fun 부분 편집 실험
 
+모델 관리의 `Wan 2.2 Videogame Fighting LoRA · High`는 제3자 공개 사본을 고정 리비전과 SHA-256으로 다운로드한다. CLI에서는 `python tools/manager.py command wan22-fighting-lora prepare` 및 `python tools/manager.py command wan22-fighting-lora model-status`를 사용한다. VACE 본체와 독립적으로 준비하며 선택한 작업에만 적용한다. 가중치 이름과 크기는 High 전문가와 일치한다. [원본 모델 정보](https://civitai.com/models/2093652/luisap-wan-22-videogame-fighting?modelVersionId=2368809), [다운로드 사본](https://huggingface.co/r4tn4/Bubble/tree/338e12cb179abf0573b61c310db6163018effdde).
+
+`격투 + Lightning · 실험`은 격투 High와 LightX2V T2V V1.1 High/Low를 각각 대응 전문가에 강도 1로 병합한다. 모델 관리에서 두 LoRA 준비가 필요하다. GUI 또는 `wan22-vace generate` 요청의 `lora_mode: fighting_lightning`을 사용하며 4스텝·CFG 1·shift 5로 제한한다. CFG 1에서는 부정 프롬프트 효과를 기대할 수 없다. LoRA 해시·병합 개수는 시도 폴더의 `lora-merge.json`에 남긴다. 기존 GPU BF16 상주, SDPA와 `expandable_segments:False` 정책을 유지한다. 2026-11-22의 5프레임 텍스트와 37프레임 포즈 시험은 완료했으나 번짐·포즈 차이 등 품질 문제가 관찰됐다. 세부 사항은 변경 기록을 참조한다.
+
+`Lightning만 · 실험` 또는 `lora_mode: lightning`은 격투 LoRA 없이 같은 Lightning High/Low만 적용한다. 설정은 동일한 4스텝·CFG 1·shift 5이며 Lightning 파일만 준비하면 된다. Lightning 단독 GPU 실행과 품질은 별도 검증한다.
+
 ## 영상 전체 조건 실험
 
 `video_condition`은 RGB 원본 MP4와 외형 참조 PNG 1장을 입력한다. 모델에 전체 검정 마스크를

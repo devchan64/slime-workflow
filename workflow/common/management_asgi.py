@@ -714,7 +714,8 @@ def build_management_application(current_handler_class, current_root_path, curre
             return Response(status_code=404)
         try:
             request = json.loads(metadata.read_bytes())
-            fields = {key:request[key] for key in (*VACE_DEFAULT_SETTINGS, 'prompt', 'negative_prompt')}
+            fields = {key:request.get(key, value) for key,value in VACE_DEFAULT_SETTINGS.items()}
+            fields.update({key: request[key] for key in ('prompt', 'negative_prompt')})
             mode = fields['mode']
             names = {} if mode == 'text' else {'reference':'reference-1.png'}
             if mode == 'pose':
@@ -1101,8 +1102,8 @@ def build_management_application(current_handler_class, current_root_path, curre
             return Response(status_code=404)
         records = execute_remote_management_command('model-downloads', 'download-status', {})['records']
         lines = format_model_download_status(records, service).splitlines()
-        active = any(isinstance(record,dict) and isinstance(record.get('model'),str)
-                     and record['model'].startswith(MODEL_DOWNLOAD_PREFIXES[service]) and record.get('status') == 'running'
+        from workflow.common.model_download_progress import matches_model_download
+        active = any(isinstance(record,dict) and matches_model_download(service, record.get('model')) and record.get('status') == 'running'
                      for record in records)
         return {'lines': [line.removeprefix('- ') for line in lines], 'active': active}
 

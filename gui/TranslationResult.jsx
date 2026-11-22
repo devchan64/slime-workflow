@@ -1,12 +1,14 @@
 import React, {useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
+import {requestErrorMessage} from "./requestError.mjs";
 
 export default function TranslationResult({job, text}) {
   const [draft,setDraft] = useState(text);
   const [checks,setChecks] = useState(null);
   const [busy,setBusy] = useState(false);
   const [notice,setNotice] = useState("");
+  const [stale,setStale] = useState(false);
   const textRef=useRef(null);
   const draftRef=useRef(draft);draftRef.current=draft;
   async function inspect() {
@@ -21,7 +23,8 @@ export default function TranslationResult({job, text}) {
       }
       setChecks({title:"용어·배치·조건 점검", summary:quality_checks ? "원본 번역 결과 기준" : "이전 작업 · 배치·조건 미검사",
         columns:["원문","번역어","결과","근거"],rows});
-    } catch(problem) {setNotice(problem.message);}
+      setStale(false);
+    } catch(problem) {setStale(Boolean(checks));setNotice("번역 점검을 조회하지 못했습니다 · "+requestErrorMessage(problem));}
     finally {setBusy(false);}
   }
   async function copy() {
@@ -31,7 +34,7 @@ export default function TranslationResult({job, text}) {
   return <section><label>복사용 번역문 <textarea ref={textRef} value={draft} onChange={e=>{setDraft(e.target.value);setNotice("");}}/></label>
     <button onClick={copy}>번역문 복사</button>
     <button disabled={busy} onClick={inspect}>원본 번역 점검 조회</button>
-    {checks && <div className="translation-check-table" role="region" aria-label="번역 점검 표" tabIndex={0}><ResultTable table={checks}/></div>}
+    {checks && <>{stale && <p role="status">아래 점검 표는 마지막으로 조회한 결과입니다.</p>}<div className="translation-check-table" role="region" aria-label="번역 점검 표" tabIndex={0}><ResultTable table={checks}/></div></>}
     <p role="status">{notice}</p>
   </section>;
 }

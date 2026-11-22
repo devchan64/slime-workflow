@@ -919,11 +919,15 @@ GUI와 CLI는 `map-assets effect-list`, `effect-load`, `effect-save`를 공유�
 
 ### Wan2.2 VACE-Fun A14B 텍스트·이미지 생성
 
+GPU 대기 티켓은 PID 네임스페이스를 기록한다. 다른 네임스페이스에서 PID를 찾지 못한 것만으로 대기표를 삭제하지 않으며, 해당 작업의 실행 잠금이 유지된 경우 대기열 선택과 관측에서 살아 있는 작업으로 취급한다. PID 신원은 확인 불가로 표시한다. 네임스페이스와 실행 잠금을 모두 확인할 수 없는 구형·손상 티켓은 자동 삭제하거나 정상으로 추정하지 않는다. 이 동작의 다중 네임스페이스 검사는 임시 파일과 잠금을 사용하는 격리 테스트에 한정된다.
+
 `/management/frame/wan22-vace-generator/`와 `wan22-vace` 서비스는 같은 대기열·이력 계약을 사용한다. `text`는 이미지 없이 생성하고, `reference`는 외형 참조 1장을 별도 잠재 슬롯으로 전달한 뒤 출력 전에 제거한다. `first_frame`은 이미지 1장을 첫 프레임 조건으로, 첫 프레임 0/나머지 1 마스크와 함께 전달한다. 첫 프레임 조건은 픽셀 완전 일치 보장이 아니다. `video_edit`는 원본 MP4·흰색 편집 마스크·외형 참조 1장을 사용한다. 영상·마스크는 832×480·16fps이며 각 32MiB 이하, 요청 길이 이상이어야 한다. 다중 주체는 지원하지 않는다.
 
 모델은 공식 `alibaba-pai/Wan2.2-VACE-Fun-A14B` revision `4438caabbfdd7437bbb0283d86cb200d1b7223ba`의 BF16 고·저노이즈 전문가로 고정한다. Q4 생성과 재개는 폐기하고 이력은 보존한다. `.venv/bin/python -m generators.wan_vace.prepare`는 전문가 두 파일(총 69,350,650,000바이트), BF16 인코더, VAE와 공식 소스·토크나이저를 준비하고 고정 해시를 검증한다. 모델과 활성값은 AMD GPU에 상주하며 CPU 오프로드나 자동 양자화 대체를 하지 않는다. 비양자화 전체 추론과 품질은 아직 검증되지 않았다.
 
 공용 CLI는 `tools/manager.py command wan22-vace generate --payload-file <요청.json> --detach`이다. 필수 필드는 `action: generate`, `mode: text|reference|first_frame|video_edit|video_condition|pose`, `prompt`, `negative_prompt`, `images`, `width: 832`, `height: 480`, `frames`, `steps`, `seed`, `flow_shift`, `guidance_scale`, `reference_strength`이다. `images`는 text에서 빈 목록, 다른 모드에서 불투명 832×480 PNG base64 1장이다. GUI는 원본 비율을 유지하고 흰 여백을 합성한다. `video_edit`에는 `edit_video`, `edit_mask` MP4 base64가 필요하다. `video_condition` 실험에는 `edit_video`만 필요하며 전체 검정 마스크를 모델에 전달한다. 원본 보존과 품질 개선은 보장하지 않는다. `pose`에서는 `pose_video` MP4 base64와 참조 PNG 1장을 사용하며 편집 마스크 필드는 받지 않는다. 키모도 DWPose 영상은 832×480·16fps, 32MiB 이하, 요청 프레임 이상이어야 하며 재추출하지 않는다. GUI 검증의 내부 tag를 API 요청에 추가하지 않는다.
+
+선택 필드 `lora_mode`는 기본 `none`, Lightning 단독 `lightning`, 격투 조합 `fighting_lightning`이다. Lightning 사용은 `steps: 4`, `guidance_scale: 1`, `flow_shift: 5`를 요구한다. Lightning High/Low는 모델 관리에서 준비하며 격투 조합은 격투 High도 별도 준비한다. 파일 해시·병합 개수는 시도 기록에 남는다. 격투 조합의 제한된 GPU 시험에서 포즈 차이와 시각적 왜곡이 관측됐으며 Lightning 단독 GPU 시험은 별도다.
 
 로컬 기본은 외형 참조·21프레임·50스텝·seed 42·shift 12·CFG 5·조건 강도 1이다. 프레임 5~129의 4n+1 (81 초과는 장영상 실험 범위), 스텝 2~100, shift 0.1~20, CFG 1~10, 조건 강도 0.1~2를 허용한다. 제작자 `VideoX-Fun` revision `13bb3c625e8b1e457d7124d92207b49e00e4a6fe`의 `examples/wan2.2_vace_fun/predict_s2v.py`, `predict_i2v.py`, `config/wan2.2/wan_civitai_t2v.yaml`을 기준으로 FlowMatchEuler 스케줄과 노이즈 경계 0.875를 적용한다. 이는 전체 스텝의 87.5%라는 의미가 아니다. 노이즈 수준으로 전환 지점을 구하고 GPU에 상주하는 고·저노이즈 전문가를 선택한다. 텍스트 인코더·VAE·확산 연산은 AMD ROCm GPU에서 수행한다.
 

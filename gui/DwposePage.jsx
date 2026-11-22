@@ -58,7 +58,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
   }
   function restore(request,record){
     setFile(record.file);setHands(request.pose_include_hands);setFace(request.pose_include_face);
-    setJob(record.id);setNotice("저장된 PNG와 포즈 옵션을 불러왔습니다.");
+    setNotice("저장된 PNG와 포즈 옵션을 불러왔습니다.");
     requestAnimationFrame(()=>handsRef.current?.focus());
   }
   async function review(){
@@ -87,7 +87,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
     <fieldset disabled={busy || Boolean(pending) || Boolean(handoff.id)}>
       <ReferenceImageInput label="입력 PNG · 832×480" accept="image/png" source={file} validate={pngData} disabled={busy || Boolean(pending)} onChange={setFile}/>
       {file && <p>선택된 입력 · {file.name}</p>}
-      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service="dwpose" readJob={readJob} externalResultId={job} restore={restore} inspectResult={record=>setJob(record.id)}/>
+      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service="dwpose" readJob={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={restore} renderResult={(id,close)=><section aria-label="선택한 DWPose 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} service="dwpose" readJob={readJob} controls={false} onDeleted={cleaned}/></section>}/>
       <div className="dwpose-options"><label><input ref={handsRef} type="checkbox" checked={hands} onChange={event=>setHands(event.target.checked)}/>손 상세 표시</label>
       <label><input type="checkbox" checked={face} onChange={event=>setFace(event.target.checked)}/>얼굴 상세 표시</label></div>
       <ActionButton reasons={[!file && "입력 PNG를 선택하세요.",!generationReady(model) && "모델 준비 상태를 확인하세요."]} onClick={review}>생성 요청 검토</ActionButton>
@@ -97,6 +97,6 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
       <GenerationReviewActions busy={busy} onCancel={closeReview} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/>
     </section>}
     {notice && <p role="status">{notice}</p>}
-    <GeneratorJobResult selectionControls job={job} service="dwpose" readJob={readJob} controls={false} onDeleted={cleaned}/>
+    <GeneratorJobResult selectionControls job="" service="dwpose" onDeleted={cleaned}/>
   </article>;
 }

@@ -2,43 +2,49 @@ import React, {useEffect,useRef,useState} from "react";
 import JobIdentifier from "./JobIdentifier.jsx";
 import {managementCommand} from "./managementCommand.js";
 import {writerStageLabel} from "./writerLabels.mjs";
+import {requestErrorMessage} from "./requestError.mjs";
+import {LiveRefreshControl,useLiveRefresh} from "./LiveRefresh.jsx";
 
 const activeStages=new Set(["queued","preparing","indexing","searching","reasoning"]);
+const finishedStages=new Set(["review","completed","applied","failed","interrupted"]);
 
 export default function WriterResult({id,onDeleted}) {
   const [detail,setDetail]=useState(null);
   const [error,setError]=useState("");
+  const [checkedAt,setCheckedAt]=useState(null);
+  const [checking,setChecking]=useState(true);
   const [revision,refresh]=useState(0);
   const [confirmed,setConfirmed]=useState(false);
   const [busy,setBusy]=useState(false);
   const [deleteConfirmed,setDeleteConfirmed]=useState(false);
   const [notice,setNotice]=useState("");
   const followLog=useRef(true);
+  const live=useLiveRefresh(()=>refresh(value=>value+1),!detail || Boolean(error) || !finishedStages.has(detail.status.stage));
+  useEffect(()=>{setError("");setDetail(null);setCheckedAt(null);setConfirmed(false);setDeleteConfirmed(false);},[id]);
   useEffect(()=>{
-    let active=true,timer;
-    setError("");setDetail(null);setConfirmed(false);setDeleteConfirmed(false);
+    let active=true;
     async function read() {
+      setChecking(true);
       try {
         const record=await managementCommand("writer-agent","writer-detail",{id});
         if(!active)return;
-        if(record.id!==id || !record.status?.stage)throw new Error("선택한 작가 작업과 조회 결과가 일치하지 않습니다.");
+        if(record.id!==id || typeof record.status?.stage!=="string" || !record.status.stage.trim())throw new Error("선택한 작가 작업의 상태를 확인할 수 없습니다.");
         const updateLog=followLog.current;
         setDetail(previous=>previous && !updateLog ? {...record,log:previous.log} : record);
+        setCheckedAt(new Date());
         setError("");
-        if(activeStages.has(record.status.stage))timer=setTimeout(read,3000);
       } catch(problem) {
         if(!active)return;
-        setError(problem.message);
-        setDetail(null);
-        timer=setTimeout(read,3000);
-      }
+        setError(requestErrorMessage(problem));
+        setConfirmed(false);setDeleteConfirmed(false);
+      } finally {if(active)setChecking(false);}
     }
     read();
-    return ()=>{active=false;clearTimeout(timer);};
+    return ()=>{active=false;};
   },[id,revision]);
   const proposal=detail?.proposal;
   const hash=detail?.status.proposal_hash;
-  const canApply=detail?.id===id && detail.status.stage==="review" && hash && proposal?.changes?.length>0 && !detail.application;
+  const canApply=!checking && !error && detail?.id===id && detail.status.stage==="review" && hash && proposal?.changes?.length>0 && !detail.application;
   async function apply() {
     if(!confirmed || !canApply || busy)return;
     setBusy(true);setConfirmed(false);setNotice("");
@@ -46,13 +52,12 @@ export default function WriterResult({id,onDeleted}) {
       await managementCommand("writer-agent","writer-apply",{id,proposal_hash:hash});
       setNotice("검토한 변경을 적용했습니다.");
     } catch(problem) {
-      setNotice("적용 요청 결과를 확인하세요. "+problem.message);
+      setNotice("적용 요청 결과를 확인하세요. "+requestErrorMessage(problem));
     } finally {
       setDetail(null);refresh(value=>value+1);setBusy(false);
     }
   }
-  const canDelete=detail?.id===id && Boolean(detail.status.stage) &&
-    !activeStages.has(detail.status.stage);
+  const canDelete=!checking && !error && detail?.id===id && finishedStages.has(detail.status.stage);
   async function trash() {
     if(busy || !canDelete || !deleteConfirmed)return;
     setBusy(true);setDeleteConfirmed(false);setNotice("");
@@ -62,18 +67,22 @@ export default function WriterResult({id,onDeleted}) {
         throw new Error("휴지통 이동 응답을 확인할 수 없습니다.");
       onDeleted(id);
     } catch(problem) {
-      setNotice("이력과 휴지통에서 처리 결과를 확인하세요. "+problem.message);
+      setNotice("이력과 휴지통에서 처리 결과를 확인하세요. "+requestErrorMessage(problem));
       setDetail(null);refresh(value=>value+1);
     } finally {setBusy(false);}
   }
-  return <section aria-label="작가 작업 결과"><h3>작업 결과</h3><JobIdentifier id={id}/>
-    <button disabled={busy} onClick={()=>{setConfirmed(false);refresh(value=>value+1);}}>결과 새로고침</button>
-    <label><input type="checkbox" defaultChecked onChange={event=>{followLog.current=event.target.checked;}}/>실행 로그 자동 갱신</label>
+  return <section ref={live.ref} aria-label="작가 작업 결과"><h3>작업 결과</h3><JobIdentifier id={id}/>
+    <button disabled={busy || checking} onClick={()=>{setChecking(true);setConfirmed(false);setDeleteConfirmed(false);refresh(value=>value+1);}}>결과 새로고침</button>
+    <LiveRefreshControl live={live} label="작업 상태 자동 갱신" inactiveReason="작업 종료로 중지"/>
+    <label><input type="checkbox" defaultChecked onChange={event=>{followLog.current=event.target.checked;}}/>조회할 때 실행 로그 갱신</label>
     {notice && <p role="status">{notice}</p>}
-    {error && <p role="alert">{error} · 3초 후 다시 조회합니다.</p>}
+    {checkedAt && <p>마지막 조회 성공 · <time dateTime={checkedAt.toISOString()}>{checkedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></p>}
+    {checking && detail && <p role="status">결과를 다시 조회하고 있습니다. 아래는 마지막 조회 결과입니다.</p>}
+    {error && <p role="alert">{error}{detail && " 아래 내용은 마지막 조회 결과입니다. 재조회 전에는 적용과 삭제를 할 수 없습니다."}</p>}
     {!detail && !error && <p role="status">작업 결과를 조회하고 있습니다.</p>}
     {detail && <>
       <p role="status">{writerStageLabel(detail.status.stage)} · {detail.status.error || detail.status.summary || (typeof detail.status.progress==="object" ? JSON.stringify(detail.status.progress) : detail.status.progress)}</p>
+      {!activeStages.has(detail.status.stage) && !finishedStages.has(detail.status.stage) && <p role="status">알 수 없는 작업 단계입니다. 상태를 다시 확인하세요.</p>}
       {proposal?.reason && <p>{proposal.reason}</p>}
       {proposal?.changes?.map(change=><details key={change.path}><summary>{change.path}</summary><pre>{change.diff}</pre></details>)}
       {canApply && <fieldset disabled={busy}><legend>원본 문서 적용</legend>
