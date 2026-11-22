@@ -66,6 +66,11 @@ class QwenCommandsTest(unittest.TestCase):
             self.assertEqual(request_call_args[2]['prompt'],'한국어 프롬프트')
             self.assertIn('images', request_call_args[2])
 
+    def test_retired_worker_rejects_before_accessing_job_files(self):
+        from generators.image.run_qwen_21_reference import execute_qwen_reference_worker
+        with self.assertRaisesRegex(RuntimeError, '폐기'):
+            execute_qwen_reference_worker()
+
     def test_retired_generation_route_is_rejected(self):
         with patch.object(COMMAND_MODULE_VALUE, 'call_management_api') as current_api_mock:
             with self.assertRaises((ValueError, SystemExit)):

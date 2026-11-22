@@ -397,7 +397,7 @@ def run_review_server(parsed_argument_values):
                 self.send_error(410, 'This editor has been retired.')
                 return True
             if any(value in ('image-generator', 'three-reference-generator', 'floor-tile-generator', 'seamless-tile-generator') for value in current_tool_values) or current_request_parts.path.startswith(('/management/frame/image-generator/', '/management/frame/three-reference-generator/', '/management/frame/floor-tile-generator/', '/management/frame/seamless-tile-generator/')) or current_request_parts.path in ('/image-generation/', '/image-generation-2511/', '/floor-tile-generator/', '/seamless-tile-generator/'):
-                self.send_error(410, 'This generator has been retired. Use Qwen 2.1.')
+                self.send_error(410, 'This generator has been retired.')
                 return True
             return False
 

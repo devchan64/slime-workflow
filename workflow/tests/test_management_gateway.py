@@ -74,7 +74,7 @@ class GatewayContractTest(unittest.TestCase):
         for current_service_name in ARCHIVED_QWEN_IMAGE_SERVICES:
             current_matching_lines=[current_line for current_line in current_help_lines if current_line.strip().startswith(current_service_name+':')]
             self.assertEqual(len(current_matching_lines),1)
-            self.assertIn('아카이브',current_matching_lines[0])
+            self.assertIn('폐기',current_matching_lines[0])
             for current_command_name in ('generate','resume','prepare'):
                 self.assertIsNotNone(inspect_management_policy_rejection(current_service_name,current_command_name))
         current_qwen_line=next(current_line for current_line in current_help_lines if current_line.strip().startswith('qwen-2511:'))

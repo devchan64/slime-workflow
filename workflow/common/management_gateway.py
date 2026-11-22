@@ -169,7 +169,7 @@ def inspect_management_policy_rejection(service_command_name, operation_command_
     if service_command_name == 'expression-lora' and operation_command_name == 'prepare':
         return 'Qwen 2.1 표정 LoRA는 라이선스 사유로 사용과 다운로드가 중단되었습니다.'
     if service_command_name in ARCHIVED_QWEN_IMAGE_SERVICES and operation_command_name in ('generate', 'resume', 'prioritize', 'prepare'):
-        return 'Qwen 이미지 생성기는 라이선스 사유로 아카이브되어 모델 준비·새 생성·재개·우선 실행을 지원하지 않습니다. 기존 이력과 결과는 조회할 수 있습니다.'
+        return 'Qwen 이미지 생성기는 폐기되어 모델 준비·새 생성·재개·우선 실행을 지원하지 않습니다. 기존 이력과 결과는 조회할 수 있습니다.'
     if service_command_name == 'anny':
         return 'ANNY 속성 렌더러·모델·결과는 폐기되었습니다.'
     if service_command_name == 'anny-landmarks':
@@ -344,8 +344,7 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['vegetation-generator'] = 'Qwen 자연물 생성
 MANAGEMENT_COMMAND_DESCRIPTIONS['building-generator'] = '빌보드·건물 통합 생성기의 호환 명령 · 공용 대기열·이력'
 
 for current_archived_service in ARCHIVED_QWEN_IMAGE_SERVICES:
-    if '아카이브' not in MANAGEMENT_COMMAND_DESCRIPTIONS[current_archived_service]:
-        MANAGEMENT_COMMAND_DESCRIPTIONS[current_archived_service] += ' · 아카이브: 새 생성·재개·모델 준비 차단'
+    MANAGEMENT_COMMAND_DESCRIPTIONS[current_archived_service] = 'Qwen 이미지 생성기 폐기 · 생성·재개·모델 준비 차단 · 기존 이력 조회'
 
 for current_service_name in AUDIO_SERVICE_NAMES:
     MANAGEMENT_COMMAND_DESCRIPTIONS[current_service_name] = '음악생성 · 고정 로컬 모델 · ROCm GPU · WAV · 실측 검증 필요'
