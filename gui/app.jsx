@@ -357,7 +357,7 @@ function App() {
   useEffect(()=>{setGeneratorPanel(null);setMountedGenerators([]);setKimodoMounted(false);setFunMounted(false);},[session]);
   const [sessions,setSessions]=useState([]), [view,setView]=useState({}), [tools,setTools]=useState([]);
   const [draft,setDraft]=useState(""),[search,setSearch]=useState(()=>query().get("search") || ""),[showTools,setShowTools]=useState(()=>query().has("category") || query().has("search") || ["jobs","capabilities"].includes(query().get("panel")));
-  const [catalogError,setCatalogError]=useState("");
+  const [catalogError,setCatalogError]=useState(""),[catalogLoading,setCatalogLoading]=useState(true),[catalogRevision,retryCatalog]=useState(0);
   const [category,setCategory]=useState(initialToolCategory);
   const [archived,setArchived]=useState(false),[error,setError]=useState(""),[busy,setBusy]=useState(false);
   const [sessionQuery,setSessionQuery]=useState("");
@@ -369,6 +369,7 @@ function App() {
     setSessionQuery("");setListRequest({offset:0,query:""});
   }
   const [queue,setQueue]=useState(null),[refresh,setRefresh]=useState(0);
+  const queueFilterCache=useRef({});
   const [historyPage,setHistoryPage]=useState(null);
   const [viewError,setViewError]=useState("");
   const [viewLoading,setViewLoading]=useState(false);
@@ -403,8 +404,8 @@ function App() {
     history.pushState(null,"",url);setSession(next);setView({});setHistoryPage(null);setQueue(null);setError("");setViewError("");setViewLoading(false);setTargetForm("");setTargetProposal("");
   }
   useEffect(()=>{const cb=()=>{setSearchMode(["jobs","capabilities"].includes(query().get("panel"))?query().get("panel"):"tools");setCategory(initialToolCategory());setSearch(query().get("search") || "");setShowTools(query().has("category") || query().has("search") || ["jobs","capabilities"].includes(query().get("panel")));setShowFunControl(false);setShowKimodo(false);setKimodoProposal(null);setSeedProposal(null);setVideoFormId("");setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);setError("");setViewError("");setViewLoading(false);setTargetForm("");setTargetProposal("");};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
-  useEffect(()=>{let active=true;fetch(base+"tools").then(r=>{if(!r.ok)throw new Error("도구 목록을 불러올 수 없습니다.");return r.json();}).then(v=>{if(active)setTools(v)}).catch(e=>{if(active)setCatalogError(e.message)});
-    return()=>{active=false};},[]);
+  useEffect(()=>{let active=true;setCatalogLoading(true);setCatalogError("");fetch(base+"tools").then(r=>{if(!r.ok)throw new Error("도구 목록을 불러올 수 없습니다.");return r.json();}).then(v=>{if(!Array.isArray(v) || v.some(item=>!item || typeof item!=="object" || ["id","label","category"].some(key=>typeof item[key]!=="string" || !item[key])))throw new Error("도구 목록 응답을 읽을 수 없습니다.");if(active)setTools(v)}).catch(e=>{if(active)setCatalogError(e.message || "도구 목록을 불러올 수 없습니다.")}).finally(()=>{if(active)setCatalogLoading(false)});
+    return()=>{active=false};},[catalogRevision]);
   useEffect(()=>{
     let active=true;
     setListPage(null);setSessions([]);setListError("");setListLoading(true);
@@ -661,7 +662,7 @@ function App() {
     }}>{folded?"세션 목록 펼치기":"세션 목록 접기"}</button><h1>{view.title || "헤르메스와 대화"}</h1></header>
 
 
-    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openKimodo(inputs),openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요." : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><button type="button" onClick={()=>retryView(n=>n+1)}>다시 시도</button></div>}{error&&<p role="alert">{error}</p>}
+    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openKimodo(inputs),openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? (historyPage ? "대화 이력이 변경되었습니다. 최신 대화를 다시 불러온 뒤 이전 메시지를 조회하세요." : "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요.") : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><div className="conversation-error-actions"><button type="button" onClick={()=>{document.querySelector(".thread .viewport")?.focus({preventScroll:true});retryView(n=>n+1);}}>다시 시도</button>{historyPage && <button type="button" onClick={()=>{changeHistory(null);document.querySelector(".thread .viewport")?.focus({preventScroll:true});}}>최신 대화 불러오기</button>}</div></div>}{error&&<p role="alert">{error}</p>}
 
     <form onSubmit={e=>{e.preventDefault();send()}}>
     {session && view.context && <details className="composer-context"><summary>대화 문맥{view.context.usage && " · "+(view.context.usage.tokens_after ?? view.context.usage.tokens).toLocaleString()+" 토큰"}{view.context.operation && ["queued","running","unknown"].includes(view.context.operation.status) && " · 정리 진행 중"}</summary><section className="composer-context-panel" aria-label="대화 문맥 정리">
@@ -715,12 +716,12 @@ function App() {
         {category!=="all" && !categories.has(category) && <option value={category}>{category}</option>}
         {Array.from(categories,([id,label])=><option key={id} value={id}>{label || id}</option>)}
       </select></label>}
-      {searchMode==="tools" && catalogError && <p role="alert">{catalogError}</p>}
+      {searchMode==="tools" && catalogError && <div role="alert"><p>{catalogError}</p><button type="button" onClick={()=>{toolSearch.current?.focus();retryCatalog(value=>value+1);}}>도구 목록 다시 조회</button></div>}
       {searchMode==="tools" && <Command label="도구 검색" shouldFilter={false} loop onKeyDownCapture={e=>{
         if(e.key==="Enter" && (e.nativeEvent.isComposing || e.nativeEvent.keyCode===229))e.stopPropagation();
       }}>
         <Command.Input ref={toolSearch} aria-label="도구 검색" placeholder="이름·기능 검색" maxLength={100} value={search} onValueChange={setSearch}/>
-        {!catalogError && <p role="status">검색 결과 {matchedTools.length}건{!matchedTools.length && " · 검색어나 도구 분류를 바꿔 보세요."}</p>}
+        {!catalogError && <p role="status">{catalogLoading ? "도구 목록을 불러오는 중입니다." : tools.length===0 ? "등록된 도구가 없습니다." : <>검색 결과 {matchedTools.length}건{!matchedTools.length && " · 검색어나 도구 분류를 바꿔 보세요."}</>}</p>}
         {(search || category!=="all") && <button type="button" onClick={()=>{setSearch("");changeCategory("all");requestAnimationFrame(()=>toolSearch.current?.focus());}}>도구 검색 초기화</button>}
         <Command.List label="검색 결과">
           {matchedTools.map(tool=><Command.Group className="tool-match" key={tool.id} heading={tool.label}>
@@ -735,7 +736,7 @@ function App() {
     </div>}
       {showGpu && !showTools && <GpuPanel embedded/>}
       {queue?.mode==="chat" && session && !showTools && !showGpu && <ChatQueuePanel key={session} session={session}/>}
-      {queue && queue.mode!=="chat" && session && !showTools && !showGpu && <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} call={call} openMessage={openQueueMessage} choose={appendSelection}/>}
+      {queue && queue.mode!=="chat" && session && !showTools && !showGpu && <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} filterCache={queueFilterCache} call={call} openMessage={openQueueMessage} choose={appendSelection}/>}
       {mountedGenerators.map(id=>{const Generator=embeddedGenerators[id];return <div key={id} hidden={showTools || showGpu || Boolean(queue) || generatorPanel?.id!==id} className="embedded-generator"><Generator embedded session={session}/></div>;})}
       {kimodoMounted && <div hidden={!showKimodo || showTools || showGpu || Boolean(queue) || Boolean(generatorPanel)} className="embedded-generator"><KimodoPage key={session+":"+kimodoRevision} embedded session={session} initialInputs={kimodoProposal} onChoose={(label,value)=>{edit([draft,label+" "+value].filter(Boolean).join("\n"));text.current?.focus();}}/></div>}
       {funMounted && <div hidden={!showFunControl || showTools || showGpu || Boolean(queue) || showKimodo || Boolean(generatorPanel)}><FunControlPage key={session+videoFormId+videoFormRevision} embedded session={session} restoreFormId={videoFormId} seedProposal={seedProposal} onSaved={()=>setRefresh(n=>n+1)}/></div>}

@@ -85,7 +85,7 @@ export default function TranslationPage({embedded=false}={}) {
       {termsError && <p id={termsErrorId} role="alert">{termsError}</p>}
       <p><PromptWordCount text={text} final/></p>
       <TranslationEvidence key={text} source={text} call={callHermes}/>
-      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id){setJob("");setRecord(null);}setNotice(message);setHistoryRevision(v=>v+1);}} key={historyRevision} service={service} statusCommand="translation-status" restore={restore} inspectResult={item=>{focusResult.current=true;setJob(item.id);setRecord(item);}}/>
+      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id){setJob("");setRecord(null);}setNotice(message);setHistoryRevision(v=>v+1);}} key={historyRevision} service={service} statusCommand="translation-status" externalResultId={job} restore={restore} inspectResult={item=>{focusResult.current=true;setJob(item.id);setRecord(item);}}/>
       <ActionButton reasons={[!text.trim() && "번역할 한국어 원문을 입력하세요."]} onClick={review}>번역 요청 검토</ActionButton>
     </fieldset>
     <HistoryCleanup allowSelected={false} key={job+"/"+(record?.status?.status || "")} service={service} job={job} state={record?.status?.status}

@@ -6,6 +6,7 @@ export default function RecordFolder({service,id,direct=false}) {
   const [notice,setNotice]=useState("");
   const [busy,setBusy]=useState(false);
   async function request(action) {
+    const focused=document.activeElement?.tagName==="BUTTON" ? document.activeElement : null;
     setBusy(true);setNotice("");
     try {
       const response=await fetch("/management/record-folder/"+action,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({service,id})});
@@ -13,7 +14,7 @@ export default function RecordFolder({service,id,direct=false}) {
       if(!response.ok || typeof result.path!=="string")throw new Error(result.error || "기록 폴더를 확인할 수 없습니다.");
       setPath(result.path);setNotice(result.message || "");
     } catch(problem) {setNotice(requestErrorMessage(problem));}
-    finally {setBusy(false);}
+    finally {setBusy(false);if(focused)requestAnimationFrame(()=>{if(focused.isConnected && !focused.disabled && document.activeElement===document.body)focused.focus();});}
   }
   async function copy() {
     try {await navigator.clipboard.writeText(path);setNotice("기록 폴더 경로를 복사했습니다.");}

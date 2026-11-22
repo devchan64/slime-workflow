@@ -303,6 +303,8 @@ article {position:relative;}
 .generator-history-toolbar, .generator-history-actions, .generator-history-pagination {display:flex;flex-wrap:wrap;align-items:end;gap:.5rem}
 .generator-history-toolbar label {min-width:0;flex:1 1 12rem}
 .generator-history-toolbar input {max-width:100%}
+.generator-history-toolbar label small {display:block;font-size:.85rem;line-height:1.5}
+.conversation-error-actions {display:flex;flex-wrap:wrap;gap:.5rem}
 .generator-history-list {display:grid;gap:.5rem;margin:.5rem 0}
 .generator-history-item {border:1px solid var(--line, #484d50);border-radius:.5rem;overflow:hidden}
 .generator-history-select {width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:.3rem;text-align:left;border:0;border-radius:0}

@@ -24,7 +24,7 @@ export default function AnimatePage({embedded=false}={}){
     <p>시스템 RAM과 GPU 메모리 부족으로 신규 생성과 재개를 보류합니다. 기존 작업의 참조와 결과 영상을 검수할 수 있습니다.</p>
     <GeneratorChangelog generator="wan22-animate2-generator"/><ModelReadiness service={service} manage/><DownloadProgress service={service}/>
     <AnimateInputs saved={saved}/>
-    <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} openResult={setJob} service={service} readJob={readJob}
+    <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} openResult={setJob} externalResultId={job} service={service} readJob={readJob}
       restore={(request,record)=>{setSaved(record);setJob(record.id);}}/>
     <GeneratorJobResult selectionControls job={job} service={service} controls={false} onDeleted={cleaned}/>
     {notice && <p role="status">{notice}</p>}

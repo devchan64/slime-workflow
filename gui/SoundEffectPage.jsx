@@ -125,7 +125,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service={service} status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
     <fieldset disabled={busy || Boolean(review) || !form}>
       {music && <MusicExamples apply={request=>setForm(current=>({...current,...request}))}/> }
-      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} restore={input=>{
+      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} externalResultId={job} restore={input=>{
         setForm(input);setNotice("저장된 생성 입력을 불러왔습니다.");
       }} inspectResult={record=>setJob(record.id)}/>
     </fieldset>

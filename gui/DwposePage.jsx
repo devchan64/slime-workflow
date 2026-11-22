@@ -86,7 +86,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
     <fieldset disabled={busy || Boolean(pending) || Boolean(handoff.id)}>
       <ReferenceImageInput label="입력 PNG · 832×480" accept="image/png" source={file} validate={pngData} disabled={busy || Boolean(pending)} onChange={setFile}/>
       {file && <p>선택된 입력 · {file.name}</p>}
-      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service="dwpose" readJob={readJob} restore={restore} inspectResult={record=>setJob(record.id)}/>
+      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service="dwpose" readJob={readJob} externalResultId={job} restore={restore} inspectResult={record=>setJob(record.id)}/>
       <div className="dwpose-options"><label><input ref={handsRef} type="checkbox" checked={hands} onChange={event=>setHands(event.target.checked)}/>손 상세 표시</label>
       <label><input type="checkbox" checked={face} onChange={event=>setFace(event.target.checked)}/>얼굴 상세 표시</label></div>
       <ActionButton reasons={[!file && "입력 PNG를 선택하세요.",!generationReady(model) && "모델 준비 상태를 확인하세요."]} onClick={review}>생성 요청 검토</ActionButton>

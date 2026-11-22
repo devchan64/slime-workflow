@@ -2,7 +2,7 @@ import WorkflowResults from "./WorkflowResults.jsx";
 import QueuePriority from "./QueuePriority.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
 import WriterResult from "./WriterResult.jsx";
-import React, {useEffect, useRef, useState} from "react";
+import React, {useEffect, useId, useRef, useState} from "react";
 import JobIdentifier from "./JobIdentifier.jsx";
 import RecentGeneratorJobs from "./RecentGeneratorJobs.jsx";
 import QueuePagination from "./QueuePagination.jsx";
@@ -28,7 +28,8 @@ function pendingFluxLabel(step){
   return "접수 확인 필요";
 }
 
-export default function QueuePanel({session, call, editNextStep, openMessage, choose, initialRun=""}) {
+export default function QueuePanel({session, call, editNextStep, openMessage, choose, initialRun="", filterCache}) {
+  const dateErrorId=useId();
   const [selectedRun,setSelectedRun] = useState(initialRun);
   const [selectedDirect,setSelectedDirect]=useState("");
   const detail=useRef(null),resultTrigger=useRef(null),listHeading=useRef(null);
@@ -41,10 +42,11 @@ export default function QueuePanel({session, call, editNextStep, openMessage, ch
     setSelectedRun("");setSelectedDirect("");
     requestAnimationFrame(()=>resultTrigger.current?.isConnected && resultTrigger.current.focus());
   }
-  const [draft, setDraft] = useState({...initial,run_id:initialRun});
-  const [filters, setFilters] = useState({...initial,run_id:initialRun});
+  const [draft, setDraft] = useState(()=>!initialRun && filterCache?.current[session]?.draft || {...initial,run_id:initialRun});
+  const [filters, setFilters] = useState(()=>!initialRun && filterCache?.current[session]?.filters || {...initial,run_id:initialRun});
   const [result, setResult] = useState(null),[resultFilters,setResultFilters]=useState(null);
-  const [page,setPage]=useState(0),[pageSize,setPageSize]=useState(5);
+  const [page,setPage]=useState(0),[pageSize,setPageSize]=useState(()=>filterCache?.current[session]?.pageSize || 5);
+  useEffect(()=>{if(filterCache)filterCache.current[session]={draft,filters,pageSize};},[filterCache,session,draft,filters,pageSize]);
   const [error, setError] = useState("");
   const [navigationError,setNavigationError]=useState("");
   const [loading,setLoading] = useState(true);
@@ -82,8 +84,8 @@ export default function QueuePanel({session, call, editNextStep, openMessage, ch
         {Object.entries(states).map(([key,label]) => <option key={key} value={key}>{label}</option>)}
       </select></label>
       <details><summary>상세 필터</summary>{Object.entries({generator:"생성기",run_id:"워크플로우 실행 ID",job_id:"단계 또는 작업 ID",created_from:"시작일",created_through:"종료일"}).map(([key,label]) =>
-        <label key={key}>{label} <input type={key.startsWith("created_")?"date":"text"} {...field(key)}/></label>)}<small>날짜 기준 · 한국 시간. 생성기와 작업 ID는 일부 값으로 검색할 수 있습니다. 워크플로우 실행 ID는 전체 값을 입력하세요.</small></details>
-      {invalidDateRange && <p role="alert">시작일은 종료일보다 늦을 수 없습니다.</p>}
+        <label key={key}>{label} <input type={key.startsWith("created_")?"date":"text"} aria-invalid={key.startsWith("created_") && invalidDateRange || undefined} aria-describedby={key.startsWith("created_") && invalidDateRange ? dateErrorId : undefined} {...field(key)}/></label>)}<small>날짜 기준 · 한국 시간. 생성기와 작업 ID는 일부 값으로 검색할 수 있습니다. 워크플로우 실행 ID는 전체 값을 입력하세요.</small></details>
+      {invalidDateRange && <p id={dateErrorId} role="alert">상세 필터의 시작일은 종료일보다 늦을 수 없습니다.</p>}
       <button disabled={invalidDateRange}>작업 조회</button>
       <button type="button" onClick={()=>{setDraft({...initial});setFilters({...initial});setSelectedRun("");setSelectedDirect("");}}>필터 초기화</button>
       <button type="button" onClick={()=>refresh(n=>n+1)}>작업 목록 새로고침</button>

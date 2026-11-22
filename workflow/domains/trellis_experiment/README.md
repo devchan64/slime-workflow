@@ -140,3 +140,15 @@ PYTHONPATH=.local/trellis-experiment/mesh-inspection \
 새 ImageGen 참조 `.local/trellis-experiment/reference-eight-a-pose-v1.png`의 SHA-256은 `caa5ff38eaa7877f5ff594247f4a8f40e48c67dd3292d4a701d9536daaefbd81`이다. `prepare_a_pose_views.py`로 구분선이 없는 1536×1024 시트를 384×512 이미지 8개로 분할하고 기존 `mask_views.py`로 마스크를 만들었다. 분할과 마스크 출력은 각각 `.local/trellis-experiment/reference-views-a-pose-v1`, `.local/trellis-experiment/masked-views-a-pose-v1`이며 후자의 8개 이미지 해시를 매니페스트와 대조했다. 어두운 배경 검수는 `mask-check.png`다. 이미지 번호와 방향명은 의도된 방향이고 카메라 정합을 증명하지 않는다. 측면에서는 팔이 몸 위로 투영되고 후면 사선 두 장이 유사해 다중 이미지의 자세·방향 정합은 미검증이다.
 
 `generate_a_pose.py`는 새 마스크만 입력으로 고정한 별도 대기열 실행기다. 이전 실험과 동일한 seed 42, stochastic, 25+25 스텝, 메시 단독 저장을 사용한다. 이전 `generate.py` 또는 대기 중인 작업의 입력은 수정하지 않았다. 준비만 완료했으며 GPU 작업은 새로 접수하거나 추론하지 않았다. 실행 시 공용 GPU 대기열과 ROCm 공통 운영 규칙을 따른다. 결과에서는 별도 리깅 전에 손과 몸의 연결, 자기 교차, 실루엣 및 스키닝 변형을 검증해야 한다.
+
+A 포즈 생성 작업 `.tmp/trellis-experiment/generate-a-pose-597b6671462340439172aafa27500400`을 공용 GPU 대기열에 접수했다. 접수 직후 다른 GPU 예약이 존재하고 실행 조건 확인이 안 되어 대기 상태였다. 접수는 생성이나 리깅 검증 성공을 뜻하지 않는다. 완료 후 상태·결과·손과 몸의 연결 검사를 확인해야 한다.
+
+## A 포즈 생성의 라이선스 고지 확인 (2026-11-22)
+
+실행 작업 `generate-a-pose-597b6671462340439172aafa27500400/runtime-imports.json`의 추론 종료 시점 모듈 기록에서 `nvdiffrast`, `nvdiffrec`, `diffoctreerast` 이름은 관찰되지 않았다. 이는 Python 모듈 목록 기준이며 네이티브 라이브러리 전수 분석이나 호출 경로 전체 증명은 아니다. `rembg`는 관찰됐지만 사전 RGBA 마스크를 입력한 이 작업에서 배경 제거 모델이 실행됐다는 뜻은 아니다.
+
+공식 TRELLIS 1 코드와 `microsoft/TRELLIS-image-large`는 MIT로 표시된다. 모델·코드 라이선스 고지는 [TRELLIS LICENSE](https://github.com/microsoft/TRELLIS/blob/main/LICENSE)와 [모델 카드](https://huggingface.co/microsoft/TRELLIS-image-large) 참조. 실행 중 확인된 `easydict` 1.14에는 LGPL-3.0-only 및 LICENSE, `plyfile` 1.1.5에는 GPL-3 이상 고지와 COPYING이 포함된다. 소프트웨어를 배포할 때의 의무와 생성된 메시만 배포하는 경우를 구분해야 하며, 도구의 GPL/LGPL 표시만으로 독립적인 출력 메시가 동일 라이선스에 종속된다고 단정하지 않는다.
+
+`torch` 2.13.0+rocm10.0.0 메타데이터는 Apache-2.0, LLVM 예외, BSD, BSL, MIT 등의 복합 SPDX 표현과 제3자 라이선스 파일을 포함한다. `rocm-sdk-core` 10.0.0에는 구성요소별 9개 고지 파일이 있다. 반면 `amd-torch-device-gfx1151`, `amd-torch-device-gfx115x`, `amd-torchvision-device-gfx1151`, `rocm-sdk-device-gfx1151`, `rocm-sdk-libraries`의 설치 메타데이터에는 식별자 및 개별 고지 파일이 없었다. 고지 부재는 비상업 제한의 증거가 아니지만 바이너리 전체 조건이 확인됐다는 뜻도 아니다. [AMD ROCm 10.0 구성요소별 안내](https://rocm.docs.amd.com/en/docs-10.0.0/about/license.html)에서 주요 오픈소스 구성요소의 조건을 확인할 수 있으나 이 문서만으로 실제 휠의 전 구성요소와 내장 제3자 고지를 확정하지 않는다.
+
+사용한 참조 이미지에 관한 입력 권리, ROCm 장치 휠의 정확한 구성 및 고지, 후속 자동 리깅·모션·2D 영상 생성의 결과물 조건은 미확인이다. 이 기록은 상업적 승인이나 완전한 법률 검토가 아니다.

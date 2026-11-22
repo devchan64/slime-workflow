@@ -2,32 +2,36 @@ import KimodoMedia from "./KimodoMedia.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
 import {managementCommand} from "./managementCommand.js";
 import TranslationResult from "./TranslationResult.jsx";
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 
 const stepStates={ready:"접수 준비",waiting:"선행 단계 대기",awaiting_choice:"결과 선택 대기",submitting:"접수 중",queued:"대기 중",running:"실행 중",completed:"완료",failed:"실패",cancelled:"취소",blocked:"차단",unknown:"확인 중",paused:"일시 중지"};
 
 function MediaPreview({audio, result, session, run, call}) {
+  const buttonRef=useRef(null);
   const [source,setSource] = useState("");
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState("");
   async function load() {
+    const restoreFocus=document.activeElement===buttonRef.current;
     setBusy(true);
     setError("");
     try {
       const data = await call(audio ? "workflow-audio-preview" : "workflow-image-preview",
         {session_id:session, run_id:run, step_id:result.step_id});
       setSource(audio ? "data:audio/wav;base64," + data.wav : "data:image/png;base64," + data.preview_png);
-    } catch (problem) {setError(problem.message);}
-    finally {setBusy(false);}
+    } catch (problem) {setError(`미리보기를 불러오지 못했습니다. ${problem.message} 다시 시도해 주세요.`);}
+    finally {setBusy(false);if(restoreFocus)requestAnimationFrame(()=>{if(document.activeElement===document.body && buttonRef.current && !buttonRef.current.disabled)buttonRef.current.focus();});}
   }
-  return <><button type="button" disabled={busy} aria-expanded={Boolean(source)} onClick={()=>source ? (setSource(""),setError("")) : load()}>{busy ? "불러오는 중" : source ? (audio ? "효과음 닫기" : "이미지 닫기") : (audio ? "효과음 듣기" : "이미지 보기")}</button>
+  return <><button ref={buttonRef} type="button" disabled={busy} aria-expanded={Boolean(source)} onClick={()=>source ? (setSource(""),setError("")) : load()}>{busy ? "불러오는 중" : source ? (audio ? "효과음 닫기" : "이미지 닫기") : (audio ? "효과음 듣기" : "이미지 보기")}</button>
     {source && (audio ? <audio controls src={source} onError={()=>setError("효과음 미리보기를 재생할 수 없습니다. 닫은 뒤 다시 열어 주세요.")}/> : <img style={{maxWidth:"100%"}} src={source} alt={result.step_id + " 생성 결과"} onError={()=>setError("이미지 미리보기를 표시할 수 없습니다. 닫은 뒤 다시 열어 주세요.")}/>)}
     {error && <p role="alert">{error}</p>}</>;
 }
 
 function KimodoMotion({result}) {
+  const buttonRef=useRef(null);
   const [video,setVideo]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState("");
   async function load(){
+    const restoreFocus=document.activeElement===buttonRef.current;
     setBusy(true);setError("");
     try{
       const job=await managementCommand("kimodo","status",{id:result.job_id});
@@ -36,17 +40,18 @@ function KimodoMotion({result}) {
          result.outputs.preview!==directory+"output-000.png" || job.video!==directory+"preview.mp4")
         throw new Error("보관한 프레임과 같은 실행 시도의 영상을 확인할 수 없습니다.");
       setVideo(job);
-    }catch(problem){setError(problem.message);}
-    finally{setBusy(false);}
+    }catch(problem){setError(`원본 모션 영상을 불러오지 못했습니다. ${problem.message} 다시 시도해 주세요.`);}
+    finally{setBusy(false);if(restoreFocus)requestAnimationFrame(()=>{if(document.activeElement===document.body && buttonRef.current && !buttonRef.current.disabled)buttonRef.current.focus();});}
   }
   return <section aria-label="Kimodo 모션 결과">
-    <button type="button" disabled={busy} aria-expanded={Boolean(video)} onClick={()=>video ? setVideo("") : load()}>{busy ? "불러오는 중" : video ? "원본 모션 영상 닫기" : "원본 모션 영상 보기"}</button>
+    <button ref={buttonRef} type="button" disabled={busy} aria-expanded={Boolean(video)} onClick={()=>video ? setVideo("") : load()}>{busy ? "불러오는 중" : video ? "원본 모션 영상 닫기" : "원본 모션 영상 보기"}</button>
     {video && <KimodoMedia id={result.job_id} job={video}/>}
     {error && <p role="alert">{error}</p>}
   </section>;
 }
 
 export default function WorkflowResults({session, run, call, close, openRun, editNextStep}) {
+  const refreshRef=useRef(null),restoreRefreshFocus=useRef(false);
   const [catalog,setCatalog] = useState({});
   useEffect(()=>{
     let active=true;
@@ -55,6 +60,7 @@ export default function WorkflowResults({session, run, call, close, openRun, edi
     return ()=>{active=false;};
   },[call]);
   const [view,setView] = useState(null);
+  const [observation,setObservation] = useState(null);
   const [error,setError] = useState("");
   const [busy,setBusy] = useState(false);
   const [confirmCancel,setConfirmCancel] = useState(false);
@@ -63,9 +69,16 @@ export default function WorkflowResults({session, run, call, close, openRun, edi
     let active = true;
     setBusy(true); setError("");
     call("workflow-view", {session_id:session,run_id:run})
-      .then(value => { if (active && value.run_id===run) setView(value); })
+      .then(value => {
+        if(!active)return;
+        if(value.run_id!==run)throw new Error("조회한 실행 ID가 일치하지 않습니다. 결과를 다시 갱신하세요.");
+        setView(value);setObservation({run,time:new Date()});
+      })
       .catch(problem => { if (active) setError(problem.message); })
-      .finally(() => { if (active) setBusy(false); });
+      .finally(() => { if (active) {
+        setBusy(false);
+        if(restoreRefreshFocus.current){restoreRefreshFocus.current=false;requestAnimationFrame(()=>{if(document.activeElement===document.body && refreshRef.current && !refreshRef.current.disabled)refreshRef.current.focus();});}
+      } });
     return () => {active=false;};
   }, [session,run,call,revision]);
   useEffect(() => {
@@ -117,9 +130,10 @@ export default function WorkflowResults({session, run, call, close, openRun, edi
   }
   return <section className="workflow-result" aria-label="워크플로우 결과">
     <header className="workflow-result-header"><div><h3 tabIndex={-1}>워크플로우 결과</h3><span>실행 ID</span><JobIdentifier id={run} label="실행 ID" compact/></div>
-      <div className="workflow-result-actions"><button disabled={busy} onClick={()=>{setConfirmCancel(false);setRevision(value=>value+1);}}>결과 갱신</button>
+      <div className="workflow-result-actions"><button ref={refreshRef} disabled={busy} onClick={()=>{restoreRefreshFocus.current=document.activeElement===refreshRef.current;setConfirmCancel(false);setRevision(value=>value+1);}}>결과 갱신</button>
       <button onClick={close}>결과 닫기</button></div></header>
     <p role="status">{connectionNotice}</p>
+    <p role="status">{busy && "처리 중 · "}{observation?.run===run ? `마지막 조회 성공 · ${observation.time.toLocaleString("ko-KR")}` : busy ? "결과 정보를 확인하고 있습니다." : "조회 시각을 확인할 수 없습니다."}</p>
     {error && <p role="alert">{error}</p>}
     {view && <>
       {activeSteps.length>0 && (confirmCancel ?

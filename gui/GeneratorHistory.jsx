@@ -29,8 +29,8 @@ function HistoryThumbnail({src}) {
   return <img className="history-card-image" loading="lazy" decoding="async" src={src} alt="생성 결과 미리보기" onError={()=>setFailed(true)}/>;
 }
 
-export default function GeneratorHistory({service, statusCommand, restore, inspectResult, openResult, renderResult, readJob, allowPriority=false, onSelectedDeleted, card=false, preserveExpandedOnClose=false, resultId='', onCloseResult, footer}) {
-  const resultPanelId=useId();
+export default function GeneratorHistory({service, statusCommand, restore, inspectResult, openResult, renderResult, readJob, allowPriority=false, onSelectedDeleted, card=false, resultId='', externalResultId='', onCloseResult, footer}) {
+  const resultPanelId=useId(),searchHelpId=useId(),searchErrorId=useId();
   const detailsRef=useRef(null),selectedRef=useRef(null);
   const [expanded,setExpanded]=useState(null);
   const [page,setPage]=useState(null);
@@ -84,20 +84,32 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
   },[page,service]);
   async function perform(operation) {
     if(pending.current)return;
+    const focused=detailsRef.current?.contains(document.activeElement) ? document.activeElement : null;
     pending.current=true;setBusy(true); setError("");
     try { await operation(); }
     catch(problem) { setError(requestErrorMessage(problem)); }
-    finally { pending.current=false;setBusy(false); }
+    finally {
+      pending.current=false;setBusy(false);
+      requestAnimationFrame(()=>{
+        if(!focused?.isConnected || document.activeElement!==document.body)return;
+        if(!focused.disabled)focused.focus();
+        else if(focused.closest('.generator-history-pagination'))
+          (detailsRef.current?.querySelector('.generator-history-pagination button:not(:disabled)') || searchRef.current)?.focus();
+      });
+    }
   }
   async function list(offset, search, size=pageSize) {
+    if(search && !/^[A-Za-z0-9_-]+$/.test(search))throw new Error("작업 ID 검색에는 영문, 숫자, 하이픈(-), 밑줄(_)만 사용할 수 있습니다.");
     const payload={limit:size,offset,query:search};
     if(offset)payload.snapshot=page.snapshot;
     try {
       const result=await managementCommand(service,"history-observe",payload);
       if(!Array.isArray(result.records))throw new Error("이력 응답을 확인할 수 없습니다.");
       const ids=new Set(result.records.map(record=>record.id));
-      setExpanded(current=>ids.has(current) ? current : null);
-      setSelected(current=>current && ids.has(current.id) ? result.records.find(record=>record.id===current.id) : null);
+      setSelected(current=>{
+        if(current && ids.has(current.id))return result.records.find(record=>record.id===current.id);
+        return result.records.find(record=>record.id===(resultId || externalResultId || expanded)) || null;
+      });
       setJob(current=>current && ids.has(current.id) ? current : null);
       setPage(result);setFilter(search);setPageSize(size);
     } catch(problem) {
@@ -124,10 +136,10 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
     const result=await read(id);
     setJob(result);
   }
-  return <details ref={detailsRef} className={`generator-history${card ? ' generator-section-card' : ''}`} onToggle={event=>{if(!event.currentTarget.open && !preserveExpandedOnClose)setExpanded(null);
+  return <details ref={detailsRef} className={`generator-history${card ? ' generator-section-card' : ''}`} onToggle={event=>{
     if(event.currentTarget.open && !page && !error && !resultId)perform(()=>list(0,query.trim()));}}><summary>{card ? <span className="generator-section-card-heading" role="heading" aria-level="2">생성 이력</span> : '생성 이력'}</summary>
     <fieldset className={card ? 'generator-section-card-body' : undefined} disabled={busy}><div className="generator-history-toolbar">
-      <label>작업 ID 검색 <input ref={searchRef} value={query} maxLength={80} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Enter" && !e.nativeEvent.isComposing){e.preventDefault();perform(()=>list(0,query.trim()));}}}/></label>
+      <label>작업 ID 검색 <input ref={searchRef} value={query} maxLength={80} aria-describedby={error.startsWith("작업 ID 검색에는 영문") ? `${searchHelpId} ${searchErrorId}` : searchHelpId} aria-invalid={error.startsWith("작업 ID 검색에는 영문") || undefined} onChange={e=>{setQuery(e.target.value);setError(value=>value.startsWith("작업 ID 검색에는 영문") ? "" : value);}} onKeyDown={e=>{if(e.key==="Enter" && !e.nativeEvent.isComposing){e.preventDefault();perform(()=>list(0,query.trim()));}}}/><small id={searchHelpId}>ID의 일부를 검색할 수 있습니다. 영문, 숫자, 하이픈(-), 밑줄(_)을 사용하세요.</small></label>
       <label>페이지당 이력 <select value={pageSize} onChange={e=>{const size=Number(e.target.value);perform(()=>list(0,query.trim(),size));}}>{[5,10,20,30].map(size=><option key={size} value={size}>{size}건</option>)}</select></label>
       <button type="button" onClick={()=>perform(()=>list(0,query.trim()))}>{busy?"조회 중…":page && query.trim()===filter?"이력 새로고침":"이력 조회"}</button>
       {(query || filter) && <button type="button" onClick={()=>{setQuery("");perform(()=>list(0,"")).then(()=>requestAnimationFrame(()=>{if(document.activeElement===document.body)searchRef.current?.focus();}));}}>검색 초기화</button>}
@@ -135,13 +147,16 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
       {resultId && resultLookup?.id===resultId && resultLookup.loading && <p role="status">선택한 작업을 이력에서 찾고 있습니다.</p>}
       {resultId && resultLookup?.id===resultId && resultLookup.error && <section className="history-action-detail" aria-label="이력 밖 선택 결과"><p role="alert">{resultLookup.error}</p><button type="button" onClick={()=>retryLookup(value=>value+1)}>이력에서 다시 찾기</button>{renderResult?.(resultId,()=>{onCloseResult?.();requestAnimationFrame(()=>detailsRef.current?.querySelector('summary')?.focus());})}</section>}
       {resultId && resultLookup?.id===resultId && !resultLookup.loading && !resultLookup.error && page && !page.records.some(record=>record.id===resultId) && <section className="history-action-detail" aria-label="이력 범위 밖 선택 결과"><p>선택한 작업이 현재 이력 검색 또는 페이지 범위 밖에 있습니다.</p>{renderResult?.(resultId,()=>{onCloseResult?.();requestAnimationFrame(()=>detailsRef.current?.querySelector('summary')?.focus());})}</section>}
+      {!openResult && expanded && page && !page.records.some(record=>record.id===expanded) && <section className="history-action-detail" aria-label="이력 범위 밖 선택 결과"><p>선택한 작업이 현재 이력 검색 또는 페이지 범위 밖에 있습니다.</p><button type="button" onClick={()=>{setExpanded(null);requestAnimationFrame(()=>searchRef.current?.focus());}}>결과 닫기</button>{renderResult?.(expanded)}</section>}
       {page && <>
         {query.trim()!==filter && <p role="status">검색어가 변경되었습니다. 아래는 이전 조회 결과입니다. 이력 조회를 눌러 적용하세요.</p>}
+        {externalResultId && !page.records.some(record=>record.id===externalResultId) && <p role="status">열린 작업 결과는 현재 이력 검색 또는 페이지 범위 밖에 있습니다.</p>}
+        {externalResultId && selected && selected.id!==externalResultId && <p role="status">아래 열린 결과는 현재 선택한 이력과 다른 작업입니다.</p>}
         <p role="status">총 {page.total}건 · 이번 조회 {page.records.length}건</p>
         {summaryNotice && <p role="status">{summaryNotice}</p>}
         {page.records.length===0 && <p>조회된 이력이 없습니다. 검색 조건을 바꾸거나 새 작업을 생성하세요.</p>}
-        <div className="generator-history-list">{page.records.map(record=><div className="generator-history-item" key={record.id}>
-          <button type="button" ref={selected?.id===record.id ? selectedRef : undefined} className="generator-history-select" aria-pressed={selected?.id===record.id} onClick={()=>{if(selected?.id!==record.id){setExpanded(null);if(resultId)onCloseResult?.();}setSelected(record);setJob(null);setError("");}}>
+        <div className="generator-history-list">{page.records.map(record=><div className="generator-history-item" data-history-id={record.id} key={record.id}>
+          <button type="button" ref={selected?.id===record.id ? selectedRef : undefined} className="generator-history-select" aria-pressed={selected?.id===record.id} onClick={()=>{if(selected?.id!==record.id){setExpanded(null);if(resultId)onCloseResult?.();}setSelected(record);setJob(null);setError(value=>value.startsWith("작업 ID 검색에는 영문") ? value : "");}}>
             <HistoryImage key={record.id} service={service} record={record} summary={summaries[record.id]} unavailable={Boolean(summaryNotice)}/><span className="history-card-content"><span className="history-card-heading"><JobStatus state={record.recorded_status}/>{recordedTime(record.id) && <span>{recordedTime(record.id)}</span>}</span>{historyInputSummary(summaries[record.id]).length>0 && <span className="history-card-summary">{historyInputSummary(summaries[record.id]).join(" · ")}</span>}</span>
           </button>
           <JobIdentifier id={record.id} compact/>
@@ -167,6 +182,6 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
         </nav>
       </>}
     </fieldset>
-    {footer && <div className="generator-section-card-body">{footer}</div>}{error && <p role="alert">{error}</p>}
+    {footer && <div className="generator-section-card-body">{footer}</div>}{error && <p id={searchErrorId} role="alert">{error}</p>}
   </details>;
 }

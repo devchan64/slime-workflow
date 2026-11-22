@@ -19,8 +19,9 @@ function decodeReferences(rows){
   return rows.map(({name,data})=>new File([Uint8Array.from(atob(data),c=>c.charCodeAt(0))],name,{type:"image/png"}));
 }
 
-export function KimodoInputSummary({inputs,references,placement,bundle,directions}){
-  return <p aria-label="현재 생성 설정 요약">시드 {inputs.seed} · {inputs.frames}프레임 · 방향 {(inputs.directions || []).map(id=>directions[id]?.label || id).join(', ') || '없음'} · 고도 {inputs.camera_elevation_degrees}° · 참조 {references.length}장{references.length>0 && ' ('+references.map(file=>file.name).join(', ')+')'} · 키프레임 {placement?.placements?.length || 0}개 · 가중 골격 {bundle ? '선택됨' : '없음'} · 후처리 {inputs.post_processing ? '켜짐' : '꺼짐'} · 수평 이동 제거 {inputs.remove_horizontal_motion ? '켜짐' : '꺼짐'}</p>;
+export function KimodoInputSummary({inputs,references,placement,bundle,directions,frameInvalid=false}){
+  const items=[['시드',inputs.seed],['프레임',frameInvalid ? '구간 입력 확인 필요' : `${inputs.frames}프레임`],['방향',(inputs.directions || []).map(id=>directions[id]?.label || id).join(', ') || '없음'],['고도',`${inputs.camera_elevation_degrees}°`],['참조',`${references.length}장${references.length ? ' ('+references.map(file=>file.name).join(', ')+')' : ''}`],['키프레임',`${placement?.placements?.length || 0}개`],['가중 골격',bundle ? '선택됨' : '없음'],['후처리',inputs.post_processing ? '켜짐' : '꺼짐'],['수평 이동 제거',inputs.remove_horizontal_motion ? '켜짐' : '꺼짐']];
+  return <section className="kimodo-input-summary" aria-label="현재 생성 설정 요약"><strong>현재 생성 설정</strong><dl>{items.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>;
 }
 
 export function KimodoAcceptedResult({id,choose}){
@@ -260,8 +261,8 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
         <KeyframeCatalog query={search} initialFrames={inputs.frames} initialRows={placement?.placements || []}
           apply={(frames,result)=>{setPlacement(result);setInputs({...inputs,frames,post_processing:true,remove_horizontal_motion:false});setReview(null);setPlacing(false);}}/></>}
     </fieldset>}
-    {inputs && <form onChangeCapture={()=>setNotice(value=>value.endsWith(" 설정을 적용했습니다.")?"":value)} onSubmit={e=>{e.preventDefault();perform(inspect);}}><fieldset disabled={busy}>
-      <KimodoInputSummary inputs={inputs} references={references} placement={placement} bundle={bundle} directions={directions}/>
+    {inputs && <form onChangeCapture={event=>{const target=event.target;const related=target.closest(".kimodo-segment-settings") || target.matches("textarea") || target.name===modeName;setNotice(value=>value.endsWith(" 설정을 적용했습니다.") || (related && ["순차 생성의 구간 프레임 수를 입력하세요.","구간은 2~10개, 각 16~300프레임, 합계는 최대 300프레임으로 입력하세요.","동작 설명의 줄 수와 구간 프레임 수가 같아야 합니다."].includes(value)) ? "" : value);}} onSubmit={e=>{e.preventDefault();perform(inspect);}}><fieldset disabled={busy}>
+      <KimodoInputSummary inputs={inputs} references={references} placement={placement} bundle={bundle} directions={directions} frameInvalid={generationMode==="sequence" && !segmentsValid}/>
       <label>동작 설명 <textarea required maxLength={2000} value={inputs.prompt} aria-describedby={generationMode==="sequence" ? segmentHelp : undefined} aria-invalid={generationMode==="sequence" && segmentsValid && promptSegmentCount!==segmentCounts.length ? true : undefined} onChange={e=>edit("prompt",e.target.value)}/><PromptWordCount text={inputs.prompt}/></label>
       <KimodoPromptExamples apply={prompt=>edit("prompt",prompt)} applySettings={id=>perform(()=>applyExample(id))}/>
       <fieldset className="kimodo-mode"><legend>생성 방식</legend><div className="kimodo-mode-options">

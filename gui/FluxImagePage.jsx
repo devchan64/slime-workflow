@@ -275,7 +275,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
       {review.result.translation && <p>생성 시 번역할 내용 · {review.result.translation}</p>}
       <GpuQueueSummary/>{handoffReview && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 {profile?.label || "FLUX"} 생성을 실행합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}<GenerationReviewActions busy={busy} onCancel={()=>{setReview(null);setHandoffReview(null);}} onConfirm={submit} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"} disabledReason={!fluxModelReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : ""}/></section>}
     {notice && <p role="status">{notice}</p>}
-    {profile && <fieldset disabled={busy || Boolean(review)}><GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setHistoryRevision(value=>value+1);}} key={historyRevision} service={service} readJob={readJob} restore={restore} inspectResult={record=>setJob(record.id)}/></fieldset>}
+    {profile && <fieldset disabled={busy || Boolean(review)}><GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setHistoryRevision(value=>value+1);}} key={historyRevision} service={service} readJob={readJob} externalResultId={job} restore={restore} inspectResult={record=>setJob(record.id)}/></fieldset>}
     <GeneratorJobResult selectionControls job={job} kind="flux" service={service} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/>
   </article>;
 }
