@@ -2189,12 +2189,15 @@ class HermesServiceTests(unittest.TestCase):
         self.assertEqual(len({current_result['job_id'] for current_result in hermes_first_results}), 1)
         self.assertEqual(sum(not current_result['duplicate'] for current_result in hermes_first_results), 1)
         hermes_second_payload = {'session_id': hermes_session_identifier, 'request_id': 'second-request-1234', 'prompt': '그 답을 이어서'}
+        queued = self.hermes_service_manager.execute_hermes_command('hermes-session-submit', hermes_second_payload)
+        self.assertTrue(queued['queued'])
+        self.assertEqual(hermes_launch_mock.call_count, 1)
         with self.assertRaisesRegex(ValueError, '종료된 후'):
-            self.hermes_service_manager.execute_hermes_command('hermes-session-submit', hermes_second_payload)
+            self.hermes_service_manager.dispatch_chat_queue(hermes_session_identifier)
         hermes_first_job_path = self.hermes_service_manager.hermes_storage_root / hermes_first_results[0]['job_id']
         (hermes_first_job_path / 'status.json').write_text('{"status":"completed"}')
         (hermes_first_job_path / 'hermes-events.jsonl').write_text(json.dumps({'type':'result', 'text':'첫 답변'}, ensure_ascii=False))
-        hermes_second_result = self.hermes_service_manager.execute_hermes_command('hermes-session-submit', hermes_second_payload)
+        hermes_second_result = self.hermes_service_manager.dispatch_chat_queue(hermes_session_identifier)
         hermes_second_request = json.loads((self.hermes_service_manager.hermes_storage_root / hermes_second_result['job_id'] / 'request.json').read_text())
         self.assertEqual(hermes_second_request['context']['messages'], [
             {'role':'user','content':'첫 질문'}, {'role':'assistant','content':'첫 답변'}])
@@ -2246,12 +2249,13 @@ class HermesServiceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '정리'):
             self.hermes_service_manager.execute_hermes_command('hermes-session-archive',
                 {'session_id': session, 'expected_update': snapshot['updated_at']})
+        queued = self.hermes_service_manager.execute_hermes_command('hermes-session-submit',
+                {'session_id': session, 'request_id': 'request_next', 'prompt': '다음 질문'})
+        self.assertTrue(queued['queued'])
         with self.assertRaisesRegex(ValueError, '정리'):
-            self.hermes_service_manager.execute_hermes_command('hermes-session-submit',
-                {'session_id': session, 'request_id': 'request_next', 'prompt': '다음 질문'})
+            self.hermes_service_manager.dispatch_chat_queue(session)
         (self.hermes_service_manager.hermes_storage_root / result['job_id'] / 'status.json').write_text('{"status":"completed"}')
-        self.hermes_service_manager.execute_hermes_command('hermes-session-submit',
-                {'session_id': session, 'request_id': 'request_next', 'prompt': '다음 질문'})
+        self.hermes_service_manager.dispatch_chat_queue(session)
         self.assertEqual(launch.call_count, 3)
 
     @patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready')

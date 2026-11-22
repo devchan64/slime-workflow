@@ -2,6 +2,15 @@
 from copy import deepcopy
 
 HERMES_CAPABILITY_RECORDS = (
+    {'command':'hermes-chat-queue-update','label':'대화 대기 요청 수정·취소','required':['session_id','request_id','revision'],'optional':['prompt','cancel'],'effect':'local_bookkeeping','gpu':'none','retry':'check_status','interfaces':['gui'],'result':'chat_queue','note':'대기 중인 요청을 버전 확인 후 수정하거나 취소한다. prompt와 cancel 중 하나만 전달한다.'},
+    {'command':'hermes-live-instruction','label':'진행 중 대화 지시 전달','required':['session_id','request_id','job_id','mode','text'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'request_id_or_unknown','interfaces':['gui'],'result':'live_instruction','note':'진행 중인 대화 작업에 지시를 전달한다. 전달 여부가 불명확하면 상태를 먼저 확인한다.'},
+    {'command':'hermes-live-instruction-recover','label':'미전달 지시 복구','required':['session_id','request_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'request_id_or_unknown','interfaces':['gui'],'result':'chat_queue','note':'미전달이 확인된 지시만 새 대화 대기 요청으로 복구한다.'},
+    {'command':'hermes-session-context-settings','label':'대화 자동 정리 설정','required':['session_id','enabled'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui'],'result':'session_settings','note':'해당 세션의 자동 정리 설정을 변경한다.'},
+    {'command':'hermes-session-context-compress','label':'대화 문맥 정리 접수','required':['session_id','request_id'],'optional':[],'effect':'enqueue','gpu':'queued','retry':'request_id_or_unknown','interfaces':['gui'],'result':'session_context_job','note':'대화 문맥 정리 작업을 접수한다. 완료 상태는 세션에서 확인한다.'},
+    {'command':'hermes-video-form-save','label':'대화 영상 생성 양식 저장','required':['session_id','form_id','request','video_info'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui'],'result':'video_form','note':'세션에 영상 생성 입력을 저장한다. 생성은 접수하지 않는다.'},
+    {'command':'hermes-video-form-read','label':'대화 영상 생성 양식 조회','required':['session_id','form_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui'],'result':'video_form','note':'세션에 저장된 영상 입력을 읽는다.'},
+    {'command':'hermes-video-form-submit','label':'대화 영상 생성 접수','required':['session_id','form_id'],'optional':[],'effect':'enqueue','gpu':'queued','retry':'request_id_or_unknown','interfaces':['gui'],'result':'video_receipt','note':'저장된 입력을 사용해 영상 생성을 접수한다. 같은 양식의 접수 기록을 확인한다.'},
+    {'command':'hermes-video-form-status','label':'대화 영상 접수 조회','required':['session_id','form_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui'],'result':'video_receipt','note':'해당 양식의 접수 기록을 읽는다. 실행 상태는 원 서비스에서 확인한다.'},
     {'command':'hermes-cleanup-preview','label':'이력 정리 대상 요약','required':['service'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'cleanup_preview','note':'삭제 없이 원 서비스 정리 후보·차단 수를 확인한다. 숨긴 작업까지 전체 순회할 수 있으며 대상과 상태는 변경될 수 있다.'},
     {'command':'hermes-video-resume-proposal','label':'영상 재개 제안 조회','required':['id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'video_resume_proposal','note':'완료된 대화의 영상 재개 제안을 읽는다.'},
     {'command':'hermes-video-resume-preview','label':'영상 재개 예비 검토','required':['service','job_id'],'optional':[],'effect':'recovery_possible','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'video_resume_preview','note':'저장 입력과 준비 작업 상태를 검토한다. 중단된 실행 기록을 복구할 수 있으며 GPU 가용성은 별도다.'},
@@ -186,6 +195,10 @@ HERMES_CAPABILITY_RECORDS = (
 
 
 HERMES_FIELD_SCHEMAS = {
+    'cancel': {'type':'boolean'},
+    'enabled': {'type':'boolean'},
+    'mode': {'type':'string'},
+    'video_info': {'type':['object','null']},
     'form_id': {'type':'string','pattern':'^[a-f0-9]{32}$'},
     'form_version': {'type':'integer','minimum':0},
     'form_name': {'type':'string','minLength':1,'maxLength':120},
@@ -411,6 +424,15 @@ def list_hermes_capability_catalog():
             current_payload_schema['properties']['request'] = {'type':'object','validation':'workflow.domains.translation.service.validate_translation_submission'}
         if current_command_name == 'hermes-delegate-flux-image':
             current_payload_schema['properties']['request'] = {'type':'object', 'validation':'workflow.domains.image.flux_image_generation.FluxImageGenerationManager(flux-image).validate_generation_request'}
+        if current_command_name == 'hermes-chat-queue-update':
+            current_payload_schema['properties']['revision'] = {'type':'integer', 'minimum':1}
+            current_payload_schema['properties']['cancel'] = {'const':True}
+            current_payload_schema['oneOf'] = [{'required':['prompt']}, {'required':['cancel']}]
+        if current_command_name == 'hermes-live-instruction':
+            current_payload_schema['properties']['mode'] = {'type':'string', 'enum':['steer','redirect']}
+            current_payload_schema['properties']['text'] = {'type':'string', 'minLength':1, 'maxLength':8000, 'pattern':r'\S'}
+        if current_command_name == 'hermes-video-form-save':
+            current_payload_schema['properties']['request'] = {'type':'object', 'validation':'HermesSessionStore.save_video_form'}
         current_catalog_records.append({**current_capability_record, 'payload_schema':current_payload_schema, 'service':'hermes-agent', 'method':current_method_value, 'route':'/hermes-agent' + current_route_suffix})
     current_catalog_commands=[current_record['command'] for current_record in current_catalog_records]
     if len(current_catalog_commands)!=len(set(current_catalog_commands)):
