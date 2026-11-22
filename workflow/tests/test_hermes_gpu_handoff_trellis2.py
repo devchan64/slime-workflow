@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from workflow.domains.hermes_agent import gpu_handoff_trellis2 as trellis2
-from workflow.domains.hermes_agent.gpu_handoff_pixal import fingerprint
+from workflow.domains.hermes_agent.gpu_handoff_existing_job import fingerprint
 
 
 class Trellis2HandoffTest(unittest.TestCase):

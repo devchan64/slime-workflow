@@ -10,7 +10,7 @@ import uuid
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
 BASE = ROOT / '.local/trellis2-experiment'
-BINARY = ROOT / '.local/pixal3d-experiment/build-rocm101/trellis-cli'
+BINARY = BASE / 'build-rocm101/trellis-cli'
 MODELS = BASE / 'model-gguf'
 IMAGE = ROOT / '.local/trellis-experiment/masked-views-a-pose-v1/01_front.png'
 MODEL_FILES = ('dinov3.gguf', 'ss_dec.gguf', 'shape_dec.gguf', 'ss_flow.gguf',
@@ -33,13 +33,18 @@ def worker(job):
     for path, expected in request['sha256'].items():
         if digest(Path(path)) != expected:
             raise ValueError('TRELLIS.2 입력 또는 가중치가 변경되었습니다')
+    # Existing queued requests remain bound to the executable they recorded.
+    recorded_binaries = [Path(path) for path in request['sha256'] if Path(path).name == 'trellis-cli']
+    if len(recorded_binaries) != 1:
+        raise ValueError('TRELLIS.2 실행기 지문이 없습니다')
+    job_binary = recorded_binaries[0]
     env = dict(os.environ, LD_LIBRARY_PATH='/opt/rocm/core-10.1/lib',
                GGML_CUDA_DISABLE_GRAPHS='1', GGML_FA_DEBUG='1')
     # Avoid inherited experimental kernel overrides changing the recorded path.
     for key in ('TRELLIS_FA_FAST', 'TRELLIS_FA_NOMASK', 'TRELLIS_NOFA'):
         env.pop(key, None)
     output = job / 'mesh.glb'
-    subprocess.run([str(BINARY), str(IMAGE), '--models', str(MODELS), '--seed', '42',
+    subprocess.run([str(job_binary), str(IMAGE), '--models', str(MODELS), '--seed', '42',
                     '--res', '1024', '--require-gpu', '--no-texture', '--output', str(output)],
                    cwd=ROOT, env=env, check=True)
     import numpy as np

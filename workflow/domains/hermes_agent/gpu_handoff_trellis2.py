@@ -2,13 +2,13 @@
 from pathlib import Path
 import re
 
-from workflow.domains.hermes_agent.gpu_handoff_pixal import PixalHandoffAdapter, fingerprint
+from workflow.domains.hermes_agent.gpu_handoff_existing_job import ExistingJobHandoffAdapter, fingerprint
 from workflow.domains.hermes_agent.delegation_store import read_bounded_delegation_record
 
 ROOT = Path(__file__).resolve().parents[3] / '.tmp/trellis2-experiment'
 
 
-class Trellis2HandoffAdapter(PixalHandoffAdapter):
+class Trellis2HandoffAdapter(ExistingJobHandoffAdapter):
     def _job(self, record):
         request = record['target_request']
         job_id = request.get('job_id')

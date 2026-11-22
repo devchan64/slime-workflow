@@ -3,7 +3,7 @@ import hashlib
 import json
 import sys
 from threading import Event
-from workflow.domains.hermes_agent.gpu_handoff_pixal import fingerprint
+from workflow.domains.hermes_agent.gpu_handoff_existing_job import fingerprint
 from workflow.domains.hermes_agent.gpu_handoff_unirig import ROOT
 from workflow.domains.hermes_agent.gpu_handoff_scheduler import HandoffServiceAdapter, run_gpu_handoff_scheduler
 from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore

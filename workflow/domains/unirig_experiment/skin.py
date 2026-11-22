@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-import uuid
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0,str(ROOT))
@@ -50,20 +49,7 @@ def worker(job):
 def main():
     if len(sys.argv)==3 and sys.argv[1]=='--worker':
         worker(Path(sys.argv[2]).resolve(strict=True)); return
-    if len(sys.argv)!=1:
-        raise ValueError('invalid arguments')
-    from workflow.common.gpu_job_queue import launch_gpu_process
-    for path in FILES:
-        if not path.is_file():
-            raise FileNotFoundError(path)
-    job=ROOT/'.tmp/unirig-experiment'/('generate-'+uuid.uuid4().hex)
-    job.mkdir(parents=True)
-    (job/'request.json').write_text(json.dumps({'sha256':{str(p):sha(p) for p in FILES},'seed':42,
-        'purpose':'experimental skin; ROCm sparse, segment and attention fallbacks'},indent=2)+'\n')
-    with (job/'worker.log').open('w') as log:
-        proc=launch_gpu_process([str(PYTHON),str(Path(__file__).resolve()),'--worker',str(job)],job,
-                                'unirig-experiment',stdout=log,stderr=log,start_new_session=True)
-    print(f'job={job} queue_pid={proc.pid}',flush=True)
+    raise RuntimeError('폐기된 Pixal3D 리그를 입력으로 사용하는 실험입니다. 새 TRELLIS.2 모델용 리깅 입력을 먼저 준비하세요.')
 
 
 if __name__ == '__main__':

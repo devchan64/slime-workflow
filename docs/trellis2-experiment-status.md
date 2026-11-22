@@ -17,3 +17,9 @@
 ## 작업 상태
 
 `.tmp/trellis2-experiment/generate-cade4373af0448db91c769d9e0ae3ea2`을 대기열에 접수했다. 이미 실행 중인 다른 GPU 작업을 중단하지 않으며, 생성 완료 여부와 형상 품질은 상태·출력·렌더를 확인한 후 기록한다.
+
+## Pixal3D 폐기
+
+후속 지시에 따라 Pixal3D 생성 및 전용 양도 진입점을 제거했다. 이전 Pixal3D 형상과 리그를 기본 입력으로 재생성하던 UniRig 실행도 차단했다. 이전 실험 결과와 기록은 보관하며, GPU 대기열의 기존 Pixal 예약 판독 규칙은 과거 예약을 잘못 해석하지 않도록 유지한다. TRELLIS.2·UniRig의 공용 양도 코드는 Pixal 모듈에 의존하지 않는다. TRELLIS.2의 종전 대기 작업은 접수 당시 실행기 지문에 묶여 있으므로 작업 도중 실행기를 변경하거나 삭제하지 않는다. 별도로 Pixal3D 포크가 아닌 `pwilkin/trellis.cpp` 상위 소스를 격리해 ROCm 빌드를 검증한다.
+
+신규 작업의 실행기는 `.local/trellis2-experiment/build-rocm101/trellis-cli`이며, 상위 소스 리비전 `6851891d706e2e26a8bb9dd99f28de851d68b64d`, ggml 서브모듈 `f8697b33795db2ee6a2569b40853ca6aaa69f9b9`를 빌드한다. GPU 추론 결과와 수치 동등성은 별도로 검증해야 한다.
