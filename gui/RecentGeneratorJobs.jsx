@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import JobIdentifier from "./JobIdentifier.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
 import KimodoFrames from "./KimodoFrames.jsx";
@@ -46,7 +46,7 @@ export default function RecentGeneratorJobs({session,filters,filterSummary,revis
     async function boundedRequest(operation){
       const controller=new AbortController();controllers.add(controller);let timedOut=false;
       const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
-      try{return await operation(controller.signal);}
+      try{return await untilAborted(operation(controller.signal),controller.signal);}
       catch(error){if(timedOut)throw new Error('조회 시간이 초과됐습니다.');throw error;}
       finally{clearTimeout(timeout);controllers.delete(controller);}
     }
@@ -76,7 +76,9 @@ export default function RecentGeneratorJobs({session,filters,filterSummary,revis
               }
               if(page.service!==source.service || !Array.isArray(page.records))throw new Error('이력 응답 오류');
               succeeded++;
-              for(const record of page.records)if(typeof record.id==='string' && /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(record.id))collected.push({source,record});
+              let invalid=0;
+              for(const record of page.records){if(record && typeof record.recorded_status==='string' && typeof record.id==='string' && /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(record.id))collected.push({source,record});else invalid++;}
+              if(invalid)failed.push({service:source.service,reason:`형식을 확인할 수 없는 기록 ${invalid}건`});
               if(page.unavailable_count)failed.push({service:source.service,reason:`확인할 수 없는 기록 ${page.unavailable_count}건`});
             }catch(error){failed.push({service:source.service,reason:error instanceof Error ? error.message : '이력을 조회할 수 없습니다.'});}
           }
@@ -95,7 +97,7 @@ export default function RecentGeneratorJobs({session,filters,filterSummary,revis
     <p>세션 외 작업도 포함 · 생성기별 최근 10건 중 최대 20건 · 기록 상태 기준{checked && ' · 조회 '+checked.toLocaleString('ko-KR')}</p>
     {loading && <p role="status">최근 작업 조회 중…{checked && " 아래에는 이전 조회 결과가 표시됩니다."}</p>}
     {listUnavailable && checked && <p role="status">최근 작업을 조회하지 못해 이전 결과를 표시합니다. 최근 작업 새로고침으로 다시 확인하세요.</p>}
-    {errors.length>0 && <div><p role="status">일부 이력을 확인하지 못했습니다 · {errors.length}곳</p><details open={errorsOpen} onToggle={event=>setErrorsOpen(event.currentTarget.open)}><summary>조회 실패 원인과 조치</summary><p>문제를 확인한 뒤 최근 작업을 새로고침하세요.</p><ul>{errors.map(({service,reason})=><li key={service}>{service} · {reason}</li>)}</ul></details></div>}
+    {errors.length>0 && <div><p role="status">일부 이력을 확인하지 못했습니다 · {errors.length}곳</p><details open={errorsOpen} onToggle={event=>setErrorsOpen(event.currentTarget.open)}><summary>조회 실패 원인과 조치</summary><p>문제를 확인한 뒤 최근 작업을 새로고침하세요.</p><ul>{errors.map(({service,reason},index)=><li key={service+"/"+index}>{service} · {reason}</li>)}</ul></details></div>}
     {!loading && !matching.length && <p>{errors.length ? "확인된 이력에는 조건에 맞는 최근 작업이 없습니다. 조회하지 못한 이력은 포함되지 않았습니다." : "조건에 맞는 최근 작업이 없습니다."}</p>}
     <div className="session-job-list">{matching.slice(currentPage*pageSize,(currentPage+1)*pageSize).map(({source,record})=><article className="session-job" key={source.service+'/'+record.id}>
       <div className="session-job-heading"><strong>{source.service}</strong><span>{labels[record.recorded_status] || record.recorded_status}</span></div>

@@ -12,7 +12,7 @@ import GeneratorHistory from "./GeneratorHistory.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
 import GeneratorJobResult from "./GeneratorJobResult.jsx";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import {fluxProposalRequestId,classifyFluxProposalReceipt,verifyFluxProposal} from "./fluxProposalReceipt.mjs";
 import {fluxModelReady} from "./fluxModelReady.mjs";
 import {validateGpuHandoffStatus} from "./validateGpuHandoffStatus.mjs";
@@ -100,9 +100,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
     async function load(){
       setProfileError("");
       try{
-        const response=await fetch("/management/assistant/flux-defaults/"+service,{signal:controller.signal});
-        if(!response.ok)throw new Error("생성기 기본 입력을 불러올 수 없습니다.");
-        const defaults=await response.json();
+        const defaults=await untilAborted((async()=>{const response=await fetch("/management/assistant/flux-defaults/"+service,{signal:controller.signal});if(!response.ok)throw new Error("생성기 기본 입력을 불러올 수 없습니다.");return response.json();})(),controller.signal);
         if(!defaults || typeof defaults.label!=="string" || typeof defaults.prompt!=="string" ||
           ![defaults.width,defaults.height,defaults.minimum].every(Number.isInteger) ||
           ["guides","stages","expressions"].some(key=>defaults[key]!=null && (!Array.isArray(defaults[key]) || defaults[key].some(item=>!item || typeof item.id!=="string" || typeof item.label!=="string" || (key==="expressions" && typeof item.text!=="string")))) ||

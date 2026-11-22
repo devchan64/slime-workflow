@@ -4,3 +4,8 @@ export function referenceImageError(file,accept,maxBytes) {
   if (maxBytes!==null && file.size>maxBytes) return '이미지 파일은 '+(maxBytes/1000000)+'MB 이하여야 합니다.';
   return '';
 }
+
+export function clipboardImageName(type) {
+  const extension=({'image/png':'png','image/jpeg':'jpg','image/webp':'webp','image/gif':'gif','image/avif':'avif'})[type] || 'img';
+  return 'clipboard.'+extension;
+}

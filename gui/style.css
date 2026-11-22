@@ -646,6 +646,7 @@ article {position:relative;}
 .chat-queue-panel > small,.chat-queue-panel > div > small {color:var(--muted)}
 .chat-queue-panel h3 {font-size:.9rem;margin:1rem 0 .5rem}
 .chat-queue-current {padding:.75rem;border:1px solid var(--line);border-radius:.6rem;background:var(--surface)}
+.chat-queue-current > button[aria-disabled="true"] {opacity:.55;cursor:wait}
 .chat-queue-current p {white-space:pre-wrap;overflow-wrap:anywhere;margin:.5rem 0}
 .chat-queue-panel .chat-queue-prompt-preview {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
 .chat-queue-panel .chat-queue-prompt-expanded {max-height:14rem;overflow:auto}
@@ -654,6 +655,7 @@ article {position:relative;}
 
 .chat-queue-actions {display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
 .chat-queue-actions button {margin:0;flex:0 0 auto}
+.chat-queue-actions button[aria-disabled="true"] {opacity:.55;cursor:wait}
 
 .live-instruction-form {margin:.7rem 0;padding:.65rem;border:1px solid var(--line);border-radius:.5rem}.live-instruction-form label {display:block}.live-instruction-form textarea {width:100%;min-height:4rem}.live-instruction-form select {width:auto}.live-instruction-receipts article {padding:.6rem 0;border-bottom:1px solid var(--line)}.live-instruction-receipts p {white-space:pre-wrap;overflow-wrap:anywhere;margin:.3rem 0}.live-instruction-receipts small {color:var(--muted)}
 .live-instruction-mode-label {display:block;color:var(--muted);font-size:.8rem;margin:.5rem 0 .25rem}
@@ -844,9 +846,11 @@ article {position:relative;}
 .generator-visually-hidden {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 .kimodo-input-summary {padding:.8rem;border:1px solid var(--border, #34394e);border-radius:.5rem}
 .kimodo-input-summary dl {display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin:.5rem 0 0}
-.kimodo-input-summary dl > div {display:flex;gap:.35rem;min-width:0;overflow-wrap:anywhere}
+.kimodo-input-summary dl > div {display:flex;flex-wrap:wrap;gap:.2rem .35rem;min-width:0;max-width:100%;overflow-wrap:anywhere}
 .kimodo-input-summary dt {color:#aeb6ca;flex:none}
-.kimodo-input-summary dd {margin:0;min-width:0}
+.kimodo-input-summary dd {margin:0;min-width:0;flex:1 1 7rem}
+.fun-drawer [aria-label="Kimodo 생성 입력"] form > fieldset {border:0;padding:0;margin:0}
+.fun-drawer [aria-label="Kimodo 생성 입력"] .kimodo-segment-settings {padding:.5rem}
 :is(.vace-page,.fun-control-page) .active-generator-progress {padding:0;border:0;background:transparent}
 .vace-page .vace-input-card form > fieldset {padding:0;border:0;margin:0}
 .vace-page .vace-history-card {padding:0;border:0;margin:0;min-width:0}

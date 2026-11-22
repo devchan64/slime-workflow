@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 
 export default function MapDatabaseReceipt(){
   const [id,setId]=useState(""),[hash,setHash]=useState("");
@@ -14,7 +14,7 @@ export default function MapDatabaseReceipt(){
     const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     restoreFocus.current=document.activeElement===button.current;setBusy(true);setNotice("");
     try{
-      const receipt=await managementCommand("hermes-agent","hermes-map-database-receipt",{database_request_id:requestId,request_sha256:requestHash},{signal:controller.signal});
+      const receipt=await untilAborted(managementCommand("hermes-agent","hermes-map-database-receipt",{database_request_id:requestId,request_sha256:requestHash},{signal:controller.signal}),controller.signal);
       if(receipt.request_sha256!==requestHash)throw new Error();
       const messages=new Map([
         ["matched","DB 접수의 요청 해시가 일치합니다. 파일 동기화 상태는 별도로 확인하세요."],

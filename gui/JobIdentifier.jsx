@@ -1,4 +1,5 @@
 import React,{useEffect,useRef,useState} from "react";
+import {writeClipboardText} from "./clipboardWrite.mjs";
 
 export default function JobIdentifier({id,compact=false,label="작업 ID"}){
   const [notice,setNotice]=useState("");
@@ -10,7 +11,7 @@ export default function JobIdentifier({id,compact=false,label="작업 ID"}){
   if(typeof id!=="string" || !id)return null;
   async function copy(){
     const sequence=++request.current;clearTimeout(timer.current);
-    try{await navigator.clipboard.writeText(id);if(currentId.current===id && request.current===sequence){setNotice(label+"를 복사했습니다.");timer.current=setTimeout(()=>setNotice(""),3000);}}
+    try{await writeClipboardText(id);if(currentId.current===id && request.current===sequence){setNotice(label+"를 복사했습니다.");timer.current=setTimeout(()=>setNotice(""),3000);}}
     catch{
       if(currentId.current!==id || request.current!==sequence)return;
       const value=valueRef.current;

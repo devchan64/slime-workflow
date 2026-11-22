@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from "react";
 import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import {useLiveRefresh,LiveRefreshControl} from "./LiveRefresh.jsx";
 import GenerationProgress from "./GenerationProgress.jsx";
 import JobStatus from "./JobStatus.jsx";
@@ -24,7 +24,7 @@ export default function ActiveGeneratorProgress({service,revision=0,onOpenResult
         let offset=0,snapshot=null,next=null,rows=[],pages=0,missing=false,uncertain=false;
         do{
           const payload={limit:30,offset};if(snapshot)payload.snapshot=snapshot;
-          const page=await managementCommand(service,'history-observe',payload,{signal:controller.signal});
+          const page=await untilAborted(managementCommand(service,'history-observe',payload,{signal:controller.signal}),controller.signal);
           if(!Array.isArray(page.records) || typeof page.snapshot!=='string' || (snapshot && page.snapshot!==snapshot) || !Number.isSafeInteger(page.unavailable_count) || page.unavailable_count<0)throw new Error('작업 이력을 확인할 수 없습니다.');
           if(!snapshot)snapshot=page.snapshot;
           missing ||= (page.unavailable_count || 0)>0;
@@ -39,7 +39,7 @@ export default function ActiveGeneratorProgress({service,revision=0,onOpenResult
           while(!controller.signal.aborted && cursor<rows.length){
             const index=cursor++,row=rows[index];
             try{
-              const response=await managementCommand('hermes-agent','hermes-video-source-status',{service,job_id:row.id},{signal:controller.signal});
+              const response=await untilAborted(managementCommand('hermes-agent','hermes-video-source-status',{service,job_id:row.id},{signal:controller.signal}),controller.signal);
               if(response.service!==service || response.job_id!==row.id || !response.job || !['running','queued','completed','failed','cancelled','canceled','paused'].includes(response.job.status))throw new Error();
               results[index]={id:row.id,job:response.job};
             }catch{results[index]={id:row.id,error:true};}

@@ -1,5 +1,7 @@
 import React, {useEffect,useRef,useState} from "react";
 import {requestErrorMessage} from "./requestError.mjs";
+import {untilAborted} from "./managementCommand.js";
+import {writeClipboardText} from "./clipboardWrite.mjs";
 
 export default function RecordFolder({service,id,direct=false}) {
   const [path,setPath]=useState("");
@@ -16,16 +18,15 @@ export default function RecordFolder({service,id,direct=false}) {
     copySequence.current++;
     setBusy(true);setNotice("");
     try {
-      const response=await fetch("/management/record-folder/"+action,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({service,id}),signal:controller.signal});
-      const result=await response.json();
-      if(!response.ok || typeof result.path!=="string")throw new Error(result.error || "기록 폴더를 확인할 수 없습니다.");
+      const result=await untilAborted((async()=>{const response=await fetch("/management/record-folder/"+action,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({service,id}),signal:controller.signal});const data=await response.json();if(!response.ok || typeof data?.path!=="string" || !data.path || (data.message!=null && typeof data.message!=="string"))throw new Error(typeof data?.error==="string" ? data.error : "기록 폴더를 확인할 수 없습니다.");return data;})(),controller.signal);
+      if(controller.signal.aborted)return;
       setPath(result.path);setStale(false);setNotice(result.message || "");
     } catch(problem) {if(!controller.signal.aborted || timedOut){if(action==="inspect" && path)setStale(true);setNotice(action==="open" ? "폴더 열기 결과를 확인하지 못했습니다. 이미 열렸는지 확인하세요."+(timedOut ? "" : " "+requestErrorMessage(problem)) : timedOut ? "폴더 경로 조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem));}}
     finally {clearTimeout(timeout);if(pending.current===controller)pending.current=null;if(!controller.signal.aborted || timedOut){setBusy(false);if(focused)requestAnimationFrame(()=>{if(focused.isConnected && !focused.disabled && document.activeElement===document.body)focused.focus();});}}
   }
   async function copy() {
     const sequence=++copySequence.current;
-    try {await navigator.clipboard.writeText(path);if(sequence===copySequence.current)setNotice("기록 폴더 경로를 복사했습니다.");}
+    try {await writeClipboardText(path);if(sequence===copySequence.current)setNotice("기록 폴더 경로를 복사했습니다.");}
     catch {if(sequence!==copySequence.current)return;if(document.activeElement===document.body || document.activeElement===copyButton.current){pathInput.current?.focus();pathInput.current?.select();}setNotice("경로를 선택해 복사 단축키를 사용하세요.");}
   }
   const openButton=<button type="button" disabled={busy} onClick={()=>request("open")}>{direct ? "결과 폴더 열기" : "기록 폴더 열기"}</button>;

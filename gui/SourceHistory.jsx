@@ -6,7 +6,7 @@ import WriterActions from "./WriterActions.jsx";
 import WriterResult from "./WriterResult.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
 import React, {useEffect, useRef, useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import {latestRequest} from "./latestRequest.mjs";
 import {validSourceHistoryPage} from "./sourceHistoryPage.mjs";
 import {orderHistorySources} from "./historySourceOrder.mjs";
@@ -31,7 +31,7 @@ export function HistoryPage({source, choose, session, initialJob="", label=sourc
   const hasResult=source.result_path || mediaKind || writer || kimodo;
   function focusResult(){resultRef.current?.focus({preventScroll:true});resultRef.current?.scrollIntoView({block:"start",inline:"nearest"});}
   useEffect(()=>{if(selectedJob && (mediaKind || writer || kimodo) && resultTrigger.current)focusResult();},[selectedJob,mediaKind,writer,kimodo]);
-  useEffect(()=>{if(focusList.current && page && listRef.current){focusList.current=false;listRef.current.focus({preventScroll:true});listRef.current.scrollIntoView({block:"start",inline:"nearest"});}},[page]);
+  useEffect(()=>{if(focusList.current && page && listRef.current){focusList.current=false;if(document.activeElement===document.body){listRef.current.focus({preventScroll:true});listRef.current.scrollIntoView({block:"start",inline:"nearest"});}}},[page]);
   useEffect(()=>{if(!busy && error && failedPageTrigger.current){const target=failedPageTrigger.current;failedPageTrigger.current=null;if(document.activeElement===document.body && target.isConnected)target.focus();}},[busy,error]);
   function closeResult(){selectJob("");requestAnimationFrame(()=>resultTrigger.current?.isConnected && resultTrigger.current.focus());}
   function openResult(id,event){resultTrigger.current=event.currentTarget;if(selectedJob===id)focusResult();else selectJob(id);}
@@ -46,7 +46,7 @@ export function HistoryPage({source, choose, session, initialJob="", label=sourc
     try {
       const payload={service:source.service,query:search,offset,limit:10};
       if(snapshot) payload.snapshot=snapshot;
-      const result=await managementCommand("hermes-agent",source.command,payload,{signal:controller.signal});
+      const result=await untilAborted(managementCommand("hermes-agent",source.command,payload,{signal:controller.signal}),controller.signal);
       if(!validSourceHistoryPage(result,source.service,offset,snapshot))throw new Error("이력 페이지를 확인할 수 없습니다. 다시 조회하세요.");
       if(request.current.isCurrent(token)){focusList.current=navigate;setPage(result);setReceivedAt(new Date());setFilter(payload.query);selectJob("");}
     } catch(problem) {if(request.current.isCurrent(token)){failedPageTrigger.current=navigate ? trigger : null;setError((timedOut ? "이력 조회 시간이 초과됐습니다. 다시 조회하세요." : problem instanceof TypeError ? "이력 서버에 연결하지 못했습니다. 연결 상태를 확인한 후 다시 조회하세요." : problem.message)+(page ? " · 이전 조회 결과를 유지합니다." : ""));}}
@@ -106,8 +106,8 @@ export default function SourceHistory({choose, session, tools=[]}) {
     let active=true,timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setLoading(true);setError("");
-    fetch("/management/assistant/history-services",{signal:controller.signal})
-      .then(response=>{if(!response.ok)throw new Error("생성기 목록을 조회할 수 없습니다.");return response.json();})
+    untilAborted(fetch("/management/assistant/history-services",{signal:controller.signal})
+      .then(response=>{if(!response.ok)throw new Error("생성기 목록을 조회할 수 없습니다.");return response.json();}),controller.signal)
       .then(rows=>{if(!Array.isArray(rows) || rows.some(row=>!row || typeof row.service!=="string" || typeof row.command!=="string"))throw new Error("생성기 목록 형식을 확인할 수 없습니다.");if(!controller.signal.aborted){const ordered=orderHistorySources(rows);setSources(ordered);select(ordered[0]?.service || "");}})
       .catch(problem=>{if(active)setError(timedOut ? "이력 서비스 조회 시간이 초과됐습니다. 다시 시도하세요." : problem instanceof TypeError ? "이력 서비스에 연결하지 못했습니다. 연결 상태를 확인하세요." : problem.message);})
       .finally(()=>{clearTimeout(timeout);if(active)setLoading(false);});

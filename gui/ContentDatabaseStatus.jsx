@@ -1,6 +1,6 @@
 import MapDatabaseReceipt from "./MapDatabaseReceipt.jsx";
 import React,{useEffect,useRef,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 
 function validContentStatus(result){
@@ -22,9 +22,9 @@ export default function ContentDatabaseStatus(){
     const controller=new AbortController();let timedOut=false;
     const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setLoading(true);setError("");
-    managementCommand("hermes-agent","hermes-content-database-status",{},{signal:controller.signal}).then(result=>{
+    untilAborted(managementCommand("hermes-agent","hermes-content-database-status",{},{signal:controller.signal}),controller.signal).then(result=>{
       if(!validContentStatus(result))throw new Error("콘텐츠 DB 상태 형식을 확인할 수 없습니다.");
-      if(active){setRecord(result);setReceivedAt(new Date());}
+      if(active && !controller.signal.aborted){setRecord(result);setReceivedAt(new Date());}
     }).catch(problem=>{if(active)setError(timedOut?"콘텐츠 DB 상태 조회 시간이 초과됐습니다. 다시 시도하세요.":problem instanceof TypeError?"콘텐츠 DB 상태에 연결하지 못했습니다. 다시 시도하세요.":problem.message);}).finally(()=>{clearTimeout(timer);if(active)setLoading(false);});
     return ()=>{active=false;clearTimeout(timer);controller.abort();};
   },[revision]);

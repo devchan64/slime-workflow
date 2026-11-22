@@ -1,5 +1,6 @@
 import React, {useEffect,useRef,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
+import {writeClipboardText} from "./clipboardWrite.mjs";
 import ResultTable from "./ResultTable.jsx";
 import {requestErrorMessage} from "./requestError.mjs";
 
@@ -10,7 +11,8 @@ export default function TranslationResult({job, text}) {
   const [notice,setNotice] = useState("");
   const [stale,setStale] = useState(false);
   const textRef=useRef(null),copyRef=useRef(null),inspectRef=useRef(null),inspectRequest=useRef(null);
-  useEffect(()=>()=>inspectRequest.current?.abort(),[]);
+  const copySequence=useRef(0);
+  useEffect(()=>()=>{copySequence.current++;inspectRequest.current?.abort();},[]);
   const draftRef=useRef(draft);draftRef.current=draft;
   async function inspect() {
     if(inspectRequest.current)return;
@@ -19,7 +21,7 @@ export default function TranslationResult({job, text}) {
     const restoreFocus=document.activeElement===inspectRef.current;
     setBusy(true);setNotice("");
     try {
-      const record = await managementCommand("prompt-translation","translation-status",{id:job},{signal:controller.signal});
+      const record = await untilAborted(managementCommand("prompt-translation","translation-status",{id:job},{signal:controller.signal}),controller.signal);
       if (record.id!==job || !record.result) throw new Error("해당 작업의 번역 결과를 확인할 수 없습니다.");
       const {term_checks=[],quality_checks} = record.result;
       const rows = term_checks.map(item=>[item.source,item.target,item.status==="matched"?"일치":"불일치 · 확인 필요",item.source_ref || ""]);
@@ -33,8 +35,9 @@ export default function TranslationResult({job, text}) {
     finally {clearTimeout(timeout);if(inspectRequest.current===controller)inspectRequest.current=null;if(!controller.signal.aborted || timedOut){setBusy(false);if(restoreFocus)requestAnimationFrame(()=>{if(document.activeElement===document.body && inspectRef.current?.isConnected)inspectRef.current.focus();});}}
   }
   async function copy() {
-    try {await navigator.clipboard.writeText(draft);setNotice(draftRef.current===draft ? "번역문을 복사했습니다." : "이전 번역문을 복사했습니다. 변경한 내용을 복사하려면 다시 누르세요.");}
-    catch {if(document.activeElement===document.body || document.activeElement===copyRef.current){textRef.current?.focus();textRef.current?.select();}setNotice("번역문을 선택해 복사 단축키를 사용하세요.");}
+    const sequence=++copySequence.current;
+    try {await writeClipboardText(draft);if(sequence===copySequence.current)setNotice(draftRef.current===draft ? "번역문을 복사했습니다." : "이전 번역문을 복사했습니다. 변경한 내용을 복사하려면 다시 누르세요.");}
+    catch {if(sequence!==copySequence.current)return;if(draftRef.current===draft && (document.activeElement===document.body || document.activeElement===copyRef.current)){textRef.current?.focus();textRef.current?.select();}setNotice(draftRef.current===draft ? "복사 여부를 확인하지 못했습니다. 번역문을 선택해 복사 단축키를 사용하세요." : "이전 번역문의 복사 여부를 확인하지 못했습니다. 현재 내용을 복사하려면 다시 누르세요.");}
   }
   return <section><label>복사용 번역문 <textarea ref={textRef} value={draft} onChange={e=>{setDraft(e.target.value);setNotice("");}}/></label>
     <button ref={copyRef} onClick={copy}>번역문 복사</button>

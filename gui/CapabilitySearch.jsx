@@ -1,4 +1,5 @@
 import React, {useEffect, useRef, useState} from "react";
+import {untilAborted} from "./managementCommand.js";
 
 export default function CapabilitySearch({search, choose}) {
   const [catalog, setCatalog] = useState(null);
@@ -15,9 +16,11 @@ export default function CapabilitySearch({search, choose}) {
     async function load() {
       setLoading(true);setError("");
       try {
-        const response = await fetch("/management/assistant/capabilities", {signal:controller.signal});
-        if (!response.ok) throw new Error("관리 기능을 조회할 수 없습니다.");
-        const record = await response.json();
+        const record = await untilAborted((async()=>{
+          const response = await fetch("/management/assistant/capabilities", {signal:controller.signal});
+          if (!response.ok) throw new Error("관리 기능을 조회할 수 없습니다.");
+          return response.json();
+        })(),controller.signal);
         if (!record || typeof record.summary!=="string" || !Array.isArray(record.rows) || record.rows.some(row=>!Array.isArray(row) || row.length<8 || row.some(value=>typeof value!=="string"))) throw new Error("관리 기능 목록 형식을 확인할 수 없습니다.");
         if (!controller.signal.aborted) {setCatalog(record);setReceivedAt(new Date());}
       } catch (problem) {
