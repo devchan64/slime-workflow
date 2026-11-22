@@ -8,7 +8,7 @@ import math
 import subprocess
 from pathlib import Path
 
-from workflow.domains.animationgpt.inference import MOTIONGPT_REVISION, generate_motion
+from workflow.domains.animationgpt.inference import MOTIONGPT_REVISION
 
 
 def validate_request(request):
@@ -44,9 +44,9 @@ def validate_upstream(source_root):
 
 def run_pipeline(request, output_dir, source_root, model_root):
     """새 디렉터리에 관절 NPY와 VACE 제어 영상 및 출처를 기록한다."""
-    import numpy as np
     from workflow.common.animationgpt_model_download import ANIMATIONGPT_MODEL_DIRECTORY, inspect_animationgpt_model_files
-    from workflow.domains.joint_proportions.vace_pose_export import export_vace_pose
+    from workflow.domains.joint_proportions.vace_pose_export import export_vace_pose, prepare_pose_frames, validate_vace_frame_count
+    import numpy as np
 
     values = validate_request(request)
     validate_upstream(source_root)
@@ -56,14 +56,32 @@ def run_pipeline(request, output_dir, source_root, model_root):
     if destination.exists() or destination.is_symlink():
         raise ValueError('기존 출력은 덮어쓰지 않습니다.')
     destination.mkdir(parents=True, exist_ok=False)
-    joints, metadata = generate_motion(values['prompt'], values['seed'], source_root, model_root)
+    root = Path(__file__).resolve().parents[3]
+    python = root / '.local/animationgpt-legacy/venv/bin/python'
+    if not python.is_file():
+        raise FileNotFoundError('AnimationGPT Python 3.10 실행 환경이 준비되지 않았습니다.')
+    payload = {'prompt': values['prompt'], 'seed': values['seed'], 'source_root': str(Path(source_root).resolve()),
+               'model_root': str(Path(model_root).resolve()), 'output': str(destination.resolve())}
+    process = subprocess.run([str(python), '-m', 'workflow.domains.animationgpt.worker'], input=json.dumps(payload),
+                             cwd=str(root), text=True, capture_output=True)
+    if process.returncode:
+        raise RuntimeError('AnimationGPT 추론 실패: ' + process.stderr[-4000:])
     path = destination / 'joints.npy'
-    np.save(path, joints, allow_pickle=False)
-    pose = export_vace_pose(path, destination / 'vace-pose', metadata['fps'], yaw_degrees=values['yaw_degrees'],
-                            scale=values['scale'], include_face=values['include_face'], provenance=metadata)
+    metadata = json.loads((destination / 'motion.json').read_text(encoding='utf-8'))
+    joints = np.load(path, allow_pickle=False)
+    projected, _ = prepare_pose_frames(joints, metadata['fps'], values['yaw_degrees'], values['scale'], include_face=values['include_face'])
+    try:
+        validate_vace_frame_count(len(projected))
+    except ValueError as error:
+        pose, pose_error = None, str(error)
+    else:
+        pose = export_vace_pose(path, destination / 'vace-pose', metadata['fps'], yaw_degrees=values['yaw_degrees'],
+                                scale=values['scale'], include_face=values['include_face'], provenance=metadata)
+        pose_error = None
     record = {'schema': 'animationgpt-pose-pipeline-v1', 'request': values, 'motion': metadata,
               'joints_file': path.name, 'joints_sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
-              'pose_manifest': 'vace-pose/pose-export.json', 'pose_segments': len(pose['files']),
+              'pose_manifest': 'vace-pose/pose-export.json' if pose else None,
+              'pose_segments': len(pose['files']) if pose else 0, 'pose_unavailable_reason': pose_error,
               'limitations': '관절과 투영 포즈만 생성합니다. 무기 궤적·가림·접지와 영상 품질은 보장하지 않습니다.'}
     (destination / 'result.json').write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding='utf-8')
     return record

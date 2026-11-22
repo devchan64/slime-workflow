@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from workflow.domains.joint_proportions.vace_pose_export import BODY18_FROM_HUMANML3D, prepare_pose_frames, split_vace_segments
+from workflow.domains.joint_proportions.vace_pose_export import BODY18_FROM_HUMANML3D, prepare_pose_frames, validate_vace_frame_count
 
 class PoseExportTest(unittest.TestCase):
     def test_mapping_and_16fps_timing(self):
@@ -16,14 +16,12 @@ class PoseExportTest(unittest.TestCase):
         self.assertTrue((pose[:,list(BODY18_FROM_HUMANML3D),2]==1).all())
         np.testing.assert_allclose(pose[1,4,0]-pose[0,4,0],pose[1,7,0]-pose[0,7,0])
 
-    def test_segments_never_drop_frames_and_obey_vace(self):
-        for count in range(5,1000):
-            chunks=split_vace_segments(count)
-            for start,end in chunks:
-                self.assertTrue(0 <= start < end <= count)
-                self.assertTrue(5 <= end-start <= 129 and (end-start-1)%4==0)
-            self.assertEqual(set().union(*(set(range(a,b)) for a,b in chunks)),set(range(count)))
-        self.assertEqual(split_vace_segments(128),[(0,125),(123,128)])
+    def test_incompatible_lengths_fail_without_splitting(self):
+        for count in (5, 17, 125, 129):
+            self.assertEqual(validate_vace_frame_count(count), count)
+        for count in (4, 16, 128, 130, 257):
+            with self.subTest(count=count), self.assertRaisesRegex(ValueError, '자르거나 분할하지 않습니다'):
+                validate_vace_frame_count(count)
 
     def test_reject_bad_inputs(self):
         for data,fps in [(np.full((10,22,3),np.nan),20),(np.ones((10,21,3)),20),(np.ones((10,22,3)),0)]:

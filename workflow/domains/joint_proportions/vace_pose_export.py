@@ -64,23 +64,11 @@ def prepare_pose_frames(joints, source_fps, yaw_degrees=0, scale=0.8, *, include
     return output, indices
 
 
-def split_vace_segments(frame_count):
-    """각 5~129프레임·4n+1. 짧은 끝부분은 이전 구간과 겹쳐 누락하지 않는다."""
-    if type(frame_count) is not int or frame_count < 5:
-        raise ValueError('출력은 최소 5프레임이 필요합니다.')
-    result=[]; start=0
-    while frame_count-start > 129:
-        result.append((start,start+129)); start += 129
-    remaining=frame_count-start
-    if remaining >= 5 and (remaining-1)%4 == 0:
-        result.append((start,frame_count))
-    else:
-        length = max(5, 4*math.ceil((remaining-1)/4)+1)
-        if length > frame_count:
-            result.extend([(0,1+4*((frame_count-1)//4)),(frame_count-5,frame_count)])
-        else:
-            result.append((frame_count-length,frame_count))
-    return result
+def validate_vace_frame_count(frame_count):
+    """전체 모션을 분할·절단하지 않고 VACE의 프레임 제약을 검사한다."""
+    if type(frame_count) is not int or not 5 <= frame_count <= 129 or (frame_count-1)%4:
+        raise ValueError('전체 포즈 영상의 프레임 수가 VACE 조건(5~129, 4n+1)에 맞지 않습니다. 모션을 자동으로 자르거나 분할하지 않습니다.')
+    return frame_count
 
 
 def export_vace_pose(joints_path, output_dir, source_fps, *, yaw_degrees=0, scale=.8, provenance=None, include_face=False, face_local_offset=(0.0, 0.0, 0.0)):
@@ -96,7 +84,8 @@ def export_vace_pose(joints_path, output_dir, source_fps, *, yaw_degrees=0, scal
     import io
     joints=np.load(io.BytesIO(data),allow_pickle=False)
     points, source_indices=prepare_pose_frames(joints,source_fps,yaw_degrees,scale,include_face=include_face,face_local_offset=face_local_offset)
-    segments=split_vace_segments(len(points))
+    validate_vace_frame_count(len(points))
+    segments=[(0,len(points))]
     dest.mkdir(parents=True,exist_ok=False)
     files=[]
     for number,(start,end) in enumerate(segments,1):
