@@ -11,6 +11,8 @@ from workflow.domains.hermes_agent.gpu_handoff_audio import AudioHandoffAdapter
 from workflow.domains.hermes_agent.gpu_handoff_writer import WriterHandoffAdapter
 from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
 from workflow.domains.hermes_agent.gpu_handoff_pixal import PixalHandoffAdapter
+from workflow.domains.hermes_agent.gpu_handoff_unirig import UniRigHandoffAdapter
+from workflow.domains.hermes_agent.gpu_handoff_trellis2 import Trellis2HandoffAdapter
 
 
 class HandoffServiceAdapter:
@@ -22,12 +24,18 @@ class HandoffServiceAdapter:
         self.audio = AudioHandoffAdapter()
         self.writer = WriterHandoffAdapter()
         self.pixal = PixalHandoffAdapter()
+        self.unirig = UniRigHandoffAdapter()
+        self.trellis2 = Trellis2HandoffAdapter()
 
     def __getattr__(self, name):
         if name not in ('ensure_release_requested','inspect_release','submit_target','lookup_target','seal_unsubmitted_target','inspect_target','submit_reload','inspect_reload','inspect_failed_reload_cleanup','cancel_target'):
             raise AttributeError(name)
         def dispatch(record):
-            if record['service'] == 'pixal-experiment':
+            if record['service'] == 'trellis-experiment':
+                adapter = self.trellis2
+            elif record['service'] == 'unirig-experiment':
+                adapter = self.unirig
+            elif record['service'] == 'pixal-experiment':
                 adapter = self.pixal
             elif record['service'] == 'kimodo':
                 adapter = self.kimodo

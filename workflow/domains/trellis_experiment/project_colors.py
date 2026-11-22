@@ -10,7 +10,7 @@ from PIL import Image
 import trimesh
 
 
-def main(source, reference_dir, output):
+def main(source, reference_dir, output, two_sided=False):
     if output.exists():
         raise FileExistsError(output)
     paths = sorted(reference_dir.glob('[0-9][0-9]_*.png'))
@@ -49,7 +49,8 @@ def main(source, reference_dir, output):
         depth_buffer = np.full(h * w, -np.inf)
         np.maximum.at(depth_buffer, v * w + u, depth)
         visible = depth >= depth_buffer[v * w + u] - 0.02 * extent
-        facing = np.maximum(normals @ toward, 0.0)
+        alignment = normals @ toward
+        facing = np.abs(alignment) if two_sided else np.maximum(alignment, 0.0)
         weight = facing ** 2 * foreground[v, u] * visible
         colors += rgba[v, u, :3] * weight[:, None]
         weights += weight
@@ -75,7 +76,7 @@ def main(source, reference_dir, output):
     report = {'source': str(source.resolve()), 'source_sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
               'output_sha256': hashlib.sha256(target.read_bytes()).hexdigest(), 'vertices': len(vertices),
               'directly_sampled_vertices': int(valid.sum()), 'nearest_color_fill_vertices': int(missing.sum()),
-              'views': observations, 'status': 'generated',
+              'views': observations, 'status': 'generated', 'two_sided': two_sided,
               'limitations': 'Approximate uncalibrated orthographic projections, vertex colors rather than UV texture; source views and mesh directions are not calibrated; vertex depth approximation misses occlusion; no fidelity or rigging validation.'}
     (output / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps({k: report[k] for k in ('status', 'vertices', 'directly_sampled_vertices', 'nearest_color_fill_vertices')}))
@@ -86,5 +87,6 @@ if __name__ == '__main__':
     parser.add_argument('source', type=Path)
     parser.add_argument('reference_dir', type=Path)
     parser.add_argument('output', type=Path)
+    parser.add_argument('--two-sided', action='store_true', help='Sample both normal directions; does not repair mesh orientation')
     args = parser.parse_args()
-    main(args.source, args.reference_dir, args.output)
+    main(args.source, args.reference_dir, args.output, args.two_sided)
