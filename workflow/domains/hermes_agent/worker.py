@@ -25,6 +25,7 @@ from workflow.domains.hermes_agent.verification import validate_hermes_verificat
 from workflow.domains.hermes_agent.workspace_snapshot import copy_snapshot_source_files, collect_snapshot_change_diff
 from workflow.domains.hermes_agent.management_bridge import serve_hermes_observer_connections
 from workflow.domains.hermes_agent.workflow_skills import build_workflow_guidance
+from workflow.domains.hermes_agent.progress_watch import ProgressWatch, wait_for_progress
 
 HERMES_RUNTIME_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.local/hermes-agent-runtime'
 HERMES_SANDBOX_CLIENT = Path(__file__).with_name('sandbox_client.py')
@@ -79,9 +80,20 @@ def prepare_worker_context(job_directory, context, sandbox_arguments, event_stre
     preflight = (preflight_base + ['--ro-bind', str(control_scripts / HERMES_CONTEXT_RUNTIME.name), '/control/context_runtime.py',
                  '--bind', str(exchange), '/control/context'] + sandbox_arguments[boundary:] + ['--context-only'])
     environment = dict(build_hermes_sandbox_environment(), PYTHONPATH='/runtime', HERMES_HOME='/tmp/hermes-home',
-                       TERMINAL_CWD='/workspace', HERMES_API_TIMEOUT='300')
-    completed = subprocess.run(preflight, stdout=event_stream, stderr=subprocess.STDOUT, env=environment, timeout=1200)
-    if completed.returncode:
+                       TERMINAL_CWD='/workspace', HERMES_API_TIMEOUT='3600')
+    watch = ProgressWatch(job_directory / 'server.log', job_directory / 'hermes-events.jsonl')
+    process = subprocess.Popen(preflight, stdout=event_stream, stderr=subprocess.STDOUT, env=environment)
+    try:
+        exit_code = wait_for_progress(process, watch, phase='대화 문맥 준비')
+    except BaseException:
+        process.terminate()
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+        raise
+    if exit_code:
         raise RuntimeError('대화 문맥 준비에 실패했습니다. 기존 대화는 유지됩니다.')
     result_path = exchange / 'result.json'
     if result_path.is_symlink() or not result_path.is_file() or result_path.stat().st_size > 16000000:
@@ -131,7 +143,7 @@ def relay_worker_model_connection(worker_client_socket, worker_server_port):
     try:
         with worker_client_socket, socket.create_connection(('127.0.0.1', worker_server_port), timeout=15) as worker_server_socket:
             while True:
-                worker_readable_sockets, _, _ = select.select([worker_client_socket, worker_server_socket], [], [], 300)
+                worker_readable_sockets, _, _ = select.select([worker_client_socket, worker_server_socket], [], [], 3600)
                 if not worker_readable_sockets:
                     return
                 for worker_read_socket in worker_readable_sockets:
@@ -352,7 +364,7 @@ def execute_hermes_gpu_job(worker_job_directory, *, resident_directory=None):
                             '--ro-bind', str(control_scripts / HERMES_LIVE_WORKER_ADAPTER.name), '/control/live_instruction_worker_adapter.py']
                         worker_sandbox_process = subprocess.Popen(worker_sandbox_arguments, stdout=worker_event_stream, env=build_hermes_sandbox_environment())
                         try:
-                            worker_agent_exit_code = worker_sandbox_process.wait(timeout=1250)
+                            worker_agent_exit_code = wait_for_progress(worker_sandbox_process, ProgressWatch(worker_log_path, worker_job_directory / 'hermes-events.jsonl'))
                         except BaseException:
                             worker_sandbox_process.terminate()
                             try:

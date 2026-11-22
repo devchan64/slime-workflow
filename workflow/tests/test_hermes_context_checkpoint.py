@@ -54,9 +54,9 @@ class HermesContextCheckpointTest(unittest.TestCase):
                 result = {'state': 'compressed', 'messages': compressed, 'tokens': 54400,
                           'threshold': 54400, 'query': format_context_query(compressed, '다음 질문')}
                 (job / 'context-exchange' / 'result.json').write_text(json.dumps(result, ensure_ascii=False))
-                return SimpleNamespace(returncode=0)
+                return SimpleNamespace(poll=lambda: 0)
             with (job / 'events').open('w') as stream, \
-                 patch('workflow.domains.hermes_agent.worker.subprocess.run', side_effect=run_preflight), \
+                 patch('workflow.domains.hermes_agent.worker.subprocess.Popen', side_effect=run_preflight), \
                  patch('workflow.domains.hermes_agent.session_store.HermesSessionStore', return_value=store):
                 prepare_worker_context(job, context, ['bwrap', '--', 'client'], stream)
             self.assertEqual(store.read_session_record(session_id)['context_checkpoint']['messages'], compressed)

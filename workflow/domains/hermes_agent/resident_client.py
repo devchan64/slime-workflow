@@ -50,7 +50,7 @@ def _relay_resident_connection(client, directory):
         with client, connect_resident_socket(directory, 'resident-model.sock', timeout=15) as server:
             server.settimeout(None)
             while True:
-                readable, _, _ = select.select([client, server], [], [], 300)
+                readable, _, _ = select.select([client, server], [], [], 3600)
                 if not readable:
                     return
                 for source in readable:

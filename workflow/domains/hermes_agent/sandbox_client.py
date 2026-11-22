@@ -24,7 +24,7 @@ def relay_sandbox_model_connection(sandbox_client_socket):
         with sandbox_client_socket, socket.socket(socket.AF_UNIX) as sandbox_server_socket:
             sandbox_server_socket.connect('/control/model-proxy.sock')
             while True:
-                sandbox_readable_sockets, _, _ = select.select([sandbox_client_socket, sandbox_server_socket], [], [], 300)
+                sandbox_readable_sockets, _, _ = select.select([sandbox_client_socket, sandbox_server_socket], [], [], 3600)
                 if not sandbox_readable_sockets:
                     return
                 for sandbox_read_socket in sandbox_readable_sockets:
@@ -71,7 +71,7 @@ def prepare_sandbox_context(port):
     # The bridge supplies a private copy of the session snapshot, never the session store itself.
     os.environ.update({'PATH': '/usr/local/bin:/usr/bin:/bin', 'HOME': '/tmp',
                        'HERMES_HOME': '/tmp/hermes-home', 'TERMINAL_CWD': '/workspace',
-                       'PYTHONPATH': '/runtime', 'PYTHONUNBUFFERED': '1', 'HERMES_API_TIMEOUT': '300'})
+                       'PYTHONPATH': '/runtime', 'PYTHONUNBUFFERED': '1', 'HERMES_API_TIMEOUT': '3600'})
     sys.path.insert(0, '/runtime')
     sys.path.insert(0, '/control')
     from context_runtime import prepare_context_request
@@ -108,9 +108,10 @@ def execute_sandbox_hermes_session():
         query_path = prepare_sandbox_context(sandbox_listen_port)
         if '--context-only' in sys.argv:
             return 0
-        sandbox_environment_values = {'PATH':'/usr/local/bin:/usr/bin:/bin', 'HOME':'/tmp', 'HERMES_HOME':'/tmp/hermes-home', 'TERMINAL_CWD':'/workspace', 'PYTHONPATH':'/control:/runtime', 'PYTHONUNBUFFERED':'1', 'HERMES_API_TIMEOUT':'300'}
+        sandbox_environment_values = {'PATH':'/usr/local/bin:/usr/bin:/bin', 'HOME':'/tmp', 'HERMES_HOME':'/tmp/hermes-home', 'TERMINAL_CWD':'/workspace', 'PYTHONPATH':'/control:/runtime', 'PYTHONUNBUFFERED':'1', 'HERMES_API_TIMEOUT':'3600'}
         sandbox_hermes_arguments = ['/runtime/.venv/bin/python', '/control/live_instruction_launcher.py', 'chat', '--oneshot', '--query-file', query_path, '--format', 'stream-json', '--provider', 'custom', '--base-url', f'http://127.0.0.1:{sandbox_listen_port}/v1', '--api-key', 'none', '--model', 'hermes-local', '--max-turns', '20', '--toolsets', 'terminal,file', '--ignore-user-config', '--in', '/workspace', '--source', 'tool']
-        return subprocess.run(sandbox_hermes_arguments, env=sandbox_environment_values, cwd='/workspace', timeout=1200).returncode
+        # The worker supervises progress and enforces the overall deadline.
+        return subprocess.run(sandbox_hermes_arguments, env=sandbox_environment_values, cwd='/workspace').returncode
 
 
 if __name__ == '__main__':
