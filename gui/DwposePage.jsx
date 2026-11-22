@@ -86,11 +86,10 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service="dwpose" status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
     <fieldset disabled={busy || Boolean(pending) || Boolean(handoff.id)}>
       <ReferenceImageInput label="입력 PNG · 832×480" accept="image/png" source={file} validate={pngData} disabled={busy || Boolean(pending)} onChange={setFile}/>
-      {file && <p>선택된 입력 · {file.name}</p>}
-      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service="dwpose" readJob={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={restore} renderResult={(id,close)=><section aria-label="선택한 DWPose 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} service="dwpose" readJob={readJob} controls={false} onDeleted={cleaned}/></section>}/>
       <div className="dwpose-options"><label><input ref={handsRef} type="checkbox" checked={hands} onChange={event=>setHands(event.target.checked)}/>손 상세 표시</label>
       <label><input type="checkbox" checked={face} onChange={event=>setFace(event.target.checked)}/>얼굴 상세 표시</label></div>
       <ActionButton reasons={[!file && "입력 PNG를 선택하세요.",!generationReady(model) && "모델 준비 상태를 확인하세요."]} onClick={review}>생성 요청 검토</ActionButton>
+      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service="dwpose" readJob={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={restore} renderResult={(id,close)=><section aria-label="선택한 DWPose 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} service="dwpose" readJob={readJob} controls={false} onDeleted={cleaned}/></section>}/>
     </fieldset>
     {pending && <section ref={reviewRef} tabIndex={-1} aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><p>입력 PNG · {file.name}</p><p>손 상세 {pending.pose_include_hands?"포함":"제외"} · 얼굴 상세 {pending.pose_include_face?"포함":"제외"}</p><GpuQueueSummary/>
       {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 포즈를 추출합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}

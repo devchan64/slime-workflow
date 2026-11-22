@@ -1,3 +1,4 @@
+import usePageTitle from "./usePageTitle.js";
 import React,{useEffect,useRef,useState} from "react";
 import WriterActions from "./WriterActions.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
@@ -12,6 +13,7 @@ import {generationProposalScope,readGenerationProposal} from "./generationPropos
 import {requestErrorMessage} from "./requestError.mjs";
 
 export default function WriterPage({embedded=false,session:embeddedSession=""}={}){
+  usePageTitle("작가 AI 에이전트",embedded);
   const params=new URLSearchParams(location.search);
   const session=embeddedSession || params.get("session") || "";
   const [query,setQuery]=useState(embedded ? "" : params.get("job") || "");
@@ -34,19 +36,23 @@ export default function WriterPage({embedded=false,session:embeddedSession=""}={
     finally{if(active)setProposalLoading(false);}}
     load();return()=>{active=false;};
   },[]);
-  const resultRef=useRef(null),resultTrigger=useRef(null);
+  const resultRef=useRef(null),resultTrigger=useRef(null),searchRequest=useRef(null);
+  useEffect(()=>()=>{searchRequest.current?.abort();},[]);
   function focusResult(){resultRef.current?.focus({preventScroll:true});resultRef.current?.scrollIntoView({block:"start",inline:"nearest"});}
   useEffect(()=>{if(selected && resultTrigger.current)focusResult();},[selected]);
   function closeResult(){select("");requestAnimationFrame(()=>resultTrigger.current?.isConnected && resultTrigger.current.focus());}
   async function search(){
+    if(searchRequest.current)return;
+    const controller=new AbortController();searchRequest.current=controller;let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setBusy(true);select("");resultTrigger.current=null;
     try {
-      const result=await managementCommand("writer-agent","writer-history",{query});
-      if(!Array.isArray(result.jobs) || result.count!==result.jobs.length)throw new Error("이력 건수를 확인할 수 없습니다.");
+      const result=await managementCommand("writer-agent","writer-history",{query},{signal:controller.signal});
+      if(!result || !Array.isArray(result.jobs) || result.count!==result.jobs.length || result.jobs.some(job=>!job || typeof job.id!=="string" || typeof job.mode!=="string" || typeof job.stage!=="string" || [job.summary,job.error].some(value=>value!=null && typeof value!=="string")))throw new Error("이력 응답 형식을 확인할 수 없습니다.");
       setMatches(result.jobs);setSearchedQuery(query);setNotice("");
       if(result.jobs.filter(job=>job.id===query).length===1)select(query);
-    }catch(problem){setNotice("이력 검색에 실패했습니다 · "+requestErrorMessage(problem)+(recent ? " · 아래에는 마지막으로 확인한 최근 기록이 표시됩니다." : " · 최근 기록도 확인되지 않았습니다."));setMatches(null);}
-    finally{setBusy(false);}
+    }catch(problem){if(!controller.signal.aborted || timedOut){setNotice("이력 검색에 실패했습니다 · "+(timedOut ? "조회 시간이 초과됐습니다. 다시 검색하세요." : requestErrorMessage(problem))+(recent ? " · 아래에는 마지막으로 확인한 최근 기록이 표시됩니다." : " · 최근 기록도 확인되지 않았습니다."));setMatches(null);}}
+    finally{clearTimeout(timeout);if(searchRequest.current===controller)searchRequest.current=null;if(!controller.signal.aborted || timedOut)setBusy(false);}
   }
   const jobs=matches ?? recent ?? [];
   return <main className="writer-page-shell"><article className="writer-page"><a href={"/management/frame/hermes-agent/"+(params.has("session")?"?"+new URLSearchParams({session:params.get("session")}):"")}>헤르메스 대화로 돌아가기</a>

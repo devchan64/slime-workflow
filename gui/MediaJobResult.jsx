@@ -146,12 +146,12 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
       {kind==="image" && service==="qwen-21-circular" && <CircularComparison key={id+":"+revision} id={id}/>}
       {kind==="character" && job.result_status==="available" && <figure><figcaption>마지막 완료 프레임</figcaption><img src={job.image} alt="마지막 완료 캐릭터 프레임" style={{maxWidth:"100%"}}/></figure>}
       {["flux","image"].includes(kind) && job.result_status==="available" && <section>
-        {imageError ? <p role="alert">결과 이미지를 불러오지 못했습니다. 파일 상태를 확인한 뒤 결과를 새로고침하세요.</p> : <img key={mediaRevision} src={job.image} alt={service+" 생성 결과"} style={{maxWidth:"100%"}} onError={()=>setImageError(true)}/>}
+        {imageError ? <p role="alert">결과 이미지를 불러오지 못했습니다. 파일 상태를 확인한 뒤 결과를 새로고침하세요.</p> : <img className="media-result-image" key={mediaRevision} src={job.image} alt={service+" 생성 결과"} onError={()=>setImageError(true)}/>}
         {service==="flux-seamless" && <SeamlessComparison key={id+":"+revision} id={id}/>}
-        <a href={job.image} download>결과 PNG 다운로드</a>
+        <a className="media-result-link" href={job.image} download>결과 PNG 다운로드</a>
       </section>}
       {kind==="video" && job.result_status==="available" && <>
-        {service==="dwpose" ? <img src={job.image} alt="DWPose 추출 결과" style={{maxWidth:"100%"}}/> :
+        {service==="dwpose" ? <img className="media-result-image" src={job.image} alt="DWPose 추출 결과"/> :
           <>
             <video key={mediaRevision} aria-label="생성 결과 영상" controls loop playsInline preload="metadata" src={job.video} poster={job.image} style={{maxWidth:"100%"}} onError={()=>setVideoError(true)}/>
             {videoError && <p role="alert">결과 영상을 불러오지 못했습니다. 파일 상태를 확인한 뒤 결과를 새로고침하세요.</p>}
@@ -159,7 +159,7 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
             {directFolder && <RecordFolder key={service+"/"+id} service={service} id={id} direct/>}
           </>}
         {service==="wan22-fun-control" && <SavedPoseVideo key={id} id={id} resultVideo={job.video} resultPoster={job.image}/>}
-        {!directFolder && !folderLink && <a href={job.download} download>{service==="dwpose"?"포즈 PNG·좌표 YAML 다운로드":"PNG 프레임 ZIP 다운로드"}</a>}
+        {!directFolder && !folderLink && <a className="media-result-link" href={job.download} download>{service==="dwpose"?"포즈 PNG·좌표 YAML 다운로드":"PNG 프레임 ZIP 다운로드"}</a>}
       </>}
       {(job.result_status==="unavailable" || job.file_observation==="unavailable") && <p>완료 기록의 결과 파일을 확인할 수 없습니다.</p>}
       {job.result_status==="partial" && job.file_observation!=="unavailable" && <p role="status">완료 기록의 결과 파일 일부만 확인되었습니다. 기록 폴더에서 결과를 확인하세요.</p>}

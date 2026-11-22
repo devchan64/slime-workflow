@@ -1,5 +1,7 @@
+import usePageTitle from "./usePageTitle.js";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
 import GpuHandoffStatus from "./GpuHandoffStatus.jsx";
+import JobIdentifier from "./JobIdentifier.jsx";
 import ActionButton from "./ActionButton.jsx";
 import ReferenceImageInput from "./ReferenceImageInput.jsx";
 import PromptWordCount from "./PromptWordCount.jsx";
@@ -26,6 +28,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
   const referenceOrderHelpId=useId();
   const service=serviceOverride || location.pathname.match(/\/management\/frame\/(flux-[a-z]+)-generator/)?.[1] || "flux-image";
   const [profile,setProfile]=useState(null),[attempt,setAttempt]=useState(0);
+  usePageTitle(profile?.label ? "FLUX 이미지 생성 · "+profile.label : "FLUX 이미지 생성",embedded);
   const seamless=service==="flux-seamless";
   const query=new URLSearchParams(location.search);
   const session=receiptScope?.session || embeddedSession || query.get("session") || "";
@@ -217,7 +220,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
     {!profile && notice && <button onClick={()=>setAttempt(current=>current+1)}>기본 입력 다시 불러오기</button>}
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service={service} status={handoffStatus} onUpdate={value=>{setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}
       onClose={receiptKey && handoffStatus?.state!=="withdrawn" ? undefined : ()=>{sessionStorage.removeItem(handoffKey);setHandoffId("");setHandoffStatus(null);if(receiptKey){setReceiptState("unknown");setReceiptNotice("이 제안의 양도 요청은 철회됐습니다. 새 작업은 생성기 화면에서 요청하세요.");}}}/>}
-    {receiptKey && receiptState!=="editing" && <section aria-label="FLUX 제안 접수 상태"><p>접수 ID: {receipt || "확인 불가"} · {receiptState==="accepted"?"접수 확인됨":receiptState==="rejected"?"접수 거절됨":receiptState==="checking"?"확인 중":"확인 필요"}</p>{receiptState==="accepted" && receiptJob && <p>접수 작업: {receiptJob} <button type="button" onClick={()=>setJob(receiptJob)}>이 작업 결과 조회</button></p>}{receiptNotice && <p role="status">{receiptNotice}</p>}<p>같은 제안은 중복 접수를 막기 위해 다시 제출할 수 없습니다. 다른 작업은 생성기 화면에서 새로 요청하세요.</p><button type="button" disabled={busy || receiptState==="checking"} onClick={refreshReceipt}>접수 상태 다시 확인</button></section>}
+    {receiptKey && receiptState!=="editing" && <section aria-label="FLUX 제안 접수 상태"><p>접수 ID · {receiptState==="accepted"?"접수 확인됨":receiptState==="rejected"?"접수 거절됨":receiptState==="checking"?"확인 중":"확인 필요"}</p>{receipt ? <JobIdentifier id={receipt} label="접수 ID" compact/> : <p>확인 불가</p>}{receiptState==="accepted" && receiptJob && <div><p>접수 작업</p><JobIdentifier id={receiptJob} compact/> <button type="button" onClick={()=>setJob(receiptJob)}>이 작업 결과 조회</button></div>}{receiptNotice && <p role="status">{receiptNotice}</p>}<p>같은 제안은 중복 접수를 막기 위해 다시 제출할 수 없습니다. 다른 작업은 생성기 화면에서 새로 요청하세요.</p><button type="button" disabled={busy || receiptState==="checking"} onClick={refreshReceipt}>접수 상태 다시 확인</button></section>}
     <form ref={inputFormRef} tabIndex={-1} aria-label="생성 입력" onSubmit={preview}><fieldset disabled={!profile || busy || Boolean(review) || Boolean(handoffId) || (receiptKey && receiptState!=="editing")}>
       {profile?.guides && <section className="flux-guides"><h2>{profile.rolePrompt?"신체 비율 기준":"건물 배치 가이드"}</h2>
         <div className="flux-guides-toolbar">
@@ -253,7 +256,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
         <p>{profile.expressions.find(item=>item.id===form.prompt)?.text}<PromptWordCount text={profile.expressions.find(item=>item.id===form.prompt)?.text} label="기본 프롬프트"/></p>
         <button type="button" onClick={defaultFace}>기본 캐릭터 정면 얼굴 불러오기</button>
       </> : <label>{service==="flux-building"?"건물 디자인 (한국어)":"프롬프트"} <textarea value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/><PromptWordCount text={form.prompt}/></label>}
-      {service!=="flux-building" && <label>번역할 한국어 설명 <textarea value={form.translation_source_ko} onChange={e=>edit("translation_source_ko",e.target.value)}/><PromptWordCount text={form.translation_source_ko}/></label>}
+      {service!=="flux-building" && <label>번역할 한국어 설명 <textarea value={form.translation_source_ko} onChange={e=>edit("translation_source_ko",e.target.value)}/><PromptWordCount text={form.translation_source_ko}/><small>입력하면 번역을 먼저 진행하고 번역문을 위 프롬프트 뒤에 추가합니다.</small></label>}
       {profile?.rolePrompt && form.prompt.trim()===profile.rolePrompt.trim() && !form.translation_source_ko.trim() && <p role="status">현재 입력에는 신체 비율 참조 안내만 있습니다. 원하는 캐릭터 외형이나 자세를 추가할 수 있습니다.</p>}
       {!seamless && <section aria-label="참조 이미지"><p>{profile?.expressions?"얼굴 참조 PNG (1장)":"참조 PNG (최대 2장)"}</p><div className="reference-image-slots">
         {Array.from({length:profile?.expressions?1:2},(_,index)=><ReferenceImageInput key={index} label={profile?.expressions?"얼굴 참조 이미지":"참조 이미지 "+(index+1)}

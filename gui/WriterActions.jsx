@@ -45,14 +45,17 @@ export default function WriterActions({session="",onAccepted,onWorkspace,initial
     return()=>{active=false;};
   },[]);
   useEffect(()=>{
-    let active=true,timer;
+    let active=true,timer,controller;
     function read(){
-    managementCommand("writer-agent","writer-state").then(record=>{
+    controller=new AbortController();let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    managementCommand("writer-agent","writer-state",{},{signal:controller.signal}).then(record=>{
+      if(!record || typeof record.configured!=="boolean" || typeof record.ready!=="boolean" || !Array.isArray(record.jobs) || record.jobs.some(job=>!job || typeof job.id!=="string" || typeof job.mode!=="string" || typeof job.stage!=="string" || [job.summary,job.error].some(value=>value!=null && typeof value!=="string")) || (record.active_job!=null && typeof record.active_job!=="string") || (record.configured && (typeof record.trained!=="boolean" || [record.document_root,record.index_path,record.state_root].some(value=>typeof value!=="string"))))throw new Error("작업 준비 상태 응답 형식을 확인할 수 없습니다.");
       if(active){setStateError("");setWorkspace(record);onWorkspace?.(record.jobs || []);if(record.active_job)timer=setTimeout(read,3000); }
-    }).catch(problem=>{if(active)setStateError(requestErrorMessage(problem));});
+    }).catch(problem=>{if(active)setStateError(timedOut ? "작업 준비 상태 조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem));}).finally(()=>clearTimeout(timeout));
     }
     read();
-    return ()=>{active=false;clearTimeout(timer);};
+    return ()=>{active=false;clearTimeout(timer);controller?.abort();};
   },[revision,onWorkspace]);
   function reload() {
     setWorkspace(null);setStateError("");
@@ -109,6 +112,7 @@ export default function WriterActions({session="",onAccepted,onWorkspace,initial
     <button onClick={()=>{setError("");reload();}}>준비 상태 새로고침</button>
     {!workspace && !stateError && <p role="status">작업 준비 상태를 확인하고 있습니다.</p>}
     {stateError && <p role="alert">작업 준비 상태를 확인하지 못했습니다 · {stateError}{workspace && " · 표시된 상태는 마지막으로 확인한 정보입니다."}</p>}
+    {(stateError.includes("문서 폴더") || (workspace && !workspace.configured)) && <p>운영자에게 <code>.local/writer-agent/workspace.yaml</code>의 문서 폴더 설정과 접근 권한 확인을 요청하세요.</p>}
     {workspace?.configured && <details><summary>문서·색인·기록 경로</summary><pre>{[workspace.document_root,workspace.index_path,workspace.state_root].join("\n")}</pre></details>}
     {workspace && <p role="status">{workspace.active_job?"진행 중인 작업 "+workspace.active_job:
       !workspace.configured?"먼저 문서 폴더를 연결하세요.":!workspace.ready?"실행 환경을 준비하세요.":

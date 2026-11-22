@@ -171,7 +171,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       <p>포즈 제어는 DWPose MP4를 사용합니다. 영상 입력은 832×480·16fps, 파일당 32MiB 이하이며 출력 길이는 입력 영상 이내여야 합니다. 모드별 상세 안내와 입력 오류는 생성 입력에 표시됩니다.</p>
       <p>참조 이미지는 외형 조건이며 동작이나 첫 화면의 일치를 보장하지 않습니다. 첫 프레임 조건도 픽셀의 완전 일치를 보장하지 않습니다. 영상 편집의 흰색 마스크는 재생성, 검정색은 보존 조건이며 마스크 밖도 달라질 수 있습니다.</p>
     </GeneratorSectionCard><GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(values)} resultReady={Boolean(job)} openOnNavigate/>
-    <GeneratorSectionCard title="모델 준비" summary={modelError ? "모델 상태 조회 실패" : !model ? "상태 확인 필요" : (model.generation_ready ?? model.ready) ? "준비 완료" : "준비 필요"} defaultOpen>
+    <GeneratorSectionCard title="모델 준비" summary={modelError ? "모델 상태 조회 실패" : !model ? "상태 확인 필요" : (model.generation_ready ?? model.ready) ? "준비 완료" : "준비 필요"}>
       <ModelReadiness service={service} onStatus={setModel} onError={setModelError}/>
       {embedded && (model?.generation_ready ?? model?.ready) && !["queued","running","failed","cancelled","unknown"].includes(model?.preparation_status) ? <details><summary>모델 다운로드 이력</summary><DownloadProgress service={service}/></details> : <DownloadProgress service={service}/>}
     </GeneratorSectionCard>
@@ -186,7 +186,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       <div className="vace-input-group"><h2>입력 자료</h2><p className="vace-group-help">생성 방식과 필요한 참조 자료를 선택하세요.</p>
       <label>생성 모드<select value={values.mode} onChange={e=>field("mode",e.target.value)}>{template.modes.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
       {embedded ? <details><summary>선택한 생성 모드 안내</summary><p style={{whiteSpace:"pre-line"}}>{template.modes.find(m=>m.id===values.mode)?.help.replaceAll("**","")}</p></details> : <p style={{whiteSpace:"pre-line"}}>{template.modes.find(m=>m.id===values.mode)?.help.replaceAll("**","")}</p>}
-      {Object.entries({reference:"참조 또는 첫 프레임 이미지",...labels}).map(([key,label])=>{
+      {Object.entries({reference:values.mode==="first_frame"?"첫 프레임 이미지":"참조 이미지",...labels}).map(([key,label])=>{
         const visible=key==="reference"?values.mode!=="text":attachments.includes(key);
         return <div key={key} hidden={!visible}>{key==="reference" ? <ReferenceImageInput disabled={busy || !!pending || !visible} label={label} source={files[key]} onChange={file=>setFiles({...files,[key]:file})}/> : <div><label>{label}<input key={historyRevision} type="file" accept="video/mp4" required={visible && !files[key]} disabled={!visible}
           onChange={e=>{selectVideo(key,e.target.files[0]);e.target.value="";}}/></label><p>MP4 · 파일당 최대 32MiB{files[key] && " · 선택: "+files[key].name}</p>
@@ -215,7 +215,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
         invalidSeed && "시드의 입력 범위를 확인하세요.",
         ["lightning","fighting_lightning"].includes(values.lora_mode) && (values.steps!==4 || values.guidance_scale!==1 || values.flow_shift!==5) && "Lightning에는 4스텝·CFG 1·shift 5가 필요합니다.",
         !values.prompt.trim() && "프롬프트를 입력하세요.",
-        values.mode!=="text" && !files.reference && "참조 이미지를 선택하세요.",
+        values.mode!=="text" && !files.reference && (values.mode==="first_frame" ? "첫 프레임 이미지를 선택하세요." : "참조 이미지를 선택하세요."),
         attachments.some(key=>!files[key]) && "필수 영상을 선택하세요.",
         checkingVideo && "영상 정보를 확인하고 있습니다.",
         missingVideoInfo && "영상 정보를 확인하세요.",
@@ -226,7 +226,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       <p>{template.modes.find(mode=>mode.id===pending.mode)?.label || pending.mode} · {pending.frames}프레임 · 16fps · {(pending.frames/16).toFixed(2)}초 · {pending.steps}스텝 · 시드 {pending.seed}</p>
       <p>Flow shift {pending.flow_shift} · CFG {pending.guidance_scale} · 조건 강도 {pending.reference_strength}</p>
       <p>LoRA · {pending.lora_mode === "fighting_lightning" ? "격투 + Lightning" : pending.lora_mode === "lightning" ? "Lightning만" : "사용 안 함"}</p>
-      {pending.mode!=="text" && <p>참조 이미지 · {files.reference?.name || "선택됨"}</p>}
+      {pending.mode!=="text" && <p>{pending.mode==="first_frame" ? "첫 프레임 이미지" : "참조 이미지"} · {files.reference?.name || "선택됨"}</p>}
       {attachments.map(key=><p key={key}>{labels[key]} · {files[key]?.name || "선택됨"} · {videoInfo[key]?.summary || "영상 정보 확인 불가"}</p>)}{pending.mode==="video_edit" && <p>마스크의 편집·보존 영역은 접수 시 추가 검증합니다.</p>}
       <h3>장면·동작 프롬프트</h3><p className="fun-review-prompt">{pending.prompt}</p><h3>부정 프롬프트</h3><p className="fun-review-prompt">{pending.negative_prompt || "없음"}</p>
       {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 영상을 생성합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}

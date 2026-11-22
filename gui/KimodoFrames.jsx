@@ -49,8 +49,8 @@ export default function KimodoFrames({id,choose,onDeleted,selectionControls=fals
     {source && <><p><JobStatus state={source.status}/> {source.error}</p>
       {source.status==="missing" && <p role="status">현재 작업 데이터를 찾을 수 없습니다. 이력 색인에는 과거 상태가 남아 있을 수 있으므로 결과와 실제 작업 상태를 확인할 수 없습니다.</p>}
       <GenerationProgress job={{...source,estimate:validGenerationEstimate(source.estimate) ? source.estimate : null}} live={live} supportsProgress={false}/>
-      <button onClick={()=>refresh(value=>value+1)}>작업 상태 갱신</button>
-      <GeneratorJobControls showActions={!selectionControls} service="kimodo" id={id} state={source.status} refresh={()=>refresh(value=>value+1)}/></>}
+      <div className="kimodo-result-actions"><button type="button" onClick={()=>refresh(value=>value+1)}>작업 상태 갱신</button>
+      <GeneratorJobControls showActions={!selectionControls} service="kimodo" id={id} state={source.status} refresh={()=>refresh(value=>value+1)}/></div></>}
     {onDeleted && !selectionControls && <HistoryCleanup key={id+"/"+(source?.status || "")} service="kimodo" job={id} state={source?.status} onDeleted={onDeleted}/>}
     {source?.status==="completed" && <KimodoMedia key={source.attempt} id={id} job={source}/>}
     {source?.status==="completed" && <form onSubmit={inspect}><fieldset disabled={busy}><legend>원본 SOMA 관절 · {source.source_frame_count}프레임</legend>

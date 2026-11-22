@@ -1,8 +1,10 @@
+import usePageTitle from "./usePageTitle.js";
 import React from "react";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
 
 export default function GeneratorPageHeader({title,description,service,generator,embedded,model,onStatus}) {
+  usePageTitle(title,embedded);
   const session=new URLSearchParams(location.search).get("session");
   const conversation="/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"");
   const readiness=model ? (model.generation_ready ?? model.ready) ? "준비 완료" : "준비 필요" : "확인 필요";

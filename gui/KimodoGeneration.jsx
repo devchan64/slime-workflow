@@ -260,7 +260,7 @@ export default function KimodoGeneration({session,restoreJob,initialInputs=null,
     {inputs && sourceJob && <div><p>불러온 원본 작업</p><JobIdentifier id={sourceJob} compact/></div>}
     {receiptState!=="editing" && <section className="kimodo-submission-status" aria-label="생성 접수 상태">
       <h3>{receiptState==="accepted"?"생성 요청 접수됨":receiptState==="checking"?"접수 상태 확인 중":"접수 상태 확인 필요"}</h3>
-      {receipt && <p>접수 ID <code>{receipt}</code></p>}
+      {receipt && <><p>접수 ID</p><JobIdentifier id={receipt} label="접수 ID" compact/></>}
       {jobId && <KimodoAcceptedResult id={jobId} choose={choose}/>}
       <button type="button" disabled={busy || !receipt} onClick={()=>perform(()=>checkReceipt(receipt))}>접수 상태 확인</button>
       {receiptState==="accepted" && <button type="button" disabled={busy} onClick={()=>{setReceiptState("editing");setReview(null);setNotice("입력을 다시 사용합니다. 생성 요청을 확인하면 별도의 새 작업이 접수됩니다.");}}>입력 다시 사용</button>}

@@ -1,13 +1,19 @@
-import React, {useEffect,useId,useState} from "react";
+import React, {useEffect,useId,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import {generationResumeCommand} from "./generationResumeCommand.mjs";
 import {validateGenerationControlResponse} from "./generationControlResponse.mjs";
 
-export default function GeneratorJobControls({service,id,state,refresh,showLog=true,showActions=true,showUnavailable=false,resumeEnabled=true,disabled=false,renderPriority=null,onInteractionChange}) {
+export default function GeneratorJobControls(props) {
+  return <GeneratorJobControlsForJob key={props.service+"/"+props.id} {...props}/>;
+}
+
+function GeneratorJobControlsForJob({service,id,state,refresh,showLog=true,showActions=true,showUnavailable=false,resumeEnabled=true,disabled=false,renderPriority=null,onInteractionChange}) {
   const [review,setReview]=useState(null);
   const [busy,setBusy]=useState(false);
   const [notice,setNotice]=useState("");
   const [log,setLog]=useState(null);
+  const logRequest=useRef(null);
+  useEffect(()=>()=>{logRequest.current?.abort();},[]);
   useEffect(()=>{onInteractionChange?.(busy || Boolean(review));return ()=>onInteractionChange?.(false);},[busy,review,onInteractionChange]);
   const resumeCommand=generationResumeCommand(service);
   const reasonId=useId();
@@ -54,10 +60,16 @@ export default function GeneratorJobControls({service,id,state,refresh,showLog=t
     }
   }
   return <section className={showUnavailable ? "history-job-actions" : undefined} aria-label="작업 제어">
-    {showLog && <button type="button" disabled={busy} onClick={()=>perform(async()=>{
-      const result=await managementCommand(service,"logs",{id});
-      setLog(result.log || "기록된 로그가 없습니다.");
-    })}>작업 로그 조회</button>}
+    {showLog && <button type="button" disabled={busy} aria-expanded={log!==null} onClick={()=>{if(log!==null){setLog(null);return;}perform(async()=>{
+      const controller=new AbortController();logRequest.current=controller;let timedOut=false;
+      const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+      try{
+        const result=await managementCommand(service,"logs",{id},{signal:controller.signal});
+        if(!result || typeof result!=="object" || (result.log!=null && typeof result.log!=="string"))throw new Error("작업 로그 응답 형식을 확인할 수 없습니다.");
+        setLog(result.log || "기록된 로그가 없습니다.");
+      }catch(error){if(timedOut)throw new Error("작업 로그 조회 시간이 초과됐습니다. 다시 조회하세요.");throw error;}
+      finally{clearTimeout(timer);if(logRequest.current===controller)logRequest.current=null;}
+    });}}>{log!==null ? "작업 로그 닫기" : "작업 로그 조회"}</button>}
     {log!==null && <pre>{log}</pre>}
     {showActions && (!review || showUnavailable) && (showUnavailable || ["failed","cancelled","paused"].includes(state)) &&
       <button className={showUnavailable ? "history-action-resume" : undefined} type="button" disabled={disabled || busy || Boolean(review) || !canResume} aria-describedby={!canResume ? reasonId : undefined} onClick={()=>perform(prepareResume)}>생성 재개 검토</button>}

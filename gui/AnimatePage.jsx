@@ -1,3 +1,4 @@
+import usePageTitle from "./usePageTitle.js";
 import React,{useRef,useState} from "react";
 import AnimateInputs from "./AnimateInputs.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
@@ -24,6 +25,7 @@ async function readJob(id){
   finally{clearTimeout(timer);}
 }
 export default function AnimatePage({embedded=false}={}){
+  usePageTitle("Wan Animate-2 캐릭터 동작 전사",embedded);
   const query=new URLSearchParams(location.search);
   const [job,setJob]=useState(embedded ? "" : query.get("job") || "");
   const [saved,setSaved]=useState(null);

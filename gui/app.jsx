@@ -1,3 +1,6 @@
+import {validSessionViewPage} from "./sessionViewPage.mjs";
+import {validSessionListPage} from "./sessionListPage.mjs";
+import SeedProposal from "./SeedProposal.jsx";
 import {formatActivityOutput} from "./formatActivityOutput.mjs";
 import {matchesLiveInstructionReceipt} from "./liveInstructionReceipt.mjs";
 import {Command} from "cmdk";
@@ -263,7 +266,7 @@ function Message() {
     </section> : <MessagePrimitive.Parts components={message.role==="assistant" ? {Text:AssistantText} : undefined}/>}
     {message.role==="assistant" && ["cancelled","canceled"].includes(meta.status) && !message.content?.some(part=>part.type==="text" && part.text?.trim()) && <p className="assistant-cancelled" role="status">이 요청은 취소되었습니다.</p>}
     {meta.formId && <ConversationVideoForm session={meta.session} formId={meta.formId} open={actions.openVideoForm} reuse={actions.openJobForm}/>}
-    {meta.seedProposal && <section aria-label="시드 변경 생성 제안">{meta.seedProposal.reason ? <p>{meta.seedProposal.reason}</p> : <><p>원본 {meta.seedProposal.job_id}의 입력을 불러와 {meta.seedProposal.seed == null ? "다른 시드" : "시드 "+meta.seedProposal.seed}로 검토합니다. 생성은 확인 후 접수됩니다.</p><button type="button" onClick={()=>actions.openSeedForm(meta.seedProposal)}>생성 폼 검토</button></>}</section>}
+    {meta.seedProposal && <SeedProposal proposal={meta.seedProposal} onOpen={actions.openSeedForm}/>}
     {meta.kimodoProposal && meta.job && <KimodoProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset} append={actions.append} openStep={actions.openStep}/>}
     {meta.generationProposal && meta.job && <GenerationProposal key={meta.job} kind={meta.generationProposal} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
     {meta.captureProposal && meta.job && <CaptureProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
@@ -414,35 +417,39 @@ function App() {
     history.pushState(null,"",url);setSession(next);setView({});setHistoryPage(null);setQueue(null);setError("");setViewError("");setViewLoading(false);setTargetForm("");setTargetProposal("");
   }
   useEffect(()=>{const cb=()=>{setSearchMode(["jobs","capabilities"].includes(query().get("panel"))?query().get("panel"):"tools");setCategory(initialToolCategory());setSearch(query().get("search") || "");setShowTools(query().has("category") || query().has("search") || ["jobs","capabilities"].includes(query().get("panel")));setShowFunControl(false);setShowKimodo(false);setKimodoProposal(null);setSeedProposal(null);setVideoFormId("");setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);setError("");setViewError("");setViewLoading(false);setTargetForm("");setTargetProposal("");};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
-  useEffect(()=>{let active=true;setCatalogLoading(true);setCatalogError("");fetch(base+"tools").then(r=>{if(!r.ok)throw new Error("도구 목록을 불러올 수 없습니다.");return r.json();}).then(v=>{if(!Array.isArray(v) || v.some(item=>!item || typeof item!=="object" || ["id","label","category"].some(key=>typeof item[key]!=="string" || !item[key])))throw new Error("도구 목록 응답을 읽을 수 없습니다.");if(active)setTools(v)}).catch(e=>{if(active)setCatalogError(e.message || "도구 목록을 불러올 수 없습니다.")}).finally(()=>{if(active)setCatalogLoading(false)});
-    return()=>{active=false};},[catalogRevision]);
+  useEffect(()=>{let active=true,timedOut=false;const controller=new AbortController();const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);setCatalogLoading(true);setCatalogError("");fetch(base+"tools",{signal:controller.signal}).then(r=>{if(!r.ok)throw new Error("도구 목록을 불러올 수 없습니다.");return r.json();}).then(v=>{if(!Array.isArray(v) || v.some(item=>!item || typeof item!=="object" || ["id","label","category"].some(key=>typeof item[key]!=="string" || !item[key])))throw new Error("도구 목록 응답을 읽을 수 없습니다.");if(active)setTools(v)}).catch(e=>{if(active)setCatalogError(timedOut ? "도구 목록 조회 시간이 초과됐습니다. 다시 조회하세요." : e.message || "도구 목록을 불러올 수 없습니다.")}).finally(()=>{clearTimeout(timeout);if(active)setCatalogLoading(false)});
+    return()=>{active=false;clearTimeout(timeout);controller.abort();};},[catalogRevision]);
   useEffect(()=>{
-    let active=true;
+    let active=true,timedOut=false;const controller=new AbortController();
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setListPage(null);setSessions([]);setListError("");setListLoading(true);
-    call(archived?"session-archived":"session-list",{...listRequest,limit:30}).then(page=>{
+    call(archived?"session-archived":"session-list",{...listRequest,limit:30},{signal:controller.signal}).then(page=>{
       if(!active)return;
-      if(!Array.isArray(page.sessions) || (listRequest.snapshot && page.snapshot!==listRequest.snapshot))throw new Error("세션 목록이 변경되었습니다. 다시 검색하세요.");
+      if(!validSessionListPage(page,listRequest))throw new Error("세션 목록 응답을 확인할 수 없습니다. 다시 검색하세요.");
       setSessions(page.sessions);setListPage(page);
-    }).catch(problem=>{if(active)setListError(problem.message);}).finally(()=>{if(active)setListLoading(false);});
-    return ()=>{active=false;};
+    }).catch(problem=>{if(active)setListError(timedOut ? "대화 목록 조회 시간이 초과됐습니다." : problem.message);}).finally(()=>{clearTimeout(timeout);if(active)setListLoading(false);});
+    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[archived,listRequest,refresh]);
   useEffect(()=>{setDraft(sessionStorage.getItem("hermes-draft-"+session) || "");},[session]);
   useEffect(()=>{
-    let active=true,timer;
+    let active=true,timer,controller;
     async function load() {
+      controller=new AbortController();let timedOut=false;
+      const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
       try {
         const payload={session_id:session,limit:CONVERSATION_PAGE_SIZE,...(historyPage || {})};
-        const next=await call("session-view",payload);
-        if(next.id!==session)throw new Error("대화 응답이 요청한 세션과 일치하지 않습니다.");
+        const next=await call("session-view",payload,{signal:controller.signal});
+        if(!validSessionViewPage(next,session,historyPage,CONVERSATION_PAGE_SIZE))throw new Error("대화 응답 형식을 확인할 수 없습니다.");
         if(active) {setView(next);setViewError("");}
       } catch(problem) {
-        if(active)setViewError(problem.message);
+        if(active)setViewError(timedOut ? "대화 조회 시간이 초과됐습니다." : problem.message);
       } finally {
+        clearTimeout(timeout);
         if(active){setViewLoading(false);if(!historyPage)timer=setTimeout(load,3000);}
       }
     }
     if(session)load();
-    return ()=>{active=false;clearTimeout(timer);};
+    return ()=>{active=false;clearTimeout(timer);controller?.abort();};
   },[session,historyPage,viewRevision]);
   useEffect(()=>{
     if(!targetForm || !(view.messages || []).some(message=>message.form_id===targetForm))return;
@@ -647,7 +654,7 @@ function App() {
         {(sessionQuery || listRequest.query) && <button type="button" onClick={()=>{resetSessionList();sessionSearch.current?.focus();}}>초기화</button>}
       </form>
       {sessionQuery.trim()!==listRequest.query && <p className="session-list-count" role="status">검색어가 변경되었습니다. 검색을 눌러 목록에 적용하세요.</p>}
-      {listError && <div ref={listErrorRef} tabIndex={-1} role="alert"><p>{listRequest.snapshot ? "목록이 변경되었거나 페이지를 불러오지 못했습니다. 처음부터 다시 조회하세요." : "목록을 불러오지 못했습니다."}</p><button type="button" onClick={()=>{listFocusPending.current=true;if(listRequest.snapshot)setListRequest({offset:0,query:listRequest.query});else setRefresh(n=>n+1);}}>{listRequest.snapshot ? "처음부터 다시 조회" : "다시 시도"}</button></div>}
+      {listError && <div ref={listErrorRef} tabIndex={-1} role="alert"><p>{listError.includes("시간이 초과") ? listError : listRequest.snapshot ? "목록이 변경되었거나 페이지를 불러오지 못했습니다. 처음부터 다시 조회하세요." : "목록을 불러오지 못했습니다."}</p><button type="button" onClick={()=>{listFocusPending.current=true;if(listRequest.snapshot)setListRequest({offset:0,query:listRequest.query});else setRefresh(n=>n+1);}}>{listRequest.snapshot ? "처음부터 다시 조회" : "다시 시도"}</button></div>}
       {listLoading && <p role="status">대화 목록을 불러오는 중…</p>}
       {listPage && Number.isInteger(listPage.total) && <p ref={listResultRef} tabIndex={-1} className="session-list-count" role="status">{listRequest.query?<>‘{listRequest.query}’ 검색 결과</>:archived?"보관된 대화":"전체 대화"} {listPage.total}개{listPage.unreadable_count>0 && " · 읽을 수 없는 세션 "+listPage.unreadable_count+"개 제외"}</p>}
       {listRequest.query && sessions.some(s=>!s.title) && <p className="session-list-count">검색 결과는 세션 ID로 표시됩니다. 선택하면 대화 제목과 내용을 확인할 수 있습니다.</p>}
@@ -674,7 +681,7 @@ function App() {
     }}>{folded?"세션 목록 펼치기":"세션 목록 접기"}</button><h1>{view.title || "헤르메스와 대화"}</h1></header>
 
 
-    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openKimodo(inputs),openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? (historyPage ? "대화 이력이 변경되었습니다. 최신 대화를 다시 불러온 뒤 이전 메시지를 조회하세요." : "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요.") : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><div className="conversation-error-actions"><button type="button" onClick={()=>{document.querySelector(".thread .viewport")?.focus({preventScroll:true});retryView(n=>n+1);}}>다시 시도</button>{historyPage && <button type="button" onClick={()=>{changeHistory(null);document.querySelector(".thread .viewport")?.focus({preventScroll:true});}}>최신 대화 불러오기</button>}</div></div>}{error&&<p role="alert">{error}</p>}
+    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openKimodo(inputs),openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? (historyPage ? "대화 이력이 변경되었습니다. 최신 대화를 다시 불러온 뒤 이전 메시지를 조회하세요." : "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요.") : viewError.includes("조회 시간이 초과") ? "대화 조회 시간이 초과됐습니다. 다시 시도하세요." : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><div className="conversation-error-actions"><button type="button" onClick={()=>{document.querySelector(".thread .viewport")?.focus({preventScroll:true});retryView(n=>n+1);}}>다시 시도</button>{historyPage && <button type="button" onClick={()=>{changeHistory(null);document.querySelector(".thread .viewport")?.focus({preventScroll:true});}}>최신 대화 불러오기</button>}</div></div>}{error&&<p role="alert">{error}</p>}
 
     <form onSubmit={e=>{e.preventDefault();send()}}>
     {session && view.context && <details name="composer-popover" className="composer-context"><summary>대화 문맥{view.context.usage && " · "+(view.context.usage.tokens_after ?? view.context.usage.tokens).toLocaleString()+" 토큰"}{view.context.operation && ["queued","running","unknown"].includes(view.context.operation.status) && " · 정리 진행 중"}</summary><section className="composer-context-panel" aria-label="대화 문맥 정리">
