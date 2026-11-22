@@ -242,6 +242,8 @@ class GpuHandoffStore(HermesDelegationStore):
             for path in list_delegation_record_paths(self.delegation_storage_root):
                 record = _validate_record(_read_handoff_record(path), path.stem)
                 if record['state'] not in ('ready','cancelled','rejected') and (all_sessions or record['session_id'] == session_id):
+                    if record['session_id'] != session_id:
+                        raise ValueError('다른 대화 세션의 GPU 양도가 완료되지 않아 시작할 수 없습니다. 해당 세션의 GPU 양도 상태를 확인하세요.')
                     raise ValueError('GPU 양도가 완료되지 않았습니다. 양도 상태를 먼저 확인하세요.')
             return callback()
 

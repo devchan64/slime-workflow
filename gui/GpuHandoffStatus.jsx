@@ -1,4 +1,4 @@
-import React,{useState} from "react";
+import React,{useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import {validateGpuHandoffStatus} from "./validateGpuHandoffStatus.mjs";
 import JobIdentifier from "./JobIdentifier.jsx";
@@ -9,6 +9,8 @@ const recoverable=["헤르메스 종료와 GPU 예약 해제를 확인할 수 �
 
 export default function GpuHandoffStatus({session,id,service,status,onUpdate,onClose,children}){
   const [busy,setBusy]=useState(false),[error,setError]=useState("");
+  const [confirmReload,setConfirmReload]=useState(false);
+  useEffect(()=>setConfirmReload(false),[session,id,status?.revision]);
   async function perform(action){setBusy(true);setError("");try{await action();}catch(problem){setError(problem.message || "GPU 양도 상태를 확인할 수 없습니다.");}finally{setBusy(false);}}
   async function refresh(){
     const value=await managementCommand("hermes-agent","hermes-gpu-handoff-status",{session_id:session,request_id:id});
@@ -37,9 +39,14 @@ export default function GpuHandoffStatus({session,id,service,status,onUpdate,onC
       <button type="button" disabled={busy} onClick={()=>{if(window.confirm("기존 재적재의 모델과 GPU 예약을 다시 확인할까요?"))perform(async()=>{
         const value=await managementCommand("hermes-agent","hermes-gpu-handoff-recover-reload",{session_id:session,request_id:id,expected_revision:status.revision,confirmed:true});onUpdate(validateGpuHandoffStatus(value,session,id,service));
       });}}>기존 재적재 상태 확인</button>
-      {status.reload_retry === 0 && <button type="button" disabled={busy} onClick={()=>{if(window.confirm("실패한 재적재의 정리 상태를 확인하고 Qwen 3.8을 한 번 다시 적재할까요?"))perform(async()=>{
-        const value=await managementCommand("hermes-agent","hermes-gpu-handoff-retry-reload",{session_id:session,request_id:id,expected_revision:status.revision,confirmed:true});onUpdate(validateGpuHandoffStatus(value,session,id,service));
-      });}}>정리 확인 후 재적재 재시도</button>}
+      {status.reload_retry === 0 && !confirmReload && <button type="button" disabled={busy} onClick={()=>setConfirmReload(true)}>정리 확인 후 재적재 재시도</button>}
+      {status.reload_retry === 0 && confirmReload && <div role="group" aria-label="재적재 재시도 확인" onKeyDown={event=>{if(event.key==="Escape")setConfirmReload(false);}}>
+        <p>실패한 재적재의 정리 상태를 확인하고 Qwen 3.8을 한 번 다시 적재할까요?</p>
+        <button type="button" disabled={busy} autoFocus onClick={()=>setConfirmReload(false)}>취소</button>
+        <button type="button" disabled={busy} onClick={()=>{setConfirmReload(false);perform(async()=>{
+          const value=await managementCommand("hermes-agent","hermes-gpu-handoff-retry-reload",{session_id:session,request_id:id,expected_revision:status.revision,confirmed:true});onUpdate(validateGpuHandoffStatus(value,session,id,service));
+        });}}>재적재 확인</button>
+      </div>}
     </>}
     {children}
     <button type="button" disabled={busy} onClick={()=>perform(refresh)}>GPU 양도 상태 확인</button>

@@ -60,7 +60,7 @@ class GpuHandoffStoreTests(unittest.TestCase):
             self.assertEqual(store.run_without_open_session_handoff('b'*32, lambda:'released'), 'released')
             with self.assertRaises(ValueError):
                 store.run_without_open_session_handoff('a'*32, lambda:'released')
-            with self.assertRaises(ValueError):
+            with self.assertRaisesRegex(ValueError, '다른 대화 세션의 GPU 양도'):
                 store.run_without_open_session_handoff('b'*32, lambda:'started', all_sessions=True)
 
     def test_concurrent_different_requests_for_resident_are_exclusive(self):
