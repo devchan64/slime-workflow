@@ -6,12 +6,22 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from workflow.domains.hermes_agent.context_checkpoint import build_context_messages, context_prefix_digest, make_context_checkpoint
+from workflow.domains.hermes_agent.context_checkpoint import build_context_messages, build_coding_context_messages, context_prefix_digest, make_context_checkpoint
 from workflow.domains.hermes_agent.context_runtime import compress_context, format_context_query, prepare_context_request
 from workflow.domains.hermes_agent.session_store import HermesSessionStore
 
 
 class HermesContextCheckpointTest(unittest.TestCase):
+    def test_coding_context_preserves_user_corrections_and_discloses_omissions(self):
+        records = [{'text': text, 'job_id': str(index)} for index, text in enumerate(('요구', '정정', '마지막'))]
+        responses = ['오래된 답변', '긴 응답' * 2000, '최근 답변']
+        context, omitted = build_coding_context_messages({'messages': records}, lambda job_id: {
+            'status': {'status': 'completed'}, 'final_response': responses[int(job_id)]})
+        self.assertEqual([m['content'] for m in context if m['role'] == 'user'], ['요구', '정정', '마지막'])
+        self.assertEqual(omitted, 2)
+        self.assertIn('2건을 생략', context[0]['content'])
+        self.assertEqual(context[-1]['content'], '최근 답변')
+
     def test_token_counter_includes_system_and_tool_template(self):
         from workflow.domains.hermes_agent.sandbox_client import count_model_tokens
         calls = []

@@ -36,6 +36,20 @@ HERMES_LIVE_WORKER_ADAPTER = Path(__file__).with_name('live_instruction_worker_a
 HERMES_OBSERVER_CLIENT = Path(__file__).with_name('management_status_client.py')
 
 
+def snapshot_control_scripts(job_directory):
+    """하나의 작업에 사용할 격리 제어 스크립트를 작업 폴더에 고정한다."""
+    sources = (HERMES_SANDBOX_CLIENT, HERMES_CONTEXT_RUNTIME, HERMES_OBSERVER_CLIENT,
+               HERMES_LIVE_LAUNCHER, HERMES_LIVE_RUNTIME, HERMES_LIVE_SITECUSTOMIZE, HERMES_LIVE_WORKER_ADAPTER)
+    contents = {path.name: path.read_bytes() for path in sources}
+    if any(path.is_symlink() or path.read_bytes() != contents[path.name] for path in sources):
+        raise RuntimeError('Hermes 제어 스크립트가 준비 중 변경되었습니다. 다시 접수하세요.')
+    target = Path(job_directory) / 'control-scripts'
+    target.mkdir(mode=0o700)
+    for name, data in contents.items():
+        (target / name).write_bytes(data)
+    return target
+
+
 def build_hermes_sandbox_environment():
     """호스트 인증정보를 PID 네임스페이스 안에 상속하지 않는다."""
     return {'PATH':'/usr/local/bin:/usr/bin:/bin', 'HOME':'/tmp', 'LANG':'C.UTF-8', 'PYTHONSAFEPATH':'1', 'PYTHONDONTWRITEBYTECODE':'1', 'PYTHONUNBUFFERED':'1'}
@@ -47,21 +61,22 @@ def prepare_worker_context(job_directory, context, sandbox_arguments, event_stre
     from workflow.domains.hermes_agent.context_runtime import format_context_query
     from workflow.domains.hermes_agent.session_store import HermesSessionStore
     required = {'session_id', 'count', 'digest', 'messages_digest', 'expected_checkpoint', 'automatic', 'messages', 'force', 'only'}
-    if not isinstance(context, dict) or set(context) != required or any(type(context[key]) is not bool for key in ('automatic', 'force', 'only')) or not isinstance(context['messages'], list):
+    if not isinstance(context, dict) or set(context) not in (required, required | {'context_mode'}) or context.get('context_mode', 'coding') != 'coding' or any(type(context[key]) is not bool for key in ('automatic', 'force', 'only')) or not isinstance(context['messages'], list):
         raise ValueError('대화 문맥 작업 형식 오류')
     messages_digest = hashlib.sha256(json.dumps(context['messages'], ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
     if messages_digest != context['messages_digest']:
         raise ValueError('대화 문맥 입력이 변경되었습니다.')
     exchange = job_directory / 'context-exchange'
     exchange.mkdir()
-    write_record_atomically(exchange / 'input.json', {'messages': context['messages'], 'automatic': context['automatic'], 'force': context['force']})
+    write_record_atomically(exchange / 'input.json', {'messages': context['messages'], 'automatic': context['automatic'] and context.get('context_mode') != 'coding', 'force': context['force']})
     boundary = sandbox_arguments.index('--')
     preflight_base = list(sandbox_arguments[:boundary])
     for index in range(len(preflight_base) - 2):
         if preflight_base[index] == '--bind' and preflight_base[index + 2] == '/workspace':
             preflight_base[index] = '--ro-bind'
             break
-    preflight = (preflight_base + ['--ro-bind', str(HERMES_CONTEXT_RUNTIME), '/control/context_runtime.py',
+    control_scripts = job_directory / 'control-scripts'
+    preflight = (preflight_base + ['--ro-bind', str(control_scripts / HERMES_CONTEXT_RUNTIME.name), '/control/context_runtime.py',
                  '--bind', str(exchange), '/control/context'] + sandbox_arguments[boundary:] + ['--context-only'])
     environment = dict(build_hermes_sandbox_environment(), PYTHONPATH='/runtime', HERMES_HOME='/tmp/hermes-home',
                        TERMINAL_CWD='/workspace', HERMES_API_TIMEOUT='300')
@@ -88,7 +103,7 @@ def prepare_worker_context(job_directory, context, sandbox_arguments, event_stre
     elif result['messages'] != context['messages']:
         raise RuntimeError('압축하지 않은 대화 문맥이 변경되었습니다.')
     query_path.write_text(expected_query, encoding='utf-8')
-    write_record_atomically(job_directory / 'context-status.json', {key: result.get(key) for key in ('state', 'tokens', 'tokens_after', 'threshold')})
+    write_record_atomically(job_directory / 'context-status.json', {**{key: result.get(key) for key in ('state', 'tokens', 'tokens_after', 'threshold')}, **({'mode': 'coding'} if context.get('context_mode') == 'coding' else {})})
     return result['state']
 
 
@@ -215,6 +230,7 @@ def execute_hermes_gpu_job(worker_job_directory):
     worker_job_directory = Path(worker_job_directory).resolve(strict=True)
     wait_hermes_gpu_reservation(worker_job_directory)
     worker_request_record = json.loads((worker_job_directory / 'request.json').read_text())
+    control_scripts = snapshot_control_scripts(worker_job_directory)
     worker_verification_modules = validate_hermes_verification_modules(worker_request_record.get('verification_modules', []))
     if not worker_verification_modules and not (worker_request_record.get('context') or {}).get('only'):
         from workflow.domains.hermes_agent.kimodo_example_request import resolve_kimodo_example_request, kimodo_example_response
@@ -313,7 +329,7 @@ def execute_hermes_gpu_job(worker_job_directory):
                 worker_observer_socket.bind('management-status.sock')
                 worker_observer_socket.listen(4)
                 threading.Thread(target=serve_hermes_observer_connections, args=(worker_observer_socket,), daemon=True).start()
-                worker_sandbox_arguments = ['bwrap', '--die-with-parent', '--unshare-all', '--clearenv', '--ro-bind', '/usr', '/usr', '--ro-bind', '/lib', '/lib', '--ro-bind', '/lib64', '/lib64', '--ro-bind', '/bin', '/bin', '--ro-bind', '/etc/ssl', '/etc/ssl', '--size', '2147483648', '--tmpfs', '/tmp', '--dir', '/control', '--ro-bind', str(HERMES_RUNTIME_DIRECTORY), '/runtime', '--bind', str(worker_workspace_path), '/workspace', '--ro-bind', str(worker_workspace_path / '.git'), '/workspace/.git', '--ro-bind', str(worker_project_environment), '/workspace/.venv', '--ro-bind', str(worker_socket_path), '/control/model-proxy.sock', '--ro-bind', str(worker_job_directory / 'management-status.sock'), '/control/management-status.sock', '--ro-bind', str(HERMES_OBSERVER_CLIENT), '/control/management-status.py', '--ro-bind', str(worker_job_directory / 'query.txt'), '/control/query.txt', '--ro-bind', str(HERMES_SANDBOX_CLIENT), '/control/client.py', '--proc', '/proc', '--dev', '/dev', '--', '/runtime/.venv/bin/python', '/control/client.py']
+                worker_sandbox_arguments = ['bwrap', '--die-with-parent', '--unshare-all', '--clearenv', '--ro-bind', '/usr', '/usr', '--ro-bind', '/lib', '/lib', '--ro-bind', '/lib64', '/lib64', '--ro-bind', '/bin', '/bin', '--ro-bind', '/etc/ssl', '/etc/ssl', '--size', '2147483648', '--tmpfs', '/tmp', '--dir', '/control', '--ro-bind', str(HERMES_RUNTIME_DIRECTORY), '/runtime', '--bind', str(worker_workspace_path), '/workspace', '--ro-bind', str(worker_workspace_path / '.git'), '/workspace/.git', '--ro-bind', str(worker_project_environment), '/workspace/.venv', '--ro-bind', str(worker_socket_path), '/control/model-proxy.sock', '--ro-bind', str(worker_job_directory / 'management-status.sock'), '/control/management-status.sock', '--ro-bind', str(control_scripts / HERMES_OBSERVER_CLIENT.name), '/control/management-status.py', '--ro-bind', str(worker_job_directory / 'query.txt'), '/control/query.txt', '--ro-bind', str(control_scripts / HERMES_SANDBOX_CLIENT.name), '/control/client.py', '--proc', '/proc', '--dev', '/dev', '--', '/runtime/.venv/bin/python', '/control/client.py']
                 with (worker_job_directory / 'hermes-events.jsonl').open('w') as worker_event_stream:
                     worker_context = worker_request_record.get('context')
                     if worker_context is not None:
@@ -326,10 +342,10 @@ def execute_hermes_gpu_job(worker_job_directory):
                         live_control_directory.mkdir(mode=0o700)
                         boundary = worker_sandbox_arguments.index('--')
                         worker_sandbox_arguments[boundary:boundary] = ['--bind', str(live_control_directory), '/control/live',
-                            '--ro-bind', str(HERMES_LIVE_LAUNCHER), '/control/live_instruction_launcher.py',
-                            '--ro-bind', str(HERMES_LIVE_RUNTIME), '/control/live_instruction_runtime.py',
-                            '--ro-bind', str(HERMES_LIVE_SITECUSTOMIZE), '/control/sitecustomize.py',
-                            '--ro-bind', str(HERMES_LIVE_WORKER_ADAPTER), '/control/live_instruction_worker_adapter.py']
+                            '--ro-bind', str(control_scripts / HERMES_LIVE_LAUNCHER.name), '/control/live_instruction_launcher.py',
+                            '--ro-bind', str(control_scripts / HERMES_LIVE_RUNTIME.name), '/control/live_instruction_runtime.py',
+                            '--ro-bind', str(control_scripts / HERMES_LIVE_SITECUSTOMIZE.name), '/control/sitecustomize.py',
+                            '--ro-bind', str(control_scripts / HERMES_LIVE_WORKER_ADAPTER.name), '/control/live_instruction_worker_adapter.py']
                         worker_sandbox_process = subprocess.Popen(worker_sandbox_arguments, stdout=worker_event_stream, env=build_hermes_sandbox_environment())
                         try:
                             worker_agent_exit_code = worker_sandbox_process.wait(timeout=1250)

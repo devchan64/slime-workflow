@@ -475,12 +475,18 @@ class HermesServiceManager:
         hermes_previous_message = next((current_message_record for current_message_record in hermes_session_record['messages'] if current_message_record.get('request_id') == hermes_request_identifier), None)
         if hermes_previous_message is None:
             self.ensure_context_operation_finished(hermes_session_record)
-        from workflow.domains.hermes_agent.context_checkpoint import build_context_messages, context_prefix_digest
+        from workflow.domains.hermes_agent.context_checkpoint import build_context_messages, build_coding_context_messages, context_prefix_digest
         read_previous_job = self.read_context_job
         hermes_context_truncated = False
         execution_context = None
         if hermes_previous_message is None:
-            context_messages = build_context_messages(hermes_session_record, read_previous_job)
+            from workflow.common.hermes_model_routing import COMPLEX_TASK
+            coding_context = bool(hermes_session_record.get('context_automatic', True) and COMPLEX_TASK.search(hermes_prompt_text))
+            if coding_context:
+                context_messages, omitted = build_coding_context_messages(hermes_session_record, read_previous_job)
+                hermes_context_truncated = omitted > 0
+            else:
+                context_messages = build_context_messages(hermes_session_record, read_previous_job)
             count = len(hermes_session_record['messages'])
             context_digest = hashlib.sha256(json.dumps(context_messages, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
             execution_context = {'session_id': hermes_session_identifier, 'count': count,
@@ -488,6 +494,8 @@ class HermesServiceManager:
                                  'messages_digest': context_digest,
                                  'expected_checkpoint': hermes_session_record.get('context_checkpoint'),
                                  'automatic': hermes_session_record.get('context_automatic', True)}
+            if coding_context:
+                execution_context['context_mode'] = 'coding'
             hermes_execution_prompt = hermes_prompt_text
         else:
             hermes_execution_prompt = hermes_previous_message['execution_prompt']
@@ -502,7 +510,10 @@ class HermesServiceManager:
             prefix = hermes_session_record['messages'][:execution_context['count']]
             if context_prefix_digest(prefix, len(prefix)) != execution_context['digest']:
                 raise ValueError('대화 문맥이 변경됐습니다. 기존 작업의 접수 상태를 확인하세요.')
-            context_messages = build_context_messages({'messages': prefix, 'context_checkpoint': execution_context['expected_checkpoint']}, read_previous_job)
+            if execution_context.get('context_mode') == 'coding':
+                context_messages, _ = build_coding_context_messages({'messages': prefix}, read_previous_job)
+            else:
+                context_messages = build_context_messages({'messages': prefix, 'context_checkpoint': execution_context['expected_checkpoint']}, read_previous_job)
             digest = hashlib.sha256(json.dumps(context_messages, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
             if digest != execution_context['messages_digest']:
                 raise ValueError('이전 작업 응답이 변경되어 문맥을 복원할 수 없습니다.')

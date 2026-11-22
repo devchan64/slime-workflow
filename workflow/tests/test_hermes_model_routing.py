@@ -22,6 +22,15 @@ class HermesModelRoutingTests(unittest.TestCase):
                             '이 기능을 구현해줘', 'fix the bug please'):
             self.assertEqual(self.route_prompt(prompt_text), COMPLEX_MODEL, prompt_text)
 
+    def test_route_english_coding_keyword_to_complex_model(self):
+        for prompt_text in ('coding help', 'help me with coding',
+                            'please review my Coding plan'):
+            self.assertEqual(self.route_prompt(prompt_text), COMPLEX_MODEL, prompt_text)
+
+    def test_route_coding_word_boundary_not_over_matched(self):
+        self.assertEqual(self.route_prompt('오늘 날씨 알려줘'), DEFAULT_MODEL)
+        self.assertEqual(self.route_prompt('encoding 관련 질문이 있어'), DEFAULT_MODEL)
+
     def test_route_simple_greeting_to_default_model(self):
         for prompt_text in ('안녕하세요', '안녕', '오늘 날씨 알려줘', '감사합니다'):
             self.assertEqual(self.route_prompt(prompt_text), DEFAULT_MODEL, prompt_text)

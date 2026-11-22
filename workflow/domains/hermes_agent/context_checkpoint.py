@@ -58,6 +58,23 @@ def build_context_messages(session, read_job):
     return context
 
 
+def build_coding_context_messages(session, read_job):
+    """원문 사용자 발화는 모두 보존하고 오래되거나 긴 답변의 생략을 명시한다."""
+    messages = build_context_messages({'messages': session['messages']}, read_job)
+    assistant_indices = [index for index, message in enumerate(messages) if message['role'] == 'assistant']
+    recent = set(assistant_indices[-2:])
+    omitted = 0
+    selected = []
+    for index, message in enumerate(messages):
+        if message['role'] == 'assistant' and (index not in recent or len(message['content']) > 4000):
+            omitted += 1
+        else:
+            selected.append(message)
+    if omitted:
+        selected.insert(0, {'role': 'system', 'content': f'코딩 작업 문맥에서 이전 Hermes 답변 {omitted}건을 생략했습니다. 원본 대화는 보존됩니다. 생략된 답변 내용은 확인되지 않았습니다.'})
+    return selected, omitted
+
+
 def make_context_checkpoint(session, compressed_messages):
     """압축에 사용된 원문 경계를 고정하고 결과를 저장 가능한 형식으로 검사한다."""
     records = session['messages']

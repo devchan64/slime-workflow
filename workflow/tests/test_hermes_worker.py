@@ -11,6 +11,20 @@ from workflow.domains.hermes_agent import runtime_integrity as hermes_runtime_mo
 
 
 class HermesWorkerTests(unittest.TestCase):
+    def test_control_scripts_remain_fixed_when_source_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            names = ('HERMES_SANDBOX_CLIENT', 'HERMES_CONTEXT_RUNTIME', 'HERMES_OBSERVER_CLIENT',
+                     'HERMES_LIVE_LAUNCHER', 'HERMES_LIVE_RUNTIME', 'HERMES_LIVE_SITECUSTOMIZE', 'HERMES_LIVE_WORKER_ADAPTER')
+            source = root / 'source'; source.mkdir()
+            files = {name: source / (name.lower() + '.py') for name in names}
+            for path in files.values():
+                path.write_text('original')
+            with patch.multiple(hermes_worker_module, **files):
+                snapshot = hermes_worker_module.snapshot_control_scripts(root)
+            files['HERMES_SANDBOX_CLIENT'].write_text('changed')
+            self.assertEqual((snapshot / files['HERMES_SANDBOX_CLIENT'].name).read_text(), 'original')
+
     def setUp(self):
         current_trial_directory = tempfile.TemporaryDirectory()
         self.addCleanup(current_trial_directory.cleanup)

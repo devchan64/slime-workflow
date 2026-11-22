@@ -376,6 +376,25 @@ class HermesServiceTests(unittest.TestCase):
 
     @patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready')
     @patch('workflow.domains.hermes_agent.service.launch_gpu_process')
+    def test_coding_context_retries_with_original_user_messages(self, launch, ready):
+        session = 'e' * 32
+        self.hermes_service_manager.execute_hermes_command('hermes-session-create', {'session_id': session})
+        for index, prompt in enumerate(('요구', '정정', '추가')):
+            result = self.hermes_service_manager.execute_hermes_command('hermes-session-submit', {
+                'session_id': session, 'request_id': f'context-req-{index}', 'prompt': prompt})
+            job = self.hermes_service_manager.hermes_storage_root / result['job_id']
+            (job / 'status.json').write_text('{"status":"completed"}')
+            (job / 'hermes-events.jsonl').write_text(json.dumps({'type': 'result', 'text': '답변'}, ensure_ascii=False))
+        request = {'session_id': session, 'request_id': 'context-code-123', 'prompt': '코드 수정해줘'}
+        result = self.hermes_service_manager.execute_hermes_command('hermes-session-submit', request)
+        record = json.loads((self.hermes_service_manager.hermes_storage_root / result['job_id'] / 'request.json').read_text())
+        self.assertEqual(record['context']['context_mode'], 'coding')
+        self.assertEqual([m['content'] for m in record['context']['messages'] if m['role'] == 'user'], ['요구', '정정', '추가'])
+        self.assertTrue(result['context_truncated'])
+        self.assertTrue(self.hermes_service_manager.execute_hermes_command('hermes-session-submit', request)['duplicate'])
+
+    @patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready')
+    @patch('workflow.domains.hermes_agent.service.launch_gpu_process')
     def test_duplicate_submission_is_single_queue_job(self, hermes_launch_mock, hermes_ready_mock):
         hermes_request_record = {'request_id':'same-request-1234', 'prompt':'작은 테스트'}
         with ThreadPoolExecutor(max_workers=4) as hermes_thread_pool:
