@@ -649,7 +649,7 @@ function App() {
       <div className="session-sidebar-tabs" role="group" aria-label="대화 목록 선택"><button type="button" disabled={busy} aria-pressed={!archived} onClick={()=>{if(archived){resetSessionList();setArchived(false);}}}>대화 목록</button><button type="button" disabled={busy} aria-pressed={archived} onClick={()=>{if(!archived){resetSessionList();setArchived(true);}}}>보관함</button></div>
       <form className="session-search" onSubmit={e=>{e.preventDefault();setListRequest({offset:0,query:sessionQuery.trim()});}}>
         <label htmlFor="hermes-session-search">대화 검색</label>
-        <div className="session-search-row"><input id="hermes-session-search" ref={sessionSearch} maxLength={100} placeholder="제목·메시지·세션 ID" value={sessionQuery} onChange={e=>setSessionQuery(e.target.value)}/>
+        <div className="session-search-row"><input id="hermes-session-search" ref={sessionSearch} maxLength={100} placeholder="제목·내용·ID" title="제목, 메시지 또는 세션 ID 검색" value={sessionQuery} onChange={e=>setSessionQuery(e.target.value)}/>
           <button type="submit">검색</button></div>
         {(sessionQuery || listRequest.query) && <button type="button" onClick={()=>{resetSessionList();sessionSearch.current?.focus();}}>초기화</button>}
       </form>

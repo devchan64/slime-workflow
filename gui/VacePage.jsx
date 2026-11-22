@@ -54,8 +54,12 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const session=embeddedSession || new URLSearchParams(location.search).get("session") || "";
   const [template,setTemplate]=useState(null),[values,setValues]=useState(null),[templateRevision,retryTemplate]=useState(0);
   const [files,setFiles]=useState({}),[model,setModel]=useState(null),[fileErrors,setFileErrors]=useState({});
+  const inputRef=useRef({values,files});inputRef.current={values,files};
+  const imageSelectionRevision=useRef(0);
   const [videoInfo,setVideoInfo]=useState({}),[checking,setChecking]=useState({});
   const videoSequences=useRef({}),formRef=useRef(null),reviewRef=useRef(null),resultRef=useRef(null),historyRef=useRef(null),sending=useRef(false),focusResult=useRef(false),nonLoraSettings=useRef(null);
+  const videoControllers=useRef({});
+  useEffect(()=>()=>{Object.values(videoControllers.current).forEach(controller=>controller.abort());for(const key of Object.keys(videoSequences.current))videoSequences.current[key]++;},[]);
   const [busy,setBusy]=useState(false),[pending,setPending]=useState(null),[modelError,setModelError]=useState("");
   useEffect(()=>{if(pending)reviewRef.current?.focus();},[pending]);
   const [error,setError]=useState("");
@@ -87,6 +91,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const [notice,setNotice]=useState("");
   const handoff=useGpuHandoff(session,service,setJob,setError);
   async function readJob(id){
+    const inputAtStart=inputRef.current,selectionAtStart=JSON.stringify(videoSequences.current),imageAtStart=imageSelectionRevision.current;
     const prefix="/management/assistant/vace-input/"+encodeURIComponent(id)+"/";
     const controller=new AbortController();let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
@@ -102,12 +107,14 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       restored[key]=new File([blob],key+(key==="reference"?".png":".mp4"),{type:blob.type});
     }
     const entries=await Promise.all(Object.entries(restored).filter(([key])=>key!=="reference").map(async ([key,file])=>[key,await inspectVideo(file,controller.signal)]));
-    return {...record,files:restored,videoInfo:Object.fromEntries(entries)};
+    return {...record,files:restored,videoInfo:Object.fromEntries(entries),inputAtStart,selectionAtStart,imageAtStart};
     }catch(problem){if(timedOut)throw new Error("저장 입력 조회 시간이 초과됐습니다. 다시 확인하세요.");throw problem;}
     finally{clearTimeout(timeout);controller.abort();}
   }
   function restore(request,record){
+    if(record.inputAtStart.values!==inputRef.current.values || record.inputAtStart.files!==inputRef.current.files || record.selectionAtStart!==JSON.stringify(videoSequences.current) || record.imageAtStart!==imageSelectionRevision.current)throw new Error("입력 조회 중 작성 내용이나 첨부가 변경되어 적용하지 않았습니다. 다시 확인하세요.");
     for(const key of Object.keys(videoSequences.current))videoSequences.current[key]++;
+    Object.values(videoControllers.current).forEach(controller=>controller.abort());videoControllers.current={};
     nonLoraSettings.current=null;
     setChecking({});setValues({...request});setFiles(record.files);setVideoInfo(record.videoInfo);setFileErrors({});setJob(record.id);setSourceJob(record.id);setPending(null);
     setNotice(record.id+" 입력을 복원했습니다.");
@@ -125,14 +132,17 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   async function selectVideo(key,file){
     if(!file)return;
     const sequence=(videoSequences.current[key] || 0)+1;videoSequences.current[key]=sequence;
+    videoControllers.current[key]?.abort();delete videoControllers.current[key];
     const problem=file.type!=="video/mp4" ? "MP4 파일을 선택하세요." : file.size>32*1024*1024 ? "MP4당 최대 크기는 32MiB입니다." : "";
     if(problem){setFileErrors(current=>({...current,[key]:problem}));setChecking(current=>({...current,[key]:false}));return;}
     setFileErrors(current=>({...current,[key]:""}));setChecking(current=>({...current,[key]:true}));
+    const controller=new AbortController();videoControllers.current[key]=controller;let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
-      const info=await inspectVideo(file);
+      const info=await inspectVideo(file,controller.signal);
       if(videoSequences.current[key]===sequence){setFiles(current=>({...current,[key]:file}));setVideoInfo(current=>({...current,[key]:info}));}
-    }catch(error){if(videoSequences.current[key]===sequence)setFileErrors(current=>({...current,[key]:error.message}));}
-    finally{if(videoSequences.current[key]===sequence)setChecking(current=>({...current,[key]:false}));}
+    }catch(error){if(videoSequences.current[key]===sequence)setFileErrors(current=>({...current,[key]:timedOut ? "영상 정보 조회 시간이 초과됐습니다. 다시 선택하세요." : requestErrorMessage(error)}));}
+    finally{clearTimeout(timeout);if(videoSequences.current[key]===sequence){delete videoControllers.current[key];setChecking(current=>({...current,[key]:false}));}}
   }
   const attachments=videoFields[values?.mode] || [];
   const checkingVideo=attachments.some(key=>checking[key]);
@@ -193,7 +203,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       {embedded ? <details><summary>선택한 생성 모드 안내</summary><p style={{whiteSpace:"pre-line"}}>{template.modes.find(m=>m.id===values.mode)?.help.replaceAll("**","")}</p></details> : <p style={{whiteSpace:"pre-line"}}>{template.modes.find(m=>m.id===values.mode)?.help.replaceAll("**","")}</p>}
       {Object.entries({reference:values.mode==="first_frame"?"첫 프레임 이미지":"참조 이미지",...labels}).map(([key,label])=>{
         const visible=key==="reference"?values.mode!=="text":attachments.includes(key);
-        return <div key={key} hidden={!visible}>{key==="reference" ? <ReferenceImageInput disabled={busy || !!pending || !visible} label={label} source={files[key]} onChange={file=>setFiles({...files,[key]:file})}/> : <div><label>{label}<input key={historyRevision} type="file" accept="video/mp4" required={visible && !files[key]} disabled={!visible}
+        return <div key={key} hidden={!visible}>{key==="reference" ? <ReferenceImageInput disabled={busy || !!pending || !visible} label={label} source={files[key]} onSelectionStart={()=>{imageSelectionRevision.current++;}} onChange={file=>setFiles({...files,[key]:file})}/> : <div><label>{label}<input key={historyRevision} type="file" accept="video/mp4" required={visible && !files[key]} disabled={!visible}
           onChange={e=>{selectVideo(key,e.target.files[0]);e.target.value="";}}/></label><p>MP4 · 파일당 최대 32MiB{files[key] && " · 선택: "+files[key].name}</p>
           {checking[key] && <p role="status">영상 정보 확인 중…</p>}
           {videoInfo[key] && <p>{videoInfo[key].summary}</p>}

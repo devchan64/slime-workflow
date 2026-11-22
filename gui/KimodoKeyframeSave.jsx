@@ -1,11 +1,19 @@
-import React,{useState} from "react";
+import React,{useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
 
-const command=(name,payload)=>managementCommand("hermes-agent","hermes-kimodo-keyframe-"+name,payload);
+async function command(name,payload){
+  const controller=new AbortController();let timedOut=false;
+  const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+  try{return await managementCommand("hermes-agent","hermes-kimodo-keyframe-"+name,payload,{signal:controller.signal});}
+  catch(problem){if(timedOut)throw new Error(name==="save" ? "저장 응답 시간이 초과됐습니다. 저장 접수 조회로 처리 여부를 확인하세요." : "키프레임 조회 시간이 초과됐습니다. 다시 확인하세요.");if(name==="save")throw new Error(requestErrorMessage(problem)+" 저장 접수 조회로 처리 여부를 확인하세요.");throw problem;}
+  finally{clearTimeout(timeout);}
+}
 
 export default function KimodoKeyframeSave({preview,choose}){
   const [tag,setTag]=useState(""),[review,setReview]=useState(null),[receipt,setReceipt]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState("");
+  const pending=useRef(false);
   async function readReceipt(requestId){
     const value=await command("receipt",{request_id:requestId});
     if(value.request_id!==requestId || !["completed","unknown","not_found"].includes(value.state))
@@ -13,8 +21,9 @@ export default function KimodoKeyframeSave({preview,choose}){
     setReceipt(value);
   }
   async function run(action){
-    setBusy(true);setError("");
-    try{await action();}catch(problem){setError(problem.message);}finally{setBusy(false);}
+    if(pending.current)return;
+    pending.current=true;setBusy(true);setError("");
+    try{await action();}catch(problem){setError(requestErrorMessage(problem));}finally{pending.current=false;setBusy(false);}
   }
   async function inspect(){
     setReview(null);setReceipt(null);
@@ -33,6 +42,7 @@ export default function KimodoKeyframeSave({preview,choose}){
     await readReceipt(review.payload.request_id);
   }
   return <fieldset disabled={busy}><legend>독립 키프레임 저장</legend>
+    {busy && <p role="status">키프레임 요청을 처리하고 있습니다.</p>}
     <label>키프레임 태그 <input maxLength={80} value={tag} onChange={e=>{setTag(e.target.value);setReview(null);setReceipt(null);setError("");}}/></label>
     <button type="button" disabled={!tag.trim()} onClick={()=>run(inspect)}>저장할 원본 검토</button>
     {review && <><p>{review.motion} · {preview.frame}프레임 · {tag.trim()}</p>

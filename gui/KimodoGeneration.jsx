@@ -12,6 +12,7 @@ import {managementCommand} from "./managementCommand.js";
 import KimodoFrames from "./KimodoFrames.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
 import {requestErrorMessage} from "./requestError.mjs";
+import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import {validateGpuHandoffStatus} from "./validateGpuHandoffStatus.mjs";
 import {verifyKimodoProposal} from "./kimodoProposalMembership.mjs";
 
@@ -377,7 +378,7 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
       {reviewing && <p role="status">생성 요청과 모델 상태를 확인하고 있습니다.</p>}
     </fieldset></form>}
     {reviewed && <section ref={reviewSectionRef} tabIndex={-1} className="kimodo-request-review" aria-label="생성 요청 확인">
-      <h3>생성 요청 확인</h3><p>아직 생성이 시작되지 않았습니다. 입력을 확인한 뒤 대기열에 추가하세요.</p>
+      <h3>생성 요청 확인</h3><p>아직 생성이 시작되지 않았습니다. 입력을 확인한 뒤 대기열에 추가하세요.</p><GpuQueueSummary/>
       <dl><div><dt>생성 방식</dt><dd>{reviewed.segment_frames?.length ? "순차 생성 · "+reviewed.segment_frames.join(" + ")+"프레임" : "일반 생성"}</dd></div>
         <div><dt>전체 프레임</dt><dd>{reviewed.frames}프레임</dd></div><div><dt>생성 단계</dt><dd>{reviewed.steps}단계</dd></div><div><dt>시드</dt><dd>{reviewed.seed}</dd></div>
         <div><dt>출력 방향</dt><dd>{reviewed.directions?.map(id=>directions[id]?.label || id).join(", ") || "없음"}</dd></div>

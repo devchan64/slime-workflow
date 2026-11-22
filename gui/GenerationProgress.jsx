@@ -14,7 +14,7 @@ export default function GenerationProgress({job,live,supportsProgress=true,showQ
   const pendingEstimate=estimate && estimate.total_seconds===null && estimate.remaining===null && estimate.completion===null && estimate.estimated_progress===null;
   return <section ref={live?.ref} className="generation-progress" aria-label="생성 진행 상황">
     <strong>생성 진행 상황</strong>
-    {live && <LiveRefreshControl live={live} label="진행 상황 자동 갱신" inactiveReason={["completed","failed","cancelled","canceled"].includes(job.status) ? "작업 종료로 중지" : "일시 중지"}/>}
+    {live && <LiveRefreshControl live={live} label="진행 상황 자동 갱신" inactiveReason={["completed","failed","cancelled","canceled"].includes(job.status) ? "작업 종료로 중지" : ["missing","unknown"].includes(job.status) ? "작업 상태 확인 불가" : "일시 중지"}/>}
     {showQueryTime && job.queried_at && <p>조회 시각 · {time(job.queried_at)}</p>}
     {estimate && running && <div className="generation-estimate">{pendingEstimate ? <p>전체 예상 시간·남은 시간·완료 시각·진행률 · 계산 중 · {estimate.basis} · 표본 {estimate.sample_count}개</p> : <><p>예상 총 소요 시간 · {estimate.total_seconds===null ? "계산 중" : `약 ${Math.ceil(estimate.total_seconds/60)}분`}</p>
       <p>예상 남은 시간 · {estimate.remaining===null ? "계산 중" : `약 ${Math.ceil(estimate.remaining/60)}분`} · 예상 완료 · {estimate.completion ? time(estimate.completion) : "계산 중"}</p>

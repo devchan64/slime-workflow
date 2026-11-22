@@ -1,4 +1,4 @@
-import React, {useEffect,useId,useState} from "react";
+import React, {useEffect,useId,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import ModelInventory from "./ModelInventory.jsx";
@@ -41,6 +41,8 @@ export default function ModelReadiness({service, manage=false, hasStatusSummary=
   const [sending,setSending]=useState(false);
   const [checking,setChecking]=useState(true);
   const [notice,setNotice]=useState("");
+  const preparing=useRef(false);
+  const sectionRef=useRef(null);
   const reasonId=useId();
   useEffect(()=>{setCheckedAt(null);},[service]);
   useEffect(()=>{
@@ -73,22 +75,28 @@ export default function ModelReadiness({service, manage=false, hasStatusSummary=
     return ()=>{active=false;clearTimeout(timer);controller?.abort();};
   },[service,revision,manage,onStatus,onError]);
   async function prepare() {
-    setSending(true);
+    if(preparing.current)return;
+    const restoreFocus=sectionRef.current?.contains(document.activeElement);
+    preparing.current=true;setSending(true);
     setNotice("");
+    const controller=new AbortController();let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try {
       const target=status.prepare_request;
-      await managementCommand(target.service,target.command,target.payload);
+      await managementCommand(target.service,target.command,target.payload,{signal:controller.signal});
       setNotice("모델 준비 요청을 접수했습니다.");
     } catch(problem) {
-      setNotice("모델 준비 요청의 접수 결과를 확인하지 못했습니다. 다시 요청하기 전에 준비 상태와 다운로드 이력을 확인하세요. · "+problem.message);
+      setNotice("모델 준비 요청의 접수 결과를 확인하지 못했습니다. 다시 요청하기 전에 준비 상태와 다운로드 이력을 확인하세요. · "+(timedOut ? "응답 시간이 초과됐습니다." : requestErrorMessage(problem)));
     } finally {
+      clearTimeout(timeout);
       setStatus(null);
       setRevision(value=>value+1);
-      setSending(false);
+      preparing.current=false;setSending(false);
+      if(restoreFocus)requestAnimationFrame(()=>{if(document.activeElement===document.body)sectionRef.current?.focus({preventScroll:true});});
     }
   }
   const prepareReason=modelPrepareReason(status,error,sending,checking);
-  return <section aria-label="모델 준비 상태">
+  return <section ref={sectionRef} tabIndex={-1} aria-label="모델 준비 상태">
     <ModelReadinessMessage service={service} status={status} error={error} hasStatusSummary={hasStatusSummary}/>
     {checkedAt && <p>마지막 조회 성공 · {checkedAt.toLocaleString("ko-KR")}</p>}
     <button disabled={checking} onClick={()=>setRevision(value=>value+1)}>{checking ? "모델 준비 상태 확인 중…" : "모델 준비 상태 확인"}</button>

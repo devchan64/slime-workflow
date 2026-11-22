@@ -13,7 +13,7 @@ async function verifyImage(file,accept){
   });
 }
 
-export default function ReferenceImageInput({label,source,onChange,accept="image/*",disabled=false,maxBytes=null,validate=null,describedBy}) {
+export default function ReferenceImageInput({label,source,onChange,onSelectionStart,accept="image/*",disabled=false,maxBytes=null,validate=null,describedBy}) {
   const input=useRef(null),disabledRef=useRef(disabled),requestRef=useRef(0),restoreFocus=useRef(false);
   disabledRef.current=disabled;
   const [preview,setPreview]=useState(""),[error,setError]=useState(""),[checking,setChecking]=useState(false);
@@ -33,6 +33,7 @@ export default function ReferenceImageInput({label,source,onChange,accept="image
   },[preview]);
   async function select(file){
     if(!file || disabledRef.current)return;
+    onSelectionStart?.();
     const sequence=++requestRef.current;
     const problem=referenceImageError(file,accept,maxBytes);
     if(problem){setChecking(false);setError(problem);return;}
@@ -46,6 +47,7 @@ export default function ReferenceImageInput({label,source,onChange,accept="image
   }
   async function paste(){
     if(disabledRef.current)return;
+    onSelectionStart?.();
     const sequence=++requestRef.current;setError("");setChecking(true);
     try {
       if(!navigator.clipboard?.read)throw new Error("클립보드 이미지 읽기를 지원하지 않습니다. 파일을 선택하거나 놓아 주세요.");
