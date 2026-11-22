@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import React, {useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 
@@ -7,6 +7,8 @@ export default function TranslationResult({job, text}) {
   const [checks,setChecks] = useState(null);
   const [busy,setBusy] = useState(false);
   const [notice,setNotice] = useState("");
+  const textRef=useRef(null);
+  const draftRef=useRef(draft);draftRef.current=draft;
   async function inspect() {
     setBusy(true);setNotice("");
     try {
@@ -23,13 +25,13 @@ export default function TranslationResult({job, text}) {
     finally {setBusy(false);}
   }
   async function copy() {
-    try {await navigator.clipboard.writeText(draft);setNotice("번역문을 복사했습니다.");}
-    catch {setNotice("번역문을 선택해 복사하세요.");}
+    try {await navigator.clipboard.writeText(draft);setNotice(draftRef.current===draft ? "번역문을 복사했습니다." : "이전 번역문을 복사했습니다. 변경한 내용을 복사하려면 다시 누르세요.");}
+    catch {textRef.current?.focus();textRef.current?.select();setNotice("번역문을 선택했습니다. 복사 단축키를 사용하세요.");}
   }
-  return <section><label>복사용 번역문 <textarea value={draft} onChange={e=>setDraft(e.target.value)}/></label>
+  return <section><label>복사용 번역문 <textarea ref={textRef} value={draft} onChange={e=>{setDraft(e.target.value);setNotice("");}}/></label>
     <button onClick={copy}>번역문 복사</button>
     <button disabled={busy} onClick={inspect}>원본 번역 점검 조회</button>
-    {checks && <ResultTable table={checks}/>}
+    {checks && <div className="translation-check-table" role="region" aria-label="번역 점검 표" tabIndex={0}><ResultTable table={checks}/></div>}
     <p role="status">{notice}</p>
   </section>;
 }

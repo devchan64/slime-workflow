@@ -5,7 +5,6 @@ import io
 import unittest
 
 from workflow.domains.image.qwen_21_generation import validate_styled_qwen_request
-from gui.ui.shared.qwen_generator_page import prepare_reference_image_bytes
 
 
 class MannequinGeneratorTests(unittest.TestCase):
@@ -19,18 +18,20 @@ class MannequinGeneratorTests(unittest.TestCase):
         self.assertEqual(current_preview.tobytes(), current_first_image.tobytes())
         self.assertIsNone(current_unused)
         self.assertIsNone(current_second_image)
-        current_request = validate_styled_qwen_request({'action': 'generate', 'prompt': current_prompt, 'images': [base64.b64encode(prepare_reference_image_bytes([current_first_image])[0]).decode()], 'width': 768, 'height': 1152, 'steps': 40, 'seed': 10110})
-        self.assertLess(current_request['qwen21']['prompt_word_count'], 100)
-        self.assertEqual(current_request['common_style_v1']['version'], '1.5.0')
+        self.assertEqual(current_first_image.mode,'RGB')
 
     def test_presets_produce_valid_requests(self):
+        import io
+        from workflow.domains.image.flux_image_generation import FluxImageGenerationManager
         current_module = importlib.import_module('generators.mannequin-generator.page.interface')
         for current_key in current_module.MANNEQUIN_PRESET_RECORDS:
             with self.subTest(preset=current_key):
                 current_prompt, *current_images = current_module.load_mannequin_preset(current_key)
-                current_bytes = prepare_reference_image_bytes(current_images, composite_transparent_background=True)
-                current_request = validate_styled_qwen_request({'action': 'generate', 'prompt': current_prompt, 'images': [base64.b64encode(current_value).decode() for current_value in current_bytes], 'width': 768, 'height': 768, 'steps': 40, 'seed': 10107})
-                self.assertLessEqual(len(current_request['prompt'].split()), 99)
+                current_bytes=[]
+                for image in filter(None,current_images):
+                    buffer=io.BytesIO();image.save(buffer,format='PNG');current_bytes.append(base64.b64encode(buffer.getvalue()).decode())
+                current_request = FluxImageGenerationManager('flux-mannequin').validate_generation_request({'action':'generate','prompt':current_prompt,'images':current_bytes,'width':768,'height':768,'steps':16,'seed':10107})
+                self.assertEqual(current_request['steps'],16)
                 self.assertEqual(len(current_bytes), 2 if current_key == 'face-on-body' else 1)
         current_description, current_body_preview, current_face_preview = current_module.preview_mannequin_preset('face-on-body')
         self.assertIn('참조 1: `neutral-body-four-directions.png`', current_description)
@@ -58,25 +59,25 @@ class MannequinGeneratorTests(unittest.TestCase):
         self.assertEqual(validate_three_reference_job_path(current_mannequin_manager.job_storage_root / 'example'), (current_mannequin_manager.job_storage_root / 'example').resolve())
 
     def test_page_integrates_with_management_menu(self):
-        from workflow.common.management_asgi import build_management_blocks
-        from workflow.common.management_catalog import DEFAULT_PAGE_RECORDS, resolve_management_page_path
-        from unittest.mock import patch
+        from http.server import SimpleHTTPRequestHandler
         from pathlib import Path
-        current_record = next(current_item for current_item in DEFAULT_PAGE_RECORDS if current_item['id'] == 'mannequin-generator')
-        self.assertEqual(resolve_management_page_path(current_record), '/management/frame/mannequin-generator/')
-        with patch('gui.ui.gradio.management_menu_app.load_manager_page_records', return_value=[]):
-            current_blocks, _ = build_management_blocks('mannequin-generator', 8770, Path('/tmp/no-menu.json'))
-        current_labels = [current_item.get('props', {}).get('label') for current_item in current_blocks.config['components']]
-        self.assertIn('제작 단계', current_labels)
-        self.assertIn('제작 단계 프롬프트 예시', current_labels)
-        self.assertLess(current_labels.index('제작 단계'), current_labels.index('프롬프트'))
-        current_preview_callback = next(current_function.fn for current_function in current_blocks.fns.values() if getattr(current_function.fn, '__name__', '') == 'preview_mannequin_stage')
-        current_module = importlib.import_module('generators.mannequin-generator.page.interface')
-        for current_preset_id, current_preset_record in current_module.MANNEQUIN_PRESET_RECORDS.items():
-            self.assertEqual(current_preview_callback(current_preset_id)[3], current_preset_record[3])
-        current_apply_callback = next(current_function.fn for current_function in current_blocks.fns.values() if getattr(current_function.fn, '__name__', '') == 'apply_mannequin_stage')
-        self.assertEqual(current_apply_callback('face')[-2:], (1056, 1056))
-        self.assertEqual(current_apply_callback('face-on-body')[-2:], (768, 1152))
+        from tempfile import TemporaryDirectory
+        from fastapi.testclient import TestClient
+        from workflow.common.management_asgi import build_management_application
+        from workflow.common.management_catalog import REACT_REVIEW_PATHS
+        current_module=importlib.import_module('generators.mannequin-generator.page.interface')
+        self.assertEqual(REACT_REVIEW_PATHS['flux-mannequin-generator'],'/management/frame/flux-mannequin-generator/')
+        with TemporaryDirectory() as directory:
+            root=Path(directory);app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with TestClient(app) as client:
+                defaults=client.get('/management/assistant/flux-defaults/flux-mannequin').json()
+                self.assertEqual({stage['id'] for stage in defaults['stages']},set(current_module.MANNEQUIN_PRESET_RECORDS))
+                for stage,record in current_module.MANNEQUIN_PRESET_RECORDS.items():
+                    response=client.get('/management/assistant/flux-mannequin-stage/'+stage)
+                    self.assertEqual(response.status_code,200,response.text)
+                    data=response.json();self.assertEqual(data['prompt'],record[3])
+                    self.assertEqual(len(data['images']),2 if stage=='face-on-body' else 1)
+                    self.assertEqual((data['width'],data['height']),(1024,1024) if stage=='face' else (768,1152))
 
 
 if __name__ == '__main__':

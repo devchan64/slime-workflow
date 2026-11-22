@@ -6,10 +6,30 @@ from unittest.mock import patch
 
 from workflow.domains.hermes_agent import character_source_operations
 from workflow.domains.hermes_agent.service import HermesServiceManager
-from gui.ui.gradio import operations_history_app
 
 
 class HermesCharacterSourceTests(unittest.TestCase):
+    def test_retired_empty_character_catalog_remains_readable(self):
+        from workflow.domains.character_animation import character_animation_assets as assets
+        from workflow.domains.character_animation.character_animation_jobs import execute_animation_command
+        with patch.object(assets,'load_animation_configuration',return_value={'motions':{},'characters':{}}):
+            catalog=execute_animation_command('catalog',{})
+        self.assertEqual(catalog['motions'],[])
+        self.assertEqual(catalog['prompts'],{})
+        self.assertEqual(catalog['direction_prompts'],{})
+        self.assertEqual(set(catalog['directions']),set(assets.SUPPORTED_DIRECTION_NAMES))
+
+    def test_retired_generation_and_resume_do_not_modify_history(self):
+        from workflow.domains.character_animation import character_animation_jobs as jobs
+        with TemporaryDirectory() as directory:
+            root=Path(directory);record=root/'request.json';record.write_text('{"status":"saved"}')
+            with patch.object(jobs,'GENERATION_ROOT_DIRECTORY',root),patch.object(jobs.subprocess,'Popen') as worker:
+                for command in ('generate','resume','record-alpha-vnccs'):
+                    with self.subTest(command=command),self.assertRaisesRegex(ValueError,'폐기'):
+                        jobs.execute_animation_command(command,{'id':'2026-11-18_00-00-00-12345678'})
+                worker.assert_not_called()
+            self.assertEqual(record.read_text(),'{"status":"saved"}')
+
     def test_source_status_reads_bounded_frame_without_mutating_records(self):
         current_job_identifier='2026-11-18_00-00-00-12345678'
         with TemporaryDirectory() as current_directory_name:
@@ -104,7 +124,7 @@ class HermesCharacterSourceTests(unittest.TestCase):
                 current_proxy_server.shutdown();current_proxy_server.server_close();current_proxy_thread.join(timeout=5)
                 current_gateway_server.shutdown();current_gateway_server.server_close();current_gateway_thread.join(timeout=5)
 
-    def test_gateway_command_and_history_ui_validate_selection(self):
+    def test_gateway_command_validates_request(self):
         current_job_identifier='2026-11-18_00-00-00-12345678'
         current_image_path='/character-animation/files/'+current_job_identifier+'/down_left/frame-0002/result.png'
         current_job_record={'status':'completed','image':current_image_path,'result_status':'available'}
@@ -113,13 +133,4 @@ class HermesCharacterSourceTests(unittest.TestCase):
             with patch.object(character_source_operations,'read_character_source_job',return_value=current_job_record):
                 current_response_value=current_manager_value.execute_hermes_command('hermes-character-source-status',{'job_id':current_job_identifier})
                 with self.assertRaises(ValueError):current_manager_value.execute_hermes_command('hermes-character-source-status',{'job_id':current_job_identifier,'extra':True})
-        current_page_value={'service':'character-animation','snapshot':'a'*64,'offset':0}
-        current_rows_value=[[current_job_identifier,'완료','원본','조회 불가','조회 불가']]
-        with patch.object(operations_history_app,'execute_remote_management_command',return_value=current_response_value) as current_gateway_mock:
-            self.assertTrue(operations_history_app.update_operations_media_source_button('character-animation',current_job_identifier,current_page_value,current_rows_value)['interactive'])
-            current_result_value=operations_history_app.collect_operations_media_source_status('character-animation',current_job_identifier,current_page_value,current_rows_value,'token')
-            self.assertIn('[완료 프레임 열기]('+current_image_path+')',current_result_value['notice'])
-            self.assertIn('전체 결과는 별도 확인',current_result_value['notice'])
-            current_gateway_mock.assert_called_once_with('hermes-agent','hermes-character-source-status',{'job_id':current_job_identifier})
-            current_response_value['job']['image']='/private/secret'
-            self.assertIn('확인할 수 없습니다',operations_history_app.collect_operations_media_source_status('character-animation',current_job_identifier,current_page_value,current_rows_value,'token')['notice'])
+        self.assertEqual(character_source_operations.validate_character_source_response(current_job_identifier,current_response_value),current_job_record)

@@ -28,46 +28,25 @@ class GenerationStatusLookupTests(unittest.TestCase):
                 with self.assertRaises((ValueError,RuntimeError)):
                     read_existing_generation_status(Mock(side_effect=current_failure_responses),'existing')
 
-    def test_qwen_variants_use_shared_history_refresh(self):
-        from gui.ui.gradio import qwen_2511_app
-        for current_mode_options in ({}, {'qwen21_mode_enabled': True}, {'qwen21_mode_enabled': True, 'circular_mode_enabled': True}, {'expression_mode_enabled': True}):
-            with self.subTest(options=current_mode_options):
-                current_interface_blocks = qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:9988', **current_mode_options)
-                current_refresh_binding = next(current_binding for current_binding in current_interface_blocks.fns.values() if current_binding.fn and current_binding.fn.__name__ == 'refresh_combined_history')
-                with patch.object(qwen_2511_app, 'execute_management_command', side_effect=[ValueError('missing'), {'records': []}]):
-                    current_output_values = current_refresh_binding.fn('removed', 'removed', True, {})
-                self.assertIn('삭제', current_output_values[4])
-                self.assertEqual(current_output_values[5], '')
-                self.assertFalse(current_output_values[6]['visible'])
-                self.assertEqual(current_output_values[7], {})
-                current_status_record = {'status': 'running', 'estimate': {'remaining': 12}, 'metrics': {'gpu_observations': {'GPU-test': {'process_current_mib': 120, 'process_peak_mib': 7123, 'scope': '작업자'}}}}
-                with patch.object(qwen_2511_app, 'execute_management_command', return_value=current_status_record):
-                    current_output_values = current_refresh_binding.fn('existing', 'existing', False, {})
-                self.assertIn('약 12초', current_output_values[4])
-                self.assertIn('관측 피크 7123 MiB', current_output_values[4])
+    def test_current_media_result_distinguishes_stale_and_missing(self):
+        import subprocess,tempfile,json
+        from pathlib import Path
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'media.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'MediaJobResult.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');const {MediaResultError}=require(process.argv[1]);
+              const render=(error,stale)=>server.renderToStaticMarkup(React.createElement(MediaResultError,{error,stale}));
+              process.stdout.write(JSON.stringify([render('영상 원본 작업 경로 오류',true),render('접속 오류',true),render('접속 오류',false)]));"""
+            missing,stale,empty=json.loads(subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True))
+        self.assertIn('작업을 찾지 못했습니다',missing);self.assertIn('마지막으로 조회한 결과',missing)
+        self.assertIn('마지막으로 조회한 결과',stale);self.assertNotIn('마지막으로 조회한 결과',empty)
 
-    def test_tile_history_and_stage_refresh_handle_deleted_job(self):
-        from gui.ui.gradio import floor_tile_app, seamless_tile_app
-        from workflow.domains.tile.floor_generation import load_floor_configuration
-        with patch.object(floor_tile_app, 'execute_floor_gateway', return_value=load_floor_configuration()) as current_gateway_mock:
-            current_floor_interface = floor_tile_app.build_floor_interface('http://127.0.0.1:9988')
-            current_floor_callback = next(current_binding.fn for current_binding in current_floor_interface.fns.values() if current_binding.fn and current_binding.fn.__name__ == 'refresh_combined_history')
-            current_gateway_mock.side_effect = [ValueError('missing'), {'records': []}]
-            current_output_values = current_floor_callback('removed', 'removed', True, {})
-        self.assertIn('삭제', current_output_values[4])
-        self.assertFalse(current_output_values[6]['visible'])
-        current_seamless_interface = seamless_tile_app.build_seamless_interface('http://127.0.0.1:9988')
-        current_refresh_binding = next(current_binding for current_binding in current_seamless_interface.fns.values() if current_binding.fn and current_binding.fn.__name__ == 'refresh_seamless_status')
-        self.assertEqual(len(current_refresh_binding.outputs), 3)
-        with patch.object(seamless_tile_app, 'execute_management_command', side_effect=[ValueError('missing'), {'records': []}]):
-            current_output_values = current_refresh_binding.fn('removed')
-        self.assertIn('삭제', current_output_values[0])
-        self.assertFalse(current_output_values[1])
-        self.assertFalse(current_output_values[2]['interactive'])
-        with patch.object(seamless_tile_app, 'execute_management_command', return_value={'status': 'paused'}):
-            current_output_values = current_refresh_binding.fn('existing')
-        self.assertTrue(current_output_values[1])
-        self.assertFalse(current_output_values[2]['interactive'])
+    def test_current_flux_pages_retain_distinct_services(self):
+        from workflow.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
+        from workflow.common.management_catalog import REACT_REVIEW_PATHS
+        self.assertIn('flux-seamless',FLUX_IMAGE_PROFILE_RECORDS)
+        self.assertEqual(len({REACT_REVIEW_PATHS[service+'-generator'] for service in FLUX_IMAGE_PROFILE_RECORDS}),len(FLUX_IMAGE_PROFILE_RECORDS))
 
     def test_direct_gui_entrypoint_initializes_repository_imports(self):
         import os

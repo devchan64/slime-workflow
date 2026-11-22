@@ -49,56 +49,34 @@ class BillboardGuidePromptTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 compose_billboard_guide_prompt('3x1-tall', selected_subject_text)
 
-    def test_interface_requires_guide(self):
-        from gui.ui.gradio.qwen_2511_app import build_qwen_2511_interface
-        selected_interface_blocks = build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, prop_mode_enabled=True, billboard_guide_enabled=True)
-        selected_component_records = selected_interface_blocks.config['components']
-        self.assertTrue(any(selected_component_record['props'].get('label') == '가이드 프리셋' for selected_component_record in selected_component_records))
-        selected_generate_record = next(selected_component_record for selected_component_record in selected_component_records if selected_component_record['props'].get('value') == '대기열에 추가')
-        self.assertFalse(selected_generate_record['props']['interactive'])
-
-    def test_empty_and_long_subjects_disable_apply_for_both_guide_types(self):
-        from gui.ui.gradio.billboard_guide_controls import preview_billboard_guide_inputs, validate_guide_subject_input
-        for current_profile_name in ('3x1-tall', 'building:building-structure-37'):
-            for current_subject_text in ('', '  ', 'stone ' * 100):
-                with self.subTest(profile=current_profile_name, subject=current_subject_text):
-                    current_image_value, current_prompt_text, current_notice_text, current_button_update = preview_billboard_guide_inputs(current_profile_name, current_subject_text)
-                    self.assertTrue(current_image_value.size)
-                    self.assertEqual(current_prompt_text, '')
-                    self.assertTrue(current_notice_text)
-                    self.assertFalse(current_button_update['interactive'])
-                    with self.assertRaises(ValueError):
-                        validate_guide_subject_input(current_profile_name, current_subject_text)
-            self.assertTrue(preview_billboard_guide_inputs(current_profile_name, 'stone house')[3]['interactive'])
-
-    def test_search_and_pagination(self):
-        from gui.ui.gradio.billboard_guide_controls import search_guide_profile_page, render_guide_search_page
-        self.assertEqual(search_guide_profile_page('전체', '', 1)[1:], (1, 8, 72))
-        self.assertEqual(len(search_guide_profile_page('전체', '', 1)[0]), 10)
-        self.assertEqual(len(search_guide_profile_page('빌보드', '', 3)[0]), 2)
-        self.assertEqual(len(search_guide_profile_page('건물', '', 2)[0]), 10)
-        current_result_values = search_guide_profile_page('건물', '4x4 남쪽', 1)
-        self.assertEqual(current_result_values[3], 3)
-        self.assertTrue(all('4x4' in current_record[0] and '남쪽' in current_record[0] for current_record in current_result_values[0]))
-        self.assertEqual(search_guide_profile_page('건물', '2x2', 1)[3], 6)
-        self.assertEqual(search_guide_profile_page('전체', '없는검색어', 1)[3], 0)
-        self.assertIn('검색 결과가 없습니다', render_guide_search_page('전체', '없는검색어', 1)[2])
-        with self.assertRaises(ValueError):
-            search_guide_profile_page('없는 분류', '', 1)
-
-    def test_expanded_building_guides_are_selectable_and_have_doubled_height_labels(self):
-        from gui.ui.gradio.billboard_guide_controls import list_guide_profile_choices, preview_billboard_guide_inputs
-        current_building_choices = dict((current_value, current_label) for current_label, current_value in list_guide_profile_choices('건물'))
-        from workflow.domains.image.building_prompt import BUILDING_STRUCTURE_RECORDS, load_building_layout_preset
-        self.assertEqual(len(current_building_choices), 50)
-        for current_identifier, current_structure_record in BUILDING_STRUCTURE_RECORDS.items():
-            current_profile_name = 'building:' + current_identifier
-            self.assertIn(str(current_structure_record['floors'])+'층', current_building_choices[current_profile_name])
-            current_image_value, current_prompt_text, _, current_button_update = preview_billboard_guide_inputs(current_profile_name, 'wooden house')
-            self.assertEqual(current_image_value.size, (1024,1024))
-            self.assertIn('Door: '+('one tile' if current_structure_record['doorWidth']==1 else 'two tiles'), current_prompt_text)
-            self.assertTrue(current_button_update['interactive'])
-        with self.assertRaises(ValueError):
-            load_building_layout_preset('4x4-south',80)
-        with self.assertRaises(ValueError):
-            load_building_layout_preset('building-structure-01',160)
+    def test_flux_guides_are_distinct_and_validate_inputs(self):
+        import base64
+        from io import BytesIO
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from PIL import Image
+        from workflow.common.management_asgi import build_management_application
+        from workflow.domains.image.building_prompt import BUILDING_STRUCTURE_RECORDS,load_building_layout_preset
+        with TemporaryDirectory() as directory:
+            root=Path(directory);app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with TestClient(app) as client:
+                billboard=client.get('/management/assistant/flux-defaults/flux-billboard').json()
+                building=client.get('/management/assistant/flux-defaults/flux-building').json()
+                self.assertEqual(set(billboard['layouts']),set(BILLBOARD_LAYOUT_PROFILES))
+                self.assertEqual({guide['id'] for guide in building['guides']},set(BUILDING_STRUCTURE_RECORDS))
+                self.assertEqual(len(building['guides']),50)
+                for identifier,record in BUILDING_STRUCTURE_RECORDS.items():
+                    guide=next(item for item in building['guides'] if item['id']==identifier)
+                    self.assertIn(str(record['floors'])+'층',guide['label'])
+                for subject in ('','  ','stone '*100):
+                    self.assertEqual(client.post('/management/assistant/flux-billboard-guide',json={'layout':'3x1-tall','subject':subject}).status_code,422)
+                response=client.post('/management/assistant/flux-billboard-guide',json={'layout':'3x1-tall','subject':'stone house'})
+                self.assertEqual(response.status_code,200,response.text)
+                self.assertIn('stone house',response.json()['prompt'])
+                self.assertEqual(Image.open(BytesIO(base64.b64decode(response.json()['image']))).size,(1024,1024))
+                self.assertEqual(client.post('/management/assistant/flux-billboard-guide',json={'layout':'../invalid','subject':'stone'}).status_code,422)
+                self.assertEqual(client.get('/management/assistant/flux-building-guide/building-structure-01').status_code,200)
+        with self.assertRaises(ValueError):load_building_layout_preset('4x4-south',80)
+        with self.assertRaises(ValueError):load_building_layout_preset('building-structure-01',160)

@@ -20,9 +20,8 @@ function MediaPreview({audio, result, session, run, call}) {
     } catch (problem) {setError(problem.message);}
     finally {setBusy(false);}
   }
-  if (source) return audio ? <audio controls src={source}/> :
-    <img style={{maxWidth:"100%"}} src={source} alt={result.step_id + " 생성 결과"}/>;
-  return <><button disabled={busy} onClick={load}>{audio ? "효과음 듣기" : "이미지 보기"}</button>
+  return <><button type="button" disabled={busy} aria-expanded={Boolean(source)} onClick={()=>source ? (setSource(""),setError("")) : load()}>{busy ? "불러오는 중" : source ? (audio ? "효과음 닫기" : "이미지 닫기") : (audio ? "효과음 듣기" : "이미지 보기")}</button>
+    {source && (audio ? <audio controls src={source} onError={()=>setError("효과음 미리보기를 재생할 수 없습니다. 닫은 뒤 다시 열어 주세요.")}/> : <img style={{maxWidth:"100%"}} src={source} alt={result.step_id + " 생성 결과"} onError={()=>setError("이미지 미리보기를 표시할 수 없습니다. 닫은 뒤 다시 열어 주세요.")}/>)}
     {error && <p role="alert">{error}</p>}</>;
 }
 
@@ -41,8 +40,8 @@ function KimodoMotion({result}) {
     finally{setBusy(false);}
   }
   return <section aria-label="Kimodo 모션 결과">
-    {video ? <KimodoMedia id={result.job_id} job={video}/> :
-      <button disabled={busy} onClick={load}>원본 모션 영상 보기</button>}
+    <button type="button" disabled={busy} aria-expanded={Boolean(video)} onClick={()=>video ? setVideo("") : load()}>{busy ? "불러오는 중" : video ? "원본 모션 영상 닫기" : "원본 모션 영상 보기"}</button>
+    {video && <KimodoMedia id={result.job_id} job={video}/>}
     {error && <p role="alert">{error}</p>}
   </section>;
 }
@@ -117,7 +116,7 @@ export default function WorkflowResults({session, run, call, close, openRun, edi
     finally {setBusy(false);}
   }
   return <section className="workflow-result" aria-label="워크플로우 결과">
-    <header className="workflow-result-header"><div><h3 tabIndex={-1}>워크플로우 결과</h3><p>실행 ID · <code>{run}</code></p></div>
+    <header className="workflow-result-header"><div><h3 tabIndex={-1}>워크플로우 결과</h3><span>실행 ID</span><JobIdentifier id={run} label="실행 ID" compact/></div>
       <div className="workflow-result-actions"><button disabled={busy} onClick={()=>{setConfirmCancel(false);setRevision(value=>value+1);}}>결과 갱신</button>
       <button onClick={close}>결과 닫기</button></div></header>
     <p role="status">{connectionNotice}</p>

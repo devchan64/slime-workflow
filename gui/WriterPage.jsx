@@ -1,4 +1,4 @@
-import React,{useState} from "react";
+import React,{useEffect,useRef,useState} from "react";
 import WriterActions from "./WriterActions.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
 import WriterResult from "./WriterResult.jsx";
@@ -7,35 +7,57 @@ import DownloadProgress from "./DownloadProgress.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import ResultTable from "./ResultTable.jsx";
 import {managementCommand} from "./managementCommand.js";
+import {writerModeLabel,writerStageLabel} from "./writerLabels.mjs";
+import {generationProposalScope,readGenerationProposal} from "./generationProposal.mjs";
 
-export default function WriterPage({embedded=false}={}){
+export default function WriterPage({embedded=false,session:embeddedSession=""}={}){
   const params=new URLSearchParams(location.search);
+  const session=embeddedSession || params.get("session") || "";
   const [query,setQuery]=useState(embedded ? "" : params.get("job") || "");
   const [selected,select]=useState("");
-  const [recent,setRecent]=useState([]);
+  const [recent,setRecent]=useState(null);
   const [matches,setMatches]=useState(null);
+  const [searchedQuery,setSearchedQuery]=useState("");
   const [busy,setBusy]=useState(false);
   const [notice,setNotice]=useState("");
+  const [proposal,setProposal]=useState(null),[proposalScope,setProposalScope]=useState(null),[proposalLoading,setProposalLoading]=useState(!embedded && params.has('proposal_job'));
+  useEffect(()=>{
+    if(embedded || !params.has('proposal_job'))return;
+    let active=true;
+    async function load(){try{
+      const scope=generationProposalScope(location.search,session,'writer');
+      const value=await readGenerationProposal(managementCommand,scope);
+      if(!['write','deduplicate','learn','prepare'].includes(value.mode))throw new Error('작가 작업 종류를 확인할 수 없습니다.');
+      if(active){setProposal(value);setProposalScope({...scope,proposal:value});setNotice('대화 제안 입력을 불러왔습니다. 작업을 확인한 뒤 요청하세요.');}
+    }catch(problem){if(active)setNotice('대화 제안을 불러오지 못했습니다 · '+problem.message);}
+    finally{if(active)setProposalLoading(false);}}
+    load();return()=>{active=false;};
+  },[]);
+  const resultRef=useRef(null),resultTrigger=useRef(null);
+  function focusResult(){resultRef.current?.focus({preventScroll:true});resultRef.current?.scrollIntoView({block:"start",inline:"nearest"});}
+  useEffect(()=>{if(selected && resultTrigger.current)focusResult();},[selected]);
+  function closeResult(){select("");requestAnimationFrame(()=>resultTrigger.current?.isConnected && resultTrigger.current.focus());}
   async function search(){
-    setBusy(true);select("");
+    setBusy(true);select("");resultTrigger.current=null;
     try {
       const result=await managementCommand("writer-agent","writer-history",{query});
       if(!Array.isArray(result.jobs) || result.count!==result.jobs.length)throw new Error("이력 건수를 확인할 수 없습니다.");
-      setMatches(result.jobs);setNotice("");
+      setMatches(result.jobs);setSearchedQuery(query);setNotice("");
       if(result.jobs.filter(job=>job.id===query).length===1)select(query);
-    }catch(problem){setNotice(problem.message);setMatches([]);}
+    }catch(problem){setNotice("이력 검색에 실패했습니다 · "+problem.message+(recent ? " · 아래에는 마지막으로 확인한 최근 기록이 표시됩니다." : " · 최근 기록도 확인되지 않았습니다."));setMatches(null);}
     finally{setBusy(false);}
   }
-  const jobs=matches ?? recent;
-  return <main><article><a href={"/management/frame/hermes-agent/"+(params.has("session")?"?"+new URLSearchParams({session:params.get("session")}):"")}>헤르메스 대화로 돌아가기</a>
-    <h1>작가 AI 에이전트</h1><GeneratorChangelog generator="writer-agent"/>
-    <ModelReadiness service="writer-agent"/><DownloadProgress service="writer-agent"/>
-    <WriterActions onWorkspace={setRecent} onAccepted={id=>{select(id);setMatches(null);setNotice(id+" 작업을 접수했습니다.");}}/>
+  const jobs=matches ?? recent ?? [];
+  return <main className="writer-page-shell"><article className="writer-page"><a href={"/management/frame/hermes-agent/"+(params.has("session")?"?"+new URLSearchParams({session:params.get("session")}):"")}>헤르메스 대화로 돌아가기</a>
+    <h1 className={embedded ? "embedded-page-title" : undefined}>작가 AI 에이전트</h1><GeneratorChangelog generator="writer-agent"/>
+    {embedded ? <details><summary>모델 준비 및 다운로드</summary><ModelReadiness service="writer-agent"/><DownloadProgress service="writer-agent"/></details> : <><ModelReadiness service="writer-agent"/><DownloadProgress service="writer-agent"/></>}
+    {proposalLoading ? <p role="status">대화 제안 확인 중…</p> : <WriterActions session={session} proposalScope={proposalScope} initialPrompt={proposal?.prompt || ""} proposedMode={proposal?.mode || ""} onWorkspace={setRecent} onAccepted={id=>{resultTrigger.current=null;select(id);setMatches(null);setNotice(id+" 작업을 접수했습니다.");}}/>}
     <form onSubmit={event=>{event.preventDefault();search();}}><label>이력 검색<input maxLength={200} value={query} disabled={busy} onChange={event=>setQuery(event.target.value)}/></label>
-      <button disabled={busy}>전체 이력 검색</button></form>
-    <ResultTable table={{title:"작가 실행 기록",summary:(matches?"검색 결과 ":"최근 기록 ")+jobs.length+"건",columns:["작업 ID","작업","상태","요약"],
-      rows:jobs.map(job=>[<><JobIdentifier id={job.id} compact/><button type="button" disabled={busy} onClick={()=>select(job.id)}>작업 보기</button></>,job.mode,job.stage,job.summary || job.error])}}/>
+      <button disabled={busy}>{query.trim()?"이력 검색":"전체 이력 검색"}</button></form>
+    {matches && query!==searchedQuery && <p role="status">검색어가 변경되었습니다. 아래 결과는 이전 검색 조건으로 조회했습니다. {query.trim()?"이력 검색":"전체 이력 검색"}을 눌러 적용하세요.</p>}
+    {matches || recent ? <div className="writer-history-table" role="region" aria-label="작가 실행 기록 표" tabIndex={0}><ResultTable table={{title:"작가 실행 기록",summary:(matches?"검색 결과 ":"최근 기록 ")+jobs.length+"건",columns:["작업 ID","작업","상태","요약"],
+      rows:jobs.map(job=>[<><JobIdentifier id={job.id} compact/><button type="button" disabled={busy} onClick={event=>{resultTrigger.current=event.currentTarget;if(selected===job.id)focusResult();else select(job.id);}}>작업 보기</button></>,writerModeLabel(job.mode),writerStageLabel(job.stage),job.summary || job.error])}}/></div> : <p>최근 기록을 확인하지 못했습니다. 준비 상태를 다시 확인하거나 전체 이력을 검색하세요.</p>}
     {notice && <p role="status">{notice}</p>}
-    {selected && <WriterResult key={selected} id={selected} onDeleted={id=>{select("");setRecent(rows=>rows.filter(row=>row.id!==id));setMatches(rows=>rows?.filter(row=>row.id!==id) ?? null);setNotice(id+" 기록을 휴지통으로 이동했습니다.");}}/>}
+    {selected && <div ref={resultRef} tabIndex={-1} aria-label="선택한 작가 작업"><button type="button" onClick={closeResult}>결과 닫기</button><WriterResult key={selected} id={selected} onDeleted={id=>{select("");setRecent(rows=>rows?.filter(row=>row.id!==id) ?? null);setMatches(rows=>rows?.filter(row=>row.id!==id) ?? null);setNotice(id+" 기록을 휴지통으로 이동했습니다.");}}/></div>}
   </article></main>;
 }

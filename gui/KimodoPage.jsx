@@ -3,7 +3,8 @@ import KimodoGeneration from "./KimodoGeneration.jsx";
 import React, {useRef,useState} from "react";
 import ModelReadiness from "./ModelReadiness.jsx";
 import DownloadProgress from "./DownloadProgress.jsx";
-import GeneratorChangelog from "./GeneratorChangelog.jsx";
+import GeneratorPageIdentity from "./GeneratorPageIdentity.jsx";
+import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import KimodoFrames from "./KimodoFrames.jsx";
 import HistoryCleanup from "./HistoryCleanup.jsx";
@@ -34,11 +35,9 @@ export default function KimodoPage({embedded=false,session:embeddedSession="",in
     sessionStorage.setItem(key,[sessionStorage.getItem(key),label+" "+value].filter(Boolean).join("\n"));
     location.assign(conversation);
   }
-  return <main><article>{!embedded && <a href={conversation}>헤르메스 대화로 돌아가기</a>}
-    <h1>Kimodo 모션 생성기</h1>
-    <GeneratorChangelog generator="kimodo-generator"/>
-    <ModelReadiness service="kimodo" manage/><DownloadProgress service="kimodo"/>
-    <section ref={generationRef} tabIndex={-1} aria-label="Kimodo 생성 입력"><KimodoGeneration key={(restoreJob || "new")+"/"+restoreRevision} session={session} restoreJob={restoreJob} initialInputs={restoreJob ? null : initialInputs}/></section>
+  return <main className={"single-generator-shell"+(embedded ? "" : " generator-page-standalone-shell")}><article className="single-generator-page generator-page-common"><GeneratorPageIdentity service="kimodo" embedded={embedded} session={session}/><GeneratorSectionNavigation inputRef={generationRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(selectedJob)}/>
+    {embedded ? <details><summary>모델 준비 및 다운로드</summary><ModelReadiness service="kimodo" manage/><DownloadProgress service="kimodo"/></details> : <><ModelReadiness service="kimodo" manage/><DownloadProgress service="kimodo"/></>}
+    <section className={embedded ? undefined : "kimodo-standalone-form"} ref={generationRef} tabIndex={-1} aria-label="Kimodo 생성 입력"><KimodoGeneration key={(restoreJob || "new")+"/"+restoreRevision} session={session} restoreJob={restoreJob} initialInputs={restoreJob ? null : initialInputs} choose={choose}/></section>
     <KimodoMultiviewReport/>
     <div ref={historyRef}><GeneratorHistory key={historyRevision} service="kimodo" allowPriority readJob={readJob}
       openResult={id=>{setSelectedJob(id);requestAnimationFrame(()=>resultRef.current?.focus());}} restore={(_request,record)=>{setRestoreJob(record.id);setRestoreRevision(value=>value+1);setNotice("");requestAnimationFrame(()=>generationRef.current?.focus());}}

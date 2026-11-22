@@ -10,32 +10,21 @@ from workflow.tests.test_hermes_mcp import hermes_module_value
 
 
 class HermesCaptureCommandTests(unittest.TestCase):
-    def test_capture_display_labels_preserve_identifiers_and_settings(self):
-        from gui.ui.gradio.hermes_agent_app import format_capture_settings_for_conversation
-        current_display_text=format_capture_settings_for_conversation({'map':'contrast','show_character':True,'edges':False,'width':768,'ground':'grass'})
-        self.assertIn('맵 ID: contrast',current_display_text)
-        self.assertIn('캐릭터 표시: 켜짐',current_display_text)
-        self.assertIn('경계 표시: 꺼짐',current_display_text)
-        self.assertIn('너비: 768',current_display_text)
-        self.assertIn('바닥: 풀',current_display_text)
-
-    def test_chat_shows_validated_capture_settings_and_execution_limit(self):
-        from gui.ui.gradio.hermes_agent_app import format_hermes_conversation_answer
-        current_answer_text='검토하세요.\nHERMES_CAPTURE_PROPOSAL\n{"service":"map-review","settings":{"map":"ash-edge"}}\nEND_HERMES_CAPTURE_PROPOSAL'
-        current_display_value=format_hermes_conversation_answer(current_answer_text)
-        self.assertIn('맵 검수 캡처',current_display_value)
-        self.assertIn('ash-edge',current_display_value)
-        self.assertIn('실행은 지원하지 않습니다',current_display_value)
-        self.assertIn('맵 등록 여부는 별도 확인이 필요합니다',current_display_value)
-        self.assertIn('도구 탐색에서 맵 검수 화면을 열어',current_display_value)
-        self.assertIn('GPU를 사용할 수 있습니다',current_display_value)
-        current_character_answer='HERMES_CAPTURE_PROPOSAL\n{"service":"character-review","settings":{}}\nEND_HERMES_CAPTURE_PROPOSAL'
-        current_character_display=format_hermes_conversation_answer(current_character_answer)
-        self.assertIn('캐릭터 표현 검수 화면은 폐기',current_character_display)
-        self.assertIn('현재 대기 항목에서 확인된 캡처 접수만 상태를 조회',current_character_display)
-        self.assertIn('그 밖의 기록과 결과는 기존 원 서비스에서 확인',current_character_display)
-        self.assertNotIn('HERMES_CAPTURE_PROPOSAL',current_display_value)
-        self.assertEqual(format_hermes_conversation_answer(current_answer_text,True),current_answer_text)
+    def test_capture_proposal_display_and_real_map_link(self):
+        import os,subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'capture.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'CaptureProposal.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');const {CaptureProposalReview}=require(process.argv[1]);
+            const session='a'.repeat(32);const render=(proposal,registration)=>server.renderToStaticMarkup(React.createElement(CaptureProposalReview,{session,value:{proposal,registration}}));
+            const proposal={service:'map-review',settings:{map:'ash-edge',show_character:true,edges:false}};
+            const registered=render(proposal,{status:'registered',map:'ash-edge'}),missing=render(proposal,{status:'not_registered',map:'ash-edge'});
+            const retired=render({service:'character-review',settings:{width:768,ground:'grass'}},{status:'not_applicable'});
+            if(!registered.includes('맵 ID') || !registered.includes('ash-edge') || !registered.includes('켜짐') || !registered.includes('꺼짐') || !registered.includes('/management/frame/map-review/') || !registered.includes('session='+session) || !registered.includes('캡처 실행은 지원하지 않습니다'))throw Error(registered);
+            if(missing.includes('/management/frame/map-review/') || !missing.includes('등록 맵 목록에 없음'))throw Error(missing);
+            if(!retired.includes('폐기') || !retired.includes('768') || !retired.includes('풀'))throw Error(retired);"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
 
     def test_capture_proposal_requires_valid_single_block_and_completed_job(self):
         from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_capture_proposal
@@ -50,7 +39,10 @@ class HermesCaptureCommandTests(unittest.TestCase):
             current_manager_value=HermesServiceManager(current_root_path/'jobs',current_root_path/'sessions')
             current_job_record={'status':{'status':'completed'},'final_response':current_answer_text,'final_response_truncated':False}
             with patch.object(current_manager_value,'resolve_hermes_job_path',return_value=current_root_path),patch.object(current_manager_value,'read_hermes_job_record',return_value=current_job_record):
-                self.assertEqual(current_manager_value.execute_hermes_command('hermes-capture-proposal',{'id':'job-1'})['proposal'],current_proposal_value)
+                with patch('workflow.common.map_asset_sources.load_review_map_menu',return_value=[{'id':'ash-edge'}]):
+                    current_response=current_manager_value.execute_hermes_command('hermes-capture-proposal',{'id':'job-1'})
+                self.assertEqual(current_response['proposal'],current_proposal_value)
+                self.assertEqual(current_response['map_registration'],{'status':'registered','map':'ash-edge'})
                 current_job_record['final_response_truncated']=True
                 with self.assertRaises(ValueError):current_manager_value.execute_hermes_command('hermes-capture-proposal',{'id':'job-1'})
                 current_job_record['final_response_truncated']=False
@@ -91,41 +83,6 @@ class HermesCaptureCommandTests(unittest.TestCase):
                 current_release_event.set()
             self.assertEqual(current_first_result.result(timeout=5)['status'],'registered')
             self.assertEqual(inspect_capture_map_registration(current_proposal_record)['status'],'registered')
-
-    def test_conversation_capture_review_is_read_only_and_checks_job_identity(self):
-        from gui.ui.gradio import hermes_agent_app
-        from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_capture_proposal
-        current_answer_text='HERMES_CAPTURE_PROPOSAL\n{"service":"map-review","settings":{"map":"test-map"}}\nEND_HERMES_CAPTURE_PROPOSAL'
-        current_proposal_value=parse_hermes_capture_proposal(current_answer_text)
-        current_job_record={'job':{'final_response':current_answer_text,'final_response_truncated':False}}
-        current_response_record={'job_id':'job-1','proposal':current_proposal_value,'map_registration':{'status':'registered','map':'test-map'}}
-        with patch.object(hermes_agent_app,'find_conversation_session_job',return_value=current_job_record),patch.object(hermes_agent_app,'execute_remote_management_command',return_value=current_response_record) as current_gateway_mock:
-            current_route_values=hermes_agent_app.route_conversation_proposal('session-1','job-1')
-            self.assertEqual(current_route_values[-2]['area'],'capture')
-            current_route_record=current_route_values[-2]
-            current_output_values=hermes_agent_app.open_routed_conversation_proposal(current_route_record,'session-1','job-1')
-            self.assertIn('확인하고 있습니다',current_output_values[-1])
-            current_result_record=hermes_agent_app.collect_routed_capture_review(current_route_record,'session-1','job-1')
-            current_notice_text=hermes_agent_app.render_routed_capture_review(current_route_record,'session-1','job-1',current_result_record)
-            self.assertIn('등록된 맵',current_notice_text)
-            self.assertIn('캡처 실행은 지원하지 않으며',current_notice_text)
-            current_session_identifier='a'*32
-            current_link_notice=hermes_agent_app.read_conversation_capture_review(current_session_identifier,'job-1')
-            self.assertIn('/management/frame/map-review/?map=test-map&townPage=1&session='+current_session_identifier,current_link_notice)
-            current_gateway_mock.assert_called_with('hermes-agent','hermes-capture-proposal',{'id':'job-1'})
-            import gradio as gr
-            self.assertEqual(hermes_agent_app.render_routed_capture_review(None,'session-1','job-1',current_result_record),gr.skip())
-            self.assertEqual(hermes_agent_app.render_routed_capture_review({**current_route_record,'nonce':'new'},'session-1','job-1',current_result_record),gr.skip())
-            self.assertEqual(hermes_agent_app.render_routed_capture_review(current_route_record,'session-1','other-job',current_result_record),gr.skip())
-            for current_state_name,current_expected_text in (('not_registered','등록 맵 목록에 없음'),('unavailable','등록 여부 확인 불가')):
-                current_response_record['map_registration']={'status':current_state_name,'map':'test-map'}
-                current_result_record=hermes_agent_app.collect_routed_capture_review(current_route_record,'session-1','job-1')
-                self.assertIn(current_expected_text,current_result_record['notice'])
-                self.assertNotIn('/management/frame/map-review/',current_result_record['notice'])
-                self.assertIn('캡처 실행은 지원하지 않으며',current_result_record['notice'])
-            current_response_record['map_registration']={'status':'registered','map':'other'}
-            current_result_record=hermes_agent_app.collect_routed_capture_review(current_route_record,'session-1','job-1')
-            self.assertIn('확인하지 못했습니다',current_result_record['notice'])
 
     def test_mcp_capture_proposal_uses_fixed_command(self):
         with patch.object(hermes_module_value,'call_hermes_management_gateway',return_value={}) as current_gateway_mock:

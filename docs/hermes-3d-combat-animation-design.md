@@ -60,6 +60,22 @@
 - [TRELLIS](https://github.com/microsoft/TRELLIS)는 다중 이미지 입력을 지원하고 [UniRig](https://github.com/VAST-AI-Research/UniRig)는 자동 리깅 후보다. 8방향 정확도, 손·스키닝, 실제 실행 환경 및 모든 의존성의 상업적 이용 조건은 미검증이다. 도구의 MIT 표기만으로 전체 파이프라인을 승인하지 않는다.
 - [Quaternius 기본 캐릭터](https://quaternius.com/packs/universalbasecharacters.html)와 [전투 모션](https://quaternius.com/packs/universalanimationlibrary2.html)은 제작자가 CC0로 제공하는 비교 시험 후보다. 참조 이미지로 생성한 결과가 아니며 무기 트랙 포함 여부와 자동 적용 품질은 파일 검사 전 미확인이다.
 
+## TRELLIS 1 상업적 이용 조사
+
+2026-11-22 공식 저장소의 다중 이미지 예제와 주요 호출 경로를 확인했다. 이는 특정 환경의 실행 검증이나 전체 의존성 감사가 아니다. TRELLIS 1과 TRELLIS.2는 다른 구성으로 따로 평가한다.
+
+| 구성요소 | 확인된 경로와 조건 |
+| --- | --- |
+| TRELLIS 1 모델·대부분의 코드 | 공식 저장소는 [MIT 라이선스](https://github.com/microsoft/TRELLIS#%EF%B8%8F-license)로 배포한다고 명시한다. 상업적 사용에 별도의 유료 계약이 필수라는 뜻은 아니다. |
+| FlexiCubes | [메시 추출 코드](https://raw.githubusercontent.com/microsoft/TRELLIS/main/trellis/representations/mesh/cube2mesh.py)가 사용한다. 공식 저장소가 지정한 [서브모듈 `815e075`](https://github.com/microsoft/TRELLIS/tree/main/trellis/representations/mesh)의 [해당 리비전 라이선스](https://raw.githubusercontent.com/MaxtirError/FlexiCubes/815e075/LICENSE.txt)는 상업적 사용을 허용하는 Apache 2.0이다. |
+| 일반 DINOv2 | [이미지 조건 처리 코드](https://raw.githubusercontent.com/microsoft/TRELLIS/main/trellis/pipelines/trellis_image_to_3d.py)에서 불러온다. [공식 DINOv2 안내](https://github.com/facebookresearch/dinov2#license)는 일반 코드·가중치를 Apache 2.0으로 명시한다. 다른 전문 모델의 조건으로 일반 가중치의 조건을 추정하지 않는다. |
+| nvdiffrast | 공식 [메시 렌더러](https://raw.githubusercontent.com/microsoft/TRELLIS/main/trellis/renderers/mesh_renderer.py)와 [후처리 코드](https://raw.githubusercontent.com/microsoft/TRELLIS/main/trellis/utils/postprocessing_utils.py)에서 사용한다. [공개 라이선스](https://raw.githubusercontent.com/NVlabs/nvdiffrast/main/LICENSE.txt)는 연구·평가 목적의 비상업적 이용으로 제한한다. 상업적으로 이 구성요소를 사용하려면 별도 권한이 필요하다. |
+| diffoctreerast | 공식 문서가 별도 라이선스 대상으로 지목하는 렌더러다. [라이선스](https://raw.githubusercontent.com/JeffreyXiang/diffoctreerast/master/LICENSE)는 비상업 연구·평가용이며 상업적 이용에 권리자의 사전 명시적 동의를 요구한다. 메시 전용 경로에서 반드시 필요한지는 미검증이다. |
+
+[공식 다중 이미지 예제](https://raw.githubusercontent.com/microsoft/TRELLIS/main/example_multi_image.py)는 메시 결과를 얻은 뒤 렌더러로 영상을 만든다. 비상업 구성요소를 사용하는 공식 렌더·후처리를 그대로 상업적 제작에 사용하지 않는다. 메시 결과만 별도 저장하고 Blender로 렌더하는 경로를 검토할 수 있으나, 필요한 import·런타임 의존성과 텍스처·GLB 출력, 배경 제거 모델의 라이선스까지 확인하고 실제 실행하기 전에는 상업용으로 확정하지 않는다. 비상업 구성요소의 출력물에 어떤 권리가 발생하는지도 여기서 단정하지 않는다.
+
+배포할 구성요소는 실제 고정 리비전과 가중치, 의존성 및 라이선스 원문을 기록하고 MIT·Apache 등의 해당 고지와 배포 조건을 따른다. 생성된 에셋만 배포하는 경우와 도구·가중치 자체를 배포하는 경우는 구분한다.
+
 ## 단계별 검증
 
 1. **3D 생성 가능성:** 8방향 기준으로 메시와 리그를 생성하고 각 방향의 체형·실루엣, 스키닝, 손 부착점을 확인한다. 생성기·가중치·의존성의 라이선스와 장비 지원을 기록한다.

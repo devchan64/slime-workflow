@@ -103,8 +103,10 @@ class HermesDelegationStore:
             if not check_delegation_record_exists(current_record_path):
                 return {'state': 'not_found'}
             current_saved_record = read_bounded_delegation_record(current_record_path)
-            if not isinstance(current_saved_record, dict) or current_saved_record.get('version') != 1 or current_saved_record.get('id') != delegation_identifier_value or current_saved_record.get('state') not in ('dispatching', 'accepted'):
+            if not isinstance(current_saved_record, dict) or current_saved_record.get('version') != 1 or current_saved_record.get('id') != delegation_identifier_value or current_saved_record.get('state') not in ('dispatching', 'accepted', 'rejected'):
                 raise ValueError('위임 기록 형식 오류')
+            if current_saved_record['state'] == 'rejected' and 'job_id' not in current_saved_record:
+                return {'state':'rejected'}
             if current_saved_record['state'] == 'dispatching':
                 return {'state': 'unknown', 'message': '접수 결과 확인 필요. Kimodo 이력과 실제 작업을 확인하고 자동 재접수하지 마세요.'}
             if not isinstance(current_saved_record.get('job_id'), str) or not HERMES_DELEGATION_JOB_PATTERN.fullmatch(current_saved_record['job_id']):
@@ -129,7 +131,9 @@ class HermesDelegationStore:
                         raise ValueError('위임 기록 형식 오류')
                     current_state_value = current_saved_record.get('state')
                     current_job_identifier = current_saved_record.get('job_id')
-                    if current_state_value == 'dispatching':
+                    if current_state_value == 'rejected' and current_job_identifier is None:
+                        pass
+                    elif current_state_value == 'dispatching':
                         current_state_value = 'unknown'
                         current_job_identifier = None
                     elif current_state_value != 'accepted' or not isinstance(current_job_identifier, str) or not HERMES_DELEGATION_JOB_PATTERN.fullmatch(current_job_identifier):
@@ -185,8 +189,10 @@ class HermesDelegationStore:
             if not check_delegation_record_exists(current_record_path):
                 return {'state':'not_found','request_id':delegation_identifier_value,'service':expected_service_name}
             current_record_value = read_bounded_delegation_record(current_record_path)
-            if not isinstance(current_record_value, dict) or current_record_value.get('version') != 2 or current_record_value.get('id') != delegation_identifier_value or current_record_value.get('service') != expected_service_name or current_record_value.get('state') not in ('dispatching', 'accepted'):
+            if not isinstance(current_record_value, dict) or current_record_value.get('version') != 2 or current_record_value.get('id') != delegation_identifier_value or current_record_value.get('service') != expected_service_name or current_record_value.get('state') not in ('dispatching', 'accepted', 'rejected'):
                 raise ValueError('위임 서비스 또는 기록이 일치하지 않습니다.')
+            if current_record_value['state'] == 'rejected' and 'job_id' not in current_record_value:
+                return {'state':'rejected', 'request_id':delegation_identifier_value, 'service':expected_service_name}
             if current_record_value['state'] == 'dispatching':
                 return {'state':'unknown', 'request_id':delegation_identifier_value, 'service':expected_service_name, 'message':'접수 결과를 확인하고 자동 재접수하지 마세요.'}
             current_job_identifier = current_record_value.get('job_id')
@@ -212,7 +218,9 @@ class HermesDelegationStore:
                         raise ValueError('접수 ID 불일치')
                     current_state_value = current_record_value.get('state')
                     current_job_identifier = current_record_value.get('job_id')
-                    if current_state_value == 'dispatching':
+                    if current_state_value == 'rejected' and current_job_identifier is None:
+                        pass
+                    elif current_state_value == 'dispatching':
                         current_state_value, current_job_identifier = 'unknown', None
                     elif current_state_value != 'accepted' or not validate_service_job_identifier(expected_service_name, current_job_identifier):
                         raise ValueError('접수 상태 오류')
@@ -225,7 +233,7 @@ class HermesDelegationStore:
                 current_record_value.pop('_sort_time')
             return {'records':current_records_list[:100], 'truncated':len(current_records_list)>100, 'note':'손상되거나 서비스 확인이 불가능한 기록은 목록에서 제외됩니다.'}
 
-    def execute_service_delegation_once(self, delegation_identifier_value, delegation_service_name, delegation_request_record, delegation_submit_callback, delegation_validate_callback):
+    def execute_service_delegation_once(self, delegation_identifier_value, delegation_service_name, delegation_request_record, delegation_submit_callback, delegation_validate_callback, *, record_validation_rejection=False):
         """서비스와 입력을 함께 고정하고 접수 결과가 불확실하면 재실행하지 않는다."""
         if not isinstance(delegation_service_name, str) or not HERMES_DELEGATION_SERVICE_PATTERN.fullmatch(delegation_service_name) or len(delegation_service_name) > 80:
             raise ValueError('위임 서비스 식별자 형식 오류')
@@ -245,7 +253,15 @@ class HermesDelegationStore:
                 if current_record_value.get('state') != 'accepted' or not validate_service_job_identifier(delegation_service_name, current_job_identifier):
                     raise ValueError('위임 기록 형식 오류')
                 return {'state':'accepted', 'duplicate':True, 'service':delegation_service_name, 'job_id':current_job_identifier}
-            delegation_validate_callback(delegation_request_record)
+            try:
+                delegation_validate_callback(delegation_request_record)
+            except ValueError:
+                if not record_validation_rejection:
+                    raise
+                # 접수 콜백 실행 전 같은 잠금 안에 거부 영수증을 남긴다.
+                # 이후 같은 ID의 접수는 기존 기록 검사에서 차단된다.
+                write_record_atomically(current_record_path, {'version':2, 'id':delegation_identifier_value, 'service':delegation_service_name, 'request_sha256':current_request_digest, 'state':'rejected'})
+                return {'state':'rejected', 'service':delegation_service_name}
             current_record_value = {'version':2, 'id':delegation_identifier_value, 'service':delegation_service_name, 'request_sha256':current_request_digest, 'state':'dispatching'}
             write_record_atomically(current_record_path, current_record_value)
             current_response_record = delegation_submit_callback(delegation_request_record)

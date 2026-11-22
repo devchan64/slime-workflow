@@ -49,38 +49,32 @@ class BuildingPromptContractTests(unittest.TestCase):
         self.assertTrue(check_building_input_readiness('wooden guild hall', False, False, object(), True))
         self.assertFalse(check_building_input_readiness('wooden guild hall ' * 40, True, False, object(), True))
 
-    def test_building_interface_contract(self):
-        from gui.ui.gradio.qwen_2511_app import build_qwen_2511_interface
-        current_interface_blocks = build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, building_mode_enabled=True)
-        current_component_records = current_interface_blocks.config['components']
-        self.assertTrue(any(current_component_record['props'].get('label') == '레이아웃 이미지 · 필수 (투영·바닥·출입구)' for current_component_record in current_component_records))
-        current_generate_button = next(current_component_record for current_component_record in current_component_records if current_component_record['props'].get('value') == '대기열에 추가')
-        self.assertFalse(current_generate_button['props']['interactive'])
-        with self.assertRaises(ValueError):
-            build_qwen_2511_interface('http://127.0.0.1:8770', building_mode_enabled=True)
-
-    def test_prop_page_uses_optional_references(self):
-        from workflow.domains.image.building_prompt import load_prop_base_prompt
-        from gui.ui.gradio.qwen_2511_app import build_qwen_2511_interface, check_plain_prompt_readiness
-        current_prompt_text = load_prop_base_prompt()
-        self.assertTrue(check_plain_prompt_readiness(current_prompt_text, False, False))
-        current_interface_blocks = build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, prop_mode_enabled=True)
-        current_component_records = current_interface_blocks.config['components']
-        self.assertTrue(any(current_component_record['props'].get('label') == '소품 레이아웃·외형 참조 1 · 선택' for current_component_record in current_component_records))
-        self.assertTrue(any(current_component_record['props'].get('value') == '소품 기본 프롬프트 복원' for current_component_record in current_component_records))
-        self.assertFalse(any(current_component_record['props'].get('value') == '프롬프트 초기화' for current_component_record in current_component_records))
-        with self.assertRaises(ValueError):
-            build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, building_mode_enabled=True, prop_mode_enabled=True)
-
-    def test_vegetation_page_contract(self):
-        from workflow.domains.image.building_prompt import load_vegetation_base_prompt
-        from gui.ui.gradio.qwen_2511_app import build_qwen_2511_interface, check_plain_prompt_readiness
-        current_prompt_text = load_vegetation_base_prompt()
-        self.assertTrue(check_plain_prompt_readiness(current_prompt_text, False, False))
-        self.assertFalse(check_plain_prompt_readiness(current_prompt_text + ' plant' * 100, False, False))
-        current_interface_blocks = build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, vegetation_mode_enabled=True)
-        current_component_records = current_interface_blocks.config['components']
-        self.assertTrue(any(current_component_record['props'].get('label') == '자연물 레이아웃·외형 참조 1 · 선택' for current_component_record in current_component_records))
-        self.assertTrue(any(current_component_record['props'].get('value') == '자연물 기본 프롬프트 복원' for current_component_record in current_component_records))
-        with self.assertRaises(ValueError):
-            build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, prop_mode_enabled=True, vegetation_mode_enabled=True)
+    def test_flux_profiles_preserve_required_and_optional_references(self):
+        import base64
+        from io import BytesIO
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from PIL import Image
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from workflow.common.management_asgi import build_management_application
+        from workflow.domains.image.flux_image_generation import FluxImageGenerationManager
+        image=BytesIO();Image.new('RGB',(16,16),'white').save(image,format='PNG')
+        encoded=base64.b64encode(image.getvalue()).decode()
+        with TemporaryDirectory() as directory:
+            root=Path(directory);app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with TestClient(app) as client:
+                for service,minimum in (('flux-building',1),('flux-prop',0),('flux-vegetation',0)):
+                    with self.subTest(service=service):
+                        response=client.get('/management/assistant/flux-defaults/'+service)
+                        self.assertEqual(response.status_code,200)
+                        profile=response.json();self.assertEqual(profile['minimum'],minimum)
+                        payload={'action':'generate','prompt':profile['prompt'] or 'wooden house','width':profile['width'],'height':profile['height'],'steps':16,'seed':42,'images':[]}
+                        manager=FluxImageGenerationManager(service)
+                        if minimum:
+                            with self.assertRaises(ValueError):manager.validate_generation_request(payload)
+                        else:
+                            self.assertTrue(profile['prompt'])
+                            self.assertEqual(manager.validate_generation_request(payload)['profile'],service)
+                        payload['images']=[encoded]
+                        self.assertEqual(manager.validate_generation_request(payload)['profile'],service)

@@ -150,6 +150,12 @@ class AnimateTwoContractTests(unittest.TestCase):
             self.assertNotIn('driving_video',current_result_record)
 
     def test_ui_builds_without_model_loading(self):
-        from gui.ui.gradio.wan_animate2_app import build_animate_interface
-        current_ui_blocks=build_animate_interface('http://127.0.0.1:8770')
-        self.assertGreater(len(current_ui_blocks.blocks),20)
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from workflow.common.management_asgi import build_management_application
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with TestClient(app) as client:
+                response=client.get('/management/frame/wan22-animate2-generator/')
+            self.assertEqual(response.status_code,200)
+            self.assertIn('/management/assistant/app.js',response.text)

@@ -3,7 +3,6 @@ import unittest
 from unittest.mock import Mock
 
 from workflow.common.management_gateway import resolve_management_command
-from gui.ui.gradio.wan_fun_app import build_fun_interface
 
 
 class FunModelPrepareTests(unittest.TestCase):
@@ -31,8 +30,12 @@ class FunModelPrepareTests(unittest.TestCase):
                     patch.dict(os.environ, {}, clear=True):
                 setup_rocm.setup_fun_rocm_environment()
             current_pip_commands = [current_call.args[0] for current_call in current_run_mock.call_args_list if 'pip' in current_call.args[0]]
-            self.assertEqual(len(current_pip_commands), 3)
-            for current_pip_command in current_pip_commands:
+            current_telemetry = [command for command in current_pip_commands if '--target' in command]
+            self.assertEqual(len(current_telemetry), 1)
+            self.assertEqual(current_telemetry[0][current_telemetry[0].index('--target') + 1], str(current_root_path / '.local/otel/wan-fun'))
+            current_runtime_commands = [command for command in current_pip_commands if '--target' not in command]
+            self.assertEqual(len(current_runtime_commands), 3)
+            for current_pip_command in current_runtime_commands:
                 self.assertEqual(current_pip_command[current_pip_command.index('-c') + 1], str(setup_rocm.FUN_ROCM_CONSTRAINTS_PATH))
                 self.assertEqual(current_pip_command.count('-c'), 2)
                 self.assertIn(str(setup_rocm.FUN_MIGRAPHX_CONSTRAINTS_PATH), current_pip_command)
@@ -116,20 +119,16 @@ class FunModelPrepareTests(unittest.TestCase):
             resolve_management_command('wan22-fun-control', 'prepare', {'action': 'generate'})
 
     def test_queued_prepare_disables_duplicate_and_reports_errors(self):
-        current_command_mock = Mock(side_effect=lambda current_name, current_payload: {
-            'model-status': {'ready': False, 'message': '모델 준비 필요'},
-            'history': {'records': [{'request': {'action': 'prepare'}, 'status': {'status': 'queued'}}]},
-        }[current_name])
-        current_interface = build_fun_interface('http://localhost', current_command_mock)
-        current_refresh_callback = next(current_function.fn for current_function in current_interface.fns.values()
-                                        if current_function.fn and current_function.fn.__name__ == 'refresh_fun_model_controls')
-        current_message_value, current_button_update = current_refresh_callback()
-        self.assertIn('모델 준비 대기 중', current_message_value)
-        self.assertFalse(current_button_update['interactive'])
-        current_command_mock.side_effect = OSError('연결 실패')
-        current_message_value, current_button_update = current_refresh_callback()
-        self.assertIn('연결 실패', current_message_value)
-        self.assertFalse(current_button_update['interactive'])
+        import subprocess,tempfile
+        from pathlib import Path
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'readiness.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'ModelReadiness.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const {modelPrepareReason}=require(process.argv[1]);
+              if(!modelPrepareReason({ready:false,preparation_status:'queued',prepare_request:{}},'',false).includes('진행 중'))throw Error('queued');
+              if(!modelPrepareReason(null,'연결 실패',false).includes('다시 확인'))throw Error('error');"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True)
 
     def test_completed_single_file_keeps_recovered_byte_count(self):
         from pathlib import Path
@@ -158,41 +157,23 @@ class FunModelPrepareTests(unittest.TestCase):
             self.assertEqual((current_result_record['status'], current_result_record['resumed_bytes']), ('completed', 40))
 
     def test_management_page_uses_wan_prepare_and_reports_queue(self):
-        from unittest.mock import patch
-        from gui.ui.gradio import model_management_app
-        current_commands = []
-        def execute_test_command(current_service_name, current_command_name, current_payload_record):
-            current_commands.append((current_service_name, current_command_name, current_payload_record))
-            if current_command_name == 'model-status':
-                return {'ready': False, 'message': '모델 준비 필요'}
-            if current_command_name == 'history':
-                return {'records': [{'id': 'test', 'request': {'action': 'prepare'}, 'status': {'status': 'queued'}}]}
-            if current_command_name == 'prepare':
-                return {'id': 'test', 'status': 'queued'}
-            raise AssertionError(current_command_name)
-        with patch.object(model_management_app, 'execute_remote_management_command', side_effect=execute_test_command):
-            current_record_value = model_management_app.execute_model_preparation_command('wan22-fun-control', 'model-status', {})
-            self.assertEqual(current_record_value['preparation_status'], 'queued')
-            self.assertIn('모델 준비: 대기 중', current_record_value['message'])
-            current_interface = model_management_app.build_model_management_interface()
-            current_callbacks = [current_function.fn for current_function in current_interface.fns.values()
-                                 if current_function.fn and current_function.fn.__name__ == 'request_model_download']
-            current_wan_callback = next(current_callback for current_callback in current_callbacks
-                                        if any(getattr(current_cell.cell_contents, '__defaults__', None) == ('wan22-fun-control',)
-                                               for current_cell in (current_callback.__closure__ or ())))
-            current_message_value, _, current_button_update, _ = current_wan_callback()
-            self.assertIn(('wan22-fun-control', 'prepare', {'action': 'prepare'}), current_commands)
-            self.assertIn('대기 중', current_message_value)
-            self.assertFalse(current_button_update['interactive'])
+        from workflow.common.model_preparation_controls import execute_model_preparation_command
+        commands=[]
+        def execute(service,command,payload):
+            commands.append((service,command,payload))
+            if command=='model-status':return {'ready':False,'message':'모델 준비 필요'}
+            if command=='history':return {'records':[{'request':{'action':'prepare'},'status':{'status':'queued'}}]}
+            if command=='prepare':return {'id':'test','status':'queued'}
+            raise AssertionError(command)
+        status=execute_model_preparation_command('wan22-fun-control','model-status',{},execute)
+        self.assertEqual(status['preparation_status'],'queued');self.assertIn('대기 중',status['message'])
+        self.assertEqual(execute_model_preparation_command('wan22-fun-control','prepare',{'action':'prepare'},execute)['status'],'queued')
+        self.assertIn(('wan22-fun-control','prepare',{'action':'prepare'}),commands)
 
     def test_management_allows_retry_after_failed_preparation_with_existing_files(self):
-        from unittest.mock import patch
-        from gui.ui.gradio import model_management_app
-        def execute_test_command(current_service_name, current_command_name, current_payload_record):
-            if current_command_name == 'model-status':
-                return {'ready': True, 'message': '모델 파일 준비 완료'}
-            return {'records': [{'id': 'test', 'request': {'action': 'prepare'}, 'status': {'status': 'failed'}}]}
-        with patch.object(model_management_app, 'execute_remote_management_command', side_effect=execute_test_command):
-            current_record_value = model_management_app.execute_model_preparation_command('wan22-fun-control', 'model-status', {})
-        self.assertFalse(current_record_value['ready'])
-        self.assertIn('모델 준비: 실패', current_record_value['message'])
+        from workflow.common.model_preparation_controls import execute_model_preparation_command
+        def execute(service,command,payload):
+            if command=='model-status':return {'ready':True,'message':'모델 파일 준비 완료'}
+            return {'records':[{'request':{'action':'prepare'},'status':{'status':'failed'}}]}
+        status=execute_model_preparation_command('wan22-fun-control','model-status',{},execute)
+        self.assertFalse(status['ready']);self.assertEqual(status['preparation_status'],'failed');self.assertIn('실패',status['message'])

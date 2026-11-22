@@ -672,7 +672,7 @@ asyncio.run(inspect_receipt_queue_transport())
                 current_server.server_close()
                 current_thread.join(timeout=5)
 
-    def test_animation_history_crosses_stdio_gateway_and_screen(current_test_case):
+    def test_animation_history_crosses_stdio_and_gateway(current_test_case):
         import json
         import tempfile
         import threading
@@ -683,7 +683,6 @@ asyncio.run(inspect_receipt_queue_transport())
         from workflow.domains.character_animation.character_animation import CharacterAnimationManager
         from workflow.domains.hermes_agent.service import HermesServiceManager
         from workflow.gateway_server import create_gateway_request_handler
-        from gui.ui.gradio import hermes_agent_app
         current_repository_root=Path(__file__).resolve().parents[2]
         current_runtime_python=current_repository_root/'.local/hermes-mcp/bin/python'
         if not current_runtime_python.is_file():current_test_case.skipTest('Hermes MCP 런타임이 설치되지 않았습니다.')
@@ -722,9 +721,9 @@ asyncio.run(inspect_animation_history_transport())
             current_gateway_origin='http://127.0.0.1:'+str(current_server.server_port)
             current_environment=dict(os.environ,SLIME_MANAGEMENT_GATEWAY_URL=current_gateway_origin,PYTHONPATH=str(current_repository_root))
             try:
-                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}),patch.object(character_animation_jobs,'GENERATION_ROOT_DIRECTORY',current_animation_root),patch.object(character_animation_jobs,'GENERATION_HISTORY_DIRECTORY',current_history_root),patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=lambda current_service,current_command,current_payload:execute_management_command(current_service,current_command,current_payload,current_gateway_origin)):
-                    current_rows=hermes_agent_app.read_hermes_generator_source_rows('character-animation')[0]
-                    current_test_case.assertEqual(current_rows,[[current_job_identifier,'completed','작업 상태 파일']])
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}),patch.object(character_animation_jobs,'GENERATION_ROOT_DIRECTORY',current_animation_root),patch.object(character_animation_jobs,'GENERATION_HISTORY_DIRECTORY',current_history_root):
+                    current_result=execute_management_command('hermes-agent','hermes-generator-source-history',{'service':'character-animation'},current_gateway_origin)
+                    current_test_case.assertEqual(current_result['records'],[{'id':current_job_identifier,'recorded_status':'completed','status_source':'job'}])
                     current_process=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment,capture_output=True,text=True,timeout=30)
                     current_test_case.assertEqual(current_process.returncode,0,current_process.stderr[-4000:])
                     current_test_case.assertEqual(sorted(current_history_root.iterdir()),[current_history_root/(current_job_identifier+'.json')])
@@ -1008,7 +1007,7 @@ asyncio.run(inspect_translation_mcp_transport())
                 current_server_value.server_close()
                 current_thread_value.join(timeout=5)
 
-    def test_map_pending_status_crosses_stdio_and_screen_without_database(current_test_case):
+    def test_map_pending_status_crosses_stdio_and_gateway_without_database(current_test_case):
         import hashlib
         import json
         import tempfile
@@ -1019,7 +1018,6 @@ asyncio.run(inspect_translation_mcp_transport())
         from workflow.domains.map_assets import map_editor
         from workflow.domains.hermes_agent.service import HermesServiceManager
         from workflow.gateway_server import create_gateway_request_handler
-        from gui.ui.gradio import hermes_agent_app
         current_repository_root=Path(__file__).resolve().parents[2]
         current_runtime_python=current_repository_root/'.local/hermes-mcp/bin/python'
         if not current_runtime_python.is_file():current_test_case.skipTest('Hermes MCP 런타임이 설치되지 않았습니다.')
@@ -1067,13 +1065,13 @@ asyncio.run(inspect_map_pending_transport())
                 if current_service=='map-assets' and current_command=='database-status':raise OSError('offline')
                 return current_execute_original(current_service,current_command,current_payload,current_address,**current_keyword_arguments)
             try:
-                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin,'SLIME_ASSETS_ROOT':str(current_asset_root)}),patch.object(map_editor,'MAP_EDITOR_STORAGE_ROOT',current_storage_root),patch.object(management_gateway,'execute_management_command',side_effect=respond_database_offline),patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=lambda current_service,current_command,current_payload:current_execute_original(current_service,current_command,current_payload,current_gateway_origin)):
-                    current_summary=hermes_agent_app.read_hermes_content_database_summary()
-                    current_test_case.assertIn('콘텐츠 DB 상태 확인 불가',current_summary)
-                    current_test_case.assertIn('중단 기록 확인 필요',current_summary)
-                    current_test_case.assertIn('백업 유효 1',current_summary)
-                    current_test_case.assertIn('변경된 파일 1',current_summary)
-                    current_test_case.assertIn('assets/maps/field_tiles/example.yaml',current_summary)
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin,'SLIME_ASSETS_ROOT':str(current_asset_root)}),patch.object(map_editor,'MAP_EDITOR_STORAGE_ROOT',current_storage_root),patch.object(management_gateway,'execute_management_command',side_effect=respond_database_offline):
+                    current_status=current_execute_original('hermes-agent','hermes-content-database-status',{},current_gateway_origin)
+                    current_test_case.assertEqual(current_status['status'],'unavailable')
+                    current_test_case.assertEqual(current_status['map_save']['state'],'pending')
+                    current_test_case.assertEqual(current_status['map_save']['backup_valid'],1)
+                    current_test_case.assertEqual(current_status['map_save']['changed_since_backup'],1)
+                    current_test_case.assertEqual(current_status['map_save']['file_details'][0]['path'],'assets/maps/field_tiles/example.yaml')
                     current_process=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment,capture_output=True,text=True,timeout=30)
                     current_test_case.assertEqual(current_process.returncode,0,current_process.stderr[-4000:])
                     current_test_case.assertTrue((current_storage_root/'map-save-pending.json').exists())
@@ -1082,7 +1080,7 @@ asyncio.run(inspect_map_pending_transport())
                 current_server.server_close()
                 current_thread.join(timeout=5)
 
-    def test_field_alignment_crosses_stdio_gateway_and_review(current_test_case):
+    def test_field_alignment_crosses_stdio_and_gateway(current_test_case):
         import json
         import tempfile
         import threading
@@ -1092,7 +1090,6 @@ asyncio.run(inspect_map_pending_transport())
         from workflow.domains.hermes_agent import field_map_operations
         from workflow.domains.hermes_agent.service import HermesServiceManager
         from workflow.gateway_server import create_gateway_request_handler
-        from gui.ui.gradio import hermes_agent_app
         current_repository_root=Path(__file__).resolve().parents[2]
         current_runtime_python=current_repository_root/'.local/hermes-mcp/bin/python'
         if not current_runtime_python.is_file():current_test_case.skipTest('Hermes MCP 런타임이 설치되지 않았습니다.')
@@ -1137,10 +1134,10 @@ asyncio.run(inspect_field_alignment_transport())
                 if current_command=='map-edit-load':return {'map':'example','revision':'rev-1','tiles':{},'terrain':{},'textures':[],'codes':{}}
                 raise AssertionError('예상하지 못한 맵 명령')
             try:
-                with patch.object(field_map_operations,'call_field_map_editor',side_effect=respond_field_editor),patch('workflow.domains.map_assets.source_consistency.inspect_field_source_alignment',return_value={'status':'mismatch','note':'모의 비교'}),patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=lambda current_service,current_command,current_payload:execute_management_command(current_service,current_command,current_payload,current_gateway_origin)),patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}):
-                    current_review,current_summary,_=hermes_agent_app.review_hermes_field_map_draft(json.dumps(current_draft),'field_review_123')
+                with patch.object(field_map_operations,'call_field_map_editor',side_effect=respond_field_editor),patch('workflow.domains.map_assets.source_consistency.inspect_field_source_alignment',return_value={'status':'mismatch','note':'모의 비교'}),patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_origin}):
+                    current_review=execute_management_command('hermes-agent','hermes-field-preview',{'draft':current_draft},current_gateway_origin)
                     current_test_case.assertFalse(current_review['save_available'])
-                    current_test_case.assertIn('등록 원본 비교: 불일치',current_summary)
+                    current_test_case.assertEqual(current_review['source_alignment']['status'],'mismatch')
                     current_process=subprocess.run([str(current_runtime_python),'-c',current_client_script],cwd=current_repository_root,env=current_environment,capture_output=True,text=True,timeout=30)
                     current_test_case.assertEqual(current_process.returncode,0,current_process.stderr[-4000:])
             finally:

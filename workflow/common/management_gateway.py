@@ -26,6 +26,8 @@ MANAGEMENT_SERVICE_ROUTES['model-downloads']='/model-downloads'
 MANAGEMENT_SERVICE_COMMANDS['model-downloads']=('download-status','download-inventory','download-observe')
 MANAGEMENT_SERVICE_ROUTES['hermes-model'] = '/hermes-model'
 MANAGEMENT_SERVICE_COMMANDS['hermes-model'] = ('model-status', 'prepare')
+MANAGEMENT_SERVICE_ROUTES['animationgpt'] = '/animationgpt'
+MANAGEMENT_SERVICE_COMMANDS['animationgpt'] = ('model-status', 'prepare')
 MANAGEMENT_COMMAND_ROUTES['download-observe']=('GET','/observe')
 MANAGEMENT_COMMAND_ROUTES['download-status']=('GET','/status')
 MANAGEMENT_COMMAND_ROUTES['download-inventory']=('GET','/inventory')
@@ -59,7 +61,7 @@ MANAGEMENT_COMMAND_ROUTES['sheet-gif'] = ('POST', '/sheet/gif')
 MANAGEMENT_SERVICE_COMMANDS['character-animation'] += ('sheet-auto','sheet-export','sheet-gif','sheet-search','sheet-image','sheet-update')
 MANAGEMENT_COMMAND_ROUTES.update({'sheet-update':('POST','/sheet/update'),'sheet-search':('POST','/sheet/search'),'sheet-image':('POST','/sheet/image')})
 
-WRITER_PAYLOAD_COMMAND_NAMES = ('writer-index-status', 'writer-search-paths', 'writer-material-page', 'writer-detail', 'writer-submit', 'writer-apply', 'writer-history', 'writer-history-observe', 'writer-delete', 'writer-cancel')
+WRITER_PAYLOAD_COMMAND_NAMES = ('writer-index-status', 'writer-search-paths', 'writer-material-page', 'writer-detail', 'writer-submit', 'writer-submit-bound', 'writer-apply', 'writer-history', 'writer-history-observe', 'writer-delete', 'writer-cancel')
 TRANSLATION_PAYLOAD_COMMAND_NAMES = ('translation-submit', 'translation-status', 'translation-cancel', 'translation-history', 'translation-rag')
 HERMES_PAYLOAD_COMMAND_NAMES = ('hermes-video-form-save', 'hermes-video-form-read', 'hermes-video-form-submit', 'hermes-video-form-status', 'hermes-workflow-list', 'hermes-workflow-catalog', 'hermes-workflow-review', 'hermes-workflow-register', 'hermes-workflow-view', 'hermes-workflow-cancel', 'hermes-workflow-select', 'hermes-workflow-retry', 'hermes-workflow-draft-read', 'hermes-workflow-draft-save', 'hermes-form-list', 'hermes-form-read', 'hermes-form-save', 'hermes-workflow-image-preview', 'hermes-workflow-audio-preview', 'hermes-anchor-history-observe', 'hermes-generator-reservation-recover', 'hermes-generator-reservation-receipt', 'hermes-generator-reservation-inspect', 'hermes-submit', 'hermes-detail', 'hermes-history', 'hermes-diff', 'hermes-cancel', 'hermes-session-archived', 'hermes-session-archive', 'hermes-session-restore', 'hermes-session-delete', 'hermes-session-create', 'hermes-session-read', 'hermes-session-list', 'hermes-session-submit', 'hermes-session-view', 'hermes-management-status', 'hermes-priority-preview', 'hermes-priority-submit', 'hermes-priority-receipt', 'hermes-service-receipt', 'hermes-capture-status', 'hermes-capture-proposal', 'hermes-expression-catalog', 'hermes-model-inventory', 'hermes-model-download-status', 'hermes-content-database-status', 'hermes-map-database-receipt', 'hermes-kimodo-build-status', 'hermes-model-readiness', 'hermes-model-prepare', 'hermes-model-prepare-status', 'hermes-model-prepare-history', 'hermes-billboard-catalog', 'hermes-billboard-proposal', 'hermes-billboard-load', 'hermes-billboard-preview', 'hermes-billboard-save', 'hermes-billboard-receipt', 'hermes-building-catalog', 'hermes-building-preview', 'hermes-building-save', 'hermes-building-receipt', 'hermes-sprite-pending-status', 'hermes-sprite-clip-playback', 'hermes-sprite-playback', 'hermes-sprite-proposal', 'hermes-sprite-preview', 'hermes-sprite-save', 'hermes-sprite-receipt', 'hermes-sprite-catalog', 'hermes-sprite-detail', 'hermes-effect-catalog', 'hermes-effect-detail', 'hermes-effect-proposal', 'hermes-effect-preview', 'hermes-effect-save', 'hermes-effect-receipt', 'hermes-effect-register-preview', 'hermes-effect-register', 'hermes-effect-register-receipt', 'hermes-waypoint-preview', 'hermes-waypoint-replace', 'hermes-waypoint-receipt', 'hermes-world-map', 'hermes-field-load', 'hermes-field-region', 'hermes-field-preview', 'hermes-field-save', 'hermes-field-receipt', 'hermes-field-history', 'hermes-city-load', 'hermes-city-preview', 'hermes-city-save', 'hermes-city-receipt', 'hermes-city-history', 'hermes-service-registration', 'hermes-delegate-writer', 'hermes-writer-proposal', 'hermes-writer-index-status', 'hermes-writer-search-paths', 'hermes-writer-status', 'hermes-writer-history', 'hermes-writer-cancel', 'hermes-writer-reservation-preview', 'hermes-writer-reservation-recover', 'hermes-writer-reservation-receipt', 'hermes-writer-apply', 'hermes-writer-apply-status', 'hermes-writer-apply-history', 'hermes-delegate-translation', 'hermes-translation-proposal', 'hermes-translation-evidence', 'hermes-translation-status', 'hermes-translation-history', 'hermes-translation-cancel', 'hermes-delegate-video', 'hermes-video-proposal', 'hermes-video-status', 'hermes-video-history', 'hermes-video-cancel', 'hermes-delegate-audio', 'hermes-audio-proposal', 'hermes-audio-status', 'hermes-audio-history', 'hermes-audio-source-history', 'hermes-generator-source-history', 'hermes-audio-cancel', 'hermes-delegate-flux-profile', 'hermes-flux-profile-status', 'hermes-flux-profile-history', 'hermes-flux-profile-cancel', 'hermes-delegate-flux-image', 'hermes-flux-delegation-history', 'hermes-flux-delegation-status', 'hermes-flux-delegation-cancel', 'hermes-delegate-kimodo', 'hermes-kimodo-proposal', 'hermes-kimodo-keyframes', 'hermes-kimodo-keyframe-preview', 'hermes-kimodo-keyframe-validate', 'hermes-flux-proposal', 'hermes-field-proposal', 'hermes-delegation-status', 'hermes-delegation-cancel', 'hermes-delegation-job-status', 'hermes-delegation-history', 'hermes-capabilities')
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-writer-job-search-paths','hermes-writer-job-review','hermes-writer-job-material',)
@@ -78,6 +80,9 @@ HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-kimodo-resume-preview','hermes-kimodo-r
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-cleanup-preview',)
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-video-resume-preview','hermes-video-resume-submit','hermes-video-resume-receipt','hermes-video-resume-proposal')
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-flux-resume-preview','hermes-flux-resume-submit','hermes-flux-resume-receipt','hermes-flux-resume-proposal')
+HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-resident-start','hermes-resident-status','hermes-resident-release','hermes-gpu-handoff-preview','hermes-gpu-handoff-approve','hermes-gpu-handoff-status','hermes-gpu-handoff-list','hermes-gpu-handoff-withdraw','hermes-gpu-handoff-writer-context','hermes-gpu-handoff-recover-release','hermes-gpu-handoff-recover-submission','hermes-gpu-handoff-recover-reload','hermes-gpu-handoff-cancel')
+HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-writer-proposal-submit','hermes-writer-proposal-receipt')
+HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-gpu-handoff-retry-reload',)
 MANAGEMENT_SERVICE_COMMANDS['hermes-agent'] = HERMES_PAYLOAD_COMMAND_NAMES
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name: ('POST', '/' + current_command_name) for current_command_name in HERMES_PAYLOAD_COMMAND_NAMES})
 MANAGEMENT_SERVICE_ROUTES['prompt-translation'] = '/prompt-translation'
@@ -85,7 +90,7 @@ MANAGEMENT_SERVICE_COMMANDS['prompt-translation'] = (*TRANSLATION_PAYLOAD_COMMAN
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name: ('POST', '/' + current_command_name) for current_command_name in TRANSLATION_PAYLOAD_COMMAND_NAMES})
 MANAGEMENT_SERVICE_ROUTES['writer-agent'] = '/writer-agent'
 MANAGEMENT_SERVICE_COMMANDS['writer-agent'] = ('writer-state', 'writer-token', 'model-status', 'prepare', *WRITER_PAYLOAD_COMMAND_NAMES)
-MANAGEMENT_COMMAND_ROUTES.update({'writer-index-status': ('POST', '/api/index-status'), 'writer-state': ('GET', '/api/state'), 'writer-token': ('GET', '/api/token'), 'writer-search-paths': ('POST', '/api/search-paths'), 'writer-material-page': ('POST', '/api/material-page'), 'writer-detail': ('POST', '/api/detail'), 'writer-submit': ('POST', '/api/jobs'), 'writer-apply': ('POST', '/api/apply'), 'writer-history': ('POST', '/api/history'), 'writer-history-observe': ('POST', '/api/history/observe'), 'writer-delete': ('POST', '/api/history/delete'), 'writer-cancel': ('POST', '/api/cancel')})
+MANAGEMENT_COMMAND_ROUTES.update({'writer-index-status': ('POST', '/api/index-status'), 'writer-state': ('GET', '/api/state'), 'writer-token': ('GET', '/api/token'), 'writer-search-paths': ('POST', '/api/search-paths'), 'writer-material-page': ('POST', '/api/material-page'), 'writer-detail': ('POST', '/api/detail'), 'writer-submit': ('POST', '/api/jobs'), 'writer-submit-bound': ('POST', '/api/jobs-bound'), 'writer-apply': ('POST', '/api/apply'), 'writer-history': ('POST', '/api/history'), 'writer-history-observe': ('POST', '/api/history/observe'), 'writer-delete': ('POST', '/api/history/delete'), 'writer-cancel': ('POST', '/api/cancel')})
 
 
 MANAGEMENT_SERVICE_ROUTES['map-assets']='/map-assets'
@@ -213,9 +218,9 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'wan22-fun-control' and operation_command_name == 'prepare' and command_payload_value not in ({'action': 'prepare'}, {'action': 'prepare', 'model_profile': 'wan21-1.3b'}):
         raise ValueError('Fun Control 준비 프로필이 올바르지 않습니다.')
-    if service_command_name in ('wan22-vace', 'writer-agent', 'prompt-translation', 'hermes-model', 'dwpose') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
+    if service_command_name in ('wan22-vace', 'writer-agent', 'prompt-translation', 'hermes-model', 'animationgpt', 'dwpose') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('모델 준비에는 action=prepare만 허용합니다.')
-    if service_command_name == 'hermes-model' and operation_command_name == 'model-status' and command_payload_value:
+    if service_command_name in ('hermes-model', 'animationgpt') and operation_command_name == 'model-status' and command_payload_value:
         raise ValueError('모델 상태 조회에는 입력을 전달할 수 없습니다.')
     request_method_value, request_suffix_value = MANAGEMENT_COMMAND_ROUTES[operation_command_name]
     if '{id}' in request_suffix_value:
@@ -329,6 +334,7 @@ MANAGEMENT_COMMAND_DESCRIPTIONS = {'flux-expression': 'FLUX 3 표정 생성 · �
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['model-downloads']='공유 모델 다운로드 상태 조회'
 MANAGEMENT_COMMAND_DESCRIPTIONS['hermes-model']='Hermes 코딩 모델 다운로드와 SHA-256 검증'
+MANAGEMENT_COMMAND_DESCRIPTIONS['animationgpt']='AnimationGPT 제3자 FP16 모델 파일 다운로드와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['hermes-agent']='격리 Hermes 작업 접수·상태·이력·취소 --payload-file'
 for current_flux_profile, current_flux_values in FLUX_IMAGE_PROFILE_RECORDS.items():
     MANAGEMENT_COMMAND_DESCRIPTIONS[current_flux_profile] = 'FLUX 3 ' + current_flux_values[0] + ' 이미지 생성'
@@ -364,6 +370,20 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace']='Wan2.2 VACE-Fun A14B BF16 · 텍�
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
     if gateway_request_handler is not None:
+        if service_command_name == 'animationgpt':
+            from workflow.common.animationgpt_model_download import WORKFLOW_ROOT_DIRECTORY, inspect_animationgpt_model_files
+            from workflow.common.model_prepare_process import inspect_registered_preparation_strict, start_registered_preparation
+            from workflow.common.management_transport import send_management_json_response
+            try:
+                preparation = inspect_registered_preparation_strict(WORKFLOW_ROOT_DIRECTORY, 'animationgpt')
+            except (OSError, ValueError, TypeError, UnicodeError):
+                preparation = 'unknown'
+            ready = inspect_animationgpt_model_files()
+            if operation_command_name == 'prepare' and preparation == 'unknown':
+                raise ValueError('AnimationGPT 모델 준비 상태를 확인할 수 없습니다.')
+            if operation_command_name == 'prepare' and preparation != 'running' and not ready:
+                preparation = start_registered_preparation(WORKFLOW_ROOT_DIRECTORY, 'animationgpt')['preparation_status']
+            return send_management_json_response(gateway_request_handler, 200, {'ready': ready, 'preparation_status': preparation, 'can_prepare': preparation != 'unknown', 'message': 'FP16 가중치·토크나이저·정규화 파일 해시 검증 완료 · 생성기 연결은 별도' if ready else '가중치·토크나이저·정규화 파일 준비 필요 · 생성기 연결은 별도'})
         if service_command_name == 'hermes-model':
             from workflow.common.hermes_model_download import WORKFLOW_ROOT_DIRECTORY, inspect_hermes_model_files
             from workflow.common.model_prepare_process import inspect_registered_preparation_strict, start_registered_preparation

@@ -81,6 +81,18 @@ class LiveInstructionOperationsTests(unittest.TestCase):
             self.assertTrue(manager.execute_hermes_command('hermes-live-instruction-recover',request)['duplicate'])
             self.assertEqual(len(store.read_session_record(session)['chat_queue']),1)
 
+    def test_recovery_display_tracks_queued_dispatched_and_cancelled(self):
+        from workflow.domains.hermes_agent.live_instruction_operations import annotate_recoveries, recovery_id
+        row = {'request_id': 'request_live', 'state': 'undelivered'}
+        self.assertNotIn('recovery', annotate_recoveries([dict(row)], {'chat_queue': [], 'messages': []})[0])
+        for state in ('queued', 'dispatching', 'dispatched', 'cancelled'):
+            entry = {'request_id': recovery_id('request_live'), 'state': state, 'job_id': 'job_12345'}
+            result = annotate_recoveries([dict(row)], {'chat_queue': [entry], 'messages': []})[0]
+            self.assertEqual(result['recovery'], {'state': state, 'job_id': 'job_12345'})
+        message = {'request_id': recovery_id('request_live'), 'job_id': 'job_12345'}
+        result = annotate_recoveries([dict(row)], {'chat_queue': [], 'messages': [message]})[0]
+        self.assertEqual(result['recovery'], {'state': 'dispatched', 'job_id': 'job_12345'})
+
     def test_missing_endpoint_is_recoverable_undelivered(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);store=HermesSessionStore(root/'sessions');session='b'*32

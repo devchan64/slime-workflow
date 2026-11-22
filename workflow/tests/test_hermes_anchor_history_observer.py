@@ -75,21 +75,10 @@ class HermesAnchorHistoryObserverTests(unittest.TestCase):
 
 class HermesAnchorHistoryUiTests(unittest.TestCase):
     def test_page_request_and_late_response_guard(self):
-        import gradio as gr
-        from gui.ui.gradio import hermes_agent_app
-        current_first_response={'records':[{'id':'2026-11-20_10-00-00-12345678','created_at':'2026-11-20T10:00:00+09:00','frames':4}],'total':2,'offset':0,'next_offset':1,'snapshot':'a'*64}
-        with patch.object(hermes_agent_app,'execute_remote_management_command',return_value=current_first_response) as current_gateway_mock:
-            current_result_record=hermes_agent_app.collect_hermes_legacy_anchor_page('walk','v1',None,'token-a',False)
-            current_gateway_mock.assert_called_once_with('hermes-agent','hermes-anchor-history-observe',{'animation_id':'walk','animation_version':'v1','limit':20})
-        current_rendered_values=hermes_agent_app.render_hermes_legacy_anchor_page('walk','v1','token-a',current_result_record)
-        self.assertEqual(current_rendered_values[0][0][0],'2026-11-20_10-00-00-12345678')
-        self.assertTrue(current_rendered_values[3]['interactive'])
-        for current_changed_values in (('run','v1','token-a'),('walk','v2','token-a'),('walk','v1','token-b')):
-            self.assertEqual(hermes_agent_app.render_hermes_legacy_anchor_page(*current_changed_values,current_result_record),(gr.skip(),)*4)
-        with patch.object(hermes_agent_app,'execute_remote_management_command') as current_gateway_mock:
-            current_result_values=hermes_agent_app.read_next_hermes_legacy_anchor_page('run','v1',current_rendered_values[2])
-            self.assertIn('검색 조건이 바뀌었습니다',current_result_values[1])
-            current_gateway_mock.assert_not_called()
+        import subprocess
+        root=Path(__file__).resolve().parents[2]
+        result=subprocess.run(['node','--test',str(root/'workflow/tests/latest_request.test.mjs')],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
 class HermesAnchorHistoryBridgeTests(unittest.TestCase):
     def test_bridge_returns_bounded_anchor_history_and_rejects_invalid_requests(self):

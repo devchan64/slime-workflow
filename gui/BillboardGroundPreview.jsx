@@ -11,27 +11,29 @@ async function loadImage(url){
 }
 
 export default function BillboardGroundPreview({source,edits}){
-  const canvas=useRef(null),[assets,setAssets]=useState(null),[error,setError]=useState("");
+  const canvas=useRef(null),[assets,setAssets]=useState(null),[error,setError]=useState(""),[warning,setWarning]=useState(""),[retry,setRetry]=useState(0);
   const [zoom,setZoom]=useState(2),[blocking,setBlocking]=useState(true),[guides,setGuides]=useState(true);
   const [character,setCharacter]=useState(true),[summary,setSummary]=useState("");
   useEffect(()=>{
     let active=true;
     async function load(){
-      setAssets(null);setError("");
+      setAssets(null);setError("");setWarning("");
       const [ground,renderer,image]=await Promise.all([import(groundModule),import(rendererModule),
         loadImage("/management/map-assets/billboards/"+encodeURIComponent(source.texture)+".png")]);
       let person=null;
       if(character){
-        const response=await fetch("/isloon-map-review/review-character.json");
-        if(!response.ok)throw new Error("캐릭터 기준 이미지를 불러올 수 없습니다.");
-        const record=await response.json();
-        person={record,image:await loadImage(new URL(record.image,response.url))};
+        try{
+          const response=await fetch("/isloon-map-review/review-character.json");
+          if(!response.ok)throw new Error("캐릭터 기준 이미지를 불러올 수 없습니다.");
+          const record=await response.json();
+          person={record,image:await loadImage(new URL(record.image,response.url))};
+        }catch(problem){if(active)setWarning("캐릭터를 불러오지 못해 빌보드만 표시합니다.");}
       }
       if(active)setAssets({ground,renderer,image,person});
     }
     load().catch(problem=>{if(active)setError(problem.message);});
     return ()=>{active=false;};
-  },[source,character]);
+  },[source,character,retry]);
   useEffect(()=>{
     if(!assets)return;
     const values={...source.properties,...edits};
@@ -52,12 +54,16 @@ export default function BillboardGroundPreview({source,edits}){
       setSummary(`실제 점유 ${result.occupiedCells}칸 · 표시 ${result.width.toFixed(1)} × ${result.height.toFixed(1)} px`);
     }catch(problem){canvas.current.width=0;setSummary(problem.message);}
   },[source,edits,assets,zoom,blocking,guides]);
-  return <fieldset><legend>빌보드 배치 미리보기</legend>
+  return <fieldset className="billboard-ground-preview"><legend>빌보드 배치 미리보기</legend>
+    <div className="billboard-preview-controls">
     <label>확대 배율 {zoom}배<input type="range" min=".5" max="4" step=".5" value={zoom} onChange={e=>setZoom(Number(e.target.value))}/></label>
     <label><input type="checkbox" checked={character} onChange={e=>setCharacter(e.target.checked)}/>캐릭터 보기</label>
     <label><input type="checkbox" checked={blocking} onChange={e=>setBlocking(e.target.checked)}/>통행 차단 표시</label>
     <label><input type="checkbox" checked={guides} onChange={e=>setGuides(e.target.checked)}/>높이 기준선</label>
+    </div>
     <canvas ref={canvas} hidden={!assets} aria-label="빌보드 점유와 그림자" style={{maxWidth:"100%"}}/>
     <p role="status">{error || (assets?summary:"원본과 렌더러를 불러오는 중…")}</p>
+    {warning && <p role="status">{warning}</p>}
+    {(error || warning) && <button type="button" onClick={()=>setRetry(n=>n+1)}>미리보기 다시 불러오기</button>}
   </fieldset>;
 }

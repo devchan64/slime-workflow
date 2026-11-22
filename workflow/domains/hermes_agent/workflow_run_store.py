@@ -631,11 +631,11 @@ class WorkflowRunStore:
                    WHERE run.session_id=:session AND (:category='' OR step.category=:category)
                      AND (:state='' OR step.state=:state OR (step.state='submitting'
                           AND :state IN ('queued','running','paused','unknown') AND observation.source_state=:state))
-                     AND (:generator='' OR contract.generator=:generator)
+                     AND (:generator='' OR instr(lower(contract.generator),lower(:generator))>0)
                      AND (:run_id='' OR step.run_id=:run_id)
-                     AND (:job_id='' OR step.request_id=:job_id OR observation.source_job_id=:job_id OR step.step_id=:job_id)
-                     AND (:created_from='' OR date(timing.created_at)>=:created_from)
-                     AND (:created_through='' OR date(timing.created_at)<=:created_through)
+                     AND (:job_id='' OR instr(lower(step.request_id),lower(:job_id))>0 OR instr(lower(observation.source_job_id),lower(:job_id))>0 OR instr(lower(step.step_id),lower(:job_id))>0)
+                     AND (:created_from='' OR date(timing.created_at, '+9 hours')>=:created_from)
+                     AND (:created_through='' OR date(timing.created_at, '+9 hours')<=:created_through)
                    ORDER BY step.rowid DESC LIMIT 101""",
                 query_filter_values | {"session": conversation_session_identifier, "category": current_category_name, "state": current_state_name}).fetchall()
         return {"steps": [dict(current_step_record) for current_step_record in matching_step_records[:100]],

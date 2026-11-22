@@ -29,7 +29,7 @@ function HistoryThumbnail({src}) {
   return <img className="history-card-image" loading="lazy" decoding="async" src={src} alt="생성 결과 미리보기" onError={()=>setFailed(true)}/>;
 }
 
-export default function GeneratorHistory({service, statusCommand, restore, inspectResult, openResult, renderResult, readJob, allowPriority=false, onSelectedDeleted}) {
+export default function GeneratorHistory({service, statusCommand, restore, inspectResult, openResult, renderResult, readJob, allowPriority=false, onSelectedDeleted, card=false, preserveExpandedOnClose=false}) {
   const resultPanelId=useId();
   const [expanded,setExpanded]=useState(null);
   const [page,setPage]=useState(null);
@@ -98,9 +98,9 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
     const result=await read(id);
     setJob(result);
   }
-  return <details className="generator-history" onToggle={event=>{if(!event.currentTarget.open)setExpanded(null);
-    if(event.currentTarget.open && !page && !error)perform(()=>list(0,query.trim()));}}><summary>생성 이력</summary>
-    <fieldset disabled={busy}><div className="generator-history-toolbar">
+  return <details className={`generator-history${card ? ' generator-section-card' : ''}`} onToggle={event=>{if(!event.currentTarget.open && !preserveExpandedOnClose)setExpanded(null);
+    if(event.currentTarget.open && !page && !error)perform(()=>list(0,query.trim()));}}><summary>{card ? <span className="generator-section-card-heading" role="heading" aria-level="2">생성 이력</span> : '생성 이력'}</summary>
+    <fieldset className={card ? 'generator-section-card-body' : undefined} disabled={busy}><div className="generator-history-toolbar">
       <label>작업 ID 검색 <input ref={searchRef} value={query} maxLength={80} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Enter" && !e.nativeEvent.isComposing){e.preventDefault();perform(()=>list(0,query.trim()));}}}/></label>
       <label>페이지당 이력 <select value={pageSize} onChange={e=>{const size=Number(e.target.value);perform(()=>list(0,query.trim(),size));}}>{[5,10,20,30].map(size=><option key={size} value={size}>{size}건</option>)}</select></label>
       <button type="button" onClick={()=>perform(()=>list(0,query.trim()))}>{busy?"조회 중…":page && query.trim()===filter?"이력 새로고침":"이력 조회"}</button>

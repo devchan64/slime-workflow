@@ -157,10 +157,11 @@ export default function EffectEditor(){
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
   }
-  return <article><h1>이펙트 좌표 검수</h1><fieldset disabled={busy}><legend>이펙트 선택</legend>
+  return <article className="effect-editor-page"><h1>이펙트 좌표 검수</h1><fieldset className="effect-editor-picker" disabled={busy}><legend>이펙트 선택</legend>
     <select aria-label="이펙트" value={selected} onChange={e=>{select(e.target.value);setDetail(null);}}>
+      {!effects.length && <option value="">{busy ? "목록 조회 중…" : error ? "이펙트 목록 조회 실패" : "선택할 이펙트가 없습니다"}</option>}
       {effects.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select>
-    <button onClick={()=>reload(n=>n+1)}>목록 새로고침</button><button disabled={!selected} onClick={load}>선택 이펙트 불러오기</button></fieldset>
+    <button onClick={()=>reload(n=>n+1)}>목록 새로고침</button><button disabled={!effects.some(item=>item.id===selected)} onClick={load}>선택 이펙트 불러오기</button></fieldset>
     {error && <p role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
     {detail && <section><h2>{detail.document.name}</h2><p>{detail.document.renderer} · {detail.document.frames}프레임</p>

@@ -15,10 +15,13 @@ def _text(value):
     return value
 
 
-def enqueue(store: HermesSessionStore, session_id, request_id, prompt):
+def enqueue(store: HermesSessionStore, session_id, request_id, prompt, model_profile=None):
     if not isinstance(request_id, str) or not _REQUEST_ID.fullmatch(request_id):
         raise ValueError('접수 ID 형식 오류')
     prompt = _text(prompt)
+    from workflow.common.hermes_model_routing import MODEL_FLOORS_MIB
+    if model_profile is not None and (not isinstance(model_profile, str) or model_profile not in MODEL_FLOORS_MIB):
+        raise ValueError('지원하지 않는 Hermes 모델입니다.')
     with store.hold_session_storage_lock():
         session = store.read_session_record_locked(session_id)
         queue = session.setdefault('chat_queue', [])
@@ -26,7 +29,7 @@ def enqueue(store: HermesSessionStore, session_id, request_id, prompt):
             raise ValueError('대기열 기록 형식 오류')
         prior = next((row for row in queue if row.get('request_id') == request_id), None)
         if prior is not None:
-            if prior.get('original_prompt') != prompt:
+            if prior.get('original_prompt') != prompt or prior.get('model_profile') != model_profile:
                 raise ValueError('같은 접수 ID를 다른 요청에 사용할 수 없습니다.')
             return {'request': dict(prior), 'duplicate': True}
         if any(row.get('request_id') == request_id for row in session['messages']):
@@ -36,6 +39,8 @@ def enqueue(store: HermesSessionStore, session_id, request_id, prompt):
         now = datetime.now(timezone.utc).isoformat()
         row = {'request_id':request_id, 'original_prompt':prompt, 'prompt':prompt,
                'revision':1, 'state':'queued', 'created_at':now}
+        if model_profile is not None:
+            row['model_profile'] = model_profile
         queue.append(row)
         session['updated_at'] = now
         write_record_atomically(store.resolve_session_record_path(session_id), session)

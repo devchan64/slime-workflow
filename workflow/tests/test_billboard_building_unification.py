@@ -7,8 +7,6 @@ from unittest.mock import Mock
 from PIL import Image
 
 from workflow.common.management_runtime import build_building_compatibility_handler
-from workflow.common.management_asgi import QWEN_INTERFACE_OPTIONS
-from gui.ui.gradio.qwen_2511_app import build_qwen_2511_interface
 
 
 class BillboardBuildingUnificationTests(unittest.TestCase):
@@ -29,35 +27,46 @@ class BillboardBuildingUnificationTests(unittest.TestCase):
             build_building_compatibility_handler(current_service_mock)(current_handler_value)
         self.assertEqual(current_handler_value.path, '/building-generator/jobs')
 
-    def test_one_interface_contains_both_guides(self):
-        self.assertEqual(QWEN_INTERFACE_OPTIONS['building-generator'], QWEN_INTERFACE_OPTIONS['billboard-generator'])
-        current_interface_blocks = build_qwen_2511_interface('http://127.0.0.1:8770', **QWEN_INTERFACE_OPTIONS['billboard-generator'])
-        current_component_records = current_interface_blocks.config['components']
-        current_component_labels = [current_record.get('props', {}).get('label') for current_record in current_component_records]
-        self.assertNotIn('건물 구도 프리셋', current_component_labels)
-        self.assertIn('가이드 프리셋', current_component_labels)
-        self.assertNotIn('건물 높이 · 건물 프리셋에만 적용', current_component_labels)
-        self.assertIn('건물 기본 프롬프트 추가', current_component_labels)
-        current_generate_buttons=[current_record for current_record in current_component_records if current_record.get('props',{}).get('value')=='생성 불가 · 아카이브']
-        self.assertEqual(len(current_generate_buttons),1)
-        self.assertFalse(current_generate_buttons[0]['props']['interactive'])
-        self.assertFalse(any(current_record.get('props',{}).get('value')=='대기열에 추가' for current_record in current_component_records))
+    def test_flux_profiles_have_distinct_menus_and_guides(self):
+        from http.server import SimpleHTTPRequestHandler
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from fastapi.testclient import TestClient
+        from workflow.common.management_asgi import build_management_application
+        from workflow.common.management_catalog import REACT_REVIEW_PATHS
+        self.assertNotEqual(REACT_REVIEW_PATHS['flux-building-generator'],REACT_REVIEW_PATHS['flux-billboard-generator'])
+        with TemporaryDirectory() as directory:
+            root=Path(directory);app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with TestClient(app) as client:
+                building=client.get('/management/assistant/flux-defaults/flux-building').json()
+                billboard=client.get('/management/assistant/flux-defaults/flux-billboard').json()
+                self.assertTrue(building['guides'])
+                self.assertTrue(billboard['layouts'])
+                self.assertNotIn('layouts',building)
+                self.assertNotIn('guides',billboard)
 
-    def test_unified_guide_applies_matching_prompt_and_reference(self):
+    def test_flux_guides_supply_matching_prompt_and_reference(self):
+        from http.server import SimpleHTTPRequestHandler
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from fastapi.testclient import TestClient
+        from workflow.common.management_asgi import build_management_application
         from workflow.domains.image.billboard_guide_prompt import BILLBOARD_LAYOUT_PROFILES
         from workflow.domains.image.building_prompt import BUILDING_LAYOUT_PRESET_NAMES
-        current_interface_blocks = build_qwen_2511_interface('http://127.0.0.1:8770', **QWEN_INTERFACE_OPTIONS['billboard-generator'])
-        current_callback_value = next(current_function.fn for current_function in current_interface_blocks.fns.values() if current_function.fn and current_function.fn.__name__ == 'apply_billboard_guide_inputs')
-        for current_profile_name in BILLBOARD_LAYOUT_PROFILES:
-            current_image_value, current_prompt_text, current_building_enabled = current_callback_value(current_profile_name, 'stone house')
-            self.assertTrue(current_image_value.size)
-            self.assertFalse(current_building_enabled)
-            self.assertIn('stone house', current_prompt_text)
-        for current_profile_name in BUILDING_LAYOUT_PRESET_NAMES:
-            current_image_value, current_prompt_text, current_building_enabled = current_callback_value('building:' + current_profile_name, 'stone house')
-            self.assertEqual(current_image_value.size,(1024,1024))
-            self.assertTrue(current_building_enabled)
-            self.assertIn('Door:',current_prompt_text)
+        with TemporaryDirectory() as directory:
+            root=Path(directory);app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with TestClient(app) as client:
+                for profile in BILLBOARD_LAYOUT_PROFILES:
+                    with self.subTest(profile=profile):
+                        response=client.post('/management/assistant/flux-billboard-guide',json={'layout':profile,'subject':'stone house'})
+                        self.assertEqual(response.status_code,200,response.text)
+                        data=response.json();self.assertIn('stone house',data['prompt'])
+                        with Image.open(io.BytesIO(base64.b64decode(data['image']))) as image:self.assertGreater(image.width,0)
+                for profile in BUILDING_LAYOUT_PRESET_NAMES:
+                    with self.subTest(profile=profile):
+                        response=client.get('/management/assistant/flux-building-guide/'+profile)
+                        self.assertEqual(response.status_code,200)
+                        with Image.open(io.BytesIO(response.content)) as image:self.assertEqual(image.size,(1024,1024))
 
     def test_unified_service_requires_a_reference(self):
         from workflow.domains.image.billboard_generation import BillboardGuideGenerationManager

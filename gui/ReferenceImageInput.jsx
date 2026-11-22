@@ -1,18 +1,24 @@
 import React, {useEffect,useRef,useState} from "react";
 import {referenceImageError} from "./referenceImageValidation.mjs";
 
-export default function ReferenceImageInput({label,source,onChange,accept="image/*",disabled=false,maxBytes=null,validate=null}) {
-  const input=useRef(null),disabledRef=useRef(disabled),requestRef=useRef(0);
+export default function ReferenceImageInput({label,source,onChange,accept="image/*",disabled=false,maxBytes=null,validate=null,describedBy}) {
+  const input=useRef(null),disabledRef=useRef(disabled),requestRef=useRef(0),restoreFocus=useRef(false);
   disabledRef.current=disabled;
   const [preview,setPreview]=useState(""),[error,setError]=useState(""),[checking,setChecking]=useState(false);
   useEffect(()=>()=>{requestRef.current+=1;},[]);
   useEffect(()=>{
     requestRef.current+=1;setChecking(false);setError("");
+    if(source && restoreFocus.current)restoreFocus.current=false;
     if (!source) {setPreview("");return;}
     if (typeof source === "string") {setPreview(source);return;}
     const url=URL.createObjectURL(source);setPreview(url);
     return ()=>URL.revokeObjectURL(url);
   },[source]);
+  useEffect(()=>{
+    if(preview || !restoreFocus.current)return;
+    restoreFocus.current=false;
+    if(document.activeElement===document.body && !disabledRef.current)input.current?.focus();
+  },[preview]);
   async function select(file){
     if(!file || disabledRef.current)return;
     const sequence=++requestRef.current;
@@ -38,13 +44,14 @@ export default function ReferenceImageInput({label,source,onChange,accept="image
       throw new Error("클립보드에서 이미지를 찾을 수 없습니다.");
     } catch(problem){if(sequence===requestRef.current){setChecking(false);setError(problem.message || "클립보드를 읽을 수 없습니다. 파일을 선택하세요.");}}
   }
-  return <div className="reference-image-input" onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();select(event.dataTransfer.files[0]);}}>
+  return <div className={"reference-image-input"+(disabled ? " is-disabled" : "")} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();select(event.dataTransfer.files[0]);}}>
     <span>{label}</span>
     {maxBytes!==null && <small>PNG · 파일당 최대 {maxBytes/1000000}MB</small>}
-    {preview ? <img src={preview} alt={label+" 미리보기"}/> : <p>이미지를 여기에 놓거나 파일을 선택하세요.</p>}
-    <div className="choice-buttons"><label className="reference-image-file">파일 선택<input ref={input} type="file" disabled={disabled || checking} accept={accept} aria-label={label} onChange={event=>{select(event.target.files[0]);event.target.value="";}}/></label>
+    {preview ? <img src={preview} alt={label+" 미리보기"}/> : <p>{disabled ? "현재 이미지를 선택할 수 없습니다." : "이미지를 여기에 놓거나 파일을 선택하세요."}</p>}
+    {preview && typeof source?.name==="string" && source.name && <small className="reference-image-name">선택한 파일 · {source.name}</small>}
+    <div className="choice-buttons"><label className="reference-image-file">파일 선택<input ref={input} type="file" disabled={disabled || checking} accept={accept} aria-label={label} aria-describedby={describedBy} onChange={event=>{select(event.target.files[0]);event.target.value="";}}/></label>
       <button type="button" disabled={disabled || checking} onClick={paste}>클립보드 붙여넣기</button>
-      {preview && <button type="button" disabled={disabled || checking} onClick={()=>{setError("");onChange(null);}}>이미지 제거</button>}</div>
+      {preview && <button type="button" disabled={disabled || checking} onClick={()=>{restoreFocus.current=true;setError("");onChange(null);}}>이미지 제거</button>}</div>
     {checking && <p role="status">이미지 확인 중…</p>}
     {error && <p role="alert">{error}{source && " 기존 이미지는 유지됩니다."}</p>}
   </div>;

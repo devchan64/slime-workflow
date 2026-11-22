@@ -1,10 +1,15 @@
-import React from "react";
+import React, {useRef} from "react";
 
-export default function QueuePagination({page,size,total,onPage,onSize,label}){
+export default function QueuePagination({page,size,total,onPage,onSize,label,onPageFocus}){
   const pages=Math.max(1,Math.ceil(total/size));
   const current=Math.min(page,pages-1);
+  const previous=useRef(null),next=useRef(null);
+  function movePage(target,button,other){
+    onPage(target);
+    requestAnimationFrame(()=>{if(onPageFocus)onPageFocus();else if(button.current?.disabled)other.current?.focus();});
+  }
   return <nav className="queue-pagination" aria-label={label}>
     <label>페이지 크기 <select value={size} onChange={event=>onSize(Number(event.target.value))}><option value={5}>5개</option><option value={10}>10개</option></select></label>
-    <div><button type="button" disabled={current===0} onClick={()=>onPage(current-1)}>이전</button><span aria-live="polite"> {current+1} / {pages} 페이지 · {total}건 </span><button type="button" disabled={current>=pages-1} onClick={()=>onPage(current+1)}>다음</button></div>
+    <div><button ref={previous} type="button" disabled={current===0} onClick={()=>movePage(current-1,previous,next)}>이전</button><span aria-live="polite"> {current+1} / {pages} 페이지 · {total}건 </span><button ref={next} type="button" disabled={current>=pages-1} onClick={()=>movePage(current+1,next,previous)}>다음</button></div>
   </nav>;
 }

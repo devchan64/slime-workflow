@@ -97,6 +97,7 @@ export default function BuildingEditor(){
     let active=true;
     setCatalog(null);setError("");
     managementCommand("map-assets","building-list",{}).then(result=>{
+      if(!Array.isArray(result?.assets))throw new Error("건물 목록 응답을 확인할 수 없습니다.");
       if(active){
         setCatalog(result);
         setSelected(previous=>result.assets.some(row=>row.texture===previous)?previous:result.assets[0]?.texture || "");
@@ -116,7 +117,7 @@ export default function BuildingEditor(){
     finally{setBusy(false);}
   }
   const image=id=>"/management/assistant/building-image/"+encodeURIComponent(id);
-  return <article><h1>건물 에셋 관리</h1>
+  return <article className="building-editor-page"><h1>건물 에셋 관리</h1>
     <button disabled={busy} onClick={()=>reload(value=>value+1)}>건물 목록 다시 읽기</button>
     {notice && <p role="status">{notice}</p>}
     {error && <p role="alert">{error}</p>}

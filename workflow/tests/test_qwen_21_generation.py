@@ -26,18 +26,10 @@ class QwenPlainGenerationTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, '라이선스'):
             download_expression_adapter()
 
-    def test_qwen_uses_shared_runtime_for_worker_and_validation(self):
-        from generators.image.run_qwen_21_reference import QWEN_ENVIRONMENT_ROOT
-        from workflow.domains.image import qwen_21_generation
-        from workflow.domains.image.seamless_generation import SeamlessGenerationManager
-        current_shared_environment = qwen_21_generation.WORKFLOW_ROOT_PATH / '.venv'
-        self.assertEqual(QWEN_ENVIRONMENT_ROOT, current_shared_environment)
-        with patch.object(qwen_21_generation, 'validate_qwen_model_assets'), patch.object(qwen_21_generation, 'validate_image_runtime') as current_runtime_check:
-            QwenPlainGenerationManager().validate_generation_runtime()
-            current_runtime_check.assert_called_once_with(current_shared_environment)
-        with patch('generators.image.qwen_21_runtime.validate_qwen_model_assets'), patch('workflow.domains.image.image_runtime.validate_image_runtime') as current_runtime_check:
-            SeamlessGenerationManager().validate_generation_runtime()
-            current_runtime_check.assert_called_once_with(current_shared_environment)
+    def test_retired_qwen_worker_refuses_execution(self):
+        from generators.image.run_qwen_21_reference import execute_qwen_reference_worker
+        with self.assertRaisesRegex(RuntimeError, '폐기'):
+            execute_qwen_reference_worker()
 
     def create_reference_request(self, reference_image_count=0):
         current_image_buffer = io.BytesIO()
@@ -188,8 +180,7 @@ class QwenPlainGenerationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 validate_qwen_plain_request({**current_request_record,'width':invalid_output_size})
 
-    def test_transparent_reference_gui_service_and_resume(self):
-        from gui.ui.gradio.qwen_2511_app import prepare_reference_image_bytes
+    def test_transparent_reference_service_and_resume(self):
         current_reference_image = Image.new('RGBA', (3, 1), (255, 0, 0, 0))
         current_reference_image.putpixel((1, 0), (255, 0, 0, 128))
         current_reference_image.putpixel((2, 0), (255, 0, 0, 255))
@@ -199,7 +190,6 @@ class QwenPlainGenerationTests(unittest.TestCase):
         current_request_record['images'] = [base64.b64encode(current_image_buffer.getvalue()).decode()]
         validated_request_record = validate_qwen_plain_request(current_request_record)
         normalized_reference_bytes = base64.b64decode(validated_request_record['images'][0])
-        self.assertEqual(prepare_reference_image_bytes([current_reference_image], composite_transparent_background=True), [normalized_reference_bytes])
         with Image.open(io.BytesIO(normalized_reference_bytes)) as normalized_reference_image:
             self.assertEqual(normalized_reference_image.mode, 'RGB')
             self.assertEqual(list(normalized_reference_image.getdata()), [(255,255,255),(255,127,127),(255,0,0)])

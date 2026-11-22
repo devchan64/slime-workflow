@@ -46,7 +46,7 @@ def validate_semantic_review(semantic_response_record, semantic_clause_values, s
             raise ValueError('의미 검토 판정에 번역 근거가 없습니다.')
         semantic_result_map[semantic_result_id] = semantic_result_record
     semantic_verdict_labels = {'preserved': '유지 가능성', 'contradicted': '상충 가능성', 'missing': '누락 가능성', 'uncertain': '판단 불확실'}
-    return [{'source': semantic_clause_values[semantic_result_id], 'target': semantic_verdict_labels[semantic_result_map[semantic_result_id]['verdict']] + ' · 근거: ' + (semantic_result_map[semantic_result_id]['evidence'] or '없음'), 'status': 'review', 'source_ref': '작가 AI Qwen3.5-4B 의미 검토 · 수동 확인'} for semantic_result_id in range(len(semantic_clause_values))]
+    return [{'source': semantic_clause_values[semantic_result_id], 'target': semantic_verdict_labels[semantic_result_map[semantic_result_id]['verdict']] + ' · 근거: ' + (semantic_result_map[semantic_result_id]['evidence'] or '없음'), 'status': 'review', 'source_ref': '작가 AI Qwen 3.8 의미 검토 · 수동 확인'} for semantic_result_id in range(len(semantic_clause_values))]
 
 
 def execute_semantic_review(semantic_request_record, semantic_job_path):

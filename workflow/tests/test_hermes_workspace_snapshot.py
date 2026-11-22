@@ -46,6 +46,17 @@ class WorkspaceSnapshotTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '심볼릭 링크'):
             snapshot_module_value.copy_snapshot_source_files(self.source_repository_path, self.snapshot_repository_path)
 
+    def test_ignored_heartmula_runtime_link_is_not_snapshot_source(self):
+        project_ignore = Path(__file__).resolve().parents[2] / '.gitignore'
+        (self.source_repository_path / '.gitignore').write_text(project_ignore.read_text())
+        runtime = self.source_repository_path / '.local' / 'heartmula-runtime'
+        runtime.mkdir(parents=True)
+        (runtime / 'weights').write_text('runtime data')
+        (self.source_repository_path / '.venv-music-heartmula').symlink_to('.local/heartmula-runtime')
+        snapshot_module_value.copy_snapshot_source_files(self.source_repository_path, self.snapshot_repository_path)
+        self.assertFalse((self.snapshot_repository_path / '.venv-music-heartmula').exists())
+        self.assertFalse((self.snapshot_repository_path / '.local').exists())
+
     def test_snapshot_preserves_only_the_fixed_compatibility_link(self):
         target = self.source_repository_path / 'tools/management/generators'
         target.mkdir(parents=True)

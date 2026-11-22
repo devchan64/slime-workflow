@@ -106,19 +106,22 @@ class DashengAudioEffectsTests(unittest.TestCase):
                 self.current_service_instance.create_music_job({'prompt':'short impact', **current_invalid_input})
         self.current_launch_mock.assert_not_called()
 
-    def test_cli_and_gui_use_same_service_history(self):
-        from gui.ui.gradio import music_app
-        with patch('workflow.common.management_gateway.execute_management_command', side_effect=lambda current_service_name,current_command_name,current_payload_record,current_server_address=None,**current_options: self.current_service_instance.execute_music_command(current_command_name,current_payload_record)), patch('sys.stdout', new_callable=io.StringIO):
+    def test_cli_and_current_gui_restore_same_service_history(self):
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from workflow.common.management_asgi import build_management_application
+        with patch('workflow.common.management_gateway.execute_management_command', side_effect=lambda service,command,payload,current_server_address=None,**options:self.current_service_instance.execute_music_command(command,payload)),patch('sys.stdout',new_callable=io.StringIO):
             execute_gateway_arguments('sfx-dasheng-audiogen',['generate','--prompt','water splash','--seed','7','--detach'])
-        current_history_record = self.current_service_instance.list_music_history()[0]
-        self.assertEqual(current_history_record['request']['duration_seconds'], None)
-        with patch.object(music_app, 'execute_remote_management_command', side_effect=lambda current_service_name,current_command_name,current_payload_record: self.current_service_instance.execute_music_command(current_command_name,current_payload_record)):
-            current_interface_blocks = music_app.build_music_interface('sfx-dasheng-audiogen', 'http://127.0.0.1:8770')
-            current_restore_callback = next(current_event.fn for current_event in current_interface_blocks.fns.values() if current_event.fn and current_event.fn.__name__=='restore_selected_inputs')
-            current_restore_values = current_restore_callback(current_history_record['id'])
-            self.assertEqual(tuple(current_restore_values[:5]), ('water splash',None,7,False,''))
-        self.assertEqual(self.current_launch_mock.call_count, 1)
-        self.assertEqual(self.current_launch_mock.call_args.args[2], 'sfx-dasheng-audiogen')
+        record=self.current_service_instance.list_music_history()[0]
+        self.assertIsNone(record['request']['duration_seconds'])
+        app=build_management_application(SimpleHTTPRequestHandler,self.current_test_root,self.current_test_root/'source.json',8770,[])
+        with patch('workflow.domains.music.generation.MusicGenerationManager',return_value=self.current_service_instance),TestClient(app) as client:
+            response=client.get('/management/assistant/sfx-input/'+record['id'])
+            self.assertEqual(response.status_code,200)
+            self.assertEqual(response.json()['request'],{'prompt':'water splash','seed':7,'loop_request':False,'tag':''})
+            self.assertEqual(client.get('/management/assistant/sfx-input/invalid').status_code,404)
+        self.assertEqual(self.current_launch_mock.call_count,1)
+        self.assertEqual(self.current_launch_mock.call_args.args[2],'sfx-dasheng-audiogen')
 
     def test_result_route_uses_effects_wav_and_rejects_escape(self):
         current_job_record = self.current_service_instance.create_music_job({'prompt':'short impact'})
@@ -185,25 +188,10 @@ class DashengAudioEffectsTests(unittest.TestCase):
                 load_music_defaults('sfx-dasheng-audiogen')
 
     def test_confirmation_cancel_and_duplicate_submission(self):
-        from gui.ui.gradio import music_app
-        with patch.object(music_app, 'execute_remote_management_command', return_value={'id':'mock-job'}) as current_command_mock:
-            current_interface_blocks = music_app.build_music_interface('sfx-dasheng-audiogen', 'http://127.0.0.1:8770')
-            current_event_functions = [current_event.fn for current_event in current_interface_blocks.fns.values() if current_event.fn]
-            current_prepare_callback = next(current_function_value for current_function_value in current_event_functions if current_function_value.__name__=='prepare_generation_confirmation')
-            current_cancel_callback = next(current_function_value for current_function_value in current_event_functions if current_function_value.__name__=='cancel_generation_confirmation')
-            current_execute_callback = next(current_function_value for current_function_value in current_event_functions if current_function_value.__name__=='execute_confirmed_generation')
-            current_pending_record = current_prepare_callback('wet impact',None,42,False,'test')[0]
-            current_cancel_callback(current_pending_record,'wet impact','',False)
-            with self.assertRaises(Exception):
-                list(current_execute_callback(current_pending_record))
-            current_command_mock.assert_not_called()
-            current_pending_record = current_prepare_callback('wet impact',None,42,False,'test')[0]
-            current_result_values = list(current_execute_callback(current_pending_record))
-            self.assertEqual(current_result_values[0][0], 'mock-job')
-            self.assertEqual(current_command_mock.call_args.args[:2], ('sfx-dasheng-audiogen','generate'))
-            with self.assertRaises(Exception):
-                list(current_execute_callback(current_pending_record))
-            self.assertEqual(current_command_mock.call_count, 1)
+        import subprocess
+        root=Path(__file__).resolve().parents[2]
+        result=subprocess.run(['node','--test',str(root/'workflow/tests/confirmation_gate.test.mjs')],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
     def test_worker_terminal_states_and_resume_keep_attempts(self):
         from generators.music.worker import execute_music_worker

@@ -35,22 +35,19 @@ class MusicGenerationTests(unittest.TestCase):
             self.assertGreaterEqual(len(current_song_lines) - current_section_positions[1] - 1, 2)
 
 
-    def test_example_pagination_preserves_all_records(self):
+    def test_example_endpoint_preserves_all_records(self):
+        from http.server import SimpleHTTPRequestHandler
+        from fastapi.testclient import TestClient
+        from workflow.common.management_asgi import build_management_application
         from generators.music.examples import load_music_examples
-        from workflow.common.gradio_example_picker import paginate_example_records
-        current_example_records = load_music_examples('music-heartmula')
-        current_seen_identifiers = []
-        for current_page_number in range(1,5):
-            current_page_result = paginate_example_records(current_example_records,current_page_number)
-            current_seen_identifiers.extend(current_choice_record[1] for current_choice_record in current_page_result[0]['choices'])
-            self.assertEqual(current_page_result[3]['interactive'],current_page_number>1)
-            self.assertEqual(current_page_result[4]['interactive'],current_page_number<4)
-            self.assertEqual(current_page_result[0]['value'],current_page_result[0]['choices'][0][1])
-        self.assertEqual(current_seen_identifiers,[current_example_record['id'] for current_example_record in current_example_records])
-        self.assertEqual(paginate_example_records(current_example_records,999)[1],4)
-        self.assertEqual(paginate_example_records(current_example_records,0)[1],1)
-        with self.assertRaises(ValueError):
-            paginate_example_records([],1)
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with TestClient(app) as client:response=client.get('/management/assistant/heartmula-examples')
+        self.assertEqual(response.status_code,200)
+        records=response.json()
+        self.assertEqual(records,load_music_examples('music-heartmula'))
+        self.assertEqual(len({item['id'] for item in records}),len(records))
+        self.assertTrue(all(item['request']['prompt'] and isinstance(item['request']['lyrics'],str) for item in records))
 
     def test_heartmula_empty_lyrics_experiment(self):
         current_request_record = validate_music_request('music-heartmula', {'prompt':'piano,happy','lyrics':''})
@@ -64,30 +61,27 @@ class MusicGenerationTests(unittest.TestCase):
         self.assertNotIn('instrumental', load_music_defaults('music-heartmula')['prompt'])
 
     def test_saved_music_inputs_restore_without_execution(self):
-        from gui.ui.gradio import music_app
-        for current_service_name in ('music-minimax',):
-            with self.subTest(service=current_service_name):
-                current_request_record=build_music_request(current_service_name,{'prompt':'soft flute','duration_seconds':15,'seed':77,'loop_request':True,'tag':'복원 검증'})
-                current_history_record={'id':'isolated-music','request':current_request_record,'status':'completed'}
-                with patch.object(music_app,'execute_remote_management_command',return_value={'records':[current_history_record]}) as current_command_mock:
-                    current_interface_blocks=music_app.build_music_interface(current_service_name,'http://127.0.0.1:8798')
-                    current_restore_callback=next(current_event.fn for current_event in current_interface_blocks.fns.values() if current_event.fn and current_event.fn.__name__=='restore_selected_inputs')
-                    current_restored_values=current_restore_callback('isolated-music')
-                    self.assertEqual(tuple(current_restored_values[:6]),('soft flute',15,77,True,'복원 검증','isolated-music'))
-                    self.assertEqual(tuple(current_restored_values[7:9]),('[Instrumental]',True))
-                    current_history_record['request'] = build_music_request(current_service_name,{'prompt':'soft flute','lyrics':'[verse] Morning light','duration_seconds':15})
-                    current_new_restore = current_restore_callback('isolated-music')
-                    self.assertEqual(tuple(current_new_restore[7:9]),('[verse] Morning light',False))
-                    for current_invalid_fields in ({'duration_seconds': -1}, {'seed': True}, {'loop_request': 'yes'}, {'prompt': ''}):
-                        current_history_record['request'] = {**current_request_record, **current_invalid_fields}
-                        current_rejected_values = current_restore_callback('isolated-music')
-                        self.assertTrue(all(current_value == {'__type__': 'update'} for current_value in current_rejected_values[:6]))
-                        self.assertIn('입력값을 불러오지 못했습니다', current_rejected_values[-1])
-                    current_history_record['request']={'action':'prepare'}
-                    current_rejected_values=current_restore_callback('isolated-music')
-                    self.assertTrue(all(current_value=={'__type__':'update'} for current_value in current_rejected_values[:6]))
-                    self.assertIn('모델 준비 이력에는 음악 입력이 없습니다',current_rejected_values[-1])
-                    self.assertTrue(all(current_call.args[1]=='history' for current_call in current_command_mock.call_args_list))
+        from http.server import SimpleHTTPRequestHandler
+        from fastapi.testclient import TestClient
+        from workflow.common.management_asgi import build_management_application
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);job=root/'job';job.mkdir();path=job/'request.json'
+            request=build_music_request('music-heartmula',{'prompt':'piano,soft','lyrics':'[verse] Morning light','duration_seconds':15,'seed':77,'loop_request':False,'tag':'복원 검증'})
+            write_record_atomically(path,request)
+            app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with patch('workflow.domains.music.generation.MusicGenerationManager') as manager, TestClient(app) as client:
+                manager.return_value.resolve_music_job.return_value=job
+                original=path.read_bytes()
+                response=client.get('/management/assistant/heartmula-input/isolated-music')
+                self.assertEqual(response.status_code,200,response.text)
+                restored=response.json()['request']
+                self.assertEqual((restored['prompt'],restored['lyrics'],restored['duration_seconds'],restored['seed'],restored['tag']),('piano,soft','[verse] Morning light',15,77,'복원 검증'))
+                self.assertEqual(path.read_bytes(),original)
+                for invalid in ({'duration_seconds':-1},{'seed':True},{'loop_request':'yes'},{'prompt':''},{'action':'prepare'}):
+                    with self.subTest(invalid=invalid):
+                        write_record_atomically(path,{**request,**invalid})
+                        self.assertEqual(client.get('/management/assistant/heartmula-input/isolated-music').status_code,422)
+                manager.return_value.start_music_generation.assert_not_called()
 
     def test_minimax_token_limits_preserve_runtime_frames(self):
         for current_token_count in (125,126,751,1499,1500,1501,2999,3000):
@@ -102,16 +96,10 @@ class MusicGenerationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_music_request('sfx-dasheng-audiogen',{'prompt':'punch','max_new_tokens':750})
 
-    def test_minimax_gui_tokens_reach_shared_gateway(self):
-        from gui.ui.gradio import music_app
-        with patch.object(music_app,'execute_remote_management_command',return_value={'id':'test-only'}) as current_command_mock, patch.object(music_app,'bind_gpu_generation_confirmation') as current_bind_mock:
-            current_interface_blocks = music_app.build_music_interface('music-minimax','http://127.0.0.1:8798')
-            current_start_callback = next(current_call.args[1] for current_call in current_bind_mock.call_args_list if current_call.args[1].__name__=='start_music_generation')
-            current_start_callback('soft flute',30.04,42,False,'test')
-            self.assertEqual(current_command_mock.call_args.args[2]['duration_seconds'],30.04)
-            self.assertNotIn('max_new_tokens',current_command_mock.call_args.args[2])
-            current_start_callback('acoustic pop',60,7,False,'example',0,'[verse] Morning light',False)
-            self.assertEqual(current_command_mock.call_args.args[2]['lyrics'],'[verse] Morning light')
+    def test_minimax_generation_is_retired_but_history_remains(self):
+        from generators.music.service_constants import inspect_retired_audio_rejection
+        self.assertIn('폐기',inspect_retired_audio_rejection('music-minimax','generate'))
+        self.assertIsNone(inspect_retired_audio_rejection('music-minimax','history'))
 
     def setUp(self):
         self.current_temp_handle = tempfile.TemporaryDirectory()
@@ -552,14 +540,21 @@ class MusicGenerationTests(unittest.TestCase):
                 signal.signal(current_signal_number,current_signal_handler)
 
     def test_audio_history_has_output_indicator(self):
-        from workflow.common.gradio_history import render_history_selection_table
-        current_job_root = self.create_test_job()
-        current_history_record = self.current_music_service.list_music_history()[0]
-        current_history_record['status']['audio']='/music-minimax/jobs/'+current_job_root.name+'/music.wav'
-        current_rendered_markup = render_history_selection_table([current_history_record])
-        self.assertIn('WAV 오디오 결과',current_rendered_markup)
-        self.assertIn('길이(초)',current_rendered_markup)
-        self.assertNotIn('모션 길이',current_rendered_markup)
+        import subprocess
+        from workflow.common.history_summaries import audio_result_available,read_history_summary
+        directory=self.create_test_job();attempt='a'*32
+        write_record_atomically(directory/'result.json',{'attempt':attempt})
+        audio=directory/'attempts'/attempt/'music.wav';audio.parent.mkdir(parents=True);audio.write_bytes(b'RIFF')
+        self.assertTrue(audio_result_available(directory,'music-minimax'))
+        summary=read_history_summary(directory);summary.update(duration_seconds=30,audio_available=True)
+        root=Path(__file__).resolve().parents[2]
+        script="""import {historyInputSummary} from './gui/historyInputSummary.mjs';
+          const values=historyInputSummary(JSON.parse(process.argv[1]));
+          if(!values.includes('WAV 오디오 결과') || !values.includes('길이 30초'))throw Error(JSON.stringify(values));"""
+        result=subprocess.run(['node','--input-type=module','-e',script,json.dumps(summary)],cwd=root,capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        audio.unlink();audio.symlink_to(directory/'request.json')
+        self.assertFalse(audio_result_available(directory,'music-minimax'))
 
     def test_stage_and_final_memory_samples_are_recorded(self):
         from workflow.common.generation_telemetry import GenerationTelemetryRecorder
@@ -574,14 +569,23 @@ class MusicGenerationTests(unittest.TestCase):
             self.assertGreaterEqual(current_memory_sample.call_count,3)
         self.assertEqual(json.loads((current_metrics_root/'metrics.json').read_text())['status'],'failed')
 
-    def test_gui_two_models_have_shared_actions(self):
-        from gui.ui.gradio.music_app import build_music_interface
+    def test_audio_pages_share_model_and_history_controls(self):
+        import os
+        import subprocess
         from workflow.common.management_catalog import DEFAULT_PAGE_RECORDS, NATIVE_MANAGEMENT_APPLICATIONS
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'audio.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'SoundEffectPage.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""global.location={search:''};global.sessionStorage={getItem:()=>null};
+              const React=require('react'),server=require('react-dom/server'),pages=require(process.argv[1]);
+              for(const Page of [pages.HeartmulaPage,pages.default]){
+                const html=server.renderToStaticMarkup(React.createElement(Page,{}));
+                for(const label of ['모델 다운로드·준비','모델 준비 요청 검토','생성 이력'])if(!html.includes(label))throw Error(label);
+              }"""
+            result=subprocess.run(['node','-e',script,str(bundle)],cwd=gui,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+        self.assertEqual(result.returncode,0,result.stderr)
         for current_service_name in ('music-heartmula','sfx-dasheng-audiogen'):
-            current_interface_blocks = build_music_interface(current_service_name,'http://127.0.0.1:9999')
-            current_component_values = [current_component['props'].get('value') for current_component in current_interface_blocks.config['components']]
-            for current_button_label in ('우선 실행 · 대기 작업 선택','선택 이력 삭제','생성 재개','대기열에 추가','모델 다운로드·준비'):
-                self.assertIn(current_button_label,current_component_values)
             self.assertIn(current_service_name,NATIVE_MANAGEMENT_APPLICATIONS)
             self.assertEqual(next(current_page_record for current_page_record in DEFAULT_PAGE_RECORDS if current_page_record['id']==current_service_name)['category'],'sound-management')
 

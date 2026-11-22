@@ -8,6 +8,42 @@ from workflow.domains.hermes_agent.delegation_store import HermesDelegationStore
 
 
 class HermesBuildingOperationsTests(unittest.TestCase):
+    def test_real_session_and_receipt_reach_current_history_protocol(self):
+        import hashlib
+        import json
+        import subprocess
+        from workflow.domains.hermes_agent.service import HermesServiceManager
+        from workflow.domains.hermes_agent.session_store import HermesSessionStore
+        session='a'*32;job='2026-11-18_00-00-00-12345678'
+        request_id='chat_'+hashlib.sha256((session+':'+job+':building').encode()).hexdigest()
+        draft={'texture':'town-test-v1','generation':3,'expected':{'anchorX':0.5,'anchorY':1},'properties':{'anchorX':0.6,'anchorY':1}}
+        answer='HERMES_BUILDING_PROPOSAL\n'+json.dumps(draft)+'\nEND_HERMES_BUILDING_PROPOSAL'
+        catalog={'generation':3,'assets':[{'texture':draft['texture'],'properties':draft['expected'],'maps':[{'map':'test-city'}]}]}
+        with TemporaryDirectory() as directory:
+            root=Path(directory);sessions=HermesSessionStore(root/'sessions');sessions.create_session_record(session)
+            sessions.append_session_request(session,'request_12345678','건물 앵커 변경');sessions.attach_session_job(session,'request_12345678',job)
+            jobdir=root/'jobs'/job;jobdir.mkdir(parents=True)
+            (jobdir/'request.json').write_text(json.dumps({'prompt':'건물 앵커 변경'}))
+            (jobdir/'status.json').write_text(json.dumps({'status':'completed'}))
+            (jobdir/'hermes-events.jsonl').write_text(json.dumps({'type':'result','text':answer})+'\n')
+            manager=HermesServiceManager(hermes_storage_root=root/'jobs',hermes_session_root=root/'sessions')
+            store=HermesDelegationStore(root/'receipts')
+            with patch.object(building_operations,'HermesDelegationStore',return_value=store),patch.object(building_operations,'call_field_map_editor',side_effect=lambda command,_:catalog if command=='building-list' else {'saved':True,'generation':4,'snapshot':'pending'}):
+                review=building_operations.preview_hermes_building_anchor(draft)
+                building_operations.save_hermes_building_anchor(request_id,draft,review['review_sha256'])
+                view=manager.execute_hermes_command('hermes-session-view',{'session_id':session,'offset':0,'limit':6})
+                proposal=manager.execute_hermes_command('hermes-building-proposal',{'id':job})
+                receipt=manager.execute_hermes_command('hermes-building-receipt',{'request_id':request_id})
+            script="""import {readBuildingSessionReceipts,verifyBuildingProposalBeforeSave} from './gui/buildingProposalProtocol.mjs';
+              const [view,proposal,receipt]=JSON.parse(process.argv[1]);
+              const command=async(_,name)=>name==='hermes-session-view'?view:name==='hermes-building-proposal'?proposal:receipt;
+              const result=await readBuildingSessionReceipts(command,view.id);
+              if(result.rows.length!==1 || !result.rows[0][1].includes('town-test-v1') || !result.rows[0][1].includes('원장 반영 대기'))throw Error(JSON.stringify(result.rows));
+              await verifyBuildingProposalBeforeSave(command,view.id,proposal.job_id,{snapshot:view.snapshot,offset:view.offset,draft:proposal.proposal});"""
+            repository=Path(__file__).resolve().parents[2]
+            result=subprocess.run(['node','--input-type=module','-e',script,json.dumps([view,proposal,receipt],ensure_ascii=False)],cwd=repository,capture_output=True,text=True,timeout=30)
+            self.assertEqual(result.returncode,0,result.stderr)
+
     def test_oversized_asset_edit_receipts_are_not_missing(self):
         from workflow.domains.hermes_agent import billboard_operations,sprite_operations
         from workflow.domains.hermes_agent.delegation_store import HERMES_DELEGATION_RECORD_MAXIMUM_BYTES
@@ -21,78 +57,85 @@ class HermesBuildingOperationsTests(unittest.TestCase):
                     with self.assertRaises(ValueError):current_reader('request_123')
 
     def test_conversation_receipt_history_identifies_database_and_no_gpu(self):
-        import hashlib
-        from gui.ui.gradio import operations_history_app
-        current_session='a'*32
-        current_job='2026-11-18_00-00-00-12345678'
-        current_request='chat_'+hashlib.sha256((current_session+':'+current_job+':building').encode()).hexdigest()
-        current_page={'session_id':current_session,'offset':0,'snapshot':'b'*64}
-        def current_gateway(service,command,payload):
-            if command=='hermes-session-view':return {'id':current_session,'offset':0,'snapshot':'b'*64,'messages':[{'job_id':current_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_BUILDING_PROPOSAL'}}]}
-            if command=='hermes-building-proposal':return {'job_id':current_job,'proposal':{'texture':'town-test-v1'}}
-            if command=='hermes-building-receipt':return {'state':'completed','request_id':current_request,'saved':True,'texture':'town-test-v1'}
-            raise AssertionError(command)
-        with patch.object(operations_history_app,'execute_remote_management_command',side_effect=current_gateway):
-            current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
-            self.assertEqual(current_rows[0][3:7],['건물 앵커 DB 저장 기록','해당 없음','GPU 작업 아님','GPU 예약 대상 아님'])
+        import subprocess
+        root=Path(__file__).resolve().parents[2]
+        result=subprocess.run(['node','--test',str(root/'workflow/tests/building_proposal_membership.test.mjs')],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
     def test_history_distinguishes_legacy_and_mismatched_building_target(self):
-        import hashlib
-        from gui.ui.gradio import operations_history_app
-        current_session='a'*32
-        current_job='2026-11-18_00-00-00-12345678'
-        current_request='chat_'+hashlib.sha256((current_session+':'+current_job+':building').encode()).hexdigest()
-        current_page={'session_id':current_session,'offset':0,'snapshot':'b'*64}
-        current_receipt={'state':'completed','request_id':current_request,'saved':True}
-        def current_gateway(service,command,payload):
-            if command=='hermes-session-view':return {'id':current_session,'offset':0,'snapshot':'b'*64,'messages':[{'job_id':current_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_BUILDING_PROPOSAL'}}]}
-            if command=='hermes-building-proposal':return {'job_id':current_job,'proposal':{'texture':'town-test-v1'}}
-            if command=='hermes-building-receipt':return current_receipt
-            raise AssertionError(command)
-        with patch.object(operations_history_app,'execute_remote_management_command',side_effect=current_gateway):
-            current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
-            self.assertIn('대상 미확인',current_rows[0][3])
-            current_receipt['texture']='town-other-v1'
-            current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
-            self.assertEqual(current_rows[0][3],'제안 또는 접수 조회 불가')
-            current_receipt['state']='unknown'
-            current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
-            self.assertEqual(current_rows[0][3],'제안 또는 접수 조회 불가')
+        import subprocess
+        root=Path(__file__).resolve().parents[2]
+        script="""import {buildingReceiptStatus} from './gui/buildingProposalProtocol.mjs';
+          const id='chat_1',texture='town-test-v1';
+          if(!buildingReceiptStatus({request_id:id,state:'completed',saved:true},id,texture).includes('대상 미확인'))throw Error('legacy');
+          let rejected=false;try{buildingReceiptStatus({request_id:id,state:'completed',saved:true,texture:'town-other-v1'},id,texture)}catch{rejected=true}
+          if(!rejected)throw Error('target');
+          if(buildingReceiptStatus({request_id:id,state:'unknown'},id,texture)!=='접수 확인 필요')throw Error('unknown');"""
+        result=subprocess.run(['node','--input-type=module','-e',script],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_building_preview_rechecks_catalog_generation_and_properties(self):
+        draft={'texture':'town-test-v1','generation':3,'expected':{'anchorX':0.5,'anchorY':1},'properties':{'anchorX':0.6,'anchorY':1}}
+        catalog={'generation':3,'assets':[{'texture':'town-test-v1','properties':draft['expected'].copy(),'maps':[{'map':'test-city'}]}]}
+        with patch.object(building_operations,'call_field_map_editor',return_value=catalog):
+            review=building_operations.preview_hermes_building_anchor(draft)
+            self.assertEqual(review['maps'],['test-city'])
+            self.assertEqual(review['before'],draft['expected'])
+            self.assertEqual(review['after'],draft['properties'])
+            catalog['generation']=4
+            with self.assertRaises(ValueError):building_operations.preview_hermes_building_anchor(draft)
+            catalog['generation']=3
+            catalog['assets'][0]['properties']['anchorX']=0.4
+            with self.assertRaises(ValueError):building_operations.preview_hermes_building_anchor(draft)
 
     def test_conversation_proposal_rechecks_current_building_before_save(self):
         import json
+        import subprocess
         from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_building_proposal
-        from gui.ui.gradio import hermes_agent_app
-        current_session='a'*32
-        current_job='2026-11-18_00-00-00-12345678'
         current_draft={'texture':'town-test-v1','generation':3,'expected':{'anchorX':0.5,'anchorY':1},'properties':{'anchorX':0.6,'anchorY':1}}
         current_answer='HERMES_BUILDING_PROPOSAL\n'+json.dumps(current_draft)+'\nEND_HERMES_BUILDING_PROPOSAL'
         self.assertEqual(parse_hermes_building_proposal(current_answer),current_draft)
-        current_catalog={'generation':3,'assets':[{'texture':'town-test-v1','properties':current_draft['expected'],'maps':[{'map':'test-city'}]}]}
-        def current_gateway(service,command,payload):
-            if command=='hermes-building-receipt':return {'state':'not_found'}
-            if command=='hermes-building-proposal':return {'job_id':current_job,'proposal':current_draft}
-            if command=='hermes-building-preview':
-                with patch.object(building_operations,'call_field_map_editor',return_value=current_catalog):return building_operations.preview_hermes_building_anchor(payload['draft'])
-            raise AssertionError(command)
-        with patch.object(hermes_agent_app,'find_conversation_session_job'),patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway):
-            current_card,current_preview,_,_=hermes_agent_app.prepare_conversation_edit_review(current_session,current_job,'building')
-            self.assertTrue(current_card['ready'])
-            self.assertIn('test-city',current_preview)
-            self.assertIn('앵커 X: 0.5 → 0.6',current_preview)
-            self.assertIn('건물: town-test-v1',current_preview)
-            current_catalog['generation']=4
-            with self.assertRaises(ValueError):hermes_agent_app.prepare_conversation_edit_review(current_session,current_job,'building')
+        root=Path(__file__).resolve().parents[2]
+        result=subprocess.run(['node','--test',str(root/'workflow/tests/building_proposal_membership.test.mjs')],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
         current_draft['properties']['anchorY']=float('nan')
         with self.assertRaises(ValueError):parse_hermes_building_proposal('HERMES_BUILDING_PROPOSAL\n'+json.dumps(current_draft)+'\nEND_HERMES_BUILDING_PROPOSAL')
 
     def test_saved_building_status_describes_historical_ledger_state(current_test_case):
-        from gui.ui.gradio.hermes_agent_app import format_building_anchor_saved_status
-        current_message=format_building_anchor_saved_status({'generation':4,'ledger_status_at_save':'pending'})
+        import subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with TemporaryDirectory() as directory:
+            bundle=Path(directory)/'building.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BuildingProposal.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');
+              const {BuildingProposalReceipt}=require(process.argv[1]);
+              const render=receipt=>server.renderToStaticMarkup(React.createElement(BuildingProposalReceipt,{receipt}));
+              process.stdout.write(JSON.stringify([render({state:'completed',saved:true,generation:4,ledger_status_at_save:'pending'}),render({state:'completed',saved:true})]));"""
+            import json
+            current_message,without_pending=json.loads(subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True))
         current_test_case.assertIn('저장 당시 원장 반영 대기',current_message)
         current_test_case.assertIn('DB 세대 4',current_message)
         current_test_case.assertIn('현재 원장 동기화',current_message)
-        current_test_case.assertNotIn('반영 대기',format_building_anchor_saved_status({}))
+        current_test_case.assertNotIn('반영 대기',without_pending)
+        current_test_case.assertIn('건물 대상 미확인',current_message)
+
+    def test_current_building_review_shows_values_and_explicit_actions(self):
+        import subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with TemporaryDirectory() as directory:
+            bundle=Path(directory)/'building.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BuildingProposal.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');
+              const {BuildingProposalReview}=require(process.argv[1]);
+              const preview={texture:'town-test-v1',generation:3,before:{anchorX:0.5,anchorY:1},after:{anchorX:0.6,anchorY:1},maps:['test-city']};
+              const render=busy=>server.renderToStaticMarkup(React.createElement(BuildingProposalReview,{preview,busy}));
+              process.stdout.write(JSON.stringify([render(false),render(true)]));"""
+            import json
+            html,busy_html=json.loads(subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True))
+        for text in ('town-test-v1','앵커 X','0.5','0.6','test-city','확인 후 저장','취소','GPU 생성 작업은 실행하지 않습니다'):
+            self.assertIn(text,html)
+        self.assertEqual(html.count('disabled='),0)
+        self.assertEqual(busy_html.count('disabled='),2)
 
     def test_review_save_duplicate_and_response_loss(self):
         current_draft_value={'texture':'town-test-v1','generation':3,'expected':{'anchorX':0.5,'anchorY':1},'properties':{'anchorX':0.6,'anchorY':1}}

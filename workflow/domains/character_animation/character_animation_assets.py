@@ -118,9 +118,9 @@ def build_animation_catalog():
         motion_prompt_values = read_fixed_prompts(animation_config_record, selected_motion_name)
         available_motion_record['prompts'] = motion_prompt_values
         available_motion_record['direction_prompts'] = compose_direction_prompts(motion_prompt_values)
-    default_motion_name = next(iter(animation_config_record['motions']))
-    fixed_prompt_values = read_fixed_prompts(animation_config_record, default_motion_name)
-    return {'motions':available_motion_records,'characters':available_character_records,'unavailable_assets':unavailable_asset_records,'directions':list(SUPPORTED_DIRECTION_NAMES),'prompts':fixed_prompt_values,'direction_prompts':compose_direction_prompts(fixed_prompt_values)}
+    default_motion_name = next(iter(animation_config_record['motions']),None)
+    fixed_prompt_values = read_fixed_prompts(animation_config_record, default_motion_name) if default_motion_name else {}
+    return {'motions':available_motion_records,'characters':available_character_records,'unavailable_assets':unavailable_asset_records,'directions':list(SUPPORTED_DIRECTION_NAMES),'prompts':fixed_prompt_values,'direction_prompts':compose_direction_prompts(fixed_prompt_values) if fixed_prompt_values else {}}
 
 def decode_character_reference(current_encoded_image):
     """첨부 PNG를 검증하고 원본 바이트를 반환한다."""

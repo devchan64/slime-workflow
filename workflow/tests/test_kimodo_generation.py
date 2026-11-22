@@ -40,6 +40,21 @@ def write_keyframe_test_previews(current_attempt_root,current_frame_count):
                 self.assertEqual(inspect_kimodo_preparation_for_resume(current_root_path),'running')
 
 class KimodoGenerationContractTests(unittest.TestCase):
+    def read_saved_form(self,request,reference=False):
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from workflow.common.management_asgi import build_management_application
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);identifier='2026-11-18_00-00-00-12345678';job=root/identifier;job.mkdir()
+            if reference:Image.new('RGB',(64,64),'white').save(job/'reference-1.png')
+            (job/'request.json').write_text(json.dumps(request,ensure_ascii=False))
+            app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with patch('generators.kimodo.contracts.KIMODO_JOB_STORAGE',root),TestClient(app) as client:
+                response=client.get('/management/assistant/kimodo-input/'+identifier)
+                self.assertEqual(response.status_code,200,response.text)
+                return response.json()
+
     def test_kimodo_resume_gateway_roundtrip_with_mocked_queue(self):
         import os
         import threading
@@ -195,34 +210,17 @@ class KimodoGenerationContractTests(unittest.TestCase):
                 current_launch_mock.assert_not_called()
 
     def test_multiview_gui_payload_and_history_roundtrip(self):
-        from PIL import Image
-        from gui.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs
-        current_view_text='45 0 135 90 225 315 180 270'
-        with tempfile.TemporaryDirectory() as current_temporary_root:
-            current_job_root=Path(current_temporary_root)/'trial'
-            current_job_root.mkdir()
-            current_image_path=current_job_root/'reference-1.png'
-            Image.new('RGB',(64,64),'white').save(current_image_path)
-            current_inputs=('stand still',90,10,42,2,0,True,['front'],False,True,[str(current_image_path)],85,False,False,'',None,[],0,current_view_text)
-            current_payload_record=build_kimodo_payload(*current_inputs)
-            self.assertEqual(current_payload_record['proportion_multiview_angles'],[45,0,135,90,225,315,180,270])
-            current_saved_request={**current_payload_record,'references':['reference-1.png']}
-            current_saved_request.pop('proportion_images')
-            with patch('gui.ui.gradio.kimodo_app.KIMODO_JOB_STORAGE',Path(current_temporary_root)):
-                current_restored_values=restore_kimodo_inputs({'id':'trial','request':current_saved_request})
-            self.assertEqual(build_kimodo_payload(*current_restored_values[:-1])['proportion_multiview_angles'],current_payload_record['proportion_multiview_angles'])
-            with self.assertRaisesRegex(ValueError,'각도 8개'):
-                build_kimodo_payload(*current_inputs[:-1],'0 45')
+        angles=[45,0,135,90,225,315,180,270]
+        saved={**self.current_request_record,'proportion_multiview_angles':angles,'references':['reference-1.png']}
+        result=self.read_saved_form(saved,reference=True)
+        self.assertEqual(result['angles'],angles);self.assertEqual(result['references'][0]['name'],'reference-1.png')
+        with self.assertRaisesRegex(ValueError,'각도 8개'):
+            validate_kimodo_request({**self.current_request_record,'proportion_multiview_angles':[0,45]})
 
     def test_reviewed_bundle_history_is_not_silently_dropped(self):
-        from gui.ui.gradio.kimodo_app import restore_kimodo_inputs
-        current_request={**self.current_request_record,'proportion_reviewed_multiview':{'candidate':'test'}}
-        current_restored=restore_kimodo_inputs({'id':'trial','request':current_request})
-        self.assertEqual(current_restored[-4],current_request['proportion_reviewed_multiview'])
-        from gui.ui.gradio.kimodo_app import restore_kimodo_inputs_with_summary
-        current_with_summary=restore_kimodo_inputs_with_summary({'id':'trial','request':current_request})
-        self.assertIn('선택됨',current_with_summary[-3])
-        self.assertIn('가중 3D 골격: 선택됨',current_with_summary[-1])
+        bundle={'candidate':'test'}
+        result=self.read_saved_form({**self.current_request_record,'proportion_reviewed_multiview':bundle})
+        self.assertEqual(json.loads(result['attachments']['proportion_reviewed_multiview']),bundle)
 
     def test_reference_joint_edits_require_matching_image_and_unique_target(self):
         import base64,hashlib,io
@@ -253,9 +251,8 @@ class KimodoGenerationContractTests(unittest.TestCase):
             current_points=project_recorded_camera_points(np.array([[0,0,0],[0,0,1]]),current_camera_record)
             self.assertGreater(current_points[1,1],current_points[0,1])
             self.assertEqual(validate_kimodo_request({**self.current_request_record,'camera_elevation_degrees':current_elevation_angle})['camera_elevation_degrees'],current_elevation_angle)
-            from gui.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs
             current_saved_request={**self.current_request_record,'camera_elevation_degrees':current_elevation_angle}
-            self.assertEqual(build_kimodo_payload(*restore_kimodo_inputs({'id':'elevation-test','request':current_saved_request})[:-1])['camera_elevation_degrees'],current_elevation_angle)
+            self.assertEqual(self.read_saved_form(current_saved_request)['inputs']['camera_elevation_degrees'],current_elevation_angle)
         for current_bad_angle in (-15,1,45,15.0,True):
             with self.assertRaises(ValueError):
                 validate_kimodo_request({**self.current_request_record,'camera_elevation_degrees':current_bad_angle})
@@ -281,8 +278,7 @@ class KimodoGenerationContractTests(unittest.TestCase):
                 resolve_motion_segments(current_prompt_text,300,current_segment_frames)
         current_sequence_request={**self.current_request_record,'prompt':current_prompt_text,'frames':300,'segment_frames':[90,120,90]}
         self.assertEqual(validate_kimodo_request(current_sequence_request)['segment_frames'],[90,120,90])
-        from gui.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs
-        self.assertEqual(build_kimodo_payload(*restore_kimodo_inputs({'id':'sequence','request':current_sequence_request})[:-1]),current_sequence_request)
+        self.assertEqual(self.read_saved_form(current_sequence_request)['segments'],[90,120,90])
 
     def test_keyframe_snapshot_preserves_selected_frame(self):
         import numpy as np
@@ -357,18 +353,42 @@ class KimodoGenerationContractTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'해시'):
                 build_kimodo_keyframe_constraints(current_new_job_root,{'frames':30,'keyframes':current_placements,'keyframe_snapshots':current_snapshots})
 
-    def test_retired_constraints_are_rejected(self):
-        from gui.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs
+    def test_retired_constraints_are_rejected_by_service(self):
         current_legacy_request = {**self.current_request_record,'pose_constraints':[{'frame':0}]}
         with self.assertRaises(ValueError):
             validate_kimodo_request(current_legacy_request)
-        current_restored_inputs = restore_kimodo_inputs({'id':'legacy','request':current_legacy_request})[:-1]
-        self.assertNotIn('pose_constraints',build_kimodo_payload(*current_restored_inputs))
+
+    def test_current_restore_endpoint_preserves_legacy_inputs(self):
+        from http.server import SimpleHTTPRequestHandler
+        from fastapi.testclient import TestClient
+        from workflow.common.management_asgi import build_management_application
+        job='2026-11-22_00-00-00-12345678'
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            job_dir=root/job
+            job_dir.mkdir()
+            request_path=job_dir/'request.json'
+            saved={**self.current_request_record,'pose_constraints':[{'frame':0}]}
+            saved.pop('remove_horizontal_motion',None)
+            original=json.dumps(saved)
+            request_path.write_text(original)
+            app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with patch('generators.kimodo.contracts.KIMODO_JOB_STORAGE',root), TestClient(app) as client:
+                response=client.get('/management/assistant/kimodo-input/'+job)
+                self.assertEqual(response.status_code,200,response.text)
+                inputs=response.json()['inputs']
+                self.assertNotIn('pose_constraints',inputs)
+                self.assertFalse(inputs['remove_horizontal_motion'])
+                saved['remove_horizontal_motion']=True
+                request_path.write_text(json.dumps(saved))
+                enabled=client.get('/management/assistant/kimodo-input/'+job)
+                self.assertEqual(enabled.status_code,200,enabled.text)
+                self.assertTrue(enabled.json()['inputs']['remove_horizontal_motion'])
+                self.assertEqual(json.loads(request_path.read_text()),saved)
 
     def test_horizontal_translation_preserves_motion(self):
         import numpy as np
         from generators.kimodo.motion_processing import remove_horizontal_translation
-        from gui.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs
         current_joint_names = ['Hips']+[f'joint_{current_joint_index}' for current_joint_index in range(76)]
         current_joint_positions = np.arange(3*77*3,dtype=float).reshape(3,77,3)
         current_root_positions = current_joint_positions[:,0].copy()
@@ -384,19 +404,24 @@ class KimodoGenerationContractTests(unittest.TestCase):
         current_legacy_request = dict(self.current_request_record)
         current_legacy_request.pop('remove_horizontal_motion')
         self.assertFalse(validate_kimodo_request(current_legacy_request)['remove_horizontal_motion'])
-        self.assertFalse(restore_kimodo_inputs({'id':'old','request':current_legacy_request})[8])
-        current_enabled_request = {**self.current_request_record,'remove_horizontal_motion':True}
-        current_restored_inputs = restore_kimodo_inputs({'id':'new','request':current_enabled_request})[:-1]
-        self.assertEqual(build_kimodo_payload(*current_restored_inputs),current_enabled_request)
         with self.assertRaises(ValueError):
             validate_kimodo_request({**self.current_request_record,'remove_horizontal_motion':1})
 
-    def test_attached_reference_cannot_be_silently_ignored(self):
-        from gui.ui.gradio.kimodo_app import build_kimodo_payload,check_kimodo_readiness
-        with self.assertRaisesRegex(ValueError,'비율 적용이 꺼져'):
-            build_kimodo_payload('A person walks.',90,20,42,2,0,False,['front_left'],False,False,['unused.png'])
-        self.assertFalse(check_kimodo_readiness(True,'walk',['front_left'],False,['unused.png']))
-        self.assertTrue(check_kimodo_readiness(True,'walk',['front_left'],True,['unused.png']))
+    def test_attached_reference_is_preserved_in_current_review(self):
+        import base64,io
+        from PIL import Image
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from workflow.common.management_asgi import build_management_application
+        image=io.BytesIO();Image.new('RGB',(64,64),'white').save(image,format='PNG');encoded=base64.b64encode(image.getvalue()).decode()
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with TestClient(app) as client:
+                inputs=client.get('/management/assistant/kimodo-generation-template').json()['inputs']
+                inputs.update(prompt='A person walks.',proportion_images=[encoded])
+                response=client.post('/management/assistant/kimodo-generation-review',json=inputs)
+                self.assertEqual(response.status_code,200,response.text)
+                self.assertEqual(response.json()['request']['proportion_images'],[encoded])
 
     def test_gateway_and_service_contract(self):
         self.assertEqual(resolve_management_command('kimodo','generate',self.current_request_record),('POST','/kimodo/jobs'))
@@ -658,14 +683,9 @@ class KimodoGenerationContractTests(unittest.TestCase):
         import contextlib
         import io
         from workflow.common.management_gateway import execute_gateway_arguments
-        from gui.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs,check_kimodo_readiness
         current_keyframe_identifier='b'*32
         current_request_record={**self.current_request_record,'post_processing':True,'keyframes':[{'id':current_keyframe_identifier,'frame':1},{'id':current_keyframe_identifier,'frame':30}]}
-        current_restored_values=restore_kimodo_inputs({'id':'existing','request':current_request_record})
-        self.assertEqual(build_kimodo_payload(*current_restored_values[:-1]),current_request_record)
-        self.assertTrue(check_kimodo_readiness(True,'walk',['front'],False,None,[[current_keyframe_identifier,1]],True,'',None,False))
-        self.assertFalse(check_kimodo_readiness(True,'walk',['front'],False,None,[[current_keyframe_identifier,1]],False,'',None,False))
-        self.assertFalse(check_kimodo_readiness(True,'walk',['front'],False,None,[[current_keyframe_identifier,1]],True,'',None,True))
+        self.assertEqual(validate_kimodo_request(current_request_record)['keyframes'],current_request_record['keyframes'])
         with self.assertRaisesRegex(ValueError,'수평 이동'):
             validate_kimodo_request({**current_request_record,'remove_horizontal_motion':True})
         with self.assertRaisesRegex(ValueError,'양 끝'):
@@ -678,20 +698,19 @@ class KimodoGenerationContractTests(unittest.TestCase):
                 self.assertEqual(execute_gateway_arguments('kimodo',['keyframe-save','--payload-file',str(current_payload_path)]),0)
             self.assertEqual(current_api_mock.call_args.args[1:3],('/kimodo/keyframes/save',current_payload_record))
 
-    def test_gui_payload_restore_and_no_generation_during_build(self):
-        from gui.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs,build_kimodo_interface
-        current_input_values=restore_kimodo_inputs({'id':'test','request':self.current_request_record})
-        self.assertEqual(build_kimodo_payload(*current_input_values[:-1]),self.current_request_record)
-        with self.assertRaises(ValueError):build_kimodo_payload('walk',30.5,100,42,2,0,False)
-        def reject_generation_command(current_command_name,current_payload_record):
-            if current_command_name=='generate':raise AssertionError('검사 중 생성 금지')
-            return {'ready':False,'message':'격리 검사','items':[]}
-        with patch('gui.ui.gradio.kimodo_app.normalize_kimodo_prompt',return_value='A person walks forward.'):
-            current_interface_blocks=build_kimodo_interface('http://localhost:8770',reject_generation_command)
-        current_component_labels=[current_component_record.get('props',{}).get('value') for current_component_record in current_interface_blocks.config['components']]
-        for current_action_label in ('확인 후 대기열에 추가','추가하지 않기','선택 이력 삭제'):
-            self.assertIn(current_action_label,current_component_labels)
-        current_interface_blocks.close()
+    def test_current_review_validates_inputs_without_generation(self):
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from workflow.common.management_asgi import build_management_application
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with patch('workflow.domains.image.image_generation.launch_gpu_process') as launch,TestClient(app) as client:
+                inputs=client.get('/management/assistant/kimodo-generation-template').json()['inputs']
+                response=client.post('/management/assistant/kimodo-generation-review',json=inputs)
+                self.assertEqual(response.status_code,200,response.text);launch.assert_not_called()
+                inputs['frames']=30.5
+                self.assertEqual(client.post('/management/assistant/kimodo-generation-review',json=inputs).status_code,422)
+                launch.assert_not_called()
 
     def test_reset_removes_hidden_job_and_preserves_external_assets(self):
         with tempfile.TemporaryDirectory() as current_temp_root:
@@ -773,70 +792,60 @@ class KimodoGenerationContractTests(unittest.TestCase):
         self.assertIn('작업 2건 삭제',current_result_text)
         self.assertIn('삭제 제외 1건 보존',current_result_text)
 
-    def test_examples_update_only_prompt_and_frames(self):
-        from gui.ui.gradio.kimodo_app import apply_kimodo_example,describe_kimodo_duration,load_kimodo_examples
-        current_example_records=load_kimodo_examples()
-        self.assertEqual(set(current_example_records),{'male_runway_in_place','relaxed_shoulder_width_standing','male_floor_rest_cycle','boxing_jab_straight_combination'})
-        from generators.kimodo.form_inputs import build_kimodo_payload
-        current_standing_payload = build_kimodo_payload(*apply_kimodo_example('relaxed_shoulder_width_standing'))
-        self.assertEqual(current_standing_payload['frames'],180)
-        self.assertEqual(current_standing_payload['seed'],516925645)
-        self.assertEqual(current_standing_payload['prompt'],'A man stands still like a male fashion model.')
-        self.assertEqual(current_standing_payload['directions'],['front_right_30'])
-        self.assertFalse(current_standing_payload['remove_horizontal_motion'])
-        current_example_payload = build_kimodo_payload(*apply_kimodo_example('male_runway_in_place'))
-        self.assertEqual(current_example_payload['directions'],['front_right_30'])
-        self.assertTrue(current_example_payload['remove_horizontal_motion'])
-        self.assertEqual(current_example_payload['steps'],100)
-        self.assertEqual(current_example_payload['heading_degrees'],0.0)
-        from gui.ui.gradio.kimodo_app import apply_complete_kimodo_example
-        import hashlib
-        current_standing_values = apply_complete_kimodo_example('relaxed_shoulder_width_standing')
-        current_standing_request = build_kimodo_payload(*current_standing_values)
-        self.assertEqual(current_standing_request['openpose_scale_percent'],80)
-        self.assertTrue(current_standing_request['post_processing'])
-        self.assertFalse(current_standing_request['pose_include_hands'])
-        self.assertFalse(current_standing_request['pose_include_face'])
-        self.assertTrue(current_standing_values[9])
-        from generators.kimodo.form_inputs import load_proportion_examples
-        self.assertEqual(Path(load_proportion_examples()['character_eight_directions']['images'][0]),(Path(__file__).resolve().parents[2]/'baseline/player/default/default-eight-directions-v1.png').resolve())
-        self.assertEqual(hashlib.sha256(Path(current_standing_values[10][0]).read_bytes()).digest(),hashlib.sha256(Path(load_proportion_examples()['character_eight_directions']['images'][0]).read_bytes()).digest())
-        current_combination_values = apply_complete_kimodo_example('boxing_jab_straight_combination')
-        current_combination_request = build_kimodo_payload(*current_combination_values)
-        self.assertFalse(current_combination_request['pose_include_hands'])
-        self.assertEqual(current_combination_request['seed'],405)
-        self.assertEqual(current_combination_request['directions'],['front_right_60'])
-        self.assertEqual(current_combination_request.get('camera_elevation_degrees',0),0)
-        self.assertTrue(current_combination_values[9])
-        self.assertEqual(current_combination_values[10],current_standing_values[10])
-        self.assertEqual(current_combination_request['frames'],40)
-        self.assertNotIn('keyframes',current_combination_request)
-        self.assertEqual(current_combination_request['prompt'],'A boxer throws a quick left jab, then pivots on the right foot and throws a right straight punch. Both hands return to guard.')
-        self.assertIn('6초',describe_kimodo_duration(180))
-        self.assertIn('정수',describe_kimodo_duration(30.5))
-        self.assertIn('정수',describe_kimodo_duration(None))
-        with self.assertRaises(ValueError):apply_kimodo_example('missing')
+    def test_examples_preserve_settings_and_reference_through_current_api(self):
+        import base64,hashlib
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from workflow.common.management_asgi import build_management_application
+        from generators.kimodo.form_inputs import load_kimodo_examples,load_proportion_examples
+        examples=load_kimodo_examples()
+        self.assertEqual(set(examples),{'male_runway_in_place','relaxed_shoulder_width_standing','male_floor_rest_cycle','boxing_jab_straight_combination'})
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with TestClient(app) as client:
+                listing=client.get('/management/assistant/kimodo-prompt-examples')
+                self.assertEqual(listing.status_code,200);self.assertEqual({row['id'] for row in listing.json()},set(examples))
+                for identifier in ('relaxed_shoulder_width_standing','boxing_jab_straight_combination'):
+                    response=client.get('/management/assistant/kimodo-prompt-examples/'+identifier)
+                    self.assertEqual(response.status_code,200,response.text);value=response.json()
+                    self.assertEqual(value['settings'],examples[identifier]['settings']);self.assertEqual(value['prompt'],examples[identifier]['prompt'])
+                    reference=Path(load_proportion_examples()['character_eight_directions']['images'][0]).read_bytes()
+                    self.assertEqual(hashlib.sha256(base64.b64decode(value['references'][0]['data'])).digest(),hashlib.sha256(reference).digest())
+                self.assertEqual(client.get('/management/assistant/kimodo-prompt-examples/missing').status_code,404)
 
-    def test_collapsed_input_summary_reports_conflicts_and_counts(self):
-        from gui.ui.gradio.kimodo_app import describe_kimodo_input_summary
-        current_summary=describe_kimodo_input_summary(True,['reference.png'],[['keyframe',1]],True,False)
-        for current_expected in ('신체 비율: 적용 · 1장','키프레임: 1개','공식 후처리: 켜짐','수평 이동 제거: 꺼짐'):
-            self.assertIn(current_expected,current_summary)
-        self.assertIn('설정 확인 필요',describe_kimodo_input_summary(False,['reference.png'],[],False,False))
-        self.assertIn('가중 3D 골격: 선택됨',describe_kimodo_input_summary(True,['reference.png'],[],False,False,42,90,['front'],0,{'candidate':'test'}))
-        current_full_summary=describe_kimodo_input_summary(True,['/tmp/body.png'],[],True,False,202,180,['front_right_30'],15)
-        for current_expected_text in ('시드: 202','180프레임','전방 우측 -30°','고도: 15°','body.png'):
-            self.assertIn(current_expected_text,current_full_summary)
+    def test_input_summary_reports_selected_settings(self):
+        import os,subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'generation.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'KimodoGeneration.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');const {KimodoInputSummary}=require(process.argv[1]);
+              const inputs={seed:202,frames:180,directions:['front_right_30'],camera_elevation_degrees:15,post_processing:true,remove_horizontal_motion:false};
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(KimodoInputSummary,{inputs,references:[{name:'body.png'}],placement:{placements:[{}]},bundle:{},directions:{front_right_30:{label:'전방 우측 -30°'}}})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+        for value in ('시드 202','180프레임','전방 우측 -30°','고도 15°','body.png','키프레임 1개','가중 골격 선택됨','후처리 켜짐','수평 이동 제거 꺼짐'):self.assertIn(value,markup)
+
+    def test_accepted_job_uses_kimodo_result_view(self):
+        import os,subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'generation.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'KimodoGeneration.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');const {KimodoAcceptedResult}=require(process.argv[1]);
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(KimodoAcceptedResult,{id:'2026-11-18_00-00-00-12345678'})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+        self.assertIn('Kimodo 원본 프레임',markup)
+        self.assertNotIn('결과 조회 중',markup)
+        self.assertNotIn('생성 이력 정리',markup)
 
     def test_output_directions_validate_and_restore_legacy_history(self):
-        from gui.ui.gradio.kimodo_app import restore_kimodo_inputs
         for current_direction_values in ([],['unknown'],['front','front'],'front',[1]):
             with self.assertRaises(ValueError):
                 validate_kimodo_request({**self.current_request_record,'directions':current_direction_values})
         current_legacy_request=dict(self.current_request_record)
         current_legacy_request.pop('directions')
         self.assertEqual(validate_kimodo_request(current_legacy_request)['directions'],['front_left'])
-        self.assertEqual(restore_kimodo_inputs({'id':'old','request':current_legacy_request})[7],['front_left'])
+        self.assertEqual(self.read_saved_form(current_legacy_request)['inputs']['directions'],['front_left'])
         self.assertEqual(validate_kimodo_request({**self.current_request_record,'directions':['front','right']})['directions'],['front','right'])
         self.assertEqual(validate_kimodo_request({**self.current_request_record,'directions':['front_left_30','front_right_30']})['directions'],['front_left_30','front_right_30'])
         self.assertEqual(validate_kimodo_request({**self.current_request_record,'directions':['front','front_right_15']})['directions'],['front','front_right_15'])
@@ -859,20 +868,23 @@ class KimodoGenerationContractTests(unittest.TestCase):
                 render_pose_comparison(current_attempt_root,[{**current_image_record,'pose_keypoints_2d':[0]*3}])
 
     def test_comparison_result_preserves_original_download(self):
-        from gui.ui.gradio.kimodo_app import render_kimodo_result
-        current_result_markup=render_kimodo_result('id',{'video':'/kimodo/preview.mp4','comparison_video':'/kimodo/comparison.mp4','download':'/kimodo/frames.zip'},'http://localhost')
-        self.assertIn('src="/kimodo/comparison.mp4"',current_result_markup)
-        self.assertIn('href="/kimodo/preview.mp4"',current_result_markup)
-        self.assertIn('/kimodo/frames.zip',current_result_markup)
-        self.assertIn('리타게팅 후',current_result_markup)
+        import os,subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'media.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'KimodoMedia.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),Media=require(process.argv[1]).default;
+              const id='2026-11-18_00-00-00-12345678',attempt='a'.repeat(32),base='/kimodo/jobs/'+id+'/attempts/'+attempt+'/';
+              const job={attempt,video:base+'preview.mp4',comparison_video:base+'comparison.mp4',download:base+'frames.zip'};
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(Media,{id,job})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+        for value in ('preview.mp4','comparison.mp4','frames.zip','포즈 비교','원본 모션'):self.assertIn(value,markup)
 
     def test_result_previews_explain_status_and_conversion(self):
-        from gui.ui.gradio.kimodo_app import render_kimodo_result
-        current_status_record = {'video':'/preview.mp4','download':'/frames.zip','direct_pose_status':'completed','dwpose_status':'warning','dwpose_error':'19프레임 검출 실패','preprocess_videos':{'SOMA 렌더 · front':'/render.mp4','직접 포즈 · front':'/direct.mp4'}}
-        current_result_markup = render_kimodo_result('job',current_status_record,'http://localhost')
-        for current_expected_text in ('직접 포즈: 생성 완료','DWPose: 생성 오류','19프레임 검출 실패','원본 동작 검수용','SOMA 관절을 투영','16fps로 변환'):
-            self.assertIn(current_expected_text,current_result_markup)
-        self.assertNotIn('DWPose 포즈 · front',current_result_markup)
+        from workflow.tests.test_kimodo_dwpose import KimodoDwposeTests
+        result=unittest.TestResult()
+        KimodoDwposeTests('test_saved_status_exposes_valid_attempt_and_warnings').run(result)
+        self.assertTrue(result.wasSuccessful(),str(result.errors)+str(result.failures))
 
     def test_pose_render_colors_and_missing_joints(self):
         import numpy as np
@@ -918,7 +930,6 @@ class KimodoGenerationContractTests(unittest.TestCase):
 class KimodoPoseLibraryTests(unittest.TestCase):
     def test_registered_pose_endpoints_and_request_roundtrip(self):
         from generators.kimodo.pose_library import load_soma_pose_arrays,build_soma_endpoint_records
-        from gui.ui.gradio.kimodo_app import build_kimodo_payload,restore_kimodo_inputs,apply_complete_kimodo_example,load_kimodo_examples
         current_pose_record,current_motion_arrays=load_soma_pose_arrays('relaxed-standing-v1')
         self.assertEqual(current_motion_arrays['posed_joints'].shape,(1,77,3))
         current_constraint_record=build_soma_endpoint_records(current_pose_record['id'],210)[0]
@@ -927,10 +938,19 @@ class KimodoPoseLibraryTests(unittest.TestCase):
         self.assertEqual(current_constraint_record['root_positions'][0],current_constraint_record['root_positions'][1])
         current_request_record={current_field_name:current_field_value for current_field_name,current_field_value in KIMODO_DEFAULT_SETTINGS.items() if current_field_name!='schema_version'}
         current_request_record.update(action='generate',endpoint_pose_id=current_pose_record['id'],post_processing=True,heading_degrees=0)
-        current_migrated_request=build_kimodo_payload(*restore_kimodo_inputs({'id':'test','request':current_request_record})[:-1])
-        self.assertNotIn('endpoint_pose_id',current_migrated_request)
-        self.assertEqual(current_migrated_request['keyframes'],[{'id':'b0000000000000000000000000000004','frame':1},{'id':'b0000000000000000000000000000004','frame':current_request_record['frames']}])
-        self.assertEqual(validate_kimodo_request(current_request_record)['keyframes'],current_migrated_request['keyframes'])
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from workflow.common.management_asgi import build_management_application
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);identifier='2026-11-18_00-00-00-12345678';job=root/identifier;job.mkdir()
+            (job/'request.json').write_text(json.dumps(current_request_record))
+            app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with patch('generators.kimodo.contracts.KIMODO_JOB_STORAGE',root),TestClient(app) as client:
+                response=client.get('/management/assistant/kimodo-input/'+identifier)
+                self.assertEqual(response.status_code,200,response.text);rows=response.json()['rows']
+        current_migrated_request={**current_request_record,'keyframes':rows};current_migrated_request.pop('endpoint_pose_id')
+        self.assertEqual(rows,[{'id':'b0000000000000000000000000000004','frame':1},{'id':'b0000000000000000000000000000004','frame':current_request_record['frames']}])
+        self.assertEqual(validate_kimodo_request(current_request_record)['keyframes'],rows)
         from workflow.domains.kimodo.keyframe_storage import snapshot_kimodo_keyframes,build_kimodo_keyframe_constraints
         with tempfile.TemporaryDirectory() as current_temp_directory:
             current_job_root=Path(current_temp_directory)
@@ -939,7 +959,6 @@ class KimodoPoseLibraryTests(unittest.TestCase):
             self.assertEqual(current_new_constraints,build_soma_endpoint_records(current_pose_record['id'],current_request_record['frames'])[0])
         for current_patch_record in ({'endpoint_pose_id':'../bad'},{'endpoint_pose_id':42},{'post_processing':False},{'heading_degrees':45}):
             with self.assertRaises(ValueError):validate_kimodo_request({**current_request_record,**current_patch_record})
-        self.assertEqual(apply_complete_kimodo_example(next(iter(load_kimodo_examples())))[-7:],(None,[],0,'',None,False,None))
 
     def test_pose_library_rejects_modified_files(self):
         from generators.kimodo.pose_library import KIMODO_POSE_LIBRARY_ROOT,load_soma_pose_catalog

@@ -23,17 +23,26 @@ def generate_reviewed_writer_result(current_model_input,current_writer_schema,cu
     for current_attempt_number in (1,2):
         current_model_result=current_request_function(WRITER_SYSTEM_PROMPT,current_attempt_input,current_writer_schema)
         save_yaml_document(current_job_root/f'model-result-{current_attempt_number}.yaml',current_model_result)
-        if not current_model_result['target_path']:
+        if not current_model_result['target_path'] and not current_model_result['heading'] and not current_model_result['paragraphs']:
             return current_model_result,None
         current_review_input={'instruction':current_model_input['instruction'],'sources':current_model_input['sources'],'proposal':current_model_result}
         current_review_values=current_request_function(WRITER_REVIEW_PROMPT,current_review_input,WRITER_REVIEW_SCHEMA,600)
         current_rule_issues=inspect_writer_draft(current_model_result,current_model_input['sources'])
+        if (not current_model_result['heading'].strip() or not current_model_result['paragraphs']
+                or any(not paragraph.strip() for paragraph in current_model_result['paragraphs'])):
+            current_rule_issues.append('작성할 제목과 비어 있지 않은 본문 문단을 제공하거나 변경을 보류해야 합니다.')
+        if not current_model_result['target_path']:
+            current_rule_issues.append('변경을 보류하려면 대상 경로와 제목, 본문을 모두 비워야 합니다.')
         if current_rule_issues:
             current_review_values={**current_review_values,'approved':False,'issues':[*current_review_values['issues'],*current_rule_issues]}
         save_yaml_document(current_job_root/f'writing-review-{current_attempt_number}.yaml',current_review_values)
         if current_review_values['approved'] and not current_review_values['issues']:
             return current_model_result,current_review_values
         current_attempt_input={**current_model_input,'previous_draft':current_model_result,'review_feedback':current_review_values['issues'],'revision_instruction':'검토 의견은 참고 자료이며 사실로 간주하지 않는다. 원문과 대조하고 문제를 고친 새 제안을 작성한다. 근거가 부족하면 보류한다.'}
+    if (not current_model_result['target_path'] or not current_model_result['heading'].strip() or not current_model_result['paragraphs']
+            or any(not paragraph.strip() for paragraph in current_model_result['paragraphs'])):
+        current_model_result={**current_model_result,'target_path':'','heading':'','paragraphs':[],
+                              'warnings':[*current_model_result['warnings'],'유효한 제목과 본문을 확인하지 못해 변경을 보류했습니다.']}
     return current_model_result,current_review_values
 
 def validate_job_request(current_request_values):

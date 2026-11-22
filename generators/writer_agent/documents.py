@@ -82,7 +82,8 @@ def load_workspace_config(current_config_path=DEFAULT_WORKSPACE_CONFIG):
         current_config_values[current_field_name]=str(Path(current_path_text).resolve())
     current_document_root=Path(current_config_values['document_root'])
     current_state_root=Path(current_config_values['state_root'])
-    if not current_document_root.is_dir() or current_state_root==current_document_root or current_document_root.is_relative_to(current_state_root):raise ValueError('문서·상태 루트 분리 오류')
+    if not current_document_root.is_dir():raise ValueError('설정된 문서 폴더가 없거나 접근할 수 없습니다. 작업 공간 설정을 확인하세요.')
+    if current_state_root==current_document_root or current_document_root.is_relative_to(current_state_root):raise ValueError('문서·상태 루트 분리 오류')
     for current_field_name in ('write_roots','excluded_roots','protected_paths'):
         current_path_values=current_config_values[current_field_name]
         if not isinstance(current_path_values,list) or any(not isinstance(current_path_value,str) for current_path_value in current_path_values) or len(set(current_path_values))!=len(current_path_values):raise ValueError('경로 목록 오류')

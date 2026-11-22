@@ -1,16 +1,17 @@
 import React,{useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import KimodoGeneration from "./KimodoGeneration.jsx";
+import {verifyKimodoProposal} from "./kimodoProposalMembership.mjs";
 
-export default function KimodoProposal({job,session,append,openStep}){
+export default function KimodoProposal({job,session,snapshot,offset,append,openStep}){
   const [proposal,setProposal]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
+  const [original,setOriginal]=useState(null);
   const [exampleOpen,setExampleOpen]=useState(false),[exampleMounted,setExampleMounted]=useState(false);
   async function load(){
     setBusy(true);setError("");
     try{
-      const result=await managementCommand("hermes-agent","hermes-kimodo-proposal",{id:job});
-      if(result.job_id!==job || !result.proposal)throw new Error("작업의 생성 제안을 확인할 수 없습니다.");
-      setProposal(result.proposal);
+      const result=await verifyKimodoProposal(managementCommand,{job,session,snapshot,offset});
+      setOriginal(result);setProposal(result);
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
   }
@@ -19,12 +20,13 @@ export default function KimodoProposal({job,session,append,openStep}){
   if(proposal.example_id)return <section className="conversation-kimodo-proposal" aria-label="Kimodo 예제 제안">
     <p>등록된 예제 {proposal.example_id}의 설정과 참조 이미지를 생성 폼에서 불러옵니다. 아직 접수되지 않았습니다.</p>
     <button type="button" aria-expanded={exampleOpen} onClick={()=>{setExampleMounted(true);setExampleOpen(value=>!value);}}>{exampleOpen?"예제 생성 폼 접기":"예제 생성 폼 검토"}</button>
-    {exampleMounted && <div className="conversation-kimodo-form" hidden={!exampleOpen}><KimodoGeneration session={session} receiptScope={job} initialInputs={proposal}/></div>}
+    {exampleMounted && <div className="conversation-kimodo-form" hidden={!exampleOpen}><KimodoGeneration session={session} receiptScope={job} proposalScope={{job,session,snapshot,offset,proposal:original}} initialInputs={proposal} choose={append}/></div>}
   </section>;
   async function addRequest(event){
     const workflow=event.nativeEvent.submitter?.value==="workflow";
     event.preventDefault();setBusy(true);setError("");
     try{
+      await verifyKimodoProposal(managementCommand,{job,session,snapshot,offset},original);
       const inputs={...proposal,frames:Number(proposal.frames),steps:Number(proposal.steps),seed:Number(proposal.seed)};
       const response=await fetch("/management/assistant/kimodo-proposal-review",{method:"POST",
         headers:{"Content-Type":"application/json"},body:JSON.stringify(inputs)});

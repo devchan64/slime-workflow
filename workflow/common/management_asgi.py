@@ -254,31 +254,18 @@ def build_management_application(current_handler_class, current_root_path, curre
         current_response_value = await asyncio.to_thread(execute_legacy_request, current_handler_class, current_root_path, current_request_scope, bytes(current_request_body))
         await current_response_value(current_request_scope, current_receive_call, current_send_call)
 
-    from time import monotonic
-    from uuid import uuid4
     from typing import Literal
-    mock_jobs = {"progress": {}, "dwpose": {}, "animate2": {}}
 
-    @current_root_application.post('/management/assistant/mock-jobs')
-    async def start_mock_job(scope: Literal["progress", "dwpose", "animate2"] = "progress"):
-        identifier = 'mock-' + uuid4().hex
-        mock_jobs[scope][identifier] = monotonic()
-        return {'id': identifier}
-
-    @current_root_application.get('/management/assistant/mock-jobs')
-    async def read_mock_jobs(scope: Literal["progress", "dwpose", "animate2"] = "progress"):
-        now = monotonic()
-        rows = []
-        for identifier, started in reversed(mock_jobs[scope].items()):
-            elapsed = now - started
-            if elapsed < (7 if scope != "progress" else 5):
-                state, message = 'queued', '모의 대기열'
-            elif elapsed < (18 if scope != "progress" else 15):
-                state, message = 'running', '모의 실행 · 1 / 2'
-            else:
-                state, message = 'completed', '모의 결과 표시 완료'
-            rows.append({'id': identifier, 'status': state, 'message': message})
-        return rows
+    @current_root_application.api_route('/management/assistant/mock-jobs', methods=['GET', 'POST'])
+    @current_root_application.api_route('/management/frame/mock-animate-validation', methods=['GET'])
+    @current_root_application.api_route('/management/frame/mock-animate-validation/', methods=['GET'])
+    @current_root_application.api_route('/management/frame/mock-dwpose-validation', methods=['GET'])
+    @current_root_application.api_route('/management/frame/mock-dwpose-validation/', methods=['GET'])
+    @current_root_application.api_route('/management/frame/mock-progress-validation', methods=['GET'])
+    @current_root_application.api_route('/management/frame/mock-progress-validation/', methods=['GET'])
+    def retired_mock_validation():
+        from fastapi import HTTPException
+        raise HTTPException(410, '모의 검수 기능은 폐기되었습니다.')
 
     def require_flux_page(service):
         from fastapi import HTTPException
@@ -400,6 +387,21 @@ def build_management_application(current_handler_class, current_root_path, curre
             {'label': label, 'url': f'/flux-seamless-generator/jobs/{job}/{name}'}
             for label, name in files if (directory / name).is_file() and not (directory / name).is_symlink()
         ]}
+
+    @current_root_application.get('/management/assistant/qwen-circular-comparison/{job}')
+    def qwen_circular_comparison(job: str):
+        from fastapi import HTTPException
+        from workflow.domains.hermes_agent.delegation_store import validate_service_job_identifier
+        from workflow.domains.image.qwen_circular_generation import QwenCircularGenerationManager
+        if not validate_service_job_identifier('qwen-21-circular',job):
+            raise HTTPException(404,'생성 ID를 확인하세요.')
+        root=QwenCircularGenerationManager().job_storage_root
+        directory=root/job
+        if root.is_symlink() or directory.is_symlink() or not directory.is_dir():
+            raise HTTPException(404,'저장된 작업을 찾을 수 없습니다.')
+        files=(('순환 결과','result.png'),('3×3 반복','tiled-preview.png'),('일반 VAE 기준','baseline.png'),('기준 3×3 반복','baseline-preview.png'))
+        return {'images':[{'label':label,'url':f'/image-generation-21-circular/jobs/{job}/{name}'}
+                          for label,name in files if not (directory/name).is_symlink() and (directory/name).is_file()]}
 
     @current_root_application.get('/management/assistant/flux-image-input/{job}')
     def flux_image_saved_input(job: str, service: str = "flux-image"):
@@ -891,7 +893,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/history-services')
     def history_services():
         from workflow.common.management_catalog import REACT_REVIEW_PATHS
-        from workflow.common.source_history_catalog import SOURCE_HISTORY_AUDIO_SERVICES, SOURCE_HISTORY_GENERATOR_SERVICES, SOURCE_HISTORY_VIDEO_SERVICES
+        from workflow.common.source_history_catalog import SOURCE_HISTORY_AUDIO_SERVICES, SOURCE_HISTORY_GENERATOR_SERVICES, SOURCE_HISTORY_VIDEO_SERVICES, SOURCE_HISTORY_ARCHIVED_IMAGE_SERVICES
+        from generators.music.service_constants import RETIRED_AUDIO_SERVICE_NAMES
         from workflow.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
         from workflow.domains.hermes_agent.image_source_operations import IMAGE_SOURCE_SERVICES
         kinds = {
@@ -899,10 +902,12 @@ def build_management_application(current_handler_class, current_root_path, curre
             **dict.fromkeys(SOURCE_HISTORY_VIDEO_SERVICES, 'video'),
             **dict.fromkeys((*FLUX_IMAGE_PROFILE_RECORDS, 'flux-expression'), 'flux'),
             **dict.fromkeys(IMAGE_SOURCE_SERVICES, 'image'),
+            'character-animation': 'character',
         }
         return [
             {'service': service, 'command': 'hermes-audio-source-history' if service in SOURCE_HISTORY_AUDIO_SERVICES else 'hermes-generator-source-history'}
-            | {'video_result': service in SOURCE_HISTORY_VIDEO_SERVICES, 'result_kind': kinds.get(service)}
+            | {'video_result': service in SOURCE_HISTORY_VIDEO_SERVICES, 'result_kind': kinds.get(service),
+               'archived': service in SOURCE_HISTORY_ARCHIVED_IMAGE_SERVICES or service in RETIRED_AUDIO_SERVICE_NAMES or service in ('floor-tile', 'character-animation')}
             | ({'result_path': path} if (path := REACT_REVIEW_PATHS.get(service) or REACT_REVIEW_PATHS.get(service + '-generator')) else {})
             for service in sorted(set(SOURCE_HISTORY_GENERATOR_SERVICES) | set(SOURCE_HISTORY_AUDIO_SERVICES))
         ]
@@ -1014,12 +1019,6 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/prompt-translation/')
     @current_root_application.get('/management/frame/model-management')
     @current_root_application.get('/management/frame/model-management/')
-    @current_root_application.get('/management/frame/mock-animate-validation')
-    @current_root_application.get('/management/frame/mock-animate-validation/')
-    @current_root_application.get('/management/frame/mock-dwpose-validation')
-    @current_root_application.get('/management/frame/mock-dwpose-validation/')
-    @current_root_application.get('/management/frame/mock-progress-validation')
-    @current_root_application.get('/management/frame/mock-progress-validation/')
     @current_root_application.get('/management/assistant/models/')
     @current_root_application.get('/management/frame/writer-agent')
     @current_root_application.get('/management/frame/writer-agent/')
@@ -1102,7 +1101,10 @@ def build_management_application(current_handler_class, current_root_path, curre
             return Response(status_code=404)
         records = execute_remote_management_command('model-downloads', 'download-status', {})['records']
         lines = format_model_download_status(records, service).splitlines()
-        return {'lines': [line.removeprefix('- ') for line in lines]}
+        active = any(isinstance(record,dict) and isinstance(record.get('model'),str)
+                     and record['model'].startswith(MODEL_DOWNLOAD_PREFIXES[service]) and record.get('status') == 'running'
+                     for record in records)
+        return {'lines': [line.removeprefix('- ') for line in lines], 'active': active}
 
     @current_root_application.get('/management/assistant/model-readiness/{service}')
     def model_readiness(service: str):

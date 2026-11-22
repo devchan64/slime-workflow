@@ -113,6 +113,7 @@ def create_management_runtime(writer_workspace_config=None):
     from workflow.common.model_download_records import MODEL_DOWNLOAD_RECORD_ROOT
     writer_agent_service = WriterAgentManager(writer_workspace_config or DEFAULT_WORKSPACE_CONFIG)
     current_chat_dispatcher_stop = None
+    current_handoff_scheduler_stop = None
     try:
         animate_two_service = AnimateTwoGenerationManager()
         dwpose_generation_service = DwposeGenerationManager()
@@ -141,6 +142,7 @@ def create_management_runtime(writer_workspace_config=None):
             return False
         service_binding_records = {
             'hermes-model': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
+            'animationgpt': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
             'model-downloads': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
             'expression-lora': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
             'writer-agent': ManagementServiceBinding(writer_agent_service.handle_writer_request,writer_agent_service.workspace_config_path.parent,reject_writer_folder_access),
@@ -180,10 +182,17 @@ def create_management_runtime(writer_workspace_config=None):
             service_binding_records[current_service_name] = bind_stored_management_service(current_music_manager.handle_music_request,current_music_manager.job_storage_root)
         def close_services():
             current_chat_dispatcher_stop.set()
+            if current_handoff_scheduler_stop is not None:
+                current_handoff_scheduler_stop.set()
             writer_agent_service.close_writer_worker()
-        return ManagementServiceRuntime(service_binding_records, writer_agent_service.handle_writer_request, close_services)
+        current_runtime = ManagementServiceRuntime(service_binding_records, writer_agent_service.handle_writer_request, close_services)
+        from workflow.domains.hermes_agent.gpu_handoff_scheduler import start_gpu_handoff_scheduler
+        current_handoff_scheduler_stop = start_gpu_handoff_scheduler()
+        return current_runtime
     except BaseException:
         if current_chat_dispatcher_stop is not None:
             current_chat_dispatcher_stop.set()
+        if current_handoff_scheduler_stop is not None:
+            current_handoff_scheduler_stop.set()
         writer_agent_service.close_writer_worker()
         raise

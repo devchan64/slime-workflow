@@ -30,39 +30,24 @@ class HermesEffectOperationTests(unittest.TestCase):
         self.assertNotIn('effect_id',inspect_hermes_effect_receipt(current_record,'effect_request_123'))
 
     def test_history_rejects_mismatched_effect_and_labels_legacy(self):
-        import hashlib
-        from gui.ui.gradio import operations_history_app
-        current_session='a'*32
-        current_job='2026-11-18_00-00-00-12345678'
-        current_request='chat_'+hashlib.sha256((current_session+':'+current_job+':effect').encode()).hexdigest()
-        current_page={'session_id':current_session,'offset':0,'snapshot':'b'*64}
-        current_receipt={'state':'completed','request_id':current_request,'saved':True}
-        def current_gateway(service,command,payload):
-            if command=='hermes-session-view':return {'id':current_session,'offset':0,'snapshot':'b'*64,'messages':[{'job_id':current_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_EFFECT_PROPOSAL'}}]}
-            if command=='hermes-effect-proposal':return {'job_id':current_job,'proposal':{'id':'fire'}}
-            if command=='hermes-effect-receipt':return current_receipt
-            raise AssertionError(command)
-        with patch.object(operations_history_app,'execute_remote_management_command',side_effect=current_gateway):
-            current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
-            self.assertIn('대상 미확인',current_rows[0][3])
-            current_receipt['effect_id']='water'
-            current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
-            self.assertEqual(current_rows[0][3],'제안 또는 접수 조회 불가')
-            current_receipt['state']='unknown'
-            current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
-            self.assertEqual(current_rows[0][3],'제안 또는 접수 조회 불가')
-            current_receipt['effect_id']='fire'
-            current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
-            self.assertEqual(current_rows[0][3],'접수 확인 필요')
+        import subprocess
+        root=Path(__file__).resolve().parents[2]
+        result=subprocess.run(['node','--test',str(root/'workflow/tests/effect_proposal_protocol.test.mjs')],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
     def test_effect_summary_preserves_each_frame_and_scope(self):
-        from gui.ui.gradio.hermes_agent_app import format_conversation_effect_changes
-        current_preview_value={'id':'firefly-v1','before':{'alpha':0.5,'target':[0,0,1,1],'frames':[[0,0,1,1],[1,1,2,2]]},'after':{'alpha':0.7,'target':[1,0,1,1],'frames':[[0,0,1,1],[2,1,2,2]]},'note':'모든 맵에 적용'}
-        current_summary_value=format_conversation_effect_changes(current_preview_value)
-        self.assertIn('불투명도: 0.5 → 0.7',current_summary_value)
-        self.assertIn('1: [1, 1, 2, 2] → [2, 1, 2, 2]',current_summary_value)
-        self.assertIn('모든 맵에 적용',current_summary_value)
-        self.assertIn('이펙트 도구',current_summary_value)
+        import subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'effect.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'EffectProposal.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');
+              const {EffectProposalReview}=require(process.argv[1]);
+              const preview={id:'firefly-v1',before:{alpha:0.5,target:[0,0,1,1],frames:[[0,0,1,1],[1,1,2,2]]},after:{alpha:0.7,target:[1,0,1,1],frames:[[0,0,1,1],[2,1,2,2]]},note:'모든 맵에 적용'};
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(EffectProposalReview,{preview,busy:true})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True)
+        for value in ('불투명도','0.5','0.7','프레임 1','[1,1,2,2]','[2,1,2,2]','모든 맵에 적용','이펙트 도구','확인 후 저장','취소','disabled'):
+            self.assertIn(value,markup)
 
     def setUp(self):
         self.current_temp_root=tempfile.TemporaryDirectory()
@@ -119,18 +104,17 @@ class HermesEffectOperationTests(unittest.TestCase):
             self.assertEqual(effect_operations.save_hermes_effect_edit_once(*current_save_args)['state'],'unknown')
             self.assertEqual(current_editor_mock.call_count,1)
 
-    def test_registration_ui_accepts_service_receipt_without_duplicate_write(self):
-        import json
-        from gui.ui.gradio import hermes_agent_app
+    def test_registration_service_receipt_prevents_duplicate_write(self):
+        from workflow.domains.hermes_agent.service import HermesServiceManager
         current_draft={'id':'fog-test-v1'}
         current_review={'request_id':'registration_request_123','draft':current_draft,'review_sha256':'a'*64}
-        def current_gateway(current_service,current_command,current_payload):
-            self.assertEqual((current_service,current_command),('hermes-agent','hermes-effect-register'))
-            return effect_operations.register_hermes_effect_once(current_payload['request_id'],current_payload['draft'],current_payload['review_sha256'])
-        with patch.object(effect_operations,'preview_hermes_effect_registration',return_value={'review_sha256':'a'*64}), patch.object(effect_operations,'call_hermes_effect_editor',return_value={'created':True,'id':'fog-test-v1','generation':3,'snapshot':'pending'}) as current_editor, patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway):
-            for current_iteration in range(2):
-                _,_,current_status=hermes_agent_app.save_hermes_effect_registration_draft(current_review,json.dumps(current_draft),current_review['request_id'])
-                self.assertIn('DB 등록 완료',current_status)
+        manager=HermesServiceManager(Path(self.current_temp_root.name)/'jobs')
+        with patch.object(effect_operations,'preview_hermes_effect_registration',return_value={'review_sha256':'a'*64}), patch.object(effect_operations,'call_hermes_effect_editor',return_value={'created':True,'id':'fog-test-v1','generation':3,'snapshot':'pending'}) as current_editor:
+            first=manager.execute_hermes_command('hermes-effect-register',current_review)
+            second=manager.execute_hermes_command('hermes-effect-register',current_review)
+            self.assertEqual(first['state'],'completed')
+            self.assertTrue(second['duplicate'])
+            self.assertEqual(second['id'],'fog-test-v1')
             current_editor.assert_called_once()
 
     def test_effect_registration_and_waypoint_preserve_changed_receipt(self):

@@ -9,6 +9,27 @@ from workflow.domains.hermes_agent import city_map_operations
 
 
 class HermesCityMapOperationsTests(unittest.TestCase):
+    def test_current_city_review_shows_changes_and_blocks_new_save(self):
+        import json
+        import subprocess
+        from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_city_proposal
+        proposal={'map':'stonewarm','generation':5,'revision':2,'changes':[{'path':['data','buildings',0,'name'],'before':'기존','after':'변경'}]}
+        answer='HERMES_CITY_PROPOSAL\n'+json.dumps(proposal,ensure_ascii=False)+'\nEND_HERMES_CITY_PROPOSAL'
+        self.assertEqual(parse_hermes_city_proposal(answer),proposal)
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with TemporaryDirectory() as directory:
+            bundle=Path(directory)/'city.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'CityProposal.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');
+              const {CityProposalReview}=require(process.argv[1]);
+              const proposal=JSON.parse(require('fs').readFileSync(0,'utf8'));
+              const preview={source_alignment:{status:'matched'},source_plan:{status:'available',before_sha256:'a'.repeat(64),after_sha256:'b'.repeat(64)}};
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(CityProposalReview,{proposal,preview})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,input=json.dumps(proposal,ensure_ascii=False),text=True)
+        for value in ('stonewarm','data / buildings / 0 / name','기존','변경','신규 저장은 현재 지원되지 않습니다','저장 또는 복구 준비 완료를 뜻하지 않습니다'):
+            self.assertIn(value,markup)
+        self.assertNotIn('확인 후 저장',markup)
+
     def test_oversized_map_receipt_is_not_reported_as_missing(self):
         from workflow.domains.hermes_agent import field_map_operations
         from workflow.domains.hermes_agent.delegation_store import HERMES_DELEGATION_RECORD_MAXIMUM_BYTES
@@ -20,112 +41,44 @@ class HermesCityMapOperationsTests(unittest.TestCase):
                 with self.subTest(module=current_module.__name__),patch.object(current_module,'HermesDelegationStore',return_value=current_store_value):
                     with self.assertRaises(ValueError):current_reader('request_123')
 
-    def test_city_change_summary_keeps_all_before_and_after_values(self):
-        from gui.ui.gradio.hermes_agent_app import format_conversation_city_changes
-        current_changes_value=[{'path':['data','buildings',0,'name'],'before':'기존','after':'새 이름'},{'path':['data','objects',2,'visible'],'before':True,'after':False}]
-        current_summary_value=format_conversation_city_changes(current_changes_value,'DB 저장 후 원본 동기화 필요')
-        self.assertIn('변경 사항 2건',current_summary_value)
-        self.assertIn('data / buildings / 0 / name',current_summary_value)
-        self.assertIn('변경 전: "기존"',current_summary_value)
-        self.assertIn('변경 후: "새 이름"',current_summary_value)
-        self.assertIn('변경 전: true',current_summary_value)
-        self.assertIn('변경 후: false',current_summary_value)
-        self.assertIn('DB 저장 후 원본 동기화 필요',current_summary_value)
+    def test_city_history_receipt_and_read_only_protocol(self):
+        import subprocess
+        root=Path(__file__).resolve().parents[2]
+        result=subprocess.run(['node','--test',str(root/'workflow/tests/city_proposal_protocol.test.mjs')],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
-    def test_city_history_receipt_is_not_a_gpu_job(self):
-        import hashlib
-        from gui.ui.gradio import operations_history_app
-        current_session='a'*32
-        current_job='2026-11-18_00-00-00-12345678'
-        current_request='chat_'+hashlib.sha256((current_session+':'+current_job+':city').encode()).hexdigest()
-        current_page={'session_id':current_session,'offset':0,'snapshot':'b'*64}
-        def current_gateway(service,command,payload):
-            if command=='hermes-session-view':return {'id':current_session,'offset':0,'snapshot':'b'*64,'messages':[{'job_id':current_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_CITY_PROPOSAL'}}]}
-            if command=='hermes-city-proposal':return {'job_id':current_job,'proposal':{'map':'stonewarm'}}
-            if command=='hermes-city-receipt':return {'state':'completed','request_id':current_request,'map':'stonewarm','saved':True}
-            raise AssertionError(command)
-        with patch.object(operations_history_app,'execute_remote_management_command',side_effect=current_gateway):
-            current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
-            self.assertEqual(current_rows[0][3:5],['도시 DB 저장 기록','해당 없음'])
-            self.assertEqual(current_rows[0][5:7],['GPU 작업 아님','GPU 예약 대상 아님'])
-        def wrong_map_gateway(service,command,payload):
-            current_response=current_gateway(service,command,payload)
-            if command=='hermes-city-receipt':current_response['map']='other-town'
-            return current_response
-        with patch.object(operations_history_app,'execute_remote_management_command',side_effect=wrong_map_gateway):
-            current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
-            self.assertEqual(current_rows[0][3],'제안 또는 접수 조회 불가')
-
-    def test_city_conversation_receipt_describes_database_scope(self):
-        from gui.ui.gradio import hermes_agent_app
-        current_card={'session_id':'a'*32,'source_job_id':'job-1','kind':'city','request_id':'request-1'}
-        def current_gateway(service,command,payload):
-            if command=='hermes-city-receipt':return {'state':'completed','request_id':'request-1','map':'stonewarm','saved':True}
-            if command=='hermes-city-proposal':return {'job_id':'job-1','proposal':{'map':'stonewarm'}}
-            raise AssertionError(command)
-        with patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway):
-            current_message=hermes_agent_app.read_conversation_edit_result(current_card,'a'*32,'job-1','city')
-            self.assertIn('DB 저장 완료',current_message)
-            self.assertIn('동기화',current_message)
-        def wrong_map_gateway(service,command,payload):
-            current_response=current_gateway(service,command,payload)
-            if command=='hermes-city-receipt':current_response['map']='other-town'
-            return current_response
-        import gradio as gr
-        with patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=wrong_map_gateway):
-            with self.assertRaises(gr.Error):hermes_agent_app.read_conversation_edit_result(current_card,'a'*32,'job-1','city')
-
-    def test_city_conversation_proposal_checks_original_and_revision(self):
+    def test_real_city_session_and_preview_match_conversation_protocol(self):
         import json
-        import gradio as gr
-        from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_city_proposal
-        from gui.ui.gradio import hermes_agent_app
-        current_proposal={'map':'stonewarm','generation':5,'revision':2,'changes':[{'path':['data','buildings',0,'name'],'before':'기존','after':'변경'}]}
-        current_answer='HERMES_CITY_PROPOSAL\n'+json.dumps(current_proposal,ensure_ascii=False)+'\nEND_HERMES_CITY_PROPOSAL'
-        self.assertEqual(parse_hermes_city_proposal(current_answer),current_proposal)
-        current_draft={'map':'stonewarm','generation':5,'revision':2,'document':{'data':{'buildings':[{'name':'기존'}]}}}
-        def current_gateway(service,command,payload):
-            if command=='hermes-city-proposal':return {'job_id':'job-1','proposal':current_proposal}
-            if command=='hermes-city-load':return current_draft
-            raise AssertionError(command)
-        with patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway):
-            current_draft_text,current_changes=hermes_agent_app.load_conversation_city_proposal('job-1')
-            self.assertEqual(json.loads(current_draft_text)['document']['data']['buildings'][0]['name'],'변경')
-            self.assertEqual(current_draft['document']['data']['buildings'][0]['name'],'기존')
-            self.assertEqual(current_changes,current_proposal['changes'])
-            current_draft['revision']=3
-            with self.assertRaises(gr.Error):hermes_agent_app.load_conversation_city_proposal('job-1')
-            current_draft['revision']=2
-            current_draft['document']['data']['buildings'][0]['name']='다른 값'
-            with self.assertRaises(gr.Error):hermes_agent_app.load_conversation_city_proposal('job-1')
-        current_proposal['changes'].append({'path':['data','buildings'],'before':[],'after':[]})
-        with self.assertRaises(ValueError):parse_hermes_city_proposal('HERMES_CITY_PROPOSAL\n'+json.dumps(current_proposal)+'\nEND_HERMES_CITY_PROPOSAL')
-
-    def test_conversation_city_preview_never_enables_save(self):
-        import gradio as gr
-        from gui.ui.gradio import hermes_agent_app
-        current_draft_text='{"map":"stonewarm","generation":5,"revision":2,"document":{}}'
-        current_review_record={'request_id':'request','draft':{},'token':'a'*64}
-        with patch.object(hermes_agent_app,'find_conversation_session_job'), patch.object(hermes_agent_app,'execute_remote_management_command',return_value={'state':'not_found'}), patch.object(hermes_agent_app,'load_conversation_city_proposal',return_value=(current_draft_text,[])), patch.object(hermes_agent_app,'review_hermes_city_map_draft',return_value=(current_review_record,'신규 저장 중단',{})):
-            current_card_record,current_preview_text,_,current_status_text=hermes_agent_app.prepare_conversation_edit_review('a'*32,'job-1','city')
-            self.assertFalse(current_card_record['ready'])
-            self.assertIn('신규 저장 중단',current_status_text)
-            with self.assertRaises(gr.Error):
-                hermes_agent_app.submit_conversation_edit_review(current_card_record,'a'*32,'job-1','city')
-
-    def test_conversation_city_review_displays_plan_without_enabling_save(self):
-        from gui.ui.gradio import hermes_agent_app
-        current_draft_text='{"map":"stonewarm","generation":5,"revision":2,"document":{}}'
-        def read_test_gateway(current_service_name,current_command_name,current_payload_record):
-            if current_command_name=='hermes-city-receipt':return {'state':'not_found'}
-            if current_command_name=='hermes-city-preview':return {'token':'a'*64,'changed':True,'buildings':1,'objects':0,'source_plan':{'status':'available','before_sha256':'b'*64,'after_sha256':'c'*64},'source_alignment':{'status':'matched'},'save_available':False}
-            raise AssertionError('예상하지 못한 관리 명령')
-        with patch.object(hermes_agent_app,'find_conversation_session_job'),patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=read_test_gateway),patch.object(hermes_agent_app,'load_conversation_city_proposal',return_value=(current_draft_text,[])):
-            current_card_record,current_preview_text,_,current_status_text=hermes_agent_app.prepare_conversation_edit_review('a'*32,'job-1','city')
-        self.assertIn('원본 변경 계획: 해시 계산됨',current_preview_text)
-        self.assertIn('저장 또는 복구 준비 완료를 뜻하지 않습니다',current_preview_text)
-        self.assertIn('신규 저장 중단',current_status_text)
-        self.assertFalse(current_card_record['ready'])
+        import subprocess
+        from workflow.domains.hermes_agent.service import HermesServiceManager
+        from workflow.domains.hermes_agent.session_store import HermesSessionStore
+        session='a'*32;job='2026-11-18_00-00-00-12345678'
+        proposal={'map':'stonewarm','generation':5,'revision':2,'changes':[{'path':['data','buildings',0,'name'],'before':'old','after':'new'}]}
+        source={'map':'stonewarm','generation':5,'revision':2,'document':{'data':{'buildings':[{'name':'old'}]}}}
+        draft={**source,'document':{'data':{'buildings':[{'name':'new'}]}}}
+        answer='HERMES_CITY_PROPOSAL\n'+json.dumps(proposal)+'\nEND_HERMES_CITY_PROPOSAL'
+        with TemporaryDirectory() as directory:
+            root=Path(directory);sessions=HermesSessionStore(root/'sessions');sessions.create_session_record(session)
+            sessions.append_session_request(session,'request_12345678','도시 맵 변경');sessions.attach_session_job(session,'request_12345678',job)
+            jobdir=root/'jobs'/job;jobdir.mkdir(parents=True)
+            (jobdir/'request.json').write_text(json.dumps({'prompt':'도시 맵 변경'}))
+            (jobdir/'status.json').write_text(json.dumps({'status':'completed'}))
+            (jobdir/'hermes-events.jsonl').write_text(json.dumps({'type':'result','text':answer})+'\n')
+            manager=HermesServiceManager(hermes_storage_root=root/'jobs',hermes_session_root=root/'sessions')
+            token=city_map_operations.validate_hermes_city_draft(draft)
+            editor_preview={'token':token,'cityId':'stonewarm','changed':True,'columns':5,'rows':5,'buildings':1,'objects':0,'source_plan':{'status':'available','before_sha256':'a'*64,'after_sha256':'b'*64}}
+            with patch.object(city_map_operations,'call_field_map_editor',return_value=editor_preview),patch.object(city_map_operations,'load_hermes_city_map',return_value=source):
+                preview=manager.execute_hermes_command('hermes-city-preview',{'draft':draft})
+            view=manager.execute_hermes_command('hermes-session-view',{'session_id':session,'offset':0,'limit':6})
+            parsed=manager.execute_hermes_command('hermes-city-proposal',{'id':job})
+            script="""import {prepareCityProposal} from './gui/cityProposalProtocol.mjs';
+              const [view,parsed,source,preview]=JSON.parse(process.argv[1]);let sent;
+              const command=async(_,name,payload)=>{if(name==='hermes-session-view')return view;if(name==='hermes-city-proposal')return parsed;if(name==='hermes-city-receipt')return {state:'not_found'};if(name==='hermes-city-load')return source;if(name==='hermes-city-preview'){sent=payload.draft;return preview;}throw Error(name);};
+              const result=await prepareCityProposal(command,view.id,parsed.job_id,view.snapshot,view.offset);
+              if(sent.document.data.buildings[0].name!=='new' || source.document.data.buildings[0].name!=='old' || result.preview.save_available!==false)throw Error('review mismatch');"""
+            repository=Path(__file__).resolve().parents[2]
+            result=subprocess.run(['node','--input-type=module','-e',script,json.dumps([view,parsed,source,preview],ensure_ascii=False)],cwd=repository,capture_output=True,text=True,timeout=30)
+            self.assertEqual(result.returncode,0,result.stderr)
 
     def test_city_preview_reports_saving_unavailable(self):
         current_draft_record={'map':'stonewarm','generation':5,'revision':2,'document':{}}

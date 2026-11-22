@@ -188,7 +188,7 @@ def prepare_writer_runtime_environment(launcher_trace_logger):
             if not isinstance(current_manifest_record, dict) or any(current_manifest_record.get(current_key_name) != current_expected_value for current_key_name, current_expected_value in current_expected_values.items()):
                 raise ValueError('준비 기록이 고정 구성과 다릅니다.')
             current_verified_files = ((writer_prepare_module.RUNTIME_SERVER_PATH, current_manifest_record.get('server_binary_sha256')),
-                (writer_prepare_module.MODEL_DOWNLOAD_ROOT / writer_prepare_module.MODEL_DOWNLOAD_NAME, writer_prepare_module.MODEL_DOWNLOAD_SHA256),
+                (writer_prepare_module.GENERATION_MODEL_PATH, writer_prepare_module.MODEL_DOWNLOAD_SHA256),
                 (writer_prepare_module.MODEL_DOWNLOAD_ROOT / writer_prepare_module.EMBEDDING_DOWNLOAD_NAME, writer_prepare_module.EMBEDDING_DOWNLOAD_SHA256))
             for current_file_path, current_expected_digest in current_verified_files:
                 if current_file_path.is_symlink() or not current_file_path.is_file() or not isinstance(current_expected_digest, str) or writer_prepare_module.calculate_file_digest(current_file_path) != current_expected_digest:

@@ -1,11 +1,32 @@
 """Session-owned, fail-closed delivery to a running agent's control socket."""
 import json
+import hashlib
 import os
 from pathlib import Path
 import socket
 import stat
 
 from .live_instruction_store import submit, transition
+
+
+def recovery_id(request_id):
+    return 'recovery_' + hashlib.sha256(request_id.encode()).hexdigest()
+
+
+def annotate_recoveries(rows, session):
+    """Expose an existing recovery without treating it as a new delivery."""
+    queue = {item.get('request_id'): item for item in session.get('chat_queue', []) if isinstance(item, dict)}
+    messages = {item.get('request_id'): item for item in session.get('messages', []) if isinstance(item, dict)}
+    for row in rows:
+        if row.get('state') != 'undelivered' or not isinstance(row.get('request_id'), str):
+            continue
+        identifier = recovery_id(row['request_id'])
+        recovered = queue.get(identifier)
+        message = messages.get(identifier)
+        if recovered or message:
+            row['recovery'] = {'state': recovered.get('state', 'dispatched') if recovered else 'dispatched',
+                               'job_id': (recovered or {}).get('job_id') or (message or {}).get('job_id')}
+    return rows
 
 
 def deliver(manager, store, payload):

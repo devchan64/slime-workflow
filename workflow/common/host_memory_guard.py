@@ -65,7 +65,16 @@ def monitor_animate_host_memory(current_worker_process, current_stop_event, curr
         try:
             current_available_kib = read_memory_field_kib('/proc/meminfo', 'MemAvailable')
             current_host_read_complete = True
-            current_worker_rss_kib = read_worker_group_rss_kib(current_worker_process.pid) if current_include_group else read_memory_field_kib(f'/proc/{current_worker_process.pid}/status', 'VmRSS')
+            if current_include_group:
+                try:
+                    current_worker_rss_kib = read_worker_group_rss_kib(current_worker_process.pid)
+                except (OSError, ValueError):
+                    # 리더가 종료하며 메모리 필드가 사라지는 짧은 구간을 재확인한다.
+                    if current_stop_event.wait(0.1) or current_worker_process.poll() is not None:
+                        return
+                    current_worker_rss_kib = read_worker_group_rss_kib(current_worker_process.pid)
+            else:
+                current_worker_rss_kib = read_memory_field_kib(f'/proc/{current_worker_process.pid}/status', 'VmRSS')
         except (OSError, ValueError) as current_read_error:
             if current_worker_process.poll() is not None:
                 return

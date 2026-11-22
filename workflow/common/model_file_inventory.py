@@ -21,7 +21,9 @@ def resolve_model_inventory_paths():
     from generators.writer_agent.prepare import MODEL_DOWNLOAD_ROOT
     from workflow.domains.translation.service import TRANSLATION_MODEL_ROOT
     from workflow.common.hermes_model_download import HERMES_MODEL_DIRECTORY
+    from workflow.common.animationgpt_model_download import ANIMATIONGPT_MODEL_DIRECTORY
     return {
+        'animationgpt': [ANIMATIONGPT_MODEL_DIRECTORY],
         'flux-image': [FLUX_MODEL_ROOT_DIRECTORY],
         'prop-generator': [QWEN_MODEL_DIRECTORY],
         'expression-lora': [EXPRESSION_ADAPTER_PATH],

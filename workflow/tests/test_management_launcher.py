@@ -638,6 +638,7 @@ class ManagementLauncherTests(unittest.TestCase):
                     patch.object(writer_prepare_module, 'RUNTIME_SERVER_PATH', current_binary_path), \
                     patch.object(writer_prepare_module, 'RUNTIME_PYTHON_PATH', current_writer_python), \
                     patch.object(writer_prepare_module, 'MODEL_DOWNLOAD_ROOT', current_model_root), \
+                    patch.object(writer_prepare_module, 'GENERATION_MODEL_PATH', current_model_root/'model.gguf'), \
                     patch.object(writer_prepare_module, 'MODEL_DOWNLOAD_NAME', 'model.gguf'), \
                     patch.object(writer_prepare_module, 'EMBEDDING_DOWNLOAD_NAME', 'embedding.gguf'), \
                     patch.object(writer_prepare_module, 'MODEL_DOWNLOAD_SHA256', 'model.gguf'), \

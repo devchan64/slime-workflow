@@ -1,6 +1,7 @@
 import React, {useEffect,useRef,useState} from "react";
 import JobIdentifier from "./JobIdentifier.jsx";
 import {managementCommand} from "./managementCommand.js";
+import {writerStageLabel} from "./writerLabels.mjs";
 
 const activeStages=new Set(["queued","preparing","indexing","searching","reasoning"]);
 
@@ -69,9 +70,10 @@ export default function WriterResult({id,onDeleted}) {
     <button disabled={busy} onClick={()=>{setConfirmed(false);refresh(value=>value+1);}}>결과 새로고침</button>
     <label><input type="checkbox" defaultChecked onChange={event=>{followLog.current=event.target.checked;}}/>실행 로그 자동 갱신</label>
     {notice && <p role="status">{notice}</p>}
-    {error && <p role="alert">{error}</p>}
+    {error && <p role="alert">{error} · 3초 후 다시 조회합니다.</p>}
+    {!detail && !error && <p role="status">작업 결과를 조회하고 있습니다.</p>}
     {detail && <>
-      <p role="status">{detail.status.stage} · {detail.status.error || detail.status.summary || (typeof detail.status.progress==="object" ? JSON.stringify(detail.status.progress) : detail.status.progress)}</p>
+      <p role="status">{writerStageLabel(detail.status.stage)} · {detail.status.error || detail.status.summary || (typeof detail.status.progress==="object" ? JSON.stringify(detail.status.progress) : detail.status.progress)}</p>
       {proposal?.reason && <p>{proposal.reason}</p>}
       {proposal?.changes?.map(change=><details key={change.path}><summary>{change.path}</summary><pre>{change.diff}</pre></details>)}
       {canApply && <fieldset disabled={busy}><legend>원본 문서 적용</legend>

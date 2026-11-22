@@ -36,9 +36,7 @@ from workflow.common.hermes_model_routing import COMPLEX_MODEL, route_hermes_req
 
 def validate_hermes_runtime_ready(model_profile=COMPLEX_MODEL):
     if model_profile != COMPLEX_MODEL:
-        from generators.writer_agent.prepare import MODEL_DOWNLOAD_ROOT, MODEL_DOWNLOAD_NAME
-        if not (MODEL_DOWNLOAD_ROOT / MODEL_DOWNLOAD_NAME).is_file():
-            raise ValueError("작가 모델 관리에서 Qwen3.5-4B를 준비하세요.")
+        raise ValueError('폐기된 대화 모델입니다. Qwen 3.8을 사용하세요.')
     elif not inspect_hermes_model_files():
         raise ValueError('모델 관리에서 Hermes 모델을 먼저 준비하고 무결성을 확인하세요.')
     from generators.writer_agent.prepare import RUNTIME_SERVER_PATH
@@ -264,7 +262,7 @@ class HermesServiceManager:
                 build_context_messages(session, self.read_context_job)
             if row['state'] == 'queued':
                 row = transition(store, session_id, row['request_id'], 'queued', 'dispatching')
-            result = self.submit_hermes_session_message_locked({'session_id':session_id, 'request_id':row['request_id'], 'prompt':row['prompt']})
+            result = self.submit_hermes_session_message_locked({'session_id':session_id, 'request_id':row['request_id'], 'prompt':row['prompt'], **({'model_profile':row['model_profile']} if row.get('model_profile') is not None else {})})
             transition(store, session_id, row['request_id'], 'dispatching', 'dispatched', result['job_id'])
             return result
 
@@ -328,6 +326,9 @@ class HermesServiceManager:
         hermes_request_record = json.loads((hermes_job_path / 'request.json').read_text())
         hermes_status_path = hermes_job_path / 'status.json'
         hermes_status_record = json.loads(hermes_status_path.read_text()) if hermes_status_path.is_file() else {'status':'unknown', 'message':'접수 중 프로세스가 종료됐는지 확인이 필요합니다. 자동으로 재접수하지 않습니다.'}
+        if hermes_request_record.get('resident_id'):
+            from workflow.domains.hermes_agent.resident_chat_executor import observe_resident_chat_status
+            hermes_status_record = observe_resident_chat_status(hermes_job_path, hermes_status_record)
         hermes_result_path = hermes_job_path / 'result.json'
         hermes_result_record = json.loads(hermes_result_path.read_text()) if hermes_result_path.is_file() else None
         hermes_diff_path = hermes_job_path / 'change.diff'
@@ -355,6 +356,16 @@ class HermesServiceManager:
                 hermes_log_text += '\n--- 최종 독립 검증 ---\n' + hermes_verification_stream.read().decode(errors='replace')
         hermes_final_answer, hermes_answer_truncated = read_hermes_final_response(hermes_job_path)
         return {'id':hermes_job_path.name, 'request':hermes_request_record, 'status':hermes_status_record, 'result':hermes_result_record, 'diff':hermes_diff_text[:500000], 'diff_truncated':hermes_diff_truncated, 'log':hermes_log_text, 'final_response':hermes_final_answer, 'final_response_truncated':hermes_answer_truncated}
+
+    def read_hermes_proposal_record(self, job_id):
+        """세션 목록에는 상태와 제한된 최종 응답만 읽고 로그·diff는 읽지 않는다."""
+        from workflow.domains.hermes_agent.delegation_store import read_bounded_delegation_record
+        path = self.resolve_hermes_job_path(job_id)
+        status = read_bounded_delegation_record(path / 'status.json')
+        if not isinstance(status, dict):
+            raise ValueError('작업 상태 형식 오류')
+        answer, truncated = read_hermes_final_response(path) if status.get('status') == 'completed' else (None, False)
+        return {'status':status, 'final_response':answer, 'final_response_truncated':truncated}
 
     def submit_hermes_job_locked(self, hermes_payload_record, *, context=None, model_profile=None):
         if not {'request_id', 'prompt'} <= set(hermes_payload_record) or set(hermes_payload_record) - {'request_id', 'prompt', 'verification_modules'}:
@@ -385,15 +396,27 @@ class HermesServiceManager:
         if model_profile not in MODEL_FLOORS_MIB:
             raise ValueError('지원하지 않는 Hermes 모델입니다.')
         validate_hermes_runtime_ready(model_profile)
+        resident_id = None
+        if isinstance(context, dict) and context.get('session_id'):
+            from workflow.domains.hermes_agent.resident_queue import find_session_resident
+            resident_id = find_session_resident(context['session_id'])
+            if resident_id is not None and model_profile != 'qwen3.8-27b':
+                raise ValueError('이 세션에 Qwen 3.8 상주 모델이 있습니다. 3.8을 사용하거나 상주 모델을 해제한 뒤 다시 요청하세요.')
         hermes_job_identifier = datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S') + '-' + uuid.uuid4().hex[:8]
         hermes_job_path = self.hermes_storage_root / hermes_job_identifier
         hermes_job_path.mkdir()
         request_record = {**hermes_payload_record, 'model_profile': model_profile}
         if context is not None:
             request_record['context'] = context
+        if resident_id is not None:
+            request_record['resident_id'] = resident_id
         write_record_atomically(hermes_job_path / 'request.json', request_record)
         with (hermes_job_path / 'worker.log').open('a') as hermes_log_stream:
-            launch_gpu_process([sys.executable, str(WORKFLOW_ROOT_DIRECTORY / 'workflow/domains/hermes_agent/worker.py'), str(hermes_job_path)], hermes_job_path, 'hermes-agent', stdout=hermes_log_stream, stderr=subprocess.STDOUT, start_new_session=True, cwd=WORKFLOW_ROOT_DIRECTORY)
+            if resident_id is not None:
+                from workflow.domains.hermes_agent.resident_chat_executor import launch_resident_chat
+                launch_resident_chat(hermes_job_path, resident_id, context['session_id'], log=hermes_log_stream)
+            else:
+                launch_gpu_process([sys.executable, str(WORKFLOW_ROOT_DIRECTORY / 'workflow/domains/hermes_agent/worker.py'), str(hermes_job_path)], hermes_job_path, 'hermes-agent', stdout=hermes_log_stream, stderr=subprocess.STDOUT, start_new_session=True, cwd=WORKFLOW_ROOT_DIRECTORY)
         return {'id':hermes_job_identifier, 'status':'queued', 'duplicate':False}
 
     def read_context_job(self, job_id):
@@ -458,11 +481,15 @@ class HermesServiceManager:
 
     def submit_hermes_session_message_locked(self, hermes_payload_record):
         from workflow.domains.hermes_agent.session_store import HermesSessionStore, HERMES_SESSION_ID_PATTERN
-        if not {'session_id', 'request_id', 'prompt'} <= set(hermes_payload_record) or set(hermes_payload_record) - {'session_id', 'request_id', 'prompt', 'verification_modules'}:
+        if not {'session_id', 'request_id', 'prompt'} <= set(hermes_payload_record) or set(hermes_payload_record) - {'session_id', 'request_id', 'prompt', 'verification_modules', 'model_profile'}:
             raise ValueError('세션 ID·접수 ID·지시와 선택 검증 모듈만 전달하세요.')
         hermes_session_identifier = hermes_payload_record['session_id']
         hermes_request_identifier = hermes_payload_record['request_id']
         hermes_prompt_text = hermes_payload_record['prompt']
+        model_profile = hermes_payload_record.get('model_profile')
+        from workflow.common.hermes_model_routing import MODEL_FLOORS_MIB
+        if 'model_profile' in hermes_payload_record and (not isinstance(model_profile, str) or model_profile not in MODEL_FLOORS_MIB):
+            raise ValueError('지원하지 않는 Hermes 모델입니다.')
         if not isinstance(hermes_session_identifier, str) or not HERMES_SESSION_ID_PATTERN.fullmatch(hermes_session_identifier):
             raise ValueError('세션 ID 형식 오류')
         if not isinstance(hermes_request_identifier, str) or not HERMES_REQUEST_PATTERN.fullmatch(hermes_request_identifier):
@@ -501,7 +528,7 @@ class HermesServiceManager:
             hermes_execution_prompt = hermes_previous_message['execution_prompt']
             hermes_context_truncated = hermes_previous_message.get('context_truncated', False)
             execution_context = hermes_previous_message.get('execution_context')
-        hermes_message_result = hermes_session_store.append_session_request(hermes_session_identifier, hermes_request_identifier, hermes_prompt_text, hermes_execution_prompt, hermes_verification_modules, hermes_context_truncated, execution_context)
+        hermes_message_result = hermes_session_store.append_session_request(hermes_session_identifier, hermes_request_identifier, hermes_prompt_text, hermes_execution_prompt, hermes_verification_modules, hermes_context_truncated, execution_context, model_profile)
         hermes_message_record = hermes_message_result['message']
         hermes_job_request_id = 's_' + hashlib.sha256((hermes_session_identifier + ':' + hermes_request_identifier).encode()).hexdigest()
         hermes_job_payload = {'request_id': hermes_job_request_id, 'prompt': hermes_message_record['execution_prompt'], 'verification_modules': hermes_verification_modules}
@@ -518,7 +545,7 @@ class HermesServiceManager:
             if digest != execution_context['messages_digest']:
                 raise ValueError('이전 작업 응답이 변경되어 문맥을 복원할 수 없습니다.')
             context_payload = {**execution_context, 'messages': context_messages, 'force': False, 'only': False}
-        hermes_job_record = self.submit_hermes_job_locked(hermes_job_payload, context=context_payload)
+        hermes_job_record = self.submit_hermes_job_locked(hermes_job_payload, context=context_payload, model_profile=model_profile)
         hermes_session_store.attach_session_job(hermes_session_identifier, hermes_request_identifier, hermes_job_record['id'])
         return {'session_id': hermes_session_identifier, 'message_id': hermes_message_record['id'], 'job_id': hermes_job_record['id'], 'duplicate': hermes_message_result['duplicate'], 'context_truncated': hermes_message_record['context_truncated']}
 
@@ -637,6 +664,123 @@ class HermesServiceManager:
         return {'id': hermes_session_record['id'], 'title': hermes_session_record.get('title', '새 대화'), 'message_count': len(hermes_session_record['messages']), 'messages': hermes_view_messages, 'truncated': current_start_index > 0, 'offset':current_offset_value, 'next_offset':current_offset_value+len(hermes_view_messages) if current_start_index>0 else None, 'snapshot':current_snapshot_value, 'queried_at': datetime.now(timezone.utc).isoformat(), 'context': context_view}
 
     def execute_hermes_command(self, hermes_command_name, hermes_payload_record):
+        if hermes_command_name in ('hermes-resident-start', 'hermes-resident-status', 'hermes-resident-release', 'hermes-gpu-handoff-preview', 'hermes-gpu-handoff-approve', 'hermes-gpu-handoff-status', 'hermes-gpu-handoff-list', 'hermes-gpu-handoff-withdraw', 'hermes-gpu-handoff-writer-context', 'hermes-gpu-handoff-recover-release', 'hermes-gpu-handoff-recover-submission', 'hermes-gpu-handoff-recover-reload', 'hermes-gpu-handoff-retry-reload', 'hermes-gpu-handoff-cancel'):
+            if not isinstance(hermes_payload_record, dict):
+                raise ValueError('GPU 양도 입력은 객체여야 합니다.')
+            from workflow.domains.hermes_agent.session_store import HermesSessionStore
+            sessions = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+            if hermes_command_name == 'hermes-gpu-handoff-writer-context':
+                if set(hermes_payload_record) != {'session_id'}: raise ValueError('세션이 필요합니다.')
+                sessions.read_session_record(hermes_payload_record['session_id'])
+                from workflow.domains.hermes_agent.gpu_handoff_writer import inspect_writer_workspace
+                workspace = inspect_writer_workspace()
+                return {'session_id':hermes_payload_record['session_id'], 'fingerprint':workspace['fingerprint'], 'document_root':workspace['document_root'], 'state_root':workspace['state_root']}
+            if hermes_command_name == 'hermes-resident-start':
+                if set(hermes_payload_record) != {'session_id','request_id'}: raise ValueError('대화 세션과 요청 ID가 필요합니다.')
+                session_id = hermes_payload_record['session_id']
+                sessions.read_session_record(session_id)
+                validate_hermes_runtime_ready('qwen3.8-27b')
+                from workflow.domains.hermes_agent.resident_queue import ensure_session_resident
+                return ensure_session_resident(session_id, hermes_payload_record['request_id'])
+            if hermes_command_name == 'hermes-resident-release':
+                if set(hermes_payload_record) != {'session_id','resident_id','confirmed'} or hermes_payload_record['confirmed'] is not True:
+                    raise ValueError('상주 모델 해제에 대한 명시적 확인이 필요합니다.')
+                session_id = hermes_payload_record['session_id']
+                sessions.read_session_record(session_id)
+                from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
+                from workflow.domains.hermes_agent.resident_queue import request_resident_release
+                return GpuHandoffStore().run_without_open_session_handoff(session_id, lambda: request_resident_release(hermes_payload_record['resident_id'], session_id))
+            if hermes_command_name == 'hermes-resident-status':
+                if set(hermes_payload_record) != {'session_id'}: raise ValueError('대화 세션이 필요합니다.')
+                session_id = hermes_payload_record['session_id']
+                sessions.read_session_record(session_id)
+                from workflow.domains.hermes_agent.resident_queue import find_session_resident, inspect_resident
+                resident_id = find_session_resident(session_id)
+                return {'session_id':session_id, 'resident_id':resident_id, 'resident':inspect_resident(resident_id, session_id) if resident_id else {'state':'not_found'}}
+            if hermes_command_name == 'hermes-gpu-handoff-status':
+                if set(hermes_payload_record) != {'session_id','request_id'}: raise ValueError('세션과 GPU 양도 요청 ID가 필요합니다.')
+                sessions.read_session_record(hermes_payload_record['session_id'])
+                from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore, summarize_handoff_request
+                store = GpuHandoffStore()
+                record = store.read(hermes_payload_record['request_id'])
+                if record is None:
+                    withdrawn = store.read_withdrawal(hermes_payload_record['request_id'], hermes_payload_record['session_id'])
+                    return withdrawn if withdrawn is not None else {'state':'not_found','request_id':hermes_payload_record['request_id']}
+                if record['session_id'] != hermes_payload_record['session_id']: raise ValueError('GPU 양도 요청의 세션이 일치하지 않습니다.')
+                summary = summarize_handoff_request(record)
+                return {**{key:value for key,value in record.items() if key != 'target_request'}, 'target_summary':summary}
+            if hermes_command_name == 'hermes-gpu-handoff-list':
+                if set(hermes_payload_record) != {'session_id'}: raise ValueError('세션이 필요합니다.')
+                session_id = hermes_payload_record['session_id']
+                sessions.read_session_record(session_id)
+                from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
+                return {'session_id':session_id, 'handoffs':GpuHandoffStore().list_session_records(session_id)}
+            if hermes_command_name == 'hermes-gpu-handoff-withdraw':
+                if set(hermes_payload_record) != {'session_id','request_id','service','confirmed'} or hermes_payload_record['confirmed'] is not True:
+                    raise ValueError('미접수 GPU 양도 철회 확인 입력 오류')
+                session_id = hermes_payload_record['session_id']
+                sessions.read_session_record(session_id)
+                from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
+                return GpuHandoffStore().withdraw_if_unaccepted(hermes_payload_record['request_id'], session_id, hermes_payload_record['service'])
+            if hermes_command_name == 'hermes-gpu-handoff-recover-release':
+                if set(hermes_payload_record) != {'session_id','request_id','expected_revision','confirmed'}:
+                    raise ValueError('GPU 양도 복구 확인 입력 오류')
+                sessions.read_session_record(hermes_payload_record['session_id'])
+                from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
+                from workflow.domains.hermes_agent.gpu_handoff_controller import recover_release_observation
+                from workflow.domains.hermes_agent.gpu_handoff_scheduler import HandoffServiceAdapter
+                record = recover_release_observation(GpuHandoffStore(), hermes_payload_record['request_id'], hermes_payload_record['session_id'], hermes_payload_record['expected_revision'], HandoffServiceAdapter(), confirmed=hermes_payload_record['confirmed'])
+                return {key:value for key,value in record.items() if key != 'target_request'}
+            if hermes_command_name == 'hermes-gpu-handoff-retry-reload':
+                if set(hermes_payload_record) != {'session_id','request_id','expected_revision','confirmed'}:
+                    raise ValueError('GPU 재적재 재시도 확인 입력 오류')
+                sessions.read_session_record(hermes_payload_record['session_id'])
+                from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
+                from workflow.domains.hermes_agent.gpu_handoff_controller import retry_failed_reload
+                from workflow.domains.hermes_agent.gpu_handoff_scheduler import HandoffServiceAdapter
+                record = retry_failed_reload(GpuHandoffStore(), hermes_payload_record['request_id'], hermes_payload_record['session_id'], hermes_payload_record['expected_revision'], HandoffServiceAdapter(), confirmed=hermes_payload_record['confirmed'])
+                return {key:value for key,value in record.items() if key != 'target_request'}
+            if hermes_command_name == 'hermes-gpu-handoff-recover-reload':
+                if set(hermes_payload_record) != {'session_id','request_id','expected_revision','confirmed'}:
+                    raise ValueError('GPU 재적재 복구 확인 입력 오류')
+                sessions.read_session_record(hermes_payload_record['session_id'])
+                from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
+                from workflow.domains.hermes_agent.gpu_handoff_controller import recover_verified_reload
+                from workflow.domains.hermes_agent.gpu_handoff_scheduler import HandoffServiceAdapter
+                record = recover_verified_reload(GpuHandoffStore(), hermes_payload_record['request_id'], hermes_payload_record['session_id'], hermes_payload_record['expected_revision'], HandoffServiceAdapter(), confirmed=hermes_payload_record['confirmed'])
+                return {key:value for key,value in record.items() if key != 'target_request'}
+            if hermes_command_name == 'hermes-gpu-handoff-recover-submission':
+                if set(hermes_payload_record) != {'session_id','request_id','expected_revision','confirmed'}:
+                    raise ValueError('GPU 양도 접수 복구 확인 입력 오류')
+                sessions.read_session_record(hermes_payload_record['session_id'])
+                from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
+                from workflow.domains.hermes_agent.gpu_handoff_controller import recover_accepted_submission
+                from workflow.domains.hermes_agent.gpu_handoff_scheduler import HandoffServiceAdapter
+                record = recover_accepted_submission(GpuHandoffStore(), hermes_payload_record['request_id'], hermes_payload_record['session_id'], hermes_payload_record['expected_revision'], HandoffServiceAdapter(), confirmed=hermes_payload_record['confirmed'])
+                return {key:value for key,value in record.items() if key != 'target_request'}
+            if hermes_command_name == 'hermes-gpu-handoff-cancel':
+                if set(hermes_payload_record) != {'session_id','request_id','expected_revision','confirmed'}:
+                    raise ValueError('GPU 양도 중지 확인 입력 오류')
+                sessions.read_session_record(hermes_payload_record['session_id'])
+                from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
+                from workflow.domains.hermes_agent.gpu_handoff_controller import cancel_handoff
+                from workflow.domains.hermes_agent.gpu_handoff_scheduler import HandoffServiceAdapter
+                record = cancel_handoff(GpuHandoffStore(), hermes_payload_record['request_id'], hermes_payload_record['session_id'], hermes_payload_record['expected_revision'], HandoffServiceAdapter(), confirmed=hermes_payload_record['confirmed'])
+                return {key:value for key,value in record.items() if key != 'target_request'}
+            from workflow.domains.hermes_agent.gpu_handoff_operations import preview_kimodo_handoff, approve_kimodo_handoff, preview_handoff, approve_handoff
+            if hermes_command_name == 'hermes-gpu-handoff-preview':
+                if set(hermes_payload_record) not in ({'session_id','resident_id','request'}, {'session_id','resident_id','request','service'}): raise ValueError('GPU 양도 검토 입력 오류')
+                if 'service' in hermes_payload_record:
+                    return preview_handoff(hermes_payload_record['session_id'], hermes_payload_record['resident_id'], hermes_payload_record['service'], hermes_payload_record['request'], session_store=sessions)
+                return preview_kimodo_handoff(hermes_payload_record['session_id'], hermes_payload_record['resident_id'], hermes_payload_record['request'], session_store=sessions)
+            required = {'request_id','session_id','resident_id','request','review_hash','confirmed'}
+            if set(hermes_payload_record) not in (required, required | {'service'}):
+                raise ValueError('GPU 양도 확인 입력 오류')
+            if 'service' in hermes_payload_record:
+                record = approve_handoff(hermes_payload_record['request_id'], hermes_payload_record['session_id'], hermes_payload_record['resident_id'], hermes_payload_record['service'], hermes_payload_record['request'], hermes_payload_record['review_hash'], confirmed=hermes_payload_record['confirmed'], session_store=sessions)
+            else:
+                record = approve_kimodo_handoff(hermes_payload_record['request_id'], hermes_payload_record['session_id'], hermes_payload_record['resident_id'], hermes_payload_record['request'], hermes_payload_record['review_hash'], confirmed=hermes_payload_record['confirmed'], session_store=sessions)
+            return {key:value for key,value in record.items() if key != 'target_request'}
         if hermes_command_name in ('hermes-video-form-save', 'hermes-video-form-read', 'hermes-video-form-submit', 'hermes-video-form-status'):
             from workflow.domains.hermes_agent.session_store import HermesSessionStore
             store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
@@ -657,9 +801,11 @@ class HermesServiceManager:
             raise ValueError('입력은 객체여야 합니다.')
         if hermes_command_name == 'hermes-workflow-list':
             from .workflow_commands import execute_workflow_command
-            from .session_queue import append_session_video_jobs
+            from .session_queue import append_session_video_jobs, append_session_flux_proposals, append_session_writer_proposals
             result = execute_workflow_command(WORKFLOW_ROOT_DIRECTORY, hermes_command_name, hermes_payload_record)
-            return append_session_video_jobs(result, hermes_payload_record, self.hermes_session_root)
+            result = append_session_video_jobs(result, hermes_payload_record, self.hermes_session_root)
+            result = append_session_flux_proposals(result, hermes_payload_record, self.read_hermes_proposal_record, self.hermes_session_root)
+            return append_session_writer_proposals(result, hermes_payload_record, self.read_hermes_proposal_record, self.hermes_session_root)
         if hermes_command_name in ("hermes-workflow-list", "hermes-workflow-catalog", "hermes-workflow-review", "hermes-workflow-register", "hermes-workflow-view", 'hermes-workflow-cancel', 'hermes-workflow-select', 'hermes-workflow-retry', 'hermes-workflow-draft-read', 'hermes-workflow-draft-save', 'hermes-form-list', 'hermes-form-read', 'hermes-form-save', 'hermes-workflow-image-preview', 'hermes-workflow-audio-preview'):
             from .workflow_commands import execute_workflow_command
             return execute_workflow_command(WORKFLOW_ROOT_DIRECTORY, hermes_command_name, hermes_payload_record)
@@ -1045,6 +1191,36 @@ class HermesServiceManager:
             if hermes_payload_record:
                 raise ValueError('작가 색인 상태 조회에는 입력을 전달할 수 없습니다.')
             return read_hermes_writer_index_status()
+        if hermes_command_name in ('hermes-writer-proposal-submit','hermes-writer-proposal-receipt'):
+            from workflow.domains.hermes_agent.session_store import HermesSessionStore
+            from workflow.domains.hermes_agent.gpu_handoff_kimodo import _derived_id
+            from workflow.domains.hermes_agent.delegation_store import HermesDelegationStore
+            expected={'session_id','request_id','job_id'} | ({'request','confirmed','snapshot','offset'} if hermes_command_name.endswith('submit') else set())
+            if set(hermes_payload_record)!=expected:raise ValueError('작가 제안 접수 입력 오류')
+            session_id=hermes_payload_record['session_id'];request_id=hermes_payload_record['request_id'];job_id=hermes_payload_record['job_id']
+            sessions=HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+            session_record=sessions.read_session_record(session_id)
+            from workflow.domains.hermes_agent.delegation_store import validate_service_job_identifier
+            if not validate_service_job_identifier('flux-image',job_id):raise ValueError('작가 제안 작업 ID 오류')
+            expected_id='writer_'+hashlib.sha256(json.dumps([session_id,job_id],ensure_ascii=False,separators=(',',':')).encode()).hexdigest()
+            if request_id!=expected_id or sum(message.get('job_id')==job_id for message in session_record['messages'] if isinstance(message,dict))!=1:raise ValueError('작가 제안과 접수 ID가 일치하지 않습니다.')
+            if hermes_command_name.endswith('receipt'):
+                return {**HermesDelegationStore().read_service_delegation(_derived_id('handoff_',request_id),'writer-agent'),'request_id':request_id}
+            if hermes_payload_record['confirmed'] is not True:raise ValueError('작가 작업 확인이 필요합니다.')
+            page=self.read_hermes_session_view_locked({'session_id':session_id,'offset':hermes_payload_record['offset'],'limit':6,'snapshot':hermes_payload_record['snapshot']})
+            candidates=[message for message in page['messages'] if message.get('job_id')==job_id and message.get('session_job_unique') is True]
+            if len(candidates)!=1 or not candidates[0].get('job') or candidates[0]['job']['status'].get('status')!='completed' or candidates[0]['job'].get('final_response_truncated'):
+                raise ValueError('완료된 대화 제안을 다시 확인하세요.')
+            from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_writer_proposal
+            proposal=parse_hermes_writer_proposal(candidates[0]['job'].get('final_response'))
+            bound=hermes_payload_record['request']
+            if not isinstance(bound,dict) or not isinstance(bound.get('request'),dict) or bound['request'].get('mode')!=proposal['mode']:
+                raise ValueError('작가 제안의 작업 종류가 변경되었습니다.')
+            from workflow.domains.hermes_agent.gpu_handoff_writer import submit_bound_writer_once
+            from workflow.domains.hermes_agent.resident_queue import find_session_resident
+            def ensure_no_resident():
+                if find_session_resident(session_id):raise ValueError('상주 모델 상태가 변경되었습니다. GPU 양도를 다시 검토하세요.')
+            return submit_bound_writer_once(request_id,session_id,hermes_payload_record['request'],preflight=ensure_no_resident)
         if hermes_command_name in ('hermes-delegate-writer','hermes-writer-status','hermes-writer-history'):
             from workflow.domains.hermes_agent.writer_operations import submit_hermes_writer_request, read_hermes_writer_status
             from workflow.domains.hermes_agent.delegation_store import HermesDelegationStore
@@ -1462,6 +1638,7 @@ class HermesServiceManager:
             if hermes_command_name == 'hermes-live-instruction-recover':
                 from workflow.domains.hermes_agent.session_store import HermesSessionStore
                 from workflow.domains.hermes_agent.chat_queue_store import enqueue
+                from workflow.domains.hermes_agent.live_instruction_operations import recovery_id
                 if set(hermes_payload_record) != {'session_id', 'request_id'}:
                     raise ValueError('복구 요청 형식 오류')
                 store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
@@ -1469,8 +1646,7 @@ class HermesServiceManager:
                 row = next((item for item in record.get('live_instructions', []) if item.get('request_id') == hermes_payload_record['request_id']), None)
                 if not row or row.get('state') != 'undelivered':
                     raise ValueError('미전달이 확인된 지시만 복구할 수 있습니다.')
-                recovery_id = 'recovery_' + hashlib.sha256(row['request_id'].encode()).hexdigest()
-                return enqueue(store, hermes_payload_record['session_id'], recovery_id, row['text'])
+                return enqueue(store, hermes_payload_record['session_id'], recovery_id(row['request_id']), row['text'])
             if hermes_command_name == 'hermes-live-instruction':
                 from workflow.domains.hermes_agent.session_store import HermesSessionStore
                 from workflow.domains.hermes_agent.live_instruction_operations import deliver
@@ -1482,8 +1658,8 @@ class HermesServiceManager:
                 store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
                 session_record = store.read_session_record(hermes_payload_record['session_id'])
                 result['chat_queue'] = [dict(row) for row in session_record.get('chat_queue', []) if row.get('state') in ('queued','dispatching')]
-                from workflow.domains.hermes_agent.live_instruction_operations import settle
-                result['live_instructions'] = settle(self, store, hermes_payload_record['session_id'], [dict(row) for row in session_record.get('live_instructions', [])][-50:])
+                from workflow.domains.hermes_agent.live_instruction_operations import annotate_recoveries, settle
+                result['live_instructions'] = annotate_recoveries(settle(self, store, hermes_payload_record['session_id'], [dict(row) for row in session_record.get('live_instructions', [])][-50:]), session_record)
                 result['chat_active'] = None
                 for message in reversed(session_record.get('messages', [])):
                     job_id = message.get('job_id')
@@ -1527,12 +1703,15 @@ class HermesServiceManager:
                 from workflow.domains.hermes_agent.session_store import HermesSessionStore
                 from workflow.domains.hermes_agent.chat_queue_store import enqueue
                 from workflow.domains.hermes_agent.context_checkpoint import build_context_messages
-                if set(hermes_payload_record) == {'session_id','request_id','prompt'}:
+                if 'model_profile' in hermes_payload_record:
+                    if hermes_payload_record['model_profile'] != COMPLEX_MODEL:
+                        raise ValueError('폐기된 대화 모델입니다. Qwen 3.8을 사용하세요.')
+                if {'session_id','request_id','prompt'} <= set(hermes_payload_record) and not set(hermes_payload_record) - {'session_id','request_id','prompt','model_profile'}:
                     store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
                     session = store.read_session_record(hermes_payload_record['session_id'])
                     duplicate = any(row.get('request_id') == hermes_payload_record['request_id'] for row in session.get('chat_queue', []))
                     if duplicate:
-                        return {'session_id':hermes_payload_record['session_id'], 'queued':True, **enqueue(store, hermes_payload_record['session_id'], hermes_payload_record['request_id'], hermes_payload_record['prompt'])}
+                        return {'session_id':hermes_payload_record['session_id'], 'queued':True, **enqueue(store, hermes_payload_record['session_id'], hermes_payload_record['request_id'], hermes_payload_record['prompt'], hermes_payload_record.get('model_profile'))}
                     existing = next ( (row for row in session['messages'] if row.get('request_id') == hermes_payload_record['request_id']), None)
                     if existing is not None:
                         return self.submit_hermes_session_message_locked(hermes_payload_record)
@@ -1545,7 +1724,7 @@ class HermesServiceManager:
                             raise
                         queued = True
                     if queued:
-                        return {'session_id':hermes_payload_record['session_id'], 'queued':True, **enqueue(store, hermes_payload_record['session_id'], hermes_payload_record['request_id'], hermes_payload_record['prompt'])}
+                        return {'session_id':hermes_payload_record['session_id'], 'queued':True, **enqueue(store, hermes_payload_record['session_id'], hermes_payload_record['request_id'], hermes_payload_record['prompt'], hermes_payload_record.get('model_profile'))}
                 return self.submit_hermes_session_message_locked(hermes_payload_record)
             if hermes_command_name == 'hermes-history':
                 if set(hermes_payload_record)-{'offset','limit','snapshot','query','status'}:

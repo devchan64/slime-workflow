@@ -8,7 +8,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from PIL import Image
-import gradio as gr
 from workflow.domains.image.qwen_21_generation import validate_styled_qwen_request, verify_qwen_saved_request
 from workflow.domains.image.three_reference_generation import save_three_reference_inputs
 
@@ -53,46 +52,33 @@ class CharacterBodyReferenceTests(unittest.TestCase):
             validate_styled_qwen_request({**self.request_values, 'body_reference_id': self.body_catalog[0]['id'], 'images': [base64.b64encode(current_buffer.getvalue()).decode()]})
 
     def test_body_reference_search_and_selection(self):
-        current_gallery = importlib.import_module('generators.character-generator.page.body_reference_gallery')
-        self.assertEqual(current_gallery.search_body_reference_catalog('관절'), [])
-        self.assertEqual([current_record['id'] for current_record in current_gallery.search_body_reference_catalog('NEUTRAL-BODY-CLOTHED')], ['neutral-body-clothed'])
-        self.assertEqual(len(current_gallery.search_body_reference_catalog('중성형 비율')), 1)
-        self.assertEqual(current_gallery.search_body_reference_catalog('검색불가'), [])
-        current_empty_page = current_gallery.render_body_reference_page('검색불가', 1)
-        self.assertEqual(current_empty_page[0], [])
-        self.assertIsNone(current_empty_page[6])
-        self.assertFalse(current_empty_page[9]['interactive'])
-        current_page_values = current_gallery.render_body_reference_page('피부', 1)
-        current_event_value = gr.SelectData(None, {'index': 0, 'value': {'caption': '중성형 피부·기본복 전신 · 4방향\nID: neutral-body-clothed'}})
-        current_selection = current_gallery.select_body_reference_card('피부', 1, current_page_values[2], current_event_value)
-        self.assertEqual(current_selection[0], 'neutral-body-clothed')
-        self.assertIn(self.body_catalog[0]['sha256'], current_selection[2])
-        self.assertTrue(current_selection[3]['interactive'])
-        with self.assertRaises(gr.Error):
-            current_gallery.select_body_reference_card('검색불가', 1, current_page_values[2], current_event_value)
-        current_wrong_card = gr.SelectData(None, {'index': 0, 'value': {'caption': 'ID: neutral-body-jointed'}})
-        with self.assertRaises(gr.Error):
-            current_gallery.select_body_reference_card('피부', 1, current_page_values[2], current_wrong_card)
+        import json
+        import subprocess
+        root=Path(__file__).resolve().parents[2]
+        script="""import {filterFluxGuides,addFluxRolePrompt} from './gui/fluxGuides.mjs';
+          const [guides,role]=JSON.parse(process.argv[1]);
+          if(filterFluxGuides(guides,'NEUTRAL-BODY-CLOTHED')[0]?.id!=='neutral-body-clothed')throw Error('search');
+          if(filterFluxGuides(guides,'검색불가').length)throw Error('unknown');
+          const prompt=addFluxRolePrompt('character',role);
+          if(addFluxRolePrompt(prompt,role)!==prompt)throw Error('duplicate');"""
+        result=subprocess.run(['node','--input-type=module','-e',script,json.dumps([self.body_catalog,self.body_module.BODY_REFERENCE_ROLE_PROMPT],ensure_ascii=False)],cwd=root,capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
 
     def test_character_page_has_reference_selection(self):
-        current_page = importlib.import_module('generators.character-generator.page.interface')
-        current_blocks = current_page.build_generator_page('http://127.0.0.1:8770', 8770)
-        current_components = current_blocks.config['components']
-        self.assertTrue(any(current_item['props'].get('label') == '신체 비율 참조 검색' for current_item in current_components))
-        self.assertTrue(any(current_item['props'].get('label') == '신체 비율 참조 카드' for current_item in current_components))
-        self.assertTrue(any(current_item['props'].get('value') == '선택 기준을 첫 참조에 적용' for current_item in current_components))
-        current_image_control = next(current_component for current_component in current_blocks.blocks.values() if isinstance(current_component, gr.Image) and current_component.label == '참조 이미지 1')
-        current_original_image = self.body_module.load_body_reference_image('neutral-body-clothed')
-        current_roundtrip_image = current_image_control.preprocess(current_image_control.postprocess(current_original_image))
-        self.assertEqual(current_image_control.format, 'png')
-        self.assertEqual(current_roundtrip_image.tobytes(), current_original_image.tobytes())
-        current_apply_callback = next(current_function.fn for current_function in current_blocks.fns.values() if getattr(current_function.fn, '__name__', '') == 'apply_character_body')
-        current_image, current_prompt, current_identifier = current_apply_callback('neutral-body-clothed', current_page.load_character_default_prompt(), False)
-        self.assertEqual(current_identifier, 'neutral-body-clothed')
-        self.assertEqual(current_prompt.count(self.body_module.BODY_REFERENCE_ROLE_PROMPT), 1)
-        self.assertEqual(current_apply_callback('neutral-body-clothed', current_prompt, False)[1], current_prompt)
-        with self.assertRaises(Exception):
-            current_apply_callback('neutral-body-clothed', current_prompt, True)
+        from http.server import SimpleHTTPRequestHandler
+        from fastapi.testclient import TestClient
+        from workflow.common.management_asgi import build_management_application
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with TestClient(app) as client:
+                defaults=client.get('/management/assistant/flux-defaults/flux-character').json()
+                self.assertEqual(defaults['guides'],self.body_catalog)
+                self.assertEqual(defaults['rolePrompt'],self.body_module.BODY_REFERENCE_ROLE_PROMPT)
+                response=client.get('/management/assistant/flux-character-guide/neutral-body-clothed')
+                self.assertEqual(response.status_code,200)
+                with Image.open(io.BytesIO(response.content)) as actual, self.body_module.load_body_reference_image('neutral-body-clothed') as original:
+                    self.assertEqual(actual.tobytes(),original.tobytes())
+                self.assertEqual(client.get('/management/assistant/flux-character-guide/unknown').status_code,404)
 
 
 if __name__ == '__main__':

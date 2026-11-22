@@ -28,23 +28,21 @@ class SpriteSheetEditorTests(unittest.TestCase):
             current_request_record['fps']=0
             with self.assertRaises(ValueError):execute_management_command('character-animation','sheet-gif',current_request_record)
 
-    def test_unregistered_import_distributes_remainder_pixels(self):
-        from gui.ui.gradio.sprite_sheet_editor_app import load_sprite_sheet_input
-        with TemporaryDirectory() as current_temp_directory:
-            current_image_path=Path(current_temp_directory)/'sheet.png'
-            Image.new('RGB',(17,13),'white').save(current_image_path)
-            current_loaded_values=load_sprite_sheet_input(str(current_image_path),4,3,{})
-            current_frame_rows=current_loaded_values[1]
-            self.assertEqual(len(current_frame_rows),12)
-            current_covered_pixels=set()
-            for current_left_value,current_top_value,current_width_value,current_height_value,*_ in current_frame_rows:
-                for current_vertical_value in range(current_top_value,current_top_value+current_height_value):
-                    for current_horizontal_value in range(current_left_value,current_left_value+current_width_value):
-                        self.assertNotIn((current_horizontal_value,current_vertical_value),current_covered_pixels)
-                        current_covered_pixels.add((current_horizontal_value,current_vertical_value))
-            self.assertEqual(len(current_covered_pixels),17*13)
-            self.assertLessEqual(max(row[2] for row in current_frame_rows)-min(row[2] for row in current_frame_rows),1)
-            self.assertLessEqual(max(row[3] for row in current_frame_rows)-min(row[3] for row in current_frame_rows),1)
+    def test_local_sheet_grid_and_replacement_confirmation(self):
+        import os,subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with TemporaryDirectory() as directory:
+            bundle=Path(directory)/'sprite.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'SpriteSheetEditor.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');const {gridEdges,LocalSheetReplaceConfirmation,GridReplaceConfirmation,SheetSourceChangeConfirmation}=require(process.argv[1]);
+              for(const [size,count] of [[17,4],[13,3]]){const edges=gridEdges(size,count), widths=edges.slice(1).map((x,i)=>x-edges[i]);if(edges[0]!==0 || edges.at(-1)!==size || Math.max(...widths)-Math.min(...widths)>1)throw Error(JSON.stringify(edges));}
+              const markup=server.renderToStaticMarkup(React.createElement(LocalSheetReplaceConfirmation,{name:'new.png'}));
+              if(!markup.includes('new.png') || !markup.includes('편집 내용이 사라집니다') || !markup.includes('교체 확인') || !markup.includes('교체 취소'))throw Error(markup);
+              const grid=server.renderToStaticMarkup(React.createElement(GridReplaceConfirmation,{dimensions:'4x3'}));
+              if(!grid.includes('4x3') || !grid.includes('편집 내용이 사라집니다') || !grid.includes('다시 나누기 확인') || !grid.includes('취소'))throw Error(grid);
+              const change=server.renderToStaticMarkup(React.createElement(SheetSourceChangeConfirmation,{change:{kind:'select',path:'new/sheet.png'}}));
+              if(!change.includes('new/sheet.png') || !change.includes('변경 확인') || !change.includes('변경 취소'))throw Error(change);"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
 
     def test_export_aligns_crops_and_preserves_source(self):
         current_source_image=Image.new('RGBA',(8,4))

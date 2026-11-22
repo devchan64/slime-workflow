@@ -10,6 +10,29 @@ from workflow.common.history_summaries import handle_history_summaries_request, 
 
 
 class HistorySummariesTests(unittest.TestCase):
+    def test_audio_summary_endpoint_exposes_only_confirmed_output(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);identifier='2026-11-17_08-17-15-14925ca2';job=root/identifier;job.mkdir();attempt='a'*32
+            (job/'request.json').write_text(json.dumps({'prompt':'private','duration_seconds':12.5,'seed':7}))
+            (job/'status.json').write_text('{"status":"completed"}');(job/'result.json').write_text(json.dumps({'attempt':attempt}))
+            audio=job/'attempts'/attempt/'music.wav';audio.parent.mkdir(parents=True);audio.write_bytes(b'RIFF')
+            payload=json.dumps({'service':'music-heartmula','ids':[identifier]}).encode();statuses=[]
+            handler=SimpleNamespace(path='/management/history-summaries',server=SimpleNamespace(server_port=8770),headers={'Host':'127.0.0.1:8770','Origin':'http://127.0.0.1:8770','Content-Type':'application/json','Content-Length':str(len(payload))},rfile=io.BytesIO(payload),wfile=io.BytesIO(),send_response=statuses.append,send_header=lambda *args:None,end_headers=lambda:None)
+            routes={'/music-heartmula':(root,lambda id:root/id)}
+            handle_history_summaries_request(handler,routes)
+            summary=json.loads(handler.wfile.getvalue())['summaries'][identifier]
+            self.assertEqual(summary,{'seed':7,'duration_seconds':12.5,'audio_available':True})
+            repository=Path(__file__).resolve().parents[2]
+            script="""import {historyInputSummary} from './gui/historyInputSummary.mjs';
+              const values=historyInputSummary(JSON.parse(process.argv[1]));
+              if(!values.includes('길이 12.5초') || !values.includes('WAV 오디오 결과'))throw Error(JSON.stringify(values));"""
+            result=subprocess.run(['node','--input-type=module','-e',script,json.dumps(summary)],cwd=repository,capture_output=True,text=True,timeout=30)
+            self.assertEqual(result.returncode,0,result.stderr)
+            audio.unlink();audio.symlink_to(job/'request.json');handler.rfile=io.BytesIO(payload);handler.wfile=io.BytesIO()
+            handle_history_summaries_request(handler,routes)
+            self.assertFalse(json.loads(handler.wfile.getvalue())['summaries'][identifier]['audio_available'])
+
     def test_video_preview_uses_only_valid_saved_attempt(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory); attempt='a'*32; folder=root/'attempts'/attempt; folder.mkdir(parents=True)

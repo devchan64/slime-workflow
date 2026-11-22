@@ -9,14 +9,14 @@ from workflow.domains.image.seamless_pattern import execute_pattern_pipeline
 from generators.image.common_art_style import compose_common_style_prompt, load_common_style_record
 
 class SeamlessPatternTests(unittest.TestCase):
-    def test_initial_prompt_readiness_matches_stage_limits(self):
-        from gui.ui.gradio.seamless_tile_app import check_seamless_prompt_readiness
+    def test_legacy_prompt_validation_matches_stage_limits(self):
         from workflow.domains.image.seamless_pattern import build_pattern_request
-        self.assertFalse(check_seamless_prompt_readiness(' '))
+        base={'action':'generate','images':[],'steps':40,'seed':1,'width':768,'height':768}
+        with self.assertRaises(ValueError):validate_seamless_request({**base,'prompt':' '})
         current_final_prompt, _ = build_pattern_request('grass')
         current_fixed_count = len(current_final_prompt.split()) - 1 + load_common_style_record()['word_count']
-        self.assertTrue(check_seamless_prompt_readiness(' '.join(['grass'] * (99-current_fixed_count))))
-        self.assertFalse(check_seamless_prompt_readiness(' '.join(['grass'] * (100-current_fixed_count))))
+        self.assertTrue(validate_seamless_request({**base,'prompt':' '.join(['grass'] * (99-current_fixed_count))}))
+        with self.assertRaises(ValueError):validate_seamless_request({**base,'prompt':' '.join(['grass'] * (100-current_fixed_count))})
 
     def create_pattern_request(self):
         return validate_seamless_request({'action':'generate','prompt':'낙엽','images':[],'steps':40,'seed':1,'width':768,'height':768})

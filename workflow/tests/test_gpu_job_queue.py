@@ -7,6 +7,24 @@ from unittest.mock import patch, Mock
 from workflow.common import gpu_job_queue as queue_module
 
 class GpuJobQueueTests(unittest.TestCase):
+    def test_kimodo_concurrency_limit_does_not_block_other_images(self):
+        import os
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            kimodo = root / '.tmp/test/kimodo/job-1'
+            other = root / '.tmp/test/other/job-2'
+            kimodo.mkdir(parents=True)
+            other.mkdir(parents=True)
+            for job in (kimodo, other):
+                (job / 'gpu-command.json').write_text(json.dumps({'command':['python'], 'service':'image'}))
+            ticket = root / 'ticket.json'
+            ticket.write_text(json.dumps({'pid':os.getpid(), 'path':str(kimodo)}))
+            with patch.object(queue_module, 'WORKFLOW_ROOT_DIRECTORY', root), patch.object(queue_module, 'read_priority_tickets', return_value=[ticket]), patch.object(queue_module, 'estimate_required_memory', return_value={'required_memory_mib':1}):
+                self.assertEqual(queue_module.select_runnable_ticket(100,'vram',active_kimodo_count=1), ticket)
+                self.assertIsNone(queue_module.select_runnable_ticket(100,'vram',active_kimodo_count=2))
+                ticket.write_text(json.dumps({'pid':os.getpid(), 'path':str(other)}))
+                self.assertEqual(queue_module.select_runnable_ticket(100,'vram',active_kimodo_count=2), ticket)
+
     def test_resume_extra_validation_runs_under_locks_and_preserves_failed_job(self):
         import fcntl
         with tempfile.TemporaryDirectory() as current_directory_name:

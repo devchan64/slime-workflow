@@ -110,11 +110,23 @@ class WriterAgentManager:
         if type(current_process_identifier) is int and current_process_identity and read_process_identity(current_process_identifier)==current_process_identity:return current_status_values
         return {**current_status_values,'stage':'interrupted','error':'실행 프로세스가 종료된 작업입니다. 로그를 확인하고 새 작업으로 실행하세요.'}
 
-    def launch_writer_process(self,current_request_values):
+    def launch_writer_process(self,current_request_values,*,expected_workspace_fingerprint=None):
         current_config_values=load_workspace_config(self.workspace_config_path)
         with self.request_lock_handle, (Path(current_config_values['state_root'])/'submission.lock').open('a') as current_submission_lock:
             fcntl.flock(current_submission_lock,fcntl.LOCK_EX)
+            if expected_workspace_fingerprint is not None:
+                import re
+                from workflow.domains.hermes_agent.gpu_handoff_writer import load_writer_workspace_for_binding
+                from .jobs import validate_job_request
+                validate_job_request(current_request_values)
+                if not isinstance(expected_workspace_fingerprint,str) or not re.fullmatch(r'[a-f0-9]{64}',expected_workspace_fingerprint):
+                    raise ValueError('작가 작업공간 확인값 오류')
+                bound_config,bound_fingerprint=load_writer_workspace_for_binding(self.workspace_config_path)
+                if bound_fingerprint!=expected_workspace_fingerprint or bound_config!=current_config_values:
+                    raise ValueError('작가 작업공간이 변경됐습니다. 다시 검토하세요.')
             if self.read_workspace_state()['active_job']:raise ValueError('이미 작가 에이전트 작업이 실행 중이거나 대기 중입니다.')
+            if expected_workspace_fingerprint is not None and load_writer_workspace_for_binding(self.workspace_config_path)[1]!=expected_workspace_fingerprint:
+                raise ValueError('작가 작업공간이 변경됐습니다. 다시 검토하세요.')
             current_prepare_flag=current_request_values=={'mode':'prepare','prompt':''}
             current_prepare_root = WORKFLOW_REPOSITORY_ROOT/'.local/model-preparation/writer-agent'
             if inspect_detached_preparation(current_prepare_root) == 'running':
@@ -128,9 +140,13 @@ class WriterAgentManager:
                 save_yaml_document(current_job_root/'request.yaml',current_request_values)
                 update_job_status(current_job_root,'queued',mode='prepare')
                 current_command_values=[sys.executable,'-m','generators.writer_agent.prepare','--run-dir',str(current_job_root)]
-            else:
-                current_command_values=[str(prepare.RUNTIME_PYTHON_PATH),'-m','generators.writer_agent.jobs','--config',str(self.workspace_config_path),'--job-id',current_job_identifier]
             try:
+                if not current_prepare_flag:
+                    config_path=self.workspace_config_path
+                    if expected_workspace_fingerprint is not None:
+                        config_path=current_job_root/'workspace-bound.yaml'
+                        save_yaml_document(config_path,bound_config)
+                    current_command_values=[str(prepare.RUNTIME_PYTHON_PATH),'-m','generators.writer_agent.jobs','--config',str(config_path),'--job-id',current_job_identifier]
                 with (current_job_root/'worker.log').open('w') as current_worker_log:
                     self.worker_process_handle=launch_gpu_process(current_command_values,current_job_root,'writer-agent',cwd=WORKFLOW_REPOSITORY_ROOT,stdout=current_worker_log,stderr=subprocess.STDOUT,start_new_session=True)
                 write_record_atomically(current_job_root/'queue-process.json',{'pid':self.worker_process_handle.pid,'identity':read_process_identity(self.worker_process_handle.pid)})
@@ -412,6 +428,9 @@ class WriterAgentManager:
                 if not isinstance(current_request_values,dict) or set(current_request_values)!={'id'}:raise ValueError('이력 삭제 필드 오류')
                 send_writer_response(200,self.delete_writer_history(current_request_values['id']))
             elif current_route_path==WRITER_ROUTE_PREFIX+'/api/jobs':send_writer_response(202,self.launch_writer_process(current_request_values))
+            elif current_route_path==WRITER_ROUTE_PREFIX+'/api/jobs-bound':
+                if not isinstance(current_request_values,dict) or set(current_request_values)!={'request','workspace_fingerprint'}:raise ValueError('작업공간 확인 접수 필드 오류')
+                send_writer_response(202,self.launch_writer_process(current_request_values['request'],expected_workspace_fingerprint=current_request_values['workspace_fingerprint']))
             elif current_route_path==WRITER_ROUTE_PREFIX+'/api/apply':
                 if not isinstance(current_request_values,dict) or set(current_request_values)!={'id','proposal_hash'}:raise ValueError('변경 적용 요청 필드 오류')
                 current_config_values=load_workspace_config(self.workspace_config_path)

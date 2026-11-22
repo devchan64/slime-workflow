@@ -10,10 +10,10 @@ from generators.wan_fun import wan13_model_assets
 
 class Wan13ModelAssetsTests(unittest.TestCase):
     def test_prepare_dispatches_profile_and_progress_is_separate(self):
-        from gui.ui.gradio import model_management_app
+        from workflow.common.model_preparation_controls import execute_wan13_model_command
         from workflow.common.model_download_progress import format_model_download_status
-        with patch.object(model_management_app, 'execute_remote_management_command', return_value={'id': 'job'}) as current_gateway_mock:
-            model_management_app.execute_wan13_model_command('prepare', {'action': 'prepare'})
+        with patch('workflow.common.management_client.execute_remote_management_command', return_value={'id': 'job'}) as current_gateway_mock:
+            execute_wan13_model_command('prepare', {'action': 'prepare'},current_gateway_mock)
             current_gateway_mock.assert_called_once_with('wan22-fun-control', 'prepare', {'action': 'prepare', 'model_profile': 'wan21-1.3b'})
         current_progress_records = [{'model': wan13_model_assets.WAN13_REPOSITORY_NAME + '/diffusion_pytorch_model.safetensors', 'status': 'running', 'bytes': 50, 'total_bytes': 100}]
         self.assertIn('50.0%', format_model_download_status(current_progress_records, 'wan21-fun-1.3b'))
@@ -44,11 +44,21 @@ class Wan13ModelAssetsTests(unittest.TestCase):
         current_validated_record = validate_fun_request(current_request_record)
         self.assertEqual(current_validated_record['model_profile'], 'wan21-1.3b')
         self.assertEqual(current_validated_record['tag'], 'wan21-fun-1.3b')
-        from generators.wan_fun.page.interface import describe_fun_model_steps
-        self.assertIn('단일 모델', describe_fun_model_steps('wan21-1.3b', 20, .5))
-        self.assertIn('고노이즈', describe_fun_model_steps('wan22-14b', 20, .5))
+        from generators.wan_fun.page.examples import FUN_MODEL_CHOICES
+        self.assertEqual({item[1] for item in FUN_MODEL_CHOICES},{'wan21-1.3b','wan22-14b'})
         with self.assertRaises(ValueError):
             validate_fun_request({**current_request_record, 'model_profile': 'unknown'})
+
+    def test_model_explanation_matches_selected_profile(self):
+        import os,subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'schema.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'FunControlSchema.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');const {FunModelDescription}=require(process.argv[1]);
+            for(const profile of ['wan21-1.3b','wan22-14b'])process.stdout.write(server.renderToStaticMarkup(React.createElement(FunModelDescription,{profile}))+'\\n');"""
+            rows=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')}).splitlines()
+        self.assertIn('단일 모델',rows[0]);self.assertIn('적용하지 않습니다',rows[0]);self.assertIn('고노이즈',rows[1])
 
     def test_only_verified_finished_legacy_generation_is_ignored_by_prepare_check(self):
         from workflow.domains.wan_fun.generation import FunControlGenerationManager

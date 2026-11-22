@@ -1,6 +1,6 @@
 # 로컬 작가 AI 에이전트 실행
 
-관리도구의 `#writer-agent` 메뉴 또는 `/writer-agent/`에서 실행한다. 모델은 Qwen3.5-4B BF16, 임베딩은 Qwen3-Embedding-0.6B F16로 코드에 고정한다. 모델 변경 요청은 API 입력으로 받지 않는다. Linux의 ROCm 및 AMD gfx1151 GPU가 필요하며 CPU 추론은 지원하지 않는다. 환경 준비와 추론은 샌드박스 밖에서 실행한다.
+관리도구의 `#writer-agent` 메뉴 또는 `/writer-agent/`에서 실행한다. 생성 모델은 헤르메스와 공유하는 Qwen 3.8 27B IQ4_XS, 임베딩은 Qwen3-Embedding-0.6B F16으로 고정한다. 모델 변경 요청은 API 입력으로 받지 않는다. Linux의 ROCm 및 AMD gfx1151 GPU가 필요하며 CPU 추론은 지원하지 않는다. 환경 준비와 추론은 샌드박스 밖에서 실행한다. Qwen 3.8 전환 후 작가 추론의 실제 GPU 검증은 대기 중이다.
 
 ## 작업 공간 연결
 

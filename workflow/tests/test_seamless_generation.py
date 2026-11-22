@@ -13,38 +13,34 @@ from workflow.common.management_gateway import execute_gateway_arguments
 
 
 class SeamlessGenerationTests(unittest.TestCase):
-    def test_saved_pattern_restore_validates_before_updates(self):
-        from gui.ui.gradio import seamless_tile_app
-        current_valid_request = {'seamless_tile': {'user_prompt': 'Grass field'}, 'seed': 42, 'tag': '검증'}
-        current_history_record = {'id': 'isolated', 'request': current_valid_request}
-        with patch.object(seamless_tile_app, 'execute_management_command', return_value={'records': [current_history_record]}) as current_gateway_mock:
-            current_interface_blocks = seamless_tile_app.build_seamless_interface('http://localhost')
-            current_restore_callback = next(current_function.fn for current_function in current_interface_blocks.fns.values()
-                if current_function.fn and current_function.fn.__name__ == 'restore_selected_inputs')
-            self.assertEqual(tuple(current_restore_callback('isolated')[:4]), ('Grass field', '검증', 40, 42))
-            for current_invalid_fields in ({'seed': -1}, {'seed': True}, {'seamless_tile': None}, {'seamless_tile': {'user_prompt': []}}, {'seamless_tile': {'user_prompt': ''}}):
-                current_history_record['request'] = {**current_valid_request, **current_invalid_fields}
-                current_restored_values = current_restore_callback('isolated')
-                self.assertTrue(all(current_value == {'__type__': 'update'} for current_value in current_restored_values[:4]))
-                self.assertIn('입력값을 불러오지 못했습니다', current_restored_values[-1])
-            self.assertTrue(all(current_call.args[1] == 'history' for current_call in current_gateway_mock.call_args_list))
+    def test_current_flux_seamless_saved_input_rejects_tampering(self):
+        from workflow.domains.image.flux_image_generation import FluxImageGenerationManager
+        from workflow.domains.image.flux_input_restore import restore_flux_image_inputs
+        from workflow.domains.image.three_reference_generation import save_three_reference_inputs
+        from workflow.common.reference_restore import HistoryInputError
+        identifier='2026-11-18_00-00-00-12345678'
+        payload={'action':'generate','prompt':'Grass field','width':512,'height':512,'steps':16,'seed':42,'images':[],'tag':'검증'}
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);job=root/identifier;job.mkdir()
+            saved=save_three_reference_inputs(job,FluxImageGenerationManager('flux-seamless').validate_generation_request(payload))
+            restored=restore_flux_image_inputs({'id':identifier,'request':saved},'flux-seamless',root)
+            self.assertEqual((restored[0],restored[5],restored[6]),('Grass field',16,42))
+            for change in ({'seed':-1},{'seed':True},{'steps':4},{'user_prompt':''}):
+                with self.subTest(change=change),self.assertRaises(HistoryInputError):
+                    restore_flux_image_inputs({'id':identifier,'request':{**saved,**change}},'flux-seamless',root)
 
-    def test_status_failure_preserves_result_and_disables_stage_actions(self):
-        import gradio as gr
-        from gui.ui.gradio import seamless_tile_app
-        current_interface_blocks = seamless_tile_app.build_seamless_interface('http://localhost')
-        current_refresh_callback = next(current_function.fn for current_function in current_interface_blocks.fns.values()
-            if current_function.fn and current_function.fn.__name__ == 'refresh_seamless_status')
-        for current_error_type in (ValueError, RuntimeError, OSError):
-            with patch.object(seamless_tile_app, 'read_existing_generation_status', side_effect=current_error_type('격리 조회 오류')):
-                current_output_values = current_refresh_callback('saved-job')
-            self.assertIn('상태 조회 실패', current_output_values[0])
-            self.assertFalse(current_output_values[1])
-            self.assertFalse(current_output_values[2]['interactive'])
-        with patch.object(seamless_tile_app, 'read_existing_generation_status', return_value={'status': 'paused', 'pipeline': {'stage': '검수'}}):
-            current_output_values = current_refresh_callback('saved-job')
-        self.assertIn('검수', current_output_values[0])
-        self.assertTrue(current_output_values[1])
+    def test_archived_seamless_result_is_observed_without_modification(self):
+        from types import SimpleNamespace
+        from workflow.domains.hermes_agent.image_source_operations import read_hermes_image_source_job
+        identifier='2026-11-18_00-00-00-12345678'
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);job=root/identifier;job.mkdir();(job/'status.json').write_text('{"status":"completed"}')
+            result=job/'result.png';result.write_bytes(b'fixture')
+            with patch('workflow.domains.hermes_agent.image_source_operations.make_image_source_manager',return_value=SimpleNamespace(job_storage_root=root)):
+                observed=read_hermes_image_source_job('seamless-tile',identifier)
+                self.assertEqual(observed['result_status'],'available');self.assertTrue(observed['image'].endswith('/'+identifier+'/result.png'))
+                result.unlink();self.assertEqual(read_hermes_image_source_job('seamless-tile',identifier)['result_status'],'unavailable')
+                self.assertEqual(json.loads((job/'status.json').read_text())['status'],'completed')
 
     def test_boundary_measurement_detects_wrap_jump(self):
         from workflow.domains.image.seamless_generation import measure_texture_boundaries

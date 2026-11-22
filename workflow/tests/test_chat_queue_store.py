@@ -8,6 +8,31 @@ from workflow.domains.hermes_agent.session_store import HermesSessionStore
 
 
 class ChatQueueStoreTests(unittest.TestCase):
+    def test_model_selection_is_preserved_in_queue_and_idempotency(self):
+        with tempfile.TemporaryDirectory() as root:
+            store = HermesSessionStore(Path(root))
+            session = 'a' * 32
+            store.create_session_record(session)
+            enqueue(store, session, 'request_01', '코드 수정', 'qwen3.5-4b')
+            update(store, session, 'request_01', 1, '코드 수정해줘')
+            self.assertEqual(store.read_session_record(session)['chat_queue'][0]['model_profile'], 'qwen3.5-4b')
+            self.assertTrue(enqueue(store, session, 'request_01', '코드 수정', 'qwen3.5-4b')['duplicate'])
+            with self.assertRaises(ValueError):
+                enqueue(store, session, 'request_01', '코드 수정', 'qwen3.8-27b')
+
+    def test_dispatch_passes_selected_model(self):
+        from workflow.domains.hermes_agent.service import HermesServiceManager
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            store = HermesSessionStore(root / 'sessions')
+            session = 'a' * 32
+            store.create_session_record(session)
+            enqueue(store, session, 'request_01', '작업', 'qwen3.8-27b')
+            manager = HermesServiceManager(root / 'jobs', root / 'sessions')
+            with patch.object(manager, 'submit_hermes_session_message_locked', return_value={'job_id':'job'}) as submit:
+                manager.dispatch_chat_queue(session)
+            self.assertEqual(submit.call_args.args[0]['model_profile'], 'qwen3.8-27b')
+
     def test_fifo_persistence_edit_cancel_and_idempotency(self):
         with tempfile.TemporaryDirectory() as root:
             store = HermesSessionStore(Path(root))

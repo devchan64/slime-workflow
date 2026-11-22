@@ -26,7 +26,7 @@ export default function QwenArchive(){
   async function readJob(job){
     return readArchiveJob(managementCommand,service,job);
   }
-  return <main><article><a href={"/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화로 돌아가기</a>
+  return <main className="single-generator-shell"><article className="single-generator-page"><a href={"/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화로 돌아가기</a>
     <h1>Qwen 이미지 생성 이력</h1><p>{service} · 보관된 작업</p>
     <GeneratorChangelog generator={service}/>
     <GeneratorHistory service={service} readJob={readJob} inspectResult={record=>select(record.id)} openResult={select}/>

@@ -327,6 +327,7 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
         if current_status_record.get('video'):
             import json
             current_result_record = json.loads((current_job_root/'result.json').read_text())
+            current_status_record['attempt']=current_result_record['attempt']
             current_frame_count=current_result_record.get('frames')
             if type(current_frame_count) is int and current_frame_count > 0:
                 current_status_record['source_frame_count']=current_frame_count

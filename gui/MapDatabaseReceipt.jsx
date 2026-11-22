@@ -4,11 +4,12 @@ import {managementCommand} from "./managementCommand.js";
 export default function MapDatabaseReceipt(){
   const [id,setId]=useState(""),[hash,setHash]=useState("");
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
+  const requestId=id.trim(),requestHash=hash.trim().toLowerCase();
   async function lookup(){
     setBusy(true);setNotice("");
     try{
-      const receipt=await managementCommand("hermes-agent","hermes-map-database-receipt",{database_request_id:id,request_sha256:hash});
-      if(receipt.request_sha256!==hash)throw new Error();
+      const receipt=await managementCommand("hermes-agent","hermes-map-database-receipt",{database_request_id:requestId,request_sha256:requestHash});
+      if(receipt.request_sha256!==requestHash)throw new Error();
       const messages=new Map([
         ["matched","DB 접수의 요청 해시가 일치합니다. 파일 동기화 상태는 별도로 확인하세요."],
         ["mismatch","보관한 요청 해시와 DB 접수 기록이 다릅니다. 원래 요청을 확인하세요."],
@@ -21,8 +22,10 @@ export default function MapDatabaseReceipt(){
   }
   return <details><summary>맵 DB 변경 접수 확인</summary><fieldset disabled={busy}>
     <label>DB 요청 ID <input value={id} onChange={e=>{setId(e.target.value);setNotice("");}}/></label>
-    <label>원본 요청 SHA-256 <input value={hash} onChange={e=>{setHash(e.target.value);setNotice("");}}/></label>
-    <button disabled={!id.trim() || !/^[a-f0-9]{64}$/.test(hash)} onClick={lookup}>DB 접수 확인</button>
+    <label>원본 요청 SHA-256 <input value={hash} aria-describedby="map-receipt-hash-hint" onChange={e=>{setHash(e.target.value);setNotice("");}}/></label>
+    <p id="map-receipt-hash-hint">원본 요청에 기록된 64자리 해시를 입력하세요.</p>
+    <button disabled={!requestId || !/^[a-f0-9]{64}$/.test(requestHash)} onClick={lookup}>DB 접수 확인</button>
+    {busy && <p role="status">접수 기록을 조회하고 있습니다.</p>}
     {notice && <p role="status">{notice}</p>}
   </fieldset></details>;
 }

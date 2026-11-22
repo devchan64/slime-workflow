@@ -9,6 +9,20 @@ from workflow.common import gpu_job_queue, gpu_memory_history
 
 
 class GpuStatusTests(unittest.TestCase):
+    def test_hermes_and_vace_worker_are_identified_from_process_command(self):
+        for command, label in ((b'python\0workflow/domains/hermes_agent/worker.py\0.tmp/test/hermes-agent/jobs/2026-11-22_10-32-00-62c162ba\0', '헤르메스 작업'),
+                               (b'python\0generators/wan_vace/worker.py\0.tmp/test/wan22-vace/2026-11-22_14-18-27-ff28fdbc\0', 'Wan2.2 VACE')):
+            with self.subTest(label=label), patch.object(gpu_status.Path,'read_bytes',return_value=command), patch.object(gpu_status.Path,'read_text',return_value='PPid:\t1\n'):
+                record=gpu_status.identify_gpu_command(123)
+                self.assertEqual(record['command'],label)
+                self.assertIsNotNone(record['id'])
+
+    def test_unrecognized_process_is_not_claimed_external(self):
+        with patch.object(gpu_status.Path,'read_bytes',return_value=b'unknown\0'), patch.object(gpu_status.Path,'read_text',return_value='PPid:\t1\n'):
+            record=gpu_status.identify_gpu_command(123)
+        self.assertEqual(record['command'],'식별되지 않은 GPU 프로세스')
+        self.assertIsNone(record['id'])
+
     def test_gpu_status_includes_total_used_and_free_memory(self):
         compute_result = subprocess.CompletedProcess(
             args=[], returncode=0, stdout=json.dumps([{'gpu': 0, 'process_list': [{'process_info': {'pid': 100, 'memory_usage': {'vram_mem': {'value': 12 * 1048576, 'unit': 'B'}, 'gtt_mem': {'value': 500 * 1048576, 'unit': 'B'}}}}, {'process_info': {'pid': 200, 'memory_usage': {'vram_mem': {'value': 768 * 1048576, 'unit': 'B'}, 'gtt_mem': {'value': 0, 'unit': 'B'}}}}]}]), stderr=''

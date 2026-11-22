@@ -11,15 +11,14 @@ from workflow.domains.tile.floor_results import detect_floor_quadrilateral, save
 from workflow.common import management_gateway
 
 class FloorGenerationTests(unittest.TestCase):
-    def test_prompt_readiness_includes_fixed_words_and_margin_option(self):
-        from gui.ui.gradio.floor_tile_app import check_floor_prompt_readiness
+    def test_saved_prompt_validation_includes_fixed_words_and_margin_option(self):
         from workflow.domains.tile.floor_generation import combine_floor_prompt
-        current_catalog_record = load_floor_configuration()
-        self.assertFalse(check_floor_prompt_readiness('', current_catalog_record, True))
-        for current_margins_enabled in (True, False):
-            current_fixed_count = len(combine_floor_prompt('grass', current_catalog_record, current_margins_enabled).split()) - 1
-            self.assertTrue(check_floor_prompt_readiness(' '.join(['grass'] * (99-current_fixed_count)), current_catalog_record, current_margins_enabled))
-            self.assertFalse(check_floor_prompt_readiness(' '.join(['grass'] * (100-current_fixed_count)), current_catalog_record, current_margins_enabled))
+        catalog=load_floor_configuration()
+        for margins in (True,False):
+            fixed=len(combine_floor_prompt('grass',catalog,margins).split())-1
+            request=self.create_floor_request()|{'add_margins':margins}
+            self.assertEqual(prepare_floor_request(request|{'user_prompt':' '.join(['grass']*(99-fixed))})['prompt_words'],99)
+            with self.assertRaises(ValueError):prepare_floor_request(request|{'user_prompt':' '.join(['grass']*(100-fixed))})
 
     def create_floor_request(self):
         return dict(action='generate',user_prompt='잔디밭',width=512,height=512,steps=4,seed=251204)
@@ -94,12 +93,13 @@ class FloorGenerationTests(unittest.TestCase):
             management_gateway.execute_gateway_arguments('floor-tile',['generate','--prompt','잔디밭','--detach'])
         self.assertEqual(prepare_floor_request(command_call_handle.call_args.args[2]),prepare_floor_request(self.create_floor_request()|{'tag':''}))
         self.assertEqual(management_gateway.resolve_management_command('floor-tile','catalog',{}),('GET','/floor-tile-generator/catalog'))
-    def test_gui_build(self):
-        from gui.ui.gradio.floor_tile_app import build_floor_interface
-        with patch('gui.ui.gradio.floor_tile_app.execute_floor_gateway',return_value=load_floor_configuration()):
-            interface_block_value = build_floor_interface('http://127.0.0.1:8770')
-        self.assertIn('사용자 프롬프트 · 바닥 표면',[component_record_value.get('props',{}).get('label') for component_record_value in interface_block_value.config['components']])
-        interface_block_value.close()
+    def test_archived_floor_history_and_current_flux_menu_are_registered(self):
+        from workflow.common.source_history_catalog import SOURCE_HISTORY_GENERATOR_SERVICES
+        from workflow.common.management_catalog import REACT_REVIEW_PATHS
+        self.assertIn('floor-tile',SOURCE_HISTORY_GENERATOR_SERVICES)
+        self.assertIn('flux-seamless-generator',REACT_REVIEW_PATHS)
+        with self.assertRaises(ValueError):FloorGenerationManager().validate_generation_request(self.create_floor_request())
+
     def test_perspective_and_failed_detection(self):
         original_image_value = np.zeros((512,512,3),dtype='uint8')
         expected_corner_values = np.array([[95,50],[420,95],[455,430],[55,450]],dtype='int32')

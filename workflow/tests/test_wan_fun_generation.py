@@ -193,20 +193,12 @@ class FunAttentionOptimizationTests(unittest.TestCase):
         self.assertEqual(current_utils_mock.load_torch_file.call_args.kwargs['device'],'cuda:0')
 
 class FunGenerationContractTests(unittest.TestCase):
-    def test_model_prepare_button_submits_prepare_job(self):
+    def test_model_prepare_routes_to_shared_worker(self):
         from workflow.domains.wan_fun.generation import FunControlGenerationManager
-        from gui.ui.gradio.wan_fun_app import build_fun_interface
-        current_command_mock = Mock(return_value={'id': 'prepare-job'})
-        current_interface = build_fun_interface('http://localhost', current_command_mock)
-        current_prepare_callback = next(current_function.fn for current_function in current_interface.fns.values()
-            if current_function.fn and current_function.fn.__name__ == 'enqueue_fun_model_prepare')
-        self.assertEqual(current_prepare_callback()[0], 'prepare-job')
-        current_command_mock.assert_called_with('prepare', {'action': 'prepare'})
-        current_manager = FunControlGenerationManager()
-        current_request = current_manager.validate_generation_request({'action': 'prepare'})
-        self.assertEqual(current_request, {'action': 'prepare', 'images': []})
-        current_manager.validate_generation_runtime(current_request)
-        self.assertEqual(current_manager.select_generation_runner(current_request), 'generators/wan_fun/prepare_worker.py')
+        self.assertEqual(resolve_management_command('wan22-fun-control','prepare',{'action':'prepare'}),('POST','/wan22-fun-control/jobs'))
+        manager=FunControlGenerationManager();request=manager.validate_generation_request({'action':'prepare'})
+        self.assertEqual(request,{'action':'prepare','images':[]});manager.validate_generation_runtime(request)
+        self.assertEqual(manager.select_generation_runner(request),'generators/wan_fun/prepare_worker.py')
 
     def test_model_prepare_rejects_duplicate_active_job(self):
         import json
@@ -287,10 +279,10 @@ class FunGenerationContractTests(unittest.TestCase):
         self.assertEqual(resolve_management_command('wan22-fun-control', 'generate', self.current_request_record), ('POST', '/wan22-fun-control/jobs'))
 
     def test_soma_video_contract_and_saved_attachment(self):
+        import json
         import cv2
         import numpy as np
         from workflow.domains.wan_fun.generation import FunControlGenerationManager
-        from gui.ui.gradio.wan_fun_app import restore_fun_inputs
         with tempfile.TemporaryDirectory() as current_temporary_root:
             current_job_identifier = '2026-10-31_00-00-00-abcdef12'
             current_job_directory = Path(current_temporary_root)/current_job_identifier
@@ -321,8 +313,14 @@ class FunGenerationContractTests(unittest.TestCase):
             self.assertEqual((current_job_directory/'driving.mp4').read_bytes(), current_video_path.read_bytes())
             (current_job_directory/'reference-1.png').write_bytes(base64.b64decode(current_video_request['images'][0]))
             current_saved_request['references'] = ['reference-1.png']
-            with patch('gui.ui.gradio.wan_fun_app.FUN_JOB_STORAGE', Path(current_temporary_root)), self.assertRaisesRegex(ValueError,'처리된 포즈 MP4'):
-                restore_fun_inputs({'id':current_job_identifier,'request':current_saved_request})
+            from fastapi.testclient import TestClient
+            from http.server import SimpleHTTPRequestHandler
+            from workflow.common.management_asgi import build_management_application
+            from types import SimpleNamespace
+            (current_job_directory/'request.json').write_text(json.dumps(current_saved_request))
+            root=Path(current_temporary_root);app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with patch('workflow.domains.hermes_agent.video_operations.make_hermes_video_source_manager',return_value=SimpleNamespace(job_storage_root=root)),TestClient(app) as client:
+                self.assertEqual(client.get('/management/assistant/fun-input/'+current_job_identifier).status_code,422)
 
     def test_pose_parts_preserve_body_and_select_details(self):
         from collections import namedtuple
@@ -351,50 +349,30 @@ class FunGenerationContractTests(unittest.TestCase):
                 validate_fun_request({**self.current_request_record, current_field_name: current_field_value})
 
     def test_seed_bounds_match_generator_and_ui(self):
-        import gradio as gr
+        import subprocess
         from generators.wan_fun.contracts import FUN_MAX_SEED_VALUE
-        from generators.wan_fun.page.interface import build_fun_payload
-        from workflow.common.gradio_seed import build_generation_seed
-        for current_seed_value in (0, FUN_MAX_SEED_VALUE):
-            self.assertEqual(validate_fun_request({**self.current_request_record,'seed':current_seed_value})['seed'],current_seed_value)
-        for current_seed_value in (-1, FUN_MAX_SEED_VALUE + 1):
-            with self.subTest(seed=current_seed_value):
-                with self.assertRaises(ValueError):
-                    validate_fun_request({**self.current_request_record,'seed':current_seed_value})
-                with self.assertRaisesRegex(ValueError,'시드는'):
-                    build_fun_payload('reference.png',None,['control.png'],'pose','stand','',5,current_seed_value,20,5,6,0.5)
-        with gr.Blocks() as current_interface_blocks:
-            current_seed_control=build_generation_seed(42, maximum_seed_value=FUN_MAX_SEED_VALUE)
-        self.assertEqual(current_seed_control.maximum,FUN_MAX_SEED_VALUE)
-        with self.assertRaises(gr.Error):
-            current_seed_control.preprocess(FUN_MAX_SEED_VALUE + 1)
-        current_seed_callback=next(current_function for current_function in current_interface_blocks.fns.values() if current_function.fn.__name__=='generate_bounded_seed_value')
-        with patch('workflow.common.gradio_seed.secrets.randbelow',return_value=FUN_MAX_SEED_VALUE) as current_random_mock:
-            self.assertEqual(current_seed_callback.fn(),FUN_MAX_SEED_VALUE)
-            current_random_mock.assert_called_once_with(FUN_MAX_SEED_VALUE + 1)
+        for seed in (0,FUN_MAX_SEED_VALUE):self.assertEqual(validate_fun_request({**self.current_request_record,'seed':seed})['seed'],seed)
+        for seed in (-1,FUN_MAX_SEED_VALUE+1):
+            with self.assertRaises(ValueError):validate_fun_request({**self.current_request_record,'seed':seed})
+        root=Path(__file__).resolve().parents[2]
+        result=subprocess.run(['node','--test',str(root/'workflow/tests/random_seed.test.mjs')],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
-    def test_ui_rejects_short_or_duplicate_control(self):
-        from gui.ui.gradio.wan_fun_app import build_fun_payload
-        with tempfile.TemporaryDirectory() as current_temp_directory:
-            current_image_path = Path(current_temp_directory)/'input.png'
-            Image.new('RGB', (832, 480), 'white').save(current_image_path)
-            current_common_values = ['pose', '걷는다.', '', 5, 42, 20, 5, 6, 0.5]
-            with self.assertRaises(ValueError):
-                build_fun_payload(str(current_image_path), None, [str(current_image_path)], *current_common_values)
-            with self.assertRaises(ValueError):
-                build_fun_payload(str(current_image_path), 'video.mp4', [str(current_image_path)]*5, *current_common_values)
-            self.assertEqual(len(build_fun_payload(str(current_image_path), None, [str(current_image_path)]*5, *current_common_values)['images']), 6)
+    def test_rejects_short_or_duplicate_control(self):
+        for images in (self.current_request_record['images'][:2],self.current_request_record['images']*2):
+            with self.assertRaises(ValueError):validate_fun_request({**self.current_request_record,'images':images})
+        self.assertEqual(len(validate_fun_request(self.current_request_record)['images']),6)
 
     def test_restore_rejects_path_escape(self):
-        from gui.ui.gradio.wan_fun_app import restore_fun_inputs
-        with self.assertRaises(ValueError):
-            restore_fun_inputs({'id':'../outside','request':{}})
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from workflow.common.management_asgi import build_management_application
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with TestClient(app) as client:self.assertEqual(client.get('/management/assistant/fun-input/invalid').status_code,404)
 
 class FunReferenceOnlyTests(unittest.TestCase):
     def test_retired_reference_mode_rejected(self):
         from generators.wan_fun.contracts import reject_retired_rgb_input
-        from gui.ui.gradio.wan_fun_app import build_fun_payload
         with self.assertRaisesRegex(ValueError, '폐기'):
             reject_retired_rgb_input({'input_mode': 'reference-only'})
-        with self.assertRaisesRegex(ValueError, '폐기'):
-            build_fun_payload(None,None,None,'pose','stand','',9,42,20,5,6,.5,'reference-only')

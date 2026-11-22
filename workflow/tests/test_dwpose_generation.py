@@ -6,7 +6,6 @@ from unittest.mock import patch
 from PIL import Image
 from generators.dwpose.contracts import validate_dwpose_request
 from workflow.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS, MANAGEMENT_SERVICE_ROUTES
-from gui.ui.gradio.dwpose_app import build_dwpose_interface
 
 
 class DwposeGenerationTests(unittest.TestCase):
@@ -70,12 +69,26 @@ class DwposeGenerationTests(unittest.TestCase):
             self.assertFalse(list((current_queue_path / 'active').glob('*.json')))
 
     def test_gateway_and_ui_contract(self):
+        import os
+        import subprocess
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
         self.assertEqual(MANAGEMENT_SERVICE_ROUTES['dwpose'],'/dwpose')
         self.assertIn('generate',MANAGEMENT_SERVICE_COMMANDS['dwpose'])
-        current_mock_calls = []
-        current_interface_blocks = build_dwpose_interface('http://127.0.0.1:8770',lambda *current_command_args: current_mock_calls.append(current_command_args))
-        self.assertTrue(current_interface_blocks.config['components'])
-        self.assertEqual(current_mock_calls,[])
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with TemporaryDirectory() as directory:
+            bundle=Path(directory)/'dwpose.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'DwposePage.jsx','--bundle','--platform=node',
+                            '--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""global.location={search:'?session=old'}; global.sessionStorage={getItem:()=>null};
+              const React=require('react'),server=require('react-dom/server');
+              const Page=require(process.argv[1]).default;
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(Page,{embedded:true,session:'new'})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,
+                                           env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+        self.assertIn('DWPose 이미지 추출',markup)
+        self.assertIn('/management/assistant/?session=new',markup)
+        self.assertIn('생성 요청 검토',markup)
 
 
 if __name__ == '__main__':

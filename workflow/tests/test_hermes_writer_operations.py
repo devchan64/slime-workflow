@@ -8,6 +8,17 @@ from workflow.domains.hermes_agent.delegation_store import HermesDelegationStore
 
 
 class HermesWriterOperationsTests(unittest.TestCase):
+    def test_uncertain_writer_receipt_requires_explicit_history_check(self):
+        import os,subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with TemporaryDirectory() as directory:
+            bundle=Path(directory)/'writer.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'WriterActions.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');const {WriterUncertainReceipt}=require(process.argv[1]);process.stdout.write(server.renderToStaticMarkup(React.createElement(WriterUncertainReceipt)));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+        self.assertIn('접수 여부가 확인되지 않았습니다',markup)
+        self.assertIn('실행 이력을 확인했고',markup)
+
     def test_legacy_writer_404_falls_back_through_http_gateway(self):
         import json
         import os

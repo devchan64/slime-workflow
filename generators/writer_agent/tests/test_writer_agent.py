@@ -39,6 +39,12 @@ class WriterAgentContracts(TestCase):
         self.job_record_root=Path(self.workspace_config_values['state_root'])/'job'
         self.job_record_root.mkdir()
 
+    def test_missing_document_root_has_specific_error(self):
+        config={**self.workspace_config_values,'document_root':str(Path(self.temporary_root_handle.name)/'missing')}
+        save_yaml_document(self.workspace_config_path,config)
+        with self.assertRaisesRegex(ValueError,'문서 폴더가 없거나 접근할 수 없습니다'):
+            load_workspace_config(self.workspace_config_path)
+
     def test_legacy_cuda_manifest_does_not_mark_runtime_ready(self):
         from generators.writer_agent import prepare
         current_install_root = Path(self.temporary_root_handle.name)/'runtime'
@@ -103,8 +109,8 @@ class WriterAgentContracts(TestCase):
         self.assertTrue(any('재전송' in current_issue for current_issue in inspect_writer_draft(current_model_result,[{'text':'재요청 시 기존 결과를 확인한다.'}])))
 
     def test_rejected_draft_is_revised_and_reviewed_once(self):
-        current_draft_values={'target_path':'world/main.md','paragraphs':['초안']}
-        current_revised_values={'target_path':'world/main.md','paragraphs':['수정안']}
+        current_draft_values={'target_path':'world/main.md','heading':'제목','paragraphs':['초안']}
+        current_revised_values={'target_path':'world/main.md','heading':'제목','paragraphs':['수정안']}
         current_model_input={'instruction':'검토','sources':[],'folders':['world']}
         current_request_calls=[]
         current_responses=iter([current_draft_values,{'approved':False,'issues':['원문 상태 확인']},current_revised_values,{'approved':True,'issues':[]}])
@@ -117,6 +123,37 @@ class WriterAgentContracts(TestCase):
         self.assertEqual(current_request_calls[2][1]['review_feedback'],['원문 상태 확인'])
         self.assertTrue((self.job_record_root/'writing-review-1.yaml').is_file())
         self.assertTrue((self.job_record_root/'writing-review-2.yaml').is_file())
+
+    def test_missing_title_gets_revision_then_safe_hold(self):
+        draft={'target_path':'world/main.md','heading':'','paragraphs':['본문'],'reason':'근거','source_ids':[],'warnings':[]}
+        calls=[]
+        def respond(*args):
+            calls.append(args)
+            return draft if len(calls) in (1,3) else {'approved':True,'issues':[]}
+        result,review=generate_reviewed_writer_result({'instruction':'작성','sources':[],'folders':['world']},{},self.job_record_root,respond)
+        self.assertEqual(result['target_path'],'')
+        self.assertEqual(result['paragraphs'],[])
+        self.assertFalse(review['approved'])
+        self.assertTrue(any('제목' in issue for issue in calls[2][1]['review_feedback']))
+
+    def test_missing_title_can_be_fixed_on_revision(self):
+        draft={'target_path':'world/main.md','heading':'','paragraphs':['본문'],'reason':'근거','source_ids':[],'warnings':[]}
+        corrected={**draft,'heading':'새 절'}
+        responses=iter([draft,{'approved':True,'issues':[]},corrected,{'approved':True,'issues':[]}])
+        result,review=generate_reviewed_writer_result({'instruction':'작성','sources':[],'folders':['world']},{},self.job_record_root,lambda *args:next(responses))
+        self.assertEqual(result,corrected)
+        self.assertTrue(review['approved'])
+
+    def test_inconsistent_hold_response_is_revised_then_safely_held(self):
+        draft={'target_path':'','heading':'제목','paragraphs':['본문'],'reason':'근거','source_ids':[],'warnings':[]}
+        calls=[]
+        def respond(*args):
+            calls.append(args)
+            return draft if len(calls) in (1,3) else {'approved':True,'issues':[]}
+        result,review=generate_reviewed_writer_result({'instruction':'작성','sources':[],'folders':['world']},{},self.job_record_root,respond)
+        self.assertEqual((result['target_path'],result['heading'],result['paragraphs']),('','',[]))
+        self.assertFalse(review['approved'])
+        self.assertTrue(any('보류' in issue for issue in calls[2][1]['review_feedback']))
 
     def test_append_preserves_original(self):
         current_proposal_values=self.create_test_proposal()

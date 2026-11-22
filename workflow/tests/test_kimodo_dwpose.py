@@ -37,12 +37,39 @@ class KimodoDwposeTests(unittest.TestCase):
             complete_occluded_body_joints([[current_pose_record]],np.zeros((2,18,3)),(1,1))
 
     def test_result_displays_partial_detection_warning(self):
-        from gui.ui.gradio.kimodo_app import render_kimodo_result
-        current_status_record = {'video':'/kimodo/preview.mp4', 'download':'/kimodo/frames.zip',
-                                 'preprocess_videos':{'DWPose 포즈 · front':'/kimodo/dwpose-front.mp4'},
-                                 'dwpose_status':'completed', 'quality_warnings':['30프레임 관절 누락']}
-        current_result_markup = render_kimodo_result('job', current_status_record, 'http://localhost')
-        self.assertIn('30프레임 관절 누락', current_result_markup)
+        import os,subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'kimodo.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'KimodoMedia.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');const Media=require(process.argv[1]).default;
+              const attempt='a'.repeat(32),id='2026-11-18_00-00-00-12345678',base='/kimodo/jobs/'+id+'/attempts/'+attempt+'/';
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(Media,{id,job:{attempt,video:base+'preview.mp4',quality_warnings:['30프레임 관절 누락']}})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+        self.assertIn('포즈 품질 경고',markup);self.assertIn('30프레임 관절 누락',markup)
+
+    def test_saved_status_exposes_valid_attempt_and_warnings(self):
+        import json,os,subprocess
+        from workflow.domains.kimodo.generation import KimodoGenerationManager
+        gui=Path(__file__).resolve().parents[2]/'gui';identifier='2026-11-18_00-00-00-12345678';attempt='a'*32
+        with tempfile.TemporaryDirectory() as directory:
+            job=Path(directory)/identifier;folder=job/'attempts'/attempt;folder.mkdir(parents=True)
+            for name in ('preview.mp4','frames.zip','output-000.png'):(folder/name).write_bytes(b'fixture')
+            (job/'status.json').write_text(json.dumps({'status':'completed'}))
+            (folder/'dwpose-error.json').write_text(json.dumps({'error':'19프레임 검출 실패'},ensure_ascii=False))
+            (job/'result.json').write_text(json.dumps({'attempt':attempt,'frames':5,'quality_warnings':['관절 누락'],'dwpose_status':'warning','direct_pose_videos':{'front':'soma-direct-front.mp4'}}))
+            status=KimodoGenerationManager().read_generation_status_record(job)
+            self.assertEqual(status['attempt'],attempt);self.assertEqual(status['source_frame_count'],5)
+            bundle=Path(directory)/'media.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'KimodoMedia.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),Media=require(process.argv[1]).default;
+              const job=JSON.parse(require('fs').readFileSync(0,'utf8'));
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(Media,{id:'2026-11-18_00-00-00-12345678',job})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,input=json.dumps(status,ensure_ascii=False),text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+            self.assertIn('관절 누락',markup);self.assertIn('preview.mp4',markup)
+            self.assertIn('직접 포즈: 생성 완료',markup);self.assertIn('DWPose: 생성 오류',markup);self.assertIn('19프레임 검출 실패',markup)
+            (folder/'preview.mp4').unlink()
+            self.assertNotIn('video',KimodoGenerationManager().read_generation_status_record(job))
 
     def test_soma_foreground_box_requires_white_background_and_visible_person(self):
         from generators.kimodo.dwpose_runtime import extract_soma_foreground_box
@@ -247,10 +274,10 @@ class KimodoDwposeTests(unittest.TestCase):
         from unittest.mock import patch
         from PIL import Image
         from workflow.domains.wan_fun.generation import FunControlGenerationManager
-        from gui.ui.gradio.wan_fun_app import build_fun_payload,restore_fun_inputs
         from generators.wan_fun.video_input import decode_processed_pose_video
         with tempfile.TemporaryDirectory() as current_temporary_root:
-            current_job_root = Path(current_temporary_root)/'test'
+            current_job_identifier='2026-11-18_00-00-00-12345678'
+            current_job_root = Path(current_temporary_root)/current_job_identifier
             current_job_root.mkdir()
             current_video_path = current_job_root/'source.mp4'
             current_video_writer = cv2.VideoWriter(str(current_video_path),cv2.VideoWriter_fourcc(*'mp4v'),16,(832,480))
@@ -259,7 +286,7 @@ class KimodoDwposeTests(unittest.TestCase):
             current_video_writer.release()
             current_reference_path = current_job_root/'reference-1.png'
             Image.new('RGB',(832,480),'white').save(current_reference_path)
-            current_payload_record = build_fun_payload(str(current_reference_path),str(current_video_path),None,'pose','walking','',5,42,20,5,6,.5,'pose-video')
+            current_payload_record={'action':'generate','prompt':'walking','negative_prompt':'','control_type':'pose','width':832,'height':480,'frames':5,'seed':42,'steps':20,'flow_shift':5,'guidance_scale':6,'switch_ratio':.5,'images':[base64.b64encode(current_reference_path.read_bytes()).decode()],'pose_video':base64.b64encode(current_video_path.read_bytes()).decode()}
             self.assertIn('pose_video',current_payload_record)
             self.assertNotIn('driving_video',current_payload_record)
             current_saved_record = FunControlGenerationManager.save_generation_attachments(None,current_job_root,current_payload_record)
@@ -267,7 +294,15 @@ class KimodoDwposeTests(unittest.TestCase):
             current_attempt_root = current_job_root/'attempt'
             current_attempt_root.mkdir()
             self.assertEqual(len(decode_processed_pose_video(current_job_root,current_attempt_root,current_saved_record)),5)
-            with patch('gui.ui.gradio.wan_fun_app.FUN_JOB_STORAGE',Path(current_temporary_root)):
-                current_restored_values = restore_fun_inputs({'id':'test','request':current_saved_record})
-            self.assertEqual(current_restored_values[12],'pose-video')
-            self.assertEqual(current_restored_values[1],str(current_job_root/'pose-input.mp4'))
+            import json
+            from types import SimpleNamespace
+            from fastapi.testclient import TestClient
+            from http.server import SimpleHTTPRequestHandler
+            from workflow.common.management_asgi import build_management_application
+            (current_job_root/'request.json').write_text(json.dumps(current_saved_record))
+            root=Path(current_temporary_root);app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with patch('workflow.domains.hermes_agent.video_operations.make_hermes_video_source_manager',return_value=SimpleNamespace(job_storage_root=root)),TestClient(app) as client:
+                response=client.get('/management/assistant/fun-input/'+current_job_identifier)
+                self.assertEqual(response.status_code,200,response.text)
+                self.assertEqual(response.json()['id'],current_job_identifier)
+                self.assertEqual(response.json()['request']['pose_video'],current_payload_record['pose_video'])

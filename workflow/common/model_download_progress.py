@@ -1,5 +1,6 @@
 """모델 서비스별 다운로드 이력과 전송량 표시."""
 MODEL_DOWNLOAD_PREFIXES = {
+    'animationgpt': ('animationgpt/',),
     'flux-image': ('black-forest-labs/flux-3-image-klein',),
     'prop-generator': ('Qwen/Qwen-Image-2.1',),
     'expression-lora': ('WarmBloodAban/Qwen-Image-2.1-LoRAs',),

@@ -27,7 +27,7 @@ export default function KimodoPromptExamples({apply,applySettings}){
     {loaded && !rows.length && !busy && !error && <p role="status">등록된 동작 설명 예시가 없습니다.</p>}
     {selected && <><label>동작 설명 예시 <select ref={selectRef} value={id} onChange={e=>select(e.target.value)}>
       {rows.map(row=><option key={row.id} value={row.id}>{row.label}</option>)}</select></label>
-      <pre>{selected.prompt}</pre><button type="button" onClick={()=>apply(selected.prompt)}>동작 설명에 적용</button>
+      <details><summary>동작 설명 미리보기</summary><pre>{selected.prompt}</pre></details><button type="button" onClick={()=>apply(selected.prompt)}>동작 설명에 적용</button>
       {applySettings && <button type="button" onClick={()=>applySettings(selected.id)}>예시 설정과 참조 함께 적용</button>}</>}
     {error && <p role="alert">{error}</p>}
   </section>;

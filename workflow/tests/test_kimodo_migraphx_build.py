@@ -9,7 +9,6 @@ from types import SimpleNamespace
 
 from generators.kimodo.migraphx_build import verify_pose_cache_files
 from workflow.common.management_gateway import resolve_management_command
-from gui.ui.gradio.model_management_app import format_migraphx_build_status
 
 
 class KimodoMigraphxBuildTests(unittest.TestCase):
@@ -95,21 +94,35 @@ class KimodoMigraphxBuildTests(unittest.TestCase):
                 current_launch_mock.assert_not_called()
 
     def test_build_status_shows_failure(self):
-        self.assertIn('빌드 실패', format_migraphx_build_status({'status': 'failed', 'error': '실행 오류'}))
-        self.assertIn('실행 오류', format_migraphx_build_status({'status': 'failed', 'error': '실행 오류'}))
+        import subprocess
+        import tempfile
+        gui = Path(__file__).resolve().parents[2] / 'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory) / 'model-page.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'), 'ModelPage.jsx', '--bundle', '--platform=node',
+                            '--format=cjs', '--outfile='+str(bundle)], cwd=gui, check=True, capture_output=True)
+            script = """const React=require('react'), server=require('react-dom/server');
+              const {KimodoBuildStatus}=require(process.argv[1]);
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(KimodoBuildStatus,{record:{status:'failed',error:'실행 오류'}})));"""
+            rendered = subprocess.check_output(['node','-e',script,str(bundle)], cwd=gui, text=True)
+        self.assertIn('빌드 실패', rendered)
+        self.assertIn('실행 오류', rendered)
 
     def test_build_button_is_disabled_after_completion(self):
-        import gradio as gr
-        from gui.ui.gradio.model_management_app import build_migraphx_build_controls
-        with gr.Blocks() as current_interface_blocks:
-            build_migraphx_build_controls(current_interface_blocks)
-        current_refresh_callback = next(current_function.fn for current_function in current_interface_blocks.fns.values()
-                                        if current_function.fn and current_function.fn.__name__ == 'refresh_migraphx_build_status')
-        for current_status_name, current_expected_value in [('ready', False), ('checking', False), ('unavailable', False),
-                                                            ('running', False), ('queued', False), ('rebuild_required', True)]:
-            with self.subTest(status=current_status_name), patch('gui.ui.gradio.model_management_app.execute_remote_management_command', return_value={'status': current_status_name}):
-                _, current_button_update = current_refresh_callback()
-                self.assertEqual(current_button_update['interactive'], current_expected_value)
+        import subprocess
+        import tempfile
+        gui = Path(__file__).resolve().parents[2] / 'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory) / 'model-page.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'), 'ModelPage.jsx', '--bundle', '--platform=node',
+                            '--format=cjs', '--outfile='+str(bundle)], cwd=gui, check=True, capture_output=True)
+            script = """const React=require('react'), server=require('react-dom/server');
+              const {KimodoBuildButton}=require(process.argv[1]);
+              for(const [status,pending,disabled] of [['ready',false,true],['checking',false,true],['unavailable',false,true],['running',false,true],['queued',false,true],['completed',false,true],['rebuild_required',false,false],['rebuild_required',true,true]]) {
+                const html=server.renderToStaticMarkup(React.createElement(KimodoBuildButton,{record:{status},pending}));
+                if(html.includes('disabled=')!==disabled) throw Error(status+' pending='+pending+': '+html);
+              }"""
+            subprocess.run(['node','-e',script,str(bundle)], cwd=gui, check=True, capture_output=True, text=True)
 
     def test_cache_check_uses_exclusive_queue_and_checks_result(self):
         from unittest.mock import Mock

@@ -182,3 +182,27 @@ class HostMemoryGuardTests(unittest.TestCase):
             guard_module.monitor_animate_host_memory(current_worker_mock, threading.Event(), current_guard_result)
         self.assertEqual(current_guard_result, {})
         current_kill_mock.assert_not_called()
+
+    def test_transient_group_read_during_exit_is_rechecked(self):
+        worker = Mock(pid=1234)
+        worker.poll.side_effect = [None, 0]
+        result = {}
+        with patch.object(guard_module, 'read_memory_field_kib', return_value=1024), \
+             patch.object(guard_module, 'read_worker_group_rss_kib', side_effect=ValueError('VmRSS 누락')), \
+             patch.object(guard_module.os, 'killpg') as kill:
+            guard_module.monitor_animate_host_memory(worker, threading.Event(), result, True)
+        self.assertEqual(result, {})
+        kill.assert_not_called()
+
+    def test_persistent_group_read_failure_still_fails_closed(self):
+        worker = Mock(pid=1234)
+        worker.poll.return_value = None
+        result = {}
+        with patch.object(guard_module, 'read_memory_field_kib', return_value=1024), \
+             patch.object(guard_module, 'read_worker_group_rss_kib', side_effect=ValueError('VmRSS 누락')) as read, \
+             patch.object(guard_module.Path, 'read_text', return_value='State: S (sleeping)\n'), \
+             patch.object(guard_module.os, 'killpg') as kill:
+            guard_module.monitor_animate_host_memory(worker, threading.Event(), result, True)
+        self.assertEqual(read.call_count, 2)
+        self.assertIn('감시 실패', result['error'])
+        kill.assert_called_once_with(1234, signal.SIGKILL)

@@ -10,6 +10,26 @@ from workflow.domains.hermes_agent import field_map_operations
 
 
 class HermesFieldMapOperationsTests(unittest.TestCase):
+    def test_current_field_review_shows_changes_and_enforces_block(self):
+        import json
+        import subprocess
+        from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_field_proposal
+        proposal={'map':'sample','revision':'revision','cells':[{'column':1,'row':0,'tile':'c','height':3,'blocked':False}]}
+        answer='HERMES_FIELD_PROPOSAL\n'+json.dumps(proposal)+'\nEND_HERMES_FIELD_PROPOSAL'
+        self.assertEqual(parse_hermes_field_proposal(answer),proposal)
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with TemporaryDirectory() as directory:
+            bundle=Path(directory)/'field.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'FieldProposal.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');
+              const {FieldProposalReview}=require(process.argv[1]);
+              const proposal=JSON.parse(require('fs').readFileSync(0,'utf8'));
+              const review={proposal,source:{tiles:{rows:['ab']},terrain:{elevations:[[1,2]],blocked:[[1,0]]}},preview:{save_available:false,save_block_reason:'database'}};
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(FieldProposalReview,{review,busy:false})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,input=json.dumps(proposal),text=True)
+        for value in ('1, 0','b / 2 / false','c / 3 / false','DB 모드','확인 후 저장','disabled','취소'):
+            self.assertIn(value,markup)
+
     def test_database_preview_rejects_before_record_or_save(self):
         from tempfile import TemporaryDirectory
         from pathlib import Path
@@ -26,19 +46,19 @@ class HermesFieldMapOperationsTests(unittest.TestCase):
                 self.assertEqual(current_gateway_mock.call_args_list[0].args[0],'map-edit-preview')
                 self.assertNotIn('map-edit-save',[current_call.args[0] for current_call in current_gateway_mock.call_args_list])
 
-    def test_field_change_summary_uses_observed_values_and_marks_missing(self):
-        from gui.ui.gradio.hermes_agent_app import format_conversation_field_changes
-        current_source_value={'tiles':{'rows':['ab']},'terrain':{'elevations':[[1,2]],'blocked':[[1,0]]}}
-        current_cells_value=[{'column':1,'row':0,'tile':'c','height':3,'blocked':False},{'column':4,'row':9,'tile':'a'}]
-        current_summary_value=format_conversation_field_changes(current_cells_value,current_source_value,'원본 동기화 확인')
-        self.assertIn('변경할 셀 2건',current_summary_value)
-        self.assertIn('타일 코드: "b" → "c"',current_summary_value)
-        self.assertIn('높이: 2 → 3',current_summary_value)
-        self.assertIn('통행 차단: true → false',current_summary_value)
-        self.assertIn('타일 코드: 확인 불가 → "a"',current_summary_value)
-        self.assertIn('주변 배치',current_summary_value)
-        current_source_value['terrain']['blocked']=[['bad',0]]
-        self.assertIn('통행 차단: 확인 불가 → false',format_conversation_field_changes(current_cells_value,current_source_value,'확인'))
+    def test_field_review_marks_missing_source_values(self):
+        import json,subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with TemporaryDirectory() as directory:
+            bundle=Path(directory)/'field.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'FieldProposal.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');const {FieldProposalReview}=require(process.argv[1]);
+              const review={proposal:{map:'sample',revision:'r',cells:[{column:4,row:9,tile:'a',height:1,blocked:false}]},source:{tiles:{rows:[]},terrain:{}},preview:{save_available:null}};
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(FieldProposalReview,{review})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True)
+        self.assertIn('확인 불가 / 확인 불가 / 확인 불가',markup)
+        self.assertIn('주변 배치',markup)
+        self.assertIn('disabled',markup)
 
     def test_database_alignment_reports_changed_revision_as_unavailable(current_test_case):
         current_draft={'map':'sample','revision':'revision-1','cells':[],'objects':[]}
@@ -50,38 +70,20 @@ class HermesFieldMapOperationsTests(unittest.TestCase):
             current_test_case.assertFalse(current_result['save_available'])
             current_test_case.assertEqual(current_result['source_alignment']['status'],'unavailable')
 
-    def test_conversation_field_review_shows_alignment_and_blocks_save(current_test_case):
-        import json
-        from gui.ui.gradio import hermes_agent_app
-        current_draft={'map':'sample','revision':'revision-1','cells':[],'objects':[]}
-        current_token=field_map_operations.validate_field_map_draft(current_draft)
-        current_preview={'token':current_token,'changed':True,'reachable':1,'objects':0,'cells':0,'save_available':False,'save_block_reason':'database','source_alignment':{'status':'mismatch','note':'test'}}
-        def respond_review_gateway(current_service,current_command,current_payload):
-            if current_command=='hermes-field-receipt':return {'state':'not_found'}
-            if current_command=='hermes-field-preview':return current_preview
-            raise AssertionError('예상하지 못한 명령')
-        with patch.object(hermes_agent_app,'find_conversation_session_job'),patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=respond_review_gateway),patch.object(hermes_agent_app,'load_hermes_field_map_proposal',return_value=('sample',json.dumps(current_draft),{'tiles':{'rows':[]},'terrain':{}},None)):
-            current_card,current_text,_,current_notice=hermes_agent_app.prepare_conversation_edit_review('session-123','job-123','field')
-            current_test_case.assertFalse(current_card['ready'])
-            current_test_case.assertIn('등록 원본 비교: 불일치',current_text)
-            current_test_case.assertIn('저장',current_notice)
+    def test_conversation_field_protocol_checks_membership_and_block_reasons(self):
+        import subprocess
+        root=Path(__file__).resolve().parents[2]
+        result=subprocess.run(['node','--test',str(root/'workflow/tests/field_proposal_protocol.test.mjs')],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
-    def test_unknown_block_reason_does_not_assume_database(current_test_case):
-        import json
-        from gui.ui.gradio import hermes_agent_app
+    def test_unknown_block_reason_does_not_assume_database(self):
         current_draft={'map':'sample','revision':'revision','cells':[],'objects':[]}
         current_token=field_map_operations.validate_field_map_draft(current_draft)
         current_preview={'token':current_token,'changed':True,'reachable':1,'objects':0,'cells':0,'save_available':False}
         with patch.object(field_map_operations,'call_field_map_editor',return_value=current_preview),patch.object(field_map_operations,'load_hermes_field_map') as current_load:
             current_result=field_map_operations.preview_hermes_field_map(current_draft)
-            current_test_case.assertNotIn('source_alignment',current_result)
+            self.assertNotIn('source_alignment',current_result)
             current_load.assert_not_called()
-        with patch.object(hermes_agent_app,'execute_remote_management_command',return_value=current_preview) as current_gateway:
-            current_review,current_summary,_=hermes_agent_app.review_hermes_field_map_draft(json.dumps(current_draft),'field_test_123')
-            current_test_case.assertIn('차단 사유를 확인할 수 없습니다',current_summary)
-            current_test_case.assertNotIn('DB 모드',current_summary)
-            current_test_case.assertIn('저장 요청을 보내지 않았습니다',hermes_agent_app.save_hermes_field_map_draft(current_review,json.dumps(current_draft),'field_test_123')[2])
-            current_test_case.assertEqual(current_gateway.call_count,1)
 
     def test_unknown_block_reason_rejects_direct_save_without_receipt(current_test_case):
         current_draft={'map':'sample','revision':'revision','cells':[],'objects':[]}
@@ -94,11 +96,11 @@ class HermesFieldMapOperationsTests(unittest.TestCase):
                 current_test_case.assertFalse((Path(current_directory)/'field_test_123.json').exists())
                 current_test_case.assertEqual([current_call.args[0] for current_call in current_editor.call_args_list],['map-edit-preview'])
 
-    def test_field_block_messages_distinguish_reasons(current_test_case):
-        from gui.ui.gradio.hermes_agent_app import describe_field_map_save_block
-        current_test_case.assertIn('이전 야외 맵 저장이 중단',describe_field_map_save_block({'save_block_reason':'interrupted'}))
-        current_test_case.assertIn('DB 모드',describe_field_map_save_block({'save_block_reason':'database'}))
-        current_test_case.assertNotIn('DB 모드',describe_field_map_save_block({}))
+    def test_field_block_messages_distinguish_reasons(self):
+        import subprocess
+        root=Path(__file__).resolve().parents[2]
+        result=subprocess.run(['node','--test',str(root/'workflow/tests/field_proposal_protocol.test.mjs')],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
     def test_interrupted_save_is_blocked_before_receipt(current_test_case):
         current_draft={'map':'sample','revision':'revision','cells':[],'objects':[]}
@@ -148,25 +150,35 @@ class HermesFieldMapOperationsTests(unittest.TestCase):
                 self.assertEqual(current_gateway_mock.call_count,1)
 
     def test_field_ui_consumes_real_service_save_receipt(self):
-        import json
-        from gui.ui.gradio import hermes_agent_app
-        current_draft={'map':'moss-clearing','revision':'revision','cells':[],'objects':[]}
-        current_token=field_map_operations.validate_field_map_draft(current_draft)
-        current_review={'request_id':'field_request_123','draft':current_draft,'token':current_token,'save_available':True}
-        current_commands=[]
-        def current_editor(current_command,current_payload):
-            current_commands.append(current_command)
-            if current_command=='map-edit-preview':return {'token':current_token,'changed':True,'reachable':1,'objects':0,'cells':0,'save_available':True}
-            if current_command=='map-edit-save':return {'saved':True}
-            raise ValueError('unexpected command')
-        def current_gateway(current_service,current_command,current_payload):
-            self.assertEqual((current_service,current_command),('hermes-agent','hermes-field-save'))
-            return field_map_operations.save_hermes_field_map_once(current_payload['request_id'],current_payload['draft'],current_payload['token'])
-        with TemporaryDirectory() as current_directory, patch.object(field_map_operations,'HermesDelegationStore',return_value=HermesDelegationStore(Path(current_directory))), patch.object(field_map_operations,'call_field_map_editor',side_effect=current_editor), patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway):
-            for current_iteration in range(2):
-                _,_,current_status=hermes_agent_app.save_hermes_field_map_draft(current_review,json.dumps(current_draft),current_review['request_id'])
-                self.assertIn('맵 저장 완료',current_status)
-            self.assertEqual(current_commands.count('map-edit-save'),1)
+        import json,subprocess
+        from workflow.domains.hermes_agent.service import HermesServiceManager
+        from workflow.domains.hermes_agent.session_store import HermesSessionStore
+        session='a'*32;job='2026-11-18_00-00-00-12345678'
+        proposal={'map':'sample','revision':'revision','cells':[{'column':0,'row':0,'tile':'a','height':1,'blocked':False}]}
+        draft={**proposal,'objects':[]};answer='HERMES_FIELD_PROPOSAL\n'+json.dumps(proposal)+'\nEND_HERMES_FIELD_PROPOSAL'
+        with TemporaryDirectory() as directory:
+            root=Path(directory);sessions=HermesSessionStore(root/'sessions');sessions.create_session_record(session)
+            sessions.append_session_request(session,'request_12345678','맵 변경');sessions.attach_session_job(session,'request_12345678',job)
+            jobdir=root/'jobs'/job;jobdir.mkdir(parents=True)
+            (jobdir/'request.json').write_text(json.dumps({'prompt':'맵 변경'}));(jobdir/'status.json').write_text(json.dumps({'status':'completed'}))
+            (jobdir/'hermes-events.jsonl').write_text(json.dumps({'type':'result','text':answer})+'\n')
+            manager=HermesServiceManager(hermes_storage_root=root/'jobs',hermes_session_root=root/'sessions')
+            source={'map':'sample','revision':'revision','tiles':{'rows':['b']},'terrain':{'elevations':[[2]],'blocked':[[1]]},'textures':[],'codes':{}}
+            token=field_map_operations.validate_field_map_draft(draft)
+            editor_preview={'token':token,'changed':True,'reachable':1,'objects':0,'cells':1,'save_available':True}
+            with patch.object(field_map_operations,'call_field_map_editor',return_value=editor_preview):
+                preview=manager.execute_hermes_command('hermes-field-preview',{'draft':draft})
+            view=manager.execute_hermes_command('hermes-session-view',{'session_id':session,'offset':0,'limit':6})
+            parsed=manager.execute_hermes_command('hermes-field-proposal',{'id':job})
+            script="""import {prepareFieldProposal,verifyFieldBeforeSave} from './gui/fieldProposalProtocol.mjs';
+              const [view,parsed,source,preview]=JSON.parse(process.argv[1]);let sent;
+              const command=async(_,name,payload)=>{if(name==='hermes-session-view')return view;if(name==='hermes-field-proposal')return parsed;if(name==='hermes-field-receipt')return {state:'not_found'};if(name==='hermes-field-load')return source;if(name==='hermes-field-preview'){sent=payload.draft;return preview;}throw Error(name);};
+              const {review}=await prepareFieldProposal(command,view.id,parsed.job_id,view.snapshot,view.offset);
+              if(sent.map!=='sample' || sent.objects.length || sent.cells[0].tile!=='a' || review.preview.token!==preview.token)throw Error('review mismatch');
+              await verifyFieldBeforeSave(command,view.id,parsed.job_id,review);"""
+            repository=Path(__file__).resolve().parents[2]
+            result=subprocess.run(['node','--input-type=module','-e',script,json.dumps([view,parsed,source,preview],ensure_ascii=False)],cwd=repository,capture_output=True,text=True,timeout=30)
+            self.assertEqual(result.returncode,0,result.stderr)
 
     def test_lost_save_response_is_not_retried(self):
         current_draft_value = {'map':'moss-clearing','revision':'old','cells':[],'objects':[]}

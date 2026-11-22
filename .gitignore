@@ -6,6 +6,7 @@
 *.key
 # 로컬 실행 산출물
 .venv/
+/.venv-music-heartmula
 __pycache__/
 *.pyc
 .pytest_cache/

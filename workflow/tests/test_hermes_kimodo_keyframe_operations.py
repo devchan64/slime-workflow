@@ -226,7 +226,7 @@ asyncio.run(test_keyframe_roundtrip())
             finally:
                 current_server_value.shutdown();current_server_value.server_close();current_thread_value.join(timeout=5)
 
-    def test_chat_snapshot_drift_is_rejected_before_gpu_worker(self):
+    def test_delegated_snapshot_drift_is_rejected_before_gpu_worker(self):
         import hashlib
         import json
         import os
@@ -239,11 +239,8 @@ asyncio.run(test_keyframe_roundtrip())
         from workflow.domains.kimodo.generation import KimodoGenerationManager
         from workflow.domains.kimodo import keyframe_storage
         from workflow.gateway_server import create_gateway_request_handler
-        from gui.ui.gradio import hermes_agent_app
-        current_session_identifier='a'*32
         current_source_identifier='2026-11-18_00-00-00-12345678'
         current_attempt_identifier='b'*32
-        current_receipt_identifier='keyframe_'+'c'*64
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_root_path=Path(current_directory_name)
             current_kimodo_manager=KimodoGenerationManager()
@@ -262,8 +259,6 @@ asyncio.run(test_keyframe_roundtrip())
             current_saved_record=keyframe_storage.save_kimodo_keyframe_record(current_source_identifier,current_attempt_identifier,1,'검토',current_job_storage=current_kimodo_manager.job_storage_root,current_keyframe_storage=current_kimodo_manager.keyframe_storage_root)
             current_store_value=HermesDelegationStore(current_root_path/'receipts')
             current_store_value.delegation_storage_root.mkdir()
-            (current_store_value.delegation_storage_root/(current_receipt_identifier+'.json')).write_text(json.dumps({'version':14,'id':current_receipt_identifier,'request_sha256':'d'*64,'state':'completed','keyframe_id':current_saved_record['id']}))
-            current_attachment_value={'session_id':current_session_identifier,'receipt_id':current_receipt_identifier,'keyframe_id':current_saved_record['id'],'output_frame':1}
             current_hermes_manager=HermesServiceManager(current_root_path/'hermes',current_root_path/'sessions')
             current_gateway_value=ManagementCommandGateway({'hermes-agent':current_hermes_manager.handle_hermes_request,'kimodo':current_kimodo_manager.handle_image_request})
             current_server_value=ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_value.handle))
@@ -285,30 +280,29 @@ asyncio.run(test_keyframe_roundtrip())
                 current_record_path.write_text(json.dumps(current_record_value))
                 return current_original_snapshot(*current_positional_values,**current_keyword_values)
             try:
-                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_url}), patch('workflow.domains.hermes_agent.delegation_store.HermesDelegationStore',return_value=current_store_value), patch('workflow.domains.hermes_agent.kimodo_keyframe_operations.HermesDelegationStore',return_value=current_store_value), patch.object(hermes_agent_app,'find_conversation_session_job'), patch.object(hermes_agent_app,'read_matching_hermes_edit_proposal',return_value={'prompt':'walk','frames':90,'steps':100,'seed':42}), patch.object(current_kimodo_manager,'validate_generation_runtime'), patch.object(current_kimodo_manager,'hold_generation_submission_guard',side_effect=lambda:nullcontext()), patch.object(current_kimodo_manager,'ensure_generation_request_available'), patch.object(current_kimodo_manager,'launch_generation_worker') as current_worker_mock:
-                    current_card_value,_,_=hermes_agent_app.prepare_conversation_kimodo_review(current_session_identifier,current_source_identifier,current_attachment_value)
-                    self.assertTrue(current_card_value['ready'])
+                from workflow.common.management_gateway import execute_management_command
+                from generators.kimodo.contracts import KIMODO_DEFAULT_SETTINGS
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_gateway_url}), patch('workflow.domains.hermes_agent.delegation_store.HermesDelegationStore',return_value=current_store_value), patch.object(current_kimodo_manager,'validate_generation_runtime'), patch.object(current_kimodo_manager,'hold_generation_submission_guard',side_effect=lambda:nullcontext()), patch.object(current_kimodo_manager,'ensure_generation_request_available'), patch.object(current_kimodo_manager,'launch_generation_worker') as current_worker_mock:
+                    current_placement=execute_management_command('hermes-agent','hermes-kimodo-keyframe-validate',{'frames':90,'keyframes':[{'id':current_saved_record['id'],'frame':1}]},current_gateway_url)
+                    current_request={**{key:value for key,value in KIMODO_DEFAULT_SETTINGS.items() if key!='schema_version'},'action':'generate','prompt':'walk','frames':90,'steps':100,'seed':42,'post_processing':True,'camera_elevation_degrees':0,'keyframes':current_placement['placements'],'keyframe_source_hashes':{source['id']:source['source_sha256'] for source in current_placement['sources']}}
+                    current_request_identifier='drift_test_001'
                     with patch.object(keyframe_storage,'snapshot_kimodo_keyframes',side_effect=change_source_before_snapshot):
-                        current_result_value,current_notice_value=hermes_agent_app.submit_conversation_kimodo_review(current_card_value,current_session_identifier,current_source_identifier)
-                    self.assertFalse(current_result_value['ready'])
-                    self.assertIn('접수 결과 확인 불가',current_notice_value)
+                        with self.assertRaisesRegex(ValueError,'원본이 변경'):execute_management_command('hermes-agent','hermes-delegate-kimodo',{'request_id':current_request_identifier,'request':current_request},current_gateway_url)
                     current_worker_mock.assert_not_called()
-                    self.assertEqual(current_store_value.read_delegation_status(current_card_value['review']['request_id'])['state'],'unknown')
+                    self.assertEqual(current_store_value.read_delegation_status(current_request_identifier)['state'],'unknown')
+                    current_duplicate=execute_management_command('hermes-agent','hermes-delegate-kimodo',{'request_id':current_request_identifier,'request':current_request},current_gateway_url)
+                    self.assertEqual(current_duplicate['state'],'unknown')
+                    self.assertTrue(current_duplicate['duplicate'])
+                    current_worker_mock.assert_not_called()
+                    current_fresh=execute_management_command('hermes-agent','hermes-kimodo-keyframe-validate',{'frames':90,'keyframes':[{'id':current_saved_record['id'],'frame':2}]},current_gateway_url)
+                    current_fresh_request={**current_request,'keyframes':current_fresh['placements'],'keyframe_source_hashes':{source['id']:source['source_sha256'] for source in current_fresh['sources']}}
                     from types import SimpleNamespace
                     current_worker_mock.return_value=SimpleNamespace(wait=lambda:0)
-                    current_next_attachment={**current_attachment_value,'output_frame':2}
-                    current_next_card,_,_=hermes_agent_app.prepare_conversation_kimodo_review(current_session_identifier,current_source_identifier,current_next_attachment)
-                    self.assertTrue(current_next_card['ready'])
-                    current_submit_result=hermes_agent_app.execute_remote_management_command('hermes-agent','hermes-delegate-kimodo',current_next_card['review'])
-                    self.assertEqual(current_submit_result['state'],'accepted')
+                    current_accepted=execute_management_command('hermes-agent','hermes-delegate-kimodo',{'request_id':'drift_test_002','request':current_fresh_request},current_gateway_url)
+                    self.assertEqual(current_accepted['state'],'accepted')
                     current_worker_mock.assert_called_once()
-                    current_saved_request=json.loads((current_kimodo_manager.job_storage_root/current_submit_result['job_id']/'request.json').read_text())
-                    self.assertEqual(current_saved_request['keyframe_source_hashes'],current_next_card['review']['request']['keyframe_source_hashes'])
-                    keyframe_storage.validate_kimodo_job_keyframe_snapshots(current_kimodo_manager.job_storage_root/current_submit_result['job_id'],current_saved_request)
-                    import time
-                    current_wait_deadline=time.monotonic()+3
-                    while time.monotonic()<current_wait_deadline:
-                        if json.loads((current_kimodo_manager.job_storage_root/current_submit_result['job_id']/'status.json').read_text()).get('status')=='failed':break
-                        time.sleep(.02)
+                    current_saved_request=json.loads((current_kimodo_manager.job_storage_root/current_accepted['job_id']/'request.json').read_text())
+                    self.assertEqual(current_saved_request['keyframe_source_hashes'],current_fresh_request['keyframe_source_hashes'])
+                    keyframe_storage.validate_kimodo_job_keyframe_snapshots(current_kimodo_manager.job_storage_root/current_accepted['job_id'],current_saved_request)
             finally:
                 current_server_value.shutdown();current_server_value.server_close();current_thread_value.join(timeout=5)

@@ -33,8 +33,8 @@ class CharacterAnimationTests(unittest.TestCase):
                 self.assertLess(final_prompt_record['words'],100)
 
     def test_retired_motions_are_rejected(self):
-        self.assertEqual([record['id'] for record in assets.build_animation_catalog()['motions']], ['walking-v13'])
-        for retired_motion_name in ('standing-v10', 'resting-v3'):
+        self.assertEqual([record['id'] for record in assets.build_animation_catalog()['motions']], [])
+        for retired_motion_name in ('standing-v10', 'resting-v3', 'walking-v13'):
             with self.assertRaises(ValueError):
                 assets.prepare_animation_request({'motion': retired_motion_name, 'character': 'character-default', 'source': 'anny', 'directions': ['down_left']})
 
@@ -45,7 +45,7 @@ class CharacterAnimationTests(unittest.TestCase):
             generation_root_path.joinpath('request.json').write_text(json.dumps({'motion': 'standing-v10'}))
             generation_root_path.joinpath('cancel.request').touch()
             with patch.object(jobs, 'resolve_generation_directory', return_value=generation_root_path), patch.object(jobs, 'GENERATION_LOCK_PATH', generation_root_path/'lock'), patch.object(jobs, 'read_generation_status', return_value={'status': 'cancelled'}), patch.object(jobs.subprocess, 'Popen') as launch_process_mock:
-                with self.assertRaisesRegex(ValueError, '폐기된 모션'):
+                with self.assertRaisesRegex(ValueError, '폐기된 AnyPose'):
                     jobs.resume_animation_generation({'id': generation_job_identifier})
                 launch_process_mock.assert_not_called()
             self.assertTrue(generation_root_path.joinpath('cancel.request').exists())

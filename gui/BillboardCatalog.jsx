@@ -2,7 +2,7 @@ import SnapshotStatus from "./SnapshotStatus.jsx";
 import BillboardLifecycle from "./BillboardLifecycle.jsx";
 import BillboardRegistration from "./BillboardRegistration.jsx";
 import BillboardProperties from "./BillboardProperties.jsx";
-import React,{useEffect,useState} from "react";
+import React,{useEffect,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 
@@ -16,42 +16,51 @@ export default function BillboardCatalog({choose}){
   const [query,setQuery]=useState(""),[category,setCategory]=useState("");
   const [request,setRequest]=useState({offset:0,limit:10}),[page,setPage]=useState(null);
   const [notice,setNotice]=useState("");
-  const [imageRevision,setImageRevision]=useState(0);
+  const [loading,setLoading]=useState(true),[displayedRequest,setDisplayedRequest]=useState(null);
+  const [imageRevision,setImageRevision]=useState(0),[editingProperties,setEditingProperties]=useState(false);
   const [selected,select]=useState(null),[error,setError]=useState("");
+  const detailRef=useRef(null),triggerRef=useRef(null);
+  useEffect(()=>{if(selected && triggerRef.current)detailRef.current?.focus();},[selected]);
   useEffect(()=>{
     let active=true;
-    setPage(null);select(null);setError("");
+    setLoading(true);setError("");
     managementCommand("hermes-agent","hermes-billboard-catalog",request).then(result=>{
-      if(active)setPage(result);
-    }).catch(problem=>{if(active)setError(problem.message);});
+      if(active){setPage(result);setDisplayedRequest(request);select(null);setLoading(false);}
+    }).catch(problem=>{if(active){setError(problem instanceof TypeError?"카탈로그 서버에 연결하지 못했습니다. 연결 상태를 확인한 후 다시 검색하세요.":problem.message);setLoading(false);}});
     return ()=>{active=false;};
   },[request]);
   function search(e){
     e.preventDefault();
+    if(loading || editingProperties)return;
     setRequest({offset:0,limit:10,query,...(category?{category}:{})});
   }
-  return <section><h2>공용 빌보드 에셋</h2>
-    <BillboardRegistration onSaved={()=>setRequest({...request,offset:0})}/>
-    <form onSubmit={search}><label>분류<select value={category} onChange={e=>setCategory(e.target.value)}>
+  const resultsStale=!!page && displayedRequest!==request;
+  const filtersChanged=query!==(request.query || "") || category!==(request.category || "");
+  return <section className={"billboard-catalog"+(!choose ? " billboard-standalone" : "")}><h2>공용 빌보드 에셋</h2>
+    <fieldset disabled={editingProperties} style={{border:0,padding:0,margin:0}}><BillboardRegistration onSaved={()=>setRequest({...request,offset:0})}/></fieldset>
+    {editingProperties && <p role="status">공용 속성 편집 중입니다. 다른 에셋을 열거나 검색하려면 편집을 취소하거나 저장하세요.</p>}
+    <form className="billboard-search" onSubmit={search}><label>분류<select value={category} onChange={e=>setCategory(e.target.value)}>
       <option value="">전체</option>{Object.entries(categories).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
       <label>이름·ID·모델링 설명·사용 맵<input maxLength={100} value={query} onChange={e=>setQuery(e.target.value)}/></label>
-      <button>빌보드 검색</button></form>
+      <button disabled={loading || editingProperties}>{loading?"조회 중…":"빌보드 검색"}</button></form>
+    {filtersChanged && page && <p role="status">검색 조건이 변경되었습니다. 아래는 이전 조건의 결과입니다. 빌보드 검색을 눌러 적용하세요.</p>}
+    {resultsStale && <p role="status">{loading?"새 결과를 조회하고 있습니다. 아래는 이전 조회 결과입니다.":"조회에 실패했습니다. 아래는 이전 조회 결과입니다. 다시 검색해 주세요."}</p>}
     {page?.storage==="database" && <SnapshotStatus/>}
     {notice && <p role="status">{notice}</p>}
     {error && <p role="alert">{error}</p>}
     {!page && !error && <p role="status">카탈로그 조회 중…</p>}
     {page && <><ResultTable table={{title:"검색 결과",summary:page.total+"종",columns:["이름","에셋 ID","분류"],
-      rows:page.items.map(asset=>[<button onClick={()=>select(asset)}><img loading="lazy" decoding="async" src={imageUrl(asset.id)+"?r="+imageRevision} alt=""
+      rows:page.items.map(asset=>[<button type="button" disabled={loading || (editingProperties && selected?.id!==asset.id)} onClick={event=>{triggerRef.current=event.currentTarget;if(selected?.id===asset.id)detailRef.current?.focus();else select(asset);}}><img loading="lazy" decoding="async" src={imageUrl(asset.id)+"?r="+imageRevision} alt=""
           width="64" height="64" style={{objectFit:"contain",verticalAlign:"middle"}}/> {asset.name}</button>,asset.id,categories[asset.category]])}}/>
-      {page.offset>0 && <button onClick={()=>setRequest({...request,offset:Math.max(0,page.offset-page.limit)})}>이전 페이지</button>}
-      {page.next_offset!=null && <button onClick={()=>setRequest({...request,offset:page.next_offset})}>다음 페이지</button>}</>}
-    {selected && <section><h3>{selected.name}</h3>
+      {page.offset>0 && <button disabled={filtersChanged || resultsStale || loading || editingProperties} onClick={()=>setRequest({...request,offset:Math.max(0,page.offset-page.limit)})}>이전 페이지</button>}
+      {page.next_offset!=null && <button disabled={filtersChanged || resultsStale || loading || editingProperties} onClick={()=>setRequest({...request,offset:page.next_offset})}>다음 페이지</button>}</>}
+    {selected && <section ref={detailRef} tabIndex={-1} aria-label="선택한 빌보드 상세"><button type="button" disabled={editingProperties} onClick={()=>{select(null);requestAnimationFrame(()=>triggerRef.current?.isConnected && triggerRef.current.focus());}}>상세 닫기</button><h3>{selected.name}</h3>
       <img src={imageUrl(selected.id)+"?r="+imageRevision} alt={selected.name+" 원본"} style={{maxWidth:"100%",maxHeight:420,objectFit:"contain"}}/>
       <p>{selected.modeling.purpose}</p><p>{selected.modeling.composition}</p>
       <ResultTable table={{title:"사용 맵",summary:selected.maps_truncated?"처음 20개 맵":selected.maps.length+"개 맵",
         columns:["맵","원본 경로","사용 횟수"],rows:selected.maps.map(map=>[map.map,map.source_path,map.occurrences ?? "미확인"])}}/>
-      <BillboardProperties key={selected.id} texture={selected.id} onCrop={()=>setImageRevision(n=>n+1)}/>
-      <BillboardLifecycle key={selected.id} texture={selected.id} onComplete={msg=>{setNotice(msg);setImageRevision(n=>n+1);setRequest({...request,offset:0});}}/>
+      <BillboardProperties key={selected.id} texture={selected.id} onDirtyChange={setEditingProperties} onCrop={()=>setImageRevision(n=>n+1)}/>
+      <fieldset disabled={editingProperties} style={{border:0,padding:0,margin:0}}><BillboardLifecycle key={selected.id} texture={selected.id} onComplete={msg=>{setNotice(msg);setImageRevision(n=>n+1);setRequest({...request,offset:0});}}/></fieldset>
       {choose && <button onClick={()=>choose("빌보드 "+selected.name,selected.id)}>대화 입력에 추가</button>}
     </section>}
   </section>;

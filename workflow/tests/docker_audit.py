@@ -109,6 +109,44 @@ def prepare_workspace(destination):
             raise ValueError(f'렌더러 배포 파일 누락 또는 해시 불일치: {name}')
         shutil.copy2(path, target / name)
 
+    copy_vace_test_sources(ROOT, destination / 'slime-workflow')
+    copy_comfy_test_source(ROOT, destination / 'slime-workflow')
+
+
+def copy_comfy_test_source(root, project):
+    """Use the committed node from the runtime's configured revision, never local edits."""
+    from generators.wan_fun.prepare import FUN_RUNTIME_SOURCES
+    revision = FUN_RUNTIME_SOURCES['ComfyUI'][1]
+    source = root / '.local/wan22-animate/ComfyUI'
+    if not (source / '.git').exists():
+        return  # The affected test reports the missing runtime source.
+    if not re.fullmatch('[a-f0-9]{40}', revision):
+        raise ValueError('ComfyUI 고정 리비전 형식 오류')
+    content = subprocess.check_output(['git', '-C', str(source), 'show', revision + ':comfy_extras/nodes_wan.py'])
+    output = project / '.local/wan22-animate/ComfyUI/comfy_extras/nodes_wan.py'
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_bytes(content)
+
+
+def copy_vace_test_sources(root, project):
+    """Copy only verified upstream inputs required by source contract tests."""
+    import yaml
+    upstream = root / '.local/videox-fun-vace-pinned'
+    upstream_manifest = yaml.safe_load((root / 'generators/wan_vace/config/official-runtime.yaml').read_text())
+    for name in ('videox_fun/models/wan_transformer3d_vace.py',
+                 'videox_fun/pipeline/pipeline_wan2_2_vace_fun.py',
+                 'config/wan2.2/wan_civitai_t2v.yaml'):
+        path = upstream / name
+        expected = upstream_manifest['source_files'][name]
+        if not path.exists() and not path.is_symlink():
+            # Keep running the audit; the affected tests report their missing input.
+            continue
+        if not path.resolve().is_relative_to(upstream.resolve()) or path.is_symlink() or not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            raise ValueError(f'VACE 공식 소스 경로 또는 해시 오류: {name}')
+        output = project / '.local/videox-fun-vace-pinned' / name
+        output.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, output)
+
 
 def worker(run_id):
     run = RUNS / run_id

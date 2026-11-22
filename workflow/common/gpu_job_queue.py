@@ -24,11 +24,12 @@ GPU_QUEUE_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/gpu-queue'
 GPU_MEMORY_REQUIREMENTS = {'momask': 4096, 'character-animation': 6144, 'image': 6144}
 GPU_MEMORY_REQUIREMENTS['wan-fun'] = 30000
 GPU_MEMORY_REQUIREMENTS['wan-fun-prepare'] = 6144  # 공유 ROCm 환경 변경은 다른 대기열 작업과 겹치지 않는다.
-GPU_MEMORY_REQUIREMENTS['writer-agent'] = 16384
+GPU_MEMORY_REQUIREMENTS['writer-agent'] = 32768
 GPU_MEMORY_REQUIREMENTS['hermes-agent'] = 32768
 GPU_MEMORY_REQUIREMENTS['kimodo-cache-check'] = 1024  # 모델 적재 없이 장치와 캐시 식별자만 확인한다.
-GPU_EXCLUSIVE_SERVICES = frozenset(('hermes-agent', 'wan-fun-prepare', 'management-setup', 'kimodo-cache-check'))
-GPU_MEMORY_REQUIREMENTS['prompt-translation'] = 16384  # 번역 후 작가 AI 의미 검토 모델을 순차 사용한다.
+GPU_MEMORY_REQUIREMENTS['trellis-experiment'] = 32768  # 실측 전 보수적 예약; 단독 실행으로 다른 작업과 경합하지 않는다.
+GPU_EXCLUSIVE_SERVICES = frozenset(('hermes-agent', 'wan-fun-prepare', 'management-setup', 'kimodo-cache-check', 'trellis-experiment'))
+GPU_MEMORY_REQUIREMENTS['prompt-translation'] = 32768  # 번역 후 작가 AI 의미 검토 모델을 순차 사용한다.
 GPU_MEMORY_REQUIREMENTS['flux3-evaluation'] = 36864  # 768×1152 편집 시험에서 관측한 32812 MiB 피크에 여유를 둔다.
 GPU_MEMORY_REQUIREMENTS['flux-expression'] = 45056  # 768×512 표정 작업 관측 피크 39166 MiB에 여유를 둔다.
 GPU_MEMORY_REQUIREMENTS['flux-image'] = 57344  # 2참조 768×1152 실험 관측 피크 51679 MiB에 여유를 둔다.
@@ -36,6 +37,7 @@ GPU_MEMORY_REQUIREMENTS['flux-image'] = 57344  # 2참조 768×1152 실험 관측
 # 음악 모델의 초기 예약값. 실제 관측 피크는 공용 메모리 이력이 갱신한다.
 GPU_MEMORY_REQUIREMENTS.update({'music-minimax':7000,'music-magenta':7000,'music-heartmula':20000,'sfx-dasheng-audiogen':20000})
 GPU_POLL_INTERVAL = 2
+KIMODO_MAX_CONCURRENT_JOBS = 2
 HERMES_PIDFD_GROUP_FLAG = 4  # Linux PIDFD_SIGNAL_PROCESS_GROUP
 # 실측 프로세스 최대 사용량과 현재 여유를 직접 비교한다.
 # 고정 여유분 추가 차감은 단독 실행이 가능한 작업도 무기한 차단한다.
@@ -453,7 +455,17 @@ def read_hermes_queue_session(job_directory):
         return None
 
 
-def select_runnable_ticket(available_memory_mib, current_memory_domain=None, active_service_names=(), active_hermes_sessions=None):
+def is_kimodo_queue_job(job_directory):
+    """Kimodo와 다른 image 서비스를 기존 작업 경로로 구분한다."""
+    try:
+        path = Path(job_directory)
+        root = WORKFLOW_ROOT_DIRECTORY / '.tmp/test/kimodo'
+        return path.is_absolute() and path.parent == root and not path.is_symlink() and path.resolve().parent == root.resolve()
+    except (OSError, TypeError, ValueError, RuntimeError):
+        return False
+
+
+def select_runnable_ticket(available_memory_mib, current_memory_domain=None, active_service_names=(), active_hermes_sessions=None, active_kimodo_count=0):
     """잠금 안에서 접수 순서대로 확인해 메모리가 맞는 첫 작업을 선택한다."""
     if (GPU_EXCLUSIVE_SERVICES - {'hermes-agent'}).intersection(active_service_names) or 'unreadable' in active_service_names:
         return None
@@ -489,6 +501,8 @@ def select_runnable_ticket(available_memory_mib, current_memory_domain=None, act
         if not isinstance(waiting_command_record,dict) or not isinstance(waiting_command_record.get('service'),str) or waiting_command_record['service'] not in GPU_MEMORY_REQUIREMENTS or not isinstance(waiting_command_record.get('command'),list):
             return None
         waiting_service = waiting_command_record['service']
+        if waiting_service == 'image' and is_kimodo_queue_job(waiting_job_directory) and active_kimodo_count >= KIMODO_MAX_CONCURRENT_JOBS:
+            continue
         active_hermes_count = active_service_names.count('hermes-agent')
         if active_hermes_count and waiting_service == 'hermes-agent':
             waiting_session = read_hermes_queue_session(waiting_job_directory)
@@ -707,6 +721,7 @@ def execute_locked_generation(generation_job_path):
                     try:
                         active_service_names = []
                         active_hermes_sessions = []
+                        active_kimodo_count = 0
                         try:
                             current_reservation_paths=list_gpu_queue_record_paths(active_reservation_directory)
                         except OSError:
@@ -754,6 +769,8 @@ def execute_locked_generation(generation_job_path):
                                 reservation_command_record = {}
                             reservation_service = reservation_record.get('service') or reservation_command_record.get('service') or 'unknown'
                             active_service_names.append(reservation_service)
+                            if reservation_service == 'image' and (reservation_job_directory is None or is_kimodo_queue_job(reservation_job_directory)):
+                                active_kimodo_count += 1
                             if reservation_service == 'hermes-agent':
                                 active_hermes_sessions.append(read_hermes_queue_session(reservation_job_directory) if reservation_job_directory else None)
                             # 실측 여유에는 이미 사용 중인 메모리가 반영되어 있다.
@@ -770,6 +787,8 @@ def execute_locked_generation(generation_job_path):
                         wait_message = '대기열 실행 조건을 확인할 수 없어 대기 중입니다.'
                         if 'unreadable' in active_service_names:
                             wait_message = '실행 중인 GPU 예약을 확인할 수 없어 대기 중입니다.'
+                        elif generation_command_record['service'] == 'image' and is_kimodo_queue_job(generation_job_path) and active_kimodo_count >= KIMODO_MAX_CONCURRENT_JOBS:
+                            wait_message = 'Kimodo 동시 실행 한도(2개)에 도달해 시스템 메모리 보호를 위해 대기 중입니다.'
                         elif (GPU_EXCLUSIVE_SERVICES - {'hermes-agent'}).intersection(active_service_names):
                             wait_message = 'GPU 독점 작업이 종료되기를 기다리는 중입니다.'
                         elif generation_command_record['service'] == 'hermes-agent' and 'hermes-agent' in active_service_names:
@@ -787,7 +806,7 @@ def execute_locked_generation(generation_job_path):
                                 wait_message = '시스템 메모리 보호 여유가 부족해 대기 중입니다.'
                             else:
                                 wait_message = 'GPU 메모리 여유 또는 예약 가능량이 부족해 대기 중입니다.'
-                        selected_ticket = select_runnable_ticket(available_memory_value, current_memory_domain, active_service_names, active_hermes_sessions)
+                        selected_ticket = select_runnable_ticket(available_memory_value, current_memory_domain, active_service_names, active_hermes_sessions, active_kimodo_count)
                         if selected_ticket is not None and selected_ticket != queue_ticket_path:
                             wait_message = '실행 가능한 앞선 작업이 예약되기를 기다리는 중입니다.'
                         if selected_ticket == queue_ticket_path:

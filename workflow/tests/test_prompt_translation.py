@@ -96,13 +96,13 @@ class TranslationServiceTests(unittest.TestCase):
 
     def test_glossary_input_rejects_ambiguous_terms(self):
         from generators.prompt_translation.terms import validate_translation_glossary
-        from gui.ui.gradio.prompt_translation_app import parse_translation_glossary
-        self.assertEqual(parse_translation_glossary('이슬온 => Iseulon'), [{'source':'이슬온', 'target':'Iseulon'}])
+        import subprocess
+        root=Path(__file__).resolve().parents[2]
+        result=subprocess.run(['node','--test',str(root/'workflow/tests/translation_glossary.test.mjs')],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
         for current_bad_terms in ([{'source': 'a', 'target': ''}], [{'source': 'a', 'target':'b'}, {'source':'a','target':'c'}], [{'source':'a','target':'b','extra':True}]):
             with self.assertRaises(ValueError):
                 validate_translation_glossary(current_bad_terms)
-        with self.assertRaises(ValueError):
-            parse_translation_glossary('형식 오류')
 
     def test_translate_gemma_simplified_chinese_language_code(self):
         from generators.prompt_translation.worker import resolve_translation_target_code
@@ -138,30 +138,21 @@ class TranslationServiceTests(unittest.TestCase):
                 current_thread_value.join(timeout=5)
 
     def test_linked_history_selects_real_translation_record(self):
-        from gui.ui.gradio.prompt_translation_app import build_translation_interface
+        import os,subprocess
         with tempfile.TemporaryDirectory() as current_temp_directory:
-            current_manager_value=service.TranslationServiceManager()
-            current_manager_value.job_storage_root=Path(current_temp_directory)/'jobs'
-            current_job_identifier='2026-11-15_12-00-00-12345678'
-            current_job_path=current_manager_value.job_storage_root/current_job_identifier
-            current_job_path.mkdir(parents=True)
-            (current_job_path/'request.json').write_text(json.dumps({'text':'나무','target_language':'en','glossary':[]}))
-            (current_job_path/'status.json').write_text(json.dumps({'status':'completed'}))
-            (current_job_path/'result.json').write_text(json.dumps({'text':'tree'}))
-            current_command_names=[]
-            def execute_temporary_translation(current_service_name,current_command_name,current_payload_record):
-                self.assertEqual(current_service_name,'prompt-translation')
-                current_command_names.append(current_command_name)
-                return current_manager_value.execute_translation_command(current_command_name,current_payload_record)
-            with patch('gui.ui.gradio.prompt_translation_app.execute_remote_management_command',side_effect=execute_temporary_translation):
-                current_interface_value=build_translation_interface()
-                current_link_callbacks=[current_dependency.fn for current_dependency in current_interface_value.fns.values() if getattr(current_dependency.fn,'__name__','')=='open_linked_generation_history']
-                self.assertEqual(len(current_link_callbacks),1)
-                current_updates=current_link_callbacks[0](current_job_identifier,4)
-            self.assertEqual(current_updates[0]['value'],current_job_identifier)
-            self.assertIn('작업을 선택했습니다',current_updates[-1])
-            self.assertEqual(current_command_names,['history','history'])
-            self.assertTrue((current_job_path/'result.json').is_file())
+            manager=service.TranslationServiceManager();manager.job_storage_root=Path(current_temp_directory)/'jobs'
+            job='2026-11-15_12-00-00-12345678';path=manager.job_storage_root/job;path.mkdir(parents=True)
+            (path/'request.json').write_text(json.dumps({'text':'나무','target_language':'en','glossary':[]}))
+            (path/'status.json').write_text(json.dumps({'status':'completed'}));(path/'result.json').write_text(json.dumps({'text':'tree'}))
+            record=manager.execute_translation_command('translation-status',{'id':job})
+            self.assertEqual(record['id'],job);self.assertEqual(record['result']['text'],'tree')
+            gui=Path(__file__).resolve().parents[2]/'gui';bundle=Path(current_temp_directory)/'translation.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'TranslationPage.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""global.location={search:'?job=2026-11-15_12-00-00-12345678',pathname:'/management/frame/prompt-translation/'};
+              const React=require('react'),server=require('react-dom/server');const Page=require(process.argv[1]).default;
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(Page)));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+            self.assertIn(job,markup);self.assertIn('번역 작업',markup);self.assertTrue((path/'result.json').is_file())
 
     def test_gateway_round_trip(self):
         for translation_command_name, translation_payload_record in [('translation-submit', {'text': '나무', 'target_language': 'en'}), ('translation-status', {'id': '2026-11-15_12-00-00-12345678'}), ('translation-history', {})]:
@@ -239,13 +230,15 @@ class TranslationModelManagementTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             resolve_management_command('prompt-translation', 'prepare', {'action': 'prepare', 'revision': 'arbitrary'})
 
-    def test_translation_page_has_model_management_link_and_history_timer(self):
-        from gui.ui.gradio.prompt_translation_app import build_translation_interface
-        from gui.ui.gradio.management_menu_app import build_management_menu_interface
-        translation_interface_value, _ = build_management_menu_interface([], 8770, build_translation_interface())
-        translation_config_value=translation_interface_value.get_config_file()
-        self.assertTrue(any(current_component.get('props',{}).get('value')=='전달된 작업을 이력에서 찾기' for current_component in translation_config_value['components']))
-        self.assertTrue(any("searchParams.get('job')" in str(current_dependency.get('js','')) for current_dependency in translation_config_value['dependencies']))
-        translation_configuration_value = translation_interface_value.get_config_file()
-        self.assertTrue(translation_configuration_value['connect_heartbeat'])
-        self.assertTrue(any(current_component.get('props', {}).get('link') == '/management/?tool=model-management&category=model-management' for current_component in translation_configuration_value['components']))
+    def test_translation_page_has_model_management_link_and_history(self):
+        import os,subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'translation.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'TranslationPage.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""global.location={search:'',pathname:'/management/frame/prompt-translation/'};
+              const React=require('react'),server=require('react-dom/server');const Page=require(process.argv[1]).default;
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(Page)));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+        self.assertIn('/management/frame/model-management/?model=prompt-translation',markup)
+        self.assertIn('이력',markup)

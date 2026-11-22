@@ -11,18 +11,21 @@ from workflow.domains.image.flux_expression_generation import FLUX_MODEL_ROOT_DI
 from workflow.domains.image.three_reference_generation import verify_reference_snapshots
 
 
-def execute_flux_image_worker():
+def execute_flux_image_worker(*, expression_mode=False):
     current_parser_value = argparse.ArgumentParser()
     current_parser_value.add_argument('--job-dir', required=True)
     current_job_root = Path(current_parser_value.parse_args().job_dir).resolve()
     from workflow.domains.image.flux_image_generation import FLUX_IMAGE_PROFILE_RECORDS
     current_profile_name = current_job_root.parent.name.removesuffix('-generator')
-    if current_profile_name not in FLUX_IMAGE_PROFILE_RECORDS or current_job_root.parent != (WORKFLOW_ROOT_DIRECTORY/'.tmp/test'/(current_profile_name+'-generator')).resolve():
+    current_allowed_profiles = {'flux-expression'} if expression_mode else FLUX_IMAGE_PROFILE_RECORDS
+    if current_profile_name not in current_allowed_profiles or current_job_root.parent != (WORKFLOW_ROOT_DIRECTORY/'.tmp/test'/(current_profile_name+'-generator')).resolve():
         raise ValueError('FLUX 이미지 작업 경로가 올바르지 않습니다.')
     current_request_record = json.loads((current_job_root/'request.json').read_text())
     verify_reference_snapshots(current_job_root, current_request_record)
-    if current_request_record.get('profile') != current_profile_name or current_request_record.get('flux_model_revision') != FLUX_MODEL_REVISION_VALUE or hashlib.sha256(current_request_record['prompt'].encode()).hexdigest() != current_request_record.get('prompt_sha256'):
+    if (not expression_mode and current_request_record.get('profile') != current_profile_name) or current_request_record.get('flux_model_revision') != FLUX_MODEL_REVISION_VALUE or hashlib.sha256(current_request_record['prompt'].encode()).hexdigest() != current_request_record.get('prompt_sha256'):
         raise ValueError('프롬프트 또는 모델 기록이 일치하지 않습니다.')
+    if expression_mode and len(current_request_record.get('references', [])) != 1:
+        raise ValueError('얼굴 참조 이미지 1장이 필요합니다.')
     current_seamless_method = current_request_record.get('seamless_method','edge-blend') if current_profile_name == 'flux-seamless' else None
     if current_seamless_method not in (None,'global-periodic-v1','circular-vae-v2','circular-vae','edge-blend'):
         raise ValueError('지원하지 않는 심리스 처리 방식입니다.')
@@ -111,6 +114,8 @@ def execute_flux_image_worker():
         current_output_image.save(current_job_root/'result.png')
     current_output_hash = hashlib.sha256((current_job_root/'result.png').read_bytes()).hexdigest()
     current_result_record={'image_sha256':current_output_hash,'reference_sha256':[item['sha256'] for item in current_request_record['reference_snapshots']],'prompt_sha256':current_request_record['prompt_sha256'],'model_revision':FLUX_MODEL_REVISION_VALUE,'seed':current_request_record['seed'],'steps':current_request_record['steps'],'width':current_request_record['width'],'height':current_request_record['height'],'torch_version':torch.__version__,'hip_version':torch.version.hip,'device_name':torch.cuda.get_device_name(),'allocated_peak_bytes':torch.cuda.max_memory_allocated(),'dtype':'bfloat16; vae float32','offload':'none','device_policy':'rocm-gpu-resident-v1'}
+    if expression_mode:
+        current_result_record['reference_sha256'] = current_result_record['reference_sha256'][0]
     if current_profile_name == 'flux-seamless':
         current_result_record['edge_processing'] = {'method':current_seamless_method,'decoder_patched_conv2d_count':current_patched_layer_count,'preview_sha256':hashlib.sha256((current_job_root/'tiled-preview.png').read_bytes()).hexdigest()}
         if current_seamless_method not in ('global-periodic-v1','circular-vae-v2'):

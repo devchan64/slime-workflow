@@ -1,8 +1,8 @@
 """FLUX 표정 페이지와 입력·이력 분리 계약."""
 import base64
-import importlib
 import io
 import unittest
+from pathlib import Path
 from PIL import Image
 from unittest.mock import patch
 from workflow.common.management_gateway import resolve_management_command, execute_gateway_arguments
@@ -39,7 +39,7 @@ class FluxExpressionGenerationTests(unittest.TestCase):
         from tempfile import TemporaryDirectory
         from pathlib import Path
         from workflow.domains.image.three_reference_generation import save_three_reference_inputs
-        current_restore_function=importlib.import_module('generators.flux-expression.page.interface').restore_flux_expression_inputs
+        from workflow.domains.image.flux_expression_generation import restore_flux_expression_inputs as current_restore_function
         with TemporaryDirectory() as current_directory_name:
             current_identifier_value='2026-11-17_08-00-00-12345678'
             current_job_path=Path(current_directory_name)/current_identifier_value
@@ -86,9 +86,8 @@ class FluxExpressionGenerationTests(unittest.TestCase):
     def test_restore_expression_inputs_and_reject_changed_data(self):
         from tempfile import TemporaryDirectory
         from pathlib import Path
-        import gradio as gr
         from workflow.domains.image.three_reference_generation import save_three_reference_inputs
-        current_restore_function = importlib.import_module('generators.flux-expression.page.interface').restore_flux_expression_inputs
+        from workflow.domains.image.flux_expression_generation import restore_flux_expression_inputs as current_restore_function
         with TemporaryDirectory() as current_temporary_directory:
             current_storage_root = Path(current_temporary_directory)
             current_job_identifier = '2026-11-16_18-23-00-f1a2b3c4'
@@ -99,23 +98,15 @@ class FluxExpressionGenerationTests(unittest.TestCase):
             current_restored_values = current_restore_function(current_history_record,current_storage_root)
             self.assertEqual(current_restored_values[0].size,(16,16))
             self.assertEqual(current_restored_values[1:],('joy',768,512,42,'',''))
-            with self.assertRaises(gr.Error):
+            with self.assertRaises(ValueError):
                 current_restore_function({'id':current_job_identifier,'request':{**current_request_record,'prompt':'변조'}},current_storage_root)
             (current_job_root/'reference-1.png').write_bytes(b'changed')
-            with self.assertRaises(gr.Error):
+            with self.assertRaises(ValueError):
                 current_restore_function(current_history_record,current_storage_root)
 
-    def test_page_builds_in_management_shell(self):
-        from pathlib import Path
-        from tempfile import TemporaryDirectory
-        from workflow.common.management_asgi import build_management_blocks
-        with TemporaryDirectory() as current_temporary_directory:
-            current_source_path=Path(current_temporary_directory)/'menu.json'; current_source_path.write_text('{"pages": []}')
-            with patch.dict('os.environ',{'SLIME_MANAGEMENT_MENU_SOURCE':str(current_source_path)}):
-                current_page_value,_=build_management_blocks('flux-expression-generator',8770,current_source_path)
-        self.assertGreater(len(current_page_value.blocks),0)
-        current_config_record=current_page_value.get_config_file()
-        self.assertTrue(any(current_component.get('props',{}).get('value')=='전달된 작업을 이력에서 찾기' for current_component in current_config_record['components']))
-        self.assertTrue(any("searchParams.get('job')" in str(current_dependency.get('js','')) for current_dependency in current_config_record['dependencies']))
-        current_page_module = importlib.import_module('generators.flux-expression.page.interface')
-        self.assertEqual(current_page_module.load_default_face_reference().size, Image.open('baseline/player/default/default-face-front-v1.png').size)
+    def test_expression_page_registered_in_react_shell(self):
+        from workflow.common.management_catalog import DEFAULT_PAGE_RECORDS, REACT_REVIEW_PATHS
+        page = next(row for row in DEFAULT_PAGE_RECORDS if row['id'] == 'flux-expression-generator')
+        self.assertEqual(page['uiMode'], 'react')
+        self.assertEqual(page['path'], REACT_REVIEW_PATHS['flux-expression-generator'])
+        self.assertTrue(Path('baseline/player/default/default-face-front-v1.png').is_file())

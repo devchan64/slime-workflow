@@ -60,21 +60,33 @@ class CircularGenerationTests(unittest.TestCase):
             install_toroidal_attention(current_pipeline_mock, current_request_record)
 
     def test_history_renderer_contract_and_partial_results(self):
-        from gui.ui.gradio.qwen_2511_app import render_circular_comparison
-        completed_result_html = render_circular_comparison('example-id', {
-            'image':'/jobs/example-id/result.png',
-            'baseline':'/jobs/example-id/baseline.png',
-            'baseline-preview':'/jobs/example-id/baseline-preview.png',
-        }, 'http://localhost:8770')
-        for expected_image_name in ('result.png','tiled-preview.png','baseline.png','baseline-preview.png'):
-            self.assertIn(expected_image_name, completed_result_html)
-        partial_result_html = render_circular_comparison('example-id', {
-            'status':'failed', 'baseline':'/jobs/example-id/baseline.png',
-        }, 'http://localhost:8770')
-        self.assertIn('/baseline.png', partial_result_html)
-        self.assertNotIn('/baseline-preview.png', partial_result_html)
-        self.assertNotIn('/tiled-preview.png', partial_result_html)
-        self.assertIn('저장된 결과', render_circular_comparison('example-id', {}, 'http://localhost:8770'))
+        import json,subprocess,tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from workflow.common.management_asgi import build_management_application
+        identifier='2026-11-18_00-00-00-12345678'
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);job=root/identifier;job.mkdir()
+            for name in ('result.png','tiled-preview.png','baseline.png','baseline-preview.png'):(job/name).write_bytes(b'fixture')
+            app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with patch('workflow.domains.image.qwen_circular_generation.QwenCircularGenerationManager',return_value=SimpleNamespace(job_storage_root=root)),TestClient(app) as client:
+                response=client.get('/management/assistant/qwen-circular-comparison/'+identifier)
+                self.assertEqual(response.status_code,200);images=response.json()['images'];self.assertEqual(len(images),4)
+                for name in ('result.png','tiled-preview.png','baseline-preview.png'):(job/name).unlink()
+                partial=client.get('/management/assistant/qwen-circular-comparison/'+identifier).json()['images']
+                self.assertEqual([item['label'] for item in partial],['일반 VAE 기준'])
+                (job/'baseline.png').unlink();(job/'baseline.png').symlink_to(root/'outside.png')
+                self.assertEqual(client.get('/management/assistant/qwen-circular-comparison/'+identifier).json()['images'],[])
+                self.assertEqual(client.get('/management/assistant/qwen-circular-comparison/invalid').status_code,404)
+            gui=Path(__file__).resolve().parents[2]/'gui';bundle=root/'media.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'MediaJobResult.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');const {CircularComparisonImages}=require(process.argv[1]);
+              const images=JSON.parse(require('fs').readFileSync(0,'utf8'));process.stdout.write(server.renderToStaticMarkup(React.createElement(CircularComparisonImages,{images})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,input=json.dumps(partial),text=True)
+            self.assertIn('일반 VAE 기준',markup);self.assertIn('baseline.png',markup);self.assertNotIn('tiled-preview.png',markup)
 
     def test_boundary_strip_coordinates(self):
         from generators.image.qwen_21_toroidal import build_toroidal_boundary

@@ -31,10 +31,13 @@ export default function BillboardCrop({source,busy,setBusy,onSaved}){
     finally{setReview(null);setBusy(false);}
   }
   const result=review?.result;
-  return <details><summary>원본 투명 여백 크롭</summary><fieldset disabled={busy}>
+  return <details className="billboard-crop"><summary>원본 투명 여백 크롭</summary><fieldset disabled={busy}>
+    <div className="billboard-crop-controls">
     <label>알파 기준<input type="number" min="0" max="254" value={threshold} onChange={e=>{setThreshold(e.target.value);setReview(null);}}/></label>
     <button onClick={()=>preview(true)}>기준 자동 추천</button><button onClick={()=>preview(false)}>크롭 범위 확인</button>
-    {result && <section><svg role="img" aria-label="원본 위 크롭 범위" viewBox={`0 0 ${result.before.join(" ")}`} style={{width:"100%",maxHeight:420}}>
+    </div>
+    <p className="billboard-crop-help">알파 기준보다 불투명한 픽셀을 기준으로 여백을 계산합니다. 0~254 사이의 정수를 입력하세요.</p>
+    {result && <section><p>분홍색 테두리가 저장할 이미지 범위입니다.</p><svg role="img" aria-label="원본 위 크롭 범위" viewBox={`0 0 ${result.before.join(" ")}`} className="billboard-crop-preview">
       <image href={"/management/map-assets/billboards/"+encodeURIComponent(source.texture)+".png"} width={result.before[0]} height={result.before[1]}/>
       <rect x={result.bounds[0]} y={result.bounds[1]} width={result.bounds[2]-result.bounds[0]} height={result.bounds[3]-result.bounds[1]}
         fill="none" stroke="#ff1e96" vectorEffect="non-scaling-stroke" strokeWidth="2"/></svg>

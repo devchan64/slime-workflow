@@ -67,7 +67,16 @@ def select_workflow_skills(prompt, context=None, workspace=DEFAULT_WORKSPACE):
         if term.isascii():
             return re.search(r'(?<![a-z0-9_])' + re.escape(term) + r'(?![a-z0-9_])', text) is not None
         return term in text
-    return [name for name, terms in load_skill_registry(workspace) if any(matches(term) for term in terms)]
+    registry = load_skill_registry(workspace)
+    selected = [name for name, terms in registry if any(matches(term) for term in terms)]
+    # 짧은 후속 발화의 대상은 직전 사용자 발화의 미디어 문맥에서만 유추한다.
+    followup = re.fullmatch(r'\s*(?:(?:그거|그것|그걸|그것을|방금\s*만든\s*것을)\s*)?(?:보여\s*(?:줘|주세요)|열어\s*(?:줘|주세요))[.!?\s]*', prompt, re.IGNORECASE)
+    media_context = previous[-1].casefold() if previous else ''
+    if followup and any(name == 'generation-result-lookup' for name, _ in registry) and re.search(r'이미지|그림|사진|영상|동영상|모션|음악|효과음|(?:^|[^a-z0-9_])(?:flux|kimodo|wan)(?:$|[^a-z0-9_])', media_context):
+        if 'generation-result-lookup' not in selected:
+            chosen = {*selected, 'generation-result-lookup'}
+            selected = [name for name, _ in registry if name in chosen]
+    return selected
 
 
 def build_workflow_guidance(workspace, prompt, context=None):

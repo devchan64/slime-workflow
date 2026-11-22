@@ -19,8 +19,8 @@ export default function AnimatePage({embedded=false}={}){
   const [historyRevision,refreshHistory]=useState(0);
   const [notice,setNotice]=useState("");
   function cleaned(message){setSaved(null);setJob("");refreshHistory(n=>n+1);setNotice(message);}
-  return <article><a href={"/management/assistant/"+(query.has("session")?"?"+new URLSearchParams({session:query.get("session")}):"")}>헤르메스 대화</a>
-    <h1>Wan Animate-2 캐릭터 동작 전사</h1>
+  return <article className={embedded ? "animate-page" : "animate-page animate-standalone"}><a href={"/management/assistant/"+(query.has("session")?"?"+new URLSearchParams({session:query.get("session")}):"")}>헤르메스 대화</a>
+    <h1 className={embedded ? "embedded-page-title" : undefined}>Wan Animate-2 캐릭터 동작 전사</h1>
     <p>시스템 RAM과 GPU 메모리 부족으로 신규 생성과 재개를 보류합니다. 기존 작업의 참조와 결과 영상을 검수할 수 있습니다.</p>
     <GeneratorChangelog generator="wan22-animate2-generator"/><ModelReadiness service={service} manage/><DownloadProgress service={service}/>
     <AnimateInputs saved={saved}/>

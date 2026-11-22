@@ -15,6 +15,24 @@ from workflow.domains.hermes_agent.delegation_store import HermesDelegationStore
 
 
 class HermesSpriteOperationsTests(unittest.TestCase):
+    def test_actual_sprite_proposal_and_receipt_match_session_history(self):
+        import subprocess
+        from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_sprite_proposal
+        session='a'*32;job='2026-11-18_00-00-00-12345678'
+        request_id='chat_'+hashlib.sha256((session+':'+job+':sprite').encode()).hexdigest()
+        answer='HERMES_SPRITE_PROPOSAL\n'+json.dumps(self.current_draft_record)+'\nEND_HERMES_SPRITE_PROPOSAL'
+        proposal=parse_hermes_sprite_proposal(answer)
+        receipt=sprite_operations.inspect_hermes_sprite_receipt({'version':9,'id':request_id,'state':'completed','saved':True,'job_id':'sprite-job','path':self.current_path_value},request_id)
+        script="""import {readBuildingSessionReceipts} from './gui/buildingProposalProtocol.mjs';
+          const [proposal,receipt]=JSON.parse(process.argv[1]),session='a'.repeat(32),job='2026-11-18_00-00-00-12345678',snapshot='b'.repeat(64);
+          const page={id:session,offset:0,snapshot,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_SPRITE_PROPOSAL'}}]};
+          const command=async(_,name)=>name==='hermes-session-view'?page:name==='hermes-sprite-proposal'?{job_id:job,proposal}:receipt;
+          const result=await readBuildingSessionReceipts(command,session);
+          if(result.rows.length!==1 || !result.rows[0][1].includes(proposal.path))throw Error(JSON.stringify(result.rows));"""
+        root=Path(__file__).resolve().parents[2]
+        result=subprocess.run(['node','--input-type=module','-e',script,json.dumps([proposal,receipt])],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stderr)
+
     def setUp(self):
         current_temp_directory=tempfile.TemporaryDirectory();self.addCleanup(current_temp_directory.cleanup)
         self.current_root_path=Path(current_temp_directory.name)
@@ -321,16 +339,23 @@ with hold_sprite_asset_update_lock():
         with patch('workflow.domains.hermes_agent.sprite_pending_observer.inspect_hermes_sprite_pending_status',return_value={'state':'clear','files':[]}):
             self.assertTrue(sprite_operations.save_hermes_sprite_anchor_once(*current_save_args)['saved'])
 
+    def test_conversation_review_preserves_sprite_changes(self):
+        import subprocess
+        current_preview_record=sprite_operations.preview_hermes_sprite_anchor_edit(self.current_draft_record)
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'sprite.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'SpriteProposal.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');
+              const {SpriteProposalReview}=require(process.argv[1]);
+              const preview=JSON.parse(require('fs').readFileSync(0,'utf8'));
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(SpriteProposalReview,{preview,busy:true})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,input=json.dumps(current_preview_record),text=True)
+        for value in ('앵커 변경','프레임 배치',current_preview_record['output_sha256'],current_preview_record['clips'][0]['id'],str(current_preview_record['clips'][0]['frames'][0]['duration_ms'])+'ms','확인 후 저장','취소','disabled'):
+            self.assertIn(value,markup)
+
     def test_preview_and_save_update_registry_and_lock_once(self):
         current_preview_record=sprite_operations.preview_hermes_sprite_anchor_edit(self.current_draft_record)
-        from gui.ui.gradio.hermes_agent_app import format_conversation_sprite_changes
-        current_summary_value=format_conversation_sprite_changes(current_preview_record)
-        self.assertIn('변경 앵커 1개',current_summary_value)
-        self.assertIn('프레임 배치',current_summary_value)
-        self.assertIn(current_preview_record['output_sha256'],current_summary_value)
-        self.assertIn(current_preview_record['clips'][0]['id'],current_summary_value)
-        self.assertIn('클립: '+current_preview_record['clips'][0]['id'],current_summary_value)
-        self.assertIn(str(current_preview_record['clips'][0]['frames'][0]['duration_ms'])+'ms',current_summary_value)
         self.assertEqual(current_preview_record['changed_anchors'][0]['after'],{'x':2,'y':3})
         self.assertEqual(current_preview_record['output_sheet'],{'width':8,'height':4})
         self.assertEqual(hashlib.sha256(base64.b64decode(current_preview_record['preview_image'])).hexdigest(),current_preview_record['output_sha256'])

@@ -12,12 +12,11 @@ from workflow.common.management_gateway import resolve_management_command
 
 class VaceVideoContractTests(unittest.TestCase):
     def test_mode_guides_keep_api_values_and_show_pose_requirements(self):
-        from generators.wan_vace.page.interface import VACE_INPUT_CHOICES, describe_vace_mode
-        self.assertEqual({current_mode for _,current_mode in VACE_INPUT_CHOICES}, {'pose','reference','first_frame','text','video_edit','video_condition'})
-        current_pose_guide = describe_vace_mode('pose')[0]
-        for current_required_phrase in ('DWPose', '50스텝', 'CFG 5', 'shift 12', '자동으로 바뀌지 않습니다'):
-            self.assertIn(current_required_phrase, current_pose_guide)
-        self.assertIn('이미지나 영상은 사용하지 않습니다', describe_vace_mode('text')[0])
+        from generators.wan_vace.page.inputs import VACE_INPUT_CHOICES,VACE_MODE_HELP_TEXT
+        self.assertEqual({mode for _,mode in VACE_INPUT_CHOICES},{'pose','reference','first_frame','text','video_edit','video_condition'})
+        for phrase in ('DWPose','50','CFG','12'):
+            self.assertIn(phrase,VACE_MODE_HELP_TEXT['pose'])
+        self.assertIn('이미지',VACE_MODE_HELP_TEXT['text'])
 
     def setUp(self):
         current_image_buffer = io.BytesIO()
@@ -90,18 +89,24 @@ class VaceVideoContractTests(unittest.TestCase):
         self.assertEqual(current_reference_image.size,(400,600))
 
     def test_restore_inputs_and_model_readiness(self):
-        from gui.ui.gradio.wan_vace_app import restore_vace_inputs,check_vace_readiness
-        with self.assertRaises(ValueError):restore_vace_inputs({'id':'../outside','request':{}})
-        self.assertFalse(check_vace_readiness(False,'reference','image','walk'))
-        self.assertFalse(check_vace_readiness(True,'text','image','walk'))
-        self.assertTrue(check_vace_readiness(True,'text',None,'walk'))
-        with tempfile.TemporaryDirectory() as current_temp_root:
-            current_job_root=Path(current_temp_root)/'job';current_job_root.mkdir()
-            Image.new('RGB',(832,480)).save(current_job_root/'reference-1.png')
-            with patch('gui.ui.gradio.wan_vace_app.VACE_JOB_STORAGE',Path(current_temp_root)):
-                current_restored_values=restore_vace_inputs({'id':'job','request':{**self.current_request_record,'references':['reference-1.png']}})
-            self.assertEqual(current_restored_values[0],'reference')
-            self.assertEqual(current_restored_values[-1],'job')
+        import json
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from workflow.common.management_asgi import build_management_application
+        from generators.wan_vace.contracts import VACE_DEFAULT_SETTINGS
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);job='2026-11-15_12-00-00-12345678';jobdir=root/job;jobdir.mkdir()
+            request={**VACE_DEFAULT_SETTINGS,'mode':'reference','prompt':'walk','negative_prompt':'','references':['reference-1.png']}
+            (jobdir/'request.json').write_text(json.dumps(request));Image.new('RGB',(832,480)).save(jobdir/'reference-1.png')
+            app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with patch('generators.wan_vace.contracts.VACE_JOB_STORAGE',root),TestClient(app) as client:
+                response=client.get(f'/management/assistant/vace-input/{job}/request')
+                self.assertEqual(response.status_code,200);self.assertEqual(response.json()['attachments'],['reference'])
+                self.assertEqual(response.json()['request']['mode'],'reference')
+                self.assertEqual(client.get(f'/management/assistant/vace-input/{job}/reference').status_code,200)
+                self.assertEqual(client.get('/management/assistant/vace-input/invalid/request').status_code,404)
+                (jobdir/'reference-1.png').unlink()
+                self.assertEqual(client.get(f'/management/assistant/vace-input/{job}/request').status_code,404)
 
     def test_pose_video_browser_copy_preserves_frames(self):
         import cv2
@@ -129,31 +134,26 @@ class VaceVideoContractTests(unittest.TestCase):
             current_source_video.release()
             current_result_video.release()
 
-    def test_initial_history_failure_is_actionable_and_not_queued(self):
-        from gui.ui.gradio.wan_vace_app import build_vace_interface
-        def execute_test_command(current_command_name,current_payload_record):
-            if current_command_name == 'history':
-                raise RuntimeError('게이트웨이 연결 실패')
-            return {'ready': False, 'message': '검사', 'items': []}
-        current_interface_blocks = build_vace_interface('http://localhost:8770', execute_test_command)
-        current_history_binding = next(current_binding for current_binding in current_interface_blocks.fns.values()
-                                       if current_binding.fn and current_binding.fn.__name__ == 'load_vace_history_initially')
-        self.assertFalse(current_history_binding.queue)
-        self.assertEqual(current_history_binding.show_progress, 'hidden')
-        self.assertIn('게이트웨이 연결 실패', current_history_binding.fn()[1])
-        self.assertIn('새로고침', current_history_binding.fn()[1])
-        current_interface_blocks.close()
+    def test_history_connection_error_has_actionable_message(self):
+        import subprocess
+        root=Path(__file__).resolve().parents[2]
+        script="""import {requestErrorMessage} from './gui/requestError.mjs';
+          const message=requestErrorMessage(new TypeError('Failed to fetch'));
+          if(!message.includes('연결'))throw Error(message);"""
+        result=subprocess.run(['node','--input-type=module','-e',script],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stderr)
 
-    def test_gradio_builds_without_generation_and_has_history_actions(self):
-        from gui.ui.gradio.wan_vace_app import build_vace_interface
-        def reject_generation_command(current_command_name,current_payload_record):
-            if current_command_name=='generate':raise AssertionError('검사 중 실제 생성 금지')
-            return {'ready':False,'message':'격리 검사','items':[]}
-        current_interface_blocks=build_vace_interface('http://localhost:8770',reject_generation_command)
-        current_component_labels=[current_component_record.get('props',{}).get('value') for current_component_record in current_interface_blocks.config['components']]
-        for expected_action_label in ('확인 후 대기열에 추가','추가하지 않기','선택 이력 삭제'):
-            self.assertIn(expected_action_label,current_component_labels)
-        current_interface_blocks.close()
+    def test_current_page_renders_without_generation_and_has_history(self):
+        import os,subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'vace.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'VacePage.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""global.location={search:'',pathname:'/management/frame/wan22-vace-generator/'};global.sessionStorage={getItem:()=>null};
+              const React=require('react'),server=require('react-dom/server');const Page=require(process.argv[1]).default;
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(Page)));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+        self.assertIn('이력',markup);self.assertIn('모델',markup)
 
     def test_service_paths_and_required_commands(self):
         from workflow.domains.wan_vace.generation import VaceVideoGenerationManager

@@ -37,6 +37,24 @@ class QueueEstimateObserverTests(unittest.TestCase):
                     metrics_path.write_text(json.dumps({**metrics, **change}))
                     self.assertIsNone(observe_running_queue_estimate(root, 'job', status))
 
+    def test_worker_progress_current_attempt_only(self):
+        observe = queue_estimate_observer.observe_running_queue_progress
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            status = {'status': 'running'}
+            (root/'status.json').write_text(json.dumps(status))
+            (root/'queue-telemetry.json').write_text('{"attempt_id":"123"}')
+            path = root/'queue-telemetry'/'123'/'metrics.json'
+            path.parent.mkdir(parents=True)
+            progress = {'stage':'inference','step':3,'total':20,'updated_at':(datetime.now(timezone.utc)+timedelta(seconds=1)).isoformat(),'scope':'추론 단계'}
+            record = {'job_id':'job','attempt_id':'123','status':'running','worker_progress':progress}
+            path.write_text(json.dumps(record))
+            self.assertEqual(observe(root,'job',status),progress)
+            self.assertIsNone(observe(root,'other',status))
+            for change in ({'step':21}, {'total':0}, {'updated_at':'2000-01-01T00:00:00+00:00'}):
+                path.write_text(json.dumps({**record,'worker_progress':{**progress,**change}}))
+                self.assertIsNone(observe(root,'job',status))
+
     def test_pointer_or_status_change_during_read_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

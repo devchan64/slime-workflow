@@ -24,7 +24,7 @@ export default function GeneratorChangelog({generator}) {
     load();
     return ()=>controller.abort();
   },[open,generator,index,revision]);
-  return <details onToggle={event=>setOpen(event.currentTarget.open)}><summary>생성기 변경 기록</summary>
+  return <details className="generator-changelog" onToggle={event=>setOpen(event.currentTarget.open)}><summary>생성기 변경 기록</summary>
     {open && <>
       {error && <p role="alert">{error}</p>}
       <div className="choice-buttons">

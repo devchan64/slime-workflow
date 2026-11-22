@@ -11,6 +11,26 @@ from workflow.common.management_gateway import resolve_management_command, ident
 
 
 class HermesServiceTests(unittest.TestCase):
+    @patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready')
+    @patch('workflow.domains.hermes_agent.service.launch_gpu_process')
+    def test_session_explicit_model_persisted_and_retry_checked(self, launch, ready):
+        session = 'a' * 32
+        self.hermes_service_manager.execute_hermes_command('hermes-session-create', {'session_id':session})
+        request = {'session_id':session, 'request_id':'model-request-001', 'prompt':'코드 수정', 'model_profile':'qwen3.8-27b'}
+        result = self.hermes_service_manager.execute_hermes_command('hermes-session-submit', request)
+        job = self.hermes_service_manager.hermes_storage_root / result['job_id']
+        self.assertEqual(json.loads((job / 'request.json').read_text())['model_profile'], 'qwen3.8-27b')
+        self.assertTrue(self.hermes_service_manager.execute_hermes_command('hermes-session-submit', request)['duplicate'])
+        with self.assertRaises(ValueError):
+            self.hermes_service_manager.execute_hermes_command('hermes-session-submit', {**request, 'model_profile':'qwen3.5-4b'})
+        with self.assertRaises(ValueError):
+            self.hermes_service_manager.execute_hermes_command('hermes-session-submit', {**request, 'request_id':'model-request-002', 'model_profile':'invalid'})
+        (job / 'status.json').write_text('{"status":"completed"}')
+        (job / 'hermes-events.jsonl').write_text(json.dumps({'type':'result', 'text':'완료'}, ensure_ascii=False))
+        second = self.hermes_service_manager.execute_hermes_command('hermes-session-submit', {**request, 'request_id':'model-request-003', 'prompt':'안녕', 'model_profile':'qwen3.8-27b'})
+        second_job = self.hermes_service_manager.hermes_storage_root / second['job_id']
+        self.assertEqual(json.loads((second_job / 'request.json').read_text())['model_profile'], 'qwen3.8-27b')
+
     def test_flux_source_command_requires_exact_payload(self):
         current_job_identifier='2026-11-18_00-00-00-12345678'
         current_job_record={'status':'queued','image':None,'result_status':'not_ready'}
@@ -1358,6 +1378,19 @@ class HermesServiceTests(unittest.TestCase):
             self.assertNotIn('/private',str(current_result_value))
             (current_active_path/'writer.json').write_text(json.dumps({'service':'writer-agent','required_memory_mib':16384,'cleanup_unverified':'yes'}))
             self.assertEqual(read_hermes_gpu_reservation_snapshot(current_root_path)['records'][0]['state'],'unknown')
+
+    def test_handoff_capability_schema_requires_confirmed_revision_and_real_interface(self):
+        catalog=self.hermes_service_manager.execute_hermes_command('hermes-capabilities',{})
+        records={record['command']:record for record in catalog['records']}
+        approve=records['hermes-gpu-handoff-approve']
+        fields=approve['payload_schema']['properties']
+        self.assertEqual(fields['confirmed'],{'const':True})
+        self.assertEqual(fields['review_hash']['pattern'],'^[a-f0-9]{64}$')
+        self.assertEqual(fields['resident_id']['pattern'],'^[A-Za-z0-9_-]{8,80}$')
+        self.assertNotIn('mcp',approve['interfaces'])
+        self.assertNotIn('Kimodo',fields['request'].get('validation',''))
+        cancel=records['hermes-gpu-handoff-cancel']['payload_schema']['properties']
+        self.assertEqual(cancel['expected_revision'],{'type':'integer','minimum':1})
 
     def test_capabilities_use_registered_gateway_and_strict_empty_input(self):
         from workflow.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS, MANAGEMENT_COMMAND_ROUTES

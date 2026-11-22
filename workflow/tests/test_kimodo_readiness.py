@@ -4,12 +4,44 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-import gradio as gr
-
-from workflow.common.gradio_model_download import build_model_readiness_controls, read_model_readiness_status
-
 
 class KimodoReadinessTests(unittest.TestCase):
+    def run_readiness_javascript(self, checks):
+        import os
+        import subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'readiness.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'ModelReadiness.jsx','--bundle','--platform=node',
+                            '--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""global.location={search:'?session=abc'};
+              global.fetch=()=>{throw Error('render must not dispatch');};
+              const assert=require('node:assert/strict'),React=require('react'),server=require('react-dom/server');
+              const {default:Page,ModelReadinessMessage,modelReadinessPollDelay,modelPrepareReason}=require(process.argv[1]);
+              const render=value=>server.renderToStaticMarkup(value);
+              """+checks
+            result=subprocess.run(['node','-e',script,str(bundle)],cwd=gui,capture_output=True,text=True,
+                                  env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+        self.assertEqual(result.returncode,0,result.stderr)
+    def test_current_readiness_message_distinguishes_assets_and_generation(self):
+        import subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'readiness.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'ModelReadiness.jsx','--bundle','--platform=node',
+                            '--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');
+              const {ModelReadinessMessage,modelReadinessPollDelay}=require(process.argv[1]);
+              const render=(status,error='')=>server.renderToStaticMarkup(React.createElement(ModelReadinessMessage,{service:'kimodo',status,error}));
+              if(!render({ready:true,generation_ready:false,message:'실행 환경 필요'}).includes('모델 준비 필요'))throw Error('blocked');
+              if(!render({ready:true,message:'준비됨'}).includes('생성 준비 완료'))throw Error('ready');
+              if(!render(null,'연결 오류').includes('모델 상태 조회 실패 · 연결 오류'))throw Error('error');
+              if(modelReadinessPollDelay({preparation_status:'running'},false)!==5000)throw Error('running');
+              if(modelReadinessPollDelay({preparation_status:'queued'},true)!==5000)throw Error('queued');
+              if(modelReadinessPollDelay({preparation_status:'idle'},true)!==30000)throw Error('managed');
+              if(modelReadinessPollDelay({preparation_status:'idle'},false)!==null)throw Error('idle');"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True)
+
     def test_model_status_requires_loadable_motion_correction(self):
         from generators.kimodo.contracts import inspect_kimodo_assets
         with patch('generators.kimodo.contracts.inspect_motion_correction_runtime', return_value=False):
@@ -85,39 +117,21 @@ class KimodoReadinessTests(unittest.TestCase):
                 self.assertEqual(current_source_file.read_text(), 'user change')
 
     def test_missing_model_links_to_management_without_downloading(self):
-        current_commands = []
-        def execute_status_command(current_operation_name, current_request_payload):
-            current_commands.append((current_operation_name, current_request_payload))
-            return {'ready': False, 'message': '준비 필요', 'preparation_status': 'idle'}
-        current_result = read_model_readiness_status(execute_status_command)
-        self.assertEqual(current_commands, [('model-status', {})])
-        self.assertFalse(current_result[1])
-        self.assertTrue(current_result[2]['visible'])
-        self.assertFalse(current_result[3].active)
+        self.run_readiness_javascript("""const html=render(React.createElement(Page,{service:'kimodo'}));
+          assert.match(html,/모델 관리로 이동/);assert.match(html,/model=kimodo/);
+          assert.match(render(React.createElement(ModelReadinessMessage,{service:'kimodo',status:{ready:false,message:'준비 필요'}})),/모델 준비 필요/);""")
 
-    def test_ready_model_hides_link_and_running_preparation_refreshes(self):
-        current_ready_result = read_model_readiness_status(lambda *_: {'ready': True, 'message': '완료'})
-        self.assertTrue(current_ready_result[1])
-        self.assertFalse(current_ready_result[2]['visible'])
-        current_running_result = read_model_readiness_status(lambda *_: {'ready': False, 'message': '진행 중', 'preparation_status': 'running'})
-        self.assertTrue(current_running_result[2]['visible'])
-        self.assertTrue(current_running_result[3].active)
-        current_blocked_result = read_model_readiness_status(lambda *_: {'ready': True, 'generation_ready': False, 'message': '실행 환경 준비 필요'})
-        self.assertTrue(current_blocked_result[2]['visible'])
+    def test_generation_readiness_and_running_refresh_interval(self):
+        self.run_readiness_javascript("""assert.equal(modelReadinessPollDelay({preparation_status:'running'},false),5000);
+          assert.match(render(React.createElement(ModelReadinessMessage,{service:'kimodo',status:{ready:true,message:'완료'}})),/생성 준비 완료/);
+          assert.match(render(React.createElement(ModelReadinessMessage,{service:'kimodo',status:{ready:true,generation_ready:false,message:'실행 환경 준비 필요'}})),/모델 준비 필요/);""")
 
-    def test_status_failure_offers_navigation_and_disables_generation(self):
-        def fail_status_command(*_):
-            raise OSError('연결 오류')
-        current_result = read_model_readiness_status(fail_status_command)
-        self.assertIn('연결 오류', current_result[0])
-        self.assertFalse(current_result[1])
-        self.assertTrue(current_result[2]['visible'])
+    def test_status_failure_offers_navigation_and_blocks_download(self):
+        self.run_readiness_javascript("""assert.match(render(React.createElement(ModelReadinessMessage,{service:'kimodo',error:'연결 오류'})),/연결 오류/);
+          assert.ok(modelPrepareReason(null,'연결 오류',false));
+          assert.match(render(React.createElement(Page,{service:'kimodo'})),/모델 관리로 이동/);""")
 
     def test_controls_only_provide_status_and_management_link(self):
-        with gr.Blocks() as current_interface:
-            build_model_readiness_controls(current_interface, lambda *_: {'ready': False, 'message': '준비 필요'})
-        current_components = current_interface.config['components']
-        current_buttons = [current_component['props'] for current_component in current_components if current_component['type'] == 'button']
-        self.assertEqual([current_button['value'] for current_button in current_buttons], ['모델 준비 상태 확인', '모델 관리로 이동'])
-        self.assertEqual(current_buttons[1]['link'], '/management/?tool=model-management&category=model-management')
-        self.assertEqual(current_buttons[1]['link_target'], '_self')
+        self.run_readiness_javascript("""const html=render(React.createElement(Page,{service:'kimodo'}));
+          assert.match(html,/모델 준비 상태 확인/);assert.match(html,/모델 관리로 이동/);
+          assert.match(html,/session=abc/);assert.doesNotMatch(html,/모델 다운로드 · 이어받기/);""")

@@ -24,6 +24,6 @@ export function useLiveRefresh(refresh,active=true){
   return {ref,enabled,setEnabled,visible,active};
 }
 
-export function LiveRefreshControl({live,label="자동 갱신"}){
-  return <label className="live-refresh"><input type="checkbox" checked={live.enabled} onChange={event=>live.setEnabled(event.target.checked)}/> {label} · 30초 간격{!live.active && " · 일시 중지"}</label>;
+export function LiveRefreshControl({live,label="자동 갱신",inactiveReason="일시 중지"}){
+  return <label className="live-refresh"><input type="checkbox" checked={live.enabled} onChange={event=>live.setEnabled(event.target.checked)}/> {label} · 30초 간격{!live.active ? " · "+inactiveReason : live.enabled && !live.visible ? " · 화면에 보이면 갱신" : ""}</label>;
 }

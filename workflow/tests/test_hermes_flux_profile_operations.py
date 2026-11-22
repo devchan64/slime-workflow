@@ -9,6 +9,112 @@ from workflow.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
 
 
 class HermesFluxProfileOperationsTests(unittest.TestCase):
+    def test_audio_video_and_writer_proposals_use_real_session_records(self):
+        import json,subprocess
+        from workflow.domains.hermes_agent.service import HermesServiceManager
+        from workflow.domains.hermes_agent.session_store import HermesSessionStore
+        cases={'audio':{'service':'sfx-dasheng-audiogen','request':{'action':'generate','prompt':'water splash','seed':42,'loop_request':False}},
+               'video':{'service':'wan22-vace','mode':'text','prompt':'a bird flies'},
+               'writer':{'mode':'write','prompt':'write a short story'}}
+        root_repo=Path(__file__).resolve().parents[2]
+        for index,(kind,draft) in enumerate(cases.items()):
+            with self.subTest(kind=kind),TemporaryDirectory() as directory:
+                root=Path(directory);session='a'*32;job=f'2026-11-18_00-00-0{index}-12345678'
+                sessions=HermesSessionStore(root/'sessions');sessions.create_session_record(session)
+                sessions.append_session_request(session,'request_12345678','test');sessions.attach_session_job(session,'request_12345678',job)
+                jobdir=root/'jobs'/job;jobdir.mkdir(parents=True)
+                (jobdir/'request.json').write_text(json.dumps({'prompt':'test'}))
+                (jobdir/'status.json').write_text(json.dumps({'status':'completed'}))
+                answer='HERMES_'+kind.upper()+'_PROPOSAL\n'+json.dumps(draft)+'\nEND_HERMES_'+kind.upper()+'_PROPOSAL'
+                (jobdir/'hermes-events.jsonl').write_text(json.dumps({'type':'result','text':answer})+'\n')
+                manager=HermesServiceManager(hermes_storage_root=root/'jobs',hermes_session_root=root/'sessions')
+                view=manager.execute_hermes_command('hermes-session-view',{'session_id':session,'offset':0,'limit':6})
+                proposal=manager.execute_hermes_command('hermes-'+kind+'-proposal',{'id':job})
+                script="""import {readGenerationProposal} from './gui/generationProposal.mjs';
+                  const [view,proposal,kind]=JSON.parse(process.argv[1]);
+                  const command=async(_,name)=>name==='hermes-session-view'?view:proposal;
+                  const result=await readGenerationProposal(command,{session:view.id,job:proposal.job_id,snapshot:view.snapshot,offset:view.offset,kind});
+                  if(JSON.stringify(result)!==JSON.stringify(proposal.proposal))throw Error('proposal mismatch');"""
+                result=subprocess.run(['node','--input-type=module','-e',script,json.dumps([view,proposal,kind],ensure_ascii=False)],cwd=root_repo,capture_output=True,text=True)
+                self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_all_flux_proposals_use_current_profiles_and_fixed_review_steps(self):
+        from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_flux_proposal
+        from workflow.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
+        from workflow.domains.image.flux_image_generation import FluxImageGenerationManager
+        from workflow.domains.image.flux_expression_generation import FluxExpressionGenerationManager
+        import json
+        for service in (*FLUX_IMAGE_PROFILE_RECORDS,'flux-expression'):
+            proposal={'service':service,'prompt':'joy' if service=='flux-expression' else 'a blue object',
+                      'width':512,'height':512,'seed':42}
+            answer='HERMES_FLUX_PROPOSAL\n'+json.dumps(proposal)+'\nEND_HERMES_FLUX_PROPOSAL'
+            manager=FluxExpressionGenerationManager if service=='flux-expression' else FluxImageGenerationManager
+            original=manager.validate_generation_request
+            observed=[]
+            def validate(instance,request):
+                observed.append(request)
+                return original(instance,request)
+            with self.subTest(service=service),patch.object(manager,'validate_generation_request',new=validate):
+                self.assertEqual(parse_hermes_flux_proposal(answer),proposal)
+                self.assertEqual(observed[0]['steps'],16)
+                self.assertEqual(len(observed[0]['images']),1 if service=='flux-expression' or FLUX_IMAGE_PROFILE_RECORDS[service][4] else 0)
+    def test_real_session_proposal_matches_frontend_verification(self):
+        import json
+        import subprocess
+        from workflow.domains.hermes_agent.service import HermesServiceManager
+        from workflow.domains.hermes_agent.session_store import HermesSessionStore
+        session='a'*32;job='2026-11-18_00-00-00-12345678'
+        draft={'service':'flux-image','prompt':'A small blue teapot','width':512,'height':512,'seed':42}
+        answer='HERMES_FLUX_PROPOSAL\n'+json.dumps(draft)+'\nEND_HERMES_FLUX_PROPOSAL'
+        with TemporaryDirectory() as directory:
+            root=Path(directory);sessions=HermesSessionStore(root/'sessions');sessions.create_session_record(session)
+            sessions.append_session_request(session,'request_12345678','파란 주전자');sessions.attach_session_job(session,'request_12345678',job)
+            jobdir=root/'jobs'/job;jobdir.mkdir(parents=True)
+            (jobdir/'request.json').write_text(json.dumps({'prompt':'파란 주전자'}))
+            (jobdir/'status.json').write_text(json.dumps({'status':'completed'}))
+            (jobdir/'hermes-events.jsonl').write_text(json.dumps({'type':'result','text':answer})+'\n')
+            manager=HermesServiceManager(hermes_storage_root=root/'jobs',hermes_session_root=root/'sessions')
+            view=manager.execute_hermes_command('hermes-session-view',{'session_id':session,'offset':0,'limit':6})
+            proposal=manager.execute_hermes_command('hermes-flux-proposal',{'id':job})
+            script="""import {verifyFluxProposal} from './gui/fluxProposalReceipt.mjs';
+              const [view,proposal]=JSON.parse(process.argv[1]);
+              const command=async(_,name)=>name==='hermes-session-view'?view:proposal;
+              const scope={session:view.id,job:proposal.job_id,snapshot:view.snapshot,offset:view.offset};
+              const result=await verifyFluxProposal(command,scope);
+              if(result.service!=='flux-image' || result.seed!==42)throw Error('proposal mismatch');
+              await verifyFluxProposal(command,scope,result);"""
+            repository=Path(__file__).resolve().parents[2]
+            result=subprocess.run(['node','--input-type=module','-e',script,json.dumps([view,proposal],ensure_ascii=False)],cwd=repository,capture_output=True,text=True,timeout=30)
+            self.assertEqual(result.returncode,0,result.stderr)
+            sessions.append_session_request(session,'request_87654321','후속 대화')
+            with self.assertRaisesRegex(ValueError,'세션 이력이 변경'):
+                manager.execute_hermes_command('hermes-session-view',{'session_id':session,'offset':0,'limit':6,'snapshot':view['snapshot']})
+
+    def test_concurrent_changed_input_cannot_duplicate_profile_submission(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Event
+        request_id='flux_'+('a'*64); job='2026-11-22_09-33-14-f9df6f1e'
+        entered=Event(); release=Event(); calls=[]
+        def dispatch(service,command,payload):
+            calls.append((service,command,payload))
+            entered.set()
+            if not release.wait(3): raise RuntimeError('test release timed out')
+            return {'id':job}
+        with TemporaryDirectory() as directory, \
+             patch.object(flux_profile_operations,'HermesDelegationStore',return_value=HermesDelegationStore(Path(directory))), \
+             patch('workflow.domains.image.flux_image_generation.FluxImageGenerationManager.validate_generation_request'), \
+             patch.object(flux_profile_operations,'call_hermes_flux_profile',side_effect=dispatch):
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                first=pool.submit(flux_profile_operations.submit_hermes_flux_profile,request_id,'flux-image',{'prompt':'first'})
+                try:
+                    self.assertTrue(entered.wait(2))
+                    second=pool.submit(flux_profile_operations.submit_hermes_flux_profile,request_id,'flux-image',{'prompt':'changed'})
+                finally:
+                    release.set()
+                self.assertEqual(first.result(timeout=3)['job_id'],job)
+                with self.assertRaises(ValueError): second.result(timeout=3)
+            self.assertEqual(len(calls),1)
+
     def test_flux_source_observation_reads_only_selected_profile_storage(self):
         import json
         from types import SimpleNamespace
@@ -200,24 +306,17 @@ class HermesFluxProfileOperationsTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 flux_profile_operations.list_hermes_flux_profile_receipts('arbitrary-service')
 
-    def test_reference_ui_confirms_actual_service_receipt_once(self):
-        from gui.ui.gradio import hermes_agent_app
-        current_job='2026-11-18_00-00-00-12345678'
-        current_source={'proposal':{'service':'flux-building'},'request_id':'profile_request_123'}
-        current_review={'source':current_source,'review':{'request_id':'profile_request_123','service':'flux-building','request':{'prompt':'house'}}}
-        def current_gateway(current_service,current_command,current_payload):
-            self.assertEqual(current_service,'hermes-agent')
-            if current_command=='hermes-delegate-flux-profile':return flux_profile_operations.submit_hermes_flux_profile(current_payload['request_id'],current_payload['service'],current_payload['request'])
-            if current_command=='hermes-flux-profile-status':return flux_profile_operations.read_hermes_flux_profile_status(current_payload['request_id'],current_payload['service'])
-            raise AssertionError(current_command)
-        def current_profile_service(current_service,current_command,current_payload):
-            return {'id':current_job} if current_command=='generate' else {'id':current_job,'status':'queued'}
-        with TemporaryDirectory() as current_root, patch.object(flux_profile_operations,'HermesDelegationStore',return_value=HermesDelegationStore(Path(current_root))), patch('workflow.domains.image.flux_image_generation.FluxImageGenerationManager.validate_generation_request'), patch.object(flux_profile_operations,'call_hermes_flux_profile',side_effect=current_profile_service) as current_profile_mock, patch.object(hermes_agent_app,'execute_remote_management_command',side_effect=current_gateway), patch.object(hermes_agent_app,'review_conversation_flux_reference',return_value=(current_review,'','')):
-            for current_iteration in range(2):
-                _,current_status=hermes_agent_app.submit_conversation_flux_reference(current_review,current_source,'session','job',None,None)
-                self.assertIn('접수 기록 확인',current_status)
-                self.assertIn('queued',current_status)
-            self.assertEqual(sum(current_call.args[1]=='generate' for current_call in current_profile_mock.call_args_list),1)
+    def test_uncertain_profile_receipt_does_not_resubmit(self):
+        request_id='profile_uncertain_123'
+        with TemporaryDirectory() as directory, patch.object(flux_profile_operations,'HermesDelegationStore',return_value=HermesDelegationStore(Path(directory))), patch('workflow.domains.image.flux_image_generation.FluxImageGenerationManager.validate_generation_request'), patch.object(flux_profile_operations,'call_hermes_flux_profile',side_effect=OSError('response lost')) as gateway:
+            with self.assertRaises(OSError):
+                flux_profile_operations.submit_hermes_flux_profile(request_id,'flux-building',{'prompt':'house'})
+            receipt=flux_profile_operations.submit_hermes_flux_profile(request_id,'flux-building',{'prompt':'house'})
+            self.assertEqual(receipt['state'],'unknown')
+            self.assertTrue(receipt['duplicate'])
+            gateway.assert_called_once()
+            with self.assertRaises(ValueError):
+                flux_profile_operations.submit_hermes_flux_profile(request_id,'flux-building',{'prompt':'changed'})
 
     def test_expression_uses_its_own_manager_and_service(self):
         current_job_identifier='2026-11-18_00-00-00-12345678'

@@ -43,42 +43,21 @@ class AutomaticSpriteCropTests(unittest.TestCase):
             execute_sprite_sheet_automatic({'image':current_encoded_image,'unknown':1})
 
     def test_review_rejects_changed_input(self):
+        import json,subprocess
         from pathlib import Path
-        from tempfile import TemporaryDirectory
-        from unittest.mock import patch
-        from gui.ui.gradio.sprite_sheet_editor_app import detect_automatic_sprite_crops, apply_automatic_sprite_crops
         current_source_image=Image.new('RGB',(100,100),'white')
         ImageDraw.Draw(current_source_image).rectangle((20,20,59,79),fill='brown')
-        with TemporaryDirectory() as current_temp_directory:
-            current_input_path=Path(current_temp_directory)/'input.png'
-            current_source_image.save(current_input_path)
-            with patch('gui.ui.gradio.sprite_sheet_editor_app.execute_remote_management_command',side_effect=lambda current_service_name,current_command_name,current_payload_record:execute_sprite_sheet_automatic(current_payload_record)):
-                current_pending_record,*_=detect_automatic_sprite_crops('data:image/png;base64,'+encode_test_sprite_image(current_source_image),50)
-            current_loaded_values=apply_automatic_sprite_crops(current_pending_record,'data:image/png;base64,'+base64.b64encode(current_input_path.read_bytes()).decode(),50)
-            self.assertEqual(len(current_loaded_values[1]),1)
-            with self.assertRaises(Exception):
-                apply_automatic_sprite_crops(current_pending_record,'data:image/png;base64,'+encode_test_sprite_image(current_source_image),40)
-            Image.new('RGB',(100,100),'red').save(current_input_path)
-            with self.assertRaises(Exception):
-                apply_automatic_sprite_crops(current_pending_record,'data:image/png;base64,'+base64.b64encode(current_input_path.read_bytes()).decode(),50)
-
-    def test_reload_updates_rows_and_clears_previous_results(self):
-        from pathlib import Path
-        from tempfile import TemporaryDirectory
-        from gui.ui.gradio.sprite_sheet_editor_app import prepare_sprite_sheet_load, confirm_sprite_sheet_load
-        with TemporaryDirectory() as current_temp_directory:
-            current_input_path=Path(current_temp_directory)/'input.png'
-            Image.new('RGB',(400,600),'white').save(current_input_path)
-            current_first_result=prepare_sprite_sheet_load(str(current_input_path),4,2,'',{})
-            self.assertEqual(len(current_first_result[1]),8)
-            current_pending_result=prepare_sprite_sheet_load(str(current_input_path),4,3,current_first_result[0],{})
-            self.assertEqual(current_pending_result[5]['visible'],True)
-            current_loaded_result=confirm_sprite_sheet_load(current_pending_result[6],str(current_input_path),4,3,{})
-            self.assertEqual(len(current_loaded_result[1]),12)
-            self.assertEqual(current_loaded_result[1][0][3],200)
-            self.assertEqual(current_loaded_result[9],{})
-            self.assertIsNone(current_loaded_result[10])
-            self.assertIsNone(current_loaded_result[12])
+        image=encode_test_sprite_image(current_source_image)
+        result=execute_sprite_sheet_automatic({'image':image,'padding':50})
+        script="""import {cropCandidate,confirmCropCandidate} from './gui/spriteCropCandidate.mjs';
+          import assert from 'node:assert/strict';const {image,result}=JSON.parse(process.argv[1]);
+          const reviewed=cropCandidate(image,50,result);assert.deepEqual(confirmCropCandidate(reviewed,image,50),result);
+          assert.throws(()=>confirmCropCandidate(reviewed,image,40),/변경/);
+          assert.throws(()=>confirmCropCandidate(reviewed,image+'A',50),/변경/);
+          assert.throws(()=>cropCandidate(image,50,{frames:[],sourceFrames:[]}),/확인/);"""
+        root=Path(__file__).resolve().parents[2]
+        process=subprocess.run(['node','--input-type=module','-e',script,json.dumps({'image':image,'result':result})],cwd=root,capture_output=True,text=True)
+        self.assertEqual(process.returncode,0,process.stderr)
 
     def test_variable_figures_export_row_heights_without_scaling(self):
         from pathlib import Path

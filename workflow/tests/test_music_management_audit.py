@@ -84,45 +84,24 @@ class MusicManagementAuditTests(unittest.TestCase):
                 self.assertEqual(current_music_service.execute_music_command('history',{})['records'],[])
 
     def test_music_confirmation_preserves_prompt_readiness(self):
-        from gui.ui.gradio.music_app import build_music_interface
-        for current_service_name in MUSIC_SERVICE_NAMES:
-            current_interface_blocks = build_music_interface(current_service_name, 'http://127.0.0.1:9988')
-            current_callback_records = [current_callback.fn for current_callback in current_interface_blocks.fns.values() if current_callback.fn]
-            current_readiness_callback = next(current_callback for current_callback in current_callback_records if current_callback.__name__ == 'refresh_generation_readiness')
-            current_cancel_callback = next(current_callback for current_callback in current_callback_records if current_callback.__name__ == 'cancel_generation_confirmation')
-            current_missing_inputs = ('', '[Verse]\nHome', False)
-            current_ready_inputs = ('flute', '[Verse]\nHome', False)
-            current_pending_record = {'inputs': current_ready_inputs, 'consumed': False}
-            with patch('gui.ui.gradio.music_app.execute_remote_management_command',return_value={'ready':True}):
-                self.assertFalse(current_readiness_callback(None, *current_missing_inputs)['interactive'])
-                self.assertEqual(current_readiness_callback(None, *current_ready_inputs)['interactive'],current_service_name != 'music-magenta')
-                self.assertFalse(current_readiness_callback(current_pending_record, *current_ready_inputs)['interactive'])
-                self.assertFalse(current_cancel_callback(current_pending_record, *current_missing_inputs)[2]['interactive'])
-                self.assertEqual(current_cancel_callback(None, *current_ready_inputs)[2]['interactive'],current_service_name != 'music-magenta')
-                if current_service_name == 'music-heartmula':
-                    self.assertFalse(current_readiness_callback(None, 'flute', '', False)['interactive'])
-                    with patch('gui.ui.gradio.music_app.execute_remote_management_command',return_value={'ready':False}):
-                        self.assertFalse(current_readiness_callback(None, *current_ready_inputs)['interactive'])
+        import subprocess
+        root=Path(__file__).resolve().parents[2]
+        result=subprocess.run(['node','--test',str(root/'workflow/tests/audio_input_issues.test.mjs'),str(root/'workflow/tests/confirmation_gate.test.mjs')],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
-    def test_deleted_active_record_clears_preview_without_hiding_existing_errors(self):
-        from gui.ui.gradio.music_app import build_music_interface
-        for current_service_name in MUSIC_SERVICE_NAMES:
-            current_interface_blocks=build_music_interface(current_service_name,'http://127.0.0.1:9988')
-            current_refresh_callback=next(current_callback.fn for current_callback in current_interface_blocks.fns.values() if current_callback.fn and current_callback.fn.__name__=='refresh_combined_history')
-            def execute_deleted_command(current_service_value,current_command_value,current_payload_value):
-                if current_command_value=='status':raise ValueError('작업 경로가 없습니다')
-                return {'records':[]}
-            with patch('gui.ui.gradio.music_app.execute_remote_management_command',side_effect=execute_deleted_command):
-                current_update_values=current_refresh_callback('removed','removed',True,{'old':'old.wav'})
-                self.assertIn('삭제',current_update_values[-6])
-                self.assertEqual(current_update_values[-5], '')
-                self.assertFalse(current_update_values[-4]['visible'])
-                self.assertEqual(current_update_values[-3], {})
-                self.assertFalse(current_update_values[-1].active)
-            with patch('gui.ui.gradio.music_app.execute_remote_management_command',side_effect=[ValueError('손상된 기록'),{'records':[{'id':'existing'}]}]):
-                current_update_values=current_refresh_callback('existing','existing',True,{})
-                self.assertIn('손상된 기록',current_update_values[-6])
-                self.assertTrue(current_update_values[-1].active)
+    def test_audio_result_errors_distinguish_missing_and_stale_results(self):
+        import subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'media.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'MediaJobResult.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');const {MediaResultError}=require(process.argv[1]);
+              const render=(error,stale)=>server.renderToStaticMarkup(React.createElement(MediaResultError,{error,stale}));
+              process.stdout.write(JSON.stringify([render('음악 작업 경로가 없거나 허용되지 않습니다.',true),render('손상된 기록',true),render('손상된 기록',false)]));"""
+            missing,stale,empty=json.loads(subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True))
+        self.assertIn('해당 작업을 찾지 못했습니다',missing);self.assertIn('마지막으로 조회한 결과',missing)
+        self.assertIn('불러오지 못했습니다',stale);self.assertIn('마지막으로 조회한 결과',stale)
+        self.assertNotIn('마지막으로 조회한 결과',empty)
 
     def test_both_services_keep_attempt_telemetry_across_terminal_and_resume_states(self):
         from workflow.common.audio_results import describe_audio_generation_status

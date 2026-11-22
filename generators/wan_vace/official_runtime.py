@@ -9,6 +9,12 @@ from generators.wan_vace.official_prepare import VACE_OFFICIAL_INSTALL_ROOT as V
 from generators.wan_vace.official_full_precision import load_full_precision_expert
 
 
+def build_blank_video_condition(torch, frame_count):
+    """공식 예제의 이미지·영상 없는 경우와 같은 전체 마스크 입력."""
+    return {'video':torch.zeros((1, 3, frame_count, 480, 832)),
+            'mask_video':torch.ones((1, 1, frame_count, 480, 832)) * 255}
+
+
 def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.0, current_attempt_root=None):
     # 공식 구현은 문자열 "0"도 참으로 취급한다.
     os.environ.pop('VIDEOX_OFFLOAD_VACE_LATENTS', None)
@@ -114,7 +120,7 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
             'scope': '선택 분기 self-attention의 앞 7잠재 슬롯은 앞 7슬롯만 참조; 뒤쪽은 전체 참조; cross-attention 유지',
         })
     current_frame_count = current_request_record['frames']
-    current_condition_inputs = {}
+    current_condition_inputs = build_blank_video_condition(torch, current_frame_count) if current_request_record['mode'] in ('text', 'reference') else {}
     if current_request_record['references']:
         current_reference_pixels = np.array(Image.open(current_job_root/current_request_record['references'][0]).convert('RGB'))
         current_reference_tensor = torch.from_numpy(current_reference_pixels.astype(np.float32)/255).permute(2,0,1)[None,:,None]

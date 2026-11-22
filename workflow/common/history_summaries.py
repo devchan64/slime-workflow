@@ -1,5 +1,6 @@
 """공용 이력에 표시할 제한된 저장 입력 요약을 읽는다."""
 import json
+import math
 import os
 import re
 import stat
@@ -28,7 +29,26 @@ def read_history_summary(directory):
         value=request.get(key)
         if type(value) is int and 0<=value<=4294967295:
             summary[key]=value
+    duration=request.get('duration_seconds')
+    if type(duration) in (int,float) and math.isfinite(duration) and 0<duration<=3600:
+        summary['duration_seconds']=duration
     return summary
+
+
+def audio_result_available(directory,service):
+    """완료된 시도의 관리 파일만 관측하며, 유효하지 않은 경로는 표시하지 않는다."""
+    from workflow.domains.hermes_agent.delegation_store import read_bounded_delegation_record
+    try:
+        status=read_bounded_delegation_record(directory/'status.json')
+        result=read_bounded_delegation_record(directory/'result.json')
+        if status.get('status')!='completed' or not isinstance(result,dict):return False
+        attempt=result.get('attempt')
+        if not isinstance(attempt,str) or not re.fullmatch(r'[a-f0-9]{32}',attempt):return False
+        attempts=directory/'attempts';attempt_dir=attempts/attempt
+        filename='sound.wav' if service=='sfx-dasheng-audiogen' else 'music.wav'
+        audio=attempt_dir/filename
+        return not attempts.is_symlink() and not attempt_dir.is_symlink() and not audio.is_symlink() and audio.is_file() and attempt_dir.resolve().parent==attempts.resolve()
+    except (OSError,ValueError,TypeError,AttributeError):return False
 
 
 def video_image_attempt(directory):
@@ -86,6 +106,8 @@ def handle_history_summaries_request(handler, routes):
                     summaries[id]['image_available']=not image.is_symlink() and image.is_file()
                 elif payload['service'] in {'wan22-fun-control','wan22-vace','wan22-animate2','dwpose','kimodo'}:
                     summaries[id]['image_attempt']=video_image_attempt(directory)
+                elif payload['service'] in {'music-heartmula','music-minimax','music-magenta','sfx-dasheng-audiogen'}:
+                    summaries[id]['audio_available']=audio_result_available(directory,payload['service'])
             except (OSError,ValueError,TypeError):
                 continue
         send_management_json_response(handler,200,{'summaries':summaries})

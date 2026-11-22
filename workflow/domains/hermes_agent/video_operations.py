@@ -163,8 +163,10 @@ def read_hermes_video_source_job(current_service_name,current_job_identifier):
     if all(current_result_paths.values()) and read_bounded_delegation_record(current_job_root/'result.json')!=current_result_record:raise ValueError('영상 결과가 조회 중 변경되었습니다.')
     current_result_status=('available' if all(current_result_paths.values()) else 'unavailable') if current_status_value=='completed' else 'not_ready'
     current_output = {'status':current_status_value,**current_result_paths,'result_status':current_result_status,'note':'기록만 조회하며 중단 상태 복구는 하지 않습니다. 파일 존재는 조회 시점 기준이며 내용·재생과 프로세스 생존은 별도 확인하세요.',**observe_hermes_generator_failure(current_status_value,current_status_record.get('error'))}
-    from workflow.domains.hermes_agent.queue_estimate_observer import observe_running_queue_estimate
+    from workflow.domains.hermes_agent.queue_estimate_observer import observe_running_queue_estimate, observe_running_queue_progress
     current_output['estimate'] = observe_running_queue_estimate(current_job_root,current_job_identifier,current_status_record)
+    current_output['worker_progress'] = observe_running_queue_progress(current_job_root,current_job_identifier,current_status_record)
+    current_output['queried_at'] = datetime.now(timezone.utc).isoformat()
     if current_service_name == 'wan22-fun-control':
         current_output['progress_event'] = read_fun_progress_event(current_job_root,current_job_identifier,current_status_record)
         current_output['queried_at'] = datetime.now(timezone.utc).isoformat()

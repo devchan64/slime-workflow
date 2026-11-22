@@ -5,19 +5,13 @@ import io
 import tempfile
 import unittest
 from pathlib import Path
-import gradio as gr
 from PIL import Image
 from workflow.domains.image.building_prompt import BUILDING_LAYOUT_PRESET_NAMES, BUILDING_STRUCTURE_RECORDS, load_building_layout_preset
 from workflow.domains.image.flux_image_generation import FLUX_IMAGE_PROFILE_RECORDS, FluxImageGenerationManager
 from workflow.domains.image.three_reference_generation import save_three_reference_inputs
-from gui.ui.shared.flux_image_page import restore_flux_image_inputs
+from workflow.domains.image.flux_input_restore import restore_flux_image_inputs
 from workflow.common.management_gateway import resolve_management_command
-from gui.ui.gradio.building_guide_gallery import (
-    apply_selected_building_guide,
-    render_building_guide_page,
-    search_building_guide_catalog,
-    select_building_guide_card,
-)
+
 
 
 class FluxImageGenerationTests(unittest.TestCase):
@@ -53,6 +47,7 @@ class FluxImageGenerationTests(unittest.TestCase):
         with self.assertRaises(ValueError): current_manager_value.validate_generation_request({**current_request_record,'seamless_method':'unknown'})
         with self.assertRaises(ValueError): FluxImageGenerationManager('flux-image').validate_generation_request({**current_request_record,'seamless_method':'circular-vae'})
 
+    @unittest.skip("폐기된 Gradio 화면 계약; 현행 React 화면은 별도 검증")
     def test_circular_preview_and_old_restore_method(self):
         from gui.ui.shared.flux_image_page import render_flux_seamless_comparison
         current_job_identifier='2026-11-16_18-54-49-49a54a00'
@@ -72,6 +67,7 @@ class FluxImageGenerationTests(unittest.TestCase):
         self.assertIn('전역 주기 어텐션',current_global_markup)
         self.assertNotIn('/blend-preview.png',current_global_markup)
 
+    @unittest.skip("폐기된 Gradio 화면 계약; 현행 React 화면은 별도 검증")
     def test_seamless_preview_uses_same_origin_and_checks_job(self):
         from gui.ui.shared.flux_image_page import render_flux_seamless_comparison
         current_job_identifier='2026-11-16_18-54-49-49a54a00'
@@ -99,8 +95,8 @@ class FluxImageGenerationTests(unittest.TestCase):
                 (current_job_path/'request.json').write_text(json.dumps(current_saved_value))
                 (current_job_path/'gpu-command.json').write_text(json.dumps({'command':['python',str(WORKFLOW_ROOT_PATH / 'generators/image/run_flux_image.py')]}))
                 current_manager_value.validate_generation_resume(current_job_path)
-                with patch('gui.ui.shared.flux_image_page.WORKFLOW_ROOT_DIRECTORY',current_workspace_root):
-                    current_restored_value=restore_flux_image_inputs({'id':current_identifier_value,'request':current_saved_value},'flux-seamless')
+                with contextlib.nullcontext():
+                    current_restored_value=restore_flux_image_inputs({'id':current_identifier_value,'request':current_saved_value},'flux-seamless',current_job_path.parent)
                 self.assertEqual(len(current_restored_value),9)
                 self.assertEqual(current_restored_value[0],'grass')
 
@@ -129,7 +125,7 @@ class FluxImageGenerationTests(unittest.TestCase):
             self.assertIn('768x1152:steps=16:references=2',current_identity_text)
             self.assertIn('offload=none-flux-resident-v1',current_identity_text)
     def test_profile_requests_and_pages(self):
-        from workflow.common.management_asgi import build_management_blocks
+        from workflow.common.management_catalog import REACT_REVIEW_PATHS
         current_image_buffer=io.BytesIO(); Image.new('RGB',(16,16),'white').save(current_image_buffer,format='PNG')
         current_image_text=base64.b64encode(current_image_buffer.getvalue()).decode()
         for current_profile_name,current_profile_record in FLUX_IMAGE_PROFILE_RECORDS.items():
@@ -140,12 +136,7 @@ class FluxImageGenerationTests(unittest.TestCase):
                 self.assertEqual(current_request_record['profile'],current_profile_name)
                 self.assertEqual(current_request_record['common_style']['version'],'1.5.0')
                 self.assertEqual(resolve_management_command(current_profile_name,'history',{})[1],'/'+current_profile_name+'-generator/history')
-                from unittest.mock import patch
-                with tempfile.TemporaryDirectory() as current_directory_name:
-                    current_source_path=Path(current_directory_name)/'menu.json'; current_source_path.write_text('{"pages": []}')
-                    with patch.dict('os.environ',{'SLIME_MANAGEMENT_MENU_SOURCE':str(current_source_path)}):
-                        current_page_blocks,_=build_management_blocks(current_profile_name+'-generator',8770,current_source_path)
-                self.assertGreater(len(current_page_blocks.blocks),0)
+                self.assertEqual(REACT_REVIEW_PATHS[current_profile_name+'-generator'], '/management/frame/'+current_profile_name+'-generator/')
                 if current_profile_record[4]:
                     with self.assertRaises(ValueError):
                         current_manager_value.validate_generation_request({'action':'generate','prompt':'A tree','images':[],'width':768,'height':768,'steps':16,'seed':42})
@@ -158,15 +149,15 @@ class FluxImageGenerationTests(unittest.TestCase):
             current_job_identifier='2026-11-16_18-23-00-f1a2b3c4'; current_job_root=Path(current_directory_name)/'.tmp/test/flux-image-generator'/current_job_identifier; current_job_root.mkdir(parents=True)
             current_saved_record=save_three_reference_inputs(current_job_root,current_request_record)
             from unittest.mock import patch
-            with patch('gui.ui.shared.flux_image_page.WORKFLOW_ROOT_DIRECTORY',Path(current_directory_name).resolve()):
-                current_restored_values=restore_flux_image_inputs({'id':current_job_identifier,'request':current_saved_record},current_profile_name)
+            with contextlib.nullcontext():
+                current_restored_values=restore_flux_image_inputs({'id':current_job_identifier,'request':current_saved_record},current_profile_name,current_job_root.parent)
                 self.assertEqual(current_restored_values[0],'A tree')
                 self.assertEqual(current_restored_values[1].size,(16,16))
                 self.assertIsNone(current_restored_values[2])
                 self.assertEqual(current_restored_values[3:],(768,512,16,42,'',''))
                 (current_job_root/'reference-1.png').write_bytes(b'changed')
                 with self.assertRaises(Exception):
-                    restore_flux_image_inputs({'id':current_job_identifier,'request':current_saved_record},current_profile_name)
+                    restore_flux_image_inputs({'id':current_job_identifier,'request':current_saved_record},current_profile_name,current_job_root.parent)
 
     def test_character_step_range_and_history_restore(self):
         current_image_buffer=io.BytesIO()
@@ -184,8 +175,8 @@ class FluxImageGenerationTests(unittest.TestCase):
             current_job_root.mkdir(parents=True)
             current_saved_record=save_three_reference_inputs(current_job_root,current_valid_record)
             from unittest.mock import patch
-            with patch('gui.ui.shared.flux_image_page.WORKFLOW_ROOT_DIRECTORY',Path(current_directory_name)):
-                current_restored_values=restore_flux_image_inputs({'id':current_job_identifier,'request':current_saved_record},'flux-character')
+            with contextlib.nullcontext():
+                current_restored_values=restore_flux_image_inputs({'id':current_job_identifier,'request':current_saved_record},'flux-character',current_job_root.parent)
             self.assertEqual(current_restored_values[5],32)
 
     def test_character_output_size_limit_and_history_restore(self):
@@ -205,8 +196,8 @@ class FluxImageGenerationTests(unittest.TestCase):
             current_job_root.mkdir(parents=True)
             current_saved_record=save_three_reference_inputs(current_job_root,current_valid_record)
             from unittest.mock import patch
-            with patch('gui.ui.shared.flux_image_page.WORKFLOW_ROOT_DIRECTORY',Path(current_directory_name)):
-                current_restored_values=restore_flux_image_inputs({'id':current_job_identifier,'request':current_saved_record},'flux-character')
+            with contextlib.nullcontext():
+                current_restored_values=restore_flux_image_inputs({'id':current_job_identifier,'request':current_saved_record},'flux-character',current_job_root.parent)
             self.assertEqual(current_restored_values[3:5],(2048,2048))
 class FluxBuildingGuideGalleryTests(unittest.TestCase):
     def test_korean_translation_request_across_image_profiles(self):
@@ -270,8 +261,8 @@ class FluxBuildingGuideGalleryTests(unittest.TestCase):
             current_final_prompt,current_style_record=compose_common_style_prompt('A small cottage. Blue roof.')
             current_saved_record.update(user_prompt='A small cottage. Blue roof.',prompt=current_final_prompt,common_style=current_style_record,
                 prompt_sha256=hashlib.sha256(current_final_prompt.encode()).hexdigest(),translated_design='Blue roof.')
-            with patch('gui.ui.shared.flux_image_page.WORKFLOW_ROOT_DIRECTORY',current_root_path):
-                current_restored_values=restore_flux_image_inputs({'id':current_identifier_value,'request':current_saved_record},'flux-image')
+            with contextlib.nullcontext():
+                current_restored_values=restore_flux_image_inputs({'id':current_identifier_value,'request':current_saved_record},'flux-image',current_job_path.parent)
             self.assertEqual(current_restored_values[0],'A small cottage.')
             self.assertEqual(current_restored_values[-1],'파란 지붕')
             self.assertNotIn('Blue roof.',current_restored_values[0])
@@ -785,6 +776,7 @@ class FluxBuildingGuideGalleryTests(unittest.TestCase):
                 current_history_value=current_manager_value.list_generation_history()
             self.assertEqual(current_history_value[0]['request']['translated_design'],'A wooden house.')
 
+    @unittest.skip("폐기된 Gradio 이력 표시 계약; 현행 React 화면은 별도 검증")
     def test_building_history_displays_translation_and_pending_state(self):
         from workflow.common.gradio_history_inputs import collect_saved_input_view, collect_saved_stage_prompts, describe_saved_prompt_counts
         current_request_record={'building_design_ko':'나무 집','building_base_prompt':'A building.',
@@ -798,10 +790,9 @@ class FluxBuildingGuideGalleryTests(unittest.TestCase):
             self.assertIn(current_expected_value,current_stage_text)
         self.assertIn('영어 번역 3단어',describe_saved_prompt_counts({'request':current_request_record}))
 
-    def test_building_request_applies_common_style_once_and_displays_final_prompt(self):
+    def test_building_request_applies_common_style_once(self):
         import hashlib
         from generators.image.common_art_style import load_common_style_record
-        from gui.ui.shared.flux_image_page import describe_flux_image_prompt
         current_guide_image = load_building_layout_preset(BUILDING_LAYOUT_PRESET_NAMES[0])
         current_image_buffer = io.BytesIO()
         current_guide_image.save(current_image_buffer, format='PNG')
@@ -816,12 +807,8 @@ class FluxBuildingGuideGalleryTests(unittest.TestCase):
         self.assertEqual(current_request_record['common_style']['sha256'], current_style_record['sha256'])
         self.assertEqual(current_request_record['prompt'].count(current_style_record['prompt']), 1)
         self.assertEqual(current_request_record['prompt_sha256'], hashlib.sha256(current_request_record['prompt'].encode()).hexdigest())
-        current_display_text = describe_flux_image_prompt(current_user_prompt)
-        self.assertIn('공용 화풍 v1.5.0 41단어 (자동 적용)', current_display_text)
-        self.assertIn(current_request_record['prompt'], current_display_text)
-        self.assertIn(f'최종 {len(current_request_record["prompt"].split())}단어', current_display_text)
-        self.assertIn('입력에 포함됨', describe_flux_image_prompt(current_request_record['prompt']))
 
+    @unittest.skip("폐기된 Gradio 화면 계약; 현행 React 화면은 별도 검증")
     def test_catalog_search_pagination_and_empty_result(self):
         self.assertEqual(search_building_guide_catalog(''), list(BUILDING_LAYOUT_PRESET_NAMES))
         current_matching_names = search_building_guide_catalog('박공 2층')
@@ -842,6 +829,7 @@ class FluxBuildingGuideGalleryTests(unittest.TestCase):
         self.assertFalse(current_final_page[5]['interactive'])
         self.assertEqual(len(render_building_guide_page('', 1, 32)[2]), 32)
 
+    @unittest.skip("폐기된 Gradio 화면 계약; 현행 React 화면은 별도 검증")
     def test_selection_identity_and_full_size_application(self):
         current_first_page = render_building_guide_page('', 1)
         current_selected_name = current_first_page[2][0]
@@ -860,6 +848,7 @@ class FluxBuildingGuideGalleryTests(unittest.TestCase):
         with self.assertRaises(gr.Error):
             apply_selected_building_guide(None)
 
+    @unittest.skip("폐기된 Gradio 화면 계약; 현행 React 화면은 별도 검증")
     def test_flux_building_page_has_gallery_and_no_guide_dropdown(self):
         from gui.ui.shared.flux_image_page import build_flux_image_page
         current_page_blocks = build_flux_image_page('flux-building', 'http://127.0.0.1:8770', 8770)
@@ -868,6 +857,7 @@ class FluxBuildingGuideGalleryTests(unittest.TestCase):
         self.assertFalse(any(current_component_value['props'].get('label') == '건물 가이드 미리보기' for current_component_value in current_component_values))
         self.assertFalse(any(current_component_value['props'].get('label') == '건물 배치 가이드 검색·선택' for current_component_value in current_component_values))
 
+    @unittest.skip("폐기된 Gradio 화면 계약; 현행 React 화면은 별도 검증")
     def test_building_and_history_share_panel_and_pagination_controls(self):
         from gui.ui.shared.flux_image_page import build_flux_image_page
         current_page_blocks=build_flux_image_page('flux-building','http://127.0.0.1:8770',8770)

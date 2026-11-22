@@ -38,47 +38,42 @@ class KimodoReviewedBundleTests(unittest.TestCase):
         self.assertAlmostEqual(current_candidate['ratios']['shoulder_width'],.8)
         self.assertEqual(current_candidate['weighted_reference_observations'],current_reference)
         self.assertEqual(current_ratio['ratios']['shoulder_width'],1.)
-        from gui.ui.gradio.kimodo_app import load_reviewed_multiview_bundle,build_kimodo_payload,restore_kimodo_inputs,load_multiview_review_files,build_reviewed_bundle_from_review
-        with tempfile.TemporaryDirectory() as current_root_name:
-            current_root=Path(current_root_name);current_job=current_root/'trial';current_job.mkdir()
-            current_image_path=current_job/'reference-1.png';current_image_path.write_bytes(current_image)
-            current_bundle_path=current_root/'bundle.json';current_bundle_path.write_text(json.dumps(current_bundle))
-            current_reference_path=current_root/'observations.json';current_reference_path.write_text(json.dumps(current_reference))
-            current_skeleton_path=current_root/'skeleton.json';current_skeleton_path.write_text(json.dumps(current_skeleton))
-            current_review=load_multiview_review_files(str(current_reference_path),str(current_skeleton_path),str(current_image_path),None,1)[0]
-            current_from_review=build_reviewed_bundle_from_review(current_review,str(current_reference_path),str(current_skeleton_path),str(current_image_path),[str(current_image_path)])
-            self.assertEqual(current_from_review,current_bundle)
-            current_changed=copy.deepcopy(current_skeleton);current_changed['body_joint_positions'][0][0]+=1
-            current_skeleton_path.write_text(json.dumps(current_changed))
-            with self.assertRaisesRegex(ValueError,'변경'):
-                build_reviewed_bundle_from_review(current_review,str(current_reference_path),str(current_skeleton_path),str(current_image_path),[str(current_image_path)])
-            current_skeleton_path.write_text(json.dumps(current_skeleton))
-            current_selected=load_reviewed_multiview_bundle(str(current_bundle_path),[str(current_image_path)])
-            current_inputs=('stand still',90,10,42,2,0,True,['front'],False,True,[str(current_image_path)],85,False,False,'',None,[],0,'',current_selected)
-            current_payload=build_kimodo_payload(*current_inputs)
-            self.assertEqual(current_payload['proportion_reviewed_multiview'],current_bundle)
-            from generators.kimodo.multiview_face_anchor_experiment import create_face_anchor_calibration
-            current_source={'frame':0,**{current_key:'a'*64 for current_key in ('motion_sha256','skeleton_sha256','reference_sha256','render_sha256','head_anchors_sha256')}}
-            current_calibration=create_face_anchor_calibration(current_skeleton,[f'joint_{current_index}' for current_index in range(77)],[[0.,0.,0.]]*5,current_source)
-            current_payload=build_kimodo_payload(*current_inputs,True,current_calibration)
-            self.assertTrue(current_payload['proportion_projected_hip'])
-            self.assertEqual(current_payload['proportion_face_anchor_calibration'],current_calibration)
-            with self.assertRaisesRegex(ValueError,'검수'):
-                validate_kimodo_request({**{current_key:current_value for current_key,current_value in current_request.items() if current_key!='proportion_reviewed_multiview'},'proportion_face_anchor_calibration':current_calibration})
-            current_legacy=create_face_anchor_calibration(current_skeleton,[f'joint_{current_index}' for current_index in range(77)],[[0.,0.,0.]]*5)
-            with self.assertRaisesRegex(ValueError,'교정'):
-                validate_kimodo_request({**current_request,'proportion_face_anchor_calibration':current_legacy})
-            with self.assertRaisesRegex(ValueError,'검수'):
-                validate_kimodo_request({**{current_key:current_value for current_key,current_value in current_request.items() if current_key!='proportion_reviewed_multiview'},'proportion_projected_hip':True})
-            current_saved={**current_payload,'references':['reference-1.png']};current_saved.pop('proportion_images')
-            with patch('gui.ui.gradio.kimodo_app.KIMODO_JOB_STORAGE',current_root):
-                current_restored=restore_kimodo_inputs({'id':'trial','request':current_saved})
-            self.assertEqual(build_kimodo_payload(*current_restored[:-1])['proportion_reviewed_multiview'],current_bundle)
-            self.assertTrue(build_kimodo_payload(*current_restored[:-1])['proportion_projected_hip'])
-            self.assertEqual(build_kimodo_payload(*current_restored[:-1])['proportion_face_anchor_calibration'],current_calibration)
-            Image.new('RGB',(64,64),'black').save(current_image_path)
-            with self.assertRaisesRegex(ValueError,'이미지'):
-                load_reviewed_multiview_bundle(str(current_bundle_path),[str(current_image_path)])
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from workflow.common.management_asgi import build_management_application
+        from generators.kimodo.multiview_face_anchor_experiment import create_face_anchor_calibration
+        current_source={'frame':0,**{current_key:'a'*64 for current_key in ('motion_sha256','skeleton_sha256','reference_sha256','render_sha256','head_anchors_sha256')}}
+        current_calibration=create_face_anchor_calibration(current_skeleton,[f'joint_{current_index}' for current_index in range(77)],[[0.,0.,0.]]*5,current_source)
+        current_payload={**current_request,'proportion_projected_hip':True,'proportion_face_anchor_calibration':current_calibration}
+        self.assertTrue(validate_kimodo_request(current_payload)['proportion_projected_hip'])
+        with self.assertRaisesRegex(ValueError,'검수'):
+            validate_kimodo_request({**{key:value for key,value in current_request.items() if key!='proportion_reviewed_multiview'},'proportion_face_anchor_calibration':current_calibration})
+        current_legacy=create_face_anchor_calibration(current_skeleton,[f'joint_{current_index}' for current_index in range(77)],[[0.,0.,0.]]*5)
+        with self.assertRaisesRegex(ValueError,'교정'):
+            validate_kimodo_request({**current_request,'proportion_face_anchor_calibration':current_legacy})
+        with self.assertRaisesRegex(ValueError,'검수'):
+            validate_kimodo_request({**{key:value for key,value in current_request.items() if key!='proportion_reviewed_multiview'},'proportion_projected_hip':True})
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with TestClient(app) as client:
+                inputs=client.get('/management/assistant/kimodo-generation-template').json()['inputs']
+                inputs.update(prompt='stand still',proportion_images=[base64.b64encode(current_image).decode()],proportion_reviewed_multiview=json.dumps(current_bundle),proportion_projected_hip=True,proportion_face_anchor_calibration=json.dumps(current_calibration))
+                response=client.post('/management/assistant/kimodo-generation-review',json=inputs)
+                self.assertEqual(response.status_code,200,response.text)
+                self.assertEqual(response.json()['request']['proportion_reviewed_multiview'],current_bundle)
+                self.assertTrue(response.json()['request']['proportion_projected_hip'])
+                inputs['proportion_images']=[base64.b64encode(b'wrong image').decode()]
+                self.assertEqual(client.post('/management/assistant/kimodo-generation-review',json=inputs).status_code,422)
+                identifier='2026-11-18_00-00-00-12345678';job=root/identifier;job.mkdir()
+                (job/'reference-1.png').write_bytes(current_image)
+                saved={**current_payload,'references':['reference-1.png']};saved.pop('proportion_images')
+                (job/'request.json').write_text(json.dumps(saved))
+                with patch('generators.kimodo.contracts.KIMODO_JOB_STORAGE',root):
+                    restored=client.get('/management/assistant/kimodo-input/'+identifier)
+                self.assertEqual(restored.status_code,200,restored.text)
+                self.assertTrue(restored.json()['hip'])
+                self.assertEqual(json.loads(restored.json()['attachments']['proportion_reviewed_multiview']),current_bundle)
+                self.assertEqual(json.loads(restored.json()['attachments']['proportion_face_anchor_calibration']),current_calibration)
         with self.assertRaisesRegex(ValueError,'이미지'):
             validate_reviewed_multiview_bundle(current_bundle,['b'*64])
         current_changed=copy.deepcopy(current_bundle);current_changed['reference_observations']['keypoints'][0][2][0]+=1

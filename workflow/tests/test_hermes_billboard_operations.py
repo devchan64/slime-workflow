@@ -9,6 +9,41 @@ from workflow.domains.hermes_agent.delegation_store import HermesDelegationStore
 
 
 class HermesBillboardOperationTests(unittest.TestCase):
+    def test_real_proposal_and_preview_match_conversation_protocol(self):
+        import json
+        import subprocess
+        from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_billboard_proposal
+        proposal={'texture':'grass-v1','expected':{'displayHeight':128},'values':{'displayHeight':130}}
+        answer='HERMES_BILLBOARD_PROPOSAL\n'+json.dumps(proposal)+'\nEND_HERMES_BILLBOARD_PROPOSAL'
+        parsed=parse_hermes_billboard_proposal(answer)
+        draft={'revision':'abc','changes':[{'texture':'grass-v1','values':{'displayHeight':130}}]}
+        token=billboard_operations.validate_billboard_edit_draft(draft)
+        raw={'token':token,'changes':[{'texture':'grass-v1','before':{'displayHeight':128},'after':{'displayHeight':130}}],'maps':[],'map_warnings':[],'note':'검토'}
+        with patch.object(billboard_operations,'call_field_map_editor',return_value=raw):
+            preview=billboard_operations.preview_hermes_billboard_edit(draft)
+        root=Path(__file__).resolve().parents[2]
+        script="""import {prepareBillboardProposal} from './gui/billboardProposalProtocol.mjs';
+          const [proposal,preview]=JSON.parse(process.argv[1]),session='a'.repeat(32),job='2026-11-18_00-00-00-12345678',snapshot='b'.repeat(64);
+          const cmd=async(_,name)=>name==='hermes-session-view'?{id:session,offset:0,snapshot,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_BILLBOARD_PROPOSAL'}}]}:name==='hermes-billboard-proposal'?{job_id:job,proposal}:name==='hermes-billboard-receipt'?{state:'not_found'}:name==='hermes-billboard-load'?{texture:'grass-v1',revision:'abc',properties:{displayHeight:128}}:preview;
+          const {review}=await prepareBillboardProposal(cmd,session,job,snapshot,0);
+          if(review.draft.changes[0].values.displayHeight!==130)throw Error('draft');"""
+        result=subprocess.run(['node','--input-type=module','-e',script,json.dumps([parsed,preview])],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_current_billboard_review_displays_target_changes_and_warnings(self):
+        import subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'billboard.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BillboardProperties.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');
+              const {BillboardReviewSummary}=require(process.argv[1]);
+              const result={changes:[{texture:'tree-v1',before:{displayHeight:520},after:{displayHeight:500}}],maps:['meadow'],map_warnings:[{map:'meadow',message:'접지 확인'}],note:'맵 재확인'};
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(BillboardReviewSummary,{result})));"""
+            html=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True)
+        for value in ('tree-v1','표시 높이','520','500','meadow','접지 확인','맵 재확인'):
+            self.assertIn(value,html)
+
     def test_unconfigured_file_asset_previews_all_initial_properties(self):
         catalog={'revision':'abc','assets':[{'texture':'grass-v1','properties':None}]}
         with patch.object(billboard_operations,'call_field_map_editor',return_value=catalog):
@@ -18,14 +53,18 @@ class HermesBillboardOperationTests(unittest.TestCase):
         self.assertEqual(set(source['properties']),billboard_operations.EDITOR_MUTABLE_FIELDS-{'billboardPlacementAnchor'})
 
     def test_change_summary_shows_values_maps_and_warnings(self):
-        from gui.ui.gradio.hermes_agent_app import format_conversation_billboard_changes
-        current_preview_value={'changes':[{'texture':'tree-v1','before':{'displayHeight':520,'anchorY':1},'after':{'displayHeight':500,'anchorY':1}}],'maps':['assets/maps/field_tiles/meadow.yaml'],'map_warnings':[{'map':'assets/maps/field_tiles/meadow.yaml','message':'접지 확인'}],'note':'맵은 다시 확인'}
-        current_summary_value=format_conversation_billboard_changes({'displayHeight':520,'anchorY':1,'other':False},current_preview_value,'저장 시 원본 변경')
-        self.assertIn('에셋: tree-v1',current_summary_value)
-        self.assertIn('표시 높이: 520 → 500',current_summary_value)
-        self.assertIn('other: false',current_summary_value)
-        self.assertIn('assets/maps/field_tiles/meadow.yaml: 접지 확인',current_summary_value)
-        self.assertIn('저장 시 원본 변경',current_summary_value)
+        import subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'billboard.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BillboardProposal.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');
+              const {BillboardProposalReview}=require(process.argv[1]);
+              const preview={changes:[{texture:'tree-v1',before:{displayHeight:520},after:{displayHeight:500}}],maps:['assets/maps/field_tiles/meadow.yaml'],map_warnings:[{map:'assets/maps/field_tiles/meadow.yaml',message:'접지 확인'}],note:'맵은 다시 확인'};
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(BillboardProposalReview,{preview})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True)
+        for value in ('tree-v1','표시 높이','520','500','assets/maps/field_tiles/meadow.yaml','접지 확인','맵은 다시 확인','확인 후 저장','취소'):
+            self.assertIn(value,markup)
 
     def setUp(self):
         self.current_temporary_root=tempfile.TemporaryDirectory()
@@ -39,34 +78,10 @@ class HermesBillboardOperationTests(unittest.TestCase):
         self.addCleanup(self.current_store_patch.stop)
 
     def test_history_asset_target_matching_and_legacy(self):
-        import hashlib
-        from gui.ui.gradio import operations_history_app
-        current_session='a'*32
-        current_job='2026-11-18_00-00-00-12345678'
-        current_page={'session_id':current_session,'offset':0,'snapshot':'b'*64}
-        for current_kind,current_target_key,current_good_value,current_bad_value,current_proposal in (
-            ('billboard','textures',['tree-a','tree-b'],['tree-a'],{'changes':[{'texture':'tree-b'},{'texture':'tree-a'}]}),
-            ('sprite','path','assets/sprites/test.png','assets/sprites/other.png',{'path':'assets/sprites/test.png'})):
-            with self.subTest(kind=current_kind):
-                current_request='chat_'+hashlib.sha256((current_session+':'+current_job+':'+current_kind).encode()).hexdigest()
-                current_receipt={'state':'completed','request_id':current_request,'saved':True}
-                def current_gateway(service,command,payload):
-                    if command=='hermes-session-view':return {'id':current_session,'offset':0,'snapshot':'b'*64,'messages':[{'job_id':current_job,'session_job_unique':True,'job':{'status':{'status':'completed'},'final_response':'HERMES_'+current_kind.upper()+'_PROPOSAL'}}]}
-                    if command=='hermes-'+current_kind+'-proposal':return {'job_id':current_job,'proposal':current_proposal}
-                    if command=='hermes-'+current_kind+'-receipt':return current_receipt
-                    raise AssertionError(command)
-                with patch.object(operations_history_app,'execute_remote_management_command',side_effect=current_gateway):
-                    current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
-                    self.assertIn('대상 미확인',current_rows[0][3])
-                    current_receipt[current_target_key]=current_bad_value
-                    current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
-                    self.assertEqual(current_rows[0][3],'제안 또는 접수 조회 불가')
-                    current_receipt['state']='unknown'
-                    current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
-                    self.assertEqual(current_rows[0][3],'제안 또는 접수 조회 불가')
-                    current_receipt[current_target_key]=current_good_value
-                    current_rows,_=operations_history_app.read_operations_current_page_receipts(current_session,current_page)
-                    self.assertEqual(current_rows[0][3],'접수 확인 필요')
+        import subprocess
+        root=Path(__file__).resolve().parents[2]
+        result=subprocess.run(['node','--test',str(root/'workflow/tests/billboard_proposal_protocol.test.mjs')],cwd=root,capture_output=True,text=True,timeout=30)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
     def test_confirmed_save_and_duplicate_are_single_dispatch(self):
         def execute_test_editor(current_command_name,current_payload_record):
@@ -81,7 +96,6 @@ class HermesBillboardOperationTests(unittest.TestCase):
             self.assertEqual(billboard_operations.read_hermes_billboard_edit_receipt('request_123')['state'],'completed')
 
     def test_database_ledger_status_survives_receipt_and_duplicate(self):
-        from gui.ui.gradio.hermes_agent_app import format_billboard_saved_status
         def execute_test_editor(current_command_name,current_payload_record):
             return {'saved':True,'snapshot':'pending'} if current_command_name=='asset-save-reviewed' else self.current_preview_record
         with patch.object(billboard_operations,'call_field_map_editor',side_effect=execute_test_editor):
@@ -91,8 +105,15 @@ class HermesBillboardOperationTests(unittest.TestCase):
             self.assertEqual(current_saved_record['ledger_status_at_save'],'pending')
             self.assertEqual(billboard_operations.read_hermes_billboard_edit_receipt('request_123')['ledger_status_at_save'],'pending')
             self.assertEqual(billboard_operations.save_hermes_billboard_edit_once(*current_save_args)['ledger_status_at_save'],'pending')
-            self.assertIn('저장 당시 원장 반영 대기',format_billboard_saved_status(current_saved_record))
-            self.assertNotIn('DB 저장',format_billboard_saved_status({'saved':True}))
+
+    def test_billboard_status_notice_distinguishes_pending_ledger(self):
+        import subprocess
+        root=Path(__file__).resolve().parents[2]
+        script="""import {billboardSaveNotice} from './gui/billboardSaveNotice.mjs';
+          if(!billboardSaveNotice({saved:true,ledger_status_at_save:'pending'},'request').includes('저장 당시 원장 반영 대기'))throw Error('pending');
+          if(billboardSaveNotice({saved:true},'request').includes('원장 반영'))throw Error('unknown');"""
+        result=subprocess.run(['node','--input-type=module','-e',script],cwd=root,capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
 
     def test_changed_receipt_after_save_is_preserved_and_not_retried(self):
         import json

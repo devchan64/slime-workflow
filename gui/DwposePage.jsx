@@ -1,11 +1,13 @@
+import {generationReady} from "./generationReady.mjs";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
+import GpuHandoffStatus from "./GpuHandoffStatus.jsx";
+import useGpuHandoff from "./useGpuHandoff.js";
 import ActionButton from "./ActionButton.jsx";
 import ReferenceImageInput from "./ReferenceImageInput.jsx";
-import MockProgress,{jobsPath} from "./MockProgress.jsx";
 import GeneratorJobResult from "./GeneratorJobResult.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
-import React, {useRef,useState} from "react";
-import GeneratorChangelog from "./GeneratorChangelog.jsx";
+import React, {useEffect,useRef,useState} from "react";
+import GeneratorPageIdentity from "./GeneratorPageIdentity.jsx";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
 import {managementCommand} from "./managementCommand.js";
@@ -25,12 +27,21 @@ async function pngData(file) {
   });
 }
 
-export default function DwposePage({mock=false,embedded=false}={}) {
+export default function DwposePage({embedded=false,session:embeddedSession=""}={}) {
   const query=new URLSearchParams(location.search);
+  const session=embeddedSession || query.get("session") || "";
   const [file,setFile]=useState(null),[hands,setHands]=useState(false),[face,setFace]=useState(false);
-  const [pending,setPending]=useState(null),[busy,setBusy]=useState(false);
+  const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[model,setModel]=useState(null);
   const [job,setJob]=useState(embedded ? "" : query.get("job") || ""),[notice,setNotice]=useState("");
   const [historyRevision,setHistoryRevision]=useState(0);
+  const handoff=useGpuHandoff(session,"dwpose",setJob,setNotice);
+  const reviewRef=useRef(null),handsRef=useRef(null);
+  useEffect(()=>{if(pending)reviewRef.current?.focus();},[pending]);
+  function closeReview(){
+    setPending(null);
+    handoff.clearReview();
+    requestAnimationFrame(()=>handsRef.current?.focus());
+  }
   function cleaned(message){
     setJob("");setNotice(message);setHistoryRevision(value=>value+1);
   }
@@ -52,41 +63,39 @@ export default function DwposePage({mock=false,embedded=false}={}) {
   async function review(){
     setBusy(true);setNotice("");
     try {
-      setPending({action:"generate",images:[await pngData(file)],pose_include_hands:hands,pose_include_face:face});
+      const request={action:"generate",images:[await pngData(file)],pose_include_hands:hands,pose_include_face:face};
+      await handoff.preview(request);setPending(request);
     }catch(problem){setNotice(problem.message);}
     finally{setBusy(false);}
   }
   async function submit(){
-    if(!pending || sending.current)return;
+    if(!pending || sending.current || !generationReady(model))return;
     sending.current=true;setBusy(true);
     try {
-      let result;
-      if(mock){
-        const response=await fetch(jobsPath+"?scope=dwpose",{method:"POST"});
-        if(!response.ok)throw new Error("모의 작업 등록 실패");
-        result=await response.json();
-      }else result=await managementCommand("dwpose","generate",pending);
+      if(handoff.review){await handoff.approve(pending);setNotice("확인한 GPU 양도 요청을 접수했습니다.");return;}
+      const result=await managementCommand("dwpose","generate",pending);
       if(!result.id)throw new Error("작업 ID를 확인할 수 없습니다.");
-      setJob(result.id);setNotice(mock?"격리 모의 작업을 등록했습니다.":"공용 GPU 대기열에 등록했습니다.");
+      setJob(result.id);setNotice("공용 GPU 대기열에 등록했습니다.");
     }catch(problem){setNotice(problem.message+" · 이력에서 접수 여부를 확인하세요.");}
-    finally{setPending(null);sending.current=false;setBusy(false);}
+    finally{setPending(null);handoff.clearReview();sending.current=false;setBusy(false);}
   }
-  return <article>
-    <a href={"/management/assistant/"+(query.has("session")?"?"+new URLSearchParams({session:query.get("session")}):"")}>헤르메스 대화</a>
-    <h1>DWPose 이미지 추출</h1>
-    {mock ? <p>격리 모의 검증 · 메모리에서 작업 상태를 확인합니다.</p> : <><ModelReadiness service="dwpose"/><GeneratorChangelog generator="dwpose-generator"/></>}
-    <fieldset disabled={busy || Boolean(pending)}>
+  return <article className={embedded ? "dwpose-page generator-page-common" : "dwpose-page dwpose-standalone generator-page-common"}>
+    <GeneratorPageIdentity service="dwpose" embedded={embedded} showReturn returnHref={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")} returnLabel="헤르메스 대화"/>
+    <ModelReadiness service="dwpose" onStatus={setModel}/>
+    {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service="dwpose" status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
+    <fieldset disabled={busy || Boolean(pending) || Boolean(handoff.id)}>
       <ReferenceImageInput label="입력 PNG · 832×480" accept="image/png" source={file} validate={pngData} disabled={busy || Boolean(pending)} onChange={setFile}/>
       {file && <p>선택된 입력 · {file.name}</p>}
-      {!mock && <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service="dwpose" readJob={readJob} restore={restore} inspectResult={record=>setJob(record.id)}/>}
-      <label><input type="checkbox" checked={hands} onChange={event=>setHands(event.target.checked)}/>손 상세 표시</label>
-      <label><input type="checkbox" checked={face} onChange={event=>setFace(event.target.checked)}/>얼굴 상세 표시</label>
-      <ActionButton reasons={[!file && "입력 PNG를 선택하세요."]} onClick={review}>생성 요청 검토</ActionButton>
+      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service="dwpose" readJob={readJob} restore={restore} inspectResult={record=>setJob(record.id)}/>
+      <div className="dwpose-options"><label><input ref={handsRef} type="checkbox" checked={hands} onChange={event=>setHands(event.target.checked)}/>손 상세 표시</label>
+      <label><input type="checkbox" checked={face} onChange={event=>setFace(event.target.checked)}/>얼굴 상세 표시</label></div>
+      <ActionButton reasons={[!file && "입력 PNG를 선택하세요.",!generationReady(model) && "모델 준비 상태를 확인하세요."]} onClick={review}>생성 요청 검토</ActionButton>
     </fieldset>
-    {pending && <section>{!mock && <GpuQueueSummary/>}<p>{file.name} · 손 상세 {hands?"포함":"제외"} · 얼굴 상세 {face?"포함":"제외"}</p>
-      <GenerationReviewActions busy={busy} onCancel={()=>setPending(null)} onConfirm={submit}/>
+    {pending && <section ref={reviewRef} tabIndex={-1} aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><p>입력 PNG · {file.name}</p><p>손 상세 {pending.pose_include_hands?"포함":"제외"} · 얼굴 상세 {pending.pose_include_face?"포함":"제외"}</p><GpuQueueSummary/>
+      {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 포즈를 추출합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
+      <GenerationReviewActions busy={busy} onCancel={closeReview} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/>
     </section>}
     {notice && <p role="status">{notice}</p>}
-    {mock ? <MockProgress key={job} scope="dwpose" initialJob={job}/> : <GeneratorJobResult selectionControls job={job} service="dwpose" controls={false} onDeleted={cleaned}/>}
+    <GeneratorJobResult selectionControls job={job} service="dwpose" controls={false} onDeleted={cleaned}/>
   </article>;
 }

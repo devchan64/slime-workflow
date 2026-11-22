@@ -1,94 +1,89 @@
 import unittest
 
-from gui.ui.gradio.model_management_app import read_model_job_status, build_model_management_interface
 
 
 class ModelManagementTest(unittest.TestCase):
     def test_retired_model_download_is_disabled_before_gateway_call(self):
-        from unittest.mock import patch
-        from gui.ui.gradio import model_management_app
+        from unittest.mock import Mock
+        from workflow.common.model_preparation_controls import execute_model_preparation_command
         for current_service_name in ('prop-generator', 'expression-lora'):
-            with self.subTest(service=current_service_name), \
-                    patch.object(model_management_app, 'execute_remote_management_command', return_value={'ready':False, 'message':'사용 중단'}) as current_gateway_mock:
-                current_status_record = model_management_app.execute_model_preparation_command(current_service_name, 'model-status', {})
+            with self.subTest(service=current_service_name):
+                current_gateway_mock=Mock(return_value={'ready':False, 'message':'사용 중단'})
+                current_status_record = execute_model_preparation_command(current_service_name, 'model-status', {}, current_gateway_mock)
                 self.assertFalse(current_status_record['can_prepare'])
                 self.assertFalse(current_status_record['generation_ready'])
                 self.assertIn('중단', current_status_record['prepare_blocked_reason'])
                 with self.assertRaisesRegex(ValueError, '중단'):
-                    model_management_app.execute_model_preparation_command(current_service_name, 'prepare', {'action':'prepare'})
+                    execute_model_preparation_command(current_service_name, 'prepare', {'action':'prepare'}, current_gateway_mock)
                 self.assertEqual(current_gateway_mock.call_count, 1)
 
-    def test_download_progress_is_fetched_once_for_all_models(self):
+    def test_download_progress_fetches_and_filters_selected_model(self):
+        import tempfile
+        from pathlib import Path
+        from http.server import SimpleHTTPRequestHandler
         from unittest.mock import patch
-        from gui.ui.gradio import model_management_app
-        current_interface = model_management_app.build_model_management_interface()
-        current_progress_callbacks = [current_binding for current_binding in current_interface.fns.values()
-                                      if current_binding.fn and current_binding.fn.__name__ == 'refresh_all_download_progress']
-        self.assertEqual(len(current_progress_callbacks), 2)
-        current_status_records = {'records': [{'model': 'Qwen/Qwen-Image-2.1', 'status': 'completed', 'bytes': 10, 'total_bytes': 10}]}
-        with patch.object(model_management_app, 'execute_remote_management_command', return_value=current_status_records) as current_gateway_mock:
-            current_rendered_values = current_progress_callbacks[0].fn()
-        current_gateway_mock.assert_called_once_with('model-downloads', 'download-status', {})
-        self.assertEqual(len(current_rendered_values), len(model_management_app.MODEL_PREPARATION_SERVICES) + 1)
-        self.assertTrue(any('Qwen/Qwen-Image-2.1' in current_value for current_value in current_rendered_values))
-        current_individual_progress = [current_binding for current_binding in current_interface.fns.values()
-                                       if current_binding.fn and current_binding.fn.__name__ == 'refresh_model_progress_status']
-        self.assertEqual(current_individual_progress, [])
+        from fastapi.testclient import TestClient
+        from workflow.common.management_asgi import build_management_application
+        records={'records':[{'model':'black-forest-labs/flux-3-image-klein','status':'completed','bytes':10,'total_bytes':10},
+                            {'model':'HeartMuLa/model','status':'running','bytes':2,'total_bytes':10}]}
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with patch('workflow.common.management_client.execute_remote_management_command',return_value=records) as gateway, TestClient(app) as client:
+                response=client.get('/management/assistant/model-downloads/flux-image')
+                self.assertEqual(response.status_code,200)
+                lines=response.json()['lines']
+                self.assertEqual(len(lines),1)
+                self.assertIn('flux-3-image-klein',lines[0])
+                self.assertNotIn('HeartMuLa',lines[0])
+                gateway.assert_called_once_with('model-downloads','download-status',{})
 
     def test_four_models_have_preparation_controls(self):
         from workflow.common.model_management_catalog import MODEL_PREPARATION_SERVICES
         current_services = {current_service for _, current_service in MODEL_PREPARATION_SERVICES}
         self.assertTrue({'music-heartmula', 'sfx-dasheng-audiogen', 'wan22-vace', 'writer-agent'} <= current_services)
 
-    def test_four_management_buttons_dispatch_correct_download_command(self):
+    def test_four_model_readiness_responses_supply_correct_download_command(self):
+        import tempfile
+        from pathlib import Path
+        from http.server import SimpleHTTPRequestHandler
         from unittest.mock import patch
-        from gui.ui.gradio import model_management_app
-        current_commands = []
-        def execute_test_command(current_service, current_command, current_payload):
-            current_commands.append((current_service, current_command, current_payload))
-            if current_command in ('model-status', 'download-model-status'):
-                return {'ready': False, 'message': '준비 필요', 'preparation_status': 'idle'}
-            if current_command == 'history':
-                return {'records': []}
-            return {'preparation_status': 'running'}
-        with patch.object(model_management_app, 'execute_remote_management_command', side_effect=execute_test_command):
-            current_interface = model_management_app.build_model_management_interface()
-            current_callbacks = [current_function.fn for current_function in current_interface.fns.values()
-                                 if current_function.fn and current_function.fn.__name__ == 'request_model_download']
-            for current_service in ('music-heartmula', 'sfx-dasheng-audiogen', 'wan22-vace', 'writer-agent'):
-                with self.subTest(service=current_service):
-                    current_callback = next(current_value for current_value in current_callbacks
-                                            if any(getattr(current_cell.cell_contents, '__defaults__', None) == (current_service,)
-                                                   for current_cell in (current_value.__closure__ or ())))
-                    current_callback()
-                    current_expected_command = 'download-model' if current_service in ('music-heartmula', 'sfx-dasheng-audiogen') else 'prepare'
-                    current_expected_payload = {} if current_expected_command == 'download-model' else {'action': 'prepare'}
-                    self.assertIn((current_service, current_expected_command, current_expected_payload), current_commands)
+        from fastapi.testclient import TestClient
+        from workflow.common.management_asgi import build_management_application
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with patch('workflow.common.model_preparation_controls.execute_model_preparation_command',return_value={'ready':False,'message':'준비 필요'}), TestClient(app) as client:
+                for service in ('music-heartmula','sfx-dasheng-audiogen','wan22-vace','writer-agent'):
+                    with self.subTest(service=service):
+                        response=client.get('/management/assistant/model-readiness/'+service)
+                        self.assertEqual(response.status_code,200,response.text)
+                        command='download-model' if service in ('music-heartmula','sfx-dasheng-audiogen') else 'prepare'
+                        self.assertEqual(response.json()['prepare_request'],{'service':service,'command':command,
+                                         'payload':{} if command=='download-model' else {'action':'prepare'}})
 
     def test_audio_queue_status_and_preparation_prerequisite(self):
-        from unittest.mock import patch
-        from gui.ui.gradio import model_management_app
+        from workflow.common.model_preparation_controls import execute_model_preparation_command
         def execute_test_command(current_service, current_command, current_payload):
             if current_command == 'model-status':
                 return {'ready': False, 'can_prepare': False, 'message': '전용 실행 환경 설치 필요'}
             if current_command == 'download-model-status':
                 return {'ready': False, 'preparation_status': 'idle', 'message': '모델 파일 다운로드 필요'}
             return {'records': [{'request': {'action': 'prepare'}, 'status': {'status': 'queued'}}]}
-        with patch.object(model_management_app, 'execute_remote_management_command', side_effect=execute_test_command):
-            current_result = model_management_app.execute_model_preparation_command('music-heartmula', 'model-status', {})
+        current_result = execute_model_preparation_command('music-heartmula', 'model-status', {}, execute_test_command)
         self.assertEqual(current_result['preparation_status'], 'queued')
         self.assertNotIn('can_prepare', current_result)
         self.assertIn('대기 중', current_result['message'])
 
     def test_audio_download_command_uses_shared_model_worker(self):
-        from unittest.mock import patch
+        from unittest.mock import Mock
         from workflow.common.management_gateway import resolve_management_command
-        from gui.ui.gradio import model_management_app
+        from workflow.common.model_preparation_controls import execute_model_preparation_command
         for current_service in ('music-heartmula', 'sfx-dasheng-audiogen'):
             with self.subTest(service=current_service):
                 self.assertEqual(resolve_management_command(current_service, 'download-model', {}), ('POST', '/'+current_service+'/model-download'))
-                with patch.object(model_management_app, 'execute_remote_management_command', return_value={'preparation_status': 'running'}) as current_remote_mock:
-                    model_management_app.execute_model_preparation_command(current_service, 'prepare', {'action': 'prepare'})
+                current_remote_mock=Mock(return_value={'preparation_status': 'running'})
+                execute_model_preparation_command(current_service, 'prepare', {'action': 'prepare'}, current_remote_mock)
                 current_remote_mock.assert_called_once_with(current_service, 'download-model', {})
 
     def test_audio_download_gateway_starts_correct_profiles(self):
@@ -271,16 +266,14 @@ class ModelManagementTest(unittest.TestCase):
                 current_launch_mock.assert_not_called()
 
     def test_heartmula_model_ready_is_distinct_from_gpu_validation(self):
-        from unittest.mock import patch
-        from gui.ui.gradio import model_management_app
+        from workflow.common.model_preparation_controls import execute_model_preparation_command
         def execute_test_command(current_service, current_command, current_payload):
             if current_command == 'model-status':
                 return {'ready': False, 'artifacts_ready': True, 'message': 'GPU 생성 검증 대기'}
             if current_command == 'download-model-status':
                 return {'ready': False, 'preparation_status': 'idle', 'message': '모델 파일 다운로드 필요'}
             return {'records': []}
-        with patch.object(model_management_app, 'execute_remote_management_command', side_effect=execute_test_command):
-            current_result = model_management_app.execute_model_preparation_command('music-heartmula', 'model-status', {})
+        current_result = execute_model_preparation_command('music-heartmula', 'model-status', {}, execute_test_command)
         self.assertTrue(current_result['ready'])
         self.assertFalse(current_result['generation_ready'])
 
@@ -342,6 +335,7 @@ class ModelManagementTest(unittest.TestCase):
             with patch.object(prepare, 'WORKFLOW_REPOSITORY_ROOT', current_root), \
                  patch.object(prepare, 'RUNTIME_INSTALL_ROOT', current_root/'runtime'), \
                  patch.object(prepare, 'MODEL_DOWNLOAD_ROOT', current_root/'.model/writer-agent'), \
+                 patch.object(prepare, 'GENERATION_MODEL_PATH', current_root/'.model/writer-agent/main.gguf'), \
                  patch.object(prepare, 'MODEL_DOWNLOAD_NAME', 'main.gguf'), \
                  patch.object(prepare, 'EMBEDDING_DOWNLOAD_NAME', 'embedding.gguf'), \
                  patch.object(prepare, 'MODEL_DOWNLOAD_SHA256', hashlib.sha256(current_contents['main.gguf']).hexdigest()), \
@@ -352,6 +346,12 @@ class ModelManagementTest(unittest.TestCase):
                 self.assertTrue(prepare.inspect_writer_model_files())
                 (current_root/'.model/writer-agent/main.gguf').write_bytes(b'changed')
                 self.assertFalse(prepare.inspect_writer_model_files())
+
+    def test_writer_shares_hermes_generation_model(self):
+        from generators.writer_agent import prepare
+        from workflow.common.hermes_model_download import HERMES_MODEL_DIRECTORY,HERMES_MODEL_FILENAME,HERMES_MODEL_SHA256
+        self.assertEqual(prepare.GENERATION_MODEL_PATH,HERMES_MODEL_DIRECTORY/HERMES_MODEL_FILENAME)
+        self.assertEqual(prepare.MODEL_DOWNLOAD_SHA256,HERMES_MODEL_SHA256)
 
     def test_writer_download_gateway_needs_no_document_workspace(self):
         import json
@@ -370,13 +370,39 @@ class ModelManagementTest(unittest.TestCase):
         self.assertEqual(current_start_mock.call_args.args[1], 'writer-model')
 
     def test_models_are_displayed_in_name_order(self):
-        from gui.ui.gradio.model_management_app import MODEL_PREPARATION_SERVICES, MODEL_JOB_SERVICES, MODEL_OBSERVATION_SERVICES
-        current_model_names = [current_name for current_name, _ in (*MODEL_PREPARATION_SERVICES, *MODEL_JOB_SERVICES, *MODEL_OBSERVATION_SERVICES)]
-        current_interface_config = build_model_management_interface().config
-        current_display_names = [current_component['props']['value'][4:] for current_component in current_interface_config['components']
-                                 if current_component.get('type') == 'markdown' and current_component.get('props', {}).get('value', '').startswith('### ')
-                                 and current_component['props']['value'][4:] in current_model_names]
-        self.assertEqual(current_display_names, sorted(current_model_names, key=str.casefold))
+        import json
+        import subprocess
+        import tempfile
+        from html.parser import HTMLParser
+        from http.server import SimpleHTTPRequestHandler
+        from pathlib import Path
+        from fastapi.testclient import TestClient
+        from workflow.common.management_asgi import build_management_application
+        class Options(HTMLParser):
+            def __init__(self): super().__init__(); self.labels=[]; self.option=False
+            def handle_starttag(self,tag,attrs): self.option=tag=='option'
+            def handle_endtag(self,tag):
+                if tag=='option': self.option=False
+            def handle_data(self,data):
+                if self.option: self.labels.append(data)
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with TestClient(app) as client:
+                response=client.get('/management/assistant/model-services')
+            self.assertEqual(response.status_code,200)
+            models=response.json()
+            bundle=root/'model-page.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'ModelPage.jsx','--bundle','--platform=node',
+                            '--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'), server=require('react-dom/server');
+              const {ModelSelect}=require(process.argv[1]); const models=JSON.parse(process.argv[2]);
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(ModelSelect,{models,service:models[0].id,onChange:()=>{}})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle),json.dumps(models,ensure_ascii=False)],cwd=gui,text=True)
+        options=Options(); options.feed(markup)
+        self.assertEqual(options.labels,[model['label'] for model in models])
+        self.assertEqual(options.labels,sorted(options.labels,key=str.casefold))
 
     def test_flux_prepare_gateway_uses_single_detached_worker(self):
         import json
@@ -398,15 +424,17 @@ class ModelManagementTest(unittest.TestCase):
             self.assertEqual(current_flux_manager.start_flux_model_preparation(), {'preparation_status': 'running'})
             current_duplicate_mock.assert_not_called()
 
-    def test_flux_model_observation_uses_service_status_and_reports_failures(self):
-        from gui.ui.gradio.model_management_app import read_model_observation_status
+    def test_flux_model_observation_uses_service_status_and_propagates_failures(self):
+        from workflow.common.model_preparation_controls import execute_model_preparation_command
         def execute_trial_command(current_service_name, current_command_name, current_payload_record):
             self.assertEqual((current_service_name, current_command_name, current_payload_record), ('flux-image', 'model-status', {}))
             return {'ready': True, 'message': '구성 파일 확인'}
-        self.assertIn('구성 파일 확인', read_model_observation_status('flux-image', execute_trial_command))
+        result=execute_model_preparation_command('flux-image','model-status',{},execute_trial_command)
+        self.assertIn('구성 파일 확인',result['message'])
         def execute_failed_command(current_service_name, current_command_name, current_payload_record):
             raise RuntimeError('연결 실패')
-        self.assertIn('연결 실패', read_model_observation_status('flux-image', execute_failed_command))
+        with self.assertRaisesRegex(RuntimeError,'연결 실패'):
+            execute_model_preparation_command('flux-image','model-status',{},execute_failed_command)
 
     def test_flux_model_is_available_for_inventory_observation(self):
         from workflow.common.model_file_inventory import resolve_model_inventory_paths
@@ -419,7 +447,6 @@ class ModelManagementTest(unittest.TestCase):
         from pathlib import Path
         from tempfile import TemporaryDirectory
         from workflow.common.model_file_inventory import list_model_inventory_files
-        from gui.ui.gradio.model_management_app import format_model_inventory_files, format_model_inventory_summary
         with TemporaryDirectory() as current_directory_name:
             current_workspace_path = Path(current_directory_name)
             current_model_path = current_workspace_path/'.model'/'sample'
@@ -438,44 +465,89 @@ class ModelManagementTest(unittest.TestCase):
             self.assertEqual(current_inventory_value['count'], 2)
             self.assertEqual(current_inventory_value['total_bytes'], 7)
             self.assertFalse(current_inventory_value['incomplete'])
-            self.assertIn('저장된 파일 2개 · 7바이트', format_model_inventory_summary(current_inventory_value))
-            self.assertIn('일부 저장 위치 확인 실패', format_model_inventory_summary({**current_inventory_value, 'incomplete': True}))
-            current_display_text = format_model_inventory_files(current_inventory_value)
-            self.assertIn('저장된 파일 2개', current_display_text)
-            self.assertIn('sample/z.safetensors', current_display_text)
-            self.assertIn('해시 검증 결과는 아닙니다', current_display_text)
+
+    def test_model_inventory_display(self):
+        import subprocess
+        import tempfile
+        from pathlib import Path
+        gui = Path(__file__).resolve().parents[2] / 'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory) / 'inventory.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'), 'ModelInventory.jsx', '--bundle',
+                            '--platform=node', '--format=cjs', '--outfile='+str(bundle)],
+                           cwd=gui, check=True, capture_output=True, text=True)
+            script = """const React=require('react'), server=require('react-dom/server');
+              const {InventoryContents}=require(process.argv[1]);
+              const inventory={files:[{path:'sample/a.json',bytes:2},{path:'sample/z.safetensors',bytes:5}],count:2,total_bytes:7,incomplete:true};
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(InventoryContents,{inventory})));"""
+            rendered = subprocess.check_output(['node', '-e', script, str(bundle)], cwd=gui, text=True)
+        for expected in ('파일 2개', '7바이트', '일부 저장 위치 확인 실패', 'sample/z.safetensors', '해시 검증 결과가 아닙니다'):
+            self.assertIn(expected, rendered)
 
     def test_retired_qwen_2512_is_not_in_model_management(self):
-        from gui.ui.gradio.model_management_app import MODEL_PREPARATION_SERVICES, MODEL_JOB_SERVICES
-        self.assertNotIn('qwen-2512', [current_service for _, current_service in (*MODEL_PREPARATION_SERVICES, *MODEL_JOB_SERVICES)])
+        from workflow.common.model_management_catalog import MODEL_PREPARATION_SERVICES
+        from workflow.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS
+        self.assertNotIn('qwen-2512', [service for _, service in MODEL_PREPARATION_SERVICES])
+        self.assertNotIn('qwen-2512', MANAGEMENT_SERVICE_COMMANDS)
 
     def test_running_preparation_explains_disabled_download(self):
-        import gradio as gr
-        from workflow.common.gradio_model_download import build_model_download_controls
-        with gr.Blocks() as current_interface_blocks:
-            build_model_download_controls(current_interface_blocks, lambda *_: {
-                'message': '모델 다운로드 중', 'preparation_status': 'running', 'ready': False})
-        current_refresh_function = next(current_function.fn for current_function in current_interface_blocks.fns.values()
-                                        if current_function.fn and current_function.fn.__name__ == 'refresh_model_download_status')
-        current_message_value, _, current_button_update, _ = current_refresh_function()
-        self.assertIn('중복 요청', current_message_value)
-        self.assertFalse(current_button_update['interactive'])
+        import subprocess
+        import tempfile
+        from pathlib import Path
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'readiness.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'ModelReadiness.jsx','--bundle','--platform=node',
+                            '--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server');
+              const {modelPrepareReason,ModelDownloadButton}=require(process.argv[1]);
+              const reason=modelPrepareReason({ready:true,preparation_status:'running',prepare_request:{}},'',false);
+              if(!reason.includes('진행 중'))throw Error('active preparation must take precedence over existing files');
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(ModelDownloadButton,{reason,reasonId:'why'})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True)
+        self.assertIn('disabled=',markup)
+        self.assertIn('모델 준비가 진행 중입니다.',markup)
+        self.assertIn('aria-describedby="why"',markup)
 
     def test_running_prepare_is_selected_over_newer_generation(self):
+        from workflow.common.model_preparation_controls import execute_model_preparation_command
         def execute_test_command(service_name_value, command_name_value, payload_record_value):
+            if command_name_value=='model-status':
+                return {'ready':False,'message':'준비 필요'}
             return {'records': [
                 {'id': 'generation', 'request': {'action': 'generate'}, 'status': {'status': 'running'}},
                 {'id': 'preparation', 'request': {'action': 'prepare'}, 'status': {'status': 'running'}},
             ]}
-        self.assertIn('진행 중 · 작업 ID `preparation`', read_model_job_status('service', execute_test_command))
+        result=execute_model_preparation_command('wan22-fun-control','model-status',{},execute_test_command)
+        self.assertEqual(result['preparation_status'],'running')
+        self.assertIn('최근 모델 준비: 진행 중',result['message'])
 
-    def test_gateway_failure_is_visible(self):
+    def test_gateway_failure_propagates_from_preparation_status(self):
+        from workflow.common.model_preparation_controls import execute_model_preparation_command
         def execute_test_command(service_name_value, command_name_value, payload_record_value):
             raise OSError('연결 실패')
-        self.assertIn('연결 실패', read_model_job_status('service', execute_test_command))
+        with self.assertRaisesRegex(OSError,'연결 실패'):
+            execute_model_preparation_command('wan22-fun-control','model-status',{},execute_test_command)
 
     def test_interface_builds(self):
-        self.assertTrue(build_model_management_interface().config['components'])
+        import os
+        import subprocess
+        import tempfile
+        from pathlib import Path
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'model-page.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'ModelPage.jsx','--bundle','--platform=node',
+                            '--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""global.location={search:'?session=abc'};
+              const React=require('react'),server=require('react-dom/server');
+              const Page=require(process.argv[1]).default;
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(Page)));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,
+                                           env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+        self.assertIn('모델 상태와 파일',markup)
+        self.assertIn('헤르메스 대화로 이동',markup)
+        self.assertIn('session=abc',markup)
 
 class SharedModelDownloadTest(unittest.TestCase):
     def test_shared_record_reports_progress_and_failure(self):

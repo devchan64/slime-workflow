@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import JobIdentifier from "./JobIdentifier.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
+import KimodoFrames from "./KimodoFrames.jsx";
 import QueuePagination from "./QueuePagination.jsx";
 
 const labels={queued:"대기 중",running:"실행 중",completed:"완료",failed:"실패",cancelled:"취소",canceled:"취소",paused:"일시 중지",unknown:"확인 불가"};
@@ -15,19 +16,29 @@ function category(source){
 function matches(row,filters){
   const {source,record}=row, id=record.id, state=record.recorded_status==="canceled"?"cancelled":record.recorded_status;
   return !filters.run_id && (!filters.category || category(source)===filters.category) && (!filters.state || state===filters.state) &&
-    (!filters.generator || source.service.includes(filters.generator.trim())) && (!filters.job_id || id.includes(filters.job_id.trim())) &&
+    (!filters.generator || source.service.toLowerCase().includes(filters.generator.trim().toLowerCase())) && (!filters.job_id || id.toLowerCase().includes(filters.job_id.trim().toLowerCase())) &&
     (!filters.created_from || id.slice(0,10)>=filters.created_from) && (!filters.created_through || id.slice(0,10)<=filters.created_through);
 }
 
-export default function RecentGeneratorJobs({session,filters,revision}){
+export function RecentJobResult({source,id,choose,onDeleted}){
+  return source.service==='kimodo' ? <KimodoFrames key={id} id={id} choose={choose} onDeleted={onDeleted}/> : <MediaJobResult key={source.service+'/'+id} service={source.service} id={id} kind={source.result_kind} folderLink/>;
+}
+
+export default function RecentGeneratorJobs({session,filters,filterSummary,revision,choose}){
   const [rows,setRows]=useState([]),[errors,setErrors]=useState([]),[loading,setLoading]=useState(true),[checked,setChecked]=useState(null),[selected,setSelected]=useState(null);
-  const [page,setPage]=useState(0),[pageSize,setPageSize]=useState(5);
-  const resultRef=useRef(null),triggerRef=useRef(null),headingRef=useRef(null);
+  const [listUnavailable,setListUnavailable]=useState(false);
+  const [page,setPage]=useState(0),[pageSize,setPageSize]=useState(5),[refreshRevision,refresh]=useState(0);
+  const resultRef=useRef(null),triggerRef=useRef(null),headingRef=useRef(null),refreshRef=useRef(null),restoreRefreshFocus=useRef(false);
+  useEffect(()=>{if(!loading && restoreRefreshFocus.current){restoreRefreshFocus.current=false;if(document.activeElement===document.body)refreshRef.current?.focus();}},[loading]);
   function closeResult(){
     setSelected(null);
     requestAnimationFrame(()=>{if(triggerRef.current?.isConnected)triggerRef.current.focus();else headingRef.current?.focus();});
   }
-  useEffect(()=>{if(selected)resultRef.current?.focus();},[selected]);
+  useEffect(()=>{
+    if(!selected || !resultRef.current)return;
+    resultRef.current.focus({preventScroll:true});
+    resultRef.current.scrollIntoView({block:"start",inline:"nearest"});
+  },[selected]);
   useEffect(()=>{setPage(0);setSelected(null);},[filters]);
   useEffect(()=>{
     let active=true;
@@ -39,30 +50,33 @@ export default function RecentGeneratorJobs({session,filters,revision}){
         const sources=await response.json();
         if(!Array.isArray(sources))throw new Error('생성기 목록 형식 오류');
         const eligible=sources.filter(s=>s && typeof s.service==='string' && ['hermes-generator-source-history','hermes-audio-source-history'].includes(s.command));
-        const collected=[],failed=[];let cursor=0;
+        const collected=[],failed=[];let cursor=0,succeeded=0;
         async function worker(){
           while(cursor<eligible.length){
             const source=eligible[cursor++];
             try{
               const page=await managementCommand('hermes-agent',source.command,{service:source.service,limit:10});
               if(page.service!==source.service || !Array.isArray(page.records))throw new Error('이력 응답 오류');
+              succeeded++;
               for(const record of page.records)if(typeof record.id==='string' && /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(record.id))collected.push({source,record});
               if(page.unavailable_count)failed.push(source.service+' 일부 기록');
             }catch{failed.push(source.service);}
           }
         }
         await Promise.all(Array.from({length:Math.min(4,eligible.length)},()=>worker()));
-        if(active){setRows(collected.sort((a,b)=>b.record.id.localeCompare(a.record.id)));setErrors(failed);setChecked(new Date());}
-      }catch{if(active){setRows([]);setErrors(['생성기 목록']);setChecked(new Date());}}
+        if(active){setErrors(failed);if(eligible.length>0 && succeeded===0){setListUnavailable(true);}else{setRows(collected.sort((a,b)=>b.record.id.localeCompare(a.record.id)));setChecked(new Date());setListUnavailable(false);}}
+      }catch{if(active){setErrors(['생성기 목록']);setListUnavailable(true);}}
       finally{if(active)setLoading(false);}
     }
     load();return()=>{active=false;};
-  },[revision]);
+  },[revision,refreshRevision]);
   const matching=rows.filter(row=>matches(row,filters)).slice(0,20);
   const currentPage=Math.min(page,Math.max(0,Math.ceil(matching.length/pageSize)-1));
-  return <section aria-label="전체 생성기 최근 작업" className="recent-generator-jobs"><h3 ref={headingRef} tabIndex={-1}>전체 생성기 최근 작업</h3>
+  return <section aria-label="전체 생성기 최근 작업" className="recent-generator-jobs"><div className="recent-jobs-heading"><h3 ref={headingRef} tabIndex={-1}>전체 생성기 최근 작업</h3><button ref={refreshRef} type="button" disabled={loading} onClick={()=>{restoreRefreshFocus.current=true;refresh(value=>value+1);}}>{loading?"조회 중…":"최근 작업 새로고침"}</button></div>
+    <p className="queue-filter-summary">적용된 조건 · {filterSummary || "전체"}</p>
     <p>세션 외 작업도 포함 · 생성기별 최근 10건 중 최대 20건 · 기록 상태 기준{checked && ' · 조회 '+checked.toLocaleString('ko-KR')}</p>
-    {loading && <p role="status">최근 작업 조회 중…</p>}
+    {loading && <p role="status">최근 작업 조회 중…{checked && " 아래에는 이전 조회 결과가 표시됩니다."}</p>}
+    {listUnavailable && checked && <p role="status">최근 작업을 조회하지 못해 이전 결과를 표시합니다. 최근 작업 새로고침으로 다시 확인하세요.</p>}
     {errors.length>0 && <p role="status">일부 이력을 확인하지 못했습니다: {errors.join(', ')}</p>}
     {!loading && !matching.length && <p>{errors.length ? "확인된 이력에는 조건에 맞는 최근 작업이 없습니다. 조회하지 못한 이력은 포함되지 않았습니다." : "조건에 맞는 최근 작업이 없습니다."}</p>}
     <div className="session-job-list">{matching.slice(currentPage*pageSize,(currentPage+1)*pageSize).map(({source,record})=><article className="session-job" key={source.service+'/'+record.id}>
@@ -73,7 +87,7 @@ export default function RecentGeneratorJobs({session,filters,revision}){
         {source.result_path && <a aria-label={record.id+" 생성기에서 열기"} href={source.result_path+'?'+new URLSearchParams({job:record.id,session})}>생성기에서 열기</a>}
       </div>
     </article>)}</div>
-    {matching.length>0 && <QueuePagination label="전체 생성기 최근 작업 페이지" page={currentPage} size={pageSize} total={matching.length} onPage={value=>{setSelected(null);setPage(value);}} onSize={value=>{setSelected(null);setPageSize(value);setPage(0);}}/>}
-    {selected && <section ref={resultRef} tabIndex={-1} aria-label="최근 작업 결과"><button type="button" onClick={closeResult}>결과 닫기</button><MediaJobResult key={selected.source.service+'/'+selected.id} service={selected.source.service} id={selected.id} kind={selected.source.service==='kimodo'?'video':selected.source.result_kind} folderLink/></section>}
+    {matching.length>0 && <QueuePagination label="전체 생성기 최근 작업 페이지" page={currentPage} size={pageSize} total={matching.length} onPage={value=>{setSelected(null);setPage(value);}} onPageFocus={()=>headingRef.current?.focus()} onSize={value=>{setSelected(null);setPageSize(value);setPage(0);}}/>}
+    {selected && <section ref={resultRef} tabIndex={-1} aria-label="최근 작업 결과"><button type="button" onClick={closeResult}>결과 닫기</button><RecentJobResult source={selected.source} id={selected.id} choose={choose} onDeleted={()=>{setSelected(null);refresh(value=>value+1);}}/></section>}
   </section>;
 }

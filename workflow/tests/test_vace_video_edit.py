@@ -46,11 +46,11 @@ class VaceVideoEditTest(unittest.TestCase):
 
 
 class VacePoseInputTest(unittest.TestCase):
-    def test_pose_gui_contract_and_attachment(self):
+    def test_pose_request_contract_and_attachment(self):
         import base64
         import cv2
         from PIL import Image
-        from gui.ui.gradio.wan_vace_app import build_vace_payload, check_vace_readiness
+        from generators.wan_vace.page.inputs import build_vace_payload
         from generators.wan_vace.contracts import validate_vace_request
         with tempfile.TemporaryDirectory() as current_temp_name:
             current_job_root = Path(current_temp_name)
@@ -70,5 +70,5 @@ class VacePoseInputTest(unittest.TestCase):
             current_saved_record = save_edit_inputs(current_job_root,current_request_record,('pose_video',))
             self.assertNotIn('pose_video',current_saved_record)
             self.assertEqual((current_job_root/'pose-video.mp4').read_bytes(),current_video_path.read_bytes())
-            self.assertTrue(check_vace_readiness(True,'pose','ref','walk',None,None,'pose.mp4'))
-            self.assertFalse(check_vace_readiness(True,'pose','ref','walk',None,None,None))
+            with self.assertRaises(ValueError):
+                validate_vace_request({key:value for key,value in current_request_record.items() if key!='pose_video'})

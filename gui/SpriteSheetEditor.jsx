@@ -6,6 +6,8 @@ import ResultTable from "./ResultTable.jsx";
 import editSpriteFrames from "./editSpriteFrames.mjs";
 import applySpriteCanvas from "./applySpriteCanvas.mjs";
 import renderSpritePreview from "./renderSpritePreview.mjs";
+import {cropCandidate,confirmCropCandidate} from "./spriteCropCandidate.mjs";
+import {linkedSpriteSheet,findLinkedSprite} from "./spriteSourceLink.mjs";
 
 const fields=["x","y","width","height","anchorX","anchorY"];
 const labels=["X","Y","너비","높이","앵커 X","앵커 Y"];
@@ -195,7 +197,7 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
   </form>;
 }
 
-function gridEdges(size,count){
+export function gridEdges(size,count){
   return Array.from({length:count+1},(_,index)=>{
     const boundary=size*index/count,lower=Math.floor(boundary);
     // Match the Python editor's round-to-even rule for half-pixel boundaries.
@@ -203,9 +205,14 @@ function gridEdges(size,count){
   });
 }
 
+export function GridReplaceConfirmation({dimensions,onConfirm,onCancel}){
+  return <section aria-label="프레임 재분할 확인"><p>{dimensions}로 다시 나누면 현재 프레임 편집 내용이 사라집니다.</p>
+    <button type="button" onClick={onConfirm}>다시 나누기 확인</button><button type="button" onClick={onCancel}>취소</button></section>;
+}
+
 function GridEditor({detail,size,onSaved}){
   const [columns,setColumns]=useState(detail.layout?.columns ?? 4),[rows,setRows]=useState(detail.layout?.rows ?? 2);
-  const [grid,setGrid]=useState(null),[error,setError]=useState("");
+  const [grid,setGrid]=useState(null),[pending,setPending]=useState(null),[error,setError]=useState("");
   function split(event){
     event.preventDefault();
     const cols=Number(columns),lines=Number(rows);
@@ -220,14 +227,17 @@ function GridEditor({detail,size,onSaved}){
         frames.push({rect:{x:xs[col],y:ys[row],width,height},anchor:{x:Math.floor(width/2),y:height-1}});
       }
     }
-    setGrid({key:cols+"x"+lines,frames});setError("");
+    const next={key:cols+"x"+lines,frames,revision:(grid?.revision ?? -1)+1};
+    if(grid)setPending(next);else setGrid(next);
+    setError("");
   }
-  return <><form onSubmit={split}><fieldset><legend>원본 시트 분할</legend>
+  return <><form onSubmit={split}><fieldset disabled={!!pending}><legend>원본 시트 분할</legend>
     <label>원본 열<input type="number" min="1" max="128" required value={columns} onChange={e=>setColumns(e.target.value)}/></label>
     <label>원본 행<input type="number" min="1" max="128" required value={rows} onChange={e=>setRows(e.target.value)}/></label>
     <button disabled={!size}>프레임 나누기</button>
     {error && <p role="alert">{error}</p>}</fieldset></form>
-    {grid && <FrameEditor key={grid.key} frames={grid.frames} image={detail.image} original={detail} onSaved={onSaved}/>}</>;
+    {pending && <GridReplaceConfirmation dimensions={pending.key} onConfirm={()=>{setGrid(pending);setPending(null);}} onCancel={()=>setPending(null)}/>}
+    {grid && <FrameEditor key={grid.key+"/"+grid.revision} frames={grid.frames} image={detail.image} original={detail} onSaved={onSaved}/>}</>;
 }
 
 function Sheet({path,source}){
@@ -254,8 +264,7 @@ function AutoCrop({image,size,onApply}){
     event.preventDefault();setBusy(true);setCandidate(null);setError("");
     try{
       const result=await managementCommand("character-animation","sheet-auto",{image,padding:Number(padding)});
-      if(!result.frames?.length || result.sourceFrames?.length!==result.frames.length)throw new Error("검출 결과를 확인할 수 없습니다.");
-      setCandidate(result);
+      setCandidate(cropCandidate(image,Number(padding),result));
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
   }
@@ -266,10 +275,10 @@ function AutoCrop({image,size,onApply}){
     {error && <p role="alert">{error}</p>}
     {candidate && <><svg viewBox={`0 0 ${size.width} ${size.height}`} style={{width:"100%",maxWidth:size.width}} aria-label="크롭 후보 영역">
       <image href={"data:image/png;base64,"+image} width={size.width} height={size.height}/>
-      {candidate.frames.map(({x,y,width,height},i)=><g key={i}><rect x={x} y={y} width={width} height={height} fill="none" stroke="red" strokeWidth="2"/>
+      {candidate.result.frames.map(({x,y,width,height},i)=><g key={i}><rect x={x} y={y} width={width} height={height} fill="none" stroke="red" strokeWidth="2"/>
         <text x={Math.max(0,x)+3} y={Math.max(0,y)+14} fill="red">{i+1}</text></g>)}</svg>
-      <p>{candidate.frames.length}개 후보 · 적용하면 현재 프레임 편집을 교체합니다.</p>
-      <button onClick={()=>{onApply(candidate);setCandidate(null);}}>검출 결과 적용</button>
+      <p>{candidate.result.frames.length}개 후보 · 적용하면 현재 프레임 편집을 교체합니다.</p>
+      <button onClick={()=>{try{onApply(confirmCropCandidate(candidate,image,padding));setCandidate(null);}catch(problem){setCandidate(null);setError(problem.message);}}}>검출 결과 적용</button>
       <button onClick={()=>setCandidate(null)}>취소</button></>}
   </details>;
 }
@@ -307,72 +316,85 @@ async function readLocalSheet(file){
   });
 }
 
+export function LocalSheetReplaceConfirmation({name,busy,onConfirm,onCancel}){
+  return <section aria-label="로컬 시트 교체 확인"><p>{name} 파일로 교체하면 현재 프레임 편집 내용이 사라집니다.</p><button type="button" disabled={busy} onClick={onConfirm}>교체 확인</button><button type="button" disabled={busy} onClick={onCancel}>교체 취소</button></section>;
+}
+
 function LocalSheet(){
   const [file,setFile]=useState(null),[detail,setDetail]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[revision,setRevision]=useState(0);
-  async function load(){
+  const [pending,setPending]=useState(null);
+  async function load(target=file){
     setBusy(true);setError("");
     try{
-      const result=await readLocalSheet(file);
-      setDetail(result);setRevision(n=>n+1);
+      const result=await readLocalSheet(target);
+      setDetail(result);setRevision(n=>n+1);setPending(null);
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
   }
-  return <details><summary>로컬 PNG 편집</summary>
-    <fieldset disabled={busy}><label>시트 PNG<input type="file" accept="image/png" onChange={e=>{
+  return <details className="sprite-local-sheet"><summary>로컬 PNG 편집</summary>
+    <fieldset disabled={busy || !!pending}><label>시트 PNG<input type="file" accept="image/png" onChange={e=>{
       setFile(e.target.files[0] || null);setError("");
     }}/></label>
-    <button disabled={!file} onClick={load}>{detail?"편집 중인 로컬 시트 교체":"로컬 시트 열기"}</button></fieldset>
-    {error && <p role="alert">{error}</p>}
+    <button disabled={!file} onClick={()=>detail?setPending(file):load(file)}>{busy ? "시트 확인 중…" : detail?"편집 중인 로컬 시트 교체":"로컬 시트 열기"}</button></fieldset>
+    {pending && <LocalSheetReplaceConfirmation name={pending.name} busy={busy} onConfirm={()=>load(pending)} onCancel={()=>setPending(null)}/>}
+    {error && <p role="alert">{error}{detail && " 기존 편집 내용은 유지됩니다."}</p>}
     {detail && <SheetView key={revision} path={detail.path} detail={detail}/>}
   </details>;
 }
 
-function linkedSheet(){
-  const params=new URLSearchParams(location.search);
-  const path=params.get("sprite_path") || "",action=params.get("action") || "";
-  const source=params.get("sprite_source") ?? "assets";
-  if((path || action) && !["assets","baseline"].includes(source))return {error:"지원하지 않는 링크 원본입니다."};
-  if(path)return {source,path};
-  if(!action)return {};
-  if(!action.startsWith("asset:") || action.length===6)return {error:"지원하지 않는 애니메이션 링크입니다."};
-  return {source:"assets",animation:action.slice(6)};
+export function SheetSourceChangeConfirmation({change,onConfirm,onCancel}){
+  const label=change.kind==="select" ? change.path : (change.source==="baseline" ? "베이스라인" : "에셋")+" 검색 · "+(change.query || "전체");
+  return <section aria-label="편집 원본 변경 확인"><p>{label}으로 변경하면 현재 프레임 편집 내용이 사라집니다.</p>
+    <button type="button" onClick={onConfirm}>변경 확인</button><button type="button" onClick={onCancel}>변경 취소</button></section>;
 }
 
 export default function SpriteSheetEditor(){
-  const [link]=useState(linkedSheet);
+  const [link]=useState(()=>linkedSpriteSheet(location.search));
   const [source,setSource]=useState(link.source || "assets"),[query,setQuery]=useState(link.animation || "");
   const [request,setRequest]=useState(link.animation?{source:"assets",query:link.animation,linked:true}:null);
   const [items,setItems]=useState(null),[selected,select]=useState(link.path || "");
   const [error,setError]=useState(link.error || "");
+  const [pendingChange,setPendingChange]=useState(null);
   useEffect(()=>{
     if(!request)return;
     let active=true;
     managementCommand("character-animation","sheet-search",{source:request.source,query:request.query}).then(result=>{
       if(!active)return;
+      if(!Array.isArray(result.items))throw new Error("스프라이트 검색 결과 형식을 확인할 수 없습니다.");
       setItems(result.items);
       if(request.linked){
-        const matches=result.items.filter(item=>item.animationIds?.includes(request.query));
-        if(matches.length===1)select(matches[0].path);
+        const match=findLinkedSprite(result.items,request.query);
+        if(match)select(match);
         else setError("동작 ID에 연결된 시트가 없거나 여러 개입니다. 검색 결과에서 원본을 선택하세요.");
       }
     }).catch(problem=>{if(active)setError(problem.message);});
     return ()=>{active=false;};
   },[request]);
-  function search(nextSource){
-    setItems(null);setError("");select("");setRequest({source:nextSource,query});
+  function applyChange(change){
+    if(change.kind==="select"){select(change.path);return;}
+    setSource(change.source);setItems(null);setError("");select("");setRequest({source:change.source,query:change.query});
   }
-  return <article><h1>스프라이트 시트 편집기</h1><LocalSheet/>
-    <form onSubmit={event=>{event.preventDefault();search(source);}}>
-      <label>검색 원본<select value={source} onChange={event=>{setSource(event.target.value);search(event.target.value);}}>
+  function requestChange(change){
+    if(selected && (change.kind!=="select" || change.path!==selected))setPendingChange(change);
+    else applyChange(change);
+  }
+  function search(nextSource){
+    requestChange({kind:"search",source:nextSource,query});
+  }
+  return <article className="sprite-editor-page"><h1>스프라이트 시트 편집기</h1><LocalSheet/>
+    <form className="sprite-search" onSubmit={event=>{event.preventDefault();search(source);}}>
+      <label>검색 원본<select value={source} onChange={event=>search(event.target.value)}>
         <option value="assets">에셋 스프라이트</option><option value="baseline">베이스라인 스프라이트</option></select></label>
       <label>스프라이트 검색<input value={query} onChange={event=>setQuery(event.target.value)}/></label>
       <button>원본 검색</button>
     </form>
+    {request && query!==request.query && <p role="status">검색어가 변경되었습니다. 아래 결과는 이전 검색 조건입니다. 원본 검색을 눌러 적용하세요.</p>}
     {error && <p role="alert">{error}</p>}
     {request && !items && !error && <p role="status">스프라이트 검색 중…</p>}
     {items && <ResultTable table={{title:"검색 결과",summary:items.length+"개 시트",columns:["스프라이트","원본 경로"],
-      rows:items.map(item=>[<button onClick={()=>select(item.path)}>{item.label}</button>,item.path])}}/>}
+      rows:items.map(item=>[<button onClick={()=>requestChange({kind:"select",path:item.path})}>{item.label}</button>,item.path])}}/>}
+    {pendingChange && <SheetSourceChangeConfirmation change={pendingChange} onConfirm={()=>{const change=pendingChange;setPendingChange(null);applyChange(change);}} onCancel={()=>setPendingChange(null)}/>}
     {selected && <Sheet key={source+":"+selected} path={selected} source={source}/>}
   </article>;
 }

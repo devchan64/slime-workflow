@@ -10,6 +10,14 @@ from generators.wan_vace.numerical_guard import install_vace_attention_guard
 
 
 class VaceOfficialRuntimeTest(unittest.TestCase):
+    def test_blank_condition_matches_official_image_to_video_default(self):
+        from generators.wan_vace.official_runtime import build_blank_video_condition
+        result = build_blank_video_condition(torch, 5)
+        self.assertEqual(tuple(result['video'].shape), (1, 3, 5, 480, 832))
+        self.assertEqual(tuple(result['mask_video'].shape), (1, 1, 5, 480, 832))
+        self.assertEqual(int(torch.count_nonzero(result['video'])), 0)
+        self.assertTrue(torch.all(result['mask_video'] == 255).item())
+
     def test_bf16_checkpoint_does_not_inherit_fp32_meta_dtype(self):
         from accelerate.utils import set_module_tensor_to_device
         from generators.wan_vace.official_full_precision import assign_vace_bf16_weight
