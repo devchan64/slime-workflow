@@ -114,10 +114,11 @@
 - Keep identifiers (variables/functions/files), standard keywords, and AWS resource names in English.
 - User/operation guidance should be Korean-first.
 ## Source Code Naming and Declaration Rules
-- 프로젝트에서 정의하는 함수명·변수명은 의미 있는 영어 단어 **3개 이상**으로 구성한다. 파라미터와 주요 상수의 이름에도 같은 원칙을 적용한다.
+- 프로젝트에서 정의하는 함수·변수·파라미터·상수의 이름은 의미 있는 영어 단어 **3개 이상**으로 구성한다.
 - 언어 관례에 따라 `snake_case`, `camelCase`, `UPPER_SNAKE_CASE`를 사용한다. 예: `calculate_party_reward`, `currentPlayerHealth`, `FIELD_RECOVERY_PER_MINUTE`.
 - 단어 수를 맞추기 위한 무의미한 접두사·접미사를 붙이지 않고 역할·대상·의미가 드러나도록 이름을 정한다.
-- 주요 상수·설정값·파라미터 기본값은 사용하는 처리 로직보다 앞에 선언한다. 공통 상수는 모듈 상단 또는 전용 constants/config 모듈에 모으고 함수 안의 주요 파라미터 준비도 사용 전에 배치한다.
+- 선언부는 언어의 유효 범위와 의존 관계를 지키면서 코드 전반부에 처리 로직보다 앞서 배치한다. 공통 상수와 설정은 모듈 상단 또는 전용 constants/config 모듈에 모으고, 선언 목적과 사용 맥락을 이해하는 데 필요한 주석을 함께 둔다.
+- 주석은 한국어로 작성하고 처음 참여하는 개발자의 온보딩을 기준으로 한다. 코드만으로 알기 어려운 목적·도메인 맥락·제약·주의할 부작용을 설명하고, 코드의 동작을 그대로 반복하는 주석은 피한다. 코드 식별자·표준 용어·고유명은 원문을 유지할 수 있으며, 변경 시 주석도 함께 갱신한다.
 - 새로 작성하거나 수정하는 코드에 적용하며, 기존 전체 코드의 일괄 이름 변경은 별도 리팩터링으로 진행한다. 외부 API·DB 필드·프레임워크가 요구하는 식별자는 계약 변경 없이 임의로 바꾸지 않는다.
 ## Frontend Layout Rules
 - Do not hard-code layout constants inside frequently called functions.
