@@ -31,6 +31,7 @@ REVIEW_HEARTBEAT_SECONDS = 5
 REVIEW_SERVER_RETRY_SECONDS = 3
 REVIEW_WATCH_POLL_SECONDS = 0.5
 REVIEW_WATCH_SETTLE_SECONDS = 1.0
+REVIEW_SERVER_SHUTDOWN_SECONDS = 30
 REVIEW_LIVE_RELOAD_PATH = '/__review_live_reload__'
 REVIEW_LIVE_RELOAD_SCRIPT = b'''<script id="review-live-reload">(()=>{let instanceId;const poll=async()=>{try{const response=await fetch('/__review_live_reload__',{cache:'no-store'});if(!response.ok)throw new Error('watch unavailable');const nextInstanceId=(await response.json()).instanceId;if(instanceId&&instanceId!==nextInstanceId){location.reload();return}instanceId=nextInstanceId}catch(_error){}finally{setTimeout(poll,5000)}};poll()})()</script>'''
 
@@ -187,6 +188,22 @@ def settle_review_watch_snapshot(current_watch_paths,current_source_snapshot):
     return current_source_snapshot
 
 
+def stop_review_watch_server(review_server_process):
+    if review_server_process.poll() is not None:
+        return
+    review_server_process.terminate()
+    try:
+        review_server_process.wait(timeout=REVIEW_SERVER_SHUTDOWN_SECONDS)
+    except subprocess.TimeoutExpired:
+        print(f'{datetime.now().isoformat()}/asset-review-server/stop 서버 종료 대기 시간 초과 · 강제 종료 후 계속합니다.', flush=True)
+        review_server_process.kill()
+        review_server_process.wait()
+    except KeyboardInterrupt:
+        review_server_process.kill()
+        review_server_process.wait()
+        raise
+
+
 def run_review_watch_mode(parsed_argument_values):
     gui_directory = Path(__file__).resolve().parents[1]/'gui'
     npm_path = shutil.which('npm')
@@ -220,8 +237,7 @@ def run_review_watch_mode(parsed_argument_values):
                         current_changed_paths=collect_changed_review_paths(previous_watch_snapshot,current_watch_snapshot)
                         current_reuse_directory=can_reuse_review_directory(current_changed_paths) and current_prepared_record.is_file()
                         print(f'{datetime.now().isoformat()}/asset-review-server/watch 변경 {len(current_changed_paths)}개 · 산출물 재사용={current_reuse_directory} · {current_changed_paths}',flush=True)
-                        review_server_process.terminate()
-                        review_server_process.wait(timeout=5)
+                        stop_review_watch_server(review_server_process)
                         previous_watch_snapshot=current_watch_snapshot
                         break
                 else:
@@ -238,14 +254,11 @@ def run_review_watch_mode(parsed_argument_values):
                         continue
                     return
             finally:
-                if review_server_process.poll() is None:
-                    review_server_process.terminate()
-                    review_server_process.wait(timeout=5)
+                stop_review_watch_server(review_server_process)
             time.sleep(0.2)
     except KeyboardInterrupt:
         if 'review_server_process' in locals() and review_server_process.poll() is None:
-            review_server_process.terminate()
-            review_server_process.wait(timeout=5)
+            stop_review_watch_server(review_server_process)
         print(f'{datetime.now().isoformat()}/asset-review-server/stop 감시 종료', flush=True)
     finally:
         if gui_build_process.poll() is None:
