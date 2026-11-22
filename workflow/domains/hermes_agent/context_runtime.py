@@ -24,8 +24,51 @@ def prepare_context_request(messages, query, count_tokens, base_url, *, automati
     result = compress_context(messages, token_count, base_url, force=force,
                               compressor_factory=compressor_factory, on_progress=on_progress)
     final_query = format_context_query(result['messages'], query)
-    return {**result, 'tokens_after': count_tokens(final_query) if result['state'] == 'compressed' else token_count,
-            'query': final_query}
+    tokens_after = count_tokens(final_query) if result['state'] == 'compressed' else token_count
+    if result['state'] == 'unchanged' and tokens_after > result['threshold']:
+        raise RuntimeError('정리 가능한 대화 범위가 없어 기준을 초과합니다. 기존 대화는 유지됩니다.')
+    if result['state'] == 'compressed' and tokens_after > result['threshold']:
+        # Preserve the latest exchange verbatim; summarize the older protected head
+        # and the previous summary together. Never save an over-budget checkpoint.
+        compacted = result['messages']
+        if len(compacted) < 3:
+            raise RuntimeError('대화 정리 후 기준을 초과했으며 안전하게 추가 요약할 범위가 없습니다. 기존 대화는 유지됩니다.')
+        prefix, tail = compacted[:-2], compacted[-2:]
+        if count_tokens(format_context_query(tail, query)) > result['threshold']:
+            raise RuntimeError('최근 대화와 현재 요청만으로 정리 기준을 초과합니다. 기존 대화는 유지됩니다.')
+        # The installed compressor samples inputs above its 160,000-character cap.
+        # Refuse this fallback rather than silently omit part of the prefix.
+        if sum(len(message.get('content', '')) for message in prefix) > 100000:
+            raise RuntimeError('추가 요약 범위가 너무 큽니다. 기존 대화는 유지됩니다.')
+        if compressor_factory is None:
+            from agent.context_compressor import ContextCompressor
+            compressor_factory = ContextCompressor
+        compressor = compressor_factory(model='hermes-local', provider='custom', base_url=base_url,
+                                        api_key='none', config_context_length=64000,
+                                        abort_on_summary_failure=True)
+        if on_progress:
+            on_progress({'state': 'compressing', 'tokens': tokens_after, 'threshold': result['threshold']})
+        # The runtime also elides individual message bodies above 6,000
+        # characters before summarizing. Split them so the model sees every part.
+        summary_input = []
+        for message in prefix:
+            content = message['content']
+            if len(content) <= 5000:
+                summary_input.append(copy.deepcopy(message))
+            else:
+                summary_input.extend({'role': message['role'], 'content': content[start:start + 5000]}
+                                     for start in range(0, len(content), 5000))
+        summary = compressor._generate_summary(summary_input)
+        if not isinstance(summary, str) or not summary.strip() or getattr(compressor, '_last_summary_error', None):
+            raise RuntimeError('추가 대화 요약에 실패했습니다. 기존 대화는 유지됩니다.')
+        final_messages = [{'role': 'assistant', 'content': summary.strip(), '_compressed_summary': True,
+                           '_compressed_summary_has_user_turn': any(m.get('role') == 'user' or m.get('_compressed_summary_has_user_turn') is True for m in prefix)}, *copy.deepcopy(tail)]
+        final_query = format_context_query(final_messages, query)
+        tokens_after = count_tokens(final_query)
+        if tokens_after > result['threshold']:
+            raise RuntimeError('추가 요약 후에도 정리 기준을 초과합니다. 기존 대화는 유지됩니다.')
+        result = {**result, 'messages': final_messages}
+    return {**result, 'tokens_after': tokens_after, 'query': final_query}
 
 
 def compress_context(messages, token_count, base_url, *, force=False, compressor_factory=None, on_progress=None):
