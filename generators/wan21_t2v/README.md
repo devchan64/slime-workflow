@@ -22,7 +22,7 @@ python generators/wan21_t2v/generate.py \
 
 ## 고정 파일 준비 작업
 
-관리 모델 준비 프로필 `wan21-t2v-assets`는 ComfyUI 형식의 1.3B 본체와 [Self-Forcing 1.3B 가속 LoRA](https://huggingface.co/Kijai/WanVideo_comfy/tree/main/LoRAs/Wan2_1_self_forcing_1_3B)를 SHA-256으로 검증해 별도 디렉터리에 준비한다. 위 Diffusers CLI는 이 단일 파일 형식을 아직 직접 사용하지 않는다. KXSR은 출처와 해시가 검증된 다운로드 파일을 아직 확보하지 못해 이 프로필에 포함하지 않았다. Self-Forcing과 KXSR 동시 적용 및 출력 품질도 미검증이다.
+관리 모델 준비 프로필 `wan21-t2v-assets`는 ComfyUI 형식의 1.3B 본체와 [Self-Forcing 1.3B 가속 LoRA](https://huggingface.co/Kijai/WanVideo_comfy/tree/main/LoRAs/Wan2_1_self_forcing_1_3B)를 SHA-256으로 검증해 별도 디렉터리에 준비한다. 위 Diffusers CLI는 이 단일 파일 형식을 아직 직접 사용하지 않는다. KXSR 파일은 이 프로필에서 다운로드하지 않으며 별도로 등록한다. Self-Forcing과 KXSR 동시 적용 및 출력 품질은 미검증이다.
 
 관리 화면의 KXSR 파일 경로는 `.model/wan21-t2v/action/kxsr.safetensors`이다. 등록 도구와 모델 준비 검사는 아래의 고정 SHA-256을 확인한다. KXSR의 실제 모델 적용과 GPU 출력은 미검증이다.
 
@@ -32,7 +32,7 @@ python generators/wan21_t2v/generate.py \
 
 2026-11-23 ROCm에서 832×480, 5프레임, 4스텝, CFG 1, Self-Forcing 가속 LoRA로 한 회 실행해 793개 패치 등록과 5프레임 MP4 저장을 확인했다. KXSR 미포함 짧은 동작 시험이며 영상 품질은 별도 검수 대상이다.
 
-KXSR 대상은 Civitai 모델 1392349, 버전 1573723의 `wan-1.3B-Bossfight.safetensors`다. [ModelTrends 공개 색인](https://modeltrends.ai/v1/model/55b08a21.json)에 기재된 SHA-256 `be4273230a772e8132cb2b24258fc6f06ab59361e405a7e694e3b4a2299846c4`과 파일을 대조하며, 일치하지 않으면 실행하지 않는다. 원본 다운로드는 현재 접근할 수 없어 파일 자체와 적용은 아직 확인하지 못했다.
+KXSR 대상은 Civitai 모델 1392349, 버전 1573723의 `wan-1.3B-Bossfight.safetensors`다. [ModelTrends 공개 색인](https://modeltrends.ai/v1/model/55b08a21.json)에 기재된 SHA-256 `be4273230a772e8132cb2b24258fc6f06ab59361e405a7e694e3b4a2299846c4`과 파일을 대조하며, 일치하지 않으면 실행하지 않는다. 2026-11-23 사용자가 제공한 파일의 해시와 모델 준비 상태를 확인했으며, 실제 모델 적용과 영상 출력은 아직 확인하지 못했다.
 
 이미 보유한 파일을 안전하게 등록하려면 작업 공간에서 `python3 -m generators.wan21_t2v.import_kxsr /path/to/wan-1.3B-Bossfight.safetensors`를 실행한다. 일반 파일과 SHA-256을 확인한 뒤에만 지정 위치에 원자적으로 등록하고 기존 파일은 덮어쓰지 않는다.
 
