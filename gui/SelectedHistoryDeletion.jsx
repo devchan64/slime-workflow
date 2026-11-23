@@ -61,7 +61,7 @@ export default function SelectedHistoryDeletion({service,id,onDeleted,allowPrior
     finally{setBusy(false);}
   }
   return <section className="history-selected-actions" aria-label="선택 작업 관리">
-    <GeneratorJobControls key={service+"/"+id+"/"+state} service={service} id={id} state={state} showLog={false} showUnavailable resumeEnabled={service!=="wan22-animate2"} disabled={busy || review || priorityActive} onInteractionChange={setControlActive} refresh={()=>setRevision(value=>value+1)}
+    <GeneratorJobControls key={service+"/"+id+"/"+state} service={service} id={id} state={state} showLog={false} showUnavailable resumeEnabled={!['wan22-animate2','wan21-i2v','wan21-t2v'].includes(service)} disabled={busy || review || priorityActive} onInteractionChange={setControlActive} refresh={()=>setRevision(value=>value+1)}
       renderPriority={allowPriority ? controlsDisabled=>state === "queued" ?
         <JobPriority inline disabled={busy || review || controlActive} onInteractionChange={setPriorityActive} key={service+"/"+id} service={service} id={id} call={(command,payload)=>managementCommand("hermes-agent","hermes-"+command,payload)}/> :
         <button className="history-action-priority" type="button" disabled aria-describedby="priority-help">우선 실행 검토</button> : null}/>
