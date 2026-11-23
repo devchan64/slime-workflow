@@ -8,6 +8,15 @@ export function validChatQueue(view, session) {
   return true;
 }
 
+export function matchesChatQueueReceipt(queueReceiptValue, pendingRequestValue) {
+  if (!queueReceiptValue || queueReceiptValue.session_id !== pendingRequestValue.session_id || typeof queueReceiptValue.duplicate !== "boolean") return false;
+  if (queueReceiptValue.queued === true) return queueReceiptValue.request?.request_id === pendingRequestValue.request_id &&
+    queueReceiptValue.request?.original_prompt === pendingRequestValue.prompt && queueReceiptValue.request?.model_profile === pendingRequestValue.model_profile &&
+    (queueReceiptValue.request_id === undefined || queueReceiptValue.request_id === pendingRequestValue.request_id) &&
+    ["queued", "dispatching"].includes(queueReceiptValue.request?.state);
+  return queueReceiptValue.queued === false && queueReceiptValue.duplicate === true && queueReceiptValue.request_id === pendingRequestValue.request_id;
+}
+
 // A request can no longer apply once its queue revision or state changes.
 export function classifyQueueUpdate(view, session, pending) {
   if (!validChatQueue(view, session)) return "invalid";

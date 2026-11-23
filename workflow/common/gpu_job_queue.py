@@ -19,8 +19,8 @@ WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from workflow.common.generation_records import write_record_atomically
 from workflow.common.queue_generation_telemetry import QueueGenerationTelemetry
-from workflow.common.gpu_memory_history import read_worker_memory, save_memory_observation, estimate_required_memory, identify_execution_command
-from workflow.common.host_memory_guard import start_animate_memory_guard, read_memory_field_kib, HOST_MEMORY_RESERVE_KIB
+from workflow.common.gpu_memory_history import read_worker_memory, save_memory_observation, estimate_required_memory, identify_execution_command, identify_hermes_memory_profile
+from workflow.common.host_memory_guard import start_animate_memory_guard, read_memory_field_kib, read_worker_group_rss_kib, HOST_MEMORY_RESERVE_KIB
 GPU_QUEUE_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/gpu-queue'
 GPU_MEMORY_REQUIREMENTS = {'momask': 4096, 'character-animation': 6144, 'image': 6144}
 GPU_MEMORY_REQUIREMENTS['wan-fun'] = 30000
@@ -41,6 +41,23 @@ GPU_MEMORY_REQUIREMENTS['flux-image'] = 57344  # 2참조 768×1152 실험 관측
 GPU_MEMORY_REQUIREMENTS.update({'music-minimax':7000,'music-magenta':7000,'music-heartmula':20000,'sfx-dasheng-audiogen':20000})
 GPU_POLL_INTERVAL = 2
 KIMODO_MAX_CONCURRENT_JOBS = 2
+HERMES_RESIDENT_HOST_FLOOR_MIB = 12 * 1024  # Qwen 3.8 실측 약 9.6 GiB와 로딩 여유를 포함한 초기 추정.
+GPU_QUEUE_PUBLIC_WAIT_MESSAGES = frozenset((
+    'GPU 실행 대기', 'GPU 대기열 잠금을 기다리는 중입니다.',
+    'GPU 대기열 순서를 확인할 수 없어 대기 중입니다. 기록을 확인하세요.',
+    'GPU 대기열 예약을 확인하는 중입니다.', '대기열 실행 조건을 확인할 수 없어 대기 중입니다.',
+    '실행 중인 GPU 예약을 확인할 수 없어 대기 중입니다.',
+    'Kimodo 동시 실행 한도(2개)에 도달해 시스템 메모리 보호를 위해 대기 중입니다.',
+    'GPU 독점 작업이 종료되기를 기다리는 중입니다.',
+    'Qwen 적재에 필요한 시스템 메모리와 보호 여유가 부족해 대기 중입니다.',
+    '실행 중인 Hermes 작업의 세션을 확인할 수 없어 대기 중입니다.',
+    '같은 대화 세션의 앞선 Hermes 작업이 끝나기를 기다리는 중입니다.',
+    'Hermes 동시 실행 한도(2개)에 도달해 대기 중입니다.',
+    'GPU 또는 시스템 메모리 여유가 부족해 대기 중입니다.',
+    '시스템 메모리 보호 여유가 부족해 대기 중입니다.',
+    'GPU 메모리 여유 또는 예약 가능량이 부족해 대기 중입니다.',
+    '실행 가능한 앞선 작업이 예약되기를 기다리는 중입니다.',
+))
 HERMES_PIDFD_GROUP_FLAG = 4  # Linux PIDFD_SIGNAL_PROCESS_GROUP
 # 실측 프로세스 최대 사용량과 현재 여유를 직접 비교한다.
 # 고정 여유분 추가 차감은 단독 실행이 가능한 작업도 무기한 차단한다.
@@ -513,12 +530,19 @@ def is_kimodo_queue_job(job_directory):
         return False
 
 
-def select_runnable_ticket(available_memory_mib, current_memory_domain=None, active_service_names=(), active_hermes_sessions=None, active_kimodo_count=0):
+def is_hermes_resident_job(waiting_job_directory):
+    return Path(waiting_job_directory).parent == WORKFLOW_ROOT_DIRECTORY / '.local/hermes-agent/residents'
+
+
+def select_runnable_ticket(available_memory_mib, current_memory_domain=None, active_service_names=(), active_hermes_sessions=None, active_kimodo_count=0, available_host_memory_mib=None):
     """잠금 안에서 접수 순서대로 확인해 메모리가 맞는 첫 작업을 선택한다."""
     if (GPU_EXCLUSIVE_SERVICES - {'hermes-agent', 'pixal-experiment'}).intersection(active_service_names) or 'unreadable' in active_service_names:
         return None
     try:
         current_waiting_tickets=read_priority_tickets()
+        from workflow.common.gpu_chat_admission import list_live_chat_admissions
+        admissions = list_live_chat_admissions(GPU_QUEUE_DIRECTORY, WORKFLOW_ROOT_DIRECTORY)
+        priority_values = read_gpu_priority_order() if admissions else {}
     except (OSError,ValueError,TypeError,AttributeError):
         return None
     for waiting_ticket_path in current_waiting_tickets:
@@ -563,6 +587,10 @@ def select_runnable_ticket(available_memory_mib, current_memory_domain=None, act
         if not isinstance(waiting_command_record,dict) or not isinstance(waiting_command_record.get('service'),str) or waiting_command_record['service'] not in GPU_MEMORY_REQUIREMENTS or not isinstance(waiting_command_record.get('command'),list):
             return None
         waiting_service = waiting_command_record['service']
+        if (current_memory_domain == 'vram' and available_host_memory_mib is not None
+                and waiting_service == 'hermes-agent' and is_hermes_resident_job(waiting_job_directory)
+                and available_host_memory_mib < HERMES_RESIDENT_HOST_FLOOR_MIB):
+            continue
         if waiting_service == 'image' and is_kimodo_queue_job(waiting_job_directory) and active_kimodo_count >= KIMODO_MAX_CONCURRENT_JOBS:
             continue
         # Pixal은 Hermes 상주와 공존하되 다른 GPU 작업과는 단독 실행한다.
@@ -584,13 +612,85 @@ def select_runnable_ticket(available_memory_mib, current_memory_domain=None, act
             waiting_command_record['service'], GPU_MEMORY_REQUIREMENTS[waiting_command_record['service']],
             identify_execution_command(waiting_command_record['command'], waiting_job_directory, current_memory_domain))
         if waiting_memory_estimate['required_memory_mib'] <= available_memory_mib:
+            if admissions:
+                active_hermes_count = active_service_names.count('hermes-agent')
+                for admission in admissions:
+                    if (current_memory_domain == 'vram' and available_host_memory_mib is not None
+                            and available_host_memory_mib < HERMES_RESIDENT_HOST_FLOOR_MIB):
+                        continue
+                    if (active_hermes_count and (active_hermes_sessions is None
+                            or len(active_hermes_sessions) != active_hermes_count or None in active_hermes_sessions
+                            or admission['session_id'] in active_hermes_sessions or active_hermes_count >= 2)):
+                        continue
+                    admission_key = (0, f"{admission['order_ns']:020d}-0.json")
+                    candidate_key = (priority_values.get(waiting_ticket_path.name, 0), waiting_ticket_path.name)
+                    if admission_key >= candidate_key:
+                        continue
+                    resident_path = str(WORKFLOW_ROOT_DIRECTORY / '.local/hermes-agent/residents' / admission['resident_id'])
+                    if any(_ticket_matches_resident(path, resident_path) for path in current_waiting_tickets):
+                        continue
+                    from workflow.common.hermes_model_routing import COMPLEX_MODEL
+                    estimate = estimate_required_memory('hermes-agent', GPU_MEMORY_REQUIREMENTS['hermes-agent'],
+                                                        identify_hermes_memory_profile(COMPLEX_MODEL, current_memory_domain))
+                    if estimate['required_memory_mib'] <= available_memory_mib:
+                        return None
             return waiting_ticket_path
     return None
 
 
+def select_ticket_after_resident_release(current_available_memory_mib, released_available_memory_mib,
+                                         current_memory_domain, resident_session_identifier,
+                                         current_host_available_mib, released_host_available_mib):
+    """상주 예약이 반환되면 실행 가능해지는 선행 티켓을 선택한다.
+
+    호출자는 공용 GPU 잠금 안에서 모든 상주 예약과 입력값을 확인해야 한다.
+    """
+    resident_session_identifiers = ([resident_session_identifier] if isinstance(resident_session_identifier, str)
+                                    else resident_session_identifier)
+    if (current_memory_domain not in ('vram', 'gtt')
+            or not isinstance(resident_session_identifiers, list) or not resident_session_identifiers
+            or any(not isinstance(session_identifier, str) or not session_identifier for session_identifier in resident_session_identifiers)
+            or len(set(resident_session_identifiers)) != len(resident_session_identifiers)
+            or any(type(memory_value) is not int or memory_value < 0 for memory_value in
+                   (current_available_memory_mib, released_available_memory_mib,
+                    current_host_available_mib, released_host_available_mib))
+            or released_available_memory_mib < current_available_memory_mib
+            or released_host_available_mib < current_host_available_mib):
+        raise ValueError('상주 모델 반환 후 대기열 자원 정보 오류')
+    current_runnable_ticket = select_runnable_ticket(current_available_memory_mib, current_memory_domain,
+        ['hermes-agent'] * len(resident_session_identifiers), resident_session_identifiers, 0, current_host_available_mib)
+    if current_runnable_ticket is not None:
+        return None
+    released_runnable_ticket = select_runnable_ticket(released_available_memory_mib, current_memory_domain,
+        [], [], 0, released_host_available_mib)
+    if released_runnable_ticket is None:
+        return None
+    released_ticket_record = json.loads(read_bounded_gpu_observation_bytes(released_runnable_ticket, 65536)[0])
+    released_job_directory = Path(released_ticket_record['path'])
+    released_command_record = json.loads(read_bounded_gpu_observation_bytes(released_job_directory / 'gpu-command.json', 65536)[0])
+    if released_command_record.get('service') == 'hermes-agent':
+        waiting_session_identifier = read_hermes_queue_session(released_job_directory)
+        if (not is_hermes_resident_job(released_job_directory) or waiting_session_identifier is None
+                or waiting_session_identifier in resident_session_identifiers):
+            return None
+    return released_runnable_ticket
+
+
+def _ticket_matches_resident(ticket_path, resident_path):
+    try:
+        record = json.loads(read_bounded_gpu_observation_bytes(ticket_path, 65536)[0])
+        if not isinstance(record, dict) or record.get('path') != resident_path:
+            return False
+        os.kill(validate_gpu_ticket_process_identifier(record), 0)
+        return inspect_gpu_ticket_executor_identity(record) in ('verified', 'unverified')
+    except (OSError, ValueError, TypeError, KeyError):
+        return False
+
+
 def calculate_queue_revision():
     """실행기·메모리 추정·호스트 보호 기준의 변경을 감지한다."""
-    source_file_paths = [Path(__file__), Path(__file__).with_name('gpu_memory_history.py'), Path(__file__).with_name('host_memory_guard.py')]
+    source_file_paths = [Path(__file__), Path(__file__).with_name('gpu_memory_history.py'), Path(__file__).with_name('host_memory_guard.py'),
+                         Path(__file__).with_name('gpu_chat_admission.py')]
     return hashlib.sha256(b''.join(source_file_path.read_bytes() for source_file_path in source_file_paths)).hexdigest()
 
 
@@ -755,9 +855,49 @@ def execute_locked_generation(generation_job_path):
             if str(uuid.UUID(current_boot_identifier))==current_boot_identifier:current_ticket_record['boot_id']=current_boot_identifier
         except (OSError,ValueError):
             pass
-    write_record_atomically(queue_ticket_path,current_ticket_record)
     active_reservation_directory = GPU_QUEUE_DIRECTORY/'active'
     active_reservation_directory.mkdir(exist_ok=True)
+    from workflow.common.gpu_chat_admission import hold_gpu_queue_lock, clear_chat_admission_locked
+    signal.signal(signal.SIGTERM, lambda *_: (generation_job_path/"cancel.request").touch())
+    while True:
+        if (generation_job_path / 'cancel.request').exists():
+            if inherited_ticket_value:
+                queue_ticket_path.unlink(missing_ok=True)
+            write_record_atomically(generation_job_path / 'status.json', {'status':'cancelled'})
+            return 0
+        if (generation_job_path / 'pause.request').exists():
+            if inherited_ticket_value:
+                queue_ticket_path.unlink(missing_ok=True)
+            write_record_atomically(generation_job_path / 'status.json', {'status':'paused','message':'대기 중 일시정지'})
+            return 0
+        queue_lock_acquired = False
+        try:
+            with hold_gpu_queue_lock(GPU_QUEUE_DIRECTORY, acquire_without_wait=True):
+                queue_lock_acquired = True
+                if (generation_job_path / 'cancel.request').exists() or (generation_job_path / 'pause.request').exists():
+                    continue
+                ticket_published_successfully = False
+                try:
+                    write_record_atomically(queue_ticket_path,current_ticket_record)
+                    ticket_published_successfully = True
+                    if generation_command_record.get('service') == 'hermes-agent' and generation_job_path.parent == WORKFLOW_ROOT_DIRECTORY / '.local/hermes-agent/residents':
+                        resident_request = json.loads((generation_job_path / 'request.json').read_text(encoding='utf-8'))
+                        if isinstance(resident_request, dict) and resident_request.get('queue_order_ns') is not None:
+                            context = resident_request.get('context')
+                            if not isinstance(context, dict) or not isinstance(context.get('session_id'), str):
+                                raise ValueError('상주 모델 대화 세션을 확인할 수 없습니다.')
+                            clear_chat_admission_locked(GPU_QUEUE_DIRECTORY, generation_job_path.name, context['session_id'], resident_request['queue_order_ns'])
+                except Exception as queue_publication_error:
+                    if ticket_published_successfully or inherited_ticket_value:
+                        queue_ticket_path.unlink(missing_ok=True)
+                    write_record_atomically(generation_job_path / 'status.json', {'status':'failed', 'error':str(queue_publication_error)})
+                    return 1
+                break
+        except BlockingIOError:
+            if queue_lock_acquired:
+                raise
+            write_record_atomically(generation_job_path / 'status.json', {'status':'queued', 'message':'GPU 대기열 잠금을 기다리는 중입니다.'})
+            time.sleep(GPU_POLL_INTERVAL)
     active_reservation_path = active_reservation_directory/queue_ticket_path.name
     peak_memory_mib = 0
     memory_sample_count = 0
@@ -770,7 +910,6 @@ def execute_locked_generation(generation_job_path):
     current_memory_guard = None
     current_telemetry_recorder = None
     current_memory_domain = None
-    signal.signal(signal.SIGTERM, lambda *_: (generation_job_path/"cancel.request").touch())
     try:
         with (GPU_QUEUE_DIRECTORY/'execution.lock').open('a') as gpu_execution_handle:
             while True:
@@ -806,6 +945,7 @@ def execute_locked_generation(generation_job_path):
                 execution_lock_acquired = False
                 available_memory_value = 0
                 reserved_memory_value = 0
+                reserved_host_memory_value = 0
                 wait_message = 'GPU 대기열 예약을 확인하는 중입니다.'
                 try:
                     fcntl.flock(gpu_execution_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -868,6 +1008,12 @@ def execute_locked_generation(generation_job_path):
                                 active_kimodo_count += 1
                             if reservation_service == 'hermes-agent':
                                 active_hermes_sessions.append(read_hermes_queue_session(reservation_job_directory) if reservation_job_directory else None)
+                                if current_memory_domain == 'vram' and reservation_job_directory and is_hermes_resident_job(reservation_job_directory):
+                                    try:
+                                        measured_host_memory_mib = read_worker_group_rss_kib(reservation_record['worker_pgid']) // 1024
+                                    except (OSError, ValueError, TypeError, KeyError):
+                                        measured_host_memory_mib = 0
+                                    reserved_host_memory_value += max(0, HERMES_RESIDENT_HOST_FLOOR_MIB - measured_host_memory_mib)
                             # 실측 여유에는 이미 사용 중인 메모리가 반영되어 있다.
                             try:
                                 measured_reservation_mib = read_worker_memory(reservation_record['pid'], current_memory_domain=current_memory_domain)
@@ -877,8 +1023,10 @@ def execute_locked_generation(generation_job_path):
                         # 아직 사용하지 않은 예약분만 차감해 모델 로딩 여유를 확보한다.
                         memory_total_value, memory_free_value = read_gpu_memory()
                         host_available_memory = read_host_available_memory()
-                        current_pool_available = calculate_gpu_pool_capacity(current_memory_domain,memory_free_value,host_available_memory)
+                        unreserved_host_memory = max(0, host_available_memory - reserved_host_memory_value)
+                        current_pool_available = calculate_gpu_pool_capacity(current_memory_domain,memory_free_value,unreserved_host_memory)
                         available_memory_value = max(0, current_pool_available-reserved_memory_value)
+                        available_host_memory = max(0, host_available_memory - HOST_MEMORY_RESERVE_KIB // 1024 - reserved_host_memory_value)
                         wait_message = '대기열 실행 조건을 확인할 수 없어 대기 중입니다.'
                         if 'unreadable' in active_service_names:
                             wait_message = '실행 중인 GPU 예약을 확인할 수 없어 대기 중입니다.'
@@ -886,6 +1034,9 @@ def execute_locked_generation(generation_job_path):
                             wait_message = 'Kimodo 동시 실행 한도(2개)에 도달해 시스템 메모리 보호를 위해 대기 중입니다.'
                         elif (GPU_EXCLUSIVE_SERVICES - {'hermes-agent', 'pixal-experiment'}).intersection(active_service_names) or ('pixal-experiment' in active_service_names and generation_command_record['service'] != 'hermes-agent'):
                             wait_message = 'GPU 독점 작업이 종료되기를 기다리는 중입니다.'
+                        elif (current_memory_domain == 'vram' and generation_command_record['service'] == 'hermes-agent'
+                                and is_hermes_resident_job(generation_job_path) and available_host_memory < HERMES_RESIDENT_HOST_FLOOR_MIB):
+                            wait_message = 'Qwen 적재에 필요한 시스템 메모리와 보호 여유가 부족해 대기 중입니다.'
                         elif generation_command_record['service'] == 'hermes-agent' and 'hermes-agent' in active_service_names:
                             this_session = read_hermes_queue_session(generation_job_path)
                             if this_session is None or None in active_hermes_sessions:
@@ -897,12 +1048,13 @@ def execute_locked_generation(generation_job_path):
                             elif available_memory_value < required_memory_value:
                                 wait_message = 'GPU 또는 시스템 메모리 여유가 부족해 대기 중입니다.'
                         elif available_memory_value < required_memory_value:
-                            if (current_memory_domain == 'vram' and host_available_memory < HOST_MEMORY_RESERVE_KIB//1024) or (current_memory_domain == 'gtt' and host_available_memory - HOST_MEMORY_RESERVE_KIB//1024 - reserved_memory_value < required_memory_value):
+                            if (current_memory_domain == 'vram' and unreserved_host_memory < HOST_MEMORY_RESERVE_KIB//1024) or (current_memory_domain == 'gtt' and host_available_memory - HOST_MEMORY_RESERVE_KIB//1024 - reserved_memory_value < required_memory_value):
                                 wait_message = '시스템 메모리 보호 여유가 부족해 대기 중입니다.'
                             else:
                                 wait_message = 'GPU 메모리 여유 또는 예약 가능량이 부족해 대기 중입니다.'
-                        selected_ticket = select_runnable_ticket(available_memory_value, current_memory_domain, active_service_names, active_hermes_sessions, active_kimodo_count)
-                        if selected_ticket is not None and selected_ticket != queue_ticket_path:
+                        selected_ticket = select_runnable_ticket(available_memory_value, current_memory_domain, active_service_names, active_hermes_sessions, active_kimodo_count, available_host_memory)
+                        if (selected_ticket is not None and selected_ticket != queue_ticket_path
+                                and wait_message != 'Qwen 적재에 필요한 시스템 메모리와 보호 여유가 부족해 대기 중입니다.'):
                             wait_message = '실행 가능한 앞선 작업이 예약되기를 기다리는 중입니다.'
                         if selected_ticket == queue_ticket_path:
                             current_queue_stat = Path(f'/proc/{os.getpid()}/stat').read_text().rpartition(') ')[2].split()
@@ -913,7 +1065,7 @@ def execute_locked_generation(generation_job_path):
                             break
                     finally:
                         fcntl.flock(gpu_execution_handle, fcntl.LOCK_UN)
-                queue_status_record = {'status':'queued', 'queue_position':queue_position_value, 'memory_domain':current_memory_domain, 'free_memory_mib':memory_free_value, 'host_available_memory_mib':read_host_available_memory(), 'required_memory_mib':required_memory_value, 'reserved_memory_mib':reserved_memory_value, 'available_memory_mib':available_memory_value, 'memory_estimate':memory_estimate_record, 'message':wait_message}
+                queue_status_record = {'status':'queued', 'queue_position':queue_position_value, 'memory_domain':current_memory_domain, 'free_memory_mib':memory_free_value, 'host_available_memory_mib':read_host_available_memory(), 'required_memory_mib':required_memory_value, 'reserved_memory_mib':reserved_memory_value, 'reserved_host_memory_mib':reserved_host_memory_value, 'available_memory_mib':available_memory_value, 'memory_estimate':memory_estimate_record, 'message':wait_message}
                 write_record_atomically(generation_job_path/'status.json', queue_status_record)
                 print(f'{time.strftime("%Y-%m-%dT%H:%M:%S")}/gpu-queue/wait {queue_status_record}', flush=True)
                 time.sleep(GPU_POLL_INTERVAL)
@@ -1247,6 +1399,13 @@ def list_waiting_gpu_jobs(include_source_identity=False,observation_limits=False
                     raise ValueError('GPU 대기 티켓의 접수 순서를 확인할 수 없습니다.')
                 waiting_job_record['order_ns'] = str(int(name_match.group(1)))
                 waiting_job_record['priority'] = priority_values.get(waiting_ticket_path.name, 0)
+                queue_wait_message = waiting_status_record.get('message')
+                if isinstance(queue_wait_message, str) and queue_wait_message in GPU_QUEUE_PUBLIC_WAIT_MESSAGES:
+                    waiting_job_record['wait_reason'] = queue_wait_message
+                hermes_session_job_root = WORKFLOW_ROOT_DIRECTORY / '.tmp/test/hermes-agent/jobs'
+                waiting_job_record['session_job'] = (waiting_command_record['service'] == 'hermes-agent'
+                    and waiting_job_directory.parent == hermes_session_job_root and not waiting_job_directory.is_symlink()
+                    and waiting_job_directory.resolve() == waiting_job_directory)
             if include_source_identity:
                 waiting_job_record['executor_identity']='unverified' if foreign_live else inspect_gpu_ticket_executor_identity(waiting_ticket_record)
                 current_after_revision=fingerprint_gpu_queue_ticket(waiting_ticket_path,observation_limits=True) if observation_limits else fingerprint_gpu_queue_ticket(waiting_ticket_path)

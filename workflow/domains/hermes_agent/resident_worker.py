@@ -125,7 +125,13 @@ def run_resident_worker(job_directory):
                      '--alias', 'hermes-local', '--host', '127.0.0.1', '--port', str(port), '-ngl', 'all',
                      '--fit', 'off', '-c', '64000', '-np', '1', '-b', '256', '-ub', '128',
                      '--jinja', '--no-context-shift', '--verbosity', '4']
-        environment = dict(os.environ, LD_LIBRARY_PATH=':'.join([str(worker.RUNTIME_SERVER_PATH.parent), *manifest['runtime_library_paths']]), HIP_VISIBLE_DEVICES='0')
+        runtime_temp_directory = ROOT / '.tmp' / 'hermes-resident-runtime-tmp'
+        if runtime_temp_directory.is_symlink():
+            raise ValueError('상주 모델 임시 디렉터리 오류')
+        runtime_temp_directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if not runtime_temp_directory.is_dir() or runtime_temp_directory.stat().st_uid != os.geteuid():
+            raise ValueError('상주 모델 임시 디렉터리 소유권 오류')
+        environment = dict(os.environ, LD_LIBRARY_PATH=':'.join([str(worker.RUNTIME_SERVER_PATH.parent), *manifest['runtime_library_paths']]), HIP_VISIBLE_DEVICES='0', TMPDIR=str(runtime_temp_directory))
         server = None
         try:
             write_record_atomically(directory / 'resident-status.json', {'status':'loading', 'model':'qwen3.8-27b', 'worker_pid':os.getpid()})

@@ -273,8 +273,12 @@ class HermesServiceTests(unittest.TestCase):
             current_cancel_mock.assert_called_once_with(current_job_path)
 
     def setUp(self):
+        from workflow.common import gpu_job_queue
         self.hermes_temporary_root = tempfile.TemporaryDirectory()
         self.addCleanup(self.hermes_temporary_root.cleanup)
+        isolated_queue_patch = patch.object(gpu_job_queue, 'GPU_QUEUE_DIRECTORY', Path(self.hermes_temporary_root.name) / 'gpu-queue')
+        isolated_queue_patch.start()
+        self.addCleanup(isolated_queue_patch.stop)
         self.hermes_service_manager = HermesServiceManager(Path(self.hermes_temporary_root.name) / 'jobs', Path(self.hermes_temporary_root.name) / 'sessions')
 
     def test_legacy_generator_status_adds_failure_guidance(self):
@@ -2212,7 +2216,10 @@ class HermesServiceTests(unittest.TestCase):
 
     @patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready')
     @patch('workflow.domains.hermes_agent.service.launch_gpu_process')
-    def test_session_submit_retries_and_includes_completed_context(self, hermes_launch_mock, hermes_ready_mock):
+    @patch('workflow.domains.hermes_agent.resident_queue.find_session_resident', return_value=None)
+    @patch('workflow.domains.hermes_agent.resident_queue.ensure_session_resident', return_value={'state':'accepted','id':'resident_123'})
+    @patch('workflow.domains.hermes_agent.resident_queue.inspect_resident', return_value={'state':'ready'})
+    def test_session_submit_retries_and_includes_completed_context(self, resident_status_mock, resident_start_mock, resident_find_mock, hermes_launch_mock, hermes_ready_mock):
         hermes_session_identifier = 'b' * 32
         self.hermes_service_manager.execute_hermes_command('hermes-session-create', {'session_id': hermes_session_identifier})
         hermes_first_payload = {'session_id': hermes_session_identifier, 'request_id': 'first-request-1234', 'prompt': '첫 질문'}
@@ -2261,7 +2268,10 @@ class HermesServiceTests(unittest.TestCase):
 
     @patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready')
     @patch('workflow.domains.hermes_agent.service.launch_gpu_process')
-    def test_manual_context_job_is_idempotent_and_blocks_new_turn_until_terminal(self, launch, ready):
+    @patch('workflow.domains.hermes_agent.resident_queue.find_session_resident', return_value=None)
+    @patch('workflow.domains.hermes_agent.resident_queue.ensure_session_resident', return_value={'state':'accepted','id':'resident_123'})
+    @patch('workflow.domains.hermes_agent.resident_queue.inspect_resident', return_value={'state':'ready'})
+    def test_manual_context_job_is_idempotent_and_blocks_new_turn_until_terminal(self, resident_status_mock, resident_start_mock, resident_find_mock, launch, ready):
         session = 'd' * 32
         self.hermes_service_manager.execute_hermes_command('hermes-session-create', {'session_id': session})
         first = self.hermes_service_manager.execute_hermes_command('hermes-session-submit',

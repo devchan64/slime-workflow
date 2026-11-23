@@ -93,6 +93,10 @@ def enqueue_resident_once(request_id, session_id, *, root=RESIDENT_ROOT, launche
                     continue
             try:
                 previous_status = read_bounded_delegation_record(previous / 'status.json')
+                if (isinstance(previous_status, dict) and previous_status.get('status') == 'cancelled'
+                        and type(existing.get('queue_order_ns')) is int and existing['queue_order_ns'] > 0
+                        and verify_cancelled_resident_cleanup(previous, previous_status)):
+                    continue
                 previous_resident = read_bounded_delegation_record(previous / 'resident-status.json')
             except (OSError, ValueError):
                 raise ValueError('이 세션의 기존 상주 모델 종료를 확인할 수 없습니다.')
@@ -127,7 +131,7 @@ def enqueue_resident_once(request_id, session_id, *, root=RESIDENT_ROOT, launche
         return {'state':'accepted', 'id':request_id, 'duplicate':False}
 
 
-def request_resident_release(request_id, session_id, *, root=RESIDENT_ROOT):
+def request_resident_release(request_id, session_id, *, root=RESIDENT_ROOT, release_condition_check=None):
     """공용 예약과 작업자 신원이 확인된 상주 모델에만 정상 종료를 요청한다."""
     from workflow.common import gpu_job_queue
     from workflow.domains.hermes_agent.writer_reservation import hold_writer_reservation_queue_lock
@@ -165,6 +169,8 @@ def request_resident_release(request_id, session_id, *, root=RESIDENT_ROOT):
             if descriptor is None:
                 raise ValueError('상주 모델 작업자 신원을 확인할 수 없습니다.')
             try:
+                if release_condition_check is not None and release_condition_check(active_root, record) is not True:
+                    return {'state':'deferred', 'id':request_id}
                 release_path = directory / 'release.request'
                 if release_path.is_symlink():
                     raise ValueError('상주 모델 종료 요청 경로 오류')
@@ -246,6 +252,47 @@ def inspect_failed_resident_cleanup(request_id, session_id, *, root=RESIDENT_ROO
                     return True if _on_verified is None else _on_verified()
     except (OSError, ValueError, TypeError):
         return False
+
+
+def verify_cancelled_resident_cleanup(resident_job_directory, expected_status_record):
+    """시작 전 취소된 실행기의 잠금과 공용 티켓·예약이 모두 사라졌는지 확인한다."""
+    from workflow.common import gpu_job_queue
+    from workflow.common.gpu_chat_admission import hold_gpu_queue_lock
+    try:
+        cancellation_path = resident_job_directory / 'cancel.request'
+        resident_status_path = resident_job_directory / 'resident-status.json'
+        if cancellation_path.is_symlink() or not cancellation_path.is_file() or resident_status_path.exists() or resident_status_path.is_symlink():
+            return False
+        queue_root_directory = Path(gpu_job_queue.GPU_QUEUE_DIRECTORY)
+        if queue_root_directory.is_symlink() or not queue_root_directory.is_dir():
+            return False
+        execution_lock_descriptor = os.open(resident_job_directory / 'execution.lock', os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(execution_lock_descriptor, 'r') as execution_lock_stream:
+            if not stat.S_ISREG(os.fstat(execution_lock_stream.fileno()).st_mode):
+                return False
+            try:
+                fcntl.flock(execution_lock_stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return False
+            with hold_gpu_queue_lock(queue_root_directory):
+                active_reservation_directory = queue_root_directory / 'active'
+                if active_reservation_directory.is_symlink() or not active_reservation_directory.is_dir():
+                    return False
+                queue_record_paths = list(active_reservation_directory.glob('*.json')) + list(queue_root_directory.glob('*.json'))
+                if len(queue_record_paths) > 1000:
+                    return False
+                for queue_record_path in queue_record_paths:
+                    queue_record_value = read_bounded_delegation_record(queue_record_path)
+                    if not isinstance(queue_record_value, dict) or not isinstance(queue_record_value.get('path'), str):
+                        return False
+                    if Path(queue_record_value['path']).resolve() == resident_job_directory.resolve():
+                        return False
+                return (not resident_status_path.exists() and not resident_status_path.is_symlink()
+                        and read_bounded_delegation_record(resident_job_directory / 'status.json') == expected_status_record)
+    except (OSError, ValueError, TypeError, RuntimeError):
+        return False
+
+
 def inspect_resident(request_id, session_id, *, root=RESIDENT_ROOT):
     """예약, 소유 프로세스 및 헬스를 대조해 현재 상주 상태를 관측한다."""
     from workflow.common import gpu_job_queue
@@ -276,6 +323,9 @@ def inspect_resident(request_id, session_id, *, root=RESIDENT_ROOT):
             state = queue_status.get('status')
             if state == 'queued':
                 return {'state':'queued'}
+            if (state == 'cancelled' and type(request.get('queue_order_ns')) is int
+                    and request['queue_order_ns'] > 0 and verify_cancelled_resident_cleanup(directory, queue_status)):
+                return {'state':'released'}
             if state not in ('running', 'completed', 'failed', 'cancelled'):
                 return {'state':'unknown'}
             try:
@@ -309,6 +359,10 @@ def inspect_resident(request_id, session_id, *, root=RESIDENT_ROOT):
                 if (record.get('worker_pgid') != status.get('worker_pid')
                         or gpu_job_queue.inspect_gpu_ticket_executor_identity(record) != 'verified'):
                     return {'state':'unknown'}
+                release_request_path = directory / 'release.request'
+                if release_request_path.exists() or release_request_path.is_symlink():
+                    # 작업자가 draining 상태를 게시하기 전에도 새 접수를 보류한다.
+                    return {'state':'running'}
                 if status.get('status') == 'stopped' and state in ('running', 'completed'):
                     # 서버는 정상 종료했고 실행기가 최종 상태와 예약을 정리 중이다.
                     return {'state':'running'}
@@ -421,7 +475,58 @@ def ensure_no_other_active_residents(resident_id, *, root=RESIDENT_ROOT):
                 raise ValueError('다른 상주 모델이 대기 또는 실행 중입니다. 해당 작업이 끝난 뒤 다시 검토하세요.')
 
 
-def ensure_session_resident(session_id, request_id, *, root=RESIDENT_ROOT, handoff_store=None, launcher=launch_gpu_process, queue_order_ns=None):
+def cancel_unused_queued_resident(chat_session_identifier, chat_request_identifier, queue_order_nanoseconds, *, root=None):
+    """취소한 대화가 만든 미실행 상주 작업만 GPU 예약과 원자적으로 취소한다."""
+    from workflow.common import gpu_job_queue
+    from workflow.common.gpu_chat_admission import derive_chat_resident_identifier, hold_gpu_queue_lock
+    resident_root_directory = Path(root) if root is not None else RESIDENT_ROOT
+    if not resident_root_directory.exists():
+        return False
+    if resident_root_directory != gpu_job_queue.WORKFLOW_ROOT_DIRECTORY / '.local/hermes-agent/residents':
+        raise ValueError('상주 모델과 공용 대기열 경로가 일치하지 않습니다.')
+    if type(queue_order_nanoseconds) is not int or queue_order_nanoseconds <= 0:
+        raise ValueError('취소할 대화의 접수 순서 오류')
+    resident_request_identifier = derive_chat_resident_identifier(chat_session_identifier, chat_request_identifier)
+    resident_job_directory = resident_root_directory / resident_request_identifier
+    with _lock(resident_root_directory):
+        if resident_job_directory.is_symlink() or not resident_job_directory.is_dir():
+            return False
+        resident_request_record = read_bounded_delegation_record(resident_job_directory / 'request.json')
+        resident_launch_record = read_bounded_delegation_record(resident_job_directory / 'launch.json')
+        if (not isinstance(resident_request_record, dict) or resident_request_record.get('model_profile') != 'qwen3.8-27b'
+                or resident_request_record.get('context') != {'session_id':chat_session_identifier}
+                or type(resident_request_record.get('queue_order_ns')) is not int
+                or resident_request_record['queue_order_ns'] != queue_order_nanoseconds
+                or resident_launch_record != {'id':resident_request_identifier, 'state':'accepted'}):
+            return False
+        queue_root_directory = Path(gpu_job_queue.GPU_QUEUE_DIRECTORY)
+        if queue_root_directory.is_symlink() or not queue_root_directory.is_dir():
+            return False
+        with hold_gpu_queue_lock(queue_root_directory):
+            active_reservation_directory = queue_root_directory / 'active'
+            if active_reservation_directory.is_symlink() or not active_reservation_directory.is_dir():
+                return False
+            resident_status_record = read_bounded_delegation_record(resident_job_directory / 'status.json')
+            if not isinstance(resident_status_record, dict) or resident_status_record.get('status') != 'queued':
+                return False
+            active_reservation_paths = list(active_reservation_directory.glob('*.json'))
+            if len(active_reservation_paths) > 1000:
+                return False
+            for active_reservation_path in active_reservation_paths:
+                active_reservation_record = read_bounded_delegation_record(active_reservation_path)
+                if not isinstance(active_reservation_record, dict) or not isinstance(active_reservation_record.get('path'), str):
+                    return False
+                if Path(active_reservation_record['path']).resolve() == resident_job_directory.resolve():
+                    return False
+            cancellation_path = resident_job_directory / 'cancel.request'
+            cancellation_descriptor = os.open(cancellation_path, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+            with os.fdopen(cancellation_descriptor, 'w') as cancellation_stream:
+                if not stat.S_ISREG(os.fstat(cancellation_stream.fileno()).st_mode):
+                    raise ValueError('상주 모델 취소 기록 오류')
+            return True
+
+
+def ensure_session_resident(session_id, request_id, *, root=RESIDENT_ROOT, handoff_store=None, launcher=launch_gpu_process, queue_order_ns=None, runtime_prevalidated=False, defer_runtime_validation=False):
     """사용자가 선택한 3.8 대화의 상주 모델을 한 번만 접수한다."""
     import hashlib
     from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
@@ -432,5 +537,17 @@ def ensure_session_resident(session_id, request_id, *, root=RESIDENT_ROOT, hando
         if existing:
             return {'state':'accepted', 'id':existing, 'duplicate':True}
         resident_id = 'start_' + hashlib.sha256((session_id + ':' + request_id).encode()).hexdigest()
+        if queue_order_ns is not None:
+            from workflow.common import gpu_job_queue
+            from workflow.common.gpu_chat_admission import begin_chat_admission
+            from workflow.domains.hermes_agent.service import validate_hermes_runtime_ready
+            if Path(root) != gpu_job_queue.WORKFLOW_ROOT_DIRECTORY / '.local/hermes-agent/residents':
+                raise ValueError('공용 대기열과 상주 모델 저장소가 일치하지 않습니다.')
+            # 준비되지 않은 실행기를 먼저 접수하면 실패 기록이 재시도를 막는다.
+            if not runtime_prevalidated:
+                if defer_runtime_validation:
+                    return {'state':'retry', 'id':resident_id}
+                validate_hermes_runtime_ready('qwen3.8-27b')
+            begin_chat_admission(gpu_job_queue.GPU_QUEUE_DIRECTORY, session_id, request_id, queue_order_ns)
         return enqueue_resident_once(resident_id, session_id, root=root, launcher=launcher, queue_order_ns=queue_order_ns)
     return (handoff_store or GpuHandoffStore()).run_without_open_session_handoff(session_id, ensure, all_sessions=True)

@@ -1,6 +1,6 @@
 """승인된 GPU 양도를 서비스 재시작 뒤에도 단계별로 이어간다."""
 import logging
-import time
+import subprocess
 from threading import Event, Thread
 
 from workflow.domains.hermes_agent.gpu_handoff_controller import advance_gpu_handoff
@@ -48,11 +48,10 @@ class HandoffServiceAdapter:
         return dispatch
 
 
-def run_gpu_handoff_scheduler(store, adapter, stop_event, interval_seconds=5):
+def run_gpu_handoff_scheduler(store, adapter, stop_event, interval_seconds=5, hermes_service_manager=None):
     if interval_seconds <= 0:
         raise ValueError('GPU 양도 조회 간격은 양수여야 합니다.')
     logger = logging.getLogger(__name__)
-    next_preload = 0
     while not stop_event.is_set():
         try:
             identifiers = store.list_active_ids()
@@ -67,19 +66,19 @@ def run_gpu_handoff_scheduler(store, adapter, stop_event, interval_seconds=5):
                 advance_gpu_handoff(store, request_id, adapter)
             except (OSError, ValueError, RuntimeError) as error:
                 logger.warning('GPU 양도 진행 확인 필요 (%s, %s)', request_id, type(error).__name__)
-        if not identifiers and time.monotonic() >= next_preload:
-            next_preload = time.monotonic() + 30
+        if not identifiers and hermes_service_manager is not None:
             try:
-                from workflow.domains.hermes_agent.resident_preload import preload_if_idle
-                preload_if_idle()
-            except (OSError, ValueError, RuntimeError) as error:
-                logger.warning('상주 모델 선적재 확인 필요: %s', type(error).__name__)
+                from workflow.domains.hermes_agent.resident_auto_release import release_resident_with_chat_guard
+                release_resident_with_chat_guard(hermes_service_manager)
+            except (OSError, ValueError, RuntimeError, KeyError, TypeError, subprocess.SubprocessError) as error:
+                logger.warning('상주 모델 자동 반환 확인 필요: %s', type(error).__name__)
         stop_event.wait(interval_seconds)
 
 
-def start_gpu_handoff_scheduler():
+def start_gpu_handoff_scheduler(hermes_service_manager=None):
     stop_event = Event()
     thread = Thread(target=run_gpu_handoff_scheduler, name='hermes-gpu-handoff-scheduler',
-                    args=(GpuHandoffStore(), HandoffServiceAdapter(), stop_event), daemon=True)
+                    args=(GpuHandoffStore(), HandoffServiceAdapter(), stop_event),
+                    kwargs={'hermes_service_manager':hermes_service_manager}, daemon=True)
     thread.start()
     return stop_event

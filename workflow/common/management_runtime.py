@@ -189,7 +189,7 @@ def create_management_runtime(writer_workspace_config=None):
             writer_agent_service.close_writer_worker()
         current_runtime = ManagementServiceRuntime(service_binding_records, writer_agent_service.handle_writer_request, close_services)
         from workflow.domains.hermes_agent.gpu_handoff_scheduler import start_gpu_handoff_scheduler
-        current_handoff_scheduler_stop = start_gpu_handoff_scheduler()
+        current_handoff_scheduler_stop = start_gpu_handoff_scheduler(current_hermes_service)
         return current_runtime
     except BaseException:
         if current_chat_dispatcher_stop is not None:

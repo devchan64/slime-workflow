@@ -195,6 +195,14 @@ class HermesResidentWorkerTests(unittest.TestCase):
                     request_resident_release('handoff_123', 'a'*32, root=root)
                 self.assertFalse((directory / 'release.request').exists())
                 write_record_atomically(reservation, {'path':str(directory.resolve()),'service':'hermes-agent','worker_pgid':42})
+                checked_reservation_records = []
+                def reject_stale_release_condition(active_reservation_root, active_reservation_record):
+                    checked_reservation_records.append((active_reservation_root, active_reservation_record))
+                    return False
+                self.assertEqual(request_resident_release('handoff_123', 'a'*32, root=root, release_condition_check=reject_stale_release_condition)['state'], 'deferred')
+                self.assertEqual(checked_reservation_records[0][0], Path(queue))
+                self.assertEqual(checked_reservation_records[0][1]['worker_pgid'], 42)
+                self.assertFalse((directory / 'release.request').exists())
                 self.assertEqual(request_resident_release('handoff_123', 'a'*32, root=root)['state'], 'requested')
                 request = json.loads((directory / 'request.json').read_text())
                 self.assertEqual(json.loads((directory / 'release.request').read_text()), {'token':request['release_token']})
@@ -216,6 +224,9 @@ class HermesResidentWorkerTests(unittest.TestCase):
             health = patch('workflow.domains.hermes_agent.resident_queue._healthy_resident_socket', return_value=True)
             with lock, identity, leader, child, health:
                 self.assertEqual(inspect_resident('handoff_123', 'a'*32, root=root)['state'], 'ready')
+                write_record_atomically(directory / 'release.request', {'token':'a'*32})
+                self.assertEqual(inspect_resident('handoff_123', 'a'*32, root=root)['state'], 'running')
+                (directory / 'release.request').unlink()
                 write_record_atomically(reservation, {'path':str(directory.resolve()),'service':'hermes-agent','worker_pgid':99})
                 self.assertEqual(inspect_resident('handoff_123', 'a'*32, root=root)['state'], 'unknown')
                 write_record_atomically(directory / 'status.json', {'status':'completed'})
@@ -382,7 +393,7 @@ class HermesResidentWorkerTests(unittest.TestCase):
                 skill = Path('workflow/domains/hermes_agent/skills')
                 shutil.copytree(real_workflow_root / skill, destination / skill)
                 return {'baseline_commit':'a'*40}
-            agent = Mock(); agent.wait.return_value = 0
+            agent = Mock(); agent.wait.return_value = 0; agent.poll.return_value = 0
             previous = os.getcwd()
             try:
                 with patch.object(worker, 'RUNTIME_INSTALL_ROOT', runtime), \

@@ -146,6 +146,31 @@ class KimodoHandoffTests(unittest.TestCase):
         advance.assert_called_once()
         preload.assert_not_called()
 
+    def test_scheduler_does_not_preload_without_waiting_chat(self):
+        from workflow.domains.hermes_agent.gpu_handoff_scheduler import run_gpu_handoff_scheduler
+        class SingleSchedulerCycle:
+            stopped = False
+            def is_set(self): return self.stopped
+            def wait(self, _seconds): self.stopped = True
+        handoff_store_mock = unittest.mock.Mock()
+        handoff_store_mock.list_active_ids.return_value = []
+        with patch('workflow.domains.hermes_agent.resident_preload.preload_if_idle') as preload_mock:
+            run_gpu_handoff_scheduler(handoff_store_mock, object(), SingleSchedulerCycle())
+        preload_mock.assert_not_called()
+
+    def test_scheduler_passes_service_manager_to_chat_guard(self):
+        from workflow.domains.hermes_agent.gpu_handoff_scheduler import run_gpu_handoff_scheduler
+        class SingleSchedulerCycle:
+            stopped = False
+            def is_set(self): return self.stopped
+            def wait(self, _seconds): self.stopped = True
+        handoff_store_mock = unittest.mock.Mock()
+        handoff_store_mock.list_active_ids.return_value = []
+        hermes_service_manager = object()
+        with patch('workflow.domains.hermes_agent.resident_auto_release.release_resident_with_chat_guard') as release_guard_mock:
+            run_gpu_handoff_scheduler(handoff_store_mock, object(), SingleSchedulerCycle(), hermes_service_manager=hermes_service_manager)
+        release_guard_mock.assert_called_once_with(hermes_service_manager)
+
     def test_confirmation_binds_session_resident_and_exact_generator_request(self):
         from workflow.domains.hermes_agent.gpu_handoff_operations import preview_kimodo_handoff, approve_kimodo_handoff
         request = {'action':'generate','prompt':'walk','frames':90,'steps':30,'seed':42,

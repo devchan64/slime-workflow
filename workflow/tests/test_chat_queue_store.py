@@ -9,6 +9,65 @@ from workflow.domains.hermes_agent.session_store import HermesSessionStore
 
 
 class ChatQueueStoreTests(unittest.TestCase):
+    def setUp(self):
+        from workflow.common import gpu_job_queue
+        queue_temporary_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(queue_temporary_directory.cleanup)
+        queue_directory_patch = patch.object(gpu_job_queue, 'GPU_QUEUE_DIRECTORY', Path(queue_temporary_directory.name) / 'gpu-queue')
+        queue_directory_patch.start()
+        self.addCleanup(queue_directory_patch.stop)
+        for patch_target_name, patch_return_value in (
+                ('workflow.domains.hermes_agent.resident_queue.find_session_resident', None),
+                ('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready', None),
+                ('workflow.domains.hermes_agent.resident_queue.ensure_session_resident', {'state':'accepted','id':'resident_123'}),
+                ('workflow.domains.hermes_agent.resident_queue.inspect_resident', {'state':'ready'})):
+            current_test_patch = patch(patch_target_name, return_value=patch_return_value)
+            current_test_patch.start()
+            self.addCleanup(current_test_patch.stop)
+
+    def test_legacy_upgrade_preserves_order_and_already_submitted_work(self):
+        from datetime import datetime, timezone
+        from workflow.domains.hermes_agent.chat_queue_store import prepare_legacy_chat_request
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            session_store_instance = HermesSessionStore(Path(temporary_directory_name))
+            chat_session_identifier = 'a' * 32
+            session_store_instance.create_session_record(chat_session_identifier)
+            original_request_record = enqueue(session_store_instance, chat_session_identifier, 'request_01', 'original')['request']
+            upgraded_request_record = prepare_legacy_chat_request(session_store_instance, chat_session_identifier)
+            request_created_time = datetime.fromisoformat(original_request_record['created_at'])
+            request_time_delta = request_created_time - datetime(1970, 1, 1, tzinfo=timezone.utc)
+            self.assertEqual(upgraded_request_record['queue_order_ns'], (request_time_delta.days * 86400 + request_time_delta.seconds) * 1_000_000_000 + request_time_delta.microseconds * 1000)
+            self.assertTrue(upgraded_request_record['require_resident'])
+            self.assertEqual(upgraded_request_record['revision'], original_request_record['revision'])
+            self.assertTrue(enqueue(session_store_instance, chat_session_identifier, 'request_01', 'original')['duplicate'])
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            session_store_instance = HermesSessionStore(Path(temporary_directory_name))
+            session_store_instance.create_session_record(chat_session_identifier)
+            enqueue(session_store_instance, chat_session_identifier, 'request_02', 'existing', 'qwen3.8-27b')
+            session_store_instance.append_session_request(chat_session_identifier, 'request_02', 'existing', model_profile='qwen3.8-27b')
+            self.assertNotIn('require_resident', prepare_legacy_chat_request(session_store_instance, chat_session_identifier))
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            session_store_instance = HermesSessionStore(Path(temporary_directory_name))
+            session_store_instance.create_session_record(chat_session_identifier)
+            enqueue(session_store_instance, chat_session_identifier, 'request_03', 'legacy model', 'qwen3.5-4b')
+            self.assertNotIn('require_resident', prepare_legacy_chat_request(session_store_instance, chat_session_identifier))
+
+    def test_legacy_upgrade_does_not_overwrite_unknown_order(self):
+        import json
+        from workflow.domains.hermes_agent.chat_queue_store import prepare_legacy_chat_request
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            session_store_instance = HermesSessionStore(Path(temporary_directory_name))
+            chat_session_identifier = 'a' * 32
+            session_store_instance.create_session_record(chat_session_identifier)
+            enqueue(session_store_instance, chat_session_identifier, 'request_01', 'original')
+            session_record_path = Path(temporary_directory_name) / (chat_session_identifier + '.json')
+            session_queue_record = json.loads(session_record_path.read_text())
+            session_queue_record['chat_queue'][0]['queue_order_ns'] = 42
+            session_record_path.write_text(json.dumps(session_queue_record))
+            previous_record_bytes = session_record_path.read_bytes()
+            with self.assertRaisesRegex(ValueError, '대기 순서'):
+                prepare_legacy_chat_request(session_store_instance, chat_session_identifier)
+            self.assertEqual(session_record_path.read_bytes(), previous_record_bytes)
     def test_replayed_queue_update_can_change_a_revision_only_once(self):
         with tempfile.TemporaryDirectory() as root:
             store = HermesSessionStore(Path(root))

@@ -14,6 +14,7 @@ import stat
 import subprocess
 import sys
 import threading
+import time
 import uuid
 from zoneinfo import ZoneInfo
 
@@ -276,24 +277,82 @@ class HermesServiceManager:
         self.hermes_session_root = hermes_session_root
         self.hermes_thread_lock = threading.RLock()
         self.chat_queue_wakeup = threading.Event()
+        self.chat_intent_cleanup_offset = 0
 
-    def dispatch_chat_queue(self, session_id):
+    def retire_terminal_chat_queue_intents(self):
+        """종료 처리 직후 중단돼 남은 색인만 순차적으로 정리한다."""
+        from workflow.common import gpu_job_queue
+        from workflow.common.gpu_chat_admission import hold_gpu_queue_lock, list_chat_queue_intents_locked, retire_chat_queue_intent
+        from workflow.domains.hermes_agent.session_store import HermesSessionStore
+        queue_root_directory = Path(gpu_job_queue.GPU_QUEUE_DIRECTORY)
+        if not queue_root_directory.exists():
+            return
+        with hold_gpu_queue_lock(queue_root_directory):
+            queue_intent_records = sorted(list_chat_queue_intents_locked(queue_root_directory), key=lambda queue_intent_record:queue_intent_record['resident_id'])
+        if not queue_intent_records:
+            self.chat_intent_cleanup_offset = 0
+            return
+        cleanup_start_index = self.chat_intent_cleanup_offset % len(queue_intent_records)
+        cleanup_batch_size = min(64, len(queue_intent_records))
+        cleanup_batch_records = [queue_intent_records[(cleanup_start_index + cleanup_batch_index) % len(queue_intent_records)] for cleanup_batch_index in range(cleanup_batch_size)]
+        self.chat_intent_cleanup_offset = cleanup_start_index + cleanup_batch_size
+        session_store_instance = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+        for queue_intent_record in cleanup_batch_records:
+            try:
+                session_queue_record = session_store_instance.read_session_record(queue_intent_record['session_id'])
+                session_queue_rows = session_queue_record.get('chat_queue', [])
+                if not isinstance(session_queue_rows, list):
+                    continue
+                matching_request_records = [chat_request_record for chat_request_record in session_queue_rows if isinstance(chat_request_record, dict) and chat_request_record.get('request_id') == queue_intent_record['request_id']]
+                if (len(matching_request_records) == 1 and matching_request_records[0].get('state') in ('cancelled', 'dispatched')
+                        and type(matching_request_records[0].get('queue_order_ns')) is int
+                        and matching_request_records[0].get('queue_order_ns') == queue_intent_record['order_ns']):
+                    retire_chat_queue_intent(queue_root_directory, queue_intent_record['session_id'], queue_intent_record['request_id'], queue_intent_record['order_ns'])
+            except (OSError, ValueError, TypeError, KeyError):
+                # 확인할 수 없는 기록은 보존하고 다른 세션의 복구는 계속한다.
+                continue
+
+    def dispatch_chat_queue(self, session_id, *, dispatcher_stop_event=None):
         """Advance at most one durable request; the service lock serializes all dispatchers."""
         from workflow.domains.hermes_agent.session_store import HermesSessionStore
-        from workflow.domains.hermes_agent.chat_queue_store import transition
+        from workflow.domains.hermes_agent.chat_queue_store import transition, prepare_legacy_chat_request
         from workflow.domains.hermes_agent.context_checkpoint import build_context_messages
         store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
         with self.hold_hermes_service_lock():
+            if dispatcher_stop_event is not None and dispatcher_stop_event.is_set():
+                return None
+            pending_request_record = prepare_legacy_chat_request(store, session_id)
+            if not pending_request_record:
+                return None
+            if pending_request_record.get('require_resident') is True:
+                from workflow.common import gpu_job_queue
+                from workflow.common.gpu_chat_admission import register_chat_queue_intent
+                pending_order_nanoseconds = pending_request_record.get('queue_order_ns')
+                if pending_order_nanoseconds is not None:
+                    if type(pending_order_nanoseconds) is not int or pending_order_nanoseconds <= 0:
+                        raise ValueError('대화 요청의 대기 순서를 확인할 수 없습니다.')
+                    register_chat_queue_intent(gpu_job_queue.GPU_QUEUE_DIRECTORY, session_id, pending_request_record['request_id'], pending_order_nanoseconds)
+        runtime_prevalidated = False
+        if pending_request_record.get('require_resident') is True:
+            from workflow.domains.hermes_agent.resident_queue import find_session_resident
+            if find_session_resident(session_id) is None:
+                validate_hermes_runtime_ready(COMPLEX_MODEL)
+                runtime_prevalidated = True
+        with self.hold_hermes_service_lock():
+            if dispatcher_stop_event is not None and dispatcher_stop_event.is_set():
+                return None
             session = store.read_session_record(session_id)
             row = next((item for item in session.get('chat_queue', []) if item.get('state') in ('queued', 'dispatching')), None)
-            if not row:
+            if not row or row.get('request_id') != pending_request_record.get('request_id'):
                 return None
             if row.get('require_resident') is True:
                 from workflow.domains.hermes_agent.resident_queue import ensure_session_resident, inspect_resident
                 order = row.get('queue_order_ns')
                 if order is not None and (type(order) is not int or order <= 0):
                     raise ValueError('대화 요청의 대기 순서를 확인할 수 없습니다.')
-                resident = ensure_session_resident(session_id, row['request_id'], queue_order_ns=order)
+                resident = ensure_session_resident(session_id, row['request_id'], queue_order_ns=order, runtime_prevalidated=runtime_prevalidated, defer_runtime_validation=True)
+                if resident.get('state') == 'retry':
+                    return None
                 if resident.get('state') != 'accepted' or not resident.get('id'):
                     raise ValueError('상주 모델 접수를 확인할 수 없습니다.')
                 resident_state = inspect_resident(resident['id'], session_id).get('state')
@@ -306,10 +365,16 @@ class HermesServiceManager:
             if existing is None:
                 # Refuse dispatch until every earlier response is terminal and readable.
                 build_context_messages(session, self.read_context_job)
+            if dispatcher_stop_event is not None and dispatcher_stop_event.is_set():
+                return None
             if row['state'] == 'queued':
                 row = transition(store, session_id, row['request_id'], 'queued', 'dispatching')
             result = self.submit_hermes_session_message_locked({'session_id':session_id, 'request_id':row['request_id'], 'prompt':row['prompt'], **({'model_profile':row['model_profile']} if row.get('model_profile') is not None else {})})
             transition(store, session_id, row['request_id'], 'dispatching', 'dispatched', result['job_id'])
+            if row.get('require_resident') is True and row.get('queue_order_ns') is not None:
+                from workflow.common import gpu_job_queue
+                from workflow.common.gpu_chat_admission import retire_chat_queue_intent
+                retire_chat_queue_intent(gpu_job_queue.GPU_QUEUE_DIRECTORY, session_id, row['request_id'], row['queue_order_ns'])
             return result
 
     def start_chat_queue_dispatcher(self):
@@ -317,22 +382,55 @@ class HermesServiceManager:
         from workflow.domains.hermes_agent.session_store import HERMES_SESSION_ROOT
         root = Path(self.hermes_session_root) if self.hermes_session_root is not None else HERMES_SESSION_ROOT
         stop = threading.Event()
+        dispatcher_state_lock = threading.Lock()
+        active_session_identifiers = set()
+        def dispatch_pending_session(chat_session_identifier):
+            try:
+                self.dispatch_chat_queue(chat_session_identifier, dispatcher_stop_event=stop)
+            except (OSError, ValueError, KeyError, TypeError, AttributeError):
+                # 요청 원본은 유지하고 다음 순회에서 다시 확인한다.
+                pass
+            finally:
+                with dispatcher_state_lock:
+                    active_session_identifiers.discard(chat_session_identifier)
         def run():
+            next_intent_cleanup_time = 0
+            next_session_dispatch_offset = 0
             while not stop.is_set():
                 self.chat_queue_wakeup.wait(3)
                 self.chat_queue_wakeup.clear()
                 if stop.is_set():
                     return
+                if time.monotonic() >= next_intent_cleanup_time:
+                    next_intent_cleanup_time = time.monotonic() + 30
+                    try:
+                        self.retire_terminal_chat_queue_intents()
+                    except (OSError, ValueError, TypeError, KeyError):
+                        # 색인 관측 오류가 새로운 대화의 실행까지 멈추지는 않는다.
+                        pass
                 try:
                     sessions = ordered_pending_chat_sessions(root)
                 except OSError:
                     continue
-                for session_id in sessions:
+                if not sessions:
+                    continue
+                current_dispatch_start_index = next_session_dispatch_offset
+                for session_offset_value in range(len(sessions)):
+                    session_index_value = (current_dispatch_start_index + session_offset_value) % len(sessions)
+                    chat_session_identifier = sessions[session_index_value]
+                    with dispatcher_state_lock:
+                        if len(active_session_identifiers) >= 2:
+                            break
+                        if chat_session_identifier in active_session_identifiers:
+                            continue
+                        active_session_identifiers.add(chat_session_identifier)
                     try:
-                        self.dispatch_chat_queue(session_id)
-                    except (OSError, ValueError, KeyError, TypeError, AttributeError):
-                        # Fail closed: preserve the request for later inspection/retry.
-                        continue
+                        threading.Thread(target=dispatch_pending_session, args=(chat_session_identifier,), daemon=True, name='hermes-chat-dispatch').start()
+                    except RuntimeError:
+                        with dispatcher_state_lock:
+                            active_session_identifiers.discard(chat_session_identifier)
+                        break
+                    next_session_dispatch_offset = (session_index_value + 1) % len(sessions)
         threading.Thread(target=run, daemon=True, name='hermes-chat-queue').start()
         return stop
 
@@ -1743,7 +1841,25 @@ class HermesServiceManager:
                 if set(hermes_payload_record) not in ({'session_id','request_id','revision','prompt'}, {'session_id','request_id','revision','cancel'}):
                     raise ValueError('대기 요청 수정 형식 오류')
                 store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
-                return update(store, **hermes_payload_record)
+                updated_queue_record = update(store, **hermes_payload_record)
+                if updated_queue_record.get('state') == 'cancelled' and updated_queue_record.get('require_resident') is True and updated_queue_record.get('queue_order_ns') is not None:
+                    from workflow.common import gpu_job_queue
+                    from workflow.common.gpu_chat_admission import retire_chat_queue_intent
+                    from workflow.domains.hermes_agent.resident_queue import cancel_unused_queued_resident
+                    current_session_record = store.read_session_record(hermes_payload_record['session_id'])
+                    current_queue_records = current_session_record.get('chat_queue', [])
+                    if isinstance(current_queue_records, list) and all(isinstance(chat_queue_record, dict) for chat_queue_record in current_queue_records) and not any(chat_queue_record.get('state') in ('queued', 'dispatching') for chat_queue_record in current_queue_records):
+                        for cancelled_queue_record in reversed(current_queue_records[-1000:]):
+                            if cancelled_queue_record.get('state') != 'cancelled' or cancelled_queue_record.get('require_resident') is not True or cancelled_queue_record.get('queue_order_ns') is None:
+                                continue
+                            try:
+                                if cancel_unused_queued_resident(hermes_payload_record['session_id'], cancelled_queue_record['request_id'], cancelled_queue_record['queue_order_ns']):
+                                    break
+                            except (OSError, ValueError, TypeError, KeyError, RuntimeError):
+                                # 확인되지 않은 모델은 건드리지 않고 대화 취소만 보존한다.
+                                continue
+                    retire_chat_queue_intent(gpu_job_queue.GPU_QUEUE_DIRECTORY, hermes_payload_record['session_id'], updated_queue_record['request_id'], updated_queue_record['queue_order_ns'])
+                return updated_queue_record
             if hermes_command_name == 'hermes-session-context-settings':
                 if set(hermes_payload_record) != {'session_id', 'enabled'}:
                     raise ValueError('세션 ID와 자동 정리 설정만 전달하세요.')
@@ -1775,13 +1891,23 @@ class HermesServiceManager:
                 store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
                 session = store.read_session_record(hermes_payload_record['session_id'])
                 existing = next((row for row in session['messages'] if row.get('request_id') == hermes_payload_record['request_id']), None)
-                if existing is not None:
+                queued_request_exists = any(isinstance(chat_request_record, dict) and chat_request_record.get('request_id') == hermes_payload_record['request_id'] for chat_request_record in session.get('chat_queue', []))
+                if existing is not None and not queued_request_exists:
                     if existing.get('text') != hermes_payload_record['prompt'] or existing.get('model_profile') != hermes_payload_record['model_profile']:
                         raise ValueError('같은 접수 식별자를 다른 메시지에 사용할 수 없습니다.')
-                    return {'session_id':hermes_payload_record['session_id'], 'queued':False, 'duplicate':True}
+                    return {'session_id':hermes_payload_record['session_id'], 'request_id':hermes_payload_record['request_id'], 'queued':False, 'duplicate':True}
                 receipt = enqueue(store, **hermes_payload_record, require_resident=True)
+                queued_request_record = receipt['request']
+                if queued_request_record.get('state') == 'cancelled':
+                    raise ValueError('취소된 대화 요청입니다. 새 요청으로 접수하세요.')
+                if queued_request_record.get('state') == 'dispatched':
+                    return {'session_id':hermes_payload_record['session_id'], 'request_id':hermes_payload_record['request_id'], 'queued':False, 'duplicate':True}
+                if queued_request_record.get('require_resident') is True and queued_request_record.get('queue_order_ns') is not None:
+                    from workflow.common import gpu_job_queue
+                    from workflow.common.gpu_chat_admission import register_chat_queue_intent
+                    register_chat_queue_intent(gpu_job_queue.GPU_QUEUE_DIRECTORY, hermes_payload_record['session_id'], queued_request_record['request_id'], queued_request_record['queue_order_ns'])
                 self.chat_queue_wakeup.set()
-                return {'session_id':hermes_payload_record['session_id'], 'queued':True, **receipt}
+                return {'session_id':hermes_payload_record['session_id'], 'request_id':hermes_payload_record['request_id'], 'queued':True, **receipt}
             if hermes_command_name == 'hermes-session-submit':
                 from workflow.domains.hermes_agent.session_store import HermesSessionStore
                 from workflow.domains.hermes_agent.chat_queue_store import enqueue

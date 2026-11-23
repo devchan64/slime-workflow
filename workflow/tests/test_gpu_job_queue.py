@@ -7,6 +7,83 @@ from unittest.mock import patch, Mock
 from workflow.common import gpu_job_queue as queue_module
 
 class GpuJobQueueTests(unittest.TestCase):
+    def test_release_selection_respects_earlier_chat_admission(self):
+        import os
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root_directory = Path(temporary_directory)
+            job_directory = root_directory / 'generation'
+            job_directory.mkdir()
+            (job_directory / 'gpu-command.json').write_text(json.dumps({'service':'image', 'command':['worker']}))
+            ticket_path = root_directory / f'{2:020d}-{os.getpid()}.json'
+            ticket_path.write_text(json.dumps({'path':str(job_directory), 'pid':os.getpid()}))
+            admission_record = {'session_id':'b'*32, 'resident_id':'start_' + 'a'*64, 'order_ns':1}
+            with patch.object(queue_module, 'read_priority_tickets', return_value=[ticket_path]), \
+                 patch.object(queue_module, 'read_gpu_priority_order', return_value={}), \
+                 patch.object(queue_module, 'inspect_gpu_ticket_executor_identity', return_value='verified'), \
+                 patch.object(queue_module, 'estimate_required_memory', return_value={'required_memory_mib':80}), \
+                 patch.object(queue_module, 'identify_execution_command', return_value='test'), \
+                 patch.object(queue_module, 'identify_hermes_memory_profile', return_value='test'), \
+                 patch('workflow.common.gpu_chat_admission.list_live_chat_admissions', return_value=[admission_record]):
+                self.assertIsNone(queue_module.select_ticket_after_resident_release(20, 100, 'vram', 'a'*32, 20000, 20000))
+                with patch.object(queue_module, 'read_gpu_priority_order', return_value={ticket_path.name:-1}):
+                    self.assertEqual(queue_module.select_ticket_after_resident_release(20, 100, 'vram', 'a'*32, 20000, 20000), ticket_path)
+
+    def test_release_selection_respects_priority_and_cancelled_tickets(self):
+        import os
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root_directory = Path(temporary_directory)
+            candidate_directories = [root_directory / 'first', root_directory / 'second']
+            ticket_paths = []
+            for ticket_index, candidate_directory in enumerate(candidate_directories):
+                candidate_directory.mkdir()
+                (candidate_directory / 'gpu-command.json').write_text(json.dumps({'service':'image', 'command':['worker']}))
+                candidate_ticket = root_directory / f'{ticket_index + 1:020d}-{os.getpid()}.json'
+                candidate_ticket.write_text(json.dumps({'path':str(candidate_directory), 'pid':os.getpid()}))
+                ticket_paths.append(candidate_ticket)
+            with patch.object(queue_module, 'read_priority_tickets', return_value=ticket_paths), \
+                 patch.object(queue_module, 'inspect_gpu_ticket_executor_identity', return_value='verified'), \
+                 patch.object(queue_module, 'estimate_required_memory', return_value={'required_memory_mib':80}), \
+                 patch.object(queue_module, 'identify_execution_command', return_value='test'), \
+                 patch('workflow.common.gpu_chat_admission.list_live_chat_admissions', return_value=[]):
+                self.assertEqual(queue_module.select_ticket_after_resident_release(20, 100, 'vram', 'a'*32, 20000, 20000), ticket_paths[0])
+                (candidate_directories[0] / 'cancel.request').touch()
+                self.assertEqual(queue_module.select_ticket_after_resident_release(20, 100, 'vram', 'a'*32, 20000, 20000), ticket_paths[1])
+                (candidate_directories[1] / 'pause.request').touch()
+                self.assertIsNone(queue_module.select_ticket_after_resident_release(20, 100, 'vram', 'a'*32, 20000, 20000))
+
+    def test_release_candidate_must_be_newly_runnable_generation(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            job_directory = Path(temporary_directory) / 'job'
+            job_directory.mkdir()
+            ticket_path = Path(temporary_directory) / 'ticket.json'
+            ticket_path.write_text(json.dumps({'path':str(job_directory)}))
+            command_path = job_directory / 'gpu-command.json'
+            command_path.write_text(json.dumps({'service':'image'}))
+            with patch.object(queue_module, 'select_runnable_ticket', side_effect=[None, ticket_path]):
+                self.assertEqual(queue_module.select_ticket_after_resident_release(10, 100, 'vram', 'a'*32, 20, 30), ticket_path)
+            with patch.object(queue_module, 'select_runnable_ticket', side_effect=[ticket_path]):
+                self.assertIsNone(queue_module.select_ticket_after_resident_release(10, 100, 'vram', 'a'*32, 20, 30))
+            command_path.write_text(json.dumps({'service':'hermes-agent'}))
+            with patch.object(queue_module, 'select_runnable_ticket', side_effect=[None, ticket_path]), \
+                 patch.object(queue_module, 'is_hermes_resident_job', return_value=False):
+                self.assertIsNone(queue_module.select_ticket_after_resident_release(10, 100, 'vram', 'a'*32, 20, 30))
+            with patch.object(queue_module, 'select_runnable_ticket', side_effect=[None, ticket_path]), \
+                 patch.object(queue_module, 'is_hermes_resident_job', return_value=True), \
+                 patch.object(queue_module, 'read_hermes_queue_session', return_value='b'*32):
+                self.assertEqual(queue_module.select_ticket_after_resident_release(10, 100, 'vram', 'a'*32, 20, 30), ticket_path)
+            with patch.object(queue_module, 'select_runnable_ticket', side_effect=[None, ticket_path]), \
+                 patch.object(queue_module, 'is_hermes_resident_job', return_value=True), \
+                 patch.object(queue_module, 'read_hermes_queue_session', return_value='a'*32):
+                self.assertIsNone(queue_module.select_ticket_after_resident_release(10, 100, 'vram', 'a'*32, 20, 30))
+            with self.assertRaises(ValueError):
+                queue_module.select_ticket_after_resident_release(100, 10, 'vram', 'a'*32, 20, 30)
+            with patch.object(queue_module, 'select_runnable_ticket', side_effect=[None, ticket_path]) as selection_mock:
+                command_path.write_text(json.dumps({'service':'image'}))
+                self.assertEqual(queue_module.select_ticket_after_resident_release(10, 100, 'vram', ['a'*32, 'b'*32], 20, 30), ticket_path)
+                self.assertEqual(selection_mock.call_args_list[0].args[2:4], (['hermes-agent', 'hermes-agent'], ['a'*32, 'b'*32]))
+            with self.assertRaises(ValueError):
+                queue_module.select_ticket_after_resident_release(10, 100, 'vram', ['a'*32, 'a'*32], 20, 30)
+
     def test_kimodo_concurrency_limit_does_not_block_other_images(self):
         import os
         with tempfile.TemporaryDirectory() as directory:
@@ -684,6 +761,33 @@ class GpuJobQueueTests(unittest.TestCase):
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
             current_launch_mock.assert_called_once()
 
+    def test_loading_hermes_host_reservation_protects_other_gpu_work(self):
+        import os
+        temporary_root_path = Path(self.temporary_job_root.name)
+        resident_job_directory = temporary_root_path / '.local/hermes-agent/residents/start_existing'
+        resident_job_directory.mkdir(parents=True)
+        (resident_job_directory / 'request.json').write_text(json.dumps({'context':{'session_id':'a' * 32}}))
+        active_reservation_directory = queue_module.GPU_QUEUE_DIRECTORY / 'active'
+        active_reservation_directory.mkdir(parents=True)
+        (active_reservation_directory / 'existing.json').write_text(json.dumps({'pid':os.getpid(), 'service':'hermes-agent', 'path':str(resident_job_directory), 'worker_pgid':os.getpid(), 'required_memory_mib':0}))
+        observed_wait_records = []
+        def stop_after_host_wait(wait_interval_seconds):
+            observed_wait_records.append(json.loads((self.current_job_path / 'status.json').read_text()))
+            queue_module.cancel_gpu_generation(self.current_job_path)
+        host_available_memory_mib = queue_module.HOST_MEMORY_RESERVE_KIB // 1024 + queue_module.HERMES_RESIDENT_HOST_FLOOR_MIB - 1
+        with patch.object(queue_module, 'WORKFLOW_ROOT_DIRECTORY', temporary_root_path), \
+             patch.object(queue_module, 'read_gpu_memory_domain', return_value='vram'), \
+             patch.object(queue_module, 'read_gpu_memory', return_value=(98304, 80000)), \
+             patch.object(queue_module, 'read_host_available_memory', return_value=host_available_memory_mib), \
+             patch.object(queue_module, 'read_worker_group_rss_kib', return_value=0), \
+             patch.object(queue_module.time, 'sleep', side_effect=stop_after_host_wait), \
+             patch.object(queue_module.subprocess, 'Popen') as worker_launch_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path), 0)
+            worker_launch_mock.assert_not_called()
+        self.assertEqual(observed_wait_records[0]['reserved_host_memory_mib'], queue_module.HERMES_RESIDENT_HOST_FLOOR_MIB)
+        self.assertEqual(observed_wait_records[0]['available_memory_mib'], 0)
+        self.assertIn('시스템 메모리', observed_wait_records[0]['message'])
+
     def test_available_memory_admits_job_alongside_active_reservation(self):
         active = queue_module.GPU_QUEUE_DIRECTORY/'active'
         active.mkdir(parents=True)
@@ -978,6 +1082,20 @@ class GpuJobQueueTests(unittest.TestCase):
                 worker_launch_mock.assert_not_called()
         self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'cancelled')
 
+    def test_pause_is_honored_while_waiting_to_publish_ticket(self):
+        import fcntl
+        queue_module.GPU_QUEUE_DIRECTORY.mkdir()
+        with (queue_module.GPU_QUEUE_DIRECTORY / 'execution.lock').open('a') as occupied_lock_handle:
+            fcntl.flock(occupied_lock_handle, fcntl.LOCK_EX)
+            def request_pause_while_waiting(wait_interval_seconds):
+                (self.current_job_path / 'pause.request').touch()
+            with patch.object(queue_module.time, 'sleep', side_effect=request_pause_while_waiting), \
+                 patch.object(queue_module.subprocess, 'Popen') as worker_launch_mock:
+                self.assertEqual(queue_module.execute_queued_generation(self.current_job_path), 0)
+                worker_launch_mock.assert_not_called()
+        self.assertEqual(json.loads((self.current_job_path / 'status.json').read_text())['status'], 'paused')
+        self.assertFalse(list(queue_module.GPU_QUEUE_DIRECTORY.glob('*.json')))
+
     def test_running_cancel_terminates_worker_group(self):
         worker_process_mock=Mock(pid=123,returncode=-15)
         worker_process_mock.poll.return_value=None
@@ -1048,7 +1166,7 @@ class GpuJobQueueTests(unittest.TestCase):
     def test_queue_revision_tracks_host_memory_guard_changes(self):
         current_source_root=Path(self.temporary_job_root.name)/'queue-sources'
         current_source_root.mkdir()
-        for current_file_name in ('gpu_job_queue.py','gpu_memory_history.py','host_memory_guard.py'):
+        for current_file_name in ('gpu_job_queue.py','gpu_memory_history.py','host_memory_guard.py','gpu_chat_admission.py'):
             (current_source_root/current_file_name).write_text('initial')
         with patch.object(queue_module,'__file__',str(current_source_root/'gpu_job_queue.py')):
             current_initial_revision=queue_module.calculate_queue_revision()
@@ -1057,6 +1175,9 @@ class GpuJobQueueTests(unittest.TestCase):
             current_after_guard_revision=queue_module.calculate_queue_revision()
             (current_source_root/'gpu_memory_history.py').write_text('updated estimate')
             self.assertNotEqual(queue_module.calculate_queue_revision(),current_after_guard_revision)
+            current_after_estimate_revision=queue_module.calculate_queue_revision()
+            (current_source_root/'gpu_chat_admission.py').write_text('updated chat admission')
+            self.assertNotEqual(queue_module.calculate_queue_revision(),current_after_estimate_revision)
 
     def test_real_waiting_reload_preserves_pid_ticket_and_arguments(self):
         import os

@@ -1,4 +1,4 @@
-import {classifyQueueUpdate,validChatQueue} from "./chatQueueUpdate.mjs";
+import {classifyQueueUpdate,validChatQueue,matchesChatQueueReceipt} from "./chatQueueUpdate.mjs";
 import {validSessionViewPage} from "./sessionViewPage.mjs";
 import {validSessionListPage} from "./sessionListPage.mjs";
 import SeedProposal from "./SeedProposal.jsx";
@@ -583,7 +583,9 @@ function App() {
       const item = pending || {session_id:session || id(), request_id:id(), prompt, model_profile:'qwen3.8-27b'};
       sessionStorage.setItem(pendingKey, JSON.stringify(item));
       if (!session) await call("session-create", {session_id:item.session_id});
-      await call("session-queue-submit", {...item,model_profile:'qwen3.8-27b'});
+      const queueSubmissionPayload={...item,model_profile:'qwen3.8-27b'};
+      const queueReceiptValue=await call("session-queue-submit", queueSubmissionPayload);
+      if(!matchesChatQueueReceipt(queueReceiptValue,queueSubmissionPayload))throw new Error("대화 접수 결과를 확인할 수 없습니다. 같은 요청의 상태를 다시 확인해 주세요.");
       sessionStorage.removeItem(pendingKey);
       const currentDraft=sessionStorage.getItem("hermes-draft-"+session) || "";
       const remaining=currentDraft===item.prompt?"":currentDraft;
