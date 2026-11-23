@@ -1,4 +1,4 @@
-const services = new Set(['wan22-fun-control','wan22-vace','wan22-animate2','dwpose','kimodo']);
+const services = new Set(['wan22-fun-control','wan22-vace','wan22-i2v','wan22-animate2','dwpose','kimodo']);
 
 // An assistant response is data: recognize only one complete, read-only lookup example.
 export function videoLookupSuggestion(answer,userText){

@@ -11,7 +11,7 @@ function recordedTime(id) {
   return match ? `ID 시각 · ${match[1]} ${match[2]}:${match[3]}:${match[4]} (한국 시간)` : "";
 }
 const fluxServices=new Set(["flux-image","flux-character","flux-mannequin","flux-billboard","flux-prop","flux-vegetation","flux-building","flux-seamless","flux-expression"]);
-const videoServices=new Set(["wan22-fun-control","wan22-vace","wan22-animate2","dwpose","kimodo"]);
+const videoServices=new Set(["wan22-fun-control","wan22-vace","wan22-i2v","wan22-animate2","dwpose","kimodo"]);
 function validHistoryPage(page,offset,snapshot){
   return Boolean(page && Array.isArray(page.records) && page.records.every(row=>row && typeof row.id==="string" && typeof row.recorded_status==="string") && Number.isSafeInteger(page.total) && page.total>=0 && page.offset===offset && typeof page.snapshot==="string" && /^[a-f0-9]{64}$/.test(page.snapshot) && (!snapshot || page.snapshot===snapshot) && (page.next_offset===null || Number.isSafeInteger(page.next_offset) && page.next_offset>offset));
 }

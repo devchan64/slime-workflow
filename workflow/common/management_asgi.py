@@ -1054,6 +1054,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/sound-effect/')
     @current_root_application.get('/management/frame/wan22-vace-generator')
     @current_root_application.get('/management/frame/wan22-vace-generator/')
+    @current_root_application.get('/management/frame/wan22-i2v-generator')
+    @current_root_application.get('/management/frame/wan22-i2v-generator/')
     @current_root_application.get('/management/frame/wan22-fun-control-generator')
     @current_root_application.get('/management/frame/wan22-fun-control-generator/')
     @current_root_application.get('/management/frame/building-editor')
@@ -1086,6 +1088,16 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/')
     def assistant_page():
         return FileResponse(assistant_root / 'index.html', headers={'Cache-Control': 'no-cache'})
+
+    @current_root_application.get('/management/assistant/usage/{generator}')
+    def assistant_usage(generator: str):
+        from workflow.common.generator_usage import GENERATOR_USAGE_PATHS, read_generator_usage
+        if generator not in GENERATOR_USAGE_PATHS:
+            return Response(status_code=404)
+        try:
+            return {'content': read_generator_usage(generator)}
+        except OSError as error:
+            return JSONResponse(status_code=503, content={'error': str(error)})
 
     @current_root_application.get('/management/assistant/changelog/{generator}')
     def assistant_changelog(generator: str, page: int = 0):

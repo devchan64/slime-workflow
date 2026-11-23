@@ -26,14 +26,14 @@ export function ModelReadinessMessage({service,status,error,hasStatusSummary=fal
       text=status.message.replace(/^(?:모델 파일 준비 완료 · |모델 준비 필요: )/,"");
       if(!ready && status.missing?.length) text="준비가 필요한 파일 · "+status.missing.join(", ");
     } else if(service==="wan22-animate2") text=ready && status.message.startsWith("모델 파일 준비 완료") ? status.message : (ready ? "모델 파일 준비 완료" : "모델 파일 준비 필요")+" · "+status.message;
-    else text=(["animationgpt","wan22-fighting-lora","wan22-vace-lightning","writer-agent"].includes(service) ? (ready?"모델 파일 준비 완료":"모델 파일 준비 필요") : (ready?"생성 준비 완료":"모델 준비 필요"))+" · "+status.message;
+    else text=(["animationgpt","wan22-fighting-lora","wan22-vace-lightning","wan22-i2v-assets","writer-agent"].includes(service) ? (ready?"모델 파일 준비 완료":"모델 파일 준비 필요") : (ready?"생성 준비 완료":"모델 준비 필요"))+" · "+status.message;
   }
   return <p role="status">{text}</p>;
 }
 
-export default function ModelReadiness({service, manage=false, hasStatusSummary=false, onStatus, onError}) {
+export default function ModelReadiness({service, modelManagementService=service, manage=false, hasStatusSummary=false, onStatus, onError}) {
   const session=new URLSearchParams(location.search).get("session");
-  const modelQuery=new URLSearchParams({model:service,...(session?{session}:{})});
+  const modelQuery=new URLSearchParams({model:modelManagementService,...(session?{session}:{})});
   const [revision,setRevision]=useState(0);
   const [status,setStatus]=useState(null);
   const [checkedAt,setCheckedAt]=useState(null);

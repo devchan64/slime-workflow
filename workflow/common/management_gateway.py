@@ -32,6 +32,10 @@ MANAGEMENT_SERVICE_ROUTES['wan22-fighting-lora'] = '/wan22-fighting-lora'
 MANAGEMENT_SERVICE_COMMANDS['wan22-fighting-lora'] = ('model-status', 'prepare')
 MANAGEMENT_SERVICE_ROUTES['wan22-vace-lightning'] = '/wan22-vace-lightning'
 MANAGEMENT_SERVICE_COMMANDS['wan22-vace-lightning'] = ('model-status', 'prepare')
+MANAGEMENT_SERVICE_ROUTES['wan22-i2v-assets'] = '/wan22-i2v-assets'
+MANAGEMENT_SERVICE_COMMANDS['wan22-i2v-assets'] = ('model-status', 'prepare')
+MANAGEMENT_SERVICE_ROUTES['wan22-i2v'] = '/wan22-i2v'
+MANAGEMENT_SERVICE_COMMANDS['wan22-i2v'] = ('history-delete', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset')
 MANAGEMENT_COMMAND_ROUTES['download-observe']=('GET','/observe')
 MANAGEMENT_COMMAND_ROUTES['download-status']=('GET','/status')
 MANAGEMENT_COMMAND_ROUTES['download-inventory']=('GET','/inventory')
@@ -222,9 +226,9 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'wan22-fun-control' and operation_command_name == 'prepare' and command_payload_value not in ({'action': 'prepare'}, {'action': 'prepare', 'model_profile': 'wan21-1.3b'}):
         raise ValueError('Fun Control 준비 프로필이 올바르지 않습니다.')
-    if service_command_name in ('wan22-vace', 'wan22-fighting-lora', 'wan22-vace-lightning', 'writer-agent', 'prompt-translation', 'hermes-model', 'animationgpt', 'dwpose') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
+    if service_command_name in ('wan22-vace', 'wan22-fighting-lora', 'wan22-vace-lightning', 'wan22-i2v-assets', 'writer-agent', 'prompt-translation', 'hermes-model', 'animationgpt', 'dwpose') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('모델 준비에는 action=prepare만 허용합니다.')
-    if service_command_name in ('hermes-model', 'animationgpt', 'wan22-fighting-lora', 'wan22-vace-lightning') and operation_command_name == 'model-status' and command_payload_value:
+    if service_command_name in ('hermes-model', 'animationgpt', 'wan22-fighting-lora', 'wan22-vace-lightning', 'wan22-i2v-assets') and operation_command_name == 'model-status' and command_payload_value:
         raise ValueError('모델 상태 조회에는 입력을 전달할 수 없습니다.')
     request_method_value, request_suffix_value = MANAGEMENT_COMMAND_ROUTES[operation_command_name]
     if '{id}' in request_suffix_value:
@@ -341,6 +345,8 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['hermes-model']='Hermes 코딩 모델 다운로�
 MANAGEMENT_COMMAND_DESCRIPTIONS['animationgpt']='AnimationGPT 제3자 FP16 모델 파일 다운로드와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fighting-lora']='Wan 2.2 Videogame Fighting High LoRA 다운로드와 SHA-256 검증 · VACE 추론 미검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace-lightning']='Wan 2.2 T2V Lightning High/Low LoRA 다운로드와 SHA-256 검증'
+MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-i2v-assets']='Wan 2.2 I2V FP16 및 Lightning·KungFu LoRA 파일 다운로드와 SHA-256 검증'
+MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-i2v']='Wan 2.2 I2V 실험 · 참조 1장 · --payload-file · GPU 품질 미검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['hermes-agent']='격리 Hermes 작업 접수·상태·이력·취소 --payload-file'
 for current_flux_profile, current_flux_values in FLUX_IMAGE_PROFILE_RECORDS.items():
     MANAGEMENT_COMMAND_DESCRIPTIONS[current_flux_profile] = 'FLUX 3 ' + current_flux_values[0] + ' 이미지 생성'
@@ -435,6 +441,23 @@ def execute_management_command(service_command_name, operation_command_name, com
                 return send_management_json_response(gateway_request_handler, 200, {'records':current_observed_records,**current_issue_counts})
             from workflow.common.model_download_records import list_model_download_records
             return send_management_json_response(gateway_request_handler, 200, {'records': list_model_download_records()})
+        if service_command_name == 'wan22-i2v-assets':
+            from generators.wan_i2v.assets import ROOT, inspect_assets
+            from workflow.common.model_prepare_process import inspect_registered_preparation_strict, start_registered_preparation
+            from workflow.common.management_transport import send_management_json_response
+            try:
+                status = inspect_registered_preparation_strict(ROOT, service_command_name)
+            except (OSError, ValueError, TypeError, UnicodeError):
+                status = 'unknown'
+            ready = inspect_assets()
+            if operation_command_name == 'prepare' and status == 'unknown':
+                raise ValueError('I2V 모델 준비 상태를 확인할 수 없습니다.')
+            if operation_command_name == 'prepare' and status != 'running' and not ready:
+                status = start_registered_preparation(ROOT, service_command_name)['preparation_status']
+            message = ('I2V 모델 및 LoRA 파일 SHA-256 검증 완료' if ready else 'I2V 모델 및 LoRA 파일 준비 필요') + ' · 생성기와 GPU 실행은 별도 준비 필요'
+            if status == 'failed':
+                message += ' · 다운로드 실패: 모델 준비 로그 확인'
+            return send_management_json_response(gateway_request_handler, 200, {'ready': ready, 'generation_ready': False, 'preparation_status': status, 'can_prepare': status != 'unknown', 'message': message})
         if service_command_name in ('wan22-fighting-lora', 'wan22-vace-lightning'):
             from generators.wan_vace.fighting_lora import ROOT, inspect_fighting_lora
             from generators.wan_vace.lightning_lora import inspect_lightning_loras
@@ -585,7 +608,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                     current_duration_group.add_argument('--max-new-tokens',type=int,help='MiniMax 오디오 프레임 상한 125~3000; 25개≈1초, 조기 종료 가능')
                 operation_argument_parser.add_argument('--seed',type=int,default=current_music_defaults['seed'])
                 operation_argument_parser.add_argument('--loop-request',action=argparse.BooleanOptionalAction,default=current_music_defaults['loop_request'],help='반복 구조 요청; 심리스 연결 보장 없음')
-            elif service_command_name in ('wan22-fun-control','wan22-vace','kimodo','wan22-animate2','dwpose'):
+            elif service_command_name in ('wan22-fun-control','wan22-vace','wan22-i2v','kimodo','wan22-animate2','dwpose'):
                 operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='action=generate, images=[PNG base64], pose_include_hands/pose_include_face bool JSON' if service_command_name=='dwpose' else 'Kimodo 텍스트·프레임·샘플링·키프레임 배치 JSON 요청' if service_command_name=='kimodo' else 'images PNG base64와 driving_video MP4 base64, prompt, frames, steps, seed, width, height JSON 요청' if service_command_name=='wan22-animate2' else 'images PNG base64와 frame_entries를 포함한 JSON 요청')
             elif service_command_name=='character-animation':
                 operation_argument_parser.add_argument('--steps',type=int,choices=(4,30),default=None,help='4: Lightning, 30: 표준 생성 (기본 4)')
@@ -686,7 +709,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if getattr(command_argument_values,'max_new_tokens',None) is not None:
                 command_payload_value.pop('duration_seconds')
                 command_payload_value['max_new_tokens'] = command_argument_values.max_new_tokens
-        elif service_command_name in ('wan22-fun-control','wan22-vace','kimodo','wan22-animate2','dwpose'):
+        elif service_command_name in ('wan22-fun-control','wan22-vace','wan22-i2v','kimodo','wan22-animate2','dwpose'):
             command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
         elif service_command_name=='character-animation':
             command_payload_value={'motion':command_argument_values.motion,'character':command_argument_values.character,'source':command_argument_values.source,'directions':command_argument_values.directions}

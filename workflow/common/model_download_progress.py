@@ -1,5 +1,6 @@
 """모델 서비스별 다운로드 이력과 전송량 표시."""
 MODEL_DOWNLOAD_PREFIXES = {
+    'wan22-i2v-assets': ('wan22-i2v-assets/',),
     'wan22-fighting-lora': ('wan22-fighting-lora/',),
     'wan22-vace-lightning': ('wan22-vace-lightning/',),
     'animationgpt': ('animationgpt/',),

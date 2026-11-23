@@ -22,6 +22,7 @@ import BattlefieldReview from "./BattlefieldReview.jsx";
 import FunControlPage from "./FunControlPage.jsx";
 import ConversationVideoForm from "./ConversationVideoForm.jsx";
 import VacePage from "./VacePage.jsx";
+import I2VPage from "./I2VPage.jsx";
 import AnimatePage from "./AnimatePage.jsx";
 import WriterPage from "./WriterPage.jsx";
 import FluxImagePage from "./FluxImagePage.jsx";
@@ -63,7 +64,7 @@ import {createRoot} from "react-dom/client";
 import {AssistantRuntimeProvider, ThreadPrimitive, MessagePrimitive, useAuiState, useExternalStoreRuntime} from "@assistant-ui/react";
 
 const embeddedGenerators={
-  "wan22-vace-generator":VacePage,"wan22-animate2-generator":AnimatePage,
+  "wan22-vace-generator":VacePage,"wan22-i2v-generator":I2VPage,"wan22-animate2-generator":AnimatePage,
   "sfx-dasheng-audiogen":SoundEffectPage,"music-heartmula":HeartmulaPage,
   "dwpose-generator":DwposePage,"prompt-translation":TranslationPage,"writer-agent":WriterPage,
 };
@@ -859,6 +860,7 @@ const pages = {
   "/management/frame/wan22-fun-control-generator": FunControlPage,
   "/management/assistant/fun-control": FunControlPage,
   "/management/frame/wan22-vace-generator": VacePage,
+  "/management/frame/wan22-i2v-generator": I2VPage,
   "/management/assistant/vace": VacePage,
   "/management/frame/wan22-animate2-generator": AnimatePage,
   "/management/frame/writer-agent": WriterPage,

@@ -891,6 +891,10 @@ Fun Control·VACE·키모도가 공유하는 UMT5·Wan2.1 VAE·전처리 모델�
 
 ### Wan2.2 Fun Control BF16 실험 생성기
 
+모델 관리의 **Wan 2.2 I2V · 본체 및 Lightning·KungFu LoRA 파일**은 I2V A14B FP16 고·저노이즈 모델과 I2V Lightning·KungFu 고·저노이즈 LoRA를 고정 리비전과 SHA-256으로 준비한다. 파일 준비와 GPU 실행·품질 검증은 별개다. VACE용 T2V Lightning은 이 파일과 별개다.
+
+I2V 실험의 공용 게이트웨이 서비스는 `wan22-i2v`다. 도구 탐색의 Wan 2.2 I2V 화면과 CLI `python3 tools/manager.py command wan22-i2v generate --payload-file <요청.json> --detach`가 같은 대기열과 이력을 사용한다. 보수적으로 80GiB 이상을 예약하고 다른 공용 GPU 작업과 겹치지 않는다. 해당 값은 실측 피크가 아니다. 모델 준비 상태와 실제 결과의 수치·화질 검증은 별개다. 재개 기능은 제공하지 않는다.
+
 애니메이션 도구의 `/management/frame/wan22-fun-control-generator/`는 외형 참조 1장과 전처리된 pose/depth/canny/mlsd 제어 영상을 입력받습니다. 기본 입력은 Kimodo의 SOMA 단일 인체 렌더 MP4입니다. VideoX-Fun DWPose 공식 검출·그리기를 작업 프로세스에서 실행하고 결과 조회에 추출 영상을 표시합니다. 원본 시간 기준 16fps로 추출하며 영상 길이가 부족하면 거절합니다. 기존 전처리 입력 모드도 유지합니다. 영상의 앞 N프레임 또는 업로드 순서대로 N장의 PNG를 사용하고 부족한 프레임은 반복하지 않습니다. 참조는 흰색, 제어는 검은색 여백으로 비율을 유지해 832×480에 맞춥니다. 출력은 16fps입니다.
 
 실험 기본값은 21프레임·20스텝·Shift 5·CFG 6·seed 42·고노이즈 스텝 비율 0.5입니다. 프레임은 5~129의 4n+1, 스텝은 2~100, Shift 0.1~20, CFG 1~10, 전환 비율 0.1~0.9를 허용합니다. 이 값은 로컬 실험 범위이며 공식 권장 범위를 뜻하지 않습니다. Euler/simple로 고·저노이즈 전문가를 순차 실행하며 4스텝 가속 LoRA는 사용하지 않습니다.

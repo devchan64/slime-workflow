@@ -30,6 +30,9 @@ def make_hermes_video_manager(current_service_name):
     if current_service_name=='wan22-fun-control':
         from workflow.domains.wan_fun.generation import FunControlGenerationManager
         return FunControlGenerationManager()
+    if current_service_name=='wan22-i2v':
+        from workflow.domains.wan_i2v.generation import I2VGenerationManager
+        return I2VGenerationManager()
     from workflow.domains.wan_vace.generation import VaceVideoGenerationManager
     return VaceVideoGenerationManager()
 

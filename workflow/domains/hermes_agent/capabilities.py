@@ -401,7 +401,7 @@ def list_hermes_capability_catalog():
         if current_command_name in ('hermes-city-preview','hermes-city-save'):
             current_payload_schema['properties']['draft'] = {'type':'object','validation':'map-assets city-edit-preview'}
         if 'service' in current_field_names and current_command_name not in ('hermes-video-resume-preview','hermes-video-resume-submit') and (current_command_name.startswith('hermes-video-') or current_command_name == 'hermes-delegate-video'):
-            current_payload_schema['properties']['service'] = {'type':'string','enum':['dwpose','wan22-animate2','wan22-fun-control','wan22-vace']}
+            current_payload_schema['properties']['service'] = {'type':'string','enum':['dwpose','wan22-animate2','wan22-fun-control','wan22-vace','wan22-i2v']}
         if current_command_name == 'hermes-delegate-video':
             current_payload_schema['properties']['request'] = {'type':'object','validation':'해당 동작·영상 생성기의 validate_generation_request'}
         if 'service' in current_field_names and (current_command_name.startswith('hermes-audio-') or current_command_name == 'hermes-delegate-audio'):

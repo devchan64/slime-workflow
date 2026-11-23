@@ -1,0 +1,18 @@
+"""생성기 사용설명의 명시적 도메인 원본."""
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+GENERATOR_USAGE_PATHS = {
+    'wan22-vace': ROOT / 'generators/wan_vace/README.md',
+    'wan22-i2v': ROOT / 'generators/wan_i2v/README.md',
+    'kimodo': ROOT / 'generators/kimodo/README.md',
+}
+
+def read_generator_usage(generator):
+    path = GENERATOR_USAGE_PATHS.get(generator)
+    if path is None:
+        raise ValueError('등록되지 않은 생성기입니다.')
+    try:
+        return path.read_text(encoding='utf-8')
+    except (OSError, UnicodeError) as error:
+        raise OSError('사용설명을 읽을 수 없습니다. 생성기 README.md와 읽기 권한을 확인하세요.') from error

@@ -2,7 +2,7 @@
 from generators.music.service_constants import AUDIO_SERVICE_NAMES
 from workflow.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
 
-SOURCE_HISTORY_VIDEO_SERVICES=('dwpose','wan22-animate2','wan22-fun-control','wan22-vace')
+SOURCE_HISTORY_VIDEO_SERVICES=('dwpose','wan22-animate2','wan22-fun-control','wan22-vace','wan22-i2v')
 SOURCE_HISTORY_ARCHIVED_IMAGE_SERVICES=('qwen-21','qwen-21-circular','mannequin-generator','billboard-generator','prop-generator','vegetation-generator','building-generator','expression','seamless-tile')
 SOURCE_HISTORY_GENERATOR_SERVICES=(*FLUX_IMAGE_PROFILE_RECORDS,'flux-expression','kimodo',*SOURCE_HISTORY_VIDEO_SERVICES,*SOURCE_HISTORY_ARCHIVED_IMAGE_SERVICES,'floor-tile','prompt-translation','writer-agent','character-animation')
 SOURCE_HISTORY_AUDIO_SERVICES=AUDIO_SERVICE_NAMES

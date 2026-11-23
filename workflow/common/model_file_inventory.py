@@ -20,6 +20,7 @@ def resolve_model_inventory_paths():
     from generators.wan_vace.contracts import VACE_MODEL_FILES, VACE_WORKSPACE_ROOT
     from generators.wan_vace.fighting_lora import PATH as FIGHTING_LORA_PATH
     from generators.wan_vace.lightning_lora import DIRECTORY as LIGHTNING_DIRECTORY, FILES as LIGHTNING_FILES
+    from generators.wan_i2v.assets import DIRECTORY as I2V_DIRECTORY, FILES as I2V_FILES
     from generators.writer_agent.prepare import MODEL_DOWNLOAD_ROOT
     from workflow.domains.translation.service import TRANSLATION_MODEL_ROOT
     from workflow.common.hermes_model_download import HERMES_MODEL_DIRECTORY
@@ -37,6 +38,7 @@ def resolve_model_inventory_paths():
         'wan22-vace': [VACE_WORKSPACE_ROOT / current_file_record[0] for current_file_record in VACE_MODEL_FILES.values()],
         'wan22-fighting-lora': [FIGHTING_LORA_PATH],
         'wan22-vace-lightning': [LIGHTNING_DIRECTORY / entry[0] for entry in LIGHTNING_FILES.values()],
+        'wan22-i2v-assets': [I2V_DIRECTORY / entry[0] for entry in I2V_FILES],
         'music-heartmula': [resolve_music_paths('music-heartmula')[1]],
         'sfx-dasheng-audiogen': [resolve_music_paths('sfx-dasheng-audiogen')[1]],
         'writer-agent': [MODEL_DOWNLOAD_ROOT],

@@ -13,6 +13,7 @@ MODEL_PREPARATION_SERVICES = (
     ('Wan VACE', 'wan22-vace'),
     ('Wan 2.2 Videogame Fighting LoRA · High', 'wan22-fighting-lora'),
     ('Wan VACE Lightning T2V LoRA · High/Low', 'wan22-vace-lightning'),
+    ('Wan 2.2 I2V · 본체 및 Lightning·KungFu LoRA 파일', 'wan22-i2v-assets'),
     ('HeartMuLa', 'music-heartmula'),
     ('Dasheng-AudioGen', 'sfx-dasheng-audiogen'),
     ('작가 AI', 'writer-agent'),

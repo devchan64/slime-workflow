@@ -19,6 +19,7 @@ MODEL_PREPARATION_PROFILES = {
     'wan-vace': (('generators.wan_vace.prepare', 'prepare_vace_models'),),
     'wan22-fighting-lora': (('generators.wan_vace.fighting_lora', 'prepare_fighting_lora'),),
     'wan22-vace-lightning': (('generators.wan_vace.lightning_lora', 'prepare_lightning_loras'),),
+    'wan22-i2v-assets': (('generators.wan_i2v.assets', 'prepare_assets'),),
     'writer-model': (('generators.writer_agent.prepare', 'prepare_writer_model_files'),),
     'heartmula-model': (('workflow.common.audio_model_download', 'download_heartmula_model_files'),),
     'dasheng-model': (('workflow.common.audio_model_download', 'download_dasheng_model_files'),),

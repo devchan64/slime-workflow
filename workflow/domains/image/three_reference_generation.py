@@ -13,6 +13,7 @@ from PIL import Image
 REFERENCE_IMAGE_LIMIT = 3_000_000
 WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
 ALLOWED_REFERENCE_JOB_ROOTS = (
+    WORKFLOW_ROOT_PATH/'.tmp/test/wan22-i2v',
     WORKFLOW_ROOT_PATH/'.tmp/test/wan22-vace',
     WORKFLOW_ROOT_PATH/'.tmp/test/billboard-generator',
     WORKFLOW_ROOT_PATH/'.tmp/test/prop-generator',
