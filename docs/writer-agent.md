@@ -13,9 +13,9 @@ python3 -m generators.writer_agent.cli configure \
   --write-root world --write-root ideas \
   --protect-path world/decisions --exclude-root history
 # 별도 터미널에서 게이트웨이를 먼저 시작
-./scripts/run_management_gateway.sh
+./scripts/workflow.sh gateway
 # GUI 터미널
-./scripts/run_management_gui.sh --watch
+./scripts/workflow.sh gui --watch
 ```
 
 연결 설정은 `schema_version: 1`, `document_root`, `state_root`, `write_roots`, `excluded_roots`, `protected_paths`, `catalog_path`만 허용한다. 경로는 숨김·상위 이동·심볼릭 링크를 거부한다. `catalog_path`의 기본값은 null이며 `--catalog-path CATALOG.md`로 기존 전체 목록을 연결할 수 있다. 연결할 목록은 루트의 Markdown 문서이며 `## 그룹 (개수)`와 `| 문서 | 경로 |` 표, 상대 파일 링크·백틱 경로 열 형식이어야 한다. 신규 문서를 추가할 그룹이 미리 있어야 한다. 목록 갱신도 변경 미리보기에 포함된다.

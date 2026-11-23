@@ -168,7 +168,7 @@ class ManagementLauncherTests(unittest.TestCase):
 
     def test_missing_environment_fails_without_installing(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name, patch.dict(os.environ, {'VIRTUAL_ENVIRONMENT_PATH': temporary_directory_name}), patch.object(management_launcher.subprocess, 'Popen') as command_process_mock:
-            with self.assertRaisesRegex(ValueError, 'setup_management.sh'):
+            with self.assertRaisesRegex(ValueError, 'workflow.sh setup'):
                 management_launcher.build_management_launch_command('gateway', [])
             command_process_mock.assert_not_called()
 
@@ -590,14 +590,11 @@ class ManagementLauncherTests(unittest.TestCase):
                 run_command_mock.assert_not_called()
             self.assertEqual(current_marker_path.read_text(), 'preserve')
 
-    def test_legacy_wrappers_reach_unified_launcher_help(self):
-        for current_script_name, current_help_text in (('setup_management.sh', '--scope'),
-                                                       ('run_management_gui.sh', '--no-takeover'),
-                                                       ('run_management_gateway.sh', '--port'),
-                                                       ('watch_review_server.sh', '--watch')):
-            with self.subTest(script=current_script_name):
-                current_script_path = management_launcher.WORKFLOW_ROOT_DIRECTORY / 'scripts' / current_script_name
-                current_result_record = subprocess.run([str(current_script_path), '--help'], capture_output=True, text=True, timeout=30)
+    def test_unified_launcher_reaches_subcommand_help(self):
+        for current_mode, current_help_text in (('setup', '--scope'), ('gui', '--no-takeover'), ('gateway', '--port')):
+            with self.subTest(mode=current_mode):
+                current_script_path = management_launcher.WORKFLOW_ROOT_DIRECTORY / 'scripts' / 'workflow.sh'
+                current_result_record = subprocess.run([str(current_script_path), current_mode, '--help'], capture_output=True, text=True, timeout=30)
                 self.assertEqual(current_result_record.returncode, 0, current_result_record.stderr)
                 self.assertIn(current_help_text, current_result_record.stdout)
 

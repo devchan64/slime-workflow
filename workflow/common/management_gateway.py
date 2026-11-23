@@ -955,6 +955,6 @@ def call_management_api(server_base_address, request_route_path, request_body_va
             f'관리 게이트웨이 연결 실패: {server_base_address} · {service_command_name}/{operation_command_name} · '
             f'{type(current_failure_reason).__name__}: {current_failure_reason}. '
             'GUI 서버와 별도로 게이트웨이 실행·포트를 확인하세요. '
-            '실행: scripts/run_management_gateway.sh --watch · 로그: .tmp/gateway-server-logs/. '
+            '실행: scripts/workflow.sh gateway --watch · 로그: .tmp/gateway-server-logs/. '
             '요청은 자동 재전송하지 않았습니다. 생성 요청이었다면 이력을 확인한 뒤 재시도하세요.'
         ) from management_connection_error

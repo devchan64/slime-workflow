@@ -100,21 +100,21 @@ HY-Motion과 ANNY 리그 변환·렌더, `export-vnccs`는 현행 실행 경로�
 
 ```bash
 # 최초 또는 의존성 변경 시 준비 (서버 시작과 분리)
-./scripts/setup_management.sh
+./scripts/workflow.sh setup
 
 # 터미널 1: 게이트웨이·작업 서비스 (GUI 없이 CLI 사용 가능)
-./scripts/run_management_gateway.sh
+./scripts/workflow.sh gateway
 
-./scripts/run_management_gui.sh --watch
+./scripts/workflow.sh gui --watch
 
 # 터미널 3: 같은 게이트웨이에 작업 접수
 ```
 
 - 기본 주소는 GUI `http://127.0.0.1:8770`, 게이트웨이 `http://127.0.0.1:8771`이다. GUI 포트와 게이트웨이 포트를 같게 지정할 수 없다.
 - GUI와 게이트웨이는 `localhost`와 `127.0.0.1` 접속을 모두 허용한다. POST 요청의 Origin은 접속한 Host 및 포트와 일치해야 하므로 두 이름을 섞어 사용하지 않는다.
-- 게이트웨이 포트를 바꾸면 `scripts/run_management_gateway.sh --port 9871`, GUI `scripts/run_management_gui.sh --gateway-url http://127.0.0.1:9871`, CLI `<서비스> --server-url http://127.0.0.1:9871 <명령>`을 사용한다. GUI·CLI 기본 접속 주소는 `SLIME_MANAGEMENT_GATEWAY_URL`로 지정할 수도 있다.
+- 게이트웨이 포트를 바꾸면 `scripts/workflow.sh gateway --port 9871`, GUI `scripts/workflow.sh gui --gateway-url http://127.0.0.1:9871`, CLI `<서비스> --server-url http://127.0.0.1:9871 <명령>`을 사용한다. GUI·CLI 기본 접속 주소는 `SLIME_MANAGEMENT_GATEWAY_URL`로 지정할 수도 있다.
 - `GET /management/health`는 게이트웨이 역할·PID·응답 상태를 반환한다. GUI 주소에서도 같은 경로로 중계 상태를 확인할 수 있다. GPU 가용성은 별도 상태 조회로 확인한다.
-- GUI `--watch`는 게이트웨이·작업 서비스 코드를 감시하지 않는다. `scripts/run_management_gateway.sh --watch` 또는 `python3 workflow/gateway_server.py --watch`로 실행하면 게이트웨이 코드 변경도 해당 프로세스만 자동 재시작한다. 일반 실행에서는 명시적으로 재시작한다. 기존 GPU 대기·실행기는 별도 프로세스와 기록을 유지한다. 접수 중 연결이 끊기면 자동 재전송하지 않으므로 이력을 확인한 뒤 다시 요청한다.
+- GUI `--watch`는 게이트웨이·작업 서비스 코드를 감시하지 않는다. `scripts/workflow.sh gateway --watch` 또는 `python3 workflow/gateway_server.py --watch`로 실행하면 게이트웨이 코드 변경도 해당 프로세스만 자동 재시작한다. 일반 실행에서는 명시적으로 재시작한다. 기존 GPU 대기·실행기는 별도 프로세스와 기록을 유지한다. 접수 중 연결이 끊기면 자동 재전송하지 않으므로 이력을 확인한 뒤 다시 요청한다.
 - `--writer-agent-config`는 `gateway_server.py`의 옵션으로 이동했다. 작가 작업은 공용 GPU 대기열에서 실행하며 게이트웨이와 GUI 재시작 후에도 유지된다.
 - 게이트웨이 서비스 초기화 실패도 `.tmp/gateway-server-logs/`에 원인과 함께 기록한다. 정상 실행은 같은 경로에 로그를 저장하고 5초 heartbeat를 출력한다. GUI 로그·생성 ID·대기열·요청·결과·이력 경로는 유지한다.
 
@@ -129,9 +129,9 @@ HY-Motion과 ANNY 리그 변환·렌더, `export-vnccs`는 현행 실행 경로�
 
 | 스크립트 | 역할 |
 | --- | --- |
-| `scripts/setup_management.sh` | `.venv` 준비와 공용 의존성 설치 |
-| `scripts/run_management_gui.sh` | GUI 시작; `--watch`, `--root`, `--frontend-repo` 등 기존 옵션 전달 |
-| `scripts/watch_review_server.sh` | `run_management_gui.sh --watch` 호환 연결 |
+| `scripts/workflow.sh setup` | `.venv` 준비와 공용 의존성 설치 |
+| `scripts/workflow.sh gui` | GUI 시작; `--watch`, `--root`, `--frontend-repo` 등 기존 옵션 전달 |
+| `scripts/workflow.sh gateway` | 명령 게이트웨이 시작; `--watch`, `--port` 등 옵션 전달 |
 
 
 
@@ -814,7 +814,7 @@ gatewayOrigin: http://127.0.0.1:8771
 ```
 
 ```bash
-SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml ./scripts/run_management_gateway.sh --watch
+SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml ./scripts/workflow.sh gateway --watch
 SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml python3 workflow/common/management_launcher.py gui --watch
 SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml python3 workflow/common/management_launcher.py snapshot --server http://127.0.0.1:8771 --interval 60
 ```

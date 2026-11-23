@@ -25,7 +25,7 @@ def build_management_launch_command(launcher_mode_name, forwarded_argument_value
     runtime_environment_path = resolve_management_environment('VIRTUAL_ENVIRONMENT_PATH', '.venv')
     selected_python_path = runtime_environment_path/'bin/python'
     if not selected_python_path.is_file():
-        raise ValueError(f'관리 런타임이 없습니다: {selected_python_path}. scripts/setup_management.sh를 먼저 실행하세요.')
+        raise ValueError(f'관리 런타임이 없습니다: {selected_python_path}. scripts/workflow.sh setup를 먼저 실행하세요.')
     selected_command_values = [str(selected_python_path), str(WORKFLOW_ROOT_DIRECTORY/LAUNCHER_MODE_SCRIPT_PATHS[launcher_mode_name])]
     if launcher_mode_name=='snapshot':
         return selected_command_values + list(forwarded_argument_values)
@@ -39,7 +39,7 @@ def build_management_launch_command(launcher_mode_name, forwarded_argument_value
         if not any(current_argument_text in ('-h', '--help') for current_argument_text in forwarded_argument_values):
             management_environment_path = resolve_management_ui_environment()
             if not (management_environment_path/'bin/python').is_file():
-                raise ValueError(f'관리 UI의 Python 환경이 없습니다: {management_environment_path}. scripts/setup_management.sh를 먼저 실행하세요.')
+                raise ValueError(f'관리 UI의 Python 환경이 없습니다: {management_environment_path}. scripts/workflow.sh setup를 먼저 실행하세요.')
     return selected_command_values + list(forwarded_argument_values)
 
 

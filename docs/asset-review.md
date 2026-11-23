@@ -45,9 +45,9 @@ python3 workflow/build_animation_anchors.py --root .tmp/실행폴더 --animation
 
 ```bash
 # 생성 후 즉시 관리도구 실행
-./scripts/run_management_gui.sh --walking .tmp/걷기실행폴더 --standing .tmp/스탠딩검수폴더 --port 8770
+./scripts/workflow.sh gui --walking .tmp/걷기실행폴더 --standing .tmp/스탠딩검수폴더 --port 8770
 # 기존 관리도구 재실행
-./scripts/run_management_gui.sh --root .tmp/생성된관리도구폴더 --port 8770
+./scripts/workflow.sh gui --root .tmp/생성된관리도구폴더 --port 8770
 ```
 
 걷기 입력은 preview.html과 anchors.html, 스탠딩 입력은 preview.html이 필요하다. 필요한 페이지와 이미지 사본을 새 한국시간 실행 폴더에 모으며 원본 프롬프트와 로그는 복사하지 않는다. 메뉴 경로는 `/#walk-review`, `/#walk-anchors`, `/#standing-anchors`다. 통합 화면은 실행 시점의 스냅샷이며 후속 생성 결과는 명시적으로 다시 묶는다. 원본 실행 정보는 manager-source.json에 기록한다.
@@ -58,11 +58,11 @@ python3 workflow/build_animation_anchors.py --root .tmp/실행폴더 --animation
 
 ## 프론트엔드 저장소 자동 탐색
 
-기본 실행은 옵션 없는 `./scripts/run_management_gui.sh`다. 인접한 `slime-frontend`와 포트 8770을 기본값으로 사용한다. 다른 위치는 `--frontend-repo`로 지정한다. 지정 저장소의 `sprite-assets.lock.yaml`에 등록된 `assets/**/*.animation.json`을 원본 저장소에서 검증해 각 애니메이션·버전의 검수 메뉴를 만든다. 단일 시트는 메타데이터와 같은 이름의 PNG, 방향별 시트는 같은 폴더 `source.json`의 `sheets`를 사용한다. 메타데이터 없는 이미지는 자동으로 프레임을 추정하지 않는다. 현재 프론트엔드의 캐릭터 스탠딩·휴식 및 몬스터 시트를 지원하며 미등록 걷기 후보는 이미 생성된 웹 검수 HTML이 있으면 통합 목록에서, 없으면 기존 생성·명시적 입력 모드에서 검수한다.
+기본 실행은 옵션 없는 `./scripts/workflow.sh gui`다. 인접한 `slime-frontend`와 포트 8770을 기본값으로 사용한다. 다른 위치는 `--frontend-repo`로 지정한다. 지정 저장소의 `sprite-assets.lock.yaml`에 등록된 `assets/**/*.animation.json`을 원본 저장소에서 검증해 각 애니메이션·버전의 검수 메뉴를 만든다. 단일 시트는 메타데이터와 같은 이름의 PNG, 방향별 시트는 같은 폴더 `source.json`의 `sheets`를 사용한다. 메타데이터 없는 이미지는 자동으로 프레임을 추정하지 않는다. 현재 프론트엔드의 캐릭터 스탠딩·휴식 및 몬스터 시트를 지원하며 미등록 걷기 후보는 이미 생성된 웹 검수 HTML이 있으면 통합 목록에서, 없으면 기존 생성·명시적 입력 모드에서 검수한다.
 
-소스 변경을 감시하며 관리도구를 다시 생성하고 서버를 재시작하려면 `./scripts/run_management_gui.sh --watch`를 사용한다. 외부 `watchdog` 패키지 없이 GUI 소스·생성기 설정·에셋 원본을 감시한다. 독립 게이트웨이와 작업 서비스는 재시작하지 않으며, 종료는 `Ctrl+C`다.
+소스 변경을 감시하며 관리도구를 다시 생성하고 서버를 재시작하려면 `./scripts/workflow.sh gui --watch`를 사용한다. 외부 `watchdog` 패키지 없이 GUI 소스·생성기 설정·에셋 원본을 감시한다. 독립 게이트웨이와 작업 서비스는 재시작하지 않으며, 종료는 `Ctrl+C`다.
 
-통합 관리도구는 시작할 때 `slime-frontend`의 UI 검수 입력(`src`, `review`, 검수 빌드 스크립트와 패키지 잠금 파일)을 해시로 비교한다. 해시가 같은 `.tmp/ui-review/<한국시간>-<소스해시>/ui-review` 사본이 있으면 `npm run build:review`를 생략하고, 변경되었거나 사본이 없으면 자동 빌드한 뒤 해당 경로로 독립 복사한다. `.tmp/ui-review/latest.json`에는 원본 저장소·소스 해시·빌드 원본·가져온 사본 경로를 기록한다. 따라서 별도 UI 검수 빌드 명령 없이 `./scripts/run_management_gui.sh`만 실행하면 된다.
+통합 관리도구는 시작할 때 `slime-frontend`의 UI 검수 입력(`src`, `review`, 검수 빌드 스크립트와 패키지 잠금 파일)을 해시로 비교한다. 해시가 같은 `.tmp/ui-review/<한국시간>-<소스해시>/ui-review` 사본이 있으면 `npm run build:review`를 생략하고, 변경되었거나 사본이 없으면 자동 빌드한 뒤 해당 경로로 독립 복사한다. `.tmp/ui-review/latest.json`에는 원본 저장소·소스 해시·빌드 원본·가져온 사본 경로를 기록한다. 따라서 별도 UI 검수 빌드 명령 없이 `./scripts/workflow.sh gui`만 실행하면 된다.
 
 `./scripts/workflow.sh gui --watch`는 Node.js와 npm이 필요하다. GUI 의존성이 없으면 `gui/`에서 `npm ci`로 설치하고 초기 빌드 후 GUI 소스를 감시해 자동 빌드한다. 빌드된 `gui/dist`가 바뀌면 GUI 서버를 재시작하고 브라우저를 새로고침한다. 빌드 오류는 실행 터미널에 표시되며, 오류가 해결될 때까지 마지막으로 성공한 빌드가 유지된다. 의존성 정의를 변경한 경우 `gui/`에서 `npm ci`를 다시 실행해야 한다.
 
