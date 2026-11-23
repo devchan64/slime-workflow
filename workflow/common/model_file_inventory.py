@@ -22,6 +22,9 @@ def resolve_model_inventory_paths():
     from generators.wan_vace.fighting_lora import PATH as FIGHTING_LORA_PATH
     from generators.wan_vace.lightning_lora import DIRECTORY as LIGHTNING_DIRECTORY, FILES as LIGHTNING_FILES
     from generators.wan_i2v.assets import DIRECTORY as I2V_DIRECTORY, FILES as I2V_FILES
+    from generators.wan21_t2v.assets import DIRECTORY as T2V21_DIRECTORY, FILES as T2V21_FILES
+    from generators.wan21_i2v.assets import DIRECTORY as I2V21_DIRECTORY, FILES as I2V21_FILES
+    from generators.wan21_i2v.attack_lora import FILES as I2V21_ATTACK_FILES
     from generators.writer_agent.prepare import MODEL_DOWNLOAD_ROOT
     from workflow.domains.translation.service import TRANSLATION_MODEL_ROOT
     from workflow.common.hermes_model_download import HERMES_MODEL_DIRECTORY
@@ -41,6 +44,9 @@ def resolve_model_inventory_paths():
         'wan22-fighting-lora': [FIGHTING_LORA_PATH],
         'wan22-vace-lightning': [LIGHTNING_DIRECTORY / entry[0] for entry in LIGHTNING_FILES.values()],
         'wan22-i2v-assets': [I2V_DIRECTORY / entry[0] for entry in I2V_FILES],
+        'wan21-t2v-assets': [T2V21_DIRECTORY / entry[0] for entry in T2V21_FILES],
+        'wan21-i2v-assets': [I2V21_DIRECTORY / entry[0] for entry in I2V21_FILES],
+        'wan21-i2v-attack-lora': [I2V21_DIRECTORY / entry[0] for entry in I2V21_ATTACK_FILES],
         'music-heartmula': [resolve_music_paths('music-heartmula')[1]],
         'sfx-dasheng-audiogen': [resolve_music_paths('sfx-dasheng-audiogen')[1]],
         'writer-agent': [MODEL_DOWNLOAD_ROOT],

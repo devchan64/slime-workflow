@@ -23,6 +23,7 @@ import FunControlPage from "./FunControlPage.jsx";
 import ConversationVideoForm from "./ConversationVideoForm.jsx";
 import VacePage from "./VacePage.jsx";
 import I2VPage from "./I2VPage.jsx";
+import {Wan21T2VPage,Wan21I2VPage} from "./Wan21VideoPage.jsx";
 import AnimatePage from "./AnimatePage.jsx";
 import WriterPage from "./WriterPage.jsx";
 import FluxImagePage from "./FluxImagePage.jsx";
@@ -64,7 +65,7 @@ import {createRoot} from "react-dom/client";
 import {AssistantRuntimeProvider, ThreadPrimitive, MessagePrimitive, useAuiState, useExternalStoreRuntime} from "@assistant-ui/react";
 
 const embeddedGenerators={
-  "wan22-vace-generator":VacePage,"wan22-i2v-generator":I2VPage,"wan22-animate2-generator":AnimatePage,
+  "wan22-vace-generator":VacePage,"wan22-i2v-generator":I2VPage,"wan21-t2v-generator":Wan21T2VPage,"wan21-i2v-generator":Wan21I2VPage,"wan22-animate2-generator":AnimatePage,
   "sfx-dasheng-audiogen":SoundEffectPage,"music-heartmula":HeartmulaPage,
   "dwpose-generator":DwposePage,"prompt-translation":TranslationPage,"writer-agent":WriterPage,
 };
@@ -690,7 +691,7 @@ function App() {
   const toolFieldLabels={"sound-management":"음악·효과음","animation-tool":"모션·포즈·영상·편집","image-generation":"이미지 생성","map-review":"맵·에셋 관리","game-ui":"게임 UI","model-management":"모델 관리","writer-agent":"텍스트·번역"};
   const categories=new Map(tools.map(tool=>[tool.category,toolFieldLabels[tool.category] || tool.category_label]));
   const terms=search.trim().toLowerCase().split(/\s+/);
-  const toolSearchAliases={"kimodo-generator":"키모도 김도", "wan22-fun-control-generator":"완 펀 컨트롤 원 펀 콘트롤"};
+  const toolSearchAliases={"kimodo-generator":"키모도 김도", "wan22-fun-control-generator":"완 펀 컨트롤 원 펀 콘트롤", "wan21-t2v-generator":"wan2.1 wan21 완 2.1 텍스트 영상", "wan21-i2v-generator":"wan2.1 wan21 완 2.1 이미지 영상"};
   const matchedTools=tools.filter(tool=>(category==="all" || tool.category===category) &&
     terms.every(term=>[tool.label,tool.id,tool.description,toolSearchAliases[tool.id] || ""].join(" ").toLowerCase().includes(term)));
   const chosen=query().get("tool");
@@ -861,6 +862,8 @@ const pages = {
   "/management/assistant/fun-control": FunControlPage,
   "/management/frame/wan22-vace-generator": VacePage,
   "/management/frame/wan22-i2v-generator": I2VPage,
+  "/management/frame/wan21-t2v-generator": Wan21T2VPage,
+  "/management/frame/wan21-i2v-generator": Wan21I2VPage,
   "/management/assistant/vace": VacePage,
   "/management/frame/wan22-animate2-generator": AnimatePage,
   "/management/frame/writer-agent": WriterPage,

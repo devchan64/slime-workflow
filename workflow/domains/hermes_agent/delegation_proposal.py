@@ -226,6 +226,8 @@ HERMES_VIDEO_PROPOSAL_MODES = {
     'wan22-fun-control':('frames','pose_video','driving_video'),
     'wan22-vace':('text','reference','first_frame','video_edit','video_condition','pose'),
     'wan22-i2v':('first_frame',),
+    'wan21-t2v':('text',),
+    'wan21-i2v':('first_frame',),
 }
 
 

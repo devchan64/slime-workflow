@@ -649,6 +649,9 @@ def list_management_service_registration():
             current_hermes_links.extend(['hermes-audio-resume-preview','hermes-audio-resume-submit','hermes-audio-resume-receipt'])
         elif current_service_name in HERMES_VIDEO_SERVICES:
             current_hermes_links=['hermes-video-proposal','hermes-delegate-video','hermes-video-source-status','hermes-video-status','hermes-video-history','hermes-video-cancel']
+        elif current_service_name in ('wan21-t2v','wan21-i2v'):
+            current_hermes_links=['hermes-video-proposal','hermes-video-source-status']
+            current_limit_records.append({'command':'hermes-video-proposal','note':'생성 폼에 프롬프트만 전달한다. 이미지와 생성 설정은 사용자가 확인하고 직접 접수한다.'})
         elif current_service_name in FLUX_IMAGE_PROFILE_RECORDS or current_service_name=='flux-expression':
             current_hermes_links=['hermes-delegate-flux-profile','hermes-flux-source-status','hermes-flux-profile-status','hermes-flux-profile-history','hermes-flux-profile-cancel','hermes-service-receipt']
             if current_service_name!='flux-image':current_hermes_links.append('hermes-flux-proposal')

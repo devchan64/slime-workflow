@@ -108,7 +108,7 @@ def handle_history_summaries_request(handler, routes):
                 if payload['service'] in {'flux-image','flux-character','flux-mannequin','flux-billboard','flux-prop','flux-vegetation','flux-building','flux-seamless','flux-expression'}:
                     image=directory/'result.png'
                     summaries[id]['image_available']=not image.is_symlink() and image.is_file()
-                elif payload['service'] in {'wan22-fun-control','wan22-vace','wan22-i2v','wan22-animate2','dwpose','kimodo'}:
+                elif payload['service'] in {'wan22-fun-control','wan22-vace','wan22-i2v','wan21-t2v','wan21-i2v','wan22-animate2','dwpose','kimodo'}:
                     summaries[id]['image_attempt']=video_image_attempt(directory)
                 elif payload['service'] in {'music-heartmula','music-minimax','music-magenta','sfx-dasheng-audiogen'}:
                     summaries[id]['audio_available']=audio_result_available(directory,payload['service'])

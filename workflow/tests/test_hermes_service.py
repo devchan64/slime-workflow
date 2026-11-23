@@ -1931,6 +1931,17 @@ class HermesServiceTests(unittest.TestCase):
             current_prepare_allowed=inspect_registered_model_operation(current_service_name,MANAGEMENT_SERVICE_COMMANDS[current_service_name],'prepare') is not None
             self.assertEqual('hermes-model-prepare' in current_links_value,current_prepare_allowed)
 
+    def test_wan21_registration_exposes_proposal_without_direct_delegation(self):
+        current_catalog=self.hermes_service_manager.execute_hermes_command('hermes-service-registration',{})
+        current_services={item['service']:item for item in current_catalog['services']}
+        for current_name in ('wan21-t2v','wan21-i2v'):
+            with self.subTest(service=current_name):
+                current_record=current_services[current_name]
+                self.assertIn('hermes-video-proposal',current_record['hermes_links'])
+                self.assertIn('hermes-generator-source-history',current_record['hermes_links'])
+                self.assertNotIn('hermes-delegate-video',current_record['hermes_links'])
+                self.assertTrue(any(item['command']=='hermes-video-proposal' and '프롬프트만' in item['note'] for item in current_record['conditional_limitations']))
+
     def test_known_flux_seamless_limitations_match_service_validator(self):
         from workflow.domains.image.flux_image_generation import FluxImageGenerationManager
         current_catalog_value=self.hermes_service_manager.execute_hermes_command('hermes-service-registration', {})

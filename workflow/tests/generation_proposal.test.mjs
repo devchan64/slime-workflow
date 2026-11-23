@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readGenerationProposal,audioProposalInputs,generationProposalScope,vaceProposalInputs,funProposalInputs,writerProposalId} from '../../gui/generationProposal.mjs';
+import {readGenerationProposal,audioProposalInputs,generationProposalScope,vaceProposalInputs,funProposalInputs,wan21ProposalInputs,writerProposalId} from '../../gui/generationProposal.mjs';
 test('audio, video and writer proposals are read only from their current session',async()=>{
   const session='a'.repeat(32),job='2026-11-18_00-00-00-12345678',snapshot='b'.repeat(64);
   for(const [kind,proposal] of Object.entries({audio:{service:'sfx-dasheng-audiogen',request:{prompt:'water',seed:42}},video:{service:'wan22-vace',mode:'text',prompt:'walk'},writer:{mode:'write',prompt:'story'}})){
@@ -52,6 +52,16 @@ test('Wan Fun accepts only the video input supported by the current form',()=>{
   assert.deepEqual(funProposalInputs(defaults,proposal),{...defaults,prompt:'walking'});
   for(const mode of ['frames','driving_video'])assert.throws(()=>funProposalInputs(defaults,{...proposal,mode}),/포즈 영상/);
   assert.throws(()=>funProposalInputs(defaults,{...proposal,service:'dwpose'}),/포즈 영상/);
+});
+test('Wan 2.1 proposals transfer only prompts to the matching generator',()=>{
+  const defaults={prompt:'',steps:4,images:[]};
+  for(const [service,mode] of [['wan21-t2v','text'],['wan21-i2v','first_frame']]){
+    const proposal={service,mode,prompt:'a boss fight',steps:99,images:['ignored']};
+    assert.deepEqual(wan21ProposalInputs(defaults,proposal,service),{...defaults,prompt:'a boss fight'});
+    assert.throws(()=>wan21ProposalInputs(defaults,{...proposal,mode:mode==='text'?'first_frame':'text'},service));
+    assert.throws(()=>wan21ProposalInputs(defaults,{...proposal,prompt:' '},service));
+    assert.throws(()=>wan21ProposalInputs(defaults,proposal,service==='wan21-t2v'?'wan21-i2v':'wan21-t2v'));
+  }
 });
 test('writer proposal uses a stable session and job receipt across tabs',async()=>{
   const session='a'.repeat(32),job='2026-11-18_00-00-00-12345678';

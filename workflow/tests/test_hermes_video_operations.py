@@ -16,8 +16,8 @@ class HermesVideoOperationsTests(unittest.TestCase):
                 current_request_value={'action':'generate'}
                 self.assertFalse(video_operations.submit_hermes_video_request(current_request_id,current_service_name,current_request_value)['duplicate'])
                 self.assertTrue(video_operations.submit_hermes_video_request(current_request_id,current_service_name,current_request_value)['duplicate'])
-            self.assertEqual(current_gateway_mock.call_count,4)
-            self.assertEqual(current_validate_mock.call_count,4)
+            self.assertEqual(current_gateway_mock.call_count,len(video_operations.HERMES_VIDEO_SERVICES))
+            self.assertEqual(current_validate_mock.call_count,len(video_operations.HERMES_VIDEO_SERVICES))
             with self.assertRaises(ValueError):
                 video_operations.read_hermes_video_status('video_request_0','wan22-vace')
             with self.assertRaises(ValueError):

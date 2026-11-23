@@ -9,8 +9,8 @@ from workflow.domains.hermes_agent.delegation_store import HermesDelegationStore
 from workflow.domains.hermes_agent.failure_observer import observe_hermes_generator_failure
 
 from workflow.common.source_history_catalog import SOURCE_HISTORY_VIDEO_SERVICES
-HERMES_VIDEO_SERVICES = SOURCE_HISTORY_VIDEO_SERVICES
-HERMES_VIDEO_SOURCE_SERVICES = (*HERMES_VIDEO_SERVICES,'kimodo')
+HERMES_VIDEO_SERVICES = tuple(service for service in SOURCE_HISTORY_VIDEO_SERVICES if service not in ('wan21-t2v','wan21-i2v'))
+HERMES_VIDEO_SOURCE_SERVICES = (*SOURCE_HISTORY_VIDEO_SERVICES,'kimodo')
 HERMES_VIDEO_REQUEST_LIMIT = 39_000_000
 
 
@@ -91,6 +91,12 @@ def validate_hermes_video_source_service(current_service_name):
 
 def make_hermes_video_source_manager(current_service_name):
     validate_hermes_video_source_service(current_service_name)
+    if current_service_name=='wan21-t2v':
+        from workflow.domains.wan21_t2v.generation import Wan21T2VGenerationManager
+        return Wan21T2VGenerationManager()
+    if current_service_name=='wan21-i2v':
+        from workflow.domains.wan21_i2v.generation import Wan21I2VGenerationManager
+        return Wan21I2VGenerationManager()
     if current_service_name=='kimodo':
         from workflow.domains.kimodo.generation import KimodoGenerationManager
         return KimodoGenerationManager()
