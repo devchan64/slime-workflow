@@ -864,6 +864,15 @@ def build_management_application(current_handler_class, current_root_path, curre
             return Response(status_code=404)
         return FileResponse(path, media_type='video/mp4', headers={'Cache-Control':'no-store'})
 
+    @current_root_application.get('/management/assistant/wan21-i2v-input/{job}')
+    def wan21_i2v_input(job: str):
+        from generators.wan21_i2v.worker import JOB_STORAGE
+        from workflow.domains.wan21_i2v.input_restore import load_saved_input
+        try:
+            return JSONResponse(load_saved_input(JOB_STORAGE, job), headers={'Cache-Control':'no-store'})
+        except (ValueError, OSError, KeyError, TypeError):
+            return JSONResponse({'detail':'저장된 입력 또는 참조 이미지를 확인할 수 없습니다. 이력을 확인한 뒤 다시 시도하세요.'}, status_code=422)
+
     @current_root_application.get('/management/assistant/vace-template')
     def vace_template():
         from generators.wan_vace.contracts import VACE_DEFAULT_SETTINGS, VACE_MAXIMUM_SEED_VALUE

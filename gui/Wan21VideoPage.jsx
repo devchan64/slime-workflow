@@ -26,6 +26,8 @@ function Wan21VideoPage({mode,embedded=false,session:embeddedSession=""}) {
   const [settings,setSettings]=useState({prompt:"",negative_prompt:"",frames:21,steps:4,seed:42,flow_shift:5,guidance_scale:1,acceleration:true,action_lora:false,action_variant:"fight",action_strength:1});
   const [file,setFile]=useState(null), [model,setModel]=useState(null), [pending,setPending]=useState(null), [busy,setBusy]=useState(false), [error,setError]=useState(""), [job,setJob]=useState(""), [revision,setRevision]=useState(0), [notice,setNotice]=useState("");
   const sending=useRef(false);
+  const formRef=useRef(null), inputCardRef=useRef(null), currentInput=useRef(null);
+  currentInput.current={settings,file,busy,pending};
   const inputReasons=[!model ? "모델 준비 상태를 확인하세요." : !generationReady(model) ? "모델 준비 상태와 오류를 확인하세요." : "", isImage && !file ? "첫 프레임 이미지를 선택하세요." : "", !settings.prompt.trim() ? "프롬프트를 입력하세요." : ""];
   useEffect(()=>{
     let active=true;
@@ -39,6 +41,29 @@ function Wan21VideoPage({mode,embedded=false,session:embeddedSession=""}) {
     return ()=>{active=false;};
   },[service,session]);
   function field(name,value){setSettings(old=>({...old,[name]:value}));}
+  async function readSavedInput(id){
+    const start=currentInput.current;
+    if(start.busy || start.pending)throw new Error('생성 요청 검토가 끝난 뒤 입력을 적용하세요.');
+    const controller=new AbortController();let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    try{
+      const response=await fetch('/management/assistant/wan21-i2v-input/'+encodeURIComponent(id),{cache:'no-store',signal:controller.signal});
+      if(!response.ok)throw new Error('저장 입력 또는 참조 이미지를 확인할 수 없습니다. 이력을 확인한 뒤 다시 시도하세요.');
+      const record=await response.json();
+      if(record?.id!==id || !record.request || !Array.isArray(record.request.images) || record.request.images.length!==1 || typeof record.request.images[0]!=='string')throw new Error('저장 입력이 선택한 작업과 일치하지 않습니다.');
+      const bytes=Uint8Array.from(atob(record.request.images[0]),c=>c.charCodeAt(0));
+      return {...record,restoredFile:new File([bytes],'reference-1.png',{type:'image/png'}),inputAtStart:start};
+    }catch(problem){if(timedOut)throw new Error('저장 입력 조회 시간이 초과됐습니다. 다시 시도하세요.');throw problem;}
+    finally{clearTimeout(timeout);}
+  }
+  function restoreSavedInput(request,record){
+    const current=currentInput.current, start=record.inputAtStart;
+    if(current.busy || current.pending || current.settings!==start.settings || current.file!==start.file)throw new Error('조회 중 입력이 변경되어 적용하지 않았습니다. 다시 시도하세요.');
+    const {images,action,width,height,...restored}=request;
+    setSettings(restored);setFile(record.restoredFile);setError('');setNotice(record.id+'의 입력을 적용했습니다. 설정과 이미지를 확인하세요.');
+    if(inputCardRef.current)inputCardRef.current.open=true;
+    requestAnimationFrame(()=>{formRef.current?.focus();formRef.current?.scrollIntoView({block:'start'});});
+  }
   async function review(event){
     event.preventDefault(); if(busy || pending)return; setError(""); const s=settings;
     if(!generationReady(model) || (isImage && !file) || !s.prompt.trim() || !Number.isInteger(s.frames) || s.frames<5 || s.frames>129 || (s.frames-1)%4 || !Number.isInteger(s.steps) || s.steps<2 || s.steps>100 || !Number.isInteger(s.seed) || s.seed<0 || s.seed>2147483647 || !Number.isFinite(s.flow_shift) || s.flow_shift<0.1 || s.flow_shift>20 || !Number.isFinite(s.guidance_scale) || s.guidance_scale<1 || s.guidance_scale>10 || !Number.isFinite(s.action_strength) || s.action_strength<0 || s.action_strength>2 || (s.action_lora && s.action_strength<=0) || (s.acceleration && (s.steps!==4 || s.guidance_scale!==1))){setError("이미지와 프롬프트, 생성 설정을 확인하세요.");return;}
@@ -59,7 +84,7 @@ function Wan21VideoPage({mode,embedded=false,session:embeddedSession=""}) {
     <ModelReadiness service={service} modelManagementService={`${service}-assets`} onStatus={setModel}/>
     {isImage && <GeneratorSectionCard title="공격 LoRA 준비" summary="2.2 학습 파일 · 2.1 적용 실험"><ModelReadiness service="wan21-i2v-attack-lora" manage/></GeneratorSectionCard>}
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-    <GeneratorSectionCard title="생성 입력" summary={isImage?"첫 이미지와 동작":"프롬프트"} defaultOpen><form onSubmit={review}><fieldset disabled={busy || !!pending}>
+    <GeneratorSectionCard title="생성 입력" summary={isImage?"첫 이미지와 동작":"프롬프트"} defaultOpen cardRef={inputCardRef}><form ref={formRef} tabIndex={-1} onSubmit={review}><fieldset disabled={busy || !!pending}>
       {isImage && <><ReferenceImageInput label="첫 프레임 이미지" source={file} onChange={setFile} disabled={busy || !!pending}/><p>이미지 파일을 선택하세요. 이미지는 흰 여백을 넣어 832×480으로 맞춥니다.</p></>}
       <label>프롬프트<textarea required maxLength={8000} value={settings.prompt} onChange={e=>field("prompt",e.target.value)}/><PromptWordCount text={settings.prompt} final/></label>
       <label>부정 프롬프트<textarea maxLength={8000} value={settings.negative_prompt} onChange={e=>field("negative_prompt",e.target.value)}/></label>
@@ -75,7 +100,7 @@ function Wan21VideoPage({mode,embedded=false,session:embeddedSession=""}) {
     </fieldset></form></GeneratorSectionCard>
     {pending && <section className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/><p>{isImage && file?.name} · 832×480 · {pending.frames}프레임 · {pending.steps}스텝 · 시드 {pending.seed} · CFG {pending.guidance_scale} · Shift {pending.flow_shift}</p><p>가속 LoRA: {pending.acceleration ? "사용" : "사용 안 함"} · {isImage ? pending.action_variant : "KXSR"} LoRA: {pending.action_lora ? `사용 (강도 ${pending.action_strength})` : "사용 안 함"}</p><p>{pending.prompt}</p><p>부정 프롬프트: {pending.negative_prompt || "없음"}</p><GenerationReviewActions busy={busy} onCancel={()=>setPending(null)} onConfirm={submit}/></section>}
     <ActiveGeneratorProgress service={service} revision={revision+":"+job} onOpenResult={setJob}/>
-    <GeneratorHistory allowPriority toggleResult key={revision} service={service} statusCommand="status" card openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setRevision(x=>x+1);}} footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={message=>{setJob("");setNotice(message);setRevision(x=>x+1);}}/>} renderResult={(id)=><section><SavedGeneratorInputs id={id} service={service} statusCommand="status"/><MediaJobResult service={service} id={id}>{(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}</MediaJobResult></section>}/>
+    <GeneratorHistory allowPriority toggleResult key={revision} service={service} statusCommand="status" card readJob={isImage?readSavedInput:undefined} restore={isImage?restoreSavedInput:undefined} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setRevision(x=>x+1);}} footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={message=>{setJob("");setNotice(message);setRevision(x=>x+1);}}/>} renderResult={(id)=><section><SavedGeneratorInputs id={id} service={service} statusCommand="status"/><MediaJobResult service={service} id={id}>{(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}</MediaJobResult></section>}/>
   </article>;
 }
 export function Wan21T2VPage(props){return <Wan21VideoPage {...props} mode="t2v"/>;}
