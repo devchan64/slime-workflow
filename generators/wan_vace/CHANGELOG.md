@@ -1,5 +1,7 @@
 # Wan2.2 VACE-Fun 변경 기록
 
+- 격투 LoRA만 사용하는 선택지를 추가했다. Lightning 없이 High 전문가에 병합하며 일반 스텝과 CFG를 사용할 수 있다. 단독 GPU 품질은 미검증이다.
+
 ## 2026-11-22 · Lightning 단독 선택
 
 - 격투 LoRA 없이 Lightning High/Low만 적용하는 선택지를 추가했다. 4스텝·CFG 1·shift 5를 적용하며 단독 GPU 실행은 별도 검증한다.

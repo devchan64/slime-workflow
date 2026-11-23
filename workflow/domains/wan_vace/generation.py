@@ -31,10 +31,10 @@ class VaceVideoGenerationManager(ReferenceVideoGenerationManager):
             from generators.wan_vace.lightning_lora import inspect_lightning_loras
             if not inspect_lightning_loras():
                 raise ValueError('Lightning LoRA를 모델 관리에서 준비하세요.')
-            if saved_request_record.get('lora_mode') == 'fighting_lightning':
-                from generators.wan_vace.fighting_lora import inspect_fighting_lora
-                if not inspect_fighting_lora():
-                    raise ValueError('격투 LoRA를 모델 관리에서 준비하세요.')
+        if saved_request_record and saved_request_record.get('lora_mode') in ('fighting', 'fighting_lightning'):
+            from generators.wan_vace.fighting_lora import inspect_fighting_lora
+            if not inspect_fighting_lora():
+                raise ValueError('격투 LoRA를 모델 관리에서 준비하세요.')
 
     def inspect_model_download(self):
         current_root_path = Path(__file__).resolve().parents[3]

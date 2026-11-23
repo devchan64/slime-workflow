@@ -25,6 +25,30 @@ class VaceLoraMergeTests(unittest.TestCase):
         self.assertEqual(validate_vace_request({**lightning_request, 'guidance_scale': 2})['guidance_scale'], 2)
         with self.assertRaises(ValueError):
             validate_vace_request({**lightning_request, 'steps': 20})
+        fighting_request = {**request, 'lora_mode': 'fighting', 'steps': 20, 'flow_shift': 12, 'guidance_scale': 5}
+        self.assertEqual(validate_vace_request(fighting_request)['lora_mode'], 'fighting')
+
+    def test_fighting_only_requires_and_merges_fighting_without_lightning(self):
+        from generators.wan_vace.official_runtime import apply_vace_loras
+        from workflow.domains.wan_vace.generation import VaceVideoGenerationManager
+        high, low = object(), object()
+        with tempfile.TemporaryDirectory() as directory, \
+             patch('generators.wan_vace.lightning_lora.inspect_lightning_loras', side_effect=AssertionError('Lightning 불필요')), \
+             patch('generators.wan_vace.fighting_lora.inspect_fighting_lora', return_value=True), \
+             patch('generators.wan_vace.lora_merge.merge_adapter', return_value=400) as merge, \
+             patch('workflow.domains.wan_vace.generation.validate_vace_assets'):
+            VaceVideoGenerationManager().validate_generation_runtime({'model_profile': 'official-bf16-resident-v1', 'lora_mode': 'fighting'})
+            apply_vace_loras(high, low, 'fighting', Path(directory))
+            self.assertEqual(len(merge.call_args_list), 1)
+            self.assertIs(merge.call_args.args[0], high)
+            record = json.loads((Path(directory) / 'lora-merge.json').read_text())
+            self.assertEqual(record['mode'], 'fighting')
+            self.assertIn('fighting_sha256', record)
+            self.assertNotIn('lightning_sha256', record)
+        with patch('workflow.domains.wan_vace.generation.validate_vace_assets'), \
+             patch('generators.wan_vace.fighting_lora.inspect_fighting_lora', return_value=False):
+            with self.assertRaises(ValueError):
+                VaceVideoGenerationManager().validate_generation_runtime({'model_profile': 'official-bf16-resident-v1', 'lora_mode': 'fighting'})
 
     def test_lightning_alone_does_not_require_or_merge_fighting(self):
         from generators.wan_vace.official_runtime import apply_vace_loras

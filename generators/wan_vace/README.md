@@ -4,6 +4,8 @@
 
 `격투 + Lightning · 실험`은 격투 High와 LightX2V T2V V1.1 High/Low를 각각 대응 전문가에 강도 1로 병합한다. 모델 관리에서 두 LoRA 준비가 필요하다. GUI 또는 `wan22-vace generate` 요청의 `lora_mode: fighting_lightning`을 사용하며 4스텝·CFG 1·shift 5로 제한한다. CFG 1에서는 부정 프롬프트 효과를 기대할 수 없다. LoRA 해시·병합 개수는 시도 폴더의 `lora-merge.json`에 남긴다. 기존 GPU BF16 상주, SDPA와 `expandable_segments:False` 정책을 유지한다. 2026-11-22의 5프레임 텍스트와 37프레임 포즈 시험은 완료했으나 번짐·포즈 차이 등 품질 문제가 관찰됐다. 세부 사항은 변경 기록을 참조한다.
 
+`격투만 · 실험` 또는 `lora_mode: fighting`은 Lightning 없이 격투 LoRA를 High 전문가에 강도 1로 병합한다. 격투 LoRA만 준비하며 일반 스텝·CFG·shift를 사용한다. 격투 단독 GPU 생성 품질은 별도 검증이 필요하다.
+
 `Lightning만 · 실험` 또는 `lora_mode: lightning`은 격투 LoRA 없이 같은 Lightning High/Low만 적용한다. 4스텝·shift 5를 사용하고 CFG 1을 기본으로 하며, 더 높은 CFG는 실험적으로 선택할 수 있다. Lightning 파일만 준비하면 된다.
 
 ## 영상 전체 조건 실험

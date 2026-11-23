@@ -18,21 +18,24 @@ def build_blank_video_condition(torch, frame_count):
 def apply_vace_loras(current_high_model, current_low_model, lora_mode, current_attempt_root):
     if lora_mode == 'none':
         return
-    if lora_mode not in ('lightning', 'fighting_lightning'):
+    if lora_mode not in ('fighting', 'lightning', 'fighting_lightning'):
         raise ValueError('지원하지 않는 LoRA 설정입니다.')
-    from generators.wan_vace.lightning_lora import DIRECTORY, FILES, REVISION, inspect_lightning_loras
     from generators.wan_vace.lora_merge import merge_adapter
     from workflow.common.generation_records import write_record_atomically
-    if not inspect_lightning_loras():
-        raise ValueError('Lightning LoRA 파일 검증에 실패했습니다. 모델 관리에서 준비하세요.')
-    if lora_mode == 'fighting_lightning':
+    if lora_mode in ('lightning', 'fighting_lightning'):
+        from generators.wan_vace.lightning_lora import DIRECTORY, FILES, REVISION, inspect_lightning_loras
+        if not inspect_lightning_loras():
+            raise ValueError('Lightning LoRA 파일 검증에 실패했습니다. 모델 관리에서 준비하세요.')
+    if lora_mode in ('fighting', 'fighting_lightning'):
         from generators.wan_vace.fighting_lora import PATH as fighting_path, SHA256 as fighting_hash, inspect_fighting_lora
         if not inspect_fighting_lora():
             raise ValueError('격투 LoRA 파일 검증에 실패했습니다. 모델 관리에서 준비하세요.')
-    high_count = merge_adapter(current_high_model, DIRECTORY / FILES['high'][0])
-    low_count = merge_adapter(current_low_model, DIRECTORY / FILES['low'][0])
-    record = {'mode': lora_mode, 'strength': 1.0, 'lightning_revision': REVISION, 'lightning_sha256': {name: item[2] for name,item in FILES.items()}, 'high_layers': high_count, 'low_layers': low_count}
-    if lora_mode == 'fighting_lightning':
+    record = {'mode': lora_mode, 'strength': 1.0}
+    if lora_mode in ('lightning', 'fighting_lightning'):
+        high_count = merge_adapter(current_high_model, DIRECTORY / FILES['high'][0])
+        low_count = merge_adapter(current_low_model, DIRECTORY / FILES['low'][0])
+        record.update(lightning_revision=REVISION, lightning_sha256={name: item[2] for name,item in FILES.items()}, high_layers=high_count, low_layers=low_count)
+    if lora_mode in ('fighting', 'fighting_lightning'):
         record.update(fighting_sha256=fighting_hash, fighting_high_layers=merge_adapter(current_high_model, fighting_path))
     write_record_atomically(current_attempt_root / 'lora-merge.json', record)
 
