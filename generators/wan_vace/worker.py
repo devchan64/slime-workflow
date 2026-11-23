@@ -2,10 +2,14 @@
 from pathlib import Path
 import sys
 import os
+VACE_WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 if __name__ == '__main__':
     os.environ['PYTORCH_ALLOC_CONF'] = 'expandable_segments:False'
     os.environ.pop('PYTORCH_CUDA_ALLOC_CONF', None)
-VACE_WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
+    # Keep compiler temporary files off the shared, quota-limited /tmp tmpfs.
+    current_temp_directory = VACE_WORKSPACE_ROOT / '.tmp' / 'wan22-vace-runtime-tmp'
+    current_temp_directory.mkdir(parents=True, exist_ok=True)
+    os.environ['TMPDIR'] = str(current_temp_directory)
 sys.path.insert(0, str(VACE_WORKSPACE_ROOT))
 from generators.wan_vace.contracts import VACE_JOB_STORAGE, verify_vace_weights
 from generators.common.reference_video_worker import run_reference_video_worker
