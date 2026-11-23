@@ -89,6 +89,13 @@ function messagesFrom(view) {
   return records.flatMap((m,index) => {
     const job = m.job || {}, key=m.id || m.request_id || (view.id + "-" + (start + index));
     if(m.form_id)return [{id:m.form_id,role:"user",content:m.text,metadata:{custom:{formId:m.form_id,session:view.id}}}];
+    if(m.report_job_id && m.report_job_id===m.job_id){
+      const [,service,sourceJob] = (m.text || "").split(" · ");
+      const imagePath = "/"+service+"-generator/jobs/"+sourceJob+"/result.png";
+      const body = job.final_response || "보고서 본문 조회 필요";
+      const imageLink = fluxResultImagePath.test(imagePath) && body.includes(imagePath) ? "\n\n[생성 이미지 보기]("+imagePath+")" : "";
+      return [{id:key+"-report",role:"assistant",content:m.text+imageLink+"\n\n"+body+"\n\n[보고서 보기]("+jobLink(m.job_id,view.id)+")"}];
+    }
     const activity = job.tool_activity || {};
     const page = activity.source_history_page;
     const table = activity.history_table || (page && {
@@ -247,9 +254,33 @@ function ChatQueuePanel({session}){
       <h3>대기 중인 요청 · {data.chat_queue.length}</h3>{!data.chat_queue.length && <p>대기 중인 요청이 없습니다. 이 세션에서 요청이 실행되는 동안 새 메시지를 보내면 대기열에 추가되고, 앞선 요청이 끝난 뒤 순서대로 실행됩니다.</p>}{[...data.chat_queue,...(editingItem && !data.chat_queue.some(item=>item.request_id===editingItem.request_id) ? [{...editingItem,state:"departed"}] : [])].map((item,index)=><div key={item.request_id}><small>{item.state==="departed"?"대기열에서 사라진 요청의 편집 내용":"대기 순서 · "+(index+1)}</small><ChatQueueItem item={item} savedEdit={editingItem?.request_id===item.request_id ? editingItem : null} unavailable={Boolean(error)} mutationLocked={Boolean(pendingUpdate)} disableEdit={Boolean(editingItem && editingItem.request_id!==item.request_id)} onEditing={rememberEdit} onChange={sendUpdate}/></div>)}<LiveInstructionReceipts rows={data.live_instructions} session={session} unavailable={Boolean(error)} onRefresh={()=>refresh(n=>n+1)}/></>}
   </section>;
 }
+const fluxResultImagePath = /^\/flux-[a-z0-9-]+-generator\/jobs\/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}\/result\.png$/;
+function markChatThumbnails() {
+  return tree => {
+    const seen = new Set();
+    function visit(node) {
+      const href = node.properties?.href;
+      if (node.tagName === "a" && fluxResultImagePath.test(href) && !seen.has(href)) {
+        node.data = {...node.data, thumbnail: true};
+        seen.add(href);
+      }
+      node.children?.forEach(visit);
+    }
+    visit(tree);
+  };
+}
+function ChatResultLink({href, children, node}) {
+  const [failedSource, setFailedSource] = useState("");
+  if (!href) return <>{children}</>;
+  const preview = node.data?.thumbnail && failedSource !== href;
+  return <a href={href} target="_blank" rel="noopener noreferrer">
+    {preview && <img className="chat-result-thumbnail" src={href} alt="생성 이미지 미리보기" loading="lazy" onError={()=>setFailedSource(href)}/>}
+    {children}
+  </a>;
+}
 function AssistantText({text}){
-  return <div className="assistant-markdown"><Markdown remarkPlugins={[remarkGfm]} skipHtml components={{
-    a:({href,children})=>href ? <a href={href} target="_blank" rel="noopener noreferrer">{children}</a> : <>{children}</>,
+  return <div className="assistant-markdown"><Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[markChatThumbnails]} skipHtml components={{
+    a:ChatResultLink,
     img:({alt})=><span>{alt || "이미지"}</span>,
   }}>{text}</Markdown></div>;
 }

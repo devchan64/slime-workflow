@@ -52,5 +52,8 @@ def start_gateway_workflow_scheduler(workflow_root_directory, server_port_number
     workflow_scheduler_thread = Thread(target=run_workflow_scheduler, name="hermes-workflow-scheduler",
         args=(workflow_run_store, scheduler_stop_event), kwargs={"gateway_command_handler": dispatch_gateway_command},
         daemon=True)
+    from .flux_reports import watch_reports
+    Thread(target=watch_reports, args=(workflow_root_directory, scheduler_stop_event, dispatch_gateway_command),
+           name="flux-report-scheduler", daemon=True).start()
     workflow_scheduler_thread.start()
     return workflow_scheduler_thread

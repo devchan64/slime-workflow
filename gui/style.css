@@ -898,3 +898,5 @@ article {position:relative;}
   .hermes-chat > article > form > button,
 .hermes-chat > article > form > :is(.composer-context,.resident-model-status) > summary {white-space:normal;text-align:left}
 }
+
+.assistant-markdown .chat-result-thumbnail { display: block; width: auto; max-width: min(100%, 240px); max-height: 180px; margin: 0.4rem 0; object-fit: contain; }

@@ -18,13 +18,13 @@ def call_hermes_flux_profile(current_profile_name,current_command_name,current_p
     return execute_management_command(current_profile_name,current_command_name,current_payload_record,current_gateway_address)
 
 
-def submit_hermes_flux_profile(current_request_identifier,current_profile_name,current_request_record):
+def submit_hermes_flux_profile(current_request_identifier,current_profile_name,current_request_record, *, origin=None):
     from workflow.domains.image.flux_image_generation import FluxImageGenerationManager
     from workflow.domains.image.flux_expression_generation import FluxExpressionGenerationManager
     validate_hermes_flux_profile(current_profile_name)
     current_manager_value=FluxExpressionGenerationManager() if current_profile_name=='flux-expression' else FluxImageGenerationManager(current_profile_name)
     return HermesDelegationStore().execute_service_delegation_once(current_request_identifier,current_profile_name,current_request_record,
-        lambda current_request_value:call_hermes_flux_profile(current_profile_name,'generate',current_request_value),
+        lambda current_request_value:call_hermes_flux_profile(current_profile_name,'generate',current_request_value if origin is None else {**current_request_value, '_report_origin':origin}),
         current_manager_value.validate_generation_request)
 
 
@@ -76,7 +76,17 @@ def read_hermes_flux_source_job(current_profile_name,current_job_identifier):
     current_image_path=current_job_root/'result.png'
     current_image_url='/'+current_profile_name+'-generator/jobs/'+current_job_identifier+'/result.png' if current_status_value=='completed' and not current_image_path.is_symlink() and current_image_path.is_file() else None
     if read_bounded_delegation_record(current_status_path)!=current_status_record:raise ValueError('FLUX 상태가 조회 중 변경되었습니다.')
-    return {'status':current_status_value,'image':current_image_url,'result_status':'available' if current_image_url else 'unavailable' if current_status_value=='completed' else 'not_ready','note':'기록과 조회 시점의 파일 존재만 확인합니다. 이미지 내용·품질과 프로세스 생존은 별도 확인하세요.',**observe_hermes_generator_failure(current_status_value,current_status_record.get('error'))}
+    report_path = current_job_root / 'hermes-report.json'
+    report = {}
+    if report_path.is_file() and not report_path.is_symlink():
+        import json
+        stored = json.loads(report_path.read_text())
+        report = {'report_state': stored['state']}
+        if stored.get('last_error') or stored.get('error'):
+            report['report_error'] = str(stored.get('error') or stored['last_error'])[:300]
+        if stored['state'] == 'completed' and validate_service_job_identifier(current_profile_name, stored.get('hermes_job_id')):
+            report['report_job_id'] = stored['hermes_job_id']
+    return {**report,'status':current_status_value,'image':current_image_url,'result_status':'available' if current_image_url else 'unavailable' if current_status_value=='completed' else 'not_ready','note':'기록과 조회 시점의 파일 존재만 확인합니다. 이미지 내용·품질과 프로세스 생존은 별도 확인하세요.',**observe_hermes_generator_failure(current_status_value,current_status_record.get('error'))}
 
 
 def validate_hermes_flux_source_response(current_service_name,current_job_identifier,current_response_value):

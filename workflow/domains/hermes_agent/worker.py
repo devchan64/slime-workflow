@@ -331,7 +331,9 @@ def execute_hermes_gpu_job(worker_job_directory, *, resident_directory=None):
     worker_offload_value = None
     worker_agent_exit_code = None
     worker_verification_record = {'status':'not_run' if worker_verification_modules else 'not_requested', 'modules':worker_verification_modules, 'exit_code':None}
-    with worker_log_path.open('w', encoding='utf-8') as worker_log_stream:
+    from tempfile import TemporaryDirectory
+    with TemporaryDirectory(prefix="model-tmp-", dir=worker_job_directory) as model_temp, worker_log_path.open('w', encoding='utf-8') as worker_log_stream:
+        worker_environment_values['TMPDIR'] = model_temp
         worker_server_process = subprocess.Popen(worker_server_arguments, stdout=worker_log_stream, stderr=subprocess.STDOUT, env=worker_environment_values) if resident_directory is None else None
         try:
             worker_offload_value = wait_worker_model_ready(worker_server_process, worker_server_port, worker_log_path) if worker_server_process is not None else 'resident GPU reservation verified'

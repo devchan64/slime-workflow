@@ -311,6 +311,12 @@ class ImageGenerationManager:
                         raise ValueError('이력 삭제 요청 필드 오류')
                     send_response_data(200,self.delete_generation_history(generation_job_identifier))
                     return True
+                flux_service = self.route_prefix_value.strip('/').removesuffix('-generator')
+                report_origin = None
+                if flux_service.startswith('flux-'):
+                    from workflow.domains.hermes_agent.flux_reports import register_report, validate_origin
+                    report_origin = current_request_record.pop('_report_origin', None)
+                    validate_origin(report_origin, flux_service)
                 current_request_record=self.validate_generation_request(current_request_record)
                 self.validate_generation_runtime(current_request_record)
                 with self.hold_generation_submission_guard(), self.current_request_lock:
@@ -326,6 +332,8 @@ class ImageGenerationManager:
                         current_request_record.pop('images',None)
                     current_request_record=self.save_generation_attachments(current_job_root,current_request_record)
                     (current_job_root/'request.json').write_text(json.dumps(current_request_record,ensure_ascii=False))
+                    if flux_service.startswith('flux-'):
+                        register_report(current_job_root, flux_service, report_origin)
                     (current_job_root/'status.json').write_text('{"status":"running"}')
                     with MANAGER_HISTORY_LOCK:
                         self.history_storage_path().mkdir(parents=True,exist_ok=True)

@@ -72,7 +72,7 @@ class FluxHandoffAdapter(KimodoHandoffAdapter):
     def submit_target(self, record):
         self.validate_service(record['service'])
         self.gateway('hermes-delegate-flux-profile', {'request_id':self.target_request_id(record),
-                     'service':record['service'], 'request':record['target_request']})
+                     'service':record['service'], 'request':record['target_request'], **({'handoff_id':record['id'], 'session_id':record['session_id']} if record.get('session_id') else {})})
         return self.lookup_target(record)
 
     def inspect_target(self, record):

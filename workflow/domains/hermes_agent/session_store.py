@@ -309,11 +309,13 @@ class HermesSessionStore:
             current_next_offset=current_offset_value+len(current_page_values)
             return {'sessions':current_page_values,'offset':current_offset_value,'next_offset':current_next_offset if current_next_offset<len(current_matching_summaries) else None,'total':len(current_matching_summaries),'snapshot':current_snapshot_value,'unreadable_count':len(current_unreadable_identifiers)}
 
-    def append_session_request(self, session_identifier_value, request_identifier_value, request_message_text, execution_prompt_text=None, verification_module_names=None, context_truncated=False, execution_context=None, model_profile=None):
+    def append_session_request(self, session_identifier_value, request_identifier_value, request_message_text, execution_prompt_text=None, verification_module_names=None, context_truncated=False, execution_context=None, model_profile=None, *, report_job_id=None):
         if not isinstance(request_identifier_value, str) or not HERMES_SESSION_REQUEST_PATTERN.fullmatch(request_identifier_value):
             raise ValueError('접수 식별자 형식 오류')
         if not isinstance(request_message_text, str) or not request_message_text.strip() or len(request_message_text) > 12000:
             raise ValueError('메시지는 1~12000자여야 합니다.')
+        if report_job_id is not None and not HERMES_SESSION_JOB_PATTERN.fullmatch(report_job_id):
+            raise ValueError('보고서 작업 ID 형식 오류')
         with self.hold_session_storage_lock():
             current_session_record = self.read_session_record_locked(session_identifier_value)
             if request_identifier_value in current_session_record.get('withdrawn_requests', []):
@@ -322,11 +324,15 @@ class HermesSessionStore:
                 if current_message_record.get('request_id') == request_identifier_value:
                     if current_message_record.get('text') != request_message_text or current_message_record.get('verification_modules', []) != (verification_module_names or []) or current_message_record.get('model_profile') != model_profile:
                         raise ValueError('같은 접수 식별자를 다른 메시지에 사용할 수 없습니다.')
+                    if report_job_id is not None and current_message_record.get('report_job_id') != report_job_id:
+                        raise ValueError('보고서 작업이 기존 메시지와 일치하지 않습니다.')
                     return {'message': current_message_record, 'duplicate': True}
             if len(current_session_record['messages']) >= HERMES_SESSION_MAX_MESSAGES:
                 raise ValueError('세션 메시지 한도에 도달했습니다. 새 세션을 시작하세요.')
             current_created_timestamp = datetime.now(timezone.utc).isoformat()
             current_message_record = {'id': uuid.uuid4().hex, 'request_id': request_identifier_value, 'role': 'user', 'text': request_message_text, 'created_at': current_created_timestamp, 'job_id': None, 'execution_prompt': execution_prompt_text if execution_prompt_text is not None else request_message_text, 'verification_modules': verification_module_names or [], 'context_truncated': context_truncated}
+            if report_job_id is not None:
+                current_message_record.update(job_id=report_job_id, report_job_id=report_job_id)
             if model_profile is not None:
                 current_message_record['model_profile'] = model_profile
             if execution_context is not None:

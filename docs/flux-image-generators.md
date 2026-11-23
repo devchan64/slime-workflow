@@ -1,5 +1,7 @@
 # FLUX 이미지 생성기
 
+Hermes의 생성 완료 후 자동 검수·보고서 작성과 대화·결과 보기 전달의 목표 및 구현 기준은 [FLUX Hermes 보고서 설계](flux-hermes-report-design.md)를 따른다. 신규 생성은 결과 확정 후 자동 검수를 접수한다. 대화 제안의 보고서는 원 대화에 표시되며 독립 작업은 결과 보기에서 보고서를 연다.
+
 [공식 모델 저장소](https://huggingface.co/black-forest-labs/flux-3-image-klein)의 고정 리비전 `09561231f44e41381c461caf53d5452005a60ac9`에 transformer·텍스트 인코더·VAE가 포함된다. 현재 로컬 구성 파일은 해당 리비전의 공개 크기·해시와 대조했다. 모델 사용 조건은 [평가 문서](flux-3-image-evaluation.md)를 확인한다.
 
 모델 관리 화면 또는 `./scripts/workflow.sh model prepare flux-image`로 공식 고정 파일 약 20.32GB를 준비한다. 공식 저장소는 접근 제한이 있으므로 사용 조건에 동의한 Hugging Face 계정과 로그인이 필요하다. 새 모델은 격리 준비 경로에 내려받아 잠금 목록의 크기와 해시를 검증한 뒤 게시하며, 기존 모델은 덮어쓰지 않고 해시만 확인한다. 불완전한 기존 모델은 수동으로 보존·확인해야 한다. 모델 상태 화면은 파일 크기만 확인하므로 전체 해시나 GPU 실행을 보장하지 않는다. 준비 실패 시 `.local/model-preparation/flux-image/worker.log`를 확인한다.

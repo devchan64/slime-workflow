@@ -736,6 +736,8 @@ class HermesServiceManager:
             collect_source(earlier)
         for current_message_record in hermes_session_record['messages'][current_start_index:current_end_index]:
             current_view_record = {'text': current_message_record['text'], 'created_at':current_message_record.get('created_at'), 'job_id': current_message_record.get('job_id'), 'session_job_unique':current_session_job_counts[current_message_record['job_id']]==1 if isinstance(current_message_record.get('job_id'),str) else None, 'context_truncated': current_message_record.get('context_truncated', False), 'job': None}
+            if current_message_record.get('report_job_id') and current_message_record['report_job_id'] == current_view_record['job_id']:
+                current_view_record['report_job_id'] = current_message_record['report_job_id']
             proposal = seed_form_proposal(current_message_record.get('text'), prior_sources)
             if proposal: current_view_record['seed_form_proposal'] = proposal
             if current_message_record.get('form_id'):
@@ -1487,7 +1489,24 @@ class HermesServiceManager:
                     raise ValueError('생성기 서비스만 전달하세요.')
                 return list_hermes_flux_profile_receipts(hermes_payload_record['service'])
             if hermes_command_name=='hermes-delegate-flux-profile':
-                if set(hermes_payload_record)!={'request_id','service','request'}:
+                base_fields = {'request_id', 'service', 'request'}
+                if set(hermes_payload_record) in (base_fields | {'session_id','proposal_job_id'}, base_fields | {'session_id','handoff_id'}):
+                    from .flux_reports import validate_origin
+                    origin = {k:v for k,v in hermes_payload_record.items() if k not in ('service','request')}
+                    validate_origin(origin, hermes_payload_record['service'])
+                    if 'proposal_job_id' in origin:
+                        from .session_store import HermesSessionStore
+                        from .delegation_proposal import parse_hermes_flux_proposal
+                        sessions = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+                        session = sessions.read_session_record(origin['session_id'])
+                        if sum(m.get('job_id') == origin['proposal_job_id'] for m in session['messages']) != 1:
+                            raise ValueError('대화의 FLUX 제안 작업을 확인할 수 없습니다.')
+                        proposal_job = self.read_context_job(origin['proposal_job_id'])
+                        if (proposal_job['status']['status'] != 'completed' or proposal_job.get('final_response_truncated')
+                                or parse_hermes_flux_proposal(proposal_job['final_response']).get('service','flux-image') != hermes_payload_record['service']):
+                            raise ValueError('완료된 FLUX 제안과 서비스가 일치하지 않습니다.')
+                    return submit_hermes_flux_profile(hermes_payload_record['request_id'],hermes_payload_record['service'],hermes_payload_record['request'],origin=origin)
+                if set(hermes_payload_record)!=base_fields:
                     raise ValueError('접수 ID·생성기 서비스·요청이 필요합니다.')
                 return submit_hermes_flux_profile(hermes_payload_record['request_id'],hermes_payload_record['service'],hermes_payload_record['request'])
             if hermes_command_name=='hermes-flux-profile-status':
@@ -1512,9 +1531,11 @@ class HermesServiceManager:
                     raise ValueError('위임 접수 ID와 FLUX 요청 객체가 필요합니다.')
                 from workflow.domains.image.flux_image_generation import FluxImageGenerationManager
                 current_gateway_address = validate_gateway_address(os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL', DEFAULT_GATEWAY_ADDRESS))
+                from .flux_reports import workflow_origin
+                origin = workflow_origin(hermes_payload_record['request_id'])
                 return current_delegation_store.execute_service_delegation_once(
                     hermes_payload_record['request_id'], 'flux-image', hermes_payload_record['request'],
-                    lambda current_request_record: execute_management_command('flux-image', 'generate', current_request_record, current_gateway_address),
+                    lambda current_request_record: execute_management_command('flux-image', 'generate', {**current_request_record, '_report_origin':origin} if origin else current_request_record, current_gateway_address),
                     lambda current_request_record: FluxImageGenerationManager('flux-image').validate_generation_request(current_request_record))
             if hermes_command_name == 'hermes-flux-delegation-status':
                 if set(hermes_payload_record) != {'request_id'}:

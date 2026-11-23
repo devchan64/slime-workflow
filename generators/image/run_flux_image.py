@@ -2,6 +2,8 @@
 import argparse
 import hashlib
 import json
+import os
+from tempfile import TemporaryDirectory
 from pathlib import Path
 import sys
 
@@ -20,6 +22,21 @@ def execute_flux_image_worker(*, expression_mode=False):
     current_allowed_profiles = {'flux-expression'} if expression_mode else FLUX_IMAGE_PROFILE_RECORDS
     if current_profile_name not in current_allowed_profiles or current_job_root.parent != (WORKFLOW_ROOT_DIRECTORY/'.tmp/test'/(current_profile_name+'-generator')).resolve():
         raise ValueError('FLUX 이미지 작업 경로가 올바르지 않습니다.')
+    # ROCm compiles kernels in child processes. Keep their temporary output on
+    # the job filesystem, which also holds the model's generated artifacts.
+    with TemporaryDirectory(prefix="rocm-tmp-", dir=current_job_root) as scratch:
+        previous = os.environ.get("TMPDIR")
+        os.environ["TMPDIR"] = scratch
+        try:
+            return _generate_flux_image(current_job_root, current_profile_name, expression_mode)
+        finally:
+            if previous is None:
+                os.environ.pop("TMPDIR", None)
+            else:
+                os.environ["TMPDIR"] = previous
+
+
+def _generate_flux_image(current_job_root, current_profile_name, expression_mode):
     current_request_record = json.loads((current_job_root/'request.json').read_text())
     verify_reference_snapshots(current_job_root, current_request_record)
     if (not expression_mode and current_request_record.get('profile') != current_profile_name) or current_request_record.get('flux_model_revision') != FLUX_MODEL_REVISION_VALUE or hashlib.sha256(current_request_record['prompt'].encode()).hexdigest() != current_request_record.get('prompt_sha256'):

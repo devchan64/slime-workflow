@@ -232,7 +232,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
         const requestId=await fluxProposalRequestId(receiptScope.session,receiptScope.job,service);
         setReceipt(requestId);setReceiptState("checking");
         dispatched=true;
-        const result=await managementCommand("hermes-agent","hermes-delegate-flux-profile",{request_id:requestId,service,request:review.payload});
+        const result=await managementCommand("hermes-agent","hermes-delegate-flux-profile",{request_id:requestId,service,request:review.payload,session_id:receiptScope.session,proposal_job_id:receiptScope.job});
         if(result.state!=="accepted" || result.service!==service || !/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(result.job_id || ""))throw new Error("접수 결과를 확인할 수 없습니다.");
         setReceiptJob(result.job_id);setJob(result.job_id);setReceiptState("accepted");setReceiptNotice("공용 GPU 대기열에 등록했습니다.");
       }else{

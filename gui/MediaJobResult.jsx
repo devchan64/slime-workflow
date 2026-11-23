@@ -128,7 +128,7 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
   useEffect(()=>{onStatusChange?.({id,status:job?.status || null,error});},[id,job?.status,error,onStatusChange]);
   const refreshRef=useRef(null),restoreRefreshFocus=useRef(false);
   useEffect(()=>{if(!loading && restoreRefreshFocus.current){restoreRefreshFocus.current=false;if(document.activeElement===document.body)refreshRef.current?.focus();}},[loading]);
-  const live=useLiveRefresh(()=>refresh(value=>value+1),liveJobStatus(job));
+  const live=useLiveRefresh(()=>refresh(value=>value+1),liveJobStatus(job) || (kind==="flux" && job?.status==="completed" && ["waiting","queued","writing","delivering"].includes(job.report_state)));
   useEffect(()=>{setJob(null);setCheckedAt(null);setAttemptedAt(null);setError("");},[service,id,kind]);
   useEffect(()=>{
     let active=true,deadline;const controller=new AbortController();
@@ -174,6 +174,7 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
     {(!job || hideProgress) && <LiveRefreshControl live={live} label="결과 자동 갱신" inactiveReason="작업 종료로 중지"/>}
     {checkedAt && <p className="media-result-checked">마지막 조회 성공 · <time dateTime={checkedAt.toISOString()}>{checkedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></p>}
     <JobIdentifier id={id}/>
+    {kind==="flux" && job?.status==="completed" && job.report_state && <p role="status">{job.report_state==="completed" && /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(job.report_job_id) ? <a href={"/management/frame/hermes-agent/?panel=jobs&job="+encodeURIComponent(job.report_job_id)}>Hermes 검수 보고서 보기</a> : ({waiting:"자동 검수 대기",queued:"보고서 접수 중",writing:"Hermes 보고서 작성 중",delivering:"대화에 보고서 전달 중",failed:"보고서 작성 실패"}[job.report_state] || "보고서 상태 확인 필요")}{job.report_error && " · "+job.report_error}</p>}
     {!directFolder && <RecordFolder key={service+"/"+id} service={service} id={id}/>}
     <MediaResultError error={error} stale={Boolean(job)}/>
     {error && attemptedAt && <p className="media-result-checked">조회 실패 시각 · <time dateTime={attemptedAt.toISOString()}>{attemptedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></p>}
