@@ -55,8 +55,10 @@ def validate_animate_assets():
 
 def validate_animate_request(current_request_record):
     current_required_fields = {'action','images','driving_video','prompt','frames','steps','seed','width','height'}
-    if not isinstance(current_request_record,dict) or set(current_request_record)!=current_required_fields:
+    if not isinstance(current_request_record,dict) or set(current_request_record)-{'lora_mode'}!=current_required_fields:
         raise ValueError('Animate-2 요청 필드 불일치')
+    if current_request_record.get('lora_mode', 'none') not in ('none', 'lightx2v'):
+        raise ValueError('지원하지 않는 Animate-2 LoRA 선택입니다.')
     if current_request_record['action']!='generate':
         raise ValueError('generate 요청만 지원합니다.')
     for current_field_name,current_minimum_value,current_maximum_value in [('frames',5,81),('steps',2,50),('seed',0,ANIMATE_MAXIMUM_SEED_VALUE),('width',832,832),('height',480,480)]:

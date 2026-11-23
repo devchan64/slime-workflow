@@ -154,6 +154,7 @@ def create_management_runtime(writer_workspace_config=None):
             'wan22-vace-q8': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
             'wan22-fighting-lora': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
             'wan22-vace-lightning': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
+            'wan22-animate2-lightx2v': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
             'wan22-i2v-assets': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
             'wan21-t2v-assets': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),
             'wan21-i2v-assets': ManagementServiceBinding(handle_model_download_request, MODEL_DOWNLOAD_RECORD_ROOT, reject_model_download_folder),

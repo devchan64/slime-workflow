@@ -56,7 +56,25 @@ def install_animate_vae_math_attention(current_vae_model):
         setattr(current_vae_model, current_method_name, build_guarded_vae_method(current_original_method))
 
 
+def load_animate_gpu_components(current_pipeline_model, current_load_options):
+    """모델은 장치에 직접 적재하고, 실패·CPU 대체를 허용하지 않는다."""
+    for current_component_name in ('transformer','text_encoder','image_encoder','vae'):
+        current_pipeline_model.load_components(names=[current_component_name],device_map='cuda',**current_load_options)
+        current_component_model=getattr(current_pipeline_model,current_component_name,None)
+        if current_component_model is None:
+            raise RuntimeError(f'공식 모델 구성요소 로드 실패: {current_component_name}')
+        if any(current_parameter.device.type != 'cuda' for current_parameter in current_component_model.parameters()):
+            raise RuntimeError(f'모델 구성요소 GPU 적재 실패: {current_component_name}')
+    current_pipeline_model.load_components(names=['tokenizer','scheduler'],**current_load_options)
+
+
 def execute_animate_inference(current_job_root,current_attempt_root,current_request_record,current_metrics_recorder):
+    current_lora_mode = current_request_record.get('lora_mode', 'none')
+    if current_lora_mode not in ('none', 'lightx2v'):
+        raise ValueError('지원하지 않는 Animate-2 LoRA 선택입니다.')
+    if current_lora_mode == 'lightx2v':
+        from generators.wan_animate2.lightx2v_assets import validate_lightx2v
+        validate_lightx2v()
     sys.path.insert(0,str(ANIMATE_RUNTIME_DIRECTORY/'src'))
     import torch
     import numpy as np
@@ -76,18 +94,26 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
         raise ValueError('동작 영상 사본 해시 불일치')
     current_metrics_recorder.update_generation_stage('model-load')
     current_pipeline_model=ModularPipeline.from_pretrained(str(ANIMATE_MODEL_DIRECTORY),local_files_only=True)
-    current_pipeline_model.load_components(dtype=torch.bfloat16,pretrained_model_name_or_path=str(ANIMATE_MODEL_DIRECTORY),revision=None,local_files_only=True)
+    current_load_options=dict(dtype=torch.bfloat16,pretrained_model_name_or_path=str(ANIMATE_MODEL_DIRECTORY),revision=None,local_files_only=True)
+    load_animate_gpu_components(current_pipeline_model,current_load_options)
     for current_component_name in ('transformer','text_encoder','image_encoder','vae','tokenizer','scheduler'):
         if getattr(current_pipeline_model,current_component_name,None) is None:
             raise RuntimeError(f'공식 모델 구성요소 로드 실패: {current_component_name}')
+    if current_lora_mode == 'lightx2v':
+        from generators.wan_animate2.lightx2v_assets import PATH, SHA256, validate_lightx2v
+        from generators.wan_animate2.lightx2v import apply_lightx2v_weights
+        from generators.wan_animate2.lightx2v_scheduler import AnimateLightX2VScheduler
+        from diffusers import ClassifierFreeGuidance
+        validate_lightx2v()
+        current_applied_weights = apply_lightx2v_weights(current_pipeline_model.transformer, PATH)
+        current_pipeline_model.update_components(scheduler=AnimateLightX2VScheduler(), guider=ClassifierFreeGuidance(guidance_scale=1.0))
+        print(f'Animate-2 LightX2V applied={current_applied_weights} sha256={SHA256} steps={current_request_record["steps"]} cfg=1 shift=5 sampler=lcm',flush=True)
     install_animate_vae_math_attention(current_pipeline_model.vae)
     # 체크포인트의 Transformers 4.57 UMT5는 encoder와 shared 임베딩을 공유한다.
     # Transformers 5의 분리 초기화가 원본 가중치를 대신하지 않도록 공식 setter로 연결한다.
     current_pipeline_model.text_encoder.set_input_embeddings(current_pipeline_model.text_encoder.shared)
     if current_pipeline_model.text_encoder.encoder.embed_tokens.weight is not current_pipeline_model.text_encoder.shared.weight:
         raise RuntimeError('UMT5 원본 공유 임베딩 연결 실패')
-    for current_component_model in (current_pipeline_model.transformer,current_pipeline_model.text_encoder,current_pipeline_model.image_encoder,current_pipeline_model.vae):
-        current_component_model.to('cuda')
     current_source_frames,current_source_rate=load_video(str(current_video_path),return_fps=True)
     current_frame_count=current_request_record['frames']
     current_frame_indices=np.round(np.arange(current_frame_count)*current_source_rate/ANIMATE_OUTPUT_FRAME_RATE).astype(int)
@@ -119,7 +145,7 @@ def execute_animate_inference(current_job_root,current_attempt_root,current_requ
         raise ValueError(f'공식 출력 프레임 불일치: {len(current_frame_arrays)} / {current_frame_count}')
     current_metrics_recorder.update_generation_stage('postprocess')
     current_output_hashes=save_video_outputs(current_attempt_root,current_frame_arrays,ANIMATE_OUTPUT_FRAME_RATE)
-    return {'attempt':current_attempt_root.name,'frames':current_frame_count,'fps':ANIMATE_OUTPUT_FRAME_RATE,'output_sha256':current_output_hashes,'model_id':ANIMATE_MODEL_IDENTIFIER,'model_revision':ANIMATE_MODEL_REVISION,'runtime_revision':ANIMATE_RUNTIME_REVISION,'prompt_words':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'attention_execution':'inductor-fullgraph-isolated','vae_attention_backend':'math','reference_kv_offload':None,'compute_backend':'rocm','weight_offload':None,'cuda_allocator':'expandable_segments:False','quality_status':'사용자 검수 대기'}
+    return {'attempt':current_attempt_root.name,'frames':current_frame_count,'fps':ANIMATE_OUTPUT_FRAME_RATE,'output_sha256':current_output_hashes,'model_id':ANIMATE_MODEL_IDENTIFIER,'model_revision':ANIMATE_MODEL_REVISION,'runtime_revision':ANIMATE_RUNTIME_REVISION,'lora_mode':current_lora_mode,'lora_sha256':SHA256 if current_lora_mode == 'lightx2v' else None,'sampler':'lcm-simple-shift5-cfg1' if current_lora_mode == 'lightx2v' else 'base','prompt_words':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'attention_execution':'inductor-fullgraph-isolated','vae_attention_backend':'math','reference_kv_offload':None,'compute_backend':'rocm','weight_offload':None,'cuda_allocator':'expandable_segments:False','quality_status':'사용자 검수 대기'}
 
 if __name__=='__main__':
     run_reference_video_worker(ANIMATE_JOB_STORAGE,Path(__file__),validate_animate_assets,execute_animate_inference)

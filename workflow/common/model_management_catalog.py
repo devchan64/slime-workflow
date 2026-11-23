@@ -9,6 +9,7 @@ MODEL_PREPARATION_SERVICES = (
     ('Kimodo', 'kimodo'),
     ('DWPose 포즈 모델', 'dwpose'),
     ('Wan Animate-2', 'wan22-animate2'),
+    ('Wan Animate-2 LightX2V 가속 LoRA', 'wan22-animate2-lightx2v'),
     ('Wan Fun Control', 'wan22-fun-control'),
     ('Wan VACE', 'wan22-vace'),
     ('Wan VACE Q8_0 · 파일 준비', 'wan22-vace-q8'),

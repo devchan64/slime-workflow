@@ -119,6 +119,9 @@ class AnimateTwoContractTests(unittest.TestCase):
             current_video_writer.release()
             current_request_record=dict(action='generate',images=[base64.b64encode(current_image_buffer.getvalue()).decode()],driving_video=base64.b64encode(current_video_path.read_bytes()).decode(),prompt='A male character.',frames=13,steps=40,seed=42,width=832,height=480)
             self.assertEqual(validate_animate_request(current_request_record)['frames'],13)
+            self.assertEqual(validate_animate_request(dict(current_request_record,lora_mode='lightx2v'))['lora_mode'],'lightx2v')
+            with self.assertRaisesRegex(ValueError,'LoRA'):
+                validate_animate_request(dict(current_request_record,lora_mode='unknown'))
             from generators.wan_animate2.contracts import ANIMATE_MAXIMUM_SEED_VALUE
             self.assertEqual(validate_animate_request(dict(current_request_record,seed=ANIMATE_MAXIMUM_SEED_VALUE))['seed'],ANIMATE_MAXIMUM_SEED_VALUE)
             with self.assertRaisesRegex(ValueError,'seed'):
@@ -148,6 +151,34 @@ class AnimateTwoContractTests(unittest.TestCase):
             self.assertEqual((Path(current_test_path)/'driving.mp4').read_bytes(),current_video_bytes)
             self.assertEqual(current_result_record['driving_video_sha256'],hashlib.sha256(current_video_bytes).hexdigest())
             self.assertNotIn('driving_video',current_result_record)
+
+    def test_saved_request_restores_lora_and_legacy_default(self):
+        import json
+        from unittest.mock import patch
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from workflow.common.management_asgi import build_management_application
+        job = '2026-11-23_12-00-00-12345678'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            job_dir = root / job
+            job_dir.mkdir()
+            (job_dir / 'reference-1.png').write_bytes(b'png')
+            (job_dir / 'driving.mp4').write_bytes(b'mp4')
+            request = {'prompt':'test','frames':5,'steps':6,'seed':42,'references':['reference-1.png']}
+            app = build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with patch('generators.wan_animate2.contracts.ANIMATE_JOB_STORAGE',root), TestClient(app) as client:
+                for mode in (None,'lightx2v','invalid'):
+                    current = dict(request)
+                    if mode is not None:
+                        current['lora_mode'] = mode
+                    (job_dir/'request.json').write_text(json.dumps(current))
+                    response = client.get(f'/management/assistant/animate-input/{job}/request')
+                    if mode == 'invalid':
+                        self.assertEqual(response.status_code,422)
+                    else:
+                        self.assertEqual(response.status_code,200)
+                        self.assertEqual(response.json()['request']['lora_mode'],mode or 'none')
 
     def test_ui_builds_without_model_loading(self):
         from fastapi.testclient import TestClient

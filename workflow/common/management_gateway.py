@@ -50,6 +50,8 @@ MANAGEMENT_COMMAND_ROUTES['download-inventory']=('GET','/inventory')
 
 MANAGEMENT_SERVICE_ROUTES['wan22-animate2']='/wan22-animate2'
 MANAGEMENT_SERVICE_COMMANDS['wan22-animate2']=('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset')
+MANAGEMENT_SERVICE_ROUTES['wan22-animate2-lightx2v']='/wan22-animate2-lightx2v'
+MANAGEMENT_SERVICE_COMMANDS['wan22-animate2-lightx2v']=('model-status','prepare')
 MANAGEMENT_SERVICE_ROUTES['wan22-fun-control']='/wan22-fun-control'
 MANAGEMENT_SERVICE_COMMANDS['wan22-fun-control']=('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_ROUTES['dwpose']='/dwpose'
@@ -234,9 +236,9 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'wan22-fun-control' and operation_command_name == 'prepare' and command_payload_value not in ({'action': 'prepare'}, {'action': 'prepare', 'model_profile': 'wan21-1.3b'}):
         raise ValueError('Fun Control 준비 프로필이 올바르지 않습니다.')
-    if service_command_name in ('wan22-vace', 'wan22-vace-q8', 'wan22-fighting-lora', 'wan22-vace-lightning', 'wan22-i2v-assets', 'wan21-t2v-assets', 'wan21-i2v-assets', 'wan21-i2v-attack-lora', 'writer-agent', 'prompt-translation', 'hermes-model', 'animationgpt', 'dwpose') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
+    if service_command_name in ('wan22-vace', 'wan22-vace-q8', 'wan22-fighting-lora', 'wan22-vace-lightning', 'wan22-animate2-lightx2v', 'wan22-i2v-assets', 'wan21-t2v-assets', 'wan21-i2v-assets', 'wan21-i2v-attack-lora', 'writer-agent', 'prompt-translation', 'hermes-model', 'animationgpt', 'dwpose') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('모델 준비에는 action=prepare만 허용합니다.')
-    if service_command_name in ('hermes-model', 'animationgpt', 'wan22-vace-q8', 'wan22-fighting-lora', 'wan22-vace-lightning', 'wan22-i2v-assets', 'wan21-t2v-assets', 'wan21-i2v-assets', 'wan21-i2v-attack-lora') and operation_command_name == 'model-status' and command_payload_value:
+    if service_command_name in ('hermes-model', 'animationgpt', 'wan22-vace-q8', 'wan22-fighting-lora', 'wan22-vace-lightning', 'wan22-animate2-lightx2v', 'wan22-i2v-assets', 'wan21-t2v-assets', 'wan21-i2v-assets', 'wan21-i2v-attack-lora') and operation_command_name == 'model-status' and command_payload_value:
         raise ValueError('모델 상태 조회에는 입력을 전달할 수 없습니다.')
     request_method_value, request_suffix_value = MANAGEMENT_COMMAND_ROUTES[operation_command_name]
     if '{id}' in request_suffix_value:
@@ -388,6 +390,7 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['sfx-dasheng-audiogen']='효과음 생성 · Das
 
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-animate2']='Animate-2 · RGB 동작 영상과 캐릭터 참조 · --payload-file'
+MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-animate2-lightx2v']='Animate-2 LightX2V LoRA 다운로드와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fun-control']='Wan2.2 Fun Control BF16 · 참조/포즈 영상 · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['dwpose']='단일 832×480 PNG DWPose 추출 · ROCm MIGraphX · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['kimodo']='Kimodo SOMA v1.2 · 비양자화 BF16 텍스트 인코더 · 원본 관절 모션·미리보기 · --payload-file'
@@ -513,22 +516,23 @@ def execute_management_command(service_command_name, operation_command_name, com
             if status == 'failed':
                 message += ' · 다운로드 실패: 모델 준비 로그 확인'
             return send_management_json_response(gateway_request_handler, 200, {'ready': ready, 'generation_ready': False, 'preparation_status': status, 'can_prepare': status != 'unknown', 'message': message})
-        if service_command_name in ('wan22-fighting-lora', 'wan22-vace-lightning'):
+        if service_command_name in ('wan22-fighting-lora', 'wan22-vace-lightning', 'wan22-animate2-lightx2v'):
             from generators.wan_vace.fighting_lora import ROOT, inspect_fighting_lora
             from generators.wan_vace.lightning_lora import inspect_lightning_loras
+            from generators.wan_animate2.lightx2v_assets import inspect_lightx2v
             from workflow.common.model_prepare_process import inspect_registered_preparation_strict, start_registered_preparation
             from workflow.common.management_transport import send_management_json_response
             try:
                 status = inspect_registered_preparation_strict(ROOT, service_command_name)
             except (OSError, ValueError, TypeError, UnicodeError):
                 status = 'unknown'
-            ready = inspect_fighting_lora() if service_command_name == 'wan22-fighting-lora' else inspect_lightning_loras()
+            ready = {'wan22-fighting-lora': inspect_fighting_lora, 'wan22-vace-lightning': inspect_lightning_loras, 'wan22-animate2-lightx2v': inspect_lightx2v}[service_command_name]()
             if operation_command_name == 'prepare' and status == 'unknown':
                 raise ValueError('LoRA 준비 상태를 확인할 수 없습니다.')
             if operation_command_name == 'prepare' and status != 'running' and not ready:
                 status = start_registered_preparation(ROOT, service_command_name)['preparation_status']
-            label = '격투' if service_command_name == 'wan22-fighting-lora' else 'Lightning'
-            message = (label + ' LoRA 파일 SHA-256 검증 완료' if ready else label + ' LoRA 파일 준비 필요') + ' · VACE 적용과 생성 품질은 별도 검증'
+            label = {'wan22-fighting-lora':'격투', 'wan22-vace-lightning':'Lightning', 'wan22-animate2-lightx2v':'Animate-2 LightX2V'}[service_command_name]
+            message = (label + ' LoRA 파일 SHA-256 검증 완료' if ready else label + ' LoRA 파일 준비 필요') + ' · 적용과 생성 품질은 별도 검증'
             if status == 'failed':
                 message += ' · 다운로드 실패: 모델 준비 로그 확인'
             return send_management_json_response(gateway_request_handler, 200, {'ready': ready, 'preparation_status': status, 'can_prepare': status != 'unknown', 'message': message})

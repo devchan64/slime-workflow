@@ -26,7 +26,7 @@ export function ModelReadinessMessage({service,status,error,hasStatusSummary=fal
       text=status.message.replace(/^(?:모델 파일 준비 완료 · |모델 준비 필요: )/,"");
       if(!ready && status.missing?.length) text="준비가 필요한 파일 · "+status.missing.join(", ");
     } else if(service==="wan22-animate2") text=ready && status.message.startsWith("모델 파일 준비 완료") ? status.message : (ready ? "모델 파일 준비 완료" : "모델 파일 준비 필요")+" · "+status.message;
-    else text=(["animationgpt","wan22-fighting-lora","wan22-vace-lightning","wan22-vace-q8","wan22-i2v-assets","wan21-t2v-assets","wan21-i2v-assets","wan21-i2v-attack-lora","writer-agent"].includes(service) ? (ready?"모델 파일 준비 완료":"모델 파일 준비 필요") : (ready?"생성 준비 완료":"모델 준비 필요"))+" · "+status.message;
+    else text=(["animationgpt","wan22-fighting-lora","wan22-vace-lightning","wan22-animate2-lightx2v","wan22-vace-q8","wan22-i2v-assets","wan21-t2v-assets","wan21-i2v-assets","wan21-i2v-attack-lora","writer-agent"].includes(service) ? (ready?"모델 파일 준비 완료":"모델 파일 준비 필요") : (ready?"생성 준비 완료":"모델 준비 필요"))+" · "+status.message;
   }
   return <p role="status">{text}</p>;
 }

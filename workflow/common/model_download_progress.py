@@ -14,6 +14,7 @@ MODEL_DOWNLOAD_PREFIXES = {
     'dwpose': ('yzd-v/DWPose',),
     'kimodo': ('nvidia/Kimodo', 'McGill-NLP/LLM2Vec', 'ollama/llama3', 'Wan-AI/Wan2.2-Animate-14B'),
     'wan22-animate2': ('Wan-AI/Wan2.2-Animate-2-14B-Diffusers',),
+    'wan22-animate2-lightx2v': ('wan22-animate2-lightx2v/',),
     'wan22-fun-control': ('Comfy-Org/Wan-2.2', 'Comfy-Org/Wan-2.1/split_files/text_encoders/', 'Comfy-Org/Wan-2.1/split_files/vae/', 'yzd-v/DWPose'),
     'wan21-fun-1.3b': ('alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control', 'Comfy-Org/Wan-2.1/split_files/clip_vision/clip_vision_h.safetensors'),
     'wan22-vace': ('wan22-vace/', 'wan-vace/', 'QuantStack/Wan2.2-VACE', 'alibaba-pai/Wan2.2-VACE', 'Comfy-Org/Wan-2.1/split_files/vae/wan_2.1_vae.safetensors'),

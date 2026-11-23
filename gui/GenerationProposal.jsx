@@ -13,7 +13,7 @@ export function GenerationProposalReview({kind,proposal,session,job,snapshot,off
     {kind==='audio' && <><p>시드 {request.seed}{request.duration_seconds!=null && ' · 최대 '+request.duration_seconds+'초'} · 반복 요청 {request.loop_request?'켜짐':'꺼짐'}</p>{request.lyrics && <><strong>가사</strong><p style={{whiteSpace:'pre-wrap'}}>{request.lyrics}</p></>}</>}
     <p>아직 접수되지 않았습니다. {service==='wan22-animate2' ? '현재 생성 가능 상태를 확인하세요.' : '도구에서 입력과 필요한 첨부를 확인한 뒤 접수하세요.'}</p>
     {kind==='video' && service==='wan22-fun-control' && !transfer && <p>현재 생성 폼은 처리된 포즈 영상 입력만 지원하므로 이 입력 방식은 그대로 접수할 수 없습니다.</p>}
-    {kind==='video' && service==='wan22-animate2' && <p>이 생성기는 현재 신규 생성이 보류되어 있습니다. 기존 작업은 도구에서 조회할 수 있습니다.</p>}
+    {kind==='video' && service==='wan22-animate2' && <p>도구에서 참조 이미지와 동작 영상을 선택하고 생성 설정을 확인하세요.</p>}
     {route && <a href={'/management/frame/'+route+'/?'+new URLSearchParams({session,...(transfer?{proposal_job:job,proposal_snapshot:snapshot,proposal_offset:String(offset)}:{})})}>{transfer?'제안 입력으로 도구 열기':'해당 도구 열기'}</a>}
   </>;
 }

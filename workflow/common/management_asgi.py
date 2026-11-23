@@ -695,8 +695,11 @@ def build_management_application(current_handler_class, current_root_path, curre
         try:
             request = json.loads((directory / names[part]).read_bytes())
             fields = {key:request[key] for key in ("prompt", "frames", "steps", "seed")}
+            fields['lora_mode'] = request.get('lora_mode', 'none')
             if request["references"] != [names["reference"]] or not isinstance(fields["prompt"], str) or any(type(fields[key]) is not int for key in ("frames","steps","seed")):
                 raise ValueError("입력 기록 오류")
+            if fields['lora_mode'] not in ('none', 'lightx2v'):
+                raise ValueError('LoRA 기록 오류')
         except (KeyError, TypeError, ValueError, OSError):
             return Response(status_code=422)
         prefix = "/management/assistant/animate-input/" + job

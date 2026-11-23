@@ -14,8 +14,15 @@ class AnimateTwoGenerationManager(ReferenceVideoGenerationManager):
     def __init__(self):
         super().__init__('/wan22-animate2',ANIMATE_JOB_STORAGE,'generators/wan_animate2/worker.py',validate_animate_request,validate_animate_assets,self.inspect_model_download)
 
+    def validate_generation_runtime(self, saved_request_record=None):
+        super().validate_generation_runtime(saved_request_record)
+        if (saved_request_record or {}).get('lora_mode', 'none') == 'lightx2v':
+            from generators.wan_animate2.lightx2v_assets import validate_lightx2v
+            validate_lightx2v()
+
     def validate_generation_resume(self, selected_job_directory, recover_interrupted_value=True):
         saved_request_record = super().validate_generation_resume(selected_job_directory, recover_interrupted_value=recover_interrupted_value)
+        self.validate_generation_runtime(saved_request_record)
         if len(saved_request_record['references']) != 1:
             raise ValueError('Animate-2 재개에는 참조 이미지 1장이 필요합니다.')
         verify_saved_video_attachments(selected_job_directory, saved_request_record, ('driving_video',))

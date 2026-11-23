@@ -16,6 +16,7 @@ MODEL_PREPARATION_PROFILES = {
     'kimodo': (('generators.kimodo.prepare', 'prepare_kimodo_assets'),),
     'dwpose-pose': (('generators.dwpose.prepare', 'prepare_dwpose_model_files'),),
     'wan-animate2': (('generators.wan_animate2.prepare', 'prepare_animate_models'), ('generators.wan_animate2.contracts', 'validate_animate_assets')),
+    'wan22-animate2-lightx2v': (('generators.wan_animate2.lightx2v_assets', 'prepare_lightx2v'),),
     'wan-vace': (('generators.wan_vace.prepare', 'prepare_vace_models'),),
     'wan22-fighting-lora': (('generators.wan_vace.fighting_lora', 'prepare_fighting_lora'),),
     'wan22-vace-q8': (('generators.wan_vace.q8_assets', 'prepare_q8_assets'),),
