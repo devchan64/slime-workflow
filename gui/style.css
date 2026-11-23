@@ -767,7 +767,6 @@ article {position:relative;}
 .queue-job-times {display:grid;gap:.2rem;margin:.4rem 0}
 .queue-job-times small {overflow-wrap:anywhere}
 
-.active-generator-progress {min-width:0;padding:.8rem;border:1px solid var(--line,#484d50);border-radius:.6rem;background:var(--surface,#202326)}
 .active-generator-progress-heading,.active-generator-job-heading {display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}
 .active-generator-progress-heading h2 {font-size:1rem;flex:1}
 .active-generator-progress > p,.active-generator-job > p {font-size:.8rem;color:var(--muted,#afbabd);margin:.5rem 0}
@@ -852,10 +851,9 @@ article {position:relative;}
 .kimodo-input-summary dd {margin:0;min-width:0;flex:1 1 7rem}
 .fun-drawer [aria-label="Kimodo 생성 입력"] form > fieldset {border:0;padding:0;margin:0}
 .fun-drawer [aria-label="Kimodo 생성 입력"] .kimodo-segment-settings {padding:.5rem}
-:is(.vace-page,.fun-control-page) .active-generator-progress {padding:0;border:0;background:transparent}
 .vace-page .vace-input-card form > fieldset {padding:0;border:0;margin:0}
 .vace-page .vace-history-card {padding:0;border:0;margin:0;min-width:0}
-.vace-page .generator-history.generator-section-card > fieldset {padding:.8rem;border:0;margin:0;min-width:0}
+.generator-history.generator-section-card > fieldset {padding:.8rem;border:0;margin:0;min-width:0}
 .vace-page [aria-label="선택한 VACE 작업 결과"] {padding:0;border:0;border-radius:0}
 .vace-page .generator-section-card-body .download-progress {margin-top:.9rem;padding-top:.9rem;border-top:1px solid var(--line,#484d50)}
 .vace-page .generator-section-card-body .download-progress h2 {font-size:1rem;line-height:1.35;margin:0 0 .5rem}

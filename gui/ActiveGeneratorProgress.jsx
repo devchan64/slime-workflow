@@ -52,8 +52,7 @@ export default function ActiveGeneratorProgress({service,revision=0,onOpenResult
     read();return()=>{active=false;clearTimeout(deadline);controller.abort();};
   },[service,revision,refreshKey]);
   const activeSummary=(error ? '조회 실패 · 마지막 상태 확인 필요' : records===null ? '확인 중' : records.length===0 ? (truncated ? '일부 상태 확인 필요' : '진행 중인 작업 없음') : records.map(item=>{if(item.error)return `${item.id} 상태 확인 불가`;const progress=observedGenerationProgress(item.job);return `${item.id} ${item.job.status==='running'?'실행':'대기'}${progress ? ` · 단계 ${progress.step}/${progress.total}` : ''}`;}).join(' · ') + (truncated ? ' · 일부 상태 확인 필요' : '')) + (checkedAt ? ` · 조회 ${checkedAt.toLocaleTimeString('ko-KR',{timeZone:'Asia/Seoul',hour12:false})}` : '');
-  return <section ref={live.ref} className="active-generator-progress" aria-label="현재 생성 작업">
-    <GeneratorSectionCard title="현재 생성 작업" summary={activeSummary} defaultOpen>
+  return <GeneratorSectionCard cardRef={live.ref} className="active-generator-progress" title="현재 생성 작업" summary={activeSummary} defaultOpen>
     <div className="active-generator-progress-heading"><button ref={refreshRef} type="button" disabled={loading} onClick={()=>{restoreFocus.current=true;setLoading(true);refresh(n=>n+1);}}>{loading?'조회 중…':'상태 새로고침'}</button></div>
     {loading && records!==null && <p role="status">작업 상태를 다시 조회하고 있습니다. 아래는 마지막 조회 결과입니다.</p>}
     <LiveRefreshControl live={live} label="진행 상황 자동 갱신"/>
@@ -63,6 +62,5 @@ export default function ActiveGeneratorProgress({service,revision=0,onOpenResult
       <div className="active-generator-job-heading"><JobIdentifier id={item.id} compact/>{item.job && <JobStatus state={item.job.status}/>}<button type="button" onClick={()=>onOpenResult(item.id)}>작업 결과 보기</button></div>
       {item.error ? <p role="alert">이 작업의 현재 상태를 확인하지 못했습니다.</p> : <GenerationProgress job={{...item.job,estimate:validGenerationEstimate(item.job.estimate)?item.job.estimate:null}} supportsProgress showQueryTime={false} referenceTime={checkedAt}/>}
     </div>)}
-    </GeneratorSectionCard>
-  </section>;
+  </GeneratorSectionCard>;
 }
