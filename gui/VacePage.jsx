@@ -20,6 +20,7 @@ import MediaJobResult from "./MediaJobResult.jsx";
 import GeneratorPageIdentity from "./GeneratorPageIdentity.jsx";
 import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
 import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
+import GeneratorUsage from "./GeneratorUsage.jsx";
 import ActiveGeneratorProgress from "./ActiveGeneratorProgress.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
@@ -193,6 +194,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     event.preventDefault();setBusy(true);setError("");
     try{
       const request={...values,action:"generate",width:832,height:480,images:[]};
+      if (["fighting","fighting_lightning"].includes(values.lora_mode)) request.fighting_strength=values.fighting_strength ?? 1; else delete request.fighting_strength;
       if(values.mode!=="text")request.images.push(await referencePng(files.reference));
       for(const key of attachments)request[key]=await videoData(files[key]);
       await handoff.preview(request);setPending(request);
@@ -211,16 +213,12 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     }catch(problem){setError(requestErrorMessage(problem)+" · 재접수 전에 생성 이력을 확인하세요.");}
     finally{handoff.clearReview();sending.current=false;setBusy(false);}
   }
+  const modelService=values?.model_profile === "q8-gguf-resident-v1" ? "wan22-vace-q8" : service;
   return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}><GeneratorPageIdentity service={service} embedded={embedded} session={session} showReturn changelogCard/>
-    <GeneratorSectionCard title="사용 설명" summary="생성 방식과 입력 안내" className="vace-usage-card">
-      <p>참조 이미지, 첫 프레임 또는 제어 영상을 프롬프트와 함께 사용해 영상을 생성합니다. 프롬프트만으로도 생성할 수 있습니다.</p>
-      <ol><li>모델 준비 상태를 확인합니다.</li><li>생성 입력에서 원하는 생성 모드를 선택하고 화면에 표시되는 필수 자료를 첨부합니다.</li><li>장면·동작과 카메라를 입력하고 출력 길이와 설정을 확인합니다.</li><li>생성 요청을 검토해 접수한 후 현재 생성 작업과 이력에서 진행 상황과 결과를 확인합니다.</li></ol>
-      <p>포즈 제어는 DWPose MP4를 사용합니다. 영상 입력은 832×480·16fps, 파일당 32MiB 이하이며 출력 길이는 입력 영상 이내여야 합니다. 모드별 상세 안내와 입력 오류는 생성 입력에 표시됩니다.</p>
-      <p>참조 이미지는 외형 조건이며 동작이나 첫 화면의 일치를 보장하지 않습니다. 첫 프레임 조건도 픽셀의 완전 일치를 보장하지 않습니다. 영상 편집의 흰색 마스크는 재생성, 검정색은 보존 조건이며 마스크 밖도 달라질 수 있습니다.</p>
-    </GeneratorSectionCard><GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(values)} resultReady={Boolean(job)} openOnNavigate/>
+    <GeneratorUsage generator="wan22-vace"/><GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(values)} resultReady={Boolean(job)} openOnNavigate/>
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "모델 상태 조회 실패" : !model ? "상태 확인 필요" : (model.generation_ready ?? model.ready) ? "준비 완료" : "준비 필요"}>
-      <ModelReadiness service={service} onStatus={setModel} onError={setModelError}/>
-      {embedded && (model?.generation_ready ?? model?.ready) && !["queued","running","failed","cancelled","unknown"].includes(model?.preparation_status) ? <details><summary>모델 다운로드 이력</summary><DownloadProgress service={service}/></details> : <DownloadProgress service={service}/>}
+      <ModelReadiness service={modelService} onStatus={setModel} onError={setModelError}/>
+      {embedded && (model?.generation_ready ?? model?.ready) && !["queued","running","failed","cancelled","unknown"].includes(model?.preparation_status) ? <details><summary>모델 다운로드 이력</summary><DownloadProgress service={modelService}/></details> : <DownloadProgress service={modelService}/>}
     </GeneratorSectionCard>
     <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={openResult}/>
     {error && <p role="alert">{error}</p>}
@@ -247,13 +245,16 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
         return <label key={key}>{key==="prompt"?"장면·동작 프롬프트":"부정 프롬프트 (선택)"}<textarea maxLength={8000} required={key==="prompt"} value={values[key]} onChange={e=>field(key,e.target.value)}/><PromptWordCount text={values[key]} final/></label>;
       })}
       </div><div className="vace-input-group"><h2>생성 설정</h2><p className="vace-group-help">출력 길이와 생성 값을 확인하세요.</p><div className="vace-settings-grid">
+      <label>모델<select value={values.model_profile || "official-bf16-resident-v1"} onChange={e=>{setModel(null);field("model_profile",e.target.value);}}><option value="official-bf16-resident-v1">공식 BF16</option><option value="q8-gguf-resident-v1">Q8_0 GGUF · 실험</option></select></label>
+      {values.model_profile==="q8-gguf-resident-v1" && <p>Q8 전문가 파일 준비 및 실제 ROCm 실행 검증이 필요합니다. <a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-vace-q8",...(session?{session}:{})})}>Q8 모델 준비</a></p>}
       <label>LoRA<select value={values.lora_mode || "none"} onChange={e=>{const mode=e.target.value,previous=values.lora_mode || "none",usesLightning=m=>["lightning","fighting_lightning"].includes(m);if(!usesLightning(previous) && usesLightning(mode))nonLoraSettings.current={steps:values.steps,guidance_scale:values.guidance_scale,flow_shift:values.flow_shift};const restored=usesLightning(previous) && !usesLightning(mode) ? nonLoraSettings.current : null;if(restored)nonLoraSettings.current=null;setValues(old=>({...old,lora_mode:mode,...(usesLightning(mode)?{steps:4,guidance_scale:1,flow_shift:5}:restored || {})}));}}><option value="none">사용 안 함</option><option value="fighting">격투만 · 실험</option><option value="lightning">Lightning만 · 실험</option><option value="fighting_lightning">격투 + Lightning · 실험</option></select></label>
+      {["fighting","fighting_lightning"].includes(values.lora_mode) && <label>격투 LoRA 강도<input type="number" min="0.01" max="2" step="any" required value={values.fighting_strength ?? 1} onChange={e=>field("fighting_strength",e.target.value===""?"":Number(e.target.value))}/></label>}
       {numericSettings.map(([key,label,min,max,step])=>
         <label key={key}>{label}<input type="number" required min={min} max={max} step={step} aria-invalid={(key==="frames" ? invalidFrameValue || invalidFrames : invalidSettings[key]) || undefined} aria-describedby={key==="frames" ? [invalidFrameValue && frameErrorId,invalidFrames && frameLimitErrorId].filter(Boolean).join(" ") || undefined : invalidSettings[key] ? `${settingErrorId}-${key}` : undefined} value={values[key]} onChange={e=>field(key,e.target.value===""?"":Number(e.target.value))}/>{key==="frames" && invalidFrameValue && <small className="vace-field-error" id={frameErrorId}>5~129 사이에서 4프레임 간격으로 입력하세요. 예: 5, 9, 13.</small>}{invalidSettings[key] && <small className="vace-field-error" id={`${settingErrorId}-${key}`}>{min}~{max}{step===1 ? "의 정수" : " 사이"}로 입력하세요.</small>}</label>)}
       </div>{frameLimit!==null && <p>입력에 사용할 수 있는 최대 출력 길이 {frameLimit}프레임 <button type="button" onClick={()=>field("frames",frameLimit)}>최대 프레임 적용</button></p>}
       {invalidFrames && <p id={frameLimitErrorId} role="alert">출력 프레임이 입력 영상보다 깁니다. {frameLimit}프레임 이하로 줄이세요.</p>}
       {values.lora_mode==="fighting" && <p>격투 LoRA는 High 전문가에 적용합니다. Lightning 없이 일반 스텝·CFG·shift를 사용하며 동작 품질은 검수해야 합니다. <a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-fighting-lora",...(session?{session}:{})})}>격투 LoRA 준비</a></p>}
-      {["lightning","fighting_lightning"].includes(values.lora_mode) && <p>Lightning은 High·Low 전문가에 적용합니다. {values.lora_mode==="fighting_lightning" && "격투 LoRA는 High 전문가에 적용합니다. "}4스텝·shift 5를 사용합니다. CFG 1이 기본이며 Lightning 단독의 더 높은 CFG는 실험 설정입니다. 동작 품질은 검수해야 합니다. {values.lora_mode==="fighting_lightning" && <><a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-fighting-lora",...(session?{session}:{})})}>격투 LoRA 준비</a> · </>}<a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-vace-lightning",...(session?{session}:{})})}>Lightning 준비</a></p>}
+      {["lightning","fighting_lightning"].includes(values.lora_mode) && <p>Lightning은 High·Low 전문가에 적용합니다. {values.lora_mode==="fighting_lightning" && "격투 LoRA는 High 전문가에 적용합니다. "}4스텝·shift 5를 사용합니다. CFG 1이 기본이며 더 높은 CFG는 실험 설정입니다. 동작 품질은 검수해야 합니다. {values.lora_mode==="fighting_lightning" && <><a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-fighting-lora",...(session?{session}:{})})}>격투 LoRA 준비</a> · </>}<a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-vace-lightning",...(session?{session}:{})})}>Lightning 준비</a></p>}
       <p>832×480 · 16fps · {Number(values.frames)>0?(Number(values.frames)/16).toFixed(2):"0"}초 · VACE-Fun A14B BF16 · Euler/FlowMatch</p>
       <SeedInput value={values.seed} max={template.maximum_seed} error={invalidSeed ? `0~${template.maximum_seed}의 정수로 입력하세요.` : ""} onChange={value=>field("seed",value===""?"":Number(value))}/>
       </div><ActionButton type="submit" reasons={[
@@ -261,7 +262,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
         invalidFrameValue && "출력 프레임의 입력 범위를 확인하세요.",
         Object.values(invalidSettings).some(Boolean) && "생성 설정의 입력 범위를 확인하세요.",
         invalidSeed && "시드의 입력 범위를 확인하세요.",
-        ["lightning","fighting_lightning"].includes(values.lora_mode) && (values.steps!==4 || values.flow_shift!==5 || (values.lora_mode==="fighting_lightning" && values.guidance_scale!==1)) && "Lightning에는 4스텝·shift 5가 필요하며 격투 조합은 CFG 1을 사용합니다.",
+        ["lightning","fighting_lightning"].includes(values.lora_mode) && (values.steps!==4 || values.flow_shift!==5) && "Lightning에는 4스텝·shift 5가 필요합니다.",
         !values.prompt.trim() && "프롬프트를 입력하세요.",
         values.mode!=="text" && !files.reference && (values.mode==="first_frame" ? "첫 프레임 이미지를 선택하세요." : "참조 이미지를 선택하세요."),
         attachments.some(key=>!files[key]) && "필수 영상을 선택하세요.",
@@ -273,6 +274,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/>
       <p>{template.modes.find(mode=>mode.id===pending.mode)?.label || pending.mode} · {pending.frames}프레임 · 16fps · {(pending.frames/16).toFixed(2)}초 · {pending.steps}스텝 · 시드 {pending.seed}</p>
       <p>Flow shift {pending.flow_shift} · CFG {pending.guidance_scale} · 조건 강도 {pending.reference_strength}</p>
+      <p>모델 · {pending.model_profile === "q8-gguf-resident-v1" ? "Q8_0 GGUF · 실험" : "공식 BF16"}{["fighting","fighting_lightning"].includes(pending.lora_mode) ? ` · 격투 LoRA 강도 ${pending.fighting_strength ?? 1}` : ""}</p>
       <p>LoRA · {pending.lora_mode === "fighting_lightning" ? "격투 + Lightning" : pending.lora_mode === "lightning" ? "Lightning만" : pending.lora_mode === "fighting" ? "격투만" : "사용 안 함"}</p>
       {pending.mode!=="text" && <p>{pending.mode==="first_frame" ? "첫 프레임 이미지" : "참조 이미지"} · {files.reference?.name || "선택됨"}</p>}
       {attachments.map(key=><p key={key}>{labels[key]} · {files[key]?.name || "선택됨"} · {videoInfo[key]?.summary || "영상 정보 확인 불가"}</p>)}{pending.mode==="video_edit" && <p>마스크의 편집·보존 영역은 접수 시 추가 검증합니다.</p>}

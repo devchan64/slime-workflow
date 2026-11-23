@@ -32,7 +32,7 @@ def build_vace_conditions(current_request_record, current_reference_tensor):
 
 def execute_vace_inference(current_job_root, current_attempt_root, current_request_record, current_metrics_recorder):
     """공식 비양자화 파이프라인으로 실행한다."""
-    if current_request_record.get('model_profile') != 'official-bf16-resident-v1':
+    if current_request_record.get('model_profile') not in ('official-bf16-resident-v1', 'q8-gguf-resident-v1'):
         raise ValueError('폐기된 Q4 작업은 재실행할 수 없습니다. 새 작업을 생성하세요.')
     from generators.wan_vace.official_runtime import execute_official_inference
     from generators.wan_vace.memory_diagnostics import record_cuda_memory_failure
@@ -41,4 +41,4 @@ def execute_vace_inference(current_job_root, current_attempt_root, current_reque
 
 
 if __name__ == '__main__':
-    run_reference_video_worker(VACE_JOB_STORAGE, Path(__file__), verify_vace_weights, execute_vace_inference)
+    run_reference_video_worker(VACE_JOB_STORAGE, Path(__file__), lambda request: verify_vace_weights(request.get('model_profile', 'official-bf16-resident-v1')), execute_vace_inference, assets_validator_takes_request=True)

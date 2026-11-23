@@ -18,6 +18,7 @@ def resolve_model_inventory_paths():
     from generators.wan_fun.contracts import FUN_MODEL_FILES, FUN_WORKSPACE_ROOT
     from generators.wan_fun.wan13_model_assets import WAN13_MODEL_DIRECTORY
     from generators.wan_vace.contracts import VACE_MODEL_FILES, VACE_WORKSPACE_ROOT
+    from generators.wan_vace.q8_assets import DIRECTORY as Q8_DIRECTORY, FILES as Q8_FILES
     from generators.wan_vace.fighting_lora import PATH as FIGHTING_LORA_PATH
     from generators.wan_vace.lightning_lora import DIRECTORY as LIGHTNING_DIRECTORY, FILES as LIGHTNING_FILES
     from generators.wan_i2v.assets import DIRECTORY as I2V_DIRECTORY, FILES as I2V_FILES
@@ -36,6 +37,7 @@ def resolve_model_inventory_paths():
         'wan22-fun-control': [*(FUN_WORKSPACE_ROOT / current_file_record[0] for current_file_record in FUN_MODEL_FILES.values()), FUN_POSE_MODEL_DIRECTORY],
         'wan21-fun-1.3b': [WAN13_MODEL_DIRECTORY],
         'wan22-vace': [VACE_WORKSPACE_ROOT / current_file_record[0] for current_file_record in VACE_MODEL_FILES.values()],
+        'wan22-vace-q8': [Q8_DIRECTORY / entry[0] for entry in Q8_FILES.values()],
         'wan22-fighting-lora': [FIGHTING_LORA_PATH],
         'wan22-vace-lightning': [LIGHTNING_DIRECTORY / entry[0] for entry in LIGHTNING_FILES.values()],
         'wan22-i2v-assets': [I2V_DIRECTORY / entry[0] for entry in I2V_FILES],

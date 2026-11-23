@@ -10,6 +10,7 @@ def _merge_adapter(expert, path, strength=1.0, *, require_cuda):
     from safetensors import safe_open
 
     parameters = dict(expert.named_parameters())
+    modules = dict(expert.named_modules())
     with safe_open(str(path), framework='pt', device='cpu') as adapter:
         keys = set(adapter.keys())
         pairs = []
@@ -23,26 +24,37 @@ def _merge_adapter(expert, path, strength=1.0, *, require_cuda):
                 continue
             up_key = prefix + up_suffix
             target_key = prefix.removeprefix('diffusion_model.') + '.weight'
-            if up_key not in keys or target_key not in parameters:
+            module = modules.get(target_key.removesuffix('.weight'))
+            target = parameters.get(target_key)
+            quantized = target is None and module is not None and callable(getattr(module, 'add_adapter', None)) and hasattr(module, 'packed')
+            if up_key not in keys or (target is None and not quantized):
                 raise ValueError(f'LoRA 가중치 대상을 찾을 수 없습니다: {prefix}')
             down, up = adapter.get_tensor(key), adapter.get_tensor(up_key)
-            target = parameters[target_key]
-            if down.ndim != 2 or up.ndim != 2 or target.ndim != 2 or down.shape[0] != up.shape[1] or tuple(target.shape) != (up.shape[0], down.shape[1]):
+            if quantized:
+                target = module.packed
+            target_shape = module.shape if quantized else target.shape
+            if down.ndim != 2 or up.ndim != 2 or len(target_shape) != 2 or down.shape[0] != up.shape[1] or tuple(target_shape) != (up.shape[0], down.shape[1]):
                 raise ValueError(f'LoRA 가중치 크기 불일치: {prefix}')
-            if (require_cuda and target.device.type != 'cuda') or target.dtype != torch.bfloat16:
+            if (require_cuda and target.device.type != 'cuda') or (not quantized and target.dtype != torch.bfloat16):
                 raise ValueError('LoRA 병합 대상은 GPU BF16이어야 합니다.')
             alpha_key = prefix + '.alpha'
             alpha = float(adapter.get_tensor(alpha_key).item()) / down.shape[0] if alpha_key in keys else 1.0
             if not torch.isfinite(down).all().item() or not torch.isfinite(up).all().item() or not 0 < alpha <= 100:
                 raise ValueError(f'LoRA 가중치 또는 alpha 오류: {prefix}')
-            pairs.append((key, up_key, target_key, alpha))
+            pairs.append((key, up_key, target_key, alpha, quantized))
             consumed.update((key, up_key))
             if alpha_key in keys:
                 consumed.add(alpha_key)
         if not pairs or keys != consumed:
             raise ValueError('LoRA에 인식하지 못한 텐서가 있습니다.')
         with torch.no_grad():
-            for down_key, up_key, target_key, alpha in pairs:
+            for down_key, up_key, target_key, alpha, quantized in pairs:
+                if quantized:
+                    module = modules[target_key.removesuffix('.weight')]
+                    down = adapter.get_tensor(down_key).to(device=module.packed.device, dtype=torch.bfloat16)
+                    up = adapter.get_tensor(up_key).to(device=module.packed.device, dtype=torch.bfloat16)
+                    module.add_adapter(down, up, strength * alpha)
+                    continue
                 weight = parameters[target_key]
                 down = adapter.get_tensor(down_key).to(device=weight.device, dtype=torch.float32)
                 up = adapter.get_tensor(up_key).to(device=weight.device, dtype=torch.float32)

@@ -6,3 +6,6 @@ huggingface_hub==2.4.0
 imageio-ffmpeg>=0.6
 psutil>=5.9
 uv==0.13.8
+
+# VACE Q8_0 GGUF 텐서 메타데이터와 역양자화
+gguf==0.19.0

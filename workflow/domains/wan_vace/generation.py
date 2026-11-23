@@ -24,9 +24,12 @@ class VaceVideoGenerationManager(ReferenceVideoGenerationManager):
         verify_saved_video_attachments(selected_job_directory, saved_request_record, selected_input_fields[current_mode_value])
 
     def validate_generation_runtime(self, saved_request_record=None):
-        if saved_request_record is not None and saved_request_record.get('model_profile') != 'official-bf16-resident-v1':
+        if saved_request_record is not None and saved_request_record.get('model_profile') not in ('official-bf16-resident-v1', 'q8-gguf-resident-v1'):
             raise ValueError('폐기된 Q4 작업은 재개할 수 없습니다. 입력을 불러와 새 작업을 생성하세요.')
-        validate_vace_assets()
+        if saved_request_record and saved_request_record.get('model_profile') == 'q8-gguf-resident-v1':
+            validate_vace_assets('q8-gguf-resident-v1')
+        else:
+            validate_vace_assets()
         if saved_request_record and saved_request_record.get('lora_mode', 'none') in ('lightning', 'fighting_lightning'):
             from generators.wan_vace.lightning_lora import inspect_lightning_loras
             if not inspect_lightning_loras():

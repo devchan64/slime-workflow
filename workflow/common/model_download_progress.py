@@ -2,6 +2,7 @@
 MODEL_DOWNLOAD_PREFIXES = {
     'wan22-i2v-assets': ('wan22-i2v-assets/',),
     'wan22-fighting-lora': ('wan22-fighting-lora/',),
+    'wan22-vace-q8': ('wan22-vace-q8/',),
     'wan22-vace-lightning': ('wan22-vace-lightning/',),
     'animationgpt': ('animationgpt/',),
     'flux-image': ('black-forest-labs/flux-3-image-klein',),

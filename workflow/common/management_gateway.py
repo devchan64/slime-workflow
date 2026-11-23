@@ -28,6 +28,8 @@ MANAGEMENT_SERVICE_ROUTES['hermes-model'] = '/hermes-model'
 MANAGEMENT_SERVICE_COMMANDS['hermes-model'] = ('model-status', 'prepare')
 MANAGEMENT_SERVICE_ROUTES['animationgpt'] = '/animationgpt'
 MANAGEMENT_SERVICE_COMMANDS['animationgpt'] = ('model-status', 'prepare')
+MANAGEMENT_SERVICE_ROUTES['wan22-vace-q8'] = '/wan22-vace-q8'
+MANAGEMENT_SERVICE_COMMANDS['wan22-vace-q8'] = ('model-status', 'prepare')
 MANAGEMENT_SERVICE_ROUTES['wan22-fighting-lora'] = '/wan22-fighting-lora'
 MANAGEMENT_SERVICE_COMMANDS['wan22-fighting-lora'] = ('model-status', 'prepare')
 MANAGEMENT_SERVICE_ROUTES['wan22-vace-lightning'] = '/wan22-vace-lightning'
@@ -226,9 +228,9 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'wan22-fun-control' and operation_command_name == 'prepare' and command_payload_value not in ({'action': 'prepare'}, {'action': 'prepare', 'model_profile': 'wan21-1.3b'}):
         raise ValueError('Fun Control 준비 프로필이 올바르지 않습니다.')
-    if service_command_name in ('wan22-vace', 'wan22-fighting-lora', 'wan22-vace-lightning', 'wan22-i2v-assets', 'writer-agent', 'prompt-translation', 'hermes-model', 'animationgpt', 'dwpose') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
+    if service_command_name in ('wan22-vace', 'wan22-vace-q8', 'wan22-fighting-lora', 'wan22-vace-lightning', 'wan22-i2v-assets', 'writer-agent', 'prompt-translation', 'hermes-model', 'animationgpt', 'dwpose') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('모델 준비에는 action=prepare만 허용합니다.')
-    if service_command_name in ('hermes-model', 'animationgpt', 'wan22-fighting-lora', 'wan22-vace-lightning', 'wan22-i2v-assets') and operation_command_name == 'model-status' and command_payload_value:
+    if service_command_name in ('hermes-model', 'animationgpt', 'wan22-vace-q8', 'wan22-fighting-lora', 'wan22-vace-lightning', 'wan22-i2v-assets') and operation_command_name == 'model-status' and command_payload_value:
         raise ValueError('모델 상태 조회에는 입력을 전달할 수 없습니다.')
     request_method_value, request_suffix_value = MANAGEMENT_COMMAND_ROUTES[operation_command_name]
     if '{id}' in request_suffix_value:
@@ -343,6 +345,7 @@ MANAGEMENT_COMMAND_DESCRIPTIONS = {'flux-expression': 'FLUX 3 표정 생성 · �
 MANAGEMENT_COMMAND_DESCRIPTIONS['model-downloads']='공유 모델 다운로드 상태 조회'
 MANAGEMENT_COMMAND_DESCRIPTIONS['hermes-model']='Hermes 코딩 모델 다운로드와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['animationgpt']='AnimationGPT 제3자 FP16 모델 파일 다운로드와 SHA-256 검증'
+MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace-q8']='Wan VACE Q8_0 High/Low 파일 다운로드 및 SHA-256 검증 · Q8 생성 경로 실험'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fighting-lora']='Wan 2.2 Videogame Fighting High LoRA 다운로드와 SHA-256 검증 · VACE 추론 미검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace-lightning']='Wan 2.2 T2V Lightning High/Low LoRA 다운로드와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-i2v-assets']='Wan 2.2 I2V FP16 및 Lightning·KungFu LoRA 파일 다운로드와 SHA-256 검증'
@@ -441,6 +444,27 @@ def execute_management_command(service_command_name, operation_command_name, com
                 return send_management_json_response(gateway_request_handler, 200, {'records':current_observed_records,**current_issue_counts})
             from workflow.common.model_download_records import list_model_download_records
             return send_management_json_response(gateway_request_handler, 200, {'records': list_model_download_records()})
+        if service_command_name == 'wan22-vace-q8':
+            from generators.wan_vace.q8_assets import ROOT, inspect_q8_assets
+            from workflow.common.model_prepare_process import inspect_registered_preparation_strict, start_registered_preparation
+            from workflow.common.management_transport import send_management_json_response
+            try:
+                status = inspect_registered_preparation_strict(ROOT, service_command_name)
+            except (OSError, ValueError, TypeError, UnicodeError):
+                status = 'unknown'
+            ready = inspect_q8_assets()
+            if operation_command_name == 'prepare' and status == 'unknown':
+                raise ValueError('Q8 모델 준비 상태를 확인할 수 없습니다.')
+            if operation_command_name == 'prepare' and status != 'running' and not ready:
+                status = start_registered_preparation(ROOT, service_command_name)['preparation_status']
+            from generators.wan_vace.contracts import inspect_vace_assets
+            runtime_status = inspect_vace_assets('q8-gguf-resident-v1') if ready else {'ready': False}
+            message = ('Q8 파일 SHA-256 검증 완료' if ready else 'Q8 파일 준비 필요') + ' · Q8 생성 경로는 실험적이며 제한된 GPU 생성만 검증했습니다.'
+            if ready and not runtime_status['ready']:
+                message += ' · ' + runtime_status['message']
+            if status == 'failed':
+                message += ' · 다운로드 실패: 모델 준비 로그 확인'
+            return send_management_json_response(gateway_request_handler, 200, {'ready': ready, 'generation_ready': ready and runtime_status['ready'], 'preparation_status': status, 'can_prepare': status != 'unknown', 'message': message})
         if service_command_name == 'wan22-i2v-assets':
             from generators.wan_i2v.assets import ROOT, inspect_assets
             from workflow.common.model_prepare_process import inspect_registered_preparation_strict, start_registered_preparation

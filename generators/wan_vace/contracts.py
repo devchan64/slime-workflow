@@ -28,30 +28,50 @@ VACE_EXPERT_BOUNDARY = 0.875
 VACE_INPUT_MODES = ('text', 'reference', 'first_frame', 'video_edit', 'video_condition', 'pose')
 
 
-def inspect_vace_assets():
+def inspect_vace_assets(profile='official-bf16-resident-v1'):
+    if profile not in ('official-bf16-resident-v1', 'q8-gguf-resident-v1'):
+        raise ValueError('지원하지 않는 VACE 모델 프로필입니다.')
     missing_model_paths = []
-    for current_model_name, expected_model_size, expected_model_hash in VACE_MODEL_FILES.values():
+    asset_files = VACE_MODEL_FILES if profile == 'official-bf16-resident-v1' else {k: v for k, v in VACE_MODEL_FILES.items() if k not in ('high', 'low')}
+    for current_model_name, expected_model_size, expected_model_hash in asset_files.values():
         current_model_path = VACE_WORKSPACE_ROOT / current_model_name
         if not current_model_path.is_file() or current_model_path.stat().st_size != expected_model_size:
             missing_model_paths.append(current_model_name)
+    if profile == 'q8-gguf-resident-v1':
+        from importlib.metadata import PackageNotFoundError, version
+        try:
+            if version('gguf') != '0.19.0':
+                missing_model_paths.append('gguf==0.19.0 실행 환경 필요')
+        except PackageNotFoundError:
+            missing_model_paths.append('gguf==0.19.0 실행 환경 필요')
+        from generators.wan_vace.q8_assets import DIRECTORY, FILES
+        for name, size, _ in FILES.values():
+            path = DIRECTORY / name
+            if path.is_symlink() or not path.is_file() or path.stat().st_size != size:
+                missing_model_paths.append(str(path))
     from generators.wan_vace.official_prepare import verify_official_runtime
     try:
         verify_official_runtime()
     except ValueError as current_runtime_error:
         missing_model_paths.append(str(current_runtime_error))
-    return {'ready': not missing_model_paths, 'missing': missing_model_paths, 'message': '공식 BF16 모델 파일 준비 완료 · GPU 메모리와 품질은 별도 검수' if not missing_model_paths else '모델 준비 필요: ' + ', '.join(missing_model_paths)}
+    return {'ready': not missing_model_paths, 'missing': missing_model_paths, 'message': ('Q8 또는 BF16 모델 파일 준비 완료 · GPU 메모리와 품질은 별도 검수') if not missing_model_paths else '모델 준비 필요: ' + ', '.join(missing_model_paths)}
 
 
-def validate_vace_assets():
-    current_asset_status = inspect_vace_assets()
+def validate_vace_assets(profile='official-bf16-resident-v1'):
+    current_asset_status = inspect_vace_assets(profile)
     if not current_asset_status['ready']:
         raise ValueError(current_asset_status['message'])
 
 
-def verify_vace_weights():
+def verify_vace_weights(profile='official-bf16-resident-v1'):
     """실제 추론 전 전용 가중치의 스트리밍 해시를 확인한다."""
-    validate_vace_assets()
-    for current_model_name, expected_model_size, expected_model_hash in VACE_MODEL_FILES.values():
+    validate_vace_assets(profile)
+    if profile == 'q8-gguf-resident-v1':
+        from generators.wan_vace.q8_assets import inspect_q8_assets
+        if not inspect_q8_assets():
+            raise ValueError('Q8 전문가 파일 SHA-256 검증 실패')
+    asset_files = VACE_MODEL_FILES if profile == 'official-bf16-resident-v1' else {k: v for k, v in VACE_MODEL_FILES.items() if k not in ('high', 'low')}
+    for current_model_name, expected_model_size, expected_model_hash in asset_files.values():
         if expected_model_hash is None:
             continue
         with (VACE_WORKSPACE_ROOT / current_model_name).open('rb') as current_model_stream:
@@ -66,10 +86,17 @@ def validate_vace_request(current_request_record):
         required_field_names.add('lora_mode')
         if current_request_record['lora_mode'] not in ('none', 'fighting', 'lightning', 'fighting_lightning'):
             raise ValueError('지원하지 않는 LoRA 설정입니다.')
-        if current_request_record['lora_mode'] == 'lightning' and (current_request_record.get('steps') != 4 or current_request_record.get('flow_shift') != 5):
+        if current_request_record['lora_mode'] in ('lightning', 'fighting_lightning') and (current_request_record.get('steps') != 4 or current_request_record.get('flow_shift') != 5):
             raise ValueError('Lightning은 4스텝·shift 5가 필요합니다.')
-        if current_request_record['lora_mode'] == 'fighting_lightning' and (current_request_record.get('steps') != 4 or current_request_record.get('guidance_scale') != 1 or current_request_record.get('flow_shift') != 5):
-            raise ValueError('Lightning은 4스텝·CFG 1·shift 5가 필요합니다.')
+    if isinstance(current_request_record, dict) and 'model_profile' in current_request_record:
+        required_field_names.add('model_profile')
+        if current_request_record['model_profile'] not in ('official-bf16-resident-v1', 'q8-gguf-resident-v1'):
+            raise ValueError('지원하지 않는 VACE 모델 프로필입니다.')
+    if isinstance(current_request_record, dict) and 'fighting_strength' in current_request_record:
+        required_field_names.add('fighting_strength')
+        strength = current_request_record['fighting_strength']
+        if current_request_record.get('lora_mode') not in ('fighting', 'fighting_lightning') or type(strength) not in (int, float) or not math.isfinite(strength) or not 0 < strength <= 2:
+            raise ValueError('격투 LoRA 강도는 0 초과 2 이하입니다. 0은 격투 LoRA를 선택하지 마세요.')
     if isinstance(current_request_record, dict) and current_request_record.get('mode') == 'video_edit':
         required_field_names |= {'edit_video', 'edit_mask'}
     if isinstance(current_request_record, dict) and current_request_record.get('mode') == 'video_condition':
@@ -123,7 +150,7 @@ def validate_vace_request(current_request_record):
     if current_request_record['mode'] == 'pose':
         from generators.wan_vace.video_edit import validate_edit_inputs
         validate_edit_inputs(current_request_record, ('pose_video',))
-    return {**current_request_record, 'prompt': current_request_record['prompt'].strip(), 'tag': 'wan22-vace', 'model_profile': 'official-bf16-resident-v1'}
+    return {**current_request_record, 'prompt': current_request_record['prompt'].strip(), 'tag': 'wan22-vace', 'model_profile': current_request_record.get('model_profile', 'official-bf16-resident-v1')}
 
 
 def locate_expert_switch(current_sigma_values):

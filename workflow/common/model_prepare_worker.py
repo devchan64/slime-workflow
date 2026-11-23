@@ -18,6 +18,7 @@ MODEL_PREPARATION_PROFILES = {
     'wan-animate2': (('generators.wan_animate2.prepare', 'prepare_animate_models'), ('generators.wan_animate2.contracts', 'validate_animate_assets')),
     'wan-vace': (('generators.wan_vace.prepare', 'prepare_vace_models'),),
     'wan22-fighting-lora': (('generators.wan_vace.fighting_lora', 'prepare_fighting_lora'),),
+    'wan22-vace-q8': (('generators.wan_vace.q8_assets', 'prepare_q8_assets'),),
     'wan22-vace-lightning': (('generators.wan_vace.lightning_lora', 'prepare_lightning_loras'),),
     'wan22-i2v-assets': (('generators.wan_i2v.assets', 'prepare_assets'),),
     'writer-model': (('generators.writer_agent.prepare', 'prepare_writer_model_files'),),

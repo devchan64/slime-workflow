@@ -31,7 +31,7 @@ def save_video_outputs(current_attempt_root, current_frame_arrays, current_frame
     return output_frame_hashes
 
 
-def run_reference_video_worker(current_storage_root, current_worker_path, current_assets_validator, current_inference_callback, recorder_class=GenerationTelemetryRecorder):
+def run_reference_video_worker(current_storage_root, current_worker_path, current_assets_validator, current_inference_callback, recorder_class=GenerationTelemetryRecorder, *, assets_validator_takes_request=False):
     current_argument_parser = argparse.ArgumentParser(description=__doc__)
     current_argument_parser.add_argument('--job-dir', type=Path, required=True)
     current_job_root = current_argument_parser.parse_args().job_dir.resolve()
@@ -50,7 +50,7 @@ def run_reference_video_worker(current_storage_root, current_worker_path, curren
     signal.signal(signal.SIGTERM, handle_video_signal)
     signal.signal(signal.SIGINT, handle_video_signal)
     try:
-        current_assets_validator()
+        current_assets_validator(current_request_record) if assets_validator_takes_request else current_assets_validator()
         import torch
         if not getattr(torch.version, 'hip', None) or not torch.cuda.is_available():
             raise RuntimeError('GPU 사용 불가: ROCm PyTorch와 AMD GPU 장치 접근을 확인하세요.')

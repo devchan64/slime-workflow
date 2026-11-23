@@ -15,7 +15,7 @@ def build_blank_video_condition(torch, frame_count):
             'mask_video':torch.ones((1, 1, frame_count, 480, 832)) * 255}
 
 
-def apply_vace_loras(current_high_model, current_low_model, lora_mode, current_attempt_root):
+def apply_vace_loras(current_high_model, current_low_model, lora_mode, current_attempt_root, fighting_strength=1.0):
     if lora_mode == 'none':
         return
     if lora_mode not in ('fighting', 'lightning', 'fighting_lightning'):
@@ -30,17 +30,18 @@ def apply_vace_loras(current_high_model, current_low_model, lora_mode, current_a
         from generators.wan_vace.fighting_lora import PATH as fighting_path, SHA256 as fighting_hash, inspect_fighting_lora
         if not inspect_fighting_lora():
             raise ValueError('격투 LoRA 파일 검증에 실패했습니다. 모델 관리에서 준비하세요.')
-    record = {'mode': lora_mode, 'strength': 1.0}
+    uses_q8 = getattr(current_high_model, '_vace_q8_expert', False)
+    record = {'mode': lora_mode, 'strength': 1.0, 'application': 'runtime-low-rank' if uses_q8 else 'bf16-merged'}
     if lora_mode in ('lightning', 'fighting_lightning'):
         high_count = merge_adapter(current_high_model, DIRECTORY / FILES['high'][0])
         low_count = merge_adapter(current_low_model, DIRECTORY / FILES['low'][0])
         record.update(lightning_revision=REVISION, lightning_sha256={name: item[2] for name,item in FILES.items()}, high_layers=high_count, low_layers=low_count)
     if lora_mode in ('fighting', 'fighting_lightning'):
-        record.update(fighting_sha256=fighting_hash, fighting_high_layers=merge_adapter(current_high_model, fighting_path))
+        record.update(fighting_sha256=fighting_hash, fighting_strength=fighting_strength, fighting_high_layers=merge_adapter(current_high_model, fighting_path, strength=fighting_strength))
     write_record_atomically(current_attempt_root / 'lora-merge.json', record)
 
 
-def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.0, current_attempt_root=None, lora_mode='none'):
+def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.0, current_attempt_root=None, lora_mode='none', fighting_strength=1.0, model_profile='official-bf16-resident-v1'):
     # 공식 구현은 문자열 "0"도 참으로 취급한다.
     os.environ.pop('VIDEOX_OFFLOAD_VACE_LATENTS', None)
     from generators.wan_vace.official_prepare import verify_official_runtime
@@ -68,9 +69,14 @@ def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.
     current_vae_model.load_state_dict({'model.' + current_tensor_name: current_tensor_value for current_tensor_name, current_tensor_value in current_vae_state.items()}, strict=True)
     current_vae_model.to(device='cuda', dtype=torch.bfloat16).eval().requires_grad_(False)
     del current_vae_state
-    current_low_model = load_full_precision_expert('low', VaceWanTransformer3DModel)
-    current_high_model = load_full_precision_expert('high', VaceWanTransformer3DModel)
-    apply_vace_loras(current_high_model, current_low_model, lora_mode, current_attempt_root)
+    if model_profile == 'q8-gguf-resident-v1':
+        from generators.wan_vace.q8_runtime import load_q8_expert
+        current_low_model = load_q8_expert('low', VaceWanTransformer3DModel)
+        current_high_model = load_q8_expert('high', VaceWanTransformer3DModel)
+    else:
+        current_low_model = load_full_precision_expert('low', VaceWanTransformer3DModel)
+        current_high_model = load_full_precision_expert('high', VaceWanTransformer3DModel)
+    apply_vace_loras(current_high_model, current_low_model, lora_mode, current_attempt_root, fighting_strength)
     current_tokenizer_model = AutoTokenizer.from_pretrained(str(VACE_WORKSPACE_ROOT / '.model/wan22-vace/official-tokenizer'), local_files_only=True)
     current_pipeline_object = Wan2_2VaceFunPipeline(tokenizer=current_tokenizer_model, text_encoder=current_text_encoder, vae=current_vae_model, transformer=current_low_model, transformer_2=current_high_model, scheduler=build_vace_scheduler(current_flow_shift))
     current_inference_started = False
@@ -97,17 +103,20 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
     current_contiguous_enabled = install_fun_attention_optimization(torch, torch_functional_module)
     if os.environ.get('SLIME_VACE_ATTENTION_PROFILE', '1') == '1':
         install_fun_attention_profile(current_attempt_root, torch_functional_module, current_call_limit=2)
+    is_q8 = current_request_record.get('model_profile') == 'q8-gguf-resident-v1'
+    if is_q8:
+        from generators.wan_vace.q8_assets import REPOSITORY, REVISION, FILES
     write_record_atomically(current_attempt_root / 'model-selection.json', {
-        'model_id': VACE_MODEL_IDENTIFIER, 'revision': VACE_MODEL_REVISION,
-        'files': VACE_MODEL_FILES, 'quantization': None, 'precision': 'BF16',
+        'model_id': REPOSITORY if is_q8 else VACE_MODEL_IDENTIFIER, 'revision': REVISION if is_q8 else VACE_MODEL_REVISION,
+        'files': {'experts': FILES, 'components': {k: v for k, v in VACE_MODEL_FILES.items() if k not in ('high', 'low')}} if is_q8 else VACE_MODEL_FILES, 'quantization': 'Q8_0' if is_q8 else None, 'precision': 'Q8_0/BF16' if is_q8 else 'BF16',
         'pytorch_version': torch.__version__, 'rocm_version': torch.version.hip,
         'gpu_name': torch.cuda.get_device_name(0), 'allocator_backend': torch.cuda.memory.get_allocator_backend(),
         'allocator_configuration': os.environ.get('PYTORCH_ALLOC_CONF'),
         'text_encoder_revision': VACE_ENCODER_REVISION, 'source_revision': VACE_SOURCE_REVISION,
-        'runtime': 'VideoX-Fun official BF16', 'gpu_backend': 'rocm',
+        'runtime': 'VideoX-Fun Q8_0 GPU' if is_q8 else 'VideoX-Fun official BF16', 'gpu_backend': 'rocm',
         'gpu_runtime_version': torch.version.hip,
         'gpu_device_name': torch.cuda.get_device_name() if torch.cuda.is_available() else None,
-        'model_profile': 'official-bf16-resident-v1', 'offload_device': None,
+        'model_profile': current_request_record.get('model_profile', 'official-bf16-resident-v1'), 'offload_device': None,
         'lora_mode': current_request_record.get('lora_mode', 'none'),
         'active_expert_block_offload': False, 'inactive_expert_offload': False,
         'encoded_input_cpu_offload': False, 'branch_activation_cpu_offload': False,
@@ -116,11 +125,13 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
         'contiguous_long_attention': current_contiguous_enabled,
         'attention_profile_enabled': os.environ.get('SLIME_VACE_ATTENTION_PROFILE', '1') == '1',
         'vae_sdpa_diagnostic_enabled': os.environ.get('SLIME_VACE_VAE_SDPA_DIAGNOSTIC') == '1',
-        'custom_math_patches': 'attention_prefix_frames' in current_request_record,
-        'adapter_source_sha256': {current_source_name: hashlib.sha256((Path(__file__).parent / current_source_name).read_bytes()).hexdigest() for current_source_name in ('official_runtime.py', 'official_full_precision.py', 'sampling.py', 'noise_experiment.py', 'attention_experiment.py', 'numerical_guard.py', 'vae_numerical_guard.py', 'vae_attention_diagnostics.py', 'lora_merge.py', 'lightning_lora.py', 'fighting_lora.py')},
+        'custom_math_patches': is_q8 or 'attention_prefix_frames' in current_request_record,
+        'q8_linear_dequantization': 'gpu-bf16-per-forward' if is_q8 else None,
+        'q8_lora_application': 'gpu-runtime-low-rank' if is_q8 and current_request_record.get('lora_mode', 'none') != 'none' else None,
+        'adapter_source_sha256': {current_source_name: hashlib.sha256((Path(__file__).parent / current_source_name).read_bytes()).hexdigest() for current_source_name in ('official_runtime.py', 'official_full_precision.py', 'sampling.py', 'noise_experiment.py', 'attention_experiment.py', 'numerical_guard.py', 'vae_numerical_guard.py', 'vae_attention_diagnostics.py', 'lora_merge.py', 'lightning_lora.py', 'fighting_lora.py', 'q8_runtime.py', 'q8_assets.py')},
     })
     current_metrics_recorder.update_generation_stage('load')
-    current_pipeline_object = load_official_pipeline(current_metrics_recorder, current_request_record['flow_shift'], current_attempt_root, current_request_record.get('lora_mode', 'none'))
+    current_pipeline_object = load_official_pipeline(current_metrics_recorder, current_request_record['flow_shift'], current_attempt_root, current_request_record.get('lora_mode', 'none'), current_request_record.get('fighting_strength', 1.0), current_request_record.get('model_profile', 'official-bf16-resident-v1'))
     from videox_fun.models import wan_transformer3d
     from generators.wan_vace.vae_numerical_guard import record_vace_tensor_failure
     from generators.wan_vace.numerical_guard import install_vace_attention_guard

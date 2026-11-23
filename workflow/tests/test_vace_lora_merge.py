@@ -17,9 +17,10 @@ class VaceLoraMergeTests(unittest.TestCase):
                    'negative_prompt': '', 'images': [], 'width': 832, 'height': 480,
                    'lora_mode': 'fighting_lightning', 'steps': 4, 'flow_shift': 5, 'guidance_scale': 1}
         self.assertEqual(validate_vace_request(request)['lora_mode'], 'fighting_lightning')
-        for field, value in (('steps', 20), ('flow_shift', 12), ('guidance_scale', 5), ('lora_mode', 'other')):
+        for field, value in (('steps', 20), ('flow_shift', 12), ('lora_mode', 'other')):
             with self.subTest(field=field), self.assertRaises(ValueError):
                 validate_vace_request({**request, field: value})
+        self.assertEqual(validate_vace_request({**request, 'guidance_scale': 2.5})['guidance_scale'], 2.5)
         lightning_request = {**request, 'lora_mode': 'lightning'}
         self.assertEqual(validate_vace_request(lightning_request)['lora_mode'], 'lightning')
         self.assertEqual(validate_vace_request({**lightning_request, 'guidance_scale': 2})['guidance_scale'], 2)
@@ -62,6 +63,19 @@ class VaceLoraMergeTests(unittest.TestCase):
             record = json.loads((Path(directory) / 'lora-merge.json').read_text())
             self.assertEqual(record['mode'], 'lightning')
             self.assertNotIn('fighting_sha256', record)
+
+    def test_fighting_strength_is_independent_of_lightning(self):
+        from generators.wan_vace.official_runtime import apply_vace_loras
+        high, low = object(), object()
+        with tempfile.TemporaryDirectory() as directory, \
+             patch('generators.wan_vace.lightning_lora.inspect_lightning_loras', return_value=True), \
+             patch('generators.wan_vace.fighting_lora.inspect_fighting_lora', return_value=True), \
+             patch('generators.wan_vace.lora_merge.merge_adapter', return_value=400) as merge:
+            apply_vace_loras(high, low, 'fighting_lightning', Path(directory), fighting_strength=0.5)
+            self.assertEqual([call.kwargs.get('strength', 1.0) for call in merge.call_args_list], [1.0, 1.0, 0.5])
+            record = json.loads((Path(directory) / 'lora-merge.json').read_text())
+            self.assertEqual(record['fighting_strength'], 0.5)
+            self.assertEqual(record['strength'], 1.0)
 
     def test_combined_mode_checks_fighting_before_merging(self):
         from generators.wan_vace.official_runtime import apply_vace_loras

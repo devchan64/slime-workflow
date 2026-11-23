@@ -98,7 +98,7 @@ def estimate_required_memory(service, configured_floor_mib, command_identity_nam
         configured_floor_mib = max(configured_floor_mib, 32768)
     if service == 'image' and isinstance(command_identity_name, str) and command_identity_name.endswith((':offload=none-circular-v1', ':offload=none-full-v1')):
         configured_floor_mib = max(configured_floor_mib, 65536)
-    if service == 'image' and isinstance(command_identity_name, str) and command_identity_name.startswith('wan-vace-bf16:'):
+    if service == 'image' and isinstance(command_identity_name, str) and command_identity_name.startswith(('wan-vace-bf16:', 'wan-vace-q8:')):
         configured_floor_mib = max(configured_floor_mib, 81920)
     if service == 'hermes-agent' and command_identity_name and command_identity_name.startswith('hermes:'):
         from workflow.common.hermes_model_routing import MODEL_FLOORS_MIB
@@ -147,12 +147,13 @@ def identify_execution_command(command_argument_values, generation_job_directory
             return current_profile_name + (f':domain={current_memory_domain}' if current_memory_domain else '')
     if generation_job_directory is not None and len(command_argument_values)>1 and Path(command_argument_values[1]).parts[-2:] == ('wan_vace','worker.py'):
         current_request_record = json.loads((Path(generation_job_directory)/'request.json').read_text())
-        if current_request_record.get('model_profile') != 'official-bf16-resident-v1':
-            raise ValueError('폐기된 Q4 VACE 작업은 실행할 수 없습니다.')
+        current_model_profile = current_request_record.get('model_profile')
+        if current_model_profile not in ('official-bf16-resident-v1', 'q8-gguf-resident-v1'):
+            raise ValueError('폐기된 Q4 또는 지원하지 않는 VACE 모델 프로필입니다.')
         current_frame_count = current_request_record.get('frames')
         if type(current_frame_count) is not int or current_frame_count <= 0:
             raise ValueError('VACE 메모리 예측에 프레임 수가 필요합니다.')
-        current_profile_name = f'wan-vace-bf16:frames={current_frame_count}:offload=none-v1'
+        current_profile_name = f"wan-vace-{'q8' if current_model_profile == 'q8-gguf-resident-v1' else 'bf16'}:frames={current_frame_count}:offload=none-v1"
         return current_profile_name + (f':domain={current_memory_domain}' if current_memory_domain else '')
     if generation_job_directory is not None and len(command_argument_values)>1 and Path(command_argument_values[1]).parts[-2:] == ('wan_fun','worker.py'):
         current_request_record = json.loads((Path(generation_job_directory)/'request.json').read_text())

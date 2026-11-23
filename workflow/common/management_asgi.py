@@ -715,6 +715,9 @@ def build_management_application(current_handler_class, current_root_path, curre
         try:
             request = json.loads(metadata.read_bytes())
             fields = {key:request.get(key, value) for key,value in VACE_DEFAULT_SETTINGS.items()}
+            fields['model_profile'] = request.get('model_profile', 'official-bf16-resident-v1')
+            if 'fighting_strength' in request:
+                fields['fighting_strength'] = request['fighting_strength']
             fields.update({key: request[key] for key in ('prompt', 'negative_prompt')})
             mode = fields['mode']
             names = {} if mode == 'text' else {'reference':'reference-1.png'}
