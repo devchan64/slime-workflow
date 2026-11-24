@@ -191,7 +191,7 @@ function MediaJobResultForSelection({service,id,kind="video",children,folderLink
     {loading && job && <p role="status">작업 결과를 다시 조회하고 있습니다.</p>}
     {job ? <>
       <p className="media-result-note" role="status">{inGenerator && kind==="audio" && typeof job.note==="string" ? job.note.replace(/^완료 결과와 상세 로그·분리 음원은 해당 생성기 이력에서 확인하세요\.\s*/,"") : job.note}</p>
-      {!hideProgress && (["queued","running"].includes(job.status) ? <GenerationProgress job={job} live={live} supportsProgress={kind==="video"} showQueryTime={false} referenceTime={checkedAt}/> : <details><summary>진행 정보 보기</summary><GenerationProgress job={job} supportsProgress={kind==="video"} showQueryTime={false} referenceTime={checkedAt}/></details>)}
+      {!hideProgress && (["queued","running"].includes(job.status) ? <GenerationProgress service={service} job={job} live={live} supportsProgress={kind==="video"} showQueryTime={false} referenceTime={checkedAt}/> : <details><summary>진행 정보 보기</summary><GenerationProgress service={service} job={job} supportsProgress={kind==="video"} showQueryTime={false} referenceTime={checkedAt}/></details>)}
       {kind==="audio" && job.result_status==="available" && job.file_observation!=="unavailable" && <div className="media-audio-tracks">
         {(job.tracks?.length ? job.tracks : [{label:"생성 오디오",wav:job.audio}]).map(track=><AudioTrack key={track.wav+":"+mediaRevision} track={track}/>)}
       </div>}

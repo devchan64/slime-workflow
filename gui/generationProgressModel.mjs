@@ -2,6 +2,17 @@ export function validInferenceCompletion(value){
   return typeof value==='string' && /(?:Z|[+-]\d{2}:\d{2})$/i.test(value) && !Number.isNaN(Date.parse(value));
 }
 
+export const referencePreparationLabels=Object.freeze({reference_prepare:'참조 영상 준비',reference_text_encode:'편집 지시 인코딩',reference_vae_encode:'참조 영상 인코딩'});
+const videoEditStageLabels=Object.freeze({...referencePreparationLabels,prepare:'작업 준비',load:'모델 불러오기',saving:'결과 저장'});
+export function unmeasuredStageLabel(progress,service){
+  const labels=service==='minimax-h3-ref2va' ? videoEditStageLabels : referencePreparationLabels;
+  return progress && Object.hasOwn(labels,progress.stage) ? labels[progress.stage] : '';
+}
+export function generationProgressSummary(progress,service){
+  if(!progress)return '';
+  return unmeasuredStageLabel(progress,service) || `단계 ${progress.step}/${progress.total}`;
+}
+
 /** 공용 진행 UI가 표시할 실제 단계 관측을 정규화한다. */
 export function observedGenerationProgress(job){
   const event=job?.progress_event;

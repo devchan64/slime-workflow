@@ -6,7 +6,7 @@ import GenerationProgress from "./GenerationProgress.jsx";
 import JobStatus from "./JobStatus.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
 import {validGenerationEstimate} from "./generationEstimate.mjs";
-import {observedGenerationProgress} from "./generationProgressModel.mjs";
+import {observedGenerationProgress,generationProgressSummary} from "./generationProgressModel.mjs";
 import {validGeneratorHistoryPage} from "./generatorHistoryPage.mjs";
 
 /** 저장된 이력과 읽기 전용 원본 상태로 현재 작업을 관측한다. */
@@ -70,7 +70,7 @@ function ActiveGeneratorProgressForService({service,revision=0,onOpenResult}){
     }
     read();return()=>{active=false;refreshLock.current=false;clearTimeout(deadline);controller.abort();};
   },[service,revision,refreshKey]);
-  const activeSummary=(error ? '조회 실패 · 마지막 상태 확인 필요' : records===null ? '확인 중' : records.length===0 ? (truncated ? '일부 상태 확인 필요' : '진행 중인 작업 없음') : records.map(item=>{if(item.error)return `${item.id} 상태 확인 불가`;const progress=observedGenerationProgress(item.job);return `${item.id} ${item.job.status==='running'?'실행':'대기'}${progress ? ` · 단계 ${progress.step}/${progress.total}` : ''}`;}).join(' · ') + (truncated ? ' · 일부 상태 확인 필요' : '')) + (checkedAt ? ` · 조회 ${checkedAt.toLocaleTimeString('ko-KR',{timeZone:'Asia/Seoul',hour12:false})}` : '');
+  const activeSummary=(error ? '조회 실패 · 마지막 상태 확인 필요' : records===null ? '확인 중' : records.length===0 ? (truncated ? '일부 상태 확인 필요' : '진행 중인 작업 없음') : records.map(item=>{if(item.error)return `${item.id} 상태 확인 불가`;const progress=observedGenerationProgress(item.job);return `${item.id} ${item.job.status==='running'?'실행':'대기'}${progress ? ` · ${generationProgressSummary(progress,service)}` : ''}`;}).join(' · ') + (truncated ? ' · 일부 상태 확인 필요' : '')) + (checkedAt ? ` · 조회 ${checkedAt.toLocaleTimeString('ko-KR',{timeZone:'Asia/Seoul',hour12:false})}` : '');
   return <GeneratorSectionCard cardRef={live.ref} className="active-generator-progress" title="현재 생성 작업" summary={activeSummary} defaultOpen>
     <div className="active-generator-progress-heading"><button ref={refreshRef} type="button" disabled={loading} onClick={()=>queueRefresh(true)}>{loading?'조회 중…':'상태 새로고침'}</button></div>
     {loading && records!==null && <p role="status">작업 상태를 다시 조회하고 있습니다. 아래는 마지막 조회 결과입니다.</p>}
@@ -79,7 +79,7 @@ function ActiveGeneratorProgressForService({service,revision=0,onOpenResult}){
     {truncated && <p role="status">일부 이력을 확인하지 못했습니다. 전체 이력에서 작업을 확인하세요.</p>}
     {records===null ? !error && <p role="status">작업 상태 확인 중…</p> : records.length===0 ? <p>{truncated ? '확인된 이력에 진행 중인 생성 작업이 없습니다.' : '진행 중인 생성 작업 없음'}</p> : records.map(item=><div className="active-generator-job" key={item.id} ref={node=>{if(node)jobRefs.current.set(item.id,node);else jobRefs.current.delete(item.id);}}>
       <div className="active-generator-job-heading"><JobIdentifier id={item.id} compact/>{item.job && <JobStatus state={item.job.status}/>}<button type="button" aria-label={item.id+" 작업 결과 보기"} onClick={()=>onOpenResult(item.id)}>작업 결과 보기</button></div>
-      {item.error ? <p role="alert">이 작업의 현재 상태를 확인하지 못했습니다.</p> : <GenerationProgress job={{...item.job,estimate:validGenerationEstimate(item.job.estimate)?item.job.estimate:null}} supportsProgress showQueryTime={false} referenceTime={checkedAt}/>}
+      {item.error ? <p role="alert">이 작업의 현재 상태를 확인하지 못했습니다.</p> : <GenerationProgress service={service} job={{...item.job,estimate:validGenerationEstimate(item.job.estimate)?item.job.estimate:null}} supportsProgress showQueryTime={false} referenceTime={checkedAt}/>}
     </div>)}
   </GeneratorSectionCard>;
 }

@@ -5,6 +5,27 @@ import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
 import {validVideoJobId} from '../../gui/videoJobId.mjs';
 
+test('영상 편집 검토는 중복 읽기를 막고 시간 초과 후 다시 시도한다',async()=>{
+ const source=readFileSync(new URL('../../gui/MiniMaxH3Ref2VAPage.jsx',import.meta.url),'utf8');
+ const start=source.indexOf('  async function review(event)'),end=source.indexOf('  async function submit()',start);
+ let timer,error='',pending=null,reads=0,slow=true;
+ const activeRead={current:null},context=vm.createContext({AbortController,untilAborted,activeRead,reviewOrigin:{current:null},document:{activeElement:{}},busy:false,pending:null,reasons:[],editVersion:{current:0},file:{},prompt:'편집',seed:45,setBusy:()=>{},setError:value=>error=value,setPending:value=>pending=value,setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},videoData:()=>{reads++;return slow ? new Promise(()=>{}) : Promise.resolve('video');}});
+ vm.runInContext(source.slice(start,end),context);
+ const event={preventDefault(){}};const first=context.review(event);await context.review(event);assert.equal(reads,1);timer();await first;
+ assert.match(error,/시간이 초과/);assert.equal(activeRead.current,null);assert.equal(pending,null);
+ slow=false;await context.review(event);assert.equal(pending.edit_video,'video');
+});
+
+test('영상 편집 검토 취소는 검토에서 사라진 초점만 복구한다',()=>{
+ const source=readFileSync(new URL('../../gui/MiniMaxH3Ref2VAPage.jsx',import.meta.url),'utf8');
+ const start=source.indexOf('  function cancelReview()'),end=source.indexOf('  async function readSavedInput(',start);
+ for(const moved of [false,true]){
+  const body={},inside={},other={},document={body,activeElement:inside};let frame,focused=0;
+  const context=vm.createContext({document,reviewRef:{current:{contains:value=>value===inside}},formRef:{current:{focus:()=>focused++}},setPending:()=>{},requestAnimationFrame:fn=>frame=fn});
+  vm.runInContext(source.slice(start,end),context);context.cancelReview();document.activeElement=moved?other:body;frame();assert.equal(focused,moved?0:1);
+ }
+});
+
 test('영상 작업 ID는 서버 이력 형식과 정확히 일치해야 한다',()=>{
  const valid='2026-11-24_12-00-00-1234abcd';
  assert.equal(validVideoJobId(valid),true);

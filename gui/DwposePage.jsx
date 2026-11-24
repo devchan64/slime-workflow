@@ -117,7 +117,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
       const result=await managementCommand("dwpose","generate",pending);
       if(!result.id)throw new Error("작업 ID를 확인할 수 없습니다.");
       setJob(result.id);setNotice("공용 GPU 대기열에 등록했습니다.");
-    }catch(problem){setNotice(problem.message+" · 이력에서 접수 여부를 확인하세요.");}
+    }catch(problem){setNotice(requestErrorMessage(problem)+" · 이력에서 접수 여부를 확인하세요.");}
     finally{setPending(null);handoff.clearReview();sending.current=false;setBusy(false);}
   }
   return <article className={embedded ? "dwpose-page generator-page-common" : "dwpose-page dwpose-standalone generator-page-common"}>

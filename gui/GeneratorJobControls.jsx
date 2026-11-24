@@ -2,6 +2,7 @@ import React, {useEffect,useId,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {generationResumeCommand} from "./generationResumeCommand.mjs";
 import {validateGenerationControlResponse} from "./generationControlResponse.mjs";
+import {requestErrorMessage} from "./requestError.mjs";
 
 export default function GeneratorJobControls(props) {
   return <GeneratorJobControlsForJob key={props.service+"/"+props.id} {...props}/>;
@@ -25,7 +26,7 @@ function GeneratorJobControlsForJob({service,id,state,refresh,showLog=true,showA
   async function perform(action) {
     setBusy(true);setNotice("");
     try {await action();}
-    catch(problem){setNotice(problem.message);}
+    catch(problem){setNotice(requestErrorMessage(problem));}
     finally{setBusy(false);}
   }
   async function prepareResume() {
@@ -60,7 +61,7 @@ function GeneratorJobControlsForJob({service,id,state,refresh,showLog=true,showA
         throw new Error("응답에서 요청 접수를 확인할 수 없습니다. 다시 요청하기 전에 이력과 작업 상태를 확인하세요.");
       setNotice(command==="resume"?"재개를 접수했습니다. 실제 실행 상태를 확인하세요.":"중지를 요청했습니다. 실제 종료 상태를 확인하세요.");
     } catch(problem) {
-      throw new Error(problem.message+" · 결과가 불확실할 수 있습니다. 다시 요청하기 전에 이력과 작업 상태를 확인하세요.");
+      throw new Error(requestErrorMessage(problem)+" · 결과가 불확실할 수 있습니다. 다시 요청하기 전에 이력과 작업 상태를 확인하세요.");
     } finally {
       refresh();
     }
