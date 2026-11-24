@@ -3,7 +3,7 @@ import {observeLiveVisibility} from "./observeLiveVisibility.mjs";
 
 export const LIVE_REFRESH_MS=30000;
 
-export function useLiveRefresh(refresh,active=true){
+export function useLiveRefresh(refresh,active=true,interval=LIVE_REFRESH_MS){
   const [enabled,setEnabledState]=useState(true),[element,setElement]=useState(null),[visible,setVisible]=useState(false);
   const callback=useRef(refresh);
   const enabledRef=useRef(true),visibleRef=useRef(false),activeRef=useRef(active);
@@ -18,12 +18,12 @@ export function useLiveRefresh(refresh,active=true){
   useEffect(()=>{
     if(!enabled || !visible || !active)return;
     let running=true;
-    const timer=setInterval(()=>{if(running && enabledRef.current && visibleRef.current && activeRef.current && document.visibilityState==='visible')callback.current();},LIVE_REFRESH_MS);
+    const timer=setInterval(()=>{if(running && enabledRef.current && visibleRef.current && activeRef.current && document.visibilityState==='visible')callback.current();},interval);
     return ()=>{running=false;clearInterval(timer);};
-  },[enabled,visible,active]);
-  return {ref,enabled,setEnabled,visible,active};
+  },[enabled,visible,active,interval]);
+  return {ref,enabled,setEnabled,visible,active,interval};
 }
 
 export function LiveRefreshControl({live,label="자동 갱신",inactiveReason="일시 중지"}){
-  return <label className="live-refresh"><input type="checkbox" checked={live.enabled} onChange={event=>live.setEnabled(event.target.checked)}/> {label} · 30초 간격{!live.active ? " · "+inactiveReason : live.enabled && !live.visible ? " · 화면에 보이면 갱신" : ""}</label>;
+  return <label className="live-refresh"><input type="checkbox" checked={live.enabled} onChange={event=>live.setEnabled(event.target.checked)}/> {label} · {(live.interval ?? LIVE_REFRESH_MS)/1000}초 간격{!live.active ? " · "+inactiveReason : live.enabled && !live.visible ? " · 화면에 보이면 갱신" : ""}</label>;
 }

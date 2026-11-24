@@ -160,6 +160,7 @@ article {position:relative;}
 .translation-request-review {margin:1rem 0;padding:1rem;border:1px solid var(--line,#484d50);border-radius:.7rem;background:var(--surface,#202326);overflow-wrap:anywhere}
 .translation-request-review h2 {font-size:1.1rem;margin:0 0 .7rem}.translation-request-review h3 {font-size:.9rem;margin:.9rem 0 .3rem}.translation-request-review p {margin:.4rem 0}.translation-request-review ul {padding-left:1.3rem}.translation-review-text {white-space:pre-wrap}
 .fun-request-review {margin:1rem 0;padding:1rem;border:1px solid var(--line,#484d50);border-radius:.7rem;background:var(--surface,#202326);overflow-wrap:anywhere}.fun-request-review h2 {font-size:1.1rem;margin:0 0 .7rem}.fun-request-review h3 {font-size:.9rem;margin:.9rem 0 .3rem}.fun-request-review p {margin:.4rem 0;line-height:1.5}.fun-review-prompt {white-space:pre-wrap}
+.review-prompt {min-width:0;max-width:100%;overflow-wrap:anywhere}.review-prompt .fun-review-prompt {white-space:pre-wrap;overflow-wrap:anywhere}
 .generation-review-text {max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere}
 pre.generation-review-text {max-height:20rem;overflow:auto}
 pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4);outline-offset:2px}
@@ -335,6 +336,8 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .generator-history, .generator-history fieldset, .generator-history-item {min-width:0}
 .flux-page > .flux-history-controls {min-width:0;margin:0;padding:0;border:0}
 .generator-history-toolbar, .generator-history-actions, .generator-history-pagination {display:flex;flex-wrap:wrap;align-items:end;gap:.5rem}
+.generator-history-pagination small {flex-basis:100%;overflow-wrap:anywhere}
+.generator-history-pagination small:empty {display:none}
 .generator-history-toolbar label {display:flex;flex-direction:column;gap:.25rem;min-width:0;flex:0 0 auto}
 .generator-history-toolbar label:first-child {flex:1 1 12rem}
 .generator-history-toolbar input {width:100%;max-width:100%}
@@ -355,6 +358,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 /* 공용 빠른 선택 버튼은 줄이 바뀌어도 간격을 유지한다. */
 .choice-buttons {display:flex;flex-wrap:wrap;gap:.5rem}
 .generation-review-actions button[aria-disabled="true"] {opacity:.65;cursor:not-allowed}
+.generation-review-actions > p {flex-basis:100%;overflow-wrap:anywhere}
 
 .seed-input {display:flex;flex-wrap:wrap;align-items:end;gap:.5rem;min-width:0;margin:.5rem 0}.seed-input label {display:grid;gap:.3rem;min-width:0;flex:1 1 10rem}.seed-input input {min-width:0;max-width:100%}
 .seed-input-help,.seed-input-error {flex-basis:100%}
@@ -472,7 +476,8 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .flux-guides-list button {display:flex;align-items:center;gap:.65rem;min-width:0;text-align:left;overflow-wrap:anywhere}
 .flux-guides-list button[aria-pressed="true"] {border-color:var(--accent,#a89df4);box-shadow:inset 0 0 0 1px var(--accent,#a89df4)}
 .flux-guides-list img {max-width:40%;height:auto;flex:none}
-.flux-guides-pages {display:flex;align-items:center;gap:.4rem;margin:.5rem 0}
+.flux-guides-pages {display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;margin:.5rem 0}
+.flux-guides-pages small {flex-basis:100%;overflow-wrap:anywhere}.flux-guides-pages small:empty {display:none}
 
 .flux-page form > fieldset {min-width:0;width:100%;overflow-wrap:anywhere}.flux-page :is(input,textarea,select,button,img) {max-width:100%}.flux-page figure {margin-inline:0;min-width:0}.flux-page figcaption {overflow-wrap:anywhere}.flux-page section > button {overflow-wrap:anywhere}
 
@@ -497,6 +502,8 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .saved-generator-inputs,.saved-generator-inputs details {min-width:0;max-width:100%;overflow-wrap:anywhere;color:inherit;font-size:1rem;line-height:1.5}
 .saved-generator-inputs pre {max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.9rem;line-height:1.5}
 .saved-generator-inputs:focus,.saved-generator-inputs-error:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
+.generator-history [aria-label="불러온 입력 확인"]:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
+.generator-history :is([aria-label="이력 밖 선택 결과"],[aria-label="이력 범위 밖 선택 결과"]):focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .model-readiness {min-width:0;overflow-wrap:anywhere}.model-readiness:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 
 .animate-inputs {min-width:0;max-width:100%;overflow-wrap:anywhere}
@@ -634,6 +641,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .history-action-result[aria-expanded] {border-color:#709aad;color:#d8effb}
 .history-action-result[aria-expanded="true"] {background:#2c424d}
 .history-inline-result {padding:clamp(.65rem,2vw,1rem);border:1px solid #445158;border-radius:.6rem;background:#1b2125}
+.history-inline-result:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 @media(max-width:400px){
   .generator-history-select {gap:.65rem;padding:.7rem}
   .generator-history-select :is(.history-card-image,.history-card-image-placeholder) {flex-basis:3.25rem;width:3.25rem;height:3.25rem}
@@ -836,6 +844,8 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .generator-section-navigation > button {margin:0}
 .generator-section-navigation > small {flex-basis:100%;color:var(--muted,#afbabd);font-size:.8rem}
 [data-generator-navigation-focus]:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
+.minimax-image-review:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
+.flux-page form[aria-label="생성 입력"]:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .generator-page-common :is([aria-label="선택한 VACE 작업 결과"],[aria-label="선택한 Kimodo 작업 결과"]) {padding:.8rem;border:1px solid var(--line,#484d50);border-radius:.6rem;min-width:0;overflow-wrap:anywhere}
 
 .anchor-history-search {width:100%;max-width:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,max(12rem,calc((100% - .65rem)/2))),1fr));gap:.65rem}
@@ -911,6 +921,8 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .model-inventory-table {max-width:100%;min-width:0}
 .model-inventory {min-width:0;max-width:100%;overflow-wrap:anywhere;color:inherit;font-size:1rem;line-height:1.5}
 .model-inventory-table td {overflow-wrap:anywhere}
+.download-progress {min-width:0;max-width:100%;overflow-wrap:anywhere;color:inherit;font-size:1rem;line-height:1.5}
+.download-progress ul {max-width:100%;padding-inline-start:1.5rem}
 
 /* 생성기 접기·펼치기: 라벨, 조작 경계, 기본 삼각형 및 키보드 초점을 공통으로 노출한다. */
 :root {

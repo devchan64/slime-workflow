@@ -419,7 +419,7 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
       <h4>동작 설명</h4><p className="kimodo-review-prompt">{reviewed.prompt}</p><PromptWordCount text={reviewed.prompt} label="최종"/>
       <details><summary>전체 설정 보기</summary><pre>{JSON.stringify(reviewed,(key,value)=>key==="proportion_images"?references.map(file=>file.name):key==="proportion_reviewed_multiview"?bundle?.name || "첨부됨":key==="proportion_face_anchor_calibration"?calibration?.name || "첨부됨":value,2)}</pre></details>
       {handoffReview && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 Kimodo를 실행합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
-      <GenerationReviewActions busy={busy} disabledReason={handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : ""} onCancel={()=>{setReview(null);setHandoffReview(null);requestAnimationFrame(()=>reviewButtonRef.current?.focus());}} onConfirm={()=>perform(handoffReview ? submitHandoff : submit)} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"}/></section>}
+      <GenerationReviewActions busy={busy} disabledReason={handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : ""} onCancel={()=>{const restore=reviewSectionRef.current?.contains(document.activeElement);setReview(null);setHandoffReview(null);if(restore)requestAnimationFrame(()=>restoreLostFocus(document,reviewButtonRef.current));}} onConfirm={()=>perform(handoffReview ? submitHandoff : submit)} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"}/></section>}
     </div>
     {notice && !templateError && <p role="status">{notice}</p>}
   </section>;

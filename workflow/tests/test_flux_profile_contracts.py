@@ -26,6 +26,17 @@ class FluxProfileContracts(unittest.TestCase):
               global.sessionStorage={getItem:()=>null};
               const React=require('react'),server=require('react-dom/server');
               const Page=require(process.argv[1]).default;
+              const Feedback=require(process.argv[1]).FluxToolFeedback;
+              const assert=require('node:assert/strict');
+              assert.equal(Page({serviceOverride:'flux-image',receiptScope:{job:'one'}}).key,Page({serviceOverride:'flux-image',receiptScope:{job:'two'}}).key);
+              assert.notEqual(Page({serviceOverride:'flux-image'}).key,Page({serviceOverride:'flux-prop'}).key);
+              const render=props=>server.renderToStaticMarkup(React.createElement(Feedback,props));
+              assert.match(render({loading:true}),/role="status"/);assert.match(render({notice:'완료'}),/role="status"/);
+              assert.match(render({notice:'실패',error:true}),/role="alert"/);
+              const Pagination=require(process.argv[1]).FluxGuidePagination;
+              const page=(count,page)=>server.renderToStaticMarkup(React.createElement(Pagination,{count,page,pageSize:8,hintId:'hint',onMove:()=>{}}));
+              assert.match(page(0,0),/검색 결과가 없어/);assert.match(page(4,0),/다른 가이드 페이지가 없습니다/);
+              assert.match(page(9,0),/첫 번째 가이드 페이지/);assert.match(page(9,1),/마지막 가이드 페이지/);assert.match(page(9,0),/aria-describedby="hint"/);
               process.stdout.write(server.renderToStaticMarkup(React.createElement(Page,{serviceOverride:'flux-image',embedded:true,receiptScope:{session:'new',job:'proposal'}})));"""
             markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,
                                            env={**os.environ,'NODE_PATH':str(gui/'node_modules')})

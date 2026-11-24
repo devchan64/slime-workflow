@@ -16,6 +16,7 @@ import MediaJobResult from "./MediaJobResult.jsx";
 import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
+import ReviewPrompt from "./ReviewPrompt.jsx";
 import ActionButton from "./ActionButton.jsx";
 import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
 import SeedInput from "./SeedInput.jsx";
@@ -113,7 +114,7 @@ export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""
       <p>832×480 · 124프레임 · 24fps · 약 5.17초 · Turbo 8스텝. 480p 생성과 동작 품질은 별도 확인이 필요합니다.</p>
       <ActionButton type="submit" reasons={reasons}>생성 요청 검토</ActionButton>
     </fieldset></form></GeneratorSectionCard>
-    {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/><p>{file?.name} · 832×480 · 124프레임 · 24fps · Turbo 8스텝 · 시드 {pending.seed}</p><p>{pending.prompt}</p><GenerationReviewActions busy={busy} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하세요." : ""} onCancel={cancelReview} onConfirm={submit}/></section>}
+    {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/><p>{file?.name} · 832×480 · 124프레임 · 24fps · Turbo 8스텝 · 시드 {pending.seed}</p><ReviewPrompt label="장면·동작 프롬프트" text={pending.prompt}/><GenerationReviewActions busy={busy} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하세요." : ""} onCancel={cancelReview} onConfirm={submit}/></section>}
     <div ref={historyRef} tabIndex={-1}><GeneratorHistory key={revision} service={service} statusCommand="status" card allowPriority readJob={readSavedInput} restore={restoreSavedInput} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setRevision(n=>n+1);}} footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={message=>{setJob("");setNotice(message);setRevision(n=>n+1);}}/>} renderResult={(id,close)=><section ref={resultRef} tabIndex={-1}><button type="button" onClick={close}>결과 닫기</button><SavedGeneratorInputs id={id} service={service} readJob={currentId=>readSavedInput(currentId,false)}/><MediaJobResult service={service} id={id}>{(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}</MediaJobResult></section>}/></div>
   </article>;
 }

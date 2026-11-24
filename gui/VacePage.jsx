@@ -1,5 +1,7 @@
 import {generationReady} from "./generationReady.mjs";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
+import ReviewPrompt from "./ReviewPrompt.jsx";
+import {restoreLostFocus} from "./restoreLostFocus.mjs";
 import GpuHandoffStatus from "./GpuHandoffStatus.jsx";
 import useGpuHandoff from "./useGpuHandoff.js";
 import ActionButton from "./ActionButton.jsx";
@@ -277,9 +279,9 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       <p>LoRA · {pending.lora_mode === "fighting_lightning" ? "격투 + Lightning" : pending.lora_mode === "lightning" ? "Lightning만" : pending.lora_mode === "fighting" ? "격투만" : "사용 안 함"}</p>
       {pending.mode!=="text" && <p>{pending.mode==="first_frame" ? "첫 프레임 이미지" : "참조 이미지"} · {files.reference?.name || "선택됨"}</p>}
       {attachments.map(key=><p key={key}>{labels[key]} · {files[key]?.name || "선택됨"} · {videoInfo[key]?.summary || "영상 정보 확인 불가"}</p>)}{pending.mode==="video_edit" && <p>마스크의 편집·보존 영역은 접수 시 추가 검증합니다.</p>}
-      <h3>장면·동작 프롬프트</h3><p className="fun-review-prompt">{pending.prompt}</p><h3>부정 프롬프트</h3><p className="fun-review-prompt">{pending.negative_prompt || "없음"}</p>
+      <ReviewPrompt label="장면·동작 프롬프트" text={pending.prompt}/><ReviewPrompt label="부정 프롬프트" text={pending.negative_prompt}/>
       {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 영상을 생성합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
-      <GenerationReviewActions busy={busy} onCancel={()=>{setPending(null);handoff.clearReview();requestAnimationFrame(()=>formRef.current?.querySelector("textarea")?.focus());}} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/></section>}
+      <GenerationReviewActions busy={busy} onCancel={()=>{const restore=reviewRef.current?.contains(document.activeElement);setPending(null);handoff.clearReview();if(restore)requestAnimationFrame(()=>restoreLostFocus(document,formRef.current?.querySelector("textarea")));}} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/></section>}
     <fieldset className="vace-history-card" ref={historyRef} disabled={busy || !!pending}><GeneratorHistory card directApply allowPriority onSelectedDeleted={(id,message)=>{if(sourceJob===id)setSourceJob("");if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} openResult={openResult} resultId={job} onCloseResult={()=>setJob("")} restore={restore} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>} renderResult={(id,close)=><section ref={node=>{resultRef.current=node;if(node && focusResult.current){focusResult.current=false;requestAnimationFrame(()=>{if(node.isConnected){node.focus();node.scrollIntoView({block:'start'});}});}}} tabIndex={-1} aria-label="선택한 VACE 작업 결과"><button type="button" onClick={close}>결과 닫기</button><SavedVaceInputs key={id} id={id}/><MediaJobResult key={id} service={service} id={id} hideProgress>
       {(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}
     </MediaJobResult></section>}/></fieldset>

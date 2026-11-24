@@ -8,7 +8,7 @@ test('예약된 자동 갱신은 꺼짐·비가시·비활성·숨긴 탭 상태
   const source=readFileSync(new URL('../../gui/LiveRefresh.jsx',import.meta.url),'utf8');
   const effect=source.slice(source.indexOf('  useEffect(()=>{\n    if(!enabled || !visible || !active)'),source.indexOf('  return {ref,enabled'));
   let tick,stop,calls=0;const enabledRef={current:true},visibleRef={current:true},activeRef={current:true},document={visibilityState:'visible'};
-  const context=vm.createContext({useEffect:fn=>stop=fn(),enabled:true,visible:true,active:true,enabledRef,visibleRef,activeRef,document,callback:{current:()=>calls++},LIVE_REFRESH_MS:30000,setInterval:fn=>(tick=fn,1),clearInterval:()=>{}});
+  const context=vm.createContext({useEffect:fn=>stop=fn(),enabled:true,visible:true,active:true,interval:5000,enabledRef,visibleRef,activeRef,document,callback:{current:()=>calls++},setInterval:(fn,delay)=>{assert.equal(delay,5000);tick=fn;return 1;},clearInterval:()=>{}});
   vm.runInContext(effect,context);tick();assert.equal(calls,1);
   for(const ref of [enabledRef,visibleRef,activeRef]){ref.current=false;tick();assert.equal(calls,1);ref.current=true;}
   document.visibilityState='hidden';tick();assert.equal(calls,1);document.visibilityState='visible';stop();tick();assert.equal(calls,1);

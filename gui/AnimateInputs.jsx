@@ -7,6 +7,7 @@ import {referencePng,videoData} from "./videoInputs.js";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {generationReady} from "./generationReady.mjs";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
+import ReviewPrompt from "./ReviewPrompt.jsx";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import useGpuHandoff from "./useGpuHandoff.js";
 import GpuHandoffStatus from "./GpuHandoffStatus.jsx";
@@ -145,7 +146,7 @@ export default function AnimateInputs({saved,onSelectionStart,onJob,session,mode
       <ActionButton type="submit" reasons={reviewReasons}>생성 요청 검토</ActionButton>
     </fieldset></form>
     {busy && !pending && <p role="status">입력과 GPU 양도 여부를 확인하고 있습니다.</p>}
-    {pending && sameScope(pendingScope.current,currentReviewScope.current) && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/><p>{pending.frames}프레임 · 16fps · {pending.steps}스텝 · 시드 {pending.seed} · {pending.lora_mode==='lightx2v' ? 'LightX2V 강도 1 · CFG 1 · shift 5 · LCM' : 'Base'}</p><h3>캐릭터 외형·배경 설명</h3><p className="generation-review-text">{pending.prompt}</p>{handoff.review && <p>동의하면 진행 중인 대화가 끝난 뒤 대화 모델을 해제하고, 생성 후 다시 적재합니다.</p>}<GenerationReviewActions busy={busy} onCancel={()=>{const focused=document.activeElement;pendingScope.current=null;setPending(null);handoff.clearReview();requestAnimationFrame(()=>{if(document.activeElement===document.body || document.activeElement===focused)formRef.current?.focus();});}} onConfirm={submit} confirmLabel={handoff.review ? '해제·생성·재적재에 동의' : undefined} disabledReason={!generationReady(model) ? '기본 모델 준비 상태를 확인하세요.' : pending.lora_mode==='lightx2v' && !loraModel?.ready ? 'LightX2V LoRA를 먼저 준비하세요.' : ''}/></section>}
+    {pending && sameScope(pendingScope.current,currentReviewScope.current) && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/><p>{pending.frames}프레임 · 16fps · {pending.steps}스텝 · 시드 {pending.seed} · {pending.lora_mode==='lightx2v' ? 'LightX2V 강도 1 · CFG 1 · shift 5 · LCM' : 'Base'}</p><ReviewPrompt label="캐릭터 외형·배경 설명" text={pending.prompt}/>{handoff.review && <p>동의하면 진행 중인 대화가 끝난 뒤 대화 모델을 해제하고, 생성 후 다시 적재합니다.</p>}<GenerationReviewActions busy={busy} onCancel={()=>{const focused=document.activeElement;pendingScope.current=null;setPending(null);handoff.clearReview();requestAnimationFrame(()=>{if(document.activeElement===document.body || document.activeElement===focused)formRef.current?.focus();});}} onConfirm={submit} confirmLabel={handoff.review ? '해제·생성·재적재에 동의' : undefined} disabledReason={!generationReady(model) ? '기본 모델 준비 상태를 확인하세요.' : pending.lora_mode==='lightx2v' && !loraModel?.ready ? 'LightX2V LoRA를 먼저 준비하세요.' : ''}/></section>}
     {error && <p role="alert">{error}</p>}
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service="wan22-animate2" status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}</>
   );

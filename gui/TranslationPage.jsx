@@ -1,5 +1,6 @@
 import JobStatus from "./JobStatus.jsx";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
+import {restoreLostFocus} from "./restoreLostFocus.mjs";
 import JobIdentifier from "./JobIdentifier.jsx";
 import RecordFolder from "./RecordFolder.jsx";
 import GenerationProgress from "./GenerationProgress.jsx";
@@ -131,7 +132,7 @@ export default function TranslationPage({embedded=false,session:embeddedSession=
     {pending && <section ref={reviewRef} tabIndex={-1} className="translation-request-review" aria-label="번역 요청 확인"><h2>번역 요청 확인</h2><GpuQueueSummary/>
       <p>목표 언어 · {pending.target_language==="en"?"영어":"중국어 간체"}</p><h3>한국어 원문</h3><p className="translation-review-text">{pending.text}</p>
       <h3>확인할 용어</h3>{pending.glossary.length ? <ul>{pending.glossary.map((term,index)=><li key={index}>{term.source} → {term.target}</li>)}</ul> : <p>지정한 용어 없음</p>}
-      <GenerationReviewActions busy={busy} onCancel={()=>{setPending(null);requestAnimationFrame(()=>textRef.current?.focus());}} onConfirm={submit} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/>
+      <GenerationReviewActions busy={busy} onCancel={()=>{const restore=reviewRef.current?.contains(document.activeElement);setPending(null);if(restore)requestAnimationFrame(()=>restoreLostFocus(document,textRef.current));}} onConfirm={submit} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/>
     </section>}
     <p role="status">{notice}</p>
   </section>;

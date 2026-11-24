@@ -1,14 +1,62 @@
 """격리된 실제 이력 관측 결과와 공통 UI 페이지 계약을 연결한다."""
 import json
+import io
+import os
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from types import SimpleNamespace
 
 from workflow.common.generation_records import observe_generation_history_records
 
 
 class GeneratorHistoryUiContractTests(unittest.TestCase):
+    def test_thumbnail_retry_query_reaches_image_and_video_files(self):
+        from workflow.domains.image.image_generation import ImageGenerationManager
+        from workflow.common.reference_video_generation import ReferenceVideoGenerationManager
+        identifier='2026-11-24_12-34-56-1234abcd';attempt='a'*32
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);job=root/identifier;video=job/'attempts'/attempt
+            video.mkdir(parents=True);(job/'result.png').write_bytes(b'image');(video/'output-000.png').write_bytes(b'video-frame')
+            image=ImageGenerationManager();image.job_storage_root=root
+            video_manager=ReferenceVideoGenerationManager('/test-video',root,'unused',lambda value:value,lambda:None)
+            for manager,path,expected in [(image,'/image-generation/jobs/'+identifier+'/result.png?retry=2',b'image'),
+                                          (video_manager,'/test-video/jobs/'+identifier+'/attempts/'+attempt+'/output-000.png?retry=2',b'video-frame')]:
+                handler=SimpleNamespace(path=path,command='GET',headers={'Host':'127.0.0.1:8770'},server=SimpleNamespace(server_port=8770),wfile=io.BytesIO(),status=None)
+                handler.send_response=lambda status:setattr(handler,'status',status)
+                handler.send_header=lambda *args:None
+                handler.end_headers=lambda:None
+                self.assertTrue(manager.handle_image_request(handler))
+                self.assertEqual(handler.status,200)
+                self.assertEqual(handler.wfile.getvalue(),expected)
+
+    def test_thumbnail_distinguishes_unavailable_missing_and_pending(self):
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'history.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'GeneratorHistory.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');
+              const Image=require(process.argv[1]).HistoryImage;
+              const History=require(process.argv[1]).default;
+              assert.equal(History({service:'wan22-i2v',resultId:'one'}).key,History({service:'wan22-i2v',resultId:'two'}).key);
+              assert.notEqual(History({service:'wan22-i2v'}).key,History({service:'wan21-i2v'}).key);
+              const render=(service,status,summary)=>server.renderToStaticMarkup(React.createElement(Image,{service,record:{id:'2026-11-24_12-34-56-1234abcd',recorded_status:status},summary}));
+              assert.match(render('minimax-h3-image','completed',{}),/확인 불가/);
+              assert.match(render('minimax-h3-image','completed',{image_available:false}),/이미지 없음/);
+              assert.match(render('minimax-h3-image','running',{image_available:false}),/결과 준비 중/);
+              assert.match(render('wan22-i2v','completed',{image_attempt:'invalid'}),/확인 불가/);
+              assert.match(render('wan22-i2v','completed',{image_attempt:null}),/이미지 없음/);
+              const refreshed=server.renderToStaticMarkup(React.createElement(Image,{service:'minimax-h3-image',record:{id:'2026-11-24_12-34-56-1234abcd',recorded_status:'completed'},summary:{image_available:true},revision:2}));
+              assert.match(refreshed,/result.png\\?retry=2/);
+              const Pagination=require(process.argv[1]).HistoryPagination;
+              const page=(offset,next)=>({offset,next_offset:next,records:[{}],total:30});
+              const pagination=(offset,next,query='')=>server.renderToStaticMarkup(React.createElement(Pagination,{page:page(offset,next),query,filter:'',pageSize:10,hintId:'hint',onPage:()=>{}}));
+              assert.match(pagination(0,10),/첫 번째 이력 페이지/);assert.match(pagination(10,null),/마지막 이력 페이지/);
+              assert.match(pagination(0,null),/표시할 다른 이력 페이지가 없습니다/);assert.match(pagination(10,20,'new'),/변경한 검색어/);
+              assert.match(pagination(0,10),/aria-describedby="hint"/);"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+
     def test_active_progress_is_keyed_by_service_not_revision(self):
         gui=Path(__file__).resolve().parents[2]/'gui'
         with tempfile.TemporaryDirectory() as directory:

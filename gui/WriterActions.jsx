@@ -2,6 +2,7 @@ import React, {useEffect,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import GpuHandoffStatus from "./GpuHandoffStatus.jsx";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
+import ReviewPrompt from "./ReviewPrompt.jsx";
 import useGpuHandoff from "./useGpuHandoff.js";
 import {createConfirmationGate} from "./confirmationGate.mjs";
 import {writerProposalId,readGenerationProposal} from "./generationProposal.mjs";
@@ -135,7 +136,7 @@ export default function WriterActions({session="",onAccepted,onWorkspace,initial
   </fieldset>
   {review && <section ref={reviewRef} tabIndex={-1} aria-label="작가 작업 확인"><h2>{review.handoff?"작가 작업과 GPU 양도 확인":"작가 작업 확인"}</h2>
     <p>문서 작업공간 · {review.documentRoot || "확인 불가"}</p><p>색인·작업 기록 · {review.stateRoot || "확인 불가"}</p><p>작업 · {({prepare:"환경 준비",learn:"문서 색인 갱신",write:"작성 제안",deduplicate:"중복 검토"})[review.bound.request.mode]}</p>
-    {review.bound.request.prompt && <><h3>요청 내용</h3><p>{review.bound.request.prompt}</p></>}
+    {review.bound.request.prompt && <ReviewPrompt label="요청 내용" text={review.bound.request.prompt}/>}
     <p>{review.handoff && "동의하면 현재 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 위 작업을 실행합니다. 작업 종료 후 Qwen 3.8을 다시 적재합니다. "}작성 제안은 문서에 자동 적용하지 않습니다.</p>
     <GenerationReviewActions busy={busy} onCancel={()=>{const focused=document.activeElement;confirmation.current.cancel();setReview(null);handoff.clearReview();requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===focused) && reviewTrigger.current?.isConnected)reviewTrigger.current.focus();});}} onConfirm={confirmHandoff} confirmLabel={review.handoff?"해제·작업·재적재에 동의":"확인 후 작업 요청"}/>
   </section>}</>;

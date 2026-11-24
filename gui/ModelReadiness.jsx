@@ -63,6 +63,7 @@ function ModelReadinessForService({service, modelManagementService=service, mana
   const sectionRef=useRef(null);
   const reasonId=useId();
   useEffect(()=>{
+    if(preparing.current)return;
     readiness.current={status:null,error:"",checking:true};setError("");onError?.("");setStatus(null);onStatus?.(null);
     const stop=startModelReadinessPoller({
       initialRetryDelay:manage ? 30000 : null,
@@ -104,9 +105,9 @@ function ModelReadinessForService({service, modelManagementService=service, mana
       setNotice("모델 준비 요청의 접수 결과를 확인하지 못했습니다. 다시 요청하기 전에 준비 상태와 다운로드 이력을 확인하세요. · "+(timedOut ? "응답 시간이 초과됐습니다." : requestErrorMessage(problem)));
     } finally {
       clearTimeout(timeout);
-      readiness.current.status=null;readiness.current.checking=true;setStatus(null);
-      setRevision(value=>value+1);
+      readiness.current.status=null;readiness.current.checking=true;setStatus(null);setChecking(true);
       preparing.current=false;setSending(false);
+      setRevision(value=>value+1);
       if(restoreFocus)requestAnimationFrame(()=>{if(document.activeElement===document.body)sectionRef.current?.focus({preventScroll:true});});
     }
   }

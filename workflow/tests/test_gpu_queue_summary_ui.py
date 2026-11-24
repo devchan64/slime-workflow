@@ -47,6 +47,11 @@ class GpuQueueSummaryUiTests(unittest.TestCase):
                            cwd=gui, check=True, capture_output=True, text=True)
             script = """const React=require('react'),server=require('react-dom/server');
               const Summary=require(process.argv[1]).default;
+              const Message=require(process.argv[1]).GpuQueueSummaryMessage;
+              const error=server.renderToStaticMarkup(React.createElement(Message,{loading:false,error:'조회 실패',gpu:'GPU 유휴'}));
+              if(!error.includes('role="alert"') || !error.includes('마지막 조회 결과'))process.exit(1);
+              const loading=server.renderToStaticMarkup(React.createElement(Message,{loading:true,error:'조회 실패',gpu:'GPU 유휴'}));
+              if(!loading.includes('role="status"') || loading.includes('role="alert"'))process.exit(1);
               process.stdout.write(server.renderToStaticMarkup(React.createElement(Summary)));"""
             html = subprocess.check_output(['node', '-e', script, str(bundle)], cwd=gui, text=True,
                                            env={**os.environ, 'NODE_PATH':str(gui/'node_modules')})

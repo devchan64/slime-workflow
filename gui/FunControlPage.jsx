@@ -1,4 +1,6 @@
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
+import ReviewPrompt from "./ReviewPrompt.jsx";
+import {restoreLostFocus} from "./restoreLostFocus.mjs";
 import GpuHandoffStatus from "./GpuHandoffStatus.jsx";
 import ActionButton from "./ActionButton.jsx";
 import React,{useEffect,useRef,useState} from "react";
@@ -280,10 +282,10 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/>
       <p>모델 · {template?.models?.find(item=>item.id===(pending.model_profile || "wan22-14b"))?.label || pending.model_profile || "wan22-14b"}</p>
       <p>외형 참조 이미지 + 포즈 영상 · {pending.frames}프레임 · 16fps · {(pending.frames/16).toFixed(2)}초 · {pending.steps}스텝 · 시드 {pending.seed}</p>
-      <p>{videoInfo?.summary || "입력 영상 정보 확인 중"}</p><h3>동작 프롬프트</h3><p className="fun-review-prompt">{pending.prompt}</p>
-      <h3>부정 프롬프트</h3><p className="fun-review-prompt">{pending.negative_prompt || "없음"}</p>
+      <p>{videoInfo?.summary || "입력 영상 정보 확인 중"}</p><ReviewPrompt label="동작 프롬프트" text={pending.prompt}/>
+      <ReviewPrompt label="부정 프롬프트" text={pending.negative_prompt}/>
       {handoffReview && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 영상을 생성합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
-      <GenerationReviewActions disabledReason={modelReason || (handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : "")} busy={busy} onCancel={()=>{setPending(null);setHandoffReview(null);requestAnimationFrame(()=>formRef.current?.querySelector("textarea")?.focus());}} onConfirm={submit} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"}/>
+      <GenerationReviewActions disabledReason={modelReason || (handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : "")} busy={busy} onCancel={()=>{const restore=reviewRef.current?.contains(document.activeElement);setPending(null);setHandoffReview(null);if(restore)requestAnimationFrame(()=>restoreLostFocus(document,formRef.current?.querySelector("textarea")));}} onConfirm={submit} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"}/>
     </section>}
     {error && <p role="alert">{error}</p>}
     {templateError && <p role="alert">{templateError}</p>}

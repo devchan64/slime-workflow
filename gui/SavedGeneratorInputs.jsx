@@ -2,6 +2,12 @@ import React,{useEffect,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {historyInputDetails,historyInputSummary} from "./historyInputSummary.mjs";
 import {requestErrorMessage} from "./requestError.mjs";
+import PromptWordCount from "./PromptWordCount.jsx";
+
+export function SavedInputDetails({request,details}) {
+  const fields=[['user_prompt','사용자 프롬프트'],['prompt','저장 프롬프트'],['negative_prompt','부정 프롬프트'],['translation_source_ko','번역 원문']];
+  return <details><summary>저장된 입력 상세</summary>{fields.filter(([key])=>typeof request[key]==='string').map(([key,label])=><p key={key}><PromptWordCount text={request[key]} label={label}/></p>)}<pre>{details}</pre></details>;
+}
 
 /** 결과에 저장된 요청을 표시한다. 입력 적용은 별도 사용자 동작이다. */
 export default function SavedGeneratorInputs({id,readJob,service,statusCommand}){
@@ -30,5 +36,5 @@ export default function SavedGeneratorInputs({id,readJob,service,statusCommand})
   if(state.error)return <div><p ref={resultRef} className="saved-generator-inputs-error" tabIndex={-1} role="alert">저장 입력 조회 실패 · {state.error}</p><button type="button" onClick={()=>{restoreFocus.current=true;retry(n=>n+1);}}>입력 정보 다시 조회</button></div>;
   const summary=historyInputSummary(state.request,service);
   const details=historyInputDetails(state.request);
-  return <section ref={resultRef} tabIndex={-1} className="history-action-detail saved-generator-inputs" aria-label="저장된 생성 입력"><strong>저장된 생성 입력</strong>{summary.length>0 && <p>{summary.join(' · ')}</p>}<details><summary>저장된 입력 상세</summary><pre>{details}</pre></details></section>;
+  return <section ref={resultRef} tabIndex={-1} className="history-action-detail saved-generator-inputs" aria-label="저장된 생성 입력"><strong>저장된 생성 입력</strong>{summary.length>0 && <p>{summary.join(' · ')}</p>}<SavedInputDetails request={state.request} details={details}/></section>;
 }

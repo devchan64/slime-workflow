@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from "react";
 import JobIdentifier from "./JobIdentifier.jsx";
 import {LiveRefreshControl, useLiveRefresh} from "./LiveRefresh.jsx";
+import {requestErrorMessage} from "./requestError.mjs";
 
 function memory(value) {
   return Number.isInteger(value) && value >= 0 ? value.toLocaleString() + " MiB" : "미측정";
@@ -24,9 +25,12 @@ export default function GpuPanel({embedded=false}) {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
   const [checkedAt,setCheckedAt]=useState(null),[revision,setRevision]=useState(0),[loading,setLoading]=useState(true);
-  const live=useLiveRefresh(()=>setRevision(value=>value+1));
-  const refreshRef=useRef(null),restoreRefreshFocus=useRef(false);
-  useEffect(()=>{if(!loading && restoreRefreshFocus.current){restoreRefreshFocus.current=false;if(document.activeElement===document.body)refreshRef.current?.focus();}},[loading]);
+  const pending=useRef(true);
+  function requestRefresh(){
+    if(pending.current)return;
+    pending.current=true;setLoading(true);setRevision(value=>value+1);
+  }
+  const live=useLiveRefresh(requestRefresh);
   useEffect(() => {
     const controller = new AbortController();
     let active=true,deadline;
@@ -36,12 +40,12 @@ export default function GpuPanel({embedded=false}) {
         const next = await Promise.race([(async()=>{const response=await fetch("/management/gpu-status", {cache:"no-store",signal:controller.signal});if(!response.ok)throw new Error("GPU 상태 조회 실패");return response.json();})(),new Promise((_,reject)=>{deadline=setTimeout(()=>{reject(new Error("GPU 상태 조회 시간이 초과됐습니다. 다시 조회하세요."));controller.abort();},25000);})]);
         if(!next || typeof next!=="object" || Array.isArray(next) || !["busy","idle","unavailable"].includes(next.status))throw new Error("GPU 상태 응답을 확인할 수 없습니다. 다시 조회하세요.");
         if(next.status==="unavailable")throw new Error("GPU 상태를 수집할 수 없습니다. 다시 조회하세요.");
-        if(next.processes!=null && (!Array.isArray(next.processes) || next.processes.some(process=>!process || typeof process!=="object" || Array.isArray(process)) || (next.status==="idle" && next.processes.length>0) || (next.status==="busy" && next.processes.length===0)))throw new Error("GPU 상태와 프로세스 목록을 확인할 수 없습니다. 다시 조회하세요.");
+        if(next.processes!=null && (!Array.isArray(next.processes) || next.processes.some(process=>!process || typeof process!=="object" || Array.isArray(process) || [process.command,process.id].some(value=>value!=null && typeof value!=="string") || [process.pid,process.gpu_parent_pid].some(value=>value!=null && typeof value!=="number" && typeof value!=="string")) || (next.status==="idle" && next.processes.length>0) || (next.status==="busy" && next.processes.length===0)))throw new Error("GPU 상태와 프로세스 목록을 확인할 수 없습니다. 다시 조회하세요.");
         if (active) {setStatus(next);setCheckedAt(new Date());setError("");}
       } catch (problem) {
-        if (active) setError(problem instanceof TypeError ? "GPU 상태에 연결하지 못했습니다. 다시 조회하세요." : problem.message);
+        if (active) setError(problem instanceof TypeError ? "GPU 상태에 연결하지 못했습니다. 다시 조회하세요." : requestErrorMessage(problem));
       } finally {
-        clearTimeout(deadline);if (active) setLoading(false);
+        clearTimeout(deadline);if (active) {pending.current=false;setLoading(false);}
       }
     }
     refresh();
@@ -53,10 +57,10 @@ export default function GpuPanel({embedded=false}) {
   const vramMismatch=Number.isFinite(status?.vram_used_mib) && Number.isFinite(status?.vram_total_mib) && status.vram_total_mib>0 && status.vram_used_mib>status.vram_total_mib;
   return <section ref={live.ref} id="gpu-panel" className={embedded?"gpu-panel-content":"floating-panel"} aria-label="GPU 프로세스 정보">
     {!embedded && <h2>GPU 프로세스 정보</h2>}
-    <div className="gpu-refresh"><LiveRefreshControl live={live} label="GPU 상태 자동 갱신"/><button ref={refreshRef} type="button" disabled={loading} onClick={()=>{restoreRefreshFocus.current=true;setRevision(value=>value+1);}}>{loading?"조회 중…":"새로고침"}</button></div>
+    <div className="gpu-refresh"><LiveRefreshControl live={live} label="GPU 상태 자동 갱신"/><button type="button" aria-disabled={loading} onClick={requestRefresh}>{loading?"조회 중…":"새로고침"}</button></div>
     {checkedAt && <p className="gpu-checked">마지막 조회 성공 · <time dateTime={checkedAt.toISOString()}>{checkedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></p>}
     {error && <p role="alert">{error}{status && " · 아래는 마지막으로 조회한 정보입니다."}</p>}
-    {!status && !error && <p>조회 중…</p>}
+    {loading && <p role="status">{status ? "GPU 상태를 다시 조회하고 있습니다. 아래는 마지막 조회 결과입니다." : "GPU 상태를 조회하고 있습니다."}</p>}
     {status && <>
       <p>{status.status==="idle" && !processes ? "GPU 상태 확인 불가" : ({busy:"GPU 사용 중",idle:"실행 중인 GPU 작업 없음"}[status.status] || "GPU 상태 확인 불가")}</p>
       {vramPercent && <div className="gpu-memory-meter"><span>VRAM 사용률 · {vramPercent}</span><meter aria-label="VRAM 사용률" min="0" max={status.vram_total_mib} value={status.vram_used_mib} aria-valuetext={vramPercent}/></div>}

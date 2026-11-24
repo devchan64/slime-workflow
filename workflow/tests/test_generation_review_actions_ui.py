@@ -7,6 +7,19 @@ import unittest
 
 
 class GenerationReviewActionsUiTests(unittest.TestCase):
+    def test_review_prompt_shows_matching_word_count(self):
+        gui = Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory)/'review-prompt.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'), 'ReviewPrompt.jsx', '--bundle', '--platform=node', '--format=cjs', '--external:react', '--outfile='+str(bundle)], cwd=gui, check=True, capture_output=True)
+            script = """const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');
+              const Prompt=require(process.argv[1]).default;
+              const render=text=>server.renderToStaticMarkup(React.createElement(Prompt,{label:'부정 프롬프트',text}));
+              assert.match(render('blur  noise'),/부정 프롬프트 2단어/);
+              assert.match(render(''),/없음/);assert.match(render(''),/0단어/);
+              assert.match(render('  \\n  '),/없음/);assert.match(render('  \\n  '),/0단어/);"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+
     def test_review_states_and_blocked_clicks(self):
         gui = Path(__file__).resolve().parents[2]/'gui'
         with tempfile.TemporaryDirectory() as directory:
@@ -20,6 +33,7 @@ class GenerationReviewActionsUiTests(unittest.TestCase):
               const busy=render({busy:true});
               assert.match(busy,/role=\"status\"/);assert.match(busy,/접수하고 있습니다/);
               assert.equal((busy.match(/aria-disabled=\"true\"/g)||[]).length,2);
+              assert.equal((busy.match(/aria-describedby=/g)||[]).length,2);
               const blocked=render({disabledReason:'모델 준비 필요'});
               assert.match(blocked,/aria-describedby=/);assert.match(blocked,/모델 준비 필요/);
               React.useId=()=> 'reason';
