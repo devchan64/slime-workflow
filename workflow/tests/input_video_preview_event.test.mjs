@@ -15,11 +15,19 @@ test('이전 영상 요소의 오류는 현재 미리보기 오류를 바꾸지 
 
 test('영상 교체 또는 종료 시 생성한 임시 주소를 해제한다',()=>{
  const source=readFileSync(new URL('../../gui/InputVideoPreview.jsx',import.meta.url),'utf8');
- const effect=source.slice(source.indexOf('  useEffect(()=>{'),source.indexOf('  if(!file || !preview'));
+ const effect=source.slice(source.indexOf('  useEffect(()=>{'),source.indexOf('  if(!file)return null;'));
  let cleanup,preview=null,failed='이전';const revoked=[],file={};
  const context=vm.createContext({file,URL:{createObjectURL:value=>{assert.equal(value,file);return 'blob:영상';},revokeObjectURL:url=>revoked.push(url)},
-  useEffect:fn=>cleanup=fn(),setPreview:value=>preview=value,setFailedUrl:value=>failed=value});
+  useEffect:fn=>cleanup=fn(),setPreview:value=>preview=value,setFailedUrl:value=>failed=value,setFailedFile:()=>{}});
  vm.runInContext(effect,context);assert.equal(preview.file,file);assert.equal(preview.url,'blob:영상');assert.equal(failed,null);
  cleanup();assert.deepEqual(revoked,['blob:영상']);
  context.file=null;vm.runInContext(effect,context);assert.equal(preview,null);
+});
+
+test('영상 임시 주소 생성 실패는 파일별 오류로 안내하고 기존 미리보기를 비운다',()=>{
+ const source=readFileSync(new URL('../../gui/InputVideoPreview.jsx',import.meta.url),'utf8');
+ const effect=source.slice(source.indexOf('  useEffect(()=>{'),source.indexOf('  if(!file)return null;'));
+ let failedFile=null,preview='previous';const file={};
+ const context=vm.createContext({file,URL:{createObjectURL:()=>{throw new Error('unavailable');}},useEffect:fn=>fn(),setPreview:value=>preview=value,setFailedUrl:()=>{},setFailedFile:value=>failedFile=value});
+ vm.runInContext(effect,context);assert.equal(preview,null);assert.equal(failedFile,file);
 });

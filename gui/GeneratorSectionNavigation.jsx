@@ -2,6 +2,7 @@ import React from "react";
 
 export function focusGeneratorRegion(element){
   if(!element.matches('a[href],button,input,select,textarea,summary,[tabindex]'))element.setAttribute('tabindex','-1');
+  element.setAttribute('data-generator-navigation-focus','');
   element.scrollIntoView({block:'start'});
   element.focus({preventScroll:true});
 }

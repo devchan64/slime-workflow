@@ -59,7 +59,8 @@ class KimodoReadinessTests(unittest.TestCase):
               const render=(status,error='')=>server.renderToStaticMarkup(React.createElement(ModelReadinessMessage,{service:'kimodo',status,error}));
               if(!render({ready:true,generation_ready:false,message:'실행 환경 필요'}).includes('모델 준비 필요'))throw Error('blocked');
               if(!render({ready:true,message:'준비됨'}).includes('생성 준비 완료'))throw Error('ready');
-              if(!render(null,'연결 오류').includes('모델 상태 조회 실패 · 연결 오류'))throw Error('error');
+              if(!render(null,'연결 오류').includes('role="alert"') || !render(null,'연결 오류').includes('모델 상태 조회 실패 · 연결 오류'))throw Error('error');
+              if(!render({ready:true,message:'준비됨'}).includes('role="status"'))throw Error('status');
               if(modelReadinessPollDelay({preparation_status:'running'},false)!==5000)throw Error('running');
               if(modelReadinessPollDelay({preparation_status:'queued'},true)!==5000)throw Error('queued');
               if(modelReadinessPollDelay({preparation_status:'idle'},true)!==30000)throw Error('managed');

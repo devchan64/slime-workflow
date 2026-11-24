@@ -494,13 +494,18 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .history-action-result {order:1}.history-action-input {order:2}.history-action-resume {order:3}.history-action-priority {order:4}.history-action-stop {order:5}.history-action-delete {order:6}
 .generator-history-selection .history-action-detail {grid-column:1/-1;order:10;min-width:0}
 .generator-history-selection .history-action-detail:empty {display:none}
+.saved-generator-inputs,.saved-generator-inputs details {min-width:0;max-width:100%;overflow-wrap:anywhere;color:inherit;font-size:1rem;line-height:1.5}
+.saved-generator-inputs pre {max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.9rem;line-height:1.5}
+.saved-generator-inputs:focus,.saved-generator-inputs-error:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
+.model-readiness {min-width:0;overflow-wrap:anywhere}.model-readiness:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 
 .animate-inputs {min-width:0;max-width:100%;overflow-wrap:anywhere}
 .animate-motion-file {display:grid;gap:.35rem;margin:.75rem 0;justify-items:start}
 .animate-inputs :is(input,textarea,video,img) {min-width:0;max-width:100%}
 
 .history-confirmation {display:grid;gap:.5rem;min-width:0;overflow-wrap:anywhere}
-.record-folder {min-width:0;overflow-wrap:anywhere}.record-folder label {display:grid;gap:.3rem;margin:.5rem 0;min-width:0}.record-folder input {width:100%;min-width:0}.record-folder [role=status] {margin:.4rem 0}
+.record-folder {min-width:0;overflow-wrap:anywhere;color:inherit;font-size:1rem;line-height:1.5}.record-folder label {display:grid;gap:.3rem;margin:.5rem 0;min-width:0}.record-folder input {width:100%;min-width:0}.record-folder-feedback {margin:.4rem 0;overflow-wrap:anywhere}
+.record-folder-feedback:empty {display:none}
 
 /* 전용 생성기 화면을 대화 측면 패널에서 재사용한다. */
 .fun-drawer .embedded-generator[hidden] {display:none}
@@ -830,6 +835,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .generator-section-navigation > span {font-weight:700;margin-right:.25rem}
 .generator-section-navigation > button {margin:0}
 .generator-section-navigation > small {flex-basis:100%;color:var(--muted,#afbabd);font-size:.8rem}
+[data-generator-navigation-focus]:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .generator-page-common :is([aria-label="선택한 VACE 작업 결과"],[aria-label="선택한 Kimodo 작업 결과"]) {padding:.8rem;border:1px solid var(--line,#484d50);border-radius:.6rem;min-width:0;overflow-wrap:anywhere}
 
 .anchor-history-search {width:100%;max-width:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,max(12rem,calc((100% - .65rem)/2))),1fr));gap:.65rem}
@@ -903,6 +909,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .generator-job-log {max-width:100%;max-height:20rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 .generator-job-log:focus-visible {outline:2px solid var(--accent,#a8a5f4);outline-offset:2px}
 .model-inventory-table {max-width:100%;min-width:0}
+.model-inventory {min-width:0;max-width:100%;overflow-wrap:anywhere;color:inherit;font-size:1rem;line-height:1.5}
 .model-inventory-table td {overflow-wrap:anywhere}
 
 /* 생성기 접기·펼치기: 라벨, 조작 경계, 기본 삼각형 및 키보드 초점을 공통으로 노출한다. */

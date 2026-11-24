@@ -50,7 +50,7 @@ export default function KimodoMultiviewReport(){
         headers:{"Content-Type":"application/json"},body:JSON.stringify(inputs),signal:controller.signal}),controller.signal);
       const result=await untilAborted(response.json(),controller.signal);
       if(!response.ok)throw new Error(result.detail || "검수 보고서를 불러올 수 없습니다.");
-      if(!result || !Array.isArray(result.views) || !result.views.length || result.views.some(item=>!item || !Number.isFinite(item.angle) || !Array.isArray(item.rows) || item.rows.some(row=>!Array.isArray(row) || row.some(cell=>typeof cell!=="string"))) || !Array.isArray(result.limitations) || result.limitations.some(item=>typeof item!=="string") || [result.overlay_png,result.bundle_json,result.bundle_error].some(value=>value!=null && typeof value!=="string") || (result.joint_weights!=null && (!Array.isArray(result.joint_weights.views) || result.joint_weights.views.length<result.views.length || result.joint_weights.views.some(view=>!view || !Array.isArray(view.joints) || view.joints.some(joint=>!joint || typeof joint.joint!=="number" || typeof joint.weight!=="number" || typeof joint.reason!=="string")))))throw new Error("검수 보고서 형식을 확인할 수 없습니다.");
+      if(!result || !Array.isArray(result.views) || !result.views.length || result.views.some(item=>!item || !Number.isFinite(item.angle) || !Array.isArray(item.rows) || item.rows.some(row=>!Array.isArray(row) || row.some(cell=>typeof cell!=="string"))) || !Array.isArray(result.limitations) || result.limitations.some(item=>typeof item!=="string") || [result.overlay_png,result.bundle_json,result.bundle_error].some(value=>value!=null && typeof value!=="string") || (result.joint_weights!=null && (!Array.isArray(result.joint_weights.views) || result.joint_weights.views.length!==result.views.length || result.joint_weights.views.some((view,index)=>!view || view.observation!==index+1 || !Array.isArray(view.joints) || view.joints.length!==18 || view.joints.some((joint,j)=>!joint || joint.joint!==j || !Number.isFinite(joint.weight) || typeof joint.reason!=="string")))))throw new Error("검수 보고서 형식을 확인할 수 없습니다.");
       if(pending.current!==controller || controller.signal.aborted)return;
       if(dirtyRef.current)throw new Error("조회 중 가중치 편집이 시작되어 기존 보고서와 편집 내용을 유지합니다.");
       setView(0);setReport(result);setReportRevision(value=>value+1);
@@ -79,7 +79,7 @@ export default function KimodoMultiviewReport(){
       <ResultTable table={{title:"방향별 관절 검수",columns:["관절","검출 점수","지정 가중치","적용 가중치","근거","적합 오차 (px)","제외 관측 오차 (px)"],rows:report.views[view].rows}}/>
       {report.bundle_json && <BundleDownload json={report.bundle_json}/>}
       {report.bundle_error && <p>생성용 골격 검증 결과 · {report.bundle_error}</p>}
-      {report.joint_weights && <KimodoJointWeights key={reportRevision} initial={report.joint_weights} view={view} disabled={busy} onDirtyChange={value=>{dirtyRef.current=value;setWeightsDirty(value);}}/>}
+      {report.joint_weights && <KimodoJointWeights key={reportRevision} initial={report.joint_weights} view={view} onViewChange={setView} disabled={busy} onDirtyChange={value=>{dirtyRef.current=value;setWeightsDirty(value);}}/>}
       <details><summary>검수 지표 해석</summary><ul>{report.limitations.map(text=><li key={text}>{text}</li>)}</ul></details></>}
   </details>;
 }

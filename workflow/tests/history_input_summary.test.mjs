@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {historyInputSummary} from "../../gui/historyInputSummary.mjs";
+import {historyInputDetails,historyInputSummary} from "../../gui/historyInputSummary.mjs";
+
+test('저장 입력 상세는 이미지 데이터만 생략하고 경로와 설정을 유지한다',()=>{
+  const request={prompt:'움직임',images:['iVBORw0KGgoAAAANSUhEUg==','data:image/png;base64,AAAA','reference-1.png','/saved/reference.png'],seed:42};
+  const result=JSON.parse(historyInputDetails(request));
+  assert.deepEqual(result,{prompt:'움직임',images:['[이미지 데이터 생략]','[이미지 데이터 생략]','reference-1.png','/saved/reference.png'],seed:42});
+  assert.equal(historyInputDetails({text:'x'.repeat(10001)}).includes('[첨부 또는 긴 데이터 생략]'),true);
+});
 
 test("Wan 2.1 저장 입력의 동작 LoRA 선택을 구분한다",()=>{
   assert.deepEqual(historyInputSummary({action_lora:true,action_variant:"attack_high",action_strength:0.45},"wan21-i2v"),["동작 LoRA Attack Sprite high · 강도 0.45"]);

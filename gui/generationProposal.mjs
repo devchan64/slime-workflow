@@ -1,3 +1,5 @@
+import {untilAborted} from './managementCommand.js';
+
 const kinds={audio:'AUDIO',video:'VIDEO',writer:'WRITER'};
 export function generationProposalScope(search,session,kind){
   const query=new URLSearchParams(search),job=query.get('proposal_job');
@@ -17,9 +19,9 @@ export async function readGenerationProposal(command,{session,job,snapshot,offse
   const controller=new AbortController();let timedOut=false;
   const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
   try{
-  const page=await command('hermes-agent','hermes-session-view',{session_id:session,offset,limit:6,snapshot},{signal:controller.signal});
+  const page=await untilAborted(command('hermes-agent','hermes-session-view',{session_id:session,offset,limit:6,snapshot},{signal:controller.signal}),controller.signal);
   if(page.id!==session || page.offset!==offset || page.snapshot!==snapshot || !Array.isArray(page.messages) || page.messages.filter(m=>m.job_id===job && m.session_job_unique===true && m.job?.status?.status==='completed' && !m.job?.final_response_truncated && typeof m.job?.final_response==='string' && m.job.final_response.includes('HERMES_'+marker+'_PROPOSAL')).length!==1)throw new Error('대화 이력이 변경되었거나 제안 작업을 확인할 수 없습니다.');
-  const response=await command('hermes-agent','hermes-'+kind+'-proposal',{id:job},{signal:controller.signal});
+  const response=await untilAborted(command('hermes-agent','hermes-'+kind+'-proposal',{id:job},{signal:controller.signal}),controller.signal);
   if(response.job_id!==job || !response.proposal || typeof response.proposal!=='object')throw new Error('제안을 확인할 수 없습니다.');
   const p=response.proposal;
   if(kind==='audio' && (!['music-heartmula','sfx-dasheng-audiogen'].includes(p.service) || !p.request || typeof p.request.prompt!=='string'))throw new Error('오디오 제안을 확인할 수 없습니다.');

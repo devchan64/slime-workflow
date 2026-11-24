@@ -22,3 +22,11 @@ export function historyInputSummary(request, service="") {
   if (typeof request.pose_include_face==="boolean") result.push(`얼굴 상세 ${request.pose_include_face ? "포함" : "제외"}`);
   return result;
 }
+
+export function historyInputDetails(request){
+  return JSON.stringify(request,(key,value)=>{
+    if(key==='images' && Array.isArray(value))return value.map(item=>
+      typeof item==='string' && (item.startsWith('data:') || /^(?:iVBORw0KGgo|\/9j\/|R0lGOD|UklGR|Qk0)/.test(item)) ? '[이미지 데이터 생략]' : item);
+    return typeof value==='string' && (value.startsWith('data:') || value.length>10000) ? '[첨부 또는 긴 데이터 생략]' : value;
+  },2);
+}

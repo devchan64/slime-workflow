@@ -1,5 +1,6 @@
 import React,{useEffect,useId,useRef,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
+import {validVideoJobId} from "./videoJobId.mjs";
 import {referencePng} from "./videoInputs.js";
 import {generationReady} from "./generationReady.mjs";
 import ReferenceImageInput from "./ReferenceImageInput.jsx";
@@ -31,7 +32,8 @@ export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
   const [imageCheckPending,setImageCheckPending]=useState(false);
   const settingErrorId=useId();
   const sending=useRef(false),formRef=useRef(null),inputCardRef=useRef(null),reviewRef=useRef(null),reviewOrigin=useRef(null),historyRef=useRef(null),resultRef=useRef(null),nonLightningSettings=useRef(null);
-  const currentInput=useRef(null),imageSelectionRevision=useRef(0),imageChecking=useRef(false);currentInput.current={settings,file,busy,pending};
+  const currentInput=useRef(null),imageSelectionRevision=useRef(0),imageChecking=useRef(false),promptEdited=useRef(false),reviewRequest=useRef(null);currentInput.current={settings,file,busy,pending};
+  useEffect(()=>()=>{reviewRequest.current?.abort();reviewRequest.current=null;},[]);
   const usesLightning=settings.lora_mode.includes("lightning");
   const invalidFrames=!Number.isInteger(settings.frames) || settings.frames<5 || settings.frames>129 || (settings.frames-1)%4!==0;
   const invalidSteps=!Number.isInteger(settings.steps) || settings.steps<2 || settings.steps>100 || (usesLightning && settings.steps!==4);
@@ -47,21 +49,21 @@ export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
       if(!scope)return;
       const proposal=await readGenerationProposal(managementCommand,scope);
       if(proposal.service!==service || proposal.mode!=='first_frame' || !proposal.prompt.trim())throw new Error('I2V 영상 제안을 확인할 수 없습니다.');
-      if(active)setSettings(old=>old.prompt ? old : {...old,prompt:proposal.prompt});
+      if(active)setSettings(old=>promptEdited.current || old.prompt ? old : {...old,prompt:proposal.prompt});
     }catch(e){if(active)setError(e.message || '대화 제안을 확인할 수 없습니다.');}})();
     return ()=>{active=false;};
   },[session]);
-  function field(name,value){setSettings(old=>({...old,[name]:value}));}
+  function field(name,value){if(name==='prompt')promptEdited.current=true;setSettings(old=>({...old,[name]:value}));}
   async function readSavedInput(id,forRestore=true){
     const start=currentInput.current,selectionAtStart=imageSelectionRevision.current,focusAtStart=document.activeElement;
     if(forRestore && imageChecking.current)throw new Error('이미지 확인이 끝난 뒤 입력을 적용하세요.');
-    if(forRestore && (start.busy || start.pending))throw new Error('생성 요청 검토가 끝난 뒤 입력을 적용하세요.');
+    if(forRestore && (start.busy || start.pending || reviewRequest.current))throw new Error('생성 요청 검토가 끝난 뒤 입력을 적용하세요.');
     const controller=new AbortController();let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
-      const response=await fetch('/management/assistant/wan22-i2v-input/'+encodeURIComponent(id),{cache:'no-store',signal:controller.signal});
+      const response=await untilAborted(fetch('/management/assistant/wan22-i2v-input/'+encodeURIComponent(id),{cache:'no-store',signal:controller.signal}),controller.signal);
       if(!response.ok)throw new Error('저장 입력 또는 참조 이미지를 확인할 수 없습니다. 이력을 확인한 뒤 다시 시도하세요.');
-      const record=await response.json();
+      const record=await untilAborted(response.json(),controller.signal);
       if(record?.id!==id || !record.request || !Array.isArray(record.request.images) || record.request.images.length!==1 || typeof record.request.images[0]!=='string')throw new Error('저장 입력이 선택한 작업과 일치하지 않습니다.');
       const bytes=Uint8Array.from(atob(record.request.images[0]),character=>character.charCodeAt(0));
       return {...record,restoredFile:new File([bytes],'reference-1.png',{type:'image/png'}),inputAtStart:start,selectionAtStart,focusAtStart};
@@ -70,26 +72,35 @@ export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
   }
   function restoreSavedInput(request,record){
     const current=currentInput.current,start=record.inputAtStart;
-    if(current.busy || current.pending || imageChecking.current || current.settings!==start.settings || current.file!==start.file || imageSelectionRevision.current!==record.selectionAtStart)throw new Error('조회 중 입력 또는 이미지 선택이 변경되어 적용하지 않았습니다. 다시 시도하세요.');
+    if(current.busy || current.pending || reviewRequest.current || imageChecking.current || current.settings!==start.settings || current.file!==start.file || imageSelectionRevision.current!==record.selectionAtStart)throw new Error('조회 중 입력 또는 이미지 선택이 변경되어 적용하지 않았습니다. 다시 시도하세요.');
     const {images,action,width,height,...restored}=request;
-    nonLightningSettings.current=null;setSettings(restored);setFile(record.restoredFile);setError('');setNotice(record.id+'의 입력을 적용했습니다. 설정과 이미지를 확인하세요.');
+    nonLightningSettings.current=null;promptEdited.current=true;setSettings(restored);setFile(record.restoredFile);setError('');setNotice(record.id+'의 입력을 적용했습니다. 설정과 이미지를 확인하세요.');
     if(inputCardRef.current)inputCardRef.current.open=true;
     requestAnimationFrame(()=>{if(document.activeElement===document.body || document.activeElement===record.focusAtStart){formRef.current?.focus();formRef.current?.scrollIntoView({block:'start'});}});
   }
   async function review(event){
-    event.preventDefault();if(busy || pending)return;setError("");
+    event.preventDefault();if(busy || pending || reviewRequest.current)return;setError("");
     const s=settings;
     if(imageChecking.current || reasons.some(Boolean)){setError("생성 입력과 설정을 확인하세요.");return;}
-    reviewOrigin.current=document.activeElement;setBusy(true);
-    try{const image=await referencePng(file);setPending({action:"generate",...s,prompt:s.prompt.trim(),images:[image],width:832,height:480});}
-    catch(e){setError(e.message || "이미지를 읽을 수 없습니다.");}finally{setBusy(false);}
+    const controller=new AbortController(),selection=imageSelectionRevision.current;reviewRequest.current=controller;let timedOut=false;
+    const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);reviewOrigin.current=document.activeElement;setBusy(true);
+    try{const image=await untilAborted(referencePng(file),controller.signal);if(reviewRequest.current!==controller || controller.signal.aborted)return;
+      if(currentInput.current.settings!==s || currentInput.current.file!==file || imageChecking.current || imageSelectionRevision.current!==selection)throw new Error("이미지 확인 중 입력이 바뀌었습니다. 다시 검토하세요.");
+      setPending({action:"generate",...s,prompt:s.prompt.trim(),images:[image],width:832,height:480});}
+    catch(e){if(reviewRequest.current===controller)setError(timedOut ? "이미지 확인 시간이 초과됐습니다. 다시 시도하세요." : e.message || "이미지를 읽을 수 없습니다.");}finally{clearTimeout(timer);if(reviewRequest.current===controller){reviewRequest.current=null;setBusy(false);}}
+  }
+  function cancelReview(){
+    const restore=reviewRef.current?.contains(document.activeElement);setPending(null);
+    if(inputCardRef.current)inputCardRef.current.open=true;
+    if(restore)requestAnimationFrame(()=>{if(document.activeElement===document.body)(formRef.current?.querySelector('textarea') || formRef.current)?.focus();});
   }
   async function submit(){
     if(!pending || sending.current || !generationReady(model))return;
-    sending.current=true;setBusy(true);setError("");const request=pending;setPending(null);
-    try{const result=await managementCommand(service,"generate",request);if(!result.id)throw new Error("접수 ID를 확인할 수 없습니다.");setJob(result.id);setRevision(x=>x+1);}
-    catch(e){setError((e.message || "접수 실패")+" · 다시 접수하기 전에 이력을 확인하세요.");}
-    finally{sending.current=false;setBusy(false);}
+    sending.current=true;setBusy(true);setError("");setNotice("");const request=pending;
+    const controller=new AbortController();let timedOut=false;const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    try{const result=await untilAborted(managementCommand(service,"generate",request,{signal:controller.signal}),controller.signal);if(!validVideoJobId(result?.id))throw new Error("접수 ID를 확인할 수 없습니다.");setJob(result.id);setRevision(x=>x+1);setNotice("생성 요청을 접수했습니다. 작업 이력에서 진행 상태를 확인하세요.");}
+    catch(e){setError((timedOut ? "접수 응답 시간이 초과됐습니다." : e.message || "접수 여부를 확인할 수 없습니다.")+" · 접수 여부가 불확실합니다. 재접수하기 전에 이력을 확인하세요.");}
+    finally{const restore=reviewRef.current?.contains(document.activeElement);clearTimeout(timer);sending.current=false;setBusy(false);setPending(null);if(restore)requestAnimationFrame(()=>{if(document.activeElement===document.body)formRef.current?.focus();});}
   }
   return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}>
     <GeneratorPageIdentity service={service} embedded={embedded} session={session} changelogCard/>
@@ -109,7 +120,7 @@ export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
       <p>832×480 · 16fps · 예상 재생 길이 {invalidFrames ? "계산 불가" : `${(settings.frames/16).toFixed(2)}초`}{usesLightning && " · Lightning 4스텝·CFG 1 고정"}. 동작 품질은 검수해야 합니다.</p>
       <ActionButton type="submit" reasons={reasons}>생성 요청 검토</ActionButton>
     </fieldset></form></GeneratorSectionCard>
-    {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/><p>{file?.name} · 832×480 · {pending.frames}프레임 · 16fps · {pending.steps}스텝 · 시드 {pending.seed}</p><p>LoRA {pending.lora_mode} · Flow shift {pending.flow_shift} · CFG {pending.guidance_scale}</p><p>{pending.prompt}</p><p>부정 프롬프트: {pending.negative_prompt || "없음"}</p><GenerationReviewActions busy={busy} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""} onCancel={()=>{setPending(null);if(inputCardRef.current)inputCardRef.current.open=true;requestAnimationFrame(()=>formRef.current?.querySelector("textarea")?.focus());}} onConfirm={submit}/></section>}
+    {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/><p>{file?.name} · 832×480 · {pending.frames}프레임 · 16fps · {pending.steps}스텝 · 시드 {pending.seed}</p><p>LoRA {pending.lora_mode} · Flow shift {pending.flow_shift} · CFG {pending.guidance_scale}</p><p>{pending.prompt}</p><p>부정 프롬프트: {pending.negative_prompt || "없음"}</p><GenerationReviewActions busy={busy} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""} onCancel={cancelReview} onConfirm={submit}/></section>}
     <div ref={historyRef} tabIndex={-1}><GeneratorHistory key={revision} service={service} statusCommand="status" card allowPriority readJob={readSavedInput} restore={restoreSavedInput} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setRevision(x=>x+1);}} footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={message=>{setJob("");setNotice(message);setRevision(x=>x+1);}}/>} renderResult={(id,close)=><section ref={resultRef} tabIndex={-1}><button type="button" onClick={close}>결과 닫기</button><SavedGeneratorInputs id={id} service={service} readJob={currentId=>readSavedInput(currentId,false)}/><MediaJobResult service={service} id={id}>{(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}</MediaJobResult></section>}/></div>
   </article>;
 }

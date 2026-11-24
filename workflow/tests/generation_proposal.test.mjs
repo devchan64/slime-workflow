@@ -31,6 +31,20 @@ test('proposal lookup times out during session or proposal retrieval',async(t)=>
     assert.equal(calls.at(-1),blocked);
   }
 });
+test('중단을 무시하는 제안 조회도 시간 초과하며 늦은 이력으로 후속 요청을 보내지 않는다',async(t)=>{
+  t.mock.timers.enable({apis:['setTimeout']});
+  const session='a'.repeat(32),job='2026-11-18_00-00-00-12345678',snapshot='b'.repeat(64);
+  const page={id:session,offset:0,snapshot,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_VIDEO_PROPOSAL'}}]};
+  for(const blocked of ['hermes-session-view','hermes-video-proposal']){
+    let finish;const calls=[];
+    const command=async(_service,name)=>{calls.push(name);return name===blocked ? new Promise(resolve=>finish=resolve) : page;};
+    const result=readGenerationProposal(command,{session,job,snapshot,offset:0,kind:'video'});
+    for(let i=0;i<5;i++)await Promise.resolve();
+    t.mock.timers.tick(30000);await assert.rejects(result,/대화 제안 조회 시간이 초과/);
+    finish(page);for(let i=0;i<5;i++)await Promise.resolve();
+    assert.equal(calls.at(-1),blocked);
+  }
+});
 test('VACE proposal transfers only mode and prompt after validating the target',()=>{
   const defaults={mode:'text',prompt:'',steps:16},proposal={service:'wan22-vace',mode:'pose',prompt:'walking',steps:2};
   assert.deepEqual(vaceProposalInputs(defaults,proposal),{mode:'pose',prompt:'walking',steps:16});

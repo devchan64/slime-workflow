@@ -3,7 +3,7 @@ import React, {useEffect,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import GenerationProgress from "./GenerationProgress.jsx";
 import {validGenerationEstimate} from "./generationEstimate.mjs";
-import {validMediaResultDetails} from "./mediaResultValidation.mjs";
+import {mediaResultErrorMessage,mediaResultPendingMessage,validMediaResultDetails} from "./mediaResultValidation.mjs";
 import {LiveRefreshControl,useLiveRefresh} from "./LiveRefresh.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
 import RecordFolder from "./RecordFolder.jsx";
@@ -39,7 +39,7 @@ function SeamlessComparison({id}){
         const prefix="/flux-seamless-generator/jobs/"+id+"/";
         if(!value || typeof value.method!=="string" || !Array.isArray(value.images) || value.images.some(item=>!item || typeof item.label!=="string" || !["tiled-preview.png","raw-result.png","blend-preview.png"].some(name=>item.url===prefix+name)) || new Set(value.images.map(item=>item.url)).size!==value.images.length)throw new Error("타일 비교 결과 형식을 확인할 수 없습니다.");
         if(active && !controller.signal.aborted)setResult(value);
-      }catch(problem){if(active)setError(timedOut?"타일 비교 조회 시간이 초과됐습니다.":problem.message || "타일 비교 결과를 불러올 수 없습니다.");}
+      }catch(problem){if(active)setError(timedOut?"타일 비교 조회 시간이 초과됐습니다.":mediaResultErrorMessage(problem,"타일 비교 결과를 불러올 수 없습니다."));}
       finally{clearTimeout(timer);if(active)setLoading(false);}
     }
     load();return ()=>{active=false;clearTimeout(timer);controller.abort();};
@@ -69,7 +69,7 @@ function CircularComparison({id}){
         const prefix="/image-generation-21-circular/jobs/"+id+"/";
         if(!Array.isArray(data?.images) || data.images.some(item=>!item || typeof item.label!=="string" || !["result.png","tiled-preview.png","baseline.png","baseline-preview.png"].some(name=>item.url===prefix+name)) || new Set(data.images.map(item=>item.url)).size!==data.images.length)throw new Error("비교 결과 경로를 확인할 수 없습니다.");
         if(active && !controller.signal.aborted)setImages(data.images);
-      }catch(problem){if(active)setError(timedOut?"순환 VAE 비교 조회 시간이 초과됐습니다.":problem.message || "저장된 비교 결과를 불러올 수 없습니다.");}
+      }catch(problem){if(active)setError(timedOut?"순환 VAE 비교 조회 시간이 초과됐습니다.":mediaResultErrorMessage(problem,"저장된 비교 결과를 불러올 수 없습니다."));}
       finally{clearTimeout(timer);if(active)setLoading(false);}
     }
     load();return()=>{active=false;clearTimeout(timer);controller.abort();};
@@ -101,6 +101,11 @@ export function MediaResultError({error,stale}) {
   if(!error)return null;
   const missing=error.includes("영상 원본 작업 경로 오류") || error.includes("음악 작업 경로가 없거나 허용되지 않습니다");
   return <p role="alert">{missing ? "이 생성기에서 해당 작업을 찾지 못했습니다. 작업 ID와 이력을 확인해 주세요." : error.includes("시간이 초과") ? "작업 결과 조회 시간이 초과됐습니다. 다시 조회해 주세요." : error.includes("형식") || error.includes("요청과 일치") ? "작업 결과의 내용을 확인하지 못했습니다. 결과를 다시 조회해 주세요." : "작업 결과를 불러오지 못했습니다. 연결 상태를 확인하고 결과를 새로고침해 주세요."}{stale && " 아래 내용은 마지막으로 조회한 결과입니다."}</p>;
+}
+
+export function MediaResultPending({job}){
+  const message=mediaResultPendingMessage(job);
+  return message ? <p role="status">{message}</p> : null;
 }
 
 function AudioTrack({track}) {
@@ -165,7 +170,7 @@ function MediaJobResultForSelection({service,id,kind="video",children,folderLink
         if(!active || controller.signal.aborted)return;
         setJob({...response.job,estimate});
 
-      }catch(problem){if(active && !controller.signal.aborted)setError(problem.message);}
+      }catch(problem){if(active && !controller.signal.aborted)setError(mediaResultErrorMessage(problem,"작업 결과를 확인할 수 없습니다."));}
       finally{clearTimeout(deadline);if(active && !controller.signal.aborted){setAttemptedAt(new Date());setLoading(false);}}
     }
     read();
@@ -208,8 +213,9 @@ function MediaJobResultForSelection({service,id,kind="video",children,folderLink
         {!directFolder && !folderLink && (typeof job.download==="string" && job.download ? <a className="media-result-link" href={job.download} download>{service==="dwpose"?"포즈 PNG·좌표 YAML 다운로드":"PNG 프레임 ZIP 다운로드"}</a> : <p role="status">{service==="dwpose"?"포즈 파일 다운로드 경로":"프레임 ZIP 다운로드 경로"}를 확인할 수 없습니다. 기록 폴더를 확인하세요.</p>)}
       </>}
       {(job.result_status==="unavailable" || job.file_observation==="unavailable") && <p>완료 기록의 결과 파일을 확인할 수 없습니다.</p>}
+      <MediaResultPending job={job}/>
       {job.result_status==="partial" && job.file_observation!=="unavailable" && <p role="status">완료 기록의 결과 파일 일부만 확인되었습니다. 기록 폴더에서 결과를 확인하세요.</p>}
-    </> : !error && <p>결과 조회 중…</p>}
+    </> : !error && <p role="status">결과 조회 중…</p>}
     {children?.(job,()=>refresh(value=>value+1),{stale:Boolean(error)})}
     <div className="media-result-actions">{onReuse && job && <button type="button" onClick={onReuse}>입력 다시 사용</button>}<button ref={refreshRef} type="button" disabled={loading} onClick={()=>{restoreRefreshFocus.current=true;refresh(value=>value+1);}}>{loading?"조회 중…":"결과 새로고침"}</button></div>
   </section>;

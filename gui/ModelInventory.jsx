@@ -1,7 +1,8 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 import {validModelInventory} from "./modelInventoryValidation.mjs";
+import {LiveRefreshControl,useLiveRefresh} from "./LiveRefresh.jsx";
 
 function formatBytes(bytes) {
   if (!Number.isFinite(bytes) || bytes < 0) return "확인 불가";
@@ -31,12 +32,16 @@ function InventoryFiles({service}) {
   const [revision, refresh] = useState(0);
   const [inventory, setInventory] = useState(null);
   const [error, setError] = useState("");
-  const [checkedAt,setCheckedAt]=useState(null),[loading,setLoading]=useState(false);
+  const [checkedAt,setCheckedAt]=useState(null),[loading,setLoading]=useState(true);
+  const pending=useRef(true);
+  function requestRefresh(){if(pending.current)return;pending.current=true;setLoading(true);refresh(value=>value+1);}
+  const live=useLiveRefresh(requestRefresh);
   useEffect(() => {
     let active = true;
-    let timer, controller;
+    let controller;
     async function read() {
-      if(active)setLoading(true);
+      if(!active)return;
+      pending.current=true;setLoading(true);
       controller = new AbortController();
       let timedOut = false;
       const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 30000);
@@ -52,27 +57,28 @@ function InventoryFiles({service}) {
           setError("");
         }
       } catch (problem) {
-        if (active) setError(timedOut ? "파일 목록 조회 시간이 초과됐습니다. 다시 확인하세요." : problem?.message || "파일 목록을 조회할 수 없습니다.");
+        if (active) setError(timedOut ? "파일 목록 조회 시간이 초과됐습니다. 다시 확인하세요." : typeof problem?.message==="string" && problem.message.trim() ? problem.message : "파일 목록을 조회할 수 없습니다.");
       } finally {
         clearTimeout(timeout);
-        if (active) {setLoading(false);timer = setTimeout(read, 30000);}
+        if (active) {pending.current=false;setLoading(false);}
       }
     }
     read();
-    return () => { active = false; clearTimeout(timer); controller?.abort(); };
+    return () => { active = false; pending.current=false;controller?.abort(); };
   }, [service, revision]);
-  return <>
-    <button type="button" aria-disabled={loading} onClick={() => {if(!loading)refresh(value => value + 1);}}>{loading ? "조회 중…" : "파일 목록 새로고침"}</button>
+  return <div ref={live.ref}>
+    <button type="button" aria-disabled={loading} onClick={requestRefresh}>{loading ? "조회 중…" : "파일 목록 새로고침"}</button>
+    <LiveRefreshControl live={live} label="파일 목록 자동 갱신"/>
     {checkedAt && <p>마지막 조회 성공 · {checkedAt.toLocaleString("ko-KR")}</p>}
-    {loading && inventory && <p role="status">파일 목록을 다시 조회하고 있습니다. 아래는 마지막으로 확인한 목록입니다.</p>}
-    {error && <p role="alert">{error}{inventory && " · 아래 목록은 마지막으로 확인한 정보입니다."}</p>}
-    {inventory ? <InventoryContents inventory={inventory}/> : !error && <p role="status">파일 목록 확인 중…</p>}
-  </>;
+    {loading && <p role="status">{inventory ? "파일 목록을 다시 조회하고 있습니다. 아래는 마지막으로 확인한 목록입니다." : "파일 목록을 확인하고 있습니다."}</p>}
+    {error && <p role="alert">{error}{inventory && " · 아래 목록은 마지막으로 확인한 정보입니다."}{loading && " · 다시 확인하고 있습니다."}</p>}
+    {inventory && <InventoryContents inventory={inventory}/>}
+  </div>;
 }
 
 export default function ModelInventory({service}) {
   const [open, setOpen] = useState(false);
-  return <details onToggle={event => setOpen(event.currentTarget.open)}>
+  return <details className="model-inventory" onToggle={event => setOpen(event.currentTarget.open)}>
     <summary>저장된 모델 파일 보기</summary>
     {open && <InventoryFiles key={service} service={service}/>}
   </details>;

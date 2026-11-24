@@ -4,19 +4,22 @@ import {observeLiveVisibility} from "./observeLiveVisibility.mjs";
 export const LIVE_REFRESH_MS=30000;
 
 export function useLiveRefresh(refresh,active=true){
-  const [enabled,setEnabled]=useState(true),[element,setElement]=useState(null),[visible,setVisible]=useState(false);
+  const [enabled,setEnabledState]=useState(true),[element,setElement]=useState(null),[visible,setVisible]=useState(false);
   const callback=useRef(refresh);
-  callback.current=refresh;
+  const enabledRef=useRef(true),visibleRef=useRef(false),activeRef=useRef(active);
+  callback.current=refresh;activeRef.current=active;
+  const setEnabled=useCallback(value=>{const next=typeof value==='function' ? value(enabledRef.current) : value;enabledRef.current=next;setEnabledState(next);},[]);
   const ref=useCallback(node=>setElement(node),[]);
   useEffect(()=>{
-    setVisible(false);
+    visibleRef.current=false;setVisible(false);
     if(!element)return;
-    return observeLiveVisibility(element,setVisible,{document,window,Observer:globalThis.IntersectionObserver});
+    return observeLiveVisibility(element,value=>{visibleRef.current=value;setVisible(value);},{document,window,Observer:globalThis.IntersectionObserver});
   },[element]);
   useEffect(()=>{
     if(!enabled || !visible || !active)return;
-    const timer=setInterval(()=>callback.current(),LIVE_REFRESH_MS);
-    return ()=>clearInterval(timer);
+    let running=true;
+    const timer=setInterval(()=>{if(running && enabledRef.current && visibleRef.current && activeRef.current && document.visibilityState==='visible')callback.current();},LIVE_REFRESH_MS);
+    return ()=>{running=false;clearInterval(timer);};
   },[enabled,visible,active]);
   return {ref,enabled,setEnabled,visible,active};
 }

@@ -42,7 +42,7 @@ export function ModelReadinessMessage({service,status,error,hasStatusSummary=fal
     } else if(service==="wan22-animate2") text=ready && status.message.startsWith("모델 파일 준비 완료") ? status.message : (ready ? "모델 파일 준비 완료" : "모델 파일 준비 필요")+" · "+status.message;
     else text=(["animationgpt","wan22-fighting-lora","wan22-vace-lightning","wan22-animate2-lightx2v","wan22-vace-q8","wan22-i2v-assets","wan21-t2v-assets","wan21-i2v-assets","wan21-i2v-attack-lora","writer-agent"].includes(service) ? (ready?"모델 파일 준비 완료":"모델 파일 준비 필요") : (ready?"생성 준비 완료":"모델 준비 필요"))+" · "+status.message;
   }
-  return <p role="status">{text}</p>;
+  return <p role={error ? "alert" : "status"}>{text}</p>;
 }
 
 export default function ModelReadiness(props) {
@@ -58,17 +58,17 @@ function ModelReadinessForService({service, modelManagementService=service, mana
   const [error,setError]=useState("");
   const [sending,setSending]=useState(false);
   const [checking,setChecking]=useState(true);
-  const [notice,setNotice]=useState("");
-  const preparing=useRef(false);
+  const [notice,setNotice]=useState(""),[noticeError,setNoticeError]=useState(false);
+  const preparing=useRef(false),readiness=useRef({status:null,error:"",checking:true}),poller=useRef(null);
   const sectionRef=useRef(null);
   const reasonId=useId();
   useEffect(()=>{
-    setError("");onError?.("");setStatus(null);onStatus?.(null);
-    return startModelReadinessPoller({
+    readiness.current={status:null,error:"",checking:true};setError("");onError?.("");setStatus(null);onStatus?.(null);
+    const stop=startModelReadinessPoller({
       initialRetryDelay:manage ? 30000 : null,
       validate:validModelReadiness,
       delayForStatus:next=>modelReadinessPollDelay(next,manage),
-      onStart:()=>setChecking(true),
+      onStart:()=>{readiness.current.checking=true;setChecking(true);},
       read:async signal=>{
         if (manage) {
           const response=await fetch("/management/assistant/model-readiness/"+encodeURIComponent(service), {cache:"no-store",signal});
@@ -78,42 +78,51 @@ function ModelReadinessForService({service, modelManagementService=service, mana
         return managementCommand(service,"model-status",{},{signal});
       },
       onSuccess:next=>{
-        setStatus(next);setCheckedAt(new Date());setError("");onStatus?.(next);onError?.("");
+        readiness.current.status=next;readiness.current.error="";setStatus(next);setCheckedAt(new Date());setError("");onStatus?.(next);onError?.("");
       },
-      onFailure:(problem,timedOut)=>{const message=timedOut ? "모델 상태 조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem);setStatus(null);onStatus?.(null);setError(message);onError?.(message);},
-      onFinish:()=>setChecking(false),
+      onFailure:(problem,timedOut)=>{const message=timedOut ? "모델 상태 조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem);readiness.current.status=null;readiness.current.error=message;setStatus(null);onStatus?.(null);setError(message);onError?.(message);},
+      onFinish:()=>{readiness.current.checking=false;setChecking(false);},
     });
+    poller.current=stop;
+    return ()=>{stop();if(poller.current===stop)poller.current=null;};
   },[service,revision,manage,onStatus,onError]);
   async function prepare() {
-    if(preparing.current)return;
+    const current=readiness.current;
+    if(preparing.current || modelPrepareReason(current.status,current.error,false,current.checking))return;
     const restoreFocus=sectionRef.current?.contains(document.activeElement);
     preparing.current=true;setSending(true);
-    setNotice("");
+    poller.current?.();poller.current=null;
+    setNotice("");setNoticeError(false);
     const controller=new AbortController();let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try {
-      const target=status.prepare_request;
+      const target=current.status.prepare_request;
       await untilAborted(managementCommand(target.service,target.command,target.payload,{signal:controller.signal}),controller.signal);
       setNotice("모델 준비 요청을 보냈습니다. 현재 준비 상태를 확인하세요.");
     } catch(problem) {
+      setNoticeError(true);
       setNotice("모델 준비 요청의 접수 결과를 확인하지 못했습니다. 다시 요청하기 전에 준비 상태와 다운로드 이력을 확인하세요. · "+(timedOut ? "응답 시간이 초과됐습니다." : requestErrorMessage(problem)));
     } finally {
       clearTimeout(timeout);
-      setStatus(null);
+      readiness.current.status=null;readiness.current.checking=true;setStatus(null);
       setRevision(value=>value+1);
       preparing.current=false;setSending(false);
       if(restoreFocus)requestAnimationFrame(()=>{if(document.activeElement===document.body)sectionRef.current?.focus({preventScroll:true});});
     }
   }
+  function refreshReadiness(){
+    if(readiness.current.checking || preparing.current)return;
+    readiness.current.checking=true;setChecking(true);setRevision(value=>value+1);
+  }
   const prepareReason=modelPrepareReason(status,error,sending,checking);
-  return <section ref={sectionRef} tabIndex={-1} aria-label="모델 준비 상태">
+  return <section ref={sectionRef} className="model-readiness" tabIndex={-1} aria-label="모델 준비 상태">
     <ModelReadinessMessage service={service} status={status} error={error} hasStatusSummary={hasStatusSummary}/>
     {checkedAt && <p>마지막 조회 성공 · {checkedAt.toLocaleString("ko-KR")}</p>}
     {checking && status && <p role="status">모델 준비 상태를 다시 확인하고 있습니다. 위 상태는 마지막 조회 결과입니다.</p>}
-    <button type="button" aria-disabled={checking} onClick={()=>{if(!checking)setRevision(value=>value+1);}}>{checking ? "모델 준비 상태 확인 중…" : "모델 준비 상태 확인"}</button>
+    <button type="button" aria-disabled={checking || sending} onClick={refreshReadiness}>{checking ? "모델 준비 상태 확인 중…" : sending ? "준비 요청 접수 중…" : "모델 준비 상태 확인"}</button>
     {manage && <>
       <ModelDownloadButton sending={sending} reason={prepareReason} reasonId={reasonId} onPrepare={prepare}/>
-      {notice && <p role="status">{notice}</p>}
+      {notice && <p role={noticeError ? "alert" : "status"}>{notice}</p>}
     </>}
     <ModelInventory service={service}/>
     {!manage && <a href={"/management/frame/model-management/?"+modelQuery}>모델 관리로 이동</a>}

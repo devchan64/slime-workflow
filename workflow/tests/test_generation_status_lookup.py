@@ -5,6 +5,38 @@ from workflow.common.generation_status_lookup import read_existing_generation_st
 
 
 class GenerationStatusLookupTests(unittest.TestCase):
+    def test_audio_source_tracks_satisfy_ui_validation(self):
+        import json, subprocess
+        from pathlib import Path
+        from workflow.domains.hermes_agent import audio_operations
+        job='2026-11-18_00-00-00-12345678'
+        base='/music-heartmula/jobs/'+job+'/attempts/'+'a'*32
+        record={'id':job,'status':'completed','audio':base+'/music.wav',
+                'audio_stems':{'mr':base+'/mr.wav','vocals':base+'/vocals.wav'}}
+        with patch.object(audio_operations,'call_hermes_audio_service',return_value=record), patch.object(audio_operations,'observe_hermes_audio_file',return_value='present'):
+            result=audio_operations.read_hermes_audio_source_job('music-heartmula',job)
+        self.assertEqual([track['label'] for track in result['tracks']],['원곡','MR','분리 보컬'])
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        script="""import {validMediaResultDetails} from './mediaResultValidation.mjs';
+          if(!validMediaResultDetails(JSON.parse(process.argv[1]),'audio','music-heartmula'))process.exit(1);"""
+        subprocess.run(['node','--input-type=module','-e',script,json.dumps(result,ensure_ascii=False)],cwd=gui,check=True,capture_output=True,text=True)
+
+    def test_pending_result_is_announced_and_missing_file_is_not_duplicated(self):
+        import os, subprocess, tempfile
+        from pathlib import Path
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'media.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'MediaJobResult.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');
+              const {MediaResultPending}=require(process.argv[1]);
+              const render=job=>server.renderToStaticMarkup(React.createElement(MediaResultPending,{job}));
+              assert.match(render({status:'running',result_status:'not_ready'}),/role="status"[^>]*>.*진행 상태/);
+              assert.match(render({status:'failed',result_status:'not_ready'}),/작업 상태와 이력/);
+              assert.equal(render({status:'completed',result_status:'available'}),'');
+              assert.equal(render({status:'completed',result_status:'not_ready',file_observation:'unavailable'}),'');"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+
     def test_malformed_history_never_marks_job_deleted(self):
         for current_history_response in (None, {}, {'records':{}}, {'records':''}, {'records':None}, {'records':[None]}, {'records':[{}]}, {'records':[{'id':42}]}, {'records':[{'id':' '}]}, {'records':[{'id':'existing'},{}]}):
             with self.subTest(response=current_history_response):
