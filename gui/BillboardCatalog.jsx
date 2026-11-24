@@ -24,9 +24,10 @@ export default function BillboardCatalog({choose}){
   const [imageRevision,setImageRevision]=useState(0),[editingProperties,setEditingProperties]=useState(false);
   const [lifecycleActive,setLifecycleActive]=useState(false);
   const [selected,select]=useState(null),[error,setError]=useState("");
-  const detailRef=useRef(null),triggerRef=useRef(null),searchRef=useRef(null),resultsRef=useRef(null),errorRef=useRef(null),restoreSearchFocus=useRef(false);
+  const detailRef=useRef(null),triggerRef=useRef(null),searchRef=useRef(null),resultsRef=useRef(null),errorRef=useRef(null),restoreSearchFocus=useRef(false),focusEpoch=useRef(0);
   const locked=editingProperties || lifecycleActive;
-  useEffect(()=>{if(selected && triggerRef.current)detailRef.current?.focus();},[selected]);
+  useEffect(()=>()=>{focusEpoch.current++;},[]);
+  useEffect(()=>{if(selected && triggerRef.current && (document.activeElement===triggerRef.current || document.activeElement===document.body))detailRef.current?.focus();},[selected]);
   useEffect(()=>{
     if(loading || !restoreSearchFocus.current)return;
     restoreSearchFocus.current=false;
@@ -49,6 +50,11 @@ export default function BillboardCatalog({choose}){
     setRequest({offset:0,limit:10,query,...(category?{category}:{})});
   }
   function movePage(offset,event){restoreSearchFocus.current=document.activeElement===event.currentTarget;setRequest({...request,offset});}
+  function closeDetail(){
+    const epoch=++focusEpoch.current,target=triggerRef.current;
+    select(null);
+    requestAnimationFrame(()=>{if(epoch!==focusEpoch.current)return;if(!restoreLostFocus(document,target))restoreLostFocus(document,searchRef.current);});
+  }
   const resultsStale=!!page && displayedRequest!==request;
   const filtersChanged=query!==(request.query || "") || category!==(request.category || "");
   return <section className={"billboard-catalog"+(!choose ? " billboard-standalone" : "")}><h2>공용 빌보드 에셋</h2>
@@ -66,16 +72,16 @@ export default function BillboardCatalog({choose}){
     {error && <p ref={errorRef} tabIndex={-1} role="alert">{error}</p>}
     {!page && !error && <p role="status">카탈로그 조회 중…</p>}
     {page && <><div ref={resultsRef} tabIndex={-1} aria-label="빌보드 검색 결과"><ResultTable table={{title:"검색 결과",summary:page.total+"종"+(page.items.length ? " · "+(page.offset+1)+"–"+(page.offset+page.items.length)+"번째" : ""),columns:["이름","에셋 ID","분류"],
-      rows:page.items.map(asset=>[<button type="button" disabled={loading || (locked && selected?.id!==asset.id)} onClick={event=>{triggerRef.current=event.currentTarget;if(selected?.id===asset.id)detailRef.current?.focus();else select(asset);}}><img loading="lazy" decoding="async" src={imageUrl(asset.id)+"?r="+imageRevision} alt=""
+      rows:page.items.map(asset=>[<button type="button" disabled={loading || (locked && selected?.id!==asset.id)} onClick={event=>{focusEpoch.current++;triggerRef.current=event.currentTarget;if(selected?.id===asset.id)detailRef.current?.focus();else select(asset);}}><img loading="lazy" decoding="async" src={imageUrl(asset.id)+"?r="+imageRevision} alt=""
           width="64" height="64" style={{objectFit:"contain",verticalAlign:"middle"}}/> {asset.name}</button>,asset.id,billboardCategoryLabel(categories,asset.category)])}}/></div>
       {page.offset>0 && <button type="button" disabled={filtersChanged || resultsStale || loading || locked} onClick={event=>movePage(Math.max(0,page.offset-page.limit),event)}>이전 페이지</button>}
       {page.next_offset!=null && <button type="button" disabled={filtersChanged || resultsStale || loading || locked} onClick={event=>movePage(page.next_offset,event)}>다음 페이지</button>}</>}
-    {selected && <section ref={detailRef} tabIndex={-1} aria-label="선택한 빌보드 상세"><button type="button" disabled={locked} onClick={()=>{select(null);requestAnimationFrame(()=>{if(triggerRef.current?.isConnected)triggerRef.current.focus();else searchRef.current?.focus();});}}>상세 닫기</button><h3>{selected.name}</h3>
+    {selected && <section ref={detailRef} tabIndex={-1} aria-label="선택한 빌보드 상세"><button type="button" disabled={locked} onClick={closeDetail}>상세 닫기</button><h3>{selected.name}</h3>
       {page && !page.items.some(item=>item.id===selected.id) && <p role="status">열린 빌보드는 현재 검색 결과에 없습니다. 마지막으로 선택한 상세를 유지합니다.</p>}
       <RecoverableImage key={selected.id+":"+imageRevision} src={imageUrl(selected.id)+"?r="+imageRevision} name={selected.name}/>
       <p>{selected.modeling.purpose}</p><p>{selected.modeling.composition}</p>
-      <ResultTable table={{title:"사용 맵",summary:selected.maps_truncated?"처음 20개 맵":selected.maps.length+"개 맵",
-        columns:["맵","원본 경로","사용 횟수"],rows:selected.maps.map(map=>[map.map,map.source_path,map.occurrences ?? "미확인"])}}/>
+      <div className="billboard-usage-table"><ResultTable table={{title:"사용 맵",summary:selected.maps_truncated?"처음 20개 맵":selected.maps.length+"개 맵",
+        columns:["맵","원본 경로","사용 횟수"],rows:selected.maps.map(map=>[map.map,map.source_path,map.occurrences ?? "미확인"])}}/></div>
       <fieldset disabled={lifecycleActive} style={{border:0,padding:0,margin:0}}><BillboardProperties key={selected.id} texture={selected.id} onDirtyChange={setEditingProperties} onCrop={()=>setImageRevision(n=>n+1)}/></fieldset>
       <fieldset disabled={editingProperties} style={{border:0,padding:0,margin:0}}><BillboardLifecycle key={selected.id} texture={selected.id} onInteractionChange={setLifecycleActive} onComplete={(msg,{retired})=>{setNotice(msg);if(retired){restoreSearchFocus.current=document.activeElement===document.body || Boolean(detailRef.current?.contains(document.activeElement));select(null);}setImageRevision(n=>n+1);setRequest({...request,offset:0});}}/></fieldset>
       {choose && <button onClick={()=>choose("빌보드 "+selected.name,selected.id)}>대화 입력에 추가</button>}

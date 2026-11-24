@@ -10,6 +10,13 @@ export const billboardPropertyLabels={anchorX:"앵커 X",anchorY:"앵커 Y",disp
   shadowOffsetColumn:"그림자 열 이동",shadowOffsetRow:"그림자 행 이동",shadowScaleX:"그림자 가로 배율",shadowScaleY:"그림자 세로 배율",
   billboardPlacementAnchor:"배치 기준",billboardBlocksMovement:"통행 차단"};
 const labels=billboardPropertyLabels;
+export function invalidDisplayHeight(value){return value!=="" && (!Number.isFinite(Number(value)) || Number(value)<0.005 || Number(value)>1024);}
+export function invalidFootprint(value){return value!=="" && (!Number.isInteger(Number(value)) || Number(value)<1 || Number(value)>8);}
+export function invalidShadowOffset(value){return value!=="" && (!Number.isFinite(Number(value)) || Number(value)<-4 || Number(value)>4);}
+export function shadowScaleMinimum(key,version){return version===2 ? 0.001 : key==="shadowScaleY" ? 0.05 : 0.1;}
+export function invalidShadowScale(value,key,version){return value!=="" && (!Number.isFinite(Number(value)) || Number(value)<shadowScaleMinimum(key,version) || Number(value)>4);}
+export function invalidBillboardAnchor(value,automatic){return value!=="" && (!Number.isFinite(Number(value)) || Number(value)<(automatic ? -16 : 0) || Number(value)>(automatic ? 16 : 1));}
+export function billboardPreviewError(problem){const message=requestErrorMessage(problem);return message.includes("변경 없는 에셋은 제외하세요") ? "반올림 후 기존 값과 같아 변경할 내용이 없습니다. 다른 값을 입력하거나 편집을 취소하세요." : message;}
 
 export function validBillboardReview(result,texture){
   const object=value=>value && typeof value==="object" && !Array.isArray(value);
@@ -29,9 +36,11 @@ export function BillboardReviewSummary({result}){
 export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}}){
   const [source,setSource]=useState(null),[edits,setEdits]=useState({}),[review,setReview]=useState(null);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
-  const readRequest=useRef(null),saving=useRef(false),reviewRef=useRef(null),reviewTrigger=useRef(null);
-  const placementReasonId=useId(),reloadReasonId=useId();
+  const readRequest=useRef(null),saving=useRef(false),reviewRef=useRef(null),reviewTrigger=useRef(null),loadButton=useRef(null),restoreLoadFocus=useRef(false),restoreReviewFocus=useRef(false);
+  const placementReasonId=useId(),reloadReasonId=useId(),heightErrorId=useId(),columnsErrorId=useId(),rowsErrorId=useId(),shadowColumnErrorId=useId(),shadowRowErrorId=useId(),scaleXErrorId=useId(),scaleYErrorId=useId(),anchorXErrorId=useId(),anchorYErrorId=useId();
   useEffect(()=>{if(review && (document.activeElement===reviewTrigger.current || document.activeElement===document.body))reviewRef.current?.focus({preventScroll:true});},[review]);
+  useEffect(()=>{if(!busy && restoreLoadFocus.current){restoreLoadFocus.current=false;if(document.activeElement===document.body && loadButton.current && !loadButton.current.disabled)loadButton.current.focus({preventScroll:true});}},[busy,source,notice,edits]);
+  useEffect(()=>{if(!busy && restoreReviewFocus.current){restoreReviewFocus.current=false;if(notice && document.activeElement===document.body && reviewTrigger.current?.isConnected && !reviewTrigger.current.disabled)reviewTrigger.current.focus({preventScroll:true});}},[busy,notice,review]);
   useEffect(()=>()=>readRequest.current?.abort(),[]);
   async function read(command,payload){
     const controller=new AbortController();readRequest.current=controller;let timedOut=false;
@@ -41,6 +50,8 @@ export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}
     finally{clearTimeout(timeout);if(readRequest.current===controller)readRequest.current=null;}
   }
   async function load(){
+    if(busy || readRequest.current)return;
+    restoreLoadFocus.current=document.activeElement===loadButton.current;
     setBusy(true);setNotice("");setReview(null);
     try{
       const result=await read("hermes-billboard-load",{texture});
@@ -53,8 +64,13 @@ export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}
     setEdits({...edits,[key]:value});onDirtyChange(true);setReview(null);setNotice("");
   }
   async function preview(event){
-    event.preventDefault();if(busy)return;reviewTrigger.current=document.activeElement;setBusy(true);setNotice("");setReview(null);
+    event.preventDefault();if(busy)return;reviewTrigger.current=document.activeElement;restoreReviewFocus.current=true;setBusy(true);setNotice("");setReview(null);
     try{
+      if(Object.hasOwn(edits,"displayHeight") && invalidDisplayHeight(edits.displayHeight))throw new Error("표시 높이는 0.005부터 1024까지 입력하세요. 저장 시 소수 둘째 자리로 반올림됩니다.");
+      if(["groundFootprintColumns","groundFootprintRows"].some(key=>Object.hasOwn(edits,key) && invalidFootprint(edits[key])))throw new Error("점유 열과 행은 각각 1부터 8까지의 정수여야 합니다.");
+      if(["shadowOffsetColumn","shadowOffsetRow"].some(key=>Object.hasOwn(edits,key) && invalidShadowOffset(edits[key])))throw new Error("그림자 열과 행 이동은 각각 -4부터 4까지여야 합니다.");
+      if(["shadowScaleX","shadowScaleY"].some(key=>Object.hasOwn(edits,key) && invalidShadowScale(edits[key],key,source.initial ? 2 : source.properties.shadowSizeVersion)))throw new Error("그림자 배율의 입력 범위를 확인하세요.");
+      if(["anchorX","anchorY"].some(key=>Object.hasOwn(edits,key) && invalidBillboardAnchor(edits[key],source.initial || ["tile-intersection","tile-bottom-center"].includes(source.properties.billboardAnchorMode))))throw new Error("앵커 좌표의 입력 범위를 확인하세요.");
       const values=source.initial?{...source.properties}:{};
       for(const [key,raw] of Object.entries(edits)){
         const value=key==="billboardPlacementAnchor" || key==="billboardBlocksMovement"?raw:Number(raw);
@@ -65,7 +81,7 @@ export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}
       const result=await read("hermes-billboard-preview",{draft});
       if(!validBillboardReview(result,texture))throw new Error("검토 결과가 선택한 에셋과 다르거나 형식이 올바르지 않습니다.");
       setReview({result,draft,id:crypto.randomUUID().replaceAll("-","")});
-    }catch(problem){if(problem?.name!=="AbortError")setNotice(requestErrorMessage(problem));}
+    }catch(problem){if(problem?.name!=="AbortError")setNotice(billboardPreviewError(problem));}
     finally{setBusy(false);}
   }
   async function save(){
@@ -82,14 +98,18 @@ export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}
   }
   const hasEdits=Object.keys(edits).length>0;
   const properties=source?{...source.properties,...edits}:{};
+  const heightInvalid=Object.hasOwn(edits,"displayHeight") && invalidDisplayHeight(edits.displayHeight);
   const automaticPlacement=source?.initial || ["tile-intersection","tile-bottom-center"].includes(properties.billboardAnchorMode);
-  return <section><button type="button" disabled={busy || hasEdits} aria-describedby={hasEdits ? reloadReasonId : undefined} onClick={load}>{source?"공용 속성 다시 불러오기":"공용 속성 불러오기"}</button>
+  const shadowVersion=source?.initial ? 2 : properties.shadowSizeVersion;
+  const fieldError=key=>key==="displayHeight" && heightInvalid ? [heightErrorId,"0.005부터 1024까지 입력하세요. 소수 둘째 자리로 반올림됩니다."] : key==="groundFootprintColumns" && Object.hasOwn(edits,key) && invalidFootprint(edits[key]) ? [columnsErrorId,"1부터 8까지의 정수여야 합니다."] : key==="groundFootprintRows" && Object.hasOwn(edits,key) && invalidFootprint(edits[key]) ? [rowsErrorId,"1부터 8까지의 정수여야 합니다."] : key==="shadowOffsetColumn" && Object.hasOwn(edits,key) && invalidShadowOffset(edits[key]) ? [shadowColumnErrorId,"-4부터 4까지 입력하세요."] : key==="shadowOffsetRow" && Object.hasOwn(edits,key) && invalidShadowOffset(edits[key]) ? [shadowRowErrorId,"-4부터 4까지 입력하세요."] : ["shadowScaleX","shadowScaleY"].includes(key) && Object.hasOwn(edits,key) && invalidShadowScale(edits[key],key,shadowVersion) ? [key==="shadowScaleX" ? scaleXErrorId : scaleYErrorId,`${shadowScaleMinimum(key,shadowVersion)}부터 4까지 입력하세요.`] : ["anchorX","anchorY"].includes(key) && Object.hasOwn(edits,key) && invalidBillboardAnchor(edits[key],automaticPlacement) ? [key==="anchorX" ? anchorXErrorId : anchorYErrorId,automaticPlacement ? "-16부터 16까지 입력하세요." : "0부터 1까지 입력하세요."] : null;
+  return <section><button ref={loadButton} type="button" disabled={busy || hasEdits} aria-describedby={hasEdits ? reloadReasonId : undefined} onClick={load}>{source?"공용 속성 다시 불러오기":"공용 속성 불러오기"}</button>
     {busy && <p role="status">빌보드 요청을 처리하고 있습니다.</p>}
-    {hasEdits && <p id={reloadReasonId} role="status">변경 사항이 있습니다. 다시 불러오려면 편집을 취소하거나 저장하세요. <button type="button" disabled={busy} onClick={()=>{setEdits({});onDirtyChange(false);setReview(null);setNotice("");}}>편집 취소</button></p>}
+    {hasEdits && <p id={reloadReasonId} role="status">변경 사항이 있습니다. 다시 불러오려면 편집을 취소하거나 저장하세요. <button type="button" disabled={busy} onClick={event=>{restoreLoadFocus.current=document.activeElement===event.currentTarget;setEdits({});onDirtyChange(false);setReview(null);setNotice("");}}>편집 취소</button></p>}
     {source && <form className="billboard-properties-form" onSubmit={preview}><fieldset disabled={busy}><legend>빌보드 공용 속성</legend>
       {source.initial && <p>최초 설정 초안 · 기본 점유 1×1, 표시 높이 128px입니다. 원본을 확인한 뒤 검토하세요.</p>}
-      <div className="billboard-properties-grid">{Object.keys(labels).filter(key=>!key.startsWith("billboard")).map(key=><label key={key}>{labels[key]}
-        <input type="number" step="any" required={key in edits} value={properties[key] ?? ""} onChange={e=>edit(key,e.target.value)}/></label>)}
+      <p>앵커·높이·그림자 이동은 소수 둘째 자리로 반올림됩니다. {shadowVersion===2 ? "그림자 배율은 소수 여섯째 자리로 반올림됩니다." : "그림자 배율도 소수 둘째 자리로 반올림됩니다."}</p>
+      <div className="billboard-properties-grid">{Object.keys(labels).filter(key=>!key.startsWith("billboard")).map(key=>{const error=fieldError(key);return <label key={key}>{labels[key]}
+        <input type="number" step="any" required={key in edits} aria-invalid={error ? true : undefined} aria-describedby={error?.[0]} value={properties[key] ?? ""} onChange={e=>edit(key,e.target.value)}/>{error && <span id={error[0]}>{error[1]}</span>}</label>;})}
       <label>배치 기준<select disabled={automaticPlacement} aria-describedby={automaticPlacement ? placementReasonId : undefined} value={automaticPlacement?(Number(properties.anchorY)<0.5?"top":"bottom"):(properties.billboardPlacementAnchor ?? "")} onChange={e=>edit("billboardPlacementAnchor",e.target.value)}>
         <option value="" disabled>미지정</option><option value="top">위쪽</option><option value="bottom">아래쪽</option></select></label>
       {automaticPlacement && <p id={placementReasonId}>현재 앵커 설정에 따라 배치 기준이 자동으로 결정됩니다.</p>}

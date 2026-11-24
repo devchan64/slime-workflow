@@ -12,8 +12,9 @@ export default function AnchorHistory() {
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
   const [receivedAt,setReceivedAt]=useState(null);
-  const resultRef=useRef(null),focusPage=useRef(null);
+  const resultRef=useRef(null),focusPage=useRef(null),searchButton=useRef(null),focusSearch=useRef(false);
   useEffect(()=>{if(page && focusPage.current){const trigger=focusPage.current;focusPage.current=null;if(document.activeElement===trigger || document.activeElement===document.body){resultRef.current?.focus({preventScroll:true});resultRef.current?.scrollIntoView({block:"start",inline:"nearest"});}}},[page]);
+  useEffect(()=>{if(!busy && focusSearch.current){focusSearch.current=false;if(document.activeElement===document.body && searchButton.current && !searchButton.current.disabled)searchButton.current.focus({preventScroll:true});}},[busy,page,error]);
   const request=useRef(null);
   const activeRequest=useRef(null);
   if(!request.current)request.current=latestRequest();
@@ -49,6 +50,7 @@ export default function AnchorHistory() {
     request.current.invalidate();
     activeRequest.current?.abort();
     focusPage.current=null;
+    focusSearch.current=false;
     setBusy(false);
     setter(value);
     setError("");
@@ -59,10 +61,10 @@ export default function AnchorHistory() {
     <button type="button" disabled={busy || !!error || filtersChanged || page.next_offset==null} onClick={event=>load(true,null,event)}>다음 이력</button>
   </nav>;}
   return <fieldset><legend>과거 앵커 검수 이력</legend>
-    <form className="anchor-history-search" onSubmit={event=>{event.preventDefault();load(false);}}>
+    <form className="anchor-history-search" onSubmit={event=>{event.preventDefault();focusSearch.current=document.activeElement===searchButton.current;load(false);}}>
       <label>애니메이션 ID<input required value={animation} onChange={e=>edit(setAnimation,e.target.value)}/></label>
       <label>애니메이션 버전<input required value={version} onChange={e=>edit(setVersion,e.target.value)}/></label>
-      <button disabled={busy || !animation.trim() || !version.trim()}>이력 조회</button>
+      <button ref={searchButton} disabled={busy || !animation.trim() || !version.trim()}>이력 조회</button>
     </form>
     {error && <p role="alert">{error}</p>}
     {busy && <p role="status">앵커 이력을 조회하고 있습니다.{page && " 아래는 마지막 조회 결과입니다."}</p>}

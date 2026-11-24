@@ -68,10 +68,10 @@ export default function QwenArchive(){
     return readArchiveJob(managementCommand,service,job,{signal});
   }
   if(!service)return <main className="single-generator-shell"><article className="single-generator-page"><h1>Qwen 이미지 생성 이력</h1><p role="alert">보관 서비스가 지정되지 않았습니다. 헤르메스 대화로 돌아가 작업을 다시 여세요.</p><a href={"/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화로 돌아가기</a></article></main>;
-  return <main className="single-generator-shell"><article className="single-generator-page"><a href={"/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화로 돌아가기</a>
+  return <main className="single-generator-shell"><article className="single-generator-page generator-page-common"><a href={"/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화로 돌아가기</a>
     <h1>Qwen 이미지 생성 이력</h1><p>{service} · 보관된 작업</p>
-    <GeneratorChangelog generator={service}/>
-    <div ref={historyRef}><GeneratorHistory service={service} readJobWithSignal={readJob} openResult={openResult} externalResultId={id} emptyMessage="조회된 보관 이력이 없습니다. 검색 조건을 바꾸어 다시 조회하세요."/></div>
+    <GeneratorChangelog card generator={service}/>
+    <div ref={historyRef}><GeneratorHistory card service={service} readJobWithSignal={readJob} openResult={openResult} externalResultId={id} emptyMessage="조회된 보관 이력이 없습니다. 검색 조건을 바꾸어 다시 조회하세요."/></div>
     {id && <section ref={resultRef} tabIndex={-1} aria-label="보관된 작업 결과" className="qwen-archive-result">
       <h2>보관된 작업 결과</h2><JobIdentifier id={id}/>
       <button type="button" onClick={closeResult}>결과 닫기</button>

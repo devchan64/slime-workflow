@@ -445,8 +445,12 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .billboard-catalog > .billboard-search {width:100%;max-width:none;margin:.8rem 0;padding:0;display:flex;flex-wrap:wrap;align-items:end;gap:.5rem}
 .billboard-search label {display:grid;gap:.35rem;min-width:0;flex:1 1 12rem}
 .billboard-search :is(input,select) {width:100%;min-width:0;font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
+.billboard-usage-table {min-width:0;max-width:100%}
+.billboard-usage-table table {min-width:28rem}
 .sprite-editor-page {width:min(100% - 2rem,90rem);margin:1.5rem auto;gap:.8rem}
 .sprite-editor-page > h1 {flex:none;font-size:1.5rem}
+.sprite-editor-page :is(form,fieldset,section,details) {min-width:0;box-sizing:border-box;max-width:100%}
+.sprite-editor-page :is(h2,h3) {overflow-wrap:anywhere}
 .sprite-frame-table {max-width:100%;min-width:0}
 .sprite-frame-table input {min-width:5rem;width:6rem}
 .world-map-connections {max-width:100%;min-width:0}
@@ -460,11 +464,11 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .world-map-viewport:focus-visible {outline:2px solid var(--accent,#b5d8ff);outline-offset:2px}
 .sprite-editor-page > .sprite-search {width:100%;max-width:none;margin:0;padding:0;display:flex;flex-wrap:wrap;align-items:end;gap:.5rem}
 .sprite-search label {display:grid;gap:.35rem;min-width:0;flex:1 1 12rem}
-.sprite-search :is(input,select) {width:100%;min-width:0;font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
+.sprite-search :is(input,select) {box-sizing:border-box;width:100%;min-width:0;font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
 .sprite-local-sheet {font-size:1rem;color:inherit}
 .sprite-local-sheet > fieldset {min-width:0;padding:.8rem;border:1px solid var(--line);border-radius:.6rem}
-.sprite-local-sheet > fieldset label {display:inline-grid;gap:.35rem;max-width:100%;margin-right:.5rem}
-.sprite-local-sheet > fieldset input {max-width:100%}
+.sprite-local-sheet > fieldset label {display:inline-grid;gap:.35rem;min-width:0;width:min(100%,22rem);max-width:100%;margin-right:.5rem}
+.sprite-local-sheet > fieldset input {box-sizing:border-box;min-width:0;width:100%;max-width:100%}
 .flux-standalone {width:min(100% - 2rem,56rem);margin:1.5rem auto;gap:.8rem}
 .flux-standalone > h1 {flex:none;font-size:1.5rem}
 .flux-standalone > form {display:block;width:100%;max-width:none;margin:0;padding:0}

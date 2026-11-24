@@ -219,7 +219,7 @@ function SpriteChangeConfirmation({label,children,busy=false,onConfirm,onCancel,
     const focused=document.activeElement;onCancel();
     requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===focused) && trigger.current?.isConnected)trigger.current.focus();});
   }
-  return <section ref={container} tabIndex={-1} aria-label={label}><p>{children}</p>
+  return <section ref={container} tabIndex={-1} className="ui-focus-target" aria-label={label}><p>{children}</p>
     <button type="button" disabled={busy} onClick={onConfirm}>{confirmLabel}</button><button type="button" disabled={busy} onClick={cancel}>{cancelLabel}</button></section>;
 }
 
@@ -385,7 +385,7 @@ export default function SpriteSheetEditor(){
   const [items,setItems]=useState(null),[selected,select]=useState(link.path || "");
   const [error,setError]=useState(link.error || "");
   const [pendingChange,setPendingChange]=useState(null);
-  const changeTrigger=useRef(null);
+  const changeTrigger=useRef(null),searchRef=useRef(null);
   useEffect(()=>{
     if(!request)return;
     let active=true,timedOut=false;
@@ -418,11 +418,11 @@ export default function SpriteSheetEditor(){
     <form className="sprite-search" onSubmit={event=>{event.preventDefault();search(source);}}>
       <label>검색 원본<select value={source} onChange={event=>search(event.target.value)}>
         <option value="assets">에셋 스프라이트</option><option value="baseline">베이스라인 스프라이트</option></select></label>
-      <label>스프라이트 검색<input value={query} onChange={event=>setQuery(event.target.value)}/></label>
+      <label>스프라이트 검색<input ref={searchRef} value={query} onChange={event=>setQuery(event.target.value)}/></label>
       <button>원본 검색</button>
     </form>
     {request && query!==request.query && <p role="status">검색어가 변경되었습니다. 아래 결과는 이전 검색 조건입니다. 원본 검색을 눌러 적용하세요.</p>}
-    {error && <div role="alert"><p>{error}</p>{request && !items && <button type="button" onClick={()=>{setError("");setRequest({...request});}}>이전 조건으로 다시 검색</button>}</div>}
+    {error && <div role="alert"><p>{error}</p>{request && !items && <button type="button" onClick={event=>{if(document.activeElement===event.currentTarget)searchRef.current?.focus();setError("");setRequest({...request});}}>이전 조건으로 다시 검색</button>}</div>}
     {request && !items && !error && <p role="status">스프라이트 검색 중…</p>}
     {items && <ResultTable table={{title:"검색 결과",summary:items.length+"개 시트",columns:["스프라이트","원본 경로"],
       rows:items.map(item=>[<button onClick={()=>requestChange({kind:"select",path:item.path})}>{item.label}</button>,item.path])}}/>}
