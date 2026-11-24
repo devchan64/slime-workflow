@@ -1,6 +1,8 @@
-import React,{useEffect,useRef,useState} from 'react';
+import React,{useEffect,useId,useRef,useState} from 'react';
 import {readProposalPreview} from './readProposalPreview.mjs';
 import {readCaptureProposal} from './captureProposal.mjs';
+import {requestErrorMessage} from './requestError.mjs';
+import {restoreLostFocus} from './restoreLostFocus.mjs';
 
 const labels={map:'맵 ID',show_character:'캐릭터 표시',show_safe_boundary:'안전 경계 표시',edges:'경계 표시',tile_edges:'타일 경계',ground:'바닥',zoom:'배율',column:'열',row:'행',rotation:'회전',outline:'외곽선',outline_width:'외곽선 폭',rim:'림 조명',shadow:'그림자',shadow_profile:'그림자 설정',contrast:'대비',saturation_reduced:'채도 감소',brightness_reduced:'밝기 감소',width:'너비',height:'높이'};
 const values={paving:'포장',grass:'풀','meadow-road':'초원 길',baseline:'기본',contrast:'대비',broad:'넓게',original:'원본',soft:'부드럽게'};
@@ -17,16 +19,20 @@ export default function CaptureProposal({session,job,snapshot,offset}){
   return <CaptureProposalForSelection key={JSON.stringify([session,job,snapshot,offset])} session={session} job={job} snapshot={snapshot} offset={offset}/>;
 }
 function CaptureProposalForSelection({session,job,snapshot,offset}){
+  const busyId=useId();
   const [value,setValue]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  const request=useRef(null);useEffect(()=>()=>request.current?.abort(),[]);
+  const request=useRef(null),inspectRef=useRef(null),inspectFocus=useRef(false),resultRef=useRef(null),errorRef=useRef(null);
+  useEffect(()=>()=>{const current=request.current;request.current=null;current?.abort();},[]);
+  useEffect(()=>{if(busy || !inspectFocus.current)return;inspectFocus.current=false;const target=error ? errorRef : value ? resultRef : inspectRef;const frame=requestAnimationFrame(()=>restoreLostFocus(document,target.current));return ()=>cancelAnimationFrame(frame);},[busy,value,error]);
   async function inspect(){
     if(request.current)return;
+    inspectFocus.current=document.activeElement===inspectRef.current;
     const controller=new AbortController();request.current=controller;let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setBusy(true);setError('');setValue(null);
-    try{setValue(await readProposalPreview(readCaptureProposal,[{session,job,snapshot,offset}],controller.signal));}
-    catch(problem){if(!controller.signal.aborted || timedOut)setError(timedOut ? '캡처 설정 조회 시간이 초과됐습니다. 다시 확인하세요.' : problem.message);}
-    finally{clearTimeout(timeout);if(request.current===controller)request.current=null;if(!controller.signal.aborted || timedOut)setBusy(false);}
+    try{const result=await readProposalPreview(readCaptureProposal,[{session,job,snapshot,offset}],controller.signal);if(request.current===controller)setValue(result);}
+    catch(problem){if(request.current===controller && (!controller.signal.aborted || timedOut))setError(timedOut ? '캡처 설정 조회 시간이 초과됐습니다. 다시 확인하세요.' : requestErrorMessage(problem));}
+    finally{clearTimeout(timeout);if(request.current===controller){request.current=null;setBusy(false);}}
   }
-  return <section aria-label="캡처 제안"><button type="button" disabled={busy} onClick={inspect}>캡처 설정 확인</button>{busy && <p role="status">캡처 설정을 조회하고 있습니다.</p>}{error && <p role="alert">{error}</p>}{value && <CaptureProposalReview value={value} session={session}/>}</section>;
+  return <section aria-label="캡처 제안"><button ref={inspectRef} type="button" disabled={busy} aria-describedby={busy ? busyId : undefined} onClick={inspect}>캡처 설정 확인</button>{busy && <p id={busyId} role="status">캡처 설정을 조회하고 있습니다. 완료될 때까지 기다리세요.</p>}{error && <p ref={errorRef} tabIndex={-1} className="proposal-feedback" role="alert">{error}</p>}{value && <div ref={resultRef} tabIndex={-1} className="proposal-feedback" aria-label="캡처 제안 결과"><CaptureProposalReview value={value} session={session}/></div>}</section>;
 }

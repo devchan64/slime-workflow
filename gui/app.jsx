@@ -454,7 +454,8 @@ function App() {
   const [videoFormRevision,setVideoFormRevision]=useState(0);
   const [seedProposal,setSeedProposal]=useState(null);
   const [session,setSession]=useState(query().get("session") || "");
-  useEffect(()=>{setGeneratorPanel(null);setMountedGenerators([]);setKimodoMounted(false);setFunMounted(false);},[session]);
+  const formInputSession=useRef(session),currentFormInputs=formInputSession.current===session;
+  useEffect(()=>{setGeneratorPanel(null);setMountedGenerators([]);setKimodoProposal(null);setVideoFormId("");setSeedProposal(null);setKimodoMounted(showKimodo);setFunMounted(showFunControl);formInputSession.current=session;},[session]);
   const [sessions,setSessions]=useState([]), [view,setView]=useState({}), [tools,setTools]=useState([]);
   const [draft,setDraft]=useState(""),[search,setSearch]=useState(()=>query().get("search") || ""),[showTools,setShowTools]=useState(()=>query().has("category") || query().has("search") || ["jobs","capabilities"].includes(query().get("panel")));
   const [catalogError,setCatalogError]=useState(""),[catalogLoading,setCatalogLoading]=useState(true),[catalogRevision,retryCatalog]=useState(0);
@@ -875,8 +876,8 @@ function App() {
       {showGpu && !showTools && <GpuPanel embedded/>}
       {queue && session && !showTools && !showGpu && <><UnifiedQueueOverview key={session} session={session} call={call}/><details><summary>대화 요청 상세 및 제어</summary><ChatQueuePanel key={session} session={session}/></details><details open={Boolean(queue.run)}><summary>작업 상세 및 제어</summary><QueuePanel key={session+queue.run} session={session} initialRun={queue.run} filterCache={queueFilterCache} call={call} openMessage={openQueueMessage} choose={appendSelection}/></details></>}
       {mountedGenerators.map(id=>{const Generator=embeddedGenerators[id];return <div key={id} hidden={showTools || showGpu || Boolean(queue) || generatorPanel?.id!==id} className="embedded-generator"><Generator embedded session={session}/></div>;})}
-      {kimodoMounted && <div hidden={!showKimodo || showTools || showGpu || Boolean(queue) || Boolean(generatorPanel)} className="embedded-generator"><KimodoPage key={session+":"+kimodoRevision} embedded session={session} initialInputs={kimodoProposal} onChoose={(label,value)=>{edit([draft,label+" "+value].filter(Boolean).join("\n"));text.current?.focus();}}/></div>}
-      {funMounted && <div hidden={!showFunControl || showTools || showGpu || Boolean(queue) || showKimodo || Boolean(generatorPanel)}><FunControlPage key={session+videoFormId+videoFormRevision} embedded session={session} restoreFormId={videoFormId} seedProposal={seedProposal} onSaved={()=>setRefresh(n=>n+1)}/></div>}
+      {kimodoMounted && <div hidden={!showKimodo || showTools || showGpu || Boolean(queue) || Boolean(generatorPanel)} className="embedded-generator"><KimodoPage key={session+":"+kimodoRevision} embedded session={session} initialInputs={currentFormInputs ? kimodoProposal : null} onChoose={(label,value)=>{edit([draft,label+" "+value].filter(Boolean).join("\n"));text.current?.focus();}}/></div>}
+      {funMounted && <div hidden={!showFunControl || showTools || showGpu || Boolean(queue) || showKimodo || Boolean(generatorPanel)}><FunControlPage key={session+(currentFormInputs ? videoFormId : "")+videoFormRevision} embedded session={session} restoreFormId={currentFormInputs ? videoFormId : ""} seedProposal={currentFormInputs ? seedProposal : null} onSaved={()=>setRefresh(n=>n+1)}/></div>}
     </SidePanel>}
     </main>
 }

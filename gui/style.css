@@ -401,7 +401,8 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .effect-editor-picker select {width:min(100%,24rem);font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem;margin:.2rem .4rem .2rem 0}
 .effect-editor-picker button {margin:.2rem .4rem .2rem 0}
 .effect-editor-page :where([tabindex="-1"]):focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
-:is([aria-label="이펙트 변경 검토"],.effect-proposal-feedback):focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
+:is([aria-label="이펙트 변경 검토"],.effect-proposal-feedback,.proposal-feedback):focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
+.sprite-proposal-preview {max-width:100%;height:auto}
 .effect-alignment-form {display:block;width:100%;max-width:none;margin:.8rem 0;padding:0}
 .effect-alignment-form > fieldset {display:grid;gap:.8rem;min-width:0;padding:.8rem}
 .effect-rectangle {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr));gap:.65rem;min-width:0;padding:.8rem}

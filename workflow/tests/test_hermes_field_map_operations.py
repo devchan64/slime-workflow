@@ -30,6 +30,9 @@ class HermesFieldMapOperationsTests(unittest.TestCase):
             markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,input=json.dumps(proposal),text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         for value in ('1, 0','b / 2 / false','c / 3 / false','DB 모드','확인 후 저장','disabled','취소'):
             self.assertIn(value,markup)
+        import re
+        reason_id=re.search(r'<p id="([^"]+)">주변 배치',markup).group(1)
+        self.assertRegex(markup,rf'<button[^>]*aria-describedby="{re.escape(reason_id)}"[^>]*>확인 후 저장</button>')
 
     def test_database_preview_rejects_before_record_or_save(self):
         from tempfile import TemporaryDirectory
