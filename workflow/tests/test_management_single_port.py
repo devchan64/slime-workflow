@@ -10,6 +10,16 @@ from workflow.common.management_asgi import build_management_application
 
 
 class ManagementSinglePortTests(unittest.TestCase):
+    def test_map_recovery_route_preserves_kind_and_selection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with TestClient(app) as client:
+                for kind,surface in [('field','field-map'),('town','town-map')]:
+                    response=client.get('/management/frame/map-review/',params={'mapKind':kind,'map':'example'},follow_redirects=False)
+                    self.assertEqual(response.status_code,307)
+                    self.assertEqual(response.headers['location'],f'/management/assistant/{surface}/?mapKind={kind}&map=example')
+
     def test_gui_health_exposes_only_its_own_launch_identity(self):
         import os
         with tempfile.TemporaryDirectory() as temporary_directory_name, \

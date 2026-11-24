@@ -1,6 +1,7 @@
 """맵 검수가 렌더링 프로필을 사용하는지 검증한다."""
 import json
 import hashlib
+import re
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -106,13 +107,16 @@ assert.throws(registerTextureAliases, /다른 검수 원본과 충돌/);
             self.assertTrue(current_map_record['provenance'])
             self.assertTrue(all(record['repository']=='slime-assets' for record in current_map_record['provenance']))
 
-    def test_game_render_metrics_identify_every_game_city_export_source(self):
-        game_render_metrics = load_game_render_metrics(WORKFLOW_ROOT.parent / 'slime-frontend')
-        metric_source_paths = {current_source_record['path'] for current_source_record in game_render_metrics['sources']}
-
-        self.assertEqual(game_render_metrics['wallHeight'], 80)
-        for current_city_identifier in ('iseulon', 'reedhaven', 'stonewarm', 'grainstead', 'saltford'):
-            self.assertIn(f'assets/maps/city_layouts/{current_city_identifier}.yaml', metric_source_paths)
+    def test_game_render_metrics_match_shared_constants_and_record_source_hash(self):
+        frontend=WORKFLOW_ROOT.parent/'slime-frontend'
+        source=frontend/'packages/field-renderer/render-constants.mjs'
+        source_bytes=source.read_bytes()
+        matched=re.search(r'export const BUILDING_RENDER_BLOCK_HEIGHT = (\d+(?:\.\d+)?);',source_bytes.decode())
+        self.assertIsNotNone(matched)
+        metrics=load_game_render_metrics(frontend)
+        self.assertEqual(metrics['wallHeight'],float(matched.group(1)))
+        self.assertEqual(metrics['canopyHeight'],float(matched.group(1)))
+        self.assertIn({'path':'packages/field-renderer/render-constants.mjs','sha256':hashlib.sha256(source_bytes).hexdigest()},metrics['sources'])
 
     def test_building_review_templates_use_shared_profile_values(self):
         render_profile_values = load_map_render_profiles()
@@ -147,33 +151,38 @@ assert.throws(registerTextureAliases, /다른 검수 원본과 충돌/);
         self.assertIn('마을 블록 높이 설정이 올바르지 않습니다.', block_map_script)
 
     def test_city_roads_match_current_game_paving_sources(self):
-        tile_catalog_source = (WORKFLOW_ROOT / 'gui/ui/map/config/tile-catalog.yaml').read_text(encoding='utf-8')
-        map_review_script = (WORKFLOW_ROOT / 'gui/ui/map/block-map-review.js').read_text(encoding='utf-8')
+        game_source=(WORKFLOW_ROOT.parent/'slime-frontend/src/game/terrain/textures.ts').read_text(encoding='utf-8')
+        game_function=game_source.split('export function resolvePavingFrameForMap(',1)[1].split('\n}',1)[0]
+        expected=dict(re.findall(r'currentMapIdentifier === "([^"]+)"\) return "([^"]+)"',game_function))
+        self.assertTrue({'stonewarm','saltford','reedhaven','grainstead'} <= expected.keys())
+        vendor_source=(WORKFLOW_ROOT/'gui/ui/map/vendor/field-renderer/town-renderer.mjs').read_text(encoding='utf-8')
+        vendor_function='function resolvePavingFrameForMap('+vendor_source.split('function resolvePavingFrameForMap(',1)[1].split('\n}',1)[0]+'\n}'
+        script=vendor_function+'\nconsole.log(JSON.stringify(Object.fromEntries('+json.dumps(list(expected))+'.map(id=>[id,resolvePavingFrameForMap(id)]))))'
+        result=subprocess.run(['node','-e',script],capture_output=True,text=True,check=True,timeout=10)
+        self.assertEqual(json.loads(result.stdout),expected)
+        self.assertIn("resolveCityTileTextures(null,currentTerrainName,currentMapRecord.id,0).ground",(WORKFLOW_ROOT/'gui/ui/map/block-map-review.js').read_text())
 
-        self.assertIn('id: stonewarm-gravel-paving', tile_catalog_source)
-        self.assertIn('assets/tiles/terrain/road/limestone-road-v3.png', tile_catalog_source)
-        self.assertIn('assets/tiles/terrain/road/granite-slab-road-v1.png', tile_catalog_source)
-        self.assert_ground_texture_selection('stonewarm', 'paving', 'stonewarm-granite-paving')
-        self.assert_ground_texture_selection('saltford', 'paving', 'stonewarm-gravel-paving')
-
-    def test_stonewarm_exposed_rock_ground_uses_the_registered_tile(self):
-        tile_catalog_source = (WORKFLOW_ROOT / 'gui/ui/map/config/tile-catalog.yaml').read_text(encoding='utf-8')
-        map_review_script = (WORKFLOW_ROOT / 'gui/ui/map/block-map-review.js').read_text(encoding='utf-8')
-
-        self.assertIn('id: stonewarm-exposed-rock-ground', tile_catalog_source)
-        self.assertIn('assets/tiles/terrain/non-road/exposed-rock-ground-v2.png', tile_catalog_source)
-        self.assert_ground_texture_selection('stonewarm', 'gravel', 'stonewarm-exposed-rock-ground')
-        self.assert_ground_texture_selection('iseulon', 'gravel', 'gravel')
+    def test_town_ground_frames_match_game_resolver(self):
+        game=(WORKFLOW_ROOT.parent/'slime-frontend/src/game/terrain/textures.ts').read_text()
+        vendor=(WORKFLOW_ROOT/'gui/ui/map/vendor/field-renderer/town-renderer.mjs').read_text()
+        game_function='function resolveTownGroundFrame('+game.split('export function resolveTownGroundFrame(',1)[1].split('\n}',1)[0]+'\n}'
+        game_function=game_function.replace(': string','').replace(' as Record<string,string>','').replace('resolveTownGroundFrame','gameGround',1)
+        vendor_function='function resolveTownGroundFrame('+vendor.split('function resolveTownGroundFrame(',1)[1].split('\n}',1)[0]+'\n}'
+        script=game_function+'\n'+vendor_function+"\nconst assert=require('node:assert/strict');for(const map of ['stonewarm','iseulon','grainstead','saltford'])for(const terrain of ['gravel','stone','water','dry-soil-branches','grass'])assert.equal(resolveTownGroundFrame(map,terrain),gameGround(map,terrain));"
+        result=subprocess.run(['node','-e',script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
 
     def test_reedhaven_and_grainstead_use_registered_ground_textures(self):
-        tile_catalog_source = (WORKFLOW_ROOT / 'gui/ui/map/config/tile-catalog.yaml').read_text(encoding='utf-8')
-        map_review_script = (WORKFLOW_ROOT / 'gui/ui/map/block-map-review.js').read_text(encoding='utf-8')
-
-        self.assertIn('id: reedhaven-dirt-road', tile_catalog_source)
-        self.assertIn('assets/tiles/terrain/road/limestone-road-v3.png', tile_catalog_source)
-        self.assertIn('assets/tiles/terrain/non-road/dry-soil-grass-v1.png', tile_catalog_source)
-        self.assert_ground_texture_selection('reedhaven', 'paving', 'reedhaven-dry-embankment')
-        self.assert_ground_texture_selection('grainstead', 'paving', 'reedhaven-dirt-road')
+        import yaml
+        tiles=yaml.safe_load((WORKFLOW_ROOT/'gui/ui/map/config/tile-catalog.yaml').read_text())['tiles']
+        assets={row['id']:row['asset'] for row in tiles}
+        self.assertEqual(assets['stonewarm-granite-paving'],'assets/tiles/terrain/road/granite-slab-road-v1.png')
+        self.assertEqual(assets['pebble-sand-base-v1'],'assets/tiles/terrain/non-road/pebble-sand-base-v1.png')
+        vendor=(WORKFLOW_ROOT/'gui/ui/map/vendor/field-renderer/town-renderer.mjs').read_text()
+        resolver='function resolvePavingFrameForMap('+vendor.split('function resolvePavingFrameForMap(',1)[1].split('\n}',1)[0]+'\n}'
+        script=resolver+"\nconst assert=require('node:assert/strict');assert.equal(resolvePavingFrameForMap('reedhaven'),'stonewarm-granite-paving');assert.equal(resolvePavingFrameForMap('grainstead'),'pebble-sand-base-v1');"
+        result=subprocess.run(['node','-e',script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
 
     def test_reedhaven_uses_registered_building_sprites(self):
         current_review_record = build_registered_map_review('reedhaven')
@@ -255,7 +264,7 @@ assert.throws(registerTextureAliases, /다른 검수 원본과 충돌/);
         map_review_script = (WORKFLOW_ROOT / 'gui/ui/map/block-map-review.js').read_text(encoding='utf-8')
         block_review_builder = (WORKFLOW_ROOT / 'workflow/build_block_map_review.py').read_text(encoding='utf-8')
 
-        self.assertIn('적용 타일 원본', map_review_template)
+        self.assertIn('지형 타일 원본', map_review_template)
         self.assertIn('<details class="applied-tile-sources">', map_review_template)
         self.assertIn('tile-source-warning', map_review_template)
         self.assertIn('applied-tile-sources img', map_review_template)
@@ -279,11 +288,28 @@ assert.throws(registerTextureAliases, /다른 검수 원본과 충돌/);
 
     def test_ground_texture_boundaries_align_to_block_edges(self):
         map_review_script = (WORKFLOW_ROOT / 'gui/ui/map/block-map-review.js').read_text(encoding='utf-8')
-
         self.assertIn('groundTextureOffset=currentFaceRecord.ground?0.5:0', map_review_script)
         self.assertIn('ground:true', map_review_script)
         self.assertIn("const BLOCK_BOUNDARY_COLOR='#dce5ef'", map_review_script)
-        self.assertEqual(map_review_script.count('strokeStyle=BLOCK_BOUNDARY_COLOR'), 2)
+        surface='function drawSurfacePolygon('+map_review_script.split('function drawSurfacePolygon(',1)[1].split('\nfunction drawReviewCharacter',1)[0]
+        adapter=(WORKFLOW_ROOT/'gui/ui/map/field-map-view.js').read_text(encoding='utf-8')
+        tile='function drawReviewTileBoundary('+adapter.split('function drawReviewTileBoundary(',1)[1].split('\n}',1)[0]+'\n}'
+        script=r"""
+const assert=require('node:assert/strict');let edges=false,strokes=0,points=[];
+const BLOCK_BOUNDARY_COLOR='#dce5ef',currentScaleValue=2,readReviewOption=()=>edges;
+const currentDrawingContext={beginPath(){},moveTo(){},lineTo(){},closePath(){},fill(){},stroke(){strokes++}};
+__SURFACE_FUNCTION__
+drawSurfacePolygon([{x:0,y:0},{x:1,y:1}], 'red');assert.equal(strokes,0);
+edges=true;drawSurfacePolygon([{x:0,y:0},{x:1,y:1}], 'red');assert.equal(strokes,1);assert.equal(currentDrawingContext.lineWidth,.5);
+const TILE_BOUNDARY_LINE_COLOR=1,FIELD_TILE_BOUNDARY_ALPHA=.5;
+const graphic={setDepth(){return this},lineStyle(){},beginPath(){},moveTo(x,y){points.push([x,y])},lineTo(x,y){points.push([x,y])},closePath(){},strokePath(){}};
+__TILE_FUNCTION__
+drawReviewTileBoundary({add:{graphics:()=>graphic}},{x:10,y:20},80,40,1);
+assert.deepEqual(points,[[10,0],[50,20],[10,40],[-30,20]]);
+""".replace('__SURFACE_FUNCTION__',surface).replace('__TILE_FUNCTION__',tile)
+        result=subprocess.run(['node','-e',script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertGreaterEqual(adapter.count('drawReviewTileBoundary(currentFieldScene,'),2)
 
     def test_roof_texture_frames_are_mapped_to_each_block_boundary(self):
         map_review_script = (WORKFLOW_ROOT / 'gui/ui/map/block-map-review.js').read_text(encoding='utf-8')

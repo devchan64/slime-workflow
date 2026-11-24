@@ -6,6 +6,276 @@ import unittest
 
 
 class MapReviewLifecycleTests(unittest.TestCase):
+    def test_save_revision_observation_does_not_claim_completion(self):
+        source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
+        check='async function inspectSaveRevision(event){'+source.split('async function inspectSaveRevision(event){',1)[1].split('\n  async function inspectCell',1)[0]
+        script=r"""
+const assert=require('node:assert/strict');let result,feedback='',reading=false;
+const draft={map:'test',revision:'old'},readMap=async()=>result,setReading=value=>reading=value,setFeedback=value=>feedback=value,requestErrorMessage=e=>e.message,restorePreviewFocus={current:false};
+const button={},document={activeElement:button};
+SOURCE
+(async()=>{for(const [revision,word] of [['old','같습니다'],['new','다릅니다']]){result={map:'test',revision};await inspectSaveRevision({currentTarget:button});assert.equal(restorePreviewFocus.current,true);assert.ok(feedback.includes(word));assert.match(feedback,/완료 여부를 판단할 수 없습니다/);assert.equal(reading,false)}
+result={map:'other',revision:'new'};await inspectSaveRevision();assert.match(feedback,/조회 실패/);assert.equal(draft.revision,'old');})().catch(error=>{console.error(error);process.exitCode=1});
+""".replace('SOURCE',check)
+        result=subprocess.run(['node','-e',script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_save_timeout_keeps_draft_and_reports_uncertainty(self):
+        root=Path(__file__).resolve().parents[2]
+        source=(root/'gui/MapReview.jsx').read_text()
+        save='async function save(event){'+source.split('async function save(event){',1)[1].split('\n  async function inspectCell',1)[0]
+        until=(root/'gui/managementCommand.js').read_text().split('\nexport async function managementCommand',1)[0].replace('export async function','async function')
+        script=r"""
+const assert=require('node:assert/strict');let timer,calls=0,feedback='',reading=false,saving=false,changed=false;
+const draft={map:'test'},preview={token:'token'},savingRef={current:false},restorePreviewFocus={current:false};
+const setTimeout=fn=>{timer=fn;return 1},clearTimeout=()=>{},managementCommand=()=>{calls++;return new Promise(()=>{})};
+const mapDraftSaveReason=()=>'',setSaving=value=>saving=value,setReading=value=>reading=value,setFeedback=value=>feedback=value,setPreview=()=>{},setSaveUncertain=()=>{};
+const requestErrorMessage=e=>e.message,setDraft=()=>changed=true;
+UNTIL
+SOURCE
+(async()=>{const pending=save();await save();assert.equal(calls,1);timer();await pending;assert.equal(changed,false);assert.equal(reading,false);assert.equal(saving,false);assert.equal(savingRef.current,false);assert.match(feedback,/원본 상태를 확인/);assert.match(feedback,/초과/);})().catch(e=>{console.error(e);process.exitCode=1});
+""".replace('SOURCE',save).replace('UNTIL',until)
+        result=subprocess.run(['node','-e',script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_new_edit_requires_autosave_confirmation(self):
+        source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
+        apply='async function applyDraft(next,action){'+source.split('async function applyDraft(next,action){',1)[1].split('\n  async function save(',1)[0]
+        script=r"""
+const assert=require('node:assert/strict');let storageFailed=false,applied=false;
+const cellDirty=false,draft={map:'test'},past=[],future=[],cell=null;
+const readMap=async()=>({render:{},cells:1,reachable:2}),validMapDraftPreview=()=>true,applyMapPreview=async()=>{};
+const setStorageFailed=value=>storageFailed=value,setDraft=value=>{assert.equal(storageFailed,true);applied=value.map==='test'},requestErrorMessage=e=>e.message;
+const setReading=()=>{},setPreview=()=>{},setFeedback=()=>{},setPast=()=>{},setFuture=()=>{},setCell=()=>{},setCellOriginal=()=>{};
+SOURCE
+(async()=>{await applyDraft({map:'test'},'edit');assert.equal(applied,true);})().catch(error=>{console.error(error);process.exitCode=1});
+""".replace('SOURCE',apply)
+        result=subprocess.run(['node','-e',script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_unsaved_cell_guards_same_tab_and_unload(self):
+        source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
+        guard='function guardNavigation(event){'+source.split('function guardNavigation(event){',1)[1].split('\n  return <article>',1)[0]
+        effect='useEffect(()=>{'+source.split('const cellDirty=isMapCellDirty(cell,cellOriginal);',1)[1].split('useEffect(()=>{',1)[1].split('},[cellDirty,unsafeAutosave,saving,saveUncertain]);',1)[0]+'},[cellDirty,unsafeAutosave,saving,saveUncertain]);'
+        script=r"""
+const assert=require('node:assert/strict');let cellDirty=true,unsafeAutosave=false,saving=false,saveUncertain=false,message='',blocked=false,handler,removed=false,cleanup;
+const setFeedback=value=>message=value;
+const window={addEventListener:(name,fn)=>{assert.equal(name,'beforeunload');handler=fn},removeEventListener:(name,fn)=>{removed=fn===handler}};
+const useEffect=fn=>{cleanup=fn()};
+GUARD
+const event=overrides=>({button:0,preventDefault(){blocked=true},...overrides});
+guardNavigation(event({}));assert.equal(blocked,true);assert.match(message,/검증/);
+blocked=false;guardNavigation(event({ctrlKey:true}));assert.equal(blocked,false);
+cellDirty=false;guardNavigation(event({}));assert.equal(blocked,false);
+unsafeAutosave=true;guardNavigation(event({}));assert.equal(blocked,true);assert.match(message,/임시저장/);blocked=false;unsafeAutosave=false;
+cellDirty=true;EFFECT
+const unload={preventDefault(){blocked=true}};blocked=false;handler(unload);assert.equal(blocked,true);assert.equal(unload.returnValue,true);cleanup();assert.equal(removed,true);
+cellDirty=false;unsafeAutosave=true;handler=null;EFFECT
+assert.equal(typeof handler,'function');blocked=false;handler({preventDefault(){blocked=true}});assert.equal(blocked,true);cleanup();
+unsafeAutosave=false;saving=true;blocked=false;guardNavigation(event({}));assert.equal(blocked,true);assert.match(message,/저장 결과/);EFFECT
+assert.equal(typeof handler,'function');cleanup();saving=false;saveUncertain=true;handler=null;EFFECT
+assert.equal(typeof handler,'function');cleanup();
+""".replace('GUARD',guard).replace('EFFECT',effect)
+        result=subprocess.run(['node','-e',script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_failed_preview_preserves_draft_and_history(self):
+        source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
+        apply='async function applyDraft(next,action){'+source.split('async function applyDraft(next,action){',1)[1].split('\n  async function save(',1)[0]
+        script=r"""
+const assert=require('node:assert/strict');let draftState='old',history='old',feedback='',reading=false;
+const cellDirty=false,draft={map:'test'},past=[],future=[],cell=null;
+const requestErrorMessage=error=>error.message;
+const readMap=async()=>({render:{},cells:1,reachable:2}),validMapDraftPreview=()=>true,applyMapPreview=async()=>{throw Error('미리보기 실패')};
+const setReading=value=>reading=value,setFeedback=value=>feedback=value,setDraft=value=>draftState=value,setPast=value=>history=value;
+const setPreview=()=>{},setFuture=()=>{},setCell=()=>{},setCellOriginal=()=>{};
+SOURCE
+(async()=>{await applyDraft({map:'test'},'edit');assert.equal(draftState,'old');assert.equal(history,'old');assert.equal(reading,false);assert.match(feedback,/미리보기 실패/);})().catch(error=>{console.error(error);process.exitCode=1});
+""".replace('SOURCE',apply)
+        result=subprocess.run(['node','-e',script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_cancelled_preview_does_not_apply_late_images(self):
+        source=(Path(__file__).resolve().parents[2]/'gui/ui/map/block-map-review.js').read_text()
+        preview='window.mapReviewApplyDraft=async(currentDraftRecord,{signal}={})=>{'+source.split('window.mapReviewApplyDraft=async(currentDraftRecord,{signal}={})=>{',1)[1].split('\n};',1)[0]+'\n};'
+        preview=preview.replace('import.meta.url',"'http://localhost/'")
+        script=r"""
+const assert=require('node:assert/strict');let resolve,rendered=0,added=0,failRender=0;
+const window={},isFieldMapReview=true,currentMapRecord={id:'test',name:'original'},currentMapLoadController=new AbortController();
+const currentGameTextureSources={},currentTextureRecords={},loadedTextureImages={},currentSelectedGameKeys={};let currentFieldFrame=null;
+const collectMapResourceKeys=()=>[],loadMapResourceImages=()=>new Promise(done=>resolve=done),currentSharedFieldView={addEditorTextures(){added++}},renderBlockMap=()=>{rendered++;if(failRender>0){failRender--;throw Error('draw failed')}};
+SOURCE
+(async()=>{const controller=new AbortController(),pending=window.mapReviewApplyDraft({id:'test',name:'new'},{signal:controller.signal});controller.abort();resolve({});await assert.rejects(pending,{name:'AbortError'});assert.equal(currentMapRecord.name,'original');assert.equal(rendered,0);assert.equal(added,0);
+const normal=window.mapReviewApplyDraft({id:'test',name:'new'});resolve({});await normal;assert.equal(currentMapRecord.name,'new');assert.equal(rendered,1);assert.equal(added,1);
+failRender=1;const failed=window.mapReviewApplyDraft({id:'test',name:'broken',extra:true});resolve({});await assert.rejects(failed,/draw failed/);assert.equal(currentMapRecord.name,'new');assert.equal('extra' in currentMapRecord,false);assert.equal(rendered,3);
+failRender=2;const failedRestore=window.mapReviewApplyDraft({id:'test',name:'broken'});resolve({});await assert.rejects(failedRestore,/검증 전 셀 입력은 파일에 포함되지 않습니다/);assert.equal(currentMapRecord.name,'new');
+await assert.rejects(window.mapReviewApplyDraft({id:'different',name:'wrong'}),/다릅니다/);assert.equal(currentMapRecord.name,'new');})().catch(error=>{console.error(error);process.exitCode=1});
+""".replace('SOURCE',preview)
+        result=subprocess.run(['node','-e',script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_import_accepts_matching_draft_and_cancels_on_exit(self):
+        root=Path(__file__).resolve().parents[2]
+        source=(root/'gui/MapReview.jsx').read_text()
+        importer='async function importDraft(file){'+source.split('async function importDraft(file){',1)[1].split('\n  async function discardDraft()',1)[0]
+        until=(root/'gui/managementCommand.js').read_text().split('\nexport async function managementCommand',1)[0].replace('export async function','async function')
+        script=r"""
+const assert=require('node:assert/strict');let resolve,applied=[],feedback='',reading=false;
+const draft={map:'test',revision:'r'},importRequest={current:null};
+const setReading=value=>reading=value,setImportError=value=>feedback=value,requestErrorMessage=e=>e.message,applyDraft=async(value,action)=>applied.push([value,action]);
+UNTIL
+SOURCE
+(async()=>{
+ await importDraft({text:async()=>JSON.stringify({version:1,state:{draft:{map:'test',revision:'r',cells:[]}}})});
+ assert.equal(applied.length,1);assert.equal(applied[0][1],'import');assert.equal(reading,false);
+ await importDraft({text:async()=>JSON.stringify({map:'other',revision:'r'})});assert.equal(applied.length,1);assert.match(feedback,/일치/);
+ for(const text of ['{','null','[]']){await importDraft({text:async()=>text});assert.match(feedback,/올바른 JSON/);assert.equal(applied.length,1);}
+ await importDraft({text:async()=>JSON.stringify({map:'test',revision:'r'})});assert.equal(feedback,'');assert.equal(applied.length,2);
+ feedback='';const pending=importDraft({text:()=>new Promise(done=>resolve=done)});importRequest.current.abort();await pending;
+ resolve(JSON.stringify({map:'test',revision:'r'}));await Promise.resolve();assert.equal(applied.length,2);assert.equal(feedback,'');assert.equal(importRequest.current,null);
+})().catch(error=>{console.error(error);process.exitCode=1});
+""".replace('SOURCE',importer).replace('UNTIL',until)
+        result=subprocess.run(['node','-e',script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_import_timeout_does_not_apply_late_file(self):
+        source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
+        importer='async function importDraft(file){'+source.split('async function importDraft(file){',1)[1].split('\n  async function discardDraft()',1)[0]
+        script=r"""
+const assert=require('node:assert/strict');let timer,resolve,applied=0,reading=false,feedback='';
+const draft={map:'test',revision:'r'},importRequest={current:null};
+const file={text:()=>new Promise(done=>resolve=done)},setTimeout=fn=>{timer=fn;return 1},clearTimeout=()=>{};
+const setReading=value=>reading=value,setImportError=value=>feedback=value,requestErrorMessage=e=>e.message,applyDraft=async()=>applied++;
+const untilAborted=(promise,signal)=>Promise.race([promise,new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(new DOMException('aborted','AbortError')),{once:true}))]);
+SOURCE
+(async()=>{const pending=importDraft(file);timer();await pending;resolve(JSON.stringify({map:'test',revision:'r'}));await Promise.resolve();assert.equal(applied,0);assert.equal(reading,false);assert.match(feedback,/시간이 초과/);assert.equal(importRequest.current,null);})().catch(error=>{console.error(error);process.exitCode=1});
+""".replace('SOURCE',importer)
+        result=subprocess.run(['node','-e',script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_new_autosave_releases_only_successfully_replaced_draft(self):
+        source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
+        effect='useEffect(()=>{'+source.split('const storageKey=map=>',1)[1].split('useEffect(()=>{',1)[1].split('},[draft,past,future,source]);',1)[0]+'},[draft,past,future,source]);'
+        script=r"""
+const assert=require('node:assert/strict');
+let fail=false,stored,notice='';const draft={map:'test'},source={},past=[{}],future=[];
+const discardedRecovery={current:new Set(['test','other'])},storageKey=map=>map,setStorageNotice=value=>notice=value,setStorageFailed=()=>{},requestErrorMessage=error=>error.message;
+const sessionStorage={setItem(key,value){if(fail)throw Error('denied');stored=JSON.parse(value)}};
+const useEffect=fn=>fn();
+function run(){EFFECT}
+fail=true;run();assert.equal(discardedRecovery.current.has('test'),true);assert.match(notice,/실패/);
+fail=false;run();assert.equal(discardedRecovery.current.has('test'),false);assert.equal(discardedRecovery.current.has('other'),true);assert.equal(stored.state.draft.map,'test');assert.match(notice,/보관/);
+""".replace('EFFECT',effect)
+        result=subprocess.run(['node','-e',script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_saved_draft_does_not_restore_after_storage_removal_failure(self):
+        source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
+        save='async function save(event){'+source.split('async function save(event){',1)[1].split('\n  async function inspectCell',1)[0]
+        script=r"""
+const assert=require('node:assert/strict');let draftState='old',notice='',feedback='',reading=false;
+const draft={map:'test'},preview={token:'token'},discardedRecovery={current:new Set()},savingRef={current:false},restorePreviewFocus={current:false};
+const untilAborted=promise=>promise,setSaving=()=>{};
+const managementCommand=async()=>({map:'test',saved:true}),mapDraftSaveReason=()=>'',storageKey=map=>map,requestErrorMessage=error=>error.message;
+const sessionStorage={removeItem(){throw new Error('storage denied')}};
+const setReading=value=>reading=value,setDraft=value=>draftState=value,setStorageNotice=value=>notice=value,setStorageFailed=()=>{},setSaveUncertain=()=>{},setFeedback=value=>feedback=value;
+const setCell=()=>{},setSource=()=>{},setPreview=()=>{},setPast=()=>{},setFuture=()=>{};
+SOURCE
+(async()=>{await save();assert.equal(draftState,null);assert.equal(reading,false);assert.equal(discardedRecovery.current.has('test'),true);assert.match(notice,/자동 복원/);assert.match(feedback,/저장 완료/);})().catch(error=>{console.error(error);process.exitCode=1});
+""".replace('SOURCE',save)
+        result=subprocess.run(['node','-e',script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_discard_restores_original_even_when_storage_removal_fails(self):
+        source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
+        discard='async function discardDraft(){'+source.split('async function discardDraft(){',1)[1].split('\n  function discardRecovery()',1)[0]
+        script=r"""
+const assert=require('node:assert/strict');
+let applied=false,feedback='',notice='',draftState='old',reading=false;
+const draft={map:'test'},discardedRecovery={current:new Set()},window={confirm:()=>true};
+const applyMapPreview=async()=>{applied=true};
+const readMap=async()=>({render:{}}),storageKey=map=>map,requestErrorMessage=error=>error.message;
+const sessionStorage={removeItem(){throw new Error('storage denied')}};
+const setReading=value=>reading=value,setDraft=value=>draftState=value,setStorageNotice=value=>notice=value,setStorageFailed=()=>{},setSaveUncertain=()=>{},setFeedback=value=>feedback=value;
+const setCell=()=>{},setSource=()=>{},setPreview=()=>{},setPast=()=>{},setFuture=()=>{},setBrush=()=>{};
+SOURCE
+(async()=>{await discardDraft();assert.equal(applied,true);assert.equal(draftState,null);assert.equal(reading,false);assert.equal(discardedRecovery.current.has('test'),true);assert.match(notice,/자동 복원/);assert.match(feedback,/원본/);})().catch(error=>{console.error(error);process.exitCode=1});
+""".replace('SOURCE',discard)
+        result=subprocess.run(['node','-e',script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_invalid_map_keeps_selector_available_and_empty_catalog_is_explained(self):
+        current_source=(Path(__file__).resolve().parents[2]/'gui/ui/map/block-map-review.js').read_text()
+        current_selection='const currentRequestedKind='+current_source.split('const currentRequestedKind=',1)[1].split('const GROUND_CONTRAST_PREVIEW_VALUES=',1)[0]
+        current_script=r"""
+const assert=require('node:assert/strict'),vm=require('node:vm');
+function setup(catalog){
+ const selector={options:[],append(option){this.options.push(option)}};
+ const button={},location={search:'?map=missing&mapKind=town',href:'http://localhost/map?map=missing&mapKind=town',assign(url){this.next=url.href}};
+ const context={currentMapCatalog:catalog,currentMapCanvas:{dataset:{}},location,URL,URLSearchParams,Option:class{constructor(name,id){this.name=name;this.value=id}},document:{querySelector:query=>query==='#map-select'?selector:button}};
+ return {context,selector,button,location};
+}
+let state=setup([{id:'town-a',name:'마을',kind:'town'}]);
+assert.throws(()=>vm.runInNewContext(SOURCE,state.context),/목록에서 다른 맵/);
+assert.equal(state.selector.value,'town-a');state.button.onclick();
+assert.equal(new URL(state.location.next).searchParams.get('map'),'town-a');
+state=setup([]);assert.throws(()=>vm.runInNewContext(SOURCE,state.context),/등록된 맵이 없습니다/);
+""".replace('SOURCE',json.dumps(current_selection))
+        current_result=subprocess.run(['node','-e',current_script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_result.returncode,0,current_result.stderr)
+
+    def test_standalone_initialization_failure_offers_reload(self):
+        current_template=(Path(__file__).resolve().parents[2]/'gui/ui/map/block-map-review.html').read_text()
+        current_loader=current_template.split('<script type="module">',1)[1].split('</script>',1)[0]
+        current_loader=current_loader.replace("import('./block-map-review.js')", "Promise.reject(new Error('로드 실패'))")
+        current_script=r"""
+const assert=require('node:assert/strict');
+let button, reloads=0;
+const status={setAttribute:(key,value)=>{status[key]=value},after:value=>{button=value}};
+const document={querySelector:()=>status,createElement:()=>({addEventListener:(name,fn)=>{buttonHandler=fn}})};
+const location={reload:()=>reloads++};let buttonHandler;
+LOADER
+setImmediate(()=>{assert.equal(status.role,'alert');assert.match(status.textContent,/로드 실패/);assert.equal(button.textContent,'맵 검수 다시 불러오기');buttonHandler();assert.equal(reloads,1)});
+""".replace('LOADER',current_loader)
+        current_result=subprocess.run(['node','-e',current_script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_result.returncode,0,current_result.stderr)
+
+    def test_standalone_slow_load_notice_clears_after_success(self):
+        current_template=(Path(__file__).resolve().parents[2]/'gui/ui/map/block-map-review.html').read_text()
+        current_loader=current_template.split('<script type="module">',1)[1].split('</script>',1)[0]
+        current_loader=current_loader.replace("import('./block-map-review.js')", 'pending')
+        current_script=r"""
+const assert=require('node:assert/strict');let timer,resolve,notice,focused=false,reloads=0;
+const pending=new Promise(done=>resolve=done);
+const status={after:node=>notice=node,focus:()=>focused=true};
+const document={activeElement:null,querySelector:()=>status,createElement:()=>({children:[],setAttribute(){},append(...nodes){this.children.push(...nodes)},addEventListener(name,fn){this.click=fn},contains(node){return this.children.includes(node)},remove(){this.removed=true}})};
+const setTimeout=fn=>{timer=fn;return 1},clearTimeout=()=>{},location={reload:()=>reloads++};
+LOADER
+timer();assert.match(notice.children[0].textContent,/오래 걸리고/);
+notice.children[1].click();assert.equal(reloads,1);
+document.activeElement=notice.children[1];resolve();
+setImmediate(()=>{assert.equal(notice.removed,true);assert.equal(focused,true)});
+""".replace('LOADER',current_loader)
+        current_result=subprocess.run(['node','-e',current_script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_result.returncode,0,current_result.stderr)
+
+    def test_standalone_slow_load_failure_announces_before_focus(self):
+        current_template=(Path(__file__).resolve().parents[2]/'gui/ui/map/block-map-review.html').read_text()
+        current_loader=current_template.split('<script type="module">',1)[1].split('</script>',1)[0]
+        current_loader=current_loader.replace("import('./block-map-review.js')", 'pending')
+        current_script=r"""
+const assert=require('node:assert/strict');let timer,reject,notice,focusText;
+const pending=new Promise((_,fail)=>reject=fail);
+const status={setAttribute(key,value){this[key]=value},after(node){if(!notice)notice=node},focus(){focusText=this.textContent}};
+const document={activeElement:null,querySelector:()=>status,createElement:()=>({children:[],setAttribute(){},append(...nodes){this.children.push(...nodes)},addEventListener(){},contains(node){return this.children.includes(node)},remove(){}})};
+const setTimeout=fn=>{timer=fn;return 1},clearTimeout=()=>{},location={reload(){}};
+LOADER
+timer();document.activeElement=notice.children[1];reject(new Error('서버 연결 실패'));
+setImmediate(()=>{assert.equal(status.role,'alert');assert.match(focusText,/서버 연결 실패/)});
+""".replace('LOADER',current_loader)
+        current_result=subprocess.run(['node','-e',current_script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_result.returncode,0,current_result.stderr)
+
     def test_source_list_preserves_nodes_until_sources_change(self):
         current_source_path=Path(__file__).resolve().parents[2]/'gui/ui/map/block-map-review.js'
         current_render_source=current_source_path.read_text().split('let currentAppliedSourceSignature=',1)[1].split('\nrenderAppliedTileSourceList();',1)[0]

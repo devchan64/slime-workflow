@@ -506,7 +506,17 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .writer-page fieldset {min-width:0;padding:1rem;border:1px solid var(--line);border-radius:.75rem}
 .writer-page fieldset label {display:grid;gap:.35rem;margin:.75rem 0}
 .writer-page fieldset textarea {width:100%;min-height:6rem;resize:vertical}
-.writer-action-row {display:flex;flex-wrap:wrap;gap:.5rem}
+:is(.writer-action-row,.ui-action-row) {display:flex;flex-wrap:wrap;gap:.5rem}
+.map-view-controls {min-width:0;overflow-wrap:anywhere}
+.map-view-controls :is(select,button) {max-width:100%}
+.map-display-options {display:flex;flex-wrap:wrap;gap:.5rem;margin:.65rem 0}
+.map-display-options label {display:flex;align-items:center;gap:.4rem;min-width:0}
+.map-display-options input[type=checkbox] {width:auto;flex:none;margin:0}
+.battlefield-controls,.battlefield-controls fieldset {min-width:0;overflow-wrap:anywhere}
+.battlefield-select {display:grid;gap:.3rem;max-width:24rem}
+.battlefield-select select {width:100%;min-width:0;max-width:100%}
+.battlefield-checkbox {display:flex;align-items:center;gap:.4rem;margin:.65rem 0}
+.battlefield-checkbox input {width:auto;flex:none;margin:0}
 .writer-page form {padding:0;flex-wrap:wrap;align-items:end}
 .writer-page form label {display:grid;gap:.35rem;flex:1 1 16rem}
 .fun-drawer .embedded-generator > .writer-page-shell {min-height:0;padding:0}
@@ -816,6 +826,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 :is(.vace-group-help,.generator-group-help) {font-size:.85rem;color:var(--muted,#afbabd);margin:0 0 .55rem;line-height:1.5}
 :is(.vace-settings-grid,.generator-settings-grid) {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:0 .8rem}
 .generator-settings-grid {align-items:start}
+:is(.map-cell-editor,.map-review-feedback,.map-review-canvas):focus {outline:2px solid var(--accent,#a7c8ff);outline-offset:3px}
 .generator-settings-grid select {width:100%;font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
 .generator-attachments {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:.75rem;align-items:start;min-width:0}
 .generator-video-input {min-width:0;border:1px dashed var(--line,#484d50);border-radius:.6rem;padding:.65rem;display:grid;gap:.5rem;align-content:start;overflow-wrap:anywhere}

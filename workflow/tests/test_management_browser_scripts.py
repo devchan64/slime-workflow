@@ -35,6 +35,7 @@ MANAGEMENT_BROWSER_TEST_SCRIPTS = (
     'generation_estimate.test.mjs',
     'generation_progress_model.test.mjs',
     'generator_page_registry.test.mjs',
+    'database_texture_catalog.test.mjs',
     'request_error.test.mjs',
     'generation_control_response.test.mjs',
     'generation_resume_command.test.mjs',

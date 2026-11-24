@@ -35,10 +35,10 @@ const isCharacterReviewPage=currentMapCanvas.dataset.characterReview==='true';
 const CHARACTER_REVIEW_RESOLUTION_SCALE=isCharacterReviewPage?2:1;
 const CHARACTER_REVIEW_GRID_SIZE=3;
 const CHARACTER_REVIEW_TILE_NAMES=['paving','grass','meadow-road'];
+if(!availableMapRecords.length)throw Error('선택한 종류에 등록된 맵이 없습니다.');
 const selectedMapIdentifier=new URLSearchParams(location.search).get('map')||availableMapRecords[0].id;
 const isTownSpecificReviewPage=false;
 const selectedMapRecord=availableMapRecords.find(currentMapEntry=>currentMapEntry.id===selectedMapIdentifier);
-if(!selectedMapRecord){document.querySelector('#status').textContent='등록되지 않은 맵입니다.';throw Error('등록되지 않은 맵: '+selectedMapIdentifier)}
 function selectReviewMap(currentMapIdentifier){
  if(!availableMapRecords.some(currentMapEntry=>currentMapEntry.id===currentMapIdentifier))throw Error('등록된 맵을 선택하세요.');
  const selectedMapUrl=new URL(location.href);selectedMapUrl.searchParams.set('map',currentMapIdentifier);location.assign(selectedMapUrl);
@@ -46,10 +46,11 @@ function selectReviewMap(currentMapIdentifier){
 const currentMapSelector=document.querySelector('#map-select');
 if(currentMapSelector){
  for(const currentMapEntry of availableMapRecords)currentMapSelector.append(new Option(currentMapEntry.name,currentMapEntry.id));
- currentMapSelector.value=selectedMapIdentifier;
+ currentMapSelector.value=selectedMapRecord?selectedMapIdentifier:availableMapRecords[0].id;
  if(isTownSpecificReviewPage){currentMapSelector.closest('label').hidden=true;document.querySelector('#load-map').hidden=true;}
  document.querySelector('#load-map').onclick=()=>selectReviewMap(currentMapSelector.value);
 }
+if(!selectedMapRecord)throw Error('등록되지 않은 맵입니다. 목록에서 다른 맵을 선택해 불러오세요: '+selectedMapIdentifier);
 const GROUND_CONTRAST_PREVIEW_VALUES={original:1,soft:0.65};
 let currentGroundPreviewMode='original';
 const GROUND_REDUCED_SATURATION=0.7;
@@ -572,7 +573,8 @@ window.mapReviewExportImage=async()=>{
 if(document.querySelector('#blocked-areas'))document.querySelector('#blocked-areas').onchange=()=>renderBlockMap();
 
 // 편집 초안도 동일한 공용 렌더러와 리소스 로더로 표시한다.
-window.mapReviewApplyDraft=async(currentDraftRecord)=>{
+window.mapReviewApplyDraft=async(currentDraftRecord,{signal}={})=>{
+ signal?.throwIfAborted();
  if(!isFieldMapReview||currentDraftRecord.id!==currentMapRecord.id)throw Error('현재 불러온 야외필드와 편집 맵이 다릅니다. 먼저 해당 맵을 불러오세요.');
  const currentDraftKeys=collectMapResourceKeys(currentDraftRecord,'field');
  const currentDraftTextures={},currentDraftGameKeys={};
@@ -582,11 +584,22 @@ window.mapReviewApplyDraft=async(currentDraftRecord)=>{
   if(!currentCatalogEntry)throw Error('초안 리소스가 없습니다: '+currentResourceKey);
   currentDraftTextures[currentCatalogEntry[0]]=currentCatalogEntry[1];currentDraftGameKeys[currentResourceKey]=currentCatalogEntry[0];
  }
- const currentDraftImages=await loadMapResourceImages(Object.entries(currentDraftTextures).filter(([currentTextureKey])=>!loadedTextureImages[currentTextureKey]).map(([currentTextureKey,currentTextureRecord])=>({key:currentTextureKey,url:new URL(currentTextureRecord.path,import.meta.url).href})),{signal:currentMapLoadController.signal});
+ const currentDraftImages=await loadMapResourceImages(Object.entries(currentDraftTextures).filter(([currentTextureKey])=>!loadedTextureImages[currentTextureKey]).map(([currentTextureKey,currentTextureRecord])=>({key:currentTextureKey,url:new URL(currentTextureRecord.path,import.meta.url).href})),{signal:signal?AbortSignal.any([signal,currentMapLoadController.signal]):currentMapLoadController.signal});
+ signal?.throwIfAborted();currentMapLoadController.signal.throwIfAborted();
  Object.assign(loadedTextureImages,currentDraftImages);
  currentSharedFieldView.addEditorTextures(loadedTextureImages,currentDraftGameKeys);
- Object.assign(currentSelectedGameKeys,currentDraftGameKeys);
- Object.assign(currentMapRecord,currentDraftRecord);
- currentFieldFrame=null;
- renderBlockMap();
+ const previousMap={...currentMapRecord},previousKeys={...currentSelectedGameKeys},previousFrame=currentFieldFrame;
+ try{
+  Object.assign(currentSelectedGameKeys,currentDraftGameKeys);
+  Object.assign(currentMapRecord,currentDraftRecord);
+  currentFieldFrame=null;
+  renderBlockMap();
+ }catch(error){
+  for(const key of Object.keys(currentMapRecord))delete currentMapRecord[key];
+  Object.assign(currentMapRecord,previousMap);
+  for(const key of Object.keys(currentSelectedGameKeys))delete currentSelectedGameKeys[key];
+  Object.assign(currentSelectedGameKeys,previousKeys);currentFieldFrame=previousFrame;
+  try{renderBlockMap();}catch{throw Error('미리보기 적용과 기존 화면 복원에 실패했습니다. 필요한 경우 초안 JSON을 내려받은 뒤 페이지를 다시 열어 확인하세요. 검증 전 셀 입력은 파일에 포함되지 않습니다.',{cause:error});}
+  throw error;
+ }
 };

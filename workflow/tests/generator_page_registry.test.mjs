@@ -3,5 +3,7 @@ import {generatorPageIdentity, generatorPages} from '../../gui/generatorPageRegi
 assert.equal(generatorPageIdentity('kimodo').changelog, 'kimodo-generator');
 assert.equal(generatorPageIdentity('wan22-vace').changelog, 'wan22-vace-generator');
 assert.equal(generatorPageIdentity('dwpose').changelog, 'dwpose-generator');
-assert.equal(Object.keys(generatorPages).length,3);
+for(const service of ['wan22-animate2','wan22-i2v','wan21-t2v','wan21-i2v'])
+  assert.equal(generatorPageIdentity(service).changelog,`${service}-generator`);
+assert.equal(Object.keys(generatorPages).length,7);
 for(const value of ['__proto__','toString','missing','']) assert.throws(()=>generatorPageIdentity(value));
