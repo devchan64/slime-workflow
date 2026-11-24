@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from "react";
 
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
+import {progressDeadline} from "./progressDeadline.mjs";
 import ActionButton from "./ActionButton.jsx";
 import {restoreLostFocus} from "./restoreLostFocus.mjs";
 import {validMapDraftPreview,mapDraftSaveReason,isMapCellDirty,readMapCell} from "./mapDraftPreview.mjs";
@@ -245,15 +246,15 @@ export default function MapReview(){
   useEffect(()=>{
     let active=true,timedOut=false;
     const controller=new AbortController();
-    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    const cancelDeadline=progressDeadline(window,"map-review-load-progress",()=>{timedOut=true;controller.abort();});
     setLoadError("");setReady(false);
     const url=new URL(location.href);
     url.searchParams.set("mapKind",field?"field":"town");
     history.replaceState(null,"",url);
     untilAborted(import(new URL("/isloon-map-review/block-map-review.js",location.origin).href),controller.signal).then(()=>{
       if(active)setReady(true);
-    }).catch(error=>{if(active)setLoadError(timedOut ? "지도 검수 화면을 불러오는 시간이 초과됐습니다." : requestErrorMessage(error));}).finally(()=>clearTimeout(timeout));
-    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
+    }).catch(error=>{if(active)setLoadError(timedOut ? "지도 검수 화면을 불러오는 시간이 초과됐습니다." : requestErrorMessage(error));}).finally(cancelDeadline);
+    return ()=>{active=false;cancelDeadline();controller.abort();};
   },[field]);
   useEffect(()=>{
     if(!field || !ready)return;

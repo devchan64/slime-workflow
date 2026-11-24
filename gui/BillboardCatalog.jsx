@@ -17,6 +17,7 @@ function imageUrl(id){
 }
 
 export default function BillboardCatalog({choose}){
+  useEffect(()=>{if(!choose)document.title="공용 빌보드 에셋 관리";},[choose]);
   const [query,setQuery]=useState(""),[category,setCategory]=useState("");
   const [request,setRequest]=useState({offset:0,limit:10}),[page,setPage]=useState(null);
   const [notice,setNotice]=useState("");
@@ -57,7 +58,7 @@ export default function BillboardCatalog({choose}){
   }
   const resultsStale=!!page && displayedRequest!==request;
   const filtersChanged=query!==(request.query || "") || category!==(request.category || "");
-  return <section className={"billboard-catalog"+(!choose ? " billboard-standalone" : "")}><h2>공용 빌보드 에셋</h2>
+  return <section className={"billboard-catalog"+(!choose ? " billboard-standalone" : "")}>{choose ? <h2>공용 빌보드 에셋</h2> : <h1>공용 빌보드 에셋</h1>}
     <fieldset disabled={locked} style={{border:0,padding:0,margin:0}}><BillboardRegistration onSaved={()=>setRequest({...request,offset:0})}/></fieldset>
     {editingProperties && <p role="status">공용 속성 편집 중입니다. 다른 에셋을 열거나 검색하려면 편집을 취소하거나 저장하세요.</p>}
     {lifecycleActive && <p role="status">원본 축소 또는 폐기를 검토 중입니다. 다른 에셋을 열거나 검색하려면 검토를 취소하거나 완료하세요.</p>}

@@ -441,7 +441,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .keyframe-placement-form {display:block;width:100%;min-width:0;max-width:none;margin:.75rem 0;padding:0}
 .keyframe-placement-form > fieldset {min-width:0;max-width:100%}
 .billboard-standalone {width:min(100% - 2rem,80rem);margin:1.5rem auto}
-.billboard-standalone > h2 {font-size:1.5rem;margin:0 0 .8rem}
+.billboard-standalone > h1 {font-size:1.5rem;margin:0 0 .8rem}
 .billboard-catalog > .billboard-search {width:100%;max-width:none;margin:.8rem 0;padding:0;display:flex;flex-wrap:wrap;align-items:end;gap:.5rem}
 .billboard-search label {display:grid;gap:.35rem;min-width:0;flex:1 1 12rem}
 .billboard-search :is(input,select) {width:100%;min-width:0;font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
@@ -1043,6 +1043,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .fun-drawer [aria-label="Kimodo 생성 입력"] form > fieldset {border:0;padding:0;margin:0}
 .fun-drawer [aria-label="Kimodo 생성 입력"] .kimodo-segment-settings {padding:.5rem}
 .vace-page .vace-input-card form > fieldset {padding:0;border:0;margin:0}
+.vace-page .vace-input-card form :is(textarea,select,input:not([type=file]):not([type=checkbox]):not([type=radio])) {font-size:1rem}
 .vace-page .vace-history-card {padding:0;border:0;margin:0;min-width:0}
 .generator-history.generator-section-card > fieldset {padding:.8rem;border:0;margin:0;min-width:0}
 .vace-page [aria-label="선택한 VACE 작업 결과"] {padding:0;border:0;border-radius:0}

@@ -94,7 +94,7 @@ export default function WorldMap() {
   }
   return <section className="world-map-review">
     <a href={conversation}>헤르메스 대화</a><h1>월드맵 검수</h1>
-    <button ref={reloadRef} type="button" disabled={loading} onClick={event=>{if(reloadPending.current)return;reloadPending.current=true;restoreReloadFocus.current=document.activeElement===event.currentTarget;setLoading(true);setRevision(v=>v+1);}}>{loading ? "원본 조회 중…" : "원본 다시 불러오기"}</button>
+    <button ref={reloadRef} type="button" aria-disabled={loading} onClick={event=>{if(reloadPending.current)return;reloadPending.current=true;restoreReloadFocus.current=document.activeElement===event.currentTarget;setLoading(true);setRevision(v=>v+1);}}>{loading ? "원본 조회 중…" : "원본 다시 불러오기"}</button>
     <WorldMapStatus checkedAt={checkedAt} error={error} loading={loading} loaded={loaded} mapCount={maps.length}/>
     {maps.length>0 && <>
       <p>검증 통과 · 맵 {maps.length}개 · 지도 간 연결 {links.length}개</p>

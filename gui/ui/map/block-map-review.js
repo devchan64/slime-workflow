@@ -115,7 +115,7 @@ for(const currentResourceKey of currentResourceKeys){
  if(!currentCatalogEntry)throw Error('선택 맵 리소스가 카탈로그에 없습니다: '+currentResourceKey);
  currentSelectedTextureRecords[currentCatalogEntry[0]]=currentCatalogEntry[1];currentSelectedGameKeys[currentResourceKey]=currentCatalogEntry[0];
 }
-const loadedTextureImages=await loadMapResourceImages(Object.entries(currentSelectedTextureRecords).map(([currentTextureKey,currentTextureRecord])=>({key:currentTextureKey,url:new URL(currentTextureRecord.path,import.meta.url).href})),{signal:currentMapLoadController.signal,onProgress:currentLoadProgress=>{document.querySelector('#status').textContent=`선택 맵 리소스 불러오는 중 · ${currentLoadProgress.completed} / ${currentLoadProgress.total}`;}});
+const loadedTextureImages=await loadMapResourceImages(Object.entries(currentSelectedTextureRecords).map(([currentTextureKey,currentTextureRecord])=>({key:currentTextureKey,url:new URL(currentTextureRecord.path,import.meta.url).href})),{signal:currentMapLoadController.signal,onProgress:currentLoadProgress=>{document.querySelector('#status').textContent=`선택 맵 리소스 불러오는 중 · ${currentLoadProgress.completed} / ${currentLoadProgress.total}`;window.dispatchEvent(new Event('map-review-load-progress'));}});
 const currentResourceSummary=document.createElement('p');currentResourceSummary.setAttribute('role','status');currentResourceSummary.textContent=`선택 맵 타일·오브젝트 ${Object.keys(currentSelectedTextureRecords).length}종 로드 · 전체 카탈로그 ${Object.keys(currentTextureRecords).length}종`;document.querySelector('#status').after(currentResourceSummary);
 document.querySelector('#status').textContent='기본 캐릭터 원본 불러오는 중';
 const reviewCharacterRecord=await fetchMapReviewRecord('review-character.json');
