@@ -43,4 +43,18 @@ class MiniMaxH3ImageManager(ImageGenerationManager):
         if handler.command == 'GET' and urlsplit(handler.path).path == self.route_prefix_value + '/model-status':
             send_management_json_response(handler, 200, inspect_runtime())
             return True
+        if handler.command == 'POST' and urlsplit(handler.path).path == self.route_prefix_value + '/preview':
+            try:
+                payload = getattr(handler, 'management_command_payload', None)
+                if payload is None:
+                    size = int(handler.headers.get('Content-Length', '0'))
+                    if not 0 < size <= 40200000:
+                        raise ValueError('요청 크기 오류')
+                    from workflow.common.management_gateway import parse_management_request_json
+                    payload = parse_management_request_json(handler.rfile.read(size))
+                result = validate_request(payload)
+                send_management_json_response(handler, 200, {'prompt': result['prompt'], 'prompt_sha256': result['prompt_sha256']})
+            except (ValueError, TypeError, UnicodeError) as error:
+                send_management_json_response(handler, 400, {'error': str(error)})
+            return True
         return super().handle_image_request(handler)

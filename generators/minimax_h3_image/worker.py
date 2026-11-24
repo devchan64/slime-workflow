@@ -23,8 +23,21 @@ def execute(job):
     if job.is_symlink() or job.resolve().parent != STORAGE.resolve():
         raise ValueError('이미지 작업 경로 오류')
     request = json.loads((job / 'request.json').read_text())
-    from generators.minimax_h3_image.contracts import validate_request
-    validate_request({key: request[key] for key in ('action', 'prompt', 'width', 'height', 'steps', 'seed', 'tag')} | {'images': []})
+    from generators.minimax_h3_image.contracts import verify_saved_request
+    from workflow.domains.image.three_reference_generation import validate_three_reference_request
+    if 'common_style' in request:
+        verify_saved_request(request)
+    elif any(key in request for key in ('user_prompt', 'prompt_sha256')):
+        raise ValueError('공용 화풍 입력 기록이 불완전합니다.')
+    else:
+        # Existing queued jobs predate common-style metadata; preserve their input.
+        request['user_prompt'] = request['prompt']
+        request['prompt_sha256'] = hashlib.sha256(request['prompt'].encode('utf-8')).hexdigest()
+    validate_three_reference_request({key: request[key] for key in ('action', 'width', 'height', 'steps', 'seed', 'tag')}
+        | {'prompt': request['user_prompt'], 'images': []}, allowed_inference_steps=(6,), maximum_reference_count=0,
+        minimum_output_size=1024, maximum_output_size=2048)
+    if request['width'] % 32 or request['height'] % 32:
+        raise ValueError('출력 크기는 32의 배수여야 합니다.')
     status = inspect_runtime()
     if not status['generation_ready']:
         raise ValueError(status['message'])
@@ -47,25 +60,33 @@ def execute(job):
     from core.inference.video_minimax_h3_te import load_h3_quantized_text_encoder
     from core.inference.diffusion_prequant import PrequantSource, load_prequantized_transformer
     from core.inference.diffusion_minimax_h3_image import (native_config_transformer_class,
-        h3_image_prepare_prequant_model, load_minimax_h3_image_pipeline)
+        h3_image_prepare_prequant_model, load_h3_image_vae, install_h3_image_forward,
+        install_pdd_head_bank, MiniMaxH3ImagePipeline, MiniMaxH3ImageScheduler, H3_IMAGE_SIGMAS)
+    from transformers import AutoTokenizer
     helper.hf_hub_download_with_xet_fallback = lambda *args, **kwargs: str(ENCODER)
     os.environ['UNSLOTH_ALLOW_LOCAL_PREQUANT_PATH'] = str(TRANSFORMER.parent)
     encoder = load_h3_quantized_text_encoder(str(ENCODER_BASE), 'int8', dtype=torch.bfloat16,
                                              local_base=str(ENCODER_BASE), local_files_only=True)
     if encoder is None:
         raise RuntimeError('INT8 텍스트 인코더 적재 실패')
+    encoder._apply(lambda value: value.clone().to('cuda') if value.device.type == 'cpu' else value.to('cuda'))
+    if any(value.device.type != 'cuda' for value in list(encoder.parameters()) + list(encoder.buffers())):
+        raise RuntimeError('텍스트 인코더 GPU 적재 확인 실패')
     transformer = load_prequantized_transformer(native_config_transformer_class(), str(BASE),
         PrequantSource(kind='path', location=str(TRANSFORMER)), device='cuda', dtype=torch.bfloat16,
         scheme='int8', prepare_model=h3_image_prepare_prequant_model(), local_files_only=True,
-        placement_device='cpu', family='minimax-h3-image')
+        placement_device='cuda', family='minimax-h3-image')
     if transformer is None:
         raise RuntimeError('INT8 이미지 모델 적재 실패; 다른 정밀도로 전환하지 않습니다.')
-    os.environ['UNSLOTH_H3_IMAGE_PLACEMENT'] = 'stream'
-    pipe = load_minimax_h3_image_pipeline(str(BASE), dtype=torch.bfloat16, device='cuda',
-        transformer_quant='int8', text_encoder_quant='int8', text_encoder=encoder, transformer=transformer,
-        local_files_only=True, plan_width=request['width'], plan_height=request['height'])
-    if pipe._unsloth_h3_plan.placement != 'stream':
-        raise RuntimeError('요청한 스트리밍 배치가 적용되지 않았습니다.')
+    if any(value.device.type != 'cuda' for value in list(transformer.parameters()) + list(transformer.buffers())):
+        raise RuntimeError('이미지 모델 GPU 적재 확인 실패')
+    install_h3_image_forward(transformer)
+    install_pdd_head_bank(transformer)
+    vae = load_h3_image_vae(BASE).to('cuda')
+    tokenizer = AutoTokenizer.from_pretrained(str(BASE / 'tokenizer'), local_files_only=True)
+    pipe = MiniMaxH3ImagePipeline(transformer=transformer, vae=vae, text_encoder=encoder,
+        tokenizer=tokenizer, scheduler=MiniMaxH3ImageScheduler(sample_sigmas=list(H3_IMAGE_SIGMAS)))
+    pipe._unsloth_h3_device = 'cuda'
     def check(module, args, output):
         def visit(value):
             if torch.is_tensor(value) and not torch.isfinite(value).all().item():
@@ -90,7 +111,7 @@ def execute(job):
     hook.remove()
     image.save(job / 'result.png')
     write_record_atomically(job / 'result.json', {'seed': request['seed'], 'width': request['width'],
-        'height': request['height'], 'steps': 6, 'weights': checksums,
+        'height': request['height'], 'steps': 6, 'weights': checksums, 'prompt_sha256': request['prompt_sha256'],
         'image_sha256': hashlib.sha256((job / 'result.png').read_bytes()).hexdigest(),
         'torch': str(torch.__version__), 'hip': torch.version.hip, 'gpu': torch.cuda.get_device_name(0),
         'allocator': os.environ['PYTORCH_ALLOC_CONF'], 'sdpa': '기본 경로; 정확도 미검증',

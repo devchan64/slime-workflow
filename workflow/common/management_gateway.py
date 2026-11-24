@@ -44,7 +44,8 @@ MANAGEMENT_SERVICE_COMMANDS['wan22-i2v'] = ('history-delete', 'generate', 'statu
 MANAGEMENT_SERVICE_ROUTES['minimax-h3-i2v'] = '/minimax-h3-i2v'
 MANAGEMENT_SERVICE_COMMANDS['minimax-h3-i2v'] = MANAGEMENT_SERVICE_COMMANDS['wan22-i2v']
 MANAGEMENT_SERVICE_ROUTES['minimax-h3-image'] = '/minimax-h3-image'
-MANAGEMENT_SERVICE_COMMANDS['minimax-h3-image'] = ('history-delete', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset', 'prioritize')
+MANAGEMENT_SERVICE_COMMANDS['minimax-h3-image'] = ('history-delete', 'generate', 'preview', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset', 'prioritize')
+MANAGEMENT_COMMAND_ROUTES['preview'] = ('POST', '/preview')
 for _wan21_service in ('wan21-t2v', 'wan21-i2v'):
     MANAGEMENT_SERVICE_ROUTES[_wan21_service] = '/' + _wan21_service
     MANAGEMENT_SERVICE_COMMANDS[_wan21_service] = MANAGEMENT_SERVICE_COMMANDS['wan22-i2v']
@@ -616,6 +617,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     command_subparser_group=command_argument_parser.add_subparsers(dest='command',required=True)
     for operation_command_name in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
+        if operation_command_name == 'preview':
+            operation_argument_parser.add_argument('--payload-file', type=Path, required=True, help='생성 입력 JSON')
         if operation_command_name == 'resume-reviewed':
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='검토한 작업 ID와 두 확인값 JSON')
         if operation_command_name in ('keyframe-save','keyframe-source-review','keyframe-save-reviewed'):
@@ -758,6 +761,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         if operation_command_name=='sprite-history-delete':command_payload_value['revision']=command_argument_values.revision
         if operation_command_name=='sprite-save':command_payload_value['document']=parse_management_request_json(command_argument_values.document_file.read_text())
     if operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES + TRANSLATION_PAYLOAD_COMMAND_NAMES + HERMES_PAYLOAD_COMMAND_NAMES or operation_command_name in ('sheet-auto','sheet-export','sheet-gif','sheet-search','sheet-image','sheet-update','capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-register-check','effect-register-reviewed','effect-replace','asset-list','asset-register','asset-preview','asset-save','asset-save-reviewed','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
+    if operation_command_name == 'preview': command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text(encoding='utf-8'))
     if operation_command_name=='anchor-save':command_payload_value={'document':parse_management_request_json(command_argument_values.document_file.read_text())}
     if operation_command_name in ('anchor-history','anchor-history-reset'):command_payload_value={'animation_id':command_argument_values.animation_id,'animation_version':command_argument_values.animation_version}
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}
